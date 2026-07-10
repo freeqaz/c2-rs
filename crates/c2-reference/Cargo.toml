@@ -1,0 +1,12 @@
+[package]
+name = "c2-reference"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Drives the real cl.exe/c2.dll toolchain under wibo — the differential oracle."
+
+[dependencies]
+c2-il = { path = "../c2-il" }
+c2-obj = { path = "../c2-obj" }
+c2-core = { path = "../c2-core" }

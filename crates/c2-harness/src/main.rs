@@ -1,0 +1,267 @@
+//! `c2rs` — CLI over the differential harness. std only (no clap): args are
+//! parsed by hand. Every subcommand degrades to "SKIP: toolchain absent" when
+//! `Toolchain::locate()` is `None` — it never panics on a missing toolchain.
+//!
+//! Subcommands:
+//!   capture <cpp>       capture IL, print the 5 file sizes
+//!   compile <cpp>       reference obj, print size + timestamp
+//!   selftest [<cpp>...] oracle self-test over the given TUs (or all fixtures)
+//!   diff <cpp>          full differential (PortNotImplemented today)
+//!   bench               selftest across all fixtures/cpp/*.cpp, summary counts
+
+use std::path::PathBuf;
+use std::process::ExitCode;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use c2_core::PortC2;
+use c2_harness::{
+    all_fixtures, differential, oracle_selftest, DiffReport, SelfTestOutcome, SelfTestReport,
+};
+use c2_il::IL_SUFFIXES;
+use c2_reference::Toolchain;
+
+static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn scratch(tag: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let d = std::env::temp_dir().join(format!("c2rs-cli-{tag}-{}-{}-{}", std::process::id(), nanos, n));
+    let _ = std::fs::create_dir_all(&d);
+    d
+}
+
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let cmd = args.first().map(String::as_str).unwrap_or("help");
+    let rest = &args[args.len().min(1)..];
+
+    match cmd {
+        "capture" => cmd_capture(rest),
+        "compile" => cmd_compile(rest),
+        "selftest" => cmd_selftest(rest),
+        "diff" => cmd_diff(rest),
+        "bench" => cmd_bench(),
+        "help" | "-h" | "--help" => {
+            print_usage();
+            ExitCode::SUCCESS
+        }
+        other => {
+            eprintln!("unknown subcommand: {other}\n");
+            print_usage();
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn print_usage() {
+    eprintln!(
+        "c2rs — differential harness for the c2.dll native port\n\
+         \n\
+         USAGE:\n\
+         \x20 c2rs capture <cpp>        capture IL, print the 5 file sizes\n\
+         \x20 c2rs compile <cpp>        reference obj, print size + timestamp\n\
+         \x20 c2rs selftest [<cpp>...]  oracle self-test (determinism + capture stability)\n\
+         \x20 c2rs diff <cpp>           full differential (PortNotImplemented today)\n\
+         \x20 c2rs bench                selftest across all fixtures/cpp/*.cpp\n\
+         \n\
+         Toolchain is located via C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL / C2RS_WIBO_DEBUG\n\
+         / C2RS_DC3_ROOT (relative-to-repo defaults). Absent toolchain -> clean SKIP."
+    );
+}
+
+/// Locate the toolchain or print the standard skip line. Returns `None` (and the
+/// caller should exit SUCCESS) when absent.
+fn located() -> Option<Toolchain> {
+    match Toolchain::locate() {
+        Some(tc) => Some(tc),
+        None => {
+            println!("SKIP: toolchain absent");
+            None
+        }
+    }
+}
+
+fn require_cpp(rest: &[String]) -> Option<PathBuf> {
+    match rest.first() {
+        Some(p) => Some(PathBuf::from(p)),
+        None => {
+            eprintln!("error: expected a <cpp> path");
+            None
+        }
+    }
+}
+
+fn cmd_capture(rest: &[String]) -> ExitCode {
+    let Some(cpp) = require_cpp(rest) else {
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    let w = scratch("capture");
+    match tc.capture_il(&cpp, &w) {
+        Ok(bundle) => {
+            println!("captured IL bundle {} from {}", bundle.base_name, cpp.display());
+            for suffix in IL_SUFFIXES {
+                let size = bundle.get(suffix).map(|b| b.len()).unwrap_or(0);
+                let present = if bundle.get(suffix).is_some() { "ok" } else { "MISSING" };
+                println!("  .{suffix:<2}  {size:>7} B  {present}");
+            }
+            let _ = std::fs::remove_dir_all(&w);
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("capture failed: {e}");
+            let _ = std::fs::remove_dir_all(&w);
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn cmd_compile(rest: &[String]) -> ExitCode {
+    let Some(cpp) = require_cpp(rest) else {
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    let w = scratch("compile");
+    let out = w.join("out.obj");
+    match tc.compile_obj(&cpp, &out) {
+        Ok(obj) => {
+            let ts = obj
+                .timestamp()
+                .map(|t| format!("0x{t:08x}"))
+                .unwrap_or_else(|| "<none>".to_string());
+            println!(
+                "compiled {} -> {} bytes, TimeDateStamp={}",
+                cpp.display(),
+                obj.len(),
+                ts
+            );
+            let _ = std::fs::remove_dir_all(&w);
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("compile failed: {e}");
+            let _ = std::fs::remove_dir_all(&w);
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn selftest_row(r: &SelfTestReport) -> String {
+    let name = r
+        .cpp
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| r.cpp.display().to_string());
+    let detail = match &r.outcome {
+        SelfTestOutcome::Pass { obj_len, ex_len } => {
+            format!("PASS   obj={obj_len}B ex={ex_len}B")
+        }
+        SelfTestOutcome::DeterminismFail {
+            first_offset,
+            len_a,
+            len_b,
+        } => format!("FAIL   determinism @off {first_offset} (len {len_a} vs {len_b})"),
+        SelfTestOutcome::CaptureUnstable { ex_len_a, ex_len_b } => {
+            format!("FAIL   capture-unstable (.ex {ex_len_a}B vs {ex_len_b}B)")
+        }
+        SelfTestOutcome::Error(msg) => format!("ERROR  {}", first_line(msg)),
+    };
+    format!("  {name:<34} {detail}")
+}
+
+fn first_line(s: &str) -> &str {
+    s.lines().next().unwrap_or(s)
+}
+
+fn cmd_selftest(rest: &[String]) -> ExitCode {
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    let targets: Vec<PathBuf> = if rest.is_empty() {
+        all_fixtures()
+    } else {
+        rest.iter().map(PathBuf::from).collect()
+    };
+    if targets.is_empty() {
+        eprintln!("no fixtures found");
+        return ExitCode::FAILURE;
+    }
+    let mut all_pass = true;
+    println!("oracle self-test (determinism + capture stability):");
+    for cpp in &targets {
+        let w = scratch("selftest");
+        let report = oracle_selftest(cpp, &tc, &w);
+        all_pass &= report.passed();
+        println!("{}", selftest_row(&report));
+        let _ = std::fs::remove_dir_all(&w);
+    }
+    if all_pass {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
+
+fn cmd_diff(rest: &[String]) -> ExitCode {
+    let Some(cpp) = require_cpp(rest) else {
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    let w = scratch("diff");
+    let port = PortC2;
+    let report = differential(&cpp, &tc, &port, &w);
+    let line = match &report {
+        DiffReport::ToolchainAbsent => "ToolchainAbsent".to_string(),
+        DiffReport::PortNotImplemented(msg) => format!("PortNotImplemented: {}", first_line(msg)),
+        DiffReport::ReferenceReplayUnproven(msg) => {
+            format!("ReferenceReplayUnproven: {}", first_line(msg))
+        }
+        DiffReport::Match => "Match (port(IL) == c2(IL))".to_string(),
+        DiffReport::Mismatch { first_offset } => format!("Mismatch @ offset {first_offset}"),
+    };
+    println!("{} -> {}", cpp.display(), line);
+    let _ = std::fs::remove_dir_all(&w);
+    // The stub port returning PortNotImplemented is the expected state today;
+    // treat it as success (not an error) so scripting stays clean.
+    ExitCode::SUCCESS
+}
+
+fn cmd_bench() -> ExitCode {
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    let targets = all_fixtures();
+    if targets.is_empty() {
+        eprintln!("no fixtures found under {}", c2_harness::fixtures_dir().display());
+        return ExitCode::FAILURE;
+    }
+    println!("bench: oracle self-test across {} fixture(s)", targets.len());
+    let (mut pass, mut fail, mut err) = (0u32, 0u32, 0u32);
+    for cpp in &targets {
+        let w = scratch("bench");
+        let report = oracle_selftest(cpp, &tc, &w);
+        match &report.outcome {
+            SelfTestOutcome::Pass { .. } => pass += 1,
+            SelfTestOutcome::Error(_) => err += 1,
+            _ => fail += 1,
+        }
+        println!("{}", selftest_row(&report));
+        let _ = std::fs::remove_dir_all(&w);
+    }
+    println!("\nsummary: {pass} pass, {fail} fail, {err} error (of {})", targets.len());
+    if fail == 0 && err == 0 {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}

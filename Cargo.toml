@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/c2-il",
+    "crates/c2-obj",
+    "crates/c2-core",
+    "crates/c2-reference",
+    "crates/c2-harness",
+]
+
+# Zero external dependencies anywhere in this workspace: std only.
+# See README "Hard constraints". If a dep ever looks unavoidable, STOP and
+# discuss before adding — it changes the audit surface of a clean-room port.
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+publish = false

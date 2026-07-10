@@ -1,0 +1,9 @@
+[package]
+name = "c2-obj"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "COFF object handling for the differential compare (timestamp-normalized byte diff)."
+
+[dependencies]

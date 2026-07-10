@@ -1,0 +1,18 @@
+# Rust build output
+/target
+
+# Captured / generated IL bundles — NEVER commit these. IL is regenerated at
+# test time by the reference toolchain (see fixtures/README.md).
+_CL_*
+*.il
+
+# Compiler output objects
+*.obj
+*.o
+
+# Scratch / work directories used by the harness and tests
+/work
+/.c2rs-work
+**/*.tmp
+
+# Fixtures' .cpp stay tracked (they are the only hand-maintained artifact).

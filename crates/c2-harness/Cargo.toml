@@ -1,0 +1,21 @@
+[package]
+name = "c2-harness"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Differential benchmark + `c2rs` CLI: does port(IL) == c2(IL)?"
+
+[lib]
+name = "c2_harness"
+path = "src/lib.rs"
+
+[[bin]]
+name = "c2rs"
+path = "src/main.rs"
+
+[dependencies]
+c2-il = { path = "../c2-il" }
+c2-obj = { path = "../c2-obj" }
+c2-core = { path = "../c2-core" }
+c2-reference = { path = "../c2-reference" }
