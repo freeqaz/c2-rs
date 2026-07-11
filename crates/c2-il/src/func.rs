@@ -93,6 +93,35 @@ pub fn mangled_name(gl: &[u8]) -> Option<String> {
     None
 }
 
+/// Extract **all** mangled names from `.gl`, in file order — one per function
+/// in the translation unit. Same acceptance test as [`mangled_name`]; used for
+/// multi-function TUs where `.gl` carries a name per function.
+pub fn mangled_names(gl: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < gl.len() {
+        if gl[i] == b'?' {
+            let start = i;
+            let mut end = i;
+            while end < gl.len() && gl[end] != 0 {
+                end += 1;
+            }
+            let bytes = &gl[start..end];
+            if bytes.len() >= 3
+                && bytes[1].is_ascii_alphabetic()
+                && contains_subslice(bytes, b"@@")
+                && bytes.iter().all(|b| b.is_ascii_graphic())
+            {
+                out.push(String::from_utf8_lossy(bytes).into_owned());
+            }
+            i = end + 1;
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
 /// Extract the source path from `.gl`: a `<letter>:\…\<name>.cpp` NUL-terminated
 /// ASCII run (case-insensitive drive + `.cpp` suffix). Provenance only.
 pub fn source_path(gl: &[u8]) -> Option<String> {
@@ -183,6 +212,16 @@ fn parse_body(ex: &[u8], tw: usize) -> Option<(Vec<u16>, Vec<IlOp>)> {
                 p += 1;
                 ops.push(IlOp::Add);
             }
+            // `4F 01 NN` statement/label markers appear in the operand stream of
+            // multi-function TUs (a per-statement sequence index c1xx emits);
+            // they carry no codegen meaning here — skip the 3-byte marker.
+            0x4F if p + 2 < ex.len() && ex[p + 1] == 0x01 => {
+                p += 3;
+            }
+            // `53` ('S') statement-start marker — skip.
+            0x53 => {
+                p += 1;
+            }
             // Result-type annotation (`41 <type>`) or RETURN (`54 …`) ends the
             // straight-line expression.
             0x41 | 0x54 => break,
@@ -206,23 +245,78 @@ fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     hay.windows(needle.len()).position(|w| w == needle)
 }
 
+/// The `.ex` per-function start marker (`4F 1F`). The module stream is a
+/// sequence of function bodies, each introduced by this marker; the header /
+/// index region before the first one is opaque zero-fill for this class.
+const FN_START: [u8; 2] = [0x4F, 0x1F];
+
+/// Split the `.ex` stream into per-function byte segments at each `4F 1F`
+/// function-start marker. Segment `k` runs from marker `k` to marker `k+1`
+/// (the last to end-of-stream).
+fn split_functions(ex: &[u8]) -> Vec<&[u8]> {
+    let mut starts = Vec::new();
+    let mut i = 0;
+    while i + 1 < ex.len() {
+        if ex[i] == FN_START[0] && ex[i + 1] == FN_START[1] {
+            starts.push(i);
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+    let mut segs = Vec::with_capacity(starts.len());
+    for k in 0..starts.len() {
+        let end = if k + 1 < starts.len() { starts[k + 1] } else { ex.len() };
+        segs.push(&ex[starts[k]..end]);
+    }
+    segs
+}
+
 impl IlBundle {
-    /// Parse this bundle as an MVP straight-line add-chain function. Returns
-    /// `None` if the required files are absent or the body is outside the MVP
-    /// class (the caller — `PortC2` — then reports `NotImplemented`).
-    pub fn mvp_function(&self) -> Option<IlFunction> {
+    /// Parse this bundle as a sequence of straight-line add-chain functions
+    /// (the MVP class, generalized to a multi-function TU). Returns `None` if
+    /// the required files are absent, or if the `.gl` name count does not match
+    /// the `.ex` function count, or if ANY function body is outside the class
+    /// (the caller — `PortC2` — then reports `NotImplemented` for the whole TU).
+    ///
+    /// Names come from `.gl` in file order; bodies from `.ex` split at each
+    /// `4F 1F`. The two are paired positionally.
+    pub fn functions(&self) -> Option<Vec<IlFunction>> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
-        let mangled = mangled_name(gl)?;
+        let names = mangled_names(gl);
+        if names.is_empty() {
+            return None;
+        }
         let src = source_path(gl);
         let tw = detect_token_width(ex);
-        let (params, ops) = parse_body(ex, tw)?;
-        Some(IlFunction {
-            mangled_name: mangled,
-            source_path: src,
-            params,
-            ops,
-        })
+        let segs = split_functions(ex);
+        if segs.len() != names.len() {
+            return None; // ambiguous pairing → out of class
+        }
+        let mut funcs = Vec::with_capacity(names.len());
+        for (name, seg) in names.into_iter().zip(segs) {
+            let (params, ops) = parse_body(seg, tw)?;
+            funcs.push(IlFunction {
+                mangled_name: name,
+                source_path: src.clone(),
+                params,
+                ops,
+            });
+        }
+        Some(funcs)
+    }
+
+    /// Parse this bundle as a SINGLE MVP function. Convenience wrapper over
+    /// [`IlBundle::functions`]; returns `None` unless the TU has exactly one
+    /// in-class function.
+    pub fn mvp_function(&self) -> Option<IlFunction> {
+        let mut fs = self.functions()?;
+        if fs.len() == 1 {
+            fs.pop()
+        } else {
+            None
+        }
     }
 }
 
@@ -256,6 +350,35 @@ mod tests {
         // `4F 02 20 00 4F` → gap 2.
         let ex = [0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01];
         assert_eq!(detect_token_width(&ex), 2);
+    }
+
+    #[test]
+    fn mangled_names_collects_all_in_order() {
+        let gl = b"\x00?add2@@YAHHH@Z\x00pad\x00?add4@@YAHHHHH@Z\x00";
+        assert_eq!(
+            mangled_names(gl),
+            vec!["?add2@@YAHHH@Z".to_string(), "?add4@@YAHHHHH@Z".to_string()]
+        );
+    }
+
+    #[test]
+    fn parse_body_skips_multifunction_statement_markers() {
+        // fn0 of the two-function bundle: note the `4F 01 02` marker between the
+        // `4C 4F 11 53` LO and the first `B9` LOAD — absent in the single-fn
+        // case, present in multi-fn TUs. Must be skipped, not rejected.
+        let seg: &[u8] = &[
+            0x46, 0x2D, 0xE4, 0x09, 0x2D, 0xE3, 0x09, // formals b,a
+            0x4C, 0x4F, 0x11, 0x53, // LO S
+            0x4F, 0x01, 0x02, // statement/label marker (skip)
+            0xB9, 0xE3, 0x09, 0x86, 0x41, 0x74, // LOAD a
+            0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, // LOAD b
+            0x02, // ADD
+            0x41, 0x86, 0x41, 0x74, // result type int
+            0x3A, 0xE6, 0x09, 0x54, 0x02, 0x29, 0xE6, 0x09,
+        ];
+        let (params, ops) = parse_body(seg, 2).unwrap();
+        assert_eq!(params, vec![0xE309, 0xE409]); // a, b
+        assert_eq!(ops, vec![IlOp::Load(0xE309), IlOp::Load(0xE409), IlOp::Add]);
     }
 
     #[test]

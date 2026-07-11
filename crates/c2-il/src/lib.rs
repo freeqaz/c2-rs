@@ -25,7 +25,9 @@ use std::io;
 use std::path::Path;
 
 pub mod func;
-pub use func::{detect_token_width, mangled_name, source_path, IlFunction, IlOp};
+pub use func::{
+    detect_token_width, mangled_name, mangled_names, source_path, IlFunction, IlOp,
+};
 
 /// The five IL suffixes (no leading dot), in canonical order. `.ex` first
 /// because it is the main IL stream; mirrors `IL_SUFFIXES` in il_parser.py.

@@ -143,6 +143,27 @@ struct Section {
 ///   `?add3@@YAHHHH@Z`.
 /// * `text` — the `.text` bytes from codegen (12 for `add3`).
 pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> {
+    emit_obj(obj_name, &[Function { name: mangled_name, text_offset: 0 }], text)
+}
+
+/// One function placed in `.text`: its mangled name (from `.gl`) and byte
+/// offset within the concatenated `.text` payload.
+pub struct Function<'a> {
+    pub name: &'a str,
+    pub text_offset: u32,
+}
+
+/// Build the complete `.obj` image for one or more straight-line functions
+/// sharing a single `.text`. Generalizes [`emit_mvp_obj`]: functions are packed
+/// contiguously in `.text` (no inter-function padding — c2's real layout), each
+/// gets an EXTERNAL FUNCTION symbol whose `Value` is its `.text` byte offset,
+/// and `NumberOfSymbols` = 13 fixed slots + one per function.
+///
+/// * `obj_name` — the `-Fo` path (embedded in `.debug$S` S_OBJNAME).
+/// * `funcs` — functions in emit order (matches `.gl`/`.ex` order); each
+///   `text_offset` is its start within `text`.
+/// * `text` — the full concatenated `.text` bytes from codegen.
+pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     let debug_s = build_debug_s(obj_name);
 
     // Section table, in the fixed emit order.
@@ -195,8 +216,9 @@ pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> 
     }
     let ptr_symtab = cursor; // symbol table right after last raw section
 
-    // 14 symbol slots (10 real + 4 section-def aux). NumberOfSymbols counts aux.
-    let n_symbols: u32 = 14;
+    // 13 fixed slots (@comp.id, 4 section symbols + their aux, 2 externals) plus
+    // one EXTERNAL FUNCTION symbol per function. NumberOfSymbols counts aux.
+    let n_symbols: u32 = 13 + funcs.len() as u32;
 
     // ---- COFF header (20 bytes) ----
     let mut b = Buf::new();
@@ -254,8 +276,11 @@ pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> 
     emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000);
     // slot 11/12: .text (sec 5)
     emit_section_symbol(&mut b, &sections[4], 5);
-    // slot 13: the function symbol (EXTERNAL, FUNCTION type 0x20, sec .text)
-    emit_external_symbol(&mut b, &mut strtab, mangled_name, 5, 0x0020);
+    // slot 13…: one EXTERNAL FUNCTION symbol per function (type 0x20, sec .text),
+    // Value = its byte offset within .text, in emit order.
+    for f in funcs {
+        emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
+    }
 
     // ---- string table ----
     b.bytes(&strtab.finish());
@@ -295,6 +320,23 @@ fn emit_external_symbol(b: &mut Buf, strtab: &mut StringTable, name: &str, sec_n
     b.u32(0); // Value (fn offset in .text = 0 for the single MVP fn)
     b.i16(sec_num);
     b.u16(typ);
+    b.u8(2); // EXTERNAL
+    b.u8(0); // no aux
+}
+
+/// Emit an EXTERNAL FUNCTION symbol (type 0x20) whose (long) name lives in the
+/// string table, with `Value` = its byte offset within `.text`.
+fn emit_function_symbol(b: &mut Buf, strtab: &mut StringTable, name: &str, sec_num: i16, value: u32) {
+    if name.len() <= 8 {
+        b.name8(name);
+    } else {
+        let off = strtab.intern(name);
+        b.u32(0); // long-name marker
+        b.u32(off);
+    }
+    b.u32(value); // Value = fn offset within .text
+    b.i16(sec_num);
+    b.u16(0x0020); // DTYPE_FUNCTION
     b.u8(2); // EXTERNAL
     b.u8(0); // no aux
 }

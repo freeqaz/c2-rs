@@ -108,18 +108,36 @@ impl PortC2 {
         }
     }
 
-    /// Build the MVP obj for `il`, embedding `obj_name` as S_OBJNAME.
+    /// Build the obj for `il`, embedding `obj_name` as S_OBJNAME. Handles one
+    /// or more straight-line int add-chain functions in a single TU (each is
+    /// selected + placed in a shared `.text`; see [`codegen::select_text`] and
+    /// [`coff::emit_obj`]).
     pub fn build(&self, il: &IlBundle, obj_name: &str) -> Result<ObjImage, BackendError> {
-        let func = il.mvp_function().ok_or_else(|| {
+        let funcs = il.functions().ok_or_else(|| {
             BackendError::NotImplemented(
-                "PortC2 only handles the MVP straight-line int add-chain class \
-                 (e.g. add3); this bundle is outside it. See c2-core::codegen \
-                 and the CODEGEN spec for the supported shape."
+                "PortC2 only handles straight-line int add-chain functions \
+                 (e.g. add3, or a TU of several such); this bundle is outside \
+                 that class. See c2-core::codegen and the CODEGEN spec."
                     .to_string(),
             )
         })?;
-        let text = codegen::select_text(&func)?;
-        let bytes = coff::emit_mvp_obj(obj_name, &func.mangled_name, &text);
+
+        // Select each function's .text and pack contiguously, recording each
+        // function's byte offset within the shared .text (c2 emits no
+        // inter-function padding for this class).
+        let mut text: Vec<u8> = Vec::new();
+        let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
+        for f in &funcs {
+            let off = text.len() as u32;
+            let body = codegen::select_text(f)?;
+            text.extend_from_slice(&body);
+            placed.push(coff::Function {
+                name: &f.mangled_name,
+                text_offset: off,
+            });
+        }
+
+        let bytes = coff::emit_obj(obj_name, &placed, &text);
         Ok(ObjImage::new(bytes))
     }
 }

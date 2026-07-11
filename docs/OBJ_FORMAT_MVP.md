@@ -194,6 +194,24 @@ while walking the symbol table top-to-bottom** (verified against add3.obj's
 6-name table). mvp: size 42 → `__C2_11886` @4, `__C1_11886` @15,
 `?add3@@YAHHHH@Z` @26.
 
+## Multi-function TUs (generalization, verified)
+
+Several straight-line functions in one TU share a single `.text` and one
+symbol table:
+
+- `.text` packs the functions **contiguously, no inter-function padding**
+  (all PPC instrs are 4 B, so offsets stay 4-aligned). Verified on
+  `add2`+`add4`: `add2` (8 B) at offset 0, `add4` (16 B) at offset 8,
+  `.text` size 0x18.
+- Each function gets one EXTERNAL FUNCTION symbol (type `0x20`, section
+  `.text`) whose **`Value` = its byte offset within `.text`** (0, then
+  cumulative), emitted in `.gl`/`.ex` order.
+- **`NumberOfSymbols = 13 + N`** (13 fixed slots — `@comp.id`, 4 section
+  symbols + their aux, 2 watermark externals — plus one per function). The
+  single-function MVP is the `N = 1` case (14).
+- Long names (`len > 8`) enter the string table in first-reference order,
+  after the two watermark externals.
+
 ## Emitter build order
 
 1. Compute every `SizeOfRawData` (drectve const, debug$S by formula,
