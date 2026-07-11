@@ -126,6 +126,45 @@ Still out-of-class (rejected, not mis-emitted): **multiply by a constant**
 (strength-reduces to shift+add, e.g. `a*3` → `rlwinm r11,r3,1,0,30 ; add
 r3,r3,r11`); `const − reg` (`subfic`); a negative wide bare constant.
 
+## W4b2 non-leaf calls — SCOUTED, deferred (bigger than a frame)
+
+`return g(...) + k` (the call result is used, so f is non-leaf) was scouted
+end-to-end and is a **substantially larger rung than the tail call** — it
+needs a `.pdata` unwind section and compiler-counter label symbols, so it was
+not implemented in the W4 pass. Full anatomy (for the eventual implementation):
+
+**`.text` (size 0x24, verified constant across 1/2/4 callee args — the frame is
+always 96 bytes):**
+```
+7d8802a6  mflr r12
+9181fff8  stw  r12,-8(r1)          prologue: save LR
+9421ffa0  stwu r1,-96(r1)          allocate the fixed 96-byte frame
+4bfffff5  bl   g                   REL24 reloc at .text+0xC (disp = −0xC, LK=1)
+38630001  addi r3,r3,1             the post-call op (here +1); *k varies
+38210060  addi r1,r1,96            epilogue: free frame
+8181fff8  lwz  r12,-8(r1)          restore saved LR
+7d8803a6  mtlr r12
+4e800020  blr
+```
+Prologue (`7d8802a6 9181fff8 9421ffa0`) and epilogue (`38210060 8181fff8
+7d8803a6 4e800020`) are byte-constant for this class; only the post-call op
+(and the callee) vary. `a*5` post-op strength-reduces (`rlwinm`+`add`, size
+0x28) — out of the `+k` scope.
+
+**Extra sections/symbols that make it hard (this is why it's deferred):**
+- A **`.pdata` section** appears (so `NumberOfSections` = 6, not 5;
+  `NumberOfSymbols` = 20). 8 bytes: `00000000 40000903` = a RUNTIME_FUNCTION
+  (BeginAddress RVA=0 patched by a reloc; second word = packed X360 PPC unwind
+  info — encodes prolog/function length, so it varies per frame).
+  Characteristics `0x40400040`. One reloc: va=0, symidx=(the function),
+  **type `0x2` (ADDR32)** — a new relocation type.
+- **Compiler-generated label symbols** with monotonic counter names:
+  `$M2545` (val = .text+0xC, the `bl`), `$M2546` (val = .text end), `$T2547`
+  (in `.pdata`), all storage-class 6 (LABEL) / 3. The `2545/2546/2547`
+  counters are c2-internal and must be reproduced exactly for byte-equality —
+  the real blocker. Whether they are deterministic for a single-function TU
+  (and how the counter is seeded) is the open question to crack first.
+
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 
 These are load-bearing operand orders; a swap is a silent, fuzzy-invisible
