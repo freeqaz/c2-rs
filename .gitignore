@@ -38,3 +38,4 @@ _CL_*
 # Python bytecode (paint tooling is Python)
 __pycache__/
 *.pyc
+gens_*.jsonl
