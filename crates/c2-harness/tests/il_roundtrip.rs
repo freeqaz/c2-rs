@@ -90,14 +90,22 @@ fn roundtrip_all_fixtures_byte_identical() {
             );
         }
 
-        // Sanity: the .ex carried decoded body tokens and the .gl carried one
-        // typed body-start offset per function (cross-checked against .ex).
+        // Sanity: the .ex carried decoded body tokens and the .gl carried
+        // EXACTLY one structurally-identified body-start offset per function —
+        // the `== function_count` invariant K3 relies on (K2a strengthened this
+        // from the earlier `>= 1`, now that offsets are located by record framing
+        // and gated 1:1/in-order against the `.ex` `4F 1F` markers).
         assert!(
             !model.ex_tokens().is_empty(),
             "{name}: expected decoded .ex tokens"
         );
         let noff = model.gl_body_start_offsets().len();
-        assert!(noff >= 1, "{name}: expected >=1 typed .gl offset, got {noff}");
+        let nfns = model.ex_function_count();
+        assert_eq!(
+            noff, nfns,
+            "{name}: typed .gl offsets ({noff}) must be 1:1 with .ex functions ({nfns})"
+        );
+        assert!(nfns >= 1, "{name}: expected >=1 function, got {nfns}");
 
         checked += 1;
         std::fs::remove_dir_all(&w).ok();
