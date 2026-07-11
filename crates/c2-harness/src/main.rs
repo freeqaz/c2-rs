@@ -616,8 +616,9 @@ fn cmd_search(rest: &[String]) -> ExitCode {
         "solve" => cmd_search_solve(rest),
         "eval" => cmd_search_eval(rest),
         "from-retrieval" => cmd_search_from_retrieval(rest),
+        "from-lifter" => cmd_search_from_lifter(rest),
         _ => {
-            eprintln!("usage: c2rs search <solve <cpp>|eval|from-retrieval <corpus-dir>> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]");
+            eprintln!("usage: c2rs search <solve <cpp>|eval|from-retrieval <corpus-dir>|from-lifter <corpus-dir> --gens <jsonl>> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]");
             ExitCode::from(2)
         }
     }
@@ -916,6 +917,117 @@ fn cmd_search_from_retrieval(rest: &[String]) -> ExitCode {
     };
     println!(
         "\n  HEADLINE: from-unrelated-seed solve-rate = {solved}/{searched} = {pct:.1}% (searched = in-scope, non-trivial)"
+    );
+    ExitCode::SUCCESS
+}
+
+fn cmd_search_from_lifter(rest: &[String]) -> ExitCode {
+    let Some(dir) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+        eprintln!(
+            "usage: c2rs search from-lifter <corpus-dir> --gens <jsonl> [--k K] [--limit N] [--steps N] [--compiles N] [--beam K] [--timeout SECS]"
+        );
+        return ExitCode::from(2);
+    };
+    let Some(gens_path) = opt(rest, "--gens").map(PathBuf::from) else {
+        eprintln!("from-lifter: --gens <jsonl> required (rows {{\"id\",\"generations\":[...]}})");
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
+        return ExitCode::SUCCESS;
+    }
+
+    let k: usize = opt(rest, "--k").and_then(|s| s.parse().ok()).unwrap_or(5);
+    let limit: usize = opt(rest, "--limit").and_then(|s| s.parse().ok()).unwrap_or(0);
+    let moves = search_moveset(rest);
+    let mut budget = search_budget(rest);
+    // Bounded per-generation defaults (many generations x targets share one CPU).
+    if opt(rest, "--steps").is_none() {
+        budget.max_steps = 8;
+    }
+    if opt(rest, "--compiles").is_none() {
+        budget.max_compiles = 200;
+    }
+    if opt(rest, "--beam").is_none() {
+        budget.beam_width = 4;
+    }
+    let timeout = Duration::from_secs(
+        opt(rest, "--timeout").and_then(|s| s.parse().ok()).unwrap_or(25),
+    );
+
+    let gens = match search::load_lifter_gens(&gens_path) {
+        Ok(g) => g,
+        Err(e) => {
+            eprintln!("from-lifter: reading {}: {e}", gens_path.display());
+            return ExitCode::FAILURE;
+        }
+    };
+    println!(
+        "T-B lifter byte-exact eval: gens={} targets, k={}, limit={}, budget steps={} compiles={} beam={} timeout={}s",
+        gens.len(),
+        k,
+        limit,
+        budget.max_steps,
+        budget.max_compiles,
+        budget.beam_width,
+        timeout.as_secs(),
+    );
+
+    let w = scratch("search-from-lifter");
+    let report =
+        match search::from_lifter_eval(&tc, &dir, &gens, k, limit, &moves, &budget, timeout, &w) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("from-lifter eval failed: {e}");
+                let _ = std::fs::remove_dir_all(&w);
+                return ExitCode::FAILURE;
+            }
+        };
+    let _ = std::fs::remove_dir_all(&w);
+
+    println!("  corpus ok-rows: {}", report.n_items);
+    println!("  per-target (id[fns] class : detail):");
+    for r in &report.records {
+        let slot = match r.solved_slot {
+            Some(s) => format!("slot{s}"),
+            None => "-".to_string(),
+        };
+        println!(
+            "    {:<9}[{}fns] cap={}/{} {:<10} {:<6} {}",
+            r.target_id, r.target_fns, r.captured, r.k, r.class.label(), slot, r.detail
+        );
+    }
+
+    let (attempted, pass1, passk) = report.tally();
+    let no_compile = report
+        .records
+        .iter()
+        .filter(|r| r.class == search::LifterClass::NoCompile)
+        .count();
+    let errors = report
+        .records
+        .iter()
+        .filter(|r| r.class == search::LifterClass::Error)
+        .count();
+    let p1 = if attempted > 0 {
+        pass1 as f64 / attempted as f64 * 100.0
+    } else {
+        0.0
+    };
+    let pk = if attempted > 0 {
+        passk as f64 / attempted as f64 * 100.0
+    } else {
+        0.0
+    };
+    println!(
+        "\n  attempted(searched)={attempted} no-compile-targets={no_compile} target-errors={errors}"
+    );
+    println!("  P1.3 retrieval control floor: 9.6% pass@1");
+    println!(
+        "  HEADLINE: lifter byte-exact pass@1 = {pass1}/{attempted} = {p1:.1}%   pass@{k} = {passk}/{attempted} = {pk:.1}%"
     );
     ExitCode::SUCCESS
 }

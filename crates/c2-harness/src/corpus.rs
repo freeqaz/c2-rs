@@ -913,7 +913,7 @@ impl JsonWriter {
 
 /// A minimal recursive-descent JSON parser — just enough for the manifest lines
 /// (objects, arrays, strings, integers, bools, null). No floats. std-only.
-mod json {
+pub(crate) mod json {
     #[derive(Clone, Debug, PartialEq)]
     pub enum Json {
         Str(String),
