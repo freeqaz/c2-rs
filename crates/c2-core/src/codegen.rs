@@ -126,6 +126,22 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
                 msg: format!("LOAD of unknown token 0x{tok:04X} (not a parameter)"),
             })?;
             stack.push(reg);
+            // Single-scratch (r11) selection is correct only for a **serial
+            // accumulator chain**, where the operand stack never exceeds depth
+            // 2 (one running result + one fresh operand). A tree-shaped
+            // expression like `(a+b)*(c+d)` reaches depth 3 and needs a second
+            // scratch (c2 uses r10 next, descending); emitting it with one
+            // scratch would silently clobber the first result. Reject it as
+            // out-of-class rather than mis-emit (the differential would catch a
+            // mismatch, but the class boundary must be honest).
+            if stack.len() > 2 {
+                return Err(BackendError::NotImplemented(
+                    "expression is not a serial accumulator chain (operand stack \
+                     depth > 2 → needs more than one scratch register); outside \
+                     the current straight-line class"
+                        .into(),
+                ));
+            }
             continue;
         }
 
@@ -209,6 +225,31 @@ mod tests {
                 0x4E, 0x80, 0x00, 0x20, // blr
             ]
         );
+    }
+
+    #[test]
+    fn select_text_rejects_tree_expression() {
+        // `(a+b)*(c+d)` is postfix LOAD a,b,ADD,LOAD c,d,ADD,MUL — the operand
+        // stack reaches depth 3, needing a second scratch. Must be rejected
+        // (NotImplemented), NOT silently mis-emitted with one scratch.
+        let func = IlFunction {
+            mangled_name: "?t@@YAHHHHH@Z".into(),
+            source_path: None,
+            params: vec![0xE309, 0xE409, 0xE509, 0xE609],
+            ops: vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Add,
+                IlOp::Load(0xE509),
+                IlOp::Load(0xE609),
+                IlOp::Add,
+                IlOp::Mul,
+            ],
+        };
+        assert!(matches!(
+            select_text(&func),
+            Err(BackendError::NotImplemented(_))
+        ));
     }
 
     #[test]
