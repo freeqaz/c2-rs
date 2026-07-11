@@ -27,6 +27,8 @@ use crate::IlBundle;
 pub enum IlOp {
     /// Load a named variable (by IL token) onto the expression stack.
     Load(u16),
+    /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
+    Lit(i32),
     /// Pop rhs then lhs, push `lhs + rhs` (IL opcode `0x02`, commutative).
     Add,
     /// Pop rhs then lhs, push `lhs - rhs` (IL opcode `0x03`, NON-commutative).
@@ -186,9 +188,9 @@ fn parse_body(ex: &[u8], tw: usize) -> Option<(Vec<u16>, Vec<IlOp>)> {
         p += tw;
         formals_rev.push(tok);
     }
-    if formals_rev.is_empty() {
-        return None;
-    }
+    // An empty formal list is legitimate — a zero-parameter function like
+    // `int konst(){return 42;}` still emits the `46` marker, immediately
+    // followed by `LO`. (Do not require ≥1 formal.)
     // The `F` list is emitted in reverse of declaration order.
     let mut params: Vec<u16> = formals_rev;
     params.reverse();
@@ -227,6 +229,35 @@ fn parse_body(ex: &[u8], tw: usize) -> Option<(Vec<u16>, Vec<IlOp>)> {
             0x04 => {
                 p += 1;
                 ops.push(IlOp::Mul);
+            }
+            // LITERAL: `33 <int-type> <varint>`. The varint is a single byte
+            // when < 0x80 (the value directly); `0x80` introduces a 4-byte LE
+            // i32. (Verified: 5→`05`, 42→`2a`, 200→`80 c8 00 00 00`,
+            // 70000→`80 70 11 01 00`.) Other markers are unknown → out of class.
+            0x33 => {
+                p += 1;
+                if p + INT_TYPE.len() > ex.len() || ex[p..p + INT_TYPE.len()] != INT_TYPE {
+                    return None; // non-int literal → out of MVP class
+                }
+                p += INT_TYPE.len();
+                if p >= ex.len() {
+                    return None;
+                }
+                let marker = ex[p];
+                let val: i32 = if marker < 0x80 {
+                    p += 1;
+                    marker as i32
+                } else if marker == 0x80 {
+                    if p + 5 > ex.len() {
+                        return None;
+                    }
+                    let v = i32::from_le_bytes([ex[p + 1], ex[p + 2], ex[p + 3], ex[p + 4]]);
+                    p += 5;
+                    v
+                } else {
+                    return None; // unknown literal-width marker
+                };
+                ops.push(IlOp::Lit(val));
             }
             // `4F 01 NN` statement/label markers appear in the operand stream of
             // multi-function TUs (a per-statement sequence index c1xx emits);
@@ -366,6 +397,31 @@ mod tests {
         // `4F 02 20 00 4F` → gap 2.
         let ex = [0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01];
         assert_eq!(detect_token_width(&ex), 2);
+    }
+
+    #[test]
+    fn parse_body_decodes_literals() {
+        // `a + 5`: LOAD a, LIT(int,5), ADD. And a 4-byte literal `80 c8000000`
+        // = 200 to exercise the wide varint form.
+        let small: &[u8] = &[
+            0x46, 0x2D, 0xE3, 0x09, // formals a
+            0x4C, 0x4F, 0x11, 0x53, // LO S
+            0xB9, 0xE3, 0x09, 0x86, 0x41, 0x74, // LOAD a
+            0x33, 0x86, 0x41, 0x74, 0x05, // LIT 5
+            0x02, // ADD
+            0x41, 0x86, 0x41, 0x74, 0x54, // result-type ends
+        ];
+        let (params, ops) = parse_body(small, 2).unwrap();
+        assert_eq!(params, vec![0xE309]);
+        assert_eq!(ops, vec![IlOp::Load(0xE309), IlOp::Lit(5), IlOp::Add]);
+
+        let wide: &[u8] = &[
+            0x46, 0x2D, 0xE3, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0xB9, 0xE3, 0x09, 0x86, 0x41, 0x74,
+            0x33, 0x86, 0x41, 0x74, 0x80, 0xC8, 0x00, 0x00, 0x00, // LIT 200 (wide)
+            0x02, 0x41, 0x86, 0x41, 0x74, 0x54,
+        ];
+        let (_p, ops) = parse_body(wide, 2).unwrap();
+        assert_eq!(ops, vec![IlOp::Load(0xE309), IlOp::Lit(200), IlOp::Add]);
     }
 
     #[test]

@@ -95,6 +95,27 @@ Two more binary ops are in the straight-line class, verified byte-exact:
   rule. IL opcodes: `add`=`0x02`, `sub`=`0x03`, `mul`=`0x04` (postfix, each
   pops two operands).
 
+## Integer literals / immediates (W3, implemented)
+
+IL literals are `33 <int-type> <varint>`, where the varint is a **single byte
+if `< 0x80`** (the value directly), else **`0x80` + a 4-byte LE i32**
+(verified: 5→`05`, 42→`2a`, 200→`80 c8000000`, 70000→`80 70110100`). Codegen
+folds a literal operand into an immediate instruction exactly as c2 does — the
+selection stack carries `Reg | Imm`:
+
+- **`reg + k`** (either order) → **`addi rD, reg, k`** (`a+5` → `addi r3,r3,5`
+  = `38630005`).
+- **`reg − k`** → **`addi rD, reg, −k`** — c2 folds the subtraction of a
+  constant into an add-immediate with negated value (`a-5` → `addi r3,r3,-5`
+  = `3863fffb`). (`k − reg` is `subfic`, not modeled — rejected.)
+- **bare `return k`** → **`li rD, k` = `addi rD, r0, k`** (`return 42` →
+  `addi r3,r0,42` = `3860002a`; `addi` special-cases rA=0 to the literal 0).
+
+Scope limits (rejected as out-of-class, not mis-emitted): immediates outside
+signed 16-bit (need `addis`+`addi`, e.g. 70000 → `addis r3,r3,1 ; addi
+r3,r3,4464`); **multiply by a constant** (strength-reduces to shift+add, e.g.
+`a*3` → `rlwinm r11,r3,1,0,30 ; add r3,r3,r11`); `const − reg` (`subfic`).
+
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 
 These are load-bearing operand orders; a swap is a silent, fuzzy-invisible

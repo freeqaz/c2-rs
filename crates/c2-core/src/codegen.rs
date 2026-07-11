@@ -52,10 +52,38 @@ pub fn encode_subf(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// Encode `addi rD, rA, SI` (rD = rA + sign-extended SI): primary opcode 14.
+/// `SI` is a 16-bit signed immediate. Note `addi` special-cases `rA = 0` to
+/// mean the literal 0 (not the contents of r0), so `addi rD, 0, k` is the
+/// canonical `li rD, k`. Used for `reg ± small-constant` and constant loads.
+pub fn encode_addi(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+    let word: u32 =
+        (14 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+    word.to_be_bytes()
+}
+
 /// `blr` — branch to link register (function return). `bclr` with BO=20
 /// ("always"), BI=0, LK=0 → the fixed word `0x4E800020`.
 pub fn encode_blr() -> [u8; 4] {
     0x4E80_0020u32.to_be_bytes()
+}
+
+/// An operand on the selection stack: a physical register or an integer
+/// literal not yet materialized (folded into an immediate instruction where
+/// c2 does the same, e.g. `a + 5` → `addi`).
+#[derive(Clone, Copy, Debug)]
+enum Operand {
+    Reg(u8),
+    Imm(i32),
+}
+
+/// True iff `k` fits PPC's 16-bit signed immediate field (`addi`/`subf` imm).
+fn fits_i16(k: i32) -> bool {
+    (-0x8000..=0x7FFF).contains(&k)
+}
+
+fn out_of_class(msg: &str) -> BackendError {
+    BackendError::NotImplemented(msg.to_string())
 }
 
 /// Integer argument registers, left-to-right (Xbox 360 PPC / MSVC ABI).
@@ -106,69 +134,127 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     let n_binops = func
         .ops
         .iter()
-        .filter(|op| !matches!(op, IlOp::Load(_)))
+        .filter(|op| matches!(op, IlOp::Add | IlOp::Sub | IlOp::Mul))
         .count();
-    if n_binops == 0 {
-        return Err(BackendError::Pass {
-            pass: "codegen".into(),
-            msg: "codegen requires at least one binary op in the body".into(),
-        });
-    }
 
-    let mut stack: Vec<u8> = Vec::new();
+    let mut stack: Vec<Operand> = Vec::new();
     let mut text: Vec<u8> = Vec::new();
     let mut binop_idx = 0usize;
 
     for op in &func.ops {
-        if let IlOp::Load(tok) = op {
-            let reg = reg_of(*tok).ok_or_else(|| BackendError::Pass {
-                pass: "codegen".into(),
-                msg: format!("LOAD of unknown token 0x{tok:04X} (not a parameter)"),
-            })?;
-            stack.push(reg);
-            // Single-scratch (r11) selection is correct only for a **serial
-            // accumulator chain**, where the operand stack never exceeds depth
-            // 2 (one running result + one fresh operand). A tree-shaped
-            // expression like `(a+b)*(c+d)` reaches depth 3 and needs a second
-            // scratch (c2 uses r10 next, descending); emitting it with one
-            // scratch would silently clobber the first result. Reject it as
-            // out-of-class rather than mis-emit (the differential would catch a
-            // mismatch, but the class boundary must be honest).
-            if stack.len() > 2 {
-                return Err(BackendError::NotImplemented(
-                    "expression is not a serial accumulator chain (operand stack \
-                     depth > 2 → needs more than one scratch register); outside \
-                     the current straight-line class"
-                        .into(),
+        match op {
+            IlOp::Load(tok) => {
+                let reg = reg_of(*tok).ok_or_else(|| BackendError::Pass {
+                    pass: "codegen".into(),
+                    msg: format!("LOAD of unknown token 0x{tok:04X} (not a parameter)"),
+                })?;
+                stack.push(Operand::Reg(reg));
+            }
+            IlOp::Lit(k) => stack.push(Operand::Imm(*k)),
+            IlOp::Add | IlOp::Sub | IlOp::Mul => {
+                // Binary op: pop rhs then lhs.
+                let rhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (rhs)"))?;
+                let lhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (lhs)"))?;
+                binop_idx += 1;
+                let dest = if binop_idx == n_binops { RET_REG } else { SCRATCH_REG };
+                let result = emit_binop(*op, dest, lhs, rhs, &mut text)?;
+                stack.push(result);
+            }
+        }
+        // Single-scratch (r11) selection is correct only for a **serial
+        // accumulator chain** (operand stack depth ≤ 2: one running result +
+        // one fresh operand). A tree like `(a+b)*(c+d)` reaches depth 3 and
+        // needs a second scratch; emitting it with one would silently clobber
+        // the first result. Reject as out-of-class rather than mis-emit.
+        if stack.len() > 2 {
+            return Err(out_of_class(
+                "expression is not a serial accumulator chain (operand stack \
+                 depth > 2 → needs more than one scratch register); outside the \
+                 current straight-line class",
+            ));
+        }
+    }
+
+    // Materialize the single remaining operand into the return register r3.
+    match stack.as_slice() {
+        [Operand::Reg(RET_REG)] => {} // chain already ended in r3
+        [Operand::Reg(other)] => {
+            // A bare `return param` where the value is not already in r3 (e.g.
+            // `return b;`) needs a register move — not yet modeled.
+            return Err(out_of_class(&format!(
+                "result is in r{other}, not the return register r3 (bare \
+                 non-first-param return not yet handled)"
+            )));
+        }
+        [Operand::Imm(k)] => {
+            // Bare constant return, e.g. `return 42;` → `li r3,k` = addi r3,0,k.
+            if !fits_i16(*k) {
+                return Err(out_of_class(
+                    "constant does not fit a 16-bit immediate (needs addis+addi)",
                 ));
             }
-            continue;
+            text.extend_from_slice(&encode_addi(RET_REG, 0, *k as i16));
         }
-
-        // Binary op: pop rhs then lhs.
-        let rhs = stack.pop().ok_or_else(|| BackendError::Pass {
-            pass: "codegen".into(),
-            msg: "binary op with empty operand stack (rhs)".into(),
-        })?;
-        let lhs = stack.pop().ok_or_else(|| BackendError::Pass {
-            pass: "codegen".into(),
-            msg: "binary op with empty operand stack (lhs)".into(),
-        })?;
-        binop_idx += 1;
-        let dest = if binop_idx == n_binops { RET_REG } else { SCRATCH_REG };
-        let instr = match op {
-            IlOp::Add => encode_add(dest, lhs, rhs),
-            IlOp::Mul => encode_mullw(dest, lhs, rhs),
-            // `lhs - rhs`: subf's first operand is the subtrahend → rA=rhs, rB=lhs.
-            IlOp::Sub => encode_subf(dest, rhs, lhs),
-            IlOp::Load(_) => unreachable!("handled above"),
-        };
-        text.extend_from_slice(&instr);
-        stack.push(dest);
+        _ => {
+            return Err(out_of_class(
+                "expression did not reduce to a single value (malformed or out of class)",
+            ))
+        }
     }
 
     text.extend_from_slice(&encode_blr());
     Ok(text)
+}
+
+/// Emit one binary op into `text`, returning the result operand. Handles the
+/// register/immediate operand combinations c2 folds into a single instruction;
+/// rejects (as out-of-class) the shapes that need a different instruction than
+/// this class models (immediate multiply → strength reduction; `imm - reg` →
+/// `subfic`; out-of-range immediates → `addis`+`addi`).
+fn emit_binop(
+    op: IlOp,
+    dest: u8,
+    lhs: Operand,
+    rhs: Operand,
+    text: &mut Vec<u8>,
+) -> Result<Operand, BackendError> {
+    use Operand::{Imm, Reg};
+    let instr = match (op, lhs, rhs) {
+        // add: commutative; reg+reg or reg+imm (either order) → add / addi.
+        (IlOp::Add, Reg(a), Reg(b)) => encode_add(dest, a, b),
+        (IlOp::Add, Reg(a), Imm(k)) | (IlOp::Add, Imm(k), Reg(a)) => {
+            if !fits_i16(k) {
+                return Err(out_of_class("add immediate out of 16-bit range"));
+            }
+            encode_addi(dest, a, k as i16)
+        }
+        // mul: commutative; reg*reg only (reg*const strength-reduces — later rung).
+        (IlOp::Mul, Reg(a), Reg(b)) => encode_mullw(dest, a, b),
+        (IlOp::Mul, _, _) => {
+            return Err(out_of_class(
+                "multiply by a constant strength-reduces (shift/add); out of class",
+            ))
+        }
+        // sub `lhs - rhs`: reg-reg → subf (rA=rhs); reg-imm → addi with -imm.
+        (IlOp::Sub, Reg(a), Reg(b)) => encode_subf(dest, b, a),
+        (IlOp::Sub, Reg(a), Imm(k)) => {
+            let neg = k
+                .checked_neg()
+                .filter(|n| fits_i16(*n))
+                .ok_or_else(|| out_of_class("subtract immediate out of 16-bit range"))?;
+            encode_addi(dest, a, neg as i16)
+        }
+        (IlOp::Sub, Imm(_), Reg(_)) => {
+            return Err(out_of_class("`const - reg` needs subfic; out of class"))
+        }
+        // Two literals should have been constant-folded by the front-end.
+        (_, Imm(_), Imm(_)) => {
+            return Err(out_of_class("binary op on two literals (unexpected; c1xx folds these)"))
+        }
+        (IlOp::Load(_) | IlOp::Lit(_), _, _) => unreachable!("not a binary op"),
+    };
+    text.extend_from_slice(&instr);
+    Ok(Operand::Reg(dest))
 }
 
 #[cfg(test)]
@@ -225,6 +311,66 @@ mod tests {
                 0x4E, 0x80, 0x00, 0x20, // blr
             ]
         );
+    }
+
+    #[test]
+    fn encode_addi_matches_reference_words() {
+        assert_eq!(encode_addi(3, 3, 5), [0x38, 0x63, 0x00, 0x05]); // a+5
+        assert_eq!(encode_addi(3, 3, -5), [0x38, 0x63, 0xFF, 0xFB]); // a-5
+        assert_eq!(encode_addi(3, 0, 42), [0x38, 0x60, 0x00, 0x2A]); // li r3,42
+    }
+
+    fn func_with(params: Vec<u16>, ops: Vec<IlOp>) -> IlFunction {
+        IlFunction {
+            mangled_name: "?f@@YAHH@Z".into(),
+            source_path: None,
+            params,
+            ops,
+        }
+    }
+
+    #[test]
+    fn select_text_add_immediate() {
+        // `a + 5` → addi r3,r3,5 ; blr
+        let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(5), IlOp::Add]);
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![0x38, 0x63, 0x00, 0x05, 0x4E, 0x80, 0x00, 0x20]
+        );
+    }
+
+    #[test]
+    fn select_text_sub_immediate_folds_to_addi_neg() {
+        // `a - 5` → addi r3,r3,-5 ; blr
+        let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(5), IlOp::Sub]);
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![0x38, 0x63, 0xFF, 0xFB, 0x4E, 0x80, 0x00, 0x20]
+        );
+    }
+
+    #[test]
+    fn select_text_bare_constant_return_is_li() {
+        // `return 42;` → addi r3,r0,42 (li) ; blr
+        let f = func_with(vec![], vec![IlOp::Lit(42)]);
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![0x38, 0x60, 0x00, 0x2A, 0x4E, 0x80, 0x00, 0x20]
+        );
+    }
+
+    #[test]
+    fn select_text_rejects_immediate_multiply() {
+        // `a * 3` strength-reduces (out of class) — must reject, not mis-emit.
+        let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(3), IlOp::Mul]);
+        assert!(matches!(select_text(&f), Err(BackendError::NotImplemented(_))));
+    }
+
+    #[test]
+    fn select_text_rejects_out_of_range_immediate() {
+        // 70000 needs addis+addi — out of the single-addi class.
+        let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(70000), IlOp::Add]);
+        assert!(matches!(select_text(&f), Err(BackendError::NotImplemented(_))));
     }
 
     #[test]
