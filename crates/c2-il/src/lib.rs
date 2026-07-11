@@ -14,17 +14,24 @@
 //! The reference Python decoder that this will eventually mirror lives at
 //! `dc3-decomp/msvc-src/tools/il_parser.py` (opcode table, `try_parse_type`,
 //! `ILFunction`, `ILSymbols`, …).
-//
-// TODO(A2 codec): full ex/gl/sy/in/db grammar — port il_parser.py's opcode
-// table, type-encoding tables, and per-file parsers here, behind a round-trip
-// gate (re-encode every captured fixture bundle byte-identical). Until then,
-// this crate treats the five files as opaque byte blobs.
+//!
+//! # K1 lossless codec ([`mod@codec`])
+//!
+//! [`IlModel::parse`] / [`IlModel::encode`] are the **round-trip-gated container
+//! codec**: they decode a bundle into typed islands (the `.ex` operand-stream
+//! tokens and the `.gl` `80 <LE32>` body-start offset field) over opaque spans
+//! for everything not yet decoded, with the invariant `encode(parse(b)) == b`
+//! byte-for-byte or a fail-closed [`CodecError`]. Still opaque, hence the K2
+//! backlog: the `.ex` header + per-function metadata, the rest of `.gl`, and all
+//! of `.sy`/`.in`/`.db` (coverage map in `docs/IL_BUNDLE_MVP.md`).
 
 use std::collections::BTreeMap;
 use std::io;
 use std::path::Path;
 
+pub mod codec;
 pub mod func;
+pub use codec::{CodecError, ExToken, FileModel, IlModel, Span};
 pub use func::{
     detect_token_width, mangled_name, mangled_names, source_path, FramedCall, IlFunction, IlOp,
 };
