@@ -1,0 +1,3 @@
+// Generated straight-line int TU (seed=0, index=1).
+// Reproduce with: c2rs corpus gen --seed 0 ...
+int f1_0(int a) { return ((a * 198138) - a); }
