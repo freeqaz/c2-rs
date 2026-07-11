@@ -47,11 +47,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use c2_il::{ExToken, IlModel};
+use c2_il::{ExToken, IlBundle, IlModel};
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::{CapturedReference, Toolchain};
 
-use crate::retrieval::text_section;
+use crate::corpus;
+use crate::retrieval::{self, text_section, Item};
 
 // ===========================================================================
 // Gradient — the `.text` fuzzy score (search guide ONLY, never terminal)
@@ -417,6 +418,87 @@ pub fn insn_text_similarity(cand: &ObjImage, target: &ObjImage) -> f64 {
     let (ct, _) = text_section(&cn);
     let (tt, _) = text_section(&tn);
     insn_seq_similarity(&decode_text(ct), &decode_text(tt))
+}
+
+// ===========================================================================
+// Per-function-decomposed gradient (the whole-`.text` plateau fix)
+// ===========================================================================
+//
+// The whole-`.text` gradient above scores the WHOLE code section in one aligned
+// DP, so on a multi-function TU the intact sibling functions dominate the score:
+// a correct edit to the one function under edit moves the aggregate by only its
+// small share of the total instruction count, and greedy descent stalls at a
+// plateau (the 0-step stalls the T-A readout diagnosed as "the multi-function
+// whole-`.text` plateau"). The per-function gradient splits `.text` into
+// per-function segments and averages their similarity with EQUAL weight per
+// function, so an improvement to the edited function is credited at `1/nfns`
+// regardless of how large the intact siblings are — the masked progress becomes
+// visible. It is STILL only the gradient: the terminal is unchanged, full
+// timestamp-normalized `ObjImage::diff` `Identical`.
+
+/// PPC `blr` (`4E80 0020`) — the return terminator each MVP straight-line
+/// function ends with; used to split a `.text` word stream into per-function
+/// segments (each such function returns via exactly one `blr`).
+const BLR_WORD: u32 = 0x4E80_0020;
+
+/// Split a decoded `.text` word stream into per-function segments at each `blr`
+/// terminator. Each `blr` ends its segment (and is included in it); a trailing
+/// run with no final `blr` becomes a final segment so no words are dropped.
+fn split_by_blr(words: &[u32]) -> Vec<Vec<u32>> {
+    let mut segs: Vec<Vec<u32>> = Vec::new();
+    let mut cur: Vec<u32> = Vec::new();
+    for &w in words {
+        cur.push(w);
+        if w == BLR_WORD {
+            segs.push(std::mem::take(&mut cur));
+        }
+    }
+    if !cur.is_empty() {
+        segs.push(cur);
+    }
+    segs
+}
+
+/// Per-function instruction-sequence similarity: split both word streams into
+/// per-`blr` segments and average [`insn_seq_similarity`] over the segment pairs
+/// with EQUAL weight per function, so a corrected edit to one function is not
+/// diluted by intact sibling functions (the whole-`.text` plateau).
+///
+/// **Guarded fallback.** If the two streams do not split into the same number of
+/// segments — an off-target structure (an edit that changed the return/function
+/// count, or a body whose code did not decode into the expected `blr` pattern) —
+/// this falls back to the whole-stream [`insn_seq_similarity`] rather than align
+/// mismatched segments (which would mis-credit). `nfns` is the caller's expected
+/// function count (the K3a invariant); the segment split must agree with it AND
+/// between the two streams, or the honest whole-stream score is used.
+fn insn_seq_similarity_perfn(a: &[u32], b: &[u32], nfns: usize) -> f64 {
+    let sa = split_by_blr(a);
+    let sb = split_by_blr(b);
+    if sa.is_empty() || sa.len() != sb.len() || sb.len() != nfns {
+        return insn_seq_similarity(a, b);
+    }
+    let n = sa.len() as f64;
+    let sum: f64 = sa
+        .iter()
+        .zip(&sb)
+        .map(|(x, y)| insn_seq_similarity(x, y))
+        .sum();
+    sum / n
+}
+
+/// Per-function-decomposed instruction-aware `.text` similarity — the multi-
+/// function search **gradient** (never a terminal; see [`insn_text_similarity`]).
+/// Decodes each obj's COFF `.text` into PPC words, splits both into per-`blr`
+/// function segments, and averages the per-segment similarity with equal weight,
+/// so an edit to the function under edit is scored at `1/nfns` instead of being
+/// masked by intact siblings. Falls back to the whole-`.text` score when the two
+/// segment splits disagree (see [`insn_seq_similarity_perfn`]).
+pub fn insn_text_similarity_perfn(cand: &ObjImage, target: &ObjImage, nfns: usize) -> f64 {
+    let cn = cand.normalized();
+    let tn = target.normalized();
+    let (ct, _) = text_section(&cn);
+    let (tt, _) = text_section(&tn);
+    insn_seq_similarity_perfn(&decode_text(ct), &decode_text(tt), nfns)
 }
 
 // ===========================================================================
@@ -982,6 +1064,12 @@ pub struct ReplayScorer<'a> {
     timeout: Duration,
     counter: usize,
     compiles: usize,
+    /// When `Some(nfns)` (and `nfns > 1`), score the fuzzy gradient with the
+    /// per-function-decomposed similarity ([`insn_text_similarity_perfn`]) so a
+    /// correct edit to one function of a multi-function target is not masked by
+    /// its intact siblings (the whole-`.text` plateau). `None` = the whole-`.text`
+    /// gradient. The TERMINAL (byte-exact) is identical either way.
+    per_fn: Option<usize>,
 }
 
 impl<'a> ReplayScorer<'a> {
@@ -1007,12 +1095,22 @@ impl<'a> ReplayScorer<'a> {
             timeout,
             counter: 0,
             compiles: 0,
+            per_fn: None,
         }
     }
 
     /// The fixed `-Fo` path candidates and the target both replay to.
     pub fn fo_path(&self) -> &Path {
         &self.fo
+    }
+
+    /// Switch the fuzzy gradient to the per-function-decomposed similarity for a
+    /// multi-function target (`nfns > 1`); `nfns <= 1` leaves the whole-`.text`
+    /// gradient (a single function has nothing to decompose). The terminal check
+    /// is unchanged. Returns `self` for chaining.
+    pub fn per_function(&mut self, nfns: usize) -> &mut Self {
+        self.per_fn = if nfns > 1 { Some(nfns) } else { None };
+        self
     }
 }
 
@@ -1036,7 +1134,14 @@ impl<'a> Scorer for ReplayScorer<'a> {
                     // Instruction-aware gradient (never a terminal — see
                     // `insn_text_similarity`'s reconciliation note). The byte-exact
                     // terminal above is the sole success; this only ranks moves.
-                    Judged::Fuzzy(insn_text_similarity(&obj, &self.target))
+                    // For a multi-function target the per-function decomposition
+                    // keeps the edited function's progress from being masked by
+                    // intact siblings (the whole-`.text` plateau).
+                    let fuzzy = match self.per_fn {
+                        Some(nfns) => insn_text_similarity_perfn(&obj, &self.target, nfns),
+                        None => insn_text_similarity(&obj, &self.target),
+                    };
+                    Judged::Fuzzy(fuzzy)
                 }
             }
             Err(_) => Judged::Reject, // crash / timeout / no obj — skip cleanly
@@ -1318,6 +1423,446 @@ pub fn solve_rate(
         }
     }
     report
+}
+
+// ===========================================================================
+// From-unrelated-seed — the P1.3-retrieval-seeded search (the REAL pipeline)
+// ===========================================================================
+//
+// The solvable-instance protocol above seeds from a SMALL perturbation of the
+// known solution, so a byte-exact IL is one move away by construction — it prices
+// the search but is not the real task. This rung attempts the real pipeline:
+// given a TARGET obj whose IL is unknown, use **P1.3 retrieval** to pick the
+// nearest corpus IL as the seed, then beam-search from that unrelated seed toward
+// the target — terminal byte-exact. Most targets have no corpus twin (retrieval
+// recall@1 is low), so the seed is only APPROXIMATE: the search must bridge the
+// gap through K3a edits, and the honest solve-rate + failure taxonomy is the
+// finding.
+
+/// The seed the retrieval step picks for a target, or why there is none.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SeedChoice {
+    /// The nearest non-self corpus neighbor is an exact-`.text` **twin** of the
+    /// target — it compiles byte-exact with no search (a trivial / degenerate
+    /// "retrieval-solved" case). Reported separately, never fed to the search.
+    RetrievalTrivial { twin_id: String },
+    /// The nearest non-self, non-twin neighbor's index in the item slice — the
+    /// (approximate) seed the search starts from.
+    Seed { index: usize },
+    /// No candidate at all (the item slice held only the target).
+    NoCandidate,
+}
+
+/// Pick the retrieval seed for `target` from `items` (the corpus): rank by the
+/// P1.3 obj-`.text` cosine feature, take the nearest neighbor that is **not the
+/// target's own row** and **not an exact-`.text` twin** (a twin is a trivial
+/// solve, reported separately). Pure over the item features — deterministic, no
+/// toolchain.
+pub fn select_seed(target: &Item, items: &[Item]) -> SeedChoice {
+    for i in retrieval::rank(target, items) {
+        let cand = &items[i];
+        if cand.id == target.id {
+            continue; // never seed from self
+        }
+        if cand.text_key == target.text_key {
+            // The nearest non-self neighbor is a behavioral twin → trivial solve.
+            return SeedChoice::RetrievalTrivial {
+                twin_id: cand.id.clone(),
+            };
+        }
+        return SeedChoice::Seed { index: i };
+    }
+    SeedChoice::NoCandidate
+}
+
+/// The taxonomy bucket for one from-seed target outcome.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FromSeedClass {
+    /// A `.text` twin was retrieved — solved without any search (trivial).
+    RetrievalTrivial,
+    /// Seed and target have different function counts — out of K3a scope
+    /// (whole-function add/remove is K3b, unimplemented), so the search is not
+    /// attempted.
+    K3bBlocked,
+    /// The search reached a byte-exact obj from the unrelated seed.
+    Solved,
+    /// The search stalled at a local optimum below byte-exact — the move set
+    /// (K3a edits + generative vocab) could not bridge the seed→target gap
+    /// (a plateau / vocabulary limit).
+    Plateau,
+    /// The search hit its step or compile budget still short of byte-exact.
+    BudgetExhausted,
+    /// A per-target error (seed bundle would not load/parse, a capture/replay
+    /// failure) — reported honestly, never faked as a solve.
+    Error,
+}
+
+impl FromSeedClass {
+    pub fn label(&self) -> &'static str {
+        match self {
+            FromSeedClass::RetrievalTrivial => "retrieval-trivial",
+            FromSeedClass::K3bBlocked => "k3b-blocked",
+            FromSeedClass::Solved => "SOLVED",
+            FromSeedClass::Plateau => "plateau/vocab",
+            FromSeedClass::BudgetExhausted => "budget-exhausted",
+            FromSeedClass::Error => "error",
+        }
+    }
+}
+
+/// One target's from-seed result.
+#[derive(Clone, Debug)]
+pub struct FromSeedRecord {
+    pub target_id: String,
+    pub target_fns: usize,
+    pub seed_id: Option<String>,
+    pub seed_fns: Option<usize>,
+    pub class: FromSeedClass,
+    /// A short human note (twin id, fn-count mismatch, error text, …).
+    pub detail: String,
+    /// The primary search outcome (per-function gradient for a multi-function
+    /// target, whole-`.text` for single-function). `None` for a non-searched
+    /// class (trivial / K3b / error before search).
+    pub outcome: Option<SearchOutcome>,
+    /// For a multi-function target only: the SAME search run WITHOUT the
+    /// per-function gradient (whole-`.text`), the with/without comparison the
+    /// plateau-fix is measured against.
+    pub outcome_wholetext: Option<SearchOutcome>,
+}
+
+/// Config for a from-retrieval eval run — kept small and bounded (CPU is shared).
+#[derive(Clone, Debug)]
+pub struct FromSeedConfig {
+    /// Total held-out targets to attempt.
+    pub sample: usize,
+    /// Of `sample`, how many should be multi-function (to exercise the
+    /// per-function gradient); the rest are single-function.
+    pub multi: usize,
+    /// Deterministic sample-selection seed (a stride offset over the sorted ids).
+    pub select_seed: u64,
+    /// Per-target search budget.
+    pub budget: Budget,
+    /// Per-replay wall-clock timeout.
+    pub timeout: Duration,
+}
+
+impl Default for FromSeedConfig {
+    fn default() -> Self {
+        FromSeedConfig {
+            sample: 24,
+            multi: 4,
+            select_seed: 0,
+            budget: Budget {
+                max_steps: 10,
+                max_compiles: 300,
+                restarts: 0,
+                beam_width: 5,
+            },
+            timeout: Duration::from_secs(30),
+        }
+    }
+}
+
+/// The aggregate from-retrieval report.
+#[derive(Clone, Debug, Default)]
+pub struct FromSeedReport {
+    pub records: Vec<FromSeedRecord>,
+    /// Corpus size the sample was drawn from.
+    pub n_items: usize,
+}
+
+impl FromSeedReport {
+    /// Count of records in each class, in a fixed order.
+    pub fn class_counts(&self) -> Vec<(FromSeedClass, usize)> {
+        let order = [
+            FromSeedClass::Solved,
+            FromSeedClass::Plateau,
+            FromSeedClass::BudgetExhausted,
+            FromSeedClass::K3bBlocked,
+            FromSeedClass::RetrievalTrivial,
+            FromSeedClass::Error,
+        ];
+        order
+            .iter()
+            .map(|&c| (c, self.records.iter().filter(|r| r.class == c).count()))
+            .collect()
+    }
+
+    /// (searched, solved): searched excludes trivial / K3b / error (the classes
+    /// where no real search ran), so the solve-rate is over genuine attempts.
+    pub fn search_tally(&self) -> (usize, usize) {
+        let searched = self
+            .records
+            .iter()
+            .filter(|r| r.outcome.is_some())
+            .count();
+        let solved = self
+            .records
+            .iter()
+            .filter(|r| r.class == FromSeedClass::Solved)
+            .count();
+        (searched, solved)
+    }
+}
+
+/// Per-corpus-row metadata the from-seed runner needs (from the manifest).
+struct RowMeta {
+    source_rel: String,
+    il_dir_rel: String,
+    il_base: String,
+    fns: usize,
+}
+
+/// Deterministically pick `n` ids from the sorted `ids`, strided from a
+/// `seed`-derived start so the sample spreads across the corpus and is
+/// reproducible. Tops up on collisions so it always returns `min(n, len)` ids.
+fn pick_ids(ids: &[String], n: usize, seed: u64) -> Vec<String> {
+    let len = ids.len();
+    if len == 0 || n == 0 {
+        return Vec::new();
+    }
+    let n = n.min(len);
+    let stride = (len / n).max(1);
+    let start = (seed as usize) % len;
+    let mut used: BTreeSet<usize> = BTreeSet::new();
+    let mut out: Vec<String> = Vec::new();
+    let mut step = 0usize;
+    while out.len() < n && step < len {
+        let k = (start + step * stride) % len;
+        if used.insert(k) {
+            out.push(ids[k].clone());
+        }
+        step += 1;
+    }
+    let mut k = 0usize;
+    while out.len() < n && k < len {
+        if used.insert(k) {
+            out.push(ids[k].clone());
+        }
+        k += 1;
+    }
+    out
+}
+
+/// Run the from-unrelated-seed protocol over a deterministically-selected sample
+/// of held-out corpus targets, returning the per-target records + aggregate.
+///
+/// For each target: pick the retrieval seed ([`select_seed`], excluding self and
+/// `.text` twins); scope to a compatible function structure (same function count
+/// — a mismatch is [`FromSeedClass::K3bBlocked`], NOT forced); render the target
+/// obj by replaying its own IL to a fixed `-Fo` (so a byte-exact terminal is
+/// reachable); then beam-search from the seed toward the target obj, judged by a
+/// REAL c2 replay, terminal byte-exact. Multi-function targets are searched with
+/// the per-function gradient AND, for the with/without comparison, again with the
+/// whole-`.text` gradient.
+pub fn from_retrieval_eval(
+    tc: &Toolchain,
+    root: &Path,
+    moves: &MoveSet,
+    cfg: &FromSeedConfig,
+    scratch: &Path,
+) -> std::io::Result<FromSeedReport> {
+    let items = retrieval::load_items(root)?;
+    let manifest = corpus::load_manifest(root)?;
+
+    // id -> metadata (only `ok` rows with a full IL side).
+    let mut meta: BTreeMap<String, RowMeta> = BTreeMap::new();
+    for r in manifest {
+        if r.status != "ok" {
+            continue;
+        }
+        if let (Some(source_rel), Some(il_dir_rel), Some(il_base)) =
+            (r.source_rel, r.il_dir_rel, r.il_base)
+        {
+            meta.insert(
+                r.id.clone(),
+                RowMeta {
+                    source_rel,
+                    il_dir_rel,
+                    il_base,
+                    fns: r.gl_offsets.len(),
+                },
+            );
+        }
+    }
+    let idx_of: BTreeMap<String, usize> = items
+        .iter()
+        .enumerate()
+        .map(|(i, it)| (it.id.clone(), i))
+        .collect();
+
+    // Partition ids present in BOTH the items and the metadata by function count.
+    let mut single: Vec<String> = Vec::new();
+    let mut multi: Vec<String> = Vec::new();
+    for (id, m) in &meta {
+        if !idx_of.contains_key(id) {
+            continue;
+        }
+        if m.fns <= 1 {
+            single.push(id.clone());
+        } else if m.fns >= 2 {
+            multi.push(id.clone());
+        }
+    }
+    single.sort();
+    multi.sort();
+
+    let n_multi = cfg.multi.min(cfg.sample);
+    let n_single = cfg.sample.saturating_sub(n_multi);
+    let mut targets = pick_ids(&single, n_single, cfg.select_seed);
+    targets.extend(pick_ids(&multi, n_multi, cfg.select_seed));
+
+    let mut report = FromSeedReport {
+        records: Vec::new(),
+        n_items: items.len(),
+    };
+
+    for (n, target_id) in targets.iter().enumerate() {
+        let t_idx = idx_of[target_id];
+        let target_item = &items[t_idx];
+        let t_meta = &meta[target_id];
+        let target_fns = t_meta.fns;
+
+        let mut rec = FromSeedRecord {
+            target_id: target_id.clone(),
+            target_fns,
+            seed_id: None,
+            seed_fns: None,
+            class: FromSeedClass::Error,
+            detail: String::new(),
+            outcome: None,
+            outcome_wholetext: None,
+        };
+
+        // --- seed selection (retrieval; excludes self + twins) --------------
+        match select_seed(target_item, &items) {
+            SeedChoice::NoCandidate => {
+                rec.detail = "no retrieval candidate".into();
+                report.records.push(rec);
+                continue;
+            }
+            SeedChoice::RetrievalTrivial { twin_id } => {
+                rec.seed_id = Some(twin_id.clone());
+                rec.class = FromSeedClass::RetrievalTrivial;
+                rec.detail = format!("exact-.text twin {twin_id} retrieved (no search)");
+                report.records.push(rec);
+                continue;
+            }
+            SeedChoice::Seed { index } => {
+                let seed_item = &items[index];
+                rec.seed_id = Some(seed_item.id.clone());
+                let Some(s_meta) = meta.get(&seed_item.id) else {
+                    rec.detail = "seed row missing from manifest".into();
+                    report.records.push(rec);
+                    continue;
+                };
+
+                // --- load + parse the seed IL (no toolchain) ----------------
+                let seed_dir = root.join(&s_meta.il_dir_rel);
+                let seed_bundle = match IlBundle::load_from_dir(&seed_dir, &s_meta.il_base) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        rec.detail = format!("seed bundle load: {e}");
+                        report.records.push(rec);
+                        continue;
+                    }
+                };
+                let seed_model = match IlModel::parse(&seed_bundle) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        rec.detail = format!("seed codec: {e}");
+                        report.records.push(rec);
+                        continue;
+                    }
+                };
+                let seed_fns = seed_model.ex_function_count();
+                rec.seed_fns = Some(seed_fns);
+
+                // --- in-scope filter (compatible function structure) --------
+                if seed_fns != target_fns {
+                    rec.class = FromSeedClass::K3bBlocked;
+                    rec.detail =
+                        format!("seed {seed_fns} fns vs target {target_fns} — K3b (whole-fn) out of scope");
+                    report.records.push(rec);
+                    continue;
+                }
+
+                // --- render the target obj (its own IL → fixed -Fo) ---------
+                let inst_dir = scratch.join(format!("inst{n}"));
+                let src = root.join(&t_meta.source_rel);
+                let base = match tc.capture_reference(&src, &inst_dir.join("cap")) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        rec.detail = format!("target capture: {e}");
+                        report.records.push(rec);
+                        let _ = std::fs::remove_dir_all(&inst_dir);
+                        continue;
+                    }
+                };
+                let search_dir = inst_dir.join("search");
+                let fo = search_dir.join("cand.obj");
+                let target_obj =
+                    match tc.replay_within(&base, &inst_dir.join("tgt_il"), &fo, cfg.timeout) {
+                        Ok(o) => o,
+                        Err(e) => {
+                            rec.detail = format!("target replay: {e}");
+                            report.records.push(rec);
+                            let _ = std::fs::remove_dir_all(&inst_dir);
+                            continue;
+                        }
+                    };
+
+                // --- primary search (per-function gradient for multi) -------
+                let mut scorer = ReplayScorer::new(
+                    tc,
+                    &base,
+                    target_obj.clone(),
+                    search_dir.clone(),
+                    cfg.timeout,
+                );
+                scorer.per_function(target_fns);
+                let outcome = beam_search(&seed_model, moves, &mut scorer, &cfg.budget);
+                rec.class = classify_outcome(&outcome);
+                rec.detail = format!("{:?} best_fuzzy={:.4}", outcome.reason, outcome.best_fuzzy);
+                rec.outcome = Some(outcome);
+
+                // --- with/without comparison run (multi-function only) ------
+                // Same search_dir → same fixed `-Fo` → the rendered target obj
+                // still matches candidates. Whole-`.text` gradient this time.
+                if target_fns > 1 {
+                    let mut scorer2 = ReplayScorer::new(
+                        tc,
+                        &base,
+                        target_obj.clone(),
+                        search_dir.clone(),
+                        cfg.timeout,
+                    );
+                    // per_fn left None → whole-`.text`.
+                    let out2 = beam_search(&seed_model, moves, &mut scorer2, &cfg.budget);
+                    rec.outcome_wholetext = Some(out2);
+                }
+
+                let _ = std::fs::remove_dir_all(&inst_dir);
+                report.records.push(rec);
+            }
+        }
+    }
+
+    Ok(report)
+}
+
+/// Map a finished search outcome to its taxonomy bucket.
+fn classify_outcome(o: &SearchOutcome) -> FromSeedClass {
+    if o.solved {
+        return FromSeedClass::Solved;
+    }
+    match o.reason {
+        StopReason::Solved => FromSeedClass::Solved,
+        StopReason::LocalOptimum => FromSeedClass::Plateau,
+        StopReason::StepsExhausted | StopReason::CompilesExhausted => {
+            FromSeedClass::BudgetExhausted
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1928,5 +2473,151 @@ mod tests {
         // that motivates the generative set.
         let reuse = distinct_operands(&tokens);
         assert!(!reuse.contains(&Load(b)), "reuse-only cannot regenerate b");
+    }
+
+    // ---- Part 4: per-function-decomposed gradient (the plateau fix) --------
+
+    #[test]
+    fn split_by_blr_partitions_at_returns() {
+        // Two functions, each ending in a `blr`; the split yields exactly two
+        // segments, each including its terminating `blr`.
+        let words = [ADDI_R3_R3_5, BLR, ADDI_R11_R3_5, ADD_R3_R11_R3, BLR];
+        let segs = split_by_blr(&words);
+        assert_eq!(segs.len(), 2);
+        assert_eq!(segs[0], vec![ADDI_R3_R3_5, BLR]);
+        assert_eq!(segs[1], vec![ADDI_R11_R3_5, ADD_R3_R11_R3, BLR]);
+        // A trailing run with no final `blr` becomes its own segment (no drop).
+        let tail = split_by_blr(&[ADDI_R3_R3_5, BLR, ADDI_R11_R3_5]);
+        assert_eq!(tail.len(), 2);
+        assert_eq!(tail[1], vec![ADDI_R11_R3_5]);
+    }
+
+    #[test]
+    fn per_fn_gradient_lifts_a_masked_function_edit() {
+        // Two functions. fn0 is large and INTACT in both candidate and target
+        // (10 identical insns + blr); fn1 is small and under edit. The
+        // whole-`.text` gradient lets the big intact fn0 mask fn1's progress; the
+        // per-function gradient scores each function with equal weight, so fixing
+        // fn1 moves the score far more — the plateau fix.
+        let mut fn0 = vec![ADDI_R3_R3_5; 10];
+        fn0.push(BLR);
+        let fn1_target = [ADDI_R3_R3_5, BLR]; // `a+5`
+        let fn1_wrong = [ADD_R3_R11_R3, BLR]; // wrong opcode (add, not addi)
+
+        let target: Vec<u32> = fn0.iter().copied().chain(fn1_target).collect();
+        let seed: Vec<u32> = fn0.iter().copied().chain(fn1_wrong).collect();
+        let fixed: Vec<u32> = fn0.iter().copied().chain(fn1_target).collect();
+
+        let perfn = |c: &[u32]| insn_seq_similarity_perfn(c, &target, 2);
+        let whole = |c: &[u32]| insn_seq_similarity(c, &target);
+
+        // A correct edit to fn1 raises the per-function score even with fn0
+        // intact, and reaches a full 1.0 on the exact match.
+        assert!(perfn(&seed) < perfn(&fixed), "the fn1 fix must raise per-fn");
+        assert!((perfn(&fixed) - 1.0).abs() < 1e-9, "exact match is 1.0");
+
+        // The plateau fix: the same edit gets a STRICTLY larger gradient step
+        // under the per-function decomposition than under the whole-`.text`
+        // score (where the 10-insn intact fn0 dilutes it).
+        let d_perfn = perfn(&fixed) - perfn(&seed);
+        let d_whole = whole(&fixed) - whole(&seed);
+        assert!(
+            d_perfn > d_whole,
+            "per-fn must give the masked edit a stronger gradient: \
+             Δperfn={d_perfn} vs Δwhole={d_whole}"
+        );
+    }
+
+    #[test]
+    fn per_fn_gradient_falls_back_when_splits_disagree() {
+        // A 2-segment candidate vs a 1-segment target (or a wrong nfns hint) must
+        // NOT align mismatched segments — it falls back to the honest whole-stream
+        // score rather than over-/under-crediting a bad split.
+        let a = [ADDI_R3_R3_5, BLR, ADDI_R11_R3_5, BLR]; // 2 segments
+        let b = [ADDI_R3_R3_5, BLR]; // 1 segment
+        assert_eq!(
+            insn_seq_similarity_perfn(&a, &b, 2),
+            insn_seq_similarity(&a, &b),
+            "unequal segment counts fall back to whole-stream"
+        );
+        // A correct nfns but mismatched split (candidate has 1 seg, hint says 2)
+        // also falls back.
+        assert_eq!(
+            insn_seq_similarity_perfn(&b, &b, 2),
+            insn_seq_similarity(&b, &b),
+        );
+    }
+
+    #[test]
+    fn per_fn_gradient_max_does_not_terminate() {
+        // The terminal seam for the per-function gradient: two objs with identical
+        // `.text` but a differing reloc/symbol tail score a full 1.0 gradient yet
+        // are NOT byte-exact — a maxed per-fn gradient is never a success (only
+        // `ObjImage::diff == Identical` terminates).
+        let code = text_target(); // `addi r3,r3,5 ; blr` — one `blr` segment
+        let target = coff_with_text(&code, &[0xAA, 0xBB, 0xCC, 0xDD]);
+        let cand = coff_with_text(&code, &[0xAA, 0xBB, 0xCC, 0xEE]);
+        assert_eq!(
+            insn_text_similarity_perfn(&cand, &target, 1),
+            1.0,
+            "identical `.text` maxes the per-fn gradient"
+        );
+        assert_ne!(
+            ObjImage::diff(&cand, &target),
+            ObjDiff::Identical,
+            "the objs differ in the reloc tail — not byte-exact"
+        );
+    }
+
+    // ---- Part 5: retrieval seed selection (self / twin exclusion) ----------
+
+    fn mk_item(id: &str, text: &[u8]) -> Item {
+        let (hist, norm) = retrieval::byte_histogram(text);
+        Item {
+            id: id.into(),
+            src_key: corpus::sha256_hex(id.as_bytes()), // unique per row
+            text_key: corpus::sha256_hex(text),
+            full_key: format!("full-{id}"),
+            hist,
+            norm,
+            text_len: text.len(),
+            nsym: 0,
+            obj_len: text.len(),
+        }
+    }
+
+    #[test]
+    fn select_seed_flags_a_twin_as_retrieval_trivial() {
+        // The corpus holds the target, an exact-`.text` twin (different source),
+        // and two distinct-code rows. The nearest non-self neighbor is the twin
+        // (cosine 1.0) → a trivial retrieval solve, never fed to the search.
+        let items = vec![
+            mk_item("q", &[1, 2, 3, 4]),
+            mk_item("tw", &[1, 2, 3, 4]), // twin (identical .text)
+            mk_item("nr", &[1, 2, 3, 5]), // near
+            mk_item("fr", &[9, 9, 9, 9]), // far
+        ];
+        match select_seed(&items[0], &items) {
+            SeedChoice::RetrievalTrivial { twin_id } => assert_eq!(twin_id, "tw"),
+            other => panic!("expected a twin trivial, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn select_seed_picks_nearest_non_self_non_twin() {
+        // No twin present: the seed is the nearest non-self neighbor, and it is
+        // never the target's own row.
+        let items = vec![
+            mk_item("q", &[1, 2, 3, 4]),
+            mk_item("nr", &[1, 2, 3, 5]), // closest distinct code
+            mk_item("fr", &[9, 9, 9, 9]), // far
+        ];
+        match select_seed(&items[0], &items) {
+            SeedChoice::Seed { index } => {
+                assert_ne!(items[index].id, "q", "must never seed from self");
+                assert_eq!(items[index].id, "nr", "nearest distinct row is the seed");
+            }
+            other => panic!("expected a Seed, got {other:?}"),
+        }
     }
 }

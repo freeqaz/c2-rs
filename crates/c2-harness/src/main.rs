@@ -85,6 +85,7 @@ fn print_usage() {
          \x20 c2rs retrieve eval <dir>  P1.3: obj->IL retrieval baseline, recall@k\n\
          \x20 c2rs search solve <cpp>   T-A: solve one d=1 instance from a fixture, byte-exact\n\
          \x20 c2rs search eval [opts]   T-A: IL-space solve-rate over fixtures\n\
+         \x20 c2rs search from-retrieval <corpus-dir>  T-A: from-unrelated-seed (P1.3-seeded) solve-rate\n\
          \n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
@@ -614,8 +615,9 @@ fn cmd_search(rest: &[String]) -> ExitCode {
     match sub {
         "solve" => cmd_search_solve(rest),
         "eval" => cmd_search_eval(rest),
+        "from-retrieval" => cmd_search_from_retrieval(rest),
         _ => {
-            eprintln!("usage: c2rs search <solve <cpp>|eval> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]");
+            eprintln!("usage: c2rs search <solve <cpp>|eval|from-retrieval <corpus-dir>> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]");
             ExitCode::from(2)
         }
     }
@@ -802,6 +804,120 @@ fn cmd_search_eval(rest: &[String]) -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+fn cmd_search_from_retrieval(rest: &[String]) -> ExitCode {
+    let Some(dir) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+        eprintln!(
+            "usage: c2rs search from-retrieval <corpus-dir> [--sample N] [--multi N] [--select-seed N] [--steps N] [--compiles N] [--beam K] [--timeout SECS]"
+        );
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
+        return ExitCode::SUCCESS;
+    }
+
+    // Real-path moveset: drop the obj-invisible widen/narrow (P0.6a A) unless
+    // explicitly kept — same rule as `search eval`.
+    let moves = search_moveset(rest);
+    let mut cfg = search::FromSeedConfig::default();
+    if let Some(v) = opt(rest, "--sample").and_then(|s| s.parse().ok()) {
+        cfg.sample = v;
+    }
+    if let Some(v) = opt(rest, "--multi").and_then(|s| s.parse().ok()) {
+        cfg.multi = v;
+    }
+    if let Some(v) = opt(rest, "--select-seed").and_then(|s| s.parse().ok()) {
+        cfg.select_seed = v;
+    }
+    if let Some(v) = opt(rest, "--steps").and_then(|s| s.parse().ok()) {
+        cfg.budget.max_steps = v;
+    }
+    if let Some(v) = opt(rest, "--compiles").and_then(|s| s.parse().ok()) {
+        cfg.budget.max_compiles = v;
+    }
+    if let Some(v) = opt(rest, "--beam").and_then(|s| s.parse().ok()) {
+        cfg.budget.beam_width = v;
+    }
+    if let Some(v) = opt(rest, "--timeout").and_then(|s| s.parse().ok()) {
+        cfg.timeout = Duration::from_secs(v);
+    }
+
+    let w = scratch("search-from-retrieval");
+    println!(
+        "T-A from-unrelated-seed: sample={} (multi={}) select-seed={} budget steps={} compiles={} beam={} timeout={}s",
+        cfg.sample,
+        cfg.multi,
+        cfg.select_seed,
+        cfg.budget.max_steps,
+        cfg.budget.max_compiles,
+        cfg.budget.beam_width,
+        cfg.timeout.as_secs(),
+    );
+    let report = match search::from_retrieval_eval(&tc, &dir, &moves, &cfg, &w) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("from-retrieval eval failed: {e}");
+            let _ = std::fs::remove_dir_all(&w);
+            return ExitCode::FAILURE;
+        }
+    };
+    let _ = std::fs::remove_dir_all(&w);
+
+    println!("  corpus items: {}", report.n_items);
+    println!("  per-target (target[fns] <- seed[fns] : class):");
+    for r in &report.records {
+        let seed = match (&r.seed_id, r.seed_fns) {
+            (Some(id), Some(f)) => format!("{id}[{f}fns]"),
+            (Some(id), None) => format!("{id}[?]"),
+            _ => "<none>".to_string(),
+        };
+        let mut line = format!(
+            "    {}[{}fns] <- {:<14} {:<17}",
+            r.target_id,
+            r.target_fns,
+            seed,
+            r.class.label()
+        );
+        if let Some(o) = &r.outcome {
+            line.push_str(&format!(
+                " solved={} steps={} compiles={} fuzzy={:.4} {:?}",
+                o.solved, o.steps, o.compiles, o.best_fuzzy, o.reason
+            ));
+        } else if !r.detail.is_empty() {
+            line.push_str(&format!(" ({})", r.detail));
+        }
+        println!("{line}");
+        if let Some(w2) = &r.outcome_wholetext {
+            let p = r.outcome.as_ref().map(|o| o.solved).unwrap_or(false);
+            println!(
+                "        per-fn vs whole-.text: per-fn solved={} fuzzy={:.4} | whole solved={} fuzzy={:.4}",
+                p,
+                r.outcome.as_ref().map(|o| o.best_fuzzy).unwrap_or(0.0),
+                w2.solved,
+                w2.best_fuzzy,
+            );
+        }
+    }
+
+    println!("\n  failure taxonomy:");
+    for (class, n) in report.class_counts() {
+        println!("    {:<17} {}", class.label(), n);
+    }
+    let (searched, solved) = report.search_tally();
+    let pct = if searched > 0 {
+        solved as f64 / searched as f64 * 100.0
+    } else {
+        0.0
+    };
+    println!(
+        "\n  HEADLINE: from-unrelated-seed solve-rate = {solved}/{searched} = {pct:.1}% (searched = in-scope, non-trivial)"
+    );
+    ExitCode::SUCCESS
 }
 
 fn cmd_corpus_stats(rest: &[String]) -> ExitCode {
