@@ -62,10 +62,59 @@ pub fn encode_addi(rd: u8, ra: u8, si: i16) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// Encode `addis rD, rA, SI` (rD = rA + (SI << 16)): primary opcode 15. The
+/// high half of a wide constant / immediate (with rA=0 for the `lis` idiom).
+pub fn encode_addis(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+    let word: u32 =
+        (15 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// Encode `ori rA, rS, UI` (rA = rS | UI): primary opcode 24. The low half of
+/// a wide **constant load** (`lis`+`ori`); `UI` is a zero-extended 16-bit field.
+pub fn encode_ori(ra: u8, rs: u8, ui: u16) -> [u8; 4] {
+    let word: u32 =
+        (24 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (ui as u32);
+    word.to_be_bytes()
+}
+
 /// `blr` — branch to link register (function return). `bclr` with BO=20
 /// ("always"), BI=0, LK=0 → the fixed word `0x4E800020`.
 pub fn encode_blr() -> [u8; 4] {
     0x4E80_0020u32.to_be_bytes()
+}
+
+/// Emit `dest = reg + k` as one `addi` (16-bit) or an `addis`+`addi` pair for a
+/// wide immediate. The pair splits `k` into a sign-compensated high half and a
+/// sign-extended low half: `lo = (i16)k`, `hi = (k − lo) >> 16` (so the `addi`'s
+/// sign extension is absorbed). Verified: `a+70000` → `addis r3,r3,1 ; addi
+/// r3,r3,4464`; `a-70000` → `addis r3,r3,-1 ; addi r3,r3,-4464`.
+fn emit_add_imm(text: &mut Vec<u8>, dest: u8, reg: u8, k: i32) {
+    if fits_i16(k) {
+        text.extend_from_slice(&encode_addi(dest, reg, k as i16));
+    } else {
+        let lo = (k & 0xFFFF) as u16 as i16;
+        let hi = ((k - lo as i32) >> 16) as i16;
+        text.extend_from_slice(&encode_addis(dest, reg, hi));
+        text.extend_from_slice(&encode_addi(dest, dest, lo));
+    }
+}
+
+/// Emit a constant load `dest = k`: `li` (`addi dest,r0,k`) for a 16-bit value,
+/// else the `lis`+`ori` idiom (`addis dest,r0,hi ; ori dest,dest,lo`, unsigned
+/// halves). Verified: `return 70000` → `addis r3,r0,1 ; ori r3,r3,4464`.
+fn emit_load_imm(text: &mut Vec<u8>, dest: u8, k: i32) -> Result<(), BackendError> {
+    if fits_i16(k) {
+        text.extend_from_slice(&encode_addi(dest, 0, k as i16));
+    } else if k >= 0 {
+        let hi = ((k >> 16) & 0xFFFF) as i16;
+        let lo = (k & 0xFFFF) as u16;
+        text.extend_from_slice(&encode_addis(dest, 0, hi));
+        text.extend_from_slice(&encode_ori(dest, dest, lo));
+    } else {
+        return Err(out_of_class("negative wide constant load not yet modeled"));
+    }
+    Ok(())
 }
 
 /// Encode an unconditional relative branch `b` (primary opcode 18, AA=0, LK=0)
@@ -201,13 +250,8 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
             )));
         }
         [Operand::Imm(k)] => {
-            // Bare constant return, e.g. `return 42;` → `li r3,k` = addi r3,0,k.
-            if !fits_i16(*k) {
-                return Err(out_of_class(
-                    "constant does not fit a 16-bit immediate (needs addis+addi)",
-                ));
-            }
-            text.extend_from_slice(&encode_addi(RET_REG, 0, *k as i16));
+            // Bare constant return, e.g. `return 42;` → `li r3,k`; wide → lis+ori.
+            emit_load_imm(&mut text, RET_REG, *k)?;
         }
         _ => {
             return Err(out_of_class(
@@ -233,30 +277,24 @@ fn emit_binop(
     text: &mut Vec<u8>,
 ) -> Result<Operand, BackendError> {
     use Operand::{Imm, Reg};
-    let instr = match (op, lhs, rhs) {
-        // add: commutative; reg+reg or reg+imm (either order) → add / addi.
-        (IlOp::Add, Reg(a), Reg(b)) => encode_add(dest, a, b),
-        (IlOp::Add, Reg(a), Imm(k)) | (IlOp::Add, Imm(k), Reg(a)) => {
-            if !fits_i16(k) {
-                return Err(out_of_class("add immediate out of 16-bit range"));
-            }
-            encode_addi(dest, a, k as i16)
-        }
+    match (op, lhs, rhs) {
+        // add: commutative; reg+reg → add; reg+imm (either order) → addi / addis+addi.
+        (IlOp::Add, Reg(a), Reg(b)) => text.extend_from_slice(&encode_add(dest, a, b)),
+        (IlOp::Add, Reg(a), Imm(k)) | (IlOp::Add, Imm(k), Reg(a)) => emit_add_imm(text, dest, a, k),
         // mul: commutative; reg*reg only (reg*const strength-reduces — later rung).
-        (IlOp::Mul, Reg(a), Reg(b)) => encode_mullw(dest, a, b),
+        (IlOp::Mul, Reg(a), Reg(b)) => text.extend_from_slice(&encode_mullw(dest, a, b)),
         (IlOp::Mul, _, _) => {
             return Err(out_of_class(
                 "multiply by a constant strength-reduces (shift/add); out of class",
             ))
         }
-        // sub `lhs - rhs`: reg-reg → subf (rA=rhs); reg-imm → addi with -imm.
-        (IlOp::Sub, Reg(a), Reg(b)) => encode_subf(dest, b, a),
+        // sub `lhs - rhs`: reg-reg → subf (rA=rhs); reg-imm → add of the negated imm.
+        (IlOp::Sub, Reg(a), Reg(b)) => text.extend_from_slice(&encode_subf(dest, b, a)),
         (IlOp::Sub, Reg(a), Imm(k)) => {
             let neg = k
                 .checked_neg()
-                .filter(|n| fits_i16(*n))
-                .ok_or_else(|| out_of_class("subtract immediate out of 16-bit range"))?;
-            encode_addi(dest, a, neg as i16)
+                .ok_or_else(|| out_of_class("subtract immediate overflow (INT_MIN)"))?;
+            emit_add_imm(text, dest, a, neg);
         }
         (IlOp::Sub, Imm(_), Reg(_)) => {
             return Err(out_of_class("`const - reg` needs subfic; out of class"))
@@ -266,8 +304,7 @@ fn emit_binop(
             return Err(out_of_class("binary op on two literals (unexpected; c1xx folds these)"))
         }
         (IlOp::Load(_) | IlOp::Lit(_), _, _) => unreachable!("not a binary op"),
-    };
-    text.extend_from_slice(&instr);
+    }
     Ok(Operand::Reg(dest))
 }
 
@@ -391,10 +428,31 @@ mod tests {
     }
 
     #[test]
-    fn select_text_rejects_out_of_range_immediate() {
-        // 70000 needs addis+addi — out of the single-addi class.
+    fn select_text_wide_add_immediate_uses_addis_addi() {
+        // `a + 70000` → addis r3,r3,1 ; addi r3,r3,4464 ; blr.
         let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(70000), IlOp::Add]);
-        assert!(matches!(select_text(&f), Err(BackendError::NotImplemented(_))));
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![
+                0x3C, 0x63, 0x00, 0x01, // addis r3,r3,1
+                0x38, 0x63, 0x11, 0x70, // addi r3,r3,4464
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ]
+        );
+    }
+
+    #[test]
+    fn select_text_wide_constant_load_uses_lis_ori() {
+        // `return 70000;` → addis r3,r0,1 ; ori r3,r3,4464 ; blr.
+        let f = func_with(vec![], vec![IlOp::Lit(70000)]);
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![
+                0x3C, 0x60, 0x00, 0x01, // addis r3,r0,1
+                0x60, 0x63, 0x11, 0x70, // ori r3,r3,4464
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ]
+        );
     }
 
     #[test]

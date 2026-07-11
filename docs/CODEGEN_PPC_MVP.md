@@ -111,10 +111,20 @@ selection stack carries `Reg | Imm`:
 - **bare `return k`** → **`li rD, k` = `addi rD, r0, k`** (`return 42` →
   `addi r3,r0,42` = `3860002a`; `addi` special-cases rA=0 to the literal 0).
 
-Scope limits (rejected as out-of-class, not mis-emitted): immediates outside
-signed 16-bit (need `addis`+`addi`, e.g. 70000 → `addis r3,r3,1 ; addi
-r3,r3,4464`); **multiply by a constant** (strength-reduces to shift+add, e.g.
-`a*3` → `rlwinm r11,r3,1,0,30 ; add r3,r3,r11`); `const − reg` (`subfic`).
+**Wide immediates (W3b, implemented)** — constants outside signed 16-bit:
+
+- **`reg ± wide-K`** → **`addis`+`addi`**, splitting `K` into a
+  sign-compensated high half and a sign-extended low half (`lo = (i16)K`,
+  `hi = (K − lo) >> 16`, so the `addi`'s sign extension is absorbed). `a+70000`
+  → `addis r3,r3,1 ; addi r3,r3,4464`; `a-70000` → `addis r3,r3,-1 ; addi
+  r3,r3,-4464`.
+- **bare wide `return K`** → the **`lis`+`ori` idiom** `addis rD,r0,hi ; ori
+  rD,rD,lo` (unsigned halves, no sign compensation). `return 70000` → `addis
+  r3,r0,1 ; ori r3,r3,4464`.
+
+Still out-of-class (rejected, not mis-emitted): **multiply by a constant**
+(strength-reduces to shift+add, e.g. `a*3` → `rlwinm r11,r3,1,0,30 ; add
+r3,r3,r11`); `const − reg` (`subfic`); a negative wide bare constant.
 
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 

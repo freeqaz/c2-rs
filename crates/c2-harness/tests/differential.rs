@@ -157,6 +157,35 @@ fn differential_mvp_two_multifunction_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
+/// W3b (wide immediates): `mvp_wide.cpp` covers constants beyond a signed
+/// 16-bit field — `a+70000`/`a-70000` (`addis`+`addi`, sign-compensated) and a
+/// bare wide constant (`lis`+`ori`).
+#[test]
+fn differential_mvp_wide_immediates_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("mvpwide");
+    let port = PortC2::default();
+    let report = differential(&fixture("mvp_wide.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on mvp_wide, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
+
 /// W4a: first relocation + external symbol. `mvp_call.cpp` is a single-function
 /// tail call (`void f(){g();}`) → `b g` with an IMAGE_REL_PPC_REL24 relocation
 /// to g's undefined external symbol. Proves the relocation records, the
