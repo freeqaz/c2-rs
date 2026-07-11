@@ -54,6 +54,7 @@ fn main() -> ExitCode {
         "bench" => cmd_bench(),
         "corpus" => cmd_corpus(rest),
         "retrieve" => cmd_retrieve(rest),
+        "search" => cmd_search(rest),
         "help" | "-h" | "--help" => {
             print_usage();
             ExitCode::SUCCESS
@@ -82,9 +83,12 @@ fn print_usage() {
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
          \x20 c2rs retrieve index <dir> P1.3: obj-retrieval structure of a corpus\n\
          \x20 c2rs retrieve eval <dir>  P1.3: obj->IL retrieval baseline, recall@k\n\
+         \x20 c2rs search solve <cpp>   T-A: solve one d=1 instance from a fixture, byte-exact\n\
+         \x20 c2rs search eval [opts]   T-A: IL-space solve-rate over fixtures\n\
          \n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
+         search options: --d 1 --moves full|length --steps N --compiles N --timeout SECS\n\
          \n\
          Toolchain is located via C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL / C2RS_WIBO_DEBUG\n\
          / C2RS_DC3_ROOT (relative-to-repo defaults). Absent toolchain -> clean SKIP."
@@ -584,6 +588,204 @@ fn cmd_retrieve_eval(rest: &[String]) -> ExitCode {
         );
     }
     ExitCode::SUCCESS
+}
+
+// ---------------------------------------------------------------------------
+// T-A IL-space search prototype
+// ---------------------------------------------------------------------------
+
+use c2_harness::search::{self, Budget, MoveSet, Perturb};
+
+/// The default solvable-instance roster: straight-line int fixtures that carry
+/// literals and/or arithmetic terms (the move set's sites). C++-only; each is
+/// captured fresh (no committed IL/obj).
+const SEARCH_FIXTURES: &[&str] = &[
+    "mvp_edit_addk.cpp",
+    "mvp_lit.cpp",
+    "mvp_wide.cpp",
+    "mvp_add3.cpp",
+    "mvp_sub.cpp",
+    "mvp_two.cpp",
+];
+
+fn cmd_search(rest: &[String]) -> ExitCode {
+    let sub = rest.first().map(String::as_str).unwrap_or("");
+    let rest = &rest[rest.len().min(1)..];
+    match sub {
+        "solve" => cmd_search_solve(rest),
+        "eval" => cmd_search_eval(rest),
+        _ => {
+            eprintln!("usage: c2rs search <solve <cpp>|eval> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--timeout SECS]");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn search_moveset(rest: &[String]) -> MoveSet {
+    match opt(rest, "--moves") {
+        Some("length") => MoveSet::length_only(),
+        _ => MoveSet::default(),
+    }
+}
+
+fn search_budget(rest: &[String]) -> Budget {
+    let mut b = Budget::default();
+    if let Some(v) = opt(rest, "--steps").and_then(|s| s.parse().ok()) {
+        b.max_steps = v;
+    }
+    if let Some(v) = opt(rest, "--compiles").and_then(|s| s.parse().ok()) {
+        b.max_compiles = v;
+    }
+    b
+}
+
+fn search_perturbs(rest: &[String]) -> Vec<(Perturb, usize)> {
+    // The obj-changing families at d=1, plus AddTerm at d=2 (a gradient-guided
+    // two-move recovery) when --d 2 is requested. WidenLit is obj-invisible on
+    // the real path (P0.6a A), so it is not in the roster.
+    let d: usize = opt(rest, "--d").and_then(|s| s.parse().ok()).unwrap_or(1);
+    let mut v = vec![
+        (Perturb::AddTerm, 1),
+        (Perturb::LitNudge, 1),
+        (Perturb::DropTerm, 1),
+    ];
+    if d >= 2 {
+        v.push((Perturb::AddTerm, 2));
+    }
+    v
+}
+
+fn search_timeout(rest: &[String]) -> Duration {
+    Duration::from_secs(opt(rest, "--timeout").and_then(|s| s.parse().ok()).unwrap_or(60))
+}
+
+fn cmd_search_solve(rest: &[String]) -> ExitCode {
+    let Some(cpp) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+        eprintln!("usage: c2rs search solve <cpp> [--moves full|length]");
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
+        return ExitCode::SUCCESS;
+    }
+    let moves = search_moveset(rest);
+    let budget = search_budget(rest);
+    let timeout = search_timeout(rest);
+    let w = scratch("search-solve");
+    // An inserted redundant term is the cleanest obj-changing single demo.
+    let r = search::solve_instance(&tc, &cpp, Perturb::AddTerm, 1, &moves, &budget, &w, timeout);
+    let code = match (&r.outcome, &r.error) {
+        (Some(o), _) => {
+            println!(
+                "{} [{}] -> solved={} steps={} compiles={} best_fuzzy={:.4} ({:?})",
+                r.fixture,
+                r.perturb.label(),
+                o.solved,
+                o.steps,
+                o.compiles,
+                o.best_fuzzy,
+                o.reason
+            );
+            if !o.path.is_empty() {
+                println!("  path: {}", o.path.join(" -> "));
+            }
+            if o.solved {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        (None, Some(e)) => {
+            eprintln!("{} -> instance error: {e}", r.fixture);
+            ExitCode::FAILURE
+        }
+        (None, None) => {
+            println!("{} -> no perturbation site (skipped)", r.fixture);
+            ExitCode::SUCCESS
+        }
+    };
+    let _ = std::fs::remove_dir_all(&w);
+    code
+}
+
+fn cmd_search_eval(rest: &[String]) -> ExitCode {
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
+        return ExitCode::SUCCESS;
+    }
+    let moves = search_moveset(rest);
+    let budget = search_budget(rest);
+    let perturbs = search_perturbs(rest);
+    let timeout = search_timeout(rest);
+    let fixtures: Vec<PathBuf> = SEARCH_FIXTURES
+        .iter()
+        .map(|n| c2_harness::fixtures_dir().join(n))
+        .collect();
+
+    let w = scratch("search-eval");
+    println!(
+        "T-A IL-space solve-rate: {} fixtures x {} perturbation families, moves={}, budget steps={} compiles={}",
+        fixtures.len(),
+        perturbs.len(),
+        opt(rest, "--moves").unwrap_or("full"),
+        budget.max_steps,
+        budget.max_compiles,
+    );
+    let report = search::solve_rate(&tc, &fixtures, &perturbs, &moves, &budget, &w, timeout);
+    for r in &report.instances {
+        let tag = format!("{} d{}", r.perturb.label(), r.d);
+        match (&r.outcome, &r.error) {
+            (Some(o), _) => println!(
+                "  {:<20} {:<13} solved={} steps={} compiles={:>3} fuzzy={:.4} {:?}",
+                r.fixture, tag, o.solved, o.steps, o.compiles, o.best_fuzzy, o.reason
+            ),
+            (None, Some(e)) => {
+                println!("  {:<20} {:<13} ERROR {}", r.fixture, tag, first_line(e))
+            }
+            (None, None) => println!("  {:<20} {:<13} skipped (no site)", r.fixture, tag),
+        }
+    }
+    println!("\nsolve-rate by family (attempted excludes no-site/errored):");
+    for ((kind, d), (attempted, solved, mean)) in report.by_family() {
+        let pct = if attempted > 0 {
+            solved as f64 / attempted as f64 * 100.0
+        } else {
+            0.0
+        };
+        println!(
+            "  {:<10} d{}  {}/{} = {:>5.1}%   mean compiles-to-solve: {:.1}",
+            kind.label(),
+            d,
+            solved,
+            attempted,
+            pct,
+            mean
+        );
+    }
+    let (attempted, solved, mean) = report.tally();
+    let pct = if attempted > 0 {
+        solved as f64 / attempted as f64 * 100.0
+    } else {
+        0.0
+    };
+    println!(
+        "  {:<14} {}/{} = {:>5.1}%   mean compiles-to-solve: {:.1}",
+        "OVERALL", solved, attempted, pct, mean
+    );
+    let _ = std::fs::remove_dir_all(&w);
+    if attempted > 0 && solved == attempted {
+        ExitCode::SUCCESS
+    } else if solved > 0 {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
 }
 
 fn cmd_corpus_stats(rest: &[String]) -> ExitCode {

@@ -22,6 +22,7 @@ use c2_reference::Toolchain;
 
 pub mod corpus;
 pub mod retrieval;
+pub mod search;
 
 /// Port-side status, evaluated only after the reference replay is byte-exact.
 #[derive(Clone, Debug, PartialEq, Eq)]
