@@ -20,6 +20,8 @@ use c2_core::{Backend, BackendError};
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
+pub mod corpus;
+
 /// Port-side status, evaluated only after the reference replay is byte-exact.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PortStatus {
