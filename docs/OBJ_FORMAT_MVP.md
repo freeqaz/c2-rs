@@ -215,6 +215,29 @@ symbol table:
 - Long names (`len > 8`) enter the string table in first-reference order,
   after the two watermark externals.
 
+## Relocations + external symbols (W4a, calls)
+
+The pure-MVP class has none; a function that **calls** another breaks the
+"no relocations" assumption. W4a covers a single-function single-external
+**tail call** (`void f(){g();}`), verified byte-exact:
+
+- **`.text`** is a single relative branch `b` (op 18) with displacement
+  `−(instruction offset)` (offset 0 → `48000000`), paired with a relocation.
+- **Relocation records** sit between the last section's raw data and the
+  symbol table (so `PointerToSymbolTable` gains `NumberOfRelocations × 10`).
+  Each is 10 bytes, packed: `VirtualAddress u32 | SymbolTableIndex u32 |
+  Type u16`. Type `0x0006` = `IMAGE_REL_PPC_REL24`. `VirtualAddress` is the
+  branch's `.text` offset; `SymbolTableIndex` points at the callee's symbol.
+- **Section header** for `.text`: `PointerToRelocations` = the reloc block
+  offset, `NumberOfRelocations` = count. The `.text` **section-def aux** must
+  carry the same `NumberOfRelocations` (both must agree).
+- **Symbols**: the callee is an **undefined external** — `SectionNumber = 0`,
+  `Type = 0x20` (FUNCTION), `StorageClass = 2` (EXTERNAL), `Value = 0`, name
+  from `.gl`. Layout interleaves: each defined function symbol is immediately
+  followed by its callee's undefined symbol, so `NumberOfSymbols` = 13 fixed
+  + one per defined function + one per callee. (Multi-function/multi-callee
+  ordering needs the `.ex` call-index decode — a later rung.)
+
 ## Emitter build order
 
 1. Compute every `SizeOfRawData` (drectve const, debug$S by formula,

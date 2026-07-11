@@ -68,6 +68,20 @@ pub fn encode_blr() -> [u8; 4] {
     0x4E80_0020u32.to_be_bytes()
 }
 
+/// Encode an unconditional relative branch `b` (primary opcode 18, AA=0, LK=0)
+/// used for a **tail call**, to be paired with a REL24 relocation.
+///
+/// MSVC's PPC convention stores the displacement field as `−(the instruction's
+/// own byte offset within .text)`, so the pre-link value references `.text`
+/// offset 0; the linker then patches the 24-bit field from the target symbol.
+/// Verified: a tail-call `b` at offset 0 → `0x48000000`; at offset 8 →
+/// `0x4BFFFFF8` (displacement −8).
+pub fn encode_tail_branch(text_offset: u32) -> [u8; 4] {
+    let disp = -(text_offset as i32);
+    let word: u32 = 0x4800_0000 | (disp as u32 & 0x03FF_FFFC);
+    word.to_be_bytes()
+}
+
 /// An operand on the selection stack: a physical register or an integer
 /// literal not yet materialized (folded into an immediate instruction where
 /// c2 does the same, e.g. `a + 5` → `addi`).
@@ -274,6 +288,14 @@ mod tests {
     }
 
     #[test]
+    fn encode_tail_branch_stores_negative_self_offset() {
+        // Tail-call `b` displacement = −(own .text offset): offset 0 → 0x48000000,
+        // offset 8 → 0x4BFFFFF8 (the REL24 reloc patches the target).
+        assert_eq!(encode_tail_branch(0), [0x48, 0x00, 0x00, 0x00]);
+        assert_eq!(encode_tail_branch(8), [0x4B, 0xFF, 0xFF, 0xF8]);
+    }
+
+    #[test]
     fn encode_mullw_matches_reference_words() {
         // a*b*c → mullw r11,r3,r4 ; mullw r3,r11,r5
         assert_eq!(encode_mullw(11, 3, 4), [0x7D, 0x63, 0x21, 0xD6]);
@@ -294,6 +316,7 @@ mod tests {
         let func = IlFunction {
             mangled_name: "?sub3@@YAHHHH@Z".into(),
             source_path: None,
+            tail_call: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -324,6 +347,7 @@ mod tests {
         IlFunction {
             mangled_name: "?f@@YAHH@Z".into(),
             source_path: None,
+            tail_call: None,
             params,
             ops,
         }
@@ -381,6 +405,7 @@ mod tests {
         let func = IlFunction {
             mangled_name: "?t@@YAHHHHH@Z".into(),
             source_path: None,
+            tail_call: None,
             params: vec![0xE309, 0xE409, 0xE509, 0xE609],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -404,6 +429,7 @@ mod tests {
         let func = IlFunction {
             mangled_name: "?mul3@@YAHHHH@Z".into(),
             source_path: None,
+            tail_call: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -428,6 +454,7 @@ mod tests {
         let func = IlFunction {
             mangled_name: "?add3@@YAHHHH@Z".into(),
             source_path: None,
+            tail_call: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

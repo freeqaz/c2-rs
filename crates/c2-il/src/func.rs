@@ -46,8 +46,12 @@ pub struct IlFunction {
     pub source_path: Option<String>,
     /// Formal-parameter IL tokens, in declaration order (a, b, c → r3, r4, r5).
     pub params: Vec<u16>,
-    /// Straight-line body op stream (loads + adds).
+    /// Straight-line body op stream (loads + adds). Empty for a tail call.
     pub ops: Vec<IlOp>,
+    /// If this function is a **tail call** to a single external, its mangled
+    /// name (the callee). Codegen then emits a `b <callee>` with a REL24
+    /// relocation instead of an arithmetic body. W4a: single external only.
+    pub tail_call: Option<String>,
 }
 
 /// The int type encoding inline in the `.ex` body (`86 41 74`), per `IL_FORMAT`.
@@ -292,6 +296,21 @@ fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     hay.windows(needle.len()).position(|w| w == needle)
 }
 
+/// The IL CALL opcode (`0xBD`) that introduces a function call in the `.ex`
+/// operand stream (per `IL_FORMAT.md`).
+const CALL_OP: u8 = 0xBD;
+
+/// Heuristic tail-call detector: after the `LO` marker, the body contains a
+/// CALL (`0xBD`). Only consulted when `.gl` has exactly one external beyond the
+/// defined functions (so the presence of a call is already implied); the
+/// differential is the final judge of byte-exactness.
+fn is_tail_call(seg: &[u8]) -> bool {
+    match find_subslice(seg, &[0x4C, 0x4F, 0x11]) {
+        Some(lo) => seg[lo..].contains(&CALL_OP),
+        None => false,
+    }
+}
+
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
 /// sequence of function bodies, each introduced by this marker; the header /
 /// index region before the first one is opaque zero-fill for this class.
@@ -332,23 +351,44 @@ impl IlBundle {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
         let names = mangled_names(gl);
-        if names.is_empty() {
-            return None;
-        }
         let src = source_path(gl);
         let tw = detect_token_width(ex);
         let segs = split_functions(ex);
-        if segs.len() != names.len() {
-            return None; // ambiguous pairing → out of class
+        if segs.is_empty() || names.len() < segs.len() {
+            return None;
         }
-        let mut funcs = Vec::with_capacity(names.len());
-        for (name, seg) in names.into_iter().zip(segs) {
+        // `.gl` lists the defined functions first (one per `.ex` segment, paired
+        // positionally), then any external callees.
+        let n_defined = segs.len();
+        let externals = &names[n_defined..];
+
+        // W4a: calls (externals present) are handled only for the single
+        // function / single external **tail-call** case. Anything more (which
+        // function calls which external, multiple calls) needs the `.ex` call
+        // index decode — a later rung.
+        if !externals.is_empty() {
+            if n_defined == 1 && externals.len() == 1 && is_tail_call(segs[0]) {
+                return Some(vec![IlFunction {
+                    mangled_name: names[0].clone(),
+                    source_path: src,
+                    params: Vec::new(),
+                    ops: Vec::new(),
+                    tail_call: Some(externals[0].clone()),
+                }]);
+            }
+            return None;
+        }
+
+        // No externals: the straight-line arithmetic path (W1–W3).
+        let mut funcs = Vec::with_capacity(n_defined);
+        for (name, seg) in names.iter().take(n_defined).zip(segs) {
             let (params, ops) = parse_body(seg, tw)?;
             funcs.push(IlFunction {
-                mangled_name: name,
+                mangled_name: name.clone(),
                 source_path: src.clone(),
                 params,
                 ops,
+                tail_call: None,
             });
         }
         Some(funcs)

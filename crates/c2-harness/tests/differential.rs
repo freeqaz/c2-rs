@@ -157,6 +157,36 @@ fn differential_mvp_two_multifunction_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
+/// W4a: first relocation + external symbol. `mvp_call.cpp` is a single-function
+/// tail call (`void f(){g();}`) → `b g` with an IMAGE_REL_PPC_REL24 relocation
+/// to g's undefined external symbol. Proves the relocation records, the
+/// section-header/aux reloc counts, and the undefined-external symbol layout.
+#[test]
+fn differential_mvp_call_tailcall_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("mvpcall");
+    let port = PortC2::default();
+    let report = differential(&fixture("mvp_call.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on mvp_call, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
+
 /// W3: literals / immediates. `mvp_lit.cpp` is a 3-function TU: `a+5` (addi),
 /// `a-5` (addi with negated imm), and `return 42` (li = addi rD,r0,k). Proves
 /// the operand-stack Reg/Imm model and the constant-folding into `addi`.

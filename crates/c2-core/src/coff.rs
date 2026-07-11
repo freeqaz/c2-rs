@@ -59,6 +59,9 @@ const CH_TEXT: u32 = 0x6040_0020;
 
 const SECTION_HEADER_LEN: usize = 40;
 const COFF_HEADER_LEN: usize = 20;
+/// One COFF relocation record: VirtualAddress u32, SymbolTableIndex u32,
+/// Type u16 (packed, not padded).
+const RELOC_LEN: usize = 10;
 
 /// A little-endian byte sink.
 struct Buf(Vec<u8>);
@@ -143,15 +146,35 @@ struct Section {
 ///   `?add3@@YAHHHH@Z`.
 /// * `text` — the `.text` bytes from codegen (12 for `add3`).
 pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> {
-    emit_obj(obj_name, &[Function { name: mangled_name, text_offset: 0 }], text)
+    emit_obj(
+        obj_name,
+        &[Function {
+            name: mangled_name,
+            text_offset: 0,
+            call: None,
+        }],
+        text,
+    )
 }
 
-/// One function placed in `.text`: its mangled name (from `.gl`) and byte
-/// offset within the concatenated `.text` payload.
+/// A relative-branch (REL24) relocation for a tail call: the callee's mangled
+/// name and the `.text` byte offset of the branch instruction to patch.
+pub struct Call<'a> {
+    pub reloc_offset: u32,
+    pub callee: &'a str,
+}
+
+/// One function placed in `.text`: its mangled name (from `.gl`), byte offset
+/// within the concatenated `.text`, and — if it is a tail call — the callee
+/// relocation.
 pub struct Function<'a> {
     pub name: &'a str,
     pub text_offset: u32,
+    pub call: Option<Call<'a>>,
 }
+
+/// IMAGE_REL_PPC_REL24 — 24-bit relative branch relocation (tail/`bl` calls).
+const REL_PPC_REL24: u16 = 0x0006;
 
 /// Build the complete `.obj` image for one or more straight-line functions
 /// sharing a single `.text`. Generalizes [`emit_mvp_obj`]: functions are packed
@@ -214,11 +237,31 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
         ptrs.push(cursor);
         cursor += s.raw.len();
     }
-    let ptr_symtab = cursor; // symbol table right after last raw section
+    // Relocations (`.text` only in this class) sit between the raw data and the
+    // symbol table. Each function that is a tail call contributes one REL24.
+    let n_text_reloc = funcs.iter().filter(|f| f.call.is_some()).count();
+    let ptr_text_reloc = cursor; // right after the last section's raw data
+    cursor += n_text_reloc * RELOC_LEN;
+    let ptr_symtab = cursor; // symbol table right after the relocations
 
-    // 13 fixed slots (@comp.id, 4 section symbols + their aux, 2 externals) plus
-    // one EXTERNAL FUNCTION symbol per function. NumberOfSymbols counts aux.
-    let n_symbols: u32 = 13 + funcs.len() as u32;
+    // Symbol layout: 13 fixed slots (indices 0..13), then per function a defined
+    // FUNCTION symbol, each immediately followed by its callee's undefined
+    // external symbol (if any). Record each callee's symbol index for its reloc.
+    let mut next_idx: u32 = 13;
+    let mut plan: Vec<(usize, u32, Option<u32>)> = Vec::with_capacity(funcs.len());
+    for (i, f) in funcs.iter().enumerate() {
+        let def_idx = next_idx;
+        next_idx += 1;
+        let callee_idx = if f.call.is_some() {
+            let c = next_idx;
+            next_idx += 1;
+            Some(c)
+        } else {
+            None
+        };
+        plan.push((i, def_idx, callee_idx));
+    }
+    let n_symbols: u32 = next_idx;
 
     // ---- COFF header (20 bytes) ----
     let mut b = Buf::new();
@@ -231,15 +274,22 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     b.u16(CHARACTERISTICS);
 
     // ---- section headers (40 bytes each) ----
+    // Only `.text` (the last section) carries relocations in this class.
+    let text_idx = n_sections - 1;
     for (i, s) in sections.iter().enumerate() {
+        let (prel, nrel) = if i == text_idx && n_text_reloc > 0 {
+            (ptr_text_reloc as u32, n_text_reloc as u16)
+        } else {
+            (0, 0)
+        };
         b.name8(s.name);
         b.u32(0); // VirtualSize
         b.u32(0); // VirtualAddress
         b.u32(s.raw.len() as u32); // SizeOfRawData
         b.u32(ptrs[i] as u32); // PointerToRawData
-        b.u32(0); // PointerToRelocations
+        b.u32(prel); // PointerToRelocations
         b.u32(0); // PointerToLinenumbers
-        b.u16(0); // NumberOfRelocations
+        b.u16(nrel); // NumberOfRelocations
         b.u16(0); // NumberOfLinenumbers
         b.u32(s.characteristics);
     }
@@ -248,10 +298,19 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     for s in &sections {
         b.bytes(&s.raw);
     }
+    debug_assert_eq!(b.0.len(), ptr_text_reloc);
+
+    // ---- relocation records (10 bytes each: VA u32, SymIdx u32, Type u16) ----
+    for (i, _def, callee_idx) in &plan {
+        if let (Some(call), Some(cidx)) = (&funcs[*i].call, callee_idx) {
+            b.u32(call.reloc_offset);
+            b.u32(*cidx);
+            b.u16(REL_PPC_REL24);
+        }
+    }
     debug_assert_eq!(b.0.len(), ptr_symtab);
 
     // ---- symbol table + string table ----
-    // Long-name string table, built in first-reference order.
     let mut strtab = StringTable::new();
 
     // slot 0: @comp.id (ABS, STATIC, no aux)
@@ -262,24 +321,25 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     b.u8(3); // STATIC
     b.u8(0);
 
-    // Section STATIC symbols each carry one aux section-def record. Section
-    // numbers are 1-based in emit order.
-    // slot 1/2: .drectve (sec 1)
-    emit_section_symbol(&mut b, &sections[0], 1);
-    // slot 3/4: .debug$S (sec 2)
-    emit_section_symbol(&mut b, &sections[1], 2);
-    // slot 5/6: .XBLD$W C2 (sec 3), followed by external __C2_11886
-    emit_section_symbol(&mut b, &sections[2], 3);
-    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000);
-    // slot 8/9: .XBLD$W C1 (sec 4), followed by external __C1_11886
-    emit_section_symbol(&mut b, &sections[3], 4);
-    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000);
-    // slot 11/12: .text (sec 5)
-    emit_section_symbol(&mut b, &sections[4], 5);
-    // slot 13…: one EXTERNAL FUNCTION symbol per function (type 0x20, sec .text),
-    // Value = its byte offset within .text, in emit order.
-    for f in funcs {
+    // Section STATIC symbols each carry one aux section-def record. `.text`
+    // (sec 5) carries the relocation count in its aux.
+    emit_section_symbol(&mut b, &sections[0], 1, 0); // slot 1/2 .drectve
+    emit_section_symbol(&mut b, &sections[1], 2, 0); // slot 3/4 .debug$S
+    emit_section_symbol(&mut b, &sections[2], 3, 0); // slot 5/6 .XBLD$W C2
+    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000); // slot 7
+    emit_section_symbol(&mut b, &sections[3], 4, 0); // slot 8/9 .XBLD$W C1
+    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000); // slot 10
+    emit_section_symbol(&mut b, &sections[4], 5, n_text_reloc as u16); // slot 11/12 .text
+
+    // Per function: the defined FUNCTION symbol, then (if a tail call) the
+    // undefined external callee symbol.
+    for (i, _def, callee_idx) in &plan {
+        let f = &funcs[*i];
         emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
+        if let (Some(call), Some(_)) = (&f.call, callee_idx) {
+            // Undefined external callee: section 0 (UNDEF), FUNCTION type.
+            emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        }
     }
 
     // ---- string table ----
@@ -288,8 +348,11 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     b.0
 }
 
-/// Emit a section STATIC symbol + its aux section-def record.
-fn emit_section_symbol(b: &mut Buf, s: &Section, sec_num: i16) {
+/// Emit a section STATIC symbol + its aux section-def record. `n_reloc` is the
+/// section's relocation count (0 for all sections except `.text` when calls
+/// are present) — it appears in the aux record and must match the section
+/// header's `NumberOfRelocations`.
+fn emit_section_symbol(b: &mut Buf, s: &Section, sec_num: i16, n_reloc: u16) {
     b.name8(s.name);
     b.u32(0); // Value
     b.i16(sec_num);
@@ -300,7 +363,7 @@ fn emit_section_symbol(b: &mut Buf, s: &Section, sec_num: i16) {
     // Aux section-def: Length | nReloc(u16) | nLineno(u16) | CheckSum(u32) |
     //                  Number(u16) | Selection(u8) | Unused[3].
     b.u32(s.raw.len() as u32);
-    b.u16(0); // NumberOfRelocations (MVP: none)
+    b.u16(n_reloc); // NumberOfRelocations
     b.u16(0); // NumberOfLinenumbers
     b.u32(s.checksum);
     b.u16(0); // Number (SELECT_ANY → 0)

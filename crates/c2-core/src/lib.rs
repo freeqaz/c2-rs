@@ -135,11 +135,21 @@ impl PortC2 {
                 text.push(0);
             }
             let off = text.len() as u32;
-            let body = codegen::select_text(f)?;
-            text.extend_from_slice(&body);
+            let call = if let Some(callee) = &f.tail_call {
+                // Tail call: a single `b <callee>` (REL24) at this offset.
+                text.extend_from_slice(&codegen::encode_tail_branch(off));
+                Some(coff::Call {
+                    reloc_offset: off,
+                    callee,
+                })
+            } else {
+                text.extend_from_slice(&codegen::select_text(f)?);
+                None
+            };
             placed.push(coff::Function {
                 name: &f.mangled_name,
                 text_offset: off,
+                call,
             });
         }
 
