@@ -188,6 +188,37 @@ pub fn framed_call_text(add_k: i32) -> Vec<u8> {
     text
 }
 
+/// Emit the `.text` for an **integer tail call** `return g(<arg>)` (and the
+/// identity-fold `g(a) + 0`): the single call argument computed into r3 by the
+/// leaf arithmetic selector, then a `b <callee>` tail branch (paired with a
+/// REL24 relocation the caller registers at the returned offset). Returns the
+/// `.text` bytes and the branch's byte offset within `.text` (= `base_off` +
+/// the arg-setup length; the reloc site).
+///
+/// The argument setup reuses [`select_text`] (params → r3, the exact same
+/// instruction class as a leaf `return <arg>`) and drops its trailing `blr`:
+/// the argument value stays live in r3 across the tail branch. A passthrough
+/// `g(a)` selects to just `blr` → an empty prefix → a bare `b g` at `base_off`,
+/// byte-identical to the void tail call; `g(a + 1)` selects `addi r3,r3,1 ; blr`
+/// → the prefix `addi r3,r3,1` and the branch at `base_off + 4`. Non-commutative
+/// arg-setup (`k - a`, shifts) is rejected inside `select_text` (fail closed),
+/// honoring the CLAUDE.md correctness boundary; `a + k`/`a - k` fold to `addi`.
+pub fn int_tail_call_text(
+    func: &IlFunction,
+    base_off: u32,
+) -> Result<(Vec<u8>, u32), BackendError> {
+    let mut text = select_text(func)?; // arg-setup + trailing blr
+    let blr = encode_blr();
+    debug_assert!(
+        text.ends_with(&blr),
+        "select_text always terminates in blr; the arg-setup is everything before it"
+    );
+    text.truncate(text.len() - blr.len()); // drop blr; the value stays live in r3
+    let branch_off = base_off + text.len() as u32;
+    text.extend_from_slice(&encode_tail_branch(branch_off));
+    Ok((text, branch_off))
+}
+
 /// An operand on the selection stack: a physical register or an integer
 /// literal not yet materialized (folded into an immediate instruction where
 /// c2 does the same, e.g. `a + 5` → `addi`).
@@ -415,6 +446,37 @@ mod tests {
         // `+ 2` differs only in the addi immediate.
         assert_eq!(framed_call_text(2)[19], 0x02);
         assert_eq!(framed_call_text(1).len(), 0x24);
+    }
+
+    #[test]
+    fn int_tail_call_passthrough_is_bare_branch() {
+        // `return g(a)` — a is already in r3, so no arg setup: a bare `b g` at
+        // offset 0 (`48000000`), reloc site 0 — byte-identical to the void
+        // tail call. Verified against the live obj (.text=48000000, REL24 @0x0).
+        let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309)]);
+        let (text, reloc) = int_tail_call_text(&f, 0).unwrap();
+        assert_eq!(text, vec![0x48, 0x00, 0x00, 0x00]);
+        assert_eq!(reloc, 0);
+    }
+
+    #[test]
+    fn int_tail_call_arg_setup_prepends_addi() {
+        // `return g(a + 1)` — the argument a+1 computed into r3 (`addi r3,r3,1`),
+        // then `b g` at offset 4 (`4bfffffc`, disp −4), reloc site 0x4. Verified
+        // against the live obj (.text=386300014bfffffc, REL24 @0x4).
+        let f = func_with(
+            vec![0xE309],
+            vec![IlOp::Load(0xE309), IlOp::Lit(1), IlOp::Add],
+        );
+        let (text, reloc) = int_tail_call_text(&f, 0).unwrap();
+        assert_eq!(
+            text,
+            vec![
+                0x38, 0x63, 0x00, 0x01, // addi r3,r3,1
+                0x4B, 0xFF, 0xFF, 0xFC, // b g (disp −4)
+            ]
+        );
+        assert_eq!(reloc, 4);
     }
 
     #[test]

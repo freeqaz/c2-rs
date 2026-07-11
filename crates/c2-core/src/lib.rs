@@ -149,10 +149,21 @@ impl PortC2 {
             }
             let off = text.len() as u32;
             let call = if let Some(callee) = &f.tail_call {
-                // Tail call: a single `b <callee>` (REL24) at this offset.
-                text.extend_from_slice(&codegen::encode_tail_branch(off));
+                // Tail call. A void bare call (`ops` empty) is a single
+                // `b <callee>` (REL24) at this offset; an integer tail call
+                // (`ops` = the argument sub-expression) first computes the
+                // argument into r3, then branches (the branch, not the function
+                // start, is the reloc site).
+                let reloc_offset = if f.ops.is_empty() {
+                    text.extend_from_slice(&codegen::encode_tail_branch(off));
+                    off
+                } else {
+                    let (body, branch_off) = codegen::int_tail_call_text(f, off)?;
+                    text.extend_from_slice(&body);
+                    branch_off
+                };
                 Some(coff::Call {
-                    reloc_offset: off,
+                    reloc_offset,
                     callee,
                 })
             } else {

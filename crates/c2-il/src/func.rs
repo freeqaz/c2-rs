@@ -1,12 +1,14 @@
 //! Minimal IL parse for the MVP function classes: a straight-line all-`int`
 //! left-associative arithmetic leaf (`int add3(int,int,int)` and friends), a
-//! bare terminal void tail call (`void f(){ g(); }`), and a framed non-leaf
-//! `return g(a) + k`. This is deliberately NOT a general IL disassembler.
+//! bare terminal void tail call (`void f(){ g(); }`), the integer tail-call
+//! family `return g(<arg>)` (passthrough `g(a)`, the `g(a)+0` identity fold, and
+//! arg-setup `g(a+1)`), and a framed non-leaf `return g(a) + k` (k ≠ 0). This is
+//! deliberately NOT a general IL disassembler.
 //!
 //! **Acceptance is a positive whole-body parse (W4b2-v).** [`parse_segment`]
 //! tokenizes the entire `.ex` operand stream of a function segment — from the
 //! `4C 4F 11` ('LO') marker to the segment end — and accepts only if the whole
-//! token sequence is exactly one of the three recognized [`BodyShape`]s; the
+//! token sequence is exactly one of the four recognized [`BodyShape`]s; the
 //! parse must *reach the end*, so trailing statements, a second call, a
 //! non-trivial call-argument region, or any unmodeled byte fail the function
 //! closed (`None` → the caller reports `NotImplemented`, never a mis-emit).
@@ -70,11 +72,18 @@ pub struct IlFunction {
     pub source_path: Option<String>,
     /// Formal-parameter IL tokens, in declaration order (a, b, c → r3, r4, r5).
     pub params: Vec<u16>,
-    /// Straight-line body op stream (loads + adds). Empty for a tail/framed call.
+    /// Straight-line body op stream (loads + adds) for an arithmetic leaf. For
+    /// an **integer tail call** (`tail_call` set, int) this instead holds the
+    /// single call argument's sub-expression, computed into r3 before the
+    /// branch (`[Load]` passthrough, `[Load,Lit,Add]` for `g(a+1)`). Empty for a
+    /// void tail call and for a framed call.
     pub ops: Vec<IlOp>,
     /// If this function is a **tail call** to a single external, its mangled
-    /// name (the callee). Codegen then emits a `b <callee>` with a REL24
-    /// relocation instead of an arithmetic body. W4a: single external only.
+    /// name (the callee). Codegen emits a `b <callee>` with a REL24 relocation
+    /// instead of an arithmetic body: a bare branch for the void tail call
+    /// (`ops` empty) or `void f(){g();}`, or an argument-setup prefix + branch
+    /// for an integer tail call (`ops` = the argument sub-expression). W4a:
+    /// single external only.
     pub tail_call: Option<String>,
     /// If this function is a **framed non-leaf call** (`return g(a) + k`), the
     /// callee + post-op literal. Distinct from `tail_call` (which is a bare
@@ -235,9 +244,20 @@ enum BodyShape {
     /// void result is discarded, with **nothing** after its `4C 4B` void
     /// call-end but the return plumbing → codegen emits a single `b <callee>`.
     VoidTailCall,
-    /// Framed non-leaf `return g(a) + k`: exactly one int-returning CALL whose
-    /// argument region is exactly the single passthrough LOAD, a `55 <int>`
-    /// call-end, then exactly one literal `+ k` (ADD), returned.
+    /// Integer tail call `return g(<arg>)` (and the identity-fold `g(a) + 0`):
+    /// exactly one int-returning CALL whose single argument is a modeled
+    /// sub-expression (`arg_ops`), a `55 <int> 4C` call-end, and a **net-identity
+    /// post-op** (absent, or `+ 0` folded away). Codegen computes the argument
+    /// into r3 (the leaf selector), then `b <callee>` — a 5-section leaf, the
+    /// integer analog of [`BodyShape::VoidTailCall`]. `arg_ops` is a bare
+    /// `[Load]` for the passthrough `g(a)`, or e.g. `[Load, Lit, Add]` for the
+    /// arg-setup `g(a + 1)` (→ `addi r3,r3,1 ; b g`). `params` are the formals
+    /// (token→register mapping the arg-setup needs).
+    IntTailCall { params: Vec<u16>, arg_ops: Vec<IlOp> },
+    /// Framed non-leaf `return g(a) + k` (k ≠ 0): exactly one int-returning CALL
+    /// whose argument region is exactly the single passthrough LOAD, a `55 <int>`
+    /// call-end, then exactly one literal `+ k` (ADD, commutative), returned. A
+    /// zero `k` is NOT framed — it folds to [`BodyShape::IntTailCall`].
     FramedCall { add_k: i32 },
 }
 
@@ -350,15 +370,25 @@ fn eat_return_plumbing(seg: &[u8], p: &mut usize, tw: usize, has_result_type: bo
     }
 }
 
-/// Consume the postfix LOAD/LIT/ADD/SUB/MUL operand stream of a straight-line
-/// arithmetic leaf, stopping (without consuming) at the `41` result-type marker
-/// that begins the return plumbing. Fail-closed: any byte that is not a modeled
-/// operand/opcode (a comparison `24`, shift `09`, bitwise `0B`, ternary `43 42`,
-/// …) rejects the whole function. Requires at least one op.
-fn parse_arith(seg: &[u8], p: &mut usize, tw: usize) -> Option<Vec<IlOp>> {
+/// Consume a postfix LOAD/LIT/ADD/SUB/MUL operand sub-stream, stopping (without
+/// consuming) at the `stop` byte that begins the following production. Two call
+/// sites, same integer-expression class: the straight-line leaf body stops at
+/// the `41` result-type marker (the return plumbing); the call-argument region
+/// stops at the `55` call-end marker. Fail-closed: any byte that is not a
+/// modeled operand/opcode (a comparison `24`, shift `09`, bitwise `0B`, ternary
+/// `43 42`, …) rejects the whole function. Requires at least one op.
+///
+/// `stop` is only ever tested at a token boundary, so it cannot collide with an
+/// int-type byte (`86 41 74` — the `41`/`74` are consumed inside the LOAD/LIT
+/// arm) or a literal varint (consumed inside the `33` arm).
+fn parse_expr(seg: &[u8], p: &mut usize, tw: usize, stop: u8) -> Option<Vec<IlOp>> {
     let mut ops = Vec::new();
     loop {
-        match *seg.get(*p)? {
+        let b = *seg.get(*p)?;
+        if b == stop {
+            break;
+        }
+        match b {
             0xB9 => {
                 // LOAD <token> <int-type>
                 *p += 1;
@@ -389,8 +419,6 @@ fn parse_arith(seg: &[u8], p: &mut usize, tw: usize) -> Option<Vec<IlOp>> {
                 *p += 1;
                 ops.push(IlOp::Mul);
             }
-            // The `41` result-type annotation begins the return plumbing.
-            0x41 => break,
             _ => return None,
         }
     }
@@ -433,19 +461,24 @@ fn parse_formals(seg: &[u8], lo: usize, tw: usize) -> Option<Vec<u16>> {
 ///
 /// Grammar (verified against live-toolchain captures of every fixture + probe):
 /// ```text
-///   body   := 'LO'(4C 4F 11) 'SS'(53) stmt?  ( arith | vcall | fcall )
+///   body   := 'LO'(4C 4F 11) 'SS'(53) stmt?  ( arith | vcall | icall )
 ///   stmt   := 4F 01 NN                                    (multi-fn only)
-///   arith  := (LOAD | LIT | 02|03|04)+  <return int>       LOAD:=B9 tok INT
-///   vcall  := 26 tok  CALL  4C 4B  <return void>           LIT :=33 INT varint
-///   fcall  := 26 tok  CALL  LOAD  55 INT 4C  33 INT k 02  <return int>
-///   CALL   := BD <3-byte ret type> 00 80 01 10 00 00       (fixed 10 bytes)
+///   arith  := expr(→41)  <return int>                     LOAD:=B9 tok INT
+///   vcall  := 26 tok  CALL  4C 4B  <return void>          LIT :=33 INT varint
+///   icall  := 26 tok  CALL  expr(→55)  55 INT 4C  postop  <return int>
+///   postop := ε | 33 INT k 02                             expr:=(LOAD|LIT|02|03|04)+
+///   CALL   := BD <3-byte ret type> 00 80 01 10 00 00      (fixed 10 bytes)
 /// ```
 /// `<return …>` is the shared plumbing consumed by [`eat_return_plumbing`]
-/// (result-type for int, then assign/return/tail/segment-or-module end). The
-/// framed callee argument region is exactly the single passthrough LOAD; the
-/// post-op is exactly one literal + ADD (commutative) whose `k` fits a signed
-/// 16-bit `addi` — `* k`/`- k`/wide `k`/a second literal/a second call all
-/// reject. The `callee` name is not in `.ex`; the caller pairs it from `.gl`.
+/// (result-type for int, then assign/return/tail/segment-or-module end). An
+/// `icall` is classified by its `postop`: **absent, or `+ 0`** → an integer
+/// tail call [`BodyShape::IntTailCall`] (the argument `expr` computed into r3,
+/// then `b <callee>`; `g(a)`, `g(a)+0`, `g(a+1)` all land here). A **non-zero
+/// `+ k`** over a *bare passthrough* argument (`expr == [Load]`) → the framed
+/// [`BodyShape::FramedCall`] (whose `k` fits a signed-16-bit `addi`). A non-zero
+/// `+ k` over a *computed* argument (`g(a+1)+1`), or a `* k`/`- k`/wide `k`/a
+/// second literal/a second call, all reject. The `callee` name is not in `.ex`;
+/// the caller pairs it from `.gl`.
 fn parse_segment(seg: &[u8], tw: usize) -> Option<BodyShape> {
     let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11])?;
     let mut p = lo + 3;
@@ -456,11 +489,11 @@ fn parse_segment(seg: &[u8], tw: usize) -> Option<BodyShape> {
     eat_opt_stmt_marker(seg, &mut p);
 
     match *seg.get(p)? {
-        // Call shapes both open with a `26 <tok>` function/result-temp ref.
-        0x26 => parse_call_shape(seg, &mut p, tw),
+        // Call shapes all open with a `26 <tok>` function/result-temp ref.
+        0x26 => parse_call_shape(seg, &mut p, tw, lo),
         // Straight-line arithmetic opens with a LOAD or a bare literal.
         0xB9 | 0x33 => {
-            let ops = parse_arith(seg, &mut p, tw)?;
+            let ops = parse_expr(seg, &mut p, tw, 0x41)?;
             eat_return_plumbing(seg, &mut p, tw, true)?;
             let params = parse_formals(seg, lo, tw)?;
             Some(BodyShape::StraightLine { params, ops })
@@ -470,9 +503,11 @@ fn parse_segment(seg: &[u8], tw: usize) -> Option<BodyShape> {
 }
 
 /// Parse a call shape (already positioned at the `26 <tok>` function ref): the
-/// bare terminal void call or the framed `return g(a) + k`. See
-/// [`parse_segment`] for the grammar; fail-closed at every step.
-fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize) -> Option<BodyShape> {
+/// bare terminal void call, an integer tail call `return g(<arg>)` (passthrough
+/// or arg-setup, plus the `g(a)+0` identity fold), or the framed
+/// `return g(a) + k` (k ≠ 0). See [`parse_segment`] for the grammar;
+/// fail-closed at every step. `lo` locates the formals for the arg-setup.
+fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize, lo: usize) -> Option<BodyShape> {
     // 26 <tok> function/result ref.
     if !eat_byte(seg, p, 0x26) {
         return None;
@@ -497,25 +532,30 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize) -> Option<BodyShape> {
         return Some(BodyShape::VoidTailCall);
     }
 
-    // FRAMED int call: the argument region is EXACTLY one passthrough LOAD, then
-    // the `55 <int>` call-end and its `4C` marker.
-    if !eat_byte(seg, p, 0xB9) {
-        return None; // no/complex arg region we do not model
-    }
-    read_token(seg, *p, tw)?;
-    *p += tw;
-    if !eat(seg, p, &INT_TYPE) {
-        return None;
-    }
-    // Anything other than the `55 <int> 4C` call-end here (a second arg LOAD, an
-    // in-argument literal like `g(a+1)`) means an argument region we do not
-    // model → reject.
+    // INT call. The argument region is a single modeled sub-expression producing
+    // the one call argument — a passthrough `B9 a INT` (→ `[Load]`) or an
+    // arg-setup like `a + 1` (→ `[Load, Lit, Add]`) — terminated by the `55`
+    // call-end. Any unmodeled operand/opcode rejects the whole function. `g(a)`,
+    // `g(a)+k` and `g(a+1)` share this region; they diverge at the post-op.
+    let arg_ops = parse_expr(seg, p, tw, 0x55)?;
     if !eat_byte(seg, p, 0x55) || !eat(seg, p, &INT_TYPE) || !eat_byte(seg, p, 0x4C) {
-        return None;
+        return None; // a call-argument region whose call-end we do not model
     }
-    // Post-op: EXACTLY one literal `33 <int> k` immediately followed by ADD.
-    // A second call (`g(a)+g(1)` → `26 …`), a second literal (`g(a)+1+2` → a
-    // second `33 …`), or SUB/MUL (`03`/`04`) all fail one of these `eat`s.
+
+    // Post-op region. EITHER the return plumbing begins directly at its `41`
+    // result-type marker (no post-op → an integer tail call `return g(<arg>)`),
+    // OR exactly one literal `33 <int> k` + ADD (`return g(a) + k`, framed).
+    if seg.get(*p) == Some(&0x41) {
+        // No post-op → integer tail call: compute the argument into r3, then
+        // `b <callee>` (5-section leaf). The int analog of the void tail call;
+        // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
+        eat_return_plumbing(seg, p, tw, true)?;
+        let params = parse_formals(seg, lo, tw)?;
+        return Some(BodyShape::IntTailCall { params, arg_ops });
+    }
+    // Post-op `+ k`: EXACTLY one literal `33 <int> k` immediately followed by
+    // ADD. A second call (`g(a)+g(1)` → `26 …`), a second literal (`g(a)+1+2` →
+    // a second `33 …`), or SUB/MUL (`03`/`04`) all fail one of these `eat`s.
     if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
         return None;
     }
@@ -528,7 +568,24 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize) -> Option<BodyShape> {
         return None;
     }
     eat_return_plumbing(seg, p, tw, true)?;
-    Some(BodyShape::FramedCall { add_k: k })
+
+    // W4b2-vi identity fold: a net post-op of 0 is NOT a framed call. `g(a)+0`
+    // == `g(a)`, and the optimizer folds it to the bare `b g` (verified: the
+    // `g(a)+0` obj is byte-identical to `g(a)`'s). Route it to the integer
+    // tail-call production so it takes the 5-section leaf path — never the
+    // 6-section framed obj (which would mis-emit a frame the reference elides).
+    if k == 0 {
+        let params = parse_formals(seg, lo, tw)?;
+        return Some(BodyShape::IntTailCall { params, arg_ops });
+    }
+    // A genuine `+ k` (k ≠ 0) is a framed non-leaf call — but the 6-section
+    // framed path models only a **bare passthrough argument** (`g(a) + k`), not
+    // arg-setup. `g(a+1) + 1` (a computed argument AND a framed post-op) is out
+    // of class → reject (fail closed), never a mis-emitted framed obj.
+    if matches!(arg_ops.as_slice(), [IlOp::Load(_)]) {
+        return Some(BodyShape::FramedCall { add_k: k });
+    }
+    None
 }
 
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
@@ -584,9 +641,11 @@ impl IlBundle {
 
         // Calls (externals present) are handled only for a **single-function
         // TU with a single external** — the positive parse ([`parse_segment`])
-        // recognizes exactly two call shapes:
-        //   * W4b2 framed non-leaf `return g(a) + k` → the 6-section framed obj;
-        //   * W4a bare terminal tail call `void f(){ g(); }` → single `b g`.
+        // recognizes three call shapes:
+        //   * W4b2 framed non-leaf `return g(a) + k` (k≠0) → 6-section framed obj;
+        //   * W4a bare terminal void tail call `void f(){ g(); }` → single `b g`;
+        //   * W4b2-iv/-vi integer tail call `return g(<arg>)` (and `g(a)+0`) →
+        //     5-section leaf, arg computed into r3 then `b g`.
         // The callee name is not in `.ex`; it is paired from the single `.gl`
         // external. Scope is single-function only: the `.pdata` label counters
         // ($M2545/$M2546/$T2547) are a fixed toolchain seed for the first
@@ -615,6 +674,19 @@ impl IlBundle {
                             source_path: src,
                             params: Vec::new(),
                             ops: Vec::new(),
+                            tail_call: Some(externals[0].clone()),
+                            framed_call: None,
+                        }]);
+                    }
+                    // Integer tail call `return g(<arg>)` (and the `g(a)+0` fold).
+                    // Carries the formals + the argument sub-expression so codegen
+                    // can compute the single argument into r3 before `b <callee>`.
+                    BodyShape::IntTailCall { params, arg_ops } => {
+                        return Some(vec![IlFunction {
+                            mangled_name: names[0].clone(),
+                            source_path: src,
+                            params,
+                            ops: arg_ops,
                             tail_call: Some(externals[0].clone()),
                             framed_call: None,
                         }]);
@@ -825,15 +897,64 @@ mod tests {
     }
 
     #[test]
+    fn parse_segment_accepts_int_tail_call_family() {
+        // The three int tail-call shapes (formals `46 2d e509` = param a → r3):
+        //   passthrough `g(a)` and identity-fold `g(a)+0` → arg `[Load a]`;
+        //   arg-setup `g(a+1)` → arg `[Load a, Lit 1, Add]`. All are
+        //   `IntTailCall` (a net-identity post-op is a tail call, not framed).
+        assert_eq!(
+            parse_segment(INT_TAILRET, 2),
+            Some(BodyShape::IntTailCall {
+                params: vec![0xE509],
+                arg_ops: vec![IlOp::Load(0xE509)],
+            }),
+            "passthrough g(a)"
+        );
+        assert_eq!(
+            parse_segment(INT_PLUS0, 2),
+            Some(BodyShape::IntTailCall {
+                params: vec![0xE509],
+                arg_ops: vec![IlOp::Load(0xE509)],
+            }),
+            "identity-fold g(a)+0 routes to a tail call, not FramedCall{{add_k:0}}"
+        );
+        assert_eq!(
+            parse_segment(INT_ARGTAIL, 2),
+            Some(BodyShape::IntTailCall {
+                params: vec![0xE509],
+                arg_ops: vec![IlOp::Load(0xE509), IlOp::Lit(1), IlOp::Add],
+            }),
+            "arg-setup g(a+1)"
+        );
+    }
+
+    #[test]
+    fn parse_segment_routes_framed_nonzero_but_folds_zero_k() {
+        // Routing contrast at the post-op: a NON-zero `+k` over a bare
+        // passthrough arg is FramedCall (6-section frame); a ZERO `+k` folds to
+        // an IntTailCall (5-section leaf). Same shape but for the immediate.
+        assert_eq!(
+            parse_segment(MVP_FRAMED, 2),
+            Some(BodyShape::FramedCall { add_k: 1 }),
+            "g(a)+1 is framed"
+        );
+        assert!(
+            matches!(parse_segment(INT_PLUS0, 2), Some(BodyShape::IntTailCall { .. })),
+            "g(a)+0 must NOT be FramedCall{{add_k:0}}"
+        );
+    }
+
+    #[test]
     fn parse_segment_rejects_all_out_of_class_call_shapes() {
-        // The four W4b2-i probes plus the five W4b2-v defects — each a real
-        // captured segment the positive parse must reject at the parser level
-        // (→ None → NotImplemented), never mis-emit. Named by their `.cpp`.
+        // The W4b2-i/-v out-of-class probes — each a real captured segment the
+        // positive parse must reject at the parser level (→ None →
+        // NotImplemented), never mis-emit. Named by their `.cpp`. (The bare
+        // arg-setup tail calls `g(a)`/`g(a)+0`/`g(a+1)` are now ACCEPTED —
+        // see `parse_segment_accepts_int_tail_call_family`.)
         let cases: &[(&str, &[u8])] = &[
             ("g(a) - 1 (submod)", GA_SUBMOD),
             ("g(a) * 5 (mulmod)", GA_MULMOD),
             ("g(a) + 70000 (widemod)", GA_WIDEMOD),
-            ("g(a + 1) (argframed)", GA_ARGFRAMED),
             ("g(); g(); (two_calls)", TWO_CALLS),
             ("g(); return a+1; (call_then_stmt)", CALL_THEN_STMT),
             ("g(a + 1) + 1 (argframed_plusk)", ARGFRAMED_PLUSK),
@@ -900,14 +1021,50 @@ mod tests {
         0x54, 0x02, 0x29, 0xE7, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20,
         0x00, 0x4F, 0x01, 0x07, 0x4D,
     ];
-    /// `return g(a + 1);` — in-argument arithmetic (LOAD+LIT+ADD before `55`)
-    /// → the argument region is not the bare passthrough LOAD → reject.
-    const GA_ARGFRAMED: &[u8] = &[
-        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10,
-        0x00, 0x00, 0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x01, 0x02, 0x55,
-        0x86, 0x41, 0x74, 0x4C, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7,
-        0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x0A,
-        0x4D,
+    // The three ACCEPTED integer tail-call segments (transcribed from live
+    // 16.00.11886.00 `.ex` captures of `return g(a)`, `g(a)+0`, `g(a+1)`).
+    // Unlike the void/framed constants above, these start at the `46` formals
+    // marker (param a = token 0xE509) — the arg-setup codegen maps the argument
+    // tokens to registers, so the formal list must be present.
+
+    /// `int f(int a){ return g(a); }` — passthrough: arg region is the bare
+    /// LOAD, no post-op → integer tail call (bare `b g`).
+    const INT_TAILRET: &[u8] = &[
+        0x46, 0x2D, 0xE5, 0x09, // formals: a = e509
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // 26 CALL
+        0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // LOAD a (the argument)
+        0x55, 0x86, 0x41, 0x74, 0x4C, // 55 <int> 4C call-end
+        0x41, 0x86, 0x41, 0x74, // result-type int (no post-op → tail call)
+        0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, // assign + return
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
+    ];
+    /// `int f(int a){ return g(a) + 0; }` — identity fold: same arg LOAD, then a
+    /// real `33 86 41 74 00 02` (LIT 0 + ADD) post-op that folds to a tail call.
+    const INT_PLUS0: &[u8] = &[
+        0x46, 0x2D, 0xE5, 0x09, // formals: a = e509
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // 26 CALL
+        0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // LOAD a
+        0x55, 0x86, 0x41, 0x74, 0x4C, // call-end
+        0x33, 0x86, 0x41, 0x74, 0x00, 0x02, // post-op LIT 0 + ADD (folds away)
+        0x41, 0x86, 0x41, 0x74, // result-type int
+        0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, // assign + return
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
+    ];
+    /// `int f(int a){ return g(a + 1); }` — arg-setup: the `+1` is IN the
+    /// argument (LOAD+LIT+ADD before `55`), no post-op → integer tail call
+    /// (`addi r3,r3,1 ; b g`). Not to be mistaken for framed `g(a)+1`.
+    const INT_ARGTAIL: &[u8] = &[
+        0x46, 0x2D, 0xE5, 0x09, // formals: a = e509
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // 26 CALL
+        0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // LOAD a
+        0x33, 0x86, 0x41, 0x74, 0x01, 0x02, // LIT 1 + ADD (computes a+1 into the arg)
+        0x55, 0x86, 0x41, 0x74, 0x4C, // call-end
+        0x41, 0x86, 0x41, 0x74, // result-type int (no post-op → tail call)
+        0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, // assign + return
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
     ];
     /// `void f(){ g(); g(); }` — a SECOND call stands where the void tail call's
     /// return plumbing must be → reject (defect #1).
