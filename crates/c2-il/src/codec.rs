@@ -42,6 +42,27 @@ use crate::{detect_token_width, IlBundle};
 /// `func::INT_TYPE`; duplicated here to keep [`crate::func`] untouched.
 const INT_TYPE: [u8; 3] = [0x86, 0x41, 0x74];
 
+/// The **float** type encoding inline in the `.ex` body (`86 45 40`) — the
+/// float analog of [`INT_TYPE`], per the reference decoder's type table
+/// (`dc3-decomp/msvc-src/tools/il_parser.py` `KNOWN_TYPES`: `86 45 40` = float).
+/// This is the "float type-annotation" the float-leaf codec widening decodes:
+/// it appears in a float LOAD (`B9 <tok> 86 45 40`), the CAST/STORE that
+/// materialize a float temp, and the float result-type annotation
+/// (`41 86 45 40`). Verified against a live 16.00.11886.00 capture of a
+/// `Box::Volume`-class float leaf (see `VOLF_SEGMENT`).
+const FLOAT_TYPE: [u8; 3] = [0x86, 0x45, 0x40];
+
+/// The 2-byte **pointer** type prefix (`86 43`) — a pointer type is
+/// `86 43 XX XX` (4 bytes; the two low bytes name the pointee), per the
+/// reference decoder (`try_parse_type`: prefix `86` with `43` → pointer). It
+/// leads a pointer LOAD (`B9 <tok> 86 43 XX XX`) and the MEMBER_PTR op.
+const PTR_TYPE_PREFIX: [u8; 2] = [0x86, 0x43];
+
+/// The class/struct-pointer type prefix (`A6`) — an `A6 XX XX XX` 4-byte type
+/// (per `try_parse_type`: prefix `A6` → class-pointer). It types the DEREF
+/// (`30 A6 XX XX XX`) that loads a struct member through the member pointer.
+const CLASS_PTR_PREFIX: u8 = 0xA6;
+
 /// The fixed 6-byte callee-reference tail of a CALL token
 /// (`00 80 01 10 00 00`). Mirrors `func::CALL_CALLEE_ANCHOR`.
 const CALL_CALLEE_ANCHOR: [u8; 6] = [0x00, 0x80, 0x01, 0x10, 0x00, 0x00];
@@ -125,6 +146,44 @@ pub enum ExToken {
     /// `4F 02 20 00 4F 01 NN` sequence [`ExToken::ModuleEnd`] carries, minus the
     /// trailing `4D`; located here in the metadata prefix, before `53 53`.
     BlockStart(u8),
+
+    // ---- float-leaf vocabulary (float arithmetic + struct-member loads) ----
+    //
+    // The `Box::Volume`-class float leaf (`float x=a->x-b->x; … return x*y*z;`)
+    // parses to a float-arith stream over struct-member loads. Its operand forms
+    // are the float analogs of the int LOAD/result-type plus the member-access
+    // idiom `LOAD ptr ; LIT offset ; MEMBER_PTR ; DEREF`. These are the tokens
+    // that were interleaved-opaque before the widening — decoded here so the body
+    // is a *contiguous* typed run (K3a-editable). Byte evidence: a live
+    // 16.00.11886.00 `/Bd /d2nop /Ox /GS- /c` capture of `float volf(const V*a,
+    // const V*b){ float x=a->x-b->x; float y=…; float z=…; return x*y*z; }` — see
+    // the `VOLF_SEGMENT` test fixture. (The int-typed `Lit`, `Sub`, `Mul` in the
+    // body were already typed — `Sub`/`Mul` are type-agnostic single bytes — so
+    // no float `Sub`/`Mul` variant is needed; they surface as the existing
+    // [`ExToken::Sub`]/[`ExToken::Mul`] once the body is contiguous.)
+
+    /// `B9 <tok> 86 45 40` — LOAD a **float** operand (the float analog of
+    /// [`ExToken::Load`], which is int `B9 <tok> 86 41 74`).
+    FloatLoad(u16),
+    /// `B9 <tok> 86 43 XX XX` — LOAD a **pointer** operand (a `this`/argument
+    /// pointer feeding a member access). `86 43` is the pointer-type prefix; the
+    /// two low bytes name the pointee and are preserved for byte-exact re-encode.
+    PtrLoad { tok: u16, ty: [u8; 2] },
+    /// `27 86 43 XX XX` — MEMBER_PTR: pointer + offset literal → a typed member
+    /// pointer (`a` + `offsetof(x)`). The two low type bytes are preserved.
+    MemberPtr([u8; 2]),
+    /// `30 A6 XX XX XX` — DEREF: load-indirect the float member through the
+    /// member pointer (`A6` = class/struct-pointer type; 3 payload bytes).
+    Deref([u8; 3]),
+    /// `2C 86 45 40 00` — CAST to float: materialize the float sub-expression
+    /// result (trailing `00` per the reference `CAST: 2C type 00`).
+    CastFloat,
+    /// `32 86 45 40 4B` — STORE the float temp (trailing `4B` end marker, per the
+    /// reference `STORE: 32 type 4B`).
+    StoreFloat,
+    /// `41 86 45 40` — **float** result-type annotation (the float analog of
+    /// [`ExToken::ResultType`], which is int `41 86 41 74`).
+    ResultTypeFloat,
 }
 
 impl ExToken {
@@ -196,6 +255,41 @@ impl ExToken {
             ExToken::BlockStart(nn) => {
                 out.extend_from_slice(&BLOCK_START);
                 out.extend_from_slice(&[0x4F, 0x01, nn]);
+            }
+            ExToken::FloatLoad(t) => {
+                out.push(0xB9);
+                tok(out, t);
+                out.extend_from_slice(&FLOAT_TYPE);
+            }
+            ExToken::PtrLoad { tok: t, ty } => {
+                out.push(0xB9);
+                tok(out, t);
+                out.extend_from_slice(&PTR_TYPE_PREFIX);
+                out.extend_from_slice(&ty);
+            }
+            ExToken::MemberPtr(ty) => {
+                out.push(0x27);
+                out.extend_from_slice(&PTR_TYPE_PREFIX);
+                out.extend_from_slice(&ty);
+            }
+            ExToken::Deref(ty) => {
+                out.push(0x30);
+                out.push(CLASS_PTR_PREFIX);
+                out.extend_from_slice(&ty);
+            }
+            ExToken::CastFloat => {
+                out.push(0x2C);
+                out.extend_from_slice(&FLOAT_TYPE);
+                out.push(0x00);
+            }
+            ExToken::StoreFloat => {
+                out.push(0x32);
+                out.extend_from_slice(&FLOAT_TYPE);
+                out.push(0x4B);
+            }
+            ExToken::ResultTypeFloat => {
+                out.push(0x41);
+                out.extend_from_slice(&FLOAT_TYPE);
             }
         }
     }
@@ -1031,6 +1125,12 @@ fn try_ex_token(body: &[u8], p: usize) -> Option<(ExToken, usize)> {
             let t = tok16(body, p + 1)?;
             if starts_with(body, p + 3, &INT_TYPE) {
                 Some((ExToken::Load(t), 6))
+            } else if starts_with(body, p + 3, &FLOAT_TYPE) {
+                Some((ExToken::FloatLoad(t), 6))
+            } else if starts_with(body, p + 3, &PTR_TYPE_PREFIX) {
+                // Pointer LOAD: `B9 <tok> 86 43 XX XX` (4-byte pointer type).
+                let ty = [*body.get(p + 5)?, *body.get(p + 6)?];
+                Some((ExToken::PtrLoad { tok: t, ty }, 7))
             } else {
                 None
             }
@@ -1070,6 +1170,42 @@ fn try_ex_token(body: &[u8], p: usize) -> Option<(ExToken, usize)> {
         0x41 => {
             if starts_with(body, p + 1, &INT_TYPE) {
                 Some((ExToken::ResultType, 4))
+            } else if starts_with(body, p + 1, &FLOAT_TYPE) {
+                Some((ExToken::ResultTypeFloat, 4))
+            } else {
+                None
+            }
+        }
+        0x27 => {
+            // MEMBER_PTR: `27 86 43 XX XX` (pointer type; pointer + offset).
+            if starts_with(body, p + 1, &PTR_TYPE_PREFIX) {
+                let ty = [*body.get(p + 3)?, *body.get(p + 4)?];
+                Some((ExToken::MemberPtr(ty), 5))
+            } else {
+                None
+            }
+        }
+        0x30 => {
+            // DEREF: `30 A6 XX XX XX` (class/struct-pointer type; load-indirect).
+            if body.get(p + 1) == Some(&CLASS_PTR_PREFIX) {
+                let ty = [*body.get(p + 2)?, *body.get(p + 3)?, *body.get(p + 4)?];
+                Some((ExToken::Deref(ty), 5))
+            } else {
+                None
+            }
+        }
+        0x2C => {
+            // CAST to float: `2C 86 45 40 00`.
+            if starts_with(body, p + 1, &FLOAT_TYPE) && body.get(p + 4) == Some(&0x00) {
+                Some((ExToken::CastFloat, 5))
+            } else {
+                None
+            }
+        }
+        0x32 => {
+            // STORE float temp: `32 86 45 40 4B`.
+            if starts_with(body, p + 1, &FLOAT_TYPE) && body.get(p + 4) == Some(&0x4B) {
+                Some((ExToken::StoreFloat, 5))
             } else {
                 None
             }
@@ -1230,6 +1366,20 @@ mod tests {
             ),
             (ExToken::Formals, &[0x46]),
             (ExToken::Formal(0xE509), &[0x2D, 0xE5, 0x09]),
+            // Float-leaf vocabulary (byte evidence from the volf capture).
+            (ExToken::FloatLoad(0xF109), &[0xB9, 0xF1, 0x09, 0x86, 0x45, 0x40]),
+            (
+                ExToken::PtrLoad {
+                    tok: 0xED09,
+                    ty: [0x82, 0x20],
+                },
+                &[0xB9, 0xED, 0x09, 0x86, 0x43, 0x82, 0x20],
+            ),
+            (ExToken::MemberPtr([0x86, 0x20]), &[0x27, 0x86, 0x43, 0x86, 0x20]),
+            (ExToken::Deref([0x45, 0x85, 0x20]), &[0x30, 0xA6, 0x45, 0x85, 0x20]),
+            (ExToken::CastFloat, &[0x2C, 0x86, 0x45, 0x40, 0x00]),
+            (ExToken::StoreFloat, &[0x32, 0x86, 0x45, 0x40, 0x4B]),
+            (ExToken::ResultTypeFloat, &[0x41, 0x86, 0x45, 0x40]),
         ];
         for (tok, bytes) in cases {
             let mut out = Vec::new();
@@ -1617,6 +1767,147 @@ mod tests {
             model.ex_function_count(),
             "typed .gl offsets must be 1:1 with .ex functions"
         );
+    }
+
+    // ---- float-leaf codec widening (Box::Volume class) ---------------------
+    //
+    // A REAL single-function `.ex` segment captured from the live
+    // 16.00.11886.00 toolchain (`/Bd /d2nop /Ox /GS- /c`) of the faithful
+    // `Box::Volume` reduction
+    //   `float volf(const V* a, const V* b) {
+    //        float x = a->x - b->x; float y = a->y - b->y;
+    //        float z = a->z - b->z; return x * y * z; }`
+    // (`?volf@@YAMPBUV@@0@Z`; `V { float x,y,z; }`), transcribed from the
+    // `4F 1F` function-start marker. Only `.ex` opcode bytes — the host path
+    // lives in `.gl`, which is why bundles are not committed. This is the
+    // float-leaf class the near-miss lane needs: float arithmetic (`03` SUB,
+    // `04` MUL) over struct-member loads (`LOAD ptr ; LIT off ; MEMBER_PTR ;
+    // DEREF`), materialized through CAST/STORE and returned float. Before the
+    // widening it parsed with ~21 interleaved opaque runs (the float/pointer
+    // loads + member-access ops) and yielded ZERO K3a neighbors; after it, the
+    // body is a *contiguous* typed run.
+    const VOLF_SEGMENT: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00,
+        0x4F, 0x33, 0x0D, 0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01,
+        0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18, 0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38,
+        0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D, 0x08, 0x00, 0x0F,
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x53, 0x53, 0x26, 0xEF, 0x09,
+        0x46, 0x2D, 0xEE, 0x09, 0x2D, 0xED, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x4F,
+        0x01, 0x03, 0x26, 0xF1, 0x09, 0xB9, 0xED, 0x09, 0x86, 0x43, 0x82, 0x20,
+        0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0x86, 0x43, 0x86, 0x20, 0x30, 0xA6,
+        0x45, 0x85, 0x20, 0xB9, 0xEE, 0x09, 0x86, 0x43, 0x82, 0x20, 0x33, 0x86,
+        0x41, 0x74, 0x00, 0x27, 0x86, 0x43, 0x86, 0x20, 0x30, 0xA6, 0x45, 0x85,
+        0x20, 0x03, 0x2C, 0x86, 0x45, 0x40, 0x00, 0x32, 0x86, 0x45, 0x40, 0x4B,
+        0x4F, 0x01, 0x04, 0x26, 0xF2, 0x09, 0xB9, 0xED, 0x09, 0x86, 0x43, 0x82,
+        0x20, 0x33, 0x86, 0x41, 0x74, 0x04, 0x27, 0x86, 0x43, 0x86, 0x20, 0x30,
+        0xA6, 0x45, 0x85, 0x20, 0xB9, 0xEE, 0x09, 0x86, 0x43, 0x82, 0x20, 0x33,
+        0x86, 0x41, 0x74, 0x04, 0x27, 0x86, 0x43, 0x86, 0x20, 0x30, 0xA6, 0x45,
+        0x85, 0x20, 0x03, 0x2C, 0x86, 0x45, 0x40, 0x00, 0x32, 0x86, 0x45, 0x40,
+        0x4B, 0x4F, 0x01, 0x05, 0x26, 0xF3, 0x09, 0xB9, 0xED, 0x09, 0x86, 0x43,
+        0x82, 0x20, 0x33, 0x86, 0x41, 0x74, 0x08, 0x27, 0x86, 0x43, 0x86, 0x20,
+        0x30, 0xA6, 0x45, 0x85, 0x20, 0xB9, 0xEE, 0x09, 0x86, 0x43, 0x82, 0x20,
+        0x33, 0x86, 0x41, 0x74, 0x08, 0x27, 0x86, 0x43, 0x86, 0x20, 0x30, 0xA6,
+        0x45, 0x85, 0x20, 0x03, 0x2C, 0x86, 0x45, 0x40, 0x00, 0x32, 0x86, 0x45,
+        0x40, 0x4B, 0x4F, 0x01, 0x06, 0xB9, 0xF1, 0x09, 0x86, 0x45, 0x40, 0xB9,
+        0xF2, 0x09, 0x86, 0x45, 0x40, 0x04, 0xB9, 0xF3, 0x09, 0x86, 0x45, 0x40,
+        0x04, 0x41, 0x86, 0x45, 0x40, 0x3A, 0xF0, 0x09, 0x4F, 0x01, 0x07, 0x54,
+        0x02, 0x29, 0xF0, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F,
+        0x02, 0x20, 0x00, 0x4F, 0x01, 0x08, 0x4D,
+    ];
+
+    /// A full single-function `.ex` for the volf float leaf: header pad + the
+    /// captured segment (mirrors [`build_bundle`]'s `.ex` shape).
+    fn volf_ex() -> Vec<u8> {
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 12]);
+        ex.extend_from_slice(VOLF_SEGMENT);
+        ex
+    }
+
+    #[test]
+    fn volf_float_leaf_round_trips_and_is_fully_typed() {
+        let ex = volf_ex();
+        let spans = parse_ex(&ex);
+        // Byte-exact round-trip (the standing K1 invariant).
+        let mut out = Vec::new();
+        for s in &spans {
+            s.encode_into(&mut out);
+        }
+        assert_eq!(out, ex, "volf .ex must round-trip byte-identically");
+
+        // The ONLY opaque residue is the 16-byte header pad — the entire float
+        // leaf body (float/pointer loads, member-access ops, CAST/STORE, float
+        // result-type) is now typed, no interleaved opaque runs.
+        let opaque_bytes: usize = spans
+            .iter()
+            .filter_map(|s| match s {
+                Span::Opaque(b) => Some(b.len()),
+                _ => None,
+            })
+            .sum();
+        assert_eq!(
+            opaque_bytes, 16,
+            "only the 16-byte header pad stays opaque; the float leaf is fully typed"
+        );
+
+        // The new float-leaf tokens are present with the expected multiplicity
+        // (6 member accesses × {PtrLoad, MemberPtr, Deref}, 3 × {CastFloat,
+        // StoreFloat}, 3 float value loads, 1 float result-type).
+        let toks: Vec<ExToken> = spans
+            .iter()
+            .filter_map(|s| match s {
+                Span::Ex(t) => Some(t.clone()),
+                _ => None,
+            })
+            .collect();
+        let count = |pred: &dyn Fn(&ExToken) -> bool| toks.iter().filter(|t| pred(t)).count();
+        assert_eq!(count(&|t| matches!(t, ExToken::PtrLoad { .. })), 6);
+        assert_eq!(count(&|t| matches!(t, ExToken::MemberPtr(_))), 6);
+        assert_eq!(count(&|t| matches!(t, ExToken::Deref(_))), 6);
+        assert_eq!(count(&|t| matches!(t, ExToken::CastFloat)), 3);
+        assert_eq!(count(&|t| matches!(t, ExToken::StoreFloat)), 3);
+        assert_eq!(count(&|t| matches!(t, ExToken::FloatLoad(_))), 3);
+        assert_eq!(count(&|t| matches!(t, ExToken::ResultTypeFloat)), 1);
+        // The float arithmetic itself: 3 SUBs (the member diffs), 2 MULs (the
+        // product) — already the type-agnostic `03`/`04`, now inside the
+        // contiguous typed run rather than stranded among opaque bytes.
+        assert_eq!(count(&|t| matches!(t, ExToken::Sub)), 3);
+        assert_eq!(count(&|t| matches!(t, ExToken::Mul)), 2);
+        // And the 6 int member-offset literals (0,0,4,4,8,8) — editable Lits.
+        assert_eq!(count(&|t| matches!(t, ExToken::Lit { .. })), 6);
+    }
+
+    #[test]
+    fn volf_float_leaf_body_is_token_addressable_with_editable_ops() {
+        // THE GATE (codec side): the float-leaf body is a contiguous typed run,
+        // so `function_tokens` succeeds (no `OpaqueFunctionBody`) — the exact
+        // precondition the stuck-dc3 attempt failed (interleaved opaque → zero
+        // K3a neighbors). The move set derives K3a neighbors from these tokens;
+        // this asserts the codec now exposes editable float ops + literals the
+        // move set's rules (`is_binop` for SUB/MUL, literal widen for the
+        // offsets) will act on. The neighbor COUNT itself is asserted in the
+        // harness (`search_differential.rs`), which owns `MoveSet`.
+        let mut bundle = IlBundle::new("_CL_volf");
+        bundle.set("ex", volf_ex());
+        let model = IlModel::parse(&bundle).expect("volf bundle round-trips");
+        assert_eq!(model.ex_function_count(), 1);
+
+        let tokens = model
+            .function_tokens(0)
+            .expect("float-leaf body is token-addressable (contiguous typed run)");
+
+        // Editable float ops the move set accepts: SUB/MUL are `is_binop`.
+        let binops = tokens
+            .iter()
+            .filter(|t| matches!(t, ExToken::Sub | ExToken::Mul))
+            .count();
+        assert!(binops >= 1, "≥1 editable float binop (SUB/MUL) for the move set");
+        // Editable literals (the member offsets) — the widen/narrow move site.
+        let lits = tokens
+            .iter()
+            .filter(|t| matches!(t, ExToken::Lit { .. }))
+            .count();
+        assert!(lits >= 1, "≥1 editable literal (member offset) for widen/narrow");
     }
 
     // ---- K3a length-edit primitive -----------------------------------------
