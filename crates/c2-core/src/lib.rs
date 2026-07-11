@@ -13,6 +13,8 @@
 pub use c2_il::IlBundle;
 pub use c2_obj::ObjImage;
 
+pub mod codegen;
+pub mod coff;
 pub mod passes;
 
 use std::fmt;
@@ -63,21 +65,72 @@ pub trait Backend {
     /// match — the harness normalizes it away before comparing.
     fn compile(&self, il: &IlBundle) -> Result<ObjImage, BackendError>;
 
+    /// Compile an IL bundle to a COFF `.obj`, threading the `-Fo` **output-path
+    /// string** the reference toolchain saw. MSVC embeds that path in the
+    /// object (`.debug$S` S_OBJNAME), so a byte-exact match requires the port
+    /// to see the *same* string — it is an emitter input, not a bundle fact.
+    ///
+    /// Default: ignore the name and defer to [`Backend::compile`] (correct for
+    /// backends like `ReferenceC2` that fix the path themselves via replay).
+    /// [`PortC2`] overrides this to embed `obj_name` verbatim.
+    fn compile_to(&self, il: &IlBundle, obj_name: &str) -> Result<ObjImage, BackendError> {
+        let _ = obj_name;
+        self.compile(il)
+    }
+
     /// Short stable identifier for this backend (used in reports).
     fn name(&self) -> &str;
 }
 
-/// The native port — **STUB**. Every pass is unported; `compile` always errors.
-pub struct PortC2;
+/// The native port. For the MVP function class (a straight-line integer
+/// add-chain leaf function, e.g. `int add3(int,int,int)`) this now emits a
+/// **byte-exact** `.obj`: it parses the IL bundle
+/// ([`IlBundle::mvp_function`](c2_il::IlBundle::mvp_function)), selects PPC
+/// `.text` ([`codegen::select_text`]), and builds the 5-section COFF
+/// ([`coff::emit_mvp_obj`]). Anything outside that class returns
+/// [`BackendError::NotImplemented`].
+///
+/// The `-Fo` output-path string (embedded in `.debug$S` S_OBJNAME) is carried
+/// on the struct so [`Backend::compile`] is self-contained; the harness's
+/// differential prefers [`Backend::compile_to`] to thread the reference's exact
+/// path in.
+#[derive(Clone, Debug, Default)]
+pub struct PortC2 {
+    /// The `-Fo` output-path string to embed as S_OBJNAME (wibo `Z:\…` form).
+    obj_name: String,
+}
+
+impl PortC2 {
+    /// Construct with the `-Fo` output-path string to embed (S_OBJNAME).
+    pub fn new(obj_name: impl Into<String>) -> Self {
+        PortC2 {
+            obj_name: obj_name.into(),
+        }
+    }
+
+    /// Build the MVP obj for `il`, embedding `obj_name` as S_OBJNAME.
+    pub fn build(&self, il: &IlBundle, obj_name: &str) -> Result<ObjImage, BackendError> {
+        let func = il.mvp_function().ok_or_else(|| {
+            BackendError::NotImplemented(
+                "PortC2 only handles the MVP straight-line int add-chain class \
+                 (e.g. add3); this bundle is outside it. See c2-core::codegen \
+                 and the CODEGEN spec for the supported shape."
+                    .to_string(),
+            )
+        })?;
+        let text = codegen::select_text(&func)?;
+        let bytes = coff::emit_mvp_obj(obj_name, &func.mangled_name, &text);
+        Ok(ObjImage::new(bytes))
+    }
+}
 
 impl Backend for PortC2 {
-    fn compile(&self, _il: &IlBundle) -> Result<ObjImage, BackendError> {
-        Err(BackendError::NotImplemented(
-            "PortC2 backend is a stub: no c2.dll passes are ported yet. \
-             See docs/plans/il-witness/03_ROADMAP.md (T-E native-port track) \
-             and c2-core::passes for the pass order and first-port targets."
-                .to_string(),
-        ))
+    fn compile(&self, il: &IlBundle) -> Result<ObjImage, BackendError> {
+        self.build(il, &self.obj_name)
+    }
+
+    fn compile_to(&self, il: &IlBundle, obj_name: &str) -> Result<ObjImage, BackendError> {
+        self.build(il, obj_name)
     }
 
     fn name(&self) -> &str {

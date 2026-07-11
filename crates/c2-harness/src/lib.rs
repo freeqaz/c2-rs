@@ -108,8 +108,12 @@ pub fn differential(
         };
     }
 
-    // 3. Reference replay is byte-exact. Now evaluate the port.
-    let port = match port.compile(&captured.bundle) {
+    // 3. Reference replay is byte-exact. Now evaluate the port. Thread the
+    //    reference's exact `-Fo` output-path string (its wibo `Z:\…` form) into
+    //    the port so the embedded S_OBJNAME matches — MSVC bakes that path into
+    //    the obj, so it is a required emitter input, not a bundle fact.
+    let obj_name = c2_reference::to_wibo_path(&captured.ref_obj_path);
+    let port = match port.compile_to(&captured.bundle, &obj_name) {
         Ok(o) => match ObjImage::diff(&captured.ref_obj, &o) {
             ObjDiff::Identical => PortStatus::Match,
             ObjDiff::Differs { first_offset, .. } => PortStatus::Mismatch { first_offset },

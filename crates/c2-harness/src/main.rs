@@ -274,7 +274,7 @@ fn cmd_diff(rest: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     };
     let w = scratch("diff");
-    let port = PortC2;
+    let port = PortC2::default();
     let report = differential(&cpp, &tc, &port, &w);
     let line = match &report {
         DiffReport::ToolchainAbsent => "ToolchainAbsent".to_string(),

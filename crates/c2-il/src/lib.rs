@@ -24,6 +24,9 @@ use std::collections::BTreeMap;
 use std::io;
 use std::path::Path;
 
+pub mod func;
+pub use func::{detect_token_width, mangled_name, source_path, IlFunction, IlOp};
+
 /// The five IL suffixes (no leading dot), in canonical order. `.ex` first
 /// because it is the main IL stream; mirrors `IL_SUFFIXES` in il_parser.py.
 pub const IL_SUFFIXES: [&str; 5] = ["ex", "gl", "sy", "in", "db"];

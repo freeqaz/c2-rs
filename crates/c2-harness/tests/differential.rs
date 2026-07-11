@@ -77,7 +77,7 @@ fn differential_reference_byte_exact_port_not_implemented() {
         return;
     }
     let w = work("diff");
-    let port = PortC2;
+    let port = PortC2::default();
     let report = differential(&fixture("add3.cpp"), &tc, &port, &w);
     match report {
         DiffReport::ReferenceReplayByteExact { port, .. } => {
@@ -89,6 +89,41 @@ fn differential_reference_byte_exact_port_not_implemented() {
         other => panic!(
             "expected ReferenceReplayByteExact (P0.1 proven) with PortNotImplemented, got {other:?}"
         ),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
+
+/// MVP milestone: the native port emits a **byte-exact** `.obj` for the single
+/// straight-line int add-chain function `int add3(int,int,int)`. The harness
+/// threads the reference's exact `-Fo` path into the port (S_OBJNAME wiring),
+/// so the whole obj — header, 5 sections, symbol + string tables — matches on
+/// timestamp-normalized bytes.
+#[test]
+fn differential_mvp_add3_port_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() {
+        eprintln!("SKIP: strace absent (needed to keep the IL bundle)");
+        return;
+    }
+    if !tc.has_mingw() {
+        eprintln!("SKIP: i686-w64-mingw32-gcc absent (needed to build c2host)");
+        return;
+    }
+    let w = work("mvp");
+    let port = PortC2::default();
+    let report = differential(&fixture("mvp_add3.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on mvp_add3, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
     }
     std::fs::remove_dir_all(&w).ok();
 }
