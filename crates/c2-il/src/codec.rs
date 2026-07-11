@@ -3,10 +3,12 @@
 //! [`IlModel::parse`] walks the five files of an [`IlBundle`] and produces a
 //! structured model whose leaves are either (a) **typed, decoded tokens** for
 //! the classes the grammar is known for (the `.ex` operand stream that
-//! [`crate::func`] already recognizes, and the `.gl` `80 <LE32>` body-start
-//! offset field), or (b) **opaque byte spans** for every not-yet-decoded region
-//! (the `.ex` header + per-function metadata, the rest of `.gl`, and all of
-//! `.sy`/`.in`/`.db`). [`IlModel::encode`] serializes the model back to bytes.
+//! [`crate::func`] already recognizes, the `.ex` per-function **metadata prefix**
+//! — FnHeader preamble, block-start, `53 53`, result-ref, formals — and the
+//! `.gl` `80 <LE32>` body-start offset field), or (b) **opaque byte spans** for
+//! every not-yet-decoded region (the `.ex` header/index, the FnHeader interior,
+//! the rest of `.gl`, and all of `.sy`/`.in`/`.db`). [`IlModel::encode`]
+//! serializes the model back to bytes.
 //!
 //! **Invariant (fail-closed):** `encode(parse(bundle)) == bundle` byte-for-byte
 //! for every file, or [`IlModel::parse`] returns [`CodecError::CannotRoundTrip`]
@@ -27,8 +29,10 @@
 //! the LE32 is the **`.ex` byte offset of that function's `4F 1F` body-start
 //! marker**. That is the one length-bearing field K3 must rewrite when an `.ex`
 //! function changes length, so it is typed as [`Span::GlOffset`] (a `u32`), not
-//! opaque. K1 only round-trips it unchanged; the field is located robustly by
-//! cross-checking against the actual set of `4F 1F` offsets in `.ex`.
+//! opaque. K1 only round-trips it unchanged. K2a locates the field **by its
+//! record framing** (`80 XX 10 00 00 00 00` precedes it) rather than by value,
+//! then gates it fail-closed: the framed offsets must equal the `.ex` `4F 1F`
+//! offsets 1:1 and in function order, or none are typed (see [`parse_gl`]).
 
 use std::collections::BTreeSet;
 
@@ -48,6 +52,12 @@ const FN_START: [u8; 2] = [0x4F, 0x1F];
 /// The `4C 4F 11` 'LO' body-start marker — the point from which the `.ex`
 /// operand stream of a function is a typed token sequence.
 const LO_MARKER: [u8; 3] = [0x4C, 0x4F, 0x11];
+
+/// The `4F 02 20 00` per-function block-start marker prefix. In the metadata
+/// prefix it is followed by `4F 01 NN` (block index) then `53 53`; at the end of
+/// the last function it is `4F 02 20 00 4F 01 NN 4D` (the module end). Mirrors
+/// the leading bytes of `func`'s module-end sequence.
+const BLOCK_START: [u8; 4] = [0x4F, 0x02, 0x20, 0x00];
 
 /// A single decoded `.ex` operand-stream token. Every variant re-encodes to
 /// *exactly* the bytes it was parsed from (see [`ExToken::encode_into`]), so a
@@ -99,6 +109,22 @@ pub enum ExToken {
     Formals,
     /// `2D <tok>` — one formal-parameter entry.
     Formal(u16),
+    /// The per-function **metadata-header preamble**: the fixed bytes from the
+    /// `4F 1F` function-start marker up to (not including) the `4F 02 20 00`
+    /// block-start marker — the `4F 1F`/`4F 20` descriptors, the length-prefixed
+    /// `4F 33 <len>` metadata record, the `42 45` ('BE') block-entry, and the
+    /// trailing `0F`. Byte-identical across every captured function (return type,
+    /// formal count, and body shape do not alter it), so it is recognized as a
+    /// bounded typed island — its start (`4F 1F`) and end (the block-start) are
+    /// structural; its interior sub-records are captured verbatim, not yet
+    /// individually field-typed (a further K2 shrink). K3 reads it to know where
+    /// the fixed header ends and the length-relevant body structure begins.
+    FnHeader(Vec<u8>),
+    /// `4F 02 20 00 4F 01 NN` — the per-function **block-start marker** (`NN` is
+    /// the statement/block index, distinct per function). Structurally the same
+    /// `4F 02 20 00 4F 01 NN` sequence [`ExToken::ModuleEnd`] carries, minus the
+    /// trailing `4D`; located here in the metadata prefix, before `53 53`.
+    BlockStart(u8),
 }
 
 impl ExToken {
@@ -165,6 +191,11 @@ impl ExToken {
             ExToken::Formal(t) => {
                 out.push(0x2D);
                 tok(out, t);
+            }
+            ExToken::FnHeader(ref b) => out.extend_from_slice(b),
+            ExToken::BlockStart(nn) => {
+                out.extend_from_slice(&BLOCK_START);
+                out.extend_from_slice(&[0x4F, 0x01, nn]);
             }
         }
     }
@@ -268,11 +299,11 @@ impl IlModel {
     /// compared to its input; a mismatch returns [`CodecError::CannotRoundTrip`]
     /// rather than a model that would silently corrupt on [`IlModel::encode`].
     pub fn parse(bundle: &IlBundle) -> Result<IlModel, CodecError> {
-        // The set of `.ex` function-start (`4F 1F`) offsets — the discriminator
-        // that tells a real `.gl` body-start offset field from a coincidental
-        // `80 <LE32>` elsewhere in `.gl`.
+        // The `.ex` function-start (`4F 1F`) offsets, in file order — the
+        // fail-closed cross-check that confirms the structurally-framed `.gl`
+        // body-start offset fields are 1:1 and in function order with `.ex`.
         let ex = bundle.get("ex").unwrap_or(&[]);
-        let ex_offsets = ex_fn_start_offsets(ex);
+        let ex_offsets: Vec<u32> = ex_fn_start_offsets(ex).into_iter().collect();
 
         let mut files = Vec::new();
         // Iterate the bundle's own file set (BTreeMap → suffix-sorted) so the
@@ -339,6 +370,18 @@ impl IlModel {
             .unwrap_or_default()
     }
 
+    /// The number of `.ex` functions — the count of `4F 1F` function-start
+    /// markers. K3's invariant: the typed `.gl` body-start offsets are 1:1 with
+    /// these (`gl_body_start_offsets().len() == ex_function_count()`), enforced
+    /// fail-closed by [`parse_gl`]'s structural cross-check.
+    pub fn ex_function_count(&self) -> usize {
+        self.files
+            .iter()
+            .find(|f| f.suffix == "ex")
+            .map(|f| ex_fn_start_offsets(&f.encode()).len())
+            .unwrap_or(0)
+    }
+
     /// The decoded `.ex` tokens, in stream order (opaque regions skipped).
     pub fn ex_tokens(&self) -> Vec<ExToken> {
         self.files
@@ -377,9 +420,9 @@ fn ex_fn_start_offsets(ex: &[u8]) -> BTreeSet<u32> {
 }
 
 /// Model the `.ex` stream: an opaque header (up to the first `4F 1F`), then per
-/// function an opaque metadata prefix (`4F 1F` … up to the `4C 4F 11` 'LO'
+/// function a **typed metadata prefix** (`4F 1F` … up to the `4C 4F 11` 'LO'
 /// marker) followed by a typed walk of the body from 'LO' to the segment end.
-/// Regions the walk does not recognize become opaque bytes, so the whole file
+/// Regions the walkers do not recognize become opaque bytes, so the whole file
 /// round-trips regardless of what is decoded.
 fn parse_ex(ex: &[u8]) -> Vec<Span> {
     let mut spans = Vec::new();
@@ -387,7 +430,7 @@ fn parse_ex(ex: &[u8]) -> Vec<Span> {
     if starts.is_empty() {
         return vec![opaque(ex)];
     }
-    // Opaque header before the first function.
+    // Opaque header/index region before the first function (K2 backlog).
     if starts[0] > 0 {
         spans.push(opaque(&ex[..starts[0]]));
     }
@@ -397,34 +440,11 @@ fn parse_ex(ex: &[u8]) -> Vec<Span> {
         let seg = &ex[s..e];
         match find_subslice(seg, &LO_MARKER) {
             Some(lo) => {
-                // The formal-parameter list `46 (2D <tok>)*` sits in the metadata
-                // prefix, anchored immediately before the LO marker. Type it (so
-                // the model exposes the formals), keep the rest of the prefix
-                // opaque. `fstart` is the `46` marker index, or `lo` if absent.
-                let fstart = if tw == 2 {
-                    formals_marker(seg, lo, tw)
-                } else {
-                    lo
-                };
-                if fstart > 0 {
-                    spans.push(opaque(&seg[..fstart]));
-                }
-                let mut q = fstart;
-                if q < lo {
-                    // fstart points at `46`; emit Formals then each `2D <tok>`.
-                    spans.push(Span::Ex(ExToken::Formals));
-                    q += 1;
-                    while q + 3 <= lo && seg[q] == 0x2D {
-                        let t = ((seg[q + 1] as u16) << 8) | seg[q + 2] as u16;
-                        spans.push(Span::Ex(ExToken::Formal(t)));
-                        q += 3;
-                    }
-                }
-                // Any bytes between the formals run and LO (none in practice)
-                // stay opaque so the boundary is never dropped.
-                if q < lo {
-                    spans.push(opaque(&seg[q..lo]));
-                }
+                // The metadata prefix `seg[..lo]` (`4F 1F` … 'LO') decodes into
+                // the FnHeader preamble, the `4F 02 20 00 4F 01 NN` block-start,
+                // `53 53`, the `26 <tok>` result-ref, and the `46 (2D <tok>)*`
+                // formals; anything unrecognized coalesces into opaque bytes.
+                walk_ex_prefix(&seg[..lo], tw, &mut spans);
                 walk_ex_body(&seg[lo..], tw, &mut spans);
             }
             // No body marker in this segment — keep it wholly opaque.
@@ -434,19 +454,74 @@ fn parse_ex(ex: &[u8]) -> Vec<Span> {
     spans
 }
 
-/// Locate the `46` formal-parameter marker in a segment by walking back from
-/// the LO marker over `(2D <tok>)*` groups: the formals run is `46 (2D <tok>)*`
-/// ending immediately before LO (an empty list is a bare `46` before LO).
-/// Returns the `46` index, or `lo` if no formals marker anchors there.
-fn formals_marker(seg: &[u8], lo: usize, _tw: usize) -> usize {
-    let mut end = lo;
-    while end >= 3 && seg[end - 3] == 0x2D {
-        end -= 3;
+/// Greedy typed-token walk of an `.ex` function **metadata prefix** (`4F 1F` up
+/// to the 'LO' marker). Recognizes the FnHeader preamble (a bounded island from
+/// `4F 1F` to the block-start), the `4F 02 20 00 4F 01 NN` block-start, `53`
+/// statement bytes, the `26 <tok>` result-ref, and the `46 (2D <tok>)*` formal
+/// list. Unrecognized bytes coalesce into opaque runs; token reads assume width
+/// 2 (at any other width the prefix is left fully opaque — honest, undecoded).
+fn walk_ex_prefix(prefix: &[u8], tw: usize, spans: &mut Vec<Span>) {
+    if tw != 2 {
+        spans.push(opaque(prefix));
+        return;
     }
-    if end >= 1 && seg[end - 1] == 0x46 {
-        end - 1
-    } else {
-        lo
+    let mut pending: Vec<u8> = Vec::new();
+    let mut p = 0;
+    while p < prefix.len() {
+        if let Some((tok, len)) = try_prefix_token(prefix, p) {
+            if !pending.is_empty() {
+                spans.push(Span::Opaque(std::mem::take(&mut pending)));
+            }
+            spans.push(Span::Ex(tok));
+            p += len;
+        } else {
+            pending.push(prefix[p]);
+            p += 1;
+        }
+    }
+    if !pending.is_empty() {
+        spans.push(Span::Opaque(pending));
+    }
+}
+
+/// Try to decode one metadata-prefix token at `prefix[p]` (width 2). Only the
+/// prefix token classes are recognized here (never body ops), so a stray header
+/// byte can never be mis-read as a LOAD/LIT/ADD. Returns the token and the bytes
+/// it consumes, or `None`.
+fn try_prefix_token(prefix: &[u8], p: usize) -> Option<(ExToken, usize)> {
+    // The FnHeader preamble is only ever the first token of a segment prefix:
+    // it runs from the leading `4F 1F` up to the `4F 02 20 00` block-start. If
+    // there is no block-start ahead (e.g. a minimal hand-built segment), it is
+    // not recognized and the `4F 1F` bytes fall through to an opaque run.
+    if p == 0 && starts_with(prefix, 0, &FN_START) {
+        if let Some(bs) = find_subslice(prefix, &BLOCK_START) {
+            if bs > 0 {
+                return Some((ExToken::FnHeader(prefix[..bs].to_vec()), bs));
+            }
+        }
+    }
+    match *prefix.get(p)? {
+        0x4F => {
+            // Block-start: 4F 02 20 00 4F 01 NN (no trailing 4D — that is the
+            // module end, which lives in the body, not the prefix).
+            if starts_with(prefix, p, &BLOCK_START) && starts_with(prefix, p + 4, &[0x4F, 0x01]) {
+                let nn = *prefix.get(p + 6)?;
+                Some((ExToken::BlockStart(nn), 7))
+            } else {
+                None
+            }
+        }
+        0x53 => Some((ExToken::Ss, 1)),
+        0x26 => {
+            let t = tok16(prefix, p + 1)?;
+            Some((ExToken::ResultRef(t), 3))
+        }
+        0x46 => Some((ExToken::Formals, 1)),
+        0x2D => {
+            let t = tok16(prefix, p + 1)?;
+            Some((ExToken::Formal(t), 3))
+        }
+        _ => None,
     }
 }
 
@@ -603,25 +678,69 @@ fn try_ex_token(body: &[u8], p: usize) -> Option<(ExToken, usize)> {
     }
 }
 
-/// Model `.gl`: type every `80 <LE32>` whose LE32 is a real `.ex` `4F 1F`
-/// offset as a [`Span::GlOffset`] (the body-start offset field); everything else
-/// is opaque. The cross-check against `ex_offsets` distinguishes the offset
-/// field from unrelated `80`-prefixed data (CALL anchors, wide literals).
-fn parse_gl(gl: &[u8], ex_offsets: &BTreeSet<u32>) -> Vec<Span> {
+/// True iff a `.gl` body-start offset field's `80 <LE32>` at `o` sits in its
+/// record framing: `80 XX 10 00 00 00 00` immediately precedes it (a `80`-field
+/// with a `10 00 00` body, then two zero bytes). Verified byte-exact ahead of
+/// every offset field across the full fixture spread — this locates the field
+/// **by position within the record**, not by what its value happens to be.
+fn gl_offset_framed(gl: &[u8], o: usize) -> bool {
+    o >= 7
+        && gl[o] == 0x80
+        && gl[o - 7] == 0x80
+        && gl[o - 5] == 0x10
+        && gl[o - 4] == 0x00
+        && gl[o - 3] == 0x00
+        && gl[o - 2] == 0x00
+        && gl[o - 1] == 0x00
+}
+
+/// Model `.gl`: type each function's `80 <LE32>` body-start offset field as a
+/// [`Span::GlOffset`]; everything else is opaque.
+///
+/// **Structural identification (K2a).** The offset fields are located by their
+/// record framing (see [`gl_offset_framed`]) — a position-based decode, not the
+/// K1 value-membership heuristic — and then gated fail-closed against `.ex`: the
+/// framed offsets, in `.gl` order, must equal the `.ex` `4F 1F` function-start
+/// offsets exactly (same values, same order, 1:1). If they do not (a coincidental
+/// frame, or a record we failed to frame), NONE are typed — K3 is never handed a
+/// false rewrite site. `ex_offsets_ordered` is the `.ex` `4F 1F` offsets in file
+/// order.
+///
+/// Residual risk: a coincidental `80 <LE32>` carrying the exact framing AND whose
+/// value equals the matching function's offset AND appearing in function order
+/// would still be accepted. Full per-record `.gl` framing (K2 backlog) would
+/// remove even that; the framing + order + 1:1 gate makes it vanishingly small.
+fn parse_gl(gl: &[u8], ex_offsets_ordered: &[u32]) -> Vec<Span> {
+    // Locate offset fields structurally, in file order.
+    let mut framed: Vec<(usize, u32)> = Vec::new();
+    let mut p = 0;
+    while p + 5 <= gl.len() {
+        if gl_offset_framed(gl, p) {
+            let v = u32::from_le_bytes([gl[p + 1], gl[p + 2], gl[p + 3], gl[p + 4]]);
+            framed.push((p, v));
+        }
+        p += 1;
+    }
+    // Fail-closed cross-check: the framed offsets must match `.ex` exactly.
+    let values: Vec<u32> = framed.iter().map(|&(_, v)| v).collect();
+    let offsets: BTreeSet<usize> = if values == ex_offsets_ordered {
+        framed.iter().map(|&(pos, _)| pos).collect()
+    } else {
+        BTreeSet::new()
+    };
+
     let mut spans = Vec::new();
     let mut pending: Vec<u8> = Vec::new();
     let mut p = 0;
     while p < gl.len() {
-        if gl[p] == 0x80 && p + 5 <= gl.len() {
+        if offsets.contains(&p) {
             let v = u32::from_le_bytes([gl[p + 1], gl[p + 2], gl[p + 3], gl[p + 4]]);
-            if ex_offsets.contains(&v) {
-                if !pending.is_empty() {
-                    spans.push(Span::Opaque(std::mem::take(&mut pending)));
-                }
-                spans.push(Span::GlOffset(v));
-                p += 5;
-                continue;
+            if !pending.is_empty() {
+                spans.push(Span::Opaque(std::mem::take(&mut pending)));
             }
+            spans.push(Span::GlOffset(v));
+            p += 5;
+            continue;
         }
         pending.push(gl[p]);
         p += 1;
@@ -777,16 +896,22 @@ mod tests {
     }
 
     #[test]
-    fn parse_gl_types_body_start_offset_by_ex_cross_check() {
-        // A .gl fragment: some bytes, the offset field `80 54 0A 00 00` (0x0A54),
-        // a decoy `80 01 10 00 00` (0x00100100 — not an .ex offset), more bytes.
+    fn parse_gl_types_body_start_offset_by_record_framing() {
+        // A .gl fragment carrying TWO `80 54 0A 00 00` fields whose value is the
+        // real .ex offset 0x0A54: one WITHOUT the record framing (a value
+        // collision that structural framing must reject) and one WITH the framing
+        // `80 01 10 00 00 00 00` immediately before it (the real offset field).
+        // Only the framed one is typed — proving location by position, not value.
         let gl: &[u8] = &[
-            0xAA, 0xBB, 0x80, 0x54, 0x0A, 0x00, 0x00, 0xCC, 0x80, 0x01, 0x10, 0x00, 0x00, 0xDD,
+            0xAA, 0xBB, // pad
+            0x80, 0x54, 0x0A, 0x00, 0x00, // value collision, UNFRAMED -> opaque
+            0xCC, //
+            0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00, // the 7-byte offset framing
+            0x80, 0x54, 0x0A, 0x00, 0x00, // the real framed offset field
+            0xDD,
         ];
-        let mut ex_offsets = BTreeSet::new();
-        ex_offsets.insert(0x0A54);
-        let spans = parse_gl(gl, &ex_offsets);
-        // Exactly one typed offset, value 0x0A54.
+        let spans = parse_gl(gl, &[0x0A54]);
+        // Exactly one typed offset, value 0x0A54 — the framed one.
         let offs: Vec<u32> = spans
             .iter()
             .filter_map(|s| match s {
@@ -795,7 +920,11 @@ mod tests {
             })
             .collect();
         assert_eq!(offs, vec![0x0A54]);
-        // Round-trips (decoy left opaque).
+        // The unframed value-collision at offset 2 stayed opaque.
+        assert!(spans
+            .iter()
+            .any(|s| matches!(s, Span::Opaque(b) if b.contains(&0xAA))));
+        // Round-trips.
         let mut out = Vec::new();
         for s in &spans {
             s.encode_into(&mut out);
@@ -804,9 +933,24 @@ mod tests {
     }
 
     #[test]
+    fn parse_gl_rejects_when_framed_offsets_disagree_with_ex() {
+        // A framed offset field for 0x0A54, but `.ex` declares a DIFFERENT
+        // function set {0x0B00}. The 1:1/order cross-check fails, so NONE is
+        // typed (fail-closed — K3 is never handed a mismatched site).
+        let gl: &[u8] = &[
+            0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00, // framing
+            0x80, 0x54, 0x0A, 0x00, 0x00, // framed offset 0x0A54
+            0x00,
+        ];
+        let spans = parse_gl(gl, &[0x0B00]);
+        assert!(spans.iter().all(|s| matches!(s, Span::Opaque(_))));
+        assert_eq!(spans, vec![Span::Opaque(gl.to_vec())]);
+    }
+
+    #[test]
     fn parse_gl_all_opaque_when_no_ex_offsets() {
         let gl: &[u8] = &[0x80, 0x54, 0x0A, 0x00, 0x00, 0x01, 0x02];
-        let spans = parse_gl(gl, &BTreeSet::new());
+        let spans = parse_gl(gl, &[]);
         assert_eq!(spans, vec![Span::Opaque(gl.to_vec())]);
     }
 
@@ -814,10 +958,13 @@ mod tests {
     fn full_model_round_trips_and_opaque_files_preserved() {
         let mut bundle = IlBundle::new("_CL_synthetic");
         let ex = synthetic_add3_ex();
-        // Place the offset field in .gl matching the .ex 4F 1F offset.
+        // Place the offset field in .gl matching the .ex 4F 1F offset, in its
+        // record framing (`80 XX 10 00 00 00 00` precedes it), so the structural
+        // K2a identification accepts it.
         let mods = ex_fn_start_offsets(&ex);
         let off = *mods.iter().next().unwrap();
         let mut gl = b"?add3@@YAHHHH@Z\x00".to_vec();
+        gl.extend_from_slice(&[0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00]); // framing
         gl.push(0x80);
         gl.extend_from_slice(&off.to_le_bytes());
         bundle.set("ex", ex.clone());
@@ -868,5 +1015,190 @@ mod tests {
             .filter(|s| matches!(s, Span::Ex(ExToken::Load(_))))
             .count();
         assert_eq!(loads, 2);
+    }
+
+    // ---- `.ex` per-function metadata prefix (K2a) ---------------------------
+
+    /// A REAL `int add3(int,int,int){return a+b+c;}` `.ex` segment (prefix +
+    /// body), transcribed from a live 16.00.11886.00 `/Bd /d2nop /Ox /GS- /c`
+    /// capture from the `4F 1F` function-start marker. Only `.ex` opcode bytes —
+    /// no host path (those live in `.gl`, which is why bundles are not committed).
+    const ADD3_SEGMENT: &[u8] = &[
+        // FnHeader preamble (4F 1F .. before the 4F 02 20 00 block-start):
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, // 4F 1F fn-start + descriptor
+        0x4F, 0x20, 0x80, 0xFE, 0x00, // 4F 20 descriptor
+        0x4F, 0x33, 0x0D, 0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03,
+        0x0F, // 4F 33 <len=0D> + 13 metadata bytes
+        0x10, 0x18, 0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, // trailing metadata blob
+        0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D, 0x08, 0x00, // 42 45 'BE' block-entry
+        0x0F, // 0F
+        // block-start marker + SS SS + result-ref + formals:
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x01, // 4F 02 20 00 4F 01 NN block-start (NN=01)
+        0x53, 0x53, // SS SS
+        0x26, 0xE6, 0x09, // result-ref
+        0x46, 0x2D, 0xE5, 0x09, 0x2D, 0xE4, 0x09, 0x2D, 0xE3, 0x09, // formals c,b,a
+        // body from the LO marker:
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0xB9, 0xE3, 0x09, 0x86, 0x41, 0x74, // LOAD a
+        0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, // LOAD b
+        0x02, // ADD
+        0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // LOAD c
+        0x02, // ADD
+        0x41, 0x86, 0x41, 0x74, // result-type
+        0x3A, 0xE7, 0x09, // ASSIGN
+        0x54, 0x02, 0x29, 0xE7, 0x09, // RETURN
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // FnTail
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x4D, // ModuleEnd
+    ];
+
+    /// The FnHeader preamble bytes (from `4F 1F` up to the `4F 02 20 00`
+    /// block-start) — the fixed, structurally-bounded island.
+    fn add3_fn_header() -> Vec<u8> {
+        let bs = find_subslice(ADD3_SEGMENT, &BLOCK_START).unwrap();
+        ADD3_SEGMENT[..bs].to_vec()
+    }
+
+    #[test]
+    fn prefix_decodes_header_blockstart_ss_resultref_formals() {
+        let lo = find_subslice(ADD3_SEGMENT, &LO_MARKER).unwrap();
+        let mut spans = Vec::new();
+        walk_ex_prefix(&ADD3_SEGMENT[..lo], 2, &mut spans);
+        let toks: Vec<ExToken> = spans
+            .iter()
+            .filter_map(|s| match s {
+                Span::Ex(t) => Some(t.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            toks,
+            vec![
+                ExToken::FnHeader(add3_fn_header()),
+                ExToken::BlockStart(0x01),
+                ExToken::Ss,
+                ExToken::Ss,
+                ExToken::ResultRef(0xE609),
+                ExToken::Formals,
+                ExToken::Formal(0xE509),
+                ExToken::Formal(0xE409),
+                ExToken::Formal(0xE309),
+            ]
+        );
+        // No opaque bytes remain in the prefix — it is fully typed.
+        assert!(
+            !spans.iter().any(|s| matches!(s, Span::Opaque(_))),
+            "the add3 metadata prefix should be fully typed, no opaque residue"
+        );
+        // And it round-trips.
+        let mut out = Vec::new();
+        for s in &spans {
+            s.encode_into(&mut out);
+        }
+        assert_eq!(out, &ADD3_SEGMENT[..lo]);
+    }
+
+    #[test]
+    fn block_start_token_round_trips() {
+        let bytes: &[u8] = &[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x07];
+        let mut out = Vec::new();
+        ExToken::BlockStart(0x07).encode_into(&mut out);
+        assert_eq!(out, bytes);
+        assert_eq!(
+            try_prefix_token(bytes, 0),
+            Some((ExToken::BlockStart(0x07), 7))
+        );
+        // A trailing 4D (module end, not block-start) is NOT a BlockStart here.
+        let modend: &[u8] = &[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x07, 0x4D];
+        assert_eq!(try_prefix_token(modend, 0), Some((ExToken::BlockStart(0x07), 7)));
+        // (the 4D is left for the body walker's ModuleEnd — prefix never sees it)
+    }
+
+    #[test]
+    fn fn_header_falls_back_to_opaque_without_block_start() {
+        // A minimal `4F 1F` prefix with no block-start ahead: FnHeader must not
+        // fire; the bytes stay opaque and still round-trip.
+        let prefix: &[u8] = &[0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x46, 0x2D, 0xE5, 0x09];
+        let mut spans = Vec::new();
+        walk_ex_prefix(prefix, 2, &mut spans);
+        assert!(!spans
+            .iter()
+            .any(|s| matches!(s, Span::Ex(ExToken::FnHeader(_)))));
+        assert!(matches!(spans.first(), Some(Span::Opaque(b)) if b.starts_with(&FN_START)));
+        let mut out = Vec::new();
+        for s in &spans {
+            s.encode_into(&mut out);
+        }
+        assert_eq!(out, prefix);
+    }
+
+    #[test]
+    fn realistic_ex_round_trips_and_shrinks_opaque() {
+        // A full single-function `.ex`: header pad + the real add3 segment.
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 12]);
+        ex.extend_from_slice(ADD3_SEGMENT);
+        let spans = parse_ex(&ex);
+        let mut out = Vec::new();
+        for s in &spans {
+            s.encode_into(&mut out);
+        }
+        assert_eq!(out, ex);
+        // The prefix is now typed: exactly one FnHeader + one BlockStart present.
+        assert_eq!(
+            spans
+                .iter()
+                .filter(|s| matches!(s, Span::Ex(ExToken::FnHeader(_))))
+                .count(),
+            1
+        );
+        assert_eq!(
+            spans
+                .iter()
+                .filter(|s| matches!(s, Span::Ex(ExToken::BlockStart(_))))
+                .count(),
+            1
+        );
+        // The only opaque residue is the header/index pad before the function.
+        let opaque_bytes: usize = spans
+            .iter()
+            .filter_map(|s| match s {
+                Span::Opaque(b) => Some(b.len()),
+                _ => None,
+            })
+            .sum();
+        assert_eq!(opaque_bytes, 16, "only the 16-byte header pad stays opaque");
+    }
+
+    #[test]
+    fn gl_offsets_are_one_to_one_with_ex_function_count() {
+        // A two-function bundle: two `4F 1F` segments in `.ex`, two framed
+        // offset fields in `.gl` — the `== function_count` invariant K3 relies on.
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 8]);
+        let f0 = ex.len() as u32;
+        ex.extend_from_slice(ADD3_SEGMENT);
+        let f1 = ex.len() as u32;
+        ex.extend_from_slice(ADD3_SEGMENT);
+
+        // .gl: two framed offset fields, in function order.
+        let mut gl = b"?add3@@YAHHHH@Z\x00".to_vec();
+        for off in [f0, f1] {
+            gl.extend_from_slice(&[0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00]);
+            gl.push(0x80);
+            gl.extend_from_slice(&off.to_le_bytes());
+        }
+
+        let mut bundle = IlBundle::new("_CL_two");
+        bundle.set("ex", ex);
+        bundle.set("gl", gl);
+        let model = IlModel::parse(&bundle).expect("round-trips");
+        assert_eq!(model.encode().files, bundle.files);
+        assert_eq!(model.ex_function_count(), 2);
+        assert_eq!(model.gl_body_start_offsets(), vec![f0, f1]);
+        assert_eq!(
+            model.gl_body_start_offsets().len(),
+            model.ex_function_count(),
+            "typed .gl offsets must be 1:1 with .ex functions"
+        );
     }
 }

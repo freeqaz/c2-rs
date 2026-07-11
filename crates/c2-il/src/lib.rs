@@ -19,11 +19,14 @@
 //!
 //! [`IlModel::parse`] / [`IlModel::encode`] are the **round-trip-gated container
 //! codec**: they decode a bundle into typed islands (the `.ex` operand-stream
-//! tokens and the `.gl` `80 <LE32>` body-start offset field) over opaque spans
-//! for everything not yet decoded, with the invariant `encode(parse(b)) == b`
-//! byte-for-byte or a fail-closed [`CodecError`]. Still opaque, hence the K2
-//! backlog: the `.ex` header + per-function metadata, the rest of `.gl`, and all
-//! of `.sy`/`.in`/`.db` (coverage map in `docs/IL_BUNDLE_MVP.md`).
+//! tokens, the `.ex` per-function metadata prefix — FnHeader / block-start /
+//! `53 53` / result-ref / formals, added in K2a — and the `.gl` `80 <LE32>`
+//! body-start offset field, K2a-located by record framing and gated 1:1 with the
+//! function count) over opaque spans for everything not yet decoded, with the
+//! invariant `encode(parse(b)) == b` byte-for-byte or a fail-closed
+//! [`CodecError`]. Still opaque, hence the remaining K2 backlog: the `.ex`
+//! header/index, the FnHeader interior, the rest of `.gl`, and all of
+//! `.sy`/`.in`/`.db` (coverage map in `docs/IL_BUNDLE_MVP.md`).
 
 use std::collections::BTreeMap;
 use std::io;
