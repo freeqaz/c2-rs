@@ -2620,4 +2620,223 @@ mod tests {
             other => panic!("expected a Seed, got {other:?}"),
         }
     }
+
+    // =====================================================================
+    // Stuck-dc3 near-miss lane — decode stress test + codec/move blocker
+    // probe (il-witness STUCK_DC3_ATTEMPT). Toolchain-gated: SKIPs cleanly
+    // when wibo/cl.exe/c2.dll/strace are absent. Run with:
+    //   cargo test -p c2-harness stuck_dc3 -- --nocapture --test-threads=1
+    // =====================================================================
+
+    /// Write `src` to a fresh single-function `.cpp` under a scratch dir and
+    /// return its path. The scratch dir is created under the system tempdir,
+    /// keyed by test name so parallel tests do not collide.
+    fn scratch_cpp(dir: &Path, name: &str, src: &str) -> PathBuf {
+        std::fs::create_dir_all(dir).unwrap();
+        let p = dir.join(format!("{name}.cpp"));
+        std::fs::write(&p, src).unwrap();
+        p
+    }
+
+    /// Primary-opcode histogram of a decoded `.text`, plus whether each primary
+    /// is *specially* decoded (op 18 branch, 19 XL, 31 XO) or grades through the
+    /// coarse **D-form default** (everything else).
+    fn opcode_report(words: &[u32]) -> Vec<(u8, usize, bool)> {
+        let mut counts: BTreeMap<u8, usize> = BTreeMap::new();
+        for &w in words {
+            *counts.entry(decode_ppc(w).primary).or_insert(0) += 1;
+        }
+        counts
+            .into_iter()
+            .map(|(p, n)| (p, n, matches!(p, 18 | 19 | 31)))
+            .collect()
+    }
+
+    /// STEP 1 — decode stress test on REAL non-straight-line bodies.
+    ///
+    /// Compiles single-function C++ that exercises the opcode classes real dc3
+    /// bodies use (mullw, shift/mask→rlwinm, compare+branch, memory load/store,
+    /// float), decodes each obj's `.text`, and reports (a) the primary-opcode
+    /// coverage — which primaries are specially decoded vs graded by the D-form
+    /// default — and (b) whether the instruction-aware gradient DISCRIMINATES a
+    /// 1-instruction difference (a graded score strictly between the wrong-opcode
+    /// floor and 1.0) on each real body. Terminal correctness is unaffected —
+    /// this only probes the gradient.
+    #[test]
+    fn stuck_dc3_step1_decode_stress() {
+        let Some(tc) = Toolchain::locate() else {
+            eprintln!("SKIP stuck_dc3_step1: toolchain absent");
+            return;
+        };
+        let dir = std::env::temp_dir().join("c2rs_stuck_dc3_step1");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // (name, source) — each a single leaf function; one opcode class each.
+        let bodies: &[(&str, &str)] = &[
+            ("mul_int", "int f(int a,int b){return a*b;}"), // mullw (op31)
+            ("shift_mask", "int f(int x,int n){return (x<<n)&0xff;}"), // slw+rlwinm
+            ("select_max", "int f(int a,int b){return a>b?a:b;}"), // cmpw + branch/isel
+            ("ptr_load", "int f(const int*p){return p[0]+p[2];}"), // lwz (op32)
+            ("ptr_store", "void f(int*p,int v){p[0]=v;p[2]=v;}"), // stw (op36)
+            // Box::Volume shape — float subtract + float multiply chain.
+            (
+                "float_vol",
+                "float f(float ax,float ay,float az,float bx,float by,float bz){\
+                 return (bx-ax)*(by-ay)*(bz-az);}",
+            ),
+        ];
+
+        println!("\n=== STEP 1: decode stress on real non-straight-line bodies ===");
+        for (name, src) in bodies {
+            let cpp = scratch_cpp(&dir, name, src);
+            let obj = match tc.compile_obj(&cpp, &dir.join(format!("{name}.obj"))) {
+                Ok(o) => o,
+                Err(e) => {
+                    println!("  {name:<12} COMPILE-FAIL: {e}");
+                    continue;
+                }
+            };
+            let norm = obj.normalized();
+            let (text, _) = text_section(&norm);
+            let words = decode_text(text);
+            let hist = opcode_report(&words);
+            let special: Vec<String> = hist
+                .iter()
+                .filter(|(_, _, s)| *s)
+                .map(|(p, n, _)| format!("op{p}x{n}"))
+                .collect();
+            let dform: Vec<String> = hist
+                .iter()
+                .filter(|(_, _, s)| !*s)
+                .map(|(p, n, _)| format!("op{p}x{n}"))
+                .collect();
+            println!(
+                "  {name:<12} {} insns | special-decode: [{}] | D-form-default: [{}]",
+                words.len(),
+                special.join(" "),
+                dform.join(" "),
+            );
+
+            // Gradient discrimination: mutate ONE middle instruction's rA field
+            // and confirm the instruction-aware similarity grades it strictly
+            // between a wholly-different body (0-ish floor) and identity (1.0).
+            if words.len() >= 3 {
+                let mid = words.len() / 2;
+                let mut cand = words.clone();
+                cand[mid] ^= 1 << 16; // flip rA low bit (bits 11-15)
+                let s_self = insn_seq_similarity(&words, &words);
+                let s_mut = insn_seq_similarity(&cand, &words);
+                // A fully-disjoint body (all zeroed words) as the floor.
+                let floor_body = vec![0u32; words.len()];
+                let s_floor = insn_seq_similarity(&floor_body, &words);
+                let graded = s_mut > s_floor && s_mut < s_self;
+                println!(
+                    "               gradient: self={s_self:.4} 1insn-diff={s_mut:.4} floor={s_floor:.4}  discriminates={graded}",
+                );
+                assert!(
+                    (s_self - 1.0).abs() < 1e-9,
+                    "{name}: identity must score 1.0"
+                );
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// STEP 2/3 — the codec + move-set blocker on the real near-miss classes.
+    ///
+    /// The stuck-dc3 near-miss cohort (frontier: register-swap / control-flow /
+    /// offset-swap / float / commutative-order) is dominated by float math,
+    /// struct-member memory access, and branches. This probe captures a
+    /// `Box::Volume`-shaped float body and an offset-swap-shaped memory body
+    /// through the REAL toolchain, parses the IL, and shows the K3a editor has
+    /// NO editable neighborhood on them (`function_tokens` → OpaqueFunctionBody
+    /// and/or `MoveSet::neighbors` empty) — so the IL-space search has an empty
+    /// action space and cannot make a single move. Contrasted with an in-class
+    /// int-arithmetic body, which DOES yield moves.
+    #[test]
+    fn stuck_dc3_step2_codec_move_blocker() {
+        let Some(tc) = Toolchain::locate() else {
+            eprintln!("SKIP stuck_dc3_step2: toolchain absent");
+            return;
+        };
+        if !tc.has_strace() {
+            eprintln!("SKIP stuck_dc3_step2: strace absent (IL capture needs it)");
+            return;
+        }
+        let dir = std::env::temp_dir().join("c2rs_stuck_dc3_step2");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // (name, source, in_class) — in_class = the codec's straight-line int
+        // arithmetic family (expected to yield moves); the others mirror real
+        // near-miss classes (expected: no editable neighborhood).
+        let cases: &[(&str, &str, bool)] = &[
+            // In-class baseline: int add chain (the MVP family).
+            ("int_add3", "int f(int a,int b,int c){return a+b+c;}", true),
+            // Box::Volume shape: float subtract + multiply (commutative-order floor).
+            (
+                "float_vol",
+                "float f(float ax,float ay,float az,float bx,float by,float bz){\
+                 return (bx-ax)*(by-ay)*(bz-az);}",
+                false,
+            ),
+            // Offset-swap shape: struct-member/memory arithmetic.
+            ("offset_swap", "int f(const int*p){return p[0]*p[2]-p[1];}", false),
+        ];
+
+        println!("\n=== STEP 2/3: codec + move-set action space on near-miss classes ===");
+        let mut in_class_had_moves = false;
+        let mut out_class_had_moves = false;
+        for (name, src, in_class) in cases {
+            let cpp = scratch_cpp(&dir, name, src);
+            let cap = match tc.capture_reference(&cpp, &dir.join(format!("cap_{name}"))) {
+                Ok(c) => c,
+                Err(e) => {
+                    println!("  {name:<12} CAPTURE-FAIL: {e}");
+                    continue;
+                }
+            };
+            let model = match IlModel::parse(&cap.bundle) {
+                Ok(m) => m,
+                Err(e) => {
+                    println!("  {name:<12} IL-PARSE-FAIL: {e}");
+                    continue;
+                }
+            };
+            let nfns = model.ex_function_count();
+            let mut editable = 0usize;
+            let mut opaque = 0usize;
+            for fi in 0..nfns {
+                match model.function_tokens(fi) {
+                    Ok(toks) => {
+                        // Editable iff it holds a run of arithmetic operands/ops
+                        // the move set can act on (Load/Lit + Add/Sub/Mul).
+                        let has_arith = toks.iter().any(is_binop)
+                            && toks.iter().any(is_operand);
+                        if has_arith {
+                            editable += 1;
+                        }
+                    }
+                    Err(_) => opaque += 1,
+                }
+            }
+            let neighbors = MoveSet::default().neighbors(&model);
+            println!(
+                "  {name:<12} in_class={in_class} fns={nfns} arith-editable={editable} opaque-body={opaque} | K3a neighbors={}",
+                neighbors.len(),
+            );
+            if *in_class {
+                in_class_had_moves = !neighbors.is_empty();
+            } else if !neighbors.is_empty() {
+                out_class_had_moves = true;
+            }
+        }
+        println!(
+            "  VERDICT: in-class body yields moves={in_class_had_moves}; any out-of-class body yields moves={out_class_had_moves}"
+        );
+        // The finding: the in-class family is searchable; the real near-miss
+        // classes (float/memory) present an EMPTY K3a action space. This is not
+        // asserted hard (a future codec K2/K3b widening could change it — that is
+        // exactly the scoped remaining work), but is printed as the headline.
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
