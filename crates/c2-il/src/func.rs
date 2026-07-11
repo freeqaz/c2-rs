@@ -18,13 +18,21 @@
 
 use crate::IlBundle;
 
-/// A single straight-line IL operation in the MVP add-chain class.
+/// A single straight-line IL operation in the integer-arithmetic class.
+///
+/// The binary ops are postfix (each pops two operands, pushes one result).
+/// `Sub` is **non-commutative** — its operand order is load-bearing (see the
+/// codegen for the `subf` operand mapping); `Add`/`Mul` are commutative.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IlOp {
     /// Load a named variable (by IL token) onto the expression stack.
     Load(u16),
-    /// Pop two operands, push their integer sum.
+    /// Pop rhs then lhs, push `lhs + rhs` (IL opcode `0x02`, commutative).
     Add,
+    /// Pop rhs then lhs, push `lhs - rhs` (IL opcode `0x03`, NON-commutative).
+    Sub,
+    /// Pop rhs then lhs, push `lhs * rhs` (IL opcode `0x04`, commutative).
+    Mul,
 }
 
 /// A parsed MVP function: enough to drive the codegen + COFF emitter.
@@ -211,6 +219,14 @@ fn parse_body(ex: &[u8], tw: usize) -> Option<(Vec<u16>, Vec<IlOp>)> {
             0x02 => {
                 p += 1;
                 ops.push(IlOp::Add);
+            }
+            0x03 => {
+                p += 1;
+                ops.push(IlOp::Sub);
+            }
+            0x04 => {
+                p += 1;
+                ops.push(IlOp::Mul);
             }
             // `4F 01 NN` statement/label markers appear in the operand stream of
             // multi-function TUs (a per-statement sequence index c1xx emits);

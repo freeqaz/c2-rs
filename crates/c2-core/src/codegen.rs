@@ -22,6 +22,36 @@ pub fn encode_add(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// Encode `mullw rD, rA, rB` (rD = rA * rB): primary opcode 31, XO 235, OE=0,
+/// Rc=0. Commutative in rA/rB (like `add`), so operand order is match-neutral.
+pub fn encode_mullw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((rd as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11)
+        | (235 << 1);
+    word.to_be_bytes()
+}
+
+/// Encode `subf rD, rA, rB`: primary opcode 31, XO 40, OE=0, Rc=0.
+///
+/// **Non-commutative — operand order is load-bearing.** `subf` computes
+/// `rD = rB - rA` (the *first* register operand is the subtrahend). To realize
+/// a source `lhs - rhs`, the caller must pass `ra = rhs` (subtrahend) and
+/// `rb = lhs` (minuend). Swapping `ra`/`rb` silently negates the result — a
+/// corruption invisible to `fuzzy%` (it is a valid `subf`, just the wrong one),
+/// exactly the non-commutative hazard the CLAUDE.md correctness boundary names.
+/// This encoder is deliberately separate from `encode_add` and its single
+/// caller ([`select_text`]'s `Sub` arm) documents the mapping at the call site.
+pub fn encode_subf(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((rd as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11)
+        | (40 << 1);
+    word.to_be_bytes()
+}
+
 /// `blr` — branch to link register (function return). `bclr` with BO=20
 /// ("always"), BI=0, LK=0 → the fixed word `0x4E800020`.
 pub fn encode_blr() -> [u8; 4] {
@@ -35,26 +65,30 @@ const RET_REG: u8 = 3;
 /// First allocatable volatile scratch (r12 is reserved; COLOR picks r11 next).
 const SCRATCH_REG: u8 = 11;
 
-/// Select `.text` bytes for an MVP add-chain function.
+/// Select `.text` bytes for a straight-line integer-arithmetic function
+/// (`+`, `-`, `*`; no branches/calls/relocations).
 ///
 /// Params are pre-colored to the incoming ABI argument registers by position
-/// (a→r3, b→r4, c→r5, …). The postfix `LOAD`/`ADD` stream is walked over an
-/// operand stack of physical registers: each `ADD` pops rhs then lhs, emits
-/// `add dest, lhs, rhs`, and pushes dest — the **final** ADD targets the return
-/// register r3, every earlier ADD targets the running scratch r11. A trailing
-/// `blr` returns. For `add3` this yields exactly
-/// `add r11,r3,r4 ; add r3,r11,r5 ; blr`.
+/// (a→r3, b→r4, c→r5, …). The postfix `LOAD`/binary-op stream is walked over an
+/// operand stack of physical registers: each binary op pops rhs then lhs and
+/// emits its instruction into `dest` — the **final** binary op targets the
+/// return register r3, every earlier one targets the running scratch r11. A
+/// trailing `blr` returns.
 ///
-/// Restricted to commutative integer `add` on purpose: operand order for `add`
-/// is match-neutral (rA↔rB), so no silent non-commutative corruption is
-/// possible here (see CLAUDE.md correctness boundary). Non-commutative ops
-/// (`-`, shifts, compares) are intentionally NOT handled.
+/// Operand-order handling per op (the correctness-critical part):
+/// * `Add` → `add dest, lhs, rhs` — commutative, order match-neutral.
+/// * `Mul` → `mullw dest, lhs, rhs` — commutative, order match-neutral.
+/// * `Sub` → `subf dest, rhs, lhs` — **non-commutative**. `subf` computes
+///   `rB - rA`, so realizing `lhs - rhs` requires `rA = rhs`, `rB = lhs`; this
+///   is the exact reversed mapping the reference c2 emits (`a-b-c` →
+///   `subf r11,r4,r3 ; subf r3,r5,r11`). A swap here would be a fuzzy-invisible
+///   sign inversion (CLAUDE.md correctness boundary) — see [`encode_subf`].
 pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     if func.params.len() > ARG_REGS.len() {
         return Err(BackendError::Pass {
             pass: "codegen".into(),
             msg: format!(
-                "MVP codegen supports up to {} register args, got {}",
+                "codegen supports up to {} register args, got {}",
                 ARG_REGS.len(),
                 func.params.len()
             ),
@@ -69,42 +103,52 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
             .map(|i| ARG_REGS[i])
     };
 
-    let n_adds = func.ops.iter().filter(|op| matches!(op, IlOp::Add)).count();
-    if n_adds == 0 {
+    let n_binops = func
+        .ops
+        .iter()
+        .filter(|op| !matches!(op, IlOp::Load(_)))
+        .count();
+    if n_binops == 0 {
         return Err(BackendError::Pass {
             pass: "codegen".into(),
-            msg: "MVP codegen requires at least one ADD in the body".into(),
+            msg: "codegen requires at least one binary op in the body".into(),
         });
     }
 
     let mut stack: Vec<u8> = Vec::new();
     let mut text: Vec<u8> = Vec::new();
-    let mut add_idx = 0usize;
+    let mut binop_idx = 0usize;
 
     for op in &func.ops {
-        match op {
-            IlOp::Load(tok) => {
-                let reg = reg_of(*tok).ok_or_else(|| BackendError::Pass {
-                    pass: "codegen".into(),
-                    msg: format!("LOAD of unknown token 0x{tok:04X} (not a parameter)"),
-                })?;
-                stack.push(reg);
-            }
-            IlOp::Add => {
-                let rhs = stack.pop().ok_or_else(|| BackendError::Pass {
-                    pass: "codegen".into(),
-                    msg: "ADD with empty operand stack (rhs)".into(),
-                })?;
-                let lhs = stack.pop().ok_or_else(|| BackendError::Pass {
-                    pass: "codegen".into(),
-                    msg: "ADD with empty operand stack (lhs)".into(),
-                })?;
-                add_idx += 1;
-                let dest = if add_idx == n_adds { RET_REG } else { SCRATCH_REG };
-                text.extend_from_slice(&encode_add(dest, lhs, rhs));
-                stack.push(dest);
-            }
+        if let IlOp::Load(tok) = op {
+            let reg = reg_of(*tok).ok_or_else(|| BackendError::Pass {
+                pass: "codegen".into(),
+                msg: format!("LOAD of unknown token 0x{tok:04X} (not a parameter)"),
+            })?;
+            stack.push(reg);
+            continue;
         }
+
+        // Binary op: pop rhs then lhs.
+        let rhs = stack.pop().ok_or_else(|| BackendError::Pass {
+            pass: "codegen".into(),
+            msg: "binary op with empty operand stack (rhs)".into(),
+        })?;
+        let lhs = stack.pop().ok_or_else(|| BackendError::Pass {
+            pass: "codegen".into(),
+            msg: "binary op with empty operand stack (lhs)".into(),
+        })?;
+        binop_idx += 1;
+        let dest = if binop_idx == n_binops { RET_REG } else { SCRATCH_REG };
+        let instr = match op {
+            IlOp::Add => encode_add(dest, lhs, rhs),
+            IlOp::Mul => encode_mullw(dest, lhs, rhs),
+            // `lhs - rhs`: subf's first operand is the subtrahend → rA=rhs, rB=lhs.
+            IlOp::Sub => encode_subf(dest, rhs, lhs),
+            IlOp::Load(_) => unreachable!("handled above"),
+        };
+        text.extend_from_slice(&instr);
+        stack.push(dest);
     }
 
     text.extend_from_slice(&encode_blr());
@@ -125,6 +169,71 @@ mod tests {
     #[test]
     fn encode_blr_is_fixed() {
         assert_eq!(encode_blr(), [0x4E, 0x80, 0x00, 0x20]);
+    }
+
+    #[test]
+    fn encode_mullw_matches_reference_words() {
+        // a*b*c → mullw r11,r3,r4 ; mullw r3,r11,r5
+        assert_eq!(encode_mullw(11, 3, 4), [0x7D, 0x63, 0x21, 0xD6]);
+        assert_eq!(encode_mullw(3, 11, 5), [0x7C, 0x6B, 0x29, 0xD6]);
+    }
+
+    #[test]
+    fn encode_subf_matches_reference_words() {
+        // a-b-c → subf r11,r4,r3 ; subf r3,r5,r11 (rA = subtrahend).
+        assert_eq!(encode_subf(11, 4, 3), [0x7D, 0x64, 0x18, 0x50]);
+        assert_eq!(encode_subf(3, 5, 11), [0x7C, 0x65, 0x58, 0x50]);
+    }
+
+    #[test]
+    fn select_text_sub_uses_reversed_operands() {
+        // `a - b - c`: LOAD a, LOAD b, SUB, LOAD c, SUB. The subf operand order
+        // (rA=rhs, rB=lhs) must reproduce c2's `subf r11,r4,r3 ; subf r3,r5,r11`.
+        let func = IlFunction {
+            mangled_name: "?sub3@@YAHHHH@Z".into(),
+            source_path: None,
+            params: vec![0xE309, 0xE409, 0xE509],
+            ops: vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Sub,
+                IlOp::Load(0xE509),
+                IlOp::Sub,
+            ],
+        };
+        assert_eq!(
+            select_text(&func).unwrap(),
+            vec![
+                0x7D, 0x64, 0x18, 0x50, // subf r11,r4,r3  (= r3-r4 = a-b)
+                0x7C, 0x65, 0x58, 0x50, // subf r3,r5,r11  (= r11-r5 = (a-b)-c)
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ]
+        );
+    }
+
+    #[test]
+    fn select_text_mul_is_commutative_order() {
+        // `a * b * c` → mullw r11,r3,r4 ; mullw r3,r11,r5 ; blr.
+        let func = IlFunction {
+            mangled_name: "?mul3@@YAHHHH@Z".into(),
+            source_path: None,
+            params: vec![0xE309, 0xE409, 0xE509],
+            ops: vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Mul,
+                IlOp::Load(0xE509),
+                IlOp::Mul,
+            ],
+        };
+        assert_eq!(
+            select_text(&func).unwrap(),
+            vec![
+                0x7D, 0x63, 0x21, 0xD6, // mullw r11,r3,r4
+                0x7C, 0x6B, 0x29, 0xD6, // mullw r3,r11,r5
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ]
+        );
     }
 
     #[test]

@@ -122,12 +122,18 @@ impl PortC2 {
             )
         })?;
 
-        // Select each function's .text and pack contiguously, recording each
-        // function's byte offset within the shared .text (c2 emits no
-        // inter-function padding for this class).
+        // Select each function's .text, recording each function's byte offset.
+        // Functions start at an **8-byte-aligned** offset within .text (the
+        // section is ALIGN_8): c2 zero-pads between functions to the next
+        // 8-byte boundary, but does NOT pad the tail of .text. The first
+        // function is at 0 (already aligned). Verified: mvp_sub's three 12-byte
+        // functions land at 0x0 / 0x10 / 0x20 with 4 zero bytes between.
         let mut text: Vec<u8> = Vec::new();
         let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
         for f in &funcs {
+            while text.len() % 8 != 0 {
+                text.push(0);
+            }
             let off = text.len() as u32;
             let body = codegen::select_text(f)?;
             text.extend_from_slice(&body);

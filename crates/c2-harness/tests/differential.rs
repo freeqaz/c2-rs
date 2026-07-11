@@ -156,3 +156,33 @@ fn differential_mvp_two_multifunction_byte_exact() {
     }
     std::fs::remove_dir_all(&w).ok();
 }
+
+/// W2: non-commutative int ops. `mvp_sub.cpp` is a 3-function TU mixing `-`
+/// (subf, reversed operands), `*` (mullw), and `+`. Byte-exact here proves the
+/// subf operand-order mapping AND the 8-byte inter-function `.text` alignment
+/// (three 12-byte functions → offsets 0x0/0x10/0x20 with zero-padding between).
+#[test]
+fn differential_mvp_sub_noncommutative_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("mvpsub");
+    let port = PortC2::default();
+    let report = differential(&fixture("mvp_sub.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on mvp_sub, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}

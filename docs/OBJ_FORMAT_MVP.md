@@ -199,10 +199,13 @@ while walking the symbol table top-to-bottom** (verified against add3.obj's
 Several straight-line functions in one TU share a single `.text` and one
 symbol table:
 
-- `.text` packs the functions **contiguously, no inter-function padding**
-  (all PPC instrs are 4 B, so offsets stay 4-aligned). Verified on
-  `add2`+`add4`: `add2` (8 B) at offset 0, `add4` (16 B) at offset 8,
-  `.text` size 0x18.
+- Each function starts at an **8-byte-aligned offset** within `.text` (the
+  section is `ALIGN_8`): c2 zero-pads between functions to the next 8-byte
+  boundary, but does **not** pad the tail of `.text`. Verified two ways:
+  `add2`(8 B)+`add4`(16 B) need no padding (both already 8-aligned) → offsets
+  0 / 8, size 0x18; `sub3`+`mul3`+`submix` (three 12-byte functions) get 4
+  zero bytes each between → offsets 0x0 / 0x10 / 0x20, size 0x2C (last
+  function unpadded).
 - Each function gets one EXTERNAL FUNCTION symbol (type `0x20`, section
   `.text`) whose **`Value` = its byte offset within `.text`** (0, then
   cumulative), emitted in `.gl`/`.ex` order.

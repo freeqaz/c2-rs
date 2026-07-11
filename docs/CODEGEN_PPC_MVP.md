@@ -76,6 +76,25 @@ The `.ex` body is a postfix/stack expression stream (see
    reproduces c2's rA/rB choice.
 4. `RETURN` of a value already in r3 emits only `blr`.
 
+## Integer sub / mul (W2, implemented + gated)
+
+Two more binary ops are in the straight-line class, verified byte-exact:
+
+- **`mul` → `mullw rD,rA,rB`** (op 31, XO 235): `rD = rA*rB`, **commutative**.
+  `a*b*c` → `mullw r11,r3,r4 ; mullw r3,r11,r5 ; blr`
+  (`7d6321d6 7c6b29d6 4e800020`). Same operand-order freedom as `add`.
+- **`sub` → `subf rD,rA,rB`** (op 31, XO 40): `rD = rB − rA`
+  (**first register operand is the subtrahend**), **NON-commutative**.
+  `a-b-c` → `subf r11,r4,r3 ; subf r3,r5,r11 ; blr`
+  (`7d641850 7c655850 4e800020`). To realize source `lhs − rhs` the selector
+  emits `subf dest, rhs, lhs` (rA=rhs=subtrahend, rB=lhs=minuend). **Swapping
+  rA/rB is a silent sign inversion** — a valid `subf`, just the wrong one,
+  invisible to `fuzzy%`. This is exactly the CLAUDE.md correctness-boundary
+  hazard, so `encode_subf` is a separate function with the mapping documented
+  at its one call site (`select_text`'s `Sub` arm), per the opt-in-encoder
+  rule. IL opcodes: `add`=`0x02`, `sub`=`0x03`, `mul`=`0x04` (postfix, each
+  pops two operands).
+
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 
 These are load-bearing operand orders; a swap is a silent, fuzzy-invisible
