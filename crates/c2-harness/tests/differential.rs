@@ -248,6 +248,49 @@ fn differential_mvp_framed_call_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
+/// W4b2-i (honest rejection): out-of-class call shapes the port must REFUSE,
+/// not mis-emit. Each `.cpp` compiles fine under the reference (byte-exact
+/// replay), but the native port has no model for its surrounding computation
+/// (in-argument arithmetic, non-commutative / strength-reduced / wide post-ops)
+/// so it must return `NotImplemented` — never a mis-emitted framed obj or a
+/// bare `b g` that silently drops the computation. Guards both defects fixed in
+/// `c2-il`'s `parse_framed_call` (post-op anchored past the `55` call-end
+/// marker) and `is_tail_call` (terminal-only). Same shape as
+/// `differential_reference_byte_exact_port_not_implemented`.
+#[test]
+fn differential_out_of_class_call_shapes_not_implemented() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in [
+        "mvp_call_argframed.cpp", // return g(a + 1) — arg-setup tail call
+        "mvp_call_submod.cpp",    // return g(a) - 1 — non-commutative post-op
+        "mvp_call_mulmod.cpp",    // return g(a) * 5 — strength-reduced post-op
+        "mvp_call_widemod.cpp",   // return g(a) + 70000 — wide post-op immediate
+    ] {
+        let w = work("oocreject");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => {
+                assert!(
+                    matches!(port, PortStatus::NotImplemented(_)),
+                    "expected the port to honestly refuse {name} (NotImplemented), got {port:?}"
+                );
+            }
+            other => panic!(
+                "expected ReferenceReplayByteExact for {name} (reference compiles fine), got {other:?}"
+            ),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}
+
 /// W3: literals / immediates. `mvp_lit.cpp` is a 3-function TU: `a+5` (addi),
 /// `a-5` (addi with negated imm), and `return 42` (li = addi rD,r0,k). Proves
 /// the operand-stack Reg/Imm model and the constant-folding into `addi`.
