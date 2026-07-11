@@ -216,6 +216,35 @@ roughly **doubling typed coverage: ~2.8% → ~5.5%** of bundle bytes over the
   ADD/SUB/MUL, int/void call-ends, result-type, ASSIGN, RETURN, function-tail,
   module-end. Unmodeled body bytes (comparison `24`, shift `09`, ternary `43 42`,
   …) stay opaque, so out-of-class bodies still round-trip.
+- `.ex` **float-leaf vocabulary** (`Box::Volume` class), **NEW** — the float
+  analog of the int operand forms plus the struct-member-load idiom, so a
+  `float x=a->x-b->x; … return x*y*z;` body decodes to a **contiguous** typed run
+  (before this it parsed with ~21 interleaved opaque runs and yielded **zero**
+  K3a neighbors — the near-miss lane's upstream blocker). Byte evidence is a
+  live 16.00.11886.00 `/Bd /d2nop /Ox /GS- /c` capture of the faithful
+  reduction `float volf(const V*a,const V*b){ float x=a->x-b->x; float y=…;
+  float z=…; return x*y*z; }` (`?volf@@YAMPBUV@@0@Z`), transcribed as the
+  `VOLF_SEGMENT` codec fixture. Now typed:
+
+  | Token | Bytes | Role |
+  |---|---|---|
+  | float type-annotation | `86 45 40` | the float analog of int `86 41 74` |
+  | `FloatLoad` | `B9 <tok> 86 45 40` | LOAD a float operand (the `x`,`y`,`z` temps) |
+  | `PtrLoad` | `B9 <tok> 86 43 XX XX` | LOAD a pointer operand (`a`,`b`); `86 43`=pointer type |
+  | `MemberPtr` | `27 86 43 XX XX` | pointer + offset → typed member pointer (`&a->x`) |
+  | `Deref` | `30 A6 XX XX XX` | load-indirect the float member (`A6`=class-ptr type) |
+  | `CastFloat` | `2C 86 45 40 00` | materialize the float sub-expression result |
+  | `StoreFloat` | `32 86 45 40 4B` | STORE the float temp (`4B` end marker) |
+  | `ResultTypeFloat` | `41 86 45 40` | float result-type (analog of int `41 86 41 74`) |
+
+  The member access `a->x` is the four-token idiom `PtrLoad ; LIT offset ;
+  MemberPtr ; Deref` (the offset is an existing int `LITERAL`). The float `-`/`*`
+  are the **existing** type-agnostic `03` SUB / `04` MUL tokens — no new op
+  variant needed; they simply become K3a-editable once the surrounding float/
+  member tokens stop stranding them in opaque runs. Gated by the standing
+  round-trip invariant (byte-exact over the full fixture spread + the volf
+  fixture) and asserted to yield non-zero K3a neighbors
+  (`c2-harness/tests/float_leaf_neighbors.rs`).
 - `.ex` per-function **metadata prefix** (`4F 1F` … 'LO'), **NEW in K2a**, decoded
   greedily into: `FnHeader` — the fixed header preamble (`4F 1F`/`4F 20`
   descriptors, the length-prefixed `4F 33 <len>` metadata record, the `42 45`
@@ -249,6 +278,12 @@ roughly **doubling typed coverage: ~2.8% → ~5.5%** of bundle bytes over the
   record framing would remove even the residual GlOffset collision risk.
 - `.sy` token→name symbol table, `.in` type-import table (a constant 439 B here),
   `.db` debug/line data — each a single opaque span.
+- **float-leaf out of scope** (later rungs, still opaque where they occur):
+  float DIV (`05`), float literals (`33 86 45 40 …`), other member/pointer type
+  shapes (only the `86 43`/`A6` forms in the volf class are typed), and every
+  non-leaf shape (control flow/compares/branches, general stores, calls). The
+  float-leaf widening is deliberately scoped to the one `Box::Volume`-class body;
+  a body outside it keeps the unmodeled bytes opaque and still round-trips.
 
 **K3 inherits:** `GlOffset` is round-tripped unchanged by K1/K2a; rewriting it on
 an `.ex` length change (per P0.6a) is K3's job. The codec exposes the field typed,
