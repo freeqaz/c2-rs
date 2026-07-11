@@ -248,13 +248,109 @@ fn differential_mvp_framed_call_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
+/// W4b2 (integer passthrough tail call): `mvp_tailret.cpp` is `int f(int a){
+/// return g(a); }` — the argument is already in r3, so the reference emits a
+/// bare 5-section leaf `b g` (REL24 at .text+0x0), the int analog of the void
+/// tail call. Byte-exact here proves the integer tail-call lowering shares the
+/// void tail call's obj layout (5 sections, 15 symbols, callee sym 14).
+#[test]
+fn differential_mvp_tailret_int_passthrough_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("mvptailret");
+    let port = PortC2::default();
+    let report = differential(&fixture("mvp_tailret.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on mvp_tailret, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
+
+/// W4b2-vi (identity-fold tail call): `mvp_plus0.cpp` is `return g(a) + 0`. The
+/// `+0` reaches the IL as a real post-op literal, but the optimizer folds it —
+/// the reference obj is byte-identical to `return g(a)` (5-section leaf `b g`),
+/// NOT a framed obj. Byte-exact here proves the parser routes a net-identity
+/// post-op to the tail-call path, closing the W4b2-vi mis-emit leak (the old
+/// framed parser would have built a `FramedCall{add_k:0}` → a spurious frame).
+#[test]
+fn differential_mvp_plus0_identity_fold_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("mvpplus0");
+    let port = PortC2::default();
+    let report = differential(&fixture("mvp_plus0.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on mvp_plus0, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
+
+/// W4b2-iv (arg-setup tail call): `mvp_argtail.cpp` is `return g(a + 1)` — the
+/// `+1` is computed INTO the argument (before the `55` call-end), not a framed
+/// post-op. The reference emits a 5-section leaf `addi r3,r3,1 ; b g` (REL24 at
+/// .text+0x4). Byte-exact here proves the arg-setup prefix + the branch's reloc
+/// offset (0x4, not 0x0). Distinct from framed `g(a)+1` (6-section .pdata obj).
+#[test]
+fn differential_mvp_argtail_arg_setup_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("mvpargtail");
+    let port = PortC2::default();
+    let report = differential(&fixture("mvp_argtail.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on mvp_argtail, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
+
 /// W4b2-i/-v (honest rejection): out-of-class call shapes the port must REFUSE,
 /// not mis-emit. Each `.cpp` compiles fine under the reference (byte-exact
 /// replay), but the native port has no model for its surrounding computation
-/// (in-argument arithmetic, non-commutative / strength-reduced / wide post-ops,
-/// a second call, a second statement, a two-literal post-op) so it must return
-/// `NotImplemented` — never a mis-emitted framed obj or a bare `b g` that
-/// silently drops the computation. W4b2-v replaced the neighborhood-scanning
+/// (non-commutative / strength-reduced / wide post-ops, a second call, a second
+/// statement, a two-literal post-op, or arg-setup combined with a framed post-op
+/// like `g(a+1)+1`) so it must return `NotImplemented` — never a mis-emitted
+/// framed obj or a bare `b g` that silently drops the computation. (The bare
+/// arg-setup tail calls `g(a)`, `g(a)+0`, `g(a+1)` ARE now modeled — see the
+/// int-tail-call Match tests below.) W4b2-v replaced the neighborhood-scanning
 /// gates with a single positive whole-body parse (`c2_il::func::parse_segment`),
 /// which accepts only the three modeled shapes and reaches the segment end, so
 /// every shape below is rejected at the parser level. Same assertion shape as
@@ -270,7 +366,6 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         return;
     }
     for name in [
-        "mvp_call_argframed.cpp", // return g(a + 1) — arg-setup tail call
         "mvp_call_submod.cpp",    // return g(a) - 1 — non-commutative post-op
         "mvp_call_mulmod.cpp",    // return g(a) * 5 — strength-reduced post-op
         "mvp_call_widemod.cpp",   // return g(a) + 70000 — wide post-op immediate
