@@ -318,15 +318,49 @@ fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
 /// operand stream (per `IL_FORMAT.md`).
 const CALL_OP: u8 = 0xBD;
 
-/// Heuristic tail-call detector: after the `LO` marker, the body contains a
-/// CALL (`0xBD`). Only consulted when `.gl` has exactly one external beyond the
-/// defined functions (so the presence of a call is already implied); the
-/// differential is the final judge of byte-exactness.
+/// The `55 <int-type>` **call-end marker** that terminates an int-returning
+/// call's descriptor+argument region. The consumed return value's post-op
+/// (framed `+ k`) is emitted after it (see [`parse_framed_call`]).
+const CALL_END: u8 = 0x55;
+
+/// The fixed 6-byte callee-reference tail of a CALL token: `BD <3-byte return
+/// type> 00 80 01 10 00 00`. Verified identical across int and void calls, so
+/// it anchors the end of the 10-byte CALL token.
+const CALL_CALLEE_ANCHOR: [u8; 6] = [0x00, 0x80, 0x01, 0x10, 0x00, 0x00];
+
+/// The `4C 4B` **void call-end marker** that follows the CALL token of a
+/// terminal `void f(){ g(); }` — no argument setup, no consumed result.
+const VOID_CALL_END: [u8; 2] = [0x4C, 0x4B];
+
+/// **Terminal** tail-call detector: after the `LO` marker, the body is a single
+/// call whose value is neither consumed nor preceded by argument setup — i.e.
+/// the bare `void f(){ g(); }` shape that codegen lowers to one `b <callee>`.
+///
+/// The CALL is a fixed 10-byte token (`BD <3-byte return type>` +
+/// [`CALL_CALLEE_ANCHOR`]); a terminal void call is followed immediately by the
+/// [`VOID_CALL_END`] marker and then only return plumbing. This is deliberately
+/// tight (W4b2-i): the old gate accepted a CALL *anywhere* after `LO`, so
+/// `g(a)-1` / `g(a)*5` / `g(a)+70000` / `g(a+1)` — all correctly refused by
+/// [`parse_framed_call`] — were mis-classified as bare tail calls and emitted a
+/// bare `b g`, dropping their (unmodeled) surrounding computation. Anything but
+/// the exact terminal shape now returns `false` → the caller reports
+/// `NotImplemented` instead of mis-emitting.
 fn is_tail_call(seg: &[u8]) -> bool {
-    match find_subslice(seg, &[0x4C, 0x4F, 0x11]) {
-        Some(lo) => seg[lo..].contains(&CALL_OP),
-        None => false,
+    let Some(lo) = find_subslice(seg, &[0x4C, 0x4F, 0x11]) else {
+        return false;
+    };
+    let after = &seg[lo..];
+    let Some(call) = after.iter().position(|&b| b == CALL_OP) else {
+        return false;
+    };
+    // Require the fixed CALL token: BD <3-byte type> <CALL_CALLEE_ANCHOR>.
+    let tok_end = call + 4 + CALL_CALLEE_ANCHOR.len();
+    if after.get(call + 4..tok_end) != Some(&CALL_CALLEE_ANCHOR[..]) {
+        return false;
     }
+    // Terminal iff the void call-end marker follows immediately (no arg LOAD,
+    // no `55` int call-value marker → no surrounding computation).
+    after.get(tok_end..tok_end + VOID_CALL_END.len()) == Some(&VOID_CALL_END[..])
 }
 
 /// Detect the **framed non-leaf `return g(...) + k`** shape (W4b2) in a single
@@ -334,15 +368,26 @@ fn is_tail_call(seg: &[u8]) -> bool {
 ///
 /// The `.ex` body for `int f(int a){ return g(a) + 1; }` (after the `LO`
 /// marker) is: a `26 <tok>` result-temp, a CALL (`0xBD`) with its int return
-/// type + descriptor and loaded argument(s), a `55` call-end marker, then the
-/// post-op — a single integer literal `33 86 41 74 <varint>` **immediately
-/// followed by an ADD** (`0x02`), then the return.
+/// type + descriptor and loaded argument(s), a `55 <int-type>` **call-end
+/// marker**, then the post-op — a single integer literal `33 86 41 74 <varint>`
+/// **immediately followed by an ADD** (`0x02`), then the return.
+///
+/// **Grammar fact (verified against real captures):** the post-call operation
+/// is emitted *after* the `55 86 41 74` call-end marker; anything before it
+/// belongs to the **argument** region. `int f(int a){ return g(a + 1); }` puts
+/// its `+1` (`33 86 41 74 01 02`) *inside the args, before the `55` marker* —
+/// so the post-op search MUST be anchored past the call-end marker or `g(a+1)`
+/// is silently mis-accepted as framed `g(a)+1` (it is really a tail call with
+/// arg setup, unmodeled → must land in `NotImplemented`). Captured evidence:
+///   `g(a)+1`:  `… 55 86 41 74 | 4c 33 86 41 74 01 02 …`  (literal AFTER 55)
+///   `g(a+1)`:  `… 33 86 41 74 01 02 | 55 86 41 74 4c 41 …` (literal BEFORE 55)
 ///
 /// Honest, narrow acceptance (anything else → `None` → the caller reports
 /// `NotImplemented`, never mis-emit):
-///   * there must be a CALL after `LO`;
-///   * there must be exactly one int literal `33 86 41 74 <varint>` after the
-///     CALL (two literals / none → reject);
+///   * there must be a CALL after `LO`, followed by the `55 <int-type>`
+///     call-end marker (an int-returning call whose value is consumed);
+///   * there must be exactly one int literal `33 86 41 74 <varint>` **after the
+///     call-end marker** (two literals / none → reject);
 ///   * the opcode **immediately after** that literal must be `0x02` (ADD). This
 ///     is the commutativity gate: `* k` (`0x04`) and `- k` (`0x03`) fall here
 ///     and are rejected — they strength-reduce / are non-commutative and change
@@ -352,10 +397,14 @@ fn is_tail_call(seg: &[u8]) -> bool {
 fn parse_framed_call(seg: &[u8]) -> Option<i32> {
     let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11])?;
     let after = &seg[lo..];
-    // Must contain a CALL; work in the post-CALL region so we don't misread a
-    // literal that is part of the call descriptor / argument list.
+    // Must contain a CALL.
     let call = after.iter().position(|&b| b == CALL_OP)?;
-    let post = &after[call..];
+    // Anchor the post-op search PAST the `55 <int-type>` call-end marker: any
+    // literal/op before it is part of the argument region (e.g. `g(a+1)`), not
+    // a framed post-op. This is the fix for the silent `g(a+1)` mis-accept.
+    let call_end = [CALL_END, INT_TYPE[0], INT_TYPE[1], INT_TYPE[2]];
+    let end_rel = find_subslice(&after[call..], &call_end)?;
+    let post = &after[call + end_rel + call_end.len()..];
 
     // The int-literal marker `33 86 41 74` is specific enough to anchor on.
     let litpat = [0x33, INT_TYPE[0], INT_TYPE[1], INT_TYPE[2]];
@@ -615,6 +664,81 @@ mod tests {
             0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, // ASSIGN + RETURN
         ];
         assert_eq!(parse_framed_call(body), Some(1));
+    }
+
+    #[test]
+    fn parse_framed_call_rejects_literal_before_call_end() {
+        // `int f(int a){ return g(a + 1); }` — the `+1` is INSIDE the argument
+        // (literal `33 86 41 74 01` + ADD `02`) and lands BEFORE the `55` call-
+        // end marker. It must NOT be read as a framed post-op (that would be
+        // `g(a)+1`); it is a tail call with arg setup (unmodeled) → reject.
+        // Real captured body tail of `return g(a+1)`.
+        let body: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, // LO S, result temp
+            0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // CALL int
+            0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // LOAD a (arg)
+            0x33, 0x86, 0x41, 0x74, 0x01, // LIT 1  (in-arg, BEFORE call-end)
+            0x02, // ADD  (in-arg)
+            0x55, 0x86, 0x41, 0x74, // call-end marker
+            0x4C, 0x41, 0x86, 0x41, 0x74, // result type int
+            0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, // ASSIGN + RETURN
+        ];
+        assert_eq!(parse_framed_call(body), None);
+    }
+
+    #[test]
+    fn parse_framed_call_rejects_sub_postop() {
+        // `return g(a) - 1;` — identical to the accepted `g(a)+1` body except
+        // the post-op is SUB (`0x03`) not ADD (`0x02`): the one-byte difference
+        // c2 emits (it does NOT canonicalize `-1` to `+(-1)`). Non-commutative
+        // → reject.
+        let body: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01,
+            0x10, 0x00, 0x00, 0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, //
+            0x4C, 0x33, 0x86, 0x41, 0x74, 0x01, // LIT 1 (after call-end)
+            0x03, // SUB — reject
+            0x41, 0x86, 0x41, 0x74,
+        ];
+        assert_eq!(parse_framed_call(body), None);
+    }
+
+    #[test]
+    fn is_tail_call_accepts_terminal_void_call() {
+        // `void f(){ g(); }`: CALL token then the void call-end marker `4C 4B`
+        // and only return plumbing → a bare `b g` terminal tail call.
+        let body: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE3, 0x09, // LO S, result temp
+            0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // CALL void
+            0x4C, 0x4B, // void call-end marker
+            0x3A, 0xE5, 0x09, 0x54, 0x02, 0x29, 0xE5, 0x09, // ASSIGN + RETURN
+        ];
+        assert!(is_tail_call(body));
+    }
+
+    #[test]
+    fn is_tail_call_rejects_nonterminal_calls() {
+        // Any call with argument setup or a consumed result is NOT a bare tail
+        // call. `g(a) - 1`, `g(a) * 5`, and `g(a+1)` all have a `B9` LOAD (arg)
+        // right after the CALL token instead of the `4C 4B` void marker → must
+        // be rejected (→ NotImplemented), not mis-emitted as `b g`.
+        let ga_minus1: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01,
+            0x10, 0x00, 0x00, 0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C,
+            0x33, 0x86, 0x41, 0x74, 0x01, 0x03, 0x41, 0x86, 0x41, 0x74,
+        ];
+        let ga_times5: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01,
+            0x10, 0x00, 0x00, 0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C,
+            0x33, 0x86, 0x41, 0x74, 0x05, 0x04, 0x41, 0x86, 0x41, 0x74,
+        ];
+        let ga_plus1_arg: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01,
+            0x10, 0x00, 0x00, 0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x01,
+            0x02, 0x55, 0x86, 0x41, 0x74, 0x4C, 0x41, 0x86, 0x41, 0x74,
+        ];
+        assert!(!is_tail_call(ga_minus1));
+        assert!(!is_tail_call(ga_times5));
+        assert!(!is_tail_call(ga_plus1_arg));
     }
 
     #[test]
