@@ -18,6 +18,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use c2_core::PortC2;
 use c2_harness::corpus::{self, CorpusConfig};
+use c2_harness::retrieval;
 use c2_harness::{
     all_fixtures, differential, oracle_selftest, DiffReport, PortStatus, SelfTestOutcome,
     SelfTestReport,
@@ -52,6 +53,7 @@ fn main() -> ExitCode {
         "diff" => cmd_diff(rest),
         "bench" => cmd_bench(),
         "corpus" => cmd_corpus(rest),
+        "retrieve" => cmd_retrieve(rest),
         "help" | "-h" | "--help" => {
             print_usage();
             ExitCode::SUCCESS
@@ -78,8 +80,11 @@ fn print_usage() {
          \x20 c2rs corpus gen [opts]    P1.2: generate a (source,IL,obj) triple corpus\n\
          \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
+         \x20 c2rs retrieve index <dir> P1.3: obj-retrieval structure of a corpus\n\
+         \x20 c2rs retrieve eval <dir>  P1.3: obj->IL retrieval baseline, recall@k\n\
          \n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
+         retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
          \n\
          Toolchain is located via C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL / C2RS_WIBO_DEBUG\n\
          / C2RS_DC3_ROOT (relative-to-repo defaults). Absent toolchain -> clean SKIP."
@@ -446,6 +451,139 @@ fn cmd_corpus_sample(rest: &[String]) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// P1.3 retrieval baseline
+// ---------------------------------------------------------------------------
+
+fn cmd_retrieve(rest: &[String]) -> ExitCode {
+    let sub = rest.first().map(String::as_str).unwrap_or("");
+    let rest = &rest[rest.len().min(1)..];
+    match sub {
+        "eval" => cmd_retrieve_eval(rest),
+        "index" => cmd_retrieve_index(rest),
+        _ => {
+            eprintln!("usage: c2rs retrieve <eval|index> <corpus-dir> [opts]");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn parse_ks(rest: &[String]) -> Vec<usize> {
+    opt(rest, "--k")
+        .map(|s| s.split(',').filter_map(|t| t.trim().parse().ok()).collect::<Vec<usize>>())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| vec![1, 5, 10])
+}
+
+fn cmd_retrieve_index(rest: &[String]) -> ExitCode {
+    let Some(dir) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+        eprintln!("usage: c2rs retrieve index <corpus-dir>");
+        return ExitCode::from(2);
+    };
+    let items = match retrieval::load_items(&dir) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("could not load corpus: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    if items.is_empty() {
+        eprintln!("no `ok` triples under {}", dir.display());
+        return ExitCode::FAILURE;
+    }
+    // Behavioral (.text), strict full-obj, and source collision structure.
+    let text_classes = class_sizes(items.iter().map(|i| i.text_key.clone()));
+    let full_classes = class_sizes(items.iter().map(|i| i.full_key.clone()));
+    let src_classes = class_sizes(items.iter().map(|i| i.src_key.clone()));
+    let n = items.len();
+    let in_multi = |m: &std::collections::BTreeMap<String, usize>| {
+        m.values().filter(|&&c| c > 1).sum::<usize>()
+    };
+    println!("retrieval index: {} ok triples from {}", n, dir.display());
+    println!(
+        "  distinct sources     : {:>5}   ({} rows in a shared-source class)",
+        src_classes.len(),
+        in_multi(&src_classes)
+    );
+    println!(
+        "  distinct .text (code): {:>5}   ({} rows / {:.1}% in a code-collision class \u{2265}2)",
+        text_classes.len(),
+        in_multi(&text_classes),
+        in_multi(&text_classes) as f64 / n as f64 * 100.0
+    );
+    println!(
+        "  distinct obj_sha_norm: {:>5}   ({} rows in a full-obj class \u{2265}2; path-polluted)",
+        full_classes.len(),
+        in_multi(&full_classes)
+    );
+    let biggest = text_classes.values().copied().max().unwrap_or(0);
+    println!("  largest code class   : {biggest} rows");
+    println!(
+        "  feature              : 256-bin L1-normalized .text byte histogram, cosine NN"
+    );
+    ExitCode::SUCCESS
+}
+
+fn class_sizes<I: Iterator<Item = String>>(keys: I) -> std::collections::BTreeMap<String, usize> {
+    let mut m = std::collections::BTreeMap::new();
+    for k in keys {
+        *m.entry(k).or_insert(0) += 1;
+    }
+    m
+}
+
+fn cmd_retrieve_eval(rest: &[String]) -> ExitCode {
+    let Some(dir) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+        eprintln!("usage: c2rs retrieve eval <corpus-dir> [--split held-out|loo] [--query-div N] [--k 1,5,10]");
+        return ExitCode::from(2);
+    };
+    let ks = parse_ks(rest);
+    let split = opt(rest, "--split").unwrap_or("held-out");
+    let query_div: u64 = opt(rest, "--query-div").and_then(|s| s.parse().ok()).unwrap_or(5);
+
+    let items = match retrieval::load_items(&dir) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("could not load corpus: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    if items.is_empty() {
+        eprintln!("no `ok` triples under {}", dir.display());
+        return ExitCode::FAILURE;
+    }
+
+    let (report, mode) = match split {
+        "loo" => (retrieval::evaluate(&items, &items, &ks, true), "leave-one-out".to_string()),
+        _ => {
+            let (q, idx) = retrieval::split_held_out(items, query_div);
+            let m = format!("held-out (query = 1/{query_div} by sha256(id))");
+            (retrieval::evaluate(&q, &idx, &ks, false), m)
+        }
+    };
+
+    println!("P1.3 retrieval baseline — {}", dir.display());
+    println!("  split : {mode}");
+    println!("  query : {}   index: {}", report.n_query, report.n_index);
+    println!(
+        "  answerable queries: obj-text(.text)={}  obj-full(sha_norm)={}  exact-source={}",
+        report.answerable_text, report.answerable_full, report.answerable_exact
+    );
+    println!("  recall@k (fraction of queries with a correct IL in top-k):");
+    println!("    k    obj-equiv(.text)   obj-full(strict)   exact-source     random(.text)");
+    for row in &report.rows {
+        println!(
+            "    {:<4} {:>10.2}%      {:>10.2}%      {:>10.2}%     {:>10.4}%",
+            row.k,
+            row.obj_text * 100.0,
+            row.obj_full * 100.0,
+            row.exact * 100.0,
+            row.random_text * 100.0,
+        );
+    }
+    ExitCode::SUCCESS
 }
 
 fn cmd_corpus_stats(rest: &[String]) -> ExitCode {
