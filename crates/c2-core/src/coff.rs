@@ -347,7 +347,7 @@ pub fn emit_framed_obj(obj_name: &str, func_name: &str, callee_name: &str, text:
     }
     debug_assert_eq!(b.0.len(), ptr_reloc[4]);
     // .text relocation: the `bl` REL24 at FRAMED_BL_OFFSET → callee `?g`.
-    b.u32(c2_il_framed_bl_offset());
+    b.u32(crate::codegen::FRAMED_BL_OFFSET);
     b.u32(SYM_G);
     b.u16(REL_PPC_REL24);
     debug_assert_eq!(b.0.len(), ptr_raw[5]);
@@ -386,7 +386,7 @@ pub fn emit_framed_obj(obj_name: &str, func_name: &str, callee_name: &str, text:
     // 15: ?g — undefined external callee (section 0, FUNCTION type).
     emit_function_symbol(&mut b, &mut strtab, callee_name, 0, 0);
     // 16: $M2545 — label at the `bl` site.
-    emit_label_symbol(&mut b, "$M2545", c2_il_framed_bl_offset(), 5);
+    emit_label_symbol(&mut b, "$M2545", crate::codegen::FRAMED_BL_OFFSET, 5);
     // 17/18: .pdata section symbol + aux (1 reloc, real CRC checksum).
     emit_section_symbol(&mut b, &sections[5], 6, 1);
     // 19: $T2547 — the `.pdata` label (storage class 3, not 6).
@@ -399,13 +399,6 @@ pub fn emit_framed_obj(obj_name: &str, func_name: &str, callee_name: &str, text:
 
     b.bytes(&strtab.finish());
     b.0
-}
-
-/// The `.text` offset of the framed `bl` (the REL24 site + `$M2545` value).
-/// Mirrors `codegen::FRAMED_BL_OFFSET`; kept local so `coff` has no dep on
-/// `codegen` (both are 0xC by the verified frame anatomy).
-fn c2_il_framed_bl_offset() -> u32 {
-    0x0C
 }
 
 /// Emit a compiler-generated **label** symbol (storage class 6, no aux) with an
