@@ -121,3 +121,45 @@ fn capture_il_is_stable() {
     std::fs::remove_dir_all(&wa).ok();
     std::fs::remove_dir_all(&wb).ok();
 }
+
+/// (v) **P0.1 regression:** for every bundled fixture, `capture_reference` +
+/// `replay` (to the reference's exact `/Fo` path) reproduces the pipeline obj
+/// **byte-exact** (normalized compare). Guarded on `strace` + mingw; skips
+/// cleanly otherwise.
+#[test]
+fn p0_1_replay_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() {
+        eprintln!("SKIP: strace absent (needed to keep the IL bundle)");
+        return;
+    }
+    if !tc.has_mingw() {
+        eprintln!("SKIP: i686-w64-mingw32-gcc absent (needed to build c2host)");
+        return;
+    }
+    for name in ["add3.cpp", "il_bool_materialization.cpp", "il_call_return.cpp"] {
+        let w = work("p01");
+        let captured = tc
+            .capture_reference(&fixture(name), &w.join("cap"))
+            .unwrap_or_else(|e| panic!("capture_reference failed for {name}: {e}"));
+        // Replay to the SAME /Fo path as the reference (ref bytes already in
+        // captured.ref_obj) so the embedded path string matches.
+        let ref_path = captured.ref_obj_path.clone();
+        let replay = tc
+            .replay(&captured, &w.join("replay_il"), &ref_path)
+            .unwrap_or_else(|e| panic!("replay failed for {name}: {e}"));
+        assert_eq!(
+            ObjImage::diff(&captured.ref_obj, &replay),
+            ObjDiff::Identical,
+            "P0.1 replay not byte-exact for {name}: ref={}B replay={}B",
+            captured.ref_obj.len(),
+            replay.len(),
+        );
+        // Sanity: both are real, non-trivial COFF objs.
+        assert!(captured.ref_obj.len() > 20 && replay.len() > 20);
+        std::fs::remove_dir_all(&w).ok();
+    }
+}

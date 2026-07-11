@@ -6,7 +6,8 @@
 //!   capture <cpp>       capture IL, print the 5 file sizes
 //!   compile <cpp>       reference obj, print size + timestamp
 //!   selftest [<cpp>...] oracle self-test over the given TUs (or all fixtures)
-//!   diff <cpp>          full differential (PortNotImplemented today)
+//!   replay <cpp>        P0.1: capture + standalone-c2 replay, print byte-match
+//!   diff <cpp>          full differential (ReferenceReplay=ByteExact, Port=NotImplemented)
 //!   bench               selftest across all fixtures/cpp/*.cpp, summary counts
 
 use std::path::PathBuf;
@@ -16,9 +17,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use c2_core::PortC2;
 use c2_harness::{
-    all_fixtures, differential, oracle_selftest, DiffReport, SelfTestOutcome, SelfTestReport,
+    all_fixtures, differential, oracle_selftest, DiffReport, PortStatus, SelfTestOutcome,
+    SelfTestReport,
 };
 use c2_il::IL_SUFFIXES;
+use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -43,6 +46,7 @@ fn main() -> ExitCode {
         "capture" => cmd_capture(rest),
         "compile" => cmd_compile(rest),
         "selftest" => cmd_selftest(rest),
+        "replay" => cmd_replay(rest),
         "diff" => cmd_diff(rest),
         "bench" => cmd_bench(),
         "help" | "-h" | "--help" => {
@@ -65,7 +69,8 @@ fn print_usage() {
          \x20 c2rs capture <cpp>        capture IL, print the 5 file sizes\n\
          \x20 c2rs compile <cpp>        reference obj, print size + timestamp\n\
          \x20 c2rs selftest [<cpp>...]  oracle self-test (determinism + capture stability)\n\
-         \x20 c2rs diff <cpp>           full differential (PortNotImplemented today)\n\
+         \x20 c2rs replay <cpp>         P0.1: capture + standalone-c2 replay, byte-match verdict\n\
+         \x20 c2rs diff <cpp>           full differential (ReferenceReplay=ByteExact, Port=NotImplemented)\n\
          \x20 c2rs bench                selftest across all fixtures/cpp/*.cpp\n\
          \n\
          Toolchain is located via C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL / C2RS_WIBO_DEBUG\n\
@@ -210,6 +215,57 @@ fn cmd_selftest(rest: &[String]) -> ExitCode {
     }
 }
 
+fn cmd_replay(rest: &[String]) -> ExitCode {
+    let Some(cpp) = require_cpp(rest) else {
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() {
+        println!("SKIP: strace absent (needed to keep the IL bundle)");
+        return ExitCode::SUCCESS;
+    }
+    if !tc.has_mingw() {
+        println!("SKIP: i686-w64-mingw32-gcc absent (needed to build c2host)");
+        return ExitCode::SUCCESS;
+    }
+    let w = scratch("replay");
+    let out = (|| {
+        let captured = tc.capture_reference(&cpp, &w.join("cap"))?;
+        // Replay to the SAME /Fo path as the reference for an exact byte compare.
+        let ref_path = captured.ref_obj_path.clone();
+        let replay = tc.replay(&captured, &w.join("replay_il"), &ref_path)?;
+        Ok::<_, std::io::Error>((captured, replay))
+    })();
+    let code = match out {
+        Ok((captured, replay)) => {
+            let raw = captured.ref_obj.as_bytes() == replay.as_bytes();
+            let norm = matches!(
+                ObjImage::diff(&captured.ref_obj, &replay),
+                ObjDiff::Identical
+            );
+            println!(
+                "{} -> ref={}B replay={}B  raw_identical={raw}  normalized_identical={norm}",
+                cpp.display(),
+                captured.ref_obj.len(),
+                replay.len(),
+            );
+            if norm {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        Err(e) => {
+            eprintln!("replay failed: {e}");
+            ExitCode::FAILURE
+        }
+    };
+    let _ = std::fs::remove_dir_all(&w);
+    code
+}
+
 fn cmd_diff(rest: &[String]) -> ExitCode {
     let Some(cpp) = require_cpp(rest) else {
         return ExitCode::from(2);
@@ -222,18 +278,42 @@ fn cmd_diff(rest: &[String]) -> ExitCode {
     let report = differential(&cpp, &tc, &port, &w);
     let line = match &report {
         DiffReport::ToolchainAbsent => "ToolchainAbsent".to_string(),
-        DiffReport::PortNotImplemented(msg) => format!("PortNotImplemented: {}", first_line(msg)),
-        DiffReport::ReferenceReplayUnproven(msg) => {
-            format!("ReferenceReplayUnproven: {}", first_line(msg))
+        DiffReport::Skipped(msg) => format!("SKIP: {}", first_line(msg)),
+        DiffReport::ReferenceError(msg) => format!("ReferenceError: {}", first_line(msg)),
+        DiffReport::ReferenceReplayMismatch {
+            first_offset,
+            ref_len,
+            replay_len,
+        } => format!(
+            "ReferenceReplay=MISMATCH @ offset {first_offset} (ref={ref_len}B replay={replay_len}B)"
+        ),
+        DiffReport::ReferenceReplayByteExact {
+            ref_len,
+            replay_len,
+            port,
+        } => {
+            let port_str = match port {
+                PortStatus::NotImplemented(_) => "NotImplemented".to_string(),
+                PortStatus::Match => "Match".to_string(),
+                PortStatus::Mismatch { first_offset } => {
+                    format!("Mismatch @ offset {first_offset}")
+                }
+            };
+            format!(
+                "ReferenceReplay=ByteExact (ref={ref_len}B replay={replay_len}B)  Port={port_str}"
+            )
         }
-        DiffReport::Match => "Match (port(IL) == c2(IL))".to_string(),
-        DiffReport::Mismatch { first_offset } => format!("Mismatch @ offset {first_offset}"),
     };
     println!("{} -> {}", cpp.display(), line);
     let _ = std::fs::remove_dir_all(&w);
-    // The stub port returning PortNotImplemented is the expected state today;
-    // treat it as success (not an error) so scripting stays clean.
-    ExitCode::SUCCESS
+    // A byte-exact reference replay with the port still a stub is the expected
+    // state today; treat it (and clean skips) as success for scripting.
+    match &report {
+        DiffReport::ReferenceReplayMismatch { .. } | DiffReport::ReferenceError(_) => {
+            ExitCode::FAILURE
+        }
+        _ => ExitCode::SUCCESS,
+    }
 }
 
 fn cmd_bench() -> ExitCode {

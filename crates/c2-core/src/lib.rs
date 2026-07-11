@@ -55,9 +55,9 @@ impl From<std::io::Error> for BackendError {
 
 /// A compiler backend: something that turns an IL bundle into a COFF `.obj`.
 ///
-/// Implemented by both the native port ([`PortC2`]) and — as the P0.1 replay
-/// seam — the real toolchain wrapper in `c2-reference`. The harness compares
-/// their outputs on normalized bytes.
+/// Implemented by both the native port ([`PortC2`]) and — via the now-proven
+/// P0.1 standalone-c2 replay — the real toolchain wrapper `ReferenceC2` in
+/// `c2-reference`. The harness compares their outputs on normalized bytes.
 pub trait Backend {
     /// Compile an IL bundle to a COFF `.obj`. The timestamp is not required to
     /// match — the harness normalizes it away before comparing.

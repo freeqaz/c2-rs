@@ -4,15 +4,15 @@
 //! Asserts:
 //!   * `oracle_selftest` PASSES on the bundled fixtures (determinism + capture
 //!     stability against the real toolchain);
-//!   * the full `differential` currently returns `PortNotImplemented` (this
-//!     documents the open T-E / P0.1 gate).
+//!   * the full `differential` reports the reference replay is **byte-exact**
+//!     (P0.1 proven) AND the port is still `NotImplemented` (open T-E gate).
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use c2_core::PortC2;
-use c2_harness::{differential, oracle_selftest, DiffReport, SelfTestOutcome};
+use c2_harness::{differential, oracle_selftest, DiffReport, PortStatus, SelfTestOutcome};
 use c2_reference::Toolchain;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -63,17 +63,32 @@ fn oracle_selftest_passes_on_fixtures() {
 }
 
 #[test]
-fn differential_is_port_not_implemented_today() {
+fn differential_reference_byte_exact_port_not_implemented() {
     let Some(tc) = Toolchain::locate() else {
         eprintln!("SKIP: toolchain absent");
         return;
     };
+    if !tc.has_strace() {
+        eprintln!("SKIP: strace absent (needed to keep the IL bundle)");
+        return;
+    }
+    if !tc.has_mingw() {
+        eprintln!("SKIP: i686-w64-mingw32-gcc absent (needed to build c2host)");
+        return;
+    }
     let w = work("diff");
     let port = PortC2;
     let report = differential(&fixture("add3.cpp"), &tc, &port, &w);
     match report {
-        DiffReport::PortNotImplemented(_) => {}
-        other => panic!("expected PortNotImplemented (the open gate), got {other:?}"),
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert!(
+                matches!(port, PortStatus::NotImplemented(_)),
+                "expected the port to still be NotImplemented, got {port:?}"
+            );
+        }
+        other => panic!(
+            "expected ReferenceReplayByteExact (P0.1 proven) with PortNotImplemented, got {other:?}"
+        ),
     }
     std::fs::remove_dir_all(&w).ok();
 }

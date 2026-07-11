@@ -3,10 +3,13 @@
 **Clean-room, I/O-behavioral native port of the MSVC Xbox 360 PPC compiler
 backend `c2.dll`, plus the differential test harness that grades it.**
 
-> **STATUS: scaffold.** The port is a **stub** (no compiler pass is ported).
-> Standalone-c2 IL **replay (P0.1)** is the open research gate. The
-> live benchmark that runs green *today* is the **oracle self-test**
-> (determinism + IL-capture stability against the real toolchain).
+> **STATUS: P0.1 GREEN, port still a stub.** Standalone-c2 IL **replay (P0.1)**
+> is **proven** — feeding a captured IL bundle back through `c2.dll` alone (via
+> the `c2host` stub under wibo) reproduces the pipeline `.obj`
+> **byte-for-byte** on all fixtures, so the differential's **reference side is
+> now real**. The native **port** (`PortC2`) remains a **stub** (no compiler
+> pass is ported) — that is the open gate. The oracle self-test (determinism +
+> IL-capture stability) also still runs green.
 
 ## Why
 
@@ -33,8 +36,9 @@ differential testing, so corpus breadth is load-bearing. See
 | `crates/c2-il` | IL bundle **container** model — the 5 files (`ex/gl/sy/in/db`) as raw bytes keyed by suffix; load/write/round-trip; `.ex` magic + token-width heuristic. NOT a disassembler. |
 | `crates/c2-obj` | COFF `.obj` handling for the differential compare — `normalized()` (zero the 4-byte TimeDateStamp at offset 4), `diff()`, `timestamp()`. |
 | `crates/c2-core` | The port itself (**STUB**) — the `Backend` trait, `PortC2` (returns `NotImplemented`), and a `passes/` tree documenting the pass order and first-port targets. |
-| `crates/c2-reference` | Drives the **real** `cl.exe`/`c2.dll` under wibo — the oracle. `compile_obj` (normal `/Ox /GS- /c`), `capture_il` (`/Bd /d2nop` early-abort trick), and `ReferenceC2` (the P0.1 replay seam, unproven). |
-| `crates/c2-harness` | The benchmark + `c2rs` CLI. `differential()` (`port(IL)==c2(IL)`) and the live-today `oracle_selftest()`. |
+| `crates/c2-reference` | Drives the **real** `cl.exe`/`c2.dll` under wibo — the oracle. `compile_obj` (normal `/Ox /GS- /c`), `capture_il` (`/Bd /d2nop` early-abort trick), `capture_reference` + `replay` (**P0.1**, byte-exact standalone-c2 replay via the `c2host` stub), and `ReferenceC2` (bundle→obj Backend). |
+| `crates/c2-harness` | The benchmark + `c2rs` CLI. `differential()` proves the reference replay is byte-exact then reports the port status, and the live-today `oracle_selftest()`. |
+| `c2host/` | Tiny x86 Windows stub (`c2host.c`) that `LoadLibrary`s `c2.dll` and calls its `_InvokeCompilerPass@12` export — the mechanism behind standalone-c2 replay. Built on demand into a gitignored cache; the `.c` is tracked, the `.exe` never is. |
 | `fixtures/cpp/` | Include-free C++ TUs. **Only the `.cpp` is tracked** — IL and obj are regenerated at test time, never committed. |
 
 Dependency edges: `c2-core → {c2-il, c2-obj}`; `c2-reference → {c2-il, c2-obj,
@@ -78,11 +82,18 @@ cargo test  --workspace
 # The live-today benchmark — determinism + capture stability over all fixtures:
 cargo run -p c2-harness --bin c2rs -- selftest
 
+# P0.1 replay — capture + standalone-c2 replay, byte-match verdict:
+cargo run -p c2-harness --bin c2rs -- replay fixtures/cpp/add3.cpp
+
 # Other subcommands:
 cargo run -p c2-harness --bin c2rs -- capture fixtures/cpp/add3.cpp
 cargo run -p c2-harness --bin c2rs -- compile fixtures/cpp/add3.cpp
-cargo run -p c2-harness --bin c2rs -- diff    fixtures/cpp/add3.cpp   # PortNotImplemented today
+cargo run -p c2-harness --bin c2rs -- diff    fixtures/cpp/add3.cpp   # ReferenceReplay=ByteExact, Port=NotImplemented
 cargo run -p c2-harness --bin c2rs -- bench
 ```
+
+The `replay`/`diff` paths additionally need `strace` (keeps the IL bundle) and
+`i686-w64-mingw32-gcc` (builds the `c2host` stub); both degrade to a clean
+`SKIP` when absent.
 
 [wibo]: https://github.com/decompals/wibo

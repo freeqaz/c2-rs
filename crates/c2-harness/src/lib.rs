@@ -4,14 +4,15 @@
 //! `.obj` under the port as under the reference toolchain?** i.e.
 //! `port(capture_il(cpp)) == c2(cpp)` on timestamp-normalized bytes.
 //!
-//! Two of the three ingredients are stubs today:
-//! * the native port ([`c2_core::PortC2`]) has no passes;
-//! * standalone c2 IL-replay ([`c2_reference::ReferenceC2`]) is the P0.1 gate.
+//! Reference side (P0.1) is now **real and byte-exact**: [`differential`]
+//! captures the pipeline obj + IL bundle, replays the bundle through standalone
+//! c2, and proves the replay reproduces the pipeline obj byte-for-byte before
+//! reporting the port status. Only the native port ([`c2_core::PortC2`]) is
+//! still a stub.
 //!
-//! So the *live-meaningful* path is the **oracle self-test** ([`oracle_selftest`]):
-//! determinism (compile twice, normalized-equal) AND capture stability (capture
-//! twice, `.ex`-equal). That runs green today against the real toolchain and is
-//! what gives the benchmark teeth before either stub is filled in.
+//! The [`oracle_selftest`] ([`oracle_selftest`]) — determinism (compile twice,
+//! normalized-equal) AND capture stability (capture twice, `.ex`-equal) — also
+//! still runs green against the real toolchain.
 
 use std::path::{Path, PathBuf};
 
@@ -19,75 +20,108 @@ use c2_core::{Backend, BackendError};
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
+/// Port-side status, evaluated only after the reference replay is byte-exact.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PortStatus {
+    /// The native port is a stub (today's normal result).
+    NotImplemented(String),
+    /// port(IL) matched the reference obj byte-exact (timestamp zeroed).
+    Match,
+    /// port(IL) differed; `first_offset` is the first diverging normalized byte.
+    Mismatch { first_offset: usize },
+}
+
 /// Outcome of the full differential for one translation unit.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DiffReport {
     /// `Toolchain::locate()` returned `None`.
     ToolchainAbsent,
-    /// The native port backend is a stub (today's normal result).
-    PortNotImplemented(String),
-    /// The reference replay seam (standalone c2) is the unproven P0.1 gate, or
-    /// the reference toolchain could not otherwise produce the comparison obj.
-    ReferenceReplayUnproven(String),
-    /// port(IL) matched c2(IL) byte-exact (timestamp zeroed).
-    Match,
-    /// port(IL) differed from c2(IL); `first_offset` is the first diverging
-    /// normalized byte.
-    Mismatch { first_offset: usize },
+    /// The replay path is unavailable (strace/mingw absent) — clean skip.
+    Skipped(String),
+    /// Reference capture/replay could not run (I/O / toolchain error).
+    ReferenceError(String),
+    /// The standalone-c2 replay did NOT reproduce the pipeline obj — a real
+    /// failure of the P0.1 mechanism (should never happen on the fixtures).
+    ReferenceReplayMismatch {
+        first_offset: usize,
+        ref_len: usize,
+        replay_len: usize,
+    },
+    /// The standalone-c2 replay reproduced the pipeline obj **byte-exact**; the
+    /// port side is then evaluated and reported in `port`.
+    ReferenceReplayByteExact {
+        ref_len: usize,
+        replay_len: usize,
+        port: PortStatus,
+    },
 }
 
-/// Run the full differential for `cpp`: capture IL via the reference, compile
-/// it with `port`, and compare against the reference's ground-truth obj.
+/// Run the full differential for `cpp`.
 ///
-/// `port` is any [`Backend`]. When it is [`c2_core::PortC2`] the result today is
-/// [`DiffReport::PortNotImplemented`]; when it is
-/// [`c2_reference::ReferenceC2`] (the replay seam) the result is
-/// [`DiffReport::ReferenceReplayUnproven`]. Callers guard toolchain presence and
-/// pass a located `reference`.
+/// 1. [`Toolchain::capture_reference`] — one `/Bd` compile under `strace` that
+///    runs c2 for real (the pipeline **reference obj**) while keeping the
+///    `_CL_*` IL bundle and echoing the exact c2 argv.
+/// 2. [`Toolchain::replay`] — write the bundle back out and re-run standalone
+///    c2 on it (to the *same* `/Fo` path), then compare to the reference obj.
+///    On the fixtures this is byte-exact — that is the P0.1 proof.
+/// 3. Only if the replay is byte-exact, compile the bundle with `port` and
+///    report its status. With [`c2_core::PortC2`] that is
+///    [`PortStatus::NotImplemented`] today.
+///
+/// Degrades to [`DiffReport::Skipped`] when `strace`/mingw are absent.
 pub fn differential(
     cpp: &Path,
     reference: &Toolchain,
     port: &dyn Backend,
     work: &Path,
 ) -> DiffReport {
-    // 1. Capture the IL bundle (reference front-end).
-    let il = match reference.capture_il(cpp, &work.join("cap")) {
-        Ok(il) => il,
-        Err(e) => {
-            return DiffReport::ReferenceReplayUnproven(format!(
-                "reference IL capture failed: {e}"
-            ))
-        }
+    if !reference.has_strace() {
+        return DiffReport::Skipped("strace absent (needed to keep the IL bundle)".into());
+    }
+    if !reference.has_mingw() {
+        return DiffReport::Skipped(
+            "i686-w64-mingw32-gcc absent (needed to build the c2host stub)".into(),
+        );
+    }
+
+    // 1. Capture the pipeline reference obj + IL bundle + exact c2 argv.
+    let captured = match reference.capture_reference(cpp, &work.join("cap")) {
+        Ok(c) => c,
+        Err(e) => return DiffReport::ReferenceError(format!("capture_reference failed: {e}")),
     };
 
-    // 2. Compile it with the port under test.
-    let port_obj = match port.compile(&il) {
+    // 2. Replay the bundle through standalone c2, to the SAME /Fo path as the
+    //    reference so the embedded path string matches (ref bytes already read
+    //    into memory as captured.ref_obj).
+    let ref_obj_path = captured.ref_obj_path.clone();
+    let replay_obj = match reference.replay(&captured, &work.join("replay_il"), &ref_obj_path) {
         Ok(o) => o,
-        Err(BackendError::NotImplemented(msg)) => {
-            // Distinguish the replay-seam stub from the native-port stub by name.
-            return if port.name().contains("reference") {
-                DiffReport::ReferenceReplayUnproven(msg)
-            } else {
-                DiffReport::PortNotImplemented(msg)
-            };
-        }
-        Err(e) => return DiffReport::PortNotImplemented(format!("{e}")),
+        Err(e) => return DiffReport::ReferenceError(format!("replay failed: {e}")),
+    };
+    let ref_len = captured.ref_obj.len();
+    let replay_len = replay_obj.len();
+    if let ObjDiff::Differs { first_offset, .. } = ObjImage::diff(&captured.ref_obj, &replay_obj) {
+        return DiffReport::ReferenceReplayMismatch {
+            first_offset,
+            ref_len,
+            replay_len,
+        };
+    }
+
+    // 3. Reference replay is byte-exact. Now evaluate the port.
+    let port = match port.compile(&captured.bundle) {
+        Ok(o) => match ObjImage::diff(&captured.ref_obj, &o) {
+            ObjDiff::Identical => PortStatus::Match,
+            ObjDiff::Differs { first_offset, .. } => PortStatus::Mismatch { first_offset },
+        },
+        Err(BackendError::NotImplemented(msg)) => PortStatus::NotImplemented(msg),
+        Err(e) => PortStatus::NotImplemented(format!("{e}")),
     };
 
-    // 3. Ground-truth obj from the normal pipeline.
-    let ref_obj = match reference.compile_obj(cpp, &work.join("ref.obj")) {
-        Ok(o) => o,
-        Err(e) => {
-            return DiffReport::ReferenceReplayUnproven(format!(
-                "reference compile_obj failed: {e}"
-            ))
-        }
-    };
-
-    // 4. Compare on normalized bytes.
-    match ObjImage::diff(&ref_obj, &port_obj) {
-        ObjDiff::Identical => DiffReport::Match,
-        ObjDiff::Differs { first_offset, .. } => DiffReport::Mismatch { first_offset },
+    DiffReport::ReferenceReplayByteExact {
+        ref_len,
+        replay_len,
+        port,
     }
 }
 

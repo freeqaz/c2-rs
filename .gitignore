@@ -1,6 +1,11 @@
 # Rust build output
 /target
 
+# c2host build cache — the x86 stub is built on demand from c2host/c2host.c
+# (which IS tracked). The compiled .exe is machine-specific and NEVER committed.
+# (Already covered by /target above; listed explicitly for clarity.)
+/target/c2host/
+
 # Captured / generated IL bundles — NEVER commit these. IL is regenerated at
 # test time by the reference toolchain (see fixtures/README.md).
 _CL_*
