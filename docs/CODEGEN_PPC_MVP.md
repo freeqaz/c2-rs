@@ -132,8 +132,9 @@ r3,r3,r11`); `const − reg` (`subfic`); a negative wide bare constant.
 byte-exact for a **single-function TU** (`fixtures/cpp/mvp_framed.cpp`,
 `differential_mvp_framed_call_byte_exact`). It needs a `.pdata` unwind section
 and three compiler label symbols on top of the tail-call layout. IL detection is
-`c2_il::func::parse_framed_call`; codegen is `codegen::framed_call_text`; the COFF
-image is `coff::emit_framed_obj` (the 5-section `emit_obj` path is untouched).
+`c2_il::func::parse_segment` (the `FramedCall` shape); codegen is
+`codegen::framed_call_text`; the COFF image is `coff::emit_framed_obj` (the
+5-section `emit_obj` path is untouched).
 
 **`.text` (size 0x24, verified constant across 1/2/4 callee args — the frame is
 always 96 bytes):**
@@ -151,10 +152,11 @@ always 96 bytes):**
 Prologue (`7d8802a6 9181fff8 9421ffa0`) and epilogue (`38210060 8181fff8
 7d8803a6 4e800020`) are byte-constant for this class; only the `addi r3,r3,k`
 immediate and the callee vary. `a*5` post-op strength-reduces (`rlwinm`+`add`,
-size 0x28) — **out of the `+k` scope, rejected**: `parse_framed_call` accepts
-only a literal `33 86 41 74 <varint>` **immediately followed by ADD (`0x02`)**
-whose `k` fits a signed-16-bit `addi` (so `*k` = `0x04`, `-k` = `0x03`, and wide
-`k` are all rejected → `NotImplemented`, never mis-emitted).
+size 0x28) — **out of the `+k` scope, rejected**: `parse_call_shape` accepts as
+framed only a literal `33 86 41 74 <varint>` **immediately followed by ADD
+(`0x02`)** whose `k` is non-zero and fits a signed-16-bit `addi` (so `*k` =
+`0x04`, `-k` = `0x03`, and wide `k` are all rejected → `NotImplemented`, never
+mis-emitted; `+0` folds to the integer tail call, below).
 
 **W4b2-v — acceptance is a positive whole-body parse (honesty claim, scoped).**
 The honesty guarantee is precisely this: **every accepted body is exactly one of
@@ -167,36 +169,75 @@ same over-acceptance: the earlier trio (`parse_body` / `is_tail_call` /
 `parse_framed_call`) each matched on a *local* byte neighborhood, so a second
 call, a trailing statement, or in-argument arithmetic sat *outside* the window
 each gate inspected and was silently dropped. The full grammar (token classes +
-the three shape productions) is in `docs/IL_BUNDLE_MVP.md` ("`.ex` whole-body
-grammar"). The three accepted shapes are: the straight-line int arithmetic leaf,
+the shape productions) is in `docs/IL_BUNDLE_MVP.md` ("`.ex` whole-body
+grammar"). The four accepted shapes are: the straight-line int arithmetic leaf;
 the bare terminal void tail call `void f(){ g(); }` (`26 tok` · CALL · `4C 4B` ·
-return plumbing), and the framed `return g(a) + k` (`26 tok` · CALL · one
-passthrough LOAD · `55 86 41 74` call-end · `4C` · one literal `+ k` · ADD).
+return plumbing); the **integer tail-call family** `return g(<arg>)` (`26 tok` ·
+CALL · an argument sub-expression · `55 86 41 74 4C` call-end · a **net-identity
+post-op**; see below); and the framed `return g(a) + k` (k ≠ 0) (`26 tok` · CALL
+· one passthrough LOAD · `55 86 41 74` call-end · `4C` · one literal `+ k` ·
+ADD).
 
-The load-bearing boundary inside the framed shape is the `55 86 41 74` call-end
-marker: a framed post-op is emitted *after* it, in-argument arithmetic *before*
-it. Captured evidence (`.ex` from the `LO` marker):
+The load-bearing boundary inside the call shape is the `55 86 41 74` call-end
+marker: a **post-op** is emitted *after* it, **argument setup** *before* it.
+Captured evidence (`.ex` from the `LO` marker):
 ```
 g(a)+1  … 55 86 41 74 | 4c 33 86 41 74 01 02 …   literal+ADD AFTER  the marker → framed +1
-g(a+1)  … 33 86 41 74 01 02 | 55 86 41 74 4c 41 … literal+ADD BEFORE the marker → in-arg
+g(a+1)  … 33 86 41 74 01 02 | 55 86 41 74 4c 41 … literal+ADD BEFORE the marker → arg-setup
 ```
-Because the parse requires the framed argument region to be *exactly* the single
-passthrough LOAD (nothing between the CALL token and `55`), `return g(a + 1)` —
-a tail call whose `+1` is inside the argument — is rejected, not mis-accepted as
-framed `g(a)+1`. It is a legitimate tail call with arg-setup codegen (the
-reference emits `addi r3,r3,1 ; b g`), which this MVP does not model (rung
-W4b2-iv) → `NotImplemented`, never a mis-emitted obj.
+Both are now modeled (see the int tail-call family below): the post-op
+classifies the shape, the argument region is a modeled sub-expression computed
+into r3.
 
 Regression fixtures, each asserted `NotImplemented` in
-`differential_out_of_class_call_shapes_not_implemented`: `mvp_call_argframed.cpp`
-(`g(a+1)`), `mvp_call_submod.cpp` (`g(a)-1`), `mvp_call_mulmod.cpp` (`g(a)*5`),
-`mvp_call_widemod.cpp` (`g(a)+70000`), and the W4b2-v probes
-`mvp_call_twice.cpp` (`g();g();`), `mvp_call_then_stmt.cpp` (`g();return a+1;`),
-`mvp_call_argframed_plusk.cpp` (`g(a+1)+1`), `mvp_call_two_framed.cpp`
-(`g(a)+g(a+1)`), `mvp_call_plus1plus2.cpp` (`g(a)+1+2`). The two mis-emits the
-old gates produced — a bare `b g` that dropped a second call/statement, and a
-framed obj that dropped in-argument work — are now impossible by construction:
-the parse would not reach the segment end.
+`differential_out_of_class_call_shapes_not_implemented`: `mvp_call_submod.cpp`
+(`g(a)-1`), `mvp_call_mulmod.cpp` (`g(a)*5`), `mvp_call_widemod.cpp`
+(`g(a)+70000`), and the W4b2-v probes `mvp_call_twice.cpp` (`g();g();`),
+`mvp_call_then_stmt.cpp` (`g();return a+1;`), `mvp_call_argframed_plusk.cpp`
+(`g(a+1)+1` — arg-setup AND a framed post-op, out of the modeled classes),
+`mvp_call_two_framed.cpp` (`g(a)+g(a+1)`), `mvp_call_plus1plus2.cpp`
+(`g(a)+1+2`). The two mis-emits the old gates produced — a bare `b g` that
+dropped a second call/statement, and a framed obj that dropped in-argument work
+— are now impossible by construction: the parse would not reach the segment end.
+
+## W4b2-iv/-vi integer tail-call family — IMPLEMENTED, byte-exact
+
+An **integer tail call** `return g(<arg>)` lowers to `<arg-setup> ; b <callee>`:
+the single call argument computed into r3, then a `b` tail branch (REL24, LK=0,
+no frame — a 5-section leaf, the integer analog of the void tail call). The
+post-op after the `55 … 4C` call-end classifies the shape; a **net-identity
+post-op** (absent, or `+0` folded) is a tail call, a genuine `+k` is framed.
+Verified live against 16.00.11886.00 (each a 5-section, 15-symbol obj; the `bl`
+callee is symbol 14; `.text` big-endian):
+
+| source | `.text` | REL24 offset |
+|---|---|---|
+| `return g(a)` (passthrough) | `48000000` (`b g`) | `0x0` |
+| `return g(a) + 0` (W4b2-vi fold) | `48000000` (`b g`) — **byte-identical to `g(a)`** | `0x0` |
+| `return g(a + 1)` (W4b2-iv arg-setup) | `38630001 4bfffffc` (`addi r3,r3,1 ; b g`) | `0x4` |
+
+Fixtures `mvp_tailret.cpp` / `mvp_plus0.cpp` / `mvp_argtail.cpp`, each asserted
+`Port=Match` (`differential_mvp_{tailret,plus0,argtail}_*`).
+
+**Modeling (positive parser + codegen).** `parse_call_shape`
+(`c2_il::func`) parses the argument region as a modeled sub-expression up to the
+`55` call-end (`parse_expr`), then reads the post-op: **no post-op or `+0`** →
+`BodyShape::IntTailCall{params, arg_ops}`; **`+k` (k≠0) over a bare `[Load]`
+arg** → `FramedCall`; a `+k` over a *computed* arg (`g(a+1)+1`) → reject. This
+is a positive redirection, not a special case: *an integer call whose net
+post-op is identity is a tail call* — `g(a)+0 == g(a)`, and the optimizer emits
+the bare `b g` (so a `FramedCall{add_k:0}` would mis-emit a `.pdata` frame the
+reference elides — the W4b2-vi leak, now closed). Codegen
+`codegen::int_tail_call_text` reuses `select_text` to compute the argument into
+r3 (params → registers, the exact leaf-arithmetic class), drops its trailing
+`blr` (the value stays live in r3), and appends the tail branch — so the branch
+offset is the arg-setup length (0x0 for passthrough, 0x4 after one `addi`), which
+is also the REL24 site. **Scope:** a single argument computed into r3, in the
+arithmetic class `select_text` already models (`a+k`/`a-k` → `addi`; `a*b` reg
+× reg). Out of scope, fail-closed: multi-argument setup, `k-a` (`subfic`),
+constant multiply (strength reduction), a computed arg with a framed post-op.
+Non-commutative arg-setup is rejected inside `select_text` — the CLAUDE.md
+correctness-boundary discipline holds (no silent operand-order corruption).
 
 **`.pdata` unwind word — RESOLVED: it encodes function length.** The 8-byte
 RUNTIME_FUNCTION is `BeginAddress(u32=0, reloc-patched)` + a packed unwind word,
@@ -229,9 +270,9 @@ emits the *constant* labels `$M2545 / $M2546 / $T2547`, verified identical acros
 reruns, filenames, and symbol names. The counter only shifts when **preceding
 functions in the TU consume slots** (a leaf before `f` bumps the base to
 `2549/2550/2551`). So the labels are a fixed toolchain seed and are hardcoded;
-`parse_framed_call` is scoped to a single-function TU (a multi-function TU with a
-framed call is rejected — modeling the per-function counter increment is a
-later rung).
+the framed-call path (and every call shape) is scoped to a single-function TU (a
+multi-function TU with a call is rejected — modeling the per-function counter
+increment is a later rung).
 
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 
