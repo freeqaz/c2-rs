@@ -106,21 +106,86 @@ Opcode map used (from IL_FORMAT.md, confirmed on fixtures): `0x02` ADD ·
 `B9 <tok> <type>` load · `33 <type> NN` literal · `41 <type>` result-type ·
 `3A <tok>` assign · `54 02 29 <tok>` return. Type `86 41 74` = int.
 
+## `.ex` whole-body grammar — positive parse (W4b2-v, verified)
+
+`c2_il::func::parse_segment` is a **positive whole-body parser**: it tokenizes
+a function's `.ex` operand stream from the `4C 4F 11` ('LO') marker to the end
+of the segment (segments are split at each `4F 1F` function-start) and accepts
+**only** if the *complete* token sequence is exactly one of the three modeled
+shapes below. The parse must *reach the segment end*; any unmodeled byte, a
+second call, computation after a terminal call, or a non-trivial call-argument
+region fails the whole function closed (`None` → the emitter reports
+`NotImplemented`, never a mis-emit). It replaced three earlier gates
+(`parse_body` / `is_tail_call` / `parse_framed_call`) that each matched on a
+*local* byte neighborhood around the first CALL and so silently over-accepted
+trailing / in-argument work. All byte facts below are transcribed from live
+16.00.11886.00 captures (`/Bd /d2nop /Ox /GS- /c`) of every fixture + probe.
+
+Token classes (each consumed by an exact-pattern match or a typed read):
+
+| Token | Bytes | Notes |
+|---|---|---|
+| LO marker | `4C 4F 11` | body start (unique in the segment) |
+| SS statement-start | `53` | follows LO |
+| statement/label marker | `4F 01 NN` | multi-fn only; after SS and before RETURN |
+| function/result ref | `26 <tok>` | precedes a CALL |
+| CALL token | `BD <3-byte ret type> 00 80 01 10 00 00` | fixed 10 bytes; type void=`82 07 03`, int=`86 41 74` |
+| LOAD | `B9 <tok> 86 41 74` | int operand |
+| LITERAL | `33 86 41 74 <varint>` | `<0x80`=value, else `0x80`+4-byte LE i32 |
+| ADD / SUB / MUL | `02` / `03` / `04` | postfix binary |
+| int call-end | `55 86 41 74` then `4C` | consumed-value call, then an `L` marker |
+| void call-end | `4C 4B` | discarded-value call (`L` `K`) |
+| result-type | `41 86 41 74` | present for an int return, absent for void |
+| ASSIGN | `3A <tok>` | to the return temp |
+| RETURN | `54 02 29 <tok>` | |
+| function tail | `4F 12` · `47 54 01 54 00` | separator + `GT` terminate |
+| module end | `4F 02 20 00` · `4F 01 NN` · `4D` | last function only, then zero-fill |
+
+The three accepted shapes (`INT` = `86 41 74`):
+
+```
+body   := LO SS  stmt?  ( arith | vcall | fcall )
+stmt   := 4F 01 NN
+arith  := (LOAD | LIT | 02|03|04)+  ret_int         # straight-line leaf
+vcall  := 26 tok  CALL  4C 4B  ret_void             # void f(){ g(); }
+fcall  := 26 tok  CALL  LOAD  55 INT 4C  33 INT k 02  ret_int   # return g(a)+k
+ret_int  := 41 INT  3A tok  stmt?  54 02 29 tok  TAIL
+ret_void :=         3A tok  stmt?  54 02 29 tok  TAIL
+TAIL   := 4F 12  47 54 01 54 00  ( <segment-end> | 4F 02 20 00 4F 01 NN 4D 00* )
+```
+
+A non-last function's segment ends exactly at `47 54 01 54 00` (the split cuts
+before the next `4F 1F`); the last function carries the module end + zero-fill.
+The framed `fcall` argument region is **exactly the single passthrough LOAD**;
+the post-op is **exactly one** literal `+ k` (ADD, commutative) whose `k` fits a
+signed-16-bit `addi`. Fail-closed points, each a real defect this parse now
+rejects (all previously loud mis-emits):
+
+- **in-argument arithmetic** — `g(a + 1)` / `g(a + 1) + 1`: the arg region
+  carries LIT+ADD before `55`, so it is not the bare passthrough LOAD → reject
+  (a post-`55`-only search mis-read it as framed `g(a)+1`, dropping the in-arg
+  work). Captured boundary evidence:
+  `g(a)+1` → `… 55 86 41 74 | 4c 33 86 41 74 01 02 …` (post-op AFTER `55`);
+  `g(a+1)` → `… 33 86 41 74 01 02 | 55 86 41 74 4c 41 …` (in-arg BEFORE `55`).
+- **a second call** — `g(); g();` (a `26 … BD` where the void return plumbing
+  must be) / `g(a) + g(a+1)` (a second `26 … BD` where the framed post-op must
+  be) → reject.
+- **a statement after a terminal call** — `g(); return a+1;` (a `B9` LOAD after
+  the void `4C 4B`) → reject.
+- **a two-literal post-op** — `g(a) + 1 + 2` (a second `33 …` where the
+  result-type must be) → reject.
+- **non-commutative / strength-reduced / wide post-op** — `g(a)-1` (`03`),
+  `g(a)*5` (`04`), `g(a)+70000` (wide `k`) → reject.
+
 ## Out of MVP scope (needed later)
 
-- `.ex` beyond straight-line int arithmetic: branches/labels
-  (`4F 01 NN`, `38`, `54 03/04`), calls + relocs (`26/BD/55` — these
-  introduce COFF relocations; MVP has zero), casts (`2C`), memory
-  (`30/32`), switch (`3B–3D`).
-  - **Call grammar (W4b2, verified):** a call is `26 <tok>` (result temp) ·
-    `BD <3-byte return type> 00 80 01 10 00 00` (the fixed 10-byte CALL token) ·
-    the argument region · `55 <int-type>` (**call-end marker**, present when the
-    int return value is consumed; a terminal *void* call has `4C 4B` instead).
-    The call-end marker is the load-bearing boundary: a framed post-op
-    (`return g(a) + k`) is emitted *after* `55`, whereas in-argument arithmetic
-    (`return g(a + 1)`) is emitted *before* it. `c2_il::func::parse_framed_call`
-    anchors its post-op search past `55` for exactly this reason; without it,
-    `g(a+1)` is silently mis-read as framed `g(a)+1`.
+- `.ex` beyond the three shapes above: branches/labels (`38`, `54 03/04`),
+  call *argument-setup* codegen (`return g(a+1)` — a tail call with a computed
+  arg, rung W4b2-iv), casts (`2C`), memory (`30/32`), switch (`3B–3D`), and any
+  call in a multi-function TU (the `.pdata` label counters shift — W-UNW-1).
+  The positive parse already *tokenizes* enough to recognize and honestly
+  reject all of these; implementing them means adding an accepted shape, not
+  loosening a gate.
 - `.in` type-table decode (first non-int/pointer/struct type).
 - `.db` line tables (non-`/Ox` debug CV).
 - The `.ex` header/index region (0x08–0x0A54, treated as opaque here) —

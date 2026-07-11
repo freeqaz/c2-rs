@@ -156,37 +156,47 @@ only a literal `33 86 41 74 <varint>` **immediately followed by ADD (`0x02`)**
 whose `k` fits a signed-16-bit `addi` (so `*k` = `0x04`, `-k` = `0x03`, and wide
 `k` are all rejected → `NotImplemented`, never mis-emitted).
 
-**W4b2-i — the framed post-op is anchored past the `55` call-end marker
-(verified grammar fact).** The post-op literal+ADD only qualifies when it is
-emitted *after* the `55 86 41 74` call-end marker. Everything before that marker
-is the call's **argument** region. Captured evidence (`.ex` from the `LO`
-marker; `55 86 41 74` is the call-end):
+**W4b2-v — acceptance is a positive whole-body parse (honesty claim, scoped).**
+The honesty guarantee is precisely this: **every accepted body is exactly one of
+three recognized shapes, and every other body is rejected**, because
+`c2_il::func::parse_segment` tokenizes the entire `.ex` operand stream (from the
+`4C 4F 11` 'LO' marker to the segment end) and accepts only on a *complete*
+positive match that *reaches the end* — it is not a search for a favorable
+pattern near the first CALL. This is the doctrinal fix for two rounds of the
+same over-acceptance: the earlier trio (`parse_body` / `is_tail_call` /
+`parse_framed_call`) each matched on a *local* byte neighborhood, so a second
+call, a trailing statement, or in-argument arithmetic sat *outside* the window
+each gate inspected and was silently dropped. The full grammar (token classes +
+the three shape productions) is in `docs/IL_BUNDLE_MVP.md` ("`.ex` whole-body
+grammar"). The three accepted shapes are: the straight-line int arithmetic leaf,
+the bare terminal void tail call `void f(){ g(); }` (`26 tok` · CALL · `4C 4B` ·
+return plumbing), and the framed `return g(a) + k` (`26 tok` · CALL · one
+passthrough LOAD · `55 86 41 74` call-end · `4C` · one literal `+ k` · ADD).
+
+The load-bearing boundary inside the framed shape is the `55 86 41 74` call-end
+marker: a framed post-op is emitted *after* it, in-argument arithmetic *before*
+it. Captured evidence (`.ex` from the `LO` marker):
 ```
 g(a)+1  … 55 86 41 74 | 4c 33 86 41 74 01 02 …   literal+ADD AFTER  the marker → framed +1
 g(a+1)  … 33 86 41 74 01 02 | 55 86 41 74 4c 41 … literal+ADD BEFORE the marker → in-arg
 ```
-`parse_framed_call` searches for the literal only *after* `55 86 41 74`, so
-`return g(a + 1)` — a tail call whose `+1` is *inside the argument* — is no
-longer mis-accepted as framed `g(a)+1`. It is a legitimate tail call with
-arg-setup codegen (the reference emits `addi r3,r3,1 ; b g`), which this MVP
-does not model (rung W4b2-iv) → `NotImplemented`, never a mis-emitted framed
-obj. Regression fixtures: `mvp_call_argframed.cpp` (`g(a+1)`),
-`mvp_call_submod.cpp` (`g(a)-1`), `mvp_call_mulmod.cpp` (`g(a)*5`),
-`mvp_call_widemod.cpp` (`g(a)+70000`), each asserted `NotImplemented` in
-`differential_out_of_class_call_shapes_not_implemented`.
+Because the parse requires the framed argument region to be *exactly* the single
+passthrough LOAD (nothing between the CALL token and `55`), `return g(a + 1)` —
+a tail call whose `+1` is inside the argument — is rejected, not mis-accepted as
+framed `g(a)+1`. It is a legitimate tail call with arg-setup codegen (the
+reference emits `addi r3,r3,1 ; b g`), which this MVP does not model (rung
+W4b2-iv) → `NotImplemented`, never a mis-emitted obj.
 
-**The W4a tail-call gate is now terminal-only (Post-W4a note: replaced, not
-extended).** `is_tail_call` previously accepted a CALL (`0xBD`) *anywhere* after
-the `LO` marker, so a framed shape that `parse_framed_call` correctly refused
-(`g(a)-1`, `g(a)*5`, `g(a)+70000`, `g(a+1)`) fell through and was mis-classified
-as a bare `b g`, silently dropping its surrounding computation. The gate now
-accepts **only the terminal void shape** `void f(){ g(); }`: the fixed 10-byte
-CALL token (`BD <3-byte return type> 00 80 01 10 00 00`) followed immediately by
-the void call-end marker `4C 4B` and only return plumbing. Any argument LOAD
-(`B9`) or int call-value marker (`55`) after the token means unmodeled
-surrounding computation → `false` → `NotImplemented`. So the two call gates are
-now honest and disjoint: framed `+k` (via `parse_framed_call`), bare terminal
-`b g` (via `is_tail_call`), everything else refused.
+Regression fixtures, each asserted `NotImplemented` in
+`differential_out_of_class_call_shapes_not_implemented`: `mvp_call_argframed.cpp`
+(`g(a+1)`), `mvp_call_submod.cpp` (`g(a)-1`), `mvp_call_mulmod.cpp` (`g(a)*5`),
+`mvp_call_widemod.cpp` (`g(a)+70000`), and the W4b2-v probes
+`mvp_call_twice.cpp` (`g();g();`), `mvp_call_then_stmt.cpp` (`g();return a+1;`),
+`mvp_call_argframed_plusk.cpp` (`g(a+1)+1`), `mvp_call_two_framed.cpp`
+(`g(a)+g(a+1)`), `mvp_call_plus1plus2.cpp` (`g(a)+1+2`). The two mis-emits the
+old gates produced — a bare `b g` that dropped a second call/statement, and a
+framed obj that dropped in-argument work — are now impossible by construction:
+the parse would not reach the segment end.
 
 **`.pdata` unwind word — RESOLVED: it encodes function length.** The 8-byte
 RUNTIME_FUNCTION is `BeginAddress(u32=0, reloc-patched)` + a packed unwind word,
