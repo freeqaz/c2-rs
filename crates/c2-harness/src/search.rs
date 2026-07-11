@@ -571,6 +571,28 @@ pub struct MoveSet {
     /// (the "vanished literal" set — a dropped `+k` is only recoverable if `k` is
     /// here or already elsewhere in the body).
     pub insert_literals: Vec<i32>,
+    /// **Opt-in, OFF by default** ([`MoveSet::default`]/[`MoveSet::length_only`]
+    /// both leave it `false`; enable via [`MoveSet::with_mul_reorder`]). When set,
+    /// [`MoveSet::neighbors`] emits, for each `MUL` (`04`) node whose two immediate
+    /// operands are single-token leaves, the operand-swapped ordering as one d=1
+    /// neighbor — the primitive for the commutative-order class (the real
+    /// `Box::Volume` regalloc floor is a commutative reorder).
+    ///
+    /// **Why it is gated (CLAUDE.md rule 1).** The move is licensed ONLY because
+    /// `04` is **commutative**, so the swap stays inside the licensed action space.
+    /// It is guarded strictly to `04`: an operand swap of `03` (SUB), `-`, `/`,
+    /// `%`, `<<`, `>>`, or a function/argument/comparison swap is a
+    /// *non-commutative silent corruption* (the DC3 `SetupCharacter` flip of
+    /// `z0 - aspect*size` matched flat at 83.8% and made all game text invisible),
+    /// so this generator NEVER emits one. It is off by default because the binding
+    /// seam is the **adopt-as-truth / floor-certification** path: a generator that
+    /// can emit swaps must be opt-in there, since `fuzzy%` cannot see a
+    /// match-neutral behavioral corruption in machine-minted source trusted without
+    /// a byte-exact witness. On the *search* path the byte-exact terminal (the sole
+    /// judge) makes any accepted candidate behavior-safe as a crack regardless, so
+    /// enabling the move only widens which candidates are compiled — it can never
+    /// promote a non-byte-exact result.
+    pub mul_reorder: bool,
 }
 
 impl Default for MoveSet {
@@ -584,6 +606,7 @@ impl Default for MoveSet {
             insert_ops: vec![ExToken::Add, ExToken::Sub, ExToken::Mul],
             insert_from_scope: true,
             insert_literals: vec![1, 2, 5],
+            mul_reorder: false, // opt-in only (see the field docstring)
         }
     }
 }
@@ -603,7 +626,18 @@ impl MoveSet {
             insert_ops: vec![ExToken::Add, ExToken::Sub, ExToken::Mul],
             insert_from_scope: true,
             insert_literals: vec![1, 2, 5],
+            mul_reorder: false, // opt-in only (see the field docstring)
         }
+    }
+
+    /// Enable the opt-in commutative **MUL-factor reorder** move (OFF by default).
+    /// See the [`MoveSet::mul_reorder`] field docstring for the guard rationale
+    /// (MUL/`04`-only, licensed by commutativity; the adopt-as-truth /
+    /// floor-certification seam is why it is opt-in). Chains on any constructor,
+    /// e.g. `MoveSet::default().with_mul_reorder()`.
+    pub fn with_mul_reorder(mut self) -> Self {
+        self.mul_reorder = true;
+        self
     }
 
     /// Enumerate the bounded neighborhood of `model`: every in-scope K3a edit,
@@ -712,6 +746,32 @@ impl MoveSet {
                     }
                 }
             }
+
+            // ---- commutative MUL-factor reorder (opt-in; MUL `04` ONLY) ------
+            // For a `… A B MUL` node whose two immediate operands `A`,`B` are
+            // single-token leaves, emit the operand-swapped ordering `… B A MUL`
+            // as one d=1 neighbor. Guarded strictly to `ExToken::Mul` (opcode
+            // `04`) — the ONLY commutative binop here; SUB/`03` (and `-` `/` `%`
+            // `<<` `>>`, argument/comparison swaps) are non-commutative silent
+            // corruptions and are never swapped (CLAUDE.md rule 1; the guard's
+            // full rationale + the adopt-as-truth/floor-cert seam are on the
+            // `mul_reorder` field docstring). Identical operands (`a*a`) are
+            // skipped — the swap is a no-op the `.ex` dedup would drop anyway.
+            if self.mul_reorder {
+                for i in 2..tokens.len() {
+                    if !matches!(tokens[i], ExToken::Mul) {
+                        continue;
+                    }
+                    let (a, b) = (&tokens[i - 2], &tokens[i - 1]);
+                    if is_operand(a) && is_operand(b) && a != b {
+                        let mut cand = model.clone();
+                        let repl = vec![b.clone(), a.clone()];
+                        if cand.splice_function_tokens(fi, i - 2..i, repl).is_ok() {
+                            push(&mut out, &mut seen, format!("fn{fi} mul-swap@{i}"), cand);
+                        }
+                    }
+                }
+            }
         }
         out
     }
@@ -734,7 +794,16 @@ fn push(
 }
 
 fn is_operand(t: &ExToken) -> bool {
-    matches!(t, ExToken::Load(_) | ExToken::Lit { .. })
+    // `FloatLoad` is a leaf operand exactly as `Load` is — the float-leaf codec
+    // widening (Box::Volume class) types the float-arith stream, and its member
+    // diffs/products push a single float value per `FloatLoad`, so a `FloatLoad`
+    // is a delete/insert anchor for the length moves (and a swap anchor for the
+    // MUL reorder below), just like the int `Load`. Without this a float leaf has
+    // zero operand anchors, i.e. an empty action space on every real dc3 target.
+    matches!(
+        t,
+        ExToken::Load(_) | ExToken::FloatLoad(_) | ExToken::Lit { .. }
+    )
 }
 
 fn is_binop(t: &ExToken) -> bool {
@@ -1992,6 +2061,101 @@ mod tests {
         b.set("in", vec![0x86, 0x41, 0x74, 0x00]);
         b.set("db", Vec::new());
         IlModel::parse(&b).expect("hand-built aa model parses")
+    }
+
+    // A hand-built model with body `a <op> b` (LOAD a, LOAD b, <op_byte>) over two
+    // DISTINCT formals — the minimal two-leaf binop the MUL-reorder guard is proved
+    // on: `op_byte` = `0x04` (MUL, swappable) vs `0x03` (SUB) / `0x02` (ADD, not a
+    // reorder target). Same framing/`.gl` shape as `model_add_aa`.
+    fn model_binop_ab(op_byte: u8) -> IlModel {
+        use c2_il::IlBundle;
+        let mut b = IlBundle::new("_search_test_op_ab");
+        let mut ex: Vec<u8> = Vec::new();
+        ex.extend_from_slice(&c2_il::EX_MAGIC);
+        ex.extend_from_slice(&[0x00; 8]);
+        let fn_start = ex.len() as u32;
+        ex.extend_from_slice(&[0x4F, 0x1F]);
+        ex.extend_from_slice(&[0x11, 0x22]);
+        ex.push(0x46);
+        ex.extend_from_slice(&[0x2D, 0xE3, 0x01]); // Formal a
+        ex.extend_from_slice(&[0x2D, 0xE4, 0x01]); // Formal b
+        ex.extend_from_slice(&[0x4C, 0x4F, 0x11]); // LO
+        ex.push(0x53); // Ss
+        ex.extend_from_slice(&[0xB9, 0xE3, 0x01, 0x86, 0x41, 0x74]); // Load a
+        ex.extend_from_slice(&[0xB9, 0xE4, 0x01, 0x86, 0x41, 0x74]); // Load b
+        ex.push(op_byte); // the binop under test
+        ex.extend_from_slice(&[0x54, 0x02, 0x29, 0xE3, 0x00]); // Return
+        ex.extend_from_slice(&[0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00]); // FnTail
+        ex.extend_from_slice(&[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x00, 0x4D]); // ModuleEnd
+        b.set("ex", ex);
+        let mut gl: Vec<u8> = Vec::new();
+        gl.extend_from_slice(b"?opab@@YAHHH@Z\x00");
+        gl.extend_from_slice(&[0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00]);
+        gl.push(0x80);
+        gl.extend_from_slice(&fn_start.to_le_bytes());
+        b.set("gl", gl);
+        b.set("sy", b"a\x00b\x00\x00".to_vec());
+        b.set("in", vec![0x86, 0x41, 0x74, 0x00]);
+        b.set("db", Vec::new());
+        IlModel::parse(&b).expect("hand-built op-ab model parses")
+    }
+
+    // ---- MUL-factor commutative-reorder move (Piece B) — the guard proof ----
+
+    #[test]
+    fn mul_reorder_is_opt_in_off_by_default() {
+        // Neither default constructor turns the move on.
+        assert!(!MoveSet::default().mul_reorder);
+        assert!(!MoveSet::length_only().mul_reorder);
+        assert!(MoveSet::default().with_mul_reorder().mul_reorder);
+        // And the default neighborhood of a two-leaf MUL emits no mul-swap.
+        let m = model_binop_ab(0x04);
+        assert!(
+            !MoveSet::default()
+                .neighbors(&m)
+                .iter()
+                .any(|(l, _)| l.contains("mul-swap")),
+            "mul-swap must not appear without opting in"
+        );
+    }
+
+    #[test]
+    fn mul_reorder_generated_for_mul_swaps_the_two_leaves() {
+        // On `a * b`, with_mul_reorder emits exactly one mul-swap whose body is
+        // `b * a` (the two leaves reordered, MUL opcode preserved).
+        let m = model_binop_ab(0x04);
+        let orig = m.function_tokens(0).unwrap();
+        let omi = orig.iter().position(|t| matches!(t, ExToken::Mul)).unwrap();
+        let (a_tok, b_tok) = (orig[omi - 2].clone(), orig[omi - 1].clone());
+        assert!(matches!(a_tok, ExToken::Load(_)) && matches!(b_tok, ExToken::Load(_)));
+        assert_ne!(a_tok, b_tok, "the fixture's two leaves are distinct");
+
+        let ns = MoveSet::default().with_mul_reorder().neighbors(&m);
+        let swaps: Vec<_> = ns.iter().filter(|(l, _)| l.contains("mul-swap")).collect();
+        assert_eq!(swaps.len(), 1, "one two-leaf MUL ⇒ exactly one swap");
+
+        let toks = swaps[0].1.function_tokens(0).unwrap();
+        let mi = toks.iter().position(|t| matches!(t, ExToken::Mul)).unwrap();
+        assert!(mi >= 2);
+        assert_eq!(toks[mi - 2], b_tok, "leaf order is swapped (b now first)");
+        assert_eq!(toks[mi - 1], a_tok, "leaf order is swapped (a now second)");
+        assert!(matches!(toks[mi], ExToken::Mul), "the MUL opcode is preserved");
+    }
+
+    #[test]
+    fn mul_reorder_never_generated_for_sub_or_add() {
+        // THE GUARD: opcode `03` (SUB) and `02` (ADD) are NOT reorder targets even
+        // with the move opted in — SUB is a non-commutative silent corruption, and
+        // the move is strictly MUL-only (CLAUDE.md rule 1). Same two-leaf shape as
+        // the MUL case, so ONLY the opcode differs.
+        for op in [0x03u8, 0x02u8] {
+            let m = model_binop_ab(op);
+            let ns = MoveSet::default().with_mul_reorder().neighbors(&m);
+            assert!(
+                !ns.iter().any(|(l, _)| l.contains("mul-swap")),
+                "opcode {op:#04x} must NEVER produce a mul-swap (MUL-only guard)"
+            );
+        }
     }
 
     // ---- instruction-aware gradient fixtures -------------------------------

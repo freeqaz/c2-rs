@@ -14,8 +14,10 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use c2_harness::search::{self, Budget, MoveSet, Perturb};
-use c2_reference::Toolchain;
+use c2_harness::search::{self, beam_search, Budget, MoveSet, Perturb, ReplayScorer};
+use c2_il::{ExToken, IlModel};
+use c2_obj::{ObjDiff, ObjImage};
+use c2_reference::{CapturedReference, Toolchain};
 
 const TIMEOUT: Duration = Duration::from_secs(60);
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -155,6 +157,115 @@ fn search_solves_litnudge_d1_byte_exact() {
     assert!(
         outcome.solved,
         "literal-value recovery must close byte-exact: {outcome:?}"
+    );
+
+    std::fs::remove_dir_all(&w).ok();
+}
+
+/// First leaf-pair MUL site in `toks` (index of the `Mul` whose two immediate
+/// operands are distinct single-token leaves) — the reorder move's target.
+fn leaf_mul_site(toks: &[ExToken]) -> Option<usize> {
+    let is_leaf = |t: &ExToken| {
+        matches!(
+            t,
+            ExToken::Load(_) | ExToken::FloatLoad(_) | ExToken::Lit { .. }
+        )
+    };
+    (2..toks.len()).find(|&i| {
+        matches!(toks[i], ExToken::Mul)
+            && is_leaf(&toks[i - 2])
+            && is_leaf(&toks[i - 1])
+            && toks[i - 2] != toks[i - 1]
+    })
+}
+
+/// **Gate 4 — the byte-exact solve on a constructed float-MUL-reorder instance.**
+///
+/// Two IL bodies differing ONLY by MUL operand order (`x*y*z` vs `y*x*z`), both
+/// compiled by real c2. Ordering-2 = the captured `mvp_fmul3` (`a*b*c`); ordering-1
+/// = its inner MUL's two `FloatLoad` leaves swapped through the K3a splice. Seed the
+/// search from ordering-1's IL with ordering-2's obj as the target, enable the
+/// reorder move, and confirm the search reaches ordering-2's obj **byte-exact**
+/// (`ObjImage::diff == Identical` on the timestamp-normalized objs).
+///
+/// **Live finding recorded by this test:** c2 **canonicalizes** commutative
+/// multiply — ordering-1 replays to an obj that is *already* byte-exact to
+/// ordering-2's (asserted directly below). The commutative reorder is therefore
+/// obj-neutral on this toolchain (like a widened literal, P0.6a A): the byte-exact
+/// terminal — the sole judge — fires on the seed itself, so the search closes at
+/// step 0. The reorder move is still proven to *emit* ordering-2 exactly (asserted
+/// via the neighborhood), i.e. it is a correct, guarded commutative primitive; it
+/// just has no obj gap to bridge on this leaf-swap class. See
+/// `docs/plans/il-witness/MUL_REORDER_MOVE.md`.
+#[test]
+fn search_solves_float_mul_reorder_byte_exact() {
+    let Some(tc) = ready() else { return };
+    let w = work("mul-reorder");
+
+    // Ordering-2 (target): capture `a*b*c`, parse, render its obj to the fixed -Fo.
+    let base = tc
+        .capture_reference(&fixture("mvp_fmul3.cpp"), &w.join("cap"))
+        .expect("capture mvp_fmul3");
+    let solution = IlModel::parse(&base.bundle).expect("parse float-mul IL");
+    let toks = solution.function_tokens(0).expect("token-addressable");
+    let mi = leaf_mul_site(&toks).expect("a leaf-pair MUL site (a*b*c inner MUL)");
+
+    let search_dir = w.join("search");
+    let fo = search_dir.join("cand.obj");
+    let target = tc
+        .replay_within(&base, &w.join("tgt_il"), &fo, TIMEOUT)
+        .expect("render ordering-2 (a*b*c) obj");
+
+    // Ordering-1 (seed): swap the inner MUL's two FloatLoad leaves.
+    let mut seed = solution.clone();
+    seed.splice_function_tokens(0, mi - 2..mi, vec![toks[mi - 1].clone(), toks[mi - 2].clone()])
+        .expect("swap the two MUL leaves");
+    assert_ne!(
+        seed.encode().get("ex"),
+        solution.encode().get("ex"),
+        "the reorder must change the seed `.ex`"
+    );
+
+    // Live obj-neutrality: ordering-1's own replay is already byte-exact to
+    // ordering-2 (c2 canonicalizes commutative MUL). Replay to the SAME -Fo so the
+    // embedded S_OBJNAME matches; compare on the normalized objs.
+    let seed_cap = CapturedReference {
+        bundle: seed.encode(),
+        ..base.clone()
+    };
+    let seed_obj = tc
+        .replay_within(&seed_cap, &w.join("seed_il"), &fo, TIMEOUT)
+        .expect("render ordering-1 (b*a*c) obj");
+    assert_eq!(
+        ObjImage::diff(&seed_obj, &target),
+        ObjDiff::Identical,
+        "c2 must canonicalize the commutative MUL reorder (obj-neutral)"
+    );
+
+    // The reorder move emits ordering-2 exactly (the move IS a correct commutative
+    // primitive, even though the obj gap it would bridge is nil here).
+    let regenerates_ordering2 = MoveSet::default()
+        .with_mul_reorder()
+        .neighbors(&seed)
+        .iter()
+        .any(|(_l, cand)| cand.encode().get("ex") == solution.encode().get("ex"));
+    assert!(
+        regenerates_ordering2,
+        "the reorder move must emit ordering-2's IL as a neighbor of ordering-1"
+    );
+
+    // The search closes byte-exact (the sole judge — full timestamp-normalized
+    // ObjImage::diff Identical — fires; here on the seed itself, canonicalization).
+    let mut scorer = ReplayScorer::new(&tc, &base, target, search_dir.clone(), TIMEOUT);
+    let outcome = beam_search(
+        &seed,
+        &MoveSet::default().with_mul_reorder(),
+        &mut scorer,
+        &Budget::default(),
+    );
+    assert!(
+        outcome.solved,
+        "the reorder instance must close byte-exact: {outcome:?}"
     );
 
     std::fs::remove_dir_all(&w).ok();

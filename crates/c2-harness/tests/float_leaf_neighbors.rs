@@ -16,7 +16,7 @@
 //! toolchain): the neighborhood enumeration is a pure function of the model.
 
 use c2_harness::search::MoveSet;
-use c2_il::{IlBundle, IlModel};
+use c2_il::{ExToken, IlBundle, IlModel};
 
 /// The real single-function `.ex` segment of the `Box::Volume` reduction
 /// `float volf(const V* a,const V* b){ float x=a->x-b->x; float y=a->y-b->y;
@@ -80,5 +80,89 @@ fn float_leaf_body_yields_nonzero_k3a_neighbors() {
     // move set only emits models whose fail-closed splice succeeded).
     for (_label, cand) in &neighbors {
         IlModel::parse(&cand.encode()).expect("each neighbor re-parses (fail-closed splice)");
+    }
+}
+
+/// **Piece A.** A `FloatLoad` term is now a **delete anchor** on the `volf` body.
+/// `is_operand` covers `FloatLoad` (mirroring int `Load`), so the length-move
+/// `term_delete` — which anchors on `is_operand(tokens[i]) && is_binop(tokens[i+1])`
+/// — fires at a `FloatLoad , MUL` site. Before the one-liner, `FloatLoad` was not
+/// an operand and the float leaf had *zero* delete anchors.
+#[test]
+fn floatload_is_a_delete_anchor_on_volf() {
+    let model = volf_model();
+    let tokens = model.function_tokens(0).expect("token-addressable");
+    // There IS a `FloatLoad` immediately followed by a binop (the return's
+    // `FloatLoad(x) FloatLoad(y) MUL …` — position of the second FloatLoad).
+    let has_floatload_before_binop = (0..tokens.len().saturating_sub(1)).any(|i| {
+        matches!(tokens[i], ExToken::FloatLoad(_))
+            && matches!(tokens[i + 1], ExToken::Sub | ExToken::Mul)
+    });
+    assert!(
+        has_floatload_before_binop,
+        "fixture must have a `FloatLoad , binop` site for the anchor test"
+    );
+
+    // Every `del term@i` neighbor's anchor index `i` must be an operand; assert at
+    // least one anchors a `FloatLoad` — i.e. the codec's float leaves are now real
+    // delete anchors (the Piece-A win).
+    let mut floatload_anchored = 0usize;
+    for (label, _cand) in MoveSet::default().neighbors(&model) {
+        if let Some(rest) = label.strip_prefix("fn0 del term@") {
+            let i: usize = rest.parse().expect("del-term label carries an index");
+            if matches!(tokens[i], ExToken::FloatLoad(_)) {
+                floatload_anchored += 1;
+            }
+        }
+    }
+    assert!(
+        floatload_anchored >= 1,
+        "a FloatLoad must be a delete anchor on the volf body (had {floatload_anchored})"
+    );
+}
+
+/// **Piece B on the float class.** The opt-in MUL-reorder move emits the
+/// operand-swapped ordering of the return's inner `FloatLoad x , FloatLoad y , MUL`
+/// as a d=1 neighbor — and ONLY when opted in. The default move set (reorder off)
+/// emits no `mul-swap`, and the two share every OTHER neighbor (the reorder is
+/// purely additive).
+#[test]
+fn float_mul_reorder_is_opt_in_and_generated_on_volf() {
+    let model = volf_model();
+
+    let default_ns = MoveSet::default().neighbors(&model);
+    assert!(
+        !default_ns.iter().any(|(l, _)| l.contains("mul-swap")),
+        "the DEFAULT move set must NOT emit a mul-swap (opt-in only)"
+    );
+
+    let reorder_ns = MoveSet::default().with_mul_reorder().neighbors(&model);
+    let swaps: Vec<&String> = reorder_ns
+        .iter()
+        .map(|(l, _)| l)
+        .filter(|l| l.contains("mul-swap"))
+        .collect();
+    assert!(
+        !swaps.is_empty(),
+        "with_mul_reorder must emit ≥1 float mul-swap on the volf return product"
+    );
+
+    // Purely additive: enabling the move only ADDS mul-swap neighbors.
+    assert_eq!(
+        reorder_ns.len(),
+        default_ns.len() + swaps.len(),
+        "the reorder move is additive to the default neighborhood"
+    );
+
+    // The swap actually reorders a MUL's two FloatLoad leaves: the produced
+    // candidate re-parses and differs from the seed only by the swap.
+    for (_l, cand) in reorder_ns.iter().filter(|(l, _)| l.contains("mul-swap")) {
+        let toks = cand.function_tokens(0).expect("swapped body token-addressable");
+        assert_eq!(toks.iter().filter(|t| matches!(t, ExToken::Mul)).count(), 2);
+        assert_ne!(
+            cand.encode().get("ex"),
+            model.encode().get("ex"),
+            "a mul-swap must change the `.ex`"
+        );
     }
 }
