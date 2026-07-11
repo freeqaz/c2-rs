@@ -169,7 +169,7 @@ pub const FRAMED_BL_OFFSET: u32 = 0x0C;
 /// `k` must fit the signed-16-bit `addi` immediate (the IL parser guarantees
 /// this before constructing the [`c2_il::FramedCall`]).
 pub fn framed_call_text(add_k: i32) -> Vec<u8> {
-    let k = add_k as i16; // range-checked upstream (c2_il::parse_framed_call)
+    let k = add_k as i16; // range-checked upstream (c2_il::func::parse_segment)
     let mut text = Vec::with_capacity(0x24);
     // Prologue.
     text.extend_from_slice(&0x7D88_02A6u32.to_be_bytes()); // mflr r12
