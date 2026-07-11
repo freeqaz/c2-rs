@@ -191,7 +191,7 @@ rejects (all previously loud mis-emits):
 - The `.ex` header/index region (0x08–0x0A54, treated as opaque here) —
   must be modeled before *writing* IL rather than reading it.
 
-## K1 lossless codec — decoded-vs-opaque coverage map
+## K1/K2a lossless codec — decoded-vs-opaque coverage map
 
 `c2_il::codec` (`IlModel::parse`/`encode`) is the **round-trip-gated container
 codec**: it decodes the classes above into typed islands and keeps everything
@@ -201,8 +201,11 @@ each file and compares before returning — a decode bug is an error, never a
 silent corruption). Verified byte-identical over the **full 19-fixture spread**
 (`crates/c2-harness/tests/il_roundtrip.rs`, toolchain-gated; captures live
 because the `.gl` embeds the host source path so bundles are not committable) +
-hand-built always-on unit tests (`codec.rs`). Overall ~96.5% of bundle bytes
-are still opaque = the K2 decode backlog.
+hand-built always-on unit tests (`codec.rs`). **K2a** decoded the `.ex`
+per-function metadata prefix and firmed up the `.gl` offset identification,
+roughly **doubling typed coverage: ~2.8% → ~5.5%** of bundle bytes over the
+10-fixture capture set (~94.5% still opaque = the remaining K2 backlog; the
+`.ex` header/index + `.in`/`.sy`/`.db` dominate what is left).
 
 **Typed (decoded) today:**
 
@@ -211,28 +214,48 @@ are still opaque = the K2 decode backlog.
   `26` result-refs, the 10-byte CALL, LOAD, narrow+wide LITERAL (the `wide` flag
   is preserved, so a P0.6a length-pad `80 05 00 00 00` re-encodes exactly),
   ADD/SUB/MUL, int/void call-ends, result-type, ASSIGN, RETURN, function-tail,
-  module-end. Plus the `46 (2D <tok>)*` formal list (anchored immediately before
-  'LO'). Unmodeled body bytes (comparison `24`, shift `09`, ternary `43 42`, …)
-  stay opaque, so out-of-class bodies still round-trip.
+  module-end. Unmodeled body bytes (comparison `24`, shift `09`, ternary `43 42`,
+  …) stay opaque, so out-of-class bodies still round-trip.
+- `.ex` per-function **metadata prefix** (`4F 1F` … 'LO'), **NEW in K2a**, decoded
+  greedily into: `FnHeader` — the fixed header preamble (`4F 1F`/`4F 20`
+  descriptors, the length-prefixed `4F 33 <len>` metadata record, the `42 45`
+  'BE' block-entry, trailing `0F`), byte-identical across every captured function,
+  recognized as a **bounded island** (start `4F 1F` and end at the block-start are
+  structural; its interior sub-records are captured verbatim, not yet
+  field-typed — a further K2 shrink); `BlockStart(NN)` — the `4F 02 20 00 4F 01
+  NN` block-start marker (NN = per-function block index); the `53 53` SS·SS; the
+  `26 <tok>` result-ref; and the `46 (2D <tok>)*` formal list. For the add3 class
+  the prefix is fully typed (no opaque residue).
 - `.gl` `80 <LE32>` **body-start offset field(s)** — one per function, typed as
-  `Span::GlOffset(u32)` (first-class, the K3 rewrite target). Located robustly by
-  cross-checking the LE32 against the actual set of `.ex` `4F 1F` offsets, so
-  unrelated `80`-prefixed `.gl` data (CALL anchors, wide literals) is not
-  mislabeled. Count matched the function count on every fixture.
+  `Span::GlOffset(u32)` (first-class, the K3 rewrite target). **K2a** locates each
+  field **by its record framing** (`80 XX 10 00 00 00 00` immediately precedes it
+  — a position-based decode, verified ahead of every offset field), then gates it
+  fail-closed: the framed offsets, in `.gl` order, must equal the `.ex` `4F 1F`
+  offsets 1:1 and in function order, or none are typed (a coincidental value
+  collision or a missed record hands K3 nothing rather than a false site). This
+  replaced the K1 value-membership heuristic. `IlModel::ex_function_count()` and
+  the harness gate now assert `gl_body_start_offsets().len() == ex_function_count`.
 
-**Opaque today (K2 decode backlog), in rough priority order:**
+**Opaque today (remaining K2 decode backlog), in rough priority order:**
 
-- `.ex` per-function **metadata prefix** (`4F 1F` descriptor · `4F 20` · `4F 33`
-  metadata · `42 45` block-entry · body-marker · `53 53` · `26` result token) —
-  the bytes between each `4F 1F` and its 'LO' marker. Structurally required by K3
-  (it is what the `.gl` offset points *at*).
-- `.ex` **header/index** region `0x00–0x0A54` (magic + zero-fill).
-- the rest of `.gl` (mangled names, source path, `.XBLD$W`/`__C1_*` strings, the
-  per-function record framing around the offset field).
+- `.ex` **header/index** region `0x00–0x0A54` (magic + zero-fill) — now the single
+  largest opaque chunk (must be modeled before *writing* IL).
+- the `FnHeader` **interior** sub-records (`4F 20` descriptor, `4F 33` metadata
+  payload, `42 45` block-entry body) — captured as a bounded island but not yet
+  field-typed; a small, low-priority shrink (fixed constant for this class).
+- the rest of `.gl`: mangled names, source path, `.XBLD$W`/`__C1_*` strings, and
+  the **per-function record framing** around the offset field (K2a decodes the
+  offset field and its 7-byte frame anchor, not the whole record). Full `.gl`
+  record framing would remove even the residual GlOffset collision risk.
 - `.sy` token→name symbol table, `.in` type-import table (a constant 439 B here),
   `.db` debug/line data — each a single opaque span.
 
-**K3 inherits:** `GlOffset` is round-tripped unchanged by K1; rewriting it on an
-`.ex` length change (per P0.6a) is K3's job. The codec already exposes the field
-typed and cross-checked, so K3 edits a `u32`, not a byte hunt — but it must also
-model the still-opaque `.ex` per-function metadata prefix the offset addresses.
+**K3 inherits:** `GlOffset` is round-tripped unchanged by K1/K2a; rewriting it on
+an `.ex` length change (per P0.6a) is K3's job. The codec exposes the field typed,
+structurally located, and gated 1:1 with the function count, so K3 edits a `u32`,
+not a byte hunt. K3 also now has the **structural body extent**: each function's
+metadata prefix is fully delimited (FnHeader → BlockStart → SS·SS → result-ref →
+formals → LO body), so the body EXTENT is `4F 1F`-marker-to-next-`4F 1F` with the
+fixed-size header carved out — a length edit touches only the operand stream and
+the `.gl` offset, never the (constant) header. The FnHeader interior stays opaque
+but is length-invariant, so it does not block a length rewrite.
