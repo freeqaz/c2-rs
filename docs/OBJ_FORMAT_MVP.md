@@ -238,6 +238,69 @@ The pure-MVP class has none; a function that **calls** another breaks the
   + one per defined function + one per callee. (Multi-function/multi-callee
   ordering needs the `.ex` call-index decode — a later rung.)
 
+## 6-section framed-call variant (W4b2, `.pdata` + labels)
+
+A **framed non-leaf call** `int f(int a){ return g(a) + k; }` (the call result
+is used, so `f` allocates a 96-byte frame) adds a sixth section and grows the
+symbol table to 20. Implemented byte-exact by `coff::emit_framed_obj` for a
+**single-function TU**; the 5-section `emit_obj` path is untouched for
+leaf/tail-call TUs. Recovered by diffing reference objs for `g(a)+1`, `g(a)+2`
+(byte-identical but the `addi` immediate), and `g(a)*5` (0x28 body).
+
+**Sections (6):** the leaf five, then `.pdata` (`SizeOfRawData` 0x8,
+Characteristics `0x40400040` = CNT_INIT_DATA | ALIGN_8 | MEM_READ). `.text`
+(size 0x24) and `.pdata` each carry **one** relocation.
+
+**`.pdata` raw (8 B, big-endian like `.text`):** `BeginAddress u32 = 0` (patched
+by the reloc) + packed unwind word `0x40000000 | (text_len/4 << 8) | 3`
+(prolog = 3 words). For the `+k` class → `00000000 40000903`. See
+`CODEGEN_PPC_MVP.md` for the length-encoding derivation.
+
+**File layout — raw+reloc are INTERLEAVED, not all-raw-then-all-reloc.** MSVC
+writes each reloc'd section's raw immediately followed by its relocations, in
+section order. So after the four leaf raw blocks: `.text` raw (0x24), `.text`
+reloc (10 B), `.pdata` raw (8 B), `.pdata` reloc (10 B), then the symbol table.
+(The 5-section path coincidentally matches "all raw then relocs" only because
+`.text` is last there.)
+
+**Relocations (2):**
+
+| Section | VirtualAddress | SymbolTableIndex | Type |
+|---|---|---|---|
+| `.text` | 0x0C (the `bl`) | 15 (`?g`, the external callee) | `0x0006` REL24 |
+| `.pdata` | 0x00 (BeginAddress) | 13 (`?f`, the defined function) | `0x0002` ADDR32 |
+
+`0x0002` = `IMAGE_REL_PPC_ADDR32` (new vs the W4a REL24). Note the `bl` reloc
+targets the **callee external**, not a `$M` label.
+
+**Symbol table (20) — exact slot order (single-function TU):**
+
+| Slot | Name | Value | Sec | Type | Class | nAux |
+|---|---|---|---|---|---|---|
+| 0 | `@comp.id` | 0x00AB2E6E | -1 | 0 | 3 | 0 |
+| 1+2 | `.drectve` + aux | 0 | 1 | 0 | 3 | 1 |
+| 3+4 | `.debug$S` + aux | 0 | 2 | 0 | 3 | 1 |
+| 5+6 | `.XBLD$W` C2 + aux | 0 | 3 | 0 | 3 | 1 |
+| 7 | `__C2_11886` | 0 | 3 | 0 | 2 | 0 |
+| 8+9 | `.XBLD$W` C1 + aux | 0 | 4 | 0 | 3 | 1 |
+| 10 | `__C1_11886` | 0 | 4 | 0 | 2 | 0 |
+| 11+12 | `.text` + aux (**nReloc=1**) | 0 | 5 | 0 | 3 | 1 |
+| 13 | `?f@@YAHH@Z` | 0 | 5 | 0x0020 | 2 | 0 |
+| 14 | `$M2546` | 0x24 (.text end) | 5 | 0 | **6** | 0 |
+| 15 | `?g@@YAHH@Z` (external) | 0 | **0** | 0x0020 | 2 | 0 |
+| 16 | `$M2545` | 0x0C (the `bl`) | 5 | 0 | **6** | 0 |
+| 17+18 | `.pdata` + aux (**nReloc=1, CheckSum=CRC**) | 0 | 6 | 0 | 3 | 1 |
+| 19 | `$T2547` | 0 | 6 | 0 | **3** | 0 |
+
+- The three label symbols are compiler-counter names, **constant** for the
+  first function of a TU (W-UNW-1) — hardcoded, inline (≤8 chars). `$M2545`/
+  `$M2546` are storage-class 6 (LABEL); `$T2547` is class 3 (STATIC).
+- The `.pdata` aux section-def CheckSum is a **real reflected CRC-32** over the
+  8 raw bytes (0xd3dfb2ce for `+k`) — a non-COMDAT section that still gets a
+  checksum (contrast the leaf `.text`/`.drectve`/`.debug$S` aux, which store 0).
+- String table order (first reference, top-down): `__C2_11886`, `__C1_11886`,
+  `?f@@YAHH@Z`, `?g@@YAHH@Z`.
+
 ## Emitter build order
 
 1. Compute every `SizeOfRawData` (drectve const, debug$S by formula,

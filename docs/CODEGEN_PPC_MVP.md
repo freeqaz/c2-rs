@@ -126,56 +126,70 @@ Still out-of-class (rejected, not mis-emitted): **multiply by a constant**
 (strength-reduces to shift+add, e.g. `a*3` → `rlwinm r11,r3,1,0,30 ; add
 r3,r3,r11`); `const − reg` (`subfic`); a negative wide bare constant.
 
-## W4b2 non-leaf calls — SCOUTED, deferred (bigger than a frame)
+## W4b2 non-leaf calls — IMPLEMENTED, byte-exact (single-function TU)
 
-`return g(...) + k` (the call result is used, so f is non-leaf) was scouted
-end-to-end and is a **substantially larger rung than the tail call** — it
-needs a `.pdata` unwind section and compiler-counter label symbols, so it was
-not implemented in the W4 pass. Full anatomy (for the eventual implementation):
+`return g(a) + k` (the call result is used, so f is non-leaf) is implemented and
+byte-exact for a **single-function TU** (`fixtures/cpp/mvp_framed.cpp`,
+`differential_mvp_framed_call_byte_exact`). It needs a `.pdata` unwind section
+and three compiler label symbols on top of the tail-call layout. IL detection is
+`c2_il::func::parse_framed_call`; codegen is `codegen::framed_call_text`; the COFF
+image is `coff::emit_framed_obj` (the 5-section `emit_obj` path is untouched).
 
 **`.text` (size 0x24, verified constant across 1/2/4 callee args — the frame is
 always 96 bytes):**
 ```
 7d8802a6  mflr r12
-9181fff8  stw  r12,-8(r1)          prologue: save LR
+9181fff8  stw  r12,-8(r1)          prologue (3 words): save LR
 9421ffa0  stwu r1,-96(r1)          allocate the fixed 96-byte frame
 4bfffff5  bl   g                   REL24 reloc at .text+0xC (disp = −0xC, LK=1)
-38630001  addi r3,r3,1             the post-call op (here +1); *k varies
-38210060  addi r1,r1,96            epilogue: free frame
+38630001  addi r3,r3,1             the post-call op (here +1); k varies
+38210060  addi r1,r1,96            epilogue (4 words): free frame
 8181fff8  lwz  r12,-8(r1)          restore saved LR
 7d8803a6  mtlr r12
 4e800020  blr
 ```
 Prologue (`7d8802a6 9181fff8 9421ffa0`) and epilogue (`38210060 8181fff8
-7d8803a6 4e800020`) are byte-constant for this class; only the post-call op
-(and the callee) vary. `a*5` post-op strength-reduces (`rlwinm`+`add`, size
-0x28) — out of the `+k` scope.
+7d8803a6 4e800020`) are byte-constant for this class; only the `addi r3,r3,k`
+immediate and the callee vary. `a*5` post-op strength-reduces (`rlwinm`+`add`,
+size 0x28) — **out of the `+k` scope, rejected**: `parse_framed_call` accepts
+only a literal `33 86 41 74 <varint>` **immediately followed by ADD (`0x02`)**
+whose `k` fits a signed-16-bit `addi` (so `*k` = `0x04`, `-k` = `0x03`, and wide
+`k` are all rejected → `NotImplemented`, never mis-emitted).
 
-**Extra sections/symbols that make it hard (this is why it's deferred):**
-- A **`.pdata` section** appears (so `NumberOfSections` = 6, not 5;
-  `NumberOfSymbols` = 20). 8 bytes: `00000000 40000903` = a RUNTIME_FUNCTION
-  (BeginAddress RVA=0 patched by a reloc; second word = packed X360 PPC unwind
-  info — encodes prolog/function length, so it varies per frame).
-  Characteristics `0x40400040`. One reloc: va=0, symidx=(the function),
-  **type `0x2` (ADDR32)** — a new relocation type.
-- **Compiler-generated label symbols** with counter names: `$M2545`
-  (val = .text+0xC, the `bl`), `$M2546` (val = .text end), `$T2547`
-  (in `.pdata`), storage-class 6 (LABEL) / 3.
+**`.pdata` unwind word — RESOLVED: it encodes function length.** The 8-byte
+RUNTIME_FUNCTION is `BeginAddress(u32=0, reloc-patched)` + a packed unwind word,
+both **big-endian** (like `.text`). Diffing the 0x24-byte `+k` body against the
+0x28-byte `*5` body gave `40000903` vs `40000A03` (Δ = 0x100 for +1 word), so:
 
-**Counter-determinism probe (W-UNW-1, RESOLVED) — the counters are NOT an
-unpredictable blocker:** a single non-leaf function always emits the *constant*
-labels `$M2545 / $M2546 / $T2547`, verified identical across reruns, different
-`.obj`/source filenames, and different function/callee symbol names, and across
-post-op variants (`+2`, `*5`, two calls). The counter only shifts when
-**preceding functions in the TU consume slots** — e.g. a TU with a leaf
-function before `f` starts `f` at `$M2549/$M2550/$T2551` (the leaf consumed 4).
-So `2545` is a fixed toolchain seed and W4b2 is **directly implementable for a
-single-function TU** (hardcode the three labels, like the other toolchain
-constants); multi-function-with-non-leaf additionally needs to model the
-per-function counter increment (leaf `a` used 4 → next base 2549). Remaining
-unknowns for the single-function case: confirm the 8-byte unwind word
-`40000903` is constant vs. encodes function length (`*5`'s 0x28-byte body vs
-`+k`'s 0x24 — diff the words), and the `.pdata`/`$T` section-symbol layout.
+```
+unwind = 0x40000000 | (function_length_words << 8) | prolog_length_words
+```
+
+with `function_length_words = text_len/4` and `prolog_length_words = 3` (the
+`mflr;stw;stwu` prologue). For the `+k` class the body is always 9 words →
+constant `0x40000903`. `build_pdata` computes it from the text length rather than
+hardcoding the word. Section characteristics `0x40400040` (CNT_INIT_DATA |
+ALIGN_8 | MEM_READ). One reloc: `va=0, symidx=?f, type 0x2 (ADDR32)`. The
+`.pdata` aux section-def carries a **real reflected-CRC-32 CheckSum** of its raw
+bytes (`0xd3dfb2ce` for the `+k` frame) — a non-COMDAT section that nonetheless
+gets a checksum, unlike the leaf `.text`/`.drectve`/`.debug$S` (which store 0).
+
+**Relocations + symbol layout** — see `OBJ_FORMAT_MVP.md` "6-section framed-call
+variant". Key facts: 6 sections, 20 symbols; the `bl` REL24 targets the external
+`?g` (not a `$M` label); the label symbols are `$M2545` (val=.text+0xC, the `bl`,
+class 6), `$M2546` (val=.text end, class 6), `$T2547` (in `.pdata`, class 3); and
+the file layout **interleaves** each reloc'd section's raw+reloc (`.text` raw,
+`.text` reloc, `.pdata` raw, `.pdata` reloc) rather than packing all raw then all
+relocs.
+
+**Counter-determinism (W-UNW-1, RESOLVED):** a single non-leaf function always
+emits the *constant* labels `$M2545 / $M2546 / $T2547`, verified identical across
+reruns, filenames, and symbol names. The counter only shifts when **preceding
+functions in the TU consume slots** (a leaf before `f` bumps the base to
+`2549/2550/2551`). So the labels are a fixed toolchain seed and are hardcoded;
+`parse_framed_call` is scoped to a single-function TU (a multi-function TU with a
+framed call is rejected — modeling the per-function counter increment is a
+later rung).
 
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 
