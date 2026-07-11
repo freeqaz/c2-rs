@@ -158,12 +158,24 @@ Prologue (`7d8802a6 9181fff8 9421ffa0`) and epilogue (`38210060 8181fff8
   info — encodes prolog/function length, so it varies per frame).
   Characteristics `0x40400040`. One reloc: va=0, symidx=(the function),
   **type `0x2` (ADDR32)** — a new relocation type.
-- **Compiler-generated label symbols** with monotonic counter names:
-  `$M2545` (val = .text+0xC, the `bl`), `$M2546` (val = .text end), `$T2547`
-  (in `.pdata`), all storage-class 6 (LABEL) / 3. The `2545/2546/2547`
-  counters are c2-internal and must be reproduced exactly for byte-equality —
-  the real blocker. Whether they are deterministic for a single-function TU
-  (and how the counter is seeded) is the open question to crack first.
+- **Compiler-generated label symbols** with counter names: `$M2545`
+  (val = .text+0xC, the `bl`), `$M2546` (val = .text end), `$T2547`
+  (in `.pdata`), storage-class 6 (LABEL) / 3.
+
+**Counter-determinism probe (W-UNW-1, RESOLVED) — the counters are NOT an
+unpredictable blocker:** a single non-leaf function always emits the *constant*
+labels `$M2545 / $M2546 / $T2547`, verified identical across reruns, different
+`.obj`/source filenames, and different function/callee symbol names, and across
+post-op variants (`+2`, `*5`, two calls). The counter only shifts when
+**preceding functions in the TU consume slots** — e.g. a TU with a leaf
+function before `f` starts `f` at `$M2549/$M2550/$T2551` (the leaf consumed 4).
+So `2545` is a fixed toolchain seed and W4b2 is **directly implementable for a
+single-function TU** (hardcode the three labels, like the other toolchain
+constants); multi-function-with-non-leaf additionally needs to model the
+per-function counter increment (leaf `a` used 4 → next base 2549). Remaining
+unknowns for the single-function case: confirm the 8-byte unwind word
+`40000903` is constant vs. encodes function length (`*5`'s 0x28-byte body vs
+`+k`'s 0x24 — diff the words), and the `.pdata`/`$T` section-symbol layout.
 
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 
