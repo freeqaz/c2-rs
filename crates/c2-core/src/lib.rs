@@ -122,6 +122,19 @@ impl PortC2 {
             )
         })?;
 
+        // W4b2: a single-function TU whose body is a framed non-leaf call
+        // (`return g(a) + k`) takes the dedicated 6-section path — it needs a
+        // `.pdata` unwind section and the compiler label symbols, which the
+        // straight-line/tail-call 5-section emitter does not model.
+        if funcs.len() == 1 {
+            if let Some(fc) = &funcs[0].framed_call {
+                let text = codegen::framed_call_text(fc.add_k);
+                let bytes =
+                    coff::emit_framed_obj(obj_name, &funcs[0].mangled_name, &fc.callee, &text);
+                return Ok(ObjImage::new(bytes));
+            }
+        }
+
         // Select each function's .text, recording each function's byte offset.
         // Functions start at an **8-byte-aligned** offset within .text (the
         // section is ALIGN_8): c2 zero-pads between functions to the next

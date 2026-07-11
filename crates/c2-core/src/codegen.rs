@@ -131,6 +131,63 @@ pub fn encode_tail_branch(text_offset: u32) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// Encode a **linking** relative branch `bl` (primary opcode 18, AA=0, **LK=1**)
+/// used for a non-leaf `bl <callee>` inside a framed function, paired with a
+/// REL24 relocation. Same MSVC displacement convention as [`encode_tail_branch`]
+/// (`disp = −(own .text offset)`) plus the link bit. Verified: `bl` at offset
+/// 0xC → `0x4BFFFFF5` (disp −0xC, LK=1).
+pub fn encode_call_branch(text_offset: u32) -> [u8; 4] {
+    let disp = -(text_offset as i32);
+    let word: u32 = 0x4800_0000 | (disp as u32 & 0x03FF_FFFC) | 1;
+    word.to_be_bytes()
+}
+
+/// The `.text` byte offset of the `bl` instruction inside the constant framed
+/// body (after the 3-word prologue). The caller returns this as the REL24
+/// relocation site. Constant for the `return g(a) + k` frame class.
+pub const FRAMED_BL_OFFSET: u32 = 0x0C;
+
+/// Emit the `.text` for a **framed non-leaf call** `return g(a) + k` (W4b2).
+///
+/// The whole body is byte-constant except the post-call `addi r3,r3,k`
+/// immediate and the `bl` target (patched by the REL24 relocation the caller
+/// registers at [`FRAMED_BL_OFFSET`]). Verified anatomy (0x24 bytes, 9 words),
+/// constant across 1/2/4 callee args — the frame is always 96 bytes:
+///
+/// ```text
+/// 7d8802a6  mflr r12                prologue (3 words): save LR
+/// 9181fff8  stw  r12,-8(r1)
+/// 9421ffa0  stwu r1,-96(r1)         allocate the fixed 96-byte frame
+/// 4bfffff5  bl   <callee>           REL24 reloc site at .text+0xC
+/// 3863kkkk  addi r3,r3,k            the post-call op (+k)
+/// 38210060  addi r1,r1,96           epilogue (4 words): free frame
+/// 8181fff8  lwz  r12,-8(r1)         restore LR
+/// 7d8803a6  mtlr r12
+/// 4e800020  blr
+/// ```
+///
+/// `k` must fit the signed-16-bit `addi` immediate (the IL parser guarantees
+/// this before constructing the [`c2_il::FramedCall`]).
+pub fn framed_call_text(add_k: i32) -> Vec<u8> {
+    let k = add_k as i16; // range-checked upstream (c2_il::parse_framed_call)
+    let mut text = Vec::with_capacity(0x24);
+    // Prologue.
+    text.extend_from_slice(&0x7D88_02A6u32.to_be_bytes()); // mflr r12
+    text.extend_from_slice(&0x9181_FFF8u32.to_be_bytes()); // stw  r12,-8(r1)
+    text.extend_from_slice(&0x9421_FFA0u32.to_be_bytes()); // stwu r1,-96(r1)
+    // Call (LK=1); the REL24 reloc at FRAMED_BL_OFFSET patches the target.
+    text.extend_from_slice(&encode_call_branch(FRAMED_BL_OFFSET)); // bl <callee>
+    // Post-call op.
+    text.extend_from_slice(&encode_addi(RET_REG, RET_REG, k)); // addi r3,r3,k
+    // Epilogue.
+    text.extend_from_slice(&0x3821_0060u32.to_be_bytes()); // addi r1,r1,96
+    text.extend_from_slice(&0x8181_FFF8u32.to_be_bytes()); // lwz  r12,-8(r1)
+    text.extend_from_slice(&0x7D88_03A6u32.to_be_bytes()); // mtlr r12
+    text.extend_from_slice(&encode_blr()); // blr
+    debug_assert_eq!(text.len(), 0x24);
+    text
+}
+
 /// An operand on the selection stack: a physical register or an integer
 /// literal not yet materialized (folded into an immediate instruction where
 /// c2 does the same, e.g. `a + 5` → `addi`).
@@ -333,6 +390,34 @@ mod tests {
     }
 
     #[test]
+    fn encode_call_branch_sets_link_bit() {
+        // `bl` at offset 0xC → disp −0xC, LK=1 → 0x4BFFFFF5 (reference `bl g`).
+        assert_eq!(encode_call_branch(0x0C), [0x4B, 0xFF, 0xFF, 0xF5]);
+    }
+
+    #[test]
+    fn framed_call_text_matches_reference_body() {
+        // `int f(int a){ return g(a) + 1; }` — the verified 0x24-byte body.
+        assert_eq!(
+            framed_call_text(1),
+            vec![
+                0x7D, 0x88, 0x02, 0xA6, // mflr r12
+                0x91, 0x81, 0xFF, 0xF8, // stw  r12,-8(r1)
+                0x94, 0x21, 0xFF, 0xA0, // stwu r1,-96(r1)
+                0x4B, 0xFF, 0xFF, 0xF5, // bl   g (REL24 @ 0xC)
+                0x38, 0x63, 0x00, 0x01, // addi r3,r3,1
+                0x38, 0x21, 0x00, 0x60, // addi r1,r1,96
+                0x81, 0x81, 0xFF, 0xF8, // lwz  r12,-8(r1)
+                0x7D, 0x88, 0x03, 0xA6, // mtlr r12
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ]
+        );
+        // `+ 2` differs only in the addi immediate.
+        assert_eq!(framed_call_text(2)[19], 0x02);
+        assert_eq!(framed_call_text(1).len(), 0x24);
+    }
+
+    #[test]
     fn encode_mullw_matches_reference_words() {
         // a*b*c → mullw r11,r3,r4 ; mullw r3,r11,r5
         assert_eq!(encode_mullw(11, 3, 4), [0x7D, 0x63, 0x21, 0xD6]);
@@ -354,6 +439,7 @@ mod tests {
             mangled_name: "?sub3@@YAHHHH@Z".into(),
             source_path: None,
             tail_call: None,
+            framed_call: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -385,6 +471,7 @@ mod tests {
             mangled_name: "?f@@YAHH@Z".into(),
             source_path: None,
             tail_call: None,
+            framed_call: None,
             params,
             ops,
         }
@@ -464,6 +551,7 @@ mod tests {
             mangled_name: "?t@@YAHHHHH@Z".into(),
             source_path: None,
             tail_call: None,
+            framed_call: None,
             params: vec![0xE309, 0xE409, 0xE509, 0xE609],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -488,6 +576,7 @@ mod tests {
             mangled_name: "?mul3@@YAHHHH@Z".into(),
             source_path: None,
             tail_call: None,
+            framed_call: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -513,6 +602,7 @@ mod tests {
             mangled_name: "?add3@@YAHHHH@Z".into(),
             source_path: None,
             tail_call: None,
+            framed_call: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

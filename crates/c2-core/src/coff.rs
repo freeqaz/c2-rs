@@ -175,6 +175,249 @@ pub struct Function<'a> {
 
 /// IMAGE_REL_PPC_REL24 — 24-bit relative branch relocation (tail/`bl` calls).
 const REL_PPC_REL24: u16 = 0x0006;
+/// IMAGE_REL_PPC_ADDR32 — 32-bit VA relocation (the `.pdata` BeginAddress).
+const REL_PPC_ADDR32: u16 = 0x0002;
+
+/// `.pdata` section characteristics: CNT_INIT_DATA | ALIGN_8 | MEM_READ.
+const CH_PDATA: u32 = 0x4040_0040;
+
+/// Reflected CRC-32 (poly `0xEDB88320`, init 0, no final inversion) over a
+/// section's raw bytes — the COFF aux section-def CheckSum algorithm. Used for
+/// `.pdata` (whose aux carries a real checksum even though it is not a COMDAT);
+/// the fixed `.XBLD$W` COMDAT checksums stay hardcoded above.
+fn coff_checksum(data: &[u8]) -> u32 {
+    let mut c: u32 = 0;
+    for &b in data {
+        c ^= b as u32;
+        for _ in 0..8 {
+            c = if c & 1 != 0 { (c >> 1) ^ 0xEDB8_8320 } else { c >> 1 };
+        }
+    }
+    c
+}
+
+/// Build the 8-byte X360 `RUNTIME_FUNCTION` for a framed `.text` of `text_len`
+/// bytes: `BeginAddress` (u32 = 0, patched by the ADDR32 relocation) then the
+/// packed unwind word, both **big-endian** (like `.text`, unlike COFF fields).
+///
+/// The packed word is `0x40000000 | (function_length_words << 8) |
+/// prolog_length_words`, verified by diffing the 0x24-byte `+k` body
+/// (`0x40000903`, 9 words) against the 0x28-byte `*5` body (`0x40000A03`,
+/// 10 words) — incrementing the length adds `0x100`. The prologue
+/// (`mflr;stw;stwu`) is 3 words for this frame class.
+fn build_pdata(text_len: usize) -> Vec<u8> {
+    let function_words = (text_len / 4) as u32;
+    let prolog_words = 3u32;
+    let unwind = 0x4000_0000u32 | (function_words << 8) | prolog_words;
+    let mut b = Vec::with_capacity(8);
+    b.extend_from_slice(&0u32.to_be_bytes()); // BeginAddress (reloc-patched)
+    b.extend_from_slice(&unwind.to_be_bytes()); // packed unwind word
+    b
+}
+
+/// Emit the 6-section `.obj` for a **framed non-leaf call** `int f(int a){
+/// return g(a) + k; }` (W4b2). Adds a `.pdata` unwind section and the
+/// compiler-generated label symbols ($M2545/$M2546/$T2547) on top of the leaf
+/// layout; the 5-section [`emit_obj`] path is untouched for leaf/tail TUs.
+///
+/// Scope: a **single-function TU** with one external callee. The $M/$T label
+/// counters are a fixed toolchain seed (`2545/2546/2547`) only for the first
+/// function of the TU (W-UNW-1 probe) — so the emitter hardcodes those names
+/// and the full 20-symbol layout in the observed slot order.
+///
+/// * `obj_name`   — the `-Fo` path (embedded in `.debug$S` S_OBJNAME).
+/// * `func_name`  — the defined function's mangled name (`?f@@YAHH@Z`).
+/// * `callee_name`— the external callee's mangled name (`?g@@YAHH@Z`).
+/// * `text`       — the framed `.text` from codegen (0x24 bytes).
+pub fn emit_framed_obj(obj_name: &str, func_name: &str, callee_name: &str, text: &[u8]) -> Vec<u8> {
+    let debug_s = build_debug_s(obj_name);
+    let pdata = build_pdata(text.len());
+    let pdata_checksum = coff_checksum(&pdata);
+
+    // Six sections, fixed order. `.text` and `.pdata` each carry one relocation.
+    let sections = [
+        Section {
+            name: ".drectve",
+            characteristics: CH_DRECTVE,
+            raw: DRECTVE.to_vec(),
+            checksum: 0,
+            selection: 0,
+        },
+        Section {
+            name: ".debug$S",
+            characteristics: CH_DEBUGS,
+            raw: debug_s,
+            checksum: 0,
+            selection: 0,
+        },
+        Section {
+            name: ".XBLD$W",
+            characteristics: CH_XBLD_C2,
+            raw: XBLD_C2.to_vec(),
+            checksum: XBLD_C2_CHECKSUM,
+            selection: 2,
+        },
+        Section {
+            name: ".XBLD$W",
+            characteristics: CH_XBLD_C1,
+            raw: XBLD_C1.to_vec(),
+            checksum: XBLD_C1_CHECKSUM,
+            selection: 2,
+        },
+        Section {
+            name: ".text",
+            characteristics: CH_TEXT,
+            raw: text.to_vec(),
+            checksum: 0,
+            selection: 0,
+        },
+        Section {
+            name: ".pdata",
+            characteristics: CH_PDATA,
+            raw: pdata,
+            checksum: pdata_checksum,
+            selection: 0,
+        },
+    ];
+    let n_sections = sections.len();
+
+    // --- file layout ---
+    // Sections 0..=4 raw data is packed contiguously; then MSVC writes each
+    // remaining section's raw + its relocations *interleaved* in section order:
+    // `.text` raw, `.text` reloc, `.pdata` raw, `.pdata` reloc, symbol table.
+    // (Verified against the reference obj: `.pdata` raw sits AFTER the `.text`
+    // relocation block, not contiguous with `.text` raw.)
+    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
+    let mut ptr_raw = [0usize; 6];
+    let mut ptr_reloc = [0usize; 6];
+    let mut cursor = raw_base;
+    // sections 0..=4 raw, contiguous.
+    for i in 0..5 {
+        ptr_raw[i] = cursor;
+        cursor += sections[i].raw.len();
+    }
+    // .text (idx 4) reloc immediately follows its raw.
+    ptr_reloc[4] = cursor;
+    cursor += RELOC_LEN;
+    // .pdata (idx 5) raw, then its reloc.
+    ptr_raw[5] = cursor;
+    cursor += sections[5].raw.len();
+    ptr_reloc[5] = cursor;
+    cursor += RELOC_LEN;
+    let ptr_symtab = cursor;
+
+    // Fixed 20-symbol layout (single-function TU). Reloc symbol indices are
+    // hardcoded to match the observed table: the `bl` REL24 targets `?g`
+    // (idx 15); the `.pdata` ADDR32 targets `?f` (idx 13).
+    const SYM_F: u32 = 13;
+    const SYM_G: u32 = 15;
+    let n_symbols: u32 = 20;
+
+    // ---- COFF header ----
+    let mut b = Buf::new();
+    b.u16(MACHINE_POWERPCBE);
+    b.u16(n_sections as u16);
+    b.u32(0); // TimeDateStamp — normalized away
+    b.u32(ptr_symtab as u32);
+    b.u32(n_symbols);
+    b.u16(0); // SizeOfOptionalHeader
+    b.u16(CHARACTERISTICS);
+
+    // ---- section headers ----
+    for (i, s) in sections.iter().enumerate() {
+        let (prel, nrel) = match i {
+            4 | 5 => (ptr_reloc[i] as u32, 1u16), // .text / .pdata each have 1
+            _ => (0, 0),
+        };
+        b.name8(s.name);
+        b.u32(0); // VirtualSize
+        b.u32(0); // VirtualAddress
+        b.u32(s.raw.len() as u32); // SizeOfRawData
+        b.u32(ptr_raw[i] as u32); // PointerToRawData
+        b.u32(prel); // PointerToRelocations
+        b.u32(0); // PointerToLinenumbers
+        b.u16(nrel); // NumberOfRelocations
+        b.u16(0); // NumberOfLinenumbers
+        b.u32(s.characteristics);
+    }
+
+    // ---- interleaved raw + relocations ----
+    for i in 0..5 {
+        b.bytes(&sections[i].raw);
+    }
+    debug_assert_eq!(b.0.len(), ptr_reloc[4]);
+    // .text relocation: the `bl` REL24 at FRAMED_BL_OFFSET → callee `?g`.
+    b.u32(c2_il_framed_bl_offset());
+    b.u32(SYM_G);
+    b.u16(REL_PPC_REL24);
+    debug_assert_eq!(b.0.len(), ptr_raw[5]);
+    b.bytes(&sections[5].raw);
+    debug_assert_eq!(b.0.len(), ptr_reloc[5]);
+    // .pdata relocation: ADDR32 at va=0 (BeginAddress) → defined function `?f`.
+    b.u32(0);
+    b.u32(SYM_F);
+    b.u16(REL_PPC_ADDR32);
+    debug_assert_eq!(b.0.len(), ptr_symtab);
+
+    // ---- symbol table (fixed 20-slot order) + string table ----
+    let mut strtab = StringTable::new();
+    let text_len = text.len() as u32;
+
+    // 0: @comp.id
+    b.name8("@comp.id");
+    b.u32(COMP_ID_VALUE);
+    b.i16(-1);
+    b.u16(0x0000);
+    b.u8(3);
+    b.u8(0);
+
+    emit_section_symbol(&mut b, &sections[0], 1, 0); // 1/2  .drectve
+    emit_section_symbol(&mut b, &sections[1], 2, 0); // 3/4  .debug$S
+    emit_section_symbol(&mut b, &sections[2], 3, 0); // 5/6  .XBLD$W C2
+    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000); // 7
+    emit_section_symbol(&mut b, &sections[3], 4, 0); // 8/9  .XBLD$W C1
+    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000); // 10
+    emit_section_symbol(&mut b, &sections[4], 5, 1); // 11/12 .text (1 reloc)
+
+    // 13: ?f — defined function in .text.
+    emit_function_symbol(&mut b, &mut strtab, func_name, 5, 0);
+    // 14: $M2546 — label at end of .text (value = text length).
+    emit_label_symbol(&mut b, "$M2546", text_len, 5);
+    // 15: ?g — undefined external callee (section 0, FUNCTION type).
+    emit_function_symbol(&mut b, &mut strtab, callee_name, 0, 0);
+    // 16: $M2545 — label at the `bl` site.
+    emit_label_symbol(&mut b, "$M2545", c2_il_framed_bl_offset(), 5);
+    // 17/18: .pdata section symbol + aux (1 reloc, real CRC checksum).
+    emit_section_symbol(&mut b, &sections[5], 6, 1);
+    // 19: $T2547 — the `.pdata` label (storage class 3, not 6).
+    b.name8("$T2547");
+    b.u32(0); // Value
+    b.i16(6); // .pdata
+    b.u16(0x0000);
+    b.u8(3); // STATIC
+    b.u8(0);
+
+    b.bytes(&strtab.finish());
+    b.0
+}
+
+/// The `.text` offset of the framed `bl` (the REL24 site + `$M2545` value).
+/// Mirrors `codegen::FRAMED_BL_OFFSET`; kept local so `coff` has no dep on
+/// `codegen` (both are 0xC by the verified frame anatomy).
+fn c2_il_framed_bl_offset() -> u32 {
+    0x0C
+}
+
+/// Emit a compiler-generated **label** symbol (storage class 6, no aux) with an
+/// inline short name, e.g. `$M2545`/`$M2546`. `value` is its `.text` offset.
+fn emit_label_symbol(b: &mut Buf, name: &str, value: u32, sec_num: i16) {
+    b.name8(name);
+    b.u32(value);
+    b.i16(sec_num);
+    b.u16(0x0000); // Type
+    b.u8(6); // IMAGE_SYM_CLASS_LABEL
+    b.u8(0); // no aux
+}
 
 /// Build the complete `.obj` image for one or more straight-line functions
 /// sharing a single `.text`. Generalizes [`emit_mvp_obj`]: functions are packed
@@ -451,6 +694,37 @@ mod tests {
     #[test]
     fn s_compile2_is_57_bytes() {
         assert_eq!(S_COMPILE2.len(), 57);
+    }
+
+    #[test]
+    fn pdata_unwind_word_encodes_function_length() {
+        // 0x24 body (9 words, +k class) → BeginAddress 0 + big-endian
+        // 0x40000903. 0x28 body (10 words, *5) → 0x40000A03 (length +1 = +0x100).
+        assert_eq!(
+            build_pdata(0x24),
+            [0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x09, 0x03]
+        );
+        assert_eq!(
+            build_pdata(0x28),
+            [0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x0A, 0x03]
+        );
+    }
+
+    #[test]
+    fn pdata_checksum_matches_reference_aux() {
+        // The `.pdata` aux CheckSum in the reference obj (0xd3dfb2ce for the +k
+        // frame) is the reflected CRC-32 of the 8 raw bytes.
+        assert_eq!(coff_checksum(&build_pdata(0x24)), 0xD3DF_B2CE);
+        assert_eq!(coff_checksum(&build_pdata(0x28)), 0xF8F2_E10D);
+    }
+
+    #[test]
+    fn framed_obj_has_six_sections_and_twenty_symbols() {
+        // A framed obj built with the verified 0x24 text: 6 sections, 20 symbols.
+        let text = vec![0u8; 0x24];
+        let obj = emit_framed_obj(r"Z:\t\f.obj", "?f@@YAHH@Z", "?g@@YAHH@Z", &text);
+        assert_eq!(u16::from_le_bytes([obj[2], obj[3]]), 6); // NumberOfSections
+        assert_eq!(u32::from_le_bytes([obj[12], obj[13], obj[14], obj[15]]), 20); // NumberOfSymbols
     }
 
     #[test]
