@@ -248,14 +248,16 @@ fn differential_mvp_framed_call_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
-/// W4b2-i (honest rejection): out-of-class call shapes the port must REFUSE,
+/// W4b2-i/-v (honest rejection): out-of-class call shapes the port must REFUSE,
 /// not mis-emit. Each `.cpp` compiles fine under the reference (byte-exact
 /// replay), but the native port has no model for its surrounding computation
-/// (in-argument arithmetic, non-commutative / strength-reduced / wide post-ops)
-/// so it must return `NotImplemented` — never a mis-emitted framed obj or a
-/// bare `b g` that silently drops the computation. Guards both defects fixed in
-/// `c2-il`'s `parse_framed_call` (post-op anchored past the `55` call-end
-/// marker) and `is_tail_call` (terminal-only). Same shape as
+/// (in-argument arithmetic, non-commutative / strength-reduced / wide post-ops,
+/// a second call, a second statement, a two-literal post-op) so it must return
+/// `NotImplemented` — never a mis-emitted framed obj or a bare `b g` that
+/// silently drops the computation. W4b2-v replaced the neighborhood-scanning
+/// gates with a single positive whole-body parse (`c2_il::func::parse_segment`),
+/// which accepts only the three modeled shapes and reaches the segment end, so
+/// every shape below is rejected at the parser level. Same assertion shape as
 /// `differential_reference_byte_exact_port_not_implemented`.
 #[test]
 fn differential_out_of_class_call_shapes_not_implemented() {
@@ -272,6 +274,11 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         "mvp_call_submod.cpp",    // return g(a) - 1 — non-commutative post-op
         "mvp_call_mulmod.cpp",    // return g(a) * 5 — strength-reduced post-op
         "mvp_call_widemod.cpp",   // return g(a) + 70000 — wide post-op immediate
+        "mvp_call_twice.cpp",     // g(); g(); — a second terminal void call
+        "mvp_call_then_stmt.cpp", // g(); return a+1; — a statement after the call
+        "mvp_call_argframed_plusk.cpp", // g(a + 1) + 1 — in-arg arith + framed op
+        "mvp_call_two_framed.cpp",      // g(a) + g(a + 1) — a second call in +
+        "mvp_call_plus1plus2.cpp",      // g(a) + 1 + 2 — a two-literal post-op
     ] {
         let w = work("oocreject");
         let port = PortC2::default();
