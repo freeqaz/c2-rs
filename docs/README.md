@@ -23,6 +23,10 @@ normalized).
 - `IL_BUNDLE_MVP.md` — the c1xx→c2 IL bundle (`_CL_*` ×5): capture recipe,
   token-width detection, `.gl`/`.sy`/`.ex` parse for the MVP class, and
   which bundle fields the emitter actually consumes.
+- `CORPUS_MVP.md` — the P1.2 `(source, IL, obj)` triple corpus: the generator
+  (`c2rs corpus`), the manifest schema, deterministic source generation, and
+  the committability handling (generated corpus gitignored; synthetic sample
+  committed).
 
 Scratch artifacts referenced in these docs (`/tmp/...` fixture objs, captured
 bundles) are session-local and **regenerable**: `c2rs capture <fixture.cpp>`

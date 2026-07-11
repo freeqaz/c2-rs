@@ -20,6 +20,13 @@ _CL_*
 /.c2rs-work
 **/*.tmp
 
+# P1.2 generated corpus — captured (source, IL-bundle, obj) triples. The `.gl`
+# embeds the host source path and the obj embeds its output path, so a captured
+# corpus is NEVER committable; it is a regenerable artifact (`c2rs corpus gen`).
+# Only the generator, docs/CORPUS_MVP.md, and the hand-built synthetic sample
+# (crates/c2-harness/tests/corpus_sample/) are committed.
+/corpus/
+
 # Fixtures' .cpp stay tracked (they are the only hand-maintained artifact).
 
 # Paint (LLM-draft bootstrap): MS-binary-derived Ghidra pseudo-C and bulky run
