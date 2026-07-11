@@ -79,6 +79,12 @@ pub fn fuzzy_text(cand: &ObjImage, target: &ObjImage) -> f64 {
 /// (so a length mismatch is penalized). Trailing bytes shorter than a word are
 /// compared as a final partial word. Two empty slices score `1.0` (vacuously
 /// equal); one empty and one not scores `0.0`.
+///
+/// This is the **superseded** flat gradient (retained for reference / the
+/// word-ratio unit test). The climber now scores with [`insn_text_similarity`],
+/// which gives the instruction-granular partial credit that guides multi-move
+/// descent (the d=2 stall this ratio could not break — it scores a body with a
+/// fixed opcode but wrong operand identically to one that fixed nothing).
 fn word_match_ratio(a: &[u8], b: &[u8]) -> f64 {
     if a.is_empty() && b.is_empty() {
         return 1.0;
@@ -99,6 +105,186 @@ fn word_match_ratio(a: &[u8], b: &[u8]) -> f64 {
         }
     }
     matched as f64 / denom as f64
+}
+
+// ===========================================================================
+// Instruction-aware `.text` gradient (the multi-move descent guide)
+// ===========================================================================
+//
+// The word-ratio above is blind to instruction structure: it compares whole
+// 4-byte words for equality, so a candidate that fixed an opcode but left an
+// operand wrong (`addi r11,r3,5` vs the target `addi r3,r3,5`) scores 0 for that
+// word — identical to a candidate that got the opcode wrong too. On the tiny MVP
+// bodies that flatness collapses the d=2 gradient (deleting one of two redundant
+// terms does not raise the ratio above the seed → the climber stalls at a local
+// optimum). The instruction-aware similarity decodes `.text` into PPC words and
+// grades each instruction with PARTIAL credit — opcode match is worth a base,
+// each correct operand field adds more — so fixing one field at a time is a
+// strictly-uphill move, and a differing-length body is aligned by a gap-tolerant
+// DP so an inserted/deleted instruction is graded rather than shattering the
+// positional compare. It is STILL only the gradient: the terminal is unchanged,
+// full timestamp-normalized [`ObjImage::diff`] `Identical` (see [`Judged`]).
+
+/// Fraction of the per-instruction score awarded for a matching opcode identity
+/// (primary + extended opcode); the remainder is split across the operand fields.
+/// `0.5` makes "fixed the opcode, operands still wrong" score halfway — strictly
+/// above "wrong opcode" (`≤ 0.15`) and strictly below a full match, so descending
+/// one field at a time is monotone.
+const OPCODE_WEIGHT: f64 = 0.5;
+
+/// A PPC instruction word decoded down to the fields the gradient compares: an
+/// **opcode identity** (`opkey`, the primary opcode plus the extended opcode for
+/// the XO/XL/branch forms) and an ordered list of operand fields. Deliberately
+/// coarse — enough to grade "same opcode, which operands agree", not a full
+/// disassembler.
+#[derive(Clone, Debug)]
+struct PpcInsn {
+    raw: u32,
+    /// Primary opcode, bits 0-5 (IBM convention, bit 0 = MSB).
+    primary: u8,
+    /// Opcode identity: primary opcode, folded with the extended opcode for the
+    /// forms where the primary alone is ambiguous (op 31 XO, op 19 XL, op 18's
+    /// AA/LK). Two instructions with equal `opkey` are the "same instruction,
+    /// maybe different operands" case.
+    opkey: u32,
+    /// The operand fields, in a fixed positional order per form (dest, source A,
+    /// source B / immediate). Same `opkey` ⇒ same form ⇒ same length, so they
+    /// compare positionally.
+    operands: Vec<u32>,
+}
+
+/// Decode one big-endian PPC word into its [`PpcInsn`] fields. The field split
+/// follows `docs/CODEGEN_PPC_MVP.md`: op 31 (XO-form: add/mullw/subf/mflr/…),
+/// op 19 (XL-form: bclr/`blr`), op 18 (I-form branch: `b`/`bl`, REL24), and a
+/// D-form default (addi/addis/ori/lwz/stw/… — dest, rA, 16-bit immediate) that
+/// grades any other primary opcode positionally.
+fn decode_ppc(word: u32) -> PpcInsn {
+    let primary = (word >> 26) as u8;
+    let dest = (word >> 21) & 0x1F; // bits 6-10  (RT/RD/RS/BO)
+    let ra = (word >> 16) & 0x1F; // bits 11-15 (RA/BI)
+    let rb = (word >> 11) & 0x1F; // bits 16-20 (RB/BB/SH)
+    let imm16 = word & 0xFFFF; // bits 16-31 (D-form immediate)
+    let (opkey, operands) = match primary {
+        31 | 19 => {
+            // XO / XL form: the extended opcode (bits 21-30) disambiguates.
+            let xo = (word >> 1) & 0x3FF;
+            ((u32::from(primary) << 16) | xo, vec![dest, ra, rb])
+        }
+        18 => {
+            // I-form branch: AA/LK (bits 30-31) fold into the identity; the
+            // signed 24-bit displacement (bits 6-29) is the sole operand.
+            let li = (word >> 2) & 0x00FF_FFFF;
+            ((18u32 << 16) | (word & 0x3), vec![li])
+        }
+        _ => (u32::from(primary) << 16, vec![dest, ra, imm16]),
+    };
+    PpcInsn {
+        raw: word,
+        primary,
+        opkey,
+        operands,
+    }
+}
+
+/// Similarity of two decoded instructions in `0.0..=1.0`, with the partial credit
+/// that makes the gradient smooth:
+/// - byte-identical → `1.0`;
+/// - same opcode identity → [`OPCODE_WEIGHT`] plus the operand-agreement fraction
+///   scaled into the rest (so fixing operands one at a time climbs toward 1.0);
+/// - different opcode but same primary (e.g. two op-31 XOs) → a small `0.15`
+///   floor (the family is right, the operation wrong);
+/// - otherwise → `0.0`.
+fn insn_similarity(a: &PpcInsn, b: &PpcInsn) -> f64 {
+    if a.raw == b.raw {
+        return 1.0;
+    }
+    if a.opkey != b.opkey {
+        return if a.primary == b.primary { 0.15 } else { 0.0 };
+    }
+    // Same opcode identity ⇒ same form ⇒ equal-length operand vectors.
+    let n = a.operands.len();
+    if n == 0 {
+        return 1.0; // an operand-free opcode (e.g. `blr`) that matched its key
+    }
+    let matched = a
+        .operands
+        .iter()
+        .zip(&b.operands)
+        .filter(|(x, y)| x == y)
+        .count();
+    OPCODE_WEIGHT + (1.0 - OPCODE_WEIGHT) * (matched as f64 / n as f64)
+}
+
+/// Decode a `.text` byte slice into its big-endian instruction words. A trailing
+/// run shorter than a full word (malformed/padding) is zero-extended into a final
+/// word so no bytes are silently dropped from the compare.
+fn decode_text(text: &[u8]) -> Vec<u32> {
+    text.chunks(4)
+        .map(|c| {
+            let mut w = [0u8; 4];
+            w[..c.len()].copy_from_slice(c);
+            u32::from_be_bytes(w)
+        })
+        .collect()
+}
+
+/// Instruction-sequence similarity in `0.0..=1.0`. Equal-length sequences are
+/// compared positionally (the operand-only-differs case — a clean, obviously
+/// monotone per-instruction average). Different-length sequences are aligned by a
+/// gap-tolerant DP (Needleman-Wunsch with match = [`insn_similarity`], gap = 0)
+/// and normalized by `max(len)`, so an inserted/deleted instruction is graded
+/// (partial credit for the instructions that still align) and a length mismatch
+/// is penalized (extra instructions dilute the score). Two empty sequences score
+/// `1.0`; one empty and one not scores `0.0`.
+fn insn_seq_similarity(a: &[u32], b: &[u32]) -> f64 {
+    let (m, n) = (a.len(), b.len());
+    if m == 0 && n == 0 {
+        return 1.0;
+    }
+    if m == 0 || n == 0 {
+        return 0.0;
+    }
+    let da: Vec<PpcInsn> = a.iter().map(|&w| decode_ppc(w)).collect();
+    let db: Vec<PpcInsn> = b.iter().map(|&w| decode_ppc(w)).collect();
+
+    if m == n {
+        let s: f64 = da.iter().zip(&db).map(|(x, y)| insn_similarity(x, y)).sum();
+        return s / m as f64;
+    }
+
+    // Best-alignment DP: gaps (insert/delete of an instruction) contribute 0, so
+    // `dp[m][n]` is the max total per-instruction similarity over all alignments.
+    let mut dp = vec![vec![0f64; n + 1]; m + 1];
+    for i in 1..=m {
+        for j in 1..=n {
+            let diag = dp[i - 1][j - 1] + insn_similarity(&da[i - 1], &db[j - 1]);
+            let up = dp[i - 1][j];
+            let left = dp[i][j - 1];
+            dp[i][j] = diag.max(up).max(left);
+        }
+    }
+    dp[m][n] / m.max(n) as f64
+}
+
+/// Instruction-aware `.text` similarity between a candidate obj and the target —
+/// the search **gradient** (never a terminal; see [`fuzzy_text`]'s note and
+/// [`Judged`]). Decodes each obj's COFF `.text` into PPC instruction words and
+/// scores them with [`insn_seq_similarity`], so a move that fixes an opcode or an
+/// operand field scores strictly higher than one that does not. `.text`-only for
+/// the same path-freeness reason as [`fuzzy_text`] (the full obj embeds its `/Fo`
+/// path); objs are compared on their timestamp-normalized bytes.
+///
+/// **Reconciliation with the terminal:** this can reach `1.0` on an obj that is
+/// NOT byte-exact — the `.text` decode is blind to relocations, the symbol table,
+/// and `.debug$S`, so two objs with identical code but differing tail bytes score
+/// `1.0` here yet compare `Differs` under [`ObjImage::diff`]. A `1.0` gradient is
+/// therefore NEVER a success; only [`Judged::ByteExact`] terminates.
+pub fn insn_text_similarity(cand: &ObjImage, target: &ObjImage) -> f64 {
+    let cn = cand.normalized();
+    let tn = target.normalized();
+    let (ct, _) = text_section(&cn);
+    let (tt, _) = text_section(&tn);
+    insn_seq_similarity(&decode_text(ct), &decode_text(tt))
 }
 
 // ===========================================================================
@@ -604,7 +790,10 @@ impl<'a> Scorer for ReplayScorer<'a> {
                 if matches!(ObjImage::diff(&obj, &self.target), ObjDiff::Identical) {
                     Judged::ByteExact
                 } else {
-                    Judged::Fuzzy(fuzzy_text(&obj, &self.target))
+                    // Instruction-aware gradient (never a terminal — see
+                    // `insn_text_similarity`'s reconciliation note). The byte-exact
+                    // terminal above is the sole success; this only ranks moves.
+                    Judged::Fuzzy(insn_text_similarity(&obj, &self.target))
                 }
             }
             Err(_) => Judged::Reject, // crash / timeout / no obj — skip cleanly
@@ -1012,6 +1201,173 @@ mod tests {
         b.set("in", vec![0x86, 0x41, 0x74, 0x00]);
         b.set("db", Vec::new());
         IlModel::parse(&b).expect("hand-built aa model parses")
+    }
+
+    // ---- instruction-aware gradient fixtures -------------------------------
+    //
+    // Real MVP PPC words (big-endian, per docs/CODEGEN_PPC_MVP.md). The ladder is
+    // the exact d=2 add-term stall this rung fixes: target `a+5`, and the seed
+    // bodies after 1 and 2 redundant `+a` terms.
+    const ADDI_R3_R3_5: u32 = 0x3863_0005; // addi r3,r3,5   (target `a+5` op)
+    const ADDI_R11_R3_5: u32 = 0x3963_0005; // addi r11,r3,5  (a+5 as a non-final temp)
+    const ADD_R3_R11_R3: u32 = 0x7C6B_1A14; // add r3,r11,r3  (final `+a`)
+    const ADD_R11_R11_R3: u32 = 0x7D6B_1A14; // add r11,r11,r3 (intermediate `+a`)
+    const BLR: u32 = 0x4E80_0020;
+
+    fn text_bytes(words: &[u32]) -> Vec<u8> {
+        words.iter().flat_map(|w| w.to_be_bytes()).collect()
+    }
+
+    // Target `a+5`, and the d=1 / d=2 add-term seeds' `.text`.
+    fn text_target() -> Vec<u8> {
+        text_bytes(&[ADDI_R3_R3_5, BLR])
+    }
+    fn text_d1() -> Vec<u8> {
+        text_bytes(&[ADDI_R11_R3_5, ADD_R3_R11_R3, BLR])
+    }
+    fn text_d2() -> Vec<u8> {
+        text_bytes(&[ADDI_R11_R3_5, ADD_R11_R11_R3, ADD_R3_R11_R3, BLR])
+    }
+
+    #[test]
+    fn insn_similarity_opcode_fix_beats_nothing_fixed() {
+        let target = decode_ppc(ADDI_R3_R3_5);
+        // Fixed the opcode (addi) + rA + imm, only the dest reg wrong.
+        let opcode_fixed = decode_ppc(ADDI_R11_R3_5);
+        // Wrong opcode entirely (an `add` where the target is `addi`).
+        let nothing_fixed = decode_ppc(ADD_R3_R11_R3);
+        let s_fixed = insn_similarity(&opcode_fixed, &target);
+        let s_nothing = insn_similarity(&nothing_fixed, &target);
+        assert!(
+            s_fixed > s_nothing,
+            "fixing the opcode must score higher: {s_fixed} vs {s_nothing}"
+        );
+        // Same opcode + 2/3 operands (dest wrong) = 0.5 + 0.5*2/3.
+        assert!((s_fixed - (0.5 + 0.5 * 2.0 / 3.0)).abs() < 1e-9);
+        // Different primary opcode (op14 addi vs op31 add) = 0.0.
+        assert_eq!(s_nothing, 0.0);
+        // Byte-identical = 1.0; same op, all operands right but only reg differs
+        // is strictly below 1.0 (partial credit, never a false full match).
+        assert_eq!(insn_similarity(&target, &target), 1.0);
+        assert!(s_fixed < 1.0);
+    }
+
+    #[test]
+    fn insn_seq_gradient_is_monotone_toward_target() {
+        // The d=2 stall, in gradient form: deleting a redundant term must RAISE
+        // the instruction-aware score (d2 < d1 < 1.0), where the old word-ratio
+        // left both flat at 0 (position 0: addi r11 vs addi r3; position 1: add
+        // vs blr — every word differs).
+        let t = decode_text(&text_target());
+        let d1 = decode_text(&text_d1());
+        let d2 = decode_text(&text_d2());
+        let s_d1 = insn_seq_similarity(&d1, &t);
+        let s_d2 = insn_seq_similarity(&d2, &t);
+        assert!(s_d2 < s_d1, "d2 ({s_d2}) must score below d1 ({s_d1})");
+        assert!(s_d1 < 1.0, "d1 ({s_d1}) is not yet the target");
+        assert!(s_d2 > 0.0, "d2 ({s_d2}) must earn partial credit, not flat 0");
+        // The old flat gradient scored both seeds 0 — the concrete stall.
+        assert_eq!(word_match_ratio(&text_d1(), &text_target()), 0.0);
+        assert_eq!(word_match_ratio(&text_d2(), &text_target()), 0.0);
+        // Target vs itself is a full 1.0.
+        assert_eq!(insn_seq_similarity(&t, &t), 1.0);
+    }
+
+    #[test]
+    fn insn_seq_edit_distance_handles_different_lengths() {
+        // Different-length bodies (an inserted instruction) are aligned by the DP:
+        // a body one `add` longer than the target still earns credit for the
+        // aligned `addi`/`blr`, strictly between the wrong-length flat cases.
+        let short = decode_text(&text_bytes(&[ADDI_R3_R3_5, BLR]));
+        let long = decode_text(&text_bytes(&[ADDI_R3_R3_5, ADD_R3_R11_R3, BLR]));
+        let s = insn_seq_similarity(&long, &short);
+        // 2 of 2 target insns align exactly (addi, blr), 1 inserted `add` is a
+        // gap → (1.0 + 1.0) / max(3,2) = 2/3.
+        assert!((s - 2.0 / 3.0).abs() < 1e-9, "edit-distance align = 2/3, got {s}");
+        // Empty vs non-empty is 0; both empty is 1.
+        assert_eq!(insn_seq_similarity(&[], &short), 0.0);
+        assert_eq!(insn_seq_similarity(&[], &[]), 1.0);
+    }
+
+    // Build a minimal 1-section COFF whose `.text` is `text` (so
+    // `retrieval::text_section` finds it), with `tail` appended after the code
+    // (the reloc/symbol region). Two such objs with the same `text` but different
+    // `tail` have identical `.text` yet are not byte-exact.
+    fn coff_with_text(text: &[u8], tail: &[u8]) -> ObjImage {
+        let mut v = vec![0u8; 20]; // COFF header
+        v[2] = 1; // NumberOfSections = 1 (LE u16)
+        // nsym (offset 12), opt-hdr size (offset 16) both left 0.
+        let rawptr = 60u32; // 20 header + 40 section header
+        let mut sh = vec![0u8; 40];
+        sh[..5].copy_from_slice(b".text");
+        sh[16..20].copy_from_slice(&(text.len() as u32).to_le_bytes()); // SizeOfRawData
+        sh[20..24].copy_from_slice(&rawptr.to_le_bytes()); // PointerToRawData
+        v.extend_from_slice(&sh);
+        v.extend_from_slice(text);
+        v.extend_from_slice(tail);
+        ObjImage::new(v)
+    }
+
+    // A scorer that mirrors `ReplayScorer`'s verdict split — REAL `ObjImage::diff`
+    // for the terminal, `insn_text_similarity` for the gradient — but maps every
+    // model to a FIXED obj, so it needs no toolchain. Used to pin the seam.
+    struct FixedObjScorer {
+        obj: ObjImage,
+        target: ObjImage,
+        compiles: usize,
+    }
+    impl Scorer for FixedObjScorer {
+        fn judge(&mut self, _model: &IlModel) -> Judged {
+            self.compiles += 1;
+            if matches!(ObjImage::diff(&self.obj, &self.target), ObjDiff::Identical) {
+                Judged::ByteExact
+            } else {
+                Judged::Fuzzy(insn_text_similarity(&self.obj, &self.target))
+            }
+        }
+        fn compiles(&self) -> usize {
+            self.compiles
+        }
+    }
+
+    #[test]
+    fn max_gradient_on_non_byte_exact_obj_does_not_terminate() {
+        // The reviewer's filed residue: a candidate whose `.text` is
+        // instruction-identical to the target (gradient == 1.0) but whose obj is
+        // NOT byte-exact (a differing reloc/symbol byte) must NOT be a success —
+        // only real byte-exactness terminates.
+        let code = text_target();
+        let target = coff_with_text(&code, &[0xAA, 0xBB, 0xCC, 0xDD]); // reloc tail A
+        let cand = coff_with_text(&code, &[0xAA, 0xBB, 0xCC, 0xEE]); // reloc tail B
+
+        // The seam: gradient is maximal, yet the objs are not byte-exact.
+        assert_eq!(
+            insn_text_similarity(&cand, &target),
+            1.0,
+            "identical `.text` must max the gradient"
+        );
+        assert_ne!(
+            ObjImage::diff(&cand, &target),
+            ObjDiff::Identical,
+            "the objs differ in the reloc/symbol tail — not byte-exact"
+        );
+
+        // Drive the climber through that verdict split: it must never declare
+        // success on the fuzzy 1.0. (Every judgement returns Fuzzy(1.0); none is
+        // ByteExact, so no neighbor strictly improves → an honest LocalOptimum.)
+        let mut scorer = FixedObjScorer {
+            obj: cand,
+            target,
+            compiles: 0,
+        };
+        let seed = model_add_lit(5, false);
+        let out = hill_climb(&seed, &MoveSet::default(), &mut scorer, &Budget::default());
+        assert!(
+            !out.solved,
+            "a fuzzy 1.0 that is not byte-exact must NOT terminate: {out:?}"
+        );
+        assert_eq!(out.reason, StopReason::LocalOptimum);
+        assert_eq!(out.best_fuzzy, 1.0, "the gradient did reach its max");
     }
 
     #[test]

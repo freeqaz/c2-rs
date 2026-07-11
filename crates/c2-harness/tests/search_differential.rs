@@ -90,6 +90,46 @@ fn search_solves_addterm_d1_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
+/// The d=2 two-move descent — the instruction-aware-gradient rung. Seed
+/// `((a+5)+a)+a` (two redundant `+a` terms inserted), climbed back to the `a+5`
+/// target obj by TWO real c2-judged delete moves. This was the 0/6 stall under
+/// the flat `.text`-word gradient (deleting one term did not raise the ratio
+/// above the seed → LocalOptimum before the second delete); the instruction-aware
+/// gradient (`insn_text_similarity`) grades the partial recovery strictly higher,
+/// so greedy descent now reaches the byte-exact basin. Light: ONE d=2 instance
+/// (the full `c2rs search eval --d 2` sweep is deferred until CPU frees).
+#[test]
+fn search_solves_addterm_d2_byte_exact() {
+    let Some(tc) = ready() else { return };
+    let w = work("addterm-d2");
+
+    let r = search::solve_instance(
+        &tc,
+        &fixture("mvp_edit_addk.cpp"),
+        Perturb::AddTerm,
+        2,
+        &MoveSet::default(),
+        &Budget::default(),
+        &w,
+        TIMEOUT,
+    );
+
+    assert!(r.error.is_none(), "instance errored: {:?}", r.error);
+    let outcome = r.outcome.expect("add-term d=2 has a site on a+5");
+    assert!(
+        outcome.solved,
+        "the instruction-aware gradient must break the d=2 stall byte-exact: {outcome:?}"
+    );
+    // A genuine two-move descent: two redundant terms → two accepted deletes.
+    assert!(
+        outcome.steps >= 2,
+        "d=2 recovery is a multi-step descent, got {} step(s)",
+        outcome.steps
+    );
+
+    std::fs::remove_dir_all(&w).ok();
+}
+
 /// A d=1 literal-value nudge recovers byte-exact: perturb `a+5`'s literal to
 /// `a+8`, climb back to `a+5` via a value move (the flat-gradient enumeration
 /// case). Uses the last/only-function regime (`mvp_edit_addk`) so no `.gl`
