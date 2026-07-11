@@ -16,3 +16,13 @@ _CL_*
 **/*.tmp
 
 # Fixtures' .cpp stay tracked (they are the only hand-maintained artifact).
+
+# Paint (LLM-draft bootstrap): MS-binary-derived Ghidra pseudo-C and bulky run
+# logs are never committed. The tooling (paint/*.py, README) and the Rust drafts
+# (paint/color/*.rs) ARE tracked.
+/paint/ghidra_cache/
+/paint/runs/
+
+# Python bytecode (paint tooling is Python)
+__pycache__/
+*.pyc
