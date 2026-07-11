@@ -88,7 +88,7 @@ fn print_usage() {
          \n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
-         search options: --d 1 --moves full|length --steps N --compiles N --timeout SECS\n\
+         search options: --d 1|2|3 --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
          \n\
          Toolchain is located via C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL / C2RS_WIBO_DEBUG\n\
          / C2RS_DC3_ROOT (relative-to-repo defaults). Absent toolchain -> clean SKIP."
@@ -615,17 +615,27 @@ fn cmd_search(rest: &[String]) -> ExitCode {
         "solve" => cmd_search_solve(rest),
         "eval" => cmd_search_eval(rest),
         _ => {
-            eprintln!("usage: c2rs search <solve <cpp>|eval> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--timeout SECS]");
+            eprintln!("usage: c2rs search <solve <cpp>|eval> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]");
             ExitCode::from(2)
         }
     }
 }
 
 fn search_moveset(rest: &[String]) -> MoveSet {
-    match opt(rest, "--moves") {
+    let mut m = match opt(rest, "--moves") {
         Some("length") => MoveSet::length_only(),
         _ => MoveSet::default(),
+    };
+    // On the real obj-judged path, widen/narrow is obj-INVISIBLE (P0.6a A: c2
+    // re-optimizes a re-widthed literal to byte-identical code), so it can never
+    // reach a new obj — it only floods the beam with gradient-tied duplicate
+    // models that crowd out productive (structure-changing) moves. Drop it from
+    // the search moveset unless explicitly re-enabled. (The mock-scorer unit tests
+    // keep it via `MoveSet::default()`, where it IS `.ex`-visible.)
+    if opt(rest, "--keep-widen").is_none() {
+        m.widen_narrow = false;
     }
+    m
 }
 
 fn search_budget(rest: &[String]) -> Budget {
@@ -635,6 +645,9 @@ fn search_budget(rest: &[String]) -> Budget {
     }
     if let Some(v) = opt(rest, "--compiles").and_then(|s| s.parse().ok()) {
         b.max_compiles = v;
+    }
+    if let Some(v) = opt(rest, "--beam").and_then(|s| s.parse().ok()) {
+        b.beam_width = v;
     }
     b
 }
@@ -651,6 +664,9 @@ fn search_perturbs(rest: &[String]) -> Vec<(Perturb, usize)> {
     ];
     if d >= 2 {
         v.push((Perturb::AddTerm, 2));
+    }
+    if d >= 3 {
+        v.push((Perturb::AddTerm, 3));
     }
     v
 }

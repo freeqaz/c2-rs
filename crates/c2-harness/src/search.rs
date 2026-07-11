@@ -43,7 +43,7 @@
 //! [`solve_rate`] runs this over a fixture roster and reports solve-rate@d plus
 //! mean compiles-to-solve.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -149,8 +149,23 @@ struct PpcInsn {
     opkey: u32,
     /// The operand fields, in a fixed positional order per form (dest, source A,
     /// source B / immediate). Same `opkey` ⇒ same form ⇒ same length, so they
-    /// compare positionally.
-    operands: Vec<u32>,
+    /// compare positionally. Each field is tagged [`Operand::Reg`] or
+    /// [`Operand::Imm`] so the register-renaming-tolerant credit
+    /// ([`register_bijection`]) only remaps register fields, never immediates.
+    operands: Vec<Operand>,
+}
+
+/// A decoded operand field, tagged so register-renaming tolerance
+/// ([`register_bijection`]) applies to **register** fields only — an immediate
+/// (a folded literal, a branch displacement) is never remapped, it must match by
+/// value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Operand {
+    /// A GPR field (dest / source A / source B). Its number is subject to a
+    /// consistent renaming under the best-effort bijection.
+    Reg(u32),
+    /// An immediate / displacement field. Compared by raw value only.
+    Imm(u32),
 }
 
 /// Decode one big-endian PPC word into its [`PpcInsn`] fields. The field split
@@ -167,22 +182,49 @@ fn decode_ppc(word: u32) -> PpcInsn {
     let (opkey, operands) = match primary {
         31 | 19 => {
             // XO / XL form: the extended opcode (bits 21-30) disambiguates.
+            // All three fields are registers (dest, source A, source B).
             let xo = (word >> 1) & 0x3FF;
-            ((u32::from(primary) << 16) | xo, vec![dest, ra, rb])
+            (
+                (u32::from(primary) << 16) | xo,
+                vec![Operand::Reg(dest), Operand::Reg(ra), Operand::Reg(rb)],
+            )
         }
         18 => {
             // I-form branch: AA/LK (bits 30-31) fold into the identity; the
-            // signed 24-bit displacement (bits 6-29) is the sole operand.
+            // signed 24-bit displacement (bits 6-29) is the sole (immediate)
+            // operand.
             let li = (word >> 2) & 0x00FF_FFFF;
-            ((18u32 << 16) | (word & 0x3), vec![li])
+            ((18u32 << 16) | (word & 0x3), vec![Operand::Imm(li)])
         }
-        _ => (u32::from(primary) << 16, vec![dest, ra, imm16]),
+        // D-form default (addi/addis/ori/lwz/stw/…): dest reg, source-A reg,
+        // 16-bit immediate.
+        _ => (
+            u32::from(primary) << 16,
+            vec![Operand::Reg(dest), Operand::Reg(ra), Operand::Imm(imm16)],
+        ),
     };
     PpcInsn {
         raw: word,
         primary,
         opkey,
         operands,
+    }
+}
+
+/// Does candidate operand `c` match target operand `t`, optionally under a
+/// candidate→target **register** renaming `phi`? Immediates always compare by raw
+/// value. A register `c` matches `t` iff `phi[c] == t` (a consistent rename) or,
+/// where `c` is unmapped, iff `c == t` (raw). A register that IS mapped elsewhere
+/// does NOT also raw-match — so the bijection is a renaming, not "any reg matches
+/// any" (which would over-credit).
+fn operand_matches(c: &Operand, t: &Operand, phi: Option<&BTreeMap<u32, u32>>) -> bool {
+    match (c, t) {
+        (Operand::Imm(x), Operand::Imm(y)) => x == y,
+        (Operand::Reg(x), Operand::Reg(y)) => match phi.and_then(|m| m.get(x)) {
+            Some(mapped) => mapped == y,
+            None => x == y,
+        },
+        _ => false,
     }
 }
 
@@ -194,7 +236,14 @@ fn decode_ppc(word: u32) -> PpcInsn {
 /// - different opcode but same primary (e.g. two op-31 XOs) → a small `0.15`
 ///   floor (the family is right, the operation wrong);
 /// - otherwise → `0.0`.
-fn insn_similarity(a: &PpcInsn, b: &PpcInsn) -> f64 {
+///
+/// `phi` is an optional candidate→target register renaming ([`register_bijection`]):
+/// operand agreement is scored **under** it, so an instruction that is correct up
+/// to a consistent temp-register reshuffle (c2 re-colors r11/r10/… when a term is
+/// added/removed — see `docs/CODEGEN_PPC_MVP.md`) earns full operand credit
+/// instead of being penalized for the differing register numbers. `None` = the
+/// raw (renaming-blind) compare.
+fn insn_similarity(a: &PpcInsn, b: &PpcInsn, phi: Option<&BTreeMap<u32, u32>>) -> f64 {
     if a.raw == b.raw {
         return 1.0;
     }
@@ -210,7 +259,7 @@ fn insn_similarity(a: &PpcInsn, b: &PpcInsn) -> f64 {
         .operands
         .iter()
         .zip(&b.operands)
-        .filter(|(x, y)| x == y)
+        .filter(|(x, y)| operand_matches(x, y, phi))
         .count();
     OPCODE_WEIGHT + (1.0 - OPCODE_WEIGHT) * (matched as f64 / n as f64)
 }
@@ -228,14 +277,101 @@ fn decode_text(text: &[u8]) -> Vec<u32> {
         .collect()
 }
 
-/// Instruction-sequence similarity in `0.0..=1.0`. Equal-length sequences are
-/// compared positionally (the operand-only-differs case — a clean, obviously
-/// monotone per-instruction average). Different-length sequences are aligned by a
-/// gap-tolerant DP (Needleman-Wunsch with match = [`insn_similarity`], gap = 0)
-/// and normalized by `max(len)`, so an inserted/deleted instruction is graded
-/// (partial credit for the instructions that still align) and a length mismatch
-/// is penalized (extra instructions dilute the score). Two empty sequences score
-/// `1.0`; one empty and one not scores `0.0`.
+/// The best-alignment DP over two decoded instruction sequences, scored by a
+/// per-pair similarity closure. Returns the total aligned similarity **and** the
+/// list of aligned (candidate-index, target-index) diagonal pairs (the
+/// traceback), so a caller can both read the score and learn which instructions
+/// matched (to mine a register renaming from them). Gaps (insert/delete) score 0.
+fn align_dp(
+    da: &[PpcInsn],
+    db: &[PpcInsn],
+    sim: &dyn Fn(&PpcInsn, &PpcInsn) -> f64,
+) -> (f64, Vec<(usize, usize)>) {
+    let (m, n) = (da.len(), db.len());
+    let mut dp = vec![vec![0f64; n + 1]; m + 1];
+    for i in 1..=m {
+        for j in 1..=n {
+            let diag = dp[i - 1][j - 1] + sim(&da[i - 1], &db[j - 1]);
+            let up = dp[i - 1][j];
+            let left = dp[i][j - 1];
+            dp[i][j] = diag.max(up).max(left);
+        }
+    }
+    // Traceback, preferring the diagonal on ties (so an equal-credit alignment
+    // records the pairing) — deterministic.
+    let mut pairs = Vec::new();
+    let (mut i, mut j) = (m, n);
+    while i > 0 && j > 0 {
+        let diag = dp[i - 1][j - 1] + sim(&da[i - 1], &db[j - 1]);
+        if (dp[i][j] - diag).abs() < 1e-12 {
+            pairs.push((i - 1, j - 1));
+            i -= 1;
+            j -= 1;
+        } else if (dp[i][j] - dp[i - 1][j]).abs() < 1e-12 {
+            i -= 1;
+        } else {
+            j -= 1;
+        }
+    }
+    pairs.reverse();
+    (dp[m][n], pairs)
+}
+
+/// Build a best-effort candidate→target **register** renaming from a set of
+/// aligned instruction pairs. Only same-opcode pairs contribute, and only their
+/// register fields (position-matched): each such pair casts a vote
+/// `cand_reg → tgt_reg`. A greedy **injective** assignment then takes the
+/// highest-voted `(c, t)` pairs first, skipping any whose `c` or `t` is already
+/// claimed — so the result is a *consistent renaming* (one c ↦ one t, one t ⟵ one
+/// c), NOT "any register matches any" (which would over-credit). Deterministic:
+/// votes are tallied and drained in a fixed (count desc, c asc, t asc) order.
+fn register_bijection(
+    da: &[PpcInsn],
+    db: &[PpcInsn],
+    pairs: &[(usize, usize)],
+) -> BTreeMap<u32, u32> {
+    let mut votes: BTreeMap<(u32, u32), usize> = BTreeMap::new();
+    for &(i, j) in pairs {
+        let (ca, cb) = (&da[i], &db[j]);
+        if ca.opkey != cb.opkey {
+            continue;
+        }
+        for (x, y) in ca.operands.iter().zip(&cb.operands) {
+            if let (Operand::Reg(rc), Operand::Reg(rt)) = (x, y) {
+                *votes.entry((*rc, *rt)).or_insert(0) += 1;
+            }
+        }
+    }
+    // Sort by vote count desc, then (c, t) asc for determinism.
+    let mut ranked: Vec<((u32, u32), usize)> = votes.into_iter().collect();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    let mut phi: BTreeMap<u32, u32> = BTreeMap::new();
+    let mut used_t: BTreeSet<u32> = BTreeSet::new();
+    for ((c, t), _) in ranked {
+        if phi.contains_key(&c) || used_t.contains(&t) {
+            continue;
+        }
+        phi.insert(c, t);
+        used_t.insert(t);
+    }
+    phi
+}
+
+/// Instruction-sequence similarity in `0.0..=1.0`, **register-renaming-tolerant**.
+/// Equal-length sequences are compared positionally; different-length sequences
+/// are aligned by a gap-tolerant DP (Needleman-Wunsch, match = [`insn_similarity`],
+/// gap = 0) normalized by `max(len)`, so an inserted/deleted instruction is graded
+/// and a length mismatch is penalized.
+///
+/// Two passes: (1) align + score with the raw (renaming-blind) per-pair
+/// similarity, mine a consistent candidate→target register renaming from the
+/// aligned same-opcode pairs ([`register_bijection`]); (2) re-score under that
+/// renaming and return the **better** of the two normalized scores. So a candidate
+/// that is correct up to c2's temp-register reshuffle (r11/r10/… recolored when a
+/// term is added/removed) is credited for the structural match instead of being
+/// penalized for the register numbers — while a wrong opcode or a genuinely
+/// different structure gains nothing (the renaming is injective and same-opcode
+/// only). Two empty sequences score `1.0`; one empty and one not scores `0.0`.
 fn insn_seq_similarity(a: &[u32], b: &[u32]) -> f64 {
     let (m, n) = (a.len(), b.len());
     if m == 0 && n == 0 {
@@ -246,24 +382,20 @@ fn insn_seq_similarity(a: &[u32], b: &[u32]) -> f64 {
     }
     let da: Vec<PpcInsn> = a.iter().map(|&w| decode_ppc(w)).collect();
     let db: Vec<PpcInsn> = b.iter().map(|&w| decode_ppc(w)).collect();
+    let denom = m.max(n) as f64;
 
-    if m == n {
-        let s: f64 = da.iter().zip(&db).map(|(x, y)| insn_similarity(x, y)).sum();
-        return s / m as f64;
-    }
+    let raw = |x: &PpcInsn, y: &PpcInsn| insn_similarity(x, y, None);
+    let (raw_total, pairs) = align_dp(&da, &db, &raw);
+    let raw_score = raw_total / denom;
 
-    // Best-alignment DP: gaps (insert/delete of an instruction) contribute 0, so
-    // `dp[m][n]` is the max total per-instruction similarity over all alignments.
-    let mut dp = vec![vec![0f64; n + 1]; m + 1];
-    for i in 1..=m {
-        for j in 1..=n {
-            let diag = dp[i - 1][j - 1] + insn_similarity(&da[i - 1], &db[j - 1]);
-            let up = dp[i - 1][j];
-            let left = dp[i][j - 1];
-            dp[i][j] = diag.max(up).max(left);
-        }
+    // Pass 2: mine a renaming from the raw alignment, re-score under it.
+    let phi = register_bijection(&da, &db, &pairs);
+    if phi.is_empty() {
+        return raw_score;
     }
-    dp[m][n] / m.max(n) as f64
+    let toln = |x: &PpcInsn, y: &PpcInsn| insn_similarity(x, y, Some(&phi));
+    let (tol_total, _) = align_dp(&da, &db, &toln);
+    (tol_total / denom).max(raw_score)
 }
 
 /// Instruction-aware `.text` similarity between a candidate obj and the target —
@@ -339,11 +471,24 @@ pub struct MoveSet {
     pub value_nudges: Vec<i32>,
     /// Delete a trailing `<operand> <op>` term (`a+b+c` → `a+b`; P0.6a F).
     pub term_delete: bool,
-    /// Insert a `<operand> <op>` term after an existing op (`a+5` → `(a+5)+5`;
-    /// P0.6a E). Operands reused from the function; ops from `insert_ops`.
+    /// Insert a `<operand> <op>` term after an existing value token (`a+5` →
+    /// `(a+5)+5`; P0.6a E). Ops from `insert_ops`; the operand vocabulary is the
+    /// body's own operands **plus**, when `insert_from_scope`, generated operands
+    /// (params in scope + `insert_literals`) so a *vanished* operand can be
+    /// regenerated (the drop-term lossy-seed case).
     pub term_insert: bool,
     /// Binary ops used when inserting a term.
     pub insert_ops: Vec<ExToken>,
+    /// Generative insert vocabulary: also enumerate insert operands NOT present in
+    /// the body — every formal parameter in scope (as a `Load`) and each literal
+    /// in `insert_literals` — so a term whose operand vanished from the seed (a
+    /// dropped `+param` or `+k`) can be reconstructed. Bounded (params ≤ arity,
+    /// literals a small fixed set) to keep the branching factor sane.
+    pub insert_from_scope: bool,
+    /// The small literal vocabulary generated for insert when `insert_from_scope`
+    /// (the "vanished literal" set — a dropped `+k` is only recoverable if `k` is
+    /// here or already elsewhere in the body).
+    pub insert_literals: Vec<i32>,
 }
 
 impl Default for MoveSet {
@@ -355,6 +500,8 @@ impl Default for MoveSet {
             term_delete: true,
             term_insert: true,
             insert_ops: vec![ExToken::Add, ExToken::Sub, ExToken::Mul],
+            insert_from_scope: true,
+            insert_literals: vec![1, 2, 5],
         }
     }
 }
@@ -372,6 +519,8 @@ impl MoveSet {
             term_delete: true,
             term_insert: true,
             insert_ops: vec![ExToken::Add, ExToken::Sub, ExToken::Mul],
+            insert_from_scope: true,
+            insert_literals: vec![1, 2, 5],
         }
     }
 
@@ -457,7 +606,11 @@ impl MoveSet {
             // when the seed body has no remaining binop (e.g. a fully-dropped
             // single term), the direction P0.6a E exercised.
             if self.term_insert {
-                let operands: Vec<ExToken> = distinct_operands(&tokens);
+                let operands: Vec<ExToken> = if self.insert_from_scope {
+                    generative_operands(&tokens, &self.insert_literals)
+                } else {
+                    distinct_operands(&tokens)
+                };
                 for (i, tok) in tokens.iter().enumerate() {
                     if !is_operand(tok) && !is_binop(tok) {
                         continue;
@@ -527,6 +680,41 @@ fn distinct_operands(tokens: &[ExToken]) -> Vec<ExToken> {
     out
 }
 
+/// The **generative** insert-operand vocabulary for a function body: its distinct
+/// body operands (as [`distinct_operands`]) **plus** operands that may have
+/// *vanished* from the body —
+/// 1. every **formal parameter** in scope, as a `Load(t)` (a function's
+///    `Formal(t)` header token and its `Load(t)` share the token id `t`, so a
+///    param used nowhere in the current body is still loadable); and
+/// 2. each literal in `literals`, as a narrow `Lit`.
+///
+/// This lets a term-insert reconstruct a dropped `+param` or `+k` even though the
+/// operand no longer appears in the seed (the drop-term lossy-seed case a
+/// reuse-only insert cannot solve). Deduplicated, first-seen order; bounded by
+/// arity + `literals.len()` so the branching factor stays sane.
+fn generative_operands(tokens: &[ExToken], literals: &[i32]) -> Vec<ExToken> {
+    let mut out = distinct_operands(tokens);
+    let mut add = |t: ExToken| {
+        if !out.contains(&t) {
+            out.push(t);
+        }
+    };
+    // Params in scope: each Formal(id) is loadable as Load(id).
+    for t in tokens {
+        if let ExToken::Formal(id) = t {
+            add(ExToken::Load(*id));
+        }
+    }
+    // The small "vanished literal" set.
+    for &v in literals {
+        add(ExToken::Lit {
+            value: v,
+            wide: !(0..=0x7F).contains(&v),
+        });
+    }
+    out
+}
+
 // ===========================================================================
 // The climber
 // ===========================================================================
@@ -543,6 +731,15 @@ pub struct Budget {
     /// neighborhood, so they only help a scorer with nondeterminism or a future
     /// randomized tie-break; kept for the interface, defaulted off.
     pub restarts: usize,
+    /// Beam width — how many best candidates the search keeps at each step. `1`
+    /// is pure greedy hill-climb (accept only a strictly-improving move, stop at
+    /// a local optimum). `≥ 2` is a beam that keeps the top-`k` candidates by
+    /// fuzzy gradient **even when none improves on the parent**, so the search can
+    /// take a non-improving (lateral/downhill) step to cross a plateau and reach
+    /// the byte-exact basin the greedy climb stalls before (the d≥2 add-term
+    /// stall). The terminal is unchanged — only a byte-exact obj wins; the beam
+    /// only widens which candidates are compiled.
+    pub beam_width: usize,
 }
 
 impl Default for Budget {
@@ -551,6 +748,7 @@ impl Default for Budget {
             max_steps: 8,
             max_compiles: 400,
             restarts: 0,
+            beam_width: 4,
         }
     }
 }
@@ -580,12 +778,32 @@ pub struct SearchOutcome {
     pub path: Vec<String>,
 }
 
-/// Greedy IL-space hill-climb from `seed`, judged by `scorer`, bounded by
-/// `budget`, exploring the [`MoveSet`] neighborhood.
+/// A live beam node: the model, its fuzzy gradient, and the move path that
+/// reached it.
+struct BeamNode {
+    fuzzy: f64,
+    model: IlModel,
+    path: Vec<String>,
+}
+
+/// The `.ex` bytes of a model (its dedup / identity key). Empty if it has no
+/// `.ex` file (never, for a captured/hand-built function model).
+fn ex_bytes(model: &IlModel) -> Vec<u8> {
+    model
+        .encode()
+        .get("ex")
+        .map(|b| b.to_vec())
+        .unwrap_or_default()
+}
+
+/// Greedy IL-space hill-climb from `seed` — the width-1 special case of
+/// [`beam_search`] (accept only a strictly-improving move; stop at a local
+/// optimum). Kept as the name the portable greedy tests and the terminal-pin
+/// drive; forces `beam_width = 1` regardless of `budget`.
 ///
 /// Deterministic: the neighborhood order is fixed and ties are broken by
 /// first-seen (the enumeration order), so with a deterministic scorer the whole
-/// climb is reproducible — no wall-clock, no RNG on the default (0-restart) path.
+/// climb is reproducible — no wall-clock, no RNG.
 ///
 /// TERMINAL is byte-exact ([`Judged::ByteExact`]) and nothing else — a fuzzy
 /// `1.0` that is not byte-exact keeps the search going. On a compile/replay
@@ -596,10 +814,46 @@ pub fn hill_climb(
     scorer: &mut dyn Scorer,
     budget: &Budget,
 ) -> SearchOutcome {
-    // Baseline: judge the seed. (A perturbed seed is not byte-exact, but a caller
-    // may hand us an already-solved model — honor it.)
-    let mut current = seed.clone();
-    let seed_judged = scorer.judge(&current);
+    let mut b = *budget;
+    b.beam_width = 1;
+    beam_search(seed, moves, scorer, &b)
+}
+
+/// IL-space **beam search** from `seed`, judged by `scorer`, bounded by `budget`,
+/// exploring the [`MoveSet`] neighborhood. Keeps the top-`budget.beam_width`
+/// candidates by fuzzy gradient at each step.
+///
+/// - **width 1** is pure greedy: accept the single strictly-improving best move,
+///   stop [`StopReason::LocalOptimum`] when none improves (identical to the
+///   original hill-climb; that is what [`hill_climb`] calls).
+/// - **width ≥ 2** keeps the top-`k` candidates **even when none beats the
+///   parent**, so the search can take a non-improving (lateral / slightly
+///   downhill) step to cross a fuzzy plateau and reach the byte-exact basin the
+///   greedy climb stalls before (the d≥2 add-term stall: no single term-delete
+///   raises the whole-`.text` gradient, but two deletes reach the exact IL, and
+///   the byte-exact terminal — not the gradient — fires when they do).
+///
+/// Deterministic: neighborhoods are enumerated in a fixed order and the beam is
+/// truncated by `(fuzzy desc, .ex bytes asc)`; every judged model is globally
+/// de-duplicated by its `.ex` bytes, so no model is compiled twice and the
+/// compile budget is spent on new candidates. No wall-clock, no RNG.
+///
+/// TERMINAL is byte-exact ([`Judged::ByteExact`]) and nothing else — a fuzzy
+/// `1.0` that is not byte-exact keeps the search going. On a compile/replay
+/// reject the candidate is skipped, never fatal. Budget-bounded (`max_steps`
+/// beam rounds, `max_compiles` judgements); an exhausted budget is an honest
+/// failure, never a fuzzy "success".
+pub fn beam_search(
+    seed: &IlModel,
+    moves: &MoveSet,
+    scorer: &mut dyn Scorer,
+    budget: &Budget,
+) -> SearchOutcome {
+    let width = budget.beam_width.max(1);
+
+    // Judge the seed. (A perturbed seed is not byte-exact, but a caller may hand
+    // us an already-solved model — honor it.)
+    let seed_judged = scorer.judge(seed);
     if seed_judged == Judged::ByteExact {
         return SearchOutcome {
             solved: true,
@@ -610,113 +864,102 @@ pub fn hill_climb(
             path: Vec::new(),
         };
     }
-    let mut current_fuzzy = match seed_judged {
+    let seed_fuzzy = match seed_judged {
         Judged::Fuzzy(f) => f,
         _ => 0.0, // seed itself did not compile — climb from a zero floor
     };
-    let mut best_fuzzy = current_fuzzy;
-    let mut path: Vec<String> = Vec::new();
+    let mut best_fuzzy = seed_fuzzy;
+    // The highest-fuzzy path seen (the honest "best effort" path on a non-solve).
+    let mut best_path: Vec<String> = Vec::new();
 
-    for _restart in 0..=budget.restarts {
-        // A restart returns to the seed (deterministic; see Budget::restarts).
-        if _restart > 0 {
-            current = seed.clone();
-            current_fuzzy = match scorer.judge(&current) {
-                Judged::ByteExact => {
-                    return solved_now(scorer, path, best_fuzzy);
+    // Global dedup: never compile the same `.ex` twice.
+    let mut seen: BTreeSet<Vec<u8>> = BTreeSet::new();
+    seen.insert(ex_bytes(seed));
+
+    let mut frontier: Vec<BeamNode> = vec![BeamNode {
+        fuzzy: seed_fuzzy,
+        model: seed.clone(),
+        path: Vec::new(),
+    }];
+
+    let done = |solved, path: Vec<String>, best_fuzzy, reason, compiles| SearchOutcome {
+        solved,
+        steps: path.len(),
+        compiles,
+        best_fuzzy,
+        reason,
+        path,
+    };
+
+    for _round in 0..budget.max_steps {
+        // Expand every frontier node into fresh, de-duplicated, judged candidates.
+        let mut cands: Vec<BeamNode> = Vec::new();
+        for node in &frontier {
+            for (label, cand) in moves.neighbors(&node.model) {
+                if !seen.insert(ex_bytes(&cand)) {
+                    continue; // already judged this exact model
                 }
-                Judged::Fuzzy(f) => f,
-                Judged::Reject => 0.0,
-            };
-            if scorer.compiles() >= budget.max_compiles {
-                return SearchOutcome {
-                    solved: false,
-                    steps: path.len(),
-                    compiles: scorer.compiles(),
-                    best_fuzzy,
-                    reason: StopReason::CompilesExhausted,
-                    path,
-                };
-            }
-        }
-
-        for _step in 0..budget.max_steps {
-            let neighbors = moves.neighbors(&current);
-            let mut best: Option<(f64, String, IlModel)> = None;
-            for (label, cand) in neighbors {
                 if scorer.compiles() >= budget.max_compiles {
-                    return SearchOutcome {
-                        solved: false,
-                        steps: path.len(),
-                        compiles: scorer.compiles(),
-                        best_fuzzy,
-                        reason: StopReason::CompilesExhausted,
-                        path,
-                    };
+                    return done(false, best_path, best_fuzzy, StopReason::CompilesExhausted, scorer.compiles());
                 }
                 match scorer.judge(&cand) {
                     Judged::ByteExact => {
-                        path.push(label);
-                        return solved_now(scorer, path, 1.0);
+                        let mut p = node.path.clone();
+                        p.push(label);
+                        return done(true, p, 1.0, StopReason::Solved, scorer.compiles());
                     }
                     Judged::Fuzzy(f) => {
+                        let mut p = node.path.clone();
+                        p.push(label);
                         if f > best_fuzzy {
                             best_fuzzy = f;
+                            best_path = p.clone();
                         }
-                        // Strictly-better-than-current, first-seen wins ties.
-                        let better = match &best {
-                            Some((bf, _, _)) => f > *bf,
-                            None => true,
-                        };
-                        if better {
-                            best = Some((f, label, cand));
-                        }
+                        cands.push(BeamNode {
+                            fuzzy: f,
+                            model: cand,
+                            path: p,
+                        });
                     }
                     Judged::Reject => {} // skip cleanly
                 }
             }
+        }
 
-            match best {
-                Some((f, label, cand)) if f > current_fuzzy => {
-                    current = cand;
-                    current_fuzzy = f;
-                    path.push(label);
-                }
-                _ => break, // local optimum — try a restart if any remain
-            }
+        if cands.is_empty() {
+            // No new distinct candidates anywhere in the beam — converged.
+            return done(false, best_path, best_fuzzy, StopReason::LocalOptimum, scorer.compiles());
+        }
 
-            if path.len() >= budget.max_steps {
-                return SearchOutcome {
-                    solved: false,
-                    steps: path.len(),
-                    compiles: scorer.compiles(),
-                    best_fuzzy,
-                    reason: StopReason::StepsExhausted,
-                    path,
-                };
+        if width == 1 {
+            // Greedy: the single best candidate, and only if it strictly improves
+            // on the parent (else a local optimum). First-seen wins ties.
+            let cur = frontier[0].fuzzy;
+            let best_idx = cands
+                .iter()
+                .enumerate()
+                .fold(0usize, |bi, (i, n)| if n.fuzzy > cands[bi].fuzzy { i } else { bi });
+            if cands[best_idx].fuzzy > cur {
+                let chosen = cands.remove(best_idx);
+                frontier = vec![chosen];
+            } else {
+                return done(false, best_path, best_fuzzy, StopReason::LocalOptimum, scorer.compiles());
             }
+        } else {
+            // Beam: keep the top-k by (fuzzy desc, .ex asc) — a NON-improving step
+            // is allowed, which is what crosses the plateau. Deterministic order.
+            cands.sort_by(|a, b| {
+                b.fuzzy
+                    .partial_cmp(&a.fuzzy)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| ex_bytes(&a.model).cmp(&ex_bytes(&b.model)))
+            });
+            cands.truncate(width);
+            frontier = cands;
         }
     }
 
-    SearchOutcome {
-        solved: false,
-        steps: path.len(),
-        compiles: scorer.compiles(),
-        best_fuzzy,
-        reason: StopReason::LocalOptimum,
-        path,
-    }
-}
-
-fn solved_now(scorer: &dyn Scorer, path: Vec<String>, best_fuzzy: f64) -> SearchOutcome {
-    SearchOutcome {
-        solved: true,
-        steps: path.len(),
-        compiles: scorer.compiles(),
-        best_fuzzy,
-        reason: StopReason::Solved,
-        path,
-    }
+    done(false, best_path, best_fuzzy, StopReason::StepsExhausted, scorer.compiles())
 }
 
 // ===========================================================================
@@ -1044,7 +1287,10 @@ pub fn solve_instance(
         return mk(None, None); // no site — skipped, not a failure
     };
 
-    let outcome = hill_climb(&seed, moves, &mut scorer, budget);
+    // The real solve-rate path runs the beam (width from `budget.beam_width`;
+    // width 1 degrades to greedy) so multi-move descents can cross the plateaus
+    // greedy stalls on. TERMINAL is unchanged — byte-exact obj only.
+    let outcome = beam_search(&seed, moves, &mut scorer, budget);
     mk(Some(outcome), None)
 }
 
@@ -1236,8 +1482,8 @@ mod tests {
         let opcode_fixed = decode_ppc(ADDI_R11_R3_5);
         // Wrong opcode entirely (an `add` where the target is `addi`).
         let nothing_fixed = decode_ppc(ADD_R3_R11_R3);
-        let s_fixed = insn_similarity(&opcode_fixed, &target);
-        let s_nothing = insn_similarity(&nothing_fixed, &target);
+        let s_fixed = insn_similarity(&opcode_fixed, &target, None);
+        let s_nothing = insn_similarity(&nothing_fixed, &target, None);
         assert!(
             s_fixed > s_nothing,
             "fixing the opcode must score higher: {s_fixed} vs {s_nothing}"
@@ -1248,7 +1494,7 @@ mod tests {
         assert_eq!(s_nothing, 0.0);
         // Byte-identical = 1.0; same op, all operands right but only reg differs
         // is strictly below 1.0 (partial credit, never a false full match).
-        assert_eq!(insn_similarity(&target, &target), 1.0);
+        assert_eq!(insn_similarity(&target, &target, None), 1.0);
         assert!(s_fixed < 1.0);
     }
 
@@ -1441,6 +1687,7 @@ mod tests {
             max_steps: 8,
             max_compiles: 6,
             restarts: 0,
+            beam_width: 1,
         };
         let out = hill_climb(&seed, &MoveSet::length_only(), &mut scorer, &budget);
         assert!(!out.solved);
@@ -1491,5 +1738,195 @@ mod tests {
         let mut scorer = MockScorer::new(&solution);
         let out = hill_climb(&seed, &MoveSet::default(), &mut scorer, &Budget::default());
         assert!(out.solved, "dropped term must be reinsertable: {out:?}");
+    }
+
+    // ---- Part 1: register-renaming-tolerant operand credit -----------------
+
+    fn add_word(d: u32, a: u32, b: u32) -> u32 {
+        (31 << 26) | (d << 21) | (a << 16) | (b << 11) | (266 << 1)
+    }
+    fn mullw_word(d: u32, a: u32, b: u32) -> u32 {
+        (31 << 26) | (d << 21) | (a << 16) | (b << 11) | (235 << 1)
+    }
+
+    #[test]
+    fn register_tolerant_credit_beats_wrong_and_raw() {
+        // A candidate that is correct up to a consistent temp-register rename
+        // (`add r11,r4,r5` where the target has `add r3,r4,r5` — c2 recolored the
+        // result temp when a term count changed) must earn FULL credit under the
+        // bijection, strictly above (a) a wrong-opcode candidate and (b) the raw
+        // renaming-blind score.
+        let target = [add_word(3, 4, 5), BLR];
+        let renamed = [add_word(11, 4, 5), BLR]; // r11↦r3 is a clean renaming
+        let wrong = [mullw_word(3, 4, 5), BLR]; // right regs, wrong op
+
+        let s_renamed = insn_seq_similarity(&renamed, &target);
+        let s_wrong = insn_seq_similarity(&wrong, &target);
+
+        // Consistent renaming ⇒ full structural credit (1.0 gradient — still not a
+        // terminal; only a byte-exact obj terminates).
+        assert!(
+            (s_renamed - 1.0).abs() < 1e-9,
+            "a consistent register renaming must earn full credit, got {s_renamed}"
+        );
+        // The raw per-instruction credit (renaming-blind) is what the bijection
+        // beats: `add r11` vs `add r3` = 0.5 + 0.5*2/3 on the add, 1.0 on blr →
+        // (0.8333 + 1.0)/2 = 0.9166 raw; the tolerant score (1.0) is strictly above.
+        let raw = insn_similarity(&decode_ppc(renamed[0]), &decode_ppc(target[0]), None);
+        assert!(raw < 1.0, "raw credit is partial (< 1.0): {raw}");
+        assert!(
+            s_renamed > s_wrong,
+            "renamed-but-correct ({s_renamed}) must beat wrong-opcode ({s_wrong})"
+        );
+    }
+
+    #[test]
+    fn register_bijection_is_injective_not_any_matches_any() {
+        // Guard against over-credit: `add r11,r11,r5` cannot be a renaming of
+        // `add r3,r4,r5` (r11 would have to map to BOTH r3 and r4). The injective
+        // bijection maps r11 to only one, so the score stays partial (< 1.0), not
+        // a false full match.
+        let target = [add_word(3, 4, 5), BLR];
+        let ambiguous = [add_word(11, 11, 5), BLR];
+        let s = insn_seq_similarity(&ambiguous, &target);
+        assert!(
+            s < 1.0,
+            "a non-injective 'renaming' must NOT reach full credit, got {s}"
+        );
+    }
+
+    // ---- Part 2: beam / restarts (escape a plateau) ------------------------
+
+    // A deceptive-plateau scorer: byte-exact only on the exact target `.ex`;
+    // EVERY other model scores a flat `0.5`. Greedy (width 1, needs a strict
+    // improvement) therefore stalls at the seed — no single move improves — while
+    // a beam that keeps non-improving candidates can still reach the byte-exact
+    // target two moves away. Counts every judgement (a real compile stand-in).
+    struct PlateauScorer {
+        target_ex: Vec<u8>,
+        compiles: usize,
+    }
+    impl Scorer for PlateauScorer {
+        fn judge(&mut self, model: &IlModel) -> Judged {
+            self.compiles += 1;
+            if ex_bytes(model) == self.target_ex {
+                Judged::ByteExact
+            } else {
+                Judged::Fuzzy(0.5)
+            }
+        }
+        fn compiles(&self) -> usize {
+            self.compiles
+        }
+    }
+
+    fn plateau_setup() -> (IlModel, IlModel) {
+        // Target = `a+5`; seed = `((a+5)+a)+a` (two redundant terms). The 2-delete
+        // inverse reaches the target `.ex`, but no single delete improves the flat
+        // gradient — the beam must take a non-improving step.
+        let solution = model_add_lit(5, false);
+        let seed = perturb(&solution, Perturb::AddTerm, 2).expect("d2 add-term site");
+        (solution, seed)
+    }
+
+    #[test]
+    fn greedy_stalls_but_beam_crosses_the_plateau() {
+        let (solution, seed) = plateau_setup();
+        let target_ex = ex_bytes(&solution);
+
+        // Greedy (width 1): stalls — nothing strictly improves the flat 0.5.
+        let mut g = PlateauScorer { target_ex: target_ex.clone(), compiles: 0 };
+        let greedy = hill_climb(&seed, &MoveSet::length_only(), &mut g, &Budget::default());
+        assert!(!greedy.solved, "greedy must stall on the plateau: {greedy:?}");
+        assert_eq!(greedy.reason, StopReason::LocalOptimum);
+        assert_eq!(greedy.steps, 0, "greedy takes no step (no improvement)");
+
+        // Beam (wide): keeps non-improving candidates → reaches the byte-exact
+        // target two moves away. best_fuzzy never exceeds 0.5, proving the solving
+        // path went THROUGH a non-improving intermediate.
+        let mut b = PlateauScorer { target_ex, compiles: 0 };
+        let budget = Budget { max_steps: 4, max_compiles: 5000, restarts: 0, beam_width: 64 };
+        let beam = beam_search(&seed, &MoveSet::length_only(), &mut b, &budget);
+        assert!(beam.solved, "the beam must cross the plateau: {beam:?}");
+        // Greedy stalled at 0 steps because no move improved the flat 0.5; the beam
+        // reaches the byte-exact target in ≥ 2 steps on that SAME flat landscape —
+        // so every step it took was necessarily non-improving. (best_fuzzy reports
+        // 1.0 on a solve, the byte-exact terminal; it cannot witness the plateau —
+        // the step-count contrast against greedy does.)
+        assert!(beam.steps >= 2, "recovery is a two-move (non-improving) descent: {beam:?}");
+    }
+
+    #[test]
+    fn beam_is_deterministic_and_budget_bounded() {
+        let (solution, seed) = plateau_setup();
+        let target_ex = ex_bytes(&solution);
+        let budget = Budget { max_steps: 4, max_compiles: 5000, restarts: 0, beam_width: 64 };
+
+        // Deterministic: two identical runs give identical outcomes (same solve,
+        // steps, compiles, path) — no wall-clock, no RNG.
+        let mut s1 = PlateauScorer { target_ex: target_ex.clone(), compiles: 0 };
+        let r1 = beam_search(&seed, &MoveSet::length_only(), &mut s1, &budget);
+        let mut s2 = PlateauScorer { target_ex: target_ex.clone(), compiles: 0 };
+        let r2 = beam_search(&seed, &MoveSet::length_only(), &mut s2, &budget);
+        assert_eq!(r1.solved, r2.solved);
+        assert_eq!(r1.steps, r2.steps);
+        assert_eq!(r1.compiles, r2.compiles);
+        assert_eq!(r1.path, r2.path, "the beam path must be reproducible");
+
+        // Budget-bounded: a tiny compile budget stops honestly, never overspends.
+        let mut sb = PlateauScorer { target_ex, compiles: 0 };
+        let tight = Budget { max_steps: 4, max_compiles: 3, restarts: 0, beam_width: 64 };
+        let rb = beam_search(&seed, &MoveSet::length_only(), &mut sb, &tight);
+        assert!(sb.compiles() <= 3, "compile budget must bound the beam");
+        assert!(
+            !rb.solved || rb.compiles <= 3,
+            "an honest stop within budget: {rb:?}"
+        );
+    }
+
+    // ---- Part 3: generative insert vocabulary ------------------------------
+
+    #[test]
+    fn generative_operands_regenerates_vanished_scope() {
+        use c2_il::ExToken::*;
+        // A hand-built token run: two formals (a, b) declared, but the body uses
+        // only `a` and the literal 5 — `b` has vanished from the body. The
+        // generative vocabulary must still offer `Load(b)` (a param in scope) plus
+        // the small literal set, so a dropped `+b` or `+k` is reconstructable.
+        let a = 0xE301u16;
+        let b = 0xE401u16;
+        let tokens = vec![
+            Formals,
+            Formal(a),
+            Formal(b),
+            Load(a),
+            Lit { value: 5, wide: false },
+            Add,
+        ];
+        let vocab = generative_operands(&tokens, &[1, 2, 5]);
+
+        // Body operands are present (reuse case).
+        assert!(vocab.contains(&Load(a)), "body operand a must be offered");
+        assert!(vocab.contains(&Lit { value: 5, wide: false }));
+        // The vanished param `b` is regenerated as a Load (the generative gain).
+        assert!(
+            vocab.contains(&Load(b)),
+            "an in-scope param absent from the body must be loadable: {vocab:?}"
+        );
+        // The small literal vocabulary is present (a vanished `+k` is recoverable).
+        assert!(vocab.contains(&Lit { value: 1, wide: false }));
+        assert!(vocab.contains(&Lit { value: 2, wide: false }));
+        // Deduplicated: `Load(a)` and `Lit 5` appear once despite being in both
+        // the body and (5) the literal set.
+        assert_eq!(vocab.iter().filter(|t| **t == Load(a)).count(), 1);
+        assert_eq!(
+            vocab.iter().filter(|t| **t == Lit { value: 5, wide: false }).count(),
+            1
+        );
+
+        // Reuse-only enumeration does NOT offer the vanished param — the contrast
+        // that motivates the generative set.
+        let reuse = distinct_operands(&tokens);
+        assert!(!reuse.contains(&Load(b)), "reuse-only cannot regenerate b");
     }
 }
