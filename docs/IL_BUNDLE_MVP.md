@@ -112,6 +112,15 @@ Opcode map used (from IL_FORMAT.md, confirmed on fixtures): `0x02` ADD ·
   (`4F 01 NN`, `38`, `54 03/04`), calls + relocs (`26/BD/55` — these
   introduce COFF relocations; MVP has zero), casts (`2C`), memory
   (`30/32`), switch (`3B–3D`).
+  - **Call grammar (W4b2, verified):** a call is `26 <tok>` (result temp) ·
+    `BD <3-byte return type> 00 80 01 10 00 00` (the fixed 10-byte CALL token) ·
+    the argument region · `55 <int-type>` (**call-end marker**, present when the
+    int return value is consumed; a terminal *void* call has `4C 4B` instead).
+    The call-end marker is the load-bearing boundary: a framed post-op
+    (`return g(a) + k`) is emitted *after* `55`, whereas in-argument arithmetic
+    (`return g(a + 1)`) is emitted *before* it. `c2_il::func::parse_framed_call`
+    anchors its post-op search past `55` for exactly this reason; without it,
+    `g(a+1)` is silently mis-read as framed `g(a)+1`.
 - `.in` type-table decode (first non-int/pointer/struct type).
 - `.db` line tables (non-`/Ox` debug CV).
 - The `.ex` header/index region (0x08–0x0A54, treated as opaque here) —

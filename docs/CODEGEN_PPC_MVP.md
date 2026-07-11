@@ -156,6 +156,38 @@ only a literal `33 86 41 74 <varint>` **immediately followed by ADD (`0x02`)**
 whose `k` fits a signed-16-bit `addi` (so `*k` = `0x04`, `-k` = `0x03`, and wide
 `k` are all rejected → `NotImplemented`, never mis-emitted).
 
+**W4b2-i — the framed post-op is anchored past the `55` call-end marker
+(verified grammar fact).** The post-op literal+ADD only qualifies when it is
+emitted *after* the `55 86 41 74` call-end marker. Everything before that marker
+is the call's **argument** region. Captured evidence (`.ex` from the `LO`
+marker; `55 86 41 74` is the call-end):
+```
+g(a)+1  … 55 86 41 74 | 4c 33 86 41 74 01 02 …   literal+ADD AFTER  the marker → framed +1
+g(a+1)  … 33 86 41 74 01 02 | 55 86 41 74 4c 41 … literal+ADD BEFORE the marker → in-arg
+```
+`parse_framed_call` searches for the literal only *after* `55 86 41 74`, so
+`return g(a + 1)` — a tail call whose `+1` is *inside the argument* — is no
+longer mis-accepted as framed `g(a)+1`. It is a legitimate tail call with
+arg-setup codegen (the reference emits `addi r3,r3,1 ; b g`), which this MVP
+does not model (rung W4b2-iv) → `NotImplemented`, never a mis-emitted framed
+obj. Regression fixtures: `mvp_call_argframed.cpp` (`g(a+1)`),
+`mvp_call_submod.cpp` (`g(a)-1`), `mvp_call_mulmod.cpp` (`g(a)*5`),
+`mvp_call_widemod.cpp` (`g(a)+70000`), each asserted `NotImplemented` in
+`differential_out_of_class_call_shapes_not_implemented`.
+
+**The W4a tail-call gate is now terminal-only (Post-W4a note: replaced, not
+extended).** `is_tail_call` previously accepted a CALL (`0xBD`) *anywhere* after
+the `LO` marker, so a framed shape that `parse_framed_call` correctly refused
+(`g(a)-1`, `g(a)*5`, `g(a)+70000`, `g(a+1)`) fell through and was mis-classified
+as a bare `b g`, silently dropping its surrounding computation. The gate now
+accepts **only the terminal void shape** `void f(){ g(); }`: the fixed 10-byte
+CALL token (`BD <3-byte return type> 00 80 01 10 00 00`) followed immediately by
+the void call-end marker `4C 4B` and only return plumbing. Any argument LOAD
+(`B9`) or int call-value marker (`55`) after the token means unmodeled
+surrounding computation → `false` → `NotImplemented`. So the two call gates are
+now honest and disjoint: framed `+k` (via `parse_framed_call`), bare terminal
+`b g` (via `is_tail_call`), everything else refused.
+
 **`.pdata` unwind word — RESOLVED: it encodes function length.** The 8-byte
 RUNTIME_FUNCTION is `BeginAddress(u32=0, reloc-patched)` + a packed unwind word,
 both **big-endian** (like `.text`). Diffing the 0x24-byte `+k` body against the
