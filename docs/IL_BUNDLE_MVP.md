@@ -190,5 +190,49 @@ rejects (all previously loud mis-emits):
 - `.db` line tables (non-`/Ox` debug CV).
 - The `.ex` header/index region (0x08–0x0A54, treated as opaque here) —
   must be modeled before *writing* IL rather than reading it.
-- Round-trip gate: re-encode every captured bundle byte-identical before
-  trusting the codec as truth (roadmap P1.1).
+
+## K1 lossless codec — decoded-vs-opaque coverage map
+
+`c2_il::codec` (`IlModel::parse`/`encode`) is the **round-trip-gated container
+codec**: it decodes the classes above into typed islands and keeps everything
+else as opaque byte spans, with the invariant `encode(parse(b)) == b`
+byte-for-byte or a fail-closed `CodecError::CannotRoundTrip` (`parse` re-encodes
+each file and compares before returning — a decode bug is an error, never a
+silent corruption). Verified byte-identical over the **full 19-fixture spread**
+(`crates/c2-harness/tests/il_roundtrip.rs`, toolchain-gated; captures live
+because the `.gl` embeds the host source path so bundles are not committable) +
+hand-built always-on unit tests (`codec.rs`). Overall ~96.5% of bundle bytes
+are still opaque = the K2 decode backlog.
+
+**Typed (decoded) today:**
+
+- `.ex` operand stream, per function, from the `4C 4F 11` 'LO' marker to the
+  segment end: every token in the table above — LO/SS, `4F 01 NN` stmt markers,
+  `26` result-refs, the 10-byte CALL, LOAD, narrow+wide LITERAL (the `wide` flag
+  is preserved, so a P0.6a length-pad `80 05 00 00 00` re-encodes exactly),
+  ADD/SUB/MUL, int/void call-ends, result-type, ASSIGN, RETURN, function-tail,
+  module-end. Plus the `46 (2D <tok>)*` formal list (anchored immediately before
+  'LO'). Unmodeled body bytes (comparison `24`, shift `09`, ternary `43 42`, …)
+  stay opaque, so out-of-class bodies still round-trip.
+- `.gl` `80 <LE32>` **body-start offset field(s)** — one per function, typed as
+  `Span::GlOffset(u32)` (first-class, the K3 rewrite target). Located robustly by
+  cross-checking the LE32 against the actual set of `.ex` `4F 1F` offsets, so
+  unrelated `80`-prefixed `.gl` data (CALL anchors, wide literals) is not
+  mislabeled. Count matched the function count on every fixture.
+
+**Opaque today (K2 decode backlog), in rough priority order:**
+
+- `.ex` per-function **metadata prefix** (`4F 1F` descriptor · `4F 20` · `4F 33`
+  metadata · `42 45` block-entry · body-marker · `53 53` · `26` result token) —
+  the bytes between each `4F 1F` and its 'LO' marker. Structurally required by K3
+  (it is what the `.gl` offset points *at*).
+- `.ex` **header/index** region `0x00–0x0A54` (magic + zero-fill).
+- the rest of `.gl` (mangled names, source path, `.XBLD$W`/`__C1_*` strings, the
+  per-function record framing around the offset field).
+- `.sy` token→name symbol table, `.in` type-import table (a constant 439 B here),
+  `.db` debug/line data — each a single opaque span.
+
+**K3 inherits:** `GlOffset` is round-tripped unchanged by K1; rewriting it on an
+`.ex` length change (per P0.6a) is K3's job. The codec already exposes the field
+typed and cross-checked, so K3 edits a `u32`, not a byte hunt — but it must also
+model the still-opaque `.ex` per-function metadata prefix the offset addresses.
