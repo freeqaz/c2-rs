@@ -34,7 +34,7 @@ use std::path::Path;
 
 pub mod codec;
 pub mod func;
-pub use codec::{CodecError, ExToken, FileModel, IlModel, Span};
+pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, Span};
 pub use func::{
     detect_token_width, mangled_name, mangled_names, source_path, FramedCall, IlFunction, IlOp,
 };

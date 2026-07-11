@@ -400,6 +400,423 @@ impl IlModel {
     }
 }
 
+// ===========================================================================
+// K3a — the length-consistent IL edit primitive.
+// ===========================================================================
+//
+// K1/K2a made [`IlModel`] a lossless *read* codec. K3a turns it into a verified
+// *edit* substrate: a statement-grain mutation of a target function's `.ex`
+// operand stream that changes its byte length and re-emits the one length-bearing
+// field the change obligates — the per-function `.gl` body-start offset column
+// (`80 <LE32>` = the `.ex` offset of each function's `4F 1F` marker).
+//
+// Proven live in `il-witness` P0.6a: `.ex` is length-plastic — grown/shrunk IL
+// is re-optimized by c2 byte-exact to a native capture of the equivalent source,
+// under ONE obligation: on any `.ex` length change, every function AFTER the edit
+// point has its `.gl` body-start offset bumped by the byte delta (the edited and
+// preceding functions are unchanged; a single-fn / last-fn edit needs no `.gl`
+// patch at all — P0.6a's zero-bookkeeping regime). Skip the re-emit on a non-last
+// edit and c2 seeks a stale offset and SIGSEGVs (P0.6a experiment C).
+//
+// Scope (K3a): statement-grain length edits *within one function's body* —
+//   * varint literal widen/narrow (same value, pure length change; P0.6a A/B),
+//   * operand-stream token insert/delete (an arithmetic term added/removed;
+//     P0.6a E `(a+5)+5`, F `a+b+c`→`a+b`).
+// Whole-function add/remove is OUT of scope: it needs coordinated `.gl` record
+// and `.sy` record framing (K3b), and violating the `.gl`/`.ex` function-set can
+// make c2 *hang* (P0.6a G). Every edit here is **fail-closed**: an edit that would
+// change the function set, or a non-last edit whose `.gl` offset column is not
+// modeled (so the obligation cannot be discharged), refuses with a typed
+// [`EditError`] and leaves the model untouched — it never emits a
+// hang/crash-inducing bundle.
+
+use std::ops::Range;
+
+/// The outcome of one successful length edit.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditReport {
+    /// The edited function's index (0-based, in `.ex` function order).
+    pub fn_index: usize,
+    /// Signed change in the edited function's segment byte length (and in the
+    /// whole `.ex` length): `new_len - old_len`. Downstream `.gl` offsets shift
+    /// by exactly this.
+    pub byte_delta: i64,
+    /// The re-emitted `.gl` body-start offset column after the edit, in function
+    /// order. Empty iff `.gl` carried no typed offsets — legal only for a
+    /// single/last-function edit, which needs no re-emit.
+    pub gl_offsets: Vec<u32>,
+}
+
+/// A fail-closed edit rejection. The model is never mutated when one is returned.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EditError {
+    /// The bundle has no `.ex` file to edit.
+    NoExFile,
+    /// `fn_index` is out of range (`count` functions present).
+    NoSuchFunction { index: usize, count: usize },
+    /// The target function's `.ex` spans are not a clean leading-opaque + typed
+    /// token run (an opaque region sits *between* typed tokens), so the edit
+    /// cannot be token-addressed. Out of K3a scope; refuse rather than guess.
+    OpaqueFunctionBody { fn_index: usize },
+    /// A splice range `[start, end)` is outside the function's token sequence.
+    TokenRange {
+        fn_index: usize,
+        start: usize,
+        end: usize,
+        ntokens: usize,
+    },
+    /// A widen/narrow target token is not an [`ExToken::Lit`].
+    NotALiteral { fn_index: usize, token_index: usize },
+    /// A narrow (`wide → false`) target's value does not fit the 1-byte varint
+    /// form (`0..=0x7F`), so narrowing would change its value.
+    ValueNotNarrowable { value: i32 },
+    /// The edit changed the `.ex` function count (a `4F 1F` marker created or
+    /// destroyed) — whole-function add/remove, which is K3b, not K3a.
+    FunctionSetChanged { before: usize, after: usize },
+    /// The edit moved the edited-or-preceding function's start offset — a
+    /// structural surprise (the edit was supposed to stay within one body); the
+    /// model is left untouched.
+    PrecedingOffsetShifted { fn_index: usize },
+    /// A downstream function's start did not shift by exactly the byte delta — a
+    /// marker moved unexpectedly (e.g. the replacement encoded a stray `4F 1F`).
+    DownstreamOffsetDesync { fn_index: usize },
+    /// A non-last-function length edit, but the `.gl` body-start offset column is
+    /// not modeled (all opaque), so the mandatory re-emit cannot be discharged.
+    /// Editing this function would strand a stale `.gl` offset → SIGSEGV.
+    GlOffsetsNotTyped { fn_index: usize },
+    /// The `.gl` typed offset count disagrees with the `.ex` function count.
+    GlOffsetCountMismatch { gl: usize, ex: usize },
+}
+
+impl std::fmt::Display for EditError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EditError::NoExFile => write!(f, "bundle has no .ex file to edit"),
+            EditError::NoSuchFunction { index, count } => {
+                write!(f, "no such function {index} (.ex has {count})")
+            }
+            EditError::OpaqueFunctionBody { fn_index } => write!(
+                f,
+                "function {fn_index} has opaque bytes between typed tokens — not token-addressable (out of K3a scope)"
+            ),
+            EditError::TokenRange {
+                fn_index,
+                start,
+                end,
+                ntokens,
+            } => write!(
+                f,
+                "splice range {start}..{end} out of function {fn_index}'s {ntokens} tokens"
+            ),
+            EditError::NotALiteral {
+                fn_index,
+                token_index,
+            } => write!(
+                f,
+                "token {token_index} of function {fn_index} is not an int literal"
+            ),
+            EditError::ValueNotNarrowable { value } => write!(
+                f,
+                "value {value} does not fit the 1-byte varint form (0..=127); narrowing would change it"
+            ),
+            EditError::FunctionSetChanged { before, after } => write!(
+                f,
+                "edit changed the .ex function count {before} -> {after} (whole-function add/remove is K3b, not K3a)"
+            ),
+            EditError::PrecedingOffsetShifted { fn_index } => write!(
+                f,
+                "edit moved the edited/preceding start offset for function {fn_index}"
+            ),
+            EditError::DownstreamOffsetDesync { fn_index } => write!(
+                f,
+                "a function after {fn_index} did not shift by the byte delta (stray marker?)"
+            ),
+            EditError::GlOffsetsNotTyped { fn_index } => write!(
+                f,
+                "non-last edit of function {fn_index} but .gl offset column is not modeled — cannot re-emit (would strand a stale offset -> SIGSEGV)"
+            ),
+            EditError::GlOffsetCountMismatch { gl, ex } => {
+                write!(f, ".gl typed offsets ({gl}) != .ex functions ({ex})")
+            }
+        }
+    }
+}
+
+impl std::error::Error for EditError {}
+
+impl IlModel {
+    /// Index of the `.ex` file model, if present.
+    fn ex_file_index(&self) -> Option<usize> {
+        self.files.iter().position(|f| f.suffix == "ex")
+    }
+
+    /// The `.ex` `4F 1F` function-start byte offsets, in file order.
+    fn ex_start_offsets_vec(&self) -> Vec<u32> {
+        self.ex_file_index()
+            .map(|i| {
+                ex_fn_start_offsets(&self.files[i].encode())
+                    .into_iter()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// The typed `.ex` tokens of function `fn_index`, in stream order (the tokens
+    /// a caller addresses when locating a splice / widen point). Errors if the
+    /// function is out of range or is not token-addressable (opaque interior).
+    pub fn function_tokens(&self, fn_index: usize) -> Result<Vec<ExToken>, EditError> {
+        let (_, tokens, _, _) = self.function_parts(fn_index)?;
+        Ok(tokens)
+    }
+
+    /// Decompose function `fn_index`'s `.ex` spans into
+    /// `(span_range, tokens, leading_opaque, trailing_opaque)`:
+    /// * `span_range` — the `[start, end)` span indices of the function,
+    /// * `tokens` — its contiguous run of typed [`ExToken`]s,
+    /// * `leading_opaque` / `trailing_opaque` — the opaque spans before / after
+    ///   that run (a captured function has none before and at most a module-tail
+    ///   after; a hand-built one may have an opaque descriptor prefix).
+    ///
+    /// Fails closed if a function is out of range or has an opaque span *between*
+    /// two typed tokens (not token-addressable).
+    fn function_parts(
+        &self,
+        fn_index: usize,
+    ) -> Result<(Range<usize>, Vec<ExToken>, Vec<Span>, Vec<Span>), EditError> {
+        let exi = self.ex_file_index().ok_or(EditError::NoExFile)?;
+        let spans = &self.files[exi].spans;
+        let ranges = ex_function_span_ranges(spans);
+        let count = ranges.len();
+        let range = ranges
+            .get(fn_index)
+            .cloned()
+            .ok_or(EditError::NoSuchFunction {
+                index: fn_index,
+                count,
+            })?;
+        let fn_spans = &spans[range.clone()];
+        // Split into leading opaque, the typed-token run, trailing opaque.
+        let first_ex = fn_spans.iter().position(|s| matches!(s, Span::Ex(_)));
+        let Some(first_ex) = first_ex else {
+            // No typed tokens at all — nothing to address.
+            return Err(EditError::OpaqueFunctionBody { fn_index });
+        };
+        let last_ex = fn_spans
+            .iter()
+            .rposition(|s| matches!(s, Span::Ex(_)))
+            .unwrap();
+        // The [first_ex, last_ex] window must be *all* typed (no opaque between).
+        let mut tokens = Vec::new();
+        for s in &fn_spans[first_ex..=last_ex] {
+            match s {
+                Span::Ex(t) => tokens.push(t.clone()),
+                _ => return Err(EditError::OpaqueFunctionBody { fn_index }),
+            }
+        }
+        let leading = fn_spans[..first_ex].to_vec();
+        let trailing = fn_spans[last_ex + 1..].to_vec();
+        Ok((range, tokens, leading, trailing))
+    }
+
+    /// **The K3a length-edit primitive.** Replace the tokens `[range]` of function
+    /// `fn_index`'s `.ex` operand stream with `replacement`, recompute the
+    /// function's segment length, and re-emit the `.gl` body-start offset column
+    /// from the new `4F 1F` marker positions (functions ≤ `fn_index` unchanged;
+    /// functions after shift by the byte delta). Insert = empty `range`; delete =
+    /// empty `replacement`; substitute = both non-empty.
+    ///
+    /// Fail-closed: if the edit changes the `.ex` function set, or a downstream
+    /// function's start does not shift by exactly the delta, or a non-last edit
+    /// cannot re-emit its `.gl` offsets, the model is left **untouched** and a
+    /// typed [`EditError`] is returned — never a hang/crash-inducing bundle.
+    pub fn splice_function_tokens(
+        &mut self,
+        fn_index: usize,
+        range: Range<usize>,
+        replacement: Vec<ExToken>,
+    ) -> Result<EditReport, EditError> {
+        let exi = self.ex_file_index().ok_or(EditError::NoExFile)?;
+        let old_offsets = self.ex_start_offsets_vec();
+        let old_count = old_offsets.len();
+        let old_ex_len = self.files[exi].encode().len();
+
+        let (span_range, tokens, leading, trailing) = self.function_parts(fn_index)?;
+        if range.start > range.end || range.end > tokens.len() {
+            return Err(EditError::TokenRange {
+                fn_index,
+                start: range.start,
+                end: range.end,
+                ntokens: tokens.len(),
+            });
+        }
+
+        // Build the edited token sequence for this function.
+        let mut new_tokens: Vec<ExToken> = Vec::with_capacity(
+            tokens.len() - (range.end - range.start) + replacement.len(),
+        );
+        new_tokens.extend_from_slice(&tokens[..range.start]);
+        new_tokens.extend(replacement.iter().cloned());
+        new_tokens.extend_from_slice(&tokens[range.end..]);
+
+        // Reassemble the function's spans: leading opaque, typed run, trailing.
+        let mut new_fn_spans: Vec<Span> = Vec::with_capacity(new_tokens.len() + 2);
+        new_fn_spans.extend(leading.iter().cloned());
+        new_fn_spans.extend(new_tokens.into_iter().map(Span::Ex));
+        new_fn_spans.extend(trailing.iter().cloned());
+
+        // Splice the new function spans into a CANDIDATE `.ex` span list (no
+        // mutation of `self` yet — we validate the candidate first).
+        let mut cand_ex_spans = self.files[exi].spans.clone();
+        cand_ex_spans.splice(span_range.clone(), new_fn_spans);
+
+        // Re-derive the new `.ex` function-start offsets from the candidate bytes.
+        let cand_ex_bytes = encode_spans(&cand_ex_spans);
+        let new_offsets: Vec<u32> = ex_fn_start_offsets(&cand_ex_bytes).into_iter().collect();
+        let delta = cand_ex_bytes.len() as i64 - old_ex_len as i64;
+
+        // Fail-closed structural checks.
+        if new_offsets.len() != old_count {
+            return Err(EditError::FunctionSetChanged {
+                before: old_count,
+                after: new_offsets.len(),
+            });
+        }
+        for j in 0..=fn_index {
+            if new_offsets[j] != old_offsets[j] {
+                return Err(EditError::PrecedingOffsetShifted { fn_index });
+            }
+        }
+        for j in (fn_index + 1)..old_count {
+            if new_offsets[j] as i64 != old_offsets[j] as i64 + delta {
+                return Err(EditError::DownstreamOffsetDesync { fn_index });
+            }
+        }
+
+        // Re-emit the `.gl` offset column (the K3a obligation). Build a candidate
+        // `.gl` span list; commit both files together only if everything holds.
+        let gli = self.files.iter().position(|f| f.suffix == "gl");
+        let has_downstream = fn_index + 1 < old_count;
+        let mut cand_gl: Option<(usize, Vec<Span>)> = None;
+        if let Some(gli) = gli {
+            let typed = self.files[gli]
+                .spans
+                .iter()
+                .filter(|s| matches!(s, Span::GlOffset(_)))
+                .count();
+            if typed > 0 {
+                if typed != old_count {
+                    return Err(EditError::GlOffsetCountMismatch {
+                        gl: typed,
+                        ex: old_count,
+                    });
+                }
+                // Rewrite each typed offset from the new `4F 1F` positions.
+                let mut spans = self.files[gli].spans.clone();
+                let mut k = 0;
+                for s in spans.iter_mut() {
+                    if let Span::GlOffset(v) = s {
+                        *v = new_offsets[k];
+                        k += 1;
+                    }
+                }
+                cand_gl = Some((gli, spans));
+            } else if has_downstream {
+                return Err(EditError::GlOffsetsNotTyped { fn_index });
+            }
+        } else if has_downstream {
+            return Err(EditError::GlOffsetsNotTyped { fn_index });
+        }
+
+        // Commit.
+        self.files[exi].spans = cand_ex_spans;
+        let gl_offsets = if let Some((gli, spans)) = cand_gl {
+            self.files[gli].spans = spans;
+            new_offsets.clone()
+        } else {
+            Vec::new()
+        };
+
+        Ok(EditReport {
+            fn_index,
+            byte_delta: delta,
+            gl_offsets,
+        })
+    }
+
+    /// Widen (`wide = true`) or narrow (`wide = false`) the varint form of the
+    /// int literal at `token_index` of function `fn_index` — same value, pure
+    /// length change (P0.6a A/B). Built on [`IlModel::splice_function_tokens`], so
+    /// it re-emits the `.gl` offset column and is fail-closed identically.
+    pub fn set_literal_wide(
+        &mut self,
+        fn_index: usize,
+        token_index: usize,
+        wide: bool,
+    ) -> Result<EditReport, EditError> {
+        let tokens = self.function_tokens(fn_index)?;
+        let tok = tokens.get(token_index).ok_or(EditError::TokenRange {
+            fn_index,
+            start: token_index,
+            end: token_index + 1,
+            ntokens: tokens.len(),
+        })?;
+        let ExToken::Lit { value, wide: _ } = *tok else {
+            return Err(EditError::NotALiteral {
+                fn_index,
+                token_index,
+            });
+        };
+        if !wide && !(0..=0x7F).contains(&value) {
+            return Err(EditError::ValueNotNarrowable { value });
+        }
+        self.splice_function_tokens(
+            fn_index,
+            token_index..token_index + 1,
+            vec![ExToken::Lit { value, wide }],
+        )
+    }
+}
+
+/// Concatenate a span list to bytes.
+fn encode_spans(spans: &[Span]) -> Vec<u8> {
+    let mut out = Vec::new();
+    for s in spans {
+        s.encode_into(&mut out);
+    }
+    out
+}
+
+/// Partition an `.ex` file's spans into per-function span-index ranges. A
+/// function begins at each span boundary whose cumulative byte offset is a
+/// `4F 1F` marker offset. Function boundaries always align with span boundaries
+/// (`parse_ex` splits every segment at a `4F 1F`), so each range is a clean run
+/// of that function's spans; the leading header/index spans (offset 0 up to the
+/// first `4F 1F`) are excluded.
+fn ex_function_span_ranges(spans: &[Span]) -> Vec<Range<usize>> {
+    // Cumulative byte offset at each span boundary (offs[i] = bytes before span i).
+    let mut offs = Vec::with_capacity(spans.len() + 1);
+    let mut acc = 0usize;
+    offs.push(0usize);
+    for s in spans {
+        let mut tmp = Vec::new();
+        s.encode_into(&mut tmp);
+        acc += tmp.len();
+        offs.push(acc);
+    }
+    let bytes = encode_spans(spans);
+    let starts = ex_fn_start_offsets(&bytes);
+    // The span indices at which a function starts (offset aligns to a boundary).
+    let start_spans: Vec<usize> = (0..spans.len())
+        .filter(|&i| starts.contains(&(offs[i] as u32)))
+        .collect();
+    let mut ranges = Vec::with_capacity(start_spans.len());
+    for (k, &si) in start_spans.iter().enumerate() {
+        let end = start_spans.get(k + 1).copied().unwrap_or(spans.len());
+        ranges.push(si..end);
+    }
+    ranges
+}
+
 fn opaque(b: &[u8]) -> Span {
     Span::Opaque(b.to_vec())
 }
@@ -1200,5 +1617,239 @@ mod tests {
             model.ex_function_count(),
             "typed .gl offsets must be 1:1 with .ex functions"
         );
+    }
+
+    // ---- K3a length-edit primitive -----------------------------------------
+
+    /// A fully-typed single-function `addk`-shaped segment: the real add3
+    /// FnHeader preamble + block-start + SS + result-ref + one formal, then a
+    /// body `LOAD a ; LIT 5 ; ADD` (i.e. `a + 5`) with a NARROW literal, closed
+    /// by the result-type / assign / return / fn-tail / module-end. Parses with
+    /// no opaque residue (like the real capture), so it is token-addressable.
+    fn addk_segment() -> Vec<u8> {
+        let mut seg = add3_fn_header(); // `4F 1F` … up to the block-start
+        seg.extend_from_slice(&[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x01]); // BlockStart(01)
+        seg.push(0x53); // Ss
+        seg.extend_from_slice(&[0x26, 0xE6, 0x09]); // ResultRef
+        seg.extend_from_slice(&[0x46, 0x2D, 0xE3, 0x09]); // Formals + formal a
+        seg.extend_from_slice(&[0x4C, 0x4F, 0x11, 0x53]); // LO SS
+        seg.extend_from_slice(&[0xB9, 0xE3, 0x09, 0x86, 0x41, 0x74]); // LOAD a
+        seg.extend_from_slice(&[0x33, 0x86, 0x41, 0x74, 0x05]); // LIT 5 (narrow, +4 to widen)
+        seg.push(0x02); // ADD
+        seg.extend_from_slice(&[0x41, 0x86, 0x41, 0x74]); // result-type
+        seg.extend_from_slice(&[0x3A, 0xE7, 0x09]); // ASSIGN
+        seg.extend_from_slice(&[0x54, 0x02, 0x29, 0xE7, 0x09]); // RETURN
+        seg.extend_from_slice(&[0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00]); // FnTail
+        seg.extend_from_slice(&[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x4D]); // ModuleEnd
+        seg
+    }
+
+    /// Build a bundle from the given `.ex` function segments (a header pad is
+    /// prepended), optionally with a framed `.gl` offset column that is 1:1 with
+    /// the `.ex` `4F 1F` positions (so K2a types it).
+    fn build_bundle(segments: &[Vec<u8>], with_gl: bool) -> IlBundle {
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 8]); // opaque header pad
+        let mut offs = Vec::new();
+        for seg in segments {
+            offs.push(ex.len() as u32);
+            ex.extend_from_slice(seg);
+        }
+        let mut bundle = IlBundle::new("_CL_edit");
+        bundle.set("ex", ex);
+        if with_gl {
+            let mut gl = b"?fn@@YAHH@Z\x00".to_vec();
+            for off in &offs {
+                gl.extend_from_slice(&[0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00]); // framing
+                gl.push(0x80);
+                gl.extend_from_slice(&off.to_le_bytes());
+            }
+            bundle.set("gl", gl);
+        }
+        bundle
+    }
+
+    /// The token index of the first `Lit` in a function.
+    fn lit_index(model: &IlModel, fn_index: usize) -> usize {
+        model
+            .function_tokens(fn_index)
+            .unwrap()
+            .iter()
+            .position(|t| matches!(t, ExToken::Lit { .. }))
+            .expect("a literal in this function")
+    }
+
+    #[test]
+    fn widen_nonlast_fn_bumps_downstream_gl_by_delta() {
+        let bundle = build_bundle(&[addk_segment(), addk_segment()], true);
+        let mut model = IlModel::parse(&bundle).expect("round-trips");
+        let [f0, f1] = model.gl_body_start_offsets()[..] else {
+            panic!("expected two typed offsets");
+        };
+        let old_ex_len = bundle.get("ex").unwrap().len();
+
+        let idx = lit_index(&model, 0);
+        let report = model.set_literal_wide(0, idx, true).expect("widen fn0");
+
+        // +4 B (1-byte varint -> `80`+LE32), downstream fn shifted by exactly +4.
+        assert_eq!(report.byte_delta, 4);
+        assert_eq!(report.fn_index, 0);
+        assert_eq!(model.gl_body_start_offsets(), vec![f0, f1 + 4]);
+        assert_eq!(report.gl_offsets, vec![f0, f1 + 4]);
+        // The edited/preceding function's own start is unchanged.
+        assert_eq!(model.ex_start_offsets_vec()[0], f0);
+        // Internally consistent: `.ex` grew by the delta and the edited bundle
+        // itself re-parses (the re-emitted `.gl` matches the new `4F 1F` set).
+        assert_eq!(model.files.iter().find(|f| f.suffix == "ex").unwrap().encode().len(),
+                   old_ex_len + 4);
+        let reparsed = IlModel::parse(&model.encode()).expect("edited bundle re-parses");
+        assert_eq!(reparsed.gl_body_start_offsets(), vec![f0, f1 + 4]);
+    }
+
+    #[test]
+    fn widen_last_fn_leaves_gl_unchanged() {
+        // The P0.6a zero-bookkeeping regime: a last-function edit needs no `.gl`
+        // patch — the downstream set is empty, so no offset moves.
+        let bundle = build_bundle(&[addk_segment(), addk_segment()], true);
+        let mut model = IlModel::parse(&bundle).expect("round-trips");
+        let before = model.gl_body_start_offsets();
+
+        let idx = lit_index(&model, 1);
+        let report = model.set_literal_wide(1, idx, true).expect("widen fn1 (last)");
+
+        assert_eq!(report.byte_delta, 4);
+        // No offset changed (fn1's own start is fixed; nothing follows it).
+        assert_eq!(model.gl_body_start_offsets(), before);
+        IlModel::parse(&model.encode()).expect("edited bundle re-parses");
+    }
+
+    #[test]
+    fn insert_arith_term_grows_and_shifts_gl() {
+        // P0.6a E: splice `LIT 5 ; ADD` after the existing add -> `(a+5)+5`, +6 B.
+        let bundle = build_bundle(&[addk_segment(), addk_segment()], true);
+        let mut model = IlModel::parse(&bundle).expect("round-trips");
+        let [f0, f1] = model.gl_body_start_offsets()[..] else {
+            panic!("two offsets");
+        };
+        // Insert right after the body's ADD (which follows the first Lit).
+        let toks = model.function_tokens(0).unwrap();
+        let add_after_lit = toks
+            .iter()
+            .position(|t| matches!(t, ExToken::Add))
+            .expect("an ADD");
+        let report = model
+            .splice_function_tokens(
+                0,
+                add_after_lit + 1..add_after_lit + 1,
+                vec![ExToken::Lit { value: 5, wide: false }, ExToken::Add],
+            )
+            .expect("insert term");
+        assert_eq!(report.byte_delta, 6); // LIT(5B) + ADD(1B)
+        assert_eq!(model.gl_body_start_offsets(), vec![f0, f1 + 6]);
+        IlModel::parse(&model.encode()).expect("re-parses");
+    }
+
+    #[test]
+    fn delete_arith_term_shrinks_and_shifts_gl() {
+        // P0.6a F: drop `LOAD c ; ADD` from `a+b+c` -> `a+b`, -7 B. add3 is the
+        // first of two functions so the change is a non-last edit (`.gl` re-emit).
+        let bundle = build_bundle(&[ADD3_SEGMENT.to_vec(), addk_segment()], true);
+        let mut model = IlModel::parse(&bundle).expect("round-trips");
+        let [f0, f1] = model.gl_body_start_offsets()[..] else {
+            panic!("two offsets");
+        };
+        // Find the LAST `Load` in add3's body (that is `c`) and the ADD after it.
+        let toks = model.function_tokens(0).unwrap();
+        let last_load = toks
+            .iter()
+            .rposition(|t| matches!(t, ExToken::Load(_)))
+            .expect("a load");
+        assert!(matches!(toks[last_load + 1], ExToken::Add), "LOAD c then ADD");
+        let report = model
+            .splice_function_tokens(0, last_load..last_load + 2, vec![])
+            .expect("delete term");
+        assert_eq!(report.byte_delta, -7); // LOAD(6B) + ADD(1B)
+        assert_eq!(model.gl_body_start_offsets(), vec![f0, (f1 as i64 - 7) as u32]);
+        IlModel::parse(&model.encode()).expect("re-parses");
+    }
+
+    #[test]
+    fn edit_that_creates_a_function_is_refused() {
+        // Splicing a token whose bytes carry a fresh `4F 1F` would add a function
+        // — out of K3a scope; refuse fail-closed and leave the model untouched.
+        let bundle = build_bundle(&[addk_segment(), addk_segment()], true);
+        let mut model = IlModel::parse(&bundle).expect("round-trips");
+        let before_gl = model.gl_body_start_offsets();
+        let toks = model.function_tokens(0).unwrap();
+        let add = toks.iter().position(|t| matches!(t, ExToken::Add)).unwrap();
+        let err = model
+            .splice_function_tokens(
+                0,
+                add + 1..add + 1,
+                vec![ExToken::FnHeader(vec![0x4F, 0x1F, 0x00])], // stray marker
+            )
+            .expect_err("must refuse");
+        assert!(matches!(err, EditError::FunctionSetChanged { before: 2, after: 3 }));
+        // Untouched.
+        assert_eq!(model.gl_body_start_offsets(), before_gl);
+        assert_eq!(model.encode().files, bundle.files);
+    }
+
+    #[test]
+    fn nonlast_edit_without_typed_gl_is_refused_but_last_is_allowed() {
+        // No `.gl` at all: a non-last edit cannot discharge the offset re-emit, so
+        // it is refused (a stale downstream offset would SIGSEGV). A LAST-function
+        // edit needs no re-emit, so it is allowed even with no `.gl`.
+        let bundle = build_bundle(&[addk_segment(), addk_segment()], false);
+        let mut model = IlModel::parse(&bundle).expect("round-trips");
+        let idx0 = lit_index(&model, 0);
+        let err = model.set_literal_wide(0, idx0, true).expect_err("refuse non-last");
+        assert!(matches!(err, EditError::GlOffsetsNotTyped { fn_index: 0 }));
+        assert_eq!(model.encode().files, bundle.files); // untouched
+
+        let idx1 = lit_index(&model, 1);
+        let report = model.set_literal_wide(1, idx1, true).expect("last-fn ok");
+        assert_eq!(report.byte_delta, 4);
+        assert!(report.gl_offsets.is_empty()); // nothing to re-emit
+    }
+
+    #[test]
+    fn narrow_of_a_wide_literal_shrinks_by_four() {
+        // First widen fn1 (last), then narrow it back — the P0.6a A/B pair.
+        let bundle = build_bundle(&[addk_segment(), addk_segment()], true);
+        let mut model = IlModel::parse(&bundle).expect("round-trips");
+        let idx = lit_index(&model, 1);
+        model.set_literal_wide(1, idx, true).expect("widen");
+        let report = model.set_literal_wide(1, idx, false).expect("narrow back");
+        assert_eq!(report.byte_delta, -4);
+        // Back to the exact original bytes.
+        assert_eq!(model.encode().files, bundle.files);
+    }
+
+    #[test]
+    fn edit_errors_are_typed_and_nonmutating() {
+        let bundle = build_bundle(&[addk_segment()], true);
+        let mut model = IlModel::parse(&bundle).expect("round-trips");
+        // Out-of-range function.
+        assert!(matches!(
+            model.function_tokens(9),
+            Err(EditError::NoSuchFunction { index: 9, count: 1 })
+        ));
+        // Widen a non-literal token (the leading FnHeader at index 0).
+        assert!(matches!(
+            model.set_literal_wide(0, 0, true),
+            Err(EditError::NotALiteral { fn_index: 0, token_index: 0 })
+        ));
+        // Narrow a value that does not fit the 1-byte form.
+        let idx = lit_index(&model, 0);
+        model.set_literal_wide(0, idx, true).expect("widen");
+        // Rewrite the value wide-only to 0x1000 via a splice, then try to narrow.
+        model
+            .splice_function_tokens(0, idx..idx + 1, vec![ExToken::Lit { value: 0x1000, wide: true }])
+            .expect("set wide value");
+        assert!(matches!(
+            model.set_literal_wide(0, idx, false),
+            Err(EditError::ValueNotNarrowable { value: 0x1000 })
+        ));
     }
 }
