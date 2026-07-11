@@ -216,6 +216,38 @@ fn differential_mvp_call_tailcall_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
+/// W4b2: framed non-leaf call. `mvp_framed.cpp` is `int f(int a){ return g(a)
+/// + 1; }` — the call result is used, so `f` gets a 96-byte frame, a `.pdata`
+/// unwind section (6 sections, 20 symbols), an ADDR32 relocation, and the
+/// compiler label symbols $M2545/$M2546/$T2547. Byte-exact here proves the
+/// framed prologue/epilogue, the `bl` REL24, the packed unwind word, the
+/// interleaved raw+reloc file layout, and the extended symbol table.
+#[test]
+fn differential_mvp_framed_call_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("mvpframed");
+    let port = PortC2::default();
+    let report = differential(&fixture("mvp_framed.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => {
+            assert_eq!(
+                port,
+                PortStatus::Match,
+                "expected the port to be byte-exact on mvp_framed, got {port:?}"
+            );
+        }
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
+
 /// W3: literals / immediates. `mvp_lit.cpp` is a 3-function TU: `a+5` (addi),
 /// `a-5` (addi with negated imm), and `return 42` (li = addi rD,r0,k). Proves
 /// the operand-stack Reg/Imm model and the constant-folding into `addi`.
