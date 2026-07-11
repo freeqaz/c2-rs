@@ -23,6 +23,11 @@ normalized).
 - `IL_BUNDLE_MVP.md` — the c1xx→c2 IL bundle (`_CL_*` ×5): capture recipe,
   token-width detection, `.gl`/`.sy`/`.ex` parse for the MVP class, and
   which bundle fields the emitter actually consumes.
+- `EDIT_MODEL_MVP.md` — the K3a length-consistent `.ex` edit primitive: the
+  `IlModel` mutation API (literal widen/narrow, term insert/delete), the `.gl`
+  body-start offset re-emit it discharges, the fail-closed boundary
+  (whole-function add/remove is K3b), and the differential edit gate that
+  verifies each P0.6a experiment byte-exact as an *edit*.
 - `CORPUS_MVP.md` — the P1.2 `(source, IL, obj)` triple corpus: the generator
   (`c2rs corpus`), the manifest schema, deterministic source generation, and
   the committability handling (generated corpus gitignored; synthetic sample

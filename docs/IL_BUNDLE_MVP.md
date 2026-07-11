@@ -259,3 +259,9 @@ formals → LO body), so the body EXTENT is `4F 1F`-marker-to-next-`4F 1F` with 
 fixed-size header carved out — a length edit touches only the operand stream and
 the `.gl` offset, never the (constant) header. The FnHeader interior stays opaque
 but is length-invariant, so it does not block a length rewrite.
+
+**K3a is now implemented** — the length-consistent edit primitive (literal
+widen/narrow, term insert/delete) that rewrites the `.gl` offset column on an
+`.ex` length change, gated byte-exact against the live oracle. Scope, API, the
+fail-closed boundary (whole-function add/remove is K3b), and the differential
+edit gate are documented in `EDIT_MODEL_MVP.md`.
