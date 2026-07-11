@@ -9,13 +9,15 @@
 //!   replay <cpp>        P0.1: capture + standalone-c2 replay, print byte-match
 //!   diff <cpp>          full differential (ReferenceReplay=ByteExact, Port=NotImplemented)
 //!   bench               selftest across all fixtures/cpp/*.cpp, summary counts
+//!   corpus <sub>        P1.2 corpus generator (gen / sample / stats)
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use c2_core::PortC2;
+use c2_harness::corpus::{self, CorpusConfig};
 use c2_harness::{
     all_fixtures, differential, oracle_selftest, DiffReport, PortStatus, SelfTestOutcome,
     SelfTestReport,
@@ -49,6 +51,7 @@ fn main() -> ExitCode {
         "replay" => cmd_replay(rest),
         "diff" => cmd_diff(rest),
         "bench" => cmd_bench(),
+        "corpus" => cmd_corpus(rest),
         "help" | "-h" | "--help" => {
             print_usage();
             ExitCode::SUCCESS
@@ -72,6 +75,11 @@ fn print_usage() {
          \x20 c2rs replay <cpp>         P0.1: capture + standalone-c2 replay, byte-match verdict\n\
          \x20 c2rs diff <cpp>           full differential (ReferenceReplay=ByteExact, Port=NotImplemented)\n\
          \x20 c2rs bench                selftest across all fixtures/cpp/*.cpp\n\
+         \x20 c2rs corpus gen [opts]    P1.2: generate a (source,IL,obj) triple corpus\n\
+         \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
+         \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
+         \n\
+         corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          \n\
          Toolchain is located via C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL / C2RS_WIBO_DEBUG\n\
          / C2RS_DC3_ROOT (relative-to-repo defaults). Absent toolchain -> clean SKIP."
@@ -343,5 +351,129 @@ fn cmd_bench() -> ExitCode {
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE
+    }
+}
+
+fn cmd_corpus(rest: &[String]) -> ExitCode {
+    let sub = rest.first().map(String::as_str).unwrap_or("");
+    let rest = &rest[rest.len().min(1)..];
+    match sub {
+        "gen" => cmd_corpus_gen(rest),
+        "sample" => cmd_corpus_sample(rest),
+        "stats" => cmd_corpus_stats(rest),
+        _ => {
+            eprintln!("usage: c2rs corpus <gen|sample|stats> [opts]");
+            ExitCode::from(2)
+        }
+    }
+}
+
+/// Parse `--key value` pairs (and a leading positional) from `rest`.
+fn opt<'a>(rest: &'a [String], key: &str) -> Option<&'a str> {
+    rest.iter()
+        .position(|a| a == key)
+        .and_then(|i| rest.get(i + 1))
+        .map(String::as_str)
+}
+
+fn cmd_corpus_gen(rest: &[String]) -> ExitCode {
+    let mut cfg = CorpusConfig::default();
+    if let Some(v) = opt(rest, "--seed") {
+        cfg.seed = v.parse().unwrap_or(cfg.seed);
+    }
+    if let Some(v) = opt(rest, "--count") {
+        cfg.count = v.parse().unwrap_or(cfg.count);
+    }
+    if let Some(v) = opt(rest, "--timeout") {
+        if let Ok(s) = v.parse::<u64>() {
+            cfg.timeout = Duration::from_secs(s);
+        }
+    }
+    let out = opt(rest, "--out")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("corpus"));
+
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() {
+        println!("SKIP: strace absent (needed to keep the IL bundle)");
+        return ExitCode::SUCCESS;
+    }
+    println!(
+        "corpus gen: seed={} count={} timeout={}s -> {}",
+        cfg.seed,
+        cfg.count,
+        cfg.timeout.as_secs(),
+        out.display()
+    );
+    match corpus::generate(&out, &tc, &cfg) {
+        Ok(s) => {
+            println!(
+                "  {} ok, {} codec_fail, {} timeout, {} error ({} distinct sources, {} rows)",
+                s.ok,
+                s.codec_fail,
+                s.timeout,
+                s.error,
+                s.distinct_sources,
+                s.total()
+            );
+            if s.ok == 0 {
+                ExitCode::FAILURE
+            } else {
+                ExitCode::SUCCESS
+            }
+        }
+        Err(e) => {
+            eprintln!("corpus gen failed: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn cmd_corpus_sample(rest: &[String]) -> ExitCode {
+    let out = rest
+        .first()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("crates/c2-harness/tests/corpus_sample"));
+    match corpus::write_synthetic_sample(&out) {
+        Ok(s) => {
+            println!("wrote synthetic sample: {} triples -> {}", s.ok, out.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("corpus sample failed: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn cmd_corpus_stats(rest: &[String]) -> ExitCode {
+    let Some(dir) = rest.first().map(PathBuf::from) else {
+        eprintln!("usage: c2rs corpus stats <dir>");
+        return ExitCode::from(2);
+    };
+    match corpus::load_manifest(&dir) {
+        Ok(rows) => {
+            let ok = rows.iter().filter(|r| r.status == "ok").count();
+            let rt = rows
+                .iter()
+                .filter(|r| r.codec_roundtrip == Some(true))
+                .count();
+            let toks: usize = rows.iter().filter_map(|r| r.ex_token_count).sum::<i64>() as usize;
+            println!(
+                "{}: {} rows, {} ok, {} codec round-trip, {} total .ex tokens",
+                dir.display(),
+                rows.len(),
+                ok,
+                rt,
+                toks
+            );
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("could not read manifest: {e}");
+            ExitCode::FAILURE
+        }
     }
 }
