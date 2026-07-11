@@ -42,9 +42,9 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use c2_core::{Backend, BackendError, IlBundle, ObjImage};
 
@@ -444,6 +444,84 @@ impl Toolchain {
         bundle_dir: &Path,
         out_obj: &Path,
     ) -> io::Result<ObjImage> {
+        let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
+        let output = cmd.output()?;
+
+        if !out_abs.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "replay produced no obj at {}\n  status: {}\n  stdout:\n{}\n  stderr:\n{}",
+                    out_abs.display(),
+                    output.status,
+                    indent(&String::from_utf8_lossy(&output.stdout)),
+                    indent(&String::from_utf8_lossy(&output.stderr)),
+                ),
+            ));
+        }
+        Ok(ObjImage::new(std::fs::read(&out_abs)?))
+    }
+
+    /// **Timeout-bounded replay.** Same as [`Toolchain::replay`], but kills the
+    /// c2 process and returns [`io::ErrorKind::TimedOut`] if it does not finish
+    /// within `timeout`. Required for K3-edit replays: P0.6a proved a malformed
+    /// `.gl`/`.ex` function-set can make c2 **hang** rather than crash — a bounded
+    /// replay turns that hang into a clean, reportable failure. A SIGSEGV / abort
+    /// (e.g. a stale `.gl` offset) leaves no obj and returns an `Other` error.
+    pub fn replay_within(
+        &self,
+        captured: &CapturedReference,
+        bundle_dir: &Path,
+        out_obj: &Path,
+        timeout: Duration,
+    ) -> io::Result<ObjImage> {
+        let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
+        cmd.stdout(Stdio::null()).stderr(Stdio::null());
+        let mut child = cmd.spawn()?;
+        let start = Instant::now();
+        loop {
+            match child.try_wait()? {
+                Some(_status) => break,
+                None => {
+                    if start.elapsed() >= timeout {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            format!(
+                                "standalone-c2 replay exceeded {timeout:?} (likely a \
+                                 .gl/.ex function-set mismatch hang — P0.6a G)"
+                            ),
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+            }
+        }
+        if !out_abs.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "replay produced no obj at {} (c2 crashed/aborted — e.g. a stale \
+                     .gl offset SIGSEGV, P0.6a C)",
+                    out_abs.display()
+                ),
+            ));
+        }
+        Ok(ObjImage::new(std::fs::read(&out_abs)?))
+    }
+
+    /// Build the `wibo c2host c2.dll c2.dll <argv…>` [`Command`] for a replay,
+    /// writing `captured.bundle` to `bundle_dir` and reconstructing the captured
+    /// c2 argv with only `-il` / `-Fo` swapped. Shared by [`Toolchain::replay`]
+    /// and [`Toolchain::replay_within`]. Returns the command and the absolute
+    /// output-obj path (already removed if it existed).
+    fn build_replay_command(
+        &self,
+        captured: &CapturedReference,
+        bundle_dir: &Path,
+        out_obj: &Path,
+    ) -> io::Result<(Command, PathBuf)> {
         let c2host = self.ensure_c2host()?;
 
         std::fs::create_dir_all(bundle_dir)?;
@@ -488,24 +566,8 @@ impl Toolchain {
         for a in &argv {
             cmd.arg(a);
         }
-        let output = cmd
-            .env("WIBO_FS_CACHE", "1")
-            .current_dir(&bundle_dir_abs)
-            .output()?;
-
-        if !out_abs.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "replay produced no obj at {}\n  status: {}\n  stdout:\n{}\n  stderr:\n{}",
-                    out_abs.display(),
-                    output.status,
-                    indent(&String::from_utf8_lossy(&output.stdout)),
-                    indent(&String::from_utf8_lossy(&output.stderr)),
-                ),
-            ));
-        }
-        Ok(ObjImage::new(std::fs::read(&out_abs)?))
+        cmd.env("WIBO_FS_CACHE", "1").current_dir(&bundle_dir_abs);
+        Ok((cmd, out_abs))
     }
 }
 
