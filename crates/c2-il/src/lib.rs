@@ -26,7 +26,7 @@ use std::path::Path;
 
 pub mod func;
 pub use func::{
-    detect_token_width, mangled_name, mangled_names, source_path, IlFunction, IlOp,
+    detect_token_width, mangled_name, mangled_names, source_path, FramedCall, IlFunction, IlOp,
 };
 
 /// The five IL suffixes (no leading dot), in canonical order. `.ex` first

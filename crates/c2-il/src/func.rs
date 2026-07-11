@@ -37,6 +37,20 @@ pub enum IlOp {
     Mul,
 }
 
+/// A **framed non-leaf call** of the verified `return g(a) + k` class (W4b2):
+/// the call result is consumed (so `f` allocates a stack frame and is non-leaf),
+/// then a small integer literal `k` is added and returned. Codegen emits the
+/// constant 0x24-byte frame (prologue, `bl <callee>`, `addi r3,r3,k`, epilogue)
+/// plus the `.pdata` unwind record — see `c2_core::codegen`/`coff`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FramedCall {
+    /// The single external callee's mangled name (from `.gl`), e.g. `?g@@YAHH@Z`.
+    pub callee: String,
+    /// The post-call `+ k` literal (`k` fits a signed 16-bit `addi` immediate;
+    /// commutative, so no non-commutative opt-in gate is needed).
+    pub add_k: i32,
+}
+
 /// A parsed MVP function: enough to drive the codegen + COFF emitter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IlFunction {
@@ -46,12 +60,16 @@ pub struct IlFunction {
     pub source_path: Option<String>,
     /// Formal-parameter IL tokens, in declaration order (a, b, c → r3, r4, r5).
     pub params: Vec<u16>,
-    /// Straight-line body op stream (loads + adds). Empty for a tail call.
+    /// Straight-line body op stream (loads + adds). Empty for a tail/framed call.
     pub ops: Vec<IlOp>,
     /// If this function is a **tail call** to a single external, its mangled
     /// name (the callee). Codegen then emits a `b <callee>` with a REL24
     /// relocation instead of an arithmetic body. W4a: single external only.
     pub tail_call: Option<String>,
+    /// If this function is a **framed non-leaf call** (`return g(a) + k`), the
+    /// callee + post-op literal. Distinct from `tail_call` (which is a bare
+    /// `b g`). W4b2: single-function TU, single external only.
+    pub framed_call: Option<FramedCall>,
 }
 
 /// The int type encoding inline in the `.ex` body (`86 41 74`), per `IL_FORMAT`.
@@ -311,6 +329,70 @@ fn is_tail_call(seg: &[u8]) -> bool {
     }
 }
 
+/// Detect the **framed non-leaf `return g(...) + k`** shape (W4b2) in a single
+/// function segment and, if it matches, return `k`.
+///
+/// The `.ex` body for `int f(int a){ return g(a) + 1; }` (after the `LO`
+/// marker) is: a `26 <tok>` result-temp, a CALL (`0xBD`) with its int return
+/// type + descriptor and loaded argument(s), a `55` call-end marker, then the
+/// post-op — a single integer literal `33 86 41 74 <varint>` **immediately
+/// followed by an ADD** (`0x02`), then the return.
+///
+/// Honest, narrow acceptance (anything else → `None` → the caller reports
+/// `NotImplemented`, never mis-emit):
+///   * there must be a CALL after `LO`;
+///   * there must be exactly one int literal `33 86 41 74 <varint>` after the
+///     CALL (two literals / none → reject);
+///   * the opcode **immediately after** that literal must be `0x02` (ADD). This
+///     is the commutativity gate: `* k` (`0x04`) and `- k` (`0x03`) fall here
+///     and are rejected — they strength-reduce / are non-commutative and change
+///     the verified 0x24-byte frame (`a*5` is a 0x28-byte body);
+///   * `k` must fit the signed 16-bit `addi` immediate (a wide `k` would need
+///     an extra `addis`, again off the 0x24 frame).
+fn parse_framed_call(seg: &[u8]) -> Option<i32> {
+    let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11])?;
+    let after = &seg[lo..];
+    // Must contain a CALL; work in the post-CALL region so we don't misread a
+    // literal that is part of the call descriptor / argument list.
+    let call = after.iter().position(|&b| b == CALL_OP)?;
+    let post = &after[call..];
+
+    // The int-literal marker `33 86 41 74` is specific enough to anchor on.
+    let litpat = [0x33, INT_TYPE[0], INT_TYPE[1], INT_TYPE[2]];
+    let lit = find_subslice(post, &litpat)?;
+    // Exactly one literal — reject `g(a) + 1 + 2`-style multi-literal shapes.
+    if find_subslice(&post[lit + litpat.len()..], &litpat).is_some() {
+        return None;
+    }
+    let mut p = lit + litpat.len();
+    let marker = *post.get(p)?;
+    let k: i32 = if marker < 0x80 {
+        p += 1;
+        marker as i32
+    } else if marker == 0x80 {
+        let v = i32::from_le_bytes([
+            *post.get(p + 1)?,
+            *post.get(p + 2)?,
+            *post.get(p + 3)?,
+            *post.get(p + 4)?,
+        ]);
+        p += 5;
+        v
+    } else {
+        return None; // unknown literal-width marker
+    };
+    // Commutativity + frame-shape gate: the op consuming the call result and the
+    // literal must be ADD. (`*`/`-` → different instruction / non-commutative.)
+    if *post.get(p)? != 0x02 {
+        return None;
+    }
+    // `k` must fit a single signed-16-bit `addi` immediate (the 0x24 frame).
+    if !(-0x8000..=0x7FFF).contains(&k) {
+        return None;
+    }
+    Some(k)
+}
+
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
 /// sequence of function bodies, each introduced by this marker; the header /
 /// index region before the first one is opaque zero-fill for this class.
@@ -362,19 +444,41 @@ impl IlBundle {
         let n_defined = segs.len();
         let externals = &names[n_defined..];
 
-        // W4a: calls (externals present) are handled only for the single
-        // function / single external **tail-call** case. Anything more (which
-        // function calls which external, multiple calls) needs the `.ex` call
-        // index decode — a later rung.
+        // Calls (externals present) are handled only for a **single-function
+        // TU with a single external** — two shapes:
+        //   * W4b2 framed non-leaf `return g(a) + k` (checked first: it also
+        //     contains a CALL, so it must win over the tail-call test); and
+        //   * W4a bare tail call `void f(){ g(); }` → single `b g`.
+        // Scope is single-function only: the `.pdata` label counters
+        // ($M2545/$M2546/$T2547) are a fixed toolchain seed for the first
+        // function but shift when preceding functions consume slots (W-UNW-1
+        // probe, docs/CODEGEN_PPC_MVP.md), so a multi-function TU that contains
+        // a framed call is rejected here rather than mis-numbered.
         if !externals.is_empty() {
-            if n_defined == 1 && externals.len() == 1 && is_tail_call(segs[0]) {
-                return Some(vec![IlFunction {
-                    mangled_name: names[0].clone(),
-                    source_path: src,
-                    params: Vec::new(),
-                    ops: Vec::new(),
-                    tail_call: Some(externals[0].clone()),
-                }]);
+            if n_defined == 1 && externals.len() == 1 {
+                if let Some(add_k) = parse_framed_call(segs[0]) {
+                    return Some(vec![IlFunction {
+                        mangled_name: names[0].clone(),
+                        source_path: src,
+                        params: Vec::new(),
+                        ops: Vec::new(),
+                        tail_call: None,
+                        framed_call: Some(FramedCall {
+                            callee: externals[0].clone(),
+                            add_k,
+                        }),
+                    }]);
+                }
+                if is_tail_call(segs[0]) {
+                    return Some(vec![IlFunction {
+                        mangled_name: names[0].clone(),
+                        source_path: src,
+                        params: Vec::new(),
+                        ops: Vec::new(),
+                        tail_call: Some(externals[0].clone()),
+                        framed_call: None,
+                    }]);
+                }
             }
             return None;
         }
@@ -389,6 +493,7 @@ impl IlBundle {
                 params,
                 ops,
                 tail_call: None,
+                framed_call: None,
             });
         }
         Some(funcs)
@@ -491,6 +596,66 @@ mod tests {
         let (params, ops) = parse_body(seg, 2).unwrap();
         assert_eq!(params, vec![0xE309, 0xE409]); // a, b
         assert_eq!(ops, vec![IlOp::Load(0xE309), IlOp::Load(0xE409), IlOp::Add]);
+    }
+
+    #[test]
+    fn parse_framed_call_extracts_k_from_real_body() {
+        // The real `.ex` body tail of `int f(int a){ return g(a) + 1; }`, from
+        // the `LO` marker: CALL (0xBD), loaded arg, call-end (0x55), then the
+        // post-op literal `33 86 41 74 01` immediately followed by ADD (0x02).
+        let body: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, // LO S
+            0x26, 0xE4, 0x09, // result temp
+            0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // CALL int
+            0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // LOAD a (arg)
+            0x55, 0x86, 0x41, 0x74, // call-end marker
+            0x4C, 0x33, 0x86, 0x41, 0x74, 0x01, // LIT 1
+            0x02, // ADD
+            0x41, 0x86, 0x41, 0x74, // result type int
+            0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, // ASSIGN + RETURN
+        ];
+        assert_eq!(parse_framed_call(body), Some(1));
+    }
+
+    #[test]
+    fn parse_framed_call_rejects_bare_tail_call() {
+        // `void f(){ g(); }`: a CALL but NO post-op literal → not a framed call
+        // (must stay on the tail-call path, single `b g`). Real tc body tail.
+        let body: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, // LO S
+            0x26, 0xE3, 0x09, // result temp
+            0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // CALL void
+            0x4C, 0x4B, // markers
+            0x3A, 0xE5, 0x09, 0x54, 0x02, 0x29, 0xE5, 0x09, // ASSIGN + RETURN
+        ];
+        assert_eq!(parse_framed_call(body), None);
+    }
+
+    #[test]
+    fn parse_framed_call_rejects_nonadd_postop() {
+        // `return g(a) * 5;`: literal followed by MUL (0x04), not ADD — the op
+        // strength-reduces to a 0x28-byte body, off the verified frame class.
+        let body: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01,
+            0x10, 0x00, 0x00, 0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, //
+            0x4C, 0x33, 0x86, 0x41, 0x74, 0x05, // LIT 5
+            0x04, // MUL — reject
+            0x41, 0x86, 0x41, 0x74,
+        ];
+        assert_eq!(parse_framed_call(body), None);
+    }
+
+    #[test]
+    fn parse_framed_call_rejects_wide_k() {
+        // A wide literal (0x80 + 4-byte LE = 70000) does not fit the `addi`
+        // immediate → an extra `addis` off the 0x24 frame → reject.
+        let body: &[u8] = &[
+            0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01,
+            0x10, 0x00, 0x00, 0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, //
+            0x4C, 0x33, 0x86, 0x41, 0x74, 0x80, 0x70, 0x11, 0x01, 0x00, // LIT 70000 (wide)
+            0x02, // ADD
+        ];
+        assert_eq!(parse_framed_call(body), None);
     }
 
     #[test]
