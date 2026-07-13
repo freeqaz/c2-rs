@@ -219,13 +219,59 @@ pub fn int_tail_call_text(
     Ok((text, branch_off))
 }
 
-/// An operand on the selection stack: a physical register or an integer
-/// literal not yet materialized (folded into an immediate instruction where
-/// c2 does the same, e.g. `a + 5` → `addi`).
+/// The base of an affine selection-stack value: either a concrete physical
+/// register (a loaded parameter) or `Prev` — the running result of the most
+/// recent emitted reg-reg instruction. `Prev` resolves to the scratch register
+/// r11: any reg-reg result that is *read again* is by construction not the final
+/// instruction (the final one lands in r3), so every consumed intermediate lives
+/// in r11 (the single-scratch serial-chain invariant).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Base {
+    Phys(u8),
+    Prev,
+}
+
+/// An operand on the selection stack. c2 constant-folds a chain of immediate
+/// additions/subtractions (`a + 5 + 5` → `a + 10`, one `addi`), so a value is
+/// modeled **affinely** as an optional base register plus a pending immediate
+/// offset — the offset accumulates for free and is materialized as a single
+/// `addi` (or `addis`+`addi`) only when the value is finalized.
 #[derive(Clone, Copy, Debug)]
 enum Operand {
-    Reg(u8),
+    /// A pure integer literal (no register component), not yet materialized.
     Imm(i32),
+    /// `base + off`: a register value plus a folded constant offset (`off == 0`
+    /// is a bare register). The offset materializes lazily; a reg-reg op
+    /// requires `off == 0` (a pending offset there is out of the serial-chain
+    /// class → fail closed).
+    RegOff { base: Base, off: i32 },
+}
+
+/// One planned emission, in evaluation order. The **destination** register is
+/// resolved by position at emit time — the last plan entry targets the return
+/// register r3, every earlier one the scratch r11 — so folding that removes an
+/// emission automatically re-targets the survivor (e.g. the single folded
+/// `addi r3,r3,10` for `a + 5 + 5`) without a separate counter.
+#[derive(Clone, Copy, Debug)]
+enum PlanOp {
+    /// A commutative/register binary op with both source registers resolved
+    /// (`Base::Prev` → r11); `Sub` keeps its load-bearing operand order.
+    Bin { op: IlOp, lhs: u8, rhs: u8 },
+    /// Materialize a pending offset: `dest = src + k` (`addi`, or `addis`+`addi`
+    /// when wide). The final flush of an affine `reg + off` value.
+    AddImm { src: u8, k: i32 },
+    /// Materialize a bare constant return: `dest = k` (`li`, or `lis`+`ori`).
+    LoadImm { k: i32 },
+}
+
+impl Base {
+    /// Resolve to the physical register a *read* of this base uses.
+    fn read_reg(self) -> u8 {
+        match self {
+            Base::Phys(r) => r,
+            Base::Prev => SCRATCH_REG,
+        }
+    }
 }
 
 /// True iff `k` fits PPC's 16-bit signed immediate field (`addi`/`subf` imm).
@@ -282,15 +328,8 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
             .map(|i| ARG_REGS[i])
     };
 
-    let n_binops = func
-        .ops
-        .iter()
-        .filter(|op| matches!(op, IlOp::Add | IlOp::Sub | IlOp::Mul))
-        .count();
-
     let mut stack: Vec<Operand> = Vec::new();
-    let mut text: Vec<u8> = Vec::new();
-    let mut binop_idx = 0usize;
+    let mut plan: Vec<PlanOp> = Vec::new();
 
     for op in &func.ops {
         match op {
@@ -299,16 +338,14 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
                     pass: "codegen".into(),
                     msg: format!("LOAD of unknown token 0x{tok:04X} (not a parameter)"),
                 })?;
-                stack.push(Operand::Reg(reg));
+                stack.push(Operand::RegOff { base: Base::Phys(reg), off: 0 });
             }
             IlOp::Lit(k) => stack.push(Operand::Imm(*k)),
             IlOp::Add | IlOp::Sub | IlOp::Mul => {
                 // Binary op: pop rhs then lhs.
                 let rhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (rhs)"))?;
                 let lhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (lhs)"))?;
-                binop_idx += 1;
-                let dest = if binop_idx == n_binops { RET_REG } else { SCRATCH_REG };
-                let result = emit_binop(*op, dest, lhs, rhs, &mut text)?;
+                let result = combine(*op, lhs, rhs, &mut plan)?;
                 stack.push(result);
             }
         }
@@ -326,20 +363,32 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
         }
     }
 
-    // Materialize the single remaining operand into the return register r3.
+    // Finalize the single remaining value into the return register r3. A pending
+    // offset (or a bare literal) becomes the last plan entry, so it materializes
+    // into r3 (see [`PlanOp`] dest resolution).
     match stack.as_slice() {
-        [Operand::Reg(RET_REG)] => {} // chain already ended in r3
-        [Operand::Reg(other)] => {
-            // A bare `return param` where the value is not already in r3 (e.g.
-            // `return b;`) needs a register move — not yet modeled.
-            return Err(out_of_class(&format!(
-                "result is in r{other}, not the return register r3 (bare \
-                 non-first-param return not yet handled)"
-            )));
+        [Operand::RegOff { base, off }] => {
+            if *off != 0 {
+                plan.push(PlanOp::AddImm { src: base.read_reg(), k: *off });
+            } else {
+                match base {
+                    // Chain already ended in r3 (the last reg-reg op targets it),
+                    // or a bare `return a` where the parameter is already in r3.
+                    Base::Prev | Base::Phys(RET_REG) => {}
+                    // A bare `return param` whose value is not in r3 (e.g.
+                    // `return b;`) needs a register move — not yet modeled.
+                    Base::Phys(other) => {
+                        return Err(out_of_class(&format!(
+                            "result is in r{other}, not the return register r3 \
+                             (bare non-first-param return not yet handled)"
+                        )));
+                    }
+                }
+            }
         }
         [Operand::Imm(k)] => {
             // Bare constant return, e.g. `return 42;` → `li r3,k`; wide → lis+ori.
-            emit_load_imm(&mut text, RET_REG, *k)?;
+            plan.push(PlanOp::LoadImm { k: *k });
         }
         _ => {
             return Err(out_of_class(
@@ -348,52 +397,102 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
         }
     }
 
+    // Emit the plan: the **last** entry targets the return register r3, every
+    // earlier one the scratch r11 (the single-scratch serial-chain invariant).
+    let mut text: Vec<u8> = Vec::new();
+    let last = plan.len().saturating_sub(1);
+    for (i, entry) in plan.iter().enumerate() {
+        let dest = if i == last { RET_REG } else { SCRATCH_REG };
+        match *entry {
+            PlanOp::Bin { op, lhs, rhs } => match op {
+                IlOp::Add => text.extend_from_slice(&encode_add(dest, lhs, rhs)),
+                IlOp::Mul => text.extend_from_slice(&encode_mullw(dest, lhs, rhs)),
+                // `subf` computes rB − rA, so realizing `lhs − rhs` needs rA=rhs,
+                // rB=lhs (the load-bearing reversed order — see [`encode_subf`]).
+                IlOp::Sub => text.extend_from_slice(&encode_subf(dest, rhs, lhs)),
+                IlOp::Load(_) | IlOp::Lit(_) => unreachable!("not a binary op"),
+            },
+            PlanOp::AddImm { src, k } => emit_add_imm(&mut text, dest, src, k),
+            PlanOp::LoadImm { k } => emit_load_imm(&mut text, dest, k)?,
+        }
+    }
+
     text.extend_from_slice(&encode_blr());
     Ok(text)
 }
 
-/// Emit one binary op into `text`, returning the result operand. Handles the
-/// register/immediate operand combinations c2 folds into a single instruction;
-/// rejects (as out-of-class) the shapes that need a different instruction than
-/// this class models (immediate multiply → strength reduction; `imm - reg` →
-/// `subfic`; out-of-range immediates → `addis`+`addi`).
-fn emit_binop(
+/// Fold one binary op over the affine operand stack, recording a [`PlanOp`] only
+/// when a register instruction is actually needed. Immediate accumulations fold
+/// for free (`a + 5 + 5` → `a + 10`, matching c2's constant folding); a reg-reg
+/// op requires both operands to be bare registers (`off == 0`) — a pending
+/// offset there is outside the serial-chain class and fails closed. Rejects the
+/// shapes needing an instruction this class does not model (immediate multiply →
+/// strength reduction; `imm - reg` → `subfic`).
+fn combine(
     op: IlOp,
-    dest: u8,
     lhs: Operand,
     rhs: Operand,
-    text: &mut Vec<u8>,
+    plan: &mut Vec<PlanOp>,
 ) -> Result<Operand, BackendError> {
-    use Operand::{Imm, Reg};
+    use Operand::{Imm, RegOff};
+
+    // Emit a reg-reg instruction and return its running result (r11 via `Prev`).
+    let mut emit_reg_reg = |op: IlOp, a: Base, b: Base| -> Result<Operand, BackendError> {
+        plan.push(PlanOp::Bin { op, lhs: a.read_reg(), rhs: b.read_reg() });
+        Ok(RegOff { base: Base::Prev, off: 0 })
+    };
+
     match (op, lhs, rhs) {
-        // add: commutative; reg+reg → add; reg+imm (either order) → addi / addis+addi.
-        (IlOp::Add, Reg(a), Reg(b)) => text.extend_from_slice(&encode_add(dest, a, b)),
-        (IlOp::Add, Reg(a), Imm(k)) | (IlOp::Add, Imm(k), Reg(a)) => emit_add_imm(text, dest, a, k),
-        // mul: commutative; reg*reg only (reg*const strength-reduces — later rung).
-        (IlOp::Mul, Reg(a), Reg(b)) => text.extend_from_slice(&encode_mullw(dest, a, b)),
-        (IlOp::Mul, _, _) => {
-            return Err(out_of_class(
-                "multiply by a constant strength-reduces (shift/add); out of class",
-            ))
+        // ---- Add (commutative) ------------------------------------------------
+        (IlOp::Add, Imm(a), Imm(b)) => Ok(Imm(a
+            .checked_add(b)
+            .ok_or_else(|| out_of_class("constant add overflow"))?)),
+        (IlOp::Add, RegOff { base, off }, Imm(k)) | (IlOp::Add, Imm(k), RegOff { base, off }) => {
+            let off = off
+                .checked_add(k)
+                .ok_or_else(|| out_of_class("folded add-immediate overflow"))?;
+            Ok(RegOff { base, off })
         }
-        // sub `lhs - rhs`: reg-reg → subf (rA=rhs); reg-imm → add of the negated imm.
-        (IlOp::Sub, Reg(a), Reg(b)) => text.extend_from_slice(&encode_subf(dest, b, a)),
-        (IlOp::Sub, Reg(a), Imm(k)) => {
-            let neg = k
-                .checked_neg()
-                .ok_or_else(|| out_of_class("subtract immediate overflow (INT_MIN)"))?;
-            emit_add_imm(text, dest, a, neg);
+        (IlOp::Add, RegOff { base: a, off: 0 }, RegOff { base: b, off: 0 }) => {
+            emit_reg_reg(IlOp::Add, a, b)
         }
-        (IlOp::Sub, Imm(_), Reg(_)) => {
-            return Err(out_of_class("`const - reg` needs subfic; out of class"))
+        (IlOp::Add, RegOff { .. }, RegOff { .. }) => Err(out_of_class(
+            "reg+reg add with a pending immediate offset (non-serial chain); out of class",
+        )),
+
+        // ---- Sub (`lhs - rhs`, NON-commutative) -------------------------------
+        (IlOp::Sub, Imm(a), Imm(b)) => Ok(Imm(a
+            .checked_sub(b)
+            .ok_or_else(|| out_of_class("constant sub overflow"))?)),
+        // reg − imm folds by *subtracting* into the running offset (no negate,
+        // no INT_MIN hazard — `emit_add_imm` handles the sign at materialization).
+        (IlOp::Sub, RegOff { base, off }, Imm(k)) => {
+            let off = off
+                .checked_sub(k)
+                .ok_or_else(|| out_of_class("folded sub-immediate overflow"))?;
+            Ok(RegOff { base, off })
         }
-        // Two literals should have been constant-folded by the front-end.
-        (_, Imm(_), Imm(_)) => {
-            return Err(out_of_class("binary op on two literals (unexpected; c1xx folds these)"))
+        (IlOp::Sub, Imm(_), RegOff { .. }) => {
+            Err(out_of_class("`const - reg` needs subfic; out of class"))
         }
+        (IlOp::Sub, RegOff { base: a, off: 0 }, RegOff { base: b, off: 0 }) => {
+            emit_reg_reg(IlOp::Sub, a, b)
+        }
+        (IlOp::Sub, RegOff { .. }, RegOff { .. }) => Err(out_of_class(
+            "reg-reg subtract with a pending immediate offset (non-serial chain); out of class",
+        )),
+
+        // ---- Mul (commutative) ------------------------------------------------
+        (IlOp::Mul, RegOff { base: a, off: 0 }, RegOff { base: b, off: 0 }) => {
+            emit_reg_reg(IlOp::Mul, a, b)
+        }
+        // reg*const strength-reduces, and const*const is unexpected (c1xx folds).
+        (IlOp::Mul, _, _) => Err(out_of_class(
+            "multiply by a constant strength-reduces (shift/add); out of class",
+        )),
+
         (IlOp::Load(_) | IlOp::Lit(_), _, _) => unreachable!("not a binary op"),
     }
-    Ok(Operand::Reg(dest))
 }
 
 #[cfg(test)]
@@ -546,6 +645,46 @@ mod tests {
         assert_eq!(
             select_text(&f).unwrap(),
             vec![0x38, 0x63, 0x00, 0x05, 0x4E, 0x80, 0x00, 0x20]
+        );
+    }
+
+    #[test]
+    fn select_text_folds_consecutive_add_immediates() {
+        // `a + 5 + 5` → the two literal adds fold to a single `addi r3,r3,10`
+        // (c2 constant-folds `5 + 5` → `10`), NOT two chained addi. Verified
+        // against the live obj (mvp_edit_addk2: .text = 3863000a 4e800020).
+        let f = func_with(
+            vec![0xE309],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Lit(5),
+                IlOp::Add,
+                IlOp::Lit(5),
+                IlOp::Add,
+            ],
+        );
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![0x38, 0x63, 0x00, 0x0A, 0x4E, 0x80, 0x00, 0x20]
+        );
+    }
+
+    #[test]
+    fn select_text_folds_mixed_add_sub_immediates() {
+        // `a + 5 - 3` folds to `a + 2` → `addi r3,r3,2 ; blr`.
+        let f = func_with(
+            vec![0xE309],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Lit(5),
+                IlOp::Add,
+                IlOp::Lit(3),
+                IlOp::Sub,
+            ],
+        );
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![0x38, 0x63, 0x00, 0x02, 0x4E, 0x80, 0x00, 0x20]
         );
     }
 
