@@ -7,8 +7,9 @@
 //!   compile <cpp>       reference obj, print size + timestamp
 //!   selftest [<cpp>...] oracle self-test over the given TUs (or all fixtures)
 //!   replay <cpp>        P0.1: capture + standalone-c2 replay, print byte-match
-//!   diff <cpp>          full differential (ReferenceReplay=ByteExact, Port=NotImplemented)
+//!   diff <cpp>          full differential (ReferenceReplay=ByteExact, Port=Match|NotImplemented)
 //!   bench               selftest across all fixtures/cpp/*.cpp, summary counts
+//!   perf                IL-bundle->obj latency: native port vs standalone c2
 //!   corpus <sub>        P1.2 corpus generator (gen / sample / stats)
 
 use std::path::PathBuf;
@@ -52,6 +53,7 @@ fn main() -> ExitCode {
         "replay" => cmd_replay(rest),
         "diff" => cmd_diff(rest),
         "bench" => cmd_bench(),
+        "perf" => cmd_perf(rest),
         "corpus" => cmd_corpus(rest),
         "retrieve" => cmd_retrieve(rest),
         "search" => cmd_search(rest),
@@ -76,8 +78,9 @@ fn print_usage() {
          \x20 c2rs compile <cpp>        reference obj, print size + timestamp\n\
          \x20 c2rs selftest [<cpp>...]  oracle self-test (determinism + capture stability)\n\
          \x20 c2rs replay <cpp>         P0.1: capture + standalone-c2 replay, byte-match verdict\n\
-         \x20 c2rs diff <cpp>           full differential (ReferenceReplay=ByteExact, Port=NotImplemented)\n\
+         \x20 c2rs diff <cpp>           full differential (ReferenceReplay=ByteExact, Port=Match|NotImplemented)\n\
          \x20 c2rs bench                selftest across all fixtures/cpp/*.cpp\n\
+         \x20 c2rs perf [opts]          IL-bundle->obj latency: native port vs standalone c2\n\
          \x20 c2rs corpus gen [opts]    P1.2: generate a (source,IL,obj) triple corpus\n\
          \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
@@ -87,6 +90,7 @@ fn print_usage() {
          \x20 c2rs search eval [opts]   T-A: IL-space solve-rate over fixtures\n\
          \x20 c2rs search from-retrieval <corpus-dir>  T-A: from-unrelated-seed (P1.3-seeded) solve-rate\n\
          \n\
+         perf options: --port-iters N --ref-iters N --fixtures a.cpp,b.cpp\n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
          search options: --d 1|2|3 --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
@@ -324,8 +328,9 @@ fn cmd_diff(rest: &[String]) -> ExitCode {
     };
     println!("{} -> {}", cpp.display(), line);
     let _ = std::fs::remove_dir_all(&w);
-    // A byte-exact reference replay with the port still a stub is the expected
-    // state today; treat it (and clean skips) as success for scripting.
+    // A byte-exact reference replay is the pass condition here; the port may be
+    // Match or NotImplemented depending on the TU. Treat both (and clean skips)
+    // as success for scripting — only a reference-side failure is non-zero.
     match &report {
         DiffReport::ReferenceReplayMismatch { .. } | DiffReport::ReferenceError(_) => {
             ExitCode::FAILURE
@@ -361,6 +366,136 @@ fn cmd_bench() -> ExitCode {
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE
+    }
+}
+
+// ---------------------------------------------------------------------------
+// perf — angle-H latency: native port vs standalone c2 (IL bundle -> obj)
+// ---------------------------------------------------------------------------
+
+use c2_harness::perf::{self, fmt_dur, PerfConfig, PortPerf};
+
+fn cmd_perf(rest: &[String]) -> ExitCode {
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for standalone-c2 replay)");
+        return ExitCode::SUCCESS;
+    }
+
+    let mut cfg = PerfConfig::default();
+    if let Some(v) = opt(rest, "--port-iters").and_then(|s| s.parse().ok()) {
+        cfg.port_iters = v;
+    }
+    if let Some(v) = opt(rest, "--ref-iters").and_then(|s| s.parse().ok()) {
+        cfg.ref_iters = v;
+    }
+    let targets: Vec<PathBuf> = match opt(rest, "--fixtures") {
+        Some(list) => list
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                let p = PathBuf::from(s);
+                if p.exists() {
+                    p
+                } else {
+                    c2_harness::fixtures_dir().join(s)
+                }
+            })
+            .collect(),
+        None => all_fixtures(),
+    };
+    if targets.is_empty() {
+        eprintln!("no fixtures to benchmark");
+        return ExitCode::FAILURE;
+    }
+
+    println!(
+        "perf: IL-bundle -> obj latency, native port vs standalone c2 (reference)\n\
+         \x20 {} fixture(s), port_iters={}, ref_iters={}   (both produce the SAME obj)\n",
+        targets.len(),
+        cfg.port_iters,
+        cfg.ref_iters,
+    );
+    println!(
+        "  {:<28} {:>7}  {:>13}  {:>13}  {:>11}  {}",
+        "fixture", "obj", "ref median", "port median", "speedup", "port"
+    );
+
+    let mut rows = Vec::new();
+    let mut errors = 0usize;
+    for cpp in &targets {
+        let name = cpp
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| cpp.display().to_string());
+        let w = scratch("perf");
+        match perf::bench_fixture(&tc, cpp, &cfg, &w) {
+            Ok(r) => {
+                let (port_med, speedup, status) = match r.port {
+                    PortPerf::Match { median, .. } => (
+                        fmt_dur(median),
+                        r.speedup()
+                            .map(|s| format!("{s:.0}x"))
+                            .unwrap_or_else(|| "-".into()),
+                        "Match".to_string(),
+                    ),
+                    PortPerf::NotImplemented => {
+                        ("-".into(), "-".into(), "NotImplemented".to_string())
+                    }
+                    PortPerf::Mismatch { first_offset } => {
+                        ("-".into(), "-".into(), format!("Mismatch@{first_offset}"))
+                    }
+                };
+                // The P0.1 invariant should always hold; flag it loudly if not.
+                let flag = if r.ref_exact { "" } else { "  [!ref-replay-inexact]" };
+                println!(
+                    "  {:<28} {:>6}B  {:>13}  {:>13}  {:>11}  {}{}",
+                    name,
+                    r.obj_len,
+                    fmt_dur(r.ref_median),
+                    port_med,
+                    speedup,
+                    status,
+                    flag,
+                );
+                rows.push(r);
+            }
+            Err(e) => {
+                println!("  {name:<28} ERROR {}", first_line(&e.to_string()));
+                errors += 1;
+            }
+        }
+        let _ = std::fs::remove_dir_all(&w);
+    }
+
+    let report = perf::PerfReport {
+        rows,
+        port_iters: cfg.port_iters,
+        ref_iters: cfg.ref_iters,
+    };
+    let (matched, mismatched, ni) = report.tally();
+    let ref_inexact = report.rows.iter().filter(|r| !r.ref_exact).count();
+    println!(
+        "\nsummary: {matched} port Match, {mismatched} mismatch, {ni} not-implemented (of {})",
+        report.rows.len()
+    );
+    match report.geomean_speedup() {
+        Some(g) => println!(
+            "  geomean speedup over the {matched} matched fixture(s): {g:.0}x faster than standalone c2"
+        ),
+        None => println!("  no matched fixtures — no speedup to report"),
+    }
+    // Convention (as in `diff`): the reference is the sole judge, so a port
+    // Match/Mismatch/NotImplemented is per-TU reporting, not a harness failure.
+    // Only a capture/replay error or a broken P0.1 replay (ref-replay-inexact)
+    // is a hard failure of the benchmark itself.
+    if errors > 0 || ref_inexact > 0 {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
     }
 }
 

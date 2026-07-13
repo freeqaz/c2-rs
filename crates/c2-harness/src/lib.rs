@@ -4,11 +4,11 @@
 //! `.obj` under the port as under the reference toolchain?** i.e.
 //! `port(capture_il(cpp)) == c2(cpp)` on timestamp-normalized bytes.
 //!
-//! Reference side (P0.1) is now **real and byte-exact**: [`differential`]
-//! captures the pipeline obj + IL bundle, replays the bundle through standalone
-//! c2, and proves the replay reproduces the pipeline obj byte-for-byte before
-//! reporting the port status. Only the native port ([`c2_core::PortC2`]) is
-//! still a stub.
+//! Reference side (P0.1) is **real and byte-exact**: [`differential`] captures
+//! the pipeline obj + IL bundle, replays the bundle through standalone c2, and
+//! proves the replay reproduces the pipeline obj byte-for-byte before reporting
+//! the port status. The native port ([`c2_core::PortC2`]) is byte-exact on the
+//! MVP function class and returns `NotImplemented` outside it.
 //!
 //! The [`oracle_selftest`] ([`oracle_selftest`]) — determinism (compile twice,
 //! normalized-equal) AND capture stability (capture twice, `.ex`-equal) — also
@@ -21,13 +21,14 @@ use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
 pub mod corpus;
+pub mod perf;
 pub mod retrieval;
 pub mod search;
 
 /// Port-side status, evaluated only after the reference replay is byte-exact.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PortStatus {
-    /// The native port is a stub (today's normal result).
+    /// The bundle is outside the ported function class (the port declined it).
     NotImplemented(String),
     /// port(IL) matched the reference obj byte-exact (timestamp zeroed).
     Match,
@@ -69,8 +70,9 @@ pub enum DiffReport {
 ///    c2 on it (to the *same* `/Fo` path), then compare to the reference obj.
 ///    On the fixtures this is byte-exact — that is the P0.1 proof.
 /// 3. Only if the replay is byte-exact, compile the bundle with `port` and
-///    report its status. With [`c2_core::PortC2`] that is
-///    [`PortStatus::NotImplemented`] today.
+///    report its status: [`PortStatus::Match`] on an in-class TU (e.g. an int
+///    add-chain), [`PortStatus::NotImplemented`] when the bundle is outside the
+///    ported class.
 ///
 /// Degrades to [`DiffReport::Skipped`] when `strace`/mingw are absent.
 pub fn differential(

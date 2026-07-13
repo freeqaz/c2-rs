@@ -97,10 +97,46 @@ cargo run -p c2-harness --bin c2rs -- compile fixtures/cpp/add3.cpp
 cargo run -p c2-harness --bin c2rs -- diff    fixtures/cpp/mvp_add3.cpp # ReferenceReplay=ByteExact, Port=Match
 cargo run -p c2-harness --bin c2rs -- diff    fixtures/cpp/add3.cpp   # ReferenceReplay=ByteExact, Port=NotImplemented (multi-function)
 cargo run -p c2-harness --bin c2rs -- bench
+
+# Performance benchmark (angle H) — IL-bundle -> obj latency, port vs real c2:
+cargo run -p c2-harness --bin c2rs -- perf
+cargo run -p c2-harness --bin c2rs -- perf --port-iters 5000 --ref-iters 10 --fixtures mvp_add3.cpp,mvp_sub.cpp
 ```
 
-The `replay`/`diff` paths additionally need `strace` (keeps the IL bundle) and
-`i686-w64-mingw32-gcc` (builds the `c2host` stub); both degrade to a clean
-`SKIP` when absent.
+The `replay`/`diff`/`perf` paths additionally need `strace` (keeps the IL
+bundle) and `i686-w64-mingw32-gcc` (builds the `c2host` stub); both degrade to a
+clean `SKIP` when absent.
+
+## Performance — the angle-H payoff
+
+`c2rs perf` measures the whole thesis directly: the per-obj latency of turning a
+captured IL bundle into a `.obj`, the port vs the real backend. Both sides
+produce the **same** obj from the **same** bundle —
+
+* **port** — `PortC2::compile_to`, pure in-process Rust (parse IL → PPC select →
+  emit COFF), and
+* **reference** — `Toolchain::replay`, standalone `c2.dll` under wibo (spawn
+  `wibo c2host c2.dll …`).
+
+Each fixture is captured once; the port's obj is confirmed **byte-exact** to the
+reference before timing (so equal output is being compared, not a shortcut), and
+each side is timed for `N` iterations (median + mean). Fixtures outside the
+ported class time only the reference and report `NotImplemented`.
+
+On the bundled fixtures the in-process port is **~200–270× faster** per obj than
+standalone c2 (single-digit-µs vs ~4–6 ms) — the throughput multiplier that
+prices every decomp-synth loop. Sample row:
+
+```
+  fixture                          obj     ref median    port median      speedup  port
+  mvp_add3.cpp                    842B       4.522 ms       17.81 µs         254x  Match
+  ...
+  geomean speedup over the 12 matched fixture(s): ~235x faster than standalone c2
+```
+
+Numbers are machine-dependent; run it on your box for the real figure. `perf`
+reports a port `Mismatch`/`NotImplemented` per fixture but only *fails* (non-zero
+exit) on a capture/replay error or a broken P0.1 replay — the reference stays
+the sole judge.
 
 [wibo]: https://github.com/decompals/wibo

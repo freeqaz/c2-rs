@@ -1,7 +1,10 @@
 //! `c2-core` — the clean-room native port of the MSVC Xbox 360 PPC backend
-//! `c2.dll`. **This is a STUB.** No compiler pass is ported yet; the value here
-//! is the shape: the [`Backend`] trait every compiler (the port, and the real
-//! toolchain used as an oracle) implements, and the [`PortC2`] placeholder.
+//! `c2.dll`. [`PortC2`] emits a **byte-exact** `.obj` for the MVP function class
+//! (straight-line integer add-chain leaves, tail calls, and a single framed
+//! non-leaf call) and returns [`BackendError::NotImplemented`] outside it —
+//! that boundary is the open gate. The other value here is the shape: the
+//! [`Backend`] trait every compiler (the port, and the real toolchain used as
+//! an oracle) implements.
 //!
 //! Doctrine (il-witness angle H): the correctness criterion is **I/O
 //! equivalence**, not source fidelity — for every IL bundle,

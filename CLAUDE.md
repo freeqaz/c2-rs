@@ -50,17 +50,24 @@ compiler is the sole judge.
   are hand-rolled). If a dep looks unavoidable, STOP and discuss.
 - Integration tests + the `c2rs` CLI must **degrade cleanly** when the toolchain
   is absent (`SKIP: toolchain absent`) — never panic/fail.
-- The native port (`c2-core::PortC2`) and the reference replay seam
-  (`c2-reference::ReferenceC2`) are BOTH intentional stubs returning
-  `NotImplemented`. **P0.1 (standalone c2 IL-replay) is UNPROVEN — never
-  executed.** Do not fake either; scaffold replay as the documented probe seam.
+- The native port (`c2-core::PortC2`) is **byte-exact on the MVP function
+  class** (straight-line int add-chains, tail calls, a single framed non-leaf
+  call) and returns `NotImplemented` outside it — that boundary is the open
+  gate, not a fake. The reference seam (`c2-reference::ReferenceC2` /
+  `Toolchain::replay`) drives the **real** `c2.dll` under wibo. **P0.1
+  (standalone-c2 IL-replay) is PROVEN** — byte-exact on the fixtures. Never fake
+  either side: outside the ported class the port must honestly return
+  `NotImplemented`, and the oracle is always real c2, never a mock.
 
 ## Layout / entry points
 
 - `crates/c2-il` container model, `crates/c2-obj` COFF compare, `crates/c2-core`
-  port stub + `Backend` trait, `crates/c2-reference` real-toolchain oracle,
+  native port + `Backend` trait, `crates/c2-reference` real-toolchain oracle,
   `crates/c2-harness` benchmark + `c2rs` CLI.
-- Live benchmark today = the **oracle self-test** (determinism + capture
+- Correctness benchmark = the **oracle self-test** (determinism + capture
   stability): `cargo run -p c2-harness --bin c2rs -- selftest`.
+- Performance benchmark (angle H) = `c2rs perf` — IL-bundle→obj latency, the
+  in-process port vs standalone `c2.dll` under wibo (both emit the *same* obj;
+  the port is confirmed byte-exact before timing). ~200–270× on the fixtures.
 - Portable lane (no toolchain): `cargo test --workspace` — unit tests run;
   integration tests skip when `Toolchain::locate()` is `None`.
