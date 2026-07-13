@@ -10,6 +10,7 @@
 //!   diff <cpp>          full differential (ReferenceReplay=ByteExact, Port=Match|NotImplemented)
 //!   bench               selftest across all fixtures/cpp/*.cpp, summary counts
 //!   perf                IL-bundle->obj latency: native port vs standalone c2
+//!   perf-scale          IL-bundle->obj throughput vs concurrency (port vs c2)
 //!   corpus <sub>        P1.2 corpus generator (gen / sample / stats)
 
 use std::path::PathBuf;
@@ -54,6 +55,7 @@ fn main() -> ExitCode {
         "diff" => cmd_diff(rest),
         "bench" => cmd_bench(),
         "perf" => cmd_perf(rest),
+        "perf-scale" => cmd_perf_scale(rest),
         "corpus" => cmd_corpus(rest),
         "retrieve" => cmd_retrieve(rest),
         "search" => cmd_search(rest),
@@ -81,6 +83,7 @@ fn print_usage() {
          \x20 c2rs diff <cpp>           full differential (ReferenceReplay=ByteExact, Port=Match|NotImplemented)\n\
          \x20 c2rs bench                selftest across all fixtures/cpp/*.cpp\n\
          \x20 c2rs perf [opts]          IL-bundle->obj latency: native port vs standalone c2\n\
+         \x20 c2rs perf-scale [opts]    IL-bundle->obj throughput vs concurrency (port vs c2)\n\
          \x20 c2rs corpus gen [opts]    P1.2: generate a (source,IL,obj) triple corpus\n\
          \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
@@ -91,6 +94,7 @@ fn print_usage() {
          \x20 c2rs search from-retrieval <corpus-dir>  T-A: from-unrelated-seed (P1.3-seeded) solve-rate\n\
          \n\
          perf options: --port-iters N --ref-iters N --fixtures a.cpp,b.cpp\n\
+         perf-scale options: --fixture X.cpp --conc 1,2,4,8 --port-secs F --ref-secs F --csv PATH\n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
          search options: --d 1|2|3 --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
@@ -497,6 +501,117 @@ fn cmd_perf(rest: &[String]) -> ExitCode {
     } else {
         ExitCode::SUCCESS
     }
+}
+
+fn default_concurrencies() -> Vec<usize> {
+    // Powers of two up to the machine's parallelism (capped at 32 for the graph).
+    let max = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(8)
+        .min(32);
+    let mut v = Vec::new();
+    let mut c = 1;
+    while c <= max {
+        v.push(c);
+        c *= 2;
+    }
+    if *v.last().unwrap_or(&0) != max {
+        v.push(max);
+    }
+    v
+}
+
+fn cmd_perf_scale(rest: &[String]) -> ExitCode {
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for standalone-c2 replay)");
+        return ExitCode::SUCCESS;
+    }
+
+    let fixture = opt(rest, "--fixture")
+        .map(|s| {
+            let p = PathBuf::from(s);
+            if p.exists() {
+                p
+            } else {
+                c2_harness::fixtures_dir().join(s)
+            }
+        })
+        .unwrap_or_else(|| c2_harness::fixtures_dir().join("mvp_add3.cpp"));
+
+    let mut cfg = perf::ScaleConfig::default();
+    cfg.concurrencies = match opt(rest, "--conc") {
+        Some(list) => list
+            .split(',')
+            .filter_map(|s| s.trim().parse().ok())
+            .filter(|&c: &usize| c >= 1)
+            .collect(),
+        None => default_concurrencies(),
+    };
+    if cfg.concurrencies.is_empty() {
+        eprintln!("no valid --conc values");
+        return ExitCode::from(2);
+    }
+    if let Some(v) = opt(rest, "--port-secs").and_then(|s| s.parse().ok()) {
+        cfg.port_secs = v;
+    }
+    if let Some(v) = opt(rest, "--ref-secs").and_then(|s| s.parse().ok()) {
+        cfg.ref_secs = v;
+    }
+
+    let name = fixture
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| fixture.display().to_string());
+    println!(
+        "perf-scale: throughput (objs/sec) vs concurrency on {name}\n\
+         \x20 concurrencies={:?}  port_secs={}  ref_secs={}\n",
+        cfg.concurrencies, cfg.port_secs, cfg.ref_secs
+    );
+
+    let w = scratch("perf-scale");
+    let (points, obj_len) = match perf::scale_measure(&tc, &fixture, &cfg, &w) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("perf-scale failed: {}", first_line(&e.to_string()));
+            let _ = std::fs::remove_dir_all(&w);
+            return ExitCode::FAILURE;
+        }
+    };
+    let _ = std::fs::remove_dir_all(&w);
+
+    println!("  obj size: {obj_len} B (both sides produce this exact obj)\n");
+    println!(
+        "  {:>5}  {:>16}  {:>16}  {:>10}",
+        "conc", "port objs/sec", "c2 objs/sec", "speedup"
+    );
+    for p in &points {
+        println!(
+            "  {:>5}  {:>16.0}  {:>16.1}  {:>9.0}x",
+            p.concurrency,
+            p.port_ops,
+            p.ref_ops,
+            p.speedup()
+        );
+    }
+
+    // Emit CSV for the README plot when asked.
+    if let Some(path) = opt(rest, "--csv") {
+        let mut csv = String::from("concurrency,port_ops_per_sec,ref_ops_per_sec\n");
+        for p in &points {
+            csv.push_str(&format!("{},{:.3},{:.3}\n", p.concurrency, p.port_ops, p.ref_ops));
+        }
+        match std::fs::write(path, csv) {
+            Ok(()) => println!("\nwrote CSV: {path}"),
+            Err(e) => {
+                eprintln!("could not write CSV {path}: {e}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+    ExitCode::SUCCESS
 }
 
 fn cmd_corpus(rest: &[String]) -> ExitCode {

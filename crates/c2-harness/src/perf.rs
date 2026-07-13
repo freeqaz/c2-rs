@@ -23,11 +23,12 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use c2_core::{Backend, BackendError, PortC2};
 use c2_obj::{ObjDiff, ObjImage};
-use c2_reference::{to_wibo_path, Toolchain};
+use c2_reference::{to_wibo_path, CapturedReference, Toolchain};
 
 /// How many timed iterations to run on each side.
 #[derive(Clone, Copy, Debug)]
@@ -241,9 +242,206 @@ pub fn fmt_dur(d: Duration) -> String {
     }
 }
 
+// --- concurrency scaling: throughput (objs/sec) vs thread count -------------
+//
+// The angle-H headline is not just per-obj latency but *throughput under load*:
+// the port is pure in-process Rust with no shared state, so it scales across
+// cores nearly linearly, while standalone c2 pays a `wibo` process spawn per obj
+// and saturates far sooner. `perf-scale` measures both at a range of concurrency
+// levels so the README graph can show the gap widening with parallelism.
+
+/// Config for a [`scale_measure`] sweep.
+#[derive(Clone, Debug)]
+pub struct ScaleConfig {
+    /// Thread counts to measure at (e.g. `[1, 2, 4, 8, 16, 32]`).
+    pub concurrencies: Vec<usize>,
+    /// Wall-clock budget per port measurement (cheap; short is enough).
+    pub port_secs: f64,
+    /// Wall-clock budget per reference measurement (process-heavy; give it more).
+    pub ref_secs: f64,
+}
+
+impl Default for ScaleConfig {
+    fn default() -> Self {
+        ScaleConfig {
+            concurrencies: vec![1, 2, 4, 8],
+            port_secs: 0.5,
+            ref_secs: 1.5,
+        }
+    }
+}
+
+/// One concurrency level's throughput, in objects per second.
+#[derive(Clone, Copy, Debug)]
+pub struct ScalePoint {
+    pub concurrency: usize,
+    pub port_ops: f64,
+    pub ref_ops: f64,
+}
+
+impl ScalePoint {
+    /// Port throughput ÷ reference throughput at this concurrency.
+    pub fn speedup(&self) -> f64 {
+        if self.ref_ops > 0.0 {
+            self.port_ops / self.ref_ops
+        } else {
+            f64::INFINITY
+        }
+    }
+}
+
+/// Measure port vs reference throughput across `cfg.concurrencies` on one
+/// in-class fixture. Captures once, verifies the port is byte-exact (so we are
+/// scaling an *equivalent* emitter, not a shortcut), then times each side under
+/// N concurrent threads. Returns the points plus the obj size in bytes.
+///
+/// Errors if the fixture is outside the ported class (the port must Match for a
+/// fair scaling comparison — pick e.g. `mvp_add3.cpp`).
+pub fn scale_measure(
+    tc: &Toolchain,
+    cpp: &Path,
+    cfg: &ScaleConfig,
+    work: &Path,
+) -> io::Result<(Vec<ScalePoint>, usize)> {
+    let captured = tc.capture_reference(cpp, &work.join("cap"))?;
+    let obj_name = to_wibo_path(&captured.ref_obj_path);
+
+    // Warm c2host + confirm the P0.1 replay is byte-exact for this fixture.
+    let warm_out = captured.ref_obj_path.clone();
+    let replayed = tc.replay(&captured, &work.join("warm_il"), &warm_out)?;
+    if !matches!(ObjImage::diff(&captured.ref_obj, &replayed), ObjDiff::Identical) {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("standalone-c2 replay is not byte-exact for {}", cpp.display()),
+        ));
+    }
+    // The port must be byte-exact on this fixture for the comparison to be fair.
+    let port = PortC2::default();
+    match port.compile_to(&captured.bundle, &obj_name) {
+        Ok(o) if matches!(ObjImage::diff(&captured.ref_obj, &o), ObjDiff::Identical) => {}
+        Ok(_) => {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "port obj is not byte-exact for {} — pick an in-class fixture (e.g. mvp_add3.cpp)",
+                    cpp.display()
+                ),
+            ))
+        }
+        Err(e) => {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "port cannot compile {} ({e}) — pick an in-class fixture (e.g. mvp_add3.cpp)",
+                    cpp.display()
+                ),
+            ))
+        }
+    }
+
+    let cap = Arc::new(captured);
+    let name = Arc::new(obj_name);
+    let tc_arc = Arc::new(tc.clone());
+
+    let mut points = Vec::with_capacity(cfg.concurrencies.len());
+    for &c in &cfg.concurrencies {
+        let c = c.max(1);
+        let port_ops = measure_port(&cap, &name, c, cfg.port_secs);
+        let ref_ops = measure_ref(&tc_arc, &cap, c, cfg.ref_secs, work)?;
+        points.push(ScalePoint {
+            concurrency: c,
+            port_ops,
+            ref_ops,
+        });
+    }
+    Ok((points, cap.ref_obj.len()))
+}
+
+/// Port throughput (objs/sec) with `concurrency` threads each compiling the
+/// bundle in a tight loop until the time budget expires.
+fn measure_port(
+    cap: &Arc<CapturedReference>,
+    obj_name: &Arc<String>,
+    concurrency: usize,
+    secs: f64,
+) -> f64 {
+    let start = Instant::now();
+    let deadline = start + Duration::from_secs_f64(secs);
+    let handles: Vec<_> = (0..concurrency)
+        .map(|_| {
+            let cap = Arc::clone(cap);
+            let obj_name = Arc::clone(obj_name);
+            std::thread::spawn(move || {
+                let port = PortC2::default();
+                let mut n = 0u64;
+                while Instant::now() < deadline {
+                    let o = port
+                        .compile_to(&cap.bundle, &obj_name)
+                        .expect("in-class bundle compiles");
+                    std::hint::black_box(o.len());
+                    n += 1;
+                }
+                n
+            })
+        })
+        .collect();
+    let total: u64 = handles.into_iter().map(|h| h.join().unwrap_or(0)).sum();
+    total as f64 / start.elapsed().as_secs_f64()
+}
+
+/// Reference throughput (objs/sec): `concurrency` threads each replaying the
+/// bundle through standalone c2 (its own scratch dirs) until the budget expires.
+fn measure_ref(
+    tc: &Arc<Toolchain>,
+    cap: &Arc<CapturedReference>,
+    concurrency: usize,
+    secs: f64,
+    work: &Path,
+) -> io::Result<f64> {
+    let start = Instant::now();
+    let deadline = start + Duration::from_secs_f64(secs);
+    let handles: Vec<_> = (0..concurrency)
+        .map(|i| {
+            let cap = Arc::clone(cap);
+            let tc = Arc::clone(tc);
+            // Per-thread scratch so concurrent replays never share a bundle/obj.
+            let bundle_dir = work.join(format!("scale_il_c{concurrency}_{i}"));
+            let out = work.join(format!("scale_out_c{concurrency}_{i}.obj"));
+            std::thread::spawn(move || {
+                let mut n = 0u64;
+                while Instant::now() < deadline {
+                    if tc.replay(&cap, &bundle_dir, &out).is_err() {
+                        break;
+                    }
+                    n += 1;
+                }
+                n
+            })
+        })
+        .collect();
+    let total: u64 = handles.into_iter().map(|h| h.join().unwrap_or(0)).sum();
+    Ok(total as f64 / start.elapsed().as_secs_f64())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scalepoint_speedup() {
+        let p = ScalePoint {
+            concurrency: 4,
+            port_ops: 40_000.0,
+            ref_ops: 200.0,
+        };
+        assert!((p.speedup() - 200.0).abs() < 1e-6);
+        let zero = ScalePoint {
+            concurrency: 1,
+            port_ops: 1.0,
+            ref_ops: 0.0,
+        };
+        assert!(zero.speedup().is_infinite());
+    }
 
     #[test]
     fn median_picks_middle() {
