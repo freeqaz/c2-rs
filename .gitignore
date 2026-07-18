@@ -6,6 +6,11 @@
 # (Already covered by /target above; listed explicitly for clarity.)
 /target/c2host/
 
+# c1host build cache — same story for the front-end (c1xx.dll) replay stub,
+# built on demand from c1host/c1host.c (tracked). The .exe and the 1033/
+# resources symlink beside it are machine-specific and NEVER committed.
+/target/c1host/
+
 # Captured / generated IL bundles — NEVER commit these. IL is regenerated at
 # test time by the reference toolchain (see fixtures/README.md).
 _CL_*

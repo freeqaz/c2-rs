@@ -7,6 +7,7 @@
 //!   compile <cpp>       reference obj, print size + timestamp
 //!   selftest [<cpp>...] oracle self-test over the given TUs (or all fixtures)
 //!   replay <cpp>        P0.1: capture + standalone-c2 replay, print byte-match
+//!   replay-c1 <cpp>     P-F0.1: capture + standalone-c1 (front-end) replay, per-file byte verdict
 //!   diff <cpp>          full differential (ReferenceReplay=ByteExact, Port=Match|NotImplemented)
 //!   bench               selftest across all fixtures/cpp/*.cpp, summary counts
 //!   perf                IL-bundle->obj latency: native port vs standalone c2
@@ -22,8 +23,8 @@ use c2_core::PortC2;
 use c2_harness::corpus::{self, CorpusConfig};
 use c2_harness::retrieval;
 use c2_harness::{
-    all_fixtures, differential, oracle_selftest, DiffReport, PortStatus, SelfTestOutcome,
-    SelfTestReport,
+    all_fixtures, c1_replay_check, differential, oracle_selftest, C1ReplayReport, DiffReport,
+    PortStatus, SelfTestOutcome, SelfTestReport,
 };
 use c2_il::IL_SUFFIXES;
 use c2_obj::{ObjDiff, ObjImage};
@@ -52,6 +53,7 @@ fn main() -> ExitCode {
         "compile" => cmd_compile(rest),
         "selftest" => cmd_selftest(rest),
         "replay" => cmd_replay(rest),
+        "replay-c1" => cmd_replay_c1(rest),
         "diff" => cmd_diff(rest),
         "bench" => cmd_bench(),
         "perf" => cmd_perf(rest),
@@ -80,6 +82,7 @@ fn print_usage() {
          \x20 c2rs compile <cpp>        reference obj, print size + timestamp\n\
          \x20 c2rs selftest [<cpp>...]  oracle self-test (determinism + capture stability)\n\
          \x20 c2rs replay <cpp>         P0.1: capture + standalone-c2 replay, byte-match verdict\n\
+         \x20 c2rs replay-c1 <cpp>      P-F0.1: capture + standalone-c1 (front-end) replay, per-file byte verdict\n\
          \x20 c2rs diff <cpp>           full differential (ReferenceReplay=ByteExact, Port=Match|NotImplemented)\n\
          \x20 c2rs bench                selftest across all fixtures/cpp/*.cpp\n\
          \x20 c2rs perf [opts]          IL-bundle->obj latency: native port vs standalone c2\n\
@@ -286,6 +289,71 @@ fn cmd_replay(rest: &[String]) -> ExitCode {
         Err(e) => {
             eprintln!("replay failed: {e}");
             ExitCode::FAILURE
+        }
+    };
+    let _ = std::fs::remove_dir_all(&w);
+    code
+}
+
+/// P-F0.1: capture the IL bundle, then reproduce it by driving `c1xx.dll` alone
+/// (the front-end analogue of `replay`). Prints a per-file byte verdict; exits
+/// non-zero only when a present file failed to reproduce byte-for-byte (a real
+/// failure of the front-end replay oracle) or the capture/replay errored.
+fn cmd_replay_c1(rest: &[String]) -> ExitCode {
+    let Some(cpp) = require_cpp(rest) else {
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_mingw() {
+        println!("SKIP: i686-w64-mingw32-gcc absent (needed to build the c1host stub)");
+        return ExitCode::SUCCESS;
+    }
+    if !tc.has_c1xx() {
+        println!("SKIP: c1xx.dll absent (front end not located)");
+        return ExitCode::SUCCESS;
+    }
+    let w = scratch("replay-c1");
+    let report = c1_replay_check(&cpp, &tc, &w);
+    let code = match &report {
+        C1ReplayReport::ToolchainAbsent => {
+            println!("SKIP: toolchain absent");
+            ExitCode::SUCCESS
+        }
+        C1ReplayReport::Skipped(msg) => {
+            println!("SKIP: {}", first_line(msg));
+            ExitCode::SUCCESS
+        }
+        C1ReplayReport::ReferenceError(msg) => {
+            eprintln!("c1 replay error: {}", first_line(msg));
+            ExitCode::FAILURE
+        }
+        C1ReplayReport::Replayed { base, files } => {
+            let all = report.all_identical();
+            println!(
+                "{} -> front-end bundle {base}  {}",
+                cpp.display(),
+                if all { "REPRODUCED byte-exact" } else { "DIVERGED" }
+            );
+            for f in files {
+                let verdict = if f.identical {
+                    "identical".to_string()
+                } else {
+                    format!(
+                        "DIFFERS @ {} (cap={}B replay={}B)",
+                        f.first_offset.unwrap_or(0),
+                        f.cap_len,
+                        f.replay_len
+                    )
+                };
+                println!("  .{:<2}  {:>7} B  {verdict}", f.suffix, f.cap_len);
+            }
+            if all {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
         }
     };
     let _ = std::fs::remove_dir_all(&w);

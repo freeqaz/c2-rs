@@ -38,6 +38,17 @@
 //! [`Toolchain::has_mingw`] guard it so callers skip cleanly when either is
 //! absent. The core toolchain ([`Toolchain::locate`]) does not depend on them.
 //!
+//! # P-F0.1 standalone-c1 (front-end) replay — IMPLEMENTED and byte-exact
+//!
+//! The same trick runs one stage earlier. Driving `c1xx.dll` (the C++ *front
+//! end*) alone through the [`c1host`](../c1host) stub reproduces the captured
+//! `_CL_*` IL **bundle byte-for-byte** on the fixtures — the front-end analogue
+//! of the P0.1 back-end proof. [`Toolchain::capture_c1_reference`] keeps the
+//! bundle + echoes the exact c1xx argv (no `strace` needed — the front end
+//! finishes before c2 aborts), and [`Toolchain::replay_c1`] re-runs the front
+//! end to a fresh `-il` base. This needs only `i686-w64-mingw32-gcc`
+//! ([`Toolchain::has_mingw`]) and `c1xx.dll` ([`Toolchain::has_c1xx`]).
+//!
 //! [wibo]: https://github.com/decompals/wibo
 
 use std::io;
@@ -82,6 +93,14 @@ pub struct Toolchain {
     /// Built `c2host.exe` cache path (gitignored; env `C2RS_C2HOST`, default
     /// `<repo>/target/c2host/c2host.exe`). Never committed.
     pub c2host_exe: PathBuf,
+    /// `c1xx.dll` C++ **front end** — driven by the standalone-c1 replay path
+    /// (P-F0.1). Sibling of `c2.dll` in the toolchain dir.
+    pub c1xx_dll: PathBuf,
+    /// `c1host.c` source (repo `c1host/c1host.c`) — built on demand for c1 replay.
+    pub c1host_src: PathBuf,
+    /// Built `c1host.exe` cache path (gitignored; env `C2RS_C1HOST`, default
+    /// `<repo>/target/c1host/c1host.exe`). Never committed.
+    pub c1host_exe: PathBuf,
     /// `strace` binary, if found on `PATH` — REQUIRED for the capture path
     /// (its `unlink` inject keeps the `_CL_*` bundle from being deleted).
     pub strace: Option<PathBuf>,
@@ -125,6 +144,13 @@ impl Toolchain {
             dc3_root: env_or(&root, "C2RS_DC3_ROOT", "../dc3-decomp"),
             c2host_src: root.join("c2host/c2host.c"),
             c2host_exe: env_or(&root, "C2RS_C2HOST", "target/c2host/c2host.exe"),
+            c1xx_dll: env_or(
+                &root,
+                "C2RS_C1XX_DLL",
+                "../dc3-decomp/build/compilers/X360/16.00.11886.00/c1xx.dll",
+            ),
+            c1host_src: root.join("c1host/c1host.c"),
+            c1host_exe: env_or(&root, "C2RS_C1HOST", "target/c1host/c1host.exe"),
             // strace / mingw are needed only for the replay path; their absence
             // does NOT block locate() — callers guard via has_strace/has_mingw.
             strace: std::env::var_os("C2RS_STRACE")
@@ -151,6 +177,12 @@ impl Toolchain {
     /// True iff `i686-w64-mingw32-gcc` is available (builds the `c2host` stub).
     pub fn has_mingw(&self) -> bool {
         self.mingw.as_ref().map(|p| p.exists()).unwrap_or(false)
+    }
+
+    /// True iff `c1xx.dll` (the C++ front end) is present — required for the
+    /// standalone-c1 replay path (P-F0.1).
+    pub fn has_c1xx(&self) -> bool {
+        self.c1xx_dll.exists()
     }
 
     /// Build `c2host.exe` from `c2host/c2host.c` into the gitignored cache if it
@@ -204,6 +236,95 @@ impl Toolchain {
             }
         }
         Ok(self.c2host_exe.clone())
+    }
+
+    /// Build `c1host.exe` from `c1host/c1host.c` into the gitignored cache if it
+    /// is missing or older than the source, **and** ensure the `1033` resources
+    /// symlink sits next to it (c1xx resolves `<host-exe-dir>/1033/clui.dll` via
+    /// `GetModuleFileNameW(NULL)` — a missing `1033` makes it abort silently).
+    /// Returns the exe path.
+    ///
+    /// Same x86 build recipe as [`Toolchain::ensure_c2host`]; c1host converts its
+    /// argv to UTF-16 internally, so no `-municode` is needed.
+    pub fn ensure_c1host(&self) -> io::Result<PathBuf> {
+        let mingw = self.mingw.clone().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "i686-w64-mingw32-gcc not found on PATH (or C2RS_MINGW) — cannot \
+                 build the c1host x86 stub required for standalone-c1 replay",
+            )
+        })?;
+        if !self.c1host_src.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("c1host source missing: {}", self.c1host_src.display()),
+            ));
+        }
+        let needs_build = match (
+            std::fs::metadata(&self.c1host_exe).and_then(|m| m.modified()),
+            std::fs::metadata(&self.c1host_src).and_then(|m| m.modified()),
+        ) {
+            (Ok(exe_t), Ok(src_t)) => exe_t < src_t,
+            _ => true,
+        };
+        if needs_build {
+            if let Some(parent) = self.c1host_exe.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let output = Command::new(&mingw)
+                .arg("-static")
+                .arg("-static-libgcc")
+                .arg("-O2")
+                .arg("-o")
+                .arg(&self.c1host_exe)
+                .arg(&self.c1host_src)
+                .output()?;
+            if !output.status.success() || !self.c1host_exe.exists() {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!(
+                        "building c1host failed\n  status: {}\n  stderr:\n{}",
+                        output.status,
+                        indent(&String::from_utf8_lossy(&output.stderr)),
+                    ),
+                ));
+            }
+        }
+        self.ensure_c1_resources()?;
+        Ok(self.c1host_exe.clone())
+    }
+
+    /// Ensure `<c1host_exe dir>/1033` points at the toolchain's `1033` resources
+    /// dir (holding `clui.dll`). c1xx locates its diagnostics resources relative
+    /// to the running exe, which under wibo is `c1host.exe`.
+    fn ensure_c1_resources(&self) -> io::Result<()> {
+        let exe_dir = self
+            .c1host_exe
+            .parent()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "c1host_exe has no parent"))?;
+        let src_1033 = self
+            .c1xx_dll
+            .parent()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "c1xx_dll has no parent"))?
+            .join("1033");
+        if !src_1033.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("toolchain resources dir missing: {}", src_1033.display()),
+            ));
+        }
+        let link = exe_dir.join("1033");
+        let src_abs = absolute(&src_1033)?;
+        // Recreate only if absent or pointing elsewhere (idempotent, no churn).
+        let ok = std::fs::read_link(&link)
+            .ok()
+            .map(|t| t == src_abs)
+            .unwrap_or(false);
+        if !ok {
+            let _ = std::fs::remove_file(&link);
+            symlink_dir(&src_abs, &link)?;
+        }
+        Ok(())
     }
 
     /// Normal compile: `/Ox /GS- /c` → a real `.obj`. Returns its bytes.
@@ -569,6 +690,154 @@ impl Toolchain {
         cmd.env("WIBO_FS_CACHE", "1").current_dir(&bundle_dir_abs);
         Ok((cmd, out_abs))
     }
+
+    /// **P-F0.1 front-end capture.** One `/Bd /d2nop /Ox /GS- /c` compile: c2
+    /// aborts (`/d2nop`) *before* the `_CL_*` IL bundle is deleted, so the
+    /// front-end output survives, and `/Bd` echoes the exact `c1xx.dll` argv.
+    /// Unlike the c2 [`capture_reference`](Toolchain::capture_reference) this
+    /// needs **no `strace`**: the front end finishes writing the bundle before c2
+    /// runs, and we do not need c2 to produce an obj here.
+    ///
+    /// Returns the surviving bundle, its base name, and the verbatim c1xx argv
+    /// tokens (everything after the `…c1xx.dll` path token). `TMP`/`TEMP` point
+    /// at `work_dir` so the bundle lands there deterministically.
+    pub fn capture_c1_reference(&self, cpp: &Path, work_dir: &Path) -> io::Result<CapturedC1> {
+        std::fs::create_dir_all(work_dir)?;
+        let work_abs = absolute(work_dir)?;
+
+        let z_src = to_wibo_path(&absolute(cpp)?);
+        let z_obj = to_wibo_path(&work_abs.join("il_capture.obj"));
+
+        let output = Command::new(&self.wibo)
+            .arg(&self.cl_exe)
+            .arg("/Bd")
+            .arg("/d2nop")
+            .arg("/Ox")
+            .arg("/GS-")
+            .arg("/c")
+            .arg(format!("/Fo{z_obj}"))
+            .arg(&z_src)
+            .env("TMP", &work_abs)
+            .env("TEMP", &work_abs)
+            .env("WIBO_FS_CACHE", "1")
+            .output()?;
+        // Non-zero exit is expected (c2 aborted on /d2nop) — the surviving
+        // `_CL_*ex` file, not the exit code, is the success signal.
+
+        let mut combined = String::from_utf8_lossy(&output.stdout).into_owned();
+        combined.push('\n');
+        combined.push_str(&String::from_utf8_lossy(&output.stderr));
+
+        let c1_argv = parse_c1_argv(&combined).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "could not find the `…c1xx.dll -il …` argv echo in compiler output\n  status: {}\n  stdout:\n{}\n  stderr:\n{}",
+                    output.status,
+                    indent(&String::from_utf8_lossy(&output.stdout)),
+                    indent(&String::from_utf8_lossy(&output.stderr)),
+                ),
+            )
+        })?;
+
+        let base_name = find_bundle_base(&work_abs)?.ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!("no surviving `_CL_*ex` bundle in {}", work_abs.display()),
+            )
+        })?;
+        let bundle = IlBundle::load_from_dir(&work_abs, &base_name)?;
+        if bundle.ex().map(|b| b.is_empty()).unwrap_or(true) {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("captured bundle {base_name} has an empty/absent .ex"),
+            ));
+        }
+
+        Ok(CapturedC1 {
+            bundle,
+            base_name,
+            c1_argv,
+        })
+    }
+
+    /// **P-F0.1 front-end replay.** Drive `c1xx.dll` *alone* through `c1host` on
+    /// the captured source, reconstructing the captured c1xx argv but swapping
+    /// the IL-output base (`-il`) to a **fresh** base under `out_bundle_dir` (and
+    /// `-Fo` to a scratch path — neither affects the bundle bytes). Everything
+    /// else — crucially `-f <src>`, whose lowercased path the front end bakes
+    /// into `.gl` — is kept verbatim. Runs with cwd = the toolchain dir so the
+    /// sibling runtime DLLs (`msvcp100.dll`/`TLBREF.dll`/…) resolve.
+    ///
+    /// Returns the freshly written bundle. Comparing it byte-for-byte to the
+    /// captured bundle is the P-F0.1 proof that the front-end replay oracle is
+    /// real. Requires `c1host` (mingw) — built on demand via
+    /// [`Toolchain::ensure_c1host`].
+    pub fn replay_c1(&self, captured: &CapturedC1, out_bundle_dir: &Path) -> io::Result<IlBundle> {
+        let c1host = absolute(&self.ensure_c1host()?)?;
+
+        std::fs::create_dir_all(out_bundle_dir)?;
+        let out_abs = absolute(out_bundle_dir)?;
+        let replay_base = "_CL_replay";
+        // Clear any stale replay bundle so a failed run can't masquerade as one.
+        for suffix in ["ex", "gl", "sy", "in", "db"] {
+            let _ = std::fs::remove_file(out_abs.join(format!("{replay_base}{suffix}")));
+        }
+        let z_il = to_wibo_path(&out_abs.join(replay_base));
+        let z_fo = to_wibo_path(&out_abs.join("replay.obj"));
+
+        // Reconstruct the c1xx argv, swapping only -il and -Fo.
+        let mut argv: Vec<String> = Vec::with_capacity(captured.c1_argv.len());
+        let mut i = 0;
+        while i < captured.c1_argv.len() {
+            let t = &captured.c1_argv[i];
+            if t == "-il" {
+                argv.push("-il".to_string());
+                argv.push(z_il.clone());
+                i += 2;
+                continue;
+            }
+            if t.starts_with("-Fo") {
+                argv.push(format!("-Fo{z_fo}"));
+                i += 1;
+                continue;
+            }
+            argv.push(t.clone());
+            i += 1;
+        }
+
+        let wibo = absolute(&self.wibo)?;
+        let c1xx = absolute(&self.c1xx_dll)?;
+        let toolchain_dir = c1xx
+            .parent()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "c1xx_dll has no parent"))?
+            .to_path_buf();
+
+        // wibo c1host <c1xx.dll (LoadLibrary)> <c1xx.dll (argv0)> <reconstructed argv…>
+        let mut cmd = Command::new(&wibo);
+        cmd.arg(&c1host).arg(&c1xx).arg(&c1xx);
+        for a in &argv {
+            cmd.arg(a);
+        }
+        let output = cmd
+            .env("WIBO_FS_CACHE", "1")
+            .current_dir(&toolchain_dir)
+            .output()?;
+
+        let bundle = IlBundle::load_from_dir(&out_abs, replay_base)?;
+        match bundle.ex() {
+            Some(ex) if !ex.is_empty() => Ok(bundle),
+            _ => Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "standalone-c1 replay produced no `{replay_base}ex` in {}\n  status: {}\n  stderr:\n{}",
+                    out_abs.display(),
+                    output.status,
+                    indent(&String::from_utf8_lossy(&output.stderr)),
+                ),
+            )),
+        }
+    }
 }
 
 /// A captured reference: the surviving IL bundle, its base name, the verbatim c2
@@ -589,6 +858,20 @@ pub struct CapturedReference {
     pub ref_obj_path: PathBuf,
 }
 
+/// A captured **front-end** reference (P-F0.1): the surviving IL bundle (the
+/// front end's output), its base name, and the verbatim `c1xx.dll` argv tokens
+/// (everything after the `…c1xx.dll` path token, including `-il` value, all
+/// `-D…` defines, `-f <src>`, and `-Fo<obj>`).
+#[derive(Clone, Debug)]
+pub struct CapturedC1 {
+    /// The surviving `_CL_*` IL bundle produced by the front end.
+    pub bundle: IlBundle,
+    /// Suffix-free bundle base, e.g. `_CL_fbdd6cfa`.
+    pub base_name: String,
+    /// c1xx argv tokens after the `…c1xx.dll` path token, verbatim.
+    pub c1_argv: Vec<String>,
+}
+
 /// Parse the backtick-quoted c2 argv-echo line from `/Bd` output. Finds the line
 /// mentioning both `c2.dll` and `-il`, strips the leading backtick and trailing
 /// `'`, splits off everything after the `…c2.dll` path token, and returns the
@@ -603,6 +886,27 @@ fn parse_c2_argv(text: &str) -> Option<Vec<String>> {
     // Everything after the first "c2.dll" occurrence (the dll path ends in it).
     let idx = trimmed.find("c2.dll")?;
     let tail = &trimmed[idx + "c2.dll".len()..];
+    let tokens: Vec<String> = tail.split_whitespace().map(|s| s.to_string()).collect();
+    if tokens.is_empty() {
+        None
+    } else {
+        Some(tokens)
+    }
+}
+
+/// Parse the backtick-quoted **c1xx** argv-echo line from `/Bd` output. Finds the
+/// line mentioning both `c1xx.dll` and `-il`, strips the leading backtick and
+/// trailing `'`, and returns the whitespace-split tokens after the `…c1xx.dll`
+/// path token. Sibling of [`parse_c2_argv`] (the two `/Bd` echo lines are
+/// distinguished by their dll name).
+fn parse_c1_argv(text: &str) -> Option<Vec<String>> {
+    let line = text.lines().find(|ln| {
+        let low = ln.to_lowercase();
+        low.contains("c1xx.dll") && low.contains("-il")
+    })?;
+    let trimmed = line.trim().trim_start_matches('`').trim_end_matches('\'');
+    let idx = trimmed.find("c1xx.dll")?;
+    let tail = &trimmed[idx + "c1xx.dll".len()..];
     let tokens: Vec<String> = tail.split_whitespace().map(|s| s.to_string()).collect();
     if tokens.is_empty() {
         None
@@ -711,6 +1015,21 @@ fn scrape_il_base(text: &str, fallback_dir: &Path) -> Option<(PathBuf, String)> 
 
 fn indent(s: &str) -> String {
     s.lines().map(|l| format!("    {l}")).collect::<Vec<_>>().join("\n")
+}
+
+/// Create a directory symlink `link` → `target`. Unix-only (this harness targets
+/// Linux + wibo); other platforms error clearly rather than silently miscompile.
+#[cfg(unix)]
+fn symlink_dir(target: &Path, link: &Path) -> io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(not(unix))]
+fn symlink_dir(_target: &Path, _link: &Path) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "standalone-c1 replay requires a Unix symlink for the 1033 resources dir",
+    ))
 }
 
 /// The real c2 as a [`Backend`] — the **P0.1 replay path (IMPLEMENTED)**.
@@ -872,6 +1191,28 @@ mod tests {
         assert!(scrape_il_base("nothing here", Path::new("/f")).is_none());
         // "-ilfoo" is not the -il flag (no whitespace separator).
         assert!(scrape_il_base("-ilfoo_CL_1234", Path::new("/f")).is_none());
+    }
+
+    #[test]
+    fn parse_c1_argv_isolates_the_c1xx_line() {
+        // Both /Bd echo lines are present; parse_c1_argv must pick the c1xx one
+        // and return the tokens after the dll path (starting at -zm), keeping -f.
+        let text = "noise\n\
+            `Z:\\tc\\c1xx.dll -zm0x11000000 -il /tmp/x\\_CL_ab12 -typedil -f Z:\\p\\a.cpp -Fo Z:\\p\\o.obj'\n\
+            `Z:\\tc\\c2.dll -il /tmp/x\\_CL_ab12 -typedil -f Z:\\p\\a.cpp -FoZ:\\p\\o.obj'\n";
+        let argv = parse_c1_argv(text).unwrap();
+        assert_eq!(argv[0], "-zm0x11000000");
+        assert_eq!(argv[1], "-il");
+        assert_eq!(argv[2], "/tmp/x\\_CL_ab12");
+        assert!(argv.iter().any(|t| t == "-f"));
+        // The c2 line (no c1xx.dll) must not be what we matched.
+        assert!(!argv.iter().any(|t| t.contains("c2.dll")));
+    }
+
+    #[test]
+    fn parse_c1_argv_none_without_c1xx_line() {
+        assert!(parse_c1_argv("`Z:\\tc\\c2.dll -il _CL_1 -f a.cpp'").is_none());
+        assert!(parse_c1_argv("no compiler echo here").is_none());
     }
 
     #[test]

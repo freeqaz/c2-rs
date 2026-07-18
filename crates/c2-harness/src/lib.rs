@@ -135,6 +135,101 @@ pub fn differential(
     }
 }
 
+/// Per-file result of a front-end (P-F0.1) bundle byte-compare.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct C1FileCompare {
+    /// IL suffix (`"ex"`, `"gl"`, `"sy"`, `"in"`, `"db"`).
+    pub suffix: String,
+    /// Captured (pipeline front-end) file length.
+    pub cap_len: usize,
+    /// Standalone-c1 replay file length.
+    pub replay_len: usize,
+    /// True iff the two files are byte-identical.
+    pub identical: bool,
+    /// First diverging byte offset when not identical.
+    pub first_offset: Option<usize>,
+}
+
+/// Outcome of the front-end replay proof (P-F0.1) for one translation unit:
+/// does driving `c1xx.dll` standalone reproduce the captured IL bundle?
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum C1ReplayReport {
+    /// `Toolchain::locate()` returned `None`.
+    ToolchainAbsent,
+    /// The c1-replay path is unavailable (mingw / c1xx.dll absent) — clean skip.
+    Skipped(String),
+    /// Front-end capture/replay could not run (I/O / toolchain error).
+    ReferenceError(String),
+    /// The front end was replayed; `files` holds the per-suffix byte-compare.
+    Replayed {
+        /// Captured bundle base name (e.g. `_CL_fbdd6cfa`).
+        base: String,
+        files: Vec<C1FileCompare>,
+    },
+}
+
+impl C1ReplayReport {
+    /// True iff every present IL file reproduced byte-for-byte.
+    pub fn all_identical(&self) -> bool {
+        matches!(self, C1ReplayReport::Replayed { files, .. } if files.iter().all(|f| f.identical))
+    }
+}
+
+/// **P-F0.1 front-end replay proof.** Capture the IL bundle (one `/Bd /d2nop`
+/// compile), then reproduce it by driving `c1xx.dll` *alone* through `c1host` to
+/// a **fresh** `-il` base, and compare the 5 files byte-for-byte.
+///
+/// Byte-equality means the front-end replay oracle is real — the precondition
+/// for any future `port_c1(source) == c1(source)` claim, exactly as [`differential`]'s
+/// byte-exact reference replay is for the back end. Needs `i686-w64-mingw32-gcc`
+/// (builds `c1host`) and `c1xx.dll`; degrades to [`C1ReplayReport::Skipped`]
+/// otherwise.
+pub fn c1_replay_check(cpp: &Path, reference: &Toolchain, work: &Path) -> C1ReplayReport {
+    if !reference.has_mingw() {
+        return C1ReplayReport::Skipped(
+            "i686-w64-mingw32-gcc absent (needed to build the c1host stub)".into(),
+        );
+    }
+    if !reference.has_c1xx() {
+        return C1ReplayReport::Skipped("c1xx.dll absent (front end not located)".into());
+    }
+
+    let captured = match reference.capture_c1_reference(cpp, &work.join("cap")) {
+        Ok(c) => c,
+        Err(e) => return C1ReplayReport::ReferenceError(format!("capture_c1 failed: {e}")),
+    };
+    let replay = match reference.replay_c1(&captured, &work.join("replay_bundle")) {
+        Ok(b) => b,
+        Err(e) => return C1ReplayReport::ReferenceError(format!("replay_c1 failed: {e}")),
+    };
+
+    let mut files = Vec::new();
+    for suffix in c2_il::IL_SUFFIXES {
+        let cap = captured.bundle.get(suffix).unwrap_or(&[]);
+        let rep = replay.get(suffix).unwrap_or(&[]);
+        let identical = cap == rep;
+        let first_offset = if identical {
+            None
+        } else {
+            cap.iter()
+                .zip(rep.iter())
+                .position(|(a, b)| a != b)
+                .or(Some(cap.len().min(rep.len())))
+        };
+        files.push(C1FileCompare {
+            suffix: suffix.to_string(),
+            cap_len: cap.len(),
+            replay_len: rep.len(),
+            identical,
+            first_offset,
+        });
+    }
+    C1ReplayReport::Replayed {
+        base: captured.base_name,
+        files,
+    }
+}
+
 /// Outcome of the oracle self-test for one translation unit.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SelfTestOutcome {
