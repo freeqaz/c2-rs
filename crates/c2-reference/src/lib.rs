@@ -74,6 +74,36 @@ fn env_or(root: &Path, var: &str, default_rel: &str) -> PathBuf {
     }
 }
 
+/// Toolchain version dir inside a compilers root — the layout of the decomp.dev
+/// compilers archive (`https://files.decomp.dev/compilers_<tag>.zip`), which
+/// unzips to `X360/16.00.11886.00/{cl.exe, c1xx.dll, c2.dll, ...}`.
+const X360_TOOLCHAIN_REL: &str = "X360/16.00.11886.00";
+
+/// Resolve the compilers root directory. Precedence:
+///
+/// 1. `C2RS_COMPILERS` env (taken verbatim, even if the dir is missing — an
+///    explicit override should fail loudly, not silently fall back);
+/// 2. `<repo>/compilers` if it contains the X360 toolchain dir (populate it
+///    with `scripts/fetch_compilers.sh`);
+/// 3. `../dc3-decomp/build/compilers` if *it* contains the toolchain dir
+///    (compat with the original sibling-repo layout);
+/// 4. `<repo>/compilers` as the fallthrough, so "toolchain absent" messages
+///    point at the canonical place to put it.
+fn compilers_root(root: &Path) -> PathBuf {
+    if let Some(v) = std::env::var_os("C2RS_COMPILERS") {
+        return PathBuf::from(v);
+    }
+    let local = root.join("compilers");
+    if local.join(X360_TOOLCHAIN_REL).is_dir() {
+        return local;
+    }
+    let sibling = root.join("../dc3-decomp/build/compilers");
+    if sibling.join(X360_TOOLCHAIN_REL).is_dir() {
+        return sibling;
+    }
+    local
+}
+
 /// Located real toolchain. All paths are host paths (wibo takes a host path for
 /// `cl.exe`; only *source*/*output* arguments get `Z:\` conversion).
 #[derive(Clone, Debug)]
@@ -86,8 +116,6 @@ pub struct Toolchain {
     pub cl_exe: PathBuf,
     /// `c2.dll` back-end (the thing being ported; driven by the replay path).
     pub c2_dll: PathBuf,
-    /// dc3-decomp checkout root — optional context.
-    pub dc3_root: PathBuf,
     /// `c2host.c` source (repo `c2host/c2host.c`) — built on demand for replay.
     pub c2host_src: PathBuf,
     /// Built `c2host.exe` cache path (gitignored; env `C2RS_C2HOST`, default
@@ -123,32 +151,43 @@ fn find_on_path(name: &str) -> Option<PathBuf> {
 
 impl Toolchain {
     /// Locate the toolchain from env overrides (`C2RS_WIBO`, `C2RS_WIBO_DEBUG`,
-    /// `C2RS_CL_EXE`, `C2RS_C2_DLL`, `C2RS_DC3_ROOT`) with relative-to-repo-root
-    /// defaults. Returns `None` if any *required* path (wibo, cl.exe, c2.dll) is
+    /// `C2RS_COMPILERS`, `C2RS_CL_EXE`, `C2RS_C2_DLL`, `C2RS_C1XX_DLL`) with
+    /// relative-to-repo-root defaults. The compiler binaries default to
+    /// `<compilers root>/X360/16.00.11886.00/` (see [`compilers_root`]); wibo
+    /// defaults to the sibling `../wibo` build tree, falling back to `wibo` on
+    /// `PATH`. Returns `None` if any *required* path (wibo, cl.exe, c2.dll) is
     /// missing, so callers can skip cleanly when the toolchain is absent.
     pub fn locate() -> Option<Toolchain> {
         let root = repo_root();
+        let toolchain_dir = compilers_root(&root).join(X360_TOOLCHAIN_REL);
+        let wibo = match std::env::var_os("C2RS_WIBO") {
+            Some(v) => PathBuf::from(v),
+            None => {
+                let sibling = root.join("../wibo/build/release/wibo");
+                if sibling.exists() {
+                    sibling
+                } else {
+                    find_on_path("wibo").unwrap_or(sibling)
+                }
+            }
+        };
         let tc = Toolchain {
-            wibo: env_or(&root, "C2RS_WIBO", "../wibo/build/release/wibo"),
+            wibo,
             wibo_debug: env_or(&root, "C2RS_WIBO_DEBUG", "../wibo/build/debug/wibo"),
-            cl_exe: env_or(
-                &root,
-                "C2RS_CL_EXE",
-                "../dc3-decomp/build/compilers/X360/16.00.11886.00/cl.exe",
-            ),
-            c2_dll: env_or(
-                &root,
-                "C2RS_C2_DLL",
-                "../dc3-decomp/build/compilers/X360/16.00.11886.00/c2.dll",
-            ),
-            dc3_root: env_or(&root, "C2RS_DC3_ROOT", "../dc3-decomp"),
+            cl_exe: match std::env::var_os("C2RS_CL_EXE") {
+                Some(v) => PathBuf::from(v),
+                None => toolchain_dir.join("cl.exe"),
+            },
+            c2_dll: match std::env::var_os("C2RS_C2_DLL") {
+                Some(v) => PathBuf::from(v),
+                None => toolchain_dir.join("c2.dll"),
+            },
             c2host_src: root.join("c2host/c2host.c"),
             c2host_exe: env_or(&root, "C2RS_C2HOST", "target/c2host/c2host.exe"),
-            c1xx_dll: env_or(
-                &root,
-                "C2RS_C1XX_DLL",
-                "../dc3-decomp/build/compilers/X360/16.00.11886.00/c1xx.dll",
-            ),
+            c1xx_dll: match std::env::var_os("C2RS_C1XX_DLL") {
+                Some(v) => PathBuf::from(v),
+                None => toolchain_dir.join("c1xx.dll"),
+            },
             c1host_src: root.join("c1host/c1host.c"),
             c1host_exe: env_or(&root, "C2RS_C1HOST", "target/c1host/c1host.exe"),
             // strace / mingw are needed only for the replay path; their absence
@@ -160,8 +199,8 @@ impl Toolchain {
                 .map(PathBuf::from)
                 .or_else(|| find_on_path("i686-w64-mingw32-gcc")),
         };
-        // Required for any real work. wibo_debug / dc3_root / strace / mingw are
-        // optional (the last two only gate the replay path, not core toolchain).
+        // Required for any real work. wibo_debug / strace / mingw are optional
+        // (the last two only gate the replay path, not the core toolchain).
         if tc.wibo.exists() && tc.cl_exe.exists() && tc.c2_dll.exists() {
             Some(tc)
         } else {
