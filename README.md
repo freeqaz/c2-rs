@@ -97,8 +97,10 @@ You need two things, neither of which is committed here:
    [decompals/wibo](https://github.com/decompals/wibo) and put it on your
    `PATH` (or build it; a sibling `../wibo` checkout's build tree is also
    found automatically).
-2. **The compilers** — the X360 MSVC toolchain from the decomp.dev compilers
-   archive, the same one the decomp community's build systems download:
+2. **The compilers** — the X360 MSVC toolchain, fetched from this repo's
+   [releases](https://github.com/freeqaz/c2-rs/releases) (a verbatim mirror
+   of the decomp.dev compilers archive the decomp community's build systems
+   use, which stays as a fallback mirror):
 
    ```sh
    scripts/fetch_compilers.sh   # ~70 MB download → ./compilers/X360/16.00.11886.00/
