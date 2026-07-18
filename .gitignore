@@ -34,11 +34,11 @@ _CL_*
 
 # Fixtures' .cpp stay tracked (they are the only hand-maintained artifact).
 
-# Paint (LLM-draft bootstrap): MS-binary-derived Ghidra pseudo-C and bulky run
-# logs are never committed. The tooling (paint/*.py, README) and the Rust drafts
-# (paint/color/*.rs) ARE tracked.
-/paint/ghidra_cache/
-/paint/runs/
+# Paint (LLM-draft bootstrap): entirely UNTRACKED. It contains Ghidra pseudo-C
+# decompiled from the proprietary MS c2.dll and LLM drafts derived from it
+# (self-labeled "NOT clean-room code / DO NOT SHIP"), so it must never enter the
+# clean-room repo or its (public) history. Kept on disk locally, ignored here.
+/paint/
 
 # Python bytecode (paint tooling is Python)
 __pycache__/
