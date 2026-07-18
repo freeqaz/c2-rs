@@ -1,9 +1,9 @@
-//! `c2-harness::perf` — the **angle-H latency benchmark**: how fast can each
-//! side turn a captured IL bundle into an `.obj`?
+//! `c2-harness::perf` — the latency benchmark: how fast can each side turn a
+//! captured IL bundle into an `.obj`?
 //!
-//! The il-witness thesis for this port is *verifier throughput*: a faster `c2`
-//! prices every loop in decomp-synth (search moves, preimage checks, pass@k) at
-//! once. This module measures exactly that — the per-obj latency of the two
+//! The thesis for this port is *verifier throughput*: a faster `c2` speeds up
+//! every compile-in-the-loop workflow (search moves, preimage checks, pass@k)
+//! at once. This module measures exactly that — the per-obj latency of the two
 //! backends that produce the **same** obj from the **same** bundle:
 //!
 //! * the native port ([`c2_core::PortC2`]) — pure in-process Rust

@@ -25,7 +25,7 @@
 //!
 //! ## The `.gl` body-start offset — modeled first-class
 //!
-//! Per `il-witness` P0.6a, each function's `.gl` record ends `80 <LE32>` where
+//! Per the P0.6a probe series, each function's `.gl` record ends `80 <LE32>` where
 //! the LE32 is the **`.ex` byte offset of that function's `4F 1F` body-start
 //! marker**. That is the one length-bearing field K3 must rewrite when an `.ex`
 //! function changes length, so it is typed as [`Span::GlOffset`] (a `u32`), not
@@ -504,7 +504,7 @@ impl IlModel {
 // field the change obligates — the per-function `.gl` body-start offset column
 // (`80 <LE32>` = the `.ex` offset of each function's `4F 1F` marker).
 //
-// Proven live in `il-witness` P0.6a: `.ex` is length-plastic — grown/shrunk IL
+// Proven live in the P0.6a probe series: `.ex` is length-plastic — grown/shrunk IL
 // is re-optimized by c2 byte-exact to a native capture of the equivalent source,
 // under ONE obligation: on any `.ex` length change, every function AFTER the edit
 // point has its `.gl` body-start offset bumped by the byte delta (the edited and

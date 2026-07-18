@@ -3,8 +3,7 @@
 Format and codegen knowledge backing the port, recovered by **differential
 observation** of the real toolchain (`cl.exe`/`c2.dll` 16.00.11886.00 under
 wibo): compile controlled fixtures, diff the objs, classify every byte as
-constant vs derived. Cross-referenced against the static-RE docs in
-`../dc3-decomp/msvc-src/docs/` (`IL_FORMAT.md`, `COLOR_RE.md`) where noted.
+constant vs derived.
 
 Scope of each doc is the **MVP function class** — a single straight-line
 integer-arithmetic leaf function, no calls/branches/relocations — unless a

@@ -1,7 +1,7 @@
 //! c2.dll pass pipeline — **placeholder module tree**. No pass is ported yet.
 //!
 //! The real backend runs a fixed pipeline over the loaded IL. Documented order
-//! (from the RE census / trace work; see il-witness angle A3 + T-E notes):
+//! (observed via pass-boundary tracing of the real c2 under wibo):
 //!
 //! ```text
 //!   INIT       backend + target setup, IL bundle open

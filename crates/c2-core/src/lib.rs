@@ -6,12 +6,10 @@
 //! [`Backend`] trait every compiler (the port, and the real toolchain used as
 //! an oracle) implements.
 //!
-//! Doctrine (il-witness angle H): the correctness criterion is **I/O
-//! equivalence**, not source fidelity — for every IL bundle,
-//! `port(IL) == c2(IL)` byte-exact with the COFF timestamp zeroed. The real c2
-//! under wibo is the sole differential judge (see the `c2-reference` crate).
-//!
-//! Roadmap: `docs/plans/il-witness/03_ROADMAP.md`, T-E native-port track.
+//! Doctrine: the correctness criterion is **I/O equivalence**, not source
+//! fidelity — for every IL bundle, `port(IL) == c2(IL)` byte-exact with the
+//! COFF timestamp zeroed. The real c2 under wibo is the sole differential
+//! judge (see the `c2-reference` crate).
 
 pub use c2_il::IlBundle;
 pub use c2_obj::ObjImage;

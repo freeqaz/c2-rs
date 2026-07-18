@@ -195,8 +195,7 @@ fn leaf_mul_site(toks: &[ExToken]) -> Option<usize> {
 /// terminal — the sole judge — fires on the seed itself, so the search closes at
 /// step 0. The reorder move is still proven to *emit* ordering-2 exactly (asserted
 /// via the neighborhood), i.e. it is a correct, guarded commutative primitive; it
-/// just has no obj gap to bridge on this leaf-swap class. See
-/// `docs/plans/il-witness/MUL_REORDER_MOVE.md`.
+/// just has no obj gap to bridge on this leaf-swap class.
 #[test]
 fn search_solves_float_mul_reorder_byte_exact() {
     let Some(tc) = ready() else { return };

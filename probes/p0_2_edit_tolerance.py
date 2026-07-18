@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """P0.2 edit-tolerance probe — does standalone c2 accept MODIFIED IL bundles?
 
-The remaining half of il-witness Gate G0 (P0.1 proved *verbatim* replay is
+The remaining half of Gate G0 (P0.1 proved *verbatim* replay is
 byte-exact; this asks whether c2 consumes *edited* IL). Capture one bundle +
 the exact c2 argv (`/Bd` + strace-inject-unlink keeps the temp bundle), then
 run a battery of mutations, each in a fresh copy of the bundle, replaying

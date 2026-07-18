@@ -102,8 +102,9 @@ fn print_usage() {
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
          search options: --d 1|2|3 --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
          \n\
-         Toolchain is located via C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL / C2RS_WIBO_DEBUG\n\
-         / C2RS_DC3_ROOT (relative-to-repo defaults). Absent toolchain -> clean SKIP."
+         Toolchain: compilers/ via scripts/fetch_compilers.sh (or C2RS_COMPILERS /\n\
+         C2RS_CL_EXE / C2RS_C2_DLL / C2RS_C1XX_DLL), wibo via C2RS_WIBO, sibling\n\
+         ../wibo build, or PATH. Absent toolchain -> clean SKIP."
     );
 }
 

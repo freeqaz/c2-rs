@@ -15,8 +15,8 @@ fallback.
 
 ## What is length-plastic, and the one obligation
 
-Proven live in `il-witness` P0.6a (reproducer `probes/p0_6a_length_plasticity.py`,
-readout `../decomp-synth/docs/plans/il-witness/P0_6A_LENGTH_PLASTICITY.md`): the
+Proven live in the P0.6a probe series (differential experiments against the
+real toolchain; each rerunnable via the edit gate below): the
 `.ex` operand stream is **length-plastic**. Grow or shrink it and c2 re-optimizes
 the result byte-exact to a native capture of the equivalent source — under ONE
 obligation:

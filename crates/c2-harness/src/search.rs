@@ -63,7 +63,7 @@ use crate::retrieval::{self, text_section, Item};
 /// (which, combined with matching relocs/headers, is the byte-exact case the
 /// terminal check confirms separately); `0.0` on disjoint code.
 ///
-/// `.text`-only by design (per P1.3 / il-witness P1.3): the full obj embeds its
+/// `.text`-only by design (per P1.3): the full obj embeds its
 /// `/Fo` path in `S_OBJNAME`, so a whole-obj ratio would be path-dominated. The
 /// gradient scores the *code*; the terminal success check is full
 /// timestamp-normalized byte equality (see [`Judged`]). Objs are compared on
@@ -3069,7 +3069,7 @@ mod tests {
 
     // =====================================================================
     // Stuck-dc3 near-miss lane — decode stress test + codec/move blocker
-    // probe (il-witness STUCK_DC3_ATTEMPT). Toolchain-gated: SKIPs cleanly
+    // probe (the stuck-dc3 near-miss investigation). Toolchain-gated: SKIPs cleanly
     // when wibo/cl.exe/c2.dll/strace are absent. Run with:
     //   cargo test -p c2-harness stuck_dc3 -- --nocapture --test-threads=1
     // =====================================================================

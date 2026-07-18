@@ -4,9 +4,9 @@ Guidance for AI coding agents (and humans) working in this repo. Mirrors the
 parent milohax conventions that apply here.
 
 **c2-rs** — clean-room, **I/O-behavioral** native port of the MSVC Xbox 360 PPC
-compiler backend `c2.dll`, plus the differential harness that grades it. This is
-il-witness **angle H** (verifier throughput): a faster `c2` prices every loop in
-decomp-synth at once. See `README.md`.
+compiler backend `c2.dll`, plus the differential harness that grades it. The
+thesis is **verifier throughput**: a faster `c2` speeds up every
+compile-in-the-loop decompilation workflow at once. See `README.md`.
 
 ## The one correctness rule
 
@@ -40,9 +40,12 @@ compiler is the sole judge.
 - `dc3` (Dance Central 3) references, the `e:\lazer_build_gmc1` original build
   root, and the XDK build id `16.00.11886.00` are **intentional** — do not
   scrub or genericize them.
-- **Sibling-repo layout assumption**: this repo expects `milohax/{c2-rs, wibo,
-  dc3-decomp}` as siblings. Toolchain defaults are relative to the repo root
-  (`crates/*/../.. = repo root`). Nothing absolute lives in source.
+- **Toolchain resolution is self-contained**: compilers come from
+  `./compilers/` (populated by `scripts/fetch_compilers.sh`, gitignored — MS
+  binaries are never committed), wibo from `PATH` or a sibling `../wibo`
+  build; sibling `../dc3-decomp/build/compilers` is only a compat fallback.
+  Defaults are relative to the repo root (`crates/*/../.. = repo root`).
+  Nothing absolute lives in source.
 
 ## Hard constraints
 

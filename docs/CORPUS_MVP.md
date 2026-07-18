@@ -7,8 +7,6 @@ bundle plus the c2 obj. It feeds the downstream **retrieval baseline (P1.3)** �
 obj-pattern → candidate-IL lookup — and supplies seeds for **IL-space search
 (T-A)**.
 
-il-witness roadmap entry: `docs/plans/il-witness/03_ROADMAP.md` § P1.2.
-
 ## What one triple is
 
 | Part | On disk | Notes |

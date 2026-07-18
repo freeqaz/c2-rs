@@ -277,8 +277,8 @@ increment is a later rung).
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 
 These are load-bearing operand orders; a swap is a silent, fuzzy-invisible
-corruption (see decomp-synth CLAUDE.md correctness boundary). Gate each
-behind explicit opt-in when implemented:
+corruption — exactly the failure class differential testing exists to catch.
+Gate each behind explicit opt-in when implemented:
 
 - **`subf` (op 31, XO 40): `subf rD,rA,rB` computes rB − rA — reversed.**
   Probe verified: `a-b-c` → `subf r11,r4,r3; subf r3,r5,r11; blr`
