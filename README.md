@@ -91,7 +91,11 @@ python3 scripts/plot_perf.py   # regenerates the graph (matplotlib)
 
 ## Setup
 
-You need two things, neither of which is committed here:
+Prebuilt `c2rs` binaries for Linux and Windows are on the
+[releases page](https://github.com/freeqaz/c2-rs/releases) if you don't want
+to build from source (building is just `cargo build --release`, though — no
+dependencies). For the harness to have something to test against, you need
+two more things, neither of which is committed here:
 
 1. **wibo** — grab a release binary from
    [decompals/wibo](https://github.com/decompals/wibo) and put it on your
