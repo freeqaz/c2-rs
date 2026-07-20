@@ -11,7 +11,12 @@ The foundation is proven and fast; the port itself is deliberately narrow.
 **Proven (differential, against real `c2.dll`/`c1xx.dll` 16.00.11886.00 under wibo):**
 
 - **P0.1** — standalone-c2 IL-bundle replay is byte-exact on all 25 fixtures
-  (`c2rs replay`). The reference side of the differential is real.
+  (`c2rs replay`) **and on all 871 capturable TUs of the real dc3-decomp
+  workload** (`c2rs gap --replay-every 1`, 2026-07-20 baseline — after two
+  real-workload fixes: a missing `lstrcpynA` shim in wibo that killed c2 on
+  large TUs, and the `1033/clui.dll` resources symlink beside `c2host`,
+  without which any TU that triggers a diagnostic dies with C1510). The
+  reference side of the differential is real, on real code.
 - **P-F0.1** — standalone-c1 (front-end) replay is byte-exact on all 25
   fixtures (`c2rs replay-c1`). The same porting path is open for `c1xx.dll`.
 - **The port (`c2-core::PortC2`) is byte-exact on the MVP class**
@@ -130,21 +135,43 @@ the CFG step (W8) and frames (W10) force a block/instruction IR, then
 restructure `codegen` around it, keeping every differential gate green.
 COLOR knowledge lands when W5/W10 demand real register-order modeling.
 
-### G5 — Coverage measurement (the instrument is landing)
+### G5 — Coverage measurement (instrument LANDED; baseline below)
 
-Today there is no published number for "how much of real code does the port
-accept". The corpus generator makes synthetic triples; `stuck-dc3` probes
-poked at one real function. The measuring tool is emerging as **`c2rs gap`**
-(real-workload gap scan, in-flight at time of writing): run the whole
+The measuring tool is **`c2rs gap`** (real-workload gap scan): run the whole
 pipeline — capture with the project's real flags → port → byte compare — over
 real dc3 TUs, bucketing each into `capture-fail` / `vocab-gap` /
 `codegen-gap` (keyed by the port's own `NotImplemented` reason) / `mismatch`
 / `match`, with JSONL records for longitudinal diffing and a
 `--replay-every N` soundness lane extending P0.1 to real workloads.
 `scripts/gen_dc3_workload.sh` generates the inputs from a dc3-decomp
-checkout. What remains for this gap to close: a committed baseline scan, the
-coverage % promoted to the headline metric, and the histogram wired into the
-widening loop (every W-step re-ranks it; coverage must be monotone).
+checkout.
+
+**Baseline (2026-07-20, 878 dc3 TUs, real `/O1 /Oi /EHsc` flags, 52 s at
+`--jobs 16`):**
+
+| Class | TUs | % |
+|---|---|---|
+| match | 0 | 0.0 |
+| mismatch | 0 | 0.0 |
+| codegen-gap | 0 | 0.0 |
+| **vocab-gap** | **871** | **99.2** |
+| capture-fail | 7 | 0.8 |
+
+- **Replay soundness: 871/871 byte-exact, 0 diverged** — the oracle holds on
+  the entire capturable real workload.
+- The 7 `capture-fail`s are all `synth_xbox/soundtouch` files the real 360
+  build excludes (x86-only `#error` guards) or builds with per-target flags —
+  a workload-manifest refinement, not a port gap.
+- **The wall is `vocab-gap`**: every real TU dies at `c2_il` function decode
+  before codegen is even consulted. `functions()` is all-or-nothing per TU,
+  so today's scan cannot yet rank W5–W14 — a TU with 700 functions where 690
+  are in-class still reads as one `vocab-gap`. The needed refinement is the
+  **function-level census** (P2b): decode/classify per function inside each
+  bundle, so the histogram counts *functions* by first-blocking feature, not
+  TUs. That histogram is the widening order.
+
+Remaining for G5: promote match-% to the headline metric once nonzero, keep
+the JSONL baselines diffable scan-over-scan (coverage must be monotone).
 
 ### G6 — Harness experiments maturity
 
@@ -207,15 +234,19 @@ CONST/DERIVED classification discipline matters more per step, not less.
 
 ## 6. Next actions (this week-scale)
 
-1. **P2**: land the in-flight `c2rs gap` scan, run the dc3 workload baseline
-   (`scripts/gen_dc3_workload.sh` → `c2rs gap`), and commit the headline
-   numbers (match %, the ranked `codegen-gap` reasons, any `vocab-gap` /
-   `mismatch`). The ranked reason list *is* the widening order — expect it to
-   re-rank W5–W14 below.
-2. **W5**: lift the depth-2 stack limit using the documented COLOR scratch
+1. ~~**P2**: land `c2rs gap`, run the dc3 baseline, commit the numbers.~~
+   **DONE 2026-07-20** — see G5. Headline: 0 mismatch, 871/871 replay
+   soundness, 99.2% vocab-gap. The scan cannot rank W5–W14 yet because
+   decode fails TU-wholesale first.
+2. **P2b — function-level census**: decode per *function* inside each real
+   bundle (splitting at `4F 1F` body markers, classifying each by its first
+   unknown token/feature), so the histogram counts functions by blocking
+   feature. This, not TU counts, produces the W5–W14 ranking. It also gives
+   the true "functions in-class today" numerator for the headline metric.
+3. **W5**: lift the depth-2 stack limit using the documented COLOR scratch
    order; positive fixture `(a+b)*(c+d)`, negative depth-5 tree.
-3. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
-4. Re-rank W6+ from the first census histogram; update this doc.
+4. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
+5. Re-rank W6+ from the census histogram; update this doc.
 
 ## 7. Invariants (do not break)
 

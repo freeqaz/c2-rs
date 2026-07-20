@@ -41,11 +41,13 @@ handles returns `NotImplemented` instead of guessing.
 
 ## What works today
 
-* **Standalone back-end replay is proven.** Feeding a captured IL bundle back
-  through `c2.dll` alone (via the tiny `c2host` stub under wibo) reproduces
-  the full-pipeline `.obj` byte-for-byte on all 25 fixtures. This is the
-  foundation everything else stands on: the reference side of the
-  differential is real, not approximated. (`c2rs replay`)
+* **Standalone back-end replay is proven — on real code.** Feeding a captured
+  IL bundle back through `c2.dll` alone (via the tiny `c2host` stub under
+  wibo) reproduces the full-pipeline `.obj` byte-for-byte on all 25 fixtures
+  *and on all 871 capturable translation units of a real Xbox 360 game
+  codebase, compiled with the game's real flags*. This is the foundation
+  everything else stands on: the reference side of the differential is real,
+  not approximated. (`c2rs replay`, `c2rs gap --replay-every 1`)
 * **The native port is byte-exact on its first function class** — straight-line
   integer arithmetic leaves, tail calls, and a single framed non-leaf call.
   Same IL in, same 5-section COFF out, verified against real c2 on every run.
@@ -56,6 +58,16 @@ handles returns `NotImplemented` instead of guessing.
   byte-for-byte on all 25 fixtures. That opens the same porting path for the
   front end, which would eventually make source→obj fully in-process.
   (`c2rs replay-c1`)
+* **The gap is measured, not guessed.** `c2rs gap` runs the whole pipeline
+  over a list of real TUs with their real compile flags and buckets every one
+  of them: does capture fail, does IL decode fail, does codegen refuse, do
+  the bytes diverge, or does it match — with the blocking reasons ranked. The
+  first baseline is honest and stark: on 878 real TUs the port currently
+  reaches byte-exact on none of them, because 99% die at IL decode before
+  codegen is even consulted. That number is the roadmap
+  ([`docs/ROADMAP.md`](docs/ROADMAP.md)), and the scan (52 s for the whole
+  codebase) reruns on every widening step so it can only be improved, not
+  argued with.
 * **Corpus, retrieval, and search tooling** on top: a deterministic
   `(source, IL, obj)` corpus generator, an obj→IL retrieval baseline, and an
   IL-space search prototype that edits bundles and asks the compiler to
