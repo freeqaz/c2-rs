@@ -274,6 +274,9 @@ impl Toolchain {
                 ));
             }
         }
+        // c2 resolves `<host-exe-dir>/1033/clui.dll` for diagnostics; without
+        // it, any TU that triggers a warning dies with `fatal error C1510`.
+        self.ensure_clui_beside(&self.c2host_exe, &self.c2_dll)?;
         Ok(self.c2host_exe.clone())
     }
 
@@ -337,14 +340,21 @@ impl Toolchain {
     /// dir (holding `clui.dll`). c1xx locates its diagnostics resources relative
     /// to the running exe, which under wibo is `c1host.exe`.
     fn ensure_c1_resources(&self) -> io::Result<()> {
-        let exe_dir = self
-            .c1host_exe
+        self.ensure_clui_beside(&self.c1host_exe, &self.c1xx_dll)
+    }
+
+    /// Symlink the toolchain's `1033/` resources dir (holding `clui.dll`)
+    /// beside `host_exe`. The compiler DLLs resolve `<host-exe-dir>/1033/
+    /// clui.dll` via `GetModuleFileName(NULL)` the moment they need to *print
+    /// a diagnostic* — without it, c1xx silently aborts and c2 dies with
+    /// `fatal error C1510` on the first TU that triggers any warning.
+    fn ensure_clui_beside(&self, host_exe: &Path, dll: &Path) -> io::Result<()> {
+        let exe_dir = host_exe
             .parent()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "c1host_exe has no parent"))?;
-        let src_1033 = self
-            .c1xx_dll
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "host exe has no parent"))?;
+        let src_1033 = dll
             .parent()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "c1xx_dll has no parent"))?
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "compiler dll has no parent"))?
             .join("1033");
         if !src_1033.exists() {
             return Err(io::Error::new(
@@ -641,11 +651,13 @@ impl Toolchain {
         let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
         let output = cmd.output()?;
 
-        if !out_abs.exists() {
+        // An empty obj means c2 opened the output then died mid-pass (e.g. a
+        // missing wibo import) — that is a crash, not a product.
+        if !out_abs.exists() || std::fs::metadata(&out_abs)?.len() == 0 {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
                 format!(
-                    "replay produced no obj at {}\n  status: {}\n  stdout:\n{}\n  stderr:\n{}",
+                    "replay produced no (or an empty) obj at {}\n  status: {}\n  stdout:\n{}\n  stderr:\n{}",
                     out_abs.display(),
                     output.status,
                     indent(&String::from_utf8_lossy(&output.stdout)),
@@ -692,12 +704,12 @@ impl Toolchain {
                 }
             }
         }
-        if !out_abs.exists() {
+        if !out_abs.exists() || std::fs::metadata(&out_abs)?.len() == 0 {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
                 format!(
-                    "replay produced no obj at {} (c2 crashed/aborted — e.g. a stale \
-                     .gl offset SIGSEGV, P0.6a C)",
+                    "replay produced no (or an empty) obj at {} (c2 crashed/aborted — \
+                     e.g. a stale .gl offset SIGSEGV, P0.6a C)",
                     out_abs.display()
                 ),
             ));
