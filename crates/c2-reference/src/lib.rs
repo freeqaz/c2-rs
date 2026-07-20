@@ -491,6 +491,32 @@ impl Toolchain {
         cpp: &Path,
         work_dir: &Path,
     ) -> io::Result<CapturedReference> {
+        let z_src = to_wibo_path(&absolute(cpp)?);
+        let flags: Vec<String> =
+            ["/Ox", "/GS-", "/c"].iter().map(|s| s.to_string()).collect();
+        self.capture_reference_with(&z_src, work_dir, &flags, None)
+    }
+
+    /// [`Toolchain::capture_reference`] generalized to an arbitrary compile
+    /// profile — the seam for **real-workload** capture (gap scans over actual
+    /// project TUs, which need the project's own `/O1 /EHsc /I…` flags and a
+    /// cwd inside the project so relative includes resolve).
+    ///
+    /// * `src_arg` is passed to `cl.exe` verbatim (a `Z:\…` path, or a path
+    ///   relative to `cwd` — relative is build-faithful: it is what gets baked
+    ///   into the `.gl` file and `.debug$S`).
+    /// * `flags` replace the default `/Ox /GS- /c` (they should include `/c`).
+    /// * `cwd` is the working directory for the compile, if given.
+    ///
+    /// The `/Bd` echo, strace `unlink` inject, TMP redirection, and bundle
+    /// scrape are identical to the fixture path.
+    pub fn capture_reference_with(
+        &self,
+        src_arg: &str,
+        work_dir: &Path,
+        flags: &[String],
+        cwd: Option<&Path>,
+    ) -> io::Result<CapturedReference> {
         let strace = self.strace.clone().ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::NotFound,
@@ -502,14 +528,21 @@ impl Toolchain {
         let work_abs = absolute(work_dir)?;
         let out_obj = work_abs.join("out.obj");
         let _ = std::fs::remove_file(&out_obj);
+        // Clear stale bundles so find_bundle_base cannot pick up a previous
+        // capture in a reused work dir.
+        for entry in std::fs::read_dir(&work_abs)? {
+            let entry = entry?;
+            if entry.file_name().to_string_lossy().starts_with("_CL_") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
 
-        let z_src = to_wibo_path(&absolute(cpp)?);
         let z_obj = to_wibo_path(&out_obj);
 
         // strace -f -e trace=unlink,unlinkat -e inject=unlink,unlinkat:retval=0
-        //   -o /dev/null  <wibo> <cl.exe> /Bd /Ox /GS- /c /Fo<z_obj> <z_src>
-        let output = Command::new(&strace)
-            .arg("-f")
+        //   -o /dev/null  <wibo> <cl.exe> /Bd <flags…> /Fo<z_obj> <src_arg>
+        let mut cmd = Command::new(&strace);
+        cmd.arg("-f")
             .arg("-e")
             .arg("trace=unlink,unlinkat")
             .arg("-e")
@@ -519,15 +552,16 @@ impl Toolchain {
             .arg(&self.wibo)
             .arg(&self.cl_exe)
             .arg("/Bd")
-            .arg("/Ox")
-            .arg("/GS-")
-            .arg("/c")
+            .args(flags)
             .arg(format!("/Fo{z_obj}"))
-            .arg(&z_src)
+            .arg(src_arg)
             .env("TMP", &work_abs)
             .env("TEMP", &work_abs)
-            .env("WIBO_FS_CACHE", "1")
-            .output()?;
+            .env("WIBO_FS_CACHE", "1");
+        if let Some(dir) = cwd {
+            cmd.current_dir(dir);
+        }
+        let output = cmd.output()?;
 
         if !out_obj.exists() {
             return Err(io::Error::new(
