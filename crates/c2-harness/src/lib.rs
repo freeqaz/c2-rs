@@ -21,9 +21,12 @@ use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
 pub mod corpus;
+pub mod gap;
 pub mod perf;
 pub mod retrieval;
 pub mod search;
+
+pub(crate) use corpus::jstr;
 
 /// Port-side status, evaluated only after the reference replay is byte-exact.
 #[derive(Clone, Debug, PartialEq, Eq)]

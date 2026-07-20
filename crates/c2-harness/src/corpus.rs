@@ -840,7 +840,7 @@ fn first_line(s: &str) -> &str {
 }
 
 /// JSON-escape and quote a string.
-fn jstr(s: &str) -> String {
+pub(crate) fn jstr(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
     for c in s.chars() {

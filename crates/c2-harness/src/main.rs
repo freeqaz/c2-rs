@@ -59,6 +59,7 @@ fn main() -> ExitCode {
         "perf" => cmd_perf(rest),
         "perf-scale" => cmd_perf_scale(rest),
         "corpus" => cmd_corpus(rest),
+        "gap" => cmd_gap(rest),
         "retrieve" => cmd_retrieve(rest),
         "search" => cmd_search(rest),
         "help" | "-h" | "--help" => {
@@ -90,6 +91,7 @@ fn print_usage() {
          \x20 c2rs corpus gen [opts]    P1.2: generate a (source,IL,obj) triple corpus\n\
          \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
+         \x20 c2rs gap [opts]           real-workload gap scan: classify every TU, rank the blockers\n\
          \x20 c2rs retrieve index <dir> P1.3: obj-retrieval structure of a corpus\n\
          \x20 c2rs retrieve eval <dir>  P1.3: obj->IL retrieval baseline, recall@k\n\
          \x20 c2rs search solve <cpp>   T-A: solve one d=1 instance from a fixture, byte-exact\n\
@@ -99,6 +101,8 @@ fn print_usage() {
          perf options: --port-iters N --ref-iters N --fixtures a.cpp,b.cpp\n\
          perf-scale options: --fixture X.cpp --conc 1,2,4,8 --port-secs F --ref-secs F --csv PATH\n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
+         gap options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
+         \x20            [--replay-every N] [--jsonl PATH] (see scripts/gen_dc3_workload.sh)\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
          search options: --d 1|2|3 --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
          \n\
@@ -1379,4 +1383,214 @@ fn cmd_corpus_stats(rest: &[String]) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// gap — real-workload gap scan
+// ---------------------------------------------------------------------------
+
+use c2_harness::gap::{gap_scan, GapConfig, TuClass};
+
+/// `c2rs gap --list FILE --flags-file FILE [--cwd DIR] …` — scan real TUs,
+/// classify each (capture-fail / vocab-gap / codegen-gap / mismatch / match),
+/// and rank the blockers. Exit is non-zero only on a *correctness* signal
+/// (`mismatch` TUs or a replay-soundness divergence) or a harness error —
+/// gaps themselves are the expected measurement, not a failure.
+fn cmd_gap(rest: &[String]) -> ExitCode {
+    let mut list_file: Option<PathBuf> = None;
+    let mut flags_file: Option<PathBuf> = None;
+    let mut cwd: Option<PathBuf> = None;
+    let mut limit: Option<usize> = None;
+    let mut jobs: usize = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+    let mut replay_every: usize = 0;
+    let mut jsonl: Option<PathBuf> = None;
+    let mut work: Option<PathBuf> = None;
+
+    let mut it = rest.iter();
+    while let Some(a) = it.next() {
+        let mut val = |name: &str| -> Option<String> {
+            match it.next() {
+                Some(v) => Some(v.clone()),
+                None => {
+                    eprintln!("{name} needs a value");
+                    None
+                }
+            }
+        };
+        match a.as_str() {
+            "--list" => match val("--list") {
+                Some(v) => list_file = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--flags-file" => match val("--flags-file") {
+                Some(v) => flags_file = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--cwd" => match val("--cwd") {
+                Some(v) => cwd = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--limit" => match val("--limit").and_then(|v| v.parse().ok()) {
+                Some(v) => limit = Some(v),
+                None => return ExitCode::from(2),
+            },
+            "--jobs" => match val("--jobs").and_then(|v| v.parse().ok()) {
+                Some(v) => jobs = v,
+                None => return ExitCode::from(2),
+            },
+            "--replay-every" => match val("--replay-every").and_then(|v| v.parse().ok()) {
+                Some(v) => replay_every = v,
+                None => return ExitCode::from(2),
+            },
+            "--jsonl" => match val("--jsonl") {
+                Some(v) => jsonl = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--work" => match val("--work") {
+                Some(v) => work = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            other => {
+                eprintln!("unknown gap option: {other}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+
+    let (Some(list_file), Some(flags_file)) = (list_file, flags_file) else {
+        eprintln!(
+            "usage: c2rs gap --list FILE --flags-file FILE [--cwd DIR] [--limit N] \
+             [--jobs N] [--replay-every N] [--jsonl PATH] [--work DIR]\n\
+             (generate the dc3 workload inputs with scripts/gen_dc3_workload.sh)"
+        );
+        return ExitCode::from(2);
+    };
+
+    let read_tokens = |p: &PathBuf, split: bool| -> std::io::Result<Vec<String>> {
+        let text = std::fs::read_to_string(p)?;
+        let mut out = Vec::new();
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if split {
+                out.extend(line.split_whitespace().map(String::from));
+            } else {
+                out.push(line.to_string());
+            }
+        }
+        Ok(out)
+    };
+    let sources = match read_tokens(&list_file, false) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("cannot read --list {}: {e}", list_file.display());
+            return ExitCode::FAILURE;
+        }
+    };
+    let flags = match read_tokens(&flags_file, true) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("cannot read --flags-file {}: {e}", flags_file.display());
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() {
+        println!("SKIP: strace absent (needed to keep IL bundles during capture)");
+        return ExitCode::SUCCESS;
+    }
+    if replay_every > 0 && !tc.has_mingw() {
+        println!("SKIP: i686-w64-mingw32-gcc absent (needed for --replay-every)");
+        return ExitCode::SUCCESS;
+    }
+
+    let cfg = GapConfig {
+        sources,
+        flags,
+        cwd,
+        limit,
+        jobs,
+        replay_every,
+        jsonl,
+        work: work.unwrap_or_else(|| scratch("gap")),
+    };
+    let total = cfg.limit.unwrap_or(cfg.sources.len()).min(cfg.sources.len());
+    println!(
+        "gap scan: {total} TUs, {} flags, jobs={}, replay-every={}",
+        cfg.flags.len(),
+        cfg.jobs,
+        cfg.replay_every
+    );
+
+    let t0 = std::time::Instant::now();
+    let report = match gap_scan(&tc, &cfg, &|n, tot, r| {
+        println!(
+            "  [{n}/{tot}] {:<12} {}{}",
+            r.class.label(),
+            r.src,
+            if r.reason.is_empty() || r.class == TuClass::Match {
+                String::new()
+            } else {
+                format!("  ({})", r.reason)
+            }
+        );
+    }) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("gap scan failed: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let elapsed = t0.elapsed();
+
+    let n = report.results.len().max(1);
+    println!("\nGAP REPORT ({} TUs in {:.1}s)", report.results.len(), elapsed.as_secs_f64());
+    for class in [
+        TuClass::Match,
+        TuClass::Mismatch,
+        TuClass::CodegenGap,
+        TuClass::VocabGap,
+        TuClass::PortError,
+        TuClass::CaptureFail,
+    ] {
+        let c = report.count(class);
+        println!("  {:<13} {:>5}  {:>5.1}%", class.label(), c, 100.0 * c as f64 / n as f64);
+    }
+    let (checked, diverged) = report.replay_stats();
+    if checked > 0 {
+        println!("  replay soundness: {checked} checked, {diverged} diverged");
+    }
+    for (class, title) in [
+        (TuClass::CaptureFail, "top capture-fail reasons"),
+        (TuClass::VocabGap, "top vocab gaps"),
+        (TuClass::CodegenGap, "top codegen gaps"),
+        (TuClass::PortError, "top port errors"),
+        (TuClass::Mismatch, "mismatches"),
+    ] {
+        let reasons = report.top_reasons(class);
+        if reasons.is_empty() {
+            continue;
+        }
+        println!("\n  {title}:");
+        for (reason, count) in reasons.iter().take(10) {
+            println!("    {count:>5} x {reason}");
+        }
+        if reasons.len() > 10 {
+            println!("    … and {} more distinct reasons", reasons.len() - 10);
+        }
+    }
+
+    let mismatches = report.count(TuClass::Mismatch);
+    if mismatches > 0 || diverged > 0 {
+        eprintln!(
+            "\nCORRECTNESS SIGNAL: {mismatches} mismatching TU(s), {diverged} replay divergence(s)"
+        );
+        return ExitCode::FAILURE;
+    }
+    ExitCode::SUCCESS
 }
