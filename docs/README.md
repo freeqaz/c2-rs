@@ -12,6 +12,10 @@ least two fixtures; the standing confirmation of the whole set is the
 differential harness itself (`port(IL) == c2(IL)` byte-exact, timestamp
 normalized).
 
+- `ROADMAP.md` — the path from the MVP port to a fully implemented stack:
+  current gaps (G1–G6), the widening ladder (W5–W14), the front-end track
+  (P-F0.2→P-F2), the census tool that drives ordering (P2), and the
+  composition milestone (P3).
 - `OBJ_FORMAT_MVP.md` — COFF file layout: header, section headers, raw-data
   contents (`.drectve`, `.debug$S`, `.XBLD$W`), symbol table, string table,
   the COMDAT checksum algorithm, and the constant-vs-derived classification
