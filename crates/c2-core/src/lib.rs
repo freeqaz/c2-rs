@@ -157,6 +157,13 @@ impl PortC2 {
                 text.push(0);
             }
             let off = text.len() as u32;
+            // W6: a comparison leaf lowers to its own branchless spine rather
+            // than through the operand-stack selector.
+            if let Some(cmp) = &f.compare {
+                text.extend_from_slice(&codegen::compare_leaf_text(cmp)?);
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None });
+                continue;
+            }
             let call = if let Some(callee) = &f.tail_call {
                 // Tail call. A void bare call (`ops` empty) is a single
                 // `b <callee>` (REL24) at this offset; an integer tail call

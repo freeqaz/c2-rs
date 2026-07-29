@@ -63,6 +63,62 @@ pub struct FramedCall {
     pub add_k: i32,
 }
 
+/// A relational operator, as encoded by a single `.ex` operand-stream opcode.
+///
+/// The opcode is **sign-agnostic** — signed and unsigned probes emit the same
+/// byte and differ only in the operand type. Verified per relation against live
+/// captures; see `docs/CODEGEN_W6_COMPARE.md` §1.1.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Rel {
+    /// `==`, opcode `0x1F`.
+    Eq,
+    /// `!=`, opcode `0x20`.
+    Ne,
+    /// `<=`, opcode `0x21`.
+    Le,
+    /// `<`, opcode `0x22`.
+    Lt,
+    /// `>=`, opcode `0x23`.
+    Ge,
+    /// `>`, opcode `0x24`.
+    Gt,
+}
+
+impl Rel {
+    fn from_opcode(b: u8) -> Option<Rel> {
+        Some(match b {
+            0x1F => Rel::Eq,
+            0x20 => Rel::Ne,
+            0x21 => Rel::Le,
+            0x22 => Rel::Lt,
+            0x23 => Rel::Ge,
+            0x24 => Rel::Gt,
+            _ => return None,
+        })
+    }
+}
+
+/// A **comparison leaf** (W6): `return <formal> <rel> <literal>;` materialized
+/// to a boolean.
+///
+/// c2 lowers these *branchlessly* — no `cmpw`/`cmplw` at all — via carry-bit and
+/// bit-extraction idioms whose exact instruction sequence depends on the
+/// relation, the signedness, and (critically) on whether the literal is zero:
+/// `k == 0` is folded to a shorter, different sequence rather than being a
+/// special case of the general spine. See `docs/CODEGEN_W6_COMPARE.md`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CompareLeaf {
+    /// The compared formal's IL token (it occupies r3, the first argument).
+    pub param: u32,
+    /// The relation, with the formal on the left (`<formal> <rel> <k>`).
+    pub rel: Rel,
+    /// Whether the *operand* type is signed (`int`) or not (`unsigned int`).
+    /// The opcode does not carry this; the operand type does.
+    pub signed: bool,
+    /// The literal right-hand side.
+    pub k: i32,
+}
+
 /// A parsed MVP function: enough to drive the codegen + COFF emitter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IlFunction {
@@ -89,6 +145,9 @@ pub struct IlFunction {
     /// callee + post-op literal. Distinct from `tail_call` (which is a bare
     /// `b g`). W4b2: single-function TU, single external only.
     pub framed_call: Option<FramedCall>,
+    /// If this function is a **comparison leaf** (`return a <rel> k;`, W6), the
+    /// decoded comparison. Mutually exclusive with the other body kinds.
+    pub compare: Option<CompareLeaf>,
 }
 
 /// The int type encoding inline in the `.ex` body (`86 41 74`), per `IL_FORMAT`.
@@ -283,6 +342,9 @@ enum BodyShape {
     /// call-end, then exactly one literal `+ k` (ADD, commutative), returned. A
     /// zero `k` is NOT framed — it folds to [`BodyShape::IntTailCall`].
     FramedCall { add_k: i32 },
+    /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
+    /// boolean branchlessly and converted back to `int`/`unsigned`.
+    Compare(CompareLeaf),
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -651,8 +713,16 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
     match *seg.get(p).ok_or(blk(seg, p, "body"))? {
         // Call shapes all open with a `26 <tok>` function/result-temp ref.
         0x26 => parse_call_shape(seg, &mut p, lo),
-        // Straight-line arithmetic opens with a LOAD or a bare literal.
+        // Straight-line arithmetic opens with a LOAD or a bare literal — and so
+        // does a W6 comparison leaf, which is tried first because its whole-body
+        // shape is strictly more specific (a LOAD/LIT pair consumed by a
+        // relational opcode). `try_parse_compare` is non-committal: it works on
+        // a copy of the cursor and returns None without side effects, so a
+        // non-comparison body falls through to the arithmetic parse unchanged.
         0xB9 | 0x33 => {
+            if let Some(shape) = try_parse_compare(seg, p, lo) {
+                return Ok(shape);
+            }
             let ops = parse_expr(seg, &mut p, 0x41)?;
             eat_return_plumbing(seg, &mut p, true)?;
             let params = parse_formals(seg, lo)?;
@@ -660,6 +730,100 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
         }
         _ => Err(blk(seg, p, "body")),
     }
+}
+
+/// The `unsigned int` operand type encoding inline in the `.ex` body.
+/// Distinguished from [`INT_TYPE`] only by its last two bytes; the relational
+/// opcodes are sign-agnostic, so this triple is the *only* thing that says a
+/// comparison is unsigned.
+const UINT_TYPE: [u8; 3] = [0x86, 0x42, 0x75];
+
+/// Try to parse a **W6 comparison leaf** body: `return <formal> <rel> <k>;`.
+///
+/// ```text
+///   B9 <tok> <T>        LOAD the formal          T ∈ {int, unsigned}
+///   33 <T> <varint>     LITERAL k, same type T
+///   <rel>               1F|20|21|22|23|24
+///   2C <R> 00           convert bool → R         R ∈ {int, unsigned}
+///   41 <R>              result type
+///   <return plumbing>
+/// ```
+///
+/// Fail-closed specifics that are load-bearing rather than incidental:
+///
+/// * The two operand types must be **equal**. c1xx always inserts a conversion
+///   first, so a mismatch has never been observed; rejecting it is a cheap
+///   assertion, not a dropped feature.
+/// * The `2C` convert is accepted **only here**, directly over a comparison
+///   result. The identical token over a narrow-integer LOAD is a real
+///   `extsb`/`extsh` sign-extension, so a blanket "`2C` is free" rule would
+///   silently drop those instructions.
+/// * The parse must reach the segment end via the shared return plumbing, so a
+///   trailing statement, a second comparison, or an arithmetic post-op (e.g.
+///   `return (a > 7) + 1;`, which retargets the spine's last instruction) all
+///   reject the whole function.
+///
+/// Returns `None` — leaving the caller's cursor untouched — for anything that is
+/// not exactly this shape.
+fn try_parse_compare(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    let mut p = start;
+
+    // LOAD <formal> <T>
+    if !eat_byte(seg, &mut p, 0xB9) {
+        return None;
+    }
+    let (param, w) = read_token_var(seg, p)?;
+    p += w;
+    let signed = if eat(seg, &mut p, &INT_TYPE) {
+        true
+    } else if eat(seg, &mut p, &UINT_TYPE) {
+        false
+    } else {
+        return None;
+    };
+    let operand_type = if signed { INT_TYPE } else { UINT_TYPE };
+
+    // LITERAL k, of the SAME type as the loaded operand.
+    if !eat_byte(seg, &mut p, 0x33) || !eat(seg, &mut p, &operand_type) {
+        return None;
+    }
+    let k = read_varint(seg, &mut p)?;
+
+    // The relational opcode.
+    let rel = Rel::from_opcode(*seg.get(p)?)?;
+    p += 1;
+
+    // `2C <R> 00` — convert the bool result to the return type.
+    if !eat_byte(seg, &mut p, 0x2C) {
+        return None;
+    }
+    let ret_is_int = if eat(seg, &mut p, &INT_TYPE) {
+        true
+    } else if eat(seg, &mut p, &UINT_TYPE) {
+        false
+    } else {
+        return None;
+    };
+    if !eat_byte(seg, &mut p, 0x00) {
+        return None;
+    }
+
+    // Result type + the shared return plumbing, which must reach the segment end.
+    let ret_type = if ret_is_int { INT_TYPE } else { UINT_TYPE };
+    if !eat_byte(seg, &mut p, 0x41) || !eat(seg, &mut p, &ret_type) {
+        return None;
+    }
+    // Result type already consumed above, so `has_result_type` is false here.
+    eat_return_plumbing(seg, &mut p, false).ok()?;
+
+    // The compared value must be the function's FIRST formal: the spine reads it
+    // from r3, and nothing here models a register move.
+    let params = parse_formals(seg, lo).ok()?;
+    if params.first() != Some(&param) || params.len() != 1 {
+        return None;
+    }
+
+    Some(BodyShape::Compare(CompareLeaf { param, rel, signed, k }))
 }
 
 /// Parse a call shape (already positioned at the `26 <tok>` function ref): the
@@ -948,6 +1112,7 @@ impl IlBundle {
                         Ok(BodyShape::VoidTailCall) => FnVerdict::InClass("void-tail-call"),
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                         Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
+                        Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
                         Err(b) => FnVerdict::Blocked(b),
                     };
                     // Keep the raw bytes around the blocking site: decoding a new
@@ -1036,6 +1201,7 @@ impl IlBundle {
                                 callee: externals[0].clone(),
                                 add_k,
                             }),
+                            compare: None,
                         }]);
                     }
                     BodyShape::VoidTailCall => {
@@ -1046,6 +1212,7 @@ impl IlBundle {
                             ops: Vec::new(),
                             tail_call: Some(externals[0].clone()),
                             framed_call: None,
+                            compare: None,
                         }]);
                     }
                     // Integer tail call `return g(<arg>)` (and the `g(a)+0` fold).
@@ -1059,11 +1226,12 @@ impl IlBundle {
                             ops: arg_ops,
                             tail_call: Some(externals[0].clone()),
                             framed_call: None,
+                            compare: None,
                         }]);
                     }
-                    // A `.gl` external but a straight-line body is a contradiction
+                    // A `.gl` external but a body with no call is a contradiction
                     // (no call to bind the external to) → reject.
-                    BodyShape::StraightLine { .. } => return None,
+                    BodyShape::StraightLine { .. } | BodyShape::Compare(_) => return None,
                 }
             }
             return None;
@@ -1082,6 +1250,20 @@ impl IlBundle {
                         ops,
                         tail_call: None,
                         framed_call: None,
+                        compare: None,
+                    });
+                }
+                // W6: a comparison leaf carries no op stream — codegen emits its
+                // spine from the decoded relation instead.
+                BodyShape::Compare(cmp) => {
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params: vec![cmp.param],
+                        ops: Vec::new(),
+                        tail_call: None,
+                        framed_call: None,
+                        compare: Some(cmp),
                     });
                 }
                 _ => return None,

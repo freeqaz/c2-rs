@@ -84,6 +84,120 @@ pub fn encode_blr() -> [u8; 4] {
     0x4E80_0020u32.to_be_bytes()
 }
 
+// ---- W6: comparison → boolean materialization encoders ---------------------
+//
+// c2 materializes integer comparisons **branchlessly** — it emits no
+// `cmpw`/`cmplw` at all for a `return a <rel> k` leaf, but instead carry-bit and
+// bit-extraction idioms (see docs/CODEGEN_W6_COMPARE.md, where every word below
+// is matched against a live capture). Several of these are non-commutative and
+// their operand order is load-bearing exactly like [`encode_subf`]'s.
+
+/// `addic rD, rA, SIMM` (rD = rA + SIMM, **setting CA**): primary opcode 12.
+/// The carry-out is the point: `addic rD,rX,-1` sets CA iff `rX != 0`.
+pub fn encode_addic(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+    let word: u32 =
+        (12 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `subfic rD, rA, SIMM` (rD = SIMM − rA, setting CA): primary opcode 8.
+/// **Non-commutative**: the immediate is the minuend, the register the
+/// subtrahend. CA is set iff `rA <= SIMM` unsigned.
+pub fn encode_subfic(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+    let word: u32 =
+        (8 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `subfc rD, rA, rB` (rD = rB − rA, setting CA): opcode 31, XO 8.
+/// **Non-commutative — same reversed mapping as [`encode_subf`]**: to realize
+/// `lhs − rhs` pass `ra = rhs`, `rb = lhs`.
+pub fn encode_subfc(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    xo31(rd, ra, rb, 8)
+}
+
+/// `subfe rD, rA, rB` (rD = ¬rA + rB + CA): opcode 31, XO 136.
+/// **Non-commutative.** With `rA == rB` the register terms cancel to −1, so the
+/// result is `CA − 1` — the don't-care-source idiom (§3.5 of the W6 doc), where
+/// the source register number is still byte-visible and must be reproduced.
+pub fn encode_subfe(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    xo31(rd, ra, rb, 136)
+}
+
+/// `addze rD, rA` (rD = rA + CA): opcode 31, XO 202.
+pub fn encode_addze(rd: u8, ra: u8) -> [u8; 4] {
+    xo31(rd, ra, 0, 202)
+}
+
+/// `neg rD, rA` (rD = −rA): opcode 31, XO 104.
+pub fn encode_neg(rd: u8, ra: u8) -> [u8; 4] {
+    xo31(rd, ra, 0, 104)
+}
+
+/// `andc rA, rS, rB` (rA = rS & ¬rB): opcode 31, XO 60. Not symmetric in
+/// rS/rB — the complement applies to rB only.
+pub fn encode_andc(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
+    xo31(rs, ra, rb, 60)
+}
+
+/// `orc rA, rS, rB` (rA = rS | ¬rB): opcode 31, XO 412. Not symmetric.
+pub fn encode_orc(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
+    xo31(rs, ra, rb, 412)
+}
+
+/// `eqv rA, rS, rB` (rA = ¬(rS ^ rB)): opcode 31, XO 284. Logically symmetric,
+/// but c2's emitted rS/rB order is reproduced rather than chosen.
+pub fn encode_eqv(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
+    xo31(rs, ra, rb, 284)
+}
+
+/// `cntlzw rA, rS` (count leading zero bits): opcode 31, XO 26. Yields exactly
+/// 32 iff rS is zero — the basis of the `== 0` idiom.
+pub fn encode_cntlzw(ra: u8, rs: u8) -> [u8; 4] {
+    xo31(rs, ra, 0, 26)
+}
+
+/// `xori rA, rS, UIMM` (rA = rS ^ UIMM): primary opcode 26.
+pub fn encode_xori(ra: u8, rs: u8, ui: u16) -> [u8; 4] {
+    let word: u32 =
+        (26 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (ui as u32);
+    word.to_be_bytes()
+}
+
+/// `rlwinm rA, rS, SH, MB, ME` — rotate left word immediate then AND with mask:
+/// primary opcode 21, Rc=0. The workhorse of bit extraction here.
+pub fn encode_rlwinm(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
+    let word: u32 = (21 << 26)
+        | ((rs as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((sh as u32 & 0x1F) << 11)
+        | ((mb as u32 & 0x1F) << 6)
+        | ((me as u32 & 0x1F) << 1);
+    word.to_be_bytes()
+}
+
+/// `srwi rA, rS, 31` — extract the sign bit. The `rlwinm rA,rS,1,31,31` form.
+pub fn encode_srwi31(ra: u8, rs: u8) -> [u8; 4] {
+    encode_rlwinm(ra, rs, 1, 31, 31)
+}
+
+/// `clrlwi rA, rS, 31` — keep only bit 31. The `rlwinm rA,rS,0,31,31` form.
+pub fn encode_clrlwi31(ra: u8, rs: u8) -> [u8; 4] {
+    encode_rlwinm(ra, rs, 0, 31, 31)
+}
+
+/// Shared encoder for the opcode-31 X-form used above: the first register field
+/// (bits 6..11) is rD for arithmetic forms and rS for logical ones — callers
+/// pass them in that slot accordingly.
+fn xo31(first: u8, second: u8, rb: u8, xo: u32) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((first as u32 & 0x1F) << 21)
+        | ((second as u32 & 0x1F) << 16)
+        | ((rb as u32 & 0x1F) << 11)
+        | (xo << 1);
+    word.to_be_bytes()
+}
+
 /// Emit `dest = reg + k` as one `addi` (16-bit) or an `addis`+`addi` pair for a
 /// wide immediate. The pair splits `k` into a sign-compensated high half and a
 /// sign-extended low half: `lo = (i16)k`, `hi = (k − lo) >> 16` (so the `addi`'s
@@ -219,6 +333,146 @@ pub fn int_tail_call_text(
     Ok((text, branch_off))
 }
 
+/// Select `.text` for a **W6 comparison leaf** (`return a <rel> k;`), returning
+/// the spine plus its trailing `blr`.
+///
+/// c2 materializes these branchlessly — it emits no `cmpw`/`cmplw` at all for
+/// this shape — using carry-bit and bit-extraction idioms. Every sequence below
+/// is transcribed from a live capture (`docs/CODEGEN_W6_COMPARE.md` §3–§4) and
+/// each instruction word is re-encoded from its fields here.
+///
+/// **The `k == 0` folds are dispatched first and are not optional.** c2 does not
+/// run a zero literal through the general spine; it folds, sometimes to a
+/// shorter sequence and sometimes to a constant. Two of the six fixture
+/// functions land in that table, and emitting the general spine for them would
+/// be a wrong-length, wrong-bytes mis-emit. This mirrors the `g(a) + 0` identity
+/// fold in W4b2-vi: a zero operand changes the *shape*, not just an immediate.
+///
+/// Temporaries are allocated descending from r11 in emission order, one physical
+/// register per temp with no reuse — including two kinds of slot consumed by
+/// values that are never read (a `subfe u,v,v` don't-care source, and a
+/// `subfc`/`subfic` destination whose only live output is the carry). Those
+/// register numbers are byte-visible, so they must be allocated, not elided.
+///
+/// Outside this leaf class c2's allocator is demonstrably richer (it reuses dead
+/// registers, and it schedules — numbering order is not emission order), so this
+/// function accepts exactly the characterized shapes and returns
+/// `NotImplemented` for the rest.
+pub fn compare_leaf_text(cmp: &c2_il::CompareLeaf) -> Result<Vec<u8>, BackendError> {
+    use c2_il::Rel;
+    let mut t: Vec<u8> = Vec::with_capacity(28);
+    let a = RET_REG; // the compared formal is the first argument, r3
+
+    if cmp.k == 0 {
+        // ---- mandatory `k == 0` folds (W6 doc §4.6) ----
+        match (cmp.rel, cmp.signed) {
+            // `a == 0` — same bytes signed and unsigned.
+            (Rel::Eq, _) => {
+                t.extend_from_slice(&encode_cntlzw(11, a));
+                t.extend_from_slice(&encode_rlwinm(RET_REG, 11, 27, 31, 31));
+            }
+            // `a != 0` — same bytes signed and unsigned. `~(x-1) == -x`, so the
+            // register terms cancel and r3 is exactly the carry.
+            (Rel::Ne, _) => {
+                t.extend_from_slice(&encode_addic(11, a, -1));
+                t.extend_from_slice(&encode_subfe(RET_REG, 11, a));
+            }
+            // signed `a > 0` → (-a) & ~a, sign bit.
+            (Rel::Gt, true) => {
+                t.extend_from_slice(&encode_neg(11, a));
+                t.extend_from_slice(&encode_andc(10, 11, a));
+                t.extend_from_slice(&encode_srwi31(RET_REG, 10));
+            }
+            // unsigned `a > 0` is exactly `a != 0`.
+            (Rel::Gt, false) => {
+                t.extend_from_slice(&encode_addic(11, a, -1));
+                t.extend_from_slice(&encode_subfe(RET_REG, 11, a));
+            }
+            // signed `a < 0` is just the sign bit.
+            (Rel::Lt, true) => t.extend_from_slice(&encode_srwi31(RET_REG, a)),
+            // unsigned `a < 0` is constant false.
+            (Rel::Lt, false) => t.extend_from_slice(&encode_addi(RET_REG, 0, 0)),
+            // signed `a <= 0` → a | ~(-a), sign bit.
+            (Rel::Le, true) => {
+                t.extend_from_slice(&encode_neg(11, a));
+                t.extend_from_slice(&encode_orc(10, a, 11));
+                t.extend_from_slice(&encode_srwi31(RET_REG, 10));
+            }
+            // unsigned `a <= 0` is exactly `a == 0`.
+            (Rel::Le, false) => {
+                t.extend_from_slice(&encode_cntlzw(11, a));
+                t.extend_from_slice(&encode_rlwinm(RET_REG, 11, 27, 31, 31));
+            }
+            // signed `a >= 0` → !sign.
+            (Rel::Ge, true) => {
+                t.extend_from_slice(&encode_srwi31(11, a));
+                t.extend_from_slice(&encode_xori(RET_REG, 11, 1));
+            }
+            // unsigned `a >= 0` is constant true.
+            (Rel::Ge, false) => t.extend_from_slice(&encode_addi(RET_REG, 0, 1)),
+        }
+        t.extend_from_slice(&encode_blr());
+        return Ok(t);
+    }
+
+    // ---- general spines, non-zero literal ----
+    let k16 = i16::try_from(cmp.k).map_err(|_| {
+        out_of_class(
+            "comparison against a wide literal needs lis+ori materialization and \
+             the extra temp slot it consumes; not characterized",
+        )
+    })?;
+
+    match (cmp.rel, cmp.signed) {
+        // `a == k` → difference, then "is it zero".
+        (Rel::Eq, _) => {
+            t.extend_from_slice(&encode_addi(11, a, -k16));
+            t.extend_from_slice(&encode_cntlzw(10, 11));
+            t.extend_from_slice(&encode_rlwinm(RET_REG, 10, 27, 31, 31));
+        }
+        // `a != k` → the `!= 0` spine applied to the difference.
+        (Rel::Ne, _) => {
+            t.extend_from_slice(&encode_addi(11, a, -k16));
+            t.extend_from_slice(&encode_addic(10, 11, -1));
+            t.extend_from_slice(&encode_subfe(RET_REG, 10, 11));
+        }
+        // unsigned `a > k`: CA of `k - a` is `a <= k`, so the answer is !CA.
+        // `subfe r9,r10,r10` reads r10, which is never defined — the register
+        // terms cancel so the value is a don't-care, but the register NUMBER is
+        // byte-visible and must be reproduced.
+        (Rel::Gt, false) => {
+            t.extend_from_slice(&encode_subfic(11, a, k16));
+            t.extend_from_slice(&encode_subfe(9, 10, 10));
+            t.extend_from_slice(&encode_clrlwi31(RET_REG, 9));
+        }
+        // signed `a > k`: the 5-instruction spine. p = a (the greater side),
+        // q = k. The final clrlwi exists solely to kill the `2` case.
+        (Rel::Gt, true) => {
+            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
+            t.extend_from_slice(&encode_subfc(10, a, 11)); // r10 dead; CA is the point
+            t.extend_from_slice(&encode_eqv(9, a, 11));
+            t.extend_from_slice(&encode_srwi31(8, 9));
+            t.extend_from_slice(&encode_addze(7, 8));
+            t.extend_from_slice(&encode_clrlwi31(RET_REG, 7));
+        }
+        // `a < k`, `a >= k`, `a <= k` against a non-zero literal are NOT
+        // characterized: `<`/`<=` are the `>`/`>=` spines with the operand roles
+        // swapped, and the `>=`/`<=` spine's instruction ORDER for a literal
+        // left-hand side is explicitly unresolved in the W6 characterization
+        // (c2 schedules: numbering order is not emission order). Guessing the
+        // order would be a silent wrong-bytes emit.
+        (Rel::Lt, _) | (Rel::Ge, _) | (Rel::Le, _) => {
+            return Err(out_of_class(
+                "comparison relation against a non-zero literal whose spine \
+                 instruction order is not yet pinned (see docs/CODEGEN_W6_COMPARE.md \
+                 §4.5); out of class",
+            ))
+        }
+    }
+    t.extend_from_slice(&encode_blr());
+    Ok(t)
+}
+
 /// The base of an affine selection-stack value: either a concrete physical
 /// register (a loaded parameter) or `Prev` — the running result of the most
 /// recent emitted reg-reg instruction. `Prev` resolves to the scratch register
@@ -254,12 +508,14 @@ enum Operand {
 /// `addi r3,r3,10` for `a + 5 + 5`) without a separate counter.
 #[derive(Clone, Copy, Debug)]
 enum PlanOp {
-    /// A commutative/register binary op with both source registers resolved
-    /// (`Base::Prev` → r11); `Sub` keeps its load-bearing operand order.
-    Bin { op: IlOp, lhs: u8, rhs: u8 },
+    /// A binary op over unresolved operand *bases*; `Sub` keeps its load-bearing
+    /// operand order. Bases stay symbolic until emission because `Base::Prev`
+    /// resolves to whichever register the previous result was placed in, and
+    /// that is no longer always r11 (see [`select_text`]'s allocator).
+    Bin { op: IlOp, lhs: Base, rhs: Base },
     /// Materialize a pending offset: `dest = src + k` (`addi`, or `addis`+`addi`
     /// when wide). The final flush of an affine `reg + off` value.
-    AddImm { src: u8, k: i32 },
+    AddImm { src: Base, k: i32 },
     /// Materialize a bare constant return: `dest = k` (`li`, or `lis`+`ori`).
     LoadImm { k: i32 },
 }
@@ -369,7 +625,7 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     match stack.as_slice() {
         [Operand::RegOff { base, off }] => {
             if *off != 0 {
-                plan.push(PlanOp::AddImm { src: base.read_reg(), k: *off });
+                plan.push(PlanOp::AddImm { src: *base, k: *off });
             } else {
                 match base {
                     // Chain already ended in r3 (the last reg-reg op targets it),
@@ -397,24 +653,74 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
         }
     }
 
-    // Emit the plan: the **last** entry targets the return register r3, every
-    // earlier one the scratch r11 (the single-scratch serial-chain invariant).
+    // Emit the plan. The **last** entry targets the return register r3. For the
+    // earlier ones the destination depends on the op, because c2 does NOT use a
+    // single scratch for every chain (verified against live captures):
+    //
+    //   a+b+c+d  ->  add   r11,r3,r4 ; add   r11,r11,r5 ; add   r3,r11,r6
+    //   a*b*c*d  ->  mullw r11,r3,r4 ; mullw r10,r11,r5 ; mullw r3,r10,r6
+    //   a-b-c-d  ->  subf  r11,r4,r3 ; subf  r10,r5,r11 ; subf  r3,r6,r10
+    //
+    // An additive chain collapses to one running accumulator (r11 reused), while
+    // a `*`/`-` chain gives every intermediate its own register, descending from
+    // r11. The two rules coincide at exactly one intermediate — which is why
+    // every fixture up to `a-b-c` matched while `a-b-c-d` silently mis-emitted.
+    //
+    // `Base::Prev` therefore resolves to the previous entry's ACTUAL destination
+    // rather than to a fixed r11; that is why plan operands stay symbolic until
+    // here.
     let mut text: Vec<u8> = Vec::new();
     let last = plan.len().saturating_sub(1);
+    let mut next_scratch: u8 = SCRATCH_REG;
+    let mut prev_reg: u8 = SCRATCH_REG;
     for (i, entry) in plan.iter().enumerate() {
-        let dest = if i == last { RET_REG } else { SCRATCH_REG };
+        let dest = if i == last {
+            RET_REG
+        } else {
+            match entry {
+                // Additive accumulation reuses the accumulator register.
+                PlanOp::Bin { op: IlOp::Add, .. } | PlanOp::AddImm { .. } => SCRATCH_REG,
+                _ => {
+                    let d = next_scratch;
+                    // Observed descending allocation covers r11, r10, r9 (the
+                    // deepest characterized chain is `a*b*c*d*e`). Below that is
+                    // extrapolation, and c2's allocator is demonstrably richer
+                    // outside this class — it reuses dead registers and it
+                    // schedules — so refuse rather than guess.
+                    if d < 9 {
+                        return Err(out_of_class(
+                            "expression chain needs more scratch registers than the \
+                             characterized descending range r11..r9; out of class",
+                        ));
+                    }
+                    next_scratch = d - 1;
+                    d
+                }
+            }
+        };
+        let resolve = |b: Base| -> u8 {
+            match b {
+                Base::Phys(r) => r,
+                Base::Prev => prev_reg,
+            }
+        };
         match *entry {
-            PlanOp::Bin { op, lhs, rhs } => match op {
-                IlOp::Add => text.extend_from_slice(&encode_add(dest, lhs, rhs)),
-                IlOp::Mul => text.extend_from_slice(&encode_mullw(dest, lhs, rhs)),
-                // `subf` computes rB − rA, so realizing `lhs − rhs` needs rA=rhs,
-                // rB=lhs (the load-bearing reversed order — see [`encode_subf`]).
-                IlOp::Sub => text.extend_from_slice(&encode_subf(dest, rhs, lhs)),
-                IlOp::Load(_) | IlOp::Lit(_) => unreachable!("not a binary op"),
-            },
-            PlanOp::AddImm { src, k } => emit_add_imm(&mut text, dest, src, k),
+            PlanOp::Bin { op, lhs, rhs } => {
+                let (l, r) = (resolve(lhs), resolve(rhs));
+                match op {
+                    IlOp::Add => text.extend_from_slice(&encode_add(dest, l, r)),
+                    IlOp::Mul => text.extend_from_slice(&encode_mullw(dest, l, r)),
+                    // `subf` computes rB − rA, so realizing `lhs − rhs` needs
+                    // rA=rhs, rB=lhs (the load-bearing reversed order — see
+                    // [`encode_subf`]).
+                    IlOp::Sub => text.extend_from_slice(&encode_subf(dest, r, l)),
+                    IlOp::Load(_) | IlOp::Lit(_) => unreachable!("not a binary op"),
+                }
+            }
+            PlanOp::AddImm { src, k } => emit_add_imm(&mut text, dest, resolve(src), k),
             PlanOp::LoadImm { k } => emit_load_imm(&mut text, dest, k)?,
         }
+        prev_reg = dest;
     }
 
     text.extend_from_slice(&encode_blr());
@@ -438,7 +744,7 @@ fn combine(
 
     // Emit a reg-reg instruction and return its running result (r11 via `Prev`).
     let mut emit_reg_reg = |op: IlOp, a: Base, b: Base| -> Result<Operand, BackendError> {
-        plan.push(PlanOp::Bin { op, lhs: a.read_reg(), rhs: b.read_reg() });
+        plan.push(PlanOp::Bin { op, lhs: a, rhs: b });
         Ok(RegOff { base: Base::Prev, off: 0 })
     };
 
@@ -601,6 +907,7 @@ mod tests {
             source_path: None,
             tail_call: None,
             framed_call: None,
+            compare: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -627,12 +934,205 @@ mod tests {
         assert_eq!(encode_addi(3, 0, 42), [0x38, 0x60, 0x00, 0x2A]); // li r3,42
     }
 
+    #[test]
+    fn mul_chain_of_three_ops_uses_descending_scratch_registers() {
+        // REGRESSION (w5_chain.cpp): `a*b*c*d`. c2 gives every intermediate of a
+        // `*` chain its own register; the port used to reuse r11 and silently
+        // mis-emitted. Reference `.text` (live capture):
+        //   7d6321d6 mullw r11,r3,r4 ; 7d4b29d6 mullw r10,r11,r5
+        //   7c6a31d6 mullw r3,r10,r6
+        let f = func_with(
+            vec![0xE309, 0xE409, 0xE509, 0xE609],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Mul,
+                IlOp::Load(0xE509),
+                IlOp::Mul,
+                IlOp::Load(0xE609),
+                IlOp::Mul,
+            ],
+        );
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![
+                0x7D, 0x63, 0x21, 0xD6, // mullw r11,r3,r4
+                0x7D, 0x4B, 0x29, 0xD6, // mullw r10,r11,r5
+                0x7C, 0x6A, 0x31, 0xD6, // mullw r3,r10,r6
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+    }
+
+    #[test]
+    fn sub_chain_of_three_ops_descends_and_keeps_operand_order() {
+        // `a-b-c-d`. Descending destinations AND the load-bearing reversed subf
+        // operand order at every step. Reference:
+        //   7d641850 subf r11,r4,r3 ; 7d455850 subf r10,r5,r11
+        //   7c665050 subf r3,r6,r10
+        let f = func_with(
+            vec![0xE309, 0xE409, 0xE509, 0xE609],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Sub,
+                IlOp::Load(0xE509),
+                IlOp::Sub,
+                IlOp::Load(0xE609),
+                IlOp::Sub,
+            ],
+        );
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![
+                0x7D, 0x64, 0x18, 0x50, // subf r11,r4,r3
+                0x7D, 0x45, 0x58, 0x50, // subf r10,r5,r11
+                0x7C, 0x66, 0x50, 0x50, // subf r3,r6,r10
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+    }
+
+    #[test]
+    fn add_chain_reuses_one_accumulator_register() {
+        // The contrast that makes the rule non-obvious: an ADDITIVE chain
+        // collapses to a single accumulator, so `a+b+c+d` keeps r11 throughout
+        // where the `*`/`-` chains above descend. Reference:
+        //   7d632214 add r11,r3,r4 ; 7d6b2a14 add r11,r11,r5
+        //   7c6b3214 add r3,r11,r6
+        let f = func_with(
+            vec![0xE309, 0xE409, 0xE509, 0xE609],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Add,
+                IlOp::Load(0xE509),
+                IlOp::Add,
+                IlOp::Load(0xE609),
+                IlOp::Add,
+            ],
+        );
+        assert_eq!(
+            select_text(&f).unwrap(),
+            vec![
+                0x7D, 0x63, 0x22, 0x14, // add r11,r3,r4
+                0x7D, 0x6B, 0x2A, 0x14, // add r11,r11,r5
+                0x7C, 0x6B, 0x32, 0x14, // add r3,r11,r6
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+    }
+
+    // ---- W6 comparison spines (bytes from live captures) --------------------
+
+    fn cmp(rel: c2_il::Rel, signed: bool, k: i32) -> Vec<u8> {
+        compare_leaf_text(&c2_il::CompareLeaf { param: 0xE309, rel, signed, k }).unwrap()
+    }
+
+    #[test]
+    fn compare_zero_folds_match_the_reference() {
+        use c2_il::Rel;
+        // `x != 0` (unsigned) — 2 instructions, the carry trick.
+        assert_eq!(
+            cmp(Rel::Ne, false, 0),
+            vec![0x31, 0x63, 0xFF, 0xFF, 0x7C, 0x6B, 0x19, 0x10, 0x4E, 0x80, 0x00, 0x20]
+        );
+        // signed `x > 0` — a FOLD, not the general 5-instruction spine.
+        assert_eq!(
+            cmp(Rel::Gt, true, 0),
+            vec![
+                0x7D, 0x63, 0x00, 0xD0, // neg r11,r3
+                0x7D, 0x6A, 0x18, 0x78, // andc r10,r11,r3
+                0x55, 0x43, 0x0F, 0xFE, // srwi r3,r10,31
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // unsigned `x < 0` folds to constant false; `x >= 0` to constant true.
+        assert_eq!(cmp(Rel::Lt, false, 0)[..4], [0x38, 0x60, 0x00, 0x00]);
+        assert_eq!(cmp(Rel::Ge, false, 0)[..4], [0x38, 0x60, 0x00, 0x01]);
+    }
+
+    #[test]
+    fn compare_general_spines_match_the_reference() {
+        use c2_il::Rel;
+        // `x == 1` (3 instructions).
+        assert_eq!(
+            cmp(Rel::Eq, false, 1),
+            vec![
+                0x39, 0x63, 0xFF, 0xFF, // addi r11,r3,-1
+                0x7D, 0x6A, 0x00, 0x34, // cntlzw r10,r11
+                0x55, 0x43, 0xDF, 0xFE, // rlwinm r3,r10,27,31,31
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // `x != 1` (3 instructions).
+        assert_eq!(
+            cmp(Rel::Ne, false, 1),
+            vec![
+                0x39, 0x63, 0xFF, 0xFF, // addi r11,r3,-1
+                0x31, 0x4B, 0xFF, 0xFF, // addic r10,r11,-1
+                0x7C, 0x6A, 0x59, 0x10, // subfe r3,r10,r11
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // unsigned `x > 7` — note the `subfe r9,r10,r10` don't-care SOURCE r10,
+        // which is never defined but is byte-visible and must be reproduced.
+        assert_eq!(
+            cmp(Rel::Gt, false, 7),
+            vec![
+                0x21, 0x63, 0x00, 0x07, // subfic r11,r3,7
+                0x7D, 0x2A, 0x51, 0x10, // subfe r9,r10,r10
+                0x55, 0x23, 0x07, 0xFE, // clrlwi r3,r9,31
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // signed `x > 7` — the 6-word spine.
+        assert_eq!(
+            cmp(Rel::Gt, true, 7),
+            vec![
+                0x39, 0x60, 0x00, 0x07, // li r11,7
+                0x7D, 0x43, 0x58, 0x10, // subfc r10,r3,r11 (r10 dead; CA is the point)
+                0x7C, 0x69, 0x5A, 0x38, // eqv r9,r3,r11
+                0x55, 0x28, 0x0F, 0xFE, // srwi r8,r9,31
+                0x7C, 0xE8, 0x01, 0x94, // addze r7,r8
+                0x54, 0xE3, 0x07, 0xFE, // clrlwi r3,r7,31
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+    }
+
+    #[test]
+    fn compare_uncharacterized_relations_fail_closed() {
+        use c2_il::Rel;
+        // `<`, `<=`, `>=` against a NON-zero literal: the spine's instruction
+        // order for a literal left-hand side is unresolved (c2 schedules, so
+        // numbering order is not emission order). Guessing it would be a silent
+        // wrong-bytes emit, so these must refuse.
+        for rel in [Rel::Lt, Rel::Le, Rel::Ge] {
+            assert!(matches!(
+                compare_leaf_text(&c2_il::CompareLeaf { param: 0xE309, rel, signed: true, k: 7 }),
+                Err(BackendError::NotImplemented(_))
+            ));
+        }
+        // A wide literal needs lis+ori and the extra temp slot it consumes.
+        assert!(matches!(
+            compare_leaf_text(&c2_il::CompareLeaf {
+                param: 0xE309,
+                rel: Rel::Gt,
+                signed: false,
+                k: 70000,
+            }),
+            Err(BackendError::NotImplemented(_))
+        ));
+    }
+
     fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         IlFunction {
             mangled_name: "?f@@YAHH@Z".into(),
             source_path: None,
             tail_call: None,
             framed_call: None,
+            compare: None,
             params,
             ops,
         }
@@ -753,6 +1253,7 @@ mod tests {
             source_path: None,
             tail_call: None,
             framed_call: None,
+            compare: None,
             params: vec![0xE309, 0xE409, 0xE509, 0xE609],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -778,6 +1279,7 @@ mod tests {
             source_path: None,
             tail_call: None,
             framed_call: None,
+            compare: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -804,6 +1306,7 @@ mod tests {
             source_path: None,
             tail_call: None,
             framed_call: None,
+            compare: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

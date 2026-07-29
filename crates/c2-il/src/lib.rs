@@ -38,7 +38,7 @@ pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, 
 pub use func::{
     detect_token_width, is_empty_module, mangled_name, mangled_names, source_path, Block, FnCensus,
     FnVerdict,
-    FramedCall, IlFunction, IlOp,
+    CompareLeaf, FramedCall, IlFunction, IlOp, Rel,
 };
 
 /// The five IL suffixes (no leading dot), in canonical order. `.ex` first
