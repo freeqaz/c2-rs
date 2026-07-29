@@ -1,31 +1,49 @@
-# CODEGEN W13 — float / double codegen (characterization)
+# CODEGEN W13 — float / double codegen (characterization + the ported boundary)
 
 Roadmap step **W13**. Measured demand: the operand-type buckets
 `expr-load-type-864540` (float, 3.4 % of blocked functions) and
 `expr-load-type-888541` (double, 3.1 %) — 6.5 % together, comparable to the
 largest single schedulable bucket. `crates/c2-il/src/func.rs::parse_expr`
-accepts only `INT_TYPE = 86 41 74` on a `B9` LOAD, so every FP body blocks at
-its first operand.
+accepts only `INT_TYPE = 86 41 74` on a `B9` LOAD, so every FP body used to
+block at its first operand.
 
-**This document is characterization only — no Rust was changed.** Every
-register, opcode and section claim below is backed by bytes read out of an obj
-produced by the real toolchain (`cl.exe` 16.00.11886.00 under wibo, the harness'
-standard `/Ox /GS- /c`), and every instruction word cited in §3 is re-derived
-from its bit fields and checked against the observed word (30/30 exact).
-Nothing here comes from `paint/`.
+Every register, opcode, section and relocation claim below is backed by bytes
+read out of an obj produced by the real toolchain (`cl.exe` 16.00.11886.00 under
+wibo, the harness' standard `/Ox /GS- /c`), and every instruction word cited in
+§3 is re-derived from its bit fields and checked against the observed word
+(30/30 exact). Nothing here comes from `paint/`.
 
-New fixtures (source only; the IL and objs are regenerated, never committed):
+**Two rungs have since landed against this document, and it now serves both
+roles — characterization *and* the specification of what the port accepts.**
+
+- **W13a** (commit 9c7ba7d) — float/double **leaves over parameters**. §1–§4.
+- **W13b** (commit cebfb88) — a **single pooled floating-point constant** per
+  body: one `.rdata` COMDAT, an `addis`/`lfs`-`lfd` pair, a REFHI/REFLO
+  relocation quad. §5, and the fail-closed list of §6.
+
+Fixture verdicts, re-measured at cebfb88 (`c2rs diff`; source only — the IL and
+objs are regenerated, never committed):
 
 ```
-fixtures/cpp/w13_fabi.cpp     -> ReferenceReplay=ByteExact (ref=1268B replay=1268B)  Port=NotImplemented
-fixtures/cpp/w13_fops.cpp     -> ReferenceReplay=ByteExact (ref=1363B replay=1363B)  Port=NotImplemented
-fixtures/cpp/w13_fscratch.cpp -> ReferenceReplay=ByteExact (ref=1498B replay=1498B)  Port=NotImplemented
-fixtures/cpp/w13_fneg.cpp     -> ReferenceReplay=ByteExact (ref=3144B replay=3144B)  Port=NotImplemented
-fixtures/cpp/mvp_fmul3.cpp    -> ReferenceReplay=ByteExact (ref= 861B replay= 861B)  Port=NotImplemented
+fixtures/cpp/mvp_fmul3.cpp     -> ReferenceReplay=ByteExact (ref= 861B replay= 861B)  Port=Match           (W13a)
+fixtures/cpp/w13b_fconst.cpp   -> ReferenceReplay=ByteExact (ref=1017B replay=1017B)  Port=Match           (W13b)
+fixtures/cpp/w13b_fdedup.cpp   -> ReferenceReplay=ByteExact (ref=1512B replay=1512B)  Port=Match           (W13b)
+fixtures/cpp/w13b_ffold.cpp    -> ReferenceReplay=ByteExact (ref=1328B replay=1328B)  Port=NotImplemented  (negative)
+fixtures/cpp/w13b_fpool.cpp    -> ReferenceReplay=ByteExact (ref=1225B replay=1225B)  Port=NotImplemented  (negative)
+fixtures/cpp/w13_fabi.cpp      -> ReferenceReplay=ByteExact (ref=1268B replay=1268B)  Port=NotImplemented
+fixtures/cpp/w13_fops.cpp      -> ReferenceReplay=ByteExact (ref=1363B replay=1363B)  Port=NotImplemented
+fixtures/cpp/w13_fscratch.cpp  -> ReferenceReplay=ByteExact (ref=1498B replay=1498B)  Port=NotImplemented
+fixtures/cpp/w13_fneg.cpp      -> ReferenceReplay=ByteExact (ref=3144B replay=3144B)  Port=NotImplemented
 ```
 
-Byte offsets quoted below are `.text` offsets inside those four fixtures'
-reference objs unless stated otherwise.
+The four `w13_*` characterization TUs and the two `w13b_*` negatives still
+report `Port=NotImplemented` **as a whole TU**, which is what pins the boundary:
+decode is all-or-nothing per TU, so one out-of-class function refuses the file.
+Inside `w13_fneg.cpp` two functions have nonetheless been *promoted* out of
+negative status — see §5.10.
+
+Byte offsets quoted below are `.text` offsets inside those fixtures' reference
+objs unless stated otherwise.
 
 ---
 
@@ -53,8 +71,11 @@ and `d_add`, byte-for-byte the same with `88 85 41` in place of `86 45 40`.
 | literal TYPE (`33`) | `86 4a 40` | `88 8a 41` | `86 41 74` |
 
 Note the **literal type is not the operand type** for FP: the `kind` byte is
-`+5` (`0x45`→`0x4a`, `0x85`→`0x8a`). For `int` the two coincide, which is why
-the current single-`INT_TYPE` model never noticed.
+`+5` (`0x45`→`0x4a`, `0x85`→`0x8a`). For `int` the two coincide, which is why the
+old single-`INT_TYPE` model never had to distinguish them. Both pairs are now
+distinct constants in the parser (`FLOAT_TYPE`/`DOUBLE_TYPE` vs
+`FLOAT_LIT_TYPE`/`DOUBLE_LIT_TYPE`), and a literal whose width disagrees with the
+operand width is rejected outright — a mixed-width literal implies a conversion.
 
 Operator bytes (`w13_fops.cpp`, one function per opcode — the segments differ
 only in this byte):
@@ -295,13 +316,20 @@ ranked first, as in W5 §3.3 — `p_59::q2` (`a*(b+c)`) emits the sum first
 
 ### 2.6 What is NOT explained
 
-**The interaction between the cursor and FP constant loads is unresolved.**
-The single-constant shapes are consistent (§5.3), but `p_const2::k4`
+**The ONE-constant case is now resolved; the multi-constant case is not.**
+Superseding what this section said before W13b landed: the missing rule for a
+single constant was not a cursor variant at all but an *ordering* fact — the
+constant claims its FP register **before** any interior temporary does, in IL
+order, off the same cursor. That is §5.8, and it is what made W13b byte-exact.
+
+Beyond one constant the interaction really is unresolved. `p_const2::k4`
 (`(a+1.0f)*(b+2.0f)*(c+3.0f)`) allocates
 `f0(c1), f13(c2), f12(t1), f11(t2), f0(c3 — reused), f10(t3), f9(t4), f1` —
 the third constant load takes a *dead* register out of cursor order. No model
-tried here reproduces both `k4` and `k_two`/`k5`. Constants are therefore a hard
-reject for W13a (§6, N3/N4).
+tried here reproduces both `k4` and `k_two`/`k5`, and the two-constant captures
+of §5.6 show why: with two surviving constants c2 also *reschedules*, so
+allocation order and emission order come apart. Two or more literals are
+therefore still a hard reject (§6, B1).
 
 ---
 
@@ -394,6 +422,10 @@ instruction with no `fneg`.
 > spill): one extra symbol, and nothing else.** No extra section, no `.pdata`,
 > no alignment change, no `.text` characteristics change.
 
+The "no constants" qualifier is doing real work: add one literal and the shell
+gains a `.rdata` COMDAT, two symbols, four relocations, and — because `.text` is
+no longer last — a different relocation *offset* (§5.7). That is W13b, §5.
+
 `w13_fabi`, `w13_fops` and `w13_fscratch` — 33 float/double functions between
 them, including 13-parameter chains — all produce exactly the five familiar
 sections:
@@ -443,9 +475,24 @@ in any fixture produced a `.pdata` entry.
 
 ---
 
-## 5. W13b — what a float constant costs
+## 5. W13b — pooled floating-point constants (LANDED, gated at one per body)
 
-Every FP constant reference costs, in the obj:
+A float has no immediate form on PPC, so a literal is *always* materialized out
+of memory. Every FP constant reference costs, in the obj:
+
+> **What the port accepts:** exactly **one** surviving FP literal per function
+> body, in an otherwise-W13a leaf. `w13b_fconst.cpp` and `w13b_fdedup.cpp` are
+> `Port=Match`. `w13b_fpool.cpp` (two literals in the IL) and `w13b_ffold.cpp`
+> (the identity folds) must keep refusing, and the gates that refuse them live in
+> the **IL parser** (`crates/c2-il/src/func.rs::try_parse_float_leaf`) rather
+> than in codegen, so the census and the emission gate cannot disagree about what
+> is in class.
+>
+> The reason for the ceiling is §5.9: **c2, not c1xx, is the floating-point
+> constant evaluator.** The IL still carries every literal the source wrote, and
+> the backend folds, reassociates and strength-reduces them. So "how many
+> constants does the source have" is not the question; "how many survive c2" is,
+> and only a capture answers it.
 
 ### 5.1 One `.rdata` COMDAT section per distinct constant
 
@@ -455,6 +502,12 @@ Every FP constant reference costs, in the obj:
 | `Characteristics` | **`0x40301040`** | **`0x40401040`** |
 | decoded | `CNT_INITIALIZED_DATA(0x40)` \| `LNK_COMDAT(0x1000)` \| `ALIGN_4BYTES(0x00300000)` \| `MEM_READ(0x40000000)` | same but `ALIGN_8BYTES(0x00400000)` |
 | contents | the IEEE-754 bits, **big-endian** | ditto |
+
+The pools are **appended after `.text`**, one section each, in
+**first-reference order** — so `.text` is no longer the last section in the obj
+once any constant is pooled, which is the layout fact of §5.7. Each is a COMDAT
+with `Selection = 2` (`IMAGE_COMDAT_SELECT_ANY`, "pick any") and an aux
+**checksum of 0**; the section carries **no relocations** of its own.
 
 From `w13_fneg.obj`, in first-use order:
 
@@ -482,14 +535,30 @@ From `w13_fneg.obj`, in first-use order:
   (storage class 2, type 0x0000 — *not* 0x0020, unlike function symbols).
 * **Symbol name = `__real@` + the IEEE bits in lowercase hex**, 8 digits for
   float, 16 for double: `__real@3f800000`, `__real@3ff0000000000000`.
-* **Dedup is by bit pattern, TU-wide.** In `w13_fneg`, `n_k_add` (`a+1.0f`),
-  `n_k_two`'s first constant and `n_k_ret`… all resolve to whichever section
-  already holds that pattern — `__real@40000000` is created for `n_k_two` and
-  then **reused** by `n_self_add` (`a+a`) three functions later, with no second
-  section. Sections and symbol pairs are appended in **first-use order**
-  (sec 6, 7, 8, …).
-* A float and a double of the same numeric value are **different** constants
-  (`3f800000` and `3ff0000000000000` are separate sections).
+* **Dedup is TU-wide and keyed on `(bit pattern, width)`.** In `w13_fneg`,
+  `n_k_add` (`a+1.0f`), `n_k_two`'s first constant and `n_k_ret`… all resolve to
+  whichever section already holds that pattern — `__real@40000000` is created for
+  `n_k_two` and then **reused** by `n_self_add` (`a+a`) three functions later,
+  with no second section. Sections and symbol pairs are appended in
+  **first-reference order** (sec 6, 7, 8, …).
+* A float and a double of the same numeric *value* are **two** constants — two
+  sections and two symbols. `w13b_fdedup.cpp` is the dedicated witness: `ka` and
+  `kc` both use `1.0f` and share one 4-byte COMDAT and one `__real@3f800000`,
+  while `kd` (`double a + 1.0`) gets its own 8-byte COMDAT and its own
+  `__real@3ff0000000000000`. **The key is the pattern *and* the width, not the
+  value** — a pool keyed on value alone matches every single-width fixture and
+  then silently merges those two.
+
+**Where the two symbols go — immediately after the symbol of the function that
+FIRST references the constant**, not grouped at the end of the symbol table and
+not next to the section. Both symbols carry `Value = 0` (each constant owns its
+whole section, so its displacement into it is 0). `_fltused` still lands after
+the **whole group** belonging to the first float function — i.e. after that
+function's symbol, its callee's if any, and all the `.rdata`/`__real@` pairs it
+introduced. `w13b_fdedup.cpp` is what pins this: with four functions and three
+distinct constants, "group at the end" and "next to the first referencing
+function" produce different symbol indices, and the relocation records name
+those indices, so getting it wrong corrupts the relocations too.
 
 ### 5.3 The reference site: `addis` + `lfs`/`lfd`, four relocations
 
@@ -501,43 +570,46 @@ From `w13_fneg.obj`, in first-use order:
  007c 4e800020   blr
 ```
 
+Both immediates are emitted as **0** — the linker patches them from the
+relocations. `lfs` is primary opcode **48**, `lfd` is **50** (§3.4). The address
+GPR comes off the **integer** scratch cursor, descending from `r11` exactly as
+the integer selector's temporaries do: so a float constant consumes a **GPR** as
+well as an FPR, and the two allocators interact. That is a structural change to
+`select_text`, not just an extra encoder.
+
 Relocation records (10 bytes each, `<VA:u32> <SymbolTableIndex:u32> <Type:u16>`,
 little-endian) — **four per constant reference**, in this order:
 
 | VA | type | meaning | symbol / payload |
 |---|---|---|---|
 | `addis` offset | `0x0010` | `IMAGE_REL_PPC_REFHI` | `__real@…` |
-| `addis` offset | `0x0012` | `IMAGE_REL_PPC_PAIR` | index field = **0** (the addend) |
+| `addis` offset | `0x0012` | `IMAGE_REL_PPC_PAIR` | index field = **0** |
 | `lfs`/`lfd` offset | `0x0011` | `IMAGE_REL_PPC_REFLO` | `__real@…` |
 | `lfs`/`lfd` offset | `0x0012` | `IMAGE_REL_PPC_PAIR` | index field = **0** |
 
 Raw bytes of the first pair from a two-function probe obj:
 `08 00 00 00 | 11 00 00 00 | 10 00` then `08 00 00 00 | 00 00 00 00 | 12 00`.
 Note the reloc target is the **`__real@…` external symbol**, not the `.rdata`
-section symbol; and the PAIR record's symbol-index field is the low-half addend,
-**0** in every observation (a non-zero addend was never produced — **UNKNOWN**).
+section symbol.
 
-`w13_fneg::n_k_two` shows two constants in one function: the two `addis` are
-emitted **first**, then the two loads, and the address registers come from the
-**integer** descending cursor `r11`, `r10`:
+**Ordering: the records are sorted ascending by `VirtualAddress`, and each PAIR
+immediately follows its partner.** For one constant that is the same as emission
+order; with several reference sites it is not, which is why the emitter sorts
+rather than appends.
 
-```
- 00a0 3d600000   addis r11,r0,0        REFHI __real@3f800000
- 00a4 3d400000   addis r10,r0,0        REFHI __real@40000000
- 00a8 c00b0000   lfs   f0,0(r11)       REFLO __real@3f800000
- 00ac c1aa0000   lfs   f13,0(r10)      REFLO __real@40000000
- 00b0 ec01002a   fadds f0,f1,f0
- 00b4 eda1682a   fadds f13,f1,f13
- 00b8 ec200372   fmuls f1,f0,f13
-```
+**Why the PAIR's symbol-index field is always 0 — this is now explained, not
+merely observed.** The field is not a symbol index in a PAIR record; it is the
+**displacement into the target section**. Every constant owns its *whole*
+COMDAT — `SizeOfRawData` is exactly the constant's 4 or 8 bytes — so the
+displacement is necessarily 0. Earlier revisions of this document recorded the 0
+as an unexplained "addend never seen non-zero"; the mechanism is that there is
+nowhere else in the section for it to point.
 
-So a float constant also consumes a **GPR** from the integer pool — the two
-allocators interact, which is a structural change to `select_text`, not just an
-extra encoder.
+### 5.4 Constants c2 *synthesizes* — why 13b could not be deferred cleanly
 
-### 5.4 Constants c2 *synthesizes* — the reason 13b cannot be deferred cleanly
-
-Three rewrites turn constant-free source into a constant reference:
+Three rewrites turn constant-free source into a constant reference, which is why
+even the W13a "no constants" class had to know about them: the source having no
+literal is no guarantee the obj has no constant.
 
 | source | emitted | constant |
 |---|---|---|
@@ -550,48 +622,228 @@ expression's precision** — `a/2.0f` → `__real@3f000000`, `a/10.0f` →
 `__real@3dcccccd`. This is not reciprocal-exact and is applied unconditionally.
 Division by a *variable* stays a real `fdivs`/`fdiv` (§3.1).
 
-Two identity folds go the other way and emit **nothing**:
-`a + 0.0f` and `a * 1.0f` are both a bare `4e800020 blr`
-(`w13_fneg` 0xf0 and 0xf8).
+Identity folds go the other way and emit **nothing**: `a + 0.0f` and `a * 1.0f`
+are both a bare `4e800020 blr` (`w13_fneg` 0xf0 and 0xf8). The full fold table —
+including `a - 0.0f`, which also vanishes, and `a * 0.0f`, which pointedly does
+**not** — is §5.9. Read the two together: this section is the direction where a
+constant-free source *gains* a constant, §5.9 the direction where a source
+literal *loses* one, and the port refuses in both directions.
 
 ### 5.5 The FP literal in the IL
 
 ```
-FP_LIT := 33 <TYPE> <8 bytes: IEEE-754 DOUBLE, little-endian> <size:1> <00:1>
+FP_LIT := 33 <lit-TYPE> <8 bytes: IEEE-754 binary64, LITTLE-endian> <width:u16 LE>
 ```
 
-Confirmed — the hint in the task brief is right about the raw 8 bytes, and the
-two trailing bytes complete it:
+**Correction to an earlier revision of this section.** It read the trailer as
+two separate fields, `<size:1> <00:1>`, and filed the trailing `00` as UNKNOWN.
+It is one **little-endian `u16`** carrying the width in bytes — `04 00` or
+`08 00` — so there is no unexplained byte and nothing left open here. The
+observed bytes are identical; only the reading changed, and the parser reads it
+as a `u16` (`func.rs::try_parse_float_leaf`).
+
+`lit-TYPE` is `86 4a 40` for float and `88 8a 41` for double. **These are not
+the operand type tags** `86 45 40` / `88 85 41` — the `kind` byte is `+5`
+(§0's table). For `int` the literal and operand types coincide, which is why the
+old single-`INT_TYPE` model never had to distinguish them.
+
+Verified capture of `float k_add(float a){return a + 1.0f;}` — the whole body
+segment, with the literal bracketed by its neighbours so the field boundaries are
+unambiguous:
 
 ```
-float  a+1.0f :  33 86 4a 40  00 00 00 00 00 00 f0 3f  04 00  02
-double a+1.0  :  33 88 8a 41  00 00 00 00 00 00 f0 3f  08 00  02
-float  a+0.5f :  33 86 4a 40  00 00 00 00 00 00 e0 3f  04 00  02
-double a+2.5  :  33 88 8a 41  00 00 00 00 00 00 04 40  08 00  02
-float  a+0.1f :  33 86 4a 40  00 00 00 a0 99 99 b9 3f  04 00  02
-double a+0.1  :  33 88 8a 41  9a 99 99 99 99 99 b9 3f  08 00  02
+4c 4f 11 53 b9 e3 09 86 45 40  33 86 4a 40 00 00 00 00 00 00 f0 3f 04 00  02 41 86 45 …
+            \__ LOAD a: float _/  \__ FP_LIT 1.0f, width 4 ________________/  \_ ADD, result type
 ```
 
-* The payload is **always** a `double`, for both literal types.
-* The byte after the payload is the **width in bytes** of the materialized
-  constant: `04` for a float literal, `08` for a double literal.
-* For a `float` literal the payload is **already rounded to float precision**:
-  `0.1f` carries `0x3FB99999A0000000` = 0.10000000149011612, whose `f32`
-  round-trip is exactly `3dcccccd` — the `.rdata` bytes and the `__real@` name.
-  So `.rdata` content = `(f32)payload` big-endian, losslessly, with no
-  double-rounding question.
-* The final `00` byte was `00` in every observation. **UNKNOWN** meaning.
+and the earlier probe set, unchanged and re-read under the `u16` rule:
+
+```
+float  a+1.0f :  33 86 4a 40  00 00 00 00 00 00 f0 3f  04 00
+double a+1.0  :  33 88 8a 41  00 00 00 00 00 00 f0 3f  08 00
+float  a+0.5f :  33 86 4a 40  00 00 00 00 00 00 e0 3f  04 00
+double a+2.5  :  33 88 8a 41  00 00 00 00 00 00 04 40  08 00
+float  a+0.1f :  33 86 4a 40  00 00 00 a0 99 99 b9 3f  04 00
+double a+0.1  :  33 88 8a 41  9a 99 99 99 99 99 b9 3f  08 00
+```
+
+* The payload is **always** a binary64 pattern, for both literal types, and the
+  width comes from the trailer (and must agree with `lit-TYPE`).
+* For a `float` literal the payload is **a binary64 pattern already rounded to
+  binary32**: `0.1f` carries `0x3FB99999A0000000` = 0.10000000149011612, whose
+  `f32` round-trip is exactly `3dcccccd` — the `.rdata` bytes and the `__real@`
+  name. So `.rdata` content = `(f32)payload` big-endian, losslessly, with no
+  double-rounding question. The port keeps the raw bits and re-checks that
+  narrowing is exact before accepting, rather than trusting the invariant.
+
+### 5.6 Two surviving constants: the schedule changes (characterized, NOT implementable)
+
+With **one** constant the address setup and the load sit adjacently, immediately
+before the use, so the REFLO site is exactly `hi_off + 4`. That is the assumption
+the whole one-constant path is built on, and with two constants it fails: c2
+hoists **every** `addis` into a prologue group in IL order (`r11` then `r10`),
+then schedules each `lfs` at its **first use**, and recycles the FP register once
+a constant dies.
+
+Two captures, and they are all there is:
+
+```
+p1 = float p1(float a,float b){return (a + 1.0f) - (b + 2.0f);}
+ 3d600000 addis r11,r0,0   REFHI __real@3f800000
+ 3d400000 addis r10,r0,0   REFHI __real@40000000
+ c00b0000 lfs   f0,0(r11)  REFLO __real@3f800000
+ c1aa0000 lfs   f13,0(r10) REFLO __real@40000000
+ ec01002a fadds f0,f1,f0
+ eda2682a fadds f13,f2,f13
+ ec206828 fsubs f1,f0,f13
+ 4e800020 blr
+```
+
+```
+p5 = float p5(float a,float b,float c){return a + 1.0f - b - 2.0f + c;}
+ 3d600000 addis r11,r0,0   REFHI __real@3f800000
+ 3d400000 addis r10,r0,0   REFHI __real@40000000
+ c00b0000 lfs   f0,0(r11)  REFLO __real@3f800000
+ eda1002a fadds f13,f1,f0
+ c00a0000 lfs   f0,0(r10)  REFLO __real@40000000   <- f0 REUSED
+ ed8d1028 fsubs f12,f13,f2
+ ed6c0028 fsubs f11,f12,f0
+ ec2b182a fadds f1,f11,f3
+ 4e800020 blr
+```
+
+The two captures already **disagree about where the second `lfs` goes** — `p1`
+keeps both loads in the prologue group, `p5` defers the second to its first use
+and reloads into `f0`. *[INFERENCE, not measurement:* the discriminating variable
+looks like liveness of the previous constant — in `p5` the first constant is dead
+before the second is needed, so `f0` is free again; in `p1` both are live across
+the first arithmetic. Two data points cannot establish that.*]*
+
+**Two captures characterizing a scheduler is not enough to implement from**, and
+this is stated as a limit rather than a to-do: `w13_fneg::n_k_two` (§5.3's old
+example) and `p_const2::k4`/`k5` show at least a third and fourth arrangement.
+Two or more surviving literals are therefore rejected in the parser
+(`w13b_fpool.cpp`), and the ceiling stands until a capture set large enough to
+separate candidate scheduling rules exists.
+
+### 5.7 A layout correction that applies to the WHOLE emitter
+
+> **A section's relocation records sit immediately after *that section's own* raw
+> data — not after every section's raw data.**
+
+This is not a W13b fact; it is a COFF-layout fact the emitter had wrong and could
+not previously observe. While `.text` was always the **last** section, "after
+this section's data" and "after all sections' data" name the same offset, so both
+readings produced byte-identical objs. Pooling a constant puts a `.rdata` behind
+`.text` and separates them: c2 places the four `.text` REFHI/REFLO records
+**between** `.text` and the first `.rdata`, and the port was appending them after
+both.
+
+`w13b_fdedup.cpp` is the fixture that caught it. Worth recording as a
+coverage lesson of exactly the §1-of-`GAPS.md` kind: the defect was latent from
+the first relocation the emitter ever wrote, and no amount of green on the
+existing corpus was evidence against it, because the corpus contained no obj in
+which the two rules differ.
+
+### 5.8 Constants claim their FP register FIRST
+
+> **A constant claims its FP register *before* any interior temporary does, in IL
+> order, off the same rotating `FP_POOL` cursor (`[f0, f13..f1]`, §2).**
+
+Witness — `ke` from `w13b_fpool.cpp`,
+`float ke(float a,float b){return a*2.0f*b*3.0f;}`, which c2 reassociates and
+folds to `(a*b)*6.0f`:
+
+```
+eda100b2 fmuls f13,f1,f2      ; the interior temp -> f13, NOT f0
+3d600000 addis r11,r0,0       REFHI __real@40c00000   (6.0f)
+c00b0000 lfs   f0,0(r11)      REFLO __real@40c00000
+ec2d0032 fmuls f1,f13,f0
+4e800020 blr
+```
+
+(The two `fmuls` words are **re-derived** from §3's A-form field layout rather
+than quoted from an obj dump; the capture is quoted at mnemonic level. The
+register assignment — which is the claim — is what the capture shows.)
+
+The temp is **f13** and the constant is **f0**, so the constant took pool slot 0
+even though the multiply is emitted first. **The plausible-but-wrong rule is
+"allocate in emission order"**, and it is wrong in a way nothing else in the
+corpus can see: emission order would put the multiply in `f0` and the constant in
+`f13`, which still matches *every* single-operator body (`a + 1.0f`,
+`a * 2.0f`, …), because there is no interior temporary in those to collide with.
+`ke` had to be written specifically to separate the two rules — a body with a
+constant **and** an interior temp — which is why it is called out here rather than
+left implicit in the allocator.
+
+### 5.9 Why the gate is ONE constant per body: c2 is the constant evaluator
+
+The IL contains every literal the source wrote; `c1xx` folds none of them. So the
+count of literals in the IL is *not* the count of constants in the obj, and every
+transform below is c2's:
+
+**Identity folds, per `(operator, value)` pair** — `w13b_ffold.cpp`:
+
+| source | emitted | constant pooled |
+|---|---|---|
+| `a + 0.0f` | `4e800020` bare `blr` | none |
+| `a * 1.0f` | `4e800020` bare `blr` | none |
+| `a - 0.0f` | `4e800020` bare `blr` | none |
+| `a * 0.0f` | `addis`/`lfs` + `fmuls` | **`__real@00000000`** |
+
+`a * 0.0f` is the load-bearing row. **The gate cannot be "refuse the value 0.0
+or 1.0"** — that would refuse `a * 0.0f`, which c2 really does lower as a load
+and a multiply (signed zero and NaN make folding it to a constant zero unsafe).
+Nor can it be "anything times zero is zero", which would emit a wrong bare
+`blr`. It is per **pair**, and only a fixture holding both halves separates the
+two candidate rules. W13b briefly mis-emitted all four of the folds, which is
+why this fixture exists.
+
+**Constant divisors strength-reduce to a reciprocal multiply.** `a / 2.0f` emits
+an `fmuls` against `__real@3f000000` — no `fdivs` at all — and `a/3.0f/7.0f`
+collapses to a **single** `fmuls` against `__real@3d430c31` = 1/21. That value is
+not exactly representable, so this is a genuine numeric transform, not a
+rewrite: reproducing it means reproducing c2's rounding, and a Div with a literal
+operand is refused rather than approximated.
+
+**Reassociation.** `a*2.0f*b*3.0f` becomes `(a*b)*6.0f`, pooling
+`__real@40c00000` — two IL literals, one obj constant, and the surviving value
+appears nowhere in the source.
+
+Together: modeling more than one literal means modeling c2's constant evaluator
+*and* (§5.6) its scheduler. Hence the ceiling, enforced in the parser.
+
+### 5.10 Two former negatives promoted
+
+`w13_fneg.cpp` N3 was written as four constant-related negatives. Two are now
+**byte-exact** and no longer negatives — `n_k_add` (`float a + 1.0f`) and
+`n_k_dadd` (`double a + 1.0`), whose shapes are the subjects of
+`w13b_fconst.cpp` and `w13b_fdedup.cpp::kd`. They are kept in `w13_fneg.cpp` so
+the class boundary stays visible next to the two that still refuse:
+
+* `n_k_ret` (`return 1.5f;`) — no operand to load the constant *into*, and no
+  expression at all, so the leaf grammar does not apply.
+* `n_k_two` (`(a + 1.0f) * (a + 2.0f)`) — two surviving constants, §5.6, and a
+  repeated leaf besides.
+
+Because decode is all-or-nothing per TU, `w13_fneg.cpp` as a *file* still reports
+`Port=NotImplemented`; the promotion is a statement about the two function
+shapes, witnessed by the dedicated fixtures.
 
 ---
 
-## 6. The precise fail-closed negative list for W13a
+## 6. The precise fail-closed negative list
 
-W13a = **FP leaf, parameters only, no constants**. Accept only if *all* of:
+W13a = **FP leaf, parameters only, no constants**; W13b adds **at most one
+surviving literal**. Accept only if *all* of A1–A10 and, when a literal is
+present, *all* of B1–B4. Every one of these is enforced in
+`crates/c2-il/src/func.rs::try_parse_float_leaf` — in the **parser**, not in
+codegen, so `c2rs census` and the emitter cannot disagree about the class.
 
 | # | condition | why (fixture) |
 |---|---|---|
 | **A1** | every LOAD operand type is `86 45 40` (float) or `88 85 41` (double), and the function's result type is the *same* one | a mixed-width expression evaluates in double and may need `frsp` (`w13_fops::d_mixed`, `f_narrow`) |
-| **A2** | no `33` literal anywhere in the body | every FP literal costs an `.rdata` COMDAT + 4 relocations + a GPR (§5) |
+| **A2** | ~~no `33` literal anywhere in the body~~ — **superseded by W13b**: at most **one** literal, subject to B1–B4 | each surviving FP literal costs an `.rdata` COMDAT + 4 relocations + a GPR + an FPR (§5); the *second* one also changes the schedule (§5.6) |
 | **A3** | no `2c` CONVERT node | int↔FP is a red-zone round trip (`w13_fneg::n_i2f`, `n_f2i`) |
 | **A4** | the operator set is `{02 ADD, 03 SUB, 04 MUL, 05 DIV, 08 NEG}` | anything else is unmodeled |
 | **A5** | **no `*` node is an operand of a `+`/`-` node** | contraction to `fmadds`/`fmsubs`/`fnmsubs` is mandatory and not modeled (§3.3, `n_fma`…`n_fma_tree`) |
@@ -601,11 +853,27 @@ W13a = **FP leaf, parameters only, no constants**. Accept only if *all* of:
 | **A9** | ≤ 13 FP parameters **and** ≤ 8 positional parameters total | the 14th FP parameter and the 9th positional parameter are stack-homed (`w13_fabi::dp_fourteen`, `ip_after_floats`) |
 | **A10** | division is by a **register**, never by a literal | `x/k` becomes a reciprocal multiply against a synthesized constant (§5.4) |
 
+And, when the body contains a literal (the W13b half):
+
+| # | condition | why (fixture) |
+|---|---|---|
+| **B1** | **at most one** `33` FP literal in the body | with two, c2 hoists every `addis` into a prologue group and schedules the loads at first use, so the REFLO site stops being `hi_off + 4` (§5.6, `w13b_fpool.cpp`) |
+| **B2** | no `05 DIV` anywhere in a body that has a literal | a constant divisor becomes a reciprocal multiply, inexactly (§5.9, `w13b_ffold::q3`, `w13b_fpool::kdiv`) |
+| **B3** | the literal is not an **identity for an operator present in the body** — value `0.0` with any `+`/`-`, value `1.0` with any `*` | those fold to a bare `blr` with nothing pooled; `a * 0.0f` does **not** fold, so the gate is per `(operator, value)` pair and not per value (§5.9, `w13b_ffold.cpp`) |
+| **B4** | for a float literal, the binary64 payload narrows to binary32 **exactly** | otherwise the four bytes the port would pool are not the four c2 pooled (§5.5) |
+
+B3 is deliberately a slight **over**-refusal: it keys on "an operator in the body"
+rather than on the operator the literal is actually an operand of, because
+over-refusing costs a refusal while under-refusing emits three instructions where
+c2 emits none.
+
 The negatives that a naive tree selector gets *wrong* rather than *out of range*
 — the ones that must be tested explicitly — are A5 (it would emit
 `fmuls`+`fadds` where c2 emits one `fmadds`), A6's parenthesized form (it would
 flatten, or fail to sort, the chain), A7 and A10 (it would emit an instruction
-where c2 emits none, or none where c2 emits a constant load).
+where c2 emits none, or none where c2 emits a constant load), and B3 (which W13b
+got wrong in development, emitting a pooled `__real@00000000` and an `fadds`
+where c2 emits a bare `blr`).
 
 Additional gates that the *existing* integer code would fail if the FP path were
 grafted onto it:
@@ -620,6 +888,12 @@ grafted onto it:
 * `fsubs fD,fA,fB` = `fA − fB` — the **opposite** of `encode_subf`'s
   load-bearing reversal. Reusing the integer operand-order convention silently
   negates every FP subtraction.
+* An FP constant also allocates from the **integer** pool for its `addis` address
+  register (§5.3), so the FP and integer allocators are no longer independent —
+  and it takes its FP register **before** the interior temporaries (§5.8), so the
+  allocator cannot simply walk the emitted instruction list in order.
+* A section's relocations belong after **its own** raw data (§5.7). This is
+  emitter-wide, not FP-specific.
 
 ---
 
@@ -627,15 +901,33 @@ grafted onto it:
 
 1. **The `0x59` byte** (§0.1). Syntactic on the surface, but it is the only IL
    difference between a product tree that c2 flattens and one it does not.
-2. **The cursor/constant interaction** (§2.6) — `p_const2::k4`'s third constant
-   load takes a dead register out of cursor order. Blocks W13b.
+2. **The cursor/constant interaction beyond one constant** (§2.6, §5.6) —
+   `p_const2::k4`'s third constant load takes a dead register out of cursor
+   order, and `p1`/`p5` disagree about where the second `lfs` goes. The
+   *one*-constant case is closed (§5.8: the constant allocates first, in IL
+   order). This is what caps W13b at one literal per body.
 3. **The `_fltused` trigger** (§4) — a counterexample exists that executes
    `fctiwz` and does not reference it.
-4. **The trailing `00`** of an FP literal (§5.5), and whether a REFHI/REFLO
-   PAIR's addend field is ever non-zero (§5.3).
-5. **Instruction scheduling** with constants: `w13_fneg::n_k_two` emits both
-   `addis` before both `lfs`, but `p_const2::k5` interleaves
+4. ~~**The trailing `00`** of an FP literal, and the REFHI/REFLO PAIR addend.~~
+   **CLOSED.** The literal's trailer is a single little-endian `u16` width, not
+   `<size> <00>`, so there is no trailing unknown (§5.5). The PAIR field is a
+   displacement into the target section, and it is 0 because each constant owns
+   its whole COMDAT (§5.3). Neither was a new fact — both were misreadings of
+   bytes already in hand, which is the cheapest kind of open item to close and the
+   easiest to leave open indefinitely.
+5. **Instruction scheduling** with **two or more** constants: `w13_fneg::n_k_two`
+   and `p1` emit every `addis` before every `lfs`, `p5` defers its second load to
+   first use, and `p_const2::k5` interleaves
    (`fadds ; addis ; fadds ; lfs ; fmadds`). The FP cursor rule holds
-   byte-for-byte in both, so allocation happens after scheduling — but the
-   scheduler's ordering heuristic is unmodeled, exactly as in W5 §8.3.
+   byte-for-byte in all of them, so allocation happens after scheduling — but the
+   scheduler's ordering heuristic is unmodeled, exactly as in W5 §8.3. **Four
+   arrangements from four captures is characterization, not a rule**, and no
+   attempt should be made to implement the two-constant path from them.
 6. Varargs / struct-by-value / `long double` FP argument passing (§1).
+7. Whether a **single** constant referenced from **two sites in one body** keeps
+   the `hi_off + 4` adjacency, or gets one `addis` shared between them. `ka`/`kc`
+   in `w13b_fdedup.cpp` reference the same constant from *different* functions,
+   which exercises relocation ordering across a `.text` (four sites, sixteen
+   records) but says nothing about two sites inside one body. In class today the
+   question cannot arise — A7 rejects a repeated leaf and B1 a second literal — so
+   it is a boundary to probe before relaxing either.

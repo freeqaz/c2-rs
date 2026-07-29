@@ -29,19 +29,35 @@ and `*.il`; only the `.cpp` under `cpp/` is tracked.
 | `mvp_empty.cpp` | written here | **R1** — a TU that defines no functions; the smallest whole-TU byte-exact target (720 B, four sections, no `.text`) |
 | `w10_empty_fn.cpp` | written here | **R2** — empty *function* bodies (`void f() {}` → a bare `blr`), the `body-0x3A` census bucket |
 | `w5_chain.cpp` | written here | **W5 chains** — 3+-op `*`/`-` chains. This fixture caught a live mis-emit: the port reused one scratch where c2 descends `r11→r10→r9` |
-| `w5_tree2.cpp`, `w5_tree3.cpp` | written here | **W5 trees** — `(a+b)*(c+d)` and deeper; still out of class |
+| `w5_tree2.cpp` | written here | **Ported (W5 trees, depth 2)** — `Port=Match`, all four shapes. Note the add-root register swap: with a `+` root the two children's registers are exchanged relative to every other root operator — characterized, not explained, so accepted at exactly this depth |
+| `w5_tree3.cpp` | written here | **W5 trees, depth 3** — still out of class |
 | `w5_tree_neg.cpp` | written here | W5 negative neighbours — every function must keep returning `NotImplemented` |
 | `mvp_fmul3.cpp` | written here | **Ported (W13a)** — `float fmul3(float,float,float)`; `fmuls f0,f1,f2 ; fmuls f1,f0,f3` |
-| `w13_fabi.cpp`, `w13_fops.cpp`, `w13_fscratch.cpp`, `w13_fneg.cpp` | written here | W13 characterization: the FP calling convention, per-op encodings, the `[f0, f13…f1]` scratch cursor, and the negatives (constants, converts, contraction, spills) that must keep refusing. See `docs/CODEGEN_W13_FLOAT.md` |
+| `w13_fabi.cpp`, `w13_fops.cpp`, `w13_fscratch.cpp`, `w13_fneg.cpp` | written here | W13 characterization: the FP calling convention, per-op encodings, the `[f0, f13…f1]` scratch cursor, and the negatives (converts, contraction, spills, synthesized constants) that must keep refusing. `w13_fneg`'s `n_k_add`/`n_k_dadd` are **no longer negatives** — W13b made both byte-exact — but the file still refuses as a whole, because decode is all-or-nothing per TU. See `docs/CODEGEN_W13_FLOAT.md` |
+| `w13b_fconst.cpp` | written here | **Ported (W13b)** — the minimal one-constant witness: one `.rdata` COMDAT, `addis`+`lfs`, a REFHI/REFLO+PAIR relocation quad |
+| `w13b_fdedup.cpp` | written here | **Ported (W13b)** — dedup keyed on `(bit pattern, width)` so a `float` 1.0 and a `double` 1.0 are two constants; symbol placement (each pair goes right after the symbol of the function that *first* references it); and the relocation-layout bug it caught — a section's relocations follow **that section's own** raw data, invisible while `.text` was last |
+| `w13b_fpool.cpp` | written here | **W13b negative** — bodies whose IL carries 2+ FP literals. c2, not c1xx, evaluates FP constants: `a*2.0f*b*3.0f` reassociates to `(a*b)*6.0f`, `a/3.0f/7.0f` to one `fmuls` by 1/21. `ke` is also the witness that a constant claims its FP register *before* any interior temporary |
+| `w13b_ffold.cpp` | written here | **W13b negative** — the identity folds. `a+0.0f`, `a*1.0f`, `a-0.0f` are a bare `blr` with nothing pooled; `a*0.0f` is **not** folded and must keep emitting. The gate is per `(operator, value)` pair, and only a fixture holding both halves separates that from the wrong rule "refuse the value 0.0" |
 | `il_convert_scalar.cpp`, `il_intrinsic_call.cpp` | written here | Characterization for `2C` (the real cast) and `40` (the intrinsic call, which is **not** a cast). Both replay `ByteExact` and must keep refusing. See `docs/IL_CAST_CONVERT.md` |
+
+Fixture gate as measured at commit **`cebfb88`** (W13b): **21 of the 41 tracked
+`cpp/*.cpp` `Port=Match`, 0 mismatch**, `cargo test --workspace --release` green
+(202 tests). Concurrent sessions have since added fixtures and rungs
+(`06d29b9`, `db3b5ad`, `61e0d85`), so both the numerator and the denominator have
+moved — re-run `c2rs diff` rather than quoting this line as current.
+
+**Not yet described in the table above**: `w6_rel_k.cpp`, `il_call_args1.cpp`,
+`il_call_args2.cpp` and `il_call_multi.cpp`, added after `cebfb88` by the sessions
+that landed W6's non-zero-literal relations and the call-argument
+characterization. Left for those sessions to document rather than guessed at here.
 
 ### Negative fixtures are not optional
 
 Roughly half the files here exist to be **rejected**. `mvp_call_submod`,
 `…_mulmod`, `…_widemod`, `…_twice`, `…_then_stmt`, `…_two_framed`,
-`…_plus1plus2`, `…_argframed_plusk` and `w5_tree_neg` all pin the fail-closed
-boundary: each is one small step outside an accepted class, and each must
-report `NotImplemented` rather than bytes.
+`…_plus1plus2`, `…_argframed_plusk`, `w5_tree_neg`, `w13b_fpool` and
+`w13b_ffold` all pin the fail-closed boundary: each is one small step outside an
+accepted class, and each must report `NotImplemented` rather than bytes.
 
 That discipline is load-bearing rather than decorative. A green corpus is only
 as strong as its ability to *separate* the candidate rules — the W5 mis-emit
@@ -49,6 +65,19 @@ survived because every fixture up to `a-b-c` had exactly one intermediate,
 where the single-accumulator and descending-register rules produce identical
 bytes. When adding a class, add the neighbour that would look the same under a
 plausible wrong rule.
+
+W13b produced three more instances of exactly that, worth naming because each
+wrong rule matched the entire pre-existing corpus:
+
+- **"refuse the value 0.0 or 1.0"** vs **"refuse the `(operator, value)` pair"** —
+  separated only by `w13b_ffold::q5` (`a * 0.0f`), which really does pool a zero
+  and multiply.
+- **"allocate FP registers in emission order"** vs **"the constant allocates
+  first"** — separated only by `w13b_fpool::ke`, a body with a constant *and* an
+  interior temporary. Every single-operator body matches both.
+- **"relocations follow all raw data"** vs **"relocations follow their own
+  section's raw data"** — indistinguishable until a `.rdata` sat behind `.text`,
+  i.e. until `w13b_fdedup` existed.
 
 Include-free is deliberate: no `e:\` include roots means no `WIBO_PATH_MAP` /
 `WIBO_COMPUTER_NAME` string-hash determinism knobs are needed — the capture is

@@ -8,6 +8,13 @@ bottom are **load-bearing** — every phase must preserve them.
 
 The foundation is proven and fast; the port itself is deliberately narrow.
 
+> **As-of marker.** The fixture ratio (21/41) and every census figure in §1 and
+> §G5 were measured at commit **`cebfb88`** (W13b). Three further rungs landed in
+> concurrent sessions immediately afterwards — `06d29b9` (W6: `<`, `>=`, `<=`
+> against a non-zero literal), `db3b5ad` (call-argument / CALL-type-id fixtures),
+> `61e0d85` (multi-argument tail-call lowering) — and are **not** reflected in
+> those numbers. Treat them as lower bounds and re-measure before quoting.
+
 **Proven (differential, against real `c2.dll`/`c1xx.dll` 16.00.11886.00 under wibo):**
 
 - **P0.1** — standalone-c2 IL-bundle replay is byte-exact on all fixtures
@@ -21,15 +28,17 @@ The foundation is proven and fast; the port itself is deliberately narrow.
 - **P-F0.1** — standalone-c1 (front-end) replay is byte-exact on all 25
   fixtures (`c2rs replay-c1`). The same porting path is open for `c1xx.dll`.
 - **The port (`c2-core::PortC2`) is byte-exact on its accepted class**
-  (`c2rs diff`, 18/37 fixtures Match, 0 mismatch): straight-line integer
-  add/sub/mul chains with immediate folding and wide constants (now including
-  3+-op `*`/`-` chains, see the mis-emit note below), multi-function TUs of
-  those, bare void tail calls, integer tail calls `return g(<arg>)`
+  (`c2rs diff`, **21/41 fixtures Match, 0 mismatch** at cebfb88): straight-line
+  integer add/sub/mul chains with immediate folding and wide constants (now
+  including 3+-op `*`/`-` chains, see the mis-emit note below), **depth-2
+  expression trees** (W5 trees), multi-function TUs of those, bare void tail
+  calls, integer tail calls `return g(<arg>)`
   (passthrough / `+0` fold / arg-setup), the framed non-leaf
   `return g(a) + k` (6-section obj with `.pdata`), **the empty TU** (R1),
   **empty function bodies** (R2), **the COMDAT `.text`-per-function shape under
   `/Gy`** (R3), **comparison→boolean leaves** (W6: `return a <rel> k`,
-  branchless), and **float/double leaves over parameters** (W13a). Everything
+  branchless), **float/double leaves over parameters** (W13a) and **one pooled
+  floating-point constant per body** (W13b). Everything
   else returns `NotImplemented` — fail closed, never a guess.
 - **R1 — the first nonzero match bucket.** `coff::emit_empty_obj` emits the
   720-byte four-section obj for a TU that defines no functions, recognized
@@ -77,11 +86,50 @@ The foundation is proven and fast; the port itself is deliberately narrow.
   a constant again). Obj shell effect for this class: exactly one extra symbol,
   the undefined external `_fltused` — the *general* trigger rule for that symbol
   is still open (`CODEGEN_W13_FLOAT.md` §7).
+- **W13b — one pooled floating-point constant per body, byte-exact**
+  (cebfb88). `w13b_fconst.cpp` and `w13b_fdedup.cpp` are `Port=Match`. A float
+  has no immediate form on PPC, so c2 gives each distinct value its own `.rdata`
+  COMDAT (4 B/`0x40301040` for float, 8 B/`0x40401040` for double, `Selection=2`,
+  big-endian contents) and loads it through `addis`+`lfs`/`lfd` with a
+  REFHI+PAIR / REFLO+PAIR relocation quad; the pool is keyed on
+  **(bit pattern, width)** TU-wide, so a `float` 1.0 and a `double` 1.0 are two
+  sections and two `__real@…` symbols. Three things the captures corrected, all
+  of them cases where the wrong rule matched the entire prior corpus:
+  **(1)** a section's relocations sit after **that section's own** raw data, not
+  after every section's — invisible while `.text` was the last section, and an
+  emitter-wide fact rather than an FP one; **(2)** a constant claims its FP
+  register *before* any interior temporary does, so the allocator cannot walk the
+  emitted instruction list in order (witness `ke`: `fmuls f13,f1,f2` with the
+  constant in `f0`); **(3)** the IL literal's trailer is one little-endian `u16`
+  width, not a size byte plus an unexplained `00`.
+  **Gated at one constant per body, and the reason is the interesting part:
+  c2 — not c1xx — is the floating-point constant evaluator.** The IL still
+  carries every literal the source wrote, so the backend folds
+  (`a+0.0f`, `a*1.0f`, `a-0.0f` → bare `blr`, nothing pooled — but `a*0.0f` is
+  **not** folded, so the gate is per `(operator, value)` pair, not per value),
+  strength-reduces (`a/2.0f` → `fmuls` by `__real@3f000000`; `a/3.0f/7.0f` → one
+  `fmuls` by 1/21, which is inexact and therefore a real numeric transform) and
+  reassociates (`a*2.0f*b*3.0f` → `(a*b)*6.0f`). With two *surviving* constants
+  the schedule also changes — every `addis` hoists into a prologue group and each
+  `lfs` is placed at first use, so the REFLO site stops being `hi_off + 4` — and
+  that is characterized by exactly two captures (`p1`, `p5`), which is not enough
+  to implement from. The gates live in the **IL parser**
+  (`c2-il::func::try_parse_float_leaf`), not in codegen, so the census and the
+  emission gate cannot disagree about what is in class. Full byte evidence:
+  **`docs/CODEGEN_W13_FLOAT.md` §5**.
 
-- **W5 chains** — `*`/`-` chains past two operations, allocating temporaries
-  down the `r11 → r10 → r9 …` cursor and **refusing below `r9`**; the rule and
-  its eleven negative neighbours are in **`docs/CODEGEN_W5_SCRATCH.md`**. This
-  is the change that fixed the mis-emit below. Expression *trees* still fail
+- **W5 chains and depth-2 trees** — `*`/`-` chains past two operations,
+  allocating temporaries down the `r11 → r10 → r9 …` cursor and **refusing below
+  `r9`**; the rule and its eleven negative neighbours are in
+  **`docs/CODEGEN_W5_SCRATCH.md`**. This is the change that fixed the mis-emit
+  below. **Depth-2 trees have since landed too** (9b7df37): `w5_tree2.cpp` is
+  `Port=Match` on all four shapes — left child into one scratch, right into
+  another, root into `r3`. One characterized-but-unexplained wrinkle gates the
+  depth: when the root is `+` the two children's registers are **swapped**
+  relative to every other root operator, reproducibly and order-independently
+  (`(a*b)+(c*d)` and `(c*d)+(a*b)` are byte-identical), so the `+` root is
+  accepted at exactly this depth and refused above it. Depth-3 trees
+  (`w5_tree3.cpp`) and all eleven functions of `w5_tree_neg.cpp` still fail
   closed.
 - **Harness + tooling**: oracle self-test, corpus generator, obj→IL retrieval
   baseline, IL-space search prototype, edit gate; `perf`/`perf-scale`
@@ -91,7 +139,7 @@ The foundation is proven and fast; the port itself is deliberately narrow.
   blocking-feature histogram in the `gap` report; the census also prints a
   bracketed hexdump of the bytes at each blocking site, which is what turned
   guessed opcode names into measured ones). The port's real coverage is now a
-  *measured* number: **79,718 / 2,462,571 functions in class (3.24%)** over the
+  *measured* number: **79,719 / 2,462,571 functions in class (3.24%)** over the
   871 capturable dc3 TUs, with the blocking-feature histogram that ranks the
   remaining work (§G5).
 - **IL codec (K1/K2a)** — round-trip-gated typed-islands-over-opaque-spans
@@ -136,17 +184,25 @@ working exactly as designed, one rung earlier than intended.
 **Staged but not yet ported** (fixtures/probes already in-repo, pointing at
 the next classes):
 
-- `w5_tree2.cpp` / `w5_tree3.cpp` / `w5_tree_neg.cpp` — multi-scratch
-  expression **trees** (`(a+b)*(c+d)` and deeper). Chains are done; trees
-  still fail closed. The register-allocation rule, the evaluation order and
-  the eleven negative neighbours are fully characterized in
+- `w5_tree3.cpp` / `w5_tree_neg.cpp` — multi-scratch expression **trees** past
+  depth 2. `w5_tree2.cpp` has since been ported (§1); depth 3 and the eleven
+  negative neighbours still fail closed. The register-allocation rule, the
+  evaluation order and those neighbours are fully characterized in
   `docs/CODEGEN_W5_SCRATCH.md`.
 - `select_max`, `shift_mask` in `add3.cpp` — ternary select, shifts, `&`.
 - `w13_fabi.cpp` / `w13_fops.cpp` / `w13_fscratch.cpp` / `w13_fneg.cpp` — the
   W13 characterization set: the FP calling convention, the four binary ops, the
   temporary cursor with its liveness skip and wrap, and the negatives (spills,
   int↔FP round trips, fused `fmadds`). All replay `ByteExact`; all still
-  `Port=NotImplemented`, which is what pins the W13a boundary.
+  `Port=NotImplemented` **as whole TUs**, which is what pins the W13a/W13b
+  boundary. Inside `w13_fneg.cpp`, N3's `n_k_add`/`n_k_dadd` are no longer
+  negatives — W13b made both shapes byte-exact — while `n_k_ret` (a constant
+  return with no operand) and `n_k_two` (two surviving constants) still refuse.
+- `w13b_fpool.cpp` / `w13b_ffold.cpp` — the W13b negatives: bodies whose IL
+  carries 2+ FP literals, and the identity folds. Both must keep refusing, and
+  `w13b_ffold::q5` (`a * 0.0f`, which c2 does **not** fold) must keep *emitting*
+  in the reference, since it is the only thing separating a per-`(operator,
+  value)` gate from the wrong per-value one.
 - `il_convert_scalar.cpp` / `il_intrinsic_call.cpp` — the P2d cast /
   intrinsic-call characterization set (19 scalar conversions; 12 `0x40` sites).
   Both replay `ByteExact` and both must keep refusing: the same `2C` token is
@@ -193,7 +249,7 @@ and §G5:
 
 | # | Class | New mechanisms required | Staged? |
 |---|-------|-------------------------|---------|
-| W5 | **Multi-scratch expressions** (tree depth > 2, e.g. `(a+b)*(c+d)`) | COLOR scratch order beyond r11; operand-stack depth limit lifted | **chains DONE** (`r11→r10→r9…`, refused below r9); trees test-pinned reject — `CODEGEN_W5_SCRATCH.md` |
+| W5 | **Multi-scratch expressions** (tree depth > 2, e.g. `(a+b)*(c+d)`) | COLOR scratch order beyond r11; operand-stack depth limit lifted | **chains DONE** (`r11→r10→r9…`, refused below r9) and **depth-2 trees DONE** (`w5_tree2.cpp` Match; the `+`-root register swap is characterized, not explained, so depth 3 refuses) — `CODEGEN_W5_SCRATCH.md` |
 | W6 | **Integer comparisons → bool** (`x!=0`, `x>7`, signed/unsigned) | branchless carry/bit-extraction spines (**no** `cmpwi`/`cmplwi`), `subfe`/`addze`/`cntlzw`/`rlwinm`, mandatory `k == 0` folds | **compare-against-literal leaves DONE**, 6/6 in `il_bool_materialization.cpp`; `<`/`<=`/`>=` vs a non-zero literal still refused — `CODEGEN_W6_COMPARE.md` |
 | W7 | **Shifts + bitwise** (`<< >> & \| ^ ~`, mul-by-const strength reduction) | `slw`/`srw`/`sraw`/`rlwinm`/`andi.` (the dot!); non-commutative hazard list grows | `shift_mask` |
 | W8 | **Control flow** (if/else, ternary select, loops) | multi-block `.ex` (labels, branch tokens), `bc`/`b`, block layout order, compare+branch fusion | `select_max`, `il_call_return` conditionals |
@@ -201,7 +257,7 @@ and §G5:
 | W10 | **General frames + locals** (spills, local temps) | frame-size model beyond the fixed 96B, `lwz`/`stw` to frame, `.pdata` generalization; **must solve the `.pdata` label-counter shift (W-UNW-1)** | `cached_return` |
 | W11 | **Calls generalized** (multi-arg, stack args, multiple calls/externals, multi-fn TUs with calls, calls in expressions) | arg registers r3–r10 + stack spill, call sequencing, `.pdata` per function (W-UNW-1 again), extern pairing beyond the single-external shortcut | `il_call_return.cpp` |
 | W12 | **Memory / struct access** (pointers, member loads, stores, arrays) | `lwz`/`lhz`/`lbz`/`lha` + sign/zero extension, store forms, member-offset addressing — the `Box::Volume` float leaf lives here | float-leaf codec already typed |
-| W13 | **Float codegen** (`fmul3` and friends) | pool `[f0, f13, …, f1]` (**not** the integer shape), `fmuls`/`fadds`/`fsubs`/`fdivs`, mandatory `fmadds` contraction, `frsp`; float *constants* need an `.rdata` COMDAT + `addis`/`lfs` + a REFHI/REFLO pair (splits into 13a param-only leaves, 13b constants) | **13a DONE** (`mvp_fmul3.cpp` Match; `w13_*.cpp` pin the boundary) — `CODEGEN_W13_FLOAT.md`; 13b open |
+| W13 | **Float codegen** (`fmul3` and friends) | pool `[f0, f13, …, f1]` (**not** the integer shape), `fmuls`/`fadds`/`fsubs`/`fdivs`, mandatory `fmadds` contraction, `frsp`; float *constants* need an `.rdata` COMDAT + `addis`/`lfs` + a REFHI/REFLO pair (splits into 13a param-only leaves, 13b constants) | **13a DONE** (`mvp_fmul3.cpp` Match) and **13b DONE at one constant per body** (`w13b_fconst`/`w13b_fdedup` Match; `w13b_fpool`/`w13b_ffold` pin the boundary) — `CODEGEN_W13_FLOAT.md`. Two-or-more constants stays open: c2 is the constant evaluator and also reschedules |
 | W14 | **Data sections / globals** (`.data`/`.rdata`, string literals, statics, arrays) | new COFF sections, `ADDR32` relocs, symbol storage classes | — |
 
 Long tail, census-driven only: switch/jump tables, 64-bit ints (`addc`/`adde`
@@ -245,12 +301,17 @@ call token. Grouping the current top eight by what the bytes actually are:
 - **Remaining call-shaped** blocks: `expr-call-in-expr` (**5.0%**) and
   `call-token-0x26` (**3.4%**) = **8.4%** — real **W11** demand (calls nested
   in expressions, `26 dest 26 callee BD …` assign-a-call-result statements).
-- **Type-driven blocks**, i.e. the port only lowers `int` and the W13a FP leaf:
-  `expr-load-type-864540` (**float**, 3.4%) and `expr-load-type-888541`
-  (**double**, 3.1%) = **6.6%**, with `expr-load-type-864383` (**void\***) just
-  behind them in the tail. W13a took a bite out of the float row and the rest
-  is honest **W13b**/**W12** demand — knowing how to *skip* a `double` is not
-  knowing how to lower it.
+- **Type-driven blocks**, i.e. the port only lowers `int` and the FP leaf of
+  W13a/W13b: `expr-load-type-864540` (**float**, 3.4%) and
+  `expr-load-type-888541` (**double**, 3.2%) = **6.6%**, with
+  `expr-load-type-864383` (**void\***, 2.0%) just behind them. W13a took a bite
+  out of the float row and W13b took **one further function** out of it
+  (81,478 → 81,477) — the measurement is in §G5 and it is the clearest evidence
+  on the board that these buckets are not made of the shapes the fixtures
+  sample. What remains is honest **W12** demand plus the FP shapes W13b
+  deliberately refuses (2+ constants, contraction, converts) — knowing how to
+  *skip* a `double` is still not knowing how to lower it, and now: knowing how to
+  lower a `double` *leaf* is not knowing how to lower the corpus' doubles either.
 - **Statement/body-shaped** blocks: `body-0x53` (**2.9%**) is a body whose
   first statement is an `if`/compound, i.e. **W8** control flow. `body-0x3A`
   (previously 4.4%, the cheapest large bucket) is **gone** — that was empty
@@ -541,8 +602,9 @@ CALL token shape and the meaning of `body-0x3A` / `body-0x53` on a real TU.
 Per-function lines are suppressed above 64 functions, where only the histogram
 is readable.
 
-**Baseline (2026-07-29 end of day, 878 dc3 TUs, real `/O1 /Oi /EHsc` flags,
-~36 s at `--jobs 16`):**
+**Baseline (2026-07-29, re-run at cebfb88; 878 dc3 TUs, real `/O1 /Oi /EHsc`
+flags, 37.3 s at `--jobs 16`). Every TU bucket is unchanged from the
+end-of-day scan — W5 depth-2 trees and W13b moved no TU:**
 
 | Class | TUs | % |
 |---|---|---|
@@ -560,8 +622,9 @@ worth 2 TUs). The sixth is `system/utl/Spew.cpp`, the **first function-bearing
 real TU to match**, unlocked by R2 + R3 (empty function bodies, then the `/Gy`
 COMDAT shape they exposed — box below).
 
-**Function census: 79,718 / 2,462,571 functions in class (3.24%).** Progression
-today on the identical instrument:
+**Function census: 79,719 / 2,462,571 functions in class (3.24%)** (re-measured
+at cebfb88, 878 TUs, 37.3 s at `--jobs 16`). Progression on the identical
+instrument:
 
 | | in class | % |
 |---|---:|---:|
@@ -570,7 +633,8 @@ today on the identical instrument:
 | + CALL-token decode (§G2, 2870fc1) | 7,954 | 0.32 |
 | + empty function bodies (`w10_empty_fn.cpp`, a44c8f3) | 78,028 | 3.17 |
 | + W13a float/double leaves (9c7ba7d) | 79,041 | 3.21 |
-| + signed varint short form (66f408d) | **79,718** | **3.24** |
+| + signed varint short form (66f408d) | 79,718 | 3.24 |
+| + W5 depth-2 trees (9b7df37) **and** W13b one-constant bodies (cebfb88) | **79,719** | **3.24** |
 
 The first two steps were *decode* fixes, not new codegen — the expected shape
 of progress while the wall is `vocab-gap`. The third is a 10× jump from one
@@ -579,6 +643,18 @@ accepting them also unblocks the many TUs that are *mostly* trivial accessors
 and destructors. The fourth is the smallest of the four and the most
 codegen-heavy, which is the normal ratio once the decode wall stops being the
 binding constraint.
+
+**The last row is the honest one, and it is worth more than the four above it as
+a lesson: two rungs of real codegen bought exactly ONE function.** W5 depth-2
+trees moved the census by 0 (recorded as such when they landed) and W13b by 1 —
+the `expr-load-type-864540` (float) bucket went 81,478 → 81,477. Both were
+fixture-driven rungs, and this is what that looks like when it is measured
+instead of assumed. It does not make them worthless: W13b is a prerequisite for
+the float/double buckets *as a whole* (6.6% between them), it forced the
+emitter-wide relocation-layout fix, and it is the first class in the port that
+needs a second COFF section, relocations against a data symbol, and a TU-wide
+pool. But the coverage claim is 1 function, and the strategy note in §4 —
+demand-driven widening — is the rule these two rungs did not follow.
 
 > ### The obj shape depends on argv the bundle does not record (`/Gy`)
 >
@@ -614,8 +690,8 @@ post-fix code: 871/871 capturable TUs byte-exact, 0 diverged**
 capturable real workload, so every IL-derived measurement above rests on a
 reference side that was itself checked, not assumed.
 
-Fixture-level status at the same commit: **18/37 `Port=Match`, 0 mismatch**;
-`cargo test --workspace` green.
+Fixture-level status at cebfb88: **21/41 `Port=Match`, 0 mismatch**;
+`cargo test --workspace --release` green (202 tests, toolchain present).
 
 > **The denominator is 2,462,571 functions — not ~903k.** An earlier figure of
 > 902,730 came from counting `.gl` mangled names; that is **not** the function
@@ -628,8 +704,8 @@ Fixture-level status at the same commit: **18/37 `Port=Match`, 0 mismatch**;
 > (`func::split_function_bodies`). Do not re-derive a function count from
 > `.gl`.
 
-Blocking-feature histogram, top 8 (percentages are of the 2,383,530 *blocked*
-functions), with what each bucket is now known to be:
+Blocking-feature histogram, top 8 (cebfb88 scan; percentages are of the
+**2,382,852** *blocked* functions), with what each bucket is now known to be:
 
 | Functions | % | Feature | What the bytes are |
 |---:|---:|---|---|
@@ -637,16 +713,17 @@ functions), with what each bucket is now known to be:
 | 167,205 | 7.0 | `expr-intrinsic-call` | the `0x40` token — a **second call token**, not a cast (§G2) |
 | 144,276 | 6.1 | `call-token-0x33` | the **same** intrinsic-call production, result assigned |
 | 119,800 | 5.0 | `expr-call-in-expr` | a call nested inside an expression |
-| 81,478 | 3.4 | `expr-load-type-864540` | **float** |
+| 81,477 | 3.4 | `expr-load-type-864540` | **float** — one fewer than the previous scan; that one function is all W13b bought |
 | 80,284 | 3.4 | `call-token-0x26` | `26 dest 26 callee BD …` (assign a call result) |
-| 75,081 | 3.1 | `expr-load-type-888541` | **double** |
+| 75,081 | 3.2 | `expr-load-type-888541` | **double** (3.1 % on the previous scan — a rounding-boundary move, not a corpus one) |
 | 70,078 | 2.9 | `body-0x53` | first statement is an `if`/compound |
 
-`expr-load-type-864383` (**void\***) sits just below this cut; its count is
-deliberately not re-quoted from the superseded scan. Behind the top eight is a
-long tail of further distinct features (1,217 more rows at the mid-day
-measurement; the row count has moved with every retirement since and is
-likewise not re-quoted).
+`expr-load-type-864383` (**void\***) sits just below this cut at **47,640
+(2.0%)** — now quotable, because it comes from this scan rather than the
+superseded one — followed by `expr-load-type-864275` (37,060 / 1.6%) and
+`call-end-0x26` (36,640 / 1.5%). Behind the top eight is a long tail of
+**1,050 more distinct features** (down from 1,217 at the mid-day measurement, as
+retirements accumulated).
 
 Two rows have **left** this table since the mid-day scan, and neither left by
 being fixed in the corpus sense:
@@ -660,7 +737,7 @@ being fixed in the corpus sense:
 
 Do not diff this histogram against an earlier one without accounting for both,
 and note that every percentage moved simply because the blocked denominator
-shrank from ~2.45 M to 2,383,530.
+shrank from ~2.45 M to 2,383,530 and then to 2,382,852.
 
 How to read the bucket names (`func::Block::feature`) — `<production>-0xNN`
 means the parse was inside that grammar production and could not consume byte
@@ -769,7 +846,7 @@ P2d   cast / intrinsic-call characterization → IL_CAST_CONVERT.md [DONE 2026-0
 R1    empty-TU obj emission — first nonzero match bucket   [DONE 2026-07-29: 5/878]
 R2    empty function bodies                          [DONE 2026-07-29: census 0.32% → 3.17%]
 R3    COMDAT .text per function under /Gy            [DONE 2026-07-29: match 5 → 6/878]
-W5    multi-scratch expressions                     [CHAINS DONE 2026-07-29; trees open]
+W5    multi-scratch expressions                     [CHAINS + DEPTH-2 TREES DONE 2026-07-29; depth 3 open]
 W6    integer comparisons → bool                    [LEAVES DONE 2026-07-29; <,<=,>= vs k≠0 open]
 W7    shifts + bitwise + strength reduction         (staged)
 W8    control flow (if/else, ternary, loops)        (first CFG; IR restructure)
@@ -777,7 +854,7 @@ W9    division / modulo
 W10   general frames + locals (+ .pdata labels W-UNW-1)
 W11   calls generalized (+ W-UNW-1 for multi-fn TUs)
 W12   memory / struct access
-W13   float codegen                                  [13a DONE 2026-07-29; 13b constants→.rdata open]
+W13   float codegen                                  [13a DONE 2026-07-29; 13b DONE at ONE constant/body; 2+ constants open]
 W14   data sections / globals
 P-F0.2 FE characterization probes → FE_BUNDLE_MVP.md   (parallel track)
 P-F1  c1-core MVP + Grade-1/2 gates                    (parallel track)
@@ -861,7 +938,20 @@ not less.
 8. ~~**W13a — float/double leaves.**~~ **DONE 2026-07-29** (9c7ba7d) — see §1
    and `docs/CODEGEN_W13_FLOAT.md`; `mvp_fmul3.cpp` is `Port=Match`, census
    78,028 → **79,041**, then 79,718 with the signed-varint fix.
-9. **Decode the `0x40` intrinsic-call production** (~13% of blocked functions
+9. ~~**W5 trees**~~ **DEPTH 2 DONE 2026-07-29** (9b7df37) — `w5_tree2.cpp` is
+   `Port=Match` on all four shapes; depth 3 (`w5_tree3.cpp`) and all eleven
+   `w5_tree_neg.cpp` functions still refuse. The gate on the depth is the
+   unexplained `+`-root register swap (§1). Census movement: **0**.
+10. ~~**W13b — float constants.**~~ **DONE 2026-07-29 at one constant per body**
+    (cebfb88) — `w13b_fconst.cpp` and `w13b_fdedup.cpp` are `Port=Match`;
+    `w13b_fpool.cpp` and `w13b_ffold.cpp` must keep refusing. See §1 and
+    `docs/CODEGEN_W13_FLOAT.md` §5. Census movement: **+1 function** (79,718 →
+    79,719). Two side-effects worth more than the coverage: it forced the
+    emitter-wide relocation-layout fix (a section's relocations follow *that
+    section's* raw data), and it established that **c2, not c1xx, evaluates
+    floating-point constants** — so the two-or-more-constant case needs c2's
+    constant evaluator *and* its scheduler, and stays closed.
+11. **Decode the `0x40` intrinsic-call production** (~13% of blocked functions
    with `call-token-0x33`, the largest schedulable bucket). Decode first —
    `40 <TYPE>`, the argument loop, the `66 02 <tok> <tok>` descriptor — so the
    census reports the intrinsic *id* instead of one opaque byte and so bodies
@@ -869,17 +959,26 @@ not less.
    **Acceptance is a separate, later decision**, gated on an allow-list of ids
    *and* argument literals pinned by controlled fixture
    (`IL_CAST_CONVERT.md` §1.4, §4.1).
-10. **Fix `read_varint`'s signed short form** (§G2, Outstanding 2) — a decode
+12. **Fix `read_varint`'s signed short form** (§G2, Outstanding 2) — a decode
     defect, not a class: every small negative literal currently blocks its
     function. Needs the operand type threaded in for the 4-vs-8-byte escape.
-11. **W5 trees** — `(a+b)*(c+d)` and deeper, per `CODEGEN_W5_SCRATCH.md` §7
-    (the cursor rule, the level-order emission rule, and the six-row shape
-    gate G1–G6); `w5_tree_neg.cpp`'s eleven functions must stay
-    `NotImplemented`.
-12. **Port `codec.rs` to the variable-width token read** (`tok16` → the
+13. **W5 depth-3 trees** — per `CODEGEN_W5_SCRATCH.md` §7 (the cursor rule, the
+    level-order emission rule, and the six-row shape gate G1–G6);
+    `w5_tree_neg.cpp`'s eleven functions must stay `NotImplemented`, and the
+    `+`-root register swap needs explaining rather than re-observing before the
+    depth limit moves.
+14. **Port `codec.rs` to the variable-width token read** (`tok16` → the
     `read_token_var` rule), round-trip gate unchanged, so typed coverage can
     be measured on real bundles rather than fixtures (§G2).
-13. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
+15. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
+
+**Ordering note, now that two consecutive fixture-driven rungs have each bought
+≈0 census:** items 11–15 above are *not* in priority order — item 11 (the
+intrinsic-call decode, ~13% of blocked functions) is, and the two rungs just
+landed are the argument for it. §4's first strategy point is demand-driven
+widening; W5 trees and W13b were both taken on staged-fixture evidence, and the
+census says what that is worth on this corpus. Continuing down the fixture pile
+is a choice to keep paying that ratio.
 
 ## 7. Invariants (do not break)
 

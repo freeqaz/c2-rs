@@ -1,12 +1,14 @@
 # GAPS — the measured distance from here to real-TU coverage
 
-Status: living worklist (written 2026-07-29, revised three times the same day —
+Status: living worklist (written 2026-07-29, revised four times the same day —
 for the P2b function-level census and the variable-token-width finding; then
 for R1, the W5 chain mis-emit fix, W6 compare leaves and the CALL grammar; then
 at end of day for R2/R3, W13a float leaves and the cast/intrinsic-call
-characterization that refuted the `expr-cast` bucket name. All numbers
-re-measured with `c2rs gap` / `c2rs census` at HEAD — nothing below is quoted
-from memory). Companion to
+characterization that refuted the `expr-cast` bucket name; then for W5 depth-2
+trees and W13b pooled FP constants, which between them moved the census by **one
+function** and produced this document's first *falsified bucket attribution*
+(§4). All numbers re-measured with `c2rs gap` / `c2rs census` at HEAD (cebfb88) —
+nothing below is quoted from memory). Companion to
 [`ROADMAP.md`](ROADMAP.md): the roadmap says *what order*; this doc says *what
 is blocking, how much of the real corpus each blocker holds hostage, what each
 rung unlocks, and the exact commands that decide whether a rung is done*.
@@ -24,15 +26,26 @@ matters in the goal is now "growing".
 What is proven today, stated precisely enough that a regression is visible.
 Any run that degrades a number in this table is a regression, not noise.
 
+> **As-of marker — every number in this section and in §2/§2b was measured at
+> commit `cebfb88` (W13b).** `main` has since advanced by three commits landed in
+> concurrent sessions — `06d29b9` (W6: `<`, `>=`, `<=` against a non-zero
+> literal), `db3b5ad` (call-argument / CALL-type-id fixtures) and `61e0d85`
+> (multi-argument tail-call lowering) — **whose fixture counts and census
+> contributions are NOT folded in below.** Both the fixture ratio and the census
+> numerator are therefore *lower bounds* as of this revision. Per §6's "measure
+> committed code" rule, re-run the fixture gate and the scan before quoting any
+> of it as current; the owning sessions for those three rungs are the ones that
+> should fold their numbers in.
+
 | Claim | Number (2026-07-29) | Command that re-proves it |
 |---|---|---|
 | Standalone-c2 replay is byte-exact **including the COFF timestamp** on the whole capturable real workload | 871/871, 0 diverged — **re-proven at full strength 2026-07-29** on the post-token-fix code (43.4 s at `--jobs 16`), matching the 2026-07-20 full pass | `c2rs gap … --replay-every 1` |
 | Standalone-c1 (front-end) replay is byte-exact | 25/25 fixtures | `c2rs replay-c1` |
-| The port is byte-exact on its accepted class, fail-closed outside it | **18/37 fixtures Match**, rest NotImplemented, **0 mismatch** — and 0 mismatch across all 878 real TUs | `c2rs diff`, `c2rs perf`, `c2rs gap` |
-| **Real-corpus TU coverage** (the tripwire metric, §5) | **match 6 / 878 (0.7%)** — nonzero since 2026-07-29 (R1) | `c2rs gap …` |
-| **Real-corpus coverage, per function** (the headline numerator, P2b) | **79,718 / 2,462,571 functions in class (3.24%)** | `c2rs gap …` (FUNCTION CENSUS block), `c2rs census <cpp>` |
-| Port speed where it works | geomean **1081× per obj** over the **17** fixtures matching at 4afcaa7 (2.1–5.0 µs vs ~4.0 ms); ~897k objs/s at 32 threads vs ~3.1k for real c2. `mvp_fmul3` has since joined the matching set (18) and the geomean has **not** been re-measured over it — quote the 1081× with its 17 attached, or re-run | `c2rs perf`, `c2rs perf-scale` |
-| Test suite | green with toolchain present | `cargo test --workspace --release` |
+| The port is byte-exact on its accepted class, fail-closed outside it | **21/41 fixtures Match**, rest NotImplemented, **0 mismatch** — and 0 mismatch across all 878 real TUs | `c2rs diff`, `c2rs perf`, `c2rs gap` |
+| **Real-corpus TU coverage** (the tripwire metric, §5) | **match 6 / 878 (0.7%)** — nonzero since 2026-07-29 (R1); unmoved by W5 trees and W13b | `c2rs gap …` |
+| **Real-corpus coverage, per function** (the headline numerator, P2b) | **79,719 / 2,462,571 functions in class (3.24%)** (cebfb88) | `c2rs gap …` (FUNCTION CENSUS block), `c2rs census <cpp>` |
+| Port speed where it works | geomean **1081× per obj** over the **17** fixtures matching at 4afcaa7 (2.1–5.0 µs vs ~4.0 ms); ~897k objs/s at 32 threads vs ~3.1k for real c2. The matching set has since grown to **21** (W13a, W5 depth-2 trees, W13b ×2) and the geomean has **not** been re-measured over it — quote the 1081× with its 17 attached, or re-run. W13b is the first class whose objs carry a second section and four relocations, so it is also the first that could plausibly move the per-obj figure | `c2rs perf`, `c2rs perf-scale` |
+| Test suite | green with toolchain present — **202 tests, 0 failed** at cebfb88 | `cargo test --workspace --release` |
 | IL codec round-trip | `encode(parse(b)) == b` on the full fixture spread, fail-closed | `il_roundtrip.rs` (in the suite) |
 
 > **On that speed figure**: an earlier revision published ~1524×, measured over
@@ -41,8 +54,9 @@ Any run that degrades a number in this table is a regression, not noise.
 > and the `*`/`-` chains (852×) — so the two geomeans are **not comparable**,
 > and the drop is a change of population, not a regression. Any per-fixture
 > number that got slower would be; none did. The population has since moved
-> again (W13a took it to 18), which is exactly why the rule is: **quote this
-> metric with its fixture count attached, and re-measure before re-ranking it.**
+> again (W13a took it to 18, W5 depth-2 trees to 19, W13b to 21), which is
+> exactly why the rule is: **quote this metric with its fixture count attached,
+> and re-measure before re-ranking it.**
 
 The replay-soundness row is the foundation: the *reference* side of every
 differential is real c2 on real code, so every other number in this doc is
@@ -94,8 +108,9 @@ measured against truth, not against an approximation of it.
 
 ## 2. Where every real TU dies today (the funnel)
 
-`c2rs gap`, 878 dc3 TUs, real flags, ~36 s at `--jobs 16` (2026-07-29, end of
-day):
+`c2rs gap`, 878 dc3 TUs, real flags, 37.3 s at `--jobs 16` (re-run at cebfb88;
+every bucket unchanged from the end-of-day scan — W5 trees and W13b moved no
+TU):
 
 | Bucket | TUs | % | Meaning |
 |---|---|---|---|
@@ -125,7 +140,7 @@ actually starting to work.
 Scale of what sits behind the vocab-gap wall, measured from the scan JSONL
 and the P2b census:
 
-- **2,462,571 functions** across the 871 capturable TUs, of which **79,718
+- **2,462,571 functions** across the 871 capturable TUs, of which **79,719
   (3.24%) are in class today**. Ten TUs have **0** functions (fully
   preprocessed-away bodies); 40 TUs have ≤10; 79 have ≤100; 359 have ≤500
   (`.gl`-name-derived per-TU distribution, retained for its *shape*; see the
@@ -140,7 +155,7 @@ and the P2b census:
   1. The TU-grained scan **cannot rank** the W5–W14 ladder — 865 × "il
      function decode failed" is one undifferentiated bucket. This is what the
      P2b function census (GAP-0, now landed) exists to fix.
-  2. The headline metric is **functions in-class** (79,718 / 2,462,571) and
+  2. The headline metric is **functions in-class** (79,719 / 2,462,571) and
      will stay so for a long time. R1 moved the TU bucket precisely because
      empty TUs are the one population where "every function in the TU is in
      class" is vacuously true. `Spew.cpp` (R2+R3) is the first TU that needed
@@ -188,10 +203,10 @@ bracketed:
 That hexdump is what converts a bucket into a decoded production; every
 grammar correction below came out of one.
 
-**79,718 / 2,462,571 functions in class (3.24%).** Progression across the day
-on the identical instrument — the first two steps decode fixes, the third a
-very small new class with an outsized count, the fourth a much larger piece of
-codegen worth a fraction of it:
+**79,719 / 2,462,571 functions in class (3.24%)** (cebfb88, 37.3 s at
+`--jobs 16`). Progression across the day on the identical instrument — the first
+two steps decode fixes, the third a very small new class with an outsized count,
+then three rungs of real codegen worth a rounding error between them:
 
 | | in class | % |
 |---|---:|---:|
@@ -200,10 +215,20 @@ codegen worth a fraction of it:
 | + CALL-token decode (GAP-1) | 7,954 | 0.32 |
 | + empty function bodies (`w10_empty_fn.cpp`, a44c8f3) | 78,028 | 3.17 |
 | + W13a float/double leaves (9c7ba7d) | 79,041 | 3.21 |
-| + signed varint short form (66f408d) | **79,718** | **3.24** |
+| + signed varint short form (66f408d) | 79,718 | 3.24 |
+| + W5 depth-2 trees (9b7df37) **and** W13b one-constant bodies (cebfb88) | **79,719** | **3.24** |
 
-Top 8, percentages of the 2,383,530 *blocked* functions, with what each bucket
-is now **known** to be (`docs/IL_CALL_GRAMMAR.md`, `docs/IL_CAST_CONVERT.md`):
+**The last row is the one to read carefully: two rungs of codegen, +1 function.**
+W5 depth-2 trees moved it by 0 and W13b by 1 (`expr-load-type-864540` went
+81,478 → 81,477). That is the "fixture pass without a real-TU improvement"
+condition §6 names, and by the letter of §4 neither rung is *done* — the honest
+statement is that both are byte-exact on classes the real corpus barely contains.
+Recorded here rather than softened, because this document's whole function is to
+keep the census the public claim.
+
+Top 8, percentages of the **2,382,852** *blocked* functions, with what each
+bucket is now **known** to be (`docs/IL_CALL_GRAMMAR.md`,
+`docs/IL_CAST_CONVERT.md`):
 
 | Functions | % | Feature | What the bytes are |
 |---:|---:|---|---|
@@ -211,16 +236,17 @@ is now **known** to be (`docs/IL_CALL_GRAMMAR.md`, `docs/IL_CAST_CONVERT.md`):
 | 167,205 | 7.0 | `expr-intrinsic-call` | the `0x40` token — a **SECOND call token**, not a cast |
 | 144,276 | 6.1 | `call-token-0x33` | the **same** intrinsic-call production, result assigned |
 | 119,800 | 5.0 | `expr-call-in-expr` | a call nested inside an expression |
-| 81,478 | 3.4 | `expr-load-type-864540` | **float** operand |
+| 81,477 | 3.4 | `expr-load-type-864540` | **float** operand — the row W13b moved, by one |
 | 80,284 | 3.4 | `call-token-0x26` | `26 dest 26 callee BD …` — assign a call result |
-| 75,081 | 3.1 | `expr-load-type-888541` | **double** operand |
+| 75,081 | 3.2 | `expr-load-type-888541` | **double** operand (3.1 % last scan; a rounding boundary, not a corpus move) |
 | 70,078 | 2.9 | `body-0x53` | first statement is an `if`/compound |
 
-`expr-load-type-864383` (**void\***) falls just below this cut and its count is
-deliberately not re-quoted from the superseded scan. Behind the top eight is a
-long tail of further distinct features (1,217 more rows at the mid-day
-measurement; the row count has moved with every retirement since and is
-likewise not re-quoted).
+`expr-load-type-864383` (**void\***) falls just below this cut at **47,640
+(2.0%)** — quotable now because it is from this scan, not the superseded one —
+then `expr-load-type-864275` (37,060 / 1.6%), `call-end-0x26` (36,640 / 1.5%),
+`fn-tail-0xB9` (29,552 / 1.2%), `body-0x9B` (28,487 / 1.2%). Behind the top eight
+is a long tail of **1,050 more distinct features** (1,217 at the mid-day
+measurement; the count falls as retirements accumulate).
 
 Two rows left this table today, for opposite reasons — the distinction matters
 more than either number:
@@ -232,8 +258,8 @@ more than either number:
   the box below.
 
 Every percentage in the table also moved because the blocked denominator shrank
-from ~2.45 M to 2,383,530. Do not diff raw percentages across scans without
-that.
+from ~2.45 M to 2,383,530 and now to 2,382,852. Do not diff raw percentages
+across scans without that.
 
 > **A census bucket may be the instrument, and a census NAME may be a guess.**
 > Two distinct failure modes, and this doc has now been wrong in both.
@@ -315,17 +341,30 @@ very different things:
    instructions from a null-guarded four-instruction sequence). Then the
    remaining call-shaped rows — `expr-call-in-expr` 5.0% + `call-token-0x26`
    3.4% = **8.4%**, which is W11. Then non-`int` operand types — float 3.4% +
-   double 3.1% = **6.6%**, with `void*` behind them: W13b/W12 demand, and
-   knowing how to *skip* a `double` is still not knowing how to lower it. Then
-   `body-0x53` (2.9%), a leading `if` — W8.
+   double 3.2% = **6.6%**, with `void*` (2.0%) behind them: W12 demand plus the
+   FP shapes W13b refuses, and knowing how to *skip* a `double` is still not
+   knowing how to lower it. **W13b is now the measured caution on this row**: it
+   lowers the float/double *leaf with one constant* byte-exactly and took **one**
+   function out of 81,478, so these two rows are overwhelmingly not made of
+   leaves. Then `body-0x53` (2.9%), a leading `if` — W8.
 
 `body-0x3A` (4.4%) used to head this list and is no longer on it: R2 ported it.
 W6 (comparisons) and W7 (shifts) remain absent from the top eight; W6's leaf
 class landed anyway, on the strength of a staged fixture rather than measured
-demand, and it moved the census by less than either decode fix did. W13a is the
-second example of the same thing — a fixture-driven rung, worth 1,013 functions
-against the 70,074 that R2's measured bucket was worth. Both are still the
-argument for demand-driven ordering.
+demand, and it moved the census by less than either decode fix did. The
+fixture-driven series now runs to **four**, with a clear trend:
+
+| rung | driven by | census |
+|---|---|---:|
+| R2 empty function bodies | measured bucket (`body-0x3A`, 4.4%) | **+70,074** |
+| W6 compare leaves | staged fixture | small |
+| W13a float/double leaves | staged fixture | +1,013 |
+| W5 depth-2 trees | staged fixture | **0** |
+| W13b one-constant bodies | staged fixture | **+1** |
+
+One rung chosen from the histogram outweighs the four chosen from the fixture
+pile by roughly four orders of magnitude. That is the argument for demand-driven
+ordering, and it is no longer an argument from principle.
 
 The standing caveat survives unchanged: **a blocking feature is the *first*
 thing that stopped the parse, not the only thing missing.** Clearing the top
@@ -346,7 +385,7 @@ this section is by dependency, not payoff; the ranked worklist is §4.
   / `IlBundle::function_census`, keyed on the first blocking
   `(production, byte, offset)`) and ec401a5 (`c2rs census` subcommand + the
   scan-wide census and histogram in the `gap` report).
-- **Measured result**: **79,718 / 2,462,571 functions in class (3.24%)** — §2b.
+- **Measured result**: **79,719 / 2,462,571 functions in class (3.24%)** — §2b.
   The denominator is anchored on the `LO` body marker, **not** `.gl` mangled
   names (see the boxed warning in §2); the previously published ~902,730 was a
   `.gl` name count and is wrong.
@@ -368,10 +407,19 @@ this section is by dependency, not payoff; the ranked worklist is §4.
 ### GAP-1 — IL decode vocabulary (ROADMAP G2): the 98.5% wall
 
 - **What**: `c2_il::func::parse_segment` accepts a handful of body shapes (int
-  add/sub/mul chains, void/int tail calls, one framed-call form, and since
-  2026-07-29 the comparison leaf `<load> <lit> <rel> 2C`, the empty module, the
-  empty function body and the float/double leaf — `IL_BUNDLE_MVP.md` plus
+  add/sub/mul chains, depth-2 int trees, void/int tail calls, one framed-call
+  form, and since 2026-07-29 the comparison leaf `<load> <lit> <rel> 2C`, the
+  empty module, the empty function body and the float/double leaf — with **at
+  most one FP literal** — `IL_BUNDLE_MVP.md` plus
   `CODEGEN_W6_COMPARE.md` and `CODEGEN_W13_FLOAT.md` have the grammar).
+  **The FP literal is decoded as of cebfb88**:
+  `33 <lit-TYPE> <8 bytes binary64 LE> <width:u16 LE>`, where `lit-TYPE`
+  (`86 4a 40` float / `88 8a 41` double) is **not** the operand type tag
+  (`86 45 40` / `88 85 41`) — the `kind` byte differs by 5, a distinction the
+  old single-`INT_TYPE` model could not see because for `int` the two coincide.
+  Note also that the *acceptance* gates for FP constants live in this parser
+  (`try_parse_float_leaf`) rather than in codegen, deliberately, so the census
+  and the emitter cannot disagree about what is in class.
   Everything else in `.ex` is undecoded: comparisons outside the leaf shape,
   shifts (`09`/`0A`), bitwise (`0B`/`0C`/`0D`), logical `!`/`||`/`&&`
   (`1A`/`1B`/`1C`), ternary (`43 42`), branch/label tokens (`38`/`39`,
@@ -497,7 +545,7 @@ this section is by dependency, not payoff; the ranked worklist is §4.
     **only** directly over a comparison result today (W6), and why a blanket
     "casts are free" rule would silently drop sign-extensions
     (`IL_CAST_CONVERT.md` §2.2, §4.2).
-- **Frequency**: **865/878 TUs (98.5%)**, i.e. 96.79% of the 2,462,571 real
+- **Frequency**: **865/878 TUs (98.5%)**, i.e. 96.76% of the 2,462,571 real
   functions (§2b) — almost nothing reaches codegen. ~94.5% of bundle
   bytes opaque.
 - **Unlocks**: decode alone moves TUs from `vocab-gap` to `codegen-gap` —
@@ -517,17 +565,21 @@ this section is by dependency, not payoff; the ranked worklist is §4.
 ### GAP-2 — Codegen classes (ROADMAP G1): the W-ladder proper
 
 - **What**: `PortC2` lowers the MVP class plus, since 2026-07-29, `*`/`-`
-  chains past two operations (W5 chains), empty function bodies (R2), the
-  `/Gy` COMDAT obj shape (R3), the branchless compare→bool leaf (W6) and
-  float/double leaves over parameters (W13a). The missing classes, with
+  chains past two operations (W5 chains), **depth-2 expression trees** (W5
+  trees), empty function bodies (R2), the
+  `/Gy` COMDAT obj shape (R3), the branchless compare→bool leaf (W6),
+  float/double leaves over parameters (W13a) and **one pooled FP constant per
+  body** (W13b). The missing classes, with
   mechanisms per class, are the W5–W14 table in `ROADMAP.md` §G1: W5 expression
-  **trees**, W6's `<`/`<=`/`>=` against a non-zero literal, W7 shifts/bitwise,
+  trees past **depth 2**, W6's `<`/`<=`/`>=` against a non-zero literal,
+  W7 shifts/bitwise,
   W8 control flow, W9 div/mod, W10 general frames+locals, W11 generalized
-  calls, W12 memory/struct access, W13b float **constants**, W14 data
+  calls, W12 memory/struct access, **W13b beyond one constant** (which needs
+  c2's constant evaluator *and* its scheduler), W14 data
   sections/globals — plus the intrinsic-call family (no longer long tail: it is
   ~13% of blocked functions, §2b) and a census-driven long tail proper (switch
   tables, 64-bit carry chains, virtual calls).
-- **Five classes landed 2026-07-29**, every one characterized first:
+- **Seven classes landed 2026-07-29**, every one characterized first:
   - **R2 — empty function bodies.** `w10_empty_fn.cpp` exact; no expression to
     select, and the largest single census jump so far: **7,954 → 78,028**.
   - **R3 — the `/Gy` COMDAT `.text`-per-function shape**, forced by R2 turning
@@ -556,15 +608,56 @@ this section is by dependency, not payoff; the ranked worklist is §4.
     (`a+a` becomes `a*2.0f`, a constant again). Obj-shell effect for this
     class: exactly one extra symbol, the undefined external `_fltused`; the
     *general* trigger rule for that symbol is still open (§7 of that doc).
-  - **W5 chains** and **W6 compare leaves**, both below.
+  - **W13b — one pooled FP constant per body** (`CODEGEN_W13_FLOAT.md` §5) —
+    `w13b_fconst.cpp` and `w13b_fdedup.cpp` are `Port=Match`. Each distinct value
+    gets its own `.rdata` COMDAT (4 B / `0x40301040` float, 8 B / `0x40401040`
+    double, `Selection = 2`, aux checksum 0, big-endian contents), appended after
+    `.text` in first-reference order, loaded through `addis`+`lfs`/`lfd` with a
+    REFHI+PAIR / REFLO+PAIR quad against an EXTERNAL
+    `__real@<lowercase big-endian ieee hex>`. The pool is keyed on
+    **(bit pattern, width)** TU-wide, and the two symbols land immediately after
+    the symbol of the function that *first* references the constant.
+    **Three findings that generalize past this class**, each one a rule whose
+    wrong alternative matched the entire prior corpus:
+    1. **A section's relocations follow *that section's own* raw data**, not all
+       sections'. Emitter-wide, latent since the first relocation ever written,
+       and unobservable while `.text` was last. Put a `.rdata` behind `.text` and
+       c2's four REFHI/REFLO records sit *between* them.
+    2. **A constant claims its FP register before any interior temporary does**,
+       in IL order — so the allocator cannot walk the emitted instruction list.
+       Only `ke` (`a*2.0f*b*3.0f`, a body with a constant *and* a temp) separates
+       this from "allocate in emission order"; every single-operator body matches
+       both.
+    3. **c2, not c1xx, is the floating-point constant evaluator.** The IL carries
+       every source literal, and c2 folds (`a+0.0f`/`a*1.0f`/`a-0.0f` → bare
+       `blr`, nothing pooled — but `a*0.0f` is **not** folded, so the gate is per
+       `(operator, value)`, not per value), strength-reduces (`a/3.0f/7.0f` → one
+       `fmuls` by 1/21, inexact and therefore a genuine numeric transform) and
+       reassociates (`a*2.0f*b*3.0f` → `(a*b)*6.0f`). So "how many literals does
+       the source have" is not the gate; "how many survive c2" is, and only a
+       capture answers it.
+    Gated at one constant because with two the schedule also changes (every
+    `addis` hoists to a prologue group, each `lfs` goes at first use, FP registers
+    recycle) — characterized by exactly two captures, `p1` and `p5`, which is not
+    enough to implement from. The gates live in the **IL parser**, not codegen, so
+    the census and the emitter agree by construction.
+  - **W5 chains**, **W5 depth-2 trees** and **W6 compare leaves**, all below.
   - **W5 chains** (`CODEGEN_W5_SCRATCH.md`) — c2 allocates temporaries from a
     cursor descending `r11 → r10 → r9 → …`, skipping live registers and
     wrapping; the port now follows it for `*`/`-` chains and **refuses below
     `r9`**, since the deepest characterized chain is `a*b*c*d*e` and beyond it
     c2 recycles dead registers and schedules. This is the change that fixed
-    the mis-emit (§1). Trees still fail closed — the eleven negatives of
+    the mis-emit (§1).
+  - **W5 depth-2 trees** (9b7df37) — `w5_tree2.cpp` is `Port=Match` on all four
+    shapes: left child into one scratch, right into another, root into `r3`. One
+    wrinkle gates the depth and is **characterized but not explained**: with a
+    `+` root the two children's registers are **swapped** relative to every other
+    root operator, reproducibly and order-independently (`(a*b)+(c*d)` and
+    `(c*d)+(a*b)` are byte-identical, so c2 canonicalizes the commutative root by
+    parameter order and then hands the first term `r10`). Accepted at exactly this
+    depth, refused above it. Depth-3 trees and the eleven negatives of
     `w5_tree_neg.cpp` (product flattening, additive term-reordering, spilling
-    into `r31`, the unexplained `n_imm_sum2` register order) are the reason.
+    into `r31`, the unexplained `n_imm_sum2` register order) still fail closed.
   - **W6 compare leaves** (`CODEGEN_W6_COMPARE.md`) —
     `il_bool_materialization.cpp` is `Port=Match`, 6/6 in class. c2 lowers
     these **branchlessly**: no `cmpw`/`cmplw` at all, but carry-bit and
@@ -583,16 +676,16 @@ this section is by dependency, not payoff; the ranked worklist is §4.
   codegen work** but a permanent fail-closed class until W11/W12; the
   schedulable head is now the intrinsic-call family (~13%), then the remaining
   call-shaped rows (8.4%, W11), then non-`int` operand types (6.6% float +
-  double, W13b/W12), then a leading `if` (2.9%, W8). Treat that as inference
-  (see §2b), not as a codegen measurement.
-  Staged fixture evidence exists for the W5-tree, W7, W8, W13b and
-  cast/intrinsic classes (`w5_tree2/3.cpp`, `add3.cpp`'s
-  `select_max`/`shift_mask`, `il_call_return.cpp`, `w13_*.cpp`,
+  double — W12 plus the FP shapes W13b refuses), then a leading `if` (2.9%, W8).
+  Treat that as inference (see §2b), not as a codegen measurement.
+  Staged fixture evidence exists for the W5 depth-3 tree, W7, W8 and
+  cast/intrinsic classes (`w5_tree3.cpp`, `add3.cpp`'s
+  `select_max`/`shift_mask`, `il_call_return.cpp`, `w13_*.cpp`, `w13b_*.cpp`,
   `il_convert_scalar.cpp`, `il_intrinsic_call.cpp`) — fixtures sample the
-  grammar we guessed matters; the census measures the grammar that does. W6 and
-  W13a are the worked examples of the difference: both landed on fixture
-  evidence, and W6 moved the census less than either decode fix did while W13a
-  moved it 1,013 against R2's measured 70,074.
+  grammar we guessed matters; the census measures the grammar that does. There
+  are now **four** worked examples of the difference (the table in §2b): W6,
+  W13a (+1,013), W5 depth-2 trees (0) and W13b (+1), against R2's
+  histogram-chosen +70,074.
 - **Unlocks**: this is the gap whose closure moves *functions in-class*, and
   eventually TUs into `match`.
 - **Depends on**: GAP-1 per class (decode first), GAP-0 for order; W10/W11
@@ -621,6 +714,23 @@ this section is by dependency, not payoff; the ranked worklist is §4.
     general spine emits different, longer, wrong bytes for them. The IL is
     **unfolded** — the folding happens inside c2 — so it is always the port's
     job, never something the front end hands over pre-simplified.
+  - **A fold is keyed on the `(operator, value)` PAIR, not on the value** — and
+    W13b is the case that proves the distinction is load-bearing rather than
+    pedantic (`CODEGEN_W13_FLOAT.md` §5.9). `a + 0.0f`, `a * 1.0f` and `a - 0.0f`
+    all compile to a bare `blr` with nothing pooled, but `a * 0.0f` does **not**
+    fold: it loads `__real@00000000` and multiplies, because signed zero and NaN
+    make the fold unsafe. A gate written as "refuse the value 0.0" refuses a body
+    c2 really does lower; a fold written as "anything times zero is zero" emits a
+    wrong `blr`. W13b briefly did the former for all four. Only a fixture holding
+    **both halves** (`w13b_ffold.cpp`) separates the two candidate rules.
+  - **c2, not c1xx, evaluates floating-point constants** — the IL hands the
+    backend every literal the source wrote, and c2 folds, strength-reduces
+    (`a/3.0f/7.0f` → one `fmuls` by 1/21, *inexact*, so a real numeric transform)
+    and reassociates (`a*2.0f*b*3.0f` → `(a*b)*6.0f`) them. So the count of
+    literals in the IL is not the count of constants in the obj, and any gate
+    phrased over the IL's literals is guessing at c2's arithmetic. This is what
+    caps W13b at one constant per body, and it is the general shape of the hazard
+    for every future constant-bearing class.
   - **W-UNW-1**: `.pdata` label counters (`$M2545/…`) are a fixed seed for
     the first function but shift as preceding functions consume slots —
     resolved for single-function TUs, must be modeled per-function before
@@ -635,7 +745,25 @@ this section is by dependency, not payoff; the ranked worklist is §4.
     (`CODEGEN_W13_FLOAT.md` §2, §3, §6). Each of those, grafted from the
     integer path, produces *wrong bytes* rather than a refusal. When a new type
     class arrives, re-derive its allocator from captures; do not parameterize
-    the existing one.
+    the existing one. W13b then broke the *independence* of the two models: a
+    pooled constant takes an address GPR off the integer cursor **and** an FPR off
+    the FP cursor, so they are no longer separable allocators.
+  - **Allocation order is not emission order.** W13b's second correction: a
+    constant claims its FP register *before* any interior temporary does, in IL
+    order (`CODEGEN_W13_FLOAT.md` §5.8). An allocator that walks the emitted
+    instruction list matches every body with no interior temp — which is every
+    single-operator body, i.e. most of the corpus of small fixtures — and is
+    wrong the first time a body has both. The general form: **an allocator must be
+    driven by the IL order, and a fixture that cannot distinguish IL order from
+    emission order is not evidence about either.**
+  - **The obj's LAYOUT rules can be latent for as long as the section list is
+    short.** A section's relocation records belong immediately after *that
+    section's own* raw data. The emitter had "after all sections' raw data",
+    which is the same offset whenever the relocated section is last — true of
+    every obj this port emitted until W13b put a `.rdata` behind `.text`
+    (`CODEGEN_W13_FLOAT.md` §5.7). Nothing in the corpus was evidence against the
+    wrong rule. When adding a section, re-derive the *offsets* of everything that
+    follows it, not just the section's own bytes.
   - **Flag regime — this one has now detonated.** Every codegen byte fact was
     characterized under `/Ox /GS-`; the real workload compiles `/O1 /Oi /EHsc`,
     and `/O1` implies `/Gy`, which changes the *obj shape* (COMDAT `.text` per
@@ -709,7 +837,8 @@ contain, which is a finding, not progress.
 | **R4** — *head of the current ranking* | **Decode** the intrinsic-call production (`40 <TYPE>`, the `(<expr> 55 <TYPE>)* 4C` argument loop, the `66 02 <tok> <tok>` descriptor) — ~13% of blocked functions with `call-token-0x33` | Census: the two buckets collapse into one and report the intrinsic **id**, not one opaque byte; bodies where an intrinsic call is not the blocker reach their real blocker, so other buckets *grow* — that is the pass signal, not a coverage jump. **Acceptance is explicitly out of scope**: `parse_segment` still returns `NotImplemented`. Admitting any id needs the id **and** its argument literals pinned by controlled fixture (`IL_CAST_CONVERT.md` §1.4, §4.1) |
 | **R5** | `read_varint`'s signed short form (GAP-1) — a decode defect, not a class | Small negative literals stop blocking; census rises by whatever they were worth. Needs the operand type threaded through for the 4-vs-8-byte escape |
 | ~~**W5 chains**~~ **DONE 2026-07-29** | `*`/`-` chains past 2 ops: descending cursor `r11→r10→r9…`, refused below `r9` | **Passed**: `w5_chain.cpp` `Mismatch → Match`; this is the mis-emit fix of §1 |
-| **W5 trees** | Multi-scratch expression trees (the liveness-gated, wrapping cursor + level-order emission of `CODEGEN_W5_SCRATCH.md` §7) | `w5_tree2.cpp`/`w5_tree3.cpp` exact; all 11 functions of `w5_tree_neg.cpp` still `NotImplemented`; census multi-scratch buckets move |
+| ~~**W5 trees, depth 2**~~ **DONE 2026-07-29** | Depth-2 multi-scratch trees: left child into one scratch, right into another, root into `r3` | **Passed on the fixture gate, FAILED on the census gate**: `w5_tree2.cpp` is `Port=Match` on all four shapes, all 11 `w5_tree_neg.cpp` functions still `NotImplemented` — and the census moved by **0**. By this table's own rule ("a rung whose fixture gate passes but whose census gate doesn't move is **not done** — it modeled a shape the real corpus doesn't contain") that is a finding, not progress, and it is recorded as one. The depth is capped by the unexplained `+`-root register swap (GAP-2) |
+| **W5 trees, depth 3+** | Deeper trees (the liveness-gated, wrapping cursor + level-order emission of `CODEGEN_W5_SCRATCH.md` §7) | `w5_tree3.cpp` exact; all 11 functions of `w5_tree_neg.cpp` still `NotImplemented`; the `+`-root swap explained rather than re-observed; census multi-scratch buckets move — and on the depth-2 evidence, **expect them not to**, so measure before building |
 | ~~**W6 leaves**~~ **DONE 2026-07-29** | Compare→bool materialization, branchless, `k == 0` folds first | **Passed**: `il_bool_materialization.cpp` `Port=Match`, 6/6 in class. Census movement was small — the honest reading is that this rung was fixture-driven, not demand-driven |
 | **W6 rest** | `<`, `<=`, `>=` against a non-zero literal; wide literals | The §4.5 spine's instruction order for a literal lhs is **pinned by capture** (it is currently UNRESOLVED, `CODEGEN_W6_COMPARE.md`), then exact |
 | **W7** | Shifts + bitwise + strength reduction | `shift_mask` exact; hazard-listed encoders land exact-pattern, opt-in; census `09`/`0B` buckets move |
@@ -719,7 +848,8 @@ contain, which is a finding, not progress.
 | **W11** | Calls generalized (args r3–r10, stack spill, multiple calls) | census call buckets move; match bucket starts climbing the ≤100-fn TU population (79 TUs) |
 | **W12** | Memory / struct access (`.sy` becomes load-bearing) | census memory buckets (`30`/`32`) move |
 | ~~**W13a**~~ **DONE 2026-07-29** | Float/double leaves over parameters — a **separate** FP register model, not a parameterization of the integer one | **Passed**: `mvp_fmul3.cpp` `Port=Match`; `w13_fabi/fops/fscratch/fneg.cpp` all replay `ByteExact` and all keep returning `NotImplemented`, which is what pins the boundary. Census 78,028 → **79,041** (+1,013) — small, and fixture-driven rather than demand-driven, like W6 |
-| **W13b** | Float **constants** — `.rdata` COMDAT per distinct value, `addis`+`lfs`/`lfd`, REFHI/REFLO pairs, plus the constants c2 *synthesizes* (`a+a`→`a*2.0f`, `x/k`→reciprocal multiply) | float-constant fixtures exact; the `CODEGEN_W13_FLOAT.md` §2.6 cursor/constant interaction resolved by capture first (it is currently UNKNOWN and blocks this rung); census float buckets move |
+| ~~**W13b**~~ **DONE 2026-07-29 at ONE constant per body** | Float **constants** — `.rdata` COMDAT per distinct value keyed on (bits, width), `addis`+`lfs`/`lfd`, REFHI/REFLO+PAIR quads, `__real@…` symbols placed after the first referencing function | **Passed on the fixture gate, ~0 on the census gate**: `w13b_fconst.cpp` and `w13b_fdedup.cpp` `Port=Match`; `w13b_fpool.cpp` (2+ literals) and `w13b_ffold.cpp` (the identity folds) keep refusing; census 79,718 → **79,719** (**+1**). The §2.6 cursor/constant interaction that this row named as a blocker turned out to be an *ordering* fact for one constant — the constant allocates before the interior temporaries — and is closed at that width; beyond one constant it is genuinely open, so the rung landed with the ceiling rather than through it. Two side-effects outweigh the coverage: the emitter-wide relocation-layout fix, and the finding that **c2 is the FP constant evaluator** |
+| **W13b, 2+ constants** | Two or more *surviving* constants: the prologue `addis` group, `lfs` at first use, FP-register recycling — plus c2's constant evaluator (folds, reciprocal strength reduction, reassociation) | A capture set large enough to **separate candidate scheduling rules**, not just exhibit them — `p1`, `p5`, `n_k_two` and `p_const2::k4`/`k5` already give four different arrangements from four probes (`CODEGEN_W13_FLOAT.md` §5.6, §7.5). Do not implement from those. Given the +1 above, measure the demand before building |
 | **W14** | Data sections / globals (`ADDR32` relocs) | census global buckets move; match bucket now tracks whole subsystems |
 | **P-F0.2→P-F2, P3** | Front-end track + compose (parallel, off the match-bucket critical path) | Grade 1 `PortC1 == captured` per file; Grade 2 `PortC2(PortC1(src)) == pipeline obj`; `compose` timed |
 
@@ -729,12 +859,13 @@ work as ~~R2 (empty function bodies, 4.4%)~~ *[done]* → ~~`expr-cast`
 characterization~~ *[done, and it refuted the name]* → **R4** (the
 intrinsic-call family, `expr-intrinsic-call` 7.0% + `call-token-0x33` 6.1% =
 **~13%** of blocked functions, one production — the largest schedulable thing
-on the board) → **W11** (remaining call shapes, 8.4%) → **W13b/W12** (non-`int`
-operand types: float 3.4% + double 3.1% = 6.6%, plus `void*`) → **W8**
+on the board) → **W11** (remaining call shapes, 8.4%) → **W12** (non-`int`
+operand types: float 3.4% + double 3.2% = 6.6%, plus `void*` 2.0%) → **W8**
 (`body-0x53`, 2.9%), with W6/W7 absent from the top eight entirely, and R5
 (the `read_varint` fix) cheap enough to slot in anywhere.
 
-Two cautions on that ranking. First, **~13% is a decode rank, not an
+**Three cautions on that ranking — and the third is now earned by measurement
+rather than argued.** First, **~13% is a decode rank, not an
 acceptance estimate**: R4 buys census accuracy cheaply, but *accepting* the
 production needs an allow-list of intrinsic ids whose argument literals are
 also pinned, because c2's expansion turns on the literal values — one offset
@@ -747,9 +878,21 @@ have no relocatable callee name / need a `this` and vtable model, and
 The attribution is inference; the acceptance-gate structure is what is fixed,
 not the order.
 
+Third: **the float/double rows are no longer W13b demand, and this is the first
+time an attribution in this table has been falsified against the corpus rather
+than reasoned about.** Earlier revisions read `expr-load-type-864540` +
+`expr-load-type-888541` (6.6%, **156,558** functions) as "W13b/W12". W13b has now
+landed and moved that pair by **one function**. So whatever those functions are,
+they are overwhelmingly *not* FP leaves with at most one constant. Attribute the
+rows to **W12** (memory/struct access — the `Box::Volume`-shaped float member
+load lives there) until a census with a decoded FP grammar says otherwise, and
+treat the episode as the cheapest possible demonstration of the standing caveat:
+a bucket names the *first* thing that stopped the parse, and clearing the shape
+you assumed it was does not clear the bucket.
+
 Note also that the census numerator is the per-rung yardstick: R1 tripped the
 match tripwire on empty TUs, but every remaining rung is judged by how many of
-the **2,383,530** blocked functions it moves — and by which bucket they move
+the **2,382,852** blocked functions it moves — and by which bucket they move
 *to*, since a function's first blocker is rarely its only one.
 
 Session discipline: one rung (or one census-bucket slice of a rung) per
@@ -772,7 +915,7 @@ inside this repo:
   must still pay per *source* candidate (compiles are ~245 ms on PCH units,
   c1xx ≈ 45 ms of it; even a 100%-coverage backend caps the funnel at ≲2.4×
   without the front-end port). **That input has since changed**: the match
-  bucket is 6/878 and the census is **3.21%** (§2, §2b). The verdict itself is
+  bucket is 6/878 and the census is **3.24%** (§2, §2b). The verdict itself is
   the consumer's to re-issue — nothing in this repo may declare it re-opened —
   but the mechanical precondition it named has been met.
 - **The only doctrinally-legal integration shape** (recorded so the target
