@@ -872,6 +872,28 @@ fn split_function_bodies(ex: &[u8]) -> Vec<&[u8]> {
         .collect()
 }
 
+/// True iff `.ex` positively declares a module with **no function bodies**
+/// (R1): it carries neither a body marker (`4C 4F 11`) nor a function-start
+/// marker (`4F 1F`).
+///
+/// Both signals are required. `4F 1F` alone is two bytes and collides inside
+/// payloads (so its *absence* is meaningful but its presence is not), while
+/// `LO` is the marker every real body opens with — on a 1.5 MB real `.ex` the
+/// `LO` count tracked the function-tail count to 0.08%. A capture with zero of
+/// each has nothing that could be a function.
+///
+/// Verified against the live toolchain: a TU containing only a typedef captures
+/// a 2691-byte `.ex` that is entirely zero-fill apart from a 4-byte head and a
+/// 46-byte module-metadata tail, with 0 `LO` and 0 `4F 1F`, and c2 emits a
+/// 720-byte four-section obj for it.
+pub fn is_empty_module(ex: &[u8]) -> bool {
+    let has_lo = ex
+        .windows(3)
+        .any(|w| w == [LO_MARKER[0], LO_MARKER[1], LO_MARKER[2]]);
+    let has_fn_start = ex.windows(2).any(|w| w == FN_START);
+    !has_lo && !has_fn_start
+}
+
 fn split_functions(ex: &[u8]) -> Vec<&[u8]> {
     let mut starts = Vec::new();
     let mut i = 0;
@@ -967,6 +989,17 @@ impl IlBundle {
         let ex = self.ex()?;
         let names = mangled_names(gl);
         let src = source_path(gl);
+
+        // R1: a TU that defines no functions is in class, and its obj is the
+        // fixed four-section shell with no `.text`. Recognized **positively**
+        // (no body markers AND no function-start markers), never as "the split
+        // returned nothing" — the latter would also fire on a bundle we merely
+        // failed to split, and emitting an empty obj for a TU that really has
+        // code is precisely the mis-emit the fail-closed rule forbids.
+        if is_empty_module(ex) {
+            return Some(Vec::new());
+        }
+
         let segs = split_functions(ex);
         if segs.is_empty() || names.len() < segs.len() {
             return None;

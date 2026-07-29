@@ -123,6 +123,14 @@ impl PortC2 {
             )
         })?;
 
+        // R1: a TU that defines no functions. Its obj is the fixed four-section
+        // shell with no `.text` at all, so it never reaches instruction
+        // selection. `functions()` only returns an empty vec for a bundle whose
+        // `.ex` positively declares an empty module (see `il::is_empty_module`).
+        if funcs.is_empty() {
+            return Ok(ObjImage::new(coff::emit_empty_obj(obj_name)));
+        }
+
         // W4b2: a single-function TU whose body is a framed non-leaf call
         // (`return g(a) + k`) takes the dedicated 6-section path — it needs a
         // `.pdata` unwind section and the compiler label symbols, which the

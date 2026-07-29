@@ -412,6 +412,121 @@ fn emit_label_symbol(b: &mut Buf, name: &str, value: u32, sec_num: i16) {
     b.u8(0); // no aux
 }
 
+/// Build the complete `.obj` image for a translation unit that **defines no
+/// functions** (R1).
+///
+/// Such TUs are real and not rare — license-text files, and platform sources
+/// whose entire body is `#ifdef`'d out for the 360 target; the dc3 workload has
+/// seven. The front end still emits a full five-file IL bundle and c2 still
+/// emits a genuine COFF obj, just one with no code in it. That makes this the
+/// smallest possible *whole-TU* byte-exact target, and the only one reachable
+/// without any instruction selection at all.
+///
+/// The image is the fixed four-section shell every obj carries, minus `.text`:
+///
+/// ```text
+///   1 .drectve   132 B   constant directive string
+///   2 .debug$S   152 B   only the S_OBJNAME path varies (the `-Fo` argument)
+///   3 .XBLD$W     16 B   c2 watermark + COMDAT checksum
+///   4 .XBLD$W     16 B   c1 watermark + COMDAT checksum
+/// ```
+///
+/// with 11 symbols — the same fixed prefix [`emit_obj`] uses, stopping before
+/// the `.text` section symbol (which would be slots 11/12). No relocations.
+/// Verified against the live toolchain: a 720-byte obj for a TU containing only
+/// a typedef.
+pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
+    let sections = [
+        Section {
+            name: ".drectve",
+            characteristics: CH_DRECTVE,
+            raw: DRECTVE.to_vec(),
+            checksum: 0,
+            selection: 0,
+        },
+        Section {
+            name: ".debug$S",
+            characteristics: CH_DEBUGS,
+            raw: build_debug_s(obj_name),
+            checksum: 0,
+            selection: 0,
+        },
+        Section {
+            name: ".XBLD$W",
+            characteristics: CH_XBLD_C2,
+            raw: XBLD_C2.to_vec(),
+            checksum: XBLD_C2_CHECKSUM,
+            selection: 2,
+        },
+        Section {
+            name: ".XBLD$W",
+            characteristics: CH_XBLD_C1,
+            raw: XBLD_C1.to_vec(),
+            checksum: XBLD_C1_CHECKSUM,
+            selection: 2,
+        },
+    ];
+    let n_sections = sections.len();
+
+    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
+    let mut ptrs = Vec::with_capacity(n_sections);
+    let mut cursor = raw_base;
+    for s in &sections {
+        ptrs.push(cursor);
+        cursor += s.raw.len();
+    }
+    // No relocations, so the symbol table follows the raw data directly.
+    let ptr_symtab = cursor;
+    // 1 (@comp.id) + 4 section symbols x 2 (symbol + aux) + 2 watermark externs.
+    const N_SYMBOLS: u32 = 11;
+
+    let mut b = Buf::new();
+    b.u16(MACHINE_POWERPCBE);
+    b.u16(n_sections as u16);
+    b.u32(0); // TimeDateStamp — normalized away by the compare
+    b.u32(ptr_symtab as u32);
+    b.u32(N_SYMBOLS);
+    b.u16(0); // SizeOfOptionalHeader
+    b.u16(CHARACTERISTICS);
+
+    for (i, s) in sections.iter().enumerate() {
+        b.name8(s.name);
+        b.u32(0); // VirtualSize
+        b.u32(0); // VirtualAddress
+        b.u32(s.raw.len() as u32);
+        b.u32(ptrs[i] as u32);
+        b.u32(0); // PointerToRelocations — none
+        b.u32(0); // PointerToLinenumbers
+        b.u16(0); // NumberOfRelocations
+        b.u16(0); // NumberOfLinenumbers
+        b.u32(s.characteristics);
+    }
+
+    for s in &sections {
+        b.bytes(&s.raw);
+    }
+    debug_assert_eq!(b.0.len(), ptr_symtab);
+
+    let mut strtab = StringTable::new();
+    // slot 0: @comp.id (ABS, STATIC, no aux)
+    b.name8("@comp.id");
+    b.u32(COMP_ID_VALUE);
+    b.i16(-1); // IMAGE_SYM_ABSOLUTE
+    b.u16(0x0000);
+    b.u8(3); // STATIC
+    b.u8(0);
+
+    emit_section_symbol(&mut b, &sections[0], 1, 0); // slot 1/2  .drectve
+    emit_section_symbol(&mut b, &sections[1], 2, 0); // slot 3/4  .debug$S
+    emit_section_symbol(&mut b, &sections[2], 3, 0); // slot 5/6  .XBLD$W C2
+    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000); // slot 7
+    emit_section_symbol(&mut b, &sections[3], 4, 0); // slot 8/9  .XBLD$W C1
+    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000); // slot 10
+
+    b.bytes(&strtab.finish());
+    b.0
+}
+
 /// Build the complete `.obj` image for one or more straight-line functions
 /// sharing a single `.text`. Generalizes [`emit_mvp_obj`]: functions are packed
 /// contiguously in `.text` (no inter-function padding — c2's real layout), each

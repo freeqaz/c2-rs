@@ -343,6 +343,14 @@ fn cmd_compile(rest: &[String]) -> ExitCode {
     let Some(tc) = located() else {
         return ExitCode::SUCCESS;
     };
+    // `--keep-obj PATH` retains the reference obj for byte classification (the
+    // CONST/DERIVED analysis every widening step starts from). Gitignored
+    // scratch only — objs are never committed.
+    let keep_obj: Option<PathBuf> = rest
+        .iter()
+        .position(|a| a == "--keep-obj")
+        .and_then(|i| rest.get(i + 1))
+        .map(PathBuf::from);
     let w = scratch("compile");
     let out = w.join("out.obj");
     match tc.compile_obj(&cpp, &out) {
@@ -357,6 +365,15 @@ fn cmd_compile(rest: &[String]) -> ExitCode {
                 obj.len(),
                 ts
             );
+            if let Some(dest) = &keep_obj {
+                if let Some(parent) = dest.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                match std::fs::write(dest, obj.as_bytes()) {
+                    Ok(()) => println!("  kept reference obj at {}", dest.display()),
+                    Err(e) => eprintln!("  cannot write {}: {e}", dest.display()),
+                }
+            }
             let _ = std::fs::remove_dir_all(&w);
             ExitCode::SUCCESS
         }

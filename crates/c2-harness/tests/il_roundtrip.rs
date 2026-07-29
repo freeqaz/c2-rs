@@ -90,22 +90,37 @@ fn roundtrip_all_fixtures_byte_identical() {
             );
         }
 
-        // Sanity: the .ex carried decoded body tokens and the .gl carried
-        // EXACTLY one structurally-identified body-start offset per function —
-        // the `== function_count` invariant K3 relies on (K2a strengthened this
-        // from the earlier `>= 1`, now that offsets are located by record framing
-        // and gated 1:1/in-order against the `.ex` `4F 1F` markers).
-        assert!(
-            !model.ex_tokens().is_empty(),
-            "{name}: expected decoded .ex tokens"
-        );
+        // Sanity: the .gl carried EXACTLY one structurally-identified body-start
+        // offset per function — the `== function_count` invariant K3 relies on
+        // (K2a strengthened this from the earlier `>= 1`, now that offsets are
+        // located by record framing and gated 1:1/in-order against the `.ex`
+        // `4F 1F` markers). This 1:1 claim holds for every fixture.
         let noff = model.gl_body_start_offsets().len();
         let nfns = model.ex_function_count();
         assert_eq!(
             noff, nfns,
             "{name}: typed .gl offsets ({noff}) must be 1:1 with .ex functions ({nfns})"
         );
-        assert!(nfns >= 1, "{name}: expected >=1 function, got {nfns}");
+
+        // The body-token claim is conditional on the TU actually having bodies.
+        // `mvp_empty.cpp` (R1) defines no functions: the front end still emits a
+        // full five-file bundle, but its `.ex` carries no function bodies at
+        // all, so "decoded body tokens" is legitimately zero. The round-trip
+        // itself is still gated byte-for-byte above — this only scopes the
+        // structural expectation, it does not relax the codec's invariant.
+        if c2_il::is_empty_module(bundle.ex().unwrap_or(&[])) {
+            assert_eq!(nfns, 0, "{name}: empty module must decode to 0 functions");
+            assert!(
+                model.ex_tokens().is_empty(),
+                "{name}: empty module must decode to 0 body tokens"
+            );
+        } else {
+            assert!(
+                !model.ex_tokens().is_empty(),
+                "{name}: expected decoded .ex tokens"
+            );
+            assert!(nfns >= 1, "{name}: expected >=1 function, got {nfns}");
+        }
 
         checked += 1;
         std::fs::remove_dir_all(&w).ok();
