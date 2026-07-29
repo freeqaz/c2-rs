@@ -22,9 +22,30 @@ and `*.il`; only the `.cpp` under `cpp/` is tracked.
 
 | File | Origin | Notes |
 |------|--------|-------|
-| `il_bool_materialization.cpp` | dc3-decomp il-fixtures corpus | signed/unsigned comparison → boolean materialization |
+| `il_bool_materialization.cpp` | dc3-decomp il-fixtures corpus | signed/unsigned comparison → boolean materialization. **Ported (W6)** — `Port=Match`, 6/6 in class; see `docs/CODEGEN_W6_COMPARE.md` |
 | `il_call_return.cpp` | dc3-decomp il-fixtures corpus | call / return / virtual-call shapes |
-| `add3.cpp` | written here | tiny freestanding int functions |
+| `add3.cpp` | written here | tiny freestanding int functions; `select_max`/`shift_mask` are still out of class |
+| `mvp_*.cpp` | written here | the MVP ladder: add/sub/mul chains, immediate folding, wide constants, tail calls, the framed non-leaf `g(a)+k`, and the empty TU |
+| `mvp_empty.cpp` | written here | **R1** — a TU that defines no functions; the smallest whole-TU byte-exact target (720 B, four sections, no `.text`) |
+| `w10_empty_fn.cpp` | written here | **R2** — empty *function* bodies (`void f() {}` → a bare `blr`), the `body-0x3A` census bucket |
+| `w5_chain.cpp` | written here | **W5 chains** — 3+-op `*`/`-` chains. This fixture caught a live mis-emit: the port reused one scratch where c2 descends `r11→r10→r9` |
+| `w5_tree2.cpp`, `w5_tree3.cpp` | written here | **W5 trees** — `(a+b)*(c+d)` and deeper; still out of class |
+| `w5_tree_neg.cpp` | written here | W5 negative neighbours — every function must keep returning `NotImplemented` |
+
+### Negative fixtures are not optional
+
+Roughly half the files here exist to be **rejected**. `mvp_call_submod`,
+`…_mulmod`, `…_widemod`, `…_twice`, `…_then_stmt`, `…_two_framed`,
+`…_plus1plus2`, `…_argframed_plusk` and `w5_tree_neg` all pin the fail-closed
+boundary: each is one small step outside an accepted class, and each must
+report `NotImplemented` rather than bytes.
+
+That discipline is load-bearing rather than decorative. A green corpus is only
+as strong as its ability to *separate* the candidate rules — the W5 mis-emit
+survived because every fixture up to `a-b-c` had exactly one intermediate,
+where the single-accumulator and descending-register rules produce identical
+bytes. When adding a class, add the neighbour that would look the same under a
+plausible wrong rule.
 
 Include-free is deliberate: no `e:\` include roots means no `WIBO_PATH_MAP` /
 `WIBO_COMPUTER_NAME` string-hash determinism knobs are needed — the capture is
