@@ -36,7 +36,7 @@ pub mod codec;
 pub mod func;
 pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, Span};
 pub use func::{
-    detect_token_width, is_empty_module, mangled_name, mangled_names, source_path, Block, FnCensus,
+    detect_token_width, gl_symbol_index, is_empty_module, mangled_name, mangled_names, source_path, Block, FnCensus,
     FnVerdict,
     CompareLeaf, FramedCall, IlFunction, IlOp, Rel,
 };

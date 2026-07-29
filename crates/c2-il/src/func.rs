@@ -239,6 +239,73 @@ pub fn mangled_names(gl: &[u8]) -> Vec<String> {
     out
 }
 
+/// Build the `.gl` **symbol index**: operand token → mangled name.
+///
+/// `.gl` records have the shape
+/// `<kind byte> <operand token> 00 <NUL-terminated name> 00 <TYPE> …`, so a
+/// record is located by its `00 <name> 00` core and the token read backwards
+/// from it with the same variable-width rule the operand stream uses.
+///
+/// This is what binds a call to its callee. The CALL token does *not* name the
+/// callee — three different callees sharing one signature produce byte-identical
+/// CALL tokens — so the name comes from the `26 <tok>` symbol push that precedes
+/// it, resolved through this index. Verified on a real TU: 2323 of 2323 direct
+/// call sites resolve, and the complementary controlled fixtures show tokens are
+/// assigned in *declaration* order but used in *call* order, and that a repeated
+/// callee repeats its token.
+///
+/// `.sy` is deliberately not consulted: it holds local and parameter names, and
+/// real callees (`?MemPushTemp@@YAXXZ`) are absent from it and present here.
+///
+/// Names are accepted only if they look like whole mangled identifiers, so a
+/// stray NUL-delimited run inside binary payload cannot inject a false symbol.
+pub fn gl_symbol_index(gl: &[u8]) -> std::collections::BTreeMap<u32, String> {
+    let mut out = std::collections::BTreeMap::new();
+    let mut i = 0usize;
+    while i < gl.len() {
+        // A record's name is a NUL-terminated printable run preceded by a NUL.
+        if gl[i] != 0 {
+            i += 1;
+            continue;
+        }
+        let start = i + 1;
+        let mut end = start;
+        while end < gl.len() && gl[end] != 0 {
+            end += 1;
+        }
+        if end >= gl.len() || end == start {
+            i += 1;
+            continue;
+        }
+        let name_bytes = &gl[start..end];
+        let plausible = name_bytes.len() >= 3
+            && name_bytes.iter().all(|b| b.is_ascii_graphic())
+            && (name_bytes[0] == b'?' || name_bytes[0].is_ascii_alphabetic() || name_bytes[0] == b'_');
+        if !plausible {
+            i = end.max(i + 1);
+            continue;
+        }
+        // The operand token sits immediately before the leading NUL. Try the
+        // 4-byte form first, then the 2-byte one, and keep whichever decodes to
+        // a token whose own width lands exactly on that NUL.
+        for w in [4usize, 2] {
+            if i < w {
+                continue;
+            }
+            let p = i - w;
+            if let Some((tok, got)) = read_token_var(gl, p) {
+                if got == w {
+                    out.entry(tok)
+                        .or_insert_with(|| String::from_utf8_lossy(name_bytes).into_owned());
+                    break;
+                }
+            }
+        }
+        i = end;
+    }
+    out
+}
+
 /// Extract the source path from `.gl`: a `<letter>:\…\<name>.cpp` NUL-terminated
 /// ASCII run (case-insensitive drive + `.cpp` suffix). Provenance only.
 pub fn source_path(gl: &[u8]) -> Option<String> {
@@ -374,7 +441,7 @@ enum BodyShape {
     /// Bare terminal void tail call (`void f(){ g(); }`): exactly one CALL whose
     /// void result is discarded, with **nothing** after its `4C 4B` void
     /// call-end but the return plumbing → codegen emits a single `b <callee>`.
-    VoidTailCall,
+    VoidTailCall { callee_tok: u32 },
     /// Integer tail call `return g(<arg>)` (and the identity-fold `g(a) + 0`):
     /// exactly one int-returning CALL whose single argument is a modeled
     /// sub-expression (`arg_ops`), a `55 <int> 4C` call-end, and a **net-identity
@@ -384,12 +451,12 @@ enum BodyShape {
     /// `[Load]` for the passthrough `g(a)`, or e.g. `[Load, Lit, Add]` for the
     /// arg-setup `g(a + 1)` (→ `addi r3,r3,1 ; b g`). `params` are the formals
     /// (token→register mapping the arg-setup needs).
-    IntTailCall { params: Vec<u32>, arg_ops: Vec<IlOp> },
+    IntTailCall { params: Vec<u32>, arg_ops: Vec<IlOp>, callee_tok: u32 },
     /// Framed non-leaf `return g(a) + k` (k ≠ 0): exactly one int-returning CALL
     /// whose argument region is exactly the single passthrough LOAD, a `55 <int>`
     /// call-end, then exactly one literal `+ k` (ADD, commutative), returned. A
     /// zero `k` is NOT framed — it folds to [`BodyShape::IntTailCall`].
-    FramedCall { add_k: i32 },
+    FramedCall { add_k: i32, callee_tok: u32 },
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
@@ -896,7 +963,11 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
     if !eat_byte(seg, p, 0x26) {
         return Err(blk(seg, *p, "call-ref"));
     }
-    let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "call-ref-tok"))?;
+    // The `26 <tok>` symbol push NAMES THE CALLEE. The CALL token that follows
+    // carries only a function-*type* id, so this token is the only thing that
+    // distinguishes one callee from another; it is resolved through the `.gl`
+    // symbol index (see `gl_symbol_index`).
+    let (callee_tok, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "call-ref-tok"))?;
     *p += w;
     // The CALL token: `BD <TYPE ret> <flags> <varint fn-type-id>`. Nothing in it
     // is fixed but the `BD` — it is 8 to 13 bytes and self-delimiting field by
@@ -932,7 +1003,7 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
     // second `26` call or a `B9` statement stands where the return plumbing must.
     if eat(seg, p, &[0x4C, 0x4B]) {
         eat_return_plumbing(seg, p, false)?;
-        return Ok(BodyShape::VoidTailCall);
+        return Ok(BodyShape::VoidTailCall { callee_tok });
     }
 
     // INT call. The argument region is a single modeled sub-expression producing
@@ -955,7 +1026,7 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
         eat_return_plumbing(seg, p, true)?;
         let params = parse_formals(seg, lo)?;
-        return Ok(BodyShape::IntTailCall { params, arg_ops });
+        return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
     }
     // Post-op `+ k`: EXACTLY one literal `33 <int> k` immediately followed by
     // ADD. A second call (`g(a)+g(1)` → `26 …`), a second literal (`g(a)+1+2` →
@@ -981,14 +1052,14 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
     // 6-section framed obj (which would mis-emit a frame the reference elides).
     if k == 0 {
         let params = parse_formals(seg, lo)?;
-        return Ok(BodyShape::IntTailCall { params, arg_ops });
+        return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
     }
     // A genuine `+ k` (k ≠ 0) is a framed non-leaf call — but the 6-section
     // framed path models only a **bare passthrough argument** (`g(a) + k`), not
     // arg-setup. `g(a+1) + 1` (a computed argument AND a framed post-op) is out
     // of class → reject (fail closed), never a mis-emitted framed obj.
     if matches!(arg_ops.as_slice(), [IlOp::Load(_)]) {
-        return Ok(BodyShape::FramedCall { add_k: k });
+        return Ok(BodyShape::FramedCall { add_k: k, callee_tok });
     }
     Err(Block { ctx: "framed-computed-arg", byte: None, off: *p, aux: 0 })
 }
@@ -1188,7 +1259,7 @@ impl IlBundle {
                 .map(|(i, seg)| {
                     let verdict = match parse_segment_detail(seg) {
                         Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
-                        Ok(BodyShape::VoidTailCall) => FnVerdict::InClass("void-tail-call"),
+                        Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                         Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
                         Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
@@ -1249,81 +1320,18 @@ impl IlBundle {
         if segs.is_empty() || names.len() < segs.len() {
             return None;
         }
-        // `.gl` lists the defined functions first (one per `.ex` segment, paired
-        // positionally), then any external callees.
+        // `.gl` lists the defined functions first, one per `.ex` segment, paired
+        // positionally — that is where a *defined* function's own name comes
+        // from. Callee names do NOT come from that list: they are resolved by
+        // token through the `.gl` symbol index, because the CALL token carries
+        // only a function-type id and cannot distinguish two callees with the
+        // same signature. Resolving properly is what lifts the old
+        // single-function/single-external restriction that positional pairing
+        // forced.
         let n_defined = segs.len();
-        let externals = &names[n_defined..];
+        let symbols = gl_symbol_index(gl);
+        let resolve = |tok: u32| -> Option<String> { symbols.get(&tok).cloned() };
 
-        // Calls (externals present) are handled only for a **single-function
-        // TU with a single external** — the positive parse ([`parse_segment`])
-        // recognizes three call shapes:
-        //   * W4b2 framed non-leaf `return g(a) + k` (k≠0) → 6-section framed obj;
-        //   * W4a bare terminal void tail call `void f(){ g(); }` → single `b g`;
-        //   * W4b2-iv/-vi integer tail call `return g(<arg>)` (and `g(a)+0`) →
-        //     5-section leaf, arg computed into r3 then `b g`.
-        // The callee name is not in `.ex`; it is paired from the single `.gl`
-        // external. Scope is single-function only: the `.pdata` label counters
-        // ($M2545/$M2546/$T2547) are a fixed toolchain seed for the first
-        // function but shift when preceding functions consume slots (W-UNW-1
-        // probe, docs/CODEGEN_PPC_MVP.md), so a multi-function TU that contains
-        // a call is rejected here rather than mis-numbered.
-        if !externals.is_empty() {
-            if n_defined == 1 && externals.len() == 1 {
-                match parse_segment(segs[0])? {
-                    BodyShape::FramedCall { add_k } => {
-                        return Some(vec![IlFunction {
-                            mangled_name: names[0].clone(),
-                            source_path: src,
-                            params: Vec::new(),
-                            ops: Vec::new(),
-                            tail_call: None,
-                            framed_call: Some(FramedCall {
-                                callee: externals[0].clone(),
-                                add_k,
-                            }),
-                            compare: None,
-                        empty_body: false,
-                        }]);
-                    }
-                    BodyShape::VoidTailCall => {
-                        return Some(vec![IlFunction {
-                            mangled_name: names[0].clone(),
-                            source_path: src,
-                            params: Vec::new(),
-                            ops: Vec::new(),
-                            tail_call: Some(externals[0].clone()),
-                            framed_call: None,
-                            compare: None,
-                        empty_body: false,
-                        }]);
-                    }
-                    // Integer tail call `return g(<arg>)` (and the `g(a)+0` fold).
-                    // Carries the formals + the argument sub-expression so codegen
-                    // can compute the single argument into r3 before `b <callee>`.
-                    BodyShape::IntTailCall { params, arg_ops } => {
-                        return Some(vec![IlFunction {
-                            mangled_name: names[0].clone(),
-                            source_path: src,
-                            params,
-                            ops: arg_ops,
-                            tail_call: Some(externals[0].clone()),
-                            framed_call: None,
-                            compare: None,
-                        empty_body: false,
-                        }]);
-                    }
-                    // A `.gl` external but a body with no call is a contradiction
-                    // (no call to bind the external to) → reject.
-                    BodyShape::StraightLine { .. }
-                    | BodyShape::Compare(_)
-                    | BodyShape::EmptyBody => return None,
-                }
-            }
-            return None;
-        }
-
-        // No externals: every function must be a straight-line arithmetic leaf
-        // (W1–W3). A call shape with no external to bind is rejected.
         let mut funcs = Vec::with_capacity(n_defined);
         for (name, seg) in names.iter().take(n_defined).zip(segs) {
             match parse_segment(seg)? {
@@ -1335,6 +1343,59 @@ impl IlBundle {
                         ops,
                         tail_call: None,
                         framed_call: None,
+                        compare: None,
+                        empty_body: false,
+                    });
+                }
+                // Tail calls: the callee is resolved BY TOKEN through the `.gl`
+                // symbol index. An unresolvable token rejects the whole TU
+                // rather than falling back to a positional guess — a wrong
+                // callee name is a relocation against the wrong symbol, which is
+                // a mis-emit, not a gap.
+                BodyShape::VoidTailCall { callee_tok } => {
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params: Vec::new(),
+                        ops: Vec::new(),
+                        tail_call: Some(resolve(callee_tok)?),
+                        framed_call: None,
+                        compare: None,
+                        empty_body: false,
+                    });
+                }
+                BodyShape::IntTailCall { params, arg_ops, callee_tok } => {
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params,
+                        ops: arg_ops,
+                        tail_call: Some(resolve(callee_tok)?),
+                        framed_call: None,
+                        compare: None,
+                        empty_body: false,
+                    });
+                }
+                // The framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
+                // `.pdata` with compiler label symbols ($M2545/$M2546/$T2547)
+                // whose counters are a fixed toolchain seed for the first
+                // function and shift once preceding functions consume slots
+                // (W-UNW-1, docs/CODEGEN_PPC_MVP.md), so a multi-function TU
+                // containing one would be mis-numbered.
+                BodyShape::FramedCall { add_k, callee_tok } => {
+                    if n_defined != 1 {
+                        return None;
+                    }
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params: Vec::new(),
+                        ops: Vec::new(),
+                        tail_call: None,
+                        framed_call: Some(FramedCall {
+                            callee: resolve(callee_tok)?,
+                            add_k,
+                        }),
                         compare: None,
                         empty_body: false,
                     });
@@ -1365,7 +1426,6 @@ impl IlBundle {
                         empty_body: false,
                     });
                 }
-                _ => return None,
             }
         }
         Some(funcs)
@@ -1534,7 +1594,10 @@ mod tests {
     fn parse_segment_accepts_bare_void_tail_call() {
         // `void f(){ g(); }` (mvp_call): exactly one void call, `4C 4B`, then
         // only the return plumbing → a bare `b g` tail call.
-        assert_eq!(parse_segment(MVP_CALL), Some(BodyShape::VoidTailCall));
+        assert_eq!(
+            parse_segment(MVP_CALL),
+            Some(BodyShape::VoidTailCall { callee_tok: 0xE309 })
+        );
     }
 
     #[test]
@@ -1543,7 +1606,7 @@ mod tests {
         // passthrough arg, `55` call-end, exactly one `+1` post-op.
         assert_eq!(
             parse_segment(MVP_FRAMED),
-            Some(BodyShape::FramedCall { add_k: 1 })
+            Some(BodyShape::FramedCall { add_k: 1, callee_tok: 0xE409 })
         );
     }
 
@@ -1558,6 +1621,7 @@ mod tests {
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509)],
+                callee_tok: 0xE409,
             }),
             "passthrough g(a)"
         );
@@ -1566,6 +1630,7 @@ mod tests {
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509)],
+                callee_tok: 0xE409,
             }),
             "identity-fold g(a)+0 routes to a tail call, not FramedCall{{add_k:0}}"
         );
@@ -1574,6 +1639,7 @@ mod tests {
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509), IlOp::Lit(1), IlOp::Add],
+                callee_tok: 0xE409,
             }),
             "arg-setup g(a+1)"
         );
@@ -1586,7 +1652,7 @@ mod tests {
         // an IntTailCall (5-section leaf). Same shape but for the immediate.
         assert_eq!(
             parse_segment(MVP_FRAMED),
-            Some(BodyShape::FramedCall { add_k: 1 }),
+            Some(BodyShape::FramedCall { add_k: 1, callee_tok: 0xE409 }),
             "g(a)+1 is framed"
         );
         assert!(
@@ -1693,6 +1759,45 @@ mod tests {
                 ops: vec![IlOp::Load(0xA496_0300)],
             })
         );
+    }
+
+    // ---- `.gl` symbol index -------------------------------------------------
+
+    #[test]
+    fn gl_symbol_index_binds_tokens_to_names() {
+        // A `.gl` record is `<kind> <token> 00 <name> 00 <TYPE> …`. Transcribed
+        // from a controlled fixture with three externals declared a, b, c —
+        // tokens are assigned in DECLARATION order (0x09E3, 0x09E4, 0x09E5),
+        // which is what makes a positional pairing with call order wrong.
+        let mut gl = Vec::new();
+        for (tok, name) in [
+            ([0xE3u8, 0x09], "?a@@YAXXZ"),
+            ([0xE4, 0x09], "?b@@YAXXZ"),
+            ([0xE5, 0x09], "?c@@YAXXZ"),
+        ] {
+            gl.push(0x04); // kind
+            gl.extend_from_slice(&tok);
+            gl.push(0x00);
+            gl.extend_from_slice(name.as_bytes());
+            gl.push(0x00);
+            gl.extend_from_slice(&[0x82, 0x07, 0x04]); // TYPE
+        }
+        let idx = gl_symbol_index(&gl);
+        assert_eq!(idx.get(&0xE309).map(String::as_str), Some("?a@@YAXXZ"));
+        assert_eq!(idx.get(&0xE409).map(String::as_str), Some("?b@@YAXXZ"));
+        assert_eq!(idx.get(&0xE509).map(String::as_str), Some("?c@@YAXXZ"));
+        // An unknown token must not resolve — the caller rejects rather than
+        // guessing, since a wrong callee is a relocation against a wrong symbol.
+        assert!(idx.get(&0xFFFF).is_none());
+    }
+
+    #[test]
+    fn gl_symbol_index_ignores_non_identifier_runs() {
+        // Binary payload between NULs must not become a symbol.
+        let gl = b"\x00\x01\x02\x03\x00\x04\xE3\x09\x00?ok@@YAXXZ\x00".to_vec();
+        let idx = gl_symbol_index(&gl);
+        assert_eq!(idx.get(&0xE309).map(String::as_str), Some("?ok@@YAXXZ"));
+        assert_eq!(idx.len(), 1, "only the identifier-shaped run is indexed");
     }
 
     // ---- inline type encoding (LEB128) --------------------------------------
