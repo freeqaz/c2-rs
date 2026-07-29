@@ -321,7 +321,7 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     }
 
     // token -> incoming ABI register, by declaration order.
-    let reg_of = |tok: u16| -> Option<u8> {
+    let reg_of = |tok: u32| -> Option<u8> {
         func.params
             .iter()
             .position(|&t| t == tok)
@@ -627,7 +627,7 @@ mod tests {
         assert_eq!(encode_addi(3, 0, 42), [0x38, 0x60, 0x00, 0x2A]); // li r3,42
     }
 
-    fn func_with(params: Vec<u16>, ops: Vec<IlOp>) -> IlFunction {
+    fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         IlFunction {
             mangled_name: "?f@@YAHH@Z".into(),
             source_path: None,

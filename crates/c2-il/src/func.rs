@@ -38,7 +38,7 @@ use crate::IlBundle;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IlOp {
     /// Load a named variable (by IL token) onto the expression stack.
-    Load(u16),
+    Load(u32),
     /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
     Lit(i32),
     /// Pop rhs then lhs, push `lhs + rhs` (IL opcode `0x02`, commutative).
@@ -71,7 +71,7 @@ pub struct IlFunction {
     /// Source path from `.gl`, e.g. `z:\...\mvp_add3.cpp` (provenance only).
     pub source_path: Option<String>,
     /// Formal-parameter IL tokens, in declaration order (a, b, c → r3, r4, r5).
-    pub params: Vec<u16>,
+    pub params: Vec<u32>,
     /// Straight-line body op stream (loads + adds) for an arithmetic leaf. For
     /// an **integer tail call** (`tail_call` set, int) this instead holds the
     /// single call argument's sub-expression, computed into r3 before the
@@ -206,13 +206,37 @@ fn contains_subslice(hay: &[u8], needle: &[u8]) -> bool {
     hay.windows(needle.len()).any(|w| w == needle)
 }
 
-/// Read a big-endian IL token of `tw` bytes as a u16 (MVP tokens are 2 bytes,
-/// e.g. `e3 09` → `0xE309`). Returns `None` if out of range or `tw != 2`.
-fn read_token(ex: &[u8], p: usize, tw: usize) -> Option<u16> {
-    if tw != 2 || p + 2 > ex.len() {
-        return None;
+/// Read one IL token, which is **2 or 4 bytes depending on the token itself**,
+/// returning `(identity, width)`.
+///
+/// Token width is per-token, not a per-file constant: the second byte carries a
+/// continuation flag in bit 7. Clear → the token is those 2 bytes; set → two
+/// more bytes follow. Verified on a real capture of `system/world/Dir.cpp`,
+/// where `4F 02` module markers appear as both `4f 02 e3 09` (2-byte) and
+/// `4f 02 a4 96 03 00` (4-byte) in the same file, and where applying this rule
+/// to every `B9` LOAD site lands on a valid 3-byte operand type at 21443 sites
+/// (the residue being a third type class plus `B9` bytes occurring inside data).
+///
+/// [`detect_token_width`] — which returns a single width for the whole file —
+/// is therefore wrong for real translation units, and its misalignment is what
+/// produced the artifact census buckets `call-token-0x01…0x05` and
+/// `expr-load-type-0N00A6`: a 2-byte read of a 4-byte token leaves the parse
+/// standing on the token's own tail bytes. It is kept only for the K1/K2a codec
+/// and the existing tests; the parser no longer consults it.
+///
+/// The returned identity is only ever compared for equality (token → parameter
+/// register), so any injective encoding will do. The two widths cannot collide:
+/// a 2-byte token's value is `< 0x10000` while a 4-byte token's byte 1 has bit 7
+/// set, which lands in bits 23..16 of the result and forces it `>= 0x10000`.
+fn read_token_var(ex: &[u8], p: usize) -> Option<(u32, usize)> {
+    let b0 = *ex.get(p)? as u32;
+    let b1 = *ex.get(p + 1)? as u32;
+    if b1 & 0x80 == 0 {
+        return Some(((b0 << 8) | b1, 2));
     }
-    Some(((ex[p] as u16) << 8) | ex[p + 1] as u16)
+    let b2 = *ex.get(p + 2)? as u32;
+    let b3 = *ex.get(p + 3)? as u32;
+    Some(((b0 << 24) | (b1 << 16) | (b2 << 8) | b3, 4))
 }
 
 fn find_byte(hay: &[u8], b: u8) -> Option<usize> {
@@ -239,7 +263,7 @@ const CALL_CALLEE_ANCHOR: [u8; 6] = [0x00, 0x80, 0x01, 0x10, 0x00, 0x00];
 enum BodyShape {
     /// Straight-line all-`int` arithmetic leaf (`return a+b+c`, `return a+5`,
     /// `return 42`, …): a postfix LOAD/LIT/ADD/SUB/MUL stream returning `int`.
-    StraightLine { params: Vec<u16>, ops: Vec<IlOp> },
+    StraightLine { params: Vec<u32>, ops: Vec<IlOp> },
     /// Bare terminal void tail call (`void f(){ g(); }`): exactly one CALL whose
     /// void result is discarded, with **nothing** after its `4C 4B` void
     /// call-end but the return plumbing → codegen emits a single `b <callee>`.
@@ -253,7 +277,7 @@ enum BodyShape {
     /// `[Load]` for the passthrough `g(a)`, or e.g. `[Load, Lit, Add]` for the
     /// arg-setup `g(a + 1)` (→ `addi r3,r3,1 ; b g`). `params` are the formals
     /// (token→register mapping the arg-setup needs).
-    IntTailCall { params: Vec<u16>, arg_ops: Vec<IlOp> },
+    IntTailCall { params: Vec<u32>, arg_ops: Vec<IlOp> },
     /// Framed non-leaf `return g(a) + k` (k ≠ 0): exactly one int-returning CALL
     /// whose argument region is exactly the single passthrough LOAD, a `55 <int>`
     /// call-end, then exactly one literal `+ k` (ADD, commutative), returned. A
@@ -420,12 +444,7 @@ fn read_varint(seg: &[u8], p: &mut usize) -> Option<i32> {
 /// segment end (a non-last function, split before the next `4F 1F`) OR the
 /// module end `4F 02 20 00 · 4F 01 NN · 4D` and trailing zero-fill (the last
 /// function).
-fn eat_return_plumbing(
-    seg: &[u8],
-    p: &mut usize,
-    tw: usize,
-    has_result_type: bool,
-) -> Result<(), Block> {
+fn eat_return_plumbing(seg: &[u8], p: &mut usize, has_result_type: bool) -> Result<(), Block> {
     if has_result_type && !eat(seg, p, &[0x41, INT_TYPE[0], INT_TYPE[1], INT_TYPE[2]]) {
         return Err(blk(seg, *p, "result-type"));
     }
@@ -433,15 +452,15 @@ fn eat_return_plumbing(
     if !eat_byte(seg, p, 0x3A) {
         return Err(blk(seg, *p, "assign"));
     }
-    read_token(seg, *p, tw).ok_or(blk(seg, *p, "assign-tok"))?;
-    *p += tw;
+    let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "assign-tok"))?;
+    *p += w;
     eat_opt_stmt_marker(seg, p);
     // RETURN: 54 02 29 <tok>
     if !eat(seg, p, &[0x54, 0x02, 0x29]) {
         return Err(blk(seg, *p, "return"));
     }
-    read_token(seg, *p, tw).ok_or(blk(seg, *p, "return-tok"))?;
-    *p += tw;
+    let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "return-tok"))?;
+    *p += w;
     // Function-tail: 4F 12 · 47 54 01 54 00
     if !eat(seg, p, &[0x4F, 0x12]) || !eat(seg, p, &[0x47, 0x54, 0x01, 0x54, 0x00]) {
         return Err(blk(seg, *p, "fn-tail"));
@@ -480,7 +499,7 @@ fn eat_return_plumbing(
 /// `stop` is only ever tested at a token boundary, so it cannot collide with an
 /// int-type byte (`86 41 74` — the `41`/`74` are consumed inside the LOAD/LIT
 /// arm) or a literal varint (consumed inside the `33` arm).
-fn parse_expr(seg: &[u8], p: &mut usize, tw: usize, stop: u8) -> Result<Vec<IlOp>, Block> {
+fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     let mut ops = Vec::new();
     loop {
         let b = *seg.get(*p).ok_or(blk(seg, *p, "expr"))?;
@@ -492,8 +511,9 @@ fn parse_expr(seg: &[u8], p: &mut usize, tw: usize, stop: u8) -> Result<Vec<IlOp
                 // LOAD <token> <int-type>
                 let start = *p;
                 *p += 1;
-                let tok = read_token(seg, *p, tw).ok_or(blk(seg, *p, "expr-load-tok"))?;
-                *p += tw;
+                let (tok, w) =
+                    read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-load-tok"))?;
+                *p += w;
                 if !eat(seg, p, &INT_TYPE) {
                     // non-int operand → out of class. Report at the LOAD so the
                     // census bucket reads as a typed-operand gap, not a stray byte.
@@ -538,7 +558,7 @@ fn parse_expr(seg: &[u8], p: &mut usize, tw: usize, stop: u8) -> Result<Vec<IlOp
 /// marker (before the `LO` marker), a run of `2D <token>` entries emitted in
 /// *reverse* of declaration order. An empty list is legitimate (a zero-param
 /// `int konst(){return 42;}` still emits `46` immediately before `LO`).
-fn parse_formals(seg: &[u8], lo: usize, tw: usize) -> Result<Vec<u16>, Block> {
+fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
     let f = find_byte(&seg[..lo], 0x46).ok_or(Block {
         ctx: "formals-marker",
         byte: None,
@@ -549,8 +569,8 @@ fn parse_formals(seg: &[u8], lo: usize, tw: usize) -> Result<Vec<u16>, Block> {
     let mut rev = Vec::new();
     while seg.get(p) == Some(&0x2D) {
         p += 1;
-        let tok = read_token(seg, p, tw).ok_or(blk(seg, p, "formals-tok"))?;
-        p += tw;
+        let (tok, w) = read_token_var(seg, p).ok_or(blk(seg, p, "formals-tok"))?;
+        p += w;
         rev.push(tok);
     }
     rev.reverse();
@@ -589,14 +609,14 @@ fn parse_formals(seg: &[u8], lo: usize, tw: usize) -> Result<Vec<u16>, Block> {
 /// `+ k` over a *computed* argument (`g(a+1)+1`), or a `* k`/`- k`/wide `k`/a
 /// second literal/a second call, all reject. The `callee` name is not in `.ex`;
 /// the caller pairs it from `.gl`.
-fn parse_segment(seg: &[u8], tw: usize) -> Option<BodyShape> {
-    parse_segment_detail(seg, tw).ok()
+fn parse_segment(seg: &[u8]) -> Option<BodyShape> {
+    parse_segment_detail(seg).ok()
 }
 
 /// [`parse_segment`] with the fail-closed *reason* preserved (P2b census).
 /// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
 /// can never disagree with the gate about what is in class.
-fn parse_segment_detail(seg: &[u8], tw: usize) -> Result<BodyShape, Block> {
+fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
     let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or(Block {
         ctx: "lo-marker",
         byte: None,
@@ -612,12 +632,12 @@ fn parse_segment_detail(seg: &[u8], tw: usize) -> Result<BodyShape, Block> {
 
     match *seg.get(p).ok_or(blk(seg, p, "body"))? {
         // Call shapes all open with a `26 <tok>` function/result-temp ref.
-        0x26 => parse_call_shape(seg, &mut p, tw, lo),
+        0x26 => parse_call_shape(seg, &mut p, lo),
         // Straight-line arithmetic opens with a LOAD or a bare literal.
         0xB9 | 0x33 => {
-            let ops = parse_expr(seg, &mut p, tw, 0x41)?;
-            eat_return_plumbing(seg, &mut p, tw, true)?;
-            let params = parse_formals(seg, lo, tw)?;
+            let ops = parse_expr(seg, &mut p, 0x41)?;
+            eat_return_plumbing(seg, &mut p, true)?;
+            let params = parse_formals(seg, lo)?;
             Ok(BodyShape::StraightLine { params, ops })
         }
         _ => Err(blk(seg, p, "body")),
@@ -629,18 +649,13 @@ fn parse_segment_detail(seg: &[u8], tw: usize) -> Result<BodyShape, Block> {
 /// or arg-setup, plus the `g(a)+0` identity fold), or the framed
 /// `return g(a) + k` (k ≠ 0). See [`parse_segment`] for the grammar;
 /// fail-closed at every step. `lo` locates the formals for the arg-setup.
-fn parse_call_shape(
-    seg: &[u8],
-    p: &mut usize,
-    tw: usize,
-    lo: usize,
-) -> Result<BodyShape, Block> {
+fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, Block> {
     // 26 <tok> function/result ref.
     if !eat_byte(seg, p, 0x26) {
         return Err(blk(seg, *p, "call-ref"));
     }
-    read_token(seg, *p, tw).ok_or(blk(seg, *p, "call-ref-tok"))?;
-    *p += tw;
+    let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "call-ref-tok"))?;
+    *p += w;
     // The fixed 10-byte CALL token: BD <3-byte return type> <anchor>.
     if !eat_byte(seg, p, 0xBD) {
         return Err(blk(seg, *p, "call-token"));
@@ -655,7 +670,7 @@ fn parse_call_shape(
     // plumbing (no result type). `g();g();` and `g();return a+1;` fail here — a
     // second `26` call or a `B9` statement stands where the return plumbing must.
     if eat(seg, p, &[0x4C, 0x4B]) {
-        eat_return_plumbing(seg, p, tw, false)?;
+        eat_return_plumbing(seg, p, false)?;
         return Ok(BodyShape::VoidTailCall);
     }
 
@@ -664,7 +679,7 @@ fn parse_call_shape(
     // arg-setup like `a + 1` (→ `[Load, Lit, Add]`) — terminated by the `55`
     // call-end. Any unmodeled operand/opcode rejects the whole function. `g(a)`,
     // `g(a)+k` and `g(a+1)` share this region; they diverge at the post-op.
-    let arg_ops = parse_expr(seg, p, tw, 0x55)?;
+    let arg_ops = parse_expr(seg, p, 0x55)?;
     if !eat_byte(seg, p, 0x55) || !eat(seg, p, &INT_TYPE) || !eat_byte(seg, p, 0x4C) {
         // a call-argument region whose call-end we do not model
         return Err(blk(seg, *p, "call-end"));
@@ -677,8 +692,8 @@ fn parse_call_shape(
         // No post-op → integer tail call: compute the argument into r3, then
         // `b <callee>` (5-section leaf). The int analog of the void tail call;
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
-        eat_return_plumbing(seg, p, tw, true)?;
-        let params = parse_formals(seg, lo, tw)?;
+        eat_return_plumbing(seg, p, true)?;
+        let params = parse_formals(seg, lo)?;
         return Ok(BodyShape::IntTailCall { params, arg_ops });
     }
     // Post-op `+ k`: EXACTLY one literal `33 <int> k` immediately followed by
@@ -696,7 +711,7 @@ fn parse_call_shape(
     if !(-0x8000..=0x7FFF).contains(&k) {
         return Err(Block { ctx: "call-postop-wide", byte: None, off: *p, aux: 0 });
     }
-    eat_return_plumbing(seg, p, tw, true)?;
+    eat_return_plumbing(seg, p, true)?;
 
     // W4b2-vi identity fold: a net post-op of 0 is NOT a framed call. `g(a)+0`
     // == `g(a)`, and the optimizer folds it to the bare `b g` (verified: the
@@ -704,7 +719,7 @@ fn parse_call_shape(
     // tail-call production so it takes the 5-section leaf path — never the
     // 6-section framed obj (which would mis-emit a frame the reference elides).
     if k == 0 {
-        let params = parse_formals(seg, lo, tw)?;
+        let params = parse_formals(seg, lo)?;
         return Ok(BodyShape::IntTailCall { params, arg_ops });
     }
     // A genuine `+ k` (k ≠ 0) is a framed non-leaf call — but the 6-section
@@ -866,7 +881,6 @@ impl IlBundle {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
         let names = mangled_names(gl);
-        let tw = detect_token_width(ex);
         let segs = split_function_bodies(ex);
         // Names are paired positionally, which is only meaningful when `.gl`
         // yields exactly one name per body. On a real TU `mangled_names` finds
@@ -881,7 +895,7 @@ impl IlBundle {
                     index: i,
                     name: if paired { names.get(i).cloned() } else { None },
                     seg_len: seg.len(),
-                    verdict: match parse_segment_detail(seg, tw) {
+                    verdict: match parse_segment_detail(seg) {
                         Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                         Ok(BodyShape::VoidTailCall) => FnVerdict::InClass("void-tail-call"),
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
@@ -906,7 +920,6 @@ impl IlBundle {
         let ex = self.ex()?;
         let names = mangled_names(gl);
         let src = source_path(gl);
-        let tw = detect_token_width(ex);
         let segs = split_functions(ex);
         if segs.is_empty() || names.len() < segs.len() {
             return None;
@@ -931,7 +944,7 @@ impl IlBundle {
         // a call is rejected here rather than mis-numbered.
         if !externals.is_empty() {
             if n_defined == 1 && externals.len() == 1 {
-                match parse_segment(segs[0], tw)? {
+                match parse_segment(segs[0])? {
                     BodyShape::FramedCall { add_k } => {
                         return Some(vec![IlFunction {
                             mangled_name: names[0].clone(),
@@ -980,7 +993,7 @@ impl IlBundle {
         // (W1–W3). A call shape with no external to bind is rejected.
         let mut funcs = Vec::with_capacity(n_defined);
         for (name, seg) in names.iter().take(n_defined).zip(segs) {
-            match parse_segment(seg, tw)? {
+            match parse_segment(seg)? {
                 BodyShape::StraightLine { params, ops } => {
                     funcs.push(IlFunction {
                         mangled_name: name.clone(),
@@ -1078,7 +1091,7 @@ mod tests {
             0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x4D, // module end
         ];
         assert_eq!(
-            parse_segment(seg, 2),
+            parse_segment(seg),
             Some(BodyShape::StraightLine {
                 params: vec![0xE309, 0xE409, 0xE509], // a, b, c
                 ops: vec![
@@ -1107,7 +1120,7 @@ mod tests {
             0x4D,
         ];
         assert_eq!(
-            parse_segment(konst, 2),
+            parse_segment(konst),
             Some(BodyShape::StraightLine {
                 params: vec![],
                 ops: vec![IlOp::Lit(42)],
@@ -1122,7 +1135,7 @@ mod tests {
             0x0F, 0x4D,
         ];
         assert_eq!(
-            parse_segment(kw, 2),
+            parse_segment(kw),
             Some(BodyShape::StraightLine {
                 params: vec![],
                 ops: vec![IlOp::Lit(70000)],
@@ -1148,7 +1161,7 @@ mod tests {
             0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // GT terminate = segment end
         ];
         assert_eq!(
-            parse_segment(seg, 2),
+            parse_segment(seg),
             Some(BodyShape::StraightLine {
                 params: vec![0xE309, 0xE409],
                 ops: vec![IlOp::Load(0xE309), IlOp::Load(0xE409), IlOp::Add],
@@ -1160,7 +1173,7 @@ mod tests {
     fn parse_segment_accepts_bare_void_tail_call() {
         // `void f(){ g(); }` (mvp_call): exactly one void call, `4C 4B`, then
         // only the return plumbing → a bare `b g` tail call.
-        assert_eq!(parse_segment(MVP_CALL, 2), Some(BodyShape::VoidTailCall));
+        assert_eq!(parse_segment(MVP_CALL), Some(BodyShape::VoidTailCall));
     }
 
     #[test]
@@ -1168,7 +1181,7 @@ mod tests {
         // `int f(int a){ return g(a) + 1; }` (mvp_framed): int call, single
         // passthrough arg, `55` call-end, exactly one `+1` post-op.
         assert_eq!(
-            parse_segment(MVP_FRAMED, 2),
+            parse_segment(MVP_FRAMED),
             Some(BodyShape::FramedCall { add_k: 1 })
         );
     }
@@ -1180,7 +1193,7 @@ mod tests {
         //   arg-setup `g(a+1)` → arg `[Load a, Lit 1, Add]`. All are
         //   `IntTailCall` (a net-identity post-op is a tail call, not framed).
         assert_eq!(
-            parse_segment(INT_TAILRET, 2),
+            parse_segment(INT_TAILRET),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509)],
@@ -1188,7 +1201,7 @@ mod tests {
             "passthrough g(a)"
         );
         assert_eq!(
-            parse_segment(INT_PLUS0, 2),
+            parse_segment(INT_PLUS0),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509)],
@@ -1196,7 +1209,7 @@ mod tests {
             "identity-fold g(a)+0 routes to a tail call, not FramedCall{{add_k:0}}"
         );
         assert_eq!(
-            parse_segment(INT_ARGTAIL, 2),
+            parse_segment(INT_ARGTAIL),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509), IlOp::Lit(1), IlOp::Add],
@@ -1211,12 +1224,12 @@ mod tests {
         // passthrough arg is FramedCall (6-section frame); a ZERO `+k` folds to
         // an IntTailCall (5-section leaf). Same shape but for the immediate.
         assert_eq!(
-            parse_segment(MVP_FRAMED, 2),
+            parse_segment(MVP_FRAMED),
             Some(BodyShape::FramedCall { add_k: 1 }),
             "g(a)+1 is framed"
         );
         assert!(
-            matches!(parse_segment(INT_PLUS0, 2), Some(BodyShape::IntTailCall { .. })),
+            matches!(parse_segment(INT_PLUS0), Some(BodyShape::IntTailCall { .. })),
             "g(a)+0 must NOT be FramedCall{{add_k:0}}"
         );
     }
@@ -1239,7 +1252,7 @@ mod tests {
             ("g(a) + 1 + 2 (plus1plus2)", PLUS1PLUS2),
         ];
         for (label, seg) in cases {
-            assert_eq!(parse_segment(seg, 2), None, "must reject: {label}");
+            assert_eq!(parse_segment(seg), None, "must reject: {label}");
         }
     }
 
@@ -1255,7 +1268,70 @@ mod tests {
             0x24, // GT — unmodeled → reject
             0x43, 0x42, 0x00, 0x00, 0x41, 0x86, 0x41, 0x74,
         ];
-        assert_eq!(parse_segment(cmp, 2), None);
+        assert_eq!(parse_segment(cmp), None);
+    }
+
+    // ---- variable-width tokens ----------------------------------------------
+
+    #[test]
+    fn token_is_two_bytes_when_the_continuation_bit_is_clear() {
+        // Every fixture token is of this form (`e3 09`, `e5 09`, …) — bit 7 of
+        // the second byte clear.
+        assert_eq!(read_token_var(&[0xE3, 0x09, 0xFF], 0), Some((0xE309, 2)));
+        assert_eq!(read_token_var(&[0x00, 0x7F], 0), Some((0x007F, 2)));
+    }
+
+    #[test]
+    fn token_is_four_bytes_when_the_continuation_bit_is_set() {
+        // Real-TU form, e.g. the module marker payload `a4 96 03 00`.
+        assert_eq!(
+            read_token_var(&[0xA4, 0x96, 0x03, 0x00], 0),
+            Some((0xA496_0300, 4))
+        );
+        // Truncated 4-byte token → None, never a short read.
+        assert_eq!(read_token_var(&[0xA4, 0x96, 0x03], 0), None);
+    }
+
+    #[test]
+    fn token_identities_cannot_collide_across_widths() {
+        // The parser compares token identities for equality (token → parameter
+        // register), so a 2-byte and a 4-byte token must never produce the same
+        // value. A 4-byte token's byte 1 has bit 7 set, which lands in bits
+        // 23..16 and forces the value >= 0x10000; 2-byte values are < 0x10000.
+        for b0 in [0x00u8, 0x7F, 0x80, 0xFF] {
+            for b1 in [0x00u8, 0x7F, 0x80, 0xFF] {
+                let (v, w) = read_token_var(&[b0, b1, 0x00, 0x00], 0).unwrap();
+                if w == 2 {
+                    assert!(v < 0x10000, "2-byte token {v:#X} must stay narrow");
+                } else {
+                    assert!(v >= 0x10000, "4-byte token {v:#X} must not alias a narrow one");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_four_byte_token_parses_as_one_operand_not_two() {
+        // The misalignment this fixes: reading a 4-byte token as 2 bytes leaves
+        // the parse standing on the token's own tail, which then looks like an
+        // unknown opcode. Build a straight-line body whose single LOAD carries a
+        // wide token and check it decodes as exactly one Load of that token.
+        let seg: &[u8] = &[
+            0x46, 0x2D, 0xA4, 0x96, 0x03, 0x00, // formals: one wide token
+            0x4C, 0x4F, 0x11, 0x53, // LO SS
+            0xB9, 0xA4, 0x96, 0x03, 0x00, 0x86, 0x41, 0x74, // LOAD <wide> int
+            0x41, 0x86, 0x41, 0x74, // result-type
+            0x3A, 0xE7, 0x09, // ASSIGN
+            0x54, 0x02, 0x29, 0xE7, 0x09, // RETURN
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // fn tail = segment end
+        ];
+        assert_eq!(
+            parse_segment(seg),
+            Some(BodyShape::StraightLine {
+                params: vec![0xA496_0300],
+                ops: vec![IlOp::Load(0xA496_0300)],
+            })
+        );
     }
 
     // ---- P2b function-level census ------------------------------------------
@@ -1270,8 +1346,8 @@ mod tests {
         ];
         for seg in all {
             assert_eq!(
-                parse_segment(seg, 2).is_some(),
-                parse_segment_detail(seg, 2).is_ok(),
+                parse_segment(seg).is_some(),
+                parse_segment_detail(seg).is_ok(),
                 "census/gate disagreement"
             );
         }
@@ -1287,7 +1363,7 @@ mod tests {
             0x24, // GT
             0x43, 0x42, 0x00, 0x00, 0x41, 0x86, 0x41, 0x74,
         ];
-        let b = parse_segment_detail(cmp, 2).unwrap_err();
+        let b = parse_segment_detail(cmp).unwrap_err();
         assert_eq!(b.feature(), "expr-cmp-gt");
         assert_eq!(cmp[b.off], 0x24);
     }
@@ -1302,7 +1378,7 @@ mod tests {
         // type), leaving everything else intact.
         let load = seg.windows(6).position(|w| w == [0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74]).unwrap();
         seg[load + 5] = 0x75;
-        let b = parse_segment_detail(&seg, 2).unwrap_err();
+        let b = parse_segment_detail(&seg).unwrap_err();
         assert_eq!(b.feature(), "expr-load-type-864175");
         assert_eq!(seg[b.off], 0xB9, "reported at the LOAD, not mid-type");
     }
