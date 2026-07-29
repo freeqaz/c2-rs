@@ -87,6 +87,13 @@ pub enum Rel {
     Gt,
 }
 
+impl IlOp {
+    /// True for the binary operators a depth-2 tree node may carry.
+    pub fn is_tree_binop(self) -> bool {
+        matches!(self, IlOp::Add | IlOp::Sub | IlOp::Mul | IlOp::Div)
+    }
+}
+
 impl Rel {
     fn from_opcode(b: u8) -> Option<Rel> {
         Some(match b {

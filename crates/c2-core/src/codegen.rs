@@ -748,6 +748,96 @@ const SCRATCH_REG: u8 = 11;
 ///   is the exact reversed mapping the reference c2 emits (`a-b-c` →
 ///   `subf r11,r4,r3 ; subf r3,r5,r11`). A swap here would be a fuzzy-invisible
 ///   sign inversion (CLAUDE.md correctness boundary) — see [`encode_subf`].
+/// Try to select a **depth-2 expression tree** `(a op b) root (c op d)` over
+/// four distinct parameter leaves (W5 trees).
+///
+/// The operand stack reaches depth 3 here, so the serial-chain selector cannot
+/// express it. c2 lowers it as an actual tree: left child into one scratch,
+/// right child into another, then the root into r3.
+///
+/// ```text
+///   (a+b)*(c+d)   add   r11,r3,r4 ; add   r10,r5,r6 ; mullw r3,r11,r10
+///   (a*b)-(c*d)   mullw r11,r3,r4 ; mullw r10,r5,r6 ; subf  r3,r10,r11
+///   (a*b)+(c*d)   mullw r10,r3,r4 ; mullw r11,r5,r6 ; add   r3,r10,r11
+/// ```
+///
+/// Note the third line: **when the root is `+` the two children's registers are
+/// swapped** relative to every other root operator. That is reproducible and
+/// order-independent — `(a*b)+(c*d)` and `(c*d)+(a*b)` are byte-identical, so c2
+/// canonicalizes the commutative root by parameter order and then gives the
+/// first term r10. The mechanism is not understood, only characterized, which is
+/// why the `+` root is accepted at *exactly* this depth and nowhere else.
+///
+/// Four gates, each a shape where c2 does **not** lower the source tree as a
+/// tree and a post-order selector would emit plausible, wrong bytes:
+///
+/// * a `*` node with a `*` child collapses into one n-ary product and is
+///   re-linearized into a chain — `(a*b)*(c*d)`, `(a+b)*(c*d)` and `a*(b*(c*d))`
+///   all compile to the *same* chain, none of them the source pairing;
+/// * a `+`/`-` node with a `+`/`-` child collects into one n-ary sum whose terms
+///   are reordered (subtracted first) — `(a+b)-(c+d)` emits its leaves in the
+///   order `a, c, d, b`;
+/// * any immediate on an additive node (its register order is unexplained);
+/// * anything but four distinct parameter leaves.
+fn try_select_depth2_tree(
+    func: &IlFunction,
+    reg_of: &dyn Fn(u32) -> Option<u8>,
+) -> Option<Vec<u8>> {
+    let (l0, l1, op1, l2, l3, op2, root) = match func.ops.as_slice() {
+        [IlOp::Load(a), IlOp::Load(b), o1, IlOp::Load(c), IlOp::Load(d), o2, r]
+            if o1.is_tree_binop() && o2.is_tree_binop() && r.is_tree_binop() =>
+        {
+            (*a, *b, *o1, *c, *d, *o2, *r)
+        }
+        _ => return None,
+    };
+    // Four distinct parameter leaves, nothing else.
+    let toks = [l0, l1, l2, l3];
+    for (i, t) in toks.iter().enumerate() {
+        if toks[..i].contains(t) {
+            return None;
+        }
+    }
+    let regs: Vec<u8> = toks.iter().map(|t| reg_of(*t)).collect::<Option<_>>()?;
+
+    let is_additive = |o: IlOp| matches!(o, IlOp::Add | IlOp::Sub);
+    // N1 — product flattening.
+    if root == IlOp::Mul && (op1 == IlOp::Mul || op2 == IlOp::Mul) {
+        return None;
+    }
+    // N2 — additive canonicalization.
+    if is_additive(root) && (is_additive(op1) || is_additive(op2)) {
+        return None;
+    }
+    // Integer division is not modeled at all.
+    if root == IlOp::Div || op1 == IlOp::Div || op2 == IlOp::Div {
+        return None;
+    }
+
+    // The `+`-root swap.
+    let (left_reg, right_reg) = if root == IlOp::Add {
+        (SCRATCH_REG - 1, SCRATCH_REG) // r10, r11
+    } else {
+        (SCRATCH_REG, SCRATCH_REG - 1) // r11, r10
+    };
+
+    let emit = |out: &mut Vec<u8>, op: IlOp, dest: u8, lhs: u8, rhs: u8| match op {
+        IlOp::Add => out.extend_from_slice(&encode_add(dest, lhs, rhs)),
+        IlOp::Mul => out.extend_from_slice(&encode_mullw(dest, lhs, rhs)),
+        // `subf` computes rB − rA, so `lhs − rhs` needs rA=rhs, rB=lhs.
+        IlOp::Sub => out.extend_from_slice(&encode_subf(dest, rhs, lhs)),
+        _ => unreachable!("gated above"),
+    };
+
+    let mut text = Vec::with_capacity(16);
+    // Left child first, always — only the register assignment swaps.
+    emit(&mut text, op1, left_reg, regs[0], regs[1]);
+    emit(&mut text, op2, right_reg, regs[2], regs[3]);
+    emit(&mut text, root, RET_REG, left_reg, right_reg);
+    text.extend_from_slice(&encode_blr());
+    Some(text)
+}
+
 pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     if func.params.len() > ARG_REGS.len() {
         return Err(BackendError::Pass {
@@ -767,6 +857,12 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
             .position(|&t| t == tok)
             .map(|i| ARG_REGS[i])
     };
+
+    // A depth-2 tree is not a serial chain and the affine selector below cannot
+    // express it; try the dedicated tree shape first.
+    if let Some(text) = try_select_depth2_tree(func, &reg_of) {
+        return Ok(text);
+    }
 
     let mut stack: Vec<Operand> = Vec::new();
     let mut plan: Vec<PlanOp> = Vec::new();
@@ -1516,34 +1612,99 @@ mod tests {
         );
     }
 
-    #[test]
-    fn select_text_rejects_tree_expression() {
-        // `(a+b)*(c+d)` is postfix LOAD a,b,ADD,LOAD c,d,ADD,MUL — the operand
-        // stack reaches depth 3, needing a second scratch. Must be rejected
-        // (NotImplemented), NOT silently mis-emitted with one scratch.
-        let func = IlFunction {
-            mangled_name: "?t@@YAHHHHH@Z".into(),
-            source_path: None,
-            tail_call: None,
-            framed_call: None,
-            compare: None,
-            empty_body: false,
-            float_leaf: None,
-            params: vec![0xE309, 0xE409, 0xE509, 0xE609],
-            ops: vec![
+    fn tree4(op1: IlOp, op2: IlOp, root: IlOp) -> IlFunction {
+        func_with(
+            vec![0xE309, 0xE409, 0xE509, 0xE609],
+            vec![
                 IlOp::Load(0xE309),
                 IlOp::Load(0xE409),
-                IlOp::Add,
+                op1,
                 IlOp::Load(0xE509),
                 IlOp::Load(0xE609),
-                IlOp::Add,
-                IlOp::Mul,
+                op2,
+                root,
             ],
-        };
-        assert!(matches!(
-            select_text(&func),
-            Err(BackendError::NotImplemented(_))
-        ));
+        )
+    }
+
+    #[test]
+    fn depth2_tree_matches_the_reference() {
+        // `(a+b)*(c+d)` — the operand stack reaches depth 3, so this is a tree
+        // rather than a serial chain: left child into r11, right into r10, root
+        // into r3.
+        assert_eq!(
+            select_text(&tree4(IlOp::Add, IlOp::Add, IlOp::Mul)).unwrap(),
+            vec![
+                0x7D, 0x63, 0x22, 0x14, // add   r11,r3,r4
+                0x7D, 0x45, 0x32, 0x14, // add   r10,r5,r6
+                0x7C, 0x6B, 0x51, 0xD6, // mullw r3,r11,r10
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // `(a*b)-(c*d)` — same register assignment; subf keeps its reversed
+        // operand order (rA=rhs, rB=lhs).
+        assert_eq!(
+            select_text(&tree4(IlOp::Mul, IlOp::Mul, IlOp::Sub)).unwrap(),
+            vec![
+                0x7D, 0x63, 0x21, 0xD6, // mullw r11,r3,r4
+                0x7D, 0x45, 0x31, 0xD6, // mullw r10,r5,r6
+                0x7C, 0x6A, 0x58, 0x50, // subf  r3,r10,r11
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+    }
+
+    #[test]
+    fn depth2_tree_with_an_add_root_swaps_the_child_registers() {
+        // The one exception: a `+` ROOT swaps the two children's registers
+        // relative to every other root operator. `(a*b)+(c*d)` puts the left
+        // child in r10 and the right in r11 — reproducible and order
+        // independent, but not mechanistically understood, which is why the
+        // `+` root is accepted at exactly this depth and nowhere else.
+        assert_eq!(
+            select_text(&tree4(IlOp::Mul, IlOp::Mul, IlOp::Add)).unwrap(),
+            vec![
+                0x7D, 0x43, 0x21, 0xD6, // mullw r10,r3,r4   <-- swapped
+                0x7D, 0x65, 0x31, 0xD6, // mullw r11,r5,r6   <-- swapped
+                0x7C, 0x6A, 0x5A, 0x14, // add   r3,r10,r11
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+    }
+
+    #[test]
+    fn tree_shapes_c2_does_not_lower_as_trees_fail_closed() {
+        // These are tree-shaped SOURCE that c2 re-linearizes, so a post-order
+        // selector emits plausible wrong bytes rather than running out of range.
+        //
+        // N1: a `*` with a `*` child becomes one n-ary product — `(a*b)*(c*d)`,
+        //     `(a+b)*(c*d)` and `a*(b*(c*d))` all compile to the SAME chain,
+        //     none of them the source's pairing.
+        for (op1, op2) in [(IlOp::Mul, IlOp::Mul), (IlOp::Add, IlOp::Mul), (IlOp::Mul, IlOp::Add)]
+        {
+            assert!(
+                matches!(
+                    select_text(&tree4(op1, op2, IlOp::Mul)),
+                    Err(BackendError::NotImplemented(_))
+                ),
+                "N1: {op1:?} / {op2:?} under a `*` root must reject"
+            );
+        }
+        // N2: an additive node with an additive child collects into one n-ary
+        //     sum whose terms are REORDERED — `(a+b)-(c+d)` emits its leaves in
+        //     the order a, c, d, b.
+        for root in [IlOp::Add, IlOp::Sub] {
+            for (op1, op2) in [(IlOp::Add, IlOp::Add), (IlOp::Sub, IlOp::Mul), (IlOp::Mul, IlOp::Sub)]
+            {
+                assert!(
+                    matches!(
+                        select_text(&tree4(op1, op2, root)),
+                        Err(BackendError::NotImplemented(_))
+                    ),
+                    "N2: {op1:?} / {op2:?} under a {root:?} root must reject"
+                );
+            }
+        }
     }
 
     #[test]
