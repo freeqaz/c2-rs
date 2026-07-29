@@ -65,7 +65,9 @@ handles returns `NotImplemented` instead of guessing.
   first baseline is honest and stark: on 878 real TUs the port currently
   reaches byte-exact on none of them, because 99% die at IL decode before
   codegen is even consulted. That number is the roadmap
-  ([`docs/ROADMAP.md`](docs/ROADMAP.md)), and the scan (52 s for the whole
+  ([`docs/ROADMAP.md`](docs/ROADMAP.md)), the per-blocker ledger with
+  measured frequencies and per-rung acceptance gates is
+  [`docs/GAPS.md`](docs/GAPS.md), and the scan (under a minute for the whole
   codebase) reruns on every widening step so it can only be improved, not
   argued with.
 * **Corpus, retrieval, and search tooling** on top: a deterministic
