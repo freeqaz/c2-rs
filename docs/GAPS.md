@@ -701,6 +701,29 @@ this section is by dependency, not payoff; the ranked worklist is §4.
     (`CODEGEN_W6_COMPARE.md` §6: `subfe r9,r10,r10` reads an undefined `r10`,
     and dead `subfc` destinations still consume a slot). Allocate them as real
     temps; never "optimize" one away.
+  - **An operand used twice licenses c2's algebraic rewriter — and this one was
+    live for months.** `return a + a;` emitted `add r3,r3,r3`; c2 emits
+    `rlwinm r3,r3,1,0,30` (`slwi r3,r3,1`), byte-identical to what it produces for
+    `a * 2`. So a repeated leaf makes the operand stream stop describing the
+    instructions, and the straight-line integer class — the oldest and most-used
+    one — mis-emitted every such body from the day it was written.
+
+    Two things make this the most instructive landmine in this document. First,
+    **the rule was already known**: `try_parse_float_leaf` has had exactly this
+    gate from the start ("a repeated leaf can trigger algebraic rewriting"). It was
+    simply never applied on the integer side, so the corpus proved the FP path safe
+    and said nothing about the integer one. Second, **no fixture could have caught
+    it**: every integer positive was `a + b + c` or `a - b`, all distinct operands.
+    There was no separating case, so a fully green run over 60 fixtures was
+    consistent with the bug. Cf. `fixtures/README.md` — "a green corpus is only as
+    strong as its ability to *separate* the candidate rules".
+
+    The rewrite is also not one rule: `a - a` is a constant zero and `a * a` has no
+    shift form, so a gate built around the `+` case alone would still be guessing.
+    All are refused, and the gate runs on the *resolved* stream because
+    substitution creates repetition the source does not have — nothing in
+    `int x = a; x = x + x;` repeats an operand, but it resolves to `a + a`
+    (`fixtures/cpp/il_repeated_leaf.cpp`).
   - **Non-commutative hazard list** (`CODEGEN_PPC_MVP.md`): `subf` computes
     rB−rA (operands *reversed*); shifts have fixed order and signedness
     picks `sraw` vs `srw`; `cmpw`/`cmplw` direction is not swappable; W6 adds
