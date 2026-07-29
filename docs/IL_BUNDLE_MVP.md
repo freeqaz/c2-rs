@@ -37,10 +37,20 @@ P0.1 notes assumed `-f` was also embedded — corrected here.)
 ## Token width — do not use a size heuristic
 
 Tokens in `.sy`/`.ex` are 2 bytes in these bundles (e.g. `e3 09`). The
-correct detector (mirrors `il_parser._detect_token_width`): find the first
+whole-file detector (mirrors `il_parser._detect_token_width`): find the first
 `4F 02` in `.ex`, count bytes to the next `4F` — gap 2 → width 2. A
 bundle-size heuristic misclassifies (the original `c2-il::token_width`
 guessed 4 for ≥512 B bundles — wrong for add3's 2765-byte `.ex`).
+
+> **Superseded for real TUs (2026-07-29, commit 40f767d).** Token width is
+> **per token, not per file**: bit 7 of the token's second byte is a
+> continuation flag (clear → 2 bytes, set → 2 more follow). A single real TU
+> carries both widths — `4f 02 e3 09` and `4f 02 a4 96 03 00` in the same
+> `.ex`. `func::read_token_var` implements the per-token rule and the function
+> parser no longer calls `detect_token_width`; the whole-file detector remains
+> valid only for these small fixtures (and for the K1/K2a codec, which is
+> round-trip gated and still reads fixed-width — outstanding work, see
+> `ROADMAP.md` §G2).
 
 ## `.gl` — mangled name + source path
 

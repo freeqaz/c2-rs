@@ -29,6 +29,12 @@ The foundation is proven and fast; the port itself is deliberately narrow.
 - **Harness + tooling**: oracle self-test, corpus generator, obj→IL retrieval
   baseline, IL-space search prototype, edit gate; `perf`/`perf-scale`
   (~200–290× per obj, ~897k obj/s at 32 threads vs ~3.1k for real c2).
+- **P2 / P2b measurement** — `c2rs gap` (real-workload TU scan) plus the
+  function-level census (`c2rs census <cpp>`, and the scan-wide histogram in
+  the `gap` report). The port's real coverage is now a *measured* number:
+  **7,114 / 2,462,571 functions in class (0.29%)** over the 871 capturable dc3
+  TUs, with the blocking-feature histogram that ranks the remaining work
+  (§G5).
 - **IL codec (K1/K2a)** — round-trip-gated typed-islands-over-opaque-spans
   model of `.ex`/`.gl`; float-leaf (`Box::Volume` shape) token vocabulary is
   typed; K3a length-consistent edits verified *as edits* against real c2.
@@ -58,7 +64,8 @@ for a stated, measured corpus — with no wibo, no process spawn, no `_CL_*`
 files on disk. Concretely that means:
 
 1. **Backend coverage**: the port accepts the function classes that actually
-   occur in the target corpus (see G1), measured by the census tool (P2) —
+   occur in the target corpus (see G1), measured by the function census
+   (P2b — landed; the metric is *functions in class*, §G5) —
    not "all of C++", which is unbounded (exceptions, RTTI, SEH, inline asm,
    template bloat). The coverage metric is the contract: a green run claims
    nothing outside it.
@@ -74,7 +81,9 @@ files on disk. Concretely that means:
 
 The port is a **positive shape-matcher**: `c2-il::func::parse_segment`
 accepts exactly the shapes it knows, codegen lowers them. The missing
-classes, in intended working order (census may re-rank — see P2):
+classes, in the *original* intended working order — the census has since
+landed and provisionally re-ranks this list; see the note after the table
+and §G5:
 
 | # | Class | New mechanisms required | Staged? |
 |---|-------|-------------------------|---------|
@@ -94,6 +103,30 @@ carry chains), unsigned variants everywhere, virtual/indirect calls (needs
 W12 + `mtctr`/`bctrl`), `__declspec`s, intrinsics. Do not schedule these
 ahead of measured demand.
 
+**Provisional re-rank from the P2b census (INFERENCE — see §G5 for the
+measured histogram it is derived from).** Grouping the top-20 blocking
+features by the grammar production they died in:
+
+- **Call-shaped** blocks (`call-token-*` 24.0% + `call-anchor-*` 12.4% +
+  `expr-call-in-expr` 2.7%) = **~39% of blocked functions** from the top-20
+  rows alone — a lower bound, since further `call-*` buckets sit in the
+  1,217-row tail. That is the **W11** (calls generalized) rung.
+- **Statement/body-shaped** blocks (`body-*`: `0x3A` a body opening with
+  ASSIGN, `0x53` a further statement marker, plus `0x9B/0x4F/0xB3/0xAD/
+  0x29/0x67/0x9A`) = **~12%** from the top-20 rows, again a lower bound.
+  That is the **W10** (general frames + locals + statements) rung.
+- **W6 (comparisons) and W7 (shifts) do not appear in the top 20 at all.**
+
+So the measured demand says W11 and W10 dominate and the W5→W6→W7→W8 order
+above is *not* demand-driven. The re-rank is deliberately labelled
+provisional: the exact meaning of several top buckets is **not yet
+characterized** — most importantly `call-token-0xB9` (14.8%, the single
+largest bucket) means a LOAD stands where the fixed 10-byte CALL token was
+expected, so `26 <tok>` is evidently **not** always a call prefix. Until that
+grammar question is answered, the grouping above may be mis-attributing a
+large share of the histogram. Characterize `26`/`B9` first, then commit to
+the re-order.
+
 ### G2 — IL decode coverage
 
 `func.rs` is a positive parser for a handful of shapes; the general `.ex`
@@ -104,6 +137,55 @@ map: `IL_BUNDLE_MVP.md`). Each W-step decodes exactly the grammar it needs
 (codec-first, round-trip gated); `.sy` (symbol/type table) becomes
 load-bearing around W12–W14 when sizes and types stop being inferable from
 `.ex` alone.
+
+**IL tokens are variable width — 2 *or* 4 bytes, per token, not per file**
+(measured 2026-07-29, commit 40f767d). `detect_token_width` returns one width
+for a whole file, which is simply wrong on real TUs: in a single capture of
+`system/world/Dir.cpp` the `4F 02` module marker appears both as
+`4f 02 e3 09` (2-byte token) and as `4f 02 a4 96 03 00` (4-byte). The
+discriminator is **bit 7 of the token's second byte**: clear → the token is
+those 2 bytes, set → two more bytes follow. Applying that rule at every `B9`
+LOAD site lands on a valid 3-byte operand type at **21,443 sites**.
+`func::read_token_var` now implements this and the function parser no longer
+consults `detect_token_width`.
+
+Consequence worth remembering: a 2-byte read of a 4-byte token leaves the
+parse standing on the token's own tail bytes, which then look like unknown
+opcodes. That **fabricated census buckets** — the `call-token-0x01…0x05` and
+`expr-load-type-0N00A6` families were misalignment, not vocabulary, and both
+vanished once the width rule landed (in-class functions went 4,154 → 7,114 on
+the identical instrument). Any future "new opcode" discovered by a parser
+that reads fixed-width tokens is suspect until re-checked.
+
+**Operand types appear to use a *different* width rule from tokens.** Measured
+the same way over the same `.ex`: restricting to LOAD sites with an
+unambiguous narrow token (so the type's start offset is known) and to types
+whose second byte has bit 7 set, then asking which candidate type length
+leaves a plausible next-production byte — 1,940 sites admit **only** a 4-byte
+type, 1,606 are ambiguous between 3 and 4, and a 5-byte type (tag + a
+`+2`-style wide token) is essentially never right (~151 across all
+combinations). So a type reads as `<tag> <2-byte token> [+1 byte when bit 7 of
+the token's second byte is set]` — a **+1** continuation, against the
+operand token's **+2**. Clean witnesses (only length 4 works):
+
+```text
+b9 1d 12 | 86 43 83 08 | 55 86 43 83 08 4c 2c
+b9 99 12 | 86 43 a0 08 | b9 98 12 86 43 a0 08
+```
+
+Two different continuation rules in one format is surprising enough that this
+is flagged **provisional pending a controlled fixture** — it is the model's
+most likely subtle error. Nothing shipped depends on it: `read_token_var` is
+used only in operand-token positions, and types are still matched as the fixed
+3-byte `INT_TYPE`, so the port stays fail-closed either way. What is at stake
+is how the generalized decoder must read a type.
+
+**Outstanding**: `crates/c2-il/src/codec.rs` still assumes a fixed 2-byte
+token (`tok16`) and therefore carries the same latent defect on real TUs. It
+is round-trip gated, so it fails *closed* (an opaque span) rather than
+mis-decoding — no correctness exposure today — but it caps typed coverage on
+real bundles and must adopt the variable-width read before the codec is
+pointed at the real workload.
 
 ### G3 — Front-end port (`c1xx.dll` → `c1-core`)
 
@@ -135,7 +217,7 @@ the CFG step (W8) and frames (W10) force a block/instruction IR, then
 restructure `codegen` around it, keeping every differential gate green.
 COLOR knowledge lands when W5/W10 demand real register-order modeling.
 
-### G5 — Coverage measurement (instrument LANDED; baseline below)
+### G5 — Coverage measurement (instrument LANDED; P2b census LANDED; baseline below)
 
 The measuring tool is **`c2rs gap`** (real-workload gap scan): run the whole
 pipeline — capture with the project's real flags → port → byte compare — over
@@ -146,7 +228,17 @@ real dc3 TUs, bucketing each into `capture-fail` / `vocab-gap` /
 `scripts/gen_dc3_workload.sh` generates the inputs from a dc3-decomp
 checkout.
 
-**Baseline (2026-07-20, 878 dc3 TUs, real `/O1 /Oi /EHsc` flags, 52 s at
+**P2b — function-level census: LANDED** (commits 63b1ad1, ec401a5). The
+TU-level scan is all-or-nothing, so it could only ever report 871 ×
+`vocab-gap` and could not rank W5–W14. There is now a per-function view:
+`c2rs census <cpp> [--flags-file F --cwd D] [--keep-il DIR]` for a single TU,
+and the `c2rs gap` report additionally prints scan-wide function coverage
+plus the blocking-feature histogram. Each function segment is run through the
+*same* positive parser and keeps its **first** blocking `(production, byte,
+offset)` — so the histogram measures the unknown vocabulary honestly (hex
+buckets, never guessed names) instead of asserting it.
+
+**Baseline (2026-07-29, 878 dc3 TUs, real `/O1 /Oi /EHsc` flags, 37.3 s at
 `--jobs 16`):**
 
 | Class | TUs | % |
@@ -157,21 +249,87 @@ checkout.
 | **vocab-gap** | **871** | **99.2** |
 | capture-fail | 7 | 0.8 |
 
-- **Replay soundness: 871/871 byte-exact, 0 diverged** — the oracle holds on
-  the entire capturable real workload.
+**Function census: 7,114 / 2,462,571 functions in class (0.29%).** (Same
+instrument before the variable-token-width fix of §G2: 4,154 / 2,462,571 =
+0.17%.)
+
+**Replay soundness re-proven at full strength on 2026-07-29 with the
+post-fix code: 871/871 capturable TUs byte-exact, 0 diverged**
+(`--replay-every 1`, 43.4 s at `--jobs 16`). The oracle holds on the entire
+capturable real workload, so every IL-derived measurement above rests on a
+reference side that was itself checked, not assumed.
+
+> **The denominator is 2,462,571 functions — not ~903k.** An earlier figure of
+> 902,730 came from counting `.gl` mangled names; that is **not** the function
+> count. `mangled_names` accepts only `?…@@…` forms, and `.gl` also lists
+> externals. Measured on `system/world/Dir.cpp` (1.5 MB `.ex`): 2,153 `.gl`
+> mangled names, 5,340 `4F 1F` fn-start markers, **5,239 `LO` body markers
+> (`4C 4F 11`)**, 5,243 function tails (`4F 12 47 54 01 54 00`). The last two
+> agree to 0.08%; the two-byte `4F 1F` scan is ~2% inflated by payload
+> collisions. The census therefore anchors on the `LO` body marker
+> (`func::split_function_bodies`). Do not re-derive a function count from
+> `.gl`.
+
+Blocking-feature histogram, top 20 (percentages are of *blocked* functions):
+
+| Functions | % | Feature |
+|---:|---:|---|
+| 363,684 | 14.8 | `call-token-0xB9` |
+| 235,886 | 9.6 | `call-anchor-0x00` |
+| 166,483 | 6.8 | `expr-op-0x40` |
+| 144,276 | 5.9 | `call-token-0x33` |
+| 107,253 | 4.4 | `body-0x3A` |
+| 80,284 | 3.3 | `call-token-0x26` |
+| 70,078 | 2.9 | `body-0x53` |
+| 67,012 | 2.7 | `expr-call-in-expr` |
+| 43,269 | 1.8 | `call-anchor-0x08` |
+| 41,878 | 1.7 | `expr-load-type-864383` |
+| 34,573 | 1.4 | `expr-load-type-864275` |
+| 28,487 | 1.2 | `body-0x9B` |
+| 26,666 | 1.1 | `body-0x4F` |
+| 24,600 | 1.0 | `call-anchor-0x20` |
+| 22,947 | 0.9 | `expr-lit-type-821230` |
+| 15,782 | 0.6 | `body-0xB3` |
+| 15,480 | 0.6 | `body-0xAD` |
+| 14,594 | 0.6 | `body-0x29` |
+| 13,248 | 0.5 | `body-0x67` |
+| 12,405 | 0.5 | `body-0x9A` |
+
+…and **1,217 more distinct features** in the tail.
+
+How to read the bucket names (`func::Block::feature`) — `<production>-0xNN`
+means the parse was inside that grammar production and could not consume byte
+`NN`:
+
+- `call-token-*` — the byte where the fixed 10-byte CALL token
+  (`BD <3-byte ret type> 00 80 01 10 00 00`) was expected after a `26 <tok>`
+  reference.
+- `call-anchor-*` — the 6-byte anchor `00 80 01 10 00 00` did not match.
+- `body-*` — the byte that opened the function body, where only a call ref
+  (`26`), LOAD (`B9`) or literal (`33`) is modeled.
+- `expr-*` — inside the operand stream; `expr-*-type-NNNNNN` reports the
+  operand's whole 3-byte inline type, because the type triple *is* the
+  feature (int vs unsigned vs float vs pointer).
+
+Notes:
+
+- **Replay soundness holds**: 871/871 byte-exact, 0 diverged on the 2026-07-20
+  full `--replay-every 1` pass; the sampled lane on the 2026-07-29 runs has
+  likewise never diverged (110 sampled, 0 diverged). The oracle holds on the
+  capturable real workload.
 - The 7 `capture-fail`s are all `synth_xbox/soundtouch` files the real 360
   build excludes (x86-only `#error` guards) or builds with per-target flags —
   a workload-manifest refinement, not a port gap.
-- **The wall is `vocab-gap`**: every real TU dies at `c2_il` function decode
-  before codegen is even consulted. `functions()` is all-or-nothing per TU,
-  so today's scan cannot yet rank W5–W14 — a TU with 700 functions where 690
-  are in-class still reads as one `vocab-gap`. The needed refinement is the
-  **function-level census** (P2b): decode/classify per function inside each
-  bundle, so the histogram counts *functions* by first-blocking feature, not
-  TUs. That histogram is the widening order.
+- **The TU wall is still `vocab-gap`**: every real TU dies at `c2_il` function
+  decode before codegen is consulted, because `functions()` is all-or-nothing
+  per TU. That is unchanged and expected — a TU with 700 functions of which
+  699 are in class is still one `vocab-gap`. The census is what moves per
+  widening step; the TU buckets move much later.
 
 Remaining for G5: promote match-% to the headline metric once nonzero, keep
-the JSONL baselines diffable scan-over-scan (coverage must be monotone).
+the JSONL baselines diffable scan-over-scan (coverage must be monotone), and
+characterize the top histogram buckets (notably `call-token-0xB9`) so the
+provisional re-rank in §G1 can be committed to.
 
 ### G6 — Harness experiments maturity
 
@@ -210,7 +368,8 @@ them out of the port's critical path.
 ## 5. The phases, in order
 
 ```
-P2    census baseline with `c2rs gap` (dc3 workload) (G5; the driver)
+P2    gap-scan baseline with `c2rs gap` (dc3 workload) (G5)   [DONE 2026-07-20]
+P2b   function-level census + blocking histogram      (G5; the driver) [DONE 2026-07-29]
 W5    multi-scratch expressions                     (unblocks expression shapes)
 W6    integer comparisons → bool                    (staged; small; frequent)
 W7    shifts + bitwise + strength reduction         (staged)
@@ -227,26 +386,47 @@ P-F2  FE widening in lockstep + perf-fe                (parallel track)
 P3    c2rs compose — source→obj in-process, byte-exact + perf-fe scale
 ```
 
-W8 is the pivot: it forces the block/instruction IR, the `.ex` branch
-grammar, and compare/branch fusion. Everything after it is easier to
-schedule but harder to keep honest — more of the obj becomes derived, so the
-CONST/DERIVED classification discipline matters more per step, not less.
+**The W-order above is the pre-census estimate and is now known not to be
+demand-driven.** The measured histogram (§G5) puts call-shaped blocks (~39%
+of blocked functions from the top-20 rows alone) and statement/body-shaped
+blocks (~12%) at the top, i.e. **W11 and W10**, while W6 (comparisons) and W7
+(shifts) do not appear in the top 20 at all. The re-rank is *inference* from
+the histogram, not a measured schedule, and it is blocked on characterizing
+`call-token-0xB9` / the `26` prefix (§G1). Sequence to run instead: the
+grammar-characterization step first, then re-rank, then the rung it picks.
+
+W8 remains the pivot whenever it is scheduled: it forces the block/instruction
+IR, the `.ex` branch grammar, and compare/branch fusion. Everything after it
+is easier to schedule but harder to keep honest — more of the obj becomes
+derived, so the CONST/DERIVED classification discipline matters more per step,
+not less.
 
 ## 6. Next actions (this week-scale)
 
 1. ~~**P2**: land `c2rs gap`, run the dc3 baseline, commit the numbers.~~
    **DONE 2026-07-20** — see G5. Headline: 0 mismatch, 871/871 replay
-   soundness, 99.2% vocab-gap. The scan cannot rank W5–W14 yet because
-   decode fails TU-wholesale first.
-2. **P2b — function-level census**: decode per *function* inside each real
-   bundle (splitting at `4F 1F` body markers, classifying each by its first
-   unknown token/feature), so the histogram counts functions by blocking
-   feature. This, not TU counts, produces the W5–W14 ranking. It also gives
-   the true "functions in-class today" numerator for the headline metric.
-3. **W5**: lift the depth-2 stack limit using the documented COLOR scratch
+   soundness, 99.2% vocab-gap. The scan cannot rank W5–W14 because decode
+   fails TU-wholesale first.
+2. ~~**P2b — function-level census**: classify each function inside each real
+   bundle by its first blocking feature, so the histogram counts functions,
+   not TUs.~~ **DONE 2026-07-29** (63b1ad1, ec401a5) — see G5. Headline:
+   **7,114 / 2,462,571 functions in class (0.29%)**, 1,237 distinct blocking
+   features, denominator anchored on the `LO` body marker (**not** `.gl`
+   names). Bundled finding: IL tokens are variable width (40f767d, §G2),
+   which retired two fabricated bucket families and moved the numerator
+   4,154 → 7,114.
+3. **Characterize `call-token-0xB9` / the `26` prefix** — the single largest
+   bucket (14.8%) says a LOAD stands where the CALL token was expected, so
+   `26 <tok>` is not always a call. Until this is understood the top of the
+   histogram cannot be attributed to a rung, and the §G1 re-rank stays
+   provisional. This is now the highest-value next step.
+4. **Port `codec.rs` to the variable-width token read** (`tok16` → the
+   `read_token_var` rule), round-trip gate unchanged, so typed coverage can
+   be measured on real bundles rather than fixtures (§G2).
+5. **W5**: lift the depth-2 stack limit using the documented COLOR scratch
    order; positive fixture `(a+b)*(c+d)`, negative depth-5 tree.
-4. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
-5. Re-rank W6+ from the census histogram; update this doc.
+6. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
+7. Commit the W-ladder re-rank once step 3 lands; update this doc.
 
 ## 7. Invariants (do not break)
 
