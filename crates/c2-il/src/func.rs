@@ -335,21 +335,39 @@ impl Block {
             None => return format!("{}:eof", self.ctx),
         };
         if self.ctx == "expr" {
-            // Verified operand-stream opcodes (see docs/IL_BUNDLE_MVP.md and the
-            // `.ex` grammar table). Anything else is reported by its byte.
+            // Operand-stream opcodes VERIFIED against live-toolchain captures
+            // (docs/CODEGEN_W6_COMPARE.md pins the relational and logical ones
+            // by compiling a probe per relation and reading the emitted byte).
+            //
+            // Only add a name here once a capture has established it. An earlier
+            // revision of this table guessed the relational opcodes from their
+            // numeric order and got `!=`, `<=` and `>=` wrong while missing `==`
+            // entirely — which silently mislabelled census buckets, the one
+            // thing this instrument exists to avoid. A hex bucket is a result;
+            // a wrong name is a lie that survives into the roadmap.
+            //
+            // Signedness is NOT in the opcode: signed and unsigned probes emit
+            // the same byte and differ only in the operand type (`86 41 74` int
+            // vs `86 42 75` unsigned).
             let named = match b {
-                0x24 => Some("cmp-gt"),
-                0x25 => Some("cmp-ge"),
-                0x22 => Some("cmp-lt"),
-                0x23 => Some("cmp-le"),
-                0x20 => Some("cmp-eq"),
-                0x21 => Some("cmp-ne"),
-                0x09 => Some("shift"),
-                0x0B => Some("bitwise"),
-                0x43 => Some("ternary"),
+                0x1F => Some("cmp-eq"),   // ==
+                0x20 => Some("cmp-ne"),   // !=
+                0x21 => Some("cmp-le"),   // <=
+                0x22 => Some("cmp-lt"),   // <
+                0x23 => Some("cmp-ge"),   // >=
+                0x24 => Some("cmp-gt"),   // >
+                0x1A => Some("not"),      // !
+                0x1B => Some("or-or"),    // ||
+                0x1C => Some("and-and"),  // &&
+                0x09 => Some("shl"),      // <<
+                0x0A => Some("shr"),      // >>
+                0x0B => Some("bit-and"),  // &
+                0x0C => Some("bit-or"),   // |
+                0x0D => Some("bit-xor"),  // ^
+                0x2C => Some("convert"),  // narrowing/widening convert
+                0x40 => Some("cast"),     // `40 <target-type>` cast/convert
+                0x43 => Some("ternary"),  // `43 42 ...` conditional select
                 0x26 => Some("call-in-expr"),
-                0x05 => Some("div"),
-                0x06 => Some("mod"),
                 _ => None,
             };
             return match named {
