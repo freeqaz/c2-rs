@@ -170,6 +170,16 @@ pub struct IlFunction {
     /// If this function is a **W13a floating-point leaf**, whether it is double
     /// precision. Mutually exclusive with the other body kinds.
     pub float_leaf: Option<bool>,
+    /// A **multi-argument** tail call's argument permutation. `Some(sources)`
+    /// means this is `return g(a1, …, an)` with `n >= 2` and every argument a bare
+    /// parameter: `sources[i]` is the index into [`Self::params`] of the value that
+    /// argument slot `i` (register `r(3+i)`) wants. Set together with
+    /// [`Self::tail_call`], and then [`Self::ops`] is empty — the permutation, not
+    /// an operand stream, is the whole argument setup.
+    ///
+    /// The one-argument case keeps using `ops` instead, because it can carry a
+    /// computed argument (`g(a + 1)`) that the permutation form cannot express.
+    pub arg_sources: Option<Vec<usize>>,
     /// (These discriminators want to be one enum; that refactor is deferred
     /// until the CFG step forces a real body IR — see docs/ROADMAP.md §G4.)
     pub empty_body: bool,
@@ -470,6 +480,10 @@ enum BodyShape {
     /// arg-setup `g(a + 1)` (→ `addi r3,r3,1 ; b g`). `params` are the formals
     /// (token→register mapping the arg-setup needs).
     IntTailCall { params: Vec<u32>, arg_ops: Vec<IlOp>, callee_tok: u32 },
+    /// `return g(a1, …, an)` with `n >= 2`, every argument a bare parameter.
+    /// `arg_sources[i]` indexes `params` for the value argument slot `i` wants;
+    /// codegen turns that into a register permutation plus the tail branch.
+    MultiArgTailCall { params: Vec<u32>, arg_sources: Vec<usize>, callee_tok: u32 },
     /// Framed non-leaf `return g(a) + k` (k ≠ 0): exactly one int-returning CALL
     /// whose argument region is exactly the single passthrough LOAD, a `55 <int>`
     /// call-end, then exactly one literal `+ k` (ADD, commutative), returned. A
@@ -1322,16 +1336,116 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
         return Ok(BodyShape::VoidTailCall { callee_tok });
     }
 
-    // INT call. The argument region is a single modeled sub-expression producing
-    // the one call argument — a passthrough `B9 a INT` (→ `[Load]`) or an
-    // arg-setup like `a + 1` (→ `[Load, Lit, Add]`) — terminated by the `55`
-    // call-end. Any unmodeled operand/opcode rejects the whole function. `g(a)`,
-    // `g(a)+k` and `g(a+1)` share this region; they diverge at the post-op.
-    let arg_ops = parse_expr(seg, p, 0x55)?;
-    if !eat_byte(seg, p, 0x55) || !eat(seg, p, &INT_TYPE) || !eat_byte(seg, p, 0x4C) {
-        // a call-argument region whose call-end we do not model
-        return Err(blk(seg, *p, "call-end"));
+    // INT call. The argument region is a **repetition**, not a single argument:
+    //
+    //     args := ( expr `55` <TYPE> )*  `4C`
+    //
+    // Each argument is a modeled sub-expression — a passthrough `B9 a INT`
+    // (→ `[Load]`) or an arg-setup like `a + 1` (→ `[Load, Lit, Add]`) — followed
+    // by `55 <TYPE>` carrying the *formal's* declared type, and the whole list is
+    // terminated by `4C`. Arguments appear in **reverse source order**, rightmost
+    // first (anchored on `parse_formals`, which reverses the `2D` stream so
+    // `params[0]` is its last token; `fixtures/cpp/il_call_args2.cpp` holds the
+    // `g2(a,b)` / `g2(b,a)` pair that separates the two readings).
+    //
+    // This used to accept exactly one argument, so every real call site blocked at
+    // the second `B9` — the largest single census bucket.
+    let mut args: Vec<Vec<IlOp>> = Vec::new();
+    loop {
+        if eat_byte(seg, p, 0x4C) {
+            break;
+        }
+        let ops = parse_expr(seg, p, 0x55)?;
+        if !eat_byte(seg, p, 0x55) || !eat_int_like(seg, p) {
+            // an argument whose terminator or formal type we do not model
+            return Err(blk(seg, *p, "call-end"));
+        }
+        args.push(ops);
+        if args.len() > 8 {
+            // Past the eighth the arguments are stack-homed, which needs a frame.
+            return Err(Block { ctx: "call-args-overflow", byte: None, off: *p, aux: 0 });
+        }
     }
+    if args.is_empty() {
+        // A zero-argument int call (`return g();`). The value-consuming shapes
+        // below all assume an argument region, so refuse rather than guess.
+        return Err(Block { ctx: "call-args-none", byte: None, off: *p, aux: 0 });
+    }
+    if args.len() > 1 {
+        // Two or more arguments: only the pure-permutation shape is modeled, and
+        // only as a tail call. Every argument must be a bare parameter LOAD — a
+        // computed argument would need its own register and interacts with the
+        // permutation temp in ways no capture covers yet.
+        let params = parse_formals(seg, lo)?;
+        let mut arg_sources = Vec::with_capacity(args.len());
+        // Stream order is reverse source order, so slot `i` is stream `n-1-i`.
+        for slot in 0..args.len() {
+            let ops = &args[args.len() - 1 - slot];
+            let tok = match ops.as_slice() {
+                [IlOp::Load(t)] => *t,
+                _ => {
+                    return Err(Block {
+                        ctx: "call-arg-computed",
+                        byte: None,
+                        off: *p,
+                        aux: 0,
+                    })
+                }
+            };
+            match params.iter().position(|&t| t == tok) {
+                Some(ix) => arg_sources.push(ix),
+                // An argument that is not one of this function's formals (a local,
+                // a global, a nested call result).
+                None => {
+                    return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 })
+                }
+            }
+        }
+        // The two permutation shapes codegen cannot lower are rejected HERE rather
+        // than there, so the census and the emission gate cannot disagree about
+        // what is in class (the same reason the FP contraction and constant gates
+        // live in this file). Both are captured in `fixtures/cpp/il_call_multi.cpp`
+        // and explained at `c2_core::codegen::permute_args_text`.
+        //
+        // A value passed twice: c2 emits a dead `mr` through the temp, which no
+        // live-value-driven solver produces.
+        for (i, s) in arg_sources.iter().enumerate() {
+            if arg_sources[..i].contains(s) {
+                return Err(Block { ctx: "call-arg-duplicated", byte: None, off: *p, aux: 0 });
+            }
+        }
+        // Two or more disjoint cycles: c2 hoists every save (r11, then r10) and
+        // then has several clobber-free orders to choose between, which the one
+        // available capture does not pin down.
+        {
+            let n = arg_sources.len();
+            let mut seen = vec![false; n];
+            let mut cycles = 0usize;
+            for start in 0..n {
+                if seen[start] || arg_sources[start] == start {
+                    seen[start] = true;
+                    continue;
+                }
+                let mut at = start;
+                while !seen[at] {
+                    seen[at] = true;
+                    at = arg_sources[at];
+                }
+                cycles += 1;
+            }
+            if cycles > 1 {
+                return Err(Block { ctx: "call-arg-multicycle", byte: None, off: *p, aux: 0 });
+            }
+        }
+        // Only a terminal tail call: a post-op would consume the result and need
+        // the framed path, which does not model argument setup at all.
+        if seg.get(*p) != Some(&0x41) {
+            return Err(Block { ctx: "call-multiarg-postop", byte: None, off: *p, aux: 0 });
+        }
+        eat_return_plumbing(seg, p, true)?;
+        return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
+    }
+    let arg_ops = args.pop().expect("exactly one argument");
 
     // Post-op region. EITHER the return plumbing begins directly at its `41`
     // result-type marker (no post-op → an integer tail call `return g(<arg>)`),
@@ -1577,6 +1691,9 @@ impl IlBundle {
                         Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                         Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
+                        Ok(BodyShape::MultiArgTailCall { .. }) => {
+                            FnVerdict::InClass("multiarg-tail-call")
+                        }
                         Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
                         Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
                         Ok(BodyShape::EmptyBody) => FnVerdict::InClass("empty-body"),
@@ -1665,6 +1782,7 @@ impl IlBundle {
                         compare: None,
                         empty_body: false,
                         float_leaf: None,
+                        arg_sources: None,
                     });
                 }
                 // Tail calls: the callee is resolved BY TOKEN through the `.gl`
@@ -1683,6 +1801,7 @@ impl IlBundle {
                         compare: None,
                         empty_body: false,
                         float_leaf: None,
+                        arg_sources: None,
                     });
                 }
                 BodyShape::IntTailCall { params, arg_ops, callee_tok } => {
@@ -1696,6 +1815,25 @@ impl IlBundle {
                         compare: None,
                         empty_body: false,
                         float_leaf: None,
+                        arg_sources: None,
+                    });
+                }
+                // A multi-argument tail call is still a tail call — same resolved
+                // callee, same `b <callee>` — but its argument setup is a register
+                // permutation rather than an operand stream, so `ops` stays empty
+                // and `arg_sources` carries the mapping.
+                BodyShape::MultiArgTailCall { params, arg_sources, callee_tok } => {
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params,
+                        ops: Vec::new(),
+                        tail_call: Some(resolve(callee_tok)?),
+                        framed_call: None,
+                        compare: None,
+                        empty_body: false,
+                        float_leaf: None,
+                        arg_sources: Some(arg_sources),
                     });
                 }
                 // The framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
@@ -1721,6 +1859,7 @@ impl IlBundle {
                         compare: None,
                         empty_body: false,
                         float_leaf: None,
+                        arg_sources: None,
                     });
                 }
                 // W6: a comparison leaf carries no op stream — codegen emits its
@@ -1736,6 +1875,7 @@ impl IlBundle {
                         compare: None,
                         empty_body: true,
                         float_leaf: None,
+                        arg_sources: None,
                     });
                 }
                 BodyShape::FloatLeaf { params, ops, double } => {
@@ -1749,6 +1889,7 @@ impl IlBundle {
                         compare: None,
                         empty_body: false,
                         float_leaf: Some(double),
+                        arg_sources: None,
                     });
                 }
                 BodyShape::Compare(cmp) => {
@@ -1762,6 +1903,7 @@ impl IlBundle {
                         compare: Some(cmp),
                         empty_body: false,
                         float_leaf: None,
+                        arg_sources: None,
                     });
                 }
             }

@@ -1,11 +1,23 @@
 // Characterization: the CALL **argument region**, and the CALL header's type id.
 //
-// `call-token-0xB9` is the single largest census blocker (15.3% of blocked
-// functions in the P2b scan) and is a LOAD appearing where the one-argument
-// grammar expected the region to end; `call-token-0x33` (6.1%) is a literal
-// argument and `call-token-0x26` (3.4%) a symbol push. The accepted class today
-// handles only a bare void call and a *one*-argument integer tail call, so every
-// real call site refuses.
+// The accepted class handled only a bare void call and a *one*-argument integer
+// tail call, so every call site with two or more arguments refused, blocking at the
+// second `B9` — the `call-end-0xB9` census bucket.
+//
+// A correction to an earlier reading, kept here because it drove a wrong priority
+// call: the much larger `call-token-0xB9` bucket (18.0% of blocked functions, the
+// top one) is NOT this. `call-token` is the position immediately after `26 <tok>`
+// where the parser demands the `BD` CALL opcode, and `26 <tok>` is not only a
+// callee push — it is also the **destination push of an assignment**. So that
+// bucket is an assignment statement:
+//
+//   4c 4f 11 53  4f 01 0e 4f 01 0f  26 e6 09  b9 e3 09 86 41 74  32 86 41 74  4b
+//   body-start   two line markers   dst push  LOAD the parameter STORE        discard
+//
+// Together with `call-token-0x33` (a literal source, `x = 5`) and
+// `call-token-0x26` that is ~30% of blocked functions, and it is the statement
+// grammar (`docs/IL_STMT_GRAMMAR.md`), not the call grammar. The multi-argument
+// region is worth roughly 1.5%.
 //
 // Captured grammar (`int cc(int,int,int){ return gg(p1,p2,p3); }`):
 //

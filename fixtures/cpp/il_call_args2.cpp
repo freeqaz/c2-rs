@@ -17,10 +17,11 @@
 // that anchor both rows read the same way: **arguments are listed rightmost
 // first**.
 //
-// Part 2 — the type id. The CALL header was previously believed to be a fixed
-// ten bytes, `BD <3-byte return type> 00 80 01 10 00 00`. The trailing value is
-// really an escaped-varint **function-type id**, deduplicated by signature and
-// assigned per TU in declaration order of distinct function types:
+// Part 2 — what the CALL header's trailing field actually *is*. `parse_call_shape`
+// already decodes it as a varint rather than matching the literal
+// `00 80 01 10 00 00` (commit 2870fc1), so this is not a blocker; it is the
+// measurement that says what the decoded value means, which nothing recorded
+// before:
 //
 //   int g1(int)         -> 0x1001
 //   int g2(int,int)     -> 0x1003
@@ -29,10 +30,17 @@
 //                                      the type, not the symbol
 //   g1 called again     -> 0x1001
 //
-// Every other fixture in this corpus has exactly one callee signature, which is
-// the only reason a literal match ever worked. Real TUs have many signatures, so
-// the literal is itself a large-scale decode blocker — and one that fails closed,
-// so it costs coverage rather than correctness.
+// So it is a **function-type id**, deduplicated by signature and assigned per TU
+// in declaration order of distinct function types. Two consequences worth having
+// written down: the field cannot identify the callee (that has to come from the
+// `26 <tok>` symbol push, which is what the parser does), and its value is not
+// stable across TUs, so nothing may key on a particular number.
+//
+// One stale copy of the literal does survive, in `crates/c2-il/src/codec.rs`
+// (`CALL_CALLEE_ANCHOR`), whose comment still claims to mirror a `func::`
+// constant that no longer exists. That path is round-trip gated, so an
+// unrecognized header falls through to `Span::Opaque` and still re-encodes
+// byte-for-byte — it costs the IL-mutation search coverage, not correctness.
 
 int g2(int, int);
 int g1(int);

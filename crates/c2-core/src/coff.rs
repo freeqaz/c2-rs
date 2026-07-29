@@ -583,6 +583,47 @@ pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
 mod comdat_tests {
     use super::*;
 
+    /// An undefined external callee is emitted once per distinct *name*, not once
+    /// per call site, and every later site relocates against that first index.
+    ///
+    /// Invisible until a TU has two functions calling the same callee, which no
+    /// fixture did before `il_call_perm.cpp` — there the five functions after
+    /// `pass3` all call `g3` and the reference has exactly one `?g3@@YAHHHH@Z`.
+    /// Emitting per call site inflates `NumberOfSymbols` and shifts every symbol
+    /// index after the duplicate, so it is a whole-obj mismatch, not a local one.
+    #[test]
+    fn callee_symbols_are_emitted_once_per_distinct_name() {
+        let text = vec![0u8; 12];
+        let mk = |name: &'static str, off: u32, callee: &'static str| Function {
+            name,
+            text_offset: off,
+            call: Some(Call { reloc_offset: off, callee }),
+            is_float: false,
+            fp_refs: Vec::new(),
+        };
+        // Three functions, two of them calling the same callee.
+        let funcs = [mk("?a@@YAHXZ", 0, "?g@@YAHXZ"), mk("?b@@YAHXZ", 4, "?h@@YAHXZ"), mk("?c@@YAHXZ", 8, "?g@@YAHXZ")];
+        let obj = emit_obj("Z:\\t.obj", &funcs, &text);
+        let n_symbols = u32::from_le_bytes(obj[12..16].try_into().unwrap());
+        // 13 fixed + 3 defined + 2 distinct callees, NOT 3.
+        assert_eq!(n_symbols, 18, "expected one symbol per distinct callee");
+
+        // All three relocations are present, and the first and third share a
+        // symbol index while the second differs.
+        let n_reloc = u16::from_le_bytes(
+            obj[COFF_HEADER_LEN + 4 * SECTION_HEADER_LEN + 32..][..2].try_into().unwrap(),
+        );
+        assert_eq!(n_reloc, 3);
+        let prel = u32::from_le_bytes(
+            obj[COFF_HEADER_LEN + 4 * SECTION_HEADER_LEN + 24..][..4].try_into().unwrap(),
+        ) as usize;
+        let sym_of = |i: usize| {
+            u32::from_le_bytes(obj[prel + i * RELOC_LEN + 4..][..4].try_into().unwrap())
+        };
+        assert_eq!(sym_of(0), sym_of(2), "both `?g` call sites relocate to one symbol");
+        assert_ne!(sym_of(0), sym_of(1));
+    }
+
     /// The COMDAT shape, pinned against `system/utl/Spew.cpp` compiled with the
     /// dc3 workload's real flags (two empty functions, so two 4-byte `.text`
     /// sections each holding a single `blr`).
@@ -905,17 +946,32 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     // record needs its `__real@…` symbol index.
     let fltused_after = funcs.iter().position(|f| f.is_float);
     let mut next_idx: u32 = 13;
-    let mut plan: Vec<(usize, u32, Option<u32>, Vec<usize>)> = Vec::with_capacity(funcs.len());
+    // (function index, its defined symbol, the callee symbol to relocate against,
+    // whether *this* function introduces that callee symbol, constants introduced)
+    let mut plan: Vec<(usize, u32, Option<u32>, bool, Vec<usize>)> =
+        Vec::with_capacity(funcs.len());
     let mut real_idx: Vec<Option<u32>> = vec![None; pool.len()];
+    // An undefined external callee is emitted **once per distinct name**, after the
+    // symbol of the function that first calls it — every later call site relocates
+    // against that same index. Emitting one per call site instead is invisible
+    // until two functions in a TU call the same callee, which no fixture did before
+    // `il_call_perm.cpp`; the reference puts `?g3` after `pass3` and nothing after
+    // the four later functions that also call it.
+    let mut callee_syms: Vec<(&str, u32)> = Vec::new();
     for (i, f) in funcs.iter().enumerate() {
         let def_idx = next_idx;
         next_idx += 1;
-        let callee_idx = if f.call.is_some() {
-            let c = next_idx;
-            next_idx += 1;
-            Some(c)
-        } else {
-            None
+        let (callee_idx, new_callee) = match &f.call {
+            Some(call) => match callee_syms.iter().find(|(n, _)| *n == call.callee) {
+                Some((_, ix)) => (Some(*ix), false),
+                None => {
+                    let c = next_idx;
+                    next_idx += 1;
+                    callee_syms.push((call.callee, c));
+                    (Some(c), true)
+                }
+            },
+            None => (None, false),
         };
         // Constants this function introduces, in first-reference order.
         let mut introduced: Vec<usize> = Vec::new();
@@ -928,7 +984,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
                 introduced.push(k);
             }
         }
-        plan.push((i, def_idx, callee_idx, introduced));
+        plan.push((i, def_idx, callee_idx, new_callee, introduced));
         if fltused_after == Some(i) {
             next_idx += 1;
         }
@@ -942,7 +998,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     // carry the partner half's displacement in the symbol-index field, which is
     // always 0 because every constant owns its whole COMDAT section.
     let mut text_relocs: Vec<(u32, u32, u16)> = Vec::new();
-    for (i, _def, callee_idx, _intro) in &plan {
+    for (i, _def, callee_idx, _new, _intro) in &plan {
         let f = &funcs[*i];
         if let (Some(call), Some(cidx)) = (&f.call, callee_idx) {
             text_relocs.push((call.reloc_offset, *cidx, REL_PPC_REL24));
@@ -1049,11 +1105,12 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     // Per function: the defined FUNCTION symbol, then (if a tail call) the
     // undefined external callee symbol, then the constant pools this function
     // introduces (`.rdata` section symbol + aux, then the `__real@…` external).
-    for (i, _def, callee_idx, introduced) in &plan {
+    for (i, _def, _callee_idx, new_callee, introduced) in &plan {
         let f = &funcs[*i];
         emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
-        if let (Some(call), Some(_)) = (&f.call, callee_idx) {
-            // Undefined external callee: section 0 (UNDEF), FUNCTION type.
+        if let (Some(call), true) = (&f.call, *new_callee) {
+            // Undefined external callee: section 0 (UNDEF), FUNCTION type. Only
+            // the function that FIRST calls it emits the symbol.
             emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
         }
         for &k in introduced {

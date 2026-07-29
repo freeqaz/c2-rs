@@ -203,8 +203,16 @@ impl PortC2 {
                     ));
                 }
                 let (text, call) = if let Some(callee) = &f.tail_call {
-                    // The branch is at offset 0 of this function's own section.
-                    let (t, reloc) = codegen::int_tail_call_text(f, 0)?;
+                    // Each function's text starts at offset 0 of its own COMDAT
+                    // section, so the branch offset is just the setup's length.
+                    let (t, reloc) = if let Some(sources) = &f.arg_sources {
+                        let mut t = codegen::permute_args_text(sources)?;
+                        let branch_off = t.len() as u32;
+                        t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
+                        (t, branch_off)
+                    } else {
+                        codegen::int_tail_call_text(f, 0)?
+                    };
                     (t, Some(coff::Call { reloc_offset: reloc, callee: callee.as_str() }))
                 } else if f.empty_body {
                     (codegen::encode_blr().to_vec(), None)
@@ -277,7 +285,16 @@ impl PortC2 {
                 // (`ops` = the argument sub-expression) first computes the
                 // argument into r3, then branches (the branch, not the function
                 // start, is the reloc site).
-                let reloc_offset = if f.ops.is_empty() {
+                let reloc_offset = if let Some(sources) = &f.arg_sources {
+                    // Multi-argument tail call: the parameters are already in
+                    // r3.., so the setup is a register permutation (empty when the
+                    // call passes them straight through), then the branch.
+                    let moves = codegen::permute_args_text(sources)?;
+                    let branch_off = off + moves.len() as u32;
+                    text.extend_from_slice(&moves);
+                    text.extend_from_slice(&codegen::encode_tail_branch(branch_off));
+                    branch_off
+                } else if f.ops.is_empty() {
                     text.extend_from_slice(&codegen::encode_tail_branch(off));
                     off
                 } else {
