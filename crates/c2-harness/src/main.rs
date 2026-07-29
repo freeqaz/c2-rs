@@ -21,6 +21,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use c2_core::PortC2;
 use c2_harness::corpus::{self, CorpusConfig};
+use c2_harness::prefilter;
 use c2_harness::retrieval;
 use c2_harness::{
     all_fixtures, c1_replay_check, differential, oracle_selftest, C1ReplayReport, DiffReport,
@@ -60,6 +61,7 @@ fn main() -> ExitCode {
         "perf-scale" => cmd_perf_scale(rest),
         "corpus" => cmd_corpus(rest),
         "gap" => cmd_gap(rest),
+        "prefilter" => cmd_prefilter(rest),
         "retrieve" => cmd_retrieve(rest),
         "search" => cmd_search(rest),
         "help" | "-h" | "--help" => {
@@ -92,6 +94,7 @@ fn print_usage() {
          \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
          \x20 c2rs gap [opts]           real-workload gap scan: classify every TU, rank the blockers\n\
+         \x20 c2rs prefilter [opts]     reject-only pre-filter seam: one JSON verdict for one candidate TU\n\
          \x20 c2rs retrieve index <dir> P1.3: obj-retrieval structure of a corpus\n\
          \x20 c2rs retrieve eval <dir>  P1.3: obj->IL retrieval baseline, recall@k\n\
          \x20 c2rs search solve <cpp>   T-A: solve one d=1 instance from a fixture, byte-exact\n\
@@ -103,6 +106,8 @@ fn print_usage() {
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          gap options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
          \x20            [--replay-every N] [--jsonl PATH] (see scripts/gen_dc3_workload.sh)\n\
+         prefilter options: --source ARG (--flag F ... | --flags-file FILE) [--cwd DIR]\n\
+         \x20                 [--emit-obj PATH] [--compare-obj PATH] [--obj-name Z:\\\\...] [--work DIR]\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
          search options: --d 1|2|3 --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
          \n\
@@ -1592,5 +1597,128 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
         );
         return ExitCode::FAILURE;
     }
+    ExitCode::SUCCESS
+}
+
+/// `c2rs prefilter` — the reject-only pre-filter seam (see
+/// [`c2_harness::prefilter`] for the contract that binds callers).
+///
+/// Prints exactly one line of JSON on stdout and exits 0 for every well-formed
+/// verdict, including `not_implemented`. Exit 2 means "you called me wrong" —
+/// a caller must treat that as a hard error, never as a verdict.
+fn cmd_prefilter(rest: &[String]) -> ExitCode {
+    let mut source: Option<String> = None;
+    let mut flags: Vec<String> = Vec::new();
+    let mut flags_file: Option<PathBuf> = None;
+    let mut cwd: Option<PathBuf> = None;
+    let mut emit_obj: Option<PathBuf> = None;
+    let mut compare_obj: Option<PathBuf> = None;
+    let mut obj_name: Option<String> = None;
+    let mut work: Option<PathBuf> = None;
+
+    let mut it = rest.iter();
+    while let Some(a) = it.next() {
+        let mut val = |name: &str| -> Option<String> {
+            match it.next() {
+                Some(v) => Some(v.clone()),
+                None => {
+                    eprintln!("{name} needs a value");
+                    None
+                }
+            }
+        };
+        match a.as_str() {
+            "--source" => match val("--source") {
+                Some(v) => source = Some(v),
+                None => return ExitCode::from(2),
+            },
+            "--flag" => match val("--flag") {
+                Some(v) => flags.push(v),
+                None => return ExitCode::from(2),
+            },
+            "--flags-file" => match val("--flags-file") {
+                Some(v) => flags_file = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--cwd" => match val("--cwd") {
+                Some(v) => cwd = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--emit-obj" => match val("--emit-obj") {
+                Some(v) => emit_obj = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--compare-obj" => match val("--compare-obj") {
+                Some(v) => compare_obj = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--obj-name" => match val("--obj-name") {
+                Some(v) => obj_name = Some(v),
+                None => return ExitCode::from(2),
+            },
+            "--work" => match val("--work") {
+                Some(v) => work = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--schema" => {
+                println!("{}", prefilter::SCHEMA);
+                return ExitCode::SUCCESS;
+            }
+            other => {
+                eprintln!("unknown prefilter option: {other}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+
+    let Some(source) = source else {
+        eprintln!(
+            "usage: c2rs prefilter --source ARG (--flag F ... | --flags-file FILE) [--cwd DIR]\n\
+             \x20                    [--emit-obj PATH] [--compare-obj PATH] [--obj-name Z:\\...]\n\
+             \x20                    [--work DIR] | --schema\n\
+             Prints one line of JSON; exit 0 = verdict, exit 2 = usage error.\n\
+             Only verdict=\"reject\" licenses skipping a real compile."
+        );
+        return ExitCode::from(2);
+    };
+
+    if let Some(p) = &flags_file {
+        match std::fs::read_to_string(p) {
+            Ok(text) => {
+                for line in text.lines() {
+                    let line = line.trim();
+                    if line.is_empty() || line.starts_with('#') {
+                        continue;
+                    }
+                    flags.extend(line.split_whitespace().map(String::from));
+                }
+            }
+            Err(e) => {
+                eprintln!("cannot read --flags-file {}: {e}", p.display());
+                return ExitCode::from(2);
+            }
+        }
+    }
+    if flags.is_empty() {
+        eprintln!("prefilter needs the TU's real compile flags (--flag / --flags-file)");
+        return ExitCode::from(2);
+    }
+
+    let work = work.unwrap_or_else(|| scratch("prefilter"));
+    let owned_work = work.clone();
+    let req = prefilter::Request {
+        source,
+        flags,
+        cwd,
+        emit_obj,
+        compare_obj,
+        obj_name,
+        work,
+    };
+    let out = prefilter::run(Toolchain::locate().as_ref(), &req);
+    println!("{}", out.to_json());
+    // Captured IL bundles are large and this runs per candidate; the JSON (and
+    // the emitted obj, which lives wherever the caller asked) is the record.
+    let _ = std::fs::remove_dir_all(&owned_work);
     ExitCode::SUCCESS
 }

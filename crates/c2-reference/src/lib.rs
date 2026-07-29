@@ -425,26 +425,54 @@ impl Toolchain {
     /// exit code. The bundle base is scraped from the `-il <...>_CL_<hash>`
     /// token in the compiler's stdout/stderr.
     pub fn capture_il(&self, cpp: &Path, work_dir: &Path) -> io::Result<IlBundle> {
+        let z_src = to_wibo_path(&absolute(cpp)?);
+        let flags: Vec<String> = ["/Ox", "/GS-", "/c"].iter().map(|s| s.to_string()).collect();
+        self.capture_il_with(&z_src, work_dir, &flags, None)
+    }
+
+    /// [`Toolchain::capture_il`] generalized to an arbitrary compile profile —
+    /// the seam for **real-workload front-end-only capture**: a project TU
+    /// needs the project's own `/O1 /Oi /EHsc /I…` flags and a cwd inside the
+    /// project so relative includes resolve.
+    ///
+    /// * `src_arg` is passed to `cl.exe` verbatim (a `Z:\…` path, or a path
+    ///   relative to `cwd` — relative is build-faithful: it is what gets baked
+    ///   into the `.gl` file and `.debug$S`).
+    /// * `flags` replace the default `/Ox /GS- /c` (they should include `/c`);
+    ///   `/Bd /d2nop` are always prepended by this method.
+    /// * `cwd` is the working directory for the compile, if given.
+    ///
+    /// Unlike [`Toolchain::capture_reference_with`] this does **not** need
+    /// `strace` and does **not** produce a reference obj: c2 is nop'd out, so
+    /// the cost is the driver + front end only. That is what makes it usable as
+    /// a per-candidate step rather than a second full compile.
+    pub fn capture_il_with(
+        &self,
+        src_arg: &str,
+        work_dir: &Path,
+        flags: &[String],
+        cwd: Option<&Path>,
+    ) -> io::Result<IlBundle> {
         std::fs::create_dir_all(work_dir)?;
         let work_abs = absolute(work_dir)?;
 
-        let z_src = to_wibo_path(&absolute(cpp)?);
         let z_obj = to_wibo_path(&work_abs.join("il_capture.obj"));
 
-        let output = Command::new(&self.wibo)
-            .arg(&self.cl_exe)
-            .arg("/Bd")
-            .arg("/d2nop")
-            .arg("/Ox")
-            .arg("/GS-")
-            .arg("/c")
-            .arg(format!("/Fo{z_obj}"))
-            .arg(&z_src)
+        let mut cmd = Command::new(&self.wibo);
+        cmd.arg(&self.cl_exe).arg("/Bd").arg("/d2nop");
+        for f in flags {
+            cmd.arg(f);
+        }
+        cmd.arg(format!("/Fo{z_obj}"))
+            .arg(src_arg)
             // Land the _CL_* bundle in our private work dir, deterministically.
             .env("TMP", &work_abs)
             .env("TEMP", &work_abs)
-            .env("WIBO_FS_CACHE", "1")
-            .output()?;
+            .env("WIBO_FS_CACHE", "1");
+        if let Some(dir) = cwd {
+            cmd.current_dir(dir);
+        }
+        let output = cmd.output()?;
         // NOTE: non-zero exit is expected (c2 aborted on /d2nop). Do NOT treat
         // it as failure — the IL files are the success signal.
 

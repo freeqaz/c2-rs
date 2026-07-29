@@ -23,6 +23,7 @@ use c2_reference::Toolchain;
 pub mod corpus;
 pub mod gap;
 pub mod perf;
+pub mod prefilter;
 pub mod retrieval;
 pub mod search;
 
