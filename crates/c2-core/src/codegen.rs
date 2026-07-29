@@ -412,10 +412,12 @@ pub fn float_leaf_text(
              use; that scheduler is not modeled; out of class",
         ));
     }
-    // A constant divisor never survives to the backend as a division — c1xx
-    // strength-reduces it to a reciprocal multiply (`a/3.0f/7.0f` pools
-    // `__real@3d430c31`, i.e. 1/21, and emits one `fmuls`). So a Div against a
-    // literal means the IL is telling us something the model does not expect.
+    // A constant divisor does not survive as a division: **c2** — not c1xx —
+    // strength-reduces it to a reciprocal multiply (`a/3.0f/7.0f` reaches the
+    // backend with both literals and leaves it having pooled `__real@3d430c31`,
+    // i.e. 1/21, and emitted one `fmuls`). That is the whole reason this gate
+    // exists: the IL still holds the division, so seeing one here is expected,
+    // and lowering it as `fdivs` would be the mis-emit.
     if n_consts > 0 && func.ops.iter().any(|o| matches!(o, IlOp::Div)) {
         return Err(out_of_class(
             "FP division involving a pooled constant: c2 strength-reduces a \

@@ -686,8 +686,12 @@ fn read_varint(seg: &[u8], p: &mut usize) -> Option<i32> {
 /// module end `4F 02 20 00 · 4F 01 NN · 4D` and trailing zero-fill (the last
 /// function).
 fn eat_return_plumbing(seg: &[u8], p: &mut usize, has_result_type: bool) -> Result<(), Block> {
-    if has_result_type && !eat(seg, p, &[0x41, INT_TYPE[0], INT_TYPE[1], INT_TYPE[2]]) {
-        return Err(blk(seg, *p, "result-type"));
+    if has_result_type {
+        let save = *p;
+        if !(eat_byte(seg, p, 0x41) && eat_int_like(seg, p)) {
+            *p = save;
+            return Err(blk(seg, *p, "result-type"));
+        }
     }
     // ASSIGN: 3A <tok>
     if !eat_byte(seg, p, 0x3A) {
@@ -755,9 +759,10 @@ fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
                 let (tok, w) =
                     read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-load-tok"))?;
                 *p += w;
-                if !eat(seg, p, &INT_TYPE) {
-                    // non-int operand → out of class. Report at the LOAD so the
-                    // census bucket reads as a typed-operand gap, not a stray byte.
+                if !eat_int_like(seg, p) {
+                    // non-int-like operand → out of class. Report at the LOAD so
+                    // the census bucket reads as a typed-operand gap, not a stray
+                    // byte.
                     return Err(blk_type(seg, *p, start, "expr-load-type"));
                 }
                 ops.push(IlOp::Load(tok));
@@ -766,7 +771,7 @@ fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
                 // LITERAL: 33 <int-type> <varint>
                 let start = *p;
                 *p += 1;
-                if !eat(seg, p, &INT_TYPE) {
+                if !eat_int_like(seg, p) {
                     return Err(blk_type(seg, *p, start, "expr-lit-type"));
                 }
                 ops.push(IlOp::Lit(
@@ -909,6 +914,29 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
 /// opcodes are sign-agnostic, so this triple is the *only* thing that says a
 /// comparison is unsigned.
 const UINT_TYPE: [u8; 3] = [0x86, 0x42, 0x75];
+
+/// `long` (`86 41 12`) and `unsigned long` (`86 42 22`). On this target they are
+/// 32-bit, and c2 emits **byte-identical** code for them and for `int`/`unsigned`
+/// — see `docs/IL_TYPE_TAGS.md` §3.1.
+const LONG_TYPE: [u8; 3] = [0x86, 0x41, 0x12];
+const ULONG_TYPE: [u8; 3] = [0x86, 0x42, 0x22];
+
+/// The 32-bit integer operand types that are interchangeable *for the operators
+/// this parser accepts* (`+`, `-`, `*` and add-immediate folding).
+///
+/// Signedness is not a distinction PPC's `add`/`subf`/`mullw` make, and the
+/// captures bear that out: `a+b+c`, `a-b`, `a*b*c` and `a+7` each produce exactly
+/// the same words for `int`, `unsigned`, `long` and a mixed `int`/`unsigned`
+/// expression (`docs/IL_TYPE_TAGS.md` §3.1). It is **not** a general licence to
+/// ignore signedness — division and the shift-right family do differ, and both
+/// are refused elsewhere — nor does it extend to the narrow types, whose
+/// extension placement depends on the operator *and* the result type (§3.2).
+const INT_LIKE_TYPES: [[u8; 3]; 4] = [INT_TYPE, UINT_TYPE, LONG_TYPE, ULONG_TYPE];
+
+/// Consume any one of [`INT_LIKE_TYPES`] at `p`, reporting whether it matched.
+fn eat_int_like(seg: &[u8], p: &mut usize) -> bool {
+    INT_LIKE_TYPES.iter().any(|t| eat(seg, p, t))
+}
 
 /// The `float` operand type (`86 45 40`) and the `double` one (`88 85 41`).
 /// Note the *literal* forms differ again ([`FLOAT_LIT_TYPE`] /
