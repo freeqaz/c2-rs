@@ -29,9 +29,16 @@ Any run that degrades a number in this table is a regression, not noise.
 | The port is byte-exact on its accepted class, fail-closed outside it | **17/31 fixtures Match**, rest NotImplemented, **0 mismatch** — and 0 mismatch across all 878 real TUs | `c2rs diff`, `c2rs perf`, `c2rs gap` |
 | **Real-corpus TU coverage** (the tripwire metric, §5) | **match 6 / 878 (0.7%)** — nonzero since 2026-07-29 (R1) | `c2rs gap …` |
 | **Real-corpus coverage, per function** (the headline numerator, P2b) | **78,028 / 2,462,571 functions in class (3.17%)** | `c2rs gap …` (FUNCTION CENSUS block), `c2rs census <cpp>` |
-| Port speed where it works | geomean ~1524× per obj (2.6–3.4 µs vs ~4.3 ms); ~897k objs/s at 32 threads vs ~3.1k for real c2 | `c2rs perf`, `c2rs perf-scale` |
+| Port speed where it works | geomean **1081× per obj** over the 17 now-matching fixtures (2.1–5.0 µs vs ~4.0 ms); ~897k objs/s at 32 threads vs ~3.1k for real c2 | `c2rs perf`, `c2rs perf-scale` |
 | Test suite | green with toolchain present | `cargo test --workspace --release` |
 | IL codec round-trip | `encode(parse(b)) == b` on the full fixture spread, fail-closed | `il_roundtrip.rs` (in the suite) |
+
+> **On that speed figure**: an earlier revision published ~1524×, measured over
+> 13 matching fixtures. The set is now 17 — it gained the empty TU (1841×), the
+> empty-function TU (1122×), the W6 compare leaves and the `*`/`-` chains
+> (852×) — so the two geomeans are **not comparable**, and the drop is a
+> change of population, not a regression. Any per-fixture number that got
+> slower would be; none did. Quote this metric with its fixture count attached.
 
 The replay-soundness row is the foundation: the *reference* side of every
 differential is real c2 on real code, so every other number in this doc is
