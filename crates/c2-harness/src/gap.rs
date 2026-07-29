@@ -100,6 +100,13 @@ pub struct TuResult {
     pub fn_names: usize,
     /// Standalone-c2 replay soundness check: `None` = not run this TU.
     pub replay_ok: Option<bool>,
+    /// **P2b function-level census**: `.ex` function segments in this TU.
+    pub fn_total: usize,
+    /// How many of those parse as a modeled shape (the true in-class numerator;
+    /// `fn_total - fn_in_class` are blocked).
+    pub fn_in_class: usize,
+    /// Blocking-feature counts for this TU's out-of-class functions.
+    pub fn_blockers: BTreeMap<String, usize>,
 }
 
 /// Aggregated scan report.
@@ -117,6 +124,31 @@ impl GapReport {
         let mut map: BTreeMap<&str, usize> = BTreeMap::new();
         for r in self.results.iter().filter(|r| r.class == class) {
             *map.entry(r.reason.as_str()).or_insert(0) += 1;
+        }
+        let mut v: Vec<(String, usize)> =
+            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// **P2b headline**: (functions in class, functions total) across the scan.
+    /// Unlike the TU classes this is monotone and fine-grained — it moves on
+    /// every widening step, where TU-level `match` stays 0 until a whole TU
+    /// happens to be in class.
+    pub fn fn_coverage(&self) -> (usize, usize) {
+        self.results
+            .iter()
+            .fold((0, 0), |(a, b), r| (a + r.fn_in_class, b + r.fn_total))
+    }
+
+    /// Blocking features across all scanned functions, most frequent first.
+    /// **This histogram is the widening order** (docs/ROADMAP.md §G5/P2b).
+    pub fn fn_blocker_histogram(&self) -> Vec<(String, usize)> {
+        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
+        for r in &self.results {
+            for (k, n) in &r.fn_blockers {
+                *map.entry(k.as_str()).or_insert(0) += n;
+            }
         }
         let mut v: Vec<(String, usize)> =
             map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
@@ -188,6 +220,9 @@ fn scan_one(
         ex_len: 0,
         fn_names: 0,
         replay_ok: None,
+        fn_total: 0,
+        fn_in_class: 0,
+        fn_blockers: BTreeMap::new(),
     };
 
     // 1. Capture: real flags, real cwd, strace keeps bundle + obj.
@@ -207,6 +242,20 @@ fn scan_one(
         .get("gl")
         .map(|gl| c2_il::mangled_names(gl).len())
         .unwrap_or(0);
+
+    // 1b. P2b function-level census — runs regardless of the TU class below, so
+    //     even a `vocab-gap` TU contributes its per-function ranking. This is
+    //     the only measurement that moves before whole TUs come in class.
+    if let Some(census) = captured.bundle.function_census() {
+        res.fn_total = census.len();
+        for f in &census {
+            if f.verdict.in_class() {
+                res.fn_in_class += 1;
+            } else {
+                *res.fn_blockers.entry(f.verdict.key()).or_insert(0) += 1;
+            }
+        }
+    }
 
     // 2. Optional soundness lane: standalone-c2 replay must reproduce the
     //    pipeline obj on this real bundle.
@@ -320,9 +369,15 @@ pub fn gap_scan(
     if let Some(path) = &cfg.jsonl {
         let mut f = std::fs::File::create(path)?;
         for r in &results {
+            let blockers = r
+                .fn_blockers
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -333,6 +388,9 @@ pub fn gap_scan(
                     None => "null".to_string(),
                     Some(b) => b.to_string(),
                 },
+                r.fn_total,
+                r.fn_in_class,
+                blockers,
             )?;
         }
     }
@@ -358,9 +416,8 @@ mod tests {
         assert_eq!(key, "wibo: something exploded");
     }
 
-    #[test]
-    fn report_ranks_reasons_by_count() {
-        let mk = |reason: &str| TuResult {
+    fn mk(reason: &str) -> TuResult {
+        TuResult {
             src: "s".into(),
             class: TuClass::CodegenGap,
             reason: reason.into(),
@@ -368,7 +425,14 @@ mod tests {
             ex_len: 0,
             fn_names: 0,
             replay_ok: None,
-        };
+            fn_total: 0,
+            fn_in_class: 0,
+            fn_blockers: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn report_ranks_reasons_by_count() {
         let rep = GapReport {
             results: vec![mk("b"), mk("a"), mk("b")],
         };
@@ -377,5 +441,27 @@ mod tests {
             vec![("b".to_string(), 2), ("a".to_string(), 1)]
         );
         assert_eq!(rep.count(TuClass::Match), 0);
+    }
+
+    #[test]
+    fn fn_census_aggregates_across_tus() {
+        // Two TUs: 10 functions each, 3 + 4 in class, blockers summed by key.
+        // The point of P2b: coverage is measurable (7/20) even though NO whole
+        // TU is in class, so both TUs classify as `codegen-gap` above.
+        let mut a = mk("x");
+        a.fn_total = 10;
+        a.fn_in_class = 3;
+        a.fn_blockers.insert("expr-cmp-gt".into(), 5);
+        a.fn_blockers.insert("expr-shift".into(), 2);
+        let mut b = mk("x");
+        b.fn_total = 10;
+        b.fn_in_class = 4;
+        b.fn_blockers.insert("expr-cmp-gt".into(), 6);
+        let rep = GapReport { results: vec![a, b] };
+        assert_eq!(rep.fn_coverage(), (7, 20));
+        assert_eq!(
+            rep.fn_blocker_histogram(),
+            vec![("expr-cmp-gt".to_string(), 11), ("expr-shift".to_string(), 2)]
+        );
     }
 }

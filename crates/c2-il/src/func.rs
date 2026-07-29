@@ -261,6 +261,100 @@ enum BodyShape {
     FramedCall { add_k: i32 },
 }
 
+/// **Why** a function segment fell outside the modeled class (P2b census).
+///
+/// The positive parser fails closed at the *first* byte it cannot account for.
+/// Recording that point — the grammar production it was in, the offending byte,
+/// and the offset — turns an opaque `None` into a rankable census key: over a
+/// real workload the histogram of [`Block::feature`] *is* the widening order
+/// (docs/ROADMAP.md §G5/P2b). Purely diagnostic: acceptance is unchanged, and
+/// [`parse_segment`] still returns a bare `Option`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Block {
+    /// The grammar production the parse was inside (`"expr"`, `"call-end"`, …).
+    pub ctx: &'static str,
+    /// The byte that could not be consumed (`None` at end-of-segment).
+    pub byte: Option<u8>,
+    /// Byte offset within the function segment.
+    pub off: usize,
+    /// Context payload for the operand-*type* blocks, where the single blocking
+    /// byte is uninformative: an operand's 3-byte inline type differs from the
+    /// modeled `86 41 74` (int), but the first byte `86` is shared by every
+    /// type, so reporting it buckets `unsigned`, `float`, `pointer`, … together.
+    /// Packed big-endian in the low 24 bits; 0 when unused.
+    pub aux: u32,
+}
+
+impl Block {
+    /// A short, stable census key naming the blocking *feature*.
+    ///
+    /// Operand-stream opcodes get a named bucket when the byte's meaning is
+    /// verified against a live capture, and a `expr-op-0xNN` bucket otherwise —
+    /// the point of the census is to *measure* the unknown vocabulary, so an
+    /// honest hex bucket is a result, not a placeholder. Structural blocks
+    /// (call-end, return plumbing, formals) name their production instead.
+    pub fn feature(self) -> String {
+        // Operand-type blocks report the whole 3-byte type: that triple *is* the
+        // feature (int vs unsigned vs float vs pointer), and it is what the next
+        // widening step must teach `parse_expr` to accept.
+        if self.aux != 0 {
+            return format!(
+                "{}-{:02X}{:02X}{:02X}",
+                self.ctx,
+                (self.aux >> 16) & 0xFF,
+                (self.aux >> 8) & 0xFF,
+                self.aux & 0xFF
+            );
+        }
+        let b = match self.byte {
+            Some(b) => b,
+            None => return format!("{}:eof", self.ctx),
+        };
+        if self.ctx == "expr" {
+            // Verified operand-stream opcodes (see docs/IL_BUNDLE_MVP.md and the
+            // `.ex` grammar table). Anything else is reported by its byte.
+            let named = match b {
+                0x24 => Some("cmp-gt"),
+                0x25 => Some("cmp-ge"),
+                0x22 => Some("cmp-lt"),
+                0x23 => Some("cmp-le"),
+                0x20 => Some("cmp-eq"),
+                0x21 => Some("cmp-ne"),
+                0x09 => Some("shift"),
+                0x0B => Some("bitwise"),
+                0x43 => Some("ternary"),
+                0x26 => Some("call-in-expr"),
+                0x05 => Some("div"),
+                0x06 => Some("mod"),
+                _ => None,
+            };
+            return match named {
+                Some(n) => format!("expr-{n}"),
+                None => format!("expr-op-0x{b:02X}"),
+            };
+        }
+        format!("{}-0x{b:02X}", self.ctx)
+    }
+}
+
+/// Build a [`Block`] at the current parse position.
+fn blk(seg: &[u8], p: usize, ctx: &'static str) -> Block {
+    Block { ctx, byte: seg.get(p).copied(), off: p, aux: 0 }
+}
+
+/// Build an operand-*type* [`Block`]: `p` points at the 3-byte inline type that
+/// is not the modeled int (`86 41 74`), `report_at` at the operand it belongs
+/// to. Packs the triple into [`Block::aux`] so the census buckets by type.
+fn blk_type(seg: &[u8], p: usize, report_at: usize, ctx: &'static str) -> Block {
+    let g = |i: usize| seg.get(p + i).copied().unwrap_or(0) as u32;
+    Block {
+        ctx,
+        byte: seg.get(p).copied(),
+        off: report_at,
+        aux: (g(0) << 16) | (g(1) << 8) | g(2),
+    }
+}
+
 /// Advance `*p` past `pat` iff the stream matches it there; return whether it
 /// did. The single primitive the positive parser is built on — every grammar
 /// token is consumed through an `eat` (fixed pattern) or a typed read, so an
@@ -326,47 +420,52 @@ fn read_varint(seg: &[u8], p: &mut usize) -> Option<i32> {
 /// segment end (a non-last function, split before the next `4F 1F`) OR the
 /// module end `4F 02 20 00 · 4F 01 NN · 4D` and trailing zero-fill (the last
 /// function).
-fn eat_return_plumbing(seg: &[u8], p: &mut usize, tw: usize, has_result_type: bool) -> Option<()> {
+fn eat_return_plumbing(
+    seg: &[u8],
+    p: &mut usize,
+    tw: usize,
+    has_result_type: bool,
+) -> Result<(), Block> {
     if has_result_type && !eat(seg, p, &[0x41, INT_TYPE[0], INT_TYPE[1], INT_TYPE[2]]) {
-        return None;
+        return Err(blk(seg, *p, "result-type"));
     }
     // ASSIGN: 3A <tok>
     if !eat_byte(seg, p, 0x3A) {
-        return None;
+        return Err(blk(seg, *p, "assign"));
     }
-    read_token(seg, *p, tw)?;
+    read_token(seg, *p, tw).ok_or(blk(seg, *p, "assign-tok"))?;
     *p += tw;
     eat_opt_stmt_marker(seg, p);
     // RETURN: 54 02 29 <tok>
     if !eat(seg, p, &[0x54, 0x02, 0x29]) {
-        return None;
+        return Err(blk(seg, *p, "return"));
     }
-    read_token(seg, *p, tw)?;
+    read_token(seg, *p, tw).ok_or(blk(seg, *p, "return-tok"))?;
     *p += tw;
     // Function-tail: 4F 12 · 47 54 01 54 00
     if !eat(seg, p, &[0x4F, 0x12]) || !eat(seg, p, &[0x47, 0x54, 0x01, 0x54, 0x00]) {
-        return None;
+        return Err(blk(seg, *p, "fn-tail"));
     }
     // A non-last function's segment ends exactly here (the split cuts before the
     // next `4F 1F`). Otherwise the last function carries the module end.
     if *p == seg.len() {
-        return Some(());
+        return Ok(());
     }
     if !eat(seg, p, &[0x4F, 0x02, 0x20, 0x00]) || !eat(seg, p, &[0x4F, 0x01]) {
-        return None;
+        return Err(blk(seg, *p, "module-end"));
     }
     *p += 1; // module label index NN
     if !eat_byte(seg, p, 0x4D) {
-        return None;
+        return Err(blk(seg, *p, "module-end"));
     }
     // Trailing zero-fill to the end of `.ex`.
     while seg.get(*p) == Some(&0) {
         *p += 1;
     }
     if *p == seg.len() {
-        Some(())
+        Ok(())
     } else {
-        None
+        Err(blk(seg, *p, "trailing"))
     }
 }
 
@@ -381,31 +480,37 @@ fn eat_return_plumbing(seg: &[u8], p: &mut usize, tw: usize, has_result_type: bo
 /// `stop` is only ever tested at a token boundary, so it cannot collide with an
 /// int-type byte (`86 41 74` — the `41`/`74` are consumed inside the LOAD/LIT
 /// arm) or a literal varint (consumed inside the `33` arm).
-fn parse_expr(seg: &[u8], p: &mut usize, tw: usize, stop: u8) -> Option<Vec<IlOp>> {
+fn parse_expr(seg: &[u8], p: &mut usize, tw: usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     let mut ops = Vec::new();
     loop {
-        let b = *seg.get(*p)?;
+        let b = *seg.get(*p).ok_or(blk(seg, *p, "expr"))?;
         if b == stop {
             break;
         }
         match b {
             0xB9 => {
                 // LOAD <token> <int-type>
+                let start = *p;
                 *p += 1;
-                let tok = read_token(seg, *p, tw)?;
+                let tok = read_token(seg, *p, tw).ok_or(blk(seg, *p, "expr-load-tok"))?;
                 *p += tw;
                 if !eat(seg, p, &INT_TYPE) {
-                    return None; // non-int operand → out of class
+                    // non-int operand → out of class. Report at the LOAD so the
+                    // census bucket reads as a typed-operand gap, not a stray byte.
+                    return Err(blk_type(seg, *p, start, "expr-load-type"));
                 }
                 ops.push(IlOp::Load(tok));
             }
             0x33 => {
                 // LITERAL: 33 <int-type> <varint>
+                let start = *p;
                 *p += 1;
                 if !eat(seg, p, &INT_TYPE) {
-                    return None; // non-int literal → out of class
+                    return Err(blk_type(seg, *p, start, "expr-lit-type"));
                 }
-                ops.push(IlOp::Lit(read_varint(seg, p)?));
+                ops.push(IlOp::Lit(
+                    read_varint(seg, p).ok_or(blk(seg, *p, "expr-lit-varint"))?,
+                ));
             }
             0x02 => {
                 *p += 1;
@@ -419,13 +524,13 @@ fn parse_expr(seg: &[u8], p: &mut usize, tw: usize, stop: u8) -> Option<Vec<IlOp
                 *p += 1;
                 ops.push(IlOp::Mul);
             }
-            _ => return None,
+            _ => return Err(blk(seg, *p, "expr")),
         }
     }
     if ops.is_empty() {
-        None
+        Err(blk(seg, *p, "expr-empty"))
     } else {
-        Some(ops)
+        Ok(ops)
     }
 }
 
@@ -433,18 +538,23 @@ fn parse_expr(seg: &[u8], p: &mut usize, tw: usize, stop: u8) -> Option<Vec<IlOp
 /// marker (before the `LO` marker), a run of `2D <token>` entries emitted in
 /// *reverse* of declaration order. An empty list is legitimate (a zero-param
 /// `int konst(){return 42;}` still emits `46` immediately before `LO`).
-fn parse_formals(seg: &[u8], lo: usize, tw: usize) -> Option<Vec<u16>> {
-    let f = find_byte(&seg[..lo], 0x46)?;
+fn parse_formals(seg: &[u8], lo: usize, tw: usize) -> Result<Vec<u16>, Block> {
+    let f = find_byte(&seg[..lo], 0x46).ok_or(Block {
+        ctx: "formals-marker",
+        byte: None,
+        off: lo,
+        aux: 0,
+    })?;
     let mut p = f + 1;
     let mut rev = Vec::new();
     while seg.get(p) == Some(&0x2D) {
         p += 1;
-        let tok = read_token(seg, p, tw)?;
+        let tok = read_token(seg, p, tw).ok_or(blk(seg, p, "formals-tok"))?;
         p += tw;
         rev.push(tok);
     }
     rev.reverse();
-    Some(rev)
+    Ok(rev)
 }
 
 /// **The positive whole-body parser (W4b2-v).** Parse a single `.ex` function
@@ -480,15 +590,27 @@ fn parse_formals(seg: &[u8], lo: usize, tw: usize) -> Option<Vec<u16>> {
 /// second literal/a second call, all reject. The `callee` name is not in `.ex`;
 /// the caller pairs it from `.gl`.
 fn parse_segment(seg: &[u8], tw: usize) -> Option<BodyShape> {
-    let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11])?;
+    parse_segment_detail(seg, tw).ok()
+}
+
+/// [`parse_segment`] with the fail-closed *reason* preserved (P2b census).
+/// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
+/// can never disagree with the gate about what is in class.
+fn parse_segment_detail(seg: &[u8], tw: usize) -> Result<BodyShape, Block> {
+    let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or(Block {
+        ctx: "lo-marker",
+        byte: None,
+        off: 0,
+        aux: 0,
+    })?;
     let mut p = lo + 3;
     // 'SS' statement-start, then an optional statement/label marker.
     if !eat_byte(seg, &mut p, 0x53) {
-        return None;
+        return Err(blk(seg, p, "stmt-start"));
     }
     eat_opt_stmt_marker(seg, &mut p);
 
-    match *seg.get(p)? {
+    match *seg.get(p).ok_or(blk(seg, p, "body"))? {
         // Call shapes all open with a `26 <tok>` function/result-temp ref.
         0x26 => parse_call_shape(seg, &mut p, tw, lo),
         // Straight-line arithmetic opens with a LOAD or a bare literal.
@@ -496,9 +618,9 @@ fn parse_segment(seg: &[u8], tw: usize) -> Option<BodyShape> {
             let ops = parse_expr(seg, &mut p, tw, 0x41)?;
             eat_return_plumbing(seg, &mut p, tw, true)?;
             let params = parse_formals(seg, lo, tw)?;
-            Some(BodyShape::StraightLine { params, ops })
+            Ok(BodyShape::StraightLine { params, ops })
         }
-        _ => None,
+        _ => Err(blk(seg, p, "body")),
     }
 }
 
@@ -507,20 +629,25 @@ fn parse_segment(seg: &[u8], tw: usize) -> Option<BodyShape> {
 /// or arg-setup, plus the `g(a)+0` identity fold), or the framed
 /// `return g(a) + k` (k ≠ 0). See [`parse_segment`] for the grammar;
 /// fail-closed at every step. `lo` locates the formals for the arg-setup.
-fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize, lo: usize) -> Option<BodyShape> {
+fn parse_call_shape(
+    seg: &[u8],
+    p: &mut usize,
+    tw: usize,
+    lo: usize,
+) -> Result<BodyShape, Block> {
     // 26 <tok> function/result ref.
     if !eat_byte(seg, p, 0x26) {
-        return None;
+        return Err(blk(seg, *p, "call-ref"));
     }
-    read_token(seg, *p, tw)?;
+    read_token(seg, *p, tw).ok_or(blk(seg, *p, "call-ref-tok"))?;
     *p += tw;
     // The fixed 10-byte CALL token: BD <3-byte return type> <anchor>.
     if !eat_byte(seg, p, 0xBD) {
-        return None;
+        return Err(blk(seg, *p, "call-token"));
     }
     *p += 3; // 3-byte return type (void=82 07 03, int=86 41 74); anchor pins it
     if !eat(seg, p, &CALL_CALLEE_ANCHOR) {
-        return None;
+        return Err(blk(seg, *p, "call-anchor"));
     }
 
     // VOID terminal tail call: the `4C 4B` void call-end immediately follows the
@@ -529,7 +656,7 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize, lo: usize) -> Option<B
     // second `26` call or a `B9` statement stands where the return plumbing must.
     if eat(seg, p, &[0x4C, 0x4B]) {
         eat_return_plumbing(seg, p, tw, false)?;
-        return Some(BodyShape::VoidTailCall);
+        return Ok(BodyShape::VoidTailCall);
     }
 
     // INT call. The argument region is a single modeled sub-expression producing
@@ -539,7 +666,8 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize, lo: usize) -> Option<B
     // `g(a)+k` and `g(a+1)` share this region; they diverge at the post-op.
     let arg_ops = parse_expr(seg, p, tw, 0x55)?;
     if !eat_byte(seg, p, 0x55) || !eat(seg, p, &INT_TYPE) || !eat_byte(seg, p, 0x4C) {
-        return None; // a call-argument region whose call-end we do not model
+        // a call-argument region whose call-end we do not model
+        return Err(blk(seg, *p, "call-end"));
     }
 
     // Post-op region. EITHER the return plumbing begins directly at its `41`
@@ -551,21 +679,22 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize, lo: usize) -> Option<B
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
         eat_return_plumbing(seg, p, tw, true)?;
         let params = parse_formals(seg, lo, tw)?;
-        return Some(BodyShape::IntTailCall { params, arg_ops });
+        return Ok(BodyShape::IntTailCall { params, arg_ops });
     }
     // Post-op `+ k`: EXACTLY one literal `33 <int> k` immediately followed by
     // ADD. A second call (`g(a)+g(1)` → `26 …`), a second literal (`g(a)+1+2` →
     // a second `33 …`), or SUB/MUL (`03`/`04`) all fail one of these `eat`s.
     if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
-        return None;
+        return Err(blk(seg, *p, "call-postop"));
     }
-    let k = read_varint(seg, p)?;
+    let k = read_varint(seg, p).ok_or(blk(seg, *p, "call-postop-varint"))?;
     if !eat_byte(seg, p, 0x02) {
-        return None; // non-ADD post-op → non-commutative / strength-reduced
+        // non-ADD post-op → non-commutative / strength-reduced
+        return Err(blk(seg, *p, "call-postop-op"));
     }
     // `k` must fit a single signed-16-bit `addi` immediate (the 0x24 frame).
     if !(-0x8000..=0x7FFF).contains(&k) {
-        return None;
+        return Err(Block { ctx: "call-postop-wide", byte: None, off: *p, aux: 0 });
     }
     eat_return_plumbing(seg, p, tw, true)?;
 
@@ -576,16 +705,16 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, tw: usize, lo: usize) -> Option<B
     // 6-section framed obj (which would mis-emit a frame the reference elides).
     if k == 0 {
         let params = parse_formals(seg, lo, tw)?;
-        return Some(BodyShape::IntTailCall { params, arg_ops });
+        return Ok(BodyShape::IntTailCall { params, arg_ops });
     }
     // A genuine `+ k` (k ≠ 0) is a framed non-leaf call — but the 6-section
     // framed path models only a **bare passthrough argument** (`g(a) + k`), not
     // arg-setup. `g(a+1) + 1` (a computed argument AND a framed post-op) is out
     // of class → reject (fail closed), never a mis-emitted framed obj.
     if matches!(arg_ops.as_slice(), [IlOp::Load(_)]) {
-        return Some(BodyShape::FramedCall { add_k: k });
+        return Ok(BodyShape::FramedCall { add_k: k });
     }
-    None
+    Err(Block { ctx: "framed-computed-arg", byte: None, off: *p, aux: 0 })
 }
 
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
@@ -596,6 +725,109 @@ const FN_START: [u8; 2] = [0x4F, 0x1F];
 /// Split the `.ex` stream into per-function byte segments at each `4F 1F`
 /// function-start marker. Segment `k` runs from marker `k` to marker `k+1`
 /// (the last to end-of-stream).
+/// One function's census verdict (P2b). Either the modeled shape it parsed as,
+/// or the first feature that blocked it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FnVerdict {
+    /// Parsed as a modeled shape. The string is a stable shape label
+    /// (`straight-line`, `void-tail-call`, `int-tail-call`, `framed-call`).
+    InClass(&'static str),
+    /// Blocked at the first unmodeled feature.
+    Blocked(Block),
+}
+
+impl FnVerdict {
+    /// The census bucket key: the shape label when in class, else the blocking
+    /// feature (see [`Block::feature`]).
+    pub fn key(&self) -> String {
+        match self {
+            FnVerdict::InClass(s) => (*s).to_string(),
+            FnVerdict::Blocked(b) => b.feature(),
+        }
+    }
+    pub fn in_class(&self) -> bool {
+        matches!(self, FnVerdict::InClass(_))
+    }
+}
+
+/// One census row: a function segment and how it classified.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FnCensus {
+    /// Index of the function within the TU (`.ex` segment order).
+    pub index: usize,
+    /// Mangled name, when `.gl` has one at this position.
+    pub name: Option<String>,
+    /// Segment length in bytes (a rough proxy for function size).
+    pub seg_len: usize,
+    pub verdict: FnVerdict,
+}
+
+/// The `.ex` body marker `4C 4F 11` (`LO`) that opens every function body.
+const LO_MARKER: [u8; 3] = [0x4C, 0x4F, 0x11];
+
+/// Split `.ex` into one segment per **function body**, anchored on the `LO`
+/// marker rather than the `4F 1F` function-start marker (P2b).
+///
+/// `4F 1F` is only two bytes and also occurs inside token and varint payloads,
+/// so a raw marker scan over a real translation unit over-counts: measured on
+/// `system/world/Dir.cpp` (1.5 MB `.ex`), 5340 `4F 1F` against 5239 `LO` body
+/// markers and 5243 function tails (`4F 12 47 54 01 54 00`) — the latter two
+/// agree to 0.08%, the first is ~2% high. Anchoring on `LO` keeps the count
+/// honest without inventing a denominator.
+///
+/// Each segment starts at the `4F 1F` immediately preceding its `LO` (so the
+/// formals region stays inside the segment, where [`parse_formals`] looks for
+/// it) and runs to the next segment's start. Two bodies sharing one preceding
+/// `4F 1F` would collide; the later one then starts at its own `LO`, which
+/// simply blocks it at `formals-marker` — an honest miss, never a merge that
+/// would silently drop a function from the denominator.
+fn split_function_bodies(ex: &[u8]) -> Vec<&[u8]> {
+    // Body markers, in file order.
+    let mut los: Vec<usize> = Vec::new();
+    let mut i = 0;
+    while i + 3 <= ex.len() {
+        if ex[i] == LO_MARKER[0] && ex[i + 1] == LO_MARKER[1] && ex[i + 2] == LO_MARKER[2] {
+            los.push(i);
+            i += 3;
+        } else {
+            i += 1;
+        }
+    }
+    if los.is_empty() {
+        return Vec::new();
+    }
+    // Function-start markers, in file order, for the "nearest preceding" lookup.
+    let mut starts: Vec<usize> = Vec::new();
+    let mut i = 0;
+    while i + 2 <= ex.len() {
+        if ex[i] == FN_START[0] && ex[i + 1] == FN_START[1] {
+            starts.push(i);
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+
+    let mut segs_start: Vec<usize> = Vec::with_capacity(los.len());
+    for &lo in &los {
+        // Greatest `4F 1F` offset strictly below this body marker.
+        let cand = match starts.partition_point(|&s| s < lo) {
+            0 => lo,
+            k => starts[k - 1],
+        };
+        // Never reuse a start (would merge two bodies into one segment).
+        let cand = if segs_start.last() == Some(&cand) { lo } else { cand };
+        segs_start.push(cand);
+    }
+    (0..segs_start.len())
+        .map(|k| {
+            let start = segs_start[k];
+            let end = segs_start.get(k + 1).copied().unwrap_or(ex.len());
+            &ex[start..end.max(start)]
+        })
+        .collect()
+}
+
 fn split_functions(ex: &[u8]) -> Vec<&[u8]> {
     let mut starts = Vec::new();
     let mut i = 0;
@@ -616,6 +848,51 @@ fn split_functions(ex: &[u8]) -> Vec<&[u8]> {
 }
 
 impl IlBundle {
+    /// **Function-level census (P2b).** Classify *every* function in the bundle
+    /// independently, so a TU whose 700th function uses an unmodeled opcode
+    /// still reports the other 699 as in-class.
+    ///
+    /// This is the measurement [`IlBundle::functions`] cannot give: that method
+    /// is all-or-nothing per TU (correctly — the port must emit a whole obj or
+    /// nothing), so over a real workload it reports one `vocab-gap` per TU and
+    /// cannot rank the missing classes. The census runs the *same*
+    /// [`parse_segment_detail`] per segment and keeps the first blocking
+    /// feature, so the histogram of [`FnVerdict::key`] over a corpus is the
+    /// widening order (docs/ROADMAP.md §G5).
+    ///
+    /// Diagnostic only — never a gate, and never consulted by the emitter.
+    /// Returns `None` only when the bundle lacks the required files.
+    pub fn function_census(&self) -> Option<Vec<FnCensus>> {
+        let gl = self.get("gl")?;
+        let ex = self.ex()?;
+        let names = mangled_names(gl);
+        let tw = detect_token_width(ex);
+        let segs = split_function_bodies(ex);
+        // Names are paired positionally, which is only meaningful when `.gl`
+        // yields exactly one name per body. On a real TU `mangled_names` finds
+        // far fewer (it accepts only `?…@@…` forms, and `.gl` also lists
+        // externals), so pairing there would attach wrong names to functions —
+        // report none rather than a plausible-looking lie.
+        let paired = names.len() == segs.len();
+        Some(
+            segs.iter()
+                .enumerate()
+                .map(|(i, seg)| FnCensus {
+                    index: i,
+                    name: if paired { names.get(i).cloned() } else { None },
+                    seg_len: seg.len(),
+                    verdict: match parse_segment_detail(seg, tw) {
+                        Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
+                        Ok(BodyShape::VoidTailCall) => FnVerdict::InClass("void-tail-call"),
+                        Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
+                        Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
+                        Err(b) => FnVerdict::Blocked(b),
+                    },
+                })
+                .collect(),
+        )
+    }
+
     /// Parse this bundle as a sequence of straight-line add-chain functions
     /// (the MVP class, generalized to a multi-function TU). Returns `None` if
     /// the required files are absent, or if the `.gl` name count does not match
@@ -979,6 +1256,80 @@ mod tests {
             0x43, 0x42, 0x00, 0x00, 0x41, 0x86, 0x41, 0x74,
         ];
         assert_eq!(parse_segment(cmp, 2), None);
+    }
+
+    // ---- P2b function-level census ------------------------------------------
+
+    #[test]
+    fn census_agrees_with_the_gate_on_every_pinned_segment() {
+        // The census must never disagree with acceptance: it is `.ok()` of the
+        // same parse. Cross-check both directions over every pinned segment.
+        let all: &[&[u8]] = &[
+            MVP_CALL, MVP_FRAMED, INT_TAILRET, INT_PLUS0, INT_ARGTAIL, GA_SUBMOD, GA_MULMOD,
+            GA_WIDEMOD, TWO_CALLS, CALL_THEN_STMT, ARGFRAMED_PLUSK, TWO_FRAMED_CALLS, PLUS1PLUS2,
+        ];
+        for seg in all {
+            assert_eq!(
+                parse_segment(seg, 2).is_some(),
+                parse_segment_detail(seg, 2).is_ok(),
+                "census/gate disagreement"
+            );
+        }
+    }
+
+    #[test]
+    fn census_names_the_first_blocking_opcode() {
+        // A comparison (`24` GT) in the operand stream buckets as `expr-cmp-gt`,
+        // and the offset points at the `24` itself — not at some later byte.
+        let cmp: &[u8] = &[
+            0x46, 0x2D, 0xEE, 0x09, 0x2D, 0xED, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x10,
+            0xB9, 0xED, 0x09, 0x86, 0x41, 0x74, 0xB9, 0xEE, 0x09, 0x86, 0x41, 0x74,
+            0x24, // GT
+            0x43, 0x42, 0x00, 0x00, 0x41, 0x86, 0x41, 0x74,
+        ];
+        let b = parse_segment_detail(cmp, 2).unwrap_err();
+        assert_eq!(b.feature(), "expr-cmp-gt");
+        assert_eq!(cmp[b.off], 0x24);
+    }
+
+    #[test]
+    fn census_reports_the_whole_operand_type_not_its_shared_first_byte() {
+        // An `unsigned` operand's inline type shares its first byte (`86`) with
+        // `int`, so bucketing on that byte would merge every non-int type into
+        // one meaningless class. The bucket must carry the full triple.
+        let mut seg = INT_TAILRET.to_vec();
+        // Corrupt the argument LOAD's type `86 41 74` → `86 41 75` (a distinct
+        // type), leaving everything else intact.
+        let load = seg.windows(6).position(|w| w == [0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74]).unwrap();
+        seg[load + 5] = 0x75;
+        let b = parse_segment_detail(&seg, 2).unwrap_err();
+        assert_eq!(b.feature(), "expr-load-type-864175");
+        assert_eq!(seg[b.off], 0xB9, "reported at the LOAD, not mid-type");
+    }
+
+    #[test]
+    fn census_classifies_each_function_independently() {
+        // The point of P2b: one blocked function does not hide the in-class
+        // ones. `functions()` (the gate) is all-or-nothing and returns None.
+        let mut ex: Vec<u8> = Vec::new();
+        ex.extend_from_slice(&FN_START);
+        ex.extend_from_slice(MVP_CALL);
+        ex.extend_from_slice(&FN_START);
+        ex.extend_from_slice(TWO_CALLS);
+        let bundle = crate::IlBundle {
+            base_name: "t".into(),
+            files: vec![
+                ("ex".to_string(), ex),
+                ("gl".to_string(), b"?f@@YAXXZ\x00?g@@YAXXZ\x00".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
+        };
+        let census = bundle.function_census().unwrap();
+        assert_eq!(census.len(), 2);
+        assert_eq!(census[0].verdict, FnVerdict::InClass("void-tail-call"));
+        assert!(!census[1].verdict.in_class());
+        assert_eq!(census[0].name.as_deref(), Some("?f@@YAXXZ"));
     }
 
     // ---- real captured segments (transcribed from live-toolchain `.ex`) -----
