@@ -148,6 +148,13 @@ pub struct IlFunction {
     /// If this function is a **comparison leaf** (`return a <rel> k;`, W6), the
     /// decoded comparison. Mutually exclusive with the other body kinds.
     pub compare: Option<CompareLeaf>,
+    /// True iff this function's body is **empty** (`void f() {}`): no expression
+    /// at all, so codegen emits a bare `blr`. Mutually exclusive with the other
+    /// body kinds.
+    ///
+    /// (These four discriminators want to be one enum; that refactor is deferred
+    /// until the CFG step forces a real body IR — see docs/ROADMAP.md §G4.)
+    pub empty_body: bool,
 }
 
 /// The int type encoding inline in the `.ex` body (`86 41 74`), per `IL_FORMAT`.
@@ -386,6 +393,10 @@ enum BodyShape {
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
+    /// An **empty function body** (`void f() {}`): the body opens directly on the
+    /// `3A` assign of the return plumbing with no expression before it. Emits a
+    /// bare `blr`.
+    EmptyBody,
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -752,6 +763,14 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
     eat_opt_stmt_marker(seg, &mut p);
 
     match *seg.get(p).ok_or(blk(seg, p, "body"))? {
+        // An EMPTY body opens directly on the return plumbing's `3A` assign —
+        // there is no expression at all. `eat_return_plumbing` still has to
+        // reach the segment end, so any trailing statement or unexpected operand
+        // fails the function closed exactly as it does for every other shape.
+        0x3A => {
+            eat_return_plumbing(seg, &mut p, false)?;
+            Ok(BodyShape::EmptyBody)
+        }
         // Call shapes all open with a `26 <tok>` function/result-temp ref.
         0x26 => parse_call_shape(seg, &mut p, lo),
         // Straight-line arithmetic opens with a LOAD or a bare literal — and so
@@ -1173,6 +1192,7 @@ impl IlBundle {
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                         Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
                         Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
+                        Ok(BodyShape::EmptyBody) => FnVerdict::InClass("empty-body"),
                         Err(b) => FnVerdict::Blocked(b),
                     };
                     // Keep the raw bytes around the blocking site: decoding a new
@@ -1262,6 +1282,7 @@ impl IlBundle {
                                 add_k,
                             }),
                             compare: None,
+                        empty_body: false,
                         }]);
                     }
                     BodyShape::VoidTailCall => {
@@ -1273,6 +1294,7 @@ impl IlBundle {
                             tail_call: Some(externals[0].clone()),
                             framed_call: None,
                             compare: None,
+                        empty_body: false,
                         }]);
                     }
                     // Integer tail call `return g(<arg>)` (and the `g(a)+0` fold).
@@ -1287,11 +1309,14 @@ impl IlBundle {
                             tail_call: Some(externals[0].clone()),
                             framed_call: None,
                             compare: None,
+                        empty_body: false,
                         }]);
                     }
                     // A `.gl` external but a body with no call is a contradiction
                     // (no call to bind the external to) → reject.
-                    BodyShape::StraightLine { .. } | BodyShape::Compare(_) => return None,
+                    BodyShape::StraightLine { .. }
+                    | BodyShape::Compare(_)
+                    | BodyShape::EmptyBody => return None,
                 }
             }
             return None;
@@ -1311,10 +1336,23 @@ impl IlBundle {
                         tail_call: None,
                         framed_call: None,
                         compare: None,
+                        empty_body: false,
                     });
                 }
                 // W6: a comparison leaf carries no op stream — codegen emits its
                 // spine from the decoded relation instead.
+                BodyShape::EmptyBody => {
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params: Vec::new(),
+                        ops: Vec::new(),
+                        tail_call: None,
+                        framed_call: None,
+                        compare: None,
+                        empty_body: true,
+                    });
+                }
                 BodyShape::Compare(cmp) => {
                     funcs.push(IlFunction {
                         mangled_name: name.clone(),
@@ -1324,6 +1362,7 @@ impl IlBundle {
                         tail_call: None,
                         framed_call: None,
                         compare: Some(cmp),
+                        empty_body: false,
                     });
                 }
                 _ => return None,

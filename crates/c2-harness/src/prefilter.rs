@@ -288,7 +288,9 @@ fn run_inner(tc: Option<&Toolchain>, req: &Request) -> Outcome {
         Some(n) => n.clone(),
         None => c2_reference::to_wibo_path(&req.work.join("il_capture.obj")),
     };
-    let obj = match PortC2::new(obj_name.clone()).compile_to(&bundle, &obj_name) {
+    let port = PortC2::new(obj_name.clone())
+        .with_function_level_linking(PortC2::flags_imply_function_level_linking(&req.flags));
+    let obj = match port.compile_to(&bundle, &obj_name) {
         Ok(o) => o,
         Err(BackendError::NotImplemented(msg)) => {
             return Outcome::decline(Stage::Codegen, clip(&msg, 80), clip(&msg, 200));

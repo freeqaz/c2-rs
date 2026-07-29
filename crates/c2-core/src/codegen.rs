@@ -908,6 +908,7 @@ mod tests {
             tail_call: None,
             framed_call: None,
             compare: None,
+            empty_body: false,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1133,6 +1134,7 @@ mod tests {
             tail_call: None,
             framed_call: None,
             compare: None,
+            empty_body: false,
             params,
             ops,
         }
@@ -1254,6 +1256,7 @@ mod tests {
             tail_call: None,
             framed_call: None,
             compare: None,
+            empty_body: false,
             params: vec![0xE309, 0xE409, 0xE509, 0xE609],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1280,6 +1283,7 @@ mod tests {
             tail_call: None,
             framed_call: None,
             compare: None,
+            empty_body: false,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1307,6 +1311,7 @@ mod tests {
             tail_call: None,
             framed_call: None,
             compare: None,
+            empty_body: false,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

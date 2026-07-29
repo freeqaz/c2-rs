@@ -284,7 +284,12 @@ fn scan_one(
 
     // 4. The port, threaded with the reference's exact -Fo path (S_OBJNAME).
     let obj_name = c2_reference::to_wibo_path(&captured.ref_obj_path);
-    let port = PortC2::new(obj_name.clone());
+    // The obj's shape depends on argv the IL bundle does not record: /Gy
+    // (implied by /O1 and /O2) puts each function in its own COMDAT .text.
+    // Pass the project's real flags so the port can refuse rather than emit a
+    // packed .text against a per-function-COMDAT reference.
+    let port = PortC2::new(obj_name.clone())
+        .with_function_level_linking(PortC2::flags_imply_function_level_linking(&cfg.flags));
     match port.compile_to(&captured.bundle, &obj_name) {
         Ok(obj) => match ObjImage::diff(&captured.ref_obj, &obj) {
             ObjDiff::Identical => {

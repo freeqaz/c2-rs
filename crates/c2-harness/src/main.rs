@@ -351,8 +351,57 @@ fn cmd_compile(rest: &[String]) -> ExitCode {
         .position(|a| a == "--keep-obj")
         .and_then(|i| rest.get(i + 1))
         .map(PathBuf::from);
+    // Optional real-project compile (same inputs as `c2rs gap`), so the
+    // reference obj for a workload TU can be classified, not just a fixture's.
+    let flags_file: Option<PathBuf> = rest
+        .iter()
+        .position(|a| a == "--flags-file")
+        .and_then(|i| rest.get(i + 1))
+        .map(PathBuf::from);
+    let cwd: Option<PathBuf> = rest
+        .iter()
+        .position(|a| a == "--cwd")
+        .and_then(|i| rest.get(i + 1))
+        .map(PathBuf::from);
     let w = scratch("compile");
     let out = w.join("out.obj");
+    if let Some(ff) = &flags_file {
+        let flags: Vec<String> = match std::fs::read_to_string(ff) {
+            Ok(t) => t
+                .lines()
+                .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
+                .flat_map(|l| l.split_whitespace().map(String::from))
+                .collect(),
+            Err(e) => {
+                eprintln!("cannot read --flags-file {}: {e}", ff.display());
+                return ExitCode::FAILURE;
+            }
+        };
+        let res = tc.capture_reference_with(&cpp.to_string_lossy(), &w, &flags, cwd.as_deref());
+        return match res {
+            Ok(c) => {
+                println!(
+                    "compiled {} -> {} bytes (project flags)",
+                    cpp.display(),
+                    c.ref_obj.len()
+                );
+                if let Some(dest) = &keep_obj {
+                    if let Some(p) = dest.parent() {
+                        let _ = std::fs::create_dir_all(p);
+                    }
+                    let _ = std::fs::write(dest, c.ref_obj.as_bytes());
+                    println!("  kept reference obj at {}", dest.display());
+                }
+                let _ = std::fs::remove_dir_all(&w);
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("compile failed: {e}");
+                let _ = std::fs::remove_dir_all(&w);
+                ExitCode::FAILURE
+            }
+        };
+    }
     match tc.compile_obj(&cpp, &out) {
         Ok(obj) => {
             let ts = obj

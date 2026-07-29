@@ -99,6 +99,9 @@ pub trait Backend {
 pub struct PortC2 {
     /// The `-Fo` output-path string to embed as S_OBJNAME (wibo `Z:\…` form).
     obj_name: String,
+    /// Whether the compile requested **function-level linking** (`/Gy`, which
+    /// `/O1` and `/O2` imply). See [`PortC2::with_function_level_linking`].
+    fn_level_linking: bool,
 }
 
 impl PortC2 {
@@ -106,7 +109,47 @@ impl PortC2 {
     pub fn new(obj_name: impl Into<String>) -> Self {
         PortC2 {
             obj_name: obj_name.into(),
+            fn_level_linking: false,
         }
+    }
+
+    /// Declare that the compile used **function-level linking** (`/Gy`).
+    ///
+    /// This is not a cosmetic option: it changes the obj's *shape*. Without it
+    /// c2 packs every function into one `.text`; with it each function gets its
+    /// own COMDAT `.text` section (characteristics `0x60401020` rather than
+    /// `0x60400020`), with the section count, section symbols and aux records
+    /// all following. So the same IL bundle legitimately produces two different
+    /// objs depending on an argv flag the bundle does not record.
+    ///
+    /// That matters more than it sounds: **`/O1` and `/O2` imply `/Gy`**, and
+    /// the dc3 workload compiles with `/O1`, while every fixture here uses
+    /// `/Ox` — which does not. The port therefore cannot emit for a real
+    /// workload TU on the strength of having matched the fixtures, and it must
+    /// be *told*, because the IL alone cannot say. Found by the differential:
+    /// `system/utl/Spew.cpp` decoded to two empty functions, and the port
+    /// emitted a 5-section packed obj against the reference's 6-section
+    /// per-function-COMDAT one.
+    ///
+    /// COMDAT emission is not implemented, so setting this makes the port
+    /// refuse rather than mis-emit.
+    pub fn with_function_level_linking(mut self, yes: bool) -> Self {
+        self.fn_level_linking = yes;
+        self
+    }
+
+    /// True iff `flags` imply function-level linking: `/Gy` explicitly, or
+    /// `/O1`/`/O2`, which include it. (`/Ox` does not.)
+    pub fn flags_imply_function_level_linking<S: AsRef<str>>(flags: &[S]) -> bool {
+        flags.iter().any(|f| {
+            let f = f.as_ref();
+            f.eq_ignore_ascii_case("/Gy")
+                || f.eq_ignore_ascii_case("-Gy")
+                || f.eq_ignore_ascii_case("/O1")
+                || f.eq_ignore_ascii_case("-O1")
+                || f.eq_ignore_ascii_case("/O2")
+                || f.eq_ignore_ascii_case("-O2")
+        })
     }
 
     /// Build the obj for `il`, embedding `obj_name` as S_OBJNAME. Handles one
@@ -122,6 +165,20 @@ impl PortC2 {
                     .to_string(),
             )
         })?;
+
+        // Function-level linking changes the obj's shape (one COMDAT `.text`
+        // per function instead of a single packed one). Not modeled, so refuse
+        // as soon as any function would be emitted. An empty TU has no `.text`
+        // at all and is therefore unaffected — which is why R1 still matches on
+        // the real workload.
+        if self.fn_level_linking && !funcs.is_empty() {
+            return Err(BackendError::NotImplemented(
+                "compile requested function-level linking (/Gy, implied by /O1 and \
+                 /O2): each function then gets its own COMDAT .text section, which \
+                 the emitter does not model"
+                    .to_string(),
+            ));
+        }
 
         // R1: a TU that defines no functions. Its obj is the fixed four-section
         // shell with no `.text` at all, so it never reaches instruction
@@ -157,6 +214,12 @@ impl PortC2 {
                 text.push(0);
             }
             let off = text.len() as u32;
+            // An empty body is a bare `blr` — no expression to select.
+            if f.empty_body {
+                text.extend_from_slice(&codegen::encode_blr());
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None });
+                continue;
+            }
             // W6: a comparison leaf lowers to its own branchless spine rather
             // than through the operand-stack selector.
             if let Some(cmp) = &f.compare {
