@@ -633,13 +633,31 @@ fn eat_byte(seg: &[u8], p: &mut usize, x: u8) -> bool {
     }
 }
 
-/// Consume an optional `4F 01 NN` statement/label marker (a per-statement
-/// sequence index c1xx emits in multi-function TUs, absent in single-function
-/// ones). Specific to `4F 01` — it never eats the `4F 12` separator or the
-/// `4F 02` module marker.
+/// Consume zero or more `4F 01 <varint>` **source-line markers**.
+///
+/// Two corrections over the previous reading, both from live captures:
+///
+/// * the payload is a [`read_varint`], not a fixed byte. A function at source line
+///   200 emits `4f 01 80 c8 00 00 00` — the escaped four-byte form. Reading one
+///   byte therefore desynchronizes the whole token stream for any TU whose
+///   functions live past line 127, which is nearly all of them; the parse then
+///   fails somewhere arbitrary downstream and the census attributes the block to
+///   whatever byte it happened to land on. So this was not only costing coverage,
+///   it was corrupting the blocking-feature histogram that the widening order is
+///   chosen from.
+/// * it is emitted on each line *change*, and two can appear in a row where a
+///   declaration line generates no code (`int x;` followed by a statement), so
+///   this loops instead of eating at most one.
+///
+/// Still specific to `4F 01` — it never eats the `4F 12` separator or the `4F 02`
+/// module marker.
 fn eat_opt_stmt_marker(seg: &[u8], p: &mut usize) {
-    if seg.get(*p) == Some(&0x4F) && seg.get(*p + 1) == Some(&0x01) && *p + 2 < seg.len() {
-        *p += 3;
+    while seg.get(*p) == Some(&0x4F) && seg.get(*p + 1) == Some(&0x01) {
+        let mut probe = *p + 2;
+        if read_varint(seg, &mut probe).is_none() {
+            return; // malformed payload: leave `p` put and let the caller block
+        }
+        *p = probe;
     }
 }
 
@@ -680,11 +698,20 @@ fn read_varint(seg: &[u8], p: &mut usize) -> Option<i32> {
 /// of the segment (the fail-closed terminal — anything trailing rejects). With
 /// `has_result_type`, a `41 <int-type>` result annotation is expected first
 /// (present for an int return, absent for a void call). Layout (verified):
-/// `[41 <int>]?` result-type · `3A <tok>` assign · `[4F 01 NN]?` · `54 02 29
-/// <tok>` return · `4F 12` · `47 54 01 54 00` GT-terminate · then EITHER the
-/// segment end (a non-last function, split before the next `4F 1F`) OR the
-/// module end `4F 02 20 00 · 4F 01 NN · 4D` and trailing zero-fill (the last
-/// function).
+/// `[41 <int-like>]?` result-type · `3A <label>` branch · `[4F 01 <line>]*` ·
+/// `54 02 29 <tok>` return · `4F 12` · `47 54 01 54 00` GT-terminate · then
+/// EITHER the segment end (a non-last function, split before the next `4F 1F`) OR
+/// the module end `4F 02 20 00 · 4F 01 <line> · 4D` and trailing zero-fill (the
+/// last function).
+///
+/// `3A <tok>` was previously labelled "assign", as if it stored the body
+/// expression into a return temporary. It does not: it is an **unconditional
+/// branch** and its operand is a label. `void f() { return; }` captures as
+/// `53 3a <lbl> 3a <lbl> 54 02 29 <lbl> …` — two of them back to back with no
+/// expression anywhere, so there is nothing for a store to store. The same opcode
+/// carries `break`, `continue`, `goto` and the if/else join jump. Nothing here
+/// depends on the distinction, since this function only skips the token, but the
+/// old name would mislead anyone extending it. See `docs/IL_STMT_GRAMMAR.md`.
 fn eat_return_plumbing(seg: &[u8], p: &mut usize, has_result_type: bool) -> Result<(), Block> {
     if has_result_type {
         let save = *p;
@@ -718,7 +745,9 @@ fn eat_return_plumbing(seg: &[u8], p: &mut usize, has_result_type: bool) -> Resu
     if !eat(seg, p, &[0x4F, 0x02, 0x20, 0x00]) || !eat(seg, p, &[0x4F, 0x01]) {
         return Err(blk(seg, *p, "module-end"));
     }
-    *p += 1; // module label index NN
+    // The module-end marker's payload is the same varint-encoded source line as
+    // every other `4F 01`, so it is four bytes longer past line 127.
+    read_varint(seg, p).ok_or(blk(seg, *p, "module-end-line"))?;
     if !eat_byte(seg, p, 0x4D) {
         return Err(blk(seg, *p, "module-end"));
     }
