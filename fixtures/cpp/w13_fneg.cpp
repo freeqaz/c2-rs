@@ -21,8 +21,13 @@ float n_rank(float a, float b, float c, float d) {
   return ((a + b) * (c + d)) - ((a + c) * (b + d));
 }
 
-// --- N3: FP constants (W13b) — an .rdata COMDAT, a REFHI/REFLO pair and a
-// GPR address temp. ---
+// --- N3: FP constants — an .rdata COMDAT, a REFHI/REFLO pair and a GPR address
+// temp. The first two are **no longer negatives**: W13b implements the
+// one-constant shape and both are byte-exact (they are kept here so the class
+// boundary stays visible next to the cases that still refuse, and they are the
+// dedicated fixtures' subject in `w13b_fconst.cpp` / `w13b_fdedup.cpp`).
+// `n_k_ret` has no operand to load the constant *into* and no expression at all;
+// `n_k_two` needs two surviving constants, which changes the schedule. ---
 float n_k_add(float a)                     { return a + 1.0f; }
 double n_k_dadd(double a)                  { return a + 1.0; }
 float n_k_ret()                            { return 1.5f; }

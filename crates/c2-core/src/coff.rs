@@ -148,12 +148,7 @@ struct Section {
 pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> {
     emit_obj(
         obj_name,
-        &[Function {
-            name: mangled_name,
-            text_offset: 0,
-            call: None,
-            is_float: false,
-        }],
+        &[Function::plain(mangled_name, 0)],
         text,
     )
 }
@@ -178,6 +173,53 @@ pub struct Function<'a> {
     /// Verified: a pure FP leaf changes the obj shell by exactly this one
     /// symbol (`docs/CODEGEN_W13_FLOAT.md` §4).
     pub is_float: bool,
+    /// W13b: this function's floating-point constant reference sites, in
+    /// emission order, with `hi_off` already rebased to the whole `.text`.
+    pub fp_refs: Vec<crate::codegen::FpConstRef>,
+}
+
+impl<'a> Function<'a> {
+    /// A function with no call and no constant pool — the common case.
+    pub fn plain(name: &'a str, text_offset: u32) -> Function<'a> {
+        Function { name, text_offset, call: None, is_float: false, fp_refs: Vec::new() }
+    }
+}
+
+/// `.rdata` COMDAT characteristics for a pooled FP constant:
+/// CNT_INITIALIZED_DATA | LNK_COMDAT | ALIGN_4/8 | MEM_READ. The alignment field
+/// is the only difference between the `float` and `double` pools.
+const CH_RDATA_F32: u32 = 0x4030_1040;
+const CH_RDATA_F64: u32 = 0x4040_1040;
+
+/// IMAGE_REL_PPC_REFHI / REFLO / PAIR. c2 loads a pooled FP constant through an
+/// `addis`+`lfs` pair, and each half needs a PAIR record carrying the other
+/// half's displacement in its `SymbolTableIndex` field. Every pooled constant
+/// gets its own COMDAT section, so that displacement is always 0.
+const REL_PPC_REFHI: u16 = 0x0010;
+const REL_PPC_REFLO: u16 = 0x0011;
+const REL_PPC_PAIR: u16 = 0x0012;
+
+/// The mangled symbol name c2 gives a pooled FP constant: `__real@` followed by
+/// the big-endian IEEE bit pattern in lowercase hex — 8 digits for a `float`,
+/// 16 for a `double`.
+fn real_symbol_name(bits: u64, double: bool) -> String {
+    if double {
+        format!("__real@{bits:016x}")
+    } else {
+        let v = f64::from_bits(bits) as f32;
+        format!("__real@{:08x}", v.to_bits())
+    }
+}
+
+/// The pooled constant's raw `.rdata` bytes: big-endian IEEE-754, narrowed to
+/// binary32 for a `float`. The narrowing is exactness-checked in codegen before
+/// the reference is ever recorded.
+fn real_raw_bytes(bits: u64, double: bool) -> Vec<u8> {
+    if double {
+        bits.to_be_bytes().to_vec()
+    } else {
+        (f64::from_bits(bits) as f32).to_be_bytes().to_vec()
+    }
 }
 
 /// The CRT float-support marker symbol.
@@ -548,13 +590,8 @@ mod comdat_tests {
     fn comdat_obj_has_one_text_section_per_function() {
         let blr = crate::codegen::encode_blr().to_vec();
         let funcs = [
-            Function { name: "?SpewInit@@YAXXZ", text_offset: 0, call: None, is_float: false },
-            Function {
-                name: "?SpewTerminate@@YAXXZ",
-                text_offset: 0,
-                call: None,
-                is_float: false,
-            },
+            Function::plain("?SpewInit@@YAXXZ", 0),
+            Function::plain("?SpewTerminate@@YAXXZ", 0),
         ];
         let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr]);
 
@@ -791,8 +828,24 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
 pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     let debug_s = build_debug_s(obj_name);
 
+    // W13b: pool the floating-point constants, TU-wide, by bit pattern **and**
+    // width (a `float` 1.0 and a `double` 1.0 are different symbols with
+    // different section sizes). First-reference order fixes both the `.rdata`
+    // section order and the symbol order.
+    let mut pool: Vec<(u64, bool)> = Vec::new();
+    for f in funcs {
+        for r in &f.fp_refs {
+            if !pool.contains(&(r.bits, r.double)) {
+                pool.push((r.bits, r.double));
+            }
+        }
+    }
+    let pool_ix = |bits: u64, double: bool| -> usize {
+        pool.iter().position(|&k| k == (bits, double)).expect("pooled")
+    };
+
     // Section table, in the fixed emit order.
-    let sections = [
+    let mut sections = vec![
         Section {
             name: ".drectve",
             characteristics: CH_DRECTVE,
@@ -829,31 +882,31 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             selection: 0,
         },
     ];
-    let n_sections = sections.len();
-
-    // Raw data is packed contiguously right after the section headers.
-    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
-    let mut ptrs = Vec::with_capacity(n_sections);
-    let mut cursor = raw_base;
-    for s in &sections {
-        ptrs.push(cursor);
-        cursor += s.raw.len();
+    let text_idx = sections.len() - 1;
+    for &(bits, double) in &pool {
+        sections.push(Section {
+            name: ".rdata",
+            characteristics: if double { CH_RDATA_F64 } else { CH_RDATA_F32 },
+            raw: real_raw_bytes(bits, double),
+            checksum: 0,
+            selection: 2,
+        });
     }
-    // Relocations (`.text` only in this class) sit between the raw data and the
-    // symbol table. Each function that is a tail call contributes one REL24.
-    let n_text_reloc = funcs.iter().filter(|f| f.call.is_some()).count();
-    let ptr_text_reloc = cursor; // right after the last section's raw data
-    cursor += n_text_reloc * RELOC_LEN;
-    let ptr_symtab = cursor; // symbol table right after the relocations
+    let n_sections = sections.len();
 
     // Symbol layout: 13 fixed slots (indices 0..13), then per function a defined
     // FUNCTION symbol, each immediately followed by its callee's undefined
-    // external symbol (if any). Record each callee's symbol index for its reloc.
-    // `_fltused` is emitted once, immediately after the FIRST float function's
-    // symbol group.
+    // external symbol (if any), then — for each pooled constant this function is
+    // the *first* to reference — that constant's `.rdata` section symbol (+ aux)
+    // and its `__real@…` external. `_fltused` is emitted once, immediately after
+    // the FIRST float function's symbol group.
+    //
+    // This runs before the relocations are written because each REFHI/REFLO
+    // record needs its `__real@…` symbol index.
     let fltused_after = funcs.iter().position(|f| f.is_float);
     let mut next_idx: u32 = 13;
-    let mut plan: Vec<(usize, u32, Option<u32>)> = Vec::with_capacity(funcs.len());
+    let mut plan: Vec<(usize, u32, Option<u32>, Vec<usize>)> = Vec::with_capacity(funcs.len());
+    let mut real_idx: Vec<Option<u32>> = vec![None; pool.len()];
     for (i, f) in funcs.iter().enumerate() {
         let def_idx = next_idx;
         next_idx += 1;
@@ -864,12 +917,66 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
         } else {
             None
         };
-        plan.push((i, def_idx, callee_idx));
+        // Constants this function introduces, in first-reference order.
+        let mut introduced: Vec<usize> = Vec::new();
+        for r in &f.fp_refs {
+            let k = pool_ix(r.bits, r.double);
+            if real_idx[k].is_none() {
+                next_idx += 2; // .rdata section symbol + its aux record
+                real_idx[k] = Some(next_idx);
+                next_idx += 1; // the __real@… external
+                introduced.push(k);
+            }
+        }
+        plan.push((i, def_idx, callee_idx, introduced));
         if fltused_after == Some(i) {
             next_idx += 1;
         }
     }
     let n_symbols: u32 = next_idx;
+
+    // Relocations (`.text` only in this class) sit between the raw data and the
+    // symbol table, **ascending by VirtualAddress**. A tail call contributes one
+    // REL24; each FP constant reference contributes a REFHI/PAIR on the `addis`
+    // and a REFLO/PAIR on the `lfs`/`lfd` four bytes later. The PAIR records
+    // carry the partner half's displacement in the symbol-index field, which is
+    // always 0 because every constant owns its whole COMDAT section.
+    let mut text_relocs: Vec<(u32, u32, u16)> = Vec::new();
+    for (i, _def, callee_idx, _intro) in &plan {
+        let f = &funcs[*i];
+        if let (Some(call), Some(cidx)) = (&f.call, callee_idx) {
+            text_relocs.push((call.reloc_offset, *cidx, REL_PPC_REL24));
+        }
+        for r in &f.fp_refs {
+            let sym = real_idx[pool_ix(r.bits, r.double)].expect("pooled symbol");
+            text_relocs.push((r.hi_off, sym, REL_PPC_REFHI));
+            text_relocs.push((r.hi_off, 0, REL_PPC_PAIR));
+            text_relocs.push((r.hi_off + 4, sym, REL_PPC_REFLO));
+            text_relocs.push((r.hi_off + 4, 0, REL_PPC_PAIR));
+        }
+    }
+    text_relocs.sort_by_key(|&(va, _, _)| va);
+    let n_text_reloc = text_relocs.len();
+
+    // Raw data is packed right after the section headers, and a section's
+    // relocation records sit immediately after **that section's own** raw data —
+    // not after every section's. With `.text` last (no constant pool) the two
+    // layouts coincide, which is why this only surfaced once `.rdata` followed
+    // `.text`: c2 put the four REFHI/REFLO records between `.text` and the
+    // constant pool, the port put them after both.
+    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
+    let mut ptrs = Vec::with_capacity(n_sections);
+    let mut cursor = raw_base;
+    let mut ptr_text_reloc = 0usize;
+    for (i, s) in sections.iter().enumerate() {
+        ptrs.push(cursor);
+        cursor += s.raw.len();
+        if i == text_idx && n_text_reloc > 0 {
+            ptr_text_reloc = cursor;
+            cursor += n_text_reloc * RELOC_LEN;
+        }
+    }
+    let ptr_symtab = cursor; // symbol table right after the last section's data
 
     // ---- COFF header (20 bytes) ----
     let mut b = Buf::new();
@@ -882,8 +989,8 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     b.u16(CHARACTERISTICS);
 
     // ---- section headers (40 bytes each) ----
-    // Only `.text` (the last section) carries relocations in this class.
-    let text_idx = n_sections - 1;
+    // Only `.text` carries relocations in this class (the `.rdata` constant
+    // pools are pure data).
     for (i, s) in sections.iter().enumerate() {
         let (prel, nrel) = if i == text_idx && n_text_reloc > 0 {
             (ptr_text_reloc as u32, n_text_reloc as u16)
@@ -902,18 +1009,18 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
         b.u32(s.characteristics);
     }
 
-    // ---- raw section data (packed) ----
-    for s in &sections {
+    // ---- raw section data, each section followed by its own relocations ----
+    // (10 bytes each: VA u32, SymIdx u32, Type u16)
+    for (i, s) in sections.iter().enumerate() {
+        debug_assert_eq!(b.0.len(), ptrs[i]);
         b.bytes(&s.raw);
-    }
-    debug_assert_eq!(b.0.len(), ptr_text_reloc);
-
-    // ---- relocation records (10 bytes each: VA u32, SymIdx u32, Type u16) ----
-    for (i, _def, callee_idx) in &plan {
-        if let (Some(call), Some(cidx)) = (&funcs[*i].call, callee_idx) {
-            b.u32(call.reloc_offset);
-            b.u32(*cidx);
-            b.u16(REL_PPC_REL24);
+        if i == text_idx {
+            debug_assert!(n_text_reloc == 0 || b.0.len() == ptr_text_reloc);
+            for &(va, sym, typ) in &text_relocs {
+                b.u32(va);
+                b.u32(sym);
+                b.u16(typ);
+            }
         }
     }
     debug_assert_eq!(b.0.len(), ptr_symtab);
@@ -940,13 +1047,27 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     emit_section_symbol(&mut b, &sections[4], 5, n_text_reloc as u16); // slot 11/12 .text
 
     // Per function: the defined FUNCTION symbol, then (if a tail call) the
-    // undefined external callee symbol.
-    for (i, _def, callee_idx) in &plan {
+    // undefined external callee symbol, then the constant pools this function
+    // introduces (`.rdata` section symbol + aux, then the `__real@…` external).
+    for (i, _def, callee_idx, introduced) in &plan {
         let f = &funcs[*i];
         emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
         if let (Some(call), Some(_)) = (&f.call, callee_idx) {
             // Undefined external callee: section 0 (UNDEF), FUNCTION type.
             emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        }
+        for &k in introduced {
+            let sec_num = (text_idx + 1 + k + 1) as i16;
+            emit_section_symbol(&mut b, &sections[text_idx + 1 + k], sec_num, 0);
+            let (bits, double) = pool[k];
+            // A pooled constant is DATA, not a function: type 0x0000.
+            emit_external_symbol(
+                &mut b,
+                &mut strtab,
+                &real_symbol_name(bits, double),
+                sec_num,
+                0x0000,
+            );
         }
         // The CRT float-support marker, once, after the first FP function.
         if fltused_after == Some(*i) {

@@ -41,6 +41,11 @@ pub enum IlOp {
     Load(u32),
     /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
     Lit(i32),
+    /// Push a **floating-point literal** (W13b). The payload is always an
+    /// IEEE-754 **binary64** bit pattern regardless of width — a `float` literal
+    /// is stored as a double whose value is already rounded to float — with the
+    /// width carried separately. Held as raw bits so no rounding happens here.
+    FpLit { bits: u64, double: bool },
     /// Pop rhs then lhs, push `lhs + rhs` (IL opcode `0x02`, commutative).
     Add,
     /// Pop rhs then lhs, push `lhs - rhs` (IL opcode `0x03`, NON-commutative).
@@ -906,10 +911,15 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
 const UINT_TYPE: [u8; 3] = [0x86, 0x42, 0x75];
 
 /// The `float` operand type (`86 45 40`) and the `double` one (`88 85 41`).
-/// Note the *literal* forms differ again (`86 4a 40` / `88 8a 41`), which is why
-/// W13a rejects any literal outright rather than trying to type it.
+/// Note the *literal* forms differ again ([`FLOAT_LIT_TYPE`] /
+/// [`DOUBLE_LIT_TYPE`]).
 const FLOAT_TYPE: [u8; 3] = [0x86, 0x45, 0x40];
 const DOUBLE_TYPE: [u8; 3] = [0x88, 0x85, 0x41];
+
+/// The *literal* FP type tags, which are distinct from the operand ones above.
+/// A float literal carries `86 4a 40`, a double one `88 8a 41`.
+const FLOAT_LIT_TYPE: [u8; 3] = [0x86, 0x4A, 0x40];
+const DOUBLE_LIT_TYPE: [u8; 3] = [0x88, 0x8A, 0x41];
 
 /// Try to parse a **W13a floating-point leaf**: a straight-line chain over
 /// float (or double) *parameters* only.
@@ -986,9 +996,46 @@ fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape
                 p += 1;
                 ops.push(IlOp::Div);
             }
+            // W13b: a floating-point literal.
+            //
+            //   33 <lit-TYPE> <8 bytes: IEEE binary64, little-endian> <u16 size>
+            //
+            // The payload is a binary64 pattern even for a `float` (already
+            // rounded to binary32 precision), and the u16 trailer is the operand
+            // *width* — 4 for float, 8 for double — which must agree with the
+            // literal tag. Verified byte-for-byte against a live capture of
+            // `float k_add(float a){return a + 1.0f;}`:
+            //   33 86 4a 40 00 00 00 00 00 00 f0 3f 04 00
+            0x33 => {
+                p += 1;
+                let lty = seg.get(p..p + 3)?;
+                let lit_double = if lty == FLOAT_LIT_TYPE {
+                    false
+                } else if lty == DOUBLE_LIT_TYPE {
+                    true
+                } else {
+                    return None; // an integer (or other) literal: out of class
+                };
+                // A literal of the other width implies a conversion.
+                if lit_double != double {
+                    return None;
+                }
+                p += 3;
+                let raw: [u8; 8] = seg.get(p..p + 8)?.try_into().ok()?;
+                p += 8;
+                let size = u16::from_le_bytes(seg.get(p..p + 2)?.try_into().ok()?);
+                p += 2;
+                if size as usize != if double { 8 } else { 4 } {
+                    return None;
+                }
+                ops.push(IlOp::FpLit {
+                    bits: u64::from_le_bytes(raw),
+                    double,
+                });
+            }
             0x41 => break,
-            // 0x33 literal, 0x2C convert, 0x59 paren marker, 0x08 neg and every
-            // other byte reject — see the gate list above.
+            // 0x2C convert, 0x59 paren marker, 0x08 neg and every other byte
+            // reject — see the gate list above.
             _ => return None,
         }
     }
@@ -1006,6 +1053,59 @@ fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape
     let has_addsub = ops.iter().any(|o| matches!(o, IlOp::Add | IlOp::Sub));
     if has_mul && has_addsub {
         return None;
+    }
+
+    // ---- W13b constant gates ------------------------------------------------
+    //
+    // These live here, in the parser, rather than in codegen so that the census
+    // and the emission gate cannot disagree about what is in class.
+    //
+    // c2 — not c1xx — evaluates floating-point constants, so the IL still holds
+    // every literal the source wrote and the backend is free to fold, reassociate
+    // and strength-reduce them. Three captured behaviours the port does not
+    // model, each of which would be a silent mis-emit:
+    let lits: Vec<(u64, bool)> = ops
+        .iter()
+        .filter_map(|o| match o {
+            IlOp::FpLit { bits, double } => Some((*bits, *double)),
+            _ => None,
+        })
+        .collect();
+    if !lits.is_empty() {
+        // (1) Two or more literals: c2 folds them where it can (`a*2.0f*b*3.0f`
+        //     becomes `(a*b)*6.0f`), and where it cannot it hoists every `addis`
+        //     into a prologue group and schedules the loads at first use. Either
+        //     way the one-constant lowering is wrong. See `w13b_fpool.cpp`.
+        if lits.len() > 1 {
+            return None;
+        }
+        // (2) A constant divisor becomes a reciprocal multiply: `a/2.0f` emits
+        //     `fmuls` against `__real@3f000000`, and `a/3.0f/7.0f` collapses to
+        //     one `fmuls` by 1/21 — a value that is not even exactly
+        //     representable, so this is a numeric transform, not a rewrite.
+        if ops.iter().any(|o| matches!(o, IlOp::Div)) {
+            return None;
+        }
+        let (bits, lit_double) = lits[0];
+        let v = f64::from_bits(bits);
+        // (3) An identity operand disappears entirely — `a + 0.0f`, `a - 0.0f`
+        //     and `a * 1.0f` each compile to a bare `blr`, with no constant
+        //     pooled at all. (`a * 0.0f` is *not* folded: it really does load
+        //     zero and multiply.) Refuse when the literal is an identity for any
+        //     operator in the body; slight over-refusal beats emitting three
+        //     instructions where c2 emits none.
+        if v == 0.0 && has_addsub {
+            return None;
+        }
+        if v == 1.0 && has_mul {
+            return None;
+        }
+        // (4) A `float` literal is carried as a binary64 pattern already rounded
+        //     to binary32. If it does not narrow exactly, the four bytes we would
+        //     pool are not the ones c2 pooled.
+        if !lit_double && f64::from(v as f32).to_bits() != bits {
+            return None;
+        }
     }
     // A repeated leaf can trigger algebraic rewriting into a constant.
     let mut seen: Vec<u32> = Vec::new();
