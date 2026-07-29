@@ -157,7 +157,28 @@ vanished once the width rule landed (in-class functions went 4,154 → 7,114 on
 the identical instrument). Any future "new opcode" discovered by a parser
 that reads fixed-width tokens is suspect until re-checked.
 
-**Operand types appear to use a *different* width rule from tokens.** Measured
+**Operand types use a different rule from tokens, and it is LEB128.**
+`TYPE := <tag> <kind> <LEB128 id>` — 3, 4, **or 5** bytes. Settled by a
+controlled fixture (`docs/IL_CALL_GRAMMAR.md`): a TU forced to 6000 used types
+produces a 5-byte type pinned by the `55 … 4C 4B` call-end framing
+(`86 43 9b b9 02`). On Dir.cpp's real call sites the distribution is 4157
+3-byte, 3123 4-byte, **1358 5-byte** — so a "3 or 4" rule mis-parses one call
+in six.
+
+The same work independently **confirmed `read_token_var` is correct** for
+operand tokens: a 32000-symbol fixture forces genuine 4-byte tokens, and
+`v31999` loads as `b9 e2 86 01 00`, decoding to exactly `0x09E3 + 31999` with
+the fixed `41` / `54 02 29` markers landing where the 4-byte read predicts.
+
+<details><summary>Superseded: the "+1 continuation" reading (kept as a
+worked example of a statistical result that was directionally right and
+mechanically wrong)</summary>
+
+The measurement below was taken before the LEB128 rule was known. It correctly
+detected that types are *not* `+2`, but its "+1" conclusion is just LEB128
+truncated at two payload bytes — it could not see the 5-byte case because the
+test only offered lengths 3, 4 and 5 against a *next-byte-plausibility* oracle
+that a 5-byte type also satisfies by accident. Measured
 the same way over the same `.ex`: restricting to LOAD sites with an
 unambiguous narrow token (so the type's start offset is known) and to types
 whose second byte has bit 7 set, then asking which candidate type length
@@ -173,12 +194,15 @@ b9 1d 12 | 86 43 83 08 | 55 86 43 83 08 4c 2c
 b9 99 12 | 86 43 a0 08 | b9 98 12 86 43 a0 08
 ```
 
-Two different continuation rules in one format is surprising enough that this
-is flagged **provisional pending a controlled fixture** — it is the model's
-most likely subtle error. Nothing shipped depends on it: `read_token_var` is
-used only in operand-token positions, and types are still matched as the fixed
-3-byte `INT_TYPE`, so the port stays fail-closed either way. What is at stake
-is how the generalized decoder must read a type.
+This was flagged provisional pending a controlled fixture, and the fixture
+duly refuted it. Two lessons worth keeping: a statistic over a large real
+corpus can be *precise and still wrong* when the candidate set omits the true
+answer, and the fail-closed design meant nothing shipped had to be revised —
+`read_token_var` is used only in operand-token positions and types were still
+matched as the fixed 3-byte `INT_TYPE`, so the port was never at risk either
+way.
+
+</details>
 
 **Outstanding**: `crates/c2-il/src/codec.rs` still assumes a fixed 2-byte
 token (`tok16`) and therefore carries the same latent defect on real TUs. It
