@@ -56,6 +56,7 @@ fn main() -> ExitCode {
         "replay" => cmd_replay(rest),
         "replay-c1" => cmd_replay_c1(rest),
         "diff" => cmd_diff(rest),
+        "census" => cmd_census(rest),
         "bench" => cmd_bench(),
         "perf" => cmd_perf(rest),
         "perf-scale" => cmd_perf_scale(rest),
@@ -87,6 +88,7 @@ fn print_usage() {
          \x20 c2rs replay <cpp>         P0.1: capture + standalone-c2 replay, byte-match verdict\n\
          \x20 c2rs replay-c1 <cpp>      P-F0.1: capture + standalone-c1 (front-end) replay, per-file byte verdict\n\
          \x20 c2rs diff <cpp>           full differential (ReferenceReplay=ByteExact, Port=Match|NotImplemented)\n\
+         \x20 c2rs census <cpp>         P2b: per-function in-class / blocking-feature verdict\n\
          \x20 c2rs bench                selftest across all fixtures/cpp/*.cpp\n\
          \x20 c2rs perf [opts]          IL-bundle->obj latency: native port vs standalone c2\n\
          \x20 c2rs perf-scale [opts]    IL-bundle->obj throughput vs concurrency (port vs c2)\n\
@@ -102,6 +104,7 @@ fn print_usage() {
          \x20 c2rs search from-retrieval <corpus-dir>  T-A: from-unrelated-seed (P1.3-seeded) solve-rate\n\
          \n\
          perf options: --port-iters N --ref-iters N --fixtures a.cpp,b.cpp\n\
+         census: c2rs census <cpp> — per-function in-class/blocked verdict (P2b)\n\
          perf-scale options: --fixture X.cpp --conc 1,2,4,8 --port-secs F --ref-secs F --csv PATH\n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          gap options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
@@ -137,6 +140,138 @@ fn require_cpp(rest: &[String]) -> Option<PathBuf> {
             None
         }
     }
+}
+
+/// `c2rs census <cpp>` — **P2b, single TU**: capture the bundle and print the
+/// per-function verdict (modeled shape, or the first blocking feature).
+///
+/// The whole-TU verdict (`c2rs diff`) is all-or-nothing by design — the port
+/// emits a complete obj or nothing — so it says only "NotImplemented" for a TU
+/// where 99 of 100 functions are in class. This is the per-function view used
+/// while developing a widening step: run it before and after, watch specific
+/// functions move from a blocking feature to a shape.
+fn cmd_census(rest: &[String]) -> ExitCode {
+    let Some(cpp) = require_cpp(rest) else {
+        return ExitCode::from(2);
+    };
+    // Optional real-project capture (same inputs as `c2rs gap`), so a census can
+    // be taken of an actual workload TU and not just an include-free fixture.
+    let mut flags_file: Option<PathBuf> = None;
+    let mut cwd: Option<PathBuf> = None;
+    let mut keep_il: Option<PathBuf> = None;
+    let mut it = rest[1..].iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            // Keep the captured bundle for grammar work (gitignored scratch).
+            "--keep-il" => match it.next() {
+                Some(v) => keep_il = Some(PathBuf::from(v)),
+                None => {
+                    eprintln!("--keep-il needs a value");
+                    return ExitCode::from(2);
+                }
+            },
+            "--flags-file" => match it.next() {
+                Some(v) => flags_file = Some(PathBuf::from(v)),
+                None => {
+                    eprintln!("--flags-file needs a value");
+                    return ExitCode::from(2);
+                }
+            },
+            "--cwd" => match it.next() {
+                Some(v) => cwd = Some(PathBuf::from(v)),
+                None => {
+                    eprintln!("--cwd needs a value");
+                    return ExitCode::from(2);
+                }
+            },
+            other => {
+                eprintln!("unknown census option: {other}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    let w = scratch("census");
+    let captured = match &flags_file {
+        None => tc.capture_il(&cpp, &w),
+        Some(ff) => {
+            let flags: Vec<String> = match std::fs::read_to_string(ff) {
+                Ok(t) => t
+                    .lines()
+                    .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
+                    .flat_map(|l| l.split_whitespace().map(String::from))
+                    .collect(),
+                Err(e) => {
+                    eprintln!("cannot read --flags-file {}: {e}", ff.display());
+                    let _ = std::fs::remove_dir_all(&w);
+                    return ExitCode::FAILURE;
+                }
+            };
+            tc.capture_reference_with(&cpp.to_string_lossy(), &w, &flags, cwd.as_deref())
+                .map(|c| c.bundle)
+        }
+    };
+    let bundle = match captured {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("capture failed: {e}");
+            let _ = std::fs::remove_dir_all(&w);
+            return ExitCode::FAILURE;
+        }
+    };
+    if let Some(dir) = &keep_il {
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            eprintln!("cannot create --keep-il {}: {e}", dir.display());
+        } else {
+            for suffix in IL_SUFFIXES {
+                if let Some(bytes) = bundle.get(suffix) {
+                    let p = dir.join(format!("{}.{suffix}", bundle.base_name));
+                    if let Err(e) = std::fs::write(&p, bytes) {
+                        eprintln!("cannot write {}: {e}", p.display());
+                    }
+                }
+            }
+            println!("kept IL bundle in {}", dir.display());
+        }
+    }
+    let Some(census) = bundle.function_census() else {
+        eprintln!("census unavailable: bundle is missing .ex/.gl");
+        let _ = std::fs::remove_dir_all(&w);
+        return ExitCode::FAILURE;
+    };
+    let in_class = census.iter().filter(|f| f.verdict.in_class()).count();
+    println!(
+        "{} -> {}/{} functions in class",
+        cpp.display(),
+        in_class,
+        census.len()
+    );
+    let mut hist: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for f in &census {
+        let mark = if f.verdict.in_class() { "ok " } else { "GAP" };
+        println!(
+            "  [{:>3}] {mark} {:<24} {:>6} B  {}",
+            f.index,
+            f.verdict.key(),
+            f.seg_len,
+            f.name.as_deref().unwrap_or("(unnamed)")
+        );
+        if !f.verdict.in_class() {
+            *hist.entry(f.verdict.key()).or_insert(0) += 1;
+        }
+    }
+    if !hist.is_empty() {
+        let mut v: Vec<_> = hist.into_iter().collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        println!("  blocking features:");
+        for (feature, count) in v {
+            println!("    {count:>5} x {feature}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(&w);
+    ExitCode::SUCCESS
 }
 
 fn cmd_capture(rest: &[String]) -> ExitCode {
@@ -1570,6 +1705,33 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
     if checked > 0 {
         println!("  replay soundness: {checked} checked, {diverged} diverged");
     }
+
+    // P2b function-level census. The TU ladder above is all-or-nothing, so it
+    // reads 0% until a whole TU comes in class; this is the fine-grained
+    // numerator that actually moves per widening step, plus the ranked
+    // histogram that chooses the next step (docs/ROADMAP.md §G5).
+    let (in_class, fn_total) = report.fn_coverage();
+    if fn_total > 0 {
+        println!(
+            "\n  FUNCTION CENSUS (P2b): {in_class}/{fn_total} functions in class ({:.2}%)",
+            100.0 * in_class as f64 / fn_total as f64
+        );
+        let hist = report.fn_blocker_histogram();
+        if !hist.is_empty() {
+            println!("  blocking features (the widening order):");
+            let blocked: usize = hist.iter().map(|(_, n)| *n).sum();
+            for (feature, count) in hist.iter().take(20) {
+                println!(
+                    "    {count:>7} ({:>5.1}%)  {feature}",
+                    100.0 * *count as f64 / blocked as f64
+                );
+            }
+            if hist.len() > 20 {
+                println!("    … and {} more distinct features", hist.len() - 20);
+            }
+        }
+    }
+
     for (class, title) in [
         (TuClass::CaptureFail, "top capture-fail reasons"),
         (TuClass::VocabGap, "top vocab gaps"),
