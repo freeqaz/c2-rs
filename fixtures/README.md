@@ -31,6 +31,9 @@ and `*.il`; only the `.cpp` under `cpp/` is tracked.
 | `w5_chain.cpp` | written here | **W5 chains** — 3+-op `*`/`-` chains. This fixture caught a live mis-emit: the port reused one scratch where c2 descends `r11→r10→r9` |
 | `w5_tree2.cpp`, `w5_tree3.cpp` | written here | **W5 trees** — `(a+b)*(c+d)` and deeper; still out of class |
 | `w5_tree_neg.cpp` | written here | W5 negative neighbours — every function must keep returning `NotImplemented` |
+| `mvp_fmul3.cpp` | written here | **Ported (W13a)** — `float fmul3(float,float,float)`; `fmuls f0,f1,f2 ; fmuls f1,f0,f3` |
+| `w13_fabi.cpp`, `w13_fops.cpp`, `w13_fscratch.cpp`, `w13_fneg.cpp` | written here | W13 characterization: the FP calling convention, per-op encodings, the `[f0, f13…f1]` scratch cursor, and the negatives (constants, converts, contraction, spills) that must keep refusing. See `docs/CODEGEN_W13_FLOAT.md` |
+| `il_convert_scalar.cpp`, `il_intrinsic_call.cpp` | written here | Characterization for `2C` (the real cast) and `40` (the intrinsic call, which is **not** a cast). Both replay `ByteExact` and must keep refusing. See `docs/IL_CAST_CONVERT.md` |
 
 ### Negative fixtures are not optional
 

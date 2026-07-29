@@ -21,13 +21,15 @@ The foundation is proven and fast; the port itself is deliberately narrow.
 - **P-F0.1** — standalone-c1 (front-end) replay is byte-exact on all 25
   fixtures (`c2rs replay-c1`). The same porting path is open for `c1xx.dll`.
 - **The port (`c2-core::PortC2`) is byte-exact on its accepted class**
-  (`c2rs diff`, 17/31 fixtures Match, 0 mismatch): straight-line integer
+  (`c2rs diff`, 18/37 fixtures Match, 0 mismatch): straight-line integer
   add/sub/mul chains with immediate folding and wide constants (now including
   3+-op `*`/`-` chains, see the mis-emit note below), multi-function TUs of
   those, bare void tail calls, integer tail calls `return g(<arg>)`
   (passthrough / `+0` fold / arg-setup), the framed non-leaf
-  `return g(a) + k` (6-section obj with `.pdata`), **the empty TU** (R1), and
-  **comparison→boolean leaves** (W6: `return a <rel> k`, branchless). Everything
+  `return g(a) + k` (6-section obj with `.pdata`), **the empty TU** (R1),
+  **empty function bodies** (R2), **the COMDAT `.text`-per-function shape under
+  `/Gy`** (R3), **comparison→boolean leaves** (W6: `return a <rel> k`,
+  branchless), and **float/double leaves over parameters** (W13a). Everything
   else returns `NotImplemented` — fail closed, never a guess.
 - **R1 — the first nonzero match bucket.** `coff::emit_empty_obj` emits the
   720-byte four-section obj for a TU that defines no functions, recognized
@@ -36,6 +38,18 @@ The foundation is proven and fast; the port itself is deliberately narrow.
   the seven zero-function TUs are deliberately refused — they carry a stray
   `4F 1F` after the module end — a conservative miss, taken in preference to
   relaxing a fail-closed test.
+- **R2 — empty function bodies.** `w10_empty_fn.cpp` is exact; the function
+  analogue of R1, with no expression to select. The largest single census jump
+  so far, from the smallest class: **7,954 → 78,028 functions in class
+  (0.32% → 3.17%)**, because trivial accessors and destructors are everywhere.
+  The `IL_CALL_GRAMMAR.md` §4.2 trailing-expression variant still rejects.
+- **R3 — COMDAT `.text` per function under `/Gy`.** Forced by R2, which turned
+  a latent flag dependency into a live mismatch: `/O1` and `/O2` imply `/Gy`,
+  the bundle does not record it, and the same IL therefore legitimately yields
+  two different objs. `coff::emit_comdat_obj` plus
+  `PortC2::with_function_level_linking` carry it. `system/utl/Spew.cpp` became
+  the **first function-bearing real TU to match**, taking the gap-scan bucket to
+  **6/878** with mismatch back at 0. Full account: the `/Gy` box in §G5.
 - **W6 — comparison → boolean, byte-exact.** `il_bool_materialization.cpp` is
   `Port=Match`, 6/6 functions in class. c2 lowers these **branchlessly** (no
   `cmpw`/`cmplw` at all) via carry-bit and bit-extraction idioms; the `k == 0`
@@ -44,6 +58,25 @@ The foundation is proven and fast; the port itself is deliberately narrow.
   and `>=` against a **non-zero** literal stay out of class — the spine's
   instruction order for a literal lhs is unresolved and guessing it would be a
   silent wrong-bytes emit.
+- **W13a — float/double leaves over parameters, byte-exact.** `mvp_fmul3.cpp`
+  is `Port=Match`. Spec and byte evidence: **`docs/CODEGEN_W13_FLOAT.md`**.
+  The FP register model **shares nothing with the integer one**, and every
+  difference is a place a grafted integer path would emit wrong bytes rather
+  than run out of range: the pool is `[f0, f13, …, f1]` with `f0` allocatable
+  and *first* and the result register `f1` *last* (`select_text`'s "refuse
+  below `r9`" guard has no FP analogue); an FP `+` chain does **not** collapse
+  into a single accumulator the way the integer one does; `fsubs fD,fA,fB` is
+  `fA − fB`, the **opposite** of `encode_subf`'s load-bearing reversal; and
+  `fmuls` takes the multiplier in the **C** field. Single precision is primary
+  opcode 59 and double 63 with identical XO and register fields, so one encoder
+  covers both. Gated hard against everything that mis-emits rather than
+  overflows: FP **literals** (W13b — an FP constant costs an `.rdata` COMDAT
+  plus a REFHI/REFLO relocation pair plus a GPR), `2C` converts, float/double
+  mixing, any `*` under a `+`/`-` (c2's contraction to `fmadds`/`fmsubs` is
+  **mandatory**), and repeated leaves (`a+a` is rewritten to `a*2.0f`, which is
+  a constant again). Obj shell effect for this class: exactly one extra symbol,
+  the undefined external `_fltused` — the *general* trigger rule for that symbol
+  is still open (`CODEGEN_W13_FLOAT.md` §7).
 
 - **W5 chains** — `*`/`-` chains past two operations, allocating temporaries
   down the `r11 → r10 → r9 …` cursor and **refusing below `r9`**; the rule and
@@ -58,7 +91,7 @@ The foundation is proven and fast; the port itself is deliberately narrow.
   blocking-feature histogram in the `gap` report; the census also prints a
   bracketed hexdump of the bytes at each blocking site, which is what turned
   guessed opcode names into measured ones). The port's real coverage is now a
-  *measured* number: **78,028 / 2,462,571 functions in class (3.17%)** over the
+  *measured* number: **79,718 / 2,462,571 functions in class (3.24%)** over the
   871 capturable dc3 TUs, with the blocking-feature histogram that ranks the
   remaining work (§G5).
 - **IL codec (K1/K2a)** — round-trip-gated typed-islands-over-opaque-spans
@@ -103,18 +136,23 @@ working exactly as designed, one rung earlier than intended.
 **Staged but not yet ported** (fixtures/probes already in-repo, pointing at
 the next classes):
 
-- `w10_empty_fn.cpp` — **empty function bodies**, the function-level analogue
-  of R1 and the `body-0x3A` census bucket (4.4% of blocked functions; by name
-  mostly STL plumbing and trivial destructors). No expression to select, so it
-  is reachable with no new instruction selection.
 - `w5_tree2.cpp` / `w5_tree3.cpp` / `w5_tree_neg.cpp` — multi-scratch
   expression **trees** (`(a+b)*(c+d)` and deeper). Chains are done; trees
   still fail closed. The register-allocation rule, the evaluation order and
   the eleven negative neighbours are fully characterized in
   `docs/CODEGEN_W5_SCRATCH.md`.
 - `select_max`, `shift_mask` in `add3.cpp` — ternary select, shifts, `&`.
-- `mvp_fmul3.cpp` + `float_leaf_neighbors` test — float arithmetic leaves;
-  the IL side already parses, codegen has no float registers.
+- `w13_fabi.cpp` / `w13_fops.cpp` / `w13_fscratch.cpp` / `w13_fneg.cpp` — the
+  W13 characterization set: the FP calling convention, the four binary ops, the
+  temporary cursor with its liveness skip and wrap, and the negatives (spills,
+  int↔FP round trips, fused `fmadds`). All replay `ByteExact`; all still
+  `Port=NotImplemented`, which is what pins the W13a boundary.
+- `il_convert_scalar.cpp` / `il_intrinsic_call.cpp` — the P2d cast /
+  intrinsic-call characterization set (19 scalar conversions; 12 `0x40` sites).
+  Both replay `ByteExact` and both must keep refusing: the same `2C` token is
+  simultaneously nothing, `extsb`, `extsh`, `clrlwi` and a 3-instruction
+  `fctiwz` sequence depending on the **source** type, which the operand stack
+  does not yet carry (`docs/IL_CAST_CONVERT.md` §4.2, §5).
 - `il_call_return.cpp` — the call frontier: multi-arg calls, multiple calls,
   virtual calls, conditionals, locals, early returns.
 - Out-of-class neighbor fixtures (`mvp_call_submod`, `…_twice`,
@@ -163,24 +201,26 @@ and §G5:
 | W10 | **General frames + locals** (spills, local temps) | frame-size model beyond the fixed 96B, `lwz`/`stw` to frame, `.pdata` generalization; **must solve the `.pdata` label-counter shift (W-UNW-1)** | `cached_return` |
 | W11 | **Calls generalized** (multi-arg, stack args, multiple calls/externals, multi-fn TUs with calls, calls in expressions) | arg registers r3–r10 + stack spill, call sequencing, `.pdata` per function (W-UNW-1 again), extern pairing beyond the single-external shortcut | `il_call_return.cpp` |
 | W12 | **Memory / struct access** (pointers, member loads, stores, arrays) | `lwz`/`lhz`/`lbz`/`lha` + sign/zero extension, store forms, member-offset addressing — the `Box::Volume` float leaf lives here | float-leaf codec already typed |
-| W13 | **Float codegen** (`fmul3` and friends) | f1–f13 params, `fmuls`/`fadds`/`fsubs`, `frsp`; float *constants* need `.rdata` + `lfs` + a data reloc (splits into 13a param-only leaves, 13b constants) | `mvp_fmul3.cpp` |
+| W13 | **Float codegen** (`fmul3` and friends) | pool `[f0, f13, …, f1]` (**not** the integer shape), `fmuls`/`fadds`/`fsubs`/`fdivs`, mandatory `fmadds` contraction, `frsp`; float *constants* need an `.rdata` COMDAT + `addis`/`lfs` + a REFHI/REFLO pair (splits into 13a param-only leaves, 13b constants) | **13a DONE** (`mvp_fmul3.cpp` Match; `w13_*.cpp` pin the boundary) — `CODEGEN_W13_FLOAT.md`; 13b open |
 | W14 | **Data sections / globals** (`.data`/`.rdata`, string literals, statics, arrays) | new COFF sections, `ADDR32` relocs, symbol storage classes | — |
 
 Long tail, census-driven only: switch/jump tables, 64-bit ints (`addc`/`adde`
 carry chains), unsigned variants everywhere, virtual/indirect calls (needs
-W12 + `mtctr`/`bctrl`), `__declspec`s, intrinsics. Do not schedule these
-ahead of measured demand.
+W12 + `mtctr`/`bctrl`), `__declspec`s. Do not schedule these ahead of measured
+demand. **Intrinsics have left the long tail**: the `0x40` production is the
+largest schedulable thing on the board (§G5), so it is scheduled work now, not
+tail work.
 
-**Re-rank from the P2b census, now that the CALL grammar is characterized
-(INFERENCE from the measured histogram of §G5 — the histogram is a
-measurement, the attribution of buckets to rungs is not).** The largest
-buckets are no longer anonymous: `docs/IL_CALL_GRAMMAR.md` decodes the CALL
-token, the three coexisting variable-width encodings and the body/statement
-grammar, and names most of the top of the histogram. Grouping the current top
-10 by what the bytes actually are:
+**Re-rank from the P2b census, now that the CALL grammar and the `0x40`
+production are both characterized (INFERENCE from the measured histogram of
+§G5 — the histogram is a measurement, the attribution of buckets to rungs is
+not).** The largest buckets are no longer anonymous: `docs/IL_CALL_GRAMMAR.md`
+decodes the CALL token, the three coexisting variable-width encodings and the
+body/statement grammar, and `docs/IL_CAST_CONVERT.md` decodes the *second*
+call token. Grouping the current top eight by what the bytes actually are:
 
 - **Genuinely out-of-class calls — these must keep failing closed, they are
-  not a "fix"** (`call-token-0xB9`, **14.8%**, the single largest bucket).
+  not a "fix"** (`call-token-0xB9`, **15.3%**, the single largest bucket).
   This is *not* a missing opcode: `BD` is a postfix operator applied to
   whatever the operand stream pushed, and here the callee is an **expression**
   — `b9 <tok> <TYPE>` (indirect call) or `26 <method> <obj-expr> 99 …`
@@ -190,42 +230,72 @@ grammar, and names most of the top of the histogram. Grouping the current top
   rejected *before* emission, permanently, until W11/W12 give the port real
   argument passing and member addressing. Widening the parser to accept them
   without codegen would convert a refusal into a mis-emit.
-- **Type-driven blocks**, i.e. the port only lowers `int`:
-  `expr-load-type-864540` (**float**, 3.4%), `expr-load-type-888541`
-  (**double**, 3.1%), `expr-load-type-864383` (**void\***, 1.9%) = **8.4%**.
-  These are honest **W13** and **W12** demand. Knowing how to *skip* a
-  `double` (the width rule is now known) is not knowing how to lower it.
-- **Casts** — `expr-cast` (`40 <target-type>`, **6.8%**), the second-largest
-  bucket. Mostly W12-adjacent (pointer/integer conversion) and the cheapest
-  of the large buckets to characterize next.
-- **Remaining call-shaped** blocks: `call-token-0x33` (5.9%, a literal where
-  a CALL was expected), `expr-call-in-expr` (4.9%), `call-token-0x26` (3.3%)
-  = **14.1%** — real **W11** demand (multi-arg calls, calls nested in
-  expressions, `26 dest 26 callee BD …` assign-a-call-result statements).
-- **Statement/body-shaped** blocks: `body-0x3A` (**4.4%**) is now known to be
-  an **empty function body** (`IL_CALL_GRAMMAR.md` §4.2) — the cheapest large
-  bucket on the board and staged as `w10_empty_fn.cpp`; `body-0x53` (2.9%) is
-  a body whose first statement is an `if`/compound, i.e. **W8** control flow.
-- **W6 (comparisons) and W7 (shifts) still do not appear in the top 10**, and
-  W6's leaf class has now landed anyway.
+- **The intrinsic-call family — the largest schedulable thing on the board,
+  ~13%.** `expr-intrinsic-call` (**7.0%**) and `call-token-0x33` (**6.1%**)
+  are the *same* production, the second differing only in that the result is
+  assigned. `0x40` is a second CALL token, not the cast the census used to call
+  it (see the correction below and §G2). Scheduling it requires: decoding
+  `40 <TYPE>` plus its argument loop and the `66 02 <tok> <tok>` class-pair
+  descriptor merely to stay aligned; then, for acceptance, an **allow-list of
+  intrinsic ids pinned by controlled fixture** whose *argument literals* are
+  also constrained — because c2's expansion depends on the literal values, not
+  just the id (`IL_CAST_CONVERT.md` §1.4: one offset byte apart is the
+  difference between zero instructions and a null-guarded four-instruction
+  sequence). Decoding is cheap and unlocks the census; accepting is not.
+- **Remaining call-shaped** blocks: `expr-call-in-expr` (**5.0%**) and
+  `call-token-0x26` (**3.4%**) = **8.4%** — real **W11** demand (calls nested
+  in expressions, `26 dest 26 callee BD …` assign-a-call-result statements).
+- **Type-driven blocks**, i.e. the port only lowers `int` and the W13a FP leaf:
+  `expr-load-type-864540` (**float**, 3.4%) and `expr-load-type-888541`
+  (**double**, 3.1%) = **6.6%**, with `expr-load-type-864383` (**void\***) just
+  behind them in the tail. W13a took a bite out of the float row and the rest
+  is honest **W13b**/**W12** demand — knowing how to *skip* a `double` is not
+  knowing how to lower it.
+- **Statement/body-shaped** blocks: `body-0x53` (**2.9%**) is a body whose
+  first statement is an `if`/compound, i.e. **W8** control flow. `body-0x3A`
+  (previously 4.4%, the cheapest large bucket) is **gone** — that was empty
+  function bodies, landed as R2.
+- **W6 (comparisons) and W7 (shifts) still do not appear in the top eight**,
+  and W6's leaf class has now landed anyway.
 
 So the measured demand still says the W5→W6→W7→W8 order is not
-demand-driven, but the shape of the demand has changed: a large part of the
-top is **out-of-class by construction** (member/indirect calls) rather than
-schedulable work, and the schedulable head is *empty function bodies*, then
-casts, then float/double types, then generalized calls.
+demand-driven, but the shape of the demand has changed again: a large part of
+the top is **out-of-class by construction** (member/indirect calls) rather than
+schedulable work, and the schedulable head is now the **intrinsic-call family
+(~13%)**, then generalized calls (8.4%), then float/double types (6.6%), then
+control flow.
 
-> **Standing caution — a census bucket may be a parser defect, not
-> vocabulary.** This has now happened **twice**. The variable-token-width fix
-> (§G2) deleted the `call-token-0x01…0x05` and `expr-load-type-0N00A6`
-> families, which were pure misalignment. The CALL-token decode deleted the
-> entire **`call-anchor-*` family** — previously ~12.4% of blocked functions
-> (`call-anchor-0x00` 235,886, `-0x08` 43,269, `-0x20` 24,600 → **0**) —
-> which was measuring a hardcoded 6-byte "anchor" that was never an anchor
-> (§G2). Both times a large, plausible, stable bucket turned out to be the
-> instrument rather than the corpus. Before scheduling work against any
-> bucket, dump the bytes at the recorded offset (`c2rs census`, which now
-> prints them) and confirm the parse arrived there **aligned**.
+> **Standing caution — a census bucket may be a parser defect, and a census
+> *name* may be a guess.** Two distinct failure modes, both of which have now
+> fired more than once.
+>
+> **(a) The bucket is the instrument, not the corpus — twice.** The
+> variable-token-width fix (§G2) deleted the `call-token-0x01…0x05` and
+> `expr-load-type-0N00A6` families, which were pure misalignment. The
+> CALL-token decode deleted the entire **`call-anchor-*` family** — previously
+> ~12.4% of blocked functions (`call-anchor-0x00` 235,886, `-0x08` 43,269,
+> `-0x20` 24,600 → **0**) — which was measuring a hardcoded 6-byte "anchor"
+> that was never an anchor (§G2). Both times a large, plausible, stable bucket
+> turned out to be the instrument.
+>
+> **(b) The name was guessed and was wrong — three times.**
+> 1. **The relational opcodes.** Inferred from numeric order; three of six
+>    labels were wrong and `==` had no name at all, until one probe per
+>    relation was compiled (§G5, `CODEGEN_W6_COMPARE.md` §1.1).
+> 2. **`call-anchor-*`.** Named for a structure that did not exist — a parser
+>    defect wearing a plausible name, which is why it appears in both lists.
+> 3. **`expr-cast`.** `0x40` was named `cast` from a single witness on the
+>    conjecture that it is `40 <target-type>`. It is not a cast at all: it is a
+>    second CALL token, the intrinsic call, and the real cast opcode is
+>    `2C <TYPE> <varint>` (§G2, `docs/IL_CAST_CONVERT.md`). The wrong name
+>    survived into two published histograms and a scheduled work item.
+>
+> **The rule, plainly: name a bucket only from a capture that pins it;
+> otherwise leave it hex.** A hex bucket is a result. A guessed name is a lie
+> that survives into the roadmap — it gets grouped, ranked and scheduled as if
+> it were evidence. And before scheduling work against any bucket, dump the
+> bytes at the recorded offset (`c2rs census`, which now prints them) and
+> confirm the parse arrived there **aligned**.
 
 ### G2 — IL decode coverage
 
@@ -303,6 +373,46 @@ lands **exactly** on the fixed 7-byte function tail for 2,729 of Dir.cpp's
 not width errors — a wrong token width, type width or CALL layout could not let
 half a 1.5 MB real TU land on a fixed 7-byte pattern.
 
+**There is a SECOND call token, `0x40`, and it is what the census used to call
+`expr-cast` (characterized 2026-07-29, commit 9c7ba7d;
+`docs/IL_CAST_CONVERT.md`).** The `cast` name was a guess from one witness and
+it is refuted. `0x40` occupies exactly the slot `BD` occupies, and is the
+*intrinsic* call:
+
+```
+INTRINSIC-CALL := 33 <int-TYPE> <selector>   the selector is a bare int literal
+                  40 <TYPE result>            the call token — no flags, no fn-type id
+                  ( <expr> 55 <TYPE> )*       arguments
+                  4C                          apply
+```
+
+The decisive measurement: across three real TUs (`Dir.cpp`, `App.cpp`,
+`Game.cpp`) `0x40` is preceded by a bare `int` constant at **6,838 of 6,839**
+aligned sites, and the single exception is a parse-misalignment artifact. A
+cast opcode would overwhelmingly follow LOADs and sub-expressions; this follows
+a constant essentially 100% of the time. That constant is the intrinsic
+selector — pinned by controlled fixture at 15 `abs`, 17 `fabs`, 159/160
+`_rotl`/`_rotr`, 164 `strcpy`, 165 `strcmp`, 167 `strlen`, 170 `memcmp`,
+172 `memcpy`, 173 `memset`, 1973 `sqrt`, plus a dominant **2113–2119**
+class-layout / base-offset-adjustment family.
+
+Three knock-on corrections:
+
+- `call-token-0x33` (6.1%) is the **same production with an assigned result**,
+  so the intrinsic-call family's real footprint is **~13%**, not 7% — the
+  largest schedulable bucket in the histogram (§G1, §G5).
+- `0x66` — which `IL_CALL_GRAMMAR.md` §7 ranked as its **#1 unidentified
+  blocker** (1,148 Dir.cpp bodies) — is **not a call**. It is the class-layout
+  family's class-pair descriptor, `66 02 <tok classA> <tok classB>`. Read that
+  doc's ranked-unknowns table with this correction applied.
+- **The real cast opcode is `2C <TYPE> <varint>`** (census bucket
+  `expr-convert`), and it is the load-bearing hazard of the whole area: the
+  *same* `2c 86 41 74 00` token is simultaneously nothing, an `extsb`, an
+  `extsh`, a `clrlwi` and a 3-instruction `fctiwz` sequence, discriminated
+  entirely by the **source** type — which the operand stack does not carry
+  (`IL_CAST_CONVERT.md` §2.2, §4.2). A typed operand stack is the prerequisite,
+  and it is the same prerequisite the float/double/`void*` buckets need.
+
 <details><summary>Superseded: the "+1 continuation" reading (kept as a
 worked example of a statistical result that was directionally right and
 mechanically wrong)</summary>
@@ -337,12 +447,29 @@ way.
 
 </details>
 
-**Outstanding**: `crates/c2-il/src/codec.rs` still assumes a fixed 2-byte
+**Outstanding (1)**: `crates/c2-il/src/codec.rs` still assumes a fixed 2-byte
 token (`tok16`) and therefore carries the same latent defect on real TUs. It
 is round-trip gated, so it fails *closed* (an opaque span) rather than
 mis-decoding — no correctness exposure today — but it caps typed coverage on
 real bundles and must adopt the variable-width read before the codec is
 pointed at the real workload.
+
+**Outstanding (2) — `read_varint`'s short form is a SIGNED byte** (measured by
+controlled fixture, `IL_CAST_CONVERT.md` §3.2). The current model is
+`b < 0x80 → value = b` (unsigned), `b == 0x80 → 4-byte LE`. Three corrections:
+
+- the short form is a **signed** 8-bit value — `return -5;` is
+  `33 86 41 74 fb`, not an escape;
+- `-128` is **forced** into the escape form, because `0x80` is the escape
+  marker and cannot also be a payload;
+- the escape carries **8** payload bytes for tag-`0x88` types (`long long`,
+  `unsigned long long`), not 4.
+
+Today `read_varint` rejects `0x81..0xFF` outright. That is fail-closed and
+therefore safe — no mis-decode is possible — but it means **every small
+negative literal silently blocks its function**, i.e. a self-inflicted share of
+the census that is a decode fix, not a codegen class. Fixing it also requires
+passing the operand type in, since the escape width depends on the type's tag.
 
 ### G3 — Front-end port (`c1xx.dll` → `c1-core`)
 
@@ -408,28 +535,32 @@ byte:
 ```
 
 That is the single highest-leverage line in the instrument: it is what turned
-guessed opcode names into measured ones (the relational correction below), and
-what exposed the true CALL token shape and the meaning of `body-0x3A` /
-`body-0x53` on a real TU. Per-function lines are suppressed above 64 functions,
-where only the histogram is readable.
+guessed opcode names into measured ones (the relational correction below, and
+the `expr-cast` → intrinsic-call correction of §G2), and what exposed the true
+CALL token shape and the meaning of `body-0x3A` / `body-0x53` on a real TU.
+Per-function lines are suppressed above 64 functions, where only the histogram
+is readable.
 
 **Baseline (2026-07-29 end of day, 878 dc3 TUs, real `/O1 /Oi /EHsc` flags,
 ~36 s at `--jobs 16`):**
 
 | Class | TUs | % |
 |---|---|---|
-| **match** | **5** | **0.6** |
+| **match** | **6** | **0.7** |
 | mismatch | 0 | 0.0 |
 | codegen-gap | 0 | 0.0 |
-| **vocab-gap** | **866** | **98.6** |
+| **vocab-gap** | **865** | **98.5** |
 | capture-fail | 7 | 0.8 |
 
-**The match bucket is nonzero for the first time** — R1 (empty-TU obj
-emission, §1). Five of the seven zero-function TUs; the other two are refused
-on purpose (a stray `4F 1F` after the module end defeats the positive
-`is_empty_module` test, and relaxing that test is not worth 2 TUs).
+**The match bucket is nonzero for the first time**, from two rungs. Five of the
+six are empty TUs (R1, §1) — five of the seven zero-function TUs in the
+workload, the other two refused on purpose (a stray `4F 1F` after the module
+end defeats the positive `is_empty_module` test, and relaxing that test is not
+worth 2 TUs). The sixth is `system/utl/Spew.cpp`, the **first function-bearing
+real TU to match**, unlocked by R2 + R3 (empty function bodies, then the `/Gy`
+COMDAT shape they exposed — box below).
 
-**Function census: 78,028 / 2,462,571 functions in class (3.17%).** Progression
+**Function census: 79,718 / 2,462,571 functions in class (3.24%).** Progression
 today on the identical instrument:
 
 | | in class | % |
@@ -437,13 +568,17 @@ today on the identical instrument:
 | start of day | 4,154 | 0.17 |
 | + variable token width (§G2, 40f767d) | 7,114 | 0.29 |
 | + CALL-token decode (§G2, 2870fc1) | 7,954 | 0.32 |
-| + empty function bodies (`w10_empty_fn.cpp`, a44c8f3) | **78,028** | **3.17** |
+| + empty function bodies (`w10_empty_fn.cpp`, a44c8f3) | 78,028 | 3.17 |
+| + W13a float/double leaves (9c7ba7d) | 79,041 | 3.21 |
+| + signed varint short form (66f408d) | **79,718** | **3.24** |
 
-The first two steps were *decode* fixes, not new codegen — the expected
-shape of progress while the wall is `vocab-gap`. The third is a 10x jump from
-one very small class: empty bodies are ~4.4% of blocked functions by count,
-and accepting them also unblocks the many TUs that are *mostly* trivial
-accessors and destructors.
+The first two steps were *decode* fixes, not new codegen — the expected shape
+of progress while the wall is `vocab-gap`. The third is a 10× jump from one
+very small class: empty bodies were ~4.4% of blocked functions by count, and
+accepting them also unblocks the many TUs that are *mostly* trivial accessors
+and destructors. The fourth is the smallest of the four and the most
+codegen-heavy, which is the normal ratio once the decode wall stops being the
+binding constraint.
 
 > ### The obj shape depends on argv the bundle does not record (`/Gy`)
 >
@@ -479,7 +614,7 @@ post-fix code: 871/871 capturable TUs byte-exact, 0 diverged**
 capturable real workload, so every IL-derived measurement above rests on a
 reference side that was itself checked, not assumed.
 
-Fixture-level status at the same commit: **17/31 `Port=Match`, 0 mismatch**;
+Fixture-level status at the same commit: **18/37 `Port=Match`, 0 mismatch**;
 `cargo test --workspace` green.
 
 > **The denominator is 2,462,571 functions — not ~903k.** An earlier figure of
@@ -493,30 +628,39 @@ Fixture-level status at the same commit: **17/31 `Port=Match`, 0 mismatch**;
 > (`func::split_function_bodies`). Do not re-derive a function count from
 > `.gl`.
 
-Blocking-feature histogram, top 10 (percentages are of *blocked* functions),
-with what each bucket is now known to be:
+Blocking-feature histogram, top 8 (percentages are of the 2,383,530 *blocked*
+functions), with what each bucket is now known to be:
 
 | Functions | % | Feature | What the bytes are |
 |---:|---:|---|---|
-| 363,684 | 14.8 | `call-token-0xB9` | **member / indirect calls** — the callee is an *expression*, not `26 <tok>` |
-| 167,205 | 6.8 | `expr-cast` | `40 <target-type>` |
-| 144,276 | 5.9 | `call-token-0x33` | a literal where a CALL was expected |
-| 119,800 | 4.9 | `expr-call-in-expr` | a call nested inside an expression |
-| 107,253 | 4.4 | `body-0x3A` | an **empty function body** |
-| 82,491 | 3.4 | `expr-load-type-864540` | **float** |
-| 80,284 | 3.3 | `call-token-0x26` | `26 dest 26 callee BD …` (assign a call result) |
+| 363,684 | 15.3 | `call-token-0xB9` | **member / indirect calls** — the callee is an *expression*, not `26 <tok>` |
+| 167,205 | 7.0 | `expr-intrinsic-call` | the `0x40` token — a **second call token**, not a cast (§G2) |
+| 144,276 | 6.1 | `call-token-0x33` | the **same** intrinsic-call production, result assigned |
+| 119,800 | 5.0 | `expr-call-in-expr` | a call nested inside an expression |
+| 81,478 | 3.4 | `expr-load-type-864540` | **float** |
+| 80,284 | 3.4 | `call-token-0x26` | `26 dest 26 callee BD …` (assign a call result) |
 | 75,081 | 3.1 | `expr-load-type-888541` | **double** |
 | 70,078 | 2.9 | `body-0x53` | first statement is an `if`/compound |
-| 47,640 | 1.9 | `expr-load-type-864383` | **void\*** |
 
-…plus a long tail of further distinct features (1,217 more rows at the
-mid-day measurement; the row count moved with the `call-anchor-*` retirement
-below and is deliberately not re-quoted from the old scan).
+`expr-load-type-864383` (**void\***) sits just below this cut; its count is
+deliberately not re-quoted from the superseded scan. Behind the top eight is a
+long tail of further distinct features (1,217 more rows at the mid-day
+measurement; the row count has moved with every retirement since and is
+likewise not re-quoted).
 
-**The `call-anchor-*` family is gone** — it was 12.4% of blocked functions
-(235,886 + 43,269 + 24,600) and it was measuring the port's own hardcoded
-anchor, not a real gap (§G2, and the standing caution in §G1). Do not compare
-this histogram to the mid-day one without accounting for that retirement.
+Two rows have **left** this table since the mid-day scan, and neither left by
+being fixed in the corpus sense:
+
+- **`body-0x3A` (107,253 / 4.4%) is gone** because it was **ported** — it was
+  the empty function body, and R2 accepted it. This is the one legitimate way a
+  bucket disappears.
+- **The whole `call-anchor-*` family is gone** — 12.4% of blocked functions
+  (235,886 + 43,269 + 24,600) — because it was measuring the port's own
+  hardcoded anchor, not a real gap (§G2, and the standing caution in §G1).
+
+Do not diff this histogram against an earlier one without accounting for both,
+and note that every percentage moved simply because the blocked denominator
+shrank from ~2.45 M to 2,383,530.
 
 How to read the bucket names (`func::Block::feature`) — `<production>-0xNN`
 means the parse was inside that grammar production and could not consume byte
@@ -528,9 +672,10 @@ means the parse was inside that grammar production and could not consume byte
   (`26`), LOAD (`B9`) or literal (`33`) is modeled.
 - `expr-*` — inside the operand stream; `expr-*-type-NNNNNN` reports the
   operand's whole inline type, because the type triple *is* the feature (int
-  vs unsigned vs float vs pointer). Named buckets (`expr-cast`,
-  `expr-call-in-expr`, the relationals) carry only **capture-verified** names
-  — see the correction below.
+  vs unsigned vs float vs pointer). Named buckets (`expr-intrinsic-call`,
+  `expr-convert`, `expr-call-in-expr`, the relationals) now carry only
+  **capture-verified** names — see the corrections below, and the standing
+  caution in §G1 for why that qualifier is load-bearing.
 
 **The census's relational opcode names were guessed, and were wrong.**
 Compiling one probe per relation against the live toolchain (commit 45421f6,
@@ -539,8 +684,17 @@ Compiling one probe per relation against the live toolchain (commit 45421f6,
 `==`, `0x21` `!=`, `0x23` `<=`, `0x25` `>=`, and had **no** name for `==` at
 all — so three buckets were mislabelled and every `==` landed in an unnamed
 one. Diagnostic only (acceptance never consults the name) but the ranked
-blocker lists in `docs/GAPS.md` are keyed on these strings. A hex bucket is a
-result; a wrong name is a lie that survives into the roadmap.
+blocker lists in `docs/GAPS.md` are keyed on these strings.
+
+**And `expr-cast` was guessed, and was wrong — the third such name.** `0x40` is
+not `40 <target-type>` and is not a cast; it is the intrinsic-call token, the
+real cast is `2C <TYPE> <varint>`, and the bucket is now `expr-intrinsic-call`
+with `expr-convert` for the genuine article (§G2, `docs/IL_CAST_CONVERT.md`).
+The wrong name did not just mislabel a row: it grouped 6.8% under "casts",
+ranked that group as the cheapest large characterization job, and put it on
+the next-actions list — while the *same* production's other 5.9%, sitting two
+rows below under `call-token-0x33`, was scored as unrelated W11 demand. A hex
+bucket is a result; a guessed name is a lie that survives into the roadmap.
 
 Notes:
 
@@ -550,20 +704,26 @@ Notes:
 - The 7 `capture-fail`s are all `synth_xbox/soundtouch` files the real 360
   build excludes (x86-only `#error` guards) or builds with per-target flags —
   a workload-manifest refinement, not a port gap.
-- **The TU wall is still `vocab-gap` for every TU that contains code**: those
-  866 TUs die at `c2_il` function decode before codegen is consulted, because
-  `functions()` is all-or-nothing per TU. That is unchanged and expected — a
-  TU with 700 functions of which 699 are in class is still one `vocab-gap`.
-  The 5 matches are exactly the TUs with *no* functions to decode. The census
-  is what moves per widening step; the TU buckets move much later.
+- **The TU wall is still `vocab-gap` for almost every TU that contains code**:
+  those 865 TUs die at `c2_il` function decode before codegen is consulted,
+  because `functions()` is all-or-nothing per TU. That is unchanged and
+  expected — a TU with 700 functions of which 699 are in class is still one
+  `vocab-gap`. Five of the 6 matches are TUs with *no* functions to decode; the
+  sixth (`Spew.cpp`) is the first where every function in the TU happened to be
+  in class at once. The census is what moves per widening step; the TU buckets
+  move much later.
 
 Remaining for G5: keep the JSONL baselines diffable scan-over-scan (coverage
-must be monotone), and keep characterizing the head of the histogram —
-`expr-cast` (`40 <target-type>`) is now the largest *schedulable* unknown,
-`body-0x3A` the largest cheap one. The §G1 re-rank is no longer blocked on
-`call-token-0xB9`: that bucket is characterized (member/indirect calls,
-`IL_CALL_GRAMMAR.md` §3.2/§6.2) and is out of class by construction rather
-than schedulable.
+must be monotone), and keep characterizing the head of the histogram. The two
+largest named productions are now both characterized rather than unknown —
+`call-token-0xB9` is member/indirect calls (`IL_CALL_GRAMMAR.md` §3.2/§6.2,
+out of class by construction, not schedulable) and the `0x40`/`call-token-0x33`
+pair is the intrinsic call (`IL_CAST_CONVERT.md`, **~13% and schedulable**, the
+largest such bucket on the board). What remains genuinely unidentified at the
+head is smaller and mostly type-driven; the cheapest coverage left in the
+instrument itself is the `read_varint` signed-byte fix (§G2, Outstanding 2),
+which is a decode defect blocking every small negative literal rather than a
+corpus feature at all.
 
 ### G6 — Harness experiments maturity
 
@@ -605,7 +765,10 @@ them out of the port's critical path.
 P2    gap-scan baseline with `c2rs gap` (dc3 workload) (G5)   [DONE 2026-07-20]
 P2b   function-level census + blocking histogram      (G5; the driver) [DONE 2026-07-29]
 P2c   CALL / body grammar characterization → IL_CALL_GRAMMAR.md [DONE 2026-07-29]
+P2d   cast / intrinsic-call characterization → IL_CAST_CONVERT.md [DONE 2026-07-29]
 R1    empty-TU obj emission — first nonzero match bucket   [DONE 2026-07-29: 5/878]
+R2    empty function bodies                          [DONE 2026-07-29: census 0.32% → 3.17%]
+R3    COMDAT .text per function under /Gy            [DONE 2026-07-29: match 5 → 6/878]
 W5    multi-scratch expressions                     [CHAINS DONE 2026-07-29; trees open]
 W6    integer comparisons → bool                    [LEAVES DONE 2026-07-29; <,<=,>= vs k≠0 open]
 W7    shifts + bitwise + strength reduction         (staged)
@@ -614,7 +777,7 @@ W9    division / modulo
 W10   general frames + locals (+ .pdata labels W-UNW-1)
 W11   calls generalized (+ W-UNW-1 for multi-fn TUs)
 W12   memory / struct access
-W13   float codegen (13a param-only, 13b constants→.rdata)
+W13   float codegen                                  [13a DONE 2026-07-29; 13b constants→.rdata open]
 W14   data sections / globals
 P-F0.2 FE characterization probes → FE_BUNDLE_MVP.md   (parallel track)
 P-F1  c1-core MVP + Grade-1/2 gates                    (parallel track)
@@ -623,19 +786,30 @@ P3    c2rs compose — source→obj in-process, byte-exact + perf-fe scale
 ```
 
 **The W-numbering above is the pre-census estimate and is not the running
-order.** The current histogram (§G5), read against the now-characterized CALL
-and body grammar, ranks the schedulable work as: **empty function bodies**
-(`body-0x3A`, 4.4%, staged as `w10_empty_fn.cpp` — the cheapest large bucket,
-and R1's function-level analogue), then **casts** (`expr-cast`, 6.8%), then
-**non-int operand types** (float/double/`void*`, 8.4% — W13/W12), then
-**generalized calls** (`call-token-0x33` + `expr-call-in-expr` +
-`call-token-0x26`, 14.1% — W11), with control flow (`body-0x53`, 2.9% — W8)
-behind them. The single largest bucket, `call-token-0xB9` at 14.8%, is **not
-schedulable work at all**: it is member and indirect calls, which have no
+order.** The current histogram (§G5), read against the now-characterized CALL,
+body and intrinsic-call grammar, ranks the schedulable work as: the
+**intrinsic-call family** (`expr-intrinsic-call` 7.0% + `call-token-0x33` 6.1%
+= **~13%**, one production — the largest schedulable bucket on the board), then
+**generalized calls** (`expr-call-in-expr` + `call-token-0x26`, 8.4% — W11),
+then **non-int operand types** (float 3.4% + double 3.1% = 6.6%, plus `void*`
+behind them — W13b/W12), with control flow (`body-0x53`, 2.9% — W8) behind
+those. The single largest bucket of all, `call-token-0xB9` at **15.3%**, is
+**not schedulable work at all**: it is member and indirect calls, which have no
 relocatable callee name (indirect) or need a `this`/vtable model (member), and
 which must keep failing closed until W11/W12 exist (§G1,
 `IL_CALL_GRAMMAR.md` §6.2). The attribution of buckets to rungs remains
 *inference*; the histogram itself is measurement.
+
+What the intrinsic-call rung actually costs, so its rank is not mistaken for
+cheapness: **decoding** it (`40 <TYPE>`, the `(<expr> 55 <TYPE>)* 4C` argument
+loop and the `66 02 <tok> <tok>` class-pair descriptor) is small, and buys the
+census immediately — bodies where an intrinsic call is not the *blocking*
+feature start reaching their real blocker. **Accepting** it is a different
+proposition: the id space is a c1xx-internal table that cannot be enumerated
+from the IL, and c2's expansion depends on the argument *literal values* as
+well as the id, so the only sound policy is an allow-list of ids pinned by
+controlled fixture with their arguments constrained too
+(`IL_CAST_CONVERT.md` §1.4, §4.1). Decoding is not accepting.
 
 W8 remains the pivot whenever it is scheduled: it forces the block/instruction
 IR, the `.ex` branch grammar, and compare/branch fusion. Everything after it
@@ -672,20 +846,40 @@ not less.
    `CODEGEN_W6_COMPARE.md`. The mis-emit is the first correctness bug the
    differential has caught; it outranked all widening work the moment it
    appeared, which is the rule §7 states.
-6. **Empty function bodies** (`body-0x3A`, 4.4% of blocked functions) —
-   fixture `w10_empty_fn.cpp` is already staged; no instruction selection
-   needed, so it is the cheapest remaining large bucket. Note the
-   `IL_CALL_GRAMMAR.md` §4.2 trailing-expression variant must stay rejected.
-7. **W5 trees** — `(a+b)*(c+d)` and deeper, per `CODEGEN_W5_SCRATCH.md` §7
-   (the cursor rule, the level-order emission rule, and the six-row shape
-   gate G1–G6); `w5_tree_neg.cpp`'s eleven functions must stay
-   `NotImplemented`.
-8. **Port `codec.rs` to the variable-width token read** (`tok16` → the
-   `read_token_var` rule), round-trip gate unchanged, so typed coverage can
-   be measured on real bundles rather than fixtures (§G2).
-9. **Characterize `expr-cast`** (`40 <target-type>`, 6.8%) — the largest
-   schedulable unknown left in the histogram.
-10. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
+6. ~~**Empty function bodies** (`body-0x3A`, 4.4% of blocked functions).~~
+   **DONE 2026-07-29** as R2 (a44c8f3) — census **7,954 → 78,028
+   (0.32% → 3.17%)**, the largest single jump so far. It also forced R3
+   (987fc8b, the `/Gy` COMDAT shape) by turning a latent flag dependency into
+   a live mismatch, which took the match bucket to 6/878. The
+   `IL_CALL_GRAMMAR.md` §4.2 trailing-expression variant stays rejected.
+7. ~~**Characterize `expr-cast`.**~~ **DONE 2026-07-29** —
+   `docs/IL_CAST_CONVERT.md` (9c7ba7d). It **refuted the name**: `0x40` is a
+   second CALL token, the intrinsic call; the real cast is `2C <TYPE> <varint>`;
+   `call-token-0x33` is the same production with an assigned result; and `0x66`
+   is the class-layout family's descriptor, not the call-family opcode
+   `IL_CALL_GRAMMAR.md` §7 ranked #1 unknown (§G2).
+8. ~~**W13a — float/double leaves.**~~ **DONE 2026-07-29** (9c7ba7d) — see §1
+   and `docs/CODEGEN_W13_FLOAT.md`; `mvp_fmul3.cpp` is `Port=Match`, census
+   78,028 → **79,041**, then 79,718 with the signed-varint fix.
+9. **Decode the `0x40` intrinsic-call production** (~13% of blocked functions
+   with `call-token-0x33`, the largest schedulable bucket). Decode first —
+   `40 <TYPE>`, the argument loop, the `66 02 <tok> <tok>` descriptor — so the
+   census reports the intrinsic *id* instead of one opaque byte and so bodies
+   where an intrinsic call is not the blocker reach their real one.
+   **Acceptance is a separate, later decision**, gated on an allow-list of ids
+   *and* argument literals pinned by controlled fixture
+   (`IL_CAST_CONVERT.md` §1.4, §4.1).
+10. **Fix `read_varint`'s signed short form** (§G2, Outstanding 2) — a decode
+    defect, not a class: every small negative literal currently blocks its
+    function. Needs the operand type threaded in for the 4-vs-8-byte escape.
+11. **W5 trees** — `(a+b)*(c+d)` and deeper, per `CODEGEN_W5_SCRATCH.md` §7
+    (the cursor rule, the level-order emission rule, and the six-row shape
+    gate G1–G6); `w5_tree_neg.cpp`'s eleven functions must stay
+    `NotImplemented`.
+12. **Port `codec.rs` to the variable-width token read** (`tok16` → the
+    `read_token_var` rule), round-trip gate unchanged, so typed coverage can
+    be measured on real bundles rather than fixtures (§G2).
+13. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
 
 ## 7. Invariants (do not break)
 
