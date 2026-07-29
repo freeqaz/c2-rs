@@ -637,10 +637,14 @@ fn eat_opt_stmt_marker(seg: &[u8], p: &mut usize) {
 /// 70000→`80 70110100`.) Any other lead byte → `None`.
 fn read_varint(seg: &[u8], p: &mut usize) -> Option<i32> {
     let marker = *seg.get(*p)?;
-    if marker < 0x80 {
-        *p += 1;
-        Some(marker as i32)
-    } else if marker == 0x80 {
+    if marker == 0x80 {
+        // Escape: `80` + a 4-byte LE i32. Used for anything that does not fit
+        // the signed short form — including −128, whose byte encoding would
+        // otherwise collide with this marker.
+        //
+        // NOTE: for tag-`0x88` types (`long long`) the escape payload is 8
+        // bytes, not 4. Those types are rejected upstream, so this reads only
+        // the 4-byte form; widening to 64-bit literals must fix this too.
         let v = i32::from_le_bytes([
             *seg.get(*p + 1)?,
             *seg.get(*p + 2)?,
@@ -650,7 +654,12 @@ fn read_varint(seg: &[u8], p: &mut usize) -> Option<i32> {
         *p += 5;
         Some(v)
     } else {
-        None
+        // Short form: a **signed** byte, not an unsigned one. `-5` is `fb` and
+        // `(char)200` is `c8`. An earlier revision accepted only `00..7F` and
+        // rejected `81..FF` outright — fail-closed and safe, but it silently
+        // blocked every negative literal in the corpus.
+        *p += 1;
+        Some(marker as i8 as i32)
     }
 }
 
@@ -1924,6 +1933,31 @@ mod tests {
                 ops: vec![IlOp::Load(0xA496_0300)],
             })
         );
+    }
+
+    #[test]
+    fn varint_short_form_is_signed() {
+        // `-5` is `fb`, not a rejected byte. An earlier revision accepted only
+        // 00..7F, which was fail-closed but silently blocked every negative
+        // literal in the corpus.
+        let cases: &[(&[u8], i32, usize)] = &[
+            (&[0x00], 0, 1),
+            (&[0x05], 5, 1),
+            (&[0x7F], 127, 1),
+            (&[0xFB], -5, 1),
+            (&[0xFF], -1, 1),
+            (&[0x81], -127, 1),
+            // Escape form: `80` + 4-byte LE i32.
+            (&[0x80, 0x70, 0x11, 0x01, 0x00], 70000, 5),
+            // -128 cannot use the short form (0x80 is the marker), so it is
+            // forced to the escape.
+            (&[0x80, 0x80, 0xFF, 0xFF, 0xFF], -128, 5),
+        ];
+        for (bytes, want, width) in cases {
+            let mut p = 0usize;
+            assert_eq!(read_varint(bytes, &mut p), Some(*want), "{bytes:02X?}");
+            assert_eq!(p, *width, "width for {bytes:02X?}");
+        }
     }
 
     // ---- `.gl` symbol index -------------------------------------------------
