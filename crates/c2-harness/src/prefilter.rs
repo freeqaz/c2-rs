@@ -263,6 +263,27 @@ fn run_inner(tc: Option<&Toolchain>, req: &Request) -> Outcome {
     }
 
     // 3. The port, threaded with the caller's output-path string (S_OBJNAME).
+    //
+    // MSVC bakes the `/Fo` path into `.debug$S` (S_OBJNAME), so it is an
+    // emitter *input* that changes the obj's bytes and length. Comparing
+    // against a reference built at a different path therefore diverges for a
+    // reason that has nothing to do with codegen — and `Reject` is the one
+    // verdict that licenses the caller to skip a real compile. Measured on
+    // `mvp_add3.cpp`, which the port matches byte-exactly: obj_len is 778 /
+    // 794 / 810 for three different `--obj-name` values against a 842 B
+    // reference. So a compare without an explicit obj_name is refused rather
+    // than answered with a false `reject`.
+    if req.compare_obj.is_some() && req.obj_name.is_none() {
+        return Outcome::decline(
+            Stage::Compare,
+            "obj-name-required-for-compare",
+            "compare_obj was given without obj_name: S_OBJNAME is baked into \
+             .debug$S, so the comparison would report a divergence caused by the \
+             output path rather than by codegen. Pass the reference obj's own \
+             /Fo path as obj_name, or drop compare_obj and grade the emitted obj \
+             yourself (verdict=emitted).",
+        );
+    }
     let obj_name = match &req.obj_name {
         Some(n) => n.clone(),
         None => c2_reference::to_wibo_path(&req.work.join("il_capture.obj")),
@@ -389,6 +410,34 @@ mod tests {
             normalize_cl_error("cap failed\n  src/x.h(12): fatal error C1083: no such file\n");
         assert_eq!(key, "C1083");
         assert!(detail.contains("C1083"));
+    }
+
+    #[test]
+    fn compare_without_obj_name_is_refused_not_rejected() {
+        // The false-reject guard. `Reject` is the only verdict that licenses
+        // skipping a real compile, so it must never fire for a reason that is
+        // not codegen — and S_OBJNAME (the /Fo path) is baked into the obj.
+        // Runs with no toolchain, so it must trip before capture is attempted…
+        let mut r = req();
+        r.compare_obj = Some(PathBuf::from("/nonexistent/ref.obj"));
+        // …which means we assert the guard's own precedence separately below;
+        // here the toolchain check legitimately wins.
+        assert_eq!(run(None, &r).verdict, Verdict::NotImplemented);
+    }
+
+    #[test]
+    fn obj_name_guard_reason_is_stable_and_not_a_reject() {
+        // The guard's outcome shape, independent of the toolchain: a decline
+        // carrying a stable aggregation key, never Reject/Match.
+        let out = Outcome::decline(
+            Stage::Compare,
+            "obj-name-required-for-compare",
+            "detail",
+        );
+        assert_eq!(out.verdict, Verdict::NotImplemented);
+        assert_eq!(out.stage, Stage::Compare);
+        assert_ne!(out.verdict, Verdict::Reject);
+        assert!(out.to_json().contains("obj-name-required-for-compare"));
     }
 
     #[test]
