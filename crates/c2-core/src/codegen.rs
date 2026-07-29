@@ -129,6 +129,34 @@ pub fn encode_addze(rd: u8, ra: u8) -> [u8; 4] {
     xo31(rd, ra, 0, 202)
 }
 
+/// `adde rD, rA, rB` (rD = rA + rB + CA): opcode 31, XO 138. The two-sided
+/// counterpart of [`encode_addze`], used by the signed `>=`/`<=` spines to add
+/// the two sign terms and the borrow in one instruction.
+pub fn encode_adde(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    xo31(rd, ra, rb, 138)
+}
+
+/// `subfze rD, rA` (rD = ~rA + CA): opcode 31, XO 200. Against a preloaded
+/// `rA = -1` this is exactly "materialize CA", which is how the unsigned
+/// `>=`/`<=` spines turn a borrow into a 0/1 boolean.
+pub fn encode_subfze(rd: u8, ra: u8) -> [u8; 4] {
+    xo31(rd, ra, 0, 200)
+}
+
+/// `srawi rA, rS, SH` (arithmetic shift right immediate, setting CA): opcode 31,
+/// XO 824. At `SH = 31` this broadcasts the sign bit, giving 0 or −1 — the
+/// signed relational spines' "sign of the operand" term. Note this is *not*
+/// [`encode_srwi31`], which yields 0 or 1 via `rlwinm`; the signed `>=`/`<=`
+/// spines use one of each and the pair is not interchangeable.
+pub fn encode_srawi(ra: u8, rs: u8, sh: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((rs as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((sh as u32 & 0x1F) << 11)
+        | (824 << 1);
+    word.to_be_bytes()
+}
+
 /// `neg rD, rA` (rD = −rA): opcode 31, XO 104.
 pub fn encode_neg(rd: u8, ra: u8) -> [u8; 4] {
     xo31(rd, ra, 0, 104)
@@ -777,18 +805,73 @@ pub fn compare_leaf_text(cmp: &c2_il::CompareLeaf) -> Result<Vec<u8>, BackendErr
             t.extend_from_slice(&encode_addze(7, 8));
             t.extend_from_slice(&encode_clrlwi31(RET_REG, 7));
         }
-        // `a < k`, `a >= k`, `a <= k` against a non-zero literal are NOT
-        // characterized: `<`/`<=` are the `>`/`>=` spines with the operand roles
-        // swapped, and the `>=`/`<=` spine's instruction ORDER for a literal
-        // left-hand side is explicitly unresolved in the W6 characterization
-        // (c2 schedules: numbering order is not emission order). Guessing the
-        // order would be a silent wrong-bytes emit.
-        (Rel::Lt, _) | (Rel::Ge, _) | (Rel::Le, _) => {
-            return Err(out_of_class(
-                "comparison relation against a non-zero literal whose spine \
-                 instruction order is not yet pinned (see docs/CODEGEN_W6_COMPARE.md \
-                 §4.5); out of class",
-            ))
+        // signed `a < k`: the signed `>` spine with the two operand roles
+        // swapped, and *only* that — the register numbers, the instruction count
+        // and the order are all identical. Both differing words are the ones that
+        // read `a` and `r11`: `subfc r10,r11,r3` (not `r3,r11`) and
+        // `eqv r9,r11,r3` (not `r3,r11`). `eqv` is commutative, so the swap is
+        // invisible in the *value* and visible only in the bytes.
+        (Rel::Lt, true) => {
+            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
+            t.extend_from_slice(&encode_subfc(10, 11, a)); // r10 dead; CA is the point
+            t.extend_from_slice(&encode_eqv(9, 11, a));
+            t.extend_from_slice(&encode_srwi31(8, 9));
+            t.extend_from_slice(&encode_addze(7, 8));
+            t.extend_from_slice(&encode_clrlwi31(RET_REG, 7));
+        }
+        // unsigned `a < k`. Unlike unsigned `>`, the literal cannot ride in the
+        // `subfic` immediate: the borrow wanted here is the one out of `a - k`,
+        // and `subfic` only computes `SIMM - rA`. So `k` is materialized and the
+        // spine is four instructions rather than three — which shifts every
+        // later register down one (`subfe r8,r9,r9`, not `r9,r10,r10`).
+        (Rel::Lt, false) => {
+            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
+            t.extend_from_slice(&encode_subfc(10, 11, a)); // r10 dead; CA is the point
+            t.extend_from_slice(&encode_subfe(8, 9, 9)); // r9 never defined; terms cancel
+            t.extend_from_slice(&encode_clrlwi31(RET_REG, 8));
+        }
+        // signed `a >= k`. Two sign terms plus the unsigned borrow, summed by one
+        // `adde`: `srawi` broadcasts the sign of the *left* side of the `>=` as
+        // 0/−1, `rlwinm ...,1,31,31` takes the sign of the *right* side as 0/1,
+        // and `subfc` contributes CA = unsigned(left) >= unsigned(right).
+        // The two shifts are emitted in **source** order (`a` before `k`), so
+        // they take r10 and r9 in that order — which is why `<=` below, whose
+        // left side is the literal, emits them the other way round.
+        (Rel::Ge, true) => {
+            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
+            t.extend_from_slice(&encode_srawi(10, a, 31)); // sign(a) as 0/-1
+            t.extend_from_slice(&encode_srwi31(9, 11)); // sign(k) as 0/1
+            t.extend_from_slice(&encode_subfc(8, 11, a)); // r8 dead; CA is the point
+            t.extend_from_slice(&encode_adde(RET_REG, 9, 10));
+        }
+        // signed `a <= k` is `k >= a`, so the roles invert: the 0/1 shift now
+        // applies to `a` and the 0/−1 one to `k`. Emission still follows source
+        // order, so `rlwinm` (on `a`) comes first and takes r10.
+        (Rel::Le, true) => {
+            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
+            t.extend_from_slice(&encode_srwi31(10, a)); // sign(a) as 0/1
+            t.extend_from_slice(&encode_srawi(9, 11, 31)); // sign(k) as 0/-1
+            t.extend_from_slice(&encode_subfc(8, a, 11)); // r8 dead; CA is the point
+            t.extend_from_slice(&encode_adde(RET_REG, 10, 9));
+        }
+        // unsigned `a >= k`: CA out of `a - k` *is* the answer, so all that is
+        // left is to materialize it. `subfze rD,rA` computes `~rA + CA`, so
+        // against a preloaded −1 it yields CA alone. Note `subfc` writes its
+        // (dead) difference back over r11 rather than taking a fresh register.
+        (Rel::Ge, false) => {
+            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
+            t.extend_from_slice(&encode_addi(10, 0, -1)); // li r10,-1
+            t.extend_from_slice(&encode_subfc(11, 11, a)); // r11 reused; CA is the point
+            t.extend_from_slice(&encode_subfze(RET_REG, 10));
+        }
+        // unsigned `a <= k` is the one shape where the literal *can* ride in the
+        // `subfic` immediate — the borrow wanted is the one out of `k - a`. So no
+        // `li r11,k`, three instructions, and the −1 is emitted **first** even
+        // though it takes the lower register number.
+        (Rel::Le, false) => {
+            t.extend_from_slice(&encode_addi(10, 0, -1)); // li r10,-1
+            t.extend_from_slice(&encode_subfic(11, a, k16)); // r11 dead; CA is the point
+            t.extend_from_slice(&encode_subfze(RET_REG, 10));
         }
     }
     t.extend_from_slice(&encode_blr());
@@ -1775,18 +1858,96 @@ mod tests {
     }
 
     #[test]
+    fn compare_lt_ge_le_against_a_nonzero_literal_match_the_reference() {
+        use c2_il::Rel;
+        // All six captured from `int f(int a){ return a <rel> 5; }` (and the
+        // `unsigned` overloads) against the live toolchain.
+
+        // signed `a < 5` — the signed `>` spine with the two operands that read
+        // `a`/`r11` swapped, and nothing else changed. `eqv` is commutative, so
+        // the swap is invisible in the value and visible only here.
+        assert_eq!(
+            cmp(Rel::Lt, true, 5),
+            vec![
+                0x39, 0x60, 0x00, 0x05, // li r11,5
+                0x7D, 0x4B, 0x18, 0x10, // subfc r10,r11,r3
+                0x7D, 0x69, 0x1A, 0x38, // eqv r9,r11,r3
+                0x55, 0x28, 0x0F, 0xFE, // srwi r8,r9,31
+                0x7C, 0xE8, 0x01, 0x94, // addze r7,r8
+                0x54, 0xE3, 0x07, 0xFE, // clrlwi r3,r7,31
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // unsigned `a < 5` — four words, not the three of unsigned `>`: the
+        // literal cannot ride in a `subfic` immediate here, and materializing it
+        // shifts the dead `subfe` down to r8/r9 (from r9/r10).
+        assert_eq!(
+            cmp(Rel::Lt, false, 5),
+            vec![
+                0x39, 0x60, 0x00, 0x05, // li r11,5
+                0x7D, 0x4B, 0x18, 0x10, // subfc r10,r11,r3
+                0x7D, 0x09, 0x49, 0x10, // subfe r8,r9,r9
+                0x55, 0x03, 0x07, 0xFE, // clrlwi r3,r8,31
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // signed `a >= 5` — `srawi` (0/-1) on the left operand, `rlwinm …,1,31,31`
+        // (0/1) on the right, plus CA, summed by one `adde`.
+        assert_eq!(
+            cmp(Rel::Ge, true, 5),
+            vec![
+                0x39, 0x60, 0x00, 0x05, // li r11,5
+                0x7C, 0x6A, 0xFE, 0x70, // srawi r10,r3,31
+                0x55, 0x69, 0x0F, 0xFE, // srwi r9,r11,31
+                0x7D, 0x0B, 0x18, 0x10, // subfc r8,r11,r3
+                0x7C, 0x69, 0x51, 0x14, // adde r3,r9,r10
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // signed `a <= 5` is `5 >= a`, so the two shifts swap which operand they
+        // apply to — and, because emission follows source order, also swap
+        // positions. Reusing the `>=` order here would be wrong bytes.
+        assert_eq!(
+            cmp(Rel::Le, true, 5),
+            vec![
+                0x39, 0x60, 0x00, 0x05, // li r11,5
+                0x54, 0x6A, 0x0F, 0xFE, // srwi r10,r3,31
+                0x7D, 0x69, 0xFE, 0x70, // srawi r9,r11,31
+                0x7D, 0x03, 0x58, 0x10, // subfc r8,r3,r11
+                0x7C, 0x6A, 0x49, 0x14, // adde r3,r10,r9
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // unsigned `a >= 5` — CA out of `a - 5` *is* the answer; `subfze` against
+        // a preloaded -1 materializes it. `subfc` writes its dead difference back
+        // over r11 instead of taking a fresh register.
+        assert_eq!(
+            cmp(Rel::Ge, false, 5),
+            vec![
+                0x39, 0x60, 0x00, 0x05, // li r11,5
+                0x39, 0x40, 0xFF, 0xFF, // li r10,-1
+                0x7D, 0x6B, 0x18, 0x10, // subfc r11,r11,r3
+                0x7C, 0x6A, 0x01, 0x90, // subfze r3,r10
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+        // unsigned `a <= 5` — the only shape whose literal rides in the `subfic`
+        // immediate, so three words; and `li r10,-1` is emitted BEFORE the
+        // `subfic` even though it takes the lower register number.
+        assert_eq!(
+            cmp(Rel::Le, false, 5),
+            vec![
+                0x39, 0x40, 0xFF, 0xFF, // li r10,-1
+                0x21, 0x63, 0x00, 0x05, // subfic r11,r3,5
+                0x7C, 0x6A, 0x01, 0x90, // subfze r3,r10
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+    }
+
+    #[test]
     fn compare_uncharacterized_relations_fail_closed() {
         use c2_il::Rel;
-        // `<`, `<=`, `>=` against a NON-zero literal: the spine's instruction
-        // order for a literal left-hand side is unresolved (c2 schedules, so
-        // numbering order is not emission order). Guessing it would be a silent
-        // wrong-bytes emit, so these must refuse.
-        for rel in [Rel::Lt, Rel::Le, Rel::Ge] {
-            assert!(matches!(
-                compare_leaf_text(&c2_il::CompareLeaf { param: 0xE309, rel, signed: true, k: 7 }),
-                Err(BackendError::NotImplemented(_))
-            ));
-        }
         // A wide literal needs lis+ori and the extra temp slot it consumes.
         assert!(matches!(
             compare_leaf_text(&c2_il::CompareLeaf {
