@@ -166,20 +166,6 @@ impl PortC2 {
             )
         })?;
 
-        // Function-level linking changes the obj's shape (one COMDAT `.text`
-        // per function instead of a single packed one). Not modeled, so refuse
-        // as soon as any function would be emitted. An empty TU has no `.text`
-        // at all and is therefore unaffected — which is why R1 still matches on
-        // the real workload.
-        if self.fn_level_linking && !funcs.is_empty() {
-            return Err(BackendError::NotImplemented(
-                "compile requested function-level linking (/Gy, implied by /O1 and \
-                 /O2): each function then gets its own COMDAT .text section, which \
-                 the emitter does not model"
-                    .to_string(),
-            ));
-        }
-
         // R1: a TU that defines no functions. Its obj is the fixed four-section
         // shell with no `.text` at all, so it never reaches instruction
         // selection. `functions()` only returns an empty vec for a bundle whose
@@ -199,6 +185,38 @@ impl PortC2 {
                     coff::emit_framed_obj(obj_name, &funcs[0].mangled_name, &fc.callee, &text);
                 return Ok(ObjImage::new(bytes));
             }
+        }
+
+        // Under function-level linking every function gets its own COMDAT
+        // `.text` section, so the texts are kept separate rather than packed.
+        if self.fn_level_linking {
+            let mut texts: Vec<Vec<u8>> = Vec::with_capacity(funcs.len());
+            let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
+            for f in &funcs {
+                // The framed non-leaf path owns its whole 6-section obj shape
+                // (it needs `.pdata`), which is not modeled per-COMDAT.
+                if f.framed_call.is_some() {
+                    return Err(BackendError::NotImplemented(
+                        "framed non-leaf call under function-level linking (/Gy): \
+                         the .pdata shape is not modeled per COMDAT section"
+                            .to_string(),
+                    ));
+                }
+                let (text, call) = if let Some(callee) = &f.tail_call {
+                    // The branch is at offset 0 of this function's own section.
+                    let (t, reloc) = codegen::int_tail_call_text(f, 0)?;
+                    (t, Some(coff::Call { reloc_offset: reloc, callee: callee.as_str() }))
+                } else if f.empty_body {
+                    (codegen::encode_blr().to_vec(), None)
+                } else if let Some(cmp) = &f.compare {
+                    (codegen::compare_leaf_text(cmp)?, None)
+                } else {
+                    (codegen::select_text(f)?, None)
+                };
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, call });
+                texts.push(text);
+            }
+            return Ok(ObjImage::new(coff::emit_comdat_obj(obj_name, &placed, &texts)));
         }
 
         // Select each function's .text, recording each function's byte offset.

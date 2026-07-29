@@ -527,6 +527,242 @@ pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
     b.0
 }
 
+#[cfg(test)]
+mod comdat_tests {
+    use super::*;
+
+    /// The COMDAT shape, pinned against `system/utl/Spew.cpp` compiled with the
+    /// dc3 workload's real flags (two empty functions, so two 4-byte `.text`
+    /// sections each holding a single `blr`).
+    #[test]
+    fn comdat_obj_has_one_text_section_per_function() {
+        let blr = crate::codegen::encode_blr().to_vec();
+        let funcs = [
+            Function { name: "?SpewInit@@YAXXZ", text_offset: 0, call: None },
+            Function { name: "?SpewTerminate@@YAXXZ", text_offset: 0, call: None },
+        ];
+        let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr]);
+
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| {
+            u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]])
+        };
+        // 4 fixed sections + one per function; 11 fixed symbols + 3 per function.
+        assert_eq!(u16at(2), 6, "section count");
+        assert_eq!(u32at(12), 17, "symbol count");
+
+        // Both `.text` sections are 4 bytes and carry the COMDAT bit.
+        for i in 4..6 {
+            let o = COFF_HEADER_LEN + i * SECTION_HEADER_LEN;
+            assert_eq!(&obj[o..o + 5], b".text");
+            assert_eq!(u32at(o + 16), 4, "section {i} size");
+            assert_eq!(u32at(o + 36), CH_TEXT_COMDAT, "section {i} characteristics");
+        }
+        // Contiguous raw data — no inter-function padding, unlike the packed
+        // layout's 8-byte function alignment.
+        let raw0 = u32at(COFF_HEADER_LEN + 4 * SECTION_HEADER_LEN + 20);
+        let raw1 = u32at(COFF_HEADER_LEN + 5 * SECTION_HEADER_LEN + 20);
+        assert_eq!(raw1, raw0 + 4, "second .text follows the first with no padding");
+
+        // Each function symbol sits at Value 0 in its OWN section, and each
+        // section symbol's aux selects NODUPLICATES.
+        let symtab = u32at(8) as usize;
+        for (k, sec_num) in [(0usize, 5i16), (1, 6)] {
+            let secsym = symtab + (11 + k * 3) * 18;
+            assert_eq!(obj[secsym + 17], 1, "section symbol has one aux");
+            let aux = secsym + 18;
+            assert_eq!(obj[aux + 14], COMDAT_SELECT_NODUPLICATES, "aux selection");
+            let fnsym = secsym + 36;
+            assert_eq!(u32at(fnsym + 8), 0, "function Value is 0 in its own section");
+            assert_eq!(
+                i16::from_le_bytes([obj[fnsym + 12], obj[fnsym + 13]]),
+                sec_num
+            );
+        }
+    }
+}
+
+/// `.text` COMDAT selection: `IMAGE_COMDAT_SELECT_NODUPLICATES`.
+const COMDAT_SELECT_NODUPLICATES: u8 = 1;
+
+/// `.text` characteristics under **function-level linking** (`/Gy`): the packed
+/// [`CH_TEXT`] plus `IMAGE_SCN_LNK_COMDAT` (0x1000).
+const CH_TEXT_COMDAT: u32 = 0x6040_1020;
+
+/// Build the complete `.obj` image with **one COMDAT `.text` section per
+/// function** — the shape c2 emits under function-level linking (`/Gy`, which
+/// `/O1` and `/O2` imply).
+///
+/// This is not a variant spelling of [`emit_obj`]; it is a different obj:
+///
+/// | | packed (`/Ox`) | COMDAT (`/Gy`) |
+/// |---|---|---|
+/// | `.text` sections | 1 | one per function |
+/// | characteristics | `0x60400020` | `0x60401020` |
+/// | aux `Selection` | 0 | 1 (NODUPLICATES) |
+/// | function `Value` | its offset in `.text` | always 0 |
+/// | inter-function padding | 8-byte aligned | none — each has its own section |
+/// | symbol count | 13 + 1/fn (+callees) | 11 + 3/fn (+callees) |
+///
+/// So the same IL yields two legitimately different objs depending on an argv
+/// flag the bundle does not record. Verified against `system/utl/Spew.cpp`
+/// compiled with the dc3 workload's real flags: 6 sections, 17 symbols, two
+/// 4-byte `.text` sections each holding a single `blr`, laid out contiguously
+/// with no padding between them.
+///
+/// `texts[i]` is function `i`'s own `.text` bytes; each function's
+/// `text_offset` is ignored (it is 0 within its own section) and any
+/// `call.reloc_offset` is relative to that function's section.
+pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) -> Vec<u8> {
+    assert_eq!(funcs.len(), texts.len(), "one text per function");
+
+    let mut sections: Vec<Section> = vec![
+        Section {
+            name: ".drectve",
+            characteristics: CH_DRECTVE,
+            raw: DRECTVE.to_vec(),
+            checksum: 0,
+            selection: 0,
+        },
+        Section {
+            name: ".debug$S",
+            characteristics: CH_DEBUGS,
+            raw: build_debug_s(obj_name),
+            checksum: 0,
+            selection: 0,
+        },
+        Section {
+            name: ".XBLD$W",
+            characteristics: CH_XBLD_C2,
+            raw: XBLD_C2.to_vec(),
+            checksum: XBLD_C2_CHECKSUM,
+            selection: 2,
+        },
+        Section {
+            name: ".XBLD$W",
+            characteristics: CH_XBLD_C1,
+            raw: XBLD_C1.to_vec(),
+            checksum: XBLD_C1_CHECKSUM,
+            selection: 2,
+        },
+    ];
+    const FIXED_SECTIONS: usize = 4;
+    for t in texts {
+        sections.push(Section {
+            name: ".text",
+            characteristics: CH_TEXT_COMDAT,
+            raw: t.clone(),
+            checksum: 0,
+            selection: COMDAT_SELECT_NODUPLICATES,
+        });
+    }
+    let n_sections = sections.len();
+
+    // Raw data is packed contiguously after the section headers — including
+    // between the per-function `.text` sections, which carry no padding.
+    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
+    let mut ptrs = Vec::with_capacity(n_sections);
+    let mut cursor = raw_base;
+    for s in &sections {
+        ptrs.push(cursor);
+        cursor += s.raw.len();
+    }
+    // Each function's relocations live with its own section.
+    let mut reloc_ptr = Vec::with_capacity(funcs.len());
+    for f in funcs {
+        if f.call.is_some() {
+            reloc_ptr.push(Some(cursor));
+            cursor += RELOC_LEN;
+        } else {
+            reloc_ptr.push(None);
+        }
+    }
+    let ptr_symtab = cursor;
+
+    // Symbols: the fixed 11-slot prefix, then per function a `.text` section
+    // symbol (+aux), the defined FUNCTION symbol, and its callee if any.
+    let mut next_idx: u32 = 11;
+    let mut callee_idx: Vec<Option<u32>> = Vec::with_capacity(funcs.len());
+    for f in funcs {
+        next_idx += 2; // section symbol + aux
+        next_idx += 1; // the function symbol
+        if f.call.is_some() {
+            callee_idx.push(Some(next_idx));
+            next_idx += 1;
+        } else {
+            callee_idx.push(None);
+        }
+    }
+    let n_symbols = next_idx;
+
+    let mut b = Buf::new();
+    b.u16(MACHINE_POWERPCBE);
+    b.u16(n_sections as u16);
+    b.u32(0); // TimeDateStamp — normalized away
+    b.u32(ptr_symtab as u32);
+    b.u32(n_symbols);
+    b.u16(0);
+    b.u16(CHARACTERISTICS);
+
+    for (i, s) in sections.iter().enumerate() {
+        let (prel, nrel) = match i.checked_sub(FIXED_SECTIONS).and_then(|k| reloc_ptr.get(k)) {
+            Some(Some(p)) => (*p as u32, 1u16),
+            _ => (0, 0),
+        };
+        b.name8(s.name);
+        b.u32(0); // VirtualSize
+        b.u32(0); // VirtualAddress
+        b.u32(s.raw.len() as u32);
+        b.u32(ptrs[i] as u32);
+        b.u32(prel);
+        b.u32(0); // PointerToLinenumbers
+        b.u16(nrel);
+        b.u16(0);
+        b.u32(s.characteristics);
+    }
+
+    for s in &sections {
+        b.bytes(&s.raw);
+    }
+
+    for (f, cidx) in funcs.iter().zip(&callee_idx) {
+        if let (Some(call), Some(ci)) = (&f.call, cidx) {
+            b.u32(call.reloc_offset);
+            b.u32(*ci);
+            b.u16(REL_PPC_REL24);
+        }
+    }
+    debug_assert_eq!(b.0.len(), ptr_symtab);
+
+    let mut strtab = StringTable::new();
+    b.name8("@comp.id");
+    b.u32(COMP_ID_VALUE);
+    b.i16(-1);
+    b.u16(0x0000);
+    b.u8(3);
+    b.u8(0);
+    emit_section_symbol(&mut b, &sections[0], 1, 0);
+    emit_section_symbol(&mut b, &sections[1], 2, 0);
+    emit_section_symbol(&mut b, &sections[2], 3, 0);
+    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000);
+    emit_section_symbol(&mut b, &sections[3], 4, 0);
+    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000);
+
+    for (i, f) in funcs.iter().enumerate() {
+        let sec_num = (FIXED_SECTIONS + i + 1) as i16;
+        let nrel = if f.call.is_some() { 1 } else { 0 };
+        emit_section_symbol(&mut b, &sections[FIXED_SECTIONS + i], sec_num, nrel);
+        // The function is at offset 0 of its own section.
+        emit_function_symbol(&mut b, &mut strtab, f.name, sec_num, 0);
+        if let Some(call) = &f.call {
+            emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        }
+    }
+
+    b.bytes(&strtab.finish());
+    b.0
+}
+
 /// Build the complete `.obj` image for one or more straight-line functions
 /// sharing a single `.text`. Generalizes [`emit_mvp_obj`]: functions are packed
 /// contiguously in `.text` (no inter-function padding — c2's real layout), each
