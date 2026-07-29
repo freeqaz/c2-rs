@@ -309,10 +309,51 @@ fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     hay.windows(needle.len()).position(|w| w == needle)
 }
 
-/// The fixed 6-byte callee-reference tail of a CALL token: `BD <3-byte return
-/// type> 00 80 01 10 00 00`. Verified identical across int and void calls, so
-/// it anchors the end of the 10-byte CALL token.
-const CALL_CALLEE_ANCHOR: [u8; 6] = [0x00, 0x80, 0x01, 0x10, 0x00, 0x00];
+/// Read a `.ex` inline **type**: `<tag> <kind> <LEB128 id>`, returning
+/// `(tag, kind, id, width)`.
+///
+/// This is a *third* encoding, distinct from both the operand token
+/// ([`read_token_var`], 2 or 4 bytes) and the statement/literal varint
+/// ([`read_varint`], 1 or 5 bytes). Total width is 3 bytes for an id below
+/// `0x80`, 4 below `0x4000`, 5 below `0x200000`.
+///
+/// Getting this right matters more than it looks: across the 8628 well-formed
+/// call sites of one real TU the return-type width splits 4157 / 3123 / 1358
+/// between 3, 4 and 5 bytes, so a fixed-3 or even a "3 or 4" rule mis-parses
+/// roughly one call in six. The boundaries are pinned by the fixed one-byte
+/// markers that always bracket a type — the `41` result-type marker, the `55`
+/// argument push, the `4C 4B` call end — against which a wrong width visibly
+/// swallows the next marker.
+///
+/// The tag always has bit 7 set; its high bits are not understood (`0x86`,
+/// `0xA6`, `0x96`, `0xC6` all occur and behave identically here), but a decoder
+/// does not need them — the width rule is tag-independent. The `kind` byte is
+/// treated as a fixed byte rather than a second LEB because `88 85 41`
+/// (`double`) and `88 81 13` (`long long`) have bit 7 set there and would
+/// otherwise run on.
+fn read_type(seg: &[u8], p: usize) -> Option<(u8, u8, u32, usize)> {
+    let tag = *seg.get(p)?;
+    if tag & 0x80 == 0 {
+        return None;
+    }
+    let kind = *seg.get(p + 1)?;
+    let mut id: u32 = 0;
+    let mut shift: u32 = 0;
+    let mut i = p + 2;
+    loop {
+        let b = *seg.get(i)?;
+        id |= ((b & 0x7F) as u32) << shift;
+        i += 1;
+        if b & 0x80 == 0 {
+            break;
+        }
+        shift += 7;
+        if shift > 28 {
+            return None; // malformed / not a type
+        }
+    }
+    Some((tag, kind, id, i - p))
+}
 
 /// One recognized whole-body shape of a single `.ex` function segment. Every
 /// accepted body is *exactly* one of these — the parser (see [`parse_segment`])
@@ -838,14 +879,33 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
     }
     let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "call-ref-tok"))?;
     *p += w;
-    // The fixed 10-byte CALL token: BD <3-byte return type> <anchor>.
+    // The CALL token: `BD <TYPE ret> <flags> <varint fn-type-id>`. Nothing in it
+    // is fixed but the `BD` — it is 8 to 13 bytes and self-delimiting field by
+    // field, so it is decoded rather than matched.
+    //
+    // This replaces a hardcoded 6-byte "callee anchor" `00 80 01 10 00 00`,
+    // which was never an anchor: it is `flags = 0` followed by the varint
+    // `0x1001`, and `0x1001` is merely the first function type a single-function
+    // fixture TU happens to create. True of every MVP fixture and of almost
+    // nothing else — which is precisely what the `call-anchor-*` census buckets
+    // were measuring.
     if !eat_byte(seg, p, 0xBD) {
         return Err(blk(seg, *p, "call-token"));
     }
-    *p += 3; // 3-byte return type (void=82 07 03, int=86 41 74); anchor pins it
-    if !eat(seg, p, &CALL_CALLEE_ANCHOR) {
-        return Err(blk(seg, *p, "call-anchor"));
+    let (_, _, _, ret_w) = read_type(seg, *p).ok_or(blk(seg, *p, "call-ret-type"))?;
+    *p += ret_w;
+    // Calling convention: 0x00 = cdecl/stdcall, 0x04 = fastcall, 0x40 = varargs.
+    // Only cdecl is in class — the others need argument-passing the port does
+    // not implement, and accepting them would mis-emit rather than refuse.
+    match seg.get(*p) {
+        Some(0x00) => *p += 1,
+        _ => return Err(blk(seg, *p, "call-conv")),
     }
+    // The function-type id. NOT the callee: three different callees sharing one
+    // signature produce byte-identical CALL tokens. The callee is bound from the
+    // `26 <tok>` symbol push instead, so this field is decoded only to find the
+    // token's end, then discarded.
+    read_varint(seg, p).ok_or(blk(seg, *p, "call-fn-type-id"))?;
 
     // VOID terminal tail call: the `4C 4B` void call-end immediately follows the
     // CALL token (no argument setup, no consumed value), then only return
@@ -1594,6 +1654,60 @@ mod tests {
                 ops: vec![IlOp::Load(0xA496_0300)],
             })
         );
+    }
+
+    // ---- inline type encoding (LEB128) --------------------------------------
+
+    #[test]
+    fn read_type_widths_match_the_captured_boundaries() {
+        // Each of these is pinned in a live capture by the fixed one-byte marker
+        // that follows it (`41` result-type, `55` arg push, `4C 4B` call end),
+        // so a wrong width visibly swallows the next marker.
+        let cases: &[(&[u8], u8, u8, u32, usize)] = &[
+            (&[0x86, 0x41, 0x74], 0x86, 0x41, 116, 3),        // int
+            (&[0x86, 0x42, 0x75], 0x86, 0x42, 117, 3),        // unsigned
+            (&[0x82, 0x07, 0x03], 0x82, 0x07, 3, 3),          // void
+            (&[0x86, 0x43, 0x83, 0x08], 0x86, 0x43, 1027, 4), // void*
+            (&[0x86, 0x43, 0x82, 0x20], 0x86, 0x43, 4098, 4), // int**
+            (&[0x88, 0x85, 0x41], 0x88, 0x85, 65, 3),         // double
+            (&[0x88, 0x81, 0x13], 0x88, 0x81, 19, 3),         // long long
+            (&[0x86, 0x43, 0x9B, 0xB9, 0x02], 0x86, 0x43, 40091, 5), // 5-byte id
+        ];
+        for (bytes, tag, kind, id, w) in cases {
+            assert_eq!(
+                read_type(bytes, 0),
+                Some((*tag, *kind, *id, *w)),
+                "type {bytes:02X?}"
+            );
+        }
+        // A tag without bit 7 set is not a type.
+        assert_eq!(read_type(&[0x41, 0x86, 0x41], 0), None);
+    }
+
+    #[test]
+    fn call_token_is_decoded_not_anchor_matched() {
+        // The old model hardcoded `00 80 01 10 00 00` as a fixed "callee anchor".
+        // It is really flags=0 + varint(0x1001), so any TU whose callee function
+        // type is not the first one created failed to parse. All three of these
+        // are real captured CALL tokens with different fn-type ids and return
+        // types; all must now decode.
+        let cases: &[(&[u8], &str)] = &[
+            (&[0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00], "void, id 0x1001"),
+            (&[0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x80, 0x10, 0x00, 0x00], "void, id 0x1080"),
+            (
+                &[0xBD, 0x86, 0x43, 0x83, 0x08, 0x00, 0x80, 0xAE, 0x10, 0x00, 0x00],
+                "void* (4-byte type), id 0x10AE",
+            ),
+        ];
+        for (bytes, label) in cases {
+            let mut p = 1; // past the BD
+            let (_, _, _, w) = read_type(bytes, p).expect(label);
+            p += w;
+            assert_eq!(bytes.get(p), Some(&0x00), "{label}: cdecl flags byte");
+            p += 1;
+            assert!(read_varint(bytes, &mut p).is_some(), "{label}: fn-type id");
+            assert_eq!(p, bytes.len(), "{label}: token must end exactly here");
+        }
     }
 
     // ---- P2b function-level census ------------------------------------------
