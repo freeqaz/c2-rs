@@ -210,10 +210,12 @@ impl PortC2 {
                     (codegen::encode_blr().to_vec(), None)
                 } else if let Some(cmp) = &f.compare {
                     (codegen::compare_leaf_text(cmp)?, None)
+                } else if let Some(double) = f.float_leaf {
+                    (codegen::float_leaf_text(f, double)?, None)
                 } else {
                     (codegen::select_text(f)?, None)
                 };
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, call });
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, call, is_float: f.float_leaf.is_some() });
                 texts.push(text);
             }
             return Ok(ObjImage::new(coff::emit_comdat_obj(obj_name, &placed, &texts)));
@@ -235,14 +237,21 @@ impl PortC2 {
             // An empty body is a bare `blr` — no expression to select.
             if f.empty_body {
                 text.extend_from_slice(&codegen::encode_blr());
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None });
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: f.float_leaf.is_some() });
+                continue;
+            }
+            // W13a: an FP leaf has its own register model entirely (pool
+            // [f0, f13..f1], result f1, no accumulator collapse).
+            if let Some(double) = f.float_leaf {
+                text.extend_from_slice(&codegen::float_leaf_text(f, double)?);
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: f.float_leaf.is_some() });
                 continue;
             }
             // W6: a comparison leaf lowers to its own branchless spine rather
             // than through the operand-stack selector.
             if let Some(cmp) = &f.compare {
                 text.extend_from_slice(&codegen::compare_leaf_text(cmp)?);
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None });
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: f.float_leaf.is_some() });
                 continue;
             }
             let call = if let Some(callee) = &f.tail_call {
@@ -271,6 +280,7 @@ impl PortC2 {
                 name: &f.mangled_name,
                 text_offset: off,
                 call,
+                is_float: f.float_leaf.is_some(),
             });
         }
 

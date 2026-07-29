@@ -152,6 +152,7 @@ pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> 
             name: mangled_name,
             text_offset: 0,
             call: None,
+            is_float: false,
         }],
         text,
     )
@@ -171,7 +172,16 @@ pub struct Function<'a> {
     pub name: &'a str,
     pub text_offset: u32,
     pub call: Option<Call<'a>>,
+    /// True iff this function's body does floating-point arithmetic. The obj
+    /// then carries an undefined external `_fltused`, emitted immediately after
+    /// the FIRST such function's symbol group — the CRT's float-support hook.
+    /// Verified: a pure FP leaf changes the obj shell by exactly this one
+    /// symbol (`docs/CODEGEN_W13_FLOAT.md` §4).
+    pub is_float: bool,
 }
+
+/// The CRT float-support marker symbol.
+const NAME_FLTUSED: &str = "_fltused";
 
 /// IMAGE_REL_PPC_REL24 — 24-bit relative branch relocation (tail/`bl` calls).
 const REL_PPC_REL24: u16 = 0x0006;
@@ -538,8 +548,13 @@ mod comdat_tests {
     fn comdat_obj_has_one_text_section_per_function() {
         let blr = crate::codegen::encode_blr().to_vec();
         let funcs = [
-            Function { name: "?SpewInit@@YAXXZ", text_offset: 0, call: None },
-            Function { name: "?SpewTerminate@@YAXXZ", text_offset: 0, call: None },
+            Function { name: "?SpewInit@@YAXXZ", text_offset: 0, call: None, is_float: false },
+            Function {
+                name: "?SpewTerminate@@YAXXZ",
+                text_offset: 0,
+                call: None,
+                is_float: false,
+            },
         ];
         let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr]);
 
@@ -834,6 +849,9 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     // Symbol layout: 13 fixed slots (indices 0..13), then per function a defined
     // FUNCTION symbol, each immediately followed by its callee's undefined
     // external symbol (if any). Record each callee's symbol index for its reloc.
+    // `_fltused` is emitted once, immediately after the FIRST float function's
+    // symbol group.
+    let fltused_after = funcs.iter().position(|f| f.is_float);
     let mut next_idx: u32 = 13;
     let mut plan: Vec<(usize, u32, Option<u32>)> = Vec::with_capacity(funcs.len());
     for (i, f) in funcs.iter().enumerate() {
@@ -847,6 +865,9 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             None
         };
         plan.push((i, def_idx, callee_idx));
+        if fltused_after == Some(i) {
+            next_idx += 1;
+        }
     }
     let n_symbols: u32 = next_idx;
 
@@ -926,6 +947,10 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
         if let (Some(call), Some(_)) = (&f.call, callee_idx) {
             // Undefined external callee: section 0 (UNDEF), FUNCTION type.
             emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        }
+        // The CRT float-support marker, once, after the first FP function.
+        if fltused_after == Some(*i) {
+            emit_function_symbol(&mut b, &mut strtab, NAME_FLTUSED, 0, 0);
         }
     }
 

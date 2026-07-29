@@ -186,6 +186,190 @@ pub fn encode_clrlwi31(ra: u8, rs: u8) -> [u8; 4] {
     encode_rlwinm(ra, rs, 0, 31, 31)
 }
 
+// ---- W13a: floating-point leaf encoders ------------------------------------
+//
+// Single precision is primary opcode 59 (`0xEC…`) and double is 63 (`0xFC…`),
+// with *identical* XO and register fields — so one encoder parameterised by
+// precision covers both. Verified bit-exact against live captures
+// (docs/CODEGEN_W13_FLOAT.md §3).
+//
+// Two traps that the integer path would walk straight into:
+//   * `fmuls` puts the multiplier in the **C** field (bits 6..10), not B.
+//   * `fsubs fD,fA,fB` computes `fA − fB` — the **opposite** of [`encode_subf`]'s
+//     load-bearing reversal. Reusing the integer convention silently negates
+//     every FP subtraction.
+
+/// Primary opcode for the A-form FP ops: 59 single-precision, 63 double.
+fn fp_primary(double: bool) -> u32 {
+    if double {
+        63
+    } else {
+        59
+    }
+}
+
+/// A-form FP encode: `<op> fD, fA, fB, fC` with the given XO.
+fn fp_a_form(double: bool, fd: u8, fa: u8, fb: u8, fc: u8, xo: u32) -> [u8; 4] {
+    let word: u32 = (fp_primary(double) << 26)
+        | ((fd as u32 & 0x1F) << 21)
+        | ((fa as u32 & 0x1F) << 16)
+        | ((fb as u32 & 0x1F) << 11)
+        | ((fc as u32 & 0x1F) << 6)
+        | (xo << 1);
+    word.to_be_bytes()
+}
+
+/// `fadds`/`fadd` — XO 21. Commutative.
+pub fn encode_fadd(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
+    fp_a_form(double, fd, fa, fb, 0, 21)
+}
+
+/// `fsubs`/`fsub` — XO 20. **`fD = fA − fB`**, i.e. the operands are in source
+/// order, unlike the integer [`encode_subf`]. Swapping them negates the result.
+pub fn encode_fsub(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
+    fp_a_form(double, fd, fa, fb, 0, 20)
+}
+
+/// `fmuls`/`fmul` — XO 25, with the multiplier in the **C** field.
+pub fn encode_fmul(double: bool, fd: u8, fa: u8, fc: u8) -> [u8; 4] {
+    fp_a_form(double, fd, fa, 0, fc, 25)
+}
+
+/// `fdivs`/`fdiv` — XO 18.
+pub fn encode_fdiv(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
+    fp_a_form(double, fd, fa, fb, 0, 18)
+}
+
+/// FP scratch pool, in allocation order: `f0` first, then descending from `f13`,
+/// wrapping. Deliberately NOT the integer shape — `f0` is allocatable and comes
+/// first, and the result register `f1` is last.
+const FP_POOL: [u8; 14] = [0, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+/// FP return register.
+const FP_RET: u8 = 1;
+
+/// Select `.text` for a **W13a floating-point leaf**: a straight-line chain over
+/// float (or double) *parameters* with no constants and no conversions.
+///
+/// Register model, which differs from the integer one in every particular
+/// (docs/CODEGEN_W13_FLOAT.md §2):
+/// * parameters occupy `f1…f13` in float-parameter order; the result is `f1`;
+/// * temporaries come from a rotating cursor over [`FP_POOL`] — `f0` first, then
+///   down from `f13` — skipping registers that still hold a live value;
+/// * an FP `+` chain does **not** collapse to a single accumulator the way the
+///   integer one does.
+///
+/// Verified: `float fmul3(float a,float b,float c){return a*b*c;}` selects
+/// `fmuls f0,f1,f2 ; fmuls f1,f0,f3 ; blr`.
+pub fn float_leaf_text(func: &IlFunction, double: bool) -> Result<Vec<u8>, BackendError> {
+    if func.params.len() > 13 {
+        return Err(out_of_class(
+            "more than 13 FP parameters: the 14th is stack-homed; out of class",
+        ));
+    }
+    // Parameter n → f(n+1).
+    let reg_of = |tok: u32| -> Option<u8> {
+        func.params
+            .iter()
+            .position(|&t| t == tok)
+            .map(|i| (i + 1) as u8)
+    };
+
+    // Which ops appear — A5/A7 gating happens in the IL parser, but the mix is
+    // re-checked here because a contraction mis-emit is silent.
+    let has_mul = func.ops.iter().any(|o| matches!(o, IlOp::Mul));
+    let has_addsub = func
+        .ops
+        .iter()
+        .any(|o| matches!(o, IlOp::Add | IlOp::Sub));
+    if has_mul && has_addsub {
+        return Err(out_of_class(
+            "FP expression mixes `*` with `+`/`-`: c2 contracts these to \
+             fmadds/fmsubs/fnmsubs, which is not modeled; out of class",
+        ));
+    }
+
+    // Evaluate the postfix stream over a stack of physical FP registers.
+    let n_ops = func
+        .ops
+        .iter()
+        .filter(|o| !matches!(o, IlOp::Load(_) | IlOp::Lit(_)))
+        .count();
+    let mut emitted = 0usize;
+    let mut cursor = 0usize;
+    let mut live: Vec<u8> = (1..=func.params.len() as u8).collect();
+    let mut stack: Vec<u8> = Vec::new();
+    let mut text: Vec<u8> = Vec::new();
+
+    for op in &func.ops {
+        match op {
+            IlOp::Load(tok) => {
+                let r = reg_of(*tok).ok_or_else(|| {
+                    out_of_class("FP LOAD of a token that is not a parameter")
+                })?;
+                stack.push(r);
+            }
+            IlOp::Lit(_) => {
+                return Err(out_of_class(
+                    "FP literal needs an .rdata COMDAT, a REFHI/REFLO relocation \
+                     pair and a GPR (W13b); out of class",
+                ))
+            }
+            binop => {
+                let rhs = stack
+                    .pop()
+                    .ok_or_else(|| out_of_class("FP binary op: empty stack (rhs)"))?;
+                let lhs = stack
+                    .pop()
+                    .ok_or_else(|| out_of_class("FP binary op: empty stack (lhs)"))?;
+                emitted += 1;
+                // The final value lands in f1; earlier ones take the next free
+                // pool slot, skipping anything still live.
+                let dest = if emitted == n_ops {
+                    FP_RET
+                } else {
+                    let mut d = None;
+                    for _ in 0..FP_POOL.len() {
+                        let cand = FP_POOL[cursor % FP_POOL.len()];
+                        cursor += 1;
+                        if !live.contains(&cand) {
+                            d = Some(cand);
+                            break;
+                        }
+                    }
+                    d.ok_or_else(|| {
+                        out_of_class("no free FP scratch register (would spill f31/f30)")
+                    })?
+                };
+                // Both sources die here unless they are still-live parameters.
+                for s in [lhs, rhs] {
+                    if s as usize > func.params.len() || s == 0 {
+                        live.retain(|&x| x != s);
+                    }
+                }
+                match binop {
+                    IlOp::Add => text.extend_from_slice(&encode_fadd(double, dest, lhs, rhs)),
+                    // Source order, NOT the integer reversal.
+                    IlOp::Sub => text.extend_from_slice(&encode_fsub(double, dest, lhs, rhs)),
+                    IlOp::Mul => text.extend_from_slice(&encode_fmul(double, dest, lhs, rhs)),
+                    IlOp::Div => text.extend_from_slice(&encode_fdiv(double, dest, lhs, rhs)),
+                    IlOp::Load(_) | IlOp::Lit(_) => unreachable!("not a binary op"),
+                }
+                if dest != FP_RET {
+                    live.push(dest);
+                }
+                stack.push(dest);
+            }
+        }
+    }
+    if stack.len() != 1 {
+        return Err(out_of_class(
+            "FP expression did not reduce to a single value; out of class",
+        ));
+    }
+    text.extend_from_slice(&encode_blr());
+    Ok(text)
+}
+
 /// Shared encoder for the opcode-31 X-form used above: the first register field
 /// (bits 6..11) is rD for arithmetic forms and rS for logical ones — callers
 /// pass them in that slot accordingly.
@@ -597,6 +781,10 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
                 stack.push(Operand::RegOff { base: Base::Phys(reg), off: 0 });
             }
             IlOp::Lit(k) => stack.push(Operand::Imm(*k)),
+            // Integer division is not modeled (`divw`/`divwu`, and a constant
+            // divisor strength-reduces to a multiply-high). FP division reaches
+            // `float_leaf_text` instead and never gets here.
+            IlOp::Div => return Err(out_of_class("integer division; out of class")),
             IlOp::Add | IlOp::Sub | IlOp::Mul => {
                 // Binary op: pop rhs then lhs.
                 let rhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (rhs)"))?;
@@ -714,7 +902,11 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
                     // rA=rhs, rB=lhs (the load-bearing reversed order — see
                     // [`encode_subf`]).
                     IlOp::Sub => text.extend_from_slice(&encode_subf(dest, r, l)),
-                    IlOp::Load(_) | IlOp::Lit(_) => unreachable!("not a binary op"),
+                    // `combine` never records a Div plan entry (it rejects
+                    // first), so reaching here would be an internal error.
+                    IlOp::Div | IlOp::Load(_) | IlOp::Lit(_) => {
+                        unreachable!("not a modeled integer binary op")
+                    }
                 }
             }
             PlanOp::AddImm { src, k } => emit_add_imm(&mut text, dest, resolve(src), k),
@@ -797,6 +989,7 @@ fn combine(
             "multiply by a constant strength-reduces (shift/add); out of class",
         )),
 
+        (IlOp::Div, _, _) => Err(out_of_class("integer division; out of class")),
         (IlOp::Load(_) | IlOp::Lit(_), _, _) => unreachable!("not a binary op"),
     }
 }
@@ -909,6 +1102,7 @@ mod tests {
             framed_call: None,
             compare: None,
             empty_body: false,
+            float_leaf: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1024,6 +1218,82 @@ mod tests {
         );
     }
 
+    // ---- W13a floating-point leaves ----------------------------------------
+
+    fn fpfunc(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
+        let mut f = func_with(params, ops);
+        f.float_leaf = Some(false);
+        f
+    }
+
+    #[test]
+    fn float_chain_matches_the_reference() {
+        // `float fmul3(float a,float b,float c){ return a*b*c; }` — the live
+        // capture is `ec0100b2 ec2000f2 4e800020`:
+        //   fmuls f0,f1,f2   (first temp is f0 — the pool's FIRST slot)
+        //   fmuls f1,f0,f3   (result forced to f1)
+        // Note the multiplier sits in the C field, not B.
+        let f = fpfunc(
+            vec![0xE309, 0xE409, 0xE509],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Mul,
+                IlOp::Load(0xE509),
+                IlOp::Mul,
+            ],
+        );
+        assert_eq!(
+            float_leaf_text(&f, false).unwrap(),
+            vec![
+                0xEC, 0x01, 0x00, 0xB2, // fmuls f0,f1,f2
+                0xEC, 0x20, 0x00, 0xF2, // fmuls f1,f0,f3
+                0x4E, 0x80, 0x00, 0x20,
+            ]
+        );
+    }
+
+    #[test]
+    fn fp_subtract_uses_source_order_not_the_integer_reversal() {
+        // `fsubs fD,fA,fB` computes fA − fB — the OPPOSITE of encode_subf's
+        // load-bearing reversal. Reusing the integer convention here would
+        // silently negate every FP subtraction, so pin the operand order.
+        assert_eq!(encode_fsub(false, 1, 1, 2), [0xEC, 0x21, 0x10, 0x28]);
+        assert_eq!(encode_fadd(false, 1, 1, 2), [0xEC, 0x21, 0x10, 0x2A]);
+        assert_eq!(encode_fdiv(false, 1, 1, 2), [0xEC, 0x21, 0x10, 0x24]);
+        // Double precision is the same fields under primary opcode 63.
+        assert_eq!(encode_fadd(true, 1, 1, 2), [0xFC, 0x21, 0x10, 0x2A]);
+    }
+
+    #[test]
+    fn fp_rejects_the_shapes_that_would_mis_emit() {
+        // A `*` mixed with `+`/`-` CONTRACTS to fmadds/fmsubs in c2, so emitting
+        // two instructions would be a silent wrong-bytes emit, not a gap.
+        let mixed = fpfunc(
+            vec![0xE309, 0xE409, 0xE509],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Mul,
+                IlOp::Load(0xE509),
+                IlOp::Add,
+            ],
+        );
+        assert!(matches!(
+            float_leaf_text(&mixed, false),
+            Err(BackendError::NotImplemented(_))
+        ));
+        // An FP literal needs an .rdata COMDAT plus a REFHI/REFLO pair (W13b).
+        let lit = fpfunc(
+            vec![0xE309],
+            vec![IlOp::Load(0xE309), IlOp::Lit(1), IlOp::Mul],
+        );
+        assert!(matches!(
+            float_leaf_text(&lit, false),
+            Err(BackendError::NotImplemented(_))
+        ));
+    }
+
     // ---- W6 comparison spines (bytes from live captures) --------------------
 
     fn cmp(rel: c2_il::Rel, signed: bool, k: i32) -> Vec<u8> {
@@ -1135,6 +1405,7 @@ mod tests {
             framed_call: None,
             compare: None,
             empty_body: false,
+            float_leaf: None,
             params,
             ops,
         }
@@ -1257,6 +1528,7 @@ mod tests {
             framed_call: None,
             compare: None,
             empty_body: false,
+            float_leaf: None,
             params: vec![0xE309, 0xE409, 0xE509, 0xE609],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1284,6 +1556,7 @@ mod tests {
             framed_call: None,
             compare: None,
             empty_body: false,
+            float_leaf: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1312,6 +1585,7 @@ mod tests {
             framed_call: None,
             compare: None,
             empty_body: false,
+            float_leaf: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

@@ -47,6 +47,9 @@ pub enum IlOp {
     Sub,
     /// Pop rhs then lhs, push `lhs * rhs` (IL opcode `0x04`, commutative).
     Mul,
+    /// Pop rhs then lhs, push `lhs / rhs` (IL opcode `0x05`, NON-commutative).
+    /// Only reached on the FP path — integer division is not modeled.
+    Div,
 }
 
 /// A **framed non-leaf call** of the verified `return g(a) + k` class (W4b2):
@@ -152,7 +155,10 @@ pub struct IlFunction {
     /// at all, so codegen emits a bare `blr`. Mutually exclusive with the other
     /// body kinds.
     ///
-    /// (These four discriminators want to be one enum; that refactor is deferred
+    /// If this function is a **W13a floating-point leaf**, whether it is double
+    /// precision. Mutually exclusive with the other body kinds.
+    pub float_leaf: Option<bool>,
+    /// (These discriminators want to be one enum; that refactor is deferred
     /// until the CFG step forces a real body IR — see docs/ROADMAP.md §G4.)
     pub empty_body: bool,
 }
@@ -460,6 +466,9 @@ enum BodyShape {
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
+    /// W13a floating-point leaf: a straight-line chain over float (or double)
+    /// *parameters* — no constants, no conversions, no contraction.
+    FloatLeaf { params: Vec<u32>, ops: Vec<IlOp>, double: bool },
     /// An **empty function body** (`void f() {}`): the body opens directly on the
     /// `3A` assign of the return plumbing with no expression before it. Emits a
     /// bare `blr`.
@@ -545,8 +554,20 @@ impl Block {
                 0x0B => Some("bit-and"),  // &
                 0x0C => Some("bit-or"),   // |
                 0x0D => Some("bit-xor"),  // ^
-                0x2C => Some("convert"),  // narrowing/widening convert
-                0x40 => Some("cast"),     // `40 <target-type>` cast/convert
+                0x2C => Some("convert"),  // `2C <TYPE> <varint>` — the real cast
+                // `0x40` is a SECOND call token — the intrinsic call — not a
+                // cast. It occupies the slot `BD` occupies:
+                //   33 <int-TYPE> <selector>  40 <TYPE result>  (<expr> 55 <TYPE>)*  4C
+                // An earlier revision of this table guessed "cast" from a single
+                // witness where it followed a literal. It follows a bare `int`
+                // constant at 6838 of 6839 aligned sites across three real TUs —
+                // which is the selector, not a cast operand. Selectors seen:
+                // 15 abs, 17 fabs, 159/160 _rotl/_rotr, 164 strcpy, 165 strcmp,
+                // 167 strlen, 170 memcmp, 172 memcpy, 173 memset, 1973 sqrt,
+                // and the dominant 2113-2119 class-layout adjustment family.
+                0x40 => Some("intrinsic-call"),
+                // The class-pair descriptor of that same family — NOT a call.
+                0x66 => Some("class-descriptor"),
                 0x43 => Some("ternary"),  // `43 42 ...` conditional select
                 0x26 => Some("call-in-expr"),
                 _ => None,
@@ -850,6 +871,9 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
             if let Some(shape) = try_parse_compare(seg, p, lo) {
                 return Ok(shape);
             }
+            if let Some(shape) = try_parse_float_leaf(seg, p, lo) {
+                return Ok(shape);
+            }
             let ops = parse_expr(seg, &mut p, 0x41)?;
             eat_return_plumbing(seg, &mut p, true)?;
             let params = parse_formals(seg, lo)?;
@@ -864,6 +888,125 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
 /// opcodes are sign-agnostic, so this triple is the *only* thing that says a
 /// comparison is unsigned.
 const UINT_TYPE: [u8; 3] = [0x86, 0x42, 0x75];
+
+/// The `float` operand type (`86 45 40`) and the `double` one (`88 85 41`).
+/// Note the *literal* forms differ again (`86 4a 40` / `88 8a 41`), which is why
+/// W13a rejects any literal outright rather than trying to type it.
+const FLOAT_TYPE: [u8; 3] = [0x86, 0x45, 0x40];
+const DOUBLE_TYPE: [u8; 3] = [0x88, 0x85, 0x41];
+
+/// Try to parse a **W13a floating-point leaf**: a straight-line chain over
+/// float (or double) *parameters* only.
+///
+/// ```text
+///   ( B9 <tok> <FT> | <op> )+     LOADs and binary ops, all of one FP type
+///   41 <FT>                       result type, the SAME FP type
+///   <return plumbing>
+/// ```
+///
+/// The gate list is from `docs/CODEGEN_W13_FLOAT.md` §6 and every item is a
+/// case where a naive selector emits *wrong* bytes rather than merely running
+/// out of range:
+///
+/// * **No literal.** Every FP constant costs an `.rdata` COMDAT, a REFHI/REFLO
+///   relocation pair and a GPR — that is W13b.
+/// * **No `2C` convert**, and no mixing of float with double: a mixed-width
+///   expression evaluates in double and may need an `frsp`.
+/// * **No `*` under `+`/`-`.** Contraction to `fmadds`/`fmsubs`/`fnmsubs` is
+///   *mandatory* in c2, so emitting the two separate instructions would be a
+///   silent mis-emit. Approximated conservatively here by rejecting any chain
+///   that contains both a `Mul` and an `Add`/`Sub`.
+/// * **No repeated leaf.** `a + a` is algebraically rewritten to `a * 2.0f`,
+///   which is a constant and therefore `.rdata` again.
+/// * **No `0x59` marker.** It tracks source parenthesisation and is the only
+///   thing distinguishing product shapes c2 flattens from those it does not;
+///   its meaning is unknown, so its presence rejects.
+fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    let mut p = start;
+    // The operand type is fixed by the first LOAD and every later one must match.
+    if *seg.get(p)? != 0xB9 {
+        return None;
+    }
+    let double = {
+        let mut probe = p + 1;
+        let (_, w) = read_token_var(seg, probe)?;
+        probe += w;
+        if seg.get(probe..probe + 3)? == FLOAT_TYPE {
+            false
+        } else if seg.get(probe..probe + 3)? == DOUBLE_TYPE {
+            true
+        } else {
+            return None;
+        }
+    };
+    let fty = if double { DOUBLE_TYPE } else { FLOAT_TYPE };
+
+    let mut ops: Vec<IlOp> = Vec::new();
+    loop {
+        match *seg.get(p)? {
+            0xB9 => {
+                p += 1;
+                let (tok, w) = read_token_var(seg, p)?;
+                p += w;
+                if seg.get(p..p + 3)? != fty {
+                    return None; // mixed width, or a non-FP operand
+                }
+                p += 3;
+                ops.push(IlOp::Load(tok));
+            }
+            0x02 => {
+                p += 1;
+                ops.push(IlOp::Add);
+            }
+            0x03 => {
+                p += 1;
+                ops.push(IlOp::Sub);
+            }
+            0x04 => {
+                p += 1;
+                ops.push(IlOp::Mul);
+            }
+            0x05 => {
+                p += 1;
+                ops.push(IlOp::Div);
+            }
+            0x41 => break,
+            // 0x33 literal, 0x2C convert, 0x59 paren marker, 0x08 neg and every
+            // other byte reject — see the gate list above.
+            _ => return None,
+        }
+    }
+    // Result type must be the same FP type.
+    p += 1;
+    if seg.get(p..p + 3)? != fty {
+        return None;
+    }
+    p += 3;
+    eat_return_plumbing(seg, &mut p, false).ok()?;
+
+    // A `*` mixed with `+`/`-` contracts; reject rather than emit two
+    // instructions where c2 emits one.
+    let has_mul = ops.iter().any(|o| matches!(o, IlOp::Mul));
+    let has_addsub = ops.iter().any(|o| matches!(o, IlOp::Add | IlOp::Sub));
+    if has_mul && has_addsub {
+        return None;
+    }
+    // A repeated leaf can trigger algebraic rewriting into a constant.
+    let mut seen: Vec<u32> = Vec::new();
+    for o in &ops {
+        if let IlOp::Load(t) = o {
+            if seen.contains(t) {
+                return None;
+            }
+            seen.push(*t);
+        }
+    }
+    let params = parse_formals(seg, lo).ok()?;
+    if params.len() > 13 || !seen.iter().all(|t| params.contains(t)) {
+        return None;
+    }
+    Some(BodyShape::FloatLeaf { params, ops, double })
+}
 
 /// Try to parse a **W6 comparison leaf** body: `return <formal> <rel> <k>;`.
 ///
@@ -1264,6 +1407,9 @@ impl IlBundle {
                         Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
                         Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
                         Ok(BodyShape::EmptyBody) => FnVerdict::InClass("empty-body"),
+                        Ok(BodyShape::FloatLeaf { double, .. }) => {
+                            FnVerdict::InClass(if double { "double-leaf" } else { "float-leaf" })
+                        }
                         Err(b) => FnVerdict::Blocked(b),
                     };
                     // Keep the raw bytes around the blocking site: decoding a new
@@ -1345,6 +1491,7 @@ impl IlBundle {
                         framed_call: None,
                         compare: None,
                         empty_body: false,
+                        float_leaf: None,
                     });
                 }
                 // Tail calls: the callee is resolved BY TOKEN through the `.gl`
@@ -1362,6 +1509,7 @@ impl IlBundle {
                         framed_call: None,
                         compare: None,
                         empty_body: false,
+                        float_leaf: None,
                     });
                 }
                 BodyShape::IntTailCall { params, arg_ops, callee_tok } => {
@@ -1374,6 +1522,7 @@ impl IlBundle {
                         framed_call: None,
                         compare: None,
                         empty_body: false,
+                        float_leaf: None,
                     });
                 }
                 // The framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
@@ -1398,6 +1547,7 @@ impl IlBundle {
                         }),
                         compare: None,
                         empty_body: false,
+                        float_leaf: None,
                     });
                 }
                 // W6: a comparison leaf carries no op stream — codegen emits its
@@ -1412,6 +1562,20 @@ impl IlBundle {
                         framed_call: None,
                         compare: None,
                         empty_body: true,
+                        float_leaf: None,
+                    });
+                }
+                BodyShape::FloatLeaf { params, ops, double } => {
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params,
+                        ops,
+                        tail_call: None,
+                        framed_call: None,
+                        compare: None,
+                        empty_body: false,
+                        float_leaf: Some(double),
                     });
                 }
                 BodyShape::Compare(cmp) => {
@@ -1424,6 +1588,7 @@ impl IlBundle {
                         framed_call: None,
                         compare: Some(cmp),
                         empty_body: false,
+                        float_leaf: None,
                     });
                 }
             }
