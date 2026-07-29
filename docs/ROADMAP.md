@@ -10,40 +10,108 @@ The foundation is proven and fast; the port itself is deliberately narrow.
 
 **Proven (differential, against real `c2.dll`/`c1xx.dll` 16.00.11886.00 under wibo):**
 
-- **P0.1** — standalone-c2 IL-bundle replay is byte-exact on all 25 fixtures
+- **P0.1** — standalone-c2 IL-bundle replay is byte-exact on all fixtures
   (`c2rs replay`) **and on all 871 capturable TUs of the real dc3-decomp
-  workload** (`c2rs gap --replay-every 1`, 2026-07-20 baseline — after two
-  real-workload fixes: a missing `lstrcpynA` shim in wibo that killed c2 on
-  large TUs, and the `1033/clui.dll` resources symlink beside `c2host`,
-  without which any TU that triggers a diagnostic dies with C1510). The
-  reference side of the differential is real, on real code.
+  workload** (`c2rs gap --replay-every 1`, 2026-07-20 baseline, **re-proven at
+  full strength on 2026-07-29** against the post-token-fix code: 871/871,
+  0 diverged — after two real-workload fixes: a missing `lstrcpynA` shim in
+  wibo that killed c2 on large TUs, and the `1033/clui.dll` resources symlink
+  beside `c2host`, without which any TU that triggers a diagnostic dies with
+  C1510). The reference side of the differential is real, on real code.
 - **P-F0.1** — standalone-c1 (front-end) replay is byte-exact on all 25
   fixtures (`c2rs replay-c1`). The same porting path is open for `c1xx.dll`.
-- **The port (`c2-core::PortC2`) is byte-exact on the MVP class**
-  (`c2rs diff`): straight-line integer add/sub/mul chains with immediate
-  folding and wide constants, multi-function TUs of those, bare void tail
-  calls, integer tail calls `return g(<arg>)` (passthrough / `+0` fold /
-  arg-setup), and the framed non-leaf `return g(a) + k` (6-section obj with
-  `.pdata`). Everything else returns `NotImplemented` — fail closed, never a
-  guess.
+- **The port (`c2-core::PortC2`) is byte-exact on its accepted class**
+  (`c2rs diff`, 17/31 fixtures Match, 0 mismatch): straight-line integer
+  add/sub/mul chains with immediate folding and wide constants (now including
+  3+-op `*`/`-` chains, see the mis-emit note below), multi-function TUs of
+  those, bare void tail calls, integer tail calls `return g(<arg>)`
+  (passthrough / `+0` fold / arg-setup), the framed non-leaf
+  `return g(a) + k` (6-section obj with `.pdata`), **the empty TU** (R1), and
+  **comparison→boolean leaves** (W6: `return a <rel> k`, branchless). Everything
+  else returns `NotImplemented` — fail closed, never a guess.
+- **R1 — the first nonzero match bucket.** `coff::emit_empty_obj` emits the
+  720-byte four-section obj for a TU that defines no functions, recognized
+  *positively* (`is_empty_module`: `.ex` carries neither a `LO` body marker
+  nor a `4F 1F` function start). Gap scan: **match 0 → 5 of 878 TUs**. Two of
+  the seven zero-function TUs are deliberately refused — they carry a stray
+  `4F 1F` after the module end — a conservative miss, taken in preference to
+  relaxing a fail-closed test.
+- **W6 — comparison → boolean, byte-exact.** `il_bool_materialization.cpp` is
+  `Port=Match`, 6/6 functions in class. c2 lowers these **branchlessly** (no
+  `cmpw`/`cmplw` at all) via carry-bit and bit-extraction idioms; the `k == 0`
+  folds are mandatory and dispatched first. Full byte evidence, CONST/DERIVED
+  split and fail-closed negatives: **`docs/CODEGEN_W6_COMPARE.md`**. `<`, `<=`
+  and `>=` against a **non-zero** literal stay out of class — the spine's
+  instruction order for a literal lhs is unresolved and guessing it would be a
+  silent wrong-bytes emit.
+
+- **W5 chains** — `*`/`-` chains past two operations, allocating temporaries
+  down the `r11 → r10 → r9 …` cursor and **refusing below `r9`**; the rule and
+  its eleven negative neighbours are in **`docs/CODEGEN_W5_SCRATCH.md`**. This
+  is the change that fixed the mis-emit below. Expression *trees* still fail
+  closed.
 - **Harness + tooling**: oracle self-test, corpus generator, obj→IL retrieval
   baseline, IL-space search prototype, edit gate; `perf`/`perf-scale`
   (~200–290× per obj, ~897k obj/s at 32 threads vs ~3.1k for real c2).
 - **P2 / P2b measurement** — `c2rs gap` (real-workload TU scan) plus the
-  function-level census (`c2rs census <cpp>`, and the scan-wide histogram in
-  the `gap` report). The port's real coverage is now a *measured* number:
-  **7,114 / 2,462,571 functions in class (0.29%)** over the 871 capturable dc3
-  TUs, with the blocking-feature histogram that ranks the remaining work
-  (§G5).
+  function-level census (`c2rs census <cpp>`, and the scan-wide coverage +
+  blocking-feature histogram in the `gap` report; the census also prints a
+  bracketed hexdump of the bytes at each blocking site, which is what turned
+  guessed opcode names into measured ones). The port's real coverage is now a
+  *measured* number: **78,028 / 2,462,571 functions in class (3.17%)** over the
+  871 capturable dc3 TUs, with the blocking-feature histogram that ranks the
+  remaining work (§G5).
 - **IL codec (K1/K2a)** — round-trip-gated typed-islands-over-opaque-spans
   model of `.ex`/`.gl`; float-leaf (`Box::Volume` shape) token vocabulary is
   typed; K3a length-consistent edits verified *as edits* against real c2.
 
+### The first real mis-emit the differential caught (2026-07-29, 40749e7)
+
+It was a **correctness bug, not a refusal**: `w5_chain.cpp` reported
+`Port=Mismatch` — the port emitted an obj that *differs* from c2's. Root
+cause: the port used one scratch (`r11`) for every intermediate, but c2 only
+does that for **additive** chains —
+
+```
+a+b+c+d  ->  add   r11,r3,r4 ; add   r11,r11,r5 ; add   r3,r11,r6
+a*b*c*d  ->  mullw r11,r3,r4 ; mullw r10,r11,r5 ; mullw r3,r10,r6
+a-b-c-d  ->  subf  r11,r4,r3 ; subf  r10,r5,r11 ; subf  r3,r6,r10
+```
+
+— an additive chain collapses into a running accumulator, while a `*`/`-`
+chain gives every intermediate its own register descending from `r11`.
+
+**The two rules coincide at exactly one intermediate**, which is why every
+fixture up to `a-b-c` matched: the MVP corpus contained no 3-op `*`/`-` chain
+and therefore *could not distinguish the two rules at all*. Byte-exactness on
+it was consistent with both, and so was never evidence for the one the port
+had implemented.
+
+Fixed by keeping plan operands symbolic until emission, so `Base::Prev`
+resolves to the previous entry's actual destination; allocation refuses below
+`r9`, since the deepest characterized chain is `a*b*c*d*e` and outside that
+class c2's allocator is demonstrably richer — it recycles dead registers and
+it schedules, so numbering order is not emission order
+(`docs/CODEGEN_W5_SCRATCH.md` §2, §6).
+
+The lesson is a coverage lesson, and it is the one the negative-fixture
+discipline exists to teach: **a corpus earns its keep by separating candidate
+rules, not by being green.** A characterization fixture written to probe the
+*neighbouring* class is what produced the discriminator — the differential
+working exactly as designed, one rung earlier than intended.
+
 **Staged but not yet ported** (fixtures/probes already in-repo, pointing at
 the next classes):
 
-- `il_bool_materialization.cpp` — integer comparisons → boolean (`x != 0`,
-  `x > 7`, signed/unsigned).
+- `w10_empty_fn.cpp` — **empty function bodies**, the function-level analogue
+  of R1 and the `body-0x3A` census bucket (4.4% of blocked functions; by name
+  mostly STL plumbing and trivial destructors). No expression to select, so it
+  is reachable with no new instruction selection.
+- `w5_tree2.cpp` / `w5_tree3.cpp` / `w5_tree_neg.cpp` — multi-scratch
+  expression **trees** (`(a+b)*(c+d)` and deeper). Chains are done; trees
+  still fail closed. The register-allocation rule, the evaluation order and
+  the eleven negative neighbours are fully characterized in
+  `docs/CODEGEN_W5_SCRATCH.md`.
 - `select_max`, `shift_mask` in `add3.cpp` — ternary select, shifts, `&`.
 - `mvp_fmul3.cpp` + `float_leaf_neighbors` test — float arithmetic leaves;
   the IL side already parses, codegen has no float registers.
@@ -81,14 +149,14 @@ files on disk. Concretely that means:
 
 The port is a **positive shape-matcher**: `c2-il::func::parse_segment`
 accepts exactly the shapes it knows, codegen lowers them. The missing
-classes, in the *original* intended working order — the census has since
-landed and provisionally re-ranks this list; see the note after the table
+classes, in the *original* intended working order — the census and the CALL
+grammar have since landed and re-rank this list; see the note after the table
 and §G5:
 
 | # | Class | New mechanisms required | Staged? |
 |---|-------|-------------------------|---------|
-| W5 | **Multi-scratch expressions** (tree depth > 2, e.g. `(a+b)*(c+d)`) | COLOR scratch order beyond r11; operand-stack depth limit lifted | test-pinned reject |
-| W6 | **Integer comparisons → bool** (`x!=0`, `x>7`, signed/unsigned) | `cmpwi`/`cmplwi`, cr bits, `subfe`/`addze` materialization idioms | `il_bool_materialization.cpp` |
+| W5 | **Multi-scratch expressions** (tree depth > 2, e.g. `(a+b)*(c+d)`) | COLOR scratch order beyond r11; operand-stack depth limit lifted | **chains DONE** (`r11→r10→r9…`, refused below r9); trees test-pinned reject — `CODEGEN_W5_SCRATCH.md` |
+| W6 | **Integer comparisons → bool** (`x!=0`, `x>7`, signed/unsigned) | branchless carry/bit-extraction spines (**no** `cmpwi`/`cmplwi`), `subfe`/`addze`/`cntlzw`/`rlwinm`, mandatory `k == 0` folds | **compare-against-literal leaves DONE**, 6/6 in `il_bool_materialization.cpp`; `<`/`<=`/`>=` vs a non-zero literal still refused — `CODEGEN_W6_COMPARE.md` |
 | W7 | **Shifts + bitwise** (`<< >> & \| ^ ~`, mul-by-const strength reduction) | `slw`/`srw`/`sraw`/`rlwinm`/`andi.` (the dot!); non-commutative hazard list grows | `shift_mask` |
 | W8 | **Control flow** (if/else, ternary select, loops) | multi-block `.ex` (labels, branch tokens), `bc`/`b`, block layout order, compare+branch fusion | `select_max`, `il_call_return` conditionals |
 | W9 | **Division / modulo** | `divw`/`divwu`, remainder via `mullw`+`subf`; const divisor → multiply-high | — |
@@ -103,29 +171,61 @@ carry chains), unsigned variants everywhere, virtual/indirect calls (needs
 W12 + `mtctr`/`bctrl`), `__declspec`s, intrinsics. Do not schedule these
 ahead of measured demand.
 
-**Provisional re-rank from the P2b census (INFERENCE — see §G5 for the
-measured histogram it is derived from).** Grouping the top-20 blocking
-features by the grammar production they died in:
+**Re-rank from the P2b census, now that the CALL grammar is characterized
+(INFERENCE from the measured histogram of §G5 — the histogram is a
+measurement, the attribution of buckets to rungs is not).** The largest
+buckets are no longer anonymous: `docs/IL_CALL_GRAMMAR.md` decodes the CALL
+token, the three coexisting variable-width encodings and the body/statement
+grammar, and names most of the top of the histogram. Grouping the current top
+10 by what the bytes actually are:
 
-- **Call-shaped** blocks (`call-token-*` 24.0% + `call-anchor-*` 12.4% +
-  `expr-call-in-expr` 2.7%) = **~39% of blocked functions** from the top-20
-  rows alone — a lower bound, since further `call-*` buckets sit in the
-  1,217-row tail. That is the **W11** (calls generalized) rung.
-- **Statement/body-shaped** blocks (`body-*`: `0x3A` a body opening with
-  ASSIGN, `0x53` a further statement marker, plus `0x9B/0x4F/0xB3/0xAD/
-  0x29/0x67/0x9A`) = **~12%** from the top-20 rows, again a lower bound.
-  That is the **W10** (general frames + locals + statements) rung.
-- **W6 (comparisons) and W7 (shifts) do not appear in the top 20 at all.**
+- **Genuinely out-of-class calls — these must keep failing closed, they are
+  not a "fix"** (`call-token-0xB9`, **14.8%**, the single largest bucket).
+  This is *not* a missing opcode: `BD` is a postfix operator applied to
+  whatever the operand stream pushed, and here the callee is an **expression**
+  — `b9 <tok> <TYPE>` (indirect call) or `26 <method> <obj-expr> 99 …`
+  (member call) — not the direct `26 <tok>`. An indirect call has **no
+  relocatable callee name anywhere**; a member call needs a `this` argument
+  and possibly vtable dispatch. Per `IL_CALL_GRAMMAR.md` §6.2 both must be
+  rejected *before* emission, permanently, until W11/W12 give the port real
+  argument passing and member addressing. Widening the parser to accept them
+  without codegen would convert a refusal into a mis-emit.
+- **Type-driven blocks**, i.e. the port only lowers `int`:
+  `expr-load-type-864540` (**float**, 3.4%), `expr-load-type-888541`
+  (**double**, 3.1%), `expr-load-type-864383` (**void\***, 1.9%) = **8.4%**.
+  These are honest **W13** and **W12** demand. Knowing how to *skip* a
+  `double` (the width rule is now known) is not knowing how to lower it.
+- **Casts** — `expr-cast` (`40 <target-type>`, **6.8%**), the second-largest
+  bucket. Mostly W12-adjacent (pointer/integer conversion) and the cheapest
+  of the large buckets to characterize next.
+- **Remaining call-shaped** blocks: `call-token-0x33` (5.9%, a literal where
+  a CALL was expected), `expr-call-in-expr` (4.9%), `call-token-0x26` (3.3%)
+  = **14.1%** — real **W11** demand (multi-arg calls, calls nested in
+  expressions, `26 dest 26 callee BD …` assign-a-call-result statements).
+- **Statement/body-shaped** blocks: `body-0x3A` (**4.4%**) is now known to be
+  an **empty function body** (`IL_CALL_GRAMMAR.md` §4.2) — the cheapest large
+  bucket on the board and staged as `w10_empty_fn.cpp`; `body-0x53` (2.9%) is
+  a body whose first statement is an `if`/compound, i.e. **W8** control flow.
+- **W6 (comparisons) and W7 (shifts) still do not appear in the top 10**, and
+  W6's leaf class has now landed anyway.
 
-So the measured demand says W11 and W10 dominate and the W5→W6→W7→W8 order
-above is *not* demand-driven. The re-rank is deliberately labelled
-provisional: the exact meaning of several top buckets is **not yet
-characterized** — most importantly `call-token-0xB9` (14.8%, the single
-largest bucket) means a LOAD stands where the fixed 10-byte CALL token was
-expected, so `26 <tok>` is evidently **not** always a call prefix. Until that
-grammar question is answered, the grouping above may be mis-attributing a
-large share of the histogram. Characterize `26`/`B9` first, then commit to
-the re-order.
+So the measured demand still says the W5→W6→W7→W8 order is not
+demand-driven, but the shape of the demand has changed: a large part of the
+top is **out-of-class by construction** (member/indirect calls) rather than
+schedulable work, and the schedulable head is *empty function bodies*, then
+casts, then float/double types, then generalized calls.
+
+> **Standing caution — a census bucket may be a parser defect, not
+> vocabulary.** This has now happened **twice**. The variable-token-width fix
+> (§G2) deleted the `call-token-0x01…0x05` and `expr-load-type-0N00A6`
+> families, which were pure misalignment. The CALL-token decode deleted the
+> entire **`call-anchor-*` family** — previously ~12.4% of blocked functions
+> (`call-anchor-0x00` 235,886, `-0x08` 43,269, `-0x20` 24,600 → **0**) —
+> which was measuring a hardcoded 6-byte "anchor" that was never an anchor
+> (§G2). Both times a large, plausible, stable bucket turned out to be the
+> instrument rather than the corpus. Before scheduling work against any
+> bucket, dump the bytes at the recorded offset (`c2rs census`, which now
+> prints them) and confirm the parse arrived there **aligned**.
 
 ### G2 — IL decode coverage
 
@@ -169,6 +269,39 @@ The same work independently **confirmed `read_token_var` is correct** for
 operand tokens: a 32000-symbol fixture forces genuine 4-byte tokens, and
 `v31999` loads as `b9 e2 86 01 00`, decoding to exactly `0x09E3 + 31999` with
 the fixed `41` / `54 02 29` markers landing where the 4-byte read predicts.
+
+**The CALL token is now decoded, not anchor-matched (landed 2026-07-29,
+commit 2870fc1).**
+
+```
+CALL := BD <TYPE ret> <flags:1> <varint fn-type-id>          8–13 bytes
+```
+
+Nothing in it is fixed but the `BD`; a decoder finds the end field by field,
+and no anchor is needed or possible. The old model matched a hardcoded 6-byte
+`CALL_CALLEE_ANCHOR = 00 80 01 10 00 00`, which was never an anchor: it is
+`flags = 0` followed by `varint(0x1001)`, and `0x1001` is merely the first
+function type a *single-function fixture TU* happens to create — true of every
+MVP fixture and of essentially nothing else. `read_type` implements the third
+encoding in the format (`<tag> <kind> <LEB128 id>`, 3/4/5 bytes), widths pinned
+in the tests by the fixed markers that bracket a type (`41` result-type, `55`
+arg push, `4C 4B` call end), where a wrong width visibly swallows the marker.
+The calling convention is restricted to `0x00` (cdecl) — `0x04` fastcall and
+`0x40` varargs refuse rather than mis-emit — and the fn-type id is decoded only
+to find the token's end and then **discarded**: it is not the callee (three
+different callees sharing one signature produce byte-identical CALL tokens).
+Effect on coverage: **7,114 → 7,954 functions in class**, and the
+re-attribution exposed what the mis-parse had been hiding — float and double
+operand types are now visible at 3.4% and 3.1%.
+
+Full byte evidence for all three encodings, callee resolution via `.gl`, the
+statement-list grammar and the ranked residual unknowns:
+**`docs/IL_CALL_GRAMMAR.md`**. Its §6.3 validation is the strongest check
+available that the model is right: a throwaway whole-body parser built from it
+lands **exactly** on the fixed 7-byte function tail for 2,729 of Dir.cpp's
+5,239 bodies (52.1%), and the residue is dominated by *unidentified opcodes*,
+not width errors — a wrong token width, type width or CALL layout could not let
+half a 1.5 MB real TU land on a fixed 7-byte pattern.
 
 <details><summary>Superseded: the "+1 continuation" reading (kept as a
 worked example of a statistical result that was directionally right and
@@ -239,7 +372,10 @@ when the accreting shape-matcher gets restructured into a real
 IL→lower→emit pipeline. Answer: not yet — keep widening the matcher until
 the CFG step (W8) and frames (W10) force a block/instruction IR, then
 restructure `codegen` around it, keeping every differential gate green.
-COLOR knowledge lands when W5/W10 demand real register-order modeling.
+COLOR knowledge lands when W5/W10 demand real register-order modeling — the
+W5 chain fix already needed the first piece of it (the descending
+`r11→r10→r9…` cursor, `CODEGEN_W5_SCRATCH.md` §2), and the tree case will
+need the liveness-gated, wrapping version of the same cursor.
 
 ### G5 — Coverage measurement (instrument LANDED; P2b census LANDED; baseline below)
 
@@ -252,8 +388,8 @@ real dc3 TUs, bucketing each into `capture-fail` / `vocab-gap` /
 `scripts/gen_dc3_workload.sh` generates the inputs from a dc3-decomp
 checkout.
 
-**P2b — function-level census: LANDED** (commits 63b1ad1, ec401a5). The
-TU-level scan is all-or-nothing, so it could only ever report 871 ×
+**P2b — function-level census: LANDED** (commits 63b1ad1, ec401a5, 56d5800).
+The TU-level scan is all-or-nothing, so it could only ever report 871 ×
 `vocab-gap` and could not rank W5–W14. There is now a per-function view:
 `c2rs census <cpp> [--flags-file F --cwd D] [--keep-il DIR]` for a single TU,
 and the `c2rs gap` report additionally prints scan-wide function coverage
@@ -262,26 +398,89 @@ plus the blocking-feature histogram. Each function segment is run through the
 offset)` — so the histogram measures the unknown vocabulary honestly (hex
 buckets, never guessed names) instead of asserting it.
 
-**Baseline (2026-07-29, 878 dc3 TUs, real `/O1 /Oi /EHsc` flags, 37.3 s at
-`--jobs 16`):**
+The census also keeps a **window of bytes either side of each blocking site**
+and prints one representative hexdump per feature, bracketing the offending
+byte:
+
+```
+ 1 x expr-cmp-gt
+     ... b9 ed 09 86 41 74 b9 ee 09 86 41 74 >24< b9 ed 09 ...
+```
+
+That is the single highest-leverage line in the instrument: it is what turned
+guessed opcode names into measured ones (the relational correction below), and
+what exposed the true CALL token shape and the meaning of `body-0x3A` /
+`body-0x53` on a real TU. Per-function lines are suppressed above 64 functions,
+where only the histogram is readable.
+
+**Baseline (2026-07-29 end of day, 878 dc3 TUs, real `/O1 /Oi /EHsc` flags,
+~36 s at `--jobs 16`):**
 
 | Class | TUs | % |
 |---|---|---|
-| match | 0 | 0.0 |
+| **match** | **5** | **0.6** |
 | mismatch | 0 | 0.0 |
 | codegen-gap | 0 | 0.0 |
-| **vocab-gap** | **871** | **99.2** |
+| **vocab-gap** | **866** | **98.6** |
 | capture-fail | 7 | 0.8 |
 
-**Function census: 7,114 / 2,462,571 functions in class (0.29%).** (Same
-instrument before the variable-token-width fix of §G2: 4,154 / 2,462,571 =
-0.17%.)
+**The match bucket is nonzero for the first time** — R1 (empty-TU obj
+emission, §1). Five of the seven zero-function TUs; the other two are refused
+on purpose (a stray `4F 1F` after the module end defeats the positive
+`is_empty_module` test, and relaxing that test is not worth 2 TUs).
+
+**Function census: 78,028 / 2,462,571 functions in class (3.17%).** Progression
+today on the identical instrument:
+
+| | in class | % |
+|---|---:|---:|
+| start of day | 4,154 | 0.17 |
+| + variable token width (§G2, 40f767d) | 7,114 | 0.29 |
+| + CALL-token decode (§G2, 2870fc1) | 7,954 | 0.32 |
+| + empty function bodies (`w10_empty_fn.cpp`, a44c8f3) | **78,028** | **3.17** |
+
+The first two steps were *decode* fixes, not new codegen — the expected
+shape of progress while the wall is `vocab-gap`. The third is a 10x jump from
+one very small class: empty bodies are ~4.4% of blocked functions by count,
+and accepting them also unblocks the many TUs that are *mostly* trivial
+accessors and destructors.
+
+> ### The obj shape depends on argv the bundle does not record (`/Gy`)
+>
+> Landing empty function bodies immediately produced a **mismatch** on
+> `system/utl/Spew.cpp`: the port emitted a 5-section obj with one packed
+> `.text` against a reference with **six** sections and a separate 4-byte
+> `.text` per function, characteristics `0x60401020` (COMDAT) rather than
+> `0x60400020`.
+>
+> Root cause: **`/O1` and `/O2` imply `/Gy`** (function-level linking). The dc3
+> workload compiles with `/O1`; every fixture here uses `/Ox`, which does not.
+> So the same IL bundle legitimately produces two different objs depending on a
+> compiler flag that the bundle never records — and **matching every fixture
+> never licensed emitting for a real workload TU**. This is a different kind of
+> gap from the W-ladder: not a missing *class*, but a missing *input*.
+>
+> `PortC2::with_function_level_linking` now carries it, `c2rs gap` and
+> `c2rs prefilter` derive it from the project's real flags, and
+> `coff::emit_comdat_obj` emits the COMDAT shape (one `.text` per function,
+> aux `Selection = 1` NODUPLICATES, each function at `Value` 0 in its own
+> section, no inter-function padding, 11 fixed symbols + 3 per function).
+> `Spew.cpp` is now the **first function-bearing real TU to match** — the other
+> five matches are empty TUs with no `.text` at all — taking the bucket to
+> **6/878**.
+>
+> Standing implication: any future claim of the form "the port handles class X"
+> must say *under which flags*. `c2rs perf`'s numbers, the fixture gate, and
+> the workload scan are not all speaking about the same emitter configuration.
 
 **Replay soundness re-proven at full strength on 2026-07-29 with the
 post-fix code: 871/871 capturable TUs byte-exact, 0 diverged**
 (`--replay-every 1`, 43.4 s at `--jobs 16`). The oracle holds on the entire
 capturable real workload, so every IL-derived measurement above rests on a
 reference side that was itself checked, not assumed.
+
+Fixture-level status at the same commit: **17/31 `Port=Match`, 0 mismatch**;
+`cargo test --workspace` green.
 
 > **The denominator is 2,462,571 functions — not ~903k.** An earlier figure of
 > 902,730 came from counting `.gl` mangled names; that is **not** the function
@@ -294,66 +493,77 @@ reference side that was itself checked, not assumed.
 > (`func::split_function_bodies`). Do not re-derive a function count from
 > `.gl`.
 
-Blocking-feature histogram, top 20 (percentages are of *blocked* functions):
+Blocking-feature histogram, top 10 (percentages are of *blocked* functions),
+with what each bucket is now known to be:
 
-| Functions | % | Feature |
-|---:|---:|---|
-| 363,684 | 14.8 | `call-token-0xB9` |
-| 235,886 | 9.6 | `call-anchor-0x00` |
-| 166,483 | 6.8 | `expr-op-0x40` |
-| 144,276 | 5.9 | `call-token-0x33` |
-| 107,253 | 4.4 | `body-0x3A` |
-| 80,284 | 3.3 | `call-token-0x26` |
-| 70,078 | 2.9 | `body-0x53` |
-| 67,012 | 2.7 | `expr-call-in-expr` |
-| 43,269 | 1.8 | `call-anchor-0x08` |
-| 41,878 | 1.7 | `expr-load-type-864383` |
-| 34,573 | 1.4 | `expr-load-type-864275` |
-| 28,487 | 1.2 | `body-0x9B` |
-| 26,666 | 1.1 | `body-0x4F` |
-| 24,600 | 1.0 | `call-anchor-0x20` |
-| 22,947 | 0.9 | `expr-lit-type-821230` |
-| 15,782 | 0.6 | `body-0xB3` |
-| 15,480 | 0.6 | `body-0xAD` |
-| 14,594 | 0.6 | `body-0x29` |
-| 13,248 | 0.5 | `body-0x67` |
-| 12,405 | 0.5 | `body-0x9A` |
+| Functions | % | Feature | What the bytes are |
+|---:|---:|---|---|
+| 363,684 | 14.8 | `call-token-0xB9` | **member / indirect calls** — the callee is an *expression*, not `26 <tok>` |
+| 167,205 | 6.8 | `expr-cast` | `40 <target-type>` |
+| 144,276 | 5.9 | `call-token-0x33` | a literal where a CALL was expected |
+| 119,800 | 4.9 | `expr-call-in-expr` | a call nested inside an expression |
+| 107,253 | 4.4 | `body-0x3A` | an **empty function body** |
+| 82,491 | 3.4 | `expr-load-type-864540` | **float** |
+| 80,284 | 3.3 | `call-token-0x26` | `26 dest 26 callee BD …` (assign a call result) |
+| 75,081 | 3.1 | `expr-load-type-888541` | **double** |
+| 70,078 | 2.9 | `body-0x53` | first statement is an `if`/compound |
+| 47,640 | 1.9 | `expr-load-type-864383` | **void\*** |
 
-…and **1,217 more distinct features** in the tail.
+…plus a long tail of further distinct features (1,217 more rows at the
+mid-day measurement; the row count moved with the `call-anchor-*` retirement
+below and is deliberately not re-quoted from the old scan).
+
+**The `call-anchor-*` family is gone** — it was 12.4% of blocked functions
+(235,886 + 43,269 + 24,600) and it was measuring the port's own hardcoded
+anchor, not a real gap (§G2, and the standing caution in §G1). Do not compare
+this histogram to the mid-day one without accounting for that retirement.
 
 How to read the bucket names (`func::Block::feature`) — `<production>-0xNN`
 means the parse was inside that grammar production and could not consume byte
 `NN`:
 
-- `call-token-*` — the byte where the fixed 10-byte CALL token
-  (`BD <3-byte ret type> 00 80 01 10 00 00`) was expected after a `26 <tok>`
-  reference.
-- `call-anchor-*` — the 6-byte anchor `00 80 01 10 00 00` did not match.
+- `call-token-*` — the byte where the `BD` CALL token was expected after the
+  callee expression.
 - `body-*` — the byte that opened the function body, where only a call ref
   (`26`), LOAD (`B9`) or literal (`33`) is modeled.
 - `expr-*` — inside the operand stream; `expr-*-type-NNNNNN` reports the
-  operand's whole 3-byte inline type, because the type triple *is* the
-  feature (int vs unsigned vs float vs pointer).
+  operand's whole inline type, because the type triple *is* the feature (int
+  vs unsigned vs float vs pointer). Named buckets (`expr-cast`,
+  `expr-call-in-expr`, the relationals) carry only **capture-verified** names
+  — see the correction below.
+
+**The census's relational opcode names were guessed, and were wrong.**
+Compiling one probe per relation against the live toolchain (commit 45421f6,
+`docs/CODEGEN_W6_COMPARE.md` §1.1) measured `0x1F` `==`, `0x20` `!=`,
+`0x21` `<=`, `0x22` `<`, `0x23` `>=`, `0x24` `>`. The table had said `0x20`
+`==`, `0x21` `!=`, `0x23` `<=`, `0x25` `>=`, and had **no** name for `==` at
+all — so three buckets were mislabelled and every `==` landed in an unnamed
+one. Diagnostic only (acceptance never consults the name) but the ranked
+blocker lists in `docs/GAPS.md` are keyed on these strings. A hex bucket is a
+result; a wrong name is a lie that survives into the roadmap.
 
 Notes:
 
-- **Replay soundness holds**: 871/871 byte-exact, 0 diverged on the 2026-07-20
-  full `--replay-every 1` pass; the sampled lane on the 2026-07-29 runs has
-  likewise never diverged (110 sampled, 0 diverged). The oracle holds on the
-  capturable real workload.
+- **Replay soundness holds at full strength**: 871/871 byte-exact, 0 diverged
+  on both the 2026-07-20 and the 2026-07-29 `--replay-every 1` passes. The
+  oracle holds on the capturable real workload.
 - The 7 `capture-fail`s are all `synth_xbox/soundtouch` files the real 360
   build excludes (x86-only `#error` guards) or builds with per-target flags —
   a workload-manifest refinement, not a port gap.
-- **The TU wall is still `vocab-gap`**: every real TU dies at `c2_il` function
-  decode before codegen is consulted, because `functions()` is all-or-nothing
-  per TU. That is unchanged and expected — a TU with 700 functions of which
-  699 are in class is still one `vocab-gap`. The census is what moves per
-  widening step; the TU buckets move much later.
+- **The TU wall is still `vocab-gap` for every TU that contains code**: those
+  866 TUs die at `c2_il` function decode before codegen is consulted, because
+  `functions()` is all-or-nothing per TU. That is unchanged and expected — a
+  TU with 700 functions of which 699 are in class is still one `vocab-gap`.
+  The 5 matches are exactly the TUs with *no* functions to decode. The census
+  is what moves per widening step; the TU buckets move much later.
 
-Remaining for G5: promote match-% to the headline metric once nonzero, keep
-the JSONL baselines diffable scan-over-scan (coverage must be monotone), and
-characterize the top histogram buckets (notably `call-token-0xB9`) so the
-provisional re-rank in §G1 can be committed to.
+Remaining for G5: keep the JSONL baselines diffable scan-over-scan (coverage
+must be monotone), and keep characterizing the head of the histogram —
+`expr-cast` (`40 <target-type>`) is now the largest *schedulable* unknown,
+`body-0x3A` the largest cheap one. The §G1 re-rank is no longer blocked on
+`call-token-0xB9`: that bucket is characterized (member/indirect calls,
+`IL_CALL_GRAMMAR.md` §3.2/§6.2) and is out of class by construction rather
+than schedulable.
 
 ### G6 — Harness experiments maturity
 
@@ -394,8 +604,10 @@ them out of the port's critical path.
 ```
 P2    gap-scan baseline with `c2rs gap` (dc3 workload) (G5)   [DONE 2026-07-20]
 P2b   function-level census + blocking histogram      (G5; the driver) [DONE 2026-07-29]
-W5    multi-scratch expressions                     (unblocks expression shapes)
-W6    integer comparisons → bool                    (staged; small; frequent)
+P2c   CALL / body grammar characterization → IL_CALL_GRAMMAR.md [DONE 2026-07-29]
+R1    empty-TU obj emission — first nonzero match bucket   [DONE 2026-07-29: 5/878]
+W5    multi-scratch expressions                     [CHAINS DONE 2026-07-29; trees open]
+W6    integer comparisons → bool                    [LEAVES DONE 2026-07-29; <,<=,>= vs k≠0 open]
 W7    shifts + bitwise + strength reduction         (staged)
 W8    control flow (if/else, ternary, loops)        (first CFG; IR restructure)
 W9    division / modulo
@@ -410,14 +622,20 @@ P-F2  FE widening in lockstep + perf-fe                (parallel track)
 P3    c2rs compose — source→obj in-process, byte-exact + perf-fe scale
 ```
 
-**The W-order above is the pre-census estimate and is now known not to be
-demand-driven.** The measured histogram (§G5) puts call-shaped blocks (~39%
-of blocked functions from the top-20 rows alone) and statement/body-shaped
-blocks (~12%) at the top, i.e. **W11 and W10**, while W6 (comparisons) and W7
-(shifts) do not appear in the top 20 at all. The re-rank is *inference* from
-the histogram, not a measured schedule, and it is blocked on characterizing
-`call-token-0xB9` / the `26` prefix (§G1). Sequence to run instead: the
-grammar-characterization step first, then re-rank, then the rung it picks.
+**The W-numbering above is the pre-census estimate and is not the running
+order.** The current histogram (§G5), read against the now-characterized CALL
+and body grammar, ranks the schedulable work as: **empty function bodies**
+(`body-0x3A`, 4.4%, staged as `w10_empty_fn.cpp` — the cheapest large bucket,
+and R1's function-level analogue), then **casts** (`expr-cast`, 6.8%), then
+**non-int operand types** (float/double/`void*`, 8.4% — W13/W12), then
+**generalized calls** (`call-token-0x33` + `expr-call-in-expr` +
+`call-token-0x26`, 14.1% — W11), with control flow (`body-0x53`, 2.9% — W8)
+behind them. The single largest bucket, `call-token-0xB9` at 14.8%, is **not
+schedulable work at all**: it is member and indirect calls, which have no
+relocatable callee name (indirect) or need a `this`/vtable model (member), and
+which must keep failing closed until W11/W12 exist (§G1,
+`IL_CALL_GRAMMAR.md` §6.2). The attribution of buckets to rungs remains
+*inference*; the histogram itself is measurement.
 
 W8 remains the pivot whenever it is scheduled: it forces the block/instruction
 IR, the `.ex` branch grammar, and compare/branch fusion. Everything after it
@@ -433,24 +651,41 @@ not less.
    fails TU-wholesale first.
 2. ~~**P2b — function-level census**: classify each function inside each real
    bundle by its first blocking feature, so the histogram counts functions,
-   not TUs.~~ **DONE 2026-07-29** (63b1ad1, ec401a5) — see G5. Headline:
-   **7,114 / 2,462,571 functions in class (0.29%)**, 1,237 distinct blocking
-   features, denominator anchored on the `LO` body marker (**not** `.gl`
-   names). Bundled finding: IL tokens are variable width (40f767d, §G2),
-   which retired two fabricated bucket families and moved the numerator
-   4,154 → 7,114.
-3. **Characterize `call-token-0xB9` / the `26` prefix** — the single largest
-   bucket (14.8%) says a LOAD stands where the CALL token was expected, so
-   `26 <tok>` is not always a call. Until this is understood the top of the
-   histogram cannot be attributed to a rung, and the §G1 re-rank stays
-   provisional. This is now the highest-value next step.
-4. **Port `codec.rs` to the variable-width token read** (`tok16` → the
+   not TUs.~~ **DONE 2026-07-29** (63b1ad1, ec401a5, 56d5800) — see G5.
+   Denominator anchored on the `LO` body marker (**not** `.gl` names); the
+   scan-wide coverage + histogram print from `c2rs gap`, and each feature
+   carries a bracketed hexdump of its blocking site. Bundled finding: IL
+   tokens are variable width (40f767d, §G2), which retired two fabricated
+   bucket families and moved the numerator 4,154 → 7,114.
+3. ~~**Characterize `call-token-0xB9` / the `26` prefix.**~~ **DONE
+   2026-07-29** — `docs/IL_CALL_GRAMMAR.md` (characterization, 8131ba2) and
+   `c2-il`: the CALL token is now decoded rather than anchor-matched
+   (2870fc1, §G2). Results: `26 <tok>` is a **symbol/lvalue push**, not a
+   call prefix; the callee is an arbitrary *expression*, so `call-token-0xB9`
+   is member/indirect calls; the whole `call-anchor-*` family was the port's
+   own bug and is gone; census 7,114 → **7,954** (0.32%).
+4. ~~**R1 — empty-TU obj emission.**~~ **DONE 2026-07-29** (fa3410a):
+   **match 0 → 5 of 878**, the first nonzero match bucket, which trips the
+   downstream tripwire recorded in `GAPS.md` §5.
+5. ~~**W5 chains (the mis-emit fix) + W6 compare leaves.**~~ **DONE
+   2026-07-29** (40749e7) — see §1, `CODEGEN_W5_SCRATCH.md` §6 and
+   `CODEGEN_W6_COMPARE.md`. The mis-emit is the first correctness bug the
+   differential has caught; it outranked all widening work the moment it
+   appeared, which is the rule §7 states.
+6. **Empty function bodies** (`body-0x3A`, 4.4% of blocked functions) —
+   fixture `w10_empty_fn.cpp` is already staged; no instruction selection
+   needed, so it is the cheapest remaining large bucket. Note the
+   `IL_CALL_GRAMMAR.md` §4.2 trailing-expression variant must stay rejected.
+7. **W5 trees** — `(a+b)*(c+d)` and deeper, per `CODEGEN_W5_SCRATCH.md` §7
+   (the cursor rule, the level-order emission rule, and the six-row shape
+   gate G1–G6); `w5_tree_neg.cpp`'s eleven functions must stay
+   `NotImplemented`.
+8. **Port `codec.rs` to the variable-width token read** (`tok16` → the
    `read_token_var` rule), round-trip gate unchanged, so typed coverage can
    be measured on real bundles rather than fixtures (§G2).
-5. **W5**: lift the depth-2 stack limit using the documented COLOR scratch
-   order; positive fixture `(a+b)*(c+d)`, negative depth-5 tree.
-6. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
-7. Commit the W-ladder re-rank once step 3 lands; update this doc.
+9. **Characterize `expr-cast`** (`40 <target-type>`, 6.8%) — the largest
+   schedulable unknown left in the histogram.
+10. **P-F0.2**: argv/line-number/whitespace probes → `docs/FE_BUNDLE_MVP.md`.
 
 ## 7. Invariants (do not break)
 
