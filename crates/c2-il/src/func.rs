@@ -898,14 +898,20 @@ fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
 /// `+ k` over a *computed* argument (`g(a+1)+1`), or a `* k`/`- k`/wide `k`/a
 /// second literal/a second call, all reject. The `callee` name is not in `.ex`;
 /// the caller pairs it from `.gl`.
-fn parse_segment(seg: &[u8]) -> Option<BodyShape> {
-    parse_segment_detail(seg).ok()
+fn parse_segment(
+    seg: &[u8],
+    globals: &std::collections::BTreeMap<u32, String>,
+) -> Option<BodyShape> {
+    parse_segment_detail(seg, globals).ok()
 }
 
 /// [`parse_segment`] with the fail-closed *reason* preserved (P2b census).
 /// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
 /// can never disagree with the gate about what is in class.
-fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
+fn parse_segment_detail(
+    seg: &[u8],
+    globals: &std::collections::BTreeMap<u32, String>,
+) -> Result<BodyShape, Block> {
     let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or(Block {
         ctx: "lo-marker",
         byte: None,
@@ -928,8 +934,18 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
             eat_return_plumbing(seg, &mut p, false)?;
             Ok(BodyShape::EmptyBody)
         }
-        // Call shapes all open with a `26 <tok>` function/result-temp ref.
-        0x26 => parse_call_shape(seg, &mut p, lo),
+        // `26 <tok>` opens BOTH a call (the callee push) and an assignment
+        // statement (the destination push) — which is why the top census bucket,
+        // `call-token-0xB9`, was an assignment misread as a malformed call. The
+        // assignment parse is non-committal: it works on a copy of the cursor and
+        // returns None without side effects the moment it sees the `BD` that marks
+        // a call, so a call body falls through unchanged.
+        0x26 => {
+            if let Some(shape) = try_parse_assign_body(seg, p, lo, globals) {
+                return Ok(shape);
+            }
+            parse_call_shape(seg, &mut p, lo)
+        }
         // Straight-line arithmetic opens with a LOAD or a bare literal — and so
         // does a W6 comparison leaf, which is tried first because its whole-body
         // shape is strictly more specific (a LOAD/LIT pair consumed by a
@@ -946,10 +962,176 @@ fn parse_segment_detail(seg: &[u8]) -> Result<BodyShape, Block> {
             let ops = parse_expr(seg, &mut p, 0x41)?;
             eat_return_plumbing(seg, &mut p, true)?;
             let params = parse_formals(seg, lo)?;
+            // A parameter used twice licenses c2's algebraic rewriter.
+            if has_repeated_leaf(&ops) {
+                return Err(Block { ctx: "expr-repeated-leaf", byte: None, off: p, aux: 0 });
+            }
             Ok(BodyShape::StraightLine { params, ops })
         }
         _ => Err(blk(seg, p, "body")),
     }
+}
+
+/// The largest substituted operand stream accepted, so that a chain of
+/// assignments each doubling the previous cannot blow up.
+const MAX_SUBST_OPS: usize = 32;
+
+/// True if any operand token is loaded more than once.
+///
+/// A repeated leaf licenses c2's algebraic rewriter, and it takes the licence:
+/// `a + a` does **not** become `add r3,r3,r3`, it becomes `rlwinm r3,r3,1,0,30`
+/// (`slwi r3,r3,1`) — byte-identical to what it emits for `a * 2`. So the operand
+/// stream stops being a faithful description of the instructions.
+///
+/// This was a live mis-emit in the straight-line integer class, not a hypothetical:
+/// `return a + a;` and `return a + b + a;` both produced wrong bytes, and had done
+/// since that class was written, because no fixture used a parameter twice. The FP
+/// leaf parser has had the equivalent gate from the start (see
+/// [`try_parse_float_leaf`]); the integer path never got one.
+///
+/// Refusing is the conservative move: the rewrite set is not characterized (only
+/// the `x + x` case is captured), so admitting any of it would be guessing.
+fn has_repeated_leaf(ops: &[IlOp]) -> bool {
+    let mut seen: Vec<u32> = Vec::new();
+    for op in ops {
+        if let IlOp::Load(t) = op {
+            if seen.contains(t) {
+                return true;
+            }
+            seen.push(*t);
+        }
+    }
+    false
+}
+
+/// Inline-substitute every `Load(t)` for which `env` has a definition.
+///
+/// The stream is postfix, so splicing a multi-op definition in place of a single
+/// `Load` is valid without any bracketing: `[Load(x), Lit(1), Add]` with
+/// `x -> [Load(a), Lit(1), Add]` becomes `[Load(a), Lit(1), Add, Lit(1), Add]`,
+/// which is `(a+1)+1`.
+///
+/// One pass suffices because every `env` entry is *itself* already substituted —
+/// entries are recorded at definition time, in terms of parameters only. That is
+/// also what makes this correct rather than merely convenient: substituting at
+/// definition time captures the operand values as of that point, so a later
+/// redefinition of an operand cannot leak backwards. `int x = a; a = a + 1;
+/// return x;` yields `x -> [Load(a)]` and returns the *entry* `a`, which is right;
+/// substituting lazily at use time would return `a + 1`, which is not.
+fn substitute(ops: &[IlOp], env: &[(u32, Vec<IlOp>)]) -> Option<Vec<IlOp>> {
+    let mut out = Vec::with_capacity(ops.len());
+    for op in ops {
+        match op {
+            IlOp::Load(t) => match env.iter().find(|(k, _)| k == t) {
+                Some((_, def)) => out.extend_from_slice(def),
+                None => out.push(*op),
+            },
+            _ => out.push(*op),
+        }
+        if out.len() > MAX_SUBST_OPS {
+            return None;
+        }
+    }
+    Some(out)
+}
+
+/// Try to parse a body that is a **list of assignment statements** followed by a
+/// returned expression:
+///
+/// ```text
+///   body := ( `4F 01 <line>`* assign )* `4F 01 <line>`* expr(→41) <return int>
+///   assign := `26 <dst>` expr(→32) `32 <TYPE>` `4B`
+/// ```
+///
+/// `26 <dst>` pushes the destination, `32 <TYPE>` stores it (and yields the value,
+/// which `4B` then discards). The `<TYPE>` is the destination's own — a conversion
+/// is always a separate visible `2C`, so an int-like type here means no conversion.
+///
+/// **These bodies need no stores at all.** c2 register-allocates locals and
+/// coalesces the copies, so the whole class collapses to the expression that
+/// actually reaches the `return`. Captured:
+///
+/// ```text
+///   int x; x = a; return x;              -> blr            (x is already r3)
+///   int x = a; int y = x; return y;      -> blr
+///   a = a + 1; return a;                 -> addi r3,r3,1
+///   int x = 0; x = a + 1; return x;      -> addi r3,r3,1    (the x = 0 is dead)
+///   a = 7; return a;                     -> li r3,7
+/// ```
+///
+/// So this resolves the statement list by substitution and hands codegen the
+/// resulting straight-line expression, which is exactly what the reference emits.
+///
+/// The destination must not be a **global**: the IL for a global store is
+/// byte-identical to a local one (`26 <tok> expr 32 <TYPE> 4B` either way — only
+/// the token differs), but a global store is a real memory write, and treating it
+/// as a register copy would be a silent mis-emit rather than a refusal. Globals are
+/// exactly the tokens that carry a name in `.gl`, which is why this needs the
+/// symbol index.
+fn try_parse_assign_body(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    globals: &std::collections::BTreeMap<u32, String>,
+) -> Option<BodyShape> {
+    let mut p = start;
+    let mut env: Vec<(u32, Vec<IlOp>)> = Vec::new();
+    loop {
+        eat_opt_stmt_marker(seg, &mut p);
+        if *seg.get(p)? != 0x26 {
+            break;
+        }
+        let mut probe = p + 1;
+        let (dst, w) = read_token_var(seg, probe)?;
+        probe += w;
+        // `BD` here means this `26` was a callee push, not a destination.
+        if *seg.get(probe)? == 0xBD {
+            return None;
+        }
+        // A store to a global is a memory write this class does not model.
+        if globals.contains_key(&dst) {
+            return None;
+        }
+        p = probe;
+        let rhs = parse_expr(seg, &mut p, 0x32).ok()?;
+        if !eat_byte(seg, &mut p, 0x32) || !eat_int_like(seg, &mut p) {
+            return None;
+        }
+        // `4B` ends an expression statement and discards the yielded value. A
+        // body that *uses* it (`x = y = a`) does not have one here and refuses.
+        if !eat_byte(seg, &mut p, 0x4B) {
+            return None;
+        }
+        let rhs = substitute(&rhs, &env)?;
+        // Re-assigning shadows the previous definition, which is how a dead store
+        // disappears: only the last definition can reach the return.
+        env.retain(|(t, _)| *t != dst);
+        env.push((dst, rhs));
+        if env.len() > MAX_SUBST_OPS {
+            return None;
+        }
+    }
+    eat_opt_stmt_marker(seg, &mut p);
+    let ret = parse_expr(seg, &mut p, 0x41).ok()?;
+    let ret = substitute(&ret, &env)?;
+    eat_return_plumbing(seg, &mut p, true).ok()?;
+    let params = parse_formals(seg, lo).ok()?;
+    // After substitution every remaining LOAD must be a parameter. Anything else
+    // is a read of something this class cannot account for — an uninitialized
+    // local, a global, or a token from a construct not modeled here.
+    if !ret.iter().all(|o| match o {
+        IlOp::Load(t) => params.contains(t),
+        _ => true,
+    }) {
+        return None;
+    }
+    // Substitution is a *source* of repeated leaves even when the written source
+    // has none: `int x = a; x = x + x;` substitutes to `a + a`, which c2 emits as
+    // `slwi r3,r3,1`. This gate is what keeps that from being wrong bytes.
+    if has_repeated_leaf(&ret) {
+        return None;
+    }
+    Some(BodyShape::StraightLine { params, ops: ret })
 }
 
 /// The `unsigned int` operand type encoding inline in the `.ex` body.
@@ -1446,6 +1628,11 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
         return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
     }
     let arg_ops = args.pop().expect("exactly one argument");
+    // The single call argument is an ordinary operand stream, so it is subject to
+    // the same rewriter: `g(a + a)` is not `add` + branch.
+    if has_repeated_leaf(&arg_ops) {
+        return Err(Block { ctx: "call-arg-repeated-leaf", byte: None, off: *p, aux: 0 });
+    }
 
     // Post-op region. EITHER the return plumbing begins directly at its `41`
     // result-type marker (no post-op → an integer tail call `return g(<arg>)`),
@@ -1683,11 +1870,16 @@ impl IlBundle {
         // externals), so pairing there would attach wrong names to functions —
         // report none rather than a plausible-looking lie.
         let paired = names.len() == segs.len();
+        // The assignment class needs to know which destination tokens are globals
+        // (a global store is a memory write, a local store is a register copy, and
+        // the IL is identical), so the census runs against the same symbol index
+        // the emitter does — otherwise the two could disagree about a body.
+        let globals = gl_symbol_index(gl);
         Some(
             segs.iter()
                 .enumerate()
                 .map(|(i, seg)| {
-                    let verdict = match parse_segment_detail(seg) {
+                    let verdict = match parse_segment_detail(seg, &globals) {
                         Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                         Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
@@ -1770,7 +1962,7 @@ impl IlBundle {
 
         let mut funcs = Vec::with_capacity(n_defined);
         for (name, seg) in names.iter().take(n_defined).zip(segs) {
-            match parse_segment(seg)? {
+            match parse_segment(seg, &symbols)? {
                 BodyShape::StraightLine { params, ops } => {
                     funcs.push(IlFunction {
                         mangled_name: name.clone(),
@@ -1926,6 +2118,12 @@ impl IlBundle {
 
 #[cfg(test)]
 mod tests {
+    /// These pinned segments are synthetic and contain no global stores, so an
+    /// empty symbol index is the honest input: nothing here is a global.
+    fn no_globals() -> std::collections::BTreeMap<u32, String> {
+        std::collections::BTreeMap::new()
+    }
+
     use super::*;
 
     #[test]
@@ -1992,7 +2190,7 @@ mod tests {
             0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x4D, // module end
         ];
         assert_eq!(
-            parse_segment(seg),
+            parse_segment(seg, &no_globals()),
             Some(BodyShape::StraightLine {
                 params: vec![0xE309, 0xE409, 0xE509], // a, b, c
                 ops: vec![
@@ -2021,7 +2219,7 @@ mod tests {
             0x4D,
         ];
         assert_eq!(
-            parse_segment(konst),
+            parse_segment(konst, &no_globals()),
             Some(BodyShape::StraightLine {
                 params: vec![],
                 ops: vec![IlOp::Lit(42)],
@@ -2036,7 +2234,7 @@ mod tests {
             0x0F, 0x4D,
         ];
         assert_eq!(
-            parse_segment(kw),
+            parse_segment(kw, &no_globals()),
             Some(BodyShape::StraightLine {
                 params: vec![],
                 ops: vec![IlOp::Lit(70000)],
@@ -2062,7 +2260,7 @@ mod tests {
             0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // GT terminate = segment end
         ];
         assert_eq!(
-            parse_segment(seg),
+            parse_segment(seg, &no_globals()),
             Some(BodyShape::StraightLine {
                 params: vec![0xE309, 0xE409],
                 ops: vec![IlOp::Load(0xE309), IlOp::Load(0xE409), IlOp::Add],
@@ -2075,7 +2273,7 @@ mod tests {
         // `void f(){ g(); }` (mvp_call): exactly one void call, `4C 4B`, then
         // only the return plumbing → a bare `b g` tail call.
         assert_eq!(
-            parse_segment(MVP_CALL),
+            parse_segment(MVP_CALL, &no_globals()),
             Some(BodyShape::VoidTailCall { callee_tok: 0xE309 })
         );
     }
@@ -2085,7 +2283,7 @@ mod tests {
         // `int f(int a){ return g(a) + 1; }` (mvp_framed): int call, single
         // passthrough arg, `55` call-end, exactly one `+1` post-op.
         assert_eq!(
-            parse_segment(MVP_FRAMED),
+            parse_segment(MVP_FRAMED, &no_globals()),
             Some(BodyShape::FramedCall { add_k: 1, callee_tok: 0xE409 })
         );
     }
@@ -2097,7 +2295,7 @@ mod tests {
         //   arg-setup `g(a+1)` → arg `[Load a, Lit 1, Add]`. All are
         //   `IntTailCall` (a net-identity post-op is a tail call, not framed).
         assert_eq!(
-            parse_segment(INT_TAILRET),
+            parse_segment(INT_TAILRET, &no_globals()),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509)],
@@ -2106,7 +2304,7 @@ mod tests {
             "passthrough g(a)"
         );
         assert_eq!(
-            parse_segment(INT_PLUS0),
+            parse_segment(INT_PLUS0, &no_globals()),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509)],
@@ -2115,7 +2313,7 @@ mod tests {
             "identity-fold g(a)+0 routes to a tail call, not FramedCall{{add_k:0}}"
         );
         assert_eq!(
-            parse_segment(INT_ARGTAIL),
+            parse_segment(INT_ARGTAIL, &no_globals()),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509), IlOp::Lit(1), IlOp::Add],
@@ -2131,12 +2329,12 @@ mod tests {
         // passthrough arg is FramedCall (6-section frame); a ZERO `+k` folds to
         // an IntTailCall (5-section leaf). Same shape but for the immediate.
         assert_eq!(
-            parse_segment(MVP_FRAMED),
+            parse_segment(MVP_FRAMED, &no_globals()),
             Some(BodyShape::FramedCall { add_k: 1, callee_tok: 0xE409 }),
             "g(a)+1 is framed"
         );
         assert!(
-            matches!(parse_segment(INT_PLUS0), Some(BodyShape::IntTailCall { .. })),
+            matches!(parse_segment(INT_PLUS0, &no_globals()), Some(BodyShape::IntTailCall { .. })),
             "g(a)+0 must NOT be FramedCall{{add_k:0}}"
         );
     }
@@ -2159,7 +2357,7 @@ mod tests {
             ("g(a) + 1 + 2 (plus1plus2)", PLUS1PLUS2),
         ];
         for (label, seg) in cases {
-            assert_eq!(parse_segment(seg), None, "must reject: {label}");
+            assert_eq!(parse_segment(seg, &no_globals()), None, "must reject: {label}");
         }
     }
 
@@ -2175,7 +2373,7 @@ mod tests {
             0x24, // GT — unmodeled → reject
             0x43, 0x42, 0x00, 0x00, 0x41, 0x86, 0x41, 0x74,
         ];
-        assert_eq!(parse_segment(cmp), None);
+        assert_eq!(parse_segment(cmp, &no_globals()), None);
     }
 
     // ---- variable-width tokens ----------------------------------------------
@@ -2233,7 +2431,7 @@ mod tests {
             0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // fn tail = segment end
         ];
         assert_eq!(
-            parse_segment(seg),
+            parse_segment(seg, &no_globals()),
             Some(BodyShape::StraightLine {
                 params: vec![0xA496_0300],
                 ops: vec![IlOp::Load(0xA496_0300)],
@@ -2371,11 +2569,64 @@ mod tests {
         ];
         for seg in all {
             assert_eq!(
-                parse_segment(seg).is_some(),
-                parse_segment_detail(seg).is_ok(),
+                parse_segment(seg, &no_globals()).is_some(),
+                parse_segment_detail(seg, &no_globals()).is_ok(),
                 "census/gate disagreement"
             );
         }
+    }
+
+    #[test]
+    fn repeated_leaves_are_refused_before_and_after_substitution() {
+        // Written directly: `a + a`. c2 emits `slwi r3,r3,1`, not `add r3,r3,r3`,
+        // so accepting this is wrong bytes rather than a missing feature.
+        assert!(has_repeated_leaf(&[IlOp::Load(1), IlOp::Load(1), IlOp::Add]));
+        assert!(has_repeated_leaf(&[
+            IlOp::Load(1),
+            IlOp::Load(2),
+            IlOp::Add,
+            IlOp::Load(1),
+            IlOp::Add
+        ]));
+        // Distinct operands, and a literal reused, are both fine.
+        assert!(!has_repeated_leaf(&[IlOp::Load(1), IlOp::Load(2), IlOp::Add]));
+        assert!(!has_repeated_leaf(&[
+            IlOp::Load(1),
+            IlOp::Lit(1),
+            IlOp::Add,
+            IlOp::Lit(1),
+            IlOp::Add
+        ]));
+
+        // Substitution CREATES repetition that the source did not have:
+        // `int x = a; x = x + x;` has no repeated operand written anywhere, but
+        // resolves to `a + a`. This is why the gate runs on the resolved stream.
+        let env = vec![(0x100, vec![IlOp::Load(1)])];
+        let resolved = substitute(&[IlOp::Load(0x100), IlOp::Load(0x100), IlOp::Add], &env).unwrap();
+        assert_eq!(resolved, vec![IlOp::Load(1), IlOp::Load(1), IlOp::Add]);
+        assert!(has_repeated_leaf(&resolved));
+    }
+
+    #[test]
+    fn substitution_captures_operands_at_definition_time() {
+        // `int x = a; a = a + 1; return x;` must return the ENTRY `a`. Recording
+        // definitions already-substituted is what guarantees it: a later
+        // redefinition of `a` cannot reach backwards into `x`'s definition.
+        // Substituting lazily at use time would wrongly yield `a + 1`.
+        let mut env: Vec<(u32, Vec<IlOp>)> = Vec::new();
+        // int x = a;
+        env.push((0x100, substitute(&[IlOp::Load(1)], &env).unwrap()));
+        // a = a + 1;
+        let rhs = substitute(&[IlOp::Load(1), IlOp::Lit(1), IlOp::Add], &env).unwrap();
+        env.retain(|(t, _)| *t != 1);
+        env.push((1, rhs));
+        // return x;
+        assert_eq!(substitute(&[IlOp::Load(0x100)], &env).unwrap(), vec![IlOp::Load(1)]);
+        // return a; would instead be the incremented value.
+        assert_eq!(
+            substitute(&[IlOp::Load(1)], &env).unwrap(),
+            vec![IlOp::Load(1), IlOp::Lit(1), IlOp::Add]
+        );
     }
 
     #[test]
@@ -2388,7 +2639,7 @@ mod tests {
             0x24, // GT
             0x43, 0x42, 0x00, 0x00, 0x41, 0x86, 0x41, 0x74,
         ];
-        let b = parse_segment_detail(cmp).unwrap_err();
+        let b = parse_segment_detail(cmp, &no_globals()).unwrap_err();
         assert_eq!(b.feature(), "expr-cmp-gt");
         assert_eq!(cmp[b.off], 0x24);
     }
@@ -2403,7 +2654,7 @@ mod tests {
         // type), leaving everything else intact.
         let load = seg.windows(6).position(|w| w == [0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74]).unwrap();
         seg[load + 5] = 0x75;
-        let b = parse_segment_detail(&seg).unwrap_err();
+        let b = parse_segment_detail(&seg, &no_globals()).unwrap_err();
         assert_eq!(b.feature(), "expr-load-type-864175");
         assert_eq!(seg[b.off], 0xB9, "reported at the LOAD, not mid-type");
     }
