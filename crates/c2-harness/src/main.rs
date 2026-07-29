@@ -150,6 +150,24 @@ fn require_cpp(rest: &[String]) -> Option<PathBuf> {
 /// where 99 of 100 functions are in class. This is the per-function view used
 /// while developing a widening step: run it before and after, watch specific
 /// functions move from a blocking feature to a shape.
+/// Hex-dump a census blocking window, bracketing the byte that blocked the
+/// parse: `b9 8b 0a >86< 43 9d 20`. The bracket is what makes the dump usable
+/// without counting columns.
+fn hexdump_marked(bytes: &[u8], mark: usize) -> String {
+    let mut s = String::with_capacity(bytes.len() * 3 + 2);
+    for (i, b) in bytes.iter().enumerate() {
+        if i > 0 {
+            s.push(' ');
+        }
+        if i == mark {
+            s.push_str(&format!(">{b:02x}<"));
+        } else {
+            s.push_str(&format!("{b:02x}"));
+        }
+    }
+    s
+}
+
 fn cmd_census(rest: &[String]) -> ExitCode {
     let Some(cpp) = require_cpp(rest) else {
         return ExitCode::from(2);
@@ -249,25 +267,42 @@ fn cmd_census(rest: &[String]) -> ExitCode {
         census.len()
     );
     let mut hist: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    // One representative blocking-site hexdump per feature, so a big TU reports
+    // each distinct gap once instead of thousands of times.
+    let mut sample: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    // Per-function lines are only readable for a small TU; a real one has
+    // thousands of functions and the histogram is the useful view.
+    let list_each = census.len() <= 64;
     for f in &census {
         let mark = if f.verdict.in_class() { "ok " } else { "GAP" };
-        println!(
-            "  [{:>3}] {mark} {:<24} {:>6} B  {}",
-            f.index,
-            f.verdict.key(),
-            f.seg_len,
-            f.name.as_deref().unwrap_or("(unnamed)")
-        );
+        if list_each {
+            println!(
+                "  [{:>3}] {mark} {:<24} {:>6} B  {}",
+                f.index,
+                f.verdict.key(),
+                f.seg_len,
+                f.name.as_deref().unwrap_or("(unnamed)")
+            );
+        }
         if !f.verdict.in_class() {
             *hist.entry(f.verdict.key()).or_insert(0) += 1;
+            sample
+                .entry(f.verdict.key())
+                .or_insert_with(|| hexdump_marked(&f.hex, f.hex_mark));
         }
     }
     if !hist.is_empty() {
         let mut v: Vec<_> = hist.into_iter().collect();
         v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        println!("  blocking features:");
-        for (feature, count) in v {
-            println!("    {count:>5} x {feature}");
+        println!("  blocking features (\">\" marks the byte that blocked the parse):");
+        for (feature, count) in v.iter().take(24) {
+            println!("    {count:>6} x {feature}");
+            if let Some(h) = sample.get(feature) {
+                println!("             {h}");
+            }
+        }
+        if v.len() > 24 {
+            println!("    … and {} more distinct features", v.len() - 24);
         }
     }
     let _ = std::fs::remove_dir_all(&w);

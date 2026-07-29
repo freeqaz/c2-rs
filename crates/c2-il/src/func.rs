@@ -775,7 +775,18 @@ pub struct FnCensus {
     /// Segment length in bytes (a rough proxy for function size).
     pub seg_len: usize,
     pub verdict: FnVerdict,
+    /// Raw bytes around the blocking site, for grammar work: the segment window
+    /// `[off - CENSUS_HEX_BACK, off + CENSUS_HEX_FWD)` clamped to the segment,
+    /// plus the index of the blocking byte within that window. Empty when the
+    /// function is in class.
+    pub hex: Vec<u8>,
+    /// Index of the blocking byte inside [`FnCensus::hex`].
+    pub hex_mark: usize,
 }
+
+/// Bytes of context kept before / after a blocking site.
+pub const CENSUS_HEX_BACK: usize = 16;
+pub const CENSUS_HEX_FWD: usize = 24;
 
 /// The `.ex` body marker `4C 4F 11` (`LO`) that opens every function body.
 const LO_MARKER: [u8; 3] = [0x4C, 0x4F, 0x11];
@@ -891,17 +902,35 @@ impl IlBundle {
         Some(
             segs.iter()
                 .enumerate()
-                .map(|(i, seg)| FnCensus {
-                    index: i,
-                    name: if paired { names.get(i).cloned() } else { None },
-                    seg_len: seg.len(),
-                    verdict: match parse_segment_detail(seg) {
+                .map(|(i, seg)| {
+                    let verdict = match parse_segment_detail(seg) {
                         Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                         Ok(BodyShape::VoidTailCall) => FnVerdict::InClass("void-tail-call"),
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                         Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
                         Err(b) => FnVerdict::Blocked(b),
-                    },
+                    };
+                    // Keep the raw bytes around the blocking site: decoding a new
+                    // grammar production always starts by staring at exactly this
+                    // window, and having it in the census means that work is a
+                    // report away instead of a one-off script.
+                    let (hex, hex_mark) = match &verdict {
+                        FnVerdict::InClass(_) => (Vec::new(), 0),
+                        FnVerdict::Blocked(b) => {
+                            let start = b.off.saturating_sub(CENSUS_HEX_BACK);
+                            let end = (b.off + CENSUS_HEX_FWD).min(seg.len());
+                            let start = start.min(end);
+                            (seg[start..end].to_vec(), b.off - start)
+                        }
+                    };
+                    FnCensus {
+                        index: i,
+                        name: if paired { names.get(i).cloned() } else { None },
+                        seg_len: seg.len(),
+                        verdict,
+                        hex,
+                        hex_mark,
+                    }
                 })
                 .collect(),
         )
@@ -1406,6 +1435,35 @@ mod tests {
         assert_eq!(census[0].verdict, FnVerdict::InClass("void-tail-call"));
         assert!(!census[1].verdict.in_class());
         assert_eq!(census[0].name.as_deref(), Some("?f@@YAXXZ"));
+        // In-class functions carry no hex window; blocked ones point at the
+        // offending byte inside theirs.
+        assert!(census[0].hex.is_empty());
+        let FnVerdict::Blocked(b) = census[1].verdict else {
+            panic!("expected a block");
+        };
+        assert_eq!(census[1].hex[census[1].hex_mark], b.byte.unwrap());
+    }
+
+    #[test]
+    fn census_hex_window_is_clamped_to_the_segment() {
+        // A block at offset 0 must not underflow, and one near the end must not
+        // run past it — the window is diagnostic and must never panic.
+        let tiny: &[u8] = &[0x4C, 0x4F, 0x11, 0xFF];
+        let bundle = crate::IlBundle {
+            base_name: "t".into(),
+            files: vec![
+                ("ex".to_string(), tiny.to_vec()),
+                ("gl".to_string(), b"?f@@YAXXZ\x00".to_vec()),
+            ]
+            .into_iter()
+            .collect(),
+        };
+        let census = bundle.function_census().unwrap();
+        assert_eq!(census.len(), 1);
+        let c = &census[0];
+        assert!(!c.verdict.in_class());
+        assert!(c.hex_mark < c.hex.len().max(1));
+        assert!(c.hex.len() <= CENSUS_HEX_BACK + CENSUS_HEX_FWD);
     }
 
     // ---- real captured segments (transcribed from live-toolchain `.ex`) -----
