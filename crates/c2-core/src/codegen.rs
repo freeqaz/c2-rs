@@ -683,6 +683,108 @@ pub fn int_tail_call_text(
     Ok((text, branch_off))
 }
 
+/// `mr rA, rS` — the `or rA, rS, rS` idiom c2 uses for a register-to-register
+/// move (opcode 31, XO 444).
+pub fn encode_mr(ra: u8, rs: u8) -> [u8; 4] {
+    xo31(rs, ra, rs, 444)
+}
+
+/// Lower an **argument permutation** for a multi-argument tail call: emit the
+/// register moves that put each argument register's wanted value in place, with
+/// `r11` as the single break temp.
+///
+/// `sources[i]` is the parameter index whose value argument slot `i` wants, so
+/// slot `i` must end up holding what `ARG_REGS[sources[i]]` holds on entry.
+/// `sources` being the identity is the passthrough case and emits nothing.
+///
+/// The rule, from the captures in `fixtures/cpp/il_call_multi.cpp`: decompose the
+/// permutation into cycles; for each cycle save the source of its **lowest**
+/// destination into the temp, then assign along the cycle in the order forced by
+/// clobbering, filling that lowest destination from the temp last.
+///
+/// Only a **single** non-trivial cycle is accepted. Two disjoint cycles do both
+/// saves up front (r11 then r10) and then have several clobber-free orders to
+/// choose between, and the one capture available does not determine which — see
+/// `rev4` in that fixture. A repeated argument is also refused: `dup3` emits a
+/// *dead* `mr r11,r4`, which no live-value-driven solver would produce.
+pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
+    if sources.len() > ARG_REGS.len() {
+        return Err(out_of_class(
+            "more arguments than the eight register slots: the rest are \
+             stack-homed; out of class",
+        ));
+    }
+    // A value wanted by two slots is a duplicate, which emits a dead move.
+    for (i, s) in sources.iter().enumerate() {
+        if sources[..i].contains(s) {
+            return Err(out_of_class(
+                "an argument value is passed twice: c2 emits a dead `mr` through \
+                 the temp for this shape; out of class",
+            ));
+        }
+        if *s >= ARG_REGS.len() {
+            return Err(out_of_class("argument sources a stack-homed parameter"));
+        }
+    }
+
+    // Cycle-decompose. `sources[i] == i` is a fixed point and needs no move.
+    let n = sources.len();
+    let mut seen = vec![false; n];
+    let mut cycles: Vec<Vec<usize>> = Vec::new();
+    for start in 0..n {
+        if seen[start] || sources[start] == start {
+            seen[start] = true;
+            continue;
+        }
+        // Walk destination -> its source, collecting the cycle.
+        let mut cycle = Vec::new();
+        let mut at = start;
+        while !seen[at] {
+            seen[at] = true;
+            cycle.push(at);
+            at = sources[at];
+            // A source outside `sources`' own index range cannot close a cycle;
+            // that is a permutation of a larger set than we were given.
+            if at >= n {
+                return Err(out_of_class(
+                    "argument permutation references a slot outside the argument \
+                     list; out of class",
+                ));
+            }
+        }
+        cycles.push(cycle);
+    }
+
+    if cycles.is_empty() {
+        return Ok(Vec::new()); // passthrough
+    }
+    if cycles.len() > 1 {
+        return Err(out_of_class(
+            "argument permutation has two or more disjoint cycles: c2 hoists both \
+             saves (r11 then r10) and then has several clobber-free orders to pick \
+             from, which one capture does not determine; out of class",
+        ));
+    }
+
+    // One cycle. Its lowest destination is filled from the temp, last.
+    let cycle = &cycles[0];
+    let lowest = *cycle.iter().min().expect("non-empty cycle");
+    let reg = |slot: usize| ARG_REGS[slot];
+    let mut t = Vec::new();
+    t.extend_from_slice(&encode_mr(SCRATCH_REG, reg(sources[lowest])));
+    // Walk backwards from `lowest`: each step writes a destination whose old
+    // value has already been consumed. This is the unique clobber-free order,
+    // and it runs in whichever direction the cycle happens to go — which is why
+    // `rot3` emits r4-then-r5 and `rot3b` emits r5-then-r4.
+    let mut dst = sources[lowest];
+    while dst != lowest {
+        t.extend_from_slice(&encode_mr(reg(dst), reg(sources[dst])));
+        dst = sources[dst];
+    }
+    t.extend_from_slice(&encode_mr(reg(lowest), SCRATCH_REG));
+    Ok(t)
+}
+
 /// Select `.text` for a **W6 comparison leaf** (`return a <rel> k;`), returning
 /// the spine plus its trailing `blr`.
 ///
@@ -1855,6 +1957,82 @@ mod tests {
                 0x4E, 0x80, 0x00, 0x20,
             ]
         );
+    }
+
+    // ---- multi-argument tail-call permutations ------------------------------
+
+    #[test]
+    fn argument_permutations_match_the_reference() {
+        // Captured from `int g3(int,int,int)` call sites; `sources[i]` is the
+        // parameter index that argument slot i wants.
+        // Passthrough: the parameters are already placed, so no moves at all.
+        assert!(permute_args_text(&[0, 1]).unwrap().is_empty());
+        assert!(permute_args_text(&[0, 1, 2]).unwrap().is_empty());
+
+        // g3(b,a,c) — swap r3/r4, r5 untouched.
+        assert_eq!(
+            permute_args_text(&[1, 0, 2]).unwrap(),
+            vec![
+                0x7C, 0x8B, 0x23, 0x78, // mr r11,r4
+                0x7C, 0x64, 0x1B, 0x78, // mr r4,r3
+                0x7D, 0x63, 0x5B, 0x78, // mr r3,r11
+            ]
+        );
+        // g3(a,c,b) — swap r4/r5. The temp still takes the source of the cycle's
+        // LOWEST destination (r4's), not r3's, which is not in the cycle at all.
+        assert_eq!(
+            permute_args_text(&[0, 2, 1]).unwrap(),
+            vec![
+                0x7C, 0xAB, 0x2B, 0x78, // mr r11,r5
+                0x7C, 0x85, 0x23, 0x78, // mr r5,r4
+                0x7D, 0x64, 0x5B, 0x78, // mr r4,r11
+            ]
+        );
+        // g3(c,b,a) — swap r3/r5, r4 untouched.
+        assert_eq!(
+            permute_args_text(&[2, 1, 0]).unwrap(),
+            vec![
+                0x7C, 0xAB, 0x2B, 0x78, // mr r11,r5
+                0x7C, 0x65, 0x1B, 0x78, // mr r5,r3
+                0x7D, 0x63, 0x5B, 0x78, // mr r3,r11
+            ]
+        );
+        // The two 3-cycles run in OPPOSITE directions, so their middle moves come
+        // out in opposite orders. Fixing either order as "the rule" mis-emits the
+        // other, which is why both are pinned.
+        // g3(b,c,a): r3<-r4, r4<-r5, r5<-r3.
+        assert_eq!(
+            permute_args_text(&[1, 2, 0]).unwrap(),
+            vec![
+                0x7C, 0x8B, 0x23, 0x78, // mr r11,r4
+                0x7C, 0xA4, 0x2B, 0x78, // mr r4,r5
+                0x7C, 0x65, 0x1B, 0x78, // mr r5,r3
+                0x7D, 0x63, 0x5B, 0x78, // mr r3,r11
+            ]
+        );
+        // g3(c,a,b): r3<-r5, r4<-r3, r5<-r4.
+        assert_eq!(
+            permute_args_text(&[2, 0, 1]).unwrap(),
+            vec![
+                0x7C, 0xAB, 0x2B, 0x78, // mr r11,r5
+                0x7C, 0x85, 0x23, 0x78, // mr r5,r4
+                0x7C, 0x64, 0x1B, 0x78, // mr r4,r3
+                0x7D, 0x63, 0x5B, 0x78, // mr r3,r11
+            ]
+        );
+    }
+
+    #[test]
+    fn argument_permutations_refuse_the_uncharacterized_shapes() {
+        // Two disjoint cycles (`g4(d,c,b,a)`): c2 hoists both saves into r11 and
+        // r10 and then picks one of several clobber-free orders. One capture does
+        // not determine which.
+        assert!(permute_args_text(&[3, 2, 1, 0]).is_err());
+        // A repeated argument (`g3(b,a,b)`) emits a dead `mr r11,r4` that no
+        // live-value-driven solver would produce.
+        assert!(permute_args_text(&[1, 0, 1]).is_err());
+        // More arguments than register slots.
+        assert!(permute_args_text(&[0, 1, 2, 3, 4, 5, 6, 7, 8]).is_err());
     }
 
     #[test]
