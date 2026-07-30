@@ -2035,16 +2035,16 @@ pub(crate) fn try_parse_compare(seg: &[u8], start: usize, lo: usize) -> Option<B
     }
 
     // Gates moved here from `compare_leaf_text`, so the census counts only what the
-    // emitter can emit. A literal outside the signed 16-bit immediate needs
-    // `lis`+`ori` and the extra temp slot that consumes; and `==`/`!=` form `a - k`
-    // as `addi r11,a,-k`, so at `k == i16::MIN` the negation itself overflows.
-    if i16::try_from(k).is_err() {
+    // emitter can emit — through [`CompareLeaf::out_of_class_ctx`], which is the
+    // one locator both sides share. Two of these three clauses used to be spelled
+    // out again right here, and the third (a large UNSIGNED literal under
+    // `==`/`!=`) was in codegen only, so `int f(unsigned a){ return a ==
+    // 4294967295u; }` censused in class and the port refused it.
+    let cmp = CompareLeaf { param, rel, signed, k };
+    if cmp.out_of_class_ctx().is_some() {
         return None;
     }
-    if matches!(rel, Rel::Eq | Rel::Ne) && k == i32::from(i16::MIN) {
-        return None;
-    }
-    Some(BodyShape::Compare(CompareLeaf { param, rel, signed, k }))
+    Some(BodyShape::Compare(cmp))
 }
 
 /// Parse a call shape (already positioned at the `26 <tok>` function ref): the

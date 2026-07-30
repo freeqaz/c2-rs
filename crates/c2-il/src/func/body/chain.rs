@@ -76,6 +76,15 @@ pub(crate) fn straight_line_out_of_class_ctx(
             _ => {}
         }
     }
+    // An expression the affine selector cannot walk over one scratch, and that is
+    // not the one deeper shape that is characterized ([`chain_form`]). This clause
+    // is the repair for `docs/IL_CALL_IN_EXPR.md` §24.7: `return a + b*c;` reaches
+    // operand-stack depth 3 (a, b, c all live before the `*` fires), so it needs a
+    // second scratch — and it censused in class for as long as the rule lived only
+    // in codegen.
+    if chain_form(ops, params).is_none() {
+        return Some("expr-out-of-class-tree-depth");
+    }
     None
 }
 
@@ -421,6 +430,8 @@ pub(crate) fn substitute(ops: &[IlOp], env: &[(u32, Vec<IlOp>)]) -> Option<Vec<I
 
 #[cfg(test)]
 mod tests {
+    use super::{chain_form, ChainForm};
+
     use super::*;
 
     #[test]
@@ -645,5 +656,156 @@ mod tests {
             substitute(&[IlOp::Load(1)], &env).unwrap(),
             vec![IlOp::Load(1), IlOp::Lit(1), IlOp::Add]
         );
+    }
+}
+
+/// The two integer expression forms `c2_core::codegen::select_text` can lower.
+///
+/// **One locator.** The parser refuses anything this returns `None` for (so the
+/// census cannot claim it), and codegen consults it to decide which of its two
+/// emitters to run (so it cannot lower a shape the parser did not admit). Before
+/// it existed the depth rule lived only in `select_text`, which meant
+/// `int f(int a,int b,int c){ return a + b*c; }` **censused in class and was
+/// refused at emission** — `docs/IL_CALL_IN_EXPR.md` §24.7, the disagreement this
+/// whole change is about.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChainForm {
+    /// A serial accumulator chain: the postfix walk never puts more than two
+    /// values on the operand stack, so one running scratch (`r11`) suffices.
+    Serial,
+    /// The depth-2 tree `(x op y) root (z op w)` over four distinct formals —
+    /// two scratches, `r11`/`r10`, with the `+`-root swap.
+    Depth2Tree,
+}
+
+/// Which form `ops` is, or `None` when it is neither.
+///
+/// The `Serial` test is the *identical* simulation `select_text`'s emitter loop
+/// runs: push for a leaf, pop-two-push-one for a binary operator, and the depth
+/// is checked after **every** op, so three consecutive LOADs already fail. Only
+/// the ops an integer straight-line body can carry are simulated; anything else
+/// (an FP literal, a division, an indirect load, a sub-object address) is
+/// refused by a clause of its own upstream and has no depth to speak of.
+pub fn chain_form(ops: &[IlOp], params: &[u32]) -> Option<ChainForm> {
+    if is_depth2_tree(ops, params) {
+        return Some(ChainForm::Depth2Tree);
+    }
+    let mut depth = 0usize;
+    for op in ops {
+        match op {
+            IlOp::Load(_) | IlOp::Lit(_) => depth += 1,
+            IlOp::Add | IlOp::Sub | IlOp::Mul => {
+                if depth < 2 {
+                    return None;
+                }
+                depth -= 1;
+            }
+            // Not lowerable by the affine selector at all; each has its own
+            // refusal there, and none of them belongs to a serial int chain.
+            _ => return None,
+        }
+        if depth > 2 {
+            return None;
+        }
+    }
+    (depth == 1).then_some(ChainForm::Serial)
+}
+
+/// The depth-2 tree shape: `[Load, Load, op1, Load, Load, op2, root]` over four
+/// **distinct formals**, with the three negatives that are characterized as
+/// rewrites rather than as this shape (`docs/CODEGEN_W5_SCRATCH.md`):
+///
+/// * **N1, product flattening** — a `*` root over a `*` child is re-linearized;
+/// * **N2, additive canonicalization** — an additive root over an additive child
+///   is reassociated into a chain;
+/// * integer division, which is not modeled anywhere.
+fn is_depth2_tree(ops: &[IlOp], params: &[u32]) -> bool {
+    let (l0, l1, op1, l2, l3, op2, root) = match ops {
+        [IlOp::Load(a), IlOp::Load(b), o1, IlOp::Load(c), IlOp::Load(d), o2, r]
+            if o1.is_tree_binop() && o2.is_tree_binop() && r.is_tree_binop() =>
+        {
+            (*a, *b, *o1, *c, *d, *o2, *r)
+        }
+        _ => return false,
+    };
+    let toks = [l0, l1, l2, l3];
+    for (i, t) in toks.iter().enumerate() {
+        if toks[..i].contains(t) || !params.contains(t) {
+            return false;
+        }
+    }
+    let is_additive = |o: IlOp| matches!(o, IlOp::Add | IlOp::Sub);
+    if root == IlOp::Mul && (op1 == IlOp::Mul || op2 == IlOp::Mul) {
+        return false;
+    }
+    if is_additive(root) && (is_additive(op1) || is_additive(op2)) {
+        return false;
+    }
+    if root == IlOp::Div || op1 == IlOp::Div || op2 == IlOp::Div {
+        return false;
+    }
+    true
+}
+
+#[cfg(test)]
+mod chain_form_tests {
+    use super::*;
+
+    fn ld(t: u32) -> IlOp {
+        IlOp::Load(t)
+    }
+
+    /// The disagreement this whole change is about (`IL_CALL_IN_EXPR.md` §24.7):
+    /// `return a + b*c;` puts a, b and c on the operand stack before the `*`
+    /// fires, so one running scratch cannot express it. It used to parse as
+    /// `straight-line` and be refused by `select_text`.
+    #[test]
+    fn a_multiply_after_the_first_operator_is_not_a_serial_chain() {
+        let p = vec![0x10, 0x11, 0x12];
+        // a + b*c  ->  L a, L b, L c, MUL, ADD
+        let ops = [ld(0x10), ld(0x11), ld(0x12), IlOp::Mul, IlOp::Add];
+        assert_eq!(chain_form(&ops, &p), None);
+        assert_eq!(
+            straight_line_out_of_class_ctx(&ops, &p),
+            Some("expr-out-of-class-tree-depth")
+        );
+        // a*b + c  ->  L a, L b, MUL, L c, ADD  — never deeper than two.
+        let ok = [ld(0x10), ld(0x11), IlOp::Mul, ld(0x12), IlOp::Add];
+        assert_eq!(chain_form(&ok, &p), Some(ChainForm::Serial));
+        assert_eq!(straight_line_out_of_class_ctx(&ok, &p), None);
+    }
+
+    #[test]
+    fn the_depth2_tree_is_the_one_deeper_shape_and_its_rewrites_are_not() {
+        let p = vec![0x10, 0x11, 0x12, 0x13];
+        let tree = |o1, o2, r| [ld(0x10), ld(0x11), o1, ld(0x12), ld(0x13), o2, r];
+        // (a+b)*(c+d) and (a*b)+(c*d) are the accepted roots.
+        assert_eq!(
+            chain_form(&tree(IlOp::Add, IlOp::Add, IlOp::Mul), &p),
+            Some(ChainForm::Depth2Tree)
+        );
+        assert_eq!(
+            chain_form(&tree(IlOp::Mul, IlOp::Mul, IlOp::Add), &p),
+            Some(ChainForm::Depth2Tree)
+        );
+        // N1 product flattening and N2 additive canonicalization are rewrites.
+        assert_eq!(chain_form(&tree(IlOp::Mul, IlOp::Mul, IlOp::Mul), &p), None);
+        assert_eq!(chain_form(&tree(IlOp::Add, IlOp::Add, IlOp::Add), &p), None);
+        // A leaf that is not a formal has no register, so the tree cannot be
+        // emitted and the serial walk reaches depth 3.
+        let q = vec![0x10, 0x11, 0x12];
+        assert_eq!(chain_form(&tree(IlOp::Add, IlOp::Add, IlOp::Mul), &q), None);
+    }
+
+    /// A single leaf, and a bare literal, are both serial chains of depth 1 —
+    /// the shapes `return a;` and `return 7;` decode to.
+    #[test]
+    fn a_single_leaf_is_a_serial_chain() {
+        let p = vec![0x10];
+        assert_eq!(chain_form(&[ld(0x10)], &p), Some(ChainForm::Serial));
+        assert_eq!(chain_form(&[IlOp::Lit(7)], &p), Some(ChainForm::Serial));
+        // An unbalanced stream is not a chain at all.
+        assert_eq!(chain_form(&[ld(0x10), ld(0x10)], &p), None);
+        assert_eq!(chain_form(&[IlOp::Add], &p), None);
     }
 }

@@ -1,4 +1,5 @@
 pub(crate) mod chain;
+pub use self::chain::{chain_form, ChainForm};
 pub(crate) mod expr;
 pub(crate) mod mcall;
 pub(crate) mod shapes;
@@ -231,6 +232,21 @@ pub struct Block {
     pub aux: u64,
 }
 
+/// Census `ctx` for a function whose body parses in class but whose
+/// optimization-settings word is not one this port emits under.
+///
+/// Raised **after** the body parse and only for an otherwise-in-class function,
+/// deliberately: gating it up front would replace every real function's actual
+/// blocking feature with this one and destroy the histogram that ranks the
+/// roadmap. Applied last, it removes exactly the over-claim and nothing else.
+pub(crate) const OPT_MODE: &str = "opt-mode";
+
+/// Census `ctx` for a body that parses as a call shape whose callee token has no
+/// `.gl` symbol. See the census for why this is a refusal and not a fallback.
+pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
+pub(crate) const CALLEE_UNRESOLVED_DTOR: &str = "callee-unresolved-dtor-delegation";
+pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call";
+
 impl Block {
     /// A short, stable census key naming the blocking *feature*.
     ///
@@ -248,6 +264,13 @@ impl Block {
         // instruction, `memcmp` is a 15-instruction loop, and the dominant
         // 2113–2119 class-layout family is a pointer adjustment whose emission
         // depends on its *literal* arguments, not on the id.
+        // The per-function optimization-settings word, when it is not one this
+        // port emits under. Rendered from [`Block::aux`] for the same reason the
+        // intrinsic selector is: the word IS the feature, and `ctx` is a
+        // `&'static str`. `docs/OPT_MODE.md` decodes the values.
+        if self.ctx == OPT_MODE {
+            return format!("opt-mode-{:08x}", self.aux);
+        }
         if self.ctx == "expr-intrinsic" || self.ctx == "call-intrinsic" {
             return format!("{}-{}", self.ctx, intrinsic_name(self.aux as i32));
         }

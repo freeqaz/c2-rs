@@ -35,8 +35,11 @@ mod gl;
 mod readers;
 mod sy;
 
-pub use self::body::Block;
-pub use self::bundle::{is_empty_module, OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER};
+pub use self::body::{chain_form, Block, ChainForm};
+pub use self::bundle::{
+    is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
+    OPT_WORD_SPECIAL_MEMBER,
+};
 pub use self::census::{FnCensus, FnVerdict, CENSUS_HEX_BACK, CENSUS_HEX_FWD};
 pub use self::gl::{gl_symbol_index, mangled_name, mangled_names, source_path};
 pub use self::readers::detect_token_width;
@@ -204,6 +207,45 @@ pub struct CompareLeaf {
     pub signed: bool,
     /// The literal right-hand side.
     pub k: i32,
+}
+
+impl CompareLeaf {
+    /// The census `ctx` of a comparison leaf that decodes cleanly but
+    /// `c2_core::codegen::compare_leaf_text` would decline, or `None` when it is
+    /// in class.
+    ///
+    /// The three clauses are pure functions of the decoded leaf, and they lived
+    /// only in codegen — so `int f(unsigned a){ return a == 4294967295u; }`
+    /// censused in class and the port refused it. Codegen keeps all three as
+    /// backstops; this is the primary gate, so the census and the emitter agree
+    /// (`docs/CODEGEN_W6_O1.md` has the byte evidence for each).
+    pub fn out_of_class_ctx(&self) -> Option<&'static str> {
+        // A zero literal takes the folded spines, which have no immediate at all.
+        if self.k == 0 {
+            return None;
+        }
+        // A wide literal needs `lis`+`ori` materialization and the extra temp slot
+        // it consumes; not characterized.
+        let Ok(k16) = i16::try_from(self.k) else {
+            return Some("cmp-out-of-class-wide-lit");
+        };
+        // Only `==`/`!=` form `a - k` as `addi r11,a,-k`.
+        if !matches!(self.rel, Rel::Eq | Rel::Ne) {
+            return None;
+        }
+        // Against a large UNSIGNED literal c2 materializes the constant and
+        // subtracts instead — one instruction more. The carry spines gate on raw
+        // SIMM16 encodability and are unaffected, which is why this is not the
+        // same predicate.
+        if !self.signed && self.k < 0 {
+            return Some("cmp-out-of-class-unsigned-wide-lit");
+        }
+        // `-(-32768)` does not fit the immediate.
+        if k16.checked_neg().is_none() {
+            return Some("cmp-out-of-class-lit-i16-min");
+        }
+        None
+    }
 }
 
 /// A parsed MVP function: enough to drive the codegen + COFF emitter.
@@ -764,4 +806,46 @@ pub(crate) mod test_fixtures {
         0x3A, 0xEA, 0x09, 0x54, 0x02, 0x29, 0xEA, 0x09, // assign + return
         0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
     ];
+}
+
+#[cfg(test)]
+mod compare_leaf_gate_tests {
+    use super::{CompareLeaf, Rel};
+
+    fn leaf(rel: Rel, signed: bool, k: i32) -> CompareLeaf {
+        CompareLeaf { param: 0x10, rel, signed, k }
+    }
+
+    /// The three clauses that used to live only in
+    /// `c2_core::codegen::compare_leaf_text`. The unsigned one was in codegen
+    /// *alone*, so `int f(unsigned a){ return a == 4294967295u; }` censused in
+    /// class and the port refused it.
+    #[test]
+    fn the_difference_spine_gates_are_the_ones_the_census_now_applies() {
+        // Accepted: a literal the `addi a,-k` immediate can carry.
+        assert_eq!(leaf(Rel::Eq, false, 5).out_of_class_ctx(), None);
+        assert_eq!(leaf(Rel::Ne, true, -32767).out_of_class_ctx(), None);
+        // A large UNSIGNED literal (decoded as a negative i32) — c2 materializes
+        // the constant and subtracts.
+        assert_eq!(
+            leaf(Rel::Eq, false, -1).out_of_class_ctx(),
+            Some("cmp-out-of-class-unsigned-wide-lit")
+        );
+        // `-(-32768)` overflows the immediate.
+        assert_eq!(
+            leaf(Rel::Eq, true, -32768).out_of_class_ctx(),
+            Some("cmp-out-of-class-lit-i16-min")
+        );
+        // Outside SIMM16 entirely: `lis`+`ori` and the temp slot it consumes.
+        assert_eq!(
+            leaf(Rel::Lt, true, 40000).out_of_class_ctx(),
+            Some("cmp-out-of-class-wide-lit")
+        );
+        // The carry spines never negate the literal, so a large unsigned is a
+        // legitimate `subfic` for them. Sharing one predicate here was a live
+        // wrong-bytes emit; keeping them separate is the point.
+        assert_eq!(leaf(Rel::Gt, false, -5).out_of_class_ctx(), None);
+        // A zero literal takes the folded spines, which carry no immediate.
+        assert_eq!(leaf(Rel::Eq, false, 0).out_of_class_ctx(), None);
+    }
 }
