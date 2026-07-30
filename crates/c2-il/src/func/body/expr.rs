@@ -1,6 +1,7 @@
 use super::{blk, blk_type, Block};
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like, eat_opt_stmt_marker, read_token_var, read_varint, INT_TYPE,
+    eat, eat_byte, eat_int_like_or_ptr4, eat_opt_stmt_marker, read_token_var, read_varint,
+    INT_TYPE,
 };
 use crate::func::IlOp;
 
@@ -199,7 +200,7 @@ pub(crate) fn eat_return_plumbing(
 ) -> Result<(), Block> {
     if has_result_type {
         let save = *p;
-        if !(eat_byte(seg, p, 0x41) && eat_int_like(seg, p)) {
+        if !(eat_byte(seg, p, 0x41) && eat_int_like_or_ptr4(seg, p).is_some()) {
             *p = save;
             return Err(blk(seg, *p, "result-type"));
         }
@@ -283,9 +284,45 @@ pub(crate) fn eat_fn_tail(seg: &[u8], p: &mut usize) -> Result<(), Block> {
 /// `stop` is only ever tested at a token boundary, so it cannot collide with an
 /// int-type byte (`86 41 74` — the `41`/`74` are consumed inside the LOAD/LIT
 /// arm) or a literal varint (consumed inside the `33` arm).
+///
+/// ## The operand type is `int`-like **or a 4-byte pointer value**
+///
+/// The LOAD and LIT positions take [`eat_int_like_or_ptr4`], which is the widest
+/// gate that changes nothing about what is emitted: both classes are one 4-byte
+/// word in one register, the pointer classes are exactly the ones the
+/// already-byte-graded pointer-identity and pointer-getter leaves lower with no
+/// instruction at all, and the type here is an *annotation on a value*, not a
+/// selector for a load width (that is [`super::shapes`]'s `30`, which is gated
+/// separately and untouched). See `docs/IL_CALL_IN_EXPR.md` §21.
+///
+/// ## …and pointer operands are barred from arithmetic
+///
+/// `p + 1` on an `int *` is `addi r3,r3,4`, and a chain that added 1 would be
+/// wrong bytes rather than a gap. MEASURED (§21.1): c1xx **pre-scales** — the
+/// same body is `B9 p <int*> · 33 <long> 04 · 02`, literal 4 — so the modeled
+/// chain would in fact emit the right instruction. That measurement is exactly
+/// why the guard is here and not deleted:
+///
+/// * it is a *second* claim (that the front end scales at every arity, pointee
+///   width and cv-spelling this parser can reach) on top of this rung's claim
+///   (that a pointer value in a register is an int value in a register), and it
+///   would need its own byte grading over its own sweep axis to ship;
+/// * it costs **0** of the measured gain (§21.4) — not one gained body does
+///   arithmetic on a pointer;
+/// * the one wild shape that must not be admitted, the pointer difference
+///   `p - q`, is `03` then `33 <int> 02` then `0A` — an arithmetic *shift* the
+///   operand vocabulary already refuses — so with the guard the class fails
+///   closed twice rather than once.
+///
+/// The guard is on the whole sub-expression, not on the adjacent token: the
+/// pointer may be loaded before or after the operator, and one `Vec<IlOp>` is one
+/// value, so a single check when the stream ends covers every interleaving.
 pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     // Big enough for every fixture body; a longer stream grows normally.
     let mut ops = Vec::with_capacity(16);
+    // Set by a LOAD or LIT whose TYPE was a 4-byte pointer rather than an
+    // int-like one. Checked once, below, against the arithmetic in `ops`.
+    let mut saw_ptr = false;
     loop {
         let b = *seg.get(*p).ok_or(blk(seg, *p, "expr"))?;
         if b == stop {
@@ -317,11 +354,12 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
                 let (tok, w) =
                     read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-load-tok"))?;
                 *p += w;
-                if !eat_int_like(seg, p) {
-                    // non-int-like operand → out of class. Report at the LOAD so
-                    // the census bucket reads as a typed-operand gap, not a stray
-                    // byte.
-                    return Err(blk_type(seg, *p, start, "expr-load-type"));
+                match eat_int_like_or_ptr4(seg, p) {
+                    Some(is_ptr) => saw_ptr |= is_ptr,
+                    // neither int-like nor a 4-byte pointer → out of class.
+                    // Report at the LOAD so the census bucket reads as a
+                    // typed-operand gap, not a stray byte.
+                    None => return Err(blk_type(seg, *p, start, "expr-load-type")),
                 }
                 ops.push(IlOp::Load(tok));
             }
@@ -329,8 +367,9 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
                 // LITERAL: 33 <int-type> <varint>
                 let start = *p;
                 *p += 1;
-                if !eat_int_like(seg, p) {
-                    return Err(blk_type(seg, *p, start, "expr-lit-type"));
+                match eat_int_like_or_ptr4(seg, p) {
+                    Some(is_ptr) => saw_ptr |= is_ptr,
+                    None => return Err(blk_type(seg, *p, start, "expr-lit-type")),
                 }
                 ops.push(IlOp::Lit(
                     read_varint(seg, p).ok_or(blk(seg, *p, "expr-lit-varint"))?,
@@ -360,10 +399,20 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
         }
     }
     if ops.is_empty() {
-        Err(blk(seg, *p, "expr-empty"))
-    } else {
-        Ok(ops)
+        return Err(blk(seg, *p, "expr-empty"));
     }
+    // The pointer-arithmetic guard. A pointer operand anywhere in this value plus
+    // any modeled arithmetic anywhere in it refuses the whole function — see the
+    // header. `expr-ptr-arith` is its own census key so the cost of the guard is
+    // a number rather than an argument.
+    if saw_ptr
+        && ops
+            .iter()
+            .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
+    {
+        return Err(Block { ctx: "expr-ptr-arith", byte: None, off: *p, aux: 0 });
+    }
+    Ok(ops)
 }
 
 /// Parse the formal-parameter list of a straight-line leaf: after the `46` ('F')

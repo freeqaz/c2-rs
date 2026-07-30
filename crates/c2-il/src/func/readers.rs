@@ -473,6 +473,58 @@ pub(crate) fn is_ptr_to_4(tag: u8, kind: u8) -> bool {
     type_width(tag) == Some(4) && (kind >> 4) == 4 && (kind & 0x0F) == 0x3
 }
 
+/// A TYPE naming a **width-4 pointer value**: a data pointer (kind class 3) or a
+/// function/code pointer (kind class 4), in any cv-qualification.
+///
+/// Spelled as a literal tag/kind whitelist rather than as nibble arithmetic,
+/// because the two bytes are not equally well understood and the honest gate
+/// says so:
+///
+/// * `tag` — `0x80` plus the cv bits (`0x20` const, `0x10` volatile) and the
+///   width nibble `6` (= 4 bytes). All four combinations occur and are
+///   captured: `86 43` a plain pointer, `A6 43` a const one (the type of
+///   `this`, and of a member read through a const `this`), `96`/`B6` the
+///   volatile pair. **`0xC6` is refused.** `readers.rs` records that bit 0x40
+///   occurs, and none of the `IL_LOAD_TYPES.md` probes produced it — a field
+///   that never varied across the probes is indistinguishable from a constant,
+///   so it is required literally and fails closed. Odd tags (bit 0 set) are the
+///   aggregate size-bit-4 encoding and are not pointers at all.
+/// * `kind` — required to be exactly `0x43` or `0x44`, i.e. width nibble 4 with
+///   class nibble 3 or 4. Class 3 is a data pointer and class 4 a function/code
+///   pointer (`IL_LOAD_TYPES.md` §1: `int (*)()` literal 0 is `33 86 44 8d 20
+///   00`). Both load with the same `lwz`, so gating them together keeps one
+///   instruction behind one predicate.
+///
+/// Deliberately **not** [`is_ptr_to_4`], which is the *other* question: that one
+/// is applied to the base LOAD and to the `27` byte-offset-add, where the tag
+/// carries the **pointee's** width and only the kind class is meaningful. Two
+/// predicates because two facts; one locator each.
+pub(crate) fn is_ptr4_kind(tag: u8, kind: u8) -> bool {
+    matches!(tag, 0x86 | 0x96 | 0xA6 | 0xB6) && matches!(kind, 0x43 | 0x44)
+}
+
+/// Consume the operand TYPE of a `parse_expr` LOAD/LIT position: an int-like
+/// triple ([`eat_int_like`]) **or** a width-4 pointer value ([`is_ptr4_kind`]).
+/// Returns `Some(true)` when the type consumed was the pointer one, `Some(false)`
+/// for the int-like one, and `None` — with `p` untouched — for anything else.
+///
+/// The two are one *position* but not one *class*, and the caller is told which
+/// it got because they are not interchangeable under arithmetic: see
+/// `super::body::expr::parse_expr`'s pointer-arithmetic guard and
+/// `docs/IL_CALL_IN_EXPR.md` §21.
+pub(crate) fn eat_int_like_or_ptr4(seg: &[u8], p: &mut usize) -> Option<bool> {
+    if eat_int_like(seg, p) {
+        return Some(false);
+    }
+    match read_type(seg, *p) {
+        Some((tag, kind, _, w)) if is_ptr4_kind(tag, kind) => {
+            *p += w;
+            Some(true)
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,6 +553,73 @@ mod tests {
         // The pointer's own size sits in the kind's high nibble and is 4 in every
         // witness; a kind claiming 8 is not a pointer this target emits.
         assert!(!is_ptr_to_4(0x86, 0x83));
+    }
+
+    /// The widened operand-type reader. Both halves are required to be exactly
+    /// what they say: the int side keeps its four-triple whitelist, the pointer
+    /// side is [`is_ptr4_kind`], and the caller is told which it got because the
+    /// two are NOT interchangeable under arithmetic (`body::expr::parse_expr`).
+    #[test]
+    fn operand_type_takes_int_like_or_a_four_byte_pointer_and_says_which() {
+        // Captured pointer operand types, all from live `.ex` captures:
+        //   `86 43 f4 08` int*      `86 43 f0 08` char*    `86 43 c1 08` double*
+        //   `A6 43 8f 20` int* const (and `this`)          `86 44 8d 20` int(*)()
+        let ptr: &[&[u8]] = &[
+            &[0x86, 0x43, 0xF4, 0x08],
+            &[0x86, 0x43, 0xF0, 0x08],
+            &[0x86, 0x43, 0xC1, 0x08],
+            &[0xA6, 0x43, 0x8F, 0x20],
+            &[0x96, 0x43, 0x8F, 0x20],
+            &[0xB6, 0x43, 0x8F, 0x20],
+            &[0x86, 0x44, 0x8D, 0x20],
+            &[0x86, 0x43, 0x9B, 0xB9, 0x02], // 5-byte id
+        ];
+        for bytes in ptr {
+            let mut p = 0usize;
+            assert_eq!(eat_int_like_or_ptr4(bytes, &mut p), Some(true), "{bytes:02X?}");
+            assert_eq!(p, bytes.len(), "consumed the whole type {bytes:02X?}");
+        }
+        for bytes in [INT_TYPE, UINT_TYPE, LONG_TYPE, ULONG_TYPE] {
+            let mut p = 0usize;
+            assert_eq!(eat_int_like_or_ptr4(&bytes, &mut p), Some(false));
+            assert_eq!(p, 3);
+        }
+        // Everything else refuses, and refuses WITHOUT moving the cursor — the
+        // caller reports the census key from the untouched position.
+        let no: &[(&[u8], &str)] = &[
+            (&[0x86, 0x45, 0x40], "float"),
+            (&[0x88, 0x85, 0x41], "double"),
+            (&[0x88, 0x81, 0x13], "long long"),
+            (&[0x82, 0x07, 0x03], "void"),
+            (&[0x86, 0x46, 0x80, 0x20], "aggregate"),
+            (&[0xC6, 0x43, 0x8F, 0x20], "tag bit 0x40 — never captured, fails closed"),
+            (&[0x87, 0x43, 0x8F, 0x20], "odd tag is the aggregate size bit"),
+            (&[0x86, 0x83, 0x8F, 0x20], "kind claims an 8-byte pointer"),
+            (&[0x86, 0x42, 0x76], "unsigned with an id that is not the whitelisted one"),
+            (&[0x41, 0x86, 0x41], "not a type at all"),
+        ];
+        for (bytes, label) in no {
+            let mut p = 0usize;
+            assert_eq!(eat_int_like_or_ptr4(bytes, &mut p), None, "{label}");
+            assert_eq!(p, 0, "{label}: the cursor must not move on a refusal");
+        }
+    }
+
+    /// The two pointer predicates answer two different questions and must not be
+    /// merged: in a `B9`/`33` operand position the tag is the POINTER's own width
+    /// (so `char*` and `double*` are both admitted as values), while in the `27`
+    /// byte-offset-add position it is the POINTEE's (so [`is_ptr_to_4`] refuses
+    /// them). Both readings are captured — `86 43 f0 08` is `char*` at a LOAD and
+    /// `82 43 f0 08` is the same `char*` at a `27`.
+    #[test]
+    fn the_operand_position_reads_the_pointers_own_width() {
+        assert!(is_ptr4_kind(0x86, 0x43) && !is_ptr_to_4(0x82, 0x43));
+        let mut p = 0usize;
+        assert_eq!(eat_int_like_or_ptr4(&[0x86, 0x43, 0xF0, 0x08], &mut p), Some(true));
+        // The `27` spelling of that same `char*` is NOT a 4-byte pointer value and
+        // must not be admitted here — the tag says width 1.
+        let mut q = 0usize;
+        assert_eq!(eat_int_like_or_ptr4(&[0x82, 0x43, 0xF0, 0x08], &mut q), None);
     }
 
     #[test]
