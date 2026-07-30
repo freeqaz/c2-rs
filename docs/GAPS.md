@@ -1162,6 +1162,22 @@ The rules that keep the numbers honest:
   (`scripts/expr_sweep.sh` — the member-function-across-source-lines axis exists only
   because of #1), and **have someone adversarial read the anchors**, because #2 was
   found by a reviewer assigned to an unrelated change.
+- **A fixture that states the rule and carries the failing case can still grade
+  nothing.** `w13_fabi.cpp` documents in its own comment that the FP file is numbered
+  over **floating-point parameters alone**, and it contains
+  `float mixfp(int a, float b, float c){ return b*c; }` — which emitted
+  `fmuls f1,f2,f3` for `fmuls f1,f1,f2`. It never fired, for a mundane reason: the
+  port emits an obj only when EVERY function in a TU is in class, and that file has
+  an out-of-class sibling, so the whole TU graded `NotImplemented` and the failing
+  case inside it was never compared. A second emit hid the same way — `float f(float
+  a, float b){ return b; }` emitted **nothing** where c2 emits `fmr f1,f2`. Both were
+  live on mainline for as long as the fixture existed, and both are the session's
+  recurring shape: a formal's *index* standing in for its *register number*, this
+  time in the FP file rather than the GPR one.
+  Two consequences. **Check `census` says `N/N` before believing a fixture proves
+  anything** — a positive case sharing a file with a refused one is decoration. And
+  when a fixture's comment states a rule, that rule needs a case in a file that
+  actually grades, which usually means its own TU.
 - **A grammar measure cannot see a codegen construct the grammar does not
   distinguish.** The whole-body-complete count has ranked three rungs correctly —
   each converting 1:1 with the bucket drop equalling the census gain exactly — and it
