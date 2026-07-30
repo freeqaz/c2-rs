@@ -27,6 +27,19 @@ normalized).
 - `CODEGEN_PPC_MVP.md` — PPC big-endian instruction encoding (`add`, `blr`),
   the X360 integer ABI, the COLOR allocator's observed scratch-register
   order, and the non-commutative hazard list (what NOT to generalize).
+- `CODEGEN_FRAMED_CALLS.md` — ground truth for multi-call framed bodies (the
+  #35-step-2 territory): the frame-size rule and its 480-case refutation sweep,
+  the five prologue/epilogue classes including the `__savegprlr_`/`__savefpr_`
+  helpers, callee-saved allocation and argument marshalling, three symbol-order
+  rules `OBJ_GY_SHAPES.md` §3.3 did not have, and the `.text/.rdata/.pdata`
+  order within one function.
+- `ABI_EDGES.md` — argument/return conventions beyond `int`: `long long`,
+  FP argument and varargs rules, structs by value (register-chunked, no
+  by-reference threshold up to 64 bytes) and struct returns.
+- `EH_RECORDS.md` — read-only sizing of what `/EHsc` adds: the 8-byte handler
+  prefix that moves the function symbol to `Value = 8`, two `.pdata` records
+  per function with a `BeginAddress` addend, the `Selection = 5` EH `.rdata`,
+  and what an EH rung would cost.
 - `IL_BUNDLE_MVP.md` — the c1xx→c2 IL bundle (`_CL_*` ×5): capture recipe,
   token-width detection, `.gl`/`.sy`/`.ex` parse for the MVP class, and
   which bundle fields the emitter actually consumes.
