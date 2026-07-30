@@ -2760,10 +2760,15 @@ pub(crate) fn parse_call_shape(
         let params = parse_params(seg, lo)?;
         return tail_call_shape(vec![arg_ops], params, callee_tok, *p);
     }
-    // Post-op `+ k`: EXACTLY one literal `33 <int> k` immediately followed by
+    // Post-op `+ k`: EXACTLY one literal `33 <TYPE> k` immediately followed by
     // ADD. A second call (`g(a)+g(1)` → `26 …`), a second literal (`g(a)+1+2` →
     // a second `33 …`), or SUB/MUL (`03`/`04`) all fail one of these `eat`s.
-    if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
+    //
+    // W30: the literal's TYPE goes through [`eat_int_like`], not an exact
+    // `86 41 74` compare — see the call-tail literal note on
+    // [`parse_call_sequence`]. `k` is a value and the emit is `addi r3,r3,k`
+    // whatever width-4 integer spelling names it.
+    if !eat_byte(seg, p, 0x33) || !eat_int_like(seg, p) {
         return Err(blk(seg, *p, "call-postop"));
     }
     let k = read_varint(seg, p).ok_or(blk(seg, *p, "call-postop-varint"))?;
@@ -2905,9 +2910,31 @@ fn parse_call_sequence(
         // (2) `return <literal>;` — one `li r3,k` after the last `bl`. A literal is
         // the ONLY expression tail this rung admits: any operand read after a call
         // is a value live across it, which is Class B.
+        //
+        // **W30 — the literal's TYPE is read by spelling, not as an exact triple.**
+        // This position required `86 41 74` (`int`) exactly, so `unsigned`, `long`,
+        // `unsigned long`, an `enum`, a `const int` and a `volatile int` all
+        // refused, although the emitted word is `li r3,k` in every one of them:
+        // the type names the *value class*, and only the value reaches the
+        // encoder. [`eat_int_like`] is the locator `2C`, `41`, `30` and W22's
+        // operand positions already agree through, so this is one rule gaining a
+        // call site rather than a second rule. Measured by counterfactual over the
+        // 878-TU workload: **+7,771 functions**, the entire `callseq-tail-lit`
+        // bucket and all of it one cause. The dominant workload spelling is
+        // `86 41 08` — a width-4 signed type whose id no probe reproduced; it is
+        // admitted on [`is_int4_type`]'s nibbles, which is what the four other
+        // positions admit it on.
+        //
+        // The boundary is still real: [`eat_int_like`] requires the tag to say
+        // 4-byte alignment **and** the kind to say 4-byte size, so `bool`, `char`,
+        // `short`, `wchar_t`, `__int64`, `float`, `double` and pointers keep
+        // refusing (`fixtures/cpp/w30_callseq_tail_intlike_neg.cpp`), and the
+        // signed-16-bit `li` immediate check below is unchanged.
+        //
+        // [`is_int4_type`]: crate::func::readers
         if seg.get(*p) == Some(&0x33) {
             let mut q = *p;
-            let k = (eat_byte(seg, &mut q, 0x33) && eat(seg, &mut q, &INT_TYPE))
+            let k = (eat_byte(seg, &mut q, 0x33) && eat_int_like(seg, &mut q))
                 .then(|| read_varint(seg, &mut q))
                 .flatten()
                 .ok_or(Block { ctx: "callseq-tail-lit", byte: None, off: *p, aux: 0 })?;
@@ -2933,13 +2960,19 @@ fn parse_call_sequence(
             }
             continue;
         }
-        // The value call. `41` = the result is returned as is; `33 <int> k 02` =
+        // The value call. `41` = the result is returned as is; `33 <TYPE> k 02` =
         // returned plus a literal — the same post-op the single framed call
-        // carries, and the same `addi r3,r3,k`.
+        // carries, and the same `addi r3,r3,k`. The literal's TYPE goes through
+        // the same [`eat_int_like`] the tail literal above does: three positions
+        // reading one rule, widened together on purpose. Leaving one of them on a
+        // narrower gate is the shape of `docs/GAPS.md` §6 #9 — one rule, two
+        // implementations, and the corpus only ever exercised the correct one.
+        // Worth 0 functions on the workload today and 6 probe TUs in
+        // `fixtures/cpp/w30_callseq_tail_intlike.cpp`.
         let add_k = if seg.get(*p) == Some(&0x41) {
             0
         } else {
-            if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
+            if !eat_byte(seg, p, 0x33) || !eat_int_like(seg, p) {
                 return Err(blk(seg, *p, "callseq-postop"));
             }
             let k = read_varint(seg, p).ok_or(blk(seg, *p, "callseq-postop-varint"))?;
@@ -3187,6 +3220,76 @@ mod tests {
         let b = parse_segment_detail(SEQ_LIVE_ACROSS, NO_LOCALS).unwrap_err();
         assert_eq!(b.ctx, "callseq-value-live-across-call");
         assert_eq!(parse_segment(SEQ_LIVE_ACROSS, NO_LOCALS), None);
+    }
+
+    /// W30: the call-tail literal's TYPE is read **by spelling**, not as the exact
+    /// `86 41 74` triple — the whole `callseq-tail-lit` bucket (7,771 functions on
+    /// the 878-TU workload) was one cause, and the emitted word is `li r3,k` for
+    /// every width-4 integer spelling because only the value reaches the encoder.
+    ///
+    /// Written as a mutation of `SEQ_ONE_THEN_LIT` (`g1(a); return 5;`) so the
+    /// only thing that varies between rows is the three-or-more bytes naming the
+    /// literal's type — which is exactly the axis the old exact-triple gate was
+    /// wrong about, and the axis a hand-written positive fixture would have had
+    /// only one point on.
+    #[test]
+    fn a_call_tail_literal_takes_any_width_four_integer_spelling() {
+        // `SEQ_ONE_THEN_LIT` carries `33 86 41 74 05` for the tail `return 5;`.
+        let at = find_subslice(SEQ_ONE_THEN_LIT, &[0x33, 0x86, 0x41, 0x74, 0x05])
+            .expect("the tail literal");
+        let respell = |ty: &[u8]| {
+            let mut s = SEQ_ONE_THEN_LIT[..at + 1].to_vec();
+            s.extend_from_slice(ty);
+            s.push(0x05);
+            // The `41` result annotation names the same type.
+            let rest = &SEQ_ONE_THEN_LIT[at + 5..];
+            s.push(rest[0]);
+            s.extend_from_slice(ty);
+            s.extend_from_slice(&rest[4..]);
+            s
+        };
+
+        // Every width-4 integer: the four bare triples, plus the id-carrying forms
+        // an exact whitelist cannot see (an enum, a `const int`, a `volatile int`).
+        for (ty, label) in [
+            (&[0x86, 0x41, 0x74][..], "int (the control)"),
+            (&[0x86, 0x42, 0x75][..], "unsigned"),
+            (&[0x86, 0x41, 0x12][..], "long"),
+            (&[0x86, 0x42, 0x22][..], "unsigned long"),
+            (&[0x86, 0x41, 0x83, 0x20][..], "an enum, per-TU id 0x1003"),
+            (&[0x86, 0x41, 0x08][..], "the workload's dominant spelling"),
+            (&[0xA6, 0x41, 0x82, 0x20][..], "const int"),
+            (&[0x96, 0x41, 0x82, 0x20][..], "volatile int"),
+        ] {
+            assert!(
+                matches!(
+                    parse_segment(&respell(ty), NO_LOCALS),
+                    Some(BodyShape::CallSeq { tail: SeqTail::Lit(5), .. })
+                ),
+                "{label} ({ty:02X?}) must decode to the same `li r3,5` tail"
+            );
+        }
+
+        // The boundary stays where `eat_int_like` draws it: the tag must say
+        // 4-byte alignment AND the kind 4-byte size. Narrower, wider, FP and
+        // pointer types keep refusing, by name, in the parser.
+        for (ty, label) in [
+            (&[0x82, 0x12, 0x30][..], "bool"),
+            (&[0x82, 0x11, 0x70][..], "char"),
+            (&[0x84, 0x21, 0x11][..], "short"),
+            (&[0x84, 0x22, 0x71][..], "wchar_t"),
+            (&[0x88, 0x85, 0x41][..], "double"),
+            (&[0x86, 0x45, 0x40][..], "float"),
+            (&[0x86, 0x43, 0x83, 0x08][..], "void*"),
+        ] {
+            let s = respell(ty);
+            assert_eq!(parse_segment(&s, NO_LOCALS), None, "{label} must refuse");
+            assert_eq!(
+                parse_segment_detail(&s, NO_LOCALS).unwrap_err().ctx,
+                "callseq-tail-lit",
+                "{label} must refuse by name, in the parser"
+            );
+        }
     }
 
     /// W26: `bool` / `unsigned char` as a value class — free inside the class,

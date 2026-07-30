@@ -431,6 +431,11 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // The Class A many-call neighbours: a value read after the first call
         // (Class B, one saved GPR) and a multi-argument literal list.
         "mvp_call_seq_neg.cpp",
+        // W30's neighbours: a call-tail literal whose type is NOT a width-4
+        // integer (`bool`, `char`, `short`, `wchar_t`, `__int64`, `float`,
+        // `double`, a pointer) and one that is but whose value does not fit the
+        // `li`/`addi` signed-16-bit immediate.
+        "w30_callseq_tail_intlike_neg.cpp",
         // A multi-argument permutation with a cycle longer than three: c2 hoists
         // a second save into r10 and reorders the writes. Live wrong bytes until
         // the grid was measured — `il_call_multi.cpp`'s `cyc4a`/`cyc4b`.
