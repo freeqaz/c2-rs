@@ -1072,6 +1072,19 @@ The rules that keep the numbers honest:
   input is not a stable key**, and any histogram built on one needs its key checked
   before its ranking is believed. Ask of every bucket name: could two occurrences of
   the same construct land in different buckets?
+- **A first-blocker histogram attributes a construct to wherever the parse
+  stopped, not to what the construct is.** Sampling 21,319 blocking sites showed
+  `expr-call-in-expr` is ~80% *member calls* — and that the same member-call
+  production also fills the `expr-load-type-xx43xx` pointer-load rows, which sum to
+  1,127,384 functions, 47.9% of everything blocked. So **neither bucket's size
+  measures the production**: the same construct is filed under a call bucket or a
+  load bucket depending only on which operand the parser reached first. This
+  compounds the sharding above rather than repeating it — sharding is an unstable
+  *key*, this is an unstable *attribution*. Two consequences worth keeping: a
+  bucket is not a work item until you have sampled the bytes at its blocking sites
+  and grouped them by production; and clearing one production can shrink several
+  unrelated-looking buckets at once, so predicted movement should be stated
+  per-production, never per-bucket.
 - **A failed search is not evidence of absence.** Three of this project's
   wrong-bytes emits are the same mistake: code asked "did I find X?" and read
   "no" as "there is no X". `.gl` did not name a destination, so the token was
