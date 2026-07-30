@@ -682,6 +682,7 @@ instrument:
 | − the variadic-function refusal (`8142c17`) — another correctness fix, cost **0** | 122,487 | 4.97 |
 | + T1 width-4 pointer TYPEs through the leaf shapes (`8da703e`) | **210,603** | **8.55** |
 | + `.sy` widths — six wrong encodings, so it had never bound on a real TU (`320f618`) | **211,012** | **8.57** |
+| + `.sy` keyed to `.ex` by the exit label (`ca1469b`) | **228,298** | **9.27** |
 
 That last row goes the wrong way on purpose, and it is the most instructive row
 in the table. A formal's list index had been standing in for its
@@ -862,6 +863,32 @@ retirements accumulated).
 > `GAPS.md` §6 measured on this very head: decoding 2117 moved **32**
 > functions of its 149,200, because the decode lands in the indirect-load
 > *leaf* recognizer and most of those bodies are not leaves.
+
+> **Superseded again (2026-07-30, HEAD `ca1469b`).** Census **228,298 /
+> 2,462,571 = 9.27 %**; mismatch 0, codegen-gap 0, port-error 0, match 6.
+> Percentages below are of the **2,234,273** blocked functions:
+>
+> | Functions | % | Feature |
+> |---:|---:|---|
+> | 304,104 | 13.6 | `expr-call-in-expr` |
+> | 141,800 | 6.3 | `expr-intrinsic-this-adjust` (2113) |
+> | 138,707 | 6.2 | `expr-intrinsic-base-member-addr` (2117) |
+> | 92,724 | 4.2 | `expr-load-type-864540` (float) |
+> | 79,158 | 3.5 | `expr-load-type-888541` (double) |
+>
+> `param-width-undetermined` was the head at **554,056 (24.6 %)** for exactly one
+> measurement and is now **6,974**, which is the shape a *reader gap* has when it
+> closes: the whole bucket moves at once. Note what it moved *to* rather than
+> into class — 547 k functions cleared their first blocker and 17,286 became
+> emittable, so `expr-call-in-expr` grew by 55 k, `this-adjust` by 24 k, and the
+> float/double load buckets by 26 k and 22 k. First-blocker attribution behaving
+> exactly as `GAPS.md` §6 describes; the census gain and the bucket drop measure
+> different things and neither predicts the other.
+>
+> `body-0x53` has left this table by being ported (the lexical-scope layer), and
+> `param-multi-reg` entered it at 1,851 — a real construct, its widths sampled
+> (16 B ×1,810, 20 B ×24, 12 B ×6, 24 B ×6, 80 B ×6, 36 B ×1) rather than
+> assumed, after the previous count of 1 turned out to be a misread field.
 
 Two rows have **left** this table since the mid-day scan, and neither left by
 being fixed in the corpus sense:
