@@ -1160,33 +1160,40 @@ and `double` (79,542) buckets proper are FP-**arithmetic** bodies, not getters, 
 will behave the way W13b did — about +1 — until real FP codegen exists. "A load of
 type T" and "arithmetic in type T" are different rungs.
 
-#### The ~118k estimate, adjudicated: **it was +0** (measured 2026-07-30)
+#### The ~118k estimate, adjudicated: **+88,116, essentially dead on** (2026-07-30)
 
-The pointer-load rung above was implemented, reviewed, and graded. It is correct —
-byte-exact on a 10-function cross of `int`/`char`/`long long` values against
-`int*`/`const int*`/`char*`/`void*`/`int**`, admitting 10/10 where mainline admits
-3/10 — and its measured census delta across all 878 TUs is **zero**. Both facts
-are true at once, and the gap between them is the lesson.
+The pointer-load rung above was implemented, reviewed and graded. Measured across
+all 878 TUs: census **122,487 → 210,603, +88,116**, with **832 TUs gaining, 0
+losing, and mismatch 0**. Against an estimate of "~118k functions fully in class"
+that was explicitly labelled an upper bound, this is the closest any estimate in
+this document has come to its outcome, and the estimate's own stated reason for
+being an upper bound (the scan did not verify the base binds to a formal or
+`this`) is the right size to explain the rest.
 
-The estimate came from the `expr-load-type-A643xx`/`8643xx` census family. That
-key is emitted at `crates/c2-il/src/func/body/expr.rs:309`, inside the `parse_expr`
-**operand** gate — *not* by the indirect-load leaf the rung widened. So the rung
-moved a production the bucket does not measure. `src/xdk/nuiapi/headtracker.cpp`,
-one of the three TUs the estimate was built from, still reports 6 ×
-`expr-load-type-A6438B` with the rung applied.
+It is also byte-exact where it matters, not merely admitted: a 10-function cross
+of `int`/`char`/`long long` values against `int*`/`const int*`/`char*`/`void*`/
+`int**` plus two pointer identities is `Port=Match`, where mainline admits 3 of
+the 10.
 
-This is the **mis-attribution** failure `GAPS.md` §6 already records — a
-first-blocker histogram files a function by the position the parse stopped at, not
-by the construct — and it is the first time it has inflated a rung's estimate
-rather than merely mixed a bucket. The regrouping that produced the ~1.1M figure
-above corrected the *sharding* failure and left the *attribution* one in place; the
-two are independent, and fixing one does not validate a number computed under the
-other. **Before ranking from a bucket, find the line that emits it.**
+**A false correction stood here for one commit and is worth keeping visible.** An
+earlier revision of this section reported the rung as **+0** and built an argument
+on top of that: the `expr-load-type-*` key really is emitted by the `parse_expr`
+**operand** gate (`body/expr.rs:309`) and not by the load leaf the rung widened,
+so the reasoning looked sound. The number was wrong. Both the main repo and the
+rung's worktree contained a `work/dc3-workload/scan-t1.jsonl`, and a *relative*
+path read the wrong one — reflinked worktrees mean identical relative paths hold
+different data, and which one you get depends on the working directory a shell
+tool happened to be left in. The failure mode is worth naming because this repo's
+whole parallel-agent workflow rests on those worktrees: **quote absolute paths for
+every measurement artifact, and check the row count and denominator of a scan
+before differencing it against another.** Two scans of the same corpus agreeing on
+`fn_total` proves nothing about which binary produced them.
 
-Two rungs must land before the pointer class pays anything, and they are now the
-top of the worklist in this order: `.sy` binding on real TUs
-(`param-width-undetermined`, 567,549) and the `parse_expr` operand gate (not
-decode-only — a pointer in an add chain needs element-size scaling).
+The observation about `expr.rs:309` survives its wrong conclusion and still bounds
+what remains: the pointer *operand* gate is untouched, so a pointer feeding
+arithmetic or a call is still refused, and widening it is not decode-only — a
+pointer in an add chain needs element-size scaling. That, and `.sy` binding on real
+TUs (`param-width-undetermined`, 567,549), are the next two rungs.
 
 ## 6b. Independent review, 2026-07-30 (HEAD `2724ca5`)
 

@@ -1116,6 +1116,16 @@ The rules that keep the numbers honest:
   (`scripts/expr_sweep.sh` — the member-function-across-source-lines axis exists only
   because of #1), and **have someone adversarial read the anchors**, because #2 was
   found by a reviewer assigned to an unrelated change.
+- **A measurement artifact read from the wrong tree.** The parallel-agent workflow
+  gives every worktree a reflinked copy of `work/`, so the same *relative* path
+  (`work/dc3-workload/scan-t1.jsonl`) exists in several trees holding different
+  data, and which one a shell tool reads depends on the working directory it was
+  last left in. That produced a published "this rung measured +0" for a rung that
+  measures **+88,116** — a wrong conclusion with a plausible mechanism attached to
+  it, which is worse than an obviously wrong number. Two guards, both cheap: quote
+  **absolute** paths for measurement artifacts, and print a scan's row count and
+  denominator before differencing it against another, because two scans agreeing on
+  `fn_total` proves only that the corpus is the same, never that the binary was.
 - **A failed search is not evidence of absence.** Three of this project's
   wrong-bytes emits are the same mistake: code asked "did I find X?" and read
   "no" as "there is no X". `.gl` did not name a destination, so the token was
