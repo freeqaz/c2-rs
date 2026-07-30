@@ -13,10 +13,16 @@
 // is a real memory write with a relocation. Treating the second as the first is a
 // silent mis-emit, so the decision cannot be skipped or guessed.
 //
-// The distinguishing information is not in `.ex` at all — it is that a global
-// carries a **name in `.gl`** and a local does not. That is why the body parser is
-// given the `.gl` symbol index: without it, this fixture and `il_stmt_local_decl.cpp`
-// are indistinguishable inputs.
+// The distinguishing information is not in `.ex` at all. It is also NOT reliably in
+// `.gl`: the first version of this gate refused a destination that `gl_symbol_index`
+// named, which looked sound and was not — a file-scope `static int sv` appears there
+// as `$sv`, whose leading `$` that index does not accept as an identifier, so the
+// token looked local and the store was silently dropped (`il_stmt_static.cpp`).
+//
+// The destination is therefore established **positively**: it must be a formal, read
+// from the `2D` list. Absence from a symbol table proves nothing — it only says the
+// table did not happen to name it. Locals are out of class as a consequence, since
+// `.ex` has no positive local signal at all.
 //
 // `w_gret` returns the parameter rather than the global, so the store is the only
 // thing keeping it out of class — it separates "refuses because it *reads* a global"

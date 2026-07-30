@@ -16,7 +16,7 @@ A TYPE is `<tag> <kind> <LEB128 id>`, so 3, 4 or 5 bytes — this is what
 why a pointer type's third byte varies between TUs and why census bucket names
 that truncate at three bytes group *different* pointer types together.
 
-The `tag` tracks width, `0x80 + 2*(log2(size)+1)`:
+The `tag` encodes a width as `0x80 + 2*(log2(size)+1)`:
 
 | size | tag |
 |------|-----|
@@ -24,6 +24,23 @@ The `tag` tracks width, `0x80 + 2*(log2(size)+1)`:
 | 2 | `84` |
 | 4 | `86` |
 | 8 | `88` |
+
+**The width is the token's, not the type's — the tag is positional.** The same
+type carries different tags in different slots: `double*` is `86 43 c1 08` as a
+`B9` operand (a 4-byte pointer is being loaded) and `88 43 c1 08` as a `27`
+member-offset result (an 8-byte `double` is what the resulting address denotes).
+So a TYPE triple cannot be matched as a constant across positions, and a table
+keyed on "the tag for type T" is wrong by construction. The `<kind>` and `id` are
+what identify the type; the tag describes the slot. Established by
+`IL_EXPR_LAYER.md`'s indirect-load captures, which is also where the per-slot
+tags are tabulated.
+
+**And the three-field rule does not hold for aggregates.** `86 06 20 ec 20`
+parses as three bytes under `<tag> <kind> <LEB128>` but the bracketing `41` marker
+pins it at five, so `read_type` mis-reads it — a latent *mis-decode* that
+desynchronizes the stream the way the fixed-width source-line marker did, not
+merely a gap. Recorded rather than fixed; the aggregate form needs its own
+capture matrix.
 
 ## 2. The scalar table
 

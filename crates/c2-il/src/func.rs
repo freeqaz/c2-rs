@@ -1539,6 +1539,12 @@ fn try_parse_assign_body_detail(
 ) -> Result<BodyShape, Block> {
     let mut p = start;
     let mut env: Vec<(u32, Vec<IlOp>)> = Vec::new();
+    // Read once for the per-destination check. A body with no formals marker is not
+    // rejected here — the destination check below refuses it anyway, and deferring
+    // lets the right-hand side report its own reason first, which is what makes the
+    // census name the innermost unmodeled construct rather than this outer gate.
+    let formals = parse_formals(seg, lo).unwrap_or_default();
+    let _ = globals;
     loop {
         eat_opt_stmt_marker(seg, &mut p);
         if *seg.get(p).ok_or(blk(seg, p, "assign-stmt"))? != 0x26 {
@@ -1554,12 +1560,28 @@ fn try_parse_assign_body_detail(
         if *seg.get(probe).ok_or(blk(seg, probe, "assign-op"))? == 0xBD {
             return Err(blk(seg, probe, "assign-rhs-call"));
         }
-        // A store to a global is a memory write this class does not model.
-        if globals.contains_key(&dst) {
-            return Err(Block { ctx: "assign-to-global", byte: None, off: probe, aux: 0 });
-        }
         p = probe;
         let rhs = parse_expr(seg, &mut p, 0x32)?;
+        // The destination must be a **formal**, established positively from the
+        // `2D` list — not "absent from `.gl`", which is what this used to test and
+        // which does not work.
+        //
+        // A store to any memory object (a global, or a file-scope `static`) is a
+        // real write with a relocation, and treating it as a register copy silently
+        // drops it. The absence test failed exactly there: a `static int sv` is in
+        // `.gl` as `$sv`, whose leading `$` `gl_symbol_index` does not accept as an
+        // identifier, so the token looked local and
+        // `static int sv; int f(int a){ sv = a; return a; }` mis-emitted. Found by
+        // probing the de-conflated census, not by a fixture.
+        //
+        // Locals are therefore out of class for now. There is no positive local
+        // signal in `.ex` — the statement grammar uses the same `26 <tok>` push for
+        // parameter, local and global alike — so admitting them needs a local-symbol
+        // production first. The coverage given up is measured at ~0 on the real
+        // workload, which is not a reason to keep a mis-emit.
+        if !formals.contains(&dst) {
+            return Err(Block { ctx: "assign-dst-not-formal", byte: None, off: probe, aux: 0 });
+        }
         if !eat_byte(seg, &mut p, 0x32) || !eat_int_like(seg, &mut p) {
             return Err(blk(seg, p, "assign-store-type"));
         }
