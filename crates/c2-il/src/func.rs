@@ -966,6 +966,15 @@ fn parse_segment_detail(
             if has_repeated_leaf(&ops) {
                 return Err(Block { ctx: "expr-repeated-leaf", byte: None, off: p, aux: 0 });
             }
+            // Operands out of register order mean c2 reassociated the chain.
+            if !leaves_ascending(&ops, &params) {
+                return Err(Block { ctx: "expr-noncanonical-order", byte: None, off: p, aux: 0 });
+            }
+            // A register subtraction after a register addition is reassociated
+            // even when the operands ARE in register order.
+            if !additive_chain_canonical(&ops) {
+                return Err(Block { ctx: "expr-noncanonical-additive", byte: None, off: p, aux: 0 });
+            }
             Ok(BodyShape::StraightLine { params, ops })
         }
         _ => Err(blk(seg, p, "body")),
@@ -1002,6 +1011,90 @@ fn has_repeated_leaf(ops: &[IlOp]) -> bool {
         }
     }
     false
+}
+
+/// True if the operand LOADs appear in **strictly ascending parameter order** —
+/// i.e. in ascending register order, since parameter `i` arrives in `r(3+i)`.
+///
+/// c2 does not evaluate a commutative chain in source order; it **canonicalizes
+/// and reassociates** it by register. Every permutation of `a + b + c` — all five
+/// of them — emits exactly `add r11,r3,r4 ; add r3,r11,r5`, and `b + a` emits the
+/// same `add r3,r3,r4` as `a + b`. Mixed chains are reassociated too: `a + b - c`
+/// and `b - c + a` both emit `subf r11,r5,r3 ; add r3,r11,r4`, which is `(a-c)+b`
+/// — neither source grouping.
+///
+/// The port evaluates in source order, so it emitted numerically-correct but
+/// byte-wrong code for every non-canonical chain. A generated differential sweep
+/// over 600 integer expressions found ~20 of these, all in the straight-line class
+/// that had been "byte-exact" since the MVP.
+///
+/// This gate is deliberately a **refusal, not a canonicalization**. The rewrite
+/// rule is only partly characterized: the additive form looks like "start at the
+/// lowest positive term, apply the negative terms in ascending order, then add the
+/// remaining positives", but that is inferred from ten captures and implementing it
+/// wrong would put the mis-emit straight back. Refusing is exact; a canonicalizer
+/// needs its own capture matrix first (docs/GAPS.md).
+///
+/// Strictly ascending also implies no repeated leaf, so this subsumes
+/// [`has_repeated_leaf`]; both are kept because they refuse for different reasons
+/// and the census buckets should say which.
+/// True if a `+`/`-` chain's source order already *is* c2's canonical order.
+///
+/// c2 does not evaluate an additive chain left to right. It treats it as a sum of
+/// signed terms and emits the **negative** terms first, starting from the lowest
+/// positive term, then adds the remaining positives. Captured:
+///
+/// ```text
+///   a + b - c   ->  subf r11,r5,r3 ; add r3,r11,r4     i.e. (a - c) + b
+///   b - c + a   ->  subf r11,r5,r3 ; add r3,r11,r4     the same bytes
+///   a - c - b   ->  subf r11,r4,r3 ; subf r3,r5,r11    i.e. (a - b) - c
+/// ```
+///
+/// So source order coincides with c2's only when every register subtraction comes
+/// *before* every register addition. `a - b + c` and `a - b - c` satisfy that and
+/// are byte-exact; `a + b - c` does not, and was a mis-emit — the port computed
+/// `(a+b)-c` where c2 computes `(a-c)+b`.
+///
+/// A subtraction of a **literal** does not count: it folds into the running `addi`
+/// immediate rather than emitting an instruction, so `a + b - 1` is fine.
+///
+/// The chain is left-associative, so in the postfix stream each operator's
+/// right-hand operand is the leaf immediately preceding it — which is all the
+/// context needed to tell a register operand from a folded literal.
+fn additive_chain_canonical(ops: &[IlOp]) -> bool {
+    let mut reg_add_seen = false;
+    for (i, op) in ops.iter().enumerate() {
+        let rhs_is_reg = matches!(ops.get(i.wrapping_sub(1)), Some(IlOp::Load(_)));
+        match op {
+            IlOp::Add if rhs_is_reg => reg_add_seen = true,
+            IlOp::Sub if rhs_is_reg && reg_add_seen => return false,
+            _ => {}
+        }
+    }
+    true
+}
+
+fn leaves_ascending(ops: &[IlOp], params: &[u32]) -> bool {
+    let mut last: Option<usize> = None;
+    for op in ops {
+        if let IlOp::Load(t) = op {
+            // A token that is not a formal is not this gate's business — a LOAD of
+            // an unknown token is refused by the callers that care (codegen's
+            // `reg_of`, and the assignment path's own parameter check). Refusing
+            // here instead would reject the framed-call class, whose `BodyShape`
+            // carries no formals at all.
+            let Some(ix) = params.iter().position(|p| p == t) else {
+                continue;
+            };
+            if let Some(prev) = last {
+                if ix <= prev {
+                    return false;
+                }
+            }
+            last = Some(ix);
+        }
+    }
+    true
 }
 
 /// Inline-substitute every `Load(t)` for which `env` has a definition.
@@ -1129,6 +1222,10 @@ fn try_parse_assign_body(
     // has none: `int x = a; x = x + x;` substitutes to `a + a`, which c2 emits as
     // `slwi r3,r3,1`. This gate is what keeps that from being wrong bytes.
     if has_repeated_leaf(&ret) {
+        return None;
+    }
+    // Substitution reorders too: `int x = b; return x + a;` resolves to `b + a`.
+    if !leaves_ascending(&ret, &params) || !additive_chain_canonical(&ret) {
         return None;
     }
     Some(BodyShape::StraightLine { params, ops: ret })
@@ -1632,6 +1729,14 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
     // the same rewriter: `g(a + a)` is not `add` + branch.
     if has_repeated_leaf(&arg_ops) {
         return Err(Block { ctx: "call-arg-repeated-leaf", byte: None, off: *p, aux: 0 });
+    }
+    // And to the same reassociation: `g(b + a)` is not the source order either.
+    // `parse_formals` may legitimately fail here — the framed-call class carries no
+    // formals — and that must not turn into a rejection, so fall back to an empty
+    // list, against which `leaves_ascending` simply has nothing to compare.
+    let formals = parse_formals(seg, lo).unwrap_or_default();
+    if !leaves_ascending(&arg_ops, &formals) || !additive_chain_canonical(&arg_ops) {
+        return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
     }
 
     // Post-op region. EITHER the return plumbing begins directly at its `41`
@@ -2574,6 +2679,63 @@ mod tests {
                 "census/gate disagreement"
             );
         }
+    }
+
+    #[test]
+    fn reassociation_gates_separate_canonical_from_rewritten_chains() {
+        // params[i] is register r(3+i), so ascending index == ascending register.
+        let p = vec![0x10, 0x11, 0x12]; // a, b, c
+        let ld = |t: u32| IlOp::Load(t);
+
+        // Commutative chains are canonicalized by register: every permutation of
+        // `a + b + c` emits the same bytes, so only the ascending one may be
+        // accepted in source order.
+        assert!(leaves_ascending(&[ld(0x10), ld(0x11), IlOp::Add], &p)); // a + b
+        assert!(!leaves_ascending(&[ld(0x11), ld(0x10), IlOp::Add], &p)); // b + a
+        assert!(leaves_ascending(
+            &[ld(0x10), ld(0x11), IlOp::Add, ld(0x12), IlOp::Add],
+            &p
+        )); // a + b + c
+        assert!(!leaves_ascending(
+            &[ld(0x10), ld(0x12), IlOp::Add, ld(0x11), IlOp::Add],
+            &p
+        )); // a + c + b
+        // Literals do not participate in the ordering.
+        assert!(leaves_ascending(&[ld(0x10), IlOp::Lit(1), IlOp::Add, ld(0x11), IlOp::Add], &p));
+
+        // A mixed chain is reassociated even when the operands ARE in register
+        // order: c2 applies the negative terms first. `a - b + c` is already that
+        // order and is byte-exact; `a + b - c` is not.
+        assert!(additive_chain_canonical(&[
+            ld(0x10),
+            ld(0x11),
+            IlOp::Sub,
+            ld(0x12),
+            IlOp::Add
+        ])); // a - b + c
+        assert!(additive_chain_canonical(&[
+            ld(0x10),
+            ld(0x11),
+            IlOp::Sub,
+            ld(0x12),
+            IlOp::Sub
+        ])); // a - b - c
+        assert!(!additive_chain_canonical(&[
+            ld(0x10),
+            ld(0x11),
+            IlOp::Add,
+            ld(0x12),
+            IlOp::Sub
+        ])); // a + b - c  -> c2 emits (a - c) + b
+        // Subtracting a LITERAL folds into the `addi` immediate and emits no
+        // instruction, so it can never be out of order.
+        assert!(additive_chain_canonical(&[
+            ld(0x10),
+            ld(0x11),
+            IlOp::Add,
+            IlOp::Lit(1),
+            IlOp::Sub
+        ])); // a + b - 1
     }
 
     #[test]
