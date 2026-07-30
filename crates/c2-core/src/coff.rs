@@ -863,12 +863,22 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     // out five symbols long (obj offset 12, `NumberOfSymbols`). The packed emitter
     // had already been fixed for exactly this; `emit_comdat_obj` had not, and no lane
     // compiled the call fixtures with `/Gy` until `scripts/mode_lane.sh`.
+    //
+    // `_fltused` goes immediately after the **first** float function's complete
+    // group — its section symbol + aux, its function symbol, and any callee external
+    // it introduced — and before the next function's section symbol. That is the
+    // same rule as the packed layout; `/Gy` does not move it (`docs/OBJ_GY_SHAPES.md`
+    // §1, six orderings captured: float-first, int-first, float-int-float,
+    // int-int-float, and a float function whose callee external precedes the marker).
+    // Omitting it entirely is what left `mvp_fmul3.cpp` one symbol short of the
+    // reference under `/Gy`.
+    let fltused_after = funcs.iter().position(|f| f.is_float);
     let mut next_idx: u32 = 11;
     let mut callee_idx: Vec<Option<u32>> = Vec::with_capacity(funcs.len());
     // Whether this function is the one that introduces its callee's symbol.
     let mut introduces: Vec<bool> = Vec::with_capacity(funcs.len());
     let mut callee_syms: Vec<(&str, u32)> = Vec::new();
-    for f in funcs {
+    for (i, f) in funcs.iter().enumerate() {
         next_idx += 2; // section symbol + aux
         next_idx += 1; // the function symbol
         match &f.call {
@@ -888,6 +898,9 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
                     next_idx += 1;
                 }
             },
+        }
+        if fltused_after == Some(i) {
+            next_idx += 1;
         }
     }
     let n_symbols = next_idx;
@@ -958,6 +971,10 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
         // Only the function that *introduces* this callee emits its symbol.
         if let (Some(call), true) = (&f.call, introduces[i]) {
             emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        }
+        // The CRT float-support marker, once, after the first FP function's group.
+        if fltused_after == Some(i) {
+            emit_function_symbol(&mut b, &mut strtab, NAME_FLTUSED, 0, 0);
         }
     }
 

@@ -283,30 +283,29 @@ impl PortC2 {
                     (t?, None)
                 } else if let Some(cmp) = &f.compare {
                     (codegen::compare_leaf_text(cmp, mode)?, None)
-                } else if f.float_leaf.is_some() {
-                    // Two separate things are unmodeled here, so no float function
-                    // is accepted under `/Gy`:
-                    //
-                    // * a pooled FP constant would add a second COMDAT per function,
-                    //   and that interleaving is not characterized;
-                    // * *every* float function needs the undefined external
-                    //   `_fltused`, which only the packed emitter emits.
-                    //   `mvp_fmul3.cpp` — a constant-free `float` multiply, so it
-                    //   slipped past the pooled-constant refusal — came out exactly
-                    //   one symbol (18 bytes) short of the reference, a wrong
-                    //   `NumberOfSymbols` at obj offset 12.
-                    //
-                    // Refused rather than guessed: in the packed layout `_fltused`
-                    // sits immediately after the first float function's symbol group,
-                    // and whether that position holds when each function owns its own
-                    // COMDAT has not been captured. A symbol in the wrong slot
-                    // renumbers every relocation after it.
-                    return Err(BackendError::NotImplemented(
-                        "float function under function-level linking (/Gy): the \
-                         `_fltused` external, and any pooled `.rdata` constant, are \
-                         not modeled in the per-function COMDAT symbol order"
-                            .to_string(),
-                    ));
+                } else if let Some(double) = f.float_leaf {
+                    let (t, consts) = codegen::float_leaf_text(f, double)?;
+                    // A pooled FP constant still refuses under `/Gy`. Its section
+                    // placement *is* now characterized — each `.rdata` COMDAT sits
+                    // immediately after the `.text` of the function that first
+                    // references it — but `docs/OBJ_GY_SHAPES.md` §2 also found that
+                    // several constants introduced by ONE function are appended in
+                    // **reverse** first-reference order, and a per-reference-site
+                    // appender would emit them forwards. Every relocation still
+                    // resolves either way, so that is a silent wrong-bytes shape
+                    // rather than a crash, and it is not worth opening on one
+                    // ordering probe.
+                    if !consts.is_empty() {
+                        return Err(BackendError::NotImplemented(
+                            "pooled floating-point constant under function-level \
+                             linking (/Gy): sections interleave per first-referencing \
+                             function, but several constants from one function are \
+                             appended in reverse reference order and that is not yet \
+                             modeled"
+                                .to_string(),
+                        ));
+                    }
+                    (t, None)
                 } else {
                     (codegen::select_text(f, mode)?, None)
                 };
