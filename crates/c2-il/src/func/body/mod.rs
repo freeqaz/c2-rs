@@ -16,9 +16,91 @@ use self::shapes::{
     try_parse_empty_dtor_delegation, try_parse_float_leaf, try_parse_indirect_load_leaf,
     try_parse_ptr_identity_leaf,
 };
-use super::readers::{eat_byte, find_subslice, read_token_var};
+use super::readers::{eat_byte, find_subslice, read_token_var, read_type, read_varint};
 use super::sy::SyView;
 use super::{CompareLeaf, IlOp};
+
+/// **How many CALL tokens a function segment contains** — the D6 frame measure
+/// (`docs/IL_CALL_IN_EXPR.md` §18).
+///
+/// The question every remaining census row has to answer is whether its lowering
+/// is *local*, and the coarsest form of that question is whether the body needs a
+/// **frame**: a body that issues two or more calls must save LR, because the first
+/// `bl` clobbers it and the return address is still needed. That is a property of
+/// the body alone, so it is measurable without any codegen — and it is measurable
+/// **outside** the modeled grammar, which is the point: the grammar stops at the
+/// first unmodeled byte, and this walk does not stop at all.
+///
+/// The walk is not a parse and is **graded rather than asserted**. A `BD` counts
+/// only when *every* field of the decoded CALL token
+/// `BD <ret TYPE> <conv> <varint fn-type-id>` (`docs/IL_CALL_IN_EXPR.md` §0) is
+/// present and reads a **measured** value, and the cursor then skips the whole
+/// token so a `BD` inside a consumed payload cannot be recounted. Everything else
+/// advances one byte.
+///
+/// The three gates, and each is a field that never varied — so it is required
+/// literally and fails closed, rather than being skipped as "probably constant":
+///
+/// * the **calling-convention byte is `00`**. 15,095 of 16,100 `BD`-plus-TYPE
+///   sites in `src/lazer/meta_ham/HamUI.cpp` read `00` and the rest are spread
+///   over 200-odd distinct bytes — the signature of a payload byte, not a field.
+/// * the **fn-type-id uses `read_varint`'s `80` escape form**: 15,090 of 15,095.
+/// * its value is **≥ 0x1000**. Function-type ids are allocated per TU from
+///   0x1000 (`parse_call_shape`), so the short varint form cannot spell one.
+///   Measured range 0x1001…0x1081 across the fixtures and 0x1001…0xFA89 in the
+///   wild TU; exactly one candidate site fell below and it is a false positive.
+///
+/// A bare `67` (virtual dispatch) is **not** counted: a virtual call carries its
+/// own `BD` as well, so counting the `67` too double-counted it — measured, and
+/// removing it is part of what took the grade from 98.0 % to 98.7 %.
+///
+/// **The grade, MEASURED.** Over the 110 fixtures plus the D6 probes — every TU
+/// where `.gl` binds one name per segment, so segment *k* pairs 1:1 with emitted
+/// function *k* — this count agrees with the reference obj's own `bl`/`b` count on
+/// **696 of 705 functions (98.7 %)**. Both failure directions are named and both
+/// are one-sided:
+///
+/// * **undercount** — an `0x40` intrinsic that lowers to a real branch is not a
+///   `BD` (`memcpy`, `memset`, `dynamic_cast`, an aggregate copy): 6 witnesses.
+/// * **overcount** — c2 inlined or folded a call the IL still spells (an intra-TU
+///   callee it cloned, a destructor whose second call folded away): 3 witnesses.
+///
+/// The **in-class functions are the standing control group** and the census
+/// reports them: a shape the whole-body parser accepted as a leaf cannot contain
+/// two calls, so `calls-2plus` among `indirect-load-leaf` / `straight-line` /
+/// `empty-body` is a direct read of the residual false-positive rate.
+///
+/// Diagnostic only. Nothing here is consulted by the emitter or by acceptance.
+pub(crate) fn call_tokens(seg: &[u8]) -> usize {
+    /// The floor of the per-TU function-type id space (`parse_call_shape`).
+    const FN_TYPE_ID_MIN: i32 = 0x1000;
+    let mut n = 0usize;
+    let mut p = 0usize;
+    while p < seg.len() {
+        if seg[p] != 0xBD {
+            p += 1;
+            continue;
+        }
+        let ok = read_type(seg, p + 1).and_then(|(_, _, _, tw)| {
+            let q = p + 1 + tw;
+            // the calling-convention byte, then the escape-form fn-type id
+            if seg.get(q) != Some(&0x00) || seg.get(q + 1) != Some(&0x80) {
+                return None;
+            }
+            let mut e = q + 1;
+            let id = read_varint(seg, &mut e)?;
+            (id >= FN_TYPE_ID_MIN).then_some(e)
+        });
+        match ok {
+            Some(q) => {
+                n += 1;
+                p = q;
+            }
+            None => p += 1,
+        }
+    }
+    n
+}
 
 /// One recognized whole-body shape of a single `.ex` function segment. Every
 /// accepted body is *exactly* one of these — the parser (see [`parse_segment`])
@@ -834,5 +916,75 @@ mod tests {
         let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
         assert_eq!(b.feature(), "expr-load-type-864175");
         assert_eq!(seg[b.off], 0xB9, "reported at the LOAD, not mid-type");
+    }
+
+    #[test]
+    fn the_call_token_count_is_the_number_of_calls_the_body_issues() {
+        // The D6 frame measure (§18). Pinned on the segments whose call count is
+        // known from their *source*, not from a re-read of the walk — including
+        // the ones with no call at all, because a counter that never returns 0
+        // would report every leaf as needing a frame.
+        for (seg, want, what) in [
+            (MVP_CALL, 1usize, "void f(){ g(); }"),
+            (MVP_FRAMED, 1, "int f(int a){ return g(a)+1; }"),
+            (TWO_CALLS, 2, "void f(){ g(); g(); }"),
+            (CALL_THEN_STMT, 1, "void call then a second statement"),
+            (TWO_FRAMED_CALLS, 2, "two framed calls"),
+            (PLUS1PLUS2, 1, "int f(int a){ return g(a)+1+2; }"),
+            (GA_SUBMOD, 1, "int f(int a){ return g(a)-1; }"),
+            // …and the leaves, because a counter that never returns 0 would
+            // report every leaf as needing a frame.
+            (IND_DEREF, 0, "return *p;"),
+            (IND_THIS_GETTER, 0, "return mMember;"),
+            (NARROW_LL_MEMBER, 0, "a long long member load"),
+        ] {
+            assert_eq!(call_tokens(&free_fn(seg)), want, "{what}");
+        }
+    }
+
+    #[test]
+    fn a_call_token_inside_a_consumed_payload_is_not_recounted() {
+        // The walk skips the whole `BD <TYPE> <conv> <varint>` token, so a `BD`
+        // byte that is *part* of one cannot be counted twice. Force the case by
+        // planting `BD` in the function-type id's escape payload: `80` + 4 LE
+        // bytes, one of which is `BD`.
+        let mut seg = MVP_CALL.to_vec();
+        let bd = seg.windows(2).position(|w| w == [0xBD, 0x82]).unwrap();
+        // `BD 82 07 03 00 | 80 01 10 00 00` → keep the shape, poison the payload.
+        seg[bd + 6] = 0xBD;
+        seg[bd + 7] = 0xBD;
+        assert_eq!(
+            call_tokens(&free_fn(&seg)),
+            1,
+            "a BD inside the consumed token is not a second call"
+        );
+    }
+
+    #[test]
+    fn every_field_of_the_call_token_is_required_literally() {
+        // Three fields that never varied over 15,095 wild sites. A measure that
+        // skipped any of them would count a `BD` payload byte as a call — which
+        // is exactly what the in-class control group caught (§18): the loose
+        // version read 10,088 in-class LEAVES as `calls-2plus`.
+        let base = MVP_CALL.to_vec();
+        assert_eq!(call_tokens(&free_fn(&base)), 1);
+        let bd = base.windows(2).position(|w| w == [0xBD, 0x82]).unwrap();
+        for (off, poison, why) in [
+            (4usize, 0x01u8, "calling convention must be 00"),
+            (5, 0x01, "the fn-type id must use the 80 escape form"),
+        ] {
+            let mut seg = base.clone();
+            seg[bd + off] = poison;
+            assert_eq!(call_tokens(&free_fn(&seg)), 0, "{why}");
+        }
+        // …and the id's own value: `80 01 10 00 00` is 0x1001 little-endian, so
+        // clearing the high byte of the low halfword leaves 0x0001, below the floor.
+        let mut seg = base.clone();
+        seg[bd + 7] = 0x00;
+        assert_eq!(
+            call_tokens(&free_fn(&seg)),
+            0,
+            "a fn-type id below 0x1000 is not one c2 allocated"
+        );
     }
 }

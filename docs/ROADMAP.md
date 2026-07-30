@@ -1297,6 +1297,70 @@ arithmetic or a call is still refused, and widening it is not decode-only — a
 pointer in an add chain needs element-size scaling. That, and `.sy` binding on real
 TUs (`param-width-undetermined`, 567,549), are the next two rungs.
 
+## 6a. The frame audit, 2026-07-30 (D6) — the next rung is the general frame
+
+**The strategic answer, MEASURED.** `docs/IL_CALL_IN_EXPR.md` §18 asked whether the
+port is out of leaf-shaped work. Over the **2,182,551 blocked functions**, counting
+CALL tokens per body (a decode-only measure that runs *outside* the grammar, so an
+undecoded row is priced like any other):
+
+| | functions | share of blocked |
+|---|---:|---:|
+| `calls-0` — provably no frame | 626,398 | 28.7 % |
+| `calls-1` — a tail call, or a small frame | 753,498 | 34.5 % |
+| `calls-2plus` — **provably a frame** | **802,655** | **36.8 %** |
+
+36.8 % is an exact lower bound. Pricing the middle class from the code c2 actually
+emits — 178,969 emitted functions across 871 workload objs, read straight off `.text`
+(framed iff it saves LR or moves r1): `calls-1` is **42.8 % framed**, `calls-2plus` is
+98.3 %, and the corpus as a whole is **42.3 % framed**. Applying that gives a point
+estimate of **≈ 1,129,500 blocked functions, 51.8 %** — labelled an estimate, because
+the split is measured on emitted code and applied to a population that is mostly not
+emitted (§18.6).
+
+**Every large `expr-call-in-expr` row is 96–100 % framed** — `chained` 45,663 (100 %),
+`op-0x9B` 39,361 (100 %), `recv-object` 96.0 %, `recv-load` 99.7 %, `recv-field`
+90.3 %, `recv-intrinsic` 85.7 % — which is ~199,000 framed functions in that bucket
+alone. **They are not three rungs; they are one rung's first three customers.** So
+item 5 of §5's phase list (frames/spills + per-function `.pdata`, W-UNW-1) moves ahead
+of further grammar rungs, and its content is now measured rather than sketched:
+variable frame size (96 B for one by-value temporary, 112 B for two), LR save/restore,
+callee-saved GPRs allocated descending (`std r31,-16(r1)`, `std r30,-24(r1)`), a
+frame-slot allocator for by-value temporaries (`stw r3,80(r1) ; addi r3,r1,80`), and a
+**`.pdata` entry per framed function** with prolog lengths of 3, 4 **and 5** in one
+probe TU — where `coff::build_pdata` hardcodes 3 — and no entry at all for a leaf.
+Per-COMDAT, because the workload's `/O1` implies `/Gy` and `PortC2::build` refuses a
+framed call there by name today.
+
+**Two rows the hypothesis got wrong, and they are the two biggest names on the
+board.** §3's G5 tables call `expr-intrinsic-base-member-addr` (2117) and
+`expr-intrinsic-this-adjust` (2113) "mostly non-leaf bodies". Measured: 2113 is
+**59.2 %** framed, and 2117 is **28.0 %** — **32,372 of its 122,949 issue no call at
+all**. Captured, they are `lwz r3,4(r3) ; blr` / `lwz ; lwz ; add ; blr` /
+`stw r4,4(r3) ; blr`: two to four instructions, no frame, no `.pdata`. That is the
+largest genuinely leaf-shaped block left in the census and the one rung still takeable
+*before* the frame. With `data-addr-1sym` (2,712, 100 % `calls-1`) and
+`recv-object × type-ptr` (2,410, 100 % `calls-1`) it is the entire remaining local
+inventory above a thousand functions: **37,494 functions, against 802,655.**
+
+**Bundled measurement-integrity fix.** §16.4's chain undercount is closed: 37,662
+functions re-key from `recv-load`/`recv-deref`/`recv-intrinsic`/`recv-field`/
+`recv-call`/`recv-object` into `chained`, an exact partition with the
+`expr-call-in-expr` total (268,140) and the non-`mcall` keys (1,914,411) unchanged to
+the function. The chain population is **8,001 → 45,663, a 5.71× undercount** rather
+than the 4.4× §16.4 estimated. Acceptance untouched; census stays 280,020 / 2,462,571
+= 11.37 %, mismatch 0.
+
+**One thing this rung found and did not close, recorded because it bounds every
+census number above.** `src/lazer/meta_ham/HamUI.cpp` has **9,551 function bodies in
+its `.ex` and c2 emits 350 functions**; corpus-wide it is 2,462,571 IL bodies against
+**178,969 emitted, 7.3 %**. The census denominator is IL bodies, which is the right
+denominator for the port's all-or-nothing per-TU gate — but it is not the denominator
+of the emitted code, and the two should never be mixed without saying so. The port
+**fails closed** on the gap (`bundle.rs`'s `bound.len() != segs.len()`; probe
+`work/fa/probes/p5.cpp` censuses 2/2 in class, the reference emits one function, the
+port returns `NotImplemented`), but incidentally rather than by design.
+
 ## 6b. Independent review, 2026-07-30 (HEAD `2724ca5`)
 
 An adversarial re-measure of every headline claim, by a session that did not

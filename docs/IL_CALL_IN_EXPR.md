@@ -1920,3 +1920,401 @@ C2RS_JOBS=16 scripts/expr_sweep.sh        # checked=3009 mismatches=0
 #   do capture `struct B{~B();int b;}; struct D:B{~D();int d;}; D::~D(){}`
 #      with --keep-il and read the `5C 86 41 74 <f>` / `5E 01 <g>` bytes
 ```
+
+## 18. D6, landed — the frame audit: which rows are still local, and which are not
+
+§17.6 left three rungs ranked by size and a hypothesis nobody had tested: that
+**the port is out of leaf-shaped work, and essentially everything remaining needs a
+frame or a non-local decision**. The evidence for it was circumstantial and is
+quoted here so the answer can be graded against it — chains put a call's result in
+the next call's receiver; `op-0x9B` is a by-value temporary receiver that §14 guessed
+needs "frame + 2 `bl`"; `recv-object`'s second-largest second blocker is
+`branch-0x39`; `this-adjust` (141,800) and `base-member-addr` (122,949) are described
+in §13 as mostly non-leaf.
+
+This rung answers it by measurement. **MEASURED: the hypothesis is right in the
+aggregate and wrong about two of its five named rows**, and the two it is wrong about
+are the two largest things on the board.
+
+Baseline `work/dc3-workload/scan-fa-base.jsonl` — taken **in this worktree** rather
+than read through a relative path, per §16.8: 878 rows, `fn_total` 2,462,571, in class
+**280,020 = 11.37 %**, 1,358 keys, mismatch 0, reproducing §17's D5 scan to the
+function. The result is `work/dc3-workload/scan-fa.jsonl` from the same list, flags
+and `--cwd`.
+
+| | baseline | D6 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 280,020 (11.37 %) | 280,020 (11.37 %) | **0** |
+| TUs whose per-TU in-class count moved | — | — | **0** |
+| TUs whose class moved | — | — | **0** (still 6 `match`, 7 `capture-fail`) |
+| mismatch | 0 | 0 | 0 |
+| keys | 1,358 | 1,363 | +5 |
+| functions re-keyed | — | — | **37,662 out, 37,662 in** (§18.3) |
+
+Fixture lane: `bench` 110 pass / 0 fail / 0 error; `/Ox` 45 match, `/O1` 42, `/O2` 42,
+`/Ox /Gy` 42, 0 mismatch in all four; `expr_sweep` checked=3329 mismatches=0;
+`cargo test --workspace` green.
+
+### 18.1 The instrument, and why it is not a grammar measure
+
+`GAPS.md` §6's newest entry is that **a grammar measure cannot see a codegen construct
+the grammar does not distinguish** — the finding that cost D5 its rung. The obvious
+reaction is to widen the grammar; the useful one is to add a measure that does not
+depend on it at all.
+
+[`body::call_tokens`] counts the CALL tokens in a segment. It is not a parse: it walks
+the raw bytes and stops nowhere, so it reports the same number for a body the census
+can decode and one it cannot. From that count comes the **frame class**, and its
+middle value is honest rather than convenient:
+
+| class | what it settles | share of the workload |
+|---|---|---:|
+| `calls-0` | no call, so LR is never clobbered — **cannot** need a frame | 869,614 (35.3 %) |
+| `calls-1` | a tail call stays a leaf; a call whose result is computed on does not. **The count cannot tell them apart and this class does not pretend to.** | 790,302 (32.1 %) |
+| `calls-2plus` | the first `bl` clobbers LR and the return address is still live — **always** a frame | 802,655 (32.6 %) |
+
+**The measure is graded in two independent ways, and the second one is the reason to
+believe it.**
+
+1. **Against the reference obj.** On every TU where `.gl` binds one name per segment,
+   segment *k* pairs 1:1 with emitted function *k*, so the IL count can be compared
+   with the obj's own `bl`/`b`-with-REL24 count. Over the 110 fixtures plus this
+   rung's probes: **696 of 705 functions agree, 98.7 %**. Both failure directions are
+   named and both are one-sided — an `0x40` intrinsic that lowers to a real branch is
+   not a `BD` (`memcpy`, `memset`, `dynamic_cast`, an aggregate copy, 6 witnesses),
+   and c2 sometimes inlines or folds a call the IL still spells (3 witnesses).
+2. **Against the in-class functions, which are a standing control group of 280,020.**
+   A shape the whole-body parser accepted as a leaf cannot contain two calls, so any
+   in-class function reading `calls-2plus` is a false positive by construction. The
+   census reports the control group every scan, and it currently reads:
+
+   ```
+   indirect-load-leaf  157,912   c0=157,912  c1=0       c2+=0
+   empty-body           73,339   c0= 73,339  c1=0       c2+=0
+   empty-dtor-delegation 27,501  c0=0        c1=27,501  c2+=0
+   straight-line        10,960   c0= 10,960  c1=0       c2+=0
+   empty-dtor-member     6,234   c0=0        c1= 6,234  c2+=0
+   empty-dtor-member-adjusted 2,229 c0=0     c1= 2,229  c2+=0
+   float-leaf            1,005   c0=  1,005  c1=0       c2+=0
+   void-tail-call          840   c0=0        c1=   840  c2+=0
+   ```
+
+   Every one of the 280,020 lands exactly where its parsed shape says it must, and
+   **none reads `calls-2plus`**.
+
+That second grade is what forced the measure to be right. The first version counted a
+`BD` whenever the following bytes were merely TYPE-shaped, and it read **10,088
+in-class leaves as two-call bodies** — a 3.6 % false-positive rate that would have put
+tens of thousands of spurious functions into the "needs a frame" column. The fix is
+`GAPS.md` §6's own rule applied literally: **a field that never varied is
+indistinguishable from a constant, so require it and fail closed.** The CALL token now
+has to produce all of
+
+* **calling convention `00`** — 15,095 of 16,100 candidate sites in
+  `src/lazer/meta_ham/HamUI.cpp`, the rest spread over 200-odd distinct bytes, which
+  is the signature of a payload byte rather than a field;
+* **the `80` escape form** of the fn-type id — 15,090 of those 15,095;
+* **id ≥ 0x1000**, the floor of the per-TU function-type id space. Measured range
+  0x1001…0x1081 across the fixtures and 0x1001…0xFA89 in the wild TU; exactly one
+  candidate site fell below it and it was a false positive.
+
+A bare `67` virtual dispatch is **not** counted: a virtual call carries its own `BD`,
+so counting the `67` as well double-counted it. Removing it and requiring the three
+fields took the obj grade from 98.0 % to 98.7 % and the control group from 10,088 to 0.
+
+The count is carried in the scan as a **second axis** (`fn_frames`, keyed
+`"<class>|<census key>"`) rather than as a suffix on the ranked keys, because four
+sessions of recorded tables name those keys and renaming all of them to carry an
+orthogonal fact would break every recorded comparison for nothing.
+
+### 18.2 The per-row verdict
+
+Every row below is **MEASURED** on the frame axis; the `witness` column is a
+controlled capture at the fixture profile whose emitted instructions were read, not
+inferred. Probes are in `work/fa/probes` (gitignored).
+
+| row | functions | `calls-0` | `calls-1` | `calls-2plus` | verdict | witness |
+|---|---:|---:|---:|---:|---|---|
+| `op-0x9B` (`expr-call-in-expr`) | 39,361 | 0 | 0 | **39,361 (100 %)** | **frame, no exceptions** | `p2.cpp` |
+| `chained` (after §18.3) | 45,663 | 0 | 0 | **45,663 (100 %)** | **frame, no exceptions** | `p3.cpp` |
+| `recv-object` | 64,904 | 0 | 2,568 | **62,336 (96.0 %)** | **frame** | `p3.cpp` |
+| `recv-load` | 16,430 | 0 | 43 | 16,387 (99.7 %) | frame | — |
+| `recv-intrinsic` | 19,447 | 0 | 2,784 | 16,663 (85.7 %) | frame | `p7.cpp` |
+| `recv-field` / `-off0` | 20,724 | 0 | 2,019 | 18,705 (90.3 %) | frame | — |
+| `data-addr` | 56,634 | 3 | 49,184 | **7,447 (13.1 %)** | **not a frame problem** | §17 |
+| `data-read` · `nested-call` · `recv-deref` · `recv-call` | 4,864 | 2 | 5 | 4,857 | frame | — |
+| `expr-intrinsic-this-adjust` (2113) | 141,800 | 15 | 57,894 | **83,891 (59.2 %)** | **split** | `p7.cpp` |
+| `expr-intrinsic-base-member-addr` (2117) | 122,949 | **32,372** | 56,186 | 34,391 (28.0 %) | **mostly local** | `p7.cpp` |
+| `body-0x9B` (statement head) | 27,073 | 2,035 | 7,624 | 17,414 (64.3 %) | split | `p1.cpp` |
+| `expr-op-0x9B` | 9,437 | 0 | 808 | 8,629 (91.4 %) | frame | `p1.cpp` |
+| `body-0x29` (control flow) | 48,102 | 1,622 | 4,674 | 41,806 (86.9 %) | frame **and** a branch | — |
+| `expr-convert` | 26,796 | 8,246 | 1,736 | 16,814 (62.7 %) | split | — |
+
+**§13's "mostly non-leaf" reading of the two class-layout intrinsics is wrong for
+2117 and only 59 % right for 2113.** 32,372 of `base-member-addr`'s 122,949 issue no
+call at all, and the capture says what they emit: `int D2::mem1() const { return b; }`
+is `lwz r3,4(r3) ; blr`, `return b + d;` is `lwz ; lwz ; add ; blr`, and
+`void D2::mem3(int v) { b = v; }` is `stw r4,4(r3) ; blr`. Two, four and two
+instructions, no frame, **no `.pdata` entry at all**. That is the largest genuinely
+leaf-shaped block left in the census.
+
+### 18.3 The chain classification, fixed — and the corrected population
+
+§16.4 measured that `chained` undercounts chains ~4.4× and named the cause exactly:
+`mod.rs`'s body dispatch cannot tell a statement-head `26 <tok>` assignment
+*destination* from a stacked *method* push, so a chain in a **value** position has its
+outer method push eaten and files as whatever its inner receiver is.
+`return p->Next()->Get();` and `x = p->Next()->Get();` are the same bytes plus one push
+and landed in different buckets.
+
+`mcall::reanchor_chain` fixes it on the error path of the assignment parser's
+right-hand side, under three conditions, all required:
+
+1. the refusal is this module's and sits **exactly where the destination push ended**;
+2. walking from the statement head classifies as `Chained` where walking from the
+   probe did not;
+3. **the statement contains one depth-0 `99` bind per stacked method.**
+
+Condition 3 is the load-bearing one and it is what a naive fix would have missed.
+`x = p->Get()` has the *same* two-symbol head run as a two-link chain in a value
+position — `26 <x> 26 <Get>` against `26 <Get> 26 <Next>` — and differs only in that
+the statement contains **one** bind rather than two. Without the bind count the fix
+would have traded a 4.4× undercount for an overcount of every single-link assignment
+in the corpus. `PROBE_ONE_LINK_ASSIGN` is that control, in the unit tests, beside the
+pair.
+
+The count re-enters `walk_detail` rather than running a second tokenizer, so the count
+and the classification cannot drift apart — `GAPS.md` §6's "one fact, one locator",
+which matters more than usual here because the re-anchor's whole job is to disagree
+with that walk about one leading token.
+
+**The movement is an exact partition, and every function is accounted for:**
+
+| form | baseline | D6 | delta |
+|---|---:|---:|---:|
+| `chained` | 8,001 | **45,663** | **+37,662** |
+| `recv-load` | 51,086 | 16,430 | −34,656 |
+| `recv-intrinsic` | 21,294 | 19,447 | −1,847 |
+| `recv-deref` | 1,072 | 250 | −822 |
+| `recv-field` | 14,297 | 13,963 | −334 |
+| `recv-call` | 7 | 5 | −2 |
+| `recv-object` | 64,905 | 64,904 | −1 |
+| `data-addr` · `data-read` · `recv-field-off0` · `nested-call` · `op-0x*` · `other` | — | — | **0** |
+| `expr-call-in-expr` total | 268,140 | 268,140 | **0** |
+| non-`mcall` census keys | 1,914,411 | 1,914,411 | **0** |
+
+Every form that lost functions is one that can be the *innermost* link of a chain;
+every form that cannot be one is unchanged to the function. Acceptance is untouched
+(the `Err` stays an `Err`), no TU's in-class count moved and no TU's class moved.
+
+**The corrected population is 45,663 — 17.0 % of the bucket, a 5.71× undercount, not
+4.4×.** §16.4's 43,521 was an estimate built by adding the `chained` bucket to the
+`chain-bind` second-blocker count, and it was low for a structural reason worth
+recording: a body whose *second* blocker is a chain link is a body the chain
+production had not been tried on, so the two populations were neither disjoint nor
+exhaustive. After the fix 6,563 rows still name `chain-bind` as a second blocker —
+those are third links and chains nested inside other forms — so up to **52,226**
+bodies contain a chain, but the 45,663 is the one that is a form and the one to rank.
+
+### 18.4 What `op-0x9B` actually is — MEASURED by capture
+
+§16.6 called it *"the largest thing on the worklist whose size is not yet known"* and
+deliberately did not decode it. It does not need decoding to be sized: the frame axis
+runs outside the grammar, so an undecoded form is measured like any other.
+
+**It is a by-value returned aggregate temporary, and it is 100 % frame.** The source
+that produces it is a **plain** (non-member) call returning a struct, whose result
+receives a member call, in an assignment:
+
+```cpp
+struct V { int a; int Val() const; };
+extern V gFV();
+int a1() { int x; x = gFV().Val(); return x; }        // -> expr-call-in-expr-op-0x9B
+```
+
+`work/fa/probes/p1.cpp` establishes what it is *not*: with the producer a **member**
+call (`gO.GetV().Val()`) the walk sees two stacked methods and files `chained`, and
+with the temporary bound to a named local (`V v = gO.GetV(); return v.Val();`) the
+statement opens on the `9B` itself and files `expr-op-0x9B`. All three are the same
+construct at different statement positions, which is §9.2 for the fourth time.
+
+The reference, fixture profile, and it is the general frame in miniature:
+
+```text
+?a1@@YAHXZ:
+    mfspr r12,r8,r0        <- mflr
+    stw   r12,-8(r1)
+    stwu  r1,-96(r1)       <- a 96-byte frame for a 4-byte temporary
+    bl    ?gFV@@YA?AUV@@XZ
+    stw   r3,80(r1)        <- the returned aggregate, spilled to a frame slot
+    addi  r3,r1,80         <- its address becomes the receiver
+    bl    ?Val@V@@QBAHXZ
+    addi  r1,r1,96
+    lwz   r12,-8(r1)
+    mtspr r12,r8,r0
+    bclr
+```
+
+with a `.pdata` entry `00000000 40000B03` — function length 11 words, prolog length
+3. Two temporaries in one body (`x = gFV().Val(); y = gFV().Val();`) grows the frame
+to 112 and the prolog to 4, adds `std r31,-16(r1)`, and uses r31 to carry the first
+result across the second call.
+
+**Is classifying it safe?** §16.6's reservation was that making `9B` a receiver *form*
+requires the walk to treat a depth-0 `32` store as non-decisive mid-statement, which
+would move functions between D2 sub-buckets on a hypothesis. That reservation still
+stands and this rung did not touch it — **and it no longer matters for ranking.** The
+frame axis already prices the row without moving a single function: 39,361 at 100 %
+`calls-2plus`, plus `body-0x9B`'s 27,073 at 64.3 % and `expr-op-0x9B`'s 9,437 at
+91.4 %. Decoding `9B` is now a *decode* task with a known payoff, not an unknown.
+
+### 18.5 The answer to the hypothesis, and the share that needs a frame
+
+**Over the 2,182,551 blocked functions:**
+
+| | functions | share of blocked |
+|---|---:|---:|
+| `calls-0` — provably no frame | 626,398 | 28.7 % |
+| `calls-1` — a tail call or a small frame | 753,498 | 34.5 % |
+| `calls-2plus` — **provably a frame** | **802,655** | **36.8 %** |
+
+36.8 % is a **lower bound and it is exact**. To price the middle class, the same
+question was asked of the code c2 actually emits: over **178,969 emitted functions**
+across 871 workload objs, read straight off `.text` with no IL and no grammar
+(`work/fa/tools/frames.py`, a function is framed iff it saves LR or moves r1):
+
+| | emitted functions | leaf | framed |
+|---|---:|---:|---:|
+| `calls-0` | 81,217 | 80,624 | 593 (0.7 %) |
+| `calls-1` | 37,682 | 21,572 | **16,110 (42.8 %)** |
+| `calls-2plus` | 60,070 | 1,028 | 59,042 (98.3 %) |
+| **all** | **178,969** | 103,224 | **75,745 (42.3 %)** |
+
+The `calls-2plus` row is 98.3 % rather than 100 % because the obj-side counter counts
+a `bctr` jump table as a call; the rule itself has no exception. Applying the 42.8 %
+to the blocked middle class gives a point estimate of **≈ 1,129,500 blocked functions
+needing a frame, 51.8 %** — LABELLED as an estimate, because the split is measured on
+emitted code and applied to a population that is mostly *not* emitted (see §18.6).
+
+**So: the hypothesis holds in the aggregate and fails on its two largest named rows.**
+Every construct it named is confirmed — `op-0x9B` 100 %, chains 100 %, `recv-object`
+96 %, `recv-load` 99.7 % — and half of everything left needs a frame. But
+`this-adjust` is 59 % rather than "mostly", and `base-member-addr` is **28 %**, with
+32,372 functions that issue no call at all. §13's reading of those two was inferred,
+and this is the measurement that corrects it.
+
+### 18.6 What is NOT established, labelled
+
+* **The `calls-1` framed share is measured on emitted code and applied to IL bodies,
+  and those are different populations.** `src/lazer/meta_ham/HamUI.cpp` has **9,551
+  `4C 4F 11` function bodies in its `.ex` and emits 350 functions**; across the
+  workload it is 2,462,571 IL bodies against 178,969 emitted, **7.3 %**. Every number
+  in §18.2 is over IL bodies (the census denominator) and every number in the emitted
+  table is over emitted functions, and the 42.8 % is the one place they are mixed.
+  Nothing measured how the frame split of an *unemitted* inline body compares.
+* **The emitted/IL gap is itself unexplained and unmeasured**, and it is not this
+  rung's finding to close. What is established is that the port **fails closed** on
+  it: `int f(int a){return a+1;} struct S{int m; int Unused() const {return m;}};`
+  censuses **2/2 in class**, the reference emits **one** function, and the port
+  returns `NotImplemented` — `bundle.rs`'s `bound.len() != segs.len()` gate refuses
+  because `.gl` binds one name and the splitter found two segments. No wrong-bytes
+  emit, but the gate is doing this work incidentally rather than by design.
+* **`calls-1` is not decomposed per row.** Every row's middle column is priced with
+  one corpus-wide constant. A row whose single call is always in tail position
+  (`this-adjust`'s `one()`) and one whose single call never is (`store()`) get the
+  same 42.8 %, and both shapes are in the capture. Splitting `calls-1` by tail
+  position is the next cheap measurement and it was not taken.
+* **`call_tokens` undercounts intrinsic calls by construction.** `memcpy`, `memset`,
+  `dynamic_cast` and an aggregate copy lower to real branches and carry no `BD`, so
+  `expr-intrinsic-memset`'s 42.5 % and the two `base-*cast` rows are floors, not
+  values. 6 witnesses, all in the fixture grade.
+* **The re-anchor is scoped to chains and to one call site.** `parse_expr` raises
+  `CALL_IN_EXPR` from other places and only the assignment parser's right-hand side
+  re-anchors. §5 records the *same* dispatch splitting `expr-intrinsic-this-adjust`
+  from `expr-call-in-expr-recv-intrinsic-this-adjust` by one leading literal, and this
+  rung did **not** fix that one: the discriminator there is not a bind count and
+  deriving it would move 141,800 functions on an untested rule.
+* **`calls-2plus` says a frame is needed, not that a frame is sufficient.** 23,632
+  `recv-object` functions are `calls-2plus` *and* name `branch-0x39` as their second
+  blocker; they need basic blocks as well. The frame axis is one dimension.
+
+### 18.7 The order of work, re-ranked — and it is the general frame
+
+§17.6 ranked chains first at 18,449, `op-0x9B` second, and `data-addr-1sym` third.
+The frame axis says those are not three rungs; they are **one rung's first three
+customers**.
+
+1. **The general frame, plus per-COMDAT `.pdata`.** Not because it is the largest row
+   — it is not a row — but because **every one of the top rows is 96–100 % framed and
+   none of them can be taken without it**: `chained` 45,663 (100 %), `op-0x9B` 39,361
+   (100 %), `recv-object` 62,336 framed, `recv-load` 16,387, `recv-field` 18,705,
+   `recv-intrinsic` 16,663. That is **199,000 framed functions in the `expr-call-in-expr`
+   bucket alone**, and 802,655 across the census. What it needs, all of it measured in
+   this rung's captures: a **variable frame size** (96 for one temporary, 112 for two);
+   **LR save/restore** (`mflr r12 ; stw r12,-8(r1)` … `lwz ; mtlr ; blr`); **callee-saved
+   GPRs** (`std r31,-16(r1)`, `std r30,-24(r1)`, allocated in descending order and
+   restored after the `mtlr`); a **frame-slot allocator** for by-value temporaries
+   (`stw r3,80(r1) ; addi r3,r1,80`); and a **`.pdata` entry per framed function**
+   carrying `0x40000000 | (function_words << 8) | prolog_words` with prolog lengths of
+   **3, 4 and 5** in this rung's captures alone — where `coff::build_pdata` hardcodes
+   3 — and **no entry at all** for a leaf. Per-COMDAT because the workload's `/O1`
+   implies `/Gy`, and `PortC2::build` refuses a framed call there today by name.
+2. **`base-member-addr`'s 32,372 `calls-0` functions** — the largest genuinely
+   leaf-shaped block left, `lwz`/`stw` at a folded displacement, no frame and no
+   `.pdata`. This is the one item the frame hypothesis got wrong and the one rung that
+   can still be taken *before* the frame. `expr-intrinsic-base-member-addr` already has
+   a decoder (`try_parse_base_member_load`); what refuses these is the surrounding
+   expression, not the intrinsic.
+3. **`data-addr-1sym` — 2,712, and 100 % `calls-1`.** §17.6 (3) survives the audit
+   intact: the row needs no frame, and §17.3's two-symbol pool problem does not touch
+   it. Still gated on §17.6's unmeasured question — how many have a call argument
+   needing no setup instruction.
+4. **`recv-object × type-ptr` — 2,410, and 100 % `calls-1`.** A named-object receiver
+   with a pointer argument. Measured leaf: `gC.Val()` is
+   `lis r11,gC@ha ; addi r3,r11,gC@l ; b ?Val`, and three byte-identical bodies in one
+   TU emit three identical sequences — the §17 tell, run and passed. It needs §17.2's
+   relocation quad and nothing else.
+5. **Control flow.** Unchanged from §16.7 (6), and the frame axis adds that it is
+   entangled: `body-0x29` is 48,102 functions at **86.9 % `calls-2plus`**, so the
+   branch rung and the frame rung will meet.
+
+Items 2, 3 and 4 total **37,494 functions** and are the entire remaining local
+inventory above a thousand functions. Item 1 is 802,655. **The hypothesis's practical
+conclusion is correct even though two of its rows are not: the next rung is the
+general frame.**
+
+### 18.8 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                      # 110 pass 0 fail 0 error
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                         # 45 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                         # 42 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                            # checked=3329 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16 \
+  --jsonl work/dc3-workload/scan-fa.jsonl        # prints the frame-class block
+# the probes (gitignored scratch; every witness in §18.2/§18.4 comes from one):
+#   work/fa/probes/p1.cpp  op-0x9B at three statement positions
+#   work/fa/probes/p2.cpp  the by-value temporary, four byte-identical bodies
+#   work/fa/probes/p3.cpp  chains, named-object receivers, both class-layout intrinsics
+#   work/fa/probes/p5.cpp  an in-class IL body c2 never emits (the §18.6 gate)
+#   work/fa/probes/p6.cpp  the re-anchor pair plus four controls that must not move
+#   work/fa/probes/p7.cpp  2113/2117 at BOTH ends of their frame split
+./target/release/c2rs compile work/fa/probes/p7.cpp --keep-obj work/fa/p7.obj
+python3 work/fa/tools/coff.py    work/fa/p7.obj    # sections, symbols, aux, relocations
+python3 work/expr/tools/objdis.py work/fa/p7.obj
+# the emitted-code frame split (§18.5): capture every workload obj, then read .text
+sh      work/fa/tools/capture_all.sh                # -> work/fa/objs/*.obj, ~35 s at -P16
+python3 work/fa/tools/frames.py work/fa/objs/*.obj
+# the IL-vs-obj grade of `call_tokens` (§18.1): pairs 1:1 only where .gl binds
+python3 work/fa/tools/ilcalls.py grade <bundle>.ex <obj>
+```
+
+Always difference the scans through **absolute** paths and print each one's row count
+and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several reflinked
+worktrees with different contents, and reading one through a relative path has already
+produced a published wrong number in this project.
