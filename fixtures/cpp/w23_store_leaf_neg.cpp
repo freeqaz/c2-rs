@@ -57,6 +57,16 @@
 //
 // `n_arg9` — the base in the **ninth** parameter slot, which is stack-homed and
 //   needs a frame.
+//
+// `n_negwide` — a **wide negative** literal value. `emit_load_imm`'s `lis`+`ori`
+//   pair covers non-negative values only, and the straight-line class already
+//   refuses this in the parser (`expr-out-of-class-wide-neg-lit`). It is here
+//   because the store leaf did NOT, for one build: the same literal reached two
+//   shapes and only one of them gated it, so `void f(S* s){ s->a = -70000; }`
+//   censused in class while `PortC2` returned `NotImplemented` — `GAPS.md` §6's
+//   "one fact, two locators", found by probing this production's own boundary
+//   rather than by a test. The positive file's `s_kwide` (+70000) and `s_kneg`
+//   (-3) are the two neighbours it must not take with it.
 
 struct S {
     int a;
@@ -87,3 +97,4 @@ void n_edge(Edge* p, int v)    { p->t = v; }
 
 int g_i;
 void n_global(int v)           { g_i = v; }
+void n_negwide(S* s)           { s->a = -70000; }

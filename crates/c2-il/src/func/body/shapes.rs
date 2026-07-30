@@ -1763,11 +1763,25 @@ pub(crate) fn try_parse_store_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
     if bix >= 8 {
         return None;
     }
-    if let IlOp::Load(vtok) = value_op {
-        let vix = params.iter().position(|&t| t == vtok)?;
-        if vix >= 8 {
-            return None;
+    match value_op {
+        IlOp::Load(vtok) => {
+            let vix = params.iter().position(|&t| t == vtok)?;
+            // Past the eighth argument the value is stack-homed, which needs a frame.
+            if vix >= 8 {
+                return None;
+            }
         }
+        // A wide **negative** constant. `emit_load_imm`'s `lis`+`ori` pair covers
+        // non-negative values only, and the straight-line class already refuses
+        // this in the PARSER (`expr-out-of-class-wide-neg-lit`,
+        // `chain::straight_line_out_of_class_ctx`). Restating the bound here rather
+        // than letting codegen refuse it is the census/gate invariant: the same
+        // literal reached two shapes and only one of them gated it, so
+        // `void f(S* s){ s->a = -70000; }` censused in class while `PortC2`
+        // returned `NotImplemented` — the `GAPS.md` §6 "one fact, two locators"
+        // failure, caught by probing the new production's own boundary.
+        IlOp::Lit(k) if k < -0x8000 => return None,
+        _ => {}
     }
     Some(BodyShape::StoreLeaf {
         params,
@@ -2755,6 +2769,36 @@ mod tests {
                 Some(BodyShape::MultiArgTailCall { .. })
             ),
             "formals 0 and 1 are a permutation and must stay accepted"
+        );
+    }
+
+    /// W24: `bool` / `unsigned char` as a value class — free inside the class,
+    /// and a real `rlwinm` on the way out of it.
+    #[test]
+    fn bool_value_class_is_free_inside_and_refuses_the_widening() {
+        assert_eq!(
+            parse_segment(BOOL_LIT, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![],
+                ops: vec![IlOp::Lit(0)],
+            })
+        );
+        assert_eq!(
+            parse_segment(BOOL_ID, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![0xE409],
+                ops: vec![IlOp::Load(0xE409)],
+            })
+        );
+        // The conversion OUT of the class is `clrlwi r3,r3,24`, and it arrives as
+        // the same `2C … 00` that is free between the two width-4 classes. It must
+        // refuse in the PARSER, under a key that names the target.
+        assert_eq!(parse_segment(BOOL_WIDEN_NEG, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(BOOL_WIDEN_NEG, NO_LOCALS)
+                .unwrap_err()
+                .feature(),
+            "expr-convert-target-8641"
         );
     }
 
