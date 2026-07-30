@@ -136,6 +136,20 @@ fn build_debug_s(obj_name: &str) -> Vec<u8> {
     b.0
 }
 
+/// Which function a `/Gy` section belongs to. The COMDAT layout interleaves
+/// `.text` and `.pdata` per function, so "section index minus the fixed prefix"
+/// is **not** the function index once any function is framed — that arithmetic
+/// is what this replaces.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SectionOwner {
+    /// One of the four fixed sections every obj carries.
+    Fixed,
+    /// Function `i`'s own `.text` COMDAT.
+    Text(usize),
+    /// Function `i`'s `.pdata` COMDAT.
+    Pdata(usize),
+}
+
 /// A section, resolved to its raw data + header metadata.
 struct Section<'a> {
     name: &'static str,
@@ -804,8 +818,13 @@ pub fn emit_comdat_obj(
     // / `sec_pdata[i]` are 0-based indices into `sections`.
     let mut sec_text: Vec<usize> = Vec::with_capacity(funcs.len());
     let mut sec_pdata: Vec<Option<usize>> = Vec::with_capacity(funcs.len());
+    // The inverse map, so the layout and relocation passes below index rather
+    // than search: section -> the function it belongs to, and which of its two
+    // sections it is. `SectionOwner::None` for the fixed prefix.
+    let mut owner: Vec<SectionOwner> = vec![SectionOwner::Fixed; sections.len()];
     for (i, t) in texts.iter().enumerate() {
         sec_text.push(sections.len());
+        owner.push(SectionOwner::Text(i));
         sections.push(Section {
             name: ".text",
             characteristics: CH_TEXT_COMDAT,
@@ -819,6 +838,7 @@ pub fn emit_comdat_obj(
             Some(rec) => {
                 let text_sec_num = (sec_text[i] + 1) as u16;
                 sec_pdata.push(Some(sections.len()));
+                owner.push(SectionOwner::Pdata(i));
                 sections.push(Section {
                     name: ".pdata",
                     characteristics: CH_PDATA_COMDAT,
@@ -855,17 +875,12 @@ pub fn emit_comdat_obj(
     //
     // A framed function's `.pdata` has exactly one relocation of its own (the
     // ADDR32 on `BeginAddress`), so it follows the same rule.
-    let n_reloc_of: Vec<u16> = sections
+    let n_reloc_of: Vec<u16> = owner
         .iter()
-        .enumerate()
-        .map(|(i, _)| {
-            if let Some(k) = sec_text.iter().position(|&x| x == i) {
-                u16::from(funcs[k].call.is_some())
-            } else if sec_pdata.iter().any(|p| *p == Some(i)) {
-                1
-            } else {
-                0
-            }
+        .map(|o| match o {
+            SectionOwner::Text(k) => u16::from(funcs[*k].call.is_some()),
+            SectionOwner::Pdata(_) => 1,
+            SectionOwner::Fixed => 0,
         })
         .collect();
     let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
@@ -978,20 +993,24 @@ pub fn emit_comdat_obj(
     for (i, s) in sections.iter().enumerate() {
         debug_assert_eq!(b.0.len(), ptrs[i]);
         b.bytes(&s.raw);
-        if let Some(k) = sec_text.iter().position(|&x| x == i) {
-            if let (Some(call), Some(ci)) = (&funcs[k].call, callee_idx[k]) {
-                debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
-                b.u32(call.reloc_offset);
-                b.u32(ci);
-                b.u16(REL_PPC_REL24);
+        match owner[i] {
+            SectionOwner::Text(k) => {
+                if let (Some(call), Some(ci)) = (&funcs[k].call, callee_idx[k]) {
+                    debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+                    b.u32(call.reloc_offset);
+                    b.u32(ci);
+                    b.u16(REL_PPC_REL24);
+                }
             }
-        } else if let Some(k) = sec_pdata.iter().position(|p| *p == Some(i)) {
-            // `BeginAddress` at `.pdata` offset 0, ADDR32 against the framed
-            // function's own symbol (the record's raw addend is 0).
-            debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
-            b.u32(0);
-            b.u32(fn_idx[k]);
-            b.u16(REL_PPC_ADDR32);
+            SectionOwner::Pdata(k) => {
+                // `BeginAddress` at `.pdata` offset 0, ADDR32 against the framed
+                // function's own symbol (the record's raw addend is 0).
+                debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+                b.u32(0);
+                b.u32(fn_idx[k]);
+                b.u16(REL_PPC_ADDR32);
+            }
+            SectionOwner::Fixed => {}
         }
     }
     debug_assert_eq!(b.0.len(), ptr_symtab);
