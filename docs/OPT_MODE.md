@@ -131,6 +131,40 @@ those 18 tree shapes — which is how the over-strong "unconditionally r11" read
 of the first two captures was caught. Two linear chains cannot distinguish
 "always r11" from "r11 when dead".)
 
+#### The rule, stated exactly
+
+Enumerating all 27 depth-2 trees `(a op b) op (c op d)` over `+ - *` and
+disassembling both modes side by side settles it. In **all 27**, instruction
+selection, operand order and operand *choice* are identical; the only thing that
+ever differs is which register an intermediate is written to. And where two values
+are genuinely live at once, the two modes agree exactly — same registers, same
+assignment:
+
+```
+(a * b) + (c * d)   both   mullw r10,r3,r4 ; mullw r11,r5,r6 ; add   r3,r10,r11
+(a + b) * (c + d)   both   add   r11,r3,r4 ; add   r10,r5,r6 ; mullw r3,r11,r10
+```
+
+The difference appears only where the previous intermediate is **dead**:
+
+```
+(a * b) * (c * d)   /Ox    mullw r11,r3,r4 ; mullw r10,r11,r5 ; mullw r3,r10,r6
+                    /O1    mullw r11,r3,r4 ; mullw r11,r11,r5 ; mullw r3,r11,r6
+(a * b) - (c + d)   /Ox    mullw r11,r3,r4 ; subf  r10,r5,r11 ; subf  r3,r6,r10
+                    /O1    mullw r11,r3,r4 ; subf  r11,r5,r11 ; subf  r3,r6,r11
+```
+
+So:
+
+> **`/O1` is `/Ox` with exactly one change: an intermediate whose predecessor is
+> already dead is written to r11 rather than to a fresh descending register.
+> Simultaneously-live values are allocated identically in both modes.**
+
+That is a local change to the allocator — the dead-intermediate case of the
+descending path becomes "reuse r11" — and nothing else in the lowering moves. It
+also means the `/Ox` operand-order and canonicalization decisions, which is where
+the reverse-engineering effort actually went, are shared by both targets.
+
 ### 3.2 Strength reduction is `/Ox`-only
 
 ```
