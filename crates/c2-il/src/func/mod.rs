@@ -354,6 +354,76 @@ pub(crate) mod test_fixtures {
         0x4B, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
 
+    // ---- the generated empty destructor, MEMBER form ------------------------
+    //
+    // The second generated destructor (`docs/IL_CALL_IN_EXPR.md` §14.3, §15): a
+    // class with no destructible base and exactly one destructible **member**,
+    // whose receiver is `this + k` through a plain `27` byte-offset add with no
+    // class-layout intrinsic anywhere. Both segments below are transcribed verbatim
+    // from one live capture of `work/rf/probes/p3.cpp` at the fixture profile
+    // (`/Ox /GS- /c`, so the trailers read `5C … 11` / `5E 01 31`):
+    //
+    //   struct MemA    { ~MemA(); int a; };
+    //   struct HasMem  { ~HasMem();  MemA m; };            // member at offset 0
+    //   struct HasMem4 { ~HasMem4(); int pad; MemA m; };   // member at offset 4
+    //   HasMem::~HasMem() {}
+    //   HasMem4::~HasMem4() {}
+    //
+    // They differ from each other in exactly two places — the offset literal and
+    // the per-TU token/type ids — and from `DTOR_DELEGATE` only in the receiver
+    // designator, everything from the `2C` strip onward being the same skeleton.
+
+    /// `HasMem::~HasMem() {}` — the destructible member at offset **0**. The
+    /// reference emits the four bytes `b ??1MemA@@QAA@XZ`.
+    pub(crate) const DTOR_MEMBER_OFF0: &[u8] = &[
+        0x53, 0x53, 0x26, 0xF0, 0x09, // statement start, `??1HasMem@@QAA@XZ`
+        0xB9, 0x09, 0x0A, 0xA6, 0x43, 0x81, 0x20, // `this`
+        0x99, 0x86, 0x43, 0x83, 0x20, 0x00, // its bind
+        0x46, // formals marker, EMPTY list
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x33, 0x86, 0x41, 0x74, 0x00, // LIT int 0 — the leading literal
+        0x26, 0xE4, 0x09, // `??1MemA@@QAA@XZ`
+        0xB9, 0x09, 0x0A, 0xA6, 0x43, 0x81, 0x20, // the object pointer, `this`
+        0x33, 0x86, 0x41, 0x74, 0x00, // LIT int 0 — the member's byte offset
+        0x27, 0xA6, 0x43, 0x8A, 0x20, // byte-offset add -> the member's address
+        0x2C, 0xA6, 0x43, 0x8B, 0x20, 0x00, // cv strip
+        0x99, 0x86, 0x43, 0x8C, 0x20, 0x00, // member bind
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x0C, 0x10, 0x00, 0x00, // CALL void
+        0x4C, // zero explicit arguments
+        0x5C, 0x86, 0x41, 0x74, 0x11, // statement trailer (EH bit set)
+        0x4B, // statement end
+        0x3A, 0x0A, 0x0A, 0x54, 0x02, 0x29, 0x0A, 0x0A, // return plumbing
+        0x5E, 0x01, 0x31, // ONE sub-object (EH bit set)
+        0x4B, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // fn tail = segment end
+    ];
+
+    /// `HasMem4::~HasMem4() {}` — the same member at offset **4**. The reference
+    /// emits `addi r3,r3,4 ; b ??1MemA@@QAA@XZ`: the one instruction that is the
+    /// whole codegen difference between the two.
+    pub(crate) const DTOR_MEMBER_OFF4: &[u8] = &[
+        0x53, 0x53, 0x26, 0xFC, 0x09, // statement start, `??1HasMem4@@QAA@XZ`
+        0xB9, 0x0C, 0x0A, 0xA6, 0x43, 0x91, 0x20, // `this`
+        0x99, 0x86, 0x43, 0x92, 0x20, 0x00, // its bind
+        0x46, // formals marker, EMPTY list
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x33, 0x86, 0x41, 0x74, 0x00, // LIT int 0 — the leading literal
+        0x26, 0xE4, 0x09, // `??1MemA@@QAA@XZ`
+        0xB9, 0x0C, 0x0A, 0xA6, 0x43, 0x91, 0x20, // the object pointer, `this`
+        0x33, 0x86, 0x41, 0x74, 0x04, // LIT int 4 — the member's byte offset
+        0x27, 0xA6, 0x43, 0x8A, 0x20, // byte-offset add -> the member's address
+        0x2C, 0xA6, 0x43, 0x8B, 0x20, 0x00, // cv strip
+        0x99, 0x86, 0x43, 0x8C, 0x20, 0x00, // member bind
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x0C, 0x10, 0x00, 0x00, // CALL void
+        0x4C, // zero explicit arguments
+        0x5C, 0x86, 0x41, 0x74, 0x11, // statement trailer (EH bit set)
+        0x4B, // statement end
+        0x3A, 0x0D, 0x0A, 0x54, 0x02, 0x29, 0x0D, 0x0A, // return plumbing
+        0x5E, 0x01, 0x31, // ONE sub-object (EH bit set)
+        0x4B, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // fn tail = segment end
+    ];
+
     // ---- indirect-load leaf -------------------------------------------------
     //
     // Every byte below is transcribed from a live capture of

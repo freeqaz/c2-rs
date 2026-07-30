@@ -14,6 +14,16 @@
 > ids and not the fixed pairs `shapes.rs` steps, which means D1 is refusing
 > textbook base-delegating destructors in every large TU for want of a five-line
 > fix.
+>
+> **UPDATE (2026-07-30, `a62633c`): §14.7's items (2) and (3) are LANDED together,
+> and §15 is the result — the member-sub-object destructor at both a zero and a
+> nonzero offset, +8,463 functions, census 11.03 % → 11.37 %, mismatch 0.** They
+> were one production differing in one literal, and the bucket drop equalled the
+> census gain exactly. §15.1 also **corrects §14.3's "574 recoverable"**: those
+> bodies carry two destruct statements and the reference emits a *frame* with two
+> `bl`s in reverse declaration order, so they are grammar-complete with both
+> offsets and codegen-complete under neither. The remaining ranked work is
+> §14.7 (4)–(7).
 
 **Status: characterization only (2026-07-30). No code was changed.** The bucket
 is the #1 blocking feature on the real dc3 workload — **304,813 functions, 13.0%
@@ -892,12 +902,15 @@ byte-offset add's `00 00` trailer; the two `(5C, 5E)` destructor trailer flag pa
 1. **`66 <n>` as LEB in `shapes.rs`** — ~5 lines, no new grammar, no new codegen,
    and it unblocks D1's existing accepted shape in every large TU. Up to **10,469**
    functions (§14.2, upper bound). Nothing else on this list has that ratio.
-2. **`recv-field-off0` for the generated destructor** — decode into the existing
-   `b <callee>` emitter, zero new instructions, codegen witness `??1HasMem`
-   (§14.3). Up to **6,234**. The grammar is D1's with the 2113 frame replaced by
-   `33 <int> 0 27 <ptr>`, so it lands inside D1's skeleton rather than beside it.
-3. **`recv-field` at a nonzero offset** — the same plus one `addi r3,r3,k`. Up to
-   **2,816**, and 574 bodies need it *together* with (2).
+2. ~~**`recv-field-off0` for the generated destructor**~~ — **LANDED** with (3) as
+   one rung, `a62633c`; §15. Realized **6,234 of 6,234**, i.e. the whole `-whole`
+   count: every one of them was the generated destructor.
+3. ~~**`recv-field` at a nonzero offset**~~ — **LANDED**, same rung. Realized
+   **2,229 of 2,816**; §15.4 characterizes the 587 residual. The "574 bodies need
+   it *together* with (2)" claim is **wrong** and §15.1 corrects it: those bodies
+   have two destruct statements and the reference emits a frame and two `bl`s in
+   reverse declaration order, so doing both offsets together does not recover
+   them. Nothing short of the framed multi-destruct shape will.
 4. **`recv-load` as a tail call** (D3 in §11) — its whole-body case emits a bare
    `b` with no new instructions, and its **whole-body-complete count in this bucket
    is 1**. Its yield is real but it lives in the `expr-load-type-xx43xx` rows, not
@@ -941,6 +954,278 @@ Always difference the scans through **absolute** paths and print each one's row
 count and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several
 reflinked worktrees with different contents, and reading one through a relative
 path has already produced a published wrong number in this project.
+
+---
+
+## 15. D3m, landed — the member sub-object destructor, at both offsets
+
+The rung §14.7 ranked (2) and (3), taken together because they are **one
+production** differing in one literal. Baseline for every number here is
+`/home/free/code/milohax/c2-rs/work/dc3-workload/scan-leb.jsonl` (878 rows,
+`fn_total` 2,462,571, in class **271,557 = 11.03 %**, `expr-call-in-expr`
+266,711, mismatch 0); the result is `work/dc3-workload/scan-rf.jsonl` from the
+same list, flags and `--cwd`.
+
+### 15.1 The characterization, with witnesses
+
+§14.3 established that `recv-field` / `recv-field-off0` are a *second* generated
+destructor: no destructible base, exactly one destructible **member**, receiver
+`this + k` through a plain `27` byte-offset add with no class-layout intrinsic
+anywhere. This rung re-captured the whole neighbourhood at the fixture profile
+(`work/rf/probes/*.cpp`; every `.text` below is from `c2rs compile --keep-obj` and
+disassembled, and every IL byte string from `census --keep-il`).
+
+**MEASURED — the shape, and the offset is the only thing that varies.** Segments
+`p3`, `q4`, `q7`, `q8` are byte-identical from the `2C` cv-strip onward to
+`DTOR_DELEGATE`'s; the receiver is the whole difference:
+
+```text
+   33 86 41 74 00                LIT int 0        the leading literal (as D1)
+   26 <??1MemA>                  the MEMBER's destructor, pushed first
+   b9 <this> a6 43 81 20         the object pointer -- NO intrinsic frame
+   33 86 41 74 <k>               LIT int k        the member's byte OFFSET
+   27 a6 43 8a 20                byte-offset add -> the member's address
+   2c a6 43 8b 20 00 · 99 … 00 · bd 82 07 03 00 <id> · 4c
+   5c 86 41 74 11 · 4b · 3a <l> 54 02 29 <l> · 5e 01 31 · 4b · <fn tail>
+```
+
+| witness | source | `.text` |
+|---|---|---|
+| `p3` h0 | `struct HasMem { ~HasMem(); MemA m; };` | `b ??1MemA@@QAA@XZ` |
+| `p3` h4 | `struct HasMem4 { ~HasMem4(); int pad; MemA m; };` | `addi r3,r3,4 ; b ??1MemA` |
+| `q7` | member's member, offset 8 | `addi r3,r3,8 ; b ??1Inner` |
+| `q8` | a 124-byte member, offset 8 | `addi r3,r3,8 ; b ??1BigMem` |
+| `q4` | **non-destructible base** + member at 4 | `addi r3,r3,4 ; b ??1MemA` |
+| `q6` | a **`const`** member at 0 and at 4 | `b ??1MemA` / `addi r3,r3,4 ; b ??1MemA` |
+| `q5` | a member whose destructor is **virtual** | `b ??1MemV@@UAA@XZ` |
+
+`q5` is the load-bearing one and it settles a claim the shape rests on: destroying
+a member sub-object of *known* type is a **direct** call even when the member's
+destructor is virtual. The bind is `99`, not `67`/`9A`, and c2 emits a plain
+REL24 branch to `??1MemV@@UAA@XZ`. The licence to branch comes from the bind, not
+from the callee — so the gate stays on the bind and does **not** need to inspect
+the callee's virtualness.
+
+**MEASURED — the offset gate, at the boundary.** `char pad[k]` before the member,
+one TU per `k`:
+
+```text
+   k = 4, 8, 12, 32760, 32764   ->  addi r3,r3,k ; b            ACCEPTED
+   k = 32768                    ->  addis r3,r3,1 ; addi r3,r3,-32768 ; b
+   k = 32772                    ->  addis r3,r3,1 ; addi r3,r3,-32764 ; b
+   k = 65532                    ->  addis r3,r3,1 ; addi r3,r3,-4    ; b
+   k = 65536                    ->  addis r3,r3,1 ; b                     (!)
+```
+
+So the switch is at exactly the signed-16-bit edge, and past it there are **two**
+further productions (`addis`+`addi`, and a bare `addis` when the low half is
+zero), each with one witness. All three are refused; `k` is required to be
+`0 ≤ k ≤ 32767`. The wide literal arrives in the escape spelling
+(`33 86 41 74 80 <4 LE bytes>`), which `read_varint` already handles — a fixed
+one-byte read would have desynced rather than refused.
+
+**MEASURED — and this is the correction to §14.3's "574 recoverable".** A class
+with **two** destructible members carries `5E 02` and **two** statements, each
+with its own leading `33 <int> 0` literal, and the reference does *not* emit two
+branches (`work/rf/probes/q1.cpp`, `struct Two { ~Two(); MemA m; MemB n; };`):
+
+```text
+   ??1Two@@QAA@XZ:  mfspr r12,r8 ; stw r12,-8(r1) ; std r31,-16(r1) ; stwu r1,-96(r1)
+                    or r31,r3,r3           <- `this` saved: it is LIVE across the call
+                    addi r3,r3,4 ; bl ??1MemB@@QAA@XZ      <- the SECOND member FIRST
+                    or r3,r31,r31 ; bl ??1MemA@@QAA@XZ
+                    addi r1,r1,96 ; lwz r12,-8(r1) ; mtspr … ; ld r31,-16(r1) ; blr
+```
+
+A frame, a callee-saved register, and the calls in **reverse declaration order**.
+§14.3's 574 bodies are grammar-complete once both offsets are admitted and
+codegen-complete under neither, so **this rung deliberately does not chase them**
+and the reachable target is 9,050, not 9,624. They are refused twice over (the
+`5E 01` count, and reaching the segment end) and swept as neighbours.
+
+**MEASURED — the other refusing neighbours.** An **array** member is a destruct
+*loop* plus a `??_I@…` helper function and blocks on `op-0x5C`, a different bucket
+(`q2`). A member with no destructor leaves the body empty (already in class as
+`empty-body`). A member pointer or reference is not a sub-object and is not
+destroyed.
+
+### 15.2 The estimate, stated before the outcome was measured
+
+Per §13.2's lesson, the estimate is of **the fix**, not the finding. Every site
+that implements the rule being changed, from a grep of the acceptance path:
+
+1. `shapes::try_parse_empty_dtor_delegation` — the **only** acceptance site, and
+   the only one that gates. Both receiver productions are alternatives inside it.
+2. `body::parse_segment_shape`'s `0xB9 | 0x33` arm — the only dispatch that can
+   reach it. Both forms open on the same leading `33 <int> 0`, so there is exactly
+   one entry point and no statement-position twin of the §5 kind.
+3. `mcall::eat_receiver` (D2's completeness matcher) and `census.rs`'s labels —
+   diagnostic only, no gate.
+4. `bundle.rs`'s lowering.
+
+The candidate population is therefore bounded by the two buckets, because a body
+whose parse stopped before the `26` is filed elsewhere and this change cannot
+reach it. Upper bound = the two `-whole` counts:
+
+| | |
+|---|---:|
+| `recv-field-off0-whole` (the zero-offset member form) | 6,234 |
+| `recv-field-whole` (the nonzero-offset member form) | 2,816 |
+| **upper bound** | **9,050** |
+
+**Bias direction stated before the outcome: an over-estimate, and this one is
+structural rather than argued.** The accepted grammar is a *strict subset* of the
+matcher's for these two forms — the matcher applies none of: the leading `33 <int>
+0` literal, the `5C`/`5E` trailer flag table, `5E`'s count being exactly 1, the
+void result, zero explicit arguments, the receiver being positively the bound
+`this` with no other formal, `27` rather than `28`, and `0 ≤ k ≤ 32767`. Every one
+of those subtracts. Nothing in the change can admit a body outside those buckets.
+**Point estimate 6,500 ± 1,500 in class.**
+
+Second prediction, and the one worth more (§13.3): **the bucket drop should equal
+the census gain exactly, and no other bucket should move.** The grammar accepts a
+whole segment or nothing, and the shape is non-committal — a declining body falls
+through to `parse_expr` and reports the identical blocker — so a function that
+leaves `recv-field*` can only have gone in class, and one that stays cannot have
+moved anywhere else.
+
+### 15.3 What was implemented
+
+`try_parse_empty_dtor_delegation` gained a second receiver production and lost
+nothing: the 2113 frame moved out to `eat_dtor_base_receiver` verbatim, the new
+`eat_dtor_member_receiver` sits beside it, and everything from the `2C` strip to
+the function tail is shared. The two are tried in order on a cursor copy, so
+neither can leave the other mid-token.
+
+`BodyShape::EmptyDtorDelegation` now carries `this_tok`, `adjust` and
+`sub_object: Base | Member`. `sub_object` is recorded rather than inferred from
+`adjust`, because a member at offset 0 and a base at adjust 0 emit the **identical
+four bytes** — the emitter cannot tell them apart and only the census wants to.
+`census.rs` therefore reports three labels (`empty-dtor-delegation`,
+`empty-dtor-member`, `empty-dtor-member-adjusted`) so the in-class gain can be
+checked against the individual bucket drops instead of their sum.
+
+**There is no new emitter.** At `adjust == 0` `bundle.rs` produces the same empty
+`params`/`ops` D1 produced, so that path is byte-identical to before. At a nonzero
+adjust it hands codegen `params = [this]`, `ops = [Load(this), Lit(k), Add]` —
+literally `return g(this + k)`, which `int_tail_call_text` has lowered to
+`addi r3,r3,k` + `b` since the MVP and which four mode lanes and the expression
+sweep have been grading ever since. The parser's `0 ≤ k ≤ 32767` bound is exactly
+the range that selector folds into one `addi`.
+
+Fixture `fixtures/cpp/w15_dtor_member.cpp`, 10 functions, all in class and
+`Port=Match`: offsets 0/4/8, a `const` member, a virtual-destructor member, a
+member's member, a 124-byte member, a non-destructible base, braces on their own
+lines (the line-70 formals-anchor hazard), and offset 32,764 — the top of the
+accepted range.
+
+`scripts/expr_sweep.sh` gained the cross product **member size × leading padding ×
+cv-qualification** (5 × 14 × 3), the same offsets reached through a
+non-destructible base, a member's member, a virtual-destructor member, the source
+line 64–76, and 19 refusing neighbours: two/three destructible members at several
+offset pairs, arrays of 2 and 3, a member with no destructor, a member pointer and
+reference, an inlinable member destructor, a virtual enclosing destructor, a
+virtual base, a template instantiation, and a constructor of the same class.
+**checked=3259 mismatches=0** (3009 before).
+
+### 15.4 The outcome, against the estimate
+
+| | baseline (`scan-leb`) | result (`scan-rf`) | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 271,557 (11.03 %) | **280,020 (11.37 %)** | **+8,463** |
+| `expr-call-in-expr-recv-field-off0-whole` | 6,234 | **0** | **−6,234** |
+| `expr-call-in-expr-recv-field-whole` | 2,816 | **587** | **−2,229** |
+| every **other** bucket, including both bare `recv-field*` | — | — | **0 moved** |
+| mismatch | 0 | **0** | — |
+| TUs gaining / losing | — | 806 / **0** | — |
+| TUs changing class | — | **0** | still 6 `match`, 7 `capture-fail` |
+
+**+8,463 against a point estimate of 6,500 ± 1,500 and an upper bound of 9,050.**
+The bound held — 93.5 % of it was realized — and the point estimate was **30 %
+low**. That is the second rung in a row where the whole-body estimate came in
+under: D1 was 15.7 % low (§13.2). The generalizable correction is that the
+deductions I listed in §15.2 sound like they should each cost something and
+measurably cost almost nothing, because they are all gates on fields that a
+*compiler-generated* body has no freedom in. The next whole-body estimate should
+be quoted **at the `-whole` bound, minus only the deductions with a measured
+population**, not at a hedged fraction of it.
+
+**The bucket drop equals the census gain exactly: 6,234 + 2,229 = 8,463.** So does
+the split by receiver production, which is why `census.rs` reports three labels:
+the zero-offset member form and the adjusted one land in their own in-class
+buckets and each matches its own bucket's drop. Nothing else moved by a single
+function — the two bare buckets are unchanged at 6,761 and 13,710, every other
+`expr-call-in-expr` sub-bucket is unchanged, and no blocker outside the bucket
+moved. This is the D1 property again (§13.3) and for the same reason: the grammar
+accepts a whole segment or nothing, and it is non-committal, so a declining body
+falls through to `parse_expr` and reports the identical blocker.
+
+**`recv-field-off0-whole` went to exactly zero.** All 6,234 were the generated
+destructor. That is a stronger result than the nonzero form's 79 %, and the
+asymmetry is worth recording because it is not explained by anything in the
+grammar: the offset-0 and nonzero paths share every gate but the offset itself.
+
+**The 587 residual — what it is not, and what it is.**
+
+* **NOT the `addi` range.** Tested and refuted: every offset literal followed by a
+  `27` in the residual TUs' `.ex` is ≤ 17,016 (`src/system/char/Character.cpp`,
+  628 escape-form and 5,111 short-form literals scanned), well inside the accepted
+  0…32,767. The `addis`+`addi` production this rung refused does not occur in the
+  workload at all.
+* **Witnesses for what it is** (hand-read from `Character.cpp`, whose residual is 5
+  of 12). Two of its three destructor-shaped nonzero-offset statements are
+  followed, where the return plumbing must begin, by:
+  `4c 5c 86 41 74 01 4b · 26 <tok> b9 <tok> …` — a **second destruct statement**,
+  and `4c 5c 86 41 74 01 4b · 4f 01 2f 53 26 <tok> 33 86 41 74 00 32 86 41 74` — a
+  destructor with a **real store statement** in its body. Both are refused for the
+  reasons the grammar was built to refuse them, and both really do emit more than
+  one branch.
+* **A third source, MEASURED to exist but not counted.** A plain
+  non-destructor member call on a sub-object is also `-whole` under D2's matcher:
+  probe `r1`, `struct C4 { int pad; M m; int f(int) const; };
+  int C4::f(int a) const { return a + m.Get(); }`, files as
+  `recv-field-whole` and needs a frame. Its offset-0 twin files as
+  `recv-field-off0-whole`, so the same shape exists on both sides of the split and
+  cannot by itself explain the asymmetry above.
+* **The split between those three is UNMEASURED**, and so is the asymmetry. The
+  plausible reading — that a class's *first* member is usually a scalar while the
+  sub-object you call methods on comes later, so non-destructor `-whole` bodies
+  concentrate at nonzero offsets — is a HYPOTHESIS with no measurement behind it.
+  A per-body classifier over the residual TUs would settle it; nothing here did.
+
+### 15.5 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+./target/release/c2rs census fixtures/cpp/w15_dtor_member.cpp # 10/10 in class
+./target/release/c2rs diff   fixtures/cpp/w15_dtor_member.cpp # Port=Match
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                     # 110 pass 0 fail 0 error
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                        # 45 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                        # 42 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                           # checked=3259 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16 \
+  --jsonl work/dc3-workload/scan-rf.jsonl
+# the probes (gitignored scratch; sources in §15.1's witness table):
+#   p3  the offset-0 / offset-4 twins            q5  a virtual-destructor member
+#   q1  TWO destructible members (the frame)     q6  a const member at both offsets
+#   q2  an array member (a destruct loop)        q7  a member's member
+#   q3  a member at offset 40,000                q8  a 124-byte member
+#   k<N> one TU per offset N, across the addi boundary
+./target/release/c2rs census work/rf/probes/q1.cpp --keep-il work/rf/il/q1
+./target/release/c2rs compile work/rf/probes/q1.cpp --keep-obj work/rf/q1.obj
+python3 work/expr/tools/objdis.py work/rf/q1.obj
+```
+
+Always difference the scans through **absolute** paths and print each one's row
+count and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several
+reflinked worktrees with different contents, and reading one through a relative
+path has already produced a published wrong number in this project.
+
+---
 
 ### 13.7 Reproduction
 

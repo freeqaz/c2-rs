@@ -24,6 +24,21 @@ use super::{CompareLeaf, IlOp};
 /// accepted body is *exactly* one of these — the parser (see [`parse_segment`])
 /// is a positive whole-stream parse that reaches the segment's end, so anything
 /// it does not model produces `None` and the caller reports `NotImplemented`.
+/// Which sub-object a [`BodyShape::EmptyDtorDelegation`] destroys, and therefore
+/// which of the two receiver productions its address came from
+/// (`docs/IL_CALL_IN_EXPR.md` §14.3). Recorded rather than inferred from `adjust`
+/// — a **member** at offset 0 and a **base** at adjust 0 emit the identical four
+/// bytes, so the emitter cannot tell them apart and only the census wants to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DtorSubObject {
+    /// The single non-virtual base, reached through the `this`-adjust intrinsic
+    /// 2113 (`docs/IL_CALL_IN_EXPR.md` §5 — the D1 shape).
+    Base,
+    /// A data member, reached by a plain `27` byte-offset add with no intrinsic
+    /// (§14.3, §15).
+    Member,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum BodyShape {
     /// Straight-line all-`int` arithmetic leaf (`return a+b+c`, `return a+5`,
@@ -62,15 +77,27 @@ pub(crate) enum BodyShape {
     /// `3A` assign of the return plumbing with no expression before it. Emits a
     /// bare `blr`.
     EmptyBody,
-    /// The **compiler-generated empty destructor** delegating to its single
-    /// non-virtual base's destructor at offset 0 — a member call through the
-    /// `this`-adjust intrinsic whose adjustment is nothing and whose result is
-    /// nothing, so the whole function is `b <base-dtor>`. Emits exactly what
-    /// [`BodyShape::VoidTailCall`] emits; kept as its own variant so the census
-    /// can attribute the movement, and because its grammar admits two opaque
-    /// trailers that must not be admitted anywhere else. See
-    /// [`shapes::try_parse_empty_dtor_delegation`].
-    EmptyDtorDelegation { callee_tok: u32 },
+    /// The **compiler-generated empty destructor** that destroys exactly one
+    /// sub-object and nothing else: either its single non-virtual **base** through
+    /// the `this`-adjust intrinsic at adjust 0, or a single destructible **member**
+    /// at byte offset `adjust` reached by a plain `27` offset add
+    /// (`docs/IL_CALL_IN_EXPR.md` §5, §15). The call has no result and nothing
+    /// follows it, so the whole function is
+    /// `[addi r3,r3,adjust ;] b <sub-object-dtor>`.
+    ///
+    /// `adjust == 0` emits exactly what [`BodyShape::VoidTailCall`] emits; a
+    /// nonzero `adjust` prepends the one `addi`, expressed as the argument-setup
+    /// operand stream `[Load(this), Lit(adjust), Add]` so it lowers through the
+    /// existing integer tail-call emitter rather than a new one (`bundle.rs`).
+    /// Kept as its own variant so the census can attribute the movement, and
+    /// because its grammar admits two opaque trailers that must not be admitted
+    /// anywhere else. See [`shapes::try_parse_empty_dtor_delegation`].
+    EmptyDtorDelegation {
+        callee_tok: u32,
+        this_tok: u32,
+        adjust: i32,
+        sub_object: DtorSubObject,
+    },
     /// An **indirect-load leaf**: the whole body is one load through a pointer
     /// (`return *p;`, `return s->m;`, `return p[k];`, `return mMember;`), which c2
     /// lowers to a single `lwz rD, off(rBase)`. `ops` is always exactly

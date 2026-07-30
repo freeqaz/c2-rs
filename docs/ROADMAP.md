@@ -686,6 +686,7 @@ instrument:
 | − variadic + dllexport refusals (`8142c17`, `62b9dfc`) — correctness, cost 0 | 228,298 | 9.27 |
 | + the generated empty destructor's base delegation (`2faed1d`) | **246,162** | **10.00** |
 | + the `66` class-pair descriptor's refs read as LEB128, not fixed pairs (`2e41e3f`) | **271,557** | **11.03** |
+| + the generated destructor's **member** sub-object, at offset 0 and at any `addi`-range offset (`a62633c`) | **280,020** | **11.37** |
 | + D1, the generated empty destructor's base delegation (`1caf463`) | **246,162** | **10.00** |
 
 That last row goes the wrong way on purpose, and it is the most instructive row
