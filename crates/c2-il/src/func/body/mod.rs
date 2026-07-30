@@ -5,7 +5,7 @@ pub(crate) mod shapes;
 
 use self::chain::{
     additive_chain_canonical, canonicalize_chain, has_repeated_leaf, leaves_ascending,
-    straight_line_is_out_of_class,
+    straight_line_is_out_of_class, straight_line_out_of_class_ctx,
 };
 use self::expr::{
     eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr, parse_formals, BODY_SCOPE_DEPTH,
@@ -600,9 +600,11 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             if has_repeated_leaf(&ops) {
                 return Err(Block { ctx: "expr-repeated-leaf", byte: None, off: p, aux: 0 });
             }
-            // Gates that used to live in codegen; see `straight_line_is_out_of_class`.
-            if straight_line_is_out_of_class(&ops, &params) {
-                return Err(Block { ctx: "expr-out-of-class", byte: None, off: p, aux: 0 });
+            // Gates that used to live in codegen; see
+            // `straight_line_out_of_class_ctx`, which names *which* of them fired
+            // so the row can be ranked clause by clause.
+            if let Some(ctx) = straight_line_out_of_class_ctx(&ops, &params) {
+                return Err(Block { ctx, byte: None, off: p, aux: 0 });
             }
             let ops = match canonicalize_chain(&ops, &params) {
                 Some(c) => c,

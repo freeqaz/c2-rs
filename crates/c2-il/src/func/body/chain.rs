@@ -8,8 +8,8 @@ pub(crate) const MAX_SUBST_OPS: usize = 32;
 /// needs a frame; mirrors `c2_core::codegen::ARG_REGS`.
 const ARG_REG_COUNT: usize = 8;
 
-/// True if a straight-line integer body parses cleanly but `select_text` would
-/// decline it anyway.
+/// The census `ctx` of a straight-line body that parses cleanly but `select_text`
+/// would decline anyway, or `None` when the body is in class.
 ///
 /// These gates used to live in codegen, and that broke a stated invariant: the
 /// convention is that acceptance is decided in the parser so `function_census` and
@@ -20,25 +20,45 @@ const ARG_REG_COUNT: usize = 8;
 /// histogram is the widening order, so an inflated numerator is a real defect
 /// rather than a cosmetic one.
 ///
+/// **Each clause has its own key.** The five refusals below are five different
+/// lowerings — a register move, a `lis`/`ori`, a strength-reduced multiply, a
+/// `subfic`, a stack frame — and reporting them as one `expr-out-of-class` bucket
+/// is the `GAPS.md` §6 conflation failure in miniature: the row was 46,200
+/// functions naming none of its own contents, and a row that cannot be
+/// decomposed cannot be ranked. The bare-LOAD clause is split further, because
+/// "the value is in the wrong argument register" (one `mr`) and "the value is not
+/// an argument at all" (a global, a spilled local — no local lowering at all) are
+/// the two halves that a single `params.first() != Some(t)` test hides.
+///
 /// Named rather than inlined so the test can assert the same predicate the parser
 /// uses; the previous "census agrees with the gate" test compared `parse_segment`
 /// with `parse_segment_detail`, which is `.ok()` of it, and so could not fail.
-pub(crate) fn straight_line_is_out_of_class(ops: &[IlOp], params: &[u32]) -> bool {
+pub(crate) fn straight_line_out_of_class_ctx(
+    ops: &[IlOp],
+    params: &[u32],
+) -> Option<&'static str> {
     // More than eight integer parameters: the ninth is stack-homed.
     if params.len() > ARG_REG_COUNT {
-        return true;
+        return Some("expr-out-of-class-formals9");
     }
     // `return b;` — a bare parameter that is not the first needs a register move.
     // `return a;` is free, since it is already in r3.
     if let [IlOp::Load(t)] = ops {
         if params.first() != Some(t) {
-            return true;
+            return Some(if params.contains(t) {
+                // In an argument register, just not r3: one `mr r3,rN`.
+                "expr-out-of-class-bare-nonfirst-formal"
+            } else {
+                // Not an argument at all — a global, a `.sy` local, a token from
+                // a construct this class does not model. No lowering is implied.
+                "expr-out-of-class-bare-nonformal"
+            });
         }
     }
     // A bare wide NEGATIVE constant: the `lis`+`ori` pair covers non-negative only.
     if let [IlOp::Lit(k)] = ops {
         if *k < -0x8000 {
-            return true;
+            return Some("expr-out-of-class-wide-neg-lit");
         }
     }
     // Multiply by a constant strength-reduces to shifts and adds, and `const - reg`
@@ -49,12 +69,20 @@ pub(crate) fn straight_line_is_out_of_class(ops: &[IlOp], params: &[u32]) -> boo
         let rhs_lit = matches!(ops.get(i.wrapping_sub(1)), Some(IlOp::Lit(_)));
         let lhs_lit = matches!(ops.first(), Some(IlOp::Lit(_)));
         match op {
-            IlOp::Mul if rhs_lit || (i == 1 && lhs_lit) => return true,
-            IlOp::Sub if i == 2 && lhs_lit => return true,
+            IlOp::Mul if rhs_lit || (i == 1 && lhs_lit) => {
+                return Some("expr-out-of-class-mul-by-lit")
+            }
+            IlOp::Sub if i == 2 && lhs_lit => return Some("expr-out-of-class-lit-minus-reg"),
             _ => {}
         }
     }
-    false
+    None
+}
+
+/// [`straight_line_out_of_class_ctx`] as a predicate, for the call sites and tests
+/// that only need the yes/no.
+pub(crate) fn straight_line_is_out_of_class(ops: &[IlOp], params: &[u32]) -> bool {
+    straight_line_out_of_class_ctx(ops, params).is_some()
 }
 
 /// True if any operand token is loaded more than once.
@@ -449,6 +477,66 @@ mod tests {
         assert!(canonicalize_chain(&[a, b, IlOp::Mul, c, IlOp::Add], &p).is_none());
         assert!(canonicalize_chain(&[a, IlOp::Lit(2), IlOp::Mul], &p).is_none());
         assert!(canonicalize_chain(&[IlOp::Lit(1), a, IlOp::Sub], &p).is_none());
+    }
+
+    #[test]
+    fn each_out_of_class_clause_reports_its_own_key() {
+        // One bucket naming five different lowerings is the `GAPS.md` §6
+        // conflation failure; a row that cannot be decomposed cannot be ranked.
+        // Measured on the 878-TU workload: the whole 46,200-function row is two
+        // of these clauses and the other three are 0, which is only visible once
+        // they are separate keys.
+        let p = vec![0x10, 0x11]; // a -> r3, b -> r4
+        let ctx = |ops: &[IlOp]| straight_line_out_of_class_ctx(ops, &p);
+
+        // `return a;` — already in r3, in class.
+        assert_eq!(ctx(&[IlOp::Load(0x10)]), None);
+        // `return b;` — one `mr r3,r4`.
+        assert_eq!(
+            ctx(&[IlOp::Load(0x11)]),
+            Some("expr-out-of-class-bare-nonfirst-formal")
+        );
+        // A token that is not a formal at all: a global, a `.sy` local, a token
+        // from a construct this class does not model. Kept apart from the clause
+        // above because there is no lowering implied — 2,881 functions against
+        // 43,319, and only one of the two is a register move.
+        assert_eq!(
+            ctx(&[IlOp::Load(0x99)]),
+            Some("expr-out-of-class-bare-nonformal")
+        );
+        // The three clauses the real workload never reaches, pinned so that stays
+        // a measurement rather than an assumption.
+        let nine: Vec<u32> = (0..9).collect();
+        assert_eq!(
+            straight_line_out_of_class_ctx(&[IlOp::Load(0)], &nine),
+            Some("expr-out-of-class-formals9")
+        );
+        assert_eq!(
+            ctx(&[IlOp::Lit(-0x8001)]),
+            Some("expr-out-of-class-wide-neg-lit")
+        );
+        assert_eq!(ctx(&[IlOp::Lit(-0x8000)]), None);
+        assert_eq!(
+            ctx(&[IlOp::Load(0x10), IlOp::Lit(3), IlOp::Mul]),
+            Some("expr-out-of-class-mul-by-lit")
+        );
+        assert_eq!(
+            ctx(&[IlOp::Lit(3), IlOp::Load(0x10), IlOp::Sub]),
+            Some("expr-out-of-class-lit-minus-reg")
+        );
+        // The predicate and the key must never disagree: one is `.is_some()` of
+        // the other, and this is the test that keeps it that way.
+        for ops in [
+            vec![IlOp::Load(0x10)],
+            vec![IlOp::Load(0x11)],
+            vec![IlOp::Lit(-0x8001)],
+            vec![IlOp::Load(0x10), IlOp::Lit(3), IlOp::Mul],
+        ] {
+            assert_eq!(
+                straight_line_is_out_of_class(&ops, &p),
+                straight_line_out_of_class_ctx(&ops, &p).is_some()
+            );
+        }
     }
 
     #[test]
