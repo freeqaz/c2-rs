@@ -1059,6 +1059,30 @@ The rules that keep the numbers honest:
 - **Byte-exact means byte-exact.** Replay: raw-identical including the COFF
   timestamp. Port: identical with only the 4-byte timestamp zeroed. No
   fuzzy thresholds anywhere; real c2 under wibo is the sole judge.
+- **A failed search is not evidence of absence.** Three of this project's
+  wrong-bytes emits are the same mistake: code asked "did I find X?" and read
+  "no" as "there is no X". `.gl` did not name a destination, so the token was
+  taken for a local — but a file-scope `static` is `$sv`, which the index does
+  not accept as an identifier, and the store vanished. No `this` group was found
+  ahead of the first `0x46`, so the function was taken for a non-member — but on
+  source line 70 the first `0x46` is the line marker's payload, and every formal
+  dropped a register (`il_this_line70.cpp`). The fix in both cases is the same
+  shape: make *absence* something you can positively see, and give the answer a
+  third value — **undetermined** — that refuses. A two-valued answer silently
+  converts a decode failure into wrong bytes; a three-valued one converts it into
+  a `NotImplemented`.
+- **One fact, one locator.** The `46` formals marker was located correctly in
+  `parse_formals` (anchored to end on `LO`, after the line-70 bug) and
+  incorrectly in `parse_this_token` (first matching byte) *at the same time*, for
+  weeks. Fixing an anchor is not done until every reader of that anchor shares
+  it; a second copy is where the bug goes to live. Deleting the unsafe helper
+  (`find_byte`) was part of the fix, not tidying.
+- **A truncated fixture cannot witness the region it omits.** The three pinned
+  `.ex` segments started at the formals marker, so the pre-body region — where
+  `this` is bound, and where the emit was wrong — appeared in no test. They read
+  as verbatim captures and were verbatim *suffixes*. If a fixture is trimmed, the
+  trimmed part is untested, and saying so in the fixture is what stops the next
+  reader from assuming otherwise.
 - **`mismatch` is an alarm, not a gap.** Any nonzero mismatch bucket — on
   fixtures or the workload — is a correctness bug that outranks all widening
   work. The port's value downstream depends on this bucket staying 0.
