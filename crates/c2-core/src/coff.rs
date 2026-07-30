@@ -147,8 +147,15 @@ struct Section<'a> {
     raw: std::borrow::Cow<'a, [u8]>,
     /// Aux section-def CheckSum (0 for non-COMDAT).
     checksum: u32,
-    /// COMDAT selection (0 = not COMDAT; 2 = SELECT_ANY).
+    /// COMDAT selection (0 = not COMDAT; 2 = SELECT_ANY; 1 = NODUPLICATES;
+    /// 5 = ASSOCIATIVE).
     selection: u8,
+    /// Aux section-def `Number`. Zero everywhere except a Selection=5
+    /// (ASSOCIATIVE) COMDAT, where it is the **1-based section number of the
+    /// section this one is tied to** — the mechanism `/Gy` uses to attach a
+    /// function's `.pdata` COMDAT to its `.text` COMDAT so the linker discards
+    /// both together.
+    assoc: u16,
 }
 
 /// Build the complete MVP `.obj` image bytes.
@@ -159,11 +166,8 @@ struct Section<'a> {
 ///   `?add3@@YAHHHH@Z`.
 /// * `text` — the `.text` bytes from codegen (12 for `add3`).
 pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> {
-    emit_obj(
-        obj_name,
-        &[Function::plain(mangled_name, 0)],
-        text,
-    )
+    // Label counter unused: a `Function::plain` has no frame, so no `$M`/`$T`.
+    emit_obj(obj_name, &[Function::plain(mangled_name, 0)], text, 0)
 }
 
 /// A relative-branch (REL24) relocation for a tail call: the callee's mangled
@@ -189,12 +193,17 @@ pub struct Function<'a> {
     /// W13b: this function's floating-point constant reference sites, in
     /// emission order, with `hi_off` already rebased to the whole `.text`.
     pub fp_refs: Vec<crate::codegen::FpConstRef>,
+    /// `Some` iff this function establishes a stack frame, carrying the two
+    /// lengths its `.pdata` record and its two `$M` labels need. `None` for a
+    /// leaf — c2 emits no unwind record for one, so this field alone decides
+    /// whether the obj has a `.pdata` section at all.
+    pub frame: Option<Frame>,
 }
 
 impl<'a> Function<'a> {
-    /// A function with no call and no constant pool — the common case.
+    /// A function with no call, no constant pool and no frame — the common case.
     pub fn plain(name: &'a str, text_offset: u32) -> Function<'a> {
-        Function { name, text_offset, call: None, is_float: false, fp_refs: Vec::new() }
+        Function { name, text_offset, call: None, is_float: false, fp_refs: Vec::new(), frame: None }
     }
 }
 
@@ -261,209 +270,166 @@ fn coff_checksum(data: &[u8]) -> u32 {
     c
 }
 
-/// Build the 8-byte X360 `RUNTIME_FUNCTION` for a framed `.text` of `text_len`
-/// bytes: `BeginAddress` (u32 = 0, patched by the ADDR32 relocation) then the
-/// packed unwind word, both **big-endian** (like `.text`, unlike COFF fields).
+/// The unwind facts one framed function contributes: the two lengths that go
+/// into its `.pdata` record and, as it happens, the values of its two `$M`
+/// labels. Both in **bytes**; both must be word multiples.
 ///
-/// The packed word is `0x40000000 | (function_length_words << 8) |
-/// prolog_length_words`, verified by diffing the 0x24-byte `+k` body
-/// (`0x40000903`, 9 words) against the 0x28-byte `*5` body (`0x40000A03`,
-/// 10 words) — incrementing the length adds `0x100`. The prologue
-/// (`mflr;stw;stwu`) is 3 words for this frame class.
-fn build_pdata(text_len: usize) -> Vec<u8> {
-    let function_words = (text_len / 4) as u32;
-    let prolog_words = 3u32;
-    let unwind = 0x4000_0000u32 | (function_words << 8) | prolog_words;
-    let mut b = Vec::with_capacity(8);
-    b.extend_from_slice(&0u32.to_be_bytes()); // BeginAddress (reloc-patched)
-    b.extend_from_slice(&unwind.to_be_bytes()); // packed unwind word
+/// A **leaf** contributes nothing — c2 emits no `.pdata` record for a function
+/// that establishes no frame, and "establishes a frame" is exactly what the
+/// emitter knows (it wrote the prologue). Measured: a leaf with a 400-byte local
+/// array addresses it below `r1` in the red zone (`addi r10,r1,-400`) and gets no
+/// record; make the array 70,000 bytes so the prologue has to move `r1` and the
+/// record appears.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Frame {
+    /// Prologue length in bytes — the offset one past the last prologue
+    /// instruction, i.e. the value of the `$M(n)` label.
+    pub prolog_len: u32,
+    /// Function length in bytes, **excluding** any inter-function padding —
+    /// the value of the `$M(n+1)` label.
+    pub func_len: u32,
+}
+
+/// `IMAGE_COMDAT_SELECT_ASSOCIATIVE` — the selection a per-function `.pdata`
+/// COMDAT carries under `/Gy`, tying it to its `.text` COMDAT.
+const COMDAT_SELECT_ASSOCIATIVE: u8 = 5;
+
+/// `.pdata` COMDAT characteristics under `/Gy`: [`CH_PDATA`] plus
+/// `IMAGE_SCN_LNK_COMDAT` (0x1000).
+const CH_PDATA_COMDAT: u32 = 0x4040_1040;
+
+/// Build the 8-byte X360 `RUNTIME_FUNCTION` for one framed function:
+/// `BeginAddress` (patched by an ADDR32 relocation against the function's own
+/// symbol, so the raw value is the addend — 0 for every record the port emits)
+/// followed by the packed unwind word, both **big-endian** (like `.text`,
+/// unlike every COFF header field).
+///
+/// The unwind word is a bitfield, established from c2's own output rather than
+/// from any x64 `.pdata` documentation — the Xbox 360 form has no `.xdata` and
+/// no unwind-code array at all, the whole record is these 8 bytes:
+///
+/// ```text
+///   bits  7..0   PrologLen   prologue length in INSTRUCTIONS
+///   bits 29..8   FuncLen     function length in INSTRUCTIONS
+///   bit  30      ThirtyTwoBit  1 in every record c2 emitted across the probes
+///   bit  31      ExceptionFlag 1 iff the function has EH data
+/// ```
+///
+/// Witnesses, each read straight out of a reference obj (source in
+/// `docs/OBJ_FORMAT_MVP.md` §7):
+///
+/// ```text
+///   0x40000903  9 words / prolog 3   return g(a)+1        .text 0x24, $M @ 0x0c
+///   0x40001205 18 words / prolog 5   two calls, r30/r31   .text 0x48, $M @ 0x14
+///   0x40001607 22 words / prolog 7   100 KB local + calls .text 0x58, $M @ 0x1c
+///   0x40002203 34 words / prolog 3   6 args via __savegprlr_25
+///   0x40000f06 15 words / prolog 6   leaf with a 70 KB frame (still framed)
+///   0xc0001306 19 words / prolog 6   a body with a destructor, /EHsc
+/// ```
+///
+/// so `FuncLen` and `PrologLen` are the only fields that move, they are exactly
+/// the two `$M` label values divided by four, and bit 31 is the one thing that
+/// takes the record outside the class this port emits (EH also splits a function
+/// into **several** records — a `try`/`catch` body produced two, the catch
+/// funclet's first, with a non-zero `BeginAddress` addend).
+pub fn pdata_record(begin_addend: u32, frame: &Frame) -> [u8; 8] {
+    debug_assert_eq!(frame.func_len % 4, 0, "function length is a word multiple");
+    debug_assert_eq!(frame.prolog_len % 4, 0, "prologue length is a word multiple");
+    let unwind = UNWIND_THIRTY_TWO_BIT | ((frame.func_len / 4) << 8) | (frame.prolog_len / 4);
+    let mut r = [0u8; 8];
+    r[..4].copy_from_slice(&begin_addend.to_be_bytes());
+    r[4..].copy_from_slice(&unwind.to_be_bytes());
+    r
+}
+
+/// Bit 30 of the unwind word — set in every record c2 emitted across every
+/// probe. Named rather than folded into a magic constant because bit 31 beside
+/// it is the EH flag, and the port refuses that case.
+const UNWIND_THIRTY_TWO_BIT: u32 = 0x4000_0000;
+
+/// The `.pdata` raw section for a run of framed functions, records concatenated
+/// in `.text` order. Under `/Gy` this is called once per function (one record);
+/// packed, once for the whole TU.
+fn build_pdata(frames: &[&Frame]) -> Vec<u8> {
+    let mut b = Vec::with_capacity(frames.len() * 8);
+    for f in frames {
+        b.extend_from_slice(&pdata_record(0, f));
+    }
     b
 }
 
-/// Emit the 6-section `.obj` for a **framed non-leaf call** `int f(int a){
-/// return g(a) + k; }` (W4b2). Adds a `.pdata` unwind section and the
-/// compiler-generated label symbols ($M2545/$M2546/$T2547) on top of the leaf
-/// layout; the 5-section [`emit_obj`] path is untouched for leaf/tail TUs.
+/// How far past the `.gl` label counter ([`c2_il::label_counter`]) the first
+/// compiler label of a TU sits.
+pub const LABEL_SEED_GAP: u32 = 9;
+
+/// The `$M`/`$T` label numbers c2 gives each function, or `None` for a function
+/// that is not framed (it consumes counter slots but emits no label).
 ///
-/// Scope: a **single-function TU** with one external callee. The $M/$T label
-/// counters are a fixed toolchain seed (`2545/2546/2547`) only for the first
-/// function of the TU (W-UNW-1 probe) — so the emitter hardcodes those names
-/// and the full 20-symbol layout in the observed slot order.
+/// The allocator, measured against real objs over 25 TUs — see
+/// `docs/OBJ_GY_SHAPES.md` §3.4/§3.5:
 ///
-/// * `obj_name`   — the `-Fo` path (embedded in `.debug$S` S_OBJNAME).
-/// * `func_name`  — the defined function's mangled name (`?f@@YAHH@Z`).
-/// * `callee_name`— the external callee's mangled name (`?g@@YAHH@Z`).
-/// * `text`       — the framed `.text` from codegen (0x24 bytes).
-pub fn emit_framed_obj(obj_name: &str, func_name: &str, callee_name: &str, text: &[u8]) -> Vec<u8> {
-    let debug_s = build_debug_s(obj_name);
-    let pdata = build_pdata(text.len());
-    let pdata_checksum = coff_checksum(&pdata);
-
-    // Six sections, fixed order. `.text` and `.pdata` each carry one relocation.
-    let sections = [
-        Section {
-            name: ".drectve",
-            characteristics: CH_DRECTVE,
-            raw: std::borrow::Cow::Borrowed(DRECTVE),
-            checksum: 0,
-            selection: 0,
-        },
-        Section {
-            name: ".debug$S",
-            characteristics: CH_DEBUGS,
-            raw: std::borrow::Cow::Owned(debug_s),
-            checksum: 0,
-            selection: 0,
-        },
-        Section {
-            name: ".XBLD$W",
-            characteristics: CH_XBLD_C2,
-            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
-            checksum: XBLD_C2_CHECKSUM,
-            selection: 2,
-        },
-        Section {
-            name: ".XBLD$W",
-            characteristics: CH_XBLD_C1,
-            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
-            checksum: XBLD_C1_CHECKSUM,
-            selection: 2,
-        },
-        Section {
-            name: ".text",
-            characteristics: CH_TEXT,
-            raw: std::borrow::Cow::Borrowed(text),
-            checksum: 0,
-            selection: 0,
-        },
-        Section {
-            name: ".pdata",
-            characteristics: CH_PDATA,
-            raw: std::borrow::Cow::Owned(pdata),
-            checksum: pdata_checksum,
-            selection: 0,
-        },
-    ];
-    let n_sections = sections.len();
-
-    // --- file layout ---
-    // Sections 0..=4 raw data is packed contiguously; then MSVC writes each
-    // remaining section's raw + its relocations *interleaved* in section order:
-    // `.text` raw, `.text` reloc, `.pdata` raw, `.pdata` reloc, symbol table.
-    // (Verified against the reference obj: `.pdata` raw sits AFTER the `.text`
-    // relocation block, not contiguous with `.text` raw.)
-    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
-    let mut ptr_raw = [0usize; 6];
-    let mut ptr_reloc = [0usize; 6];
-    let mut cursor = raw_base;
-    // sections 0..=4 raw, contiguous.
-    for i in 0..5 {
-        ptr_raw[i] = cursor;
-        cursor += sections[i].raw.len();
+/// * the first label of a TU is `.gl` counter + [`LABEL_SEED_GAP`];
+/// * under `/Gy` a flat surcharge of **3 per function in the TU** is paid
+///   up front, before any function's own labels — even for functions that emit
+///   no label at all;
+/// * then, in `.text` order, each function consumes **1** if it is a leaf and
+///   **4** (packed) / **5** (`/Gy`) if it is framed, of which the framed
+///   function emits the first three as `$M(n)` (prologue end), `$M(n+1)`
+///   (function end) and `$T(n+2)` (its `.pdata` record).
+///
+/// The "1 per leaf" holds for every function class this port emits and **not**
+/// for every function class: a comparison leaf (`a < b`) consumes 3, a
+/// floating-point leaf 2, and each pooled FP constant a further 2. Those are
+/// refused upstream ([`crate::PortC2::build`]) rather than modeled, because a
+/// wrong stride is a wrong `$M` number and a wrong `$M` number is a wrong-bytes
+/// obj — the whole point of the counter.
+pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option<[u32; 3]>> {
+    let mut cur = counter + LABEL_SEED_GAP;
+    if comdat {
+        cur += 3 * funcs.len() as u32;
     }
-    // .text (idx 4) reloc immediately follows its raw.
-    ptr_reloc[4] = cursor;
-    cursor += RELOC_LEN;
-    // .pdata (idx 5) raw, then its reloc.
-    ptr_raw[5] = cursor;
-    cursor += sections[5].raw.len();
-    ptr_reloc[5] = cursor;
-    cursor += RELOC_LEN;
-    let ptr_symtab = cursor;
+    funcs
+        .iter()
+        .map(|f| match f.frame {
+            Some(_) => {
+                let n = cur;
+                cur += if comdat { 5 } else { 4 };
+                Some([n, n + 1, n + 2])
+            }
+            None => {
+                cur += 1;
+                None
+            }
+        })
+        .collect()
+}
 
-    // Fixed 20-symbol layout (single-function TU). Reloc symbol indices are
-    // hardcoded to match the observed table: the `bl` REL24 targets `?g`
-    // (idx 15); the `.pdata` ADDR32 targets `?f` (idx 13).
-    const SYM_F: u32 = 13;
-    const SYM_G: u32 = 15;
-    let n_symbols: u32 = 20;
+/// Render a compiler label name (`$M2545`, `$T2547`). Kept as one function so
+/// the 8-byte short-name limit is checked in one place: the numbers observed run
+/// to four digits, and a five-digit counter would still fit (`$M12345`).
+fn label_name(prefix: char, n: u32) -> String {
+    format!("${prefix}{n}")
+}
 
-    // ---- COFF header ----
-    let mut b = Buf::new();
-    b.u16(MACHINE_POWERPCBE);
-    b.u16(n_sections as u16);
-    b.u32(0); // TimeDateStamp — normalized away
-    b.u32(ptr_symtab as u32);
-    b.u32(n_symbols);
-    b.u16(0); // SizeOfOptionalHeader
-    b.u16(CHARACTERISTICS);
+// `emit_framed_obj` used to live here: a second whole-obj emitter for the one
+// single-function framed TU, with a hardcoded 20-symbol table and the label
+// names `$M2545/$M2546/$T2547` written out literally. It is gone. A framed
+// function is now a `Function` with a `frame`, and the same two emitters
+// (`emit_obj` packed, `emit_comdat_obj` under `/Gy`) build every obj — because
+// this file already carries two bugs whose whole cause was one rule
+// implemented in two emitters and fixed in one.
 
-    // ---- section headers ----
-    for (i, s) in sections.iter().enumerate() {
-        let (prel, nrel) = match i {
-            4 | 5 => (ptr_reloc[i] as u32, 1u16), // .text / .pdata each have 1
-            _ => (0, 0),
-        };
-        b.name8(s.name);
-        b.u32(0); // VirtualSize
-        b.u32(0); // VirtualAddress
-        b.u32(s.raw.len() as u32); // SizeOfRawData
-        b.u32(ptr_raw[i] as u32); // PointerToRawData
-        b.u32(prel); // PointerToRelocations
-        b.u32(0); // PointerToLinenumbers
-        b.u16(nrel); // NumberOfRelocations
-        b.u16(0); // NumberOfLinenumbers
-        b.u32(s.characteristics);
-    }
-
-    // ---- interleaved raw + relocations ----
-    for i in 0..5 {
-        b.bytes(&sections[i].raw);
-    }
-    debug_assert_eq!(b.0.len(), ptr_reloc[4]);
-    // .text relocation: the `bl` REL24 at FRAMED_BL_OFFSET → callee `?g`.
-    b.u32(crate::codegen::FRAMED_BL_OFFSET);
-    b.u32(SYM_G);
-    b.u16(REL_PPC_REL24);
-    debug_assert_eq!(b.0.len(), ptr_raw[5]);
-    b.bytes(&sections[5].raw);
-    debug_assert_eq!(b.0.len(), ptr_reloc[5]);
-    // .pdata relocation: ADDR32 at va=0 (BeginAddress) → defined function `?f`.
-    b.u32(0);
-    b.u32(SYM_F);
-    b.u16(REL_PPC_ADDR32);
-    debug_assert_eq!(b.0.len(), ptr_symtab);
-
-    // ---- symbol table (fixed 20-slot order) + string table ----
-    let mut strtab = StringTable::new();
-    let text_len = text.len() as u32;
-
-    // 0: @comp.id
-    b.name8("@comp.id");
-    b.u32(COMP_ID_VALUE);
-    b.i16(-1);
-    b.u16(0x0000);
-    b.u8(3);
-    b.u8(0);
-
-    emit_section_symbol(&mut b, &sections[0], 1, 0); // 1/2  .drectve
-    emit_section_symbol(&mut b, &sections[1], 2, 0); // 3/4  .debug$S
-    emit_section_symbol(&mut b, &sections[2], 3, 0); // 5/6  .XBLD$W C2
-    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000); // 7
-    emit_section_symbol(&mut b, &sections[3], 4, 0); // 8/9  .XBLD$W C1
-    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000); // 10
-    emit_section_symbol(&mut b, &sections[4], 5, 1); // 11/12 .text (1 reloc)
-
-    // 13: ?f — defined function in .text.
-    emit_function_symbol(&mut b, &mut strtab, func_name, 5, 0);
-    // 14: $M2546 — label at end of .text (value = text length).
-    emit_label_symbol(&mut b, "$M2546", text_len, 5);
-    // 15: ?g — undefined external callee (section 0, FUNCTION type).
-    emit_function_symbol(&mut b, &mut strtab, callee_name, 0, 0);
-    // 16: $M2545 — label at the `bl` site.
-    emit_label_symbol(&mut b, "$M2545", crate::codegen::FRAMED_BL_OFFSET, 5);
-    // 17/18: .pdata section symbol + aux (1 reloc, real CRC checksum).
-    emit_section_symbol(&mut b, &sections[5], 6, 1);
-    // 19: $T2547 — the `.pdata` label (storage class 3, not 6).
-    b.name8("$T2547");
-    b.u32(0); // Value
-    b.i16(6); // .pdata
-    b.u16(0x0000);
-    b.u8(3); // STATIC
-    b.u8(0);
-
-    b.bytes(&strtab.finish());
-    b.0
+/// Emit the `$T…` label that sits on a `.pdata` record. Same shape as
+/// [`emit_label_symbol`] but storage class **3 (STATIC)**, not 6 (LABEL) — a
+/// one-byte difference between two symbols emitted four slots apart, and the
+/// reason this is its own function rather than a boolean argument.
+fn emit_pdata_label_symbol(b: &mut Buf, name: &str, value: u32, sec_num: i16) {
+    b.name8(name);
+    b.u32(value);
+    b.i16(sec_num);
+    b.u16(0x0000); // Type
+    b.u8(3); // IMAGE_SYM_CLASS_STATIC
+    b.u8(0); // no aux
 }
 
 /// Emit a compiler-generated **label** symbol (storage class 6, no aux) with an
@@ -508,6 +474,7 @@ pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
             raw: std::borrow::Cow::Borrowed(DRECTVE),
             checksum: 0,
             selection: 0,
+            assoc: 0,
         },
         Section {
             name: ".debug$S",
@@ -515,6 +482,7 @@ pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
             raw: std::borrow::Cow::Owned(build_debug_s(obj_name)),
             checksum: 0,
             selection: 0,
+            assoc: 0,
         },
         Section {
             name: ".XBLD$W",
@@ -522,6 +490,7 @@ pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
             raw: std::borrow::Cow::Borrowed(&XBLD_C2),
             checksum: XBLD_C2_CHECKSUM,
             selection: 2,
+            assoc: 0,
         },
         Section {
             name: ".XBLD$W",
@@ -529,6 +498,7 @@ pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
             raw: std::borrow::Cow::Borrowed(&XBLD_C1),
             checksum: XBLD_C1_CHECKSUM,
             selection: 2,
+            assoc: 0,
         },
     ];
     let n_sections = sections.len();
@@ -613,10 +583,11 @@ mod comdat_tests {
             call: Some(Call { reloc_offset: off, callee }),
             is_float: false,
             fp_refs: Vec::new(),
+            frame: None,
         };
         // Three functions, two of them calling the same callee.
         let funcs = [mk("?a@@YAHXZ", 0, "?g@@YAHXZ"), mk("?b@@YAHXZ", 4, "?h@@YAHXZ"), mk("?c@@YAHXZ", 8, "?g@@YAHXZ")];
-        let obj = emit_obj("Z:\\t.obj", &funcs, &text);
+        let obj = emit_obj("Z:\\t.obj", &funcs, &text, 0);
         let n_symbols = u32::from_le_bytes(obj[12..16].try_into().unwrap());
         // 13 fixed + 3 defined + 2 distinct callees, NOT 3.
         assert_eq!(n_symbols, 18, "expected one symbol per distinct callee");
@@ -651,6 +622,7 @@ mod comdat_tests {
             call: Some(Call { reloc_offset: 0, callee }),
             is_float: false,
             fp_refs: Vec::new(),
+            frame: None,
         };
         // Three functions, two calling the same callee — the shape `il_call_perm.cpp`
         // has six of, where the port came out five symbols long.
@@ -660,7 +632,7 @@ mod comdat_tests {
             mk("?c@@YAHXZ", "?g@@YAHXZ"),
         ];
         let texts = vec![blr.clone(), blr.clone(), blr];
-        let obj = emit_comdat_obj("Z:\\t.obj", &funcs, &texts);
+        let obj = emit_comdat_obj("Z:\\t.obj", &funcs, &texts, 0);
 
         // 11 fixed + per function (section symbol + aux + defined symbol) = 9,
         // + 2 distinct callees, NOT 3.
@@ -701,7 +673,7 @@ mod comdat_tests {
             Function::plain("?SpewInit@@YAXXZ", 0),
             Function::plain("?SpewTerminate@@YAXXZ", 0),
         ];
-        let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr]);
+        let obj = emit_comdat_obj("Z:\\x.obj", &funcs, &[blr.clone(), blr], 0);
 
         let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
         let u32at = |o: usize| {
@@ -773,8 +745,25 @@ const CH_TEXT_COMDAT: u32 = 0x6040_1020;
 /// `texts[i]` is function `i`'s own `.text` bytes; each function's
 /// `text_offset` is ignored (it is 0 within its own section) and any
 /// `call.reloc_offset` is relative to that function's section.
-pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) -> Vec<u8> {
+///
+/// A **framed** function additionally gets its own `.pdata` COMDAT, emitted
+/// immediately after its `.text` COMDAT and tied to it by
+/// `IMAGE_COMDAT_SELECT_ASSOCIATIVE` with the aux `Number` field naming that
+/// `.text`'s section number — so the linker drops a function's unwind record
+/// with the function. `label_counter` is the `.gl` seed
+/// ([`c2_il::label_counter`]); it is unused when no function is framed, and a
+/// caller with a framed function and no counter must refuse rather than guess.
+pub fn emit_comdat_obj(
+    obj_name: &str,
+    funcs: &[Function],
+    texts: &[Vec<u8>],
+    label_counter: u32,
+) -> Vec<u8> {
     assert_eq!(funcs.len(), texts.len(), "one text per function");
+    let labels = plan_labels(label_counter, funcs, true);
+    // Per-function `.pdata` raw, built up front so the sections can borrow it.
+    let pdata_raw: Vec<Option<[u8; 8]>> =
+        funcs.iter().map(|f| f.frame.as_ref().map(|fr| pdata_record(0, fr))).collect();
 
     let mut sections: Vec<Section> = vec![
         Section {
@@ -783,6 +772,7 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
             raw: std::borrow::Cow::Borrowed(DRECTVE),
             checksum: 0,
             selection: 0,
+            assoc: 0,
         },
         Section {
             name: ".debug$S",
@@ -790,6 +780,7 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
             raw: std::borrow::Cow::Owned(build_debug_s(obj_name)),
             checksum: 0,
             selection: 0,
+            assoc: 0,
         },
         Section {
             name: ".XBLD$W",
@@ -797,6 +788,7 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
             raw: std::borrow::Cow::Borrowed(&XBLD_C2),
             checksum: XBLD_C2_CHECKSUM,
             selection: 2,
+            assoc: 0,
         },
         Section {
             name: ".XBLD$W",
@@ -804,17 +796,41 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
             raw: std::borrow::Cow::Borrowed(&XBLD_C1),
             checksum: XBLD_C1_CHECKSUM,
             selection: 2,
+            assoc: 0,
         },
     ];
-    const FIXED_SECTIONS: usize = 4;
-    for t in texts {
+    // Per function: its `.text` COMDAT, then — if it is framed — its `.pdata`
+    // COMDAT immediately after, tied back with SELECT_ASSOCIATIVE. `sec_text[i]`
+    // / `sec_pdata[i]` are 0-based indices into `sections`.
+    let mut sec_text: Vec<usize> = Vec::with_capacity(funcs.len());
+    let mut sec_pdata: Vec<Option<usize>> = Vec::with_capacity(funcs.len());
+    for (i, t) in texts.iter().enumerate() {
+        sec_text.push(sections.len());
         sections.push(Section {
             name: ".text",
             characteristics: CH_TEXT_COMDAT,
             raw: std::borrow::Cow::Borrowed(t.as_slice()),
             checksum: 0,
             selection: COMDAT_SELECT_NODUPLICATES,
+            assoc: 0,
         });
+        match &pdata_raw[i] {
+            None => sec_pdata.push(None),
+            Some(rec) => {
+                let text_sec_num = (sec_text[i] + 1) as u16;
+                sec_pdata.push(Some(sections.len()));
+                sections.push(Section {
+                    name: ".pdata",
+                    characteristics: CH_PDATA_COMDAT,
+                    raw: std::borrow::Cow::Borrowed(&rec[..]),
+                    // `.pdata` is the one COMDAT c2 gives a real CheckSum —
+                    // `.text` and the `.rdata` constant pools carry 0.
+                    checksum: coff_checksum(&rec[..]),
+                    selection: COMDAT_SELECT_ASSOCIATIVE,
+                    assoc: text_sec_num,
+                });
+            }
+        }
     }
     let n_sections = sections.len();
 
@@ -836,19 +852,32 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     // `.text` being last hid it. Two emitters, one wrong assumption, and the second
     // one stayed wrong because no lane compiled a multi-call fixture with `/Gy`
     // until `scripts/mode_lane.sh`.
+    //
+    // A framed function's `.pdata` has exactly one relocation of its own (the
+    // ADDR32 on `BeginAddress`), so it follows the same rule.
+    let n_reloc_of: Vec<u16> = sections
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            if let Some(k) = sec_text.iter().position(|&x| x == i) {
+                u16::from(funcs[k].call.is_some())
+            } else if sec_pdata.iter().any(|p| *p == Some(i)) {
+                1
+            } else {
+                0
+            }
+        })
+        .collect();
     let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
     let mut ptrs = Vec::with_capacity(n_sections);
-    let mut reloc_ptr: Vec<Option<usize>> = vec![None; funcs.len()];
+    let mut reloc_ptr: Vec<Option<usize>> = vec![None; n_sections];
     let mut cursor = raw_base;
     for (i, s) in sections.iter().enumerate() {
         ptrs.push(cursor);
         cursor += s.raw.len();
-        // The i-th section past the fixed prefix belongs to funcs[i - FIXED].
-        if let Some(k) = i.checked_sub(FIXED_SECTIONS) {
-            if funcs.get(k).is_some_and(|f| f.call.is_some()) {
-                reloc_ptr[k] = Some(cursor);
-                cursor += RELOC_LEN;
-            }
+        if n_reloc_of[i] > 0 {
+            reloc_ptr[i] = Some(cursor);
+            cursor += n_reloc_of[i] as usize * RELOC_LEN;
         }
     }
     let ptr_symtab = cursor;
@@ -864,6 +893,13 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     // had already been fixed for exactly this; `emit_comdat_obj` had not, and no lane
     // compiled the call fixtures with `/Gy` until `scripts/mode_lane.sh`.
     //
+    // A framed function's group is longer, and the order inside it is the
+    // reference's, not an obvious one — the END label comes before the callee and
+    // the PROLOGUE label after it:
+    //
+    //   [.text sym + aux] [fn] [$M(n+1) @ function end] [callee, if new]
+    //   [$M(n) @ prologue end] [.pdata sym + aux] [$T(n+2) @ 0]
+    //
     // `_fltused` goes immediately after the **first** float function's complete
     // group — its section symbol + aux, its function symbol, and any callee external
     // it introduced — and before the next function's section symbol. That is the
@@ -877,10 +913,15 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     let mut callee_idx: Vec<Option<u32>> = Vec::with_capacity(funcs.len());
     // Whether this function is the one that introduces its callee's symbol.
     let mut introduces: Vec<bool> = Vec::with_capacity(funcs.len());
+    let mut fn_idx: Vec<u32> = Vec::with_capacity(funcs.len());
     let mut callee_syms: Vec<(&str, u32)> = Vec::new();
     for (i, f) in funcs.iter().enumerate() {
         next_idx += 2; // section symbol + aux
+        fn_idx.push(next_idx);
         next_idx += 1; // the function symbol
+        if labels[i].is_some() {
+            next_idx += 1; // $M(n+1), the function-end label
+        }
         match &f.call {
             None => {
                 callee_idx.push(None);
@@ -899,6 +940,11 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
                 }
             },
         }
+        if labels[i].is_some() {
+            next_idx += 1; // $M(n), the prologue-end label
+            next_idx += 2; // .pdata section symbol + aux
+            next_idx += 1; // $T(n+2)
+        }
         if fltused_after == Some(i) {
             next_idx += 1;
         }
@@ -915,18 +961,14 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     b.u16(CHARACTERISTICS);
 
     for (i, s) in sections.iter().enumerate() {
-        let (prel, nrel) = match i.checked_sub(FIXED_SECTIONS).and_then(|k| reloc_ptr.get(k)) {
-            Some(Some(p)) => (*p as u32, 1u16),
-            _ => (0, 0),
-        };
         b.name8(s.name);
         b.u32(0); // VirtualSize
         b.u32(0); // VirtualAddress
         b.u32(s.raw.len() as u32);
         b.u32(ptrs[i] as u32);
-        b.u32(prel);
+        b.u32(reloc_ptr[i].unwrap_or(0) as u32);
         b.u32(0); // PointerToLinenumbers
-        b.u16(nrel);
+        b.u16(n_reloc_of[i]);
         b.u16(0);
         b.u32(s.characteristics);
     }
@@ -934,16 +976,22 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     // Interleaved to match the layout computed above: each section's raw data,
     // then its own relocations.
     for (i, s) in sections.iter().enumerate() {
+        debug_assert_eq!(b.0.len(), ptrs[i]);
         b.bytes(&s.raw);
-        if let Some(k) = i.checked_sub(FIXED_SECTIONS) {
-            if let (Some(f), Some(Some(_))) = (funcs.get(k), reloc_ptr.get(k)) {
-                if let (Some(call), Some(ci)) = (&f.call, callee_idx[k]) {
-                    debug_assert_eq!(b.0.len(), reloc_ptr[k].unwrap());
-                    b.u32(call.reloc_offset);
-                    b.u32(ci);
-                    b.u16(REL_PPC_REL24);
-                }
+        if let Some(k) = sec_text.iter().position(|&x| x == i) {
+            if let (Some(call), Some(ci)) = (&funcs[k].call, callee_idx[k]) {
+                debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+                b.u32(call.reloc_offset);
+                b.u32(ci);
+                b.u16(REL_PPC_REL24);
             }
+        } else if let Some(k) = sec_pdata.iter().position(|p| *p == Some(i)) {
+            // `BeginAddress` at `.pdata` offset 0, ADDR32 against the framed
+            // function's own symbol (the record's raw addend is 0).
+            debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+            b.u32(0);
+            b.u32(fn_idx[k]);
+            b.u16(REL_PPC_ADDR32);
         }
     }
     debug_assert_eq!(b.0.len(), ptr_symtab);
@@ -963,14 +1011,22 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000);
 
     for (i, f) in funcs.iter().enumerate() {
-        let sec_num = (FIXED_SECTIONS + i + 1) as i16;
+        let sec_num = (sec_text[i] + 1) as i16;
         let nrel = if f.call.is_some() { 1 } else { 0 };
-        emit_section_symbol(&mut b, &sections[FIXED_SECTIONS + i], sec_num, nrel);
+        emit_section_symbol(&mut b, &sections[sec_text[i]], sec_num, nrel);
         // The function is at offset 0 of its own section.
         emit_function_symbol(&mut b, &mut strtab, f.name, sec_num, 0);
+        if let (Some(m), Some(frame)) = (labels[i], f.frame.as_ref()) {
+            emit_label_symbol(&mut b, &label_name('M', m[1]), frame.func_len, sec_num);
+        }
         // Only the function that *introduces* this callee emits its symbol.
         if let (Some(call), true) = (&f.call, introduces[i]) {
             emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        }
+        if let (Some(m), Some(frame), Some(ps)) = (labels[i], f.frame.as_ref(), sec_pdata[i]) {
+            emit_label_symbol(&mut b, &label_name('M', m[0]), frame.prolog_len, sec_num);
+            emit_section_symbol(&mut b, &sections[ps], (ps + 1) as i16, 1);
+            emit_pdata_label_symbol(&mut b, &label_name('T', m[2]), 0, (ps + 1) as i16);
         }
         // The CRT float-support marker, once, after the first FP function's group.
         if fltused_after == Some(i) {
@@ -992,8 +1048,13 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
 /// * `funcs` — functions in emit order (matches `.gl`/`.ex` order); each
 ///   `text_offset` is its start within `text`.
 /// * `text` — the full concatenated `.text` bytes from codegen.
-pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
+pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: u32) -> Vec<u8> {
     let debug_s = build_debug_s(obj_name);
+    let labels = plan_labels(label_counter, funcs, false);
+    // One `.pdata` section for the whole TU, records in `.text` order — packed,
+    // unlike `/Gy`, which gives each framed function its own COMDAT.
+    let framed: Vec<&Frame> = funcs.iter().filter_map(|f| f.frame.as_ref()).collect();
+    let pdata = build_pdata(&framed);
 
     // W13b: pool the floating-point constants, TU-wide, by bit pattern **and**
     // width (a `float` 1.0 and a `double` 1.0 are different symbols with
@@ -1019,6 +1080,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             raw: std::borrow::Cow::Borrowed(DRECTVE),
             checksum: 0,
             selection: 0,
+            assoc: 0,
         },
         Section {
             name: ".debug$S",
@@ -1026,6 +1088,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             raw: std::borrow::Cow::Owned(debug_s),
             checksum: 0,
             selection: 0,
+            assoc: 0,
         },
         Section {
             name: ".XBLD$W",
@@ -1033,6 +1096,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             raw: std::borrow::Cow::Borrowed(&XBLD_C2),
             checksum: XBLD_C2_CHECKSUM,
             selection: 2,
+            assoc: 0,
         },
         Section {
             name: ".XBLD$W",
@@ -1040,6 +1104,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             raw: std::borrow::Cow::Borrowed(&XBLD_C1),
             checksum: XBLD_C1_CHECKSUM,
             selection: 2,
+            assoc: 0,
         },
         Section {
             name: ".text",
@@ -1047,6 +1112,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             raw: std::borrow::Cow::Borrowed(text),
             checksum: 0,
             selection: 0,
+            assoc: 0,
         },
     ];
     let text_idx = sections.len() - 1;
@@ -1057,8 +1123,27 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             raw: std::borrow::Cow::Owned(real_raw_bytes(bits, double)),
             checksum: 0,
             selection: 2,
+            assoc: 0,
         });
     }
+    // `.pdata` last. A TU with BOTH a constant pool and a framed function would
+    // settle the `.rdata`/`.pdata` order, and none has been captured — the
+    // combination is refused upstream rather than guessed at here.
+    let pdata_idx = if framed.is_empty() {
+        None
+    } else {
+        debug_assert!(pool.is_empty(), "framed + pooled FP constant is refused upstream");
+        sections.push(Section {
+            name: ".pdata",
+            characteristics: CH_PDATA,
+            raw: std::borrow::Cow::Borrowed(&pdata),
+            // The one non-COMDAT section c2 gives a real CheckSum.
+            checksum: coff_checksum(&pdata),
+            selection: 0,
+            assoc: 0,
+        });
+        Some(sections.len() - 1)
+    };
     let n_sections = sections.len();
 
     // Symbol layout: 13 fixed slots (indices 0..13), then per function a defined
@@ -1084,9 +1169,17 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     // `il_call_perm.cpp`; the reference puts `?g3` after `pass3` and nothing after
     // the four later functions that also call it.
     let mut callee_syms: Vec<(&str, u32)> = Vec::new();
+    // Packed, the whole TU shares ONE `.pdata`, so its section symbol + aux are
+    // emitted once — inside the group of the FIRST framed function, after that
+    // function's prologue label and before its `$T`. Every later framed function
+    // contributes only `$M`, `$M` and `$T`.
+    let first_framed = funcs.iter().position(|f| f.frame.is_some());
     for (i, f) in funcs.iter().enumerate() {
         let def_idx = next_idx;
         next_idx += 1;
+        if labels[i].is_some() {
+            next_idx += 1; // $M(n+1), the function-end label
+        }
         let (callee_idx, new_callee) = match &f.call {
             Some(call) => match callee_syms.iter().find(|(n, _)| *n == call.callee) {
                 Some((_, ix)) => (Some(*ix), false),
@@ -1099,6 +1192,13 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
             },
             None => (None, false),
         };
+        if labels[i].is_some() {
+            next_idx += 1; // $M(n), the prologue-end label
+            if first_framed == Some(i) {
+                next_idx += 2; // the shared .pdata section symbol + aux
+            }
+            next_idx += 1; // $T(n+2)
+        }
         // Constants this function introduces, in first-reference order.
         let mut introduced: Vec<usize> = Vec::new();
         for r in &f.fp_refs {
@@ -1116,6 +1216,16 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
         }
     }
     let n_symbols: u32 = next_idx;
+
+    // The `.pdata` relocations: one ADDR32 per record, at the record's own
+    // offset, against the framed function's defined symbol. In `.text` order,
+    // which is also ascending VirtualAddress.
+    let mut pdata_relocs: Vec<(u32, u32, u16)> = Vec::new();
+    for (i, def, _c, _n, _intro) in &plan {
+        if funcs[*i].frame.is_some() {
+            pdata_relocs.push((pdata_relocs.len() as u32 * 8, *def, REL_PPC_ADDR32));
+        }
+    }
 
     // Relocations (`.text` only in this class) sit between the raw data and the
     // symbol table, **ascending by VirtualAddress**. A tail call contributes one
@@ -1150,12 +1260,17 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     let mut ptrs = Vec::with_capacity(n_sections);
     let mut cursor = raw_base;
     let mut ptr_text_reloc = 0usize;
+    let mut ptr_pdata_reloc = 0usize;
     for (i, s) in sections.iter().enumerate() {
         ptrs.push(cursor);
         cursor += s.raw.len();
         if i == text_idx && n_text_reloc > 0 {
             ptr_text_reloc = cursor;
             cursor += n_text_reloc * RELOC_LEN;
+        }
+        if Some(i) == pdata_idx {
+            ptr_pdata_reloc = cursor;
+            cursor += pdata_relocs.len() * RELOC_LEN;
         }
     }
     let ptr_symtab = cursor; // symbol table right after the last section's data
@@ -1176,6 +1291,8 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     for (i, s) in sections.iter().enumerate() {
         let (prel, nrel) = if i == text_idx && n_text_reloc > 0 {
             (ptr_text_reloc as u32, n_text_reloc as u16)
+        } else if Some(i) == pdata_idx {
+            (ptr_pdata_reloc as u32, pdata_relocs.len() as u16)
         } else {
             (0, 0)
         };
@@ -1199,6 +1316,14 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
         if i == text_idx {
             debug_assert!(n_text_reloc == 0 || b.0.len() == ptr_text_reloc);
             for &(va, sym, typ) in &text_relocs {
+                b.u32(va);
+                b.u32(sym);
+                b.u16(typ);
+            }
+        }
+        if Some(i) == pdata_idx {
+            debug_assert_eq!(b.0.len(), ptr_pdata_reloc);
+            for &(va, sym, typ) in &pdata_relocs {
                 b.u32(va);
                 b.u32(sym);
                 b.u16(typ);
@@ -1234,10 +1359,31 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     for (i, _def, _callee_idx, new_callee, introduced) in &plan {
         let f = &funcs[*i];
         emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
+        // A framed function's `$M` labels are its prologue end and its function
+        // end **relative to its own start**, so packed they are rebased onto the
+        // shared `.text`; under `/Gy` the function starts at 0 of its own COMDAT
+        // and the two coincide.
+        if let (Some(m), Some(frame)) = (labels[*i], f.frame.as_ref()) {
+            emit_label_symbol(&mut b, &label_name('M', m[1]), f.text_offset + frame.func_len, 5);
+        }
         if let (Some(call), true) = (&f.call, *new_callee) {
             // Undefined external callee: section 0 (UNDEF), FUNCTION type. Only
             // the function that FIRST calls it emits the symbol.
             emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        }
+        if let (Some(m), Some(frame), Some(pi)) = (labels[*i], f.frame.as_ref(), pdata_idx) {
+            emit_label_symbol(&mut b, &label_name('M', m[0]), f.text_offset + frame.prolog_len, 5);
+            if first_framed == Some(*i) {
+                emit_section_symbol(
+                    &mut b,
+                    &sections[pi],
+                    (pi + 1) as i16,
+                    pdata_relocs.len() as u16,
+                );
+            }
+            // `$T` value is this record's byte offset inside the shared `.pdata`.
+            let rec = funcs[..*i].iter().filter(|g| g.frame.is_some()).count() as u32 * 8;
+            emit_pdata_label_symbol(&mut b, &label_name('T', m[2]), rec, (pi + 1) as i16);
         }
         for &k in introduced {
             let sec_num = (text_idx + 1 + k + 1) as i16;
@@ -1282,7 +1428,7 @@ fn emit_section_symbol(b: &mut Buf, s: &Section, sec_num: i16, n_reloc: u16) {
     b.u16(n_reloc); // NumberOfRelocations
     b.u16(0); // NumberOfLinenumbers
     b.u32(s.checksum);
-    b.u16(0); // Number (SELECT_ANY → 0)
+    b.u16(s.assoc); // Number — 0 unless Selection=5 (ASSOCIATIVE)
     b.u8(s.selection);
     b.bytes(&[0, 0, 0]); // Unused
 }
@@ -1369,17 +1515,28 @@ mod tests {
         assert_eq!(S_COMPILE2.len(), 57);
     }
 
+    /// The two lengths of the `+k` frame class, as a `Frame`.
+    fn frame(func_len: u32) -> Frame {
+        Frame { prolog_len: 0x0C, func_len }
+    }
+
     #[test]
-    fn pdata_unwind_word_encodes_function_length() {
+    fn pdata_unwind_word_encodes_function_and_prologue_lengths() {
         // 0x24 body (9 words, +k class) → BeginAddress 0 + big-endian
         // 0x40000903. 0x28 body (10 words, *5) → 0x40000A03 (length +1 = +0x100).
+        assert_eq!(pdata_record(0, &frame(0x24)), [0, 0, 0, 0, 0x40, 0x00, 0x09, 0x03]);
+        assert_eq!(pdata_record(0, &frame(0x28)), [0, 0, 0, 0, 0x40, 0x00, 0x0A, 0x03]);
+        // The prologue field is the low byte and moves independently: the
+        // two-call `r30`/`r31` body is 18 words with a 5-word prologue, and the
+        // 100 KB-frame body 22 words with a 7-word one. Both read straight out
+        // of reference objs; `build_pdata` hardcoded 3 until this landed.
         assert_eq!(
-            build_pdata(0x24),
-            [0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x09, 0x03]
+            pdata_record(0, &Frame { prolog_len: 0x14, func_len: 0x48 }),
+            [0, 0, 0, 0, 0x40, 0x00, 0x12, 0x05]
         );
         assert_eq!(
-            build_pdata(0x28),
-            [0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x0A, 0x03]
+            pdata_record(0, &Frame { prolog_len: 0x1C, func_len: 0x58 }),
+            [0, 0, 0, 0, 0x40, 0x00, 0x16, 0x07]
         );
     }
 
@@ -1387,15 +1544,54 @@ mod tests {
     fn pdata_checksum_matches_reference_aux() {
         // The `.pdata` aux CheckSum in the reference obj (0xd3dfb2ce for the +k
         // frame) is the reflected CRC-32 of the 8 raw bytes.
-        assert_eq!(coff_checksum(&build_pdata(0x24)), 0xD3DF_B2CE);
-        assert_eq!(coff_checksum(&build_pdata(0x28)), 0xF8F2_E10D);
+        assert_eq!(coff_checksum(&build_pdata(&[&frame(0x24)])), 0xD3DF_B2CE);
+        assert_eq!(coff_checksum(&build_pdata(&[&frame(0x28)])), 0xF8F2_E10D);
+    }
+
+    #[test]
+    fn label_plan_matches_the_captured_counters() {
+        let leaf = Function::plain("?L@@YAHH@Z", 0);
+        let framed = |name| Function {
+            frame: Some(frame(0x24)),
+            ..Function::plain(name, 0)
+        };
+        // mvp_framed: one framed function, `.gl` counter 2536 → $M2545/6, $T2547.
+        assert_eq!(
+            plan_labels(2536, &[framed("?f@@YAHH@Z")], false),
+            vec![Some([2545, 2546, 2547])]
+        );
+        // Under `/Gy` the same TU pays a flat 3-per-function surcharge first.
+        assert_eq!(
+            plan_labels(2536, &[framed("?f@@YAHH@Z")], true),
+            vec![Some([2548, 2549, 2550])]
+        );
+        // A leading leaf consumes exactly one slot (`n1`: counter 2539 → 2549).
+        assert_eq!(
+            plan_labels(2539, &[leaf, framed("?F@@YAHH@Z")], false),
+            vec![None, Some([2549, 2550, 2551])]
+        );
+        // Framed stride: 4 packed, 5 under `/Gy` (`m2`, counter 2539).
+        let two = [framed("?F1@@YAHH@Z"), framed("?F2@@YAHH@Z")];
+        assert_eq!(
+            plan_labels(2539, &two, false),
+            vec![Some([2548, 2549, 2550]), Some([2552, 2553, 2554])]
+        );
+        assert_eq!(
+            plan_labels(2539, &two, true),
+            vec![Some([2554, 2555, 2556]), Some([2559, 2560, 2561])]
+        );
     }
 
     #[test]
     fn framed_obj_has_six_sections_and_twenty_symbols() {
         // A framed obj built with the verified 0x24 text: 6 sections, 20 symbols.
         let text = vec![0u8; 0x24];
-        let obj = emit_framed_obj(r"Z:\t\f.obj", "?f@@YAHH@Z", "?g@@YAHH@Z", &text);
+        let f = Function {
+            call: Some(Call { reloc_offset: 0x0C, callee: "?g@@YAHH@Z" }),
+            frame: Some(frame(0x24)),
+            ..Function::plain("?f@@YAHH@Z", 0)
+        };
+        let obj = emit_obj(r"Z:\t\f.obj", &[f], &text, 2536);
         assert_eq!(u16::from_le_bytes([obj[2], obj[3]]), 6); // NumberOfSections
         assert_eq!(u32::from_le_bytes([obj[12], obj[13], obj[14], obj[15]]), 20); // NumberOfSymbols
     }

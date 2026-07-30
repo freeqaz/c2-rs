@@ -839,6 +839,16 @@ pub fn encode_call_branch(text_offset: u32) -> [u8; 4] {
 /// relocation site. Constant for the `return g(a) + k` frame class.
 pub const FRAMED_BL_OFFSET: u32 = 0x0C;
 
+/// The prologue length in bytes of the `return g(a) + k` frame class —
+/// `mflr r12 ; stw r12,-8(r1) ; stwu r1,-96(r1)`, three words. This is the
+/// value of the function's `$M(n)` label and, divided by four, the `PrologLen`
+/// field of its `.pdata` record. It happens to equal [`FRAMED_BL_OFFSET`] for
+/// this class because the `bl` is the first instruction after the prologue —
+/// a coincidence, not a rule (a two-call body with `r30`/`r31` saves has a
+/// 5-word prologue and its first call four words later), which is why the two
+/// are separate constants.
+pub const FRAMED_PROLOG_LEN: u32 = 0x0C;
+
 /// Emit the `.text` for a **framed non-leaf call** `return g(a) + k` (W4b2).
 ///
 /// The whole body is byte-constant except the post-call `addi r3,r3,k`
@@ -860,7 +870,18 @@ pub const FRAMED_BL_OFFSET: u32 = 0x0C;
 ///
 /// `k` must fit the signed-16-bit `addi` immediate (the IL parser guarantees
 /// this before constructing the [`c2_il::FramedCall`]).
-pub fn framed_call_text(add_k: i32) -> Vec<u8> {
+///
+/// `base_off` is the function's start within the `.text` section it lands in —
+/// 0 under `/Gy` (its own COMDAT) and its packed offset otherwise. It exists
+/// because the `bl` displacement follows MSVC's `disp = −(own .text offset)`
+/// convention, so a framed function that is **not first** in a packed `.text`
+/// needs a different branch word: `?f` at 0x08 with the `bl` at 0x14 gets
+/// `4BFFFFED`, not the `4BFFFFF5` this function emitted unconditionally. That
+/// was unreachable while a framed TU was gated to one function and became a
+/// live wrong-bytes emit the moment the gate came off — caught by the
+/// differential on `int lf(int a){return a+1;} int f(int a){return g(a)+1;}`
+/// before it reached a fixture.
+pub fn framed_call_text(add_k: i32, base_off: u32) -> Vec<u8> {
     let k = add_k as i16; // range-checked upstream (c2_il::func::parse_segment)
     let mut text = Vec::with_capacity(0x24);
     // Prologue.
@@ -868,7 +889,7 @@ pub fn framed_call_text(add_k: i32) -> Vec<u8> {
     text.extend_from_slice(&0x9181_FFF8u32.to_be_bytes()); // stw  r12,-8(r1)
     text.extend_from_slice(&0x9421_FFA0u32.to_be_bytes()); // stwu r1,-96(r1)
     // Call (LK=1); the REL24 reloc at FRAMED_BL_OFFSET patches the target.
-    text.extend_from_slice(&encode_call_branch(FRAMED_BL_OFFSET)); // bl <callee>
+    text.extend_from_slice(&encode_call_branch(base_off + FRAMED_BL_OFFSET)); // bl <callee>
     // Post-call op.
     text.extend_from_slice(&encode_addi(RET_REG, RET_REG, k)); // addi r3,r3,k
     // Epilogue.
@@ -2115,7 +2136,7 @@ mod tests {
     fn framed_call_text_matches_reference_body() {
         // `int f(int a){ return g(a) + 1; }` — the verified 0x24-byte body.
         assert_eq!(
-            framed_call_text(1),
+            framed_call_text(1, 0),
             vec![
                 0x7D, 0x88, 0x02, 0xA6, // mflr r12
                 0x91, 0x81, 0xFF, 0xF8, // stw  r12,-8(r1)
@@ -2129,8 +2150,15 @@ mod tests {
             ]
         );
         // `+ 2` differs only in the addi immediate.
-        assert_eq!(framed_call_text(2)[19], 0x02);
-        assert_eq!(framed_call_text(1).len(), 0x24);
+        assert_eq!(framed_call_text(2, 0)[19], 0x02);
+        assert_eq!(framed_call_text(1, 0).len(), 0x24);
+        // Placed at 0x08 in a packed `.text` (a leaf ahead of it), the `bl` is at
+        // 0x14 and its displacement follows: `4BFFFFED`, not `4BFFFFF5`. Every
+        // other byte of the body is unchanged.
+        let at8 = framed_call_text(1, 0x08);
+        assert_eq!(&at8[12..16], &[0x4B, 0xFF, 0xFF, 0xED]);
+        assert_eq!(&at8[..12], &framed_call_text(1, 0)[..12]);
+        assert_eq!(&at8[16..], &framed_call_text(1, 0)[16..]);
     }
 
     #[test]

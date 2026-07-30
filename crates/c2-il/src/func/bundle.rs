@@ -511,16 +511,23 @@ impl IlBundle {
                         arg_sources: Some(arg_sources),
                     });
                 }
-                // The framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
-                // `.pdata` with compiler label symbols ($M2545/$M2546/$T2547)
-                // whose counters are a fixed toolchain seed for the first
-                // function and shift once preceding functions consume slots
-                // (W-UNW-1, docs/CODEGEN_PPC_MVP.md), so a multi-function TU
-                // containing one would be mis-numbered.
+                // The framed non-leaf path used to be gated SINGLE-FUNCTION here,
+                // because its obj carries `.pdata` with compiler label symbols
+                // whose numbers shift once preceding functions consume counter
+                // slots — and the emitter had `$M2545/$M2546/$T2547` written out
+                // literally. The counter is now read from `.gl` and advanced per
+                // function (`c2_core::coff::plan_labels`), so a framed function is
+                // admitted anywhere in a TU; the classes whose stride is not 1
+                // (comparison and floating-point leaves) are refused in
+                // `PortC2::build`, which is where the emitter's knowledge lives.
+                //
+                // While it stood, this gate was also a census/gate disagreement of
+                // exactly the shape `GAPS.md` §6 warns about: `c2rs census` graded
+                // `int g(int); int f1(int a){return g(a)+1;} int f2(int a){return
+                // g(a)+2;}` as 2/2 in class and `PortC2` returned `NotImplemented`,
+                // so the headline numerator counted two functions the port would
+                // never emit.
                 BodyShape::FramedCall { add_k, callee_tok } => {
-                    if n_defined != 1 {
-                        return None;
-                    }
                     funcs.push(IlFunction {
                         mangled_name: name.clone(),
                         source_path: src.clone(),
