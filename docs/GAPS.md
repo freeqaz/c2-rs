@@ -1116,9 +1116,9 @@ The rules that keep the numbers honest:
   (`scripts/expr_sweep.sh` — the member-function-across-source-lines axis exists only
   because of #1), and **have someone adversarial read the anchors**, because #2 was
   found by a reviewer assigned to an unrelated change.
-- **A green differential is not evidence that a *binding* is right.** `.sy` binds
-  its blocks to `.ex` segments only when the counts are equal, and on the workload
-  they are close but not equal (9,629 against 9,602). Relaxing that to "take the
+- **A green differential is not evidence that a *binding* is right.** `.sy` used to
+  bind its blocks to `.ex` segments only when the counts were equal, and on the
+  workload they are close but not equal (9,629 against 9,602). Relaxing that to "take the
   first `n_segments`" measured **census +2,981 with 0 mismatch** — a clean green run
   by every gate this project has. It is also wrong: the per-formal token lookup then
   fails for **343,315 of 554,056** functions, because the surplus blocks are
@@ -1132,6 +1132,25 @@ The rules that keep the numbers honest:
   formal token appear in the block it was bound to?). A relaxation that improves the
   census and keeps the oracle green is exactly the shape a plausible-but-wrong
   binding takes.
+  **How it was then closed, since the same invariant is what graded the fix** (see
+  `func::sy::SyLocals`): the binding is now keyed on identity — a block's header
+  token is its segment's *exit label* — and the acceptance evidence is four
+  measurements over 871 TUs, none of which the oracle could have supplied.
+  2,434,636 of 2,434,639 segments yield an exit label; each of those tokens names
+  **exactly one** block (0 misses, 0 ambiguities); the bindings are strictly
+  increasing in **every** file (0 order violations); and the formal-token invariant
+  holds for 99.95% of the candidate pairs, against 38% under the positional
+  relaxation. The 1,118 that fail it are refused, so 100% of the bindings actually
+  made are ones the invariant confirmed. The census moved 211,012 → 228,298
+  (+17,286, 0 functions lost, 0 TUs changing class) with mismatch 0 — but the
+  mismatch-0 is *not* the evidence, and this bullet exists to keep that distinction.
+  One more thing fell out of grading the correspondence instead of the output: the
+  "surplus" blocks were never surplus. `.sy` has exactly one block per `.ex`
+  **function tail** in all 856 files that parse; it is
+  `bundle::split_function_bodies` that finds 2,462,571 bodies where there are
+  2,464,543 tails, so the census denominator is itself ~1,972 functions short and
+  the "extra" blocks are the ones it misses. A count that disagrees does not tell
+  you which side is wrong.
 - **A measurement artifact read from the wrong tree.** The parallel-agent workflow
   gives every worktree a reflinked copy of `work/`, so the same *relative* path
   (`work/dc3-workload/scan-t1.jsonl`) exists in several trees holding different
