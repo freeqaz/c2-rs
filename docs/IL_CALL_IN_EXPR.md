@@ -4289,3 +4289,31 @@ The sweep prints its own generated case count before it runs; **compare that
 number against the one recorded here before believing a green sweep** (§6).
 Always difference the scans through **absolute** paths and print each one's row
 count and `fn_total` first — §18.8.
+
+## 25. W23, landed — the store leaf, and the row this document ranked last
+
+Written up in full in **`docs/IL_STORE_LEAF.md`**; recorded here because it
+settles three of this document's own open items and corrects one of its
+measurements.
+
+* **§19.1's "whole-body store — 10/863, 1.2 %" was right about the proportion and
+  it is now taken.** The store leaf is **+23,645** functions (census
+  418,628 → 442,273, 17.00 % → 17.96 %, mismatch 0, disagreement 0), of which
+  **740** come from the 2117 key §19.7 (5) sized at "≈370". The rest is the same
+  production through the *plain* designator, which §19.3's lesson predicted and
+  which is **29x** the intrinsic half here against D7's 5.0x.
+* **§24.8's rows 5 and 6 are refuted by measurement.** `expr-load-type-8645`
+  (98,813) completes **1,004** bodies under a full type widening — and that
+  population is §23.1's FP `fmr`, not a new rung. `expr-load-type-8885` (82,810)
+  completes **0**: its `calls-1` mass is a `2C`-converted FP value in a
+  *call-argument* region (`call-end-0x88` 44,050 + `expr-convert-target-8885`
+  38,756 when the type is admitted), so it converges with the **FP
+  argument-register** item, not with the frame.
+* **§24.8's row 4 (`expr-op-0x27`, via `GAPS.md` §6) was measured too narrowly.**
+  The 685-whole-bodies figure came from a counterfactual that admitted the
+  *token* inside `parse_expr`; half the row is a *statement* that no widening of
+  `parse_expr` can finish. This rung took 22,095 out of it. See `GAPS.md` §6's
+  corrected box.
+* **The next rung is measured and sized: `expr-load-type-8212` +
+  `expr-lit-type-8212`, 52,650 released, 23,122 whole-body complete, 22,313
+  `calls-0`, and no new instruction at all.** `IL_STORE_LEAF.md` §7 (1).

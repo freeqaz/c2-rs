@@ -1712,6 +1712,72 @@ the record needs and both are byte offsets the emitter already computes.
    combination is refused rather than guessed.
 6. Unchanged and unrelated to unwind: the whole-TU all-or-nothing gate, and the
    fact that the port has no model of *which* bodies c2 emits (§6a).
+## 6f. W23 — the store leaf (2026-07-30)
+
+`void f(S* s, int v) { s->m = v; }` is one `stb`/`sth`/`stw`/`std` at a folded
+displacement, and it is the **third** consumer of the sub-object designator the
+indirect-load leaf (`lwz`) and the address leaf (`addi`) already share. Full
+write-up, with every captured word and every counterfactual, in
+`docs/IL_STORE_LEAF.md`.
+
+**The three candidates were measured before anything was implemented**, and the
+ranking the row sizes suggested was not the one the measurement produced:
+`expr-load-type-8885` (82,810 blocked) completes **0** bodies under a full type
+widening; `expr-load-type-8645` (98,813) completes **1,004**, which is the
+already-named FP `fmr` rung; `expr-intrinsic-base-member-addr` (118,331, the row
+the rung was commissioned against) completes **740**. What made it worth doing is
+what those 740 bodies *are* — a store — and that the same production through the
+*plain* designator is **29x bigger** and sits in `expr-op-0x27`, the #1 row on the
+board. `IL_CALL_IN_EXPR.md` §19.3's lesson at a bigger ratio: grep for every site
+that implements the rule you are changing.
+
+**It also corrects a measurement in `GAPS.md` §6.** `expr-op-0x27` was written up
+as "measured to the bottom, twice: 505,122 released, 685 whole bodies, 0.14 %".
+That counterfactual admitted the **token** `27` inside `parse_expr`, so it could
+only count bodies that finish as an *expression*; half the row is a *statement*
+that fails one token later at the `32` store. This rung took **22,095** functions
+out of it. A counterfactual measures what the surrounding grammar can already
+finish — "admit this token" and "admit this production" are different questions.
+
+### Census
+
+**418,628 → 442,273 (17.00 % → 17.96 %), +23,645**, mismatch 0, no TU changing
+class, **0 new census keys**, census/gate disagreement still **0**. The sum of
+every blocker key's delta is −23,645 — the bucket drop equals the gain to the
+function, for the sixth rung running. Estimate was **+22,821, biased LOW** (the
+counterfactual); the +824 residual is the class-preserving `2C` on the stored
+value, the one rule that changed between the counterfactual build and the shipped
+one. All 23,645 admitted bodies read `calls-0`, which is the standing control
+group: this production cannot describe a body containing a call.
+
+### Gate evidence
+
+Corpus `dc3-decomp` at **`05ca6d09`**; baseline re-taken in this worktree and
+reproducing master `b36a046` to the function.
+
+| lane | baseline | W23 |
+|---|---|---|
+| `cargo test --workspace --release` | 370 pass | **372 pass**, 0 fail |
+| `c2rs bench` | 132 pass / 0 fail / 0 error | **132 pass / 0 fail / 0 error** |
+| `mode_lane.sh /Ox` | 56 match, **0 mismatch**, disagreement 1 | **57 match, 0 mismatch**, disagreement 1 |
+| `/O1` · `/O2` · `/Ox /Gy` | 54 match, **0 mismatch**, 2 codegen-gap, disagreement 9 | **55 match, 0 mismatch**, 2 codegen-gap, disagreement 9 |
+| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,828**, mismatches **0** |
+| 878-TU scan | match 6, mismatch 0, 418,628/2,462,571, 569 keys, disagreement 0 | match 6, **mismatch 0**, **442,273**/2,462,571, **569 keys**, disagreement **0** |
+| `census fixtures/cpp/w23_store_leaf.cpp` | — | **41/41 in class**, `Port=Match` |
+| `census fixtures/cpp/w23_store_leaf_neg.cpp` | — | **0/14 in class**, `Port=NotImplemented` |
+
+### The next rung, measured here rather than guessed
+
+`expr-load-type-8212` + `expr-lit-type-8212` — **52,650 released, 23,122
+whole-body complete, 22,313 of them `calls-0`** (counterfactual `C2RS_CF=boolnc`).
+The family is "`bool`/`unsigned char` is a 4-byte-register value like an int in
+the LOAD / LIT / result positions", and **its lowering is no instruction at all**:
+`return false;` is `li r3,0`, `return b;` is a bare `blr`, and a `bool`-returning
+tail call is the same `b callee`. The one hazard is sized — a `2C` *out of* the
+class is a real `clrlwi` and refusing every such body costs 1,652 — and the work
+is a new `ValueClass` plus the discipline of not widening `eat_int_like`, whose
+five call sites §6d already found the hard way. See `IL_STORE_LEAF.md` §7.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp

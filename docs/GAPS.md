@@ -208,11 +208,11 @@ bracketed:
 That hexdump is what converts a bucket into a decoded production; every
 grammar correction below came out of one.
 
-> **Current numerator, 2026-07-30: 418,628 / 2,462,571 (17.00 %)**, with a
+> **Current numerator, 2026-07-30: 442,273 / 2,462,571 (17.96 %)**, with a
 > **measured census/gate disagreement of 0** — see `ROADMAP.md` §6c (the repair
-> that took it *down* by 9,230) and §6d (W22, which took it up by 15,924), plus
-> the sizing box in §6 below. Everything in the rest of this section is
-> historical; quote the number above.
+> that took it *down* by 9,230), §6d (W22, which took it up by 15,924) and §6f
+> (W23, the store leaf, +23,645), plus the sizing box in §6 below. Everything in
+> the rest of this section is historical; quote the number above.
 
 **79,719 / 2,462,571 functions in class (3.24%)** (cebfb88, 37.3 s at
 `--jobs 16`); **re-measured at HEAD `2724ca5` on 2026-07-30: 109,501 (4.45%)**,
@@ -1443,6 +1443,25 @@ The rules that keep the numbers honest:
   times the cheap counterfactual said so in one scan. **Rank by whole-body
   completeness, not by row size — and when the row has no `-whole` bit, spend the
   scan to get one before scheduling against it.**
+
+  > **CORRECTED 2026-07-30 by W23 (`docs/IL_STORE_LEAF.md`), and the correction
+  > is a limit on the instrument, not on the ranking rule.** That 685 is right
+  > about what it measured and wrong as a statement about the row: the
+  > counterfactual admitted the **token** `27` inside `parse_expr` and asked
+  > whether the body then parsed to the end — so it could only ever count bodies
+  > that finish as an *expression*. Half of `expr-op-0x27` is a **statement**,
+  > `s->m = v;`, which fails one token later at the `32` store whatever the `27`
+  > does, and no widening of `parse_expr` can reach it. A production-level rung
+  > then took **22,095** functions out of the same row, 32x the number the token
+  > counterfactual reported for it.
+  >
+  > The rule that follows: **a counterfactual measures what the surrounding
+  > grammar can already finish.** "Admit this token" and "admit this production"
+  > are different questions with different answers, and a near-zero completeness
+  > figure means "nothing completes *through this token's own arm*", never "this
+  > row is empty". Before writing a row off, check what its bodies **are** — one
+  > pass of whole-segment dumps over a stride sample of TUs, which is what found
+  > the store here.
   There is one family where completeness is free rather than counterfactual: a
   census key ending `:eof` is a refusal raised *after* the parse reached the end
   of the segment, so **every function under it is grammar-complete by
