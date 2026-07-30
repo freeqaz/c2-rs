@@ -123,6 +123,12 @@ impl IlBundle {
                         match parse_segment_detail(seg, locals.view(i)) {
                             Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                             Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
+                            // Emits exactly what a void tail call emits, but gets
+                            // its own bucket so the movement out of
+                            // `expr-call-in-expr` is attributable.
+                            Ok(BodyShape::EmptyDtorDelegation { .. }) => {
+                                FnVerdict::InClass("empty-dtor-delegation")
+                            }
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             Ok(BodyShape::MultiArgTailCall { .. }) => {
                                 FnVerdict::InClass("multiarg-tail-call")

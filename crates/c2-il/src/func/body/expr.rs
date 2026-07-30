@@ -228,6 +228,21 @@ pub(crate) fn eat_return_plumbing(
     }
     let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "return-tok"))?;
     *p += w;
+    eat_fn_tail(seg, p)
+}
+
+/// The **function tail** every accepted body ends on, and the fail-closed
+/// terminal: `4F 12 · 47 54 01 54 00` then EITHER the segment end (a non-last
+/// function, split before the next `4F 1F`) OR the module end
+/// `4F 02 20 00 · 4F 01 <line> · 4D` and its trailing zero-fill.
+///
+/// Split out of [`eat_return_plumbing`] — byte for byte, no behaviour change —
+/// because one shape does not reach it straight from `29 <tok>`: the generated
+/// empty destructor wedges its own opaque sub-object trailer in between (see
+/// [`super::shapes::try_parse_empty_dtor_delegation`]). Sharing the tail keeps
+/// "the parse must reach the end of the segment" in one place rather than in two
+/// that could drift.
+pub(crate) fn eat_fn_tail(seg: &[u8], p: &mut usize) -> Result<(), Block> {
     // Function-tail: 4F 12 · 47 54 01 54 00
     if !eat(seg, p, &[0x4F, 0x12]) || !eat(seg, p, &[0x47, 0x54, 0x01, 0x54, 0x00]) {
         return Err(blk(seg, *p, "fn-tail"));
