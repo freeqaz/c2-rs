@@ -1,0 +1,414 @@
+//! **The sub-object designator** — how a byte offset into an object is spelled
+//! in IL, and how wide the thing at that offset is.
+//!
+//! ONE locator for one fact, with four named consumers: the indirect-load leaf
+//! ([`super::leaf_load`], `lwz`/`lbz`/`lhz`/`ld`), the address leaf
+//! ([`super::leaf_addr`], `addi`), the store leaf ([`super::leaf_store`],
+//! `stb`/`sth`/`stw`/`std`) and the generated destructor's member receiver
+//! ([`super::ctor_dtor`]). A recognizer that parses an offset chain without
+//! importing this module is reinventing it — `docs/GAPS.md` §6's mis-emit #11
+//! was one rule with two copies, each missing a gate the other had.
+//!
+//! `SIZED_PTEE`/`SIZED_PTR` are **literal whitelists**, not derived predicates,
+//! and their tests assert exactly that: a type byte the corpus has not
+//! separated must refuse, not be admitted by a plausible-looking rule.
+
+use crate::func::body::mcall;
+use crate::func::readers::{
+    eat, eat_byte, eat_int_like, read_token_var, read_type, read_varint, value_class,
+};
+
+
+/// Pointee TYPEs admitted at the `30` indirect-load position **beyond** the
+/// 4-byte integer class ([`is_int4_type`]), as `(tag, kind, width, signed)`.
+///
+/// Required **literally, as pairs**, rather than computed from the tag's
+/// width nibble: the width is stated twice in a TYPE — the tag's low nibble and
+/// the kind's high nibble — and demanding both is a free discriminator against a
+/// misaligned read landing on a plausible-looking byte. Every pair below has a
+/// capture in `fixtures/cpp/w12_narrow_getters.cpp` (see that file's header for
+/// the per-case witness); a tag not listed — notably `volatile` (`92`/`94`/`98`),
+/// which no probe produced — refuses rather than being assumed to behave like the
+/// `const` one.
+///
+/// `signed` is the pointee's own signedness (kind's low nibble 1 vs 2), which
+/// matters only when a `2C` widens the value to `int`: an unsigned narrow load is
+/// already zero-extended by `lbz`/`lhz`, a signed one is not.
+pub(crate) const SIZED_PTEE: &[(u8, u8, u8, bool)] = &[
+    (0x82, 0x11, 1, true),  // char / signed char        `30 82 11 70` / `… 10`
+    (0xA2, 0x11, 1, true),  // const char                `30 a2 11 8e 20`
+    (0x82, 0x12, 1, false), // unsigned char / bool      `30 82 12 20` / `… 30`
+    (0xA2, 0x12, 1, false), // const unsigned char/bool  `30 a2 12 95 20`
+    (0x84, 0x21, 2, true),  // short                     `30 84 21 11`
+    (0xA4, 0x21, 2, true),  // const short               `30 a4 21 99 20`
+    (0x84, 0x22, 2, false), // unsigned short / wchar_t  `30 84 22 21` / `… 71`
+    (0xA4, 0x22, 2, false), // const unsigned short/wchar_t `30 a4 22 9b 20`
+    (0x88, 0x81, 8, true),  // long long                 `30 88 81 13`
+    (0xA8, 0x81, 8, true),  // const long long           `30 a8 81 9f 20`
+    (0x88, 0x82, 8, false), // unsigned long long        `30 88 82 23`
+    (0xA8, 0x82, 8, false), // const unsigned long long  `30 a8 82 … 20`
+];
+
+/// `(tag, kind)` of a **pointer whose tag carries the pointee's width** — the
+/// shape the `27` byte-offset-add position uses (`27 82 43 f0 08` for `char *`,
+/// `27 a4 43 9a 20` for `const short *`, `27 a8 43 a0 20` for `const long long *`).
+/// The tag's const bit here does **not** track the loaded type's: a *non*-const
+/// member function's getter carries `27 a2 43 f0 08` over a `30 82 11 70`
+/// (`D::n_c()`), so both tags are listed for each width and neither implies
+/// anything about the load.
+pub(crate) const SIZED_PTR: &[(u8, u8, u8)] = &[
+    (0x82, 0x43, 1),
+    (0xA2, 0x43, 1),
+    (0x84, 0x43, 2),
+    (0xA4, 0x43, 2),
+    (0x88, 0x43, 8),
+    (0xA8, 0x43, 8),
+];
+
+/// `(width, signed)` of a [`SIZED_PTEE`] pair, or `None` — which is a refusal,
+/// never "assume 4".
+pub(crate) fn sized_ptee(tag: u8, kind: u8) -> Option<(u8, bool)> {
+    SIZED_PTEE
+        .iter()
+        .find(|&&(t, k, _, _)| t == tag && k == kind)
+        .map(|&(_, _, w, s)| (w, s))
+}
+
+/// Pointee width of a [`SIZED_PTR`] pair, or `None`.
+pub(crate) fn sized_ptr_width(tag: u8, kind: u8) -> Option<u8> {
+    SIZED_PTR
+        .iter()
+        .find(|&&(t, k, _)| t == tag && k == kind)
+        .map(|&(_, _, w)| w)
+}
+
+/// The intrinsic-2117 designator alone: `(summed byte offset, object token, end)`.
+///
+/// Split out of [`try_parse_base_member_load`] so the two consumers of the same
+/// address — the LOAD leaf (`return b;`) and the ADDRESS leaf (`return &b;`) —
+/// share one decoder. `GAPS.md` §6's "one fact, one locator": a second copy is a
+/// second place for the two-literal sum, the `66` descriptor walk or the header
+/// bound to drift.
+///
+/// `ptr_ok` is the caller's rule for the three pointer TYPEs the production
+/// carries (the `40` result, the object `B9`, and its `55` push), and it is a
+/// *parameter* rather than a fixed predicate because the two consumers are not
+/// equally constrained and merging them would change what the load path accepts:
+///
+/// * the LOAD path passes [`is_ptr_to_4`] — pointer to a **4-byte** object — and
+///   is byte-for-byte the rule it had before this split;
+/// * the ADDRESS path passes [`is_ptr_any`], because the member's width does not
+///   reach the emitted instruction at all. MEASURED (`work/bma/probes/p2.cpp`):
+///   the inherited `char`, `short`, `int`, `long long`, `float` and `double`
+///   members each emit the identical single `addi`, and their designators carry
+///   `A6 43`, `A4 43`, `A6 43`, `A6 43`, `A6 43`, `A6 43` — so the tag's width
+///   nibble is not even a reliable statement of the pointee width here, which is
+///   the second reason not to gate on it.
+pub(crate) fn parse_base_member_designator(
+    seg: &[u8],
+    start: usize,
+    ptr_ok: fn(u8, u8) -> bool,
+) -> Option<(i32, u32, usize)> {
+    /// `33 <int-like> 80 45 08 00 00` — the selector literal, wide form.
+    const SELECTOR_2117: [u8; 5] = [0x80, 0x45, 0x08, 0x00, 0x00];
+    /// Longest argument-header type list accepted. Two witnesses (`n` = 2 and 3)
+    /// bound what is understood; a deeper list is refused rather than skipped on
+    /// the assumption that the shape keeps repeating.
+    const MAX_HEADER_REFS: u8 = 3;
+
+    let mut p = start;
+    // The selector, pushed as an int literal.
+    if !eat_byte(seg, &mut p, 0x33) || !eat_int_like(seg, &mut p) || !eat(seg, &mut p, &SELECTOR_2117)
+    {
+        return None;
+    }
+    // The intrinsic-call marker; its result is the member's address.
+    if !eat_byte(seg, &mut p, 0x40) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !ptr_ok(tag, kind) {
+        return None;
+    }
+    p += tw;
+    // The argument header: `66 <n>` then n type references, skipped structurally
+    // so a second inheritance step (n = 3) parses like the first.
+    //
+    // The refs are **LEB128 ids**, not a fixed two bytes each — see
+    // [`super::mcall::eat_class_descriptor`], which owns that encoding and carries
+    // the witnesses. This code stepped `2 * n` and so landed inside the second ref
+    // of any descriptor with a wide id, which is every large translation unit;
+    // `src/App.cpp` and `src/lazer/game/Game.cpp` carry `fb 8a 01`, `ff ff 01`,
+    // `d3 80 02`. The bound on `n` stays here rather than moving into the decoder,
+    // because it is this shape's acceptance rule and not part of the encoding.
+    let n_refs = mcall::eat_class_descriptor(seg, &mut p)?;
+    if n_refs == 0 || n_refs > MAX_HEADER_REFS {
+        return None;
+    }
+    // Each argument is `<value> 55 <its type>`.
+    if !eat_byte(seg, &mut p, 0x55) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    // arg 1 — the member's offset within its base.
+    if !eat_byte(seg, &mut p, 0x33) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    let member_off = read_varint(seg, &mut p)?;
+    if !eat_byte(seg, &mut p, 0x55) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    // arg 2 — the base's offset within the object. The address is the sum.
+    if !eat_byte(seg, &mut p, 0x33) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    let base_off = read_varint(seg, &mut p)?;
+    let off = member_off.checked_add(base_off)?;
+    if !eat_byte(seg, &mut p, 0x55) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    // arg 3 — the object pointer.
+    if !eat_byte(seg, &mut p, 0xB9) {
+        return None;
+    }
+    let (base_tok, w) = read_token_var(seg, p)?;
+    p += w;
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !ptr_ok(tag, kind) {
+        return None;
+    }
+    p += tw;
+    if !eat_byte(seg, &mut p, 0x55) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !ptr_ok(tag, kind) {
+        return None;
+    }
+    p += tw;
+    if !eat_byte(seg, &mut p, 0x4C) {
+        return None;
+    }
+    Some((off, base_tok, p))
+}
+
+/// `(tag, kind)` of a **pointer TYPE, whatever it points at** — the rule the
+/// *address* productions use, where the pointee's width never reaches the
+/// emitted instruction.
+///
+/// The two existing pointer predicates each answer a narrower question and
+/// neither fits: [`is_ptr_to_4`] demands a 4-byte pointee (it gates a `lwz`),
+/// and [`is_ptr4_kind`] demands one of four exact tags (it gates a pointer
+/// *value* in a register). An address leaf needs neither, because
+/// `addi rD,rBase,k` is the same word for every pointee.
+///
+/// Spelled as a literal whitelist rather than as nibble arithmetic, for the
+/// reason [`is_ptr4_kind`]'s own comment gives — and the whitelist is the cross
+/// product of two axes each independently witnessed:
+///
+/// * the tag's **cv bits** `0x20` (const) and `0x10` (volatile), all four
+///   combinations, exactly as [`is_ptr4_kind`] already admits. `0xC6` and every
+///   other tag with bit `0x40` set is **refused**: `readers.rs` records that the
+///   bit occurs and no probe produced it here.
+/// * the tag's **width nibble**, which is 2/4/6/8. It is *not* a dependable
+///   statement of the pointee width in this position and that is precisely why
+///   it is admitted rather than checked: MEASURED (`work/bma/probes/p2.cpp`,
+///   `p1.cpp`) `char*` carries `86 43`, `short*` carries `84 43`, and
+///   `long long*`, `float*` and `double*` all carry `86 43` — while all six
+///   emit the identical single `addi`. Witnessed tags are `84`, `86`, `A4`,
+///   `A6`; the other twelve are the same two axes crossed and are admitted on
+///   that basis, which is a HYPOTHESIS about the encoding and not a capture.
+///
+/// `kind` must be exactly `0x43` — width nibble 4 (the pointer's own size on
+/// this target) and class nibble 3 (a **data** pointer). `0x44` (a function or
+/// code pointer) is refused: no probe produced one at an address-leaf position,
+/// and a code pointer is the one case where "the pointee width does not matter"
+/// has not been checked.
+pub(crate) fn is_ptr_any(tag: u8, kind: u8) -> bool {
+    const PTR_TAGS: [u8; 16] = [
+        0x82, 0x84, 0x86, 0x88, // plain, width nibble 2/4/6/8
+        0x92, 0x94, 0x96, 0x98, // volatile
+        0xA2, 0xA4, 0xA6, 0xA8, // const
+        0xB2, 0xB4, 0xB6, 0xB8, // const volatile
+    ];
+    PTR_TAGS.contains(&tag) && kind == 0x43
+}
+
+/// Consume a run of **byte-offset adds** applied to an address, summing them.
+///
+/// ```text
+///   33 <int-like> k   27 <PTR>        a member offset, re-typing the address
+///   33 <int-like> k   28 00 00        a subscript offset, not re-typing it
+/// ```
+///
+/// The load leaf ([`try_parse_indirect_load_leaf`]) admits **at most one** of
+/// these, because a second one there means a chained subscript whose lowering
+/// needs `slwi`/`lwzx`. An *address* has no such limit: every add is folded into
+/// the one `addi`'s displacement, and the whole run costs nothing extra.
+/// MEASURED — `int* DR::pt2()` (`&t[2]` on an inherited array) is
+/// `LIT(0) 28 · LIT(8) 28` and emits `addi r3,r3,16`; `&s->arr[2]` on a plain
+/// struct is `LIT(40) 27 · LIT(8) 28` and emits `addi r3,r3,48`.
+///
+/// The `28` payload must be exactly `00 00`, the same fail-closed rule
+/// [`try_parse_indirect_load_leaf`] states: those two bytes are `00 00` at every
+/// captured site and their meaning is UNKNOWN.
+///
+/// Returns `None` — cursor untouched — on an overflowing sum. Stops without
+/// consuming at the first token that is not an offset add, which is not a
+/// failure: zero adds is the legitimate `return &p->Base::m;`.
+pub(crate) fn eat_addr_offset_adds(seg: &[u8], p: &mut usize) -> Option<i32> {
+    let mut total: i32 = 0;
+    loop {
+        if seg.get(*p) != Some(&0x33) {
+            return Some(total);
+        }
+        let mut probe = *p + 1;
+        if !eat_int_like(seg, &mut probe) {
+            return Some(total);
+        }
+        let k = match read_varint(seg, &mut probe) {
+            Some(k) => k,
+            None => return Some(total),
+        };
+        match seg.get(probe) {
+            Some(&0x27) => {
+                probe += 1;
+                let (tag, kind, _, tw) = read_type(seg, probe)?;
+                if !is_ptr_any(tag, kind) {
+                    return Some(total);
+                }
+                probe += tw;
+            }
+            Some(&0x28) => {
+                probe += 1;
+                if !eat(seg, &mut probe, &[0x00, 0x00]) {
+                    return Some(total);
+                }
+            }
+            _ => return Some(total),
+        }
+        total = total.checked_add(k)?;
+        *p = probe;
+    }
+}
+
+/// The **width and register file** of a stored value's TYPE, or `None` — which
+/// is a refusal, never a guess.
+///
+/// One locator over the two predicates that already answer this question for the
+/// *load* side, in the same order [`finish_indirect_load_of`] asks them:
+/// [`value_class`] for the two 4-byte classes c2 keeps in a GPR (a 4-byte
+/// integer and a pointer — the pair it lowers with one identical `stw`), then
+/// [`sized_ptee`] for the captured 1-, 2- and 8-byte scalars.
+///
+/// Everything else refuses, and **the floating-point types are the reason this
+/// is a function and not a width lookup**: `86 45 40` and `88 85 41` are 4 and 8
+/// bytes wide and are stored with `stfs`/`stfd` from `f1`, not `stw`/`std` from
+/// `r4` (MEASURED: `void s_f(S* s, float v){ s->f = v; }` is `d0230014`, and
+/// `s_d` is `d8230018`). A width-only rule would emit `stw r4` for both — wrong
+/// bytes inside an accepted class. The FP argument register is numbered over the
+/// FP parameters *alone*, which is the fifth instance of `GAPS.md` §6's "two
+/// facts sharing one field" and the live mis-emit `float_leaf_text`'s header
+/// records; sizing that widening is a rung, not a line.
+pub(crate) fn store_value_width(tag: u8, kind: u8) -> Option<u8> {
+    if value_class(tag, kind).is_some() {
+        return Some(4);
+    }
+    sized_ptee(tag, kind).map(|(w, _)| w)
+}
+
+/// The width of a **floating-point** stored value — 4 for `float`, 8 for
+/// `double` — or `None` when the TYPE is not one.
+///
+/// Keyed on the kind's **class nibble** (5, "real") and the tag's width nibble,
+/// the same two channels `sy::SyView::arg_classes` uses on the `.sy` side, so the
+/// two layers agree about what a floating-point value is by construction rather
+/// than by two independent whitelists.
+pub(crate) fn store_fp_value_width(tag: u8, kind: u8) -> Option<u8> {
+    if (kind & 0x0F) != 0x5 {
+        return None;
+    }
+    match tag & 0x0F {
+        0x6 => Some(4),
+        0x8 => Some(8),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // The single `mod tests` this was split out of opened with
+    // `use super::*;`; the globs keep that reach.
+    #[allow(unused_imports)]
+    use super::*;
+    #[allow(unused_imports)]
+    use crate::func::body::shapes::*;
+    #[allow(unused_imports)]
+    use crate::func::body::shapes::testutil::*;
+    #[allow(unused_imports)]
+    use crate::func::body::{parse_segment, parse_segment_detail};
+    #[allow(unused_imports)]
+    use crate::func::bundle::LO_MARKER;
+    #[allow(unused_imports)]
+    use crate::func::readers::{find_subslice, is_ptr4_kind, value_class, ValueClass};
+    #[allow(unused_imports)]
+    use crate::func::sy::{Formals, SyView};
+    #[allow(unused_imports)]
+    use crate::func::test_fixtures::*;
+    #[test]
+    fn the_any_pointee_pointer_gate_is_a_literal_whitelist() {
+        // The address path admits every pointee width where the load path picks
+        // its instruction from exactly that field — because `addi` is the same
+        // word for all of them (MEASURED, `work/bma/probes/p2.cpp`). The tag is
+        // still a whitelist: `0x80 | cv | width`, and the four tags with bit
+        // `0x40` set are refused for the reason [`is_ptr4_kind`] gives.
+        for tag in [0x82u8, 0x84, 0x86, 0x88, 0x92, 0x94, 0x96, 0x98, 0xA2, 0xA4, 0xA6, 0xA8,
+                    0xB2, 0xB4, 0xB6, 0xB8]
+        {
+            assert!(is_ptr_any(tag, 0x43), "tag {tag:#02X}");
+        }
+        for tag in [0xC2u8, 0xC6, 0xD6, 0xE6, 0xF6, 0x80, 0x81, 0x8A, 0x7F] {
+            assert!(!is_ptr_any(tag, 0x43), "tag {tag:#02X} is undetermined");
+        }
+        // Kind `0x44` — a function/code pointer — is refused here even though
+        // [`is_ptr4_kind`] admits it as a loaded *value*: no probe produced one
+        // at an address position, and "the pointee width does not matter" has
+        // not been checked for code.
+        for kind in [0x44u8, 0x41, 0x42, 0x45, 0x46, 0x47, 0x33, 0x53, 0x83] {
+            assert!(!is_ptr_any(0x86, kind), "kind {kind:#02X}");
+        }
+    }
+
+    #[test]
+    fn the_ptr4_type_gate_is_a_literal_whitelist_on_both_bytes() {
+        // Tags: `0x80 | cv | width-4`, with cv ⊆ {const 0x20, volatile 0x10}.
+        for tag in [0x86u8, 0x96, 0xA6, 0xB6] {
+            assert!(is_ptr4_kind(tag, 0x43), "tag {tag:#02X} data pointer");
+            assert!(is_ptr4_kind(tag, 0x44), "tag {tag:#02X} function pointer");
+        }
+        // `0xC6` — bit 0x40 — is reported by `readers.rs` as occurring and was
+        // produced by none of the `IL_LOAD_TYPES.md` probes. A field that never
+        // varied across the probes is indistinguishable from a constant, so it
+        // is required literally and refuses. Same for `0xD6`/`0xE6`/`0xF6`.
+        for tag in [0xC6u8, 0xD6, 0xE6, 0xF6] {
+            assert!(!is_ptr4_kind(tag, 0x43), "tag {tag:#02X} is undetermined");
+        }
+        // Other widths are other instructions: an 8-byte pointer does not exist
+        // on this target and a 1/2-byte one is the `27` pointee-width spelling,
+        // which is a different question ([`is_ptr_to_4`]).
+        for tag in [0x82u8, 0x84, 0x88, 0xA2, 0xA8] {
+            assert!(!is_ptr4_kind(tag, 0x43), "tag {tag:#02X} is not a 4-byte value");
+        }
+        // Kinds: only 0x43/0x44. Aggregates (class 6), reals (5), void (7) and
+        // the integers are all excluded here — the integers have their own
+        // predicate, and the rest are T2/T3 and later rungs.
+        for kind in [0x41u8, 0x42, 0x45, 0x46, 0x47, 0x33, 0x53, 0x83, 0x84] {
+            assert!(!is_ptr4_kind(0x86, kind), "kind {kind:#02X}");
+        }
+        // The two classes the leaf tail accepts are disjoint, which is what lets
+        // `2C` and `41` be required to agree with the `30`.
+        assert_eq!(value_class(0x86, 0x43), Some(ValueClass::Ptr4));
+        assert_eq!(value_class(0x86, 0x41), Some(ValueClass::Int4));
+        assert_eq!(value_class(0x86, 0x45), None, "float is not in either class");
+    }
+
+}
