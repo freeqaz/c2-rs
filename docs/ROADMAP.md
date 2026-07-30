@@ -734,7 +734,10 @@ be declared by the block bound to it — holds for 99.95% of the candidate pairs
 (38% under the positional relaxation above), and the 1,118 that fail it are refused,
 so 100% of the bindings made are ones it confirmed. `param-multi-reg` went 23 ->
 **1,851**: that construct is *reachable* now, and refusing it is the fail-closed
-boundary rather than a regression.
+boundary rather than a regression. Checked, because an 80× jump in a key is also
+what a decode bug looks like: the offending declared sizes are 16 B (1,810), 20 B
+(24), 12 B (6), 24 B (6), 80 B (6) and 36 B (1) — no zero, nothing absurd, so every
+one is a real by-value aggregate wider than one GPR and not a misread width.
 
 Two findings worth carrying forward. First, the "surplus" blocks were never surplus:
 the `.sy` block count equals the `.ex` **function-tail** count in all 856 files that
