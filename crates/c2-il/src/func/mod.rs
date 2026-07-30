@@ -546,6 +546,37 @@ impl IlFunction {
         if self.float_leaf.is_some() {
             return None;
         }
+        // **Any function that touches floating point consumes 2, not 1** — the
+        // stride goes with the register file, not with the body shape.
+        //
+        // MEASURED, as the three-way capture that separates it (`/Ox /GS- /c`,
+        // one leaf ahead of one framed function, reading the framed function's
+        // labels):
+        //
+        // ```text
+        //   void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
+        //   void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
+        //   float lead(float a,float b) { return a*b; }   $M2559 $M2560 $T2561
+        // ```
+        //
+        // The int store leaf consumes 1 and the FP store leaf consumes 2, the
+        // same as the arithmetic leaf. Its pooled-constant cases are refused by
+        // the parser, so unlike [`Self::float_leaf`] the value here is exact.
+        //
+        // This was the **twelfth** live wrong-bytes emit and it is the eleventh's
+        // own field, one consumer later: `is_float` was split into
+        // [`Self::touches_floating_point`] for `_fltused` and this method was
+        // left reading `float_leaf`, so the FP store leaf got the marker right
+        // and the stride wrong. `GAPS.md` §6 instance #2 exactly — *fixed in the
+        // one shape where the bug had been found*.
+        //
+        // It could not be seen before Class A many-calls landed: the counter only
+        // has an observable effect when a **framed** function follows, and until
+        // then no framed shape could share an in-class TU with an FP store.
+        // Neither side's fixtures contained the pair.
+        if self.touches_floating_point() {
+            return Some(2);
+        }
         Some(1)
     }
 }
