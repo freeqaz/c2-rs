@@ -314,19 +314,32 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<u32>, usize)> 
     // the one the body actually loads. It is a memory object either way, so it is
     // located and refused; only its width is needed.
     if tag == REC_STATIC {
-        // `<tag> <kind> 00 <size8> 04 00`, then the type id and the body token.
+        // `<tag> <kind> 00 <size> 04 00 <tid> <tok'> <b>`, where `<size>` is a
+        // varint and not a byte: `static int k` writes `04`, and
+        // `static int primes[62]` writes `80 F8 00 00 00` for 248. Reading it as a
+        // byte refused `Primes.cpp` — a translation unit one function short of
+        // matching — for a record this reader only ever steps over.
+        //
+        // `<tok'>` is a second token, the one the body actually loads, and `<b>` is
+        // an element size (`04` for that array, `00` for the scalar). Neither is
+        // interpreted: a `static` is a memory object with a relocation whatever its
+        // type, so the only thing needed here is the width.
         sy.get(p)?;
-        if *sy.get(p + 2)? != 0x00 || sy.get(p + 4..p + 6)? != [SIZE_LEAD, 0x00] {
+        if *sy.get(p + 2)? != 0x00 {
             return None;
         }
-        p += 6;
+        p += 3;
+        let (_size, sw) = read_tid(sy, p)?;
+        p += sw;
+        if sy.get(p..p + 2)? != [SIZE_LEAD, 0x00] {
+            return None;
+        }
+        p += 2;
         let (_tid, tw) = read_tid(sy, p)?;
         p += tw;
         let (_body_tok, bw) = read_token_var(sy, p)?;
         p += bw;
-        if *sy.get(p)? != 0x00 {
-            return None;
-        }
+        sy.get(p)?;
         return Some((None, p + 1));
     }
 
@@ -534,6 +547,36 @@ mod tests {
         let b = sy_blocks(STATIC).unwrap();
         assert_eq!(b[0].formals, vec![0xf409]);
         assert!(b[0].int_locals.is_empty());
+    }
+
+    /// `static int primes[62]` inside a function: the size field is a varint
+    /// (`80 F8 00 00 00` = 248), not the byte the scalar case shows, and the local
+    /// after it must still bind. Verbatim from `Primes.cpp`, a workload TU one
+    /// function short of matching — which this record refused outright.
+    #[test]
+    fn a_static_array_local_is_stepped_over_and_the_next_local_still_binds() {
+        let mut v = vec![0x03, 0x01, 0xe8, 0x09, 0x1f, 0x00, 0x02, 0x01];
+        v.extend_from_slice(&[SECTION, DEPTH_FORMALS]);
+        v.extend_from_slice(&[
+            0x01, 0x01, 0xe6, 0x09, 0x00, b'i', 0x00, 0x86, 0x01, 0x00, 0x03, 0x04, 0x04, 0x00,
+            0x01, 0x00, 0x74,
+        ]);
+        v.extend_from_slice(&[SECTION, 0x02]);
+        v.extend_from_slice(&[0x07, 0x02, 0xe9, 0x09]);
+        v.extend_from_slice(b"?primes@?1??NextHashPrime@@YAHH@Z@4PAHA\x00");
+        v.extend_from_slice(&[
+            0x86, 0x06, 0x00, 0x80, 0xf8, 0x00, 0x00, 0x00, 0x04, 0x00, 0x80, 0x00, 0x10, 0x00,
+            0x00, 0xea, 0x09, 0x04,
+        ]);
+        v.extend_from_slice(&[SECTION, 0x03]);
+        v.extend_from_slice(&[
+            0x01, 0x03, 0xeb, 0x09, 0x00, b'i', b'2', 0x00, 0x86, 0x01, 0x00, 0x01, 0x04, 0x04,
+            0x00, 0x01, 0x00, 0x74,
+        ]);
+        v.extend_from_slice(&[SECTION, 0x04, SECTION, 0x05, SECTION, 0x06, BLOCK_CLOSE]);
+        let b = sy_blocks(&v).expect("Primes.cpp must parse");
+        assert_eq!(b[0].formals, vec![0xe609]);
+        assert_eq!(b[0].int_locals, vec![0xeb09]);
     }
 
     #[test]
