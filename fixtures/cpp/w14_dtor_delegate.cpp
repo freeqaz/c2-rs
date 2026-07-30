@@ -87,3 +87,31 @@ D4::~D4() {}
 struct B5 { ~B5(); };
 struct D5 : B5 { ~D5(); int d; };
 D5::~D5() {}
+
+// The four ways of naming the base that looked most likely to produce a THREE-ref
+// class-pair descriptor, which this grammar refuses. All four still emit `66 02`,
+// so the literal `02` is not (measurably) costing coverage in this shape — but the
+// workload does contain `66 03` sites, at *chained* member calls, which this
+// grammar refuses for other reasons as well. Whether a base-delegating destructor
+// can ever carry `66 03` is UNMEASURED; the requirement fails closed.
+
+// (a) the intermediate base itself has two bases
+struct A6 { ~A6(); int a; };
+struct C6 { ~C6(); int c; };
+struct M6 : A6, C6 { ~M6(); };
+struct D6 : M6 { ~D6(); };
+D6::~D6() {}
+
+// (b) a namespace-scoped base
+namespace NS7 { struct B7 { ~B7(); int b; }; struct D7 : B7 { ~D7(); }; }
+NS7::D7::~D7() {}
+
+// (c) a class-template base
+template <class T> struct B8 { ~B8(); T t; };
+struct D8 : B8<int> { ~D8(); };
+D8::~D8() {}
+
+// (d) a nested-class base
+struct Out9 { struct In9 { ~In9(); int i; }; };
+struct D9 : Out9::In9 { ~D9(); };
+D9::~D9() {}
