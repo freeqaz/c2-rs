@@ -1116,6 +1116,27 @@ The rules that keep the numbers honest:
   (`scripts/expr_sweep.sh` — the member-function-across-source-lines axis exists only
   because of #1), and **have someone adversarial read the anchors**, because #2 was
   found by a reviewer assigned to an unrelated change.
+- **Estimate the fix, not the finding.** A rung's estimate is scoped to the call
+  site it was measured at, and the same defect often sits at more than one. The `66`
+  class-pair descriptor's refs were being stepped as a fixed two bytes in *two*
+  places; the measured estimate (10,469, from the census key that counted
+  whole-body-complete destructors) covered one of them, and the realized yield was
+  **+25,395** — 9,637 from the estimated site and **15,758** from
+  `try_parse_base_member_load`, which no estimate had covered. The prediction "fewer
+  than 10,469" was correct for its scope and wrong by 2.4x overall. Before quoting a
+  number, `grep` for every site that implements the same rule.
+  This also revises a figure this document has used as a cautionary tale: decoding
+  intrinsic 2117 "moved 32 of its 149,200 functions" partly because *this* bug was
+  refusing what it admitted — not only because those bodies are non-leaves.
+- **A residue that makes no sense is a measurement.** That descriptor bug was not
+  found by a probe; it was found because a census split spread 17,757 functions over
+  **197** distinct `op-0xNN` buckets. Flat over the byte range is the signature of
+  reading a **payload as vocabulary**, and no amount of narrow probing would have
+  shown it: `66 02 92 20 93 20` is consistent with fixed-2, with LEB128 *and* with
+  `read_token_var`. Only the wide witnesses (`fb 8a 01`, `ff ff 01`, `d3 80 02`)
+  separate them, and only a corpus large enough to contain wide type ids has any.
+  When a histogram has a long flat tail of hex buckets, suspect the parser before
+  the vocabulary.
 - **A green differential is not evidence that a *binding* is right.** `.sy` used to
   bind its blocks to `.ex` segments only when the counts were equal, and on the
   workload they are close but not equal (9,629 against 9,602). Relaxing that to "take the
