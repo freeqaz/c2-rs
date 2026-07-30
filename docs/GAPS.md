@@ -271,6 +271,14 @@ Every percentage in the table also moved because the blocked denominator shrank
 from ~2.45 M to 2,383,530 and now to 2,382,852. Do not diff raw percentages
 across scans without that.
 
+> **The `expr-load-type-XXXXXX` / `expr-lit-type-XXXXXX` names above no longer
+> exist.** Since 2026-07-30 the key is `<tag><kind>` and carries no type id, so
+> `expr-load-type-864540` reads `expr-load-type-8645`, `-888541` reads `-8885`,
+> and the pointer rows that used to be hundreds of separate shards are two keys.
+> §6's sharding bullet has the reason and the exact-partition check; the corrected
+> ranking is `docs/IL_CALL_IN_EXPR.md` §20. Any table in this document naming a
+> six-hex-digit type key predates that and is quoting a shard, not a construct.
+
 > **A census bucket may be the instrument, and a census NAME may be a guess.**
 > Two distinct failure modes, and this doc has now been wrong in both.
 >
@@ -1072,6 +1080,29 @@ The rules that keep the numbers honest:
   input is not a stable key**, and any histogram built on one needs its key checked
   before its ranking is believed. Ask of every bucket name: could two occurrences of
   the same construct land in different buckets?
+
+  > **It recurred, and it recurred because the regrouping above was done by hand
+  > and the key itself was left broken.** The paragraph was written, the family was
+  > summed once for one analysis, and every ranking taken afterwards went on reading
+  > the sharded histogram. It hid a second rung's worth of movement: **82.9 % of the
+  > address-leaf rung's +40,621 (−33,688) came out of `expr-load-type-*` shards that
+  > no ranked list could attribute**, and that rung was therefore ranked entirely
+  > from the 17.1 % that happened to have a named key. In one sample the plain
+  > designator was refusing 928 functions against the intrinsic's 184 — a 5.0×
+  > ratio, invisible.
+  >
+  > **Fixed 2026-07-30**: [`Block::feature`] renders `<tag> <kind>` and not the id.
+  > 1,257,718 functions moved out of 848 shard names into 29 real ones, an exact
+  > coarsening verified per TU *and* per frame class with zero residual, census
+  > unchanged at 320,641/2,462,571. The corrected head is
+  > `expr-load-type-A643` at **666,907** and `expr-load-type-8643` at **316,800** —
+  > together **983,707, 45.9 % of blocked** — where the top *visible* row had been
+  > `expr-intrinsic-this-adjust` at 141,800. (The 750,421/294,810 figures above were
+  > taken at an earlier census; the population has since moved, not the finding.)
+  > The general rule, restated so the next instrument gets it for free: **the
+  > partition a census reports must be a function of the construct, never of a value
+  > the compiler allocated per input.** `mcall`'s `aux` layout states it as an
+  > invariant of its bit packing, which is why that family never sharded.
 - **A first-blocker histogram attributes a construct to wherever the parse
   stopped, not to what the construct is.** Sampling 21,319 blocking sites showed
   `expr-call-in-expr` is ~80% *member calls* — and that the same member-call
@@ -1085,9 +1116,10 @@ The rules that keep the numbers honest:
   and grouped them by production; and clearing one production can shrink several
   unrelated-looking buckets at once, so predicted movement should be stated
   per-production, never per-bucket.
-- **Four live wrong-bytes emits, none of them found by the fixture corpus.** Every
-  one came from review or adversarial probing, and every one has the same shape:
-  *two facts that happen to share one field until some construct pulls them apart.*
+- **Four live wrong-bytes emits and one live panic, none of them found by the
+  fixture corpus.** Every one came from review or adversarial probing, and every one
+  has the same shape: *two facts that happen to share one field until some construct
+  pulls them apart.*
     1. The `this` token was located by a bare first-`0x46` search. That byte is also
        the payload of the line marker for **source line 70**, so a member function
        there lost its `this` and every formal dropped a register.
@@ -1105,10 +1137,24 @@ The rules that keep the numbers honest:
        indistinguishable until a by-value aggregate wider than 8 bytes took more than
        one GPR: `int gb(Big v, H* h) { return h->mi; }` emitted `lwz r3,0(r4)` where
        c2 emits `lwz r3,0(r6)` (`il_param_aggr_neg.cpp`).
+    5. **The fifth instance is not a wrong-bytes emit but a panic**, found
+       2026-07-30 while probing the de-sharded census. A formal's **index in the
+       formals list** stood in for its **argument-slot index** in the multi-argument
+       tail call's permutation analysis — equal whenever the call passes every
+       formal, and the corpus had no call that skipped one. `int g(int,int); int
+       f(int a,int b,int c){ return g(a,c); }` gives sources `[0, 2]` over two slots
+       and indexed a `seen[]` of length 2 with 2: `c2rs census` **panicked**, on
+       mainline, on two lines of ordinary C++, against a hard constraint that says
+       the CLI degrades cleanly and never panics. The 878-TU scan was green through
+       it because those bodies block earlier on their operand types — **a green scan
+       is green only on the IL it saw**, and this one had never seen a call that
+       skipped a formal. Now refused as `call-arg-outer-formal`; pinned by
+       `ARG2_OUTER_FORMAL` with the formals-0-and-1 permutation as its control.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
-  but not members, `long long` at natural alignment but never packed, and — for #4 —
-  not one parameter in the entire fixture corpus that was anything but a scalar. A
+  but not members, `long long` at natural alignment but never packed, for #4 not one
+  parameter in the entire fixture corpus that was anything but a scalar, and for #5
+  not one call that passed a strict subset of its caller's formals. A
   hand-written
   corpus is biased toward the shapes whoever wrote it was thinking about, and it is
   biased in a way that is invisible from inside it. Two practices follow, and both

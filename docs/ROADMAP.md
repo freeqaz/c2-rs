@@ -1343,6 +1343,16 @@ largest genuinely leaf-shaped block left in the census and the one rung still ta
 `recv-object × type-ptr` (2,410, 100 % `calls-1`) it is the entire remaining local
 inventory above a thousand functions: **37,494 functions, against 802,655.**
 
+> **CORRECTION 2026-07-30 — that last sentence is false, and it was false when it
+> was written.** It was computed from a histogram whose operand-type key embedded a
+> per-TU type id and so split one construct across 256 names (`GAPS.md` §6). With
+> the key de-sharded, the call-free blocked inventory is **585,777 functions**, of
+> which **381,810 are a single construct** — a 4-byte data-pointer operand,
+> `expr-load-type-A643` (298,770 `calls-0`) and `-8643` (83,040). The frame rung is
+> still the biggest piece of work; the enumeration of what is local was wrong by
+> 10×. `docs/IL_CALL_IN_EXPR.md` §20 has the corrected ranking, the exact-partition
+> check, and the next rung (+14,038, measured by counterfactual).
+
 **Bundled measurement-integrity fix.** §16.4's chain undercount is closed: 37,662
 functions re-key from `recv-load`/`recv-deref`/`recv-intrinsic`/`recv-field`/
 `recv-call`/`recv-object` into `chained`, an exact partition with the

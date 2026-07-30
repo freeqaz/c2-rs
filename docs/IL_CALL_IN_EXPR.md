@@ -2568,6 +2568,11 @@ unchanged to the function.
 
 ### 19.7 The order of work, re-ranked
 
+> **SUPERSEDED by §20.** Every ranking in this section was taken from a histogram
+> whose operand-type key carried a per-TU type id and so hid the largest construct
+> in the census across 256 shards. The board below is not wrong about the items it
+> names — it is missing a 983,707-function row that outranks all of them.
+
 The board is §18.7's, minus item 2, and with what §19.1 measured inside it:
 
 1. **The general frame, plus per-COMDAT `.pdata`.** Unchanged and still first:
@@ -2624,3 +2629,233 @@ Always difference the scans through **absolute** paths and print each one's row 
 and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several reflinked
 worktrees with different contents, and reading one through a relative path has already
 produced a published wrong number in this project.
+
+## 20. D8, landed — the de-sharded census key, and the head it had been hiding
+
+D7 gained +40,621 functions and **82.9 % of that gain (−33,688) came out of
+`expr-load-type-*` keys the ranked histogram could not show**. The rung had been
+ranked entirely from the 17.1 % that had a named key
+(`expr-intrinsic-base-member-addr`, −6,933); the plain designator refusing the same
+construct five times as often was found by grepping for the rule, not by the
+instrument. That is the `GAPS.md` §6 sharding failure firing a second time, after
+having been recorded, hand-regrouped once for one analysis, and left in the key.
+
+This rung fixes the key and re-ranks. **The construct that was hiding is the
+largest single row in the census**, by a factor of 4.7 over the top row that was
+visible.
+
+### 20.1 What was sharded, and what each key became
+
+A TYPE is `<tag> <kind> <LEB128 id>` (`docs/IL_TYPE_TAGS.md` §1). The first two
+bytes are fixed vocabulary — the tag is the *slot's* width plus a qualifier (`86`
+plain, `A6` const, `96` volatile, `82`/`84`/`88` the other widths), the kind's low
+nibble is the type **class** (1 signed · 2 unsigned · 3 data pointer · 4 code
+pointer · 5 real · 6 aggregate · 7 void · A real literal). The id is **an index into
+the TU's own type table**: every distinct pointee and every typedef gets a fresh
+one. `Block::feature` put all three bytes in the bucket name.
+
+Two keys were affected, and both are now `<tag><kind>`:
+
+| old | new | shards folded | functions |
+|---|---|---:|---:|
+| `expr-load-type-XXXXXX` | `expr-load-type-XXXX` | 578 → 16 | 1,188,492 |
+| `expr-lit-type-XXXXXX` | `expr-lit-type-XXXX` | 270 → 13 | 69,226 |
+
+The head rows and their shard counts: `expr-load-type-A643` was **128** names,
+`-8643` **128**, `expr-lit-type-8643` **128**, `-8641` **129**. A *single* TU
+(`src/lazer/game/Game.cpp`) carries all 128 `A643` shards by itself, which is the
+per-TU allocation stated as a measurement rather than as an inference.
+Scan-wide: **1,363 distinct features → 544**.
+
+**The id is kept, not discarded.** `Block::aux` still packs the whole triple exactly
+as `blk_type` wrote it and `FnCensus::hex` still carries the raw bytes of the site,
+so an analysis that wants the type-table index has it. It is only out of the *name*,
+which is the only place it did damage.
+
+### 20.2 The exact-partition check
+
+Baseline `work/dc3-workload/scan-deshard-base.jsonl`, taken **in this worktree** per
+§18.8's rule: 878 rows, `fn_total` 2,462,571, in class **320,641 (13.02 %)**, 1,363
+keys, mismatch 0, 6 `match` / 7 `capture-fail`. Result: `scan-deshard2.jsonl`, same
+list, flags and `--cwd`.
+
+| | baseline | D8 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 320,641 (13.02 %) | 320,641 (13.02 %) | **0** |
+| mismatch / `match` / `capture-fail` | 0 / 6 / 7 | 0 / 6 / 7 | 0 |
+| distinct keys | 1,363 | **544** | −819 |
+| functions leaving a sharded key | — | **1,257,718** | across 848 names |
+| functions entering the folded keys | — | **1,257,718** | across 29 names |
+| residual disagreement, per TU **and** per frame class | — | **0** | — |
+
+The check is stronger than a total: every one of the 878 rows was compared key by
+key *and* frame-class by frame-class, folding the baseline's names through the
+rename, with **zero** residual. Every key outside the two families is byte-identical
+per TU. This is a *coarsening*, which is checkable at the source as well as in the
+data — same old key ⇒ same new key, pinned by
+`the_operand_type_rekey_is_an_exact_coarsening` over every shape `feature()` can
+take — because the parse itself is untouched and the change is in the key formatter.
+
+### 20.3 The corrected ranking
+
+Top rows over the 2,141,930 blocked functions, with the frame classes §18's audit
+made available:
+
+| # | functions | % blocked | calls-0 | calls-1 | calls-2plus | key |
+|---:|---:|---:|---:|---:|---:|---|
+| 1 | **666,907** | **31.1 %** | **298,770** | 147,829 | 220,308 | `expr-load-type-A643` |
+| 2 | **316,800** | **14.8 %** | 83,040 | 149,817 | 83,943 | `expr-load-type-8643` |
+| 3 | 141,800 | 6.6 % | 15 | 57,894 | 83,891 | `expr-intrinsic-this-adjust` |
+| 4 | 116,016 | 5.4 % | 25,439 | 56,186 | 34,391 | `expr-intrinsic-base-member-addr` |
+| 5 | 92,724 | 4.3 % | 8,267 | 80,562 | 3,895 | `expr-load-type-8645` (float) |
+| 6 | 79,158 | 3.7 % | 2 | 79,154 | 2 | `expr-load-type-8885` (double) |
+| 7 | 48,102 | 2.2 % | 1,622 | 4,674 | 41,806 | `body-0x29` |
+| 8 | 39,361 | 1.8 % | 0 | 0 | 39,361 | `expr-call-in-expr-op-0x9B` |
+| 9 | 34,795 | 1.6 % | 7,318 | 12,682 | 14,795 | `expr-intrinsic-memset` |
+| 10 | 32,381 | 1.5 % | 4 | 31,485 | 892 | `expr-bit-and` |
+| 11 | 29,552 | 1.4 % | 28,720 | 832 | 0 | `fn-tail-0xB9` |
+| 12 | 28,285 | 1.3 % | 6,954 | 11,191 | 10,140 | `expr-lit-type-8643` |
+
+**Rows 1 and 2 are the same construct at two tags** — a 4-byte data-pointer operand,
+const-qualified and plain — and together they are **983,707 functions, 45.9 % of
+everything blocked and 39.9 % of the whole corpus**. Add the pointer *literal* row
+and it is 1,011,992. The top row the sharded histogram could show was
+`expr-intrinsic-this-adjust` at 141,800: **the real head is 4.7× it, and it was never
+on any list.**
+
+The **whole-body-complete** column §14.1 introduced does not exist for these rows:
+the `-whole` suffix is `mcall`'s, and no equivalent bit is carried for an operand-type
+refusal. §20.5 measures it by counterfactual instead. For every
+`expr-call-in-expr-*` row the suffix is still in the key and unchanged by this rung.
+
+### 20.4 Larger than it looked — and the claim it falsifies
+
+§18.7 closed with: *"Items 2, 3 and 4 total **37,494 functions** and are the entire
+remaining local inventory above a thousand functions."* **That is false, and it was
+false when it was written** — it was computed from the sharded histogram, in which no
+pointer row was large enough to appear.
+
+**Blocked and call-free (`calls-0`), ranked, at HEAD: 585,777 functions.**
+
+| functions | key |
+|---:|---|
+| 298,770 | `expr-load-type-A643` |
+| 83,040 | `expr-load-type-8643` |
+| 28,720 | `fn-tail-0xB9` |
+| 25,439 | `expr-intrinsic-base-member-addr` |
+| 23,220 | `expr-lit-type-8212` |
+
+The pointer rows alone hold **381,810 call-free functions** — provably needing no
+frame, by §18's own instrument — against the 37,494 the frame audit called the whole
+of it. §18.7's *practical* conclusion (the general frame is the biggest single piece
+of work) survives; its claim to have enumerated the local inventory does not.
+
+The two items §19.7 (5) deferred are **unchanged** by this rung — they live inside
+`expr-intrinsic-base-member-addr`, which never sharded — and they are now two orders
+of magnitude below the head: the load-with-extra-offset-adds ≈1,200 and the
+whole-body store ≈370. Neither is the best available rung any more.
+
+### 20.5 The next rung, and its size — MEASURED by counterfactual
+
+The question the ranking cannot answer on its own is how much of a 983,707-function
+row is *only* the type gate. Measured directly: `eat_int_like` was widened in a
+**scratch build** to admit a 4-byte data-pointer type wherever an int-like one is
+admitted, and the census re-run over the same 878 TUs. Nothing was committed; the
+build was reverted and the gate re-run against the committed tree.
+
+**Admitting the pointer operand type releases 1,011,992 functions from the type keys,
+and 14,038 of them (1.4 %) become whole-body complete.** The census numerator goes
+**320,641 → 334,679 (13.02 % → 13.59 %)**, and the shapes that gain are ones the port
+already emits:
+
+| shape | before | after | delta | frame class |
+|---|---:|---:|---:|---|
+| `straight-line` | 10,960 | 17,016 | **+6,056** | all `calls-0` |
+| `int-tail-call` | 0 | 5,268 | **+5,268** | `calls-1` |
+| `multiarg-tail-call` | 0 | 2,692 | **+2,692** | `calls-1` |
+| `indirect-load-leaf` | 157,912 | 157,934 | +22 | `calls-0` |
+| **total** | 320,641 | **334,679** | **+14,038** | 6,078 `calls-0` / 7,960 `calls-1` / **0** `calls-2plus` |
+
+`int-tail-call` and `multiarg-tail-call` are **at zero on the real workload today**:
+the port models `return g(a)` and `return g(a,b)` and the workload's calls almost
+always pass a pointer, so the shape has never once fired outside the fixtures. That
+is the single most useful thing in this table.
+
+The other 98.6 % moves one token deeper, and the counterfactual names where to:
+`expr-op-0x27` **+504,223** (the `27` sub-object address in a general expression
+position, outside a leaf designator), `expr-convert` **+198,545** (the `2C` cast),
+`expr-op-0x99` **+134,431** (the by-value temporary bind). **The pointer type is a
+gate in front of the expression layer over pointers, not the layer itself** — which
+is the honest reading of why row 1 is 31 % and the rung behind it is 14,038.
+
+**The hazard, and it is measured too.** `p + 1` on an `int*` is `addi r3,r3,4`, not
+1, so admitting a pointer into the modeled add-chain is a wrong-bytes emit and not a
+gap. A second counterfactual added exactly that guard — refuse if the accepted
+expression contains `02`/`03`/`04` over a pointer operand — and the numerator was
+**identical at 334,679**: not one of the 14,038 does arithmetic on a pointer, while
+**964** bodies elsewhere do and are refused by the guard. The rung must carry the
+guard; it costs nothing it would otherwise have gained.
+
+So the next rung is: **admit the 4-byte data-pointer operand type (`<tag> 43`) at the
+`B9` LOAD and `33` LIT positions of `parse_expr`, guarded against arithmetic.
+Estimated +14,038 functions, +4.4 % on the numerator, 6,056 of them call-free
+straight-line leaves and 7,960 tail calls that need no frame.**
+
+Stated before implementation, per §13.1's rule, with the bias direction called: the
+14,038 is a **grammar-completeness floor, not a byte-exactness claim** — the
+counterfactual says those bodies *parse*, and only the compiler can say whether they
+*emit*. It is a floor for three reasons and could be low: only `eat_int_like` was
+widened, so the result-type, store-type and call-return-type positions still refuse
+int-only; the `86 43`/`A6 43` pair may not exhaust the pointer tags; and D7's own
+lesson (§19.3) is that the same rule usually has a second site. It could equally be
+optimistic if any of the three shapes emits differently for a pointer than for an
+int — `IL_TYPE_TAGS.md` §3 measures identity as a bare `blr` for every type
+including pointers, which is evidence for the leaf half and says nothing about the
+argument half.
+
+### 20.6 What is NOT established, labelled
+
+* **`A6` = const, `96` = volatile is quoted from `readers.rs`'s comment, not
+  re-verified here.** It is why rows 1 and 2 are two rows rather than one. The 2:1
+  ratio between them is consistent with `A6 43` being mostly `this` (a `T *const`),
+  but **no capture in this rung tested that**, and if the two tags turn out to be one
+  construct the head is one 983,707-function row.
+* **The counterfactual is a census measurement, not a differential.** No TU became
+  wholly in class under it, so the four mode lanes and the sweep graded nothing about
+  the widened build. `mismatch` stayed 0 in the counterfactual scans, which is a
+  statement about TU-level acceptance and **not** evidence that the widened bytes
+  would be right.
+* **The class-nibble decode (`3` = data pointer, …) comes from
+  `docs/IL_LOAD_TYPES.md` §1 and `IL_TYPE_TAGS.md` §2**, both capture-backed, and is
+  re-used unchanged. This rung added no new type captures.
+* **Aggregates (`kind & 0x0F == 6`) still shard slightly**, on the *size* nibble the
+  aggregate encoding packs into the tag/kind pair. That is a property of the type and
+  not a per-TU index, and the whole class is 3,107 functions across three keys, so it
+  is recorded rather than fixed.
+* **The `expr-op-0x27`/`expr-convert`/`expr-op-0x99` figures are counterfactual
+  positions**, i.e. where the parse *would* stop once the type gate opens. They are
+  not measurements of the committed instrument and must not be quoted as census rows.
+
+### 20.7 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                      # 112 pass 0 fail 0 error
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                         # 46 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                         # 43 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                            # checked=3516 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 16 \
+  --jsonl work/dc3-workload/scan-deshard2.jsonl        # 320641/2462571, 544 keys
+# the exact-partition check: fold the baseline's names through the rename and
+# compare per TU AND per frame class; the residual must be 0 (§20.2).
+# the counterfactual (scratch, reverted): widen `eat_int_like` to take a
+# `<tag> 43` type via `read_type`, rebuild, re-scan -> 334679/2462571.
+```
+
+Always difference the scans through **absolute** paths and print each one's row count
+and `fn_total` first — see §18.8's warning, which is why this rung's baseline was
+re-taken in its own worktree rather than read from a neighbouring one.

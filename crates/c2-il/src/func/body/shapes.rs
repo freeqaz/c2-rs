@@ -2228,6 +2228,24 @@ pub(crate) fn parse_call_shape(
                 }
             }
         }
+        // **An argument that is a formal beyond the argument count.** `arg_sources`
+        // indexes the *formals* list while everything below treats it as a
+        // permutation of the *argument* slots, and the two lists are only the same
+        // length when the call passes every formal. `int f(int a,int b,int c){
+        // return g(a,c); }` gives sources `[0, 2]` over two slots: not a
+        // permutation but a move out of a register the call does not otherwise
+        // touch, which `permute_args_text` has no case for.
+        //
+        // It also indexed `seen[]` — sized by the argument count — with a formal
+        // index, so this **panicked** rather than refusing: `index out of bounds:
+        // the len is 2 but the index is 2`, from `c2rs census` on two lines of
+        // ordinary C++ (`ARG2_OUTER_FORMAL`, transcribed from the capture). The
+        // CLI must degrade cleanly, never panic. Refusing here is acceptance-
+        // neutral by construction — the only bodies it can reach are ones that
+        // previously took the process down, so none of them was ever accepted.
+        if arg_sources.iter().any(|&ix| ix >= arg_sources.len()) {
+            return Err(Block { ctx: "call-arg-outer-formal", byte: None, off: *p, aux: 0 });
+        }
         // The two permutation shapes codegen cannot lower are rejected HERE rather
         // than there, so the census and the emission gate cannot disagree about
         // what is in class (the same reason the FP contraction and constant gates
@@ -2393,6 +2411,50 @@ mod tests {
         global_arg[at] = 0xF0; // a token no `2D` entry names
         let b = parse_segment_detail(&free_fn(&global_arg), NO_LOCALS).unwrap_err();
         assert_eq!(b.ctx, "call-arg-nonformal");
+    }
+
+    /// A two-argument tail call that passes formals 0 and 2 of three must **refuse**,
+    /// and above all must not take the process down.
+    ///
+    /// The permutation analysis sizes its `seen[]` by the argument count and indexes
+    /// it with a *formal* index, so `int f(int a,int b,int c){ return g(a,c); }`
+    /// panicked with `index out of bounds: the len is 2 but the index is 2` — on
+    /// mainline, from `c2rs census`, on two lines of ordinary C++. The 878-TU
+    /// workload never reached it because those bodies block earlier on their operand
+    /// types, which is exactly why nothing caught it: a scan that is green is green
+    /// only on the IL it saw.
+    #[test]
+    fn a_call_argument_from_a_formal_beyond_the_argument_count_refuses_and_does_not_panic() {
+        let b = parse_segment_detail(ARG2_OUTER_FORMAL, NO_LOCALS).unwrap_err();
+        assert_eq!(b.ctx, "call-arg-outer-formal");
+        assert_eq!(b.feature(), "call-arg-outer-formal:eof");
+        assert_eq!(parse_segment(ARG2_OUTER_FORMAL, NO_LOCALS), None);
+    }
+
+    /// The control for the refusal above: the same shape passing formals 0 and 1 —
+    /// a real permutation of the argument slots — stays in class. The guard must
+    /// cost nothing that was already accepted.
+    #[test]
+    fn a_two_argument_tail_call_over_the_leading_formals_is_still_in_class() {
+        let mut inner = ARG2_OUTER_FORMAL.to_vec();
+        // The `2D` formals list is in REVERSE source order and `parse_formals`
+        // un-reverses it, so `E6` is `a` (index 0), `E7` is `b` and `E8` is `c`
+        // (index 2) — and the argument stream is reverse source order too, so
+        // `g(a,c)` pushes `c` then `a`. Rebinding the FIRST push from `c` to `b`
+        // turns it into `g(a,b)`: sources `[0, 1]`, a permutation of the two
+        // argument slots.
+        let at = inner
+            .windows(3)
+            .position(|w| w == [0xB9, 0xE8, 0x09])
+            .expect("the first argument push");
+        inner[at + 1] = 0xE7;
+        assert!(
+            matches!(
+                parse_segment(&inner, NO_LOCALS),
+                Some(BodyShape::MultiArgTailCall { .. })
+            ),
+            "formals 0 and 1 are a permutation and must stay accepted"
+        );
     }
 
     #[test]
