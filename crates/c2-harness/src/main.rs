@@ -646,11 +646,19 @@ fn cmd_diff(rest: &[String]) -> ExitCode {
     };
     println!("{} -> {}", cpp.display(), line);
     let _ = std::fs::remove_dir_all(&w);
-    // A byte-exact reference replay is the pass condition here; the port may be
-    // Match or NotImplemented depending on the TU. Treat both (and clean skips)
-    // as success for scripting — only a reference-side failure is non-zero.
+    // A byte-exact reference replay is the pass condition, and the port may be
+    // Match or NotImplemented depending on the TU — both, and clean skips, are
+    // success for scripting.
+    //
+    // `Port=Mismatch` is NOT. The doctrine is that a mismatch is an alarm rather
+    // than a gap: the port emitted bytes and they were wrong. This is the per-rung
+    // acceptance gate, so the alarm needs an exit code and not just a line of
+    // stdout that a `tail -1` may or may not be read by a human.
     match &report {
         DiffReport::ReferenceReplayMismatch { .. } | DiffReport::ReferenceError(_) => {
+            ExitCode::FAILURE
+        }
+        DiffReport::ReferenceReplayByteExact { port: PortStatus::Mismatch { .. }, .. } => {
             ExitCode::FAILURE
         }
         _ => ExitCode::SUCCESS,

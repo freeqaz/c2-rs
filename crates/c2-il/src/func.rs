@@ -1173,11 +1173,10 @@ fn parse_segment_detail(
             if has_repeated_leaf(&ops) {
                 return Err(Block { ctx: "expr-repeated-leaf", byte: None, off: p, aux: 0 });
             }
-            // c2 canonicalizes and reassociates a serial chain by register, so
-            // rewrite into that order rather than emitting source order. When the
-            // stream is not a recognized serial chain, fall back to demanding that
-            // source order already *is* canonical — a tree still has to reach
-            // `try_select_depth2_tree` unaltered.
+            // Gates that used to live in codegen; see `straight_line_is_out_of_class`.
+            if straight_line_is_out_of_class(&ops, &params) {
+                return Err(Block { ctx: "expr-out-of-class", byte: None, off: p, aux: 0 });
+            }
             let ops = match canonicalize_chain(&ops, &params) {
                 Some(c) => c,
                 None => {
@@ -1209,6 +1208,55 @@ fn parse_segment_detail(
 /// The largest substituted operand stream accepted, so that a chain of
 /// assignments each doubling the previous cannot blow up.
 const MAX_SUBST_OPS: usize = 32;
+
+/// True if a straight-line integer body parses cleanly but `select_text` would
+/// decline it anyway.
+///
+/// These gates used to live in codegen, and that broke a stated invariant: the
+/// convention is that acceptance is decided in the parser so `function_census` and
+/// `PortC2::build` cannot disagree about what is in class. While they sat in
+/// codegen every shape below parsed as `straight-line` and was *counted*, then was
+/// refused at emission — so the census numerator included functions the port cannot
+/// emit. Fail-closed either way, but the census is the public claim and its
+/// histogram is the widening order, so an inflated numerator is a real defect
+/// rather than a cosmetic one.
+///
+/// Named rather than inlined so the test can assert the same predicate the parser
+/// uses; the previous "census agrees with the gate" test compared `parse_segment`
+/// with `parse_segment_detail`, which is `.ok()` of it, and so could not fail.
+fn straight_line_is_out_of_class(ops: &[IlOp], params: &[u32]) -> bool {
+    // More than eight integer parameters: the ninth is stack-homed.
+    if params.len() > ARG_REG_COUNT {
+        return true;
+    }
+    // `return b;` — a bare parameter that is not the first needs a register move.
+    // `return a;` is free, since it is already in r3.
+    if let [IlOp::Load(t)] = ops {
+        if params.first() != Some(t) {
+            return true;
+        }
+    }
+    // A bare wide NEGATIVE constant: the `lis`+`ori` pair covers non-negative only.
+    if let [IlOp::Lit(k)] = ops {
+        if *k < -0x8000 {
+            return true;
+        }
+    }
+    // Multiply by a constant strength-reduces to shifts and adds, and `const - reg`
+    // needs a `subfic`. The chain is left-associative, so an operator's right-hand
+    // operand is the leaf just before it, and a leading `Lit` is the only way a
+    // literal reaches an operator's left.
+    for (i, op) in ops.iter().enumerate() {
+        let rhs_lit = matches!(ops.get(i.wrapping_sub(1)), Some(IlOp::Lit(_)));
+        let lhs_lit = matches!(ops.first(), Some(IlOp::Lit(_)));
+        match op {
+            IlOp::Mul if rhs_lit || (i == 1 && lhs_lit) => return true,
+            IlOp::Sub if i == 2 && lhs_lit => return true,
+            _ => {}
+        }
+    }
+    false
+}
 
 /// True if any operand token is loaded more than once.
 ///
@@ -1341,6 +1389,20 @@ fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlOp>> {
     {
         return None;
     }
+    // **The acceptance region of a rewrite rule must be a subset of the region that
+    // was actually enumerated.** This rule was inferred from captures and is
+    // validated by `scripts/expr_sweep.sh`, which enumerates chains of up to four
+    // leaves; accepting longer ones would be emitting on extrapolation, which is
+    // precisely how the per-chain accumulator bug survived (two rules that coincide
+    // on short inputs). The multiplicative path is separately bounded by codegen's
+    // r9 scratch floor, but the additive path is not bounded by anything — its
+    // accumulator is r11 forever — so the bound has to be here.
+    //
+    // Raising this requires extending the sweep first, not the other way round.
+    const MAX_SWEPT_TERMS: usize = 4;
+    if terms.len() > MAX_SWEPT_TERMS {
+        return None;
+    }
 
     if mul {
         // A multiplicative chain: registers ascending. A literal factor
@@ -1398,7 +1460,11 @@ fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlOp>> {
         out.push(IlOp::Add);
     }
     if k != 0 {
-        out.push(IlOp::Lit(k.abs()));
+        // `i32::MIN.abs()` panics in debug (and wraps in release), so refuse rather
+        // than rely on a downstream checked-arithmetic catch. Reachable: the literal
+        // varint has a 4-byte escape form, so `a + b + (-2147483648)` is encodable.
+        let mag = k.checked_abs()?;
+        out.push(IlOp::Lit(mag));
         out.push(if k > 0 { IlOp::Add } else { IlOp::Sub });
     }
     Some(out)
@@ -1428,6 +1494,31 @@ fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlOp>> {
 /// right-hand operand is the leaf immediately preceding it — which is all the
 /// context needed to tell a register operand from a folded literal.
 fn additive_chain_canonical(ops: &[IlOp]) -> bool {
+    // Depth bound. Even a chain already in canonical order — needing no rewrite, and
+    // so taking the pre-canonicalizer path — mis-emits once it is long enough: with
+    // three or more register subtractions followed by an addition, c2's intermediate
+    // allocation diverges again. Measured: every 4-leaf chain is byte-exact (11,664
+    // enumerated), `a - b - c - d` is byte-exact, and `a - b - c - d + e` is not.
+    //
+    // Nothing else bounded this. The multiplicative path stops at codegen's r9
+    // scratch floor, but an additive chain's accumulator is r11 forever, so a chain
+    // of any length was accepted on extrapolation from short ones — the same shape as
+    // the per-chain accumulator bug. Pure additions and pure multiplications are left
+    // alone (5-leaf forms of both are verified); the bound applies only where a
+    // subtraction is present, which is where the divergence was found.
+    //
+    // Raising it requires extending the sweep first.
+    const MAX_VERIFIED_LEAVES_WITH_SUB: usize = 4;
+    let has_sub = ops.iter().any(|o| matches!(o, IlOp::Sub));
+    if has_sub {
+        let leaves = ops
+            .iter()
+            .filter(|o| matches!(o, IlOp::Load(_) | IlOp::Lit(_)))
+            .count();
+        if leaves > MAX_VERIFIED_LEAVES_WITH_SUB {
+            return false;
+        }
+    }
     let mut reg_add_seen = false;
     for (i, op) in ops.iter().enumerate() {
         let rhs_is_reg = matches!(ops.get(i.wrapping_sub(1)), Some(IlOp::Load(_)));
@@ -1651,6 +1742,10 @@ const ULONG_TYPE: [u8; 3] = [0x86, 0x42, 0x22];
 /// are refused elsewhere — nor does it extend to the narrow types, whose
 /// extension placement depends on the operator *and* the result type (§3.2).
 const INT_LIKE_TYPES: [[u8; 3]; 4] = [INT_TYPE, UINT_TYPE, LONG_TYPE, ULONG_TYPE];
+
+/// Integer argument registers r3..r10. A ninth parameter is stack-homed, which
+/// needs a frame; mirrors `c2_core::codegen::ARG_REGS`.
+const ARG_REG_COUNT: usize = 8;
 
 /// Consume any one of [`INT_LIKE_TYPES`] at `p`, reporting whether it matched.
 fn eat_int_like(seg: &[u8], p: &mut usize) -> bool {
@@ -2242,6 +2337,16 @@ fn try_parse_compare(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
         return None;
     }
 
+    // Gates moved here from `compare_leaf_text`, so the census counts only what the
+    // emitter can emit. A literal outside the signed 16-bit immediate needs
+    // `lis`+`ori` and the extra temp slot that consumes; and `==`/`!=` form `a - k`
+    // as `addi r11,a,-k`, so at `k == i16::MIN` the negation itself overflows.
+    if i16::try_from(k).is_err() {
+        return None;
+    }
+    if matches!(rel, Rel::Eq | Rel::Ne) && k == i32::from(i16::MIN) {
+        return None;
+    }
     Some(BodyShape::Compare(CompareLeaf { param, rel, signed, k }))
 }
 
@@ -3396,8 +3501,20 @@ mod tests {
 
     #[test]
     fn census_agrees_with_the_gate_on_every_pinned_segment() {
-        // The census must never disagree with acceptance: it is `.ok()` of the
-        // same parse. Cross-check both directions over every pinned segment.
+        // This used to compare `parse_segment` with `parse_segment_detail` and
+        // could not fail: the former is literally `.ok()` of the latter, so it
+        // asserted a function equals itself. It protected only against someone
+        // re-forking the two, which is worth keeping — hence the first assertion —
+        // but it never checked the invariant its name claims.
+        //
+        // The invariant that matters is that **everything the parser accepts, the
+        // emitter can emit**. That cannot be tested from this crate (c2-il cannot
+        // depend on c2-core), so what is pinned here is the half that can be: the
+        // specific shapes whose emission gates used to live in codegen, and which
+        // the census therefore counted as in-class while the port refused them.
+        // Each must now be refused by the parser. The other half — that no
+        // *accepted* shape is refused downstream — is guarded by the fixture
+        // differential and `scripts/expr_sweep.sh`.
         let all: &[&[u8]] = &[
             MVP_CALL, MVP_FRAMED, INT_TAILRET, INT_PLUS0, INT_ARGTAIL, GA_SUBMOD, GA_MULMOD,
             GA_WIDEMOD, TWO_CALLS, CALL_THEN_STMT, ARGFRAMED_PLUSK, TWO_FRAMED_CALLS, PLUS1PLUS2,
@@ -3406,7 +3523,35 @@ mod tests {
             assert_eq!(
                 parse_segment(seg, &no_globals()).is_some(),
                 parse_segment_detail(seg, &no_globals()).is_ok(),
-                "census/gate disagreement"
+                "the two entry points have been re-forked"
+            );
+        }
+
+        // Shapes that parse as a well-formed straight-line body but that
+        // `select_text` declines. Each is refused in the parser now.
+        let params = vec![0x10u32, 0x11];
+        let a = IlOp::Load(0x10);
+        let b = IlOp::Load(0x11);
+        for (ops, why) in [
+            (vec![a, IlOp::Lit(3), IlOp::Mul], "multiply by a constant"),
+            (vec![b], "bare non-first parameter"),
+            (vec![IlOp::Lit(5), a, IlOp::Sub], "const - reg needs subfic"),
+            (vec![IlOp::Lit(-70000)], "negative wide constant"),
+        ] {
+            assert!(
+                straight_line_is_out_of_class(&ops, &params),
+                "parser must refuse: {why}"
+            );
+        }
+        // ...and the neighbours that really do emit must stay accepted.
+        for (ops, why) in [
+            (vec![a, b, IlOp::Add], "a + b"),
+            (vec![a], "bare first parameter"),
+            (vec![IlOp::Lit(70000)], "positive wide constant"),
+        ] {
+            assert!(
+                !straight_line_is_out_of_class(&ops, &params),
+                "parser must accept: {why}"
             );
         }
     }
