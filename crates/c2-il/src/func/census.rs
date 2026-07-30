@@ -180,6 +180,11 @@ impl IlBundle {
                             Ok(BodyShape::IndirectLoad { .. }) => {
                                 FnVerdict::InClass("indirect-load-leaf")
                             }
+                            // Kept apart from `indirect-load-leaf` so the in-class
+                            // gain of this rung can be checked against the bucket
+                            // drops it claims (`docs/IL_CALL_IN_EXPR.md` §19), and
+                            // because the two emit different instructions.
+                            Ok(BodyShape::AddrLeaf { .. }) => FnVerdict::InClass("addr-leaf"),
                             Ok(BodyShape::FloatLeaf { double, .. }) => {
                                 FnVerdict::InClass(if double { "double-leaf" } else { "float-leaf" })
                             }

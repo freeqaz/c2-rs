@@ -394,6 +394,23 @@ impl IlBundle {
                         arg_sources: None,
                     });
                 }
+                // An address leaf (`return &s->m;`) travels the same way: an exact
+                // two-op stream that `codegen::addr_leaf_text` pattern-matches
+                // ahead of the ordinary selector.
+                BodyShape::AddrLeaf { params, ops } => {
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params,
+                        ops,
+                        tail_call: None,
+                        framed_call: None,
+                        compare: None,
+                        empty_body: false,
+                        float_leaf: None,
+                        arg_sources: None,
+                    });
+                }
                 BodyShape::StraightLine { params, ops } => {
                     funcs.push(IlFunction {
                         mangled_name: name.clone(),

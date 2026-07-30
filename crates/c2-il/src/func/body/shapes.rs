@@ -1138,6 +1138,37 @@ pub(crate) fn try_parse_ptr_identity_leaf(seg: &[u8], start: usize, lo: usize) -
 ///   16-bit displacement — checked by the shared tail, so a class large enough to
 ///   overflow it refuses instead of wrapping.
 fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    let (off, base_tok, p) = parse_base_member_designator(seg, start, is_ptr_to_4)?;
+    finish_indirect_load(seg, p, lo, base_tok, off)
+}
+
+/// The intrinsic-2117 designator alone: `(summed byte offset, object token, end)`.
+///
+/// Split out of [`try_parse_base_member_load`] so the two consumers of the same
+/// address — the LOAD leaf (`return b;`) and the ADDRESS leaf (`return &b;`) —
+/// share one decoder. `GAPS.md` §6's "one fact, one locator": a second copy is a
+/// second place for the two-literal sum, the `66` descriptor walk or the header
+/// bound to drift.
+///
+/// `ptr_ok` is the caller's rule for the three pointer TYPEs the production
+/// carries (the `40` result, the object `B9`, and its `55` push), and it is a
+/// *parameter* rather than a fixed predicate because the two consumers are not
+/// equally constrained and merging them would change what the load path accepts:
+///
+/// * the LOAD path passes [`is_ptr_to_4`] — pointer to a **4-byte** object — and
+///   is byte-for-byte the rule it had before this split;
+/// * the ADDRESS path passes [`is_ptr_any`], because the member's width does not
+///   reach the emitted instruction at all. MEASURED (`work/bma/probes/p2.cpp`):
+///   the inherited `char`, `short`, `int`, `long long`, `float` and `double`
+///   members each emit the identical single `addi`, and their designators carry
+///   `A6 43`, `A4 43`, `A6 43`, `A6 43`, `A6 43`, `A6 43` — so the tag's width
+///   nibble is not even a reliable statement of the pointee width here, which is
+///   the second reason not to gate on it.
+fn parse_base_member_designator(
+    seg: &[u8],
+    start: usize,
+    ptr_ok: fn(u8, u8) -> bool,
+) -> Option<(i32, u32, usize)> {
     /// `33 <int-like> 80 45 08 00 00` — the selector literal, wide form.
     const SELECTOR_2117: [u8; 5] = [0x80, 0x45, 0x08, 0x00, 0x00];
     /// Longest argument-header type list accepted. Two witnesses (`n` = 2 and 3)
@@ -1156,7 +1187,7 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
         return None;
     }
     let (tag, kind, _, tw) = read_type(seg, p)?;
-    if !is_ptr_to_4(tag, kind) {
+    if !ptr_ok(tag, kind) {
         return None;
     }
     p += tw;
@@ -1202,7 +1233,7 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
     let (base_tok, w) = read_token_var(seg, p)?;
     p += w;
     let (tag, kind, _, tw) = read_type(seg, p)?;
-    if !is_ptr_to_4(tag, kind) {
+    if !ptr_ok(tag, kind) {
         return None;
     }
     p += tw;
@@ -1210,14 +1241,245 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
         return None;
     }
     let (tag, kind, _, tw) = read_type(seg, p)?;
-    if !is_ptr_to_4(tag, kind) {
+    if !ptr_ok(tag, kind) {
         return None;
     }
     p += tw;
     if !eat_byte(seg, &mut p, 0x4C) {
         return None;
     }
-    finish_indirect_load(seg, p, lo, base_tok, off)
+    Some((off, base_tok, p))
+}
+
+/// `(tag, kind)` of a **pointer TYPE, whatever it points at** — the rule the
+/// *address* productions use, where the pointee's width never reaches the
+/// emitted instruction.
+///
+/// The two existing pointer predicates each answer a narrower question and
+/// neither fits: [`is_ptr_to_4`] demands a 4-byte pointee (it gates a `lwz`),
+/// and [`is_ptr4_kind`] demands one of four exact tags (it gates a pointer
+/// *value* in a register). An address leaf needs neither, because
+/// `addi rD,rBase,k` is the same word for every pointee.
+///
+/// Spelled as a literal whitelist rather than as nibble arithmetic, for the
+/// reason [`is_ptr4_kind`]'s own comment gives — and the whitelist is the cross
+/// product of two axes each independently witnessed:
+///
+/// * the tag's **cv bits** `0x20` (const) and `0x10` (volatile), all four
+///   combinations, exactly as [`is_ptr4_kind`] already admits. `0xC6` and every
+///   other tag with bit `0x40` set is **refused**: `readers.rs` records that the
+///   bit occurs and no probe produced it here.
+/// * the tag's **width nibble**, which is 2/4/6/8. It is *not* a dependable
+///   statement of the pointee width in this position and that is precisely why
+///   it is admitted rather than checked: MEASURED (`work/bma/probes/p2.cpp`,
+///   `p1.cpp`) `char*` carries `86 43`, `short*` carries `84 43`, and
+///   `long long*`, `float*` and `double*` all carry `86 43` — while all six
+///   emit the identical single `addi`. Witnessed tags are `84`, `86`, `A4`,
+///   `A6`; the other twelve are the same two axes crossed and are admitted on
+///   that basis, which is a HYPOTHESIS about the encoding and not a capture.
+///
+/// `kind` must be exactly `0x43` — width nibble 4 (the pointer's own size on
+/// this target) and class nibble 3 (a **data** pointer). `0x44` (a function or
+/// code pointer) is refused: no probe produced one at an address-leaf position,
+/// and a code pointer is the one case where "the pointee width does not matter"
+/// has not been checked.
+fn is_ptr_any(tag: u8, kind: u8) -> bool {
+    const PTR_TAGS: [u8; 16] = [
+        0x82, 0x84, 0x86, 0x88, // plain, width nibble 2/4/6/8
+        0x92, 0x94, 0x96, 0x98, // volatile
+        0xA2, 0xA4, 0xA6, 0xA8, // const
+        0xB2, 0xB4, 0xB6, 0xB8, // const volatile
+    ];
+    PTR_TAGS.contains(&tag) && kind == 0x43
+}
+
+/// Consume a run of **byte-offset adds** applied to an address, summing them.
+///
+/// ```text
+///   33 <int-like> k   27 <PTR>        a member offset, re-typing the address
+///   33 <int-like> k   28 00 00        a subscript offset, not re-typing it
+/// ```
+///
+/// The load leaf ([`try_parse_indirect_load_leaf`]) admits **at most one** of
+/// these, because a second one there means a chained subscript whose lowering
+/// needs `slwi`/`lwzx`. An *address* has no such limit: every add is folded into
+/// the one `addi`'s displacement, and the whole run costs nothing extra.
+/// MEASURED — `int* DR::pt2()` (`&t[2]` on an inherited array) is
+/// `LIT(0) 28 · LIT(8) 28` and emits `addi r3,r3,16`; `&s->arr[2]` on a plain
+/// struct is `LIT(40) 27 · LIT(8) 28` and emits `addi r3,r3,48`.
+///
+/// The `28` payload must be exactly `00 00`, the same fail-closed rule
+/// [`try_parse_indirect_load_leaf`] states: those two bytes are `00 00` at every
+/// captured site and their meaning is UNKNOWN.
+///
+/// Returns `None` — cursor untouched — on an overflowing sum. Stops without
+/// consuming at the first token that is not an offset add, which is not a
+/// failure: zero adds is the legitimate `return &p->Base::m;`.
+fn eat_addr_offset_adds(seg: &[u8], p: &mut usize) -> Option<i32> {
+    let mut total: i32 = 0;
+    loop {
+        if seg.get(*p) != Some(&0x33) {
+            return Some(total);
+        }
+        let mut probe = *p + 1;
+        if !eat_int_like(seg, &mut probe) {
+            return Some(total);
+        }
+        let k = match read_varint(seg, &mut probe) {
+            Some(k) => k,
+            None => return Some(total),
+        };
+        match seg.get(probe) {
+            Some(&0x27) => {
+                probe += 1;
+                let (tag, kind, _, tw) = read_type(seg, probe)?;
+                if !is_ptr_any(tag, kind) {
+                    return Some(total);
+                }
+                probe += tw;
+            }
+            Some(&0x28) => {
+                probe += 1;
+                if !eat(seg, &mut probe, &[0x00, 0x00]) {
+                    return Some(total);
+                }
+            }
+            _ => return Some(total),
+        }
+        total = total.checked_add(k)?;
+        *p = probe;
+    }
+}
+
+/// Try to parse an **address leaf**: a whole body that is one sub-object
+/// *address* and nothing else — `return &s->m;`, `return &p->Base::m;`,
+/// `return s->arr;`, `return &p->t[2];`.
+///
+/// ```text
+///   <designator>                       the object pointer, one of two spellings
+///   ( 33 <int-like> k 27 <PTR>         byte-offset adds, any number, summed
+///   | 33 <int-like> k 28 00 00 )*
+///   [ 2C <PTR> 00 ]                    an array-to-pointer decay / cv strip
+///   41 <PTR>                           result type: a pointer
+///   <return plumbing, reaching the segment end>
+/// ```
+///
+/// where `<designator>` is either a plain pointer LOAD `B9 <tok> <PTR4>` (a
+/// formal or `this`) or the intrinsic-2117 `base-member-addr` production
+/// ([`parse_base_member_designator`]), whose two literals contribute their sum
+/// to the offset before the adds are applied.
+///
+/// **This is one instruction and the same one either way**: `addi rD, rBase, K`,
+/// with `K` the total. MEASURED at the fixture profile — every word below read
+/// off the reference obj (`work/bma/probes/p1.cpp`, `p2.cpp`, `p3.cpp`):
+///
+/// ```text
+///   int* f(S* s){ return &s->b; }          addi r3,r3,4      ; blr
+///   int* f(int x, S* s){ return &s->b; }   addi r3,r4,4      ; blr   <- ANY base reg
+///   int* D::pb1(){ return &b1; }           addi r3,r3,12     ; blr   <- 2117, 8+4
+///   int* DR::pt2(){ return &t[2]; }        addi r3,r3,16     ; blr   <- two `28`s
+///   int* f(S* s){ return s->arr; }         addi r3,r3,40     ; blr   <- the decay
+///   int* f(S* s){ return &s->a; }                             blr    <- K = 0
+///   char*/short*/…/double* members         the identical addi             (p2 `DW`)
+/// ```
+///
+/// and **no `.pdata` entry**: the body is a leaf and c2 emits none.
+///
+/// Why each gate is load-bearing — every one is a *captured* neighbour that
+/// emits something else:
+///
+/// * **`K` must fit a signed 16-bit displacement.** `&p->t` at 32764 is one
+///   `addi`; at 32768 it is **`addis r3,r3,1 ; addi r3,r3,-32768`**, two
+///   instructions this shape does not emit (`work/bma/probes/p3.cpp`).
+/// * **`K == 0` requires the base to be the FIRST parameter.** The address is
+///   then already in r3 and the body is a bare `blr` — but from any other
+///   argument register c2 emits a real `mr r3,r4` (measured, `z_r4`/`i_z_r4`).
+///   That is the same boundary [`straight_line_is_out_of_class`] draws for the
+///   bare-parameter identity, and it is drawn here rather than assumed.
+/// * **The result must be a POINTER.** With a `30` in front of the `41` the body
+///   is a *load* and emits `lwz` — [`try_parse_indirect_load_leaf`]'s shape, one
+///   token away from this one. This production is anchored on the `41`
+///   immediately following the adds, so a load has no path into it.
+/// * **A `2C` may only convert pointer→pointer.** An array-to-pointer decay and
+///   a cv strip both emit nothing (measured: `r_d`, `a_arr0`); a cross-class
+///   `2C` is a reinterpret this port has never probed.
+/// * **The base must be a register argument** (`params` position < 8): past the
+///   eighth it is stack-homed, which needs a frame.
+///
+/// Returns `None` — cursor untouched — for anything that is not exactly this
+/// shape.
+pub(crate) fn try_parse_addr_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    let mut p = start;
+    // The designator. The intrinsic form is anchored on a `33` literal and the
+    // plain form on a `B9`, so the two cannot be confused; the intrinsic is tried
+    // first for the same reason [`try_parse_indirect_load_leaf`] tries it first.
+    let (mut off, base_tok) = match parse_base_member_designator(seg, p, is_ptr_any) {
+        Some((off, tok, end)) => {
+            p = end;
+            (off, tok)
+        }
+        None => {
+            if !eat_byte(seg, &mut p, 0xB9) {
+                return None;
+            }
+            let (tok, w) = read_token_var(seg, p)?;
+            p += w;
+            let (tag, kind, _, tw) = read_type(seg, p)?;
+            // A pointer *value* in a register: the `B9` operand position, where
+            // the tag carries the pointer's own width.
+            if !is_ptr4_kind(tag, kind) {
+                return None;
+            }
+            p += tw;
+            (0, tok)
+        }
+    };
+    off = off.checked_add(eat_addr_offset_adds(seg, &mut p)?)?;
+
+    // An array-to-pointer decay or a cv strip, pointer→pointer only.
+    if seg.get(p)? == &0x2C {
+        let mut probe = p + 1;
+        let (tag, kind, _, tw) = read_type(seg, probe)?;
+        if !is_ptr_any(tag, kind) {
+            return None;
+        }
+        probe += tw;
+        if !eat_byte(seg, &mut probe, 0x00) {
+            return None;
+        }
+        p = probe;
+    }
+
+    // The result type — a pointer, which is what separates this from every
+    // arithmetic leaf.
+    if !eat_byte(seg, &mut p, 0x41) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !is_ptr_any(tag, kind) {
+        return None;
+    }
+    p += tw;
+    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
+
+    // The displacement bound, checked once for both designators.
+    if !(-0x8000..=0x7FFF).contains(&off) {
+        return None;
+    }
+    let params = parse_params(seg, lo).ok()?;
+    let ix = params.iter().position(|&t| t == base_tok)?;
+    // Past the eighth argument the value is stack-homed, which needs a frame.
+    if ix >= 8 {
+        return None;
+    }
+    // A zero offset emits nothing, so the address has to be in r3 already.
+    if off == 0 && ix != 0 {
+        return None;
+    }
+    Some(BodyShape::AddrLeaf {
+        params,
+        ops: vec![IlOp::Load(base_tok), IlOp::AddrOf { off }],
+    })
 }
 
 /// Try to parse the **compiler-generated empty destructor** that does nothing but
@@ -2476,22 +2738,101 @@ mod tests {
 
     #[test]
     fn ptr_leaves_refuse_the_shapes_that_cost_an_instruction() {
-        // `&s->b` is the getter minus the `30`. This is the case that decides
-        // whether the identity recognizer may skip an optional offset add: it
-        // may not, because this emits `addi r3,r3,4` where the identity emits
-        // nothing. 7 of 40 pointer-shaped bodies in three scanned real TUs are
-        // this shape, so getting it wrong would not have been a corner case.
-        assert_eq!(parse_segment(PTR_ADDR_OF, NO_LOCALS), None, "&s->b needs addi");
         assert_eq!(parse_segment(PTR_DEREF2, NO_LOCALS), None, "**ppp is two lwz");
         assert_eq!(parse_segment(PTR_IDENT_R4, NO_LOCALS), None, "return s (r4) is mr");
 
-        // And the same three, reported by the census rather than silently: each
+        // And the same two, reported by the census rather than silently: each
         // must still name a blocking feature, so the instrument and the gate
         // agree that these are out of class.
-        for (seg, label) in
-            [(PTR_ADDR_OF, "&s->b"), (PTR_DEREF2, "**ppp"), (PTR_IDENT_R4, "return s (r4)")]
-        {
+        for (seg, label) in [(PTR_DEREF2, "**ppp"), (PTR_IDENT_R4, "return s (r4)")] {
             assert!(parse_segment_detail(seg, NO_LOCALS).is_err(), "{label}");
+        }
+    }
+
+    #[test]
+    fn the_offset_add_without_a_load_is_an_address_and_emits_an_addi() {
+        // `&s->b` is the getter minus the `30`, and it is the case that decides
+        // whether the *identity* recognizer may skip an optional offset add: it
+        // may not, because this emits `addi r3,r3,4` where the identity emits
+        // nothing. It used to be a pure refusal (`w12_ptr_leaf_neg.cpp`'s
+        // `n_addr_of`); it is now its own production with its own lowering, and
+        // the discrimination that mattered is unchanged — it must NOT come out
+        // as a `StraightLine` identity.
+        assert_eq!(
+            parse_segment(PTR_ADDR_OF, NO_LOCALS),
+            Some(BodyShape::AddrLeaf {
+                params: vec![0x160A],
+                ops: vec![IlOp::Load(0x160A), IlOp::AddrOf { off: 4 }],
+            }),
+            "&s->b is an address leaf at offset 4, not an identity"
+        );
+        // The neighbour one token along in the other direction: with the `30`
+        // back it is a LOAD, and the two must not be interchangeable.
+        assert!(
+            matches!(parse_segment(PTR_GETTER, NO_LOCALS), Some(BodyShape::IndirectLoad { .. })),
+            "a `30` in front of the `41` is still a load"
+        );
+    }
+
+    #[test]
+    fn an_address_leaf_refuses_what_it_cannot_emit_in_one_addi() {
+        // Every case below is `PTR_ADDR_OF` with ONE field changed, so each
+        // isolates a single gate. The shared prefix ends at the offset literal
+        // `04` at index 76 and the `27` type that follows it.
+        let base = PTR_ADDR_OF.to_vec();
+        assert_eq!(base[79], 0x04, "the offset literal moved");
+        assert_eq!(&base[80..85], &[0x27, 0x86, 0x43, 0x84, 0x20], "the `27` add moved");
+
+        // A zero offset emits NOTHING, which is only correct because the address
+        // is already in r3 — and here the base IS the first formal, so it is
+        // accepted and its op stream records the zero.
+        let mut zero = base.clone();
+        zero[79] = 0x00;
+        assert_eq!(
+            parse_segment(&zero, NO_LOCALS),
+            Some(BodyShape::AddrLeaf {
+                params: vec![0x160A],
+                ops: vec![IlOp::Load(0x160A), IlOp::AddrOf { off: 0 }],
+            })
+        );
+
+        // The `27` re-type must be a POINTER. An int-typed add here would be
+        // integer arithmetic on a pointer, which c2 scales.
+        let mut nonptr = base.clone();
+        nonptr[81] = 0x86;
+        nonptr[82] = 0x41;
+        nonptr[83] = 0x74;
+        assert_eq!(parse_segment(&nonptr, NO_LOCALS), None, "a non-pointer `27`");
+
+        // The `41` result must be a pointer too: an int result means the address
+        // was converted, and that conversion is unprobed.
+        assert_eq!(&base[85..90], &[0x41, 0x86, 0x43, 0xF4, 0x08], "the `41` moved");
+        let mut intres = base.clone();
+        intres.splice(85..90, [0x41, 0x86, 0x41, 0x74].iter().copied());
+        assert_eq!(parse_segment(&intres, NO_LOCALS), None, "an int result type");
+    }
+
+    #[test]
+    fn the_any_pointee_pointer_gate_is_a_literal_whitelist() {
+        // The address path admits every pointee width where the load path picks
+        // its instruction from exactly that field — because `addi` is the same
+        // word for all of them (MEASURED, `work/bma/probes/p2.cpp`). The tag is
+        // still a whitelist: `0x80 | cv | width`, and the four tags with bit
+        // `0x40` set are refused for the reason [`is_ptr4_kind`] gives.
+        for tag in [0x82u8, 0x84, 0x86, 0x88, 0x92, 0x94, 0x96, 0x98, 0xA2, 0xA4, 0xA6, 0xA8,
+                    0xB2, 0xB4, 0xB6, 0xB8]
+        {
+            assert!(is_ptr_any(tag, 0x43), "tag {tag:#02X}");
+        }
+        for tag in [0xC2u8, 0xC6, 0xD6, 0xE6, 0xF6, 0x80, 0x81, 0x8A, 0x7F] {
+            assert!(!is_ptr_any(tag, 0x43), "tag {tag:#02X} is undetermined");
+        }
+        // Kind `0x44` — a function/code pointer — is refused here even though
+        // [`is_ptr4_kind`] admits it as a loaded *value*: no probe produced one
+        // at an address position, and "the pointee width does not matter" has
+        // not been checked for code.
+        for kind in [0x44u8, 0x41, 0x42, 0x45, 0x46, 0x47, 0x33, 0x53, 0x83] {
+            assert!(!is_ptr_any(0x86, kind), "kind {kind:#02X}");
         }
     }
 

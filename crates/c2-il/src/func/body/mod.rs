@@ -12,7 +12,7 @@ use self::expr::{
 };
 use self::shapes::parse_params;
 use self::shapes::{
-    parse_call_shape, try_parse_assign_body_detail, try_parse_compare,
+    parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail, try_parse_compare,
     try_parse_empty_dtor_delegation, try_parse_float_leaf, try_parse_indirect_load_leaf,
     try_parse_ptr_identity_leaf,
 };
@@ -186,6 +186,16 @@ pub(crate) enum BodyShape {
     /// `[Load(base), LoadInd { off }]` and `params` includes a member function's
     /// `this` at index 0. See [`try_parse_indirect_load_leaf`].
     IndirectLoad { params: Vec<u32>, ops: Vec<IlOp> },
+    /// An **address leaf**: the whole body is one sub-object *address*
+    /// (`return &s->m;`, `return &p->Base::m;`, `return s->arr;`), which c2
+    /// lowers to a single `addi rD, rBase, off` — or to nothing at all when
+    /// `off` is 0. `ops` is always exactly `[Load(base), AddrOf { off }]` and
+    /// `params` includes a member function's `this` at index 0.
+    ///
+    /// Kept apart from [`BodyShape::IndirectLoad`] because the two differ by the
+    /// single `30` token and emit different instructions — admitting one as the
+    /// other is a wrong-bytes emit, not a gap. See [`shapes::try_parse_addr_leaf`].
+    AddrLeaf { params: Vec<u32>, ops: Vec<IlOp> },
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -533,6 +543,16 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // is refused by both. Non-committal like the others: it works on a
             // copy of the cursor and returns None with no side effects.
             if let Some(shape) = try_parse_ptr_identity_leaf(seg, p, lo) {
+                return Ok(shape);
+            }
+            // …and the **address** leaf, which is that same shape *with* the
+            // offset add the identity refuses (`return &s->m;`, `return s->arr;`,
+            // `return &p->Base::m;`) and which emits the one `addi` the identity
+            // must not. Tried after both, so a body that has a `30` is still a
+            // getter and a bare pointer is still an identity; this one is anchored
+            // on the `41` result following the adds. Non-committal: it works on a
+            // copy of the cursor and returns None with no side effects.
+            if let Some(shape) = try_parse_addr_leaf(seg, p, lo) {
                 return Ok(shape);
             }
             // …and the generated empty destructor, whose body opens on a literal

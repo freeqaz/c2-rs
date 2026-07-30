@@ -306,6 +306,8 @@ impl PortC2 {
                     (codegen::encode_blr().to_vec(), None)
                 } else if let Some(t) = codegen::indirect_load_text(f) {
                     (t?, None)
+                } else if let Some(t) = codegen::addr_leaf_text(f) {
+                    (t?, None)
                 } else if let Some(cmp) = &f.compare {
                     (codegen::compare_leaf_text(cmp, mode)?, None)
                 } else if let Some(double) = f.float_leaf {
@@ -376,6 +378,14 @@ impl PortC2 {
             // `lwz` + `blr`, recognized by an exact two-op stream rather than
             // reaching the affine selector — see `codegen::indirect_load_text`.
             if let Some(body) = codegen::indirect_load_text(f) {
+                text.extend_from_slice(&body?);
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: false, fp_refs: Vec::new() });
+                continue;
+            }
+            // An address leaf (`return &s->m;`) is one `addi` + `blr`, or a bare
+            // `blr` at offset 0 — the same exact-two-op recognition, one token
+            // away from the load above and a different instruction.
+            if let Some(body) = codegen::addr_leaf_text(f) {
                 text.extend_from_slice(&body?);
                 placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: false, fp_refs: Vec::new() });
                 continue;
