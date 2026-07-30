@@ -1100,8 +1100,9 @@ The rules that keep the numbers honest:
   `/O1`. `.ex` says so explicitly, in a per-function word after each `4F 1F`
   that the port never read (`docs/OPT_MODE.md`). Worst of it: the whole-chain
   accumulator rule that cost 270 mis-emits to establish is `/Ox`-only — `/O1`
-  reuses r11 unconditionally and has no descending case. When comparing any two
-  numbers in this document, check they came from the same `/O` flag.
+  allocates by ordinary liveness, so 47 of the 108 enumerated integer chains
+  differ between the modes. When comparing any two numbers in this document,
+  check they came from the same `/O` flag.
 - **A field the port skips is indistinguishable from a field that is always
   the same.** The optimization word above was stepped over silently for months;
   so was the source-line marker before it turned out to carry a varint payload,

@@ -81,29 +81,55 @@ Reference objs for the same fixture, differing only in the `/O` flag:
 
 Three mechanisms are visible so far.
 
-### 3.1 The descending-register rule does not exist at `/O1`
+### 3.1 `/O1` allocates by liveness; `/Ox` descends regardless
 
 This is the big one, because it is the rule the port spent the most effort on.
-`w5_chain`'s `c4_mul` (`a * b * c * d`):
+Enumerated over all 108 three- and four-operator integer chains (every operator
+combination from `+ - *` over five parameters):
+
+* **47 of 108 differ** between the modes;
+* the **word counts are identical in every case** — so instruction *selection*
+  agrees for this whole class, and only register assignment and padding differ.
+
+For a left-linear chain, where only one intermediate is live at a time:
 
 ```
+a * b * c * d
 /Ox   mullw r11,r3,r4 ; mullw r10,r11,r5 ; mullw r3,r10,r6      descending r11, r10
 /O1   mullw r11,r3,r4 ; mullw r11,r11,r5 ; mullw r3,r11,r6      r11 reused
-```
 
-and `c4_sub` (`a - b - c - d`), which has no addition and is therefore the case
-`il_accum4.cpp` documents as *always* descending:
-
-```
+a - b - c - d
 /Ox   subf r11,r4,r3 ; subf r10,r5,r11 ; subf r3,r6,r10
-/O1   subf r11,r5,r11 … r11 throughout
+/O1   subf r11,r4,r3 ; subf r11,r5,r11 ; subf r3,r6,r11
 ```
 
-So `il_accum4.cpp`'s rule — "c2 decides accumulator-versus-descending once for
-the whole chain; a chain with no addition gives each intermediate its own
-descending register" — is a **`/Ox` rule**. At `/O1` there is no descending case
-at all: r11 is reused unconditionally. Getting that rule right at `/Ox` cost 270
-mis-emits found by a generated sweep. None of that work transfers.
+But `/O1` is not simply "always r11". Where two subexpressions are live at once
+it uses a second register, exactly as it must:
+
+```
+a * b + c * d
+/O1   mullw r10,r3,r4 ; mullw r11,r5,r6 ; add r3,r10,r11
+a + b * c + d * e
+/O1   mullw r10,r4,r5 ; mullw r11,r6,r7 ; add r10,r10,r11 ; add r3,r11,r3
+```
+
+18 of the 108 keep a non-r11 intermediate at `/O1`, and they are the tree shapes.
+So the rule is **ordinary liveness-based allocation: reuse r11 when the previous
+intermediate is dead, take a second register when it is not.** `/Ox` descends
+even when the previous intermediate *is* dead.
+
+Which means `il_accum4.cpp`'s rule — "c2 decides accumulator-versus-descending
+once for the whole chain; a chain with no addition gives each intermediate its own
+descending register" — is a **`/Ox` rule**, and a peculiar one: at `/Ox` whether a
+linear chain descends depends on the operators in it, which liveness cannot
+explain. Establishing it cost 270 mis-emits found by a generated sweep. None of
+that work transfers to `/O1`, where the same chains follow the simpler rule.
+
+(A naive "rewrite every r8/r9/r10 to r11" transform of the `/Ox` output
+reproduces `/O1` for 477 of 513 words and fails on exactly the 36 belonging to
+those 18 tree shapes — which is how the over-strong "unconditionally r11" reading
+of the first two captures was caught. Two linear chains cannot distinguish
+"always r11" from "r11 when dead".)
 
 ### 3.2 Strength reduction is `/Ox`-only
 
@@ -154,11 +180,12 @@ asked a question it would answer wrongly.
    value the port was verified against. Cheap, fails closed, and covers every
    mode variation including the ones not enumerated here. Until this lands, the
    port is one decode widening away from a wrong-bytes emit on real input.
-2. **Re-target to `/O1`.** This is the mode parity on the workload requires. It
-   looks *simpler* than `/Ox`, not harder — no descending-register rule, no
-   inter-function padding, no strength reduction to reproduce — so this is
-   plausibly a net reduction in the codegen the port needs. It is not a
-   translation of the existing `/Ox` codegen; it is a second target, and the
+2. **Re-target to `/O1`.** This is the mode parity on the workload requires, and
+   it looks *simpler* than `/Ox`: ordinary liveness allocation instead of the
+   operator-dependent descending rule, no inter-function padding, no strength
+   reduction to reproduce. For the 108-chain class, instruction selection is
+   already identical, so the change there is confined to the allocator. It is not
+   a translation of the existing `/Ox` codegen — it is a second target, and the
    `/Ox` work stays valid for `/Ox`.
 3. **Re-run the sweeps under `/O1`.** `scripts/expr_sweep.sh` compiles with the
    default `/Ox`, so its 2589 green cases say nothing about `/O1`. The sweep
