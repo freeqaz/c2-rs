@@ -1440,6 +1440,35 @@ The rules that keep the numbers honest:
   construction**. `expr-out-of-class-bare-nonfirst-formal:eof` was 43,319 of
   those, and the estimate formed from it landed inside ±700 with the whole of its
   stated low bias attributable to one named second site.
+  **There is a second such family, and it went unread for as long as the first
+  one did.** A key of the form `fn-tail-0xNN` is raised by `eat_fn_tail`, which
+  every accepted shape reaches *last* — so a body filed under one has already
+  parsed under a real shape and is grammar-complete for the same reason. That is
+  what `fn-tail-0xB9` was: 29,552 functions, listed as "the largest call-free row
+  that is not part of the pointer-expression layer" and never decomposed, and it
+  is a **constructor's `return this` sitting between the RETURN and the tail**,
+  which costs no instruction at all. 28,717 of them converted 1:1 with a residue
+  of 3 that both instruments named (`IL_CALL_IN_EXPR.md` §23). The generalizable
+  part is not the shape: it is that **"where the parse stopped" has a small set
+  of positions that imply completeness, and the census key spells them** — read
+  the key's *position* before spending a counterfactual on its size.
+  `fn-tail-0x26`, 4,663 functions, is the same family and is still unexamined.
+- **A conservative gate can be sized, and until it is, its cost is a rumour.**
+  The FP leaf was gated closed on 2026-07-30 by requiring every formal to be an
+  FP operand of the body, which shut two live wrong-bytes emits and cost 1,005
+  census functions; the note that shipped with it said the remaining
+  over-refusal "is not measured". Measuring it took one scratch build — make the
+  gate sink its refusals under their own census key instead of returning `None`
+  — and the answer is that the over-refusal is **exactly those 1,005 and not one
+  function more**, all `calls-0`, all whole-body complete, 1,004 of them a single
+  FP LOAD. The pessimistic reading, that a whole-formals-list gate would spill
+  into the 98,813 + 82,810 float/double operand rows, is **false**: those block
+  on operand types, member loads and conversions well ahead of any question
+  about register numbering. Two things follow. A gate raised *after* the
+  whole-body parse succeeds is free to measure, because its refusals are already
+  complete bodies. And an unsized over-refusal gets quoted as a range in the next
+  ranking, which is how a 1,005-function rung ends up compared against a
+  29,552-function one as though the comparison were close.
 - **A guessed name is worse than a hex bucket — this has now happened three
   times.** (1) The relational opcode labels were inferred from numeric order
   and three of six were wrong. (2) `call-anchor-*` named a structure that did

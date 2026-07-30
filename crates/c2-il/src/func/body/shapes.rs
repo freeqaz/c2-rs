@@ -546,6 +546,98 @@ fn read_this_group(seg: &[u8], at: usize) -> Option<(u32, usize)> {
     Some((tok, p + 1))
 }
 
+/// The **constructor epilogue**: a value expression sitting between the RETURN
+/// and the function tail, naming `this`.
+///
+/// ```text
+///   … 3A <label> 54 02 29 <label>   B9 <this> <TYPE> 41 <TYPE>   4F 12 47 54 01 54 00
+///                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/// ```
+///
+/// Every other shape in this module puts its returned value *before* the `3A`,
+/// where [`eat_return_head`]'s `has_result_type` annotation covers it. A
+/// constructor does not: its statements each end on a `4B` discard, and the value
+/// it returns — `this`, which MSVC constructors hand back in r3 — is written after
+/// the `29`. The parse used to stop dead on that `B9`, which is the census key
+/// `fn-tail-0xB9`: **29,552 functions, the largest call-free row that was named
+/// but never decomposed.**
+///
+/// **It costs no instruction at all**, and that is measured, not assumed. `this`
+/// is already in r3 on entry and a leaf body cannot have moved it, so the epilogue
+/// is a no-op. Captured from the live toolchain, eight empty constructors in one
+/// translation unit — varying arity, member count, member type and position in the
+/// file — every one of them exactly `4E 80 00 20`:
+///
+/// ```text
+///   struct T { int m; T(); };  T::T() {}                 -> blr
+///   struct E { int m; E(int); };  E::E(int a) {}         -> blr
+///   struct G { int m; G(int,int); };  G::G(int,int) {}   -> blr
+/// ```
+///
+/// That run is also the locality tell `docs/GAPS.md` §6 asks for before a row is
+/// taken: byte-identical sources in one TU emitting one sequence means the
+/// decision is local, which is what the `data-addr` rung lacked.
+///
+/// **The leaf restriction is load-bearing and is not conservatism.** Add a call
+/// and c2 stops being able to leave `this` in r3:
+///
+/// ```text
+///   struct B { int b; B(); };  struct D : B { D(); };  D::D() {}
+///     mflr r12 ; stw r12,-8(r1) ; stw r31,-16(r1) ; stwu r1,-96(r1)
+///     mr r31,r3 ; bl B::B ; mr r3,r31 ; …            <- this saved and restored
+/// ```
+///
+/// so the 832 bodies whose epilogue follows a call need the general frame and stay
+/// refused (they are `calls-1` to the frame measure, §18). Only the caller decides
+/// that: this recognizer is used by exactly one arm, the empty-body one.
+///
+/// Both fields are required **literally**, per `docs/GAPS.md` §6's rule that a
+/// field which never varied is indistinguishable from a constant. The token must
+/// be the one [`parse_this_token`] bound — a positive identification, never
+/// "some token we could not place" — and the loaded type must be byte-identical
+/// to the `41` result type. Across the 29,549 sites the real workload has, the
+/// token was `this` in **every** one; requiring it means a body that returns
+/// anything else refuses instead of silently emitting a constructor's bytes.
+pub(crate) fn eat_ctor_this_epilogue(seg: &[u8], p: &mut usize, lo: usize) -> bool {
+    let this_tok = match parse_this_token(seg, lo) {
+        Some(ThisBinding::Bound(t)) => t,
+        // `Absent` and `None` alike: a free function has no `this` to return, and
+        // an undetermined binding must never be read as one.
+        _ => return false,
+    };
+    let mut q = *p;
+    if seg.get(q) != Some(&0xB9) {
+        return false;
+    }
+    q += 1;
+    let (tok, w) = match read_token_var(seg, q) {
+        Some(x) => x,
+        None => return false,
+    };
+    if tok != this_tok {
+        return false;
+    }
+    q += w;
+    let load_ty = match read_type(seg, q) {
+        Some((_, _, _, tw)) => &seg[q..q + tw],
+        None => return false,
+    };
+    q += load_ty.len();
+    if seg.get(q) != Some(&0x41) {
+        return false;
+    }
+    q += 1;
+    let res_ty = match read_type(seg, q) {
+        Some((_, _, _, tw)) => &seg[q..q + tw],
+        None => return false,
+    };
+    if res_ty != load_ty {
+        return false;
+    }
+    *p = q + res_ty.len();
+    true
+}
+
 /// The function's **argument registers in order**: `this` when the pre-body region
 /// binds one, then the `2D` formals.
 ///

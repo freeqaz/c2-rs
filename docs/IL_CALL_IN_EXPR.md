@@ -3543,3 +3543,323 @@ number against the one recorded here before believing a green sweep** — a
 generator that silently drops cases reports a pass over a smaller corpus
 (`GAPS.md` §6). Always difference the scans through **absolute** paths and print
 each one's row count and `fn_total` first — §18.8.
+
+## 23. D11, landed — the constructor epilogue, and the FP gate's over-refusal sized
+
+§22.8 named three next rungs and this one measured two of them against each
+other before touching either. The FP `fmr` — *"the only rung this document can
+name that starts from a known mis-emit"* — is **1,005 functions**, exactly and
+only the population §22.6's gate removed. `fn-tail-0xB9` is **28,717**
+takeable, one shape, and its lowering is **no instruction at all**. The ranking
+inverted on the measurement, the 28.6× candidate shipped, and it converted with
+a residue of 3 that is named.
+
+### 23.1 The two candidates, decomposed — MEASURED
+
+Baseline taken **in this worktree** per §18.8, its row count and denominator
+printed before any differencing:
+`work/dc3-workload/scan-fpbase.jsonl`, 878 rows, `fn_total` 2,462,571, in class
+**377,655 (15.34 %)**, mismatch 0, 6 `match` / 7 `capture-fail`. That agrees
+with §22.7, which is the only thing agreeing on `fn_total` proves.
+
+**Candidate A — the FP register numbering.** §22.9 left this "not sized", and
+it is one scratch build to size: `try_parse_float_leaf`'s
+`params.len() != seen.len()` gate — the one §22.6 closed the two mis-emits with
+— was made to sink its refusals under their own census key instead of returning
+`None`. The gate is raised *after* `eat_return_plumbing` succeeds, so everything
+it counts is whole-body complete by construction, the same free-completeness
+`:eof` gives.
+
+| functions | key | what it is |
+|---:|---|---|
+| 1,004 | `fp-leaf-extra-formals-bare` | a body that is one FP LOAD — the `fmr`, or nothing |
+| 1 | `fp-leaf-extra-formals-arith` | an FP chain with a formal it does not read |
+| **1,005** | | all `calls-0`, spread over 475 TUs, largest single TU 5 |
+
+**The over-refusal is exactly the 1,005 the gate cost and not one function
+more** (§22.6 measured census 334,657 → 333,652). That is worth stating as a
+result rather than a footnote: the conservative gate did not spill into the
+`expr-load-type-8645`/`-8885` rows the way the pessimistic reading assumed. The
+98,813 + 82,810 those rows hold block on operand types, member loads and
+conversions ahead of any question about which FP register a formal occupies.
+
+The rung is also **buildable** — `.sy` carries what it needs. A formal's record
+gives `<tag> <kind> … <size> … <tid>`, and the FP scalars are pinned by capture
+(`float f` → `86 05 … 04 … 40`; `double d` → `88 05 … 08 … 41`), against `int`'s
+`86 01 … 04 … 74`. `read_record` reads all four fields at `DEPTH_FORMALS` and
+keeps only `size`. So the answer to §22.8's "if the IL does not carry it, say
+so" is that **it does carry it**; the rung is not blocked, it is small.
+
+**Candidate B — `fn-tail-0xB9`, 29,552 functions, 28,720 `calls-0`.** The
+largest call-free row that had been named and never decomposed. What it is,
+read off a live capture rather than inferred:
+
+```text
+  … 4C 4F 11 53   <body statements>   3A <label> 54 02 29 <label>
+                                      B9 <this> <TYPE> 41 <TYPE>
+                                      4F 12 47 54 01 54 00
+```
+
+A **value expression between the RETURN and the function tail**. Every other
+shape in the parser puts its returned value *before* the `3A`, where
+`eat_return_head`'s `has_result_type` annotation covers it; a constructor does
+not, because its statements each end on a `4B` discard and the thing it returns
+— `this`, which MSVC constructors hand back in r3 — is written after the `29`.
+
+That makes the whole row **grammar-complete by construction in the same way
+`:eof` is**, and for a sharper reason: the refusal is raised by `eat_fn_tail`,
+which every accepted shape reaches *last*. A body filed under `fn-tail-0xNN`
+has already parsed under a real shape. This is a second free-completeness
+family and it should be read the way `:eof` is — `fn-tail-0x26` at 4,663 is the
+other member and is unexamined.
+
+Confirmed by counterfactual (scratch, reverted, nothing claimed in class):
+admitting the epilogue takes 29,552 to **29,549 grammar-complete, 99.99 %**,
+and — the number that decided the shape of the fix —
+
+| functions | shape that had parsed | frame class |
+|---:|---|---|
+| **28,717** | `EmptyBody` | `calls-0` |
+| 832 | a call shape | `calls-1` |
+| 0 | anything else | — |
+| 0 | epilogue naming a token that is **not** `this` | — |
+
+### 23.2 The frame axis, and why it is the whole gate — MEASURED
+
+§18's first check, and here it is not a formality. A leaf constructor leaves
+`this` in r3 and the epilogue costs nothing; add one call and c2 has to spill
+it. Both read off reference objs (`/Ox /GS- /c`):
+
+```text
+  struct T { int m; T(); };  T::T() {}
+    4e800020                                            blr
+
+  struct B { int b; B(); };  struct D : B { D(); };  D::D() {}
+    7d8802a6 9181fff8 fbe1fff0 9421ffa0                 prologue
+    7c7f1b78                                            mr r31,r3     <- this spilled
+    4bffffed                                            bl B::B
+    7fe3fb78                                            mr r3,r31     <- and restored
+    38210060 8181fff8 7d8803a6 ebe1fff0 4e800020        epilogue
+```
+
+So the 832 are a frame **and** a second register move, and they stay refused.
+The recognizer is therefore wired into exactly one arm — the empty-body one —
+rather than into the shared return plumbing, which is what would have picked up
+all 29,549.
+
+### 23.3 The locality tell, run before committing — MEASURED
+
+§6's cheap check, and the one the `data-addr` rung skipped at a cost of a whole
+rung. Eight distinct constructors in one translation unit, varying arity, member
+count, member type and file position:
+
+```text
+  struct A  { int m;          A(); };   A::A() {}            4e800020  blr
+  struct C  { int m, n;       C(); };   C::C() {}            4e800020  blr
+  struct D  {                 D(); };   D::D() {}            4e800020  blr
+  struct E  { int m;          E(int); };E::E(int a) {}       4e800020  blr
+  struct F  { double d;       F(); };   F::F() {}            4e800020  blr
+  struct G  { int m;      G(int,int); };G::G(int,int) {}     4e800020  blr
+```
+
+One sequence, no exceptions, and the 4-byte inter-function padding the emitter
+already produces. The decision is local.
+
+### 23.4 The ranking, and the estimate — stated before the outcome
+
+| | A: the FP `fmr` | B: the constructor epilogue |
+|---|---:|---:|
+| row | 1,005 | 29,552 |
+| whole-body complete | **1,005 (100 %)** | **29,549 (99.99 %)** |
+| needs a frame | 0 | 832 |
+| **takeable** | **1,005** | **28,717** |
+| lowering | one `fmr`, plus `.sy` type-kind plumbing | **no instruction** |
+| locality tell | not needed (one register file, no pool) | **run, passes** |
+
+B is 28.6× A and its lowering is *cheaper*, so B, and it is not close. Per
+§13.1's rule:
+
+> **Estimate: +28,717, biased LOW.** The counterfactual measured this exact
+> population and the implementation gates on exactly it, so the point estimate
+> is the measurement. Biased low because the shipped recognizer adds one literal
+> requirement the counterfactual did not check — that the `B9` operand type and
+> the `41` result type be byte-identical — whose refusing population was **not**
+> measured. High only if a TU changes class or a body loses.
+
+### 23.5 What shipped
+
+`grep`ing for every site that implements the rule first, per §22.5:
+
+* `expr::eat_return_head` — `eat_return_plumbing` split into head and
+  `eat_fn_tail`, byte for byte, no behaviour change. The two halves already
+  existed as named pieces for the generated destructor (§14), which wedges its
+  own trailer in the same slot; this rung reuses the split rather than adding a
+  second one.
+* `shapes::eat_ctor_this_epilogue` — the recognizer. **Two fields required
+  literally**, per §6's "a field that never varied is indistinguishable from a
+  constant": the token must be the one `parse_this_token` positively bound (not
+  "some token", and an `Absent` or undetermined binding refuses), and the loaded
+  type must be byte-identical to the result type.
+* `body::parse_segment_shape`'s `0x3A` arm — the **only** caller. The shape it
+  returns is `BodyShape::EmptyBody` unchanged, because the emitted bytes are
+  unchanged; there is no new plan op, no new codegen arm and no new gate in
+  `c2-core`. This is the first rung in this document that is a decode widening
+  with **zero** emitter change.
+
+The 13 other `eat_return_plumbing` callers are untouched and keep refusing the
+epilogue, which is what leaves the 832 framed bodies out.
+
+### 23.6 The outcome — MEASURED
+
+`scan-w19.jsonl` against `scan-fpbase.jsonl`, same list, flags and `--cwd`,
+both differenced through absolute paths.
+
+| | baseline | D11 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 377,655 (15.34 %) | **406,372 (16.50 %)** | **+28,717** |
+| mismatch | 0 | **0** | 0 |
+| `match` / `capture-fail` | 6 / 7 | 6 / 7 | 0 |
+| TUs changing class | — | **0** | — |
+| functions LOST, any TU | — | **0** | — |
+| TUs gaining | — | 830 | max 120 |
+
+**The estimate landed exactly**, and the stated low bias had a population of 0 —
+no body on this workload spells the two types differently.
+
+The bucket drop is 28,720 against a census gain of 28,717, and **the residue of
+3 is named rather than absorbed**:
+
+| | released | landed |
+|---|---:|---:|
+| `fn-tail-0xB9` | −28,720 | `empty-body` +28,717 |
+| | | `module-end-0x4F` +3 |
+
+Those 3 consume the epilogue, reach the function tail and then fail the
+*module* end — the same 3 the counterfactual could not make `:eof`
+(29,552 − 29,549). Two independent instruments agree on them. All 28,717 are
+`calls-0`; no other key moved by one function.
+
+Byte-graded, and the grading is not only census movement:
+
+* `fixtures/cpp/w19_ctor_this.cpp` — **17/17 in class, whole obj byte-exact**
+  against real `c2`. Seven member layouts (none, one `int`, two, a `double`, an
+  array, two pointers); unused parameters at arity 1, 2 and 4; a pointer and a
+  `float` parameter; an 8-byte by-value aggregate ahead of a scalar; a copy
+  constructor; two byte-identical bodies for the locality tell; and the control
+  group of empty bodies that have **no** epilogue (a free function, a `const`
+  member, a `static` member).
+* `fixtures/cpp/w19_ctor_this_neg.cpp` — **0/8 refused**, and the file must
+  never mismatch: the base-class call, a call to a free function, a member
+  sub-object, a store through `this` written three ways, a virtual class, and a
+  returned object that is not `this`.
+* `scripts/expr_sweep.sh` grew **121 cases** (4,011 → 4,132, `mismatches=0`):
+  the 9 × 10 cross product of member layout against parameter list, the copy
+  constructor and aggregate/reference/pointer parameters, every argument slot
+  r4..r10 filled and unread, a nested class and a namespaced one, the
+  destructor and empty-member controls, and the 11 refusing neighbours.
+  **111 of the new cases grade `Match`**, so the sweep is comparing emitted
+  bytes here and not only counting refusals.
+* Four mode lanes, mismatch 0 in each: `/Ox` 48 → **49**, `/O1` 45 → **46**,
+  `/O2` 45 → **46**, `/Ox /Gy` 45 → **46**. The `+1` is `w19_ctor_this.cpp` in
+  every lane; no baseline dropped.
+
+### 23.7 The corrected ranking
+
+Over the 2,056,199 still-blocked functions:
+
+| # | functions | % blocked | calls-0 | calls-1 | calls-2plus | key |
+|---:|---:|---:|---:|---:|---:|---|
+| 1 | 504,438 | 24.5 % | 313,666 | 74,659 | 116,113 | `expr-op-0x27` |
+| 2 | 225,341 | 11.0 % | 10,287 | 71,380 | 143,674 | `expr-convert` |
+| 3 | 141,800 | 6.9 % | 15 | 57,894 | 83,891 | `expr-intrinsic-this-adjust` |
+| 4 | 134,431 | 6.5 % | 0 | 90,274 | 44,157 | `expr-op-0x99` |
+| 5 | 118,330 | 5.8 % | 27,138 | 56,186 | 35,006 | `expr-intrinsic-base-member-addr` |
+| 6 | 98,813 | 4.8 % | 10,702 | 84,215 | 3,896 | `expr-load-type-8645` (float) |
+| 7 | 82,810 | 4.0 % | 2 | 82,806 | 2 | `expr-load-type-8885` (double) |
+| 8 | 48,102 | 2.3 % | 1,622 | 4,674 | 41,806 | `body-0x29` |
+
+Row 1 still carries §22.2's measurement — 0.14 % whole-body complete — and
+should still not be scheduled against. The rungs this rung can name, with their
+measured populations:
+
+1. **`fn-tail-0x26`, 4,663 functions** — the *other* member of the
+   free-completeness family this rung discovered. Undecomposed, and decomposing
+   it costs one scratch build now that the pattern is known.
+2. **The FP `fmr`, 1,005 functions**, all `calls-0`, all whole-body complete,
+   `.sy` proven to carry the type kinds it needs (§23.1). Small, exactly sized,
+   and it is still the only rung that starts from a closed mis-emit.
+3. **`expr-out-of-class-bare-nonformal`, 2,881 functions**, all `calls-0` and
+   all `:eof`. Still not one lowering — a global read is a pool reference and
+   has §6's non-local hazard, a `.sy` local does not — and still needs
+   decomposing before it is worth ranking.
+4. **The 832 framed constructors.** They are the general-frame rung's smallest,
+   cleanest test case: one call, one spill of `this`, one restore, and the
+   whole body already parses.
+
+### 23.8 What is NOT established, labelled
+
+* **The counterfactual is a grammar measurement, not a differential.** No TU
+  flipped under either scratch build, so no lane and no sweep graded them; their
+  `mismatch 0` is a statement about TU-level acceptance only. Both were reverted
+  and every number above re-taken against the committed tree.
+* **`this` is proven to survive to the epilogue only for the shapes admitted.**
+  The argument is that an `EmptyBody` emits nothing and therefore cannot move
+  r3, and the evidence is the fixture and the 111 matching sweep cases. It is
+  not a proof about every leaf shape — which is why the recognizer has one
+  caller rather than living in the shared plumbing, and why widening it to
+  another shape needs its own grading.
+* **The 3-function residue is attributed from two agreeing counts, not traced
+  function by function.** The counterfactual's 29,552 − 29,549 and the scan's
+  28,720 − 28,717 are both 3, and both land on the module end, but no
+  per-function identity check was run.
+* **The `.sy` FP type kinds are pinned by one capture each.** `float` → tid
+  `0x40`, `double` → tid `0x41`, against `int`'s `0x74`, from a five-function
+  probe. `long double` and every vector type are unwitnessed, so a rung built on
+  this must require the tuple literally and fail closed — §6's rule, stated here
+  because the next rung is the one that will read it.
+* **The census is `/O1` and the fixture grading is `/Ox` plus three more
+  lanes.** The epilogue emits nothing, so the mode's one differing rule
+  (accumulator allocation) has nothing to reach; that is an argument, and the
+  four lanes are the evidence.
+* **`mismatch 0` on the workload is still a TU-level statement.** 865 of the 878
+  TUs are `vocab-gap` and never reach the port. This rung's byte grading is the
+  two fixtures (25 functions), the 4,132-case sweep and the four lanes.
+* **`fn-tail-0x26`'s 4,663 are asserted to be the same *family*, not the same
+  *shape*.** They share the free-completeness property and nothing else was
+  measured about them.
+
+### 23.9 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                      # 119 pass 0 fail 0 error
+./target/release/c2rs census fixtures/cpp/w19_ctor_this.cpp       # 17/17 in class
+./target/release/c2rs diff   fixtures/cpp/w19_ctor_this.cpp       # Port=Match
+./target/release/c2rs census fixtures/cpp/w19_ctor_this_neg.cpp   # 0/8 in class
+./target/release/c2rs diff   fixtures/cpp/w19_ctor_this_neg.cpp   # Port=NotImplemented
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                         # 49 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                         # 46 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                            # checked=4132 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 16 \
+  --jsonl work/dc3-workload/scan-w19.jsonl           # 406372/2462571
+# the two counterfactuals (scratch, reverted):
+#  A: in `try_parse_float_leaf`, replace the `params.len() != seen.len()` refusal
+#     with its own census key.               -> 1,005, of which 1,004 are one LOAD
+#  B: in `eat_return_plumbing`, consume `B9 <tok> <TYPE> 41 <TYPE>` before the
+#     tail and sink the result under its own key so nothing is claimed in class,
+#     tagged by the BodyShape that parsed.   -> 28,717 EmptyBody + 832 call + 0 other
+# the lowering, read off the reference obj rather than inferred:
+printf 'struct T { int m; T(); };\nT::T() {}\n' > /tmp/a.cpp
+./target/release/c2rs diff /tmp/a.cpp        # Port=Match — the epilogue costs nothing
+printf 'struct B { int b; B(); };\nstruct D : B { D(); };\nD::D() {}\n' > /tmp/b.cpp
+./target/release/c2rs diff /tmp/b.cpp        # Port=NotImplemented — the call spills `this`
+```
+
+The sweep prints its own generated case count before it runs; **compare that
+number against the one recorded here before believing a green sweep** (§6).
+Always difference the scans through **absolute** paths and print each one's row
+count and `fn_total` first — §18.8.
