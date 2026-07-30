@@ -1550,6 +1550,245 @@ pub(crate) fn try_parse_addr_leaf(seg: &[u8], start: usize, lo: usize) -> Option
     })
 }
 
+/// The **width and register file** of a stored value's TYPE, or `None` — which
+/// is a refusal, never a guess.
+///
+/// One locator over the two predicates that already answer this question for the
+/// *load* side, in the same order [`finish_indirect_load_of`] asks them:
+/// [`value_class`] for the two 4-byte classes c2 keeps in a GPR (a 4-byte
+/// integer and a pointer — the pair it lowers with one identical `stw`), then
+/// [`sized_ptee`] for the captured 1-, 2- and 8-byte scalars.
+///
+/// Everything else refuses, and **the floating-point types are the reason this
+/// is a function and not a width lookup**: `86 45 40` and `88 85 41` are 4 and 8
+/// bytes wide and are stored with `stfs`/`stfd` from `f1`, not `stw`/`std` from
+/// `r4` (MEASURED: `void s_f(S* s, float v){ s->f = v; }` is `d0230014`, and
+/// `s_d` is `d8230018`). A width-only rule would emit `stw r4` for both — wrong
+/// bytes inside an accepted class. The FP argument register is numbered over the
+/// FP parameters *alone*, which is the fifth instance of `GAPS.md` §6's "two
+/// facts sharing one field" and the live mis-emit `float_leaf_text`'s header
+/// records; sizing that widening is a rung, not a line.
+fn store_value_width(tag: u8, kind: u8) -> Option<u8> {
+    if value_class(tag, kind).is_some() {
+        return Some(4);
+    }
+    sized_ptee(tag, kind).map(|(w, _)| w)
+}
+
+/// Try to parse a **store leaf**: a whole body that is one store into a
+/// sub-object and nothing else — `void f(S* s, int v){ s->m = v; }`,
+/// `void D::set(int v){ Base::m = v; }`, `void f(S* s, int v){ s->arr[2] = v; }`,
+/// `void f(int* p, int v){ *p = v; }`, `void f(S* s){ s->m = 7; }`.
+///
+/// ```text
+///   <designator>                       the object pointer, the same two spellings
+///   ( 33 <int-like> k 27 <PTR>         byte-offset adds, any number, summed
+///   | 33 <int-like> k 28 00 00 )*
+///   [ 2C <PTR> 00 ]                    a cv strip / array-to-pointer decay
+///   ( B9 <tok> <VT> | 33 <VT> <k> )    THE VALUE: a formal, or an integer literal
+///   32 <VT>                            the store; its TYPE restates the value's
+///   4B                                 statement end — and the body ends here
+///   <return plumbing, void, reaching the segment end>
+/// ```
+///
+/// where `<designator>` is either a plain pointer LOAD `B9 <tok> <PTR4>` or the
+/// intrinsic-2117 `base-member-addr` production ([`parse_base_member_designator`]),
+/// whose two literals contribute their sum to the offset before the adds — the
+/// same pair of spellings [`try_parse_addr_leaf`] and
+/// [`try_parse_indirect_load_leaf`] accept, reached through the same decoder.
+///
+/// **This is one store instruction, and the width picks it.** MEASURED at the
+/// fixture profile — every word below read off the reference obj
+/// (`work/lf/probes/p1.cpp`):
+///
+/// ```text
+///   void s_a (S* s, int v)       { s->a  = v; }   90830000  stw  r4,0(r3)
+///   void s_b (S* s, int v)       { s->b  = v; }   90830004  stw  r4,4(r3)
+///   void s_p (S* s, void* v)     { s->p  = v; }   90830008  stw  r4,8(r3)
+///   void s_c (S* s, char v)      { s->c  = v; }   9883000c  stb  r4,12(r3)
+///   void s_sh(S* s, short v)     { s->s  = v; }   b083000e  sth  r4,14(r3)
+///   void s_q (S* s, long long v) { s->q  = v; }   f8830020  std  r4,32(r3)
+///   void s_e2(S* s, int v)       { s->arr[2] = v; } 90830030  stw  r4,48(r3)
+///   void s_k (S* s)              { s->a  = 7; }   39600007 91630000  li r11,7 ; stw r11,0(r3)
+///   void s_arg2(int x,S* s,int v){ s->b  = v; }   90a40004  stw  r5,4(r4)  <- ANY two regs
+///   void D::sb1(int v)           { b1 = v; }      90830004  stw  r4,4(r3)  <- 2117, 0+4
+/// ```
+///
+/// and **no `.pdata` entry**: the body is a leaf, exactly like the load and
+/// address leaves beside it.
+///
+/// Why each gate is load-bearing — every one is a *captured* neighbour that
+/// emits something else:
+///
+/// * **The value must be a GPR-class scalar** ([`store_value_width`]). A `float`
+///   or `double` member is `stfs`/`stfd` from the FP file and the FP argument
+///   number is not the parameter index.
+/// * **No conversion on the value.** `void M::setb(bool v){ m0 = v; }` (an `int`
+///   member, a `bool` parameter) carries a `2C 86 41 74 00` and emits
+///   `548b063e ; 91630000` — `clrlwi r11,r4,24 ; stw r11,0(r3)` — a real mask
+///   through the scratch register. The production admits a `2C` only on the
+///   *address*, pointer→pointer, where it is free.
+/// * **The stored TYPE must restate the value's `<tag><kind>`.** They are
+///   byte-identical at every captured site, and requiring it is what makes a
+///   misaligned read fail closed instead of picking a plausible width.
+/// * **`K` must fit a signed 16-bit displacement**, and a `width == 8` store's
+///   `K` must be a multiple of 4 (`std` is DS-form and cannot encode the low two
+///   bits) — the same two bounds the load leaf draws.
+/// * **Both the base and the value must be register arguments** (`params`
+///   position < 8): past the eighth they are stack-homed, which needs a frame.
+///
+/// Returns `None` — cursor untouched — for anything that is not exactly this
+/// shape.
+pub(crate) fn try_parse_store_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    let mut p = start;
+    // The designator. The intrinsic form is anchored on a `33` literal and the
+    // plain form on a `B9`, so the two cannot be confused; the intrinsic is tried
+    // first for the same reason the load and address leaves try it first.
+    let (mut off, base_tok) = match parse_base_member_designator(seg, p, is_ptr_any) {
+        Some((off, tok, end)) => {
+            p = end;
+            (off, tok)
+        }
+        None => {
+            if !eat_byte(seg, &mut p, 0xB9) {
+                return None;
+            }
+            let (tok, w) = read_token_var(seg, p)?;
+            p += w;
+            let (tag, kind, _, tw) = read_type(seg, p)?;
+            // A pointer *value* in a register: the `B9` operand position, where
+            // the tag carries the pointer's own width.
+            if !is_ptr4_kind(tag, kind) {
+                return None;
+            }
+            p += tw;
+            (0, tok)
+        }
+    };
+    off = off.checked_add(eat_addr_offset_adds(seg, &mut p)?)?;
+
+    // A cv strip or an array-to-pointer decay applied to the ADDRESS, which emits
+    // nothing (`void f(S* s, int v){ *(int*)s = v; }` is a bare `stw r4,0(r3)`).
+    // Pointer→pointer only: a cross-class `2C` here is a reinterpret this port has
+    // never probed.
+    if seg.get(p)? == &0x2C {
+        let mut probe = p + 1;
+        let (tag, kind, _, tw) = read_type(seg, probe)?;
+        if !is_ptr_any(tag, kind) {
+            return None;
+        }
+        probe += tw;
+        if !eat_byte(seg, &mut probe, 0x00) {
+            return None;
+        }
+        p = probe;
+    }
+
+    // THE VALUE — a bare formal or an integer literal, and nothing computed. A
+    // computed value lands in the scratch register first (`s->m = a + b` is
+    // `add r11,r3,r4 ; stw r11`), which is a different instruction count and has
+    // no capture behind it here.
+    let (value_op, mut value_tag, mut value_kind) = match *seg.get(p)? {
+        0xB9 => {
+            let mut probe = p + 1;
+            let (tok, w) = read_token_var(seg, probe)?;
+            probe += w;
+            let (tag, kind, _, tw) = read_type(seg, probe)?;
+            probe += tw;
+            p = probe;
+            (IlOp::Load(tok), tag, kind)
+        }
+        0x33 => {
+            let mut probe = p + 1;
+            let (tag, kind, _, tw) = read_type(seg, probe)?;
+            probe += tw;
+            let k = read_varint(seg, &mut probe)?;
+            p = probe;
+            (IlOp::Lit(k), tag, kind)
+        }
+        _ => return None,
+    };
+    let width = store_value_width(value_tag, value_kind)?;
+
+    // A class-preserving conversion of the VALUE — `void f(S* s, S* v){ s->p = v; }`
+    // converts `S*` to `void*` on the way in and emits nothing (`90830008`, the same
+    // bare `stw` as the unconverted neighbour). Admitted only in the two 4-byte
+    // classes [`eat_value_type`] was byte-graded on since the getter rungs, and
+    // **only** there: over a narrow value a `2C` is a real instruction —
+    // `void M::setb(bool v){ m0 = v; }` (an `int` member, a `bool` parameter) emits
+    // `clrlwi r11,r4,24 ; stw r11,0(r3)` — so `width != 4` refuses rather than
+    // silently dropping the mask.
+    if seg.get(p) == Some(&0x2C) {
+        let cls = value_class(value_tag, value_kind)?;
+        let mut probe = p + 1;
+        let (t2, k2, _, _) = read_type(seg, probe)?;
+        if !eat_value_type(seg, &mut probe, cls) || !eat_byte(seg, &mut probe, 0x00) {
+            return None;
+        }
+        value_tag = t2;
+        value_kind = k2;
+        p = probe;
+    }
+
+    // The store, whose TYPE restates the value's.
+    if !eat_byte(seg, &mut p, 0x32) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if (tag, kind) != (value_tag, value_kind) {
+        return None;
+    }
+    p += tw;
+    // The statement end. A store yields its value and `4B` discards it; a body
+    // that goes on to use it is not this shape.
+    if !eat_byte(seg, &mut p, 0x4B) {
+        return None;
+    }
+    eat_opt_stmt_marker(seg, &mut p);
+    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
+
+    if !(-0x8000..=0x7FFF).contains(&off) {
+        return None;
+    }
+    // `std` is DS-form: the displacement's low two bits are the form's, so an
+    // offset that is not a multiple of 4 cannot be encoded at all. Natural
+    // alignment makes one unreachable through a struct member, so this gate has
+    // no witness — which is exactly why it refuses instead of masking.
+    if width == 8 && off % 4 != 0 {
+        return None;
+    }
+    let params = parse_params(seg, lo).ok()?;
+    let bix = params.iter().position(|&t| t == base_tok)?;
+    // Past the eighth argument the value is stack-homed, which needs a frame.
+    if bix >= 8 {
+        return None;
+    }
+    match value_op {
+        IlOp::Load(vtok) => {
+            let vix = params.iter().position(|&t| t == vtok)?;
+            // Past the eighth argument the value is stack-homed, which needs a frame.
+            if vix >= 8 {
+                return None;
+            }
+        }
+        // A wide **negative** constant. `emit_load_imm`'s `lis`+`ori` pair covers
+        // non-negative values only, and the straight-line class already refuses
+        // this in the PARSER (`expr-out-of-class-wide-neg-lit`,
+        // `chain::straight_line_out_of_class_ctx`). Restating the bound here rather
+        // than letting codegen refuse it is the census/gate invariant: the same
+        // literal reached two shapes and only one of them gated it, so
+        // `void f(S* s){ s->a = -70000; }` censused in class while `PortC2`
+        // returned `NotImplemented` — the `GAPS.md` §6 "one fact, two locators"
+        // failure, caught by probing the new production's own boundary.
+        IlOp::Lit(k) if k < -0x8000 => return None,
+        _ => {}
+    }
+    Some(BodyShape::StoreLeaf {
+        params,
+        ops: vec![IlOp::Load(base_tok), value_op, IlOp::StoreInd { off, width }],
+    })
+}
+
 /// Try to parse the **compiler-generated empty destructor** that does nothing but
 /// destroy **one** sub-object — the largest coherent sub-shape of the
 /// `expr-call-in-expr` bucket (`docs/IL_CALL_IN_EXPR.md` §5, §15).
@@ -2948,6 +3187,98 @@ mod tests {
         let b = parse_segment_detail(SEQ_LIVE_ACROSS, NO_LOCALS).unwrap_err();
         assert_eq!(b.ctx, "callseq-value-live-across-call");
         assert_eq!(parse_segment(SEQ_LIVE_ACROSS, NO_LOCALS), None);
+    }
+
+    /// W26: `bool` / `unsigned char` as a value class — free inside the class,
+    /// and a real `rlwinm` on the way out of it.
+    #[test]
+    fn bool_value_class_is_free_inside_and_refuses_the_widening() {
+        assert_eq!(
+            parse_segment(BOOL_LIT, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![],
+                ops: vec![IlOp::Lit(0)],
+            })
+        );
+        assert_eq!(
+            parse_segment(BOOL_ID, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![0xE409],
+                ops: vec![IlOp::Load(0xE409)],
+            })
+        );
+        // The conversion OUT of the class is `clrlwi r3,r3,24`, and it arrives as
+        // the same `2C … 00` that is free between the two width-4 classes. It must
+        // refuse in the PARSER, under a key that names the target.
+        assert_eq!(parse_segment(BOOL_WIDEN_NEG, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(BOOL_WIDEN_NEG, NO_LOCALS)
+                .unwrap_err()
+                .feature(),
+            "expr-convert-target-8641"
+        );
+    }
+
+    /// W25: the store leaf, from whole captured segments — both designators, the
+    /// widths that pick the opcode, the literal value, and the FP refusal.
+    #[test]
+    fn store_leaf_decodes_both_designators_and_refuses_a_float_value() {
+        assert_eq!(
+            parse_segment(STORE_MEMBER, NO_LOCALS),
+            Some(BodyShape::StoreLeaf {
+                params: vec![0xF909, 0xFA09],
+                ops: vec![
+                    IlOp::Load(0xF909),
+                    IlOp::Load(0xFA09),
+                    IlOp::StoreInd { off: 4, width: 4 },
+                ],
+            })
+        );
+        // The width comes from the STORED type, not from the designator's pointer
+        // tag — the two agree for an `int` member and this is where they part.
+        assert_eq!(
+            parse_segment(STORE_NARROW, NO_LOCALS),
+            Some(BodyShape::StoreLeaf {
+                params: vec![0x010A, 0x020A],
+                ops: vec![
+                    IlOp::Load(0x010A),
+                    IlOp::Load(0x020A),
+                    IlOp::StoreInd { off: 12, width: 1 },
+                ],
+            })
+        );
+        assert_eq!(
+            parse_segment(STORE_LIT, NO_LOCALS),
+            Some(BodyShape::StoreLeaf {
+                params: vec![0x210A],
+                ops: vec![
+                    IlOp::Load(0x210A),
+                    IlOp::Lit(7),
+                    IlOp::StoreInd { off: 0, width: 4 },
+                ],
+            })
+        );
+        // The intrinsic-2117 designator reaches the same address by a different
+        // route and must produce the byte-identical op stream.
+        assert_eq!(
+            parse_segment(STORE_BASE_MEMBER, NO_LOCALS),
+            Some(BodyShape::StoreLeaf {
+                params: vec![0x610A, 0x620A],
+                ops: vec![
+                    IlOp::Load(0x610A),
+                    IlOp::Load(0x620A),
+                    IlOp::StoreInd { off: 4, width: 4 },
+                ],
+            })
+        );
+        // …and the neighbour that emits `stfs f1` must refuse, in the parser.
+        assert_eq!(parse_segment(STORE_FLOAT_NEG, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(STORE_FLOAT_NEG, NO_LOCALS)
+                .unwrap_err()
+                .feature(),
+            "expr-op-0x27"
+        );
     }
 
     #[test]

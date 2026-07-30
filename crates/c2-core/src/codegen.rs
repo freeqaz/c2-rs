@@ -287,6 +287,138 @@ pub fn addr_leaf_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>
     Some(Ok(text))
 }
 
+/// `stw rS, D(rA)` — store a 32-bit word: primary opcode 36.
+///
+/// Transcribed from captures (`work/lf/probes/p1.cpp`), not derived:
+/// `void f(S* s,int v){ s->a = v; }` is `90830000`, `s->b` (offset 4) is
+/// `90830004`, `s->arr[2]` (offset 48) is `90830030`, and
+/// `void f(int x,S* s,int v){ s->b = v; }` is `90a40004` — value r5, base r4.
+pub fn encode_stw(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (36 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `stb rS, D(rA)` — store a byte: primary opcode 38. Captured: a `char` member
+/// at offset 12 is `9883000c`, an `unsigned char` at 16 is `98830010`, a `bool`
+/// at 56 is `98830038`, and the literal form's `stb r11` is `99630000`.
+pub fn encode_stb(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (38 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `sth rS, D(rA)` — store a halfword: primary opcode 44. Captured: a `short`
+/// member at offset 14 is `b083000e`.
+pub fn encode_sth(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (44 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+// `encode_std` is deliberately NOT defined beside its three siblings: the frame
+// model added the byte-identical encoder for the callee-saved GPR prologue
+// (captured as `fbe1fff0` = `std r31,-16(r1)`), and one function with two
+// independent captures beats two functions with one each. This rung's own
+// witness for it — a `long long` member at offset 32, `f8830020` — is in
+// `store_leaf_text`'s table below.
+
+/// Lower a **store leaf** — `void f(S* s, int v){ s->m = v; }` /
+/// `void D::set(int v){ Base::m = v; }` / `void f(S* s){ s->m = 7; }` — to one
+/// store instruction + `blr`, or to `li` + store + `blr` when the value is a
+/// literal.
+///
+/// Recognized by an **exact** three-op stream `[Load(base), Load(value) | Lit(k),
+/// StoreInd { off, width }]`, which `c2_il::try_parse_store_leaf` is the only
+/// producer of. Returns `None` for anything else so the ordinary selector keeps
+/// its behaviour unchanged, and the pattern is deliberately not a prefix match:
+/// a store whose value is *computed* puts the computation in the scratch
+/// register first (`s->m = a + b` is `add r11,r3,r4 ; stw r11,0(r3)`), which is
+/// a different shape with no capture behind it here.
+///
+/// The measured lowering (`work/lf/probes/p1.cpp`, `p3.cpp`, every word read off
+/// the reference obj at `/Ox /GS- /c`):
+///
+/// ```text
+///   width 1  stb    s->c = v   (char, off 12)      9883000c
+///   width 2  sth    s->s = v   (short, off 14)     b083000e
+///   width 4  stw    s->a = v   (int, off 0)        90830000
+///   width 8  std    s->q = v   (long long, off 32) f8830020   DS-form
+///   literal         s->a = 7                       39600007 91630000   li r11,7 ; stw r11
+///   literal         s->f = true  (bool)            39600001 99630000   li r11,1 ; stb r11
+///   two regs        f(int x,S* s,int v){s->b=v;}   90a40004            stw r5,4(r4)
+/// ```
+///
+/// **The literal goes through the scratch register r11, never r3.** That is the
+/// same r11 rule [`indirect_load_text`] follows for a load feeding an extension,
+/// and it is read off the capture rather than assumed — a `void` function's r3
+/// holds nothing the ABI cares about, so `li r3,7` would have been just as
+/// plausible and is not what c2 emits.
+///
+/// `func.params` maps both tokens to their incoming argument registers by
+/// declaration order, with a member function's `this` already at index 0.
+pub fn store_leaf_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>> {
+    let (base_tok, value, off, width) = match func.ops.as_slice() {
+        [IlOp::Load(b), v @ (IlOp::Load(_) | IlOp::Lit(_)), IlOp::StoreInd { off, width }] => {
+            (*b, v, *off, *width)
+        }
+        _ => return None,
+    };
+    let d = match i16::try_from(off) {
+        Ok(d) => d,
+        // The parser gates this; if it ever changed, refuse rather than truncate.
+        Err(_) => {
+            return Some(Err(out_of_class(
+                "store offset exceeds a 16-bit displacement",
+            )))
+        }
+    };
+    let reg_of = |tok: u32| -> Option<u8> {
+        func.params
+            .iter()
+            .position(|&t| t == tok)
+            .filter(|&i| i < ARG_REGS.len())
+            .map(|i| ARG_REGS[i])
+    };
+    let Some(base) = reg_of(base_tok) else {
+        return Some(Err(out_of_class(
+            "store whose base is not a register argument",
+        )));
+    };
+    let mut text = Vec::with_capacity(12);
+    let src = match value {
+        IlOp::Load(t) => match reg_of(*t) {
+            Some(r) => r,
+            None => {
+                return Some(Err(out_of_class(
+                    "store whose value is not a register argument",
+                )))
+            }
+        },
+        IlOp::Lit(k) => {
+            if let Err(e) = emit_load_imm(&mut text, SCRATCH_REG, *k) {
+                return Some(Err(e));
+            }
+            SCRATCH_REG
+        }
+        _ => return None,
+    };
+    match width {
+        1 => text.extend_from_slice(&encode_stb(src, base, d)),
+        2 => text.extend_from_slice(&encode_sth(src, base, d)),
+        4 => text.extend_from_slice(&encode_stw(src, base, d)),
+        8 if d % 4 == 0 => text.extend_from_slice(&encode_std(src, base, d)),
+        8 => {
+            return Some(Err(out_of_class(
+                "8-byte store whose offset is not a multiple of 4 (std is DS-form)",
+            )))
+        }
+        _ => return Some(Err(out_of_class("store of an unmodeled width"))),
+    }
+    text.extend_from_slice(&encode_blr());
+    Some(Ok(text))
+}
+
 // ---- W6: comparison → boolean materialization encoders ---------------------
 //
 // c2 materializes integer comparisons **branchlessly** — it emits no
@@ -726,7 +858,8 @@ pub fn float_leaf_text(
                     | IlOp::FpLit { .. }
                     | IlOp::LoadInd { .. }
                     | IlOp::LoadIndSized { .. }
-                    | IlOp::AddrOf { .. } => {
+                    | IlOp::AddrOf { .. }
+                    | IlOp::StoreInd { .. } => {
                         unreachable!("not a binary op")
                     }
                 }
@@ -2083,6 +2216,15 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     "sub-object address feeding arithmetic; out of class",
                 ))
             }
+            // An indirect store only ever appears as the last op of a store
+            // leaf, which `store_leaf_text` owns. A store is not a value at
+            // all — reaching the affine selector would mean pushing one onto
+            // the operand stack.
+            IlOp::StoreInd { .. } => {
+                return Err(out_of_class(
+                    "indirect store in an expression; out of class",
+                ))
+            }
             IlOp::Add | IlOp::Sub | IlOp::Mul => {
                 // Binary op: pop rhs then lhs.
                 let rhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (rhs)"))?;
@@ -2251,7 +2393,8 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     | IlOp::FpLit { .. }
                     | IlOp::LoadInd { .. }
                     | IlOp::LoadIndSized { .. }
-                    | IlOp::AddrOf { .. } => {
+                    | IlOp::AddrOf { .. }
+                    | IlOp::StoreInd { .. } => {
                         unreachable!("not a modeled integer binary op")
                     }
                 }
@@ -2344,7 +2487,8 @@ fn combine(
             | IlOp::FpLit { .. }
             | IlOp::LoadInd { .. }
             | IlOp::LoadIndSized { .. }
-            | IlOp::AddrOf { .. },
+            | IlOp::AddrOf { .. }
+            | IlOp::StoreInd { .. },
             _,
             _,
         ) => {
@@ -2382,6 +2526,102 @@ mod tests {
         assert_eq!(encode_lwz(3, 3, -4), [0x80, 0x63, 0xFF, 0xFC]); // p[-1]
         assert_eq!(encode_lwz(3, 3, 32000), [0x80, 0x63, 0x7D, 0x00]); // p[8000]
         assert_eq!(encode_lwz(3, 4, 8), [0x80, 0x64, 0x00, 0x08]); // int f(int a,S* s){return s->c;}
+    }
+
+    #[test]
+    fn store_leaf_text_is_one_store_and_a_blr() {
+        // Every expected word transcribed from the reference obj of
+        // `fixtures/cpp/w25_store_leaf.cpp` and `work/lf/probes/p1.cpp`, not
+        // derived from the encoding rule.
+        let mut f = IlFunction {
+            mangled_name: "?s_b@@YAXPAUS@@H@Z".into(),
+            source_path: None,
+            params: vec![0xF509, 0xF609],
+            ops: vec![
+                IlOp::Load(0xF509),
+                IlOp::Load(0xF609),
+                IlOp::StoreInd { off: 4, width: 4 },
+            ],
+            tail_call: None,
+            framed_call: None,
+            call_seq: None,
+            compare: None,
+            empty_body: false,
+            float_leaf: None,
+            arg_sources: None,
+        };
+        assert_eq!(
+            store_leaf_text(&f).unwrap().unwrap(),
+            vec![0x90, 0x83, 0x00, 0x04, 0x4E, 0x80, 0x00, 0x20],
+            "stw r4,4(r3) ; blr"
+        );
+        // A ZERO displacement is NOT free here — the store still happens. This is
+        // the exact opposite of `addr_leaf_text`, whose zero case emits nothing,
+        // and the two shapes share a designator.
+        f.ops[2] = IlOp::StoreInd { off: 0, width: 4 };
+        assert_eq!(
+            store_leaf_text(&f).unwrap().unwrap(),
+            vec![0x90, 0x83, 0x00, 0x00, 0x4E, 0x80, 0x00, 0x20],
+            "stw r4,0(r3) ; blr"
+        );
+        // The width picks the opcode, and nothing else does.
+        f.ops[2] = IlOp::StoreInd { off: 12, width: 1 };
+        assert_eq!(
+            store_leaf_text(&f).unwrap().unwrap()[..4],
+            [0x98, 0x83, 0x00, 0x0C],
+            "stb r4,12(r3)"
+        );
+        f.ops[2] = IlOp::StoreInd { off: 14, width: 2 };
+        assert_eq!(
+            store_leaf_text(&f).unwrap().unwrap()[..4],
+            [0xB0, 0x83, 0x00, 0x0E],
+            "sth r4,14(r3)"
+        );
+        f.ops[2] = IlOp::StoreInd { off: 32, width: 8 };
+        assert_eq!(
+            store_leaf_text(&f).unwrap().unwrap()[..4],
+            [0xF8, 0x83, 0x00, 0x20],
+            "std r4,32(r3)"
+        );
+        // `std` is DS-form: an offset that is not a multiple of 4 cannot be
+        // encoded at all, so it refuses rather than dropping the low two bits.
+        f.ops[2] = IlOp::StoreInd { off: 30, width: 8 };
+        assert!(store_leaf_text(&f).unwrap().is_err());
+        // BOTH register fields move: `void f(int x, S* s, int v){ s->b = v; }` is
+        // `90a40004` — value r5, base r4 — and a lowering that hardcoded either
+        // would pass every two-parameter case.
+        f.params = vec![0x1111, 0xF509, 0xF609];
+        f.ops[2] = IlOp::StoreInd { off: 4, width: 4 };
+        assert_eq!(
+            store_leaf_text(&f).unwrap().unwrap(),
+            vec![0x90, 0xA4, 0x00, 0x04, 0x4E, 0x80, 0x00, 0x20],
+            "stw r5,4(r4) ; blr"
+        );
+        // A literal value goes through the SCRATCH register, never r3: measured
+        // `39600007 91630000` for `void f(S* s){ s->a = 7; }`.
+        f.params = vec![0xF509];
+        f.ops = vec![
+            IlOp::Load(0xF509),
+            IlOp::Lit(7),
+            IlOp::StoreInd { off: 0, width: 4 },
+        ];
+        assert_eq!(
+            store_leaf_text(&f).unwrap().unwrap(),
+            vec![
+                0x39, 0x60, 0x00, 0x07, 0x91, 0x63, 0x00, 0x00, 0x4E, 0x80, 0x00, 0x20
+            ],
+            "li r11,7 ; stw r11,0(r3) ; blr"
+        );
+        // …and a wide literal is the `lis`+`ori` pair through the same register.
+        f.ops[1] = IlOp::Lit(70000);
+        assert_eq!(
+            store_leaf_text(&f).unwrap().unwrap()[..8],
+            [0x3D, 0x60, 0x00, 0x01, 0x61, 0x6B, 0x11, 0x70],
+            "lis r11,1 ; ori r11,r11,4464"
+        );
+        // Not a store leaf at all: the ordinary selector keeps its behaviour.
+        f.ops = vec![IlOp::Load(0xF509), IlOp::LoadInd { off: 4 }];
+        assert!(store_leaf_text(&f).is_none());
     }
 
     #[test]
@@ -4098,6 +4338,9 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         return Ok(Selected::Plain(t?));
     }
     if let Some(t) = addr_leaf_text(func) {
+        return Ok(Selected::Plain(t?));
+    }
+    if let Some(t) = store_leaf_text(func) {
         return Ok(Selected::Plain(t?));
     }
     if let Some(cmp) = &func.compare {

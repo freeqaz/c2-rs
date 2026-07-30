@@ -2089,7 +2089,122 @@ agree*, which is the argument for having a control group at all:
    "RAW-identical, wibo pins it" note is measured **back-to-back within one
    second** and is corrected in place.
 
-## 6i. Class A many-calls (#35 step 2, rung 1), 2026-07-30
+## 6i. W25 + W26 — the store leaf and the one-byte-unsigned value class (2026-07-30)
+
+`void f(S* s, int v) { s->m = v; }` is one `stb`/`sth`/`stw`/`std` at a folded
+displacement, and it is the **third** consumer of the sub-object designator the
+indirect-load leaf (`lwz`) and the address leaf (`addi`) already share. Full
+write-up, with every captured word and every counterfactual, in
+`docs/IL_STORE_LEAF.md`.
+
+**The three candidates were measured before anything was implemented**, and the
+ranking the row sizes suggested was not the one the measurement produced:
+`expr-load-type-8885` (82,810 blocked) completes **0** bodies under a full type
+widening; `expr-load-type-8645` (98,813) completes **1,004**, which is the
+already-named FP `fmr` rung; `expr-intrinsic-base-member-addr` (118,331, the row
+the rung was commissioned against) completes **740**. What made it worth doing is
+what those 740 bodies *are* — a store — and that the same production through the
+*plain* designator is **29x bigger** and sits in `expr-op-0x27`, the #1 row on the
+board. `IL_CALL_IN_EXPR.md` §19.3's lesson at a bigger ratio: grep for every site
+that implements the rule you are changing.
+
+**It also corrects a measurement in `GAPS.md` §6.** `expr-op-0x27` was written up
+as "measured to the bottom, twice: 505,122 released, 685 whole bodies, 0.14 %".
+That counterfactual admitted the **token** `27` inside `parse_expr`, so it could
+only count bodies that finish as an *expression*; half the row is a *statement*
+that fails one token later at the `32` store. This rung took **22,095** functions
+out of it. A counterfactual measures what the surrounding grammar can already
+finish — "admit this token" and "admit this production" are different questions.
+
+### Census
+
+**418,628 → 442,273 (17.00 % → 17.96 %), +23,645**, mismatch 0, no TU changing
+class, **0 new census keys**, census/gate disagreement still **0**. The sum of
+every blocker key's delta is −23,645 — the bucket drop equals the gain to the
+function, for the sixth rung running. Estimate was **+22,821, biased LOW** (the
+counterfactual); the +824 residual is the class-preserving `2C` on the stored
+value, the one rule that changed between the counterfactual build and the shipped
+one. All 23,645 admitted bodies read `calls-0`, which is the standing control
+group: this production cannot describe a body containing a call.
+
+### Gate evidence
+
+Corpus `dc3-decomp` at **`05ca6d09`**; baseline re-taken in this worktree and
+reproducing master `b36a046` to the function.
+
+| lane | baseline | W25 |
+|---|---|---|
+| `cargo test --workspace --release` | 370 pass | **372 pass**, 0 fail |
+| `c2rs bench` | 132 pass / 0 fail / 0 error | **132 pass / 0 fail / 0 error** |
+| `mode_lane.sh /Ox` | 56 match, **0 mismatch**, disagreement 1 | **57 match, 0 mismatch**, disagreement 1 |
+| `/O1` · `/O2` · `/Ox /Gy` | 54 match, **0 mismatch**, 2 codegen-gap, disagreement 9 | **55 match, 0 mismatch**, 2 codegen-gap, disagreement 9 |
+| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,900** after W26, mismatches **0** |
+| 878-TU scan | match 6, mismatch 0, 418,628/2,462,571, 569 keys, disagreement 0 | match 6, **mismatch 0**, **442,273**/2,462,571, **569 keys**, disagreement **0** |
+| `census fixtures/cpp/w25_store_leaf.cpp` | — | **41/41 in class**, `Port=Match` |
+| `census fixtures/cpp/w25_store_leaf_neg.cpp` | — | **0/15 in class**, `Port=NotImplemented` |
+
+### W26 — the one-byte-unsigned value class, taken in the same session
+
+The rung W25's own measurement ranked next, and it landed at the size the
+counterfactual gave it. `bool` and `unsigned char` share the operand TYPE
+`82 12`, and **inside** the class a value costs no instruction at all —
+`return false;` is `li r3,0`, `return b;` is a bare `blr`, and from any other
+argument register it is the W18 register move — so this is the second pure decode
+widening in this project with **no emitter change**. **Out of** the class it is a
+real `rlwinm r3,r3,0,24,31`, arriving on the same `2C … 00` token that is free
+between the two width-4 classes, which is why `ValueClass::Int1u` is its own class
+and the `41` result annotation is required to restate it.
+
+**442,273 → 464,584 (17.96 % → 18.87 %), +22,311**, mismatch 0, disagreement 0,
++1 key. Estimate **+23,122 biased HIGH** with the cause named in advance — the
+counterfactual widened `eat_return_head`'s `41` gate globally and the shipped rung
+does not, so the 809 `calls-1` bodies (a `bool`-returning tail call) were expected
+to be lost; realized **+22,311**, two functions off the predicted `calls-0` half.
+
+`w26_bool_value.cpp` **15/15 in class, `Port=Match`**; `w26_bool_value_neg.cpp`
+**0/10**. Lanes `/Ox` 58, others 56, **0 mismatch**, disagreements unchanged at
+1/9/9/9. `bench` **134 pass**, workspace **373 pass**, sweep **4,900 cases, 0
+mismatches**. The two new guards (`expr-int1u-arith`, `expr-int1u-mixed`) cost
+**0 functions** on the whole workload — every `bool` arithmetic in 2.46 M
+functions converts first.
+
+Full write-up, including what the refusals cost (the mask 4,947, the
+`char`/`signed char` class 1,646, the `bool` tail call 809), in
+`docs/IL_STORE_LEAF.md` §9.
+
+**One census/gate hole was found and closed on the way**, by probing W25's own
+boundary rather than by a test: the parser admitted any literal as a stored value
+while `emit_load_imm` refuses a wide *negative* one, so
+`void f(S* s){ s->a = -70000; }` censused in class against a
+`Port=NotImplemented`. The straight-line class had gated it in the parser since
+W5; the new shape reached the same literal by a second route and did not — the
+fifth instance of `GAPS.md` §6's "one fact, two locators". Fixed in the parser,
+cost 0 functions on the workload, pinned by `n_negwide` and 2 sweep cases.
+
+### Merged against master `7011b49`
+
+Both rungs were developed against `b36a046`; master advanced four times in
+flight (D14, the ground-truth docs drop, instrument hardening, the frame model).
+**Merged census 473,611 / 2,462,571 (19.23 %)** — and additivity was *measured*,
+not assumed: differencing this rung's own tree against the merged scan moves
+exactly two keys, `callee-unresolved-dtor-delegation:eof` (−9,028) and
+`callee-unresolved-tail-call:eof` (+1), which is D14's population and nothing
+else. Interaction term **0**.
+
+Merged-tree gate: workspace **398 pass**, `bench` **142 pass / 0 fail / 0 error**,
+lanes `/Ox` **63** and `/O1`·`/O2`·`/Ox /Gy` **61**, **0 mismatch** in all four,
+`census_gate.rs` passing at its recorded per-lane values (**1** packed / **9**
+`/Gy`) with its named causes unchanged, sweep **5,023 cases / 0 mismatches**,
+878-TU scan match 6 / **mismatch 0** / capture-fail 7 / disagreement **0** / 570
+keys, corpus `dc3-decomp` **`05ca6d09`** (carried in provenance record 0). Both
+positive fixtures still N/N `Port=Match`, and so do the frame rung's `wfr_*`.
+
+Two merge resolutions are recorded in `IL_STORE_LEAF.md` §10.3: a duplicate
+`encode_std` (byte-identical, two independent captures — the frame side's copy
+kept untouched, this rung's removed), and the rung tag `W23` having been taken
+twice, which is why this section is §6i and the fixtures are `w25_`/`w26_`.
+
+## 6j. Class A many-calls (#35 step 2, rung 1), 2026-07-30
 
 The first rung of §6g's handoff: a framed body with **more than one call and
 nothing live across any of them**. Byte evidence in

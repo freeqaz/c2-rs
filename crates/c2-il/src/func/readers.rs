@@ -555,6 +555,39 @@ pub(crate) enum ValueClass {
     Int4,
     /// A width-4 data or function pointer ([`is_ptr4_kind`]).
     Ptr4,
+    /// **`bool` / `unsigned char`** — the one-byte unsigned class ([`is_int1u_type`]).
+    ///
+    /// Its own class, not a spelling of [`ValueClass::Int4`], and the distinction
+    /// is a captured instruction rather than tidiness: a value **inside** the
+    /// class is free in a register (`bool f(bool b){ return b; }` is a bare
+    /// `blr`, `bool f(){ return false; }` is `li r3,0`, `bool f(int k,bool b)
+    /// { return b; }` is the same `mr r3,r4` the int identity emits), while a
+    /// conversion **out of** it is a real mask — `unsigned u(bool b)
+    /// { return b; }` is `5463063e`, `rlwinm r3,r3,0,24,31`. Keeping it apart is
+    /// what makes `eat_value_type` refuse that `2C` instead of dropping it.
+    ///
+    /// `bool` and `unsigned char` are one class because their TYPE `<tag><kind>`
+    /// is one thing (`82 12`) and only the per-TU id differs; no capture
+    /// separates them in any position this parser reaches.
+    Int1u,
+}
+
+/// True for a TYPE naming the **one-byte unsigned** class — `bool`,
+/// `unsigned char`, and the `unsigned char` typedefs — `82 12 <id>`.
+///
+/// Required as the literal pair rather than as nibble arithmetic, for the reason
+/// [`is_ptr4_kind`] is: the tag carries the *alignment* class and the kind's high
+/// nibble the *size*, and both say 1 here, so the pair is a free double check
+/// against a misaligned read. The cv-qualified spellings (`A2 12` const,
+/// `92 12` volatile) are **not** admitted — neither occurs as an operand in any
+/// capture taken for this rung, and a tag that never varied is indistinguishable
+/// from a constant (`GAPS.md` §6).
+///
+/// `82 11` — `char`/`signed char` — is deliberately absent: it is the same width
+/// and a different class, and a *signed* narrow value widened to `int` costs an
+/// `extsb` where this one costs a `rlwinm` or nothing. One predicate per fact.
+pub(crate) fn is_int1u_type(tag: u8, kind: u8) -> bool {
+    (tag, kind) == (0x82, 0x12)
 }
 
 pub(crate) fn value_class(tag: u8, kind: u8) -> Option<ValueClass> {
@@ -564,6 +597,29 @@ pub(crate) fn value_class(tag: u8, kind: u8) -> Option<ValueClass> {
         Some(ValueClass::Ptr4)
     } else {
         None
+    }
+}
+
+/// Consume the operand TYPE of a `parse_expr` LOAD/LIT position, widened to the
+/// **one-byte unsigned** class ([`is_int1u_type`]) beside the two width-4 ones.
+///
+/// A separate entry point rather than a widening of [`eat_int_like_or_ptr4`],
+/// which has five call sites and gates three byte-graded shapes: `ROADMAP.md`
+/// §6d is the record of what changing a shared locator costs, and only the two
+/// `parse_expr` operand positions have been graded for this class. The caller
+/// gets the class back and is required to act on it — a `bool` value may not
+/// enter arithmetic, may not be converted, and its `41` result annotation must
+/// restate the class.
+pub(crate) fn eat_operand_type(seg: &[u8], p: &mut usize) -> Option<ValueClass> {
+    if let Some(is_ptr) = eat_int_like_or_ptr4(seg, p) {
+        return Some(if is_ptr { ValueClass::Ptr4 } else { ValueClass::Int4 });
+    }
+    match read_type(seg, *p) {
+        Some((tag, kind, _, w)) if is_int1u_type(tag, kind) => {
+            *p += w;
+            Some(ValueClass::Int1u)
+        }
+        _ => None,
     }
 }
 
@@ -577,6 +633,13 @@ pub(crate) fn eat_value_type(seg: &[u8], p: &mut usize, class: ValueClass) -> bo
         ValueClass::Int4 => eat_int_like(seg, p),
         ValueClass::Ptr4 => match read_type(seg, *p) {
             Some((tag, kind, _, w)) if is_ptr4_kind(tag, kind) => {
+                *p += w;
+                true
+            }
+            _ => false,
+        },
+        ValueClass::Int1u => match read_type(seg, *p) {
+            Some((tag, kind, _, w)) if is_int1u_type(tag, kind) => {
                 *p += w;
                 true
             }
