@@ -244,6 +244,282 @@ pub const OPT_WORD_O1: u32 = 0x0020_0005;
 /// closed.
 pub const OPT_WORD_SPECIAL_MEMBER: u32 = 0x0000_0100;
 
+/// Convert one parsed body shape into the emitter's function record.
+///
+/// **One locator for the shape→function mapping.** [`IlBundle::functions`] (the
+/// gate) and [`IlBundle::census_functions`] (the diagnostic that sizes the
+/// census/gate disagreement) both call this, so the two cannot drift about what
+/// a shape becomes. `resolve` maps a CALL token to its `.gl` symbol name; `None`
+/// from it refuses, because a wrong callee name is a relocation against the
+/// wrong symbol — a mis-emit, not a gap.
+///
+/// Purely per-function: TU-level gates (the single-function restriction on the
+/// framed path, unclaimed `.gl` symbols, a locally-defined callee) stay in the
+/// caller.
+pub(crate) fn shape_to_function(
+    shape: BodyShape,
+    name: &str,
+    src: &Option<String>,
+    resolve: &dyn Fn(u32) -> Option<String>,
+) -> Option<IlFunction> {
+    match shape {
+            // An indirect-load leaf reaches the ordinary integer selector,
+            // which pattern-matches its exact two-op stream; `params` carries
+            // a member function's `this` at index 0 so the base register comes
+            // out right.
+            BodyShape::IndirectLoad { params, ops } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops,
+                    tail_call: None,
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            // An address leaf (`return &s->m;`) travels the same way: an exact
+            // two-op stream that `codegen::addr_leaf_text` pattern-matches
+            // ahead of the ordinary selector.
+            BodyShape::AddrLeaf { params, ops } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops,
+                    tail_call: None,
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            BodyShape::StraightLine { params, ops } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops,
+                    tail_call: None,
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            // Tail calls: the callee is resolved BY TOKEN through the `.gl`
+            // symbol index. An unresolvable token rejects the whole TU
+            // rather than falling back to a positional guess — a wrong
+            // callee name is a relocation against the wrong symbol, which is
+            // a mis-emit, not a gap.
+            BodyShape::VoidTailCall { callee_tok } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params: Vec::new(),
+                    ops: Vec::new(),
+                    tail_call: Some(resolve(callee_tok)?),
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            // The generated empty destructor is a tail call in every respect the
+            // emitter can see: there is no result, nothing follows the call, and
+            // the receiver is `this` — already in r3 — plus a constant byte
+            // offset. At offset 0 (a base sub-object, or a member first in the
+            // layout) that constant emits nothing and this is byte-identical to
+            // the void tail call above. At a nonzero offset it is one
+            // `addi r3,r3,k`, and rather than a new emitter it is handed over as
+            // the argument-setup operand stream `[Load(this), Lit(k), Add]` —
+            // literally `return g(this + k)`, which `int_tail_call_text` has
+            // lowered since the MVP and which the mode lanes and the expression
+            // sweep already grade. The parser has bounded `k` to a non-negative
+            // signed-16-bit value (`eat_dtor_member_receiver`), which is exactly
+            // the range that selector folds into one `addi`.
+            BodyShape::EmptyDtorDelegation { callee_tok, this_tok, adjust, .. } => {
+                let (params, ops) = if adjust == 0 {
+                    (Vec::new(), Vec::new())
+                } else {
+                    (
+                        vec![this_tok],
+                        vec![IlOp::Load(this_tok), IlOp::Lit(adjust), IlOp::Add],
+                    )
+                };
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops,
+                    tail_call: Some(resolve(callee_tok)?),
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            BodyShape::IntTailCall { params, arg_ops, callee_tok } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops: arg_ops,
+                    tail_call: Some(resolve(callee_tok)?),
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            // A multi-argument tail call is still a tail call — same resolved
+            // callee, same `b <callee>` — but its argument setup is a register
+            // permutation rather than an operand stream, so `ops` stays empty
+            // and `arg_sources` carries the mapping.
+            BodyShape::MultiArgTailCall { params, arg_sources, callee_tok } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops: Vec::new(),
+                    tail_call: Some(resolve(callee_tok)?),
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: Some(arg_sources),
+                })
+            }
+            // The framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
+            // `.pdata` with compiler label symbols ($M2545/$M2546/$T2547)
+            // whose counters are a fixed toolchain seed for the first
+            // function and shift once preceding functions consume slots
+            // (W-UNW-1, docs/CODEGEN_PPC_MVP.md), so a multi-function TU
+            // containing one would be mis-numbered.
+            BodyShape::FramedCall { add_k, callee_tok } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params: Vec::new(),
+                    ops: Vec::new(),
+                    tail_call: None,
+                    framed_call: Some(FramedCall {
+                        callee: resolve(callee_tok)?,
+                        add_k,
+                    }),
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            // W6: a comparison leaf carries no op stream — codegen emits its
+            // spine from the decoded relation instead.
+            BodyShape::EmptyBody => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params: Vec::new(),
+                    ops: Vec::new(),
+                    tail_call: None,
+                    framed_call: None,
+                    compare: None,
+                    empty_body: true,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            BodyShape::FloatLeaf { params, ops, double } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops,
+                    tail_call: None,
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: Some(double),
+                    arg_sources: None,
+                })
+            }
+            BodyShape::Compare(cmp) => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params: vec![cmp.param],
+                    ops: Vec::new(),
+                    tail_call: None,
+                    framed_call: None,
+                    compare: Some(cmp),
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+    }
+}
+
+
+/// The optimization mode a per-function word names, when it is one this port has
+/// been verified against.
+///
+/// **One locator for "which words are known".** `c2_core::codegen::opt_mode_of_word`
+/// maps this onto its own `OptMode` and the census refuses a function whose word
+/// yields `None` — so the two cannot disagree about which functions are in class,
+/// which is the whole point of keeping acceptance in this crate.
+///
+/// One bit of the word is NOT a mode: [`OPT_WORD_SPECIAL_MEMBER`] (`0x0100`) says
+/// the function is a constructor or a destructor, measured one flag and one
+/// function kind at a time. It is masked off before the whole-word compare, so a
+/// destructor's word reads as the mode it actually is. Every other bit is still
+/// required to match, so a third mode or an unknown flag fails closed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OptWordMode {
+    /// `/Ox` and `/O2`.
+    Ox,
+    /// `/O1`, and `#pragma optimize("s", on)`. What the dc3 workload compiles with.
+    O1,
+}
+
+/// See [`OptWordMode`]. `None` for `/Od`, `#pragma optimize("", off)`, an
+/// unreadable segment prefix, or any word this port has not been verified against.
+pub fn opt_word_mode(word: Option<u32>) -> Option<OptWordMode> {
+    match word.map(|v| v & !OPT_WORD_SPECIAL_MEMBER) {
+        Some(v) if v == OPT_WORD_OX => Some(OptWordMode::Ox),
+        Some(v) if v == OPT_WORD_O1 => Some(OptWordMode::O1),
+        _ => None,
+    }
+}
+
+/// Read the per-function optimization-settings word at the head of one `.ex`
+/// function segment: the `<LE32>` of `4F 1F 80 <LE32>`.
+///
+/// **One locator for the field layout.** [`IlBundle::opt_words`] walks the
+/// `4F 1F` split and the census walks the `LO`-anchored split — two different
+/// segmentations of the same stream, whose counts are close but not equal, so
+/// zipping one's words onto the other's rows would be exactly the unstable
+/// correspondence `docs/GAPS.md` §6 warns about. Each reads the word out of the
+/// segment it already owns, through this.
+///
+/// `None` when the segment does not open `4F 1F 80` with four more bytes, so a
+/// caller that needs a known mode refuses rather than assuming one.
+pub(crate) fn opt_word_at(seg: &[u8]) -> Option<u32> {
+    if seg.len() >= 7 && seg[0] == FN_START[0] && seg[1] == FN_START[1] && seg[2] == 0x80 {
+        Some(u32::from_le_bytes([seg[3], seg[4], seg[5], seg[6]]))
+    } else {
+        None
+    }
+}
+
 impl IlBundle {
     /// The per-function optimization-settings word of each `.ex` function segment,
     /// in file order — the `<LE32>` of the `4F 1F 80 <LE32>` that opens a segment.
@@ -266,20 +542,7 @@ impl IlBundle {
             split_functions_at(ex)
                 .0
                 .into_iter()
-                .map(|s| {
-                    // `4F 1F` is already proven at `s`; the word needs the `80`
-                    // tag and four more bytes.
-                    if ex.get(s + 2) == Some(&0x80) && s + 7 <= ex.len() {
-                        Some(u32::from_le_bytes([
-                            ex[s + 3],
-                            ex[s + 4],
-                            ex[s + 5],
-                            ex[s + 6],
-                        ]))
-                    } else {
-                        None
-                    }
-                })
+                .map(|s| opt_word_at(&ex[s..]))
                 .collect(),
         )
     }
@@ -375,213 +638,23 @@ impl IlBundle {
             if mangled_is_varargs(name) {
                 return None;
             }
-            match parse_segment(seg, locals.view(i))? {
-                // An indirect-load leaf reaches the ordinary integer selector,
-                // which pattern-matches its exact two-op stream; `params` carries
-                // a member function's `this` at index 0 so the base register comes
-                // out right.
-                BodyShape::IndirectLoad { params, ops } => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params,
-                        ops,
-                        tail_call: None,
-                        framed_call: None,
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
-                // An address leaf (`return &s->m;`) travels the same way: an exact
-                // two-op stream that `codegen::addr_leaf_text` pattern-matches
-                // ahead of the ordinary selector.
-                BodyShape::AddrLeaf { params, ops } => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params,
-                        ops,
-                        tail_call: None,
-                        framed_call: None,
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
-                BodyShape::StraightLine { params, ops } => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params,
-                        ops,
-                        tail_call: None,
-                        framed_call: None,
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
-                // Tail calls: the callee is resolved BY TOKEN through the `.gl`
-                // symbol index. An unresolvable token rejects the whole TU
-                // rather than falling back to a positional guess — a wrong
-                // callee name is a relocation against the wrong symbol, which is
-                // a mis-emit, not a gap.
-                BodyShape::VoidTailCall { callee_tok } => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params: Vec::new(),
-                        ops: Vec::new(),
-                        tail_call: Some(resolve(callee_tok)?),
-                        framed_call: None,
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
-                // The generated empty destructor is a tail call in every respect the
-                // emitter can see: there is no result, nothing follows the call, and
-                // the receiver is `this` — already in r3 — plus a constant byte
-                // offset. At offset 0 (a base sub-object, or a member first in the
-                // layout) that constant emits nothing and this is byte-identical to
-                // the void tail call above. At a nonzero offset it is one
-                // `addi r3,r3,k`, and rather than a new emitter it is handed over as
-                // the argument-setup operand stream `[Load(this), Lit(k), Add]` —
-                // literally `return g(this + k)`, which `int_tail_call_text` has
-                // lowered since the MVP and which the mode lanes and the expression
-                // sweep already grade. The parser has bounded `k` to a non-negative
-                // signed-16-bit value (`eat_dtor_member_receiver`), which is exactly
-                // the range that selector folds into one `addi`.
-                BodyShape::EmptyDtorDelegation { callee_tok, this_tok, adjust, .. } => {
-                    let (params, ops) = if adjust == 0 {
-                        (Vec::new(), Vec::new())
-                    } else {
-                        (
-                            vec![this_tok],
-                            vec![IlOp::Load(this_tok), IlOp::Lit(adjust), IlOp::Add],
-                        )
-                    };
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params,
-                        ops,
-                        tail_call: Some(resolve(callee_tok)?),
-                        framed_call: None,
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
-                BodyShape::IntTailCall { params, arg_ops, callee_tok } => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params,
-                        ops: arg_ops,
-                        tail_call: Some(resolve(callee_tok)?),
-                        framed_call: None,
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
-                // A multi-argument tail call is still a tail call — same resolved
-                // callee, same `b <callee>` — but its argument setup is a register
-                // permutation rather than an operand stream, so `ops` stays empty
-                // and `arg_sources` carries the mapping.
-                BodyShape::MultiArgTailCall { params, arg_sources, callee_tok } => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params,
-                        ops: Vec::new(),
-                        tail_call: Some(resolve(callee_tok)?),
-                        framed_call: None,
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: Some(arg_sources),
-                    });
-                }
-                // The framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
-                // `.pdata` with compiler label symbols ($M2545/$M2546/$T2547)
-                // whose counters are a fixed toolchain seed for the first
-                // function and shift once preceding functions consume slots
-                // (W-UNW-1, docs/CODEGEN_PPC_MVP.md), so a multi-function TU
-                // containing one would be mis-numbered.
-                BodyShape::FramedCall { add_k, callee_tok } => {
-                    if n_defined != 1 {
-                        return None;
-                    }
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params: Vec::new(),
-                        ops: Vec::new(),
-                        tail_call: None,
-                        framed_call: Some(FramedCall {
-                            callee: resolve(callee_tok)?,
-                            add_k,
-                        }),
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
-                // W6: a comparison leaf carries no op stream — codegen emits its
-                // spine from the decoded relation instead.
-                BodyShape::EmptyBody => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params: Vec::new(),
-                        ops: Vec::new(),
-                        tail_call: None,
-                        framed_call: None,
-                        compare: None,
-                        empty_body: true,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
-                BodyShape::FloatLeaf { params, ops, double } => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params,
-                        ops,
-                        tail_call: None,
-                        framed_call: None,
-                        compare: None,
-                        empty_body: false,
-                        float_leaf: Some(double),
-                        arg_sources: None,
-                    });
-                }
-                BodyShape::Compare(cmp) => {
-                    funcs.push(IlFunction {
-                        mangled_name: name.clone(),
-                        source_path: src.clone(),
-                        params: vec![cmp.param],
-                        ops: Vec::new(),
-                        tail_call: None,
-                        framed_call: None,
-                        compare: Some(cmp),
-                        empty_body: false,
-                        float_leaf: None,
-                        arg_sources: None,
-                    });
-                }
+            let f = shape_to_function(
+                parse_segment(seg, locals.view(i))?,
+                name,
+                &src,
+                &resolve,
+            )?;
+            // TU-level, so it stays here rather than in the per-function helper:
+            // the framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
+            // `.pdata` with compiler label symbols ($M2545/$M2546/$T2547) whose
+            // counters are a fixed toolchain seed for the first function and shift
+            // once preceding functions consume slots (W-UNW-1,
+            // docs/CODEGEN_PPC_MVP.md), so a multi-function TU containing one
+            // would be mis-numbered.
+            if f.framed_call.is_some() && n_defined != 1 {
+                return None;
             }
+            funcs.push(f);
         }
         // Account for every `.gl` symbol no record claimed. The port emits
         // exactly the `n_defined` bodies plus an external symbol per resolved
