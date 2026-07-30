@@ -134,23 +134,63 @@ pub(crate) enum CallForm {
 
 // --- `Block::aux` packing ---------------------------------------------------
 //
-// `Block` carries one `u32` of context and `ctx` is a `&'static str`, so the
+// `Block` carries one `u64` of context and `ctx` is a `&'static str`, so the
 // selector id and the residue opcode cannot go in the name. They go here:
-//   bits  0..5   the form's discriminant
-//   bits  6..22  its payload (an intrinsic selector, or a residue opcode byte)
-//   bit   23     the whole-body-completeness bit
+//   bits  0..5    the receiver form's discriminant
+//   bits  6..22   its payload (an intrinsic selector, or a residue opcode byte)
+//   bit   23      the whole-body-completeness bit  (the form ALONE finishes the body)
+//   bits 24..29   the SECOND blocker's discriminant                       (D4, §16)
+//   bits 30..53   its payload (a nested form's own (disc, payload), a type
+//                 class, an opcode byte, a structural sub-kind)
+//   bits 54..55   the pair state: UNMEASURED / both⇒whole / both⇒more
 // Nothing per-TU is representable in that layout, which is the sharding gate
-// stated as an invariant rather than as a promise.
+// stated as an invariant rather than as a promise. The low 24 bits are
+// bit-for-bit what D2 packed, so every §14/§15 key still renders identically.
 
 const FORM_BITS: u32 = 6;
-const FORM_MASK: u32 = (1 << FORM_BITS) - 1;
+const FORM_MASK: u64 = (1 << FORM_BITS) - 1;
 const PAYLOAD_BITS: u32 = 17;
-const PAYLOAD_MASK: u32 = (1 << PAYLOAD_BITS) - 1;
-const WHOLE_BIT: u32 = 1 << (FORM_BITS + PAYLOAD_BITS);
+const PAYLOAD_MASK: u64 = (1 << PAYLOAD_BITS) - 1;
+const WHOLE_BIT: u64 = 1 << (FORM_BITS + PAYLOAD_BITS);
+
+/// Where the second blocker's discriminant starts.
+const BLK_SHIFT: u32 = 24;
+const BLK_BITS: u32 = 6;
+const BLK_MASK: u64 = (1 << BLK_BITS) - 1;
+/// Where its payload starts, wide enough for a nested `(disc, payload)` pair.
+const BLK_PAYLOAD_SHIFT: u32 = BLK_SHIFT + BLK_BITS;
+const BLK_PAYLOAD_BITS: u32 = FORM_BITS + PAYLOAD_BITS;
+const BLK_PAYLOAD_MASK: u64 = (1 << BLK_PAYLOAD_BITS) - 1;
+/// Where the 3-bit **grant count** starts: how many extra constructs it took to
+/// finish the segment, or one of the two sentinels below.
+const NEED_SHIFT: u32 = BLK_PAYLOAD_SHIFT + BLK_PAYLOAD_BITS;
+const NEED_MASK: u64 = 0x7;
+/// The chain's completeness is **UNMEASURED**: no production exists for the second
+/// blocker, so "would granting it finish the body" has no answer. A key with no
+/// `-whole…`/`-more` suffix says exactly that, and `blocker_is_measured` is what
+/// gates it — the same discipline `form_is_measured` applies one level up.
+const NEED_UNMEASURED: u64 = 0;
+/// MEASURED: granting up to [`MAX_ADMIT`] constructs was still not enough, or the
+/// chain ran into something unmodelable partway.
+const NEED_MORE: u64 = 7;
+/// Where the **third** construct's coarse kind starts (5 bits), present only when
+/// the greedy chain needed two or more grants.
+///
+/// A coarse kind rather than a whole [`Blocker`] because that is what fits, and it
+/// is what the ranking needs: the k = 2 class is 25,588 functions — the largest
+/// need class after `-more` — and 20,579 of them are one row (`data-addr` ×
+/// `plain-call`). Whether their third construct is a pointer operand or a branch
+/// decides whether that row is the best rung available or unreachable, and a single
+/// hand-read witness could not settle it. The type classes are spelled out
+/// individually for exactly that reason; the inner detail of a nested *call* is
+/// dropped, which is stated in [`Blocker::kind_name`].
+const KIND_SHIFT: u32 = NEED_SHIFT + 3;
+const KIND_BITS: u32 = 5;
+const KIND_MASK: u64 = (1 << KIND_BITS) - 1;
 
 impl CallForm {
     /// `(discriminant, payload)`.
-    fn code(self) -> (u32, u32) {
+    fn code(self) -> (u64, u64) {
         match self {
             CallForm::RecvLoad => (1, 0),
             CallForm::RecvDeref => (2, 0),
@@ -158,20 +198,20 @@ impl CallForm {
             CallForm::RecvFieldZero => (17, 0),
             CallForm::RecvObject => (4, 0),
             CallForm::RecvCall => (5, 0),
-            CallForm::RecvIntrinsic(sel) => (6, sel as u32 & PAYLOAD_MASK),
+            CallForm::RecvIntrinsic(sel) => (6, sel as u64 & PAYLOAD_MASK),
             CallForm::RecvOther => (7, 0),
             CallForm::Chained => (8, 0),
             CallForm::NestedCall => (9, 0),
             CallForm::DataAddr => (10, 0),
             CallForm::DataRead => (11, 0),
-            CallForm::Intrinsic(sel) => (13, sel as u32 & PAYLOAD_MASK),
+            CallForm::Intrinsic(sel) => (13, sel as u64 & PAYLOAD_MASK),
             CallForm::Other => (14, 0),
-            CallForm::Op(b) => (15, b as u32),
+            CallForm::Op(b) => (15, b as u64),
             CallForm::Eof => (16, 0),
         }
     }
 
-    fn from_code(disc: u32, payload: u32) -> Option<CallForm> {
+    fn from_code(disc: u64, payload: u64) -> Option<CallForm> {
         Some(match disc {
             1 => CallForm::RecvLoad,
             2 => CallForm::RecvDeref,
@@ -216,9 +256,378 @@ impl CallForm {
     }
 }
 
-/// The census key for a [`Block`] this module raised: the sub-bucket, plus
-/// `-whole` when the rigid whole-body matcher accounted for the entire segment.
-pub(crate) fn feature(aux: u32) -> String {
+/// **D4 — what blocks the body once the receiver form is granted.**
+///
+/// §14.6 stated the limit D2 left open: *"`recv-object`'s 0.0 % says only that the
+/// grammar doesn't finish those bodies; WHAT ELSE blocks them is uncharacterized"*
+/// — and the three forms at 0.0 % hold 172,615 functions, 64 % of the bucket. This
+/// enum is the answer's vocabulary: one variant per **construct**, so a
+/// second-blocker histogram cannot repeat the by-position mis-attribution
+/// `GAPS.md` §6 records (`docs/IL_CALL_IN_EXPR.md` §16.2 has the witness table).
+///
+/// The pair `(receiver form, Blocker)` is what a rung actually has to implement,
+/// which is why both go in one census key.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Blocker {
+    /// Nothing: the form alone finishes the body (the `-whole` case).
+    None,
+    /// **Another `26`-opened production**, named by its own [`CallForm`]. This is
+    /// the variant that makes the histogram actionable: `recv-object` bodies that
+    /// block on `call-recv-load` say the rung is "both receiver forms at once",
+    /// and a pair count is what such a rung would be estimated from.
+    Call(CallForm),
+    /// A `30 <TYPE>` **indirect load** used as a value — reading a member or
+    /// through a pointer, which the modeled operand vocabulary has no token for.
+    DerefLoad,
+    /// A `9B <TYPE> <tok>` **by-value temporary bind** — the same construct the
+    /// `op-0x9B` sub-bucket is, met here *after* a receiver instead of before one.
+    TempBind,
+    /// A **conditional branch** `<opcode> <label-tok>` — control flow, and the
+    /// construct that ends the straight-line assumption every modeled shape rests
+    /// on. MEASURED as a branch and not guessed: in `src/system/hamobj/Ham.cpp` the
+    /// token a `39` carries is *defined* later in the same segment by a `29 <same
+    /// token>` label, twice over (`39 30 67` … `29 30 67`, `39 38 67` … `29 38 67`),
+    /// and the second witness `b9 <x> 86 42 75 33 86 41 74 01 0b 39 2b 67` is
+    /// `if (x & 1)` — a bit-and feeding it. The **polarity** of `38` versus `39` is
+    /// UNDETERMINED, so the byte stays in the name.
+    ///
+    /// Deliberately has **no production**: admitting a branch as a value token would
+    /// report grammar-completeness for bodies that need basic blocks, a register
+    /// allocator across them and a `/Gy` layout — every one of which is a phase, not
+    /// a rung. The pair is reported UNMEASURED, which is the honest answer.
+    Branch(u8),
+    /// A **chain link** `99 <T> 00 <call>` applied to the value already on the
+    /// stack: the outer bind of `p->Get()->Foo()`. Met in a value position because
+    /// the *inner* member call was consumed by the form's own production and the
+    /// second bind has nothing to attach to in D2's grammar.
+    ChainBind,
+    /// A **byte-offset add** `27 <T>` / `28 00 00` in a value position: a sub-object
+    /// address computed outside a receiver designator (`docs/IL_EXPR_LAYER.md` §4).
+    OffAdd,
+    /// A bare **`BD` CALL token** in a value position: an ordinary call whose callee
+    /// push the form's own production already consumed. `uc("hi")` is the canonical
+    /// case — `26 <uc>` is a legal `data-addr` designator, so the greedy value
+    /// sequence takes it and the construct that is actually missing is *the call*.
+    /// Naming the byte `op-0xBD` instead would file 56,633 string-literal argument
+    /// pushes under an opcode, which is precisely the mis-attribution `GAPS.md` §6
+    /// records.
+    PlainCall,
+    /// A `67` **virtual dispatch**.
+    Virtual,
+    /// A modeled token whose **TYPE** is outside the int4/pointer class the leaves
+    /// lower. The payload is the type's class, never its per-TU id.
+    Type(TypeClass),
+    /// The body's **return plumbing / function tail** did not match, with the byte
+    /// the tail opens on. Structural, not a value construct.
+    Plumbing(u8),
+    /// A structural refusal that is not a token at all — see [`Structural`].
+    Structure(Structural),
+    /// A byte with no production. `docs/IL_CALL_IN_EXPR.md` §16 ranks these; a name
+    /// would be a guess, and a flat tail of these would mean a payload is being
+    /// read as vocabulary (§14.2's fingerprint), not that the vocabulary is large.
+    Op(u8),
+    /// The matcher ran off the end of the segment.
+    Eof,
+}
+
+/// The class nibble of a TYPE the modeled leaves do not lower
+/// (`docs/IL_LOAD_TYPES.md` §1: 1 signed int · 2 unsigned · 3 data pointer ·
+/// 4 function pointer · 5 real · 6 aggregate · 7 void · A real literal). Named by
+/// **class and slot width**, both of which are fixed vocabulary — nothing per-TU
+/// enters the key, so `expr-load-type-864383`-style sharding cannot happen here.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum TypeClass {
+    /// An integer of a width other than 4 (`char`, `short`, `long long`), with
+    /// that width. `int`/`unsigned` at width 4 are already modeled.
+    IntWidth(u8),
+    /// Class 3 — a **data pointer**. Reached as a blocker only in an *argument*
+    /// region, where D2's operand grammar takes `int` and nothing else: passing a
+    /// pointer to a function is the construct, and it is the single most common one
+    /// in this whole decomposition.
+    Ptr,
+    /// Class 4 — a function/code pointer.
+    CodePtr,
+    /// Class 5 — `float` / `double`.
+    Real,
+    /// Class 6 — a struct/class value.
+    Aggregate,
+    /// Class 7 — `void`.
+    Void,
+    /// Class A — a real *literal* (its payload is 8 IEEE bytes + a size, not a
+    /// varint; `docs/IL_CAST_CONVERT.md` §3.1).
+    RealLit,
+    /// Any other class nibble, reported as itself.
+    Class(u8),
+    /// Not a TYPE at all at that position — the tag's bit 7 was clear, or the
+    /// aggregate size ladder refused. A *desync* signal, so it is named as one
+    /// rather than folded into a class.
+    NotAType,
+}
+
+impl TypeClass {
+    fn at(seg: &[u8], p: usize) -> TypeClass {
+        let Some((tag, kind, _, _)) = read_type(seg, p) else {
+            return TypeClass::NotAType;
+        };
+        let width = match tag & 0x0E {
+            0x2 => 1,
+            0x4 => 2,
+            0x6 => 4,
+            0x8 => 8,
+            _ => 0,
+        };
+        match kind & 0x0F {
+            0x1 | 0x2 => TypeClass::IntWidth(width),
+            0x3 => TypeClass::Ptr,
+            0x4 => TypeClass::CodePtr,
+            0x5 => TypeClass::Real,
+            0x6 => TypeClass::Aggregate,
+            0x7 => TypeClass::Void,
+            0xA => TypeClass::RealLit,
+            c => TypeClass::Class(c),
+        }
+    }
+
+    fn code(self) -> u64 {
+        match self {
+            TypeClass::IntWidth(w) => 0x10 | w as u64,
+            TypeClass::Ptr => 0x24,
+            TypeClass::CodePtr => 0x25,
+            TypeClass::Real => 0x20,
+            TypeClass::Aggregate => 0x21,
+            TypeClass::Void => 0x22,
+            TypeClass::RealLit => 0x23,
+            TypeClass::Class(c) => 0x30 | c as u64,
+            TypeClass::NotAType => 0x40,
+        }
+    }
+
+    fn from_code(c: u64) -> Option<TypeClass> {
+        Some(match c {
+            0x10..=0x1F => TypeClass::IntWidth((c & 0xF) as u8),
+            0x20 => TypeClass::Real,
+            0x21 => TypeClass::Aggregate,
+            0x22 => TypeClass::Void,
+            0x23 => TypeClass::RealLit,
+            0x24 => TypeClass::Ptr,
+            0x25 => TypeClass::CodePtr,
+            0x30..=0x3F => TypeClass::Class((c & 0xF) as u8),
+            0x40 => TypeClass::NotAType,
+            _ => return None,
+        })
+    }
+
+    fn name(self) -> String {
+        match self {
+            TypeClass::IntWidth(w) => format!("int{w}"),
+            TypeClass::Ptr => "ptr".into(),
+            TypeClass::CodePtr => "code-ptr".into(),
+            TypeClass::Real => "real".into(),
+            TypeClass::Aggregate => "aggregate".into(),
+            TypeClass::Void => "void".into(),
+            TypeClass::RealLit => "real-lit".into(),
+            TypeClass::Class(c) => format!("class-0x{c:X}"),
+            TypeClass::NotAType => "not-a-type".into(),
+        }
+    }
+
+    /// Whether a TYPE at `p` is of this class — the "admitted" test for the
+    /// both-handled measure, which widens [`eat_scalar_type`] by exactly one class.
+    fn matches(self, seg: &[u8], p: usize) -> bool {
+        TypeClass::at(seg, p) == self
+    }
+}
+
+/// A refusal with no token at it: the body's frame, not its contents.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Structural {
+    /// The `53` body marker was not where the segment said it would be.
+    BodyMarker,
+    /// A scope open/close run (`54 <d>`) the matcher could not walk.
+    Scopes,
+    /// More than [`MAX_STMTS`] statements. A body this long is not a rung.
+    StmtLimit,
+}
+
+impl Structural {
+    fn code(self) -> u64 {
+        match self {
+            Structural::BodyMarker => 1,
+            Structural::Scopes => 2,
+            Structural::StmtLimit => 3,
+        }
+    }
+    fn from_code(c: u64) -> Option<Structural> {
+        Some(match c {
+            1 => Structural::BodyMarker,
+            2 => Structural::Scopes,
+            3 => Structural::StmtLimit,
+            _ => return None,
+        })
+    }
+    fn name(self) -> &'static str {
+        match self {
+            Structural::BodyMarker => "struct-body-marker",
+            Structural::Scopes => "struct-scopes",
+            Structural::StmtLimit => "struct-stmt-limit",
+        }
+    }
+}
+
+impl Blocker {
+    /// `(discriminant, payload)`. `Call`'s payload is the nested form's own
+    /// `(disc, payload)` pair, which is why the field is 23 bits wide: an intrinsic
+    /// selector must survive nesting or two buckets would merge.
+    fn code(self) -> (u64, u64) {
+        match self {
+            Blocker::None => (0, 0),
+            Blocker::Call(f) => {
+                let (d, p) = f.code();
+                (1, d | (p << FORM_BITS))
+            }
+            Blocker::DerefLoad => (2, 0),
+            Blocker::TempBind => (3, 0),
+            Blocker::PlainCall => (10, 0),
+            Blocker::Branch(b) => (11, b as u64),
+            Blocker::ChainBind => (12, 0),
+            Blocker::OffAdd => (13, 0),
+            Blocker::Virtual => (4, 0),
+            Blocker::Type(c) => (5, c.code()),
+            Blocker::Plumbing(b) => (6, b as u64),
+            Blocker::Structure(s) => (7, s.code()),
+            Blocker::Op(b) => (8, b as u64),
+            Blocker::Eof => (9, 0),
+        }
+    }
+
+    fn from_code(disc: u64, payload: u64) -> Option<Blocker> {
+        Some(match disc {
+            0 => Blocker::None,
+            1 => Blocker::Call(CallForm::from_code(
+                payload & FORM_MASK,
+                (payload >> FORM_BITS) & PAYLOAD_MASK,
+            )?),
+            2 => Blocker::DerefLoad,
+            3 => Blocker::TempBind,
+            10 => Blocker::PlainCall,
+            11 => Blocker::Branch(payload as u8),
+            12 => Blocker::ChainBind,
+            13 => Blocker::OffAdd,
+            4 => Blocker::Virtual,
+            5 => Blocker::Type(TypeClass::from_code(payload)?),
+            6 => Blocker::Plumbing(payload as u8),
+            7 => Blocker::Structure(Structural::from_code(payload)?),
+            8 => Blocker::Op(payload as u8),
+            9 => Blocker::Eof,
+            _ => return None,
+        })
+    }
+
+    /// A **coarse kind**, 5 bits, for the third construct of a greedy chain. Closed
+    /// and small by design: nothing per-TU, nothing payload-shaped, and the type
+    /// classes that matter to a ranking are individually named.
+    fn kind_code(self) -> u64 {
+        match self {
+            Blocker::None => 0,
+            Blocker::Call(_) => 1,
+            Blocker::DerefLoad => 2,
+            Blocker::TempBind => 3,
+            Blocker::Virtual => 4,
+            Blocker::Type(TypeClass::Ptr) => 5,
+            Blocker::Type(TypeClass::CodePtr) => 6,
+            Blocker::Type(TypeClass::IntWidth(1)) => 7,
+            Blocker::Type(TypeClass::IntWidth(2)) => 8,
+            Blocker::Type(TypeClass::IntWidth(8)) => 9,
+            Blocker::Type(TypeClass::Real) => 10,
+            Blocker::Type(TypeClass::RealLit) => 11,
+            Blocker::Type(TypeClass::Aggregate) => 12,
+            Blocker::Type(_) => 13,
+            Blocker::Plumbing(_) => 14,
+            Blocker::Structure(_) => 15,
+            Blocker::Op(_) => 16,
+            Blocker::Eof => 17,
+            Blocker::PlainCall => 18,
+            Blocker::Branch(_) => 19,
+            Blocker::ChainBind => 20,
+            Blocker::OffAdd => 21,
+        }
+    }
+
+    /// The name of a coarse kind. `call`, `type-other`, `op` and `branch` are
+    /// deliberately detail-free — the byte, the selector and the inner receiver form
+    /// do not fit in five bits, and a name that pretended otherwise would merge
+    /// buckets rather than lose a suffix.
+    fn kind_name(code: u64) -> &'static str {
+        match code {
+            1 => "call",
+            2 => "deref-load",
+            3 => "temp-bind",
+            4 => "virtual",
+            5 => "type-ptr",
+            6 => "type-code-ptr",
+            7 => "type-int1",
+            8 => "type-int2",
+            9 => "type-int8",
+            10 => "type-real",
+            11 => "type-real-lit",
+            12 => "type-aggregate",
+            13 => "type-other",
+            14 => "plumbing",
+            15 => "struct",
+            16 => "op",
+            17 => "eof",
+            18 => "plain-call",
+            19 => "branch",
+            20 => "chain-bind",
+            21 => "off-add",
+            _ => "none",
+        }
+    }
+
+    /// The `-then-…` half of the census key.
+    fn name(self) -> String {
+        match self {
+            Blocker::None => String::new(),
+            Blocker::Call(f) => format!("call-{}", f.name()),
+            Blocker::DerefLoad => "deref-load".into(),
+            Blocker::TempBind => "temp-bind".into(),
+            Blocker::PlainCall => "plain-call".into(),
+            Blocker::Branch(b) => format!("branch-0x{b:02X}"),
+            Blocker::ChainBind => "chain-bind".into(),
+            Blocker::OffAdd => "off-add".into(),
+            Blocker::Virtual => "virtual".into(),
+            Blocker::Type(c) => format!("type-{}", c.name()),
+            Blocker::Plumbing(b) => format!("plumbing-0x{b:02X}"),
+            Blocker::Structure(s) => s.name().into(),
+            // The capture-verified names, shared with the `expr-*` keys
+            // ([`super::expr_opcode_name`]) so the two families cannot disagree
+            // about what a byte is called. Anything unnamed stays hex: a hex bucket
+            // is a result, a guessed name is not.
+            Blocker::Op(b) => match super::expr_opcode_name(b) {
+                Some(n) => n.into(),
+                None => format!("op-0x{b:02X}"),
+            },
+            Blocker::Eof => "eof".into(),
+        }
+    }
+}
+
+/// The census key for a [`Block`] this module raised.
+///
+/// Four disjoint shapes, and the suffix is load-bearing:
+///
+/// | key | meaning |
+/// |---|---|
+/// | `…-<form>-whole` | the receiver form **alone** finishes the segment (D2) |
+/// | `…-<form>-then-<blk>-whole` | MEASURED: form **and** `blk` together finish it |
+/// | `…-<form>-then-<blk>-more` | MEASURED: both together are still not enough |
+/// | `…-<form>-then-<blk>` | **UNMEASURED**: no production exists for `blk` |
+/// | `…-<form>` | UNMEASURED: no production exists for `form` either (D2 residue) |
+///
+/// The three `-then-` families and `-whole` partition each D2 sub-bucket exactly,
+/// so §14.1's counts are recoverable by summing — which is the acceptance check
+/// this rung is graded on.
+pub(crate) fn feature(aux: u64) -> String {
     let disc = aux & FORM_MASK;
     let payload = (aux >> FORM_BITS) & PAYLOAD_MASK;
     let name = match CallForm::from_code(disc, payload) {
@@ -228,9 +637,29 @@ pub(crate) fn feature(aux: u32) -> String {
         None => format!("aux-{aux:X}"),
     };
     if aux & WHOLE_BIT != 0 {
-        format!("{CALL_IN_EXPR}-{name}-whole")
-    } else {
-        format!("{CALL_IN_EXPR}-{name}")
+        return format!("{CALL_IN_EXPR}-{name}-whole");
+    }
+    let blk = Blocker::from_code(
+        (aux >> BLK_SHIFT) & BLK_MASK,
+        (aux >> BLK_PAYLOAD_SHIFT) & BLK_PAYLOAD_MASK,
+    );
+    match blk {
+        None | Some(Blocker::None) => format!("{CALL_IN_EXPR}-{name}"),
+        Some(b) => {
+            let need = (aux >> NEED_SHIFT) & NEED_MASK;
+            let suffix = match need {
+                NEED_UNMEASURED => String::new(),
+                NEED_MORE => "-more".into(),
+                1 => "-whole".into(),
+                k => format!("-whole{k}"),
+            };
+            // The third construct, named only when there was one.
+            let third = match (aux >> KIND_SHIFT) & KIND_MASK {
+                0 => String::new(),
+                k => format!("-and-{}", Blocker::kind_name(k)),
+            };
+            format!("{CALL_IN_EXPR}-{name}-then-{}{third}{suffix}", b.name())
+        }
     }
 }
 
@@ -248,8 +677,9 @@ pub(crate) fn classify(seg: &[u8], at: usize) -> Block {
     }
 }
 
-/// Set the whole-body-completeness bit on a block this module raised, when the
-/// **entire** segment would parse with that one form admitted.
+/// Set the whole-body-completeness bit on a block this module raised — and, when
+/// the form alone is *not* enough, name the construct that blocks the body **next**
+/// and say whether the two together would be.
 ///
 /// Called from [`super::parse_segment_detail`], which is the only place that has
 /// both the block and the `LO` offset. Diagnostic only: the `Err` stays an `Err`.
@@ -259,10 +689,58 @@ pub(crate) fn mark_whole(seg: &[u8], lo: usize, b: Block) -> Block {
     let Some(form) = CallForm::from_code(disc, payload) else {
         return b;
     };
-    if whole_body_is_one_value(seg, lo, form) {
-        Block { aux: b.aux | WHOLE_BIT, ..b }
-    } else {
-        b
+    // Forms with no production are UNMEASURED at *both* levels: there is nothing
+    // to walk past, so there is no second blocker either. Saying so by leaving the
+    // key bare is what keeps "0 of N complete" from being read as a measurement.
+    if !form_is_measured(form) {
+        return b;
+    }
+    let mut adm = Admit::bare(form);
+    let mut fail = Fail::new();
+    if body_matches(seg, lo, adm, &mut fail) {
+        return Block { aux: b.aux | WHOLE_BIT, ..b };
+    }
+    // **The greedy chain.** Grant the construct that blocks the body, retry, and
+    // repeat — up to [`MAX_ADMIT`]. The *first* construct granted is the "second
+    // blocker" the census key names; the number of grants it took to finish is what
+    // separates "these bodies share one further blocker" from "each carries three
+    // unrelated ones", which is the question the whole rung exists to answer.
+    let first = fail.blocker(seg);
+    let mut need = NEED_UNMEASURED;
+    while adm.n < MAX_ADMIT {
+        let blk = fail.blocker(seg);
+        // An unmodelable construct ends the chain: everything past it is unknowable,
+        // and saying so is the whole point of `blocker_is_measured`.
+        if !blocker_is_measured(blk) {
+            need = if adm.n == 0 { NEED_UNMEASURED } else { NEED_MORE };
+            break;
+        }
+        // A construct that repeats means its production did not consume the thing the
+        // classifier named — a bug, not a body — so stop rather than spin.
+        if adm.holds(blk) {
+            need = NEED_MORE;
+            break;
+        }
+        adm.push(blk);
+        fail = Fail::new();
+        if body_matches(seg, lo, adm, &mut fail) {
+            need = adm.n as u64;
+            break;
+        }
+        need = NEED_MORE;
+    }
+    let (bd, bp) = first.code();
+    // The third construct's coarse kind, when the chain needed one. Recorded even
+    // when the chain ended in `-more`, because "what came after the second blocker"
+    // is the question that separates a reachable row from an unreachable one.
+    let third = if adm.n >= 2 { adm.also[1].kind_code() } else { 0 };
+    Block {
+        aux: b.aux
+            | (bd << BLK_SHIFT)
+            | ((bp & BLK_PAYLOAD_MASK) << BLK_PAYLOAD_SHIFT)
+            | (need << NEED_SHIFT)
+            | (third << KIND_SHIFT),
+        ..b
     }
 }
 
@@ -486,6 +964,25 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
                 p += tw;
                 last = Some(Tk::Deref);
             }
+            // A member bind INSIDE an open call-argument region — `g1(p->Get())`.
+            // At depth 0 a `99` is decisive and returned above, so this arm is only
+            // ever the nested case. Without it the walk cannot tokenize a member
+            // call in an argument list and files the whole production as
+            // `op-0x99`, which is how D2's 19 `op-0x99` functions arose: the
+            // construct is a plain call, and the `99` is two levels down inside it.
+            // `99 <TYPE> 00` is not itself a value — the `4C` that closes the call
+            // it opens is — so `last` is cleared, exactly as `BD` clears it.
+            0x99 => {
+                p += 1;
+                let Some((_, _, _, tw)) = read_type(seg, p) else {
+                    return CallForm::Eof;
+                };
+                p += tw;
+                if !eat_byte(seg, &mut p, 0x00) {
+                    return CallForm::Op(0x99);
+                }
+                last = None;
+            }
             0x66 => {
                 // The class-pair descriptor of the 2113–2119 family. Not a value.
                 if eat_class_descriptor(seg, &mut p).is_none() {
@@ -562,6 +1059,164 @@ fn classify_at(stop: Stop, last: Option<Tk>, head_syms: usize) -> CallForm {
 
 // --- the whole-body-completeness matcher ------------------------------------
 
+/// Which productions the completeness matcher may use: the receiver form under
+/// test, and — for the **both-handled** measure — one second construct.
+///
+/// The pair is the unit because a rung is a pair. §14.1's `-whole` column ranked
+/// single forms and ranked them well (two rungs converted 1:1 off it), but it
+/// cannot see past a form: three sub-buckets holding 172,615 functions read
+/// 0.0 %, and a number that is 0 for the three largest rows has no ordering
+/// information left in it. Admitting two constructs at once restores it.
+#[derive(Clone, Copy)]
+struct Admit {
+    form: CallForm,
+    /// The extra constructs granted, in the order the greedy walk found them.
+    also: [Blocker; MAX_ADMIT],
+    n: usize,
+}
+
+/// How many extra constructs the greedy measure will grant before giving up.
+///
+/// Four, because the question this rung exists to answer is *"do these bodies share
+/// **one** further blocker, or does each carry three unrelated ones"* — and a
+/// distribution over 1…4 answers it directly, where a yes/no at 1 cannot. A body
+/// still refusing after four is `-more`, and four unrelated constructs is not a rung
+/// under any reading.
+const MAX_ADMIT: usize = 4;
+
+impl Admit {
+    fn bare(form: CallForm) -> Admit {
+        Admit { form, also: [Blocker::None; MAX_ADMIT], n: 0 }
+    }
+    fn granted(&self) -> &[Blocker] {
+        &self.also[..self.n]
+    }
+    fn push(&mut self, b: Blocker) {
+        self.also[self.n] = b;
+        self.n += 1;
+    }
+    fn holds(&self, b: Blocker) -> bool {
+        self.granted().contains(&b)
+    }
+    /// Whether some granted `Blocker::Type` names the TYPE at `p`.
+    fn admits_type(&self, seg: &[u8], p: usize) -> bool {
+        self.granted().iter().any(|b| matches!(b, Blocker::Type(c) if c.matches(seg, p)))
+    }
+}
+
+/// The **furthest** refusal the matcher reached, and what kind it was.
+///
+/// Furthest-refusal, not first-refusal, and the difference is the whole
+/// instrument. The matcher speculates: at every value position it tries the
+/// form's production first, and that attempt walks *into* a call before finding
+/// the byte it cannot take. So the deepest position reached is the one that names
+/// the construct — a body whose second statement is `q->o.Get()` records the
+/// refusal at the `33 <k> 27` sub-object address inside that call, not at the
+/// outer `26`, and the key is `then-call-recv-field` rather than a useless
+/// `then-op-0x26`.
+///
+/// `GAPS.md` §6's mis-attribution failure is the hazard here, and the guard is
+/// that [`Fail::blocker`] names a **construct** at the position, never the
+/// position itself: a `26` is resolved by re-running [`walk`], which is the same
+/// backward classifier D2 uses, so a second blocker that is another member call
+/// is filed by *its* receiver designator. The validation is structural rather
+/// than argued: `blocker_is_measured` pairs are re-matched with both constructs
+/// admitted, and a wrong name shows up as a `-more` where the construct really was
+/// the only thing missing.
+struct Fail {
+    at: usize,
+    kind: FailKind,
+}
+
+/// What sort of thing the matcher refused, which decides how the position is read.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum FailKind {
+    /// A token in a **value** position had no production. `at` is that token.
+    Value,
+    /// A **TYPE** was outside the admitted classes. `at` is the type triple.
+    Type,
+    /// A `26`-opened production at `of` had a **receiver this form is not**. `at`
+    /// is the receiver's first byte, for ordering; the construct is named by
+    /// re-walking from `of`, which is the only way to get it right — the receiver's
+    /// first byte is `2C` for a decayed string literal, `26` for a named object and
+    /// `9B` for a by-value temporary, and reporting those bytes would file three
+    /// different constructs as three uninformative opcodes.
+    Receiver(usize),
+    /// The **return plumbing / function tail** did not match. `at` is its start.
+    Plumbing,
+    /// A structural refusal with no token at it.
+    Struct(Structural),
+}
+
+impl Fail {
+    fn new() -> Fail {
+        Fail { at: 0, kind: FailKind::Value }
+    }
+
+    /// Record a refusal, keeping the furthest. Ties go to the **first** note,
+    /// which is the innermost: leaf readers note before their callers do, so the
+    /// most specific reading of a position wins.
+    fn note(&mut self, at: usize, kind: FailKind) {
+        if at > self.at {
+            self.at = at;
+            self.kind = kind;
+        }
+    }
+
+    /// Name the **construct** at the refusal. Every arm is a construct or an
+    /// honest hex bucket; none of them is a position.
+    fn blocker(&self, seg: &[u8]) -> Blocker {
+        match self.kind {
+            FailKind::Struct(s) => Blocker::Structure(s),
+            FailKind::Type => Blocker::Type(TypeClass::at(seg, self.at)),
+            FailKind::Plumbing => match seg.get(self.at) {
+                Some(&b) => Blocker::Plumbing(b),
+                None => Blocker::Eof,
+            },
+            FailKind::Receiver(of) => Blocker::Call(walk(seg, of)),
+            FailKind::Value => match seg.get(self.at) {
+                None => Blocker::Eof,
+                // Another `26`-opened production: classify it the way D2 classifies
+                // the first one, so the key names its receiver designator.
+                Some(&0x26) => Blocker::Call(walk(seg, self.at)),
+                Some(&0x30) => Blocker::DerefLoad,
+                Some(&0x9B) => Blocker::TempBind,
+                Some(&0xBD) => Blocker::PlainCall,
+                // `67` is virtual dispatch and `9A` is its bind (§3), so either byte
+                // in a value position is the same construct.
+                Some(&0x67) | Some(&0x9A) => Blocker::Virtual,
+                Some(&b @ (0x38 | 0x39)) => Blocker::Branch(b),
+                // A `99` at depth 0 in a *value* position is not a first bind — the
+                // form's own production consumed that one — it is the next link of a
+                // chain.
+                Some(&0x99) => Blocker::ChainBind,
+                Some(&0x27) | Some(&0x28) => Blocker::OffAdd,
+                Some(&b) => Blocker::Op(b),
+            },
+        }
+    }
+}
+
+/// Whether the **pair**'s joint completeness can be measured at all: a second
+/// blocker with no production has no both-handled figure, and the key says so by
+/// carrying neither `-whole` nor `-more`.
+///
+/// `Blocker::Call` defers to [`form_is_measured`], so the honesty gate composes:
+/// a pair whose second half is `op-0x5C` or a virtual dispatch is reported as
+/// UNMEASURED at the pair level even though the *first* half is measured.
+fn blocker_is_measured(blk: Blocker) -> bool {
+    match blk {
+        Blocker::Call(f) => form_is_measured(f),
+        Blocker::DerefLoad | Blocker::PlainCall | Blocker::ChainBind | Blocker::OffAdd => true,
+        // Admitting "a TYPE of class c" widens `eat_admitted_type` by exactly one
+        // class, which is a real production. `NotAType` is not a class — it is a
+        // desync signal — and admitting it would mean nothing.
+        Blocker::Type(TypeClass::NotAType) => false,
+        Blocker::Type(_) => true,
+        _ => false,
+    }
+}
+
 /// **The whole-body-completeness measure.** True when the **entire segment**
 /// parses with `form` admitted as a value-producing operand and *no other* new
 /// production:
@@ -593,28 +1248,21 @@ fn classify_at(stop: Stop, last: Option<Tk>, head_syms: usize) -> CallForm {
 ///
 /// Diagnostic only. Nothing here can accept a function; the caller's `Err` stays
 /// an `Err`.
-fn whole_body_is_one_value(seg: &[u8], lo: usize, form: CallForm) -> bool {
-    // Forms with no production in [`eat_form_value`] are UNMEASURED, and saying so
-    // by returning early keeps "0 of N complete" from being read as a measurement.
-    if !form_is_measured(form) {
-        return false;
-    }
+fn body_matches(seg: &[u8], lo: usize, adm: Admit, fail: &mut Fail) -> bool {
     let mut p = lo + 3;
     if !eat_byte(seg, &mut p, 0x53) {
+        fail.note(p, FailKind::Struct(Structural::BodyMarker));
         return false;
     }
     let mut depth = BODY_SCOPE_DEPTH;
-    // A statement count bound: a body this long is not one this rung can vouch
-    // for, and an unbounded loop over a corrupt stream is not acceptable in an
-    // instrument that runs over 2.4 M functions.
-    const MAX_STMTS: usize = 64;
     for _ in 0..MAX_STMTS {
         if eat_scopes(seg, &mut p, &mut depth).is_err() {
+            fail.note(p, FailKind::Struct(Structural::Scopes));
             return false;
         }
         // A void return opens directly on the plumbing's `3A` — no expression.
         if seg.get(p) == Some(&0x3A) {
-            return eat_body_end(seg, &mut p, depth);
+            return eat_body_end(seg, &mut p, depth, fail);
         }
         // An expression, optionally preceded by an assignment destination push.
         // Tried in that order and on a copy of the cursor, because a statement
@@ -623,21 +1271,26 @@ fn whole_body_is_one_value(seg: &[u8], lo: usize, form: CallForm) -> bool {
         // it. (`26 <dst>` is not itself a value here — a data symbol is only
         // admitted when `form` is one of the data designators.)
         let save = p;
-        if !eat_value_seq(seg, &mut p, form) {
+        if !eat_value_seq(seg, &mut p, adm, fail) {
             p = save;
             if !eat_byte(seg, &mut p, 0x26) {
+                fail.note(p, FailKind::Value);
                 return false;
             }
             match read_token_var(seg, p) {
                 Some((_, w)) => p += w,
-                None => return false,
+                None => {
+                    fail.note(p, FailKind::Value);
+                    return false;
+                }
             }
-            if !eat_value_seq(seg, &mut p, form) {
+            if !eat_value_seq(seg, &mut p, adm, fail) {
                 return false;
             }
         }
         // A store, when the statement has one.
-        if eat_byte(seg, &mut p, 0x32) && !eat_scalar_type(seg, &mut p) {
+        if eat_byte(seg, &mut p, 0x32) && !eat_admitted_type(seg, &mut p, adm) {
+            fail.note(p, FailKind::Type);
             return false;
         }
         // The generated destructor's opaque statement trailer (`5C <int> <flag>`),
@@ -651,13 +1304,25 @@ fn whole_body_is_one_value(seg: &[u8], lo: usize, form: CallForm) -> bool {
         // annotation's TYPE is read here rather than by `eat_return_plumbing`,
         // which requires int-like: a member call may return a pointer, and
         // refusing that would understate every getter.
-        if !eat_byte(seg, &mut p, 0x41) || !eat_scalar_type(seg, &mut p) {
+        if !eat_byte(seg, &mut p, 0x41) {
+            fail.note(p, FailKind::Value);
             return false;
         }
-        return eat_body_end(seg, &mut p, depth);
+        if !eat_admitted_type(seg, &mut p, adm) {
+            fail.note(p, FailKind::Type);
+            return false;
+        }
+        return eat_body_end(seg, &mut p, depth, fail);
     }
+    fail.note(p, FailKind::Struct(Structural::StmtLimit));
     false
 }
+
+/// A statement count bound: a body this long is not one a rung can vouch for, and
+/// an unbounded loop over a corrupt stream is not acceptable in an instrument that
+/// runs over 2.4 M functions. Reported as `struct-stmt-limit`, not as a value
+/// refusal, so hitting it can never be mistaken for a construct.
+const MAX_STMTS: usize = 64;
 
 /// The measured `(statement-trailer flag, sub-object-trailer flag)` pairs of the
 /// generated destructor, copied from D1's [`super::shapes::try_parse_empty_dtor_delegation`]
@@ -704,7 +1369,18 @@ fn eat_dtor_stmt_trailer(seg: &[u8], p: &mut usize) -> bool {
 /// tail. `eat_return_plumbing` cannot do that (D1 hand-rolls the same split for
 /// the same reason), so the branch/close/return run is walked here and the tail is
 /// shared.
-fn eat_body_end(seg: &[u8], p: &mut usize, depth: usize) -> bool {
+fn eat_body_end(seg: &[u8], p: &mut usize, depth: usize, fail: &mut Fail) -> bool {
+    let start = *p;
+    if eat_body_end_inner(seg, p, depth) {
+        return true;
+    }
+    // Structural, and reported as such: the byte the tail opens on is the only
+    // thing carried, so a plumbing refusal cannot masquerade as a value construct.
+    fail.note(start, FailKind::Plumbing);
+    false
+}
+
+fn eat_body_end_inner(seg: &[u8], p: &mut usize, depth: usize) -> bool {
     let save = *p;
     if eat_return_plumbing(seg, p, false, depth).is_ok() {
         return true;
@@ -764,6 +1440,7 @@ fn form_is_measured(form: CallForm) -> bool {
             | CallForm::RecvObject
             | CallForm::RecvCall
             | CallForm::RecvIntrinsic(_)
+            | CallForm::Chained
             | CallForm::NestedCall
             | CallForm::DataAddr
             | CallForm::DataRead
@@ -775,11 +1452,19 @@ fn form_is_measured(form: CallForm) -> bool {
 /// a comparison, a ternary, an intrinsic call all stop the sequence and therefore
 /// fail the body, which is what makes a `-whole` count mean "only `form` is
 /// missing".
-fn eat_value_seq(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
+fn eat_value_seq(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
     let mut n = 0;
     loop {
         let save = *p;
-        if eat_form_value(seg, p, form) {
+        if eat_form_value(seg, p, adm.form, adm, fail) {
+            n += 1;
+            continue;
+        }
+        *p = save;
+        // The second admitted construct, for the both-handled measure. Tried after
+        // the form and on the same restored cursor, so neither can leave the other
+        // mid-token.
+        if eat_blocker_value(seg, p, adm, fail) {
             n += 1;
             continue;
         }
@@ -789,32 +1474,108 @@ fn eat_value_seq(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
                 *p += 1;
                 match read_token_var(seg, *p) {
                     Some((_, w)) => *p += w,
-                    None => return false,
+                    None => {
+                        fail.note(*p, FailKind::Value);
+                        return false;
+                    }
                 }
-                if !eat_scalar_type(seg, p) {
+                if !eat_admitted_type(seg, p, adm) {
+                    fail.note(*p, FailKind::Type);
                     return false;
                 }
             }
             Some(&0x33) => {
                 let Some((tag, kind, _, _)) = read_type(seg, *p + 1) else {
+                    fail.note(*p + 1, FailKind::Type);
                     return false;
                 };
                 *p += 1;
-                if !eat_scalar_type(seg, p) || !eat_literal_payload(seg, p, tag, kind) {
+                if !eat_admitted_type(seg, p, adm) {
+                    fail.note(*p, FailKind::Type);
+                    return false;
+                }
+                if !eat_literal_payload(seg, p, tag, kind) {
+                    fail.note(*p, FailKind::Value);
                     return false;
                 }
             }
             Some(&0x2C) => {
                 *p += 1;
-                if !eat_scalar_type(seg, p) || seg.get(*p).is_none() {
+                if !eat_admitted_type(seg, p, adm) {
+                    fail.note(*p, FailKind::Type);
+                    return false;
+                }
+                if seg.get(*p).is_none() {
+                    fail.note(*p, FailKind::Value);
                     return false;
                 }
                 *p += 1;
             }
             Some(&0x02) | Some(&0x03) | Some(&0x04) => *p += 1,
-            _ => return n > 0,
+            _ => {
+                // Not a hard failure: the sequence simply ends here, and the caller
+                // decides whether what follows is a statement end. The note is
+                // still taken, because if the caller *does* fail this is the token
+                // that stopped it.
+                fail.note(*p, FailKind::Value);
+                return n > 0;
+            }
         }
         n += 1;
+    }
+}
+
+/// Consume one value of the **second** admitted construct, for the both-handled
+/// measure. An empty grant set admits nothing, which is D2's behaviour exactly.
+///
+/// Only the variants [`blocker_is_measured`] returns true for have a production
+/// here; the rest are UNMEASURED and never reach this function, because
+/// [`mark_whole`] does not run the second pass for them.
+fn eat_blocker_value(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
+    let save = *p;
+    for &b in adm.granted() {
+        *p = save;
+        if eat_one_blocker_value(seg, p, b, adm, fail) {
+            return true;
+        }
+    }
+    *p = save;
+    false
+}
+
+fn eat_one_blocker_value(
+    seg: &[u8],
+    p: &mut usize,
+    blk: Blocker,
+    adm: Admit,
+    fail: &mut Fail,
+) -> bool {
+    match blk {
+        Blocker::Call(f) if form_is_measured(f) => eat_form_value(seg, p, f, adm, fail),
+        // `30 <TYPE>` — an indirect load. The TYPE must itself be admitted, so
+        // "loads are handled" does not smuggle in "and every type is too".
+        Blocker::DerefLoad => eat_byte(seg, p, 0x30) && eat_admitted_type(seg, p, adm),
+        // A bare CALL token over values already on the stack.
+        Blocker::PlainCall => {
+            seg.get(*p) == Some(&0xBD) && eat_call_and_args(seg, p, adm, fail)
+        }
+        Blocker::ChainBind => eat_chain_link(seg, p, adm, fail),
+        // The `33 <int> <k>` literal that feeds it is already in the modeled
+        // vocabulary; the add itself is the missing token.
+        Blocker::OffAdd => match seg.get(*p) {
+            Some(&0x27) => {
+                *p += 1;
+                eat_type(seg, p)
+            }
+            Some(&0x28) => {
+                *p += 1;
+                eat(seg, p, &[0x00, 0x00])
+            }
+            _ => false,
+        },
+        // A `Type` blocker is admitted inside `eat_admitted_type`, not here: it
+        // widens the type test rather than adding a token.
+        _ => false,
     }
 }
 
@@ -942,15 +1703,20 @@ fn eat_literal_payload(seg: &[u8], p: &mut usize, tag: u8, kind: u8) -> bool {
 }
 
 /// A TYPE naming a 4-byte integer or a pointer — the two classes the modeled
-/// leaves lower (`ValueClass` in `shapes.rs`). A float, a narrow integer or an
-/// aggregate here is a second missing production, so it refuses and the body is
-/// not counted complete.
-fn eat_scalar_type(seg: &[u8], p: &mut usize) -> bool {
+/// leaves lower (`ValueClass` in `shapes.rs`) — **plus** the one further class
+/// `adm.also` admits, when the second blocker is a type class.
+///
+/// A float, a narrow integer or an aggregate here is a second missing production,
+/// so it refuses and the body is not counted complete. That refusal is exactly
+/// what a `Blocker::Type` names, and widening this function by one class is what
+/// "if both were handled" means for such a pair.
+fn eat_admitted_type(seg: &[u8], p: &mut usize, adm: Admit) -> bool {
     match read_type(seg, *p) {
         Some((tag, kind, _, w)) => {
             let int4 = matches!(kind & 0x0F, 0x1 | 0x2) && (kind >> 4) == 4 && (tag & 0x0F) == 0x6;
             let ptr = matches!(kind & 0x0F, 0x3 | 0x4);
-            if int4 || ptr {
+            let extra = adm.admits_type(seg, *p);
+            if int4 || ptr || extra {
                 *p += w;
                 true
             } else {
@@ -969,7 +1735,7 @@ fn eat_scalar_type(seg: &[u8], p: &mut usize) -> bool {
 /// and `docs/IL_CALL_IN_EXPR.md` §14 says so in the table: reporting 0 %
 /// completeness for a form whose grammar was never written would be a claim, and
 /// the honest statement is that the number does not exist.
-fn eat_form_value(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
+fn eat_form_value(seg: &[u8], p: &mut usize, form: CallForm, adm: Admit, fail: &mut Fail) -> bool {
     match form {
         CallForm::RecvLoad
         | CallForm::RecvDeref
@@ -977,8 +1743,9 @@ fn eat_form_value(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
         | CallForm::RecvFieldZero
         | CallForm::RecvObject
         | CallForm::RecvCall
-        | CallForm::RecvIntrinsic(_) => eat_member_call(seg, p, form),
-        CallForm::NestedCall => eat_plain_call(seg, p),
+        | CallForm::RecvIntrinsic(_) => eat_member_call(seg, p, form, adm, fail),
+        CallForm::Chained => eat_chained_call(seg, p, adm, fail),
+        CallForm::NestedCall => eat_plain_call(seg, p, adm, fail),
         CallForm::DataAddr => eat_data_designator(seg, p, false),
         CallForm::DataRead => eat_data_designator(seg, p, true),
         _ => false,
@@ -987,7 +1754,8 @@ fn eat_form_value(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
 
 /// `26 <method> <receiver of `form`> 99 <T> 00 BD <ret> <conv> <id> (<arg> 55 <T>)* 4C`
 /// — exactly **one** method symbol, so a chain cannot slip through.
-fn eat_member_call(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
+fn eat_member_call(seg: &[u8], p: &mut usize, form: CallForm, adm: Admit, fail: &mut Fail) -> bool {
+    let head = *p;
     if !eat_byte(seg, p, 0x26) {
         return false;
     }
@@ -995,20 +1763,33 @@ fn eat_member_call(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
         return false;
     };
     *p += w;
-    if !eat_receiver(seg, p, form) {
+    if !eat_receiver(seg, p, form, adm, fail) {
+        // The `26` really did open a call-shaped production and its receiver is a
+        // designator this form is not. Naming it needs the whole production, so the
+        // note carries the `26` and [`Fail::blocker`] re-walks from there.
+        fail.note(*p, FailKind::Receiver(head));
         return false;
     }
     // The member bind. `99` is DIRECT dispatch by construction: virtual dispatch
     // is opcode `67` with a `9A` bind (§3), which is what licenses reading this
     // as a branch to a named callee at all.
-    if !eat_byte(seg, p, 0x99) || !eat_type(seg, p) || !eat_byte(seg, p, 0x00) {
+    if !eat_byte(seg, p, 0x99) {
+        fail.note(*p, FailKind::Value);
         return false;
     }
-    eat_call_and_args(seg, p)
+    if !eat_type(seg, p) {
+        fail.note(*p, FailKind::Type);
+        return false;
+    }
+    if !eat_byte(seg, p, 0x00) {
+        fail.note(*p, FailKind::Value);
+        return false;
+    }
+    eat_call_and_args(seg, p, adm, fail)
 }
 
 /// `26 <fn> BD … (<arg> 55 <T>)* 4C`.
-fn eat_plain_call(seg: &[u8], p: &mut usize) -> bool {
+fn eat_plain_call(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
     if !eat_byte(seg, p, 0x26) {
         return false;
     }
@@ -1016,18 +1797,24 @@ fn eat_plain_call(seg: &[u8], p: &mut usize) -> bool {
         return false;
     };
     *p += w;
-    eat_call_and_args(seg, p)
+    eat_call_and_args(seg, p, adm, fail)
 }
 
 /// The `BD` CALL token and its explicit-argument region. Each argument must be an
 /// **already-modeled** int-like operand stream, so a body needing a second new
 /// production is not counted complete.
-fn eat_call_and_args(seg: &[u8], p: &mut usize) -> bool {
-    if !eat_byte(seg, p, 0xBD) || !eat_type(seg, p) {
+fn eat_call_and_args(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
+    if !eat_byte(seg, p, 0xBD) {
+        fail.note(*p, FailKind::Value);
+        return false;
+    }
+    if !eat_type(seg, p) {
+        fail.note(*p, FailKind::Type);
         return false;
     }
     // cdecl only: the one calling convention every captured member call carries.
     if !eat_byte(seg, p, 0x00) || read_varint(seg, p).is_none() {
+        fail.note(*p, FailKind::Value);
         return false;
     }
     loop {
@@ -1037,21 +1824,49 @@ fn eat_call_and_args(seg: &[u8], p: &mut usize) -> bool {
                 return true;
             }
             Some(_) => {
-                if !eat_int_operands(seg, p) {
+                // Deliberately still D2's argument grammar in the **first** pass: an
+                // already-modeled int-like operand stream, nothing else. Widening it
+                // unconditionally would move the `-whole` counts §14.1 and §15.4 are
+                // stated in, and this rung's acceptance check is that those counts
+                // are recoverable by summing.
+                //
+                // The **second** pass admits the second blocker here too, and it has
+                // to: `gO.Set(p->Get())` blocks on a receiver form inside an argument
+                // region, and a both-handled measure that refused arguments would
+                // report `-more` for a body that only ever needed the two. Inert when
+                // the grant set is empty, which is every first pass.
+                let save = *p;
+                let nested = adm.n > 0
+                    && (eat_form_value(seg, p, adm.form, adm, fail) || {
+                        *p = save;
+                        eat_blocker_value(seg, p, adm, fail)
+                    });
+                if !nested {
+                    *p = save;
+                    if !eat_int_operands(seg, p, adm, fail) {
+                        return false;
+                    }
+                }
+                if !eat_byte(seg, p, 0x55) {
+                    fail.note(*p, FailKind::Value);
                     return false;
                 }
-                if !eat_byte(seg, p, 0x55) || !eat_type(seg, p) {
+                if !eat_type(seg, p) {
+                    fail.note(*p, FailKind::Type);
                     return false;
                 }
             }
-            None => return false,
+            None => {
+                fail.note(*p, FailKind::Value);
+                return false;
+            }
         }
     }
 }
 
 /// One or more `B9 <tok> <int-like>` / `33 <int-like> <k>` / `02|03|04` tokens —
 /// the operand vocabulary `parse_expr` already accepts, and nothing else.
-fn eat_int_operands(seg: &[u8], p: &mut usize) -> bool {
+fn eat_int_operands(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
     let mut n = 0;
     loop {
         match seg.get(*p) {
@@ -1059,10 +1874,12 @@ fn eat_int_operands(seg: &[u8], p: &mut usize) -> bool {
                 let save = *p;
                 *p += 1;
                 let Some((_, w)) = read_token_var(seg, *p) else {
+                    fail.note(*p, FailKind::Value);
                     return false;
                 };
                 *p += w;
-                if !eat_int_like(seg, p) {
+                if !eat_int_like_or_admitted(seg, p, adm) {
+                    fail.note(*p, FailKind::Type);
                     *p = save;
                     return n > 0;
                 }
@@ -1070,23 +1887,132 @@ fn eat_int_operands(seg: &[u8], p: &mut usize) -> bool {
             Some(&0x33) => {
                 let save = *p;
                 *p += 1;
-                if !eat_int_like(seg, p) {
+                if !eat_int_like_or_admitted(seg, p, adm) {
+                    fail.note(*p, FailKind::Type);
                     *p = save;
                     return n > 0;
                 }
                 if read_varint(seg, p).is_none() {
+                    fail.note(*p, FailKind::Value);
                     return false;
                 }
             }
             Some(&0x02) | Some(&0x03) | Some(&0x04) => *p += 1,
-            _ => return n > 0,
+            _ => {
+                fail.note(*p, FailKind::Value);
+                return n > 0;
+            }
         }
         n += 1;
     }
 }
 
+/// `eat_int_like`, widened by the one type class a `Blocker::Type` second blocker
+/// admits. Inert in the first pass (the grant set is empty), so D2's
+/// argument grammar — and every `-whole` count stated in §14.1 and §15.4 — is
+/// unchanged.
+fn eat_int_like_or_admitted(seg: &[u8], p: &mut usize, adm: Admit) -> bool {
+    if eat_int_like(seg, p) {
+        return true;
+    }
+    if adm.admits_type(seg, *p) {
+        if let Some((_, _, _, w)) = read_type(seg, *p) {
+            *p += w;
+            return true;
+        }
+    }
+    false
+}
+
+/// One **chain link**: the bind that applies a method to the value already on the
+/// operand stack, and the call it opens. `99 <TYPE> 00 BD <ret> <conv> <id>
+/// (<arg> 55 <T>)* 4C`.
+///
+/// `99` is DIRECT dispatch by construction (§3), which is what licenses reading a
+/// link as one more `bl` to a named callee.
+fn eat_chain_link(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
+    if !eat_byte(seg, p, 0x99) || !eat_type(seg, p) || !eat_byte(seg, p, 0x00) {
+        return false;
+    }
+    eat_call_and_args(seg, p, adm, fail)
+}
+
+/// A **member-call chain**, giving [`CallForm::Chained`] the production D2 left
+/// unwritten — 8,000 functions whose completeness was UNMEASURED rather than zero
+/// (§14.6).
+///
+/// The shape is the LIFO one the module header describes: `h` method symbols push,
+/// then one receiver, then one bind-and-call per method, innermost first:
+/// `(26 <tok>){h} <receiver> (99 <T> 00 BD … 4C){links}`. `h` and `links` differ by
+/// one exactly when the receiver is itself a named object, because then the last
+/// push *is* the receiver — the same ambiguity [`walk`] refuses to resolve forward,
+/// resolved here by trying the designators and falling back.
+fn eat_chained_call(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
+    // The head run of symbol pushes that are not callees. A `26` immediately
+    // followed by `BD` is a callee push, not a method (§4).
+    let mut heads: Vec<usize> = Vec::new();
+    while seg.get(*p) == Some(&0x26) {
+        let save = *p;
+        let mut q = *p + 1;
+        match read_token_var(seg, q) {
+            Some((_, w)) => q += w,
+            None => break,
+        }
+        if seg.get(q) == Some(&0xBD) {
+            break;
+        }
+        heads.push(save);
+        *p = q;
+        if heads.len() > MAX_CHAIN {
+            return false;
+        }
+    }
+    if heads.len() < 2 {
+        return false;
+    }
+    // The innermost receiver, tried over every designator this module names. A
+    // named-object base is not tried here: it was already consumed as the last
+    // head push, which is what the `heads.len() - 1` fallback covers.
+    const BASES: [CallForm; 5] = [
+        CallForm::RecvLoad,
+        CallForm::RecvDeref,
+        CallForm::RecvFieldZero,
+        CallForm::RecvField,
+        CallForm::RecvCall,
+    ];
+    let after_heads = *p;
+    let mut links = 0;
+    for base in BASES {
+        *p = after_heads;
+        if eat_receiver(seg, p, base, adm, fail) {
+            links = heads.len();
+            break;
+        }
+    }
+    if links == 0 {
+        // The last push was the receiver: rewind to it and take it as the object.
+        *p = heads[heads.len() - 1];
+        if !eat_receiver(seg, p, CallForm::RecvObject, adm, fail) {
+            return false;
+        }
+        links = heads.len() - 1;
+        if links < 2 {
+            return false;
+        }
+    }
+    for _ in 0..links {
+        if !eat_chain_link(seg, p, adm, fail) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Bound on a chain's length. The deepest chain in the D2 sample is four links.
+const MAX_CHAIN: usize = 8;
+
 /// The receiver designator of each named form, and only that form's.
-fn eat_receiver(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
+fn eat_receiver(seg: &[u8], p: &mut usize, form: CallForm, adm: Admit, fail: &mut Fail) -> bool {
     let ok = match form {
         CallForm::RecvLoad => eat_ptr_load(seg, p),
         CallForm::RecvDeref => {
@@ -1104,8 +2030,8 @@ fn eat_receiver(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
                     None => false,
                 }
         }
-        CallForm::RecvCall => eat_plain_call(seg, p),
-        CallForm::RecvIntrinsic(sel) => eat_intrinsic_receiver(seg, p, sel),
+        CallForm::RecvCall => eat_plain_call(seg, p, adm, fail),
+        CallForm::RecvIntrinsic(sel) => eat_intrinsic_receiver(seg, p, sel, adm, fail),
         _ => false,
     };
     ok && eat_opt_convert(seg, p)
@@ -1202,7 +2128,7 @@ fn eat_opt_off_add(seg: &[u8], p: &mut usize) -> bool {
 /// arguments are stepped as `<int-operands or a pointer load> 55 <TYPE>` — the
 /// 2113 form's three arguments (`docs/IL_CAST_CONVERT.md`) being a selector
 /// terminator, the adjust offset, and the object pointer.
-fn eat_intrinsic_receiver(seg: &[u8], p: &mut usize, sel: i32) -> bool {
+fn eat_intrinsic_receiver(seg: &[u8], p: &mut usize, sel: i32, adm: Admit, fail: &mut Fail) -> bool {
     let Some(found) = intrinsic_selector(seg, *p) else {
         return false;
     };
@@ -1238,7 +2164,7 @@ fn eat_intrinsic_receiver(seg: &[u8], p: &mut usize, sel: i32) -> bool {
                 }
             }
             Some(_) => {
-                if !eat_int_operands(seg, p) {
+                if !eat_int_operands(seg, p, adm, fail) {
                     return false;
                 }
             }
@@ -1480,6 +2406,119 @@ mod tests {
         0x00,
     ];
 
+    /// `int c_ret(O* p) { return p->Next()->Get(); }` — **the witness for the largest
+    /// actionable pair in the bucket** (`recv-load` x `chain-bind`, 12,480 functions
+    /// at the workload). `work/sb/probes/s1.cpp`, fixture profile.
+    ///
+    /// It is a *two-link chain*, byte for byte: `26 <Get> 26 <Next> B9 <p> 99 … 4C
+    /// 99 … 4C`. But there is no assignment destination, so `mod.rs`'s statement
+    /// dispatch takes the head `26 <Get>` for one and `parse_expr` starts at
+    /// `26 <Next>` — where exactly one method is stacked. D2 therefore files a chain
+    /// as **`recv-load`**, and [`PROBE_CHAIN_IN_ASSIGNMENT`] is the *same source
+    /// construct* filing as `chained` because it has a destination to absorb the head
+    /// push. That is `docs/IL_CALL_IN_EXPR.md` §9.2's mis-attribution one level down,
+    /// and D4 is what found it: the second blocker `chain-bind` is the outer bind of
+    /// the chain the form classification lost.
+    const PROBE_CHAIN_IN_RETURN: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xEC, 0x09, 0x26, 0xEE, 0x09, 0xB9, 0x01, 0x0A, 0x86, 0x43,
+        0x86, 0x20, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00, 0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80,
+        0x07, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x41, 0x74,
+        0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x03, 0x0A, 0x54,
+        0x02, 0x29, 0x03, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int c_asg(O* p) { int x; x = p->Next()->Get(); return x; }` — the same two
+    /// links as [`PROBE_CHAIN_IN_RETURN`] with an assignment destination in front,
+    /// which is the *only* source difference and moves the whole function to another
+    /// bucket.
+    const PROBE_CHAIN_IN_ASSIGNMENT: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0x07, 0x0A, 0x26, 0xEC, 0x09, 0x26, 0xEE, 0x09, 0xB9, 0x04,
+        0x0A, 0x86, 0x43, 0x86, 0x20, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00, 0xBD, 0x86, 0x43, 0x86,
+        0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD,
+        0x86, 0x41, 0x74, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x32, 0x86, 0x41, 0x74, 0x4B,
+        0xB9, 0x07, 0x0A, 0x86, 0x41, 0x74, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x06, 0x0A, 0x54, 0x02,
+        0x29, 0x06, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int b_if() { if (gO.Ok()) return 1; return 0; }` — **the branch witness, and
+    /// the polarity of `38` with it.**
+    ///
+    /// The `bool`-returning call on a named object closes with `4C`, then `38 00 0A`
+    /// — and `29 00 0A` **defines that exact label** further down, immediately before
+    /// the `return 0`. So `38 <label>` is a conditional branch and it is taken when
+    /// the condition is **false**: the fall-through path is `33 <int> 1 … 3A`
+    /// (`return 1`). The workload's much larger `39` flavour pairs with a later `29`
+    /// the same way (two wild witnesses in `src/system/hamobj/Ham.cpp`, one of them
+    /// `b9 <x> 86 42 75 33 86 41 74 01 0b 39 2b 67` = `if (x & 1)`) but its polarity
+    /// is UNDETERMINED, which is why the byte stays in the key.
+    ///
+    /// 23,632 workload functions sit in this one row, and it is the reason
+    /// [`Blocker::Branch`] has no production: what those bodies need is basic
+    /// blocks.
+    const PROBE_IF_ON_NAMED_OBJECT: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x53, 0x26, 0xED, 0x09, 0x26, 0xF7, 0x09, 0x2C, 0xA6, 0x43, 0x82,
+        0x20, 0x00, 0x99, 0x86, 0x43, 0x85, 0x20, 0x00, 0xBD, 0x82, 0x12, 0x30, 0x00, 0x80, 0x05,
+        0x10, 0x00, 0x00, 0x4C, 0x38, 0x00, 0x0A, 0x53, 0x33, 0x86, 0x41, 0x74, 0x01, 0x41, 0x86,
+        0x41, 0x74, 0x3A, 0xFF, 0x09, 0x54, 0x04, 0x29, 0x00, 0x0A, 0x54, 0x03, 0x33, 0x86, 0x41,
+        0x74, 0x00, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xFF, 0x09, 0x54, 0x02, 0x29, 0xFF, 0x09, 0x4F,
+        0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **A wild witness for the same shape**, from `src/system/rndobj/Mesh.cpp` at
+    /// the dc3 workload's own flags: a two-link chain in a return position whose
+    /// outer link takes an `int` argument and whose result is then dereferenced to a
+    /// `const float`. Filed `recv-load`, second blocker `chain-bind`, and **not**
+    /// whole — the trailing `30 A6 45 F3 30` is a third construct. Kept because
+    /// §14.2's fourth caution applies here too: only wild witnesses show what the
+    /// argument regions and result types of a real chain look like.
+    const WILD_CHAIN_AS_RECV_LOAD: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xF5, 0x42, 0x26, 0x6B, 0x43, 0xB9, 0x8F, 0x43, 0x86, 0x43,
+        0xFE, 0x31, 0x99, 0x86, 0x43, 0xF2, 0x31, 0x00, 0xBD, 0x86, 0x43, 0xCB, 0x31, 0x00, 0x80,
+        0xF2, 0x18, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0xC3, 0x31, 0x00, 0xBD, 0x86, 0x43, 0xF4,
+        0x30, 0x00, 0x80, 0xC3, 0x18, 0x00, 0x00, 0xB9, 0x75, 0x43, 0x86, 0x41, 0x74, 0x55, 0x86,
+        0x41, 0x74, 0x4C, 0x30, 0xA6, 0x45, 0xF3, 0x30, 0x2C, 0x86, 0x45, 0x40, 0x00, 0x41, 0x86,
+        0x45, 0x40, 0x3A, 0x90, 0x43, 0x54, 0x02, 0x29, 0x90, 0x43, 0x4F, 0x12, 0x47, 0x54, 0x01,
+        0x54, 0x00,
+    ];
+
+    /// **A wild witness for `recv-field` x `off-add`, the 8,486-function row**, from
+    /// `src/system/hamobj/Ham.cpp` at the workload's flags. It is a generated
+    /// destructor that destroys a member sub-object at offset 0x18 (D3m's accepted
+    /// shape, §15) and *then* does the equivalent of `delete mThing;` on a pointer
+    /// member at offset 0x14:
+    ///
+    /// ```text
+    ///   … 4C 5C 86 41 74 01 4B                            the accepted statement, closed
+    ///   B9 <this> 33 <int> 14 27 <T> 30 <T> 38 <label>    load the pointer, branch if null
+    ///   26 <dtor> B9 <this> 33 14 27 30 99 … BD void … 4C 4B    destroy through it
+    ///   B9 <this> 33 14 27 33 <ptr> 0 32 <ptr> 4B         null the member
+    /// ```
+    ///
+    /// The *named* second blocker is the `27` off-add of the second statement —
+    /// correctly, since that is the first token the grammar cannot take — but the
+    /// greedy chain shows the body needs an off-add, a `30` indirect load, a
+    /// **conditional branch** and a pointer store, and the branch is unmodelable.
+    /// Hence `-more`. This is the shape that makes `off-add`'s 11,211 functions worth
+    /// almost nothing on their own: 2 of them are one construct away.
+    const WILD_DTOR_DELETES_A_MEMBER: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x33, 0x86, 0x41, 0x74, 0x00, 0x26, 0xE1, 0x8F, 0x03, 0x00, 0xB9,
+        0xBE, 0xA5, 0x05, 0x00, 0xA6, 0x43, 0x9D, 0x9B, 0x02, 0x33, 0x86, 0x41, 0x74, 0x18, 0x27,
+        0xA6, 0x43, 0xCE, 0xBB, 0x01, 0x2C, 0xA6, 0x43, 0xF6, 0xBB, 0x01, 0x00, 0x99, 0x86, 0x43,
+        0xA8, 0xBC, 0x01, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x28, 0x5E, 0x00, 0x00, 0x4C,
+        0x5C, 0x86, 0x41, 0x74, 0x01, 0x4B, 0x4F, 0x01, 0x1E, 0x53, 0xB9, 0xBE, 0xA5, 0x05, 0x00,
+        0xA6, 0x43, 0x9D, 0x9B, 0x02, 0x33, 0x86, 0x41, 0x74, 0x14, 0x27, 0xA6, 0x43, 0xEB, 0x32,
+        0x30, 0x86, 0x43, 0xD5, 0x30, 0x38, 0xC0, 0xA5, 0x05, 0x00, 0x53, 0x53, 0x4F, 0x01, 0x1F,
+        0x26, 0x7F, 0x40, 0xB9, 0xBE, 0xA5, 0x05, 0x00, 0xA6, 0x43, 0x9D, 0x9B, 0x02, 0x33, 0x86,
+        0x41, 0x74, 0x14, 0x27, 0xA6, 0x43, 0xEB, 0x32, 0x30, 0x86, 0x43, 0xD5, 0x30, 0x99, 0x86,
+        0x43, 0xCD, 0x31, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0xCD, 0x18, 0x00, 0x00, 0x4C,
+        0x4B, 0x4F, 0x01, 0x20, 0xB9, 0xBE, 0xA5, 0x05, 0x00, 0xA6, 0x43, 0x9D, 0x9B, 0x02, 0x33,
+        0x86, 0x41, 0x74, 0x14, 0x27, 0xA6, 0x43, 0xEB, 0x32, 0x33, 0x86, 0x43, 0xD5, 0x30, 0x00,
+        0x32, 0x86, 0x43, 0xD5, 0x30, 0x4B, 0x4F, 0x01, 0x21, 0x54, 0x05, 0x4F, 0x01, 0x22, 0x54,
+        0x04, 0x29, 0xC0, 0xA5, 0x05, 0x00, 0x54, 0x03, 0x3A, 0xBF, 0xA5, 0x05, 0x00, 0x54, 0x02,
+        0x29, 0xBF, 0xA5, 0x05, 0x00, 0x5E, 0x01, 0x21, 0x4B, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54,
+        0x00,
+    ];
+
     /// The whole point of the rung: one bucket becomes a set of named ones, and
     /// each name is the *construct*, not the byte the parse stopped on.
     #[test]
@@ -1499,12 +2538,20 @@ mod tests {
             (RECV_OBJECT, "expr-call-in-expr-recv-object-whole"),
             (RECV_CALL, "expr-call-in-expr-recv-call-whole"),
             (RECV_INTRINSIC, "expr-call-in-expr-recv-intrinsic-this-adjust-whole"),
-            (CHAINED, "expr-call-in-expr-chained"),
-            (NESTED_CALL, "expr-call-in-expr-nested-call"),
-            (DATA_ADDR, "expr-call-in-expr-data-addr"),
-            (DATA_ADDR_INDEX, "expr-call-in-expr-data-addr"),
+            // D4 gave `chained` a production, so its completeness is now MEASURED
+            // rather than absent: `x = p->Next()->Val();` is a whole body.
+            (CHAINED, "expr-call-in-expr-chained-whole"),
+            // `g1(g1(a))`: the second blocker is the *same* construct, nested in the
+            // argument region — and admitting both finishes the body, which is what
+            // the `-whole` suffix on a `-then-` key means.
+            (NESTED_CALL, "expr-call-in-expr-nested-call-then-call-nested-call-whole"),
+            // `uc("hi")`: the greedy `data-addr` designator takes the callee push
+            // too, so what is left missing is the bare CALL token. `then-plain-call`
+            // names that construct; `then-op-0xBD` would have named the byte.
+            (DATA_ADDR, "expr-call-in-expr-data-addr-then-plain-call-whole"),
+            (DATA_ADDR_INDEX, "expr-call-in-expr-data-addr-then-plain-call-whole"),
             (DATA_READ, "expr-call-in-expr-data-read-whole"),
-            (RECV_LOAD_IN_ARG, "expr-call-in-expr-recv-load"),
+            (RECV_LOAD_IN_ARG, "expr-call-in-expr-recv-load-then-call-nested-call-whole"),
         ];
         for (seg, want) in cases {
             let seg = free_fn(seg);
@@ -1609,7 +2656,7 @@ mod tests {
     fn a_chain_is_not_filed_as_its_innermost_receiver() {
         let seg = free_fn(CHAINED);
         let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
-        assert_eq!(b.feature(), "expr-call-in-expr-chained");
+        assert_eq!(b.feature(), "expr-call-in-expr-chained-whole");
         // …and the walk says so directly, from the right-hand side's own `26`.
         assert_eq!(walk(&seg, find_first_26_in_rhs(&seg)), CallForm::Chained);
         // The bytes really do open with two method pushes over one `B9` load.
@@ -1633,7 +2680,8 @@ mod tests {
         // other needs a second call and a frame.
         assert_ne!(a.aux & WHOLE_BIT, b.aux & WHOLE_BIT);
         assert_eq!(a.feature(), "expr-call-in-expr-recv-load-whole");
-        assert_eq!(b.feature(), "expr-call-in-expr-recv-load");
+        // …and D4 says *what* the other one needs on top: a plain call around it.
+        assert_eq!(b.feature(), "expr-call-in-expr-recv-load-then-call-nested-call-whole");
     }
 
     /// Nothing per-TU may reach a key. Retag every per-TU field in the
@@ -1679,13 +2727,20 @@ mod tests {
         // Drop the final `47 54 01 54 00` function-tail terminator.
         v.truncate(v.len() - 5);
         let b = parse_segment_detail(&free_fn(&v), NO_LOCALS).unwrap_err();
-        assert_eq!(b.feature(), "expr-call-in-expr-recv-load");
+        // The member call itself is intact, so D4 attributes the refusal to the
+        // *plumbing* — a structural bucket, not a value construct, and UNMEASURED
+        // as a pair because no production admits a truncated function tail.
+        assert_eq!(b.feature(), "expr-call-in-expr-recv-load-then-plumbing-0x3A");
         // …and an extra statement after the call is not a whole body either.
         let mut v = RECV_LOAD.to_vec();
         let at = v.windows(2).position(|w| w == [0x32, 0x86]).unwrap();
         v.splice(at..at, [0x4B].iter().copied());
         let b = parse_segment_detail(&free_fn(&v), NO_LOCALS).unwrap_err();
-        assert!(!b.feature().ends_with("-whole"));
+        // Not complete on the form alone: the key must carry a `-then-` half. (A
+        // `-then-…-whole` would mean "complete once a *second* construct is granted
+        // too", which is a different claim and would still not be `-whole`.)
+        assert!(!b.feature().ends_with("-recv-load-whole"), "{}", b.feature());
+        assert!(b.feature().contains("-then-"), "{}", b.feature());
     }
 
     /// The `aux` layout round-trips every form, including the two that carry a
@@ -1725,6 +2780,308 @@ mod tests {
             let whole = feature(disc | (payload << FORM_BITS) | WHOLE_BIT);
             assert_eq!(whole, format!("{key}-whole"));
             assert!(seen.insert(whole));
+        }
+    }
+
+    // --- D4: the second blocker ---------------------------------------------
+
+    /// The rung's own point: every 0 %-complete form now says what blocks it *next*,
+    /// and the name is the construct.
+    #[test]
+    fn every_second_blocker_names_its_own_construct() {
+        let cases: &[(&[u8], &str)] = &[
+            (PROBE_CHAIN_IN_RETURN, "expr-call-in-expr-recv-load-then-chain-bind-whole"),
+            // The third construct is MEASURED too, and it is the `30 A6 45 F3 30` the
+            // hand-read of this segment predicted: an indirect load of a const float.
+            (
+                WILD_CHAIN_AS_RECV_LOAD,
+                "expr-call-in-expr-recv-load-then-chain-bind-and-deref-load-more",
+            ),
+            (PROBE_CHAIN_IN_ASSIGNMENT, "expr-call-in-expr-chained-whole"),
+            (PROBE_IF_ON_NAMED_OBJECT, "expr-call-in-expr-recv-object-then-branch-0x38"),
+            // …and here too: off-add, then the `30 86 43 D5 30` indirect load of the
+            // pointer member, then the conditional branch that stops the chain.
+            (
+                WILD_DTOR_DELETES_A_MEMBER,
+                "expr-call-in-expr-recv-field-then-off-add-and-deref-load-more",
+            ),
+        ];
+        for (seg, want) in cases {
+            let seg = free_fn(seg);
+            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+            assert_eq!(b.feature(), *want);
+            // Still a refusal, and still reported at the `26`: D4 moved the key, not
+            // the gate and not the offset.
+            assert_eq!(seg[b.off], 0x26, "{want}");
+            assert!(parse_segment(&seg, NO_LOCALS).is_none(), "{want}");
+        }
+    }
+
+    /// **The finding this rung exists for, as a test.** One source construct — a
+    /// two-link chain — files under two different D2 forms depending on whether the
+    /// statement has an assignment destination to absorb the head method push. Both
+    /// bodies are grammar-complete; only one of them is *called* a chain.
+    ///
+    /// It is `docs/IL_CALL_IN_EXPR.md` §9.2 one level down, and it means the
+    /// `chained` bucket (8,001) understates the chain population by roughly 4x.
+    #[test]
+    fn a_chain_in_a_return_position_is_filed_as_its_inner_receiver() {
+        let ret = parse_segment_detail(&free_fn(PROBE_CHAIN_IN_RETURN), NO_LOCALS).unwrap_err();
+        let asg = parse_segment_detail(&free_fn(PROBE_CHAIN_IN_ASSIGNMENT), NO_LOCALS).unwrap_err();
+        // Different *forms*…
+        assert_ne!(ret.aux & FORM_MASK, asg.aux & FORM_MASK);
+        assert_eq!(ret.feature(), "expr-call-in-expr-recv-load-then-chain-bind-whole");
+        assert_eq!(asg.feature(), "expr-call-in-expr-chained-whole");
+        // …and the assignment body really is the return body plus one `26 <dst>`
+        // push, byte for byte, plus the store and load of the local.
+        assert!(PROBE_CHAIN_IN_ASSIGNMENT.len() > PROBE_CHAIN_IN_RETURN.len());
+        // Both are whole-body accounted for, one alone and one as a pair, so the
+        // *work* is the same in each case even though the bucket is not.
+        assert!(ret.feature().ends_with("-whole") && asg.feature().ends_with("-whole"));
+    }
+
+    /// A branch is named a branch because its label is **defined later in the same
+    /// segment** by a `29 <same token>`, not because the byte looked like one. The
+    /// witness carries the pair, so the test can check it directly.
+    #[test]
+    fn a_branch_target_is_a_label_defined_later_in_the_segment() {
+        let seg = PROBE_IF_ON_NAMED_OBJECT;
+        let at = seg.iter().position(|&b| b == 0x38).expect("the branch");
+        let (label, w) = read_token_var(seg, at + 1).expect("its target");
+        // The same token appears after a `29` further down — that is the definition.
+        let mut found = false;
+        let mut q = at + 1 + w;
+        while q + 1 < seg.len() {
+            if seg[q] == 0x29 {
+                if let Some((t, _)) = read_token_var(seg, q + 1) {
+                    if t == label {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            q += 1;
+        }
+        assert!(found, "the `38` target {label:#x} is defined by a later `29`");
+        // …and the construct is reported as a branch, with no completeness claim:
+        // `Blocker::Branch` has no production, so the pair is UNMEASURED and the key
+        // carries neither `-whole…` nor `-more`.
+        let f = parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
+        assert!(f.ends_with("-then-branch-0x38"), "{f}");
+    }
+
+    /// An UNMEASURED pair must not be readable as a measured incompleteness. The
+    /// suffix carries that distinction and nothing else does.
+    #[test]
+    fn an_unmodelable_second_blocker_leaves_the_pair_unmeasured() {
+        for (seg, blk) in [
+            (PROBE_IF_ON_NAMED_OBJECT, Blocker::Branch(0x38)),
+            (BYVAL_TEMP, Blocker::TempBind),
+        ] {
+            assert!(!blocker_is_measured(blk), "{blk:?}");
+            let f = parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
+            assert!(!f.ends_with("-more"), "{f}");
+            assert!(!f.contains("-whole"), "{f}");
+        }
+        // …while a modelable one always carries one or the other.
+        for seg in [PROBE_CHAIN_IN_RETURN, WILD_CHAIN_AS_RECV_LOAD, WILD_DTOR_DELETES_A_MEMBER] {
+            let f = parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
+            assert!(f.ends_with("-more") || f.contains("-whole"), "{f}");
+        }
+    }
+
+    /// The second blocker is a **construct**, not the byte the matcher stopped on —
+    /// the failure `GAPS.md` §6 records, checked at the two places it would show.
+    #[test]
+    fn the_second_blocker_is_not_the_byte_the_matcher_stopped_on() {
+        // `uc("hi")`: the greedy `data-addr` designator eats the callee push, so the
+        // matcher stops on a bare `BD`. The key must say `plain-call`.
+        let f = parse_segment_detail(&free_fn(DATA_ADDR), NO_LOCALS).unwrap_err().feature();
+        assert_eq!(f, "expr-call-in-expr-data-addr-then-plain-call-whole");
+        assert!(!f.contains("0xBD"), "{f}");
+        // The destructor-with-delete stops on a `27`, which is a byte-offset add and
+        // is named as one.
+        let f = parse_segment_detail(&free_fn(WILD_DTOR_DELETES_A_MEMBER), NO_LOCALS)
+            .unwrap_err()
+            .feature();
+        assert!(f.contains("-then-off-add"), "{f}");
+        assert!(!f.contains("0x27"), "{f}");
+        // A member call reached through a call-argument region is a *call*, named by
+        // its own form, not `op-0x26`.
+        let f = parse_segment_detail(&free_fn(RECV_LOAD_IN_ARG), NO_LOCALS).unwrap_err().feature();
+        assert!(f.contains("-then-call-nested-call"), "{f}");
+    }
+
+    /// The greedy chain must terminate, stay inside its bound, and never report a
+    /// grant count it did not reach. A construct whose production fails to consume
+    /// the thing the classifier named would otherwise spin forever.
+    #[test]
+    fn the_greedy_chain_is_bounded_and_terminates() {
+        for seg in [
+            RECV_LOAD,
+            RECV_LOAD_IN_ARG,
+            DATA_ADDR,
+            DATA_READ,
+            CHAINED,
+            NESTED_CALL,
+            BYVAL_TEMP,
+            PROBE_CHAIN_IN_RETURN,
+            PROBE_CHAIN_IN_ASSIGNMENT,
+            PROBE_IF_ON_NAMED_OBJECT,
+            WILD_CHAIN_AS_RECV_LOAD,
+            WILD_DTOR_DELETES_A_MEMBER,
+            WILD_DTOR_WIDE_DESCRIPTOR,
+            DTOR_MEMBER_OFF0,
+            DTOR_MEMBER_OFF4,
+        ] {
+            let seg = free_fn(seg);
+            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+            let need = (b.aux >> NEED_SHIFT) & NEED_MASK;
+            assert!(
+                need == NEED_UNMEASURED || need == NEED_MORE || need as usize <= MAX_ADMIT,
+                "grant count {need} out of range for {}",
+                b.feature()
+            );
+            // The `-whole<k>` suffix and the grant count are the same number.
+            let f = b.feature();
+            if let Some(k) = f.strip_suffix("-whole2").map(|_| 2).or_else(|| {
+                f.strip_suffix("-whole3")
+                    .map(|_| 3)
+                    .or_else(|| f.strip_suffix("-whole4").map(|_| 4))
+            }) {
+                assert_eq!(need, k, "{f}");
+            }
+        }
+    }
+
+    /// Every `(form, blocker, grant count)` triple must round-trip and every rendered
+    /// key must be unique. A silent collision here would merge two census buckets,
+    /// which is the one failure a census instrument cannot survive — and this rung
+    /// widened `Block::aux` to `u64` precisely so the pair need not be squeezed.
+    #[test]
+    fn the_aux_packing_round_trips_every_pair() {
+        let forms = [
+            CallForm::RecvLoad,
+            CallForm::RecvField,
+            CallForm::RecvFieldZero,
+            CallForm::RecvObject,
+            CallForm::RecvIntrinsic(2113),
+            CallForm::RecvIntrinsic(2119),
+            CallForm::Chained,
+            CallForm::DataAddr,
+            CallForm::Op(0x9B),
+        ];
+        let blockers = [
+            Blocker::Call(CallForm::RecvLoad),
+            Blocker::Call(CallForm::RecvIntrinsic(2113)),
+            Blocker::Call(CallForm::RecvIntrinsic(2119)),
+            Blocker::Call(CallForm::Op(0x9B)),
+            Blocker::DerefLoad,
+            Blocker::TempBind,
+            Blocker::Virtual,
+            Blocker::Type(TypeClass::Ptr),
+            Blocker::Type(TypeClass::CodePtr),
+            Blocker::Type(TypeClass::IntWidth(1)),
+            Blocker::Type(TypeClass::IntWidth(8)),
+            Blocker::Type(TypeClass::Real),
+            Blocker::Type(TypeClass::Aggregate),
+            Blocker::Type(TypeClass::NotAType),
+            Blocker::Plumbing(0x3A),
+            Blocker::Structure(Structural::StmtLimit),
+            Blocker::Op(0x5C),
+            Blocker::Branch(0x38),
+            Blocker::Branch(0x39),
+            Blocker::ChainBind,
+            Blocker::OffAdd,
+            Blocker::PlainCall,
+            Blocker::Eof,
+        ];
+        let mut seen = std::collections::BTreeSet::new();
+        for f in forms {
+            let (fd, fp) = f.code();
+            assert!(fd <= FORM_MASK && fp <= PAYLOAD_MASK, "{f:?}");
+            // The bare and `-whole` keys, unchanged from D2.
+            let base = fd | (fp << FORM_BITS);
+            assert!(seen.insert(feature(base)));
+            assert!(seen.insert(feature(base | WHOLE_BIT)));
+            for blk in blockers {
+                let (bd, bp) = blk.code();
+                assert!(bd <= BLK_MASK, "{blk:?}: discriminant overflows");
+                assert!(bp <= BLK_PAYLOAD_MASK, "{blk:?}: payload overflows");
+                assert_eq!(Blocker::from_code(bd, bp), Some(blk), "{blk:?}");
+                let pair = base | (bd << BLK_SHIFT) | (bp << BLK_PAYLOAD_SHIFT);
+                for need in [NEED_UNMEASURED, 1, 2, 3, 4, NEED_MORE] {
+                    let key = feature(pair | (need << NEED_SHIFT));
+                    assert!(key.starts_with(CALL_IN_EXPR), "{key}");
+                    assert!(seen.insert(key.clone()), "duplicate bucket name {key}");
+                }
+            }
+        }
+        // Nothing per-TU can reach any of it: the widest field is 23 bits of a
+        // nested form's own (disc, payload), and a payload is only ever an intrinsic
+        // selector, a type class or an opcode byte. And the whole layout fits, which
+        // is why `Block::aux` is a `u64` — squeezing it would have merged buckets.
+        assert!(KIND_SHIFT + KIND_BITS <= 64);
+        // Every coarse kind is representable and distinctly named.
+        let mut kinds = std::collections::BTreeSet::new();
+        for blk in blockers {
+            let k = blk.kind_code();
+            assert!(k <= KIND_MASK, "{blk:?}: kind overflows its field");
+            assert_ne!(k, 0, "{blk:?}: only `None` may be kind 0");
+            kinds.insert(Blocker::kind_name(k));
+        }
+        assert!(!kinds.contains("none"));
+    }
+
+    /// D4 must not have changed what the census counts, only how it names it. The
+    /// four key shapes are disjoint by construction (the suffixes are mutually
+    /// exclusive) and every witness lands in exactly one.
+    #[test]
+    fn the_key_shapes_partition_the_bucket() {
+        for seg in [
+            RECV_LOAD,
+            RECV_DEREF,
+            RECV_FIELD,
+            RECV_OBJECT,
+            RECV_CALL,
+            RECV_INTRINSIC,
+            CHAINED,
+            NESTED_CALL,
+            DATA_ADDR,
+            DATA_READ,
+            RECV_LOAD_IN_ARG,
+            RECV_FIELD_OFF0,
+            DTOR_MEMBER_OFF0,
+            DTOR_MEMBER_OFF4,
+            BYVAL_TEMP,
+            WILD_DTOR_WIDE_DESCRIPTOR,
+            PROBE_CHAIN_IN_RETURN,
+            PROBE_CHAIN_IN_ASSIGNMENT,
+            PROBE_IF_ON_NAMED_OBJECT,
+            WILD_CHAIN_AS_RECV_LOAD,
+            WILD_DTOR_DELETES_A_MEMBER,
+        ] {
+            let seg = free_fn(seg);
+            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+            let f = b.feature();
+            assert!(f.starts_with(CALL_IN_EXPR), "{f}");
+            // Exactly one of the three shapes, every time:
+            //   the form alone finishes the body      -> `…-<form>-whole`
+            //   a second construct is named           -> `…-<form>-then-<blk>[…]`
+            //   the form itself has no production     -> `…-<form>` (D2's residue)
+            let whole_alone = b.aux & WHOLE_BIT != 0;
+            let has_pair = f.contains("-then-");
+            let bare = !whole_alone && !has_pair;
+            assert_eq!(
+                usize::from(whole_alone) + usize::from(has_pair) + usize::from(bare),
+                1,
+                "{f}"
+            );
+            assert_eq!(whole_alone, f.ends_with("-whole") && !has_pair, "{f}");
+            // A bare key is only legal for a form with no production at all.
+            let form =
+                CallForm::from_code(b.aux & FORM_MASK, (b.aux >> FORM_BITS) & PAYLOAD_MASK).unwrap();
+            assert!(!bare || !form_is_measured(form), "{f}");
         }
     }
 

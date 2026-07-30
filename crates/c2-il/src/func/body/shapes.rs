@@ -1750,7 +1750,7 @@ pub(crate) fn parse_call_shape(
                 ctx: "call-intrinsic",
                 byte: Some(0x40),
                 off: *p,
-                aux: id as u32,
+                aux: id as u64,
             });
         }
         return Err(blk(seg, *p, "call-token"));
