@@ -1085,6 +1085,31 @@ The rules that keep the numbers honest:
   and grouped them by production; and clearing one production can shrink several
   unrelated-looking buckets at once, so predicted movement should be stated
   per-production, never per-bucket.
+- **Three live wrong-bytes emits were found in one day, and none of them by the
+  fixture corpus.** All three came from review or adversarial probing, and all three
+  have the same shape: *two facts that happen to share one field until some
+  construct pulls them apart.*
+    1. The `this` token was located by a bare first-`0x46` search. That byte is also
+       the payload of the line marker for **source line 70**, so a member function
+       there lost its `this` and every formal dropped a register.
+    2. `parse_this_token` was then fixed — in the one shape where the bug had been
+       found. Straight-line bodies, tail calls, comparisons and float leaves went on
+       mapping formals from r3, so `int S8::m(int x) const { return x + 1; }`
+       emitted `addi r3,r3,1` for `addi r3,r4,1`. "One fact, one locator" had been
+       obeyed to the letter: **a locator nobody consults is not shared.**
+    3. A TYPE's tag carries **alignment** and its kind carries **size**. Equal for
+       every naturally-aligned type, so reading the tag was indistinguishable from
+       reading the size until `#pragma pack(4)` put an 8-byte `long long` behind a
+       4-byte tag, and one `lwz` landed at the wrong offset.
+  What the corpus had in each case was the *safe half of the pair*: member functions
+  with load bodies but not straight-line ones, straight-line bodies in free functions
+  but not members, `long long` at natural alignment but never packed. A hand-written
+  corpus is biased toward the shapes whoever wrote it was thinking about, and it is
+  biased in a way that is invisible from inside it. Two practices follow, and both
+  paid off the same day: **sweep the cross product, not one axis at a time**
+  (`scripts/expr_sweep.sh` — the member-function-across-source-lines axis exists only
+  because of #1), and **have someone adversarial read the anchors**, because #2 was
+  found by a reviewer assigned to an unrelated change.
 - **A failed search is not evidence of absence.** Three of this project's
   wrong-bytes emits are the same mistake: code asked "did I find X?" and read
   "no" as "there is no X". `.gl` did not name a destination, so the token was
