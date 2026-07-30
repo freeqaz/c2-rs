@@ -675,6 +675,7 @@ instrument:
 | + W5 depth-2 trees (9b7df37) **and** W13b one-constant bodies (cebfb88) | **79,719** | **3.24** |
 | + the 2026-07-29/30 overnight ladder: statement layer + chain canonicalization + multi-arg tail calls + expression/intrinsic decode (≈ cebfb88 → 6edfef6) | 87,423 | 3.55 |
 | + `/O1` support, `/O1` compare spines, indirect-load leaves, intrinsic-2117 decode (**HEAD `2724ca5`, re-measured 2026-07-30**) | **109,501** | **4.45** |
+| + `.sy` locals, the line-70 `this` mis-emit fix, and the lexical-scope layer (**HEAD `b775afe`, 2026-07-30**) | **110,366** | **4.48** |
 
 The first two steps were *decode* fixes, not new codegen — the expected shape
 of progress while the wall is `vocab-gap`. The third is a 10× jump from one
@@ -1063,15 +1064,49 @@ census says what that is worth on this corpus. Continuing down the fixture pile
 is a choice to keep paying that ratio.
 
 **Ordering re-check (2026-07-30 review, §6b).** Item 11 is done, and the
-measured head is now: `expr-call-in-expr` (11.7%), `body-0x53` (7.2%), the
+measured head was: `expr-call-in-expr` (11.7%), `body-0x53` (7.2%), the
 intrinsic 2113/2117 pair (12.1% combined, acceptance blocked on operand-type
 tracking and member addressing). The near-term target with the best
-match-bucket leverage is the **nine one-away TUs** (scan JSONL,
-`fn_total - fn_in_class = 1`): `body-0x53` ×4, `assign-dst-not-formal` ×3
-(needs the positive local signal — `.sy`), `expr-call-in-expr` ×1,
-`expr-load-type-A64381` ×1. Locals and the statement layer are simultaneously
-the top of the decode ranking and the blockers on those TUs, so demand-driven
-ordering and TU-match leverage currently point at the same work.
+match-bucket leverage is the **one-away TUs** (scan JSONL,
+`fn_total - fn_in_class = 1`): at the time `body-0x53` ×4,
+`assign-dst-not-formal` ×3 (needs the positive local signal — `.sy`),
+`expr-call-in-expr` ×1, `expr-load-type-A64381` ×1.
+
+**Both were taken, and the outcome separates decode reach from acceptance
+sharply enough to be worth recording (measured at `b775afe`).**
+
+| step | bucket cleared | census | fully in class |
+|---|---|---|---|
+| `.sy` locals | `assign-dst-not-formal` 5,534 → 5,533 | 109,501 → 109,501 | **+0** |
+| lexical scopes | `body-0x53` 170,401 → **0** | 109,501 → 110,366 | **+865** |
+
+Locals bought nothing at workload scale even though the decode is right and
+byte-exact on fixtures: whole-file `.sy` refusal denied locals to every function
+in any TU containing one aggregate-typed local, and the three TUs the bucket
+pointed at turned out not to want locals at all — their destinations are member or
+global stores, correctly out of class. The scope layer's 170,401 → 0 is the
+cleanest confirmation the census works as an instrument, and its 865/170,401 yield
+is the cleanest statement of the instrument's limit: those functions all advanced,
+to `expr-call-in-expr` (+28,984), `body-0x29` (+10,877) and the intrinsic family
+(+8,000).
+
+**Where the leverage now is**, recounted after the scope layer (16 TUs within 3
+functions of matching, none of them closed):
+
+  * **`expr-load-type-*` gates 9 of the 16.** `864381` ×4 TUs, `A64381` ×4,
+    `864383` ×3, plus `8643C0`/`8643F0`/`864382`. This is the single highest-value
+    target by TU leverage and it is *not* decode-only — a narrow or floating load
+    needs its own instruction.
+  * **`assign-dst-not-formal` ×3** — measured as member/global stores, so this
+    wants a real store with a relocation, not more decode.
+  * **`body-0x29` / `expr-op-0x3A`** — labels and branches, the control-flow layer.
+    `Primes.cpp` and `Sort.cpp`, the two nearest loop functions, both stop here.
+
+So demand-driven ordering and TU-match leverage have now **diverged**: the biggest
+bucket (`expr-call-in-expr`, 304,813) is not what the nearest TUs want. The
+one-away list is the better instrument at this point, and every item on it needs
+codegen rather than decode — which is the review's asymptotic-stall argument
+showing up as a concrete change in what the next rung has to be.
 
 ## 6b. Independent review, 2026-07-30 (HEAD `2724ca5`)
 
