@@ -468,7 +468,12 @@ impl Toolchain {
             // Land the _CL_* bundle in our private work dir, deterministically.
             .env("TMP", &work_abs)
             .env("TEMP", &work_abs)
-            .env("WIBO_FS_CACHE", "1");
+            .env("WIBO_FS_CACHE", "1")
+            // wibo >= 1.0.1-23 reaps guest FILE_ATTRIBUTE_TEMPORARY files
+            // (the _CL_* quintet) when the guest dies without cleaning up -
+            // which is exactly how /d2nop capture works. The `_CL_*ex` bundle
+            // IS our product; opt out of the reaper.
+            .env("WIBO_KEEP_TEMP", "1");
         if let Some(dir) = cwd {
             cmd.current_dir(dir);
         }
@@ -833,6 +838,9 @@ impl Toolchain {
             .env("TMP", &work_abs)
             .env("TEMP", &work_abs)
             .env("WIBO_FS_CACHE", "1")
+            // See capture_il: the surviving _CL_*ex file is the product, so
+            // wibo's temp reaper (>= 1.0.1-23) must be disabled here.
+            .env("WIBO_KEEP_TEMP", "1")
             .output()?;
         // Non-zero exit is expected (c2 aborted on /d2nop) — the surviving
         // `_CL_*ex` file, not the exit code, is the success signal.
