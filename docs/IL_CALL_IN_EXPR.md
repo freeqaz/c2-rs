@@ -1,5 +1,10 @@
 # The `expr-call-in-expr` bucket, decomposed
 
+> **UPDATE (2026-07-30, `1caf463`): D1 is LANDED, and §13 records what it cost
+> and what it yielded against the estimate made below.** Everything from §1 to
+> §12 is the characterization as written, unedited, so the estimate can be
+> compared with the outcome.
+
 **Status: characterization only (2026-07-30). No code was changed.** The bucket
 is the #1 blocking feature on the real dc3 workload — **304,813 functions, 13.0%
 of 2,352,205 blocked** (MEASURED, `c2rs gap` over 878 TUs at HEAD, re-run for
@@ -466,3 +471,169 @@ The wide-window extractor and classifiers are scratch tooling in
 `IlBundle::load_from_dir` + `function_census`, prints TSV) and
 `/tmp/callprobe/*.py`; both are regenerable from the descriptions in §1 and
 the byte rules cited there.
+
+---
+
+## 13. D1, landed — the estimate, the outcome, and the two fields that varied
+
+`1caf463`, 2026-07-30. Baseline for every number here is
+`work/dc3-workload/scan-final2.jsonl` (878 rows, `fn_total` 2,462,571, in class
+228,298 = 9.27 %, `expr-call-in-expr` 304,104); the result is
+`work/dc3-workload/scan-nonleaf.jsonl` from the same list, flags and `--cwd`.
+
+### 13.1 The estimate, stated before the outcome was measured
+
+A **stratified 40-TU sample** (12 drawn at random from the top decile of the 841
+TUs carrying the bucket, 28 uniformly from the rest, seed 20260730) was scanned
+with the implementation and differenced against the baseline per TU:
+
+| | |
+|---|---:|
+| sample denominator | 154,239 functions = **6.26 %** of the corpus |
+| sample bucket | 18,906 sites = 6.22 % of 304,104 |
+| in class, baseline → new | 14,808 → 15,751 = **+943**, 0 lost |
+| extrapolation by `fn_total` | **+15,056** |
+| cross-check, by bucket share (943/18,906 × 304,104) | +15,168 |
+
+**Bias direction stated at the time: an over-estimate.** Every sampled TU carries
+the bucket (37 of 878 do not and were outside the sampling frame), and 12 of 40
+came from the top decile by bucket count, so the sample should have been
+destructor-rich relative to the corpus.
+
+### 13.2 The outcome, and the estimate was wrong in the direction I did not predict
+
+| | baseline | new | delta |
+|---|---:|---:|---:|
+| rows | 878 | 878 | — |
+| `fn_total` | 2,462,571 | 2,462,571 | 0 (no TU's denominator moved) |
+| in class | 228,298 (9.27 %) | **246,162 (10.00 %)** | **+17,864** |
+| `expr-call-in-expr` | 304,104 | **286,240** | **−17,864** |
+| mismatch | 0 | **0** | — |
+| TUs gaining / losing | — | 828 / **0** | — |
+| TUs changing class | — | **0** | still 6 `match` |
+
+**+17,864 against an estimated +15,056 — the estimate was 15.7 % LOW, and I had
+predicted it would be high.** The mechanism: the sample's destructor density
+*within* its bucket was 4.99 % against the corpus's 5.87 %, so stratifying on
+bucket *size* picked TUs whose `expr-call-in-expr` is disproportionately the
+member-call productions of §3–§6 rather than the generated destructor of §5. The
+generalizable correction: **stratifying on the bucket does not stratify on the
+sub-shape**, and for a whole-body estimate the right frame is the sub-shape's own
+density, which is exactly what a bucket count cannot tell you. The direction of a
+sampling bias is a claim like any other and this one was not measured, only
+argued.
+
+The §8 table's own estimate for D1 was "~15k–29k workload-wide", from
+2,046/21,319 sampled sites; the outcome is inside that range and near its low
+end.
+
+### 13.3 The one number worth more than the yield
+
+`expr-call-in-expr` fell by **exactly** the census gain, and **no other blocker
+bucket moved by a single function** — none grew, and only this one shrank.
+
+Every previous rung did the opposite. The `.sy` rung dropped a 554,056 bucket to
+6,974 and put +17,286 in class, because 547 k functions merely cleared their
+first blocker and hit the next one (`expr-call-in-expr` grew by 55 k in that very
+scan). Decoding intrinsic 2117 moved 32 functions of its 149,200. Here first-blocker
+attribution and in-class yield coincide, because the shape is *whole-body
+complete*: the grammar accepts the entire segment from `LO` to the function tail
+or nothing at all, so a function whose first blocker is this skeleton has no
+second blocker to hit. That property — not the bucket size — is what made the
+rung's yield predictable to within 16 % instead of within a factor of 4,600.
+
+### 13.4 Corrections to §5 and §8 — two fields that were called constant and are not
+
+§5 asserted that `5C <int-TYPE> 01` and `5E 01 21` are "UNKNOWN and byte-constant
+across all 2,046 workload matches and the probe". **Two of those three payload
+fields vary**, and both were found by probing rather than by transcribing:
+
+1. **`5E`'s first payload counts destroyed sub-objects.** `struct N1 : M1, M2 {
+   ~N1(); };` — two bases, each with a destructor — emits two member-call
+   statements, the second at adjust offset `04`, and closes with **`5E 02 21`**.
+   §5's guess ("the destructor flags/epilogue markers") was in the right family;
+   the count is the part that is now measured, and requiring `01` is the gate that
+   keeps the one-branch lowering away from the two-branch shape.
+2. **Both trailers carry an exception-handling bit.** Isolating one flag at a time
+   over `{/Od, /O1, /Ox} × {—, /Oi, /GS-, /GR, /EHsc, /EHa}`: **`/EH…` clears bit
+   `0x10` in both**, and nothing else in that matrix moves either byte. §5's
+   capture was taken at the workload's `/O1 /Oi /EHsc` and reads `5C … 01` /
+   `5E 01 21`; the *fixture* profile (`/Ox /GS- /c`, no `/EH`) reads
+   **`5C … 11` / `5E 01 31`** for the same source. The reference emits the same
+   four bytes for both (checked at `/Ox`, `/Ox /EHsc`, `/O1`).
+
+   Had the shape been pinned to whichever profile was probed first, it would have
+   refused **either the entire workload or the entire fixture lane** — and the
+   fixture lane is the only thing that grades bytes, so the second failure mode is
+   a silently vacuous green. Both measured pairs are admitted, with the bit
+   required to agree between them; a third value fails closed. §5's claim about
+   `5C`'s low nibble stands as UNMEASURED.
+
+`66 <n>`, the class-pair descriptor, is required to be exactly `n = 2`. Nine
+D1-shaped witnesses spanning base/derived layout, an empty base, a two-level
+chain, a multi-base intermediate base, a namespace-scoped base, a class-template
+base and a nested-class base all carry `02`, because a destructor delegates
+exactly one inheritance step. `66 03` **does** occur in the workload's
+`expr-call-in-expr` sites (witness: `src/system/synth_xbox/MeterEffect.cpp`), but
+at *chained* member calls, which this grammar refuses on several other counts.
+Whether a base-delegating destructor can carry `66 03` is UNMEASURED; the
+requirement fails closed.
+
+### 13.5 Two gates that had to move, and one hazard that did not
+
+* **The `0x0100` bit of the per-function optimization word is "constructor or
+  destructor".** Measured one function kind at a time: a local needing cleanup, a
+  `try`/`catch`, a virtual member, `throw()` and an ordinary member function all
+  leave it clear; every constructor and destructor sets it, in both `/Ox`
+  (`00a00105`) and `/O1` (`00200105`) forms. `PortC2` compared whole words, so
+  **every constructor and destructor in the corpus was a `codegen-gap` however
+  ordinary its body** — `A::~A() {}` decodes as `EmptyBody` and the reference
+  emits a bare `blr` for it, identical to `void f() {}`. The bit is now masked;
+  every other bit still has to match a verified word. See `docs/OPT_MODE.md`.
+* **A void tail call had no arm in the `/Gy` COMDAT emitter.** It fell through to
+  `int_tail_call_text`, which needs an operand stream, and refused with
+  "expression did not reduce to a single value". `mvp_call.cpp` had therefore been
+  a `codegen-gap` in the `/O1`, `/O2` and `/Ox /Gy` lanes for as long as those
+  lanes have existed — and the workload compiles `/O1`, which implies `/Gy`.
+  Fixed; those three lanes gain `mvp_call.cpp` and `w14_dtor_delegate.cpp`.
+* **The hazard that is NOT new: COMDAT-by-inlineness.** A generated destructor in
+  a real workload TU comes from a header, so it is *inline*, and c2 gives an
+  inline function its own COMDAT `.text` **even at `/Ox`** while the TU's ordinary
+  functions share a packed one. The port emits all-packed or all-COMDAT, never
+  mixed, so such a TU would mis-emit if it ever came fully in class. Measured to
+  be **symmetric with a pre-existing class**: an inline non-destructor whose body
+  is straight-line (`struct S { int m(int a) const { return a+1; } };` under
+  `__declspec(dllexport)`) produces the identical mixed layout, so this rung does
+  not create the hazard. Every probe of it refuses today for other reasons; it is
+  recorded here because nothing checks it.
+* **Unrelated finding, not acted on.** A **template instantiation's** `.ex`
+  segment ends `47 54 01 54 00 4D` — a bare module-end `4D` with no
+  `4F 02 20 00 · 4F 01 <line>` before it — which `eat_fn_tail` (and therefore
+  `eat_return_plumbing`, and therefore *every* shape) refuses as `module-end`.
+  So `template struct D<int>;` of an otherwise-accepted destructor is out of class
+  on the module framing alone. Not this rung's business; recorded as a witness.
+
+### 13.6 What is next in this bucket
+
+Unchanged from §11, with D1 struck: **D2** (member-call decode without
+acceptance, to split the remaining 286,240 by receiver form), then **D3**
+(delegation acceptance, whose census effect will appear in the
+`expr-load-type-xx43xx` rows and not here), then **D4** (data-symbol addressing —
+the first genuinely new codegen). D5/D6 are W11 proper.
+
+### 13.7 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w14_dtor_delegate.cpp   # 9/9 in class
+./target/release/c2rs diff   fixtures/cpp/w14_dtor_delegate.cpp   # Port=Match
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox     # and /O1, /O2, "/Ox /Gy": 0 mismatch
+C2RS_JOBS=16 scripts/expr_sweep.sh        # checked=3009 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16 \
+  --jsonl work/dc3-workload/scan-nonleaf.jsonl
+# the /EH bit, isolated one flag at a time:
+#   for fl in /O1 "/O1 /EHsc" /Ox "/Ox /EHsc" /Od "/O1 /Oi" "/O1 /GS-" "/O1 /EHa"
+#   do capture `struct B{~B();int b;}; struct D:B{~D();int d;}; D::~D(){}`
+#      with --keep-il and read the `5C 86 41 74 <f>` / `5E 01 <g>` bytes
+```

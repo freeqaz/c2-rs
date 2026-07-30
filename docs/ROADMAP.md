@@ -683,6 +683,7 @@ instrument:
 | + T1 width-4 pointer TYPEs through the leaf shapes (`8da703e`) | **210,603** | **8.55** |
 | + `.sy` widths — six wrong encodings, so it had never bound on a real TU (`320f618`) | **211,012** | **8.57** |
 | + `.sy` keyed to `.ex` by the exit label (`ca1469b`) | **228,298** | **9.27** |
+| + D1, the generated empty destructor's base delegation (`1caf463`) | **246,162** | **10.00** |
 
 That last row goes the wrong way on purpose, and it is the most instructive row
 in the table. A formal's list index had been standing in for its
@@ -889,6 +890,23 @@ retirements accumulated).
 > `param-multi-reg` entered it at 1,851 — a real construct, its widths sampled
 > (16 B ×1,810, 20 B ×24, 12 B ×6, 24 B ×6, 80 B ×6, 36 B ×1) rather than
 > assumed, after the previous count of 1 turned out to be a misread field.
+
+> **Superseded again (2026-07-30, HEAD `1caf463`) — D1, the generated empty
+> destructor.** Census **246,162 / 2,462,571 = 10.00 %** (`scan-nonleaf.jsonl`,
+> 878 TUs, same denominator, mismatch 0, codegen-gap 0, port-error 0, match 6).
+> **+17,864 functions across 828 TUs, 0 lost, 0 TUs changing class**, and
+> `expr-call-in-expr` fell **304,104 → 286,240**, which is *exactly* −17,864.
+>
+> That exactness is the finding. **No other blocker bucket moved by a single
+> function** — none grew, and only this one shrank. So unlike every previous rung
+> (`.sy`: 547 k functions cleared their first blocker and moved to their next;
+> 2117: a 149,200 bucket that yielded 32) every function this rung cleared came
+> **all the way into class**. That is what a whole-body-complete shape looks like
+> in the histogram, and it is the reason to prefer picking one.
+>
+> Still 13.6 % → 12.9 % of blocked: the bucket is the #1 entry either way, and
+> `docs/IL_CALL_IN_EXPR.md` §2 says why — 94 % of it is member calls with
+> loaded, named, chained or computed receivers, all of which need real frames.
 
 Two rows have **left** this table since the mid-day scan, and neither left by
 being fixed in the corpus sense:
