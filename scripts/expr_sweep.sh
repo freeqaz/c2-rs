@@ -100,6 +100,73 @@ for p in ['a,b,c', 'a,c,b', 'b,a,c', 'b,c,a', 'c,b,a', 'c,a,b']:
 for e in ['a+1', 'a-1', 'a+b', 'b+a', 'a-b', '1']:
     emit_raw("int g1(int);\nint f(int a,int b){return g1(%s);}\n" % e)
 
+# ---- indirect loads: deref, member, subscript ------------------------------------
+# The newest accepted class and, until now, entirely unswept. Two of its gates rest
+# on fields whose *meaning* is unproven — the `28` subscript payload is `00 00` at
+# every captured site with no known semantics, and the `2C` cv strip is treated as
+# free on the same "always observed" basis (docs/GAPS.md §6: a field the port skips
+# is indistinguishable from a field that is always the same). A co-varying semantic
+# — a scaled rather than byte index, a qualification strip that is not free — would
+# pass those gates and emit. Only the cross product separates that from safety.
+STRUCTS = (
+    "struct S1 { char a, b, c, d; };\n"
+    "struct S2 { short a, b; };\n"
+    "struct S4 { int a, b, c, d; };\n"
+    "struct S8 { double a; int b; };\n"
+    "struct A4 { int a0, a1; };\n"
+    "struct B4 { int b0, b1, b2; };\n"
+    "struct D4 : A4, B4 { int d; };\n"
+)
+# Element size x index: the axis that would expose a scaled-vs-byte index rule.
+for ty in ('int', 'unsigned', 'long', 'char', 'short', 'float', 'double', 'int*'):
+    for ix in ('0', '1', '3', '-1', '-4', '8191', '8192', '100000'):
+        emit_raw("int f(%s* p) { return (int)p[%s]; }\n" % (ty, ix))
+        emit_raw("%s f(%s* p) { return p[%s]; }\n" % (ty, ty, ix))
+# Member offsets across widths, and the same member reached by `.` and `->`.
+for st, mem in (('S1','a'),('S1','d'),('S2','a'),('S2','b'),('S4','a'),('S4','d'),
+                ('S8','a'),('S8','b')):
+    emit_raw(STRUCTS + "int f(%s* p) { return (int)p->%s; }\n" % (st, mem))
+    emit_raw(STRUCTS + "int f(%s& r) { return (int)r.%s; }\n" % (st, mem))
+# cv-qualification on the pointee: the axis the `2C` strip claims is free.
+for q in ('', 'const ', 'volatile ', 'const volatile '):
+    for ty in ('int', 'unsigned', 'char', 'short'):
+        emit_raw("int f(%s%s* p) { return (int)*p; }\n" % (q, ty))
+        emit_raw("int f(%s%s* p) { return (int)p[2]; }\n" % (q, ty))
+# Inherited members: the two literals of intrinsic 2117 must ADD, and only a member
+# at a nonzero offset inside a base at a nonzero offset separates that from
+# "whichever is nonzero".
+for mem in ('a0', 'a1', 'b0', 'b1', 'b2', 'd'):
+    emit_raw(STRUCTS + "int f(D4* p) { return p->%s; }\n" % mem)
+# Two adds chained, which must refuse rather than fold to one.
+emit_raw(STRUCTS + "int f(S4* p) { return p[2].c; }\n")
+emit_raw(STRUCTS + "int f(int** p) { return *p[1]; }\n")
+
+# ---- locals, substitution and lexical scopes ------------------------------------
+# Substitution is a *source* of operand orders and repeated leaves the written source
+# does not have, which is the exact mechanism behind the reassociation mis-emits
+# above — so the class needs sweeping for the same reason, not merely testing.
+for rhs1 in ('a', 'a+1', 'a+b', 'b+a', 'a*2', '0', '7'):
+    for rhs2 in ('x', 'x+1', 'x+a', 'a+x', 'x+x', 'x*b', 'x-a'):
+        emit_raw("int f(int a,int b){int x=%s;int y=%s;return y;}\n" % (rhs1, rhs2))
+        emit_raw("int f(int a,int b){int x=%s;x=%s;return x;}\n"
+                 % (rhs1, rhs2.replace('x', '(x)')))
+# The same, inside brace scopes at several depths, plus a close-then-continue.
+for body in ('int x=a+1;return x;', 'int x=a+1;{return x+b;}',
+             '{int x=a+1;}return a+b;', '{int x=a+1;{int y=x+b;return y;}}',
+             '{int x=a+1;}{int y=a+b;return y;}', '{}return a+1;'):
+    emit_raw("int f(int a,int b){%s}\n" % body)
+
+# ---- member functions across source lines ---------------------------------------
+# `this` is bound from the pre-body region, and locating that region by a bare byte
+# search made a member function on source line 70 emit the wrong base register
+# (fixtures/cpp/il_this_line70.cpp). Line number is therefore a real axis, and the
+# only way to sweep it is to move the definition.
+for line in range(66, 74):
+    pad = '\n'.join('// pad %d' % i for i in range(1, line - 4))
+    emit_raw("struct C { int m; int gp(int* q) const; int gv(int v,int* q) const; };\n"
+             + pad + "\nint C::gp(int* q) const { return *q; }\n"
+             "int C::gv(int v,int* q) const { return *q; }\n")
+
 print(n)
 PY
 
