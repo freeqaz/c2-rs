@@ -451,19 +451,42 @@ pub const LABEL_SEED_GAP: u32 = 9;
 pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option<[u32; 3]>> {
     let mut cur = counter + LABEL_SEED_GAP;
     if comdat {
+        // Measured exactly, on 11 TUs of 2 to 5 functions: the `/Gy` pre-pass is
+        // three slots per function, whatever kind, and it is **not** affected by
+        // floating point. Every row below is `packed + 3 * funcs.len()`.
         cur += 3 * funcs.len() as u32;
     }
+    // **One extra slot for the TU's first FP-touching function** — the `_fltused`
+    // external's slot, and the same field decides where that symbol goes
+    // (`Function::is_float`), so the two are one fact and cannot drift.
+    //
+    // This corrects a rule that was wrong from two FP functions on. It read
+    // "anything that touches floating point consumes 2", which fits one FP
+    // function and predicts 4 slots for two where c2 gives 3, and 6 for three
+    // where c2 gives 4. Measured seed-free as the *difference* between two framed
+    // functions' labels in one TU, so nothing depends on the `.gl` seed; the
+    // table is on `c2_il::IlFunction::label_slots`. Same shape as
+    // `docs/CODEGEN_FRAMED_CALLS.md` §4.4's `__savegprlr_N`/`__restgprlr_N` pair
+    // consuming **two** extra slots for its **two** externals: one slot per
+    // TU-level external.
+    let mut fltused_slot_taken = !funcs.iter().any(|f| f.is_float);
     funcs
         .iter()
-        .map(|f| match f.frame {
-            Some(_) => {
-                let n = cur;
-                cur += if comdat { 5 } else { 4 };
-                Some([n, n + 1, n + 2])
-            }
-            None => {
+        .map(|f| {
+            if f.is_float && !fltused_slot_taken {
+                fltused_slot_taken = true;
                 cur += 1;
-                None
+            }
+            match f.frame {
+                Some(_) => {
+                    let n = cur;
+                    cur += if comdat { 5 } else { 4 };
+                    Some([n, n + 1, n + 2])
+                }
+                None => {
+                    cur += 1;
+                    None
+                }
             }
         })
         .collect()

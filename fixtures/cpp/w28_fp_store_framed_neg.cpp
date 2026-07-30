@@ -1,62 +1,41 @@
-// **Negative** — an FP store leaf sharing a translation unit with a FRAMED
-// function. Every function here is individually in class, the TU as a whole must
-// refuse, and it must never mismatch.
+// **Negative** — an FP *arithmetic* leaf sharing a translation unit with a
+// framed function. The FP **store** half of this pair is byte-exact and lives in
+// `w28_fp_store_framed.cpp`; this is the part still refused, and why.
 //
-// ## The twelfth live wrong-bytes emit, and why only a merge could find it
+// A float leaf's label stride is 2 without pooled constants and 4 or 6 with
+// them, and `IlFunction` does not carry the constant count — so `label_slots`
+// reports it as **undetermined** rather than as a number that would be wrong
+// for a leaf with a constant, and the TU-level gate refuses. That is a
+// different uncertainty from the one the store leaf had: the store leaf's value
+// was *wrong*, this one is *unknown*, and the port must not answer an unknown
+// with a default.
 //
-// A framed function's `$M`/`$T` compiler labels are numbered from a counter that
-// **every** function in the TU consumes, so a function ahead of it with the
-// wrong stride makes six wrong bytes in an obj that still links.
-// `IlFunction::label_slots` gave the FP **store** leaf 1, and c2 gives it 2.
-// MEASURED as the three-way capture that separates the two rules (`/Ox /GS- /c`,
-// one leaf ahead of one framed function, reading the framed function's labels):
+// **This one is now measured, and it is still refused** — deliberately. The
+// eleven-row table in `w28_fp_store_framed.cpp` includes two rows of FP
+// *arithmetic* leaves and they follow the same rule as the stores: one slot
+// each, plus one for the TU. So the leaf below is 2 and could be admitted. What
+// admitting it needs is for `IlFunction` to carry whether a float leaf pooled a
+// constant, which is the FP seam's record and not the framed side's to
+// restructure inside a merge. Ranked as a handoff instead. The leaf *with* a
+// pooled constant stays genuinely unknown — its `.rdata` COMDAT and symbol may
+// take slots of their own, and no capture here has one ahead of a framed
+// function.
 //
-//   void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
-//   void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
-//   float lead(float a, float b){ return a * b; } $M2559 $M2560 $T2561
-//
-// The stride goes with the **register file**, not with the body shape: anything
-// that touches floating point consumes 2.
-//
-// This is the eleventh mis-emit's own field, one consumer later. `is_float` was
-// split into `touches_floating_point` (for `_fltused`) and `label_slots` was
-// left reading `float_leaf` — so the FP store leaf got the marker right and the
-// stride wrong. `docs/GAPS.md` §6 instance #2 exactly: *fixed in the one shape
-// where the bug had been found.*
-//
-// **Neither side's corpus could contain it.** The counter has an observable
-// effect only when a framed function follows, and until Class A many-calls
-// (#35 step 2) landed there was no framed shape that could share an in-class TU
-// with an FP store: the FP rung's fixtures have no framed function and the
-// framed rung's have no floating point. The pair exists only in the merge, and
-// it emitted `$M2564/$M2563/$T2565` against the reference's
-// `$M2565/$M2564/$T2566`.
-//
-// ## Why this file REFUSES rather than matching
-//
-// With the stride told truthfully, `bundle.rs`'s TU-level gate refuses — it
-// admits a framed function only when every other function in the TU has a stride
-// of exactly 1, because `coff::plan_labels` advances by 1 for every non-framed
-// function. Teaching the planner a per-function stride would admit this pair and
-// is a change to the framed side's label model, not to the FP classes; it is
-// ranked in `docs/CODEGEN_FP_ARGS.md` §5. Until then this is an honest refusal,
-// and this file is what keeps it from silently becoming an emit again.
-//
-// `c2rs census` reports every function here **in class** — that is the
-// per-function verdict, and it is correct. The refusal is at the translation
-// unit, which is where the label counter lives.
+// Both functions census **in class** — that is the per-function verdict and it
+// is correct — while the TU as a whole is `Port=NotImplemented`. The refusal
+// lives at the translation unit, which is where the label counter lives, so it
+// adds nothing to `census_gate.rs`'s recorded residual: that instrument asks the
+// *per-function* gate, and both functions pass it. The gap between the two
+// grains is the known per-TU/per-function one `docs/GAPS.md` §6 records, not a
+// new error term.
 
-struct S { int i; float f; double d; };
 void g1();
 void g2();
 
-// The FP half: a store leaf at each width, stride 2.
-void fp_store_f(S* s, float v)  { s->f = v; }
-void fp_store_d(S* s, double v) { s->d = v; }
+// The FP half: an arithmetic leaf. Measured at 2 slots like every other
+// FP-touching function, but `IlFunction::label_slots` cannot tell it from a
+// pooled-constant one, so it answers "undetermined" and the TU refuses.
+float fp_arith(float a, float b) { return a * b; }
 
-// The framed half: Class A many-calls, which consumes 4 (packed) / 5 (`/Gy`).
-void seq2()                     { g1(); g2(); }
-
-// An integer store leaf, stride 1 — the control. It is what makes this file a
-// test of the FP stride rather than of "any leaf beside a framed function".
-void int_store(S* s, int v)     { s->i = v; }
+// The framed half, which is what makes the counter observable.
+void seq2() { g1(); g2(); }

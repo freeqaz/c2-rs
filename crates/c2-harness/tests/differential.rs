@@ -208,7 +208,16 @@ fn differential_class_a_many_calls_byte_exact() {
         eprintln!("SKIP: strace/mingw absent");
         return;
     }
-    for name in ["mvp_call_seq.cpp", "mvp_call_twice.cpp", "mvp_call_seq_b.cpp"] {
+    for name in [
+        "mvp_call_seq.cpp",
+        "mvp_call_twice.cpp",
+        "mvp_call_seq_b.cpp",
+        // The cross product neither rung's corpus could contain: FP store leaves
+        // beside Class A and Class B framed functions, which is where mis-emit
+        // #12 lived and where the rule that repaired it turned out to be wrong
+        // from two FP functions on.
+        "w28_fp_store_framed.cpp",
+    ] {
         let w = work("callseq");
         let port = PortC2::default();
         let report = differential(&fixture(name), &tc, &port, &w);
@@ -503,6 +512,9 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // advances by 1 for every non-framed one. Live wrong bytes until the
         // merge that created the pair — `$M2564/$M2563/$T2565` against
         // `$M2565/$M2564/$T2566` (`docs/GAPS.md` §6 instance 12).
+        // Still refused, and for a different reason than it used to be: an FP
+        // ARITHMETIC leaf's stride is undetermined with pooled constants. The
+        // store half of this pair is byte-exact — `w28_fp_store_framed.cpp`.
         "w28_fp_store_framed_neg.cpp",
         // The FP store's own boundary: a conversion on the stored value in
         // either direction (the narrowing one is a real `frsp` through f0), a

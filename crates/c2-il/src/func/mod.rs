@@ -556,37 +556,45 @@ impl IlFunction {
         if self.float_leaf.is_some() {
             return None;
         }
-        // **Any function that touches floating point consumes 2, not 1** — the
-        // stride goes with the register file, not with the body shape.
+        // **An FP-touching function consumes 1, like any other — the extra slot
+        // belongs to the TRANSLATION UNIT, not to the function.**
         //
-        // MEASURED, as the three-way capture that separates it (`/Ox /GS- /c`,
-        // one leaf ahead of one framed function, reading the framed function's
-        // labels):
+        // Master's rule here was "anything that touches floating point consumes
+        // 2, the stride goes with the register file". That is right at **one** FP
+        // function, which is all its capture had (one leaf ahead of one framed
+        // function), and wrong from two on. Measured seed-free — two framed
+        // functions in one TU, reading the *difference* between their labels, so
+        // the `.gl` seed cancels and nothing depends on matching mangled-name
+        // lengths (`/Ox /GS- /c`, `+1` on every row under `/Gy`):
         //
         // ```text
-        //   void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
-        //   void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
-        //   float lead(float a,float b) { return a*b; }   $M2559 $M2560 $T2561
+        //   fr1;                     fr2      delta 4     leaves 0
+        //   fr1; int_store;          fr2      delta 5     leaves 1
+        //   fr1; fp_store;           fr2      delta 6     leaves 2
+        //   fr1; fp_store fp_store;  fr2      delta 7     leaves 3   <- not 4
+        //   fr1; int_store fp_store; fr2      delta 7     leaves 3
+        //   fr1; fp_store int_store; fr2      delta 7     leaves 3
+        //   fr1; int_store int_store;fr2      delta 6     leaves 2
+        //   fr1; fp_arith;           fr2      delta 6     leaves 2
+        //   fr1; fp_arith fp_arith;  fr2      delta 7     leaves 3
+        //   fr1; fp_store fp_arith;  fr2      delta 7     leaves 3
+        //   fr1; fp_store x3;        fr2      delta 8     leaves 4   <- not 6
         // ```
         //
-        // The int store leaf consumes 1 and the FP store leaf consumes 2, the
-        // same as the arithmetic leaf. Its pooled-constant cases are refused by
-        // the parser, so unlike [`Self::float_leaf`] the value here is exact.
+        // Eleven rows, one rule, zero residual: **every function consumes 1, plus
+        // one extra slot for the TU if any function touches floating point.** The
+        // extra slot is `_fltused` — the one TU-level external an FP-touching
+        // function introduces — which makes this the same rule
+        // `docs/CODEGEN_FRAMED_CALLS.md` §4.4 measured for the
+        // `__savegprlr_N`/`__restgprlr_N` pair, where **two** externals consume
+        // **two** extra slots. One slot per TU-level external, and the two facts
+        // `is_float` carries (where `_fltused` goes, and where the extra slot
+        // goes) are now the same fact rather than two readers of one field.
         //
-        // This was the **twelfth** live wrong-bytes emit and it is the eleventh's
-        // own field, one consumer later: `is_float` was split into
-        // [`Self::touches_floating_point`] for `_fltused` and this method was
-        // left reading `float_leaf`, so the FP store leaf got the marker right
-        // and the stride wrong. `GAPS.md` §6 instance #2 exactly — *fixed in the
-        // one shape where the bug had been found*.
-        //
-        // It could not be seen before Class A many-calls landed: the counter only
-        // has an observable effect when a **framed** function follows, and until
-        // then no framed shape could share an in-class TU with an FP store.
-        // Neither side's fixtures contained the pair.
-        if self.touches_floating_point() {
-            return Some(2);
-        }
+        // A per-function method cannot express a per-TU quantity, which is the
+        // structural reason the old rule could not be stated correctly here:
+        // the `+1` is applied by [`c2_core::coff::plan_labels`], which has the
+        // whole function list.
         Some(1)
     }
 }
