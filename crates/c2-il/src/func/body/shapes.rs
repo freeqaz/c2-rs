@@ -2445,10 +2445,15 @@ pub(crate) fn parse_call_shape(
     // The framed path takes a bare passthrough LOAD, which must still be a formal:
     // `int gi; g(gi) + 1` is a global read, not an argument already in r3.
     if matches!(arg_ops.as_slice(), [IlOp::Load(_)]) {
-        if !arg_loads_are_formals(&arg_ops, &parse_params(seg, lo).unwrap_or_default()) {
+        let params = parse_params(seg, lo)?;
+        if !arg_loads_are_formals(&arg_ops, &params) {
             return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
         }
-        return Ok(BodyShape::FramedCall { add_k: k, callee_tok });
+        // The formals list is carried, not dropped: the argument is *a* formal
+        // but not necessarily the one already in r3, and c2 emits `or r3,rN,rN`
+        // when it is not. Dropping the list here is how that word went missing
+        // — see `c2_core::codegen::framed_call_text`.
+        return Ok(BodyShape::FramedCall { add_k: k, callee_tok, params, arg_ops });
     }
     Err(Block { ctx: "framed-computed-arg", byte: None, off: *p, aux: 0 })
 }

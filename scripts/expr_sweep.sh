@@ -1107,6 +1107,36 @@ for r in FRAMED_REFUSERS:
     emit_raw('int g(int);\nint F1(int a) { return g(a) + 1; }\n%s\n'
              'int F2(int a) { return g(a) + 2; }\n' % r)
 
+# 5. THE FRAMED CALL'S ARGUMENT REGISTER — the axis every case above holds
+#    fixed. `framed_fn` is `int F(int a) { return g(a) + 1; }`: one parameter,
+#    necessarily in r3, so the argument's *index* and its *register* were the
+#    same number in all 363 framed cases and in every framed fixture. c2 emits
+#    `or r3,rN,rN` when they differ and the port emitted nothing — a live
+#    wrong-bytes emit found 2026-07-30 by compiling the neighbours rather than
+#    by any instrument (`docs/GAPS.md` §6). Two things shift the register: the
+#    argument's position among the formals, and the ABI footprint of whatever
+#    precedes it — including a leading `float`/`double`/`long long`, which take
+#    a GPR slot each on this ABI even though they are passed elsewhere.
+for nf in range(1, 6):
+    ps = ', '.join('int p%d' % i for i in range(nf))
+    for i in range(nf):
+        emit_raw('int g(int);\nint F(%s) { return g(p%d) + %d; }\n' % (ps, i, i + 1))
+        # …and with a leaf ahead of it, so the `bl` displacement and the label
+        # counter move at the same time as the argument register.
+        emit_raw('int g(int);\nint L(int a) { return a + 1; }\n'
+                 'int F(%s) { return g(p%d) + %d; }\n' % (ps, i, i + 1))
+FRAMED_ARG_LEADERS = ['float x', 'double x', 'long long x', 'int *x', 'char x',
+                      'short x', 'unsigned x', 'float x, float y', 'int *x, int *y']
+for lead in FRAMED_ARG_LEADERS:
+    emit_raw('int g(int);\nint F(%s, int a) { return g(a) + 1; }\n' % lead)
+    emit_raw('int g(int);\nint F(%s, int a, int b) { return g(b) + 1; }\n' % lead)
+# Member functions: `this` is r3, so every formal is shifted by one.
+for nf in range(1, 4):
+    ps = ', '.join('int p%d' % i for i in range(nf))
+    for i in range(nf):
+        emit_raw('int g(int);\nstruct S { int m; int F(%s); };\n'
+                 'int S::F(%s) { return g(p%d) + %d; }\n' % (ps, ps, i, i + 1))
+
 
 print(n)
 PY

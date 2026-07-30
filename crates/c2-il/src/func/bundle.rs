@@ -398,18 +398,17 @@ pub(crate) fn shape_to_function(
                     arg_sources: Some(arg_sources),
                 })
             }
-            // The framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
-            // `.pdata` with compiler label symbols ($M2545/$M2546/$T2547)
-            // whose counters are a fixed toolchain seed for the first
-            // function and shift once preceding functions consume slots
-            // (W-UNW-1, docs/CODEGEN_PPC_MVP.md), so a multi-function TU
-            // containing one would be mis-numbered.
-            BodyShape::FramedCall { add_k, callee_tok } => {
+            // A framed non-leaf call. `params`/`ops` carry the call ARGUMENT (a
+            // bare LOAD of one formal), because the argument register move
+            // `or r3,rN,rN` is a function of that formal's position — the same
+            // job, and the same `select_text` locator, as the integer tail
+            // call's argument setup.
+            BodyShape::FramedCall { add_k, callee_tok, params, arg_ops } => {
                 Some(IlFunction {
                     mangled_name: name.to_string(),
                     source_path: src.clone(),
-                    params: Vec::new(),
-                    ops: Vec::new(),
+                    params,
+                    ops: arg_ops,
                     tail_call: None,
                     framed_call: Some(FramedCall {
                         callee: resolve(callee_tok)?,
