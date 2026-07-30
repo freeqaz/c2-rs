@@ -173,6 +173,13 @@ impl PortC2 {
     /// compiling `<class> ; int F(int a){return g(a)+1;}` and reading `F`'s
     /// labels out of the reference obj against the `.gl` seed
     /// (`docs/OBJ_GY_SHAPES.md` §3.5).
+    ///
+    /// It over-refuses, and by a measured amount: the comparison stride is not
+    /// uniform over the relation (`a == b` and `a < 0` consume 1, `a < b` and
+    /// `a >= b` consume 3) and this gate keys on the class, not the relation. On
+    /// the generated sweep that is 6 of 21 framed-plus-refuser cases refused
+    /// unnecessarily. The cost is a refusal, never a wrong byte, and closing it
+    /// means a stride table per relation and operand type.
     fn frame_label_counter(
         il: &IlBundle,
         funcs: &[c2_il::IlFunction],

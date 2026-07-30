@@ -407,6 +407,14 @@ the "1" block is one `PortC2` emits; every class below it is refused whenever a
 framed function shares the TU (`PortC2::frame_label_counter`), because a stride
 error of one is six wrong bytes in an obj that still links.
 
+**The gate's over-refusal, sized rather than left as a rumour.** It keys on "is
+this a comparison or floating-point leaf", not on the relation, so the two
+comparison forms that *do* consume 1 (`a==b`, `a<0`) are refused with the ones
+that consume 3. On the generated sweep that is **6 of the 21 framed-plus-refuser
+cases** — the other 15 need the gate. Relaxing it means measuring the stride per
+relation and per operand type, which is a table this rung did not need; the cost
+is a refusal, never a wrong byte.
+
 Still not determined, and therefore still refused rather than guessed:
 
 * the stride of every *decoded but not emitted* class — control flow, locals,
