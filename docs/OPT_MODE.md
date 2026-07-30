@@ -374,3 +374,95 @@ is indistinguishable from a byte that is always the same. Every fixed-width fiel
 the port steps over is a candidate for this — the same shape as the source-line
 marker that turned out to carry a varint payload, and the aggregate TYPE that
 `read_type` still mis-reads (`IL_TYPE_TAGS.md` §1).
+
+## 6. The `0x4` bit: `fp_contract`, and `00200001` — RESOLVED 2026-07-30
+
+§2.1 left the low nibble unexplained ("the low nibble is `5` everywhere except
+`#pragma optimize("", off)`, which gives `4`. Not explained."). The census then
+found a real-workload bucket the port refuses on this ground alone:
+**`opt-mode-00200001`, 202 functions and 136 of the calls-0 population**, all in
+`HamRibbon.cpp` and `Ribbon.cpp`.
+
+### 6.1 The encoding is a varint, not a fixed `80 <LE32>`
+
+§1 records the form as `4F 1F 80 <LE32 word>`. That is the *long* branch of the
+IL varint (`CODEGEN_PPC_MVP.md` W3): a word below `0x80` is a single byte.
+
+```
+  #pragma optimize("", off) at /O1 -> 4f 1f 04 4f 20 80 fe 00 …
+                                            ^^ the whole word, = 0x00000004
+```
+
+Anything scanning for the literal `4F 1F 80` misses these functions entirely.
+
+### 6.2 Each bit, measured one at a time
+
+`int f(int a){return a+1;}`, varying exactly one thing:
+
+| variation | word |
+|---|---|
+| `/O1` | `00200005` |
+| `/Ox` | `00a00005` |
+| `/Od` | `00800005` |
+| `/O1 /Og-` | `00000005` |
+| `/O1` + `#pragma optimize("g",off)` | `00000005` |
+| `/O1` + `#pragma optimize("",off)` | `00000004` |
+| `/O1` + `#pragma optimize("s",off)` | `00a00005` |
+| `/O1` + **`#pragma fp_contract(off)`** | **`00200001`** |
+| `/Ox` + `#pragma fp_contract(off)` | `00a00001` |
+| `/O1 /Ob0`, `/O1 /Oy-`, `/O1 /EHsc` | `00200005` (unmoved) |
+| `/O1` + `#pragma inline_depth(0)`, `auto_inline(off)`, `function(memcpy)` | `00200005` (unmoved) |
+| `/O1` + `optimize("t"/"y"/"a"/"w"/"p", off)` | `00200005` (unmoved) |
+
+So:
+
+* `0x00200000` = **global optimizations on** (`/Og`; cleared by `/Og-` and by
+  `optimize("g",off)`) — which sharpens §2.1's "optimizations enabled".
+* `0x00800000` = favour speed (unchanged reading).
+* `0x00000004` = **floating-point contraction enabled** (`#pragma fp_contract`).
+* `0x00000001` = still unexplained; only `optimize("",off)` clears it.
+
+The pragma is **per function**, not per TU — a mid-file
+`#pragma fp_contract(off)` gives `00200005 00200001` for the two functions in
+source order, which is the refutation of "it is a TU-level flag that the word
+happens to carry".
+
+### 6.3 `00200001` is `/O1` and existing `/O1` codegen already matches it
+
+The pragma sits at `src/system/hamobj/HamRibbon.cpp:139` and
+`src/system/rndobj/Ribbon.cpp:271` in the dc3 tree — two lines that account for
+the whole 202-function bucket.
+
+Its only effect on emitted bytes is that a `*` feeding a `+`/`-` stops fusing:
+
+```
+float f(float a,float b,float c){ return a*b+c; }
+  contract on   ec2118ba 4e800020                    fmadds f1,f1,f2,f3 ; blr
+  contract off  ec0100b2 ec20182a 4e800020           fmuls  f0,f1,f2 ; fadds f1,f0,f3 ; blr
+```
+
+Compiled against the **whole fixture corpus** at `/O1`, with and without the
+pragma prepended, comparing the concatenated `.text` raw bytes of every COMDAT:
+
+```
+identical .text: 129   differing: 1
+differing fixture: w13_fneg
+```
+
+`w13_fneg` is the fixture whose entire purpose is FMA contraction
+(`CODEGEN_W13_FLOAT.md` N1) — its `n_fma`, `n_fms`, `n_fnms`, `n_fma2`,
+`n_dfma2`, `n_fma_tree`, `n_rank` and `n_spill` all change; every non-contracting
+function in it (`n_k_add`, `n_self_add`, `n_div_k`, `n_i2f`, `n_f2i`,
+`n_plus_zero`, …) is byte-identical.
+
+> **`00200001` should be accepted as `/O1`.** Every class the port emits today
+> is byte-identical under it, because `codegen.rs`'s contraction guard already
+> refuses "an FP expression mixing `*` with `+`/`-`" as out of class — the exact
+> and only set of bodies the bit changes. Accepting the word cannot turn a
+> refusal into a wrong byte for any currently-emitted class; it can only turn a
+> refusal into a match.
+>
+> The one thing an implementation must **not** do is treat `0x4` as ignorable
+> when the FP-contraction rung is eventually built: with the bit clear the
+> correct lowering for `a*b+c` is `fmuls`+`fadds`, and a contracting emitter
+> would produce a valid, wrong, `fuzzy`-invisible `fmadds`.
