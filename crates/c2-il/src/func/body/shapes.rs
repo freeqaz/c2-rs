@@ -510,6 +510,15 @@ fn parse_this_token(seg: &[u8], lo: usize) -> Option<u32> {
 /// Returns `None` — cursor untouched — for anything that is not exactly this
 /// shape.
 pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    // A member inherited from a **base class** does not use the `27` offset-add
+    // below; c1xx routes it through intrinsic **2117 `base-member-addr`**, which
+    // computes the same address and is the single largest decode bucket in the
+    // family (6.3% of blocked functions). Try that designator first — it is
+    // anchored on a literal `33`, where the plain form is anchored on `B9`, so the
+    // two cannot be confused.
+    if let Some(shape) = try_parse_base_member_load(seg, start, lo) {
+        return Some(shape);
+    }
     let mut p = start;
 
     // The base pointer LOAD.
@@ -558,6 +567,24 @@ pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) 
         off = k;
         p = probe;
     }
+    finish_indirect_load(seg, p, lo, base_tok, off)
+}
+
+/// The tail shared by both indirect-load designators (the plain `27`/`28` offset
+/// add and the intrinsic-2117 `base-member-addr` form): the `30` load, an optional
+/// cv strip, the result type, the return plumbing, and binding the base pointer to
+/// its argument register.
+///
+/// Factored out rather than duplicated because the two designators compute the
+/// *same* address by different routes and must lower identically; two copies of
+/// this tail would be two places for the `lwz` displacement bound to drift.
+fn finish_indirect_load(
+    seg: &[u8],
+    mut p: usize,
+    lo: usize,
+    base_tok: u32,
+    off: i32,
+) -> Option<BodyShape> {
     if !(-0x8000..=0x7FFF).contains(&off) {
         return None;
     }
@@ -609,6 +636,148 @@ pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) 
         params,
         ops: vec![IlOp::Load(base_tok), IlOp::LoadInd { off }],
     })
+}
+
+/// The intrinsic-**2117** (`base-member-addr`) designator: reading a member that
+/// the object inherits from a non-virtual base.
+///
+/// `p->d` for a member declared directly in `D` uses the ordinary `27` offset-add
+/// in [`try_parse_indirect_load_leaf`]. A member inherited from a base does not —
+/// c1xx emits an intrinsic call whose three arguments are `(0, base_offset, p)`:
+///
+/// ```text
+///   33 <int> 80 45 08 00 00       LITERAL 2117 — the selector, always the wide form
+///   40 <ptr>                      intrinsic call, result type a pointer
+///   66 <n> <n × 2-byte type ref>  argument-region header (see below)
+///   55 <int>                      selector argument terminator
+///   33 <int> <m>     55 <int>     arg 1 — the member's offset WITHIN THE BASE
+///   33 <int> <b>     55 <int>     arg 2 — the BASE's offset within the object
+///   B9 <tok> <ptr>   55 <ptr>     arg 3 — the object pointer
+///   4C                            call end
+/// ```
+///
+/// **The address is `p + m + b`** — the two literals *add*. Established by the
+/// witness that separates a sum from "whichever one is nonzero", since every
+/// simpler case has one of them zero:
+///
+/// ```text
+///   struct A { int a0, a1; }; struct B { int b0, b1, b2; }; struct D : A, B {};
+///   p->b2   args (8, 8)   ->  lwz r3,0x10(r3)     16 = 8 + 8   <- both nonzero
+///   p->b0   args (0, 8)   ->  lwz r3,8(r3)
+///   p->a1   args (4, 0)   ->  lwz r3,4(r3)
+/// ```
+///
+/// then the identical `30`/`41`/return tail as the `27` form, which is why this
+/// hands back the same [`BodyShape::IndirectLoad`] and needs no new codegen: the
+/// address is `p + off`, and the load of it is `lwz rD, off(rB)` either way.
+/// Verified against captures —
+///
+/// ```text
+///   struct A { int a; }; struct B { int b; }; struct D : A, B { int d; };
+///   p->a  (A at 0)   80630000   lwz r3,0(r3) ; blr      <- 2117, off 0
+///   p->b  (B at 4)   80630004   lwz r3,4(r3) ; blr      <- 2117, off 4
+///   p->d  (at 8)     80630008   lwz r3,8(r3) ; blr      <- the `27` form
+/// ```
+///
+/// — so the port already emitted the third of those byte-exactly and refused the
+/// first two purely on the decode.
+///
+/// Fail-closed specifics:
+///
+/// * the selector must be **exactly** 2117 in its wide five-byte form. 2113–2119
+///   are seven different operations and only this one is an unguarded
+///   `base + constant`; 2114/2115 add a null guard, 2116/2118 go through a
+///   vbtable, 2119 is a runtime call (`docs/IL_INTRINSIC_CALL.md`).
+/// * the argument-region header is `66 <n>` followed by *n* two-byte type
+///   references, and is skipped **structurally** rather than matched as a
+///   constant. `n` is 2 for a single inheritance step and 3 for two
+///   (`struct E : D`, `D : A, B` — `66 03 89 20 83 20 80 20`), so a fixed
+///   six-byte match silently refused every multi-level case. The refs themselves
+///   are not decoded; nothing downstream needs them, and the *value* arguments
+///   that follow are what carry the address.
+/// * the two offsets are summed with `checked_add`, and the sum must fit the `lwz`
+///   16-bit displacement — checked by the shared tail, so a class large enough to
+///   overflow it refuses instead of wrapping.
+fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    /// `33 <int-like> 80 45 08 00 00` — the selector literal, wide form.
+    const SELECTOR_2117: [u8; 5] = [0x80, 0x45, 0x08, 0x00, 0x00];
+    /// Longest argument-header type list accepted. Two witnesses (`n` = 2 and 3)
+    /// bound what is understood; a deeper list is refused rather than skipped on
+    /// the assumption that the shape keeps repeating.
+    const MAX_HEADER_REFS: u8 = 3;
+
+    let mut p = start;
+    // The selector, pushed as an int literal.
+    if !eat_byte(seg, &mut p, 0x33) || !eat_int_like(seg, &mut p) || !eat(seg, &mut p, &SELECTOR_2117)
+    {
+        return None;
+    }
+    // The intrinsic-call marker; its result is the member's address.
+    if !eat_byte(seg, &mut p, 0x40) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !is_ptr_to_4(tag, kind) {
+        return None;
+    }
+    p += tw;
+    // The argument header: `66 <n>` then n two-byte type references, skipped
+    // structurally so a second inheritance step (n = 3) parses like the first.
+    if !eat_byte(seg, &mut p, 0x66) {
+        return None;
+    }
+    let n_refs = *seg.get(p)?;
+    if n_refs == 0 || n_refs > MAX_HEADER_REFS {
+        return None;
+    }
+    p += 1 + 2 * n_refs as usize;
+    if p > seg.len() {
+        return None;
+    }
+    // Each argument is `<value> 55 <its type>`.
+    if !eat_byte(seg, &mut p, 0x55) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    // arg 1 — the member's offset within its base.
+    if !eat_byte(seg, &mut p, 0x33) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    let member_off = read_varint(seg, &mut p)?;
+    if !eat_byte(seg, &mut p, 0x55) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    // arg 2 — the base's offset within the object. The address is the sum.
+    if !eat_byte(seg, &mut p, 0x33) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    let base_off = read_varint(seg, &mut p)?;
+    let off = member_off.checked_add(base_off)?;
+    if !eat_byte(seg, &mut p, 0x55) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    // arg 3 — the object pointer.
+    if !eat_byte(seg, &mut p, 0xB9) {
+        return None;
+    }
+    let (base_tok, w) = read_token_var(seg, p)?;
+    p += w;
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !is_ptr_to_4(tag, kind) {
+        return None;
+    }
+    p += tw;
+    if !eat_byte(seg, &mut p, 0x55) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !is_ptr_to_4(tag, kind) {
+        return None;
+    }
+    p += tw;
+    if !eat_byte(seg, &mut p, 0x4C) {
+        return None;
+    }
+    finish_indirect_load(seg, p, lo, base_tok, off)
 }
 
 /// Try to parse a **W6 comparison leaf** body: `return <formal> <rel> <k>;`.

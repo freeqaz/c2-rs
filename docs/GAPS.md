@@ -1082,6 +1082,17 @@ The rules that keep the numbers honest:
   against a bucket, read the hexdump `c2rs census` prints for it (or dump the
   bytes at the recorded offset with `--keep-il`) and confirm the parse arrived
   there **aligned**.
+- **A bucket's size is not the number of functions fixing it unlocks.** The
+  census records where a parse *stops*, so a bucket counts functions whose
+  **first** blocker is that feature — not functions with nothing else in the way.
+  Decoding intrinsic 2117 `base-member-addr`, a 6.3 % / 149,200-function bucket,
+  moved exactly **32** functions in class, and the blocker histogram showed no
+  other bucket growing: the rest of that 149,200 still stop at the same feature
+  because the decode landed in the indirect-load *leaf* recognizer and their
+  bodies are not leaves. A bucket is an upper bound on the win and often a very
+  loose one. Before scheduling against a percentage, ask which *shape* the fix
+  lands in and how many of the bucket's functions are that shape — or measure the
+  delta on one TU first.
 - **A guessed name is worse than a hex bucket — this has now happened three
   times.** (1) The relational opcode labels were inferred from numeric order
   and three of six were wrong. (2) `call-anchor-*` named a structure that did
