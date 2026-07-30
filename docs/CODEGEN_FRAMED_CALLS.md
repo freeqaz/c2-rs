@@ -494,14 +494,32 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
 
 ## 6. What refused to yield a rule
 
-* **Which values become callee-saved, and in what order.** §3.1 describes the
-  discipline (descending from r31, parameters in order then results, reuse on
-  death) but that is a *description of an allocator*, not a closed-form rule,
-  and `nSaved` is an input to the frame formula. Every claim in §1 is
-  conditional on `nSaved` being known; the sweep reads it out of the emitted
-  code rather than predicting it. **A step-2 implementation needs a liveness
-  pass before it needs the frame formula, and the frame formula is the easy
-  half.**
+* **Which values become callee-saved, and in what order** — ~~unmodeled~~
+  **CLOSED for the call-sequence body, 2026-07-30** (`docs/ROADMAP.md` §6l).
+  The rule is: *a formal read by any call after the first is copied into a
+  callee-saved register, and the file is allocated descending from r31 in
+  **parameter** order.* §3.1's description could equally have meant first-use
+  order — every probe here has the two coinciding — and the separating capture
+  is `void f(int a,int b,int c){ v1(a); v2(c); v3(b); }`, whose prologue and
+  both `mr` saves are **byte-identical** to `{ v1(a); v2(b); v3(c); }`'s and
+  differ only in which one each later call reads back. A formal the *first*
+  call reads as well is still saved (`{ v1(a); v2(a); }` emits `mr r31,r3`
+  before a `bl` whose argument is already in r3). Implemented for
+  `nGPRsaved ∈ {1,2}`; three live values are the §2.3 helper class and are
+  refused. Call **results** are still only described, not ruled: this grammar
+  cannot reach one (a result is discarded or is the tail), so §3.1's
+  "parameters in order then results" is confirmed by capture and unexercised by
+  code.
+* **Where the save moves go when the first call also marshals arguments.**
+  Two rules, both measured: a save whose source register the marshalling
+  overwrites is hoisted in front of the *whole* marshalling (not merely before
+  the writer — `{ g3(a,d,e); v1(b); }` refutes that), one whose source it
+  leaves alone trails it. And a **non-identity permutation is a third rule
+  again**: when a permuted argument's value is also callee-saved, c2 breaks the
+  cycle through the callee-saved register and emits **no `r11` at all** —
+  `{ g2(b,a); v1(a); v2(b); }` is `mr r30,r4 ; mr r31,r3 ; mr r4,r3 ;
+  mr r3,r30`. Which saved register is the temp when several are saved is not
+  determined by the three captures available. Refused, not fitted.
 * **The spill regime.** Past 18 saved GPRs the frame grows by an amount this
   measurement does not model (39/480 cases, §1.3). Not chased — the workload's
   calls-0 population is nowhere near that pressure.
@@ -560,10 +578,15 @@ Sized by what each rung needs that the previous one did not:
 3. **`nOutSlots > 8` and addressed locals** (§1.2). Frame arithmetic only; the
    prologue is unchanged. This is where the `align16` terms start to matter and
    where a wrong model is a wrong `stwu` immediate — one byte, silent.
-4. **Class B (1–2 saved GPRs)** (§2.2). Needs the liveness answer, which is the
-   real cost of the whole step. Stop here for a first cut: it covers "a call
-   result live across another call" with a fixed, two-instruction prologue
-   delta.
+4. ~~**Class B (1–2 saved GPRs)** (§2.2)~~ — **DONE 2026-07-30**
+   (`docs/ROADMAP.md` §6l, fixtures `mvp_call_seq_b.cpp` / `_neg.cpp`). The
+   liveness answer was indeed the whole cost; the frame arithmetic and the
+   prologue words were already general and unit-pinned. It is worth **2
+   functions** on the dc3 workload — measured by counterfactual *before* the code
+   was written, and again with the tail-literal gate lifted in case that was
+   masking it, both times 2. The rung is ladder, not numerator. The `/Gy` label
+   stride is **unchanged at 5**: saved registers do not enter the counter, though
+   §4.4's helper pair does.
 5. **Class C (≥3 saved GPRs)** (§2.3) — needs the helper externals, the tail-branch
    epilogue *and* the +2 label stride of §4.4 at the same time. It is the first
    rung where getting the symbol table right is as much work as getting the code
