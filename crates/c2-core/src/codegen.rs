@@ -84,6 +84,55 @@ pub fn encode_blr() -> [u8; 4] {
     0x4E80_0020u32.to_be_bytes()
 }
 
+/// `lwz rD, D(rA)` — load a 32-bit word: primary opcode 32.
+///
+/// The constants are transcribed from raw captures rather than derived:
+/// `int f(int* p){return *p;}` is `80630000`, `int f(int a,int* p){return *p;}`
+/// is `80640000`, `s->d` (offset 16) is `80630010`, `p[-1]` is `8063fffc` and
+/// `p[8000]` is `80637d00`. See `docs/IL_EXPR_LAYER.md` §3.
+pub fn encode_lwz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (32 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// Lower an **indirect-load leaf** — `return *p;` / `return s->m;` /
+/// `return p[k];` / `return mMember;` — to `lwz r3, off(rBase)` + `blr`.
+///
+/// Recognized by an **exact** two-op stream `[Load(base), LoadInd { off }]`,
+/// which `c2_il::try_parse_indirect_load_leaf` is the only producer of. Returns
+/// `None` for anything else so the ordinary selector keeps its behaviour
+/// unchanged; the pattern is deliberately not a prefix match, because c2 does
+/// *not* lower a load that feeds arithmetic this way — `*p + 1` puts the loaded
+/// value in the scratch register (`lwz r11,0(r3) ; addi r3,r11,1`) and `*p * 3`
+/// is strength-reduced (`lwz r11 ; slwi r10,r11,1 ; add r3,r11,r10`).
+///
+/// `func.params` maps the base token to its incoming argument register by
+/// declaration order, with a member function's `this` already at index 0.
+pub fn indirect_load_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>> {
+    let (base_tok, off) = match func.ops.as_slice() {
+        [IlOp::Load(t), IlOp::LoadInd { off }] => (*t, *off),
+        _ => return None,
+    };
+    let d = match i16::try_from(off) {
+        Ok(d) => d,
+        // The parser gates this; if it ever changed, refuse rather than truncate.
+        Err(_) => return Some(Err(out_of_class("indirect load offset exceeds a 16-bit displacement"))),
+    };
+    let base = match func.params.iter().position(|&t| t == base_tok) {
+        Some(i) if i < ARG_REGS.len() => ARG_REGS[i],
+        _ => {
+            return Some(Err(out_of_class(
+                "indirect load whose base is not a register argument",
+            )))
+        }
+    };
+    let mut text = Vec::with_capacity(8);
+    text.extend_from_slice(&encode_lwz(RET_REG, base, d));
+    text.extend_from_slice(&encode_blr());
+    Some(Ok(text))
+}
+
 // ---- W6: comparison → boolean materialization encoders ---------------------
 //
 // c2 materializes integer comparisons **branchlessly** — it emits no
@@ -518,7 +567,7 @@ pub fn float_leaf_text(
                     IlOp::Sub => text.extend_from_slice(&encode_fsub(double, dest, lhs, rhs)),
                     IlOp::Mul => text.extend_from_slice(&encode_fmul(double, dest, lhs, rhs)),
                     IlOp::Div => text.extend_from_slice(&encode_fdiv(double, dest, lhs, rhs)),
-                    IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. } => {
+                    IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. } | IlOp::LoadInd { .. } => {
                         unreachable!("not a binary op")
                     }
                 }
@@ -876,6 +925,24 @@ pub fn compare_leaf_text(cmp: &c2_il::CompareLeaf) -> Result<Vec<u8>, BackendErr
              the extra temp slot it consumes; not characterized",
         )
     })?;
+    // Only the `==`/`!=` spines form `a - k` as `addi r11,a,-k`, so only they need
+    // `-k` to fit the immediate — and at `k == i16::MIN` it does not, because
+    // negating it overflows. The port emitted a wrong immediate there.
+    //
+    // Scoped to those two relations deliberately: `<`, `<=`, `>` and `>=` reach
+    // spines that never negate `k` and are correct at the boundary. `w6_rel_k.cpp`
+    // tests `a <= -32768` and passes, which is exactly why the bug survived — that
+    // fixture probes every relation, and both i16 boundaries, but never a
+    // vulnerable relation *at* a boundary. A generated sweep over the cross product
+    // found it at once.
+    let negatable = k16.checked_neg().is_some();
+    let needs_negation = matches!(cmp.rel, Rel::Eq | Rel::Ne);
+    if needs_negation && !negatable {
+        return Err(out_of_class(
+            "`==`/`!=` against i16::MIN: the difference spine needs `addi a,-k`, and \
+             -(-32768) does not fit the immediate; out of class",
+        ));
+    }
 
     match (cmp.rel, cmp.signed) {
         // `a == k` → difference, then "is it zero".
@@ -1214,6 +1281,16 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
             // divisor strength-reduces to a multiply-high). FP division reaches
             // `float_leaf_text` instead and never gets here.
             IlOp::Div => return Err(out_of_class("integer division; out of class")),
+            // An indirect load only ever appears as the whole body of an
+            // indirect-load leaf, which `indirect_load_text` owns. Reaching the
+            // affine selector would mean lowering `*p` as if it were a register
+            // operand — and c2 does not: the load lands in the scratch register
+            // and the arithmetic reads it from there.
+            IlOp::LoadInd { .. } => {
+                return Err(out_of_class(
+                    "indirect load feeding arithmetic; out of class",
+                ))
+            }
             IlOp::Add | IlOp::Sub | IlOp::Mul => {
                 // Binary op: pop rhs then lhs.
                 let rhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (rhs)"))?;
@@ -1290,12 +1367,29 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     let last = plan.len().saturating_sub(1);
     let mut next_scratch: u8 = SCRATCH_REG;
     let mut prev_reg: u8 = SCRATCH_REG;
+    // The accumulator decision is made once for the WHOLE chain, not per operation.
+    // If the chain contains any addition, every intermediate reuses r11 — including
+    // the subtractions ahead of that addition. Only a chain with no addition at all
+    // gives each intermediate its own descending register.
+    //
+    // Deciding per-operation instead was a mis-emit found by the generated 4-leaf
+    // sweep (270 cases): `a + b - c - d` emits `subf r11,r5,r3 ; subf r11,r6,r11 ;
+    // add r3,r11,r4` — r11 twice, even though both of those are subtractions —
+    // against `a - b - c - d`, which really does descend
+    // `subf r11 ; subf r10 ; subf r3`. The two rules coincide at one intermediate,
+    // which is why every 3-leaf chain matched and only 4 leaves exposed it.
+    let chain_has_add = plan
+        .iter()
+        .any(|e| matches!(e, PlanOp::Bin { op: IlOp::Add, .. } | PlanOp::AddImm { .. }));
     for (i, entry) in plan.iter().enumerate() {
         let dest = if i == last {
             RET_REG
+        } else if chain_has_add {
+            SCRATCH_REG
         } else {
             match entry {
-                // Additive accumulation reuses the accumulator register.
+                // Unreachable while `chain_has_add` is false, but keeps the arm
+                // exhaustive and the intent local.
                 PlanOp::Bin { op: IlOp::Add, .. } | PlanOp::AddImm { .. } => SCRATCH_REG,
                 _ => {
                     let d = next_scratch;
@@ -1333,7 +1427,11 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
                     IlOp::Sub => text.extend_from_slice(&encode_subf(dest, r, l)),
                     // `combine` never records a Div plan entry (it rejects
                     // first), so reaching here would be an internal error.
-                    IlOp::Div | IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. } => {
+                    IlOp::Div
+                    | IlOp::Load(_)
+                    | IlOp::Lit(_)
+                    | IlOp::FpLit { .. }
+                    | IlOp::LoadInd { .. } => {
                         unreachable!("not a modeled integer binary op")
                     }
                 }
@@ -1419,7 +1517,7 @@ fn combine(
         )),
 
         (IlOp::Div, _, _) => Err(out_of_class("integer division; out of class")),
-        (IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. }, _, _) => {
+        (IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. } | IlOp::LoadInd { .. }, _, _) => {
             unreachable!("not a binary op")
         }
     }
@@ -1439,6 +1537,55 @@ mod tests {
     #[test]
     fn encode_blr_is_fixed() {
         assert_eq!(encode_blr(), [0x4E, 0x80, 0x00, 0x20]);
+    }
+
+    #[test]
+    fn encode_lwz_matches_reference_words() {
+        // Transcribed from the reference obj of fixtures/cpp/il_expr_deref.cpp and
+        // il_expr_member.cpp — not derived from the encoding rule.
+        assert_eq!(encode_lwz(3, 3, 0), [0x80, 0x63, 0x00, 0x00]); // *p          , p in r3
+        assert_eq!(encode_lwz(3, 4, 0), [0x80, 0x64, 0x00, 0x00]); // *p          , p in r4
+        assert_eq!(encode_lwz(3, 5, 0), [0x80, 0x65, 0x00, 0x00]); // *p          , p in r5
+        assert_eq!(encode_lwz(3, 3, 4), [0x80, 0x63, 0x00, 0x04]); // s->b
+        assert_eq!(encode_lwz(3, 3, 16), [0x80, 0x63, 0x00, 0x10]); // s->d
+        assert_eq!(encode_lwz(3, 3, 12), [0x80, 0x63, 0x00, 0x0C]); // p[3]
+        assert_eq!(encode_lwz(3, 3, -4), [0x80, 0x63, 0xFF, 0xFC]); // p[-1]
+        assert_eq!(encode_lwz(3, 3, 32000), [0x80, 0x63, 0x7D, 0x00]); // p[8000]
+        assert_eq!(encode_lwz(3, 4, 8), [0x80, 0x64, 0x00, 0x08]); // int f(int a,S* s){return s->c;}
+    }
+
+    #[test]
+    fn indirect_load_text_is_one_lwz_and_a_blr() {
+        let mut f = IlFunction {
+            mangled_name: "?ld_p@@YAHPAH@Z".into(),
+            source_path: None,
+            params: vec![0xEE09],
+            ops: vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }],
+            tail_call: None,
+            framed_call: None,
+            compare: None,
+            empty_body: false,
+            float_leaf: None,
+            arg_sources: None,
+        };
+        assert_eq!(
+            indirect_load_text(&f).unwrap().unwrap(),
+            vec![0x80, 0x63, 0x00, 0x00, 0x4E, 0x80, 0x00, 0x20]
+        );
+        // The base's register comes from its position in `params`, which is where a
+        // member function's `this` sits at index 0.
+        f.params = vec![0x1234, 0xEE09];
+        f.ops = vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 4 }];
+        assert_eq!(
+            indirect_load_text(&f).unwrap().unwrap(),
+            vec![0x80, 0x64, 0x00, 0x04, 0x4E, 0x80, 0x00, 0x20]
+        );
+        // Anything that is not EXACTLY `[Load, LoadInd]` is not this shape: c2 does
+        // not lower a load that feeds arithmetic as a destination-register load.
+        f.ops = vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }, IlOp::Lit(1), IlOp::Add];
+        assert!(indirect_load_text(&f).is_none());
+        // …and the affine selector must refuse it rather than pick a register.
+        assert!(select_text(&f).is_err());
     }
 
     #[test]
