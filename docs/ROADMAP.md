@@ -2568,6 +2568,32 @@ generated count and the `.cpp` count on disk all compared, not assumed equal:
 **5,868 / 5,868 / 5,868** at the merge, then **5,922** once the FP-beside-framed
 cross product was added.
 
+### Merged-tree gate
+
+Corpus `dc3-decomp` **`05ca6d09`**, wibo **1.0.1-23**, `cl.exe`/`c2.dll`
+16.00.11886.00 — all from provenance record 0 of
+`work/dc3-workload/scan-merged2.jsonl`.
+
+| lane | master `9ec4871` | merged |
+|---|---|---|
+| `cargo test --workspace --release` | 398 + step 2 | **407 pass**, 0 fail |
+| `c2rs bench` | 148 | **152 pass / 0 fail / 0 error** |
+| `mode_lane.sh /Ox` | 68 | **71 match, 0 mismatch**, 0 codegen-gap |
+| `/O1` · `/O2` · `/Ox /Gy` | 66 | **69 match, 0 mismatch**, 2 codegen-gap |
+| `scripts/expr_sweep.sh` | 5,868 | **5,922 cases** (printed = generated = on disk), mismatches **0** |
+| 878-TU scan | 474,103 | **483,240**/2,462,571 (**19.62 %**), mismatch 0, disagreement **0**, 578 keys |
+| cache validator | — | 17 re-captured and agreed, **0 POISONED** |
+| `census_gate.rs` | 1 packed / 9 `/Gy` | **unchanged**, causes unchanged |
+
+Per fixture, N/N with the verdict quoted: `mvp_call_seq` **10/10 Match**,
+`mvp_call_twice` **1/1 Match**, `mvp_call_seq_neg` **0/4 NotImplemented**,
+`il_call_bound_neg` **0/2 NotImplemented**, `il_call_multi` **0/7
+NotImplemented**, `w27_fp_reg` **33/33 Match**, `w27_fp_reg_qual` **10/10
+Match**, `w28_fp_store` **14/14 Match**, `w28_fltused_order` **5/5 Match**,
+`w29_fp_contract` **16/16 Match**, `w28_fp_store_neg` **0/11 NotImplemented**,
+`w28_fp_store_framed_neg` **4/4 in class, TU NotImplemented** (the label gate),
+`w13_fparam_neg` **0/3 NotImplemented**.
+
 ### Found and not taken, ranked, with the frame axis applied
 
 1. **The FP tail call — 85,231 measured, 0 of it `calls-2plus`.** The largest

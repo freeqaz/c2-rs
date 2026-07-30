@@ -39,6 +39,14 @@ normalized).
 - `ABI_EDGES.md` — argument/return conventions beyond `int`: `long long`,
   FP argument and varargs rules, structs by value (register-chunked, no
   by-reference threshold up to 64 bytes) and struct returns.
+- `CODEGEN_FP_ARGS.md` — the **two** register numberings that run over one
+  parameter list and neither of which is the formal's index: an FP parameter
+  takes `f<j>` counting FP parameters alone, every other scalar takes
+  `r<2 + slot>`, and an FP parameter consumes a slot while filling no register.
+  Also the free-vs-`frsp` conversion asymmetry, the FP store leaf, where
+  `_fltused` goes, the label-counter stride, and the whole-body measurement that
+  halved the 167k FP-tail-call claim. Four of the project's twelve live
+  wrong-bytes emits came out of this one fact.
 - `EH_RECORDS.md` — read-only sizing of what `/EHsc` adds: the 8-byte handler
   prefix that moves the function symbol to `Value = 8`, two `.pdata` records
   per function with a `BeginAddress` addend, the `Selection = 5` EH `.rdata`,
