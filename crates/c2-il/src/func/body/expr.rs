@@ -1,7 +1,7 @@
 use super::{blk, blk_type, Block};
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like_or_ptr4, eat_opt_stmt_marker, eat_value_type, read_token_var,
-    read_varint, ValueClass, INT_TYPE,
+    eat, eat_byte, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker, eat_value_type,
+    read_token_var, read_varint, ValueClass, INT_TYPE,
 };
 use crate::func::IlOp;
 
@@ -359,11 +359,38 @@ pub(crate) fn eat_fn_tail(seg: &[u8], p: &mut usize) -> Result<(), Block> {
 /// Where the two could differ (`(void *)(s + 1)`, whose last operand is the
 /// literal) the guard refuses the body anyway; only the census key changes.
 pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
+    parse_expr_classed(seg, p, stop).map(|(ops, _)| ops)
+}
+
+/// [`parse_expr`] with the sub-expression's [`ValueClass`] preserved.
+///
+/// The class is `None` for every position that has always been accepted (a
+/// 4-byte integer or pointer value, which the `41` result annotation and the
+/// `55` call-end type already gate through `eat_int_like_or_ptr4`), and
+/// `Some(ValueClass::Int1u)` for the one class this entry point adds — a `bool`
+/// or `unsigned char` value. The caller **must** act on that: the result
+/// annotation has to restate the class, because an `int`-annotated `bool` value
+/// is the `rlwinm` mask (`GAPS.md` §6's "two facts sharing one field" again, with
+/// the two facts being "this value is one register wide" and "this value is one
+/// *byte* wide"). Every caller that does not know how to do that keeps calling
+/// [`parse_expr`], which discards the class — and refuses the body one token
+/// later at the annotation, honestly.
+pub(crate) fn parse_expr_classed(
+    seg: &[u8],
+    p: &mut usize,
+    stop: u8,
+) -> Result<(Vec<IlOp>, Option<ValueClass>), Block> {
     // Big enough for every fixture body; a longer stream grows normally.
     let mut ops = Vec::with_capacity(16);
     // Set by a LOAD or LIT whose TYPE was a 4-byte pointer rather than an
     // int-like one. Checked once, below, against the arithmetic in `ops`.
     let mut saw_ptr = false;
+    // Set by a LOAD or LIT whose TYPE was the one-byte unsigned class, and by one
+    // that was not. Checked once, below: the two may not mix, and the class may
+    // not enter arithmetic — every capture of `bool` arithmetic converts first, so
+    // a chain that did not is a shape with no witness behind it.
+    let mut saw_int1u = false;
+    let mut saw_wide = false;
     // The [`ValueClass`] of the value on top of the operand stack, or `None`
     // before the first operand. Only the `2C` arm reads it, and only to require
     // that a conversion stays inside the class it started in — which is what makes
@@ -404,10 +431,12 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
                 let (tok, w) =
                     read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-load-tok"))?;
                 *p += w;
-                match eat_int_like_or_ptr4(seg, p) {
-                    Some(is_ptr) => {
-                        saw_ptr |= is_ptr;
-                        class = Some(if is_ptr { ValueClass::Ptr4 } else { ValueClass::Int4 });
+                match eat_operand_type(seg, p) {
+                    Some(c) => {
+                        saw_ptr |= c == ValueClass::Ptr4;
+                        saw_int1u |= c == ValueClass::Int1u;
+                        saw_wide |= c != ValueClass::Int1u;
+                        class = Some(c);
                     }
                     // neither int-like nor a 4-byte pointer → out of class.
                     // Report at the LOAD so the census bucket reads as a
@@ -420,10 +449,12 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
                 // LITERAL: 33 <int-type> <varint>
                 let start = *p;
                 *p += 1;
-                match eat_int_like_or_ptr4(seg, p) {
-                    Some(is_ptr) => {
-                        saw_ptr |= is_ptr;
-                        class = Some(if is_ptr { ValueClass::Ptr4 } else { ValueClass::Int4 });
+                match eat_operand_type(seg, p) {
+                    Some(c) => {
+                        saw_ptr |= c == ValueClass::Ptr4;
+                        saw_int1u |= c == ValueClass::Int1u;
+                        saw_wide |= c != ValueClass::Int1u;
+                        class = Some(c);
                     }
                     None => return Err(blk_type(seg, *p, start, "expr-lit-type")),
                 }
@@ -516,7 +547,24 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
     {
         return Err(Block { ctx: "expr-ptr-arith", byte: None, off: *p, aux: 0 });
     }
-    Ok(ops)
+    // The one-byte-unsigned guard, and it is the pointer guard's twin: the class
+    // is free to be *moved* and not to be *computed on*. `b1 + b2` in C++ converts
+    // both operands to `int` first, so an accepted chain over raw `bool` operands
+    // has no witness at all; and a chain mixing the class with a width-4 one is a
+    // conversion the IL would have spelled with a `2C`. Both refuse under their own
+    // census keys, so what the guard costs is a number rather than an argument.
+    if saw_int1u {
+        if ops
+            .iter()
+            .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
+        {
+            return Err(Block { ctx: "expr-int1u-arith", byte: None, off: *p, aux: 0 });
+        }
+        if saw_wide {
+            return Err(Block { ctx: "expr-int1u-mixed", byte: None, off: *p, aux: 0 });
+        }
+    }
+    Ok((ops, saw_int1u.then_some(ValueClass::Int1u)))
 }
 
 /// Parse the formal-parameter list of a straight-line leaf: after the `46` ('F')

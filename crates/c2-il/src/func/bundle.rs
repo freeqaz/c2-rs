@@ -284,6 +284,24 @@ pub(crate) fn shape_to_function(
             // An address leaf (`return &s->m;`) travels the same way: an exact
             // two-op stream that `codegen::addr_leaf_text` pattern-matches
             // ahead of the ordinary selector.
+            // A store leaf (`s->m = v;`) travels the same way as the load and
+            // address leaves: an exact three-op stream that
+            // `codegen::store_leaf_text` pattern-matches ahead of the ordinary
+            // selector.
+            BodyShape::StoreLeaf { params, ops } => {
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops,
+                    tail_call: None,
+                    framed_call: None,
+                    compare: None,
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
             BodyShape::AddrLeaf { params, ops } => {
                 Some(IlFunction {
                     mangled_name: name.to_string(),

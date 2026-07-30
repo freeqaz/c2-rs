@@ -9,16 +9,18 @@ use self::chain::{
     straight_line_out_of_class_ctx,
 };
 use self::expr::{
-    eat_fn_tail, eat_return_head, eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr,
-    parse_formals, BODY_SCOPE_DEPTH,
+    eat_fn_tail, eat_return_head, eat_return_plumbing, eat_scopes, intrinsic_name,
+    parse_expr_classed, parse_formals, BODY_SCOPE_DEPTH,
 };
 use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
     try_parse_compare, try_parse_empty_dtor_delegation, try_parse_float_leaf,
-    try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf,
+    try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf, try_parse_store_leaf,
 };
-use super::readers::{eat_byte, find_subslice, read_token_var, read_type, read_varint};
+use super::readers::{
+    eat_byte, eat_value_type, find_subslice, read_token_var, read_type, read_varint, ValueClass,
+};
 use super::sy::SyView;
 use super::{CompareLeaf, IlOp};
 
@@ -205,6 +207,20 @@ pub(crate) enum BodyShape {
     /// single `30` token and emit different instructions — admitting one as the
     /// other is a wrong-bytes emit, not a gap. See [`shapes::try_parse_addr_leaf`].
     AddrLeaf { params: Vec<u32>, ops: Vec<IlOp> },
+    /// A **store leaf**: the whole body is one store through a sub-object
+    /// designator (`s->m = v;`, `p->Base::m = v;`, `s->arr[2] = v;`, `*p = v;`,
+    /// `s->m = 7;`), which c2 lowers to a single `stb`/`sth`/`stw`/`std` at a
+    /// folded displacement — plus one `li` when the stored value is a literal.
+    /// `ops` is always exactly `[Load(base), Load(value) | Lit(k),
+    /// StoreInd { off, width }]` and `params` includes a member function's
+    /// `this` at index 0.
+    ///
+    /// Kept apart from [`BodyShape::IndirectLoad`] and [`BodyShape::AddrLeaf`]
+    /// for the reason those two are kept apart from each other: the three
+    /// designate the same address and emit three different instructions, so
+    /// admitting one as another is a wrong-bytes emit rather than a gap. See
+    /// [`shapes::try_parse_store_leaf`].
+    StoreLeaf { params: Vec<u32>, ops: Vec<IlOp> },
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -633,8 +649,39 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             if let Some(shape) = try_parse_empty_dtor_delegation(seg, p, lo, depth) {
                 return Ok(shape);
             }
-            let ops = parse_expr(seg, &mut p, 0x41)?;
-            eat_return_plumbing(seg, &mut p, true, depth)?;
+            // …and the **store** leaf, the third consumer of the same sub-object
+            // designator (`s->m = v;`, `p->Base::m = v;`, `*p = v;`). Tried after
+            // all of them because it is the only one that ends on a `32 <TYPE> 4B`
+            // statement rather than on a `41` result — nothing above can reach it
+            // and it can reach nothing above. Non-committal: works on a copy of the
+            // cursor and returns None with no side effects, so a declining body
+            // still reports its own blocker.
+            if let Some(shape) = try_parse_store_leaf(seg, p, lo) {
+                return Ok(shape);
+            }
+            let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;
+            // The result annotation, and the ONE place the value's class has to be
+            // carried across it. `eat_return_plumbing`'s own `41` gate is
+            // `eat_int_like_or_ptr4` — shared with three byte-graded shapes and
+            // deliberately not widened (`ROADMAP.md` §6d) — so a one-byte-unsigned
+            // body consumes its annotation here instead, and requires it to
+            // **restate the class**. That requirement is the whole gate: a `bool`
+            // value annotated `int` is the `rlwinm` mask c2 emits for
+            // `unsigned u(bool b){ return b; }` (`5463063e`), and admitting it as
+            // a register move would be wrong bytes rather than a gap. Inside the
+            // class nothing is emitted at all — `return false;` is `li r3,0`,
+            // `return b;` is a bare `blr`, and from any other argument register it
+            // is the same `mr r3,r4` the integer identity emits, all of which the
+            // ordinary selector already produces from `[Lit(k)]` / `[Load(t)]`.
+            if cls == Some(ValueClass::Int1u) {
+                if !(eat_byte(seg, &mut p, 0x41) && eat_value_type(seg, &mut p, ValueClass::Int1u))
+                {
+                    return Err(blk(seg, p, "result-type"));
+                }
+                eat_return_plumbing(seg, &mut p, false, depth)?;
+            } else {
+                eat_return_plumbing(seg, &mut p, true, depth)?;
+            }
             let params = parse_params(seg, lo)?;
             // A parameter used twice licenses c2's algebraic rewriter.
             if has_repeated_leaf(&ops) {
