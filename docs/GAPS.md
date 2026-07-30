@@ -1124,6 +1124,20 @@ The rules that keep the numbers honest:
   > partition a census reports must be a function of the construct, never of a value
   > the compiler allocated per input.** `mcall`'s `aux` layout states it as an
   > invariant of its bit packing, which is why that family never sharded.
+- **A counterfactual answers "is this bucket one shape?" in one second; sampling
+  guesses at it.** The step-2 handoff ranked `callseq-tail-lit` (7,771) first and
+  warned it was "one bucket holding several shapes, exactly the thing §6 warns
+  about" — so the prescribed next step was to sample the bytes at its blocking
+  sites and group them by production. Deleting the gate and re-scanning gave
+  **+7,771 exactly**: one bucket, one cause, and the answer arrived before any
+  sampling. The complement matters as much: the same instrument sized the rung
+  that had been *ranked above it* at **+2**, and a third run with both gates
+  lifted came back exactly additive, which is the only way to know the smaller
+  rung was not being masked by the larger one. Since a warm scan is ~1 s, the
+  rule is: **before sampling a bucket, lift its gate and re-scan — and lift it
+  together with every gate that fires earlier on the same bodies.** Sampling is
+  for buckets a counterfactual says are heterogeneous, not for deciding whether
+  they are.
 - **A first-blocker histogram attributes a construct to wherever the parse
   stopped, not to what the construct is.** Sampling 21,319 blocking sites showed
   `expr-call-in-expr` is ~80% *member calls* — and that the same member-call
