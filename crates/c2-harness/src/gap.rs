@@ -107,6 +107,16 @@ pub struct TuResult {
     pub fn_in_class: usize,
     /// Blocking-feature counts for this TU's out-of-class functions.
     pub fn_blockers: BTreeMap<String, usize>,
+    /// **The D6 frame measure** (`docs/IL_CALL_IN_EXPR.md` §18): census key crossed
+    /// with the body's CALL-token count class, `"<calls-class>|<census key>"`, over
+    /// **every** function including the in-class ones.
+    ///
+    /// A separate map rather than a suffix on [`TuResult::fn_blockers`]'s keys,
+    /// deliberately: the ranked histogram is the widening order and four sessions
+    /// of documented tables name its keys, so renaming all of them to carry an
+    /// orthogonal fact would break every recorded comparison for no gain. This is
+    /// the second axis, kept beside the first.
+    pub fn_frames: BTreeMap<String, usize>,
 }
 
 /// Aggregated scan report.
@@ -154,6 +164,38 @@ impl GapReport {
             map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
         v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         v
+    }
+
+    /// **The D6 frame measure**, aggregated: `"<calls-class>|<census key>"` counts
+    /// over every scanned function, most frequent first.
+    pub fn fn_frame_histogram(&self) -> Vec<(String, usize)> {
+        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
+        for r in &self.results {
+            for (k, n) in &r.fn_frames {
+                *map.entry(k.as_str()).or_insert(0) += n;
+            }
+        }
+        let mut v: Vec<(String, usize)> =
+            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// The three frame classes' totals across the scan, in `calls-0`, `calls-1`,
+    /// `calls-2plus` order.
+    pub fn frame_class_totals(&self) -> [usize; 3] {
+        let mut t = [0usize; 3];
+        for r in &self.results {
+            for (k, n) in &r.fn_frames {
+                let i = match k.split('|').next() {
+                    Some("calls-0") => 0,
+                    Some("calls-1") => 1,
+                    _ => 2,
+                };
+                t[i] += n;
+            }
+        }
+        t
     }
 
     /// Replay soundness: (checked, diverged).
@@ -223,6 +265,7 @@ fn scan_one(
         fn_total: 0,
         fn_in_class: 0,
         fn_blockers: BTreeMap::new(),
+        fn_frames: BTreeMap::new(),
     };
 
     // 1. Capture: real flags, real cwd, strace keeps bundle + obj.
@@ -254,6 +297,12 @@ fn scan_one(
             } else {
                 *res.fn_blockers.entry(f.verdict.key()).or_insert(0) += 1;
             }
+            // The D6 frame axis, over *every* function: the in-class shapes are
+            // the control group (all of them are leaves or single tail calls, so
+            // a `calls-2plus` reading among them would indict the measure).
+            *res.fn_frames
+                .entry(format!("{}|{}", f.frame_class(), f.verdict.key()))
+                .or_insert(0) += 1;
         }
     }
 
@@ -380,9 +429,15 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let frames = r
+                .fn_frames
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -396,6 +451,7 @@ pub fn gap_scan(
                 r.fn_total,
                 r.fn_in_class,
                 blockers,
+                frames,
             )?;
         }
     }
@@ -433,6 +489,7 @@ mod tests {
             fn_total: 0,
             fn_in_class: 0,
             fn_blockers: BTreeMap::new(),
+            fn_frames: BTreeMap::new(),
         }
     }
 

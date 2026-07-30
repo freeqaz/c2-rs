@@ -1,4 +1,4 @@
-use super::body::{parse_segment_detail, BodyShape, DtorSubObject};
+use super::body::{call_tokens, parse_segment_detail, BodyShape, DtorSubObject};
 use super::bundle::mangled_is_varargs;
 use super::bundle::split_function_bodies;
 use super::gl::mangled_names;
@@ -51,6 +51,34 @@ pub struct FnCensus {
     pub hex: Vec<u8>,
     /// Index of the blocking byte inside [`FnCensus::hex`].
     pub hex_mark: usize,
+    /// **How many CALL tokens the body issues** — see [`call_tokens`]. Counted for
+    /// every function, in class or not, because the in-class shapes are the control
+    /// group: they are all leaves or single tail calls, so a non-zero count among
+    /// them would say the measure is wrong.
+    pub calls: usize,
+}
+
+impl FnCensus {
+    /// The **frame class**: what the call count alone settles about whether this
+    /// body needs a stack frame (`docs/IL_CALL_IN_EXPR.md` §18).
+    ///
+    /// Three values, and the middle one is honest rather than convenient:
+    ///
+    /// * `calls-0` — no call at all. It cannot need LR saved, so **no frame**.
+    /// * `calls-1` — exactly one. A tail call emits `b callee` and stays a leaf
+    ///   (`return p->M();`), while a call whose result is then computed on needs a
+    ///   frame (`return g(a) + k;`, which is the port's existing `FramedCall`).
+    ///   The count cannot tell them apart and this class does not pretend to.
+    /// * `calls-2plus` — two or more, which **always** needs a frame: the first
+    ///   `bl` clobbers LR and the return address is still live. There is no
+    ///   two-call shape that stays a leaf.
+    pub fn frame_class(&self) -> &'static str {
+        match self.calls {
+            0 => "calls-0",
+            1 => "calls-1",
+            _ => "calls-2plus",
+        }
+    }
 }
 
 /// Bytes of context kept before / after a blocking site.
@@ -178,6 +206,7 @@ impl IlBundle {
                         verdict,
                         hex,
                         hex_mark,
+                        calls: call_tokens(seg),
                     }
                 })
                 .collect(),

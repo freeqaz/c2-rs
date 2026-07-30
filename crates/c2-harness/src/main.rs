@@ -1839,6 +1839,29 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 println!("    … and {} more distinct features", hist.len() - 20);
             }
         }
+        // The D6 frame axis (`docs/IL_CALL_IN_EXPR.md` §18). The blocking-feature
+        // histogram above ranks by *size*; this one says whether a row's lowering
+        // can be local at all, and `calls-2plus` is the half that provably cannot
+        // — two calls means LR is clobbered, so the body needs a frame.
+        let [c0, c1, c2p] = report.frame_class_totals();
+        let seen = c0 + c1 + c2p;
+        if seen > 0 {
+            println!("  frame class (CALL tokens per body — decode-only, §18):");
+            for (label, n) in [("calls-0", c0), ("calls-1", c1), ("calls-2plus", c2p)] {
+                println!(
+                    "    {n:>7} ({:>5.1}%)  {label}",
+                    100.0 * n as f64 / seen as f64
+                );
+            }
+            let frames = report.fn_frame_histogram();
+            for (key, count) in frames
+                .iter()
+                .filter(|(k, _)| k.starts_with("calls-2plus|"))
+                .take(10)
+            {
+                println!("    {count:>7}           {key}");
+            }
+        }
     }
 
     for (class, title) in [
