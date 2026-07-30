@@ -39,6 +39,18 @@ use crate::IlBundle;
 pub enum IlOp {
     /// Load a named variable (by IL token) onto the expression stack.
     Load(u32),
+    /// **Indirect** load: pop a pointer, push the 4-byte integer it designates,
+    /// `off` bytes in (IL `30 <TYPE>`, optionally preceded by one byte-offset add
+    /// — `27 <TYPE>` for a member or `28 00 00` for a subscript).
+    ///
+    /// Produced ONLY by [`try_parse_indirect_load_leaf`], and only as the second
+    /// and last op of a two-op stream `[Load(base), LoadInd { off }]`. Nothing
+    /// lowers it in combination with arithmetic, because c2 does not lower it
+    /// that way: `*p + 1` is `lwz r11,0(r3) ; addi r3,r11,1` — the load lands in
+    /// the *scratch* register, not the destination — and `*p * 3` is
+    /// strength-reduced to `lwz r11 ; slwi r10,r11,1 ; add r3,r11,r10`. See
+    /// `docs/IL_EXPR_LAYER.md` §6 and `fixtures/cpp/il_expr_load_neg.cpp`.
+    LoadInd { off: i32 },
     /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
     Lit(i32),
     /// Push a **floating-point literal** (W13b). The payload is always an
@@ -959,6 +971,9 @@ fn parse_segment_detail(
             if let Some(shape) = try_parse_float_leaf(seg, p, lo) {
                 return Ok(shape);
             }
+            if let Some(shape) = try_parse_indirect_load_leaf(seg, p, lo) {
+                return Ok(shape);
+            }
             let ops = parse_expr(seg, &mut p, 0x41)?;
             eat_return_plumbing(seg, &mut p, true)?;
             let params = parse_formals(seg, lo)?;
@@ -966,15 +981,33 @@ fn parse_segment_detail(
             if has_repeated_leaf(&ops) {
                 return Err(Block { ctx: "expr-repeated-leaf", byte: None, off: p, aux: 0 });
             }
-            // Operands out of register order mean c2 reassociated the chain.
-            if !leaves_ascending(&ops, &params) {
-                return Err(Block { ctx: "expr-noncanonical-order", byte: None, off: p, aux: 0 });
-            }
-            // A register subtraction after a register addition is reassociated
-            // even when the operands ARE in register order.
-            if !additive_chain_canonical(&ops) {
-                return Err(Block { ctx: "expr-noncanonical-additive", byte: None, off: p, aux: 0 });
-            }
+            // c2 canonicalizes and reassociates a serial chain by register, so
+            // rewrite into that order rather than emitting source order. When the
+            // stream is not a recognized serial chain, fall back to demanding that
+            // source order already *is* canonical — a tree still has to reach
+            // `try_select_depth2_tree` unaltered.
+            let ops = match canonicalize_chain(&ops, &params) {
+                Some(c) => c,
+                None => {
+                    if !leaves_ascending(&ops, &params) {
+                        return Err(Block {
+                            ctx: "expr-noncanonical-order",
+                            byte: None,
+                            off: p,
+                            aux: 0,
+                        });
+                    }
+                    if !additive_chain_canonical(&ops) {
+                        return Err(Block {
+                            ctx: "expr-noncanonical-additive",
+                            byte: None,
+                            off: p,
+                            aux: 0,
+                        });
+                    }
+                    ops
+                }
+            };
             Ok(BodyShape::StraightLine { params, ops })
         }
         _ => Err(blk(seg, p, "body")),
@@ -1038,6 +1071,147 @@ fn has_repeated_leaf(ops: &[IlOp]) -> bool {
 /// Strictly ascending also implies no repeated leaf, so this subsumes
 /// [`has_repeated_leaf`]; both are kept because they refuse for different reasons
 /// and the census buckets should say which.
+/// Rewrite a serial arithmetic chain into **c2's canonical order**, or return
+/// `None` if the stream is not a shape this understands.
+///
+/// c2 does not evaluate a chain left to right. For an additive chain it treats the
+/// whole thing as a sum of signed terms and emits, in order: the lowest-numbered
+/// positive register, then every negative register ascending, then the remaining
+/// positive registers ascending, then the folded literal. For a multiplicative
+/// chain it simply sorts ascending. Captured:
+///
+/// ```text
+///   a+b+c, a+c+b, b+a+c, b+c+a, c+b+a  ->  add r11,r3,r4 ; add r3,r11,r5
+///   a*c*b                              ->  mullw r11,r3,r4 ; mullw r3,r11,r5
+///   a + b - c   and   b - c + a        ->  subf r11,r5,r3 ; add r3,r11,r4
+///   a - c - b                          ->  subf r11,r4,r3 ; subf r3,r5,r11
+///   a + b - 1                          ->  add r11,r3,r4 ; addi r3,r11,-1
+/// ```
+///
+/// Canonicalizing here rather than refusing is what makes every *permutation* of a
+/// chain emit, instead of the one in six that happened to be written in register
+/// order. It is done in the parser, not codegen, because the ordering key is the
+/// parameter index — which is the register number — and because the census then sees
+/// exactly what the emitter will.
+///
+/// Only a **serial** chain is handled: `leaf (leaf op)*`, all operators from one
+/// family. A tree (`(a+b)*(c+d)`) is left untouched for `try_select_depth2_tree`,
+/// and a mixed `*` with `+`/`-` is left to be refused downstream.
+fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlOp>> {
+    // Recognize `leaf (leaf op)*` and split into signed terms.
+    if ops.len() < 3 || ops.len() % 2 == 0 {
+        return None;
+    }
+    let is_leaf = |o: &IlOp| matches!(o, IlOp::Load(_) | IlOp::Lit(_));
+    if !is_leaf(&ops[0]) {
+        return None;
+    }
+    let mut terms: Vec<(bool, IlOp)> = vec![(true, ops[0])]; // (positive?, leaf)
+    let mut mul = false;
+    let mut addsub = false;
+    let mut i = 1;
+    while i + 1 < ops.len() + 1 && i + 1 <= ops.len() {
+        if i + 1 > ops.len() - 1 {
+            break;
+        }
+        let (leaf, op) = (ops[i], ops[i + 1]);
+        if !is_leaf(&leaf) {
+            return None;
+        }
+        match op {
+            IlOp::Add => {
+                addsub = true;
+                terms.push((true, leaf));
+            }
+            IlOp::Sub => {
+                addsub = true;
+                terms.push((false, leaf));
+            }
+            IlOp::Mul => {
+                mul = true;
+                terms.push((true, leaf));
+            }
+            _ => return None,
+        }
+        i += 2;
+    }
+    if i != ops.len() || (mul && addsub) {
+        return None;
+    }
+    // Order registers by parameter index; a non-parameter token is not orderable.
+    let key = |o: &IlOp| match o {
+        IlOp::Load(t) => params.iter().position(|p| p == t),
+        _ => None,
+    };
+    if terms
+        .iter()
+        .any(|(_, l)| matches!(l, IlOp::Load(_)) && key(l).is_none())
+    {
+        return None;
+    }
+
+    if mul {
+        // A multiplicative chain: registers ascending. A literal factor
+        // strength-reduces (shift/add), which is not modeled, so refuse those.
+        if terms.iter().any(|(_, l)| matches!(l, IlOp::Lit(_))) {
+            return None;
+        }
+        let mut regs: Vec<IlOp> = terms.iter().map(|(_, l)| *l).collect();
+        regs.sort_by_key(|l| key(l));
+        let mut out = vec![regs[0]];
+        for r in &regs[1..] {
+            out.push(*r);
+            out.push(IlOp::Mul);
+        }
+        return Some(out);
+    }
+
+    // Additive chain. Fold the literals into one constant; order the registers.
+    let mut k: i32 = 0;
+    let mut pos: Vec<IlOp> = Vec::new();
+    let mut neg: Vec<IlOp> = Vec::new();
+    for (positive, leaf) in &terms {
+        match leaf {
+            IlOp::Lit(v) => {
+                k = if *positive {
+                    k.checked_add(*v)?
+                } else {
+                    k.checked_sub(*v)?
+                }
+            }
+            IlOp::Load(_) => {
+                if *positive {
+                    pos.push(*leaf)
+                } else {
+                    neg.push(*leaf)
+                }
+            }
+            _ => return None,
+        }
+    }
+    // Needs a positive register to start from: `k - a` is a `subfic` shape that the
+    // selector does not model.
+    if pos.is_empty() {
+        return None;
+    }
+    pos.sort_by_key(|l| key(l));
+    neg.sort_by_key(|l| key(l));
+    let mut out = vec![pos[0]];
+    for n in &neg {
+        out.push(*n);
+        out.push(IlOp::Sub);
+    }
+    for p in &pos[1..] {
+        out.push(*p);
+        out.push(IlOp::Add);
+    }
+    if k != 0 {
+        out.push(IlOp::Lit(k.abs()));
+        out.push(if k > 0 { IlOp::Add } else { IlOp::Sub });
+    }
+    Some(out)
+}
+
 /// True if a `+`/`-` chain's source order already *is* c2's canonical order.
 ///
 /// c2 does not evaluate an additive chain left to right. It treats it as a sum of
@@ -2679,6 +2853,62 @@ mod tests {
                 "census/gate disagreement"
             );
         }
+    }
+
+    #[test]
+    fn chains_canonicalize_to_c2s_register_order() {
+        let p = vec![0x10, 0x11, 0x12]; // a -> r3, b -> r4, c -> r5
+        let (a, b, c) = (IlOp::Load(0x10), IlOp::Load(0x11), IlOp::Load(0x12));
+        let canon = |ops: Vec<IlOp>| canonicalize_chain(&ops, &p).unwrap();
+
+        // Every permutation of `a + b + c` collapses to the same stream, because c2
+        // emits the same `add r11,r3,r4 ; add r3,r11,r5` for all five.
+        let want = vec![a, b, IlOp::Add, c, IlOp::Add];
+        for perm in [
+            vec![a, b, IlOp::Add, c, IlOp::Add],
+            vec![a, c, IlOp::Add, b, IlOp::Add],
+            vec![b, a, IlOp::Add, c, IlOp::Add],
+            vec![b, c, IlOp::Add, a, IlOp::Add],
+            vec![c, b, IlOp::Add, a, IlOp::Add],
+        ] {
+            assert_eq!(canon(perm), want);
+        }
+        // `b + a` -> `a + b`.
+        assert_eq!(canon(vec![b, a, IlOp::Add]), vec![a, b, IlOp::Add]);
+        // A multiplicative chain sorts ascending.
+        assert_eq!(
+            canon(vec![a, c, IlOp::Mul, b, IlOp::Mul]),
+            vec![a, b, IlOp::Mul, c, IlOp::Mul]
+        );
+
+        // Additive: negatives first, from the lowest positive. `a + b - c` and
+        // `b - c + a` both become `(a - c) + b`.
+        let want_mixed = vec![a, c, IlOp::Sub, b, IlOp::Add];
+        assert_eq!(canon(vec![a, b, IlOp::Add, c, IlOp::Sub]), want_mixed);
+        assert_eq!(canon(vec![b, c, IlOp::Sub, a, IlOp::Add]), want_mixed);
+        // Two negatives sort ascending: `a - c - b` becomes `(a - b) - c`.
+        assert_eq!(
+            canon(vec![a, c, IlOp::Sub, b, IlOp::Sub]),
+            vec![a, b, IlOp::Sub, c, IlOp::Sub]
+        );
+        // Literals fold into one constant applied last, so they never affect order.
+        assert_eq!(
+            canon(vec![a, b, IlOp::Add, IlOp::Lit(1), IlOp::Sub]),
+            vec![a, b, IlOp::Add, IlOp::Lit(1), IlOp::Sub]
+        );
+        assert_eq!(
+            canon(vec![a, IlOp::Lit(1), IlOp::Add, IlOp::Lit(2), IlOp::Sub]),
+            vec![a, IlOp::Lit(1), IlOp::Sub]
+        );
+
+        // Shapes it must decline rather than mangle: a tree (so
+        // `try_select_depth2_tree` still sees it), a `*` mixed with `+`, a
+        // multiply by a constant (which strength-reduces), and a chain with no
+        // positive register to start from.
+        assert!(canonicalize_chain(&[a, b, IlOp::Add, c, a, IlOp::Add, IlOp::Mul], &p).is_none());
+        assert!(canonicalize_chain(&[a, b, IlOp::Mul, c, IlOp::Add], &p).is_none());
+        assert!(canonicalize_chain(&[a, IlOp::Lit(2), IlOp::Mul], &p).is_none());
+        assert!(canonicalize_chain(&[IlOp::Lit(1), a, IlOp::Sub], &p).is_none());
     }
 
     #[test]
