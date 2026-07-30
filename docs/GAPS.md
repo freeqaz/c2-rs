@@ -27,15 +27,17 @@ What is proven today, stated precisely enough that a regression is visible.
 Any run that degrades a number in this table is a regression, not noise.
 
 > **As-of marker — every number in this section and in §2/§2b was measured at
-> commit `cebfb88` (W13b).** `main` has since advanced by three commits landed in
-> concurrent sessions — `06d29b9` (W6: `<`, `>=`, `<=` against a non-zero
-> literal), `db3b5ad` (call-argument / CALL-type-id fixtures) and `61e0d85`
-> (multi-argument tail-call lowering) — **whose fixture counts and census
-> contributions are NOT folded in below.** Both the fixture ratio and the census
-> numerator are therefore *lower bounds* as of this revision. Per §6's "measure
-> committed code" rule, re-run the fixture gate and the scan before quoting any
-> of it as current; the owning sessions for those three rungs are the ones that
-> should fold their numbers in.
+> commit `cebfb88` (W13b).** `main` has since advanced by ~40 commits of
+> concurrent-session work (the statement layer, chain canonicalization,
+> multi-arg tail calls, the expression/intrinsic decode, indirect-load leaves,
+> `/O1` support). **Re-measured 2026-07-30 at HEAD `2724ca5`** (independent
+> review; commands per §6): fixture gate **32 match / 0 mismatch / 59 refuse**
+> over 91 fixtures at `/Ox`, and **28 match / 0 mismatch** at each of `/O1`,
+> `/O2`, `/Ox /Gy` (`scripts/mode_lane.sh`, 90 fixtures at run time — the
+> corpus was growing under the measurement); workload **6 / 0 / 0 / 865 / 7**
+> of 878 TUs, census **109,501 / 2,462,571 (4.45%)**; generated sweep 2,589
+> cases, 0 mismatch. The cebfb88 numbers below stand as the historical
+> baseline; quote the HEAD ones.
 
 | Claim | Number (2026-07-29) | Command that re-proves it |
 |---|---|---|
@@ -62,9 +64,12 @@ The replay-soundness row is the foundation: the *reference* side of every
 differential is real c2 on real code, so every other number in this doc is
 measured against truth, not against an approximation of it.
 
-> ### The mismatch bucket was nonzero once, on 2026-07-29
+> ### The mismatch bucket first went nonzero on 2026-07-29
 >
-> **It is the first thing the differential has ever actually caught.**
+> **This was the first thing the differential ever caught — and no longer the
+> only one: the full tally (~40 wrong-bytes emits found and closed by the
+> sweep, the mode lanes and the `/O1` re-target within the following day) is
+> in §6's "mismatch is an alarm" rule.**
 >
 > `w5_chain.cpp` reported **`Port=Mismatch`**: an obj that *differs* from
 > c2's, not a refusal. Not a real-workload TU (the workload bucket stayed 0)
@@ -204,7 +209,12 @@ That hexdump is what converts a bucket into a decoded production; every
 grammar correction below came out of one.
 
 **79,719 / 2,462,571 functions in class (3.24%)** (cebfb88, 37.3 s at
-`--jobs 16`). Progression across the day on the identical instrument — the first
+`--jobs 16`); **re-measured at HEAD `2724ca5` on 2026-07-30: 109,501 (4.45%)**,
+with the histogram head re-attributed by the expression-layer decode — the
+current top eight (`expr-call-in-expr` 11.7%, `body-0x53` 7.2%, the intrinsic
+2117/2113 pair 12.1%, float/double/`void*` 9.4%, `body-0x29` 1.6%) is in
+`ROADMAP.md` §G5, which supersedes the table below.
+Progression across the day on the identical instrument — the first
 two steps decode fixes, the third a very small new class with an outsized count,
 then three rungs of real codegen worth a rounding error between them:
 
@@ -1051,9 +1061,20 @@ The rules that keep the numbers honest:
   fuzzy thresholds anywhere; real c2 under wibo is the sole judge.
 - **`mismatch` is an alarm, not a gap.** Any nonzero mismatch bucket — on
   fixtures or the workload — is a correctness bug that outranks all widening
-  work. The port's value downstream depends on this bucket staying 0. This
-  has fired exactly once (§1, `w5_chain.cpp`, 2026-07-29) and was fixed the
-  same session, before any widening continued.
+  work. The port's value downstream depends on this bucket staying 0.
+  **"Fired exactly once" stopped being true within a day** (an earlier
+  revision of this bullet said it; corrected 2026-07-30): after `w5_chain.cpp`
+  (§1, 40749e7) the alarm fired repeatedly as the instruments widened — ~20
+  reassociation/repeated-leaf emits from the first generated sweep (e5edcb4,
+  2b6cbe5), 10 more from bounding chain acceptance to the enumerated region
+  (1001267), 3 from `.gl` symbol binding (a892c76), 3 from the first `/Gy`
+  fixture lane (`mode_lane.sh`, 2a19090), 4 from the `/O1` comparison-spine
+  matrix (abe0512). Every one was fixed or gated closed before widening
+  continued, and the buckets measure 0 at HEAD (`2724ca5`: fixtures, four
+  mode lanes, 878-TU scan, 2,589-case sweep — all 0 mismatch). The lesson
+  moved: the alarm firing often, on instrument widening rather than on user
+  reports, is the differential working — a long green streak under an
+  unchanged instrument is what should raise suspicion.
 - **A green corpus is only as strong as its discriminators.** The §1 mis-emit
   survived because two candidate allocation rules coincide on every shape the
   corpus contained. When a rule is inferred from captures, ask what fixture

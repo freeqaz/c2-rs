@@ -20,17 +20,38 @@ The foundation is proven and fast; the port itself is deliberately narrow.
 > functions spanning the whole accepted class, every difference is
 > allocation-only bar one scheduling case, and the reassociation and float work
 > is byte-identical across modes. But `il_accum4.cpp`'s whole-chain accumulator
-> rule is `/Ox`-only, and re-targeting `/O1` is now a phase (§tasks 19–20), not
+> rule is `/Ox`-only, and re-targeting `/O1` became its own phase, not
 > a footnote. Five of the six TUs the last scan called `match` have
 > `fn_total = 0` — empty modules — so the `match` column has never yet exercised
 > mode-dependent codegen.
+>
+> **Resolution (measured 2026-07-30, HEAD `2724ca5`).** The caveat above is now
+> historical: the port *reads* the per-function optimization word (187a897 —
+> anything but the two known words refuses), `/O1` is a supported target
+> (2a19090, abe0512 — the `/O1` allocator rule and comparison spines, plus the
+> mis-emits the re-target exposed and fixed), and `scripts/mode_lane.sh` grades
+> the whole fixture corpus per mode. Measured on the 90-fixture corpus
+> (`bash scripts/mode_lane.sh <mode>`): **`/Ox` 32 match, `/O1` 28, `/O2` 28,
+> `/Ox /Gy` 28 — 0 mismatch in every lane**. The numerator and denominator now
+> speak the same modes; the residual gap between 32 and 28 is honest
+> `codegen-gap` (shapes verified at `/Ox` only, refused elsewhere).
 
 > **As-of marker.** The fixture ratio (21/41) and every census figure in §1 and
-> §G5 were measured at commit **`cebfb88`** (W13b). Three further rungs landed in
-> concurrent sessions immediately afterwards — `06d29b9` (W6: `<`, `>=`, `<=`
-> against a non-zero literal), `db3b5ad` (call-argument / CALL-type-id fixtures),
-> `61e0d85` (multi-argument tail-call lowering) — and are **not** reflected in
-> those numbers. Treat them as lower bounds and re-measure before quoting.
+> §G5 were measured at commit **`cebfb88`** (W13b). Roughly forty further rungs
+> landed in concurrent sessions on 2026-07-29/30 (the statement layer, chain
+> canonicalization, multi-arg tail calls, indirect-load leaves, `/O1` support,
+> the expression-layer decode, …) and are **not** reflected in those numbers.
+>
+> **Re-measured 2026-07-30 at HEAD `2724ca5` (independent review, §6b):**
+> fixture gate **32 match / 0 mismatch / 59 refuse** over 91 fixtures
+> (`c2rs diff` per file, default `/Ox`); mode lanes `/Ox` 32, `/O1` 28, `/O2`
+> 28, `/Ox /Gy` 28 of 90, 0 mismatch each (`scripts/mode_lane.sh`); real
+> workload **match 6 / mismatch 0 / codegen-gap 0 / vocab-gap 865 /
+> capture-fail 7** of 878 TUs, **function census 109,501 / 2,462,571 (4.45%)**
+> (`c2rs gap`, 41.4 s at `--jobs 16`); generated sweep **2,589 cases, 0
+> mismatch** (`scripts/expr_sweep.sh`); `cargo test --workspace` green.
+> Numbers in the body below that disagree with these are older snapshots —
+> the progression tables in §G5 carry the deltas.
 
 **Proven (differential, against real `c2.dll`/`c1xx.dll` 16.00.11886.00 under wibo):**
 
@@ -652,6 +673,8 @@ instrument:
 | + W13a float/double leaves (9c7ba7d) | 79,041 | 3.21 |
 | + signed varint short form (66f408d) | 79,718 | 3.24 |
 | + W5 depth-2 trees (9b7df37) **and** W13b one-constant bodies (cebfb88) | **79,719** | **3.24** |
+| + the 2026-07-29/30 overnight ladder: statement layer + chain canonicalization + multi-arg tail calls + expression/intrinsic decode (≈ cebfb88 → 6edfef6) | 87,423 | 3.55 |
+| + `/O1` support, `/O1` compare spines, indirect-load leaves, intrinsic-2117 decode (**HEAD `2724ca5`, re-measured 2026-07-30**) | **109,501** | **4.45** |
 
 The first two steps were *decode* fixes, not new codegen — the expected shape
 of progress while the wall is `vocab-gap`. The third is a 10× jump from one
@@ -741,6 +764,29 @@ superseded one — followed by `expr-load-type-864275` (37,060 / 1.6%) and
 `call-end-0x26` (36,640 / 1.5%). Behind the top eight is a long tail of
 **1,050 more distinct features** (down from 1,217 at the mid-day measurement, as
 retirements accumulated).
+
+> **That table is superseded (re-measured 2026-07-30, HEAD `2724ca5`,
+> `c2rs gap … --jobs 16`).** The expression-layer decode and the census
+> de-conflation (6edfef6, a8851f7) re-attributed the head — `call-token-0xB9`
+> and the intrinsic pair no longer appear under those names. The measured
+> top eight, percentages of blocked functions:
+>
+> | Functions | % | Feature |
+> |---:|---:|---|
+> | 275,829 | 11.7 | `expr-call-in-expr` |
+> | 170,401 | 7.2 | `body-0x53` (leading `if`/compound — statements/control flow) |
+> | 149,168 | 6.3 | `expr-intrinsic-base-member-addr` (2117; decoded, mostly non-leaf bodies) |
+> | 137,511 | 5.8 | `expr-intrinsic-this-adjust` (2113) |
+> | 89,983 | 3.8 | `expr-load-type-864540` (float) |
+> | 79,542 | 3.4 | `expr-load-type-888541` (double) |
+> | 51,775 | 2.2 | `expr-load-type-864383` (void\*) |
+> | 37,671 | 1.6 | `body-0x29` |
+>
+> … then `expr-intrinsic-memset` 1.5%, `expr-bit-and` 1.4%, `expr-convert`
+> 1.0%, and **886 more distinct features**. Note the bucket-vs-win caution of
+> `GAPS.md` §6 measured on this very head: decoding 2117 moved **32**
+> functions of its 149,200, because the decode lands in the indirect-load
+> *leaf* recognizer and most of those bodies are not leaves.
 
 Two rows have **left** this table since the mid-day scan, and neither left by
 being fixed in the corpus sense:
@@ -1015,6 +1061,90 @@ landed are the argument for it. §4's first strategy point is demand-driven
 widening; W5 trees and W13b were both taken on staged-fixture evidence, and the
 census says what that is worth on this corpus. Continuing down the fixture pile
 is a choice to keep paying that ratio.
+
+**Ordering re-check (2026-07-30 review, §6b).** Item 11 is done, and the
+measured head is now: `expr-call-in-expr` (11.7%), `body-0x53` (7.2%), the
+intrinsic 2113/2117 pair (12.1% combined, acceptance blocked on operand-type
+tracking and member addressing). The near-term target with the best
+match-bucket leverage is the **nine one-away TUs** (scan JSONL,
+`fn_total - fn_in_class = 1`): `body-0x53` ×4, `assign-dst-not-formal` ×3
+(needs the positive local signal — `.sy`), `expr-call-in-expr` ×1,
+`expr-load-type-A64381` ×1. Locals and the statement layer are simultaneously
+the top of the decode ranking and the blockers on those TUs, so demand-driven
+ordering and TU-match leverage currently point at the same work.
+
+## 6b. Independent review, 2026-07-30 (HEAD `2724ca5`)
+
+An adversarial re-measure of every headline claim, by a session that did not
+write any of the code. Every number below is from a command run that day, not
+from this document.
+
+**Confirmed by measurement:**
+
+- Mode lanes (`scripts/mode_lane.sh`, 90 fixtures): `/Ox` **32** match, `/O1`
+  **28**, `/O2` **28**, `/Ox /Gy` **28** — **0 mismatch in all four lanes**.
+- Real workload (`c2rs gap`, 878 TUs, 41.4 s): **match 6, mismatch 0,
+  codegen-gap 0, vocab-gap 865, capture-fail 7**; census **109,501 /
+  2,462,571 (4.45%)**.
+- Fail-closed: 0 mismatch across all of the above **plus** the generated
+  sweep (`scripts/expr_sweep.sh`: 2,589 cases, 0 mismatch) and a green
+  `cargo test --workspace`. No known wrong-bytes emit at HEAD.
+- Nine TUs are exactly one function from matching (scan JSONL,
+  `fn_total - fn_in_class == 1`). **Correction to the working claim**: their
+  blockers are `body-0x53` ×4 and `assign-dst-not-formal` ×3 — but also
+  `expr-call-in-expr` ×1 (`Main.cpp`) and `expr-load-type-A64381` ×1
+  (`xboxheap.cpp`). Two features cover seven of the nine, not all nine.
+
+**Strategy verdict.** The decode/statement-layer turn is the right one, and
+the evidence is this repo's own ledger: the histogram-driven rungs (R2, the
+statement layer, `/O1` support) bought the census jumps (0.32→3.17%,
+3.24→4.45%) while four consecutive staged-fixture codegen rungs bought ≈0
+(§G5, `GAPS.md` §2b). The grammar should be driven to parse-complete on the
+workload *ahead* of acceptance — every "bucket was the instrument" episode
+(three so far) and every mis-attributed rung was a cost of scheduling against
+a partially decoded corpus. But grammar work must stay tied to acceptance
+attempts the way it is now (decode gated by captures, acceptance gated by
+byte-exact emission): a parse-everything pass with no emission witnesses
+would entrench wrong decodings with nothing to falsify them. The
+counter-argument taken seriously: TU-level match — the metric the payoff
+contract pays on — has been flat at 6/878 through a ~30k-function census
+gain, and the nine one-away TUs say the fastest route to real matches is
+*acceptance* work on exactly two features, not more decoding. Both are true;
+the resolution is that locals (`.sy`) and `body-0x53` are simultaneously the
+top of the decode ranking and the blockers on the one-away TUs, so the two
+orderings currently agree. Revisit when they stop agreeing.
+
+**Honest distance to parity (ordered; ⚠ = size unknown because the format or
+the rule is uncharacterized):**
+
+1. Locals — a positive local signal (`.sy`) so `assign-dst-not-formal` can
+   admit stores to locals without risking the static-store mis-emit.
+2. Statement grammar past the leading expression: `body-0x53` compounds,
+   `body-0x29`, `body-0x9B`, early returns.
+3. ⚠ Control flow (W8): branch tokens, block layout order, compare/branch
+   fusion — forces the block IR and the first real scheduling exposure.
+4. ⚠ General register allocation + scheduling. Every accepted class so far
+   *caps itself below* c2's allocator (r9 floor, 4-term chains, depth-2
+   trees, one FP constant). Parity means modeling the allocator and the
+   scheduler in general, on both `/Ox` and `/O1`; nothing measured yet bounds
+   that work, and it is the single largest unknown on the board.
+5. Frames/spills + per-function `.pdata` counters (W-UNW-1).
+6. Generalized calls (W11), then member/indirect calls — needs `this`/vtable
+   and memory addressing (W12); `.sy` becomes load-bearing.
+7. ⚠ Intrinsic *acceptance* — per-id, argument-literal-constrained allow-list;
+   the id table cannot be enumerated from IL.
+8. Data sections, globals, strings (W14); 2+ FP constants (needs c2's
+   constant evaluator *and* scheduler); switch tables, 64-bit, unsigned long
+   tail.
+9. ⚠ The `/EHsc`/`/Oi`/inlining flag regime on real TUs — the bundle does not
+   record everything the obj depends on (`/Gy` proved it), and EH scaffolding
+   on otherwise in-class bodies is unprobed.
+10. The front end (Track D) — off the match-bucket critical path but gating
+    the composition milestone and the >2.4× downstream regime.
+
+Items 3, 4, 7 and 9 are the reason no completion fraction can honestly be
+derived from 4.45%: the census measures decode demand, and none of those four
+is a decode item.
 
 ## 7. Invariants (do not break)
 
