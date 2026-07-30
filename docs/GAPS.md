@@ -208,6 +208,12 @@ bracketed:
 That hexdump is what converts a bucket into a decoded production; every
 grammar correction below came out of one.
 
+> **Current numerator, 2026-07-30: 418,628 / 2,462,571 (17.00 %)**, with a
+> **measured census/gate disagreement of 0** — see `ROADMAP.md` §6c (the repair
+> that took it *down* by 9,230) and §6d (W22, which took it up by 15,924), plus
+> the sizing box in §6 below. Everything in the rest of this section is
+> historical; quote the number above.
+
 **79,719 / 2,462,571 functions in class (3.24%)** (cebfb88, 37.3 s at
 `--jobs 16`); **re-measured at HEAD `2724ca5` on 2026-07-30: 109,501 (4.45%)**,
 with the histogram head re-attributed by the expression-layer decode — the
@@ -1512,15 +1518,85 @@ The rules that keep the numbers honest:
   what it cost.**
 - **The census can over-claim, and the direction of a census/gate disagreement
   does not make it safe to leave unrecorded.** §22.5 found a producer that
-  claimed functions in class that `PortC2` refused; the same disagreement exists
-  today in the other direction of the same seam — `int f(int a,int b,int c){
-  return a + b*c; }` censuses in class and the port returns `NotImplemented`,
-  because a `*` after the first operator is gated in `codegen` and not in
+  claimed functions in class that `PortC2` refused; the same disagreement existed
+  in the other direction of the same seam — `int f(int a,int b,int c){
+  return a + b*c; }` censused in class and the port returned `NotImplemented`,
+  because a `*` after the first operator was gated in `codegen` and not in
   `parse_segment` (`IL_CALL_IN_EXPR.md` §24.7). Nothing wrong is emitted, which
   is exactly why it survived — but it means the headline numerator is an upper
   bound by an unmeasured amount, and a numerator with an unmeasured error term is
   not a benchmark. Every gate that decides in-class membership belongs behind one
   predicate that both producers call.
+
+  > ### Sized, 2026-07-30: **9,230 functions, 2.24 % of the numerator — and none
+  > ### of it was the shape §24.7 named**
+  >
+  > The instrument is `IlBundle::census_functions`, which pairs every census row
+  > with the emitter's own function record, and `codegen::function_gate`, which
+  > runs `PortC2`'s per-function selector over it. `c2rs gap` and `c2rs census`
+  > print the disagreement in the same block as the numerator on **every run**,
+  > because this is the §6 rule about giving a diagnostic a population whose
+  > answer is already known: every in-class function, whose answer must be
+  > "accepted".
+  >
+  > Three findings, in decreasing order of how much they should change what the
+  > next person does.
+  >
+  > **1. The characterized case was 0 % of the real total.** §24.7 was written
+  > from three probes of the straight-line class. On the 878-TU workload that
+  > class contributed **zero** disagreements — 62,813 straight-line functions and
+  > not one whose operand stack goes past depth 2. The whole 9,230 was two
+  > *other* causes that nobody had looked for: **9,028** generated empty
+  > destructors whose callee token has no `.gl` symbol, and **202** functions
+  > carrying an optimization word the port does not emit under. A characterized
+  > defect is a witness, not a measurement, and the ratio here is not a rounding
+  > error — it is the entire quantity.
+  >
+  > **2. The fixture corpus held 14 more, of three further kinds** — the §24.7
+  > depth rule (9, `w5_tree_neg.cpp`), the `==`/`!=`-against-a-large-unsigned rule
+  > (4, `w6_unsigned_wide.cpp`) and FP scratch exhaustion (1, `w13_fscratch.cpp`).
+  > Every one sat in a fixture that **grades nothing**, because its TU has an
+  > out-of-class sibling and the port is all-or-nothing per TU. So the same
+  > property that hides a mis-emit (§6's `w13_fabi.cpp` bullet) also hides a
+  > census/gate disagreement, and for the same reason. A cross-check that runs
+  > per *function* sees straight through it; a TU-level differential cannot.
+  >
+  > **3. Two of the four moved gates were already spelled out twice.** The
+  > comparison leaf's wide-literal and `i16::MIN` rules were in the parser **and**
+  > in `compare_leaf_text`, in sync by luck; the third rule of the same family —
+  > a large unsigned under `==`/`!=` — was in codegen alone, and that is exactly
+  > the one that leaked. Partial duplication is worse than none: it makes the
+  > seam look already handled. The repair is one predicate
+  > (`CompareLeaf::out_of_class_ctx`, `chain_form`) that the parser gates on and
+  > codegen consults, with codegen's own check demoted to the second lock the way
+  > `indirect_load_text` already documents.
+  >
+  > **The corrected numerator is 411,934 → 402,704 (16.73 % → 16.35 %)** — and
+  > then 418,628 with the unrelated W22 widening (§6d), which is recorded
+  > *separately* on purpose: a correctness repair that costs coverage must not be
+  > netted against a widening that buys it, or the repair becomes invisible —
+  > accounted for **1:1** by three new census keys —
+  > `callee-unresolved-dtor-delegation:eof` 9,028, `opt-mode-00200001` 136,
+  > `opt-mode-00200101` 66 — with **zero** movement in any pre-existing key, zero
+  > TUs changing class and mismatch 0. Going down is the correct outcome and the
+  > point of the exercise; the previous number counted functions the port refuses.
+  >
+  > Kept honest by `crates/c2-harness/tests/census_gate.rs`, which runs the
+  > cross-check over the whole fixture corpus and asserts the disagreement equals
+  > its **recorded** value (1, named and sized) rather than allow-listing it away,
+  > so a gate landing in codegen instead of the parser fails a test.
+- **A capture is not perfectly reproducible, and a first-blocker histogram will
+  show it.** Two 878-TU scans of the *same* binary over the *same* corpus
+  disagreed by **one function** in `src/system/hamobj/HamIKEffector.cpp`
+  (`expr-op-0x99` 554 vs 555, `expr-intrinsic-base-upcast` 51 vs 50), with
+  `fn_total` and the in-class numerator identical. Re-running the single-TU
+  census with both the pre-change and post-change binaries gives 555/50 every
+  time, so it is not a code change — it is run-to-run variance in the capture
+  under a 16-way parallel scan, landing on a blocked-vs-blocked *attribution*
+  rather than on acceptance. Two consequences: a one-function difference in a
+  histogram row is below this instrument's noise floor and must not be reasoned
+  from, and a rung whose claimed movement is single digits needs the same
+  measurement repeated, not just re-read.
 - **A guessed name is worse than a hex bucket — this has now happened three
   times.** (1) The relational opcode labels were inferred from numeric order
   and three of six were wrong. (2) `call-anchor-*` named a structure that did

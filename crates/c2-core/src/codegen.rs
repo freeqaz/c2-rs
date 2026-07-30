@@ -1461,36 +1461,25 @@ fn try_select_depth2_tree(
     func: &IlFunction,
     reg_of: &dyn Fn(u32) -> Option<u8>,
 ) -> Option<Vec<u8>> {
+    // Which shape this is — and whether it is a shape at all — is decided by
+    // `c2_il::chain_form`, the SAME predicate the IL parser gates on. The four
+    // distinct-formal / N1 / N2 / division rules used to be spelled out twice,
+    // here and (partly) in the parser; that is how the depth rule ended up
+    // enforced only here, with the census claiming bodies the port refused.
+    if c2_il::chain_form(&func.ops, &func.params) != Some(c2_il::ChainForm::Depth2Tree) {
+        return None;
+    }
     let (l0, l1, op1, l2, l3, op2, root) = match func.ops.as_slice() {
-        [IlOp::Load(a), IlOp::Load(b), o1, IlOp::Load(c), IlOp::Load(d), o2, r]
-            if o1.is_tree_binop() && o2.is_tree_binop() && r.is_tree_binop() =>
-        {
+        [IlOp::Load(a), IlOp::Load(b), o1, IlOp::Load(c), IlOp::Load(d), o2, r] => {
             (*a, *b, *o1, *c, *d, *o2, *r)
         }
+        // `chain_form` already proved the shape; this is the destructuring.
         _ => return None,
     };
-    // Four distinct parameter leaves, nothing else.
-    let toks = [l0, l1, l2, l3];
-    for (i, t) in toks.iter().enumerate() {
-        if toks[..i].contains(t) {
-            return None;
-        }
-    }
-    let regs: Vec<u8> = toks.iter().map(|t| reg_of(*t)).collect::<Option<_>>()?;
-
-    let is_additive = |o: IlOp| matches!(o, IlOp::Add | IlOp::Sub);
-    // N1 — product flattening.
-    if root == IlOp::Mul && (op1 == IlOp::Mul || op2 == IlOp::Mul) {
-        return None;
-    }
-    // N2 — additive canonicalization.
-    if is_additive(root) && (is_additive(op1) || is_additive(op2)) {
-        return None;
-    }
-    // Integer division is not modeled at all.
-    if root == IlOp::Div || op1 == IlOp::Div || op2 == IlOp::Div {
-        return None;
-    }
+    let regs: Vec<u8> = [l0, l1, l2, l3]
+        .iter()
+        .map(|t| reg_of(*t))
+        .collect::<Option<_>>()?;
 
     // The `+`-root swap.
     let (left_reg, right_reg) = if root == IlOp::Add {
@@ -3263,5 +3252,171 @@ mod tests {
                 0x4E, 0x80, 0x00, 0x20, // blr
             ]
         );
+    }
+}
+
+// ---- The per-function selector: ONE dispatch, two emitters -----------------
+
+/// What [`select_function`] produced for one function.
+///
+/// The variants differ only in what the *caller* still has to do — append a
+/// branch, pool a constant, take a different obj shape. Everything that decides
+/// **whether a function is in class at all** happens inside
+/// [`select_function`], which is the point: before it existed, the packed
+/// emitter and the COMDAT emitter each had their own copy of the dispatch, and
+/// a diagnostic that wanted to ask "would the port accept this function?" had to
+/// grow a third (`docs/GAPS.md` §6, "one fact, one locator").
+pub enum Selected {
+    /// A complete body. No relocation, no pooled constants.
+    Plain(Vec<u8>),
+    /// A tail call. The bytes are everything *before* the `b <callee>`; the
+    /// caller appends the branch at `text_offset + len` and registers the REL24
+    /// there, because the branch encodes its own `.text` offset.
+    Tail(Vec<u8>),
+    /// A floating-point leaf plus one [`FpConstRef`] per constant reference
+    /// site, at offsets relative to the start of this text.
+    Float {
+        text: Vec<u8>,
+        consts: Vec<FpConstRef>,
+    },
+    /// A framed non-leaf call. It owns its whole obj shape (`.pdata` plus the
+    /// compiler label symbols), so the selector only identifies it and the
+    /// caller routes it — or refuses, which is what happens under `/Gy`.
+    Framed,
+}
+
+/// **The port's per-function instruction selection**, in one place.
+///
+/// The dispatch order is load-bearing and is the union of the two orders the
+/// packed and COMDAT emitters used to carry separately:
+///
+/// 1. `framed_call` — its own obj shape;
+/// 2. `tail_call` — checked **ahead of** the leaf recognizers, so a tail call
+///    can never lose its branch to a leaf pattern that happens to match its
+///    argument-setup op stream;
+/// 3. `empty_body` — a bare `blr`;
+/// 4. the FP leaf — its op vocabulary (`Load`/`Lit`/`FpLit` + `+ - * /`) is
+///    disjoint from the indirect-load and address leaves' (`LoadInd`/`AddrOf`),
+///    so its position relative to them is free; it keeps the packed emitter's;
+/// 5. the indirect-load leaf, then the address leaf — exact two-op streams;
+/// 6. the comparison leaf — its own branchless spine;
+/// 7. otherwise the ordinary arithmetic selector, which refuses whatever it
+///    cannot lower.
+///
+/// `mode` is the per-function optimization mode read from `.ex`; the caller has
+/// already refused a TU that mixes modes or carries one this port was not
+/// verified against.
+pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, BackendError> {
+    if func.framed_call.is_some() {
+        return Ok(Selected::Framed);
+    }
+    if func.tail_call.is_some() {
+        // Multi-argument: a register permutation, then the branch.
+        if let Some(sources) = &func.arg_sources {
+            return Ok(Selected::Tail(permute_args_text(sources)?));
+        }
+        // A VOID tail call (`void f(){ g(); }`, and the generated empty
+        // destructor): no argument to compute, so the setup is empty.
+        if func.ops.is_empty() {
+            return Ok(Selected::Tail(Vec::new()));
+        }
+        // An integer tail call: the argument computed into r3. `int_tail_call_text`
+        // appends the branch itself, so the setup is its text minus the last word.
+        let (mut text, _) = int_tail_call_text(func, 0, mode)?;
+        text.truncate(text.len() - 4);
+        return Ok(Selected::Tail(text));
+    }
+    if func.empty_body {
+        return Ok(Selected::Plain(encode_blr().to_vec()));
+    }
+    if let Some(double) = func.float_leaf {
+        let (text, consts) = float_leaf_text(func, double)?;
+        return Ok(Selected::Float { text, consts });
+    }
+    if let Some(t) = indirect_load_text(func) {
+        return Ok(Selected::Plain(t?));
+    }
+    if let Some(t) = addr_leaf_text(func) {
+        return Ok(Selected::Plain(t?));
+    }
+    if let Some(cmp) = &func.compare {
+        return Ok(Selected::Plain(compare_leaf_text(cmp, mode)?));
+    }
+    Ok(Selected::Plain(select_text(func, mode)?))
+}
+
+/// **Diagnostic: would the port accept this one function?** Runs
+/// [`select_function`] — the same dispatch the emitters run, not a copy of it —
+/// plus the two gates that only `/Gy` raises.
+///
+/// This exists to size the **census/gate disagreement** (roadmap #44): the IL
+/// parser is where acceptance is supposed to live, so that
+/// [`c2_il::IlBundle::function_census`] and `PortC2` cannot disagree about what
+/// is in class. Where a refusal has leaked into codegen instead, the census
+/// over-claims, and a numerator with an unmeasured error term is not a
+/// benchmark. `c2rs gap` runs this over every function the census calls in class
+/// and reports the disagreement in the same block as the census.
+///
+/// Diagnostic only — nothing in the emitter consults it.
+pub fn function_gate(
+    func: &IlFunction,
+    mode: OptMode,
+    fn_level_linking: bool,
+) -> Result<(), BackendError> {
+    match select_function(func, mode)? {
+        // A framed non-leaf call under `/Gy` used to refuse here, because its
+        // `.pdata` was not modeled per COMDAT. It is now (W-UNW-1): each framed
+        // function gets its own `.pdata` COMDAT tied to its `.text` by
+        // SELECT_ASSOCIATIVE, so this arm is gone. Leaving it would have made
+        // the diagnostic report a refusal for every framed function the emitter
+        // actually emits — the disagreement counter wrong in the *under*-claiming
+        // direction, which no test would have caught.
+        Selected::Float { consts, .. } if fn_level_linking && !consts.is_empty() => {
+            Err(out_of_class(
+                "pooled floating-point constant under function-level linking (/Gy)",
+            ))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Map a function's `.ex` **optimization-settings word** to the mode this port
+/// emits under, or refuse.
+///
+/// One locator: [`crate::PortC2::build`] applies it per function, and the
+/// census/gate cross-check applies it to the word [`c2_il::FnCensus::opt_word`]
+/// read off the same segment. A diagnostic that guessed `/O1` because the
+/// workload compiles `/O1` would silently disagree with the emitter about every
+/// `#pragma optimize` function in the corpus.
+///
+/// One bit of the word is NOT a mode: `0x0100` says the function is a
+/// constructor or a destructor ([`c2_il::OPT_WORD_SPECIAL_MEMBER`], measured one
+/// flag and one function kind at a time). It is masked off before the whole-word
+/// compare, so a destructor's word reads as the mode it actually is — otherwise
+/// every constructor and destructor in the corpus is a `codegen-gap` however
+/// ordinary its body, which is what kept `A::~A() {}` (a bare `blr`, decoded as
+/// `EmptyBody`) out of the emitter. Every other bit is still required to match a
+/// word this port was verified against.
+pub fn opt_mode_of_word(word: Option<u32>) -> Result<OptMode, BackendError> {
+    match c2_il::opt_word_mode(word) {
+        Some(c2_il::OptWordMode::Ox) => Ok(OptMode::Ox),
+        Some(c2_il::OptWordMode::O1) => Ok(OptMode::O1),
+        None => Err(out_of_class(&format!(
+            // Reported as the RAW word, not the masked one: the census key has to
+            // name what is actually in the file.
+            "opt-mode {} : only {:08x} (/Ox, /O2) and {:08x} (/O1) are \
+             implemented{}. See docs/OPT_MODE.md.",
+            match word {
+                Some(v) => format!("{v:08x}"),
+                None => "unreadable".to_string(),
+            },
+            c2_il::OPT_WORD_OX,
+            c2_il::OPT_WORD_O1,
+            match word.map(|v| v & !c2_il::OPT_WORD_SPECIAL_MEMBER) {
+                Some(0x0080_0005) => " — that is /Od",
+                Some(0x0080_0004) => " — that is #pragma optimize(\"\", off)",
+                _ => "",
+            },
+        ))),
     }
 }

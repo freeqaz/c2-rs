@@ -212,6 +212,10 @@ fn cmd_census(rest: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     };
     let w = scratch("census");
+    // Two of the port's per-function refusals are `/Gy`-only, so the cross-check
+    // below has to see the same flag the emitter would. The default capture is
+    // `/Ox`, which does not imply it; a `--flags-file` may.
+    let mut gy = false;
     let captured = match &flags_file {
         None => tc.capture_il(&cpp, &w),
         Some(ff) => {
@@ -227,6 +231,7 @@ fn cmd_census(rest: &[String]) -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             };
+            gy = c2_core::PortC2::flags_imply_function_level_linking(&flags);
             tc.capture_reference_with(&cpp.to_string_lossy(), &w, &flags, cwd.as_deref())
                 .map(|c| c.bundle)
         }
@@ -254,11 +259,36 @@ fn cmd_census(rest: &[String]) -> ExitCode {
             println!("kept IL bundle in {}", dir.display());
         }
     }
-    let Some(census) = bundle.function_census() else {
+    let Some(rows) = bundle.census_functions() else {
         eprintln!("census unavailable: bundle is missing .ex/.gl");
         let _ = std::fs::remove_dir_all(&w);
         return ExitCode::FAILURE;
     };
+    // The census/gate cross-check, per TU (roadmap #44): a function the census
+    // calls in class that `PortC2`'s own selector refuses. `c2rs census` is the
+    // instrument a widening step is developed against, so it has to show this —
+    // `int f(int a,int b,int c){ return a + b*c; }` read `1/1 in class` beside a
+    // `Port=NotImplemented` for as long as the disagreement existed.
+    let mut gate_hist: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for (f, gate) in &rows {
+        if !f.verdict.in_class() {
+            continue;
+        }
+        let key = match gate {
+            Err(e) => Some((*e).to_string()),
+            Ok(func) => match c2_core::codegen::opt_mode_of_word(f.opt_word) {
+                Err(e) => Some(e.to_string()),
+                Ok(mode) => c2_core::codegen::function_gate(func, mode, gy)
+                    .err()
+                    .map(|e| e.to_string()),
+            },
+        };
+        if let Some(k) = key {
+            *gate_hist.entry(k).or_insert(0) += 1;
+        }
+    }
+    let census: Vec<c2_il::FnCensus> = rows.into_iter().map(|(c, _)| c).collect();
     let in_class = census.iter().filter(|f| f.verdict.in_class()).count();
     println!(
         "{} -> {}/{} functions in class",
@@ -303,6 +333,17 @@ fn cmd_census(rest: &[String]) -> ExitCode {
         }
         if v.len() > 24 {
             println!("    … and {} more distinct features", v.len() - 24);
+        }
+    }
+    if !gate_hist.is_empty() {
+        let n: usize = gate_hist.values().sum();
+        println!(
+            "  census/gate DISAGREEMENT: {n} of the {in_class} in class are refused by PortC2:"
+        );
+        let mut v: Vec<_> = gate_hist.into_iter().collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        for (reason, count) in v.iter().take(12) {
+            println!("    {count:>6} x {reason}");
         }
     }
     let _ = std::fs::remove_dir_all(&w);
@@ -1825,6 +1866,24 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
             "\n  FUNCTION CENSUS (P2b): {in_class}/{fn_total} functions in class ({:.2}%)",
             100.0 * in_class as f64 / fn_total as f64
         );
+        // The census/gate cross-check (roadmap #44). The numerator above is the
+        // public claim, so its error term is printed beside it on every scan
+        // rather than being characterized once and forgotten: these are the
+        // functions the census calls in class and `PortC2`'s own per-function
+        // selector refuses. It must read 0.
+        let disagree = report.fn_gate_disagreement();
+        if disagree == 0 {
+            println!("  census/gate disagreement: 0  (the port accepts every function above)");
+        } else {
+            println!(
+                "  census/gate DISAGREEMENT: {disagree} ({:.2}% of the numerator) — the census \
+                 OVER-CLAIMS by this much",
+                100.0 * disagree as f64 / in_class.max(1) as f64
+            );
+            for (key, count) in report.fn_gate_histogram().iter().take(15) {
+                println!("    {count:>7}  {key}");
+            }
+        }
         let hist = report.fn_blocker_histogram();
         if !hist.is_empty() {
             println!("  blocking features (the widening order):");

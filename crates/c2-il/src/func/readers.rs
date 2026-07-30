@@ -401,9 +401,40 @@ const ULONG_TYPE: [u8; 3] = [0x86, 0x42, 0x22];
 /// extension placement depends on the operator *and* the result type (§3.2).
 const INT_LIKE_TYPES: [[u8; 3]; 4] = [INT_TYPE, UINT_TYPE, LONG_TYPE, ULONG_TYPE];
 
-/// Consume any one of [`INT_LIKE_TYPES`] at `p`, reporting whether it matched.
+/// Consume a **width-4 integer TYPE in any spelling** at `p`, reporting whether
+/// it matched: one of the four bare [`INT_LIKE_TYPES`] triples, or any TYPE
+/// [`is_int4_type`] admits on its tag/kind nibbles.
+///
+/// The second arm is what makes an `enum`, a `typedef`, a `const int` or a
+/// `volatile int` an int-like operand. Those carry a **per-TU type id** in place
+/// of the fixed third byte, so an exact-triple whitelist cannot see them however
+/// ordinary the code is — `int get(S* s){ return s->e; }` for an `enum` member
+/// emits the identical `lwz r3,off(r3) ; blr` as for an `int` one, and refused.
+/// Measured by counterfactual over the 878-TU workload: the whitelist was
+/// over-refusing by **15,924 functions**, against a 5,684 estimate attributed
+/// from three census key names — `docs/ROADMAP.md` §6d, and the §6 rule it is
+/// the third instance of (estimate the *fix*, not the finding: `eat_int_like`
+/// has five call sites and the key-name estimate covered one attribution).
+///
+/// [`is_int4_type`] is the same predicate the `2C` conversion target, the `41`
+/// result annotation and the `30` load already agree through, so this is one
+/// locator gaining a call site rather than a new rule. It requires the tag's
+/// width nibble to say **4-byte alignment** *and* the kind's high nibble to say
+/// **4-byte size**, so the narrow types, `long long`, and a 4-byte int under
+/// `#pragma pack(1)` all still refuse — `fixtures/cpp/w22_int_spelling_neg.cpp`
+/// holds them, and the packed pair is the fixture for `docs/GAPS.md` §6's third
+/// wrong-bytes emit.
 pub(crate) fn eat_int_like(seg: &[u8], p: &mut usize) -> bool {
-    INT_LIKE_TYPES.iter().any(|t| eat(seg, p, t))
+    if INT_LIKE_TYPES.iter().any(|t| eat(seg, p, t)) {
+        return true;
+    }
+    match read_type(seg, *p) {
+        Some((tag, kind, _, w)) if is_int4_type(tag, kind) => {
+            *p += w;
+            true
+        }
+        _ => false,
+    }
 }
 
 /// The `float` operand type (`86 45 40`) and the `double` one (`88 85 41`).
@@ -539,9 +570,10 @@ pub(crate) fn value_class(tag: u8, kind: u8) -> Option<ValueClass> {
 /// Consume a TYPE at `p` iff it belongs to `class`, reporting whether it did.
 pub(crate) fn eat_value_type(seg: &[u8], p: &mut usize, class: ValueClass) -> bool {
     match class {
-        // The int side keeps its exact-triple whitelist (`86 41 74` and the
-        // three siblings): those are the only int spellings measured free
-        // through a `2C`, and widening it is not this rung's business.
+        // Both sides now consume by tag/kind, so a `2C` whose target is a
+        // width-4 integer carrying a per-TU type id (an enum, a typedef, a
+        // `const int`) is admitted exactly where `is_int4_type` says it is a
+        // no-op — the same predicate `value_class` classifies with.
         ValueClass::Int4 => eat_int_like(seg, p),
         ValueClass::Ptr4 => match read_type(seg, *p) {
             Some((tag, kind, _, w)) if is_ptr4_kind(tag, kind) => {
@@ -625,6 +657,22 @@ mod tests {
             assert_eq!(eat_int_like_or_ptr4(&bytes, &mut p), Some(false));
             assert_eq!(p, 3);
         }
+        // W22: a width-4 integer carrying a per-TU type id — an enum, a typedef,
+        // a `const`/`volatile` qualification — is the same operand and the same
+        // instruction. The exact-triple whitelist could not see any of them, and
+        // that cost 15,924 functions on the workload (`ROADMAP.md` §6d). Admitted
+        // through `is_int4_type`, which is the predicate the `2C` target and the
+        // `41` result already agree through.
+        let int_spellings: &[(&[u8], &str)] = &[
+            (&[0x86, 0x42, 0x76], "unsigned with a per-TU id (an enum, a typedef)"),
+            (&[0xA6, 0x41, 0x84, 0x20], "const int"),
+            (&[0x96, 0x41, 0x86, 0x20], "volatile int"),
+        ];
+        for (bytes, label) in int_spellings {
+            let mut p = 0usize;
+            assert_eq!(eat_int_like_or_ptr4(bytes, &mut p), Some(false), "{label}");
+            assert_eq!(p, bytes.len(), "{label}: consumed the whole type");
+        }
         // Everything else refuses, and refuses WITHOUT moving the cursor — the
         // caller reports the census key from the untouched position.
         let no: &[(&[u8], &str)] = &[
@@ -636,7 +684,6 @@ mod tests {
             (&[0xC6, 0x43, 0x8F, 0x20], "tag bit 0x40 — never captured, fails closed"),
             (&[0x87, 0x43, 0x8F, 0x20], "odd tag is the aggregate size bit"),
             (&[0x86, 0x83, 0x8F, 0x20], "kind claims an 8-byte pointer"),
-            (&[0x86, 0x42, 0x76], "unsigned with an id that is not the whitelisted one"),
             (&[0x41, 0x86, 0x41], "not a type at all"),
         ];
         for (bytes, label) in no {

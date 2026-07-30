@@ -1,9 +1,15 @@
-use super::body::{call_tokens, parse_segment_detail, BodyShape, DtorSubObject};
+use super::body::{
+    call_tokens, parse_segment_detail, BodyShape, DtorSubObject, CALLEE_UNRESOLVED_DTOR,
+    CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_TAIL, OPT_MODE,
+};
 use super::bundle::mangled_is_varargs;
+use super::bundle::{opt_word_at, opt_word_mode};
+use super::bundle::shape_to_function;
 use super::bundle::split_function_bodies;
-use super::gl::mangled_names;
+use super::gl::{mangled_names, source_path, GlIndex};
 use super::sy::SyLocals;
 use super::Block;
+use super::IlFunction;
 use crate::IlBundle;
 
 /// Split the `.ex` stream into per-function byte segments at each `4F 1F`
@@ -56,6 +62,11 @@ pub struct FnCensus {
     /// group: they are all leaves or single tail calls, so a non-zero count among
     /// them would say the measure is wrong.
     pub calls: usize,
+    /// This function's **optimization-settings word**, read out of this segment's
+    /// own `4F 1F 80 <LE32>` head (never zipped in from `IlBundle::opt_words`,
+    /// which walks a different segmentation). The census/gate cross-check needs
+    /// it to pick the mode the port would emit under.
+    pub opt_word: Option<u32>,
 }
 
 impl FnCensus {
@@ -101,6 +112,40 @@ impl IlBundle {
     /// Diagnostic only — never a gate, and never consulted by the emitter.
     /// Returns `None` only when the bundle lacks the required files.
     pub fn function_census(&self) -> Option<Vec<FnCensus>> {
+        Some(
+            self.census_functions()?
+                .into_iter()
+                .map(|(c, _)| c)
+                .collect(),
+        )
+    }
+
+    /// **The census/gate cross-check (roadmap #44).** Every row
+    /// [`IlBundle::function_census`] reports, paired with the emitter's own
+    /// per-function record for the rows the census calls in class.
+    ///
+    /// Why this exists: acceptance is supposed to live in the IL parser so the
+    /// census and the gate cannot disagree, and for a long time it did not
+    /// entirely — `int f(int a,int b,int c){ return a + b*c; }` censused in class
+    /// and `PortC2` returned `NotImplemented`, because a `*` after the first
+    /// operator was gated in codegen where the census could not see it. A
+    /// numerator with an unmeasured error term is not a benchmark, so the
+    /// disagreement gets a permanent instrument rather than a note: the harness
+    /// runs the port's own selector over every `Ok` row and reports the
+    /// disagreement in the same block as the census (`docs/GAPS.md` §6, "a
+    /// diagnostic that runs outside the parser needs a population whose answer is
+    /// already known").
+    ///
+    /// `Err` carries why there is no record:
+    ///
+    /// * `"blocked"` — the census itself refused; nothing to cross-check.
+    /// * `"callee-unresolved"` — the body parsed, but the CALL token has no `.gl`
+    ///   symbol, so [`shape_to_function`] refuses. That IS a disagreement, and a
+    ///   per-function one, so it is named rather than folded into `blocked`.
+    ///
+    /// Diagnostic only, exactly like the census: acceptance is unchanged and the
+    /// emitter never consults it.
+    pub fn census_functions(&self) -> Option<Vec<(FnCensus, Result<IlFunction, &'static str>)>> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
         let names = mangled_names(gl);
@@ -123,6 +168,11 @@ impl IlBundle {
         // census cannot report a function in class that `IlBundle::functions` would
         // refuse for want of a local — or the reverse.
         let locals = SyLocals::new(self.get("sy"), &segs);
+        // For the gate side of the pair only. Built lazily by `GlIndex`, and the
+        // source path is provenance the emitter does not embed.
+        let symbols = GlIndex::new(gl);
+        let resolve = |tok: u32| -> Option<String> { symbols.map().get(&tok).cloned() };
+        let src = source_path(gl);
         Some(
             segs.iter()
                 .enumerate()
@@ -140,6 +190,14 @@ impl IlBundle {
                     // here can be emitted either way.
                     let varargs = paired
                         && names.get(i).is_some_and(|n| mangled_is_varargs(n));
+                    // Held across the verdict so the gate side can convert the
+                    // very same parse — two readings of one parse, never two parses.
+                    let mut shape: Result<BodyShape, Block> = Err(Block {
+                        ctx: "fn-varargs",
+                        byte: None,
+                        off: 0,
+                        aux: 0,
+                    });
                     let verdict = if varargs {
                         FnVerdict::Blocked(Block {
                             ctx: "fn-varargs",
@@ -148,7 +206,8 @@ impl IlBundle {
                             aux: 0,
                         })
                     } else {
-                        match parse_segment_detail(seg, locals.view(i)) {
+                        shape = parse_segment_detail(seg, locals.view(i));
+                        match &shape {
                             Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                             Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
                             // Three buckets for one shape, so the movement out of
@@ -186,10 +245,67 @@ impl IlBundle {
                             // because the two emit different instructions.
                             Ok(BodyShape::AddrLeaf { .. }) => FnVerdict::InClass("addr-leaf"),
                             Ok(BodyShape::FloatLeaf { double, .. }) => {
-                                FnVerdict::InClass(if double { "double-leaf" } else { "float-leaf" })
+                                FnVerdict::InClass(if *double { "double-leaf" } else { "float-leaf" })
                             }
-                            Err(b) => FnVerdict::Blocked(b),
+                            Err(b) => FnVerdict::Blocked(*b),
                         }
+                    };
+                    // ---- The two POST-PARSE gates -----------------------------
+                    //
+                    // Both are per-function facts `PortC2` has always enforced and
+                    // the census never checked, so the numerator counted functions
+                    // the port refuses (roadmap #44). They are applied **last**, to
+                    // an otherwise-in-class function only, which is what keeps every
+                    // blocked function's real blocking feature in the histogram —
+                    // gating either of them up front would relabel bodies whose
+                    // actual problem is somewhere else entirely.
+                    let opt_word = opt_word_at(seg);
+                    let mut func: Result<IlFunction, &'static str> = Err("blocked");
+                    let verdict = match (shape, verdict) {
+                        (Ok(sh), FnVerdict::InClass(label)) => {
+                            // (a) The callee must resolve through `.gl`. A CALL
+                            // token carries a function-*type* id, not the callee, so
+                            // the name comes from the symbol index; when it is not
+                            // there the emitter has no symbol to relocate against,
+                            // and guessing one is a relocation against the wrong
+                            // symbol — a mis-emit, not a gap. `shape_to_function` is
+                            // the same conversion `IlBundle::functions` runs, so the
+                            // two cannot disagree about this.
+                            let name = names.get(i).cloned().unwrap_or_default();
+                            match shape_to_function(sh, &name, &src, &resolve) {
+                                None => FnVerdict::Blocked(Block {
+                                    ctx: match label {
+                                        "framed-call" => CALLEE_UNRESOLVED_FRAMED,
+                                        l if l.starts_with("empty-dtor") => {
+                                            CALLEE_UNRESOLVED_DTOR
+                                        }
+                                        _ => CALLEE_UNRESOLVED_TAIL,
+                                    },
+                                    byte: None,
+                                    off: seg.len().saturating_sub(1),
+                                    aux: 0,
+                                }),
+                                // (b) The optimization mode. `.ex` records it per
+                                // function and the port emits only the two words it
+                                // has been verified against; the rest — `/Od`, a
+                                // `#pragma optimize("", off)`, an unreadable prefix —
+                                // are refused.
+                                Some(f) if opt_word_mode(opt_word).is_none() => {
+                                    let _ = f;
+                                    FnVerdict::Blocked(Block {
+                                        ctx: OPT_MODE,
+                                        byte: None,
+                                        off: seg.len().saturating_sub(1),
+                                        aux: opt_word.unwrap_or(0) as u64,
+                                    })
+                                }
+                                Some(f) => {
+                                    func = Ok(f);
+                                    FnVerdict::InClass(label)
+                                }
+                            }
+                        }
+                        (_, v) => v,
                     };
                     // Keep the raw bytes around the blocking site: decoding a new
                     // grammar production always starts by staring at exactly this
@@ -204,15 +320,19 @@ impl IlBundle {
                             (seg[start..end].to_vec(), b.off - start)
                         }
                     };
-                    FnCensus {
-                        index: i,
-                        name: if paired { names.get(i).cloned() } else { None },
-                        seg_len: seg.len(),
-                        verdict,
-                        hex,
-                        hex_mark,
-                        calls: call_tokens(seg),
-                    }
+                    (
+                        FnCensus {
+                            index: i,
+                            name: if paired { names.get(i).cloned() } else { None },
+                            seg_len: seg.len(),
+                            verdict,
+                            hex,
+                            hex_mark,
+                            calls: call_tokens(seg),
+                            opt_word,
+                        },
+                        func,
+                    )
                 })
                 .collect(),
         )
@@ -225,20 +345,41 @@ mod tests {
     use crate::func::bundle::FN_START;
     use crate::func::test_fixtures::*;
 
+    /// `4F 1F 80 <LE32 /Ox>` — a segment head carrying a mode the port emits under.
+    fn seg_head() -> Vec<u8> {
+        let mut v = vec![FN_START[0], FN_START[1], 0x80];
+        v.extend_from_slice(&crate::func::OPT_WORD_OX.to_le_bytes());
+        v
+    }
+
+    /// A `.gl` with two real records: `<token> 00 <name> 00`, which is the shape
+    /// [`super::super::gl::gl_symbol_index`] reads the callee name out of.
+    fn gl_two_records() -> Vec<u8> {
+        let mut v = vec![0xE4, 0x09, 0x00];
+        v.extend_from_slice(b"?f@@YAXXZ\x00");
+        v.extend_from_slice(&[0xE3, 0x09, 0x00]);
+        v.extend_from_slice(b"?g@@YAXXZ\x00");
+        v
+    }
+
     #[test]
     fn census_classifies_each_function_independently() {
         // The point of P2b: one blocked function does not hide the in-class
         // ones. `functions()` (the gate) is all-or-nothing and returns None.
+        // Each segment opens `4F 1F 80 <LE32 opt word>` and `.gl` carries a real
+        // token→name record per symbol: both are POST-PARSE acceptance gates now
+        // (the optimization mode, and the callee resolving through `.gl`), so a
+        // fixture that omits them measures those gates rather than the split.
         let mut ex: Vec<u8> = Vec::new();
-        ex.extend_from_slice(&FN_START);
+        ex.extend_from_slice(&seg_head());
         ex.extend_from_slice(MVP_CALL);
-        ex.extend_from_slice(&FN_START);
+        ex.extend_from_slice(&seg_head());
         ex.extend_from_slice(TWO_CALLS);
         let bundle = crate::IlBundle {
             base_name: "t".into(),
             files: vec![
                 ("ex".to_string(), ex),
-                ("gl".to_string(), b"?f@@YAXXZ\x00?g@@YAXXZ\x00".to_vec()),
+                ("gl".to_string(), gl_two_records()),
             ]
             .into_iter()
             .collect(),

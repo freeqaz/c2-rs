@@ -1444,7 +1444,192 @@ Items 3, 4, 7 and 9 are the reason no completion fraction can honestly be
 derived from 4.45%: the census measures decode demand, and none of those four
 is a decode item.
 
-## 6c. W-UNW-1 closed: per-function `.pdata` (2026-07-30)
+## 6c. The census/gate disagreement, sized and closed (D13, 2026-07-30)
+
+Roadmap item #44. The invariant is that acceptance lives in the IL parser so
+`IlBundle::function_census` — the public coverage numerator — and `PortC2` cannot
+disagree about what is in class. It was known to be violated
+(`IL_CALL_IN_EXPR.md` §24.7) and had never been sized.
+
+### The instrument
+
+`IlBundle::census_functions` pairs every census row with the emitter's own
+function record, built by `shape_to_function`, which `IlBundle::functions` also
+calls — one locator for the shape→function mapping. `codegen::function_gate` runs
+`PortC2`'s per-function selector, dispatched by the new `codegen::select_function`
+that both the packed and the COMDAT emitters now go through, so the cross-check
+cannot drift from the emitter. `c2rs gap` and `c2rs census` print the
+disagreement **in the same block as the numerator, every run**.
+
+### The size, and what it was actually made of
+
+**9,230 of 411,934 — 2.24 % of the numerator**, on the 878-TU workload at `/O1`.
+
+| functions | cause | where the gate was |
+|---:|---|---|
+| 9,028 | a generated empty destructor whose callee token has no `.gl` symbol | `shape_to_function` (per function, invisible to the census) |
+| 202 | an optimization word the port does not emit under (`00200001` ×136, `00200101` ×66) | `PortC2::build` |
+| 0 | `return a + b*c` — the shape §24.7 characterized | `codegen::select_text` |
+
+Plus **14 in the fixture corpus** that the workload does not contain: the §24.7
+depth rule (9), `==`/`!=` against a large unsigned (4), FP scratch exhaustion (1).
+
+**The characterized case was 0 % of the real total.** §24.7 was written from three
+probes and named the straight-line depth rule; the workload has 62,813
+straight-line functions and not one whose operand stack goes past depth 2. Every
+one of the 9,230 was a cause nobody had looked for. `GAPS.md` §6 carries the
+general form.
+
+### What moved, and where to
+
+Four gates, each with its own census key on the way in:
+
+| gate | now lives in | key |
+|---|---|---|
+| callee resolves through `.gl` | `census_functions` (post-parse) | `callee-unresolved-{tail-call,dtor-delegation,framed-call}:eof` |
+| the optimization word names a mode | `census_functions` (post-parse) + `c2_il::opt_word_mode` | `opt-mode-<word>` |
+| serial-chain depth / the depth-2 tree shape | `c2_il::chain_form`, gated in `straight_line_out_of_class_ctx`, consulted by `select_text` | `expr-out-of-class-tree-depth` |
+| the difference spine's three literal rules | `CompareLeaf::out_of_class_ctx` | (falls through to `expr-cmp-*`) |
+
+Both census-side gates are applied **last, to an otherwise-in-class function
+only**. Gating them up front would relabel every blocked function whose real
+problem is elsewhere and destroy the histogram that ranks this roadmap — which is
+the objection `IlBundle::opt_words`' doc comment raised against gating the mode
+at all, and it is answered by the ordering rather than by leaving the numerator
+wrong.
+
+Two of the four were already spelled out **twice** (the comparison leaf's
+wide-literal and `i16::MIN` rules, in the parser and in `compare_leaf_text`), and
+the third rule of that same family was in codegen alone — which is the one that
+leaked. Partial duplication is worse than none: it makes the seam look handled.
+
+### The corrected census
+
+**411,934 → 402,704 (16.73 % → 16.35 %), −9,230.** It is meant to go down. The
+old number counted functions the port refuses; a numerator with an unmeasured
+error term is not a benchmark.
+
+The accounting is exact: the 9,230 appear under three new keys
+(`callee-unresolved-dtor-delegation:eof` 9,028, `opt-mode-00200001` 136,
+`opt-mode-00200101` 66) with **zero** movement in any pre-existing key, **zero**
+TUs changing class, and mismatch 0. Residual disagreement: **0** on the workload,
+**1** on the fixtures.
+
+### Gate evidence (this change)
+
+| lane | result |
+|---|---|
+| `cargo test --workspace --release` | 366 passed, 0 failed |
+| `c2rs bench` | **123 pass, 0 fail, 0 error** (121 before; +2 fixtures) |
+| `scripts/mode_lane.sh /Ox` | 51 match, **0 mismatch**, 0 codegen-gap |
+| `scripts/mode_lane.sh /O1` / `/O2` / `/Ox /Gy` | 48 match, **0 mismatch**, 3 codegen-gap each |
+| `scripts/expr_sweep.sh` | checked=**4343**, mismatches=**0** |
+| 878-TU scan | match 6, **mismatch 0**, census 402,704/2,462,571, 584 keys, disagreement **0** |
+| `census fixtures/cpp/w21_census_gate.cpp` | **9/9 in class**, `Port=Match` |
+| `census fixtures/cpp/w21_census_gate_neg.cpp` | **0/8 in class**, `Port=NotImplemented`, no disagreement |
+
+`crates/c2-harness/tests/census_gate.rs` runs the cross-check over the whole
+fixture corpus on every `cargo test` and asserts the disagreement equals its
+recorded value, so a gate landing in codegen instead of the parser fails a test.
+
+### Found and not taken, ranked, with the frame axis applied
+
+1. **`callee-unresolved-dtor-delegation:eof` — 9,028 functions, all `calls-1`,
+   all grammar-complete** (`:eof`). Almost certainly a **gate-side decode gap
+   rather than a real out-of-class construct**: all 826 TUs that have one *also*
+   have resolved delegations (26,918 of them are in class right now), so it is
+   not a property of the shape — `gl_symbol_index` is missing specific tokens.
+   Recovering them is a `.gl` **binding** change, and §6's `.sy` bullet is the
+   governing precedent: the oracle cannot grade a correspondence, so it must be
+   graded on the binding's own invariants, not on a green differential. This is
+   the largest single named item on the board that needs no new instruction.
+2. **`opt-mode-00200001` — 202 functions in 2 TUs** (`HamRibbon.cpp`,
+   `Ribbon.cpp`; 136 `calls-0` + 66 with the ctor/dtor bit). `00200001` is
+   `/O1`'s `00200005` without bit `0x4`, and `docs/OPT_MODE.md` explicitly leaves
+   that bit unexplained. One controlled capture would settle whether it is a mode
+   the existing codegen already targets. Small, but it is the *whole* of the
+   second cause.
+3. **FP scratch exhaustion — 1 fixture function, 0 workload functions.**
+   `w13_fscratch.cpp`'s `fm13` (13 `float` parameters, 12 multiplies) is refused
+   because `float_leaf_text` never retires a parameter from its live set, so 13
+   parameters leave exactly one free pool slot. The fixture's own comment says
+   the cursor should "wrap twice", so the model and the code disagree — and the
+   fixture has never graded it, because its TU has four out-of-class siblings.
+   Moving this gate means lifting the FP register allocator into `c2-il`, which
+   is byte-visible; not worth it at a measured cost of 0 workload functions, but
+   it is a *second* instance of §6's "a fixture that states the rule and carries
+   the failing case can still grade nothing".
+4. **`eat_int_like`'s four-triple whitelist (roadmap #43), 5,684** — untouched
+   here. Its caution stands: that number is a decode ceiling attributed from key
+   names, not a whole-body-completeness measurement, and the locator is shared by
+   three graded shapes.
+
+## 6d. W22 — the int-like operand type by spelling (roadmap #43, 2026-07-30)
+
+`eat_int_like` matched an exact four-triple whitelist (`86 41 74` int,
+`86 42 75` unsigned, `86 41 12` long, `86 42 22` unsigned long). A width-4
+integer carrying a **per-TU type id** — an `enum`, a `typedef`, a `const` or
+`volatile` qualification — has a different third byte and refused, even though
+`is_int4_type` admits it on the tag/kind nibbles and c2 emits the identical
+instruction. It now falls through to that predicate.
+
+### Re-measured before building, and the recorded estimate was wrong by 2.8×
+
+`IL_CALL_IN_EXPR.md` §24.6 recorded the over-refusal as **5,684**, with the
+caution that it is "a decode ceiling attributed from key names, not a whole-body
+-completeness measurement" and that the takeable number should be **smaller**.
+A counterfactual scan says otherwise:
+
+| | functions |
+|---|---:|
+| released (blocked keys that fell) | 20,779 |
+| advanced to a different blocker | 4,855 |
+| **whole bodies gained** | **+15,924** |
+
+The bias direction was called wrong, and the reason is `GAPS.md` §6's own rule
+about estimating the fix rather than the finding: **`eat_int_like` has five call
+sites**, the key-name estimate covered the attribution of three
+(`8642`/`A641`/`A642`), and the realized yield is dominated by a *different*
+row — `expr-op-0x27` fell **12,637**, an ordinary member getter whose member is
+an `enum`. `expr-load-type-8641` (5,221) and `expr-lit-type-8641` (1,936) went to
+**0**. This is the third time a single-site estimate has under-counted a
+multi-site fix; the rule now has a corollary: **when the estimate comes from key
+names, the sites that fix are not the sites that were counted.**
+
+### Census
+
+**402,704 → 418,628 (16.35 % → 17.00 %)**, mismatch 0, no TU changing class,
+census/gate disagreement still **0** (the port accepts every function admitted —
+checked by the D13 cross-check, which is what makes "the decode widened" and "the
+emitter agrees" one measurement instead of two).
+
+### Gate evidence
+
+| lane | result |
+|---|---|
+| `cargo test --workspace --release` | 366 passed, 0 failed |
+| `c2rs bench` | **125 pass, 0 fail, 0 error** |
+| `scripts/mode_lane.sh /Ox` | 52 match, **0 mismatch** |
+| `/O1`, `/O2`, `/Ox /Gy` | 49 match, **0 mismatch**, 3 codegen-gap each |
+| `scripts/expr_sweep.sh` | checked=**4343**, mismatches=**0** |
+| 878-TU scan | match 6, **mismatch 0**, 418,628/2,462,571, 569 keys |
+| `census fixtures/cpp/w22_int_spelling.cpp` | **13/13 in class**, `Port=Match` |
+| `census fixtures/cpp/w22_int_spelling_neg.cpp` | **0/7 in class**, `Port=NotImplemented` |
+
+`w22_int_spelling.cpp` grades the widening across all three shapes the locator is
+shared by — the member getter (`27` + `30`), the identity leaf and the `41`
+result annotation — plus arithmetic, over `enum` (both signed and unsigned
+underlying), `typedef`, `const` and `volatile` spellings.
+
+`w22_int_spelling_neg.cpp` holds what must keep refusing, and it is the more
+load-bearing file: `is_int4_type` requires the tag's width nibble to say **4-byte
+alignment** *and* the kind's high nibble to say **4-byte size**, so the narrow
+typedefs, `long long`, and a 4-byte `int` under `#pragma pack(1)` all refuse. The
+`pack(4)` `long long` member in it is the discriminating case for `GAPS.md` §6's
+third wrong-bytes emit (tag carries alignment, kind carries size — equal for
+every naturally-aligned type), and the corpus had never carried it as a fixture.
+
+## 6e. W-UNW-1 closed: per-function `.pdata` (2026-07-30)
 
 The prerequisite for #35 (general non-leaf lowering) was that the port emit
 byte-exact unwind data for framed functions. It does now, in both sectioning
@@ -1513,7 +1698,6 @@ the record needs and both are byte offsets the emitter already computes.
    combination is refused rather than guessed.
 6. Unchanged and unrelated to unwind: the whole-TU all-or-nothing gate, and the
    fact that the port has no model of *which* bodies c2 emits (§6a).
-
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp

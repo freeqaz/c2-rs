@@ -117,6 +117,17 @@ pub struct TuResult {
     /// orthogonal fact would break every recorded comparison for no gain. This is
     /// the second axis, kept beside the first.
     pub fn_frames: BTreeMap<String, usize>,
+    /// **The census/gate cross-check** (roadmap #44): of the functions this TU's
+    /// census calls in class, how many does `PortC2`'s own per-function selector
+    /// **refuse**, keyed by the refusal.
+    ///
+    /// It must be empty. Acceptance is supposed to live in the IL parser
+    /// precisely so the census and the gate cannot disagree; anything here is the
+    /// census over-claiming, and the headline numerator is an upper bound by the
+    /// sum of these counts. `docs/GAPS.md` §6: a diagnostic that runs outside the
+    /// parser needs a population whose answer is already known, and this is that
+    /// population — every in-class function, whose answer should be "accepted".
+    pub fn_gate_refusals: BTreeMap<String, usize>,
 }
 
 /// Aggregated scan report.
@@ -198,6 +209,32 @@ impl GapReport {
         t
     }
 
+    /// **The census/gate disagreement**, aggregated: how many censused-in-class
+    /// functions `PortC2` refuses, per refusal, most frequent first.
+    ///
+    /// Every entry is an error term on [`GapReport::fn_coverage`]'s numerator.
+    /// The target is an empty list.
+    pub fn fn_gate_histogram(&self) -> Vec<(String, usize)> {
+        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
+        for r in &self.results {
+            for (k, n) in &r.fn_gate_refusals {
+                *map.entry(k.as_str()).or_insert(0) += n;
+            }
+        }
+        let mut v: Vec<(String, usize)> =
+            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// Total censused-in-class functions the port refuses across the scan.
+    pub fn fn_gate_disagreement(&self) -> usize {
+        self.results
+            .iter()
+            .map(|r| r.fn_gate_refusals.values().sum::<usize>())
+            .sum()
+    }
+
     /// Replay soundness: (checked, diverged).
     pub fn replay_stats(&self) -> (usize, usize) {
         let checked = self.results.iter().filter(|r| r.replay_ok.is_some()).count();
@@ -234,6 +271,19 @@ fn normalize_cl_error(blob: &str) -> (String, String) {
     (key, clip(&detail, 200))
 }
 
+/// A stable bucket key for one of the port's per-function refusals.
+///
+/// The refusal messages are prose (they are what a `codegen-gap` TU reports), so
+/// the key is the leading clause — everything before the first `:` — clipped.
+/// That is deliberately the message's own words rather than a hand-maintained
+/// enum: a key nobody has to remember to add is a key that cannot go stale, and
+/// `docs/GAPS.md` §6's rule against guessed names applies here too. The keys are
+/// meant to reach zero, not to be ranked forever.
+fn gate_key(msg: &str) -> String {
+    let head = msg.split(':').next().unwrap_or(msg).trim();
+    clip(head, 72)
+}
+
 fn clip(s: &str, n: usize) -> String {
     if s.len() <= n {
         s.to_string()
@@ -266,6 +316,7 @@ fn scan_one(
         fn_in_class: 0,
         fn_blockers: BTreeMap::new(),
         fn_frames: BTreeMap::new(),
+        fn_gate_refusals: BTreeMap::new(),
     };
 
     // 1. Capture: real flags, real cwd, strace keeps bundle + obj.
@@ -279,6 +330,11 @@ fn scan_one(
                 return res;
             }
         };
+    // The obj's shape depends on argv the IL bundle does not record: /Gy (implied
+    // by /O1 and /O2) puts each function in its own COMDAT .text. Two of the
+    // port's per-function refusals are /Gy-only, so the cross-check below needs
+    // the same flag the emitter gets.
+    let gy = PortC2::flags_imply_function_level_linking(&cfg.flags);
     res.ex_len = captured.bundle.ex().map(|b| b.len()).unwrap_or(0);
     res.fn_names = captured
         .bundle
@@ -289,11 +345,29 @@ fn scan_one(
     // 1b. P2b function-level census — runs regardless of the TU class below, so
     //     even a `vocab-gap` TU contributes its per-function ranking. This is
     //     the only measurement that moves before whole TUs come in class.
-    if let Some(census) = captured.bundle.function_census() {
+    if let Some(census) = captured.bundle.census_functions() {
         res.fn_total = census.len();
-        for f in &census {
+        for (f, gate) in &census {
             if f.verdict.in_class() {
                 res.fn_in_class += 1;
+                // 1c. The cross-check: run the port's own per-function selector
+                //     over every function the census claims. A refusal here is a
+                //     census/gate disagreement, and it is recorded under its own
+                //     key rather than left as a rumour — the numerator is the
+                //     public claim, so its error term has to be measured on every
+                //     scan (roadmap #44, `docs/GAPS.md` §6).
+                let key = match gate {
+                    Err(e) => Some((*e).to_string()),
+                    Ok(func) => match c2_core::codegen::opt_mode_of_word(f.opt_word) {
+                        Err(_) => Some("opt-mode".to_string()),
+                        Ok(mode) => c2_core::codegen::function_gate(func, mode, gy)
+                            .err()
+                            .map(|e| gate_key(&e.to_string())),
+                    },
+                };
+                if let Some(k) = key {
+                    *res.fn_gate_refusals.entry(k).or_insert(0) += 1;
+                }
             } else {
                 *res.fn_blockers.entry(f.verdict.key()).or_insert(0) += 1;
             }
@@ -337,8 +411,7 @@ fn scan_one(
     // (implied by /O1 and /O2) puts each function in its own COMDAT .text.
     // Pass the project's real flags so the port can refuse rather than emit a
     // packed .text against a per-function-COMDAT reference.
-    let port = PortC2::new(obj_name.clone())
-        .with_function_level_linking(PortC2::flags_imply_function_level_linking(&cfg.flags));
+    let port = PortC2::new(obj_name.clone()).with_function_level_linking(gy);
     match port.compile_to(&captured.bundle, &obj_name) {
         Ok(obj) => match ObjImage::diff(&captured.ref_obj, &obj) {
             ObjDiff::Identical => {
@@ -435,9 +508,15 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let gate = r
+                .fn_gate_refusals
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_gate_refusals\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -452,6 +531,7 @@ pub fn gap_scan(
                 r.fn_in_class,
                 blockers,
                 frames,
+                gate,
             )?;
         }
     }
@@ -490,6 +570,7 @@ mod tests {
             fn_in_class: 0,
             fn_blockers: BTreeMap::new(),
             fn_frames: BTreeMap::new(),
+            fn_gate_refusals: BTreeMap::new(),
         }
     }
 

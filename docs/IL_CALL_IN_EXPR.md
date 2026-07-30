@@ -4054,6 +4054,11 @@ both differenced through absolute paths.
 |---|---:|---:|---:|
 | rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
 | in class | 406,372 (16.50 %) | **411,934 (16.73 %)** | **+5,562** |
+
+> Both columns are pre-D13 and therefore both over-claim by ~9,230 (the
+> census/gate repair, `ROADMAP.md` §6c). The **delta** is unaffected — the gates
+> D13 moved are orthogonal to this rung — but the absolute numerator is not;
+> the current one is 402,704.
 | mismatch | 0 | **0** | 0 |
 | `match` / `capture-fail` | 6 / 7 | 6 / 7 | 0 |
 | distinct keys | 570 | 581 | +11 |
@@ -4229,6 +4234,17 @@ The rungs this rung can name, with their measured populations:
   are the evidence.
 * **§24.7's disagreement is characterized on three probes, not sized.** How many
   workload functions the census over-claims by is unmeasured.
+  **SIZED 2026-07-30 (D13, `ROADMAP.md` §6c): 9,230 functions, 2.24 % of the
+  numerator — and the shape §24.7 names contributed ZERO of it.** The workload
+  has 62,813 straight-line functions and not one whose operand stack passes depth
+  2. The whole 9,230 was two causes this section did not look for: 9,028
+  generated destructors whose callee token has no `.gl` symbol, and 202 functions
+  carrying an optimization word the port does not emit under. All four gates
+  (including this one) have been moved into the parser, each with its own census
+  key; the corrected census is **402,704 / 2,462,571 (16.35 %)** and the residual
+  disagreement is 0 on the workload. Read this bullet as the standing warning it
+  turned into: **a characterized defect is a witness, not a measurement**, and the
+  ratio between the two here was not a rounding error but the entire quantity.
 
 ### 24.10 Reproduction
 
@@ -4247,6 +4263,8 @@ C2RS_JOBS=16 scripts/expr_sweep.sh                              # checked=4343 m
 ./target/release/c2rs gap --list work/dc3-workload/files.txt \
   --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 16 \
   --jsonl work/dc3-workload/scan-w20.jsonl           # 411934/2462571, 581 keys
+# (that numerator was corrected to 402704/2462571, 584 keys, by D13 — the
+#  census/gate repair in ROADMAP.md 6c. Quote the newer one.)
 # the `fn-tail-0x26` refutation — no build at all, just the frame axis:
 python3 -c "import json,collections;f=collections.Counter();\
 [f.update(json.loads(l)['fn_frames']) for l in open('work/dc3-workload/scan-base-convert.jsonl')];\

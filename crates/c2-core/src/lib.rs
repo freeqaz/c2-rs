@@ -152,50 +152,27 @@ impl PortC2 {
         })
     }
 
-    /// The `$M…`/`$T…` label counter seed for this TU, or the reason to refuse.
+    /// The `$M…`/`$T…` label counter seed for this TU.
     ///
-    /// Returns `Ok(0)` — an unused value — when no function in the TU is framed,
+    /// Returns 0 — an unused value — when no function in the TU is framed,
     /// because then no label is emitted and `coff::plan_labels` yields `None`
-    /// everywhere. Otherwise the seed must be **read**, and every function in the
-    /// TU must belong to a class whose counter stride was measured, because the
-    /// counter is consumed by *every* function, framed or not:
+    /// everywhere.
     ///
-    /// | class | slots consumed |
-    /// |---|---|
-    /// | int leaf, empty body, tail call, indirect load, address leaf | 1 |
-    /// | framed non-leaf call | 4 packed, 5 under `/Gy` |
-    /// | **comparison leaf** (`a < b`) | **3** |
-    /// | **floating-point leaf** | **2**, plus **2 per pooled constant** |
+    /// **The acceptance question is not asked here.** The counter is consumed by
+    /// *every* function in the TU, 1 for each class this port emits but 3 for a
+    /// comparison leaf and 2 for a floating-point one, so a framed function
+    /// sharing a TU with either would be mis-numbered — and that gate lives in
+    /// `c2_il::IlBundle::functions`, with the TU-level gates, so the census and
+    /// the emitter cannot disagree about it (roadmap #44). Same for the seed's
+    /// readability. By the time `build` runs, `functions()` has established both.
     ///
-    /// The last two rows are the reason for the gate rather than a note: a
-    /// preceding compare leaf shifts every later `$M` number by 2, and a `$M`
-    /// with the wrong number is a wrong-bytes obj that still links. Measured by
-    /// compiling `<class> ; int F(int a){return g(a)+1;}` and reading `F`'s
-    /// labels out of the reference obj against the `.gl` seed
-    /// (`docs/OBJ_GY_SHAPES.md` §3.5).
-    ///
-    /// It over-refuses, and by a measured amount: the comparison stride is not
-    /// uniform over the relation (`a == b` and `a < 0` consume 1, `a < b` and
-    /// `a >= b` consume 3) and this gate keys on the class, not the relation. On
-    /// the generated sweep that is 6 of 21 framed-plus-refuser cases refused
-    /// unnecessarily. The cost is a refusal, never a wrong byte, and closing it
-    /// means a stride table per relation and operand type.
-    fn frame_label_counter(
-        il: &IlBundle,
-        funcs: &[c2_il::IlFunction],
-    ) -> Result<u32, BackendError> {
+    /// The `None` arm is therefore unreachable and still refuses rather than
+    /// defaulting: a guessed `$M` number is a wrong-bytes obj that links, and a
+    /// two-valued answer to "did I find the counter?" is how three of this
+    /// project's mis-emits happened (`docs/GAPS.md` §6).
+    fn frame_label_counter(il: &IlBundle, funcs: &[c2_il::IlFunction]) -> Result<u32, BackendError> {
         if !funcs.iter().any(|f| f.framed_call.is_some()) {
             return Ok(0);
-        }
-        if let Some(f) = funcs.iter().find(|f| f.compare.is_some() || f.float_leaf.is_some()) {
-            return Err(BackendError::NotImplemented(format!(
-                "framed function in a TU that also holds `{}`, a comparison or \
-                 floating-point leaf: those consume 3 and 2 compiler-label slots \
-                 respectively where every class this port emits consumes 1, so \
-                 every $M/$T number after them would be wrong. See \
-                 docs/OBJ_GY_SHAPES.md §3.4.",
-                f.mangled_name
-            )));
         }
         il.label_counter().ok_or_else(|| {
             BackendError::NotImplemented(
@@ -258,30 +235,8 @@ impl PortC2 {
             // what kept `A::~A() {}` (a bare `blr`, decoded as `EmptyBody`) out of
             // the emitter. Every other bit is still required to match a word this
             // port was verified against.
-            let masked = w.map(|v| v & !c2_il::OPT_WORD_SPECIAL_MEMBER);
-            let m = match &masked {
-                Some(v) if *v == c2_il::OPT_WORD_OX => codegen::OptMode::Ox,
-                Some(v) if *v == c2_il::OPT_WORD_O1 => codegen::OptMode::O1,
-                other => {
-                    // Reported as the RAW word, not the masked one: the census key
-                    // has to name what is actually in the file.
-                    return Err(BackendError::NotImplemented(format!(
-                        "opt-mode {} at function {i}: only {:08x} (/Ox, /O2) and \
-                         {:08x} (/O1) are implemented{}. See docs/OPT_MODE.md.",
-                        match w {
-                            Some(v) => format!("{v:08x}"),
-                            None => "unreadable".to_string(),
-                        },
-                        c2_il::OPT_WORD_OX,
-                        c2_il::OPT_WORD_O1,
-                        match other {
-                            Some(0x0080_0005) => " — that is /Od",
-                            Some(0x0080_0004) => " — that is #pragma optimize(\"\", off)",
-                            _ => "",
-                        },
-                    )))
-                }
-            };
+            let m = codegen::opt_mode_of_word(*w)
+                .map_err(|e| BackendError::NotImplemented(format!("{e} at function {i}")))?;
             match mode {
                 None => mode = Some(m),
                 Some(prev) if prev == m => {}
@@ -316,59 +271,30 @@ impl PortC2 {
             let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
             for f in &funcs {
                 let mut frame: Option<coff::Frame> = None;
-                // A framed non-leaf call gets its own `.text` COMDAT like any
-                // other function, plus a `.pdata` COMDAT associated to it. The
-                // `bl` is at the same offset as packed because the function
-                // starts at 0 of its own section either way.
-                let (text, call) = if let Some(fc) = &f.framed_call {
-                    let t = codegen::framed_call_text(fc.add_k, 0);
-                    frame = Some(coff::Frame {
-                        prolog_len: codegen::FRAMED_PROLOG_LEN,
-                        func_len: t.len() as u32,
-                    });
-                    (
-                        t,
-                        Some(coff::Call {
-                            reloc_offset: codegen::FRAMED_BL_OFFSET,
-                            callee: fc.callee.as_str(),
-                        }),
-                    )
-                } else if let Some(callee) = &f.tail_call {
-                    // Each function's text starts at offset 0 of its own COMDAT
-                    // section, so the branch offset is just the setup's length.
-                    let (t, reloc) = if let Some(sources) = &f.arg_sources {
-                        let mut t = codegen::permute_args_text(sources)?;
-                        let branch_off = t.len() as u32;
-                        t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
-                        (t, branch_off)
-                    } else if f.ops.is_empty() {
-                        // A VOID tail call (`void f(){ g(); }`, and the generated
-                        // empty destructor): no argument to compute, so the whole
-                        // text is the branch at offset 0 of this COMDAT. The packed
-                        // emitter below has had this case since the MVP; this branch
-                        // did not, and fell into `int_tail_call_text`, which needs an
-                        // operand stream and refused with "expression did not reduce
-                        // to a single value" — so `mvp_call.cpp` has been a
-                        // `codegen-gap` in the `/O1`, `/O2` and `/Ox /Gy` lanes for as
-                        // long as those lanes have existed, for no reason but this
-                        // missing arm. The workload compiles `/O1`, which implies
-                        // `/Gy`, so it is the arm every real void tail call needs.
-                        (codegen::encode_tail_branch(0).to_vec(), 0)
-                    } else {
-                        codegen::int_tail_call_text(f, 0, mode)?
-                    };
-                    (t, Some(coff::Call { reloc_offset: reloc, callee: callee.as_str() }))
-                } else if f.empty_body {
-                    (codegen::encode_blr().to_vec(), None)
-                } else if let Some(t) = codegen::indirect_load_text(f) {
-                    (t?, None)
-                } else if let Some(t) = codegen::addr_leaf_text(f) {
-                    (t?, None)
-                } else if let Some(cmp) = &f.compare {
-                    (codegen::compare_leaf_text(cmp, mode)?, None)
-                } else if let Some(double) = f.float_leaf {
-                    let (t, consts) = codegen::float_leaf_text(f, double)?;
-                    // A pooled FP constant still refuses under `/Gy`. Its section
+                let (text, call) = match codegen::select_function(f, mode)? {
+                    // A framed non-leaf call gets its own `.text` COMDAT like
+                    // any other function, plus a `.pdata` COMDAT associated to
+                    // it (W-UNW-1). `Selected::Framed` carries no bytes for the
+                    // same reason `Selected::Tail` carries an incomplete text:
+                    // the branch word encodes its own `.text` offset, so only
+                    // the caller — which knows where the function lands — can
+                    // finish it. Under `/Gy` that offset is 0, because each
+                    // function starts its own section.
+                    codegen::Selected::Framed => {
+                        let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
+                        let t = codegen::framed_call_text(fc.add_k, 0);
+                        frame = Some(coff::Frame {
+                            prolog_len: codegen::FRAMED_PROLOG_LEN,
+                            func_len: t.len() as u32,
+                        });
+                        (
+                            t,
+                            Some(coff::Call {
+                                reloc_offset: codegen::FRAMED_BL_OFFSET,
+                                callee: fc.callee.as_str(),
+                            }),
+                        )
+                    }                    // A pooled FP constant still refuses under `/Gy`. Its section
                     // placement *is* now characterized — each `.rdata` COMDAT sits
                     // immediately after the `.text` of the function that first
                     // references it — but `docs/OBJ_GY_SHAPES.md` §2 also found that
@@ -378,7 +304,7 @@ impl PortC2 {
                     // resolves either way, so that is a silent wrong-bytes shape
                     // rather than a crash, and it is not worth opening on one
                     // ordering probe.
-                    if !consts.is_empty() {
+                    codegen::Selected::Float { consts, .. } if !consts.is_empty() => {
                         return Err(BackendError::NotImplemented(
                             "pooled floating-point constant under function-level \
                              linking (/Gy): sections interleave per first-referencing \
@@ -386,11 +312,18 @@ impl PortC2 {
                              appended in reverse reference order and that is not yet \
                              modeled"
                                 .to_string(),
-                        ));
+                        ))
                     }
-                    (t, None)
-                } else {
-                    (codegen::select_text(f, mode)?, None)
+                    // Each function's text starts at offset 0 of its own COMDAT
+                    // section, so the branch offset is just the setup's length.
+                    codegen::Selected::Tail(mut t) => {
+                        let branch_off = t.len() as u32;
+                        t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
+                        let callee = f.tail_call.as_deref().expect("Tail implies tail_call");
+                        (t, Some(coff::Call { reloc_offset: branch_off, callee }))
+                    }
+                    codegen::Selected::Float { text, .. } => (text, None),
+                    codegen::Selected::Plain(t) => (t, None),
                 };
                 placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, call, is_float: f.float_leaf.is_some(), fp_refs: Vec::new(), frame });
                 texts.push(text);
@@ -416,109 +349,76 @@ impl PortC2 {
                 text.push(0);
             }
             let off = text.len() as u32;
-            // A framed non-leaf call: the fixed 0x24-byte frame, plus a `.pdata`
-            // record and two `$M` labels. The `bl` reloc site is rebased onto
-            // the shared `.text` like any other call.
-            if let Some(fc) = &f.framed_call {
-                let body = codegen::framed_call_text(fc.add_k, off);
-                let frame = coff::Frame {
-                    prolog_len: codegen::FRAMED_PROLOG_LEN,
-                    func_len: body.len() as u32,
-                };
-                text.extend_from_slice(&body);
-                placed.push(coff::Function {
-                    name: &f.mangled_name,
-                    text_offset: off,
-                    call: Some(coff::Call {
-                        reloc_offset: off + codegen::FRAMED_BL_OFFSET,
-                        callee: &fc.callee,
-                    }),
-                    is_float: false,
-                    fp_refs: Vec::new(),
-                    frame: Some(frame),
-                });
-                continue;
-            }
-            // An empty body is a bare `blr` — no expression to select.
-            if f.empty_body {
-                text.extend_from_slice(&codegen::encode_blr());
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: f.float_leaf.is_some(), fp_refs: Vec::new(), frame: None });
-                continue;
-            }
-            // W13a: an FP leaf has its own register model entirely (pool
-            // [f0, f13..f1], result f1, no accumulator collapse).
-            if let Some(double) = f.float_leaf {
-                let (body, consts) = codegen::float_leaf_text(f, double)?;
-                text.extend_from_slice(&body);
-                // W13b: rebase each constant reference site onto the whole .text.
-                let fp_refs = consts
-                    .into_iter()
-                    .map(|r| codegen::FpConstRef { hi_off: r.hi_off + off, ..r })
-                    .collect();
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: true, fp_refs, frame: None });
-                continue;
-            }
-            // An indirect-load leaf (`return *p;` / `return s->m;`) is a single
-            // `lwz` + `blr`, recognized by an exact two-op stream rather than
-            // reaching the affine selector — see `codegen::indirect_load_text`.
-            if let Some(body) = codegen::indirect_load_text(f) {
-                text.extend_from_slice(&body?);
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: false, fp_refs: Vec::new(), frame: None });
-                continue;
-            }
-            // An address leaf (`return &s->m;`) is one `addi` + `blr`, or a bare
-            // `blr` at offset 0 — the same exact-two-op recognition, one token
-            // away from the load above and a different instruction.
-            if let Some(body) = codegen::addr_leaf_text(f) {
-                text.extend_from_slice(&body?);
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: false, fp_refs: Vec::new(), frame: None });
-                continue;
-            }
-            // W6: a comparison leaf lowers to its own branchless spine rather
-            // than through the operand-stack selector.
-            if let Some(cmp) = &f.compare {
-                text.extend_from_slice(&codegen::compare_leaf_text(cmp, mode)?);
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: f.float_leaf.is_some(), fp_refs: Vec::new(), frame: None });
-                continue;
-            }
-            let call = if let Some(callee) = &f.tail_call {
-                // Tail call. A void bare call (`ops` empty) is a single
-                // `b <callee>` (REL24) at this offset; an integer tail call
-                // (`ops` = the argument sub-expression) first computes the
-                // argument into r3, then branches (the branch, not the function
-                // start, is the reloc site).
-                let reloc_offset = if let Some(sources) = &f.arg_sources {
-                    // Multi-argument tail call: the parameters are already in
-                    // r3.., so the setup is a register permutation (empty when the
-                    // call passes them straight through), then the branch.
-                    let moves = codegen::permute_args_text(sources)?;
-                    let branch_off = off + moves.len() as u32;
-                    text.extend_from_slice(&moves);
-                    text.extend_from_slice(&codegen::encode_tail_branch(branch_off));
-                    branch_off
-                } else if f.ops.is_empty() {
-                    text.extend_from_slice(&codegen::encode_tail_branch(off));
-                    off
-                } else {
-                    let (body, branch_off) = codegen::int_tail_call_text(f, off, mode)?;
+            let mut frame: Option<coff::Frame> = None;
+            let (call, fp_refs) = match codegen::select_function(f, mode)? {
+                // A framed non-leaf call: the fixed 0x24-byte frame, plus a
+                // `.pdata` record and two `$M` labels (W-UNW-1). Packed, the
+                // `bl` displacement is `-(its own .text offset)`, so the body
+                // has to be built at `off` — the same reason `Selected::Tail`
+                // hands back an unfinished text. Emitting it at a hardcoded 0
+                // was a live wrong-bytes emit for any framed function that is
+                // not first in the section.
+                codegen::Selected::Framed => {
+                    let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
+                    let body = codegen::framed_call_text(fc.add_k, off);
+                    frame = Some(coff::Frame {
+                        prolog_len: codegen::FRAMED_PROLOG_LEN,
+                        func_len: body.len() as u32,
+                    });
                     text.extend_from_slice(&body);
-                    branch_off
-                };
-                Some(coff::Call {
-                    reloc_offset,
-                    callee,
-                })
-            } else {
-                text.extend_from_slice(&codegen::select_text(f, mode)?);
-                None
+                    (
+                        Some(coff::Call {
+                            reloc_offset: off + codegen::FRAMED_BL_OFFSET,
+                            callee: &fc.callee,
+                        }),
+                        Vec::new(),
+                    )
+                }
+                // Tail call. A void bare call (an empty setup) is a single
+                // `b <callee>` (REL24) at this offset; an integer or multi-argument
+                // tail call first puts the arguments in place, then branches (the
+                // branch, not the function start, is the reloc site).
+                codegen::Selected::Tail(setup) => {
+                    let branch_off = off + setup.len() as u32;
+                    text.extend_from_slice(&setup);
+                    text.extend_from_slice(&codegen::encode_tail_branch(branch_off));
+                    let callee = f.tail_call.as_ref().expect("Tail implies tail_call");
+                    (
+                        Some(coff::Call {
+                            reloc_offset: branch_off,
+                            callee,
+                        }),
+                        Vec::new(),
+                    )
+                }
+                // W13a/W13b: an FP leaf has its own register model entirely (pool
+                // [f0, f13..f1], result f1, no accumulator collapse). Each pooled
+                // constant's reference site is rebased onto the whole `.text`.
+                codegen::Selected::Float { text: body, consts } => {
+                    text.extend_from_slice(&body);
+                    (
+                        None,
+                        consts
+                            .into_iter()
+                            .map(|r| codegen::FpConstRef {
+                                hi_off: r.hi_off + off,
+                                ..r
+                            })
+                            .collect(),
+                    )
+                }
+                codegen::Selected::Plain(body) => {
+                    text.extend_from_slice(&body);
+                    (None, Vec::new())
+                }
             };
             placed.push(coff::Function {
                 name: &f.mangled_name,
                 text_offset: off,
                 call,
                 is_float: f.float_leaf.is_some(),
-                fp_refs: Vec::new(),
-                frame: None,
+                fp_refs,
+                frame,
             });
         }
 
