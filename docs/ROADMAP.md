@@ -679,6 +679,8 @@ instrument:
 | + T3 narrow-integer getter leaves — `lbz`/`lhz`/`ld` (`a6304fa`) | 140,476 | 5.70 |
 | + T2 aggregate-TYPE size decode (`58099c9`) — a correctness fix, measured yield **0** | 140,476 | 5.70 |
 | − the argument-register precondition (`1158356`) — a **correctness fix that costs coverage** | **122,487** | **4.97** |
+| − the variadic-function refusal (`8142c17`) — another correctness fix, cost **0** | 122,487 | 4.97 |
+| + T1 width-4 pointer TYPEs through the leaf shapes (`8da703e`) | **210,603** | **8.55** |
 
 That last row goes the wrong way on purpose, and it is the most instructive row
 in the table. A formal's list index had been standing in for its
@@ -698,6 +700,17 @@ now the #1 census blocker at 2.3× the next (`expr-call-in-expr`, 248,195) and i
 the top of the worklist. It also retro-explains why the `.sy` int-locals rung
 measured ~0 workload yield when it landed: `.sy` appears never to have bound on a
 single real TU, so that rung has been fixture-only from the start.
+
+Adversarial review then found the likely *mechanism*, and it is one field:
+`read_record` reads a record's size as a `u16` where the stream carries a **varint**
+(the same form the function already reads correctly for `static` records, under a
+comment warning about exactly this mistake). One `char buf[128]` anywhere in a
+translation unit desyncs the record and unbinds that whole file. So the 567,549 is
+not an irreducible reader gap — it is largely one encoding error, and the sibling
+count of `param-multi-reg = 1` is also an artifact of it: a 16-byte class with a
+copy constructor is recorded as a 4-byte *pointer* (passed by hidden reference,
+**one** register) and the mis-read yields 2052, which trips the `> 8` test. That
+means the key does not currently mean what its name says.
 
 The first two steps were *decode* fixes, not new codegen — the expected shape
 of progress while the wall is `vocab-gap`. The third is a 10× jump from one
