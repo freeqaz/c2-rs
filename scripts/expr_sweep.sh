@@ -1146,6 +1146,14 @@ for nf in range(1, 6):
         # counter move at the same time as the argument register.
         emit_raw('int g(int);\nint L(int a) { return a + 1; }\n'
                  'int F(%s) { return g(p%d) + %d; }\n' % (ps, i, i + 1))
+#    Past the eighth formal the argument is stack-homed (`lwz r3,180(r1)`), which
+#    the register-move model cannot express and which the constant-body emitter
+#    used to answer with no instruction at all. Refused; a MISMATCH here is that
+#    gate having a hole.
+for nf in (8, 9, 10):
+    ps = ', '.join('int p%d' % i for i in range(nf))
+    for i in (0, nf - 1):
+        emit_raw('int g(int);\nint F(%s) { return g(p%d) + 1; }\n' % (ps, i))
 FRAMED_ARG_LEADERS = ['float x', 'double x', 'long long x', 'int *x', 'char x',
                       'short x', 'unsigned x', 'float x, float y', 'int *x, int *y']
 for lead in FRAMED_ARG_LEADERS:
