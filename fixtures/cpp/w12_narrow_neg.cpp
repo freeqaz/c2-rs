@@ -30,7 +30,23 @@
 //     int      nw_ll_to_int(long long* p)  { return (int)*p; }  e9630000 7d6307b4
 //     long long nw_ll_from_int(int* p)     { return *p; }       81630000 7d6307b4
 //
-// All five carry the same `2C … 00` token as an accepted widening and differ only
+//     bool     nw_bool_from_uchar(unsigned char* p) { return *p; }
+//         89630000 314bffff 7c6a5910   lbz r11 ; addic r10,r11,-1 ; subfe r3,r10,r11
+//
+// That one is the neighbour that would look identical under the cv-strip rule and
+// is not. The parser accepts a conversion as free when the target's (width,
+// signedness) equals the source's — and `unsigned char` and `bool` are the *same*
+// accepted (tag, kind) pair `(82, 12)`, so it cannot tell them apart. If this
+// arrived as a `2C` it would be admitted and emit one `lbz`, three instructions
+// short of what c2 emits. It does not arrive as a `2C`: c2 does not *convert* to
+// `bool`, it **normalizes** with a carry-bit `!= 0` idiom, and the IL carries a
+// `33`-literal compare (`33 82 12 20 00 20`) where the accepted shape has its
+// conversion — so the parse refuses on the `33`. Measured identical at `/Ox` and
+// `/O1`. The accepted directions of the same aliasing (`unsigned char` from
+// `bool`, `wchar_t` from `unsigned short`, …) are the `a_*` cases in the positive
+// fixture, and they really are the bare load; this is the one that is not.
+//
+// The other five carry the same `2C … 00` token as an accepted widening and differ only
 // in its *target* type. The first two emit exactly what the accepted `int` form
 // emits — refusing them costs real cases — but the target family is admitted one
 // captured (source × target) pair at a time, because the last three show what the
@@ -104,6 +120,7 @@ unsigned nw_uint_from_uchar(unsigned char* p) { return *p; }
 short nw_sh_from_char(char* p) { return *p; }
 int nw_ll_to_int(long long* p) { return (int)*p; }
 long long nw_ll_from_int(int* p) { return *p; }
+bool nw_bool_from_uchar(unsigned char* p) { return *p; }
 
 long long nw_ds(P* s) { return s->q; }
 short nw_packed_h(P* s) { return s->h; }

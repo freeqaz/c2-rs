@@ -64,6 +64,17 @@
 // narrow element (`p[3]` on `char*` is `88630003`, `p[2]` on `short*` is
 // `a0630004`, `p[2]` on `long long*` is `e8630010`) — measured, not assumed; an
 // element-index reading would emit the wrong displacement for two of the three.
+//
+// `a_*` are the conversions the parser's cv-strip test **cannot** tell from an
+// identity, because it compares (width, signedness) and these pairs of distinct C++
+// types share one accepted (tag, kind): `bool`/`unsigned char` are both `(82, 12)`,
+// `char`/`signed char` both `(82, 11)`, `wchar_t`/`unsigned short` both `(84, 22)`.
+// Measured at `/O1` — every one is the bare load and nothing else
+// (`88630000 4e800020`, `a0630000 4e800020`), so treating them as free is right.
+// The direction it would be *wrong* in is `bool` as the conversion's **target**,
+// which c2 does not convert but *normalizes*; that neighbour is pinned as a
+// refusal in `w12_narrow_neg.cpp` (`nw_bool_from_uchar`) and it is the only thing
+// keeping this rule from being a wrong-bytes emit.
 
 struct S {
     int a;
@@ -158,3 +169,10 @@ unsigned short s_uh(unsigned short* p) { return p[2]; }
 long long s_q(long long* p) { return p[2]; }  // e8630010
 int s_i_c(char* p) { return p[3]; }           // 89630003 ; extsb
 int s_i_uc(unsigned char* p) { return p[3]; } // 88630003
+
+// ---- 6. distinct types that share one accepted (tag, kind) pair -------------
+unsigned char a_uc_b(bool* p) { return *p; }      // 88630000 — (82,12) both sides
+signed char a_sc_c(char* p) { return *p; }        // 88630000 — (82,11) both sides
+char a_c_sc(signed char* p) { return *p; }        // 88630000
+wchar_t a_w_us(unsigned short* p) { return *p; }  // a0630000 — (84,22) both sides
+unsigned short a_us_w(wchar_t* p) { return *p; }  // a0630000
