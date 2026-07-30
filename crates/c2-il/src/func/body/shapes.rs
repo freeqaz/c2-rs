@@ -399,6 +399,32 @@ pub(crate) fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
     if params.len() > 13 || !seen.iter().all(|t| params.contains(t)) {
         return None;
     }
+    // **Every formal must be one of those FP operands.** A formal's *index in the
+    // formals list* stands in for its **FP-argument-register number** here
+    // ([`c2_core::codegen::float_leaf_text`] maps parameter `n` to `f(n+1)`), and
+    // the two are only the same number when every parameter ahead of it also takes
+    // an FP register. The floating-point file is numbered over the FP parameters
+    // *alone*: `float g(int a, float b, float c){ return b - c; }` puts `b` in f1
+    // and `c` in f2, while the index rule says f2 and f3.
+    //
+    // This is the fifth instance of `docs/GAPS.md` §6's "two facts sharing one
+    // field", and it was **live** — `float mixfp(int a, float b, float c)
+    // { return b*c; }` emitted `fmuls f1,f2,f3` where c2 emits `fmuls f1,f1,f2`,
+    // on mainline, with all four mode lanes and the 3,743-case sweep green. The
+    // corpus had only the safe half of the pair again: not one FP fixture had a
+    // parameter list that was anything but all-`float` or all-`double`.
+    //
+    // Each `seen` token was loaded with `fty`, so it is provably an FP parameter;
+    // requiring the formals list to hold nothing else is what makes the index the
+    // register number. It costs the leaf whose parameter is unused
+    // (`float f(float a, float b){ return a*a; }`) and every member function
+    // (`this` is a pointer and is never an FP operand) — both of which are
+    // conservative, and the second is required anyway, since `this` takes a GPR
+    // and displaces nothing in the FP file. `fixtures/cpp/w13_fparam_neg.cpp` is
+    // the boundary.
+    if params.len() != seen.len() {
+        return None;
+    }
     // c2 canonicalizes a chain containing a **commutative** operator by register,
     // exactly as it does an integer one, so such a chain must already be written in
     // ascending order. A chain with only non-commutative operators is left alone —

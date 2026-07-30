@@ -735,10 +735,28 @@ pub fn float_leaf_text(
             }
         }
     }
-    if stack.len() != 1 {
-        return Err(out_of_class(
-            "FP expression did not reduce to a single value; out of class",
-        ));
+    match stack.as_slice() {
+        // Every binary op targets `FP_RET` when it is the last one, so a value
+        // sitting anywhere else means the body is a bare `return <param>` whose
+        // parameter is not the first — `float f(float a, float b){ return b; }`,
+        // which c2 emits as `fmr f1,f2`. Emitting nothing there is wrong bytes,
+        // and it *was*: this branch is the second lock on it, matching the one
+        // [`select_text`] has carried for the integer identity since that class
+        // was written. The parser refuses the shape first (`try_parse_float_leaf`
+        // requires every formal to be an FP operand of the body), so nothing
+        // should reach here.
+        [r] if *r != FP_RET => {
+            return Err(out_of_class(
+                "FP result is not in f1 (bare non-first FP parameter return needs \
+                 an `fmr`); out of class",
+            ))
+        }
+        [_] => {}
+        _ => {
+            return Err(out_of_class(
+                "FP expression did not reduce to a single value; out of class",
+            ))
+        }
     }
     text.extend_from_slice(&encode_blr());
     Ok((text, consts))
