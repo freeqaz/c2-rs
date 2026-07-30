@@ -208,10 +208,11 @@ bracketed:
 That hexdump is what converts a bucket into a decoded production; every
 grammar correction below came out of one.
 
-> **Current numerator, 2026-07-30: 402,704 / 2,462,571 (16.35 %)**, with a
-> **measured census/gate disagreement of 0** — see `ROADMAP.md` §6c and the
-> sizing box in §6 below. Everything in the rest of this section is historical
-> and over-claims by the 9,230 that repair removed; quote the number above.
+> **Current numerator, 2026-07-30: 418,628 / 2,462,571 (17.00 %)**, with a
+> **measured census/gate disagreement of 0** — see `ROADMAP.md` §6c (the repair
+> that took it *down* by 9,230) and §6d (W22, which took it up by 15,924), plus
+> the sizing box in §6 below. Everything in the rest of this section is
+> historical; quote the number above.
 
 **79,719 / 2,462,571 functions in class (3.24%)** (cebfb88, 37.3 s at
 `--jobs 16`); **re-measured at HEAD `2724ca5` on 2026-07-30: 109,501 (4.45%)**,
@@ -1567,7 +1568,10 @@ The rules that keep the numbers honest:
   > codegen consults, with codegen's own check demoted to the second lock the way
   > `indirect_load_text` already documents.
   >
-  > **The corrected numerator is 411,934 → 402,704 (16.73 % → 16.35 %)**,
+  > **The corrected numerator is 411,934 → 402,704 (16.73 % → 16.35 %)** — and
+  > then 418,628 with the unrelated W22 widening (§6d), which is recorded
+  > *separately* on purpose: a correctness repair that costs coverage must not be
+  > netted against a widening that buys it, or the repair becomes invisible —
   > accounted for **1:1** by three new census keys —
   > `callee-unresolved-dtor-delegation:eof` 9,028, `opt-mode-00200001` 136,
   > `opt-mode-00200101` 66 — with **zero** movement in any pre-existing key, zero

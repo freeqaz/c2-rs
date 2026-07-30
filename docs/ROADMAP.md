@@ -1564,6 +1564,71 @@ recorded value, so a gate landing in codegen instead of the parser fails a test.
    names, not a whole-body-completeness measurement, and the locator is shared by
    three graded shapes.
 
+## 6d. W22 — the int-like operand type by spelling (roadmap #43, 2026-07-30)
+
+`eat_int_like` matched an exact four-triple whitelist (`86 41 74` int,
+`86 42 75` unsigned, `86 41 12` long, `86 42 22` unsigned long). A width-4
+integer carrying a **per-TU type id** — an `enum`, a `typedef`, a `const` or
+`volatile` qualification — has a different third byte and refused, even though
+`is_int4_type` admits it on the tag/kind nibbles and c2 emits the identical
+instruction. It now falls through to that predicate.
+
+### Re-measured before building, and the recorded estimate was wrong by 2.8×
+
+`IL_CALL_IN_EXPR.md` §24.6 recorded the over-refusal as **5,684**, with the
+caution that it is "a decode ceiling attributed from key names, not a whole-body
+-completeness measurement" and that the takeable number should be **smaller**.
+A counterfactual scan says otherwise:
+
+| | functions |
+|---|---:|
+| released (blocked keys that fell) | 20,779 |
+| advanced to a different blocker | 4,855 |
+| **whole bodies gained** | **+15,924** |
+
+The bias direction was called wrong, and the reason is `GAPS.md` §6's own rule
+about estimating the fix rather than the finding: **`eat_int_like` has five call
+sites**, the key-name estimate covered the attribution of three
+(`8642`/`A641`/`A642`), and the realized yield is dominated by a *different*
+row — `expr-op-0x27` fell **12,637**, an ordinary member getter whose member is
+an `enum`. `expr-load-type-8641` (5,221) and `expr-lit-type-8641` (1,936) went to
+**0**. This is the third time a single-site estimate has under-counted a
+multi-site fix; the rule now has a corollary: **when the estimate comes from key
+names, the sites that fix are not the sites that were counted.**
+
+### Census
+
+**402,704 → 418,628 (16.35 % → 17.00 %)**, mismatch 0, no TU changing class,
+census/gate disagreement still **0** (the port accepts every function admitted —
+checked by the D13 cross-check, which is what makes "the decode widened" and "the
+emitter agrees" one measurement instead of two).
+
+### Gate evidence
+
+| lane | result |
+|---|---|
+| `cargo test --workspace --release` | 366 passed, 0 failed |
+| `c2rs bench` | **125 pass, 0 fail, 0 error** |
+| `scripts/mode_lane.sh /Ox` | 52 match, **0 mismatch** |
+| `/O1`, `/O2`, `/Ox /Gy` | 49 match, **0 mismatch**, 3 codegen-gap each |
+| `scripts/expr_sweep.sh` | checked=**4343**, mismatches=**0** |
+| 878-TU scan | match 6, **mismatch 0**, 418,628/2,462,571, 569 keys |
+| `census fixtures/cpp/w22_int_spelling.cpp` | **13/13 in class**, `Port=Match` |
+| `census fixtures/cpp/w22_int_spelling_neg.cpp` | **0/7 in class**, `Port=NotImplemented` |
+
+`w22_int_spelling.cpp` grades the widening across all three shapes the locator is
+shared by — the member getter (`27` + `30`), the identity leaf and the `41`
+result annotation — plus arithmetic, over `enum` (both signed and unsigned
+underlying), `typedef`, `const` and `volatile` spellings.
+
+`w22_int_spelling_neg.cpp` holds what must keep refusing, and it is the more
+load-bearing file: `is_int4_type` requires the tag's width nibble to say **4-byte
+alignment** *and* the kind's high nibble to say **4-byte size**, so the narrow
+typedefs, `long long`, and a 4-byte `int` under `#pragma pack(1)` all refuse. The
+`pack(4)` `long long` member in it is the discriminating case for `GAPS.md` §6's
+third wrong-bytes emit (tag carries alignment, kind carries size — equal for
+every naturally-aligned type), and the corpus had never carried it as a fixture.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp
