@@ -1092,3 +1092,21 @@ The rules that keep the numbers honest:
   that pins it — otherwise leave it hex.** A hex bucket is a result; a name is
   a claim, and claims get grouped, ranked and scheduled as if they were
   evidence.
+- **The numerator and the denominator must be compiled in the same mode.**
+  They were not. Every fixture and every sweep case is captured with the
+  default `/Ox`; the 878-TU workload compiles `/O1`. Those emit different code
+  for the same source — 7 of 9 sampled matching fixtures differ — so the
+  byte-exactness claim was about `/Ox` while the coverage percentage was about
+  `/O1`. `.ex` says so explicitly, in a per-function word after each `4F 1F`
+  that the port never read (`docs/OPT_MODE.md`). Worst of it: the whole-chain
+  accumulator rule that cost 270 mis-emits to establish is `/Ox`-only — `/O1`
+  reuses r11 unconditionally and has no descending case. When comparing any two
+  numbers in this document, check they came from the same `/O` flag.
+- **A field the port skips is indistinguishable from a field that is always
+  the same.** The optimization word above was stepped over silently for months;
+  so was the source-line marker before it turned out to carry a varint payload,
+  and `read_type` still mis-reads aggregates by treating a 5-byte field as 3
+  (`IL_TYPE_TAGS.md` §1). Every fixed-width skip in the parser is a place where
+  a real distinction can hide, and the cheap test is to diff the `.ex` of two
+  sources that differ *only* in the property you suspect — four changed bytes
+  is a much easier read than a grammar.
