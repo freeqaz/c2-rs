@@ -199,6 +199,38 @@ This is the tenth-and-eleventh instance of the same shape, and the tell was
 available for free and in the usual place: **`is_float` had one producer and two
 consumers that wanted different questions answered.**
 
+## 4.1 The label-counter stride — the twelfth mis-emit, found by the merge
+
+Splitting `is_float` fixed the `_fltused` consumer and left the other one.
+`IlFunction::label_slots` still read `float_leaf`, so the FP **store** leaf got a
+compiler-label stride of 1 where c2 gives it 2, and the framed function
+downstream got the wrong `$M`/`$T` numbers. MEASURED as the three-way capture
+that separates the two candidate rules — one leaf ahead of one framed function,
+reading the framed function's labels:
+
+```text
+  void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
+  void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
+  float lead(float a, float b){ return a * b; } $M2559 $M2560 $T2561
+```
+
+**The stride goes with the register file, not with the body shape.** Unlike the
+arithmetic leaf — whose stride is 2, 4 or 6 depending on how many constants it
+pools, and which therefore reports *undetermined* — the FP store leaf refuses its
+pooled-constant cases in the parser, so 2 is exact.
+
+The pair is only reachable since Class A many-calls (#35 step 2): the counter has
+an observable effect only when a framed function follows, and before that no
+framed shape could share an in-class TU with an FP store. **Neither branch's
+fixtures contained it, and both branches were green.** Found by compiling the
+cross product of the two rungs as the first thing done to the merged tree; the
+sweep now generates it. `GAPS.md` §6 (12), `fixtures/cpp/w28_fp_store_framed_neg.cpp`.
+
+With the stride told truthfully the TU-level gate refuses the pair, because
+`coff::plan_labels` advances by 1 for every non-framed function regardless of its
+class. That is an honest refusal and costs **0 functions** on the workload; §5
+ranks admitting it.
+
 ## 5. What is NOT established, and what it costs — ranked
 
 | item | size | what stops it |
@@ -210,6 +242,7 @@ consumers that wanted different questions answered.**
 | more than one FP cycle | inside the 85,231 | c2 hoists every save into a group first (the 8-argument capture) |
 | `__vector` / VMX128 formals | unmeasured | a **third** register file; `docs/ABI_EDGES.md` §5 has it unprobed, and `.sy` class `D` is it (`arg_classes` refuses under `param-kind-unknown`) |
 | a `.sy` formal class outside the whitelist | 0 observed | refused rather than assumed to be a GPR |
+| an FP function sharing a TU with a **framed** one | 0 on the workload | `coff::plan_labels` advances the compiler-label counter by 1 per non-framed function; admitting a stride-2 leaf beside a framed one needs the planner to take a per-function stride, which is the framed side's label model rather than an FP class (§4.1) |
 
 Also not established: whether an FP formal past f13 is stack-homed the way the
 GPR one is past r10 — the 14-parameter capture frames and spills through

@@ -2504,6 +2504,48 @@ The keys this rung owns are **bit-identical across the merge**:
 | `calls-0\|float-leaf` | 0 | 1,004 | **1,004** |
 | `opt-mode-00200001` / `-00200101` | 140 / 66 | 0 / 0 | **0 / 0** |
 
+### The merge found a live wrong-bytes emit that neither branch could contain
+
+**The highest-value result of this merge, and it is not a number.** Before
+trusting the merged tree, the cross product of the two rungs was compiled —
+this rung's FP store and FP leaf beside step 2's Class A many-call body, in both
+orders. It **mismatched**: `$M2564/$M2563/$T2565` against the reference's
+`$M2565/$M2564/$T2566`.
+
+`IlFunction::label_slots` still read `float_leaf`, so the FP **store** leaf got a
+compiler-label stride of 1 where c2 gives it 2 — and a framed function's labels
+come from a counter every function in the TU consumes, so the framed function
+downstream was six bytes wrong in an obj that still links. This is
+`GAPS.md` §6 instance **12**, and it is instance **11's own field one consumer
+later**: splitting `is_float` into `touches_floating_point` fixed the `_fltused`
+reader and left the stride reader behind. Instance #2 in its purest form — *fixed
+in the one shape where the bug had been found* — with the tell available for
+free, since splitting a field means auditing every reader and `grep float_leaf`
+showed two.
+
+MEASURED as the three-way capture that separates the candidates (one leaf ahead
+of one framed function, reading the framed function's labels):
+
+```text
+  void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
+  void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
+  float lead(float a, float b){ return a * b; } $M2559 $M2560 $T2561
+```
+
+The stride goes with the **register file**, not with the body shape. Costs 0
+functions on the workload; the TU-level gate now refuses the pair honestly,
+because `coff::plan_labels` advances by 1 per non-framed function — admitting it
+is a change to the framed side's label model and is ranked, not taken here.
+
+**The practice that generalizes: a merge of two independently-green branches is a
+new corpus, and the shapes only it contains have never been graded by anyone.**
+The counter has an observable effect only when a framed function follows, so
+before step 2 landed there was no framed shape that could share an in-class TU
+with an FP store — this rung's fixtures have no framed function and step 2's have
+no floating point. `scripts/expr_sweep.sh` now *generates* that cross product
+(six leaf kinds × three call bodies × three orderings, +54 cases) instead of
+relying on someone thinking of it again.
+
 Three merge resolutions worth recording:
 
 * `coff::Function::call: Option<Call>` became step 2's `calls: Vec<Call>` in the
@@ -2520,9 +2562,11 @@ Three merge resolutions worth recording:
 
 `scripts/expr_sweep.sh` was flagged as a collision and **is not one** — master
 did not touch `scripts/` at all (`git diff --stat 473c6a4 master -- scripts/` is
-empty), so the merged sweep is this rung's 5,868 rather than 5,868 plus a step-2
-block. Verified the way the trap demands: the printed count and the generated
-`.cpp` count on disk are compared, not assumed equal.
+empty), so the merged sweep starts from this rung's 5,868 rather than from 5,868
+plus a step-2 block. Verified the way the trap demands — the printed count, the
+generated count and the `.cpp` count on disk all compared, not assumed equal:
+**5,868 / 5,868 / 5,868** at the merge, then **5,922** once the FP-beside-framed
+cross product was added.
 
 ### Found and not taken, ranked, with the frame axis applied
 
