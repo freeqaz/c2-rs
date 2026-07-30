@@ -3863,3 +3863,411 @@ The sweep prints its own generated case count before it runs; **compare that
 number against the one recorded here before believing a green sweep** (§6).
 Always difference the scans through **absolute** paths and print each one's row
 count and `fn_total` first — §18.8.
+
+## 24. D12, landed — the second-largest row, decomposed to a gate, and the free conversion inside it
+
+§23.7 named three next rungs. This one measured all three before touching any,
+and the ranking it produced is not the one the row sizes suggested:
+
+* **`fn-tail-0x26`, 4,663 — refuted at zero build cost.** Every one of the 4,663
+  is `calls-2plus` (§24.1). §18's frame axis settles it outright: two calls
+  always need a frame, so the takeable population is **0**. The free-completeness
+  *family* was real; this member of it is not takeable until the general-frame
+  phase.
+* **`expr-convert`, 225,341 — the second-largest row on the board, never
+  decomposed, and it is a gate.** Admitting the `2C` releases the whole row and
+  leaves **5,562 grammar-complete, 2.47 %**. That is the third time this document
+  has been handed a top-of-the-list row and measured it into single-digit
+  percentages (§21's 1.4 %, §22's 0.14 %, now 2.47 %), and the pattern is now
+  explicit enough to state as a rule: **a row that names a token near the leaves
+  of the grammar is a gate; the rung is whatever is complete behind it.**
+* **The FP `fmr`, 1,005** — unchanged from §23.1, still exactly sized, still the
+  only rung starting from a closed mis-emit.
+
+The 5,562 shipped: 5.5× the FP rung, and its lowering is **no instruction at
+all**.
+
+### 24.1 The three candidates, decomposed — MEASURED
+
+Baseline taken **in this worktree** per §18.8, its row count and denominator
+printed before any differencing: `work/dc3-workload/scan-base-convert.jsonl`,
+878 rows, `fn_total` 2,462,571, in class **406,372 (16.50 %)**, mismatch 0, 6
+`match` / 7 `capture-fail`, 570 keys. That agrees with §23.6, which is the only
+thing agreeing on `fn_total` proves.
+
+| candidate | functions | calls-0 | calls-1 | calls-2plus | takeable |
+|---|---:|---:|---:|---:|---:|
+| `expr-convert` | 225,341 | 10,287 | 71,380 | 143,674 | **5,562** |
+| `fn-tail-0x26` | 4,663 | **0** | **0** | **4,663** | **0** |
+| FP `fmr` (§23.1) | 1,005 | 1,005 | 0 | 0 | 1,005 |
+
+**`fn-tail-0x26` cost one query.** §23.1 called it "the same *family*, not the
+same *shape* — nothing else about them was measured", and the first thing
+measured about them settles the whole candidate. `fn-tail-0xB9` split 28,720
+`calls-0`/832 `calls-1`; `fn-tail-0x26` is 4,663 `calls-2plus` and nothing else.
+A free-completeness family says a body has finished parsing; it says nothing
+about whether the body needs a frame, and those are independent axes.
+
+**The `expr-convert` counterfactual** (scratch, reverted, nothing claimed in
+class): `parse_expr` was given a `2C <TYPE> <varint>` arm that records whether
+the target was the operand's own value class, with a thread-local sunk in
+`parse_segment_detail` so that a body which then parses to the end is counted and
+**never** accepted. In-class stayed at 406,372 in the counterfactual build, which
+is the check that no speculative parse set the flag spuriously.
+
+| functions | key | frame class |
+|---:|---|---|
+| 2,480 | grammar-complete, every conversion **int4→int4** | 2,478 `calls-0`, 2 `calls-1` |
+| 3,082 | grammar-complete, every conversion **ptr4→ptr4** | 3,082 `calls-1` |
+| **0** | grammar-complete with any **cross-class** conversion | — |
+| **5,562** | **total, 2.47 % of the row** | 2,478 / 3,084 / **0** |
+
+Two things fall out of that table and neither was predictable from the row size.
+**Not one completing body mixes the classes** — so the conservative rule and the
+lax one have identical yield here, which is what makes the conservatism free
+rather than merely defensible. And the ptr4 half is **entirely `calls-1`**: it is
+the argument of a tail call, cv-stripped or widened to `void *` on the way in,
+which is a shape the port has emitted since the MVP and the workload could not
+reach.
+
+Where the other 97.5 % stops, over the whole 878-TU scan:
+
+| functions | key | what it is |
+|---:|---|---|
+| +145,851 | `expr-op-0x99` | the by-value temporary bind |
+| +24,400 | `expr-op-0x64` | |
+| +14,934 | `expr-load-type-8212` | a 2-byte operand |
+| +11,594 | `call-multiarg-postop:eof` | |
+| +6,407 | `expr-ptr-arith:eof` | §21's guard, reached through a conversion |
+| +4,075 | `expr-cmp-eq` | |
+| +3,401 | `expr-op-0x41` | |
+
+### 24.2 The locality tell, run before committing — MEASURED
+
+§6's cheap check, skipped once at the cost of a whole rung. Four byte-identical
+bodies in one TU, at varied file positions and with different neighbours between
+them, plus the pair that separates this class from the register move:
+
+```text
+  unsigned d1(int a,int b) { return (unsigned)(a+b); }  7c632214 4e800020
+  int      pad1(int a)     { return a*3; }              546b083c 7c635a14 4e800020
+  unsigned d2(int a,int b) { return (unsigned)(a+b); }  7c632214 4e800020   identical
+  unsigned d3(int a,int b) { return (unsigned)(a+b); }  7c632214 4e800020   identical
+  int      pad2(int a,int b){ return a-b; }             7c641850 4e800020
+  unsigned d4(int a,int b) { return (unsigned)(a+b); }  7c632214 4e800020   identical
+  unsigned s2(int a,int b) { return (unsigned)b; }      7c832378 4e800020   mr r3,r4
+  unsigned r1(int a)       { return (unsigned)(unsigned)a; }       4e800020
+  unsigned k1()            { return (unsigned)7; }      38600007 4e800020
+```
+
+`add r3,r3,r4` in all four, wherever they sit and whatever surrounds them, and
+`(unsigned)(a+b)` is byte-for-byte `a+b`. The decision is local, and the
+conversion is worth zero instructions.
+
+The conversions that are *not* free were read off the same kind of probe and are
+the negative fixture's whole content:
+
+```text
+  char      f(int a) { return (char)a; }      7c630774  extsb  r3,r3
+  short     f(int a) { return (short)a; }     7c630734  extsh  r3,r3
+  unsigned char  f(int a)                     5463063e  rlwinm r3,r3,0,24,31
+  unsigned short f(int a)                     5463043e  rlwinm r3,r3,0,16,31
+  long long f(int a) { return (long long)a; } 7c6307b4  extsw  r3,r3
+  float     f(int a) { return (float)a; }     a five-instruction stack round trip
+  int       f(S* p)  { return (int)p; }       4e800020  blr      <- FREE, refused
+  S*        f(int a) { return (S*)a; }        4e800020  blr      <- FREE, refused
+```
+
+The last two are the honest half of the boundary: the cross-class reinterpret
+**is** free in both directions and is refused anyway, because a reinterpret has
+never been graded across the widths, cv-spellings and argument positions this
+parser reaches. §24.6 gives what that conservatism costs as a number.
+
+### 24.3 The ranking, and the estimate — stated before the outcome
+
+| | `expr-convert` | `fn-tail-0x26` | FP `fmr` |
+|---|---:|---:|---:|
+| row | 225,341 | 4,663 | 1,005 |
+| whole-body complete | 5,562 (2.47 %) | 4,663 (100 %) | 1,005 (100 %) |
+| **needs a frame** | 143,674 | **4,663 — all of it** | 0 |
+| **takeable** | **5,562** | **0** | **1,005** |
+| lowering | **no instruction**, and the predicate already exists byte-graded | — | one `fmr` + `.sy` type-kind plumbing |
+| locality tell | **run, passes** | not run (nothing to take) | not needed |
+
+5.5× the FP rung at a fraction of its work — the FP rung needs a new emitter arm
+and a new `.sy` field on the axis where §22.6's two live mis-emits lived, while
+this one needs a decode arm and no emitter change at all. Per §13.1's rule:
+
+> **Estimate: +5,562 exactly, biased LOW.** The counterfactual measured this
+> population and the implementation gates on exactly it, so the point estimate is
+> the measurement rather than an interval. Biased low by the §13.1/§22.5 hazard —
+> a second parser site implementing the same rule — which is **sized rather than
+> waved at** this time: the only other keys naming a `2C` outside `parse_expr`
+> are `call-postop-0x2C` and `call-bound-store-0x2C`, **4 functions between them
+> on the whole workload**, and this rung does not widen them. So the low bias has
+> a ceiling of 4. High only if a TU changes class or a body loses.
+
+Outcome **+5,562**, and the ceiling-of-4 low bias had a population of 0. This is
+the second consecutive rung whose point estimate landed exactly, and the first
+whose stated bias direction was given a *measured* bound instead of a name.
+
+### 24.4 What shipped
+
+`grep`ing for every site that implements the rule first, per §22.5.
+
+* **`readers::ValueClass`, `value_class` and `eat_value_type` moved** from
+  `body/shapes.rs` to `readers.rs` and are `pub(crate)`. They were already the
+  project's answer to "are these two 4-byte types the same *kind* of value", they
+  are what `finish_indirect_load` and `try_parse_ptr_identity_leaf` gate their
+  own `2C` on, and the alternative was a second copy — the "one fact, two
+  locators" mistake §21.3 moved `is_ptr4_kind` to avoid. Nothing about them
+  changed.
+* **`expr::parse_expr` grew a `0x2C` arm** and one variable. The arm consumes
+  `2C <TYPE> 00` iff the target is the value's own class, pushes **no** `IlOp`,
+  and refuses otherwise under a key that names the target's `<tag><kind>` — never
+  its per-TU id (§20).
+* **No codegen, no new `BodyShape`, no new gate in `c2-core`.** The second rung
+  in this document that is a pure decode widening with zero emitter change, after
+  §23's.
+
+The variable is the one thing worth stating precisely, because "the class of the
+last operand" is not obviously "the class of the value on top of the stack":
+
+> Every accepted conversion preserves the class; every accepted operator over a
+> *pointer* is refused outright by §21's guard; arithmetic over int4 values
+> yields an int4 value. So an **accepted** sub-expression has exactly one class
+> throughout, and the two readings coincide. Where they can differ —
+> `(void *)(s + 1)`, whose last operand is the literal — the guard refuses the
+> body anyway, so only the census key moves. `w20_convert_neg.cpp` carries that
+> case with the attribution written down.
+
+The trailing varint is required to be literally `0`, per §6's rule about a field
+that never varied, with `expr-convert-tail` counting the exceptions. There are
+none on this workload.
+
+### 24.5 The outcome — MEASURED
+
+`scan-w20.jsonl` against `scan-base-convert.jsonl`, same list, flags and `--cwd`,
+both differenced through absolute paths.
+
+| | baseline | D12 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 406,372 (16.50 %) | **411,934 (16.73 %)** | **+5,562** |
+| mismatch | 0 | **0** | 0 |
+| `match` / `capture-fail` | 6 / 7 | 6 / 7 | 0 |
+| distinct keys | 570 | 581 | +11 |
+| TUs changing class | — | **0** | — |
+| functions LOST, any TU | — | **0** | — |
+| TUs gaining | — | 826 | max 17 |
+
+826 of 878 TUs gain and the largest single TU gains 17, so this is a property of
+the corpus rather than of one file — the same spread test §22.1 applied to the
+register move.
+
+Byte-graded, and the grading is not only census movement:
+
+* `fixtures/cpp/w20_convert.cpp` — **44/44 in class, whole obj byte-exact**
+  against real `c2`. The 4×4 int spelling matrix (`int`/`unsigned`/`long`/
+  `unsigned long` as source and target) and both implicit witnesses; the
+  conversion at every position of a two- and three-operand chain over `+`, `-`
+  and `*`; conversions over literals; nested conversions two and three deep; the
+  converted formal at argument slots 2, 3 and 5 (where the D10 register move sits
+  underneath); the conversion inside a call-argument region at arities 1 and 2;
+  the pointer half as a tail-call argument, as an identity and through a `const`
+  receiver; member functions where `this` is a const pointer in r3; and two
+  byte-identical bodies for the locality tell.
+* `fixtures/cpp/w20_convert_neg.cpp` — **0/19 in class**, and the file must never
+  mismatch. Ten conversions that emit an instruction (`extsb`, `extsh`, two
+  `rlwinm` masks, `extsw`, the float round trip) as a body, over a chain and over
+  a call result; the cross-class reinterpret in both directions, in a body and in
+  an argument; a conversion feeding pointer arithmetic and a pointer difference;
+  a `const int` *parameter*, whose operand type blocks ahead of the conversion and
+  which is a different key on purpose; and the float/double operand side.
+* `scripts/expr_sweep.sh` grew **211 cases** (4,132 → 4,343, `mismatches=0`) over
+  exactly those axes: the 16-cell spelling matrix, 45 two-operand chains (3
+  operators × 5 operand pairs × 3 conversion positions), 45 three-operand chains
+  (9 operator pairs × 5 conversion slots), the nesting ladder, every argument slot
+  at arities 1–8, 9 call-argument forms, 6 pointee widths × 4 target pointer
+  spellings, a pointer conversion at each slot of a 1–3-argument tail call, three
+  member forms, and 48 refusing neighbours. **134 of the 211 new cases grade
+  `Match`** and 77 `NotImplemented`, so the sweep is comparing emitted bytes here
+  and not only counting refusals.
+* Four mode lanes, mismatch 0 in each: `/Ox` 49 → **50**, `/O1` 46 → **47**,
+  `/O2` 46 → **47**, `/Ox /Gy` 46 → **47**. The `+1` is `w20_convert.cpp` in every
+  lane; no baseline dropped. `c2rs bench` 119 → **121 pass, 0 fail, 0 error**.
+
+### 24.6 Where the un-gained population went — named, not absorbed
+
+The bucket drop is **225,341** against a census gain of **5,562**, so the answer
+to "does the drop equal the gain" is **no, by a factor of 40** — this rung
+cleared a *first* blocker for a quarter of a million functions and finished the
+body for 2.47 % of them. §24.1 has the deeper destinations. What is new here is
+the residue this rung's own refusals created, which is the part a rung can hide:
+
+| functions | key | calls-0 | what it is |
+|---:|---|---:|---|
+| 4,972 | `expr-convert-no-value-0x2C` | 3,419 | a `2C` at the **head** of a `parse_expr` region |
+| 3,247 | `expr-convert-target-8642` | 0 | target is a width-4 **unsigned with a per-TU id** (an enum or typedef) |
+| 1,625 | `expr-convert-target-A641` | 0 | target is a **`const int`** with a per-TU id |
+| 812 | `expr-convert-target-A642` | 0 | target is a **`const unsigned`** with a per-TU id |
+| 809 | `expr-convert-target-8422` | 809 | target is `unsigned short` — a real `rlwinm` |
+| 14 | `expr-convert-target-*` (rest) | 11 | the cross-class reinterpret and stragglers |
+| **11,479** | | | |
+
+Two of those rows are results rather than bookkeeping.
+
+**`expr-convert-no-value` is the data-symbol address, and it is 4,972 functions.**
+The parse enters `parse_expr` on a `2C` with no operand behind it, which one
+capture shows to be
+`4C 4F 11 53 · 26 <sym> · 2C <ptr> 00 · 41 <ptr>` — a `26` symbol push,
+cv-stripped and returned. The mechanism is structural rather than inferred: the
+assignment-body parser consumes a leading `26 <tok>` as a destination and hands
+the rest to `parse_expr`, so a `26` in a *value* position is the only way this
+key can fire. It was inside `expr-convert` before and is now its own number.
+
+**The int-spelling whitelist over-refuses by 5,684, all `calls-1`.**
+`eat_value_type(Int4)` is `eat_int_like`, an exact four-triple whitelist, so a
+conversion whose target is a width-4 integer carrying a *per-TU type id* — an
+enum, a typedef, a `const int` — refuses even though `is_int4_type` would admit
+it on the nibbles and the emitted instruction is the same nothing. That is
+`8642 + A641 + A642 = 5,684 functions`, and it is **larger than this rung's own
+gain**. It is not taken here because `eat_int_like` is shared with the
+already-byte-graded getter and identity leaves and with the `41` result
+annotation, so widening it is a change to a locator three shipped shapes depend
+on and needs its own grading — which is precisely the ranked next rung, now with
+a number instead of a suspicion.
+
+### 24.7 A pre-existing census/gate disagreement, found and NOT fixed here
+
+Probing the fixture turned up a defect that predates this rung and is orthogonal
+to it, recorded because §22.5 found the same class of bug and because an
+unrecorded one is worse than an open one:
+
+```text
+  int f(int a,int b,int c){ return a + b*c; }   census: 1/1 in class   Port=NotImplemented
+  int f(int a,int b,int c){ return a - b*c; }   census: 1/1 in class   Port=NotImplemented
+  int f(int a,int b,int c){ return a*b + c; }   census: 1/1 in class   Port=Match
+```
+
+A `*` after the first operator is accepted by `parse_segment` and refused by
+`codegen`, so the census **over-claims**. Verified on the committed tree with the
+D12 changes stashed, so it is not this rung's. It is the §22.5 defect with the
+producers swapped — a gate in codegen that the census does not consult — and its
+direction is the safe one (no bytes are emitted), but it means the headline
+numerator is an upper bound by an unmeasured amount. Sizing it is one scratch
+build and is the honest next instrument task.
+
+### 24.8 The corrected ranking
+
+Over the 2,050,637 still-blocked functions:
+
+| # | functions | % blocked | calls-0 | calls-1 | calls-2plus | key |
+|---:|---:|---:|---:|---:|---:|---|
+| 1 | 504,445 | 24.6 % | 313,667 | 74,661 | 116,117 | `expr-op-0x27` |
+| 2 | 280,282 | 13.7 % | **0** | 114,059 | 166,223 | `expr-op-0x99` |
+| 3 | 141,800 | 6.9 % | 15 | 57,894 | 83,891 | `expr-intrinsic-this-adjust` |
+| 4 | 118,331 | 5.8 % | 27,139 | 56,186 | 35,006 | `expr-intrinsic-base-member-addr` |
+| 5 | 98,813 | 4.8 % | 10,702 | 84,215 | 3,896 | `expr-load-type-8645` (float) |
+| 6 | 82,810 | 4.0 % | 2 | 82,806 | 2 | `expr-load-type-8885` (double) |
+| 7 | 48,102 | 2.3 % | 1,622 | 4,674 | 41,806 | `body-0x29` |
+| 8 | 39,366 | 1.9 % | 0 | 2 | 39,364 | `expr-call-in-expr-op-0x9B` |
+
+`expr-convert` has left the table entirely and `expr-op-0x99` has taken its
+population and its place. Row 2 has **zero `calls-0` functions**, which is the
+same refutation `fn-tail-0x26` got in §24.1 and should be applied before anyone
+ranks it: nothing in it is takeable without a frame.
+
+The rungs this rung can name, with their measured populations:
+
+1. **The int-spelling whitelist, 5,684 functions**, all `calls-1`, all of them
+   conversions that emit nothing and refuse on a type-table id (§24.6). Larger
+   than this rung's gain; it changes a locator three graded shapes share, so it
+   needs their fixtures re-run rather than only its own.
+2. **The FP `fmr`, 1,005 functions**, all `calls-0`, all whole-body complete,
+   `.sy` proven to carry the type kinds it needs (§23.1). Unchanged by this rung
+   and still the only one that starts from a closed mis-emit. The `.sy` FP kinds
+   are one capture each and `long double` and the vectors are unwitnessed, so it
+   must require the tuple literally and fail closed.
+3. **The cross-class reinterpret**, measured at 14 functions on this workload
+   (§24.6) — free in both directions, and not worth its own grading at that size.
+   Recorded so the next reader does not re-derive it.
+4. **`expr-convert-no-value`, 4,972 functions**, 3,419 `calls-0` — the data-symbol
+   address in a value position, which is §6's `data-addr` family and carries that
+   family's non-local constant-pool hazard. Decompose before ranking.
+5. **The 832 framed constructors** (§23.7) and the general frame, which rows 1–4
+   of the table above are now overwhelmingly waiting on.
+
+### 24.9 What is NOT established, labelled
+
+* **The counterfactual is a grammar measurement, not a differential.** No TU
+  flipped under it, so no lane and no sweep graded that build; its `mismatch 0`
+  is a statement about TU-level acceptance only. It was reverted and every number
+  above re-taken against the committed tree.
+* **`mismatch 0` on the workload is still a TU-level statement.** 865 of the 878
+  TUs are `vocab-gap` and never reach the port. This rung's byte grading is the
+  two fixtures (63 functions), the 4,343-case sweep and the four lanes.
+* **"The conversion is free" rests on the same evidence the getter and identity
+  leaves rest on, plus this rung's probes and fixture.** int4→int4 and ptr4→ptr4
+  at width 4 emit nothing in every witness taken; no capture in this project has
+  produced a counter-example. It is not a proof about every spelling the type
+  table can hold — which is exactly why the int side keeps its four-triple
+  whitelist and the 5,684 it refuses is written down as a number in §24.6 rather
+  than quietly admitted.
+* **`expr-convert-no-value`'s content is one capture plus a structural
+  argument.** The witness is a `26` symbol push behind the conversion and the
+  argument is that the assignment-body parser is the only path that can enter
+  `parse_expr` at a `2C`; no per-function survey of the 4,972 was run.
+* **The 5,684 int-spelling over-refusal is attributed from the key names**
+  (`8642` / `A641` / `A642` are width-4 integer `<tag><kind>` pairs that
+  `is_int4_type` admits and `eat_int_like` does not). No build was made that
+  widens the whitelist, so 5,684 is a *ceiling* on that rung's decode gain, not a
+  whole-body-completeness measurement.
+* **The census is `/O1` and the fixture grading is `/Ox` plus three more lanes.**
+  The conversion emits nothing, so the mode's differing rule (accumulator
+  allocation) has nothing extra to reach; that is an argument, and the four lanes
+  are the evidence.
+* **§24.7's disagreement is characterized on three probes, not sized.** How many
+  workload functions the census over-claims by is unmeasured.
+
+### 24.10 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp          # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                        # 121 pass 0 fail 0 error
+./target/release/c2rs census fixtures/cpp/w20_convert.cpp        # 44/44 in class
+./target/release/c2rs diff   fixtures/cpp/w20_convert.cpp        # Port=Match
+./target/release/c2rs census fixtures/cpp/w20_convert_neg.cpp    # 0/19 in class
+./target/release/c2rs diff   fixtures/cpp/w20_convert_neg.cpp    # Port=NotImplemented
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                           # 50 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                           # 47 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                              # checked=4343 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 16 \
+  --jsonl work/dc3-workload/scan-w20.jsonl           # 411934/2462571, 581 keys
+# the `fn-tail-0x26` refutation — no build at all, just the frame axis:
+python3 -c "import json,collections;f=collections.Counter();\
+[f.update(json.loads(l)['fn_frames']) for l in open('work/dc3-workload/scan-base-convert.jsonl')];\
+print({k:v for k,v in f.items() if k.endswith('|fn-tail-0x26')})"   # all calls-2plus
+# the `expr-convert` counterfactual (scratch, reverted): give `parse_expr` a
+# `2C <TYPE> <varint>` arm that tracks the operand's value class and records
+# whether the target matched it, and sink any body that then parses to the end
+# under its own key in `parse_segment_detail` so nothing is claimed in class.
+# Re-scan -> 225,341 released, 5,562 complete (2,480 int4 + 3,082 ptr4, 0 mixed).
+# the lowering, read off the reference obj rather than inferred:
+printf 'unsigned f(int a,int b){ return (unsigned)(a+b); }\n' > /tmp/a.cpp
+./target/release/c2rs compile /tmp/a.cpp --keep-obj /tmp/a.obj   # add r3,r3,r4 ; blr
+printf 'char f(int a){ return (char)a; }\n' > /tmp/b.cpp
+./target/release/c2rs compile /tmp/b.cpp --keep-obj /tmp/b.obj   # extsb r3,r3 ; blr
+# §24.7, on the committed tree with this rung stashed:
+printf 'int f(int a,int b,int c){ return a + b*c; }\n' > /tmp/c.cpp
+./target/release/c2rs census /tmp/c.cpp   # 1/1 in class
+./target/release/c2rs diff   /tmp/c.cpp   # Port=NotImplemented  <- the disagreement
+```
+
+The sweep prints its own generated case count before it runs; **compare that
+number against the one recorded here before believing a green sweep** (§6).
+Always difference the scans through **absolute** paths and print each one's row
+count and `fn_total` first — §18.8.

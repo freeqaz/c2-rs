@@ -1469,6 +1469,55 @@ The rules that keep the numbers honest:
   complete bodies. And an unsized over-refusal gets quoted as a range in the next
   ranking, which is how a 1,005-function rung ends up compared against a
   29,552-function one as though the comparison were close.
+- **The frame axis refutes candidates for free, and completeness does not imply
+  it.** `fn-tail-0x26` was carried as "the other member of the free-completeness
+  family, unexamined" for a whole rung. The first thing measured about it settled
+  it: **all 4,663 are `calls-2plus`**, which §18 already proves needs a frame, so
+  its takeable population is 0 — no scratch build, no counterfactual, one query
+  against a scan that already existed. Its sibling `fn-tail-0xB9` split 28,720
+  `calls-0` / 832 `calls-1`, so the family says a body has *finished parsing* and
+  says nothing whatever about whether it needs a frame. **Two independent axes;
+  check the cheap one first.** `expr-op-0x99`, now the #2 row at 280,282, has
+  **zero** `calls-0` functions and should be refuted the same way before anyone
+  ranks it.
+- **A row that names a token near the leaves of the grammar is a gate, not a
+  rung — three measurements now say so.** The pointer *type* released 983,707 and
+  finished **1.4 %**; `expr-op-0x27` released 505,122 and finished **0.14 %**;
+  `expr-convert` released 225,341 and finished **2.47 %**
+  (`IL_CALL_IN_EXPR.md` §21, §22, §24). All three were the top or near-top row
+  when scheduled. The generalizable form: **the size of a first-blocker row
+  measures how early its token appears, not how much work is behind it.** Ask of
+  every head row: is this token a *value annotation* the rest of the body then
+  has to be understood anyway? If so, the rung is whatever is complete behind it,
+  and that number needs a counterfactual before the row gets on a schedule.
+- **A stated bias direction can carry a measured bound instead of a name, and
+  should.** §13.1 requires the estimate to name its bias and its cause. D12 went
+  one step further: its low bias was the familiar "a second parser site
+  implements the same rule" hazard, and instead of leaving it as a hazard the
+  other sites were grepped and *counted* — 4 functions on the whole workload — so
+  the estimate shipped as "+5,562, low by at most 4". It landed at +5,562. An
+  unbounded bias direction is an excuse; a bounded one is a prediction.
+- **A rung's own REFUSALS are residue and must be named too.** Rungs are audited
+  on "where did the un-gained population go", and the answer usually points at
+  keys that already existed. D12 created 11,479 functions of *new* refusal keys,
+  and 5,684 of them — larger than the rung's own +5,562 gain — turned out to be
+  a single over-refusal: `eat_int_like`'s exact four-triple whitelist rejects a
+  conversion whose target is a width-4 integer carrying a per-TU type id (an
+  enum, a typedef, a `const int`), which `is_int4_type` would admit on the
+  nibbles and which emits the same nothing. It was invisible until the refusal
+  got its own key. **Give a new gate a key on the way in, not after someone asks
+  what it cost.**
+- **The census can over-claim, and the direction of a census/gate disagreement
+  does not make it safe to leave unrecorded.** §22.5 found a producer that
+  claimed functions in class that `PortC2` refused; the same disagreement exists
+  today in the other direction of the same seam — `int f(int a,int b,int c){
+  return a + b*c; }` censuses in class and the port returns `NotImplemented`,
+  because a `*` after the first operator is gated in `codegen` and not in
+  `parse_segment` (`IL_CALL_IN_EXPR.md` §24.7). Nothing wrong is emitted, which
+  is exactly why it survived — but it means the headline numerator is an upper
+  bound by an unmeasured amount, and a numerator with an unmeasured error term is
+  not a benchmark. Every gate that decides in-class membership belongs behind one
+  predicate that both producers call.
 - **A guessed name is worse than a hex bucket — this has now happened three
   times.** (1) The relational opcode labels were inferred from numeric order
   and three of six were wrong. (2) `call-anchor-*` named a structure that did
