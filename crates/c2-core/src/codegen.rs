@@ -358,6 +358,40 @@ pub fn encode_sth(rs: u8, ra: u8, d: i16) -> [u8; 4] {
 /// `func.params` maps both tokens to their incoming argument registers by
 /// declaration order, with a member function's `this` already at index 0.
 pub fn store_leaf_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>> {
+    // The **floating-point** store, `void f(S* s, float v){ s->f = v; }` — one
+    // `stfs`/`stfd` + `blr`. Two ops rather than three: the value's register is
+    // already resolved, because the FP argument file is numbered over the FP
+    // parameters alone and only the IL layer has the `.sy` view that says which
+    // parameters those are ([`c2_il::IlOp::StoreIndFp`]). The base is the ordinary
+    // GPR argument, and its index *is* its register number even with FP formals in
+    // the list — an FP parameter fills no GPR but still consumes its slot, so the
+    // two effects cancel exactly (`docs/ABI_EDGES.md` §2, and the capture
+    // `void s_arg2(int x, S* s, float v){ s->f = v; }` → `stfs f1,4(r4)`).
+    if let [IlOp::Load(b), IlOp::StoreIndFp { off, double, src }] = func.ops.as_slice() {
+        let d = match i16::try_from(*off) {
+            Ok(d) => d,
+            Err(_) => {
+                return Some(Err(out_of_class(
+                    "FP store offset exceeds a 16-bit displacement",
+                )))
+            }
+        };
+        let Some(base) = func
+            .params
+            .iter()
+            .position(|&t| t == *b)
+            .filter(|&i| i < ARG_REGS.len())
+            .map(|i| ARG_REGS[i])
+        else {
+            return Some(Err(out_of_class(
+                "FP store whose base is not a register argument",
+            )));
+        };
+        let mut text = Vec::with_capacity(8);
+        text.extend_from_slice(&encode_stfs(*double, *src, base, d));
+        text.extend_from_slice(&encode_blr());
+        return Some(Ok(text));
+    }
     let (base_tok, value, off, width) = match func.ops.as_slice() {
         [IlOp::Load(b), v @ (IlOp::Load(_) | IlOp::Lit(_)), IlOp::StoreInd { off, width }] => {
             (*b, v, *off, *width)
@@ -601,6 +635,53 @@ pub fn encode_fmul(double: bool, fd: u8, fa: u8, fc: u8) -> [u8; 4] {
 /// `fdivs`/`fdiv` — XO 18.
 pub fn encode_fdiv(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
     fp_a_form(double, fd, fa, fb, 0, 18)
+}
+
+/// `stfs fS, d(rA)` / `stfd fS, d(rA)` — store a floating-point register.
+///
+/// Primary **52** single, **54** double, both plain D-form. Note the asymmetry
+/// with the integer family: `std` is DS-form and cannot encode a displacement
+/// that is not a multiple of 4, while `stfd` owns all sixteen bits — so the
+/// alignment gate `try_parse_store_leaf` applies to a `width == 8` integer store
+/// deliberately has no counterpart on the FP path. Verified: `d0230004` is
+/// `stfs f1,4(r3)` and `d8230008` is `stfd f1,8(r3)`
+/// (`docs/CODEGEN_FP_ARGS.md` §3).
+pub fn encode_stfs(double: bool, fs: u8, ra: u8, d: i16) -> [u8; 4] {
+    let primary: u32 = if double { 54 } else { 52 };
+    let word: u32 = (primary << 26)
+        | ((fs as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `fmr fD, fB` — the FP register move: X-form, primary **63**, XO 72.
+///
+/// **Primary 63 whatever the operand width.** There is no `fmrs`: the
+/// single-precision A-form ops use primary 59, but a register move is a bit copy
+/// and the FPRs hold double internally, so the same encoding serves `float` and
+/// `double`. Captured both ways — `float t2(float a,float b){ return g1f(b); }`
+/// and its `double` twin both emit `fc201090`, `fmr f1,f2`
+/// (`docs/CODEGEN_FP_ARGS.md` §1) — which is why this takes no `double` flag and
+/// the A-form encoders above do.
+pub fn encode_fmr(fd: u8, fb: u8) -> [u8; 4] {
+    let word: u32 =
+        (63u32 << 26) | ((fd as u32 & 0x1F) << 21) | ((fb as u32 & 0x1F) << 11) | (72u32 << 1);
+    word.to_be_bytes()
+}
+
+/// `frsp fD, fB` — round to single precision: X-form, primary 63, XO 12.
+///
+/// The `double` → `float` narrowing, and it is a **real instruction** where the
+/// widening `float` → `double` is nothing at all. Captured as the pair, which is
+/// the only way to establish that the asymmetry is c2's and not the C standard's:
+/// `double wid(float a){ return gd1(a); }` is a bare `b`, while
+/// `float nar(double a){ return gf1(a); }` is `fc200818 ; b` —
+/// `frsp f1,f1` (`docs/CODEGEN_FP_ARGS.md` §2).
+pub fn encode_frsp(fd: u8, fb: u8) -> [u8; 4] {
+    let word: u32 =
+        (63u32 << 26) | ((fd as u32 & 0x1F) << 21) | ((fb as u32 & 0x1F) << 11) | (12u32 << 1);
+    word.to_be_bytes()
 }
 
 /// FP scratch pool, in allocation order: `f0` first, then descending from `f13`,
@@ -859,7 +940,8 @@ pub fn float_leaf_text(
                     | IlOp::LoadInd { .. }
                     | IlOp::LoadIndSized { .. }
                     | IlOp::AddrOf { .. }
-                    | IlOp::StoreInd { .. } => {
+                    | IlOp::StoreInd { .. }
+                    | IlOp::StoreIndFp { .. } => {
                         unreachable!("not a binary op")
                     }
                 }
@@ -880,11 +962,18 @@ pub fn float_leaf_text(
         // was written. The parser refuses the shape first (`try_parse_float_leaf`
         // requires every formal to be an FP operand of the body), so nothing
         // should reach here.
+        // A bare `return <FP parameter>` whose parameter is not the first FP one:
+        // one `fmr` into the result register. `float f(float a, float b)
+        // { return b; }` is `fmr f1,f2 ; blr` (captured, `fc201090`), and this
+        // branch used to emit **nothing** at all — `GAPS.md` §6's seventh live
+        // wrong-bytes emit, the integer identity's `straight_line_out_of_class_ctx`
+        // gate missing from the other register file.
+        //
+        // Reachable only through the parameter list this shape now carries in
+        // FP-register order; nothing else can leave a value outside `FP_RET`,
+        // because every binary op targets it when it is the last one.
         [r] if *r != FP_RET => {
-            return Err(out_of_class(
-                "FP result is not in f1 (bare non-first FP parameter return needs \
-                 an `fmr`); out of class",
-            ))
+            text.extend_from_slice(&encode_fmr(FP_RET, *r));
         }
         [_] => {}
         _ => {
@@ -2220,7 +2309,7 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
             // leaf, which `store_leaf_text` owns. A store is not a value at
             // all — reaching the affine selector would mean pushing one onto
             // the operand stack.
-            IlOp::StoreInd { .. } => {
+            IlOp::StoreInd { .. } | IlOp::StoreIndFp { .. } => {
                 return Err(out_of_class(
                     "indirect store in an expression; out of class",
                 ))
@@ -2394,7 +2483,8 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     | IlOp::LoadInd { .. }
                     | IlOp::LoadIndSized { .. }
                     | IlOp::AddrOf { .. }
-                    | IlOp::StoreInd { .. } => {
+                    | IlOp::StoreInd { .. }
+                    | IlOp::StoreIndFp { .. } => {
                         unreachable!("not a modeled integer binary op")
                     }
                 }
@@ -2488,7 +2578,8 @@ fn combine(
             | IlOp::LoadInd { .. }
             | IlOp::LoadIndSized { .. }
             | IlOp::AddrOf { .. }
-            | IlOp::StoreInd { .. },
+            | IlOp::StoreInd { .. }
+            | IlOp::StoreIndFp { .. },
             _,
             _,
         ) => {

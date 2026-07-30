@@ -223,6 +223,56 @@ fn differential_class_a_many_calls_byte_exact() {
     }
 }
 
+/// W27 + W28: the floating-point argument register file, byte-exact.
+///
+/// Two numberings run over one parameter list and neither is the formal's index
+/// — an FP parameter takes `f<j>` counting FP parameters **alone**, every other
+/// scalar takes `r<2 + slot>`, and an FP parameter consumes a slot while filling
+/// no register. They disagree in opposite directions, which is what produced
+/// `docs/GAPS.md` §6's instances 6, 7, 11 and 12.
+///
+/// Each file separates something no other can: `w27_fp_reg` has a non-FP formal
+/// before, between and doubled ahead of the FP ones plus both widths in one
+/// list; `w27_fp_reg_qual` is the `.sy`-kind-vs-tid boundary (a `const float` is
+/// still an FPR, a `float&` is **not**); `w28_fp_store` grades **both**
+/// numberings in one instruction; `w28_fltused_order` pins where the CRT marker
+/// goes in a MIXED translation unit; `w29_fp_contract` grades the port against
+/// c2 under `#pragma fp_contract(off)`, which the corpus-scale experiment
+/// (c2 against c2) cannot do.
+#[test]
+fn differential_fp_argument_registers_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in [
+        "w27_fp_reg.cpp",
+        "w27_fp_reg_qual.cpp",
+        "w28_fp_store.cpp",
+        "w28_fltused_order.cpp",
+        "w29_fp_contract.cpp",
+    ] {
+        let w = work("fpargs");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => {
+                assert_eq!(
+                    port,
+                    PortStatus::Match,
+                    "expected the port to be byte-exact on {name}, got {port:?}"
+                );
+            }
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}
+
 /// W4a: first relocation + external symbol. `mvp_call.cpp` is a single-function
 /// tail call (`void f(){g();}`) → `b g` with an IMAGE_REL_PPC_REL24 relocation
 /// to g's undefined external symbol. Proves the relocation records, the
@@ -435,6 +485,20 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // a second save into r10 and reorders the writes. Live wrong bytes until
         // the grid was measured — `il_call_multi.cpp`'s `cyc4a`/`cyc4b`.
         "il_call_multi.cpp",
+        // An FP store leaf sharing a TU with a framed function. Every function
+        // in it is individually in class; the TU refuses because an FP-touching
+        // function consumes **2** label-counter slots and `coff::plan_labels`
+        // advances by 1 for every non-framed one. Live wrong bytes until the
+        // merge that created the pair — `$M2564/$M2563/$T2565` against
+        // `$M2565/$M2564/$T2566` (`docs/GAPS.md` §6 instance 12).
+        "w28_fp_store_framed_neg.cpp",
+        // The FP store's own boundary: a conversion on the stored value in
+        // either direction (the narrowing one is a real `frsp` through f0), a
+        // pooled FP literal, and a computed value.
+        "w28_fp_store_neg.cpp",
+        // The FP leaf's remaining boundary: a repeated leaf, which licenses c2's
+        // algebraic rewriter and lands in `.rdata`.
+        "w13_fparam_neg.cpp",
     ] {
         let w = work("oocreject");
         let port = PortC2::default();

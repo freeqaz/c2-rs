@@ -208,6 +208,50 @@ pub const OPT_WORD_OX: u32 = 0x00a0_0005;
 /// different register field. See `docs/OPT_MODE.md`.
 pub const OPT_WORD_O1: u32 = 0x0020_0005;
 
+/// `/O1` with **`#pragma fp_contract(off)`** — bit `0x4` clear, everything else
+/// identical to [`OPT_WORD_O1`]. Accepted as `/O1`.
+///
+/// MEASURED, one bit at a time (`docs/OPT_MODE.md` §6.2): `0x4` is
+/// floating-point contraction, the pragma is **per function** rather than
+/// per-TU, and its only effect on emitted bytes is that a `*` feeding a `+`/`-`
+/// stops fusing —
+///
+/// ```text
+///   float f(float a,float b,float c){ return a*b+c; }
+///     contract on   ec2118ba              fmadds f1,f1,f2,f3
+///     contract off  ec0100b2 ec20182a     fmuls f0,f1,f2 ; fadds f1,f0,f3
+/// ```
+///
+/// — which is **exactly and only** the set of bodies `codegen`'s contraction
+/// guard already refuses ("an FP expression mixes `*` with `+`/`-`"). So
+/// accepting this word cannot turn a refusal into a wrong byte for any class the
+/// port emits; it can only turn a refusal into a match. Verified at corpus scale
+/// rather than argued: the whole fixture corpus compiled at `/O1` with and
+/// without the pragma prepended gives **129 byte-identical `.text` and 1
+/// differing**, and the one is `w13_fneg`, the fixture whose entire purpose is
+/// FMA contraction and which is refused (`docs/OPT_MODE.md` §6.3).
+///
+/// **What an implementation must not do**: treat `0x4` as ignorable when the
+/// contraction rung is eventually built. With the bit clear the correct lowering
+/// for `a*b+c` is `fmuls`+`fadds`, and a contracting emitter would produce a
+/// valid, wrong, and otherwise-invisible `fmadds`. The word is accepted here
+/// because the guard refuses that body today; the day it does not, this constant
+/// has to become a *mode*, not an alias.
+pub const OPT_WORD_O1_NO_FP_CONTRACT: u32 = 0x0020_0001;
+
+/// [`OPT_WORD_OX`] with `#pragma fp_contract(off)` — the same bit, at the other
+/// mode. Accepted as `/Ox`, on its own corpus-scale measurement rather than on
+/// the `/O1` one: the whole fixture corpus compiled at **`/Ox`** with and
+/// without the pragma gives **145 byte-identical `.text` and 1 differing**, and
+/// the one is `w13_fneg` again.
+///
+/// Worth 0 functions on the dc3 workload, which compiles `/O1`. It exists so the
+/// fixture that carries the pragma **grades in every lane** instead of only in
+/// the `/O1` one — `c2rs bench` and `c2rs diff` use the `/Ox` profile, and a
+/// positive fixture that reports `NotImplemented` in the default lane is the
+/// decoration `docs/GAPS.md` §6 records `w13_fabi.cpp` as having been for months.
+pub const OPT_WORD_OX_NO_FP_CONTRACT: u32 = 0x00a0_0001;
+
 /// Bit `0x0000_0100` of the per-function optimization word: **this function is a
 /// constructor or a destructor.** Orthogonal to the mode bits, so it is masked off
 /// before the whole-word compare rather than being enumerated into four words.
@@ -557,8 +601,8 @@ pub enum OptWordMode {
 /// unreadable segment prefix, or any word this port has not been verified against.
 pub fn opt_word_mode(word: Option<u32>) -> Option<OptWordMode> {
     match word.map(|v| v & !OPT_WORD_SPECIAL_MEMBER) {
-        Some(v) if v == OPT_WORD_OX => Some(OptWordMode::Ox),
-        Some(v) if v == OPT_WORD_O1 => Some(OptWordMode::O1),
+        Some(v) if v == OPT_WORD_OX || v == OPT_WORD_OX_NO_FP_CONTRACT => Some(OptWordMode::Ox),
+        Some(v) if v == OPT_WORD_O1 || v == OPT_WORD_O1_NO_FP_CONTRACT => Some(OptWordMode::O1),
         _ => None,
     }
 }
@@ -573,13 +617,40 @@ pub fn opt_word_mode(word: Option<u32>) -> Option<OptWordMode> {
 /// correspondence `docs/GAPS.md` §6 warns about. Each reads the word out of the
 /// segment it already owns, through this.
 ///
-/// `None` when the segment does not open `4F 1F 80` with four more bytes, so a
+/// **The word is a varint, not a fixed `80 <LE32>`** (roadmap #52,
+/// `docs/OPT_MODE.md` §6.1). `80` is the escape and four little-endian bytes
+/// follow; a word below `0x80` is the single byte itself, which is what
+/// `#pragma optimize("", off)` produces:
+///
+/// ```text
+///   /O1                        4f 1f 80 05 00 20 00 …    = 0x00200005
+///   /O1 + optimize("",off)     4f 1f 04 4f 20 80 fe 00 … = 0x00000004
+/// ```
+///
+/// Reading only the escape form is **fail-closed** — the short form yielded
+/// `None` and `opt_word_mode` refuses `None` — so this was never a wrong-bytes
+/// risk, but it mis-*named* the refusal: a function whose word could not be read
+/// censused under `opt-mode-00000000`, a key that asserts the word is zero when
+/// in fact it is unknown. On the 878-TU workload **0** otherwise-in-class
+/// functions take the short branch, so this fix is worth 0 functions and is a
+/// correction to the instrument rather than to coverage.
+///
+/// `81..FF` is not a form any capture produces and is refused rather than being
+/// read as a signed byte the way an operand-stream varint is — an optimization
+/// word is a bit field, not a number, and sign-extending one would be inventing
+/// a reading.
+///
+/// `None` when the segment does not open `4F 1F` with a readable word, so a
 /// caller that needs a known mode refuses rather than assuming one.
 pub(crate) fn opt_word_at(seg: &[u8]) -> Option<u32> {
-    if seg.len() >= 7 && seg[0] == FN_START[0] && seg[1] == FN_START[1] && seg[2] == 0x80 {
-        Some(u32::from_le_bytes([seg[3], seg[4], seg[5], seg[6]]))
-    } else {
-        None
+    if seg.len() < 3 || seg[0] != FN_START[0] || seg[1] != FN_START[1] {
+        return None;
+    }
+    match seg[2] {
+        0x80 => (seg.len() >= 7)
+            .then(|| u32::from_le_bytes([seg[3], seg[4], seg[5], seg[6]])),
+        b if b < 0x80 => Some(b as u32),
+        _ => None,
     }
 }
 
@@ -810,6 +881,58 @@ impl IlBundle {
 mod tests {
     use super::*;
 
+    /// The optimization word is a **varint**, and reading only its `80` escape
+    /// form silently mis-names every function that takes the short branch.
+    /// `#pragma optimize("", off)` at `/O1` writes `4f 1f 04` — the whole word
+    /// in one byte — and the fixed-width reader answered `None`, which censuses
+    /// as `opt-mode-00000000`: a key asserting the word is zero when it is in
+    /// fact unread. (`docs/OPT_MODE.md` §6.1; roadmap #52.)
+    #[test]
+    fn the_optimization_word_is_a_varint_not_a_fixed_escape() {
+        // The escape form, unchanged.
+        let long = [FN_START[0], FN_START[1], 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F];
+        assert_eq!(opt_word_at(&long), Some(OPT_WORD_O1));
+        // The short form: the byte IS the word. Verbatim from a capture of
+        // `#pragma optimize("", off)` at `/O1`, whose next bytes are `4f 20 …`.
+        let short = [FN_START[0], FN_START[1], 0x04, 0x4F, 0x20, 0x80, 0xFE, 0x00];
+        assert_eq!(opt_word_at(&short), Some(0x0000_0004));
+        // …and it is still refused, because 4 is not a mode this port emits.
+        assert!(opt_word_mode(opt_word_at(&short)).is_none());
+        // `81..FF` is not a form any capture produces. An operand-stream varint
+        // would sign-extend it; an optimization word is a bit field, so reading
+        // one that way would be inventing a value. Refused.
+        let odd = [FN_START[0], FN_START[1], 0xFB, 0x4F, 0x20, 0x80, 0xFE, 0x00];
+        assert_eq!(opt_word_at(&odd), None);
+        // A truncated escape is still `None` rather than a partial read.
+        assert_eq!(opt_word_at(&[FN_START[0], FN_START[1], 0x80, 0x05]), None);
+    }
+
+    /// `#pragma fp_contract(off)` clears bit `0x4` and changes nothing else, and
+    /// the only bodies it moves are the ones the contraction guard already
+    /// refuses. So `00200001` is `/O1` — and `00200101`, the same word on a
+    /// constructor or destructor, must reach the same answer through the
+    /// existing special-member mask rather than through a fourth constant.
+    #[test]
+    fn fp_contract_off_is_still_the_mode_it_was_compiled_at() {
+        assert_eq!(opt_word_mode(Some(OPT_WORD_O1_NO_FP_CONTRACT)), Some(OptWordMode::O1));
+        assert_eq!(
+            opt_word_mode(Some(OPT_WORD_O1_NO_FP_CONTRACT | OPT_WORD_SPECIAL_MEMBER)),
+            Some(OptWordMode::O1)
+        );
+        // The same bit at the other mode, on its OWN corpus-scale measurement
+        // (145 identical / 1 differing at `/Ox`, the differing one being the FMA
+        // fixture again) — accepted as `/Ox`, never as `/O1`.
+        assert_eq!(opt_word_mode(Some(OPT_WORD_OX_NO_FP_CONTRACT)), Some(OptWordMode::Ox));
+        assert_eq!(
+            opt_word_mode(Some(OPT_WORD_OX_NO_FP_CONTRACT | OPT_WORD_SPECIAL_MEMBER)),
+            Some(OptWordMode::Ox)
+        );
+        // And clearing the *other* low bit is `#pragma optimize("", off)`, which
+        // is a real mode change and still refuses.
+        assert_eq!(opt_word_mode(Some(0x0020_0004)), None);
+        assert_eq!(opt_word_mode(Some(0x0000_0004)), None);
+    }
+
     /// A bundle carrying just `.ex`, enough for the segment-level readers.
     fn ex_bundle(ex: Vec<u8>) -> IlBundle {
         let mut b = IlBundle::default();
@@ -839,11 +962,21 @@ mod tests {
 
     #[test]
     fn opt_words_reports_an_unreadable_prefix_rather_than_guessing() {
-        // A segment whose `4F 1F` is not followed by the `80` tag yields None for
-        // that entry, so `PortC2` refuses instead of assuming the verified mode —
-        // the word is the whole basis for believing the codegen applies at all.
-        let ex = vec![FN_START[0], FN_START[1], 0x11, 0x22, 0x33, 0x44, 0x55];
+        // A segment whose word cannot be read yields None for that entry, so
+        // `PortC2` refuses instead of assuming the verified mode — the word is the
+        // whole basis for believing the codegen applies at all.
+        //
+        // This case used to be `4F 1F 11 …`, on the reading that anything but the
+        // `80` tag was unreadable. It is not: the word is a **varint** and `11` is
+        // the perfectly readable short-form word 17 (`docs/OPT_MODE.md` §6.1). The
+        // genuinely unreadable range is `81..FF`, which no capture produces and
+        // which is not sign-extended the way an operand varint would be.
+        let ex = vec![FN_START[0], FN_START[1], 0xF1, 0x22, 0x33, 0x44, 0x55];
         assert_eq!(ex_bundle(ex).opt_words(), Some(vec![None]));
+        // …and the short form really is read, rather than merely tolerated.
+        let ex = vec![FN_START[0], FN_START[1], 0x11, 0x22, 0x33, 0x44, 0x55];
+        assert_eq!(ex_bundle(ex).opt_words(), Some(vec![Some(0x11)]));
+        assert!(opt_word_mode(Some(0x11)).is_none());
     }
 
     #[test]

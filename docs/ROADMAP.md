@@ -2194,7 +2194,7 @@ else. Interaction term **0**.
 Merged-tree gate: workspace **398 pass**, `bench` **142 pass / 0 fail / 0 error**,
 lanes `/Ox` **63** and `/O1`·`/O2`·`/Ox /Gy` **61**, **0 mismatch** in all four,
 `census_gate.rs` passing at its recorded per-lane values (**1** packed / **9**
-`/Gy`) with its named causes unchanged, sweep **5,023 cases / 0 mismatches**,
+`/Gy`) with its named causes unchanged, sweep ** 5,023 cases / 0 mismatches**,
 878-TU scan match 6 / **mismatch 0** / capture-fail 7 / disagreement **0** / 570
 keys, corpus `dc3-decomp` **`05ca6d09`** (carried in provenance record 0). Both
 positive fixtures still N/N `Port=Match`, and so do the frame rung's `wfr_*`.
@@ -2345,6 +2345,291 @@ direction too.
    (`callseq-tail-lit-wide`) although the straight-line class already emits
    `lis`+`ori` for a bare wide constant. Under-claiming, not a gap — one
    capture settles it.
+
+## 6k. W27 + W28 — the FP argument register file, and the 167k claim measured (2026-07-30)
+
+Full write-up, with every captured word and every counterfactual, in
+`docs/CODEGEN_FP_ARGS.md`. Two rungs, one fact: **two register numberings run
+over one parameter list and neither is the formal's index.** An FP parameter
+takes `f<j>` counting FP parameters *alone*; every other scalar takes
+`r<2 + slot>`, and an FP parameter consumes a slot while filling no register. So
+the two disagree in opposite directions, which is why `int t6(int a, float b,
+float c){ return gffi(b,c,a); }` emits exactly one `mr r5,r3` and no `fmr`.
+
+### The commissioning claim, measured — and halved
+
+`IL_STORE_LEAF.md` §7.1 recorded the **167,021** `calls-1` functions behind
+`expr-load-type-8645`/`-8885` as FP tail calls "converging on the FP
+argument-register item". That was read off a counterfactual's residue. A
+whole-body counterfactual — the FP type admitted at the LOAD, LIT, `2C` target,
+`55` call-end and `41` result annotation *at once*, so it is an upper bound —
+says **85,231 of the 167,021 (51.0 %) become whole-body complete**: 59,095
+single-argument tail calls and 26,136 permutations, **0** of it `calls-2plus`.
+Confirmed in kind, halved in size, and the other 81,790 are not reachable by any
+FP rung. Admitting the FP *literal* classes as well releases 10,665 more blocked
+functions and completes **0** additional bodies — a clean refutation worth
+keeping, since the FP constant machinery is the expensive part.
+
+### What was taken
+
+**W27, the `fmr`** — `float f(float a, float b){ return b; }` is `fmr f1,f2`,
+and `float mixfp(int a,float b,float c){ return b*c; }` is `fmuls f1,f1,f2`.
+Both were live wrong-bytes emits (`GAPS.md` §6 (6) and (7)); the blunt gate that
+closed them — every formal must be an FP operand — cost a MEASURED 1,005
+(§23.1). Replaced with the real numbering, read from `.sy`'s type **kind** (05 =
+"real"), which is the right key because the `<tid>` is per-TU: `float` is `40`
+but `const float` is `0x1002`, and a `const float` is still passed in an FPR.
+
+**W28, the FP store leaf** — `void f(S* s, float v){ s->f = v; }` is one
+`stfs`/`stfd`, the **fourth** consumer of the sub-object designator three other
+leaves already share. Sized at **7,984** by counterfactual before it was built;
+`IL_STORE_LEAF.md` §6 had it as "measured and not implemented" with the FP
+numbering named as what stopped it, and §7 (3) ranked the pair together.
+
+### The alarm this rung found — the ninth live wrong-bytes emit
+
+`coff::Function::is_float` was answering two questions with one field: "this body
+does FP arithmetic (label stride 2)" and "this TU needs `_fltused`". An FP store
+is the first construct that satisfies only the second, and the port emitted
+**all fourteen** positive objs one symbol short. `GAPS.md` §6 (9).
+
+### Census
+
+**473,611 → 482,542 (19.23 % → 19.60 %), +8,931**, mismatch 0, disagreement 0,
+**0 new census keys** (570 → 570), no TU changing class. The sum of every blocker
+key's delta is exactly −8,931 over exactly **two** keys — `expr-load-type-8645`
+−1,004 and `expr-op-0x27` −7,927 — the eighth rung running where the bucket drop
+equals the gain. All 8,931 are `calls-0`.
+
+Estimate **+1,005 / +7,984 = +8,989**, realized **+8,931**, biased HIGH by 0.6 %:
+1 from a clause that deliberately holds the pooled-FP-constant population fixed
+(it is refused under `/Gy` in codegen only, and widening the parameter model put
+one such body in class, taking the scan's disagreement 0 → 1), and 57 from the
+FP-literal and conversion refusals the counterfactual did not gate.
+
+Note that **neither rung's gain came out of the row that named it**: the FP store
+fell out of `expr-op-0x27`, the #1 row, because a store's parse blocks at the
+`27` offset-add long before it reaches the value's type. `GAPS.md` §6's
+unstable-attribution rule, paying off in the predicted direction, and the reason
+both estimates were taken from counterfactuals rather than from row sizes.
+
+### Gate evidence
+
+Corpus `dc3-decomp` at **`05ca6d09`**; baseline re-taken in this worktree and
+reproducing master `473c6a4` to the function (473,611 / 570 keys /
+disagreement 0).
+
+| lane | baseline | W27 + W28 |
+|---|---|---|
+| `cargo test --workspace --release` | 398 pass | **401 pass**, 0 fail |
+| `c2rs bench` | 142 pass / 0 fail / 0 error | **146 pass / 0 fail / 0 error** |
+| `mode_lane.sh /Ox` | 63 match, 0 mismatch | **66 match, 0 mismatch**, 0 codegen-gap |
+| `/O1` · `/O2` · `/Ox /Gy` | 61 match, 0 mismatch | **64 match, 0 mismatch**, 2 codegen-gap |
+| `scripts/expr_sweep.sh` |  5,023 cases | **5,868 cases**, mismatches **0** |
+| 878-TU scan | 473,611, 570 keys, disagreement 0 | **482,542**, **570 keys**, disagreement **0**, mismatch 0 |
+| `census fixtures/cpp/w27_fp_reg.cpp` | — | **33/33 in class**, `Port=Match` |
+| `census fixtures/cpp/w28_fp_store.cpp` | — | **14/14 in class**, `Port=Match` |
+| `census fixtures/cpp/w28_fltused_order.cpp` | — | **5/5 in class**, `Port=Match` |
+| `census fixtures/cpp/w28_fp_store_neg.cpp` | — | **0/11**, `Port=NotImplemented` |
+| `census fixtures/cpp/w13_fparam_neg.cpp` | 0/19 | **0/3**, `Port=NotImplemented` |
+
+`w13_fparam_neg.cpp` shrank from 19 functions to 3 because **16 of its negatives
+are now positives**: they moved verbatim into `w27_fp_reg.cpp` and are emitted
+byte-exact. A case crossing from a negative fixture to a positive one is the only
+direct evidence that a rung took what its refusal cost.
+
+`census_gate.rs` passes at its recorded per-lane values (1 packed / 9 `/Gy`),
+causes unchanged.
+
+### The generator trap, hit again
+
+`scripts/expr_sweep.sh` grew an FP block whose loop variable was `n` — the
+generator's own file counter — and the sweep reported **3,344 cases where the
+last recorded run was 5,023**, silently overwriting. That is the exact failure
+`GAPS.md` §6 records, in the same file, and the only tell was the printed count
+*falling*. Fixed (`nfp`), and it is the second instance: the rule "a generated
+corpus must report its own size on every run, and that size must be compared
+against the last one" earned its keep a second time within a week.
+
+### Also taken: `fp_contract`, and the varint the reader was not
+
+`OPT_MODE.md` §6.4/§6.5. `#pragma fp_contract(off)` clears bit `0x4` of the
+per-function optimization word, the port compared the word whole, and the whole
+of two census keys — **206 functions, 188 `calls-0`** — was refused on that
+ground alone. The bit's only effect on emitted bytes is FMA contraction, which
+`try_parse_float_leaf` already refuses; measured at corpus scale in **both**
+modes rather than inheriting one from the other (129/1 at `/O1`, **145/1** at
+`/Ox`, the differing fixture being `w13_fneg` both times, and refused).
+
+Roadmap **#52 audited on the way through**: `opt_word_at` required the `80`
+escape and the word is a varint. Fail-closed, so never wrong bytes — but a
+short-form word censused as `opt-mode-00000000`, a key asserting the word is
+*zero* when it is unread. Fixed; **0 functions** on this workload. One existing
+test used `4F 1F 11` as its "unreadable prefix" case and `11` is the readable
+short-form word 17, which is the finding in miniature.
+
+**482,542 → 482,748, +206 exact**, and the two `opt-mode` keys vanish entirely
+(**570 → 568**).
+
+### The session total
+
+**473,611 → 482,748 (19.23 % → 19.60 %), +9,137** over three rungs, mismatch 0,
+census/gate disagreement 0, **two keys fewer** and none added. Final gates:
+workspace **403 pass**, `bench` **148 pass / 0 fail / 0 error**, lanes `/Ox`
+**68** and `/O1`·`/O2`·`/Ox /Gy` **66**, **0 mismatch** in all four,
+`census_gate.rs` at its recorded 1 packed / 9 `/Gy`, sweep **5,868 cases / 0
+mismatches**, 878-TU scan match 6 / mismatch 0 / capture-fail 7 / disagreement 0,
+cache validator 17 re-captured and agreed / 0 poisoned, corpus `dc3-decomp`
+**`05ca6d09`** and wibo **1.0.1-23** from provenance record 0.
+
+### Merged against master `9ec4871` (Class A many-calls, #35 step 2)
+
+Developed against `473c6a4`; master advanced once in flight. **Merged census
+483,240 / 2,462,571 (19.62 %)** — and additivity was *measured*, not assumed,
+because the brief flagged an interaction risk: this rung's store leaf and step
+2's `call-postop` changes both touch `expr-op-0x27`-adjacent attributions.
+
+Differencing this rung's own tree against the merged scan moves **+492**, which
+is exactly master's own gain (474,103 − 473,611), so the **interaction term is
+0**. Twenty-four keys move and every one of them is step 2's: `+7,771`
+`callseq-tail-lit:eof`, `+5,335` `call-ref-0x3A`, `−7,066`
+`call-multiarg-postop:eof`, `−4,503` `call-postop-0x4B`, `−832` `fn-tail-0xB9`.
+The keys this rung owns are **bit-identical across the merge**:
+
+| key | `473c6a4` | this rung | merged |
+|---|---:|---:|---:|
+| `expr-op-0x27` | 469,713 | 461,786 | **461,786** |
+| `expr-load-type-8645` | 98,813 | 97,809 | **97,809** |
+| `calls-0\|store-leaf` | 23,645 | 31,574 | **31,574** |
+| `calls-0\|float-leaf` | 0 | 1,004 | **1,004** |
+| `opt-mode-00200001` / `-00200101` | 140 / 66 | 0 / 0 | **0 / 0** |
+
+### The merge found a live wrong-bytes emit that neither branch could contain
+
+**The highest-value result of this merge, and it is not a number.** Before
+trusting the merged tree, the cross product of the two rungs was compiled —
+this rung's FP store and FP leaf beside step 2's Class A many-call body, in both
+orders. It **mismatched**: `$M2564/$M2563/$T2565` against the reference's
+`$M2565/$M2564/$T2566`.
+
+`IlFunction::label_slots` still read `float_leaf`, so the FP **store** leaf got a
+compiler-label stride of 1 where c2 gives it 2 — and a framed function's labels
+come from a counter every function in the TU consumes, so the framed function
+downstream was six bytes wrong in an obj that still links. This is
+`GAPS.md` §6 instance **12**, and it is instance **11's own field one consumer
+later**: splitting `is_float` into `touches_floating_point` fixed the `_fltused`
+reader and left the stride reader behind. Instance #2 in its purest form — *fixed
+in the one shape where the bug had been found* — with the tell available for
+free, since splitting a field means auditing every reader and `grep float_leaf`
+showed two.
+
+MEASURED as the three-way capture that separates the candidates (one leaf ahead
+of one framed function, reading the framed function's labels):
+
+```text
+  void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
+  void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
+  float lead(float a, float b){ return a * b; } $M2559 $M2560 $T2561
+```
+
+The stride goes with the **register file**, not with the body shape. Costs 0
+functions on the workload; the TU-level gate now refuses the pair honestly,
+because `coff::plan_labels` advances by 1 per non-framed function — admitting it
+is a change to the framed side's label model and is ranked, not taken here.
+
+**The practice that generalizes: a merge of two independently-green branches is a
+new corpus, and the shapes only it contains have never been graded by anyone.**
+The counter has an observable effect only when a framed function follows, so
+before step 2 landed there was no framed shape that could share an in-class TU
+with an FP store — this rung's fixtures have no framed function and step 2's have
+no floating point. `scripts/expr_sweep.sh` now *generates* that cross product
+(six leaf kinds × three call bodies × three orderings, +54 cases) instead of
+relying on someone thinking of it again.
+
+Three merge resolutions worth recording:
+
+* `coff::Function::call: Option<Call>` became step 2's `calls: Vec<Call>` in the
+  same hunk where this rung rewrote the `is_float` doc comment. Master's field,
+  this rung's comment; the two `coff::Function` construction sites in
+  `c2-core/src/lib.rs` take `calls` **and** `touches_floating_point()`.
+* `IlFunction` gained `touches_floating_point` here and `is_framed`/`callees`
+  there, at the same offset, and the conflict ate this side's **closing brace** —
+  the shared-closing-brace hazard. Closed explicitly before splicing rather than
+  letting the trailing `}` after the marker do double duty.
+* `§6j` and the `GAPS.md` §6 mis-emit list were both taken. This section is
+  **§6k**; the `_fltused` find is instance **11**, after step 2's 9 and 10, and
+  the list header goes to *ten* wrong-bytes emits and two panics.
+
+`scripts/expr_sweep.sh` was flagged as a collision and **is not one** — master
+did not touch `scripts/` at all (`git diff --stat 473c6a4 master -- scripts/` is
+empty), so the merged sweep starts from this rung's 5,868 rather than from 5,868
+plus a step-2 block. Verified the way the trap demands — the printed count, the
+generated count and the `.cpp` count on disk all compared, not assumed equal:
+**5,868 / 5,868 / 5,868** at the merge, then **5,922** once the FP-beside-framed
+cross product was added.
+
+### Merged-tree gate
+
+Corpus `dc3-decomp` **`05ca6d09`**, wibo **1.0.1-23**, `cl.exe`/`c2.dll`
+16.00.11886.00 — all from provenance record 0 of
+`work/dc3-workload/scan-merged2.jsonl`.
+
+| lane | master `9ec4871` | merged |
+|---|---|---|
+| `cargo test --workspace --release` | 398 + step 2 | **407 pass**, 0 fail |
+| `c2rs bench` | 148 | **152 pass / 0 fail / 0 error** |
+| `mode_lane.sh /Ox` | 68 | **71 match, 0 mismatch**, 0 codegen-gap |
+| `/O1` · `/O2` · `/Ox /Gy` | 66 | **69 match, 0 mismatch**, 2 codegen-gap |
+| `scripts/expr_sweep.sh` | 5,868 | **5,922 cases** (printed = generated = on disk), mismatches **0** |
+| 878-TU scan | 474,103 | **483,240**/2,462,571 (**19.62 %**), mismatch 0, disagreement **0**, 578 keys |
+| cache validator | — | 17 re-captured and agreed, **0 POISONED** |
+| `census_gate.rs` | 1 packed / 9 `/Gy` | **unchanged**, causes unchanged |
+
+Per fixture, N/N with the verdict quoted: `mvp_call_seq` **10/10 Match**,
+`mvp_call_twice` **1/1 Match**, `mvp_call_seq_neg` **0/4 NotImplemented**,
+`il_call_bound_neg` **0/2 NotImplemented**, `il_call_multi` **0/7
+NotImplemented**, `w27_fp_reg` **33/33 Match**, `w27_fp_reg_qual` **10/10
+Match**, `w28_fp_store` **14/14 Match**, `w28_fltused_order` **5/5 Match**,
+`w29_fp_contract` **16/16 Match**, `w28_fp_store_neg` **0/11 NotImplemented**,
+`w28_fp_store_framed_neg` **4/4 in class, TU NotImplemented** (the label gate),
+`w13_fparam_neg` **0/3 NotImplemented**.
+
+### Found and not taken, ranked, with the frame axis applied
+
+1. **The FP tail call — 85,231 measured, 0 of it `calls-2plus`.** The largest
+   takeable item this measurement found, and it is a *leaf* rung, not a frame
+   one. The lowering is captured (`CODEGEN_FP_ARGS.md` §1): the argument moves
+   are `fmr` into f1..fN, the cycle scratch is **f0** exactly as the GPR file's is
+   r11, and the shapes match the existing `permute_args_text` one for one. Two
+   things stop it from being a line of code. First, the parser seam is
+   `parse_call_shape`'s argument region (`parse_expr(…, 0x55)` plus the `55` and
+   `41` type gates), which has been a concurrently-running rung's file twice
+   running — step 2's, and now Class B's (values live across calls, 1–2 saved
+   GPRs). **This is a rung to take once that seam is free, not to interleave
+   with it**; step 2 has already rewritten the argument validation into one
+   locator (`tail_call_shape`), which is the right place for the FP class to
+   enter and is strictly easier to extend than the two drifted copies it
+   replaced. Second, `int both(int a,int b,float c,float d){ return gif2(b,a,d,c); }` shows
+   the two files' move sequences **interleaved** on a schedule no per-file solver
+   reproduces — so the shippable first cut is *one* non-identity file at a time,
+   which the single-argument 59,095 satisfies by construction.
+2. **`2C` float→double, free everywhere it has been captured** — a bare `b` at a
+   call boundary and a bare `stfd` at a store. Its narrowing twin is a real
+   `frsp` through f0, and the IL spells both with the same `2C <TYPE> 00`, so
+   this is one more instance of the standing shape and needs the direction
+   decided from the two type triples. Not separately sized.
+3. **The pooled FP constant under `/Gy`.** 1 function on the workload today, but
+   it is a *census/gate split* rather than a gap — the refusal lives in
+   `function_gate` because the linkage mode is a TU flag the parser cannot see —
+   and every future FP rung will re-expose it. Modelling the `.rdata` COMDAT
+   association deletes the clause W27 had to add.
+4. **`__vector`/VMX128 formals — a third register file, unmeasured.** `.sy` class
+   `D` is it (`vSrc`, 16 bytes, `src/App.cpp`), `arg_classes` refuses it under
+   `param-kind-unknown`, and `ABI_EDGES.md` §5 has it unprobed. The workload uses
+   it. Nothing can be numbered correctly in a function that has one.
+5. **The general frame**, unchanged and still first by size: 802,655
+   `calls-2plus`, which no leaf rung reaches and which this rung's 8,931 do not
+   touch at all.
 
 ## 7. Invariants (do not break)
 

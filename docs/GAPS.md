@@ -1137,12 +1137,14 @@ The rules that keep the numbers honest:
   and grouped them by production; and clearing one production can shrink several
   unrelated-looking buckets at once, so predicted movement should be stated
   per-production, never per-bucket.
-- **Nine live wrong-bytes emits and two live panics, none of them found by the
+- **Eleven live wrong-bytes emits and two live panics, none of them found by the
   fixture corpus.** Every one came from review or adversarial probing, and most
   have the same shape: *two facts that happen to share one field until some
-  construct pulls them apart.* The last three break that pattern in a way worth
+  construct pulls them apart.* Two of them break that pattern in a way worth
   naming separately — see #9–#10: *one rule, two implementations, and the corpus
-  only ever exercised the correct one*.
+  only ever exercised the correct one*. #11 returns to the original shape, in the
+  obj shell rather than in an instruction, and **#12 is #11's own field one
+  consumer later** — the sharpest instance of #2 the project has produced.
     1. The `this` token was located by a bare first-`0x46` search. That byte is also
        the payload of the line marker for **source line 70**, so a member function
        there lost its `this` and every formal dropped a register.
@@ -1267,6 +1269,60 @@ The rules that keep the numbers honest:
        wrong on a region the corpus never entered — and the cheap way to find out
        is to enumerate the parameter's whole range (here: all cycle lengths) rather
        than to add one more hand-picked case.
+    11. **The eleventh is the same shape in the OBJ SHELL rather than in an
+       instruction**, found 2026-07-30 by the FP-store rung's own fixture on its
+       first run. A translation unit that touches floating point carries an
+       undefined external `_fltused`, and the port keyed that on
+       `coff::Function::is_float`, set from `float_leaf.is_some()`. That field
+       was answering two questions — *"this body does FP arithmetic, so its label
+       stride is 2"* and *"this TU needs the CRT's float-support hook"* — and
+       every function that had ever set it satisfied both, because the only FP
+       class the port had was the W13 arithmetic leaf. An FP **store**
+       (`void f(S* s, float v){ s->f = v; }`) satisfies only the second: it is a
+       store leaf, stride 1, and it needs the marker. The port emitted **all
+       fourteen** positive objs one symbol short — `Port=Mismatch @ offset 12`,
+       the COFF header's `NumberOfSymbols`. Two things are worth keeping. First,
+       the tell was in the same place as always and needed no compiling:
+       **`is_float` had one producer and two consumers asking different
+       questions.** Second, an all-FP-store TU cannot separate "the first
+       FP-touching function" from "the first FP-arithmetic function" — only a
+       *mixed* one can, so the placement rule was re-captured over four orderings
+       (`fixtures/cpp/w28_fltused_order.cpp`) rather than assumed to survive the
+       widening. See `docs/CODEGEN_FP_ARGS.md` §4.
+    12. **The twelfth is the eleventh's field, one consumer later, and it was
+       found only because two agents' work was merged.** Splitting `is_float`
+       into `touches_floating_point` fixed the `_fltused` consumer and left the
+       other one — `IlFunction::label_slots`, which still read `float_leaf` and
+       so gave the FP **store** leaf a compiler-label stride of **1** where c2
+       gives it **2**. A framed function's `$M`/`$T` numbers come from a counter
+       every function in the TU consumes, so the framed function downstream got
+       `$M2564/$M2563/$T2565` against the reference's `$M2565/$M2564/$T2566` —
+       six wrong bytes in an obj that still links. The rule, MEASURED as the
+       three-way capture that separates the two candidates:
+
+       ```text
+         void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
+         void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
+         float lead(float a, float b){ return a * b; } $M2559 $M2560 $T2561
+       ```
+
+       The stride goes with the **register file**, not with the body shape.
+       This is instance #2 in its purest form — *fixed in the one shape where the
+       bug had been found* — and the tell was, again, free: splitting a field
+       means auditing **every** reader of it, and `grep` for `float_leaf` would
+       have shown two.
+       What is new here is *when* it became reachable. **Neither agent's corpus
+       could contain the case**: the label counter has an observable effect only
+       when a framed function follows, and until Class A many-calls (#35 step 2)
+       landed there was no framed shape that could share an in-class TU with an
+       FP store — the FP rung's fixtures have no framed function and the framed
+       rung's have no floating point. It existed only in the *merge*, and it was
+       found by deliberately compiling the cross product of the two rungs before
+       trusting the merged tree. The practice that generalizes: **a merge of two
+       independently-green branches is a new corpus, and the shapes only it
+       contains have never been graded by anyone.** `scripts/expr_sweep.sh` now
+       generates that cross product (six leaf kinds x three call bodies x three
+       orderings) rather than relying on someone thinking of it again.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one
