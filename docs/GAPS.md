@@ -1116,6 +1116,22 @@ The rules that keep the numbers honest:
   (`scripts/expr_sweep.sh` — the member-function-across-source-lines axis exists only
   because of #1), and **have someone adversarial read the anchors**, because #2 was
   found by a reviewer assigned to an unrelated change.
+- **A grammar measure cannot see a codegen construct the grammar does not
+  distinguish.** The whole-body-complete count has ranked three rungs correctly —
+  each converting 1:1 with the bucket drop equalling the census gain exactly — and it
+  is still blind in a way that cost a whole rung. `data-addr` looks like one shape to
+  the grammar whether the call materializes one address or three; **87.4% of that row
+  passes two addresses**, and c2 emits one `lis`/`addi` pair per *function*, deriving
+  the rest as `addi rD, rAnchor, <difference of pool offsets>`. Instruction selection
+  therefore depends on a whole-translation-unit pool layout, which no per-body
+  grammar can express. Estimate 11,000, outcome **0**; the bias direction was called
+  right and every named deduction was real, and none of them was what stopped it.
+  This is a *different* blindness from the second-blocker gap: that one was "what
+  else blocks this body", this one is "what does the emitter have to know that the
+  parser never asks". Before committing to a row, check that its dominant sub-shape
+  has a **local** lowering — and note the tell, which is available cheaply: several
+  byte-identical source functions in one TU emitting different instruction
+  sequences means the decision is not local.
 - **A compiler-GENERATED body has no freedom, so its grammar bound is nearly
   tight.** Two rungs in a row over generated destructors came in *under* their point
   estimate (15.7% and 30% low) while staying inside their upper bound (93.5% of it,
