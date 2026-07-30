@@ -348,6 +348,14 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
                 *p += 1;
                 ops.push(IlOp::Mul);
             }
+            // A `26` SYMBOL PUSH — the single largest blocking feature on the real
+            // workload (286,240 functions, 12.9 %). It used to fall through to the
+            // generic `expr` refusal and be reported as one bucket named
+            // `expr-call-in-expr`, which described 0.2 % of its own contents. **The
+            // refusal is unchanged**; only the census key is, and the walk names the
+            // construct the `26` opened rather than the byte the parse stopped on.
+            // See `super::mcall` and `docs/IL_CALL_IN_EXPR.md` §14.
+            0x26 => return Err(super::mcall::classify(seg, *p)),
             _ => return Err(blk(seg, *p, "expr")),
         }
     }
