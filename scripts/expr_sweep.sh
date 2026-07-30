@@ -60,6 +60,46 @@ for l1 in leaves:
             for o2 in ops:
                 for l3 in ['a', 'b', 'c', '1', '3']:
                     emit("%s %s %s %s %s" % (l1, o1, l2, o2, l3))
+
+# ---- the other classes that claim byte-exactness --------------------------------
+# Each of these found real mis-emits the fixtures had missed, for the same reason:
+# the corpus varied one axis at a time rather than the cross product.
+def emit_raw(src):
+    global n
+    n += 1
+    with open(os.path.join(out, 'f%04d.cpp' % n), 'w') as fh:
+        fh.write(src)
+
+# W6 comparisons: relation x signedness x a spread of k including both i16
+# boundaries. The cross product is the point — `w6_rel_k.cpp` tests every relation
+# and both boundaries, but never a boundary-sensitive relation AT a boundary, which
+# is how `a == -32768` stayed broken.
+for r in ['<', '<=', '>', '>=', '==', '!=']:
+    for k in ['0', '1', '-1', '5', '-5', '2', '32767', '-32768']:
+        emit_raw("int f(int a) { return a %s %s; }\n" % (r, k))
+        if not k.startswith('-'):
+            emit_raw("int f(unsigned a) { return a %s %su; }\n" % (r, k))
+
+# Floating-point leaves: the FP register model is entirely separate from the integer
+# one, so operand order and operator mix have to be swept again rather than assumed.
+for ty in ('float', 'double'):
+    for o1 in ['+', '-', '*', '/']:
+        emit_raw("%s f(%s a, %s b) { return a %s b; }\n" % (ty, ty, ty, o1))
+        emit_raw("%s f(%s a, %s b) { return b %s a; }\n" % (ty, ty, ty, o1))
+        for o2 in ['+', '-', '*', '/']:
+            for perm in ['a %s b %s c', 'a %s c %s b', 'b %s a %s c', 'c %s b %s a']:
+                emit_raw("%s f(%s a, %s b, %s c) { return %s; }\n"
+                         % (ty, ty, ty, ty, perm % (o1, o2)))
+
+# Tail calls: argument count, argument permutation, and computed arguments.
+emit_raw("int g1(int);\nint f(int a){return g1(a);}\n")
+for p in ['a,b', 'b,a']:
+    emit_raw("int g2(int,int);\nint f(int a,int b){return g2(%s);}\n" % p)
+for p in ['a,b,c', 'a,c,b', 'b,a,c', 'b,c,a', 'c,b,a', 'c,a,b']:
+    emit_raw("int g3(int,int,int);\nint f(int a,int b,int c){return g3(%s);}\n" % p)
+for e in ['a+1', 'a-1', 'a+b', 'b+a', 'a-b', '1']:
+    emit_raw("int g1(int);\nint f(int a,int b){return g1(%s);}\n" % e)
+
 print(n)
 PY
 
