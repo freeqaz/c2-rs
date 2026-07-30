@@ -951,14 +951,33 @@ not less.
     section's* raw data), and it established that **c2, not c1xx, evaluates
     floating-point constants** — so the two-or-more-constant case needs c2's
     constant evaluator *and* its scheduler, and stays closed.
-11. **Decode the `0x40` intrinsic-call production** (~13% of blocked functions
-   with `call-token-0x33`, the largest schedulable bucket). Decode first —
-   `40 <TYPE>`, the argument loop, the `66 02 <tok> <tok>` descriptor — so the
-   census reports the intrinsic *id* instead of one opaque byte and so bodies
-   where an intrinsic call is not the blocker reach their real one.
-   **Acceptance is a separate, later decision**, gated on an allow-list of ids
-   *and* argument literals pinned by controlled fixture
-   (`IL_CAST_CONVERT.md` §1.4, §4.1).
+11. ~~**Decode the `0x40` intrinsic-call production.**~~ **DONE 2026-07-30** —
+   `docs/IL_INTRINSIC_CALL.md`, five tracked negatives
+   (`fixtures/cpp/il_intrinsic_{nullary,bits,layout,fold,byval}.cpp`). The
+   selector is decoded at both census sites, so `expr-intrinsic-call` resolves
+   with **zero residue** (213,411/213,411) and 95.4 % of `call-token-0x33`
+   turns out to be the same production behind a `26 <sym>` push. **The
+   production's real footprint is 16.1 % of blocked functions — 381,488 — not
+   9 %**, and **86 % of that is one family**: the class-layout adjustments
+   2113…2119 at 329,205 functions (13.9 %), of which 2117 (6.3 %) and 2113
+   (5.8 %) are each individually larger than every remaining operand-type
+   bucket. Census movement: **zero, to the function** (87,423/2,462,571 before
+   and after) — the decode replaces one `Err` with a better-labelled `Err` by
+   construction. 18 of the workload's 20 selectors are now named by controlled
+   fixture, including three `IL_CAST_CONVERT.md` left UNKNOWN (815 `_abs64`,
+   1948 `__mftb`, 2119 `dynamic_cast`) and one it flagged unproven (337
+   `throw`); three of its structural claims are corrected (2113-vs-2114 is the
+   *null guard*, 2115's offset is not pre-negated, `0x66`'s `02` is an
+   *arity*). **Acceptance stays closed** for three separately captured reasons
+   (`IL_INTRINSIC_CALL.md` §5): the emission turns on literal argument values
+   rather than the id, the result register is chosen by the consumer, and the
+   constant-folding rule differs between the integer and floating halves.
+11a. **The widening order changed as a result.** 2117 and 2113 are small
+   lowerings (a folded `lwz` displacement; an unguarded `addi`) blocked only by
+   the operand-stack *type tracking* that `IL_CAST_CONVERT.md` §5 already names
+   as the prerequisite for `0x2C`, floats and pointers. The same three
+   prerequisites now unlock ~14 % of blocked functions through this family, so
+   they rank above the remaining per-type buckets rather than beside them.
 12. **Fix `read_varint`'s signed short form** (§G2, Outstanding 2) — a decode
     defect, not a class: every small negative literal currently blocks its
     function. Needs the operand type threaded in for the 4-vs-8-byte escape.

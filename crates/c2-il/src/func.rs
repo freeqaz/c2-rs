@@ -511,6 +511,12 @@ enum BodyShape {
     /// `3A` assign of the return plumbing with no expression before it. Emits a
     /// bare `blr`.
     EmptyBody,
+    /// An **indirect-load leaf**: the whole body is one load through a pointer
+    /// (`return *p;`, `return s->m;`, `return p[k];`, `return mMember;`), which c2
+    /// lowers to a single `lwz rD, off(rBase)`. `ops` is always exactly
+    /// `[Load(base), LoadInd { off }]` and `params` includes a member function's
+    /// `this` at index 0. See [`try_parse_indirect_load_leaf`].
+    IndirectLoad { params: Vec<u32>, ops: Vec<IlOp> },
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -546,6 +552,17 @@ impl Block {
     /// honest hex bucket is a result, not a placeholder. Structural blocks
     /// (call-end, return plumbing, formals) name their production instead.
     pub fn feature(self) -> String {
+        // Intrinsic-call blocks report their **selector**, which [`Block::aux`]
+        // carries as the decoded id (see [`intrinsic_selector`]). This is the
+        // whole point of decoding the production: `0x40` alone is one opaque 9 %
+        // bucket, while the selector splits it into a handful of named
+        // constructs with wildly different lowerings — `fabs` is one
+        // instruction, `memcmp` is a 15-instruction loop, and the dominant
+        // 2113–2119 class-layout family is a pointer adjustment whose emission
+        // depends on its *literal* arguments, not on the id.
+        if self.ctx == "expr-intrinsic" || self.ctx == "call-intrinsic" {
+            return format!("{}-{}", self.ctx, intrinsic_name(self.aux as i32));
+        }
         // Operand-type blocks report the whole 3-byte type: that triple *is* the
         // feature (int vs unsigned vs float vs pointer), and it is what the next
         // widening step must teach `parse_expr` to accept.
@@ -719,6 +736,114 @@ fn read_varint(seg: &[u8], p: &mut usize) -> Option<i32> {
     }
 }
 
+/// Recognize an **intrinsic-call selector** at `p`: the two-token unit
+///
+/// ```text
+///   33 86 41 74 <varint id>   40
+/// ```
+///
+/// and return the decoded id, or `None` if the bytes are not that shape.
+/// Diagnostic only — every caller turns a hit straight into a [`Block`].
+///
+/// `0x40` is a **second CALL token**, the intrinsic call, occupying exactly the
+/// slot `BD` occupies in an ordinary call (`docs/IL_CALL_GRAMMAR.md` §2). Its
+/// callee identity is not in the token at all: it is the *preceding* `int`
+/// literal, and the token itself is only `40 <TYPE result>` — no
+/// calling-convention byte, no function-type id, and (unlike `2C`) **no trailing
+/// field**. Two controlled nullary witnesses pin that:
+///
+/// ```text
+///   void n_break()    { __debugbreak(); }
+///     33 86 41 74 80 1f 02 00 00  40 82 07 03  4C 4B
+///   void *n_retaddr() { return _ReturnAddress(); }
+///     33 86 41 74 80 e5 00 00 00  40 86 43 83 08  4C  41 86 43 83 08 …
+/// ```
+///
+/// With zero arguments the `4C` apply sits immediately after the result type, so
+/// a `40 <TYPE> <varint>` reading would swallow it and leave the argument list
+/// unterminated. See `docs/IL_INTRINSIC_CALL.md` §1.
+///
+/// Requiring the selector's type to be **exactly** `86 41 74` is deliberate: the
+/// residual `expr-intrinsic-call` bucket then measures how often `0x40` is *not*
+/// preceded by a plain `int` literal, which is the one structural claim this
+/// decode rests on.
+fn intrinsic_selector(seg: &[u8], p: usize) -> Option<i32> {
+    if seg.get(p)? != &0x33 || seg.get(p + 1..p + 4)? != INT_TYPE {
+        return None;
+    }
+    let mut q = p + 4;
+    let id = read_varint(seg, &mut q)?;
+    if seg.get(q)? != &0x40 {
+        return None;
+    }
+    Some(id)
+}
+
+/// The census name for an intrinsic selector id, or `0xNN` when the id has not
+/// been pinned.
+///
+/// Every name here is pinned by a **controlled fixture** whose `.gl` gave the
+/// enclosing function's mangled name and whose reference obj gave the emitted
+/// instructions — `fixtures/cpp/il_intrinsic_call.cpp`,
+/// `il_intrinsic_nullary.cpp`, `il_intrinsic_bits.cpp` and
+/// `il_intrinsic_layout.cpp`, tabulated in `docs/IL_INTRINSIC_CALL.md` §3–§4.
+/// Ids observed in the real workload but *not* named there stay hex, for the
+/// reason the relational-opcode table gives above: a hex bucket is a result, a
+/// wrong name is a lie that survives into the roadmap. The two unnamed ids that
+/// actually occur (`0xDE`/`0xDF`, 1758 sites each) are characterized in §5 —
+/// trigger and literal pinned, division of labour still UNKNOWN.
+///
+/// The id space is a c1xx-internal table and is **not enumerable from the IL**;
+/// these are the 20 ids that occur across `Dir.cpp`, `App.cpp` and `Game.cpp`
+/// plus the ones the fixtures reach.
+fn intrinsic_name(id: i32) -> String {
+    let named = match id {
+        // --- CRT string / memory family (ids 164..173) ---
+        164 => "strcpy",
+        165 => "strcmp",
+        166 => "strcat",
+        167 => "strlen",
+        170 => "memcmp",
+        172 => "memcpy",
+        173 => "memset",
+        // --- arithmetic / bit helpers ---
+        15 => "abs",   // also `labs` — one id serves the whole name family
+        17 => "fabs",
+        159 => "_rotl",
+        160 => "_rotr",
+        226 => "_InterlockedIncrement",
+        229 => "_ReturnAddress",
+        236 => "__emul",
+        237 => "__emulu",
+        318 => "_InterlockedExchangeAdd",
+        543 => "__debugbreak",
+        813 => "_rotl64",
+        814 => "_rotr64",
+        815 => "_abs64",
+        839 => "_byteswap_ushort",
+        840 => "_byteswap_ulong",
+        841 => "_byteswap_uint64",
+        850 => "_CountLeadingZeros",
+        921 => "_CountLeadingZeros64",
+        1935 => "__frsqrte",
+        1937 => "__fsel",
+        1948 => "__mftb",
+        1973 => "sqrt",
+        // --- C++ runtime ---
+        337 => "throw",
+        // --- the class-layout family (2113..2119), the bulk of the bucket ---
+        2113 => "this-adjust",       // base adjust for a member call's `this`, UNguarded
+        2114 => "base-upcast",       // derived → base, null-guarded
+        2115 => "base-downcast",     // base → derived, null-guarded, offset negated
+        2116 => "vbase-upcast",      // through a virtual base's vbtable
+        2117 => "base-member-addr",  // &member inherited from a non-virtual base
+        2118 => "vbase-member-addr", // &member of a virtual base
+        2119 => "dynamic-cast",
+        _ => return format!("0x{:X}", id as u32),
+    };
+    named.to_string()
+}
+
 /// Consume the shared statement/function-tail plumbing that follows the body
 /// expression of *every* accepted shape, and require the parse to reach the end
 /// of the segment (the fail-closed terminal — anything trailing rejects). With
@@ -806,6 +931,24 @@ fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
         if b == stop {
             break;
         }
+        // An INTRINSIC CALL. Recognized as the two-token unit
+        // `33 86 41 74 <id>` + `40` so the census can report *which* intrinsic
+        // (`expr-intrinsic-memcpy`, `expr-intrinsic-base-upcast`, …) instead of
+        // one 9 %-of-the-workload `expr-intrinsic-call` bucket. **Decoding is not
+        // accepting**: this returns `Err` exactly as the old fall-through did, so
+        // the gate is byte-for-byte unchanged — only the census key moves. See
+        // `docs/IL_INTRINSIC_CALL.md` for why none of the family can be lowered
+        // yet (the emission depends on the *literal argument values*, not on the
+        // id: id 2114 with offset `00` is nothing at all, with offset `04` it is
+        // a null-guarded `addi` plus a control-flow split).
+        if let Some(id) = intrinsic_selector(seg, *p) {
+            return Err(Block {
+                ctx: "expr-intrinsic",
+                byte: Some(0x40),
+                off: *p,
+                aux: id as u32,
+            });
+        }
         match b {
             0xB9 => {
                 // LOAD <token> <int-type>
@@ -859,23 +1002,56 @@ fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
 /// marker (before the `LO` marker), a run of `2D <token>` entries emitted in
 /// *reverse* of declaration order. An empty list is legitimate (a zero-param
 /// `int konst(){return 42;}` still emits `46` immediately before `LO`).
+///
+/// The marker is located by requiring the region it opens to **end exactly on the
+/// `LO` marker** — `46 (2D <tok>)*` and then `lo` — not by taking the first `0x46`
+/// byte in the segment. That distinction is load-bearing, and taking the first
+/// byte was a live bug:
+///
+/// * a function on **source line 70** carries the line marker `4F 01 46`, whose
+///   payload byte *is* `0x46`. `fixtures/cpp/il_expr_deref.cpp` caught it — one of
+///   sixteen otherwise-identical bodies (`ld_ixneg`, at line 70) silently got an
+///   **empty** formals list, while its neighbours two lines away parsed fine;
+/// * the per-function `4F 33 …` header region before the body is a run of opaque
+///   bytes that varies with the function and freely contains `0x46`.
+///
+/// An empty formals list is not fail-closed: `leaves_ascending` skips tokens that
+/// are not formals, so a body whose formals vanished bypasses the reassociation
+/// ordering gate entirely. Getting the anchor right is therefore a safety fix, not
+/// only a coverage one.
+///
+/// The earliest candidate that lands exactly on `lo` is taken. No candidate
+/// *before* the true marker can span past it unless it lands on `lo`, because the
+/// true marker's own `0x46` is neither `0x2D` nor a token continuation there.
 fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
-    let f = find_byte(&seg[..lo], 0x46).ok_or(Block {
-        ctx: "formals-marker",
-        byte: None,
-        off: lo,
-        aux: 0,
-    })?;
-    let mut p = f + 1;
-    let mut rev = Vec::new();
-    while seg.get(p) == Some(&0x2D) {
-        p += 1;
-        let (tok, w) = read_token_var(seg, p).ok_or(blk(seg, p, "formals-tok"))?;
-        p += w;
-        rev.push(tok);
+    let mut best: Option<Vec<u32>> = None;
+    for f in 0..lo {
+        if seg[f] != 0x46 {
+            continue;
+        }
+        let mut p = f + 1;
+        let mut rev = Vec::new();
+        let mut ok = true;
+        while p < lo && seg.get(p) == Some(&0x2D) {
+            p += 1;
+            match read_token_var(seg, p) {
+                Some((tok, w)) => {
+                    p += w;
+                    rev.push(tok);
+                }
+                None => {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+        if ok && p == lo {
+            rev.reverse();
+            best = Some(rev);
+            break;
+        }
     }
-    rev.reverse();
-    Ok(rev)
+    best.ok_or(Block { ctx: "formals-marker", byte: None, off: lo, aux: 0 })
 }
 
 /// **The positive whole-body parser (W4b2-v).** Parse a single `.ex` function
@@ -1252,13 +1428,17 @@ fn leaves_ascending(ops: &[IlOp], params: &[u32]) -> bool {
     let mut last: Option<usize> = None;
     for op in ops {
         if let IlOp::Load(t) = op {
-            // A token that is not a formal is not this gate's business — a LOAD of
-            // an unknown token is refused by the callers that care (codegen's
-            // `reg_of`, and the assignment path's own parameter check). Refusing
-            // here instead would reject the framed-call class, whose `BodyShape`
-            // carries no formals at all.
+            // A LOAD whose token is not a formal is **refused**, not skipped. The
+            // gate orders by parameter index, so an unorderable operand means it
+            // cannot do its job — and skipping was a real hole: `parse_formals`
+            // used to anchor on the first `0x46` before `LO`, which a source-line
+            // marker's payload (`4F 01 46`, a function on line 70) or the
+            // per-function header region can supply, and it then returned an
+            // *empty* formals list instead of failing. Any body that hit that
+            // bypassed this gate entirely. The anchoring is fixed, but the gate
+            // must fail closed regardless rather than depend on it.
             let Some(ix) = params.iter().position(|p| p == t) else {
-                continue;
+                return false;
             };
             if let Some(prev) = last {
                 if ix <= prev {
@@ -1631,6 +1811,22 @@ fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape
             return None;
         }
     }
+    // FP chains are canonicalized by register exactly as integer ones are: `b + a`
+    // and `b * a` emit the operands in ascending order, and every permutation of
+    // `a + b + c` emits one stream. The port evaluated source order, so all of those
+    // were mis-emits until the generated sweep found them.
+    //
+    // Division is tighter still. One division as the *only* operator is byte-exact
+    // (`a / b`, `b / a` — it is non-commutative, so order is preserved), but two
+    // divisions (`a / b / c`) or a division mixed with anything else (`a + b / c`)
+    // are not what the serial model emits. Both refuse.
+    let n_binops = ops
+        .iter()
+        .filter(|o| !matches!(o, IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. }))
+        .count();
+    if ops.iter().any(|o| matches!(o, IlOp::Div)) && n_binops != 1 {
+        return None;
+    }
     // A repeated leaf can trigger algebraic rewriting into a constant.
     let mut seen: Vec<u32> = Vec::new();
     for o in &ops {
@@ -1645,7 +1841,277 @@ fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape
     if params.len() > 13 || !seen.iter().all(|t| params.contains(t)) {
         return None;
     }
+    // c2 canonicalizes a chain containing a **commutative** operator by register,
+    // exactly as it does an integer one, so such a chain must already be written in
+    // ascending order. A chain with only non-commutative operators is left alone —
+    // `b - a` and `b / a` really do emit their operands in source order, and gating
+    // them would refuse bodies that are byte-exact today.
+    let has_commutative = ops
+        .iter()
+        .any(|o| matches!(o, IlOp::Add | IlOp::Mul));
+    if has_commutative && !leaves_ascending(&ops, &params) {
+        return None;
+    }
     Some(BodyShape::FloatLeaf { params, ops, double })
+}
+
+/// A TYPE's implied width in bytes. The tag's low nibble is
+/// `2 * (log2(size) + 1)`, so `…2`→1, `…4`→2, `…6`→4, `…8`→8, and it is the same
+/// in every observed tag family (`86`, `A6` const, `96` volatile, `82`/`84`/`88`).
+/// Verified across every triple in `docs/IL_TYPE_TAGS.md` §2 and against the
+/// pointee-width tags this document's `27` captures produced
+/// (`27 82 43 f0 08` for a `char` member, `27 88 43 c1 08` for a `double` one).
+fn type_width(tag: u8) -> Option<u32> {
+    match tag & 0x0F {
+        0x2 => Some(1),
+        0x4 => Some(2),
+        0x6 => Some(4),
+        0x8 => Some(8),
+        _ => None,
+    }
+}
+
+/// True for a TYPE naming a **4-byte integer** value in any cv-qualification:
+/// `kind`'s low nibble is 1 (signed) or 2 (unsigned) and the tag says 4 bytes.
+/// Captured witnesses: `86 41 74` int, `86 42 75` unsigned, `86 41 12` long,
+/// `86 42 22` unsigned long, `A6 41 84 20` const int, `96 41 86 20` volatile int.
+///
+/// This admits exactly the set over which a following `2C` to an int-like target
+/// is *provably* a no-op (`docs/IL_CAST_CONVERT.md` §2.2/§4.2: int↔unsigned and
+/// cv-strip at the same width emit nothing), which is what lets the cv-qualified
+/// forms be accepted at all — a `const` member getter's load carries
+/// `30 A6 41 …` followed by `2C 86 41 74 00`, and both captures
+/// (`const int *`, `volatile int *`) emit a bare `lwz` with nothing added.
+fn is_int4_type(tag: u8, kind: u8) -> bool {
+    type_width(tag) == Some(4) && matches!(kind & 0x0F, 0x1 | 0x2)
+}
+
+/// True for a TYPE naming a **pointer to a 4-byte object**: `kind`'s low nibble
+/// is 3 and the tag says 4. In a `B9` operand position a pointer's tag is the
+/// *pointer's* own width (`86 43 f4 08` = `int *`); in the `27` byte-offset-add
+/// position it is the **pointee's** width instead (`82 43 f0 08` for `char *`,
+/// `88 43 c1 08` for `double *`), which is why this is applied to the `27` type
+/// and not only to the base LOAD.
+fn is_ptr_to_4(tag: u8, kind: u8) -> bool {
+    type_width(tag) == Some(4) && (kind & 0x0F) == 0x3
+}
+
+/// The member-function `this` token, when this segment's pre-body region binds
+/// one: `53 53 26 <fn> B9 <this> <TYPE> 99 <TYPE> 00 46`.
+///
+/// `this` is **not** in the `2D` formals list, and it occupies r3 — so every
+/// explicit formal of a member function is one register higher than
+/// [`parse_formals`]'s index implies. Captured, and it is a live off-by-one trap
+/// for anything that maps formals to registers:
+///
+/// ```text
+/// int C::g(int* q) const        { return *q; }   -> lwz r3,0(r4)   q is r4, not r3
+/// int C::i(int v, int* q) const { return *q; }   -> lwz r3,0(r5)   q is r5, not r4
+/// int D::s(int* q)              { return *q; }   -> lwz r3,0(r3)   static: no `this`
+/// ```
+///
+/// Located by parsing *backwards to a fixed end*: the candidate must decode as
+/// `B9 <tok> <TYPE> 99 <TYPE> 00` and finish **exactly** on the `46` formals
+/// marker. If no candidate or more than one does, this returns `None` and the
+/// caller refuses — a guessed `this` would pick the wrong base register.
+///
+/// Note that `99`'s trailing field is a one-byte varint while the visually
+/// similar `9B`'s is a whole `read_token_var`; see `docs/IL_EXPR_LAYER.md` §7.
+fn parse_this_token(seg: &[u8], lo: usize) -> Option<u32> {
+    let f = find_byte(&seg[..lo], 0x46)?;
+    let mut found: Option<u32> = None;
+    for q in 0..f {
+        if seg[q] != 0xB9 {
+            continue;
+        }
+        let mut p = q + 1;
+        let (tok, w) = match read_token_var(seg, p) {
+            Some(x) => x,
+            None => continue,
+        };
+        p += w;
+        let tw = match read_type(seg, p) {
+            Some((_, _, _, w)) => w,
+            None => continue,
+        };
+        p += tw;
+        if seg.get(p) != Some(&0x99) {
+            continue;
+        }
+        p += 1;
+        let tw = match read_type(seg, p) {
+            Some((_, _, _, w)) => w,
+            None => continue,
+        };
+        p += tw;
+        if seg.get(p) != Some(&0x00) {
+            continue;
+        }
+        p += 1;
+        if p != f {
+            continue;
+        }
+        if found.is_some() {
+            return None; // ambiguous: refuse rather than pick
+        }
+        found = Some(tok);
+    }
+    found
+}
+
+/// Try to parse an **indirect-load leaf**: a whole body that is one load through
+/// a pointer, `return *p;` / `return s->m;` / `return p[k];` and nothing else.
+///
+/// ```text
+///   B9 <base-tok> <PTR-TYPE>                     the base pointer
+///   [ 33 <int-like> <off>  27 <PTR-TYPE> ]       ONE member byte-offset add, or
+///   [ 33 <long>     <off>  28 00 00      ]       ONE subscript byte-offset add
+///   30 <INT4-TYPE>                               the indirect load
+///   [ 2C <int-like> 00 ]                         a cv-qualification strip
+///   41 <int-like>                                result type
+///   <return plumbing, reaching the segment end>
+/// ```
+///
+/// c2 lowers all of it to **one `lwz rD, off(rBase)`** plus the `blr`, folding the
+/// offset into the displacement. Captured, one instruction each:
+///
+/// ```text
+/// int f(int* p)                { return *p; }      -> lwz r3,0(r3)
+/// int f(int a, int* p)         { return *p; }      -> lwz r3,0(r4)
+/// int f(int a, int b, int* p)  { return *p; }      -> lwz r3,0(r5)
+/// int f(S* s)                  { return s->d; }    -> lwz r3,16(r3)     (27, off 0x10)
+/// int f(int* p)                { return p[3]; }    -> lwz r3,12(r3)     (28, off 0x0c)
+/// int f(int* p)                { return p[-1]; }   -> lwz r3,-4(r3)     (off 0xfc = -4)
+/// int f(int* p)                { return p[8000]; } -> lwz r3,32000(r3)
+/// int C::f() const             { return b; }       -> lwz r3,4(r3)      (`this`)
+/// unsigned/long/const/volatile int *                -> the same bare `lwz`
+/// ```
+///
+/// Why every gate below is load-bearing rather than defensive — each is a
+/// *captured* case where the same-looking IL lowers differently:
+///
+/// * **Exactly one offset add.** `p[i][j]` chains two of them and needs
+///   `slwi ; add ; slwi ; lwzx`; `p[i].b` chains a `28` and a `27`.
+/// * **The offset must fit the 16-bit displacement.** `p[100000]` (offset 400000)
+///   is `lis r11,6 ; ori r11,r11,0x1a80 ; lwzx r3,r3,r11` instead.
+/// * **The offset must be a literal.** A variable index is
+///   `slwi r11,r4,2 ; lwzx r3,r11,r3` — a different instruction, an extra one, and
+///   a scratch register.
+/// * **The `28` payload must be exactly `00 00`.** Those two bytes are `00 00` at
+///   every site captured (constant and variable indices, 1/4/8-byte elements,
+///   negative indices, 2-D arrays, bitfields) and their meaning is UNKNOWN, so
+///   anything else refuses.
+/// * **The loaded type must be a 4-byte integer.** `char *` is `lbz`, `short *`
+///   is `lhz`, `float *` is `lfs`, `double *` is `lfd` — all captured, all
+///   different instructions.
+/// * **Nothing may follow the load but the return.** `*p + 1` puts the load in
+///   r11, and `*p * 3` is strength-reduced; see [`IlOp::LoadInd`].
+/// * **A `this`-bearing function must have its `this` found**, because `this`
+///   takes r3 and shifts every explicit formal up one
+///   ([`parse_this_token`]).
+///
+/// Returns `None` — cursor untouched — for anything that is not exactly this
+/// shape.
+fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    let mut p = start;
+
+    // The base pointer LOAD.
+    if !eat_byte(seg, &mut p, 0xB9) {
+        return None;
+    }
+    let (base_tok, w) = read_token_var(seg, p)?;
+    p += w;
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !is_ptr_to_4(tag, kind) {
+        return None;
+    }
+    p += tw;
+
+    // At most ONE byte-offset add, in either of its two forms. Both push a
+    // byte offset as a literal and add it to the designator; `27` re-types the
+    // result and `28` does not (`docs/IL_EXPR_LAYER.md` §4).
+    let mut off: i32 = 0;
+    if *seg.get(p)? == 0x33 {
+        let mut probe = p + 1;
+        // The literal's own type: `86 41 74` (int) for a member offset,
+        // `86 41 12` (long) for a subscript offset. Both are int-like.
+        if !eat_int_like(seg, &mut probe) {
+            return None;
+        }
+        let k = read_varint(seg, &mut probe)?;
+        match *seg.get(probe)? {
+            0x27 => {
+                probe += 1;
+                let (tag, kind, _, tw) = read_type(seg, probe)?;
+                if !is_ptr_to_4(tag, kind) {
+                    return None;
+                }
+                probe += tw;
+            }
+            0x28 => {
+                // The two trailing bytes are `00 00` at every captured site and
+                // are not understood; anything else refuses.
+                probe += 1;
+                if !eat(seg, &mut probe, &[0x00, 0x00]) {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+        off = k;
+        p = probe;
+    }
+    if !(-0x8000..=0x7FFF).contains(&off) {
+        return None;
+    }
+
+    // The indirect load itself.
+    if !eat_byte(seg, &mut p, 0x30) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !is_int4_type(tag, kind) {
+        return None;
+    }
+    p += tw;
+
+    // An optional cv-qualification strip. Provably free over a 4-byte integer
+    // source (see [`is_int4_type`]); the target must still be int-like, and the
+    // trailing varint must be the `00` observed at all 14,098 aligned sites.
+    if *seg.get(p)? == 0x2C {
+        let mut probe = p + 1;
+        if !eat_int_like(seg, &mut probe) || !eat_byte(seg, &mut probe, 0x00) {
+            return None;
+        }
+        p = probe;
+    }
+
+    // Result type, then the shared plumbing, which must reach the segment end.
+    if !eat_byte(seg, &mut p, 0x41) || !eat_int_like(seg, &mut p) {
+        return None;
+    }
+    eat_return_plumbing(seg, &mut p, false).ok()?;
+
+    // Bind the base to its argument register. `this` is argument 0, and when it
+    // is present every explicit formal shifts up one.
+    let formals = parse_formals(seg, lo).ok()?;
+    let params = match parse_this_token(seg, lo) {
+        Some(this_tok) => {
+            let mut v = vec![this_tok];
+            v.extend_from_slice(&formals);
+            v
+        }
+        None => formals,
+    };
+    let ix = params.iter().position(|&t| t == base_tok)?;
+    // Past the eighth argument the value is stack-homed, which needs a frame.
+    if ix >= 8 {
+        return None;
+    }
+    Some(BodyShape::IndirectLoad {
+        params,
+        ops: vec![IlOp::Load(base_tok), IlOp::LoadInd { off }],
+    })
 }
 
 /// Try to parse a **W6 comparison leaf** body: `return <formal> <rel> <k>;`.
@@ -1763,6 +2229,22 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
     // nothing else — which is precisely what the `call-anchor-*` census buckets
     // were measuring.
     if !eat_byte(seg, p, 0xBD) {
+        // `26 <sym>` followed by an INTRINSIC CALL rather than a `BD`. This is the
+        // other half of the `0x40` production's footprint and it was the whole of
+        // the `call-token-0x33` census bucket (7.4 % of blocked functions): a
+        // member call whose `this` is an adjusted base pointer opens
+        // `26 <method> 33 86 41 74 <2113> 40 …`, and an intrinsic result stored to
+        // a symbol opens `26 <dest> 33 86 41 74 <id> 40 …`. Reported with the
+        // selector so the two footprints can be summed; still `Err`, so the gate
+        // is unchanged.
+        if let Some(id) = intrinsic_selector(seg, *p) {
+            return Err(Block {
+                ctx: "call-intrinsic",
+                byte: Some(0x40),
+                off: *p,
+                aux: id as u32,
+            });
+        }
         return Err(blk(seg, *p, "call-token"));
     }
     let (_, _, _, ret_w) = read_type(seg, *p).ok_or(blk(seg, *p, "call-ret-type"))?;
@@ -1908,8 +2390,18 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
     // `parse_formals` may legitimately fail here — the framed-call class carries no
     // formals — and that must not turn into a rejection, so fall back to an empty
     // list, against which `leaves_ascending` simply has nothing to compare.
-    let formals = parse_formals(seg, lo).unwrap_or_default();
-    if !leaves_ascending(&arg_ops, &formals) || !additive_chain_canonical(&arg_ops) {
+    // The ordering gate needs formals to order against, and the framed-call class
+    // legitimately has none. It is also vacuous for a single operand — and the
+    // framed path accepts only a bare passthrough `[Load]`, which cannot be out of
+    // order — so skip it there rather than weakening the gate itself.
+    let n_loads = arg_ops.iter().filter(|o| matches!(o, IlOp::Load(_))).count();
+    if n_loads > 1 {
+        let formals = parse_formals(seg, lo)?;
+        if !leaves_ascending(&arg_ops, &formals) {
+            return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
+        }
+    }
+    if !additive_chain_canonical(&arg_ops) {
         return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
     }
 
@@ -2168,6 +2660,9 @@ impl IlBundle {
                         Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
                         Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
                         Ok(BodyShape::EmptyBody) => FnVerdict::InClass("empty-body"),
+                        Ok(BodyShape::IndirectLoad { .. }) => {
+                            FnVerdict::InClass("indirect-load-leaf")
+                        }
                         Ok(BodyShape::FloatLeaf { double, .. }) => {
                             FnVerdict::InClass(if double { "double-leaf" } else { "float-leaf" })
                         }
@@ -2242,6 +2737,24 @@ impl IlBundle {
         let mut funcs = Vec::with_capacity(n_defined);
         for (name, seg) in names.iter().take(n_defined).zip(segs) {
             match parse_segment(seg, &symbols)? {
+                // An indirect-load leaf reaches the ordinary integer selector,
+                // which pattern-matches its exact two-op stream; `params` carries
+                // a member function's `this` at index 0 so the base register comes
+                // out right.
+                BodyShape::IndirectLoad { params, ops } => {
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params,
+                        ops,
+                        tail_call: None,
+                        framed_call: None,
+                        compare: None,
+                        empty_body: false,
+                        float_leaf: None,
+                        arg_sources: None,
+                    });
+                }
                 BodyShape::StraightLine { params, ops } => {
                     funcs.push(IlFunction {
                         mangled_name: name.clone(),
@@ -2855,6 +3368,168 @@ mod tests {
         }
     }
 
+    // ---- indirect-load leaf -------------------------------------------------
+    //
+    // Every byte below is transcribed from a live capture of
+    // `fixtures/cpp/il_expr_deref.cpp` / `il_expr_member.cpp`
+    // (`c2rs census <cpp> --keep-il <dir>`), not derived.
+
+    /// `int ld_p(int* p) { return *p; }` — one formal, no offset add.
+    const IND_DEREF: &[u8] = &[
+        0x46, 0x2D, 0xEE, 0x09, // formals: p
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0xB9, 0xEE, 0x09, 0x86, 0x43, 0xF4, 0x08, // LOAD p (int *)
+        0x30, 0x86, 0x41, 0x74, // indirect load -> int
+        0x41, 0x86, 0x41, 0x74, // result type int
+        0x3A, 0xF0, 0x09, 0x54, 0x02, 0x29, 0xF0, 0x09, // return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // fn tail = segment end
+    ];
+
+    /// `int ld_m0(S* s) { return s->a; }` — a `27` byte-offset add of 0.
+    const IND_MEMBER0: &[u8] = &[
+        0x46, 0x2D, 0xFE, 0x09, // formals: s
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0xB9, 0xFE, 0x09, 0x86, 0x43, 0x81, 0x20, // LOAD s (S *)
+        0x33, 0x86, 0x41, 0x74, 0x00, // LITERAL int 0 (byte offset)
+        0x27, 0x86, 0x43, 0xF4, 0x08, // byte-offset add -> int *
+        0x30, 0x86, 0x41, 0x74, // indirect load -> int
+        0x41, 0x86, 0x41, 0x74, //
+        0x3A, 0x00, 0x0A, 0x54, 0x02, 0x29, 0x00, 0x0A, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int ld_ixneg(int* p) { return p[-1]; }` — a `28 00 00` subscript add whose
+    /// offset is the **signed** short form `FC` = −4, typed `long` not `int`.
+    const IND_SUBSCRIPT_NEG: &[u8] = &[
+        0x46, 0x2D, 0x10, 0x0A, // formals: p
+        0x4C, 0x4F, 0x11, 0x53, //
+        0xB9, 0x10, 0x0A, 0x86, 0x43, 0xF4, 0x08, // LOAD p (int *)
+        0x33, 0x86, 0x41, 0x12, 0xFC, // LITERAL long -4
+        0x28, 0x00, 0x00, // subscript add
+        0x30, 0x86, 0x41, 0x74, //
+        0x41, 0x86, 0x41, 0x74, //
+        0x3A, 0x12, 0x0A, 0x54, 0x02, 0x29, 0x12, 0x0A, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int C::get_b() const { return b; }` — the `this` form: the pre-body
+    /// region binds `this` with `B9 <tok> <TYPE> 99 <TYPE> 00` and the `2D`
+    /// formals list is EMPTY, so `this` must come from that binding or the base
+    /// register is wrong. The load type is `const int` and is stripped by a `2C`.
+    const IND_THIS_GETTER: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE7, 0x09, // fn symbol push
+        0xB9, 0xF8, 0x09, 0xA6, 0x43, 0x82, 0x20, // LOAD this (C * const)
+        0x99, 0x86, 0x43, 0x84, 0x20, 0x00, // bind-member, offset 0
+        0x46, 0x4C, 0x4F, 0x11, 0x53, // formals (none) LO SS
+        0xB9, 0xF8, 0x09, 0xA6, 0x43, 0x82, 0x20, // LOAD this
+        0x33, 0x86, 0x41, 0x74, 0x04, // LITERAL int 4
+        0x27, 0xA6, 0x43, 0x8E, 0x20, // byte-offset add -> const int *
+        0x30, 0xA6, 0x41, 0x8D, 0x20, // indirect load -> const int
+        0x2C, 0x86, 0x41, 0x74, 0x00, // cv strip -> int
+        0x41, 0x86, 0x41, 0x74, //
+        0x3A, 0xF9, 0x09, 0x54, 0x02, 0x29, 0xF9, 0x09, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn indirect_load_leaf_decodes_deref_member_and_subscript() {
+        assert_eq!(
+            parse_segment(IND_DEREF, &no_globals()),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0xEE09],
+                ops: vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }],
+            })
+        );
+        assert_eq!(
+            parse_segment(IND_MEMBER0, &no_globals()),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0xFE09],
+                ops: vec![IlOp::Load(0xFE09), IlOp::LoadInd { off: 0 }],
+            })
+        );
+        // The offset is a SIGNED short-form byte, and `-1` on an `int *` is −4
+        // bytes — the scale is already applied by the front end.
+        assert_eq!(
+            parse_segment(IND_SUBSCRIPT_NEG, &no_globals()),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0x100A],
+                ops: vec![IlOp::Load(0x100A), IlOp::LoadInd { off: -4 }],
+            })
+        );
+    }
+
+    #[test]
+    fn indirect_load_leaf_binds_this_as_argument_zero() {
+        // `this` is not in the `2D` list, so `params` must be built from the
+        // pre-body binding — otherwise the base register is unknown (or, worse,
+        // an explicit formal is mapped one register low).
+        assert_eq!(parse_this_token(IND_THIS_GETTER, 21), Some(0xF809));
+        assert_eq!(
+            parse_segment(IND_THIS_GETTER, &no_globals()),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0xF809],
+                ops: vec![IlOp::Load(0xF809), IlOp::LoadInd { off: 4 }],
+            })
+        );
+    }
+
+    #[test]
+    fn indirect_load_leaf_refuses_the_adjacent_shapes() {
+        // Splice one field of IND_DEREF at a time. Each variant is a construct
+        // whose reference codegen differs (see fixtures/cpp/il_expr_load_neg.cpp).
+        let bad = |patch: &[(usize, u8)]| {
+            let mut s = IND_DEREF.to_vec();
+            for &(i, b) in patch {
+                s[i] = b;
+            }
+            parse_segment(&s, &no_globals())
+        };
+        // A `char` pointee is `lbz`, not `lwz` (`30 82 11 70`).
+        assert_eq!(bad(&[(16, 0x82), (17, 0x11), (18, 0x70), (20, 0x82), (21, 0x11), (22, 0x70)]), None);
+        // A `float` pointee is `lfs` (`30 86 45 40`).
+        assert_eq!(bad(&[(17, 0x45), (18, 0x40), (21, 0x45), (22, 0x40)]), None);
+        // A pointer pointee (`int **`) emits the same word but stays refused.
+        assert_eq!(bad(&[(17, 0x43)]), None);
+
+        // Arithmetic after the load: the load lands in the scratch register, so
+        // this must not reach the affine selector.
+        let mut with_add = IND_DEREF[..19].to_vec();
+        with_add.extend_from_slice(&[0x33, 0x86, 0x41, 0x74, 0x01, 0x02]); // + 1
+        with_add.extend_from_slice(&IND_DEREF[19..]);
+        assert_eq!(parse_segment(&with_add, &no_globals()), None);
+
+        // A `28` payload other than `00 00` is unexplained and must refuse.
+        let mut sub_bad = IND_SUBSCRIPT_NEG.to_vec();
+        sub_bad[21] = 0x01;
+        assert_eq!(parse_segment(&sub_bad, &no_globals()), None);
+
+        // An offset past the 16-bit displacement materializes an index register.
+        let mut wide = IND_SUBSCRIPT_NEG[..19].to_vec();
+        wide.extend_from_slice(&[0x80, 0x80, 0x1A, 0x06, 0x00]); // 400000
+        wide.extend_from_slice(&IND_SUBSCRIPT_NEG[20..]);
+        assert_eq!(parse_segment(&wide, &no_globals()), None);
+    }
+
+    #[test]
+    fn parse_formals_anchors_on_the_marker_that_reaches_lo() {
+        // A function on source line 70 emits the line marker `4F 01 46`, whose
+        // payload byte is `0x46`. Taking the first `0x46` in the segment finds
+        // *that* and silently yields an empty formals list — which is not
+        // fail-closed, because `leaves_ascending` skips non-formal tokens.
+        let mut seg = vec![0x4F, 0x01, 0x46]; // line 70
+        seg.extend_from_slice(IND_DEREF);
+        let lo = find_subslice(&seg, &LO_MARKER).unwrap();
+        assert_eq!(parse_formals(&seg, lo), Ok(vec![0xEE09]));
+        // And the whole body still parses, base register included.
+        assert_eq!(
+            parse_segment(&seg, &no_globals()),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0xEE09],
+                ops: vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }],
+            })
+        );
+    }
+
     #[test]
     fn chains_canonicalize_to_c2s_register_order() {
         let p = vec![0x10, 0x11, 0x12]; // a -> r3, b -> r4, c -> r5
@@ -3103,6 +3778,139 @@ mod tests {
         assert!(!c.verdict.in_class());
         assert!(c.hex_mark < c.hex.len().max(1));
         assert!(c.hex.len() <= CENSUS_HEX_BACK + CENSUS_HEX_FWD);
+    }
+
+    // ---- intrinsic-call (`0x40`) decode -------------------------------------
+    //
+    // Every byte array below is transcribed verbatim from a live-toolchain `.ex`
+    // capture of a tracked fixture (`c2rs census <fixture> --keep-il <dir>`), not
+    // hand-assembled — the whole point of the production is that its field widths
+    // were guessed wrong twice before a capture settled them.
+
+    /// `double t_fabs(double a){ return fabs(a); }`
+    /// (`fixtures/cpp/il_intrinsic_call.cpp`, `?t_fabs@@YANN@Z`). Selector 17.
+    const INTR_FABS: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x33, 0x86, 0x41, 0x74, 0x11, 0x40, 0x88, 0x85, 0x41, 0xB9, 0x17,
+        0x0A, 0x88, 0x85, 0x41, 0x55, 0x88, 0x85, 0x41, 0x4C, 0x41, 0x88, 0x85, 0x41, 0x3A, 0x19,
+        0x0A, 0x54, 0x02, 0x29, 0x19, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+    /// `void n_break(){ __debugbreak(); }`
+    /// (`fixtures/cpp/il_intrinsic_nullary.cpp`, `?n_break@@YAXXZ`). Selector 543,
+    /// **zero arguments** — the witness that `40 <TYPE>` carries no trailing field.
+    const INTR_NULLARY: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x33, 0x86, 0x41, 0x74, 0x80, 0x1F, 0x02, 0x00, 0x00, 0x40, 0x82,
+        0x07, 0x03, 0x4C, 0x4B, 0x3A, 0xFF, 0x09, 0x54, 0x02, 0x29, 0xFF, 0x09, 0x4F, 0x12, 0x47,
+        0x54, 0x01, 0x54, 0x00,
+    ];
+    /// `A2 *l_up2(M *m){ return m; }`
+    /// (`fixtures/cpp/il_intrinsic_layout.cpp`). Selector 2114, offset literal `08`.
+    const INTR_UPCAST: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x33, 0x86, 0x41, 0x74, 0x80, 0x42, 0x08, 0x00, 0x00, 0x40, 0x86,
+        0x43, 0xB1, 0x20, 0x66, 0x02, 0x92, 0x20, 0x93, 0x20, 0x55, 0x86, 0x41, 0x74, 0x33, 0x86,
+        0x41, 0x74, 0x08, 0x55, 0x86, 0x41, 0x74, 0xB9, 0x41, 0x0A, 0x86, 0x43, 0xB0, 0x20, 0x55,
+        0x86, 0x43, 0xB0, 0x20, 0x4C, 0x41, 0x86, 0x43, 0xB1, 0x20, 0x3A, 0x43, 0x0A, 0x54, 0x02,
+        0x29, 0x43, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+    /// `void l_this2(M *m){ m->mb(); }`
+    /// (`fixtures/cpp/il_intrinsic_layout.cpp`). Selector 2113, offset literal `08`
+    /// — byte-for-byte the same descriptor and offset as [`INTR_UPCAST`], reached
+    /// through the `26 <sym>` path instead.
+    const INTR_THIS_ADJUST: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xF2, 0x09, 0x33, 0x86, 0x41, 0x74, 0x80, 0x41, 0x08, 0x00,
+        0x00, 0x40, 0xA6, 0x43, 0x96, 0x20, 0x66, 0x02, 0x92, 0x20, 0x93, 0x20, 0x55, 0x86, 0x41,
+        0x74, 0x33, 0x86, 0x41, 0x74, 0x08, 0x55, 0x86, 0x41, 0x74, 0xB9, 0x48, 0x0A, 0x86, 0x43,
+        0xB0, 0x20, 0x55, 0x86, 0x43, 0xB0, 0x20, 0x4C, 0x99, 0x86, 0x43, 0x97, 0x20, 0x00, 0xBD,
+        0x82, 0x07, 0x03, 0x00, 0x80, 0x17, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x3A, 0x4A, 0x0A, 0x54,
+        0x02, 0x29, 0x4A, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn intrinsic_call_census_reports_the_selector_not_the_opcode() {
+        // The whole `0x40` production is one census bucket only because the
+        // selector was never decoded. Both the operand-stream site and the
+        // `26 <sym>` site must name the intrinsic.
+        for (seg, want) in [
+            (INTR_FABS, "expr-intrinsic-fabs"),
+            (INTR_NULLARY, "expr-intrinsic-__debugbreak"),
+            (INTR_UPCAST, "expr-intrinsic-base-upcast"),
+            (INTR_THIS_ADJUST, "call-intrinsic-this-adjust"),
+        ] {
+            let b = parse_segment_detail(seg, &no_globals()).unwrap_err();
+            assert_eq!(b.feature(), want);
+            // The block is reported at the selector literal, whose `40` follows.
+            assert_eq!(seg[b.off], 0x33, "{want}");
+        }
+    }
+
+    #[test]
+    fn intrinsic_call_decode_does_not_accept() {
+        // Decoding is not accepting. Every one of these still fails closed, so
+        // the census and the emission gate cannot disagree — the same invariant
+        // `census_agrees_with_the_gate_on_every_pinned_segment` checks globally.
+        for seg in [INTR_FABS, INTR_NULLARY, INTR_UPCAST, INTR_THIS_ADJUST] {
+            assert!(parse_segment(seg, &no_globals()).is_none());
+        }
+    }
+
+    #[test]
+    fn intrinsic_call_token_has_no_trailing_field() {
+        // `40 <TYPE>` and nothing else: in the nullary capture the `4C` apply sits
+        // immediately after the `void` result type, so a `40 <TYPE> <varint>`
+        // reading (the shape `2C`/`99`/`9B`/`5C` have, and the one an earlier
+        // session assumed) would swallow the terminator.
+        let p = 4; // the selector literal, right after `4C 4F 11 53`
+        assert_eq!(intrinsic_selector(INTR_NULLARY, p), Some(543));
+        let tok = p + 9; // `33 86 41 74` + the 5-byte escaped varint
+        assert_eq!(INTR_NULLARY[tok], 0x40);
+        let (_, _, _, w) = read_type(INTR_NULLARY, tok + 1).unwrap();
+        assert_eq!(&INTR_NULLARY[tok + 1..tok + 1 + w], &[0x82, 0x07, 0x03]); // void
+        assert_eq!(INTR_NULLARY[tok + 1 + w], 0x4C); // the apply, with no field between
+    }
+
+    #[test]
+    fn same_descriptor_and_offset_different_selector_is_a_different_emission() {
+        // 2113 and 2114 carry an identical `66 02 92 20 93 20` class-pair
+        // descriptor and an identical offset literal `08`, and c2 emits
+        // `addi r3,r3,8` for one and a null-guarded five-instruction form for the
+        // other (see `fixtures/cpp/il_intrinsic_layout.cpp`). So the census must
+        // separate them, and a lowering keyed on the offset alone would be wrong.
+        let up = parse_segment_detail(INTR_UPCAST, &no_globals()).unwrap_err();
+        let this = parse_segment_detail(INTR_THIS_ADJUST, &no_globals()).unwrap_err();
+        assert_ne!(up.feature(), this.feature());
+        assert_eq!(up.aux, 2114);
+        assert_eq!(this.aux, 2113);
+        // Both offset literals really are the same byte.
+        assert_eq!(INTR_UPCAST[32], 0x08);
+        assert_eq!(INTR_THIS_ADJUST[35], 0x08);
+    }
+
+    #[test]
+    fn selector_must_be_exactly_int_typed_or_the_decode_declines() {
+        // The one structural claim the decode rests on is that `0x40` is always
+        // preceded by an `int`-typed literal. Retype the `t_fabs` selector to
+        // `unsigned` (`86 42 75`) and the decode must decline rather than report a
+        // selector it cannot vouch for — falling back to the honest
+        // `expr-intrinsic-call` residue, which is what measures the claim over the
+        // real workload (measured: 0 of 213,411 sites land in the residue).
+        let mut seg = INTR_FABS.to_vec();
+        seg[5] = 0x86;
+        seg[6] = 0x42;
+        seg[7] = 0x75;
+        assert_eq!(intrinsic_selector(&seg, 4), None);
+        let b = parse_segment_detail(&seg, &no_globals()).unwrap_err();
+        assert_eq!(b.feature(), "expr-intrinsic-call");
+    }
+
+    #[test]
+    fn unpinned_selector_ids_stay_hex() {
+        // A hex bucket is a result; a wrong name is a lie that survives into the
+        // roadmap. 222/223 occur 1758 times each on the real workload and their
+        // trigger is pinned (`fixtures/cpp/il_intrinsic_byval.cpp`) while their
+        // individual semantics are not, so they must not be named.
+        assert_eq!(intrinsic_name(222), "0xDE");
+        assert_eq!(intrinsic_name(223), "0xDF");
+        assert_eq!(intrinsic_name(2120), "0x848");
+        assert_eq!(intrinsic_name(17), "fabs");
     }
 
     // ---- real captured segments (transcribed from live-toolchain `.ex`) -----

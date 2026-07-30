@@ -216,6 +216,8 @@ impl PortC2 {
                     (t, Some(coff::Call { reloc_offset: reloc, callee: callee.as_str() }))
                 } else if f.empty_body {
                     (codegen::encode_blr().to_vec(), None)
+                } else if let Some(t) = codegen::indirect_load_text(f) {
+                    (t?, None)
                 } else if let Some(cmp) = &f.compare {
                     (codegen::compare_leaf_text(cmp)?, None)
                 } else if let Some(double) = f.float_leaf {
@@ -270,6 +272,14 @@ impl PortC2 {
                     .map(|r| codegen::FpConstRef { hi_off: r.hi_off + off, ..r })
                     .collect();
                 placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: true, fp_refs });
+                continue;
+            }
+            // An indirect-load leaf (`return *p;` / `return s->m;`) is a single
+            // `lwz` + `blr`, recognized by an exact two-op stream rather than
+            // reaching the affine selector — see `codegen::indirect_load_text`.
+            if let Some(body) = codegen::indirect_load_text(f) {
+                text.extend_from_slice(&body?);
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: false, fp_refs: Vec::new() });
                 continue;
             }
             // W6: a comparison leaf lowers to its own branchless spine rather
