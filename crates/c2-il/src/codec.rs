@@ -1246,7 +1246,7 @@ fn try_ex_token(body: &[u8], p: usize) -> Option<(ExToken, usize)> {
 /// with a `10 00 00` body, then two zero bytes). Verified byte-exact ahead of
 /// every offset field across the full fixture spread — this locates the field
 /// **by position within the record**, not by what its value happens to be.
-fn gl_offset_framed(gl: &[u8], o: usize) -> bool {
+pub(crate) fn gl_offset_framed(gl: &[u8], o: usize) -> bool {
     o >= 7
         && gl[o] == 0x80
         && gl[o - 7] == 0x80

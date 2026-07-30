@@ -281,6 +281,109 @@ pub fn mangled_names(gl: &[u8]) -> Vec<String> {
     out
 }
 
+/// Every mangled-symbol run in `.gl`, as `(start, end, name)` in file order.
+///
+/// Deliberately **broader** than [`mangled_names`], which requires the second
+/// byte to be alphabetic and therefore silently drops every `??`-prefixed name:
+/// constructors (`??0S@@QAA@XZ`) and the `??__E` dynamic-initializer thunks that
+/// a namespace-scope object with a constructor makes c2 emit. Those are real
+/// symbols in the obj, and dropping them is what made a positional pairing look
+/// safe — `.gl` for `struct S{S();}; S gs; int f(int);` lists
+/// `??__Egs@@YAXXZ`, `?f@@YAHH@Z`, `?gs@@3US@@A`, `??0S@@QAA@XZ`, of which
+/// `mangled_names` sees only the second and *fourth*, so pairing two names to
+/// two bodies named the second function after a **variable**.
+///
+/// A run is accepted only if it is NUL-delimited, wholly printable, starts like
+/// an identifier, and contains `@@`. The `@@` is what keeps the source path and
+/// other incidental strings out: they are printable NUL-delimited runs too.
+fn gl_symbol_runs(gl: &[u8]) -> Vec<(usize, usize, String)> {
+    let mut out = Vec::new();
+    let mut i = 0usize;
+    while i < gl.len() {
+        if gl[i] != 0 {
+            i += 1;
+            continue;
+        }
+        let start = i + 1;
+        let mut end = start;
+        while end < gl.len() && gl[end] != 0 {
+            end += 1;
+        }
+        if end >= gl.len() || end == start {
+            i += 1;
+            continue;
+        }
+        let bytes = &gl[start..end];
+        let plausible = bytes.len() >= 3
+            && bytes.iter().all(|b| b.is_ascii_graphic())
+            && (bytes[0] == b'?' || bytes[0].is_ascii_alphabetic() || bytes[0] == b'_')
+            && contains_subslice(bytes, b"@@");
+        if plausible {
+            out.push((start, end, ascii_string(bytes)));
+        }
+        i = end;
+    }
+    out
+}
+
+/// Bind each **defined** function's `.gl` name to the `.ex` offset of its body,
+/// positively. Returns the `(body offset, name)` pairs in `.gl` record order,
+/// plus every mangled run that no record claimed.
+///
+/// Each `.gl` function record carries a `80 <LE32>` body-start offset field,
+/// located by its record framing ([`codec::gl_offset_framed`]) rather than by
+/// what its value happens to be, and the record's name is the mangled run
+/// immediately preceding that field. So the binding is per record.
+///
+/// This replaces "the Nth name belongs to the Nth body", an invariant `.gl` does
+/// not promise. It happens to hold across the fixtures, and the four probes that
+/// looked most likely to break it (`extern` data, static members, namespaces,
+/// templates) all list definitions first — but nothing enforces it, `.gl`
+/// interleaves data symbols and compiler-generated thunks into the same list,
+/// and a shifted name is a `.text` symbol emitted under some other symbol's
+/// name. That is a wrong-bytes emit, not a refusal, so it is not something to
+/// leave resting on an unchecked ordering.
+///
+/// The unclaimed runs matter just as much: an unclaimed name is a symbol the
+/// real obj carries and the port does not model. `int gv; int f(int a){…}` leaves
+/// `?gv@@3HA` unclaimed and c2's obj has an extra section for it — the port used
+/// to emit its fixed four-section shell and mismatch at file offset 2, the
+/// section count. The caller must account for every unclaimed run or refuse.
+fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
+    let runs = gl_symbol_runs(gl);
+    let mut claimed = vec![false; runs.len()];
+    let mut bound: Vec<(u32, String)> = Vec::new();
+    let mut p = 0usize;
+    while p + 5 <= gl.len() {
+        if crate::codec::gl_offset_framed(gl, p) {
+            let off = u32::from_le_bytes([gl[p + 1], gl[p + 2], gl[p + 3], gl[p + 4]]);
+            // The record's own name: the last mangled run to END at or before
+            // this field. Searched backwards so an unnamed record cannot borrow
+            // the name of a following one.
+            match runs.iter().rposition(|&(_, end, _)| end <= p) {
+                Some(k) => {
+                    claimed[k] = true;
+                    bound.push((off, runs[k].2.clone()));
+                }
+                // A framed offset with no name ahead of it is a record shape we
+                // do not understand; refuse the whole TU rather than emit a
+                // nameless function.
+                None => return (Vec::new(), Vec::new()),
+            }
+            p += 5;
+            continue;
+        }
+        p += 1;
+    }
+    let unclaimed = runs
+        .iter()
+        .zip(&claimed)
+        .filter(|(_, &c)| !c)
+        .map(|((_, _, n), _)| n.clone())
+        .collect();
+    (bound, unclaimed)
+}
+
 /// Build the `.gl` **symbol index**: operand token → mangled name.
 ///
 /// `.gl` records have the shape
@@ -2988,6 +3091,14 @@ pub fn is_empty_module(ex: &[u8]) -> bool {
 }
 
 fn split_functions(ex: &[u8]) -> Vec<&[u8]> {
+    split_functions_at(ex).1
+}
+
+/// [`split_functions`], keeping the `4F 1F` offsets alongside the segments. The
+/// offsets are what `.gl`'s framed body-start fields are matched against, so the
+/// name binding is per record rather than per position (see
+/// [`gl_defined_names`]).
+fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
     let mut starts = Vec::new();
     let mut i = 0;
     // Same walk as the old byte loop (a match consumes 2 bytes, a miss 1);
@@ -3009,7 +3120,7 @@ fn split_functions(ex: &[u8]) -> Vec<&[u8]> {
         let end = if k + 1 < starts.len() { starts[k + 1] } else { ex.len() };
         segs.push(&ex[starts[k]..end]);
     }
-    segs
+    (starts, segs)
 }
 
 impl IlBundle {
@@ -3104,12 +3215,15 @@ impl IlBundle {
     /// the `.ex` function count, or if ANY function body is outside the class
     /// (the caller — `PortC2` — then reports `NotImplemented` for the whole TU).
     ///
-    /// Names come from `.gl` in file order; bodies from `.ex` split at each
-    /// `4F 1F`. The two are paired positionally.
+    /// Bodies come from `.ex` split at each `4F 1F`; each body's name comes from
+    /// the `.gl` record whose framed body-start offset **is** that split point
+    /// ([`gl_defined_names`]) — a per-record binding, not a positional one. Any
+    /// `.gl` symbol no record claimed must be a resolved callee, or the TU is
+    /// refused: an unclaimed symbol is one the real obj defines and the port does
+    /// not model.
     pub fn functions(&self) -> Option<Vec<IlFunction>> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
-        let names = mangled_names(gl);
         let src = source_path(gl);
 
         // R1: a TU that defines no functions is in class, and its obj is the
@@ -3127,7 +3241,7 @@ impl IlBundle {
         //   neither        → empty module (was: is_empty_module → Some([]))
         //   LO only        → None         (was: not empty; split empty → None)
         //   4F 1F, any LO  → parse        (was: not empty; split non-empty)
-        let segs = split_functions(ex);
+        let (starts, segs) = split_functions_at(ex);
         if segs.is_empty() {
             return if find_subslice(ex, &LO_MARKER).is_none() {
                 Some(Vec::new())
@@ -3135,17 +3249,26 @@ impl IlBundle {
                 None
             };
         }
-        if names.len() < segs.len() {
+        // Per-record name binding, gated fail-closed: the `.gl` records' framed
+        // body-start offsets must be exactly the `.ex` split points, in order and
+        // 1:1. A disagreement means either `.gl` has a record shape we cannot
+        // frame or the splitter miscounted bodies, and in both cases every name
+        // after the divergence would be wrong — so bind none of them.
+        //
+        // A *defined* function's own name comes from here. Callee names do NOT:
+        // they are resolved by token through the `.gl` symbol index, because the
+        // CALL token carries only a function-type id and cannot distinguish two
+        // callees with the same signature.
+        let (bound, unclaimed) = gl_defined_names(gl);
+        if bound.len() != segs.len()
+            || bound
+                .iter()
+                .zip(&starts)
+                .any(|(&(off, _), &s)| off as usize != s)
+        {
             return None;
         }
-        // `.gl` lists the defined functions first, one per `.ex` segment, paired
-        // positionally — that is where a *defined* function's own name comes
-        // from. Callee names do NOT come from that list: they are resolved by
-        // token through the `.gl` symbol index, because the CALL token carries
-        // only a function-type id and cannot distinguish two callees with the
-        // same signature. Resolving properly is what lifts the old
-        // single-function/single-external restriction that positional pairing
-        // forced.
+        let names: Vec<String> = bound.into_iter().map(|(_, n)| n).collect();
         let n_defined = segs.len();
         // Lazily built: only the call productions resolve through it, so a TU
         // of straight-line leaves never constructs the index at all.
@@ -3309,6 +3432,50 @@ impl IlBundle {
                     });
                 }
             }
+        }
+        // Account for every `.gl` symbol no record claimed. The port emits
+        // exactly the `n_defined` bodies plus an external symbol per resolved
+        // callee, so an unclaimed name is a symbol the real obj has and this obj
+        // would not — and for a *data* definition it is a whole extra section.
+        // `int gv; int f(int a){return a+1;}` mismatched at file offset 2, the
+        // section count, for exactly this reason: `?gv@@3HA` was invisible to the
+        // emitter. A defined static member (`?sm@S@@2HA`) did the same.
+        //
+        // Extern data cannot be told from defined data by mangling — `extern int
+        // g;` and `int g;` both appear as `?g@@3HA` — so this refuses both. That
+        // costs nothing today: reading a global is already out of class, so an
+        // extern that is never referenced is one c2 would not have listed.
+        let mut accounted: Vec<&str> = names.iter().map(String::as_str).collect();
+        for f in &funcs {
+            if let Some(c) = &f.tail_call {
+                accounted.push(c);
+            }
+            if let Some(fc) = &f.framed_call {
+                accounted.push(&fc.callee);
+            }
+        }
+        if unclaimed.iter().any(|n| !accounted.contains(&n.as_str())) {
+            return None;
+        }
+        // A callee that is also DEFINED here is out of class: c2 may inline it,
+        // and the port cannot. `int f(int); int use(int a){return f(a);}
+        // int f(int a){return a+1;}` gets a `.text` of *two* copies of
+        // `addi r3,r3,1 ; blr` and **no relocations** — c2 cloned `f` into `use`
+        // rather than branching to it. The port emitted `b ?f` against an
+        // undefined external and mismatched at file offset 8.
+        //
+        // Refused wholesale rather than by callee size, because what makes c2
+        // inline (and what it does to the symbol table and `.pdata` when it does)
+        // is uncharacterized. Calls to true externals are unaffected — those are
+        // the tail calls the class was built on.
+        if funcs.iter().any(|f| {
+            let callee = f
+                .tail_call
+                .as_deref()
+                .or(f.framed_call.as_ref().map(|c| c.callee.as_str()));
+            callee.is_some_and(|c| names.iter().any(|n| n == c))
+        }) {
+            return None;
         }
         Some(funcs)
     }
@@ -3672,6 +3839,83 @@ mod tests {
             assert_eq!(read_varint(bytes, &mut p), Some(*want), "{bytes:02X?}");
             assert_eq!(p, *width, "width for {bytes:02X?}");
         }
+    }
+
+    // ---- `.gl` name → body binding ------------------------------------------
+
+    /// One `.gl` function record: a name run, then the framing
+    /// `80 XX 10 00 00 00 00` that `codec::gl_offset_framed` recognizes, then the
+    /// `80 <LE32>` body-start offset.
+    fn gl_record(name: &str, body_off: u32) -> Vec<u8> {
+        let mut v = vec![0u8];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0);
+        v.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80]);
+        v.extend_from_slice(&body_off.to_le_bytes());
+        v
+    }
+
+    #[test]
+    fn gl_names_bind_to_their_own_record_not_their_position() {
+        // The `il_gl_record_order.cpp` layout: a `??`-prefixed thunk first, then a
+        // function, then a data symbol, then an external constructor. Positional
+        // pairing over `mangled_names` (which cannot see either `??` name) would
+        // pair `?w_add` with the thunk's body and the *variable* with the second.
+        let mut gl = Vec::new();
+        gl.extend_from_slice(&gl_record("??__Egs@@YAXXZ", 2644));
+        gl.extend_from_slice(&gl_record("?w_add@@YAHH@Z", 2753));
+        gl.push(0);
+        gl.extend_from_slice(b"?gs@@3US@@A");
+        gl.push(0);
+        gl.push(0);
+        gl.extend_from_slice(b"??0S@@QAA@XZ");
+        gl.push(0);
+
+        let (bound, unclaimed) = gl_defined_names(&gl);
+        assert_eq!(
+            bound,
+            vec![
+                (2644, "??__Egs@@YAXXZ".to_string()),
+                (2753, "?w_add@@YAHH@Z".to_string()),
+            ],
+            "each name must come from the record carrying its own body offset"
+        );
+        // The data symbol and the external are unclaimed; the caller must account
+        // for each as a resolved callee or refuse the TU.
+        assert_eq!(
+            unclaimed,
+            vec!["?gs@@3US@@A".to_string(), "??0S@@QAA@XZ".to_string()]
+        );
+        // And the narrow scan is exactly what missed the two `??` names.
+        assert_eq!(
+            mangled_names(&gl),
+            vec!["?w_add@@YAHH@Z".to_string(), "?gs@@3US@@A".to_string()],
+            "regression guard: mangled_names drops ?? names, so it cannot bind bodies"
+        );
+    }
+
+    #[test]
+    fn gl_symbol_runs_ignore_non_symbol_strings() {
+        // A source path is a NUL-delimited printable run too. `@@` is what keeps
+        // it out — without that test the accounting rule would refuse every TU.
+        let mut gl = vec![0u8];
+        gl.extend_from_slice(b"e:\\lazer_build_gmc1\\x.cpp");
+        gl.push(0);
+        gl.extend_from_slice(&gl_record("?w_add@@YAHH@Z", 2644));
+        let (bound, unclaimed) = gl_defined_names(&gl);
+        assert_eq!(bound, vec![(2644, "?w_add@@YAHH@Z".to_string())]);
+        assert!(unclaimed.is_empty(), "got {unclaimed:?}");
+    }
+
+    #[test]
+    fn gl_framed_offset_without_a_name_binds_nothing() {
+        // Fail closed on a record shape we cannot name: binding nothing makes
+        // `functions()` refuse, rather than emitting a nameless function or
+        // borrowing the name of a following record.
+        let mut gl = vec![0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80];
+        gl.extend_from_slice(&2644u32.to_le_bytes());
+        gl.extend_from_slice(&gl_record("?w_add@@YAHH@Z", 2753));
+        assert_eq!(gl_defined_names(&gl), (Vec::new(), Vec::new()));
     }
 
     // ---- `.gl` symbol index -------------------------------------------------
