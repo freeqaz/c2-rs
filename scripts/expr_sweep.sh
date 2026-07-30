@@ -125,6 +125,72 @@ for ty in ('float', 'double'):
              "%s C::m(%s x, %s y) const { return x + y; }\n"
              % (ty, ty, ty, ty, ty, ty))
 
+# ---- W27: the FP argument register file, numbered over FP parameters ALONE -------
+# The block above sweeps ONE non-FP leader in front of a uniform FP tail, which was
+# enough to catch the two mis-emits but not enough to grade the numbering: with one
+# leader the FP index is `position - 1` everywhere, so an off-by-one model and the
+# right one still agree on every case. What separates them is a non-FP parameter
+# *between* the FP ones, more than one of them, and the two FP widths interleaved —
+# none of which the old block generates. The cross product below does, and each
+# case is a body whose emission is now a positive claim rather than a refusal.
+FP_SLOTS = ('int', 'unsigned', 'char', 'long long', 'int*', 'float', 'double')
+for pat in ('FGF', 'GFF', 'FFG', 'GFGF', 'FGFG', 'GGFF', 'FGGF', 'GFGFG'):
+    for gty in ('int', 'int*', 'char', 'long long'):
+        for fty in ('float', 'double'):
+            ps, fps = [], []
+            for i, ch in enumerate(pat):
+                nm = 'p%d' % i
+                ps.append('%s %s' % (fty if ch == 'F' else gty, nm))
+                if ch == 'F':
+                    fps.append(nm)
+            decl = ', '.join(ps)
+            # a bare return of each FP parameter — one `fmr`, or nothing
+            for nm in fps:
+                emit_raw("%s f(%s) { return %s; }\n" % (fty, decl, nm))
+            # …and arithmetic over the FP ones, in both operand orders
+            for op in ('+', '-', '*', '/'):
+                emit_raw("%s f(%s) { return %s %s %s; }\n"
+                         % (fty, decl, fps[0], op, fps[1]))
+                emit_raw("%s f(%s) { return %s %s %s; }\n"
+                         % (fty, decl, fps[1], op, fps[0]))
+# The two FP widths in ONE parameter list: the FP file is numbered width-agnostically
+# (`double a, float b` is f1, f2), so a model that separated the widths — or that
+# counted doubles as two registers, which is true of some other PPC ABIs — mismatches
+# on the second of each pair.
+for a in ('float', 'double'):
+    for b in ('float', 'double'):
+        for c in ('float', 'double'):
+            emit_raw("%s f(%s x, %s y, %s z) { return y; }\n" % (b, a, b, c))
+            emit_raw("%s f(%s x, %s y, %s z) { return z; }\n" % (c, a, b, c))
+            emit_raw("%s f(%s x, %s y, %s z) { return x + y; }\n" % (a, a, b, c))
+# A member function with a mixed list: `this` takes r3, so the GPR file shifts and
+# the FP file must not.
+for fty in ('float', 'double'):
+    for decl, ret in ((('int a, %s b' % fty), 'b'),
+                      (('%s a, int b, %s c' % (fty, fty)), 'c'),
+                      (('int a, int b, %s c, %s d' % (fty, fty)), 'd')):
+        emit_raw("struct C { %s m(%s) const; };\n%s C::m(%s) const { return %s; }\n"
+                 % (fty, decl, fty, decl, ret))
+# An FP parameter the body never reads still occupies its register and still
+# advances the count — the case the old gate refused outright.
+# (`nfp`, not `n` — `n` is this generator's own file counter, and a `for n in`
+# here silently rewinds it and overwrites already-written cases. That bug shipped
+# once, cost 1,233 cases, and reported a green sweep over the survivors; it is
+# recorded in `docs/GAPS.md` §6 and it recurred while this block was being
+# written. The printed case count is the only tell.)
+for fty in ('float', 'double'):
+    for nfp in range(2, 6):
+        ps = ', '.join('%s p%d' % (fty, i) for i in range(nfp))
+        for i in range(nfp):
+            emit_raw("%s f(%s) { return p%d; }\n" % (fty, ps, i))
+            if i + 1 < nfp:
+                emit_raw("%s f(%s) { return p%d + p%d; }\n" % (fty, ps, i, i + 1))
+# The 13-register boundary, from both sides.
+for nfp in (12, 13, 14):
+    ps = ', '.join('float p%d' % i for i in range(nfp))
+    emit_raw("float f(%s) { return p%d; }\n" % (ps, nfp - 1))
+    emit_raw("float f(%s) { return p0 + p1; }\n" % ps)
+
 # Tail calls: argument count, argument permutation, and computed arguments.
 emit_raw("int g1(int);\nint f(int a){return g1(a);}\n")
 for p in ['a,b', 'b,a']:
@@ -1303,6 +1369,77 @@ STORE_REFUSERS = [
 for r in STORE_REFUSERS:
     emit_raw('%s\n' % r)
     emit_raw('%s\nint h(int a) { return a + 1; }\n' % r)
+
+# 8. W28: the FLOATING-POINT store leaf, `stfs`/`stfd` out of the FP argument
+#    file. Two things are being swept at once and they need a cross product:
+#    the value's FP register (which counts FP parameters alone) and the base
+#    pointer's GPR (which counts SLOTS, so an FP parameter advances it while
+#    filling no register). Each rule alone gets half the cases right.
+FPS_STRUCT = ('struct FS { int i; float f; double d; float a[4]; char c; '
+              'float g; double h; };\n')
+for vty, mem in (('float', 'f'), ('double', 'd'), ('float', 'g'),
+                 ('double', 'h'), ('float', 'a[2]')):
+    # the value at every FP-file position, behind every mix of leading formals
+    for lead in ('', 'int k, ', 'int k, int l, ', 'float u, ', 'double u, ',
+                 'float u, int k, ', 'int k, float u, ', 'char c, ', 'int* p, '):
+        emit_raw('%svoid f(FS* s, %s%s v) { s->%s = v; }\n'
+                 % (FPS_STRUCT, lead, vty, mem))
+    # …and with the struct pointer NOT first, which moves the base GPR
+    emit_raw('%svoid f(int k, FS* s, %s v) { s->%s = v; }\n'
+             % (FPS_STRUCT, vty, mem))
+    emit_raw('%svoid f(%s v, FS* s) { s->%s = v; }\n' % (FPS_STRUCT, vty, mem))
+    emit_raw('%svoid f(float u, FS* s, %s v) { s->%s = v; }\n'
+             % (FPS_STRUCT, vty, mem))
+    emit_raw('%svoid f(int j, float u, FS* s, %s v) { s->%s = v; }\n'
+             % (FPS_STRUCT, vty, mem))
+# Through a bare pointer and through an inherited base member (intrinsic 2117).
+for pty in ('float', 'double'):
+    emit_raw('void f(%s* p, %s v) { *p = v; }\n' % (pty, pty))
+    emit_raw('void f(%s* p, %s v) { p[3] = v; }\n' % (pty, pty))
+    emit_raw('void f(int k, %s* p, %s v) { *p = v; }\n' % (pty, pty))
+    emit_raw('struct BB { %s b; };\nstruct DD : BB { int d; };\n'
+             'void f(DD* p, %s v) { p->b = v; }\n' % (pty, pty))
+# Member functions: `this` takes r3, so the base is implicit and the FP file
+# must be unaffected by it.
+for vty in ('float', 'double'):
+    emit_raw('struct MM { %s m; void s(%s v); };\nvoid MM::s(%s v) { m = v; }\n'
+             % (vty, vty, vty))
+    emit_raw('struct MM { %s m; void s(int k, %s v); };\n'
+             'void MM::s(int k, %s v) { m = v; }\n' % (vty, vty, vty))
+    emit_raw('struct MM { %s m; void s(%s u, %s v); };\n'
+             'void MM::s(%s u, %s v) { m = v; }\n' % (vty, vty, vty, vty, vty))
+# The REFUSERS on the FP path: a conversion in either direction (the narrowing
+# one is a real `frsp` through f0, the widening one is free and is refused
+# anyway), a pooled literal, and a computed value.
+FP_STORE_REFUSERS = [
+    'struct FS { float f; double d; };\nvoid f(FS* s, double v) { s->f = v; }',
+    'struct FS { float f; double d; };\nvoid f(FS* s, float v) { s->d = v; }',
+    'struct FS { float f; double d; };\nvoid f(FS* s, int v) { s->f = (float)v; }',
+    'struct FS { int i; float f; };\nvoid f(FS* s, float v) { s->i = (int)v; }',
+    'struct FS { float f; double d; };\nvoid f(FS* s) { s->f = 2.25f; }',
+    'struct FS { float f; double d; };\nvoid f(FS* s) { s->d = 2.25; }',
+    'struct FS { float f; double d; };\nvoid f(FS* s, float u, float v) { s->f = u + v; }',
+    'struct FS { float f; double d; };\nvoid f(FS* s, float v) { s->f = -v; }',
+    'struct FS { float f; double d; };\nvoid f(FS* s, float v) { s->f = v; s->d = v; }',
+]
+for r in FP_STORE_REFUSERS:
+    emit_raw('%s\n' % r)
+    emit_raw('%s\nint h(int a) { return a + 1; }\n' % r)
+# `_fltused` placement: a TU that touches FP carries the marker after the FIRST
+# FP-touching function's symbol group, and an FP STORE counts as touching. The
+# port tied that to "is a W13 arithmetic leaf" and emitted every FP-store obj one
+# symbol short. Only a MIXED translation unit separates the two rules, so the
+# ordering is swept rather than assumed.
+FPS_MIX = ('struct OS { int i; float f; };\n',
+           'int A(int x) { return x + 1; }\n',
+           'void B(OS* s, float v) { s->f = v; }\n',
+           'float C(float x, float y) { return x * y; }\n',
+           'int D(int x) { return x + 2; }\n',
+           'void E(OS* s, double v) { s->i = (int)v; }\n')
+import itertools as _it
+for order in _it.permutations('ABCD'):
+    body = FPS_MIX[0] + ''.join(FPS_MIX['ABCDE'.index(c) + 1] for c in order)
+    emit_raw(body)
 
 
 # ---- W26: the one-byte-unsigned value class -------------------------------
