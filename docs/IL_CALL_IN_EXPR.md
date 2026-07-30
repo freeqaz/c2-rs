@@ -24,6 +24,18 @@
 > `bl`s in reverse declaration order, so they are grammar-complete with both
 > offsets and codegen-complete under neither. The remaining ranked work is
 > §14.7 (4)–(7).
+>
+> **UPDATE (2026-07-30): D4 is LANDED and §16 supersedes §14.7's ranking.** It
+> walks *past* each receiver form and names what blocks the body **next**, plus how
+> many constructs the body needs in all (up to four). Acceptance is unchanged —
+> census 280,020, per-TU in-class identical, four lanes identical, mismatch 0 — and
+> the sub-buckets sum to §14.1's parents exactly, with 19 functions re-decomposed
+> out of `op-0x99` and accounted for individually. **Read §16.1 first**: the three
+> 0.0 %-complete forms do *not* share a second blocker, only 21.0 % of the bucket
+> is reachable within four constructs, §14.7 (6) goes from last to **first** on a
+> measurement (21,642 bodies), and §16.4 finds that D2's own form classification
+> undercounts member-call chains by **4.4x** for the same statement-position reason
+> §9.2 records.
 
 **Status: characterization only (2026-07-30). No code was changed.** The bucket
 is the #1 blocking feature on the real dc3 workload — **304,813 functions, 13.0%
@@ -1218,6 +1230,346 @@ C2RS_JOBS=16 scripts/expr_sweep.sh                           # checked=3259 mism
 ./target/release/c2rs census work/rf/probes/q1.cpp --keep-il work/rf/il/q1
 ./target/release/c2rs compile work/rf/probes/q1.cpp --keep-obj work/rf/q1.obj
 python3 work/expr/tools/objdis.py work/rf/q1.obj
+```
+
+Always difference the scans through **absolute** paths and print each one's row
+count and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several
+reflinked worktrees with different contents, and reading one through a relative
+path has already produced a published wrong number in this project.
+
+---
+
+## 16. D4, landed — the **second** blocker, per receiver form
+
+`docs/IL_CALL_IN_EXPR.md` §14.6 stated the limit D2 knowingly left open:
+*"`recv-object`'s 64,905 at 0.0 % complete is a grammar result, not a claim about
+what those bodies contain … no attempt was made to characterize WHAT ELSE blocks
+them. That is the next measurement anyone ranking D5 should take."* Three forms —
+`recv-object` 64,905, `data-addr` 56,634, `recv-load` 51,086 — hold **172,625
+functions at 0.0 % whole-body complete**, 64 % of the bucket, and a completeness
+column that reads 0.0 for its three largest rows has no ordering information left
+in it.
+
+This rung answers it. **Decode without acceptance again**: the completeness
+matcher now walks *past* the receiver form, names the construct that blocks the
+body next, and then grants constructs greedily — up to four — to say **how many**
+the body needs. Every path still returns a refusal.
+
+Baseline `/home/free/code/milohax/c2-rs/work/dc3-workload/scan-1137.jsonl` (878
+rows, `fn_total` 2,462,571, in class **280,020 = 11.37 %**, `expr-call-in-expr`
+268,140, mismatch 0); the result is
+`work/dc3-workload/scan-sb.jsonl` from the same list, flags and `--cwd`.
+
+| | baseline | D4 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 280,020 (11.37 %) | 280,020 (11.37 %) | **0** |
+| TUs whose per-TU in-class count moved | — | — | **0** |
+| TUs whose class moved | — | — | **0** (still 6 `match`, 7 `capture-fail`) |
+| mismatch | 0 | 0 | 0 |
+| **non-`mcall`** census keys / their sum | 924 / 1,914,411 | 924 / 1,914,411 | **0 / 0** |
+| `expr-call-in-expr` total | 268,140 | 268,140 | **0** |
+| `expr-call-in-expr` keys | 28 | **1,355 − 924 = 431** | — |
+
+Fixture lane: `bench` 110 pass / 0 fail / 0 error; `/Ox` 45 match, `/O1` 42,
+`/O2` 42, `/Ox /Gy` 42, 0 mismatch in all four; `expr_sweep` checked=3259
+mismatches=0; `cargo test --workspace` green.
+
+**Exactly 19 functions were re-decomposed, and they are accounted for one by
+one.** `walk` now tokenizes a `99 <T> 00` member bind met *inside* an open
+call-argument region (at depth 0 a `99` is decisive and returns before that arm),
+without which it cannot see a member call nested in an argument list and files the
+whole production as `op-0x99`. That bucket goes to **0** and its 19 functions
+land in `recv-intrinsic-this-adjust` (+16), `op-0x9B` (+1), `chained` (+1) and
+`other` (+1). Every other parent is unchanged to the function:
+
+| parent | baseline | D4 |
+|---|---:|---:|
+| `recv-object` · `data-addr` · `recv-load` · `recv-field` · `recv-field-off0` · `data-read` · `recv-deref` · `nested-call` · `op-0x5C` · `recv-intrinsic-*` · `recv-call` · `op-0x67` · `op-0x64` · `op-0x05` · `op-0x09` · `op-0x59` | — | **unchanged** |
+| `op-0x99` | 19 | **0** |
+| `recv-intrinsic-this-adjust` | 21,251 | 21,267 |
+| `op-0x9B` | 39,360 | 39,361 |
+| `chained` | 8,000 | 8,001 |
+| `other` | 4 | 5 |
+
+### 16.1 The answer, stated plainly: they do **not** share one second blocker
+
+The rung existed to distinguish two worlds — *"if those bodies share **one**
+further blocker, then that blocker plus the receiver form is the largest rung
+left; if each carries three unrelated ones, they are far off"*. **MEASURED: it is
+neither, and the reading differs per form.** The three giants have three
+*different* dominant second blockers, and only **15,962 of their 172,625
+functions (9.2 %) are one construct away** from whole:
+
+| form | total | dominant second blocker | its share | **1 away** | within 4 |
+|---|---:|---|---:|---:|---:|
+| `recv-object` | 64,905 | `type-ptr` 27,992 / `branch-0x39` 23,632 | 43 % / 36 % | 2,418 (3.7 %) | 11,084 (17.1 %) |
+| `data-addr` | 56,634 | **`plain-call` 55,925** | **98.8 %** | 1,063 (1.9 %) | **22,357 (39.5 %)** |
+| `recv-load` | 51,086 | **`chain-bind` 29,001** | 56.8 % | **12,481 (24.4 %)** | 14,697 (28.8 %) |
+
+So: `data-addr` is almost perfectly concentrated on one second blocker and almost
+none of it completes with the pair; `recv-load` is half concentrated and a quarter
+of the whole form completes with the pair; `recv-object` is split between a cheap
+construct and **control flow**, which is not a rung at all. Reporting a single
+"dominant second blocker" for the bucket would have been the wrong shape of
+answer, which is why the deliverable is a distribution.
+
+The grant-count distribution over the whole bucket — this is the number that
+decides where effort goes:
+
+| extra constructs the body needs | functions | share of 268,140 |
+|---|---:|---:|
+| **0** — the form alone finishes it (D2's `-whole`) | 1,429 | 0.5 % |
+| **1** — the pair finishes it | **22,645** | 8.4 % |
+| **2** | **25,588** | 9.5 % |
+| 3 | 4,528 | 1.7 % |
+| 4 | 2,152 | 0.8 % |
+| **> 4, or the chain hit something unmodelable** | 120,514 | 44.9 % |
+| the second blocker itself has no production (UNMEASURED pair) | 51,810 | 19.3 % |
+| the **form** has no production (D2 residue, mostly `op-0x9B`) | 39,474 | 14.7 % |
+| **reachable within four constructs** | **56,342** | **21.0 %** |
+
+### 16.2 The construct vocabulary, and the witness for each
+
+`GAPS.md` §6's mis-attribution failure is the hazard, and the guard is structural:
+the key names a **construct** at the refusal, never the byte or the position. Six
+constructs are new here; the rest reuse `Block::feature`'s capture-verified opcode
+table (now shared, `body::expr_opcode_name`, so the `expr-*` and `mcall` families
+cannot disagree about what a byte is called).
+
+| construct | key | functions | witness | status |
+|---|---|---:|---|---|
+| conditional branch `<op> <label>` | `branch-0x38` / `branch-0x39` | 23,644 + 87 | probe `b_if` (`if (gO.Ok())`): `4C 38 00 0A … 29 00 0A` — **the label is defined later in the same segment**; two wild ones in `Ham.cpp` incl. `… 0b 39 2b 67` = `if (x & 1)` | **MEASURED** as a branch. `38` is taken when the condition is **false** (one probe). `39`'s polarity is **UNDETERMINED** — hence the byte in the key |
+| chain link `99 <T> 00 <call>` | `chain-bind` | 35,520 | probe `c_ret` + wild `Mesh.cpp` | **MEASURED** |
+| bare CALL token over an already-pushed callee | `plain-call` | 55,925 | probe `a_str` (`uc("hi")`) | **MEASURED** |
+| byte-offset add outside a receiver designator | `off-add` | 11,211 | wild `Ham.cpp` destructor-with-`delete` | **MEASURED** |
+| a pointer-typed operand in a **call-argument region** | `type-ptr` | 42,332 | wild `Mesh.cpp` `b9 <t> 86 43 83 20` inside a plain call's args | **MEASURED** |
+| `9B <T> <tok>` by-value temporary bind | `temp-bind` | 1,404 | D2's `BYVAL_TEMP` | decoded, **no production** — UNMEASURED pair |
+
+The full second-blocker ranking across all forms, with how much of each is
+reachable:
+
+| second blocker | functions | whole within 4 | note |
+|---|---:|---:|---|
+| `plain-call` | 55,925 | **21,648** | the data-symbol-address-into-a-call shape |
+| `type-ptr` | 42,332 | 2,413 | a **measure-visible gate of the modeled class**: `eat_int_operands` takes `int` only, while the statement level already takes pointers |
+| `chain-bind` | 35,520 | **18,460** | member-call chains |
+| `branch-0x39`/`-0x38` | 23,731 | **0** | control flow. No production, by design |
+| `call-nested-call` | 12,902 | 8,885 | a plain call reached through an argument region |
+| `off-add` | 11,211 | **2** | almost worthless alone — see the `delete` witness |
+| `call-op-0x9B` | 9,041 | 0 | a nested by-value-temporary call |
+| `type-int1` | 5,438 | 2,215 | `bool`/`char` |
+| `plumbing-0x3A` | 4,634 | 0 | the return tail is not the modeled one |
+| `intrinsic-call` (`0x40`) | 4,004 | 0 | |
+| `call-recv-load` · `call-recv-field` | 3,974 · 3,659 | 1 · 1,279 | |
+| `type-real` | 2,553 | 2 | |
+| `cmp-*` (`lt`/`eq`/`gt`/`ge`/`ne`/`le`) | 3,772 | 0 | a comparison, i.e. control flow's operand |
+| `op-0x5C` | 890 | 0 | a destructor statement trailer whose flag is neither measured value |
+| `op-0x80` (579) · `op-0x08` (234) | 813 | 0 | **uncharacterized, and labelled: possible desync** (§16.6) |
+
+**The residue is not a payload being read as vocabulary.** §14.2's third caution
+is that a long flat tail of `op-0xNN` buckets means the parser is wrong, not that
+the vocabulary is large — that is how the `66`-descriptor LEB bug surfaced, at
+17,757 functions over 197 buckets at 80–300 each. D4's second-blocker residue is
+**24 distinct `op-0xNN` bytes over 11,245 functions (4.2 % of the bucket), and
+9,041 of them are one byte** (`0x9B`, a known construct), with the next three at
+899 / 579 / 234 and the remaining twenty at ≤ 155. That is a concentrated
+distribution, not a flat one.
+
+### 16.3 The three named pairs a rung could be built on
+
+Ranked by **how many bodies are whole-body complete once every construct in the
+row is handled** — the number §13.3 and §15.4 established as the one that tracks
+census yield:
+
+| rank | form × second [× third] | k | whole | what it is |
+|---|---|---:|---:|---|
+| **1** | `data-addr` × `plain-call` × **`type-ptr`** | 2 | **20,579** | a global's or string literal's address passed to an ordinary call that also takes pointers |
+| | `data-addr` × `plain-call` | 1 | 1,063 | the same with int-only arguments |
+| | | | **21,642** | **row 1 total** |
+| **2** | `recv-load` × `chain-bind` | 1 | **12,480** | `p->A()->B()` — a two-link chain on a pointer formal |
+| | `recv-field-off0` × `chain-bind` | 1 | 2,666 | the same off a sub-object at offset 0 |
+| | `recv-intrinsic-this-adjust` × `chain-bind` | 1 | 1,686 | the same off a base sub-object |
+| | `recv-field` × `chain-bind` | 1 | 835 (+68 at k=2) | the same at a nonzero offset |
+| | `data-addr` × `chain-bind` × `type-real-lit` | 3 | 714 | |
+| | | | **18,449** | **row 2 total — chains, across five receiver forms** |
+| **3** | `recv-object` × `call-nested-call` × `call` | 2 | 4,904 | a named-object receiver plus a plain call, both nested |
+| | the same | 3 | 2,335 | |
+| **4** | `recv-object` × `type-ptr` | 1 | 2,410 | a named-object member call with a pointer argument |
+| **5** | `recv-intrinsic-this-adjust` × `call-recv-field` | 1 | 705 | a base-delegating destructor that also destroys a member |
+| | `recv-field-off0` × `call-recv-field` | 1 | 574 | |
+| **6** | `recv-load` × `type-int1` × `type-aggregate` | 3 | 1,472 | |
+| **7** | `recv-field` × `call-nested-call` | 1 | 216 | |
+
+**§14.7 (6) is wrong, and this is the measurement that corrects it.** It ranked
+data-symbol addressing **last** — *"the largest share of the bucket and, at 0.0 %
+whole-body complete, the last place to expect census movement"*. That was a true
+statement about the form **alone** and a misleading one about the *row*: paired
+with the plain call it opens and the pointer arguments that call takes, it is the
+**largest reachable block in the bucket**, at 21,642. The 0.0 % reading was not
+wrong, it was one-dimensional.
+
+### 16.4 The finding nobody was looking for: `chained` undercounts chains by ~4.4×
+
+The `chained` sub-bucket is 8,001 functions. **`chain-bind` appears as a second
+blocker 35,520 times**, and the two are the *same source construct*. Controlled
+witness, one probe pair, two functions differing only in the presence of an
+assignment destination:
+
+```cpp
+int c_ret(O* p) { return p->Next()->Get(); }          // -> recv-load-then-chain-bind-whole
+int c_asg(O* p) { int x; x = p->Next()->Get(); return x; }   // -> chained-whole
+```
+
+Both are `26 <Get> 26 <Next> B9 <p> 99 … 4C 99 … 4C`, byte for byte, two links.
+But `mod.rs`'s statement dispatch treats a statement-head `26 <tok>` as an
+**assignment destination**, so in the return-position form it eats the outer
+method push and `parse_expr` starts one `26` later — where exactly one method is
+stacked, which is `recv-load`. §9.2 recorded that "statement position, not
+construct, decides which bucket a whole function lands in"; §14.5 guarded against
+repeating it *inside* the bucket, and it turns out D2's **form classification
+itself** still has it, one level up, for every chain in a value position.
+
+So the chain population is `chained` 8,001 + 35,520 = **43,521 functions, 16.2 %
+of the bucket** — the second largest production in it after `recv-object`, and
+D2's table put it at 2.8 %. §14.4 already caught §2 over-estimating chains by 6×;
+this is the correction in the other direction.
+
+D4 also gives `chained` the production D2 left unwritten (§14.6 listed its
+completeness as UNMEASURED), so the form is now measured. **MEASURED and worth
+recording: `chained-whole` is 0 on the workload** — 7,895 of the 8,001 block next
+on `type-ptr` and then on `off-add`. Real chains carry pointer arguments; the
+probe's `int`-only chain is not representative, which is §14.2's fourth caution
+again.
+
+### 16.5 What the instrument is, and its one asymmetry
+
+* **Furthest-refusal, not first-refusal.** The matcher speculates: at every value
+  position it tries the form's production first, and that attempt walks *into* a
+  call before finding the byte it cannot take. `Fail` keeps the deepest position
+  reached, so a body whose second statement is `q->o.Get()` records the refusal at
+  the sub-object address inside that call and files as `then-call-recv-field`, not
+  as a useless `then-op-0x26`.
+* **A `26` at the refusal is re-classified by `walk`**, D2's own backward
+  classifier, so a second blocker that is another member call is filed by *its*
+  receiver designator. A `26`-opened production whose *receiver* is wrong carries
+  the `26`'s own offset (`FailKind::Receiver`), because the receiver's first byte
+  is `2C` for a decayed string literal, `26` for a named object and `9B` for a
+  by-value temporary — three constructs that would otherwise become three
+  uninformative opcodes.
+* **The sharding gate holds.** `Block::aux` widened to `u64` (6 bits form + 17
+  payload + 1 whole + 6 blocker + 23 blocker payload + 3 grant count + 5 third-kind
+  = 61 bits) rather than being squeezed, because truncating an intrinsic selector
+  would silently **merge** two census buckets. Nothing per-TU is representable:
+  the only payloads are an intrinsic selector, a type *class*, an opcode byte and
+  a structural sub-kind. 431 keys over 878 TUs.
+* **The honesty gate composes.** `form_is_measured` gates the form; `blocker_is_measured`
+  gates the pair. A key with **neither** `-whole…` nor `-more` means the pair's joint
+  completeness does not exist as a number — it is not a measured incompleteness.
+  `branch`, `temp-bind`, `virtual`, `intrinsic-call`, `cmp-*`, `plumbing`, the
+  structural kinds and every `op-0xNN` are in that class: 51,810 functions.
+* **The one asymmetry, stated because it biases a number.** The first pass (D2's
+  `-whole`) uses D2's argument grammar verbatim — int-like operands only — so every
+  `-whole` count in §14.1 and §15.4 is reproduced exactly. The second and later
+  passes additionally admit the granted constructs *inside* argument regions,
+  because `gO.Set(p->Get())` blocks on a receiver form in an argument and a measure
+  that refused arguments would report `-more` for a body that only ever needed the
+  two. So `-whole<k>` is measured against a marginally looser frame than `-whole`,
+  in the argument-nesting dimension only. Both remain grammar upper bounds with no
+  codegen gate applied (§14.1's warning stands in full).
+* **The greedy chain is bounded at four grants** and stops early on an unmodelable
+  construct or on a construct that repeats (which would mean a production failed to
+  consume what the classifier named — a bug, not a body).
+
+### 16.6 What is NOT measured, labelled
+
+* **`op-0x9B`, 39,361 functions — still UNMEASURED at both levels, and now the
+  single largest unnamed thing in the census.** §14.6's characterization stands
+  (`9B <aggregate-TYPE> <tok>` binds a by-value returned temporary; `0x44`/`0x64`
+  sit between the cv strip and the bind and are undecoded), and D4 deliberately did
+  **not** decode it: making `9B` a receiver *form* requires the walk to treat a
+  depth-0 `32` store as non-decisive mid-statement, which would move functions
+  between D2 sub-buckets on a hypothesis rather than a measurement. Its shape is
+  now visible from the other side too — `call-op-0x9B` is a second blocker 9,041
+  times, 8,343 of them in `recv-intrinsic-this-adjust` — so a rung that decodes it
+  buys information in two places at once. **This is the largest thing on the
+  worklist whose size is not yet known.**
+* **`op-0x80` (579) and `op-0x08` (234) — possible desync, uncharacterized.**
+  Neither byte appears as a first blocker anywhere else in the census, only as a
+  D4 second blocker inside `recv-intrinsic-this-adjust`, and `0x80` is the varint
+  escape byte. 813 functions, 0.3 % of the bucket. The residue *shape* argues
+  against a systemic problem (§16.2) but this is a labelled unknown, not a clean
+  bill of health.
+* **`type-ptr`'s 42,332 is a gate of the *measure* as much as of the port.**
+  `eat_int_operands` accepts int-like operands only, while `eat_admitted_type` at
+  the statement level already accepts pointers, so a pointer argument refuses in
+  one place and not the other. The narrower rule is the accepted class's
+  (`IntTailCall` and friends are graded on `int`), so the count is honest — but a
+  pointer argument is register-allocated exactly like an int, and this is the
+  cheapest 42,332-function construct in the table.
+* **`recv-object`'s two dominant rows are unreachable in different ways.**
+  `branch-0x39` at 23,632 needs basic blocks, a register allocator across them and
+  a `/Gy` layout — a phase, not a rung, and no production was written for it on
+  purpose. `type-ptr → call → …` at 19,645 is `-more`: three constructs deep and
+  still blocked.
+* **The polarity of `branch-0x39`** is undetermined (one probe pins `0x38` as
+  branch-if-false; `0x39`'s two wild witnesses establish that it is a branch, not
+  which way). A rule with one or two witnesses is a guess, and this one is
+  labelled.
+* **`off-add`'s 11,211 with 2 reachable is the clearest "looks reachable and is
+  not" in the table**, and the witness says why: `~X() { … delete mThing; }` needs
+  an off-add, a `30` indirect load, a conditional branch and a pointer store, in
+  that order, and the branch stops the chain.
+
+### 16.7 The order of work, re-ranked
+
+1. **`data-addr` + `plain-call` + pointer arguments** — **21,642** grammar-complete
+   bodies (1,063 at k = 1, 20,579 at k = 2), the largest reachable block in the
+   bucket. Needs: REFHI/REFLO on a data symbol, the `$SG…` `.rdata` COMDAT for a
+   string literal, an ordinary call as a value, and pointer-typed argument
+   operands. **No frames beyond what the port already emits and no control flow.**
+   This is §14.7 (6) promoted from last to first on a measurement.
+2. **Member-call chains** — **18,449** (17,667 of them at k = 1, across five
+   receiver forms), plus the `chained` bucket's own 8,001 once `type-ptr` is
+   handled. Needs a frame, `this` in a callee-saved register and one `bl` per link
+   — the shape §15.1's `q1` witness already showed the reference emitting and the
+   port refusing. Fix `mod.rs`'s statement dispatch at the same time or the census
+   will keep filing chains as `recv-load` (§16.4).
+3. **Decode `op-0x9B`** — 39,361 functions with no measurement at all, and 9,041
+   more visible as `call-op-0x9B` second blockers. Characterization first, exactly
+   as §14.7 (5) said; D4 raises its priority because it now blocks two rows.
+4. `recv-object` + `call-nested-call` (4,904 at k = 2, 2,335 at k = 3) and
+   `recv-object` × `type-ptr` (2,410 at k = 1).
+5. `recv-intrinsic-this-adjust` / `recv-field-off0` × `call-recv-field` (705 + 574)
+   — a destructor that destroys both a base and a member.
+6. **Control flow.** 23,731 functions in this bucket name a branch as their second
+   blocker, `cmp-*` another 3,772, and `body-0x29` (48,102) plus `body-0x67`
+   outside it. Nothing in this bucket is a *rung* for it; it is the next phase.
+
+### 16.8 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                     # 110 pass 0 fail 0 error
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                        # 45 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                        # 42 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                           # checked=3259 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16 \
+  --jsonl work/dc3-workload/scan-sb.jsonl
+# the probes (gitignored scratch; every function named in §16.2's witness column):
+#   work/sb/probes/s1.cpp   b_if (branch) · c_ret / c_asg (the chain pair) ·
+#                           a_str (plain-call) · o_add · a_ptr · r_ptr
+./target/release/c2rs census work/sb/probes/s1.cpp --keep-il work/sb/il/s1
+# the wild witnesses, at the workload's own flags:
+./target/release/c2rs census src/system/rndobj/Mesh.cpp   --flags-file work/dc3-workload/flags.txt \
+  --cwd ../dc3-decomp --keep-il work/sb/il/mesh
+./target/release/c2rs census src/system/hamobj/Ham.cpp    --flags-file work/dc3-workload/flags.txt \
+  --cwd ../dc3-decomp --keep-il work/sb/il/ham
+# work/sb/tools/segs.py splits a .ex on `4F 1F` and dumps whole segments matching a
+# byte pattern — the 40-byte census window is too narrow for a second blocker.
 ```
 
 Always difference the scans through **absolute** paths and print each one's row
