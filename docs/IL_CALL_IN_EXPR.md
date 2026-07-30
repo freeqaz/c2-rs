@@ -4,6 +4,16 @@
 > and what it yielded against the estimate made below.** Everything from §1 to
 > §12 is the characterization as written, unedited, so the estimate can be
 > compared with the outcome.
+>
+> **UPDATE (2026-07-30, `4e57207`): D2 is LANDED, and §14 is the bucket's actual
+> decomposition — 23 named sub-buckets over the full 878-TU corpus, each with the
+> fraction of it that is whole-body complete.** §14 supersedes §2's estimated
+> shares (§14.4 tabulates the corrections; two are wrong by 6× and 400×) and §11's
+> ranking (§14.7 replaces it). **Read §14.2 first if you are picking the next
+> rung**: the split found that the `66 <n>` class-pair descriptor's refs are LEB
+> ids and not the fixed pairs `shapes.rs` steps, which means D1 is refusing
+> textbook base-delegating destructors in every large TU for want of a five-line
+> fix.
 
 **Status: characterization only (2026-07-30). No code was changed.** The bucket
 is the #1 blocking feature on the real dc3 workload — **304,813 functions, 13.0%
@@ -620,6 +630,317 @@ acceptance, to split the remaining 286,240 by receiver form), then **D3**
 (delegation acceptance, whose census effect will appear in the
 `expr-load-type-xx43xx` rows and not here), then **D4** (data-symbol addressing —
 the first genuinely new codegen). D5/D6 are W11 proper.
+
+> **D2 is LANDED (`4e57207`, 2026-07-30) and §14 is its result.** The ranking in
+> §11 survives in outline and is wrong in its order: the two destructor
+> sub-shapes, not the receiver forms, are where the yield is, and §11 did not
+> know they existed as separate productions.
+
+---
+
+## 14. D2, landed — the bucket, decomposed and weighed
+
+`4e57207`. **Decode without acceptance**: `parse_expr` now walks the production a
+`0x26` opens and names the construct, and every path still returns a refusal.
+Verified against `work/dc3-workload/scan-10pct.jsonl` (878 rows, `fn_total`
+2,462,571, in class 246,162 = 10.00 %, `expr-call-in-expr` 286,240) with
+`work/dc3-workload/scan-d2.jsonl` from the same list, flags and `--cwd`:
+
+| | baseline | D2 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 246,162 (10.00 %) | 246,162 (10.00 %) | **0** |
+| mismatch / `match` TUs | 0 / 6 | 0 / 6 | 0 |
+| TUs whose per-TU in-class count moved | — | — | **0** |
+| TUs whose class moved | — | — | **0** |
+| `expr-call-in-expr` keys | 1 | **23** (+6 `-whole`) | — |
+| every **other** blocker bucket | — | — | **0 moved** |
+
+Fixture lane: `bench` 109 pass / 0 fail / 0 error; `/Ox` 44 match, `/O1` 41,
+`/O2` 41, `/Ox /Gy` 41, 0 mismatch in all four; `expr_sweep` checked=3009
+mismatches=0; `cargo test --workspace` green.
+
+### 14.1 The split, with the whole-body-complete fraction that ranks it
+
+`-whole` counts the functions whose **entire segment** would parse if that one
+form were admitted and nothing else changed (`mcall::whole_body_is_one_value`).
+It exists because §13.3 measured that census yield tracks whole-body completeness
+and not production coverage, and because a first-blocker count therefore cannot
+rank these rows: D1 turned 17,864 first blockers into 17,864 in-class functions,
+while the `.sy` rung turned 547,082 into 17,286. Read `-whole` as an **upper
+bound**: it is a grammar measure and applies none of the codegen-class gates (no
+`straight_line_is_out_of_class`, no `.sy` membership for a store destination, no
+register assignment for the receiver, no `/Gy` layout, and a pointer-typed result
+is admitted where the emitter has only been graded on `int`).
+
+| sub-bucket | functions | % of bucket | whole | % whole | what it is | reference codegen for the whole-body case |
+|---|---:|---:|---:|---:|---|---|
+| `recv-object` | 64,905 | 22.68 % | 8 | 0.0 % | member call on a **named data symbol** (`26 <sym> [2C]`) | `lis r11,gO@ha ; addi r3,r11,gO@l ; b ?Get` **[p1 `r_named`]** |
+| `data-addr` | 56,634 | 19.79 % | 1 | 0.0 % | a data symbol's **address** as a value (string literal, array decay, `&gA[k]`) | `lis ; addi r3,r11,… ; b` + the `$SG…` `.rdata` COMDAT for a literal **[p1 `a_str`/`a_arr`/`a_addr`]** |
+| `recv-load` | 51,086 | 17.85 % | 1 | 0.0 % | member call on a `B9` **pointer formal/local** | **`b ?Get`** — 4 bytes, the existing tail-call emitter **[p1 `r_load`/`r_ref`]** |
+| `op-0x9B` | 39,360 | 13.75 % | — | UNMEASURED | member call on a **by-value returned temporary** (`9B` binds it, opcode `0x44`/`0x64` undecoded) | frame + two `bl` **[p3 `t_byval`]** |
+| `recv-intrinsic-this-adjust` | 30,888 | 10.79 % | **10,469** | **33.9 %** | member call through intrinsic **2113** — dominated by the **generated destructor delegating to a base** | `b ??1Base@@QAA@XZ` at adjust 0 (§5) |
+| `recv-field` | 16,526 | 5.77 % | **2,816** | 17.0 % | receiver is a **sub-object address at a nonzero offset** (`33 <k≠0> 27 <T>`, no load) | `addi r3,r3,4 ; b ?Get` **[p3 `f_off4`, `??1HasMem4`]** |
+| `recv-field-off0` | 12,995 | 4.54 % | **6,234** | **48.0 %** | the same **at offset 0** — the address arithmetic emits nothing | **`b ?Get`** / **`b ??1MemA@@QAA@XZ`** **[p3 `f_off0`, `??1HasMem`]** |
+| `chained` | 8,000 | 2.79 % | 0 | 0.0 % | **two or more stacked method symbols** (`p->Next()->Val()`) | frame, one `bl` per link — W11 |
+| `data-read` | 3,896 | 1.36 % | 0 | 0.0 % | a data symbol **read** (`… 30 <T>`) | `lis ; lwz r3,gO@l(r11) ; blr` **[p1 `d_read`]** |
+| `recv-deref` | 1,072 | 0.37 % | 0 | 0.0 % | receiver **read from memory** (`… 27 <T> 30 <T>`) | `lwz r3,0(r3) ; b ?Get` **[p1 `r_thru`]** |
+| `nested-call` | 713 | 0.25 % | 0 | 0.0 % | a plain call as a value (`26 <fn> BD`) — **the production the bucket is named after** | frame + two `bl` **[p1 `n_call`]** |
+| `op-0x5C` · `op-0x99` · `op-0x67` · `op-0x64` · `op-0x05` · `op-0x09` · `op-0x59` | 127 | 0.04 % | — | UNMEASURED | honest residue: the walk met a byte it cannot tokenize | — |
+| `recv-intrinsic-vbase-upcast` (15) · `-base-member-addr` (6) · `-base-downcast` (6) | 27 | 0.01 % | 0 | 0.0 % | member call through the other class-layout intrinsics | — |
+| `recv-call` | 7 | 0.00 % | 0 | 0.0 % | receiver is a plain call's result (`G()->Val()`) | frame + two `bl` |
+| `other` | 4 | 0.00 % | — | UNMEASURED | a decisive token reached over a value the walk did not name | — |
+| **total** | **286,240** | 100 % | **19,529** | 6.8 % | | |
+
+**The single most useful line in that table is not a count, it is the pair of
+columns.** The three largest sub-buckets — 172,625 functions, 60 % of the bucket
+— are **0.0 % whole-body complete**. Admitting `recv-load` alone, whose whole-body
+case needs *zero new instructions*, would move on the order of **one** function.
+Meanwhile `recv-field-off0` is a fifth the size and **48 %** complete. §8's
+ranking by "expected in-class yield" put D5 (named-object receivers) above the
+destructor shapes on the strength of the share; the completeness column reverses
+that, and it is the same reversal §13.3 predicted would keep happening until it
+was measured.
+
+### 14.2 The measurement that matters more than the split: `66 <n>` is LEB, and D1 is losing functions to it
+
+Every 2113–2119 intrinsic call carries a class-pair descriptor `66 <n> <ref>×n`.
+`shapes.rs` steps it as **`1 + 2n` fixed bytes**, in `try_parse_base_member_load`
+and in D1's own `try_parse_empty_dtor_delegation`. That is what every small probe
+shows (`66 02 92 20 93 20`) and it is **wrong**: the refs are plain **LEB128 ids**,
+and in any TU with enough types they are three bytes.
+
+MEASURED, and found the way `GAPS.md` §6 says these are found — by a residue that
+made no sense. D2's first workload scan spread **17,757 functions over 197
+`op-0xNN` buckets** at 80–300 each, a flat distribution over almost the whole byte
+range, which is the fingerprint of reading payload as vocabulary. Every witness was
+a generated destructor from a large TU whose descriptor read
+`66 02 fb 8a 01 e0 91 01` — two three-byte refs. With LEB refs the same scan leaves
+**127 functions in 7 buckets**.
+
+Three readings, and what separates them:
+
+* **fixed 2 bytes** — agrees with `92 20`, `ad 20`, `a8 20` (every probe), and lands
+  two bytes short of the following `55` on `fb 8a 01`, `e0 91 01`, `ff ff 01`,
+  `d3 80 02`, `cd a5 02` (`src/App.cpp`, `src/lazer/game/Game.cpp`).
+* **a `read_token_var` token** — takes `fb 8a 01 …` as *four* bytes, because byte 1
+  has bit 7 set. Oversteps by one. Indistinguishable from LEB on every narrow
+  witness, which is why only the wide ones settle it.
+* **LEB128** — 2 bytes for `92 20`, 3 for `fb 8a 01`, and lands **exactly** on the
+  `55` argument push at every witness in both TU sizes. The marker is what pins the
+  width, the same way `41`/`55`/`4C 4B` pin `read_type`'s.
+
+**The consequence, and it is the top item on the worklist.** The wild witness
+`WILD_DTOR_WIDE_DESCRIPTOR` (`crates/c2-il/src/func/body/mcall.rs`,
+`src/App.cpp` at the workload's flags) is D1's skeleton **byte for byte** —
+selector 2113 in wide form, adjust offset 0, the `2C` strip, a void `BD`, zero
+explicit arguments, `5C 86 41 74 01`, `5E 01 21`, the plumbing reaching the segment
+end — and `try_parse_empty_dtor_delegation` refuses it solely because it steps the
+descriptor four bytes and lands mid-ref. D1's +17,864 was therefore measured
+**with this hole open**, and `recv-intrinsic-this-adjust-whole = 10,469` is its
+size, as an upper bound (D2's completeness matcher does not re-apply D1's own
+gates — the adjust offset being 0, the receiver being the bound `this`, the void
+result, the zero argument count — so the realized figure is below 10,469).
+
+**D2 deliberately does not fix `shapes.rs`.** Doing so changes *acceptance*, which
+is the one thing this rung is not allowed to do, and the fix wants its own scan and
+its own fixture. It is a ~5-line change (`eat_leb` over `n` refs, in the two
+places) and it is the next rung.
+
+### 14.3 The two destructor sub-shapes §5 did not know were separate
+
+§5 characterized the generated destructor as delegating to its **base** through
+intrinsic 2113. D2's `recv-field` rows are a **second, distinct** generated
+destructor: a class with **no destructible base and one destructible member**,
+whose receiver is `this + k` through a *plain* `27` byte-offset add with no
+intrinsic anywhere. Controlled witnesses, both `-whole`
+(`work/d2/probes/p3.cpp`, fixture profile, so the trailers read `5C … 11` /
+`5E 01 31`):
+
+```cpp
+struct MemA  { ~MemA(); int a; };
+struct HasMem  { ~HasMem();  MemA m; };            // member at offset 0
+struct HasMem4 { ~HasMem4(); int pad; MemA m; };   // member at offset 4
+HasMem::~HasMem() {}
+HasMem4::~HasMem4() {}
+```
+
+```text
+??1HasMem@@QAA@XZ:   4bfffff0  b ??1MemA@@QAA@XZ                       (4 bytes, one REL24)
+??1HasMem4@@QAA@XZ:  38630004  addi r3,r3,4
+                     4bffffe4  b ??1MemA@@QAA@XZ
+```
+
+The offset-0 form is **byte-identical in shape to what D1 already emits**, and its
+IL differs from D1's only in the receiver designator: `B9 <this> <ptr> 33 <int> 0
+27 <ptr> 2C <ptr> 00` where D1 has the whole 2113 intrinsic frame. Same leading
+`33 <int> 0` literal, same `5C`/`5E` trailers, same plumbing.
+
+That is why the offset is in the bucket *name*. §5's D1 required the adjust offset
+to be 0 "because a base at a nonzero offset costs a real `addi r3,r3,k`", and a
+`recv-field` bucket that merged the two could not say what fraction of it was
+decode-only. Split: **`recv-field-off0` 12,995 / 6,234 whole (48.0 %)** and
+**`recv-field` 16,526 / 2,816 whole (17.0 %)**.
+
+One thing the split cost, recorded because it is a real fact and not an artifact:
+merging the offsets, the completeness matcher counted **9,624**; split, it counts
+6,234 + 2,816 = **9,050**. The **574** difference is bodies containing member
+calls at *both* a zero and a nonzero offset — a destructor with two destructible
+members — which need both forms and are complete under neither alone.
+
+### 14.4 Corrections to §2's estimated shares
+
+§2's shares came from a 40-TU cluster sample classified by byte signature, and
+warned "treat every share as ±5 points". Against the full 878-TU census:
+
+| §2 row | §2 estimate | MEASURED | verdict |
+|---|---:|---:|---|
+| named-object receiver | 20.7 % (+2.9 % no-convert) | **22.68 %** | confirmed |
+| data-symbol address as a call argument | 17.7 % | **19.79 %** | confirmed |
+| loaded receiver, incl. designator chains | 24.1 % | recv-load 17.85 % + recv-deref 0.37 % + recv-field(both) 10.31 % = **28.5 %** | confirmed in total; the *split* is new |
+| class-layout-intrinsic receiver | 17.0 % | **10.81 %** | **over-estimated by 6 points** — the sample's destructor density was already known to be unrepresentative (§13.2) |
+| **chained** member calls / call-result receivers | **17.7 %** | **chained 2.79 % + recv-call 0.00 %** | **over-estimated by a factor of 6.** §2's `26 26 …` byte signature counted a *named-object* receiver (`26 <method> 26 <sym>`) as a chain. D2 counts stacked **methods**, excluding a `26` followed by `BD` (a callee push, not a method) and excluding the trailing `26 <sym>` when the receiver is itself the symbol. `G().Val()` therefore has one method, not two. |
+| plain nested call | 0.2 % | **0.25 %** | confirmed — the misnomer is measured |
+| residue: `9B` temporary (5 sites), virtual `67` (1) | 0.03 % | **`op-0x9B` 13.75 %** | **under-estimated by 400×.** The sample saw five `9B` sites; the corpus has 39,360. A member call on a by-value returned temporary is the *fourth largest* production in the bucket. |
+| data-symbol read/store | 2.5 % | **data-read 1.36 %** | halved; §7.2's store form does not reach this bucket at all (see below) |
+
+Two structural corrections:
+
+1. **§7.2's data store is not in this bucket.** A statement-head `26 <dst-sym>` is
+   consumed by the body dispatch as an assignment destination and never reaches
+   `parse_expr`, so `gS.b = a;` files under `expr-convert` / `expr-op-0x27`. D2
+   has no `data-store` sub-bucket for that reason, and the four `other` functions
+   are the nested case (`f(gS.b = a)`), which the walk cannot separate without a
+   model of nested assignment it does not have. UNMEASURED, 4 functions.
+2. **Virtual dispatch is not in this bucket either.** `x = p->VGet();` opens on
+   `67` in the right-hand side and files as `expr-op-0x67` (probe p2 `v_virt`);
+   the 14 `expr-call-in-expr-op-0x67` functions are a `67` met *inside* another
+   expression.
+
+### 14.5 What the keys are, and how they avoid the two instrument failures
+
+`GAPS.md` §6 records **sharded keys** (a per-TU id in a key name splits one class
+into hundreds of buckets) and **mis-attribution** (a function filed by the position
+the parse stopped at, not by the construct). Both are guarded structurally, not by
+intention:
+
+* **Sharding.** `Block::ctx` is a `&'static str` and every detail lives in the
+  `u32` `Block::aux`, laid out as 6 bits of form discriminant, 17 bits of payload,
+  and 1 completeness bit. Nothing per-TU is *representable* in that layout. The
+  walk reads operand tokens, inline TYPE ids, function-type ids and the
+  class-pair descriptor's type refs — all per-TU — and none of them reaches a key.
+  The only payloads that do are an intrinsic **selector** (a fixed c1xx-internal
+  enum, shared across TUs, named by `intrinsic_name`) and a raw **opcode byte** in
+  the residue. So the bucket count is bounded by the grammar: 23 keys over 878 TUs.
+  `per_tu_identifiers_do_not_shard_the_bucket` retags a function-type id and an
+  inline TYPE id in a witness and asserts the key does not move.
+* **Mis-attribution.** The key is not the byte the walk ended on; it is the form of
+  the **value the decisive token consumed**. A member call is filed by its receiver
+  designator wherever in the statement it sits: probe `r_load` (`x = p->Get();`, an
+  assignment right-hand side) and probe `r_arg` (`x = g1(p->Get());`, a
+  call-argument region) are the same construct in the same bucket, and only their
+  completeness bits differ. `statement_position_does_not_change_the_bucket` pins
+  that. It matters because §9.2 is the same failure one level up — statement
+  position, not construct, decides which bucket a whole *function* lands in — and
+  repeating it inside the bucket would have measured the parser instead of the
+  corpus.
+
+The classification is a **forward width-complete walk with a backward decision**,
+and that is the design's one non-obvious choice. The method symbols stack LIFO, so
+`26 <A> 26 <B> 2C … 99` has `B` as the receiver while `26 <A> 26 <B> B9 … 99` has
+`B` as a second method: the head run of `26` pushes cannot be split into methods
+and a receiver by looking forward. The walk does not try. It remembers only the
+**last value-producing token**, which is by definition the operand-stack top the
+`99` binds, so the ambiguity never has to be resolved. A `2C` convert deliberately
+does *not* update it — a cv-strip or pointer decay leaves the same value, and the
+receiver's form is the form of what it converted.
+
+Fields required literally, each because it never varied across the witnesses and a
+field that never varied is indistinguishable from a constant: the `28`
+byte-offset add's `00 00` trailer; the two `(5C, 5E)` destructor trailer flag pairs
+(copied from D1, not re-derived); cdecl (`00`) as the calling convention.
+
+### 14.6 The residue, and what is UNMEASURED
+
+* **`op-0x9B`, 39,360 functions — the largest thing in this bucket that has no
+  name.** Controlled witness (probe p3 `t_byval`, `x = GetV().Val();`): the method
+  is pushed, then `9B <aggregate-TYPE> <tok>` binds a temporary, the call stores
+  its by-value result into it, a second `9B` re-binds it, and opcode **`0x44`**
+  sits between the cv strip and the `99`. Real sites also carry **`0x64`**. Neither
+  `9B`'s role nor `44`/`64` is decoded, so the key stays hex — a hex bucket is a
+  result, a guessed name is not. Its whole-body completeness is UNMEASURED: no
+  grammar was written for it.
+* **`op-0x5C` (81), `op-0x99` (19), `op-0x67` (14), `op-0x64` (9), `op-0x05` (2),
+  `op-0x09` (1), `op-0x59` (1) — 127 functions total.** Honest residue.
+* **Completeness is UNMEASURED, not zero, for** `chained`, `recv-other`,
+  `intrinsic-*` (an intrinsic result consumed with no bind), `other`, `op-0x**`
+  and `eof`. `mcall::form_is_measured` gates that explicitly so a missing grammar
+  cannot be read as a measured 0 %.
+* **Unverified claim, labelled.** `recv-intrinsic-this-adjust-whole = 10,469` is
+  an upper bound on the D1-descriptor fix's yield, argued from one hand-checked
+  wild witness plus the fact that D2's matcher is strictly looser than D1's
+  grammar. The realized figure has not been measured and will only be known from
+  the scan after the fix.
+* **`recv-object`'s 64,905 at 0.0 % complete is a grammar result, not a claim
+  about what those bodies contain.** They are multi-statement (the `src/system/world/Dir.cpp`
+  witness has three member-call statements, an aggregate `30` load, and opcodes
+  `5D`/`44`), and no attempt was made to characterize *what else* blocks them.
+  That is the next measurement anyone ranking D5 should take.
+
+### 14.7 The order of work, re-ranked by yield per unit of work
+
+1. **`66 <n>` as LEB in `shapes.rs`** — ~5 lines, no new grammar, no new codegen,
+   and it unblocks D1's existing accepted shape in every large TU. Up to **10,469**
+   functions (§14.2, upper bound). Nothing else on this list has that ratio.
+2. **`recv-field-off0` for the generated destructor** — decode into the existing
+   `b <callee>` emitter, zero new instructions, codegen witness `??1HasMem`
+   (§14.3). Up to **6,234**. The grammar is D1's with the 2113 frame replaced by
+   `33 <int> 0 27 <ptr>`, so it lands inside D1's skeleton rather than beside it.
+3. **`recv-field` at a nonzero offset** — the same plus one `addi r3,r3,k`. Up to
+   **2,816**, and 574 bodies need it *together* with (2).
+4. **`recv-load` as a tail call** (D3 in §11) — its whole-body case emits a bare
+   `b` with no new instructions, and its **whole-body-complete count in this bucket
+   is 1**. Its yield is real but it lives in the `expr-load-type-xx43xx` rows, not
+   here; §11 already said to expect the delta there, and §14.1's `-whole` column is
+   the evidence that expecting it *here* would be wrong.
+5. **`op-0x9B`, the by-value temporary receiver** — 39,360 functions and no
+   grammar at all. The cheapest thing available is *characterization*, not
+   implementation: decode `9B`/`44`/`64` far enough to split it the way this rung
+   split the parent bucket, and measure its completeness before costing it.
+6. **D4, data-symbol addressing** — `recv-object` 64,905 + `data-addr` 56,634 +
+   `data-read` 3,896 = 125,435 functions, all needing REFHI/REFLO on data symbols
+   and (for string literals) the `$SG…` `.rdata` COMDAT. It is the largest share of
+   the bucket and, at 0.0 % whole-body complete, the *last* place to expect census
+   movement from: the addressing is a prerequisite for those bodies, not a
+   sufficient condition.
+7. **`chained` (8,000) and `nested-call` (713)** — W11 proper.
+
+### 14.8 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                     # 109 pass 0 fail 0 error
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                        # 44 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                        # 41 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                           # checked=3009 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16 \
+  --jsonl work/dc3-workload/scan-d2.jsonl
+# the probes (gitignored scratch; sources listed in §14.1's witness column):
+#   p1  receiver forms in an assignment RHS + the data-symbol pushes
+#   p2  chains, call-result and intrinsic receivers, virtual, static, const object
+#   p3  the offset-0 / offset-4 field receiver and both generated-destructor twins
+./target/release/c2rs census work/d2/probes/p3.cpp --keep-il work/d2/il/p3
+./target/release/c2rs compile work/d2/probes/p3.cpp --keep-obj work/d2/p3.obj
+python3 work/expr/tools/objdis.py work/d2/p3.obj
+```
+
+Always difference the scans through **absolute** paths and print each one's row
+count and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several
+reflinked worktrees with different contents, and reading one through a relative
+path has already produced a published wrong number in this project.
 
 ### 13.7 Reproduction
 
