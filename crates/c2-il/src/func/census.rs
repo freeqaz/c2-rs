@@ -1,6 +1,6 @@
 use super::body::{
-    call_tokens, parse_segment_detail, BodyShape, DtorSubObject, CALLEE_UNRESOLVED_DTOR,
-    CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_TAIL, OPT_MODE,
+    self, call_tokens, parse_segment_detail, BodyShape, DtorSubObject, CALLEE_UNRESOLVED_DTOR,
+    CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL, OPT_MODE,
 };
 use super::bundle::mangled_is_varargs;
 use super::bundle::{opt_word_at, opt_word_mode};
@@ -234,6 +234,16 @@ impl IlBundle {
                                 FnVerdict::InClass("multiarg-tail-call")
                             }
                             Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
+                            // Class A many-calls. Split by tail so the rung's gain
+                            // can be attributed to the production that earned it
+                            // rather than to their sum.
+                            Ok(BodyShape::CallSeq { tail, .. }) => {
+                                FnVerdict::InClass(match tail {
+                                    body::SeqTail::Void => "call-sequence",
+                                    body::SeqTail::CallValue { .. } => "call-sequence-value",
+                                    body::SeqTail::Lit(_) => "call-sequence-lit",
+                                })
+                            }
                             Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
                             Ok(BodyShape::EmptyBody) => FnVerdict::InClass("empty-body"),
                             Ok(BodyShape::IndirectLoad { .. }) => {
@@ -276,6 +286,9 @@ impl IlBundle {
                                 None => FnVerdict::Blocked(Block {
                                     ctx: match label {
                                         "framed-call" => CALLEE_UNRESOLVED_FRAMED,
+                                        l if l.starts_with("call-sequence") => {
+                                            CALLEE_UNRESOLVED_SEQ
+                                        }
                                         l if l.starts_with("empty-dtor") => {
                                             CALLEE_UNRESOLVED_DTOR
                                         }
@@ -374,7 +387,7 @@ mod tests {
         ex.extend_from_slice(&seg_head());
         ex.extend_from_slice(MVP_CALL);
         ex.extend_from_slice(&seg_head());
-        ex.extend_from_slice(TWO_CALLS);
+        ex.extend_from_slice(CALL_THEN_STMT);
         let bundle = crate::IlBundle {
             base_name: "t".into(),
             files: vec![

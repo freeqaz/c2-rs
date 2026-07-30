@@ -538,11 +538,22 @@ one. The §4.4 stride refutation is therefore latent, not live.
 
 Sized by what each rung needs that the previous one did not:
 
-1. **Class A, many calls, no saved registers** — `void`/discarded-result call
-   sequences. Needs nothing new: the 96-byte frame, the shipped prologue, one
-   REL24 per call, and the `.pdata` word already computed from the text length.
-   The symbol-order rules of §4.1 are needed the moment a body calls two
-   different functions, and they are cheap.
+1. ~~**Class A, many calls, no saved registers**~~ — **DONE 2026-07-30**
+   (`docs/ROADMAP.md` §6i, byte evidence in `docs/CODEGEN_PPC_MVP.md` §"Class A
+   many-call bodies"). The sizing above was right: the 96-byte frame, the shipped
+   prologue, one REL24 per call, the `.pdata` word from the text length, and
+   §4.1's symbol order. Three things this section did not say, each of which
+   would have been a mis-emit if assumed:
+   * **A lone statement call is TAIL-called** — `void f(int a){ g(a); }` is a bare
+     `b ?g`, five sections, no frame. So the class boundary is "is there anything
+     after the call", not "are there two calls".
+   * **The last call of a framed body is not** — `int f(){ g1(); return g2(); }`
+     ends `bl ?g2 ; addi r1,r1,96 ; … ; blr`.
+   * §4.1's reverse-first-reference order **also holds packed**, which was
+     measured here only under `/Gy`, and the label stride is unchanged at 4 / 5:
+     the call count does not enter the counter.
+   Class A is exactly "no formal is read after the first call"; anything else
+   needs `r31` and is rung 4 below.
 2. **Argument marshalling** (§3.2). Self-contained, no frame change while the
    widest call has ≤8 arguments, and the cycle-breaking rule is three lines.
    Do this before anything that saves registers.

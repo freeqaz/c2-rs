@@ -148,6 +148,49 @@ pub struct FramedCall {
     pub add_k: i32,
 }
 
+/// One call of a [`CallSeq`], with its callee resolved and its argument setup in
+/// whichever of the two forms the shared marshalling locator produced.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SeqCall {
+    /// The callee's mangled name (from `.gl`), e.g. `?g1@@YAXXZ`.
+    pub callee: String,
+    /// The argument operand stream, computed into r3 — empty for a nullary call,
+    /// `[Load(t)]` for a passthrough, `[Load, Lit, Add]` for `g(a + 1)`, `[Lit]`
+    /// for `g(7)`. Mutually exclusive with [`Self::arg_sources`].
+    pub arg_ops: Vec<IlOp>,
+    /// A 2+-argument call's register permutation over the formals, exactly as
+    /// [`IlFunction::arg_sources`] carries it for a multi-argument tail call.
+    pub arg_sources: Option<Vec<usize>>,
+}
+
+/// What a [`CallSeq`] body does after its last call. See
+/// `c2_il::func::body::SeqTail`, of which this is the resolved twin.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SeqTail {
+    /// Nothing — the body returns void.
+    Void,
+    /// The last call's result is returned, plus `add_k` (`addi r3,r3,k`, elided
+    /// when 0).
+    CallValue { add_k: i32 },
+    /// `return <literal>;` — one `li r3,k`.
+    Lit(i32),
+}
+
+/// **Class A many-calls** (#35 step 2, rung 1): a framed body that is a sequence
+/// of statement-position calls with **no value live across any call**, so nothing
+/// is callee-saved and the frame is the shipped 96-byte Class A one.
+///
+/// The whole body is `prologue · (setup_i · bl callee_i)* · tail · epilogue`, and
+/// every `bl` is its own REL24 site — which is why `c2_core::coff::Function`
+/// carries a *list* of calls rather than an `Option`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CallSeq {
+    /// Every call in `.text` order; at least two, or one with a non-void tail
+    /// (a lone statement call with nothing after it is tail-called instead).
+    pub calls: Vec<SeqCall>,
+    pub tail: SeqTail,
+}
+
 /// A relational operator, as encoded by a single `.ex` operand-stream opcode.
 ///
 /// The opcode is **sign-agnostic** — signed and unsigned probes emit the same
@@ -314,6 +357,12 @@ pub struct IlFunction {
     /// callee + post-op literal. Distinct from `tail_call` (which is a bare
     /// `b g`). W4b2: single-function TU, single external only.
     pub framed_call: Option<FramedCall>,
+    /// If this function is a **Class A many-call body** (`void f(){ g1(); g2(); }`
+    /// and friends), the call list and what follows them. Framed like
+    /// [`Self::framed_call`] — same 96-byte frame, same `.pdata` record, same
+    /// label stride — but with one REL24 site per call instead of one.
+    /// [`Self::params`] carries the formals the first call's arguments index.
+    pub call_seq: Option<CallSeq>,
     /// If this function is a **comparison leaf** (`return a <rel> k;`, W6), the
     /// decoded comparison. Mutually exclusive with the other body kinds.
     pub compare: Option<CompareLeaf>,
@@ -362,6 +411,14 @@ impl IlFunction {
     /// floating-point leaf **2**, or 4 with one pooled constant and 6 with two;
     /// a comparison leaf 1 or 3 by relation ([`CompareLeaf::label_slots`]).
     ///
+    /// **A Class A many-call body is the same 5 / 4.** Measured with a two-function
+    /// TU of two-call bodies (`void f1(){g1();g2();} void f2(){g3();g1();}`): under
+    /// `/Gy` `f1` is `$M2553/$M2554/$T2555` and `f2` `$M2558/$M2559/$T2560` — a
+    /// stride of 5 against a `.gl+7` seed of 2538 (`2538 + 9 + 3·2 = 2553`); packed
+    /// the same TU gives 2547 and 2551, a stride of 4. A leaf ahead of a two-call
+    /// framed function still costs 1. So the call *count* does not enter the
+    /// counter; framedness does.
+    ///
     /// **The framed `/Gy` value is 5 only for a frame with no save/restore
     /// helper.** A framed function that uses the `__savegprlr_N`/`__restgprlr_N`
     /// pair consumes **two extra slots, allocated before its own `$M` pair**, so
@@ -372,8 +429,35 @@ impl IlFunction {
     /// describes. It becomes a wrong-bytes emit the moment #35 step 2 admits a
     /// framed function with ≥3 saved GPRs — the stride correction and the helper
     /// codegen have to land together.
+    /// True iff this function establishes a **stack frame** — it gets a `.pdata`
+    /// record, a `$M`/`$M`/`$T` label triple, and the framed label stride.
+    ///
+    /// One predicate, asked by every TU-level gate that cares, so adding a framed
+    /// shape cannot leave one of them behind. Both framed shapes are non-leaf
+    /// calls whose result (or whose successor statement) outlives the `bl`.
+    pub fn is_framed(&self) -> bool {
+        self.framed_call.is_some() || self.call_seq.is_some()
+    }
+
+    /// Every external this function calls, in **first-reference order** — which is
+    /// the order the symbol table's per-function region is built from (reversed;
+    /// `docs/OBJ_GY_SHAPES.md` §3.3). Duplicates are kept: a body may call the same
+    /// callee twice and each site needs its own REL24, while the *symbol* is
+    /// emitted once.
+    pub fn callees(&self) -> impl Iterator<Item = &str> {
+        self.tail_call
+            .as_deref()
+            .into_iter()
+            .chain(self.framed_call.as_ref().map(|c| c.callee.as_str()))
+            .chain(
+                self.call_seq
+                    .iter()
+                    .flat_map(|s| s.calls.iter().map(|c| c.callee.as_str())),
+            )
+    }
+
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {
-        if self.framed_call.is_some() {
+        if self.framed_call.is_some() || self.call_seq.is_some() {
             return Some(if fn_level_linking { 5 } else { 4 });
         }
         if let Some(c) = &self.compare {
@@ -898,6 +982,103 @@ pub(crate) mod test_fixtures {
     // production). It used to carry its own copy of the argument validation, and
     // the copy was missing a gate at each of these two points. Both transcribed
     // verbatim from live `/Ox /GS- /c` captures.
+
+    // ---- Class A many-calls (#35 step 2, rung 1) -----------------------------
+    //
+    // All six transcribed verbatim from live `/O1 /GS- /c` captures, each beside
+    // the `.text` the same source produced.
+
+    /// `void g1(int); void g2(); void f(int a){ g1(a); g2(); }` — two statement
+    /// calls, the formal dying at the first, nothing saved:
+    ///
+    /// ```text
+    ///   mflr r12 ; stw r12,-8(r1) ; stwu r1,-96(r1)
+    ///   bl ?g1 ; bl ?g2
+    ///   addi r1,r1,96 ; lwz r12,-8(r1) ; mtlr r12 ; blr
+    /// ```
+    pub(crate) const SEQ_TWO_VOID: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE7, 0x09, // stmt start, fn push
+        0x46, 0x2D, 0xE6, 0x09, // formals: a
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE4, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // g1
+        0xB9, 0xE6, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C, // arg a, call-end
+        0x4B, // result discarded — a STATEMENT call
+        0x26, 0xE5, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x03, 0x10, 0x00, 0x00, // g2
+        0x4C, 0x4B, // no arguments, discarded
+        0x3A, 0xE8, 0x09, 0x54, 0x02, 0x29, 0xE8, 0x09, // void return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
+    ];
+    /// `void g1(int); int f(int a){ g1(a); return 5; }` — one statement call and a
+    /// literal return: `bl ?g1 ; li r3,5 ; <epilogue>`. Framed on **one** call,
+    /// which is why the class boundary is "is anything after the call", not "are
+    /// there two calls".
+    pub(crate) const SEQ_ONE_THEN_LIT: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE6, 0x09, // stmt start, fn push
+        0x46, 0x2D, 0xE5, 0x09, // formals: a
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE4, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // g1
+        0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C, 0x4B, // arg a, stmt
+        0x33, 0x86, 0x41, 0x74, 0x05, // LIT 5
+        0x41, 0x86, 0x41, 0x74, // result-type int
+        0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, // return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
+    ];
+    /// `int g1(); int g2(); int f(){ g1(); return g2(); }` — the last call's value
+    /// IS the result and it is **not** tail-called: `bl ?g1 ; bl ?g2 ;
+    /// addi r1,r1,96 ; … ; blr`.
+    pub(crate) const SEQ_CALL_VALUE: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE5, 0x09, 0x46, // stmt start, fn push, no formals
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE3, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // g1
+        0x4C, 0x4B, // discarded
+        0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // g2
+        0x4C, // call-end, result CONSUMED
+        0x41, 0x86, 0x41, 0x74, // result-type int
+        0x3A, 0xE6, 0x09, 0x54, 0x02, 0x29, 0xE6, 0x09, // return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
+    ];
+    /// `void g1(); int g2(); int f(){ g1(); return g2() + 1; }` — the same, with
+    /// the `addi r3,r3,1` post-op the single framed call already carried.
+    pub(crate) const SEQ_CALL_VALUE_PLUSK: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE5, 0x09, 0x46, // stmt start, fn push, no formals
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE3, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // g1
+        0x4C, 0x4B, // discarded
+        0x26, 0xE4, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x02, 0x10, 0x00, 0x00, // g2
+        0x4C, // call-end, result CONSUMED
+        0x33, 0x86, 0x41, 0x74, 0x01, 0x02, // post-op LIT 1 + ADD
+        0x41, 0x86, 0x41, 0x74, // result-type int
+        0x3A, 0xE6, 0x09, 0x54, 0x02, 0x29, 0xE6, 0x09, // return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
+    ];
+    /// `void g1(int); void g2(int); void f(int a,int b){ g1(a); g2(b); }` — the
+    /// Class A **boundary**: `b` is read after the first call, so it must survive
+    /// one, and c2 puts it in `r31` behind a `std`/`ld` pair (Class B, 5-word
+    /// prologue, 11-word epilogue). Must refuse — `callseq-value-live-across-call`.
+    pub(crate) const SEQ_LIVE_ACROSS: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE9, 0x09, // stmt start, fn push
+        0x46, 0x2D, 0xE8, 0x09, 0x2D, 0xE7, 0x09, // formals, REVERSED: b, a
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE5, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // g1
+        0xB9, 0xE7, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C, 0x4B, // arg a, stmt
+        0x26, 0xE6, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // g2
+        0xB9, 0xE8, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C, 0x4B, // arg b, stmt
+        0x3A, 0xEA, 0x09, 0x54, 0x02, 0x29, 0xEA, 0x09, // void return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
+    ];
+    /// `void g1(int); void f(int a){ g1(a); }` — a **single** statement call with
+    /// nothing after it. c2 tail-calls it: a bare `b ?g1`, 5 sections, no frame.
+    /// Emitting the Class A frame here would be a mis-emit, so this is the control
+    /// for the sequence production's entry condition.
+    pub(crate) const SEQ_LONE_STMT_CALL: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE6, 0x09, // stmt start, fn push
+        0x46, 0x2D, 0xE5, 0x09, // formals: a
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x26, 0xE4, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // g1
+        0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C, 0x4B, // arg a, stmt
+        0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, // void return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
+    ];
 
     /// `int g(int); int f(int a,int b){ int z = g(b + a); return z; }` — a
     /// commutative argument expression in **non-canonical leaf order**.

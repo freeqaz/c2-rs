@@ -2089,6 +2089,148 @@ agree*, which is the argument for having a control group at all:
    "RAW-identical, wibo pins it" note is measured **back-to-back within one
    second** and is corrected in place.
 
+## 6i. Class A many-calls (#35 step 2, rung 1), 2026-07-30
+
+The first rung of §6g's handoff: a framed body with **more than one call and
+nothing live across any of them**. Byte evidence in
+`docs/CODEGEN_PPC_MVP.md` §"Class A many-call bodies"; the shapes and their
+neighbours are `fixtures/cpp/mvp_call_seq.cpp` (10/10 in class) and
+`mvp_call_seq_neg.cpp` (0/4, must refuse).
+
+**Two live wrong-bytes emits found, both on mainline, neither about this rung.**
+That is the headline; the coverage is not.
+
+1. **`int f(int a,int b){ int z = g(b + a); return z; }` emitted
+   `add r3,r4,r3` for `add r3,r3,r4`.** The call-argument validation existed in
+   **two copies** — the direct `return g(…)` form and the bound-to-a-local form —
+   and each was missing a gate the other had. The bound copy never asked
+   `leaves_ascending` (c2 canonicalizes a commutative argument's leaves, so
+   `g(a+b)` and `g(b+a)` are the same obj), and it never got the
+   `call-arg-outer-formal` gate either, so `int z = g2(a, c); return z;`
+   **panicked** `c2rs census` with the same out-of-bounds index that was fixed in
+   the other copy when it was found. `GAPS.md` §6 instance 9. Both closed by
+   making the two copies one (`tail_call_shape`).
+2. **A multi-argument permutation with a cycle longer than three.** The
+   single-temp cycle walk is right at cycle length 2 and 3 and wrong past it:
+   measured over **complete** grids — all 24 four-argument permutations and all
+   84 single cycles of length 2–5 in a five-argument call — 0 of 30 wrong at
+   lengths 2–3, **10 of 30 at length 4 and 16 of 24 at length 5**. Past three c2
+   hoists a second save into r10 and reorders the writes.
+   `int f(int a,int b,int c,int d){ return a4(c,d,b,a); }` was
+   `Port=Mismatch @ 8` on mainline, in the plain tail call, with nothing framed
+   about it. `GAPS.md` §6 instance 10. Gated at the measured edge
+   (`call-arg-long-cycle`), because what c2 does past three is described by the
+   grid and not explained.
+
+Both were found by the practice §6g named: **compile the neighbours of the class
+you are about to widen.** 613 generated probe TUs, graded in both `/O1` and
+`/Ox`, now report 0 mismatch and 0 census/gate disagreement.
+
+**A third defect, in the census/gate direction that nothing tests.** A call
+argument is computed into r3 by `select_text`, so it is subject to exactly the
+same out-of-class rules as a leaf body — and those lived only in codegen for this
+position. `int f(int a){ return g(a * 5); }` censused 1/1 while the port refused
+(a constant multiply strength-reduces). Moved into the parser; zero functions on
+the workload, which is why the scan's disagreement counter never saw it.
+
+**What the rung admits**, each with byte evidence:
+
+* `void f(){ g1(); g2(); }` and any number of statement calls after it;
+* arguments per call through the *same* `select_text` / `permute_args_text`
+  locators every other call shape uses — a dying formal (`g1(a); g2();`), a
+  literal (`g1(1); g2(2);`), a computed value (`g1(a+1); …`), a permutation
+  (`g2(b,a); h();`);
+* three tails: nothing, `return <literal>;`, and the last call's value with the
+  optional `+ k` post-op the single framed call already carried;
+* an explicit trailing `return;`, which c2 records as a **second `3A <label>`
+  branch to the same label** and emits nothing for — the two objs are
+  byte-identical (1090 B each, compared whole). The label compare is the gate:
+  a real early return branches elsewhere.
+
+**What it refuses, by name.** `callseq-value-live-across-call` — a formal read
+after the first call has to survive one, and c2 answers with `r31` behind a
+`std`/`ld` pair. That is Class B and it is the next rung. Also
+`callseq-over-eight-formals`, `callseq-tail-lit-wide`, and (from the shared
+locator) `call-arg-long-cycle`.
+
+**Two boundary facts that would each have been a mis-emit if assumed:**
+
+* **A lone statement call IS tail-called.** `void f(int a){ g(a); }` is a bare
+  `b ?g` — five sections, no frame, no `.pdata`. So the class boundary is "is
+  there anything after the call", not "are there two calls":
+  `int f(int a){ g(a); return 5; }` is framed on **one** call.
+* **The last call of a framed body is NOT tail-called.** `int f(){ g1(); return
+  g2(); }` ends `bl ?g2 ; addi r1,r1,96 ; … ; blr`. The transform is off the
+  moment the function is framed.
+
+**Symbol order and label stride, both confirmed against captures rather than
+carried over.** A function's new callees are emitted in **reverse
+first-reference** order (`g1();g2();g3();` → `?g3 ?g2 ?g1` at indices 15/16/17,
+and the mirrored source refutes alphabetical and declaration order); a repeat
+introduces no second symbol and relocates against the first
+(`g1();g2();g1();` → two symbols, three REL24s); a callee an earlier function
+already introduced is not re-emitted. **The same order holds packed**, which
+`CODEGEN_FRAMED_CALLS.md` §4.1 measured only under `/Gy`. The label stride is
+**unchanged at 4 packed / 5 `/Gy`** — the call count does not enter the counter,
+framedness does: two two-call bodies in one TU are `$M2553`/`$M2558` against a
+`.gl+7` seed of 2538, and 2547/2551 packed.
+
+**Census: 427,655 → 428,147 (+492), 17.37 % → 17.39 %.** Estimated **0–800**
+before the code was written, biased high, upper-bounded at 4,503 (the
+`call-postop-0x4B` bucket — every function that reaches a discarded-result call
+before dying). Outcome 492, inside the band. The bias was the stated one: the
+census names only the *first* blocker, so every one of the 4,503 had at least one
+more construct to survive. 12,000+ functions moved between buckets for the 492
+that landed in class — `call-postop-0x4B` 4,503 → 0 and
+`call-multiarg-postop` 20,491 → 13,425 both drain into `callseq-tail-lit`
+(7,771) and `call-ref-0x3A` (5,335), which are now the two largest
+statement-call blockers and are the top of the handoff below.
+
+**Gate evidence** (workload tree `dc3-decomp` at `05ca6d09`, c2-rs at this
+branch, wibo `1.0.1-23-g4a9dd6f`, XDK `16.00.11886.00`): `cargo test
+--workspace` **398 pass / 0 fail**; `c2rs bench` **141 pass / 0 fail / 0
+error**; mode lanes over 141 fixtures `/Ox` **64**, `/O1` **62**, `/O2` **62**,
+`/Ox /Gy` **62**, **0 mismatch in all four**; the generated sweep **4,829 cases,
+0 mismatches**; 613 generated probe TUs in two modes, **0 mismatch, 0
+disagreement**; 878-TU scan match 6, **mismatch 0**, codegen-gap 0, port-error 0,
+capture-fail 7, **census/gate disagreement 0** — checked in the under-claiming
+direction too.
+
+### The handoff for the next rung, ranked and sized
+
+1. **`callseq-tail-lit` — 7,771 functions, the largest single statement-call
+   blocker.** The tail after the last statement call opens `33` (a literal) but
+   is not the plain `return <literal>;` this rung admits — a literal-anchored
+   *expression*. Sample the bytes at the blocking sites and group them by
+   production before sizing it further; it is one bucket holding several shapes,
+   exactly the thing §6 warns about.
+2. **`call-ref-0x3A` — 5,335.** The tail is a branch record the void return
+   plumbing does not accept. The *simplest* member of this family — an explicit
+   `return;`, recorded as a second `3A <label>` to the same label — is admitted
+   here and gained **0**, so the workload's 5,335 are a different shape: two
+   branch records to **different** labels, i.e. a real control transfer. Likely
+   an early return, which is the control-flow rung, not this one.
+3. **Class B (1–2 saved GPRs)** — unchanged from §6g's ranking and now with a
+   named refusal key to measure against (`callseq-value-live-across-call`, 2
+   functions on the workload as a *first* blocker, which understates it badly:
+   the shape is common and usually blocked earlier). The frame arithmetic and the
+   exact prologue/epilogue words are done and unit-pinned; the cost is the
+   liveness answer plus the register-assignment order, measured for `n = 2` and
+   **not monotone at `n ≥ 3`**.
+4. **Multi-argument calls with literal arguments.** c2 emits them in **descending
+   destination order** (`void f(){ g2(1,2); … }` → `li r4,2 ; li r3,1`), which is
+   captured; mixing a formal with a literal is **not**. Refused today as
+   `call-arg-computed`. Cheap, and it needs one capture grid.
+5. **The permutation order past a three-element cycle.** Instance 10's gate is
+   drawn at the measured edge. The full 24-row four-argument grid and the 84-row
+   five-argument one are in the working notes; what splits the four-cycles
+   four/two is visible in the data and unexplained. Whoever closes it should
+   enumerate cycle lengths, not add fixtures.
+6. **A wide literal tail.** `int f(){ g(); return 70000; }` refuses
+   (`callseq-tail-lit-wide`) although the straight-line class already emits
+   `lis`+`ori` for a bare wide constant. Under-claiming, not a gap — one
+   capture settles it.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp

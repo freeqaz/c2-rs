@@ -186,6 +186,43 @@ fn differential_mvp_wide_immediates_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
+/// **#35 step 2, rung 1 — Class A many-calls.** A framed body with more than one
+/// call and nothing live across any of them: `n` REL24 sites in one function, the
+/// callee externals in reverse first-reference order, one symbol per distinct
+/// callee however many sites reference it, and the same 96-byte frame, `.pdata`
+/// record and label stride the single framed call already had.
+///
+/// `mvp_call_seq.cpp` is nine framed functions in one TU, which is also the
+/// hardest case for the label counter (`3 × 9` up front, then `+5` each under
+/// `/Gy`); `mvp_call_twice.cpp` is the two-site / one-symbol minimum.
+#[test]
+fn differential_class_a_many_calls_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in ["mvp_call_seq.cpp", "mvp_call_twice.cpp"] {
+        let w = work("callseq");
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => {
+                assert_eq!(
+                    port,
+                    PortStatus::Match,
+                    "expected the port to be byte-exact on {name}, got {port:?}"
+                );
+            }
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}
+
 /// W4a: first relocation + external symbol. `mvp_call.cpp` is a single-function
 /// tail call (`void f(){g();}`) → `b g` with an IMAGE_REL_PPC_REL24 relocation
 /// to g's undefined external symbol. Proves the relocation records, the
@@ -369,8 +406,10 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         "mvp_call_submod.cpp",    // return g(a) - 1 — non-commutative post-op
         "mvp_call_mulmod.cpp",    // return g(a) * 5 — strength-reduced post-op
         "mvp_call_widemod.cpp",   // return g(a) + 70000 — wide post-op immediate
-        "mvp_call_twice.cpp",     // g(); g(); — a second terminal void call
-        "mvp_call_then_stmt.cpp", // g(); return a+1; — a statement after the call
+        // `mvp_call_twice.cpp` (`g(); g();`) used to be here — it is the Class A
+        // many-call shape now and is graded as a Match below.
+        "mvp_call_then_stmt.cpp", // g(); return a+1; — `a` is read AFTER the call,
+                                  // so it must survive one: Class B, not Class A
         "mvp_call_argframed_plusk.cpp", // g(a + 1) + 1 — in-arg arith + framed op
         "mvp_call_two_framed.cpp",      // g(a) + g(a + 1) — a second call in +
         "mvp_call_plus1plus2.cpp",      // g(a) + 1 + 2 — a two-literal post-op
@@ -389,6 +428,13 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // `int z = g2(a, c); return z;` **panicked** the census. Both now refuse
         // through the single `tail_call_shape` locator.
         "il_call_bound_neg.cpp",
+        // The Class A many-call neighbours: a value read after the first call
+        // (Class B, one saved GPR) and a multi-argument literal list.
+        "mvp_call_seq_neg.cpp",
+        // A multi-argument permutation with a cycle longer than three: c2 hoists
+        // a second save into r10 and reorders the writes. Live wrong bytes until
+        // the grid was measured — `il_call_multi.cpp`'s `cyc4a`/`cyc4b`.
+        "il_call_multi.cpp",
     ] {
         let w = work("oocreject");
         let port = PortC2::default();

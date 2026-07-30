@@ -7,7 +7,7 @@ use super::expr::{
     parse_formals, BODY_SCOPE_DEPTH,
 };
 use super::mcall;
-use super::{blk, Block, BodyShape, DtorSubObject};
+use super::{blk, Block, BodyShape, DtorSubObject, SeqCall, SeqTail};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, eat_value_type,
     is_ptr4_kind, is_ptr_to_4, read_token_var, read_type, read_varint, value_class,
@@ -2047,34 +2047,69 @@ pub(crate) fn try_parse_compare(seg: &[u8], start: usize, lo: usize) -> Option<B
     Some(BodyShape::Compare(cmp))
 }
 
-/// How many non-trivial cycles the argument permutation `sources` decomposes
-/// into. `sources[i]` is the formal index argument slot `i` wants, so a fixed
-/// point is a value already in place. Two or more disjoint cycles are refused by
-/// both call paths — c2 hoists every save (r11, then r10) and the one available
-/// capture does not pin the clobber-free order it then picks.
+/// The non-trivial cycles of the argument permutation `sources`, as
+/// `(count, longest)`. `sources[i]` is the formal index argument slot `i` wants,
+/// so a fixed point is a value already in place.
 ///
 /// `sources` must already have been proved to index inside itself
 /// ([`tail_call_shape`]'s `call-arg-outer-formal` gate); this walk indexes `seen`
 /// with an entry, so an out-of-range one **panics** rather than refusing. It did:
 /// see that gate's comment.
-fn permutation_cycles(sources: &[usize]) -> usize {
+fn permutation_cycles(sources: &[usize]) -> (usize, usize) {
     let n = sources.len();
     let mut seen = vec![false; n];
     let mut cycles = 0usize;
+    let mut longest = 0usize;
     for start in 0..n {
         if seen[start] || sources[start] == start {
             seen[start] = true;
             continue;
         }
         let mut at = start;
+        let mut len = 0usize;
         while !seen[at] {
             seen[at] = true;
+            len += 1;
             at = sources[at];
         }
         cycles += 1;
+        longest = longest.max(len);
     }
-    cycles
+    (cycles, longest)
 }
+
+/// The longest argument-permutation cycle `c2_core::codegen::permute_args_text`
+/// has been **verified** to lower, measured over complete grids rather than
+/// sampled: all 24 permutations of a four-argument call and all 84 single cycles
+/// of length 2–5 inside a five-argument one.
+///
+/// ```text
+///   cycle length 2    0 mismatch / 10 cases
+///   cycle length 3    0 mismatch / 20
+///   cycle length 4   10 mismatch / 30
+///   cycle length 5   16 mismatch / 24
+/// ```
+///
+/// Past three, c2 does not use the minimal single-temp walk the port emits. It
+/// hoists a **second** save into r10 and writes the destinations in a different
+/// order — `int f(int a,int b,int c,int d){ return a4(c,d,b,a); }` is
+///
+/// ```text
+///   7cab2b78  mr r11,r5      7cca3378  mr r10,r6
+///   7c661b78  mr r6,r3       7c852378  mr r5,r4
+///   7d445378  mr r4,r10      7d635b78  mr r3,r11      six moves, two temps
+/// ```
+///
+/// against the port's five-move single-temp walk — a **live wrong-bytes emit on
+/// mainline** (`Port=Mismatch @ 8`), independent of any framed shape. Twenty of
+/// the thirty four-cycles happen to agree with the minimal walk and ten do not,
+/// so "it worked on the fixtures" was luck of the sample: `il_call_perm.cpp` and
+/// `il_call_multi.cpp` between them hold no cycle longer than three.
+///
+/// The order c2 actually picks past three is **not characterized** — the six
+/// four-cycles split four/two on a property the grid describes but does not
+/// explain — so the boundary is drawn at the measured edge rather than fitted.
+pub(crate) const MAX_VERIFIED_PERM_CYCLE: usize = 3;
 
 /// **One locator for "are these call arguments a tail call this port can emit?"**
 /// — the validation and the shape construction for `return g(…)` in every
@@ -2160,8 +2195,15 @@ fn tail_call_shape(
                 return Err(refuse("call-arg-duplicated"));
             }
         }
-        if permutation_cycles(&arg_sources) > 1 {
+        let (cycles, longest) = permutation_cycles(&arg_sources);
+        if cycles > 1 {
             return Err(refuse("call-arg-multicycle"));
+        }
+        // Past a three-element cycle c2 stops using the minimal single-temp walk
+        // and hoists a second save into r10 — a live wrong-bytes emit, measured
+        // over the complete 4- and 5-argument grids ([`MAX_VERIFIED_PERM_CYCLE`]).
+        if longest > MAX_VERIFIED_PERM_CYCLE {
+            return Err(refuse("call-arg-long-cycle"));
         }
         return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
     }
@@ -2185,20 +2227,30 @@ fn tail_call_shape(
     if !arg_loads_are_formals(&arg_ops, &params) {
         return Err(refuse("call-arg-nonformal"));
     }
+    // The argument is computed into r3 by `c2_core::codegen::select_text`, the
+    // same selector a straight-line leaf's body goes through, so it is subject to
+    // **exactly the same** out-of-class rules — and those lived only in codegen for
+    // this position. Measured: `int f(int a){ return g(a * 5); }` censuses 1/1 and
+    // the port returns `NotImplemented` (a constant multiply strength-reduces to
+    // shifts and adds), on mainline, in both directions of every fixture lane. A
+    // census that over-claims is a broken instrument and the widening order is
+    // chosen from it, so the predicate is asked here instead of there.
+    //
+    // Zero functions on the 878-TU workload, which is why the scan's disagreement
+    // counter never saw it: it took a generated probe of the class's neighbours.
+    if let Some(ctx) = straight_line_out_of_class_ctx(&arg_ops, &params) {
+        return Err(Block { ctx, byte: None, off, aux: 0 });
+    }
     Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok })
 }
 
-/// Parse a call shape (already positioned at the `26 <tok>` function ref): the
-/// bare terminal void call, an integer tail call `return g(<arg>)` (passthrough
-/// or arg-setup, plus the `g(a)+0` identity fold), or the framed
-/// `return g(a) + k` (k ≠ 0). See [`parse_segment`] for the grammar;
-/// fail-closed at every step. `lo` locates the formals for the arg-setup.
-pub(crate) fn parse_call_shape(
-    seg: &[u8],
-    p: &mut usize,
-    lo: usize,
-    bound_to: Option<u32>,
-) -> Result<BodyShape, Block> {
+/// Consume one **call header** — `26 <callee-tok> BD <ret TYPE> <conv> <varint
+/// fn-type-id>` — and return the callee token.
+///
+/// Split out of [`parse_call_shape`] byte for byte so the statement-call sequence
+/// ([`parse_call_sequence`]) reads the second and later calls through the same
+/// decoder rather than a copy of it. Every refusal key is unchanged.
+fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     // 26 <tok> function/result ref.
     if !eat_byte(seg, p, 0x26) {
         return Err(blk(seg, *p, "call-ref"));
@@ -2252,30 +2304,15 @@ pub(crate) fn parse_call_shape(
     // `26 <tok>` symbol push instead, so this field is decoded only to find the
     // token's end, then discarded.
     read_varint(seg, p).ok_or(blk(seg, *p, "call-fn-type-id"))?;
+    Ok(callee_tok)
+}
 
-    // VOID terminal tail call: the `4C 4B` void call-end immediately follows the
-    // CALL token (no argument setup, no consumed value), then only return
-    // plumbing (no result type). `g();g();` and `g();return a+1;` fail here — a
-    // second `26` call or a `B9` statement stands where the return plumbing must.
-    if eat(seg, p, &[0x4C, 0x4B]) {
-        eat_return_plumbing(seg, p, false, BODY_SCOPE_DEPTH)?;
-        return Ok(BodyShape::VoidTailCall { callee_tok });
-    }
-
-    // INT call. The argument region is a **repetition**, not a single argument:
-    //
-    //     args := ( expr `55` <TYPE> )*  `4C`
-    //
-    // Each argument is a modeled sub-expression — a passthrough `B9 a INT`
-    // (→ `[Load]`) or an arg-setup like `a + 1` (→ `[Load, Lit, Add]`) — followed
-    // by `55 <TYPE>` carrying the *formal's* declared type, and the whole list is
-    // terminated by `4C`. Arguments appear in **reverse source order**, rightmost
-    // first (anchored on `parse_formals`, which reverses the `2D` stream so
-    // `params[0]` is its last token; `fixtures/cpp/il_call_args2.cpp` holds the
-    // `g2(a,b)` / `g2(b,a)` pair that separates the two readings).
-    //
-    // This used to accept exactly one argument, so every real call site blocked at
-    // the second `B9` — the largest single census bucket.
+/// Consume a call's **argument region** — `( expr 55 <TYPE> )* 4C` — and return
+/// one operand stream per argument, in stream order.
+///
+/// Split out of [`parse_call_shape`] byte for byte, for the same reason
+/// [`eat_call_head`] is. Every refusal key is unchanged.
+fn eat_call_args(seg: &[u8], p: &mut usize) -> Result<Vec<Vec<IlOp>>, Block> {
     let mut args: Vec<Vec<IlOp>> = Vec::new();
     loop {
         if eat_byte(seg, p, 0x4C) {
@@ -2299,6 +2336,84 @@ pub(crate) fn parse_call_shape(
             // Past the eighth the arguments are stack-homed, which needs a frame.
             return Err(Block { ctx: "call-args-overflow", byte: None, off: *p, aux: 0 });
         }
+    }
+    Ok(args)
+}
+
+/// The most formals a body this port emits may declare: past the eighth a
+/// parameter is stack-homed and reading it is `lwz rD,<slot>(r1)`, not a register
+/// move, which [`crate`]'s consumer `c2_core::codegen::select_text` refuses. Kept
+/// in the parser so the census and the gate cannot disagree about it (the
+/// under-claiming direction of `docs/GAPS.md` §6).
+const MAX_REGISTER_FORMALS: usize = 8;
+
+/// Parse a call shape (already positioned at the `26 <tok>` function ref): the
+/// bare terminal void call, an integer tail call `return g(<arg>)` (passthrough
+/// or arg-setup, plus the `g(a)+0` identity fold), the framed
+/// `return g(a) + k` (k ≠ 0), or — the moment a call's result is *discarded* and
+/// the body carries on — the Class A statement-call sequence
+/// ([`parse_call_sequence`]). See [`parse_segment`] for the grammar; fail-closed
+/// at every step. `lo` locates the formals for the arg-setup.
+pub(crate) fn parse_call_shape(
+    seg: &[u8],
+    p: &mut usize,
+    lo: usize,
+    bound_to: Option<u32>,
+) -> Result<BodyShape, Block> {
+    let callee_tok = eat_call_head(seg, p)?;
+
+    // VOID terminal tail call: the `4C 4B` void call-end immediately follows the
+    // CALL token (no argument setup, no consumed value), then only return
+    // plumbing (no result type).
+    //
+    // `g(); g();` and `g(); return a+1;` used to fail right here — a second `26`
+    // call or a `B9` statement stands where the return plumbing must. The first of
+    // those is now the Class A sequence below; the return-plumbing attempt is
+    // therefore made on a **copy** of the cursor, so a body that really is the
+    // single terminal call still takes this arm and still emits the bare `b g`.
+    if eat(seg, p, &[0x4C, 0x4B]) {
+        let mut q = *p;
+        if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
+            *p = q;
+            return Ok(BodyShape::VoidTailCall { callee_tok });
+        }
+        if bound_to.is_none() {
+            return parse_call_sequence(seg, p, lo, callee_tok, Vec::new());
+        }
+        // Preserve the original refusal for the bound-to-a-local production,
+        // which has no statement-sequence form.
+        eat_return_plumbing(seg, p, false, BODY_SCOPE_DEPTH)?;
+        unreachable!("the plumbing parse just failed on the same cursor");
+    }
+
+    // INT call. The argument region is a **repetition**, not a single argument:
+    //
+    //     args := ( expr `55` <TYPE> )*  `4C`
+    //
+    // Each argument is a modeled sub-expression — a passthrough `B9 a INT`
+    // (→ `[Load]`) or an arg-setup like `a + 1` (→ `[Load, Lit, Add]`) — followed
+    // by `55 <TYPE>` carrying the *formal's* declared type, and the whole list is
+    // terminated by `4C`. Arguments appear in **reverse source order**, rightmost
+    // first (anchored on `parse_formals`, which reverses the `2D` stream so
+    // `params[0]` is its last token; `fixtures/cpp/il_call_args2.cpp` holds the
+    // `g2(a,b)` / `g2(b,a)` pair that separates the two readings).
+    //
+    // This used to accept exactly one argument, so every real call site blocked at
+    // the second `B9` — the largest single census bucket.
+    let mut args = eat_call_args(seg, p)?;
+    // A call whose result is **discarded** (`4B` where the value would be
+    // consumed): either the whole body — `void f(int a){ g(a); }`, which c2 tail-
+    // calls exactly like the zero-argument form above — or the first statement of
+    // a Class A sequence.
+    if seg.get(*p) == Some(&0x4B) && bound_to.is_none() {
+        *p += 1;
+        let mut q = *p;
+        if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
+            *p = q;
+            let params = parse_params(seg, lo)?;
+            return tail_call_shape(args, params, callee_tok, *p);
+        }
+        return parse_call_sequence(seg, p, lo, callee_tok, args);
     }
     if args.is_empty() {
         // A zero-argument int call (`return g();`). The value-consuming shapes
@@ -2457,7 +2572,7 @@ pub(crate) fn parse_call_shape(
         // + 1; }` has its argument in r3 and would emit the plain body. Sized on
         // the 878-TU workload: **zero** functions, numerator unchanged either
         // way.
-        if params.len() > 8 {
+        if params.len() > MAX_REGISTER_FORMALS {
             return Err(Block { ctx: "framed-arg-over-eight-formals", byte: None, off: *p, aux: 0 });
         }
         // The formals list is carried, not dropped: the argument is *a* formal
@@ -2468,6 +2583,189 @@ pub(crate) fn parse_call_shape(
     }
     Err(Block { ctx: "framed-computed-arg", byte: None, off: *p, aux: 0 })
 }
+
+/// Parse the **Class A statement-call sequence** (`docs/GAPS.md` #35 step 2,
+/// rung 1), positioned just past the first call's discarding `4B`.
+///
+/// ```text
+///   seq  := stmt_call+ tail
+///   stmt_call := <call head> <args> `4B`
+///   tail := <void return plumbing>                          void body
+///          | <call head> <args> [`33` <int> k `02`] <plumbing(result)>
+///                                                           the last call's value
+///          | `33` <int> k <plumbing(result)>                 `return <literal>;`
+/// ```
+///
+/// Everything here is measured against real objs; the shapes and their bytes are
+/// on [`BodyShape::CallSeq`]. Three facts this production turns on, each pinned by
+/// a capture rather than assumed:
+///
+/// * **A single statement call with nothing after it is a TAIL call**
+///   (`void f(int a){ g(a); }` → a bare `b ?g`, 5 sections, no frame), so the
+///   caller tries the return plumbing before entering here and this function is
+///   only ever reached with more body to parse. Emitting a frame for it would be
+///   a mis-emit, not a gap.
+/// * **The last call of a framed body is NOT tail-called.** `int f(){ g1();
+///   return g2(); }` ends `bl ?g2 ; addi r1,r1,96 ; … ; blr`. The transform is off
+///   once the function is framed.
+/// * **Class A means no formal is read after the first call.** The first call's
+///   arguments are evaluated before its `bl`, so a formal used only there dies
+///   with it; a formal read by any later statement has to survive a call and c2
+///   puts it in `r31` with a `std`/`ld` pair — Class B, a later rung, refused here
+///   by name.
+fn parse_call_sequence(
+    seg: &[u8],
+    p: &mut usize,
+    lo: usize,
+    first_callee: u32,
+    first_args: Vec<Vec<IlOp>>,
+) -> Result<BodyShape, Block> {
+    let params = parse_params(seg, lo)?;
+    // Past the eighth formal a parameter is stack-homed and `select_text` — which
+    // computes every one of these calls' argument setups — refuses. Raised here so
+    // the census cannot claim a body the gate declines (`docs/GAPS.md` §6, the
+    // under-claiming direction).
+    if params.len() > MAX_REGISTER_FORMALS {
+        return Err(Block { ctx: "callseq-over-eight-formals", byte: None, off: *p, aux: 0 });
+    }
+    let mut raw: Vec<(u32, Vec<Vec<IlOp>>)> = vec![(first_callee, first_args)];
+    let tail;
+    loop {
+        eat_opt_stmt_marker(seg, p);
+        // (1) The body ends here: void return plumbing.
+        {
+            let mut q = *p;
+            if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
+                *p = q;
+                tail = SeqTail::Void;
+                break;
+            }
+        }
+        // (1b) …the same, written with an explicit `return;`. c2 records the
+        // fallthrough as a SECOND `3A <label>` branch *to the same label* the
+        // return plumbing then uses, and emits nothing for it: the two objs are
+        // **byte-identical** (1090 B each, compared whole with the source path
+        // held fixed and the timestamp zeroed).
+        //
+        // Requiring the two labels to MATCH is the whole gate. A real early
+        // return branches somewhere else, and admitting that would drop a control
+        // transfer on the floor — the difference between a no-op and a mis-emit is
+        // exactly this token compare.
+        if seg.get(*p) == Some(&0x3A) {
+            if let Some((first, w)) = read_token_var(seg, *p + 1) {
+                let mut q = *p + 1 + w;
+                let same = seg.get(q) == Some(&0x3A)
+                    && read_token_var(seg, q + 1).is_some_and(|(t, _)| t == first);
+                if same && eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
+                    *p = q;
+                    tail = SeqTail::Void;
+                    break;
+                }
+            }
+        }
+        // (2) `return <literal>;` — one `li r3,k` after the last `bl`. A literal is
+        // the ONLY expression tail this rung admits: any operand read after a call
+        // is a value live across it, which is Class B.
+        if seg.get(*p) == Some(&0x33) {
+            let mut q = *p;
+            let k = (eat_byte(seg, &mut q, 0x33) && eat(seg, &mut q, &INT_TYPE))
+                .then(|| read_varint(seg, &mut q))
+                .flatten()
+                .ok_or(Block { ctx: "callseq-tail-lit", byte: None, off: *p, aux: 0 })?;
+            eat_return_plumbing(seg, &mut q, true, BODY_SCOPE_DEPTH)
+                .map_err(|_| Block { ctx: "callseq-tail-lit", byte: None, off: *p, aux: 0 })?;
+            // `li rD,k` carries a signed-16-bit immediate; a wider one is
+            // `lis`+`ori` and is not modeled here.
+            if !(-0x8000..=0x7FFF).contains(&k) {
+                return Err(Block { ctx: "callseq-tail-lit-wide", byte: None, off: *p, aux: 0 });
+            }
+            *p = q;
+            tail = SeqTail::Lit(k);
+            break;
+        }
+        // (3) Another call. Either a statement (`4B`, result discarded) or the
+        // value the body returns.
+        let tok = eat_call_head(seg, p)?;
+        let args = eat_call_args(seg, p)?;
+        if eat_byte(seg, p, 0x4B) {
+            raw.push((tok, args));
+            if raw.len() > MAX_SEQ_CALLS {
+                return Err(Block { ctx: "callseq-too-long", byte: None, off: *p, aux: 0 });
+            }
+            continue;
+        }
+        // The value call. `41` = the result is returned as is; `33 <int> k 02` =
+        // returned plus a literal — the same post-op the single framed call
+        // carries, and the same `addi r3,r3,k`.
+        let add_k = if seg.get(*p) == Some(&0x41) {
+            0
+        } else {
+            if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
+                return Err(blk(seg, *p, "callseq-postop"));
+            }
+            let k = read_varint(seg, p).ok_or(blk(seg, *p, "callseq-postop-varint"))?;
+            if !eat_byte(seg, p, 0x02) {
+                // non-ADD post-op → non-commutative / strength-reduced
+                return Err(blk(seg, *p, "callseq-postop-op"));
+            }
+            if !(-0x8000..=0x7FFF).contains(&k) {
+                return Err(Block { ctx: "callseq-postop-wide", byte: None, off: *p, aux: 0 });
+            }
+            k
+        };
+        eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
+        raw.push((tok, args));
+        tail = SeqTail::CallValue { add_k };
+        break;
+    }
+
+    // A single call whose result is discarded and with nothing after it is a
+    // TAIL call, not a framed body — but the caller already checked that before
+    // entering, so reaching it here would mean the grammar drifted.
+    debug_assert!(
+        raw.len() > 1 || !matches!(tail, SeqTail::Void),
+        "a lone statement call with a void tail is the tail-call shape"
+    );
+
+    // Validate and normalize every call's arguments through the ONE locator every
+    // other call shape uses, so the marshalling has a single implementation.
+    let mut calls: Vec<SeqCall> = Vec::with_capacity(raw.len());
+    for (i, (callee_tok, args)) in raw.into_iter().enumerate() {
+        let (arg_ops, arg_sources) =
+            match tail_call_shape(args, params.clone(), callee_tok, *p)? {
+                BodyShape::VoidTailCall { .. } => (Vec::new(), None),
+                BodyShape::IntTailCall { arg_ops, .. } => (arg_ops, None),
+                BodyShape::MultiArgTailCall { arg_sources, .. } => (Vec::new(), Some(arg_sources)),
+                // `tail_call_shape` returns exactly those three.
+                _ => return Err(Block { ctx: "callseq-arg-shape", byte: None, off: *p, aux: 0 }),
+            };
+        // **The Class A boundary.** Reading a formal after the first call means
+        // that value had to survive a `bl`, which c2 answers with a callee-saved
+        // register: `void f(int a,int b){ g1(a); g2(b); }` is
+        // `std r31,-16(r1) … mr r31,r4 … mr r3,r31 …` — one saved GPR, a 5-word
+        // prologue and an 11-word epilogue. That is Class B and it is a later
+        // rung; refuse it by name rather than emit the Class A frame.
+        if i > 0
+            && (arg_sources.is_some()
+                || arg_ops.iter().any(|o| matches!(o, IlOp::Load(_))))
+        {
+            return Err(Block {
+                ctx: "callseq-value-live-across-call",
+                byte: None,
+                off: *p,
+                aux: 0,
+            });
+        }
+        calls.push(SeqCall { callee_tok, arg_ops, arg_sources });
+    }
+    Ok(BodyShape::CallSeq { params, calls, tail })
+}
+
+/// A bound on the statement calls one body may carry, so a corrupt stream cannot
+/// make the parser build an unbounded list. Far above anything measured (the
+/// widest probe is four) and far below anything a real body reaches before some
+/// other production refuses it.
+const MAX_SEQ_CALLS: usize = 64;
 
 #[cfg(test)]
 mod tests {
@@ -2592,6 +2890,64 @@ mod tests {
         let b = parse_segment_detail(BOUND_ARG2_OUTER_FORMAL, view(zo)).unwrap_err();
         assert_eq!(b.ctx, "call-arg-outer-formal");
         assert_eq!(parse_segment(BOUND_ARG2_OUTER_FORMAL, view(zo)), None);
+    }
+
+    /// **Class A many-calls**, positive and negative, on segments transcribed from
+    /// live captures. The three facts the production turns on are each one
+    /// assertion here, because each is a shape c2 lowers *differently* from its
+    /// neighbour:
+    ///
+    /// * a lone statement call is a TAIL call, not a framed body;
+    /// * two statement calls are a framed body whose last call is `bl`, not `b`;
+    /// * one statement call plus anything after it is already framed.
+    #[test]
+    fn class_a_many_calls_decode_and_the_lone_statement_call_stays_a_tail_call() {
+        // Two statement calls: framed, Class A, nothing saved.
+        let Some(BodyShape::CallSeq { calls, tail, params }) =
+            parse_segment(SEQ_TWO_VOID, NO_LOCALS)
+        else {
+            panic!("`g1(a); g2();` is the Class A many-call shape");
+        };
+        assert_eq!(params, vec![0xE609]);
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].arg_ops, vec![IlOp::Load(0xE609)]);
+        assert!(calls[1].arg_ops.is_empty(), "the second call takes no argument");
+        assert_eq!(tail, SeqTail::Void);
+
+        // One statement call and a literal return — framed on ONE call.
+        let Some(BodyShape::CallSeq { calls, tail, .. }) =
+            parse_segment(SEQ_ONE_THEN_LIT, NO_LOCALS)
+        else {
+            panic!("`g1(a); return 5;` is framed");
+        };
+        assert_eq!(calls.len(), 1);
+        assert_eq!(tail, SeqTail::Lit(5));
+
+        // The last call's value, bare and with the `+k` post-op.
+        assert!(matches!(
+            parse_segment(SEQ_CALL_VALUE, NO_LOCALS),
+            Some(BodyShape::CallSeq { tail: SeqTail::CallValue { add_k: 0 }, .. })
+        ));
+        assert!(matches!(
+            parse_segment(SEQ_CALL_VALUE_PLUSK, NO_LOCALS),
+            Some(BodyShape::CallSeq { tail: SeqTail::CallValue { add_k: 1 }, .. })
+        ));
+
+        // A lone statement call is a TAIL call. Emitting the Class A frame for it
+        // would be a wrong-bytes emit, not a gap: c2 gives it a bare `b ?g1` and
+        // no `.pdata` at all.
+        assert!(
+            matches!(
+                parse_segment(SEQ_LONE_STMT_CALL, NO_LOCALS),
+                Some(BodyShape::IntTailCall { .. })
+            ),
+            "a lone statement call is `b ?g1`, a 5-section leaf"
+        );
+
+        // The Class A boundary: a formal read after the first call needs r31.
+        let b = parse_segment_detail(SEQ_LIVE_ACROSS, NO_LOCALS).unwrap_err();
+        assert_eq!(b.ctx, "callseq-value-live-across-call");
+        assert_eq!(parse_segment(SEQ_LIVE_ACROSS, NO_LOCALS), None);
     }
 
     #[test]

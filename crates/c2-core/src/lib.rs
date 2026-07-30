@@ -171,7 +171,7 @@ impl PortC2 {
     /// two-valued answer to "did I find the counter?" is how three of this
     /// project's mis-emits happened (`docs/GAPS.md` §6).
     fn frame_label_counter(il: &IlBundle, funcs: &[c2_il::IlFunction]) -> Result<u32, BackendError> {
-        if !funcs.iter().any(|f| f.framed_call.is_some()) {
+        if !funcs.iter().any(|f| f.is_framed()) {
             return Ok(0);
         }
         il.label_counter().ok_or_else(|| {
@@ -271,7 +271,7 @@ impl PortC2 {
             let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
             for f in &funcs {
                 let mut frame: Option<coff::Frame> = None;
-                let (text, call) = match codegen::select_function(f, mode)? {
+                let (text, calls) = match codegen::select_function(f, mode)? {
                     // A framed non-leaf call gets its own `.text` COMDAT like
                     // any other function, plus a `.pdata` COMDAT associated to
                     // it (W-UNW-1). `Selected::Framed` carries no bytes for the
@@ -294,12 +294,38 @@ impl PortC2 {
                         });
                         (
                             body.text,
-                            Some(coff::Call {
+                            vec![coff::Call {
                                 reloc_offset: body.bl_offset,
                                 callee: fc.callee.as_str(),
-                            }),
+                            }],
                         )
-                    }                  // A pooled FP constant still refuses under `/Gy`. Its section
+                    }
+                    // A Class A many-call body: the same frame and `.pdata`, with
+                    // one REL24 site per call instead of one per function.
+                    codegen::Selected::Seq { setups, tail } => {
+                        let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
+                        let body = codegen::call_seq_text(
+                            &setups,
+                            &tail,
+                            0,
+                            codegen::FrameLayout::default(),
+                        )?;
+                        frame = Some(coff::Frame {
+                            prolog_len: body.prolog_len,
+                            func_len: body.text.len() as u32,
+                        });
+                        let calls = body
+                            .bl_offsets
+                            .iter()
+                            .zip(&seq.calls)
+                            .map(|(off, c)| coff::Call {
+                                reloc_offset: *off,
+                                callee: c.callee.as_str(),
+                            })
+                            .collect();
+                        (body.text, calls)
+                    }
+                    // A pooled FP constant still refuses under `/Gy`. Its section
                     // placement *is* now characterized — each `.rdata` COMDAT sits
                     // immediately after the `.text` of the function that first
                     // references it — but `docs/OBJ_GY_SHAPES.md` §2 also found that
@@ -325,12 +351,12 @@ impl PortC2 {
                         let branch_off = t.len() as u32;
                         t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
                         let callee = f.tail_call.as_deref().expect("Tail implies tail_call");
-                        (t, Some(coff::Call { reloc_offset: branch_off, callee }))
+                        (t, vec![coff::Call { reloc_offset: branch_off, callee }])
                     }
-                    codegen::Selected::Float { text, .. } => (text, None),
-                    codegen::Selected::Plain(t) => (t, None),
+                    codegen::Selected::Float { text, .. } => (text, Vec::new()),
+                    codegen::Selected::Plain(t) => (t, Vec::new()),
                 };
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, call, is_float: f.float_leaf.is_some(), fp_refs: Vec::new(), frame });
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, calls, is_float: f.float_leaf.is_some(), fp_refs: Vec::new(), frame });
                 texts.push(text);
             }
             return Ok(ObjImage::new(coff::emit_comdat_obj(
@@ -355,7 +381,7 @@ impl PortC2 {
             }
             let off = text.len() as u32;
             let mut frame: Option<coff::Frame> = None;
-            let (call, fp_refs) = match codegen::select_function(f, mode)? {
+            let (calls, fp_refs) = match codegen::select_function(f, mode)? {
                 // A framed non-leaf call: the fixed 0x24-byte frame, plus a
                 // `.pdata` record and two `$M` labels (W-UNW-1). Packed, the
                 // `bl` displacement is `-(its own .text offset)`, so the body
@@ -377,10 +403,37 @@ impl PortC2 {
                     });
                     text.extend_from_slice(&body.text);
                     (
-                        Some(coff::Call {
+                        vec![coff::Call {
                             reloc_offset: body.bl_offset,
                             callee: &fc.callee,
-                        }),
+                        }],
+                        Vec::new(),
+                    )
+                }
+                // A Class A many-call body, built at `off` for the same reason:
+                // every `bl` word encodes its own `.text` offset.
+                codegen::Selected::Seq { setups, tail } => {
+                    let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
+                    let body = codegen::call_seq_text(
+                        &setups,
+                        &tail,
+                        off,
+                        codegen::FrameLayout::default(),
+                    )?;
+                    frame = Some(coff::Frame {
+                        prolog_len: body.prolog_len,
+                        func_len: body.text.len() as u32,
+                    });
+                    text.extend_from_slice(&body.text);
+                    (
+                        body.bl_offsets
+                            .iter()
+                            .zip(&seq.calls)
+                            .map(|(o, c)| coff::Call {
+                                reloc_offset: *o,
+                                callee: c.callee.as_str(),
+                            })
+                            .collect(),
                         Vec::new(),
                     )
                 }
@@ -394,10 +447,10 @@ impl PortC2 {
                     text.extend_from_slice(&codegen::encode_tail_branch(branch_off));
                     let callee = f.tail_call.as_ref().expect("Tail implies tail_call");
                     (
-                        Some(coff::Call {
+                        vec![coff::Call {
                             reloc_offset: branch_off,
                             callee,
-                        }),
+                        }],
                         Vec::new(),
                     )
                 }
@@ -407,7 +460,7 @@ impl PortC2 {
                 codegen::Selected::Float { text: body, consts } => {
                     text.extend_from_slice(&body);
                     (
-                        None,
+                        Vec::new(),
                         consts
                             .into_iter()
                             .map(|r| codegen::FpConstRef {
@@ -419,13 +472,13 @@ impl PortC2 {
                 }
                 codegen::Selected::Plain(body) => {
                     text.extend_from_slice(&body);
-                    (None, Vec::new())
+                    (Vec::new(), Vec::new())
                 }
             };
             placed.push(coff::Function {
                 name: &f.mangled_name,
                 text_offset: off,
-                call,
+                calls,
                 is_float: f.float_leaf.is_some(),
                 fp_refs,
                 frame,

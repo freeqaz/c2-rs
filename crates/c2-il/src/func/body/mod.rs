@@ -123,6 +123,34 @@ pub(crate) enum DtorSubObject {
     Member,
 }
 
+/// One call inside a [`BodyShape::CallSeq`], with its argument setup already
+/// validated and normalized by [`super::shapes::tail_call_shape`] — the same
+/// locator every other call shape's arguments go through, so the marshalling has
+/// one implementation and not a per-shape one.
+///
+/// The two argument forms are the two the tail call already had: an operand
+/// stream computed into r3 (0 or 1 argument, `arg_ops` empty for a nullary call),
+/// or a register permutation over the formals (2+ bare-parameter arguments).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SeqCall {
+    pub(crate) callee_tok: u32,
+    pub(crate) arg_ops: Vec<IlOp>,
+    pub(crate) arg_sources: Option<Vec<usize>>,
+}
+
+/// What a [`BodyShape::CallSeq`] does after its last call.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SeqTail {
+    /// Nothing — the body returns void (or discards the last call's result too).
+    Void,
+    /// The **last call's** result is the return value, plus a literal `add_k`
+    /// (0 for a bare `return g();`, non-zero for `return g() + k;` — the same
+    /// `addi r3,r3,k` post-op [`BodyShape::FramedCall`] carries).
+    CallValue { add_k: i32 },
+    /// `return <literal>;` after the last statement call — one `li r3,k`.
+    Lit(i32),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum BodyShape {
     /// Straight-line all-`int` arithmetic leaf (`return a+b+c`, `return a+5`,
@@ -158,6 +186,34 @@ pub(crate) enum BodyShape {
     /// and dropping the list here made the emitter assume position 0 (a live
     /// wrong-bytes emit — `c2_core::codegen::framed_call_text`).
     FramedCall { add_k: i32, callee_tok: u32, params: Vec<u32>, arg_ops: Vec<IlOp> },
+    /// **Class A many-calls** (#35 step 2, rung 1): a framed body that is a
+    /// sequence of statement-position calls — results discarded — with **no value
+    /// live across any call**, so nothing is saved and the frame is the shipped
+    /// 96-byte Class A one.
+    ///
+    /// ```text
+    ///   void f()           { g1(); g2(); }        3-word prologue, bl, bl, epilogue
+    ///   void f(int a)      { g1(a); g2(); }       a dies at the first call
+    ///   void f()           { g1(1); g2(2); }      li r3,k before each bl
+    ///   int  f(int a)      { g1(a); return 5; }   li r3,5 after the last bl
+    ///   int  f()           { g1(); return g2(); } the last call's value IS the result
+    ///   int  f()           { g1(); return g2()+1; }
+    /// ```
+    ///
+    /// **The last call is NOT a tail call.** Measured: every one of the bodies
+    /// above ends `bl <callee>` … `addi r1,r1,96` … `blr`, never `b <callee>` —
+    /// the tail-call transform is off the moment the function is framed
+    /// (`docs/CODEGEN_FRAMED_CALLS.md` §7 rung 1, byte evidence in
+    /// `docs/CODEGEN_PPC_MVP.md`). A *single* statement call with nothing after it
+    /// **is** tail-called (`void f(int a){ g(a); }` → a bare `b g`), so that case
+    /// is routed to [`BodyShape::IntTailCall`]/[`BodyShape::MultiArgTailCall`]
+    /// instead and never reaches here.
+    ///
+    /// The Class A boundary is a liveness one: **no formal may be read after the
+    /// first call**. `void f(int a,int b){ g1(a); g2(b); }` puts `b` in `r31` with
+    /// a `std`/`ld` pair around the frame, which is Class B — refused by name
+    /// (`callseq-value-live-across-call`), not guessed.
+    CallSeq { params: Vec<u32>, calls: Vec<SeqCall>, tail: SeqTail },
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
@@ -253,6 +309,7 @@ pub(crate) const OPT_MODE: &str = "opt-mode";
 pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
 pub(crate) const CALLEE_UNRESOLVED_DTOR: &str = "callee-unresolved-dtor-delegation";
 pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call";
+pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence";
 
 impl Block {
     /// A short, stable census key naming the blocking *feature*.
@@ -876,7 +933,10 @@ mod tests {
             ("g(a) - 1 (submod)", GA_SUBMOD),
             ("g(a) * 5 (mulmod)", GA_MULMOD),
             ("g(a) + 70000 (widemod)", GA_WIDEMOD),
-            ("g(); g(); (two_calls)", TWO_CALLS),
+            // `g(); g();` used to be here. It is the Class A many-call shape now
+            // (#35 step 2 rung 1) — see the acceptance test below. `g(); return
+            // a+1;` stays out: the `a` is read after the call, so it must survive
+            // one, and c2 answers with a callee-saved register (Class B).
             ("g(); return a+1; (call_then_stmt)", CALL_THEN_STMT),
             ("g(a + 1) + 1 (argframed_plusk)", ARGFRAMED_PLUSK),
             ("g(a) + g(a + 1) (two_framed_calls)", TWO_FRAMED_CALLS),

@@ -326,6 +326,104 @@ decoration. Only the all-zero layout is reachable from the accepted class today;
 the rest are pinned by unit tests against the captured words so the next rung
 inherits measurements instead of a guess.
 
+## Class A many-call bodies (#35 step 2, rung 1) — IMPLEMENTED, byte-exact
+
+A framed function whose body is a **sequence of calls with nothing live across
+any of them**. `FrameLayout::default()` already is the Class A frame, so this
+rung is a relocation-model and symbol-order change more than a codegen one:
+`coff::Function` carries a *list* of REL24 sites, and the callee externals go out
+in reverse first-reference order.
+
+```text
+  7d8802a6  mflr r12               the shipped three-word Class A prologue
+  9181fff8  stw  r12,-8(r1)
+  9421ffa0  stwu r1,-96(r1)
+  <setup 0>                        argument marshalling, per call
+  4bfffff5  bl   <callee 0>        REL24 site
+  <setup 1>
+  4bfffff1  bl   <callee 1>
+  <tail>                           nothing | addi r3,r3,k | li r3,k
+  38210060  addi r1,r1,96
+  8181fff8  lwz  r12,-8(r1)
+  7d8803a6  mtlr r12
+  4e800020  blr
+```
+
+Byte evidence, one probe per row, `/O1 /GS- /c` (identical at `/Ox` and `/O2`):
+
+```text
+  void f(){ g1(); g2(); }              36 B  bl bl
+  void f(){ g1(); g2(); g3(); g4(); }  44 B  four bl
+  void f(int a){ g1(a); g2(); }        36 B  a is in r3 and dies at the first call
+  void f(){ g1(1); g2(2); }            44 B  li r3,1 · bl · li r3,2 · bl
+  void f(int a,int b){ g2(a,b); h(); } 36 B  identity permutation, no moves
+  void f(int a,int b){ g2(b,a); h(); } 48 B  mr r11,r4 · mr r4,r3 · mr r3,r11
+  void f(int a){ g1(a+1); g2(); }      40 B  addi r3,r3,1
+  int  f(int a){ g1(a); return 5; }    36 B  li r3,5 after the last bl
+  int  f(){ g1(); return g2(); }       36 B  no post-op at all
+  int  f(){ g1(); return g2()+1; }     40 B  addi r3,r3,1
+  void f(){ g1(); g2(); return; }      36 B  the explicit return emits nothing
+```
+
+### The two boundary facts
+
+* **A lone statement call IS tail-called.** `void f(int a){ g1(a); }` is
+  `48000000 b ?g1` — five sections, no frame, no `.pdata` — and so is
+  `void f(int a){ g(a); }` for an `int`-returning `g` whose result is discarded.
+  The class boundary is therefore "is there anything after the call", not "are
+  there two calls": `int f(int a){ g1(a); return 5; }` is framed on **one**.
+* **The last call of a framed body is NOT tail-called.** Every row above ends
+  `bl <callee> … addi r1,r1,96 … blr`. c2's tail-call transform is off once the
+  function is framed.
+
+### Class A means no formal is read after the first call
+
+The first call's arguments are evaluated before its `bl`, so a formal used only
+there dies with it. A formal read by any later statement has to survive a call,
+and c2 answers with a callee-saved register — Class B, `CODEGEN_FRAMED_CALLS.md`
+§2.2, refused here as `callseq-value-live-across-call`:
+
+```text
+void g1(int); void g2(int); void f(int a,int b){ g1(a); g2(b); }   52 B, F = 96
+   0000  7d8802a6  mflr r12
+   0004  9181fff8  stw r12,-8(r1)
+   0008  fbe1fff0  std r31,-16(r1)        <- one saved GPR
+   000c  9421ffa0  stwu r1,-96(r1)
+   0010  7c9f2378  mr r31,r4              <- b, live across the first call
+   0014  4bffffed  bl ?g1
+   0018  7fe3fb78  mr r3,r31
+   001c  4bffffe5  bl ?g2
+   0020  38210060  addi r1,r1,96
+   ...   ebe1fff0  ld r31,-16(r1)  ;  4e800020  blr
+```
+
+against Class A's 36 bytes and 3-word prologue. Every field of the `.pdata`
+record and both `$M` labels differ too, so guessing here is not one wrong word.
+
+### The explicit `return;`
+
+`void f(){ g1(); g2(); return; }` records the fallthrough as a **second
+`3A <label>` branch to the same label** the return plumbing then uses, and emits
+nothing for it: the two objs are byte-identical (1090 B each, compared whole with
+the source path held fixed and the timestamp zeroed). The parser requires the two
+labels to **match** — a real early return branches somewhere else, and admitting
+that would drop a control transfer.
+
+### Symbol order and label stride
+
+Both re-confirmed against captures rather than carried over from the one-call
+class, and both hold **packed as well as under `/Gy`**:
+
+* a function's new callees are emitted in **reverse first-reference order**
+  (`g1();g2();g3();` → `?g3 ?g2 ?g1` at 15/16/17; the mirrored source refutes
+  alphabetical and declaration order);
+* a repeated callee introduces **no** second symbol — `g1();g2();g1();` has three
+  REL24s and two externals, with the repeat relocating against the first index;
+* a callee an earlier function already introduced is not re-emitted;
+* the label stride is **unchanged**: 4 packed / 5 `/Gy`. Two two-call bodies in
+  one TU are `$M2553`/`$M2558` against a `.gl+7` seed of 2538, and 2547/2551
+  packed. The call *count* does not enter the counter; framedness does.
+
 ## W4b2 non-leaf calls — IMPLEMENTED, byte-exact (single-function TU)
 
 `return g(a) + k` (the call result is used, so f is non-leaf) is implemented and
