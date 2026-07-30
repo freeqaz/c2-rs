@@ -275,13 +275,38 @@ markers, measured on 2- and 3-function TUs (`m2_two_funcs.cpp`,
   function-symbol-token + 1; that is consistent with every capture but is an
   allocation-order accident nothing promises.
 
-So the binding rule the port can use, with a positive cross-check:
+So the binding rule the port can use, with a positive cross-check — **superseded
+2026-07-30, and the way it was wrong is the point**:
 
-> **Block k binds to `.ex` segment k.** Verify by tokens before trusting it:
+> ~~**Block k binds to `.ex` segment k.**~~ Verify by tokens before trusting it:
 > the block's depth-1 records must be exactly the segment's `2D <tok>` formal
 > list, same tokens, same order (MEASURED on every probe — e.g. m2's g
 > declares `2d e8 09 2d e7 09` and the block lists e8 then e7). A block count
 > different from the segment count, or any token mismatch, refuses the TU.
+
+Ordinal binding is right on every probe and wrong on real input: measured over 871
+workload TUs, `.sy` has 2,436,589 blocks where the `LO`-anchored `.ex` splitter
+finds 2,434,639 bodies, and the difference is *interspersed*, so position slips.
+The rule that replaced it keys on identity:
+
+> **Block *j* binds to segment *i* when the block's header token is segment *i*'s
+> exit label** — the token named by both the `3A <tok>` and the terminal
+> `29 <tok>` of the return plumbing, anchored on the body scope's own close
+> (`54 02`, then any `4F 01 <line>` markers). Then require: the header tokens are
+> unique within the file, the bindings are strictly increasing, and (the positive
+> cross-check above, kept) every `.ex` `2D <tok>` formal of segment *i* is declared
+> by block *j*. Any of those failing refuses — the file for the first two, that one
+> segment for the rest.
+
+MEASURED over the same 871 TUs: 2,434,636 of 2,434,639 segments yield an exit
+label, every one of those tokens names exactly one block, 0 order violations, and
+the formal cross-check holds on 99.95% of the pairs (against 38% for ordinal
+binding). See `crates/c2-il/src/func/sy.rs` for the per-claim witnesses, and
+`docs/GAPS.md` §6 for why a green obj compare could not have graded any of this.
+
+And the count difference was never `.sy`'s: the block count equals the number of
+`.ex` **function tails** (`4F 12 47 54 01 54 00`) in all 856 files that parse — it
+is the `LO`-anchored splitter that misses ~1,972 bodies (0.08%).
 
 The formal-order agreement is itself a measured fact worth stating: **both**
 `.sy` depth-1 records and the `.ex` `2D` list run in *reverse declaration
@@ -385,8 +410,12 @@ depth 3+. Tokens, not names and not record order, are the identity (§6).
   separate field from `<flags16>`, and that class 6 plus flags bit 7 is what
   selects it); whether `flags16` is really 16-bit.
 * The local record order rule (§6): name-driven, deterministic, not derived.
-* Whether the `03 01` token is guaranteed to be the exit-label token or merely
-  always was: cross-check via formals (rule 2) rather than resting on it.
+* ~~Whether the `03 01` token is guaranteed to be the exit-label token or merely
+  always was~~ — ANSWERED 2026-07-30 as far as measurement can answer it: it is the
+  exit-label token on 2,434,636 of 2,434,639 real segments, each naming exactly one
+  block, with the formals cross-check (rule 2) still required per binding rather
+  than dropped. "Guaranteed" is still not established and cannot be from a corpus;
+  what is established is that a deviation refuses instead of mis-emitting.
 * `this`, EH, `/O1`, 4-byte tokens: uncaptured (§7).
 * A **polymorphic** class record opens `C6 81 03 …` — a three-byte type prefix on
   the `0x40` tag bit `readers.rs` records as occurring and undetermined. Located

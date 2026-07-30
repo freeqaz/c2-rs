@@ -720,6 +720,37 @@ functions, since the surplus blocks are interspersed rather than a tail. `GAPS.m
 *correspondence*, only a decode. The next rung needs a **key** (the block header
 token) rather than a position.
 
+**The key exists, and it closed the bucket: 211,012 -> 228,298 (+17,286), 8.57% ->
+9.27%, mismatch 0, 0 functions lost, 0 TUs changing class.**
+`param-width-undetermined` fell 554,056 -> **6,974**, and `expr-call-in-expr`
+(304,111) is the head of the census for the first time. A `.sy` block's header
+token is its `.ex` segment's **exit label** — the token named by both the `3A` and
+the terminal `29` of the return plumbing — and that was established rather than
+inferred from the old coincidence: over 871 TUs, 2,434,636 of 2,434,639 segments
+yield an exit label, every one of those tokens names **exactly one** block, and the
+bindings are strictly increasing in every file (0 violations). The correspondence
+invariant the oracle cannot supply — every `.ex` `2D` formal token of a segment must
+be declared by the block bound to it — holds for 99.95% of the candidate pairs
+(38% under the positional relaxation above), and the 1,118 that fail it are refused,
+so 100% of the bindings made are ones it confirmed. `param-multi-reg` went 23 ->
+**1,851**: that construct is *reachable* now, and refusing it is the fail-closed
+boundary rather than a regression. Checked, because an 80× jump in a key is also
+what a decode bug looks like: the offending declared sizes are 16 B (1,810), 20 B
+(24), 12 B (6), 24 B (6), 80 B (6) and 36 B (1) — no zero, nothing absurd, so every
+one is a real by-value aggregate wider than one GPR and not a misread width.
+
+Two findings worth carrying forward. First, the "surplus" blocks were never surplus:
+the `.sy` block count equals the `.ex` **function-tail** count in all 856 files that
+parse, so `bundle::split_function_bodies` is what misses ~1,972 bodies (0.08%) and
+the census denominator 2,462,571 is that much short of the real function count —
+a fixable under-count, and the next thing to check if a rung's numerator looks off.
+Second, this rung is unfixturable by construction: c1 emits a body for every
+function it compiles, so the block/segment mismatch only appears where the splitter
+misses one, and a TU with a missed body cannot emit an obj at all (`gl_defined_names`
+refuses it). The binding is graded by unit tests over transcribed `.ex`/`.sy` pairs
+and by the workload scan; no fixture can grade it byte-exact, and writing one that
+merely reaches the code would have graded nothing.
+
 The first two steps were *decode* fixes, not new codegen — the expected shape
 of progress while the wall is `vocab-gap`. The third is a 10× jump from one
 very small class: empty bodies were ~4.4% of blocked functions by count, and
