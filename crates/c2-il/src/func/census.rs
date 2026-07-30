@@ -94,7 +94,7 @@ impl IlBundle {
         // Same `.sy` binding as the gate, built from the same segment list, so the
         // census cannot report a function in class that `IlBundle::functions` would
         // refuse for want of a local — or the reverse.
-        let locals = SyLocals::new(self.get("sy"), segs.len());
+        let locals = SyLocals::new(self.get("sy"), &segs);
         Some(
             segs.iter()
                 .enumerate()

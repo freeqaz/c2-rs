@@ -323,14 +323,15 @@ impl IlBundle {
         // of straight-line leaves never constructs the index at all.
         let symbols = GlIndex::new(gl);
         let resolve = |tok: u32| -> Option<String> { symbols.map().get(&tok).cloned() };
-        // `.sy` binds each function's automatic locals. It is bound 1:1 against the
-        // same segment list, and yields nothing at all unless it parses whole — so a
-        // TU without `.sy`, or with one this reader does not fully understand, is
+        // `.sy` binds each function's automatic locals, keyed on the segment's exit
+        // label against the block's header token, over the same segment list the
+        // shapes parse. It yields nothing at all unless `.sy` parses whole — so a TU
+        // without `.sy`, or with one this reader does not fully understand, is
         // exactly as restricted as before locals were modeled.
-        let locals = SyLocals::new(self.get("sy"), n_defined);
+        let locals = SyLocals::new(self.get("sy"), &segs);
 
         let mut funcs = Vec::with_capacity(n_defined);
-        for (i, (name, seg)) in names.iter().take(n_defined).zip(segs).enumerate() {
+        for (i, (name, seg)) in names.iter().take(n_defined).zip(&segs).enumerate() {
             // A variadic function's body IL is byte-identical to its non-variadic
             // twin's, so this is the one gate that cannot live in the body parser
             // ([`mangled_is_varargs`]). The census applies the same predicate to the

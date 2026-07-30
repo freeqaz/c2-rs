@@ -110,12 +110,14 @@
 //! reader against a 649 KB workload capture instead of the probes it was written
 //! from.
 //!
-//! NOT DERIVABLE from what has been captured: the block's own `<tok>`, which is
-//! not the function's `.gl` symbol token (it coincides with the function's
-//! exit-label token in every probe, which is an observation, not a use); and the
-//! record order within a scope, which is neither declaration order nor its reverse
-//! — `y, x` in one probe and `p, q, r` in a structurally identical other — so
-//! locals are treated as an unordered set. Nothing here depends on either.
+//! NOT DERIVABLE from what has been captured: the record order within a scope,
+//! which is neither declaration order nor its reverse — `y, x` in one probe and
+//! `p, q, r` in a structurally identical other — so locals are treated as an
+//! unordered set. Nothing here depends on it.
+//!
+//! The block's own `<tok>` used to be in that list. It is not any more: it is the
+//! **key** the binding runs on, and what it names is the `.ex` segment's exit
+//! label. See [`SyLocals`] and [`ex_exit_label`].
 //!
 //! # Fail-closed shape
 //!
@@ -126,49 +128,130 @@
 //! function-scope static are *located and refused* rather than scanned past: their
 //! widths are measured, so a record after one of them still binds correctly.
 
-use super::readers::read_token_var;
+use super::body::expr::parse_formals;
+use super::bundle::LO_MARKER;
+use super::readers::{eat_opt_stmt_marker, find_subslice, read_token_var};
 
-/// Per-translation-unit `.sy` locals, bound 1:1 to the `.ex` function segments.
+/// Per-translation-unit `.sy` locals, bound to the `.ex` function segments **by
+/// key, not by position**.
 ///
-/// The 1:1 requirement is the same discipline `gl_defined_names` uses for names:
-/// if the block count and the segment count disagree, *nothing* is bound. A
-/// plausible-looking off-by-one binding would attach one function's locals to
-/// another and mis-emit; refusing the whole file only costs coverage.
+/// # Why a key, and what happened to the count check
 ///
-/// # This count check is now the binding blocker, and it must not be loosened
+/// The previous rule was `blocks.len() == segments.len()` or nothing. MEASURED over
+/// 871 real translation units (2,434,639 `.ex` segments, 2,436,589 `.sy` blocks): the
+/// counts are *never* equal on a large file and the `.sy` always has MORE blocks —
+/// 9,629 against 9,602, 1,541 against 1,540, 1,950 surplus blocks in total, 0 files
+/// with fewer. So the count check refused essentially every real file, and
+/// `param-width-undetermined` was the top census blocker at 554,056 functions purely
+/// because of it.
 ///
-/// MEASURED, once [`sy_blocks`] began parsing real translation units to EOF: a large
-/// `.sy` has slightly MORE blocks than `.ex` has function segments — 9629 against
-/// 9602, 1541 against 1540 — so the count check refuses most real files and
-/// `param-width-undetermined` remains the top census blocker at 554,056 functions.
-/// The surplus blocks are presumably declarations `.ex` did not emit a body for.
+/// The obvious loosening — take the first `n_segments` blocks — was tried and is
+/// **WRONG**: the per-formal lookup in [`SyView::formals_are_one_register_each`] then
+/// fails to find the `.ex` formal in the block it was handed for **343,315** of the
+/// 554,056 functions it reaches, because the surplus blocks are *interspersed* and
+/// not a tail. Census would have risen by 2,981 with 0 mismatch on the workload — a
+/// green scan hiding a binding that is wrong 62% of the time. `docs/GAPS.md` §6: a
+/// green differential can grade a decode, never a correspondence.
 ///
-/// The obvious loosening — take the first `n_segments` blocks and bind positionally —
-/// was tried and is **WRONG**, which is why this reads `==` and not `>=`. Under it,
-/// the per-formal token lookup in [`SyView::formals_are_one_register_each`] fails to
-/// find the `.ex` formal in the block it was handed for **343,315** functions of the
-/// 554,056 it reaches. So the surplus is not a tail that can be truncated; it is
-/// interspersed, and position is not the key. (Census would have risen by 2,981 and
-/// the workload would still have shown 0 mismatch — because the token lookup catches
-/// the misalignment and turns it into a refusal. A green scan would have hidden a
-/// binding that is wrong 62% of the time.)
+/// # The key: a block's header token is its `.ex` segment's exit label
 ///
-/// What the next rung needs is a **key**, not an offset: bind a block to a segment by
-/// identity and validate it, rather than by ordinal. The block header's own `<tok>`
-/// is the obvious candidate — it coincides with the function's exit-label token in
-/// every probe — and the cheap positive check already exists in outline, since
-/// `formals_are_one_register_each` must find every `.ex` formal token in the block it
-/// is given. Requiring that agreement for *every* segment before binding *any* would
-/// replace this ordinal check with a content check. Until then the honest state is
-/// over-refusal, per this module's fail-closed asymmetry.
+/// A block opens `03 01 <tok> <tail:4>`, and `<tok>` is the token the segment's
+/// terminal return names — the function's exit label (see [`ex_exit_label`]).
+/// ESTABLISHED, not assumed from the earlier coincidence, over the same 871 TUs:
+///
+/// * 2,434,636 of 2,434,639 segments yield an exit label (the 3 that do not are
+///   functions with no return plumbing at all — see [`ex_exit_label`]).
+/// * every one of those 2,434,636 tokens names **exactly one** `.sy` block. Not one
+///   named zero blocks, and not one named two: hdr tokens are unique within a file
+///   in all 871.
+/// * the bindings are **strictly increasing** in every file: 0 order violations over
+///   2,434,636 pairs. Blocks really are in segment order, so the key and the order
+///   corroborate each other rather than one being assumed.
+/// * the independent content check — every `.ex` formal token of a segment must be
+///   declared by the block bound to it ([`formals_agree`]) — holds for 2,295,777 of
+///   the 2,296,895 candidate bindings where the `.ex` formals region parses (99.95%),
+///   and the 1,118 that fail it are not bound. Under the positional binding above
+///   the same check failed 62% of the time, so this is the measurement that grades
+///   the *correspondence* and not merely the decode. **Every** binding this module
+///   makes has passed it: 2,295,777 of 2,295,777, by construction.
+///
+/// # The leftover blocks are not surplus at all
+///
+/// MEASURED, and it corrects this module's own earlier guess ("presumably
+/// declarations `.ex` did not emit a body for"): in all 856 translation units the
+/// `.sy` block count equals the number of `.ex` **function tails**
+/// (`4F 12 47 54 01 54 00`) — 9,629 = 9,629 on the file whose block/segment counts
+/// were 9,629/9,602, and 0 files disagree. The shortfall is in
+/// [`super::bundle::split_function_bodies`], which anchors on the `4C 4F 11` body
+/// marker and finds 2,462,571 where there are 2,464,543 tails: it misses 1,972 real
+/// bodies, 0.08%, exactly the discrepancy that function already documents. So `.sy`
+/// and `.ex` agree about the function list, the *splitter* is what does not, and the
+/// misses are interspersed — which is precisely why an ordinal binding could not
+/// work and an identity key can.
+///
+/// # Fail-closed shape of the binding
+///
+/// Whole file unbound when: `.sy` does not parse to EOF; there are fewer blocks than
+/// segments; two blocks share a header token; or a binding would go backwards.
+/// A **single segment** is left unbound (its view is [`SyView::UNKNOWN`], so its
+/// formal widths are undetermined and it refuses) when its exit label cannot be
+/// read, when no block carries that token, or when the formal-token check above
+/// does not confirm the pair — the last is how a mis-binding turns into a refusal
+/// instead of a wrong-bytes emit, and it is part of the binding rather than a check
+/// downstream so that the block's *locals* are withheld too. On the workload that
+/// binds 2,295,777 of 2,462,571 segments.
+///
+/// What this does **not** establish, stated because a green scan will not say it:
+/// that the key is *sound in general*. It is a measurement over 871 translation
+/// units of one project at `/O1`, and `.sy` blocks for shapes not in that corpus
+/// (no `/Gy` COMDAT lane, no other front-end version) have not been keyed. The
+/// checks above are what make a deviation refuse rather than mis-emit.
 pub(crate) struct SyLocals {
-    blocks: Option<Vec<SyBlock>>,
+    blocks: Vec<SyBlock>,
+    /// `bind[i]` is the block bound to `.ex` segment `i`, when one is.
+    bind: Vec<Option<usize>>,
 }
 
 impl SyLocals {
-    pub(crate) fn new(sy: Option<&[u8]>, n_segments: usize) -> Self {
-        let blocks = sy.and_then(sy_blocks).filter(|b| b.len() == n_segments);
-        SyLocals { blocks }
+    /// Bind `.sy`'s blocks to `segs` (the `.ex` function segments, in order).
+    pub(crate) fn new(sy: Option<&[u8]>, segs: &[&[u8]]) -> Self {
+        let Some(blocks) = sy.and_then(sy_blocks) else {
+            return SyLocals { blocks: Vec::new(), bind: Vec::new() };
+        };
+        // Fewer blocks than bodies was never observed (0 of 871 TUs) and would mean
+        // this reader has the file's shape wrong, so it fails the file closed rather
+        // than binding the prefix it can.
+        if blocks.len() < segs.len() {
+            return SyLocals { blocks: Vec::new(), bind: Vec::new() };
+        }
+        // The key must be a key: a repeated header token would make the lookup
+        // ambiguous, and one ambiguous lookup is one possible wrong binding.
+        let mut by_tok: Vec<(u32, usize)> =
+            blocks.iter().enumerate().map(|(j, b)| (b.hdr_tok, j)).collect();
+        by_tok.sort_unstable();
+        if by_tok.windows(2).any(|w| w[0].0 == w[1].0) {
+            return SyLocals { blocks: Vec::new(), bind: Vec::new() };
+        }
+        let mut bind: Vec<Option<usize>> = Vec::with_capacity(segs.len());
+        let mut prev: Option<usize> = None;
+        for seg in segs {
+            let found = ex_exit_label(seg).and_then(|t| {
+                by_tok.binary_search_by_key(&t, |&(k, _)| k).ok().map(|k| by_tok[k].1)
+            });
+            let Some(j) = found else {
+                bind.push(None);
+                continue;
+            };
+            // Blocks are in segment order. A key match that goes backwards means
+            // the two layers do not agree about what order the functions are in,
+            // and nothing in this file can be trusted after that.
+            if prev.is_some_and(|p| j <= p) {
+                return SyLocals { blocks: Vec::new(), bind: Vec::new() };
+            }
+            prev = Some(j);
+            bind.push(formals_agree(seg, &blocks[j]).then_some(j));
+        }
+        SyLocals { blocks, bind }
     }
 
     /// Everything the `.sy` layer contributes about the `i`-th function segment.
@@ -176,16 +259,109 @@ impl SyLocals {
     /// `formals: None` means **undetermined**, and a body whose formals matter
     /// must refuse — never "no formals" and never "assume one register each".
     pub(crate) fn view(&self, i: usize) -> SyView<'_> {
-        match &self.blocks {
-            Some(b) => match b.get(i) {
-                Some(blk) => SyView {
-                    locals: &blk.int_locals,
-                    formals: Formals::Declared(&blk.formals),
-                },
-                None => SyView::UNKNOWN,
+        match self.bind.get(i) {
+            Some(Some(j)) => SyView {
+                locals: &self.blocks[*j].int_locals,
+                formals: Formals::Declared(&self.blocks[*j].formals),
             },
-            None => SyView::UNKNOWN,
+            _ => SyView::UNKNOWN,
         }
+    }
+}
+
+/// Whether every formal token `.ex` lists for `seg` is declared by `blk`.
+///
+/// This is the invariant the correspondence itself has to satisfy, and it is the
+/// only check available that a *green differential cannot supply*: an obj compare
+/// grades what was emitted, and a mis-bound function refuses for some other reason
+/// long before it emits. Requiring the agreement is what caught the positional
+/// binding being wrong 343,315 times while every gate in this repo stayed green.
+///
+/// `false` when the `.ex` formals region does not parse, so that **every** binding this
+/// module makes is one this check has confirmed — no binding anywhere rests on
+/// [`ex_exit_label`] alone. It is free: refusing those 137,741 of 2,434,636
+/// candidate bindings moves the workload census by exactly 0 functions (228,298
+/// either way), because a segment whose formals region does not parse cannot reach a
+/// shape that needs a formal's width. Two channels at no cost is not a trade.
+fn formals_agree(seg: &[u8], blk: &SyBlock) -> bool {
+    let Some(lo) = find_subslice(seg, &LO_MARKER) else {
+        return false;
+    };
+    let Ok(formals) = parse_formals(seg, lo) else {
+        return false;
+    };
+    formals.iter().all(|t| blk.formals.iter().any(|f| f.tok == *t))
+}
+
+/// The `.ex` function segment's **exit-label token** — the key a `.sy` block's
+/// header carries.
+///
+/// The terminal return plumbing is `3A <tok> (54 <d>)* 29 <tok>`: the same token
+/// assigned and then returned, with the body's own scope (`54 02`, the innermost
+/// close, [`super::body::expr::BODY_SCOPE_DEPTH`]) closing last. So the anchor is
+/// the LAST `54 02` followed — after any `4F 01 <line>` markers — by `29 <tok>`,
+/// with a `3A <tok>` for the same token required earlier in the segment.
+///
+/// Every part of that is load-bearing, and each was measured against the variant
+/// that omits it, over 871 real TUs / 2,434,639 segments:
+///
+/// * **Anchoring on `54 02`** rather than scanning for `29 <tok>` directly. A raw
+///   scan cannot tell an opcode from a byte inside another opcode's token: a
+///   function whose exit label is token `0x29AE0500` contains the byte `29` inside
+///   its own operand, and the unanchored rule read `AE 05` there and bound nothing.
+///   The unanchored variants failed on 131 segments; this one fails on 3.
+/// * **The `4F 01 <line>` markers** between the close and the return. Requiring
+///   `54 02 29` literally misses every function whose closing brace carries a line
+///   marker — 2,229 segments, in 823 of the 856 files, i.e. it would have left the
+///   whole workload almost as unbound as the count check did.
+/// * **The `3A <tok>` corroboration.** Without it the rule rests on one channel;
+///   with it, the token is named twice by two different opcodes. Over 2,434,636
+///   extractions this is what keeps the false-positive count at zero — every
+///   extracted token found exactly one block.
+/// * **The LAST such site**, not the first: a function with several `return`s closes
+///   an inner scope into a `29` of a *different* label earlier
+///   (`3A t1 54 04 29 t2 54 03 4F 01 23 54 02 29 t1`), and taking the first site
+///   picks `t2`.
+///
+/// `None` for a segment with no return plumbing at all — measured 3 times in 871
+/// TUs: two `.sy`-less-looking stubs whose body is `4C 4F 11 53 54 02 29 <tok>` with
+/// no `3A`, and one whose body ends `4C 4B 4F 01 06 5E 01 21 4B 54 02 29 <tok>`
+/// likewise. Those segments simply do not bind; nothing is guessed for them.
+fn ex_exit_label(seg: &[u8]) -> Option<u32> {
+    let mut found = None;
+    let mut i = 0usize;
+    while i + BODY_SCOPE_CLOSE.len() <= seg.len() {
+        if seg[i..i + BODY_SCOPE_CLOSE.len()] != BODY_SCOPE_CLOSE {
+            i += 1;
+            continue;
+        }
+        let mut p = i + BODY_SCOPE_CLOSE.len();
+        eat_opt_stmt_marker(seg, &mut p);
+        if seg.get(p) == Some(&EX_RETURN) {
+            if let Some((tok, _)) = read_token_var(seg, p + 1) {
+                let (bytes, w) = token_bytes(tok);
+                let mut pat = [EX_ASSIGN, 0, 0, 0, 0];
+                pat[1..1 + w].copy_from_slice(&bytes[..w]);
+                if find_subslice(&seg[..i], &pat[..1 + w]).is_some() {
+                    found = Some(tok);
+                }
+            }
+        }
+        i += 1;
+    }
+    found
+}
+
+/// A token's canonical byte encoding, the inverse of [`read_token_var`]: two bytes
+/// when the second has its high bit clear, else four, big-endian. Exact for any
+/// token that came *from* `read_token_var`, which is the only caller — the two
+/// forms' value ranges do not overlap (a four-byte token always exceeds `0xFFFF`).
+fn token_bytes(tok: u32) -> ([u8; 4], usize) {
+    let be = tok.to_be_bytes();
+    if tok <= 0xFFFF && tok & 0x80 == 0 {
+        ([be[2], be[3], 0, 0], 2)
+    } else {
+        (be, 4)
     }
 }
 
@@ -320,6 +496,8 @@ pub(crate) struct SyFormal {
 /// with them.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct SyBlock {
+    /// The token in the block's own `03 01 <tok>` header.
+    pub(crate) hdr_tok: u32,
     /// Formal parameters with their widths, unordered.
     pub(crate) formals: Vec<SyFormal>,
     /// Automatic locals of plain (unqualified) `int` type whose address is never
@@ -327,6 +505,16 @@ pub(crate) struct SyBlock {
     /// intermediate. Every other local is deliberately absent from this list.
     pub(crate) int_locals: Vec<u32>,
 }
+
+/// The `.ex` close of a function body's own lexical scope — depth
+/// [`super::body::expr::BODY_SCOPE_DEPTH`], the innermost one, so it is the last
+/// close before the terminal return. The anchor [`ex_exit_label`] keys on.
+const BODY_SCOPE_CLOSE: [u8; 2] = [0x54, 0x02];
+/// `.ex` RETURN, which names the exit label.
+const EX_RETURN: u8 = 0x29;
+/// `.ex` ASSIGN, which names the same label earlier in the segment. The second
+/// channel that makes [`ex_exit_label`] a measurement and not a guess.
+const EX_ASSIGN: u8 = 0x3A;
 
 const BLOCK_OPEN: [u8; 2] = [0x03, 0x01];
 /// A record between function blocks, sharing the block header's `03` lead and its
@@ -481,10 +669,7 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
             return None;
         }
         p += 2;
-        // The block token is read past, not interpreted. It is not the function's
-        // `.gl` symbol token; it coincides with the function's exit-label token in
-        // every probe, which is an observation and not something anything needs.
-        let (_hdr_tok, w) = read_token_var(sy, p)?;
+        let (hdr_tok, w) = read_token_var(sy, p)?;
         p += w;
         // The tail is stepped over, not checked. What validates the block is what
         // must follow it: a `0D <depth>` group whose records all parse, and a `06`
@@ -492,7 +677,7 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
         sy.get(p..p + HEADER_TAIL_LEN)?;
         p += HEADER_TAIL_LEN;
 
-        let mut block = SyBlock::default();
+        let mut block = SyBlock { hdr_tok, ..SyBlock::default() };
         // At least the formals and body sections are always present, either may be
         // empty, and a nested brace adds one more. Depths arrive in preorder, so
         // they are not required to increase — sibling scopes reuse a depth — only
@@ -992,6 +1177,270 @@ mod tests {
         v
     }
 
+    // ---- the binding: a key, not a position ---------------------------------
+    //
+    // These build `.ex` segments and `.sy` blocks from the shapes transcribed
+    // above, because what has to be graded is the *correspondence* between the two
+    // layers and no single-layer capture can state it. The workload measurements
+    // each test names are in [`SyLocals`] and [`ex_exit_label`].
+
+    /// A token in its canonical `.ex`/`.sy` byte form.
+    fn tok(t: u32) -> Vec<u8> {
+        let (b, w) = token_bytes(t);
+        b[..w].to_vec()
+    }
+
+    /// One `.sy` function block: header token, `int` formals, `int` locals.
+    fn sy_block(hdr: u32, formals: &[u32], locals: &[u32]) -> Vec<u8> {
+        let mut v = vec![BLOCK_OPEN[0], BLOCK_OPEN[1]];
+        v.extend_from_slice(&tok(hdr));
+        v.extend_from_slice(&[0x1F, 0x00, 0x01, 0x01]);
+        v.extend_from_slice(&[SECTION, DEPTH_FORMALS]);
+        for (n, f) in formals.iter().enumerate() {
+            v.extend_from_slice(&[REC_PLAIN, DEPTH_FORMALS]);
+            v.extend_from_slice(&tok(*f));
+            v.extend_from_slice(&[0x00, b'a' + n as u8, 0x00]);
+            v.extend_from_slice(&[TYPE_TAG, TYPE_KIND_INT, 0x00, CLS_FORMAL, SIZE_LEAD, 0x04]);
+            v.extend_from_slice(&[0x00, 0x01, 0x00, TID_INT as u8]);
+        }
+        v.extend_from_slice(&[SECTION, 0x02]);
+        for (n, l) in locals.iter().enumerate() {
+            v.extend_from_slice(&[REC_PLAIN, 0x02]);
+            v.extend_from_slice(&tok(*l));
+            v.extend_from_slice(&[0x00, b'x' + n as u8, 0x00]);
+            v.extend_from_slice(&[TYPE_TAG, TYPE_KIND_INT, 0x00, CLS_AUTOMATIC, SIZE_LEAD, 0x04]);
+            v.extend_from_slice(&[0x00, 0x01, 0x00, TID_INT as u8]);
+        }
+        v.push(BLOCK_CLOSE);
+        v
+    }
+
+    /// One `.ex` function segment: a formals region and the terminal return
+    /// plumbing naming `exit`, in the shape `test_fixtures::IND_DEREF` carries.
+    fn ex_seg(formals: &[u32], exit: u32) -> Vec<u8> {
+        ex_seg_tail(formals, &{
+            let mut t = vec![EX_ASSIGN];
+            t.extend_from_slice(&tok(exit));
+            t.extend_from_slice(&BODY_SCOPE_CLOSE);
+            t.push(EX_RETURN);
+            t.extend_from_slice(&tok(exit));
+            t
+        })
+    }
+
+    /// [`ex_seg`] with the region between the `LO` marker and the function tail
+    /// supplied verbatim, for the return-plumbing shapes.
+    fn ex_seg_tail(formals: &[u32], body: &[u8]) -> Vec<u8> {
+        let mut v = vec![0x53, 0x53, 0x26];
+        v.extend_from_slice(&tok(0xE209));
+        v.push(0x46);
+        for f in formals {
+            v.push(0x2D);
+            v.extend_from_slice(&tok(*f));
+        }
+        v.extend_from_slice(&[0x4C, 0x4F, 0x11, 0x53]);
+        v.extend_from_slice(body);
+        v.extend_from_slice(&[0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00]);
+        v
+    }
+
+    fn declared(v: &SyView<'_>) -> Option<Vec<u32>> {
+        match v.formals {
+            Formals::Declared(d) => Some(d.iter().map(|f| f.tok).collect()),
+            _ => None,
+        }
+    }
+
+    /// The refutation this whole rung exists for: the `.sy` has MORE blocks than
+    /// `.ex` has bodies, and the extra one is **in front**. A positional binding
+    /// hands block 0 to segment 0 and attaches one function's data to another;
+    /// the key binds by identity and gets it right.
+    ///
+    /// Both halves are asserted, because "the right answer" and "not the
+    /// positional answer" are different claims and only the pair shows the key is
+    /// doing the work.
+    #[test]
+    fn a_surplus_block_in_front_does_not_shift_the_binding() {
+        let mut sy = sy_block(0x1234, &[0x1111], &[0x2222]);
+        sy.extend_from_slice(&sy_block(0xF009, &[0xEE09], &[0x3333]));
+        let seg = ex_seg(&[0xEE09], 0xF009);
+        let segs = [&seg[..]];
+        let locals = SyLocals::new(Some(&sy), &segs);
+        assert_eq!(declared(&locals.view(0)), Some(vec![0xEE09]));
+        assert_eq!(locals.view(0).locals, &[0x3333]);
+        // …and that is not what position would have said.
+        assert_eq!(sy_blocks(&sy).unwrap()[0].formals[0].tok, 0x1111);
+    }
+
+    /// The same, with the surplus block interspersed between two real ones — the
+    /// arrangement measured on the workload, where the leftover blocks are the
+    /// bodies the `.ex` splitter misses and are therefore never a tail.
+    #[test]
+    fn a_surplus_block_between_two_bound_ones_shifts_nothing() {
+        let mut sy = sy_block(0xF009, &[0xEE09], &[]);
+        sy.extend_from_slice(&sy_block(0x4321, &[0x5555], &[]));
+        sy.extend_from_slice(&sy_block(0x000A, &[0xFE09], &[]));
+        let a = ex_seg(&[0xEE09], 0xF009);
+        let b = ex_seg(&[0xFE09], 0x000A);
+        let segs = [&a[..], &b[..]];
+        let locals = SyLocals::new(Some(&sy), &segs);
+        assert_eq!(declared(&locals.view(0)), Some(vec![0xEE09]));
+        assert_eq!(declared(&locals.view(1)), Some(vec![0xFE09]));
+    }
+
+    /// A closing brace on its own source line puts a `4F 01 <line>` marker between
+    /// the body scope's close and the return. Requiring `54 02 29` literally missed
+    /// 2,229 segments in 823 of 856 real translation units — i.e. it would have
+    /// left the workload almost as unbound as the count check did.
+    #[test]
+    fn an_exit_label_behind_a_line_marker_is_still_the_key() {
+        let mut body = vec![EX_ASSIGN];
+        body.extend_from_slice(&tok(0xF009));
+        body.extend_from_slice(&[0x54, 0x03]);
+        body.extend_from_slice(&BODY_SCOPE_CLOSE);
+        body.extend_from_slice(&[0x4F, 0x01, 0x31]); // the `}`'s line marker
+        body.push(EX_RETURN);
+        body.extend_from_slice(&tok(0xF009));
+        let seg = ex_seg_tail(&[0xEE09], &body);
+        let sy = sy_block(0xF009, &[0xEE09], &[]);
+        let segs = [&seg[..]];
+        assert_eq!(declared(&SyLocals::new(Some(&sy), &segs).view(0)), Some(vec![0xEE09]));
+    }
+
+    /// A function with more than one `return` closes an inner scope into a `29` of
+    /// a *different* label before the terminal one. The LAST anchored site is the
+    /// exit label; taking the first picks the inner label and binds nothing.
+    #[test]
+    fn a_body_with_an_inner_return_keys_on_the_last_one() {
+        let mut body = vec![EX_ASSIGN];
+        body.extend_from_slice(&tok(0xEB09)); // inner label assigned
+        body.extend_from_slice(&BODY_SCOPE_CLOSE);
+        body.push(EX_RETURN);
+        body.extend_from_slice(&tok(0xEB09)); // …and returned: an anchored site
+        body.push(EX_ASSIGN);
+        body.extend_from_slice(&tok(0xF009)); // the real exit label
+        body.extend_from_slice(&[0x54, 0x03]);
+        body.extend_from_slice(&BODY_SCOPE_CLOSE);
+        body.push(EX_RETURN);
+        body.extend_from_slice(&tok(0xF009));
+        let seg = ex_seg_tail(&[0xEE09], &body);
+        let mut sy = sy_block(0xEB09, &[0x1919], &[]);
+        sy.extend_from_slice(&sy_block(0xF009, &[0xEE09], &[]));
+        let segs = [&seg[..]];
+        assert_eq!(declared(&SyLocals::new(Some(&sy), &segs).view(0)), Some(vec![0xEE09]));
+    }
+
+    /// An exit label whose own first token byte is `29` — the RETURN opcode. This
+    /// is why the anchor is `54 02` and not a scan for `29 <tok>`: the unanchored
+    /// rule reads `AE 05` out of the middle of this token and binds nothing. A real
+    /// witness, from `src/lazer/game/BustAMovePanel.cpp`.
+    #[test]
+    fn an_exit_label_token_starting_with_the_return_opcode_still_keys() {
+        let seg = ex_seg(&[0x4CDB0600], 0x29AE0500);
+        let sy = sy_block(0x29AE0500, &[0x4CDB0600], &[]);
+        let segs = [&seg[..]];
+        assert_eq!(declared(&SyLocals::new(Some(&sy), &segs).view(0)), Some(vec![0x4CDB0600]));
+    }
+
+    /// The corroboration is required: a `54 02 29 <tok>` whose token is never
+    /// *assigned* anywhere in the segment is not a return-plumbing site. One
+    /// channel would be a guess; the point of two is that the token is named twice.
+    #[test]
+    fn a_return_without_a_matching_assign_is_not_an_exit_label() {
+        let mut body = Vec::from(BODY_SCOPE_CLOSE);
+        body.push(EX_RETURN);
+        body.extend_from_slice(&tok(0xF009));
+        let seg = ex_seg_tail(&[0xEE09], &body);
+        let sy = sy_block(0xF009, &[0xEE09], &[]);
+        let segs = [&seg[..]];
+        let locals = SyLocals::new(Some(&sy), &segs);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+    }
+
+    /// A segment with no return plumbing at all binds nothing **and costs its
+    /// neighbours nothing**: the key is an identity, so an unbound segment cannot
+    /// shift the ones after it. Measured 3 times in 871 real translation units.
+    #[test]
+    fn a_segment_with_no_exit_label_leaves_its_neighbour_bound() {
+        let mut sy = sy_block(0xF009, &[0xEE09], &[]);
+        sy.extend_from_slice(&sy_block(0x000A, &[0xFE09], &[]));
+        let a = ex_seg_tail(&[0xEE09], &[0x4B]);
+        let b = ex_seg(&[0xFE09], 0x000A);
+        let segs = [&a[..], &b[..]];
+        let locals = SyLocals::new(Some(&sy), &segs);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+        assert_eq!(declared(&locals.view(1)), Some(vec![0xFE09]));
+    }
+
+    /// The invariant that grades the correspondence: every `.ex` formal token must
+    /// be declared by the block the key found. When it is not, that segment does
+    /// **not** bind — so its locals are withheld too, and the census reports
+    /// `param-width-undetermined` rather than the port emitting from a block that
+    /// might belong to another function.
+    #[test]
+    fn a_block_that_does_not_declare_the_ex_formals_is_not_bound() {
+        let seg = ex_seg(&[0xEE09, 0xED09], 0xF009);
+        let sy = sy_block(0xF009, &[0xEE09], &[0x3333]);
+        let segs = [&seg[..]];
+        let locals = SyLocals::new(Some(&sy), &segs);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+        assert!(locals.view(0).locals.is_empty());
+        // The same block binds once `.ex` and `.sy` agree about the formals.
+        let ok = ex_seg(&[0xEE09], 0xF009);
+        assert_eq!(declared(&SyLocals::new(Some(&sy), &[&ok[..]]).view(0)), Some(vec![0xEE09]));
+    }
+
+    /// Two blocks sharing a header token make the lookup ambiguous, and one
+    /// ambiguous lookup is one possible wrong binding — so the whole file refuses.
+    /// Never observed in 871 real translation units, which is exactly why it is
+    /// required literally rather than resolved by picking one.
+    #[test]
+    fn a_repeated_header_token_unbinds_the_whole_file() {
+        let mut sy = sy_block(0xF009, &[0xEE09], &[]);
+        sy.extend_from_slice(&sy_block(0xF009, &[0xEE09], &[]));
+        let seg = ex_seg(&[0xEE09], 0xF009);
+        let locals = SyLocals::new(Some(&sy), &[&seg[..]]);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+    }
+
+    /// Blocks are in segment order — 0 violations over 2,434,636 real bindings —
+    /// so a key match that goes backwards means the two layers disagree about the
+    /// order of the functions, and nothing in the file can be trusted after it.
+    #[test]
+    fn a_binding_that_goes_backwards_unbinds_the_whole_file() {
+        let mut sy = sy_block(0xF009, &[0xEE09], &[]);
+        sy.extend_from_slice(&sy_block(0x000A, &[0xFE09], &[]));
+        // Segment order reversed against block order.
+        let a = ex_seg(&[0xFE09], 0x000A);
+        let b = ex_seg(&[0xEE09], 0xF009);
+        let locals = SyLocals::new(Some(&sy), &[&a[..], &b[..]]);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+        assert!(matches!(locals.view(1).formals, Formals::Undetermined));
+    }
+
+    /// Fewer blocks than bodies was never observed (0 of 871 TUs) and would mean
+    /// this reader has the file's shape wrong, so it fails the file closed rather
+    /// than binding the prefix it can.
+    #[test]
+    fn fewer_blocks_than_segments_unbinds_the_whole_file() {
+        let sy = sy_block(0xF009, &[0xEE09], &[]);
+        let a = ex_seg(&[0xEE09], 0xF009);
+        let b = ex_seg(&[0xFE09], 0x000A);
+        let locals = SyLocals::new(Some(&sy), &[&a[..], &b[..]]);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+    }
+
+    /// A `.sy` that does not parse to EOF binds nothing, unchanged.
+    #[test]
+    fn an_unparseable_sy_binds_nothing() {
+        let seg = ex_seg(&[0xEE09], 0xF009);
+        let mut sy = sy_block(0xF009, &[0xEE09], &[]);
+        sy.push(0x2A); // a lead byte the reader has no rule for
+        let locals = SyLocals::new(Some(&sy), &[&seg[..]]);
+        assert!(matches!(locals.view(0).formals, Formals::Undetermined));
+        assert!(matches!(SyLocals::new(None, &[&seg[..]]).view(0).formals, Formals::Undetermined));
+    }
+
     #[test]
     fn a_formal_and_two_int_locals_are_told_apart() {
         let b = sy_blocks(LOC2).expect("measured capture must parse");
@@ -1004,7 +1453,11 @@ mod tests {
     #[test]
     fn both_sections_may_be_empty() {
         let b = sy_blocks(EMPTY).expect("empty sections are a real capture");
-        assert_eq!(b, vec![SyBlock::default()]);
+        assert_eq!(b.len(), 1);
+        assert!(b[0].formals.is_empty() && b[0].int_locals.is_empty());
+        // The header token is read out even when the block declares nothing: it is
+        // the key the binding runs on.
+        assert_eq!(b[0].hdr_tok, 0xe709);
     }
 
     /// The refutation that mattered: the byte after the record tag is the scope
