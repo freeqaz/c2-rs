@@ -1048,13 +1048,23 @@ cargo test --workspace --release
 cargo run --release -p c2-harness --bin c2rs -- diff
 cargo run --release -p c2-harness --bin c2rs -- perf
 
-# 2. The real-workload gap scan (the census + scan gates; ~36 s at -j16).
-#    Prints the TU buckets, the FUNCTION CENSUS numerator, and the top-20
-#    blocking-feature histogram.
+# 2. The real-workload gap scan (the census + scan gates). Prints the TU
+#    buckets, the FUNCTION CENSUS numerator, and the top-20 blocking-feature
+#    histogram — and, since 2026-07-30, a PROVENANCE header (both trees' git
+#    HEADs, the resolved toolchain paths, the wibo version) before any of it.
+#    Captures are cached content-addressed, so this is ~47 s cold and ~1 s warm.
 cargo run --release -p c2-harness --bin c2rs -- gap \
   --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt \
   --cwd ../dc3-decomp --jsonl work/dc3-workload/scan-$(date +%Y%m%d).jsonl \
   --replay-every 25 --jobs 16
+
+# 2a. …and the cache is never trusted without a sampling check. This re-captures
+#     every 50th cache hit through the real toolchain and byte-compares it;
+#     a disagreement is named per entry and exits non-zero. Run it whenever a
+#     scan is about to be quoted, and use --no-cache to bypass entirely.
+cargo run --release -p c2-harness --bin c2rs -- gap \
+  --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt \
+  --cwd ../dc3-decomp --jobs 16 --validate-cache 50
 
 # 2b. Single-TU census while developing a widening step: run it before and
 #     after and watch named functions move from a blocking feature to a shape.
@@ -1369,6 +1379,48 @@ The rules that keep the numbers honest:
   **absolute** paths for measurement artifacts, and print a scan's row count and
   denominator before differencing it against another, because two scans agreeing on
   `fn_total` proves only that the corpus is the same, never that the binary was.
+  **The denominator guard is now proven insufficient, not merely weak** (2026-07-30):
+  the corpus moved mid-session and `fn_total` matched anyway, because a workload tree
+  can change in ways that add and remove no IL body at all. A count is not an
+  identity. Every scan now prints and records the **workload tree's git HEAD plus a
+  dirty flag, the c2-rs HEAD, the resolved toolchain paths and the wibo version**
+  (`c2_harness::provenance`, JSONL record 0, tagged `"record":"provenance"`), and
+  every field degrades to `unknown` rather than failing when git is absent. Quote a
+  number with its provenance line or do not quote it.
+- **Name the loader, or it will name your results for you.** A stale sibling wibo
+  (`1.0.1-7` against the known-good `1.0.1-23`) turns the gap scan's replay column
+  from `36 checked / 0 diverged` into `36/30` — a **fake correctness alarm on the
+  oracle seam** — while the census, the mismatch count and every blocking-feature row
+  stay byte-identical. Nothing in the report named the binary, so the only visible
+  change was the one number that looked like a real regression. `gap` and `selftest`
+  now print the resolved wibo path and its `--version`, and warn loudly (never
+  fatally — env-driven toolchains are by design) when it parses older than
+  `c2_reference::WIBO_KNOWN_GOOD`. The version compare is numeric per component
+  precisely because the failing pair sorts the wrong way as text (`"7" > "23"`).
+- **A cache is an instrument that answers without doing the work, so the only
+  interesting property is whether a wrong one is detectable.** `c2rs gap` now caches
+  reference captures content-addressed — source **bytes**, the exact flag string, the
+  compile cwd, the `cl.exe`/`c1xx.dll`/`c2.dll` bytes, the wibo version, and the
+  workload tree's git identity (HEAD + a content digest of every tracked
+  modification, which is what closes the *header* hazard a `.cpp` hash cannot see);
+  never mtimes. Two properties are worth copying to the next cache in this repo:
+  **(1) a collision degrades to a miss, not to a wrong answer** — the entry stores
+  its full key material verbatim and a hit is served only when those bytes compare
+  equal, so the 128-bit hash's odds are a curiosity rather than a load-bearing claim;
+  **(2) it is never trusted without a bypass-and-compare** — `--validate-cache N`
+  re-captures every Nth hit through the real toolchain and byte-compares, naming the
+  field and offset that differed, and `--no-cache` bypasses entirely. Demonstrated:
+  one flipped byte in a cached 2.5 MB `.ex` is served silently as a clean scan
+  (exit 0, and in that instance the headline census did not move either), and is
+  named exactly — `.ex differs at offset 1276107` — with exit 1 under the validator.
+  **What the validator found on its own control case is the better argument for
+  having one.** Two facts about "the same" capture, neither previously written down:
+  `cl.exe` names the bundle `_CL_<hex>` from a **per-invocation nonce**, and the
+  reference obj's COFF `TimeDateStamp` is **wall clock** — one cold scan's 878 objs
+  carry 58 distinct values across its 5-minute window. Both are normalized away
+  explicitly (the timestamp by the project's own criterion, and reported as its own
+  verdict rather than folded into "identical"), and both would have been invisible
+  without a check whose control group is a capture that is supposed to agree.
 - **A failed search is not evidence of absence.** Three of this project's
   wrong-bytes emits are the same mistake: code asked "did I find X?" and read
   "no" as "there is no X". `.gl` did not name a destination, so the token was

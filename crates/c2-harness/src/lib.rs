@@ -20,10 +20,12 @@ use c2_core::{Backend, BackendError};
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
+pub mod capture_cache;
 pub mod corpus;
 pub mod gap;
 pub mod perf;
 pub mod prefilter;
+pub mod provenance;
 pub mod retrieval;
 pub mod search;
 

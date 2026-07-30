@@ -39,6 +39,9 @@ use c2_core::{Backend, BackendError, PortC2};
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
+use crate::capture_cache::CaptureCache;
+use crate::provenance::Provenance;
+
 /// Scan configuration (see `c2rs gap --help` for the CLI mapping).
 pub struct GapConfig {
     /// Source arguments, passed to `cl.exe` verbatim (relative to `cwd`).
@@ -57,6 +60,13 @@ pub struct GapConfig {
     pub jsonl: Option<PathBuf>,
     /// Scratch root; per-TU subdirs are created below it.
     pub work: PathBuf,
+    /// Reference-capture cache root (`None` = `--no-cache`). See
+    /// [`crate::capture_cache`] — the key is content-addressed over source
+    /// bytes, flags, toolchain and workload-tree identity, never mtimes.
+    pub cache: Option<PathBuf>,
+    /// Re-capture and byte-compare every Nth cache **hit** (0 = never). The
+    /// bypass-and-compare validator that makes a poisoned cache detectable.
+    pub validate_cache: usize,
 }
 
 /// Outcome class for one TU (see module docs for the ladder).
@@ -152,6 +162,12 @@ pub struct TuResult {
 /// Aggregated scan report.
 pub struct GapReport {
     pub results: Vec<TuResult>,
+    /// What produced these numbers (roadmap #46/#48): both trees' git HEADs, the
+    /// resolved toolchain paths, the wibo version. `None` only when a report is
+    /// built by hand in a test.
+    pub provenance: Option<Provenance>,
+    /// Capture-cache counters for this scan (all zero when `--no-cache`).
+    pub cache: crate::capture_cache::CacheStats,
 }
 
 impl GapReport {
@@ -381,6 +397,7 @@ fn clip(s: &str, n: usize) -> String {
 fn scan_one(
     tc: &Toolchain,
     cfg: &GapConfig,
+    cache: Option<&CaptureCache>,
     src: &str,
     work: &Path,
     do_replay: bool,
@@ -401,9 +418,17 @@ fn scan_one(
         bind_checks: BTreeMap::new(),
     };
 
-    // 1. Capture: real flags, real cwd, strace keeps bundle + obj.
+    // 1. Capture: real flags, real cwd, strace keeps bundle + obj. Served from
+    //    the content-addressed cache when one is configured — the cache dir IS
+    //    the capture dir, so the `-Fo` path c2 bakes into the obj is a function
+    //    of the key and a hit is byte-identical to the capture that filled it
+    //    (`crate::capture_cache`).
+    let capture_result = match cache {
+        Some(c) => c.capture(tc, src, &cfg.flags, cfg.cwd.as_deref(), work).0,
+        None => tc.capture_reference_with(src, work, &cfg.flags, cfg.cwd.as_deref()),
+    };
     let captured =
-        match tc.capture_reference_with(src, work, &cfg.flags, cfg.cwd.as_deref()) {
+        match capture_result {
             Ok(c) => c,
             Err(e) => {
                 let (key, detail) = normalize_cl_error(&e.to_string());
@@ -502,6 +527,15 @@ fn scan_one(
                 Err(_) => false,
             },
         );
+        // The replay must write to the reference's own `-Fo` path (that string
+        // is inside the obj), which under a cache is the cache entry itself —
+        // so restore the captured bytes afterwards. Without this a diverging
+        // replay would leave its own output behind as the "cached capture",
+        // i.e. the scan would poison its own cache with the thing it was
+        // checking for.
+        if cache.is_some() {
+            let _ = std::fs::write(&ref_obj_path, captured.ref_obj.as_bytes());
+        }
     }
 
     // 3. Vocabulary: can the IL model even decode this bundle's functions?
@@ -554,11 +588,25 @@ fn scan_one(
 
 /// Run the scan: worker pool over the source list, per-TU work subdirs.
 /// `progress` is called per finished TU (from worker threads, serialized).
+///
+/// The scan also records **what produced the numbers** — see
+/// [`Provenance`]: a scan whose corpus moved and whose `fn_total` matched anyway
+/// is a scan that lied, and the denominator guard alone is proven insufficient.
 pub fn gap_scan(
     tc: &Toolchain,
     cfg: &GapConfig,
     progress: &(dyn Fn(usize, usize, &TuResult) + Sync),
 ) -> std::io::Result<GapReport> {
+    let provenance = Provenance::collect(tc, cfg.cwd.as_deref());
+    let cache = match &cfg.cache {
+        Some(root) => Some(CaptureCache::new(
+            root.clone(),
+            tc,
+            cfg.cwd.as_deref(),
+            cfg.validate_cache,
+        )?),
+        None => None,
+    };
     let sources: Vec<&str> = cfg
         .sources
         .iter()
@@ -579,6 +627,7 @@ pub fn gap_scan(
             let next = &next;
             let done = &done;
             let results = &results;
+            let cache = cache.as_ref();
             scope.spawn(move || loop {
                 let i = next.fetch_add(1, Ordering::Relaxed);
                 if i >= sources.len() {
@@ -588,7 +637,7 @@ pub fn gap_scan(
                 let work = cfg.work.join(format!("tu{i:05}"));
                 let _ = std::fs::create_dir_all(&work);
                 let do_replay = cfg.replay_every > 0 && i % cfg.replay_every == 0;
-                let r = scan_one(tc, cfg, src, &work, do_replay);
+                let r = scan_one(tc, cfg, cache, src, &work, do_replay);
                 // Bound scratch usage: captured bundles/objs for huge scans
                 // add up; the JSONL is the durable record.
                 let _ = std::fs::remove_dir_all(&work);
@@ -603,8 +652,41 @@ pub fn gap_scan(
     let mut results = results.into_inner().unwrap();
     results.sort_by(|a, b| a.src.cmp(&b.src));
 
+    let cache_stats = cache
+        .as_ref()
+        .map(|c| c.stats())
+        .unwrap_or_default();
+
     if let Some(path) = &cfg.jsonl {
         let mut f = std::fs::File::create(path)?;
+        // Record 0 is the provenance header (roadmap #46). Per-TU rows below are
+        // unchanged and carry no `record` field, so two scans' rows stay
+        // byte-comparable; a consumer skips this one with
+        // `if r.get("record"): continue`.
+        let extra: Vec<(&str, String)> = vec![
+            (
+                "cache_root",
+                match &cfg.cache {
+                    Some(p) => crate::jstr(&p.display().to_string()),
+                    None => "null".to_string(),
+                },
+            ),
+            (
+                "cache_context",
+                match cache.as_ref() {
+                    Some(c) => crate::jstr(&c.context_digest()),
+                    None => "null".to_string(),
+                },
+            ),
+            ("cache_hits", cache_stats.hits.to_string()),
+            ("cache_misses", cache_stats.misses.to_string()),
+            ("cache_validated", cache_stats.validated.to_string()),
+            ("cache_poisoned", cache_stats.poisoned.to_string()),
+            ("tu_count", results.len().to_string()),
+            ("replay_every", cfg.replay_every.to_string()),
+            ("flags", crate::jstr(&cfg.flags.join(" "))),
+        ];
+        writeln!(f, "{}", provenance.to_json(&extra))?;
         for r in &results {
             let blockers = r
                 .fn_blockers
@@ -653,7 +735,11 @@ pub fn gap_scan(
         }
     }
 
-    Ok(GapReport { results })
+    Ok(GapReport {
+        results,
+        provenance: Some(provenance),
+        cache: cache_stats,
+    })
 }
 
 #[cfg(test)]
@@ -672,6 +758,14 @@ mod tests {
     fn cl_error_normalization_survives_codeless_blobs() {
         let (key, _) = normalize_cl_error("wibo: something exploded\n");
         assert_eq!(key, "wibo: something exploded");
+    }
+
+    fn mk_report(results: Vec<TuResult>) -> GapReport {
+        GapReport {
+            results,
+            provenance: None,
+            cache: crate::capture_cache::CacheStats::default(),
+        }
     }
 
     fn mk(reason: &str) -> TuResult {
@@ -694,9 +788,7 @@ mod tests {
 
     #[test]
     fn report_ranks_reasons_by_count() {
-        let rep = GapReport {
-            results: vec![mk("b"), mk("a"), mk("b")],
-        };
+        let rep = mk_report(vec![mk("b"), mk("a"), mk("b")]);
         assert_eq!(
             rep.top_reasons(TuClass::CodegenGap),
             vec![("b".to_string(), 2), ("a".to_string(), 1)]
@@ -718,7 +810,7 @@ mod tests {
         b.fn_total = 10;
         b.fn_in_class = 4;
         b.fn_blockers.insert("expr-cmp-gt".into(), 6);
-        let rep = GapReport { results: vec![a, b] };
+        let rep = mk_report(vec![a, b]);
         assert_eq!(rep.fn_coverage(), (7, 20));
         assert_eq!(
             rep.fn_blocker_histogram(),
