@@ -1145,7 +1145,7 @@ fn parse_segment_detail(
                 None => false,
             };
             if is_call {
-                parse_call_shape(seg, &mut p, lo)
+                parse_call_shape(seg, &mut p, lo, None)
             } else {
                 try_parse_assign_body_detail(seg, p, lo, globals)
             }
@@ -1645,10 +1645,27 @@ fn try_parse_assign_body_detail(
         let (dst, w) =
             read_token_var(seg, probe).ok_or(blk(seg, probe, "assign-dst-tok"))?;
         probe += w;
-        // `BD` here means this `26` was a callee push, not a destination. The
-        // caller already dispatched on the FIRST one, so a later call means an
-        // assignment whose right-hand side is a call — a real, separate class.
-        if *seg.get(probe).ok_or(blk(seg, probe, "assign-op"))? == 0xBD {
+        // `BD` here means this `26` was a callee push, not a destination. The caller
+        // dispatched on the FIRST one, so reaching this means the right-hand side is
+        // itself a call: `int z = g(a); …`. When the very next thing is a return of
+        // that same local the whole body is a tail call, which `parse_call_shape`
+        // already handles given the bound token — so hand it over rather than refuse.
+        //
+        // Only valid as the FIRST statement: with `env` non-empty, earlier
+        // assignments have already been folded away and would be lost.
+        // The right-hand side is a call when it opens with its own `26 <callee>`
+        // followed by the `BD` CALL opcode — two tokens along from the destination,
+        // not one.
+        let rhs_is_call = *seg.get(probe).ok_or(blk(seg, probe, "assign-op"))? == 0x26
+            && match read_token_var(seg, probe + 1) {
+                Some((_, cw)) => seg.get(probe + 1 + cw) == Some(&0xBD),
+                None => false,
+            };
+        if rhs_is_call {
+            if env.is_empty() {
+                let mut q = probe;
+                return parse_call_shape(seg, &mut q, lo, Some(dst));
+            }
             return Err(blk(seg, probe, "assign-rhs-call"));
         }
         p = probe;
@@ -2355,7 +2372,12 @@ fn try_parse_compare(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
 /// or arg-setup, plus the `g(a)+0` identity fold), or the framed
 /// `return g(a) + k` (k ≠ 0). See [`parse_segment`] for the grammar;
 /// fail-closed at every step. `lo` locates the formals for the arg-setup.
-fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, Block> {
+fn parse_call_shape(
+    seg: &[u8],
+    p: &mut usize,
+    lo: usize,
+    bound_to: Option<u32>,
+) -> Result<BodyShape, Block> {
     // 26 <tok> function/result ref.
     if !eat_byte(seg, p, 0x26) {
         return Err(blk(seg, *p, "call-ref"));
@@ -2453,6 +2475,113 @@ fn parse_call_shape(seg: &[u8], p: &mut usize, lo: usize) -> Result<BodyShape, B
         // A zero-argument int call (`return g();`). The value-consuming shapes
         // below all assume an argument region, so refuse rather than guess.
         return Err(Block { ctx: "call-args-none", byte: None, off: *p, aux: 0 });
+    }
+    // A call whose result is bound to a local that is then returned immediately —
+    // `int z = g(a); return z;` — is byte-identical to `return g(a);`. c2
+    // register-allocates the local and coalesces the copy, so both are a bare
+    // `b <callee>`; captured on the one-, two- and three-argument forms.
+    //
+    // This is the `expr-call-in-expr` census bucket, and after the gate migration it
+    // is the largest single blocker at 12.3% of blocked functions. It needs no new
+    // codegen at all — only the IL model — so it routes to the existing tail-call
+    // productions rather than growing a shape of its own.
+    //
+    // The local never becomes a memory object here, which is why this does not
+    // reopen the store question `il_stmt_static.cpp` closed: the value is returned,
+    // never written anywhere, and the shape below admits nothing between the store
+    // and the return.
+    if let Some(dst) = bound_to {
+        //  32 <TYPE> 4B          store the call result into `dst`, discard the value
+        //  [4F 01 <line>]*       a line change between the two statements
+        //  B9 <dst> <TYPE> 41    load it straight back and return it
+        if !eat_byte(seg, p, 0x32) || !eat_int_like(seg, p) {
+            return Err(blk(seg, *p, "call-bound-store"));
+        }
+        if !eat_byte(seg, p, 0x4B) {
+            return Err(blk(seg, *p, "call-bound-stmt-end"));
+        }
+        eat_opt_stmt_marker(seg, p);
+        if !eat_byte(seg, p, 0xB9) {
+            return Err(blk(seg, *p, "call-bound-reload"));
+        }
+        let (back, w) =
+            read_token_var(seg, *p).ok_or(blk(seg, *p, "call-bound-reload-tok"))?;
+        *p += w;
+        // Anything other than reading back the very token just written is a
+        // different program.
+        if back != dst {
+            return Err(Block { ctx: "call-bound-other-token", byte: None, off: *p, aux: 0 });
+        }
+        if !eat_int_like(seg, p) {
+            return Err(blk(seg, *p, "call-bound-reload-type"));
+        }
+        eat_return_plumbing(seg, p, true)?;
+        let params = parse_formals(seg, lo)?;
+        if args.len() > 1 {
+            let mut arg_sources = Vec::with_capacity(args.len());
+            for slot in 0..args.len() {
+                let ops = &args[args.len() - 1 - slot];
+                let tok = match ops.as_slice() {
+                    [IlOp::Load(t)] => *t,
+                    _ => {
+                        return Err(Block {
+                            ctx: "call-arg-computed",
+                            byte: None,
+                            off: *p,
+                            aux: 0,
+                        })
+                    }
+                };
+                match params.iter().position(|&t| t == tok) {
+                    Some(ix) => arg_sources.push(ix),
+                    None => {
+                        return Err(Block {
+                            ctx: "call-arg-nonformal",
+                            byte: None,
+                            off: *p,
+                            aux: 0,
+                        })
+                    }
+                }
+            }
+            for (i, src) in arg_sources.iter().enumerate() {
+                if arg_sources[..i].contains(src) {
+                    return Err(Block {
+                        ctx: "call-arg-duplicated",
+                        byte: None,
+                        off: *p,
+                        aux: 0,
+                    });
+                }
+            }
+            let n = arg_sources.len();
+            let mut seen = vec![false; n];
+            let mut cycles = 0usize;
+            for start in 0..n {
+                if seen[start] || arg_sources[start] == start {
+                    seen[start] = true;
+                    continue;
+                }
+                let mut at = start;
+                while !seen[at] {
+                    seen[at] = true;
+                    at = arg_sources[at];
+                }
+                cycles += 1;
+            }
+            if cycles > 1 {
+                return Err(Block { ctx: "call-arg-multicycle", byte: None, off: *p, aux: 0 });
+            }
+            return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
+        }
+        let arg_ops = args.pop().expect("exactly one argument");
+        if has_repeated_leaf(&arg_ops) {
+            return Err(Block { ctx: "call-arg-repeated-leaf", byte: None, off: *p, aux: 0 });
+        }
+        if !additive_chain_canonical(&arg_ops) {
+            return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
+        }
+        return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
     }
     if args.len() > 1 {
         // Two or more arguments: only the pure-permutation shape is modeled, and
