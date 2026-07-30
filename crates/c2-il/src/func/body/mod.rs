@@ -8,13 +8,14 @@ use self::chain::{
     straight_line_out_of_class_ctx,
 };
 use self::expr::{
-    eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr, parse_formals, BODY_SCOPE_DEPTH,
+    eat_fn_tail, eat_return_head, eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr,
+    parse_formals, BODY_SCOPE_DEPTH,
 };
 use self::shapes::parse_params;
 use self::shapes::{
-    parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail, try_parse_compare,
-    try_parse_empty_dtor_delegation, try_parse_float_leaf, try_parse_indirect_load_leaf,
-    try_parse_ptr_identity_leaf,
+    eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
+    try_parse_compare, try_parse_empty_dtor_delegation, try_parse_float_leaf,
+    try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf,
 };
 use super::readers::{eat_byte, find_subslice, read_token_var, read_type, read_varint};
 use super::sy::SyView;
@@ -516,7 +517,16 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
         // reach the segment end, so any trailing statement or unexpected operand
         // fails the function closed exactly as it does for every other shape.
         0x3A => {
-            eat_return_plumbing(seg, &mut p, false, depth)?;
+            eat_return_head(seg, &mut p, false, depth)?;
+            // …and then, for a **constructor**, the `return this` that sits
+            // between the RETURN and the tail. It emits nothing — `this` is
+            // already in r3 and an empty body cannot have moved it — so the shape
+            // is the same `EmptyBody` either way. Absent, this is a no-op and the
+            // tail follows immediately, exactly as before.
+            // [`shapes::eat_ctor_this_epilogue`] has the capture and the reason
+            // the leaf restriction is not conservatism.
+            eat_ctor_this_epilogue(seg, &mut p, lo);
+            eat_fn_tail(seg, &mut p)?;
             Ok(BodyShape::EmptyBody)
         }
         // `26 <tok>` opens BOTH a call (the callee push) and an assignment

@@ -198,6 +198,24 @@ pub(crate) fn eat_return_plumbing(
     has_result_type: bool,
     depth: usize,
 ) -> Result<(), Block> {
+    eat_return_head(seg, p, has_result_type, depth)?;
+    eat_fn_tail(seg, p)
+}
+
+/// [`eat_return_plumbing`] up to and including `29 <label>`, without the function
+/// tail.
+///
+/// Split out — byte for byte, no behaviour change — because one shape has a
+/// **value expression between the RETURN and the tail**: a constructor's
+/// `return this`. See [`super::shapes::eat_ctor_this_epilogue`]. Keeping the head
+/// and the tail as named pieces means the constructor arm composes the same two
+/// halves every other shape uses rather than restating either.
+pub(crate) fn eat_return_head(
+    seg: &[u8],
+    p: &mut usize,
+    has_result_type: bool,
+    depth: usize,
+) -> Result<(), Block> {
     if has_result_type {
         let save = *p;
         if !(eat_byte(seg, p, 0x41) && eat_int_like_or_ptr4(seg, p).is_some()) {
@@ -229,7 +247,7 @@ pub(crate) fn eat_return_plumbing(
     }
     let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "return-tok"))?;
     *p += w;
-    eat_fn_tail(seg, p)
+    Ok(())
 }
 
 /// The **function tail** every accepted body ends on, and the fail-closed
