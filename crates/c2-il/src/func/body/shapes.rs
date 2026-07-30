@@ -3,8 +3,8 @@ use super::chain::{
     substitute, MAX_SUBST_OPS,
 };
 use super::expr::{
-    eat_return_plumbing, eat_scopes, formals_marker, intrinsic_selector, parse_expr, parse_formals,
-    BODY_SCOPE_DEPTH,
+    eat_fn_tail, eat_return_plumbing, eat_scopes, formals_marker, intrinsic_selector, parse_expr,
+    parse_formals, BODY_SCOPE_DEPTH,
 };
 use super::{blk, Block, BodyShape};
 use crate::func::readers::{
@@ -1206,6 +1206,266 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
     finish_indirect_load(seg, p, lo, base_tok, off)
 }
 
+/// Try to parse the **compiler-generated empty destructor** that does nothing but
+/// destroy its single non-virtual base at offset 0 — the largest coherent
+/// sub-shape of the `expr-call-in-expr` bucket (`docs/IL_CALL_IN_EXPR.md` §5).
+///
+/// ```text
+///   33 <int> 0                     the leading literal (role UNKNOWN — see below)
+///   26 <method-tok>                the BASE destructor, pushed first
+///   33 <int> 2113  40 <PTR4>       intrinsic `this-adjust`, pointer result
+///   66 02 <2 × 2-byte type ref>    the class-pair descriptor
+///   55 <int>                       selector argument terminator
+///   33 <int> 0     55 <int>        the adjust OFFSET — required to be 0
+///   B9 <this> <PTR4>  55 <PTR4>    the object pointer
+///   4C                             -> the adjusted receiver
+///   2C <PTR4> 00                   cv strip
+///   99 <PTR4> 00                   member bind (a `99` bind is DIRECT dispatch)
+///   BD <void> 00 <fn-type-id>      the CALL, void result, cdecl
+///   4C                             ZERO explicit arguments (`this` is not one)
+///   5C <int> 01                    opaque statement trailer
+///   4B                             statement end
+///   3A <lbl> 54 02 29 <lbl>        the return plumbing's branch/close/return
+///   5E 01 21                       opaque sub-object trailer
+///   4B
+///   <function tail, reaching the segment end>
+/// ```
+///
+/// **Why it needs no new codegen.** The adjust offset is 0, so the adjustment
+/// emits nothing and the receiver is already `this` in r3; a `99` bind is direct
+/// dispatch by construction (virtual dispatch is opcode `67` with a `9A` bind —
+/// `docs/IL_CALL_IN_EXPR.md` §3), so the call is a direct branch; and nothing
+/// follows it. The whole function is therefore the four bytes
+/// `b ??1Base@@QAA@XZ`, which is exactly [`BodyShape::VoidTailCall`]'s emission.
+/// MEASURED, `struct B1{~B1();int x;}; struct D1:B1{~D1();int y;}; D1::~D1(){}`
+/// at the workload's own `/O1 /Oi /EHsc`:
+///
+/// ```text
+///   ??1D1@@QAA@XZ:  48000000   b ??1B1@@QAA@XZ    (4 bytes, one REL24)
+/// ```
+///
+/// **Why this lands in `expr-call-in-expr` at all**: the body opens on the `33`
+/// literal, so the straight-line arm runs `parse_expr`, pushes `Lit(0)` and stops
+/// on the `26`. The very same production reached through a plain base-method call
+/// (`p->Bm()`, no leading literal) opens on the `26`, is dispatched to the
+/// assignment parser and files under `expr-intrinsic-this-adjust` — one
+/// production split across two census buckets by one leading byte.
+///
+/// **The two opaque trailers.** `5C <int> <f>` and `5E <n> <g>` are undecoded, and
+/// two of those three payload fields **vary** — which is the only reason this
+/// grammar is worth writing down rather than transcribing:
+///
+/// * **`<n>` counts destroyed sub-objects.** MEASURED,
+///   `struct N1 : M1, M2 { ~N1(); };` (two bases, each with a destructor) emits
+///   *two* member-call statements — the second with a nonzero adjust offset,
+///   needing an `addi` — and closes with `5E 02 21` rather than `5E 01 21`.
+///   Requiring `01` is therefore a real discriminator against the shape this
+///   lowering would get wrong, and it says structurally what the grammar says.
+/// * **`<f>` and `<g>` carry an exception-handling bit, and they co-vary.**
+///   MEASURED by isolating one flag at a time over
+///   `{/Od, /O1, /Ox} × {—, /Oi, /GS-, /GR, /EHsc, /EHa}`: **`/EH…` clears bit
+///   `0x10` in both**, and nothing else in that matrix moves either byte. So the
+///   fixture profile (`/Ox`, no `/EH`) gives `5C … 11` / `5E 01 31` and the dc3
+///   workload profile (`/O1 /Oi /EHsc`) gives `5C … 01` / `5E 01 21`, and the
+///   reference emits the **same four bytes** for both (checked at `/Ox`,
+///   `/Ox /EHsc` and `/O1`). Both pairs are admitted, as a two-entry table of
+///   measured values with the bit required to agree between them — not as a
+///   skipped field. Had this been pinned to the one profile that was probed
+///   first, the shape would have refused the entire workload or the entire
+///   fixture lane depending on which one that was.
+///
+/// What the bit *means* is still UNKNOWN, and a third value refuses. The
+/// separating probe for `<f>`'s low nibble would be a destructor of a class with
+/// a virtual base, where MSVC's vbase-destruct flag should move it; not tested.
+///
+/// Each remaining gate, with the neighbour it separates (all MEASURED at
+/// `/O1 /Oi /EHsc` against the live 16.00.11886.00 toolchain):
+///
+/// * **Selector exactly 2113 in its wide form.** 2113–2119 are seven different
+///   operations and only this one is an unguarded adjust; a *virtual* destructor
+///   goes through 2117/2116 and a whole different body
+///   (`struct N3 : M4 { virtual ~N3(); };`, which blocks as
+///   `expr-intrinsic-base-member-addr` and must keep doing so).
+/// * **The adjust offset must be 0.** A base at a nonzero offset costs a real
+///   `addi r3,r3,k` before the branch. No workload match had one — a multi-base
+///   destructor has two calls and fails the skeleton first — so the zero case is
+///   the only one with a codegen witness.
+/// * **The descriptor must be exactly `66 02` + two refs.** Every witness — a
+///   direct base, a two-level chain (`D4 : B4 : G4`), an empty base, a
+///   multi-base class — carries `02`, because a destructor delegates exactly one
+///   inheritance step. A field that never varied is required literally rather
+///   than skipped structurally on the assumption that the shape keeps repeating.
+/// * **The call must be `void`, cdecl, and carry ZERO explicit arguments.** The
+///   receiver rides the operand stack into the `99`; a `55`-terminated argument
+///   here would be a different callee.
+/// * **The receiver must be the function's `this`, positively bound, and there
+///   must be no other formal.** That is what puts the branch target's `this` in
+///   r3 with no register move. `parse_params` refuses an undetermined `this`
+///   (the line-70 rule).
+/// * **The parse must reach the segment end.** A destructor with a real statement
+///   (`N2::~N2() { h(); }`) has a second `26` where the plumbing must begin, and
+///   a class with a destructible *member* (`N4 : M5 { M6 m; }`) has a second
+///   member-call statement; both refuse, and both really do emit two branches.
+///
+/// Returns `None` — cursor untouched — for anything that is not exactly this
+/// shape.
+pub(crate) fn try_parse_empty_dtor_delegation(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    depth: usize,
+) -> Option<BodyShape> {
+    /// `33 <int> 80 41 08 00 00` — selector 2113 `this-adjust`, wide form.
+    const SELECTOR_2113: [u8; 5] = [0x80, 0x41, 0x08, 0x00, 0x00];
+    /// The `void` result TYPE, required literally: this shape's whole licence to
+    /// emit a bare branch is that there is no result to place.
+    const VOID_TYPE: [u8; 3] = [0x82, 0x07, 0x03];
+    /// The measured `(statement-trailer flag, sub-object-trailer flag)` pairs:
+    /// `/EH…` clears bit `0x10` in both, and they always agree. Anything else
+    /// refuses. See the doc comment.
+    const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
+
+    let mut p = start;
+    // The leading literal. Its role is UNKNOWN; it is required to be int-typed
+    // and exactly zero, which is what every witness carries.
+    if !eat_byte(seg, &mut p, 0x33) || !eat(seg, &mut p, &INT_TYPE) {
+        return None;
+    }
+    if read_varint(seg, &mut p)? != 0 {
+        return None;
+    }
+    // The base destructor's symbol, pushed before its receiver.
+    if !eat_byte(seg, &mut p, 0x26) {
+        return None;
+    }
+    let (callee_tok, w) = read_token_var(seg, p)?;
+    p += w;
+    // The `this`-adjust intrinsic, whose result is the receiver.
+    if !eat_byte(seg, &mut p, 0x33)
+        || !eat(seg, &mut p, &INT_TYPE)
+        || !eat(seg, &mut p, &SELECTOR_2113)
+        || !eat_byte(seg, &mut p, 0x40)
+    {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !is_ptr4_kind(tag, kind) {
+        return None;
+    }
+    p += tw;
+    // The class-pair descriptor: exactly two 2-byte type references.
+    if !eat(seg, &mut p, &[0x66, 0x02]) {
+        return None;
+    }
+    p += 4;
+    if p > seg.len() {
+        return None;
+    }
+    if !eat_byte(seg, &mut p, 0x55) || !eat(seg, &mut p, &INT_TYPE) {
+        return None;
+    }
+    // The adjust offset — zero, or this needs an `addi`.
+    if !eat_byte(seg, &mut p, 0x33) || !eat(seg, &mut p, &INT_TYPE) {
+        return None;
+    }
+    if read_varint(seg, &mut p)? != 0 {
+        return None;
+    }
+    if !eat_byte(seg, &mut p, 0x55) || !eat(seg, &mut p, &INT_TYPE) {
+        return None;
+    }
+    // The object pointer.
+    if !eat_byte(seg, &mut p, 0xB9) {
+        return None;
+    }
+    let (recv_tok, w) = read_token_var(seg, p)?;
+    p += w;
+    if !eat_value_type(seg, &mut p, ValueClass::Ptr4) {
+        return None;
+    }
+    if !eat_byte(seg, &mut p, 0x55) || !eat_value_type(seg, &mut p, ValueClass::Ptr4) {
+        return None;
+    }
+    if !eat_byte(seg, &mut p, 0x4C) {
+        return None;
+    }
+    // The cv strip on the adjusted receiver, then the member bind. A `2C`
+    // pointer→pointer emits nothing (`docs/IL_LOAD_TYPES.md` §3), and a `99`
+    // bind is direct dispatch.
+    if !eat_byte(seg, &mut p, 0x2C)
+        || !eat_value_type(seg, &mut p, ValueClass::Ptr4)
+        || !eat_byte(seg, &mut p, 0x00)
+    {
+        return None;
+    }
+    if !eat_byte(seg, &mut p, 0x99)
+        || !eat_value_type(seg, &mut p, ValueClass::Ptr4)
+        || !eat_byte(seg, &mut p, 0x00)
+    {
+        return None;
+    }
+    // The CALL: void result, cdecl, then the per-TU function-type id (decoded
+    // only to find the token's end — it does not name the callee).
+    if !eat_byte(seg, &mut p, 0xBD) || !eat(seg, &mut p, &VOID_TYPE) || !eat_byte(seg, &mut p, 0x00)
+    {
+        return None;
+    }
+    read_varint(seg, &mut p)?;
+    // Zero explicit arguments, then the two opaque trailers and the statement end.
+    if !eat_byte(seg, &mut p, 0x4C) {
+        return None;
+    }
+    if !eat(seg, &mut p, &[0x5C]) || !eat(seg, &mut p, &INT_TYPE) {
+        return None;
+    }
+    let stmt_flag = *seg.get(p)?;
+    let (_, want_subobject) = TRAILER_FLAGS.iter().copied().find(|&(f, _)| f == stmt_flag)?;
+    p += 1;
+    if !eat_byte(seg, &mut p, 0x4B) {
+        return None;
+    }
+    // The return plumbing, with the sub-object trailer wedged between the `29`
+    // return and the function tail — which is why this cannot call
+    // `eat_return_plumbing` and shares only [`eat_fn_tail`] with it.
+    let mut depth = depth;
+    eat_scopes(seg, &mut p, &mut depth).ok()?;
+    if !eat_byte(seg, &mut p, 0x3A) {
+        return None;
+    }
+    let (label, w) = read_token_var(seg, p)?;
+    p += w;
+    for d in (BODY_SCOPE_DEPTH..=depth).rev() {
+        eat_opt_stmt_marker(seg, &mut p);
+        if !eat(seg, &mut p, &[0x54, d as u8]) {
+            return None;
+        }
+    }
+    eat_opt_stmt_marker(seg, &mut p);
+    if !eat_byte(seg, &mut p, 0x29) {
+        return None;
+    }
+    let (back, w) = read_token_var(seg, p)?;
+    p += w;
+    // The branch and the return name the same label at every witness. Required,
+    // for the same reason as everything else here: it is what the bytes say.
+    if back != label {
+        return None;
+    }
+    // `5E <n> <g>`: exactly one destroyed sub-object, and its EH bit must agree
+    // with the statement trailer's.
+    if !eat(seg, &mut p, &[0x5E, 0x01, want_subobject]) || !eat_byte(seg, &mut p, 0x4B) {
+        return None;
+    }
+    eat_fn_tail(seg, &mut p).ok()?;
+
+    // `this` in r3, no explicit formals, and the receiver IS that `this`.
+    let params = parse_params(seg, lo).ok()?;
+    if params.as_slice() != [recv_tok] {
+        return None;
+    }
+    Some(BodyShape::EmptyDtorDelegation { callee_tok })
+}
+
 /// Try to parse a **W6 comparison leaf** body: `return <formal> <rel> <k>;`.
 ///
 /// ```text
@@ -2139,4 +2399,131 @@ mod tests {
         ok.extend_from_slice(&PTR_GETTER_CV[at + 6..]);
         assert!(parse_segment(&ok, NO_LOCALS).is_some());
     }
+
+    // ---- the generated empty destructor (D1) --------------------------------
+
+    /// Splice a replacement for the first occurrence of `find` in `DTOR_DELEGATE`,
+    /// leaving every other byte alone. Every negative below is one such edit, so
+    /// each asserts about exactly one field.
+    fn dtor_with(find: &[u8], repl: &[u8]) -> Vec<u8> {
+        let at = DTOR_DELEGATE
+            .windows(find.len())
+            .position(|w| w == find)
+            .expect("the field being edited");
+        let mut v = DTOR_DELEGATE[..at].to_vec();
+        v.extend_from_slice(repl);
+        v.extend_from_slice(&DTOR_DELEGATE[at + find.len()..]);
+        v
+    }
+
+    #[test]
+    fn the_generated_empty_destructor_parses_under_both_trailer_flags() {
+        // The same source captured twice, at the workload's flags and at the
+        // fixtures'. The two differ only in the trailers' `0x10` bit and the
+        // reference emits the same four bytes for both.
+        for (seg, label) in [(DTOR_DELEGATE, "/O1 /Oi /EHsc"), (DTOR_DELEGATE_NOEH, "/Ox")] {
+            assert_eq!(
+                parse_segment(seg, NO_LOCALS),
+                Some(BodyShape::EmptyDtorDelegation { callee_tok: 0xE409 }),
+                "{label}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_trailer_flags_must_agree_and_a_third_value_refuses() {
+        // The two flags co-vary across every witness. A mixed pair is not a
+        // capture this port has ever seen, so it fails closed rather than being
+        // read as "the bit does not matter".
+        assert_eq!(
+            parse_segment(&dtor_with(&[0x5E, 0x01, 0x21], &[0x5E, 0x01, 0x31]), NO_LOCALS),
+            None,
+            "EH bit clear in 5C, set in 5E"
+        );
+        // And an unmeasured flag value refuses outright.
+        assert_eq!(
+            parse_segment(&dtor_with(&[0x5C, 0x86, 0x41, 0x74, 0x01], &[0x5C, 0x86, 0x41, 0x74, 0x21]), NO_LOCALS),
+            None,
+            "an unmeasured statement-trailer flag"
+        );
+    }
+
+    #[test]
+    fn two_destroyed_subobjects_refuse() {
+        // `5E <n> …` counts destroyed sub-objects, MEASURED: a two-base
+        // destructor emits `5E 02 21` and two calls, the second at a nonzero
+        // adjust. Requiring `01` is the gate that keeps this lowering — one bare
+        // branch — away from that shape. This is the one payload field whose
+        // variation is understood, so it is the one that must be pinned.
+        assert_eq!(
+            parse_segment(&dtor_with(&[0x5E, 0x01, 0x21], &[0x5E, 0x02, 0x21]), NO_LOCALS),
+            None
+        );
+    }
+
+    #[test]
+    fn a_nonzero_base_adjust_refuses() {
+        // A base at a nonzero offset costs a real `addi r3,r3,k` before the
+        // branch. The adjust literal is the second `33 86 41 74 00` in the body;
+        // the first is the leading literal, so edit through the `55` that follows.
+        let seg = dtor_with(
+            &[0x33, 0x86, 0x41, 0x74, 0x00, 0x55, 0x86, 0x41, 0x74, 0xB9],
+            &[0x33, 0x86, 0x41, 0x74, 0x04, 0x55, 0x86, 0x41, 0x74, 0xB9],
+        );
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
+    }
+
+    #[test]
+    fn a_different_layout_intrinsic_refuses() {
+        // 2113 is the UNguarded adjust. 2114 (`base-upcast`) is null-guarded and
+        // lowers to five instructions with a control-flow split; the whole family
+        // differs, so the selector is required exactly.
+        let seg = dtor_with(
+            &[0x80, 0x41, 0x08, 0x00, 0x00],
+            &[0x80, 0x42, 0x08, 0x00, 0x00],
+        );
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
+    }
+
+    #[test]
+    fn a_receiver_that_is_not_this_refuses() {
+        // The lowering is a bare branch precisely because `this` is already in r3.
+        // Rebind the intrinsic's object-pointer argument to a token the pre-body
+        // region does not bind, leaving the `this` group itself intact.
+        let at = DTOR_DELEGATE
+            .windows(12)
+            .position(|w| w == [0xB9, 0xFC, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x55, 0xA6, 0x43, 0x81, 0x20])
+            .expect("the object-pointer argument");
+        let mut seg = DTOR_DELEGATE.to_vec();
+        seg[at + 1] = 0xF7; // a token no `2D` entry and no `this` group names
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
+    }
+
+    #[test]
+    fn the_leading_literal_must_be_zero_and_int_typed() {
+        // Its role is UNKNOWN, so a different value is a body this grammar has no
+        // witness for. (The 2117 `base-member-addr` designator is anchored on the
+        // same `33` and is told apart by exactly this payload.)
+        let mut seg = DTOR_DELEGATE.to_vec();
+        let lo = find_subslice(&seg, &LO_MARKER).unwrap();
+        seg[lo + 7] = 0x01; // the leading LIT's varint
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
+    }
+
+    #[test]
+    fn a_second_statement_and_a_short_segment_both_refuse() {
+        // A destructor with a real statement, or with a destructible member, has a
+        // second `26` where the return plumbing must begin — and really does emit
+        // two branches and a frame.
+        assert_eq!(
+            parse_segment(&dtor_with(&[0x3A, 0xFD, 0x09], &[0x26, 0xE4, 0x09]), NO_LOCALS),
+            None,
+            "a second statement"
+        );
+        // And the parse must reach the segment end, which is the fail-closed
+        // terminal every accepted shape shares.
+        let cut = DTOR_DELEGATE.len() - 7; // drop the `47 54 01 54 00` fn tail
+        assert_eq!(parse_segment(&DTOR_DELEGATE[..cut], NO_LOCALS), None);
+    }
+
 }

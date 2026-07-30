@@ -11,8 +11,9 @@ use self::expr::{
 };
 use self::shapes::parse_params;
 use self::shapes::{
-    parse_call_shape, try_parse_assign_body_detail, try_parse_compare, try_parse_float_leaf,
-    try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf,
+    parse_call_shape, try_parse_assign_body_detail, try_parse_compare,
+    try_parse_empty_dtor_delegation, try_parse_float_leaf, try_parse_indirect_load_leaf,
+    try_parse_ptr_identity_leaf,
 };
 use super::readers::{eat_byte, find_subslice, read_token_var};
 use super::sy::SyView;
@@ -60,6 +61,15 @@ pub(crate) enum BodyShape {
     /// `3A` assign of the return plumbing with no expression before it. Emits a
     /// bare `blr`.
     EmptyBody,
+    /// The **compiler-generated empty destructor** delegating to its single
+    /// non-virtual base's destructor at offset 0 — a member call through the
+    /// `this`-adjust intrinsic whose adjustment is nothing and whose result is
+    /// nothing, so the whole function is `b <base-dtor>`. Emits exactly what
+    /// [`BodyShape::VoidTailCall`] emits; kept as its own variant so the census
+    /// can attribute the movement, and because its grammar admits two opaque
+    /// trailers that must not be admitted anywhere else. See
+    /// [`shapes::try_parse_empty_dtor_delegation`].
+    EmptyDtorDelegation { callee_tok: u32 },
     /// An **indirect-load leaf**: the whole body is one load through a pointer
     /// (`return *p;`, `return s->m;`, `return p[k];`, `return mMember;`), which c2
     /// lowers to a single `lwz rD, off(rBase)`. `ops` is always exactly
@@ -357,6 +367,16 @@ pub(crate) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, 
             // is refused by both. Non-committal like the others: it works on a
             // copy of the cursor and returns None with no side effects.
             if let Some(shape) = try_parse_ptr_identity_leaf(seg, p, lo) {
+                return Ok(shape);
+            }
+            // …and the generated empty destructor, whose body opens on a literal
+            // `0` and is otherwise a member call. Anchored on `33 <int> 0` then a
+            // `26`, so it cannot collide with the intrinsic-2117 designator above
+            // (whose literal is the selector `2117`) nor with a real arithmetic
+            // leaf (whose literal is followed by an operand or an operator).
+            // Non-committal: works on a copy of the cursor, returns None with no
+            // side effects, so a declining body still reports its own blocker.
+            if let Some(shape) = try_parse_empty_dtor_delegation(seg, p, lo, depth) {
                 return Ok(shape);
             }
             let ops = parse_expr(seg, &mut p, 0x41)?;
