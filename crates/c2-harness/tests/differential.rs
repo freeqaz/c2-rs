@@ -186,8 +186,11 @@ fn differential_mvp_wide_immediates_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
-/// **#35 step 2, rung 1 — Class A many-calls.** A framed body with more than one
-/// call and nothing live across any of them: `n` REL24 sites in one function, the
+/// **#35 step 2 — many-call framed bodies, Class A and Class B.** A framed body
+/// with more than one call; Class A has nothing live across any of them and
+/// Class B keeps one or two formals in callee-saved GPRs (`mvp_call_seq_b.cpp`,
+/// whose `use_order` row is the capture that refutes first-use allocation
+/// order). Class A means: `n` REL24 sites in one function, the
 /// callee externals in reverse first-reference order, one symbol per distinct
 /// callee however many sites reference it, and the same 96-byte frame, `.pdata`
 /// record and label stride the single framed call already had.
@@ -205,7 +208,7 @@ fn differential_class_a_many_calls_byte_exact() {
         eprintln!("SKIP: strace/mingw absent");
         return;
     }
-    for name in ["mvp_call_seq.cpp", "mvp_call_twice.cpp"] {
+    for name in ["mvp_call_seq.cpp", "mvp_call_twice.cpp", "mvp_call_seq_b.cpp"] {
         let w = work("callseq");
         let port = PortC2::default();
         let report = differential(&fixture(name), &tc, &port, &w);
@@ -428,9 +431,13 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // `int z = g2(a, c); return z;` **panicked** the census. Both now refuse
         // through the single `tail_call_shape` locator.
         "il_call_bound_neg.cpp",
-        // The Class A many-call neighbours: a value read after the first call
-        // (Class B, one saved GPR) and a multi-argument literal list.
+        // The Class A many-call neighbours: a formal read by a tail EXPRESSION
+        // and a multi-argument literal list.
         "mvp_call_seq_neg.cpp",
+        // Class B's own neighbours: three live formals (the `__savegprlr_29`
+        // helper class), a first call that marshals while something is saved,
+        // and a computed argument out of a callee-saved register.
+        "mvp_call_seq_b_neg.cpp",
         // W30's neighbours: a call-tail literal whose type is NOT a width-4
         // integer (`bool`, `char`, `short`, `wchar_t`, `__int64`, `float`,
         // `double`, a pointer) and one that is but whose value does not fit the

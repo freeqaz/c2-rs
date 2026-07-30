@@ -1445,6 +1445,18 @@ pub fn call_seq_text(
     Ok(SeqBody { text, bl_offsets, prolog_len })
 }
 
+/// The parameter index a single-`Load` argument stream names, for a Class B call
+/// that has to read it out of a callee-saved register instead of an argument one.
+fn seq_load_param_index(params: &[u32], ops: &[IlOp]) -> Result<usize, BackendError> {
+    match ops {
+        [IlOp::Load(t)] => params
+            .iter()
+            .position(|q| q == t)
+            .ok_or_else(|| out_of_class("a call argument that is not a formal")),
+        _ => Err(out_of_class("expected a single passthrough argument")),
+    }
+}
+
 /// Lower one call's argument setup, or a `Lit`-only tail, through
 /// [`select_text`] — the locator the integer tail call and the single framed call
 /// already use — and drop its trailing `blr`.
@@ -1481,19 +1493,134 @@ fn ops_setup_text(
     Ok(t)
 }
 
-/// The per-call argument setups and the post-call tail bytes of a Class A
+/// The callee-saved GPR file, in allocation order: `r31` first, then `r30`.
+/// Only two, because at three saved GPRs c2 switches to `__savegprlr_29` and the
+/// whole prologue/epilogue/label shape changes ([`FrameLayout::needs_gpr_helper`],
+/// `docs/CODEGEN_FRAMED_CALLS.md` §2.3) — the IL parser refuses that class, and
+/// this array is the second lock on it.
+const SAVED_GPRS: [u8; 2] = [31, 30];
+
+/// Emit a set of **non-conflicting** register-to-register moves, highest
+/// destination first.
+///
+/// This is §3.2's rule for a marshalling with no permutation to break, and it is
+/// what a Class B call after the first always needs: its sources are callee-saved
+/// registers (`r31`/`r30`) and its destinations are argument registers
+/// (`r3`…`r10`), two disjoint sets, so no move can clobber another's source and
+/// [`permute_args_text`]'s cycle machinery has nothing to do. Captured:
+///
+/// ```text
+///   void f(int a,int b,int c){ v1(a); g2(c,b); }
+///     mr r31,r4 ; mr r30,r5 ; bl ?v1 ; mr r4,r31 ; mr r3,r30 ; bl ?g2
+/// ```
+///
+/// — slot 0 wants `c` (in r30) and slot 1 wants `b` (in r31), and the r4 move is
+/// emitted before the r3 one, which is the same descending order the leaf
+/// selector and the argument permutation already use.
+fn moves_descending(moves: &[(u8, u8)]) -> Vec<u8> {
+    let mut m: Vec<(u8, u8)> = moves.iter().copied().filter(|(d, s)| d != s).collect();
+    m.sort_by(|a, b| b.0.cmp(&a.0));
+    let mut w = Vec::with_capacity(4 * m.len());
+    for (dst, src) in m {
+        w.extend_from_slice(&encode_mr(dst, src));
+    }
+    w
+}
+
+/// The per-call argument setups and the post-call tail bytes of a framed
 /// many-call body, in one place so the packed and `/Gy` emitters share them.
+///
+/// **Class B** (`seq.saved` non-empty) differs from Class A in two places and
+/// nowhere else: the first call's setup gains one `mr rSaved, rArg` per saved
+/// formal, and every later call marshals **out of** the saved registers instead of
+/// the argument ones. The frame, the prologue and the epilogue are
+/// [`FrameLayout`]'s job and the caller sets `saved_gprs` from the same list.
+///
+/// Byte evidence for the whole shape, `/O1 /GS- /c`:
+///
+/// ```text
+///   void f(int a,int b){ v1(a); v2(b); }                52 B, F = 96
+///     mflr r12 ; stw r12,-8(r1) ; std r31,-16(r1) ; stwu r1,-96(r1)
+///     mr r31,r4 ; bl ?v1 ; mr r3,r31 ; bl ?v2
+///     addi r1,r1,96 ; lwz r12,-8(r1) ; mtlr r12 ; ld r31,-16(r1) ; blr
+///
+///   void f(int a,int b,int c){ v1(a); v2(b); v3(c); }   72 B, F = 112
+///     … std r30,-24(r1) ; std r31,-16(r1) ; stwu r1,-112(r1)
+///     mr r31,r4 ; mr r30,r5 ; bl ?v1 ; mr r3,r31 ; bl ?v2 ; mr r3,r30 ; bl ?v3
+///     … ld r30,-24(r1) ; ld r31,-16(r1) ; blr
+/// ```
+///
+/// The save moves are emitted **after** the first call's own setup, which the IL
+/// parser keeps empty for this class ([`c2_il`]'s `plan_saved_gprs` records the
+/// measured exception and why it is refused rather than modeled).
 pub fn call_seq_parts(
     params: &[u32],
     seq: &c2_il::CallSeq,
     mode: OptMode,
 ) -> Result<(Vec<Vec<u8>>, Vec<u8>), BackendError> {
+    if seq.saved.len() > SAVED_GPRS.len() {
+        return Err(out_of_class(
+            "three or more callee-saved GPRs: that is the `__savegprlr_N` helper \
+             class, with a second REL24 site, a tail-branch epilogue and a \
+             different /Gy label stride",
+        ));
+    }
+    // Where each saved formal lives once it is saved: parameter index -> register.
+    let saved_reg = |pi: usize| -> Option<u8> {
+        seq.saved.iter().position(|&s| s == pi).map(|k| SAVED_GPRS[k])
+    };
+
     let mut setups = Vec::with_capacity(seq.calls.len());
-    for c in &seq.calls {
-        let setup = match &c.arg_sources {
-            Some(sources) => permute_args_text(sources)?,
-            None => ops_setup_text(params, &c.arg_ops, mode)?,
+    for (i, c) in seq.calls.iter().enumerate() {
+        let mut setup = if i == 0 || seq.saved.is_empty() {
+            // The first call still reads its arguments out of the argument
+            // registers — nothing has been clobbered yet — so it goes through the
+            // same locators every other call shape uses. Class A takes this arm
+            // for every call.
+            match &c.arg_sources {
+                Some(sources) => permute_args_text(sources)?,
+                None => ops_setup_text(params, &c.arg_ops, mode)?,
+            }
+        } else {
+            // A later call in Class B: every formal it reads is in a callee-saved
+            // register by construction (that is what put it there), and a literal
+            // argument is the same `li r3,k` the leaf selector emits.
+            match (&c.arg_sources, c.arg_ops.as_slice()) {
+                (Some(sources), _) => {
+                    let mut moves = Vec::with_capacity(sources.len());
+                    for (slot, &pi) in sources.iter().enumerate() {
+                        let (Some(src), Some(&dst)) = (saved_reg(pi), ARG_REGS.get(slot)) else {
+                            return Err(out_of_class(
+                                "a call after the first reads a value that is not \
+                                 in a callee-saved register",
+                            ));
+                        };
+                        moves.push((dst, src));
+                    }
+                    moves_descending(&moves)
+                }
+                (None, [c2_il::IlOp::Load(_)]) => {
+                    // `params` and the operand agree by construction; the parser
+                    // resolved the token to a formal index before accepting.
+                    let pi = seq_load_param_index(params, &c.arg_ops)?;
+                    let src = saved_reg(pi).ok_or_else(|| {
+                        out_of_class("a call after the first reads an unsaved formal")
+                    })?;
+                    moves_descending(&[(RET_REG, src)])
+                }
+                (None, ops) => ops_setup_text(params, ops, mode)?,
+            }
         };
+        if i == 0 {
+            // The saves themselves, descending from r31 in the order the parser
+            // allocated them (which is parameter order).
+            for (k, &pi) in seq.saved.iter().enumerate() {
+                let src = *ARG_REGS.get(pi).ok_or_else(|| {
+                    out_of_class("a stack-homed formal cannot be copied to a callee-saved GPR")
+                })?;
+                setup.extend_from_slice(&encode_mr(SAVED_GPRS[k], src));
+            }
+        }
         setups.push(setup);
     }
     let tail = match seq.tail {

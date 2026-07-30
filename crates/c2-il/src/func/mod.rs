@@ -201,9 +201,13 @@ pub enum SeqTail {
     Lit(i32),
 }
 
-/// **Class A many-calls** (#35 step 2, rung 1): a framed body that is a sequence
-/// of statement-position calls with **no value live across any call**, so nothing
-/// is callee-saved and the frame is the shipped 96-byte Class A one.
+/// **A framed many-call body** (#35 step 2): a sequence of statement-position
+/// calls, with the tail the body ends on.
+///
+/// Class A ([`Self::saved`] empty) has no value live across any call, so nothing
+/// is callee-saved and the frame is the shipped 96-byte one. Class B saves one or
+/// two GPRs inline (`std`/`ld` at `-16(r1)` and `-24(r1)`, frame 96 or 112) for
+/// the formals that have to survive a `bl`.
 ///
 /// The whole body is `prologue · (setup_i · bl callee_i)* · tail · epilogue`, and
 /// every `bl` is its own REL24 site — which is why `c2_core::coff::Function`
@@ -214,6 +218,12 @@ pub struct CallSeq {
     /// (a lone statement call with nothing after it is tail-called instead).
     pub calls: Vec<SeqCall>,
     pub tail: SeqTail,
+    /// **Class B**: the parameter indices c2 copies into callee-saved GPRs
+    /// because their value has to survive a `bl`, taking `r31`, `r30`, … in
+    /// this order. Empty for Class A, at most
+    /// two entries — three or more is the `__savegprlr_N` helper class and the
+    /// IL parser refuses it (`callseq-three-plus-saved`).
+    pub saved: Vec<usize>,
 }
 
 /// A relational operator, as encoded by a single `.ex` operand-stream opcode.
@@ -1212,7 +1222,8 @@ pub(crate) mod test_fixtures {
     /// `void g1(int); void g2(int); void f(int a,int b){ g1(a); g2(b); }` — the
     /// Class A **boundary**: `b` is read after the first call, so it must survive
     /// one, and c2 puts it in `r31` behind a `std`/`ld` pair (Class B, 5-word
-    /// prologue, 11-word epilogue). Must refuse — `callseq-value-live-across-call`.
+    /// prologue, 11-word epilogue). Since 2026-07-30 this decodes as **Class B**
+    /// with `saved = [1]` (`b` takes r31); it was the Class A boundary case.
     pub(crate) const SEQ_LIVE_ACROSS: &[u8] = &[
         0x53, 0x53, 0x26, 0xE9, 0x09, // stmt start, fn push
         0x46, 0x2D, 0xE8, 0x09, 0x2D, 0xE7, 0x09, // formals, REVERSED: b, a
