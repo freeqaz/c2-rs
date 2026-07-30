@@ -1098,11 +1098,22 @@ The rules that keep the numbers honest:
   for the same source — 7 of 9 sampled matching fixtures differ — so the
   byte-exactness claim was about `/Ox` while the coverage percentage was about
   `/O1`. `.ex` says so explicitly, in a per-function word after each `4F 1F`
-  that the port never read (`docs/OPT_MODE.md`). Worst of it: the whole-chain
+  that the port did not read (`docs/OPT_MODE.md`). Worst of it: the whole-chain
   accumulator rule that cost 270 mis-emits to establish is `/Ox`-only — `/O1`
   allocates by ordinary liveness, so 47 of the 108 enumerated integer chains
-  differ between the modes. When comparing any two numbers in this document,
-  check they came from the same `/O` flag.
+  differ between the modes. Both modes are supported now, and the mode is read
+  rather than assumed, but **when comparing any two numbers in this document,
+  check they came from the same `/O` flag** — and note `/O1`/`/O2` imply `/Gy`
+  while `/Ox` does not, so a `.text` size comparison across them is measuring
+  two axes at once.
+- **One corpus, one lane, is one sample of the argv space.** Every fixture
+  compiled `/Ox` for the project's whole history, so the COMDAT emitter — which
+  only `/Gy` reaches — had never been run on a fixture that calls, floats or
+  frames. Adding `scripts/mode_lane.sh` and pointing it at the *same 88 fixtures*
+  with different flags immediately found three wrong-bytes emits, two of them
+  bugs that had already been found and fixed once in the sibling packed emitter.
+  A second lane over an unchanged corpus was worth three bugs, which says the
+  corpus was never the limiting factor — the single capture profile was.
 - **A field the port skips is indistinguishable from a field that is always
   the same.** The optimization word above was stepped over silently for months;
   so was the source-line marker before it turned out to carry a varint payload,

@@ -4,11 +4,14 @@
 `4F 1F` function-start marker, and the port has never read it. Everything below is
 from live captures.
 
-The consequence is the headline, so it goes first: **the port's byte-exactness is
-a claim about `/Ox`, and the entire real workload is `/O1`.** Those two modes emit
-different code for the same source, including for the core MVP class. Seven of
-nine sampled fixtures that the port matches byte-exact at `/Ox` produce different
-reference bytes at `/O1`.
+The consequence was the headline when this was written: **the port's byte-exactness
+was a claim about `/Ox`, and the entire real workload is `/O1`.** Those two modes
+emit different code for the same source, including for the core MVP class.
+
+**Both are now supported** (`2a19090`), and the mode is read from the word rather
+than assumed — 31 fixtures byte-exact at `/Ox`, 24 at `/O1`, 0 mismatches in either
+(§4.1). What follows is the characterization that got there, kept because the
+remaining `/O1` gaps are all described in terms of it.
 
 ## 1. The encoding
 
@@ -176,11 +179,37 @@ Favor-size keeps the multiply. This is the same class of behaviour as the `a + a
 → `slwi` folding already documented as c2's (not c1xx's) — but it is conditional
 on the mode, which the existing notes do not say.
 
-### 3.3 `/Ox` pads between functions, `/O1` does not
+### 3.3 The section-layout difference is `/Gy`, not the mode
 
-`il_reassoc` at `/Ox` has a `00000000` filler after each odd-length function,
-aligning the next to 8 bytes; at `/O1` the functions are packed. That alone
-accounts for most of the 224 → 176 size drop.
+An earlier version of this section claimed "`/Ox` pads between functions, `/O1`
+does not", from the `00000000` fillers visible in `il_reassoc`'s `/Ox` `.text`.
+The mechanism is different and worth stating correctly, because it is a *second*
+axis that the mode comparison was silently mixing in:
+
+**`/O1` and `/O2` imply `/Gy`; `/Ox` does not.** So `il_reassoc` at `/Ox` is one
+packed 224-byte `.text` whose functions are 8-byte aligned, and at `/O1` it is
+**16 separate COMDAT `.text` sections** with no padding to do. The 224 → 176 drop
+is the fillers disappearing because the functions no longer share a section — not
+a codegen decision at all. Every `.text`-size comparison in the §3 table is
+contaminated by this, which is why the per-function tables in §4.2 and the rule in
+§3.1 were derived by extracting each function's bytes via its symbol rather than
+by concatenating sections.
+
+Controlling for it changes the picture in the port's favour. Comparing `/O2`
+against `/O1` — same layout, differing only in the mode:
+
+* `/Ox` and `/O2` are **byte-identical** on every function of eight fixtures, once
+  the tail branch's REL24 displacement (which is section layout) is masked. Two
+  modes sharing the optimization word emit the same code, so keying the codegen on
+  the word is sound.
+* `/O2` vs `/O1` differs **only in register fields**, never an opcode, and only in
+  the chain class — trees, calls, reassociation and float are identical.
+
+The practical consequence: `/Gy` is an *argv* fact the IL does not record, so the
+port has to be told (`PortC2::with_function_level_linking`), while the mode is an
+*`.ex`* fact it can read. Two different channels for two different axes, and
+conflating them is what hid three COMDAT mis-emits until `scripts/mode_lane.sh`
+compiled the fixtures with `/Gy` for the first time (§4.1).
 
 ## 4. What this means for the roadmap
 
@@ -254,14 +283,41 @@ flag it as a mode problem rather than a codegen bug.
    correct by luck for the closure of a whole wrong-bytes class is what
    `GAPS.md` §6 already commits to. The other five are empty modules and are
    unaffected.
-2. **Re-target to `/O1`.** This is the mode parity on the workload requires, and
-   it looks *simpler* than `/Ox`: ordinary liveness allocation instead of the
-   operator-dependent descending rule, no inter-function padding, no strength
-   reduction to reproduce. For the 108-chain class, instruction selection is
-   already identical, so the change there is confined to the allocator. It is not
-   a translation of the existing `/Ox` codegen — it is a second target, and the
-   `/Ox` work stays valid for `/Ox`.
-3. **Re-run the sweeps under `/O1`.**
+2. **Re-target to `/O1` — LANDED** (`2a19090`). `codegen::OptMode` carries the
+   mode, read from the word; the chain allocator reuses r11 for a dead predecessor
+   under `/O1`. Byte-exact on **24 of 88 fixtures** at `/O1`, 0 mismatches.
+
+   Depth-2 trees needed no change — all 27 agree register-for-register across the
+   modes. The comparison spines are reallocated at `/O1` and refuse, since that
+   rule is not enumerated (below).
+
+   `scripts/mode_lane.sh <mode>` is the lane: it grades every fixture at a chosen
+   mode via `c2rs gap` (which takes `--flags-file`, where `c2rs diff` does not).
+   Current state:
+
+   | mode | match | mismatch | codegen-gap |
+   |---|---|---|---|
+   | `/Ox` | 31 | 0 | 0 |
+   | `/O2` | 26 | 0 | 5 |
+   | `/Ox /Gy` | 26 | 0 | 5 |
+   | `/O1` | 24 | 0 | 7 |
+   | `/Od` | 1 | 0 | 30 |
+
+   Running that lane immediately found **three pre-existing wrong-bytes emits**,
+   none of them about the mode: the COMDAT emitter duplicated callee symbols and
+   batched relocations away from their own sections (both bugs already fixed once,
+   in the *packed* emitter), and the framed-call shortcut bypassed the `/Gy` branch
+   so its refusal was unreachable. They reproduce at `/Ox /Gy`. The reason nothing
+   had caught them: `/O1` implies `/Gy` and every fixture compiled `/Ox`, which
+   does not — so the COMDAT emitter had never been run on a fixture that calls,
+   floats or frames. A second lane over the same corpus was worth three bugs.
+
+3. **Still open at `/O1`.** The comparison spines (`w6_rel_k`, 14 of 19 leaves
+   reallocated), float under `/Gy` (`_fltused` position in the per-function COMDAT
+   symbol order), a pooled `.rdata` constant under `/Gy`, the framed call under
+   `/Gy`, and the one scheduling difference in `w5_tree_neg`'s `n_spill`. All
+   refuse; none mis-emits.
+4. **Re-run the sweeps under `/O1`.**
  `scripts/expr_sweep.sh` compiles with the
    default `/Ox`, so its 2589 green cases say nothing about `/O1`. The sweep
    needs a mode parameter, and the `/O1` lane should be the one that gates.
