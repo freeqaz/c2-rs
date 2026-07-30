@@ -2482,6 +2482,48 @@ mismatches**, 878-TU scan match 6 / mismatch 0 / capture-fail 7 / disagreement 0
 cache validator 17 re-captured and agreed / 0 poisoned, corpus `dc3-decomp`
 **`05ca6d09`** and wibo **1.0.1-23** from provenance record 0.
 
+### Merged against master `9ec4871` (Class A many-calls, #35 step 2)
+
+Developed against `473c6a4`; master advanced once in flight. **Merged census
+483,240 / 2,462,571 (19.62 %)** — and additivity was *measured*, not assumed,
+because the brief flagged an interaction risk: this rung's store leaf and step
+2's `call-postop` changes both touch `expr-op-0x27`-adjacent attributions.
+
+Differencing this rung's own tree against the merged scan moves **+492**, which
+is exactly master's own gain (474,103 − 473,611), so the **interaction term is
+0**. Twenty-four keys move and every one of them is step 2's: `+7,771`
+`callseq-tail-lit:eof`, `+5,335` `call-ref-0x3A`, `−7,066`
+`call-multiarg-postop:eof`, `−4,503` `call-postop-0x4B`, `−832` `fn-tail-0xB9`.
+The keys this rung owns are **bit-identical across the merge**:
+
+| key | `473c6a4` | this rung | merged |
+|---|---:|---:|---:|
+| `expr-op-0x27` | 469,713 | 461,786 | **461,786** |
+| `expr-load-type-8645` | 98,813 | 97,809 | **97,809** |
+| `calls-0\|store-leaf` | 23,645 | 31,574 | **31,574** |
+| `calls-0\|float-leaf` | 0 | 1,004 | **1,004** |
+| `opt-mode-00200001` / `-00200101` | 140 / 66 | 0 / 0 | **0 / 0** |
+
+Three merge resolutions worth recording:
+
+* `coff::Function::call: Option<Call>` became step 2's `calls: Vec<Call>` in the
+  same hunk where this rung rewrote the `is_float` doc comment. Master's field,
+  this rung's comment; the two `coff::Function` construction sites in
+  `c2-core/src/lib.rs` take `calls` **and** `touches_floating_point()`.
+* `IlFunction` gained `touches_floating_point` here and `is_framed`/`callees`
+  there, at the same offset, and the conflict ate this side's **closing brace** —
+  the shared-closing-brace hazard. Closed explicitly before splicing rather than
+  letting the trailing `}` after the marker do double duty.
+* `§6j` and the `GAPS.md` §6 mis-emit list were both taken. This section is
+  **§6k**; the `_fltused` find is instance **11**, after step 2's 9 and 10, and
+  the list header goes to *ten* wrong-bytes emits and two panics.
+
+`scripts/expr_sweep.sh` was flagged as a collision and **is not one** — master
+did not touch `scripts/` at all (`git diff --stat 473c6a4 master -- scripts/` is
+empty), so the merged sweep is this rung's 5,868 rather than 5,868 plus a step-2
+block. Verified the way the trap demands: the printed count and the generated
+`.cpp` count on disk are compared, not assumed equal.
+
 ### Found and not taken, ranked, with the frame axis applied
 
 1. **The FP tail call — 85,231 measured, 0 of it `calls-2plus`.** The largest
@@ -2491,8 +2533,13 @@ cache validator 17 re-captured and agreed / 0 poisoned, corpus `dc3-decomp`
    r11, and the shapes match the existing `permute_args_text` one for one. Two
    things stop it from being a line of code. First, the parser seam is
    `parse_call_shape`'s argument region (`parse_expr(…, 0x55)` plus the `55` and
-   `41` type gates), which is the concurrently-running framed-call rung's file.
-   Second, `int both(int a,int b,float c,float d){ return gif2(b,a,d,c); }` shows
+   `41` type gates), which has been a concurrently-running rung's file twice
+   running — step 2's, and now Class B's (values live across calls, 1–2 saved
+   GPRs). **This is a rung to take once that seam is free, not to interleave
+   with it**; step 2 has already rewritten the argument validation into one
+   locator (`tail_call_shape`), which is the right place for the FP class to
+   enter and is strictly easier to extend than the two drifted copies it
+   replaced. Second, `int both(int a,int b,float c,float d){ return gif2(b,a,d,c); }` shows
    the two files' move sequences **interleaved** on a schedule no per-file solver
    reproduces — so the shippable first cut is *one* non-identity file at a time,
    which the single-argument 59,095 satisfies by construction.
