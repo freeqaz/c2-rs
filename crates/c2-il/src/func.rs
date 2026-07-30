@@ -1123,16 +1123,32 @@ fn parse_segment_detail(
             Ok(BodyShape::EmptyBody)
         }
         // `26 <tok>` opens BOTH a call (the callee push) and an assignment
-        // statement (the destination push) — which is why the top census bucket,
-        // `call-token-0xB9`, was an assignment misread as a malformed call. The
-        // assignment parse is non-committal: it works on a copy of the cursor and
-        // returns None without side effects the moment it sees the `BD` that marks
-        // a call, so a call body falls through unchanged.
+        // statement (the destination push), and the two are told apart by exactly
+        // one byte: whether a `BD` CALL opcode follows the pushed token.
+        //
+        // Dispatching on that byte rather than trying the assignment parse and
+        // falling back matters for the *measurement*, not for what is accepted.
+        // Falling back meant every assignment-body refusal was re-reported as
+        // whatever byte `parse_call_shape` then tripped over — nearly always the
+        // RHS's `B9` — so `call-token-0xB9` was a conflated bucket holding pointer
+        // operands, casts, `if` statements and more, all filed under a name that
+        // described none of them. It has been the #1 entry at ~18% of blocked
+        // functions and was directing the widening order at least twice this week.
+        // Now each side reports its own reason.
         0x26 => {
-            if let Some(shape) = try_parse_assign_body(seg, p, lo, globals) {
-                return Ok(shape);
+            let mut probe = p + 1;
+            let is_call = match read_token_var(seg, probe) {
+                Some((_, w)) => {
+                    probe += w;
+                    seg.get(probe) == Some(&0xBD)
+                }
+                None => false,
+            };
+            if is_call {
+                parse_call_shape(seg, &mut p, lo)
+            } else {
+                try_parse_assign_body_detail(seg, p, lo, globals)
             }
-            parse_call_shape(seg, &mut p, lo)
         }
         // Straight-line arithmetic opens with a LOAD or a bare literal — and so
         // does a W6 comparison leaf, which is tried first because its whole-body
@@ -1515,54 +1531,59 @@ fn substitute(ops: &[IlOp], env: &[(u32, Vec<IlOp>)]) -> Option<Vec<IlOp>> {
 /// as a register copy would be a silent mis-emit rather than a refusal. Globals are
 /// exactly the tokens that carry a name in `.gl`, which is why this needs the
 /// symbol index.
-fn try_parse_assign_body(
+fn try_parse_assign_body_detail(
     seg: &[u8],
     start: usize,
     lo: usize,
     globals: &std::collections::BTreeMap<u32, String>,
-) -> Option<BodyShape> {
+) -> Result<BodyShape, Block> {
     let mut p = start;
     let mut env: Vec<(u32, Vec<IlOp>)> = Vec::new();
     loop {
         eat_opt_stmt_marker(seg, &mut p);
-        if *seg.get(p)? != 0x26 {
+        if *seg.get(p).ok_or(blk(seg, p, "assign-stmt"))? != 0x26 {
             break;
         }
         let mut probe = p + 1;
-        let (dst, w) = read_token_var(seg, probe)?;
+        let (dst, w) =
+            read_token_var(seg, probe).ok_or(blk(seg, probe, "assign-dst-tok"))?;
         probe += w;
-        // `BD` here means this `26` was a callee push, not a destination.
-        if *seg.get(probe)? == 0xBD {
-            return None;
+        // `BD` here means this `26` was a callee push, not a destination. The
+        // caller already dispatched on the FIRST one, so a later call means an
+        // assignment whose right-hand side is a call — a real, separate class.
+        if *seg.get(probe).ok_or(blk(seg, probe, "assign-op"))? == 0xBD {
+            return Err(blk(seg, probe, "assign-rhs-call"));
         }
         // A store to a global is a memory write this class does not model.
         if globals.contains_key(&dst) {
-            return None;
+            return Err(Block { ctx: "assign-to-global", byte: None, off: probe, aux: 0 });
         }
         p = probe;
-        let rhs = parse_expr(seg, &mut p, 0x32).ok()?;
+        let rhs = parse_expr(seg, &mut p, 0x32)?;
         if !eat_byte(seg, &mut p, 0x32) || !eat_int_like(seg, &mut p) {
-            return None;
+            return Err(blk(seg, p, "assign-store-type"));
         }
         // `4B` ends an expression statement and discards the yielded value. A
         // body that *uses* it (`x = y = a`) does not have one here and refuses.
         if !eat_byte(seg, &mut p, 0x4B) {
-            return None;
+            return Err(blk(seg, p, "assign-stmt-end"));
         }
-        let rhs = substitute(&rhs, &env)?;
+        let rhs = substitute(&rhs, &env)
+            .ok_or(Block { ctx: "assign-subst-overflow", byte: None, off: p, aux: 0 })?;
         // Re-assigning shadows the previous definition, which is how a dead store
         // disappears: only the last definition can reach the return.
         env.retain(|(t, _)| *t != dst);
         env.push((dst, rhs));
         if env.len() > MAX_SUBST_OPS {
-            return None;
+            return Err(Block { ctx: "assign-too-many-locals", byte: None, off: p, aux: 0 });
         }
     }
     eat_opt_stmt_marker(seg, &mut p);
-    let ret = parse_expr(seg, &mut p, 0x41).ok()?;
-    let ret = substitute(&ret, &env)?;
-    eat_return_plumbing(seg, &mut p, true).ok()?;
-    let params = parse_formals(seg, lo).ok()?;
+    let ret = parse_expr(seg, &mut p, 0x41)?;
+    let ret = substitute(&ret, &env)
+        .ok_or(Block { ctx: "assign-subst-overflow", byte: None, off: p, aux: 0 })?;
+    eat_return_plumbing(seg, &mut p, true)?;
+    let params = parse_formals(seg, lo)?;
     // After substitution every remaining LOAD must be a parameter. Anything else
     // is a read of something this class cannot account for — an uninitialized
     // local, a global, or a token from a construct not modeled here.
@@ -1570,19 +1591,19 @@ fn try_parse_assign_body(
         IlOp::Load(t) => params.contains(t),
         _ => true,
     }) {
-        return None;
+        return Err(Block { ctx: "assign-ret-nonformal", byte: None, off: p, aux: 0 });
     }
     // Substitution is a *source* of repeated leaves even when the written source
     // has none: `int x = a; x = x + x;` substitutes to `a + a`, which c2 emits as
     // `slwi r3,r3,1`. This gate is what keeps that from being wrong bytes.
     if has_repeated_leaf(&ret) {
-        return None;
+        return Err(Block { ctx: "assign-repeated-leaf", byte: None, off: p, aux: 0 });
     }
     // Substitution reorders too: `int x = b; return x + a;` resolves to `b + a`.
     if !leaves_ascending(&ret, &params) || !additive_chain_canonical(&ret) {
-        return None;
+        return Err(Block { ctx: "assign-noncanonical-order", byte: None, off: p, aux: 0 });
     }
-    Some(BodyShape::StraightLine { params, ops: ret })
+    Ok(BodyShape::StraightLine { params, ops: ret })
 }
 
 /// The `unsigned int` operand type encoding inline in the `.ex` body.
@@ -3827,13 +3848,22 @@ mod tests {
     #[test]
     fn intrinsic_call_census_reports_the_selector_not_the_opcode() {
         // The whole `0x40` production is one census bucket only because the
-        // selector was never decoded. Both the operand-stream site and the
-        // `26 <sym>` site must name the intrinsic.
+        // selector was never decoded. Every site must name the intrinsic.
+        //
+        // `INTR_THIS_ADJUST` reports `expr-` rather than `call-` since the body
+        // dispatch keys on whether a `BD` follows the first `26 <tok>` immediately.
+        // Here it does not — the `BD` is fifty bytes later, behind argument-shaped
+        // material — so the body goes to the assignment parser and the intrinsic is
+        // named from the expression it sits in. That is the claim I can support from
+        // these bytes; asserting the enclosing construct is a call would be
+        // asserting more. The selector is named either way, so the histogram is
+        // unaffected in aggregate, and `intrinsic_call_decode_does_not_accept`
+        // pins that both routings still refuse.
         for (seg, want) in [
             (INTR_FABS, "expr-intrinsic-fabs"),
             (INTR_NULLARY, "expr-intrinsic-__debugbreak"),
             (INTR_UPCAST, "expr-intrinsic-base-upcast"),
-            (INTR_THIS_ADJUST, "call-intrinsic-this-adjust"),
+            (INTR_THIS_ADJUST, "expr-intrinsic-this-adjust"),
         ] {
             let b = parse_segment_detail(seg, &no_globals()).unwrap_err();
             assert_eq!(b.feature(), want);

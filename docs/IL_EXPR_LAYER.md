@@ -544,6 +544,12 @@ and is worth landing for the safety property alone; the indirect-load leaf is
 **+23,162 functions (+0.94 pp)**, the first widening in three rungs to move the
 census by more than a rounding error.
 
+Those three runs were taken back to back on one tree state, which is what makes the
+deltas attributable. A re-measurement twenty minutes later, after further concurrent
+changes elsewhere in `func.rs`, reads **110,277 (4.48%)** — a −319 drift owed to
+those changes, not to anything here. Anyone reproducing should re-take the
+"before" the same way rather than quoting a number from an earlier session.
+
 The re-ranked widening order after this change, top of the census:
 
 ```
