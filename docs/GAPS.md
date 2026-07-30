@@ -701,6 +701,46 @@ this section is by dependency, not payoff; the ranked worklist is §4.
     (`CODEGEN_W6_COMPARE.md` §6: `subfe r9,r10,r10` reads an undefined `r10`,
     and dead `subfc` destinations still consume a slot). Allocate them as real
     temps; never "optimize" one away.
+  - **c2 canonicalizes and reassociates arithmetic chains; the port evaluated them
+    in source order.** Two rewrites, ~20 mis-emits, all in the straight-line class
+    that had been called byte-exact since the MVP:
+
+    A commutative chain is canonicalized **by register**. All five permutations of
+    `a + b + c` emit the identical `add r11,r3,r4 ; add r3,r11,r5`, and `b + a`
+    emits the same `add r3,r3,r4` as `a + b`. And a mixed `+`/`-` chain is
+    reassociated *even when its operands already are in register order* — c2 treats
+    it as a sum of signed terms and applies the negatives first, from the lowest
+    positive term:
+
+    ```text
+      a + b - c  ->  subf r11,r5,r3 ; add r3,r11,r4    = (a - c) + b
+      b - c + a  ->  subf r11,r5,r3 ; add r3,r11,r4      identical bytes
+      a - c - b  ->  subf r11,r4,r3 ; subf r3,r5,r11   = (a - b) - c
+    ```
+
+    So the second rewrite is invisible to any gate built on the first, and the gate
+    cannot simply refuse mixed chains either: `a - b + c` and `a - b - c` already
+    satisfy c2's order and are byte-exact (`il_reassoc_ok.cpp` holds them as the
+    separating cases). Subtracting a *literal* folds into the `addi` immediate and
+    emits nothing, so it never counts.
+
+    Both are **refusals, not canonicalizations**, on purpose. The rule looks like
+    "start at the lowest positive term, apply the negatives ascending, then add the
+    remaining positives", but that is inferred from ten captures, and implementing it
+    wrong puts the mis-emit straight back. A canonicalizer is worth real coverage —
+    it would admit every permutation rather than one in six — but it needs its own
+    capture matrix first, and it is the clearest single codegen win left.
+  - **A hand-picked corpus is systematically blind, and enumeration is not.** Both
+    of the above, and the repeated-leaf mis-emit below, were found by
+    `scripts/expr_sweep.sh` — 2,352 generated integer expressions, each compiled and
+    byte-compared — not by any fixture. They had survived months because every
+    hand-written positive happened to use distinct operands in ascending order:
+    whoever writes the fixtures writes the shapes they are already thinking about, so
+    the corpus is biased toward exactly the cases the implementation already handles.
+    The sweep found ~20 wrong-bytes bugs on its first run and reports 0 now. **Run it
+    after any change to expression selection**; a green fixture sweep does not
+    substitute for it. This is the strongest available answer to "a green run is
+    sound only on the IL it was tested against".
   - **An operand used twice licenses c2's algebraic rewriter — and this one was
     live for months.** `return a + a;` emitted `add r3,r3,r3`; c2 emits
     `rlwinm r3,r3,1,0,30` (`slwi r3,r3,1`), byte-identical to what it produces for
