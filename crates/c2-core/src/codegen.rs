@@ -840,10 +840,23 @@ pub fn encode_call_branch(text_offset: u32) -> [u8; 4] {
 
 /// Fixed head of every MSVC X360 stack frame, in bytes: 16 bytes of linkage
 /// (the back chain at `0(r1)` and one reserved doubleword) plus a 64-byte
-/// parameter save area for r3..r10. Measured — every local this project has
-/// captured is addressed at `80(r1)` or above, and the frame size of a body
-/// with no locals and no saved registers is `align16(80 + 8) = 96`.
+/// outgoing-parameter home area — 8 slots, the ABI floor. Measured: every local
+/// this project has captured is addressed at `80(r1)` or above, and the frame of
+/// a body with no locals and no saved registers is `align16(80 + 8) = 96`.
+///
+/// It is a *floor on the parameter area*, not a floor on the frame: a function
+/// whose widest call passes more than eight arguments pushes the locals up
+/// (`FrameLayout::locals_base`).
 pub const FRAME_HEAD: u32 = 80;
+
+/// The ABI floor on the outgoing-parameter home area, in 8-byte slots.
+pub const FRAME_MIN_OUT_SLOTS: u32 = 8;
+
+/// The largest `saved_gprs + saved_fprs` for which the frame-size rule is exact.
+/// Past it the allocator spills to slots the rule does not model and the frame
+/// grows by an unmeasured amount (39 of 480 designed compiles, all at
+/// `nSaved ≥ 18` — `docs/CODEGEN_FRAMED_CALLS.md` §1.3). Refused, not guessed.
+pub const FRAME_MAX_SAVED_NO_SPILL: u8 = 17;
 
 /// The page the prologue's stack probes step by, and the unit of the
 /// `_RtlCheckStack12` threshold. Measured: the probes are `ld r12,-4096(r1)`,
@@ -880,12 +893,27 @@ const FRAME_BACKCHAIN: u32 = 0x8021_0000;
 /// `int g(…); T f(…){ … g(…) … }` and the byte evidence is in
 /// `docs/CODEGEN_PPC_MVP.md` §"The frame model".
 ///
-/// **Sizing.** `size() = align16(80 + locals + 8 + 8 × (saved_gprs +
-/// saved_fprs))` — the 80-byte head, the locals, the 8-byte LR slot and one
-/// 8-byte slot per saved register, rounded up to 16. This one formula fits all
-/// 40 captured witnesses exactly, including every row the roadmap had recorded
-/// as "96 B for one by-value temporary, 112 B for two" — which was really the
-/// *saved-register* count, not a temporary count:
+/// **Sizing.**
+///
+/// ```text
+///   locals_base = align16(16 + 8 × max(out_slots, 8))
+///   size        = align16( max(16 + 8 × max(out_slots, 8),
+///                              locals_base + locals)
+///                          + 8 × (saved_gprs + saved_fprs) + 8 )
+/// ```
+///
+/// — the linkage + outgoing-parameter area, the locals above it, one 8-byte slot
+/// per saved register, and the 8-byte LR slot, rounded to 16. **Two independent
+/// derivations agree on it**: 44 witnesses here (which is where the
+/// stack-probing and `_RtlCheckStack12` rules below come from, `locals` up to
+/// 200,000) and the 441-of-480 designed refutation sweep in
+/// `docs/CODEGEN_FRAMED_CALLS.md` §1.2, which is where the `out_slots` term
+/// comes from — every probe of this rung had `out_slots ≤ 8`, where the two
+/// forms coincide at `align16(80 + locals + 8 + 8×saved)`. Exact while the
+/// allocator does not spill; see [`FRAME_MAX_SAVED_NO_SPILL`].
+///
+/// Every row the roadmap had recorded as "96 B for one by-value temporary, 112 B
+/// for two" is really the *saved-register* count, not a temporary count:
 ///
 /// ```text
 ///   saved GPRs 0 1 2 3 4 5 6 7   frame 96 96 112 112 128 128 144 144
@@ -918,8 +946,15 @@ const FRAME_BACKCHAIN: u32 = 0x8021_0000;
 /// The thresholds are therefore load-bearing gates, not decoration.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FrameLayout {
-    /// Bytes of local + spill area, above the 80-byte head.
+    /// Bytes of addressed locals + compiler temporaries, above
+    /// [`Self::locals_base`].
     pub locals: u32,
+    /// **The argument count of the widest call this function makes** (0 for a
+    /// leaf), floored at [`FRAME_MIN_OUT_SLOTS`]. Measured to be the maximum
+    /// over the body's calls and not the last or first one — two calls of
+    /// different arity in either order give the same frame
+    /// (`docs/CODEGEN_FRAMED_CALLS.md` §1.2).
+    pub out_slots: u8,
     /// Callee-saved GPRs: `r(32−n)…r31`.
     pub saved_gprs: u8,
     /// Callee-saved FPRs: `f(32−n)…f31`.
@@ -932,10 +967,28 @@ impl FrameLayout {
         1 + self.saved_gprs as u32 + self.saved_fprs as u32
     }
 
+    /// Total callee-saved registers, the input to the spill boundary.
+    fn n_saved(&self) -> u8 {
+        self.saved_gprs.saturating_add(self.saved_fprs)
+    }
+
+    /// Where addressed locals start, relative to the new SP: the linkage area
+    /// plus the outgoing-parameter home area, **16-aligned**. The alignment is
+    /// measured, not assumed — with 9 outgoing slots the parameter area ends at
+    /// SP+88 and the locals still start at SP+96, which an 8-aligned model
+    /// mispredicts (`docs/CODEGEN_FRAMED_CALLS.md` §1.2).
+    pub fn locals_base(&self) -> u32 {
+        self.param_area_end().div_ceil(16) * 16
+    }
+
+    fn param_area_end(&self) -> u32 {
+        16 + 8 * (self.out_slots as u32).max(FRAME_MIN_OUT_SLOTS)
+    }
+
     /// The allocated frame size in bytes (the `stwu` displacement, negated).
     pub fn size(&self) -> u32 {
-        let raw = FRAME_HEAD + self.locals + 8 * self.save_slots();
-        raw.div_ceil(16) * 16
+        let body = self.param_area_end().max(self.locals_base() + self.locals);
+        (body + 8 * self.save_slots()).div_ceil(16) * 16
     }
 
     /// `-8` for the LR slot, then `-16, -24, …` for the saved registers: GPRs
@@ -985,6 +1038,12 @@ impl FrameLayout {
         }
         if self.needs_stack_check() {
             return Some("frame-rtlcheckstack12");
+        }
+        // Unreachable behind the two helper thresholds today (3 and 4), and kept
+        // as the second lock because the *sizing* rule stops being exact here
+        // and a wrong `stwu` immediate is one silent byte.
+        if self.n_saved() > FRAME_MAX_SAVED_NO_SPILL {
+            return Some("frame-allocator-spill");
         }
         None
     }
@@ -2510,17 +2569,40 @@ mod tests {
             (30000, 3, 0, 30112),
         ];
         for &(locals, saved_gprs, saved_fprs, want) in rows {
-            let l = FrameLayout { locals, saved_gprs, saved_fprs };
+            let l = FrameLayout { locals, out_slots: 0, saved_gprs, saved_fprs };
             assert_eq!(l.size(), want, "frame for {l:?}");
         }
+        // The `out_slots` term, from the independent 480-case refutation sweep
+        // (`docs/CODEGEN_FRAMED_CALLS.md` §1.2). None of this rung's own probes
+        // could see it — they all pass eight arguments or fewer, where the two
+        // forms of the rule coincide.
+        let wide: &[(u32, u8, u8, u8, u32)] = &[
+            // `int g();` with `int b[20]`: 80 bytes of locals and NO outgoing
+            // arguments still reserves the 8-slot parameter area. A "frame >= 96"
+            // model predicts 112 and is refuted by 176.
+            (80, 0, 0, 0, 176),
+            // Two calls of different arity, either order: nOutSlots = 12,
+            // nSaved = 2 -> align16(16 + 96 + 16 + 8) = 144.
+            (0, 12, 2, 0, 144),
+            // 9 outgoing slots: the parameter area ends at SP+88 and the locals
+            // still start at SP+96, so the frame steps at 4L + 96 + 8 crossing 16.
+            (4, 9, 0, 0, 112),
+            (32, 9, 0, 0, 144),
+        ];
+        for &(locals, out_slots, saved_gprs, saved_fprs, want) in wide {
+            let l = FrameLayout { locals, out_slots, saved_gprs, saved_fprs };
+            assert_eq!(l.size(), want, "frame for {l:?}");
+        }
+        assert_eq!(FrameLayout { locals: 0, out_slots: 9, ..Default::default() }.locals_base(), 96);
+        assert_eq!(FrameLayout::default().locals_base(), 80);
     }
 
     /// The measured thresholds. Each boundary is a *pair* of captures, because a
     /// threshold read off one side is a guess.
     #[test]
     fn frame_helper_and_probe_thresholds_are_where_the_captures_put_them() {
-        let g = |n| FrameLayout { locals: 0, saved_gprs: n, saved_fprs: 0 };
-        let f = |n| FrameLayout { locals: 0, saved_gprs: 0, saved_fprs: n };
+        let g = |n| FrameLayout { saved_gprs: n, ..Default::default() };
+        let f = |n| FrameLayout { saved_fprs: n, ..Default::default() };
         // GPRs: 2 open-coded `std`s, 3 is `__savegprlr_29`.
         assert!(!g(2).needs_gpr_helper());
         assert!(g(3).needs_gpr_helper());
@@ -2529,7 +2611,7 @@ mod tests {
         assert!(f(4).needs_fpr_helper());
         // Stack probing: F = 20464 is four inline `ld`s, F = 20480 = 5 pages is
         // `_RtlCheckStack12`.
-        let l = |locals| FrameLayout { locals, saved_gprs: 0, saved_fprs: 0 };
+        let l = |locals| FrameLayout { locals, ..Default::default() };
         assert_eq!(l(20376).size(), 20464);
         assert!(!l(20376).needs_stack_check());
         assert_eq!(l(20376).probe_pages(), 4);
@@ -2560,7 +2642,7 @@ mod tests {
             v.chunks(4).map(|c| u32::from_be_bytes([c[0], c[1], c[2], c[3]])).collect()
         };
         // `int f(int a,int b){ return g(a) + b; }` — one saved GPR, frame 96.
-        let one = FrameLayout { locals: 0, saved_gprs: 1, saved_fprs: 0 };
+        let one = FrameLayout { saved_gprs: 1, ..Default::default() };
         assert_eq!(one.size(), 96);
         assert_eq!(
             w(&one.prologue().unwrap()),
@@ -2572,7 +2654,7 @@ mod tests {
         );
         // Two saved GPRs, frame 112: saved ascending in slot address, restored the
         // same way, and the restores come AFTER the `mtlr`.
-        let two = FrameLayout { locals: 0, saved_gprs: 2, saved_fprs: 0 };
+        let two = FrameLayout { saved_gprs: 2, ..Default::default() };
         assert_eq!(
             w(&two.prologue().unwrap()),
             vec![0x7D8802A6, 0x9181FFF8, 0xFBC1FFE8, 0xFBE1FFF0, 0x9421FF90]
@@ -2582,7 +2664,7 @@ mod tests {
             vec![0x38210070, 0x8181FFF8, 0x7D8803A6, 0xEBC1FFE8, 0xEBE1FFF0, 0x4E800020]
         );
         // `float f(float a,float b,float c){ return g(a)*b*c; }` — two FPRs.
-        let f2 = FrameLayout { locals: 0, saved_gprs: 0, saved_fprs: 2 };
+        let f2 = FrameLayout { saved_fprs: 2, ..Default::default() };
         assert_eq!(
             w(&f2.prologue().unwrap()),
             vec![0x7D8802A6, 0x9181FFF8, 0xDBC1FFE8, 0xDBE1FFF0, 0x9421FF90]
@@ -2596,7 +2678,7 @@ mod tests {
         // address after the run) while the EPILOGUE restores in ascending address
         // — so the two lists are not mirror images. Reference: `float f(int a,int
         // b,float x,float y){ return g(x)*y + (float)(a+b); }`, frame 128.
-        let mix = FrameLayout { locals: 8, saved_gprs: 2, saved_fprs: 1 };
+        let mix = FrameLayout { locals: 8, out_slots: 0, saved_gprs: 2, saved_fprs: 1 };
         assert_eq!(mix.size(), 128);
         assert_eq!(
             w(&mix.prologue().unwrap()),
@@ -2608,12 +2690,12 @@ mod tests {
         );
         // Locals with page probes: `int f(int a){ char buf[4009]; … }`, frame
         // 4112, one probe. And `int buf[4096]`, frame 16480, four probes.
-        let p1 = FrameLayout { locals: 4009, saved_gprs: 0, saved_fprs: 0 };
+        let p1 = FrameLayout { locals: 4009, ..Default::default() };
         assert_eq!(
             w(&p1.prologue().unwrap()),
             vec![0x7D8802A6, 0x9181FFF8, 0xE981F000, 0x9421EFF0]
         );
-        let p4 = FrameLayout { locals: 16384, saved_gprs: 0, saved_fprs: 0 };
+        let p4 = FrameLayout { locals: 16384, ..Default::default() };
         assert_eq!(
             w(&p4.prologue().unwrap()),
             vec![0x7D8802A6, 0x9181FFF8, 0xE981F000, 0xE981E000, 0xE981D000, 0xE981C000, 0x9421BFA0]

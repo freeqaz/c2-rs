@@ -361,6 +361,17 @@ impl IlFunction {
     /// consume **1**; a framed call **4** packed / **5** under `/Gy`; a
     /// floating-point leaf **2**, or 4 with one pooled constant and 6 with two;
     /// a comparison leaf 1 or 3 by relation ([`CompareLeaf::label_slots`]).
+    ///
+    /// **The framed `/Gy` value is 5 only for a frame with no save/restore
+    /// helper.** A framed function that uses the `__savegprlr_N`/`__restgprlr_N`
+    /// pair consumes **two extra slots, allocated before its own `$M` pair**, so
+    /// its stride is 7 and its first label is `cur + 2`
+    /// (`docs/CODEGEN_FRAMED_CALLS.md` §4.4, seven witnesses). That is latent
+    /// rather than live: `c2_core::codegen::FrameLayout` refuses every frame
+    /// needing a helper, so the port emits only the no-helper class this 5
+    /// describes. It becomes a wrong-bytes emit the moment #35 step 2 admits a
+    /// framed function with ≥3 saved GPRs — the stride correction and the helper
+    /// codegen have to land together.
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {
         if self.framed_call.is_some() {
             return Some(if fn_level_linking { 5 } else { 4 });
