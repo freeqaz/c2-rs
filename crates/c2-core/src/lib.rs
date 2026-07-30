@@ -174,6 +174,44 @@ impl PortC2 {
             return Ok(ObjImage::new(coff::emit_empty_obj(obj_name)));
         }
 
+        // Every lowering below was established against `/Ox` captures, and `.ex`
+        // records the mode per function. Refuse any other mode rather than emit
+        // `/Ox` code against a reference built some other way.
+        //
+        // This is not a hypothetical. `int chain4(int a,int b,int c,int d){return
+        // a*b*c*d;}` is `match` at `/Ox` and `mismatch` at `/O1` — same source,
+        // same port — because `/O1` allocates by liveness where `/Ox` takes a fresh
+        // descending register for an already-dead intermediate. The whole dc3
+        // workload compiles `/O1`, so without this the port is one decode widening
+        // away from wrong bytes on real input, and nothing downstream would flag it
+        // as a *mode* problem rather than a codegen bug. See `docs/OPT_MODE.md`;
+        // re-targeting `/O1` is tracked separately and is mostly this one allocator
+        // rule.
+        //
+        // Checked after the empty-module case on purpose: a TU with no functions
+        // has no `4F 1F` segment to carry a word, and its obj is mode-independent.
+        let words = il.opt_words().unwrap_or_default();
+        for (i, w) in words.iter().enumerate() {
+            if *w != Some(c2_il::OPT_WORD_OX) {
+                return Err(BackendError::NotImplemented(format!(
+                    "opt-mode {} at function {i}: the port's codegen is verified \
+                     against {:08x} (/Ox, /O2) only — {} allocates registers \
+                     differently. See docs/OPT_MODE.md.",
+                    match w {
+                        Some(v) => format!("{v:08x}"),
+                        None => "unreadable".to_string(),
+                    },
+                    c2_il::OPT_WORD_OX,
+                    match w {
+                        Some(0x0020_0005) => "/O1",
+                        Some(0x0080_0005) => "/Od",
+                        Some(0x0080_0004) => "#pragma optimize(\"\", off)",
+                        _ => "that mode",
+                    },
+                )));
+            }
+        }
+
         // W4b2: a single-function TU whose body is a framed non-leaf call
         // (`return g(a) + k`) takes the dedicated 6-section path — it needs a
         // `.pdata` unwind section and the compiler label symbols, which the

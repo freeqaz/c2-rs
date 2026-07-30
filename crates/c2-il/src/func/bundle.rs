@@ -137,7 +137,54 @@ fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
     (starts, segs)
 }
 
+/// The per-function optimization-settings word for the mode the port's codegen
+/// was verified against: `/Ox` (equivalently `/O2`) — optimize, favour speed.
+///
+/// `/O1` is `00200005`, `/Od` `00800005`, and `#pragma optimize("", off)` under
+/// `/Ox` is `00800004`. See `docs/OPT_MODE.md` for the full matrix and for why the
+/// bits are treated as opaque and compared whole.
+pub const OPT_WORD_OX: u32 = 0x00a0_0005;
+
 impl IlBundle {
+    /// The per-function optimization-settings word of each `.ex` function segment,
+    /// in file order — the `<LE32>` of the `4F 1F 80 <LE32>` that opens a segment.
+    ///
+    /// This is a **codegen-target** property, not a decode one, which is why it is
+    /// exposed as data here and enforced by `PortC2` rather than gated in
+    /// [`IlBundle::functions`] or in the census. The distinction matters for
+    /// measurement: a `/O1` TU whose IL decodes perfectly is a `codegen-gap` with a
+    /// named reason, and reporting it as `vocab-gap` would blame the IL model for
+    /// something it read correctly, while gating it in the census would replace
+    /// every real function's actual blocking feature with this one and destroy the
+    /// histogram that ranks the roadmap.
+    ///
+    /// `None` if `.ex` is absent. A segment whose prefix is not `4F 1F 80` yields
+    /// `None` **for that entry**, so a caller that requires a known mode refuses
+    /// rather than assuming one.
+    pub fn opt_words(&self) -> Option<Vec<Option<u32>>> {
+        let ex = self.ex()?;
+        Some(
+            split_functions_at(ex)
+                .0
+                .into_iter()
+                .map(|s| {
+                    // `4F 1F` is already proven at `s`; the word needs the `80`
+                    // tag and four more bytes.
+                    if ex.get(s + 2) == Some(&0x80) && s + 7 <= ex.len() {
+                        Some(u32::from_le_bytes([
+                            ex[s + 3],
+                            ex[s + 4],
+                            ex[s + 5],
+                            ex[s + 6],
+                        ]))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        )
+    }
+
     /// Parse this bundle as a sequence of straight-line add-chain functions
     /// (the MVP class, generalized to a multi-function TU). Returns `None` if
     /// the required files are absent, or if the `.gl` name count does not match
@@ -429,5 +476,54 @@ impl IlBundle {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A bundle carrying just `.ex`, enough for the segment-level readers.
+    fn ex_bundle(ex: Vec<u8>) -> IlBundle {
+        let mut b = IlBundle::default();
+        b.set("ex", ex);
+        b
+    }
+
+    /// One `.ex` function segment: `4F 1F 80 <LE32 opt word>` then a body marker.
+    fn ex_segment(opt_word: u32) -> Vec<u8> {
+        let mut v = vec![FN_START[0], FN_START[1], 0x80];
+        v.extend_from_slice(&opt_word.to_le_bytes());
+        v.extend_from_slice(&LO_MARKER);
+        v
+    }
+
+    #[test]
+    fn opt_words_reads_one_word_per_segment() {
+        // Values transcribed from captures: `/Ox` then `/O1` (a `#pragma optimize`
+        // can vary the mode *within* a TU, so this is per function, not per bundle).
+        let mut ex = ex_segment(OPT_WORD_OX);
+        ex.extend_from_slice(&ex_segment(0x0020_0005));
+        assert_eq!(
+            ex_bundle(ex).opt_words(),
+            Some(vec![Some(OPT_WORD_OX), Some(0x0020_0005)])
+        );
+    }
+
+    #[test]
+    fn opt_words_reports_an_unreadable_prefix_rather_than_guessing() {
+        // A segment whose `4F 1F` is not followed by the `80` tag yields None for
+        // that entry, so `PortC2` refuses instead of assuming the verified mode —
+        // the word is the whole basis for believing the codegen applies at all.
+        let ex = vec![FN_START[0], FN_START[1], 0x11, 0x22, 0x33, 0x44, 0x55];
+        assert_eq!(ex_bundle(ex).opt_words(), Some(vec![None]));
+    }
+
+    #[test]
+    fn opt_words_is_empty_for_a_module_with_no_segments() {
+        // R1: an empty module has no `4F 1F` at all, and its obj is
+        // mode-independent — which is why `PortC2` checks the words *after* the
+        // empty-module case.
+        assert_eq!(ex_bundle(vec![0u8; 64]).opt_words(), Some(Vec::new()));
     }
 }
