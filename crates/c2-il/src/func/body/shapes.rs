@@ -1,5 +1,6 @@
 use super::chain::{
-    additive_chain_canonical, has_repeated_leaf, leaves_ascending, substitute, MAX_SUBST_OPS,
+    additive_chain_canonical, has_repeated_leaf, leaves_ascending, straight_line_is_out_of_class,
+    substitute, MAX_SUBST_OPS,
 };
 use super::expr::{
     eat_return_plumbing, eat_scopes, formals_marker, intrinsic_selector, parse_expr, parse_formals,
@@ -554,9 +555,9 @@ fn arg_loads_are_formals(arg_ops: &[IlOp], params: &[u32]) -> bool {
 ///   B9 <base-tok> <PTR-TYPE>                     the base pointer
 ///   [ 33 <int-like> <off>  27 <PTR-TYPE> ]       ONE member byte-offset add, or
 ///   [ 33 <long>     <off>  28 00 00      ]       ONE subscript byte-offset add
-///   30 <INT4-TYPE>                               the indirect load
-///   [ 2C <int-like> 00 ]                         a cv-qualification strip
-///   41 <int-like>                                result type
+///   30 <INT4|PTR4-TYPE>                          the indirect load
+///   [ 2C <same class> 00 ]                       a cv-qualification strip
+///   41 <same class>                              result type
 ///   <return plumbing, reaching the segment end>
 /// ```
 ///
@@ -589,10 +590,21 @@ fn arg_loads_are_formals(arg_ops: &[IlOp], params: &[u32]) -> bool {
 ///   every site captured (constant and variable indices, 1/4/8-byte elements,
 ///   negative indices, 2-D arrays, bitfields) and their meaning is UNKNOWN, so
 ///   anything else refuses.
-/// * **The loaded type must be a 1-, 2-, 4- or 8-byte integer** ([`SIZED_PTEE`]):
-///   `char *` is `lbz`, `short *` is `lhz`, `long long *` is `ld`, `float *` is
-///   `lfs`, `double *` is `lfd` — all captured, all different instructions, and
-///   the FP ones are still refused.
+/// * **The loaded type must be a 1-, 2-, 4- or 8-byte integer** ([`SIZED_PTEE`])
+///   **or a 4-byte pointer** ([`is_ptr4_kind`]). The width picks the
+///   instruction: `char *` is `lbz`, `short *` is `lhz`, `long long *` is `ld`,
+///   `float *` is `lfs`, `double *` is `lfd` — all captured, all different, and
+///   the FP ones are still refused. A **pointer** value is the one non-integer
+///   case that lowers to the same bare `lwz` as a 4-byte integer:
+///   `int* H::gpi() const { return mpi; }` is `lwz r3,0(r3) ; blr`, the same
+///   scheme as the `int` getter beside it (`docs/IL_LOAD_TYPES.md` §3/§4), which
+///   is why it needs no encoder.
+///
+///   Note the gate is on the loaded value's *own* width, never the pointee's —
+///   loading a `char*` **member** is `lwz`, while loading *through* a `char*` is
+///   `lbz`, and both spell `char` somewhere in the type. The two questions have
+///   two predicates ([`is_ptr4_kind`] and [`is_ptr_to_4`]) for exactly that
+///   reason.
 /// * **Nothing may follow the load but the return.** `*p + 1` puts the load in
 ///   r11, and `*p * 3` is strength-reduced; see [`IlOp::LoadInd`].
 /// * **A `this`-bearing function must have its `this` found**, because `this`
@@ -773,30 +785,48 @@ fn finish_indirect_load_of(
         return None;
     }
 
-    // The indirect load itself.
+    // The indirect load itself. The loaded value is either a 4-byte integer or a
+    // 4-byte **pointer** — the two cases c2 lowers with the identical `lwz`
+    // (`docs/IL_LOAD_TYPES.md` §3/§4: `g_pi` is `lwz r3,24(r3)`, byte-identical
+    // in scheme to the in-class `g_i`), which is why this rung needs no encoder.
     if !eat_byte(seg, &mut p, 0x30) {
         return None;
     }
     let (tag, kind, _, tw) = read_type(seg, p)?;
-    let load_op = if is_int4_type(tag, kind) {
+    // Width 4 — a 4-byte integer or a 4-byte **pointer**, the two classes c2
+    // lowers with the identical bare `lwz` (`docs/IL_LOAD_TYPES.md` §3/§4: the
+    // pointer member `g_pi` is `lwz r3,24(r3)`, byte-identical in scheme to the
+    // in-class `g_i`), which is why the pointer half needs no encoder.
+    let load_op = if let Some(loaded) = value_class(tag, kind) {
         if matches!(ptee_width, Some(w) if w != 4) {
             return None;
         }
         p += tw;
 
-        // An optional cv-qualification strip. Provably free over a 4-byte integer
-        // source (see [`is_int4_type`]); the target must still be int-like, and the
-        // trailing varint must be the `00` observed at all 14,098 aligned sites.
+        // An optional cv-qualification strip, in the loaded value's own class:
+        // provably free over a 4-byte integer source (see [`is_int4_type`]) and
+        // provably free over a pointer one (`2C ptr→ptr` emits nothing —
+        // `void* f(H* p){return p;}` is a bare `blr`). The trailing varint must
+        // be the `00` observed at all 14,098 aligned sites.
+        //
+        // The two classes are kept apart rather than merged into one "either"
+        // test. A cross-class `2C` — pointer source, int target, or the reverse
+        // — is a *reinterpret* this port has never probed, and the neighbouring
+        // shape that would look identical under the wrong rule is the one that
+        // matters here: an address-adjusting up/downcast also produces a pointer
+        // from a pointer, and it costs an `addi`. It never comes through `2C`
+        // (it is intrinsic 2113/2114/2115), but the way to keep that true is to
+        // admit only the conversions each class was measured to make free.
         if *seg.get(p)? == 0x2C {
             let mut probe = p + 1;
-            if !eat_int_like(seg, &mut probe) || !eat_byte(seg, &mut probe, 0x00) {
+            if !eat_value_type(seg, &mut probe, loaded) || !eat_byte(seg, &mut probe, 0x00) {
                 return None;
             }
             p = probe;
         }
 
-        // Result type.
-        if !eat_byte(seg, &mut p, 0x41) || !eat_int_like(seg, &mut p) {
+        // Result type, in the same class as the load.
+        if !eat_byte(seg, &mut p, 0x41) || !eat_value_type(seg, &mut p, loaded) {
             return None;
         }
         IlOp::LoadInd { off }
@@ -874,19 +904,7 @@ fn finish_indirect_load_of(
     // The shared plumbing, which must reach the segment end.
     eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
 
-    // Bind the base to its argument register. `this` is argument 0, and when it
-    // is present every explicit formal shifts up one.
-    let formals = parse_formals(seg, lo).ok()?;
-    // `None` is "undetermined", and refusing is the whole point: treating it as
-    // "no `this`" is what mis-emitted the base register.
-    let params = match parse_this_token(seg, lo)? {
-        ThisBinding::Bound(this_tok) => {
-            let mut v = vec![this_tok];
-            v.extend_from_slice(&formals);
-            v
-        }
-        ThisBinding::Absent => formals,
-    };
+    let params = parse_params(seg, lo).ok()?;
     let ix = params.iter().position(|&t| t == base_tok)?;
     // Past the eighth argument the value is stack-homed, which needs a frame.
     if ix >= 8 {
@@ -896,6 +914,154 @@ fn finish_indirect_load_of(
         params,
         ops: vec![IlOp::Load(base_tok), load_op],
     })
+}
+
+/// The two value classes the leaf shapes lower identically over: a 4-byte
+/// integer and a 4-byte pointer. Kept as a class rather than a bare bool so the
+/// `2C` target and the `41` result must agree with the `30` load — see
+/// [`finish_indirect_load`].
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ValueClass {
+    /// `int`/`unsigned`/`long`, in any cv-qualification ([`is_int4_type`]).
+    Int4,
+    /// A width-4 data or function pointer ([`is_ptr4_kind`]).
+    Ptr4,
+}
+
+fn value_class(tag: u8, kind: u8) -> Option<ValueClass> {
+    if is_int4_type(tag, kind) {
+        Some(ValueClass::Int4)
+    } else if is_ptr4_kind(tag, kind) {
+        Some(ValueClass::Ptr4)
+    } else {
+        None
+    }
+}
+
+/// Consume a TYPE at `p` iff it belongs to `class`, reporting whether it did.
+fn eat_value_type(seg: &[u8], p: &mut usize, class: ValueClass) -> bool {
+    match class {
+        // The int side keeps its exact-triple whitelist (`86 41 74` and the
+        // three siblings): those are the only int spellings measured free
+        // through a `2C`, and widening it is not this rung's business.
+        ValueClass::Int4 => eat_int_like(seg, p),
+        ValueClass::Ptr4 => match read_type(seg, *p) {
+            Some((tag, kind, _, w)) if is_ptr4_kind(tag, kind) => {
+                *p += w;
+                true
+            }
+            _ => false,
+        },
+    }
+}
+
+/// A TYPE naming a **width-4 pointer value**: a data pointer (kind class 3) or a
+/// function/code pointer (kind class 4), in any cv-qualification.
+///
+/// Spelled as a literal tag/kind whitelist rather than as nibble arithmetic,
+/// because the two bytes are not equally well understood and the honest gate
+/// says so:
+///
+/// * `tag` — `0x80` plus the cv bits (`0x20` const, `0x10` volatile) and the
+///   width nibble `6` (= 4 bytes). All four combinations occur and are
+///   captured: `86 43` a plain pointer, `A6 43` a const one (the type of
+///   `this`, and of a member read through a const `this`), `96`/`B6` the
+///   volatile pair. **`0xC6` is refused.** `readers.rs` records that bit 0x40
+///   occurs, and none of the `IL_LOAD_TYPES.md` probes produced it — a field
+///   that never varied across the probes is indistinguishable from a constant,
+///   so it is required literally and fails closed. Odd tags (bit 0 set) are the
+///   aggregate size-bit-4 encoding and are not pointers at all.
+/// * `kind` — required to be exactly `0x43` or `0x44`, i.e. width nibble 4 with
+///   class nibble 3 or 4. Class 3 is a data pointer and class 4 a function/code
+///   pointer (`IL_LOAD_TYPES.md` §1: `int (*)()` literal 0 is `33 86 44 8d 20
+///   00`). Both load with the same `lwz`, so gating them together keeps one
+///   instruction behind one predicate.
+///
+/// Deliberately **not** [`is_ptr_to_4`], which is the *other* question: that one
+/// is applied to the base LOAD and to the `27` byte-offset-add, where the tag
+/// carries the **pointee's** width and only the kind class is meaningful. Two
+/// predicates because two facts; one locator each.
+fn is_ptr4_kind(tag: u8, kind: u8) -> bool {
+    matches!(tag, 0x86 | 0x96 | 0xA6 | 0xB6) && matches!(kind, 0x43 | 0x44)
+}
+
+/// Try to parse a **pointer-identity leaf**: a whole body that is one pointer
+/// returned unchanged — `return p;`, `return this;`, and pointer-to-pointer
+/// casts of either.
+///
+/// ```text
+///   B9 <tok> <PTR4-TYPE>            the value
+///   [ 2C <PTR4-TYPE> 00 ]           a cv-strip / ptr→ptr cast, emitting nothing
+///   41 <PTR4-TYPE>                  result type
+///   <return plumbing, reaching the segment end>
+/// ```
+///
+/// c2 emits **no instruction at all** for the value: the pointer is already in
+/// its incoming argument register, so the body is a bare `blr` — exactly what
+/// the integer identity `int f(int a){ return a; }` already produces, which is
+/// why this hands back the existing [`BodyShape::StraightLine`] lowering and
+/// needs no codegen. MEASURED (`docs/IL_LOAD_TYPES.md` §3, probe `p10`):
+/// `void* f(H* p){ return p; }` is one `blr`, and a `2C` from pointer to pointer
+/// emits nothing.
+///
+/// Three real translation units (headtracker, MemMgr, Sorting) carry 16 bodies
+/// of exactly this grammar, all four of the accepted tag spellings among them.
+///
+/// The gates, and the neighbour each one separates:
+///
+/// * **No offset add.** `B9 <ptr> 33 <int> <k> 27 <ptr> 2C <ptr> 00 41 <ptr>` —
+///   the same production *minus the `30`* — is `return &s->m;`, and it emits an
+///   `addi`. It occurs: 7 of the 40 pointer-shaped bodies in the three TUs
+///   scanned are this, and admitting them as identities would emit a bare `blr`
+///   where c2 emits `addi r3,r3,12`. So the identity leaf is anchored on the
+///   `B9` *immediately* followed by the result, and the offset-add form has no
+///   path into it.
+/// * **The value must be a formal or `this`, bound positively.** An
+///   `Undetermined` `this` refuses (the line-70 rule).
+/// * **The result must already be in r3.** `S* f(int a, S* s){ return s; }` is
+///   `mr r3,r4`, a real instruction — refused by the shared
+///   [`straight_line_is_out_of_class`], the same predicate the arithmetic path
+///   uses, rather than by a second copy of the rule.
+/// * **Pointer *literals* are elsewhere.** `return 0;` typed as a pointer is a
+///   `33` LITERAL (census `expr-lit-type-8643xx`) and needs an `li`; this
+///   production is anchored on `B9` and cannot reach it.
+pub(crate) fn try_parse_ptr_identity_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+    let mut p = start;
+    if !eat_byte(seg, &mut p, 0xB9) {
+        return None;
+    }
+    let (tok, w) = read_token_var(seg, p)?;
+    p += w;
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if !is_ptr4_kind(tag, kind) {
+        return None;
+    }
+    p += tw;
+
+    if *seg.get(p)? == 0x2C {
+        let mut probe = p + 1;
+        if !eat_value_type(seg, &mut probe, ValueClass::Ptr4) || !eat_byte(seg, &mut probe, 0x00) {
+            return None;
+        }
+        p = probe;
+    }
+
+    if !eat_byte(seg, &mut p, 0x41) || !eat_value_type(seg, &mut p, ValueClass::Ptr4) {
+        return None;
+    }
+    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
+
+    let params = parse_params(seg, lo).ok()?;
+    let ix = params.iter().position(|&t| t == tok)?;
+    // Past the eighth argument the value is stack-homed, which needs a frame.
+    if ix >= 8 {
+        return None;
+    }
+    let ops = vec![IlOp::Load(tok)];
+    if straight_line_is_out_of_class(&ops, &params) {
+        return None;
+    }
+    Some(BodyShape::StraightLine { params, ops })
 }
 
 /// The intrinsic-**2117** (`base-member-addr`) designator: reading a member that
@@ -1703,8 +1869,21 @@ mod tests {
         );
         // A `float` pointee is `lfs` (`30 86 45 40`).
         assert_eq!(bad(&[(13, 0x45), (14, 0x40), (17, 0x45), (18, 0x40)]), None);
-        // A pointer pointee (`int **`) emits the same word but stays refused.
-        assert_eq!(bad(&[(13, 0x43)]), None);
+        // A pointer pointee (`int **`) emits the same `lwz` and is now ACCEPTED
+        // — rung 1 of `docs/IL_LOAD_TYPES.md` §6. It used to be refused (and was
+        // recorded as such in `il_expr_load_neg.cpp`) purely because the type
+        // gate said "4-byte integer"; the instruction was never the reason. The
+        // `41` result has to move with the `30` load: the tail requires the two
+        // to be in the same value class, so a half-spliced segment refuses.
+        assert!(matches!(
+            bad(&[(13, 0x43), (17, 0x43)]),
+            Some(BodyShape::IndirectLoad { .. })
+        ));
+        assert_eq!(bad(&[(13, 0x43)]), None, "ptr load, int result: cross-class");
+        // …and tag `C6` is refused even with both positions moved. `readers.rs`
+        // records that bit 0x40 occurs and no probe produced it, so it is
+        // undetermined, not a cv bit.
+        assert_eq!(bad(&[(12, 0xC6), (13, 0x43), (16, 0xC6), (17, 0x43)]), None);
 
         // Arithmetic after the load: the load lands in the scratch register, so
         // this must not reach the affine selector.
@@ -1724,5 +1903,240 @@ mod tests {
         wide.extend_from_slice(&[0x80, 0x80, 0x1A, 0x06, 0x00]); // 400000
         wide.extend_from_slice(&IND_SUBSCRIPT_NEG[n + 16..]);
         assert_eq!(parse_segment(&free_fn(&wide), NO_LOCALS), None);
+    }
+
+    // ---- T1: pointer-valued leaves (rung 1 of docs/IL_LOAD_TYPES.md §6) -----
+    //
+    // Every segment below is a **whole** captured `.ex` function segment from the
+    // live 16.00.11886.00 toolchain, `4F 1F` header included — not a suffix. The
+    // pre-body region matters here (it is where `this` is bound and where the
+    // line-70 mis-emit lived), so trimming to the `LO` marker would leave exactly
+    // the region these cases exist to exercise untested.
+    //
+    // Positives are from `fixtures/cpp/w12_ptr_leaf.cpp`, negatives from
+    // `fixtures/cpp/w12_ptr_leaf_neg.cpp`; both are graded byte-exact against
+    // real `c2` by `c2rs diff`, so these tests pin the *decode* of segments whose
+    // *emission* the differential already judges.
+
+    /// `C* C::self_np() { return this; }` — the identity leaf through a
+    /// non-const `this` (`A6 43` base, `2C` strip to `86 43`). Emits a bare `blr`.
+    const PTR_IDENT_THIS: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x59, 0x53, 0x53, 0x26, 0xF9, 0x09,
+        0xB9, 0x02, 0x0A, 0xA6, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0x46, // this
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0xB9, 0x02, 0x0A, 0xA6, 0x43, 0x81, 0x20, // LOAD this (const ptr)
+        0x2C, 0x86, 0x43, 0x82, 0x20, 0x00, // ptr -> ptr, emits nothing
+        0x41, 0x86, 0x43, 0x82, 0x20, // result: C*
+        0x3A, 0x03, 0x0A, 0x54, 0x02, 0x29, 0x03, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `S* id_p(S* s) { return s; }` — the identity leaf over a plain formal, with
+    /// no `2C` at all (`86 43` throughout).
+    const PTR_IDENT_FORMAL: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x6D, 0x53, 0x53, 0x26, 0x2A, 0x0A,
+        0x46, 0x2D, 0x29, 0x0A, // formals: s
+        0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x29, 0x0A, 0x86, 0x43, 0x98, 0x20, // LOAD s
+        0x41, 0x86, 0x43, 0x98, 0x20, // result: S*
+        0x3A, 0x2B, 0x0A, 0x54, 0x02, 0x29, 0x2B, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int* gp_i(H* h) { return h->mpi; }` — the pointer-valued getter:
+    /// `30 86 43 F4 08` (an `int*` value) where the accepted class used to demand
+    /// a 4-byte integer. Same `lwz r3,0(r3)`.
+    const PTR_GETTER: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x61, 0x53, 0x53, 0x26, 0x11, 0x0A,
+        0x46, 0x2D, 0x10, 0x0A, // formals: h
+        0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x10, 0x0A, 0x86, 0x43, 0x8C, 0x20, // LOAD h
+        0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0x86, 0x43, 0x91, 0x20, // + offsetof == 0
+        0x30, 0x86, 0x43, 0xF4, 0x08, // indirect load -> int*
+        0x41, 0x86, 0x43, 0xF4, 0x08, // result: int*
+        0x3A, 0x12, 0x0A, 0x54, 0x02, 0x29, 0x12, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int* gc_p(const C* c) { return c->mp; }` — the same getter with the `2C`
+    /// strip, and the one that shows where the `const` lands: the **base** is
+    /// `86 43` (the pointer is not const, its pointee is) while the **loaded**
+    /// type is `A6 43` and the `2C` unqualifies it.
+    const PTR_GETTER_CV: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x68, 0x53, 0x53, 0x26, 0x21, 0x0A,
+        0x46, 0x2D, 0x20, 0x0A, // formals: c
+        0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x20, 0x0A, 0x86, 0x43, 0x86, 0x20, // LOAD c
+        0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0x86, 0x43, 0x96, 0x20,
+        0x30, 0xA6, 0x43, 0x95, 0x20, // indirect load -> int* const
+        0x2C, 0x86, 0x43, 0xF4, 0x08, 0x00, // strip -> int*
+        0x41, 0x86, 0x43, 0xF4, 0x08, 0x3A, 0x22, 0x0A, 0x54, 0x02, 0x29, 0x22, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int* n_addr_of(S* s) { return &s->b; }` — **the** discriminating
+    /// negative: the getter's production *minus the `30`*. Emits `addi r3,r3,4`.
+    const PTR_ADDR_OF: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x64, 0x53, 0x53, 0x26, 0x17, 0x0A,
+        0x46, 0x2D, 0x16, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x16, 0x0A, 0x86, 0x43, 0x81, 0x20,
+        0x33, 0x86, 0x41, 0x74, 0x04, 0x27, 0x86, 0x43, 0x84, 0x20, // + 4, NO `30`
+        0x41, 0x86, 0x43, 0xF4, 0x08, 0x3A, 0x18, 0x0A, 0x54, 0x02, 0x29, 0x18, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int* n_deref2(int*** ppp) { return **ppp; }` — two `30` loads, two `lwz`.
+    const PTR_DEREF2: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x66, 0x53, 0x53, 0x26, 0x1A, 0x0A,
+        0x46, 0x2D, 0x19, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x19, 0x0A, 0x86, 0x43, 0x85, 0x20,
+        0x30, 0x86, 0x43, 0x84, 0x20, // load 1
+        0x30, 0x86, 0x43, 0xF4, 0x08, // load 2 -> refuse
+        0x41, 0x86, 0x43, 0xF4, 0x08, 0x3A, 0x1B, 0x0A, 0x54, 0x02, 0x29, 0x1B, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `S* n_mr(int a, S* s) { return s; }` — the identity of the *second*
+    /// formal, which is `mr r3,r4` and not free.
+    const PTR_IDENT_R4: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x6F, 0x53, 0x53, 0x26, 0x2A, 0x0A,
+        0x46, 0x2D, 0x29, 0x0A, 0x2D, 0x28, 0x0A, // formals: s, a  ->  params [a, s]
+        0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x29, 0x0A, 0x86, 0x43, 0x81, 0x20, // LOAD s (r4)
+        0x41, 0x86, 0x43, 0x81, 0x20, 0x3A, 0x2B, 0x0A, 0x54, 0x02, 0x29, 0x2B, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn ptr_getter_leaf_decodes_as_the_same_indirect_load_an_int_getter_does() {
+        // The whole point of the rung: the BodyShape is unchanged, so
+        // `indirect_load_text` (which consumes no type) emits the same `lwz`.
+        assert_eq!(
+            parse_segment(PTR_GETTER, NO_LOCALS),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0x100A],
+                ops: vec![IlOp::Load(0x100A), IlOp::LoadInd { off: 0 }],
+            })
+        );
+        assert_eq!(
+            parse_segment(PTR_GETTER_CV, NO_LOCALS),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0x200A],
+                ops: vec![IlOp::Load(0x200A), IlOp::LoadInd { off: 0 }],
+            }),
+            "the A6-tagged load plus its 2C strip"
+        );
+    }
+
+    #[test]
+    fn ptr_identity_leaf_binds_this_and_a_formal_alike() {
+        // `return this;` — the token comes from the pre-body `B9 … 99 … 00`
+        // group, not from the `2D` formals list, and it is r3.
+        assert_eq!(
+            parse_segment(PTR_IDENT_THIS, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![0x020A],
+                ops: vec![IlOp::Load(0x020A)],
+            })
+        );
+        // `return s;` — same production, token from the formals list.
+        assert_eq!(
+            parse_segment(PTR_IDENT_FORMAL, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![0x290A],
+                ops: vec![IlOp::Load(0x290A)],
+            })
+        );
+    }
+
+    #[test]
+    fn ptr_leaves_refuse_the_shapes_that_cost_an_instruction() {
+        // `&s->b` is the getter minus the `30`. This is the case that decides
+        // whether the identity recognizer may skip an optional offset add: it
+        // may not, because this emits `addi r3,r3,4` where the identity emits
+        // nothing. 7 of 40 pointer-shaped bodies in three scanned real TUs are
+        // this shape, so getting it wrong would not have been a corner case.
+        assert_eq!(parse_segment(PTR_ADDR_OF, NO_LOCALS), None, "&s->b needs addi");
+        assert_eq!(parse_segment(PTR_DEREF2, NO_LOCALS), None, "**ppp is two lwz");
+        assert_eq!(parse_segment(PTR_IDENT_R4, NO_LOCALS), None, "return s (r4) is mr");
+
+        // And the same three, reported by the census rather than silently: each
+        // must still name a blocking feature, so the instrument and the gate
+        // agree that these are out of class.
+        for (seg, label) in
+            [(PTR_ADDR_OF, "&s->b"), (PTR_DEREF2, "**ppp"), (PTR_IDENT_R4, "return s (r4)")]
+        {
+            assert!(parse_segment_detail(seg, NO_LOCALS).is_err(), "{label}");
+        }
+    }
+
+    #[test]
+    fn the_ptr4_type_gate_is_a_literal_whitelist_on_both_bytes() {
+        // Tags: `0x80 | cv | width-4`, with cv ⊆ {const 0x20, volatile 0x10}.
+        for tag in [0x86u8, 0x96, 0xA6, 0xB6] {
+            assert!(is_ptr4_kind(tag, 0x43), "tag {tag:#02X} data pointer");
+            assert!(is_ptr4_kind(tag, 0x44), "tag {tag:#02X} function pointer");
+        }
+        // `0xC6` — bit 0x40 — is reported by `readers.rs` as occurring and was
+        // produced by none of the `IL_LOAD_TYPES.md` probes. A field that never
+        // varied across the probes is indistinguishable from a constant, so it
+        // is required literally and refuses. Same for `0xD6`/`0xE6`/`0xF6`.
+        for tag in [0xC6u8, 0xD6, 0xE6, 0xF6] {
+            assert!(!is_ptr4_kind(tag, 0x43), "tag {tag:#02X} is undetermined");
+        }
+        // Other widths are other instructions: an 8-byte pointer does not exist
+        // on this target and a 1/2-byte one is the `27` pointee-width spelling,
+        // which is a different question ([`is_ptr_to_4`]).
+        for tag in [0x82u8, 0x84, 0x88, 0xA2, 0xA8] {
+            assert!(!is_ptr4_kind(tag, 0x43), "tag {tag:#02X} is not a 4-byte value");
+        }
+        // Kinds: only 0x43/0x44. Aggregates (class 6), reals (5), void (7) and
+        // the integers are all excluded here — the integers have their own
+        // predicate, and the rest are T2/T3 and later rungs.
+        for kind in [0x41u8, 0x42, 0x45, 0x46, 0x47, 0x33, 0x53, 0x83, 0x84] {
+            assert!(!is_ptr4_kind(0x86, kind), "kind {kind:#02X}");
+        }
+        // The two classes the leaf tail accepts are disjoint, which is what lets
+        // `2C` and `41` be required to agree with the `30`.
+        assert_eq!(value_class(0x86, 0x43), Some(ValueClass::Ptr4));
+        assert_eq!(value_class(0x86, 0x41), Some(ValueClass::Int4));
+        assert_eq!(value_class(0x86, 0x45), None, "float is not in either class");
+    }
+
+    #[test]
+    fn a_cross_class_2c_over_a_pointer_load_refuses() {
+        // `30 <ptr>` followed by `2C <int> 00` is a pointer→int reinterpret. It
+        // may well be free, but it is unprobed, and the class-agreement rule is
+        // what keeps an address-*adjusting* conversion from ever being admitted
+        // as a free one. Splice the int target into the accepted cv-strip
+        // getter, changing nothing else.
+        let lo = find_subslice(PTR_GETTER_CV, &LO_MARKER).unwrap();
+        let at = PTR_GETTER_CV[lo..]
+            .windows(6)
+            .position(|w| w == [0x2C, 0x86, 0x43, 0xF4, 0x08, 0x00])
+            .expect("the 2C strip")
+            + lo;
+        let mut s = PTR_GETTER_CV[..at].to_vec();
+        s.extend_from_slice(&[0x2C, 0x86, 0x41, 0x74, 0x00]); // -> int
+        s.extend_from_slice(&PTR_GETTER_CV[at + 6..]);
+        assert_eq!(parse_segment(&s, NO_LOCALS), None);
+        // Control: the same splice back to the captured pointer target parses,
+        // so the assertion above is about the class and not about the splice.
+        let mut ok = PTR_GETTER_CV[..at].to_vec();
+        ok.extend_from_slice(&[0x2C, 0x86, 0x43, 0xF4, 0x08, 0x00]);
+        ok.extend_from_slice(&PTR_GETTER_CV[at + 6..]);
+        assert!(parse_segment(&ok, NO_LOCALS).is_some());
     }
 }

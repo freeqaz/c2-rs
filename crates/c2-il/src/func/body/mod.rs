@@ -12,7 +12,7 @@ use self::expr::{
 use self::shapes::parse_params;
 use self::shapes::{
     parse_call_shape, try_parse_assign_body_detail, try_parse_compare, try_parse_float_leaf,
-    try_parse_indirect_load_leaf,
+    try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf,
 };
 use super::readers::{eat_byte, find_subslice, read_token_var};
 use super::sy::SyView;
@@ -347,6 +347,16 @@ pub(crate) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, 
                 return Ok(shape);
             }
             if let Some(shape) = try_parse_indirect_load_leaf(seg, p, lo) {
+                return Ok(shape);
+            }
+            // …and the pointer *identity* leaf (`return p;` / `return this;` /
+            // a ptr→ptr cast of either), which is the same production minus the
+            // `30` load. Tried after it, because a body that has a `30` is a
+            // getter and this one must not see it: the shape between the two —
+            // an offset add with no `30`, `return &s->m;` — emits an `addi` and
+            // is refused by both. Non-committal like the others: it works on a
+            // copy of the cursor and returns None with no side effects.
+            if let Some(shape) = try_parse_ptr_identity_leaf(seg, p, lo) {
                 return Ok(shape);
             }
             let ops = parse_expr(seg, &mut p, 0x41)?;
