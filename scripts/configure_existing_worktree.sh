@@ -60,6 +60,20 @@ reflink_dir_besteffort() {
     return 1
 }
 
+# ---- base-ref sanity --------------------------------------------------------
+# Claude Code's own worktree isolation branches from `origin/<default>` by default
+# (the `worktree.baseRef: fresh` setting), which here is ~30 commits behind local
+# `master` and can predate whole subcommands. An agent lost time to exactly that.
+# Report it rather than silently rebasing someone's branch.
+if git -C "$MAIN_REPO" rev-parse --verify --quiet master >/dev/null; then
+    if ! git -C "$WORKTREE_PATH" merge-base --is-ancestor master HEAD 2>/dev/null; then
+        behind="$(git -C "$WORKTREE_PATH" rev-list --count HEAD..master 2>/dev/null || echo '?')"
+        echo "    WARN: this worktree is $behind commits behind local 'master'." >&2
+        echo "          It was probably branched from origin/master. If you have no" >&2
+        echo "          commits yet:  git reset --hard master" >&2
+    fi
+fi
+
 echo "==> Configuring worktree at $WORKTREE_PATH"
 
 # ---- compilers/ : symlink (read-only toolchain) ------------------------------
@@ -93,18 +107,53 @@ if [ -d "$MAIN_REPO/work/dc3-workload" ]; then
         || echo "    WARN: workload copy failed; regenerate with scripts/gen_dc3_workload.sh." >&2
 fi
 
+# ---- wibo : a sibling symlink NEXT TO the worktrees --------------------------
+# `Toolchain::locate` looks for `<repo_root>/../wibo/build/release/wibo`, and
+# `repo_root` is `CARGO_MANIFEST_DIR/../..` — the WORKTREE, not the main repo. So
+# from `<main>/.claude/worktrees/<name>` the sibling lookup resolves to
+# `<main>/.claude/worktrees/wibo`, which does not exist, and every in-worktree build
+# reverts to `SKIP: toolchain absent`.
+#
+# This is not hypothetical and it is the nastiest form of the SKIP trap, because it
+# passes the check below and then breaks: reflinking the main repo's `target/` puts
+# a WORKING binary in the worktree, so the first verification succeeds — and the
+# agent's first `cargo build` replaces it with one that silently finds no toolchain.
+# An agent reported exactly that sequence.
+#
+# One symlink beside the worktrees fixes it for all of them at once, and it is the
+# same sibling-resolution the design already relies on. `C2RS_WIBO` still overrides.
+WT_PARENT="$(dirname "$WORKTREE_PATH")"
+if [ ! -e "$WT_PARENT/wibo" ]; then
+    MAIN_WIBO=""
+    for cand in "${C2RS_WIBO:-}" "$MAIN_REPO/../wibo/build/release/wibo" \
+                "$MAIN_REPO/../wibo/build/wibo" "$(command -v wibo 2>/dev/null || true)"; do
+        [ -n "$cand" ] && [ -x "$cand" ] || continue
+        # Walk up from the binary to the directory that contains `build/`.
+        MAIN_WIBO="$(cd "$(dirname "$cand")/.." && pwd)"
+        [ -d "$MAIN_WIBO/release" ] && MAIN_WIBO="$(cd "$MAIN_WIBO/.." && pwd)"
+        break
+    done
+    if [ -n "$MAIN_WIBO" ] && [ -d "$MAIN_WIBO" ]; then
+        echo "    ../wibo  (symlink beside the worktrees — the sibling lookup)"
+        ln -s "$MAIN_WIBO" "$WT_PARENT/wibo"
+    else
+        echo "    WARN: no wibo found to link; set C2RS_WIBO for every command." >&2
+    fi
+fi
+
 # ---- assert the toolchain actually resolves ---------------------------------
 # The whole point. A worktree that SKIPs grades every change as passing, so this is
 # a hard gate rather than a hint.
 echo "==> Verifying the toolchain resolves (not SKIP)"
 cd "$WORKTREE_PATH"
-if [ ! -x "$WORKTREE_PATH/target/release/c2rs" ]; then
-    echo "    building the harness (once) to run the check"
-    cargo build --release -p c2-harness >/dev/null 2>&1 || {
-        echo "ERROR: cargo build failed in the worktree." >&2
-        exit 1
-    }
-fi
+# ALWAYS rebuild before checking. Checking the reflinked binary from the main repo
+# verifies the wrong thing — it is the in-worktree build whose toolchain resolution
+# is in question, and validating the copy is how the failure above stayed hidden.
+echo "    building the harness in-tree (the binary under test must be this one)"
+cargo build --release -p c2-harness >/dev/null 2>&1 || {
+    echo "ERROR: cargo build failed in the worktree." >&2
+    exit 1
+}
 verdict="$("$WORKTREE_PATH/target/release/c2rs" census fixtures/cpp/w5_chain.cpp 2>&1 | head -n1)"
 case "$verdict" in
     *"4/4 functions in class"*)
