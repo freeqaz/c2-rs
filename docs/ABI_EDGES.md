@@ -90,6 +90,28 @@ register (`CODEGEN_FRAMED_CALLS.md` §1.1).
   "register only". A port that models one and applies it to both emits code that
   links and misbehaves.
 
+* **The two numberings, stated together**, since the pair is what a port needs:
+  an FP argument takes `f<j>` counting FP arguments alone, and every other scalar
+  takes `r<2 + k>` where `k` is its **slot** — which an FP argument advances even
+  though it fills no register. `int t5(int a, float b){ return gfi(b,a); }` emits
+  `mr r4,r3`: the callee's `int` is argument 2, so slot 2, so r4. That is the
+  discriminator for the *second* rule, as the `t6` capture above is for the
+  first, and a model with only one of them gets half the corpus wrong. Both are
+  implemented as `c2_il::func::sy::ArgClass` and graded by
+  `fixtures/cpp/w27_fp_reg.cpp` and `w28_fp_store.cpp`; the full capture set is
+  `docs/CODEGEN_FP_ARGS.md` §1.
+
+* **A `float` → `double` widening at a call boundary is FREE and the narrowing is
+  not.** `double wid(float a){ return gd1(a); }` is a bare `b`;
+  `float nar(double a){ return gf1(a); }` is `frsp f1,f1` then the branch. The IL
+  spells both with the same `2C`, so the asymmetry is c2's and not the C
+  standard's, and a port that treats the conversion as an annotation drops a real
+  instruction (`CODEGEN_FP_ARGS.md` §2).
+
+* **The FP file is width-agnostic**: a `double` takes one register, not two.
+  `int t8(double a, float b, double c){ return gdfd(a,b,c); }` is a bare branch,
+  which refutes the register-pair rule some other PowerPC ABIs use.
+
 * **Returns**: `float` and `double` both in **f1**. `float` constants come from
   an `.rdata` COMDAT via REFHI/REFLO into r11 (`OBJ_GY_SHAPES.md` §2).
 
@@ -195,6 +217,12 @@ reassembled with an explicit `sldi r3,r11,40` = shift left by `64 - 24`:
   no `/fp:` variant was probed.
 * `__vector`/VMX128 types: not probed at all. The workload uses them
   (`math/Mtx.h`), so this is a real hole in the sizing, not a corner case.
+  **Located, though, in the container**: `.sy` records such a formal with type
+  **class `D`** (`vSrc`, 16 bytes, `src/App.cpp`), which is neither the integer,
+  pointer, aggregate nor real class. `SyView::arg_classes` refuses it under
+  `param-kind-unknown` rather than defaulting it into the GPR file, because a
+  third register file would renumber **both** of the numberings above for every
+  argument after it.
 * Sign/zero-extension duty for a `char`/`short` **argument** (returns are §1).
   Not isolated — every probe passed `int`.
 * Bitfields, unions, and structs with a non-trivial copy constructor (which

@@ -1137,7 +1137,7 @@ The rules that keep the numbers honest:
   and grouped them by production; and clearing one production can shrink several
   unrelated-looking buckets at once, so predicted movement should be stated
   per-production, never per-bucket.
-- **Four live wrong-bytes emits and one live panic, none of them found by the
+- **Eight live wrong-bytes emits and one live panic, none of them found by the
   fixture corpus.** Every one came from review or adversarial probing, and every one
   has the same shape: *two facts that happen to share one field until some construct
   pulls them apart.*
@@ -1219,6 +1219,26 @@ The rules that keep the numbers honest:
        compiling anything: **`framed_call_text` took no parameter that could
        distinguish two formals**, so it could not have been emitting a
        formal-dependent word, and the class it served plainly had formals.
+    9. **The ninth is the same shape in the OBJ SHELL rather than in an
+       instruction**, found 2026-07-30 by the FP-store rung's own fixture on its
+       first run. A translation unit that touches floating point carries an
+       undefined external `_fltused`, and the port keyed that on
+       `coff::Function::is_float`, set from `float_leaf.is_some()`. That field
+       was answering two questions — *"this body does FP arithmetic, so its label
+       stride is 2"* and *"this TU needs the CRT's float-support hook"* — and
+       every function that had ever set it satisfied both, because the only FP
+       class the port had was the W13 arithmetic leaf. An FP **store**
+       (`void f(S* s, float v){ s->f = v; }`) satisfies only the second: it is a
+       store leaf, stride 1, and it needs the marker. The port emitted **all
+       fourteen** positive objs one symbol short — `Port=Mismatch @ offset 12`,
+       the COFF header's `NumberOfSymbols`. Two things are worth keeping. First,
+       the tell was in the same place as always and needed no compiling:
+       **`is_float` had one producer and two consumers asking different
+       questions.** Second, an all-FP-store TU cannot separate "the first
+       FP-touching function" from "the first FP-arithmetic function" — only a
+       *mixed* one can, so the placement rule was re-captured over four orderings
+       (`fixtures/cpp/w28_fltused_order.cpp`) rather than assumed to survive the
+       widening. See `docs/CODEGEN_FP_ARGS.md` §4.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one
