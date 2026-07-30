@@ -488,7 +488,7 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
             }
             0x66 => {
                 // The class-pair descriptor of the 2113–2119 family. Not a value.
-                if !eat_class_descriptor(seg, &mut p) {
+                if eat_class_descriptor(seg, &mut p).is_none() {
                     return CallForm::Op(0x66);
                 }
             }
@@ -854,20 +854,22 @@ fn eat_value_seq(seg: &[u8], p: &mut usize, form: CallForm) -> bool {
 /// measured and reported in `docs/IL_CALL_IN_EXPR.md` §14.3 — D1 is refusing
 /// textbook base-delegating destructors in every large TU for want of this one
 /// step, and the `recv-intrinsic-this-adjust-whole` count is the size of that.
-fn eat_class_descriptor(seg: &[u8], p: &mut usize) -> bool {
+/// Returns the **ref count** on success, so that each caller applies its own
+/// acceptance rule to it while this function owns only the *encoding*. That split
+/// is why the fix could be shared: `try_parse_base_member_load` bounds `n` at 3
+/// and D1 requires exactly 2, and neither constraint belongs in a decoder.
+pub(super) fn eat_class_descriptor(seg: &[u8], p: &mut usize) -> Option<u8> {
     if !eat_byte(seg, p, 0x66) {
-        return false;
+        return None;
     }
-    let Some(&n) = seg.get(*p) else {
-        return false;
-    };
+    let &n = seg.get(*p)?;
     *p += 1;
     for _ in 0..n {
         if !eat_leb(seg, p) {
-            return false;
+            return None;
         }
     }
-    true
+    Some(n)
 }
 
 /// One LEB128 id: bytes with bit 7 set continue, the first without it ends.
@@ -1215,7 +1217,7 @@ fn eat_intrinsic_receiver(seg: &[u8], p: &mut usize, sel: i32) -> bool {
     if !eat_byte(seg, p, 0x40) || !eat_type(seg, p) {
         return false;
     }
-    if !eat_class_descriptor(seg, p) {
+    if eat_class_descriptor(seg, p).is_none() {
         return false;
     }
     loop {
@@ -1557,7 +1559,7 @@ mod tests {
         // way `41`/`55`/`4C 4B` pin `read_type`'s.
         let at = seg.windows(2).position(|w| w == [0x66, 0x02]).unwrap();
         let mut p = at;
-        assert!(eat_class_descriptor(&seg, &mut p));
+        assert!(eat_class_descriptor(&seg, &mut p).is_some());
         assert_eq!(p - at, 8);
         assert_eq!(seg[p], 0x55, "the descriptor must end on the argument push");
         // Stepping a fixed four bytes lands inside the second ref instead.
@@ -1566,7 +1568,7 @@ mod tests {
         let narrow = free_fn(RECV_INTRINSIC);
         let at = narrow.windows(2).position(|w| w == [0x66, 0x02]).unwrap();
         let mut p = at;
-        assert!(eat_class_descriptor(&narrow, &mut p));
+        assert!(eat_class_descriptor(&narrow, &mut p).is_some());
         assert_eq!(p - at, 6);
         assert_eq!(narrow[p], 0x55);
     }

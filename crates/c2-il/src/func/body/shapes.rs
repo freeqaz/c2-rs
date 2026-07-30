@@ -6,6 +6,7 @@ use super::expr::{
     eat_fn_tail, eat_return_plumbing, eat_scopes, formals_marker, intrinsic_selector, parse_expr,
     parse_formals, BODY_SCOPE_DEPTH,
 };
+use super::mcall;
 use super::{blk, Block, BodyShape};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_opt_stmt_marker, is_int4_type, is_ptr_to_4,
@@ -1147,17 +1148,18 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
         return None;
     }
     p += tw;
-    // The argument header: `66 <n>` then n two-byte type references, skipped
-    // structurally so a second inheritance step (n = 3) parses like the first.
-    if !eat_byte(seg, &mut p, 0x66) {
-        return None;
-    }
-    let n_refs = *seg.get(p)?;
+    // The argument header: `66 <n>` then n type references, skipped structurally
+    // so a second inheritance step (n = 3) parses like the first.
+    //
+    // The refs are **LEB128 ids**, not a fixed two bytes each — see
+    // [`super::mcall::eat_class_descriptor`], which owns that encoding and carries
+    // the witnesses. This code stepped `2 * n` and so landed inside the second ref
+    // of any descriptor with a wide id, which is every large translation unit;
+    // `src/App.cpp` and `src/lazer/game/Game.cpp` carry `fb 8a 01`, `ff ff 01`,
+    // `d3 80 02`. The bound on `n` stays here rather than moving into the decoder,
+    // because it is this shape's acceptance rule and not part of the encoding.
+    let n_refs = mcall::eat_class_descriptor(seg, &mut p)?;
     if n_refs == 0 || n_refs > MAX_HEADER_REFS {
-        return None;
-    }
-    p += 1 + 2 * n_refs as usize;
-    if p > seg.len() {
         return None;
     }
     // Each argument is `<value> 55 <its type>`.
@@ -1353,12 +1355,16 @@ pub(crate) fn try_parse_empty_dtor_delegation(
         return None;
     }
     p += tw;
-    // The class-pair descriptor: exactly two 2-byte type references.
-    if !eat(seg, &mut p, &[0x66, 0x02]) {
-        return None;
-    }
-    p += 4;
-    if p > seg.len() {
+    // The class-pair descriptor: exactly two type references, whose ids are
+    // **LEB128** and not a fixed two bytes each ([`super::mcall::eat_class_descriptor`]).
+    //
+    // Stepping four bytes here is what made this shape refuse bodies that are its
+    // own skeleton byte for byte, in every translation unit large enough to have
+    // wide type ids — `src/App.cpp` carries one. It was found by a residue: the D2
+    // split first spread 17,757 functions over 197 `op-0xNN` buckets, and flat over
+    // the byte range is the signature of reading a payload as vocabulary.
+    let n_refs = mcall::eat_class_descriptor(seg, &mut p)?;
+    if n_refs != 2 {
         return None;
     }
     if !eat_byte(seg, &mut p, 0x55) || !eat(seg, &mut p, &INT_TYPE) {
