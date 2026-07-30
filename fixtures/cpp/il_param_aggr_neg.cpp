@@ -33,10 +33,22 @@
 // only the safe half of a pair cannot see the dangerous half — stated once more
 // because this is the fourth time it has been the mechanism.
 //
-// `ceil(size/8)` fits all five measured points and is deliberately NOT
-// implemented. Five points inferred onto a 2.4-million-function corpus is a guess,
-// and a wrong guess here emits a wrong base register rather than refusing. When
-// these are worth admitting they need their own capture set.
+// `ceil(size/8)` is **contradicted**, not merely unproven — the distinction matters,
+// because "fits every point I measured" invites a future implementer to implement
+// it. It holds only for *POD* aggregates (16 B → r5, 24 B → r6, measured). Outside
+// that, measured by disassembling the reference:
+//
+//   12 B polymorphic class        ONE GPR   — passed by hidden reference
+//   16 B class with a copy ctor   ONE GPR   — likewise; `.sy` even records it as a
+//                                             4-byte POINTER, kind 03
+//   300 B struct                  ZERO GPRs — stack-homed: lwz r11,324(r1) ;
+//                                             lwz r3,0(r11) ; blr
+//   65540 B struct                ZERO      — lis/ori/ldx off r1
+//
+// So the register footprint depends on *how* a type is passed, which depends on its
+// triviality and its size in ways this port has not characterized. Refusing is
+// therefore not a placeholder for an easy formula; it is the honest answer until the
+// passing convention itself is captured.
 //
 // A *third* fixture, `il_param_poly_neg.cpp`, carries the other refusal reason —
 // widths this reader cannot read at all — and it has to be its own TU for the same

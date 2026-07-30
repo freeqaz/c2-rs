@@ -105,6 +105,59 @@ pub fn is_empty_module(ex: &[u8]) -> bool {
     !has_lo && !has_fn_start
 }
 
+/// Whether a mangled name declares a **variadic** function — `int f(int, ...)`.
+///
+/// This is the one fact about a function that has to be read off its *name*,
+/// because the IL body does not carry it. Measured: the `.ex` and `.sy` streams of
+/// `int va(int a, ...) { return a; }` and `int va(int a) { return a; }` are
+/// **byte-identical** (2745 B and 30 B respectively, compared whole), and the only
+/// files that differ are `.gl` — by the one byte of this name — and `.db`. So no
+/// body-level or local-symbol gate can see it, and there is nothing to decode.
+///
+/// It is not cosmetic. c2 gives a variadic function a frame that homes r4–r10 and
+/// a `.pdata` entry, so the obj has six sections where the port emits four
+/// instructions and five:
+///
+/// ```text
+/// int va(int a, ...) { return a; }
+///   c2:   std r4,0x18(r1) … std r10,0x48(r1) ; blr     + .pdata
+///   port: blr
+///   Port=Mismatch @ offset 2   (NumberOfSections, 06 vs 05)
+/// ```
+///
+/// It fires in every optimization mode including the workload's own, and it was
+/// live on `straight-line`, `indirect-load-leaf`, `__stdcall`, and member-function
+/// bodies — the oldest accepted shapes in the port.
+///
+/// **The rule.** MSVC terminates a mangled argument list with `@` (a list ended),
+/// `X` (no arguments), or `Z` (an ellipsis), and then closes the name with a final
+/// `Z`. So a variadic function's name ends `ZZ`. Measured, with the neighbour that
+/// breaks the naive reading:
+///
+/// ```text
+/// ?a1@@YAHH@Z          int a1(int)                     not variadic
+/// ?a2@@YAHXZ           int a2()                        not variadic — ends XZ, not @Z
+/// ?a3@@YAHPAUZ@@@Z     int a3(Z*)   a type NAMED Z     not variadic
+/// ?a4@@YAHW4E@@@Z      int a4(E)    an enum            not variadic
+/// ?a5@@YAHHZZ          int a5(int, ...)                VARIADIC
+/// ?a6@@YAHZZ           int a6(...)                     VARIADIC
+/// ?f@C@@QBAHHZZ        int C::f(int, ...) const        VARIADIC
+/// ```
+///
+/// `a3` is the discriminating case: a parameter whose *type* is `struct Z` puts a
+/// `Z` in the name and must not be caught. `a2` is why the test cannot be "does
+/// not end `@Z`".
+///
+/// An `extern "C"` variadic function has an undecorated name and is invisible here.
+/// That is covered, for a different reason that must not be quietly relied upon:
+/// `gl_defined_names` accepts only `?…@@…` forms, so a TU containing one binds no
+/// names at all and `functions` refuses it whole. If that ever loosens, this gate
+/// stops covering C variadics — measured today (`extern "C" int cva(int, ...)` is
+/// `Port=NotImplemented`), and stated here so the coupling is visible.
+pub(crate) fn mangled_is_varargs(name: &str) -> bool {
+    name.ends_with("ZZ")
+}
+
 /// Split the `.ex` stream at every `4F 1F` function-start marker, keeping the
 /// offsets alongside the segments. The offsets are what `.gl`'s framed body-start
 /// fields are matched against, so the name binding is per record rather than per
@@ -278,6 +331,13 @@ impl IlBundle {
 
         let mut funcs = Vec::with_capacity(n_defined);
         for (i, (name, seg)) in names.iter().take(n_defined).zip(segs).enumerate() {
+            // A variadic function's body IL is byte-identical to its non-variadic
+            // twin's, so this is the one gate that cannot live in the body parser
+            // ([`mangled_is_varargs`]). The census applies the same predicate to the
+            // same name, so the two still cannot disagree about what is in class.
+            if mangled_is_varargs(name) {
+                return None;
+            }
             match parse_segment(seg, locals.view(i))? {
                 // An indirect-load leaf reaches the ordinary integer selector,
                 // which pattern-matches its exact two-op stream; `params` carries

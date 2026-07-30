@@ -174,11 +174,16 @@ impl SyView<'_> {
     /// it further along. Floating-point scalars reserve exactly one GPR apiece
     /// and are also fine (`float`, two `float`s and three `double`s all match).
     ///
-    /// The multi-register rule itself is **not** implemented — `ceil(size/8)`
-    /// fits the five points measured, and that is exactly why it is not trusted:
-    /// a rule inferred from five points and applied to a 2.4-million-function
-    /// corpus is a guess, and a wrong guess here emits a wrong base register
-    /// rather than refusing. Anything wider refuses instead.
+    /// The multi-register rule itself is **not** implemented, and `ceil(size/8)`
+    /// is **contradicted** rather than merely unproven: it holds for POD
+    /// aggregates (16 B → r5, 24 B → r6) and fails everywhere else. A 12-byte
+    /// polymorphic class and a 16-byte class with a copy constructor each take
+    /// exactly ONE register, because they are passed by hidden reference — `.sy`
+    /// records the latter as a 4-byte *pointer*, kind 03 — while a 300-byte
+    /// struct takes NONE and is stack-homed (`lwz r11,324(r1)`). The footprint
+    /// depends on how a type is passed, which depends on its triviality as well
+    /// as its size, and that convention is not captured. Anything wider than
+    /// [`Self::ONE_GPR_MAX`] refuses; see `fixtures/cpp/il_param_aggr_neg.cpp`.
     const ONE_GPR_MAX: u16 = 8;
 
     /// Whether every one of `formals` (tokens from `.ex`, in any order) is

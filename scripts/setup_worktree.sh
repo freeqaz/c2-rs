@@ -64,6 +64,18 @@ for arg in "$@"; do
 done
 
 WORKTREE_PATH="${POSITIONAL[0]:-$MAIN_REPO/.claude/worktrees/wt-$(date +%s)}"
+# A bare name is the natural way to call this ("setup_worktree.sh sy-bind") and it
+# used to mean a path relative to the CWD — so from the repo root it created the
+# worktree at `<repo>/sy-bind`, which `.gitignore` covers only under
+# `/.claude/worktrees/`. The result was a full second checkout showing up as one
+# untracked directory in `git status`, one `git add -A` away from being committed,
+# plus a stray `wibo` symlink at the repo root (correctly placed for that location,
+# since wibo resolves from the worktree's `../wibo`). Anything that is not already
+# an explicit path is treated as a name under the ignored directory.
+case "$WORKTREE_PATH" in
+    */*) ;;
+    *) WORKTREE_PATH="$MAIN_REPO/.claude/worktrees/$WORKTREE_PATH" ;;
+esac
 BRANCH="${POSITIONAL[1]:-wt-$(basename "$WORKTREE_PATH")}"
 BASE_REF="${POSITIONAL[2]:-HEAD}"
 

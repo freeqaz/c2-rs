@@ -1,4 +1,5 @@
 use super::body::{parse_segment_detail, BodyShape};
+use super::bundle::mangled_is_varargs;
 use super::bundle::split_function_bodies;
 use super::gl::mangled_names;
 use super::sy::SyLocals;
@@ -98,23 +99,45 @@ impl IlBundle {
             segs.iter()
                 .enumerate()
                 .map(|(i, seg)| {
-                    let verdict = match parse_segment_detail(seg, locals.view(i)) {
-                        Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
-                        Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
-                        Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
-                        Ok(BodyShape::MultiArgTailCall { .. }) => {
-                            FnVerdict::InClass("multiarg-tail-call")
+                    // A variadic function is refused on its NAME, because its body
+                    // IL is byte-identical to a non-variadic twin's — see
+                    // [`super::bundle::mangled_is_varargs`], which is the same
+                    // predicate `functions` applies, so the census and the gate
+                    // cannot disagree.
+                    //
+                    // Only when the names are `paired`. Unpaired means the census
+                    // has no name for this segment, and reporting the body's real
+                    // blocker is better than inventing a reason: `functions`
+                    // refuses that whole TU for want of names anyway, so nothing
+                    // here can be emitted either way.
+                    let varargs = paired
+                        && names.get(i).is_some_and(|n| mangled_is_varargs(n));
+                    let verdict = if varargs {
+                        FnVerdict::Blocked(Block {
+                            ctx: "fn-varargs",
+                            byte: None,
+                            off: 0,
+                            aux: 0,
+                        })
+                    } else {
+                        match parse_segment_detail(seg, locals.view(i)) {
+                            Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
+                            Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
+                            Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
+                            Ok(BodyShape::MultiArgTailCall { .. }) => {
+                                FnVerdict::InClass("multiarg-tail-call")
+                            }
+                            Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
+                            Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
+                            Ok(BodyShape::EmptyBody) => FnVerdict::InClass("empty-body"),
+                            Ok(BodyShape::IndirectLoad { .. }) => {
+                                FnVerdict::InClass("indirect-load-leaf")
+                            }
+                            Ok(BodyShape::FloatLeaf { double, .. }) => {
+                                FnVerdict::InClass(if double { "double-leaf" } else { "float-leaf" })
+                            }
+                            Err(b) => FnVerdict::Blocked(b),
                         }
-                        Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
-                        Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
-                        Ok(BodyShape::EmptyBody) => FnVerdict::InClass("empty-body"),
-                        Ok(BodyShape::IndirectLoad { .. }) => {
-                            FnVerdict::InClass("indirect-load-leaf")
-                        }
-                        Ok(BodyShape::FloatLeaf { double, .. }) => {
-                            FnVerdict::InClass(if double { "double-leaf" } else { "float-leaf" })
-                        }
-                        Err(b) => FnVerdict::Blocked(b),
                     };
                     // Keep the raw bytes around the blocking site: decoding a new
                     // grammar production always starts by staring at exactly this
