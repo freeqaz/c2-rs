@@ -280,21 +280,26 @@ impl PortC2 {
                     // the caller — which knows where the function lands — can
                     // finish it. Under `/Gy` that offset is 0, because each
                     // function starts its own section.
-                    codegen::Selected::Framed => {
+                    codegen::Selected::Framed { setup } => {
                         let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
-                        let t = codegen::framed_call_text(fc.add_k, 0);
+                        let body = codegen::framed_call_text(
+                            &setup,
+                            fc.add_k,
+                            0,
+                            codegen::FrameLayout::default(),
+                        )?;
                         frame = Some(coff::Frame {
-                            prolog_len: codegen::FRAMED_PROLOG_LEN,
-                            func_len: t.len() as u32,
+                            prolog_len: body.prolog_len,
+                            func_len: body.text.len() as u32,
                         });
                         (
-                            t,
+                            body.text,
                             Some(coff::Call {
-                                reloc_offset: codegen::FRAMED_BL_OFFSET,
+                                reloc_offset: body.bl_offset,
                                 callee: fc.callee.as_str(),
                             }),
                         )
-                    }                    // A pooled FP constant still refuses under `/Gy`. Its section
+                    }                  // A pooled FP constant still refuses under `/Gy`. Its section
                     // placement *is* now characterized — each `.rdata` COMDAT sits
                     // immediately after the `.text` of the function that first
                     // references it — but `docs/OBJ_GY_SHAPES.md` §2 also found that
@@ -358,17 +363,22 @@ impl PortC2 {
                 // hands back an unfinished text. Emitting it at a hardcoded 0
                 // was a live wrong-bytes emit for any framed function that is
                 // not first in the section.
-                codegen::Selected::Framed => {
+                codegen::Selected::Framed { setup } => {
                     let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
-                    let body = codegen::framed_call_text(fc.add_k, off);
+                    let body = codegen::framed_call_text(
+                        &setup,
+                        fc.add_k,
+                        off,
+                        codegen::FrameLayout::default(),
+                    )?;
                     frame = Some(coff::Frame {
-                        prolog_len: codegen::FRAMED_PROLOG_LEN,
-                        func_len: body.len() as u32,
+                        prolog_len: body.prolog_len,
+                        func_len: body.text.len() as u32,
                     });
-                    text.extend_from_slice(&body);
+                    text.extend_from_slice(&body.text);
                     (
                         Some(coff::Call {
-                            reloc_offset: off + codegen::FRAMED_BL_OFFSET,
+                            reloc_offset: body.bl_offset,
                             callee: &fc.callee,
                         }),
                         Vec::new(),

@@ -126,6 +126,206 @@ Still out-of-class (rejected, not mis-emitted): **multiply by a constant**
 (strength-reduces to shift+add, e.g. `a*3` → `rlwinm r11,r3,1,0,30 ; add
 r3,r3,r11`); `const − reg` (`subfic`); a negative wide bare constant.
 
+## The frame model (roadmap #35 step 1) — MEASURED 2026-07-30
+
+Everything here was read out of reference objs at `/Ox /GS- /c` (probe sources
+`work/fm/**`, one-liners of the form `int g(…); T f(…){ … g(…) … }`). The model
+is `c2_core::codegen::FrameLayout`; every row below is pinned by a unit test
+against the captured words.
+
+> **Read `docs/CODEGEN_FRAMED_CALLS.md` alongside this.** It was produced
+> independently and in parallel from 480 *designed* compiles per mode, and the
+> two derivations **agree** — which is the strongest thing that can be said
+> about either, since neither knew the other's probes. It is the wider document
+> (the `nOutSlots` term, argument marshalling, symbol order, EH); this section is
+> the narrower and deeper one on two axes it does not cover — **stack probing and
+> `_RtlCheckStack12`** (its `localsBytes` tops out at 132, this one's at 200,000)
+> and the **mixed inline GPR+FPR epilogue order**. Where they overlap, prefer its
+> numbers: it has 10x the witnesses.
+
+### 1. Frame sizing — one formula, 44 witnesses, zero residual
+
+```
+  frame_size = align16( 80 + locals + 8 + 8 × (saved_gprs + saved_fprs) )
+```
+
+This is the `nOutSlots <= 8` case of the general rule
+(`CODEGEN_FRAMED_CALLS.md` §1.2), which every probe of this rung satisfies:
+
+```
+  locals_base = align16(16 + 8·max(nOutSlots, 8))
+  F = align16( max(16 + 8·max(nOutSlots, 8), locals_base + localsBytes)
+               + 8·nSaved + 8 )
+```
+
+`FrameLayout` implements the general form, and its unit test carries four rows
+from the other document's sweep as a cross-check — including the one that refutes
+the natural wrong model: `int g();` with `int b[20]` and **no** outgoing
+arguments is a 176-byte frame, not 112, because the 64-byte parameter area is
+reserved whether or not anything is passed. The rule stops being exact past 17
+saved registers, where the allocator spills; that is refused, not guessed.
+
+* **80** is the fixed head: a 16-byte linkage area (back chain at `0(r1)`) plus a
+  64-byte parameter save area for r3–r10. The first local is always at `80(r1)`
+  (`stb r3,80(r1) ; addi r3,r1,80` for a `char buf[…]` passed by address).
+* **8** is the LR slot at `F−8(r1)`, written *before* the `stwu` as
+  `stw r12,-8(r1)` and read back *after* the `addi r1,r1,F`.
+* **8 per saved register**, GPRs and FPRs sharing one descending slot array
+  directly under the LR slot.
+
+| probe | locals | saved | frame | witness |
+|---|---:|---|---:|---|
+| `return g(a)+1` | 0 | — | 96 | `9421ffa0` |
+| `return g(a)+b` | 0 | r31 | 96 | `9421ffa0` |
+| `…+b+c` | 0 | r30,r31 | 112 | `9421ff90` |
+| `…+b+c+d` | 0 | r29–r31 | 112 | `9421ff90` |
+| `…+b+c+d+e` | 0 | r28–r31 | 128 | `9421ff80` |
+| `…7 live` | 0 | r25–r31 | 144 | `9421ff70` |
+| `float g(a)*b` | 0 | f31 | 96 | `9421ffa0` |
+| `…*b*c*d` | 0 | f28–f31 | 128 | `9421ff80` |
+| `char buf[1]` | 1 | — | 96 | |
+| `char buf[9]` | 9 | — | 112 | |
+| `int buf[16]` | 64 | — | 160 | |
+| `int buf[900]` | 3600 | — | 3696 | `9421f190` |
+| `char buf[8096]` | 8096 | — | 8192 | `9421e000` |
+| `char buf[200000]` | 200000 | — | 200096 | |
+
+This replaces the roadmap's "96 B for one by-value temporary, 112 B for two":
+the driver of that pair is the **callee-saved register count**, not a count of
+temporaries. A by-value temporary moves the `locals` column instead — e.g. the
+8-byte int→double conversion spill at `80(r1)` in a mixed int/float body.
+
+### 2. Callee-saved registers
+
+Always a contiguous run ending at the top of the file: GPRs `r(32−n)…r31`,
+FPRs `f(32−n)…f31`. Slots descend from the LR slot, **GPRs first**:
+
+```
+  int b,c live across the call, one float too    F = 128
+  F−8   LR      F−16  r31     F−24  r30     F−32  f31
+  fbc1ffe8  std  r30,-24(r1)     ← prologue: LR store, then GPRs, then FPRs,
+  fbe1fff0  std  r31,-16(r1)       each run ascending in slot address
+  dbe1ffe0  stfd f31,-32(r1)
+  …
+  cbe1ffe0  lfd  f31,-32(r1)     ← epilogue: one list, ascending in address,
+  ebc1ffe8  ld   r30,-24(r1)       so FPRs come FIRST — the two lists are not
+  ebe1fff0  ld   r31,-16(r1)       mirror images
+```
+
+GPRs are saved with **`std`** (64-bit) and FPRs with `stfd`; the epilogue's GPR
+and FPR restores come **after** the `mtlr r12`.
+
+*Which* value gets which register is the COLOR allocator's business and is **not**
+modeled: with two saved GPRs the first live value takes r30 and the second r31,
+but with three or more the assignment is not monotone in source order
+(`g(a)+b+c+d` gives b→r29, c→r31, d→r30). That is roadmap #35 step 2.
+
+### 3. `__savegprlr_N` / `__restgprlr_N` — threshold **3**
+
+```
+  int f(int a,int b,int c,int d){ return g(a)+b+c+d; }   3 saved GPRs
+  7d8802a6  mflr r12
+  4bfffffd  bl   __savegprlr_29      REL24, external — saves r29..r31 AND the LR,
+  9421ff90  stwu r1,-112(r1)         so the `stw r12,-8(r1)` disappears
+  …
+  38210070  addi r1,r1,112
+  4bffffc4  b    __restgprlr_29      REL24 — a TAIL branch: the helper restores
+                                     r29..r31 and the LR and returns, so there is
+                                     no mtlr/blr at all
+```
+
+`N` is the **lowest** saved register. Two saved GPRs are open-coded `std`s
+(`mix1`, 30112-byte frame, `std r30,-24 ; std r31,-16`); three are the helper
+(`mix2`, same frame) — the threshold is pinned by that pair, not by one side.
+
+### 4. `__savefpr_N` / `__restfpr_N` — threshold **4**, and it is a different one
+
+```
+  float f(…5 floats…)                                   4 saved FPRs
+  7d8802a6  mflr r12
+  9181fff8  stw  r12,-8(r1)          the FPR helper does NOT save the LR
+  3981fff8  addi r12,r1,-8           r12 = the slot array base
+  4bfffff5  bl   __savefpr_28        REL24, external
+  9421ff80  stwu r1,-128(r1)
+  …
+  38210080  addi r1,r1,128
+  3981fff8  addi r12,r1,-8
+  4bffffc1  bl   __restfpr_28        a CALL, not a tail branch
+  8181fff8  lwz  r12,-8(r1)
+  7d8803a6  mtlr r12
+  4e800020  blr
+```
+
+Three saved FPRs are open-coded `stfd`s and four are the helper — so the GPR
+threshold (3) and the FPR threshold (4) are **not the same number**, which is why
+`FrameLayout` has two predicates and not one. The naming is `__savefpr_N` /
+`__restfpr_N`, established from the obj's symbol table rather than assumed from
+the GPR pair (which is `gprlr`, not `gpr`, because it also carries the LR).
+
+Not determined: the `addi r12,r1,-8` offset when GPRs are saved *too*. It must
+become `-(8 + 8×gprs)` for the FPRs to land under them, but the combination
+(≥3 GPRs and ≥4 FPRs) has no capture and is refused rather than guessed.
+
+### 5. Stack probing, and `_RtlCheckStack12` — threshold **5 pages**
+
+Below `0x5000` the frame is probed inline, one touch per page boundary crossed:
+
+```
+  n_probes = floor((frame_size − 1) / 4096)        ld r12,-4096k(r1), k = 1..n
+```
+
+`F = 4096` probes nothing and `F = 4112` probes once (`d04`/`d06`), so the
+boundary is the number of boundaries *crossed*, not `F/4096`. From `0x5000` up it
+is the runtime helper:
+
+```
+  char buf[32000]                    F = 32096
+  398082a0  li   r12,-32096          the size, negated, in r12
+  4bfffff5  bl   _RtlCheckStack12    REL24, external
+  7c21616e  stwux r1,r1,r12          opcode 31 XO 183 — the variable-size stwu
+  …
+  38217d60  addi r1,r1,32096
+```
+
+* `F = 20464` is four inline probes and `F = 20480 = 5 × 4096` is the helper —
+  the threshold is on the frame size, **not** on the probe count (both would be
+  4). Pinned by that pair.
+* `li r12,−F` while `F ≤ 32768`, else `lis r12,hi ; ori r12,r12,lo` (`F = 32768`
+  → `li r12,-32768`; `F = 32784` → `3d80ffff 618c7ff0`).
+* The epilogue frees with `addi r1,r1,F` while `+F` fits the immediate, else
+  `lwz r1,0(r1)` through the back chain (`F = 32752` → `addi`; `F = 32768` →
+  `lwz`).
+
+This refutes the roadmap's framing of the item as "a call to `_RtlCheckStack12`
+for frames past a page": past *one* page there is no call at all, only inline
+`ld` touches, and the call arrives four pages later.
+
+### 5a. The `/Gy` label stride of a helper-using frame is 7, not 5
+
+`CODEGEN_FRAMED_CALLS.md` §4.4 refutes `OBJ_GY_SHAPES.md` §3.5's
+`framed -> cur += 5 if /Gy` for exactly the frames this section refuses: a framed
+function using the `__savegprlr_N`/`__restgprlr_N` pair consumes **two extra
+label slots, allocated before its own `$M` pair**. Seven witnesses, differenced
+against the `.gl+7+9` seed.
+
+It is latent rather than live *because* `FrameLayout` refuses those frames — the
+port emits only the no-helper class, whose stride is the 5 the emitter models. It
+becomes six wrong bytes per label the moment a framed function with three or more
+saved GPRs is admitted, so **the helper codegen and the stride correction have to
+land in the same rung.** The FPR-helper stride is predicted +4 by the same
+reading and is *not* captured; it is not claimed.
+
+### 6. What the emitter builds, and what it refuses
+
+`FrameLayout::prologue`/`epilogue` build any layout that needs **no external
+helper and no stack check**; the three helper shapes refuse by name
+(`frame-savegprlr-helper`, `frame-savefpr-helper`, `frame-rtlcheckstack12`)
+because each puts a second REL24 site in the prologue that `coff::Function` does
+not model. The thresholds are therefore load-bearing gates rather than
+decoration. Only the all-zero layout is reachable from the accepted class today;
+the rest are pinned by unit tests against the captured words so the next rung
+inherits measurements instead of a guess.
+
 ## W4b2 non-leaf calls — IMPLEMENTED, byte-exact (single-function TU)
 
 `return g(a) + k` (the call result is used, so f is non-leaf) is implemented and
@@ -136,22 +336,48 @@ and three compiler label symbols on top of the tail-call layout. IL detection is
 `codegen::framed_call_text`; the COFF image is `coff::emit_framed_obj` (the
 5-section `emit_obj` path is untouched).
 
-**`.text` (size 0x24, verified constant across 1/2/4 callee args — the frame is
-always 96 bytes):**
+**`.text` (0x24 bytes when the call's argument is the formal already in r3):**
 ```
 7d8802a6  mflr r12
 9181fff8  stw  r12,-8(r1)          prologue (3 words): save LR
-9421ffa0  stwu r1,-96(r1)          allocate the fixed 96-byte frame
-4bfffff5  bl   g                   REL24 reloc at .text+0xC (disp = −0xC, LK=1)
+9421ffa0  stwu r1,-96(r1)          allocate the 96-byte frame (§"frame model")
+[7c832378 or r3,rN,rN]             ARGUMENT SETUP — only when the argument is
+                                   NOT the formal in r3
+4bfffff5  bl   g                   REL24 reloc (disp = −(its own offset), LK=1)
 38630001  addi r3,r3,1             the post-call op (here +1); k varies
 38210060  addi r1,r1,96            epilogue (4 words): free frame
 8181fff8  lwz  r12,-8(r1)          restore saved LR
 7d8803a6  mtlr r12
 4e800020  blr
 ```
-Prologue (`7d8802a6 9181fff8 9421ffa0`) and epilogue (`38210060 8181fff8
-7d8803a6 4e800020`) are byte-constant for this class; only the `addi r3,r3,k`
-immediate and the callee vary. `a*5` post-op strength-reduces (`rlwinm`+`add`,
+Prologue and epilogue are the all-zero [`FrameLayout`]; only the `addi r3,r3,k`
+immediate, the callee, the `bl` displacement and the argument setup vary.
+
+> **The argument setup was missing, and that was a live wrong-bytes emit
+> (found and fixed 2026-07-30).** This body was emitted as one byte-constant
+> 0x24-byte blob. The parser required the call's argument to be *a* formal and
+> then dropped the formals list, so the emitter assumed it was the formal already
+> in r3 — and c2 emits `or r3,rN,rN` first whenever it is not, making the body 10
+> words with the `.pdata` `FuncLen`, both `$M` label values and the REL24 site all
+> following it wrong. **37 of 47 probes around the accepted class mismatched**:
+> every argument at a non-zero formal position, every member function (`this`
+> occupies r3, so a one-parameter member's argument is in r4), and every free
+> function with a leading `float`, `double`, `long long`, pointer or 8-byte
+> aggregate parameter — each of which takes one GPR slot on this ABI.
+>
+> It hid because every framed fixture and all 363 generated framed cases were
+> `int F(int a) { return g(a) + 1; }`: one parameter, necessarily in r3, so the
+> argument's *index* and its *register* were the same number everywhere the class
+> had ever been graded. That is `docs/GAPS.md` §6's recurring shape for the fifth
+> time, and the corpus held only the safe half of the pair. Fixtures
+> `wfr_argreg.cpp` (position), `wfr_argreg_types.cpp` (leading parameter type),
+> `wfr_argreg_member.cpp` (`this`); sweep axis 5.
+>
+> **Past the eighth formal it is not a register move at all** —
+> `int f(int a,…,int i){ return g(i)+1; }` is `lwz r3,180(r1)`, whose slot
+> displacement is a function of the whole list's ABI footprint. Refused
+> (`framed-arg-over-eight-formals`, `wfr_argreg_neg.cpp`), sized at **zero
+> functions** on the 878-TU workload. `a*5` post-op strength-reduces (`rlwinm`+`add`,
 size 0x28) — **out of the `+k` scope, rejected**: `parse_call_shape` accepts as
 framed only a literal `33 86 41 74 <varint>` **immediately followed by ADD
 (`0x02`)** whose `k` is non-zero and fits a signed-16-bit `addi` (so `*k` =

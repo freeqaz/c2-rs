@@ -398,18 +398,17 @@ pub(crate) fn shape_to_function(
                     arg_sources: Some(arg_sources),
                 })
             }
-            // The framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
-            // `.pdata` with compiler label symbols ($M2545/$M2546/$T2547)
-            // whose counters are a fixed toolchain seed for the first
-            // function and shift once preceding functions consume slots
-            // (W-UNW-1, docs/CODEGEN_PPC_MVP.md), so a multi-function TU
-            // containing one would be mis-numbered.
-            BodyShape::FramedCall { add_k, callee_tok } => {
+            // A framed non-leaf call. `params`/`ops` carry the call ARGUMENT (a
+            // bare LOAD of one formal), because the argument register move
+            // `or r3,rN,rN` is a function of that formal's position — the same
+            // job, and the same `select_text` locator, as the integer tail
+            // call's argument setup.
+            BodyShape::FramedCall { add_k, callee_tok, params, arg_ops } => {
                 Some(IlFunction {
                     mangled_name: name.to_string(),
                     source_path: src.clone(),
-                    params: Vec::new(),
-                    ops: Vec::new(),
+                    params,
+                    ops: arg_ops,
                     tail_call: None,
                     framed_call: Some(FramedCall {
                         callee: resolve(callee_tok)?,
@@ -654,21 +653,32 @@ impl IlBundle {
         // under `/Gy`). The framed path used to be gated to a single-function TU
         // for exactly that reason; the counter is now read from `.gl` and
         // advanced per function (`c2_core::coff::plan_labels`), so the gate is no
-        // longer about the function count. It is about the two classes whose
-        // stride is **not** 1: a comparison leaf consumes 3 and a floating-point
-        // leaf 2, so a framed function sharing a TU with either would get labels
-        // that are low by two or one — six wrong bytes in an obj that still
-        // links. Measured per class in `docs/OBJ_GY_SHAPES.md` §3.6.
+        // longer about the function count. It is about the classes whose stride
+        // is **not** 1, because `plan_labels` advances by 1 for every function
+        // that is not framed: a framed function sharing a TU with one of those
+        // would get labels low by the error — six wrong bytes in an obj that
+        // still links. Measured per class in `docs/OBJ_GY_SHAPES.md` §3.6 and
+        // asked here through one predicate ([`IlFunction::label_slots`]), which
+        // is three-valued so an unmeasured class refuses rather than defaulting.
+        //
+        // This used to key on "is this a comparison or a floating-point leaf",
+        // which over-refused: the comparison stride is **not** uniform over the
+        // relation. `==`/`!=`, every unsigned relation, and signed `<`/`>=`
+        // against zero all consume 1 and are admitted now; the signed relational
+        // spine consumes 3 and still refuses. A float leaf is 2 (4 or 6 with
+        // pooled constants) and refuses either way.
         //
         // The counter itself must also be readable. `label_counter` is
         // three-valued on purpose (`None` = undetermined, never a default),
         // because a guessed `$M` number is a mis-emit rather than a gap.
         if funcs.iter().any(|f| f.framed_call.is_some()) {
-            if funcs
-                .iter()
-                .any(|f| f.compare.is_some() || f.float_leaf.is_some())
-            {
-                return None;
+            for f in &funcs {
+                if f.framed_call.is_some() {
+                    continue;
+                }
+                if f.label_slots(false)? != 1 {
+                    return None;
+                }
             }
             super::gl::label_counter(gl)?;
         }

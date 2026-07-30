@@ -441,13 +441,47 @@ framed function shares the TU (`c2_il::IlBundle::functions`, with the other
 TU-level gates, so the census and the emitter cannot disagree), because a stride
 error of one is six wrong bytes in an obj that still links.
 
-**The gate's over-refusal, sized rather than left as a rumour.** It keys on "is
-this a comparison or floating-point leaf", not on the relation, so the two
-comparison forms that *do* consume 1 (`a==b`, `a<0`) are refused with the ones
-that consume 3. On the generated sweep that is **6 of the 21 framed-plus-refuser
-cases** — the other 15 need the gate. Relaxing it means measuring the stride per
-relation and per operand type, which is a table this rung did not need; the cost
-is a refusal, never a wrong byte.
+> ### 3.6a The comparison stride, measured over the whole grid (2026-07-30)
+>
+> The paragraph that used to sit here sized the gate's over-refusal as "6 of the
+> 21 framed-plus-refuser cases" and left the rule unmeasured. Both halves needed
+> correcting, in opposite directions.
+>
+> **The rule.** 60 rows — every relation × `{0, ±5, i16::MAX, i16::MIN, 40000}` ×
+> `{signed, unsigned}` — each compiled as
+> `int g(int); <leaf> ; int F(int a){ return g(a) + 1; }`, with `F`'s first `$M`
+> value differenced against the seed at `.gl+7` **plus 9**. Measuring against a
+> *known* seed is the whole point: §3.4's cautionary tale is a stride and a seed
+> absorbing each other's error, and a table of totals cannot separate them.
+>
+> | | slots |
+> |---|---|
+> | `==`, `!=` — every literal, both signednesses | **1** |
+> | any relation on an **unsigned** operand | **1** |
+> | signed `<` or `>=` against literal **0** | **1** |
+> | signed `<`, `<=`, `>`, `>=` otherwise (incl. `>` and `<=` against 0) | **3** |
+>
+> The 1-block is exactly the set whose spine is a sign-bit extraction or a bare
+> carry idiom; the 3-block is the general relational spine. The rule is
+> `c2_il::CompareLeaf::label_slots`, asked through the three-valued
+> `IlFunction::label_slots` so an unmeasured class refuses rather than defaulting
+> to 1.
+>
+> **The old sizing was high.** Of the sweep's seven `FRAMED_REFUSERS`, two
+> (`x < y`, `x == y`, formal-vs-formal) do not decode as a comparison leaf at all
+> — they are `expr-cmp-*` gaps and the whole TU is refused by the class gate
+> either way — so relaxing the label gate for them buys nothing. Only `x < 0`
+> was this gate's doing: **3 of 21, not 6.** And the true relaxation is much
+> larger than either number, because the grid is bigger than the sweep's sample
+> of it: 39 newly admitted probe TUs are byte-exact against real c2, 24
+> neighbours still refuse, 0 mismatch. Fixtures `wfr_cmp_stride.cpp` (positive,
+> 13/13 in class) and `wfr_cmp_stride_neg.cpp` (negative, must refuse).
+>
+> The generalizable bit: **an over-refusal quoted from the instrument that
+> happens to be lying around is sized against that instrument's coverage, not
+> against the construct.** The sweep had one member of a 4-cell rule and the
+> figure derived from it was wrong in both directions at once — high as a count
+> of what the gate cost on the sweep, low as a count of what relaxing it wins.
 
 Still not determined, and therefore still refused rather than guessed:
 

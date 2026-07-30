@@ -1194,6 +1194,30 @@ The rules that keep the numbers honest:
        rule (every formal must be an FP operand of the body). "A locator nobody
        consults is not shared" now has two instances, four years of code apart in
        spirit and two functions apart in fact.
+    8. **The eighth is the fourth instance's shape in the framed call's argument.**
+       `framed_call_text` emitted one byte-constant 0x24-byte body; the parser
+       required the call's argument to be *a* formal and then **dropped the
+       formals list**, so the emitter assumed the formal already in r3. c2 emits
+       `or r3,rN,rN` first whenever it is not, and the `.pdata` `FuncLen`, both
+       `$M` label values and the REL24 site all followed it wrong.
+       **37 of 47 probes around the accepted class mismatched** — every argument
+       at a non-zero formal position, every member function (`this` takes r3, so
+       a one-parameter member's argument is in r4), and every free function with
+       a leading `float`, `double`, `long long`, pointer or 8-byte aggregate
+       parameter, each of which takes one GPR slot on this ABI. Past the eighth
+       formal it is not a register move at all but `lwz r3,180(r1)`, which the
+       old emitter also answered with nothing.
+       It hid for a reason that is now boringly familiar and was *visible for
+       free*: every framed fixture and **all 363 generated framed cases** are
+       `int F(int a) { return g(a) + 1; }` — one parameter, necessarily in r3 —
+       so the argument's index and its register were the same number everywhere
+       the class had ever been graded. Four mode lanes, a 4,706-case sweep, an
+       878-TU scan and a green `cargo test` were all green over it. Found by
+       compiling the neighbours of a shape the rung was about to rewrite, which
+       is the same method that found #6 and #7. The tell available *before*
+       compiling anything: **`framed_call_text` took no parameter that could
+       distinguish two formals**, so it could not have been emitting a
+       formal-dependent word, and the class it served plainly had formals.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one
@@ -1742,6 +1766,18 @@ The rules that keep the numbers honest:
   low byte falls under 0x80. A wrong decode that is *linear* in the right one is
   the worst kind, because a constant offset looks exactly like a calibration
   constant. Ask what property the sample shares before believing a constant.
+- **A constant that no input can move is not validated by any number of green
+  runs — and the signature is in the function's SIGNATURE.** `framed_call_text`
+  took `(add_k, base_off)`. Neither argument can distinguish two formals, so the
+  function was structurally incapable of emitting a formal-dependent word, and
+  the class it served (`return g(<formal>) + k`) obviously has formals. That is a
+  cheaper tell than any capture: **before trusting a lowering, check that its
+  inputs span the things its output is allowed to depend on.** The same reading
+  applies to the frame size it hardcoded — `96` could not vary with anything,
+  and the frame is `align16(80 + locals + 8 + 8×saved)`. Both were found in the
+  same hour by asking that one question of one signature, after the differential,
+  four mode lanes, a 4,706-case sweep and an 878-TU scan had been green over
+  them for as long as the function existed.
 - **A constant is only as validated as the inputs it was evaluated at.**
   `framed_call_text` wrote the `bl` word `4BFFFFF5` literally. That is correct —
   MSVC's `disp = −(own .text offset)` — for a framed function at `.text` 0, and
