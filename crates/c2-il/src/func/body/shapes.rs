@@ -2,7 +2,8 @@ use super::chain::{
     additive_chain_canonical, has_repeated_leaf, leaves_ascending, substitute, MAX_SUBST_OPS,
 };
 use super::expr::{
-    eat_return_plumbing, formals_marker, intrinsic_selector, parse_expr, parse_formals,
+    eat_return_plumbing, eat_scopes, formals_marker, intrinsic_selector, parse_expr, parse_formals,
+    BODY_SCOPE_DEPTH,
 };
 use super::{blk, Block, BodyShape};
 use crate::func::readers::{
@@ -60,6 +61,7 @@ pub(crate) fn try_parse_assign_body_detail(
     start: usize,
     lo: usize,
     locals: &[u32],
+    mut depth: usize,
 ) -> Result<BodyShape, Block> {
     let mut p = start;
     let mut env: Vec<(u32, Vec<IlOp>)> = Vec::new();
@@ -69,7 +71,9 @@ pub(crate) fn try_parse_assign_body_detail(
     // census name the innermost unmodeled construct rather than this outer gate.
     let formals = parse_formals(seg, lo).unwrap_or_default();
     loop {
-        eat_opt_stmt_marker(seg, &mut p);
+        // Brace scopes open and close *between* statements, so they are consumed at
+        // the boundary rather than being a statement of their own.
+        eat_scopes(seg, &mut p, &mut depth)?;
         if *seg.get(p).ok_or(blk(seg, p, "assign-stmt"))? != 0x26 {
             break;
         }
@@ -137,11 +141,11 @@ pub(crate) fn try_parse_assign_body_detail(
             return Err(Block { ctx: "assign-too-many-locals", byte: None, off: p, aux: 0 });
         }
     }
-    eat_opt_stmt_marker(seg, &mut p);
+    eat_scopes(seg, &mut p, &mut depth)?;
     let ret = parse_expr(seg, &mut p, 0x41)?;
     let ret = substitute(&ret, &env)
         .ok_or(Block { ctx: "assign-subst-overflow", byte: None, off: p, aux: 0 })?;
-    eat_return_plumbing(seg, &mut p, true)?;
+    eat_return_plumbing(seg, &mut p, true, depth)?;
     let params = parse_formals(seg, lo)?;
     // After substitution every remaining LOAD must be a parameter. Anything else
     // is a read of something this class cannot account for — an uninitialized
@@ -289,7 +293,7 @@ pub(crate) fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
         return None;
     }
     p += 3;
-    eat_return_plumbing(seg, &mut p, false).ok()?;
+    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
 
     // A `*` mixed with `+`/`-` contracts; reject rather than emit two
     // instructions where c2 emits one.
@@ -649,7 +653,7 @@ fn finish_indirect_load(
     if !eat_byte(seg, &mut p, 0x41) || !eat_int_like(seg, &mut p) {
         return None;
     }
-    eat_return_plumbing(seg, &mut p, false).ok()?;
+    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
 
     // Bind the base to its argument register. `this` is argument 0, and when it
     // is present every explicit formal shifts up one.
@@ -893,7 +897,7 @@ pub(crate) fn try_parse_compare(seg: &[u8], start: usize, lo: usize) -> Option<B
         return None;
     }
     // Result type already consumed above, so `has_result_type` is false here.
-    eat_return_plumbing(seg, &mut p, false).ok()?;
+    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
 
     // The compared value must be the function's FIRST formal: the spine reads it
     // from r3, and nothing here models a register move.
@@ -985,7 +989,7 @@ pub(crate) fn parse_call_shape(
     // plumbing (no result type). `g();g();` and `g();return a+1;` fail here — a
     // second `26` call or a `B9` statement stands where the return plumbing must.
     if eat(seg, p, &[0x4C, 0x4B]) {
-        eat_return_plumbing(seg, p, false)?;
+        eat_return_plumbing(seg, p, false, BODY_SCOPE_DEPTH)?;
         return Ok(BodyShape::VoidTailCall { callee_tok });
     }
 
@@ -1063,7 +1067,7 @@ pub(crate) fn parse_call_shape(
         if !eat_int_like(seg, p) {
             return Err(blk(seg, *p, "call-bound-reload-type"));
         }
-        eat_return_plumbing(seg, p, true)?;
+        eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         let params = parse_formals(seg, lo)?;
         if args.len() > 1 {
             let mut arg_sources = Vec::with_capacity(args.len());
@@ -1202,7 +1206,7 @@ pub(crate) fn parse_call_shape(
         if seg.get(*p) != Some(&0x41) {
             return Err(Block { ctx: "call-multiarg-postop", byte: None, off: *p, aux: 0 });
         }
-        eat_return_plumbing(seg, p, true)?;
+        eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
     }
     let arg_ops = args.pop().expect("exactly one argument");
@@ -1237,7 +1241,7 @@ pub(crate) fn parse_call_shape(
         // No post-op → integer tail call: compute the argument into r3, then
         // `b <callee>` (5-section leaf). The int analog of the void tail call;
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
-        eat_return_plumbing(seg, p, true)?;
+        eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         let params = parse_formals(seg, lo)?;
         return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
     }
@@ -1256,7 +1260,7 @@ pub(crate) fn parse_call_shape(
     if !(-0x8000..=0x7FFF).contains(&k) {
         return Err(Block { ctx: "call-postop-wide", byte: None, off: *p, aux: 0 });
     }
-    eat_return_plumbing(seg, p, true)?;
+    eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
 
     // W4b2-vi identity fold: a net post-op of 0 is NOT a framed call. `g(a)+0`
     // == `g(a)`, and the optimizer folds it to the bare `b g` (verified: the

@@ -112,13 +112,66 @@ pub(crate) fn intrinsic_name(id: i32) -> String {
     named.to_string()
 }
 
+/// The lexical depth of a function body: `.sy` numbers the formals scope 1 and the
+/// body 2, and the `.ex` scope opcodes agree.
+pub(crate) const BODY_SCOPE_DEPTH: usize = 2;
+/// Deeper than any real function; a stream claiming more is not one.
+const MAX_SCOPE_DEPTH: usize = 64;
+
+/// Consume any run of line markers and **lexical scope** opens and closes at a
+/// statement boundary, maintaining `depth`.
+///
+/// `53` opens a scope; `54 <k>` closes the one at depth `k` — the operand is the
+/// depth of the scope being closed, not a count of anything. Two witnesses pin
+/// that reading and rule out "scopes still open": `{ … { … return y; } }` closes
+/// `54 03 54 02` in its return plumbing, and `{ {…} {… return y;} }` closes its
+/// first block with `54 03` and then *reopens* at 3, which a count would have
+/// numbered differently.
+///
+/// Scopes are purely lexical for straight-line code — c2 register-allocates across
+/// them and emits nothing at a brace — so this is decode only, and the shapes it
+/// feeds are unchanged. It is what admits `{ int x = a + 1; { return x + 2; } }`,
+/// which previously refused as `body-0x53`, the largest single blocking feature on
+/// the real workload.
+///
+/// A close is taken only when it names the *current* depth, and never below the
+/// body's own: the trailing `54 02` belongs to the return plumbing, and eating it
+/// here would leave the plumbing to fail on a body that is in fact well-formed.
+pub(crate) fn eat_scopes(seg: &[u8], p: &mut usize, depth: &mut usize) -> Result<(), Block> {
+    loop {
+        eat_opt_stmt_marker(seg, p);
+        match seg.get(*p) {
+            Some(&0x53) => {
+                if *depth >= MAX_SCOPE_DEPTH {
+                    return Err(blk(seg, *p, "scope-too-deep"));
+                }
+                *p += 1;
+                *depth += 1;
+            }
+            Some(&0x54) => {
+                let k = match seg.get(*p + 1) {
+                    Some(&k) => k as usize,
+                    None => return Err(blk(seg, *p, "scope-close-depth")),
+                };
+                if k != *depth || *depth <= BODY_SCOPE_DEPTH {
+                    return Ok(());
+                }
+                *p += 2;
+                *depth -= 1;
+            }
+            _ => return Ok(()),
+        }
+    }
+}
+
 /// Consume the shared statement/function-tail plumbing that follows the body
 /// expression of *every* accepted shape, and require the parse to reach the end
 /// of the segment (the fail-closed terminal — anything trailing rejects). With
 /// `has_result_type`, a `41 <int-type>` result annotation is expected first
 /// (present for an int return, absent for a void call). Layout (verified):
 /// `[41 <int-like>]?` result-type · `3A <label>` branch · `[4F 01 <line>]*` ·
-/// `54 02 29 <tok>` return · `4F 12` · `47 54 01 54 00` GT-terminate · then
+/// `54 <d> … 54 02` scope closes · `29 <tok>` return · `4F 12` ·
+/// `47 54 01 54 00` GT-terminate · then
 /// EITHER the segment end (a non-last function, split before the next `4F 1F`) OR
 /// the module end `4F 02 20 00 · 4F 01 <line> · 4D` and trailing zero-fill (the
 /// last function).
@@ -131,7 +184,19 @@ pub(crate) fn intrinsic_name(id: i32) -> String {
 /// carries `break`, `continue`, `goto` and the if/else join jump. Nothing here
 /// depends on the distinction, since this function only skips the token, but the
 /// old name would mislead anyone extending it. See `docs/IL_STMT_GRAMMAR.md`.
-pub(crate) fn eat_return_plumbing(seg: &[u8], p: &mut usize, has_result_type: bool) -> Result<(), Block> {
+/// `depth` is the lexical nesting the body reached, so the run of scope closes can
+/// be required exactly rather than accepted as "some `54`s". A body with no braces
+/// is at depth 2 and closes `54 02`; `{ … { … return … } }` is at 3 and closes
+/// `54 03 54 02`. Requiring the run to descend from the depth the *statement*
+/// parse counted is what makes an unbalanced parse refuse instead of being read as
+/// a shorter body — and the function tail's own `47 54 01 54 00` is the same
+/// scheme two levels further out.
+pub(crate) fn eat_return_plumbing(
+    seg: &[u8],
+    p: &mut usize,
+    has_result_type: bool,
+    depth: usize,
+) -> Result<(), Block> {
     if has_result_type {
         let save = *p;
         if !(eat_byte(seg, p, 0x41) && eat_int_like(seg, p)) {
@@ -145,9 +210,20 @@ pub(crate) fn eat_return_plumbing(seg: &[u8], p: &mut usize, has_result_type: bo
     }
     let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "assign-tok"))?;
     *p += w;
+    // RETURN: the scope closes, innermost first, then `29 <tok>`. Each close is
+    // preceded by its own `4F 01 <line>` — the source line of the `}` it closes —
+    // so the marker is consumed inside the run, not once before it. A probe written
+    // one function per line has no intervening markers at all and hides this
+    // entirely; `il_stmt_scope.cpp` puts its braces on their own lines, which is
+    // what a real translation unit looks like.
+    for d in (BODY_SCOPE_DEPTH..=depth).rev() {
+        eat_opt_stmt_marker(seg, p);
+        if !eat(seg, p, &[0x54, d as u8]) {
+            return Err(blk(seg, *p, "return-scope-close"));
+        }
+    }
     eat_opt_stmt_marker(seg, p);
-    // RETURN: 54 02 29 <tok>
-    if !eat(seg, p, &[0x54, 0x02, 0x29]) {
+    if !eat_byte(seg, p, 0x29) {
         return Err(blk(seg, *p, "return"));
     }
     let (_, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "return-tok"))?;

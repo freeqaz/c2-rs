@@ -6,12 +6,15 @@ use self::chain::{
     additive_chain_canonical, canonicalize_chain, has_repeated_leaf, leaves_ascending,
     straight_line_is_out_of_class,
 };
-use self::expr::{eat_return_plumbing, intrinsic_name, parse_expr, parse_formals};
+use self::expr::{
+    eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr, parse_formals,
+    BODY_SCOPE_DEPTH,
+};
 use self::shapes::{
     parse_call_shape, try_parse_assign_body_detail, try_parse_compare, try_parse_float_leaf,
     try_parse_indirect_load_leaf,
 };
-use super::readers::{eat_byte, eat_opt_stmt_marker, find_subslice, read_token_var};
+use super::readers::{eat_byte, find_subslice, read_token_var};
 use super::{CompareLeaf, IlOp};
 
 /// One recognized whole-body shape of a single `.ex` function segment. Every
@@ -252,11 +255,14 @@ pub(crate) fn parse_segment_detail(seg: &[u8], locals: &[u32]) -> Result<BodySha
         aux: 0,
     })?;
     let mut p = lo + 3;
-    // 'SS' statement-start, then an optional statement/label marker.
+    // 'SS' statement-start — the body's own lexical scope — then any further brace
+    // scopes and line markers. A body wrapped in braces used to refuse here as
+    // `body-0x53`, the largest single blocking feature on the real workload.
     if !eat_byte(seg, &mut p, 0x53) {
         return Err(blk(seg, p, "stmt-start"));
     }
-    eat_opt_stmt_marker(seg, &mut p);
+    let mut depth = BODY_SCOPE_DEPTH;
+    eat_scopes(seg, &mut p, &mut depth)?;
 
     match *seg.get(p).ok_or(blk(seg, p, "body"))? {
         // An EMPTY body opens directly on the return plumbing's `3A` assign —
@@ -264,7 +270,7 @@ pub(crate) fn parse_segment_detail(seg: &[u8], locals: &[u32]) -> Result<BodySha
         // reach the segment end, so any trailing statement or unexpected operand
         // fails the function closed exactly as it does for every other shape.
         0x3A => {
-            eat_return_plumbing(seg, &mut p, false)?;
+            eat_return_plumbing(seg, &mut p, false, depth)?;
             Ok(BodyShape::EmptyBody)
         }
         // `26 <tok>` opens BOTH a call (the callee push) and an assignment
@@ -292,7 +298,7 @@ pub(crate) fn parse_segment_detail(seg: &[u8], locals: &[u32]) -> Result<BodySha
             if is_call {
                 parse_call_shape(seg, &mut p, lo, None)
             } else {
-                try_parse_assign_body_detail(seg, p, lo, locals)
+                try_parse_assign_body_detail(seg, p, lo, locals, depth)
             }
         }
         // Straight-line arithmetic opens with a LOAD or a bare literal — and so
@@ -312,7 +318,7 @@ pub(crate) fn parse_segment_detail(seg: &[u8], locals: &[u32]) -> Result<BodySha
                 return Ok(shape);
             }
             let ops = parse_expr(seg, &mut p, 0x41)?;
-            eat_return_plumbing(seg, &mut p, true)?;
+            eat_return_plumbing(seg, &mut p, true, depth)?;
             let params = parse_formals(seg, lo)?;
             // A parameter used twice licenses c2's algebraic rewriter.
             if has_repeated_leaf(&ops) {
