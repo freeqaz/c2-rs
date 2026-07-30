@@ -9,9 +9,9 @@ use super::expr::{
 use super::mcall;
 use super::{blk, Block, BodyShape, DtorSubObject};
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, is_int4_type,
-    is_ptr4_kind, is_ptr_to_4, read_token_var, read_type, read_varint, DOUBLE_LIT_TYPE,
-    DOUBLE_TYPE, FLOAT_LIT_TYPE, FLOAT_TYPE, INT_TYPE, UINT_TYPE,
+    eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, eat_value_type,
+    is_ptr4_kind, is_ptr_to_4, read_token_var, read_type, read_varint, value_class,
+    ValueClass, DOUBLE_LIT_TYPE, DOUBLE_TYPE, FLOAT_LIT_TYPE, FLOAT_TYPE, INT_TYPE, UINT_TYPE,
 };
 use crate::func::{CompareLeaf, IlOp, Rel};
 
@@ -1058,44 +1058,10 @@ fn finish_indirect_load_of(
     })
 }
 
-/// The two value classes the leaf shapes lower identically over: a 4-byte
-/// integer and a 4-byte pointer. Kept as a class rather than a bare bool so the
-/// `2C` target and the `41` result must agree with the `30` load — see
-/// [`finish_indirect_load`].
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum ValueClass {
-    /// `int`/`unsigned`/`long`, in any cv-qualification ([`is_int4_type`]).
-    Int4,
-    /// A width-4 data or function pointer ([`is_ptr4_kind`]).
-    Ptr4,
-}
-
-fn value_class(tag: u8, kind: u8) -> Option<ValueClass> {
-    if is_int4_type(tag, kind) {
-        Some(ValueClass::Int4)
-    } else if is_ptr4_kind(tag, kind) {
-        Some(ValueClass::Ptr4)
-    } else {
-        None
-    }
-}
-
-/// Consume a TYPE at `p` iff it belongs to `class`, reporting whether it did.
-fn eat_value_type(seg: &[u8], p: &mut usize, class: ValueClass) -> bool {
-    match class {
-        // The int side keeps its exact-triple whitelist (`86 41 74` and the
-        // three siblings): those are the only int spellings measured free
-        // through a `2C`, and widening it is not this rung's business.
-        ValueClass::Int4 => eat_int_like(seg, p),
-        ValueClass::Ptr4 => match read_type(seg, *p) {
-            Some((tag, kind, _, w)) if is_ptr4_kind(tag, kind) => {
-                *p += w;
-                true
-            }
-            _ => false,
-        },
-    }
-}
+// [`ValueClass`], [`value_class`] and [`eat_value_type`] used to live here.
+// They moved to `readers.rs` when `parse_expr` needed the same three (D12,
+// `docs/IL_CALL_IN_EXPR.md` §24) — one fact, one locator, exactly as
+// `is_ptr4_kind` moved in §21.3. Nothing about them changed.
 
 
 /// Try to parse a **pointer-identity leaf**: a whole body that is one pointer

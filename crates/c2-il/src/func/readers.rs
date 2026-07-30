@@ -512,6 +512,47 @@ pub(crate) fn is_ptr4_kind(tag: u8, kind: u8) -> bool {
 /// it got because they are not interchangeable under arithmetic: see
 /// `super::body::expr::parse_expr`'s pointer-arithmetic guard and
 /// `docs/IL_CALL_IN_EXPR.md` §21.
+/// The two value classes the modeled shapes lower identically over: a 4-byte
+/// integer and a 4-byte pointer. Kept as a class rather than a bare bool so that a
+/// `2C` conversion target, a `41` result and a `30` load must **agree** with each
+/// other rather than merely each be "some 4-byte thing" — see
+/// [`super::body::shapes::finish_indirect_load`] and
+/// [`super::body::expr::parse_expr`]'s `2C` arm.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum ValueClass {
+    /// `int`/`unsigned`/`long`, in any cv-qualification ([`is_int4_type`]).
+    Int4,
+    /// A width-4 data or function pointer ([`is_ptr4_kind`]).
+    Ptr4,
+}
+
+pub(crate) fn value_class(tag: u8, kind: u8) -> Option<ValueClass> {
+    if is_int4_type(tag, kind) {
+        Some(ValueClass::Int4)
+    } else if is_ptr4_kind(tag, kind) {
+        Some(ValueClass::Ptr4)
+    } else {
+        None
+    }
+}
+
+/// Consume a TYPE at `p` iff it belongs to `class`, reporting whether it did.
+pub(crate) fn eat_value_type(seg: &[u8], p: &mut usize, class: ValueClass) -> bool {
+    match class {
+        // The int side keeps its exact-triple whitelist (`86 41 74` and the
+        // three siblings): those are the only int spellings measured free
+        // through a `2C`, and widening it is not this rung's business.
+        ValueClass::Int4 => eat_int_like(seg, p),
+        ValueClass::Ptr4 => match read_type(seg, *p) {
+            Some((tag, kind, _, w)) if is_ptr4_kind(tag, kind) => {
+                *p += w;
+                true
+            }
+            _ => false,
+        },
+    }
+}
+
 pub(crate) fn eat_int_like_or_ptr4(seg: &[u8], p: &mut usize) -> Option<bool> {
     if eat_int_like(seg, p) {
         return Some(false);
