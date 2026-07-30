@@ -294,6 +294,25 @@ fn cmd_census(rest: &[String]) -> ExitCode {
             *gate_hist.entry(k).or_insert(0) += 1;
         }
     }
+    // The `.gl` binding invariants (D14), per TU: what every generated empty
+    // destructor resolved to, and whether any token is claimed twice. The oracle
+    // cannot grade a correspondence, so these are printed where a widening step is
+    // developed, not only in the scan aggregate (`docs/GAPS.md` §6).
+    let mut dtor_callees: Vec<(String, String)> = Vec::new();
+    for (f, gate) in &rows {
+        if f.verdict.key().starts_with("empty-dtor") {
+            if let Ok(func) = gate {
+                dtor_callees.push((
+                    f.name.clone().unwrap_or_else(|| format!("#{}", f.index)),
+                    func.tail_call.clone().unwrap_or_default(),
+                ));
+            }
+        }
+    }
+    let (gl_dropped, gl_conflicts) = bundle
+        .get("gl")
+        .map(|g| c2_il::gl_symbol_conflicts(g))
+        .unwrap_or((0, 0));
     let census: Vec<c2_il::FnCensus> = rows.into_iter().map(|(c, _)| c).collect();
     let in_class = census.iter().filter(|f| f.verdict.in_class()).count();
     println!(
@@ -302,6 +321,25 @@ fn cmd_census(rest: &[String]) -> ExitCode {
         in_class,
         census.len()
     );
+    if gl_dropped > 0 {
+        println!(
+            "  .gl ambiguous tokens dropped: {gl_dropped} ({gl_conflicts} involving a mangled \
+             name — that count must be 0)"
+        );
+    }
+    if !dtor_callees.is_empty() {
+        let bad = dtor_callees
+            .iter()
+            .filter(|(_, c)| c2_harness::gap::dtor_callee_class(c) == "other")
+            .count();
+        println!(
+            "  generated empty destructors: {} bound, {bad} to a NON-destructor",
+            dtor_callees.len()
+        );
+        for (f, c) in dtor_callees.iter().take(12) {
+            println!("    {f} -> {c}");
+        }
+    }
     let mut hist: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
     // One representative blocking-site hexdump per feature, so a big TU reports
     // each distinct gap once instead of thousands of times.
@@ -1942,6 +1980,25 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 100.0 * disagree as f64 / in_class.max(1) as f64
             );
             for (key, count) in report.fn_gate_histogram().iter().take(15) {
+                println!("    {count:>7}  {key}");
+            }
+        }
+        // The `.gl` binding invariants (D14). A binding decides *which* symbol a
+        // token names, and a green differential cannot grade a correspondence
+        // (`docs/GAPS.md` §6). These are the two facts the container settles by
+        // itself, and both have a known answer of 0.
+        let binds = report.bind_check_histogram();
+        if !binds.is_empty() {
+            let bad = report.bind_violations();
+            if bad == 0 {
+                println!(
+                    "  .gl binding invariants: 0 violations (every generated destructor \
+                     resolves to a destructor)"
+                );
+            } else {
+                println!("  .gl binding VIOLATIONS: {bad} — a token bound to the wrong symbol");
+            }
+            for (key, count) in binds.iter().take(8) {
                 println!("    {count:>7}  {key}");
             }
         }

@@ -1543,6 +1543,10 @@ recorded value, so a gate landing in codegen instead of the parser fails a test.
    governing precedent: the oracle cannot grade a correspondence, so it must be
    graded on the binding's own invariants, not on a green differential. This is
    the largest single named item on the board that needs no new instruction.
+   > **TAKEN — §6e (D14).** The prior was right and the mechanism was one byte:
+   > `.gl` has a **second record separator**, `26`, that the NUL-anchored name
+   > scan could not see. **+9,027** (the 9,028, less one function the new
+   > fail-closed ambiguity rule costs), 1:1 into the three `empty-dtor-*` shapes.
 2. **`opt-mode-00200001` — 202 functions in 2 TUs** (`HamRibbon.cpp`,
    `Ribbon.cpp`; 136 `calls-0` + 66 with the ctor/dtor bit). `00200001` is
    `/O1`'s `00200005` without bit `0x4`, and `docs/OPT_MODE.md` explicitly leaves
@@ -1713,7 +1717,163 @@ the record needs and both are byte offsets the emitter already computes.
 6. Unchanged and unrelated to unwind: the whole-TU all-or-nothing gate, and the
    fact that the port has no model of *which* bodies c2 emits (§6a).
 
-## 6f. Instrument hardening (roadmap #15, #46, #47, #48 — 2026-07-30)
+## 6f. D14 — the `.gl` record form the symbol index could not see (2026-07-30)
+
+Roadmap item from §6c's ranked handoff, #1: `callee-unresolved-dtor-delegation:eof`,
+**9,028 functions in 826 TUs**, all `calls-1`, all grammar-complete. A generated
+empty destructor whose delegation callee has no `.gl` symbol, so `shape_to_function`
+refuses. The prior was that this is a decode/binding gap rather than an out-of-class
+construct, because all 826 of those TUs *also* hold resolved delegations.
+
+### What the tokens actually denote, and how that was established
+
+They denote exactly what a resolving one denotes — a `.gl` symbol record — in a
+**second record form the index could not reach**. A record is
+
+```text
+80 <LE32 type id>  <2 bytes>  <kind>  <operand token>  <SEP>  <name> 00  <TYPE> …
+```
+
+and `SEP` takes two values. Transcribed from `src/system/jpeg/Jpeg.cpp`, two
+adjacent records of the same class, same `04` kind byte, byte-identical framing on
+both sides:
+
+```text
+80 75 14 00 00  00 00  04  84 30  00  ??YString@@QAAAAV0@PBD@Z  00 86 03 04 04 …
+80 85 14 00 00  00 00  04  c2 30  26  ??_GString@@UAAPAXI@Z     00 86 03 04 04 …
+                           \_tok/ \sep/
+```
+
+That identity is the argument, and it is a **container** argument rather than an
+oracle one: the token field's position is fixed by the framing, so if the two bytes
+are the operand token in the `00` form — which 2,323 of 2,323 resolving call sites
+already say — they are the operand token in the `26` form too. `gl_symbol_index`
+anchored on "a name is the run right after a NUL", which cannot see past a
+separator that is not NUL; anchoring on the separator is what recovers them.
+
+Measured over eight real TUs: the byte before a `?`-mangled name takes exactly
+**two** values, `00` (20,336) and `26` (12,505), and nothing else. What `26`
+*means* is deliberately not named — every witness carrying it is a
+compiler-generated or header-inline symbol (`??_G`, `??_E`, `??_7`, `??_R*`,
+`_CT`/`_TI`, and `??1logic_error@stlpmtx_std@@UAA@XZ`) while an out-of-line
+`??1String@@UAA@XZ` carries `00`, but that is a correlation over one corpus and
+`GAPS.md` §6's rule against guessed names applies. Nothing branches on the value.
+
+### The wrong-but-green failure mode, stated and then closed
+
+**A green differential cannot grade a correspondence** (`GAPS.md` §6, the `.sy`
+bullet). For this binding to be wrong-but-green, the two bytes before the `26`
+separator would have to be something other than the operand token — a type id, a
+vftable slot, a neighbouring symbol's token — while still producing names that
+happen to be right wherever an obj was compared. Four measurements close it, none
+of which is an obj compare:
+
+1. **Framing identity.** The field is at the same offset in both forms, in records
+   whose every other byte agrees. A different field would have to occupy the same
+   position in the same record layout.
+2. **The shape's own semantics, over the whole workload.** A generated empty
+   destructor delegates to a sub-object's destructor, so its callee is a destructor
+   by construction of the *source*. All **35,946** in-class generated destructors on
+   the 878-TU workload resolve to a `??1` mangling; `??_G`, `??_E`, `??_D` and
+   "something else" are **0**. A misread field would produce arbitrary symbols.
+3. **Injectivity.** `.gl` assigns one token per symbol. Tokens two records disagree
+   about are **dropped**, not resolved to the first — the third value that refuses.
+   The workload's residual is 7, all in one record form this reader does not model
+   (`$…$initializer$` local statics), and their measured cost is **0 functions**.
+4. **The counterfactual.** Running the identical binary with `26` removed from the
+   separator set and everything else in place gains **0** functions. So the whole
+   +9,028 is this record form and nothing else in the rewrite.
+
+What is **not** closed, and is stated rather than implied: no fixture grades a
+`26`-form binding through the emitter, because the form could not be reproduced in
+a controlled TU (eleven probes over virtual, inline, template, `throw()` and
+EH-referenced destructors all produced `00`). The obj-level evidence for this rung
+covers the *rewrite* — every other rule changed here — and the `26` form rests on
+the four measurements above.
+
+### The rewrite the recovery needed, and what it cost
+
+Anchoring on the separator is not enough on its own, because a record's token bytes
+are frequently printable and run together with its name: `c2 30 26 ??_GString@@…`
+reads as one graphic run, `0&??_GString@@…`. Four rules, each measured:
+
+| rule | why | measured |
+|---|---|---|
+| the name is the **rightmost** separator-preceded start of its run | leftmost glues the record's own token bytes onto the name — which the old scan was doing whenever a kind byte was `00` (`b[&??_R0?AVFixedString@@@8`, 5 live entries in `Memory_Xbox.cpp` alone) | — |
+| the record **kind** must be one of `00 04 0E 10` | `.gl`'s type table puts a type id where the token is | exactly this set over 32,898 `?`-mangled records |
+| the name is spelled in `[A-Za-z0-9_$?@]` | separates a symbol from a path or a template-id | — |
+| a whole mangled name **outranks** a bare one on the same token; equal rank disagreeing → dropped | the type table's residue is bare, and a bare run is never a callee | 44 collisions → 0 |
+
+Cost of the rewrite, measured over eight real TUs (24,281 index entries before,
+34,208 after): **zero** `?`-mangled bindings change name, **zero** are lost except
+one that was itself a junk read, and **zero** conflicts involve a mangled name. On
+the workload it costs exactly **one** function (`callee-unresolved-tail-call:eof`
+0 → 1) and gains none — that is what the counterfactual scan measures.
+
+### The estimate
+
+Recorded before building: **+9,028, biased low**, cause named — tokens whose record
+carries a separator or kind outside the measured sets, plus the newly-dropped
+ambiguous tokens. Realized: **+9,027**. The single missing function is exactly the
+named cause, and is at the instrument's one-function noise floor.
+
+### Census
+
+**418,628 → 427,655 (17.00 % → 17.37 %)**, mismatch 0, no TU changing class,
+census/gate disagreement still **0**, 569 keys → 569.
+
+The accounting is exact and 1:1: `callee-unresolved-dtor-delegation:eof` **9,028 →
+0**, landing in `empty-dtor-delegation` (+7,196), `empty-dtor-member` (+1,694) and
+`empty-dtor-member-adjusted` (+138) — 9,028 — against `callee-unresolved-tail-call:eof`
++1 and `multiarg-tail-call` −1. **No other key moved at all.** All of it is
+`calls-1`, as §18's frame axis requires for this shape.
+
+### Gate evidence
+
+| lane | result |
+|---|---|
+| `cargo test --workspace --release` | 372 passed, 0 failed |
+| `c2rs bench` | **127 pass, 0 fail, 0 error** |
+| `scripts/mode_lane.sh /Ox` | 53 match, **0 mismatch**, 0 codegen-gap |
+| `/O1`, `/O2`, `/Ox /Gy` | 50 match, **0 mismatch**, 3 codegen-gap each |
+| `scripts/expr_sweep.sh` | checked=**4367**, mismatches=**0** |
+| 878-TU scan | match 6, **mismatch 0**, 427,655/2,462,571, 569 keys, census/gate disagreement **0**, `.gl` binding violations **0** |
+| `census fixtures/cpp/w23_gl_callee_bind.cpp` | **5/5 in class**, `Port=Match` |
+| `census fixtures/cpp/w23_gl_callee_bind_neg.cpp` | 3/3 in class, `Port=NotImplemented` (two TU-level gates) |
+
+Two invariants now print on **every** `gap` and `census` run, next to the numerator,
+for the same reason the census/gate disagreement does: the count of tokens `.gl`
+claims twice, and the mangling class every generated destructor's callee resolves
+to. A binding cannot be graded by the oracle, so the grader has to be permanent.
+
+### Found and not taken, ranked, with the frame axis applied
+
+1. **`expr-intrinsic-this-adjust` — 141,800 functions, of which 83,891 are
+   `calls-2plus`** and therefore need a frame. The takeable half is the ~57,909
+   `calls-0`/`calls-1` remainder, and it has no `-whole` bit, so `GAPS.md` §6's rule
+   applies: spend one counterfactual scan before scheduling against it.
+2. **The census's per-function `name` is bound POSITIONALLY** — `census_functions`
+   zips `mangled_names` onto segments when the counts happen to be equal, and
+   `mangled_names` drops every `??`-prefixed name, so on
+   `fixtures/cpp/w23_gl_callee_bind.cpp` the destructors are reported under the
+   *tail calls'* names. Diagnostic-only today, but the **varargs gate reads the same
+   positional name**, so a TU where the wrong name ends `ZZ` would refuse a
+   non-variadic function or admit a variadic one. `gl_defined_names` is the correct
+   locator and is already in the crate — this is roadmap #14's exact shape, one seam
+   over.
+3. **TU-level gates are outside the census/gate cross-check.** A function-template
+   callee makes c2 splice `/alternatename:…` into `.drectve`, so
+   `drectve_is_boilerplate` refuses the TU while the census reads 1/1 in class
+   (`w23_gl_callee_bind_neg.cpp` holds it). §6c's cross-check runs per function and
+   cannot see it; the numerator's error term is therefore still an upper bound by
+   the TU-level gates, unmeasured.
+4. **The `$…$initializer$` record form**, 7 ambiguous tokens on the workload, cost
+   0 functions. Its name starts with `$`, which no name test here admits, so the
+   scan reads the token bytes as the name's head. One capture of a local static with
+   a dynamic initializer would settle whether `$` is a third separator or a name
+   character — the two readings are one byte apart.
+
+## 6g. Instrument hardening (roadmap #15, #46, #47, #48 — 2026-07-30)
 
 Four instrument failures surfaced in one day, all of the same family: a
 measurement that was wrong, or expensive enough not to be re-taken, without

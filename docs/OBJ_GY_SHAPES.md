@@ -281,6 +281,25 @@ shift is `/Gy`'s, not the mode's.
 [callee external — only at its first introduction] [$M(n) @ prologue-end
 offset] [.pdata section sym + aux] [$T(n+2) @ 0]`.
 
+> **Extended 2026-07-30** (`docs/CODEGEN_FRAMED_CALLS.md` §4, byte evidence
+> there). Three refinements this template does not have, each needed as soon as
+> a body makes more than one call:
+> * **multiple** new callees are emitted in **reverse first-reference order**
+>   (`g1,g2,g3` referenced → `g3,g2,g1` in the table; the mirrored source
+>   refutes alphabetical and declaration order);
+> * a function's `.rdata` constant pairs precede its callee externals in the
+>   same region, so the full region is `[.rdata pairs, LIFO] [callees, LIFO]`;
+> * the `__savegprlr_N` / `__restgprlr_N` pair is **not** in that region — it
+>   follows the whole group, after `$T`, with **`rest` before `save`**. Same
+>   position `_fltused` occupies (§1.2).
+>
+> And the section order inside one function's group is
+> **`.text`, its `.rdata`(s), its `.pdata`** — `.pdata`'s aux `Number` still
+> names its own `.text`, counted through the intervening `.rdata` sections
+> (verified at Number=5 with one and with two `.rdata` between, and Number=7
+> when a leading float leaf shifted the framed function). That closes the
+> "`.pdata` beside `.rdata`" gap.
+
 The `$M` **values** are the prologue end and the function end in `.text`
 offsets: mvp_call_two_framed (5-instruction prologue, calls at 0x1c/0x28) has
 `$M2548 = 0x14`, `$M2549 = 0x48` — the call site is *not* labeled; the
@@ -360,6 +379,20 @@ The whole model, restated as one rule and now implemented in
       framed -> $M(cur), $M(cur+1), $T(cur+2);  cur += 5 if /Gy else 4
       leaf   ->                                 cur += 1
 ```
+
+> **Refuted for one framed sub-class, 2026-07-30.** A framed function that saves
+> ≥3 callee-saved GPRs — i.e. one that uses the `__savegprlr_N` /
+> `__restgprlr_N` helper pair rather than inline `std`s — **consumes two extra
+> slots, allocated before its own `$M` pair**: its first label is `cur + 2` and
+> its stride is 7 under `/Gy`. Seven witnesses, with the seed pinned by this
+> section's own `.gl` rule, in `docs/CODEGEN_FRAMED_CALLS.md` §4.4. Four of them
+> are misses for the model above, three are hits, and the split is exactly
+> "does the prologue call the helper". The FPR-helper case (`__savefpr_M`) is
+> **not** captured, so whether it costs another +2 is open.
+>
+> This is latent rather than live: the emitter refuses helper-using bodies for
+> other reasons today. It becomes a wrong byte the moment a framed function with
+> ≥3 saved GPRs is admitted.
 
 **Why the earlier scan missed it.** §3.5 previously recorded "a byte-scan
 correlation breaks on FP TUs: max LE16 token in `.ex` vs B gives a constant gap
@@ -454,6 +487,12 @@ Still not determined, and therefore still refused rather than guessed:
    shifts its `$M` numbers by 60 relative to packed. The counters are the
    only place `/Gy` and function *count* interact numerically, and nothing
    in the obj names the mechanism.
-4. `/O1` vs `/Ox` never moved a single byte of any table in this document
+4. **`.rdata` is Selection 2 only for constant pools.** Under `/EHsc` a
+   function with a try block or a destructor gets a *second* kind of `.rdata`
+   COMDAT — the `__ehfuncinfo$`/`__tryblocktable$`/`__unwindtable$` block — and
+   it is **Selection 5, Number = its function's `.text`**, like `.pdata`
+   (`docs/EH_RECORDS.md` §3). Any rule of the form "`.rdata` ⇒ Sel 2" is a rule
+   about the FP pool, not about the section name.
+5. `/O1` vs `/Ox` never moved a single byte of any table in this document
    once `/Gy` was held fixed — every difference here keys on `/Gy` alone,
    consistent with `OPT_MODE.md` §3.3's two-axes reading.
