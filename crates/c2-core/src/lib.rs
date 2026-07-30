@@ -194,14 +194,26 @@ impl PortC2 {
         let words = il.opt_words().unwrap_or_default();
         let mut mode: Option<codegen::OptMode> = None;
         for (i, w) in words.iter().enumerate() {
-            let m = match w {
+            // One bit of the word is NOT a mode: `0x0100` says the function is a
+            // constructor or a destructor ([`c2_il::OPT_WORD_SPECIAL_MEMBER`],
+            // measured one flag and one function kind at a time). It is masked off
+            // before the whole-word compare, so a destructor's word reads as the
+            // mode it actually is — otherwise every constructor and destructor in
+            // the corpus is a `codegen-gap` however ordinary its body, which is
+            // what kept `A::~A() {}` (a bare `blr`, decoded as `EmptyBody`) out of
+            // the emitter. Every other bit is still required to match a word this
+            // port was verified against.
+            let masked = w.map(|v| v & !c2_il::OPT_WORD_SPECIAL_MEMBER);
+            let m = match &masked {
                 Some(v) if *v == c2_il::OPT_WORD_OX => codegen::OptMode::Ox,
                 Some(v) if *v == c2_il::OPT_WORD_O1 => codegen::OptMode::O1,
                 other => {
+                    // Reported as the RAW word, not the masked one: the census key
+                    // has to name what is actually in the file.
                     return Err(BackendError::NotImplemented(format!(
                         "opt-mode {} at function {i}: only {:08x} (/Ox, /O2) and \
                          {:08x} (/O1) are implemented{}. See docs/OPT_MODE.md.",
-                        match other {
+                        match w {
                             Some(v) => format!("{v:08x}"),
                             None => "unreadable".to_string(),
                         },
@@ -273,6 +285,19 @@ impl PortC2 {
                         let branch_off = t.len() as u32;
                         t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
                         (t, branch_off)
+                    } else if f.ops.is_empty() {
+                        // A VOID tail call (`void f(){ g(); }`, and the generated
+                        // empty destructor): no argument to compute, so the whole
+                        // text is the branch at offset 0 of this COMDAT. The packed
+                        // emitter below has had this case since the MVP; this branch
+                        // did not, and fell into `int_tail_call_text`, which needs an
+                        // operand stream and refused with "expression did not reduce
+                        // to a single value" — so `mvp_call.cpp` has been a
+                        // `codegen-gap` in the `/O1`, `/O2` and `/Ox /Gy` lanes for as
+                        // long as those lanes have existed, for no reason but this
+                        // missing arm. The workload compiles `/O1`, which implies
+                        // `/Gy`, so it is the arm every real void tail call needs.
+                        (codegen::encode_tail_branch(0).to_vec(), 0)
                     } else {
                         codegen::int_tail_call_text(f, 0, mode)?
                     };

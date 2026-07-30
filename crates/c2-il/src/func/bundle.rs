@@ -208,6 +208,42 @@ pub const OPT_WORD_OX: u32 = 0x00a0_0005;
 /// different register field. See `docs/OPT_MODE.md`.
 pub const OPT_WORD_O1: u32 = 0x0020_0005;
 
+/// Bit `0x0000_0100` of the per-function optimization word: **this function is a
+/// constructor or a destructor.** Orthogonal to the mode bits, so it is masked off
+/// before the whole-word compare rather than being enumerated into four words.
+///
+/// MEASURED at `/Ox`, one function per row in one TU, reading each segment's
+/// `4F 1F 80 <LE32>`:
+///
+/// ```text
+/// int p1(int a){return a+1;}                          00a00005
+/// int p2(int a){ S s; return a+1; }   local w/ dtor    00a00005   <- NOT cleanup
+/// int p3(int a){ try{…}catch(...){…} }                 00a00005   <- NOT EH
+/// void V::f() {}                     virtual member    00a00005
+/// int p4(int a) throw() {…}                            00a00005
+/// int S::m(int a) const {…}           member fn        00a00005
+/// A::A() {}                          constructor       00a00105
+/// X::X(const X&) {…}                 copy ctor         00a00105
+/// U::~U() {}                         dtor, no base     00a00105
+/// D::~D() {}                         dtor, one base    00a00105
+/// ```
+///
+/// so the bit tracks *being* a constructor or destructor and nothing else — not
+/// needing cleanup, not exception handling, not virtualness. `/O1` shifts the mode
+/// bits and leaves it alone (`00200105`).
+///
+/// **This bit was already costing coverage before it was named.** `A::~A() {}`
+/// decodes as [`super::body::BodyShape::EmptyBody`] and the reference emits a bare
+/// `blr` for it, exactly as for `void f() {}` — but the word gate compared whole
+/// words, so every constructor and destructor in the corpus was a `codegen-gap`
+/// no matter how ordinary its body. Masking the bit is what lets the generated
+/// empty destructor (the point of this rung) reach the emitter at all.
+///
+/// It is masked, not ignored: every other bit is still required to match a word
+/// this port was verified against, so a third mode or an unknown flag still fails
+/// closed.
+pub const OPT_WORD_SPECIAL_MEMBER: u32 = 0x0000_0100;
+
 impl IlBundle {
     /// The per-function optimization-settings word of each `.ex` function segment,
     /// in file order — the `<LE32>` of the `4F 1F 80 <LE32>` that opens a segment.
@@ -377,7 +413,12 @@ impl IlBundle {
                 // rather than falling back to a positional guess — a wrong
                 // callee name is a relocation against the wrong symbol, which is
                 // a mis-emit, not a gap.
-                BodyShape::VoidTailCall { callee_tok } => {
+                // The generated empty destructor is a void tail call in every
+                // respect the emitter can see: `this` is already in r3, the base
+                // adjust is zero and emits nothing, and there is no result. So it
+                // resolves its callee and lowers through the same `b <callee>`.
+                BodyShape::EmptyDtorDelegation { callee_tok }
+                | BodyShape::VoidTailCall { callee_tok } => {
                     funcs.push(IlFunction {
                         mangled_name: name.clone(),
                         source_path: src.clone(),
