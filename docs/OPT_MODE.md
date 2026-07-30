@@ -174,6 +174,29 @@ its two bodies are shapes where the modes agree, like `w5_tree2` above. So the
 the other side: the decode gate refuses first, so the codegen has not yet been
 asked a question it would answer wrongly.
 
+### 4.0 The hazard, reproduced
+
+Not an inference. One TU, entirely inside the port's accepted class, run through
+the real harness twice with only the `/O` flag changed:
+
+```sh
+echo 'int chain4(int a,int b,int c,int d){return a*b*c*d;}' > modeproof.cpp
+echo '/nologo /c /Ox' > oxflags.txt
+echo '/nologo /c /O1' > o1flags.txt
+c2rs gap --list list.txt --flags-file oxflags.txt --jobs 1   #  match      1  100.0%
+c2rs gap --list list.txt --flags-file o1flags.txt --jobs 1   #  mismatch   1  100.0%
+```
+
+Both report `FUNCTION CENSUS (P2b): 1/1 functions in class (100.00%)`. The census
+cannot see the difference; the byte compare can. `/Ox` is byte-exact and `/O1` is
+a wrong-bytes emit, from the same source through the same port.
+
+So the "one decode widening away" risk is not hypothetical — it is the current
+state for any real `/O1` TU that comes fully in class. Exactly one does today
+(`Spew.cpp`), and it matches because its two bodies happen to agree across modes.
+The next one will not necessarily be so lucky, and nothing in the pipeline would
+flag it as a mode problem rather than a codegen bug.
+
 ### 4.1 Order of work
 
 1. **Gate on the word.** Refuse any function whose optimization word is not the
