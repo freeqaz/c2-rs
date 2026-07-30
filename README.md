@@ -88,12 +88,13 @@ standalone `c2.dll` under wibo:
 
 ![port vs c2 throughput and speedup](docs/perf/perf_scale.png)
 
-Per obj the port is around 200–290× faster (single-digit microseconds vs
+Per obj the port is around 1200–5000× faster (a microsecond or two against
 4–6 ms), and because it has no per-obj process and no shared state it scales
-almost linearly with cores: ~897k objs/sec at 32 threads on my machine,
-against ~3.1k for real c2, which saturates early on spawn overhead. `c2rs
-perf` checks the port's output is byte-exact to real c2 on every fixture
-*before* timing anything, so the speedup is never bought with wrong bytes.
+almost linearly with cores: ~922k objs/sec on one thread and ~15.3M at 32 on
+my machine, against ~240–2900 for real c2, which saturates early on spawn
+overhead. `c2rs perf` checks the port's output is byte-exact to real c2 on
+every fixture *before* timing anything, so the speedup is never bought with
+wrong bytes.
 
 Reproduce with:
 

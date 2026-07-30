@@ -119,7 +119,13 @@ def main():
     axB.set_ylim(0, max(speedup) * 1.25)
     axB.set_xlabel("concurrency (threads)", fontsize=10, color=INK_2)
     axB.set_ylabel("speedup (port ÷ c2)", fontsize=10, color=INK_2)
-    axB.set_title("Port is 200–290× faster — and the gap widens", fontsize=12, color=INK, fontweight="bold", pad=8)
+    # Derived from the CSV, never hardcoded: this title read "200–290×" for months
+    # after the measured speedup had moved by an order of magnitude, so the figure
+    # contradicted its own axes.
+    lo, hi = min(speedup), max(speedup)
+    span = f"{lo:,.0f}×" if hi - lo < 0.05 * hi else f"{lo:,.0f}–{hi:,.0f}×"
+    axB.set_title(f"Port is {span} faster — and the gap widens",
+                  fontsize=12, color=INK, fontweight="bold", pad=8)
 
     fig.suptitle("c2-rs: native port vs real c2.dll — same obj, byte-for-byte",
                  fontsize=13.5, color=INK, fontweight="bold", y=1.02)
