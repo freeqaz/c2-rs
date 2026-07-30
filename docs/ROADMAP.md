@@ -2309,6 +2309,37 @@ last recorded run was 5,023**, silently overwriting. That is the exact failure
 corpus must report its own size on every run, and that size must be compared
 against the last one" earned its keep a second time within a week.
 
+### Also taken: `fp_contract`, and the varint the reader was not
+
+`OPT_MODE.md` §6.4/§6.5. `#pragma fp_contract(off)` clears bit `0x4` of the
+per-function optimization word, the port compared the word whole, and the whole
+of two census keys — **206 functions, 188 `calls-0`** — was refused on that
+ground alone. The bit's only effect on emitted bytes is FMA contraction, which
+`try_parse_float_leaf` already refuses; measured at corpus scale in **both**
+modes rather than inheriting one from the other (129/1 at `/O1`, **145/1** at
+`/Ox`, the differing fixture being `w13_fneg` both times, and refused).
+
+Roadmap **#52 audited on the way through**: `opt_word_at` required the `80`
+escape and the word is a varint. Fail-closed, so never wrong bytes — but a
+short-form word censused as `opt-mode-00000000`, a key asserting the word is
+*zero* when it is unread. Fixed; **0 functions** on this workload. One existing
+test used `4F 1F 11` as its "unreadable prefix" case and `11` is the readable
+short-form word 17, which is the finding in miniature.
+
+**482,542 → 482,748, +206 exact**, and the two `opt-mode` keys vanish entirely
+(**570 → 568**).
+
+### The session total
+
+**473,611 → 482,748 (19.23 % → 19.60 %), +9,137** over three rungs, mismatch 0,
+census/gate disagreement 0, **two keys fewer** and none added. Final gates:
+workspace **403 pass**, `bench` **147 pass / 0 fail / 0 error**, lanes `/Ox`
+**67** and `/O1`·`/O2`·`/Ox /Gy` **65**, **0 mismatch** in all four,
+`census_gate.rs` at its recorded 1 packed / 9 `/Gy`, sweep **5,868 cases / 0
+mismatches**, 878-TU scan match 6 / mismatch 0 / capture-fail 7 / disagreement 0,
+cache validator 17 re-captured and agreed / 0 poisoned, corpus `dc3-decomp`
+**`05ca6d09`** and wibo **1.0.1-23** from provenance record 0.
+
 ### Found and not taken, ranked, with the frame axis applied
 
 1. **The FP tail call — 85,231 measured, 0 of it `calls-2plus`.** The largest
