@@ -8,25 +8,24 @@
 // something the port does not have — so each is a wrong-bytes emit waiting for a
 // gate that was written one notch too wide.
 //
-// ## The offset-add without a `30` is the dangerous one
+// ## The offset-add without a `30` — MOVED, and it is now a positive
 //
-// `n_addr_of` is `return &s->b;`. Its IL is the getter's, minus the load:
+// `n_addr_of` (`return &s->b;`) lived here. Its IL is the getter's, minus the
+// load:
 //
 //   getter    B9 <s> <ptr> 33 <int> 4 27 <ptr> 30 <ptr> [2C <ptr> 00] 41 <ptr>
 //   &s->b     B9 <s> <ptr> 33 <int> 4 27 <ptr>          [2C <ptr> 00] 41 <ptr>
 //                                                        ^ no 30
 //
-// and it emits `addi r3,r3,4`, not a load and not nothing. A *literal* capture of
-// this shape exists in the workload: `system/utl/MemMgr.cpp` at `.ex` 0x545e is
-//
-//   4c 4f 11 53 b9 a8 1c a6 43 96 23 33 86 41 74 0c 27 a2 43 aa 23
-//                2c 86 43 91 20 00 41 86 43 91 20 3a …
-//
-// — 7 of the 40 pointer-shaped bodies in three scanned TUs are this. An identity
-// recognizer that skipped an optional offset add before checking for the `30`
-// would emit a bare `blr` for all of them. So the identity leaf is anchored on
-// the `B9` *immediately* followed by the `2C`/`41`, and the getter requires the
-// `30`; nothing accepts the shape in between.
+// and it emits `addi r3,r3,4`, not a load and not nothing — which is why an
+// identity recognizer must not skip an optional offset add before checking for
+// the `30`. That gate is unchanged and is still what this file's `n_mr` and the
+// positives in `w12_ptr_leaf.cpp` pin. What changed is that the shape in between
+// now has a production of its own (`docs/IL_CALL_IN_EXPR.md` §19), so
+// `n_addr_of` moved to `fixtures/cpp/w16_addr_leaf.cpp` as `a_off4`, where it is
+// graded byte-exact rather than merely refused. The identity leaf is still
+// anchored on the `B9` *immediately* followed by the `2C`/`41`, and the getter
+// still requires the `30`.
 //
 // ## The rest, and what each emits instead
 //
@@ -96,8 +95,6 @@ struct Wide {
 };
 
 H g_h;
-
-int* n_addr_of(S* s) { return &s->b; }
 
 int* n_deref2(int*** ppp) { return **ppp; }
 
