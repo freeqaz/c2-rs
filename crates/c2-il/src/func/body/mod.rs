@@ -1,5 +1,6 @@
 pub(crate) mod chain;
 pub(crate) mod expr;
+pub(crate) mod mcall;
 pub(crate) mod shapes;
 
 use self::chain::{
@@ -121,6 +122,16 @@ impl Block {
         // depends on its *literal* arguments, not on the id.
         if self.ctx == "expr-intrinsic" || self.ctx == "call-intrinsic" {
             return format!("{}-{}", self.ctx, intrinsic_name(self.aux as i32));
+        }
+        // The `26`-in-expression family (D2, `docs/IL_CALL_IN_EXPR.md` §14). The
+        // whole bucket used to be one key — 286,240 functions, 12.9 % of the
+        // blocked workload, naming 0.2 % of its own contents — and `mcall` walks
+        // the production far enough to say which construct the `26` opened, plus
+        // whether the *whole* segment would parse if that one form were admitted.
+        // Everything is in `aux` because `ctx` is a `&'static str` and neither the
+        // intrinsic selector nor the residue opcode is one.
+        if self.ctx == mcall::CALL_IN_EXPR {
+            return mcall::feature(self.aux);
         }
         // Operand-type blocks report the whole 3-byte type: that triple *is* the
         // feature (int vs unsigned vs float vs pointer), and it is what the next
@@ -259,6 +270,25 @@ pub(crate) fn parse_segment(seg: &[u8], sy: SyView) -> Option<BodyShape> {
 /// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
 /// can never disagree with the gate about what is in class.
 pub(crate) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
+    let r = parse_segment_shape(seg, sy);
+    // D2's whole-body-completeness bit. `parse_expr` classified the construct but
+    // has no view of the segment as a whole, and this is the one place that has
+    // both the block and the `LO` offset. Refusals only, and an `Err` stays an
+    // `Err` — the census key moves, acceptance does not. See
+    // [`mcall::whole_body_is_one_value`] for why the bit is worth more than the
+    // sub-bucket count it decorates.
+    match r {
+        Err(b) if b.ctx == mcall::CALL_IN_EXPR => {
+            match find_subslice(seg, &[0x4C, 0x4F, 0x11]) {
+                Some(lo) => Err(mcall::mark_whole(seg, lo, b)),
+                None => Err(b),
+            }
+        }
+        other => other,
+    }
+}
+
+fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or(Block {
         ctx: "lo-marker",
         byte: None,
