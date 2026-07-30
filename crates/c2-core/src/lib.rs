@@ -174,49 +174,74 @@ impl PortC2 {
             return Ok(ObjImage::new(coff::emit_empty_obj(obj_name)));
         }
 
-        // Every lowering below was established against `/Ox` captures, and `.ex`
-        // records the mode per function. Refuse any other mode rather than emit
-        // `/Ox` code against a reference built some other way.
+        // Which optimization mode to emit. `.ex` records it per function, so this
+        // is read, never inferred from argv — and a TU that mixes modes (a
+        // `#pragma optimize` mid-file) is refused rather than emitted under
+        // whichever one happened to come first.
         //
-        // This is not a hypothetical. `int chain4(int a,int b,int c,int d){return
-        // a*b*c*d;}` is `match` at `/Ox` and `mismatch` at `/O1` — same source,
-        // same port — because `/O1` allocates by liveness where `/Ox` takes a fresh
-        // descending register for an already-dead intermediate. The whole dc3
-        // workload compiles `/O1`, so without this the port is one decode widening
-        // away from wrong bytes on real input, and nothing downstream would flag it
-        // as a *mode* problem rather than a codegen bug. See `docs/OPT_MODE.md`;
-        // re-targeting `/O1` is tracked separately and is mostly this one allocator
-        // rule.
+        // Two modes are implemented, and they differ in one rule: a chain
+        // intermediate whose predecessor is dead goes to a fresh descending
+        // register under `/Ox` and to r11 under `/O1`. Anything else — `/Od`,
+        // `#pragma optimize("", off)`, an unreadable prefix — refuses.
+        //
+        // The stakes, reproduced in `docs/OPT_MODE.md`: `int chain4(int a,int b,
+        // int c,int d){return a*b*c*d;}` was `match` at `/Ox` and `mismatch` at
+        // `/O1` before the mode was read at all. The whole dc3 workload compiles
+        // `/O1`.
         //
         // Checked after the empty-module case on purpose: a TU with no functions
         // has no `4F 1F` segment to carry a word, and its obj is mode-independent.
         let words = il.opt_words().unwrap_or_default();
+        let mut mode: Option<codegen::OptMode> = None;
         for (i, w) in words.iter().enumerate() {
-            if *w != Some(c2_il::OPT_WORD_OX) {
-                return Err(BackendError::NotImplemented(format!(
-                    "opt-mode {} at function {i}: the port's codegen is verified \
-                     against {:08x} (/Ox, /O2) only — {} allocates registers \
-                     differently. See docs/OPT_MODE.md.",
-                    match w {
-                        Some(v) => format!("{v:08x}"),
-                        None => "unreadable".to_string(),
-                    },
-                    c2_il::OPT_WORD_OX,
-                    match w {
-                        Some(0x0020_0005) => "/O1",
-                        Some(0x0080_0005) => "/Od",
-                        Some(0x0080_0004) => "#pragma optimize(\"\", off)",
-                        _ => "that mode",
-                    },
-                )));
+            let m = match w {
+                Some(v) if *v == c2_il::OPT_WORD_OX => codegen::OptMode::Ox,
+                Some(v) if *v == c2_il::OPT_WORD_O1 => codegen::OptMode::O1,
+                other => {
+                    return Err(BackendError::NotImplemented(format!(
+                        "opt-mode {} at function {i}: only {:08x} (/Ox, /O2) and \
+                         {:08x} (/O1) are implemented{}. See docs/OPT_MODE.md.",
+                        match other {
+                            Some(v) => format!("{v:08x}"),
+                            None => "unreadable".to_string(),
+                        },
+                        c2_il::OPT_WORD_OX,
+                        c2_il::OPT_WORD_O1,
+                        match other {
+                            Some(0x0080_0005) => " — that is /Od",
+                            Some(0x0080_0004) => " — that is #pragma optimize(\"\", off)",
+                            _ => "",
+                        },
+                    )))
+                }
+            };
+            match mode {
+                None => mode = Some(m),
+                Some(prev) if prev == m => {}
+                Some(_) => {
+                    return Err(BackendError::NotImplemented(
+                        "mixed optimization modes in one TU (a `#pragma optimize` \
+                         between functions): the per-function shape is modeled but \
+                         emitting two modes into one obj is not characterized"
+                            .to_string(),
+                    ))
+                }
             }
         }
+        let mode = mode.unwrap_or(codegen::OptMode::Ox);
 
         // W4b2: a single-function TU whose body is a framed non-leaf call
         // (`return g(a) + k`) takes the dedicated 6-section path — it needs a
         // `.pdata` unwind section and the compiler label symbols, which the
         // straight-line/tail-call 5-section emitter does not model.
-        if funcs.len() == 1 {
+        //
+        // Guarded on `!fn_level_linking`: this shortcut used to run *ahead* of the
+        // `/Gy` branch, so a single-function framed TU under `/Gy` took the packed
+        // 6-section path and the refusal inside that branch was unreachable. It
+        // mis-emitted `mvp_framed.cpp` (divergence at obj offset 217), invisible
+        // until `scripts/mode_lane.sh` compiled the fixtures with `/Gy` for the
+        // first time. A dead guard that reads as live is worse than no guard.
+        if funcs.len() == 1 && !self.fn_level_linking {
             if let Some(fc) = &funcs[0].framed_call {
                 let text = codegen::framed_call_text(fc.add_k);
                 let bytes =
@@ -249,7 +274,7 @@ impl PortC2 {
                         t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
                         (t, branch_off)
                     } else {
-                        codegen::int_tail_call_text(f, 0)?
+                        codegen::int_tail_call_text(f, 0, mode)?
                     };
                     (t, Some(coff::Call { reloc_offset: reloc, callee: callee.as_str() }))
                 } else if f.empty_body {
@@ -257,22 +282,33 @@ impl PortC2 {
                 } else if let Some(t) = codegen::indirect_load_text(f) {
                     (t?, None)
                 } else if let Some(cmp) = &f.compare {
-                    (codegen::compare_leaf_text(cmp)?, None)
-                } else if let Some(double) = f.float_leaf {
-                    let (t, consts) = codegen::float_leaf_text(f, double)?;
-                    // A pooled FP constant under /Gy would add a second COMDAT
-                    // per function; that interleaving is not characterized.
-                    if !consts.is_empty() {
-                        return Err(BackendError::NotImplemented(
-                            "pooled floating-point constant under function-level \
-                             linking (/Gy): the .rdata COMDAT interleaving is not \
-                             modeled"
-                                .to_string(),
-                        ));
-                    }
-                    (t, None)
+                    (codegen::compare_leaf_text(cmp, mode)?, None)
+                } else if f.float_leaf.is_some() {
+                    // Two separate things are unmodeled here, so no float function
+                    // is accepted under `/Gy`:
+                    //
+                    // * a pooled FP constant would add a second COMDAT per function,
+                    //   and that interleaving is not characterized;
+                    // * *every* float function needs the undefined external
+                    //   `_fltused`, which only the packed emitter emits.
+                    //   `mvp_fmul3.cpp` — a constant-free `float` multiply, so it
+                    //   slipped past the pooled-constant refusal — came out exactly
+                    //   one symbol (18 bytes) short of the reference, a wrong
+                    //   `NumberOfSymbols` at obj offset 12.
+                    //
+                    // Refused rather than guessed: in the packed layout `_fltused`
+                    // sits immediately after the first float function's symbol group,
+                    // and whether that position holds when each function owns its own
+                    // COMDAT has not been captured. A symbol in the wrong slot
+                    // renumbers every relocation after it.
+                    return Err(BackendError::NotImplemented(
+                        "float function under function-level linking (/Gy): the \
+                         `_fltused` external, and any pooled `.rdata` constant, are \
+                         not modeled in the per-function COMDAT symbol order"
+                            .to_string(),
+                    ));
                 } else {
-                    (codegen::select_text(f)?, None)
+                    (codegen::select_text(f, mode)?, None)
                 };
                 placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, call, is_float: f.float_leaf.is_some(), fp_refs: Vec::new() });
                 texts.push(text);
@@ -323,7 +359,7 @@ impl PortC2 {
             // W6: a comparison leaf lowers to its own branchless spine rather
             // than through the operand-stack selector.
             if let Some(cmp) = &f.compare {
-                text.extend_from_slice(&codegen::compare_leaf_text(cmp)?);
+                text.extend_from_slice(&codegen::compare_leaf_text(cmp, mode)?);
                 placed.push(coff::Function { name: &f.mangled_name, text_offset: off, call: None, is_float: f.float_leaf.is_some(), fp_refs: Vec::new() });
                 continue;
             }
@@ -346,7 +382,7 @@ impl PortC2 {
                     text.extend_from_slice(&codegen::encode_tail_branch(off));
                     off
                 } else {
-                    let (body, branch_off) = codegen::int_tail_call_text(f, off)?;
+                    let (body, branch_off) = codegen::int_tail_call_text(f, off, mode)?;
                     text.extend_from_slice(&body);
                     branch_off
                 };
@@ -355,7 +391,7 @@ impl PortC2 {
                     callee,
                 })
             } else {
-                text.extend_from_slice(&codegen::select_text(f)?);
+                text.extend_from_slice(&codegen::select_text(f, mode)?);
                 None
             };
             placed.push(coff::Function {

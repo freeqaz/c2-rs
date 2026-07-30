@@ -145,6 +145,19 @@ fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
 /// bits are treated as opaque and compared whole.
 pub const OPT_WORD_OX: u32 = 0x00a0_0005;
 
+/// The optimization word for `/O1` — optimize, favour **size**. The mode the dc3
+/// workload compiles with.
+///
+/// `#pragma optimize("s", on)` under `/Ox` produces this same word, which is the
+/// cross-check that it means favour-size and not something `/O1`-specific.
+///
+/// Differs from [`OPT_WORD_OX`] in exactly one respect that reaches the obj: an
+/// intermediate whose predecessor is already dead is written to r11 rather than to
+/// a fresh descending register. Verified over all 108 three- and four-operator
+/// integer chains and all 27 depth-2 trees — never a different opcode, only a
+/// different register field. See `docs/OPT_MODE.md`.
+pub const OPT_WORD_O1: u32 = 0x0020_0005;
+
 impl IlBundle {
     /// The per-function optimization-settings word of each `.ex` function segment,
     /// in file order — the `<LE32>` of the `4F 1F 80 <LE32>` that opens a segment.

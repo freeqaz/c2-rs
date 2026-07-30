@@ -35,7 +35,7 @@ mod gl;
 mod readers;
 
 pub use self::body::Block;
-pub use self::bundle::{is_empty_module, OPT_WORD_OX};
+pub use self::bundle::{is_empty_module, OPT_WORD_O1, OPT_WORD_OX};
 pub use self::census::{FnCensus, FnVerdict, CENSUS_HEX_BACK, CENSUS_HEX_FWD};
 pub use self::gl::{gl_symbol_index, mangled_name, mangled_names, source_path};
 pub use self::readers::detect_token_width;

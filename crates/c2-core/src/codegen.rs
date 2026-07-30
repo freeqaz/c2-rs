@@ -721,8 +721,9 @@ pub fn framed_call_text(add_k: i32) -> Vec<u8> {
 pub fn int_tail_call_text(
     func: &IlFunction,
     base_off: u32,
+    mode: OptMode,
 ) -> Result<(Vec<u8>, u32), BackendError> {
-    let mut text = select_text(func)?; // arg-setup + trailing blr
+    let mut text = select_text(func, mode)?; // arg-setup + trailing blr
     let blr = encode_blr();
     debug_assert!(
         text.ends_with(&blr),
@@ -861,8 +862,22 @@ pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
 /// registers, and it schedules — numbering order is not emission order), so this
 /// function accepts exactly the characterized shapes and returns
 /// `NotImplemented` for the rest.
-pub fn compare_leaf_text(cmp: &c2_il::CompareLeaf) -> Result<Vec<u8>, BackendError> {
+pub fn compare_leaf_text(
+    cmp: &c2_il::CompareLeaf,
+    mode: OptMode,
+) -> Result<Vec<u8>, BackendError> {
     use c2_il::Rel;
+    // The relational spines below are `/Ox` shapes. `/O1` reallocates them — 14 of
+    // `w6_rel_k`'s 19 leaves differ in their register fields (never in an opcode) —
+    // and unlike the chain allocator the rule has not been enumerated, so this
+    // refuses rather than emitting `/Ox` registers. `docs/OPT_MODE.md` §4.1.
+    if mode == OptMode::O1 {
+        return Err(out_of_class(
+            "comparison leaf under /O1: the spines are characterized for /Ox only, \
+             and /O1 reallocates their temporaries (14 of 19 w6_rel_k leaves differ). \
+             Enumerate the /O1 spines before accepting this",
+        ));
+    }
     let mut t: Vec<u8> = Vec::with_capacity(28);
     let a = RET_REG; // the compared formal is the first argument, r3
 
@@ -1113,6 +1128,28 @@ const RET_REG: u8 = 3;
 /// First allocatable volatile scratch (r12 is reserved; COLOR picks r11 next).
 const SCRATCH_REG: u8 = 11;
 
+/// Which optimization mode's codegen to emit. Read from `.ex`'s per-function
+/// optimization word (`c2_il::IlBundle::opt_words`), never guessed from argv.
+///
+/// The two differ in **exactly one rule**, established over all 108 three- and
+/// four-operator integer chains and all 27 depth-2 trees: a chain intermediate
+/// whose predecessor is already dead goes to a fresh descending register under
+/// [`OptMode::Ox`] and to r11 under [`OptMode::O1`]. Never a different opcode,
+/// never a different operand order — only a register field.
+///
+/// `/Ox` and `/O2` share a word *and* emit identical bytes (verified per function
+/// across eight fixtures once the tail branch's displacement, which is section
+/// layout rather than codegen, is masked). So one variant covers both.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OptMode {
+    /// `/Ox` and `/O2` — optimize, favour speed. Every lowering here was
+    /// originally established against this mode.
+    Ox,
+    /// `/O1` (and `#pragma optimize("s", on)`) — optimize, favour size. What the
+    /// dc3 workload compiles with.
+    O1,
+}
+
 /// Select `.text` bytes for a straight-line integer-arithmetic function
 /// (`+`, `-`, `*`; no branches/calls/relocations).
 ///
@@ -1221,7 +1258,7 @@ fn try_select_depth2_tree(
     Some(text)
 }
 
-pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
+pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendError> {
     // Out-of-class, not a pass failure. As `BackendError::Pass` this landed in the
     // harness's `port-error` bucket while every other refusal in this file landed in
     // `codegen-gap`, and `differential` coerced it to `NotImplemented` anyway — so
@@ -1375,13 +1412,22 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     // against `a - b - c - d`, which really does descend
     // `subf r11 ; subf r10 ; subf r3`. The two rules coincide at one intermediate,
     // which is why every 3-leaf chain matched and only 4 leaves exposed it.
+    //
+    // **All of the above is the `/Ox` rule.** Under `/O1` (favour size) there is no
+    // descending case at all: this plan is a serial chain, so every intermediate's
+    // predecessor is dead by construction, and `/O1` reuses r11 for a dead
+    // predecessor unconditionally. `a - b - c - d` is
+    // `subf r11,r4,r3 ; subf r11,r5,r11 ; subf r3,r6,r11` — where `/Ox` descends
+    // r11, r10, r3 — and the operator-dependence disappears with it. Enumerated
+    // over all 108 three- and four-operator chains: only register fields differ,
+    // never an opcode or an operand order.
     let chain_has_add = plan
         .iter()
         .any(|e| matches!(e, PlanOp::Bin { op: IlOp::Add, .. } | PlanOp::AddImm { .. }));
     for (i, entry) in plan.iter().enumerate() {
         let dest = if i == last {
             RET_REG
-        } else if chain_has_add {
+        } else if mode == OptMode::O1 || chain_has_add {
             SCRATCH_REG
         } else {
             match entry {
@@ -1582,7 +1628,7 @@ mod tests {
         f.ops = vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }, IlOp::Lit(1), IlOp::Add];
         assert!(indirect_load_text(&f).is_none());
         // …and the affine selector must refuse it rather than pick a register.
-        assert!(select_text(&f).is_err());
+        assert!(select_text(&f, OptMode::Ox).is_err());
     }
 
     #[test]
@@ -1627,7 +1673,7 @@ mod tests {
         // offset 0 (`48000000`), reloc site 0 — byte-identical to the void
         // tail call. Verified against the live obj (.text=48000000, REL24 @0x0).
         let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309)]);
-        let (text, reloc) = int_tail_call_text(&f, 0).unwrap();
+        let (text, reloc) = int_tail_call_text(&f, 0, OptMode::Ox).unwrap();
         assert_eq!(text, vec![0x48, 0x00, 0x00, 0x00]);
         assert_eq!(reloc, 0);
     }
@@ -1641,7 +1687,7 @@ mod tests {
             vec![0xE309],
             vec![IlOp::Load(0xE309), IlOp::Lit(1), IlOp::Add],
         );
-        let (text, reloc) = int_tail_call_text(&f, 0).unwrap();
+        let (text, reloc) = int_tail_call_text(&f, 0, OptMode::Ox).unwrap();
         assert_eq!(
             text,
             vec![
@@ -1689,7 +1735,7 @@ mod tests {
             ],
         };
         assert_eq!(
-            select_text(&func).unwrap(),
+            select_text(&func, OptMode::Ox).unwrap(),
             vec![
                 0x7D, 0x64, 0x18, 0x50, // subf r11,r4,r3  (= r3-r4 = a-b)
                 0x7C, 0x65, 0x58, 0x50, // subf r3,r5,r11  (= r11-r5 = (a-b)-c)
@@ -1725,7 +1771,7 @@ mod tests {
             ],
         );
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![
                 0x7D, 0x63, 0x21, 0xD6, // mullw r11,r3,r4
                 0x7D, 0x4B, 0x29, 0xD6, // mullw r10,r11,r5
@@ -1754,7 +1800,7 @@ mod tests {
             ],
         );
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![
                 0x7D, 0x64, 0x18, 0x50, // subf r11,r4,r3
                 0x7D, 0x45, 0x58, 0x50, // subf r10,r5,r11
@@ -1784,7 +1830,7 @@ mod tests {
             ],
         );
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![
                 0x7D, 0x63, 0x22, 0x14, // add r11,r3,r4
                 0x7D, 0x6B, 0x2A, 0x14, // add r11,r11,r5
@@ -2031,7 +2077,7 @@ mod tests {
     // ---- W6 comparison spines (bytes from live captures) --------------------
 
     fn cmp(rel: c2_il::Rel, signed: bool, k: i32) -> Vec<u8> {
-        compare_leaf_text(&c2_il::CompareLeaf { param: 0xE309, rel, signed, k }).unwrap()
+        compare_leaf_text(&c2_il::CompareLeaf { param: 0xE309, rel, signed, k }, OptMode::Ox).unwrap()
     }
 
     #[test]
@@ -2280,7 +2326,7 @@ mod tests {
                 rel: Rel::Gt,
                 signed: false,
                 k: 70000,
-            }),
+            }, OptMode::Ox),
             Err(BackendError::NotImplemented(_))
         ));
     }
@@ -2305,7 +2351,7 @@ mod tests {
         // `a + 5` → addi r3,r3,5 ; blr
         let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(5), IlOp::Add]);
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![0x38, 0x63, 0x00, 0x05, 0x4E, 0x80, 0x00, 0x20]
         );
     }
@@ -2326,7 +2372,7 @@ mod tests {
             ],
         );
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![0x38, 0x63, 0x00, 0x0A, 0x4E, 0x80, 0x00, 0x20]
         );
     }
@@ -2345,7 +2391,7 @@ mod tests {
             ],
         );
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![0x38, 0x63, 0x00, 0x02, 0x4E, 0x80, 0x00, 0x20]
         );
     }
@@ -2355,7 +2401,7 @@ mod tests {
         // `a - 5` → addi r3,r3,-5 ; blr
         let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(5), IlOp::Sub]);
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![0x38, 0x63, 0xFF, 0xFB, 0x4E, 0x80, 0x00, 0x20]
         );
     }
@@ -2365,7 +2411,7 @@ mod tests {
         // `return 42;` → addi r3,r0,42 (li) ; blr
         let f = func_with(vec![], vec![IlOp::Lit(42)]);
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![0x38, 0x60, 0x00, 0x2A, 0x4E, 0x80, 0x00, 0x20]
         );
     }
@@ -2374,7 +2420,7 @@ mod tests {
     fn select_text_rejects_immediate_multiply() {
         // `a * 3` strength-reduces (out of class) — must reject, not mis-emit.
         let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(3), IlOp::Mul]);
-        assert!(matches!(select_text(&f), Err(BackendError::NotImplemented(_))));
+        assert!(matches!(select_text(&f, OptMode::Ox), Err(BackendError::NotImplemented(_))));
     }
 
     #[test]
@@ -2382,7 +2428,7 @@ mod tests {
         // `a + 70000` → addis r3,r3,1 ; addi r3,r3,4464 ; blr.
         let f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(70000), IlOp::Add]);
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![
                 0x3C, 0x63, 0x00, 0x01, // addis r3,r3,1
                 0x38, 0x63, 0x11, 0x70, // addi r3,r3,4464
@@ -2396,13 +2442,94 @@ mod tests {
         // `return 70000;` → addis r3,r0,1 ; ori r3,r3,4464 ; blr.
         let f = func_with(vec![], vec![IlOp::Lit(70000)]);
         assert_eq!(
-            select_text(&f).unwrap(),
+            select_text(&f, OptMode::Ox).unwrap(),
             vec![
                 0x3C, 0x60, 0x00, 0x01, // addis r3,r0,1
                 0x60, 0x63, 0x11, 0x70, // ori r3,r3,4464
                 0x4E, 0x80, 0x00, 0x20, // blr
             ]
         );
+    }
+
+    /// The `/O1` allocator, against `/Ox`, on the shape that separates them:
+    /// a four-leaf chain with no addition, where `/Ox` gives every intermediate
+    /// its own descending register and `/O1` reuses r11 because each
+    /// intermediate's predecessor is dead.
+    ///
+    /// Transcribed from captures of `int f(int a,int b,int c,int d){return a*b*c*d;}`
+    /// at `/Ox /GS- /c` and `/O1 /GS- /c` (`docs/OPT_MODE.md` §3.1).
+    #[test]
+    fn o1_reuses_r11_where_ox_descends() {
+        let f = func_with(
+            vec![0xE309, 0xE409, 0xE509, 0xE609],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Mul,
+                IlOp::Load(0xE509),
+                IlOp::Mul,
+                IlOp::Load(0xE609),
+                IlOp::Mul,
+            ],
+        );
+        assert_eq!(
+            select_text(&f, OptMode::Ox).unwrap(),
+            vec![
+                0x7D, 0x63, 0x21, 0xD6, // mullw r11,r3,r4
+                0x7D, 0x4B, 0x29, 0xD6, // mullw r10,r11,r5   <- descends
+                0x7C, 0x6A, 0x31, 0xD6, // mullw r3,r10,r6
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ],
+            "/Ox takes a fresh descending register for a dead intermediate"
+        );
+        assert_eq!(
+            select_text(&f, OptMode::O1).unwrap(),
+            vec![
+                0x7D, 0x63, 0x21, 0xD6, // mullw r11,r3,r4
+                0x7D, 0x6B, 0x29, 0xD6, // mullw r11,r11,r5   <- reuses r11
+                0x7C, 0x6B, 0x31, 0xD6, // mullw r3,r11,r6
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ],
+            "/O1 reuses r11 once the predecessor is dead"
+        );
+    }
+
+    /// A chain that *does* contain an addition already collapses to r11 under
+    /// `/Ox`, so the two modes agree on it — the guard against "fixing" `/O1` by
+    /// changing what `/Ox` emits.
+    #[test]
+    fn a_chain_with_an_addition_is_mode_independent() {
+        let f = func_with(
+            vec![0xE309, 0xE409, 0xE509, 0xE609],
+            vec![
+                IlOp::Load(0xE309),
+                IlOp::Load(0xE409),
+                IlOp::Add,
+                IlOp::Load(0xE509),
+                IlOp::Sub,
+                IlOp::Load(0xE609),
+                IlOp::Sub,
+            ],
+        );
+        assert_eq!(
+            select_text(&f, OptMode::Ox).unwrap(),
+            select_text(&f, OptMode::O1).unwrap()
+        );
+    }
+
+    /// The `/Ox` comparison spines are not reused for `/O1`: 14 of `w6_rel_k`'s 19
+    /// leaves are reallocated there and the rule is not enumerated, so `/O1`
+    /// refuses rather than emitting `/Ox` registers.
+    #[test]
+    fn a_comparison_leaf_refuses_under_o1() {
+        let cmp = c2_il::CompareLeaf {
+            param: 0xE309,
+            rel: c2_il::Rel::Lt,
+            signed: true,
+            k: 5,
+        };
+        assert!(compare_leaf_text(&cmp, OptMode::Ox).is_ok());
+        assert!(compare_leaf_text(&cmp, OptMode::O1).is_err());
     }
 
     fn tree4(op1: IlOp, op2: IlOp, root: IlOp) -> IlFunction {
@@ -2426,7 +2553,7 @@ mod tests {
         // rather than a serial chain: left child into r11, right into r10, root
         // into r3.
         assert_eq!(
-            select_text(&tree4(IlOp::Add, IlOp::Add, IlOp::Mul)).unwrap(),
+            select_text(&tree4(IlOp::Add, IlOp::Add, IlOp::Mul), OptMode::Ox).unwrap(),
             vec![
                 0x7D, 0x63, 0x22, 0x14, // add   r11,r3,r4
                 0x7D, 0x45, 0x32, 0x14, // add   r10,r5,r6
@@ -2437,7 +2564,7 @@ mod tests {
         // `(a*b)-(c*d)` — same register assignment; subf keeps its reversed
         // operand order (rA=rhs, rB=lhs).
         assert_eq!(
-            select_text(&tree4(IlOp::Mul, IlOp::Mul, IlOp::Sub)).unwrap(),
+            select_text(&tree4(IlOp::Mul, IlOp::Mul, IlOp::Sub), OptMode::Ox).unwrap(),
             vec![
                 0x7D, 0x63, 0x21, 0xD6, // mullw r11,r3,r4
                 0x7D, 0x45, 0x31, 0xD6, // mullw r10,r5,r6
@@ -2455,7 +2582,7 @@ mod tests {
         // independent, but not mechanistically understood, which is why the
         // `+` root is accepted at exactly this depth and nowhere else.
         assert_eq!(
-            select_text(&tree4(IlOp::Mul, IlOp::Mul, IlOp::Add)).unwrap(),
+            select_text(&tree4(IlOp::Mul, IlOp::Mul, IlOp::Add), OptMode::Ox).unwrap(),
             vec![
                 0x7D, 0x43, 0x21, 0xD6, // mullw r10,r3,r4   <-- swapped
                 0x7D, 0x65, 0x31, 0xD6, // mullw r11,r5,r6   <-- swapped
@@ -2477,7 +2604,7 @@ mod tests {
         {
             assert!(
                 matches!(
-                    select_text(&tree4(op1, op2, IlOp::Mul)),
+                    select_text(&tree4(op1, op2, IlOp::Mul), OptMode::Ox),
                     Err(BackendError::NotImplemented(_))
                 ),
                 "N1: {op1:?} / {op2:?} under a `*` root must reject"
@@ -2491,7 +2618,7 @@ mod tests {
             {
                 assert!(
                     matches!(
-                        select_text(&tree4(op1, op2, root)),
+                        select_text(&tree4(op1, op2, root), OptMode::Ox),
                         Err(BackendError::NotImplemented(_))
                     ),
                     "N2: {op1:?} / {op2:?} under a {root:?} root must reject"
@@ -2522,7 +2649,7 @@ mod tests {
             ],
         };
         assert_eq!(
-            select_text(&func).unwrap(),
+            select_text(&func, OptMode::Ox).unwrap(),
             vec![
                 0x7D, 0x63, 0x21, 0xD6, // mullw r11,r3,r4
                 0x7C, 0x6B, 0x29, 0xD6, // mullw r3,r11,r5
@@ -2551,7 +2678,7 @@ mod tests {
                 IlOp::Add,
             ],
         };
-        let text = select_text(&func).unwrap();
+        let text = select_text(&func, OptMode::Ox).unwrap();
         assert_eq!(
             text,
             vec![

@@ -637,6 +637,60 @@ mod comdat_tests {
         assert_ne!(sym_of(0), sym_of(1));
     }
 
+    /// The COMDAT emitter's two layout bugs, both found only when
+    /// `scripts/mode_lane.sh` first compiled the call fixtures with `/Gy`:
+    /// a callee symbol per *call site* rather than per distinct name, and all
+    /// relocations batched after all raw data rather than each following its own
+    /// section's.
+    #[test]
+    fn comdat_dedups_callees_and_places_relocs_with_their_section() {
+        let blr = crate::codegen::encode_blr().to_vec();
+        let mk = |name: &'static str, callee: &'static str| Function {
+            name,
+            text_offset: 0,
+            call: Some(Call { reloc_offset: 0, callee }),
+            is_float: false,
+            fp_refs: Vec::new(),
+        };
+        // Three functions, two calling the same callee — the shape `il_call_perm.cpp`
+        // has six of, where the port came out five symbols long.
+        let funcs = [
+            mk("?a@@YAHXZ", "?g@@YAHXZ"),
+            mk("?b@@YAHXZ", "?h@@YAHXZ"),
+            mk("?c@@YAHXZ", "?g@@YAHXZ"),
+        ];
+        let texts = vec![blr.clone(), blr.clone(), blr];
+        let obj = emit_comdat_obj("Z:\\t.obj", &funcs, &texts);
+
+        // 11 fixed + per function (section symbol + aux + defined symbol) = 9,
+        // + 2 distinct callees, NOT 3.
+        let n_symbols = u32::from_le_bytes(obj[12..16].try_into().unwrap());
+        assert_eq!(n_symbols, 22, "expected one symbol per distinct callee");
+
+        // Each `.text` section's relocation sits immediately after its own raw
+            // 4 fixed sections precede the per-function `.text` run.
+        // data, so `PointerToRelocations` == `PointerToRawData` + raw length.
+        for i in 0..funcs.len() {
+            let h = COFF_HEADER_LEN + (4 + i) * SECTION_HEADER_LEN;
+            let size = u32::from_le_bytes(obj[h + 16..][..4].try_into().unwrap()) as usize;
+            let raw = u32::from_le_bytes(obj[h + 20..][..4].try_into().unwrap()) as usize;
+            let prel = u32::from_le_bytes(obj[h + 24..][..4].try_into().unwrap()) as usize;
+            assert_eq!(
+                prel,
+                raw + size,
+                "section {i}: relocations must follow their own raw data"
+            );
+        }
+        // And the two `?g` sites share one symbol index while `?h` differs.
+        let sym_at = |i: usize| {
+            let h = COFF_HEADER_LEN + (4 + i) * SECTION_HEADER_LEN;
+            let prel = u32::from_le_bytes(obj[h + 24..][..4].try_into().unwrap()) as usize;
+            u32::from_le_bytes(obj[prel + 4..][..4].try_into().unwrap())
+        };
+        assert_eq!(sym_at(0), sym_at(2), "both `?g` call sites relocate to one symbol");
+        assert_ne!(sym_at(0), sym_at(1));
+    }
+
     /// The COMDAT shape, pinned against `system/utl/Spew.cpp` compiled with the
     /// dc3 workload's real flags (two empty functions, so two 4-byte `.text`
     /// sections each holding a single `blr`).
@@ -765,38 +819,75 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     let n_sections = sections.len();
 
     // Raw data is packed contiguously after the section headers — including
-    // between the per-function `.text` sections, which carry no padding.
+    // between the per-function `.text` sections, which carry no padding —
+    // **except** that a section's relocations immediately follow *its own* raw
+    // data, before the next section's:
+    //
+    //   .text[0] raw @696 ; .text[0] reloc @700
+    //   .text[1] raw @710 ; .text[1] reloc @714 ; …
+    //
+    // Not all raw data followed by all relocations. This emitter did the latter,
+    // which is only invisible when at most one section has relocations — and under
+    // `/Gy` every calling function's COMDAT `.text` has one, so the port's whole
+    // section table carried wrong `PointerToRelocations` values from the fifth
+    // header on (`il_call_value.cpp`, divergence at obj offset 204).
+    //
+    // Precisely the bug already fixed in [`emit_obj`] for the packed layout, where
+    // `.text` being last hid it. Two emitters, one wrong assumption, and the second
+    // one stayed wrong because no lane compiled a multi-call fixture with `/Gy`
+    // until `scripts/mode_lane.sh`.
     let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
     let mut ptrs = Vec::with_capacity(n_sections);
+    let mut reloc_ptr: Vec<Option<usize>> = vec![None; funcs.len()];
     let mut cursor = raw_base;
-    for s in &sections {
+    for (i, s) in sections.iter().enumerate() {
         ptrs.push(cursor);
         cursor += s.raw.len();
-    }
-    // Each function's relocations live with its own section.
-    let mut reloc_ptr = Vec::with_capacity(funcs.len());
-    for f in funcs {
-        if f.call.is_some() {
-            reloc_ptr.push(Some(cursor));
-            cursor += RELOC_LEN;
-        } else {
-            reloc_ptr.push(None);
+        // The i-th section past the fixed prefix belongs to funcs[i - FIXED].
+        if let Some(k) = i.checked_sub(FIXED_SECTIONS) {
+            if funcs.get(k).is_some_and(|f| f.call.is_some()) {
+                reloc_ptr[k] = Some(cursor);
+                cursor += RELOC_LEN;
+            }
         }
     }
     let ptr_symtab = cursor;
 
     // Symbols: the fixed 11-slot prefix, then per function a `.text` section
     // symbol (+aux), the defined FUNCTION symbol, and its callee if any.
+    // An undefined external callee is emitted **once per distinct name**, after the
+    // symbol of the function that first calls it; every later call site relocates
+    // against that same index. This path emitted one per *call site* instead, which
+    // is invisible until a TU has two functions calling the same callee under `/Gy`
+    // — `il_call_perm.cpp` has six calling `?g3`, and the port's symbol table came
+    // out five symbols long (obj offset 12, `NumberOfSymbols`). The packed emitter
+    // had already been fixed for exactly this; `emit_comdat_obj` had not, and no lane
+    // compiled the call fixtures with `/Gy` until `scripts/mode_lane.sh`.
     let mut next_idx: u32 = 11;
     let mut callee_idx: Vec<Option<u32>> = Vec::with_capacity(funcs.len());
+    // Whether this function is the one that introduces its callee's symbol.
+    let mut introduces: Vec<bool> = Vec::with_capacity(funcs.len());
+    let mut callee_syms: Vec<(&str, u32)> = Vec::new();
     for f in funcs {
         next_idx += 2; // section symbol + aux
         next_idx += 1; // the function symbol
-        if f.call.is_some() {
-            callee_idx.push(Some(next_idx));
-            next_idx += 1;
-        } else {
-            callee_idx.push(None);
+        match &f.call {
+            None => {
+                callee_idx.push(None);
+                introduces.push(false);
+            }
+            Some(call) => match callee_syms.iter().find(|(n, _)| *n == call.callee) {
+                Some((_, ix)) => {
+                    callee_idx.push(Some(*ix));
+                    introduces.push(false);
+                }
+                None => {
+                    callee_syms.push((call.callee, next_idx));
+                    callee_idx.push(Some(next_idx));
+                    introduces.push(true);
+                    next_idx += 1;
+                }
+            },
         }
     }
     let n_symbols = next_idx;
@@ -827,15 +918,19 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
         b.u32(s.characteristics);
     }
 
-    for s in &sections {
+    // Interleaved to match the layout computed above: each section's raw data,
+    // then its own relocations.
+    for (i, s) in sections.iter().enumerate() {
         b.bytes(&s.raw);
-    }
-
-    for (f, cidx) in funcs.iter().zip(&callee_idx) {
-        if let (Some(call), Some(ci)) = (&f.call, cidx) {
-            b.u32(call.reloc_offset);
-            b.u32(*ci);
-            b.u16(REL_PPC_REL24);
+        if let Some(k) = i.checked_sub(FIXED_SECTIONS) {
+            if let (Some(f), Some(Some(_))) = (funcs.get(k), reloc_ptr.get(k)) {
+                if let (Some(call), Some(ci)) = (&f.call, callee_idx[k]) {
+                    debug_assert_eq!(b.0.len(), reloc_ptr[k].unwrap());
+                    b.u32(call.reloc_offset);
+                    b.u32(ci);
+                    b.u16(REL_PPC_REL24);
+                }
+            }
         }
     }
     debug_assert_eq!(b.0.len(), ptr_symtab);
@@ -860,7 +955,8 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
         emit_section_symbol(&mut b, &sections[FIXED_SECTIONS + i], sec_num, nrel);
         // The function is at offset 0 of its own section.
         emit_function_symbol(&mut b, &mut strtab, f.name, sec_num, 0);
-        if let Some(call) = &f.call {
+        // Only the function that *introduces* this callee emits its symbol.
+        if let (Some(call), true) = (&f.call, introduces[i]) {
             emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
         }
     }
