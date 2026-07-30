@@ -2333,8 +2333,8 @@ short-form word 17, which is the finding in miniature.
 
 **473,611 → 482,748 (19.23 % → 19.60 %), +9,137** over three rungs, mismatch 0,
 census/gate disagreement 0, **two keys fewer** and none added. Final gates:
-workspace **403 pass**, `bench` **147 pass / 0 fail / 0 error**, lanes `/Ox`
-**67** and `/O1`·`/O2`·`/Ox /Gy` **65**, **0 mismatch** in all four,
+workspace **403 pass**, `bench` **148 pass / 0 fail / 0 error**, lanes `/Ox`
+**68** and `/O1`·`/O2`·`/Ox /Gy` **66**, **0 mismatch** in all four,
 `census_gate.rs` at its recorded 1 packed / 9 `/Gy`, sweep **5,868 cases / 0
 mismatches**, 878-TU scan match 6 / mismatch 0 / capture-fail 7 / disagreement 0,
 cache validator 17 re-captured and agreed / 0 poisoned, corpus `dc3-decomp`
