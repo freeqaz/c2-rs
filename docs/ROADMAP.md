@@ -676,6 +676,28 @@ instrument:
 | + the 2026-07-29/30 overnight ladder: statement layer + chain canonicalization + multi-arg tail calls + expression/intrinsic decode (≈ cebfb88 → 6edfef6) | 87,423 | 3.55 |
 | + `/O1` support, `/O1` compare spines, indirect-load leaves, intrinsic-2117 decode (**HEAD `2724ca5`, re-measured 2026-07-30**) | **109,501** | **4.45** |
 | + `.sy` locals, the line-70 `this` mis-emit fix, and the lexical-scope layer (**HEAD `b775afe`, 2026-07-30**) | **110,366** | **4.48** |
+| + T3 narrow-integer getter leaves — `lbz`/`lhz`/`ld` (`a6304fa`) | 140,476 | 5.70 |
+| + T2 aggregate-TYPE size decode (`58099c9`) — a correctness fix, measured yield **0** | 140,476 | 5.70 |
+| − the argument-register precondition (`1158356`) — a **correctness fix that costs coverage** | **122,487** | **4.97** |
+
+That last row goes the wrong way on purpose, and it is the most instructive row
+in the table. A formal's list index had been standing in for its
+argument-register number; a by-value aggregate wider than 8 bytes takes more than
+one GPR and `int gb(Big v, H* h) { return h->mi; }` emitted `lwz r3,0(r4)` where
+c2 emits `lwz r3,0(r6)`. Enforcing the precondition turns 17,989 admissions into
+refusals. Mismatch outranks coverage, so the number is allowed to fall — but the
+*reason* it falls this far is not the aggregates:
+
+| refusal reason | functions |
+|---|---:|
+| `param-width-undetermined` — `.sy` did not bind, so widths are unknown | **567,549** |
+| `param-multi-reg` — a genuinely multi-register parameter | **1** |
+
+One. The entire bill is `.sy` failing to bind on real translation units, which is
+now the #1 census blocker at 2.3× the next (`expr-call-in-expr`, 248,195) and is
+the top of the worklist. It also retro-explains why the `.sy` int-locals rung
+measured ~0 workload yield when it landed: `.sy` appears never to have bound on a
+single real TU, so that rung has been fixture-only from the start.
 
 The first two steps were *decode* fixes, not new codegen — the expected shape
 of progress while the wall is `vocab-gap`. The third is a 10× jump from one
@@ -1137,6 +1159,34 @@ Note the distinction that has made estimates here wrong before: the `float` (93,
 and `double` (79,542) buckets proper are FP-**arithmetic** bodies, not getters, and
 will behave the way W13b did — about +1 — until real FP codegen exists. "A load of
 type T" and "arithmetic in type T" are different rungs.
+
+#### The ~118k estimate, adjudicated: **it was +0** (measured 2026-07-30)
+
+The pointer-load rung above was implemented, reviewed, and graded. It is correct —
+byte-exact on a 10-function cross of `int`/`char`/`long long` values against
+`int*`/`const int*`/`char*`/`void*`/`int**`, admitting 10/10 where mainline admits
+3/10 — and its measured census delta across all 878 TUs is **zero**. Both facts
+are true at once, and the gap between them is the lesson.
+
+The estimate came from the `expr-load-type-A643xx`/`8643xx` census family. That
+key is emitted at `crates/c2-il/src/func/body/expr.rs:309`, inside the `parse_expr`
+**operand** gate — *not* by the indirect-load leaf the rung widened. So the rung
+moved a production the bucket does not measure. `src/xdk/nuiapi/headtracker.cpp`,
+one of the three TUs the estimate was built from, still reports 6 ×
+`expr-load-type-A6438B` with the rung applied.
+
+This is the **mis-attribution** failure `GAPS.md` §6 already records — a
+first-blocker histogram files a function by the position the parse stopped at, not
+by the construct — and it is the first time it has inflated a rung's estimate
+rather than merely mixed a bucket. The regrouping that produced the ~1.1M figure
+above corrected the *sharding* failure and left the *attribution* one in place; the
+two are independent, and fixing one does not validate a number computed under the
+other. **Before ranking from a bucket, find the line that emits it.**
+
+Two rungs must land before the pointer class pays anything, and they are now the
+top of the worklist in this order: `.sy` binding on real TUs
+(`param-width-undetermined`, 567,549) and the `parse_expr` operand gate (not
+decode-only — a pointer in an add chain needs element-size scaling).
 
 ## 6b. Independent review, 2026-07-30 (HEAD `2724ca5`)
 
