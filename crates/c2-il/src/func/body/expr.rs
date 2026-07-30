@@ -1,7 +1,7 @@
 use super::{blk, blk_type, Block};
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like_or_ptr4, eat_opt_stmt_marker, read_token_var, read_varint,
-    INT_TYPE,
+    eat, eat_byte, eat_int_like_or_ptr4, eat_opt_stmt_marker, eat_value_type, read_token_var,
+    read_varint, ValueClass, INT_TYPE,
 };
 use crate::func::IlOp;
 
@@ -335,12 +335,44 @@ pub(crate) fn eat_fn_tail(seg: &[u8], p: &mut usize) -> Result<(), Block> {
 /// The guard is on the whole sub-expression, not on the adjacent token: the
 /// pointer may be loaded before or after the operator, and one `Vec<IlOp>` is one
 /// value, so a single check when the stream ends covers every interleaving.
+///
+/// ## …and a `2C` conversion is consumed where it costs no instruction
+///
+/// `2C <TYPE> 00` converts the value on top of the operand stack. It is admitted
+/// **only when the target is that value's own [`ValueClass`]** — an int4→int4
+/// conversion (a cv-strip, `int`↔`unsigned`, `long`) or a ptr4→ptr4 one (a
+/// cv-strip, `T*`→`void*`), each of which is a register-to-register identity that
+/// c2 emits nothing for. So the arm pushes no [`IlOp`] and no lowering changes.
+/// This is not a new rule: it is the one
+/// [`super::shapes::finish_indirect_load`] and
+/// [`super::shapes::try_parse_ptr_identity_leaf`] have been byte-graded on since
+/// the getter rungs, reached through the same [`eat_value_type`] locator. What is
+/// new is the *position* — an operand of a general expression rather than a
+/// leaf's single value, which is where the workload's population lives
+/// (`docs/IL_CALL_IN_EXPR.md` §24).
+///
+/// Tracking the value's class as "the class of the last operand" is exact here
+/// rather than approximate, and the argument is one line: every accepted
+/// conversion preserves the class, every accepted operator over a *pointer* is
+/// refused outright by the guard above, and arithmetic over int4 values yields an
+/// int4 value — so an accepted sub-expression has exactly ONE class throughout.
+/// Where the two could differ (`(void *)(s + 1)`, whose last operand is the
+/// literal) the guard refuses the body anyway; only the census key changes.
 pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     // Big enough for every fixture body; a longer stream grows normally.
     let mut ops = Vec::with_capacity(16);
     // Set by a LOAD or LIT whose TYPE was a 4-byte pointer rather than an
     // int-like one. Checked once, below, against the arithmetic in `ops`.
     let mut saw_ptr = false;
+    // The [`ValueClass`] of the value on top of the operand stack, or `None`
+    // before the first operand. Only the `2C` arm reads it, and only to require
+    // that a conversion stays inside the class it started in — which is what makes
+    // the top of the stack knowable from the last operand alone. Every accepted
+    // conversion is class-preserving and every accepted operator is int-only (the
+    // pointer-arithmetic guard below bars the mixed case), so the whole
+    // sub-expression has ONE class and this variable is that class, not a
+    // shortcut for it.
+    let mut class: Option<ValueClass> = None;
     loop {
         let b = *seg.get(*p).ok_or(blk(seg, *p, "expr"))?;
         if b == stop {
@@ -373,7 +405,10 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
                     read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-load-tok"))?;
                 *p += w;
                 match eat_int_like_or_ptr4(seg, p) {
-                    Some(is_ptr) => saw_ptr |= is_ptr,
+                    Some(is_ptr) => {
+                        saw_ptr |= is_ptr;
+                        class = Some(if is_ptr { ValueClass::Ptr4 } else { ValueClass::Int4 });
+                    }
                     // neither int-like nor a 4-byte pointer → out of class.
                     // Report at the LOAD so the census bucket reads as a
                     // typed-operand gap, not a stray byte.
@@ -386,7 +421,10 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
                 let start = *p;
                 *p += 1;
                 match eat_int_like_or_ptr4(seg, p) {
-                    Some(is_ptr) => saw_ptr |= is_ptr,
+                    Some(is_ptr) => {
+                        saw_ptr |= is_ptr;
+                        class = Some(if is_ptr { ValueClass::Ptr4 } else { ValueClass::Int4 });
+                    }
                     None => return Err(blk_type(seg, *p, start, "expr-lit-type")),
                 }
                 ops.push(IlOp::Lit(
@@ -412,6 +450,54 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
             // refusal is unchanged**; only the census key is, and the walk names the
             // construct the `26` opened rather than the byte the parse stopped on.
             // See `super::mcall` and `docs/IL_CALL_IN_EXPR.md` §14.
+            // A `2C` CONVERSION applied to the value on top of the operand stack:
+            // `2C <TYPE target> <varint 0>`. Admitted **only when the target is the
+            // class the value already has**, which is the one case measured to emit
+            // no instruction at all — so this arm pushes no [`IlOp`], changes no
+            // lowering, and needs no codegen (`docs/IL_CALL_IN_EXPR.md` §24).
+            //
+            // The rule is not new here. It is the same rule
+            // [`super::shapes::finish_indirect_load`] and
+            // [`super::shapes::try_parse_ptr_identity_leaf`] have carried and had
+            // byte-graded since the getter rungs — an int4→int4 conversion
+            // (cv-strip, `int`↔`unsigned`, `long`) and a ptr4→ptr4 one
+            // (cv-strip, `T*`→`void*`) are each free — reached through the same
+            // [`eat_value_type`] locator rather than a second copy. What is new is
+            // the *position*: a general expression operand rather than a leaf's
+            // single value.
+            //
+            // **Cross-class refuses**, and that is a conservatism with a measured
+            // price rather than an oversight: `int f(S* p){ return (int)p; }` and
+            // `S* f(int a){ return (S*)a; }` are both a bare `blr` on this target
+            // (probed), so admitting them is a rung — but a reinterpret between the
+            // two classes has never been graded across the widths, cv-spellings and
+            // argument positions this parser reaches, and `expr-convert-target`
+            // makes what it costs a number instead of an argument.
+            //
+            // The trailing varint is required to be literally `0`. It is `00` at
+            // every aligned site any capture has shown, and a field that never
+            // varied is indistinguishable from a constant (`GAPS.md` §6), so it is
+            // required rather than skipped and its own key counts the exceptions.
+            0x2C => {
+                let start = *p;
+                let mut probe = *p + 1;
+                // A conversion with nothing to convert is not a conversion. This
+                // cannot be reached by a well-formed stream and refuses rather than
+                // guessing a class.
+                let Some(cls) = class else {
+                    return Err(blk(seg, start, "expr-convert-no-value"));
+                };
+                if !eat_value_type(seg, &mut probe, cls) {
+                    // Either an unmodeled target type (`char`, `long long`, a
+                    // float) or a cross-class reinterpret. Reported at the target
+                    // TYPE so the key names it (`<tag><kind>`, never the per-TU id).
+                    return Err(blk_type(seg, *p + 1, start, "expr-convert-target"));
+                }
+                if !eat_byte(seg, &mut probe, 0x00) {
+                    return Err(blk(seg, probe, "expr-convert-tail"));
+                }
+                *p = probe;
+            }
             0x26 => return Err(super::mcall::classify(seg, *p)),
             _ => return Err(blk(seg, *p, "expr")),
         }
@@ -667,6 +753,168 @@ mod tests {
         assert_eq!(intrinsic_selector(&seg, 4), None);
         let b = parse_segment_detail(&free_fn(&seg), NO_LOCALS).unwrap_err();
         assert_eq!(b.feature(), "expr-intrinsic-call");
+    }
+
+    // ---- the `2C` conversion in an expression operand position (D12) --------
+    //
+    // Every array below is a whole function segment transcribed verbatim from a
+    // live capture of `fixtures/cpp/w20_convert.cpp` (`c2rs census … --keep-il`),
+    // not hand-assembled: the point of the production is *where* the `2C` sits
+    // relative to the operands, and only a capture settles that.
+
+    /// `unsigned c_u_of_i(int a) { return (unsigned)a; }` — one operand, the
+    /// conversion between it and the `41` result. `int` → `unsigned`, both width 4.
+    const CONV_ONE: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x1E, 0x53, 0x53, 0x26, 0x01, 0x0A,
+        0x46, 0x2D, 0x00, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x00, 0x0A, 0x86, 0x41, 0x74, 0x2C,
+        0x86, 0x42, 0x75, 0x00, 0x41, 0x86, 0x42, 0x75, 0x3A, 0x02, 0x0A, 0x54, 0x02, 0x29, 0x02,
+        0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `unsigned ch_trail(int a, int b) { return a + (unsigned)b; }` — the
+    /// conversion sits **between the two operands**, before the `02` ADD.
+    const CONV_INTERIOR: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x2C, 0x53, 0x53, 0x26, 0x25, 0x0A,
+        0x46, 0x2D, 0x24, 0x0A, 0x2D, 0x23, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x23, 0x0A, 0x86,
+        0x41, 0x74, 0xB9, 0x24, 0x0A, 0x86, 0x41, 0x74, 0x2C, 0x86, 0x42, 0x75, 0x00, 0x02, 0x41,
+        0x86, 0x42, 0x75, 0x3A, 0x26, 0x0A, 0x54, 0x02, 0x29, 0x26, 0x0A, 0x4F, 0x12, 0x47, 0x54,
+        0x01, 0x54, 0x00,
+    ];
+
+    /// `unsigned ch_whole(int a, int b) { return (unsigned)(a + b); }` — the same
+    /// two operands and the same ADD, with the conversion **after** the operator.
+    /// Byte-for-byte the same operand stream as [`CONV_INTERIOR`] with the `2C`
+    /// unit moved four bytes later, and it must lower identically.
+    const CONV_TRAILING: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x2E, 0x53, 0x53, 0x26, 0x30, 0x0A,
+        0x46, 0x2D, 0x2F, 0x0A, 0x2D, 0x2E, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0xB9, 0x2E, 0x0A, 0x86,
+        0x41, 0x74, 0xB9, 0x2F, 0x0A, 0x86, 0x41, 0x74, 0x02, 0x2C, 0x86, 0x42, 0x75, 0x00, 0x41,
+        0x86, 0x42, 0x75, 0x3A, 0x31, 0x0A, 0x54, 0x02, 0x29, 0x31, 0x0A, 0x4F, 0x12, 0x47, 0x54,
+        0x01, 0x54, 0x00,
+    ];
+
+    /// `int p_void(S *s) { return gv(s); }` — the POINTER half, and the position
+    /// that carries it on the real workload: a `T*` → `void*` conversion inside a
+    /// call-argument region, which is `parse_expr`'s other caller.
+    const CONV_PTR_ARG: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x4D, 0x53, 0x53, 0x26, 0xA0, 0x0A,
+        0x46, 0x2D, 0x9F, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xFC, 0x09, 0xBD, 0x86, 0x41, 0x74,
+        0x00, 0x80, 0x0D, 0x10, 0x00, 0x00, 0xB9, 0x9F, 0x0A, 0x86, 0x43, 0x89, 0x20, 0x2C, 0x86,
+        0x43, 0x83, 0x08, 0x00, 0x55, 0x86, 0x43, 0x83, 0x08, 0x4C, 0x41, 0x86, 0x41, 0x74, 0x3A,
+        0xA1, 0x0A, 0x54, 0x02, 0x29, 0xA1, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// Replace the first `2C` unit's TYPE in `seg` with `ty`, keeping the trailing
+    /// `00`. Used to move the target across the class boundary without touching
+    /// anything else about the segment.
+    fn retarget(seg: &[u8], ty: &[u8]) -> Vec<u8> {
+        let at = seg
+            .windows(4)
+            .position(|w| w[0] == 0x2C && w[1] == 0x86 && (w[2] == 0x42 || w[2] == 0x43))
+            .expect("a 2C unit");
+        let old = if seg[at + 2] == 0x43 { 4 } else { 3 };
+        let mut v = seg[..at + 1].to_vec();
+        v.extend_from_slice(ty);
+        v.extend_from_slice(&seg[at + 1 + old..]);
+        v
+    }
+
+    #[test]
+    fn a_class_preserving_convert_is_free_at_every_position() {
+        // The conversion emits nothing, so it must push no `IlOp` — and a body
+        // that differs from an accepted one only by where its `2C` sits must
+        // produce the IDENTICAL operand stream. That is the whole claim: c2
+        // compiles `(unsigned)a + b`, `a + (unsigned)b` and `(unsigned)(a + b)` to
+        // the same `add r3,r3,r4 ; blr`.
+        assert_eq!(
+            parse_segment(CONV_ONE, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![0x000A],
+                ops: vec![IlOp::Load(0x000A)],
+            })
+        );
+        let interior = parse_segment(CONV_INTERIOR, NO_LOCALS);
+        let trailing = parse_segment(CONV_TRAILING, NO_LOCALS);
+        assert_eq!(
+            interior,
+            Some(BodyShape::StraightLine {
+                params: vec![0x230A, 0x240A],
+                ops: vec![IlOp::Load(0x230A), IlOp::Load(0x240A), IlOp::Add],
+            })
+        );
+        // Same shape, same operator, same operand order — only the token ids
+        // differ, because they are two different functions in one TU.
+        let Some(BodyShape::StraightLine { ops, .. }) = trailing else {
+            panic!("the trailing form must parse as the same shape");
+        };
+        assert_eq!(ops, vec![IlOp::Load(0x2E0A), IlOp::Load(0x2F0A), IlOp::Add]);
+    }
+
+    #[test]
+    fn a_pointer_convert_in_a_call_argument_is_free() {
+        // The half of the workload population that is `calls-1`: the argument of a
+        // tail call, cv-stripped or widened to `void*` on the way in.
+        assert!(matches!(
+            parse_segment(CONV_PTR_ARG, NO_LOCALS),
+            Some(BodyShape::IntTailCall { .. })
+        ));
+    }
+
+    #[test]
+    fn a_convert_out_of_the_value_s_class_refuses_and_names_its_target() {
+        // `int f(S* p){ return (int)p; }` and `S* f(int a){ return (S*)a; }` are
+        // both a bare `blr` on this target — the refusal is a conservatism, not a
+        // correction — so the key has to say what was refused rather than hide it
+        // in a generic bucket. `86 43 83 08` is `void *`.
+        let seg = retarget(CONV_ONE, &[0x86, 0x43, 0x83, 0x08]);
+        let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+        assert_eq!(b.feature(), "expr-convert-target-8643");
+        assert!(parse_segment(&seg, NO_LOCALS).is_none());
+    }
+
+    #[test]
+    fn a_convert_to_a_narrower_type_refuses() {
+        // `(char)a` is `extsb r3,r3` and `(long long)a` is `extsw r3,r3` — real
+        // instructions the modeled chain cannot produce. `82 11 70` is `char`.
+        for (ty, want) in [
+            (&[0x82u8, 0x11, 0x70][..], "expr-convert-target-8211"),
+            (&[0x84, 0x21, 0x11][..], "expr-convert-target-8421"),
+            (&[0x88, 0x81, 0x13][..], "expr-convert-target-8881"),
+            (&[0x86, 0x45, 0x76][..], "expr-convert-target-8645"),
+        ] {
+            let seg = retarget(CONV_ONE, ty);
+            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+            assert_eq!(b.feature(), want);
+        }
+    }
+
+    #[test]
+    fn the_convert_s_trailing_field_is_required_to_be_zero() {
+        // It is `00` at every aligned site any capture has produced, and a field
+        // that never varied is indistinguishable from a constant (`GAPS.md` §6),
+        // so it is required literally and its exceptions get their own key rather
+        // than being skipped over.
+        let at = CONV_ONE
+            .windows(5)
+            .position(|w| w[0] == 0x2C && w[1] == 0x86 && w[2] == 0x42 && w[4] == 0x00)
+            .expect("the 2C unit");
+        let mut seg = CONV_ONE.to_vec();
+        seg[at + 4] = 0x01;
+        let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+        assert_eq!(b.feature(), "expr-convert-tail-0x01");
+        assert!(parse_segment(&seg, NO_LOCALS).is_none());
     }
 
     #[test]
