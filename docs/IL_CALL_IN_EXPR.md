@@ -3152,3 +3152,394 @@ C2RS_JOBS=16 scripts/expr_sweep.sh                            # checked=3743 mis
 
 Always difference the scans through **absolute** paths and print each one's row
 count and `fn_total` first — §18.8.
+
+## 22. D10, landed — the ranking that refuted its own head, and the register move
+
+§21 closed with `expr-op-0x27` "the ranked next rung; it is the same `27` the
+address leaf (§19) already lowers in a *designator* position, so the question it
+poses is whether that lowering generalizes." This rung asked, measured, and the
+answer is **no** — the row is 505,122 functions and 0.14 % of it is takeable.
+The rung that shipped is the one beside it: 43,319 functions, one instruction,
+and it converted 1:1.
+
+It also found two live wrong-bytes emits on mainline, which outranked everything
+and went first (§22.6).
+
+### 22.1 The two candidates, decomposed — MEASURED
+
+Baseline taken **in this worktree** per §18.8, and its row count and denominator
+printed before any differencing: `work/dc3-workload/scan-base27.jsonl`, 878
+rows, `fn_total` 2,462,571, in class **334,657 (13.59 %)**, mismatch 0, 6
+`match` / 7 `capture-fail`. That agrees with §21.4's figure, which is the only
+thing agreeing on `fn_total` proves.
+
+| | functions | calls-0 | calls-1 | calls-2plus |
+|---|---:|---:|---:|---:|
+| `expr-op-0x27` | 505,122 | 314,350 | 74,659 | 116,113 |
+| `expr-out-of-class:eof` | 46,200 | **46,200** | 0 | 0 |
+
+**`expr-out-of-class` was one key covering five different lowerings** — a
+register move, a `lis`/`ori`, a strength-reduced multiply, a `subfic`, a stack
+frame — which is `GAPS.md` §6's conflation failure in miniature: a row that
+cannot be decomposed cannot be ranked. Split (census-key-only change,
+numerator unchanged):
+
+| functions | clause | what it costs |
+|---:|---|---|
+| **43,319** | `expr-out-of-class-bare-nonfirst-formal` | one `mr r3,rN` |
+| 2,881 | `expr-out-of-class-bare-nonformal` | nothing implied — a global, a `.sy` local |
+| 0 | `expr-out-of-class-formals9` | a frame |
+| 0 | `expr-out-of-class-wide-neg-lit` | `lis`/`ori` for a negative |
+| 0 | `expr-out-of-class-mul-by-lit` | strength reduction |
+| 0 | `expr-out-of-class-lit-minus-reg` | `subfic` |
+
+Three of the six clauses are **zero on the real workload** — they exist only in
+fixtures — which is a measurement the single key could not make. The head clause
+is 93.8 % of the row, every one of it `calls-0`, and spread over **831 of the
+878 TUs** (largest single TU 196), so it is not one file's idiom.
+
+**And it is 100 % whole-body complete, by construction rather than by estimate.**
+The refusal is raised in `parse_segment_shape` *after* `parse_expr`,
+`eat_return_plumbing` **and** `parse_params` have all succeeded — the `:eof` in
+the key is the parse reaching the end of the segment. There is no second blocker
+to discover behind this row, which no previous rung in this document could say.
+
+### 22.2 The `27` counterfactual — MEASURED, and it refutes §21.5's ranking
+
+`parse_expr` was given a `0x27` arm in a **scratch build** (consume
+`27 <TYPE>`, fold the preceding literal into an `AddrOf`), with a thread-local
+flag sunk in `parse_segment_detail` so that a body which parses to the end is
+counted and **never claimed in class**. Nothing was committed; the build was
+reverted and every number below re-taken against the committed tree.
+
+**Admitting the `27` releases all 505,122 functions and leaves 685
+grammar-complete — 0.14 %.** Where the rest stop:
+
+| functions | new key | what it is |
+|---:|---|---|
+| +218,166 | `expr-op-0x30` | an indirect load in a general expression position |
+| +76,893 | `expr-op-0x99` | the by-value temporary bind |
+| +55,828 | `expr-op-0x32` | a store |
+| +27,095 | `expr-load-type-8645` | a float operand |
+| +14,218 | `expr-call-in-expr-data-addr-then-off-add-more` | |
+| +11,933 | `expr-load-type-8212` | |
+| +10,643 | `expr-call-in-expr-data-addr-then-off-add-whole` | |
+
+The largest destination is the one the port explicitly refuses on measured
+grounds: `*p + 1` puts the load in r11 and `*p * 3` strength-reduces
+(`codegen::indirect_load_text`), so `expr-op-0x30` is not a decode gap either.
+**`expr-op-0x27` is a gate standing in front of the expression layer over
+pointers, exactly as the pointer *type* was a gate standing in front of it** —
+D9's finding one token deeper, and the second time this document has been handed
+"the largest row is the obvious next rung" and measured it to 1.4 % and then
+0.14 %.
+
+The 685 are not zero-value, but they are not a rung: they carry an `AddrOf` into
+a general expression, which no capture covers.
+
+### 22.3 The ranking, and the estimate — stated before the outcome
+
+| | `expr-op-0x27` | `expr-out-of-class-bare-nonfirst-formal` |
+|---|---:|---:|
+| row | 505,122 | 43,319 |
+| whole-body complete | **685 (0.14 %)** | **43,319 (100 %)** |
+| needs a frame | 190,772 | **0** |
+| lowering | `AddrOf` in an expression — no capture | one `mr r3,rN` — captured |
+| locality tell | not run (nothing to take) | **run, passes** |
+
+Per §13.1's rule:
+
+> **Estimate: +43,300 ± 700, biased LOW.** Biased low because the same rule has
+> a second parser site — `try_parse_addr_leaf`'s `off == 0 && ix != 0` refusal,
+> the zero-offset sub-object address from a non-first argument, which is the
+> same `mr` — whose population was **not** measured and which lands in other
+> keys. High only if a body in the row emits something other than the move.
+
+Outcome **+44,003**: 43,319 from the named key and **684** from that second
+site. The low bias was the right call and its named cause was the whole of it.
+
+The 684 are, to within one function, the 685 the `27` counterfactual measured as
+its entire grammar-complete residue — because a zero-offset designator spells
+its offset as a literal `0` behind a `27`, so those bodies were filed under the
+505,122-function row. **The whole of what candidate B would have bought arrived
+as a side effect of candidate A's second site.**
+
+### 22.4 The locality tell, run before committing — MEASURED
+
+§6's `data-addr` rung was ranked #1 at 21,642 and yielded 0 because instruction
+selection there depends on a whole-TU constant-pool layout; the cheap tell is
+several byte-identical source functions in one TU emitting *different*
+sequences. Run first, one TU, eight functions:
+
+```text
+  int  f2(int a,int b)               { return b; }   7c832378   mr r3,r4
+  int  g2(int a,int b)               { return b; }   7c832378   identical
+  int  f3(int a,int b,int c)         { return c; }   7ca32b78   mr r3,r5
+  int  g3(int a,int b,int c)         { return c; }   7ca32b78   identical
+  int  f4(int a,int b,int c,int d)   { return d; }   7cc33378   mr r3,r6
+  S*   p2(int a, S* s)               { return s; }   7c832378   mr r3,r4
+  S*   p3(S* r, S* s)                { return s; }   7c832378   mr r3,r4
+  int  h8(…8 ints…)                  { return h; }   7d435378   mr r3,r10
+```
+
+The word is a function of the formal's argument slot and of nothing else — not
+of position in the file, not of the pool, not of the other functions present.
+`mr rD,rS` is `or rD,rS,rS` (opcode 31, XO 444). A second probe TU adds the
+member and address forms:
+
+```text
+  int  C::mm(int x,int y) const      { return y; }   7ca32b78   mr r3,r5  (this=r3)
+  S*   C::ps(S* q) const             { return q; }   7c832378   mr r3,r4
+  int* a0(int k, S* s)               { return &s->a; } 7c832378 mr r3,r4
+  int* a4(int k, S* s)               { return &s->b; } 38640004 addi r3,r4,4
+  S*   cv(int k, const S* s)         { return (S*)s; } 7c832378 mr r3,r4
+  unsigned u2(int a, unsigned b)     { return b; }   7c832378   mr r3,r4
+  short    s2(int a, short b)        { return b; }   7c832378   mr r3,r4
+  long long l2(int a, long long b)   { return b; }   7c832378   mr r3,r4
+  float    f2(int a, float b)        { return b; }   4e800020   blr — NOT this class
+```
+
+`a0`/`a4` are the pair that separates the two lowerings, and the last line is
+where the FP alarm came from (§22.6).
+
+### 22.5 What shipped
+
+The rule had **three** sites, and grepping for them before quoting a number is
+§13.1's method:
+
+* `chain::straight_line_out_of_class_ctx` — the clause is gone; a bare LOAD is
+  refused only when its token is **not a formal at all**. The function now
+  returns *which* clause fired rather than a bool, so every remaining refusal is
+  its own census key and the predicate is `.is_some()` of it.
+* `codegen::select_text`'s finalize — the `Base::Phys(other)` arm, which had
+  carried the refusal since the class was written, records a `PlanOp::RegMove`.
+  It is always the last plan entry, so its destination is r3 by the existing
+  rule; the mode does not reach it, because there is no intermediate to
+  allocate.
+* `codegen::addr_leaf_text` — the zero-offset-from-a-non-first-argument refusal
+  becomes the same `mr`. Its parser twin `try_parse_addr_leaf`'s
+  `off == 0 && ix != 0` is gone with it.
+* `shapes::try_parse_assign_body_detail` — **a fourth site, and it was a
+  defect.** It produced a `BodyShape::StraightLine` without consulting the
+  out-of-class predicate at all, so `int f(int a){ int x = a; return x * 3; }`
+  censused **in class** while `PortC2` returned `NotImplemented`: exactly the
+  census/gate disagreement the predicate was extracted from codegen to prevent,
+  reintroduced by a second producer that never called it. It shares the
+  predicate now.
+
+`try_parse_ptr_identity_leaf` needed no change — it already called the shared
+predicate rather than keeping a copy, which is why the pointer half of this rung
+came for free.
+
+### 22.6 The alarm this rung found first — TWO live wrong-bytes emits
+
+`float f2(int a, float b) { return b; }` above compiles to a bare `blr`, and
+probing why produced a `Mismatch` on mainline. Two of them, both in the FP leaf,
+both the `GAPS.md` §6 pattern (*two facts that share one field until some
+construct pulls them apart*), and neither reachable from the fixture corpus:
+
+```text
+  float mixfp(int a, float b, float c) { return b * c; }
+    c2    ec2100b2   fmuls f1,f1,f2
+    port             fmuls f1,f2,f3          WRONG
+
+  float fp_pass2(float a, float b)     { return b; }
+    c2    fmr f1,f2 ; blr
+    port              blr                    WRONG
+```
+
+1. **`float_leaf_text` maps parameter `n` to `f(n+1)`.** The FP file is numbered
+   over the FP parameters *alone*, so any non-FP parameter ahead of a float
+   breaks the identity. `fixtures/cpp/w13_fabi.cpp` **states this rule in a
+   comment and carries `fp_skip`, which is exactly the failing case** — it hid
+   because that TU also holds an out-of-class function and the port is
+   all-or-nothing per TU, so those bytes were never emitted. Alone in a TU it
+   reproduces immediately. A characterization fixture that documents a rule the
+   emitter does not implement is not a test of it.
+2. **A bare `return <FP parameter>` that is not the first is an `fmr`.** The
+   integer class has gated precisely this shape since it was written — it is the
+   43,319-function clause this rung is *about* — and the FP class never got the
+   same gate. `GAPS.md` §6 instance 2 verbatim: *a locator nobody consults is
+   not shared.*
+
+**Gated closed, not fixed:** `try_parse_float_leaf` now requires **every formal
+to appear as an FP operand of the body**. Each such operand carries the FP type
+in its own `B9` LOAD, so a formals list holding nothing else is what proves the
+index is the register number. The remaining over-refusal is honest rather than
+lazy: whether `float f(float a, float b){ return b*b; }` needs an `fmr` depends
+on `a`'s type, the body never mentions `a`, and the two spellings have
+**identical body bytes**. That is the three-valued *undetermined* `GAPS.md` §6
+asks for. `.sy` records each formal's type kind and would decide it — the reader
+already reads the kind and discards it — which is a rung with its own grading,
+not a tidy-up. Codegen keeps a second lock: a single remaining FP stack value
+that is not f1 refuses.
+
+**Cost, measured: census 334,657 → 333,652, −1,005.** Every one of those 1,005
+moves to `expr-load-type-8645` and every one of them was numerator that could
+never have been emitted. A rung that *lowers* the headline by removing bodies
+the port would have got wrong.
+
+`fixtures/cpp/w13_fparam_neg.cpp` (19 functions, 0 in class, never mismatching)
+and 100 sweep cases over lead-parameter type × position × arity × width pin it.
+**28 of those cases mismatch against the previous build and 0 against this one**,
+which is the check that the new axis is not vacuous.
+
+### 22.7 The outcome — MEASURED
+
+Baseline for the rung is the post-alarm tree: `scan-fpfix.jsonl`, 878 rows,
+`fn_total` 2,462,571, in class **333,652 (13.55 %)**. Result `scan-w18.jsonl`,
+same list, flags and `--cwd`.
+
+| | baseline | D10 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 333,652 (13.55 %) | **377,655 (15.34 %)** | **+44,003** |
+| mismatch | 0 | **0** | 0 |
+| `match` / `capture-fail` | 6 / 7 | 6 / 7 | 0 |
+| TUs changing class | — | **0** | — |
+| functions LOST, any TU | — | **0** | — |
+| TUs gaining | — | 831 | max 196 |
+
+**The bucket drop equals the census gain exactly, with zero residue** — the
+fourth rung in this document to convert 1:1, and the first whose row was
+*known* to be whole-body complete before it was taken rather than inferred from
+a `-whole` suffix:
+
+| | released | landed |
+|---|---:|---:|
+| `expr-out-of-class-bare-nonfirst-formal` | −43,319 | `straight-line` +43,319 |
+| `expr-op-0x27` | −684 | `addr-leaf` +684 |
+| **total** | **−44,003** | **+44,003** |
+
+No key gained population. All 44,003 are `calls-0`.
+
+Byte-graded, and this rung's grading is not only census movement:
+
+* `fixtures/cpp/w18_reg_move.cpp` — **38/38 in class, whole obj byte-exact**
+  against real `c2`. Every argument slot r4..r10 at every arity; `int` and
+  `unsigned`; six pointer spellings including `void*`, `int**` and a `const`
+  cast; member functions at three arities (where `this` takes r3); the
+  zero-offset/nonzero-offset address pair; an 8-byte by-value aggregate ahead of
+  the moved formal; the tail-call argument setup; and two byte-identical bodies
+  in the file for the locality tell.
+* `fixtures/cpp/w18_reg_move_neg.cpp` — **15/15 refused**, and the file must
+  never mismatch. A `Big` by-value aggregate (where the index stops being the
+  register number — `GAPS.md` §6 instance 4), the ninth argument, a global and a
+  file-scope `static`, the ternary, and the narrow/wide/FP widths.
+* `scripts/expr_sweep.sh` grew **268 cases** (3,743 → 4,011, `mismatches=0`):
+  100 on the FP-parameter axis and 168 on the move — every slot × arity, 14
+  value classes × 3 positions, the address pair at 3 positions, members at 3
+  arities, and the aggregates/ninth-argument/global neighbours that must refuse.
+  **114 of the move cases grade `Match`**, so the sweep is comparing emitted
+  bytes here and not only counting refusals.
+* Four mode lanes, mismatch 0 in each: `/Ox` 47 → **48**, `/O1` 44 → **45**,
+  `/O2` 44 → **45**, `/Ox /Gy` 44 → **45**. The `+1` is `w18_reg_move.cpp` in
+  every lane; no baseline dropped.
+
+A new shape came with it that no fixture could have predicted: **a tail call
+whose argument is a non-first formal.** `int_tail_call_text` builds its argument
+setup by running `select_text` and dropping the trailing `blr`, so
+`return g(b);` is now `mr r3,r4 ; b g` — byte-exact, and unreachable before this
+class existed.
+
+### 22.8 The corrected ranking
+
+Over the 2,084,916 still-blocked functions:
+
+| # | functions | % blocked | calls-0 | calls-1 | calls-2plus | key |
+|---:|---:|---:|---:|---:|---:|---|
+| 1 | 504,438 | 24.2 % | 313,666 | 74,659 | 116,113 | `expr-op-0x27` |
+| 2 | 225,341 | 10.8 % | 10,287 | 71,380 | 143,674 | `expr-convert` |
+| 3 | 141,800 | 6.8 % | 15 | 57,894 | 83,891 | `expr-intrinsic-this-adjust` |
+| 4 | 134,431 | 6.4 % | 0 | 90,274 | 44,157 | `expr-op-0x99` |
+| 5 | 118,330 | 5.7 % | 27,138 | 56,186 | 35,006 | `expr-intrinsic-base-member-addr` |
+| 6 | 98,813 | 4.7 % | 10,702 | 84,215 | 3,896 | `expr-load-type-8645` (float) |
+| 7 | 82,810 | 4.0 % | 2 | 82,806 | 2 | `expr-load-type-8885` (double) |
+| 8 | 48,102 | 2.3 % | 1,622 | 4,674 | 41,806 | `body-0x29` |
+
+Row 1 is unchanged in size and **now carries a measurement**: 0.14 % of it is
+whole-body complete, so it is not the next rung and should stop being listed as
+one. The honest reading of rows 1–5 together is that ~1.1 M functions are
+waiting on **one** thing — an expression layer over pointers (`27` designators,
+`2C` conversions, `99` binds) — and that layer needs the general frame for
+between a third and all of each row.
+
+The next rungs this rung can name, with their measured populations:
+
+1. **The FP `fmr`, and `.sy`'s formal type kinds.** `.sy` already reads each
+   formal's kind and discards it; carrying it makes the FP-argument index
+   derivable, un-refuses what §22.6 gated closed, and gives the FP leaf the
+   register move the integer one now has. Population: the 1,005 this rung
+   removed plus the `float`/`double` operand rows' leaf share. It is also the
+   only rung this document can name that *starts* from a known mis-emit.
+2. **`expr-out-of-class-bare-nonformal`, 2,881 functions**, all `calls-0`. Not
+   one lowering but several — a global read is a pool reference and therefore
+   has §6's non-local hazard, a `.sy` local is not. Needs decomposing before it
+   is worth ranking; it is small either way.
+3. **`fn-tail-0xB9`, 29,552 functions, 28,720 of them `calls-0`** — the largest
+   call-free row that is not part of the pointer-expression layer.
+
+### 22.9 What is NOT established, labelled
+
+* **The `27` counterfactual is a grammar measurement, not a differential.** No
+  TU flipped under it, so no lane and no sweep graded the widened build; its
+  `mismatch 0` is a statement about TU-level acceptance. Its 685 is a grammar
+  upper bound with no codegen gate applied, exactly as §21.5's 14,038 was.
+* **The 684/685 correspondence is asserted from two independent counts, not
+  traced function by function.** They are one apart and the mechanism (a
+  zero-offset designator spells `33 <int> 0 27 <TYPE>`) is understood, but no
+  per-function identity check was run.
+* **The move was measured on `/Ox` probes and graded on all four lanes, but the
+  878-TU census is `/O1`.** The instruction has no intermediate to allocate, so
+  the one rule that differs between the modes cannot reach it; that is an
+  argument, and the lanes are the evidence.
+* **`mismatch 0` on the workload is still a TU-level statement.** 865 of the 878
+  TUs are `vocab-gap` and never reach the port. This rung's byte grading is the
+  two fixtures (53 functions), the 4,011-case sweep and the four lanes.
+* **The FP gate's over-refusal is not sized.** How many workload functions are
+  FP leaves with an unused formal is not measured — they are inside the
+  `expr-load-type-8645`/`-8885` rows and were never separated.
+* **`straight_line_out_of_class_ctx`'s three zero clauses are zero on *this*
+  workload.** A corpus with hand-written arithmetic rather than game engine
+  code would populate `mul-by-lit`; the finding is about this corpus.
+* **The 8-byte by-value aggregate is admitted on `.sy`'s declared width alone.**
+  `int f(Pair v, int b){ return b; }` is byte-graded as `mr r3,r4`, and the
+  claim that *every* 8-byte aggregate takes exactly one GPR rests on
+  `ONE_GPR_MAX` and two witnesses, not on the ABI document.
+
+### 22.10 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                      # 117 pass 0 fail 0 error
+./target/release/c2rs census fixtures/cpp/w18_reg_move.cpp        # 38/38 in class
+./target/release/c2rs diff   fixtures/cpp/w18_reg_move.cpp        # Port=Match
+./target/release/c2rs census fixtures/cpp/w18_reg_move_neg.cpp    # 0/15 in class
+./target/release/c2rs diff   fixtures/cpp/w18_reg_move_neg.cpp    # Port=NotImplemented
+./target/release/c2rs census fixtures/cpp/w13_fparam_neg.cpp      # 0/19 in class
+./target/release/c2rs diff   fixtures/cpp/w13_fparam_neg.cpp      # Port=NotImplemented
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                         # 48 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                         # 45 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                            # checked=4011 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 16 \
+  --jsonl work/dc3-workload/scan-w18.jsonl           # 377655/2462571
+# the alarm, reproduced on a one-function TU (it does NOT reproduce inside
+# w13_fabi.cpp, which is the whole point of §22.6):
+printf 'float f(int a, float b, float c){ return b*c; }\n' > /tmp/a.cpp
+./target/release/c2rs diff /tmp/a.cpp        # before: Mismatch. after: NotImplemented
+printf 'float f(float a, float b){ return b; }\n' > /tmp/b.cpp
+./target/release/c2rs diff /tmp/b.cpp        # before: Mismatch. after: NotImplemented
+# the `27` counterfactual (scratch, reverted): add a `0x27` arm to `parse_expr`
+# folding the preceding literal into an `AddrOf`, and sink any body that then
+# parses to the end under its own key in `parse_segment_detail` so nothing is
+# claimed in class. Re-scan -> 505,122 released, 685 whole-body complete.
+```
+
+The sweep prints its own generated case count before it runs; **compare that
+number against the one recorded here before believing a green sweep** — a
+generator that silently drops cases reports a pass over a smaller corpus
+(`GAPS.md` §6). Always difference the scans through **absolute** paths and print
+each one's row count and `fn_total` first — §18.8.

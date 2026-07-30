@@ -1,6 +1,6 @@
 use super::chain::{
     additive_chain_canonical, has_repeated_leaf, leaves_ascending, straight_line_is_out_of_class,
-    substitute, MAX_SUBST_OPS,
+    straight_line_out_of_class_ctx, substitute, MAX_SUBST_OPS,
 };
 use super::expr::{
     eat_fn_tail, eat_return_plumbing, eat_scopes, formals_marker, intrinsic_selector, parse_expr,
@@ -179,6 +179,17 @@ pub(crate) fn try_parse_assign_body_detail(
     // Substitution reorders too: `int x = b; return x + a;` resolves to `b + a`.
     if !leaves_ascending(&ret, &params) || !additive_chain_canonical(&ret) {
         return Err(Block { ctx: "assign-noncanonical-order", byte: None, off: p, aux: 0 });
+    }
+    // The **same** gate the straight-line path applies, at the second site that
+    // produces a `StraightLine`. It was missing here, and the census therefore
+    // counted bodies `select_text` refuses: `int f(int a){ int x = a; return
+    // x * 3; }` substitutes to `a * 3`, censused in class, and the port returned
+    // `NotImplemented` — the exact census/gate disagreement
+    // `straight_line_out_of_class_ctx` was extracted from codegen to prevent,
+    // reintroduced by a second producer that did not consult it. One fact, one
+    // locator: the predicate is shared, not copied.
+    if let Some(ctx) = straight_line_out_of_class_ctx(&ret, &params) {
+        return Err(Block { ctx, byte: None, off: p, aux: 0 });
     }
     Ok(BodyShape::StraightLine { params, ops: ret })
 }
@@ -397,6 +408,32 @@ pub(crate) fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
     }
     let params = parse_params(seg, lo).ok()?;
     if params.len() > 13 || !seen.iter().all(|t| params.contains(t)) {
+        return None;
+    }
+    // **Every formal must be one of those FP operands.** A formal's *index in the
+    // formals list* stands in for its **FP-argument-register number** here
+    // ([`c2_core::codegen::float_leaf_text`] maps parameter `n` to `f(n+1)`), and
+    // the two are only the same number when every parameter ahead of it also takes
+    // an FP register. The floating-point file is numbered over the FP parameters
+    // *alone*: `float g(int a, float b, float c){ return b - c; }` puts `b` in f1
+    // and `c` in f2, while the index rule says f2 and f3.
+    //
+    // This is the fifth instance of `docs/GAPS.md` §6's "two facts sharing one
+    // field", and it was **live** — `float mixfp(int a, float b, float c)
+    // { return b*c; }` emitted `fmuls f1,f2,f3` where c2 emits `fmuls f1,f1,f2`,
+    // on mainline, with all four mode lanes and the 3,743-case sweep green. The
+    // corpus had only the safe half of the pair again: not one FP fixture had a
+    // parameter list that was anything but all-`float` or all-`double`.
+    //
+    // Each `seen` token was loaded with `fty`, so it is provably an FP parameter;
+    // requiring the formals list to hold nothing else is what makes the index the
+    // register number. It costs the leaf whose parameter is unused
+    // (`float f(float a, float b){ return a*a; }`) and every member function
+    // (`this` is a pointer and is never an FP operand) — both of which are
+    // conservative, and the second is required anyway, since `this` takes a GPR
+    // and displaces nothing in the FP file. `fixtures/cpp/w13_fparam_neg.cpp` is
+    // the boundary.
+    if params.len() != seen.len() {
         return None;
     }
     // c2 canonicalizes a chain containing a **commutative** operator by register,
@@ -1443,10 +1480,12 @@ pub(crate) fn try_parse_addr_leaf(seg: &[u8], start: usize, lo: usize) -> Option
     if ix >= 8 {
         return None;
     }
-    // A zero offset emits nothing, so the address has to be in r3 already.
-    if off == 0 && ix != 0 {
-        return None;
-    }
+    // A zero offset emits nothing when the address is already in r3, and one
+    // `mr r3,rN` when it is not — the same register move the arithmetic identity
+    // makes, which is why this refusal is gone rather than duplicated. MEASURED:
+    // `int* f(int k, S* s){ return &s->a; }` is `7c832378` (`mr r3,r4`) and
+    // `S* f(int k, const S* s){ return (S*)s; }` is the same word, against
+    // `38640004` (`addi r3,r4,4`) for the nonzero-offset neighbour.
     Some(BodyShape::AddrLeaf {
         params,
         ops: vec![IlOp::Load(base_tok), IlOp::AddrOf { off }],
@@ -2780,14 +2819,23 @@ mod tests {
     #[test]
     fn ptr_leaves_refuse_the_shapes_that_cost_an_instruction() {
         assert_eq!(parse_segment(PTR_DEREF2, NO_LOCALS), None, "**ppp is two lwz");
-        assert_eq!(parse_segment(PTR_IDENT_R4, NO_LOCALS), None, "return s (r4) is mr");
+        // …and it is reported by the census rather than silently, so the
+        // instrument and the gate agree that it is out of class.
+        assert!(parse_segment_detail(PTR_DEREF2, NO_LOCALS).is_err());
 
-        // And the same two, reported by the census rather than silently: each
-        // must still name a blocking feature, so the instrument and the gate
-        // agree that these are out of class.
-        for (seg, label) in [(PTR_DEREF2, "**ppp"), (PTR_IDENT_R4, "return s (r4)")] {
-            assert!(parse_segment_detail(seg, NO_LOCALS).is_err(), "{label}");
-        }
+        // `return s;` from r4 is `mr r3,r4`, which W18 now emits. It comes out
+        // as the identity `StraightLine` — the *same* one-op stream a first-
+        // argument identity produces, with the register decided by the token's
+        // position in `params` and nowhere else, which is what lets one arm in
+        // `select_text` serve both. `w18_reg_move.cpp` grades the bytes.
+        assert_eq!(
+            parse_segment(PTR_IDENT_R4, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![0x280A, 0x290A],
+                ops: vec![IlOp::Load(0x290A)],
+            }),
+            "return s (r4) is one mr"
+        );
     }
 
     #[test]

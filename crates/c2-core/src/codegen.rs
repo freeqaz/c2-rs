@@ -277,9 +277,11 @@ pub fn addr_leaf_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>
     if d != 0 {
         text.extend_from_slice(&encode_addi(RET_REG, base, d));
     } else if base != RET_REG {
-        return Some(Err(out_of_class(
-            "zero-offset sub-object address from a non-first argument needs a register move",
-        )));
+        // A zero-offset address from a non-first argument is the same one
+        // register move `select_text` makes for `return b;` — `int* f(int k,
+        // S* s){ return &s->a; }` is `mr r3,r4`, measured, the same word as the
+        // pointer identity beside it. Two spellings, one instruction.
+        text.extend_from_slice(&encode_mr(RET_REG, base));
     }
     text.extend_from_slice(&encode_blr());
     Some(Ok(text))
@@ -735,10 +737,28 @@ pub fn float_leaf_text(
             }
         }
     }
-    if stack.len() != 1 {
-        return Err(out_of_class(
-            "FP expression did not reduce to a single value; out of class",
-        ));
+    match stack.as_slice() {
+        // Every binary op targets `FP_RET` when it is the last one, so a value
+        // sitting anywhere else means the body is a bare `return <param>` whose
+        // parameter is not the first — `float f(float a, float b){ return b; }`,
+        // which c2 emits as `fmr f1,f2`. Emitting nothing there is wrong bytes,
+        // and it *was*: this branch is the second lock on it, matching the one
+        // [`select_text`] has carried for the integer identity since that class
+        // was written. The parser refuses the shape first (`try_parse_float_leaf`
+        // requires every formal to be an FP operand of the body), so nothing
+        // should reach here.
+        [r] if *r != FP_RET => {
+            return Err(out_of_class(
+                "FP result is not in f1 (bare non-first FP parameter return needs \
+                 an `fmr`); out of class",
+            ))
+        }
+        [_] => {}
+        _ => {
+            return Err(out_of_class(
+                "FP expression did not reduce to a single value; out of class",
+            ))
+        }
     }
     text.extend_from_slice(&encode_blr());
     Ok((text, consts))
@@ -1322,6 +1342,10 @@ enum PlanOp {
     AddImm { src: Base, k: i32 },
     /// Materialize a bare constant return: `dest = k` (`li`, or `lis`+`ori`).
     LoadImm { k: i32 },
+    /// Materialize a bare `return <param>` whose parameter is not the first:
+    /// `dest = src`, one `mr` (`or dest,src,src`). Only ever the last entry, so
+    /// `dest` is r3.
+    RegMove { src: u8 },
 }
 
 
@@ -1580,13 +1604,29 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     // Chain already ended in r3 (the last reg-reg op targets it),
                     // or a bare `return a` where the parameter is already in r3.
                     Base::Prev | Base::Phys(RET_REG) => {}
-                    // A bare `return param` whose value is not in r3 (e.g.
-                    // `return b;`) needs a register move — not yet modeled.
+                    // A bare `return <param>` whose value is not in r3 — the
+                    // whole body is one register move. MEASURED across every
+                    // argument slot and both scalar widths (`w18_reg_move.cpp`):
+                    //
+                    //   int f(int a,int b)         { return b; }  7c832378 mr r3,r4
+                    //   int f(int a,int b,int c)   { return c; }  7ca32b78 mr r3,r5
+                    //   int C::m(int x,int y) const{ return y; }  7ca32b78 mr r3,r5
+                    //   S*  f(int a, S* s)         { return s; }  7c832378 mr r3,r4
+                    //   int f(…8 params…)          { return h; }  7d435378 mr r3,r10
+                    //
+                    // and then `blr`. The move is the same instruction for an
+                    // int, an unsigned, a short, a `long long` and a pointer —
+                    // one 4-byte word in one GPR, no extension anywhere — which
+                    // is what lets one arm serve all of them. `this` is already
+                    // at index 0 of `func.params`, so a member function's first
+                    // explicit formal is r4 without a second rule.
+                    //
+                    // The FP file has the same shape and is NOT this arm:
+                    // `float f(float a,float b){return b;}` is `fmr f1,f2`, and
+                    // `float_leaf_text` refuses it because the FP-argument index
+                    // cannot be derived from the positional one (see there).
                     Base::Phys(other) => {
-                        return Err(out_of_class(&format!(
-                            "result is in r{other}, not the return register r3 \
-                             (bare non-first-param return not yet handled)"
-                        )));
+                        plan.push(PlanOp::RegMove { src: *other });
                     }
                 }
             }
@@ -1705,6 +1745,7 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
             }
             PlanOp::AddImm { src, k } => emit_add_imm(&mut text, dest, resolve(src), k),
             PlanOp::LoadImm { k } => emit_load_imm(&mut text, dest, k)?,
+            PlanOp::RegMove { src } => text.extend_from_slice(&encode_mr(dest, src)),
         }
         prev_reg = dest;
     }
@@ -1869,11 +1910,17 @@ mod tests {
             vec![0x38, 0x64, 0x00, 0x04, 0x4E, 0x80, 0x00, 0x20],
             "addi r3,r4,4 ; blr"
         );
-        // …and at zero offset from that same non-first base c2 emits `mr r3,r4`,
-        // which this path does not have. The parser gates it; this is the second
-        // lock, and it must be a refusal rather than a silent bare `blr`.
+        // …and at zero offset from that same non-first base c2 emits `mr r3,r4`
+        // — measured, `int* f(int k, S* s){ return &s->a; }` is `7c832378`, the
+        // same word as the pointer identity beside it. The one case a
+        // zero-offset-from-r3 test cannot see is precisely this one: a bare
+        // `blr` here would silently return `k` instead of the address.
         f.ops = vec![IlOp::Load(0xEE09), IlOp::AddrOf { off: 0 }];
-        assert!(addr_leaf_text(&f).unwrap().is_err(), "zero offset from r4 needs an mr");
+        assert_eq!(
+            addr_leaf_text(&f).unwrap().unwrap(),
+            vec![0x7C, 0x83, 0x23, 0x78, 0x4E, 0x80, 0x00, 0x20],
+            "mr r3,r4 ; blr"
+        );
         // An offset past the signed 16-bit immediate is `addis` + `addi`.
         f.params = vec![0xEE09];
         f.ops = vec![IlOp::Load(0xEE09), IlOp::AddrOf { off: 32768 }];
@@ -2833,6 +2880,42 @@ mod tests {
             select_text(&f, OptMode::Ox).unwrap(),
             vec![0x38, 0x60, 0x00, 0x2A, 0x4E, 0x80, 0x00, 0x20]
         );
+    }
+
+    #[test]
+    fn select_text_bare_non_first_parameter_is_one_mr() {
+        // `return b;` is `mr r3,r4 ; blr` (`or r3,r4,r4`, opcode 31 / XO 444).
+        // Measured across the whole argument file — every word here is read off
+        // a reference obj, see `fixtures/cpp/w18_reg_move.cpp`.
+        let p = vec![0xE309, 0xE409, 0xE509, 0xE609];
+        let sel = |tok: u32| {
+            select_text(&func_with(p.clone(), vec![IlOp::Load(tok)]), OptMode::Ox).unwrap()
+        };
+        // The first parameter is already in r3 and emits nothing at all — the
+        // control that keeps this arm from firing on every identity.
+        assert_eq!(sel(0xE309), vec![0x4E, 0x80, 0x00, 0x20]);
+        assert_eq!(sel(0xE409), vec![0x7C, 0x83, 0x23, 0x78, 0x4E, 0x80, 0x00, 0x20]);
+        assert_eq!(sel(0xE509), vec![0x7C, 0xA3, 0x2B, 0x78, 0x4E, 0x80, 0x00, 0x20]);
+        assert_eq!(sel(0xE609), vec![0x7C, 0xC3, 0x33, 0x78, 0x4E, 0x80, 0x00, 0x20]);
+        // The eighth argument register, r10 — the far end of the file.
+        let eight: Vec<u32> = (0..8).map(|i| 0xE309 + i * 0x100).collect();
+        assert_eq!(
+            select_text(
+                &func_with(eight.clone(), vec![IlOp::Load(eight[7])]),
+                OptMode::Ox
+            )
+            .unwrap(),
+            vec![0x7D, 0x43, 0x53, 0x78, 0x4E, 0x80, 0x00, 0x20],
+            "mr r3,r10 ; blr"
+        );
+        // The mode does not reach this arm: there is no intermediate to allocate.
+        assert_eq!(
+            select_text(&func_with(p.clone(), vec![IlOp::Load(0xE409)]), OptMode::O1).unwrap(),
+            sel(0xE409)
+        );
+        // A token that is not a parameter still fails closed — the move needs a
+        // source register and there is none.
+        assert!(select_text(&func_with(p, vec![IlOp::Load(0x9999)]), OptMode::Ox).is_err());
     }
 
     #[test]

@@ -5,7 +5,7 @@ pub(crate) mod shapes;
 
 use self::chain::{
     additive_chain_canonical, canonicalize_chain, has_repeated_leaf, leaves_ascending,
-    straight_line_is_out_of_class,
+    straight_line_out_of_class_ctx,
 };
 use self::expr::{
     eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr, parse_formals, BODY_SCOPE_DEPTH,
@@ -600,9 +600,11 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             if has_repeated_leaf(&ops) {
                 return Err(Block { ctx: "expr-repeated-leaf", byte: None, off: p, aux: 0 });
             }
-            // Gates that used to live in codegen; see `straight_line_is_out_of_class`.
-            if straight_line_is_out_of_class(&ops, &params) {
-                return Err(Block { ctx: "expr-out-of-class", byte: None, off: p, aux: 0 });
+            // Gates that used to live in codegen; see
+            // `straight_line_out_of_class_ctx`, which names *which* of them fired
+            // so the row can be ranked clause by clause.
+            if let Some(ctx) = straight_line_out_of_class_ctx(&ops, &params) {
+                return Err(Block { ctx, byte: None, off: p, aux: 0 });
             }
             let ops = match canonicalize_chain(&ops, &params) {
                 Some(c) => c,
@@ -911,23 +913,26 @@ mod tests {
         let b = IlOp::Load(0x11);
         for (ops, why) in [
             (vec![a, IlOp::Lit(3), IlOp::Mul], "multiply by a constant"),
-            (vec![b], "bare non-first parameter"),
+            (vec![IlOp::Load(0x99)], "bare non-formal token"),
             (vec![IlOp::Lit(5), a, IlOp::Sub], "const - reg needs subfic"),
             (vec![IlOp::Lit(-70000)], "negative wide constant"),
         ] {
             assert!(
-                straight_line_is_out_of_class(&ops, &params),
+                straight_line_out_of_class_ctx(&ops, &params).is_some(),
                 "parser must refuse: {why}"
             );
         }
-        // ...and the neighbours that really do emit must stay accepted.
+        // ...and the neighbours that really do emit must stay accepted. A bare
+        // non-first formal is one of them now: it is the single `mr r3,rN` W18
+        // grades (`fixtures/cpp/w18_reg_move.cpp`), not a refusal.
         for (ops, why) in [
             (vec![a, b, IlOp::Add], "a + b"),
             (vec![a], "bare first parameter"),
+            (vec![b], "bare non-first parameter -> mr r3,r4"),
             (vec![IlOp::Lit(70000)], "positive wide constant"),
         ] {
             assert!(
-                !straight_line_is_out_of_class(&ops, &params),
+                straight_line_out_of_class_ctx(&ops, &params).is_none(),
                 "parser must accept: {why}"
             );
         }
