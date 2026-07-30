@@ -1,5 +1,5 @@
 use super::body::{parse_segment, BodyShape};
-use super::gl::{gl_defined_names, source_path, GlIndex};
+use super::gl::{drectve_is_boilerplate, gl_defined_names, source_path, GlIndex};
 use super::readers::{find_subslice, memchr_byte};
 use super::{FramedCall, IlFunction};
 use crate::IlBundle;
@@ -154,6 +154,16 @@ impl IlBundle {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
         let src = source_path(gl);
+
+        // The port emits `.drectve` as a constant, so a TU that adds a linker
+        // directive is out of class before any function is even looked at — the
+        // section grows, every later section's offset shifts, and the obj diverges
+        // at offset 8 regardless of how good the codegen is. Checked ahead of the
+        // empty-module case because an empty TU with a `#pragma comment(lib, …)`
+        // has exactly the same problem and none of the code.
+        if !drectve_is_boilerplate(gl) {
+            return None;
+        }
 
         // R1: a TU that defines no functions is in class, and its obj is the
         // fixed four-section shell with no `.text`. Recognized **positively**

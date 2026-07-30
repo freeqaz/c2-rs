@@ -1,4 +1,6 @@
-use super::readers::{ascii_string, contains_subslice, memchr_byte, read_token_var};
+use super::readers::{
+    ascii_string, contains_subslice, find_subslice, memchr_byte, read_token_var,
+};
 
 /// Extract the mangled name from `.gl`: the first `?`-prefixed, NUL-terminated
 /// ASCII run whose second byte is alphabetic and which contains `@@` (the
@@ -54,7 +56,8 @@ pub fn mangled_names(gl: &[u8]) -> Vec<String> {
     out
 }
 
-/// Every mangled-symbol run in `.gl`, as `(start, end, name)` in file order.
+/// Every NUL-delimited identifier-shaped run in `.gl`, as `(start, end, name)` in
+/// file order. **Not** filtered to mangled names — see [`looks_mangled`].
 ///
 /// Deliberately **broader** than [`mangled_names`], which requires the second
 /// byte to be alphabetic and therefore silently drops every `??`-prefixed name:
@@ -66,9 +69,18 @@ pub fn mangled_names(gl: &[u8]) -> Vec<String> {
 /// `mangled_names` sees only the second and *fourth*, so pairing two names to
 /// two bodies named the second function after a **variable**.
 ///
-/// A run is accepted only if it is NUL-delimited, wholly printable, starts like
-/// an identifier, and contains `@@`. The `@@` is what keeps the source path and
-/// other incidental strings out: they are printable NUL-delimited runs too.
+/// Broader again than the first version of this function, which also required
+/// `@@` and a length of 3. That made it blind to an undecorated `extern "C"` name
+/// (`c1`), so such a record was skipped and **borrowed the previous record's
+/// name** — two bodies under one symbol, wrong bytes at obj offset 804
+/// (`fixtures/cpp/il_extern_c_name.cpp`). A record's name is established by
+/// position, so this scan must be able to see *whatever* is there; deciding
+/// whether a name is one the port can emit is a separate, later judgement.
+///
+/// A run is accepted if it is NUL-delimited, wholly printable, and starts like an
+/// identifier. That admits the source path and `__C1_11886` too, which is why the
+/// unclaimed-symbol accounting filters with [`looks_mangled`] rather than relying
+/// on this scan to be selective.
 fn gl_symbol_runs(gl: &[u8]) -> Vec<(usize, usize, String)> {
     let mut out = Vec::new();
     let mut i = 0usize;
@@ -87,10 +99,8 @@ fn gl_symbol_runs(gl: &[u8]) -> Vec<(usize, usize, String)> {
             continue;
         }
         let bytes = &gl[start..end];
-        let plausible = bytes.len() >= 3
-            && bytes.iter().all(|b| b.is_ascii_graphic())
-            && (bytes[0] == b'?' || bytes[0].is_ascii_alphabetic() || bytes[0] == b'_')
-            && contains_subslice(bytes, b"@@");
+        let plausible = bytes.iter().all(|b| b.is_ascii_graphic())
+            && (bytes[0] == b'?' || bytes[0].is_ascii_alphabetic() || bytes[0] == b'_');
         if plausible {
             out.push((start, end, ascii_string(bytes)));
         }
@@ -99,14 +109,43 @@ fn gl_symbol_runs(gl: &[u8]) -> Vec<(usize, usize, String)> {
     out
 }
 
+/// True iff `name` looks like a whole MSVC-mangled symbol — it contains `@@`.
+///
+/// Two jobs, both of which need the *name's contents* rather than its position:
+///
+/// * deciding which unclaimed `.gl` runs the port must account for. The source
+///   path (`z:\…\t1.cpp`) and `__C1_11886` are NUL-delimited printable runs that
+///   `gl_symbol_runs` accepts and that no function record claims; without this
+///   filter the accounting rule in `IlBundle::functions` would refuse every TU.
+/// * rejecting a bound record name the port cannot emit. An undecorated
+///   `extern "C"` name is stored **inline in the 8-byte COFF symbol name field**
+///   rather than in the string table, which every mangled name uses — a different
+///   encoding path, characterized by one capture. Refused, positively.
+pub(crate) fn looks_mangled(name: &str) -> bool {
+    contains_subslice(name.as_bytes(), b"@@")
+}
+
 /// Bind each **defined** function's `.gl` name to the `.ex` offset of its body,
 /// positively. Returns the `(body offset, name)` pairs in `.gl` record order,
 /// plus every mangled run that no record claimed.
 ///
 /// Each `.gl` function record carries a `80 <LE32>` body-start offset field,
 /// located by its record framing ([`codec::gl_offset_framed`]) rather than by
-/// what its value happens to be, and the record's name is the mangled run
-/// immediately preceding that field. So the binding is per record.
+/// what its value happens to be, and the record's name is the run immediately
+/// preceding that field. So the binding is per record.
+///
+/// Records observed so far are uniform in shape:
+///
+/// ```text
+/// 00 <name> 00  <TYPE>  80 01 10 00 00 00 00  80 <LE32 offset>
+///                       \___ framing ______/
+/// ```
+///
+/// which puts the name's terminating NUL 15 bytes before the offset field for an
+/// `int(int)` and 19 for a `void()`, the difference being the TYPE width. The name
+/// is taken as the nearest preceding run within [`MAX_NAME_TO_OFFSET`] — the bound
+/// is what makes "nearest preceding" mean *this record's* name rather than
+/// whatever happened to be last in the file.
 ///
 /// This replaces "the Nth name belongs to the Nth body", an invariant `.gl` does
 /// not promise. It happens to hold across the fixtures, and the four probes that
@@ -130,32 +169,81 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
     while p + 5 <= gl.len() {
         if crate::codec::gl_offset_framed(gl, p) {
             let off = u32::from_le_bytes([gl[p + 1], gl[p + 2], gl[p + 3], gl[p + 4]]);
-            // The record's own name: the last mangled run to END at or before
-            // this field. Searched backwards so an unnamed record cannot borrow
-            // the name of a following one.
-            match runs.iter().rposition(|&(_, end, _)| end <= p) {
-                Some(k) => {
-                    claimed[k] = true;
-                    bound.push((off, runs[k].2.clone()));
-                }
-                // A framed offset with no name ahead of it is a record shape we
-                // do not understand; refuse the whole TU rather than emit a
-                // nameless function.
-                None => return (Vec::new(), Vec::new()),
+            // The record's own name: the last run to END at or before this field,
+            // and near enough to be part of the same record. Searched backwards so
+            // a record cannot borrow the name of a *following* one.
+            let k = match runs.iter().rposition(|&(_, end, _)| end <= p) {
+                // A framed offset whose nearest preceding run is too far away, or
+                // has none at all, is a record shape we do not understand. Refuse
+                // the whole TU rather than emit a function under a name that
+                // belongs to some other record — which is precisely the bug this
+                // bound exists to stop.
+                Some(k) if p - runs[k].1 <= MAX_NAME_TO_OFFSET => k,
+                _ => return (Vec::new(), Vec::new()),
+            };
+            // Named positively, then judged: a record name the port cannot emit
+            // refuses the TU. `extern "C"` lands here.
+            if !looks_mangled(&runs[k].2) {
+                return (Vec::new(), Vec::new());
             }
+            claimed[k] = true;
+            bound.push((off, runs[k].2.clone()));
             p += 5;
             continue;
         }
         p += 1;
     }
+    // Only mangled runs need accounting for. The rest — the source path,
+    // `__C1_11886` — are not symbols the port is responsible for emitting.
     let unclaimed = runs
         .iter()
         .zip(&claimed)
-        .filter(|(_, &c)| !c)
+        .filter(|((_, _, n), &c)| !c && looks_mangled(n))
         .map(|((_, _, n), _)| n.clone())
         .collect();
     (bound, unclaimed)
 }
+
+/// True iff `.gl`'s linker-directive list is exactly the single-entry boilerplate
+/// that the port's fixed `.drectve` reproduces.
+///
+/// `.drectve` was pure boilerplate in every capture until `#pragma comment(lib,
+/// "somelib")`, which splices `/DEFAULTLIB:"somelib"` in and grows the section
+/// from 132 to 154 bytes. Every later section's file offset shifts, so the first
+/// divergence is at obj offset 8 — `PointerToSymbolTable` — and a byte-exact
+/// function body never gets a chance to matter
+/// (`fixtures/cpp/il_drectve_pragma.cpp`).
+///
+/// `.gl` carries the list, so this is decidable rather than invisible:
+///
+/// ```text
+/// … 00 00 01 0a "/include:__C1_11886" 00                        boilerplate
+/// … 00 00 02 0a "/include:__C1_11886" 00 04 "somelib" 00        one pragma
+/// ```
+///
+/// The byte two before the `/include:__C1_11886` literal is an **entry count**.
+/// Anchoring on that literal is sound because it is already a compile-time
+/// constant of this toolchain — `c2-core`'s `coff.rs` hardcodes both it and
+/// `__C2_11886` (the XDK build id `16.00.11886.00`) into the `.drectve` it emits,
+/// so the port is only ever correct for the build whose id this is.
+///
+/// Fails closed: an absent anchor, or a truncated list, is refused. Entries beyond
+/// the first are not decoded — the `04` kind byte is the only one seen and one
+/// witness is not a production.
+pub(crate) fn drectve_is_boilerplate(gl: &[u8]) -> bool {
+    const ANCHOR: &[u8] = b"/include:__C1_11886\0";
+    let Some(at) = find_subslice(gl, ANCHOR) else {
+        return false;
+    };
+    // `<count> 0a` immediately precedes the literal.
+    at >= 2 && gl[at - 1] == 0x0A && gl[at - 2] == 0x01
+}
+
+/// How far a record's name may sit from its body-start offset field. Observed
+/// distances are 15 (an `int(int)` record) and 19 (a `void()` record), the
+/// difference being the TYPE field's width; 32 leaves room for wider types
+/// without letting "nearest preceding run" reach into a different record.
+const MAX_NAME_TO_OFFSET: usize = 32;
 
 /// Build the `.gl` **symbol index**: operand token → mangled name.
 ///
@@ -372,8 +460,9 @@ mod tests {
 
     #[test]
     fn gl_symbol_runs_ignore_non_symbol_strings() {
-        // A source path is a NUL-delimited printable run too. `@@` is what keeps
-        // it out — without that test the accounting rule would refuse every TU.
+        // A source path is a NUL-delimited printable run too, so `gl_symbol_runs`
+        // accepts it — `looks_mangled` is what keeps it out of the accounting set.
+        // Without that filter the rule in `functions()` would refuse every TU.
         let mut gl = vec![0u8];
         gl.extend_from_slice(b"e:\\lazer_build_gmc1\\x.cpp");
         gl.push(0);
@@ -392,6 +481,75 @@ mod tests {
         gl.extend_from_slice(&2644u32.to_le_bytes());
         gl.extend_from_slice(&gl_record("?w_add@@YAHH@Z", 2753));
         assert_eq!(gl_defined_names(&gl), (Vec::new(), Vec::new()));
+    }
+
+    #[test]
+    fn an_undecorated_record_name_is_seen_then_refused() {
+        // `il_extern_c_name.cpp`. The regression this guards: the name scan used to
+        // require `@@`, so the `extern "C"` record was invisible and the binding
+        // fell back to the nearest *mangled* run — the previous record's name. Two
+        // bodies under one symbol, wrong bytes at obj offset 804.
+        let mut gl = Vec::new();
+        gl.extend_from_slice(&gl_record("?w_mangled@@YAHH@Z", 2644));
+        gl.extend_from_slice(&gl_record("c1", 2743));
+
+        // Seen: the scan reaches the undecorated run rather than skipping it.
+        let runs = gl_symbol_runs(&gl);
+        assert!(
+            runs.iter().any(|(_, _, n)| n == "c1"),
+            "the run scan must see an undecorated name; got {runs:?}"
+        );
+        // Refused: it is bound to its own record, judged, and rejected — so the
+        // whole TU refuses rather than emitting under a borrowed name.
+        assert_eq!(gl_defined_names(&gl), (Vec::new(), Vec::new()));
+
+        // The mirror order was the *clean refusal* before the fix, which is what
+        // made the bug order-dependent. It must still refuse, for the same reason.
+        let mut rev = Vec::new();
+        rev.extend_from_slice(&gl_record("c1", 2644));
+        rev.extend_from_slice(&gl_record("?w_mangled@@YAHH@Z", 2743));
+        assert_eq!(gl_defined_names(&rev), (Vec::new(), Vec::new()));
+    }
+
+    #[test]
+    fn a_distant_name_does_not_get_borrowed() {
+        // The bound is what makes "nearest preceding run" mean *this record's*
+        // name. Pad past MAX_NAME_TO_OFFSET between the name and its offset field
+        // and the record must stop claiming it.
+        let mut gl = vec![0u8];
+        gl.extend_from_slice(b"?w_add@@YAHH@Z");
+        gl.push(0);
+        gl.extend_from_slice(&[0x11; MAX_NAME_TO_OFFSET + 1]);
+        gl.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80]);
+        gl.extend_from_slice(&2644u32.to_le_bytes());
+        assert_eq!(gl_defined_names(&gl), (Vec::new(), Vec::new()));
+    }
+
+    // ---- `.drectve` boilerplate --------------------------------------------
+
+    /// The `.gl` directive list: `00 00 <count> 0A` then the `/include:` literal.
+    fn gl_directives(count: u8, extra: &[u8]) -> Vec<u8> {
+        let mut v = vec![0x00, 0x00, count, 0x0A];
+        v.extend_from_slice(b"/include:__C1_11886\0");
+        v.extend_from_slice(extra);
+        v
+    }
+
+    #[test]
+    fn drectve_boilerplate_is_one_entry() {
+        // Transcribed from captures of `int f(int a){return a+1;}` with and without
+        // `#pragma comment(lib, "somelib")`. The pragma bumps the count and appends
+        // an entry; the port's `.drectve` is a constant, so only the first is in
+        // class (`il_drectve_pragma.cpp`).
+        assert!(drectve_is_boilerplate(&gl_directives(1, b"")));
+        assert!(!drectve_is_boilerplate(&gl_directives(
+            2,
+            b"\x04somelib\0"
+        )));
+        // Fail closed when the anchor is absent entirely — a `.gl` we cannot read
+        // the directive list out of is not a `.gl` whose `.drectve` we can assume.
+        assert!(!drectve_is_boilerplate(b"no directives here"));
+        assert!(!drectve_is_boilerplate(&[]));
     }
 
     // ---- `.gl` symbol index -------------------------------------------------
