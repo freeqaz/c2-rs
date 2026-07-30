@@ -706,6 +706,93 @@ pub(crate) fn classify(seg: &[u8], at: usize) -> Block {
     }
 }
 
+/// **D6 — the statement-head re-anchor** (`docs/IL_CALL_IN_EXPR.md` §18.3).
+///
+/// §16.4 measured that the `chained` sub-bucket undercounts chains ~4.4×, and named
+/// the cause: `mod.rs`'s body dispatch cannot tell a statement-head `26 <tok>`
+/// assignment *destination* from a stacked *method* push — the two differ by one
+/// byte far away — so it hands the assignment parser a body that has no
+/// destination, that parser eats the outer method push, and `parse_expr` starts one
+/// `26` late. `p->Next()->Get()` in a **value** position then has exactly one method
+/// stacked where the walk can see it, and files as `recv-load`. The identical body
+/// in an assignment (`x = p->Next()->Get()`) keeps both and files as `chained`.
+///
+/// This restores the anchor for exactly that case, and for nothing else. Called
+/// only on the error path of the assignment parser's right-hand side, with
+/// `stmt_head` = the statement's own first byte and `probe` = where the destination
+/// push was consumed to; acceptance is untouched (the `Err` stays an `Err`).
+///
+/// **Three conditions, all required, because the head token is genuinely
+/// ambiguous.**
+///
+/// 1. The refusal is this module's, and it is *at* `probe` — i.e. the very first
+///    thing after the consumed token was the `26` that opened a member call. A
+///    refusal deeper in the statement is anchored where it belongs.
+/// 2. Walking from `stmt_head` classifies as [`CallForm::Chained`], and walking
+///    from `probe` did not. Nothing else can move.
+/// 3. **The bind count corroborates it.** A member-call production stacks one
+///    method per `99` bind, so a head run of *m* methods is only real if the
+///    statement contains *m* depth-0 binds. This is the condition that keeps
+///    `x = p->Get()` — head run `26 <x> 26 <Get>`, two symbols, **one** bind — from
+///    being promoted to a chain. Without it the fix would trade a 4.4× undercount
+///    for an overcount of every single-link assignment in the corpus.
+///
+/// Condition 3 is measured by iterating [`walk_detail`] itself rather than by a
+/// second tokenizer, so the count and the classification cannot drift apart.
+pub(crate) fn reanchor_chain(seg: &[u8], stmt_head: usize, probe: usize, b: Block) -> Block {
+    if b.ctx != CALL_IN_EXPR || b.off != probe {
+        return b;
+    }
+    // (2) the probe-anchored form is whatever `parse_expr` recorded.
+    let probe_form = CallForm::from_code(b.aux & FORM_MASK, (b.aux >> FORM_BITS) & PAYLOAD_MASK);
+    if probe_form == Some(CallForm::Chained) {
+        return b;
+    }
+    let (head_form, methods, _) = walk_detail(seg, stmt_head);
+    if head_form != CallForm::Chained || methods < 2 {
+        return b;
+    }
+    // (3) one bind per stacked method, or the head run was not all methods.
+    if depth0_binds(seg, stmt_head, methods) < methods {
+        return b;
+    }
+    let (disc, payload) = CallForm::Chained.code();
+    Block { off: stmt_head, aux: disc | (payload << FORM_BITS), ..b }
+}
+
+/// How many depth-0 `99 <TYPE> 00` member binds the statement at `start` contains,
+/// counting no further than `want` (the caller only ever asks "at least *m*").
+///
+/// Implemented by re-entering [`walk_detail`] past each bind it stops on, so there
+/// is exactly one tokenizer in this module. A walk that stops on anything other
+/// than a `99` ends the count — including a byte it cannot tokenize, which is the
+/// common case here and is why the count is a **lower** bound and the caller's test
+/// is `>=`.
+fn depth0_binds(seg: &[u8], start: usize, want: usize) -> usize {
+    let mut n = 0usize;
+    let mut p = start;
+    // Bounded by `want` plus a hard stop: `walk_detail` is O(segment) and this
+    // must not become O(segment^2) over a 2.4 M-function census.
+    for _ in 0..MAX_ADMIT.max(want) {
+        let (_, _, stop) = walk_detail(seg, p);
+        if seg.get(stop) != Some(&0x99) {
+            return n;
+        }
+        let Some((_, _, _, tw)) = read_type(seg, stop + 1) else {
+            return n;
+        };
+        if seg.get(stop + 1 + tw) != Some(&0x00) {
+            return n;
+        }
+        n += 1;
+        if n >= want {
+            return n;
+        }
+        p = stop + 1 + tw + 1;
+    }
+    n
+}
+
 /// Set the whole-body-completeness bit on a block this module raised — and, when
 /// the form alone is *not* enough, name the construct that blocks the body **next**
 /// and say whether the two together would be.
@@ -835,6 +922,18 @@ const MAX_TOKENS: usize = 4096;
 
 /// Tokenize forward from the `26` at `start` and classify what it opened.
 fn walk(seg: &[u8], start: usize) -> CallForm {
+    walk_detail(seg, start).0
+}
+
+/// [`walk`], plus the two facts the **statement-head re-anchor** needs
+/// (`docs/IL_CALL_IN_EXPR.md` §18.3): how many *methods* the head run stacked, and
+/// where the walk stopped.
+///
+/// Split out rather than duplicated: a second tokenizer over the same grammar is
+/// the defect `GAPS.md` §6 records as "one fact, one locator" — and here it would
+/// be worse than usual, because the re-anchor's whole job is to disagree with this
+/// walk about one leading token.
+fn walk_detail(seg: &[u8], start: usize) -> (CallForm, usize, usize) {
     let mut p = start;
     // Open call-argument regions. A `55` inside one terminates an *argument*, not
     // the value we are classifying — which is why the destructor skeleton (whose
@@ -856,15 +955,15 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
 
     for _ in 0..MAX_TOKENS {
         let Some(&b) = seg.get(p) else {
-            return classify_at(Stop::Eof, last, head_syms);
+            return (classify_at(Stop::Eof, last, head_syms), methods_of(last, head_syms), p);
         };
         // Decisive bytes first, at the top level only.
         if depth == 0 {
             match b {
-                0x99 => return classify_at(Stop::Bind, last, head_syms),
-                0x32 => return classify_at(Stop::Store, last, head_syms),
-                0x55 => return classify_at(Stop::ArgEnd, last, head_syms),
-                0x41 | 0x4B => return classify_at(Stop::StmtEnd, last, head_syms),
+                0x99 => return (classify_at(Stop::Bind, last, head_syms), methods_of(last, head_syms), p),
+                0x32 => return (classify_at(Stop::Store, last, head_syms), methods_of(last, head_syms), p),
+                0x55 => return (classify_at(Stop::ArgEnd, last, head_syms), methods_of(last, head_syms), p),
+                0x41 | 0x4B => return (classify_at(Stop::StmtEnd, last, head_syms), methods_of(last, head_syms), p),
                 _ => {}
             }
         }
@@ -873,11 +972,11 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
             0xB9 => {
                 p += 1;
                 let Some((_, w)) = read_token_var(seg, p) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 p += w;
                 let Some((_, _, _, tw)) = read_type(seg, p) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 p += tw;
                 last = Some(Tk::Load);
@@ -891,13 +990,13 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
                 if let Some(sel) = intrinsic_selector(seg, p) {
                     p += 1;
                     if !eat_int_like(seg, &mut p) || read_varint(seg, &mut p).is_none() {
-                        return CallForm::Eof;
+                        return (CallForm::Eof, methods_of(last, head_syms), p);
                     }
                     // the `40 <TYPE>` intrinsic call token — no trailing field
                     // (`docs/IL_INTRINSIC_CALL.md` §1).
                     p += 1;
                     let Some((_, _, _, tw)) = read_type(seg, p) else {
-                        return CallForm::Eof;
+                        return (CallForm::Eof, methods_of(last, head_syms), p);
                     };
                     p += tw;
                     depth += 1;
@@ -906,11 +1005,11 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
                 } else {
                     p += 1;
                     let Some((_, _, _, tw)) = read_type(seg, p) else {
-                        return CallForm::Eof;
+                        return (CallForm::Eof, methods_of(last, head_syms), p);
                     };
                     lit_zero = seg.get(p + tw) == Some(&0x00);
                     if !eat_literal(seg, &mut p) {
-                        return CallForm::Eof;
+                        return (CallForm::Eof, methods_of(last, head_syms), p);
                     }
                     last = Some(Tk::Lit);
                 }
@@ -918,7 +1017,7 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
             0x26 => {
                 let mut q = p + 1;
                 let Some((_, w)) = read_token_var(seg, q) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 q += w;
                 p = q;
@@ -935,13 +1034,13 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
             0xBD => {
                 p += 1;
                 let Some((_, _, _, tw)) = read_type(seg, p) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 p += tw;
                 // the calling-convention byte, then the per-TU function-type id
                 p += 1;
                 if read_varint(seg, &mut p).is_none() {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 }
                 depth += 1;
                 open.push((false, 0));
@@ -955,7 +1054,7 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
                         last = Some(Tk::CallEnd(intr, sel));
                     }
                     // A `4C` with no open call is not this grammar.
-                    _ => return CallForm::Op(0x4C),
+                    _ => return (CallForm::Op(0x4C), methods_of(last, head_syms), p),
                 }
             }
             0x55 => {
@@ -963,7 +1062,7 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
                 // terminator, `55 <TYPE>`.
                 p += 1;
                 let Some((_, _, _, tw)) = read_type(seg, p) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 p += tw;
                 last = None;
@@ -974,14 +1073,14 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
                 // the receiver's form is the form of what it converted.
                 p += 1;
                 let Some((_, _, _, tw)) = read_type(seg, p) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 p += tw + 1;
             }
             0x27 => {
                 p += 1;
                 let Some((_, _, _, tw)) = read_type(seg, p) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 p += tw;
                 last = Some(Tk::OffAdd(lit_zero));
@@ -992,14 +1091,14 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
                 // (`docs/IL_EXPR_LAYER.md` §4); anything else is not this token.
                 p += 1;
                 if !eat(seg, &mut p, &[0x00, 0x00]) {
-                    return CallForm::Op(0x28);
+                    return (CallForm::Op(0x28), methods_of(last, head_syms), p);
                 }
                 last = Some(Tk::OffAdd(lit_zero));
             }
             0x30 => {
                 p += 1;
                 let Some((_, _, _, tw)) = read_type(seg, p) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 p += tw;
                 last = Some(Tk::Deref);
@@ -1015,25 +1114,25 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
             0x99 => {
                 p += 1;
                 let Some((_, _, _, tw)) = read_type(seg, p) else {
-                    return CallForm::Eof;
+                    return (CallForm::Eof, methods_of(last, head_syms), p);
                 };
                 p += tw;
                 if !eat_byte(seg, &mut p, 0x00) {
-                    return CallForm::Op(0x99);
+                    return (CallForm::Op(0x99), methods_of(last, head_syms), p);
                 }
                 last = None;
             }
             0x66 => {
                 // The class-pair descriptor of the 2113–2119 family. Not a value.
                 if eat_class_descriptor(seg, &mut p).is_none() {
-                    return CallForm::Op(0x66);
+                    return (CallForm::Op(0x66), methods_of(last, head_syms), p);
                 }
             }
             0x02 | 0x03 | 0x04 => {
                 p += 1;
                 last = Some(Tk::Op);
             }
-            other => return classify_at(Stop::Op(other), last, head_syms),
+            other => return (classify_at(Stop::Op(other), last, head_syms), methods_of(last, head_syms), p),
         }
         if counting_head {
             if consumed_head_sym {
@@ -1043,20 +1142,27 @@ fn walk(seg: &[u8], start: usize) -> CallForm {
             }
         }
     }
-    CallForm::Eof
+    (CallForm::Eof, methods_of(last, head_syms), p)
 }
 
 /// Turn `(what stopped the walk, the value on top, the head symbol run)` into a
 /// sub-bucket.
-fn classify_at(stop: Stop, last: Option<Tk>, head_syms: usize) -> CallForm {
-    // How many of the head symbol pushes were *methods*. When the receiver is
-    // itself a named object it is the last of the run, so one of them is not a
-    // method; otherwise all of them are.
-    let methods = if last == Some(Tk::Sym) {
+/// How many of the head symbol pushes were *methods*. When the receiver is itself
+/// a named object it is the last of the run, so one of them is not a method;
+/// otherwise all of them are.
+///
+/// One locator, shared: [`classify_at`] turns it into a form and [`reanchor_chain`]
+/// compares it against the statement's bind count.
+fn methods_of(last: Option<Tk>, head_syms: usize) -> usize {
+    if last == Some(Tk::Sym) {
         head_syms.saturating_sub(1)
     } else {
         head_syms
-    };
+    }
+}
+
+fn classify_at(stop: Stop, last: Option<Tk>, head_syms: usize) -> CallForm {
+    let methods = methods_of(last, head_syms);
     match stop {
         Stop::Bind => {
             // Two or more stacked methods is a chain, whatever the innermost
@@ -2597,6 +2703,23 @@ mod tests {
         0x29, 0x06, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
 
+    /// `int s_asg(O* p) { int x; x = p->Get(); return x; }` — **the re-anchor's
+    /// control**, and the reason [`reanchor_chain`] needs a bind count rather than a
+    /// head-run length.
+    ///
+    /// Its head is `26 <x> 26 <Get> B9 <p> 99 …` — *two* symbol pushes before the
+    /// receiver, exactly like [`PROBE_CHAIN_IN_RETURN`]'s `26 <Get> 26 <Next> B9 <p>
+    /// 99 …`. The only structural difference is that this statement contains **one**
+    /// depth-0 `99` bind and the chain contains two. Captured from `work/fa/probes/p6.cpp`,
+    /// fixture profile.
+    const PROBE_ONE_LINK_ASSIGN: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0x02, 0x0A, 0x26, 0xED, 0x09, 0xB9, 0xFF, 0x09, 0x86, 0x43,
+        0x81, 0x20, 0x99, 0x86, 0x43, 0x88, 0x20, 0x00, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x08,
+        0x10, 0x00, 0x00, 0x4C, 0x32, 0x86, 0x41, 0x74, 0x4B, 0xB9, 0x02, 0x0A, 0x86, 0x41, 0x74,
+        0x41, 0x86, 0x41, 0x74, 0x3A, 0x01, 0x0A, 0x54, 0x02, 0x29, 0x01, 0x0A, 0x4F, 0x12, 0x47,
+        0x54, 0x01, 0x54, 0x00,
+    ];
+
     /// `int b_if() { if (gO.Ok()) return 1; return 0; }` — **the branch witness, and
     /// the polarity of `38` with it.**
     ///
@@ -2954,12 +3077,17 @@ mod tests {
     #[test]
     fn every_second_blocker_names_its_own_construct() {
         let cases: &[(&[u8], &str)] = &[
-            (PROBE_CHAIN_IN_RETURN, "expr-call-in-expr-recv-load-then-chain-bind-whole"),
-            // The third construct is MEASURED too, and it is the `30 A6 45 F3 30` the
-            // hand-read of this segment predicted: an indirect load of a const float.
+            // §18.3: this used to read `recv-load-then-chain-bind-whole`, which was
+            // the mis-anchor, not the construct — the head method push had been
+            // eaten by the assignment dispatch. Both statement positions of the
+            // same two-link chain now name the same form.
+            (PROBE_CHAIN_IN_RETURN, "expr-call-in-expr-chained-whole"),
+            // The wild one keeps its third construct — the `30 A6 45 F3 30` the
+            // hand-read of this segment predicted, an indirect load of a const float
+            // — and moves to the same form for the same reason.
             (
                 WILD_CHAIN_AS_RECV_LOAD,
-                "expr-call-in-expr-recv-load-then-chain-bind-and-deref-load-more",
+                "expr-call-in-expr-chained-then-deref-load-more",
             ),
             (PROBE_CHAIN_IN_ASSIGNMENT, "expr-call-in-expr-chained-whole"),
             (PROBE_IF_ON_NAMED_OBJECT, "expr-call-in-expr-recv-object-then-branch-0x38"),
@@ -2981,27 +3109,47 @@ mod tests {
         }
     }
 
-    /// **The finding this rung exists for, as a test.** One source construct — a
-    /// two-link chain — files under two different D2 forms depending on whether the
-    /// statement has an assignment destination to absorb the head method push. Both
-    /// bodies are grammar-complete; only one of them is *called* a chain.
-    ///
-    /// It is `docs/IL_CALL_IN_EXPR.md` §9.2 one level down, and it means the
-    /// `chained` bucket (8,001) understates the chain population by roughly 4x.
+    /// **§16.4's finding, now fixed, as a test.** One source construct — a two-link
+    /// chain — used to file under two different D2 forms depending on whether the
+    /// statement had an assignment destination to absorb the head method push, and
+    /// the `chained` bucket understated the chain population ~4.4× as a result. The
+    /// statement-head re-anchor ([`reanchor_chain`], §18.3) puts the value-position
+    /// form back where the assignment form already was.
     #[test]
-    fn a_chain_in_a_return_position_is_filed_as_its_inner_receiver() {
+    fn a_chain_is_a_chain_in_both_statement_positions() {
         let ret = parse_segment_detail(&free_fn(PROBE_CHAIN_IN_RETURN), NO_LOCALS).unwrap_err();
         let asg = parse_segment_detail(&free_fn(PROBE_CHAIN_IN_ASSIGNMENT), NO_LOCALS).unwrap_err();
-        // Different *forms*…
-        assert_ne!(ret.aux & FORM_MASK, asg.aux & FORM_MASK);
-        assert_eq!(ret.feature(), "expr-call-in-expr-recv-load-then-chain-bind-whole");
+        // The same *form* now, which is the fix.
+        assert_eq!(ret.aux & FORM_MASK, asg.aux & FORM_MASK);
+        assert_eq!(ret.feature(), "expr-call-in-expr-chained-whole");
         assert_eq!(asg.feature(), "expr-call-in-expr-chained-whole");
         // …and the assignment body really is the return body plus one `26 <dst>`
         // push, byte for byte, plus the store and load of the local.
         assert!(PROBE_CHAIN_IN_ASSIGNMENT.len() > PROBE_CHAIN_IN_RETURN.len());
-        // Both are whole-body accounted for, one alone and one as a pair, so the
-        // *work* is the same in each case even though the bucket is not.
-        assert!(ret.feature().ends_with("-whole") && asg.feature().ends_with("-whole"));
+        // The refusal is still a refusal, still at a `26`, and still whole-body
+        // accounted for: the key moved, the gate did not.
+        let seg = free_fn(PROBE_CHAIN_IN_RETURN);
+        assert_eq!(seg[ret.off], 0x26);
+        assert!(parse_segment(&seg, NO_LOCALS).is_none());
+    }
+
+    /// **The guard on the re-anchor, and the reason it needs a bind count.**
+    ///
+    /// A *single-link* member call in an assignment has the same head shape as a
+    /// two-link chain in a value position — `26 <tok> 26 <tok>` then the receiver —
+    /// and differs only in how many `99` binds the statement contains. A re-anchor
+    /// that trusted the head run alone would promote every one of them, trading
+    /// §16.4's 4.4× undercount for an overcount of the whole corpus's assignments.
+    #[test]
+    fn a_single_link_call_with_a_destination_is_not_promoted_to_a_chain() {
+        // `x = p->Get();` — head run of two symbols, ONE bind.
+        let one = parse_segment_detail(&free_fn(PROBE_ONE_LINK_ASSIGN), NO_LOCALS).unwrap_err();
+        assert_eq!(one.feature(), "expr-call-in-expr-recv-load-whole");
+        assert_eq!(depth0_binds(&free_fn(PROBE_ONE_LINK_ASSIGN), one.off, 4), 1);
+        // …against the two-link value form, which has two.
+        let two = free_fn(PROBE_CHAIN_IN_RETURN);
+        let b = parse_segment_detail(&two, NO_LOCALS).unwrap_err();
+        assert_eq!(depth0_binds(&two, b.off, 4), 2);
     }
 
     /// A branch is named a branch because its label is **defined later in the same

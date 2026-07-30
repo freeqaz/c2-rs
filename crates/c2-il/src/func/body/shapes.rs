@@ -106,8 +106,20 @@ pub(crate) fn try_parse_assign_body_detail(
             }
             return Err(blk(seg, probe, "assign-rhs-call"));
         }
+        // `start_of_stmt` is the byte the statement opened on — the `26` this loop
+        // just consumed as a destination. It may not be one: a member call in a
+        // *value* position opens on its outermost method push, which is the same
+        // two bytes. Only the right-hand side's own refusal can tell, so the
+        // statement head is carried to [`mcall::reanchor_chain`], which puts it back
+        // when (and only when) the walk and the bind count agree that the token was
+        // a method. `docs/IL_CALL_IN_EXPR.md` §16.4 measured this as a 4.4×
+        // undercount of chains; §18.3 is the fix.
+        let start_of_stmt = p;
         p = probe;
-        let rhs = parse_expr(seg, &mut p, 0x32)?;
+        let rhs = match parse_expr(seg, &mut p, 0x32) {
+            Ok(r) => r,
+            Err(b) => return Err(mcall::reanchor_chain(seg, start_of_stmt, probe, b)),
+        };
         // A store to any memory object (a global, or a file-scope `static`) is a
         // real write with a relocation, and treating it as a register copy silently
         // drops it. Testing *absence* from `.gl` failed exactly there: a
