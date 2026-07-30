@@ -1444,6 +1444,76 @@ Items 3, 4, 7 and 9 are the reason no completion fraction can honestly be
 derived from 4.45%: the census measures decode demand, and none of those four
 is a decode item.
 
+## 6c. W-UNW-1 closed: per-function `.pdata` (2026-07-30)
+
+The prerequisite for #35 (general non-leaf lowering) was that the port emit
+byte-exact unwind data for framed functions. It does now, in both sectioning
+modes, and the label counter that blocked it is derived rather than pinned.
+
+**What was established from c2's own output** (`OBJ_FORMAT_MVP.md` §7): the X360
+record is 8 bytes, `BeginAddress` (reloc-patched, addend 0) plus a packed word
+`PrologLen[7:0] | FuncLen[29:8] | ThirtyTwoBit[30] | ExceptionFlag[31]`, both
+big-endian. There is **no `.xdata` and no unwind-code array** — the whole thing
+is those 8 bytes, which is not the x64 shape and was not assumed from it.
+`FuncLen` and `PrologLen` are exactly the two `$M` label values over four.
+Prologue lengths of 3, 5, 6 and 7 all occur in ordinary code; the old emitter
+hardcoded 3. A leaf gets no record at all — including a leaf with a 400-byte
+local array, which lives in the red zone; grow it to 70,000 bytes and the record
+appears, so the predicate is "does this function move `r1`", which the emitter
+knows by construction.
+
+**What was implemented.** `Function::frame` carries the two lengths; `emit_obj`
+appends one `.pdata` holding every framed function's record with an ADDR32 per
+record, and `emit_comdat_obj` gives each framed function its own `.pdata` COMDAT
+immediately after its `.text` COMDAT, `SELECT_ASSOCIATIVE` with the aux `Number`
+naming that `.text`. The third whole-obj emitter (`emit_framed_obj`, hardcoded to
+one function and to `$M2545/$M2546/$T2547`) is deleted — this file already
+carried two bugs whose whole cause was one rule implemented in two emitters and
+fixed in one.
+
+**Gate evidence.** 126 fixtures × 4 mode lanes, **0 mismatch** everywhere;
+`/Ox` 54 match (was 50), `/O1` 52 (was 47), `/O2` 52 (was 47), `/Ox /Gy` 52
+(was 47). 4,706 generated sweep cases, 0 mismatches; the 363 new W-UNW cases
+graded separately in all four modes at 342 match / 0 mismatch / 12 honest
+refusals each. Census **411,934 / 2,462,571 = 16.73 % before and after, 0 TUs
+changed** — this is groundwork and it moved the census by exactly zero, as
+intended.
+
+**One live wrong-bytes emit found and fixed**, unreachable before the
+single-function gate came off: the framed `bl` displacement was the literal
+`4BFFFFF5`, right only for a function at `.text` 0.
+
+### What still blocks #35
+
+Everything below is *codegen*, not obj format. The unwind side is done for any
+frame the codegen can describe, because `Frame { prolog_len, func_len }` is all
+the record needs and both are byte offsets the emitter already computes.
+
+1. **The frame itself is one hardcoded shape.** `framed_call_text` emits a
+   constant 0x24-byte body with a 96-byte frame. #35 needs a frame-size model
+   (measured: 96 B for one by-value temporary, 112 B for two), callee-saved GPR
+   allocation descending from r31, the `__savegprlr_N`/`__restgprlr_N` helper
+   calls above roughly five saved registers, FPR saves, and `_RtlCheckStack12`
+   for frames past a page. Sizeable, and entirely unstarted.
+2. **More than one call per body.** The accepted shape is one `bl` with the
+   result consumed by one `addi`. Every large blocking row is 96–100 % framed
+   *and* multi-call, so #35's customers all need call sequencing, argument
+   registers r3–r10 with stack spill, and a live-range model across calls.
+3. **The label stride of every class #35 will admit.** The counter model is
+   measured for the classes the port emits and is *wrong* for two it decodes
+   (comparison leaves 3, FP leaves 2). Any class #35 adds needs its stride
+   measured before a framed function may share a TU with it — one compile each,
+   `<class> ; int F(int a){return g(a)+1;}`, differenced against `.gl+7+9`.
+4. **EH is out of class and visibly so.** Bit 31 of the unwind word, and a
+   function with a `try`/`catch` produces **several** records (the catch funclet
+   first, with a non-zero `BeginAddress` addend). The workload compiles
+   `/EHsc`, so this arrives with the first real body that needs it.
+5. **`.pdata` beside `.rdata`.** No captured TU has both a pooled FP constant
+   and a framed function, so the section order between them is unknown; the
+   combination is refused rather than guessed.
+6. Unchanged and unrelated to unwind: the whole-TU all-or-nothing gate, and the
+   fact that the port has no model of *which* bodies c2 emits (§6a).
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp

@@ -812,11 +812,14 @@ this section is by dependency, not payoff; the ranked worklist is §4.
     phrased over the IL's literals is guessing at c2's arithmetic. This is what
     caps W13b at one constant per body, and it is the general shape of the hazard
     for every future constant-bearing class.
-  - **W-UNW-1**: `.pdata` label counters (`$M2545/…`) are a fixed seed for
-    the first function but shift as preceding functions consume slots —
-    resolved for single-function TUs, must be modeled per-function before
-    W10/W11 touch multi-function TUs (a real TU averages ~2,800 functions
-    over the corrected denominator — §2).
+  - **W-UNW-1 — CLOSED 2026-07-30.** `.pdata` label counters (`$M2545/…`) were
+    a fixed seed hardcoded for a single-function TU. The seed is now **read**:
+    it is the u32 at `.gl` offset 7 plus 9, and the counter advances 1 per leaf,
+    4 per framed function (5 under `/Gy`, which also charges 3 per function up
+    front). `docs/OBJ_GY_SHAPES.md` §3.5/§3.6; both emitters implement it and
+    `fixtures/cpp/wunw_*.cpp` grade it byte-exact in all four mode lanes. Two
+    classes have a *different* stride (comparison leaves 3, FP leaves 2 plus 2
+    per pooled constant) and are refused when a framed function shares the TU.
   - `.pdata` carries a real reflected-CRC-32 checksum; new sections mean new
     CONST/DERIVED byte classification work per `OBJ_FORMAT_MVP.md`.
   - **A second register model is a second set of rules, not a parameter.**
@@ -1550,6 +1553,64 @@ The rules that keep the numbers honest:
   bugs that had already been found and fixed once in the sibling packed emitter.
   A second lane over an unchanged corpus was worth three bugs, which says the
   corpus was never the limiting factor — the single capture profile was.
+- **Two unknowns in one equation absorb each other's error, and no table of
+  totals can separate them.** The `$M`/`$T` compiler-label numbers are
+  `seed + Σ(stride of each preceding function)`, and `OBJ_GY_SHAPES.md` §3.4
+  had 21 witnesses of the total with neither term known. It fitted a model —
+  correctly for every int class — and got the float stride wrong by one and the
+  pooled-constant stride wrong by two, because `v_float_framed` (float-leaf,
+  framed) and `v_leaf_framed` (leaf, framed) both showed 2550 and were read as
+  agreeing when they are two TUs with two different seeds. Adding rows could
+  never have fixed it. What fixed it was finding a witness that pins **one** of
+  the two: the seed is in `.gl`, four bytes at a fixed offset, and with it every
+  stride is a one-class-at-a-time subtraction. The general rule: when a measured
+  quantity is a sum of two unknowns, stop collecting sums and go looking for
+  either term — and until you have one, do not describe the fit as a model that
+  "fits all N witnesses", because it fits them the way any two free parameters
+  fit a line.
+- **A constant gap over a biased sample is not a fit.** The same `.gl` field
+  read as a **LEB128** gives 1256 for `mvp_framed`, and `B − 1256 = 1289` held
+  across every fixture checked at first — because the counter sits in the
+  2500–2700 range and every value there LEBs to two bytes with the continuation
+  bit set. It is a fixed-width u32; the two readings agree on the whole of a
+  corpus whose values happen to share one property and diverge the moment the
+  low byte falls under 0x80. A wrong decode that is *linear* in the right one is
+  the worst kind, because a constant offset looks exactly like a calibration
+  constant. Ask what property the sample shares before believing a constant.
+- **A constant is only as validated as the inputs it was evaluated at.**
+  `framed_call_text` wrote the `bl` word `4BFFFFF5` literally. That is correct —
+  MSVC's `disp = −(own .text offset)` — for a framed function at `.text` 0, and
+  a framed TU was gated to exactly one function, so 0 was the only input the
+  constant ever saw. Removing the gate turned it into a wrong-bytes emit on the
+  second line of the first multi-function fixture (`4BFFFFED` at 0x14). This is
+  the "safe half of the pair" shape again with a new tell: **when a gate is
+  removed, grep the code the gate was protecting for values that were constants
+  only because the gate made them constants.** Two constants in this file had
+  that property; the other (`FRAMED_PROLOG_LEN` vs `FRAMED_BL_OFFSET`, equal for
+  this frame class and unequal for a 5-word prologue) was split pre-emptively for
+  the same reason.
+- **A gate written to buy time gets counted as coverage.** `functions()` refused
+  a TU with a framed function and any sibling (`n_defined != 1`), while `c2rs
+  census` graded the same TU 2/2 in class. That is §22.5's producer disagreement
+  in the direction that inflates the numerator, and it sat there long enough to
+  be quoted: two functions counted as in-class that the port would never emit.
+  Nothing wrong was emitted, which is exactly why it survived. **A gate whose
+  comment says "for now" is a claim about the numerator, and the census producer
+  has to be told about it or the numerator is wrong by however much it refuses.**
+- **The corpus is a live working tree, and `fn_total` agreeing does not prove it
+  held still.** Two scans of the 878-TU workload taken 40 minutes apart differed
+  in 6 TUs, and one of them moved a function between blocking buckets. Neither
+  binary nor flags had changed in a way that could do that; **`dc3-decomp`
+  itself had advanced** — a sibling agent committed to it mid-session, headers
+  changed, and 6 `.ex` files came out tens of bytes different. `fn_total` was
+  identical across the two scans (2,462,571) and `fn_in_class` was identical
+  (411,934), so the guard this document already recommends — print the row count
+  and denominator before differencing — passed while the corpus underneath had
+  in fact changed. The fix is the same shape as "quote absolute paths": **record
+  the workload tree's `git rev-parse HEAD` in the scan, and re-run the *baseline*
+  binary against the current tree before claiming a delta.** Doing that here
+  turned "6 TUs changed" into "0 TUs changed" and made the zero-movement claim
+  real rather than approximate.
 - **A field the port skips is indistinguishable from a field that is always
   the same.** The optimization word above was stepped over silently for months;
   so was the source-line marker before it turned out to carry a varint payload,

@@ -242,9 +242,10 @@ The pure-MVP class has none; a function that **calls** another breaks the
 
 A **framed non-leaf call** `int f(int a){ return g(a) + k; }` (the call result
 is used, so `f` allocates a 96-byte frame) adds a sixth section and grows the
-symbol table to 20. Implemented byte-exact by `coff::emit_framed_obj` for a
-**single-function TU**; the 5-section `emit_obj` path is untouched for
-leaf/tail-call TUs. Recovered by diffing reference objs for `g(a)+1`, `g(a)+2`
+symbol table to 20. This section describes the **single-function** case, which
+is the smallest instance; §7 has the general encoding and sectioning. Emitted by
+`coff::emit_obj` (packed) / `coff::emit_comdat_obj` (`/Gy`) — the dedicated
+`emit_framed_obj` is gone. Recovered by diffing reference objs for `g(a)+1`, `g(a)+2`
 (byte-identical but the `addi` immediate), and `g(a)*5` (0x28 body).
 
 **Sections (6):** the leaf five, then `.pdata` (`SizeOfRawData` 0x8,
@@ -292,14 +293,96 @@ targets the **callee external**, not a `$M` label.
 | 17+18 | `.pdata` + aux (**nReloc=1, CheckSum=CRC**) | 0 | 6 | 0 | 3 | 1 |
 | 19 | `$T2547` | 0 | 6 | 0 | **3** | 0 |
 
-- The three label symbols are compiler-counter names, **constant** for the
-  first function of a TU (W-UNW-1) — hardcoded, inline (≤8 chars). `$M2545`/
-  `$M2546` are storage-class 6 (LABEL); `$T2547` is class 3 (STATIC).
+- The three label symbols are compiler-counter names. They are **not constant**
+  and are no longer hardcoded — see §7 below and `OBJ_GY_SHAPES.md` §3.5.
+  `$M2545`/`$M2546` are storage-class 6 (LABEL); `$T2547` is class 3 (STATIC).
 - The `.pdata` aux section-def CheckSum is a **real reflected CRC-32** over the
   8 raw bytes (0xd3dfb2ce for `+k`) — a non-COMDAT section that still gets a
   checksum (contrast the leaf `.text`/`.drectve`/`.debug$S` aux, which store 0).
 - String table order (first reference, top-down): `__C2_11886`, `__C1_11886`,
   `?f@@YAHH@Z`, `?g@@YAHH@Z`.
+
+## 7. The `.pdata` unwind record — the encoding, from c2's own output
+
+Xbox 360 PPC unwind data is **not** x64 unwind data: there is no `.xdata`, no
+`UNWIND_INFO` header and no unwind-code array. The whole record is the 8 bytes
+in `.pdata`, big-endian like `.text`:
+
+```text
+  u32 BeginAddress    always 0 in the obj; an ADDR32 relocation against the
+                      function's own symbol supplies the address, so the raw
+                      value is the addend (0 for every record c2 emitted here)
+  u32 unwind          bits  7..0   PrologLen     prologue length, INSTRUCTIONS
+                      bits 29..8   FuncLen       function length, INSTRUCTIONS
+                      bit  30      ThirtyTwoBit  1 in every record observed
+                      bit  31      ExceptionFlag 1 iff the function has EH data
+```
+
+Every field below was read out of a reference obj, not from documentation.
+`$M(n)` and `$M(n+1)` are the same two lengths as symbols, which is the cheapest
+available cross-check on any implementation of this: **`PrologLen = $M(n)/4` and
+`FuncLen = $M(n+1)/4`, always.**
+
+| source | `.text` | unwind | FuncLen | PrologLen | prologue |
+|---|---|---|---|---|---|
+| `return g(a)+1` | 0x24 | `40000903` | 9 | 3 | `mflr;stw;stwu` |
+| `return g(a)+g(a+1)` | 0x48 | `40001205` | 18 | 5 | + `std r30`/`std r31` |
+| 100 KB local array + 2 calls | 0x58 | `40001607` | 22 | 7 | + `lis;ori;bl _RtlCheckStack12` |
+| 6 int args, 6 calls | 0x88 | `40002203` | 34 | 3 | `mflr;bl __savegprlr_25;stwu` |
+| leaf with a 70 KB frame | 0x3c | `40000f06` | 15 | 6 | still framed → still a record |
+| `double` temporaries, 1 call | 0x58 | `40001605` | 22 | 5 | + two `stfd` |
+| a body holding a destructor, `/EHsc` | 0x4c | `c0001306` | 19 | 6 | **bit 31 set** |
+
+Three consequences the port depends on:
+
+1. **A leaf gets no record at all.** `int f(int a){ volatile char buf[400];
+   buf[a&255]=(char)a; return buf[0]; }` addresses its array below `r1` in the
+   red zone (`addi r10,r1,-400`) and c2 emits neither `.pdata` nor `$M` labels.
+   Grow the array to 70,000 bytes so `r1` must move and both appear. The
+   predicate is "does this function establish a frame", which is a fact the
+   emitter has by construction.
+2. **`PrologLen` is not a constant.** `build_pdata` hardcoded 3 for as long as
+   the framed class was one shape; 3, 5, 6 and 7 all occur in ordinary code.
+3. **EH is out of class, and visibly so.** Bit 31 is the tell, and EH also
+   splits one function across **several** records: `try { return g(a); }
+   catch (int e) { return e; }` produced two `.pdata` COMDATs, the catch
+   funclet's first with a non-zero `BeginAddress` addend (0x48 against
+   `?ehtry`), the body's second.
+
+### 7.1 Sectioning: packed vs `/Gy`
+
+| | packed (`/Ox`) | `/Gy` (so `/O1`, `/O2`) |
+|---|---|---|
+| `.pdata` sections | one for the TU | one per **framed** function |
+| position | last, after `.text` | immediately after that function's `.text` COMDAT |
+| characteristics | `0x40400040` | `0x40401040` (+ `LNK_COMDAT`) |
+| aux `Selection` | 0 | **5** (`SELECT_ASSOCIATIVE`) |
+| aux `Number` | 0 | the **section number of its `.text`** |
+| aux `CheckSum` | real CRC over all records | real CRC over the one record |
+| records | all framed functions, `.text` order | one |
+| `$T` value | the record's offset (0, 8, …) | 0 |
+
+The association is the mechanism that makes `/Gy` sound: the linker discards a
+function's unwind record with the function. A leaf's `.text` COMDAT has no
+`.pdata` beside it, so section numbers are **not** `4 + 2i` — they interleave
+by framed-ness (`.text` 5, `.pdata` 6, `.text` 7 for a leaf, `.text` 8,
+`.pdata` 9).
+
+### 7.2 Symbol group per framed function
+
+```text
+  packed, FIRST framed function of the TU:
+    [fn] [$M(n+1) @ function end] [callee, if new] [$M(n) @ prologue end]
+    [.pdata section sym + aux] [$T(n+2) @ record offset]
+  packed, every later framed function:
+    [fn] [$M(n+1)] [callee, if new] [$M(n)] [$T(n+2)]
+  /Gy, every framed function:
+    [.text section sym + aux] [fn] [$M(n+1)] [callee, if new] [$M(n)]
+    [.pdata section sym + aux] [$T(n+2) @ 0]
+```
+
+Note the order inside the group is not the obvious one: the **end** label comes
+before the callee external and the **prologue** label after it.
 
 ## Emitter build order
 
