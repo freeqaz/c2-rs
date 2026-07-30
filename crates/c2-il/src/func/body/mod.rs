@@ -260,16 +260,39 @@ impl Block {
         if self.ctx == mcall::CALL_IN_EXPR {
             return mcall::feature(self.aux);
         }
-        // Operand-type blocks report the whole 3-byte type: that triple *is* the
-        // feature (int vs unsigned vs float vs pointer), and it is what the next
-        // widening step must teach `parse_expr` to accept.
+        // Operand-type blocks report the type's `<tag> <kind>` — **and not its
+        // id**, which is the whole content of this key's history.
+        //
+        // A TYPE is `<tag> <kind> <LEB128 id>` (`docs/IL_TYPE_TAGS.md` §1). The
+        // first two bytes are fixed vocabulary — the tag is the slot's width plus
+        // a qualifier (`86` plain, `A6` const, `96` volatile), the kind's low
+        // nibble is the type *class* (1 signed · 2 unsigned · 3 data pointer ·
+        // 4 code pointer · 5 real · 6 aggregate · 7 void) — so together they name
+        // the construct a widening would have to implement. The **id is an index
+        // into the TU's own type table**: every distinct pointee and every
+        // typedef gets a fresh one, and the same construct is numbered
+        // differently in every TU.
+        //
+        // Putting that id in the bucket *name* shattered one construct into 256
+        // shards, and a ranked histogram cannot show a shattered construct at
+        // all. It hid `expr-load-type-A643` — a const-qualified 4-byte pointer
+        // operand, 666,907 functions, 31 % of the blocked workload — behind rows
+        // a fifth its size, and it hid the same class a second time by absorbing
+        // 82.9 % of the address-leaf rung's gain in shards no ranking could
+        // attribute. `GAPS.md` §6 had recorded the failure since the first census
+        // and it was regrouped **by hand** for one analysis instead of being
+        // fixed, which is exactly why it recurred.
+        //
+        // The id is not discarded — [`Block::aux`] still carries the whole triple
+        // packed exactly as [`blk_type`] wrote it, and [`super::census::FnCensus`]
+        // keeps the raw bytes of the site. It is kept out of the *name*, which is
+        // the only place it did damage.
         if self.aux != 0 {
             return format!(
-                "{}-{:02X}{:02X}{:02X}",
+                "{}-{:02X}{:02X}",
                 self.ctx,
                 (self.aux >> 16) & 0xFF,
                 (self.aux >> 8) & 0xFF,
-                self.aux & 0xFF
             );
         }
         let b = match self.byte {
@@ -359,7 +382,12 @@ pub(crate) fn blk(seg: &[u8], p: usize, ctx: &'static str) -> Block {
 
 /// Build an operand-*type* [`Block`]: `p` points at the 3-byte inline type that
 /// is not the modeled int (`86 41 74`), `report_at` at the operand it belongs
-/// to. Packs the triple into [`Block::aux`] so the census buckets by type.
+/// to. Packs the triple into [`Block::aux`].
+///
+/// The whole triple is packed, id included — an analysis that wants the id has
+/// it — but [`Block::feature`] renders only `<tag> <kind>`, because the id is a
+/// per-TU table index and a bucket named after one is 256 buckets. See that
+/// method's comment for what the sharding cost.
 pub(crate) fn blk_type(seg: &[u8], p: usize, report_at: usize, ctx: &'static str) -> Block {
     let g = |i: usize| seg.get(p + i).copied().unwrap_or(0) as u64;
     Block {
@@ -922,20 +950,129 @@ mod tests {
         assert_eq!(cmp[b.off], 0x24);
     }
 
-    #[test]
-    fn census_reports_the_whole_operand_type_not_its_shared_first_byte() {
-        // An `unsigned` operand's inline type shares its first byte (`86`) with
-        // `int`, so bucketing on that byte would merge every non-int type into
-        // one meaningless class. The bucket must carry the full triple.
+    /// Retype the argument LOAD's inline type in a copy of [`INT_TAILRET`],
+    /// leaving every other byte intact, and return the resulting block.
+    fn load_typed(t: [u8; 3]) -> Block {
         let mut seg = INT_TAILRET.to_vec();
-        // Corrupt the argument LOAD's type `86 41 74` → `86 41 75` (a distinct
-        // type), leaving everything else intact.
-        let load = seg.windows(6).position(|w| w == [0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74]).unwrap();
-        seg[load + 5] = 0x75;
+        let load = seg
+            .windows(6)
+            .position(|w| w == [0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74])
+            .unwrap();
+        seg[load + 3..load + 6].copy_from_slice(&t);
         let seg = free_fn(&seg);
         let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
-        assert_eq!(b.feature(), "expr-load-type-864175");
         assert_eq!(seg[b.off], 0xB9, "reported at the LOAD, not mid-type");
+        b
+    }
+
+    #[test]
+    fn census_reports_the_operand_type_class_not_its_shared_first_byte() {
+        // Every 4-byte type's inline TYPE starts `86`, so bucketing on that byte
+        // would merge pointer, float and aggregate operands into one meaningless
+        // class. The bucket must carry the `kind` byte, which is the class.
+        for (t, want) in [
+            ([0x86u8, 0x43, 0xF4], "expr-load-type-8643"), // int*
+            ([0x86, 0x45, 0x40], "expr-load-type-8645"),   // float
+            ([0x88, 0x85, 0x41], "expr-load-type-8885"),   // double
+            ([0xA6, 0x43, 0x81], "expr-load-type-A643"),   // const char* (const tag)
+        ] {
+            assert_eq!(load_typed(t).feature(), want, "type {t:02X?}");
+        }
+    }
+
+    #[test]
+    fn the_operand_type_bucket_does_not_shard_on_the_per_tu_type_id() {
+        // THE de-sharding invariant. A TYPE's third field is an index into the
+        // TU's own type table — every pointee and every typedef gets a fresh one
+        // — so two ids under one `<tag> <kind>` are the *same* construct numbered
+        // twice, and a key that carried the id split one construct into 256
+        // buckets that no ranked histogram could add back up. `86 43 F4` is
+        // `int*` and `86 43 83` is `void*` in the fixture TU of
+        // `docs/IL_TYPE_TAGS.md` §2; in the next TU those numbers belong to two
+        // other pointers.
+        let a = load_typed([0x86, 0x43, 0xF4]);
+        let b = load_typed([0x86, 0x43, 0x83]);
+        assert_eq!(a.feature(), b.feature(), "one construct, one bucket");
+        // …and the id is *kept*, just not in the name: `aux` still holds the
+        // whole triple, so an analysis that wants the type table index has it.
+        assert_ne!(a.aux, b.aux);
+        assert_eq!(a.aux, 0x8643F4);
+        assert_eq!(b.aux, 0x864383);
+    }
+
+    #[test]
+    fn the_operand_type_rekey_is_an_exact_coarsening() {
+        // The re-key must be a *partition* of the old one: every block's new key
+        // is a function of its old key, so functions can only merge, never move
+        // sideways. Checked here at the level the property lives at — the key
+        // formatter — over the four shapes `feature` can take, because the parse
+        // itself is untouched and so every `Block` is bit-identical to before.
+        let old = |b: Block| -> String {
+            if b.ctx == "expr-intrinsic" || b.ctx == "call-intrinsic" {
+                return format!("{}-{}", b.ctx, intrinsic_name(b.aux as i32));
+            }
+            if b.ctx == mcall::CALL_IN_EXPR {
+                return mcall::feature(b.aux);
+            }
+            if b.aux != 0 {
+                return format!(
+                    "{}-{:02X}{:02X}{:02X}",
+                    b.ctx,
+                    (b.aux >> 16) & 0xFF,
+                    (b.aux >> 8) & 0xFF,
+                    b.aux & 0xFF
+                );
+            }
+            match b.byte {
+                None => format!("{}:eof", b.ctx),
+                Some(x) if b.ctx == "expr" => match expr_opcode_name(x) {
+                    Some(n) => format!("expr-{n}"),
+                    None => format!("expr-op-0x{x:02X}"),
+                },
+                Some(x) => format!("{}-0x{x:02X}", b.ctx),
+            }
+        };
+        // Only the pairings the parser can actually produce: `aux` is nonzero
+        // for the operand-type blocks ([`blk_type`]), for the two intrinsic
+        // contexts, and for `mcall`'s packed pair — nowhere else.
+        let mut cases: Vec<(&'static str, u64)> = Vec::new();
+        for ctx in ["expr-load-type", "expr-lit-type"] {
+            for aux in [0x864174u64, 0x864175, 0x8643F4, 0xA64383, 0x888541, 0x000012] {
+                cases.push((ctx, aux));
+            }
+        }
+        for ctx in ["expr-intrinsic", "call-intrinsic"] {
+            for aux in [15u64, 2113, 2117, 0xDF] {
+                cases.push((ctx, aux));
+            }
+        }
+        cases.push((mcall::CALL_IN_EXPR, 11));
+        for ctx in ["expr", "body", "call-token", "fn-tail", "stmt-start"] {
+            cases.push((ctx, 0));
+        }
+        let mut map: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+        for (ctx, aux) in cases {
+            for byte in [None, Some(0x24u8), Some(0xB9)] {
+                let b = Block { ctx, byte, off: 0, aux };
+                let (o, n) = (old(b), b.feature());
+                // Same old key ⇒ same new key. That is exactly "the new
+                // partition is a coarsening of the old one", and it is what
+                // makes the census difference attributable.
+                match map.get(&o) {
+                    Some(prev) => assert_eq!(prev, &n, "old key {o} maps to two new keys"),
+                    None => {
+                        map.insert(o.clone(), n.clone());
+                    }
+                }
+                // Nothing outside the operand-type family may move at all.
+                if !ctx.ends_with("-type") {
+                    assert_eq!(o, n, "non-type key moved");
+                }
+            }
+        }
+        // And the family really did merge, or the test above is vacuous.
+        let merged: Vec<_> = map.iter().filter(|(o, n)| o != n).collect();
+        assert!(merged.len() >= 4, "expected the type family to fold: {merged:?}");
     }
 
     #[test]
