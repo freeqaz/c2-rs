@@ -27,7 +27,8 @@ constant*, not named.
 sy       := fnblock*
 fnblock  := label* fnrec scope* 06
 label    := 03 03 <tok> <u16 LE> 01 <b>          six bytes + token
-fnrec    := 03 01 <tok> 1F 00 01 01              "1F 00 01 01" never varied
+fnrec    := 03 01 <tok> <tail:4>                 1F 00 01 01 here, 1F 00 02 01
+            in real TUs — stepped over by width, never checked
 scope    := 0D <depth> var*
 var      := plain | array | static               (the record kinds observed)
 plain    := 01 <depth> <tok> 00 <name> 00 <type>
@@ -177,13 +178,39 @@ symbol — which means a locals gate keyed on record tokens will *not* claim a
 static's body references. That is the right failure direction: a static local
 is memory, not a register-homed local.
 
-### 3.6 Aggregates carry two extra bytes (MEASURED shape, meaning open)
+### 3.6 Aggregates carry two extra bytes — RESOLVED, and it is a separate field
 
 Every by-value struct record (formal and local, both probes) has `81 00 80 00`
 where scalars have `<flags16>`, then the tid varint (`80 03 10 00 00` = 0x1003).
-Whether that is a 4-byte flags field or flags `81 00` plus an unknown 2-byte
-field is **not derivable** from two struct types that never vary the middle
-bytes; either way the record is 2 bytes longer than a scalar's. Arrays instead
+
+**This section used to stop here**, saying it was "not derivable" from two struct
+types whether that is a 4-byte flags field or `<flags16>` plus an unknown 2-byte
+field, and `sy.rs` refused the whole file on any aggregate record as a result.
+That refusal was expensive in a way nobody had measured: `.sy` binds a translation
+unit 1:1 or not at all, so one struct member or parameter anywhere in a file
+withheld the binding for *all* of it — and once the argument-register precondition
+started depending on `.sy` widths (`param-width-undetermined`), the bill came to
+**567,549 functions**, the single largest census bucket, 2.3× the next.
+
+It is two fields, and the discriminating witness was already in the table below:
+
+* a **struct** parameter has `<flags16>` = `80 00`, and a struct **local** the same
+  field as `81 00` — differing in bit 0, *referenced*, which is a flag bit. So the
+  flags are being read, and the trailing `80 00` is something else.
+* an **array** local (`int x[4]`) has kind class 6 **as well**, and `<flags16>` =
+  `01 00`, and **no** extra field — its `80 00 10 00 00` is a genuine wide id of
+  `0x1000`. A reader keyed on the kind alone eats two bytes of that id and desyncs
+  every record after it.
+
+So the extra field is consumed when the kind's class nibble is 6 **and** flags bit
+7 is set, and its value is required to be literally `80 00` (eight witnesses, never
+varied, meaning still unknown — a never-varying field is indistinguishable from a
+constant, so it fails closed rather than being stepped over by width).
+
+The general lesson is worth more than the bytes: the ambiguity was real for a
+reader that ignored the kind byte, and the kind byte precedes the field. "Not
+derivable" was a statement about the reader, not about the format, and it sat in
+this document as if it were about the format. Arrays instead
 append one byte *after* the tid: 04 for `int[4]`, `int[7]` **and** `float[2]`,
 02 for `short[5]`, 01 for `char[3]` — so it is the **element size**, not the
 element count (the `int[7]` probe is what discriminates: count would be 07).
@@ -335,7 +362,9 @@ rule plus its refusals:
   `<tok'>`, which no record carries as its token;
 * flags other than `01 00`: `21 00` (address-taken) means the local must be
   stack-homed, `00 00` (unreferenced) has no measured codegen witness yet;
-* the aggregate tail (`81 00 80 00 …`) — two bytes of it are not understood;
+* an aggregate record whose extra 2-byte field is not `80 00`, or a class-6
+  record where the kind and flags bit 7 disagree — the field's meaning is
+  unknown, so a new value is new information (§3.6);
 * a `03 01` record whose `<u16>` is not `1F 00` — the field never varied, so
   a new value is new information, not noise;
 * any block-count or formal-token mismatch with `.ex` (rule 2) — that is the
@@ -352,8 +381,16 @@ depth 3+. Tokens, not names and not record order, are the identity (§6).
 * `<cls>` = 01/03 and the `04` byte after it: per-class constants in every
   probe; storage-class reading is a hypothesis. The `04` also appears (shifted)
   in the static tail; whether it is the same field is unknown.
-* The aggregate `80 00` (§3.6); whether `flags16` is really 16-bit.
+* What the aggregate's extra `80 00` MEANS (§3.6 settles only that it is a
+  separate field from `<flags16>`, and that class 6 plus flags bit 7 is what
+  selects it); whether `flags16` is really 16-bit.
 * The local record order rule (§6): name-driven, deterministic, not derived.
 * Whether the `03 01` token is guaranteed to be the exit-label token or merely
   always was: cross-check via formals (rule 2) rather than resting on it.
 * `this`, EH, `/O1`, 4-byte tokens: uncaptured (§7).
+* A **polymorphic** class record opens `C6 81 03 …` — a three-byte type prefix on
+  the `0x40` tag bit `readers.rs` records as occurring and undetermined. Located
+  and refused, from one witness pair (`struct V { virtual void f(); int a; }` and
+  a derived class); one pair cannot decode a new prefix form.
+  `fixtures/cpp/il_param_poly_neg.cpp` pins the cost, which is a whole-file
+  refusal and therefore paid by that file's other functions.

@@ -1085,10 +1085,9 @@ The rules that keep the numbers honest:
   and grouped them by production; and clearing one production can shrink several
   unrelated-looking buckets at once, so predicted movement should be stated
   per-production, never per-bucket.
-- **Three live wrong-bytes emits were found in one day, and none of them by the
-  fixture corpus.** All three came from review or adversarial probing, and all three
-  have the same shape: *two facts that happen to share one field until some
-  construct pulls them apart.*
+- **Four live wrong-bytes emits, none of them found by the fixture corpus.** Every
+  one came from review or adversarial probing, and every one has the same shape:
+  *two facts that happen to share one field until some construct pulls them apart.*
     1. The `this` token was located by a bare first-`0x46` search. That byte is also
        the payload of the line marker for **source line 70**, so a member function
        there lost its `this` and every formal dropped a register.
@@ -1101,9 +1100,16 @@ The rules that keep the numbers honest:
        every naturally-aligned type, so reading the tag was indistinguishable from
        reading the size until `#pragma pack(4)` put an 8-byte `long long` behind a
        4-byte tag, and one `lwz` landed at the wrong offset.
+    4. A formal's **index** in the formals list stood in for its **argument-register
+       number**. The same number for every scalar parameter, so the two were
+       indistinguishable until a by-value aggregate wider than 8 bytes took more than
+       one GPR: `int gb(Big v, H* h) { return h->mi; }` emitted `lwz r3,0(r4)` where
+       c2 emits `lwz r3,0(r6)` (`il_param_aggr_neg.cpp`).
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
-  but not members, `long long` at natural alignment but never packed. A hand-written
+  but not members, `long long` at natural alignment but never packed, and — for #4 —
+  not one parameter in the entire fixture corpus that was anything but a scalar. A
+  hand-written
   corpus is biased toward the shapes whoever wrote it was thinking about, and it is
   biased in a way that is invisible from inside it. Two practices follow, and both
   paid off the same day: **sweep the cross product, not one axis at a time**
