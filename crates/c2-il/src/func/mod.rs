@@ -92,6 +92,25 @@ pub enum IlOp {
     /// 4-byte integer load — every currently-matching fixture — keeps its exact
     /// representation and provably identical bytes.
     LoadIndSized { off: i32, width: u8, sext: bool },
+    /// **Address of** a sub-object: pop a pointer, push the pointer `off` bytes
+    /// further in — `return &s->m;`, `return &p->Base::m;`, `return s->arr;`.
+    /// No memory is touched, which is the whole difference from
+    /// [`IlOp::LoadInd`]: c2 emits one `addi rD, rBase, off`, and **nothing at
+    /// all** when `off` is 0.
+    ///
+    /// Produced ONLY by [`try_parse_addr_leaf`], and only as the second and last
+    /// op of a two-op stream `[Load(base), AddrOf { off }]`. It never appears in
+    /// combination with arithmetic: an address that feeds an integer expression
+    /// is a different construct (the address would have to be converted first)
+    /// and no capture establishes its lowering.
+    ///
+    /// MEASURED (`work/bma/probes/p1.cpp`, `p2.cpp`, `p3.cpp`; the emitted words
+    /// are read off the reference obj): `&s->b` at 4 is `addi r3,r3,4`, at 32764
+    /// `addi r3,r3,32764`, at 32768 **`addis r3,r3,1 ; addi r3,r3,-32768`** —
+    /// two instructions, so `off` is gated to a signed 16-bit displacement. The
+    /// *pointee's* width is irrelevant: `char*`, `short*`, `int*`, `long long*`,
+    /// `float*` and `double*` members all emit the same one `addi`.
+    AddrOf { off: i32 },
     /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
     Lit(i32),
     /// Push a **floating-point literal** (W13b). The payload is always an
