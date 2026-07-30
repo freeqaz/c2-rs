@@ -4314,6 +4314,7 @@ measurements.
   *token* inside `parse_expr`; half the row is a *statement* that no widening of
   `parse_expr` can finish. This rung took 22,095 out of it. See `GAPS.md` §6's
   corrected box.
-* **The next rung is measured and sized: `expr-load-type-8212` +
-  `expr-lit-type-8212`, 52,650 released, 23,122 whole-body complete, 22,313
-  `calls-0`, and no new instruction at all.** `IL_STORE_LEAF.md` §7 (1).
+* **That rung was then taken in the same session (W24).** `expr-load-type-8212`
+  + `expr-lit-type-8212` — 52,650 released, **+22,311** in class, no emitter
+  change, mismatch 0, disagreement 0. Census after both rungs: **464,584 /
+  2,462,571 = 18.87 %**, from 418,628. `IL_STORE_LEAF.md` §9.

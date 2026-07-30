@@ -1761,22 +1761,48 @@ reproducing master `b36a046` to the function.
 | `c2rs bench` | 132 pass / 0 fail / 0 error | **132 pass / 0 fail / 0 error** |
 | `mode_lane.sh /Ox` | 56 match, **0 mismatch**, disagreement 1 | **57 match, 0 mismatch**, disagreement 1 |
 | `/O1` · `/O2` · `/Ox /Gy` | 54 match, **0 mismatch**, 2 codegen-gap, disagreement 9 | **55 match, 0 mismatch**, 2 codegen-gap, disagreement 9 |
-| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,828**, mismatches **0** |
+| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,900** after W24, mismatches **0** |
 | 878-TU scan | match 6, mismatch 0, 418,628/2,462,571, 569 keys, disagreement 0 | match 6, **mismatch 0**, **442,273**/2,462,571, **569 keys**, disagreement **0** |
 | `census fixtures/cpp/w23_store_leaf.cpp` | — | **41/41 in class**, `Port=Match` |
-| `census fixtures/cpp/w23_store_leaf_neg.cpp` | — | **0/14 in class**, `Port=NotImplemented` |
+| `census fixtures/cpp/w23_store_leaf_neg.cpp` | — | **0/15 in class**, `Port=NotImplemented` |
 
-### The next rung, measured here rather than guessed
+### W24 — the one-byte-unsigned value class, taken in the same session
 
-`expr-load-type-8212` + `expr-lit-type-8212` — **52,650 released, 23,122
-whole-body complete, 22,313 of them `calls-0`** (counterfactual `C2RS_CF=boolnc`).
-The family is "`bool`/`unsigned char` is a 4-byte-register value like an int in
-the LOAD / LIT / result positions", and **its lowering is no instruction at all**:
-`return false;` is `li r3,0`, `return b;` is a bare `blr`, and a `bool`-returning
-tail call is the same `b callee`. The one hazard is sized — a `2C` *out of* the
-class is a real `clrlwi` and refusing every such body costs 1,652 — and the work
-is a new `ValueClass` plus the discipline of not widening `eat_int_like`, whose
-five call sites §6d already found the hard way. See `IL_STORE_LEAF.md` §7.
+The rung W23's own measurement ranked next, and it landed at the size the
+counterfactual gave it. `bool` and `unsigned char` share the operand TYPE
+`82 12`, and **inside** the class a value costs no instruction at all —
+`return false;` is `li r3,0`, `return b;` is a bare `blr`, and from any other
+argument register it is the W18 register move — so this is the second pure decode
+widening in this project with **no emitter change**. **Out of** the class it is a
+real `rlwinm r3,r3,0,24,31`, arriving on the same `2C … 00` token that is free
+between the two width-4 classes, which is why `ValueClass::Int1u` is its own class
+and the `41` result annotation is required to restate it.
+
+**442,273 → 464,584 (17.96 % → 18.87 %), +22,311**, mismatch 0, disagreement 0,
++1 key. Estimate **+23,122 biased HIGH** with the cause named in advance — the
+counterfactual widened `eat_return_head`'s `41` gate globally and the shipped rung
+does not, so the 809 `calls-1` bodies (a `bool`-returning tail call) were expected
+to be lost; realized **+22,311**, two functions off the predicted `calls-0` half.
+
+`w24_bool_value.cpp` **15/15 in class, `Port=Match`**; `w24_bool_value_neg.cpp`
+**0/10**. Lanes `/Ox` 58, others 56, **0 mismatch**, disagreements unchanged at
+1/9/9/9. `bench` **134 pass**, workspace **373 pass**, sweep **4,900 cases, 0
+mismatches**. The two new guards (`expr-int1u-arith`, `expr-int1u-mixed`) cost
+**0 functions** on the whole workload — every `bool` arithmetic in 2.46 M
+functions converts first.
+
+Full write-up, including what the refusals cost (the mask 4,947, the
+`char`/`signed char` class 1,646, the `bool` tail call 809), in
+`docs/IL_STORE_LEAF.md` §9.
+
+**One census/gate hole was found and closed on the way**, by probing W23's own
+boundary rather than by a test: the parser admitted any literal as a stored value
+while `emit_load_imm` refuses a wide *negative* one, so
+`void f(S* s){ s->a = -70000; }` censused in class against a
+`Port=NotImplemented`. The straight-line class had gated it in the parser since
+W5; the new shape reached the same literal by a second route and did not — the
+fifth instance of `GAPS.md` §6's "one fact, two locators". Fixed in the parser,
+cost 0 functions on the workload, pinned by `n_negwide` and 2 sweep cases.
 
 ## 7. Invariants (do not break)
 

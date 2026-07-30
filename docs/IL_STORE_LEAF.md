@@ -32,8 +32,11 @@ That is `IL_CALL_IN_EXPR.md` §19.3's finding a second time, at a bigger ratio:
 address leaf's plain half was 5.0× its intrinsic half; here the store leaf's
 plain half is 29×.
 
-This rung ships the store leaf (22,821 measured, **23,645 realized**). The
-`expr-load-type-8212` rung is measured, sized at 23,122, and handed off in §7.
+This document covers **both** rungs the measurement selected: the store leaf
+(22,821 measured, **23,645 realized**, §1–§6) and the one-byte-unsigned value
+class it ranked next (23,122 measured, **22,311 realized**, §9). Together
+**+45,956**, census 418,628 → 464,584 (17.00 % → 18.87 %), mismatch 0 and
+census/gate disagreement 0 at every step.
 
 ---
 
@@ -235,7 +238,7 @@ reproducing master `b36a046` to the function.
 | `c2rs bench` | 132 pass / 0 fail / 0 error | **132 pass** (2 new fixtures added to both) |
 | `mode_lane.sh /Ox` | 56 match, 0 mismatch, disagreement 1 | **57 match, 0 mismatch, disagreement 1** |
 | `/O1` · `/O2` · `/Ox /Gy` | 54 match, 0 mismatch, 2 codegen-gap, disagreement 9 | **55 match, 0 mismatch, 2 codegen-gap, disagreement 9** |
-| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,828**, mismatches **0** |
+| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,830**, mismatches **0** (see §9.5 for the final figure with W24) |
 
 Byte-graded, and the grading is not only census movement:
 
@@ -249,20 +252,52 @@ Byte-graded, and the grading is not only census movement:
   accepted neighbours (`lwz`, `addi`, bare `blr`) that this production must not
   swallow. Three byte-identical bodies with different neighbours between them are
   the §17.3 locality tell — all three emit `90830004`.
-* `fixtures/cpp/w23_store_leaf_neg.cpp` — **0/14 in class**, and the file must
+* `fixtures/cpp/w23_store_leaf_neg.cpp` — **0/15 in class**, and the file must
   never mismatch. The float and double values, a bool→int and an int→char
   conversion of the value, a computed value, two stores in one body, the store's
   result returned, a 32,768 displacement, a global destination, a variable index,
-  an aggregate assignment, a memory-to-memory copy, and the base in the ninth
-  parameter slot.
-* `scripts/expr_sweep.sh` grew **122 cases** (4,706 → 4,828, mismatches 0) over
+  an aggregate assignment, a memory-to-memory copy, the base in the ninth
+  parameter slot, and the wide-negative literal of §5.1.
+* `scripts/expr_sweep.sh` grew **124 cases** (4,706 → 4,830, mismatches 0) over
   exactly those axes: 11 stored types × (formal, literal); the base at argument
-  slots 0–7 crossed with two widths; ten literal values across the `li` boundary
-  crossed with two widths; the subscript/deref/cast forms over four pointee
-  widths; the intrinsic designator at four widths × (one step, two steps,
+  slots 0–7 crossed with two widths; eleven literal values across the `li`
+  boundary and the wide-negative bound crossed with two widths; the
+  subscript/deref/cast forms over four pointee widths; the intrinsic designator at four widths × (one step, two steps,
   non-first register, member function); a store beside each of five accepted
   neighbours in both orders; and 14 refusing neighbours, each alone and beside an
   emitted leaf.
+
+### 5.1 One census/gate hole, found by probing the production's own boundary
+
+Not by a test — nothing tested it, which is the point. The parser admitted any
+`Lit(k)` as a stored value, and `codegen::emit_load_imm` refuses a **wide
+negative** constant (`lis`+`ori` covers non-negative only). So
+
+```text
+  void f(S* s){ s->a = -70000; }     census: 1/1 in class   Port=NotImplemented
+```
+
+— the census over-claiming, in the exact shape `IL_CALL_IN_EXPR.md` §24.7 records
+and `crates/c2-harness/tests/census_gate.rs` exists to keep at zero. The
+straight-line class already gated it **in the parser**
+(`expr-out-of-class-wide-neg-lit`, `chain::straight_line_out_of_class_ctx`); the
+new shape reached the same literal by a second route and did not. `GAPS.md` §6's
+"one fact, two locators", fifth instance.
+
+Fixed in the parser rather than in codegen, per §6c's invariant. It costs **0
+functions on the workload** (the re-scan is identical to the function, 464,584,
+disagreement 0), and `w23_store_leaf_neg.cpp`'s `n_negwide` plus 2 sweep cases
+now pin it, with `s_kwide` (+70000) and `s_kneg` (−3) as the neighbours it must
+not take with it.
+
+The direction the brief asked to be watched — codegen refusing what the census
+admits **and what the emitter would emit** — cannot happen for either of these
+rungs, and the reason is structural rather than tested: `PortC2::build` (both
+sectioning modes, `c2-core/src/lib.rs:274` and `:353`) and
+`codegen::function_gate` both dispatch through the *same* `select_function`, and
+`store_leaf_text` returns a plain `Selected::Plain` that both arms handle
+identically. There is one dispatch, so there is nothing for the two to disagree
+about.
 
 ## 6. What is NOT established, labelled
 
@@ -366,18 +401,21 @@ functions in the two `27`-family rows reachable.
 
 ```sh
 cargo build --release
-cargo test --workspace --release                                # 372 pass
-C2RS_JOBS=12 ./target/release/c2rs bench                        # 132 pass 0 fail 0 error
+cargo test --workspace --release                                # 373 pass
+C2RS_JOBS=12 ./target/release/c2rs bench                        # 134 pass 0 fail 0 error
 ./target/release/c2rs census fixtures/cpp/w23_store_leaf.cpp      # 41/41 in class
 ./target/release/c2rs diff   fixtures/cpp/w23_store_leaf.cpp      # Port=Match
-./target/release/c2rs census fixtures/cpp/w23_store_leaf_neg.cpp  # 0/14 in class
+./target/release/c2rs census fixtures/cpp/w23_store_leaf_neg.cpp  # 0/15 in class
+./target/release/c2rs census fixtures/cpp/w24_bool_value.cpp      # 15/15 in class
+./target/release/c2rs diff   fixtures/cpp/w24_bool_value.cpp      # Port=Match
+./target/release/c2rs census fixtures/cpp/w24_bool_value_neg.cpp  # 0/10 in class
 ./target/release/c2rs diff   fixtures/cpp/w23_store_leaf_neg.cpp  # Port=NotImplemented
-C2RS_JOBS=12 scripts/mode_lane.sh /Ox                           # 57 match, 0 mismatch
-C2RS_JOBS=12 scripts/mode_lane.sh /O1                           # 55 match  (also /O2, "/Ox /Gy")
-C2RS_JOBS=12 scripts/expr_sweep.sh                              # checked=4828 mismatches=0
+C2RS_JOBS=12 scripts/mode_lane.sh /Ox                           # 58 match, 0 mismatch
+C2RS_JOBS=12 scripts/mode_lane.sh /O1                           # 56 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=12 scripts/expr_sweep.sh                              # checked=4900 mismatches=0
 ./target/release/c2rs gap --list work/dc3-workload/files.txt \
   --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 12 \
-  --jsonl work/dc3-workload/scan-w23.jsonl        # 442273/2462571, 569 keys, disagreement 0
+  --jsonl work/dc3-workload/scan-w24b.jsonl       # 464584/2462571, 570 keys, disagreement 0
 # the lowering, read off the reference obj rather than inferred:
 ./target/release/c2rs compile work/lf/probes/p1.cpp --keep-obj work/lf/p1.obj
 python3 work/lf/tools/objdump.py work/lf/p1.obj
@@ -404,3 +442,159 @@ count and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several
 reflinked worktrees with different contents, and reading one through a relative
 path has already produced a published wrong number in this project
 (`IL_CALL_IN_EXPR.md` §18.8).
+
+---
+
+## 9. W24 — the one-byte-unsigned value class, landed
+
+§7 (1) ranked this first and sized it at **23,122 whole-body complete, 22,313 of
+them `calls-0`**. It shipped as the `calls-0` half: **+22,311**, census
+442,273 → 464,584 (17.96 % → **18.87 %**).
+
+### 9.1 What it is — MEASURED by capture
+
+`bool` and `unsigned char` share the operand TYPE `82 12 <id>` — one class,
+because only the per-TU id differs and no capture separates them in any position
+this parser reaches. **Inside** the class a value costs no instruction at all
+(`work/lf/probes/p2.cpp`, `p3.cpp`, `p4.cpp`):
+
+```text
+  bool k_false()                    38600000  li r3,0    ; blr
+  bool k_true()                     38600001  li r3,1    ; blr
+  unsigned char k_uc()              386000c8  li r3,200  ; blr
+  bool b_id(bool b)                           blr                  (already r3)
+  bool b_r4(int k, bool b)          7c832378  mr r3,r4   ; blr
+  bool b_r10(…7 ints…, bool h)      7d435378  mr r3,r10  ; blr
+```
+
+Every one of those is a word the ordinary integer selector has emitted since the
+MVP (`li` for a literal, nothing for the r3 identity, the W18 register move
+otherwise), so **the rung is a decode widening with no emitter change at all** —
+the second such in this project after D12's conversion.
+
+**Out of** the class it is not free, and that is the whole gate:
+
+```text
+  unsigned u_from_b(bool b) { return b; }   5463063e  rlwinm r3,r3,0,24,31
+  int      i_from_b(bool b) { return b; }   5463063e  the same mask
+  unsigned char uc_add(unsigned char a, unsigned char b)
+                                            546a063e 548b063e 7d6a5a14 5563063e
+  bool     b_not(bool b)    { return !b; }  546b063e 7d6a0034 5543dffe
+```
+
+The mask arrives on the **same `2C … 00` token** that is free between the two
+width-4 classes (`w20_convert.cpp`). That is why `ValueClass::Int1u` is its own
+class rather than a spelling of `Int4`, and why the `41` result annotation is
+required to *restate* it: a `bool` value annotated `int` is the mask, and
+admitting it as a register move would be wrong bytes inside an accepted class.
+
+### 9.2 What shipped
+
+* **`ValueClass::Int1u` + `is_int1u_type`** (`82 12` literally — the cv spellings
+  `A2 12` / `92 12` are not admitted, because neither occurs as an operand in any
+  capture taken here and a tag that never varied is indistinguishable from a
+  constant). `82 11` — `char` / `signed char` — is deliberately a *different*
+  class: same width, different signedness, and one predicate per fact.
+* **`eat_operand_type`**, a new entry point rather than a widening of
+  `eat_int_like_or_ptr4`. That locator has five call sites and gates three
+  byte-graded shapes; `ROADMAP.md` §6d is the record of what changing a shared
+  locator costs, and only the two `parse_expr` operand positions were graded for
+  this class.
+* **`parse_expr_classed`** returns the sub-expression's class, and two new guards
+  refuse a `bool` that is *computed on* (`expr-int1u-arith`) or *mixed* with a
+  width-4 operand (`expr-int1u-mixed`). Both refuse under their own census keys
+  so the guards' cost is a number — and **the number is 0 on the whole workload**,
+  which is the C++ rule showing through: every `bool` arithmetic converts first,
+  so a raw chain over the class has no witness anywhere in 2.46 M functions.
+* **The `41` result annotation** is consumed by the straight-line arm itself when
+  the class is `Int1u`, so `eat_return_head`'s shared gate is untouched.
+* **No codegen, no new `BodyShape`, no new census key for the accepted class** —
+  these bodies are `straight-line`.
+
+### 9.3 The estimate, quoted before the outcome
+
+> **Estimate: +23,122, biased HIGH.** The counterfactual widened *three* sites —
+> both `parse_expr` operand positions and `eat_return_head`'s `41` gate globally
+> — while the shipped rung widens only the straight-line arm, so the 809
+> `calls-1` bodies in the counterfactual (a `bool`-returning tail call) are
+> expected to be lost. Predicted realization ≈ 22,313, the `calls-0` half.
+
+**Outcome: +22,311**, i.e. **2 functions off the `calls-0` prediction and 811
+below the counterfactual**, in the direction stated and for the stated reason.
+The 809 tail calls stayed blocked (`call-args-none:eof` and `call-end-0x82`,
+which are the *call* path's own gates and were not part of this rung).
+
+### 9.4 What the refusals cost, sized rather than waved at
+
+Measured on `work/dc3-workload/scan-w24.jsonl`:
+
+| key | functions | `calls-0` | what it is |
+|---|---:|---:|---|
+| `expr-convert-target-8642` | 4,906 | 1,652 | `bool` → `unsigned`: the `rlwinm` mask |
+| `expr-convert-target-8641` | 41 | 24 | `bool` → `int`: the same mask |
+| `expr-load-type-8211` | 1,646 | 1,645 | `char` / `signed char`, the *other* one-byte class |
+| `expr-int1u-arith` · `expr-int1u-mixed` | **0** · **0** | — | the two guards, and they cost nothing |
+
+The mask is one encoder (`encode_rlwinm` already exists) over a
+(source × target) matrix that has not been graded; `82 11` is a bare `blr` today
+and would be free to admit **now**, which is exactly why it refuses — the two
+one-byte classes part company one token later, where the unsigned widening is a
+`rlwinm` and the signed one an `extsb`.
+
+### 9.5 Gate evidence
+
+| | after W23 | W24 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 442,273 (17.96 %) | **464,584 (18.87 %)** | **+22,311** |
+| mismatch | 0 | **0** | 0 |
+| `match` / `capture-fail` | 6 / 7 | 6 / 7 | 0 |
+| distinct keys | 569 | 570 | +1 |
+| census/gate disagreement | 0 | **0** | 0 |
+
+| lane | W23 | W24 |
+|---|---|---|
+| `cargo test --workspace --release` | 372 pass | **373 pass**, 0 fail |
+| `c2rs bench` | 132 pass | **134 pass**, 0 fail, 0 error |
+| `mode_lane.sh /Ox` | 57 match, 0 mismatch, disagreement 1 | **58 match, 0 mismatch**, disagreement 1 |
+| `/O1` · `/O2` · `/Ox /Gy` | 55 match, 0 mismatch, 2 codegen-gap, disagreement 9 | **56 match, 0 mismatch**, 2 codegen-gap, disagreement 9 |
+| `scripts/expr_sweep.sh` | checked 4,830 | checked **4,900**, mismatches **0** |
+| `census fixtures/cpp/w24_bool_value.cpp` | — | **15/15 in class**, `Port=Match` |
+| `census fixtures/cpp/w24_bool_value_neg.cpp` | — | **0/10 in class**, `Port=NotImplemented` |
+
+`w24_bool_value.cpp` crosses both spellings against five literal values, the
+identity from r3 and from argument slots 1, 2, 3 and 7, and the three accepted
+neighbours that share the class's bytes (the T3 `lbz` getter, the W23 `stb`
+store, and an ordinary int literal). `w24_bool_value_neg.cpp` is the more
+load-bearing file — the positives cost no instruction, so everything that can go
+wrong is a refusal: both conversions out of the class, arithmetic, `!`, `&&`,
+`char` and `signed char`, the local-variable path, the tail call, and a `bool*`
+pointee feeding arithmetic.
+
+### 9.6 The board after both rungs
+
+| # | functions | `calls-0` | `calls-1` | `calls-2plus` | key |
+|---:|---:|---:|---:|---:|---|
+| 1 | 469,713 | 278,729 | 74,866 | 116,118 | `expr-op-0x27` |
+| 2 | 280,283 | 0 | 114,059 | 166,224 | `expr-op-0x99` |
+| 3 | 141,800 | 15 | 57,894 | 83,891 | `expr-intrinsic-this-adjust` |
+| 4 | 117,591 | 26,399 | 56,186 | 35,006 | `expr-intrinsic-base-member-addr` |
+| 5 | 98,813 | 10,702 | 84,215 | 3,896 | `expr-load-type-8645` |
+| 6 | 82,810 | 2 | 82,806 | 2 | `expr-load-type-8885` |
+| 7 | 48,102 | 1,622 | 4,674 | 41,806 | `body-0x29` |
+| 8 | 39,366 | 0 | 2 | 39,364 | `expr-call-in-expr-op-0x9B` |
+| 9 | 34,795 | 7,318 | 12,682 | 14,795 | `expr-intrinsic-memset` |
+| 10 | 32,381 | 4 | 31,485 | 892 | `expr-bit-and` |
+
+Rows 5 and 6 are **measured at 1,004 and 0** whole-body complete (§7 (4)) and
+should be struck from any ranking taken from size. Row 1 is a grab-bag whose
+next production is the two-member binary op (§7 (2)); rows 2, 3, 8 and 10 are
+overwhelmingly framed. The ranked work is §7 (2)–(5), plus three items this rung
+sized on its way past:
+
+* the `bool` **tail call** — 809 functions, blocked in the *call* path
+  (`call-args-none:eof`, `call-end-0x82`), which this rung did not widen;
+* the `bool` **local** — the assignment-body parser calls `parse_expr` (which
+  discards the class) and then the shared `41` gate, so it refuses one token
+  later; part of `assign-dst-not-formal:eof`'s 13,887;
+* the **mask** and the **`char` class** — 4,947 and 1,646 (§9.4).

@@ -208,11 +208,12 @@ bracketed:
 That hexdump is what converts a bucket into a decoded production; every
 grammar correction below came out of one.
 
-> **Current numerator, 2026-07-30: 442,273 / 2,462,571 (17.96 %)**, with a
+> **Current numerator, 2026-07-30: 464,584 / 2,462,571 (18.87 %)**, with a
 > **measured census/gate disagreement of 0** — see `ROADMAP.md` §6c (the repair
-> that took it *down* by 9,230), §6d (W22, which took it up by 15,924) and §6f
-> (W23, the store leaf, +23,645), plus the sizing box in §6 below. Everything in
-> the rest of this section is historical; quote the number above.
+> that took it *down* by 9,230), §6d (W22, +15,924) and §6f (W23 + W24, the store
+> leaf and the one-byte-unsigned value class, +45,956 between them), plus the
+> sizing box in §6 below. Everything in the rest of this section is historical;
+> quote the number above.
 
 **79,719 / 2,462,571 functions in class (3.24%)** (cebfb88, 37.3 s at
 `--jobs 16`); **re-measured at HEAD `2724ca5` on 2026-07-30: 109,501 (4.45%)**,
