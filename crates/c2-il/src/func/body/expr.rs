@@ -440,7 +440,7 @@ mod tests {
         assert_eq!(parse_formals(&seg, lo), Ok(vec![0xEE09]));
         // And the whole body still parses, base register included.
         assert_eq!(
-            parse_segment(&seg, NO_LOCALS),
+            parse_segment(&free_fn(&seg), NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0xEE09],
                 ops: vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }],
@@ -512,7 +512,8 @@ mod tests {
             (INTR_UPCAST, "expr-intrinsic-base-upcast"),
             (INTR_THIS_ADJUST, "expr-intrinsic-this-adjust"),
         ] {
-            let b = parse_segment_detail(seg, NO_LOCALS).unwrap_err();
+            let seg = free_fn(seg);
+            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
             assert_eq!(b.feature(), want);
             // The block is reported at the selector literal, whose `40` follows.
             assert_eq!(seg[b.off], 0x33, "{want}");
@@ -525,7 +526,7 @@ mod tests {
         // the census and the emission gate cannot disagree — the same invariant
         // `census_agrees_with_the_gate_on_every_pinned_segment` checks globally.
         for seg in [INTR_FABS, INTR_NULLARY, INTR_UPCAST, INTR_THIS_ADJUST] {
-            assert!(parse_segment(seg, NO_LOCALS).is_none());
+            assert!(parse_segment(&free_fn(seg), NO_LOCALS).is_none());
         }
     }
 
@@ -551,8 +552,8 @@ mod tests {
         // `addi r3,r3,8` for one and a null-guarded five-instruction form for the
         // other (see `fixtures/cpp/il_intrinsic_layout.cpp`). So the census must
         // separate them, and a lowering keyed on the offset alone would be wrong.
-        let up = parse_segment_detail(INTR_UPCAST, NO_LOCALS).unwrap_err();
-        let this = parse_segment_detail(INTR_THIS_ADJUST, NO_LOCALS).unwrap_err();
+        let up = parse_segment_detail(&free_fn(INTR_UPCAST), NO_LOCALS).unwrap_err();
+        let this = parse_segment_detail(&free_fn(INTR_THIS_ADJUST), NO_LOCALS).unwrap_err();
         assert_ne!(up.feature(), this.feature());
         assert_eq!(up.aux, 2114);
         assert_eq!(this.aux, 2113);
@@ -574,7 +575,7 @@ mod tests {
         seg[6] = 0x42;
         seg[7] = 0x75;
         assert_eq!(intrinsic_selector(&seg, 4), None);
-        let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+        let b = parse_segment_detail(&free_fn(&seg), NO_LOCALS).unwrap_err();
         assert_eq!(b.feature(), "expr-intrinsic-call");
     }
 

@@ -233,6 +233,28 @@ pub(crate) mod test_fixtures {
     /// fold into the expression that reads it.
     pub(crate) const NO_LOCALS: &[u32] = &[];
 
+    /// Prefix a pinned body with the `53 53 26 <fn>` statement start a real segment
+    /// carries, when it does not already have one.
+    ///
+    /// Several segments here begin at the `46` formals marker. Without the preceding
+    /// function-token push, the `this` binding is **undetermined** — there is nothing
+    /// to tell a free function from a member whose `this` group was cut off — and
+    /// `parse_params` refuses on undetermined by design, because conflating it with
+    /// "absent" is what mis-emitted `S8::m`'s base register. Supplying the prologue
+    /// says "free function, no `this`", which is what these bodies are.
+    ///
+    /// Idempotent, so it is safe to apply at every call site; the segments that were
+    /// already transcribed whole pass through untouched.
+    pub(crate) fn free_fn(body: &[u8]) -> Vec<u8> {
+        if body.first() == Some(&0x53) {
+            return body.to_vec();
+        }
+        let mut v = vec![0x53, 0x53, 0x26, 0xE2, 0x09];
+        v.extend_from_slice(body);
+        v
+    }
+
+
     // ---- indirect-load leaf -------------------------------------------------
     //
     // Every byte below is transcribed from a live capture of

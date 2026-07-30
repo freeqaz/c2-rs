@@ -146,7 +146,7 @@ pub(crate) fn try_parse_assign_body_detail(
     let ret = substitute(&ret, &env)
         .ok_or(Block { ctx: "assign-subst-overflow", byte: None, off: p, aux: 0 })?;
     eat_return_plumbing(seg, &mut p, true, depth)?;
-    let params = parse_formals(seg, lo)?;
+    let params = parse_params(seg, lo)?;
     // After substitution every remaining LOAD must be a parameter. Anything else
     // is a read of something this class cannot account for — an uninitialized
     // local, a global, or a token from a construct not modeled here.
@@ -381,7 +381,7 @@ pub(crate) fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
             seen.push(*t);
         }
     }
-    let params = parse_formals(seg, lo).ok()?;
+    let params = parse_params(seg, lo).ok()?;
     if params.len() > 13 || !seen.iter().all(|t| params.contains(t)) {
         return None;
     }
@@ -493,6 +493,37 @@ fn read_this_group(seg: &[u8], at: usize) -> Option<(u32, usize)> {
         return None;
     }
     Some((tok, p + 1))
+}
+
+/// The function's **argument registers in order**: `this` when the pre-body region
+/// binds one, then the `2D` formals.
+///
+/// Every shape that maps a token to an argument register must use this rather than
+/// [`parse_formals`], and that this needed saying is the bug. `parse_this_token`
+/// existed and exactly one shape consulted it, so a non-static member function with
+/// a *straight-line* body mapped its first explicit formal to r3 — the register
+/// `this` occupies. `struct S8 { int a; int m(int x) const; };
+/// int S8::m(int x) const { return x + 1; }` emitted `Port=Mismatch @ offset 537`:
+/// `addi r3,r3,1` where the reference has `addi r3,r4,1`.
+///
+/// That is the same defect as the line-70 `this` bug — one fact with more than one
+/// locator — and it survived that fix because the fix went where the bug had been
+/// found rather than everywhere the fact was used. Found by an adversarial reviewer
+/// probing an unrelated change.
+///
+/// An undetermined `this` binding **refuses**; it never silently means "absent".
+pub(crate) fn parse_params(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
+    let formals = parse_formals(seg, lo)?;
+    match parse_this_token(seg, lo) {
+        Some(ThisBinding::Absent) => Ok(formals),
+        Some(ThisBinding::Bound(this_tok)) => {
+            let mut v = Vec::with_capacity(formals.len() + 1);
+            v.push(this_tok);
+            v.extend_from_slice(&formals);
+            Ok(v)
+        }
+        None => Err(Block { ctx: "this-undetermined", byte: None, off: lo, aux: 0 }),
+    }
 }
 
 /// Every LOAD in a call-argument operand stream must name a **formal**.
@@ -922,7 +953,7 @@ pub(crate) fn try_parse_compare(seg: &[u8], start: usize, lo: usize) -> Option<B
 
     // The compared value must be the function's FIRST formal: the spine reads it
     // from r3, and nothing here models a register move.
-    let params = parse_formals(seg, lo).ok()?;
+    let params = parse_params(seg, lo).ok()?;
     if params.first() != Some(&param) || params.len() != 1 {
         return None;
     }
@@ -1089,7 +1120,7 @@ pub(crate) fn parse_call_shape(
             return Err(blk(seg, *p, "call-bound-reload-type"));
         }
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
-        let params = parse_formals(seg, lo)?;
+        let params = parse_params(seg, lo)?;
         if args.len() > 1 {
             let mut arg_sources = Vec::with_capacity(args.len());
             for slot in 0..args.len() {
@@ -1164,7 +1195,7 @@ pub(crate) fn parse_call_shape(
         // only as a tail call. Every argument must be a bare parameter LOAD — a
         // computed argument would need its own register and interacts with the
         // permutation temp in ways no capture covers yet.
-        let params = parse_formals(seg, lo)?;
+        let params = parse_params(seg, lo)?;
         let mut arg_sources = Vec::with_capacity(args.len());
         // Stream order is reverse source order, so slot `i` is stream `n-1-i`.
         for slot in 0..args.len() {
@@ -1253,7 +1284,7 @@ pub(crate) fn parse_call_shape(
     // there — one leaf cannot be out of order — not because there are no formals.
     let n_loads = arg_ops.iter().filter(|o| matches!(o, IlOp::Load(_))).count();
     if n_loads > 1 {
-        let formals = parse_formals(seg, lo)?;
+        let formals = parse_params(seg, lo)?;
         if !leaves_ascending(&arg_ops, &formals) {
             return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
         }
@@ -1270,7 +1301,7 @@ pub(crate) fn parse_call_shape(
         // `b <callee>` (5-section leaf). The int analog of the void tail call;
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
-        let params = parse_formals(seg, lo)?;
+        let params = parse_params(seg, lo)?;
         if !arg_loads_are_formals(&arg_ops, &params) {
             return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
         }
@@ -1299,7 +1330,7 @@ pub(crate) fn parse_call_shape(
     // tail-call production so it takes the 5-section leaf path — never the
     // 6-section framed obj (which would mis-emit a frame the reference elides).
     if k == 0 {
-        let params = parse_formals(seg, lo)?;
+        let params = parse_params(seg, lo)?;
         if !arg_loads_are_formals(&arg_ops, &params) {
             return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
         }
@@ -1312,7 +1343,7 @@ pub(crate) fn parse_call_shape(
     // The framed path takes a bare passthrough LOAD, which must still be a formal:
     // `int gi; g(gi) + 1` is a global read, not an argument already in r3.
     if matches!(arg_ops.as_slice(), [IlOp::Load(_)]) {
-        if !arg_loads_are_formals(&arg_ops, &parse_formals(seg, lo).unwrap_or_default()) {
+        if !arg_loads_are_formals(&arg_ops, &parse_params(seg, lo).unwrap_or_default()) {
             return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
         }
         return Ok(BodyShape::FramedCall { add_k: k, callee_tok });
@@ -1350,23 +1381,23 @@ mod tests {
             .expect("the argument LOAD")
             + lo
             + 1;
-        assert_eq!(parse_segment(INT_TAILRET, NO_LOCALS).is_some(), true, "control");
+        assert_eq!(parse_segment(&free_fn(INT_TAILRET), NO_LOCALS).is_some(), true, "control");
         global_arg[at] = 0xF0; // a token no `2D` entry names
-        let b = parse_segment_detail(&global_arg, NO_LOCALS).unwrap_err();
+        let b = parse_segment_detail(&free_fn(&global_arg), NO_LOCALS).unwrap_err();
         assert_eq!(b.ctx, "call-arg-nonformal");
     }
 
     #[test]
     fn indirect_load_leaf_decodes_deref_member_and_subscript() {
         assert_eq!(
-            parse_segment(IND_DEREF, NO_LOCALS),
+            parse_segment(&free_fn(IND_DEREF), NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0xEE09],
                 ops: vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }],
             })
         );
         assert_eq!(
-            parse_segment(IND_MEMBER0, NO_LOCALS),
+            parse_segment(&free_fn(IND_MEMBER0), NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0xFE09],
                 ops: vec![IlOp::Load(0xFE09), IlOp::LoadInd { off: 0 }],
@@ -1375,7 +1406,7 @@ mod tests {
         // The offset is a SIGNED short-form byte, and `-1` on an `int *` is −4
         // bytes — the scale is already applied by the front end.
         assert_eq!(
-            parse_segment(IND_SUBSCRIPT_NEG, NO_LOCALS),
+            parse_segment(&free_fn(IND_SUBSCRIPT_NEG), NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0x100A],
                 ops: vec![IlOp::Load(0x100A), IlOp::LoadInd { off: -4 }],
@@ -1391,7 +1422,7 @@ mod tests {
         let lo = find_subslice(IND_THIS_GETTER, &LO_MARKER).unwrap();
         assert_eq!(parse_this_token(IND_THIS_GETTER, lo), Some(ThisBinding::Bound(0xF809)));
         assert_eq!(
-            parse_segment(IND_THIS_GETTER, NO_LOCALS),
+            parse_segment(&free_fn(IND_THIS_GETTER), NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0xF809],
                 ops: vec![IlOp::Load(0xF809), IlOp::LoadInd { off: 4 }],
@@ -1416,7 +1447,7 @@ mod tests {
             for &(i, b) in patch {
                 s[d + i] = b;
             }
-            parse_segment(&s, NO_LOCALS)
+            parse_segment(&free_fn(&s), NO_LOCALS)
         };
         // A `char` pointee is `lbz`, not `lwz` (`30 82 11 70`).
         assert_eq!(
@@ -1433,18 +1464,18 @@ mod tests {
         let mut with_add = IND_DEREF[..d + 15].to_vec();
         with_add.extend_from_slice(&[0x33, 0x86, 0x41, 0x74, 0x01, 0x02]); // + 1
         with_add.extend_from_slice(&IND_DEREF[d + 15..]);
-        assert_eq!(parse_segment(&with_add, NO_LOCALS), None);
+        assert_eq!(parse_segment(&free_fn(&with_add), NO_LOCALS), None);
 
         // A `28` payload other than `00 00` is unexplained and must refuse.
         let n = base(IND_SUBSCRIPT_NEG);
         let mut sub_bad = IND_SUBSCRIPT_NEG.to_vec();
         sub_bad[n + 17] = 0x01;
-        assert_eq!(parse_segment(&sub_bad, NO_LOCALS), None);
+        assert_eq!(parse_segment(&free_fn(&sub_bad), NO_LOCALS), None);
 
         // An offset past the 16-bit displacement materializes an index register.
         let mut wide = IND_SUBSCRIPT_NEG[..n + 15].to_vec();
         wide.extend_from_slice(&[0x80, 0x80, 0x1A, 0x06, 0x00]); // 400000
         wide.extend_from_slice(&IND_SUBSCRIPT_NEG[n + 16..]);
-        assert_eq!(parse_segment(&wide, NO_LOCALS), None);
+        assert_eq!(parse_segment(&free_fn(&wide), NO_LOCALS), None);
     }
 }
