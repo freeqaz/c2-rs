@@ -2007,7 +2007,7 @@ this rung changes about it:
    the same reading and is **not captured**; one TU pairing an FPR-helper
    function with a following function settles it.
 
-## 6g. Instrument hardening (roadmap #15, #46, #47, #48 — 2026-07-30)
+## 6h. Instrument hardening (roadmap #15, #46, #47, #48 — 2026-07-30)
 
 Four instrument failures surfaced in one day, all of the same family: a
 measurement that was wrong, or expensive enough not to be re-taken, without
