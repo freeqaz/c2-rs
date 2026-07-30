@@ -1116,6 +1116,22 @@ The rules that keep the numbers honest:
   (`scripts/expr_sweep.sh` — the member-function-across-source-lines axis exists only
   because of #1), and **have someone adversarial read the anchors**, because #2 was
   found by a reviewer assigned to an unrelated change.
+- **A green differential is not evidence that a *binding* is right.** `.sy` binds
+  its blocks to `.ex` segments only when the counts are equal, and on the workload
+  they are close but not equal (9,629 against 9,602). Relaxing that to "take the
+  first `n_segments`" measured **census +2,981 with 0 mismatch** — a clean green run
+  by every gate this project has. It is also wrong: the per-formal token lookup then
+  fails for **343,315 of 554,056** functions, because the surplus blocks are
+  *interspersed* rather than a tail, so 62% of the bindings were attaching one
+  function's data to another. The mismatch count stayed 0 for a mundane reason —
+  those functions refuse for other reasons and never reach an emitter, so a wrong
+  binding has nothing to be wrong *about* yet. It becomes a wrong-bytes emit the day
+  their other blockers clear. The lesson generalizes past `.sy`: when a change makes
+  a *correspondence* rather than a *decode*, the oracle cannot grade it, and the
+  thing to measure is the correspondence's own invariants (here: does every `.ex`
+  formal token appear in the block it was bound to?). A relaxation that improves the
+  census and keeps the oracle green is exactly the shape a plausible-but-wrong
+  binding takes.
 - **A measurement artifact read from the wrong tree.** The parallel-agent workflow
   gives every worktree a reflinked copy of `work/`, so the same *relative* path
   (`work/dc3-workload/scan-t1.jsonl`) exists in several trees holding different
