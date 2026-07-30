@@ -681,6 +681,7 @@ instrument:
 | − the argument-register precondition (`1158356`) — a **correctness fix that costs coverage** | **122,487** | **4.97** |
 | − the variadic-function refusal (`8142c17`) — another correctness fix, cost **0** | 122,487 | 4.97 |
 | + T1 width-4 pointer TYPEs through the leaf shapes (`8da703e`) | **210,603** | **8.55** |
+| + `.sy` widths — six wrong encodings, so it had never bound on a real TU (`320f618`) | **211,012** | **8.57** |
 
 That last row goes the wrong way on purpose, and it is the most instructive row
 in the table. A formal's list index had been standing in for its
@@ -701,16 +702,23 @@ the top of the worklist. It also retro-explains why the `.sy` int-locals rung
 measured ~0 workload yield when it landed: `.sy` appears never to have bound on a
 single real TU, so that rung has been fixture-only from the start.
 
-Adversarial review then found the likely *mechanism*, and it is one field:
-`read_record` reads a record's size as a `u16` where the stream carries a **varint**
-(the same form the function already reads correctly for `static` records, under a
-comment warning about exactly this mistake). One `char buf[128]` anywhere in a
-translation unit desyncs the record and unbinds that whole file. So the 567,549 is
-not an irreducible reader gap — it is largely one encoding error, and the sibling
-count of `param-multi-reg = 1` is also an artifact of it: a 16-byte class with a
-copy constructor is recorded as a 4-byte *pointer* (passed by hidden reference,
-**one** register) and the mis-read yields 2052, which trips the `> 8` test. That
-means the key does not currently mean what its name says.
+Adversarial review found the mechanism — `read_record` read a size as a `u16`
+where the stream carries a **varint** — and fixing it, plus five more wrong widths,
+made `.sy` parse real translation units for the first time (it had managed 3 of
+200). `param-multi-reg` went 1 -> **23**, the first honest count of that key: the
+old 1 was a mis-read size exceeding 8, and a 16-byte class with a copy constructor
+is really a 4-byte *pointer* passed by hidden reference, in **one** register.
+
+**The widths were necessary and are not sufficient: +409 against a 567,549
+bucket.** `param-width-undetermined` fell only to 554,056, because the constraint
+moved to the block-to-segment **count** check (9,629 blocks against 9,602
+segments). Relaxing that check is the trap, and it was measured rather than
+reasoned about: "take the first `n_segments`" yields census +2,981 with **0
+mismatch** while binding one function's data to another for **343,315 of 554,056**
+functions, since the surplus blocks are interspersed rather than a tail. `GAPS.md`
+§6 carries the general form — a green differential cannot grade a
+*correspondence*, only a decode. The next rung needs a **key** (the block header
+token) rather than a position.
 
 The first two steps were *decode* fixes, not new codegen — the expected shape
 of progress while the wall is `vocab-gap`. The third is a 10× jump from one
