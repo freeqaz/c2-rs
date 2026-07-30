@@ -37,6 +37,13 @@ _CL_*
 # Reference toolchain binaries fetched by scripts/fetch_compilers.sh — these
 # are Microsoft binaries and must NEVER be committed.
 /compilers/
+# …and the same path as a SYMLINK, which is what a configured worktree has
+# (scripts/configure_existing_worktree.sh links it to the main repo). The trailing
+# slash above matches a directory ONLY, so in every worktree `git status` showed
+# `?? compilers` and a `git add -A` would have committed a symlink containing an
+# absolute machine path — the one thing CLAUDE.md says never to commit. Found by a
+# reviewer running `git check-ignore` in a configured worktree rather than assuming.
+/compilers
 
 # Paint (LLM-draft bootstrap): entirely UNTRACKED. It contains Ghidra pseudo-C
 # decompiled from the proprietary MS c2.dll and LLM drafts derived from it
