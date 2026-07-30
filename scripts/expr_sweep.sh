@@ -231,6 +231,71 @@ for expr in ('&h->i', '&h->pi', 'h->pi + 1', 'h->pi - 1', '*h->ppi',
 emit_raw(PSTRUCT + "H* f(int a, H* h) { return a ? h : h; }\n")
 emit_raw(PSTRUCT + "int* f(H* h) { return 0; }\n")
 
+# ---- the REGISTER MOVE: `return <a formal that is not the first>` ---------------
+# One `mr r3,rN` and a `blr`, where N is the formal's argument slot. The axis that
+# matters is **position x value class**: the whole class rests on a formal's index
+# in the list being its argument-register number, and that identity is exactly what
+# a by-value aggregate or a stack-homed ninth argument breaks. Swept as a cross
+# product rather than one axis at a time, because the two facts coincide for every
+# scalar and only come apart when they are varied together.
+MOVE_STRUCTS = (
+    "struct S { int a; int b; int arr[3]; };\n"
+    "struct Pair { int x, y; };\n"
+    "struct Big { int a[8]; };\n"
+)
+# Every argument slot at every arity, so the move's source register is swept over
+# the whole of r3..r10 and not only its ends.
+for nargs in range(1, 9):
+    ps = ', '.join('int p%d' % i for i in range(nargs))
+    for i in range(nargs):
+        emit_raw("int f(%s) { return p%d; }\n" % (ps, i))
+        emit_raw("int g(int);\nint f(%s) { return g(p%d); }\n" % (ps, i))
+# Value class x position. One GPR word is one GPR word — int, unsigned and every
+# pointer spelling share the instruction — while the narrow, wide and FP classes
+# refuse on their operand type ahead of any question about the move.
+for ty in ('int', 'unsigned', 'short', 'long long', 'char', 'bool', 'float',
+           'double', 'int*', 'const int*', 'char*', 'void*', 'int**', 'S*'):
+    for pos in range(3):
+        ps = ', '.join(['int a%d' % k for k in range(pos)] + ['%s v' % ty])
+        emit_raw(MOVE_STRUCTS + "%s f(%s) { return v; }\n" % (ty, ps))
+    emit_raw(MOVE_STRUCTS + "%s f(%s a, %s v) { return v; }\n" % (ty, ty, ty))
+# The zero-offset sub-object address against its nonzero neighbour, at each
+# position: the pair that separates the register move from the `addi`.
+for pos in range(3):
+    lead = ''.join('int a%d, ' % k for k in range(pos))
+    for expr in ('&s->a', '&s->b', 's->arr', '&s->arr[1]'):
+        emit_raw(MOVE_STRUCTS + "int* f(%sS* s) { return %s; }\n" % (lead, expr))
+    emit_raw(MOVE_STRUCTS + "S* f(%sconst S* s) { return (S*)s; }\n" % lead)
+    emit_raw(MOVE_STRUCTS + "void* f(%sS* s) { return s; }\n" % lead)
+# Member functions: `this` takes r3, so the first explicit formal is r4 and every
+# later one shifts with it. The off-by-one `il_this_line70.cpp` pins.
+for nargs in range(1, 4):
+    ps = ', '.join('int p%d' % i for i in range(nargs))
+    for i in range(nargs):
+        emit_raw("struct C { int m(%s) const; };\n"
+                 "int C::m(%s) const { return p%d; }\n" % (ps, ps, i))
+emit_raw(MOVE_STRUCTS + "struct C { S* p(S* q) const; };\n"
+         "S* C::p(S* q) const { return q; }\n")
+emit_raw(MOVE_STRUCTS + "struct C { int* p(S* q) const; };\n"
+         "int* C::p(S* q) const { return &q->a; }\n")
+# The neighbours that must NOT emit a move. A by-value aggregate wider than one
+# GPR makes the index stop being the register number — `docs/GAPS.md` §6's fourth
+# instance, and the reason the move is gated behind `.sy`'s declared widths — and
+# an 8-byte one does not, so both must be swept or the gate is untested. A ninth
+# argument is not in a register at all, and a global is not an argument.
+for agg in ('Big', 'Pair'):
+    emit_raw(MOVE_STRUCTS + "int f(%s v, int b) { return b; }\n" % agg)
+    emit_raw(MOVE_STRUCTS + "int f(int a, %s v, int b) { return b; }\n" % agg)
+    emit_raw(MOVE_STRUCTS + "%s* f(%s v, %s* p) { return p; }\n" % (agg, agg, agg))
+    emit_raw(MOVE_STRUCTS + "int g(int);\nint f(%s v, int b) { return g(b); }\n" % agg)
+emit_raw("int f(int a,int b,int c,int d,int e,int h,int i,int j,int k)"
+         "{ return k; }\n")
+emit_raw("int gv;\nint f(int a, int b) { return gv; }\n")
+emit_raw("static int sv;\nint f(int a, int b) { return sv; }\n")
+emit_raw("int f(int a, int b) { return b + 1; }\n")
+emit_raw(MOVE_STRUCTS + "S* f(int a, S* s) { return s + 1; }\n")
+emit_raw("int f(int a, int b, int c) { return a ? b : c; }\n")
+
 # ---- locals, substitution and lexical scopes ------------------------------------
 # Substitution is a *source* of operand orders and repeated leaves the written source
 # does not have, which is the exact mechanism behind the reassociation mis-emits

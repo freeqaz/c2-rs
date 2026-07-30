@@ -41,18 +41,18 @@ pub(crate) fn straight_line_out_of_class_ctx(
     if params.len() > ARG_REG_COUNT {
         return Some("expr-out-of-class-formals9");
     }
-    // `return b;` — a bare parameter that is not the first needs a register move.
-    // `return a;` is free, since it is already in r3.
+    // A bare `return <token>` whose token is **not a formal**: a global, a `.sy`
+    // local, a token from a construct this class does not model. Nothing here
+    // says where the value is, so nothing can be emitted for it.
+    //
+    // A bare *formal* is fine at any index. `return a;` emits nothing (it is
+    // already in r3) and `return b;` is one `mr r3,rN` — see
+    // [`c2_core::codegen::select_text`]'s finalize, and `w18_reg_move.cpp` for
+    // the byte grading across every argument slot, both scalar classes and both
+    // pointer spellings.
     if let [IlOp::Load(t)] = ops {
-        if params.first() != Some(t) {
-            return Some(if params.contains(t) {
-                // In an argument register, just not r3: one `mr r3,rN`.
-                "expr-out-of-class-bare-nonfirst-formal"
-            } else {
-                // Not an argument at all — a global, a `.sy` local, a token from
-                // a construct this class does not model. No lowering is implied.
-                "expr-out-of-class-bare-nonformal"
-            });
+        if !params.contains(t) {
+            return Some("expr-out-of-class-bare-nonformal");
         }
     }
     // A bare wide NEGATIVE constant: the `lis`+`ori` pair covers non-negative only.
@@ -489,13 +489,10 @@ mod tests {
         let p = vec![0x10, 0x11]; // a -> r3, b -> r4
         let ctx = |ops: &[IlOp]| straight_line_out_of_class_ctx(ops, &p);
 
-        // `return a;` — already in r3, in class.
+        // `return a;` emits nothing (already in r3) and `return b;` is one
+        // `mr r3,r4` — both in class, and W18 grades their bytes.
         assert_eq!(ctx(&[IlOp::Load(0x10)]), None);
-        // `return b;` — one `mr r3,r4`.
-        assert_eq!(
-            ctx(&[IlOp::Load(0x11)]),
-            Some("expr-out-of-class-bare-nonfirst-formal")
-        );
+        assert_eq!(ctx(&[IlOp::Load(0x11)]), None);
         // A token that is not a formal at all: a global, a `.sy` local, a token
         // from a construct this class does not model. Kept apart from the clause
         // above because there is no lowering implied — 2,881 functions against
@@ -529,6 +526,7 @@ mod tests {
         for ops in [
             vec![IlOp::Load(0x10)],
             vec![IlOp::Load(0x11)],
+            vec![IlOp::Load(0x99)],
             vec![IlOp::Lit(-0x8001)],
             vec![IlOp::Load(0x10), IlOp::Lit(3), IlOp::Mul],
         ] {

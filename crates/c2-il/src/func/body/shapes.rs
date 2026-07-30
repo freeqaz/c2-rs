@@ -1,6 +1,6 @@
 use super::chain::{
     additive_chain_canonical, has_repeated_leaf, leaves_ascending, straight_line_is_out_of_class,
-    substitute, MAX_SUBST_OPS,
+    straight_line_out_of_class_ctx, substitute, MAX_SUBST_OPS,
 };
 use super::expr::{
     eat_fn_tail, eat_return_plumbing, eat_scopes, formals_marker, intrinsic_selector, parse_expr,
@@ -179,6 +179,17 @@ pub(crate) fn try_parse_assign_body_detail(
     // Substitution reorders too: `int x = b; return x + a;` resolves to `b + a`.
     if !leaves_ascending(&ret, &params) || !additive_chain_canonical(&ret) {
         return Err(Block { ctx: "assign-noncanonical-order", byte: None, off: p, aux: 0 });
+    }
+    // The **same** gate the straight-line path applies, at the second site that
+    // produces a `StraightLine`. It was missing here, and the census therefore
+    // counted bodies `select_text` refuses: `int f(int a){ int x = a; return
+    // x * 3; }` substitutes to `a * 3`, censused in class, and the port returned
+    // `NotImplemented` — the exact census/gate disagreement
+    // `straight_line_out_of_class_ctx` was extracted from codegen to prevent,
+    // reintroduced by a second producer that did not consult it. One fact, one
+    // locator: the predicate is shared, not copied.
+    if let Some(ctx) = straight_line_out_of_class_ctx(&ret, &params) {
+        return Err(Block { ctx, byte: None, off: p, aux: 0 });
     }
     Ok(BodyShape::StraightLine { params, ops: ret })
 }
@@ -1469,10 +1480,12 @@ pub(crate) fn try_parse_addr_leaf(seg: &[u8], start: usize, lo: usize) -> Option
     if ix >= 8 {
         return None;
     }
-    // A zero offset emits nothing, so the address has to be in r3 already.
-    if off == 0 && ix != 0 {
-        return None;
-    }
+    // A zero offset emits nothing when the address is already in r3, and one
+    // `mr r3,rN` when it is not — the same register move the arithmetic identity
+    // makes, which is why this refusal is gone rather than duplicated. MEASURED:
+    // `int* f(int k, S* s){ return &s->a; }` is `7c832378` (`mr r3,r4`) and
+    // `S* f(int k, const S* s){ return (S*)s; }` is the same word, against
+    // `38640004` (`addi r3,r4,4`) for the nonzero-offset neighbour.
     Some(BodyShape::AddrLeaf {
         params,
         ops: vec![IlOp::Load(base_tok), IlOp::AddrOf { off }],
@@ -2806,14 +2819,23 @@ mod tests {
     #[test]
     fn ptr_leaves_refuse_the_shapes_that_cost_an_instruction() {
         assert_eq!(parse_segment(PTR_DEREF2, NO_LOCALS), None, "**ppp is two lwz");
-        assert_eq!(parse_segment(PTR_IDENT_R4, NO_LOCALS), None, "return s (r4) is mr");
+        // …and it is reported by the census rather than silently, so the
+        // instrument and the gate agree that it is out of class.
+        assert!(parse_segment_detail(PTR_DEREF2, NO_LOCALS).is_err());
 
-        // And the same two, reported by the census rather than silently: each
-        // must still name a blocking feature, so the instrument and the gate
-        // agree that these are out of class.
-        for (seg, label) in [(PTR_DEREF2, "**ppp"), (PTR_IDENT_R4, "return s (r4)")] {
-            assert!(parse_segment_detail(seg, NO_LOCALS).is_err(), "{label}");
-        }
+        // `return s;` from r4 is `mr r3,r4`, which W18 now emits. It comes out
+        // as the identity `StraightLine` — the *same* one-op stream a first-
+        // argument identity produces, with the register decided by the token's
+        // position in `params` and nowhere else, which is what lets one arm in
+        // `select_text` serve both. `w18_reg_move.cpp` grades the bytes.
+        assert_eq!(
+            parse_segment(PTR_IDENT_R4, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![0x280A, 0x290A],
+                ops: vec![IlOp::Load(0x290A)],
+            }),
+            "return s (r4) is one mr"
+        );
     }
 
     #[test]
