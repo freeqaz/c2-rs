@@ -376,12 +376,13 @@ Byte evidence, one probe per row, `/O1 /GS- /c` (identical at `/Ox` and `/O2`):
   `bl <callee> … addi r1,r1,96 … blr`. c2's tail-call transform is off once the
   function is framed.
 
-### Class A means no formal is read after the first call
+### Class A means no formal is read after the first call — and Class B is now open
 
 The first call's arguments are evaluated before its `bl`, so a formal used only
 there dies with it. A formal read by any later statement has to survive a call,
 and c2 answers with a callee-saved register — Class B, `CODEGEN_FRAMED_CALLS.md`
-§2.2, refused here as `callseq-value-live-across-call`:
+§2.2, **implemented since 2026-07-30** (`docs/ROADMAP.md` §6l, fixtures
+`mvp_call_seq_b.cpp` / `_neg.cpp`):
 
 ```text
 void g1(int); void g2(int); void f(int a,int b){ g1(a); g2(b); }   52 B, F = 96
@@ -399,6 +400,15 @@ void g1(int); void g2(int); void f(int a,int b){ g1(a); g2(b); }   52 B, F = 96
 
 against Class A's 36 bytes and 3-word prologue. Every field of the `.pdata`
 record and both `$M` labels differ too, so guessing here is not one wrong word.
+
+Which formals become callee-saved, and in what order, is the rule
+`CODEGEN_FRAMED_CALLS.md` §6 recorded as unmodeled. It is: **a formal read by any
+call after the first is copied into a callee-saved register, and the file is
+allocated descending from r31 in PARAMETER order.** The separating capture
+against first-use order is `void f(int a,int b,int c){ v1(a); v2(c); v3(b); }`,
+whose prologue and two `mr` saves are byte-identical to
+`{ v1(a); v2(b); v3(c); }`'s — only the two `mr r3,rN` reads swap. Three live
+formals leave the class (`__savegprlr_29`) and are refused by name.
 
 ### The explicit `return;`
 

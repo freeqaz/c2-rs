@@ -186,8 +186,11 @@ fn differential_mvp_wide_immediates_byte_exact() {
     std::fs::remove_dir_all(&w).ok();
 }
 
-/// **#35 step 2, rung 1 — Class A many-calls.** A framed body with more than one
-/// call and nothing live across any of them: `n` REL24 sites in one function, the
+/// **#35 step 2 — many-call framed bodies, Class A and Class B.** A framed body
+/// with more than one call; Class A has nothing live across any of them and
+/// Class B keeps one or two formals in callee-saved GPRs (`mvp_call_seq_b.cpp`,
+/// whose `use_order` row is the capture that refutes first-use allocation
+/// order). Class A means: `n` REL24 sites in one function, the
 /// callee externals in reverse first-reference order, one symbol per distinct
 /// callee however many sites reference it, and the same 96-byte frame, `.pdata`
 /// record and label stride the single framed call already had.
@@ -205,7 +208,16 @@ fn differential_class_a_many_calls_byte_exact() {
         eprintln!("SKIP: strace/mingw absent");
         return;
     }
-    for name in ["mvp_call_seq.cpp", "mvp_call_twice.cpp"] {
+    for name in [
+        "mvp_call_seq.cpp",
+        "mvp_call_twice.cpp",
+        "mvp_call_seq_b.cpp",
+        // The cross product neither rung's corpus could contain: FP store leaves
+        // beside Class A and Class B framed functions, which is where mis-emit
+        // #12 lived and where the rule that repaired it turned out to be wrong
+        // from two FP functions on.
+        "w28_fp_store_framed.cpp",
+    ] {
         let w = work("callseq");
         let port = PortC2::default();
         let report = differential(&fixture(name), &tc, &port, &w);
@@ -478,9 +490,18 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // `int z = g2(a, c); return z;` **panicked** the census. Both now refuse
         // through the single `tail_call_shape` locator.
         "il_call_bound_neg.cpp",
-        // The Class A many-call neighbours: a value read after the first call
-        // (Class B, one saved GPR) and a multi-argument literal list.
+        // The Class A many-call neighbours: a formal read by a tail EXPRESSION
+        // and a multi-argument literal list.
         "mvp_call_seq_neg.cpp",
+        // Class B's own neighbours: three live formals (the `__savegprlr_29`
+        // helper class), a first call that marshals while something is saved,
+        // and a computed argument out of a callee-saved register.
+        "mvp_call_seq_b_neg.cpp",
+        // W30's neighbours: a call-tail literal whose type is NOT a width-4
+        // integer (`bool`, `char`, `short`, `wchar_t`, `__int64`, `float`,
+        // `double`, a pointer) and one that is but whose value does not fit the
+        // `li`/`addi` signed-16-bit immediate.
+        "w30_callseq_tail_intlike_neg.cpp",
         // A multi-argument permutation with a cycle longer than three: c2 hoists
         // a second save into r10 and reorders the writes. Live wrong bytes until
         // the grid was measured — `il_call_multi.cpp`'s `cyc4a`/`cyc4b`.
@@ -491,6 +512,9 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // advances by 1 for every non-framed one. Live wrong bytes until the
         // merge that created the pair — `$M2564/$M2563/$T2565` against
         // `$M2565/$M2564/$T2566` (`docs/GAPS.md` §6 instance 12).
+        // Still refused, and for a different reason than it used to be: an FP
+        // ARITHMETIC leaf's stride is undetermined with pooled constants. The
+        // store half of this pair is byte-exact — `w28_fp_store_framed.cpp`.
         "w28_fp_store_framed_neg.cpp",
         // The FP store's own boundary: a conversion on the stored value in
         // either direction (the narrowing one is a real `frsp` through f0), a

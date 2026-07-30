@@ -308,7 +308,10 @@ impl PortC2 {
                             &setups,
                             &tail,
                             0,
-                            codegen::FrameLayout::default(),
+                            codegen::FrameLayout {
+                                saved_gprs: seq.saved.len() as u8,
+                                ..Default::default()
+                            },
                         )?;
                         frame = Some(coff::Frame {
                             prolog_len: body.prolog_len,
@@ -418,7 +421,10 @@ impl PortC2 {
                         &setups,
                         &tail,
                         off,
-                        codegen::FrameLayout::default(),
+                        codegen::FrameLayout {
+                            saved_gprs: seq.saved.len() as u8,
+                            ..Default::default()
+                        },
                     )?;
                     frame = Some(coff::Frame {
                         prolog_len: body.prolog_len,

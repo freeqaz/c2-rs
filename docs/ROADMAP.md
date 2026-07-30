@@ -2630,6 +2630,358 @@ Match**, `w28_fp_store` **14/14 Match**, `w28_fltused_order` **5/5 Match**,
 5. **The general frame**, unchanged and still first by size: 802,655
    `calls-2plus`, which no leaf rung reaches and which this rung's 8,931 do not
    touch at all.
+## 6l. W30 + Class B — the call-tail literal, and values live across calls (2026-07-30)
+
+Two rungs in the framed/call seam, taken in the order the *measurement* ranked
+them rather than the order the handoff did. `docs/ROADMAP.md` §6j ranked Class B
+third and `callseq-tail-lit` first; sizing both by counterfactual before writing
+any code put them 3,900× apart, and the session took the big one first and said
+so.
+
+### Sizing first, and the handoff's guess about `callseq-tail-lit` was wrong
+
+Three counterfactual scans against master `9ec4871` (census 474,103 / 2,462,571,
+workload `dc3-decomp` at `05ca6d09`), each a ~1 s warm scan:
+
+| counterfactual | census | delta |
+|---|---|---|
+| lift `callseq-value-live-across-call` (Class B) | 474,105 | **+2** |
+| lift the tail literal's exact-`int` type gate | 481,874 | **+7,771** |
+| both | 481,876 | **+7,773 — exactly additive** |
+
+The third row is the one that matters: the tail-literal check fires *before* the
+live-across validation, so it could have been masking Class B's real size. It was
+not. **Class B's whole-body-complete population on this workload is 2 functions**,
+an exact ceiling rather than an estimate, and the realized outcome was 2.
+
+§6j's handoff had ranked `callseq-tail-lit` first "by size" and guessed it was
+"one bucket holding several shapes, exactly the thing §6 warns about". It is one
+bucket holding **one** shape: every one of the 7,771 is a literal whose TYPE is a
+width-4 integer that is not the exact `86 41 74` triple. The bucket's own
+warning was right in general and wrong here, and the cheap way to find out was
+the counterfactual, not the sampling.
+
+### W30 — a rule with three implementations, two of them narrower
+
+`33 <TYPE> <k>` is read at three places in the call productions — the sequence's
+`return <literal>;` tail, the single framed call's `+ k` post-op, and the
+sequence's value-call post-op — and each required the TYPE to be *exactly* `int`.
+The emitted word is `li r3,k` / `addi r3,r3,k`, which is a function of the value
+alone, so `unsigned`, `long`, `unsigned long`, an enum, a `const int` and a
+`volatile int` were refused for carrying a per-TU type id in their third byte.
+All three now go through `eat_int_like` — the locator `2C`, `41`, `30` and W22's
+operand positions already agree through. The two post-op positions are worth
+**0** on the workload and were widened anyway: one rule on two different gates is
+`docs/GAPS.md` §6 #9's shape, and it costs nothing to close while the file is
+open.
+
+The workload's dominant spelling is `86 41 08`, a width-4 signed type whose id no
+probe reproduced (`int`, `long`, `__int32`, `signed`, `size_t`, `ptrdiff_t`,
+`__w64 int`, a namespace/class/anonymous enum and both cv-qualifications were all
+tried). It is admitted on `is_int4_type`'s nibbles, which is what four other
+positions admit it on, and the doc comment says so rather than implying a
+capture. **Those 7,771 bodies are read and not emitted** — `JointUtl.cpp`'s
+reference obj contains none of them — so this is a census gain under the census's
+own denominator (IL bodies), which `docs/GAPS.md` §6 already distinguishes from
+emitted functions.
+
+**Census 474,103 → 481,874 (+7,771), 19.25 % → 19.57 %.**
+
+### Class B — the liveness rule, closed by refutation
+
+`docs/CODEGEN_FRAMED_CALLS.md` §6 lists "which values become callee-saved, and in
+what order" as the half that refused to yield a rule: §3.1 *describes* an
+allocator (descending from r31, parameters in order then results, reuse on death)
+and `nSaved` is an input to the frame formula every other claim is conditional
+on. For the call-sequence body it is now a rule, established over a 12-capture
+ladder and stated as one sentence:
+
+> **A formal read by any call after the first is copied into a callee-saved
+> register, and the file is allocated descending from r31 in PARAMETER order.**
+
+The ladder, each row a capture at `/O1 /GS- /c`:
+
+| probe | body | what it pins |
+|---|---|---|
+| L1 | `v1(a); v2(b);` | 1 save, `F = 96`, 4-word prologue, `mr r31,r4` |
+| L2 | `v1(a); v2(b); v3(c);` | 2 saves, `F = 112`, 5-word prologue, r31←b r30←c |
+| L3 | `int r=i0(); v0(); v2(r);` | a call RESULT takes the next register — **not reachable** in this grammar (a result is discarded or is the tail; a bound one is a different production) |
+| L4 | `int r=i1(a); v0(); v2(r); v3(a);` | parameters first, then results — §3.1 confirmed |
+| L5 | 3 live formals | `bl __savegprlr_29`, tail-branch epilogue, no `blr` → REFUSE |
+| **R1** | `v1(a); v2(c); v3(b);` | **parameter order, refuting first-use order** |
+| R2 | `v1(a); v2(b); v3(c);` | R1's control — byte-identical prologue and saves |
+| R3 | `v1(a); v2(a);` | a formal the first call reads too is *still* saved |
+| R5 | `v1(a); g2(c,b);` | a later call marshals out of r31/r30, highest destination first |
+| S4 | `v1(a); v2(5); v3(b);` | a literal argument needs no register of its own |
+| S6 | `void f(float x,int a,int b){…}` | the FP-formal/GPR-index transfer, in a **framed** prologue |
+| S7/U4 | `return i1(b)+1;` / `return 7;` | both tails beside the saves |
+
+R1 is the load-bearing row: every probe in §3.1 has parameter order and first-use
+order coinciding, so the description could have meant either. R1 and R2 emit
+byte-identical prologues and byte-identical `mr r31,r4 ; mr r30,r5` pairs and
+differ only in which one each later call reads back. The allocator walks the
+parameter list.
+
+**The `/Gy` label stride stays 5** — saved registers do not enter the counter
+(two Class B functions in one TU are `$M2571/$M2572/$T2573` then
+`$M2576/$M2577/$T2578`). §4.4's +2 belongs to the *helper* class, which is
+refused. The step-2 handoff's warning not to assume this was worth heeding and
+the answer happened to be "unchanged".
+
+**Census 481,874 → 481,876 (+2), the estimate exactly.**
+
+### The prediction that failed, and the mis-emit that followed it
+
+Where the save moves go when the first call *also* marshals arguments is
+measured, and the first model of it was wrong twice.
+
+*Failure 1 — "as late as possible".* `S2` (`g2(a,c); v3(b);`) puts the save
+**before** the marshalling and `S1`/`R4` put it **after**, which fits "emit each
+save immediately before the first instruction that destroys its source". `U3`
+(`g2(a,d); v1(b); v2(c);`) splits it perfectly — `mr r31,r4 ; mr r4,r6 ;
+mr r30,r5` — and `U1` (`g3(a,d,e); v1(b);`) refutes the lazy reading: `mr r31,r4`
+precedes **both** marshalling moves although only the second touches r4. So the
+hoist clears the whole marshalling, not just the writer.
+
+*Failure 2 — the r11 finding, and it was a live mis-emit for the length of one
+probe run.* With hoist/trail implemented, a 17-TU grid over first-call
+permutations came back **11 mismatches of 17**. A non-identity permutation beside
+a save is not this interleaving at all: when a permuted argument's value is also
+callee-saved, **c2 breaks the cycle through the callee-saved register and emits
+no `r11` whatever**, because the save has to happen anyway.
+
+```text
+  void f(int a,int b){ g2(b,a); v1(a); v2(b); }           a->r31, b->r30
+    mr r30,r4 ; mr r31,r3 ; mr r4,r3  ; mr r3,r30  ; bl ?g2
+  void f(int a,int b,int c){ g2(b,a); v1(a); v2(c); }     a->r31, c->r30
+    mr r31,r3 ; mr r3,r4  ; mr r4,r31 ; mr r30,r5  ; bl ?g2
+  void f(int a,int b,int c){ g3(a,c,b); v1(a); v2(b); }   a->r31, b->r30
+    mr r30,r4 ; mr r4,r5  ; mr r5,r30 ; mr r31,r3  ; bl ?g3
+```
+
+Refused at the measured edge — which saved register serves as the temp when
+several are saved is not determined by three captures. The generalizable bit is
+the *third* instance of "a rule fitted to the shapes the corpus happened to
+contain" (`GAPS.md` §6 #10): the hoist/trail model was derived from captures, fit
+every one of them, and was wrong on a cell none of them entered. What separated
+it was enumerating the permutations — all 2 of two arguments and all 6 of three —
+rather than adding one more hand-picked case.
+
+### What the class admits and refuses, by name
+
+Admits: 1–2 formals live across calls; any number of later calls; a first call
+that marshals a single argument (`mr r3,rN`, `li r3,k`) or the identity
+permutation; later calls reading formals straight out of the saved file, singly
+or as a multi-argument set; literal arguments; all three tails; an FP formal in
+the parameter list.
+
+Refuses, each by name and each with the capture that would settle it in the
+fixture comment: `callseq-three-plus-saved` (the `__savegprlr_29` class),
+`callseq-saved-with-first-call-setup` (a non-identity permutation — the r11
+finding — or a computed argument, whose write set reaches the callee-saved file
+under `/Ox`), `callseq-saved-computed-arg` (`addi r3,r31,1`, the operand stream
+rebased onto a saved register).
+
+### Gate evidence
+
+Workload tree `dc3-decomp` at `05ca6d09`, c2-rs on `wt-class-b` from master
+`9ec4871`, wibo `1.0.1-23-g4a9dd6f`, XDK `16.00.11886.00`.
+
+* `cargo test --workspace --release` **403 pass / 0 fail** (was 401);
+* `c2rs bench` **149 pass / 0 fail / 0 error** (was 145);
+* mode lanes over 149 fixtures: `/Ox` **68**, `/O1` **66**, `/O2` **66**,
+  `/Ox /Gy` **66**, **0 mismatch in all four** (was 66/64/64/64);
+* `scripts/expr_sweep.sh` **5,023 cases, 0 mismatches**;
+* generated probes: **70 TUs** for W30 (55 match, 0 mismatch), **329 TUs** for
+  Class B over complete small grids in **two modes** (311 match, 0 mismatch,
+  18 refused under the two named gates), **17 TUs** for the permutation cell
+  (6 match, 11 refused, 0 mismatch). **0 census/gate disagreement everywhere**;
+* 878-TU workload scan: match 6, **mismatch 0**, codegen-gap 0, port-error 0,
+  capture-fail 7, **census/gate disagreement 0**, `.gl` binding invariants 0
+  violations, cache validator **17 re-captured and agreed, 0 poisoned**;
+* fixtures, per `c2rs census`: `w30_callseq_tail_intlike.cpp` **21/21**,
+  `_neg` **0/13**; `mvp_call_seq_b.cpp` **18/18**, `_neg` **0/7**;
+  `mvp_call_seq_neg.cpp` **0/2** after its two Class B rows moved into the
+  positive fixture rather than being left as decoration.
+
+**Census 474,103 → 481,876 / 2,462,571, 19.25 % → 19.57 %.** Differenced against
+this branch's own base, master `9ec4871`; the concurrent FP branch (W27/W28/W29,
++9,137) is disjoint from these keys and its own delta is against the same base.
+
+### The handoff, ranked and sized
+
+1. **`call-ref-0x3A` — 5,335**, now the largest statement-call blocker. §6j
+   already established the simple member (an explicit `return;`) gains 0, so the
+   workload's are two branch records to **different** labels: a real control
+   transfer, i.e. the control-flow rung.
+2. **`call-multiarg-postop` — 13,425.** The largest call-family bucket overall
+   and untouched by either rung here; it drained *into* from `call-postop-0x4B`
+   last rung, so its composition has not been sampled since.
+3. **`call-arg-computed` — 4,447.** Mixing a formal with a literal in a
+   multi-argument call. Still uncaptured; §6j ranked it 4th and it has not moved.
+4. **The r11-through-a-saved-register lowering.** 0 on the workload, but it is
+   the only *characterized-but-unmodeled* thing this rung leaves behind and the
+   three captures above are most of a rule. The missing capture: which saved
+   register is the temp when two are saved and both are permuted.
+5. **A computed argument out of a saved register** (`addi r3,r31,1`), and a
+   computed first-call argument. Both need `select_text` to accept a base
+   register other than the formal's entry one — one parameter, and it would close
+   `callseq-saved-computed-arg` and half of
+   `callseq-saved-with-first-call-setup` together.
+6. **Class C (≥3 saved GPRs).** Unchanged from §6j's ranking: the helper
+   externals, the tail-branch epilogue and §4.4's +2 label stride all at once,
+   and it is the first rung where the symbol table is as much work as the code.
+
+## 6m. The merge gate: the cross product, and the stride rule it refuted (2026-07-30)
+
+`wt-class-b` (§6l) merged against master `5dc991d` (§6k, the FP register file).
+One textual conflict — both branches appended a section before §7 — and the code
+merged clean. The mandatory part was not the merge.
+
+### What the merge made gradable, and what that cost
+
+**mis-emit #12 was found by the previous merge, in the cross product of two
+individually-green branches.** The same configuration existed again here: this
+branch's shapes are *framed bodies*, the FP rung's are *FP leaves and stores*,
+and nothing had ever graded the pair. So the merge gate generated **168 TUs**
+pairing every FP shape (store leaf at both widths, arithmetic leaf, `fmr`,
+pooled constant, mixed parameter list) with every framed shape (Class A, Class
+B at one and two saves, W30's tail literal, the single framed call, and an int
+store leaf as the control), **in both orders**, graded at `/O1`, `/Ox` and
+`/Ox /Gy`.
+
+At first grading: **10 match, 0 mismatch, 156 refused.** The refusal is the
+label counter — `w28_fp_store_framed_neg.cpp`, the FP rung's own fixture, which
+says in its comment that admitting the pair "is a change to the framed side's
+label model, not to the FP classes". That is this seam, so it was taken.
+
+### Capturing first refuted the rule that had just landed
+
+mis-emit #12 was repaired with:
+
+> anything that touches floating point consumes 2 — the stride goes with the
+> register file, not with the body shape.
+
+That is right for **one** FP function, which is what its capture had (one leaf
+ahead of one framed function). It is wrong from two on: it predicts 4 slots for
+two FP functions where c2 gives 3, and 6 for three where c2 gives 4.
+
+The first attempt to measure this was unreadable for an instructive reason — the
+`$M` numbers are seeded from `.gl`, so two TUs are only comparable if their
+mangled names are the same *length*, and `?ints@@YAXPAUS@@H@Z` against
+`?fps@@YAXPAUS@@M@Z` is not. (A second reason: **zsh does not word-split an
+unquoted parameter expansion**, so a `$flags` variable holding `/Ox /GS- /Gy /c`
+reached `cl.exe` as one argument and both "packed" and "`/Gy`" rows were
+silently the same capture. Both rows agreeing exactly is the tell.)
+
+The fix is to measure **seed-free**: put *two* framed functions in one TU and
+read the **difference** between their labels. The seed cancels, the names never
+have to match, and the leaf slots fall straight out. Eleven rows, `/Ox /GS- /c`,
+every row `+1` under `/Gy`:
+
+```text
+  fr1;                      fr2    delta 4    leaf slots 0
+  fr1; int_store;           fr2    delta 5    leaf slots 1
+  fr1; fp_store;            fr2    delta 6    leaf slots 2
+  fr1; fp_store fp_store;   fr2    delta 7    leaf slots 3   <- not 4
+  fr1; int_store fp_store;  fr2    delta 7    leaf slots 3
+  fr1; fp_store int_store;  fr2    delta 7    leaf slots 3
+  fr1; int_store int_store; fr2    delta 6    leaf slots 2
+  fr1; fp_arith;            fr2    delta 6    leaf slots 2
+  fr1; fp_arith fp_arith;   fr2    delta 7    leaf slots 3
+  fr1; fp_store fp_arith;   fr2    delta 7    leaf slots 3
+  fr1; fp_store x3;         fr2    delta 8    leaf slots 4   <- not 6
+```
+
+> **Every function consumes 1 label slot (a framed one 4 packed / 5 under
+> `/Gy`), plus ONE extra slot for the translation unit if any function touches
+> floating point.**
+
+The extra slot is `_fltused` — the one TU-level external an FP-touching function
+introduces. That makes this the *same rule* `CODEGEN_FRAMED_CALLS.md` §4.4
+measured for the `__savegprlr_N`/`__restgprlr_N` pair, where **two** externals
+consume **two** extra slots: **one slot per TU-level external**. §4.4 called the
+underlying counter "invisible in the obj" and left it unexplained; it is the
+external count, and the two facts `Function::is_float` carries — where `_fltused`
+is emitted and where the extra slot goes — are now one fact rather than two
+readers of one field, which is the third time that shape has bitten this file.
+
+The `/Gy` pre-pass is confirmed at exactly `3 × funcs.len()` on all eleven rows,
+unaffected by floating point.
+
+**Why it could not be stated where it lived.** `IlFunction::label_slots` is a
+*per-function* method and the `+1` is a *per-TU* quantity. No value it returns
+can be right for both the first FP function and the second. It now returns the
+per-function stride and `coff::plan_labels`, which has the whole function list,
+applies the extra slot. That is also why the wrong rule looked so plausible: at
+`n = 1` the two formulations are indistinguishable.
+
+After the fix: **62 of 168 match, 0 mismatch, in all three modes.**
+
+`w28_fp_store_framed_neg.cpp` is promoted to `w28_fp_store_framed.cpp` (5/5 in
+class, `Port=Match`, now carrying a Class B function beside the Class A one).
+Its own comment predicted the promotion, and a negative fixture whose rows are
+admitted and byte-exact is decoration — the same accounting `mvp_call_seq_neg`
+got in §6l. The new `_neg` holds the half still refused: an FP **arithmetic**
+leaf, whose stride `label_slots` cannot report because `IlFunction` does not
+carry whether the leaf pooled a constant. The eleven-row table says a
+constant-free one is 2 and could be admitted; the record it needs is the FP
+seam's, not the framed side's to restructure inside a merge, so it is a handoff.
+
+### Census, key-by-key
+
+**483,240 → 491,013 / 2,462,571 (19.62 % → 19.94 %)**, workload `dc3-decomp` at
+`05ca6d09`. Additive to the function, and the two branches' deltas are **key
+disjoint** — measured, not assumed:
+
+| | key | delta |
+|---|---|---|
+| §6l (this branch) | `callseq-tail-lit` | **−7,771** |
+| | `callseq-value-live-across-call` | −2 |
+| | `call-postop-0x86` → `call-postop-op-0x33` | −1 / +1 (one body reaching one token further; net 0) |
+| §6k (FP) | `expr-op-0x27` | **−7,927** |
+| | `expr-load-type-8645` | −1,004 |
+| | `opt-mode-00200001` / `opt-mode-00200101` | −140 / −66 |
+
+`474,103 + 7,773 = 481,876`, `+9,137 = 491,013`. **Zero keys touched by both.**
+
+### Gate evidence (merged tree)
+
+`cargo test --workspace --release` **409 pass / 0 fail** · `c2rs bench` **157
+pass / 0 fail / 0 error** · mode lanes over 157 fixtures `/Ox` **74**, `/O1`
+**72**, `/O2` **72**, `/Ox /Gy` **72**, **0 mismatch in all four** ·
+`scripts/expr_sweep.sh` **printed 5,922 = generated 5,922 = on disk 5,922, 0
+mismatches** · cross-product grid **168 TUs × 3 modes, 0 mismatch** · 878-TU
+scan: match 6, **mismatch 0**, codegen-gap 0, port-error 0, capture-fail 7,
+**census/gate disagreement 0**, `.gl` invariants 0 violations, cache validator
+**17 re-captured and agreed, 0 poisoned** · `census_gate.rs` unchanged at its
+recorded **1 packed / 9 `/Gy`**.
+
+Per-fixture `c2rs census`, both seams: `w27_fp_reg` 33/33, `w27_fp_reg_qual`
+10/10, `w28_fp_store` 14/14, `w28_fltused_order` 5/5, `w29_fp_contract` 16/16,
+`w28_fp_store_framed` 5/5, `mvp_call_seq` 10/10, `mvp_call_seq_b` 18/18,
+`w30_callseq_tail_intlike` 21/21; negatives `w28_fp_store_neg` 0/11,
+`mvp_call_seq_neg` 0/2, `mvp_call_seq_b_neg` 0/7,
+`w30_callseq_tail_intlike_neg` 0/13, `w13_fparam_neg` 0/3, and
+`w28_fp_store_framed_neg` 2/2 in class with the TU `NotImplemented` (the label
+gate is per TU; `census_gate.rs` asks the per-function gate, which both pass).
+
+### Two things measured and left alone
+
+* **`census/gate` is 0 on the workload and 28 on a constructible grid.** All 28
+  are the pooled-FP-constant-under-`/Gy` refusal, which lives in `c2-core`'s obj
+  layout and has no parser counterpart. Verified pre-existing by building master
+  `5dc991d` in a scratch worktree and running the identical grid: **the same 28**,
+  while the per-function numerator rose 336 → 432. This branch's rungs add
+  **zero** disagreement. It is the FP/obj seam's, and `census_gate.rs` already
+  records it as `KNOWN_DISAGREEMENTS_GY`.
+* **`c2_il::func::sy::gpr_reg_of` is dead code** (a build warning on master).
+  It states `base + ix` with `base` = r4 for a member function, and every
+  formal-to-register site in `c2-core::codegen` — including this branch's Class B
+  save moves — instead uses `ARG_REGS[position in func.params]`. The two agree
+  today because `this` is carried *in* `params`. But "a locator nobody consults
+  is not shared" is `GAPS.md` §6 #2, and it has now produced two mis-emits;
+  wiring it is the FP seam's call and is flagged rather than done.
 
 ## 7. Invariants (do not break)
 

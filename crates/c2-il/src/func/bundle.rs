@@ -542,7 +542,7 @@ pub(crate) fn shape_to_function(
             // `.gl` symbol index, exactly as the tail and framed calls are, and a
             // single unresolvable one refuses the whole function — a relocation
             // against a guessed symbol is a mis-emit, not a gap.
-            BodyShape::CallSeq { params, calls, tail } => {
+            BodyShape::CallSeq { params, calls, tail, saved } => {
                 let mut resolved = Vec::with_capacity(calls.len());
                 for c in calls {
                     resolved.push(SeqCall {
@@ -560,6 +560,7 @@ pub(crate) fn shape_to_function(
                     framed_call: None,
                     call_seq: Some(CallSeq {
                         calls: resolved,
+                        saved,
                         tail: match tail {
                             body::SeqTail::Void => SeqTail::Void,
                             body::SeqTail::CallValue { add_k } => SeqTail::CallValue { add_k },

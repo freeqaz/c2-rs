@@ -1534,6 +1534,18 @@ pub fn call_seq_text(
     Ok(SeqBody { text, bl_offsets, prolog_len })
 }
 
+/// The parameter index a single-`Load` argument stream names, for a Class B call
+/// that has to read it out of a callee-saved register instead of an argument one.
+fn seq_load_param_index(params: &[u32], ops: &[IlOp]) -> Result<usize, BackendError> {
+    match ops {
+        [IlOp::Load(t)] => params
+            .iter()
+            .position(|q| q == t)
+            .ok_or_else(|| out_of_class("a call argument that is not a formal")),
+        _ => Err(out_of_class("expected a single passthrough argument")),
+    }
+}
+
 /// Lower one call's argument setup, or a `Lit`-only tail, through
 /// [`select_text`] — the locator the integer tail call and the single framed call
 /// already use — and drop its trailing `blr`.
@@ -1570,20 +1582,195 @@ fn ops_setup_text(
     Ok(t)
 }
 
-/// The per-call argument setups and the post-call tail bytes of a Class A
+/// The callee-saved GPR file, in allocation order: `r31` first, then `r30`.
+/// Only two, because at three saved GPRs c2 switches to `__savegprlr_29` and the
+/// whole prologue/epilogue/label shape changes ([`FrameLayout::needs_gpr_helper`],
+/// `docs/CODEGEN_FRAMED_CALLS.md` §2.3) — the IL parser refuses that class, and
+/// this array is the second lock on it.
+const SAVED_GPRS: [u8; 2] = [31, 30];
+
+/// Emit a set of **non-conflicting** register-to-register moves, highest
+/// destination first.
+///
+/// This is §3.2's rule for a marshalling with no permutation to break, and it is
+/// what a Class B call after the first always needs: its sources are callee-saved
+/// registers (`r31`/`r30`) and its destinations are argument registers
+/// (`r3`…`r10`), two disjoint sets, so no move can clobber another's source and
+/// [`permute_args_text`]'s cycle machinery has nothing to do. Captured:
+///
+/// ```text
+///   void f(int a,int b,int c){ v1(a); g2(c,b); }
+///     mr r31,r4 ; mr r30,r5 ; bl ?v1 ; mr r4,r31 ; mr r3,r30 ; bl ?g2
+/// ```
+///
+/// — slot 0 wants `c` (in r30) and slot 1 wants `b` (in r31), and the r4 move is
+/// emitted before the r3 one, which is the same descending order the leaf
+/// selector and the argument permutation already use.
+fn moves_descending(moves: &[(u8, u8)]) -> Vec<u8> {
+    let mut m: Vec<(u8, u8)> = moves.iter().copied().filter(|(d, s)| d != s).collect();
+    m.sort_by(|a, b| b.0.cmp(&a.0));
+    let mut w = Vec::with_capacity(4 * m.len());
+    for (dst, src) in m {
+        w.extend_from_slice(&encode_mr(dst, src));
+    }
+    w
+}
+
+/// The per-call argument setups and the post-call tail bytes of a framed
 /// many-call body, in one place so the packed and `/Gy` emitters share them.
+///
+/// **Class B** (`seq.saved` non-empty) differs from Class A in two places and
+/// nowhere else: the first call's setup gains one `mr rSaved, rArg` per saved
+/// formal, and every later call marshals **out of** the saved registers instead of
+/// the argument ones. The frame, the prologue and the epilogue are
+/// [`FrameLayout`]'s job and the caller sets `saved_gprs` from the same list.
+///
+/// Byte evidence for the whole shape, `/O1 /GS- /c`:
+///
+/// ```text
+///   void f(int a,int b){ v1(a); v2(b); }                52 B, F = 96
+///     mflr r12 ; stw r12,-8(r1) ; std r31,-16(r1) ; stwu r1,-96(r1)
+///     mr r31,r4 ; bl ?v1 ; mr r3,r31 ; bl ?v2
+///     addi r1,r1,96 ; lwz r12,-8(r1) ; mtlr r12 ; ld r31,-16(r1) ; blr
+///
+///   void f(int a,int b,int c){ v1(a); v2(b); v3(c); }   72 B, F = 112
+///     … std r30,-24(r1) ; std r31,-16(r1) ; stwu r1,-112(r1)
+///     mr r31,r4 ; mr r30,r5 ; bl ?v1 ; mr r3,r31 ; bl ?v2 ; mr r3,r30 ; bl ?v3
+///     … ld r30,-24(r1) ; ld r31,-16(r1) ; blr
+/// ```
+///
+/// The save moves are emitted **after** the first call's own setup, which the IL
+/// parser keeps empty for this class ([`c2_il`]'s `plan_saved_gprs` records the
+/// measured exception and why it is refused rather than modeled).
 pub fn call_seq_parts(
     params: &[u32],
     seq: &c2_il::CallSeq,
     mode: OptMode,
 ) -> Result<(Vec<Vec<u8>>, Vec<u8>), BackendError> {
+    if seq.saved.len() > SAVED_GPRS.len() {
+        return Err(out_of_class(
+            "three or more callee-saved GPRs: that is the `__savegprlr_N` helper \
+             class, with a second REL24 site, a tail-branch epilogue and a \
+             different /Gy label stride",
+        ));
+    }
+    // Where each saved formal lives once it is saved: parameter index -> register.
+    let saved_reg = |pi: usize| -> Option<u8> {
+        seq.saved.iter().position(|&s| s == pi).map(|k| SAVED_GPRS[k])
+    };
+
     let mut setups = Vec::with_capacity(seq.calls.len());
-    for c in &seq.calls {
-        let setup = match &c.arg_sources {
-            Some(sources) => permute_args_text(sources)?,
-            None => ops_setup_text(params, &c.arg_ops, mode)?,
+    for (i, c) in seq.calls.iter().enumerate() {
+        let mut setup = if i == 0 || seq.saved.is_empty() {
+            // The first call still reads its arguments out of the argument
+            // registers — nothing has been clobbered yet — so it goes through the
+            // same locators every other call shape uses. Class A takes this arm
+            // for every call.
+            //
+            // **The save moves interleave with it, and where is measured.** A save
+            // whose source register this marshalling OVERWRITES is hoisted in
+            // front of the whole marshalling; one whose source it leaves alone is
+            // emitted after it. Both halves in one capture,
+            // `void f(int a,int b,int c,int d){ g2(a,d); v1(b); v2(c); }`:
+            //
+            // ```text
+            //   mr r31,r4    b — r4 is about to be overwritten, so HOISTED
+            //   mr r4,r6     the marshalling (slot 1 <- d)
+            //   mr r30,r5    c — r5 is untouched, so it TRAILS
+            //   bl ?g2
+            // ```
+            //
+            // The hoist clears the **whole** marshalling, not just the instruction
+            // that would clobber: `void f(int a,int b,int c,int d,int e){
+            // g3(a,d,e); v1(b); }` is `mr r31,r4 ; mr r5,r7 ; mr r4,r6`, which
+            // refutes the "save as late as possible" reading that fits the row
+            // above. Within each group the moves go highest destination first,
+            // which for the saves is the same as parameter order.
+            let (text, writes) = match (&c.arg_sources, c.arg_ops.as_slice()) {
+                // A non-identity permutation beside a save is refused by the IL
+                // parser: c2 breaks the cycle with the **callee-saved register**
+                // rather than r11 there, which is a different algorithm and not
+                // this interleaving at all. This is the backstop.
+                (Some(sources), _) => {
+                    let (t, w) = permute_args_parts(sources)?;
+                    if !seq.saved.is_empty() && !t.is_empty() {
+                        return Err(out_of_class(
+                            "a permuted first call beside a callee-saved copy: c2                              breaks the cycle through the callee-saved register                              instead of r11, which is not characterized",
+                        ));
+                    }
+                    (t, w)
+                }
+                (None, []) => (Vec::new(), Vec::new()),
+                // A single passthrough or literal argument selects to `mr r3,rN`
+                // or `li r3,k` — one word writing r3, or nothing at all when the
+                // value is already there.
+                (None, [IlOp::Load(_)]) | (None, [IlOp::Lit(_)]) => {
+                    let t = ops_setup_text(params, &c.arg_ops, mode)?;
+                    let w = if t.is_empty() { Vec::new() } else { vec![RET_REG] };
+                    (t, w)
+                }
+                // Anything computed. Under `/Ox` a chain intermediate goes to a
+                // fresh **descending** register, which is the same file the saves
+                // live in, so the write set is not `{r3}` and the interleaving is
+                // not the measured one. The IL parser refuses this while anything
+                // is saved; this is the backstop.
+                (None, _) if !seq.saved.is_empty() => {
+                    return Err(out_of_class(
+                        "a computed first-call argument beside a callee-saved copy: \
+                         the marshalling's write set reaches the callee-saved file \
+                         and the interleaving is not characterized",
+                    ))
+                }
+                (None, ops) => (ops_setup_text(params, ops, mode)?, Vec::new()),
+            };
+            let mut hoisted = Vec::new();
+            let mut trailing = Vec::new();
+            for (k, &pi) in seq.saved.iter().enumerate() {
+                let src = *ARG_REGS.get(pi).ok_or_else(|| {
+                    out_of_class("a stack-homed formal cannot be copied to a callee-saved GPR")
+                })?;
+                let mv = (SAVED_GPRS[k], src);
+                if writes.contains(&src) {
+                    hoisted.push(mv);
+                } else {
+                    trailing.push(mv);
+                }
+            }
+            let mut w = moves_descending(&hoisted);
+            w.extend_from_slice(&text);
+            w.extend_from_slice(&moves_descending(&trailing));
+            w
+        } else {
+            // A later call in Class B: every formal it reads is in a callee-saved
+            // register by construction (that is what put it there), and a literal
+            // argument is the same `li r3,k` the leaf selector emits.
+            match (&c.arg_sources, c.arg_ops.as_slice()) {
+                (Some(sources), _) => {
+                    let mut moves = Vec::with_capacity(sources.len());
+                    for (slot, &pi) in sources.iter().enumerate() {
+                        let (Some(src), Some(&dst)) = (saved_reg(pi), ARG_REGS.get(slot)) else {
+                            return Err(out_of_class(
+                                "a call after the first reads a value that is not \
+                                 in a callee-saved register",
+                            ));
+                        };
+                        moves.push((dst, src));
+                    }
+                    moves_descending(&moves)
+                }
+                (None, [c2_il::IlOp::Load(_)]) => {
+                    // `params` and the operand agree by construction; the parser
+                    // resolved the token to a formal index before accepting.
+                    let pi = seq_load_param_index(params, &c.arg_ops)?;
+                    let src = saved_reg(pi).ok_or_else(|| {
+                        out_of_class("a call after the first reads an unsaved formal")
+                    })?;
+                    moves_descending(&[(RET_REG, src)])
+                }
+                (None, ops) => ops_setup_text(params, ops, mode)?,
+            }
         };
-        setups.push(setup);
+        setups.push(std::mem::take(&mut setup));
     }
     let tail = match seq.tail {
         c2_il::SeqTail::Void => Vec::new(),
@@ -1659,6 +1846,17 @@ pub fn encode_mr(ra: u8, rs: u8) -> [u8; 4] {
 /// `rev4` in that fixture. A repeated argument is also refused: `dup3` emits a
 /// *dead* `mr r11,r4`, which no live-value-driven solver would produce.
 pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
+    permute_args_parts(sources).map(|(text, _)| text)
+}
+
+/// [`permute_args_text`] plus **the registers its moves write**, which Class B
+/// needs in order to decide whether a callee-saved copy has to be hoisted in
+/// front of the marshalling (`c2_il`'s `plan_saved_gprs`). It is one function
+/// returning two views of one cycle decomposition rather than a second walk of
+/// the same permutation: a write set derived independently would be the "two
+/// implementations of one rule" shape `docs/GAPS.md` §6 #9 records, and this one
+/// cannot drift from the bytes because it is computed beside them.
+fn permute_args_parts(sources: &[usize]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
     if sources.len() > ARG_REGS.len() {
         return Err(out_of_class(
             "more arguments than the eight register slots: the rest are \
@@ -1707,7 +1905,7 @@ pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
     }
 
     if cycles.is_empty() {
-        return Ok(Vec::new()); // passthrough
+        return Ok((Vec::new(), Vec::new())); // passthrough
     }
     if cycles.len() > 1 {
         return Err(out_of_class(
@@ -1746,6 +1944,7 @@ pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
     let lowest = *cycle.iter().min().expect("non-empty cycle");
     let reg = |slot: usize| ARG_REGS[slot];
     let mut t = Vec::new();
+    let mut writes = vec![SCRATCH_REG];
     t.extend_from_slice(&encode_mr(SCRATCH_REG, reg(sources[lowest])));
     // Walk backwards from `lowest`: each step writes a destination whose old
     // value has already been consumed. This is the unique clobber-free order,
@@ -1754,10 +1953,12 @@ pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
     let mut dst = sources[lowest];
     while dst != lowest {
         t.extend_from_slice(&encode_mr(reg(dst), reg(sources[dst])));
+        writes.push(reg(dst));
         dst = sources[dst];
     }
     t.extend_from_slice(&encode_mr(reg(lowest), SCRATCH_REG));
-    Ok(t)
+    writes.push(reg(lowest));
+    Ok((t, writes))
 }
 
 /// Select `.text` for a **W6 comparison leaf** (`return a <rel> k;`), returning

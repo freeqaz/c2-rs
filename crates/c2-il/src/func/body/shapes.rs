@@ -2935,10 +2935,15 @@ pub(crate) fn parse_call_shape(
         let params = parse_params(seg, lo)?;
         return tail_call_shape(vec![arg_ops], params, callee_tok, *p);
     }
-    // Post-op `+ k`: EXACTLY one literal `33 <int> k` immediately followed by
+    // Post-op `+ k`: EXACTLY one literal `33 <TYPE> k` immediately followed by
     // ADD. A second call (`g(a)+g(1)` → `26 …`), a second literal (`g(a)+1+2` →
     // a second `33 …`), or SUB/MUL (`03`/`04`) all fail one of these `eat`s.
-    if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
+    //
+    // W30: the literal's TYPE goes through [`eat_int_like`], not an exact
+    // `86 41 74` compare — see the call-tail literal note on
+    // [`parse_call_sequence`]. `k` is a value and the emit is `addi r3,r3,k`
+    // whatever width-4 integer spelling names it.
+    if !eat_byte(seg, p, 0x33) || !eat_int_like(seg, p) {
         return Err(blk(seg, *p, "call-postop"));
     }
     let k = read_varint(seg, p).ok_or(blk(seg, *p, "call-postop-varint"))?;
@@ -3080,9 +3085,31 @@ fn parse_call_sequence(
         // (2) `return <literal>;` — one `li r3,k` after the last `bl`. A literal is
         // the ONLY expression tail this rung admits: any operand read after a call
         // is a value live across it, which is Class B.
+        //
+        // **W30 — the literal's TYPE is read by spelling, not as an exact triple.**
+        // This position required `86 41 74` (`int`) exactly, so `unsigned`, `long`,
+        // `unsigned long`, an `enum`, a `const int` and a `volatile int` all
+        // refused, although the emitted word is `li r3,k` in every one of them:
+        // the type names the *value class*, and only the value reaches the
+        // encoder. [`eat_int_like`] is the locator `2C`, `41`, `30` and W22's
+        // operand positions already agree through, so this is one rule gaining a
+        // call site rather than a second rule. Measured by counterfactual over the
+        // 878-TU workload: **+7,771 functions**, the entire `callseq-tail-lit`
+        // bucket and all of it one cause. The dominant workload spelling is
+        // `86 41 08` — a width-4 signed type whose id no probe reproduced; it is
+        // admitted on [`is_int4_type`]'s nibbles, which is what the four other
+        // positions admit it on.
+        //
+        // The boundary is still real: [`eat_int_like`] requires the tag to say
+        // 4-byte alignment **and** the kind to say 4-byte size, so `bool`, `char`,
+        // `short`, `wchar_t`, `__int64`, `float`, `double` and pointers keep
+        // refusing (`fixtures/cpp/w30_callseq_tail_intlike_neg.cpp`), and the
+        // signed-16-bit `li` immediate check below is unchanged.
+        //
+        // [`is_int4_type`]: crate::func::readers
         if seg.get(*p) == Some(&0x33) {
             let mut q = *p;
-            let k = (eat_byte(seg, &mut q, 0x33) && eat(seg, &mut q, &INT_TYPE))
+            let k = (eat_byte(seg, &mut q, 0x33) && eat_int_like(seg, &mut q))
                 .then(|| read_varint(seg, &mut q))
                 .flatten()
                 .ok_or(Block { ctx: "callseq-tail-lit", byte: None, off: *p, aux: 0 })?;
@@ -3108,13 +3135,19 @@ fn parse_call_sequence(
             }
             continue;
         }
-        // The value call. `41` = the result is returned as is; `33 <int> k 02` =
+        // The value call. `41` = the result is returned as is; `33 <TYPE> k 02` =
         // returned plus a literal — the same post-op the single framed call
-        // carries, and the same `addi r3,r3,k`.
+        // carries, and the same `addi r3,r3,k`. The literal's TYPE goes through
+        // the same [`eat_int_like`] the tail literal above does: three positions
+        // reading one rule, widened together on purpose. Leaving one of them on a
+        // narrower gate is the shape of `docs/GAPS.md` §6 #9 — one rule, two
+        // implementations, and the corpus only ever exercised the correct one.
+        // Worth 0 functions on the workload today and 6 probe TUs in
+        // `fixtures/cpp/w30_callseq_tail_intlike.cpp`.
         let add_k = if seg.get(*p) == Some(&0x41) {
             0
         } else {
-            if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
+            if !eat_byte(seg, p, 0x33) || !eat_int_like(seg, p) {
                 return Err(blk(seg, *p, "callseq-postop"));
             }
             let k = read_varint(seg, p).ok_or(blk(seg, *p, "callseq-postop-varint"))?;
@@ -3153,26 +3186,166 @@ fn parse_call_sequence(
                 // `tail_call_shape` returns exactly those three.
                 _ => return Err(Block { ctx: "callseq-arg-shape", byte: None, off: *p, aux: 0 }),
             };
-        // **The Class A boundary.** Reading a formal after the first call means
-        // that value had to survive a `bl`, which c2 answers with a callee-saved
-        // register: `void f(int a,int b){ g1(a); g2(b); }` is
-        // `std r31,-16(r1) … mr r31,r4 … mr r3,r31 …` — one saved GPR, a 5-word
-        // prologue and an 11-word epilogue. That is Class B and it is a later
-        // rung; refuse it by name rather than emit the Class A frame.
-        if i > 0
-            && (arg_sources.is_some()
-                || arg_ops.iter().any(|o| matches!(o, IlOp::Load(_))))
-        {
-            return Err(Block {
-                ctx: "callseq-value-live-across-call",
-                byte: None,
-                off: *p,
-                aux: 0,
-            });
-        }
+        let _ = i;
         calls.push(SeqCall { callee_tok, arg_ops, arg_sources });
     }
-    Ok(BodyShape::CallSeq { params, calls, tail })
+    // Class A saves nothing; Class B saves one or two GPRs. Which formals, and in
+    // which register, is [`plan_saved_gprs`].
+    let saved = plan_saved_gprs(&params, &calls, *p)?;
+    Ok(BodyShape::CallSeq { params, calls, tail, saved })
+}
+
+/// The largest number of callee-saved GPRs c2 open-codes with `std`/`ld`. At
+/// **3** the prologue collapses to `bl __savegprlr_29` and the epilogue becomes a
+/// tail branch into `__restgprlr_29` with no `blr` at all — a second REL24 site
+/// per function, two extra `/Gy` label slots, and its own symbol-table position
+/// (`docs/CODEGEN_FRAMED_CALLS.md` §2.3, §4.3, §4.4). Captured here as `u3.cpp`'s
+/// neighbour `void f(int a,int b,int c,int d){ v1(a); v2(b); v3(c); v1(d); }`,
+/// which is 60 B and helper-based. Refused, not guessed.
+const MAX_INLINE_SAVED_GPRS: usize = 2;
+
+/// **Which formals become callee-saved, and in what order** — the half of
+/// `docs/CODEGEN_FRAMED_CALLS.md` §6 that "refused to yield a rule", closed here
+/// for the call-sequence body by a refutation ladder of 12 captures.
+///
+/// Returns the parameter indices that take `r31`, `r30`, … in that order; empty
+/// is Class A.
+///
+/// **The rule.** A formal read by any call *after the first* has to survive a
+/// `bl`, so it is copied into a callee-saved register; the callee-saved file is
+/// allocated **descending from r31 in PARAMETER order**.
+///
+/// ```text
+///   void f(int a,int b,int c){ v1(a); v2(b); v3(c); }   72 B, F=112
+///     std r30,-24(r1) ; std r31,-16(r1) ; stwu r1,-112(r1)
+///     mr r31,r4 ; mr r30,r5 ; bl ?v1 ; mr r3,r31 ; bl ?v2 ; mr r3,r30 ; bl ?v3
+/// ```
+///
+/// **Parameter order, refuted against first-use order.** The two coincide in
+/// every probe `docs/CODEGEN_FRAMED_CALLS.md` §3.1 quotes, so the separating
+/// capture is `void f(int a,int b,int c){ v1(a); v2(c); v3(b); }` — `c` is used
+/// first. Its prologue and its two `mr` saves are **byte-identical** to the row
+/// above (`mr r31,r4` = b, `mr r30,r5` = c); only the two `mr r3,rN` uses swap.
+/// So the allocator walks the parameter list, not the use list.
+///
+/// **A formal used at the first call too is still saved** — `void f(int a){
+/// v1(a); v2(a); }` emits `mr r31,r3` *before* a `bl` whose argument is already
+/// in r3, so the predicate is "read by any call after the first", not "not read
+/// by the first".
+///
+/// **Three live formals leave the class.** [`MAX_INLINE_SAVED_GPRS`].
+///
+/// **What is deliberately refused, with the capture that would settle it.**
+/// Where the save moves go when the first call *also* needs argument marshalling
+/// is measured and is not one rule: a save whose source register the marshalling
+/// **overwrites** is hoisted in front of the whole marshalling, and one whose
+/// source it leaves alone is emitted after it. Both halves in one capture,
+/// `void f(int a,int b,int c,int d){ g2(a,d); v1(b); v2(c); }`:
+///
+/// ```text
+///   mr r31,r4      b — r4 is about to be overwritten, so this is HOISTED
+///   mr r4,r6       the marshalling (slot 1 <- d)
+///   mr r30,r5      c — r5 is untouched, so this TRAILS
+///   bl ?g2
+/// ```
+///
+/// A "save as late as possible" reading predicts `mr r4,r6` first there, and is
+/// **refuted** by `void f(int a,int b,int c,int d,int e){ g3(a,d,e); v1(b); }`,
+/// where `mr r31,r4` precedes *both* marshalling moves although only the second
+/// touches r4 — the hoist goes to the front, not to just before the writer.
+/// Computing "the registers the first call's marshalling writes" needs a second
+/// implementation of what the emitter does, and that is the shape of
+/// `docs/GAPS.md` §6 #9, so this rung refuses a first call that needs any
+/// marshalling at all while anything is saved. Cost on the 878-TU workload:
+/// **0 functions** (measured by counterfactual).
+fn plan_saved_gprs(params: &[u32], calls: &[SeqCall], p: usize) -> Result<Vec<usize>, Block> {
+    let index_of = |t: u32| params.iter().position(|&q| q == t);
+    let mut live = vec![false; params.len()];
+    for c in calls.iter().skip(1) {
+        if let Some(src) = &c.arg_sources {
+            for &s in src {
+                // `tail_call_shape` has already refused a source outside the
+                // formals list (`call-arg-outer-formal`, GAPS §6 #5).
+                if let Some(slot) = live.get_mut(s) {
+                    *slot = true;
+                }
+            }
+        }
+        for o in &c.arg_ops {
+            if let IlOp::Load(t) = o {
+                if let Some(i) = index_of(*t) {
+                    live[i] = true;
+                }
+            }
+        }
+    }
+    let saved: Vec<usize> = (0..params.len()).filter(|&i| live[i]).collect();
+    if saved.is_empty() {
+        return Ok(saved); // Class A — nothing survives a call.
+    }
+    if saved.len() > MAX_INLINE_SAVED_GPRS {
+        return Err(Block { ctx: "callseq-three-plus-saved", byte: None, off: p, aux: 0 });
+    }
+
+    // The first call may marshal its own arguments beside the saves — the
+    // interleaving is measured (see the doc comment) — but only where the
+    // emitter can say exactly which registers that marshalling **writes**, since
+    // that is what decides hoisted from trailing. A permutation's write set falls
+    // out of the same cycle decomposition that produces its bytes, and a single
+    // passthrough or literal argument writes r3 or nothing. A **computed**
+    // argument does not qualify: under `/Ox` a chain intermediate goes to a fresh
+    // *descending* register, which is the very file the saves live in, so the
+    // write set is not `{r3}` and the interleaving is not the measured one.
+    //
+    // **A non-identity PERMUTATION at the first call is a different lowering and
+    // was a live mis-emit until it was probed.** When a permuted argument's value
+    // is also one of the callee-saved ones, c2 does not break the cycle with r11
+    // at all — it uses the **callee-saved register itself** as the temp, because
+    // the save has to happen anyway. Three witnesses, none of which contains r11:
+    //
+    // ```text
+    //   void f(int a,int b){ g2(b,a); v1(a); v2(b); }        a->r31, b->r30
+    //     mr r30,r4 ; mr r31,r3 ; mr r4,r3 ; mr r3,r30 ; bl ?g2
+    //   void f(int a,int b,int c){ g2(b,a); v1(a); v2(c); }  a->r31, c->r30
+    //     mr r31,r3 ; mr r3,r4 ; mr r4,r31 ; mr r30,r5 ; bl ?g2
+    //   void f(int a,int b,int c){ g3(a,c,b); v1(a); v2(b); } a->r31, b->r30
+    //     mr r30,r4 ; mr r4,r5 ; mr r5,r30 ; mr r31,r3 ; bl ?g3
+    // ```
+    //
+    // Against the hoist/trail model above — which predicts the r11 walk unchanged
+    // with the saves moved around it — that is **11 of 17 probes wrong**, found by
+    // gridding the shape before shipping it. Which saved register serves as the
+    // temp when several are saved is not determined by three captures, so this is
+    // the measured edge and not a fit.
+    let first = &calls[0];
+    let unmodelled_first = match (&first.arg_sources, first.arg_ops.as_slice()) {
+        (Some(src), _) => src.iter().enumerate().any(|(i, &s)| i != s),
+        (None, []) => false,
+        (None, [IlOp::Load(_)]) | (None, [IlOp::Lit(_)]) => false,
+        (None, _) => true,
+    };
+    if unmodelled_first {
+        return Err(Block { ctx: "callseq-saved-with-first-call-setup", byte: None, off: p, aux: 0 });
+    }
+
+    // Every later call's arguments must come **straight out of** a saved
+    // register or be a literal. A computed one is `addi r3,r31,1` — the operand
+    // stream rebased onto the callee-saved register, which is a second lowering
+    // of `select_text` rather than a use of it. Captured
+    // (`void f(int a,int b){ v1(a); v2(b + 1); }` -> `addi r3,r31,1`) and
+    // refused until it goes through one locator.
+    for c in calls.iter().skip(1) {
+        let ok = match (&c.arg_sources, c.arg_ops.as_slice()) {
+            (Some(_), _) => true,
+            (None, []) | (None, [IlOp::Lit(_)]) => true,
+            (None, [IlOp::Load(t)]) => index_of(*t).is_some(),
+            (None, _) => false,
+        };
+        if !ok {
+            return Err(Block { ctx: "callseq-saved-computed-arg", byte: None, off: p, aux: 0 });
+        }
+    }
+    Ok(saved)
 }
 
 /// A bound on the statement calls one body may carry, so a corrupt stream cannot
@@ -3317,12 +3490,13 @@ mod tests {
     #[test]
     fn class_a_many_calls_decode_and_the_lone_statement_call_stays_a_tail_call() {
         // Two statement calls: framed, Class A, nothing saved.
-        let Some(BodyShape::CallSeq { calls, tail, params }) =
+        let Some(BodyShape::CallSeq { calls, tail, params, saved }) =
             parse_segment(SEQ_TWO_VOID, NO_LOCALS)
         else {
             panic!("`g1(a); g2();` is the Class A many-call shape");
         };
         assert_eq!(params, vec![0xE609]);
+        assert!(saved.is_empty(), "Class A saves nothing — the formal dies at the first call");
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].arg_ops, vec![IlOp::Load(0xE609)]);
         assert!(calls[1].arg_ops.is_empty(), "the second call takes no argument");
@@ -3358,10 +3532,193 @@ mod tests {
             "a lone statement call is `b ?g1`, a 5-section leaf"
         );
 
-        // The Class A boundary: a formal read after the first call needs r31.
-        let b = parse_segment_detail(SEQ_LIVE_ACROSS, NO_LOCALS).unwrap_err();
-        assert_eq!(b.ctx, "callseq-value-live-across-call");
-        assert_eq!(parse_segment(SEQ_LIVE_ACROSS, NO_LOCALS), None);
+        // The Class A / Class B boundary: a formal read after the first call has
+        // to survive a `bl`, so it is copied into `r31` and the body changes
+        // class. `SEQ_LIVE_ACROSS` is `void f(int a,int b){ g1(a); g2(b); }`,
+        // whose `2D` formals list is written b-then-a; `plan_saved_gprs` reads
+        // parameter INDICES out of that list, so the save is index 1.
+        let Some(BodyShape::CallSeq { saved, params, .. }) =
+            parse_segment(SEQ_LIVE_ACROSS, NO_LOCALS)
+        else {
+            panic!("`g1(a); g2(b);` is the Class B many-call shape");
+        };
+        assert_eq!(params.len(), 2);
+        assert_eq!(saved, vec![1], "b takes r31; a dies at the first call");
+    }
+
+    /// **Class B's liveness rule**, stated as a table over the axis the captures
+    /// separate: which formals become callee-saved, and in what order.
+    ///
+    /// The register assignment is `r31, r30, …` **in parameter order**, and the
+    /// separating capture for that — against the first-use order every probe in
+    /// `docs/CODEGEN_FRAMED_CALLS.md` §3.1 happens to agree with — is the
+    /// `use_order_is_not_the_rule` row: `v1(a); v2(c); v3(b)` allocates b→r31 and
+    /// c→r30 exactly like `v1(a); v2(b); v3(c)`, and the two objs' prologues and
+    /// save moves are byte-identical.
+    #[test]
+    fn class_b_saves_the_formals_that_survive_a_call_in_parameter_order() {
+        let params = vec![0xA0u32, 0xA1, 0xA2, 0xA3];
+        let call = |args: &[u32]| SeqCall {
+            callee_tok: 1,
+            arg_ops: args.iter().map(|t| IlOp::Load(*t)).collect(),
+            arg_sources: None,
+        };
+        let nullary = || SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: None };
+        let plan = |calls: &[SeqCall]| plan_saved_gprs(&params, calls, 0);
+
+        // Nothing read after the first call: Class A, nothing saved.
+        assert_eq!(plan(&[call(&[0xA0]), nullary()]).unwrap(), Vec::<usize>::new());
+        // One formal live: it takes r31.
+        assert_eq!(plan(&[call(&[0xA0]), call(&[0xA1])]).unwrap(), vec![1]);
+        // Two: r31 then r30, ascending parameter index.
+        assert_eq!(plan(&[call(&[0xA0]), call(&[0xA1]), call(&[0xA2])]).unwrap(), vec![1, 2]);
+        // …and USE order does not enter it — this is the refutation row.
+        assert_eq!(
+            plan(&[call(&[0xA0]), call(&[0xA2]), call(&[0xA1])]).unwrap(),
+            vec![1, 2],
+            "use order is not the rule: c is used first and still takes r30"
+        );
+        // A formal read by the FIRST call too is still saved: `v1(a); v2(a);`
+        // emits `mr r31,r3` before a `bl` whose argument is already in r3.
+        assert_eq!(plan(&[call(&[0xA0]), call(&[0xA0])]).unwrap(), vec![0]);
+        // One value, many later reads, one register.
+        assert_eq!(
+            plan(&[call(&[0xA0]), call(&[0xA1]), call(&[0xA1]), call(&[0xA1])]).unwrap(),
+            vec![1]
+        );
+
+        // Three live formals is the `__savegprlr_29` helper class — refuse.
+        let three = [call(&[0xA0]), call(&[0xA1]), call(&[0xA2]), call(&[0xA3])];
+        assert_eq!(plan(&three).unwrap_err().ctx, "callseq-three-plus-saved");
+
+        // The first call may marshal a SINGLE argument beside the saves — the
+        // save is hoisted in front of it when the marshalling would overwrite its
+        // source and trails it otherwise, both halves captured.
+        let setup0 = [call(&[0xA1]), call(&[0xA2])]; // `v1(b)` is `mr r3,r4`
+        assert_eq!(plan(&setup0).unwrap(), vec![2]);
+        // …and the IDENTITY permutation is not marshalling at all.
+        let id0 = [
+            SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: Some(vec![0, 1]) },
+            call(&[0xA2]),
+        ];
+        assert_eq!(plan(&id0).unwrap(), vec![2]);
+        // A NON-identity permutation at the first call is a different lowering:
+        // c2 breaks the cycle through the callee-saved register instead of r11
+        // and emits no r11 at all. The hoist/trail model is wrong on 11 of 17
+        // probes there, so it is refused at the measured edge.
+        let perm0 = [
+            SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: Some(vec![1, 0]) },
+            call(&[0xA2]),
+        ];
+        assert_eq!(
+            plan(&perm0).unwrap_err().ctx,
+            "callseq-saved-with-first-call-setup"
+        );
+        // A computed first-call argument is refused under the same key: its write
+        // set reaches the callee-saved file under `/Ox`.
+        let comp0 = [
+            SeqCall {
+                callee_tok: 1,
+                arg_ops: vec![IlOp::Load(0xA0), IlOp::Lit(1), IlOp::Add],
+                arg_sources: None,
+            },
+            call(&[0xA2]),
+        ];
+        assert_eq!(
+            plan(&comp0).unwrap_err().ctx,
+            "callseq-saved-with-first-call-setup"
+        );
+
+        // A COMPUTED argument at a later call is `addi r3,r31,1` — the operand
+        // stream rebased onto the saved register, a second lowering of
+        // `select_text` rather than a use of it. Refuse.
+        let comp1 = [
+            call(&[0xA0]),
+            SeqCall {
+                callee_tok: 1,
+                arg_ops: vec![IlOp::Load(0xA1), IlOp::Lit(1), IlOp::Add],
+                arg_sources: None,
+            },
+        ];
+        assert_eq!(plan(&comp1).unwrap_err().ctx, "callseq-saved-computed-arg");
+        // A LITERAL argument at a later call is the same `li r3,k` as anywhere
+        // else and needs no saved register of its own.
+        let lit1 = [
+            call(&[0xA0]),
+            SeqCall { callee_tok: 1, arg_ops: vec![IlOp::Lit(5)], arg_sources: None },
+            call(&[0xA1]),
+        ];
+        assert_eq!(plan(&lit1).unwrap(), vec![1]);
+    }
+
+    /// W30: the call-tail literal's TYPE is read **by spelling**, not as the exact
+    /// `86 41 74` triple — the whole `callseq-tail-lit` bucket (7,771 functions on
+    /// the 878-TU workload) was one cause, and the emitted word is `li r3,k` for
+    /// every width-4 integer spelling because only the value reaches the encoder.
+    ///
+    /// Written as a mutation of `SEQ_ONE_THEN_LIT` (`g1(a); return 5;`) so the
+    /// only thing that varies between rows is the three-or-more bytes naming the
+    /// literal's type — which is exactly the axis the old exact-triple gate was
+    /// wrong about, and the axis a hand-written positive fixture would have had
+    /// only one point on.
+    #[test]
+    fn a_call_tail_literal_takes_any_width_four_integer_spelling() {
+        // `SEQ_ONE_THEN_LIT` carries `33 86 41 74 05` for the tail `return 5;`.
+        let at = find_subslice(SEQ_ONE_THEN_LIT, &[0x33, 0x86, 0x41, 0x74, 0x05])
+            .expect("the tail literal");
+        let respell = |ty: &[u8]| {
+            let mut s = SEQ_ONE_THEN_LIT[..at + 1].to_vec();
+            s.extend_from_slice(ty);
+            s.push(0x05);
+            // The `41` result annotation names the same type.
+            let rest = &SEQ_ONE_THEN_LIT[at + 5..];
+            s.push(rest[0]);
+            s.extend_from_slice(ty);
+            s.extend_from_slice(&rest[4..]);
+            s
+        };
+
+        // Every width-4 integer: the four bare triples, plus the id-carrying forms
+        // an exact whitelist cannot see (an enum, a `const int`, a `volatile int`).
+        for (ty, label) in [
+            (&[0x86, 0x41, 0x74][..], "int (the control)"),
+            (&[0x86, 0x42, 0x75][..], "unsigned"),
+            (&[0x86, 0x41, 0x12][..], "long"),
+            (&[0x86, 0x42, 0x22][..], "unsigned long"),
+            (&[0x86, 0x41, 0x83, 0x20][..], "an enum, per-TU id 0x1003"),
+            (&[0x86, 0x41, 0x08][..], "the workload's dominant spelling"),
+            (&[0xA6, 0x41, 0x82, 0x20][..], "const int"),
+            (&[0x96, 0x41, 0x82, 0x20][..], "volatile int"),
+        ] {
+            assert!(
+                matches!(
+                    parse_segment(&respell(ty), NO_LOCALS),
+                    Some(BodyShape::CallSeq { tail: SeqTail::Lit(5), .. })
+                ),
+                "{label} ({ty:02X?}) must decode to the same `li r3,5` tail"
+            );
+        }
+
+        // The boundary stays where `eat_int_like` draws it: the tag must say
+        // 4-byte alignment AND the kind 4-byte size. Narrower, wider, FP and
+        // pointer types keep refusing, by name, in the parser.
+        for (ty, label) in [
+            (&[0x82, 0x12, 0x30][..], "bool"),
+            (&[0x82, 0x11, 0x70][..], "char"),
+            (&[0x84, 0x21, 0x11][..], "short"),
+            (&[0x84, 0x22, 0x71][..], "wchar_t"),
+            (&[0x88, 0x85, 0x41][..], "double"),
+            (&[0x86, 0x45, 0x40][..], "float"),
+            (&[0x86, 0x43, 0x83, 0x08][..], "void*"),
+        ] {
+            let s = respell(ty);
+            assert_eq!(parse_segment(&s, NO_LOCALS), None, "{label} must refuse");
+            assert_eq!(
+                parse_segment_detail(&s, NO_LOCALS).unwrap_err().ctx,
+                "callseq-tail-lit",
+                "{label} must refuse by name, in the parser"
+            );
+        }
     }
 
     /// W26: `bool` / `unsigned char` as a value class — free inside the class,

@@ -225,9 +225,13 @@ pub enum SeqTail {
     Lit(i32),
 }
 
-/// **Class A many-calls** (#35 step 2, rung 1): a framed body that is a sequence
-/// of statement-position calls with **no value live across any call**, so nothing
-/// is callee-saved and the frame is the shipped 96-byte Class A one.
+/// **A framed many-call body** (#35 step 2): a sequence of statement-position
+/// calls, with the tail the body ends on.
+///
+/// Class A ([`Self::saved`] empty) has no value live across any call, so nothing
+/// is callee-saved and the frame is the shipped 96-byte one. Class B saves one or
+/// two GPRs inline (`std`/`ld` at `-16(r1)` and `-24(r1)`, frame 96 or 112) for
+/// the formals that have to survive a `bl`.
 ///
 /// The whole body is `prologue · (setup_i · bl callee_i)* · tail · epilogue`, and
 /// every `bl` is its own REL24 site — which is why `c2_core::coff::Function`
@@ -238,6 +242,12 @@ pub struct CallSeq {
     /// (a lone statement call with nothing after it is tail-called instead).
     pub calls: Vec<SeqCall>,
     pub tail: SeqTail,
+    /// **Class B**: the parameter indices c2 copies into callee-saved GPRs
+    /// because their value has to survive a `bl`, taking `r31`, `r30`, … in
+    /// this order. Empty for Class A, at most
+    /// two entries — three or more is the `__savegprlr_N` helper class and the
+    /// IL parser refuses it (`callseq-three-plus-saved`).
+    pub saved: Vec<usize>,
 }
 
 /// A relational operator, as encoded by a single `.ex` operand-stream opcode.
@@ -546,37 +556,45 @@ impl IlFunction {
         if self.float_leaf.is_some() {
             return None;
         }
-        // **Any function that touches floating point consumes 2, not 1** — the
-        // stride goes with the register file, not with the body shape.
+        // **An FP-touching function consumes 1, like any other — the extra slot
+        // belongs to the TRANSLATION UNIT, not to the function.**
         //
-        // MEASURED, as the three-way capture that separates it (`/Ox /GS- /c`,
-        // one leaf ahead of one framed function, reading the framed function's
-        // labels):
+        // Master's rule here was "anything that touches floating point consumes
+        // 2, the stride goes with the register file". That is right at **one** FP
+        // function, which is all its capture had (one leaf ahead of one framed
+        // function), and wrong from two on. Measured seed-free — two framed
+        // functions in one TU, reading the *difference* between their labels, so
+        // the `.gl` seed cancels and nothing depends on matching mangled-name
+        // lengths (`/Ox /GS- /c`, `+1` on every row under `/Gy`):
         //
         // ```text
-        //   void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
-        //   void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
-        //   float lead(float a,float b) { return a*b; }   $M2559 $M2560 $T2561
+        //   fr1;                     fr2      delta 4     leaves 0
+        //   fr1; int_store;          fr2      delta 5     leaves 1
+        //   fr1; fp_store;           fr2      delta 6     leaves 2
+        //   fr1; fp_store fp_store;  fr2      delta 7     leaves 3   <- not 4
+        //   fr1; int_store fp_store; fr2      delta 7     leaves 3
+        //   fr1; fp_store int_store; fr2      delta 7     leaves 3
+        //   fr1; int_store int_store;fr2      delta 6     leaves 2
+        //   fr1; fp_arith;           fr2      delta 6     leaves 2
+        //   fr1; fp_arith fp_arith;  fr2      delta 7     leaves 3
+        //   fr1; fp_store fp_arith;  fr2      delta 7     leaves 3
+        //   fr1; fp_store x3;        fr2      delta 8     leaves 4   <- not 6
         // ```
         //
-        // The int store leaf consumes 1 and the FP store leaf consumes 2, the
-        // same as the arithmetic leaf. Its pooled-constant cases are refused by
-        // the parser, so unlike [`Self::float_leaf`] the value here is exact.
+        // Eleven rows, one rule, zero residual: **every function consumes 1, plus
+        // one extra slot for the TU if any function touches floating point.** The
+        // extra slot is `_fltused` — the one TU-level external an FP-touching
+        // function introduces — which makes this the same rule
+        // `docs/CODEGEN_FRAMED_CALLS.md` §4.4 measured for the
+        // `__savegprlr_N`/`__restgprlr_N` pair, where **two** externals consume
+        // **two** extra slots. One slot per TU-level external, and the two facts
+        // `is_float` carries (where `_fltused` goes, and where the extra slot
+        // goes) are now the same fact rather than two readers of one field.
         //
-        // This was the **twelfth** live wrong-bytes emit and it is the eleventh's
-        // own field, one consumer later: `is_float` was split into
-        // [`Self::touches_floating_point`] for `_fltused` and this method was
-        // left reading `float_leaf`, so the FP store leaf got the marker right
-        // and the stride wrong. `GAPS.md` §6 instance #2 exactly — *fixed in the
-        // one shape where the bug had been found*.
-        //
-        // It could not be seen before Class A many-calls landed: the counter only
-        // has an observable effect when a **framed** function follows, and until
-        // then no framed shape could share an in-class TU with an FP store.
-        // Neither side's fixtures contained the pair.
-        if self.touches_floating_point() {
-            return Some(2);
-        }
+        // A per-function method cannot express a per-TU quantity, which is the
+        // structural reason the old rule could not be stated correctly here:
+        // the `+1` is applied by [`c2_core::coff::plan_labels`], which has the
+        // whole function list.
         Some(1)
     }
 }
@@ -1293,7 +1311,8 @@ pub(crate) mod test_fixtures {
     /// `void g1(int); void g2(int); void f(int a,int b){ g1(a); g2(b); }` — the
     /// Class A **boundary**: `b` is read after the first call, so it must survive
     /// one, and c2 puts it in `r31` behind a `std`/`ld` pair (Class B, 5-word
-    /// prologue, 11-word epilogue). Must refuse — `callseq-value-live-across-call`.
+    /// prologue, 11-word epilogue). Since 2026-07-30 this decodes as **Class B**
+    /// with `saved = [1]` (`b` takes r31); it was the Class A boundary case.
     pub(crate) const SEQ_LIVE_ACROSS: &[u8] = &[
         0x53, 0x53, 0x26, 0xE9, 0x09, // stmt start, fn push
         0x46, 0x2D, 0xE8, 0x09, 0x2D, 0xE7, 0x09, // formals, REVERSED: b, a

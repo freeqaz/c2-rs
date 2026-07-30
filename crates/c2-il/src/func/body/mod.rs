@@ -211,11 +211,22 @@ pub(crate) enum BodyShape {
     /// is routed to [`BodyShape::IntTailCall`]/[`BodyShape::MultiArgTailCall`]
     /// instead and never reaches here.
     ///
-    /// The Class A boundary is a liveness one: **no formal may be read after the
-    /// first call**. `void f(int a,int b){ g1(a); g2(b); }` puts `b` in `r31` with
-    /// a `std`/`ld` pair around the frame, which is Class B — refused by name
-    /// (`callseq-value-live-across-call`), not guessed.
-    CallSeq { params: Vec<u32>, calls: Vec<SeqCall>, tail: SeqTail },
+    /// The Class A / Class B boundary is a liveness one: a formal read after the
+    /// first call has to survive a `bl`, and `void f(int a,int b){ g1(a);
+    /// g2(b); }` puts `b` in `r31` with a `std`/`ld` pair around the frame.
+    /// [`Self::CallSeq::saved`] carries which formals those are; see
+    /// [`super::shapes::plan_saved_gprs`] for the rule, the refutation ladder and
+    /// the two boundaries it refuses by name.
+    CallSeq {
+        params: Vec<u32>,
+        calls: Vec<SeqCall>,
+        tail: SeqTail,
+        /// **Class B**: the parameter indices copied into callee-saved GPRs,
+        /// taking `r31`, `r30`, … in this order. Empty is Class A (nothing
+        /// survives a call). See [`super::shapes::plan_saved_gprs`] for the rule
+        /// and the refutation ladder behind it.
+        saved: Vec<usize>,
+    },
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
