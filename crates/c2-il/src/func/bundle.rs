@@ -1,8 +1,8 @@
-use super::body::{parse_segment, BodyShape};
+use super::body::{self, parse_segment, BodyShape};
 use super::gl::{drectve_is_boilerplate, gl_defined_names, source_path, GlIndex};
 use super::readers::{find_subslice, memchr_byte};
 use super::sy::SyLocals;
-use super::{FramedCall, IlFunction, IlOp};
+use super::{CallSeq, FramedCall, IlFunction, IlOp, SeqCall, SeqTail};
 use crate::IlBundle;
 
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
@@ -319,6 +319,7 @@ pub(crate) fn shape_to_function(
                     ops,
                     tail_call: None,
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -340,6 +341,7 @@ pub(crate) fn shape_to_function(
                     ops,
                     tail_call: None,
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -354,6 +356,7 @@ pub(crate) fn shape_to_function(
                     ops,
                     tail_call: None,
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -368,6 +371,7 @@ pub(crate) fn shape_to_function(
                     ops,
                     tail_call: None,
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -387,6 +391,7 @@ pub(crate) fn shape_to_function(
                     ops: Vec::new(),
                     tail_call: Some(resolve(callee_tok)?),
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -422,6 +427,7 @@ pub(crate) fn shape_to_function(
                     ops,
                     tail_call: Some(resolve(callee_tok)?),
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -436,6 +442,7 @@ pub(crate) fn shape_to_function(
                     ops: arg_ops,
                     tail_call: Some(resolve(callee_tok)?),
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -454,6 +461,7 @@ pub(crate) fn shape_to_function(
                     ops: Vec::new(),
                     tail_call: Some(resolve(callee_tok)?),
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -476,6 +484,7 @@ pub(crate) fn shape_to_function(
                         callee: resolve(callee_tok)?,
                         add_k,
                     }),
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: None,
@@ -492,6 +501,7 @@ pub(crate) fn shape_to_function(
                     ops: Vec::new(),
                     tail_call: None,
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: true,
                     float_leaf: None,
@@ -506,6 +516,7 @@ pub(crate) fn shape_to_function(
                     ops,
                     tail_call: None,
                     framed_call: None,
+                    call_seq: None,
                     compare: None,
                     empty_body: false,
                     float_leaf: Some(double),
@@ -520,7 +531,42 @@ pub(crate) fn shape_to_function(
                     ops: Vec::new(),
                     tail_call: None,
                     framed_call: None,
+                    call_seq: None,
                     compare: Some(cmp),
+                    empty_body: false,
+                    float_leaf: None,
+                    arg_sources: None,
+                })
+            }
+            // Class A many-calls. Every callee is resolved by token through the
+            // `.gl` symbol index, exactly as the tail and framed calls are, and a
+            // single unresolvable one refuses the whole function — a relocation
+            // against a guessed symbol is a mis-emit, not a gap.
+            BodyShape::CallSeq { params, calls, tail } => {
+                let mut resolved = Vec::with_capacity(calls.len());
+                for c in calls {
+                    resolved.push(SeqCall {
+                        callee: resolve(c.callee_tok)?,
+                        arg_ops: c.arg_ops,
+                        arg_sources: c.arg_sources,
+                    });
+                }
+                Some(IlFunction {
+                    mangled_name: name.to_string(),
+                    source_path: src.clone(),
+                    params,
+                    ops: Vec::new(),
+                    tail_call: None,
+                    framed_call: None,
+                    call_seq: Some(CallSeq {
+                        calls: resolved,
+                        tail: match tail {
+                            body::SeqTail::Void => SeqTail::Void,
+                            body::SeqTail::CallValue { add_k } => SeqTail::CallValue { add_k },
+                            body::SeqTail::Lit(k) => SeqTail::Lit(k),
+                        },
+                    }),
+                    compare: None,
                     empty_body: false,
                     float_leaf: None,
                     arg_sources: None,
@@ -760,9 +806,15 @@ impl IlBundle {
         // The counter itself must also be readable. `label_counter` is
         // three-valued on purpose (`None` = undetermined, never a default),
         // because a guessed `$M` number is a mis-emit rather than a gap.
-        if funcs.iter().any(|f| f.framed_call.is_some()) {
+        //
+        // "Framed" is `framed_call` OR `call_seq` — the Class A many-call body is
+        // framed too, with the same 4 / 5 stride (measured: two two-call bodies in
+        // one TU are `$M2553`/`$M2558` under `/Gy` against a `.gl+7` seed of 2538,
+        // and 2547/2551 packed). Asking the question through one predicate is what
+        // keeps a new framed shape from silently skipping the counter gate.
+        if funcs.iter().any(|f| f.is_framed()) {
             for f in &funcs {
-                if f.framed_call.is_some() {
+                if f.is_framed() {
                     continue;
                 }
                 if f.label_slots(false)? != 1 {
@@ -785,11 +837,8 @@ impl IlBundle {
         // extern that is never referenced is one c2 would not have listed.
         let mut accounted: Vec<&str> = names.iter().map(String::as_str).collect();
         for f in &funcs {
-            if let Some(c) = &f.tail_call {
+            for c in f.callees() {
                 accounted.push(c);
-            }
-            if let Some(fc) = &f.framed_call {
-                accounted.push(&fc.callee);
             }
         }
         if unclaimed.iter().any(|n| !accounted.contains(&n.as_str())) {
@@ -806,13 +855,10 @@ impl IlBundle {
         // inline (and what it does to the symbol table and `.pdata` when it does)
         // is uncharacterized. Calls to true externals are unaffected — those are
         // the tail calls the class was built on.
-        if funcs.iter().any(|f| {
-            let callee = f
-                .tail_call
-                .as_deref()
-                .or(f.framed_call.as_ref().map(|c| c.callee.as_str()));
-            callee.is_some_and(|c| names.iter().any(|n| n == c))
-        }) {
+        if funcs
+            .iter()
+            .any(|f| f.callees().any(|c| names.iter().any(|n| n == c)))
+        {
             return None;
         }
         Some(funcs)

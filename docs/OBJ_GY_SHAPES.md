@@ -293,6 +293,13 @@ offset] [.pdata section sym + aux] [$T(n+2) @ 0]`.
 >   follows the whole group, after `$T`, with **`rest` before `save`**. Same
 >   position `_fltused` occupies (§1.2).
 >
+> **Implemented 2026-07-30** (`c2_core::coff::Function::introduced_callees`, #35
+> step 2 rung 1). The reverse-first-reference rule was re-confirmed against fresh
+> captures **packed as well as under `/Gy`** — this section had measured it only
+> in COMDAT mode — and the dedupe was pinned both ways: `g1();g2();g1();` emits
+> **two** externals and three REL24s, with the repeat relocating against the
+> first index, and a callee an earlier function introduced is not re-emitted.
+>
 > And the section order inside one function's group is
 > **`.text`, its `.rdata`(s), its `.pdata`** — `.pdata`'s aux `Number` still
 > names its own `.text`, counted through the intervening `.rdata` sections
@@ -379,6 +386,12 @@ The whole model, restated as one rule and now implemented in
       framed -> $M(cur), $M(cur+1), $T(cur+2);  cur += 5 if /Gy else 4
       leaf   ->                                 cur += 1
 ```
+
+> **Confirmed for the many-call framed body, 2026-07-30.** A Class A body with
+> two calls consumes the same 5 / 4 — the call count does not enter the counter,
+> framedness does. Two such functions in one TU are `$M2553`/`$M2558` under `/Gy`
+> against a `.gl+7` seed of 2538 (`2538 + 9 + 3·2 = 2553`) and 2547 / 2551
+> packed, and a leaf ahead of one still costs 1.
 
 > **Refuted for one framed sub-class, 2026-07-30.** A framed function that saves
 > ≥3 callee-saved GPRs — i.e. one that uses the `__savegprlr_N` /

@@ -192,12 +192,22 @@ pub struct Call<'a> {
 }
 
 /// One function placed in `.text`: its mangled name (from `.gl`), byte offset
-/// within the concatenated `.text`, and — if it is a tail call — the callee
-/// relocation.
+/// within the concatenated `.text`, and one relocation per call it makes.
 pub struct Function<'a> {
     pub name: &'a str,
     pub text_offset: u32,
-    pub call: Option<Call<'a>>,
+    /// Every REL24 site this function contributes, in ascending `.text` offset —
+    /// a tail call's `b`, a framed call's `bl`, or one `bl` per call of a Class A
+    /// many-call body. **A list, not an `Option`**: the shipped framed class had
+    /// exactly one call site, and every "the" in this file's relocation and
+    /// symbol code was that constant.
+    ///
+    /// Duplicates are expected and are not an error. `void f(){ g(); h(); g(); }`
+    /// has three sites and **two** external symbols: c2 emits one undefined
+    /// external per distinct callee and relocates every later site against that
+    /// same index (measured — both `?g1` relocations in the three-call probe point
+    /// at symbol 16).
+    pub calls: Vec<Call<'a>>,
     /// True iff this function's body **touches floating point** in any way. The
     /// obj then carries an undefined external `_fltused`, emitted immediately
     /// after the FIRST such function's symbol group — the CRT's float-support
@@ -225,7 +235,40 @@ pub struct Function<'a> {
 impl<'a> Function<'a> {
     /// A function with no call, no constant pool and no frame — the common case.
     pub fn plain(name: &'a str, text_offset: u32) -> Function<'a> {
-        Function { name, text_offset, call: None, is_float: false, fp_refs: Vec::new(), frame: None }
+        Function {
+            name,
+            text_offset,
+            calls: Vec::new(),
+            is_float: false,
+            fp_refs: Vec::new(),
+            frame: None,
+        }
+    }
+
+    /// The callees this function introduces to the symbol table, in the order
+    /// their symbols are **emitted**: distinct names in **reverse first-reference
+    /// order**.
+    ///
+    /// Measured (`docs/OBJ_GY_SHAPES.md` §3.3 as extended, byte evidence in
+    /// `docs/CODEGEN_FRAMED_CALLS.md` §4.1). `f(){ g1(); g2(); g3(); }` puts `?g3`
+    /// at index 15, `?g2` at 16 and `?g1` at 17 — and the mirrored source
+    /// `g3(); g2(); g1();` puts `?g1` at 15, which is what refutes both
+    /// "alphabetical" and "declaration order". `g1(); g2(); g1();` emits two
+    /// symbols, not three, and its repeat relocates against the first.
+    ///
+    /// This is the same LIFO the `.rdata` constant pool uses within one function
+    /// (§2.3) and it has the same failure mode: a naive append emits every index
+    /// swapped and **every relocation still resolves**, so the obj is wrong in a
+    /// way no linker complains about.
+    fn introduced_callees(&self) -> Vec<&'a str> {
+        let mut first_ref: Vec<&'a str> = Vec::with_capacity(self.calls.len());
+        for c in &self.calls {
+            if !first_ref.contains(&c.callee) {
+                first_ref.push(c.callee);
+            }
+        }
+        first_ref.reverse();
+        first_ref
     }
 }
 
@@ -602,7 +645,7 @@ mod comdat_tests {
         let mk = |name: &'static str, off: u32, callee: &'static str| Function {
             name,
             text_offset: off,
-            call: Some(Call { reloc_offset: off, callee }),
+            calls: vec![Call { reloc_offset: off, callee }],
             is_float: false,
             fp_refs: Vec::new(),
             frame: None,
@@ -641,7 +684,7 @@ mod comdat_tests {
         let mk = |name: &'static str, callee: &'static str| Function {
             name,
             text_offset: 0,
-            call: Some(Call { reloc_offset: 0, callee }),
+            calls: vec![Call { reloc_offset: 0, callee }],
             is_float: false,
             fp_refs: Vec::new(),
             frame: None,
@@ -886,7 +929,7 @@ pub fn emit_comdat_obj(
     let n_reloc_of: Vec<u16> = owner
         .iter()
         .map(|o| match o {
-            SectionOwner::Text(k) => u16::from(funcs[*k].call.is_some()),
+            SectionOwner::Text(k) => funcs[*k].calls.len() as u16,
             SectionOwner::Pdata(_) => 1,
             SectionOwner::Fixed => 0,
         })
@@ -933,9 +976,9 @@ pub fn emit_comdat_obj(
     // reference under `/Gy`.
     let fltused_after = funcs.iter().position(|f| f.is_float);
     let mut next_idx: u32 = 11;
-    let mut callee_idx: Vec<Option<u32>> = Vec::with_capacity(funcs.len());
-    // Whether this function is the one that introduces its callee's symbol.
-    let mut introduces: Vec<bool> = Vec::with_capacity(funcs.len());
+    // The callee symbols this function emits, in emission order (reverse
+    // first-reference), each with the index it lands at.
+    let mut introduced: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
     let mut fn_idx: Vec<u32> = Vec::with_capacity(funcs.len());
     let mut callee_syms: Vec<(&str, u32)> = Vec::new();
     for (i, f) in funcs.iter().enumerate() {
@@ -945,24 +988,18 @@ pub fn emit_comdat_obj(
         if labels[i].is_some() {
             next_idx += 1; // $M(n+1), the function-end label
         }
-        match &f.call {
-            None => {
-                callee_idx.push(None);
-                introduces.push(false);
+        // One undefined external per **distinct** callee this function is the
+        // first to name, in reverse first-reference order.
+        let mut here: Vec<(&str, u32)> = Vec::new();
+        for name in f.introduced_callees() {
+            if callee_syms.iter().any(|(n, _)| *n == name) {
+                continue;
             }
-            Some(call) => match callee_syms.iter().find(|(n, _)| *n == call.callee) {
-                Some((_, ix)) => {
-                    callee_idx.push(Some(*ix));
-                    introduces.push(false);
-                }
-                None => {
-                    callee_syms.push((call.callee, next_idx));
-                    callee_idx.push(Some(next_idx));
-                    introduces.push(true);
-                    next_idx += 1;
-                }
-            },
+            callee_syms.push((name, next_idx));
+            here.push((name, next_idx));
+            next_idx += 1;
         }
+        introduced.push(here);
         if labels[i].is_some() {
             next_idx += 1; // $M(n), the prologue-end label
             next_idx += 2; // .pdata section symbol + aux
@@ -1003,8 +1040,17 @@ pub fn emit_comdat_obj(
         b.bytes(&s.raw);
         match owner[i] {
             SectionOwner::Text(k) => {
-                if let (Some(call), Some(ci)) = (&funcs[k].call, callee_idx[k]) {
-                    debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+                debug_assert!(
+                    funcs[k].calls.is_empty() || b.0.len() == reloc_ptr[i].unwrap()
+                );
+                // One REL24 per call site, in ascending `.text` offset. Several
+                // sites may share one symbol index (the same callee called twice).
+                for call in &funcs[k].calls {
+                    let ci = callee_syms
+                        .iter()
+                        .find(|(n, _)| *n == call.callee)
+                        .map(|(_, ix)| *ix)
+                        .expect("every callee got a symbol");
                     b.u32(call.reloc_offset);
                     b.u32(ci);
                     b.u16(REL_PPC_REL24);
@@ -1039,16 +1085,16 @@ pub fn emit_comdat_obj(
 
     for (i, f) in funcs.iter().enumerate() {
         let sec_num = (sec_text[i] + 1) as i16;
-        let nrel = if f.call.is_some() { 1 } else { 0 };
-        emit_section_symbol(&mut b, &sections[sec_text[i]], sec_num, nrel);
+        emit_section_symbol(&mut b, &sections[sec_text[i]], sec_num, f.calls.len() as u16);
         // The function is at offset 0 of its own section.
         emit_function_symbol(&mut b, &mut strtab, f.name, sec_num, 0);
         if let (Some(m), Some(frame)) = (labels[i], f.frame.as_ref()) {
             emit_label_symbol(&mut b, &label_name('M', m[1]), frame.func_len, sec_num);
         }
-        // Only the function that *introduces* this callee emits its symbol.
-        if let (Some(call), true) = (&f.call, introduces[i]) {
-            emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        // Only the function that *introduces* a callee emits its symbol, in
+        // reverse first-reference order.
+        for (name, _) in &introduced[i] {
+            emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
         }
         if let (Some(m), Some(frame), Some(ps)) = (labels[i], f.frame.as_ref(), sec_pdata[i]) {
             emit_label_symbol(&mut b, &label_name('M', m[0]), frame.prolog_len, sec_num);
@@ -1184,9 +1230,9 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // record needs its `__real@…` symbol index.
     let fltused_after = funcs.iter().position(|f| f.is_float);
     let mut next_idx: u32 = 13;
-    // (function index, its defined symbol, the callee symbol to relocate against,
-    // whether *this* function introduces that callee symbol, constants introduced)
-    let mut plan: Vec<(usize, u32, Option<u32>, bool, Vec<usize>)> =
+    // (function index, its defined symbol, the callee symbols it introduces —
+    // reverse first-reference order, with their indices — constants introduced)
+    let mut plan: Vec<(usize, u32, Vec<(&str, u32)>, Vec<usize>)> =
         Vec::with_capacity(funcs.len());
     let mut real_idx: Vec<Option<u32>> = vec![None; pool.len()];
     // An undefined external callee is emitted **once per distinct name**, after the
@@ -1207,18 +1253,17 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
         if labels[i].is_some() {
             next_idx += 1; // $M(n+1), the function-end label
         }
-        let (callee_idx, new_callee) = match &f.call {
-            Some(call) => match callee_syms.iter().find(|(n, _)| *n == call.callee) {
-                Some((_, ix)) => (Some(*ix), false),
-                None => {
-                    let c = next_idx;
-                    next_idx += 1;
-                    callee_syms.push((call.callee, c));
-                    (Some(c), true)
-                }
-            },
-            None => (None, false),
-        };
+        // One undefined external per **distinct** callee this function is the
+        // first to name, in reverse first-reference order ([`Function::introduced_callees`]).
+        let mut new_callees: Vec<(&str, u32)> = Vec::new();
+        for name in f.introduced_callees() {
+            if callee_syms.iter().any(|(n, _)| *n == name) {
+                continue;
+            }
+            callee_syms.push((name, next_idx));
+            new_callees.push((name, next_idx));
+            next_idx += 1;
+        }
         if labels[i].is_some() {
             next_idx += 1; // $M(n), the prologue-end label
             if first_framed == Some(i) {
@@ -1237,7 +1282,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
                 introduced.push(k);
             }
         }
-        plan.push((i, def_idx, callee_idx, new_callee, introduced));
+        plan.push((i, def_idx, new_callees, introduced));
         if fltused_after == Some(i) {
             next_idx += 1;
         }
@@ -1248,7 +1293,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // offset, against the framed function's defined symbol. In `.text` order,
     // which is also ascending VirtualAddress.
     let mut pdata_relocs: Vec<(u32, u32, u16)> = Vec::new();
-    for (i, def, _c, _n, _intro) in &plan {
+    for (i, def, _new, _intro) in &plan {
         if funcs[*i].frame.is_some() {
             pdata_relocs.push((pdata_relocs.len() as u32 * 8, *def, REL_PPC_ADDR32));
         }
@@ -1261,10 +1306,16 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // carry the partner half's displacement in the symbol-index field, which is
     // always 0 because every constant owns its whole COMDAT section.
     let mut text_relocs: Vec<(u32, u32, u16)> = Vec::new();
-    for (i, _def, callee_idx, _new, _intro) in &plan {
+    for (i, _def, _new, _intro) in &plan {
         let f = &funcs[*i];
-        if let (Some(call), Some(cidx)) = (&f.call, callee_idx) {
-            text_relocs.push((call.reloc_offset, *cidx, REL_PPC_REL24));
+        // One REL24 per call site; several sites may share one symbol index.
+        for call in &f.calls {
+            let cidx = callee_syms
+                .iter()
+                .find(|(n, _)| *n == call.callee)
+                .map(|(_, ix)| *ix)
+                .expect("every callee got a symbol");
+            text_relocs.push((call.reloc_offset, cidx, REL_PPC_REL24));
         }
         for r in &f.fp_refs {
             let sym = real_idx[pool_ix(r.bits, r.double)].expect("pooled symbol");
@@ -1383,7 +1434,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // Per function: the defined FUNCTION symbol, then (if a tail call) the
     // undefined external callee symbol, then the constant pools this function
     // introduces (`.rdata` section symbol + aux, then the `__real@…` external).
-    for (i, _def, _callee_idx, new_callee, introduced) in &plan {
+    for (i, _def, new_callees, introduced) in &plan {
         let f = &funcs[*i];
         emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
         // A framed function's `$M` labels are its prologue end and its function
@@ -1393,10 +1444,11 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
         if let (Some(m), Some(frame)) = (labels[*i], f.frame.as_ref()) {
             emit_label_symbol(&mut b, &label_name('M', m[1]), f.text_offset + frame.func_len, 5);
         }
-        if let (Some(call), true) = (&f.call, *new_callee) {
-            // Undefined external callee: section 0 (UNDEF), FUNCTION type. Only
-            // the function that FIRST calls it emits the symbol.
-            emit_function_symbol(&mut b, &mut strtab, call.callee, 0, 0);
+        // Undefined external callees: section 0 (UNDEF), FUNCTION type. Only the
+        // function that FIRST calls one emits its symbol, and the ones a single
+        // function introduces go out in reverse first-reference order.
+        for (name, _) in new_callees {
+            emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
         }
         if let (Some(m), Some(frame), Some(pi)) = (labels[*i], f.frame.as_ref(), pdata_idx) {
             emit_label_symbol(&mut b, &label_name('M', m[0]), f.text_offset + frame.prolog_len, 5);
@@ -1614,7 +1666,7 @@ mod tests {
         // A framed obj built with the verified 0x24 text: 6 sections, 20 symbols.
         let text = vec![0u8; 0x24];
         let f = Function {
-            call: Some(Call { reloc_offset: 0x0C, callee: "?g@@YAHH@Z" }),
+            calls: vec![Call { reloc_offset: 0x0C, callee: "?g@@YAHH@Z" }],
             frame: Some(frame(0x24)),
             ..Function::plain("?f@@YAHH@Z", 0)
         };
