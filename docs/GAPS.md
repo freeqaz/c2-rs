@@ -1116,6 +1116,17 @@ The rules that keep the numbers honest:
   (`scripts/expr_sweep.sh` — the member-function-across-source-lines axis exists only
   because of #1), and **have someone adversarial read the anchors**, because #2 was
   found by a reviewer assigned to an unrelated change.
+- **A compiler-GENERATED body has no freedom, so its grammar bound is nearly
+  tight.** Two rungs in a row over generated destructors came in *under* their point
+  estimate (15.7% and 30% low) while staying inside their upper bound (93.5% of it,
+  the second time). The reason is structural: an estimate is discounted from the
+  bound for gates the grammar adds — literal offsets, exact trailers, argument
+  counts — but a body the *compiler* wrote has no latitude in any of them, so those
+  gates exclude almost nothing. For hand-written bodies the discount is real; for
+  generated ones, quote the bound minus only deductions you have measured a
+  population for. The corollary is that the whole-body-complete count is a genuinely
+  predictive instrument here: on the member-destructor rung the two `-whole` buckets
+  fell to 0 and 587 and their drop equalled the census gain exactly.
 - **Estimate the fix, not the finding.** A rung's estimate is scoped to the call
   site it was measured at, and the same defect often sits at more than one. The `66`
   class-pair descriptor's refs were being stepped as a fixed two bytes in *two*
