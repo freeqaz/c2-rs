@@ -970,14 +970,103 @@ mod tests {
         // Every 4-byte type's inline TYPE starts `86`, so bucketing on that byte
         // would merge pointer, float and aggregate operands into one meaningless
         // class. The bucket must carry the `kind` byte, which is the class.
+        //
+        // The two POINTER rows this table used to carry (`8643`, `A643` — which
+        // were 45.9 % of the blocked workload between them) are gone from it,
+        // because the LOAD position now admits them; the test below is their
+        // replacement, and the classes that still refuse are still keyed by class.
         for (t, want) in [
-            ([0x86u8, 0x43, 0xF4], "expr-load-type-8643"), // int*
-            ([0x86, 0x45, 0x40], "expr-load-type-8645"),   // float
+            ([0x86u8, 0x45, 0x40], "expr-load-type-8645"), // float
             ([0x88, 0x85, 0x41], "expr-load-type-8885"),   // double
-            ([0xA6, 0x43, 0x81], "expr-load-type-A643"),   // const char* (const tag)
+            ([0x88, 0x81, 0x13], "expr-load-type-8881"),   // long long
+            ([0x86, 0x46, 0x80], "expr-load-type-8646"),   // aggregate
+            ([0x82, 0x07, 0x03], "expr-load-type-8207"),   // void
         ] {
             assert_eq!(load_typed(t).feature(), want, "type {t:02X?}");
         }
+    }
+
+    /// The rung: a 4-byte pointer TYPE at the LOAD is an operand, not a blocker.
+    /// Retyping the argument LOAD of [`INT_TAILRET`] — one field, every other byte
+    /// left alone — must now PARSE rather than bucket, in all four tag spellings
+    /// and both pointer kinds, and the resulting shape must be the same
+    /// `int-tail-call` the int spelling produced. The negative half is the table
+    /// above: the classes that are not 4-byte pointers still refuse at the same
+    /// position with the same key.
+    #[test]
+    fn a_four_byte_pointer_at_the_load_is_an_operand_not_a_blocker() {
+        let int_shape = parse_segment(&free_fn(INT_TAILRET), NO_LOCALS).unwrap();
+        // Three-byte spellings, so the substitution is field-for-field and no
+        // other byte of the segment moves. (A real `int*` id is usually two LEB
+        // bytes — `86 43 F4 08` — and `read_type` walks either.)
+        for t in [
+            [0x86u8, 0x43, 0x74], // a data pointer
+            [0xA6, 0x43, 0x74],   // const-qualified: `int* const`, and `this`
+            [0x96, 0x43, 0x74],   // volatile-qualified
+            [0xB6, 0x43, 0x74],   // const volatile
+            [0x86, 0x44, 0x74],   // a CODE pointer, kind class 4
+        ] {
+            let mut seg = INT_TAILRET.to_vec();
+            let load = seg
+                .windows(6)
+                .position(|w| w == [0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74])
+                .unwrap();
+            seg[load + 3..load + 6].copy_from_slice(&t);
+            assert_eq!(
+                parse_segment(&free_fn(&seg), NO_LOCALS).as_ref(),
+                Some(&int_shape),
+                "pointer type {t:02X?} must parse as the int spelling does"
+            );
+        }
+    }
+
+    /// The arithmetic guard, at the grammar level. `int* f(int* p){ return p+1; }`
+    /// is transcribed verbatim from a live capture of `/tmp` probe `parith.cpp`
+    /// (`docs/IL_CALL_IN_EXPR.md` §21.1) — note the literal is already **4**, the
+    /// scaled byte offset, which is the measurement that says the guard is a
+    /// conservatism and not a rescue. It refuses anyway, under its own key, and
+    /// the identical body with an `int` operand still parses.
+    #[test]
+    fn a_pointer_operand_is_barred_from_arithmetic() {
+        let ptr_add: &[u8] = &[
+            0x46, 0x2D, 0xE3, 0x09, // formals: p = e309
+            0x4C, 0x4F, 0x11, 0x53, // LO SS
+            0xB9, 0xE3, 0x09, 0x86, 0x43, 0xF4, 0x08, // LOAD p, type int*
+            0x33, 0x86, 0x41, 0x12, 0x04, // LIT (long) 4 — c1xx already scaled it
+            0x02, // ADD
+            0x41, 0x86, 0x43, 0xF4, 0x08, // result-type int*
+            0x3A, 0xE5, 0x09, 0x54, 0x02, 0x29, 0xE5, 0x09, // assign + return
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+        ];
+        let seg = free_fn(ptr_add);
+        let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+        assert_eq!(b.feature(), "expr-ptr-arith:eof");
+        assert!(parse_segment(&seg, NO_LOCALS).is_none());
+        // The same body with an `int` operand and the same literal is exactly the
+        // shape the port has emitted since the MVP, so the guard is keying on the
+        // pointer and not on the addition. Written out rather than patched: the
+        // int TYPE is three bytes where the pointer one is four, so a field-for-
+        // field substitution would not be one.
+        let int_add: &[u8] = &[
+            0x46, 0x2D, 0xE3, 0x09, //
+            0x4C, 0x4F, 0x11, 0x53, //
+            0xB9, 0xE3, 0x09, 0x86, 0x41, 0x74, // LOAD p, type int
+            0x33, 0x86, 0x41, 0x12, 0x04, // LIT (long) 4
+            0x02, // ADD
+            0x41, 0x86, 0x41, 0x74, // result-type int
+            0x3A, 0xE5, 0x09, 0x54, 0x02, 0x29, 0xE5, 0x09, //
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+        ];
+        assert!(
+            parse_segment(&free_fn(int_add), NO_LOCALS).is_some(),
+            "the int spelling of the same chain must still parse"
+        );
+        // …and a pointer operand with NO arithmetic is admitted, so the guard is
+        // not simply refusing every pointer: drop the `33 <long> 4 02` and the
+        // body is the pointer identity the rung admits.
+        let mut plain = ptr_add.to_vec();
+        plain.drain(15..21); // the LIT (5 bytes) and the ADD
+        assert!(parse_segment(&free_fn(&plain), NO_LOCALS).is_some());
     }
 
     #[test]
@@ -986,18 +1075,19 @@ mod tests {
         // TU's own type table — every pointee and every typedef gets a fresh one
         // — so two ids under one `<tag> <kind>` are the *same* construct numbered
         // twice, and a key that carried the id split one construct into 256
-        // buckets that no ranked histogram could add back up. `86 43 F4` is
-        // `int*` and `86 43 83` is `void*` in the fixture TU of
-        // `docs/IL_TYPE_TAGS.md` §2; in the next TU those numbers belong to two
-        // other pointers.
-        let a = load_typed([0x86, 0x43, 0xF4]);
-        let b = load_typed([0x86, 0x43, 0x83]);
+        // buckets that no ranked histogram could add back up. `86 45 40` and
+        // `86 45 83` are two `float`s numbered twice — the pointer pair this
+        // used to be written over (`86 43 F4` `int*`, `86 43 83` `void*`) is no
+        // longer a blocker at all, so the invariant is now carried by a class
+        // that still shards.
+        let a = load_typed([0x86, 0x45, 0x40]);
+        let b = load_typed([0x86, 0x45, 0x83]);
         assert_eq!(a.feature(), b.feature(), "one construct, one bucket");
         // …and the id is *kept*, just not in the name: `aux` still holds the
         // whole triple, so an analysis that wants the type table index has it.
         assert_ne!(a.aux, b.aux);
-        assert_eq!(a.aux, 0x8643F4);
-        assert_eq!(b.aux, 0x864383);
+        assert_eq!(a.aux, 0x864540);
+        assert_eq!(b.aux, 0x864583);
     }
 
     #[test]

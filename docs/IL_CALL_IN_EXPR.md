@@ -2859,3 +2859,296 @@ C2RS_JOBS=16 scripts/expr_sweep.sh                            # checked=3516 mis
 Always difference the scans through **absolute** paths and print each one's row count
 and `fn_total` first — see §18.8's warning, which is why this rung's baseline was
 re-taken in its own worktree rather than read from a neighbouring one.
+
+## 21. D9, landed — the 4-byte pointer operand, and the 98.6 % it does not buy
+
+§20 de-sharded the census key and the head that appeared was one construct at two
+tags: `expr-load-type-A643` (666,907) and `expr-load-type-8643` (316,800), a
+4-byte data pointer in a `parse_expr` operand position — **983,707 functions,
+45.9 % of everything blocked**. This rung opens that gate.
+
+It is worth stating the shape of the result first, because the row size invites
+the wrong reading: **admitting the pointer operand type releases 1,015,144
+functions from the type keys and puts 14,016 of them (1.4 %) in class.** The
+pointer *type* is a gate standing in front of the pointer *expression* layer, not
+the layer itself. The rung is worth doing anyway — 6,056 call-free straight-line
+leaves, and the first workload functions the two tail-call shapes have ever had —
+but it is a 14,016-function rung sitting on a 983,707-function row, and the
+remaining 98.6 % moves exactly one token deeper.
+
+### 21.1 What the head is — MEASURED, with witnesses
+
+Three claims §20 carried as inference are now capture-backed. Every byte string
+below is transcribed from a live `--keep-il` capture of a tracked fixture.
+
+**(1) `A6` is `const` on the POINTER, not on the pointee — so the head really is
+two rows, and the second one is bigger.** §20.6 flagged this as quoted from
+`readers.rs` rather than verified. Verified now, and the discriminating case is
+the one no probe had run:
+
+```text
+  int f(int* p)         B9 p 86 43 F4 08                     plain
+  int f(const int* p)   B9 p 86 43 87 20                     const POINTEE — still 86
+  int f(int* const p)   B9 p A6 43 8F 20  2C 86 43 F4 08 00  const POINTER  — A6
+  int C::m() const      B9 t A6 43 8A 20  2C 86 43 8F 20 00  `this`         — A6
+```
+
+A const-qualified *pointee* does not move the tag; it moves only the type-table
+id, which §20 took out of the key. So `A643` is `T *const` — overwhelmingly
+`this` — and `8643` is everything else. They are **two types and one value
+class**: a 4-byte word in a register, lowered identically, which is what lets one
+predicate admit both. `A643` is also the harder half, because in the wild it
+arrives with a `2C` cv-strip attached (see §21.5).
+
+**(2) c1xx PRE-SCALES pointer arithmetic. The hazard as stated in §20.5 does not
+exist in the IL.** §20.5 said `p + 1` is `addi r3,r3,4` and concluded that
+admitting a pointer into the modeled add chain is a wrong-bytes emit. The first
+half is true of the *machine code*; the second does not follow, because the
+scaling has already happened by the time the backend sees it:
+
+```text
+  int*    f(int* p)          { return p + 1; }  B9 p 86 43 F4 08 · 33 86 41 12 04 · 02
+  int*    f(int* p)          { return p + 3; }                     33 86 41 12 0C · 02
+  int*    f(int* p)          { return p - 1; }                     33 86 41 12 04 · 03
+  char*   f(char* p)         { return p + 1; }  B9 p 86 43 F0 08 · 33 86 41 12 01 · 02
+  double* f(double* p)       { return p + 1; }  B9 p 86 43 C1 08 · 33 86 41 12 08 · 02
+  int*    f(int* p, int k)   { return p + k; }  B9 p · B9 k 86 41 74 · 33 86 41 12 04 · 04 · 02
+  int     f(int* p, int* q)  { return p - q; }  B9 p · B9 q · 03 · 33 86 41 74 02 · 0A
+```
+
+The literal is the byte offset, the variable index carries an explicit `04`
+multiply by the pointee width, and the pointer *difference* divides with an
+arithmetic shift `0A` that the operand vocabulary refuses on its own. The modeled
+chain would in fact emit the right instruction for all but the last.
+
+**The guard ships anyway.** That is a decision, not an oversight, and the reasons
+are in `body/expr.rs`: it is a *second* rule (that the front end scales at every
+arity, pointee width and cv-spelling this parser can reach) which would need its
+own byte grading over its own sweep axis; it costs **0** of the gain, measured
+twice; and with it the pointer-difference class fails closed twice rather than
+once. `fixtures/cpp/w17_ptr_operand_neg.cpp` is the whole boundary, and
+`scripts/expr_sweep.sh` sweeps it across eight pointee widths × nine expressions
+× three positions. Deleting the guard is a rung, with a fixture cost — not a
+tidy-up.
+
+**(3) The rule has three sites, not one, and two of them are worth nothing
+alone.** §20.5's counterfactual widened `eat_int_like` globally and could not say
+which position paid. Measured here by building the narrow version first: widening
+**only** `parse_expr`'s LOAD and LIT moved **1,013,468** functions between census
+keys and moved the numerator by **exactly 0**. A real call site spells the pointer
+twice —
+
+```text
+  int h1(int*); int f(int* p){ return h1(p); }
+    … BD 86 41 74 00 <id> · B9 p 86 43 F4 08 · 55 86 43 F4 08 · 4C · 41 86 41 74
+                             ^ the LOAD           ^ the FORMAL type
+```
+
+— and a body that *returns* a pointer spells it a third time at the `41` result.
+This is D7's §19.3 lesson firing again, and it is the reason §13.1's "grep for
+every site implementing the rule" is in the method: the estimate was formed on one
+site and the defect sat on three.
+
+### 21.2 The estimate, stated before the outcome
+
+Per §13.1's rule. §20.5's counterfactual said **+14,038** and called itself a
+floor. This rung's plan was narrower than that counterfactual — four named
+positions rather than every `eat_int_like` call site, plus the arithmetic guard —
+so:
+
+> **Estimate: +13,000 ± 2,000, biased LOW relative to the counterfactual's
+> 14,038.** Low because the counterfactual's global widening also reached the
+> `32` store type and, through `eat_value_type(ValueClass::Int4)`, relaxed the
+> class-*agreement* gate between a `30` load, its `2C` target and its `41` result
+> — positions this rung deliberately leaves alone. High only if the four
+> positions turn out to interact.
+
+Outcome **+14,016**, inside the interval, 22 short of the counterfactual — and
+the 22 are exactly its `indirect-load-leaf` row, i.e. exactly the agreement-gate
+relaxation named as the reason for the low bias. The prediction and its stated
+bias direction both held, which is the first time in this document that the
+counterfactual, the estimate and the outcome have been reconciled item by item.
+
+### 21.3 What shipped
+
+One predicate and one guard.
+
+* `readers::is_ptr4_kind` **moved** from `body/shapes.rs` to `readers.rs` and is
+  now `pub(crate)`. It was already the project's answer to "is this TYPE a 4-byte
+  pointer *value*" — the pointer-identity leaf and the pointer getter are gated on
+  it and byte-graded — and the alternative was a second copy, which is the "one
+  fact, two locators" mistake `find_byte` was deleted for.
+* `readers::eat_int_like_or_ptr4` — consume an int-like triple **or** a 4-byte
+  pointer, reporting *which*, and leaving the cursor untouched on a refusal. The
+  caller is told which because the two are not interchangeable under arithmetic.
+* Applied at **four** positions, all of them annotations on a value rather than
+  selectors for an instruction: `parse_expr`'s `B9` LOAD and `33` LIT, the
+  `55 <TYPE>` call-argument formal type, and the `41 <TYPE>` result type.
+* **The guard** sits at the end of `parse_expr`, on the whole sub-expression
+  rather than on the adjacent token: one `Vec<IlOp>` is one value, and the pointer
+  may be loaded before or after the operator, so a single check when the stream
+  ends covers every interleaving. Key `expr-ptr-arith:eof`, so its cost is a
+  number rather than an argument.
+
+Untouched, and deliberately: the `30` indirect load, where the pointee's width
+*does* pick the instruction (`lbz`/`lhz`/`lwz`) and which is gated by
+`is_ptr_to_4` / `value_class`; the `32` store type; and `mcall`'s speculative
+second-blocker walk, which still uses the narrow `eat_int_like` and therefore now
+*understates* whole-body completeness for pointer-carrying `26` chains.
+
+### 21.4 The outcome — MEASURED
+
+Baseline `work/dc3-workload/scan-ptrbase.jsonl`, taken **in this worktree** per
+§18.8: 878 rows, `fn_total` 2,462,571, in class **320,641 (13.02 %)**, 544 keys,
+mismatch 0, 6 `match` / 7 `capture-fail`. Result `scan-ptr21.jsonl`, same list,
+flags and `--cwd`.
+
+| | baseline | D9 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 320,641 (13.02 %) | **334,657 (13.59 %)** | **+14,016** |
+| mismatch | 0 | **0** | 0 |
+| `match` / `capture-fail` | 6 / 7 | 6 / 7 | 0 |
+| distinct keys | 544 | 570 | +26 |
+| TUs changing class | — | **0** | — |
+| functions LOST, any TU | — | **0** | — |
+
+By shape, with the frame class §18's audit makes available:
+
+| shape | before | after | delta | frame class |
+|---|---:|---:|---:|---|
+| `straight-line` | 10,960 | 17,016 | **+6,056** | all `calls-0` |
+| `int-tail-call` | 0 | 5,268 | **+5,268** | all `calls-1` |
+| `multiarg-tail-call` | 0 | 2,692 | **+2,692** | all `calls-1` |
+| **total** | 320,641 | **334,657** | **+14,016** | 6,056 `calls-0` / 7,960 `calls-1` / **0** `calls-2plus` |
+
+`int-tail-call` and `multiarg-tail-call` were at **zero on the real workload**:
+the port has modeled `return g(a)` and `return g(a,b)` since the MVP and the
+workload's calls almost always pass a pointer, so until this rung the shapes had
+never once fired outside the fixtures.
+
+**The guard's cost, measured rather than inherited.** With the guard the
+numerator is 334,657; with the guard compiled out and everything else identical it
+is **334,657**. It catches **964** bodies — independently the same 964 §20.5
+reported — and costs **0**. Not one of the 14,016 does arithmetic on a pointer.
+
+**And it is byte-graded, which the counterfactual was not.** §20.6 recorded that
+no TU flipped under the counterfactual, so the lanes and the sweep graded nothing
+about the widened build and its `mismatch 0` said nothing about whether the bytes
+were right. This rung:
+
+* `fixtures/cpp/w17_ptr_operand.cpp` — 23 functions, **23/23 in class**, whole obj
+  **byte-exact** against real `c2`. The pointee across all four target widths plus
+  `void`, pointer-to-pointer and a code pointer; the four tag spellings, including
+  the in-class `A6` witness `int* const`; the null-pointer LIT in an argument and
+  as a whole body; the pointer in every argument slot at arities 1–3; the `41`
+  result with no call; and a reference parameter, which spells no pointer in C++
+  at all and is one throughout the IL.
+* `fixtures/cpp/w17_ptr_operand_neg.cpp` — 25 functions, **0/25 in class**, and the
+  file must never mismatch. The arithmetic boundary across pointee widths and both
+  operators, as a body and inside an argument; the guard's collateral (arithmetic
+  on the *int* beside an untouched pointer); the `A6` `this` behind its `2C`; the
+  relational, the address-of-a-local, the 8-byte non-pointer, and the ninth
+  argument.
+* `scripts/expr_sweep.sh` grew **227 cases** (3,516 → 3,743, `mismatches=0`) over
+  exactly those axes: 15 pointees × 5 positions, every argument slot at arities
+  1–4 with the pointer moved through each, mixed-pointee argument lists, 8 pointee
+  widths × 9 arithmetic expressions × 3 positions, and 13 refusing neighbours.
+  **104 of the new cases grade `Match`** and 136 `NotImplemented`, so the sweep is
+  measuring emitted bytes here and not only refusals.
+* Four mode lanes, mismatch 0 in each: `/Ox` 46 → **47**, `/O1` 43 → **44**, `/O2`
+  43 → **44**, `/Ox /Gy` 43 → **44**. The `+1` is `w17_ptr_operand.cpp` in every
+  lane; no baseline dropped.
+
+### 21.5 Where the other 98.6 % went
+
+The exact accounting, over the whole 878-TU scan. Five keys lost population and
+nothing else did:
+
+| functions | key that emptied |
+|---:|---|
+| 666,907 | `expr-load-type-A643` |
+| 316,800 | `expr-load-type-8643` |
+| 28,285 | `expr-lit-type-8643` |
+| 1,676 | `result-type-0x41` |
+| 1,476 | `expr-load-type-8644` (a code pointer at a LOAD) |
+| **1,015,144** | **total released** |
+
+1,001,128 of them landed on a deeper key and 14,016 came in class — the two sum to
+the release exactly. So the answer to "does the bucket drop equal the census
+gain" is **no, and by three orders of magnitude**: this rung cleared a *first*
+blocker for a million functions and finished the body for 1.4 % of them. Where
+the rest stopped:
+
+| functions | new key | what it is |
+|---:|---|---|
+| +504,245 | `expr-op-0x27` | the sub-object byte-offset add, in a general expression position rather than inside a leaf designator |
+| +198,545 | `expr-convert` | the `2C` cast / cv-strip — where the `A6` `this` goes |
+| +134,431 | `expr-op-0x99` | the by-value temporary bind |
+| +44,262 | `expr-out-of-class:eof` | **parses**, and the port declines the lowering (a result not already in r3, and its neighbours) |
+| +15,682 | `expr-intrinsic-dynamic-cast` | |
+| +13,087 | `expr-op-0x30` | an indirect load in a general expression position |
+| +964 | `expr-ptr-arith:eof` | the guard |
+
+Two of those are a different kind of row from the rest. `expr-out-of-class:eof`
+is the first sizeable population that is **grammar-complete and codegen-blocked**
+— the parse reaches the end of the segment and `straight_line_is_out_of_class`
+refuses it — so it is the first pointer-derived work that needs an emitter rather
+than a decoder. And `expr-op-0x27` at 504,245 is now the largest single row in the
+census by a factor of 2.5, which makes it the ranked next rung; it is the same
+`27` the address leaf (§19) already lowers in a *designator* position, so the
+question it poses is whether that lowering generalizes to an expression position
+rather than whether the construct is understood.
+
+### 21.6 What is NOT established, labelled
+
+* **`is_ptr4_kind` admits code pointers (kind `44`) as well as data pointers
+  (`43`), and the census head was data pointers.** The `44` population is small
+  (1,476 functions at a LOAD) and is admitted on the existing predicate's existing
+  claim — both load with the same `lwz` — plus one fixture (`t_fp`) and five sweep
+  cases. It is a widening this rung did not measure separately.
+* **The 22-function gap to §20.5's counterfactual is inferred, not measured.** It
+  is attributed to the `ValueClass::Int4` agreement gate on the strength of the
+  counterfactual's `indirect-load-leaf +22` row matching it exactly; no build was
+  made to confirm the mechanism.
+* **`mismatch 0` on the workload is still a TU-level statement.** 865 of the 878
+  TUs are `vocab-gap` and never reach the port at all, so the workload scan grades
+  the *decoder*. The byte grading of this rung is the two fixtures, the 3,743-case
+  sweep and the four lanes — 104 pointer cases and 23 fixture functions with
+  emitted bytes compared — and nothing wider than that.
+* **`mcall`'s second-blocker walk was not widened.** Its `-whole` bits therefore
+  now understate whole-body completeness wherever a `26` chain carries a pointer
+  operand. That makes the `expr-call-in-expr-*-whole` counts conservative, not
+  wrong, and it was left out of this rung deliberately.
+* **The pre-scaling measurement (§21.1 (2)) is seven witnesses from one probe
+  TU.** It is recorded as the reason the guard is a conservatism rather than a
+  rescue; it is *not* sufficient to delete the guard, which is the whole point of
+  writing it down as a rung rather than acting on it.
+* **`expr-out-of-class:eof` is not decomposed.** 44,262 functions is stated as one
+  row; which of `straight_line_is_out_of_class`'s clauses each hits is unmeasured.
+
+### 21.7 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                      # 114 pass 0 fail 0 error
+./target/release/c2rs census fixtures/cpp/w17_ptr_operand.cpp     # 23/23 in class
+./target/release/c2rs diff   fixtures/cpp/w17_ptr_operand.cpp     # Port=Match
+./target/release/c2rs census fixtures/cpp/w17_ptr_operand_neg.cpp # 0/25 in class
+./target/release/c2rs diff   fixtures/cpp/w17_ptr_operand_neg.cpp # Port=NotImplemented
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                         # 47 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                         # 44 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                            # checked=3743 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 16 \
+  --jsonl work/dc3-workload/scan-ptr21.jsonl        # 334657/2462571, 570 keys
+# the type-tag witnesses of §21.1, from the tracked fixtures themselves:
+./target/release/c2rs census fixtures/cpp/w17_ptr_operand.cpp     --keep-il /tmp/il-pos
+./target/release/c2rs census fixtures/cpp/w17_ptr_operand_neg.cpp --keep-il /tmp/il-neg
+# the guard's cost: compile out the `saw_ptr` check, rebuild, re-scan -> 334657.
+```
+
+Always difference the scans through **absolute** paths and print each one's row
+count and `fn_total` first — §18.8.

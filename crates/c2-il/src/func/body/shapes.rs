@@ -9,9 +9,9 @@ use super::expr::{
 use super::mcall;
 use super::{blk, Block, BodyShape, DtorSubObject};
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like, eat_opt_stmt_marker, is_int4_type, is_ptr_to_4,
-    read_token_var, read_type, read_varint, DOUBLE_LIT_TYPE, DOUBLE_TYPE, FLOAT_LIT_TYPE,
-    FLOAT_TYPE, INT_TYPE, UINT_TYPE,
+    eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, is_int4_type,
+    is_ptr4_kind, is_ptr_to_4, read_token_var, read_type, read_varint, DOUBLE_LIT_TYPE,
+    DOUBLE_TYPE, FLOAT_LIT_TYPE, FLOAT_TYPE, INT_TYPE, UINT_TYPE,
 };
 use crate::func::{CompareLeaf, IlOp, Rel};
 
@@ -968,35 +968,6 @@ fn eat_value_type(seg: &[u8], p: &mut usize, class: ValueClass) -> bool {
     }
 }
 
-/// A TYPE naming a **width-4 pointer value**: a data pointer (kind class 3) or a
-/// function/code pointer (kind class 4), in any cv-qualification.
-///
-/// Spelled as a literal tag/kind whitelist rather than as nibble arithmetic,
-/// because the two bytes are not equally well understood and the honest gate
-/// says so:
-///
-/// * `tag` — `0x80` plus the cv bits (`0x20` const, `0x10` volatile) and the
-///   width nibble `6` (= 4 bytes). All four combinations occur and are
-///   captured: `86 43` a plain pointer, `A6 43` a const one (the type of
-///   `this`, and of a member read through a const `this`), `96`/`B6` the
-///   volatile pair. **`0xC6` is refused.** `readers.rs` records that bit 0x40
-///   occurs, and none of the `IL_LOAD_TYPES.md` probes produced it — a field
-///   that never varied across the probes is indistinguishable from a constant,
-///   so it is required literally and fails closed. Odd tags (bit 0 set) are the
-///   aggregate size-bit-4 encoding and are not pointers at all.
-/// * `kind` — required to be exactly `0x43` or `0x44`, i.e. width nibble 4 with
-///   class nibble 3 or 4. Class 3 is a data pointer and class 4 a function/code
-///   pointer (`IL_LOAD_TYPES.md` §1: `int (*)()` literal 0 is `33 86 44 8d 20
-///   00`). Both load with the same `lwz`, so gating them together keeps one
-///   instruction behind one predicate.
-///
-/// Deliberately **not** [`is_ptr_to_4`], which is the *other* question: that one
-/// is applied to the base LOAD and to the `27` byte-offset-add, where the tag
-/// carries the **pointee's** width and only the kind class is meaningful. Two
-/// predicates because two facts; one locator each.
-fn is_ptr4_kind(tag: u8, kind: u8) -> bool {
-    matches!(tag, 0x86 | 0x96 | 0xA6 | 0xB6) && matches!(kind, 0x43 | 0x44)
-}
 
 /// Try to parse a **pointer-identity leaf**: a whole body that is one pointer
 /// returned unchanged — `return p;`, `return this;`, and pointer-to-pointer
@@ -2073,7 +2044,15 @@ pub(crate) fn parse_call_shape(
             break;
         }
         let ops = parse_expr(seg, p, 0x55)?;
-        if !eat_byte(seg, p, 0x55) || !eat_int_like(seg, p) {
+        // `55 <TYPE>` carries the **formal's declared type**, and it is widened in
+        // step with the operand positions: a call whose argument is a pointer
+        // spells it here as well as at the `B9` (`… B9 p 86 43 f4 08 · 55 86 43
+        // f4 08 · 4C`, captured from `int h1(int*); int f(int* p){return h1(p);}`),
+        // so admitting one without the other admits no real call site at all —
+        // measured: widening only `parse_expr` moved 1,013,468 functions between
+        // census keys and gained exactly **0**. The argument is in a register
+        // either way; this position is an annotation, not a lowering choice.
+        if !eat_byte(seg, p, 0x55) || eat_int_like_or_ptr4(seg, p).is_none() {
             // an argument whose terminator or formal type we do not model
             return Err(blk(seg, *p, "call-end"));
         }
