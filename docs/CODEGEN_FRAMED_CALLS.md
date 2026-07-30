@@ -527,9 +527,18 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
   Both are stable across every probe; neither is a code-size break-even (the
   helper is already shorter at 3 saved FPRs and c2 still emits inline `stfd`).
   Treated as two constants.
-* **What the extra label slots are for.** §4.4 measures +2 for the GPR helper
-  pair; the underlying counter is invisible in the obj, exactly like the 4th
-  packed / 5th `/Gy` slot `OBJ_GY_SHAPES.md` §3.6 already records as unexplained.
+* **What the extra label slots are for** — ~~invisible in the obj~~ **it is the
+  count of TU-level externals, 2026-07-30** (`docs/ROADMAP.md` §6m). §4.4
+  measures +2 for the GPR helper pair, which introduces **two** externals
+  (`__savegprlr_N` and `__restgprlr_N`). Independently, an FP-touching function
+  makes its TU **one** slot wider — measured seed-free over eleven TUs — and it
+  introduces **one** external, `_fltused`. One slot per TU-level external fits
+  both, and it predicts the FPR-helper stride below (+2 for `__savefpr_M` /
+  `__restfpr_M`, so +4 for a function using both pairs) — which is what the
+  bullet under it declines to claim, and now has a reason to expect rather than
+  a guess. Still uncaptured, so still not claimed.
+  The extra slot is consumed at the **first** such function in the TU, the same
+  position `_fltused` itself is emitted at, so the two are one fact.
 * **The FPR-helper label stride.** Predicted +4 by the "one slot per helper
   external" reading, not captured. Explicitly not claimed.
 * **The reserved 8 bytes at SP+8.** No probe ever wrote or read them. Every

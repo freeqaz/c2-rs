@@ -1337,6 +1337,29 @@ The rules that keep the numbers honest:
        contains have never been graded by anyone.** `scripts/expr_sweep.sh` now
        generates that cross product (six leaf kinds x three call bodies x three
        orderings) rather than relying on someone thinking of it again.
+    13. **Not a thirteenth emit — the TWELFTH's repair, wrong one row further
+       out.** #12 was fixed by giving any FP-touching function a label stride of
+       2. That fits the capture it was taken from — *one* FP leaf ahead of one
+       framed function — and predicts **4** slots for two FP functions where c2
+       gives 3, and **6** for three where c2 gives 4. It never emitted wrong
+       bytes, because the TU-level gate refused the pair it would have applied
+       to; it was **latent**, and it would have gone live the moment that gate
+       came off, which is exactly what the next rung did. Re-measured seed-free
+       (the *difference* between two framed functions' labels in one TU, so the
+       `.gl` seed cancels), the rule is **one slot per function plus one for the
+       TU if anything touches floating point** — the `_fltused` external's slot,
+       which is the same "one slot per TU-level external" that
+       `CODEGEN_FRAMED_CALLS.md` §4.4 measured as **two** for the
+       `__savegprlr`/`__restgprlr` pair. `docs/ROADMAP.md` §6m.
+       Three things worth keeping. **A per-function method cannot hold a per-TU
+       quantity**, and `IlFunction::label_slots` is one — at `n = 1` the two
+       formulations are indistinguishable, which is why the wrong one looked
+       right and why no single-FP-function probe could ever have separated them.
+       **A fix for a mis-emit deserves the same enumeration the mis-emit got**:
+       #12 was found by a cross product and repaired from a single row.
+       And **a gate that hides a wrong rule is a debt, not a fix** — the refusal
+       that kept this latent was itself recorded as a handoff, so the wrong rule
+       and the thing that would expose it were scheduled together.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one

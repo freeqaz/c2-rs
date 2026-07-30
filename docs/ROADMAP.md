@@ -2832,6 +2832,157 @@ this branch's own base, master `9ec4871`; the concurrent FP branch (W27/W28/W29,
    externals, the tail-branch epilogue and §4.4's +2 label stride all at once,
    and it is the first rung where the symbol table is as much work as the code.
 
+## 6m. The merge gate: the cross product, and the stride rule it refuted (2026-07-30)
+
+`wt-class-b` (§6l) merged against master `5dc991d` (§6k, the FP register file).
+One textual conflict — both branches appended a section before §7 — and the code
+merged clean. The mandatory part was not the merge.
+
+### What the merge made gradable, and what that cost
+
+**mis-emit #12 was found by the previous merge, in the cross product of two
+individually-green branches.** The same configuration existed again here: this
+branch's shapes are *framed bodies*, the FP rung's are *FP leaves and stores*,
+and nothing had ever graded the pair. So the merge gate generated **168 TUs**
+pairing every FP shape (store leaf at both widths, arithmetic leaf, `fmr`,
+pooled constant, mixed parameter list) with every framed shape (Class A, Class
+B at one and two saves, W30's tail literal, the single framed call, and an int
+store leaf as the control), **in both orders**, graded at `/O1`, `/Ox` and
+`/Ox /Gy`.
+
+At first grading: **10 match, 0 mismatch, 156 refused.** The refusal is the
+label counter — `w28_fp_store_framed_neg.cpp`, the FP rung's own fixture, which
+says in its comment that admitting the pair "is a change to the framed side's
+label model, not to the FP classes". That is this seam, so it was taken.
+
+### Capturing first refuted the rule that had just landed
+
+mis-emit #12 was repaired with:
+
+> anything that touches floating point consumes 2 — the stride goes with the
+> register file, not with the body shape.
+
+That is right for **one** FP function, which is what its capture had (one leaf
+ahead of one framed function). It is wrong from two on: it predicts 4 slots for
+two FP functions where c2 gives 3, and 6 for three where c2 gives 4.
+
+The first attempt to measure this was unreadable for an instructive reason — the
+`$M` numbers are seeded from `.gl`, so two TUs are only comparable if their
+mangled names are the same *length*, and `?ints@@YAXPAUS@@H@Z` against
+`?fps@@YAXPAUS@@M@Z` is not. (A second reason: **zsh does not word-split an
+unquoted parameter expansion**, so a `$flags` variable holding `/Ox /GS- /Gy /c`
+reached `cl.exe` as one argument and both "packed" and "`/Gy`" rows were
+silently the same capture. Both rows agreeing exactly is the tell.)
+
+The fix is to measure **seed-free**: put *two* framed functions in one TU and
+read the **difference** between their labels. The seed cancels, the names never
+have to match, and the leaf slots fall straight out. Eleven rows, `/Ox /GS- /c`,
+every row `+1` under `/Gy`:
+
+```text
+  fr1;                      fr2    delta 4    leaf slots 0
+  fr1; int_store;           fr2    delta 5    leaf slots 1
+  fr1; fp_store;            fr2    delta 6    leaf slots 2
+  fr1; fp_store fp_store;   fr2    delta 7    leaf slots 3   <- not 4
+  fr1; int_store fp_store;  fr2    delta 7    leaf slots 3
+  fr1; fp_store int_store;  fr2    delta 7    leaf slots 3
+  fr1; int_store int_store; fr2    delta 6    leaf slots 2
+  fr1; fp_arith;            fr2    delta 6    leaf slots 2
+  fr1; fp_arith fp_arith;   fr2    delta 7    leaf slots 3
+  fr1; fp_store fp_arith;   fr2    delta 7    leaf slots 3
+  fr1; fp_store x3;         fr2    delta 8    leaf slots 4   <- not 6
+```
+
+> **Every function consumes 1 label slot (a framed one 4 packed / 5 under
+> `/Gy`), plus ONE extra slot for the translation unit if any function touches
+> floating point.**
+
+The extra slot is `_fltused` — the one TU-level external an FP-touching function
+introduces. That makes this the *same rule* `CODEGEN_FRAMED_CALLS.md` §4.4
+measured for the `__savegprlr_N`/`__restgprlr_N` pair, where **two** externals
+consume **two** extra slots: **one slot per TU-level external**. §4.4 called the
+underlying counter "invisible in the obj" and left it unexplained; it is the
+external count, and the two facts `Function::is_float` carries — where `_fltused`
+is emitted and where the extra slot goes — are now one fact rather than two
+readers of one field, which is the third time that shape has bitten this file.
+
+The `/Gy` pre-pass is confirmed at exactly `3 × funcs.len()` on all eleven rows,
+unaffected by floating point.
+
+**Why it could not be stated where it lived.** `IlFunction::label_slots` is a
+*per-function* method and the `+1` is a *per-TU* quantity. No value it returns
+can be right for both the first FP function and the second. It now returns the
+per-function stride and `coff::plan_labels`, which has the whole function list,
+applies the extra slot. That is also why the wrong rule looked so plausible: at
+`n = 1` the two formulations are indistinguishable.
+
+After the fix: **62 of 168 match, 0 mismatch, in all three modes.**
+
+`w28_fp_store_framed_neg.cpp` is promoted to `w28_fp_store_framed.cpp` (5/5 in
+class, `Port=Match`, now carrying a Class B function beside the Class A one).
+Its own comment predicted the promotion, and a negative fixture whose rows are
+admitted and byte-exact is decoration — the same accounting `mvp_call_seq_neg`
+got in §6l. The new `_neg` holds the half still refused: an FP **arithmetic**
+leaf, whose stride `label_slots` cannot report because `IlFunction` does not
+carry whether the leaf pooled a constant. The eleven-row table says a
+constant-free one is 2 and could be admitted; the record it needs is the FP
+seam's, not the framed side's to restructure inside a merge, so it is a handoff.
+
+### Census, key-by-key
+
+**483,240 → 491,013 / 2,462,571 (19.62 % → 19.94 %)**, workload `dc3-decomp` at
+`05ca6d09`. Additive to the function, and the two branches' deltas are **key
+disjoint** — measured, not assumed:
+
+| | key | delta |
+|---|---|---|
+| §6l (this branch) | `callseq-tail-lit` | **−7,771** |
+| | `callseq-value-live-across-call` | −2 |
+| | `call-postop-0x86` → `call-postop-op-0x33` | −1 / +1 (one body reaching one token further; net 0) |
+| §6k (FP) | `expr-op-0x27` | **−7,927** |
+| | `expr-load-type-8645` | −1,004 |
+| | `opt-mode-00200001` / `opt-mode-00200101` | −140 / −66 |
+
+`474,103 + 7,773 = 481,876`, `+9,137 = 491,013`. **Zero keys touched by both.**
+
+### Gate evidence (merged tree)
+
+`cargo test --workspace --release` **409 pass / 0 fail** · `c2rs bench` **157
+pass / 0 fail / 0 error** · mode lanes over 157 fixtures `/Ox` **74**, `/O1`
+**72**, `/O2` **72**, `/Ox /Gy` **72**, **0 mismatch in all four** ·
+`scripts/expr_sweep.sh` **printed 5,922 = generated 5,922 = on disk 5,922, 0
+mismatches** · cross-product grid **168 TUs × 3 modes, 0 mismatch** · 878-TU
+scan: match 6, **mismatch 0**, codegen-gap 0, port-error 0, capture-fail 7,
+**census/gate disagreement 0**, `.gl` invariants 0 violations, cache validator
+**17 re-captured and agreed, 0 poisoned** · `census_gate.rs` unchanged at its
+recorded **1 packed / 9 `/Gy`**.
+
+Per-fixture `c2rs census`, both seams: `w27_fp_reg` 33/33, `w27_fp_reg_qual`
+10/10, `w28_fp_store` 14/14, `w28_fltused_order` 5/5, `w29_fp_contract` 16/16,
+`w28_fp_store_framed` 5/5, `mvp_call_seq` 10/10, `mvp_call_seq_b` 18/18,
+`w30_callseq_tail_intlike` 21/21; negatives `w28_fp_store_neg` 0/11,
+`mvp_call_seq_neg` 0/2, `mvp_call_seq_b_neg` 0/7,
+`w30_callseq_tail_intlike_neg` 0/13, `w13_fparam_neg` 0/3, and
+`w28_fp_store_framed_neg` 2/2 in class with the TU `NotImplemented` (the label
+gate is per TU; `census_gate.rs` asks the per-function gate, which both pass).
+
+### Two things measured and left alone
+
+* **`census/gate` is 0 on the workload and 28 on a constructible grid.** All 28
+  are the pooled-FP-constant-under-`/Gy` refusal, which lives in `c2-core`'s obj
+  layout and has no parser counterpart. Verified pre-existing by building master
+  `5dc991d` in a scratch worktree and running the identical grid: **the same 28**,
+  while the per-function numerator rose 336 → 432. This branch's rungs add
+  **zero** disagreement. It is the FP/obj seam's, and `census_gate.rs` already
+  records it as `KNOWN_DISAGREEMENTS_GY`.
+* **`c2_il::func::sy::gpr_reg_of` is dead code** (a build warning on master).
+  It states `base + ix` with `base` = r4 for a member function, and every
+  formal-to-register site in `c2-core::codegen` — including this branch's Class B
+  save moves — instead uses `ARG_REGS[position in func.params]`. The two agree
+  today because `this` is carried *in* `params`. But "a locator nobody consults
+  is not shared" is `GAPS.md` §6 #2, and it has now produced two mis-emits;
+  wiring it is the FP seam's call and is flagged rather than done.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp
