@@ -1150,12 +1150,36 @@ The rules that keep the numbers honest:
        is green only on the IL it saw**, and this one had never seen a call that
        skipped a formal. Now refused as `call-arg-outer-formal`; pinned by
        `ARG2_OUTER_FORMAL` with the formals-0-and-1 permutation as its control.
+    6. **A formal's index in the formals list stood in for its FP-argument
+       register number.** `float_leaf_text` maps parameter `n` to `f(n+1)`, and
+       the floating-point file is numbered over the **FP parameters alone**, so
+       every parameter list that was all-`float` or all-`double` made the two
+       numbers equal — and every FP fixture in the corpus was one of those.
+       `float mixfp(int a, float b, float c) { return b*c; }` emitted
+       `fmuls f1,f2,f3` where c2 emits `fmuls f1,f1,f2`, on mainline, with all
+       four mode lanes and the 3,743-case sweep green (found 2026-07-30 while
+       probing the register-move rung). The remarkable part is that
+       `w13_fabi.cpp` **states the rule in a comment and carries the failing case
+       as `fp_skip`** — it hid because that TU holds an out-of-class function and
+       the port is all-or-nothing per TU, so those bytes were never emitted.
+       **A characterization fixture that documents a rule the emitter does not
+       implement is not a test of it**, and a whole-TU gate can hide a per-
+       function mis-emit indefinitely. Put the case in a TU of its own.
+    7. **The seventh is the second instance's shape again, in the other register
+       file.** A bare `return <parameter>` that is not the first is one register
+       move; the integer class has gated exactly that since it was written
+       (`straight_line_out_of_class_ctx`), and the FP class never got the gate,
+       so `float f(float a, float b){ return b; }` emitted **nothing** where c2
+       emits `fmr f1,f2`. Found in the same probe as #6 and fixed by the same
+       rule (every formal must be an FP operand of the body). "A locator nobody
+       consults is not shared" now has two instances, four years of code apart in
+       spirit and two functions apart in fact.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one
   parameter in the entire fixture corpus that was anything but a scalar, and for #5
-  not one call that passed a strict subset of its caller's formals. A
-  hand-written
+  not one call that passed a strict subset of its caller's formals, and for #6/#7
+  not one FP parameter list that was anything but uniform. A hand-written
   corpus is biased toward the shapes whoever wrote it was thinking about, and it is
   biased in a way that is invisible from inside it. Two practices follow, and both
   paid off the same day: **sweep the cross product, not one axis at a time**
@@ -1274,6 +1298,18 @@ The rules that keep the numbers honest:
   2,464,543 tails, so the census denominator is itself ~1,972 functions short and
   the "extra" blocks are the ones it misses. A count that disagrees does not tell
   you which side is wrong.
+- **An instrument that silently drops cases reports a pass it did not earn.**
+  A block added to `scripts/expr_sweep.sh` used `for n in range(...)` as a loop
+  variable; `n` is the generator's own file counter, so the loop rewound it and
+  the next 1,233 cases **overwrote already-written ones**. The sweep then ran
+  green over 2,610 cases where it should have run 3,843 — a pass, on a third
+  fewer inputs, with nothing in the output saying so. The only tell was the
+  printed case count *falling* against the number the last session recorded, and
+  that count exists only because a previous session printed it. **A generated
+  corpus must report its own size on every run, and that size has to be compared
+  against the last one**; "0 mismatches" over an unknown denominator is the same
+  vacuous green as a sweep with the toolchain absent, which this script already
+  guards against explicitly.
 - **A measurement artifact read from the wrong tree.** The parallel-agent workflow
   gives every worktree a reflinked copy of `work/`, so the same *relative* path
   (`work/dc3-workload/scan-t1.jsonl`) exists in several trees holding different
@@ -1319,11 +1355,19 @@ The rules that keep the numbers honest:
   (1001267), 3 from `.gl` symbol binding (a892c76), 3 from the first `/Gy`
   fixture lane (`mode_lane.sh`, 2a19090), 4 from the `/O1` comparison-spine
   matrix (abe0512). Every one was fixed or gated closed before widening
-  continued, and the buckets measure 0 at HEAD (`2724ca5`: fixtures, four
-  mode lanes, 878-TU scan, 2,589-case sweep — all 0 mismatch). The lesson
+  continued, and the buckets measure 0 at HEAD (fixtures, four
+  mode lanes, 878-TU scan, 4,011-case sweep — all 0 mismatch). The lesson
   moved: the alarm firing often, on instrument widening rather than on user
   reports, is the differential working — a long green streak under an
   unchanged instrument is what should raise suspicion.
+  **And the streak has now been broken by a probe rather than by an
+  instrument.** Instances 6 and 7 above were found by compiling five throwaway
+  `.cpp` files while characterizing an unrelated rung's lowering — not by the
+  sweep, not by a lane, not by the scan, all three of which were green over
+  both bugs for as long as they existed. That is the clearest available reading
+  of "coverage-bounded": three instruments agreeing costs nothing against a
+  shape none of them contains, and the cheapest way to find one is to compile
+  the neighbouring source you were about to assume something about.
 - **A green corpus is only as strong as its discriminators.** The §1 mis-emit
   survived because two candidate allocation rules coincide on every shape the
   corpus contained. When a rule is inferred from captures, ask what fixture
@@ -1363,6 +1407,23 @@ The rules that keep the numbers honest:
   loose one. Before scheduling against a percentage, ask which *shape* the fix
   lands in and how many of the bucket's functions are that shape — or measure the
   delta on one TU first.
+  **Measured to the bottom, twice, on the same row.** `expr-op-0x27` — the
+  byte-offset add in a general expression position, 505,122 functions and 24 % of
+  everything blocked — was written into `IL_CALL_IN_EXPR.md` §21.5 as "the ranked
+  next rung". A counterfactual that admits it releases all 505,122 and leaves
+  **685 whole bodies, 0.14 %**; the rest move one token deeper onto an indirect
+  load in an expression position, a by-value bind and a store. The rung taken
+  instead was **1/12th its size and 100 % whole-body complete**, and converted
+  1:1. Two rungs running, the largest row has been the wrong answer, and both
+  times the cheap counterfactual said so in one scan. **Rank by whole-body
+  completeness, not by row size — and when the row has no `-whole` bit, spend the
+  scan to get one before scheduling against it.**
+  There is one family where completeness is free rather than counterfactual: a
+  census key ending `:eof` is a refusal raised *after* the parse reached the end
+  of the segment, so **every function under it is grammar-complete by
+  construction**. `expr-out-of-class-bare-nonfirst-formal:eof` was 43,319 of
+  those, and the estimate formed from it landed inside ±700 with the whole of its
+  stated low bias attributable to one named second site.
 - **A guessed name is worse than a hex bucket — this has now happened three
   times.** (1) The relational opcode labels were inferred from numeric order
   and three of six were wrong. (2) `call-anchor-*` named a structure that did
