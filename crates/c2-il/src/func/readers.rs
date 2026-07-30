@@ -333,8 +333,20 @@ fn type_width(tag: u8) -> Option<u32> {
 /// forms be accepted at all — a `const` member getter's load carries
 /// `30 A6 41 …` followed by `2C 86 41 74 00`, and both captures
 /// (`const int *`, `volatile int *`) emit a bare `lwz` with nothing added.
+/// The tag's width nibble is the value's **alignment**, and `kind`'s high nibble is
+/// its **size**. Those agree for every naturally-aligned type, which is why reading
+/// only the tag survived — until `#pragma pack(4)`, where an 8-byte `long long`
+/// member carries `86 81 …`: tag says align 4, kind says size 8. That passed this
+/// predicate and lowered `(int)s->q` to a single `lwz` at the wrong offset —
+/// `Port=Mismatch @ offset 8`. So the size is checked too, and it is checked from
+/// the field that actually carries it.
+///
+/// Only the size check is added: a 4-byte int at a *smaller* alignment (`pack(1)`)
+/// still refuses on the tag, as before. Whether an unaligned `lwz` is even what c2
+/// emits there is unprobed, and admitting it on the strength of this decode would be
+/// widening on an assumption.
 pub(crate) fn is_int4_type(tag: u8, kind: u8) -> bool {
-    type_width(tag) == Some(4) && matches!(kind & 0x0F, 0x1 | 0x2)
+    type_width(tag) == Some(4) && (kind >> 4) == 4 && matches!(kind & 0x0F, 0x1 | 0x2)
 }
 
 /// True for a TYPE naming a **pointer to a 4-byte object**: `kind`'s low nibble
@@ -344,12 +356,41 @@ pub(crate) fn is_int4_type(tag: u8, kind: u8) -> bool {
 /// `88 43 c1 08` for `double *`), which is why this is applied to the `27` type
 /// and not only to the base LOAD.
 pub(crate) fn is_ptr_to_4(tag: u8, kind: u8) -> bool {
-    type_width(tag) == Some(4) && (kind & 0x0F) == 0x3
+    // `kind`'s high nibble is the size of the *pointer*, which is 4 on this target
+    // in every witness (`82 43 …` char *, `88 43 …` double *). Checked for the same
+    // reason as [`is_int4_type`]: the tag carries alignment, not size.
+    type_width(tag) == Some(4) && (kind >> 4) == 4 && (kind & 0x0F) == 0x3
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The tag carries ALIGNMENT and the kind carries SIZE, and they diverge under
+    /// `#pragma pack`. Every captured witness has them equal, which is exactly why
+    /// reading only the tag looked correct.
+    #[test]
+    fn a_packed_eight_byte_int_is_not_a_four_byte_int() {
+        // `int`, `unsigned`, `long`, `unsigned long`, `const int` — size 4 in the
+        // kind's high nibble, and all admitted.
+        for (tag, kind) in [(0x86, 0x41), (0x86, 0x42), (0xA6, 0x41), (0x96, 0x41)] {
+            assert!(is_int4_type(tag, kind), "{tag:02X} {kind:02X}");
+        }
+        // `#pragma pack(4)` `long long`: tag says align 4, kind says size 8. This
+        // was admitted and lowered to one `lwz` at the wrong offset.
+        assert!(!is_int4_type(0x86, 0x81));
+        // A `double` at 4-byte alignment is the same trap in the FP family.
+        assert!(!is_int4_type(0x86, 0x85));
+        // `is_ptr_to_4` is "pointer to a 4-byte OBJECT", and in the `27` position the
+        // tag carries the POINTEE's width — so `int *` passes and `char *` / `double *`
+        // are refused, which is the existing intent and not a size bug.
+        assert!(is_ptr_to_4(0x86, 0x43)); //  int *
+        assert!(!is_ptr_to_4(0x82, 0x43)); // char *   — 1-byte pointee
+        assert!(!is_ptr_to_4(0x88, 0x43)); // double * — 8-byte pointee
+        // The pointer's own size sits in the kind's high nibble and is 4 in every
+        // witness; a kind claiming 8 is not a pointer this target emits.
+        assert!(!is_ptr_to_4(0x86, 0x83));
+    }
 
     #[test]
     fn token_width_two_from_4f02_gap() {
