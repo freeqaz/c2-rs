@@ -383,6 +383,12 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // that still links. The positive half (stride 1) is `wfr_cmp_stride.cpp`
         // and is graded by the mode lanes.
         "wfr_cmp_stride_neg.cpp",
+        // The call-bound-to-a-local form's two drifted gates: `int z = g(b + a);
+        // return z;` was a live wrong-bytes emit (c2 canonicalizes a commutative
+        // argument's leaves, the port kept source order) and
+        // `int z = g2(a, c); return z;` **panicked** the census. Both now refuse
+        // through the single `tail_call_shape` locator.
+        "il_call_bound_neg.cpp",
     ] {
         let w = work("oocreject");
         let port = PortC2::default();

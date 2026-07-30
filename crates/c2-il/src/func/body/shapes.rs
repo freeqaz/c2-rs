@@ -2047,6 +2047,147 @@ pub(crate) fn try_parse_compare(seg: &[u8], start: usize, lo: usize) -> Option<B
     Some(BodyShape::Compare(cmp))
 }
 
+/// How many non-trivial cycles the argument permutation `sources` decomposes
+/// into. `sources[i]` is the formal index argument slot `i` wants, so a fixed
+/// point is a value already in place. Two or more disjoint cycles are refused by
+/// both call paths — c2 hoists every save (r11, then r10) and the one available
+/// capture does not pin the clobber-free order it then picks.
+///
+/// `sources` must already have been proved to index inside itself
+/// ([`tail_call_shape`]'s `call-arg-outer-formal` gate); this walk indexes `seen`
+/// with an entry, so an out-of-range one **panics** rather than refusing. It did:
+/// see that gate's comment.
+fn permutation_cycles(sources: &[usize]) -> usize {
+    let n = sources.len();
+    let mut seen = vec![false; n];
+    let mut cycles = 0usize;
+    for start in 0..n {
+        if seen[start] || sources[start] == start {
+            seen[start] = true;
+            continue;
+        }
+        let mut at = start;
+        while !seen[at] {
+            seen[at] = true;
+            at = sources[at];
+        }
+        cycles += 1;
+    }
+    cycles
+}
+
+/// **One locator for "are these call arguments a tail call this port can emit?"**
+/// — the validation and the shape construction for `return g(…)` in every
+/// position it appears: the direct form, the bound-to-a-local form
+/// (`int z = g(…); return z;`), and the single statement call that is a whole
+/// body (`void f(int a){ g(a); }`, which c2 lowers to a bare `b g`).
+///
+/// It exists because those paths carried **two copies** of the checks and the
+/// copies had drifted apart in both directions — each copy was missing a gate the
+/// other had, and each omission was live:
+///
+/// * **A wrong-bytes emit.** `int f(int a,int b){ int z = g(b + a); return z; }`
+///   emitted `add r3,r4,r3` against the reference's `add r3,r3,r4`: c2
+///   canonicalizes the leaves of a commutative argument expression, so `g(a+b)`
+///   and `g(b+a)` are the **same** obj. The direct form `return g(b + a);`
+///   refuses on [`leaves_ascending`] and always has; the bound-to-a-local copy
+///   never asked. `Port=Match` for `a+b`, `Port=Mismatch @ 537` for `b+a`, from
+///   two lines of C++ that differ by one transposition.
+/// * **A panic.** `int f(int a,int b,int c){ int z = g2(a, c); return z; }` took
+///   `c2rs census` down with `index out of bounds: the len is 2 but the index is
+///   2` — [`permutation_cycles`] indexed its `seen` array with a *formal* index
+///   past the argument count. The direct form got the `call-arg-outer-formal`
+///   gate when that was found (`docs/GAPS.md` §6); this copy did not, and the CLI
+///   must degrade cleanly, never panic.
+///
+/// Same family as every other entry in `docs/GAPS.md` §6: one fact, two
+/// implementations, and the corpus only ever exercised the fixed one.
+///
+/// `args` is the argument list in **stream order** (reverse source order, so slot
+/// `i` is `args[len-1-i]`); `params` is the formals list with a member function's
+/// `this` at index 0; `off` is the segment offset a refusal reports.
+fn tail_call_shape(
+    args: Vec<Vec<IlOp>>,
+    params: Vec<u32>,
+    callee_tok: u32,
+    off: usize,
+) -> Result<BodyShape, Block> {
+    let refuse = |ctx: &'static str| Block { ctx, byte: None, off, aux: 0 };
+    // No arguments at all: the bare `b <callee>`.
+    if args.is_empty() {
+        return Ok(BodyShape::VoidTailCall { callee_tok });
+    }
+    if args.len() > 1 {
+        // Two or more arguments: only the pure-permutation shape is modeled. Every
+        // argument must be a bare parameter LOAD — a computed argument would need
+        // its own register and interacts with the permutation temp in ways no
+        // capture covers yet.
+        let mut arg_sources = Vec::with_capacity(args.len());
+        for slot in 0..args.len() {
+            let ops = &args[args.len() - 1 - slot];
+            let tok = match ops.as_slice() {
+                [IlOp::Load(t)] => *t,
+                _ => return Err(refuse("call-arg-computed")),
+            };
+            match params.iter().position(|&t| t == tok) {
+                Some(ix) => arg_sources.push(ix),
+                // An argument that is not one of this function's formals (a local,
+                // a global, a nested call result).
+                None => return Err(refuse("call-arg-nonformal")),
+            }
+        }
+        // **An argument that is a formal beyond the argument count.** `arg_sources`
+        // indexes the *formals* list while everything below treats it as a
+        // permutation of the *argument* slots, and the two lists are only the same
+        // length when the call passes every formal. `int f(int a,int b,int c){
+        // return g(a,c); }` gives sources `[0, 2]` over two slots: not a
+        // permutation but a move out of a register the call does not otherwise
+        // touch, which `permute_args_text` has no case for — and it indexed
+        // [`permutation_cycles`]'s `seen` array out of bounds, i.e. **panicked**.
+        if arg_sources.iter().any(|&ix| ix >= arg_sources.len()) {
+            return Err(refuse("call-arg-outer-formal"));
+        }
+        // The two permutation shapes codegen cannot lower are rejected HERE rather
+        // than there, so the census and the emission gate cannot disagree about
+        // what is in class (the same reason the FP contraction and constant gates
+        // live in this file). Both are captured in `fixtures/cpp/il_call_multi.cpp`
+        // and explained at `c2_core::codegen::permute_args_text`.
+        //
+        // A value passed twice: c2 emits a dead `mr` through the temp, which no
+        // live-value-driven solver produces.
+        for (i, s) in arg_sources.iter().enumerate() {
+            if arg_sources[..i].contains(s) {
+                return Err(refuse("call-arg-duplicated"));
+            }
+        }
+        if permutation_cycles(&arg_sources) > 1 {
+            return Err(refuse("call-arg-multicycle"));
+        }
+        return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
+    }
+    let arg_ops = args.into_iter().next().expect("exactly one argument");
+    // The single call argument is an ordinary operand stream, so it is subject to
+    // the same rewriter: `g(a + a)` is not `add` + branch.
+    if has_repeated_leaf(&arg_ops) {
+        return Err(refuse("call-arg-repeated-leaf"));
+    }
+    // And to the same reassociation: `g(b + a)` is not the source order either —
+    // c2 canonicalizes the leaves and emits `add r3,r3,r4` for both orders. The
+    // gate is vacuous for a single leaf (one leaf cannot be out of order), which is
+    // why it asks the load count first.
+    let n_loads = arg_ops.iter().filter(|o| matches!(o, IlOp::Load(_))).count();
+    if n_loads > 1 && !leaves_ascending(&arg_ops, &params) {
+        return Err(refuse("call-arg-noncanonical-order"));
+    }
+    if !additive_chain_canonical(&arg_ops) {
+        return Err(refuse("call-arg-noncanonical-order"));
+    }
+    if !arg_loads_are_formals(&arg_ops, &params) {
+        return Err(refuse("call-arg-nonformal"));
+    }
+    Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok })
+}
+
 /// Parse a call shape (already positioned at the `26 <tok>` function ref): the
 /// bare terminal void call, an integer tail call `return g(<arg>)` (passthrough
 /// or arg-setup, plus the `g(a)+0` identity fold), or the framed
@@ -2205,166 +2346,25 @@ pub(crate) fn parse_call_shape(
         }
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         let params = parse_params(seg, lo)?;
-        if args.len() > 1 {
-            let mut arg_sources = Vec::with_capacity(args.len());
-            for slot in 0..args.len() {
-                let ops = &args[args.len() - 1 - slot];
-                let tok = match ops.as_slice() {
-                    [IlOp::Load(t)] => *t,
-                    _ => {
-                        return Err(Block {
-                            ctx: "call-arg-computed",
-                            byte: None,
-                            off: *p,
-                            aux: 0,
-                        })
-                    }
-                };
-                match params.iter().position(|&t| t == tok) {
-                    Some(ix) => arg_sources.push(ix),
-                    None => {
-                        return Err(Block {
-                            ctx: "call-arg-nonformal",
-                            byte: None,
-                            off: *p,
-                            aux: 0,
-                        })
-                    }
-                }
-            }
-            for (i, src) in arg_sources.iter().enumerate() {
-                if arg_sources[..i].contains(src) {
-                    return Err(Block {
-                        ctx: "call-arg-duplicated",
-                        byte: None,
-                        off: *p,
-                        aux: 0,
-                    });
-                }
-            }
-            let n = arg_sources.len();
-            let mut seen = vec![false; n];
-            let mut cycles = 0usize;
-            for start in 0..n {
-                if seen[start] || arg_sources[start] == start {
-                    seen[start] = true;
-                    continue;
-                }
-                let mut at = start;
-                while !seen[at] {
-                    seen[at] = true;
-                    at = arg_sources[at];
-                }
-                cycles += 1;
-            }
-            if cycles > 1 {
-                return Err(Block { ctx: "call-arg-multicycle", byte: None, off: *p, aux: 0 });
-            }
-            return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
-        }
-        let arg_ops = args.pop().expect("exactly one argument");
-        if has_repeated_leaf(&arg_ops) {
-            return Err(Block { ctx: "call-arg-repeated-leaf", byte: None, off: *p, aux: 0 });
-        }
-        if !additive_chain_canonical(&arg_ops) {
-            return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
-        }
-        if !arg_loads_are_formals(&arg_ops, &params) {
-            return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
-        }
-        return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
+        // The SAME validator the direct `return g(…)` form uses. This branch used
+        // to carry its own copy, which was missing two of its gates — one wrong
+        // byte and one panic; see [`tail_call_shape`].
+        return tail_call_shape(args, params, callee_tok, *p);
     }
     if args.len() > 1 {
         // Two or more arguments: only the pure-permutation shape is modeled, and
-        // only as a tail call. Every argument must be a bare parameter LOAD — a
-        // computed argument would need its own register and interacts with the
-        // permutation temp in ways no capture covers yet.
+        // only as a tail call — validated through the one locator
+        // ([`tail_call_shape`]) the bound-to-a-local form and the statement-call
+        // form also use.
         let params = parse_params(seg, lo)?;
-        let mut arg_sources = Vec::with_capacity(args.len());
-        // Stream order is reverse source order, so slot `i` is stream `n-1-i`.
-        for slot in 0..args.len() {
-            let ops = &args[args.len() - 1 - slot];
-            let tok = match ops.as_slice() {
-                [IlOp::Load(t)] => *t,
-                _ => {
-                    return Err(Block {
-                        ctx: "call-arg-computed",
-                        byte: None,
-                        off: *p,
-                        aux: 0,
-                    })
-                }
-            };
-            match params.iter().position(|&t| t == tok) {
-                Some(ix) => arg_sources.push(ix),
-                // An argument that is not one of this function's formals (a local,
-                // a global, a nested call result).
-                None => {
-                    return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 })
-                }
-            }
-        }
-        // **An argument that is a formal beyond the argument count.** `arg_sources`
-        // indexes the *formals* list while everything below treats it as a
-        // permutation of the *argument* slots, and the two lists are only the same
-        // length when the call passes every formal. `int f(int a,int b,int c){
-        // return g(a,c); }` gives sources `[0, 2]` over two slots: not a
-        // permutation but a move out of a register the call does not otherwise
-        // touch, which `permute_args_text` has no case for.
-        //
-        // It also indexed `seen[]` — sized by the argument count — with a formal
-        // index, so this **panicked** rather than refusing: `index out of bounds:
-        // the len is 2 but the index is 2`, from `c2rs census` on two lines of
-        // ordinary C++ (`ARG2_OUTER_FORMAL`, transcribed from the capture). The
-        // CLI must degrade cleanly, never panic. Refusing here is acceptance-
-        // neutral by construction — the only bodies it can reach are ones that
-        // previously took the process down, so none of them was ever accepted.
-        if arg_sources.iter().any(|&ix| ix >= arg_sources.len()) {
-            return Err(Block { ctx: "call-arg-outer-formal", byte: None, off: *p, aux: 0 });
-        }
-        // The two permutation shapes codegen cannot lower are rejected HERE rather
-        // than there, so the census and the emission gate cannot disagree about
-        // what is in class (the same reason the FP contraction and constant gates
-        // live in this file). Both are captured in `fixtures/cpp/il_call_multi.cpp`
-        // and explained at `c2_core::codegen::permute_args_text`.
-        //
-        // A value passed twice: c2 emits a dead `mr` through the temp, which no
-        // live-value-driven solver produces.
-        for (i, s) in arg_sources.iter().enumerate() {
-            if arg_sources[..i].contains(s) {
-                return Err(Block { ctx: "call-arg-duplicated", byte: None, off: *p, aux: 0 });
-            }
-        }
-        // Two or more disjoint cycles: c2 hoists every save (r11, then r10) and
-        // then has several clobber-free orders to choose between, which the one
-        // available capture does not pin down.
-        {
-            let n = arg_sources.len();
-            let mut seen = vec![false; n];
-            let mut cycles = 0usize;
-            for start in 0..n {
-                if seen[start] || arg_sources[start] == start {
-                    seen[start] = true;
-                    continue;
-                }
-                let mut at = start;
-                while !seen[at] {
-                    seen[at] = true;
-                    at = arg_sources[at];
-                }
-                cycles += 1;
-            }
-            if cycles > 1 {
-                return Err(Block { ctx: "call-arg-multicycle", byte: None, off: *p, aux: 0 });
-            }
-        }
+        let shape = tail_call_shape(args, params, callee_tok, *p)?;
         // Only a terminal tail call: a post-op would consume the result and need
-        // the framed path, which does not model argument setup at all.
+        // the framed path, which does not model multi-argument setup.
         if seg.get(*p) != Some(&0x41) {
             return Err(Block { ctx: "call-multiarg-postop", byte: None, off: *p, aux: 0 });
         }
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
-        return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
+        return Ok(shape);
     }
     let arg_ops = args.pop().expect("exactly one argument");
     // The single call argument is an ordinary operand stream, so it is subject to
@@ -2404,10 +2404,7 @@ pub(crate) fn parse_call_shape(
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         let params = parse_params(seg, lo)?;
-        if !arg_loads_are_formals(&arg_ops, &params) {
-            return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
-        }
-        return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
+        return tail_call_shape(vec![arg_ops], params, callee_tok, *p);
     }
     // Post-op `+ k`: EXACTLY one literal `33 <int> k` immediately followed by
     // ADD. A second call (`g(a)+g(1)` → `26 …`), a second literal (`g(a)+1+2` →
@@ -2433,10 +2430,7 @@ pub(crate) fn parse_call_shape(
     // 6-section framed obj (which would mis-emit a frame the reference elides).
     if k == 0 {
         let params = parse_params(seg, lo)?;
-        if !arg_loads_are_formals(&arg_ops, &params) {
-            return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
-        }
-        return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
+        return tail_call_shape(vec![arg_ops], params, callee_tok, *p);
     }
     // A genuine `+ k` (k ≠ 0) is a framed non-leaf call — but the 6-section
     // framed path models only a **bare passthrough argument** (`g(a) + k`), not
@@ -2481,6 +2475,7 @@ mod tests {
     use crate::func::body::{parse_segment, parse_segment_detail};
     use crate::func::bundle::LO_MARKER;
     use crate::func::readers::find_subslice;
+    use crate::func::sy::{Formals, SyView};
     use crate::func::test_fixtures::*;
 
     /// A call argument that is not a formal must refuse — and it must refuse in the
@@ -2553,6 +2548,50 @@ mod tests {
             ),
             "formals 0 and 1 are a permutation and must stay accepted"
         );
+    }
+
+    /// The **call-bound-to-a-local** form of both refusals above, which carried
+    /// its own copy of the argument validation and was missing a gate at each of
+    /// the two points. One locator now ([`tail_call_shape`]); this test is the
+    /// pair that separates "the production refuses" from "the leaf order
+    /// refuses".
+    ///
+    /// * `int z = g(b + a); return z;` was a **wrong-bytes emit** — c2
+    ///   canonicalizes a commutative argument's leaves, so it emits the same
+    ///   `add r3,r3,r4 ; b ?g` as `g(a + b)` and the port emitted `add r3,r4,r3`
+    ///   (`c2rs diff`: `Port=Mismatch @ 537`).
+    /// * `int z = g2(a, c); return z;` **panicked** `c2rs census`.
+    ///
+    /// The canonical-order control must stay in class, so the fix costs nothing
+    /// that was already accepted.
+    #[test]
+    fn a_call_bound_to_a_local_gets_the_same_argument_gates_as_the_direct_form() {
+        // The destination `z` is an automatic `int` local, which is what makes the
+        // production reachable at all (`.sy` membership, not absence from `.gl`).
+        let zc: [u32; 1] = [0xE909];
+        let zo: [u32; 1] = [0xEB09];
+        let view = |l: &'static [u32]| SyView {
+            locals: l,
+            formals: Formals::AllOneRegisterByConstruction,
+        };
+        let zc: &'static [u32] = Box::leak(Box::new(zc));
+        let zo: &'static [u32] = Box::leak(Box::new(zo));
+        // The wrong-bytes half: non-canonical leaves refuse …
+        let b = parse_segment_detail(BOUND_ARG_NONCANON, view(zc)).unwrap_err();
+        assert_eq!(b.ctx, "call-arg-noncanonical-order");
+        // … and the canonical control is still an in-class integer tail call.
+        assert!(
+            matches!(
+                parse_segment(BOUND_ARG_CANON, view(zc)),
+                Some(BodyShape::IntTailCall { .. })
+            ),
+            "`int z = g(a + b); return z;` is byte-exact and must stay in class"
+        );
+        // The panic half: a formal past the argument count refuses, in the
+        // parser, without indexing anything out of bounds.
+        let b = parse_segment_detail(BOUND_ARG2_OUTER_FORMAL, view(zo)).unwrap_err();
+        assert_eq!(b.ctx, "call-arg-outer-formal");
+        assert_eq!(parse_segment(BOUND_ARG2_OUTER_FORMAL, view(zo)), None);
     }
 
     #[test]
