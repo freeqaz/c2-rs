@@ -216,6 +216,12 @@ refutes value order).
 
 ## 3. The framed non-leaf call under `/Gy`
 
+> **Status 2026-07-30: IMPLEMENTED.** Everything in §3 is emitted by
+> `c2_core::coff::emit_comdat_obj` (per-COMDAT `.pdata`, `SELECT_ASSOCIATIVE`)
+> and `emit_obj` (one shared `.pdata`), with the label numbers derived per §3.5
+> rather than hardcoded. Graded byte-exact on `fixtures/cpp/wunw_*.cpp` in all
+> four mode lanes and on 342 generated cases.
+
 ### 3.1 `fixtures/cpp/mvp_framed.cpp` at `/O1` (nsec=6, nsym=20)
 
 | # | name | RawSize | RawPtr | RelPtr | nRel | Chars |
@@ -301,49 +307,130 @@ $M(n) = prologue label (lowest), $M(n+1) = end label, $T(n+2). Table lists n.
 | v_fconst_framed: float+const, f | 2552 | 2558 |
 | v_framed2c: f1, f2 (distinct callees) | not captured | 2556, 2561 |
 
-**Model — fits all 21 framed-function witnesses above, stated as a model
-because the base is not yet derivable:** let B(TU) = the packed first-label
-value. Then
+**Model — fits all 21 framed-function witnesses above.** Let B(TU) = the packed
+first-label value. Then
 
 * packed `/Ox`: labels of the i-th framed function start at B + Σ over
-  preceding functions of {leaf or float-leaf: 1, framed: 4};
+  preceding functions of {leaf: 1, framed: 4};
 * `/Gy`: labels start at **B + 3 × (number of functions in the TU)** + Σ over
-  preceding functions of {leaf or float-leaf: 1, framed: **5**}.
+  preceding functions of {leaf: 1, framed: **5**}.
 
-`.rdata` COMDATs consume nothing (v_fconst_framed: `/Gy` = B+3·2+1 exactly).
-The `/Gy` surcharge is 3 per function regardless of kind (float and int
-leaves both count), paid up front before any function's labels. "Per
-function" and "per `.text` COMDAT" are indistinguishable here — every
+`.rdata` COMDATs consume no *section* slot of their own. The `/Gy` surcharge is
+3 per function regardless of kind, paid up front before any function's labels.
+"Per function" and "per `.text` COMDAT" are indistinguishable here — every
 function got exactly one COMDAT.
 
-### 3.5 Not determined — the seed B
+> **Corrected 2026-07-30.** The bracket above read `{leaf **or float-leaf**: 1,
+> …}` and the float half is wrong: a floating-point leaf consumes **2**, and one
+> with a pooled constant **4**. It could not be seen from this table because B
+> was unknown, so `v_float_framed` (float-leaf, f) at 2550 and `v_leaf_framed`
+> (leaf, f) at 2550 were read as agreeing when they are two TUs with different
+> seeds. With B derivable (§3.5) the stride is measurable one class at a time,
+> and §3.6 has it. `.rdata` "consumes nothing" was the same illusion.
+> The generalizable form: **a stride and a seed that are both unknown can absorb
+> each other's error**, and a table of totals cannot separate them however many
+> rows it has — only a witness that pins one of the two can.
 
-B varies with TU content: adding one `int g2(int);` declaration moved B by +2
-(v_framed2 → v_framed2c, `/Gy` 2554 → 2556); reordering two functions does
-not move it (v_framed_leaf = v_leaf_framed = 2549 packed). B is plausibly the
-continuation of c1xx's IL token counter, but a byte-scan correlation breaks on
-FP TUs: max LE16 token found in `.ex` vs B gives a constant gap of **10** for
-all seven int-only TUs, **11** for v_float_framed, **13** for
-v_fconst_framed. So B is NOT (.ex max + const); FP types/literals consume
-tokens the scan doesn't see, or the true counter lives elsewhere in the
-bundle. **Deriving B needs a real parse of the IL token stream, not a
-heuristic — until then the port cannot emit any framed `/Gy` function beyond
-TUs where B is pinned by capture.** The existing hardcoded `2545/2546/2547`
-in `emit_framed_obj` is exactly the packed single-framed-TU cell of the table.
+### 3.5 The seed B — DETERMINED 2026-07-30
 
-Also not determined:
+**B is the u32 at `.gl` offset 7, plus 9.**
 
-* Whether the `/Gy` "+3 per function" holds for function kinds not sampled:
-  static functions, functions producing extra sections (`.data`, `.bss`),
-  template instantiations, functions with `.rdata` whose *first* section is
-  not `.text`.
-* Whether the framed stride 5 (`/Gy`) / 4 (packed) is itself composite
-  (e.g. 3 labels + k hidden) in a way that changes for framed functions with
-  spills, multiple callees with their own frames, or `setjmp`-style shapes —
-  every framed witness here is the one MVP frame class (and one two-call
-  body).
-* The packed multi-framed symbol layout ($T values 0/8 in one shared
-  `.pdata`) beyond two functions.
+`.gl` opens with the fixed 7 bytes `11 02 06 '1' 'j' '2' 01`, and the next four
+bytes are a little-endian counter — c1xx's compiler-label high-water mark, which
+c2 continues. The first label c2 allocates for the TU is that value + 9.
+
+```text
+  fixture                 .gl+7 (u32)   first label   observed
+  mvp_call_twice              2534         2543        $M2543
+  mvp_call_then_stmt          2535         2544        $M2544
+  mvp_framed                  2536         2545        $M2545
+  il_expr_call_value          2561         2570        $M2571 (one leaf ahead)
+  il_call_return              2578         2587        $M2589 (two ahead)
+  w5_tree_neg                 2597         2606        $M2616
+  w17_ptr_operand_neg         2674         2683        $M2704
+```
+
+The whole model, restated as one rule and now implemented in
+`c2_core::coff::plan_labels`:
+
+```text
+  cur = u32_le(.gl[7..11]) + 9
+  if /Gy:  cur += 3 * (number of functions in the TU)
+  for each function in .text order:
+      framed -> $M(cur), $M(cur+1), $T(cur+2);  cur += 5 if /Gy else 4
+      leaf   ->                                 cur += 1
+```
+
+**Why the earlier scan missed it.** §3.5 previously recorded "a byte-scan
+correlation breaks on FP TUs: max LE16 token in `.ex` vs B gives a constant gap
+of 10 for int-only TUs, 11 for `v_float_framed`, 13 for `v_fconst_framed`". Both
+halves of that were true and both were the wrong measurement. The counter is not
+in `.ex` at all, and the residue the scan was chasing — +1 for a float leaf, +3
+for a float leaf with a constant — is not seed noise: it is the **stride**, which
+this document had already measured as "leaf or float-leaf: 1" and which is wrong
+for a float leaf. Two errors of one and two, in a quantity whose true value moves
+by one per function, hidden inside each other.
+
+A second near-miss worth recording: reading `.gl[7..]` as a **LEB128** gives
+1256 for `mvp_framed`, and `B − 1256 = 1289` is constant across every fixture
+whose fifth byte has the continuation bit set — which is most of them, because
+the counter sits around 2500–2700 and `2536 = 0x9E8` LEBs as `E8 09`. The field
+is a fixed-width u32; the LEB reading agrees with it on a large majority of the
+corpus and disagrees the moment the low byte falls under 0x80. **A constant gap
+over a biased sample is not a fit.** Both readings were checked against the same
+25 TUs and only the u32 survives on all of them.
+
+### 3.6 What the stride is measured over, and what it is not
+
+Each row is `<class> ; int F(int a){return g(a)+1;}` compiled, `F`'s first label
+read out of the obj and differenced against `.gl+7+9`:
+
+| class ahead of the framed function | slots consumed |
+|---|---|
+| `int L(int a){return a+1;}` (straight-line chain) | 1 |
+| `int L(int a,int b,int c){return a+b+c;}` | 1 |
+| `void L(){}` (empty body) | 1 |
+| `int L(int a){return g(a);}` / `void L(){g(1);}` (tail calls) | 1 |
+| `int L(int*p){return *p;}` (indirect load) | 1 |
+| `int* L(S*s){return &s->m;}` (address leaf) | 1 |
+| `int L(int a){return 7;}` / `return a;` | 1 |
+| another framed call | 4 packed, 5 `/Gy` |
+| `float L(float a,float b){return a*b;}` | **2** |
+| `double L(double a){return a;}` | **2** |
+| `float L(float a){return a*2.5f;}` (one pooled constant) | **4** |
+| `float L(float a){return a*2.5f+3.5f;}` (two) | **6** |
+| `int L(int a,int b){return a<b;}` / `a>=b` | **3** |
+
+`a==b` and `a<0` consume 1; `a<b`, `a>=b` and `bool a<b` consume 3, so the
+comparison stride is **not** uniform over the relation either. Every class in
+the "1" block is one `PortC2` emits; every class below it is refused whenever a
+framed function shares the TU (`c2_il::IlBundle::functions`, with the other
+TU-level gates, so the census and the emitter cannot disagree), because a stride
+error of one is six wrong bytes in an obj that still links.
+
+**The gate's over-refusal, sized rather than left as a rumour.** It keys on "is
+this a comparison or floating-point leaf", not on the relation, so the two
+comparison forms that *do* consume 1 (`a==b`, `a<0`) are refused with the ones
+that consume 3. On the generated sweep that is **6 of the 21 framed-plus-refuser
+cases** — the other 15 need the gate. Relaxing it means measuring the stride per
+relation and per operand type, which is a table this rung did not need; the cost
+is a refusal, never a wrong byte.
+
+Still not determined, and therefore still refused rather than guessed:
+
+* the stride of every *decoded but not emitted* class — control flow, locals,
+  statements. They cannot reach the emitter today, so the gate that stops them
+  is the whole-TU class gate rather than this one, and if that gate widens
+  first the stride has to be measured before a framed function may sit beside
+  them.
+* what the 4th packed / 5th `/Gy` framed slot is *for*. The three emitted
+  labels are `$M`, `$M`, `$T`; the extra one (two under `/Gy`) is allocated and
+  never named in the obj. Modeling it as a stride is sufficient and is all that
+  is claimed.
+* whether the `/Gy` surcharge is "3 per function" or "3 per `.text` COMDAT" —
+  indistinguishable here because every function got exactly one COMDAT. A
+  static function, a template instantiation or a function whose first section is
+  not `.text` would separate them.
 
 ---
 

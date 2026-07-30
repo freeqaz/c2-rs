@@ -37,10 +37,9 @@ pub mod func;
 pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, Span};
 pub use func::{
     chain_form, ChainForm,
-    detect_token_width, gl_symbol_conflicts, gl_symbol_index, is_empty_module, mangled_name,
-    mangled_names,
-    opt_word_mode, source_path, Block, FnCensus, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
-    OPT_WORD_SPECIAL_MEMBER,
+    detect_token_width, gl_symbol_conflicts, gl_symbol_index, is_empty_module, label_counter,
+    mangled_name, mangled_names, opt_word_mode, source_path, Block, FnCensus, OptWordMode,
+    OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,
     CompareLeaf, FramedCall, IlFunction, IlOp, Rel,
 };
@@ -104,6 +103,13 @@ impl IlBundle {
     /// True iff the `.ex` stream is present and starts with the header magic.
     pub fn has_ex_magic(&self) -> bool {
         self.ex().map(is_ex_magic).unwrap_or(false)
+    }
+
+    /// The compiler label counter from `.gl` — see [`func::label_counter`].
+    /// `None` when `.gl` is absent or its header does not match, in which case
+    /// a TU containing a framed function must be refused rather than emitted.
+    pub fn label_counter(&self) -> Option<u32> {
+        self.get("gl").and_then(func::label_counter)
     }
 
     /// Heuristic token width for the `.ex` stream: 4 bytes for real

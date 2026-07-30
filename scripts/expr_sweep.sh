@@ -1069,6 +1069,92 @@ emit_raw("int f(const int a) { return (int)a; }\n")
 emit_raw("unsigned f(const int a, int b) { return (unsigned)(a + b); }\n")
 
 
+# ---- W-UNW-1: framed functions, `.pdata`, and the compiler label counter --------
+# The framed class was single-function-per-TU for its whole life, so nothing here
+# had ever been swept: the `.pdata` record, its relocation, the `$M`/`$T` label
+# numbers and — the part that actually broke — the `bl` displacement, which
+# follows `disp = −(own .text offset)` and was hardcoded to the offset of the one
+# body the port could emit.
+#
+# Two axes, and the cross product is the point. **Position** decides the `bl`
+# word and the `.text` offset of both `$M` labels; **the kinds of the preceding
+# functions** decide the label numbers, because the counter is consumed by every
+# function whether or not it emits a label. A sweep over position alone with one
+# leaf kind would grade neither.
+FRAMED_LEAFMATES = [
+    'int L%d(int a) { return a + %d; }',
+    'int L%d(int a) { return a - %d; }',
+    'int L%d(int a) { return a; }',
+    'int L%d(int a, int b) { return b; }',
+    'int L%d(int a, int b) { return a + b; }',
+    'int L%d(int a) { return g(a); }',
+    'int L%d(int *p) { return *p; }',
+    'struct S%d { int m; };\nint L%d(S%d *p) { return p->m; }',
+]
+def leafmate(kind, ix):
+    t = FRAMED_LEAFMATES[kind]
+    if t.startswith('struct'):
+        return t % (ix, ix, ix)
+    return t % ((ix, ix + 1) if '%d;' in t or t.count('%d') == 2 else (ix,))
+def framed_fn(ix, k, callee):
+    return 'int F%d(int a) { return %s(a) + %d; }' % (ix, callee, k)
+
+# 1. Runs of framed functions on their own: 1..3 of them, shared and distinct
+#    callees, and `+k` values that move only the `addi` immediate.
+for count in (1, 2, 3):
+    for distinct in (0, 1):
+        callees = ['g%d' % j if distinct else 'g' for j in range(count)]
+        decls = ''.join('int %s(int);\n' % c for c in sorted(set(callees)))
+        body = '\n'.join(framed_fn(j, j + 1, callees[j]) for j in range(count))
+        emit_raw(decls + body + '\n')
+
+# 2. One framed function at every position among 0..3 leafmates of one kind.
+for kind in range(len(FRAMED_LEAFMATES)):
+    for mates in range(4):
+        for pos in range(mates + 1):
+            parts = []
+            for j in range(mates + 1):
+                parts.append(framed_fn(j, 1, 'g') if j == pos else leafmate(kind, j))
+            emit_raw('int g(int);\n' + '\n'.join(parts) + '\n')
+
+# 3. Two framed functions with leafmates of MIXED kinds between and around them —
+#    the shape where a per-kind counter stride error and a position error can
+#    cancel in one arrangement and not another.
+for k1 in range(len(FRAMED_LEAFMATES)):
+    for k2 in range(len(FRAMED_LEAFMATES)):
+        for layout in ('FLFL', 'LFLF', 'FLLF', 'LFFL'):
+            parts = []
+            leaf_kinds = [k1, k2]
+            li = 0
+            for j, ch in enumerate(layout):
+                if ch == 'F':
+                    parts.append(framed_fn(j, j + 1, 'g'))
+                else:
+                    parts.append(leafmate(leaf_kinds[li % 2], j))
+                    li += 1
+            emit_raw('int g(int);\n' + '\n'.join(parts) + '\n')
+
+# 4. The REFUSING neighbours. A comparison leaf consumes 3 counter slots and a
+#    floating-point leaf 2, against the 1 every emitted class consumes, so a
+#    framed function sharing a TU with either would get `$M` numbers that are
+#    low by 2 or 1 — bytes that link and are wrong. The port refuses the whole
+#    TU; a MISMATCH here is that gate having a hole.
+FRAMED_REFUSERS = [
+    'float R(float x, float y) { return x * y; }',
+    'double R(double x, double y) { return x + y; }',
+    'float R(float x) { return x * 2.5f; }',
+    'int R(int x, int y) { return x < y; }',
+    'int R(int x, int y) { return x >= y; }',
+    'int R(int x) { return x < 0; }',
+    'int R(int x, int y) { return x == y; }',
+]
+for r in FRAMED_REFUSERS:
+    emit_raw('int g(int);\n%s\nint F(int a) { return g(a) + 1; }\n' % r)
+    emit_raw('int g(int);\nint F(int a) { return g(a) + 1; }\n%s\n' % r)
+    emit_raw('int g(int);\nint F1(int a) { return g(a) + 1; }\n%s\n'
+             'int F2(int a) { return g(a) + 2; }\n' % r)
+
+
 print(n)
 PY
 

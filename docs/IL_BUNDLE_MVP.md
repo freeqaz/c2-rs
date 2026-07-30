@@ -191,8 +191,9 @@ rejects (all previously loud mis-emits):
 
 - `.ex` beyond the three shapes above: branches/labels (`38`, `54 03/04`),
   call *argument-setup* codegen (`return g(a+1)` — a tail call with a computed
-  arg, rung W4b2-iv), casts (`2C`), memory (`30/32`), switch (`3B–3D`), and any
-  call in a multi-function TU (the `.pdata` label counters shift — W-UNW-1).
+  arg, rung W4b2-iv), casts (`2C`), memory (`30/32`) and switch (`3B–3D`).
+  (A framed call in a multi-function TU is no longer out of scope: the `.pdata`
+  label counters are derived from `.gl` rather than pinned — W-UNW-1, closed.)
   The positive parse already *tokenizes* enough to recognize and honestly
   reject all of these; implementing them means adding an accepted shape, not
   loosening a gate.

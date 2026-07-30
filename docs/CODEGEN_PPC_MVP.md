@@ -265,14 +265,14 @@ the file layout **interleaves** each reloc'd section's raw+reloc (`.text` raw,
 `.text` reloc, `.pdata` raw, `.pdata` reloc) rather than packing all raw then all
 relocs.
 
-**Counter-determinism (W-UNW-1, RESOLVED):** a single non-leaf function always
-emits the *constant* labels `$M2545 / $M2546 / $T2547`, verified identical across
-reruns, filenames, and symbol names. The counter only shifts when **preceding
-functions in the TU consume slots** (a leaf before `f` bumps the base to
-`2549/2550/2551`). So the labels are a fixed toolchain seed and are hardcoded;
-the framed-call path (and every call shape) is scoped to a single-function TU (a
-multi-function TU with a call is rejected — modeling the per-function counter
-increment is a later rung).
+**Counter-determinism (W-UNW-1, CLOSED 2026-07-30):** a single non-leaf function
+emits `$M2545 / $M2546 / $T2547`, identical across reruns, filenames and symbol
+names — but that is a *fixture* constant, not a toolchain one. The base is the
+u32 at `.gl` offset 7 plus 9, and it shifts with the TU's content (an unused
+`typedef` moves it by 1) and with preceding functions consuming counter slots.
+The framed path is no longer scoped to a single-function TU: the seed is read
+and the stride applied per function (`OBJ_GY_SHAPES.md` §3.5/§3.6,
+`c2_core::coff::plan_labels`). The labels are no longer hardcoded anywhere.
 
 ## Non-commutative hazard list — do NOT generalize the MVP encoder
 

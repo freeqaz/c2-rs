@@ -644,17 +644,33 @@ impl IlBundle {
                 &src,
                 &resolve,
             )?;
-            // TU-level, so it stays here rather than in the per-function helper:
-            // the framed non-leaf path stays SINGLE-FUNCTION. Its obj carries
-            // `.pdata` with compiler label symbols ($M2545/$M2546/$T2547) whose
-            // counters are a fixed toolchain seed for the first function and shift
-            // once preceding functions consume slots (W-UNW-1,
-            // docs/CODEGEN_PPC_MVP.md), so a multi-function TU containing one
-            // would be mis-numbered.
-            if f.framed_call.is_some() && n_defined != 1 {
+            funcs.push(f);
+        }
+
+        // TU-level, so it stays here rather than in the per-function helper: a
+        // framed function's obj carries `.pdata` and the `$M…`/`$T…` compiler
+        // labels, whose numbers come from a counter **every** function in the TU
+        // consumes — 1 for each class this port emits, 4 for a framed one (5
+        // under `/Gy`). The framed path used to be gated to a single-function TU
+        // for exactly that reason; the counter is now read from `.gl` and
+        // advanced per function (`c2_core::coff::plan_labels`), so the gate is no
+        // longer about the function count. It is about the two classes whose
+        // stride is **not** 1: a comparison leaf consumes 3 and a floating-point
+        // leaf 2, so a framed function sharing a TU with either would get labels
+        // that are low by two or one — six wrong bytes in an obj that still
+        // links. Measured per class in `docs/OBJ_GY_SHAPES.md` §3.6.
+        //
+        // The counter itself must also be readable. `label_counter` is
+        // three-valued on purpose (`None` = undetermined, never a default),
+        // because a guessed `$M` number is a mis-emit rather than a gap.
+        if funcs.iter().any(|f| f.framed_call.is_some()) {
+            if funcs
+                .iter()
+                .any(|f| f.compare.is_some() || f.float_leaf.is_some())
+            {
                 return None;
             }
-            funcs.push(f);
+            super::gl::label_counter(gl)?;
         }
         // Account for every `.gl` symbol no record claimed. The port emits
         // exactly the `n_defined` bodies plus an external symbol per resolved

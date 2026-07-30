@@ -451,3 +451,84 @@ fn differential_mvp_sub_noncommutative_byte_exact() {
     }
     std::fs::remove_dir_all(&w).ok();
 }
+
+/// W-UNW-1: framed functions in a MULTI-function TU, packed (`/Ox`).
+///
+/// The single-function framed emitter was a third whole-obj emitter with the
+/// label names `$M2545/$M2546/$T2547` written out literally; these four
+/// fixtures are what replaced it, and each pins something the one-function
+/// shape could not express:
+///
+/// * `wunw_framed_pair` — one `.pdata` with **two** records, two ADDR32
+///   relocations, `$T` values 0 and 8, and the framed label stride of 4;
+/// * `wunw_leaf_then_framed` — the `bl` displacement rebased onto the packed
+///   `.text` (`4BFFFFED`, not `4BFFFFF5`), a live wrong-bytes emit the moment
+///   the single-function gate came off;
+/// * `wunw_two_leaves_framed` — the counter *accumulates* per function rather
+///   than being a per-TU constant one slot away;
+/// * `wunw_mixed_order` — the shared `.pdata` section symbol lands inside the
+///   FIRST framed function's group, not the last, and each framed function
+///   introduces its own callee external inside its own group.
+///
+/// Every one of the four also censuses `N/N`, so the whole-TU gate cannot be
+/// hiding a function whose bytes are never compared.
+#[test]
+fn differential_wunw_multi_function_framed_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    for name in [
+        "wunw_framed_pair.cpp",
+        "wunw_leaf_then_framed.cpp",
+        "wunw_two_leaves_framed.cpp",
+        "wunw_mixed_order.cpp",
+    ] {
+        let w = work(&format!("wunw_{}", name.trim_end_matches(".cpp")));
+        let port = PortC2::default();
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => {
+                assert_eq!(port, PortStatus::Match, "port not byte-exact on {name}");
+            }
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
+}
+
+/// W-UNW-1 (fail closed): a floating-point leaf sharing a TU with a framed
+/// function must be **refused**, not emitted.
+///
+/// Both functions are in class on their own and `c2rs census` grades the TU
+/// 2/2, so nothing upstream of the emitter objects. The obstacle is the
+/// compiler label counter: an FP leaf consumes 2 counter slots against the 1
+/// every emitted class consumes, so every `$M`/`$T` number after it would be
+/// one low — an obj that links, differs in six bytes, and would have been
+/// invisible to a corpus with no framed multi-function TU in it.
+#[test]
+fn differential_wunw_float_beside_framed_refuses() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let w = work("wunwfloatneg");
+    let port = PortC2::default();
+    let report = differential(&fixture("wunw_float_neg.cpp"), &tc, &port, &w);
+    match report {
+        DiffReport::ReferenceReplayByteExact { port, .. } => match port {
+            PortStatus::NotImplemented(_) => {}
+            other => panic!("expected NotImplemented for wunw_float_neg, got {other:?}"),
+        },
+        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
+    }
+    std::fs::remove_dir_all(&w).ok();
+}
