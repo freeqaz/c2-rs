@@ -1107,6 +1107,98 @@ for r in FRAMED_REFUSERS:
     emit_raw('int g(int);\nint F1(int a) { return g(a) + 1; }\n%s\n'
              'int F2(int a) { return g(a) + 2; }\n' % r)
 
+# ---- W23: the STORE leaf ---------------------------------------------------
+# `s->m = v;` is one `stb`/`sth`/`stw`/`std` at a folded displacement, and the
+# axes that pick it are (stored width) x (displacement) x (which designator) x
+# (which two registers). The hand-written fixture crosses them once each; this
+# crosses them against each other, which is the only thing that separates
+# "the width comes from the stored TYPE" from "the width comes from the
+# designator's pointer tag" — the two agree on every `int` member.
+STORE_MEMBERS = [
+    ('int', 'mi'), ('unsigned', 'mu'), ('char', 'mc'), ('signed char', 'msc'),
+    ('unsigned char', 'muc'), ('bool', 'mb'), ('short', 'msh'),
+    ('unsigned short', 'mush'), ('long long', 'mll'),
+    ('unsigned long long', 'mull'), ('void*', 'mp'),
+]
+STORE_STRUCT = ('struct S { int pad0; ' +
+                ' '.join('%s %s;' % (t, n) for t, n in STORE_MEMBERS) +
+                ' int arr[4]; };')
+
+# 1. every stored width, at both a zero-ish and a later offset, through a plain
+#    designator — a member and its `arr[k]` neighbour.
+for t, nm in STORE_MEMBERS:
+    emit_raw('%s\nvoid f(S* s, %s v) { s->%s = v; }\n' % (STORE_STRUCT, t, nm))
+    emit_raw('%s\nvoid f(S* s) { s->%s = (%s)3; }\n' % (STORE_STRUCT, nm, t)
+             if t != 'void*' else
+             '%s\nvoid f(S* s) { s->mp = 0; }\n' % STORE_STRUCT)
+
+# 2. the register cross product: the base at slots 0..7 and the value right
+#    after it. `stw r5,4(r4)` moves BOTH fields at once.
+for slot in range(8):
+    pre = ''.join('int p%d, ' % j for j in range(slot))
+    emit_raw('%s\nvoid f(%sS* s, int v) { s->mi = v; }\n' % (STORE_STRUCT, pre))
+    emit_raw('%s\nvoid f(%sS* s, char v) { s->mc = v; }\n' % (STORE_STRUCT, pre))
+
+# 3. literal values, across the `li` / `lis`+`ori` boundary and both signs.
+for k in ('0', '1', '7', '-1', '-3', '32767', '-32768', '32768', '70000', '65535'):
+    emit_raw('%s\nvoid f(S* s) { s->mi = %s; }\n' % (STORE_STRUCT, k))
+    emit_raw('%s\nvoid f(S* s) { s->mc = (char)%s; }\n' % (STORE_STRUCT, k))
+
+# 4. the subscript add run, cv-qualified bases, the bare deref and the cast.
+for body in ('s->arr[0] = v', 's->arr[1] = v', 's->arr[3] = v', '*(int*)s = v'):
+    emit_raw('%s\nvoid f(S* s, int v) { %s; }\n' % (STORE_STRUCT, body))
+emit_raw('%s\nvoid f(int* p, int v) { *p = v; }\n' % STORE_STRUCT)
+emit_raw('%s\nvoid f(int* p, int v) { p[2] = v; }\n' % STORE_STRUCT)
+emit_raw('%s\nvoid f(char* p, char v) { p[3] = v; }\n' % STORE_STRUCT)
+emit_raw('%s\nvoid f(long long* p, long long v) { p[1] = v; }\n' % STORE_STRUCT)
+
+# 5. the intrinsic-2117 designator: an inherited member, one and two inheritance
+#    steps, every width, and a member function where `this` is in r3.
+BASE_DECL = ('struct A { int a0; int a1; };\n'
+             'struct B { int b0; char bc; short bs; long long bl; };\n'
+             'struct D : A, B { int d; };\n'
+             'struct E : D { int e; };\n')
+for mem, t in (('b0', 'int'), ('bc', 'char'), ('bs', 'short'), ('bl', 'long long')):
+    emit_raw('%svoid f(D* p, %s v) { p->%s = v; }\n' % (BASE_DECL, t, mem))
+    emit_raw('%svoid f(E* p, %s v) { p->%s = v; }\n' % (BASE_DECL, t, mem))
+    emit_raw('%svoid f(int x, D* p, %s v) { p->%s = v; }\n' % (BASE_DECL, t, mem))
+    emit_raw('%sstruct M : A, B { void s(%s v); };\nvoid M::s(%s v) { %s = v; }\n'
+             % (BASE_DECL, t, t, mem))
+emit_raw('%svoid f(D* p) { p->b0 = 9; }\n' % BASE_DECL)
+emit_raw('%svoid f(D* p) { p->bc = (char)9; }\n' % BASE_DECL)
+
+# 6. a store beside each accepted neighbour, so the three consumers of the one
+#    designator cannot start swallowing each other.
+for mate in ('int g(S* s) { return s->mi; }',
+             'int* g(S* s) { return &s->mi; }',
+             'S* g(S* s) { return s; }',
+             'char g(S* s) { return s->mc; }',
+             'int g(int a, int b) { return a + b; }'):
+    emit_raw('%s\n%s\nvoid f(S* s, int v) { s->mi = v; }\n' % (STORE_STRUCT, mate))
+    emit_raw('%s\nvoid f(S* s, int v) { s->mi = v; }\n%s\n' % (STORE_STRUCT, mate))
+
+# 7. the REFUSING neighbours. Every one emits something the store production
+#    does not; a MISMATCH here is the gate having a hole, not a gap.
+STORE_REFUSERS = [
+    'struct F { float f; double d; };\nvoid f(F* s, float v) { s->f = v; }',
+    'struct F { float f; double d; };\nvoid f(F* s, double v) { s->d = v; }',
+    'struct F { float f; double d; };\nvoid f(F* s) { s->f = 1.5f; }',
+    'struct I { int i; char c; };\nvoid f(I* s, bool v) { s->i = v; }',
+    'struct I { int i; char c; };\nvoid f(I* s, int v) { s->c = (char)v; }',
+    'struct I { int i; char c; };\nvoid f(I* s, char v) { s->i = v; }',
+    'struct I { int i; char c; };\nvoid f(I* s, int x, int y) { s->i = x + y; }',
+    'struct I { int i; char c; };\nvoid f(I* s, int x) { s->i = x * 3; }',
+    'struct I { int i; int j; };\nvoid f(I* s, int v) { s->i = v; s->j = v; }',
+    'struct I { int i; int j; };\nint f(I* s, int v) { return s->i = v; }',
+    'struct I { int i; int a[4]; };\nvoid f(I* s, int k, int v) { s->a[k] = v; }',
+    'struct I { int i; int j; };\nvoid f(I* d, I* s) { d->i = s->i; }',
+    'struct I { int i; int j; };\nvoid f(I* d, I s) { *d = s; }',
+    'int gv;\nvoid f(int v) { gv = v; }',
+]
+for r in STORE_REFUSERS:
+    emit_raw('%s\n' % r)
+    emit_raw('%s\nint h(int a) { return a + 1; }\n' % r)
+
 
 print(n)
 PY

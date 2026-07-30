@@ -16,7 +16,7 @@ use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
     try_parse_compare, try_parse_empty_dtor_delegation, try_parse_float_leaf,
-    try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf,
+    try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf, try_parse_store_leaf,
 };
 use super::readers::{eat_byte, find_subslice, read_token_var, read_type, read_varint};
 use super::sy::SyView;
@@ -198,6 +198,20 @@ pub(crate) enum BodyShape {
     /// single `30` token and emit different instructions — admitting one as the
     /// other is a wrong-bytes emit, not a gap. See [`shapes::try_parse_addr_leaf`].
     AddrLeaf { params: Vec<u32>, ops: Vec<IlOp> },
+    /// A **store leaf**: the whole body is one store through a sub-object
+    /// designator (`s->m = v;`, `p->Base::m = v;`, `s->arr[2] = v;`, `*p = v;`,
+    /// `s->m = 7;`), which c2 lowers to a single `stb`/`sth`/`stw`/`std` at a
+    /// folded displacement — plus one `li` when the stored value is a literal.
+    /// `ops` is always exactly `[Load(base), Load(value) | Lit(k),
+    /// StoreInd { off, width }]` and `params` includes a member function's
+    /// `this` at index 0.
+    ///
+    /// Kept apart from [`BodyShape::IndirectLoad`] and [`BodyShape::AddrLeaf`]
+    /// for the reason those two are kept apart from each other: the three
+    /// designate the same address and emit three different instructions, so
+    /// admitting one as another is a wrong-bytes emit rather than a gap. See
+    /// [`shapes::try_parse_store_leaf`].
+    StoreLeaf { params: Vec<u32>, ops: Vec<IlOp> },
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -624,6 +638,16 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // Non-committal: works on a copy of the cursor, returns None with no
             // side effects, so a declining body still reports its own blocker.
             if let Some(shape) = try_parse_empty_dtor_delegation(seg, p, lo, depth) {
+                return Ok(shape);
+            }
+            // …and the **store** leaf, the third consumer of the same sub-object
+            // designator (`s->m = v;`, `p->Base::m = v;`, `*p = v;`). Tried after
+            // all of them because it is the only one that ends on a `32 <TYPE> 4B`
+            // statement rather than on a `41` result — nothing above can reach it
+            // and it can reach nothing above. Non-committal: works on a copy of the
+            // cursor and returns None with no side effects, so a declining body
+            // still reports its own blocker.
+            if let Some(shape) = try_parse_store_leaf(seg, p, lo) {
                 return Ok(shape);
             }
             let ops = parse_expr(seg, &mut p, 0x41)?;

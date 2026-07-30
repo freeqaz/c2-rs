@@ -244,6 +244,14 @@ impl IlBundle {
                             // drops it claims (`docs/IL_CALL_IN_EXPR.md` §19), and
                             // because the two emit different instructions.
                             Ok(BodyShape::AddrLeaf { .. }) => FnVerdict::InClass("addr-leaf"),
+                            // Kept apart from `addr-leaf` and `indirect-load-leaf`
+                            // for the same reason those two are kept apart: the
+                            // three share a designator and emit three different
+                            // instructions, so this rung's gain can be checked
+                            // against the `expr-op-0x27` / `expr-op-0x32` /
+                            // `expr-intrinsic-base-member-addr` bucket drops it
+                            // claims rather than against their sum.
+                            Ok(BodyShape::StoreLeaf { .. }) => FnVerdict::InClass("store-leaf"),
                             Ok(BodyShape::FloatLeaf { double, .. }) => {
                                 FnVerdict::InClass(if *double { "double-leaf" } else { "float-leaf" })
                             }
