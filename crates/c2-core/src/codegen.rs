@@ -871,13 +871,15 @@ pub fn compare_leaf_text(
     // `w6_rel_k`'s 19 leaves differ in their register fields (never in an opcode) —
     // and unlike the chain allocator the rule has not been enumerated, so this
     // refuses rather than emitting `/Ox` registers. `docs/OPT_MODE.md` §4.1.
-    if mode == OptMode::O1 {
-        return Err(out_of_class(
-            "comparison leaf under /O1: the spines are characterized for /Ox only, \
-             and /O1 reallocates their temporaries (14 of 19 w6_rel_k leaves differ). \
-             Enumerate the /O1 spines before accepting this",
-        ));
-    }
+    // `/O1` emits the SAME spines — same opcodes, operand order, immediates and
+    // schedule — and reallocates only the temporaries: a temp whose defining
+    // instruction makes the last use of the value in r11 is written to r11 instead
+    // of taking a fresh descending number. 34 of the 108 matrix cells are therefore
+    // byte-identical and the other 74 differ only in register fields.
+    // `docs/CODEGEN_W6_O1.md` has the full side-by-side table; each arm below names
+    // its own substitution, because which temps can collapse depends on what is
+    // still live at that point in that spine.
+    let o1 = mode == OptMode::O1;
     let mut t: Vec<u8> = Vec::with_capacity(28);
     let a = RET_REG; // the compared formal is the first argument, r3
 
@@ -897,9 +899,13 @@ pub fn compare_leaf_text(
             }
             // signed `a > 0` → (-a) & ~a, sign bit.
             (Rel::Gt, true) => {
+                // /O1: the `andc` is the last use of the `neg` result, so it takes
+                // r11. Ten of the twelve zero folds are mode-identical; this and
+                // `<=` are the two that are not, for exactly that reason.
+                let d = if o1 { 11 } else { 10 };
                 t.extend_from_slice(&encode_neg(11, a));
-                t.extend_from_slice(&encode_andc(10, 11, a));
-                t.extend_from_slice(&encode_srwi31(RET_REG, 10));
+                t.extend_from_slice(&encode_andc(d, 11, a));
+                t.extend_from_slice(&encode_srwi31(RET_REG, d));
             }
             // unsigned `a > 0` is exactly `a != 0`.
             (Rel::Gt, false) => {
@@ -912,9 +918,11 @@ pub fn compare_leaf_text(
             (Rel::Lt, false) => t.extend_from_slice(&encode_addi(RET_REG, 0, 0)),
             // signed `a <= 0` → a | ~(-a), sign bit.
             (Rel::Le, true) => {
+                // /O1: as for `>` above — the `orc` consumes the dying `neg`.
+                let d = if o1 { 11 } else { 10 };
                 t.extend_from_slice(&encode_neg(11, a));
-                t.extend_from_slice(&encode_orc(10, a, 11));
-                t.extend_from_slice(&encode_srwi31(RET_REG, 10));
+                t.extend_from_slice(&encode_orc(d, a, 11));
+                t.extend_from_slice(&encode_srwi31(RET_REG, d));
             }
             // unsigned `a <= 0` is exactly `a == 0`.
             (Rel::Le, false) => {
@@ -952,6 +960,32 @@ pub fn compare_leaf_text(
     // found it at once.
     let negatable = k16.checked_neg().is_some();
     let needs_negation = matches!(cmp.rel, Rel::Eq | Rel::Ne);
+    // **Two different immediate-eligibility predicates are in play, and they are
+    // not interchangeable.** The carry spines (`<`, `<=`, `>`, `>=`) gate on raw
+    // SIMM16 encodability, so `a > 4294967291u` is a legitimate
+    // `subfic r11,r3,-5`. The `==`/`!=` difference spines gate on the literal's
+    // **unsigned value** lying in `[0, 32767]`; against a large unsigned c2
+    // materializes the constant and subtracts instead, one instruction more.
+    //
+    // Sharing one predicate was a live wrong-bytes emit in **both** modes:
+    // `int f(unsigned a){return a == 4294967295u;}` and its `!=`, `-5` and
+    // `4294967291u` siblings each came out 4 bytes short of the reference
+    // (divergence at obj offset 8). Four of the 108 cells of the comparison
+    // matrix, and none of them reachable from `w6_rel_k.cpp` or from
+    // `scripts/expr_sweep.sh`, whose unsigned literals are all small — found only
+    // by enumerating the matrix `docs/CODEGEN_W6_O1.md` tabulates.
+    //
+    // Refused rather than lowered: the materialize-and-subtract form is the wide
+    // -literal path, which is uncharacterized for its own reasons (and where `/Ox`
+    // does not even start allocating at r11 — see that doc's asymmetry list).
+    if needs_negation && !cmp.signed && cmp.k < 0 {
+        return Err(out_of_class(
+            "`==`/`!=` against an unsigned literal above 32767: the difference \
+             spine's `addi a,-k` is only used when the literal's UNSIGNED value \
+             fits the immediate, and c2 materializes the constant instead; the \
+             carry spines' raw-SIMM16 rule does not apply here",
+        ));
+    }
     if needs_negation && !negatable {
         return Err(out_of_class(
             "`==`/`!=` against i16::MIN: the difference spine needs `addi a,-k`, and \
@@ -962,9 +996,11 @@ pub fn compare_leaf_text(
     match (cmp.rel, cmp.signed) {
         // `a == k` → difference, then "is it zero".
         (Rel::Eq, _) => {
+            // /O1: the `cntlzw` is the difference's last use, so it lands in r11.
+            let d = if o1 { 11 } else { 10 };
             t.extend_from_slice(&encode_addi(11, a, -k16));
-            t.extend_from_slice(&encode_cntlzw(10, 11));
-            t.extend_from_slice(&encode_rlwinm(RET_REG, 10, 27, 31, 31));
+            t.extend_from_slice(&encode_cntlzw(d, 11));
+            t.extend_from_slice(&encode_rlwinm(RET_REG, d, 27, 31, 31));
         }
         // `a != k` → the `!= 0` spine applied to the difference.
         (Rel::Ne, _) => {
@@ -977,19 +1013,26 @@ pub fn compare_leaf_text(
         // terms cancel so the value is a don't-care, but the register NUMBER is
         // byte-visible and must be reproduced.
         (Rel::Gt, false) => {
+            // /O1 names the don't-care `subfe` source r11 as well as its dest, so
+            // unlike /Ox it reads a *defined* (if dead) register here.
+            let (d, src) = if o1 { (11, 11) } else { (9, 10) };
             t.extend_from_slice(&encode_subfic(11, a, k16));
-            t.extend_from_slice(&encode_subfe(9, 10, 10));
-            t.extend_from_slice(&encode_clrlwi31(RET_REG, 9));
+            t.extend_from_slice(&encode_subfe(d, src, src));
+            t.extend_from_slice(&encode_clrlwi31(RET_REG, d));
         }
         // signed `a > k`: the 5-instruction spine. p = a (the greater side),
         // q = k. The final clrlwi exists solely to kill the `2` case.
         (Rel::Gt, true) => {
+            // /O1: the `subfc` dest stays fresh (r11 is still live for the `eqv`),
+            // but the `eqv` is r11's last use and every temp from there on collapses
+            // onto it.
+            let (e, f, g) = if o1 { (11, 11, 11) } else { (9, 8, 7) };
             t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
             t.extend_from_slice(&encode_subfc(10, a, 11)); // r10 dead; CA is the point
-            t.extend_from_slice(&encode_eqv(9, a, 11));
-            t.extend_from_slice(&encode_srwi31(8, 9));
-            t.extend_from_slice(&encode_addze(7, 8));
-            t.extend_from_slice(&encode_clrlwi31(RET_REG, 7));
+            t.extend_from_slice(&encode_eqv(e, a, 11));
+            t.extend_from_slice(&encode_srwi31(f, e));
+            t.extend_from_slice(&encode_addze(g, f));
+            t.extend_from_slice(&encode_clrlwi31(RET_REG, g));
         }
         // signed `a < k`: the signed `>` spine with the two operand roles
         // swapped, and *only* that — the register numbers, the instruction count
@@ -998,12 +1041,15 @@ pub fn compare_leaf_text(
         // `eqv r9,r11,r3` (not `r3,r11`). `eqv` is commutative, so the swap is
         // invisible in the *value* and visible only in the bytes.
         (Rel::Lt, true) => {
+            // /O1: same collapse as signed `>`; only the two swapped operand
+            // roles distinguish this spine from it.
+            let (e, f, g) = if o1 { (11, 11, 11) } else { (9, 8, 7) };
             t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
             t.extend_from_slice(&encode_subfc(10, 11, a)); // r10 dead; CA is the point
-            t.extend_from_slice(&encode_eqv(9, 11, a));
-            t.extend_from_slice(&encode_srwi31(8, 9));
-            t.extend_from_slice(&encode_addze(7, 8));
-            t.extend_from_slice(&encode_clrlwi31(RET_REG, 7));
+            t.extend_from_slice(&encode_eqv(e, 11, a));
+            t.extend_from_slice(&encode_srwi31(f, e));
+            t.extend_from_slice(&encode_addze(g, f));
+            t.extend_from_slice(&encode_clrlwi31(RET_REG, g));
         }
         // unsigned `a < k`. Unlike unsigned `>`, the literal cannot ride in the
         // `subfic` immediate: the borrow wanted here is the one out of `a - k`,
@@ -1011,10 +1057,15 @@ pub fn compare_leaf_text(
         // spine is four instructions rather than three — which shifts every
         // later register down one (`subfe r8,r9,r9`, not `r9,r10,r10`).
         (Rel::Lt, false) => {
+            // /O1: here the `subfc` IS r11's last use (no `eqv` follows), so its
+            // dead dest collapses onto r11 — the opposite of the signed spines
+            // above, and the clearest evidence that the rule is about consumption
+            // rather than about the instruction's kind.
+            let (c, d, src) = if o1 { (11, 11, 11) } else { (10, 8, 9) };
             t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
-            t.extend_from_slice(&encode_subfc(10, 11, a)); // r10 dead; CA is the point
-            t.extend_from_slice(&encode_subfe(8, 9, 9)); // r9 never defined; terms cancel
-            t.extend_from_slice(&encode_clrlwi31(RET_REG, 8));
+            t.extend_from_slice(&encode_subfc(c, 11, a)); // dead; CA is the point
+            t.extend_from_slice(&encode_subfe(d, src, src)); // terms cancel
+            t.extend_from_slice(&encode_clrlwi31(RET_REG, d));
         }
         // signed `a >= k`. Two sign terms plus the unsigned borrow, summed by one
         // `adde`: `srawi` broadcasts the sign of the *left* side of the `>=` as
@@ -1024,20 +1075,25 @@ pub fn compare_leaf_text(
         // they take r10 and r9 in that order — which is why `<=` below, whose
         // left side is the literal, emits them the other way round.
         (Rel::Ge, true) => {
+            // /O1: only the `subfc` moves — it is r11's last use, and the two sign
+            // temps must both stay live for the `adde`.
+            let d = if o1 { 11 } else { 8 };
             t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
             t.extend_from_slice(&encode_srawi(10, a, 31)); // sign(a) as 0/-1
             t.extend_from_slice(&encode_srwi31(9, 11)); // sign(k) as 0/1
-            t.extend_from_slice(&encode_subfc(8, 11, a)); // r8 dead; CA is the point
+            t.extend_from_slice(&encode_subfc(d, 11, a)); // dead; CA is the point
             t.extend_from_slice(&encode_adde(RET_REG, 9, 10));
         }
         // signed `a <= k` is `k >= a`, so the roles invert: the 0/1 shift now
         // applies to `a` and the 0/−1 one to `k`. Emission still follows source
         // order, so `rlwinm` (on `a`) comes first and takes r10.
         (Rel::Le, true) => {
+            // /O1: as for `>=` — only the `subfc` dest collapses.
+            let d = if o1 { 11 } else { 8 };
             t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
             t.extend_from_slice(&encode_srwi31(10, a)); // sign(a) as 0/1
             t.extend_from_slice(&encode_srawi(9, 11, 31)); // sign(k) as 0/-1
-            t.extend_from_slice(&encode_subfc(8, a, 11)); // r8 dead; CA is the point
+            t.extend_from_slice(&encode_subfc(d, a, 11)); // dead; CA is the point
             t.extend_from_slice(&encode_adde(RET_REG, 10, 9));
         }
         // unsigned `a >= k`: CA out of `a - k` *is* the answer, so all that is
@@ -2517,19 +2573,65 @@ mod tests {
         );
     }
 
-    /// The `/Ox` comparison spines are not reused for `/O1`: 14 of `w6_rel_k`'s 19
-    /// leaves are reallocated there and the rule is not enumerated, so `/O1`
-    /// refuses rather than emitting `/Ox` registers.
+    /// The `/O1` comparison spines: same opcodes, operand order and immediates as
+    /// `/Ox`, only the temporaries reallocated. Both sides transcribed from the
+    /// captures in `docs/CODEGEN_W6_O1.md` (`int f(int a){return a < 5;}`).
     #[test]
-    fn a_comparison_leaf_refuses_under_o1() {
+    fn a_comparison_leaf_reallocates_temps_under_o1() {
         let cmp = c2_il::CompareLeaf {
             param: 0xE309,
             rel: c2_il::Rel::Lt,
             signed: true,
             k: 5,
         };
-        assert!(compare_leaf_text(&cmp, OptMode::Ox).is_ok());
-        assert!(compare_leaf_text(&cmp, OptMode::O1).is_err());
+        // /Ox descends r10, r9, r8, r7 for the four temps after `li r11,k`.
+        assert_eq!(
+            compare_leaf_text(&cmp, OptMode::Ox).unwrap(),
+            vec![
+                0x39, 0x60, 0x00, 0x05, // li     r11,5
+                0x7D, 0x4B, 0x18, 0x10, // subfc  r10,r11,r3   (dead; CA is the point)
+                0x7D, 0x69, 0x1A, 0x38, // eqv    r9,r11,r3
+                0x55, 0x28, 0x0F, 0xFE, // rlwinm r8,r9,1,31,31
+                0x7C, 0xE8, 0x01, 0x94, // addze  r7,r8
+                0x54, 0xE3, 0x07, 0xFE, // rlwinm r3,r7,0,31,31
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ]
+        );
+        // /O1 keeps the dead `subfc` fresh — r11 is still live for the `eqv` — and
+        // collapses every temp from the `eqv` on, since that is r11's last use.
+        assert_eq!(
+            compare_leaf_text(&cmp, OptMode::O1).unwrap(),
+            vec![
+                0x39, 0x60, 0x00, 0x05, // li     r11,5
+                0x7D, 0x4B, 0x18, 0x10, // subfc  r10,r11,r3
+                0x7D, 0x6B, 0x1A, 0x38, // eqv    r11,r11,r3
+                0x55, 0x6B, 0x0F, 0xFE, // rlwinm r11,r11,1,31,31
+                0x7D, 0x6B, 0x01, 0x94, // addze  r11,r11
+                0x55, 0x63, 0x07, 0xFE, // rlwinm r3,r11,0,31,31
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ]
+        );
+    }
+
+    /// The unsigned `==`/`!=` immediate predicate, which is **not** the carry
+    /// spines'. `a == 4294967295u` (stored as `k = -1`) must refuse: c2
+    /// materializes the constant and subtracts, where the port used to emit
+    /// `addi r11,r3,1` and come out 4 bytes short — in both modes. Meanwhile the
+    /// *signed* `a == -1` and the unsigned *carry* spine at the same literal are
+    /// both fine and must stay accepted.
+    #[test]
+    fn unsigned_eq_above_simm16_refuses_but_its_neighbours_do_not() {
+        let mk = |rel, signed, k| c2_il::CompareLeaf { param: 0xE309, rel, signed, k };
+        for mode in [OptMode::Ox, OptMode::O1] {
+            assert!(compare_leaf_text(&mk(c2_il::Rel::Eq, false, -1), mode).is_err());
+            assert!(compare_leaf_text(&mk(c2_il::Rel::Ne, false, -5), mode).is_err());
+            // signed `== -1` is the ordinary difference spine.
+            assert!(compare_leaf_text(&mk(c2_il::Rel::Eq, true, -1), mode).is_ok());
+            // unsigned `>` rides the literal in the `subfic` immediate.
+            assert!(compare_leaf_text(&mk(c2_il::Rel::Gt, false, -5), mode).is_ok());
+            // and small unsigned literals still take the difference spine.
+            assert!(compare_leaf_text(&mk(c2_il::Rel::Eq, false, 32767), mode).is_ok());
+        }
     }
 
     fn tree4(op1: IlOp, op2: IlOp, root: IlOp) -> IlFunction {
