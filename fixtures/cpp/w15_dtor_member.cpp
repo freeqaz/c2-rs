@@ -49,8 +49,8 @@
 // `5E 02` and two statements, and the reference does *not* emit two branches — it
 // emits a frame, `or r31,r3,r3`, and two `bl`s in **reverse** declaration order,
 // because `this` is live across the first call. That shape is refused twice over
-// (the count, and reaching the segment end) and lives in
-// `refuse/w15_dtor_member_two.cpp`'s territory rather than here.
+// (the count, and reaching the segment end) and is swept as a neighbour in
+// `scripts/expr_sweep.sh` rather than sitting here, where every case must match.
 //
 // The member's destructor is declared and not defined on purpose, for the same
 // reason as `w14`'s bases: c2 may inline a callee it can also see.
