@@ -63,8 +63,18 @@ const PTR_TYPE_PREFIX: [u8; 2] = [0x86, 0x43];
 /// (`30 A6 XX XX XX`) that loads a struct member through the member pointer.
 const CLASS_PTR_PREFIX: u8 = 0xA6;
 
-/// The fixed 6-byte callee-reference tail of a CALL token
-/// (`00 80 01 10 00 00`). Mirrors `func::CALL_CALLEE_ANCHOR`.
+/// The 6 bytes this codec still writes as a CALL token's tail (`00 80 01 10 00 00`).
+///
+/// **Not an anchor, and no longer mirrored anywhere.** `func.rs` used to hardcode
+/// the same constant and now decodes the field properly: the trailing value is a
+/// per-TU function-type id, keyed on the signature, so `0x1001` is merely the first
+/// one a single-callee TU creates. This codec keeps the literal because it has not
+/// been ported to the variable-width reads yet (ROADMAP item 14).
+///
+/// That is safe rather than merely tolerated: the codec is round-trip gated, so a
+/// CALL token whose tail differs simply fails to match here and falls through to an
+/// opaque span that re-encodes byte-for-byte. It costs the IL-mutation search
+/// coverage, never correctness.
 const CALL_CALLEE_ANCHOR: [u8; 6] = [0x00, 0x80, 0x01, 0x10, 0x00, 0x00];
 
 /// The `.ex` per-function start marker (`4F 1F`). Mirrors `func::FN_START`.

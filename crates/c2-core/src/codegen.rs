@@ -1096,15 +1096,6 @@ enum PlanOp {
     LoadImm { k: i32 },
 }
 
-impl Base {
-    /// Resolve to the physical register a *read* of this base uses.
-    fn read_reg(self) -> u8 {
-        match self {
-            Base::Phys(r) => r,
-            Base::Prev => SCRATCH_REG,
-        }
-    }
-}
 
 /// True iff `k` fits PPC's 16-bit signed immediate field (`addi`/`subf` imm).
 fn fits_i16(k: i32) -> bool {
@@ -1231,15 +1222,19 @@ fn try_select_depth2_tree(
 }
 
 pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
+    // Out-of-class, not a pass failure. As `BackendError::Pass` this landed in the
+    // harness's `port-error` bucket while every other refusal in this file landed in
+    // `codegen-gap`, and `differential` coerced it to `NotImplemented` anyway — so
+    // the two instruments classified the same function differently. The parser now
+    // refuses this shape first (`straight_line_is_out_of_class`); this stays as the
+    // backstop.
     if func.params.len() > ARG_REGS.len() {
-        return Err(BackendError::Pass {
-            pass: "codegen".into(),
-            msg: format!(
-                "codegen supports up to {} register args, got {}",
-                ARG_REGS.len(),
-                func.params.len()
-            ),
-        });
+        return Err(out_of_class(&format!(
+            "more than {} register arguments ({}): the rest are stack-homed and need \
+             a frame; out of class",
+            ARG_REGS.len(),
+            func.params.len()
+        )));
     }
 
     // token -> incoming ABI register, by declaration order.

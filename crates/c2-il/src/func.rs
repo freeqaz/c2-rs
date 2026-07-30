@@ -8,7 +8,7 @@
 //! **Acceptance is a positive whole-body parse (W4b2-v).** [`parse_segment`]
 //! tokenizes the entire `.ex` operand stream of a function segment — from the
 //! `4C 4F 11` ('LO') marker to the segment end — and accepts only if the whole
-//! token sequence is exactly one of the four recognized [`BodyShape`]s; the
+//! token sequence is exactly one of the recognized [`BodyShape`]s; the
 //! parse must *reach the end*, so trailing statements, a second call, a
 //! non-trivial call-argument region, or any unmodeled byte fail the function
 //! closed (`None` → the caller reports `NotImplemented`, never a mis-emit).
@@ -175,10 +175,6 @@ pub struct IlFunction {
     /// If this function is a **comparison leaf** (`return a <rel> k;`, W6), the
     /// decoded comparison. Mutually exclusive with the other body kinds.
     pub compare: Option<CompareLeaf>,
-    /// True iff this function's body is **empty** (`void f() {}`): no expression
-    /// at all, so codegen emits a bare `blr`. Mutually exclusive with the other
-    /// body kinds.
-    ///
     /// If this function is a **W13a floating-point leaf**, whether it is double
     /// precision. Mutually exclusive with the other body kinds.
     pub float_leaf: Option<bool>,
@@ -192,8 +188,18 @@ pub struct IlFunction {
     /// The one-argument case keeps using `ops` instead, because it can carry a
     /// computed argument (`g(a + 1)`) that the permutation form cannot express.
     pub arg_sources: Option<Vec<usize>>,
-    /// (These discriminators want to be one enum; that refactor is deferred
-    /// until the CFG step forces a real body IR — see docs/ROADMAP.md §G4.)
+    /// True iff this function's body is **empty** (`void f() {}`): no expression at
+    /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
+    /// kinds.
+    ///
+    /// (These discriminators want to be one enum. [`BodyShape`] already *is* that
+    /// enum — the parser produces it and `functions()` immediately flattens it into
+    /// the parallel options above, which `PortC2::build` then re-derives through two
+    /// separate priority chains. The remaining reason to defer is the CFG step's
+    /// real body IR (docs/ROADMAP.md §G4), but carrying `BodyShape` here does not
+    /// need that design and would remove the second decision tree. This doc block
+    /// was itself misattached to `float_leaf` for a while, which is the kind of
+    /// damage the sum type prevents.)
     pub empty_body: bool,
 }
 
@@ -1055,7 +1061,7 @@ fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
 }
 
 /// **The positive whole-body parser (W4b2-v).** Parse a single `.ex` function
-/// segment as *exactly one* of the three recognized [`BodyShape`]s, tokenizing
+/// segment as *exactly one* of the recognized [`BodyShape`]s, tokenizing
 /// the entire operand stream from the `4C 4F 11` ('LO') marker to the end of the
 /// segment. Acceptance is by a complete positive match — every token is
 /// consumed through a fixed-pattern `eat` or a typed read, and the parse must
@@ -1074,8 +1080,14 @@ fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
 ///   vcall  := 26 tok  CALL  4C 4B  <return void>          LIT :=33 INT varint
 ///   icall  := 26 tok  CALL  expr(→55)  55 INT 4C  postop  <return int>
 ///   postop := ε | 33 INT k 02                             expr:=(LOAD|LIT|02|03|04)+
-///   CALL   := BD <3-byte ret type> 00 80 01 10 00 00      (fixed 10 bytes)
+///   CALL   := BD <ret TYPE> <conv> <varint fn-type-id>    (8-13 bytes, decoded)
 /// ```
+/// The `CALL` line used to read `BD <3-byte ret type> 00 80 01 10 00 00 (fixed 10
+/// bytes)`. That was never an anchor: the trailing value is a per-TU **function-type
+/// id**, keyed on the signature and assigned in declaration order of distinct
+/// function types, so `0x1001` is merely the first one a single-callee fixture TU
+/// happens to create. Every field is self-delimiting and is decoded — see
+/// [`parse_call_shape`].
 /// `<return …>` is the shared plumbing consumed by [`eat_return_plumbing`]
 /// (result-type for int, then assign/return/tail/segment-or-module end). An
 /// `icall` is classified by its `postop`: **absent, or `+ 0`** → an integer
@@ -1616,12 +1628,17 @@ fn substitute(ops: &[IlOp], env: &[(u32, Vec<IlOp>)]) -> Option<Vec<IlOp>> {
 /// So this resolves the statement list by substitution and hands codegen the
 /// resulting straight-line expression, which is exactly what the reference emits.
 ///
-/// The destination must not be a **global**: the IL for a global store is
-/// byte-identical to a local one (`26 <tok> expr 32 <TYPE> 4B` either way — only
-/// the token differs), but a global store is a real memory write, and treating it
-/// as a register copy would be a silent mis-emit rather than a refusal. Globals are
-/// exactly the tokens that carry a name in `.gl`, which is why this needs the
-/// symbol index.
+/// The destination must be a **formal**, established positively from the `2D` list.
+///
+/// An earlier version asked whether `.gl` named the destination and refused if so.
+/// That looked sound and was not: a file-scope `static int sv` appears there as
+/// `$sv`, whose leading `$` `gl_symbol_index` does not accept as an identifier, so
+/// the token looked local and the store was silently dropped. Absence from a symbol
+/// table proves nothing — it only says the table did not happen to name it.
+///
+/// Locals are consequently out of class: `.ex` uses the same `26 <tok>` push for
+/// parameter, local and global alike, so admitting them needs a positive local
+/// signal that does not exist yet.
 fn try_parse_assign_body_detail(
     seg: &[u8],
     start: usize,
@@ -2918,10 +2935,15 @@ impl IlBundle {
         // externals), so pairing there would attach wrong names to functions —
         // report none rather than a plausible-looking lie.
         let paired = names.len() == segs.len();
-        // The assignment class needs to know which destination tokens are globals
-        // (a global store is a memory write, a local store is a register copy, and
-        // the IL is identical), so the census runs against the same symbol index
-        // the emitter does — otherwise the two could disagree about a body.
+        // The symbol index is threaded into the parse but is no longer consulted:
+        // the assignment class used to decide "is this destination a global?" by
+        // asking whether `.gl` named it, and that was wrong (a file-scope `static`
+        // is `$sv`, which the index does not accept as an identifier), so the
+        // destination is now established positively from the formals list instead.
+        //
+        // It is kept threaded because modelling locals will need a symbol view again
+        // and the plumbing is the awkward part. If that does not land, drop the
+        // parameter — do not restore the absence test.
         let globals = gl_symbol_index(gl);
         Some(
             segs.iter()
