@@ -6,13 +6,16 @@ use self::chain::{
     additive_chain_canonical, canonicalize_chain, has_repeated_leaf, leaves_ascending,
     straight_line_is_out_of_class,
 };
-use self::expr::{eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr, BODY_SCOPE_DEPTH};
+use self::expr::{
+    eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr, parse_formals, BODY_SCOPE_DEPTH,
+};
 use self::shapes::parse_params;
 use self::shapes::{
     parse_call_shape, try_parse_assign_body_detail, try_parse_compare, try_parse_float_leaf,
     try_parse_indirect_load_leaf,
 };
 use super::readers::{eat_byte, find_subslice, read_token_var};
+use super::sy::SyView;
 use super::{CompareLeaf, IlOp};
 
 /// One recognized whole-body shape of a single `.ex` function segment. Every
@@ -238,20 +241,51 @@ pub(crate) fn blk_type(seg: &[u8], p: usize, report_at: usize, ctx: &'static str
 /// `+ k` over a *computed* argument (`g(a+1)+1`), or a `* k`/`- k`/wide `k`/a
 /// second literal/a second call, all reject. The `callee` name is not in `.ex`;
 /// the caller pairs it from `.gl`.
-pub(crate) fn parse_segment(seg: &[u8], locals: &[u32]) -> Option<BodyShape> {
-    parse_segment_detail(seg, locals).ok()
+pub(crate) fn parse_segment(seg: &[u8], sy: SyView) -> Option<BodyShape> {
+    parse_segment_detail(seg, sy).ok()
 }
 
 /// [`parse_segment`] with the fail-closed *reason* preserved (P2b census).
 /// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
 /// can never disagree with the gate about what is in class.
-pub(crate) fn parse_segment_detail(seg: &[u8], locals: &[u32]) -> Result<BodyShape, Block> {
+pub(crate) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or(Block {
         ctx: "lo-marker",
         byte: None,
         off: 0,
         aux: 0,
     })?;
+
+    // Every shape below maps a formal token to an argument register by its
+    // **position** in the formals list. That is only the same thing as its
+    // register number while each parameter occupies exactly one register, and a
+    // by-value aggregate wider than 8 bytes does not: it shifts every later
+    // parameter along. So the precondition is established once, here, for all of
+    // them, rather than re-derived per shape.
+    //
+    // This is the fourth instance of the pattern in GAPS §6 — two facts sharing
+    // one field, indistinguishable across the whole corpus because every fixture
+    // parameter was a scalar. It emitted `lwz r3,0(r4)` for `lwz r3,0(r6)` in
+    // `int gb(Big v, H* h) { return h->mi; }`, in class, on mainline, with all
+    // four mode lanes and the 2,885-case sweep green.
+    //
+    // `.sy` is the only layer that carries a parameter's width (`.ex`'s formals
+    // region is tokens alone), so a segment whose `.sy` block did not bind has
+    // *undetermined* widths and refuses — it does not fall back to assuming one
+    // register each, which is precisely the assumption that was wrong.
+    // Only asserted when there *is* a formals list to assert it about. A segment
+    // whose formals region does not parse cannot reach any shape that maps a
+    // formal to a register — every one of those re-reads the same list through the
+    // one anchor ([`formals_marker`]) and refuses there — so this gate declines to
+    // restate a refusal it does not own, and the census keeps reporting the real
+    // blocker instead of `formals-marker` for every such body.
+    if let Ok(formals) = parse_formals(seg, lo) {
+        if let Err(ctx) = sy.formals_are_one_register_each(&formals) {
+            return Err(Block { ctx, byte: None, off: lo, aux: 0 });
+        }
+    }
+
+    let locals = sy.locals;
     let mut p = lo + 3;
     // 'SS' statement-start — the body's own lexical scope — then any further brace
     // scopes and line markers. A body wrapped in braces used to refuse here as

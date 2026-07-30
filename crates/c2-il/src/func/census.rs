@@ -98,7 +98,7 @@ impl IlBundle {
             segs.iter()
                 .enumerate()
                 .map(|(i, seg)| {
-                    let verdict = match parse_segment_detail(seg, locals.of(i)) {
+                    let verdict = match parse_segment_detail(seg, locals.view(i)) {
                         Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                         Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),

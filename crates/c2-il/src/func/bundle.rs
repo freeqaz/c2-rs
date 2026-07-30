@@ -278,7 +278,7 @@ impl IlBundle {
 
         let mut funcs = Vec::with_capacity(n_defined);
         for (i, (name, seg)) in names.iter().take(n_defined).zip(segs).enumerate() {
-            match parse_segment(seg, locals.of(i))? {
+            match parse_segment(seg, locals.view(i))? {
                 // An indirect-load leaf reaches the ordinary integer selector,
                 // which pattern-matches its exact two-op stream; `params` carries
                 // a member function's `this` at index 0 so the base register comes

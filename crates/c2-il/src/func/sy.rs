@@ -114,21 +114,143 @@ impl SyLocals {
         SyLocals { blocks }
     }
 
-    /// The admissible local tokens of the `i`-th function segment, or nothing.
-    pub(crate) fn of(&self, i: usize) -> &[u32] {
+    /// Everything the `.sy` layer contributes about the `i`-th function segment.
+    ///
+    /// `formals: None` means **undetermined**, and a body whose formals matter
+    /// must refuse — never "no formals" and never "assume one register each".
+    pub(crate) fn view(&self, i: usize) -> SyView<'_> {
         match &self.blocks {
-            Some(b) => b.get(i).map(|b| b.int_locals.as_slice()).unwrap_or(&[]),
-            None => &[],
+            Some(b) => match b.get(i) {
+                Some(blk) => SyView {
+                    locals: &blk.int_locals,
+                    formals: Formals::Declared(&blk.formals),
+                },
+                None => SyView::UNKNOWN,
+            },
+            None => SyView::UNKNOWN,
         }
     }
+}
+
+/// What one function segment's `.sy` block says, as the body parser needs it.
+///
+/// Two facts travel together because a body needs both and neither has a safe
+/// default: the locals it may fold, and the **widths of its formals**. A `.sy`
+/// that did not bind supplies neither.
+#[derive(Clone, Copy)]
+pub(crate) struct SyView<'a> {
+    pub(crate) locals: &'a [u32],
+    pub(crate) formals: Formals<'a>,
+}
+
+/// What is known about a segment's formal-parameter widths. Three states, because
+/// "not declared" and "declared as scalars" are different facts and collapsing
+/// them into a bool is how the register-vs-index confusion got in.
+#[derive(Clone, Copy)]
+pub(crate) enum Formals<'a> {
+    /// No `.sy` block bound to this segment: the widths are **unknown**, and a
+    /// body that needs them must refuse.
+    Undetermined,
+    /// Declared by `.sy`, with each formal's byte size.
+    Declared(&'a [SyFormal]),
+    /// **Unit tests only.** A synthetic pinned segment whose parameters are all
+    /// scalars by construction — the fixture author wrote the bytes, so the fact
+    /// is known without a `.sy` companion to state it. Cannot exist in a release
+    /// build, so no production path can reach the assumption it encodes.
+    #[cfg(test)]
+    AllOneRegisterByConstruction,
+}
+
+impl SyView<'_> {
+    /// No `.sy` binding: no locals, and formal widths undetermined.
+    pub(crate) const UNKNOWN: SyView<'static> =
+        SyView { locals: &[], formals: Formals::Undetermined };
+
+    /// The largest parameter width that provably occupies exactly one GPR.
+    ///
+    /// MEASURED with a size ladder (`fixtures/cpp/il_param_aggr_neg.cpp`): a
+    /// by-value struct of 1 or 2 `int`s (4 and 8 bytes) leaves the next parameter
+    /// in the next register, while 3, 4 and 5 `int`s (12, 16, 20 bytes) each push
+    /// it further along. Floating-point scalars reserve exactly one GPR apiece
+    /// and are also fine (`float`, two `float`s and three `double`s all match).
+    ///
+    /// The multi-register rule itself is **not** implemented — `ceil(size/8)`
+    /// fits the five points measured, and that is exactly why it is not trusted:
+    /// a rule inferred from five points and applied to a 2.4-million-function
+    /// corpus is a guess, and a wrong guess here emits a wrong base register
+    /// rather than refusing. Anything wider refuses instead.
+    const ONE_GPR_MAX: u16 = 8;
+
+    /// Whether every one of `formals` (tokens from `.ex`, in any order) is
+    /// declared by `.sy` at a width that occupies exactly one argument register.
+    ///
+    /// This is the precondition that makes a formal's **index** equal its
+    /// **argument-register number**, which every shape in `super::body` relies on
+    /// when it does `params.iter().position(...)`.
+    ///
+    /// Both failures refuse, and neither is more admissible than the other, but
+    /// they are returned as *different* census keys because they are different
+    /// facts and rank differently: `param-width-undetermined` is a gap in this
+    /// reader (a `.sy` record it cannot parse, so the whole file's binding is
+    /// withheld), while `param-multi-reg` is a construct the port genuinely does
+    /// not lower. Collapsing them into one bucket would put a reader bug and a
+    /// missing feature under one name and rank the pair by their sum — the
+    /// conflation `docs/GAPS.md` §6 records as a measurement failure in its own
+    /// right.
+    pub(crate) fn formals_are_one_register_each(&self, formals: &[u32]) -> Result<(), &'static str> {
+        // Zero or one explicit formal needs no `.sy` at all, and saying so is not
+        // a shortcut but the same proof stated where it is cheap: displacement is
+        // caused by a parameter *preceding* another one, so a lone parameter is
+        // always in the register its index names. `this`, when present, precedes
+        // it and is a pointer — exactly one GPR, whatever it points at. This case
+        // is worth keeping separate because the shapes admitted so far are
+        // getters and identities, which take no argument or one.
+        if formals.len() <= 1 {
+            return Ok(());
+        }
+        let declared = match self.formals {
+            Formals::Declared(d) => d,
+            Formals::Undetermined => return Err("param-width-undetermined"),
+            #[cfg(test)]
+            Formals::AllOneRegisterByConstruction => return Ok(()),
+        };
+        for tok in formals {
+            match declared.iter().find(|f| f.tok == *tok) {
+                // `.sy` bound for this file, yet does not declare this formal:
+                // the two layers disagree about what the parameters are, which is
+                // a fact missing rather than a construct refused.
+                None => return Err("param-width-undetermined"),
+                Some(f) if f.size == 0 || f.size > Self::ONE_GPR_MAX => {
+                    return Err("param-multi-reg")
+                }
+                Some(_) => {}
+            }
+        }
+        Ok(())
+    }
+}
+
+/// One formal parameter, as `.sy` declares it: its token and its **byte size**.
+///
+/// The size is the whole reason this layer is consulted for formals at all. A
+/// parameter's argument-*register* number is not its declaration *index*: a
+/// by-value aggregate wider than 8 bytes occupies more than one GPR and shifts
+/// every later parameter up. `.ex`'s formals region (`46 (2D <tok>)*`) carries
+/// tokens and no types, so the width has to come from here or from nowhere —
+/// and "nowhere" is what produced the mis-emit
+/// `fixtures/cpp/il_param_aggr_neg.cpp` pins.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SyFormal {
+    pub(crate) tok: u32,
+    pub(crate) size: u16,
 }
 
 /// The tokens one `.sy` function block declares, split by what codegen may do
 /// with them.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct SyBlock {
-    /// Formal-parameter tokens, unordered.
-    pub(crate) formals: Vec<u32>,
+    /// Formal parameters with their widths, unordered.
+    pub(crate) formals: Vec<SyFormal>,
     /// Automatic locals of plain (unqualified) `int` type whose address is never
     /// taken — the only ones a value-substituting parse may treat as a named
     /// intermediate. Every other local is deliberately absent from this list.
@@ -248,10 +370,13 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
                 p = next;
                 match rec {
                     // A formal is recorded whatever its type: `parse_formals`
-                    // already establishes those from `.ex`, and this list only
-                    // cross-checks. Only locals gate on the type.
-                    Some(tok) if depth == DEPTH_FORMALS => block.formals.push(tok),
-                    Some(tok) => block.int_locals.push(tok),
+                    // already establishes *which* tokens are formals from `.ex`.
+                    // What only this layer knows is each one's **width**, which
+                    // decides how many argument registers it occupies — see
+                    // [`SyFormal`]. So the type is not gated on here, but the
+                    // size is carried out.
+                    Some(f) if depth == DEPTH_FORMALS => block.formals.push(f),
+                    Some(f) => block.int_locals.push(f.tok),
                     None => {}
                 }
             }
@@ -275,7 +400,7 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
 /// The distinction matters more than it looks: a record this reader cannot step
 /// over exactly would desync and rebind every later token, so the two outcomes are
 /// "admitted" and "located but refused", never "skipped by scanning".
-fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<u32>, usize)> {
+fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usize)> {
     let mut p = at;
     let tag = *sy.get(p)?;
     p += 1;
@@ -359,6 +484,42 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<u32>, usize)> 
     let size = u16::from_le_bytes([*sy.get(p + 5)?, *sy.get(p + 6)?]);
     let flags = u16::from_le_bytes([*sy.get(p + 7)?, *sy.get(p + 8)?]);
     p += 9;
+    // An **aggregate** carries one extra 2-byte field between the flags and the
+    // type id. Reading it is not about admitting aggregates — a struct local is
+    // refused below either way — but about the *size* of a struct **parameter**,
+    // which decides how many argument registers it takes ([`SyFormal`]). Without
+    // this, one aggregate parameter anywhere in a translation unit desyncs the
+    // record and withholds the whole file's binding, taking every other
+    // function's formal widths and locals with it.
+    //
+    // Two channels have to agree that this is an aggregate before the extra field
+    // is consumed: the kind's class nibble is 6 (`06` a struct or class, `16` a
+    // union — both class 6, matching the `.ex` convention in `readers::read_type`)
+    // *and* flags bit 7 is set. They co-occur at every witness; requiring both
+    // means a stream where they disagree fails the file closed instead of being
+    // stepped over by whichever one this reader happened to trust.
+    //
+    // The field's VALUE is `80 00` at all eight witnesses (five struct parameters
+    // 4–20 B, a 12-byte class, a union, and a struct local whose flags differ in
+    // the referenced bit — so the flags and this field are separately observed,
+    // not one field read twice). Its MEANING is unknown, so it is required
+    // literally: this module's own rule is that a field which never varies is
+    // indistinguishable from a constant, and the honest encoding of that is to
+    // refuse anything else rather than to skip two bytes by width.
+    //
+    // NOT covered, and refused by the `00` check above rather than guessed at: a
+    // **polymorphic** class parameter, whose record opens `C6 81 03 …` — a
+    // three-byte type prefix on the `0x40` tag bit that `readers.rs` records as
+    // occurring and undetermined. One witness pair (`struct V { virtual void f();
+    // int a; }` and a derived class) is not enough to decode a new prefix form.
+    const AGGREGATE_CLASS: u8 = 0x6;
+    const AGGREGATE_FLAG: u16 = 0x0080;
+    if kind & 0x0F == AGGREGATE_CLASS && flags & AGGREGATE_FLAG != 0 {
+        if sy.get(p..p + 2)? != [0x80, 0x00] {
+            return None;
+        }
+        p += 2;
+    }
     let (tid, tw) = read_tid(sy, p)?;
     p += tw;
     // An array's element size trails the type region.
@@ -377,7 +538,7 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<u32>, usize)> 
         return None;
     }
     if depth == DEPTH_FORMALS {
-        return Some((Some(tok), p));
+        return Some((Some(SyFormal { tok, size }), p));
     }
     // `const` and `volatile` do not change `<kind>`; they move `<tid>` into the
     // constructed-type range, which is why the id is checked and not just the
@@ -388,7 +549,7 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<u32>, usize)> 
         && size == SIZEOF_INT
         && tid == TID_INT
         && (flags == FLAGS_REFERENCED || flags == FLAGS_NONE);
-    Some((admissible.then_some(tok), p))
+    Some((admissible.then_some(SyFormal { tok, size }), p))
 }
 
 /// A `.ex` type-table id: one byte below `0x80`, or `80` and a 32-bit
@@ -410,6 +571,12 @@ fn read_tid(sy: &[u8], at: usize) -> Option<(u32, usize)> {
 
 #[cfg(test)]
 mod tests {
+    /// The tokens of a formals list, for the assertions that predate `.sy`
+    /// carrying widths. A test that cares about the width says so explicitly.
+    fn formal_toks(f: &[SyFormal]) -> Vec<u32> {
+        f.iter().map(|f| f.tok).collect()
+    }
+
     use super::*;
 
     /// `int f(int a) { int x = a + 1; int y = x + 2; return y; }`, transcribed
@@ -504,7 +671,7 @@ mod tests {
     fn a_formal_and_two_int_locals_are_told_apart() {
         let b = sy_blocks(LOC2).expect("measured capture must parse");
         assert_eq!(b.len(), 1);
-        assert_eq!(b[0].formals, vec![0xe309]);
+        assert_eq!(formal_toks(&b[0].formals), vec![0xe309]);
         // Unordered by contract, but pin the file order so a reordering shows up.
         assert_eq!(b[0].int_locals, vec![0xe709, 0xe609]);
     }
@@ -521,7 +688,7 @@ mod tests {
     #[test]
     fn a_brace_scoped_local_is_admitted_at_depth_three() {
         let b = sy_blocks(NESTED).unwrap();
-        assert_eq!(b[0].formals, vec![0xe309]);
+        assert_eq!(formal_toks(&b[0].formals), vec![0xe309]);
         assert_eq!(b[0].int_locals, vec![0xe609, 0xe709]);
     }
 
@@ -531,21 +698,21 @@ mod tests {
     fn labels_before_a_block_are_stepped_over() {
         let b = sy_blocks(LOOPED).unwrap();
         assert_eq!(b.len(), 1);
-        assert_eq!(b[0].formals, vec![0xe809]);
+        assert_eq!(formal_toks(&b[0].formals), vec![0xe809]);
         assert_eq!(b[0].int_locals, vec![0xeb09, 0xec09]);
     }
 
     #[test]
     fn an_array_local_is_located_and_refused() {
         let b = sy_blocks(ARRAY).unwrap();
-        assert_eq!(b[0].formals, vec![0xf009]);
+        assert_eq!(formal_toks(&b[0].formals), vec![0xf009]);
         assert!(b[0].int_locals.is_empty());
     }
 
     #[test]
     fn a_function_scope_static_is_located_and_refused() {
         let b = sy_blocks(STATIC).unwrap();
-        assert_eq!(b[0].formals, vec![0xf409]);
+        assert_eq!(formal_toks(&b[0].formals), vec![0xf409]);
         assert!(b[0].int_locals.is_empty());
     }
 
@@ -575,7 +742,7 @@ mod tests {
         ]);
         v.extend_from_slice(&[SECTION, 0x04, SECTION, 0x05, SECTION, 0x06, BLOCK_CLOSE]);
         let b = sy_blocks(&v).expect("Primes.cpp must parse");
-        assert_eq!(b[0].formals, vec![0xe609]);
+        assert_eq!(formal_toks(&b[0].formals), vec![0xe609]);
         assert_eq!(b[0].int_locals, vec![0xeb09]);
     }
 
@@ -721,8 +888,95 @@ mod tests {
             0x01, 0x00, 0x13,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![0xcd0c]);
+        assert_eq!(formal_toks(&b[0].formals), vec![0xcd0c]);
         assert!(b[0].int_locals.is_empty());
+    }
+
+    /// An **aggregate** parameter carries one extra 2-byte field between the flags
+    /// and the type id. Verbatim capture of `int a1(A1 v, H* h)`'s `v`, a 4-byte
+    /// struct (`fixtures/cpp/il_param_aggr.cpp`): kind `06`, size `04 00`, flags
+    /// `80 00`, then `80 00`, then the wide id `0x1006`.
+    ///
+    /// Without this the record desyncs by two bytes, `sy_blocks` refuses the whole
+    /// file, and every *other* function's formal widths go undetermined with it —
+    /// which is what refused the 4- and 8-byte cases that c2 emits correctly.
+    #[test]
+    fn an_aggregate_formal_carries_one_extra_field_before_its_id() {
+        let rec = &[
+            0x01, 0x01, 0x27, 0x0a, 0x00, b'v', 0x00, 0x86, 0x06, 0x00, 0x03, 0x04, 0x04, 0x00,
+            0x80, 0x00, 0x80, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x270a, size: 4 }]);
+    }
+
+    /// A **union** parameter is kind `16`, not `06`: the aggregate discriminator is
+    /// the kind's low nibble (class 6), exactly as in `readers::read_type`, and a
+    /// reader testing the whole byte drops every union. Verbatim from
+    /// `union U { int i; float f; }` passed by value.
+    #[test]
+    fn a_union_formal_is_an_aggregate_by_its_class_nibble() {
+        let rec = &[
+            0x01, 0x01, 0x21, 0x0a, 0x00, b'u', 0x00, 0x86, 0x16, 0x00, 0x03, 0x04, 0x04, 0x00,
+            0x80, 0x00, 0x80, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x210a, size: 4 }]);
+    }
+
+    /// The size is a real field, not a constant: the 20-byte struct that produced
+    /// the original mis-emit reads `14 00`. It is *parsed* here and refused later,
+    /// by the register gate rather than by this reader — locating a record and
+    /// declining to admit it are different things.
+    #[test]
+    fn a_twenty_byte_aggregate_formal_reports_its_width() {
+        let rec = &[
+            0x01, 0x01, 0x37, 0x0a, 0x00, b'v', 0x00, 0x86, 0x06, 0x00, 0x03, 0x04, 0x14, 0x00,
+            0x80, 0x00, 0x80, 0x00, 0x80, 0x12, 0x10, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x370a, size: 20 }]);
+    }
+
+    /// The extra field's value is `80 00` at every witness and its meaning is
+    /// unknown, so anything else fails the file closed rather than being stepped
+    /// over by width. Same record as above with one byte changed.
+    #[test]
+    fn an_aggregate_extra_field_that_is_not_80_00_refuses() {
+        let rec = &[
+            0x01, 0x01, 0x27, 0x0a, 0x00, b'v', 0x00, 0x86, 0x06, 0x00, 0x03, 0x04, 0x04, 0x00,
+            0x80, 0x00, 0x81, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00,
+        ];
+        assert_eq!(sy_blocks(&block_with(DEPTH_FORMALS, rec)), None);
+    }
+
+    /// A **polymorphic** class parameter opens `C6 81 03 …`, a three-byte type
+    /// prefix on the undetermined `0x40` tag bit. One witness pair cannot decode a
+    /// new prefix form, so the record refuses and the file's widths go
+    /// undetermined — reported as `param-width-undetermined`, never as
+    /// `param-multi-reg`. Verbatim from `struct V { virtual void f(); int a; }`
+    /// passed by value (`fixtures/cpp/il_param_poly_neg.cpp`).
+    #[test]
+    fn a_polymorphic_class_formal_is_undecoded_and_refuses() {
+        let rec = &[
+            0x01, 0x01, 0x29, 0x0a, 0x00, b'v', 0x00, 0xc6, 0x81, 0x03, 0x00, 0x03, 0x04, 0x04,
+            0x08, 0x00, 0x00, 0x80, 0x1a, 0x10, 0x00, 0x00,
+        ];
+        assert_eq!(sy_blocks(&block_with(DEPTH_FORMALS, rec)), None);
+    }
+
+    /// An aggregate **local** has the same extra field, and its flags differ from a
+    /// parameter's in the referenced bit (`81 00` against `80 00`) — which is how
+    /// the flags and the extra field are known to be two fields rather than one
+    /// read twice. Still not an admissible local: only plain `int` is.
+    #[test]
+    fn an_aggregate_local_parses_and_is_still_not_an_admissible_local() {
+        let rec = &[
+            0x01, 0x02, 0x41, 0x0a, 0x00, b'l', b'o', b'c', 0x00, 0x86, 0x06, 0x00, 0x01, 0x04,
+            0x0c, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x30, 0x10, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(2, rec)).expect("real capture must parse");
+        assert!(b[0].int_locals.is_empty(), "a struct local may not be folded");
     }
 
     /// The byte between token and name is `26` on a compiler-generated formal, so
@@ -733,20 +987,66 @@ mod tests {
         rec.extend_from_slice(b"__flags\x00");
         rec.extend_from_slice(&[0x86, 0x02, 0x00, 0x03, 0x04, 0x04, 0x00, 0x01, 0x00, 0x75]);
         let b = sy_blocks(&block_with(DEPTH_FORMALS, &rec)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![0xf915]);
+        assert_eq!(formal_toks(&b[0].formals), vec![0xf915]);
     }
 
-    /// An aggregate inserts `80 00` ahead of the type id — and `80 00 10 00 00` is
-    /// also exactly how a wide id encodes `volatile int`, so the two cannot be told
-    /// apart without knowing the kind. The file is refused rather than read on a
-    /// guess; this is the measured limit of the reader. Verbatim from a real TU.
+    /// An aggregate inserts `80 00` ahead of the type id, and `80 00 10 00 00` is
+    /// also exactly how a wide id encodes `volatile int` — so the two are
+    /// indistinguishable **to a reader that ignores the kind**. They are not
+    /// indistinguishable in the stream: the kind's class nibble is 6 on the
+    /// aggregate and 1 on the `volatile int`, and that byte precedes both.
+    ///
+    /// This record is the same verbatim capture that used to refuse the whole file,
+    /// under a doc comment calling the ambiguity "the measured limit of the reader".
+    /// It was a limit of the reader and not of the format, and it was expensive: one
+    /// aggregate anywhere in a translation unit withheld the binding for all of it,
+    /// so no function in that file could establish a formal's width — which is what
+    /// refused the 4- and 8-byte struct parameters c2 emits correctly.
+    ///
+    /// Kept as a *local* rather than restated as a formal, because the point is that
+    /// parsing the record and admitting the variable are different decisions: this
+    /// one parses and is still not foldable.
     #[test]
-    fn an_aggregate_typed_local_refuses_the_file() {
+    fn an_aggregate_typed_local_parses_once_the_kind_disambiguates_it() {
         let rec = &[
             0x01, 0x02, 0x77, 0x28, 0x00, b'v', b'p', 0x00, 0x86, 0x16, 0x00, 0x01, 0x04, 0x04,
             0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x97, 0x13, 0x00, 0x00,
         ];
-        assert_eq!(sy_blocks(&block_with(0x02, rec)), None);
+        let b = sy_blocks(&block_with(0x02, rec)).expect("the kind byte tells the two apart");
+        assert!(b[0].int_locals.is_empty(), "a union local may not be folded");
+    }
+
+    /// The neighbour that makes the *two-channel* requirement load-bearing rather
+    /// than merely careful: an **array** local is also kind class 6, but its flags
+    /// do NOT carry bit 7 and it has **no** extra field — its `80 00 10 00 00` is a
+    /// genuine wide id of `0x1000`. A reader keyed on the kind alone would eat two
+    /// bytes of that id and desync every record after it.
+    ///
+    /// So flags bit 7 is what separates a by-value aggregate from an array, and both
+    /// facts are required before the extra field is consumed. Verbatim from
+    /// `docs/IL_SY_LOCALS.md` §3.6's `int x[4]` row, element size `04` trailing.
+    #[test]
+    fn an_array_local_is_class_six_with_no_extra_field() {
+        let rec = &[
+            0x02, 0x02, 0x77, 0x28, 0x00, b'x', 0x00, 0x86, 0x06, 0x00, 0x01, 0x04, 0x10, 0x00,
+            0x01, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x04,
+        ];
+        let b = sy_blocks(&block_with(0x02, rec)).expect("an array record must parse");
+        assert!(b[0].int_locals.is_empty(), "an array local may not be folded");
+    }
+
+    /// The neighbour that made the old ambiguity look real: a `volatile int` local,
+    /// whose id genuinely is `80 00 10 00 00` with **no** extra field. Its class
+    /// nibble is 1, so no extra field is consumed — and it is refused as a local on
+    /// its id, which is the pre-existing rule and must not have moved.
+    #[test]
+    fn a_volatile_int_local_has_no_extra_field_and_is_still_refused() {
+        let rec = &[
+            0x01, 0x02, 0x77, 0x28, 0x00, b'v', 0x00, 0x86, 0x01, 0x00, 0x01, 0x04, 0x04, 0x00,
+            0x01, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(0x02, rec)).expect("a volatile int record must parse");
+        assert!(b[0].int_locals.is_empty(), "a volatile int local may not be folded");
     }
 
     /// `.sy` carries inter-block record kinds beyond the block header and the label

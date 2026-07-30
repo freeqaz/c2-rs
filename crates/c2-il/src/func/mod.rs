@@ -258,10 +258,20 @@ pub struct IlFunction {
 /// wrong-bytes emit lived, see `expr::formals_marker` — was in no fixture at all.
 #[cfg(test)]
 pub(crate) mod test_fixtures {
+    use super::sy::{Formals, SyView};
+
     /// These pinned segments are synthetic and have no `.sy` companion, so an
     /// empty local set is the honest input: nothing here is a local the parse may
     /// fold into the expression that reads it.
-    pub(crate) const NO_LOCALS: &[u32] = &[];
+    ///
+    /// Their formals, on the other hand, are all scalars *by construction* — the
+    /// bytes are written here in this file — so the widths are stated rather than
+    /// left undetermined. Undetermined would refuse every multi-parameter pinned
+    /// body on `param-multi-reg` and the grammar tests would grade nothing;
+    /// [`Formals::AllOneRegisterByConstruction`] is test-only and cannot appear in
+    /// a release build.
+    pub(crate) const NO_LOCALS: SyView<'static> =
+        SyView { locals: &[], formals: Formals::AllOneRegisterByConstruction };
 
     /// Prefix a pinned body with the `53 53 26 <fn>` statement start a real segment
     /// carries, when it does not already have one.
