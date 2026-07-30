@@ -186,6 +186,16 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
             if !looks_mangled(&runs[k].2) {
                 return (Vec::new(), Vec::new());
             }
+            // …and a record whose *linkage* the port cannot emit refuses it too.
+            // `__declspec(dllexport)` makes c2 splice `/EXPORT:<name>` into
+            // `.drectve`, which the port emits as a constant, so the section grows
+            // and every later offset shifts: `Port=Mismatch @ offset 8`
+            // (`PointerToSymbolTable`), the same failure shape as the
+            // `#pragma comment(lib, …)` case [`drectve_is_boilerplate`] already
+            // refuses. It was a live wrong-bytes emit on a one-line getter.
+            if linkage_needs_a_directive(gl, runs[k].1) {
+                return (Vec::new(), Vec::new());
+            }
             claimed[k] = true;
             bound.push((off, runs[k].2.clone()));
             p += 5;
@@ -202,6 +212,48 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
         .map(|((_, _, n), _)| n.clone())
         .collect();
     (bound, unclaimed)
+}
+
+/// Whether the record whose name ends at `name_nul` declares a linkage the port's
+/// **constant `.drectve`** cannot represent — today, `__declspec(dllexport)`.
+///
+/// MEASURED. A defined function's `.gl` record continues, immediately after its
+/// name's NUL, with a **two-byte** `<tag> <kind>` return type, then a linkage byte,
+/// then the return type's size. The two-byte width held across fourteen return
+/// types, including the ones most likely to widen it — a 20-byte aggregate
+/// (`86 06 05 14`), a reference (`86 03 05 04`), an enum, a class, and a function
+/// pointer (`86 04 05 04`) — so the linkage byte is at a fixed `name_nul + 3` and
+/// not behind a variable-width field, which is what an earlier reading of a single
+/// `int`-returning probe had assumed.
+///
+/// ```text
+/// ?de@@YAHPAUH@@@Z\0  86 01 09 04 …   __declspec(dllexport)   bit 0x08 SET
+/// ?glob@@YAHPAUH@@@Z\0 86 01 05 04 …  external                05
+/// ?stat_fn@@YAHPAUH@@@Z\0 86 01 03 04 … internal (`static`)   03
+/// ```
+///
+/// **The gate is a known-bad bit test, not a known-good allowlist, and that is a
+/// deliberate weakening.** Over the same byte in every `?`-mangled run of six real
+/// translation units the values are `{0, 3, 4, 5, 6}` — but those runs include
+/// externals, callees and vtable symbols, not only the framed-offset records this
+/// function binds, and the *defined-record* value set could not be separated from
+/// them without replicating this function's own framing. Requiring `{03, 05}` might
+/// therefore refuse a real defined function carrying a fourth value and regress a
+/// translation unit that matches today. Refusing on bit `0x08` cannot: it turns one
+/// measured mis-emit into a refusal and leaves every unmeasured value exactly where
+/// it was.
+///
+/// The cost of that choice, stated so it is not mistaken for completeness: a linkage
+/// that needs some *other* directive, and does not set this bit, still mis-emits.
+/// Closing that needs the value set for defined records measured properly.
+///
+/// One witness for the bit (`05` -> `09`), so reading `0x08` as "export" rather than
+/// as the literal value `09` is an inference — it is taken because the direction of
+/// error is over-refusal.
+fn linkage_needs_a_directive(gl: &[u8], name_nul: usize) -> bool {
+    /// `05` external becomes `09` under `__declspec(dllexport)`.
+    const LINKAGE_EXPORT: u8 = 0x08;
+    gl.get(name_nul + 3).is_some_and(|b| b & LINKAGE_EXPORT != 0)
 }
 
 /// True iff `.gl`'s linker-directive list is exactly the single-entry boilerplate
