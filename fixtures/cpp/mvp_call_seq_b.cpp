@@ -60,6 +60,17 @@ void multi_swap(int a, int b) { v0(); g2(b, a); }
 void multi_id(int a, int b) { v0(); g2(a, b); }
 void multi_then_more(int a, int b) { v0(); g2(b, a); v1(a); }
 
+// --- the first call marshalling its OWN argument beside the saves ---------
+// A save whose source register the marshalling overwrites is hoisted in front of
+// it; one whose source it leaves alone trails it. `hoist_r3` is the first half
+// (`mr r31,r3 ; mr r3,r4 ; bl ?v1`) and `hoist_split` has both halves at once.
+void hoist_r3(int a, int b) { v1(b); v2(a); }
+void hoist_split(int a, int b, int c) { v1(b); v2(a); v3(c); }
+void lit_first(int a, int b) { v1(7); v2(a); v3(b); }
+// The IDENTITY permutation is not marshalling — it writes nothing, so both saves
+// trail it.
+void id_perm(int a, int b, int c) { g2(a, b); v1(a); v2(c); }
+
 // --- literals and tails beside the saves ----------------------------------
 void lit_between(int a, int b) { v1(a); v2(5); v3(b); }
 int tail_lit(int a, int b) { v1(a); v2(b); return 7; }

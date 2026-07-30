@@ -3112,17 +3112,44 @@ fn plan_saved_gprs(params: &[u32], calls: &[SeqCall], p: usize) -> Result<Vec<us
         return Err(Block { ctx: "callseq-three-plus-saved", byte: None, off: p, aux: 0 });
     }
 
-    // The first call must need no argument marshalling — see the doc comment.
-    // "No marshalling" is exactly: no arguments, the identity permutation, or the
-    // single argument that is already the formal in r3.
+    // The first call may marshal its own arguments beside the saves — the
+    // interleaving is measured (see the doc comment) — but only where the
+    // emitter can say exactly which registers that marshalling **writes**, since
+    // that is what decides hoisted from trailing. A permutation's write set falls
+    // out of the same cycle decomposition that produces its bytes, and a single
+    // passthrough or literal argument writes r3 or nothing. A **computed**
+    // argument does not qualify: under `/Ox` a chain intermediate goes to a fresh
+    // *descending* register, which is the very file the saves live in, so the
+    // write set is not `{r3}` and the interleaving is not the measured one.
+    //
+    // **A non-identity PERMUTATION at the first call is a different lowering and
+    // was a live mis-emit until it was probed.** When a permuted argument's value
+    // is also one of the callee-saved ones, c2 does not break the cycle with r11
+    // at all — it uses the **callee-saved register itself** as the temp, because
+    // the save has to happen anyway. Three witnesses, none of which contains r11:
+    //
+    // ```text
+    //   void f(int a,int b){ g2(b,a); v1(a); v2(b); }        a->r31, b->r30
+    //     mr r30,r4 ; mr r31,r3 ; mr r4,r3 ; mr r3,r30 ; bl ?g2
+    //   void f(int a,int b,int c){ g2(b,a); v1(a); v2(c); }  a->r31, c->r30
+    //     mr r31,r3 ; mr r3,r4 ; mr r4,r31 ; mr r30,r5 ; bl ?g2
+    //   void f(int a,int b,int c){ g3(a,c,b); v1(a); v2(b); } a->r31, b->r30
+    //     mr r30,r4 ; mr r4,r5 ; mr r5,r30 ; mr r31,r3 ; bl ?g3
+    // ```
+    //
+    // Against the hoist/trail model above — which predicts the r11 walk unchanged
+    // with the saves moved around it — that is **11 of 17 probes wrong**, found by
+    // gridding the shape before shipping it. Which saved register serves as the
+    // temp when several are saved is not determined by three captures, so this is
+    // the measured edge and not a fit.
     let first = &calls[0];
-    let marshals = match (&first.arg_sources, first.arg_ops.as_slice()) {
+    let unmodelled_first = match (&first.arg_sources, first.arg_ops.as_slice()) {
         (Some(src), _) => src.iter().enumerate().any(|(i, &s)| i != s),
         (None, []) => false,
-        (None, [IlOp::Load(t)]) => index_of(*t) != Some(0),
+        (None, [IlOp::Load(_)]) | (None, [IlOp::Lit(_)]) => false,
         (None, _) => true,
     };
-    if marshals {
+    if unmodelled_first {
         return Err(Block { ctx: "callseq-saved-with-first-call-setup", byte: None, off: p, aux: 0 });
     }
 
@@ -3389,13 +3416,21 @@ mod tests {
         let three = [call(&[0xA0]), call(&[0xA1]), call(&[0xA2]), call(&[0xA3])];
         assert_eq!(plan(&three).unwrap_err().ctx, "callseq-three-plus-saved");
 
-        // The first call needing argument marshalling while anything is saved:
-        // where the save moves go is measured and is two rules, so refuse.
+        // The first call may marshal a SINGLE argument beside the saves — the
+        // save is hoisted in front of it when the marshalling would overwrite its
+        // source and trails it otherwise, both halves captured.
         let setup0 = [call(&[0xA1]), call(&[0xA2])]; // `v1(b)` is `mr r3,r4`
-        assert_eq!(
-            plan(&setup0).unwrap_err().ctx,
-            "callseq-saved-with-first-call-setup"
-        );
+        assert_eq!(plan(&setup0).unwrap(), vec![2]);
+        // …and the IDENTITY permutation is not marshalling at all.
+        let id0 = [
+            SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: Some(vec![0, 1]) },
+            call(&[0xA2]),
+        ];
+        assert_eq!(plan(&id0).unwrap(), vec![2]);
+        // A NON-identity permutation at the first call is a different lowering:
+        // c2 breaks the cycle through the callee-saved register instead of r11
+        // and emits no r11 at all. The hoist/trail model is wrong on 11 of 17
+        // probes there, so it is refused at the measured edge.
         let perm0 = [
             SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: Some(vec![1, 0]) },
             call(&[0xA2]),
@@ -3404,12 +3439,20 @@ mod tests {
             plan(&perm0).unwrap_err().ctx,
             "callseq-saved-with-first-call-setup"
         );
-        // …but the IDENTITY permutation is not marshalling, and stays in class.
-        let id0 = [
-            SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: Some(vec![0, 1]) },
+        // A computed first-call argument is refused under the same key: its write
+        // set reaches the callee-saved file under `/Ox`.
+        let comp0 = [
+            SeqCall {
+                callee_tok: 1,
+                arg_ops: vec![IlOp::Load(0xA0), IlOp::Lit(1), IlOp::Add],
+                arg_sources: None,
+            },
             call(&[0xA2]),
         ];
-        assert_eq!(plan(&id0).unwrap(), vec![2]);
+        assert_eq!(
+            plan(&comp0).unwrap_err().ctx,
+            "callseq-saved-with-first-call-setup"
+        );
 
         // A COMPUTED argument at a later call is `addi r3,r31,1` — the operand
         // stream rebased onto the saved register, a second lowering of
