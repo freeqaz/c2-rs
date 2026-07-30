@@ -1712,6 +1712,89 @@ the record needs and both are byte offsets the emitter already computes.
    combination is refused rather than guessed.
 6. Unchanged and unrelated to unwind: the whole-TU all-or-nothing gate, and the
    fact that the port has no model of *which* bodies c2 emits (§6a).
+
+## 6f. Instrument hardening (roadmap #15, #46, #47, #48 — 2026-07-30)
+
+Four instrument failures surfaced in one day, all of the same family: a
+measurement that was wrong, or expensive enough not to be re-taken, without
+anything in its own report saying so. This section records the four fixes and
+what measuring them turned up. **None of it moves the port**: the census reads
+**418,628 / 2,462,571 (17.00 %)** with **census/gate disagreement 0** and
+**mismatch 0** before and after, and every per-TU JSONL row is byte-identical
+across an uncached scan, a cold cached scan and a warm one.
+
+**Measured at** c2-rs `b36a046` + this change, workload `dc3-decomp` `05ca6d09`
+(one tracked file modified), wibo `1.0.1-23-g4a9dd6f`, XDK `16.00.11886.00`,
+`--jobs 16`.
+
+### #15 — the capture cache: 36.5 s → **0.9 s**
+
+`c2rs gap` re-ran `cl.exe` under wibo under strace for all 878 TUs on every
+invocation. Captures are pure in their inputs, so they are now cached
+content-addressed under `work/capture-cache` (gitignored; `C2RS_GAP_CACHE` or
+`--cache DIR`, `--no-cache` to bypass). Full accounting of the key, the
+collision handling and the validator: `crates/c2-harness/src/capture_cache.rs`.
+
+| run | wall | CPU | cache |
+|---|---|---|---|
+| uncached baseline (master) | 36.5 s | 446 s | — |
+| cold (fills the cache) | 46.6 s | 518 s | 0 hit / 878 miss |
+| **warm** | **0.9 s** | 6.0 s | 871 hit / 7 miss |
+| warm + `--validate-cache 50` | 2.4 s | 15.0 s | 17 re-captured, 0 poisoned |
+| warm + `--replay-every 25` | 1.5 s | 11.8 s | replay 36 checked / 0 diverged |
+
+**39× against the cold run, 30–41× against the uncached baseline.** The cold run
+costs ~28 % more than an uncached one (writing 2.2 GB of bundles), which is the
+honest price of the first scan. The 7 misses on every warm run are the 7
+`capture-fail` TUs: a failure is deliberately not cached, because a cached
+failure is indistinguishable from a real one.
+
+**Estimate vs outcome.** Predicted 1.5–3 s (12–25×) from a 20-TU sample, with a
+stated bias that bundle re-read I/O would dominate; outcome 0.9–1.2 s (39–52×).
+The bias direction was right and the magnitude was wrong by ~2× — 2.2 GB stays
+in page cache, and the census walk over 2.46 M function bodies costs ~6 s of CPU
+against the captures' ~440 s. **Capture is 98.7 % of a scan**, which is the
+number to reuse next time.
+
+### #46/#48 — provenance, and the loader
+
+Every scan and self-test now prints (and `gap` records as JSONL record 0,
+`"record":"provenance"`) the workload tree's git HEAD + dirty flag, the c2-rs
+HEAD + dirty flag, the resolved `wibo`/`cl.exe`/`c2.dll`/`c1xx.dll`/`strace`/
+`mingw` paths, and wibo's `--version` — warning loudly when it parses older than
+`WIBO_KNOWN_GOOD` (`1.0.1-23`). Everything degrades to `unknown` when git or the
+loader will not answer; nothing here can fail a run. Per-TU rows are unchanged,
+so two scans' rows stay byte-comparable. Rationale and the two failures that
+forced it: `docs/GAPS.md` §6.
+
+### #47 — the census/gate invariant, in both linkage modes
+
+`tests/census_gate.rs` asserted the invariant with `fn_level_linking=false`
+only — i.e. in the mode the fixtures capture in, and not in the mode the entire
+878-TU workload compiles in (`/O1` implies `/Gy`). Both lanes are now pinned,
+with their causes named rather than just their totals: **`/Ox` 1** (the
+`w13_fscratch.cpp` FP-scratch refusal) and **`/Gy` 9** (that one plus **8**
+pooled-FP-constant refusals — `emit_comdat_obj` does not place the `.rdata`
+COMDAT a W13b body needs). Both cost **0 functions on the workload**. A residual
+that stays at 9 while one refusal is traded for another now fails too. Moving
+the pooled-FP gate is a `c2-core` change and is **not** taken here.
+
+### What the validator found on its own control case
+
+Both facts came from the bypass-and-compare *failing where it was supposed to
+agree*, which is the argument for having a control group at all:
+
+1. **The bundle base is a per-invocation nonce.** `cl.exe` names the IL bundle
+   `_CL_<hex>` freshly each run, so two captures of one TU differ in their file
+   names and in the `-il` value of the `/Bd` argv echo — and nowhere else.
+2. **The reference obj's COFF `TimeDateStamp` is wall clock, not pinned.** One
+   cold scan's 878 objs carry **58 distinct** stamps, monotone across the scan's
+   5-minute window. 51 of 51 sampled re-captures differed in bytes 4..8 and were
+   byte-identical everywhere else. The project's criterion zeroes those four
+   bytes by definition so nothing moves, but `c2-reference`'s standing
+   "RAW-identical, wibo pins it" note is measured **back-to-back within one
+   second** and is corrected in place.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp
