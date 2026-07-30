@@ -26,7 +26,10 @@ normalized).
   of every field.
 - `CODEGEN_PPC_MVP.md` — PPC big-endian instruction encoding (`add`, `blr`),
   the X360 integer ABI, the COLOR allocator's observed scratch-register
-  order, and the non-commutative hazard list (what NOT to generalize).
+  order, the **frame model the port implements** (sizing, callee-saved slots,
+  the two save-helper thresholds, and the stack-probe / `_RtlCheckStack12`
+  ladder, which is the one axis `CODEGEN_FRAMED_CALLS.md` does not cover), and
+  the non-commutative hazard list (what NOT to generalize).
 - `CODEGEN_FRAMED_CALLS.md` — ground truth for multi-call framed bodies (the
   #35-step-2 territory): the frame-size rule and its 480-case refutation sweep,
   the five prologue/epilogue classes including the `__savegprlr_`/`__savefpr_`

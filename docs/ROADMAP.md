@@ -1692,21 +1692,29 @@ Everything below is *codegen*, not obj format. The unwind side is done for any
 frame the codegen can describe, because `Frame { prolog_len, func_len }` is all
 the record needs and both are byte offsets the emitter already computes.
 
-1. **The frame itself is one hardcoded shape.** `framed_call_text` emits a
-   constant 0x24-byte body with a 96-byte frame. #35 needs a frame-size model
-   (measured: 96 B for one by-value temporary, 112 B for two), callee-saved GPR
-   allocation descending from r31, the `__savegprlr_N`/`__restgprlr_N` helper
-   calls above roughly five saved registers, FPR saves, and `_RtlCheckStack12`
-   for frames past a page. Sizeable, and entirely unstarted.
+1. ~~**The frame itself is one hardcoded shape.**~~ **CLOSED 2026-07-30 — see
+   §6f.** The model is measured and implemented
+   (`c2_core::codegen::FrameLayout`); the three helper shapes are refused by
+   name with their thresholds pinned by paired captures. Two of this item's own
+   premises were wrong: "96 B for one by-value temporary, 112 for two" is really
+   the *callee-saved register count*, and `_RtlCheckStack12` does not arrive
+   "past a page" — inline `ld` probes cover the first four and the call starts
+   at five.
 2. **More than one call per body.** The accepted shape is one `bl` with the
    result consumed by one `addi`. Every large blocking row is 96–100 % framed
    *and* multi-call, so #35's customers all need call sequencing, argument
    registers r3–r10 with stack spill, and a live-range model across calls.
-3. **The label stride of every class #35 will admit.** The counter model is
-   measured for the classes the port emits and is *wrong* for two it decodes
-   (comparison leaves 3, FP leaves 2). Any class #35 adds needs its stride
-   measured before a framed function may share a TU with it — one compile each,
-   `<class> ; int F(int a){return g(a)+1;}`, differenced against `.gl+7+9`.
+3. **The label stride of every class #35 will admit.** Partly closed (§6g): the
+   comparison leaf's stride is now measured per relation over the whole 60-point
+   grid and the gate asks one three-valued predicate
+   (`IlFunction::label_slots`), so an unmeasured class refuses rather than
+   defaulting. What remains: the FP leaf (2, or 4/6 with pooled constants) and
+   — the live risk for step 2 — a framed function using the `__savegprlr_N`
+   pair, whose `/Gy` stride is **7, not 5**, with the two extra slots allocated
+   *before* its own `$M` pair (`CODEGEN_FRAMED_CALLS.md` §4.4). The helper
+   codegen and that correction must land together. Any new class needs one
+   compile, `<class> ; int F(int a){return g(a)+1;}`, differenced against
+   `.gl+7+9`.
 4. **EH is out of class and visibly so.** Bit 31 of the unwind word, and a
    function with a `try`/`catch` produces **several** records (the catch funclet
    first, with a non-zero `BeginAddress` addend). The workload compiles
@@ -1872,6 +1880,132 @@ to. A binding cannot be graded by the oracle, so the grader has to be permanent.
    scan reads the token bytes as the name's head. One capture of a local static with
    a dynamic initializer would settle whether `$` is a third separator or a name
    character — the two readings are one byte apart.
+## 6g. The frame model (#35 step 1), 2026-07-30
+
+**Byte evidence: `docs/CODEGEN_PPC_MVP.md` §"The frame model".** Established from
+44 reference objs, and then reconciled against `docs/CODEGEN_FRAMED_CALLS.md`,
+which was produced independently and in parallel from 480 designed compiles per
+mode. **The two derivations agree** — neither knew the other's probes, which is
+the strongest evidence either could have. Headline results, ordered by how much
+they should change what the next person does:
+
+1. **A live wrong-bytes emit, found before the model was written.**
+   `framed_call_text` emitted one byte-constant 0x24-byte body; the parser
+   required the call's argument to be *a* formal and then dropped the formals
+   list, so the emitter assumed it was the formal already in r3. c2 emits
+   `or r3,rN,rN` first whenever it is not, and the `.pdata` `FuncLen`, both `$M`
+   label values and the REL24 site all followed it wrong. **37 of 47 probes
+   around the accepted class mismatched** — every argument at a non-zero formal
+   position, every member function (`this` takes r3), and every free function
+   with a leading `float`/`double`/`long long`/pointer/8-byte aggregate
+   parameter. Four mode lanes, a 4,706-case sweep, an 878-TU scan and a green
+   test suite were all green over it, because every framed fixture and all 363
+   generated framed cases have exactly one parameter. `GAPS.md` §6 instance 8.
+   The *other* capture agent's 87 probe TUs found no mis-emit; this one was
+   inside the accepted class, which only a probe of the class's own neighbours
+   reaches.
+2. **The frame size is a function, and its shipped constants were its all-zero
+   case.** `align16(80 + locals + 8 + 8·nSaved)` for `nOutSlots ≤ 8`, exact on
+   all 44 witnesses; the general form with the `nOutSlots` term is
+   `CODEGEN_FRAMED_CALLS.md` §1.2 and `FrameLayout` implements it, carrying four
+   rows of that sweep as cross-check assertions. This item's own premise — "96 B
+   for one by-value temporary, 112 for two" — was the **saved-register count**
+   misread as a temporary count.
+3. **`_RtlCheckStack12` is not "past a page".** A frame under `0x5000` is probed
+   inline with `ld r12,-4096k(r1)`, one per page boundary *crossed*
+   (`floor((F−1)/4096)`, so `F = 4096` probes nothing); the call arrives at five
+   pages, `li r12,−F` / `bl _RtlCheckStack12` / `stwux r1,r1,r12`. Boundary
+   pinned by the pair `F = 20464` (inline) / `F = 20480` (call). This axis is not
+   in the other document — its `localsBytes` tops out at 132 and this one's at
+   200,000.
+4. **The two save-helper thresholds are different numbers**: `__savegprlr_N` at
+   3 saved GPRs, `__savefpr_N` at 4 saved FPRs, each pinned by the pair either
+   side of it. Independently confirmed by §2.3/§2.4 of the other document. The
+   GPR helper also carries the LR and the epilogue *tail-branches* into
+   `__restgprlr_N` with no `blr` at all; the FPR helper does not, and its restore
+   is an ordinary `bl`. The **mixed inline** case is this rung's alone: with GPRs
+   and FPRs both saved inline, the prologue stores GPRs then FPRs while the
+   epilogue restores in ascending slot address — so the two lists are **not**
+   mirror images.
+5. **The label-stride gate keyed on the wrong thing.** The comparison leaf's
+   stride is 1 or 3 *by relation*, measured over the whole 60-point grid
+   (relation × literal × signedness) against a seed read out of `.gl`
+   (`OBJ_GY_SHAPES.md` §3.6a). The old sizing of the over-refusal — "6 of 21
+   sweep cases" — was wrong in **both** directions: only 3 of 21 were this gate's
+   doing (two of the named refusers do not decode as comparison leaves at all and
+   are refused by the class gate either way), and the correct relaxation admits
+   far more than the sweep samples — 39 newly admitted probe TUs byte-exact, 24
+   neighbours still refusing, 0 mismatch. The gate now asks one three-valued
+   predicate (`IlFunction::label_slots`) so an unmeasured class refuses rather
+   than defaulting to 1.
+6. **A census/gate disagreement in the under-claiming direction, introduced by
+   this rung and closed inside it.** Reusing `select_text` for the argument setup
+   inherited its `params.len() > 8` refusal, so
+   `int f(int a,…,int i){ return g(a) + 1; }` censused 1/1 in class while the port
+   returned `NotImplemented`. Nothing tests that direction. Found by probing for
+   it; closed by moving the gate into the parser
+   (`framed-arg-over-eight-formals`) and sized at **zero functions** on the
+   workload. The genuinely-needed half of it is real: past the eighth formal the
+   argument setup is `lwz r3,180(r1)`, which the old emitter answered with no
+   instruction at all.
+
+**Scope kept narrow on purpose.** `FrameLayout` builds only layouts needing no
+external helper and no stack check; the three helper shapes refuse by name,
+because each puts a second REL24 site in the prologue that `coff::Function` does
+not model, and past 17 saved registers the sizing rule itself stops being exact.
+Which live value gets which callee-saved register is **not** modeled — with two
+the assignment is monotone in source order, with three or more it is not — and
+that is step 2's problem, which both documents independently call the expensive
+half.
+
+**Census: 0.** This rung's isolated effect, measured pre-merge against its own
+baseline binary on the same corpus HEAD (`dc3-decomp` `05ca6d09`):
+**418,628 → 418,628**, 878 rows and `fn_total` 2,462,571 both times, **0 TUs
+changing class, 0 blocker keys moving**. Post-merge the numerator is master's
+**427,655 / 2,462,571 = 17.37 %**, unchanged by this branch. Predicted 0 before
+the code was written — the shape the widening admits (`call-postop-0xB9`) has
+**zero** occurrences on the workload — and it was 0. This rung is correctness,
+not coverage.
+
+**Gate evidence** (merged tree, workload tree `dc3-decomp` at `05ca6d09`):
+`cargo test --workspace` **380 pass / 0 fail**; `c2rs bench` **138 pass / 0 fail /
+0 error**; mode lanes over 138 fixtures `/Ox` **61**, `/O1` **59**, `/O2` **59**,
+`/Ox /Gy` **59**, **0 mismatch in all four** (this branch adds 6 fixtures: 4
+matching in every lane, 2 refusing); the generated sweep **4,829 cases, 0
+mismatches**; 878-TU scan match 6, **mismatch 0**, codegen-gap 0, port-error 0,
+capture-fail 7, **census/gate disagreement 0** — checked in the under-claiming
+direction too, which is where this rung's own defect was.
+
+### The handoff for #35 step 2, ranked and sized
+
+`CODEGEN_FRAMED_CALLS.md` §7 has the rung order and this rung endorses it. What
+this rung changes about it:
+
+1. **Class A, many calls, no saved registers** — unchanged as the first rung, and
+   now cheaper: `FrameLayout::default()` already *is* the Class A frame, the
+   prologue/epilogue are derived rather than spelled, and `.pdata`/`$M` follow
+   the emitted length. What it still needs is a second REL24 site per function
+   in `coff::Function` (today one `Option<Call>`) and §4.1's symbol order.
+2. **Argument marshalling** — unchanged; and note that the *one-argument* case is
+   now done, including the register move this rung was missing, so the
+   generalization has a correct base case to extend.
+3. **`nOutSlots > 8` and addressed locals** — `FrameLayout` already computes
+   both; the missing half is deciding `out_slots` and `locals` from the IL, which
+   is a parser question, not a codegen one. **Add the stack-probe rules to
+   whatever gate that lands behind**: a frame past four pages is not a `stwu` at
+   all, and the port has no `_RtlCheckStack12` external today.
+4. **Class B (1–2 saved GPRs)** — the frame arithmetic and the exact prologue and
+   epilogue words are done and unit-pinned; the whole remaining cost is the
+   liveness answer plus the register-assignment order, which is measured for
+   `n = 2` (first live value → r30, second → r31) and **is not monotone at
+   `n ≥ 3`**.
+5. **Class C (≥3 saved GPRs)** — do not attempt without the `/Gy` stride
+   correction (7, not 5, with the extra two slots *before* the function's own
+   `$M` pair). It is latent today only because `FrameLayout` refuses these
+   frames, and it is six wrong bytes per label the moment one is admitted.
+6. **Classes D/E/F (FPRs)** last. The FPR-helper label stride is predicted +4 by
+   the same reading and is **not captured**; one TU pairing an FPR-helper
+   function with a following function settles it.
 
 ## 7. Invariants (do not break)
 
