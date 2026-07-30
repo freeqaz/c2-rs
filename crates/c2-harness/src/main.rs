@@ -22,6 +22,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use c2_core::PortC2;
 use c2_harness::corpus::{self, CorpusConfig};
 use c2_harness::prefilter;
+use c2_harness::provenance::Provenance;
 use c2_harness::retrieval;
 use c2_harness::{
     all_fixtures, c1_replay_check, differential, oracle_selftest, C1ReplayReport, DiffReport,
@@ -109,6 +110,11 @@ fn print_usage() {
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          gap options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
          \x20            [--replay-every N] [--jsonl PATH] (see scripts/gen_dc3_workload.sh)\n\
+         \x20            [--cache DIR | --no-cache] [--validate-cache N]\n\
+         \x20            captures are cached content-addressed (source bytes + flags +\n\
+         \x20            toolchain + workload git identity, never mtimes) under\n\
+         \x20            work/capture-cache or C2RS_GAP_CACHE; --validate-cache N\n\
+         \x20            re-captures every Nth hit and byte-compares it.\n\
          prefilter options: --source ARG (--flag F ... | --flags-file FILE) [--cwd DIR]\n\
          \x20                 [--emit-obj PATH] [--compare-obj PATH] [--obj-name Z:\\\\...] [--work DIR]\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
@@ -554,6 +560,10 @@ fn cmd_selftest(rest: &[String]) -> ExitCode {
         return ExitCode::FAILURE;
     }
     let mut all_pass = true;
+    // The oracle self-test IS the correctness benchmark, so it names the oracle
+    // it ran against (roadmap #48): a stale wibo turns this seam's verdicts over
+    // without changing any other number in the report.
+    print!("{}", Provenance::collect(&tc, None).render());
     println!("oracle self-test (determinism + capture stability):");
     for cpp in &targets {
         let w = scratch("selftest");
@@ -1733,6 +1743,16 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
     let mut replay_every: usize = 0;
     let mut jsonl: Option<PathBuf> = None;
     let mut work: Option<PathBuf> = None;
+    // Capture cache: ON by default (roadmap #15). The key is content-addressed
+    // (source bytes + flags + toolchain + workload-tree identity), never mtimes;
+    // `--no-cache` bypasses it and `--validate-cache N` re-captures every Nth
+    // hit and byte-compares. Default root is under the gitignored `work/`.
+    let mut cache: Option<PathBuf> = Some(
+        std::env::var_os("C2RS_GAP_CACHE")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| c2_harness::provenance::repo_root().join("work/capture-cache")),
+    );
+    let mut validate_cache: usize = 0;
 
     let mut it = rest.iter();
     while let Some(a) = it.next() {
@@ -1776,6 +1796,15 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
             },
             "--work" => match val("--work") {
                 Some(v) => work = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--cache" => match val("--cache") {
+                Some(v) => cache = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--no-cache" => cache = None,
+            "--validate-cache" => match val("--validate-cache").and_then(|v| v.parse().ok()) {
+                Some(v) => validate_cache = v,
                 None => return ExitCode::from(2),
             },
             other => {
@@ -1846,6 +1875,8 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
         replay_every,
         jsonl,
         work: work.unwrap_or_else(|| scratch("gap")),
+        cache,
+        validate_cache,
     };
     let total = cfg.limit.unwrap_or(cfg.sources.len()).min(cfg.sources.len());
     println!(
@@ -1854,6 +1885,22 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
         cfg.jobs,
         cfg.replay_every
     );
+    println!(
+        "  capture cache: {}{}",
+        match &cfg.cache {
+            Some(p) => p.display().to_string(),
+            None => "DISABLED (--no-cache)".to_string(),
+        },
+        if cfg.validate_cache > 0 {
+            format!("  (validating every {}th hit)", cfg.validate_cache)
+        } else {
+            String::new()
+        }
+    );
+    // Roadmap #46/#48: name the corpus, the binary, and the loader BEFORE the
+    // numbers. A moved corpus once matched on `fn_total` and a stale wibo once
+    // faked a replay alarm; neither was visible in any line of the old report.
+    print!("{}", Provenance::collect(&tc, cfg.cwd.as_deref()).render());
 
     let t0 = std::time::Instant::now();
     let report = match gap_scan(&tc, &cfg, &|n, tot, r| {
@@ -1892,6 +1939,20 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
     let (checked, diverged) = report.replay_stats();
     if checked > 0 {
         println!("  replay soundness: {checked} checked, {diverged} diverged");
+    }
+    let cs = &report.cache;
+    if cfg.cache.is_some() {
+        println!(
+            "  capture cache: {} hit, {} miss, {} uncacheable  |  validator: {} re-captured \
+             and agreed ({} of them only after zeroing the COFF TimeDateStamp), {} POISONED",
+            cs.hits, cs.misses, cs.bypassed, cs.validated, cs.timestamp_only, cs.poisoned
+        );
+        for line in cs.poison_detail.iter().take(10) {
+            println!("    POISONED {line}");
+        }
+        if cs.poison_detail.len() > 10 {
+            println!("    … and {} more", cs.poison_detail.len() - 10);
+        }
     }
 
     // P2b function-level census. The TU ladder above is all-or-nothing, so it
@@ -2001,9 +2062,11 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
     }
 
     let mismatches = report.count(TuClass::Mismatch);
-    if mismatches > 0 || diverged > 0 {
+    if mismatches > 0 || diverged > 0 || report.cache.poisoned > 0 {
         eprintln!(
-            "\nCORRECTNESS SIGNAL: {mismatches} mismatching TU(s), {diverged} replay divergence(s)"
+            "\nCORRECTNESS SIGNAL: {mismatches} mismatching TU(s), {diverged} replay \
+             divergence(s), {} poisoned cache entr(ies)",
+            report.cache.poisoned
         );
         return ExitCode::FAILURE;
     }

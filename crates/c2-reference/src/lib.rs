@@ -15,8 +15,20 @@
 //!
 //! Feeding an **unmodified** captured IL bundle back through `c2.dll` *alone*
 //! (no front-end) reproduces the pipeline `.obj` **byte-for-byte** — verified
-//! RAW-identical (COFF `TimeDateStamp` included; wibo pins it) on all three
-//! bundled fixtures. The mechanism is the [`c2host`](../c2host) x86 stub that
+//! RAW-identical (COFF `TimeDateStamp` included) on all three bundled fixtures.
+//!
+//! > **Measured correction, 2026-07-30.** That raw identity is real but it is
+//! > measured **back-to-back within one second**, and the timestamp is *not*
+//! > pinned by wibo as this doc used to say: the 878 objs of one cold gap scan
+//! > carry **58 distinct `TimeDateStamp` values**, monotone across the scan's
+//! > 5-minute window and readable as ordinary Unix seconds. Two captures of the
+//! > same TU minutes apart therefore differ in bytes 4..8 and **nowhere else**
+//! > (51 of 51 sampled re-captures, `c2rs gap --validate-cache`). Nothing in the
+//! > project's criterion moves — it zeroes those four bytes by definition — but
+//! > "raw-identical" is a claim about two runs in the same second, not about the
+//! > pipeline being deterministic in that field.
+//!
+//! The mechanism is the [`c2host`](../c2host) x86 stub that
 //! `LoadLibraryA`s `c2.dll` and calls its stdcall export `_InvokeCompilerPass@12`
 //! with the reconstructed `-il <base> … -Fo <obj>` argv:
 //!
@@ -73,6 +85,18 @@ fn env_or(root: &Path, var: &str, default_rel: &str) -> PathBuf {
         None => root.join(default_rel),
     }
 }
+
+/// The oldest wibo release known to run the capture path correctly.
+///
+/// Two wibo behaviours the harness depends on landed in `1.0.1-23`:
+/// `WIBO_KEEP_TEMP` (without it the reaper deletes the `_CL_*` quintet the
+/// moment the `/d2nop` guest dies — i.e. exactly our product) and the
+/// `lstrcpynA` shim that keeps c2 alive on large TUs. An older loader does not
+/// fail loudly: it turns the gap scan's replay column from `36 checked / 0
+/// diverged` into `36/30` while the census and the mismatch count stay
+/// byte-identical — a **fake correctness alarm on the oracle seam**. That is
+/// why [`Toolchain::wibo_stale`] exists and why the scan prints its resolution.
+pub const WIBO_KNOWN_GOOD: &str = "1.0.1-23";
 
 /// Toolchain version dir inside a compilers root — the layout of the decomp.dev
 /// compilers archive (`https://files.decomp.dev/compilers_<tag>.zip`), which
@@ -206,6 +230,34 @@ impl Toolchain {
         } else {
             None
         }
+    }
+
+    /// Run `<wibo> --version` and return its first line verbatim, e.g.
+    /// `wibo 1.0.1-23-g4a9dd6f (Linux x86_64)`. `None` when the binary cannot be
+    /// executed or prints nothing — **never** an error: toolchain location is
+    /// env-driven by design and an unparseable loader must not fail a scan.
+    pub fn wibo_version(&self) -> Option<String> {
+        let out = Command::new(&self.wibo).arg("--version").output().ok()?;
+        let mut text = String::from_utf8_lossy(&out.stdout).into_owned();
+        if text.trim().is_empty() {
+            text = String::from_utf8_lossy(&out.stderr).into_owned();
+        }
+        let line = text.lines().next()?.trim().to_string();
+        if line.is_empty() {
+            None
+        } else {
+            Some(line)
+        }
+    }
+
+    /// `Some(true)` iff the resolved wibo is **older** than [`WIBO_KNOWN_GOOD`];
+    /// `Some(false)` if it is that release or newer; `None` when the version
+    /// string is absent or does not parse (unknown, not "fine").
+    pub fn wibo_stale(&self) -> Option<bool> {
+        let line = self.wibo_version()?;
+        let have = parse_wibo_version(&line)?;
+        let want = parse_wibo_version(WIBO_KNOWN_GOOD)?;
+        Some(have < want)
     }
 
     /// True iff `strace` is available (required for the replay-capture path).
@@ -993,6 +1045,35 @@ pub struct CapturedC1 {
     pub c1_argv: Vec<String>,
 }
 
+/// Parse a wibo version line into a comparable `(major, minor, patch, release)`.
+///
+/// Accepts the shapes wibo actually prints — `wibo 1.0.1-23-g4a9dd6f (Linux
+/// x86_64)`, `wibo 1.0.1-7-g3b0f71c-dirty (Linux x86_64)`, and a bare
+/// `1.0.1-23` — by taking the first whitespace token that starts with a digit
+/// and contains a `.`, then reading the dotted triple and the `-N` git-describe
+/// commit count that follows it. A missing `-N` reads as release 0, which sorts
+/// *before* every tagged-plus-N build, which is the conservative direction: an
+/// exact-tag build is treated as older than the known-good `1.0.1-23`.
+///
+/// Returns `None` rather than guessing when nothing parses — the caller reports
+/// "unknown", never "fine".
+pub fn parse_wibo_version(line: &str) -> Option<(u32, u32, u32, u32)> {
+    let tok = line.split_whitespace().find(|t| {
+        t.starts_with(|c: char| c.is_ascii_digit()) && t.contains('.')
+    })?;
+    let mut parts = tok.splitn(2, '-');
+    let triple = parts.next()?;
+    let rest = parts.next().unwrap_or("");
+    let mut it = triple.split('.');
+    let major = it.next()?.parse().ok()?;
+    let minor = it.next().unwrap_or("0").parse().ok()?;
+    let patch = it.next().unwrap_or("0").parse().ok()?;
+    // `23-g4a9dd6f` / `7-g3b0f71c-dirty` / `` → the leading digit run.
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    let release = digits.parse().unwrap_or(0);
+    Some((major, minor, patch, release))
+}
+
 /// Parse the backtick-quoted c2 argv-echo line from `/Bd` output. Finds the line
 /// mentioning both `c2.dll` and `-il`, strips the leading backtick and trailing
 /// `'`, splits off everything after the `…c2.dll` path token, and returns the
@@ -1334,6 +1415,32 @@ mod tests {
     fn parse_c1_argv_none_without_c1xx_line() {
         assert!(parse_c1_argv("`Z:\\tc\\c2.dll -il _CL_1 -f a.cpp'").is_none());
         assert!(parse_c1_argv("no compiler echo here").is_none());
+    }
+
+    #[test]
+    fn wibo_version_parses_the_shapes_wibo_prints() {
+        assert_eq!(
+            parse_wibo_version("wibo 1.0.1-23-g4a9dd6f (Linux x86_64)"),
+            Some((1, 0, 1, 23))
+        );
+        assert_eq!(
+            parse_wibo_version("wibo 1.0.1-7-g3b0f71c-dirty (Linux x86_64)"),
+            Some((1, 0, 1, 7))
+        );
+        assert_eq!(parse_wibo_version("1.0.1-23"), Some((1, 0, 1, 23)));
+        assert_eq!(parse_wibo_version("wibo 2.0 (Linux)"), Some((2, 0, 0, 0)));
+        assert_eq!(parse_wibo_version("no version here"), None);
+    }
+
+    #[test]
+    fn wibo_version_ordering_puts_the_stale_build_first() {
+        // The exact pair that faked a replay alarm: 1.0.1-7 must compare older
+        // than the known-good 1.0.1-23 (a *numeric* compare — lexically "7" > "23").
+        let old = parse_wibo_version("wibo 1.0.1-7-g3b0f71c-dirty (Linux x86_64)").unwrap();
+        let good = parse_wibo_version(WIBO_KNOWN_GOOD).unwrap();
+        assert!(old < good);
+        assert!(!(parse_wibo_version("wibo 1.0.1-23-g4a9dd6f (Linux x86_64)").unwrap() < good));
+        assert!(!(parse_wibo_version("wibo 1.0.2-0-gdeadbee (Linux)").unwrap() < good));
     }
 
     #[test]
