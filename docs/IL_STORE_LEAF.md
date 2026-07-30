@@ -358,6 +358,16 @@ over the 2,020,298 still-blocked functions.
    `store_value_width` and the counterfactual was not run for it. Both need the
    same thing — the FP argument-register number, which counts FP parameters
    alone — and both are one encoder past that.
+
+   > **TAKEN, 2026-07-30 (W27 + W28), and the pairing was right.** The FP store
+   > measures **7,984** — 8x the `fmr` — and the two shipped together off one
+   > piece of plumbing, `.sy`'s type **kind** (05 = "real"), because the
+   > numbering is the only thing either of them needed. Realized **+8,931**
+   > against a +8,989 estimate, mismatch 0, disagreement 0, 0 new census keys.
+   > The store's gain came out of `expr-op-0x27` rather than any `expr-load-type`
+   > row, which §6's unstable-attribution rule predicted. Full write-up in
+   > `docs/CODEGEN_FP_ARGS.md`; the rung also found the project's ninth live
+   > wrong-bytes emit (`_fltused`, `GAPS.md` §6 (9)).
 4. **`expr-load-type-8645` is worth 1,004 and `expr-load-type-8885` is worth 0.**
    Both are MEASURED here by counterfactual, and both should be struck off any
    ranking taken from row size: 98,813 and 82,810 blocked functions between them,
@@ -386,6 +396,15 @@ Sized on the two rows this rung touched, at the scan taken after it:
 | `expr-intrinsic-base-member-addr` | 117,591 | 26,399 | 56,186 | 35,006 |
 | `expr-load-type-8645` | 98,813 | 10,702 | 84,215 | 3,896 |
 | `expr-load-type-8885` | 82,810 | 2 | 82,806 | 2 |
+
+> **MEASURED, 2026-07-30, and the claim below is confirmed in kind and halved in
+> size.** A whole-body counterfactual (the FP type admitted at the LOAD, LIT,
+> `2C` target, `55` call-end and `41` result annotation at once — an upper bound)
+> completes **85,231 of the 167,021, 51.0 %**: 59,095 single-argument tail calls
+> and 26,136 permutations, **0** of it `calls-2plus`, so the "not a frame
+> problem" half is exactly right. The other 81,790 block on something no FP rung
+> reaches, and the paragraph below should not be read as sizing them.
+> `docs/CODEGEN_FP_ARGS.md` §6 has the probe design and what it cannot see.
 
 The **`calls-1` mass behind `8645` and `8885` is 167,021 functions, 99.9 % of
 those two rows' non-`calls-0` content**, and the §7 (4) counterfactual says what

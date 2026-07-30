@@ -13,6 +13,7 @@ use crate::func::readers::{
     is_ptr4_kind, is_ptr_to_4, read_token_var, read_type, read_varint, value_class,
     ValueClass, DOUBLE_LIT_TYPE, DOUBLE_TYPE, FLOAT_LIT_TYPE, FLOAT_TYPE, INT_TYPE, UINT_TYPE,
 };
+use crate::func::sy::{fp_reg_of, ArgClass, SyView};
 use crate::func::{CompareLeaf, IlOp, Rel};
 
 /// Try to parse a body that is a **list of assignment statements** followed by a
@@ -220,7 +221,12 @@ pub(crate) fn try_parse_assign_body_detail(
 /// * **No `0x59` marker.** It tracks source parenthesisation and is the only
 ///   thing distinguishing product shapes c2 flattens from those it does not;
 ///   its meaning is unknown, so its presence rejects.
-pub(crate) fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+pub(crate) fn try_parse_float_leaf(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    sy: SyView,
+) -> Option<BodyShape> {
     let mut p = start;
     // The operand type is fixed by the first LOAD and every later one must match.
     if *seg.get(p)? != 0xB9 {
@@ -406,17 +412,11 @@ pub(crate) fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
             seen.push(*t);
         }
     }
-    let params = parse_params(seg, lo).ok()?;
-    if params.len() > 13 || !seen.iter().all(|t| params.contains(t)) {
-        return None;
-    }
-    // **Every formal must be one of those FP operands.** A formal's *index in the
-    // formals list* stands in for its **FP-argument-register number** here
-    // ([`c2_core::codegen::float_leaf_text`] maps parameter `n` to `f(n+1)`), and
-    // the two are only the same number when every parameter ahead of it also takes
-    // an FP register. The floating-point file is numbered over the FP parameters
-    // *alone*: `float g(int a, float b, float c){ return b - c; }` puts `b` in f1
-    // and `c` in f2, while the index rule says f2 and f3.
+    // **The FP register file is numbered over the FP parameters ALONE**, so the
+    // shape carries its parameters in *that* order and not in declaration order.
+    // [`c2_core::codegen::float_leaf_text`] maps entry `n` of this list to
+    // `f(n+1)`, which is the register number exactly when the list holds the FP
+    // parameters and nothing else.
     //
     // This is the fifth instance of `docs/GAPS.md` §6's "two facts sharing one
     // field", and it was **live** — `float mixfp(int a, float b, float c)
@@ -425,17 +425,59 @@ pub(crate) fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
     // corpus had only the safe half of the pair again: not one FP fixture had a
     // parameter list that was anything but all-`float` or all-`double`.
     //
-    // Each `seen` token was loaded with `fty`, so it is provably an FP parameter;
-    // requiring the formals list to hold nothing else is what makes the index the
-    // register number. It costs the leaf whose parameter is unused
-    // (`float f(float a, float b){ return a*a; }`) and every member function
-    // (`this` is a pointer and is never an FP operand) — both of which are
-    // conservative, and the second is required anyway, since `this` takes a GPR
-    // and displaces nothing in the FP file. `fixtures/cpp/w13_fparam_neg.cpp` is
-    // the boundary.
-    if params.len() != seen.len() {
+    // It was closed then by the blunt gate `params.len() != seen.len()` — every
+    // formal has to be an FP operand of the body — which is correct and costs
+    // **1,005 functions** on the workload (`IL_CALL_IN_EXPR.md` §23.1, MEASURED
+    // by counterfactual). What replaces it is the actual numbering, read from
+    // `.sy`'s type kind (`sy::ArgClass`): a non-FP formal is skipped rather than
+    // refused, and an FP formal that the body never loads still advances the
+    // count. `this` is prepended as a GPR — it takes r3 and displaces nothing in
+    // the FP file, which the member-function capture in `docs/CODEGEN_FP_ARGS.md`
+    // §1 confirms emits the identical `fmr` sequence as the free function.
+    let formals = parse_formals(seg, lo).ok()?;
+    let classes = sy.arg_classes(&formals).ok()?;
+    let this = matches!(parse_this_token(seg, lo)?, ThisBinding::Bound(_));
+    let params: Vec<u32> = formals
+        .iter()
+        .zip(&classes)
+        .filter(|(_, c)| matches!(c, ArgClass::Fp { .. }))
+        .map(|(t, _)| *t)
+        .collect();
+    // Mixing the widths across the *parameter list* is not the same question as
+    // mixing them inside the expression (which the operand-type loop already
+    // refuses): `float f(double a, float b){ return b; }` is one FP file with two
+    // widths in it, and every operand this body reads is `fty`. The register
+    // numbering is width-agnostic — `int t8(double a, float b, double c)` puts
+    // them in f1, f2, f3 (captured) — so nothing here needs the widths to agree.
+    if params.len() > 13 || !seen.iter().all(|t| params.contains(t)) {
         return None;
     }
+    // **A pooled constant keeps the OLD gate**, and this is the one place the
+    // widening is deliberately held back rather than taken.
+    //
+    // `float_leaf_text` emits a pooled constant as an `.rdata` COMDAT reached
+    // through a REFHI/REFLO pair, and `codegen::function_gate` refuses that under
+    // **function-level linking** (`/Gy`, which `/O1` implies) because the COMDAT
+    // association is not modeled — a refusal that lives in codegen only, because
+    // the linkage mode is a translation-unit flag the parser cannot see. That
+    // split cost nothing while no such body was in class; widening the parameter
+    // model put one in class (a member FP leaf with a constant, in
+    // `src/lazer/meta_ham/HamProfile.cpp`) and the 878-TU scan's census/gate
+    // disagreement went 0 → **1**, in the over-claiming direction.
+    //
+    // So the pooled-constant population is held **exactly** at what it was before
+    // this rung: every formal must be an FP operand of the body, the gate this
+    // rung otherwise replaces. It costs **1 function** on the workload (measured,
+    // and the whole of the disagreement it caused), and it keeps the invariant at
+    // 0 in both directions without narrowing anything the rung is actually about.
+    // The real repair is to model `/Gy` `.rdata` COMDATs — `docs/CODEGEN_FP_ARGS.md`
+    // §5 ranks it — after which this clause deletes itself.
+    if ops.iter().any(|o| matches!(o, IlOp::FpLit { .. }))
+        && (params.len() != seen.len() || this)
+    {
+        return None;
+    }
+    let _ = this;
     // c2 canonicalizes a chain containing a **commutative** operator by register,
     // exactly as it does an integer one, so such a chain must already be written in
     // ascending order. A chain with only non-commutative operators is left alone —
@@ -1575,6 +1617,24 @@ fn store_value_width(tag: u8, kind: u8) -> Option<u8> {
     sized_ptee(tag, kind).map(|(w, _)| w)
 }
 
+/// The width of a **floating-point** stored value — 4 for `float`, 8 for
+/// `double` — or `None` when the TYPE is not one.
+///
+/// Keyed on the kind's **class nibble** (5, "real") and the tag's width nibble,
+/// the same two channels `sy::SyView::arg_classes` uses on the `.sy` side, so the
+/// two layers agree about what a floating-point value is by construction rather
+/// than by two independent whitelists.
+fn store_fp_value_width(tag: u8, kind: u8) -> Option<u8> {
+    if (kind & 0x0F) != 0x5 {
+        return None;
+    }
+    match tag & 0x0F {
+        0x6 => Some(4),
+        0x8 => Some(8),
+        _ => None,
+    }
+}
+
 /// Try to parse a **store leaf**: a whole body that is one store into a
 /// sub-object and nothing else — `void f(S* s, int v){ s->m = v; }`,
 /// `void D::set(int v){ Base::m = v; }`, `void f(S* s, int v){ s->arr[2] = v; }`,
@@ -1639,7 +1699,12 @@ fn store_value_width(tag: u8, kind: u8) -> Option<u8> {
 ///
 /// Returns `None` — cursor untouched — for anything that is not exactly this
 /// shape.
-pub(crate) fn try_parse_store_leaf(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
+pub(crate) fn try_parse_store_leaf(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    sy: SyView,
+) -> Option<BodyShape> {
     let mut p = start;
     // The designator. The intrinsic form is anchored on a `33` literal and the
     // plain form on a `B9`, so the two cannot be confused; the intrinsic is tried
@@ -1708,6 +1773,21 @@ pub(crate) fn try_parse_store_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
         }
         _ => return None,
     };
+    // A **floating-point** stored value is `stfs`/`stfd` out of the FP argument
+    // file, so it takes the whole rest of this production down a parallel path:
+    // its register is not the formal's index, and the `2C` rules below are the
+    // GPR classes'. MEASURED (`docs/CODEGEN_FP_ARGS.md` §3):
+    //
+    //     void s_f (S* s, float v)      { s->f = v; }        d0230004  stfs f1,4(r3)
+    //     void s_d (S* s, double v)     { s->d = v; }        d8230008  stfd f1,8(r3)
+    //     void s_two(S* s,float u,float v){ s->f = v; }      d0430004  stfs f2,4(r3)
+    //
+    // Sized before it was built, by counterfactual over the 878-TU workload:
+    // **7,984 functions**, all `calls-0`.
+    let fp_width = store_fp_value_width(value_tag, value_kind);
+    if let Some(w) = fp_width {
+        return finish_fp_store_leaf(seg, p, lo, base_tok, value_op, value_tag, value_kind, off, w, sy);
+    }
     let width = store_value_width(value_tag, value_kind)?;
 
     // A class-preserving conversion of the VALUE — `void f(S* s, S* v){ s->p = v; }`
@@ -1786,6 +1866,101 @@ pub(crate) fn try_parse_store_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
     Some(BodyShape::StoreLeaf {
         params,
         ops: vec![IlOp::Load(base_tok), value_op, IlOp::StoreInd { off, width }],
+    })
+}
+
+/// The tail of [`try_parse_store_leaf`] for a **floating-point** stored value.
+///
+/// Split out rather than branched inline because almost every gate differs: the
+/// value's register comes from the FP file, the conversion rules are the FP ones,
+/// and a literal is a pooled `.rdata` COMDAT rather than an `li`.
+///
+/// What is REFUSED here, each because a capture shows it emits something else:
+///
+/// * **A conversion on the value.** `void s_narrow(S* s, double v){ s->f = v; }`
+///   is `frsp f0,f1 ; stfs f0,4(r3)` — a real instruction through the FP scratch
+///   register. Its free twin `void s_widen(S* s, float v){ s->d = v; }` is a bare
+///   `stfd f1,8(r3)`, so the asymmetry is c2's own and not the C standard's; both
+///   are refused, because admitting the free one means deciding the direction from
+///   two type triples and only the narrowing one has been captured at more than
+///   one offset. A rung, sized in `docs/CODEGEN_FP_ARGS.md` §5.
+/// * **A literal value.** `void s_lit(S* s){ s->f = 1.5f; }` is
+///   `lis r11 ; lfs f0,0(r11) ; stfs f0,4(r3)` with a REFHI/REFLO pair into an
+///   `.rdata` COMDAT — the W13b constant machinery, which `codegen::function_gate`
+///   refuses under `/Gy` anyway.
+/// * **A value that is not a formal**, and a formal whose FP register the `.sy`
+///   argument classes cannot determine.
+#[allow(clippy::too_many_arguments)]
+fn finish_fp_store_leaf(
+    seg: &[u8],
+    mut p: usize,
+    lo: usize,
+    base_tok: u32,
+    value_op: IlOp,
+    value_tag: u8,
+    value_kind: u8,
+    off: i32,
+    width: u8,
+    sy: SyView,
+) -> Option<BodyShape> {
+    // No conversion, and no pooled constant.
+    if seg.get(p) == Some(&0x2C) {
+        return None;
+    }
+    let IlOp::Load(vtok) = value_op else {
+        return None;
+    };
+    // The store, whose TYPE restates the value's — the same literal requirement
+    // the GPR path makes, and for the same reason.
+    if !eat_byte(seg, &mut p, 0x32) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if (tag, kind) != (value_tag, value_kind) {
+        return None;
+    }
+    p += tw;
+    if !eat_byte(seg, &mut p, 0x4B) {
+        return None;
+    }
+    eat_opt_stmt_marker(seg, &mut p);
+    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
+
+    if !(-0x8000..=0x7FFF).contains(&off) {
+        return None;
+    }
+    // `stfs`/`stfd` are both plain D-form — unlike `std`, which is DS-form and
+    // cannot encode a displacement that is not a multiple of 4. So there is no
+    // alignment gate here, and the absence is a measured difference between the
+    // two paths rather than an omission (`d8230008` is `stfd f1,8(r3)`, primary
+    // 54, with all sixteen displacement bits its own).
+    let params = parse_params(seg, lo).ok()?;
+    let bix = params.iter().position(|&t| t == base_tok)?;
+    if bix >= 8 {
+        return None;
+    }
+    // The value's FP register, resolved HERE — the one site that knows both the
+    // formals order (`.ex`) and each formal's register file (`.sy`).
+    let formals = parse_formals(seg, lo).ok()?;
+    let classes = sy.arg_classes(&formals).ok()?;
+    let fix = formals.iter().position(|&t| t == vtok)?;
+    let src = fp_reg_of(&classes, fix)?;
+    if src > 13 {
+        // Past f13 the argument is stack-homed, which needs a frame.
+        return None;
+    }
+    // The value's declared width and the stored width must be the same fact. They
+    // are, at every capture, because a conversion is a visible `2C` that is
+    // refused above — so a disagreement means a misread type, not a construct.
+    if matches!(classes.get(fix), Some(ArgClass::Fp { double }) if *double != (width == 8)) {
+        return None;
+    }
+    Some(BodyShape::StoreLeaf {
+        params,
+        ops: vec![
+            IlOp::Load(base_tok),
+            IlOp::StoreIndFp { off, double: width == 8, src },
+        ],
     })
 }
 

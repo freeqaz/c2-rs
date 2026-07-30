@@ -136,11 +136,35 @@ pub enum IlOp {
     ///   width 4  ->  stw      width 8  ->  std (DS-form, off % 4 == 0)
     /// ```
     ///
-    /// A **floating-point** value is deliberately not representable here: it is
-    /// `stfs`/`stfd` out of the *FP* argument file, whose register number counts
-    /// FP parameters alone (`docs/CODEGEN_W13_FLOAT.md`, and the same off-by-one
-    /// `float_leaf_text` documents). The parser refuses it.
+    /// A **floating-point** value is not representable here; it is
+    /// [`IlOp::StoreIndFp`], which carries a register rather than a token.
     StoreInd { off: i32, width: u8 },
+    /// **Indirect store of a floating-point value** — `void f(S* s, float v)
+    /// { s->f = v; }` — one `stfs`/`stfd` out of the FP argument file.
+    ///
+    /// MEASURED (`docs/CODEGEN_FP_ARGS.md` §3, every word read off a reference
+    /// obj at `/O1 /GS- /c`); the width selects the opcode and the base register
+    /// is the ordinary GPR argument:
+    ///
+    /// ```text
+    ///   void s_f(S* s, float v)  { s->f = v; }        d0230004  stfs f1,4(r3)
+    ///   void s_d(S* s, double v) { s->d = v; }        d8230008  stfd f1,8(r3)
+    ///   void s_pf(float* p, float v) { *p = v; }      d0230000  stfs f1,0(r3)
+    /// ```
+    ///
+    /// **`src` is a physical FP register and not a token**, which is the one
+    /// design difference from [`IlOp::StoreInd`]. Everything else in this layer
+    /// maps a token to a register by its index in [`IlFunction::params`], and for
+    /// the FP file that mapping is *not* the index — it counts FP parameters
+    /// alone and needs `.sy` to say which parameters those are. Resolving it in
+    /// the parser, where `.sy` is in scope, keeps the FP numbering at exactly one
+    /// site (`sy::fp_reg_of`) instead of giving codegen a second one to get wrong;
+    /// `GAPS.md` §6 has two live wrong-bytes emits from that number existing in
+    /// two places. The discriminating capture is
+    /// `void s_two(S* s, float u, float v){ s->f = v; }` → `stfs f2,4(r3)`, and
+    /// `void s_mix(S* s, float u, int k, float v){ s->f = v; }` → the same
+    /// `stfs f2`, because the `int` advances the slot and not the FP file.
+    StoreIndFp { off: i32, double: bool, src: u8 },
     /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
     Lit(i32),
     /// Push a **floating-point literal** (W13b). The payload is always an
@@ -464,6 +488,32 @@ impl IlFunction {
     /// describes. It becomes a wrong-bytes emit the moment #35 step 2 admits a
     /// framed function with ≥3 saved GPRs — the stride correction and the helper
     /// codegen have to land together.
+    /// Whether this function's body **touches floating point** — which is what
+    /// makes the obj carry the undefined external `_fltused`, not whether the
+    /// function is a W13 float leaf.
+    ///
+    /// Those were one field until the FP store leaf separated them, and the
+    /// separation is `docs/GAPS.md` §6's shape once more: `is_float` meant both
+    /// "this body does FP arithmetic, so its label stride is 2" and "this
+    /// translation unit needs the CRT's float-support hook", and every function
+    /// that had ever set it satisfied both. `void f(S* s, float v){ s->f = v; }`
+    /// satisfies only the second — it is a store leaf, stride 1 — and the port
+    /// emitted an obj **one symbol short**, `Port=Mismatch @ offset 12` (the COFF
+    /// header's `NumberOfSymbols`) on all fourteen positive cases at once.
+    ///
+    /// MEASURED, including the ordering: `_fltused` follows the first
+    /// FP-*touching* function's symbol group, whatever kind it is. A TU of
+    /// `int; fp-store; int; fp-store` puts it after the second function, and one
+    /// of `fp-store; int; float-leaf` puts it after the **first**, ahead of the
+    /// leaf (`docs/CODEGEN_FP_ARGS.md` §4).
+    pub fn touches_floating_point(&self) -> bool {
+        self.float_leaf.is_some()
+            || self
+                .ops
+                .iter()
+                .any(|o| matches!(o, IlOp::StoreIndFp { .. }))
+    }
+
     /// True iff this function establishes a **stack frame** — it gets a `.pdata`
     /// record, a `$M`/`$M`/`$T` label triple, and the framed label stride.
     ///
@@ -505,6 +555,37 @@ impl IlFunction {
         // be wrong for a leaf with a constant.
         if self.float_leaf.is_some() {
             return None;
+        }
+        // **Any function that touches floating point consumes 2, not 1** — the
+        // stride goes with the register file, not with the body shape.
+        //
+        // MEASURED, as the three-way capture that separates it (`/Ox /GS- /c`,
+        // one leaf ahead of one framed function, reading the framed function's
+        // labels):
+        //
+        // ```text
+        //   void lead(S* s, int v)      { s->i = v; }     $M2558 $M2559 $T2560
+        //   void lead(S* s, float v)    { s->f = v; }     $M2559 $M2560 $T2561
+        //   float lead(float a,float b) { return a*b; }   $M2559 $M2560 $T2561
+        // ```
+        //
+        // The int store leaf consumes 1 and the FP store leaf consumes 2, the
+        // same as the arithmetic leaf. Its pooled-constant cases are refused by
+        // the parser, so unlike [`Self::float_leaf`] the value here is exact.
+        //
+        // This was the **twelfth** live wrong-bytes emit and it is the eleventh's
+        // own field, one consumer later: `is_float` was split into
+        // [`Self::touches_floating_point`] for `_fltused` and this method was
+        // left reading `float_leaf`, so the FP store leaf got the marker right
+        // and the stride wrong. `GAPS.md` §6 instance #2 exactly — *fixed in the
+        // one shape where the bug had been found*.
+        //
+        // It could not be seen before Class A many-calls landed: the counter only
+        // has an observable effect when a **framed** function follows, and until
+        // then no framed shape could share an in-class TU with an FP store.
+        // Neither side's fixtures contained the pair.
+        if self.touches_floating_point() {
+            return Some(2);
         }
         Some(1)
     }
