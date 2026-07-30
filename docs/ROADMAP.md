@@ -1108,6 +1108,36 @@ one-away list is the better instrument at this point, and every item on it needs
 codegen rather than decode — which is the review's asymptotic-stall argument
 showing up as a concrete change in what the next rung has to be.
 
+**And the histogram itself was misleading (`docs/IL_LOAD_TYPES.md`, 2026-07-30).**
+The `expr-load-type-XXXXXX` key is not stable: it truncates the LEB type id to one
+byte, and derived-type ids are allocated per translation unit from 0x1000, so one
+construct lands in different buckets in different TUs. Regrouped by family:
+
+| family | blocked functions | what it is |
+|---|---:|---|
+| `A643xx` | **750,421** | const-pointer / `this` loads |
+| `8643xx` | **294,810** | data-pointer loads |
+
+**~44% of all blocked functions sit behind a pointer-typed load** — larger than
+`expr-call-in-expr`, and larger than anything the histogram has ever shown, because
+the instrument was splitting the biggest class into hundreds of shards. `GAPS.md` §6
+now carries the general form of that mistake.
+
+The ranked consequence, from that report's own estimate and to be verified rather
+than trusted: admitting **data-pointer (kind 3) and function-pointer (kind 4)
+width-4 TYPEs** through the already-in-class indirect-load leaf and identity shapes
+needs *zero new instructions* — a pointer getter is `lwz r3,off(r3); blr`,
+byte-identical in scheme to the int getter it already emits, and `2C` ptr→ptr emits
+nothing. A full-body shape scan over 128,081 bodies (5.2% of the corpus) found 6,174
+complete bodies of exactly those shapes, extrapolating to **~118k functions fully in
+class**, which would roughly double the census. After it: `lbz` bool/uchar getters
+(~31k), then `lfs`/`lfd` getters (~18k).
+
+Note the distinction that has made estimates here wrong before: the `float` (93,189)
+and `double` (79,542) buckets proper are FP-**arithmetic** bodies, not getters, and
+will behave the way W13b did — about +1 — until real FP codegen exists. "A load of
+type T" and "arithmetic in type T" are different rungs.
+
 ## 6b. Independent review, 2026-07-30 (HEAD `2724ca5`)
 
 An adversarial re-measure of every headline claim, by a session that did not

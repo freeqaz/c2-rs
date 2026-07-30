@@ -1059,6 +1059,19 @@ The rules that keep the numbers honest:
 - **Byte-exact means byte-exact.** Replay: raw-identical including the COFF
   timestamp. Port: identical with only the 4-byte timestamp zeroed. No
   fuzzy thresholds anywhere; real c2 under wibo is the sole judge.
+- **A histogram can be sharded, and a sharded histogram lies about its own
+  head.** The `expr-load-type-XXXXXX` bucket name truncates the LEB type id to one
+  byte, and derived-type ids are allocated *per translation unit* from 0x1000 — so
+  the same six `std::exception` inlines census as `A6438B` in one TU and `A6438A` in
+  another, and one class of blocker was split across hundreds of names. Regrouped by
+  family, `A643xx` (const-pointer / `this` loads) is **750,421** blocked functions
+  and `8643xx` is **294,810**: ~44% of all blocked functions, against the 304,813 of
+  `expr-call-in-expr` that the histogram had been calling the head for weeks. No
+  single shard ever looked large enough to lead. The lesson is not "regroup this
+  bucket" — it is that **a bucket key derived from data the compiler allocates per
+  input is not a stable key**, and any histogram built on one needs its key checked
+  before its ranking is believed. Ask of every bucket name: could two occurrences of
+  the same construct land in different buckets?
 - **A failed search is not evidence of absence.** Three of this project's
   wrong-bytes emits are the same mistake: code asked "did I find X?" and read
   "no" as "there is no X". `.gl` did not name a destination, so the token was
