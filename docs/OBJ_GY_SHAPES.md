@@ -404,7 +404,8 @@ read out of the obj and differenced against `.gl+7+9`:
 `a==b` and `a<0` consume 1; `a<b`, `a>=b` and `bool a<b` consume 3, so the
 comparison stride is **not** uniform over the relation either. Every class in
 the "1" block is one `PortC2` emits; every class below it is refused whenever a
-framed function shares the TU (`PortC2::frame_label_counter`), because a stride
+framed function shares the TU (`c2_il::IlBundle::functions`, with the other
+TU-level gates, so the census and the emitter cannot disagree), because a stride
 error of one is six wrong bytes in an obj that still links.
 
 **The gate's over-refusal, sized rather than left as a rumour.** It keys on "is

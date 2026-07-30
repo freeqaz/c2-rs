@@ -1687,6 +1687,23 @@ The rules that keep the numbers honest:
   binary against the current tree before claiming a delta.** Doing that here
   turned "6 TUs changed" into "0 TUs changed" and made the zero-movement claim
   real rather than approximate.
+- **Two binaries with the same name, one of them stale, and the gate that
+  notices is the one you are least likely to read.** `C2RS_WIBO` pointed at
+  `../wibo/build/wibo` — the obvious path, and the one this session's very first
+  orientation command found — turns the 878-TU scan's replay column from
+  **36 checked / 0 diverged** into **36 / 30**, while leaving the census, the
+  class buckets and the mismatch count byte-identical. The repo's own default
+  resolves `../wibo/build/**release**/wibo` (1.0.1-23, current); `build/wibo` is
+  a 1.0.1-7 build from four months earlier, and the two produce different objs
+  for the same input — `capture_il_with` already carries a comment about wibo
+  ≥ 1.0.1-23 reaping guest temporaries. Three things follow. **A 90 % replay
+  divergence that leaves every other column identical is an environment
+  report, not a compiler one** — check the toolchain before the code. **An env
+  override silently opts out of the resolution logic that was written to be
+  right**, so a scan quoting `C2RS_*` overrides has to say which binaries they
+  resolved to. And the replay gate did its job precisely by being loud about a
+  difference nothing else could see, which is the argument for keeping it on
+  every scan rather than sampling it away.
 - **A field the port skips is indistinguishable from a field that is always
   the same.** The optimization word above was stepped over silently for months;
   so was the source-line marker before it turned out to carry a varint payload,

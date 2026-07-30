@@ -1656,13 +1656,27 @@ one function and to `$M2545/$M2546/$T2547`) is deleted — this file already
 carried two bugs whose whole cause was one rule implemented in two emitters and
 fixed in one.
 
-**Gate evidence.** 126 fixtures × 4 mode lanes, **0 mismatch** everywhere;
-`/Ox` 54 match (was 50), `/O1` 52 (was 47), `/O2` 52 (was 47), `/Ox /Gy` 52
-(was 47). 4,706 generated sweep cases, 0 mismatches; the 363 new W-UNW cases
-graded separately in all four modes at 342 match / 0 mismatch / 12 honest
-refusals each. Census **411,934 / 2,462,571 = 16.73 % before and after, 0 TUs
-changed** — this is groundwork and it moved the census by exactly zero, as
-intended.
+**Where the gate lives.** A framed function may not share a TU with a
+comparison or floating-point leaf, because those consume 3 and 2 label slots
+against the 1 every emitted class consumes. That is a TU-level acceptance
+question, so under §6c's invariant it sits in `c2_il::IlBundle::functions`
+beside the other TU-level gates, not in codegen — and `function_gate` lost its
+`Selected::Framed if fn_level_linking` arm, which after this rung refused what
+the emitter emits and would have made the disagreement counter wrong in the
+*under*-claiming direction.
+
+**Gate evidence, on the merged tree** (c2-rs `ae0467b`, workload tree
+`dc3-decomp` at `05ca6d09`, both scans taken against that same corpus HEAD):
+130 fixtures × 4 mode lanes, **0 mismatch** everywhere — `/Ox` 56 match (master
+52), `/O1` 54 (49), `/O2` 54 (49), `/Ox /Gy` 54 (49). `c2rs bench` 130 pass / 0
+fail / 0 error; `cargo test --workspace` 370 pass. 4,706 generated sweep cases,
+**0 mismatches**; the 363 new W-UNW cases graded separately in all four modes at
+342 match / 0 mismatch / 12 honest refusals each. 878-TU scan: match 6,
+**mismatch 0**, capture-fail 7, replay 36/36, **census/gate disagreement 0**.
+Census **418,628 / 2,462,571 = 17.00 % before and after, 0 TUs changed** — this
+is groundwork and it moved the census by exactly zero, as intended. The
+fixture-lane disagreement fell 11 → 9 (`/O1`) and 10 → 9 (`/Ox /Gy`); the
+remainder is master's pooled-FP-constant-under-`/Gy` refusal, untouched here.
 
 **One live wrong-bytes emit found and fixed**, unreachable before the
 single-function gate came off: the framed `bl` displacement was the literal
