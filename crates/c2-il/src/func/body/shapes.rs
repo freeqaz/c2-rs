@@ -495,6 +495,27 @@ fn read_this_group(seg: &[u8], at: usize) -> Option<(u32, usize)> {
     Some((tok, p + 1))
 }
 
+/// Every LOAD in a call-argument operand stream must name a **formal**.
+///
+/// The multi-argument path established this positively from the start
+/// (`call-arg-nonformal`); the three single-argument paths did not, so
+/// `int gi; int g(int); int u1() { return g(gi); }` — a global as the argument —
+/// **parsed as an in-class integer tail call**. Codegen then refused it, so no wrong
+/// bytes were ever emitted, but the census counted it as in class while the gate did
+/// not, which breaks the invariant this repo is built on: acceptance lives in the IL
+/// parser precisely so the census and the gate cannot disagree about what is
+/// accepted. A census that over-reports is a broken instrument, and the widening
+/// order is chosen from it.
+///
+/// Found by an independent characterization agent probing the bucket, not by any
+/// fixture — the corpus had no call whose argument was a global.
+fn arg_loads_are_formals(arg_ops: &[IlOp], params: &[u32]) -> bool {
+    arg_ops.iter().all(|o| match o {
+        IlOp::Load(t) => params.contains(t),
+        _ => true,
+    })
+}
+
 /// Try to parse an **indirect-load leaf**: a whole body that is one load through
 /// a pointer, `return *p;` / `return s->m;` / `return p[k];` and nothing else.
 ///
@@ -1133,6 +1154,9 @@ pub(crate) fn parse_call_shape(
         if !additive_chain_canonical(&arg_ops) {
             return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
         }
+        if !arg_loads_are_formals(&arg_ops, &params) {
+            return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
+        }
         return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
     }
     if args.len() > 1 {
@@ -1216,13 +1240,17 @@ pub(crate) fn parse_call_shape(
         return Err(Block { ctx: "call-arg-repeated-leaf", byte: None, off: *p, aux: 0 });
     }
     // And to the same reassociation: `g(b + a)` is not the source order either.
-    // `parse_formals` may legitimately fail here — the framed-call class carries no
-    // formals — and that must not turn into a rejection, so fall back to an empty
-    // list, against which `leaves_ascending` simply has nothing to compare.
-    // The ordering gate needs formals to order against, and the framed-call class
-    // legitimately has none. It is also vacuous for a single operand — and the
-    // framed path accepts only a bare passthrough `[Load]`, which cannot be out of
-    // order — so skip it there rather than weakening the gate itself.
+    //
+    // "The framed-call class carries no formals" is what this comment used to say,
+    // and it was FALSE. It came from `MVP_FRAMED`, a pinned segment truncated at the
+    // `LO` marker: a real `int f(int a) { return g(a) + 1; }` segment carries
+    // `46 2D E5 09` like every other. The fixture omitted the region and the comment
+    // inferred a property of the compiler from the omission — see `docs/GAPS.md` §6,
+    // a truncated fixture cannot witness the region it omits. The pinned segments now
+    // carry their real `53 53 26 <fn> 46 2D <formal>` prologue.
+    //
+    // The ordering gate is still skipped for a single operand, because it is vacuous
+    // there — one leaf cannot be out of order — not because there are no formals.
     let n_loads = arg_ops.iter().filter(|o| matches!(o, IlOp::Load(_))).count();
     if n_loads > 1 {
         let formals = parse_formals(seg, lo)?;
@@ -1243,6 +1271,9 @@ pub(crate) fn parse_call_shape(
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         let params = parse_formals(seg, lo)?;
+        if !arg_loads_are_formals(&arg_ops, &params) {
+            return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
+        }
         return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
     }
     // Post-op `+ k`: EXACTLY one literal `33 <int> k` immediately followed by
@@ -1269,13 +1300,21 @@ pub(crate) fn parse_call_shape(
     // 6-section framed obj (which would mis-emit a frame the reference elides).
     if k == 0 {
         let params = parse_formals(seg, lo)?;
+        if !arg_loads_are_formals(&arg_ops, &params) {
+            return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
+        }
         return Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok });
     }
     // A genuine `+ k` (k ≠ 0) is a framed non-leaf call — but the 6-section
     // framed path models only a **bare passthrough argument** (`g(a) + k`), not
     // arg-setup. `g(a+1) + 1` (a computed argument AND a framed post-op) is out
     // of class → reject (fail closed), never a mis-emitted framed obj.
+    // The framed path takes a bare passthrough LOAD, which must still be a formal:
+    // `int gi; g(gi) + 1` is a global read, not an argument already in r3.
     if matches!(arg_ops.as_slice(), [IlOp::Load(_)]) {
+        if !arg_loads_are_formals(&arg_ops, &parse_formals(seg, lo).unwrap_or_default()) {
+            return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
+        }
         return Ok(BodyShape::FramedCall { add_k: k, callee_tok });
     }
     Err(Block { ctx: "framed-computed-arg", byte: None, off: *p, aux: 0 })
@@ -1284,10 +1323,38 @@ pub(crate) fn parse_call_shape(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::func::body::parse_segment;
+    use crate::func::body::{parse_segment, parse_segment_detail};
     use crate::func::bundle::LO_MARKER;
     use crate::func::readers::find_subslice;
     use crate::func::test_fixtures::*;
+
+    /// A call argument that is not a formal must refuse — and it must refuse in the
+    /// PARSER, so the census and the gate agree about it.
+    ///
+    /// `int gi; int g(int); int u1() { return g(gi); }` parsed as an in-class integer
+    /// tail call: the multi-argument path checked its arguments against the formals
+    /// list from the start, and the three single-argument paths never did. Codegen
+    /// refused it downstream, so no wrong bytes were emitted — but the census counted
+    /// it in class while the gate did not, and the widening order is chosen from the
+    /// census. Found by a characterization agent probing the bucket; no fixture had a
+    /// call whose argument was a global.
+    #[test]
+    fn a_call_argument_that_is_not_a_formal_refuses_in_the_parser() {
+        // `INT_TAILRET` is `return g(a);` — rebind the argument LOAD to a token that
+        // is not in the `2D` formals list, changing nothing else.
+        let mut global_arg = INT_TAILRET.to_vec();
+        let lo = find_subslice(&global_arg, &LO_MARKER).unwrap();
+        let at = global_arg[lo..]
+            .windows(2)
+            .position(|w| w == [0xB9, 0xE5])
+            .expect("the argument LOAD")
+            + lo
+            + 1;
+        assert_eq!(parse_segment(INT_TAILRET, NO_LOCALS).is_some(), true, "control");
+        global_arg[at] = 0xF0; // a token no `2D` entry names
+        let b = parse_segment_detail(&global_arg, NO_LOCALS).unwrap_err();
+        assert_eq!(b.ctx, "call-arg-nonformal");
+    }
 
     #[test]
     fn indirect_load_leaf_decodes_deref_member_and_subscript() {
