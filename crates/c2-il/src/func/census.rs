@@ -1,4 +1,4 @@
-use super::body::{parse_segment_detail, BodyShape};
+use super::body::{parse_segment_detail, BodyShape, DtorSubObject};
 use super::bundle::mangled_is_varargs;
 use super::bundle::split_function_bodies;
 use super::gl::mangled_names;
@@ -123,11 +123,24 @@ impl IlBundle {
                         match parse_segment_detail(seg, locals.view(i)) {
                             Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                             Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
-                            // Emits exactly what a void tail call emits, but gets
-                            // its own bucket so the movement out of
-                            // `expr-call-in-expr` is attributable.
+                            // Three buckets for one shape, so the movement out of
+                            // `expr-call-in-expr` is attributable *per receiver
+                            // production*: the base form and the member form at
+                            // offset 0 emit the identical four bytes a void tail
+                            // call does, and the adjusted member form emits one
+                            // `addi` more. Splitting them here is what lets the
+                            // in-class gain be checked against the individual
+                            // `recv-field-off0` / `recv-field` bucket drops rather
+                            // than against their sum.
+                            Ok(BodyShape::EmptyDtorDelegation {
+                                sub_object: DtorSubObject::Base,
+                                ..
+                            }) => FnVerdict::InClass("empty-dtor-delegation"),
+                            Ok(BodyShape::EmptyDtorDelegation { adjust: 0, .. }) => {
+                                FnVerdict::InClass("empty-dtor-member")
+                            }
                             Ok(BodyShape::EmptyDtorDelegation { .. }) => {
-                                FnVerdict::InClass("empty-dtor-delegation")
+                                FnVerdict::InClass("empty-dtor-member-adjusted")
                             }
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             Ok(BodyShape::MultiArgTailCall { .. }) => {

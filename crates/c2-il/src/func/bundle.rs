@@ -2,7 +2,7 @@ use super::body::{parse_segment, BodyShape};
 use super::gl::{drectve_is_boilerplate, gl_defined_names, source_path, GlIndex};
 use super::readers::{find_subslice, memchr_byte};
 use super::sy::SyLocals;
-use super::{FramedCall, IlFunction};
+use super::{FramedCall, IlFunction, IlOp};
 use crate::IlBundle;
 
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
@@ -413,17 +413,47 @@ impl IlBundle {
                 // rather than falling back to a positional guess — a wrong
                 // callee name is a relocation against the wrong symbol, which is
                 // a mis-emit, not a gap.
-                // The generated empty destructor is a void tail call in every
-                // respect the emitter can see: `this` is already in r3, the base
-                // adjust is zero and emits nothing, and there is no result. So it
-                // resolves its callee and lowers through the same `b <callee>`.
-                BodyShape::EmptyDtorDelegation { callee_tok }
-                | BodyShape::VoidTailCall { callee_tok } => {
+                BodyShape::VoidTailCall { callee_tok } => {
                     funcs.push(IlFunction {
                         mangled_name: name.clone(),
                         source_path: src.clone(),
                         params: Vec::new(),
                         ops: Vec::new(),
+                        tail_call: Some(resolve(callee_tok)?),
+                        framed_call: None,
+                        compare: None,
+                        empty_body: false,
+                        float_leaf: None,
+                        arg_sources: None,
+                    });
+                }
+                // The generated empty destructor is a tail call in every respect the
+                // emitter can see: there is no result, nothing follows the call, and
+                // the receiver is `this` — already in r3 — plus a constant byte
+                // offset. At offset 0 (a base sub-object, or a member first in the
+                // layout) that constant emits nothing and this is byte-identical to
+                // the void tail call above. At a nonzero offset it is one
+                // `addi r3,r3,k`, and rather than a new emitter it is handed over as
+                // the argument-setup operand stream `[Load(this), Lit(k), Add]` —
+                // literally `return g(this + k)`, which `int_tail_call_text` has
+                // lowered since the MVP and which the mode lanes and the expression
+                // sweep already grade. The parser has bounded `k` to a non-negative
+                // signed-16-bit value (`eat_dtor_member_receiver`), which is exactly
+                // the range that selector folds into one `addi`.
+                BodyShape::EmptyDtorDelegation { callee_tok, this_tok, adjust, .. } => {
+                    let (params, ops) = if adjust == 0 {
+                        (Vec::new(), Vec::new())
+                    } else {
+                        (
+                            vec![this_tok],
+                            vec![IlOp::Load(this_tok), IlOp::Lit(adjust), IlOp::Add],
+                        )
+                    };
+                    funcs.push(IlFunction {
+                        mangled_name: name.clone(),
+                        source_path: src.clone(),
+                        params,
+                        ops,
                         tail_call: Some(resolve(callee_tok)?),
                         framed_call: None,
                         compare: None,

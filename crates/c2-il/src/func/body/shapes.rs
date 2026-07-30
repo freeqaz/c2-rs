@@ -7,7 +7,7 @@ use super::expr::{
     parse_formals, BODY_SCOPE_DEPTH,
 };
 use super::mcall;
-use super::{blk, Block, BodyShape};
+use super::{blk, Block, BodyShape, DtorSubObject};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_opt_stmt_marker, is_int4_type, is_ptr_to_4,
     read_token_var, read_type, read_varint, DOUBLE_LIT_TYPE, DOUBLE_TYPE, FLOAT_LIT_TYPE,
@@ -1209,18 +1209,39 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
 }
 
 /// Try to parse the **compiler-generated empty destructor** that does nothing but
-/// destroy its single non-virtual base at offset 0 — the largest coherent
-/// sub-shape of the `expr-call-in-expr` bucket (`docs/IL_CALL_IN_EXPR.md` §5).
+/// destroy **one** sub-object — the largest coherent sub-shape of the
+/// `expr-call-in-expr` bucket (`docs/IL_CALL_IN_EXPR.md` §5, §15).
+///
+/// There are **two** such destructors and they differ only in how the sub-object's
+/// address is spelled. `docs/IL_CALL_IN_EXPR.md` §14.3 separated them; §5 had seen
+/// only the first:
+///
+/// * a **base** sub-object, whose address comes from the `this`-adjust intrinsic
+///   2113 and whose adjustment this shape requires to be 0
+///   (`RECV-BASE` below, D1);
+/// * a **member** sub-object, whose address is a plain `27` byte-offset add of a
+///   literal `k` onto `this` — no intrinsic anywhere, and `k` may be zero (the
+///   member is first in the layout, so the address arithmetic emits nothing) or
+///   nonzero (one `addi r3,r3,k`).
 ///
 /// ```text
 ///   33 <int> 0                     the leading literal (role UNKNOWN — see below)
-///   26 <method-tok>                the BASE destructor, pushed first
-///   33 <int> 2113  40 <PTR4>       intrinsic `this-adjust`, pointer result
-///   66 02 <2 × 2-byte type ref>    the class-pair descriptor
-///   55 <int>                       selector argument terminator
-///   33 <int> 0     55 <int>        the adjust OFFSET — required to be 0
-///   B9 <this> <PTR4>  55 <PTR4>    the object pointer
-///   4C                             -> the adjusted receiver
+///   26 <method-tok>                the SUB-OBJECT destructor, pushed first
+///   <RECV-BASE | RECV-MEMBER>      the receiver — one of:
+///
+///   RECV-BASE:
+///     33 <int> 2113  40 <PTR4>     intrinsic `this-adjust`, pointer result
+///     66 02 <2 LEB128 type refs>   the class-pair descriptor
+///     55 <int>                     selector argument terminator
+///     33 <int> 0     55 <int>      the adjust OFFSET — required to be 0
+///     B9 <this> <PTR4>  55 <PTR4>  the object pointer
+///     4C                           -> the adjusted receiver
+///
+///   RECV-MEMBER:
+///     B9 <this> <PTR4>             the object pointer
+///     33 <int> k                   the member's byte offset within the object
+///     27 <PTR4>                    byte-offset add -> the member's address
+///
 ///   2C <PTR4> 00                   cv strip
 ///   99 <PTR4> 00                   member bind (a `99` bind is DIRECT dispatch)
 ///   BD <void> 00 <fn-type-id>      the CALL, void result, cdecl
@@ -1233,18 +1254,40 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
 ///   <function tail, reaching the segment end>
 /// ```
 ///
-/// **Why it needs no new codegen.** The adjust offset is 0, so the adjustment
-/// emits nothing and the receiver is already `this` in r3; a `99` bind is direct
-/// dispatch by construction (virtual dispatch is opcode `67` with a `9A` bind —
-/// `docs/IL_CALL_IN_EXPR.md` §3), so the call is a direct branch; and nothing
-/// follows it. The whole function is therefore the four bytes
-/// `b ??1Base@@QAA@XZ`, which is exactly [`BodyShape::VoidTailCall`]'s emission.
-/// MEASURED, `struct B1{~B1();int x;}; struct D1:B1{~D1();int y;}; D1::~D1(){}`
-/// at the workload's own `/O1 /Oi /EHsc`:
+/// **Why it needs at most one instruction.** A `99` bind is direct dispatch by
+/// construction (virtual dispatch is opcode `67` with a `9A` bind —
+/// `docs/IL_CALL_IN_EXPR.md` §3), so the call is a direct branch; the call has no
+/// result; and nothing follows it. So the whole function is the sub-object's
+/// address in r3 followed by a tail branch, and the address is `this` (already in
+/// r3, zero instructions) plus a constant. MEASURED at the workload's own
+/// `/O1 /Oi /EHsc` for the base form and at the fixture profile for the member
+/// forms (`work/rf/probes/p3.cpp`, `q4`, `q7`, `q8`):
 ///
 /// ```text
-///   ??1D1@@QAA@XZ:  48000000   b ??1B1@@QAA@XZ    (4 bytes, one REL24)
+///   struct B1{~B1();int x;};  struct D1:B1{~D1();int y;};  D1::~D1(){}
+///   ??1D1@@QAA@XZ:       48000000  b ??1B1@@QAA@XZ         base, adjust 0
+///
+///   struct MemA{~MemA();int a;};
+///   struct HasMem { ~HasMem();  MemA m; };        HasMem::~HasMem() {}
+///   ??1HasMem@@QAA@XZ:   4bfffff0  b ??1MemA@@QAA@XZ       member at 0
+///
+///   struct HasMem4{ ~HasMem4(); int pad; MemA m; };  HasMem4::~HasMem4() {}
+///   ??1HasMem4@@QAA@XZ:  38630004  addi r3,r3,4            member at 4
+///                        4bffffe4  b ??1MemA@@QAA@XZ
 /// ```
+///
+/// The `addi` is not a new emitter: the adjust is handed to codegen as the
+/// argument-setup operand stream `[Load(this), Lit(k), Add]`, which is what
+/// `return g(a + k)` already lowers through (`int_tail_call_text`), so the one new
+/// instruction in this shape is emitted by code that four mode lanes and the
+/// expression sweep have been grading since the MVP.
+///
+/// **`k` must fit a signed 16-bit `addi`.** MEASURED: a member at offset 40,000
+/// (`work/rf/probes/q3.cpp`, `struct Big{~Big(); char pad[40000]; MemA m;}`) emits
+/// **two** instructions, `addis r3,r3,1 ; addi r3,r3,-25536`, which is a second
+/// production with one witness. It is refused, and `whole_body_is_one_value` counts
+/// that body as complete, so the `-whole` census figure is an upper bound over this
+/// gate too.
 ///
 /// **Why this lands in `expr-call-in-expr` at all**: the body opens on the `33`
 /// literal, so the straight-line arm runs `parse_expr`, pushes `Lit(0)` and stops
@@ -1263,6 +1306,25 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
 ///   needing an `addi` — and closes with `5E 02 21` rather than `5E 01 21`.
 ///   Requiring `01` is therefore a real discriminator against the shape this
 ///   lowering would get wrong, and it says structurally what the grammar says.
+///   MEASURED again for the member form, and it is the gate that matters most
+///   there: `struct Two { ~Two(); MemA m; MemB n; };` (two destructible members,
+///   at offsets 0 and 4) carries `5E 02 31` and **two** statements each with its
+///   own leading `33 <int> 0` literal, and the reference does *not* emit two
+///   branches — it emits a **frame**, `or r31,r3,r3`, and the two `bl`s in
+///   **reverse declaration order** (`work/rf/probes/q1.cpp`):
+///
+///   ```text
+///     ??1Two@@QAA@XZ: mflr/stw/stwu … ; or r31,r3,r3 ; addi r3,r3,4
+///                     bl ??1MemB@@QAA@XZ ; or r3,r31,r31 ; bl ??1MemA@@QAA@XZ
+///                     addi r1,r1,96 ; lwz r12,-8(r1) ; mtlr r12 ; … ; blr
+///   ```
+///
+///   `this` is live across the first call, so that shape needs a frame, a
+///   callee-saved register and a call order this rung does not model. It is the
+///   shape `docs/IL_CALL_IN_EXPR.md` §14.3 measured as 574 bodies "lost" to the
+///   offset split, and the loss is real rather than an artifact: those bodies are
+///   *grammar*-complete with both offsets admitted and *codegen*-complete under
+///   neither.
 /// * **`<f>` and `<g>` carry an exception-handling bit, and they co-vary.**
 ///   MEASURED by isolating one flag at a time over
 ///   `{/Od, /O1, /Ox} × {—, /Oi, /GS-, /GR, /EHsc, /EHa}`: **`/EH…` clears bit
@@ -1283,20 +1345,31 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
 /// Each remaining gate, with the neighbour it separates (all MEASURED at
 /// `/O1 /Oi /EHsc` against the live 16.00.11886.00 toolchain):
 ///
-/// * **Selector exactly 2113 in its wide form.** 2113–2119 are seven different
-///   operations and only this one is an unguarded adjust; a *virtual* destructor
-///   goes through 2117/2116 and a whole different body
+/// * **Selector exactly 2113 in its wide form** (base form only). 2113–2119 are
+///   seven different operations and only this one is an unguarded adjust; a
+///   *virtual* destructor goes through 2117/2116 and a whole different body
 ///   (`struct N3 : M4 { virtual ~N3(); };`, which blocks as
 ///   `expr-intrinsic-base-member-addr` and must keep doing so).
-/// * **The adjust offset must be 0.** A base at a nonzero offset costs a real
-///   `addi r3,r3,k` before the branch. No workload match had one — a multi-base
-///   destructor has two calls and fails the skeleton first — so the zero case is
-///   the only one with a codegen witness.
-/// * **The descriptor must be exactly `66 02` + two refs.** Every witness — a
-///   direct base, a two-level chain (`D4 : B4 : G4`), an empty base, a
+/// * **The base form's adjust offset must be 0.** A base at a nonzero offset is
+///   reached only by a multi-base destructor, which has two calls and fails the
+///   skeleton first, so there is no single-call witness for it. The *member* form's
+///   offset is admitted nonzero because there is one — several, above — and the
+///   two are separate literals in separate productions, so the base gate is not
+///   loosened by the member one.
+/// * **The descriptor must be exactly `66 02` + two refs** (base form only). Every
+///   witness — a direct base, a two-level chain (`D4 : B4 : G4`), an empty base, a
 ///   multi-base class — carries `02`, because a destructor delegates exactly one
 ///   inheritance step. A field that never varied is required literally rather
 ///   than skipped structurally on the assumption that the shape keeps repeating.
+/// * **The member form's offset must be non-negative and fit `addi`.** Zero is the
+///   commonest case and emits nothing. A negative adjust has no witness at all —
+///   only a virtual-base thunk would plausibly produce one, and that is a
+///   different production — so it fails closed rather than being sign-extended on
+///   the assumption that `addi` would do the right thing.
+/// * **The member form admits `27` only, not `28 00 00`.** Both are byte-offset
+///   adds and D2's classifier accepts either, but every captured generated
+///   destructor carries the typed `27`; `28` is the subscript spelling
+///   (`docs/IL_EXPR_LAYER.md` §4) and has no witness here.
 /// * **The call must be `void`, cdecl, and carry ZERO explicit arguments.** The
 ///   receiver rides the operand stack into the `99`; a `55`-terminated argument
 ///   here would be a different callee.
@@ -1305,9 +1378,10 @@ fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<Bod
 ///   r3 with no register move. `parse_params` refuses an undetermined `this`
 ///   (the line-70 rule).
 /// * **The parse must reach the segment end.** A destructor with a real statement
-///   (`N2::~N2() { h(); }`) has a second `26` where the plumbing must begin, and
-///   a class with a destructible *member* (`N4 : M5 { M6 m; }`) has a second
-///   member-call statement; both refuse, and both really do emit two branches.
+///   (`N2::~N2() { h(); }`) has a second `26` where the plumbing must begin, and a
+///   class with a destructible base *and* a destructible member (`N4 : M5 { M6 m; }`)
+///   has a second member-call statement; both refuse, and both really do emit a
+///   frame and two `bl`s.
 ///
 /// Returns `None` — cursor untouched — for anything that is not exactly this
 /// shape.
@@ -1317,8 +1391,6 @@ pub(crate) fn try_parse_empty_dtor_delegation(
     lo: usize,
     depth: usize,
 ) -> Option<BodyShape> {
-    /// `33 <int> 80 41 08 00 00` — selector 2113 `this-adjust`, wide form.
-    const SELECTOR_2113: [u8; 5] = [0x80, 0x41, 0x08, 0x00, 0x00];
     /// The `void` result TYPE, required literally: this shape's whole licence to
     /// emit a bare branch is that there is no result to place.
     const VOID_TYPE: [u8; 3] = [0x82, 0x07, 0x03];
@@ -1336,66 +1408,26 @@ pub(crate) fn try_parse_empty_dtor_delegation(
     if read_varint(seg, &mut p)? != 0 {
         return None;
     }
-    // The base destructor's symbol, pushed before its receiver.
+    // The sub-object destructor's symbol, pushed before its receiver.
     if !eat_byte(seg, &mut p, 0x26) {
         return None;
     }
     let (callee_tok, w) = read_token_var(seg, p)?;
     p += w;
-    // The `this`-adjust intrinsic, whose result is the receiver.
-    if !eat_byte(seg, &mut p, 0x33)
-        || !eat(seg, &mut p, &INT_TYPE)
-        || !eat(seg, &mut p, &SELECTOR_2113)
-        || !eat_byte(seg, &mut p, 0x40)
-    {
-        return None;
-    }
-    let (tag, kind, _, tw) = read_type(seg, p)?;
-    if !is_ptr4_kind(tag, kind) {
-        return None;
-    }
-    p += tw;
-    // The class-pair descriptor: exactly two type references, whose ids are
-    // **LEB128** and not a fixed two bytes each ([`super::mcall::eat_class_descriptor`]).
-    //
-    // Stepping four bytes here is what made this shape refuse bodies that are its
-    // own skeleton byte for byte, in every translation unit large enough to have
-    // wide type ids — `src/App.cpp` carries one. It was found by a residue: the D2
-    // split first spread 17,757 functions over 197 `op-0xNN` buckets, and flat over
-    // the byte range is the signature of reading a payload as vocabulary.
-    let n_refs = mcall::eat_class_descriptor(seg, &mut p)?;
-    if n_refs != 2 {
-        return None;
-    }
-    if !eat_byte(seg, &mut p, 0x55) || !eat(seg, &mut p, &INT_TYPE) {
-        return None;
-    }
-    // The adjust offset — zero, or this needs an `addi`.
-    if !eat_byte(seg, &mut p, 0x33) || !eat(seg, &mut p, &INT_TYPE) {
-        return None;
-    }
-    if read_varint(seg, &mut p)? != 0 {
-        return None;
-    }
-    if !eat_byte(seg, &mut p, 0x55) || !eat(seg, &mut p, &INT_TYPE) {
-        return None;
-    }
-    // The object pointer.
-    if !eat_byte(seg, &mut p, 0xB9) {
-        return None;
-    }
-    let (recv_tok, w) = read_token_var(seg, p)?;
-    p += w;
-    if !eat_value_type(seg, &mut p, ValueClass::Ptr4) {
-        return None;
-    }
-    if !eat_byte(seg, &mut p, 0x55) || !eat_value_type(seg, &mut p, ValueClass::Ptr4) {
-        return None;
-    }
-    if !eat_byte(seg, &mut p, 0x4C) {
-        return None;
-    }
-    // The cv strip on the adjusted receiver, then the member bind. A `2C`
+    // The receiver: the base form's intrinsic frame, or the member form's plain
+    // byte-offset add. Tried base-first and each on its own cursor copy, because
+    // the two open on different bytes (`33` vs `B9`) and neither may leave the
+    // cursor moved for the other.
+    let save = p;
+    let (recv_tok, adjust, sub_object) = match eat_dtor_base_receiver(seg, &mut p) {
+        Some(tok) => (tok, 0, DtorSubObject::Base),
+        None => {
+            p = save;
+            let (tok, k) = eat_dtor_member_receiver(seg, &mut p)?;
+            (tok, k, DtorSubObject::Member)
+        }
+    };
+    // The cv strip on the receiver, then the member bind. A `2C`
     // pointer→pointer emits nothing (`docs/IL_LOAD_TYPES.md` §3), and a `99`
     // bind is direct dispatch.
     if !eat_byte(seg, &mut p, 0x2C)
@@ -1469,7 +1501,110 @@ pub(crate) fn try_parse_empty_dtor_delegation(
     if params.as_slice() != [recv_tok] {
         return None;
     }
-    Some(BodyShape::EmptyDtorDelegation { callee_tok })
+    Some(BodyShape::EmptyDtorDelegation { callee_tok, this_tok: recv_tok, adjust, sub_object })
+}
+
+/// The **base** sub-object's receiver: the `this`-adjust intrinsic 2113 at
+/// adjustment 0, whose result is the base's address. Returns the object-pointer
+/// token. See [`try_parse_empty_dtor_delegation`]'s `RECV-BASE`.
+fn eat_dtor_base_receiver(seg: &[u8], p: &mut usize) -> Option<u32> {
+    /// `33 <int> 80 41 08 00 00` — selector 2113 `this-adjust`, wide form.
+    const SELECTOR_2113: [u8; 5] = [0x80, 0x41, 0x08, 0x00, 0x00];
+
+    // The `this`-adjust intrinsic, whose result is the receiver.
+    if !eat_byte(seg, p, 0x33)
+        || !eat(seg, p, &INT_TYPE)
+        || !eat(seg, p, &SELECTOR_2113)
+        || !eat_byte(seg, p, 0x40)
+    {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, *p)?;
+    if !is_ptr4_kind(tag, kind) {
+        return None;
+    }
+    *p += tw;
+    // The class-pair descriptor: exactly two type references, whose ids are
+    // **LEB128** and not a fixed two bytes each ([`super::mcall::eat_class_descriptor`]).
+    //
+    // Stepping four bytes here is what made this shape refuse bodies that are its
+    // own skeleton byte for byte, in every translation unit large enough to have
+    // wide type ids — `src/App.cpp` carries one. It was found by a residue: the D2
+    // split first spread 17,757 functions over 197 `op-0xNN` buckets, and flat over
+    // the byte range is the signature of reading a payload as vocabulary.
+    let n_refs = mcall::eat_class_descriptor(seg, p)?;
+    if n_refs != 2 {
+        return None;
+    }
+    if !eat_byte(seg, p, 0x55) || !eat(seg, p, &INT_TYPE) {
+        return None;
+    }
+    // The adjust offset — zero, or this needs an `addi`. Unlike the member form's
+    // offset this one stays pinned at zero: the only nonzero-adjust base is the
+    // second base of a multi-base destructor, which has two calls and no
+    // single-branch witness.
+    if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
+        return None;
+    }
+    if read_varint(seg, p)? != 0 {
+        return None;
+    }
+    if !eat_byte(seg, p, 0x55) || !eat(seg, p, &INT_TYPE) {
+        return None;
+    }
+    // The object pointer.
+    if !eat_byte(seg, p, 0xB9) {
+        return None;
+    }
+    let (recv_tok, w) = read_token_var(seg, *p)?;
+    *p += w;
+    if !eat_value_type(seg, p, ValueClass::Ptr4) {
+        return None;
+    }
+    if !eat_byte(seg, p, 0x55) || !eat_value_type(seg, p, ValueClass::Ptr4) {
+        return None;
+    }
+    if !eat_byte(seg, p, 0x4C) {
+        return None;
+    }
+    Some(recv_tok)
+}
+
+/// The **member** sub-object's receiver: `this` plus a literal byte offset through
+/// a plain `27` add, with no intrinsic anywhere. Returns
+/// `(object-pointer token, offset)`. See [`try_parse_empty_dtor_delegation`]'s
+/// `RECV-MEMBER`.
+///
+/// The offset is required to be non-negative and to fit a signed 16-bit `addi`,
+/// which is the whole codegen difference between this receiver and the base one —
+/// and the boundary is measured, not assumed: a member at offset 40,000 emits
+/// `addis r3,r3,1 ; addi r3,r3,-25536` (`work/rf/probes/q3.cpp`).
+fn eat_dtor_member_receiver(seg: &[u8], p: &mut usize) -> Option<(u32, i32)> {
+    // The object pointer. `this` is `A6`-tagged in a destructor and `86`-tagged
+    // through a non-const path; `ValueClass::Ptr4` admits both and refuses the
+    // width-8 and aggregate spellings.
+    if !eat_byte(seg, p, 0xB9) {
+        return None;
+    }
+    let (recv_tok, w) = read_token_var(seg, *p)?;
+    *p += w;
+    if !eat_value_type(seg, p, ValueClass::Ptr4) {
+        return None;
+    }
+    // The member's byte offset within the object, as an int literal.
+    if !eat_byte(seg, p, 0x33) || !eat(seg, p, &INT_TYPE) {
+        return None;
+    }
+    let adjust = read_varint(seg, p)?;
+    if adjust < 0 || i16::try_from(adjust).is_err() {
+        return None;
+    }
+    // `27 <PTR4>` — the typed byte-offset add. Not `28 00 00`: that spelling has
+    // no witness in this production.
+    if !eat_byte(seg, p, 0x27) || !eat_value_type(seg, p, ValueClass::Ptr4) {
+        return None;
+    }
+    Some((recv_tok, adjust))
 }
 
 /// Try to parse a **W6 comparison leaf** body: `return <formal> <rel> <k>;`.
@@ -2430,10 +2565,159 @@ mod tests {
         for (seg, label) in [(DTOR_DELEGATE, "/O1 /Oi /EHsc"), (DTOR_DELEGATE_NOEH, "/Ox")] {
             assert_eq!(
                 parse_segment(seg, NO_LOCALS),
-                Some(BodyShape::EmptyDtorDelegation { callee_tok: 0xE409 }),
+                Some(BodyShape::EmptyDtorDelegation {
+                    callee_tok: 0xE409,
+                    this_tok: 0xFC09,
+                    adjust: 0,
+                    sub_object: DtorSubObject::Base
+                }),
                 "{label}"
             );
         }
+    }
+
+    // ---- the generated empty destructor, MEMBER form ------------------------
+
+    /// Splice a replacement for the first occurrence of `find` in one of the member
+    /// segments, leaving every other byte alone.
+    fn mem_dtor_with(seg: &[u8], find: &[u8], repl: &[u8]) -> Vec<u8> {
+        let at = seg
+            .windows(find.len())
+            .position(|w| w == find)
+            .expect("the field being edited");
+        let mut v = seg[..at].to_vec();
+        v.extend_from_slice(repl);
+        v.extend_from_slice(&seg[at + find.len()..]);
+        v
+    }
+
+    #[test]
+    fn the_member_destructor_parses_at_both_offsets() {
+        // The two productions differ by exactly one literal, and that literal is
+        // the whole codegen difference: nothing at 0, one `addi r3,r3,4` at 4.
+        // MEASURED, `work/rf/probes/p3.cpp`:
+        //   ??1HasMem@@QAA@XZ:   b ??1MemA@@QAA@XZ
+        //   ??1HasMem4@@QAA@XZ:  addi r3,r3,4 ; b ??1MemA@@QAA@XZ
+        assert_eq!(
+            parse_segment(DTOR_MEMBER_OFF0, NO_LOCALS),
+            Some(BodyShape::EmptyDtorDelegation {
+                callee_tok: 0xE409,
+                this_tok: 0x090A,
+                adjust: 0,
+                sub_object: DtorSubObject::Member
+            }),
+            "member at offset 0"
+        );
+        assert_eq!(
+            parse_segment(DTOR_MEMBER_OFF4, NO_LOCALS),
+            Some(BodyShape::EmptyDtorDelegation {
+                callee_tok: 0xE409,
+                this_tok: 0x0C0A,
+                adjust: 4,
+                sub_object: DtorSubObject::Member
+            }),
+            "member at offset 4"
+        );
+    }
+
+    #[test]
+    fn the_member_offset_must_fit_one_addi() {
+        // MEASURED at the boundary (`work/rf/probes/k32764.cpp` / `k32768.cpp`,
+        // `char pad[k]` before the member): 32,764 emits `addi r3,r3,32764` and
+        // 32,768 emits **two** instructions, `addis r3,r3,1 ; addi r3,r3,-32768`.
+        // The gate is therefore at the signed-16-bit edge and not at a round number,
+        // and the escape spelling of the literal (`80` + 4 LE bytes) is what carries
+        // a value that wide.
+        let lit = |k: i32| {
+            let b = k.to_le_bytes();
+            vec![0x33, 0x86, 0x41, 0x74, 0x80, b[0], b[1], b[2], b[3], 0x27]
+        };
+        let find = [0x33, 0x86, 0x41, 0x74, 0x04, 0x27];
+        for k in [8i32, 32_764, 32_767] {
+            let seg = mem_dtor_with(DTOR_MEMBER_OFF4, &find, &lit(k));
+            assert!(
+                matches!(
+                    parse_segment(&seg, NO_LOCALS),
+                    Some(BodyShape::EmptyDtorDelegation { adjust, .. }) if adjust == k
+                ),
+                "offset {k} fits one addi"
+            );
+        }
+        for k in [32_768i32, 65_536, -4] {
+            let seg = mem_dtor_with(DTOR_MEMBER_OFF4, &find, &lit(k));
+            assert_eq!(parse_segment(&seg, NO_LOCALS), None, "offset {k} does not");
+        }
+    }
+
+    #[test]
+    fn two_destroyed_members_in_one_body_refuse() {
+        // The gate that matters most for the member form. MEASURED,
+        // `work/rf/probes/q1.cpp` (`struct Two { ~Two(); MemA m; MemB n; };`): two
+        // statements, each with its own leading `33 <int> 0` literal, `5E 02 31`,
+        // and the reference emits a FRAME — `or r31,r3,r3`, two `bl`s in reverse
+        // declaration order, `or r3,r31,r31` between them — because `this` is live
+        // across the first call. Admitting it as one branch would be a wrong-bytes
+        // emit, so both `5E 01` and reaching the segment end must refuse it.
+        assert_eq!(
+            parse_segment(
+                &mem_dtor_with(DTOR_MEMBER_OFF0, &[0x5E, 0x01, 0x31], &[0x5E, 0x02, 0x31]),
+                NO_LOCALS
+            ),
+            None,
+            "two destroyed sub-objects"
+        );
+        assert_eq!(
+            parse_segment(
+                &mem_dtor_with(DTOR_MEMBER_OFF0, &[0x3A, 0x0A, 0x0A], &[0x26, 0xE4, 0x09]),
+                NO_LOCALS
+            ),
+            None,
+            "a second statement where the plumbing must begin"
+        );
+    }
+
+    #[test]
+    fn the_member_receiver_must_be_this_and_must_be_an_offset_add() {
+        // The lowering puts the address in r3 with at most an `addi`, which is only
+        // right because the base of the add is the incoming `this`.
+        let mut seg = DTOR_MEMBER_OFF0.to_vec();
+        let at = find_subslice(&seg, &LO_MARKER).unwrap();
+        let recv = seg[at..]
+            .windows(7)
+            .position(|w| w == [0xB9, 0x09, 0x0A, 0xA6, 0x43, 0x81, 0x20])
+            .expect("the object pointer")
+            + at;
+        seg[recv + 1] = 0xF7; // a token no `2D` entry and no `this` group names
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None, "a receiver that is not this");
+        // `28 00 00` is the other byte-offset add. D2's classifier accepts either,
+        // but this production has no `28` witness, so it fails closed rather than
+        // being admitted on the assumption that the two spell the same thing.
+        assert_eq!(
+            parse_segment(
+                &mem_dtor_with(
+                    DTOR_MEMBER_OFF0,
+                    &[0x27, 0xA6, 0x43, 0x8A, 0x20],
+                    &[0x28, 0x00, 0x00]
+                ),
+                NO_LOCALS
+            ),
+            None,
+            "the untyped `28` offset add"
+        );
+    }
+
+    #[test]
+    fn the_member_form_keeps_the_base_forms_gates() {
+        // The two receivers are alternatives in one shape, so a gate loosened for
+        // one must not leak into the other. The base form's adjust offset stays
+        // pinned at 0 (`a_nonzero_base_adjust_refuses`), and the member form's
+        // leading literal stays pinned at 0 here — it is the byte that tells this
+        // production apart from the 2117 `base-member-addr` designator, which opens
+        // on the same `33` and carries the selector as its payload.
+        let mut seg = DTOR_MEMBER_OFF0.to_vec();
+        let lo = find_subslice(&seg, &LO_MARKER).unwrap();
+        seg[lo + 7] = 0x01; // the leading LIT's varint
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
     }
 
     #[test]
