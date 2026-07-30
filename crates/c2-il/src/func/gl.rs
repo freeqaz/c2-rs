@@ -400,6 +400,42 @@ pub fn source_path(gl: &[u8]) -> Option<String> {
     None
 }
 
+/// The fixed `.gl` header prefix that precedes the label counter:
+/// `11 02 06 '1' 'j' '2' 01`. Required literally — the counter is read at a
+/// fixed offset, so a `.gl` that does not start exactly like this is
+/// **undetermined**, never guessed at.
+const GL_HEADER_PREFIX: [u8; 7] = [0x11, 0x02, 0x06, b'1', b'j', b'2', 0x01];
+
+/// The **compiler label counter** — the u32 at `.gl` offset 7, immediately
+/// after [`GL_HEADER_PREFIX`].
+///
+/// This is the seed of c2's `$M…`/`$T…` compiler-generated label names, which
+/// every framed function's obj carries (two `$M` labels marking the prologue end
+/// and the function end, one `$T` label on its `.pdata` record). Without it the
+/// port can emit a framed function only for a TU whose counter was pinned by
+/// capture — which is exactly the state `docs/OBJ_GY_SHAPES.md` §3.5 recorded as
+/// "not determined … the port cannot emit any framed function beyond TUs where B
+/// is pinned by capture", and why `emit_framed_obj` hardcoded `2545/2546/2547`.
+///
+/// The first label c2 allocates for a TU is `counter + 9`
+/// (`c2_core::coff::LabelPlan`). Established over 25 TUs whose `.gl` and obj were
+/// captured together: `mvp_framed` 2536 → `$M2545`, `mvp_call_twice` 2534 →
+/// `$M2543`, `il_call_return` 2578 → `$M2587`, and so on across TUs whose
+/// counters span 2534..2683. An earlier attempt read this field as a LEB128 and
+/// got a plausible-looking value (1256 for `mvp_framed`) that fitted a constant
+/// gap on every single-byte-continuation TU in the fixture set and broke as soon
+/// as the low byte fell below 0x80 — the field is a fixed-width u32.
+///
+/// `None` (undetermined, so the caller refuses) if the header does not match or
+/// the file is short. A missing counter must never be defaulted: an emitted
+/// `$M` with the wrong number is a wrong-bytes obj.
+pub fn label_counter(gl: &[u8]) -> Option<u32> {
+    if gl.len() < GL_HEADER_PREFIX.len() + 4 || gl[..7] != GL_HEADER_PREFIX {
+        return None;
+    }
+    Some(u32::from_le_bytes([gl[7], gl[8], gl[9], gl[10]]))
+}
+
 /// Lazily-built `.gl` symbol index (see [`gl_symbol_index`]) — same contents,
 /// built on first use. Only the call productions consult it (callee-by-token
 /// resolution), so a TU of straight-line leaves never pays for building it;
@@ -425,6 +461,24 @@ impl<'a> GlIndex<'a> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn label_counter_is_a_fixed_width_u32_behind_the_header() {
+        // `mvp_framed`'s real `.gl` prefix. 0x9E8 = 2536, and the TU's first
+        // compiler label is $M2545 = 2536 + 9.
+        let gl = [0x11, 0x02, 0x06, b'1', b'j', b'2', 0x01, 0xE8, 0x09, 0x00, 0x00, 0x00];
+        assert_eq!(super::label_counter(&gl), Some(2536));
+        // Read as a LEB128 the same bytes give 1256, which fits a constant gap
+        // of 1289 across most of the corpus and breaks the moment the low byte
+        // drops below 0x80 — hence the fixed-width read and this control:
+        let low = [0x11, 0x02, 0x06, b'1', b'j', b'2', 0x01, 0x7F, 0x09, 0x00, 0x00];
+        assert_eq!(super::label_counter(&low), Some(0x0000_097F));
+        // Undetermined, never guessed: wrong header, or too short.
+        let bad = [0x11, 0x02, 0x06, b'1', b'j', b'3', 0x01, 0xE8, 0x09, 0x00, 0x00];
+        assert_eq!(super::label_counter(&bad), None);
+        assert_eq!(super::label_counter(&gl[..9]), None);
+        assert_eq!(super::label_counter(&[]), None);
+    }
+
     use super::*;
 
     #[test]

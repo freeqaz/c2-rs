@@ -38,7 +38,7 @@ mod sy;
 pub use self::body::Block;
 pub use self::bundle::{is_empty_module, OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER};
 pub use self::census::{FnCensus, FnVerdict, CENSUS_HEX_BACK, CENSUS_HEX_FWD};
-pub use self::gl::{gl_symbol_index, mangled_name, mangled_names, source_path};
+pub use self::gl::{gl_symbol_index, label_counter, mangled_name, mangled_names, source_path};
 pub use self::readers::detect_token_width;
 
 /// A single straight-line IL operation in the integer-arithmetic class.
