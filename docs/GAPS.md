@@ -208,9 +208,10 @@ bracketed:
 That hexdump is what converts a bucket into a decoded production; every
 grammar correction below came out of one.
 
-> **Current numerator, 2026-07-30: 418,628 / 2,462,571 (17.00 %)**, with a
+> **Current numerator, 2026-07-30: 427,655 / 2,462,571 (17.37 %)**, with a
 > **measured census/gate disagreement of 0** — see `ROADMAP.md` §6c (the repair
-> that took it *down* by 9,230) and §6d (W22, which took it up by 15,924), plus
+> that took it *down* by 9,230), §6d (W22, which took it up by 15,924) and §6e
+> (D14, the `.gl` record form the symbol index could not see, +9,027), plus
 > the sizing box in §6 below. Everything in the rest of this section is
 > historical; quote the number above.
 
@@ -1313,6 +1314,29 @@ The rules that keep the numbers honest:
   made are ones the invariant confirmed. The census moved 211,012 → 228,298
   (+17,286, 0 functions lost, 0 TUs changing class) with mismatch 0 — but the
   mismatch-0 is *not* the evidence, and this bullet exists to keep that distinction.
+  **A second binding was made on this rule and it is the worked example of it**
+  (D14, `ROADMAP.md` §6e). `gl_symbol_index` anchored a `.gl` record on "the name
+  is the run right after a NUL", and 9,028 generated destructors had a callee whose
+  record uses a **second separator byte, `26`**, which that anchor cannot see. The
+  fix decides which symbol a token names, so it was graded on four things the
+  oracle could not have supplied, and the order they are listed in is the order of
+  their strength. **(a) Framing identity**: two adjacent records of the same class
+  differ in exactly one byte — `80 75 14 00 00 00 00 04 84 30 **00** ??YString@@…`
+  against `80 85 14 00 00 00 00 04 c2 30 **26** ??_GString@@…` — so the token field
+  is at the same offset in both, and a different field would have to occupy the
+  same position in the same layout. **(b) A population whose answer the SOURCE
+  fixes**: a generated empty destructor delegates to a sub-object's destructor, so
+  all 35,946 in-class ones must resolve to a destructor mangling, and all 35,946
+  do, with 0 exceptions — a misread field would name arbitrary symbols. **(c)
+  Injectivity, three-valued**: a token two records disagree about is dropped rather
+  than bound to the first. **(d) A counterfactual**: the identical binary with `26`
+  removed gains 0, so the whole +9,028 is that byte and not the rest of the
+  rewrite. What is NOT closed is stated too — no fixture grades a `26`-form binding
+  through an obj, because eleven probes failed to reproduce the form in a
+  controlled TU. The general form worth keeping: **when the oracle cannot grade a
+  correspondence, look for a population whose answer the SOURCE LANGUAGE fixes**
+  (here: what a generated destructor is allowed to call), because that is evidence
+  the container and the compiler both have to agree with.
   One more thing fell out of grading the correspondence instead of the output: the
   "surplus" blocks were never surplus. `.sy` has exactly one block per `.ex`
   **function tail** in all 856 files that parse; it is
@@ -1354,6 +1378,19 @@ The rules that keep the numbers honest:
   third value — **undetermined** — that refuses. A two-valued answer silently
   converts a decode failure into wrong bytes; a three-valued one converts it into
   a `NotImplemented`.
+  **The fourth instance cost coverage rather than correctness, which is why it sat
+  for so long.** `gl_symbol_index` looked for a record's name immediately after a
+  NUL; 12,505 of the 33,059 `?`-mangled names in eight real TUs have a `26` there
+  instead, so "no name found" was read as "no such symbol" and 9,028 generated
+  destructors refused (D14, `ROADMAP.md` §6e). Two things generalize. A search whose
+  failure is *fail-closed* still needs the same scrutiny as one whose failure is
+  wrong bytes — it just presents as a stubborn census bucket rather than an alarm,
+  and this project's own ranked worklist had been carrying it as "the largest named
+  item that needs no new instruction lowering" for a rung. And an anchor should be
+  chosen so that the thing it looks for is a **field of the record**, not a byte
+  value the record happens to contain: the separator is a field with two measured
+  values, and pinning it to one of them is the same class of mistake as pinning a
+  token's width to two bytes.
 - **One fact, one locator.** The `46` formals marker was located correctly in
   `parse_formals` (anchored to end on `LO`, after the line-70 bug) and
   incorrectly in `parse_this_token` (first matching byte) *at the same time*, for
