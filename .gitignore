@@ -48,3 +48,8 @@ _CL_*
 __pycache__/
 *.pyc
 gens_*.jsonl
+
+# Git worktrees created by scripts/setup_worktree.sh (and by Claude Code's own
+# worktree isolation). Each is a real checkout with a reflinked target/ and a
+# symlinked compilers/ — never committed.
+/.claude/worktrees/
