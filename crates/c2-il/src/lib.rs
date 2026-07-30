@@ -37,7 +37,8 @@ pub mod func;
 pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, Span};
 pub use func::{
     chain_form, ChainForm,
-    detect_token_width, gl_symbol_index, is_empty_module, mangled_name, mangled_names,
+    detect_token_width, gl_symbol_conflicts, gl_symbol_index, is_empty_module, mangled_name,
+    mangled_names,
     opt_word_mode, source_path, Block, FnCensus, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
     OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,

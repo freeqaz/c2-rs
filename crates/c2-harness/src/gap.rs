@@ -128,6 +128,25 @@ pub struct TuResult {
     /// parser needs a population whose answer is already known, and this is that
     /// population — every in-class function, whose answer should be "accepted".
     pub fn_gate_refusals: BTreeMap<String, usize>,
+    /// **The `.gl` binding invariants** (D14). A binding decides *which symbol* a
+    /// token names, and the oracle cannot grade a correspondence — a green
+    /// differential only says the binding chosen and the binding c2 chose agreed
+    /// on the IL tested (`docs/GAPS.md` §6, the `.sy` bullet). So the two facts
+    /// the container itself settles are counted on every scan:
+    ///
+    /// * `"gl-token-ambiguous-dropped"` / `"gl-token-conflict-mangled"` — operand
+    ///   tokens `.gl` claims for two different names, dropped rather than resolved
+    ///   to the first ([`c2_il::gl_symbol_conflicts`]). Only the second has a known
+    ///   answer of 0: `.gl` assigns one token per symbol, so a `?`-mangled name can
+    ///   never be one of a disagreeing pair. The first is the type table brushing
+    ///   against this reader's record shape, and costs nothing.
+    /// * `"dtor-callee-<class>"` — the mangling class of the callee every
+    ///   in-class generated empty destructor resolves to. The shape is a
+    ///   destructor delegating to a sub-object's destructor, so every one of them
+    ///   must be a destructor mangling (`??1` / `??_G` / `??_E` / `??_D`);
+    ///   `dtor-callee-other` is the count that says the binding names something
+    ///   the shape cannot delegate to, and its known answer is 0.
+    pub bind_checks: BTreeMap<String, usize>,
 }
 
 /// Aggregated scan report.
@@ -235,6 +254,45 @@ impl GapReport {
             .sum()
     }
 
+    /// **The `.gl` binding invariants**, aggregated (see [`TuResult::bind_checks`]).
+    pub fn bind_check_histogram(&self) -> Vec<(String, usize)> {
+        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
+        for r in &self.results {
+            for (k, n) in &r.bind_checks {
+                *map.entry(k.as_str()).or_insert(0) += n;
+            }
+        }
+        let mut v: Vec<(String, usize)> =
+            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// The binding invariant that must be **zero**: a generated destructor bound to
+    /// a callee that is not a destructor. Nonzero means the `.gl` reader is naming
+    /// the wrong symbol in a way no obj comparison over this corpus could have
+    /// shown, because these bodies rarely reach an emitter.
+    ///
+    /// The ambiguity counts are deliberately **not** in here. A token two records
+    /// disagree about is dropped, so it is an over-refusal with a measurable cost,
+    /// not a wrong binding; the workload's residual is 7, all of them one `.gl`
+    /// record form this reader does not model (`$…$initializer$` local statics), and
+    /// their measured cost is 0 functions.
+    pub fn bind_violations(&self) -> usize {
+        self.results
+            .iter()
+            .map(|r| {
+                r.bind_checks
+                    .iter()
+                    .filter(|(k, _)| {
+                        k.as_str() == "dtor-callee-other" || k.as_str() == "dtor-callee-none"
+                    })
+                    .map(|(_, n)| *n)
+                    .sum::<usize>()
+            })
+            .sum()
+    }
+
     /// Replay soundness: (checked, diverged).
     pub fn replay_stats(&self) -> (usize, usize) {
         let checked = self.results.iter().filter(|r| r.replay_ok.is_some()).count();
@@ -284,6 +342,29 @@ fn gate_key(msg: &str) -> String {
     clip(head, 72)
 }
 
+/// Which destructor mangling a generated empty destructor's resolved callee is —
+/// `"other"` when it is not one at all, which is the count that must stay 0.
+///
+/// MSVC spells the four: `??1` an ordinary destructor, `??_G` the scalar deleting
+/// destructor, `??_E` the vector deleting one, `??_D` the vbase destructor. The
+/// shape [`c2_il`] parses is a destructor whose whole body delegates to a
+/// sub-object's destructor, so the callee is one of these by construction of the
+/// *source*, independently of how `.gl` was read — which is what makes this a
+/// grader for the binding rather than a restatement of it.
+pub fn dtor_callee_class(name: &str) -> &'static str {
+    for (p, k) in [
+        ("??1", "1"),
+        ("??_G", "G"),
+        ("??_E", "E"),
+        ("??_D", "D"),
+    ] {
+        if name.starts_with(p) {
+            return k;
+        }
+    }
+    "other"
+}
+
 fn clip(s: &str, n: usize) -> String {
     if s.len() <= n {
         s.to_string()
@@ -317,6 +398,7 @@ fn scan_one(
         fn_blockers: BTreeMap::new(),
         fn_frames: BTreeMap::new(),
         fn_gate_refusals: BTreeMap::new(),
+        bind_checks: BTreeMap::new(),
     };
 
     // 1. Capture: real flags, real cwd, strace keeps bundle + obj.
@@ -377,6 +459,34 @@ fn scan_one(
             *res.fn_frames
                 .entry(format!("{}|{}", f.frame_class(), f.verdict.key()))
                 .or_insert(0) += 1;
+            // 1d. The binding invariant (D14): what did the `.gl` symbol index
+            //     say a generated destructor delegates to? A destructor, always —
+            //     anything else is a binding the oracle would have had no chance
+            //     to catch, because these bodies rarely reach an emitter.
+            if f.verdict.key().starts_with("empty-dtor") {
+                if let Ok(func) = gate {
+                    let k = match &func.tail_call {
+                        Some(c) => dtor_callee_class(c),
+                        None => "none",
+                    };
+                    *res.bind_checks
+                        .entry(format!("dtor-callee-{k}"))
+                        .or_insert(0) += 1;
+                }
+            }
+        }
+    }
+    if let Some(gl) = captured.bundle.get("gl") {
+        let (dropped, mangled) = c2_il::gl_symbol_conflicts(gl);
+        if dropped > 0 {
+            *res.bind_checks
+                .entry("gl-token-ambiguous-dropped".to_string())
+                .or_insert(0) += dropped;
+        }
+        if mangled > 0 {
+            *res.bind_checks
+                .entry("gl-token-conflict-mangled".to_string())
+                .or_insert(0) += mangled;
         }
     }
 
@@ -514,9 +624,15 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let binds = r
+                .bind_checks
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_gate_refusals\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -532,6 +648,7 @@ pub fn gap_scan(
                 blockers,
                 frames,
                 gate,
+                binds,
             )?;
         }
     }
@@ -571,6 +688,7 @@ mod tests {
             fn_blockers: BTreeMap::new(),
             fn_frames: BTreeMap::new(),
             fn_gate_refusals: BTreeMap::new(),
+            bind_checks: BTreeMap::new(),
         }
     }
 
