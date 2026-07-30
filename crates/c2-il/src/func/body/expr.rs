@@ -293,21 +293,44 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
 /// *before* the true marker can span past it unless it lands on `lo`, because the
 /// true marker's own `0x46` is neither `0x2D` nor a token continuation there.
 pub(crate) fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
-    let mut best: Option<Vec<u32>> = None;
+    let f = formals_marker(seg, lo)
+        .ok_or(Block { ctx: "formals-marker", byte: None, off: lo, aux: 0 })?;
+    let mut rev = Vec::new();
+    let mut p = f + 1;
+    while p < lo && seg.get(p) == Some(&0x2D) {
+        p += 1;
+        let (tok, w) = read_token_var(seg, p)
+            .ok_or(Block { ctx: "formals-tok", byte: None, off: p, aux: 0 })?;
+        p += w;
+        rev.push(tok);
+    }
+    rev.reverse();
+    Ok(rev)
+}
+
+/// The offset of the `46` formals marker — **the one anchor**, so that everything
+/// reading the pre-body region agrees about where it is.
+///
+/// This used to be inlined in [`parse_formals`] while [`super::shapes`] located the
+/// same marker with a plain "first `0x46` byte" search. That disagreement was a
+/// live wrong-bytes emit, not a tidiness problem: a member function on source line
+/// 70 carries the line marker `4F 01 46`, the `this` lookup anchored on *that*
+/// `0x46`, found no `this` group ending there, and reported "no `this`" — which the
+/// caller could not distinguish from a genuine non-member. Every explicit formal
+/// then sat one register too low and `int C::gp(int* q) const { return *q; }`
+/// emitted `lwz r3,0(r3)` for `lwz r3,0(r4)`. `fixtures/cpp/il_this_line70.cpp`
+/// pins it.
+pub(crate) fn formals_marker(seg: &[u8], lo: usize) -> Option<usize> {
     for f in 0..lo {
         if seg[f] != 0x46 {
             continue;
         }
         let mut p = f + 1;
-        let mut rev = Vec::new();
         let mut ok = true;
         while p < lo && seg.get(p) == Some(&0x2D) {
             p += 1;
             match read_token_var(seg, p) {
-                Some((tok, w)) => {
-                    p += w;
-                    rev.push(tok);
-                }
+                Some((_, w)) => p += w,
                 None => {
                     ok = false;
                     break;
@@ -315,12 +338,10 @@ pub(crate) fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
             }
         }
         if ok && p == lo {
-            rev.reverse();
-            best = Some(rev);
-            break;
+            return Some(f);
         }
     }
-    best.ok_or(Block { ctx: "formals-marker", byte: None, off: lo, aux: 0 })
+    None
 }
 
 #[cfg(test)]

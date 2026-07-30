@@ -113,9 +113,11 @@ pub(crate) fn memchr_byte(needle: u8, hay: &[u8]) -> Option<usize> {
     hay[i..].iter().position(|&x| x == needle).map(|k| i + k)
 }
 
-pub(crate) fn find_byte(hay: &[u8], b: u8) -> Option<usize> {
-    memchr_byte(b, hay)
-}
+// `find_byte` used to live here and had exactly one caller: the `this` lookup's
+// "first `0x46` in the segment" anchor, which was a wrong-bytes emit (see
+// `expr::formals_marker`). Nothing in the pre-body region is safely located by a
+// bare byte search — a candidate has to be required to *end* somewhere known — so
+// the helper is gone rather than left available for the next such anchor.
 
 pub(crate) fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() || hay.len() < needle.len() {

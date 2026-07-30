@@ -217,6 +217,15 @@ pub struct IlFunction {
 /// Pinned `.ex` segments and helpers shared by the per-module test suites.
 /// Every byte array is transcribed verbatim from a live-toolchain capture (see
 /// each item's own comment); nothing here is hand-assembled.
+///
+/// Each segment begins at its `53 53` statement start, which is where the
+/// pre-body region the parser reads actually begins — the opaque `4F 33 …` header
+/// ahead of it is excluded deliberately, and the one thing that matters about it
+/// (that it can contain a stray `0x46`) is covered by
+/// `parse_formals_anchors_on_the_marker_that_reaches_lo`, which synthesizes the
+/// line-70 marker in front. These three used to start at the `46` formals marker
+/// instead, which meant the region where the `this` binding lives — and where a
+/// wrong-bytes emit lived, see `expr::formals_marker` — was in no fixture at all.
 #[cfg(test)]
 pub(crate) mod test_fixtures {
     /// These pinned segments are synthetic and have no `.sy` companion, so an
@@ -232,6 +241,7 @@ pub(crate) mod test_fixtures {
 
     /// `int ld_p(int* p) { return *p; }` — one formal, no offset add.
     pub(crate) const IND_DEREF: &[u8] = &[
+        0x53, 0x53, 0x26, 0xEF, 0x09, // statement start, function-symbol push
         0x46, 0x2D, 0xEE, 0x09, // formals: p
         0x4C, 0x4F, 0x11, 0x53, // LO SS
         0xB9, 0xEE, 0x09, 0x86, 0x43, 0xF4, 0x08, // LOAD p (int *)
@@ -243,6 +253,7 @@ pub(crate) mod test_fixtures {
 
     /// `int ld_m0(S* s) { return s->a; }` — a `27` byte-offset add of 0.
     pub(crate) const IND_MEMBER0: &[u8] = &[
+        0x53, 0x53, 0x26, 0xFF, 0x09, // statement start, function-symbol push
         0x46, 0x2D, 0xFE, 0x09, // formals: s
         0x4C, 0x4F, 0x11, 0x53, // LO SS
         0xB9, 0xFE, 0x09, 0x86, 0x43, 0x81, 0x20, // LOAD s (S *)
@@ -257,6 +268,7 @@ pub(crate) mod test_fixtures {
     /// `int ld_ixneg(int* p) { return p[-1]; }` — a `28 00 00` subscript add whose
     /// offset is the **signed** short form `FC` = −4, typed `long` not `int`.
     pub(crate) const IND_SUBSCRIPT_NEG: &[u8] = &[
+        0x53, 0x53, 0x26, 0x11, 0x0A, // statement start, function-symbol push
         0x46, 0x2D, 0x10, 0x0A, // formals: p
         0x4C, 0x4F, 0x11, 0x53, //
         0xB9, 0x10, 0x0A, 0x86, 0x43, 0xF4, 0x08, // LOAD p (int *)

@@ -1,10 +1,12 @@
 use super::chain::{
     additive_chain_canonical, has_repeated_leaf, leaves_ascending, substitute, MAX_SUBST_OPS,
 };
-use super::expr::{eat_return_plumbing, intrinsic_selector, parse_expr, parse_formals};
+use super::expr::{
+    eat_return_plumbing, formals_marker, intrinsic_selector, parse_expr, parse_formals,
+};
 use super::{blk, Block, BodyShape};
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like, eat_opt_stmt_marker, find_byte, is_int4_type, is_ptr_to_4,
+    eat, eat_byte, eat_int_like, eat_opt_stmt_marker, is_int4_type, is_ptr_to_4,
     read_token_var, read_type, read_varint, DOUBLE_LIT_TYPE, DOUBLE_TYPE, FLOAT_LIT_TYPE,
     FLOAT_TYPE, INT_TYPE, UINT_TYPE,
 };
@@ -407,53 +409,86 @@ pub(crate) fn try_parse_float_leaf(seg: &[u8], start: usize, lo: usize) -> Optio
 /// int D::s(int* q)              { return *q; }   -> lwz r3,0(r3)   static: no `this`
 /// ```
 ///
-/// Located by parsing *backwards to a fixed end*: the candidate must decode as
-/// `B9 <tok> <TYPE> 99 <TYPE> 00` and finish **exactly** on the `46` formals
-/// marker. If no candidate or more than one does, this returns `None` and the
-/// caller refuses — a guessed `this` would pick the wrong base register.
+/// Located against the **one** formals-marker anchor
+/// ([`super::expr::formals_marker`]): the pre-body region is `26 <fn-tok>` followed
+/// either by nothing or by exactly one `this` group, and whichever it is must land
+/// *exactly* on that marker.
+///
+/// Both outcomes are established positively, and that is the point. This used to
+/// return a bare `Option<u32>` and anchor on the first `0x46` byte in the segment,
+/// so a `None` meant "no `this`" and "could not tell" alike — and the first `0x46`
+/// is the known-bad anchor `parse_formals` documents, because a function on source
+/// line 70 carries the line marker `4F 01 46`. A member function there reported no
+/// `this`, every explicit formal shifted one register down, and
+/// `int C::gp(int* q) const { return *q; }` emitted `lwz r3,0(r3)` where the
+/// reference has `lwz r3,0(r4)` — a wrong-bytes emit inside an accepted class,
+/// found by review and pinned by `fixtures/cpp/il_this_line70.cpp`.
 ///
 /// Note that `99`'s trailing field is a one-byte varint while the visually
 /// similar `9B`'s is a whole `read_token_var`; see `docs/IL_EXPR_LAYER.md` §7.
-fn parse_this_token(seg: &[u8], lo: usize) -> Option<u32> {
-    let f = find_byte(&seg[..lo], 0x46)?;
-    let mut found: Option<u32> = None;
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ThisBinding {
+    /// The pre-body region runs straight from the function token to the formals
+    /// marker: a free function or a `static` member, `this` in no register.
+    Absent,
+    /// A member function; the token occupies r3 and shifts every formal up one.
+    Bound(u32),
+}
+
+/// `None` means **undetermined**, and the caller must refuse — never "absent".
+fn parse_this_token(seg: &[u8], lo: usize) -> Option<ThisBinding> {
+    let f = formals_marker(seg, lo)?;
+    let mut found: Option<ThisBinding> = None;
     for q in 0..f {
-        if seg[q] != 0xB9 {
+        if seg[q] != 0x26 {
             continue;
         }
         let mut p = q + 1;
-        let (tok, w) = match read_token_var(seg, p) {
+        let (_fn_tok, w) = match read_token_var(seg, p) {
             Some(x) => x,
             None => continue,
         };
         p += w;
-        let tw = match read_type(seg, p) {
-            Some((_, _, _, w)) => w,
-            None => continue,
+        let binding = if p == f {
+            ThisBinding::Absent
+        } else {
+            match read_this_group(seg, p) {
+                Some((tok, end)) if end == f => ThisBinding::Bound(tok),
+                _ => continue,
+            }
         };
-        p += tw;
-        if seg.get(p) != Some(&0x99) {
-            continue;
-        }
-        p += 1;
-        let tw = match read_type(seg, p) {
-            Some((_, _, _, w)) => w,
-            None => continue,
-        };
-        p += tw;
-        if seg.get(p) != Some(&0x00) {
-            continue;
-        }
-        p += 1;
-        if p != f {
-            continue;
-        }
+        // A second candidate landing on the marker means the region is not
+        // determined by these bytes. Refuse rather than prefer one.
         if found.is_some() {
-            return None; // ambiguous: refuse rather than pick
+            return None;
         }
-        found = Some(tok);
+        found = Some(binding);
     }
     found
+}
+
+/// One `B9 <tok> <TYPE> 99 <TYPE> 00` group — the `this` push — returning its
+/// token and the offset just past it.
+fn read_this_group(seg: &[u8], at: usize) -> Option<(u32, usize)> {
+    let mut p = at;
+    if *seg.get(p)? != 0xB9 {
+        return None;
+    }
+    p += 1;
+    let (tok, w) = read_token_var(seg, p)?;
+    p += w;
+    let (_, _, _, tw) = read_type(seg, p)?;
+    p += tw;
+    if *seg.get(p)? != 0x99 {
+        return None;
+    }
+    p += 1;
+    let (_, _, _, tw) = read_type(seg, p)?;
+    p += tw;
+    if *seg.get(p)? != 0x00 {
+        return None;
+    }
+    Some((tok, p + 1))
 }
 
 /// Try to parse an **indirect-load leaf**: a whole body that is one load through
@@ -619,13 +654,15 @@ fn finish_indirect_load(
     // Bind the base to its argument register. `this` is argument 0, and when it
     // is present every explicit formal shifts up one.
     let formals = parse_formals(seg, lo).ok()?;
-    let params = match parse_this_token(seg, lo) {
-        Some(this_tok) => {
+    // `None` is "undetermined", and refusing is the whole point: treating it as
+    // "no `this`" is what mis-emitted the base register.
+    let params = match parse_this_token(seg, lo)? {
+        ThisBinding::Bound(this_tok) => {
             let mut v = vec![this_tok];
             v.extend_from_slice(&formals);
             v
         }
-        None => formals,
+        ThisBinding::Absent => formals,
     };
     let ix = params.iter().position(|&t| t == base_tok)?;
     // Past the eighth argument the value is stack-homed, which needs a frame.
@@ -1244,6 +1281,8 @@ pub(crate) fn parse_call_shape(
 mod tests {
     use super::*;
     use crate::func::body::parse_segment;
+    use crate::func::bundle::LO_MARKER;
+    use crate::func::readers::find_subslice;
     use crate::func::test_fixtures::*;
 
     #[test]
@@ -1278,7 +1317,8 @@ mod tests {
         // `this` is not in the `2D` list, so `params` must be built from the
         // pre-body binding — otherwise the base register is unknown (or, worse,
         // an explicit formal is mapped one register low).
-        assert_eq!(parse_this_token(IND_THIS_GETTER, 21), Some(0xF809));
+        let lo = find_subslice(IND_THIS_GETTER, &LO_MARKER).unwrap();
+        assert_eq!(parse_this_token(IND_THIS_GETTER, lo), Some(ThisBinding::Bound(0xF809)));
         assert_eq!(
             parse_segment(IND_THIS_GETTER, NO_LOCALS),
             Some(BodyShape::IndirectLoad {
@@ -1292,36 +1332,48 @@ mod tests {
     fn indirect_load_leaf_refuses_the_adjacent_shapes() {
         // Splice one field of IND_DEREF at a time. Each variant is a construct
         // whose reference codegen differs (see fixtures/cpp/il_expr_load_neg.cpp).
+        //
+        // Offsets are measured from the `LO` marker rather than written as absolute
+        // indices: they were absolute, and prepending the real `53 53 26 <fn>`
+        // prologue to the pinned segment silently shifted every one of them.
+        // Offsets are relative to the `LO` marker, which is a landmark the segment
+        // itself defines.
+        let base = |seg: &[u8]| find_subslice(seg, &LO_MARKER).unwrap();
+        let d = base(IND_DEREF);
         let bad = |patch: &[(usize, u8)]| {
             let mut s = IND_DEREF.to_vec();
             for &(i, b) in patch {
-                s[i] = b;
+                s[d + i] = b;
             }
             parse_segment(&s, NO_LOCALS)
         };
         // A `char` pointee is `lbz`, not `lwz` (`30 82 11 70`).
-        assert_eq!(bad(&[(16, 0x82), (17, 0x11), (18, 0x70), (20, 0x82), (21, 0x11), (22, 0x70)]), None);
+        assert_eq!(
+            bad(&[(12, 0x82), (13, 0x11), (14, 0x70), (16, 0x82), (17, 0x11), (18, 0x70)]),
+            None
+        );
         // A `float` pointee is `lfs` (`30 86 45 40`).
-        assert_eq!(bad(&[(17, 0x45), (18, 0x40), (21, 0x45), (22, 0x40)]), None);
+        assert_eq!(bad(&[(13, 0x45), (14, 0x40), (17, 0x45), (18, 0x40)]), None);
         // A pointer pointee (`int **`) emits the same word but stays refused.
-        assert_eq!(bad(&[(17, 0x43)]), None);
+        assert_eq!(bad(&[(13, 0x43)]), None);
 
         // Arithmetic after the load: the load lands in the scratch register, so
         // this must not reach the affine selector.
-        let mut with_add = IND_DEREF[..19].to_vec();
+        let mut with_add = IND_DEREF[..d + 15].to_vec();
         with_add.extend_from_slice(&[0x33, 0x86, 0x41, 0x74, 0x01, 0x02]); // + 1
-        with_add.extend_from_slice(&IND_DEREF[19..]);
+        with_add.extend_from_slice(&IND_DEREF[d + 15..]);
         assert_eq!(parse_segment(&with_add, NO_LOCALS), None);
 
         // A `28` payload other than `00 00` is unexplained and must refuse.
+        let n = base(IND_SUBSCRIPT_NEG);
         let mut sub_bad = IND_SUBSCRIPT_NEG.to_vec();
-        sub_bad[21] = 0x01;
+        sub_bad[n + 17] = 0x01;
         assert_eq!(parse_segment(&sub_bad, NO_LOCALS), None);
 
         // An offset past the 16-bit displacement materializes an index register.
-        let mut wide = IND_SUBSCRIPT_NEG[..19].to_vec();
+        let mut wide = IND_SUBSCRIPT_NEG[..n + 15].to_vec();
         wide.extend_from_slice(&[0x80, 0x80, 0x1A, 0x06, 0x00]); // 400000
-        wide.extend_from_slice(&IND_SUBSCRIPT_NEG[20..]);
+        wide.extend_from_slice(&IND_SUBSCRIPT_NEG[n + 16..]);
         assert_eq!(parse_segment(&wide, NO_LOCALS), None);
     }
 }
