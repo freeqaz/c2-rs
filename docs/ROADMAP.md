@@ -8,6 +8,23 @@ bottom are **load-bearing** — every phase must preserve them.
 
 The foundation is proven and fast; the port itself is deliberately narrow.
 
+> **Mode caveat — read before quoting any number below (2026-07-30).** Every
+> fixture, every sweep case and therefore every byte-exactness claim in this
+> document is captured at the default **`/Ox`**. The 878-TU dc3 workload — the
+> source of every *coverage* number — compiles **`/O1`**. The two modes emit
+> different code, and `.ex` says so in a per-function word after each `4F 1F`
+> that the port does not read (`docs/OPT_MODE.md`). So the numerator is `/Ox` and
+> the denominator is `/O1`, and they are not two views of one thing.
+>
+> The measured scope of the difference is narrower than that sounds: over ~90
+> functions spanning the whole accepted class, every difference is
+> allocation-only bar one scheduling case, and the reassociation and float work
+> is byte-identical across modes. But `il_accum4.cpp`'s whole-chain accumulator
+> rule is `/Ox`-only, and re-targeting `/O1` is now a phase (§tasks 19–20), not
+> a footnote. Five of the six TUs the last scan called `match` have
+> `fn_total = 0` — empty modules — so the `match` column has never yet exercised
+> mode-dependent codegen.
+
 > **As-of marker.** The fixture ratio (21/41) and every census figure in §1 and
 > §G5 were measured at commit **`cebfb88`** (W13b). Three further rungs landed in
 > concurrent sessions immediately afterwards — `06d29b9` (W6: `<`, `>=`, `<=`
