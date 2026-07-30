@@ -62,12 +62,21 @@ const COFF_HEADER_LEN: usize = 20;
 /// One COFF relocation record: VirtualAddress u32, SymbolTableIndex u32,
 /// Type u16 (packed, not padded).
 const RELOC_LEN: usize = 10;
+/// One COFF symbol-table record (also the aux-record stride).
+const SYMBOL_LEN: usize = 18;
 
 /// A little-endian byte sink.
 struct Buf(Vec<u8>);
 impl Buf {
     fn new() -> Self {
         Buf(Vec::new())
+    }
+    /// Pre-sized sink for the whole-obj emitters: the layout pass has already
+    /// computed the symbol-table offset, so the final size is known to within
+    /// the string table. Capacity is invisible in the output — this only
+    /// removes the realloc-and-copy churn of growing from empty.
+    fn with_capacity(n: usize) -> Self {
+        Buf(Vec::with_capacity(n))
     }
     fn u8(&mut self, v: u8) {
         self.0.push(v);
@@ -128,10 +137,14 @@ fn build_debug_s(obj_name: &str) -> Vec<u8> {
 }
 
 /// A section, resolved to its raw data + header metadata.
-struct Section {
+struct Section<'a> {
     name: &'static str,
     characteristics: u32,
-    raw: Vec<u8>,
+    /// Raw section data. Borrowed for the fixed blobs (`.drectve`, the XBLD
+    /// watermarks) and the caller's `.text`; owned only where it is actually
+    /// built per obj (`.debug$S`, `.pdata`, the `.rdata` pools). The emitted
+    /// bytes are identical either way — this only removes per-obj copies.
+    raw: std::borrow::Cow<'a, [u8]>,
     /// Aux section-def CheckSum (0 for non-COMDAT).
     checksum: u32,
     /// COMDAT selection (0 = not COMDAT; 2 = SELECT_ANY).
@@ -291,42 +304,42 @@ pub fn emit_framed_obj(obj_name: &str, func_name: &str, callee_name: &str, text:
         Section {
             name: ".drectve",
             characteristics: CH_DRECTVE,
-            raw: DRECTVE.to_vec(),
+            raw: std::borrow::Cow::Borrowed(DRECTVE),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".debug$S",
             characteristics: CH_DEBUGS,
-            raw: debug_s,
+            raw: std::borrow::Cow::Owned(debug_s),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".XBLD$W",
             characteristics: CH_XBLD_C2,
-            raw: XBLD_C2.to_vec(),
+            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
             checksum: XBLD_C2_CHECKSUM,
             selection: 2,
         },
         Section {
             name: ".XBLD$W",
             characteristics: CH_XBLD_C1,
-            raw: XBLD_C1.to_vec(),
+            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
             checksum: XBLD_C1_CHECKSUM,
             selection: 2,
         },
         Section {
             name: ".text",
             characteristics: CH_TEXT,
-            raw: text.to_vec(),
+            raw: std::borrow::Cow::Borrowed(text),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".pdata",
             characteristics: CH_PDATA,
-            raw: pdata,
+            raw: std::borrow::Cow::Owned(pdata),
             checksum: pdata_checksum,
             selection: 0,
         },
@@ -492,28 +505,28 @@ pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
         Section {
             name: ".drectve",
             characteristics: CH_DRECTVE,
-            raw: DRECTVE.to_vec(),
+            raw: std::borrow::Cow::Borrowed(DRECTVE),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".debug$S",
             characteristics: CH_DEBUGS,
-            raw: build_debug_s(obj_name),
+            raw: std::borrow::Cow::Owned(build_debug_s(obj_name)),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".XBLD$W",
             characteristics: CH_XBLD_C2,
-            raw: XBLD_C2.to_vec(),
+            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
             checksum: XBLD_C2_CHECKSUM,
             selection: 2,
         },
         Section {
             name: ".XBLD$W",
             characteristics: CH_XBLD_C1,
-            raw: XBLD_C1.to_vec(),
+            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
             checksum: XBLD_C1_CHECKSUM,
             selection: 2,
         },
@@ -532,7 +545,7 @@ pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
     // 1 (@comp.id) + 4 section symbols x 2 (symbol + aux) + 2 watermark externs.
     const N_SYMBOLS: u32 = 11;
 
-    let mut b = Buf::new();
+    let mut b = Buf::with_capacity(ptr_symtab + N_SYMBOLS as usize * SYMBOL_LEN + 512);
     b.u16(MACHINE_POWERPCBE);
     b.u16(n_sections as u16);
     b.u32(0); // TimeDateStamp — normalized away by the compare
@@ -713,28 +726,28 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
         Section {
             name: ".drectve",
             characteristics: CH_DRECTVE,
-            raw: DRECTVE.to_vec(),
+            raw: std::borrow::Cow::Borrowed(DRECTVE),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".debug$S",
             characteristics: CH_DEBUGS,
-            raw: build_debug_s(obj_name),
+            raw: std::borrow::Cow::Owned(build_debug_s(obj_name)),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".XBLD$W",
             characteristics: CH_XBLD_C2,
-            raw: XBLD_C2.to_vec(),
+            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
             checksum: XBLD_C2_CHECKSUM,
             selection: 2,
         },
         Section {
             name: ".XBLD$W",
             characteristics: CH_XBLD_C1,
-            raw: XBLD_C1.to_vec(),
+            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
             checksum: XBLD_C1_CHECKSUM,
             selection: 2,
         },
@@ -744,7 +757,7 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
         sections.push(Section {
             name: ".text",
             characteristics: CH_TEXT_COMDAT,
-            raw: t.clone(),
+            raw: std::borrow::Cow::Borrowed(t.as_slice()),
             checksum: 0,
             selection: COMDAT_SELECT_NODUPLICATES,
         });
@@ -788,7 +801,7 @@ pub fn emit_comdat_obj(obj_name: &str, funcs: &[Function], texts: &[Vec<u8>]) ->
     }
     let n_symbols = next_idx;
 
-    let mut b = Buf::new();
+    let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
     b.u16(MACHINE_POWERPCBE);
     b.u16(n_sections as u16);
     b.u32(0); // TimeDateStamp — normalized away
@@ -890,35 +903,35 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
         Section {
             name: ".drectve",
             characteristics: CH_DRECTVE,
-            raw: DRECTVE.to_vec(),
+            raw: std::borrow::Cow::Borrowed(DRECTVE),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".debug$S",
             characteristics: CH_DEBUGS,
-            raw: debug_s,
+            raw: std::borrow::Cow::Owned(debug_s),
             checksum: 0,
             selection: 0,
         },
         Section {
             name: ".XBLD$W",
             characteristics: CH_XBLD_C2,
-            raw: XBLD_C2.to_vec(),
+            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
             checksum: XBLD_C2_CHECKSUM,
             selection: 2,
         },
         Section {
             name: ".XBLD$W",
             characteristics: CH_XBLD_C1,
-            raw: XBLD_C1.to_vec(),
+            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
             checksum: XBLD_C1_CHECKSUM,
             selection: 2,
         },
         Section {
             name: ".text",
             characteristics: CH_TEXT,
-            raw: text.to_vec(),
+            raw: std::borrow::Cow::Borrowed(text),
             checksum: 0,
             selection: 0,
         },
@@ -928,7 +941,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
         sections.push(Section {
             name: ".rdata",
             characteristics: if double { CH_RDATA_F64 } else { CH_RDATA_F32 },
-            raw: real_raw_bytes(bits, double),
+            raw: std::borrow::Cow::Owned(real_raw_bytes(bits, double)),
             checksum: 0,
             selection: 2,
         });
@@ -1035,7 +1048,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8]) -> Vec<u8> {
     let ptr_symtab = cursor; // symbol table right after the last section's data
 
     // ---- COFF header (20 bytes) ----
-    let mut b = Buf::new();
+    let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
     b.u16(MACHINE_POWERPCBE);
     b.u16(n_sections as u16);
     b.u32(0); // TimeDateStamp — normalized away

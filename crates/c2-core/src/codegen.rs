@@ -1251,8 +1251,9 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
         return Ok(text);
     }
 
-    let mut stack: Vec<Operand> = Vec::new();
-    let mut plan: Vec<PlanOp> = Vec::new();
+    // Capacity only (the ops stream bounds both): no behavior change.
+    let mut stack: Vec<Operand> = Vec::with_capacity(4);
+    let mut plan: Vec<PlanOp> = Vec::with_capacity(func.ops.len() / 2 + 2);
 
     for op in &func.ops {
         match op {
@@ -1358,7 +1359,8 @@ pub fn select_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     // `Base::Prev` therefore resolves to the previous entry's ACTUAL destination
     // rather than to a fixed r11; that is why plan operands stay symbolic until
     // here.
-    let mut text: Vec<u8> = Vec::new();
+    // Every plan entry emits at most 8 bytes (wide immediates), plus the `blr`.
+    let mut text: Vec<u8> = Vec::with_capacity(plan.len() * 8 + 4);
     let last = plan.len().saturating_sub(1);
     let mut next_scratch: u8 = SCRATCH_REG;
     let mut prev_reg: u8 = SCRATCH_REG;

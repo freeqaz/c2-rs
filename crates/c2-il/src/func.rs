@@ -232,26 +232,24 @@ pub fn detect_token_width(ex: &[u8]) -> usize {
 /// `__cdecl`/global marker). Mirrors `ILGlobals._parse`.
 pub fn mangled_name(gl: &[u8]) -> Option<String> {
     let mut i = 0;
+    // Same walk as the old byte loop: jump to each `?`, read its NUL-terminated
+    // run, and resume after the run whether or not it was accepted.
     while i < gl.len() {
-        if gl[i] == b'?' {
-            // Read to NUL.
-            let start = i;
-            let mut end = i;
-            while end < gl.len() && gl[end] != 0 {
-                end += 1;
-            }
-            let bytes = &gl[start..end];
-            if bytes.len() >= 3
-                && bytes[1].is_ascii_alphabetic()
-                && contains_subslice(bytes, b"@@")
-                && bytes.iter().all(|b| b.is_ascii_graphic())
-            {
-                return Some(String::from_utf8_lossy(bytes).into_owned());
-            }
-            i = end + 1;
-        } else {
-            i += 1;
+        let Some(k) = memchr_byte(b'?', &gl[i..]) else {
+            break;
+        };
+        let start = i + k;
+        let end = start
+            + memchr_byte(0, &gl[start..]).unwrap_or(gl.len() - start);
+        let bytes = &gl[start..end];
+        if bytes.len() >= 3
+            && bytes[1].is_ascii_alphabetic()
+            && contains_subslice(bytes, b"@@")
+            && bytes.iter().all(|b| b.is_ascii_graphic())
+        {
+            return Some(ascii_string(bytes));
         }
+        i = end + 1;
     }
     None
 }
@@ -262,25 +260,23 @@ pub fn mangled_name(gl: &[u8]) -> Option<String> {
 pub fn mangled_names(gl: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     let mut i = 0;
+    // Same walk as `mangled_name`, collecting every accepted run.
     while i < gl.len() {
-        if gl[i] == b'?' {
-            let start = i;
-            let mut end = i;
-            while end < gl.len() && gl[end] != 0 {
-                end += 1;
-            }
-            let bytes = &gl[start..end];
-            if bytes.len() >= 3
-                && bytes[1].is_ascii_alphabetic()
-                && contains_subslice(bytes, b"@@")
-                && bytes.iter().all(|b| b.is_ascii_graphic())
-            {
-                out.push(String::from_utf8_lossy(bytes).into_owned());
-            }
-            i = end + 1;
-        } else {
-            i += 1;
+        let Some(k) = memchr_byte(b'?', &gl[i..]) else {
+            break;
+        };
+        let start = i + k;
+        let end = start
+            + memchr_byte(0, &gl[start..]).unwrap_or(gl.len() - start);
+        let bytes = &gl[start..end];
+        if bytes.len() >= 3
+            && bytes[1].is_ascii_alphabetic()
+            && contains_subslice(bytes, b"@@")
+            && bytes.iter().all(|b| b.is_ascii_graphic())
+        {
+            out.push(ascii_string(bytes));
         }
+        i = end + 1;
     }
     out
 }
@@ -342,7 +338,7 @@ pub fn gl_symbol_index(gl: &[u8]) -> std::collections::BTreeMap<u32, String> {
             if let Some((tok, got)) = read_token_var(gl, p) {
                 if got == w {
                     out.entry(tok)
-                        .or_insert_with(|| String::from_utf8_lossy(name_bytes).into_owned());
+                        .or_insert_with(|| ascii_string(name_bytes));
                     break;
                 }
             }
@@ -356,23 +352,33 @@ pub fn gl_symbol_index(gl: &[u8]) -> std::collections::BTreeMap<u32, String> {
 /// ASCII run (case-insensitive drive + `.cpp` suffix). Provenance only.
 pub fn source_path(gl: &[u8]) -> Option<String> {
     let mut i = 0;
+    // A candidate must have `:` at its second byte, so scan for `:` and test
+    // the byte on each side — the same candidates the old per-byte walk saw, in
+    // the same order, with the same resume points (past the NUL run when the
+    // `<x>:\` prefix matched, past the candidate start when it did not).
     while i + 2 < gl.len() {
-        if gl[i].is_ascii_alphabetic() && gl[i + 1] == b':' && gl[i + 2] == b'\\' {
-            let start = i;
-            let mut end = i;
-            while end < gl.len() && gl[end] != 0 {
-                end += 1;
-            }
+        let Some(k) = memchr_byte(b':', &gl[i + 1..]) else {
+            break;
+        };
+        let start = i + k; // gl[start + 1] == b':'
+        if start + 2 >= gl.len() {
+            break;
+        }
+        if gl[start].is_ascii_alphabetic() && gl[start + 2] == b'\\' {
+            let end = start
+                + memchr_byte(0, &gl[start..]).unwrap_or(gl.len() - start);
             let bytes = &gl[start..end];
             if bytes.iter().all(|b| b.is_ascii_graphic() || *b == b' ') {
-                let s = String::from_utf8_lossy(bytes).into_owned();
-                if s.to_ascii_lowercase().ends_with(".cpp") {
-                    return Some(s);
+                // Case-insensitive `.cpp` suffix, checked on the bytes — same
+                // acceptance as lowercasing the whole string, without the two
+                // String allocations that cost on the hot parse path.
+                if bytes.len() >= 4 && bytes[bytes.len() - 4..].eq_ignore_ascii_case(b".cpp") {
+                    return Some(ascii_string(bytes));
                 }
             }
             i = end + 1;
         } else {
-            i += 1;
+            i = start + 1;
         }
     }
     None
@@ -383,6 +389,42 @@ fn contains_subslice(hay: &[u8], needle: &[u8]) -> bool {
         return needle.is_empty();
     }
     hay.windows(needle.len()).any(|w| w == needle)
+}
+
+/// Lazily-built `.gl` symbol index (see [`gl_symbol_index`]) — same contents,
+/// built on first use. Only the call productions consult it (callee-by-token
+/// resolution), so a TU of straight-line leaves never pays for building it;
+/// every consumer goes through [`GlIndex::map`], which always yields the full
+/// real index, so laziness can never change what is accepted.
+struct GlIndex<'a> {
+    gl: &'a [u8],
+    cell: std::cell::OnceCell<std::collections::BTreeMap<u32, String>>,
+}
+
+impl<'a> GlIndex<'a> {
+    fn new(gl: &'a [u8]) -> Self {
+        GlIndex {
+            gl,
+            cell: std::cell::OnceCell::new(),
+        }
+    }
+    /// The token → name map, built on first use.
+    fn map(&self) -> &std::collections::BTreeMap<u32, String> {
+        self.cell.get_or_init(|| gl_symbol_index(self.gl))
+    }
+}
+
+/// Owned `String` from a byte run the caller has already verified is ASCII
+/// (graphic / space). `from_utf8` is then infallible and takes the fast
+/// validated path; the lossy fallback is defensive only and never replaces
+/// anything for such input, so the result is identical to
+/// `String::from_utf8_lossy(bytes).into_owned()` — minus its chunk iterator,
+/// which was measurable on the hot parse path.
+fn ascii_string(bytes: &[u8]) -> String {
+    match std::str::from_utf8(bytes) {
+        Ok(s) => s.to_owned(),
+        Err(_) => String::from_utf8_lossy(bytes).into_owned(),
+    }
 }
 
 /// Read one IL token, which is **2 or 4 bytes depending on the token itself**,
@@ -418,15 +460,65 @@ fn read_token_var(ex: &[u8], p: usize) -> Option<(u32, usize)> {
     Some(((b0 << 24) | (b1 << 16) | (b2 << 8) | b3, 4))
 }
 
+/// Forward byte search, word-at-a-time (hand-rolled `memchr`; std-only, no
+/// dependency). The `.ex` marker scans walk multi-KB streams whose prefix is
+/// zero-fill, and the byte-at-a-time loops were the port's single hottest path
+/// (~60% of a small compile). This finds the first candidate byte 8 bytes per
+/// step with the classic SWAR zero-byte trick, then lets a plain scan finish
+/// inside the matching word — same result as `iter().position`, just faster.
+#[inline]
+fn memchr_byte(needle: u8, hay: &[u8]) -> Option<usize> {
+    const LO: u64 = 0x0101_0101_0101_0101;
+    const HI: u64 = 0x8080_8080_8080_8080;
+    #[inline(always)]
+    fn has_zero_byte(w: u64) -> bool {
+        w.wrapping_sub(LO) & !w & HI != 0
+    }
+    let bcast = LO.wrapping_mul(needle as u64);
+    let mut i = 0;
+    // 32 bytes per step while no word contains the needle…
+    while i + 32 <= hay.len() {
+        let a = u64::from_ne_bytes(hay[i..i + 8].try_into().unwrap()) ^ bcast;
+        let b = u64::from_ne_bytes(hay[i + 8..i + 16].try_into().unwrap()) ^ bcast;
+        let c = u64::from_ne_bytes(hay[i + 16..i + 24].try_into().unwrap()) ^ bcast;
+        let d = u64::from_ne_bytes(hay[i + 24..i + 32].try_into().unwrap()) ^ bcast;
+        if has_zero_byte(a) || has_zero_byte(b) || has_zero_byte(c) || has_zero_byte(d) {
+            break;
+        }
+        i += 32;
+    }
+    // …then 8, then byte-at-a-time to pin the first occurrence.
+    while i + 8 <= hay.len() {
+        let w = u64::from_ne_bytes(hay[i..i + 8].try_into().unwrap()) ^ bcast;
+        if has_zero_byte(w) {
+            break;
+        }
+        i += 8;
+    }
+    hay[i..].iter().position(|&x| x == needle).map(|k| i + k)
+}
+
 fn find_byte(hay: &[u8], b: u8) -> Option<usize> {
-    hay.iter().position(|&x| x == b)
+    memchr_byte(b, hay)
 }
 
 fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() || hay.len() < needle.len() {
         return None;
     }
-    hay.windows(needle.len()).position(|w| w == needle)
+    // First-occurrence semantics identical to `windows().position`; the scan
+    // just jumps between candidate first bytes word-at-a-time.
+    let last_start = hay.len() - needle.len();
+    let mut i = 0;
+    while i <= last_start {
+        let k = memchr_byte(needle[0], &hay[i..=last_start])?;
+        let j = i + k;
+        if &hay[j..j + needle.len()] == needle {
+            return Some(j);
+        }
+        i = j + 1;
+    }
+    None
 }
 
 /// Read a `.ex` inline **type**: `<tag> <kind> <LEB128 id>`, returning
@@ -931,7 +1023,8 @@ fn eat_return_plumbing(seg: &[u8], p: &mut usize, has_result_type: bool) -> Resu
 /// int-type byte (`86 41 74` — the `41`/`74` are consumed inside the LOAD/LIT
 /// arm) or a literal varint (consumed inside the `33` arm).
 fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
-    let mut ops = Vec::new();
+    // Big enough for every fixture body; a longer stream grows normally.
+    let mut ops = Vec::with_capacity(16);
     loop {
         let b = *seg.get(*p).ok_or(blk(seg, *p, "expr"))?;
         if b == stop {
@@ -1098,20 +1191,14 @@ fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
 /// `+ k` over a *computed* argument (`g(a+1)+1`), or a `* k`/`- k`/wide `k`/a
 /// second literal/a second call, all reject. The `callee` name is not in `.ex`;
 /// the caller pairs it from `.gl`.
-fn parse_segment(
-    seg: &[u8],
-    globals: &std::collections::BTreeMap<u32, String>,
-) -> Option<BodyShape> {
+fn parse_segment(seg: &[u8], globals: &GlIndex<'_>) -> Option<BodyShape> {
     parse_segment_detail(seg, globals).ok()
 }
 
 /// [`parse_segment`] with the fail-closed *reason* preserved (P2b census).
 /// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
 /// can never disagree with the gate about what is in class.
-fn parse_segment_detail(
-    seg: &[u8],
-    globals: &std::collections::BTreeMap<u32, String>,
-) -> Result<BodyShape, Block> {
+fn parse_segment_detail(seg: &[u8], globals: &GlIndex<'_>) -> Result<BodyShape, Block> {
     let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or(Block {
         ctx: "lo-marker",
         byte: None,
@@ -1358,7 +1445,8 @@ fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlOp>> {
     if !is_leaf(&ops[0]) {
         return None;
     }
-    let mut terms: Vec<(bool, IlOp)> = vec![(true, ops[0])]; // (positive?, leaf)
+    let mut terms: Vec<(bool, IlOp)> = Vec::with_capacity(ops.len() / 2 + 1);
+    terms.push((true, ops[0])); // (positive?, leaf)
     let mut mul = false;
     let mut addsub = false;
     let mut i = 1;
@@ -1424,7 +1512,8 @@ fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlOp>> {
         }
         let mut regs: Vec<IlOp> = terms.iter().map(|(_, l)| *l).collect();
         regs.sort_by_key(|l| key(l));
-        let mut out = vec![regs[0]];
+        let mut out = Vec::with_capacity(ops.len());
+        out.push(regs[0]);
         for r in &regs[1..] {
             out.push(*r);
             out.push(IlOp::Mul);
@@ -1434,8 +1523,8 @@ fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlOp>> {
 
     // Additive chain. Fold the literals into one constant; order the registers.
     let mut k: i32 = 0;
-    let mut pos: Vec<IlOp> = Vec::new();
-    let mut neg: Vec<IlOp> = Vec::new();
+    let mut pos: Vec<IlOp> = Vec::with_capacity(terms.len());
+    let mut neg: Vec<IlOp> = Vec::with_capacity(terms.len());
     for (positive, leaf) in &terms {
         match leaf {
             IlOp::Lit(v) => {
@@ -1462,7 +1551,8 @@ fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlOp>> {
     }
     pos.sort_by_key(|l| key(l));
     neg.sort_by_key(|l| key(l));
-    let mut out = vec![pos[0]];
+    let mut out = Vec::with_capacity(ops.len() + 2);
+    out.push(pos[0]);
     for n in &neg {
         out.push(*n);
         out.push(IlOp::Sub);
@@ -1643,7 +1733,7 @@ fn try_parse_assign_body_detail(
     seg: &[u8],
     start: usize,
     lo: usize,
-    globals: &std::collections::BTreeMap<u32, String>,
+    globals: &GlIndex<'_>,
 ) -> Result<BodyShape, Block> {
     let mut p = start;
     let mut env: Vec<(u32, Vec<IlOp>)> = Vec::new();
@@ -2822,15 +2912,20 @@ const LO_MARKER: [u8; 3] = [0x4C, 0x4F, 0x11];
 /// simply blocks it at `formals-marker` — an honest miss, never a merge that
 /// would silently drop a function from the denominator.
 fn split_function_bodies(ex: &[u8]) -> Vec<&[u8]> {
-    // Body markers, in file order.
+    // Body markers, in file order. Same walk as the old byte loop (a match
+    // consumes 3 bytes, a miss 1); candidates are found word-at-a-time.
     let mut los: Vec<usize> = Vec::new();
     let mut i = 0;
     while i + 3 <= ex.len() {
-        if ex[i] == LO_MARKER[0] && ex[i + 1] == LO_MARKER[1] && ex[i + 2] == LO_MARKER[2] {
-            los.push(i);
-            i += 3;
+        let Some(k) = memchr_byte(LO_MARKER[0], &ex[i..ex.len() - 2]) else {
+            break;
+        };
+        let j = i + k;
+        if ex[j + 1] == LO_MARKER[1] && ex[j + 2] == LO_MARKER[2] {
+            los.push(j);
+            i = j + 3;
         } else {
-            i += 1;
+            i = j + 1;
         }
     }
     if los.is_empty() {
@@ -2840,11 +2935,15 @@ fn split_function_bodies(ex: &[u8]) -> Vec<&[u8]> {
     let mut starts: Vec<usize> = Vec::new();
     let mut i = 0;
     while i + 2 <= ex.len() {
-        if ex[i] == FN_START[0] && ex[i + 1] == FN_START[1] {
-            starts.push(i);
-            i += 2;
+        let Some(k) = memchr_byte(FN_START[0], &ex[i..ex.len() - 1]) else {
+            break;
+        };
+        let j = i + k;
+        if ex[j + 1] == FN_START[1] {
+            starts.push(j);
+            i = j + 2;
         } else {
-            i += 1;
+            i = j + 1;
         }
     }
 
@@ -2883,22 +2982,26 @@ fn split_function_bodies(ex: &[u8]) -> Vec<&[u8]> {
 /// 46-byte module-metadata tail, with 0 `LO` and 0 `4F 1F`, and c2 emits a
 /// 720-byte four-section obj for it.
 pub fn is_empty_module(ex: &[u8]) -> bool {
-    let has_lo = ex
-        .windows(3)
-        .any(|w| w == [LO_MARKER[0], LO_MARKER[1], LO_MARKER[2]]);
-    let has_fn_start = ex.windows(2).any(|w| w == FN_START);
+    let has_lo = find_subslice(ex, &LO_MARKER).is_some();
+    let has_fn_start = find_subslice(ex, &FN_START).is_some();
     !has_lo && !has_fn_start
 }
 
 fn split_functions(ex: &[u8]) -> Vec<&[u8]> {
     let mut starts = Vec::new();
     let mut i = 0;
+    // Same walk as the old byte loop (a match consumes 2 bytes, a miss 1);
+    // candidates are found word-at-a-time.
     while i + 1 < ex.len() {
-        if ex[i] == FN_START[0] && ex[i + 1] == FN_START[1] {
-            starts.push(i);
-            i += 2;
+        let Some(k) = memchr_byte(FN_START[0], &ex[i..ex.len() - 1]) else {
+            break;
+        };
+        let j = i + k;
+        if ex[j + 1] == FN_START[1] {
+            starts.push(j);
+            i = j + 2;
         } else {
-            i += 1;
+            i = j + 1;
         }
     }
     let mut segs = Vec::with_capacity(starts.len());
@@ -2935,16 +3038,18 @@ impl IlBundle {
         // externals), so pairing there would attach wrong names to functions —
         // report none rather than a plausible-looking lie.
         let paired = names.len() == segs.len();
-        // The symbol index is threaded into the parse but is no longer consulted:
-        // the assignment class used to decide "is this destination a global?" by
-        // asking whether `.gl` named it, and that was wrong (a file-scope `static`
-        // is `$sv`, which the index does not accept as an identifier), so the
-        // destination is now established positively from the formals list instead.
+        // The symbol index is threaded into the parse but is no longer consulted on
+        // this path: the assignment class used to decide "is this destination a
+        // global?" by asking whether `.gl` named it, and that was wrong (a file-scope
+        // `static` is `$sv`, which the index does not accept as an identifier), so
+        // the destination is now established positively from the formals list.
         //
-        // It is kept threaded because modelling locals will need a symbol view again
-        // and the plumbing is the awkward part. If that does not land, drop the
-        // parameter — do not restore the absence test.
-        let globals = gl_symbol_index(gl);
+        // It stays threaded because modelling locals will need a symbol view again
+        // and the plumbing is the awkward part — but do not restore the absence test.
+        // `GlIndex` builds the map lazily, so a TU with no call shape never pays for
+        // it at all; the contents are identical when it is built, so laziness cannot
+        // change acceptance.
+        let globals = GlIndex::new(gl);
         Some(
             segs.iter()
                 .enumerate()
@@ -3013,12 +3118,24 @@ impl IlBundle {
         // returned nothing" — the latter would also fire on a bundle we merely
         // failed to split, and emitting an empty obj for a TU that really has
         // code is precisely the mis-emit the fail-closed rule forbids.
-        if is_empty_module(ex) {
-            return Some(Vec::new());
-        }
-
+        //
+        // Evaluated in one pass over `.ex` instead of calling
+        // [`is_empty_module`] up front: the split already proves whether any
+        // `4F 1F` exists, so only the no-start case still needs the body-marker
+        // probe. The predicate is unchanged — all four (LO?, 4F1F?) cases land
+        // exactly where they did:
+        //   neither        → empty module (was: is_empty_module → Some([]))
+        //   LO only        → None         (was: not empty; split empty → None)
+        //   4F 1F, any LO  → parse        (was: not empty; split non-empty)
         let segs = split_functions(ex);
-        if segs.is_empty() || names.len() < segs.len() {
+        if segs.is_empty() {
+            return if find_subslice(ex, &LO_MARKER).is_none() {
+                Some(Vec::new())
+            } else {
+                None
+            };
+        }
+        if names.len() < segs.len() {
             return None;
         }
         // `.gl` lists the defined functions first, one per `.ex` segment, paired
@@ -3030,8 +3147,10 @@ impl IlBundle {
         // single-function/single-external restriction that positional pairing
         // forced.
         let n_defined = segs.len();
-        let symbols = gl_symbol_index(gl);
-        let resolve = |tok: u32| -> Option<String> { symbols.get(&tok).cloned() };
+        // Lazily built: only the call productions resolve through it, so a TU
+        // of straight-line leaves never constructs the index at all.
+        let symbols = GlIndex::new(gl);
+        let resolve = |tok: u32| -> Option<String> { symbols.map().get(&tok).cloned() };
 
         let mut funcs = Vec::with_capacity(n_defined);
         for (name, seg) in names.iter().take(n_defined).zip(segs) {
@@ -3211,8 +3330,8 @@ impl IlBundle {
 mod tests {
     /// These pinned segments are synthetic and contain no global stores, so an
     /// empty symbol index is the honest input: nothing here is a global.
-    fn no_globals() -> std::collections::BTreeMap<u32, String> {
-        std::collections::BTreeMap::new()
+    fn no_globals() -> GlIndex<'static> {
+        GlIndex::new(&[])
     }
 
     use super::*;
