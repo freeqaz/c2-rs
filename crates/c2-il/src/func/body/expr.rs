@@ -306,7 +306,7 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
                 ctx: "expr-intrinsic",
                 byte: Some(0x40),
                 off: *p,
-                aux: id as u32,
+                aux: id as u64,
             });
         }
         match b {

@@ -127,7 +127,15 @@ pub struct Block {
     /// modeled `86 41 74` (int), but the first byte `86` is shared by every
     /// type, so reporting it buckets `unsigned`, `float`, `pointer`, … together.
     /// Packed big-endian in the low 24 bits; 0 when unused.
-    pub aux: u32,
+    ///
+    /// **Why `u64`.** The `26`-in-expression family (`mcall`) packs a *pair* of
+    /// constructs here — the receiver form and the construct that blocks the body
+    /// **after** it (`docs/IL_CALL_IN_EXPR.md` §16) — and the pair does not fit in
+    /// 32 bits without truncating an intrinsic selector, which would silently
+    /// *merge* two census buckets. Merging buckets is the one failure a census
+    /// instrument cannot survive, so the field is widened instead of squeezed.
+    /// Every other producer uses the low 24 bits exactly as before.
+    pub aux: u64,
 }
 
 impl Block {
@@ -191,7 +199,32 @@ impl Block {
             // Signedness is NOT in the opcode: signed and unsigned probes emit
             // the same byte and differ only in the operand type (`86 41 74` int
             // vs `86 42 75` unsigned).
-            let named = match b {
+            let named = expr_opcode_name(b);
+            return match named {
+                Some(n) => format!("expr-{n}"),
+                None => format!("expr-op-0x{b:02X}"),
+            };
+        }
+        format!("{}-0x{b:02X}", self.ctx)
+    }
+}
+
+/// The **capture-verified** names of the operand-stream opcodes, shared by the
+/// `expr-*` census keys and by `mcall`'s second-blocker keys so the two can never
+/// disagree about what a byte is called.
+///
+/// Only add a name here once a capture has established it. An earlier revision of
+/// this table guessed the relational opcodes from their numeric order and got `!=`,
+/// `<=` and `>=` wrong while missing `==` entirely — which silently mislabelled
+/// census buckets, the one thing this instrument exists to avoid. A hex bucket is a
+/// result; a wrong name is a lie that survives into the roadmap.
+///
+/// Signedness is NOT in the opcode: signed and unsigned probes emit the same byte
+/// and differ only in the operand type (`86 41 74` int vs `86 42 75` unsigned).
+pub(crate) fn expr_opcode_name(b: u8) -> Option<&'static str> {
+    #[allow(clippy::match_same_arms)]
+    {
+            match b {
                 0x1F => Some("cmp-eq"),   // ==
                 0x20 => Some("cmp-ne"),   // !=
                 0x21 => Some("cmp-le"),   // <=
@@ -223,13 +256,7 @@ impl Block {
                 0x43 => Some("ternary"),  // `43 42 ...` conditional select
                 0x26 => Some("call-in-expr"),
                 _ => None,
-            };
-            return match named {
-                Some(n) => format!("expr-{n}"),
-                None => format!("expr-op-0x{b:02X}"),
-            };
-        }
-        format!("{}-0x{b:02X}", self.ctx)
+            }
     }
 }
 
@@ -242,7 +269,7 @@ pub(crate) fn blk(seg: &[u8], p: usize, ctx: &'static str) -> Block {
 /// is not the modeled int (`86 41 74`), `report_at` at the operand it belongs
 /// to. Packs the triple into [`Block::aux`] so the census buckets by type.
 pub(crate) fn blk_type(seg: &[u8], p: usize, report_at: usize, ctx: &'static str) -> Block {
-    let g = |i: usize| seg.get(p + i).copied().unwrap_or(0) as u32;
+    let g = |i: usize| seg.get(p + i).copied().unwrap_or(0) as u64;
     Block {
         ctx,
         byte: seg.get(p).copied(),
