@@ -471,6 +471,118 @@ impl SyView<'_> {
         }
         Ok(())
     }
+
+    /// The [`ArgClass`] of every formal in `formals` (tokens from `.ex`, **in
+    /// declaration order**), or a census key naming why it cannot be determined.
+    ///
+    /// This is what turns a formal's index into its register *number*, and it is
+    /// deliberately all-or-nothing over the whole list: an FP parameter changes
+    /// the numbering of every parameter after it in **both** files, so one formal
+    /// whose class is unknown makes every later one unknown too. Refusing the list
+    /// rather than the formal is what keeps that from becoming a silent
+    /// off-by-one — `GAPS.md` §6's recurring shape, whose sixth and seventh
+    /// instances were both this exact fact in this exact register file.
+    ///
+    /// Requires a `.sy` binding for **any** formal count, including one: unlike
+    /// [`Self::formals_are_one_register_each`], where a lone parameter is
+    /// provably in the register its index names, a lone parameter's *file* is not
+    /// determined by its position at all. `float f(float a)` and `int f(int a)`
+    /// have the same formals region and put `a` in different registers.
+    ///
+    /// The kind whitelist is a whitelist and not a "not `05`" test, because the
+    /// dangerous direction is the one that guesses: a type this reader has never
+    /// seen must not be assumed to take a GPR. `__vector`/VMX128 is the live
+    /// example — the workload uses it (`math/Mtx.h`), it is a third register file,
+    /// and `docs/ABI_EDGES.md` §5 records it as unprobed. `param-kind-unknown`
+    /// measures what the whitelist costs.
+    pub(crate) fn arg_classes(&self, formals: &[u32]) -> Result<Vec<ArgClass>, &'static str> {
+        // An empty parameter list needs no `.sy` at all, and saying so is not a
+        // shortcut: there is no formal whose file could be got wrong, and neither
+        // numbering has anything to number. `float k(){ return 1.0f; }` would
+        // otherwise refuse in any translation unit whose `.sy` did not bind, which
+        // is a loss with no fact behind it.
+        if formals.is_empty() {
+            return Ok(Vec::new());
+        }
+        let declared = match self.formals {
+            Formals::Declared(d) => d,
+            Formals::Undetermined => return Err("param-width-undetermined"),
+            #[cfg(test)]
+            Formals::AllOneRegisterByConstruction => {
+                return Ok(vec![ArgClass::Gpr; formals.len()])
+            }
+        };
+        let mut out = Vec::with_capacity(formals.len());
+        for tok in formals {
+            let Some(f) = declared.iter().find(|f| f.tok == *tok) else {
+                return Err("param-width-undetermined");
+            };
+            if f.size == 0 || f.size > Self::ONE_GPR_MAX {
+                return Err("param-multi-reg");
+            }
+            // The **class nibble**, exactly as `readers::read_type` reads an `.ex`
+            // kind — not the whole byte. A union is `16` where a struct is `06`
+            // and both are class 6, so a whole-byte test drops every union; the
+            // module already learned that once, in
+            // `a_union_formal_is_an_aggregate_by_its_class_nibble`.
+            out.push(match f.kind & 0x0F {
+                TYPE_KIND_REAL => match f.size {
+                    4 => ArgClass::Fp { double: false },
+                    8 => ArgClass::Fp { double: true },
+                    // A "real" that is neither 4 nor 8 bytes: `long double` under
+                    // some other flag, or a misread record. Never guessed.
+                    _ => return Err("param-kind-unknown"),
+                },
+                // Signed, unsigned, data pointer, code pointer, aggregate, void —
+                // every one of which `docs/ABI_EDGES.md` §1/§3 puts in a GPR at
+                // this width. Enumerated rather than defaulted, and the default
+                // arm is a refusal rather than `Gpr`, because the dangerous
+                // direction is the one that guesses. **Class `D` is the live
+                // reason**: `vSrc`, a 16-byte formal in `src/App.cpp`, is class
+                // `D` (`a_wide_type_prefix_is_a_tag_bit_not_the_literal_c6_81`) —
+                // a `__vector`/VMX128 value, which is a *third* register file that
+                // `docs/ABI_EDGES.md` §5 records as never probed. At 16 bytes the
+                // width gate above already refuses it; the class gate is the
+                // second channel, for the day a 4- or 8-byte member of that family
+                // appears.
+                0x01 | 0x02 | 0x03 | 0x04 | 0x06 | 0x07 => ArgClass::Gpr,
+                _ => return Err("param-kind-unknown"),
+            });
+        }
+        Ok(out)
+    }
+}
+
+/// The FP register number of the formal at `ix`, 1-based over the FP parameters
+/// **alone**, or `None` when that formal is not an FP one.
+///
+/// `docs/ABI_EDGES.md` §2, and the discriminating capture is
+/// `int t6(int a, float b, float c){ return gffi(b,c,a); }`, which emits one
+/// `mr r5,r3` and **no** `fmr`: `b` is f1 and `c` is f2 even though they sit at
+/// indices 1 and 2.
+pub(crate) fn fp_reg_of(classes: &[ArgClass], ix: usize) -> Option<u8> {
+    if !matches!(classes.get(ix)?, ArgClass::Fp { .. }) {
+        return None;
+    }
+    let n = classes[..ix]
+        .iter()
+        .filter(|c| matches!(c, ArgClass::Fp { .. }))
+        .count();
+    u8::try_from(n + 1).ok()
+}
+
+/// The GPR number of the formal at `ix`, or `None` when that formal is an FP one.
+///
+/// `base` is the first argument GPR — r3 for a free function, r4 for a member
+/// (`this` takes r3 and is not in the formals list). An FP parameter still
+/// **consumes its slot**, so it advances this numbering even though it fills no
+/// register: `int t5(int a, float b){ return gfi(b,a); }` emits `mr r4,r3`,
+/// putting `a` in the callee's slot 2 because the `float` took slot 1.
+pub(crate) fn gpr_reg_of(classes: &[ArgClass], ix: usize, base: u8) -> Option<u8> {
+    match classes.get(ix)? {
+        ArgClass::Fp { .. } => None,
+        ArgClass::Gpr => u8::try_from(base as usize + ix).ok(),
+    }
 }
 
 /// One formal parameter, as `.sy` declares it: its token and its **byte size**.
@@ -490,6 +602,33 @@ pub(crate) struct SyFormal {
     /// 65,540-byte object into a 4-byte one, and 4 bytes is the one value that
     /// passes the one-register gate.
     pub(crate) size: u32,
+    /// The `.sy` type-prefix **kind** byte, kept raw. The size alone cannot say
+    /// which *register file* a formal occupies — a `float` and an `int` are both
+    /// 4 bytes and a `double` and a `long long` are both 8 — and that is the
+    /// second fact this record has to carry. See [`TYPE_KIND_REAL`].
+    pub(crate) kind: u8,
+}
+
+/// Which **argument register file** a formal occupies, and how it is numbered.
+///
+/// Two independent numberings run over one parameter list
+/// (`docs/ABI_EDGES.md` §2, and the captures in `docs/CODEGEN_FP_ARGS.md` §1):
+///
+/// * a **floating-point** parameter takes `f<j>` where `j` counts the FP
+///   parameters *alone*, and does **not** fill its GPR;
+/// * every other scalar takes `r<2 + k>` where `k` is its **slot** — and an FP
+///   parameter still consumes a slot, so the GPR numbering counts it.
+///
+/// So neither number is the formal's index, and they disagree in opposite
+/// directions. `int t6(int a, float b, float c)` puts `a` in r3, `b` in f1 and
+/// `c` in f2; a positional model puts `b` in f2 and `c` in f3 and emits two
+/// `fmr`s that c2 does not.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ArgClass {
+    /// A general-purpose register at `r(2 + slot)`.
+    Gpr,
+    /// A floating-point register at `f(fp_index)`; `true` for a `double`.
+    Fp { double: bool },
 }
 
 /// The tokens one `.sy` function block declares, split by what codegen may do
@@ -601,6 +740,30 @@ const FLAGS_HAS_EXTRA: u16 = 0x0080;
 /// That extra field's value at every witness. Meaning unknown, so required.
 const TYPE_EXTRA_FIELD: [u8; 2] = [0x80, 0x00];
 const TYPE_KIND_INT: u8 = 0x01;
+/// `.sy` type kind **`05` = "real"**: the floating-point family, and the field
+/// that says a formal is numbered in the FP register file rather than the GPR
+/// one (`docs/ABI_EDGES.md` §2).
+///
+/// MEASURED, with the neighbour that separates it from the obvious wrong key.
+/// One probe with six formals of six types
+/// (`float sy1(float a, double b, int c, float *d, const float e, unsigned f)`)
+/// gives, per formal, `<tag> <kind> 00 03 04 <size> 00 <flags16> <tid>`:
+///
+/// ```text
+///   a  const float→ 86 05 … 04 … 40        d  float *  → 86 03 … 04 … 80 40 04 00 00
+///   b  double      → 88 05 … 08 … 41       e  const float → 86 05 … 04 … 80 02 10 00 00
+///   c  int         → 86 01 … 04 … 74       f  unsigned → 86 02 … 04 … 75
+/// ```
+///
+/// **The `<tid>` is the wrong key and the kind is the right one.** `float` is
+/// `40` and `double` `41`, but `const float` is `80 02 10 00 00` — a
+/// constructed-range id the TU allocates for itself, exactly the per-input value
+/// `GAPS.md` §6 forbids partitioning on. A `const float` parameter is still
+/// passed in an FPR, so a tid gate numbers it as a GPR and shifts every later
+/// argument. The kind is `05` for all three spellings; the **size** (4 or 8, and
+/// the tag's width nibble agrees) is what separates the widths, and neither is
+/// per-TU.
+const TYPE_KIND_REAL: u8 = 0x05;
 /// Storage class: `01` automatic, `03` formal. Redundant with the section depth in
 /// every witness, and required to agree with it.
 const CLS_AUTOMATIC: u8 = 0x01;
@@ -1036,7 +1199,7 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
         return None;
     }
     if depth == DEPTH_FORMALS {
-        return Some((Some(SyFormal { tok, size }), p));
+        return Some((Some(SyFormal { tok, size, kind }), p));
     }
     // `const` and `volatile` do not change `<kind>`; they move `<tid>` into the
     // constructed-type range, which is why the id is checked and not just the
@@ -1047,7 +1210,7 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
         && size == SIZEOF_INT
         && tid == TID_INT
         && (flags == FLAGS_REFERENCED || flags == FLAGS_NONE);
-    Some((admissible.then_some(SyFormal { tok, size }), p))
+    Some((admissible.then_some(SyFormal { tok, size, kind }), p))
 }
 
 /// A `.ex` type-table id: one byte below `0x80`, or `80` and a 32-bit
@@ -1639,6 +1802,111 @@ mod tests {
     }
 
     /// Wrap a verbatim record capture in the smallest legal block.
+    /// The six formals of
+    /// `float sy1(float a, double b, int c, float *d, const float e, unsigned f)`,
+    /// transcribed **verbatim** from a live `.sy` capture
+    /// (`c2rs census … --keep-il`) and in the order the file writes them. Six
+    /// types in one record group is the point: a probe with one FP formal cannot
+    /// distinguish the kind from the id, and one with only FP formals cannot
+    /// distinguish either from the index.
+    const SY_SIX_TYPES: &[u8] = &[
+        // f — unsigned: kind 02, tid 75
+        0x01, 0x01, 0xea, 0x09, 0x00, b'f', 0x00, 0x86, 0x02, 0x00, 0x03, 0x04, 0x04, 0x00, 0x00,
+        0x00, 0x75, //
+        // e — const float: kind 05, and a **constructed** tid 0x1002
+        0x01, 0x01, 0xe9, 0x09, 0x00, b'e', 0x00, 0x86, 0x05, 0x00, 0x03, 0x04, 0x04, 0x00, 0x00,
+        0x00, 0x80, 0x02, 0x10, 0x00, 0x00, //
+        // d — float *: kind 03
+        0x01, 0x01, 0xe8, 0x09, 0x00, b'd', 0x00, 0x86, 0x03, 0x00, 0x03, 0x04, 0x04, 0x00, 0x00,
+        0x00, 0x80, 0x40, 0x04, 0x00, 0x00, //
+        // c — int: kind 01, tid 74
+        0x01, 0x01, 0xe7, 0x09, 0x00, b'c', 0x00, 0x86, 0x01, 0x00, 0x03, 0x04, 0x04, 0x00, 0x00,
+        0x00, 0x74, //
+        // b — double: tag 88, kind 05, size 08, tid 41
+        0x01, 0x01, 0xe6, 0x09, 0x00, b'b', 0x00, 0x88, 0x05, 0x00, 0x03, 0x04, 0x08, 0x00, 0x00,
+        0x00, 0x41, //
+        // a — float: tag 86, kind 05, size 04, tid 40
+        0x01, 0x01, 0xe5, 0x09, 0x00, b'a', 0x00, 0x86, 0x05, 0x00, 0x03, 0x04, 0x04, 0x00, 0x01,
+        0x00, 0x40,
+    ];
+
+    /// **The tid is the wrong key and the kind is the right one**, and this is the
+    /// neighbour that separates them: `a` is `float` with tid `40`, while `e` is
+    /// `const float` with the *constructed* tid `0x1002` that the translation unit
+    /// allocated for itself. Both are passed in an FPR. A gate on the tid numbers
+    /// `e` as a GPR and shifts every argument after it — the `expr-load-type-XXXX`
+    /// sharding failure (`GAPS.md` §6) in its wrong-bytes form.
+    #[test]
+    fn a_cv_qualified_float_formal_is_still_a_floating_point_register() {
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
+        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        // Declaration order, as `.ex`'s formals region gives it.
+        let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
+        assert_eq!(
+            view.arg_classes(&toks).unwrap(),
+            vec![
+                ArgClass::Fp { double: false }, // a  float
+                ArgClass::Fp { double: true },  // b  double
+                ArgClass::Gpr,                  // c  int
+                ArgClass::Gpr,                  // d  float *
+                ArgClass::Fp { double: false }, // e  CONST float — the discriminator
+                ArgClass::Gpr,                  // f  unsigned
+            ]
+        );
+        // `.sy` writes its records in neither declaration order nor its reverse, so
+        // the lookup is by token and the ORDER comes from `.ex`. Reversing the
+        // request must reverse the answer and nothing else.
+        let mut rev = toks;
+        rev.reverse();
+        let mut want = view.arg_classes(&toks).unwrap();
+        want.reverse();
+        assert_eq!(view.arg_classes(&rev).unwrap(), want);
+    }
+
+    /// The two numberings, over one list, disagreeing in opposite directions.
+    /// Captured ground truth for the shape this encodes:
+    /// `int t6(int a, float b, float c){ return gffi(b,c,a); }` emits exactly one
+    /// `mr r5,r3` and **no** `fmr` (`docs/CODEGEN_FP_ARGS.md` §1).
+    #[test]
+    fn the_fp_file_skips_non_fp_formals_and_the_gpr_file_counts_fp_ones() {
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
+        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
+        let cls = view.arg_classes(&toks).unwrap();
+        // FP: a→f1, b→f2, e→f3. The index rule would say f1, f2, f5.
+        let fp: Vec<Option<u8>> = (0..6).map(|i| fp_reg_of(&cls, i)).collect();
+        assert_eq!(fp, vec![Some(1), Some(2), None, None, Some(3), None]);
+        // GPR: an FP formal fills no register but still consumes its slot, so `c`
+        // is r5 and not r3. A model that packed the GPRs would say r3, r4, r5.
+        let gpr: Vec<Option<u8>> = (0..6).map(|i| gpr_reg_of(&cls, i, 3)).collect();
+        assert_eq!(gpr, vec![None, None, Some(5), Some(6), None, Some(8)]);
+        // A member function's explicit formals start one register higher; the FP
+        // file is unaffected, which the `S::m1` capture confirms.
+        assert_eq!(gpr_reg_of(&cls, 2, 4), Some(6));
+    }
+
+    /// A formal whose type class this reader cannot name is a refusal, never a
+    /// GPR by default. `vSrc` (class `D`, 16 bytes, from `src/App.cpp`) is a
+    /// `__vector` — a third register file `docs/ABI_EDGES.md` §5 records as
+    /// unprobed — and guessing it into the GPR file would renumber every
+    /// argument after it.
+    #[test]
+    fn an_unnameable_formal_class_refuses_rather_than_defaulting_to_a_gpr() {
+        let rec = &[
+            0x01, 0x01, 0x46, 0x51, 0x00, b'v', b'S', b'r', b'c', 0x00, 0xca, 0x81, 0x0d, 0x00,
+            0x03, 0x04, 0x10, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x04, 0x1a, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
+        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        // 16 bytes: the width gate catches it first, which is the outer channel.
+        assert_eq!(view.arg_classes(&[0x4651]), Err("param-multi-reg"));
+        // …and the class gate is the inner one, for the day the same family
+        // appears at a width a GPR could hold.
+        let narrow = [SyFormal { tok: 1, size: 4, kind: 0x0d }];
+        let view = SyView { locals: &[], formals: Formals::Declared(&narrow) };
+        assert_eq!(view.arg_classes(&[1]), Err("param-kind-unknown"));
+    }
+
     fn block_with(depth: u8, rec: &[u8]) -> Vec<u8> {
         let mut v = vec![0x03, 0x01, 0xe5, 0x09, 0x1F, 0x00, 0x01, 0x01];
         v.extend_from_slice(&[SECTION, DEPTH_FORMALS, SECTION, 0x02]);
@@ -1685,7 +1953,7 @@ mod tests {
             0x80, 0x00, 0x80, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x270a, size: 4 }]);
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x270a, size: 4, kind: 0x06 }]);
     }
 
     /// A **union** parameter is kind `16`, not `06`: the aggregate discriminator is
@@ -1699,7 +1967,7 @@ mod tests {
             0x80, 0x00, 0x80, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x210a, size: 4 }]);
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x210a, size: 4, kind: 0x16 }]);
     }
 
     /// The size is a real field, not a constant: the 20-byte struct that produced
@@ -1713,7 +1981,7 @@ mod tests {
             0x80, 0x00, 0x80, 0x00, 0x80, 0x12, 0x10, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x370a, size: 20 }]);
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x370a, size: 20, kind: 0x06 }]);
     }
 
     /// The extra field's value is `80 00` at every witness and its meaning is
@@ -1750,7 +2018,7 @@ mod tests {
             0x08, 0x00, 0x00, 0x80, 0x1a, 0x10, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x290a, size: 4 }]);
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x290a, size: 4, kind: 0x03 }]);
     }
 
     /// The witness that separates a varint size from a little-endian `u16` one: a
@@ -1774,7 +2042,7 @@ mod tests {
             0x14, 0x10, 0x00, 0x00, 0x00, 0x21, 0x00, 0x80, 0x37, 0x17, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, asf)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x463a, size: 4116 }]);
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x463a, size: 4116, kind: 0x06 }]);
     }
 
     /// An aggregate **local** has the same extra field, and its flags differ from a
@@ -1964,7 +2232,7 @@ mod tests {
             0x03, 0x04, 0x10, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x04, 0x1a, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x4651, size: 16 }]);
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x4651, size: 16, kind: 0x0d }]);
     }
 
     /// The extra 2-byte field is keyed on **flags bit 7 alone**. The earlier rule also
@@ -2009,7 +2277,7 @@ mod tests {
             0x00, 0x00, 0x80, 0x0c, 0x10, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        assert_eq!(b[0].formals, vec![SyFormal { tok: 0xf509, size: 4 }]);
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0xf509, size: 4, kind: 0x03 }]);
     }
 
     /// The size boundary the `u16` reading crossed, as a record rather than as a
@@ -2028,7 +2296,7 @@ mod tests {
             rec.extend_from_slice(&FLAGS_REFERENCED.to_le_bytes());
             rec.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00]);
             let b = sy_blocks(&block_with(DEPTH_FORMALS, &rec)).expect("must parse");
-            assert_eq!(b[0].formals, vec![SyFormal { tok: 0xe609, size: want }], "size {want}");
+            assert_eq!(b[0].formals, vec![SyFormal { tok: 0xe609, size: want, kind: 0x06 }], "size {want}");
         }
     }
 

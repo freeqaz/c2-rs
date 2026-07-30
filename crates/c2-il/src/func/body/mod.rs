@@ -613,7 +613,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             if let Some(shape) = try_parse_compare(seg, p, lo) {
                 return Ok(shape);
             }
-            if let Some(shape) = try_parse_float_leaf(seg, p, lo) {
+            if let Some(shape) = try_parse_float_leaf(seg, p, lo, sy) {
                 return Ok(shape);
             }
             if let Some(shape) = try_parse_indirect_load_leaf(seg, p, lo) {
@@ -656,7 +656,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // and it can reach nothing above. Non-committal: works on a copy of the
             // cursor and returns None with no side effects, so a declining body
             // still reports its own blocker.
-            if let Some(shape) = try_parse_store_leaf(seg, p, lo) {
+            if let Some(shape) = try_parse_store_leaf(seg, p, lo, sy) {
                 return Ok(shape);
             }
             let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;
