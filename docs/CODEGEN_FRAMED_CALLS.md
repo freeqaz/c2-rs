@@ -90,6 +90,20 @@ shape, so both were pinned by a probe designed to refute an alternative:
   steps 112 → 128 → 144 exactly at `4L + 96 + 8` crossing a multiple of 16.
   An 8-aligned model mispredicts 3 of 8 rows.
 
+**"widest call" is measured, and order-independent.** The sweep in §1.3 gives
+each body one call, so it cannot tell "widest" from "last" or "first". Two calls
+of different arity in one body, in both orders:
+
+```
+int g1(int); int g12(int,int,…,int);            /* 12 params */
+int f(int a){ return g1(a)  + g12(a,…,a); }     112 B, stwu r1,-144(r1)
+int h(int a){ return g12(a,…,a) + g1(a);  }     112 B, stwu r1,-144(r1)
+```
+
+Both are `align16(16 + 8·12 + 8·2 + 8) = 144` with `nSaved = 2` — identical
+frames and identical sizes, so neither call order nor "the last call" is the
+input. It is the maximum.
+
 ### 1.3 The refutation sweep
 
 `scripts/gt_frame_sweep.py` generates the cross product of
@@ -504,6 +518,21 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
   frame reserves them and the parameter area starts at +16.
 
 ---
+
+## 6b. No live mis-emit found
+
+Every probe TU built for this document — 87 of them, covering all five
+prologue classes, the argument-marshalling cycles, the struct and FP edges, and
+the EH shapes — was run through the port:
+
+```
+GAP REPORT (87 TUs)
+  match 1   mismatch 0   codegen-gap 1   vocab-gap 85   port-error 0
+```
+
+**Zero mismatches.** The port refuses this whole territory rather than guessing
+at it, including every case where a rule in this document contradicts a shipped
+one. The §4.4 stride refutation is therefore latent, not live.
 
 ## 7. Suggested rung order for #35 step 2
 
