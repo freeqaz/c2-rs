@@ -2318,3 +2318,309 @@ Always difference the scans through **absolute** paths and print each one's row 
 and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several reflinked
 worktrees with different contents, and reading one through a relative path has already
 produced a published wrong number in this project.
+
+## 19. D7, landed — the address leaf: §18.7's item 2, and the half of it that had no census key
+
+§18.7 ranked **`base-member-addr`'s 32,372 `calls-0` functions** second, behind the
+general frame, as *"the largest genuinely leaf-shaped block left … the one item the
+frame hypothesis got wrong and the one rung that can still be taken before the
+frame."* It also guessed what they were: `lwz r3,4(r3) ; blr`, `lwz ; lwz ; add ; blr`,
+`stw r4,4(r3) ; blr`.
+
+This rung characterized them first and then took the largest **whole-body-complete**
+one. **MEASURED: the guess is right about the constructs and wrong about their
+weights** — the store is 1.2 % of the block, not a third of it — and the shape that
+was actually takeable is one §18 did not name at all: the **address leaf**,
+`return &s->m;`. Taking it through the 2117 designator alone would have been a 6,933
+rung. Grepping for every site implementing the same rule (`GAPS.md` §6, and §17.4's
+own correction) found the *plain* designator refusing the identical construct at a
+second site, five times bigger and with no census key of its own.
+
+Baseline `work/dc3-workload/scan-bma-base.jsonl` — taken **in this worktree**, per
+§16.8: 878 rows, `fn_total` 2,462,571, in class **280,020 = 11.37 %**, 1,363 keys,
+mismatch 0, 6 `match` / 7 `capture-fail`, reproducing §18's D6 scan to the function.
+The result is `work/dc3-workload/scan-bma.jsonl` from the same list, flags and `--cwd`.
+
+| | baseline | D7 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 280,020 (11.37 %) | **320,641 (13.02 %)** | **+40,621** |
+| TUs whose per-TU in-class count moved | — | 826 up | **0 down** |
+| TUs whose class moved | — | — | **0** (still 6 `match`, 7 `capture-fail`) |
+| mismatch | 0 | 0 | 0 |
+| keys | 1,363 | 1,363 | **0 new, 0 gained** |
+| sum of every blocker key's delta | — | — | **−40,621** |
+
+**The bucket drop equals the census gain exactly**, to the function: 257 keys moved,
+every one of them **down**, and their total is the in-class gain. §13.3's invariant
+holds for the fourth time and for the same reason — the production accepts an entire
+segment or nothing.
+
+Fixture lane: `bench` **112 pass / 0 fail / 0 error** (110 + the two new fixtures);
+`/Ox` **46** match (was 45), `/O1` **43** (42), `/O2` **43** (42), `/Ox /Gy` **43**
+(42), 0 mismatch in all four; `expr_sweep` **checked=3516 mismatches=0** (3,329
+before, +187 for this class); `cargo test --workspace` green.
+
+### 19.1 The sub-shape census, before any implementation
+
+The instrument is `work/bma/tools/bma{,2,3,4}.py` (gitignored scratch): a partial
+re-implementation of `body/` in Python that reproduces the
+`expr-intrinsic-base-member-addr` census key and then classifies **what follows the
+designator's `4C` apply**, as a *whole body* reaching the return plumbing and the
+segment end.
+
+**It is graded before it is used.** Over 19 stride-sampled workload TUs (64,398
+segments) it splits the 2117 key's frame classes **26.4 % / 44.9 % / 28.7 %**, against
+the census's own **26.3 % / 45.7 % / 28.0 %** over all 2,462,571 — so it is
+reproducing the key, not a neighbouring one.
+
+Of the **863** sampled bodies whose first blocker is 2117 and whose `call_tokens` is 0:
+
+| sub-shape | n | share | what it is |
+|---|---:|---:|---|
+| two designators + a binary op | 455 | **52.7 %** | `a == b`, `(a-b)/20`, `(a-b)>>2` over two inherited members. §18's `lwz ; lwz ; add`, and it is the biggest — but it is **not** whole-body complete under any load production: it needs the compare / divide / shift lowerings, and the divisions are magic-multiply. |
+| **address return** | **184** | **21.3 %** | `return &b1;` — one `addi`. **Taken.** |
+| store + further statements | 116 | 13.4 % | a `stw` and then more body |
+| designator refused | 60 | 7.0 % | the designator's own pointer TYPE is not `is_ptr_to_4` — a `short`/`char` member. Now accepted by the address path (§19.2). |
+| load with extra offset adds | 33 | 3.8 % | `p->t[2]` on an inherited array: `lwz r3,16(r3)`. Whole-body complete, **not taken** (§19.6). |
+| **whole-body store** | **10** | **1.2 %** | `void D::sb1(int v){ b1 = v; }` → `stw r4,12(r3) ; blr` |
+| store, partial | 5 | 0.6 % | |
+
+**§18.7's third example was the smallest thing in the block.** `stw r4,4(r3) ; blr` is
+a real construct and it is 1.2 % of the `calls-0` 2117 functions (≈370 across the
+workload); the stores in that bucket are overwhelmingly one statement of several. The
+generalizable note is narrow and worth keeping: **a captured example proves a
+construct exists and says nothing about its weight**, and §18's three examples came
+from one hand-written probe (`p7.cpp`) rather than from a frequency count.
+
+### 19.2 What the address leaf is — MEASURED by capture
+
+`work/bma/probes/p1.cpp`, `p2.cpp`, `p3.cpp`, `p4.cpp`; every word below read off the
+reference obj at the fixture profile (`/Ox /GS- /c`) with
+`work/bma/tools/objdis.py`.
+
+```text
+   int*  f(S* s)         { return &s->b; }     38630004  addi r3,r3,4      ; blr
+   int*  f(int x, S* s)  { return &s->b; }     38640004  addi r3,r4,4      ; blr
+   int*  D::pb1()        { return &b1; }       3863000c  addi r3,r3,12     ; blr   (2117, 8+4)
+   int*  DR::pt2()       { return &t[2]; }     38630010  addi r3,r3,16     ; blr   (two `28`s)
+   int*  f(S* s)         { return s->arr; }    38630028  addi r3,r3,40     ; blr   (the decay)
+   int*  f(S* s)         { return &s->a; }               blr                       (K = 0)
+```
+
+and **no `.pdata` entry**: it is a leaf. The production is
+
+```text
+   <designator>                       B9 <tok> <PTR4>   |   the intrinsic-2117 form
+   ( 33 <int-like> k  27 <PTR>        byte-offset adds, ANY number, summed
+   | 33 <int-like> k  28 00 00 )*
+   [ 2C <PTR> 00 ]                    array-to-pointer decay / cv strip, free
+   41 <PTR>                           result type: a POINTER
+   <return plumbing, to the segment end>
+```
+
+Four things it establishes that the existing leaf shapes did not:
+
+1. **The member's own width never reaches the instruction.** `char`, `short`, `int`,
+   `long long`, `float` and `double` inherited members all emit the identical `addi`
+   (`p2.cpp`, `DW::ac`…`DW::ad`), where the *load* leaf one token away picks
+   `lbz`/`lhz`/`lwz`/`ld` from exactly that field. So the address path needs a third
+   pointer predicate, [`is_ptr_any`], beside `is_ptr_to_4` (pointee width 4, gates a
+   `lwz`) and `is_ptr4_kind` (four exact tags, gates a pointer value in a register).
+   Two predicates for two facts became three for three.
+2. **The TYPE tag's width nibble is not a dependable statement of the pointee width
+   in this position**, which is the second and better reason not to gate on it:
+   `char*` carries `86 43` and `short*` carries `84 43`, while `long long*`, `float*`
+   and `double*` all carry `86 43`. Raw witnesses in `p2.cpp`'s
+   `41 86 43 f0 08` (char) against `41 84 43 91 08` (short).
+3. **The offset-add run is unbounded here**, where the load leaf admits at most one.
+   Every add folds into the same displacement, so `LIT(0) 28 · LIT(8) 28` costs one
+   `addi`. A cap of one would refuse `&p->t[2]` on an inherited array.
+4. **`K == 0` emits nothing, and only from the first argument register.** From r4 or
+   r5 c2 emits a real `mr r3,r4` (`p3.cpp`, `z_r4`/`z_r5`/`i_z_r4`) — the same
+   boundary `straight_line_is_out_of_class` draws for the bare-parameter identity.
+   Refused here rather than assumed, by the **parser**, with `addr_leaf_text`'s own
+   refusal as a second lock.
+
+The `§17.3(b)` locality tell was run and passed: `work/bma/probes/p4.cpp` has **six
+byte-identical `&s->b` functions, four byte-identical `&p->b1`, and three
+byte-identical zero-offset ones** in one TU, and they emit six identical `addi
+r3,r3,4`, four identical `addi r3,r3,12`, and three identical bare `bclr`. The
+decision is local.
+
+### 19.3 The two sites, and why the second one is the rung
+
+`try_parse_ptr_identity_leaf`'s own header already recorded the plain form and
+already knew its size — *"it occurs: 7 of the 40 pointer-shaped bodies in the three
+TUs scanned are this, and admitting them as identities would emit a bare `blr` where
+c2 emits `addi r3,r3,12`"* — and `fixtures/cpp/w12_ptr_leaf_neg.cpp` carried it as
+`n_addr_of`, a **negative**. §18.7 ranked the 2117 half and did not connect the two,
+because the plain half has **no census key of its own**: it files under
+`expr-load-type-A643<id>`, whose third byte is a per-TU type id, so the population is
+smeared over **256 sharded keys** and cannot be seen in a ranked histogram at all.
+
+The measured split, in the 19-TU sample: **928 plain against 184 intrinsic, 5.0×**.
+The realized workload split is the same shape:
+
+| designator | key(s) | drop |
+|---|---|---:|
+| plain (`B9` + `27`/`28` adds) | `expr-load-type-*`, 256 sharded keys | **−33,688** |
+| intrinsic 2117 | `expr-intrinsic-base-member-addr` | **−6,933** |
+| | | **−40,621** |
+
+**§17.4's correction — "grep for every site implementing a rule you change" — is what
+paid here, and the amount is 4.9×.** It is also a second, sharper instance of
+`GAPS.md` §6's "a grammar measure is blind to what the grammar does not distinguish":
+this time the grammar *did* distinguish it, and the **key sharding** hid it. A key
+that carries a per-TU id is not merely noisy — it is invisible to the ranking that
+drives the roadmap.
+
+### 19.4 The estimate, quoted before the outcome, and how it did
+
+Quoted before implementation, from the 19-TU sample and before any scan:
+
+> point estimate **+33,000**, range **24,000–40,000**, biased as an **OVER**-estimate
+> — i.e. the realized figure was expected to come in below the point estimate.
+> Deductions named, all one-sided downward: the `parse_params`/`this` binding, `.sy`'s
+> one-register-each gate, the zero-offset non-first-parameter refusal, and the exact
+> return plumbing. §15.4's "quote a generated-code estimate at the bound" was
+> explicitly **not** applied, per its own scope — these are hand-written accessors.
+> Predicted split: ≈6,500 from the 2117 key, ≈26,500 from `expr-load-type-*`.
+
+**The outcome is +40,621 — above the point estimate and above the top of the range,
+and the stated bias direction was WRONG.** Per key: 2117 predicted 6,500, realized
+**6,933** (+6.7 %); plain predicted 26,500, realized **33,688** (+27 %).
+
+The cause is specific and it is not "the deductions were too big" — every deduction
+named is real. The raw sample scale, uncorrected, gave **35,489** for the plain half
+and **7,036** for the intrinsic half, i.e. **42,525 total, within 4.7 % of the truth**.
+The estimate was then *corrected downward* by 0.923, a normalizer computed from the
+ratio of the sample's 2117-key rate to the workload's — and applied to **both** halves,
+including the one that key does not measure.
+
+> **The correction is the error.** A normalizer derived from one census key is only
+> valid for that key's population. Applied to the 2117 half it was harmless (that
+> half came in 6.7 % high, consistent with a normalizer that was slightly too strong);
+> applied to the plain half, which the key does not measure at all, it moved a 2.6 %
+> estimate to a 21 % one. This is §18.6's own recorded limitation one level over —
+> *"the `calls-1` framed share is measured on emitted code and applied to IL bodies,
+> and those are different populations"* — and the rule that follows is:
+> **when a rung spans two keys, normalize each half against its own key; where a half
+> has no key, quote the raw share and widen the range instead of correcting it.**
+
+The other estimating rules held. §15.4's bound rule was correctly *not* applied
+(these are hand-written), and §19.1's whole-body-completeness ranking converted 1:1 —
+the bucket drop equals the census gain to the function, for the fourth rung running.
+
+### 19.5 The control group
+
+§18.1's standing check: a shape the whole-body parser accepted as a leaf cannot
+contain two calls, so any in-class function reading `calls-2plus` is a false positive
+by construction. The new key lands exactly where its parse says it must:
+
+```
+addr-leaf           40,621   c0=40,621  c1=0  c2+=0
+indirect-load-leaf 157,912   c0=157,912 c1=0  c2+=0
+```
+
+All 40,621 read `calls-0`, none reads anything else, and the frame axis is an
+instrument that knows nothing about this production. Every other in-class key is
+unchanged to the function.
+
+### 19.6 What is NOT established, labelled
+
+* **The twelve unwitnessed tags in [`is_ptr_any`] are a HYPOTHESIS.** Four are
+  captured (`84`, `86`, `A4`, `A6`); the other twelve are the cross product of two
+  axes each witnessed separately — the cv bits `0x20`/`0x10` (from `is_ptr4_kind`'s
+  own captures) and the width nibble 2/4/6/8. The cross itself has no witness. Tags
+  with bit `0x40` set are refused, and `kind` must be exactly `0x43`: a function/code
+  pointer (`0x44`) is refused here even though `is_ptr4_kind` admits it as a loaded
+  value, because "the pointee width does not matter" has not been checked for code.
+* **The zero-offset `mr r3,rN` is measured and not implemented.** `7c832378` is in
+  the capture (`p3.cpp` `z_r4`). It is refused because the identity leaf beside it
+  refuses the same thing for the same reason, and widening one without the other
+  would put two rules where there is one. It is a small, known, cheap item.
+* **The `2C` is still assumed free on an "always observed" basis.** Pointer→pointer
+  emits nothing at every captured site (`docs/IL_LOAD_TYPES.md` §3/§4, and `r_d` /
+  `a_arr0` here), and cross-class conversions refuse. The sweep crosses it against
+  cv-qualification and array decay; it does not cross it against a *reinterpret*,
+  because none was produced.
+* **The `28` payload `00 00` remains undecoded**, exactly as in
+  `try_parse_indirect_load_leaf`. It is required literally.
+* **The 33/863 `load with extra offset adds` sub-shape is measured and NOT taken**
+  (≈1,200 workload functions). `p->t[2]` on an inherited array is `lwz r3,16(r3)` —
+  captured, `p3.cpp` `l_e2`/`l_n1` — and admitting it means letting a *run* of offset
+  adds into the load path, whose "exactly one add" rule is a real gate for the plain
+  designator (a chained subscript there needs `slwi`/`lwzx`). 1,200 functions is not
+  worth perturbing a gate with a documented wrong-bytes history in the same rung that
+  changed its designator decoder.
+* **`fixtures/cpp/w12_ptr_leaf_neg.cpp`'s `n_deref_c` is in class and its header says
+  it must refuse.** `char f(char* pc){ return *pc; }` is `lbz r3` and T3's
+  `LoadIndSized` admits it. This predates this rung and was not touched; the file
+  still produces `Port=NotImplemented` whole, so nothing is mis-emitted, but the
+  comment is stale. `n_addr_of` *was* touched: it is now `a_off4` in
+  `fixtures/cpp/w16_addr_leaf.cpp`, graded byte-exact rather than merely refused.
+* **The sub-shape census is a 19-TU sample, not the census.** Only the two totals it
+  predicted are graded against the whole workload; the per-sub-shape shares in §19.1
+  are the sample's. A `-subshape` split in the census key would make them exact and
+  was not taken — the rung it would rank is §19.7 (2), and that one needs a
+  measurement of its operators before its size matters.
+
+### 19.7 The order of work, re-ranked
+
+The board is §18.7's, minus item 2, and with what §19.1 measured inside it:
+
+1. **The general frame, plus per-COMDAT `.pdata`.** Unchanged and still first:
+   802,655 `calls-2plus` functions across the census, ~199,000 of them in the
+   `expr-call-in-expr` bucket alone, and none of the top rows is takeable without it.
+2. **The two-member binary op — 455/863 of the 2117 `calls-0` block, ≈17,000
+   functions.** Now the largest leaf-shaped thing left, and §19.1 is the first
+   measurement of it. It is `lwz ; lwz ; <op>` and it is **not one rung**: the
+   captured operators are `==`/`!=` (which reach the existing branchless compare
+   spine, but over two *memory* operands rather than a formal and a literal),
+   `-` then `>>` (a shift by a literal), and `-` then `/` by a constant (a
+   magic-multiply). Ranking these needs an operator histogram, which the census does
+   not yet carry for this key and which is the cheap next measurement.
+3. **`data-addr-1sym` — 2,712, and 100 % `calls-1`.** Unchanged from §18.7 (3).
+4. **`recv-object × type-ptr` — 2,410, and 100 % `calls-1`.** Unchanged from §18.7 (4).
+5. **The whole-body store through 2117 — ≈370**, and the load-with-extra-adds —
+   ≈1,200. Both are measured, both are one `stw`/`lwz`, and both are small. They are
+   listed so nobody re-derives them.
+6. **Control flow.** Unchanged, and still entangled with the frame.
+
+### 19.8 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+./target/release/c2rs census fixtures/cpp/w16_addr_leaf.cpp   # 29/29 in class
+./target/release/c2rs diff   fixtures/cpp/w16_addr_leaf.cpp   # Port=Match
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                      # 112 pass 0 fail 0 error
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                         # 46 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                         # 43 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                            # checked=3516 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 16 \
+  --jsonl work/dc3-workload/scan-bma.jsonl
+# the sub-shape census (gitignored scratch tooling):
+#   work/bma/tools/bma.py   segment split, `call_tokens`, a best-effort tokenizer
+#   work/bma/tools/bma2.py  reproduces the 2117 census key, classifies the tail
+#   work/bma/tools/bma3.py  the whole-body forms of §19.1
+#   work/bma/tools/bma4.py  the address leaf at BOTH designators — the 5.0x finding
+#   work/bma/tools/objdis.py  minimal COFF + PPC dump (sections, symbols, .text, .pdata)
+python3 work/bma/tools/bma3.py work/bma/ils/*
+python3 work/bma/tools/bma4.py work/bma/ils/*
+# the probes (gitignored scratch; every witness in §19.2 comes from one):
+#   work/bma/probes/p1.cpp  the plain designator: widths, argument positions, offsets
+#   work/bma/probes/p2.cpp  the 2117 designator, OUT OF LINE so c2 actually emits it
+#   work/bma/probes/p3.cpp  the boundaries: offset 0 from r4/r5, 32764 vs 32768
+#   work/bma/probes/p4.cpp  the §17.3(b) tell: 13 byte-identical bodies in one TU
+./target/release/c2rs compile work/bma/probes/p2.cpp --keep-obj work/bma/p2.obj
+python3 work/bma/tools/objdis.py work/bma/p2.obj
+```
+
+Always difference the scans through **absolute** paths and print each one's row count
+and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several reflinked
+worktrees with different contents, and reading one through a relative path has already
+produced a published wrong number in this project.
