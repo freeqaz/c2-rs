@@ -1132,6 +1132,35 @@ The rules that keep the numbers honest:
   has a **local** lowering — and note the tell, which is available cheaply: several
   byte-identical source functions in one TU emitting different instruction
   sequences means the decision is not local.
+- **When a measure has a population it cannot be wrong about, report that
+  population every run.** The frame measure (`docs/IL_CALL_IN_EXPR.md` §18) counts
+  CALL tokens per body outside the grammar, so it is a byte walk with no parse to
+  fail closed. Its first version counted a `BD` whenever the following bytes were
+  merely TYPE-shaped, and it was 98.0 % right against the reference objs — which
+  looked fine. It was also reading **10,088 in-class LEAVES as two-call bodies**, and
+  that was visible for free: a shape the whole-body parser *accepted* as a leaf
+  cannot contain two calls, so the in-class functions are a standing control group of
+  280,020 that the measure must place exactly. Requiring every field of the CALL
+  token literally — conv `00`, the `80` escape form, id ≥ 0x1000, each a field that
+  never varied over 15,095 wild sites — took the control group to **0** and the obj
+  grade to 98.7 %. The general rule: a diagnostic that runs outside the parser has no
+  fail-closed behaviour of its own, so **give it a population whose answer is already
+  known and print the disagreement in the same report as the result.** An obj-graded
+  sample of 705 said "good enough"; the control group said "wrong", and only one of
+  them was cheap enough to run on every scan.
+- **A count of things the compiler *reads* is not a count of things it *emits*, and
+  the census is the former.** `src/lazer/meta_ham/HamUI.cpp` has **9,551 function
+  bodies in its `.ex`** (9,551 `4C 4F 11` markers, 2.76 MB) and c2 emits **350
+  functions**; corpus-wide, 2,462,571 IL bodies against **178,969 emitted — 7.3 %**.
+  Both denominators are legitimate and they answer different questions: the port's
+  gate is all-or-nothing over every segment, so the census's denominator is the right
+  one for "will this TU come in class", and the emitted count is the right one for
+  "how much of the output does this construct produce". Mixing them silently is the
+  hazard — §18.5 applies a framed share measured on emitted functions to a population
+  of IL bodies and says so at the point of use. The related latent question, still
+  open: the port has no model of *which* bodies c2 emits. It fails closed today only
+  because `.gl` binds fewer names than there are segments, which is a gate doing this
+  work by accident.
 - **A compiler-GENERATED body has no freedom, so its grammar bound is nearly
   tight.** Two rungs in a row over generated destructors came in *under* their point
   estimate (15.7% and 30% low) while staying inside their upper bound (93.5% of it,
