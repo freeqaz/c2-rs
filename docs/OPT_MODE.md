@@ -187,9 +187,48 @@ asked a question it would answer wrongly.
    already identical, so the change there is confined to the allocator. It is not
    a translation of the existing `/Ox` codegen — it is a second target, and the
    `/Ox` work stays valid for `/Ox`.
-3. **Re-run the sweeps under `/O1`.** `scripts/expr_sweep.sh` compiles with the
+3. **Re-run the sweeps under `/O1`.**
+ `scripts/expr_sweep.sh` compiles with the
    default `/Ox`, so its 2589 green cases say nothing about `/O1`. The sweep
    needs a mode parameter, and the `/O1` lane should be the one that gates.
+
+### 4.2 Measured scope of the re-target
+
+Better news than §4 sounds. Every function in eleven fixtures spanning the whole
+accepted class was compiled both ways and each difference classified as
+*allocation-only* (same opcode sequence, different register fields) or
+*selection* (different opcodes):
+
+| fixture | identical | allocation-only | selection |
+|---|---|---|---|
+| `w5_chain` | 1 | 3 | 0 |
+| `w5_tree3` | 0 | 4 | 0 |
+| `il_accum4` | 7 | 2 | 0 |
+| `il_reassoc` | 16 | 0 | 0 |
+| `w6_rel_k` | 5 | 14 | 0 |
+| `il_call_perm` | 1 | 6 | 0 |
+| `il_deep_chain` | 0 | 3 | 0 |
+| `w13b_fconst` | 1 | 0 | 0 |
+| `w13b_ffold` | 5 | 0 | 0 |
+| `w6_k_boundary` | 0 | 2 | 0 |
+| `w5_tree_neg` | 4 | 6 | 1 |
+
+So of roughly ninety functions, **one** differs by more than register assignment.
+Three consequences worth stating plainly:
+
+* **The reassociation and canonicalization work is mode-independent.** All 16 of
+  `il_reassoc` are byte-identical across modes, as are both float fixtures. The
+  expensive semantic work — commutative canonicalization by register, additive
+  reassociation, FP constant folding, the relational spines' *shape* — carries
+  over untouched. What does not carry over is the allocator.
+* **The one selection difference is scheduling, not selection.** `w5_tree_neg`'s
+  `n_spill` has the same 18 instructions in both modes, reordered: `/Ox` computes
+  `7d642a14` before `7d433214`, `/O1` the reverse. That is the framed/spill shape,
+  so it needs its own characterization, but it is one shape and not a class.
+* **`a * 9` is not in any fixture.** The strength-reduction difference (§3.2) does
+  not appear in this table because nothing in the corpus multiplies by a constant
+  — which is itself worth noting, since `mulli`-versus-shift is exactly the kind of
+  size/speed tradeoff `/O1` should be full of. The corpus does not sample it.
 
 ## 5. How this was found
 
