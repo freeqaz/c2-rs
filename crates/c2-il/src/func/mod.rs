@@ -517,6 +517,50 @@ pub(crate) mod test_fixtures {
     // (`c2rs census <cpp> --keep-il <dir>`), not derived.
 
     /// `int ld_p(int* p) { return *p; }` — one formal, no offset add.
+    // ---- the one-byte-unsigned value class (W24) -----------------------------
+    //
+    // Transcribed verbatim from a live capture of `work/lf/probes/p2.cpp` /
+    // `p4.cpp` at the fixture profile (`/Ox /GS- /c`).
+
+    /// `bool k_false() { return false; }` — a LITERAL of the class, returned as
+    /// the class. Emits `38600000` (`li r3,0`) + `blr`, the same word the int
+    /// literal leaf emits.
+    pub(crate) const BOOL_LIT: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE2, 0x09, //
+        0x46, // formals marker, empty list
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x33, 0x82, 0x12, 0x30, 0x00, // LIT bool 0
+        0x41, 0x82, 0x12, 0x30, // result type bool
+        0x3A, 0xE3, 0x09, 0x54, 0x02, 0x29, 0xE3, 0x09, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `bool b_id(bool b) { return b; }` — the identity, a bare `blr`.
+    pub(crate) const BOOL_ID: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE5, 0x09, //
+        0x46, 0x2D, 0xE4, 0x09, // formals: b
+        0x4C, 0x4F, 0x11, 0x53, //
+        0xB9, 0xE4, 0x09, 0x82, 0x12, 0x30, // LOAD b (bool)
+        0x41, 0x82, 0x12, 0x30, // result type bool
+        0x3A, 0xE6, 0x09, 0x54, 0x02, 0x29, 0xE6, 0x09, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `unsigned u_from_b(bool b) { return b; }` — the conversion **out of** the
+    /// class, which must refuse: the reference is `5463063e`
+    /// (`rlwinm r3,r3,0,24,31`), a real mask, and it is spelled with the same
+    /// `2C … 00` that is free between the two width-4 classes.
+    pub(crate) const BOOL_WIDEN_NEG: &[u8] = &[
+        0x53, 0x53, 0x26, 0xE7, 0x09, //
+        0x46, 0x2D, 0xE6, 0x09, //
+        0x4C, 0x4F, 0x11, 0x53, //
+        0xB9, 0xE6, 0x09, 0x82, 0x12, 0x30, // LOAD b (bool)
+        0x2C, 0x86, 0x41, 0x74, 0x00, // CONVERT to int
+        0x41, 0x86, 0x41, 0x74, //
+        0x3A, 0xE8, 0x09, 0x54, 0x02, 0x29, 0xE8, 0x09, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
     // ---- the store leaf (W23) ------------------------------------------------
     //
     // Every segment below is transcribed verbatim from a live capture of

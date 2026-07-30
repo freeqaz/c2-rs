@@ -9,8 +9,8 @@ use self::chain::{
     straight_line_out_of_class_ctx,
 };
 use self::expr::{
-    eat_fn_tail, eat_return_head, eat_return_plumbing, eat_scopes, intrinsic_name, parse_expr,
-    parse_formals, BODY_SCOPE_DEPTH,
+    eat_fn_tail, eat_return_head, eat_return_plumbing, eat_scopes, intrinsic_name,
+    parse_expr_classed, parse_formals, BODY_SCOPE_DEPTH,
 };
 use self::shapes::parse_params;
 use self::shapes::{
@@ -18,7 +18,9 @@ use self::shapes::{
     try_parse_compare, try_parse_empty_dtor_delegation, try_parse_float_leaf,
     try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf, try_parse_store_leaf,
 };
-use super::readers::{eat_byte, find_subslice, read_token_var, read_type, read_varint};
+use super::readers::{
+    eat_byte, eat_value_type, find_subslice, read_token_var, read_type, read_varint, ValueClass,
+};
 use super::sy::SyView;
 use super::{CompareLeaf, IlOp};
 
@@ -650,8 +652,29 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             if let Some(shape) = try_parse_store_leaf(seg, p, lo) {
                 return Ok(shape);
             }
-            let ops = parse_expr(seg, &mut p, 0x41)?;
-            eat_return_plumbing(seg, &mut p, true, depth)?;
+            let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;
+            // The result annotation, and the ONE place the value's class has to be
+            // carried across it. `eat_return_plumbing`'s own `41` gate is
+            // `eat_int_like_or_ptr4` — shared with three byte-graded shapes and
+            // deliberately not widened (`ROADMAP.md` §6d) — so a one-byte-unsigned
+            // body consumes its annotation here instead, and requires it to
+            // **restate the class**. That requirement is the whole gate: a `bool`
+            // value annotated `int` is the `rlwinm` mask c2 emits for
+            // `unsigned u(bool b){ return b; }` (`5463063e`), and admitting it as
+            // a register move would be wrong bytes rather than a gap. Inside the
+            // class nothing is emitted at all — `return false;` is `li r3,0`,
+            // `return b;` is a bare `blr`, and from any other argument register it
+            // is the same `mr r3,r4` the integer identity emits, all of which the
+            // ordinary selector already produces from `[Lit(k)]` / `[Load(t)]`.
+            if cls == Some(ValueClass::Int1u) {
+                if !(eat_byte(seg, &mut p, 0x41) && eat_value_type(seg, &mut p, ValueClass::Int1u))
+                {
+                    return Err(blk(seg, p, "result-type"));
+                }
+                eat_return_plumbing(seg, &mut p, false, depth)?;
+            } else {
+                eat_return_plumbing(seg, &mut p, true, depth)?;
+            }
             let params = parse_params(seg, lo)?;
             // A parameter used twice licenses c2's algebraic rewriter.
             if has_repeated_leaf(&ops) {
