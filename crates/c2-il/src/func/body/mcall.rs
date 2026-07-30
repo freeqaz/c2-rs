@@ -187,6 +187,25 @@ const NEED_MORE: u64 = 7;
 const KIND_SHIFT: u32 = NEED_SHIFT + 3;
 const KIND_BITS: u32 = 5;
 const KIND_MASK: u64 = (1 << KIND_BITS) - 1;
+/// Where the **data-symbol count class** starts (2 bits), set only on a body the
+/// matcher actually finished (`-whole…`) and only for the two data designators.
+///
+/// D5's measurement, and the reason it is in the key rather than in a document:
+/// §16.3 ranked `data-addr × plain-call × type-ptr` first at 21,642 bodies and
+/// described it as *"a global's or string literal's address passed to an ordinary
+/// call"* — singular. It is not. Every one of the 2,730 symbol-carrying plain calls
+/// in a 40-TU sample passes **two** string addresses, and c2 lowers the second as
+/// `addi rD, rAnchor, <difference of their .rdata pool offsets>` rather than through
+/// its own relocation pair. That makes instruction selection depend on a whole-TU
+/// pool layout, which is a different and much larger piece of work than the one the
+/// row was ranked for — so the count has to be *visible in the census*, not inferred
+/// from a sample, or the row gets re-ranked wrong again next session
+/// (`docs/IL_CALL_IN_EXPR.md` §17).
+const SYMS_SHIFT: u32 = KIND_SHIFT + KIND_BITS;
+const SYMS_MASK: u64 = 0x3;
+/// Not applicable / not measured: the matcher never finished this body, or its form
+/// is not a data designator so "how many data symbols" is not the operative number.
+const SYMS_UNSET: u64 = 0;
 
 impl CallForm {
     /// `(discriminant, payload)`.
@@ -630,11 +649,21 @@ impl Blocker {
 pub(crate) fn feature(aux: u64) -> String {
     let disc = aux & FORM_MASK;
     let payload = (aux >> FORM_BITS) & PAYLOAD_MASK;
-    let name = match CallForm::from_code(disc, payload) {
+    let form = CallForm::from_code(disc, payload);
+    let name = match form {
         Some(f) => f.name(),
         // Unreachable by construction; a bucket rather than a panic, since this
         // is a diagnostic path and a census must never take the process down.
         None => format!("aux-{aux:X}"),
+    };
+    // How many data symbols the finished body materializes — the number that
+    // decides whether the row needs one relocation pair or a pool-relative
+    // selection (see [`SYMS_SHIFT`]). Rendered next to the form, because it is a
+    // property of the form's own operands and not of the second blocker.
+    let name = match (aux >> SYMS_SHIFT) & SYMS_MASK {
+        SYMS_UNSET => name,
+        3 => format!("{name}-3sym+"),
+        k => format!("{name}-{k}sym"),
     };
     if aux & WHOLE_BIT != 0 {
         return format!("{CALL_IN_EXPR}-{name}-whole");
@@ -695,10 +724,15 @@ pub(crate) fn mark_whole(seg: &[u8], lo: usize, b: Block) -> Block {
     if !form_is_measured(form) {
         return b;
     }
+    // The data-symbol count is only the operative number for the two designators
+    // that materialize one; elsewhere the form's own operands are not symbols and a
+    // count would be noise in the key.
+    let counts_syms = matches!(form, CallForm::DataAddr | CallForm::DataRead);
+    let sym_bits = |f: &Fail| if counts_syms { f.sym_class() << SYMS_SHIFT } else { 0 };
     let mut adm = Admit::bare(form);
     let mut fail = Fail::new();
     if body_matches(seg, lo, adm, &mut fail) {
-        return Block { aux: b.aux | WHOLE_BIT, ..b };
+        return Block { aux: b.aux | WHOLE_BIT | sym_bits(&fail), ..b };
     }
     // **The greedy chain.** Grant the construct that blocks the body, retry, and
     // repeat — up to [`MAX_ADMIT`]. The *first* construct granted is the "second
@@ -734,8 +768,14 @@ pub(crate) fn mark_whole(seg: &[u8], lo: usize, b: Block) -> Block {
     // when the chain ended in `-more`, because "what came after the second blocker"
     // is the question that separates a reachable row from an unreachable one.
     let third = if adm.n >= 2 { adm.also[1].kind_code() } else { 0 };
+    // Only a body the matcher actually *finished* has a well-defined symbol count:
+    // a `-more` body stopped partway, so its designators are however many the
+    // abandoned prefix happened to hold, which is a property of the refusal and not
+    // of the program. Left unset there rather than reported.
+    let syms = if (1..=MAX_ADMIT as u64).contains(&need) { sym_bits(&fail) } else { 0 };
     Block {
         aux: b.aux
+            | syms
             | (bd << BLK_SHIFT)
             | ((bp & BLK_PAYLOAD_MASK) << BLK_PAYLOAD_SHIFT)
             | (need << NEED_SHIFT)
@@ -1126,6 +1166,30 @@ impl Admit {
 struct Fail {
     at: usize,
     kind: FailKind,
+    /// How many data symbols the current parse has materialized **into a call
+    /// argument** ([`eat_data_designator`] succeeding inside an argument region).
+    ///
+    /// Argument regions specifically, and not every designator, because the other
+    /// two places a `26 <tok>` reaches this production are not addresses the body
+    /// has to materialize: the **callee push** of the call itself (excluded in
+    /// [`eat_data_designator`]) and an assignment statement's **destination** push,
+    /// which the greedy value sequence swallows before `body_matches` gets to try
+    /// its assignment arm. Counting those made `x = uc("hi")` — one string — report
+    /// two. The argument region is the one position where the count means what the
+    /// ranking needs it to mean: how many symbol addresses have to be in registers
+    /// at the call.
+    ///
+    /// Carried on `Fail` because `Fail` is the one `&mut` already threaded through
+    /// every production, and `Admit` is `Copy`. It is only meaningful on a parse
+    /// that *finished*: the matcher speculates, so every cursor rewind must restore
+    /// this too, or a designator consumed by an abandoned attempt is counted twice.
+    /// [`Fail::mark`]/[`Fail::rewind`] are that pairing, and every `*p = save` in
+    /// this module has one.
+    syms: u32,
+    /// Nesting depth of open **call-argument regions** ([`eat_call_and_args`]).
+    /// Balanced by construction — the region is entered and left in one place — so
+    /// a speculative parse that fails inside one cannot leave it open.
+    args_depth: u32,
 }
 
 /// What sort of thing the matcher refused, which decides how the position is read.
@@ -1150,7 +1214,29 @@ enum FailKind {
 
 impl Fail {
     fn new() -> Fail {
-        Fail { at: 0, kind: FailKind::Value }
+        Fail { at: 0, kind: FailKind::Value, syms: 0, args_depth: 0 }
+    }
+
+    /// Snapshot the designator count, to be paired with a cursor save.
+    fn mark(&self) -> u32 {
+        self.syms
+    }
+
+    /// Restore it, to be paired with a cursor rewind. The furthest-refusal fields
+    /// are deliberately **not** restored — the deepest position reached is the
+    /// answer whether or not the attempt that reached it was kept.
+    fn rewind(&mut self, m: u32) {
+        self.syms = m;
+    }
+
+    /// The count as the 2-bit census class: 1, 2, or 3-and-above.
+    fn sym_class(&self) -> u64 {
+        match self.syms {
+            0 => SYMS_UNSET,
+            1 => 1,
+            2 => 2,
+            _ => 3,
+        }
     }
 
     /// Record a refusal, keeping the furthest. Ties go to the **first** note,
@@ -1271,8 +1357,10 @@ fn body_matches(seg: &[u8], lo: usize, adm: Admit, fail: &mut Fail) -> bool {
         // it. (`26 <dst>` is not itself a value here — a data symbol is only
         // admitted when `form` is one of the data designators.)
         let save = p;
+        let msave = fail.mark();
         if !eat_value_seq(seg, &mut p, adm, fail) {
             p = save;
+            fail.rewind(msave);
             if !eat_byte(seg, &mut p, 0x26) {
                 fail.note(p, FailKind::Value);
                 return false;
@@ -1456,11 +1544,13 @@ fn eat_value_seq(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool
     let mut n = 0;
     loop {
         let save = *p;
+        let msave = fail.mark();
         if eat_form_value(seg, p, adm.form, adm, fail) {
             n += 1;
             continue;
         }
         *p = save;
+        fail.rewind(msave);
         // The second admitted construct, for the both-handled measure. Tried after
         // the form and on the same restored cursor, so neither can leave the other
         // mid-token.
@@ -1469,6 +1559,7 @@ fn eat_value_seq(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool
             continue;
         }
         *p = save;
+        fail.rewind(msave);
         match seg.get(*p) {
             Some(&0xB9) => {
                 *p += 1;
@@ -1533,13 +1624,16 @@ fn eat_value_seq(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool
 /// [`mark_whole`] does not run the second pass for them.
 fn eat_blocker_value(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
     let save = *p;
+    let msave = fail.mark();
     for &b in adm.granted() {
         *p = save;
+        fail.rewind(msave);
         if eat_one_blocker_value(seg, p, b, adm, fail) {
             return true;
         }
     }
     *p = save;
+    fail.rewind(msave);
     false
 }
 
@@ -1746,8 +1840,8 @@ fn eat_form_value(seg: &[u8], p: &mut usize, form: CallForm, adm: Admit, fail: &
         | CallForm::RecvIntrinsic(_) => eat_member_call(seg, p, form, adm, fail),
         CallForm::Chained => eat_chained_call(seg, p, adm, fail),
         CallForm::NestedCall => eat_plain_call(seg, p, adm, fail),
-        CallForm::DataAddr => eat_data_designator(seg, p, false),
-        CallForm::DataRead => eat_data_designator(seg, p, true),
+        CallForm::DataAddr => eat_data_designator(seg, p, false, fail),
+        CallForm::DataRead => eat_data_designator(seg, p, true, fail),
         _ => false,
     }
 }
@@ -1817,6 +1911,17 @@ fn eat_call_and_args(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> 
         fail.note(*p, FailKind::Value);
         return false;
     }
+    // Everything from here to the `4C` is an argument region. Entered and left in
+    // exactly one place so [`Fail::args_depth`] is balanced on every path, including
+    // the ones a speculative parse abandons.
+    fail.args_depth += 1;
+    let ok = eat_call_args_region(seg, p, adm, fail);
+    fail.args_depth -= 1;
+    ok
+}
+
+/// The `(<arg> 55 <TYPE>)* 4C` region of [`eat_call_and_args`].
+fn eat_call_args_region(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
     loop {
         match seg.get(*p) {
             Some(&0x4C) => {
@@ -1836,13 +1941,16 @@ fn eat_call_and_args(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> 
                 // report `-more` for a body that only ever needed the two. Inert when
                 // the grant set is empty, which is every first pass.
                 let save = *p;
+                let msave = fail.mark();
                 let nested = adm.n > 0
                     && (eat_form_value(seg, p, adm.form, adm, fail) || {
                         *p = save;
+                        fail.rewind(msave);
                         eat_blocker_value(seg, p, adm, fail)
                     });
                 if !nested {
                     *p = save;
+                    fail.rewind(msave);
                     if !eat_int_operands(seg, p, adm, fail) {
                         return false;
                     }
@@ -1981,9 +2089,11 @@ fn eat_chained_call(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> b
         CallForm::RecvCall,
     ];
     let after_heads = *p;
+    let msave = fail.mark();
     let mut links = 0;
     for base in BASES {
         *p = after_heads;
+        fail.rewind(msave);
         if eat_receiver(seg, p, base, adm, fail) {
             links = heads.len();
             break;
@@ -1992,6 +2102,7 @@ fn eat_chained_call(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> b
     if links == 0 {
         // The last push was the receiver: rewind to it and take it as the object.
         *p = heads[heads.len() - 1];
+        fail.rewind(msave);
         if !eat_receiver(seg, p, CallForm::RecvObject, adm, fail) {
             return false;
         }
@@ -2175,7 +2286,10 @@ fn eat_intrinsic_receiver(seg: &[u8], p: &mut usize, sel: i32, adm: Admit, fail:
 
 /// A data symbol used as an address (`want_load` false) or read (`true`):
 /// `26 <sym> [2C …] [33 <k> 27|28 …] [2C …] [30 <TYPE> [2C …]]`.
-fn eat_data_designator(seg: &[u8], p: &mut usize, want_load: bool) -> bool {
+///
+/// Counts itself on `fail` when it succeeds — see [`Fail::syms`] for why the count
+/// lives there and why every caller that rewinds the cursor must rewind it too.
+fn eat_data_designator(seg: &[u8], p: &mut usize, want_load: bool, fail: &mut Fail) -> bool {
     if !eat_byte(seg, p, 0x26) {
         return false;
     }
@@ -2183,6 +2297,15 @@ fn eat_data_designator(seg: &[u8], p: &mut usize, want_load: bool) -> bool {
         return false;
     };
     *p += w;
+    // A `26 <tok>` **immediately followed by `BD`** is a CALLEE push, not a value:
+    // `uc("hi")` opens `26 <uc> BD …`, and this greedy designator takes that push
+    // because nothing else in the grammar will (`docs/IL_CALL_IN_EXPR.md` §16.2 —
+    // it is why the second blocker is named `plain-call` and not `op-0xBD`).
+    // Consuming it is what makes the `-whole` counts what §14/§16 state, so that is
+    // unchanged; **counting** it as a materialized data symbol is not, and would
+    // report every single-string call as two. Same test `eat_chained_call` uses to
+    // tell a callee push from a method push.
+    let is_callee_push = seg.get(*p) == Some(&0xBD);
     if !eat_opt_convert(seg, p) || !eat_opt_off_add(seg, p) || !eat_opt_convert(seg, p) {
         return false;
     }
@@ -2190,7 +2313,13 @@ fn eat_data_designator(seg: &[u8], p: &mut usize, want_load: bool) -> bool {
     if loaded != want_load {
         return false;
     }
-    eat_opt_convert(seg, p)
+    if !eat_opt_convert(seg, p) {
+        return false;
+    }
+    if !is_callee_push && fail.args_depth > 0 {
+        fail.syms += 1;
+    }
+    true
 }
 
 #[cfg(test)]
@@ -2307,6 +2436,34 @@ mod tests {
         0x00, 0x55, 0x86, 0x43, 0xF4, 0x08, 0x4C, 0x32, 0x86, 0x41, 0x74, 0x4B, 0xB9, 0x21, 0x0A,
         0x86, 0x41, 0x74, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x20, 0x0A, 0x54, 0x02, 0x29, 0x20, 0x0A,
         0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+    /// `void h1() { d1("aa", "bb"); }` — **two** string-literal addresses in one
+    /// call, which D5 measured to be what this whole row actually is
+    /// (`docs/IL_CALL_IN_EXPR.md` §17): 2,730 of 2,730 symbol-carrying plain calls
+    /// in a 40-TU workload sample pass two, and none passes one.
+    ///
+    /// It is the discriminating witness for the count, in two directions at once:
+    /// three `26` pushes reach [`eat_data_designator`] here (the callee `d1` and the
+    /// two literals) and the census must report **2**, so a rule that counted every
+    /// designator would say three and a rule that counted arguments-only without the
+    /// callee test would say two by luck on [`DATA_ADDR`] and three here.
+    const DATA_ADDR_TWO_SYMS: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE5, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x03, 0x10,
+        0x00, 0x00, 0x26, 0xE8, 0x09, 0x2C, 0x86, 0x43, 0x81, 0x20, 0x00, 0x55, 0x86, 0x43, 0x81,
+        0x20, 0x26, 0xE9, 0x09, 0x2C, 0x86, 0x43, 0x81, 0x20, 0x00, 0x55, 0x86, 0x43, 0x81, 0x20,
+        0x4C, 0x4B, 0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01,
+        0x54, 0x00,
+    ];
+    /// `void m_ps(T* p) { u3(p, "cc"); }` — one string address beside a **pointer**
+    /// formal, so this is the k = 2 row (`then-plain-call-and-type-ptr-whole2`) and
+    /// the matcher runs `body_matches` three times over it. The witness for the
+    /// rewind rule: without restoring the count on each abandoned attempt this reads
+    /// more than one symbol.
+    const DATA_ADDR_PTR_ARG: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE6, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x05, 0x10,
+        0x00, 0x00, 0x26, 0xEA, 0x09, 0x2C, 0x86, 0x43, 0x83, 0x20, 0x00, 0x55, 0x86, 0x43, 0x83,
+        0x20, 0xB9, 0xE7, 0x09, 0x86, 0x43, 0x81, 0x20, 0x55, 0x86, 0x43, 0x81, 0x20, 0x4C, 0x4B,
+        0x3A, 0xE9, 0x09, 0x54, 0x02, 0x29, 0xE9, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
     /// `int d_read() { int x; x = gO.m; return x; }` — a global object's member
     /// read, §7.1's 2.5 %.
@@ -2548,8 +2705,15 @@ mod tests {
             // `uc("hi")`: the greedy `data-addr` designator takes the callee push
             // too, so what is left missing is the bare CALL token. `then-plain-call`
             // names that construct; `then-op-0xBD` would have named the byte.
-            (DATA_ADDR, "expr-call-in-expr-data-addr-then-plain-call-whole"),
-            (DATA_ADDR_INDEX, "expr-call-in-expr-data-addr-then-plain-call-whole"),
+            // …and the `1sym`/`2sym` class says how many data symbols the finished
+            // body has to materialize, which is what decides whether the row needs
+            // one relocation pair or a `.rdata`-pool-relative selection (§17).
+            (DATA_ADDR, "expr-call-in-expr-data-addr-1sym-then-plain-call-whole"),
+            (DATA_ADDR_INDEX, "expr-call-in-expr-data-addr-1sym-then-plain-call-whole"),
+            (DATA_ADDR_TWO_SYMS, "expr-call-in-expr-data-addr-2sym-then-plain-call-whole"),
+            // …and `x = gO.m;` carries no suffix at all: its data symbol is read at
+            // statement level, never materialized into an argument register, so the
+            // count is 0 and the key says nothing rather than saying "one".
             (DATA_READ, "expr-call-in-expr-data-read-whole"),
             (RECV_LOAD_IN_ARG, "expr-call-in-expr-recv-load-then-call-nested-call-whole"),
         ];
@@ -2897,7 +3061,7 @@ mod tests {
         // `uc("hi")`: the greedy `data-addr` designator eats the callee push, so the
         // matcher stops on a bare `BD`. The key must say `plain-call`.
         let f = parse_segment_detail(&free_fn(DATA_ADDR), NO_LOCALS).unwrap_err().feature();
-        assert_eq!(f, "expr-call-in-expr-data-addr-then-plain-call-whole");
+        assert_eq!(f, "expr-call-in-expr-data-addr-1sym-then-plain-call-whole");
         assert!(!f.contains("0xBD"), "{f}");
         // The destructor-with-delete stops on a `27`, which is a byte-offset add and
         // is named as one.
@@ -2910,6 +3074,62 @@ mod tests {
         // its own form, not `op-0x26`.
         let f = parse_segment_detail(&free_fn(RECV_LOAD_IN_ARG), NO_LOCALS).unwrap_err().feature();
         assert!(f.contains("-then-call-nested-call"), "{f}");
+    }
+
+    /// **D5's measurement, as a test.** The symbol count is the number of data
+    /// addresses the body puts in **argument registers** — not the number of `26`
+    /// pushes the designator production happens to consume.
+    ///
+    /// The three positions a `26 <tok>` reaches [`eat_data_designator`] from are all
+    /// exercised here, and only one of them counts:
+    ///
+    /// | witness | `26` pushes consumed | reported |
+    /// |---|---:|---:|
+    /// | `x = uc("hi")` ([`DATA_ADDR`]) | 3 — destination, callee, literal | **1** |
+    /// | `d1("aa","bb")` ([`DATA_ADDR_TWO_SYMS`]) | 3 — callee, literal, literal | **2** |
+    /// | `x = gO.m` ([`DATA_READ`]) | 2 — destination, the global | **0** |
+    ///
+    /// Getting this wrong is not cosmetic: the whole point of the class is to say
+    /// whether the row needs one relocation pair or a `.rdata`-pool-relative
+    /// selection, and an off-by-one would report the single-symbol call — which the
+    /// workload does **not** contain — as the two-symbol one, which is all it
+    /// contains (`docs/IL_CALL_IN_EXPR.md` §17).
+    #[test]
+    fn the_symbol_count_is_the_addresses_the_call_materializes() {
+        let f = |seg| parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
+        assert_eq!(f(DATA_ADDR), "expr-call-in-expr-data-addr-1sym-then-plain-call-whole");
+        assert_eq!(f(DATA_ADDR_INDEX), "expr-call-in-expr-data-addr-1sym-then-plain-call-whole");
+        assert_eq!(f(DATA_ADDR_TWO_SYMS), "expr-call-in-expr-data-addr-2sym-then-plain-call-whole");
+        assert_eq!(f(DATA_READ), "expr-call-in-expr-data-read-whole");
+        // Nothing per-TU rides along: the two literal tokens can be retagged and the
+        // key does not move. Same sharding gate as every other payload here.
+        let mut retagged = DATA_ADDR_TWO_SYMS.to_vec();
+        assert_eq!((retagged[18], retagged[19]), (0xE8, 0x09));
+        assert_eq!((retagged[32], retagged[33]), (0xE9, 0x09));
+        retagged[18] = 0x41;
+        retagged[19] = 0x33;
+        retagged[32] = 0x77;
+        retagged[33] = 0x21;
+        assert_eq!(f(&retagged), "expr-call-in-expr-data-addr-2sym-then-plain-call-whole");
+    }
+
+    /// The count survives the matcher's own speculation. `mark_whole` re-runs
+    /// `body_matches` once per grant, and inside one run the value sequence tries the
+    /// form, then the granted blocker, then the plain operand vocabulary — rewinding
+    /// the cursor each time. A designator consumed by an abandoned attempt must be
+    /// un-counted with it, or a body that needs two grants reports more symbols than
+    /// it has. Checked on the witness that actually takes the greedy path twice.
+    #[test]
+    fn a_rewound_designator_is_not_counted() {
+        // `u3(p, "cc")` — one string, one pointer formal, so the chain is
+        // `plain-call` then `type-ptr` and `body_matches` runs three times.
+        let f = parse_segment_detail(&free_fn(DATA_ADDR_PTR_ARG), NO_LOCALS)
+            .unwrap_err()
+            .feature();
+        assert_eq!(
+            f,
+            "expr-call-in-expr-data-addr-1sym-then-plain-call-and-type-ptr-whole2"
+        );
     }
 
     /// The greedy chain must terminate, stay inside its bound, and never report a

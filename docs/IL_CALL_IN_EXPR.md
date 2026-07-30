@@ -1384,7 +1384,7 @@ census yield:
 
 | rank | form × second [× third] | k | whole | what it is |
 |---|---|---:|---:|---|
-| **1** | `data-addr` × `plain-call` × **`type-ptr`** | 2 | **20,579** | a global's or string literal's address passed to an ordinary call that also takes pointers |
+| **1** | `data-addr` × `plain-call` × **`type-ptr`** | 2 | **20,579** | a global's or string literal's address passed to an ordinary call that also takes pointers — **§17 measures this row as 87.5 % *two* addresses per call, which is a different lowering; see §17.1** |
 | | `data-addr` × `plain-call` | 1 | 1,063 | the same with int-only arguments |
 | | | | **21,642** | **row 1 total** |
 | **2** | `recv-load` × `chain-bind` | 1 | **12,480** | `p->A()->B()` — a two-link chain on a pointer formal |
@@ -1523,6 +1523,11 @@ again.
 
 ### 16.7 The order of work, re-ranked
 
+> **Superseded by §17.6.** Item 1 below was taken, and the row is not what this
+> ranking says it is: 87.5 % of it passes **two** symbol addresses to one call, which
+> c2 lowers through a `.rdata`-pool-relative selection and a scheduler, not through a
+> second relocation pair. Read §17 before acting on item 1.
+
 1. **`data-addr` + `plain-call` + pointer arguments** — **21,642** grammar-complete
    bodies (1,063 at k = 1, 20,579 at k = 2), the largest reachable block in the
    bucket. Needs: REFHI/REFLO on a data symbol, the `$SG…` `.rdata` COMDAT for a
@@ -1570,6 +1575,326 @@ C2RS_JOBS=16 scripts/expr_sweep.sh                           # checked=3259 mism
   --cwd ../dc3-decomp --keep-il work/sb/il/ham
 # work/sb/tools/segs.py splits a .ex on `4F 1F` and dumps whole segments matching a
 # byte pattern — the 40-byte census window is too narrow for a second blocker.
+```
+
+Always difference the scans through **absolute** paths and print each one's row
+count and `fn_total` first: `work/dc3-workload/scan-*.jsonl` exists in several
+reflinked worktrees with different contents, and reading one through a relative
+path has already produced a published wrong number in this project.
+
+---
+
+## 17. D5, landed — what §16's row 1 actually is, and why no lowering shipped
+
+§16.7 ranked `data-addr × plain-call × type-ptr` **first**: 21,642 grammar-complete
+bodies, *"the largest reachable block in the bucket"*, needing *"REFHI/REFLO on a
+data symbol, the `$SG…` `.rdata` COMDAT for a string literal, an ordinary call as a
+value, and pointer-typed argument operands. **No frames beyond what the port already
+emits and no control flow.**"*
+
+That list is right about everything it names and **wrong about what the row is**.
+This rung took it, characterized it by capture, and found a construct the list does
+not contain: **87.5 % of the row passes TWO data-symbol addresses to one call**, and
+c2 materializes only *one* of them through a relocation pair — the other is
+`addi rD, rAnchor, <difference of their .rdata pool offsets>`. Instruction selection
+for the dominant shape therefore depends on a **whole-TU `.rdata` layout decision**,
+which is a different and much larger piece of work than "one more relocation".
+
+So **no lowering shipped**, deliberately, under §16's own escape clause: the
+relocation and section shapes *are* fully established below and the port could emit
+them; the *instruction selection* and the *argument-setup order* are not, and shipping
+a lowering that cannot be graded byte-exact is the one thing this project does not do.
+What shipped instead is the measurement, in the census, so the row can never be
+mis-ranked from its size again.
+
+Baseline `work/dc3-workload/scan-da-base.jsonl` — a fresh scan taken **in this
+worktree** rather than a reflinked copy, precisely because §16.8's warning applies
+here: 878 rows, `fn_total` 2,462,571, in class **280,020 = 11.37 %**, 1,355 keys,
+mismatch 0, reproducing §16's D4 scan to the function. It also agrees to the function
+with `work/dc3-workload/scan-1137.jsonl` on rows, `fn_total` and in-class. The result
+is `work/dc3-workload/scan-da.jsonl` from the same list, flags and `--cwd`.
+
+| | baseline | D5 | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 280,020 (11.37 %) | 280,020 (11.37 %) | **0** |
+| TUs whose per-TU in-class count moved | — | — | **0** |
+| TUs whose class moved | — | — | **0** (still 6 `match`, 7 `capture-fail`) |
+| mismatch | 0 | 0 | 0 |
+| keys | 1,355 | 1,358 | +3 |
+| functions re-keyed | — | — | **21,646 out, 21,646 in, nothing else moved by one** |
+
+Fixture lane: `bench` 110 pass / 0 fail / 0 error; `/Ox` 45 match, `/O1` 42, `/O2` 42,
+`/Ox /Gy` 42, 0 mismatch in all four; `expr_sweep` checked=3329 mismatches=0 (3,259
+before, +70 for this class); `cargo test --workspace` green.
+
+### 17.1 The split, and it is the answer
+
+`-1sym` / `-2sym` / `-3sym+` is the number of data symbols a finished body
+materializes **into a call argument register** — the number that decides whether the
+row needs one relocation pair or a pool-relative selection. Over the whole workload:
+
+| key | functions | TUs |
+|---|---:|---:|
+| `data-addr-2sym-then-plain-call-and-type-ptr-whole2` | **18,925** | 813 |
+| `data-addr-1sym-then-plain-call-and-type-ptr-whole2` | 1,654 | 344 |
+| `data-addr-1sym-then-plain-call-whole` | 1,058 | 816 |
+| `data-addr-2sym-then-plain-call-whole` | 4 | |
+| `data-addr-3sym+-then-plain-call-whole` | 1 | |
+| `data-read-2sym-then-plain-call-and-type-real-whole2` | 4 | |
+| **one symbol** | **2,712 (12.5 %)** | |
+| **two symbols** | **18,933 (87.5 %)** | |
+
+The 21,642 §16 ranked is 21,646 here — the extra 4 are the `data-read` row, which
+§16.3 did not list and which splits the same way.
+
+**What the two-symbol shape is.** An `argshape` walk over 40 workload TUs found
+2,730 symbol-carrying statement-head plain calls in exactly **four** source shapes,
+every one of them two symbols plus an int literal:
+
+```text
+   1,211  f(T*, "…", <line>, "…")            void     the MILO_ASSERT family
+   1,159  f(int, "…", <line>, "…", int)      returns
+     180  f(int, int, "…", <line>, "…")      returns
+     180  f(int, T*, "…", <line>, "…")       void
+```
+
+i.e. `("expression", __LINE__, __FILE__)`. Not "a global's address passed to a
+call" — an assertion macro, 813 TUs deep.
+
+**The 12.5 % that is one symbol is real and that walk missed it**, which is worth
+recording as a method note: the walk required the body to *open* on `26 <callee> BD`
+and so dropped every call in an assignment right-hand side (`x = uc("hi")`), where
+the statement opens on the destination push. It reported 0 single-symbol calls; the
+census reports 2,712. **The census key is the measurement; the ad-hoc sample was
+biased and its zero was an artifact of the anchor.** §14.2's third caution, one level
+over: a sample that anchors on a byte measures the anchor.
+
+### 17.2 What was established by capture — the parts that ARE settled
+
+All at the fixture profile (`/Ox /GS- /c`) unless stated; probes in `work/da/probes`.
+
+1. **The relocation quad.** A data symbol's address is `lis rS,sym@ha` +
+   `addi rD,rS,sym@l`, carrying `REFHI(0x10)+PAIR` at the `lis` and
+   `REFLO(0x11)+PAIR` four bytes later, both PAIR records with **symbol index 0** —
+   byte-for-byte the shape `coff.rs` already emits for a pooled FP constant, which is
+   the question this rung was asked to answer. The addend is **never** folded into
+   the relocation: `ui(&gA[2])` is `lis ; addi r11,r11,0 ; addi r3,r11,8`, a third
+   instruction. 6 witnesses.
+2. **`.rdata` is NOT a COMDAT at `/Ox`.** §16.7's *"the `$SG…` `.rdata` COMDAT"* is
+   wrong twice. At the fixture profile every string literal in the TU goes into **one
+   ordinary `.rdata` section** (characteristics `0x40300040` = INIT_DATA | ALIGN_4 |
+   MEM_READ, `Selection` 0, aux `CheckSum` = the existing `coff::coff_checksum` of its
+   raw bytes — verified on two sections), entries in IL first-reference order, each
+   padded to 4 bytes with **no trailing pad** and **no dedup** (`"hi"` twice gets two
+   entries). The section is placed **before** `.text`, so `.text` becomes section 6
+   and the fixed symbol prefix grows from 13 slots to 13 + 2 + one per literal.
+3. **The literals' symbol names are generated by c2, and the rule is measured.**
+   `$SG<n>` where `n` is the string literal's operand token read **little-endian**
+   (`read_token_var` reads the same two bytes big-endian). Verified at n = 2535, 2536,
+   2538, 2541, 2549, 2552, 2556, 2563, 2570, 3035, 5535 — probes built to walk the
+   token across a 0x100 boundary, because on the narrow ones a constant offset of 1280
+   fits equally well and is wrong (§14.2's fourth caution, again). They are STATIC
+   symbols (`sc=3`), `Value` = the byte offset in `.rdata`, emitted immediately after
+   the `.rdata` section symbol in offset order.
+4. **At the workload's own profile the names come from `.gl`.** `/O1` implies `/GF`
+   and `/Gy`, so string literals become `??_C@_…` **COMDAT** `.rdata` sections — and
+   the mangled name is already in `.gl`, one per literal (237 names against 237 `.in`
+   string records in `src/system/rndobj/Mesh.cpp`). So the `??_C@` mangling never has
+   to be reimplemented; it is read like a callee's name. **The two profiles need two
+   different emitters**, and only the `/Ox` one is close to what the port has.
+5. **No `.rdata` at all when the TU references only named objects.** `ui(gA)` with
+   `gA` extern adds exactly one undefined-external DATA symbol (`typ=0x0000`, not
+   `0x0020`) to the referencing function's symbol group and four relocation records.
+   That is the *smallest* possible increment to the existing packed emitter.
+6. **Undefined externals are emitted in IL-stream first-reference order** within each
+   function's group — the callee first because its `26` push precedes the arguments,
+   then each data symbol in push order. Not relocation order (the `b`'s REL24 is the
+   last relocation and its symbol is the first).
+7. **A defined or static global is out of class and must stay out.** It puts a
+   `.data`/`.bss` section *in the middle* of the section table (before the second
+   `.XBLD$W` for a defined one, after `.text` for a static one). The `.gl` record
+   separates them: at `name_nul + 5` a linkage byte reads `02` undefined-extern
+   (5 witnesses), `01` defined here (2), `04` static (1). Today `gl_defined_names`'s
+   unclaimed-name rule already refuses every such TU, and any rung that makes a data
+   reference "accounted for" must re-impose this or it will emit a 5-section obj
+   against a 6-section reference.
+8. **Function alignment.** Nothing new: `.text` pads functions to 8 bytes with zeros,
+   which `PortC2::build` has done since the MVP.
+
+### 17.3 What is NOT established, and it is what stopped the rung
+
+**(a) Two symbols in one call are not two relocation pairs.** c2 emits exactly **one**
+`lis`/`addi` pair per function and derives every other symbol address from it:
+
+```text
+   void h1() { d1("aa", "bb"); }
+     lis  r11,0        REFHI($SG…)     <- one pair for the whole function
+     addi r3,r11,0     REFLO($SG…)
+     addi r4,r3,-4                     <- the OTHER string, by pool-offset difference
+     b    ?d1
+```
+
+The `-4` is the difference of the two entries' `.rdata` offsets. So selection for
+this shape needs the pool laid out *before* instructions are chosen, which the port's
+per-function `select_text` cannot see. Three-symbol calls chain the same way
+(`addi r5,r3,-8 ; addi r4,r3,-4`).
+
+**(b) Which symbol is the anchor is offset-dependent, not shape-dependent, and no
+rule was derived.** The load-bearing witness is **six byte-identical functions in one
+TU**:
+
+```text
+   void h1() { d1("a1","b1"); }   …   void h6() { d6("a6","b6"); }
+
+   h1:  lis r11 ; addi r4,r11,0 ; addi r3,r4,+4    <- anchors the RIGHT argument
+   h2:  lis r11 ; addi r3,r11,0 ; addi r4,r3,-4    <- anchors the LEFT one
+   h3…h6: identical to h2
+```
+
+Same source shape, same string lengths, different instruction sequences. The only
+thing that separates `h1` is that one of its literals landed at `.rdata` offset **0**.
+The same split appears in the 20-function `s5` sweep and in the assert-shape probes
+(`g1(p,"expr",42,"file")` anchors its *last* symbol; `g2`, `g3`, `g4` anchor their
+first). *"Anchor the symbol at pool offset 0 if this call has one, else the leftmost
+source-order symbol"* fits all 14 witnesses — and it is a **HYPOTHESIS with no
+mechanism behind it**, exactly the kind of rule this project labels rather than
+implements.
+
+**(c) The argument setup is scheduled, and no ordering rule survived the witnesses.**
+The `lis` is hoisted to the top of the function and the dependent `addi` is separated
+from it, but the rest of the setup — `li` for literal arguments, `or` for formals that
+must move — is interleaved in an order that is neither ascending nor descending in
+argument slot:
+
+```text
+   g1(p,"e",42,"f")     lis ; li r5,42 ; addi r6 ; addi r4,r6,8            slots 2,3,1
+   g2(a,"e",43,"f",7)   lis ; li r7,7 ; addi r4 ; li r5,43 ; addi r6,r4,-4 slots 4,1,2,3
+   g3(a,b,"e",44,"f")   lis ; li r6,44 ; addi r5 ; addi r7,r5,-4           slots 3,2,4
+   u8("hh",5,p)         lis ; or r5,r3 ; li r4,5 ; addi r3                 slots 2,1,0
+   w3("s6",11,22)       lis ; li r5,22 ; addi r3 ; li r4,11                slots 2,0,1
+```
+
+Two witnesses differing only in argument count and return type produce different
+orders; a "descending slot" rule fits four of the five and a "gap of exactly one
+instruction between `lis` and `addi`" rule fits eleven of twelve. Neither is a rule.
+
+**(d) With two or more formals that must shift, c2 pre-saves into scratch.**
+`v4("s3",a,b)` emits `or r11,r3,r3` **before** the `lis` (which then takes r10) and
+resolves the shift through the save, where the obvious descending-order sequence
+needs no save at all. One move (`u4("dd",p)`, `u8("hh",5,p)`) does not trigger it.
+Two witnesses, no rule.
+
+### 17.4 The estimate, quoted before the outcome, and how it did
+
+Quoted before any implementation and before the scan, against the 21,642 bound:
+**point estimate 11,000, range 7,000–16,000, biased as an OVER-estimate** — i.e. the
+realized figure was expected to come in below it. §15.4's correction (*"quote a
+generated-code estimate at the `-whole` bound, because a compiler-generated body has
+no freedom in the gated fields"*) was explicitly **not** applied, on the stated ground
+that these are hand-written bodies. The four deductions named were: multi-statement
+bodies (the matcher admits 64 statements, the port has no multi-call frame); the
+defined-vs-extern gate; multi-argument register allocation mixing a scratch-materialized
+address with a formal permutation; and §16.5's argument-nesting asymmetry.
+
+**The outcome is 0, and the bias direction was right for the wrong reason.** Every
+deduction listed is real, but none of them is what stopped the rung: the blocker is a
+construct that was not on the list at all (§17.3 (a)), and it takes 87.5 % of the row
+with it. The generalizable correction is narrower than "hand-written bodies have more
+freedom": **an estimate made from a grammar measure cannot see a codegen construct
+that the grammar does not distinguish.** `data-addr` is one grammar symbol whether the
+call materializes one address or three, and the difference between those is the whole
+rung. The `-Nsym` split exists so the next estimate is made from a key that *can* see
+it.
+
+The bucket-drop-equals-census-gain check (§13.3, §15.4) is **0 = 0** here and carries
+no information; the meaningful invariant this rung has instead is that the re-key is
+an exact partition: 21,646 functions left three keys and 21,646 entered six, no other
+key moved by a single function, and no TU's in-class count or class changed.
+
+### 17.5 The measure, and its one honest limit
+
+`Fail::syms` counts a data designator only when [`eat_data_designator`] succeeds
+**inside an open call-argument region** and the `26 <tok>` is not immediately followed
+by `BD`. Both conditions are load-bearing and each has a witness in the unit tests:
+
+* the **callee push** reaches the same production (that is why §16.2 named the second
+  blocker `plain-call` and not `op-0xBD`), so counting every designator reports
+  `uc("hi")` as two;
+* an assignment statement's **destination push** is swallowed by the greedy value
+  sequence before `body_matches` reaches its assignment arm, so counting outside
+  argument regions reports `x = uc("hi")` as two as well.
+
+The limit that follows: a data symbol referenced **outside** a call argument — a store
+destination, a chain receiver — counts 0 and the key carries no suffix at all
+(`data-addr-then-chain-bind-and-type-real-lit-whole3`, 714 functions, is that case).
+That is deliberate: the count answers "how many symbol addresses must be in registers
+at the call", and a number that also counted store destinations would not.
+
+The count is **per body, not per call**. For this row they are the same number
+(single-statement bodies), and for a two-call body they are not; nothing measured the
+difference.
+
+Sharding gate: 2 bits (61…62) of the existing `u64` `Block::aux`, three
+values, nothing per-TU representable — `the_symbol_count_is_the_addresses_the_call_materializes`
+retags both literal tokens in a witness and asserts the key does not move. The
+matcher speculates, so every cursor rewind now restores the count with it
+(`Fail::mark`/`Fail::rewind`, one per `*p = save`); without that, a body needing two
+grants counts its designators twice.
+
+### 17.6 The order of work, re-ranked
+
+1. **Member-call chains — 18,449** (17,667 at k = 1, across five receiver forms), plus
+   the `chained` bucket's own 8,001 once `type-ptr` is handled. Unchanged from §16.7
+   (2), and now the largest reachable block in the bucket by default. Needs a frame,
+   `this` in a callee-saved register and one `bl` per link. Fix `mod.rs`'s statement
+   dispatch at the same time or the census keeps filing chains as `recv-load` (§16.4).
+2. **Decode `op-0x9B`** — 39,361 functions with no measurement at all, plus 9,041 more
+   visible as `call-op-0x9B` second blockers. Still the largest unnamed thing.
+3. **`data-addr-1sym` — 2,712**, and *only* this sub-row. It needs §17.2's relocation
+   quad, the `/Ox` `.rdata` string pool, the extern-linkage gate, and nothing from
+   §17.3 — provided the call's remaining arguments need **no setup instruction**
+   (`uc("hi")`, `u3(p,"cc")`, `return u7("gg")`: `lis ; addi rD,r11,0 ; b`, adjacent
+   and unambiguous). How much of the 2,712 that is has **not been measured** — a
+   `-Nsym`-style split on "setup instructions besides the address" is the measurement,
+   and it is cheap now that the walk is there. A rung that assumes all 2,712 will hit
+   §17.3 (c) on the first `f("str", p)`.
+4. `recv-object` + `call-nested-call` (4,904 at k = 2) and `recv-object` × `type-ptr`
+   (2,410 at k = 1).
+5. `recv-intrinsic-this-adjust` / `recv-field-off0` × `call-recv-field` (705 + 574).
+6. **`data-addr-2sym` — 18,933 — is a PHASE, not a rung.** It needs a TU-wide `.rdata`
+   pool layout visible to instruction selection, the anchor rule of §17.3 (b), and the
+   argument scheduler of §17.3 (c). It is still the single largest grammar-complete
+   block in the bucket and it should stay on the board — but ranked by size it will
+   keep coming out on top and it is not takeable until the scheduler is a modeled
+   thing, which is the same conclusion §16.7 (6) reached about control flow.
+
+### 17.7 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/w5_chain.cpp        # 4/4 in class
+cargo test --workspace
+C2RS_JOBS=16 ./target/release/c2rs bench                     # 110 pass 0 fail 0 error
+C2RS_JOBS=16 scripts/mode_lane.sh /Ox                        # 45 match, 0 mismatch
+C2RS_JOBS=16 scripts/mode_lane.sh /O1                        # 42 match  (also /O2, "/Ox /Gy")
+C2RS_JOBS=16 scripts/expr_sweep.sh                           # checked=3329 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16 \
+  --jsonl work/dc3-workload/scan-da.jsonl
+# the probes (gitignored scratch; every witness in §17.2/§17.3 comes from one):
+#   work/da/probes/s1.cpp  six single-symbol pushes: literal, array, &gA[k], &gS.b
+#   work/da/probes/s2.cpp  one symbol beside formals and literals, at every slot
+#   work/da/probes/s3.cpp  formal permutations, two extern objects, no literal
+#   work/da/probes/s4.cpp  the four assert shapes, verbatim from the workload
+#   work/da/probes/s5.cpp  20-function sweep: slots x filler x symbol count
+#   work/da/probes/s6.cpp  SIX BYTE-IDENTICAL two-string calls — the anchor witness
+./target/release/c2rs compile work/da/probes/s6.cpp --keep-obj work/da/s6.obj
+python3 work/da/tools/coff.py  work/da/s6.obj     # sections, symbols, aux, relocations
+python3 work/expr/tools/objdis.py work/da/s6.obj
+# the argument-shape walk over real TUs (biased — see §17.1 — but it is what found
+# the two-symbol shape):
+python3 work/da/tools/argshape.py 'work/da/il/smp*/*.ex'
 ```
 
 Always difference the scans through **absolute** paths and print each one's row
