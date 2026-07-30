@@ -12,23 +12,30 @@
 //! vanished. See `docs/GAPS.md` §6.
 //!
 //! `.sy` answers the question positively. It is a flat sequence of per-function
-//! blocks, one per `.ex` function segment and in the same order:
+//! blocks, one per `.ex` function segment and in the same order, followed by a run
+//! of bare `06` bytes that ends the file:
 //!
 //! ```text
-//!   ( 03 03 <tok> <u16 LE> 01 <b> )*   label declarations, for the block below
-//!   03 01 <tok> 1F 00 01 01            block open
-//!   ( 0D <depth> <record>* )+          one group per lexical scope, preorder
-//!   06                                 block close
+//!   ( 03 <k!=01> <tok> <2 B | 00 <name> 00> <b> <b> )*   labels and scope markers
+//!   ( 1A <b> <tok> <type prefix> <type extent> )*        an undecoded declaration
+//!   03 01 <tok> 1F 00 01 01                              block open
+//!   ( 0D <depth> <record>* )+                            one group per lexical scope
+//!   06                                                   block close
+//!   …
+//!   06 06 06 …                                           file trailer, to EOF
 //! ```
 //!
 //! Depth 1 is the formals, 2 the function body, 3 and up each nested brace; the
 //! first two groups are always present and either may be empty. A record is
 //!
 //! ```text
-//!   01 <depth> <tok> 00 <name> 00 <type>              a plain variable
-//!   02 <depth> <tok> 00 <name> 00 <type> <elemsize>   an array
-//!   07 <depth> <tok> <mangled> 00 …                   a function-scope static
-//!   type := 86 <kind> 00 <cls> 04 <size16 LE> <flags16 LE> <tid>
+//!   01 <depth> <tok> <b> <name> 00 <type>                a plain variable
+//!   02 <depth> <tok> <b> <name> 00 <type> <elemsize>     an array
+//!   07 <depth> <tok> <mangled> 00 <static type>          a function-scope static
+//!   0B <depth> <tok> <name> 00 00 <tid>                  a typedef
+//!   type := <prefix> 00 <cls> 04 <extent>
+//!   prefix := <tag> <kind> | <tag|40> 81 <kind>
+//!   extent := <size varint> <b> <flags16 LE> [80 00 if flags bit 7] <tid>
 //! ```
 //!
 //! where `<cls>` is `03` for a formal and `01` for an automatic, `<flags>` bit 0
@@ -36,12 +43,35 @@
 //! id — one byte below `0x80`, else `80` and a 32-bit id, with qualified, pointer
 //! and array types living above `0x1000`.
 //!
+//! # This layer had never bound on a real translation unit
+//!
+//! MEASURED, and it is the fact that ranked this work: of 200 workload translation
+//! units, **3** parsed. The other 197 all stopped in the first few kilobytes, and
+//! every stop was a width — a record whose end this reader computed one, two or four
+//! bytes off, after which nothing downstream can be trusted and the whole file's
+//! binding is (correctly) withheld. So the `param-width-undetermined` census key was
+//! not measuring a rare construct at 567,549 functions; it was measuring this module
+//! failing to parse, on essentially every input that was not a probe fixture.
+//!
+//! Six widths were wrong. Each is documented at the function that reads it, with its
+//! witnesses; what they have in common is worth stating once, because it is a pattern
+//! and not six accidents: **every one of them is a field whose two candidate
+//! encodings agree on small, simple, hand-written declarations.** A varint size and a
+//! `u16` size are the same bytes below 128. A wide type prefix and a narrow one are
+//! the same width if you never meet a class with a vtable. A named label record and
+//! an unnamed one have the same shape until a function contains a `goto`. The probe
+//! corpus this module was written from could not distinguish any of them, and a green
+//! probe suite therefore said nothing at all about real input. That is
+//! `docs/GAPS.md` §6 again, and the countermeasure that actually worked was not more
+//! probes: it was running the reader over a few hundred real `.sy` files and
+//! requiring each to parse **to EOF**.
+//!
 //! # What is measured, and what is only constant
 //!
 //! MEASURED, each against a neighbour that would look identical under a plausible
 //! wrong rule (probe sources in `fixtures/cpp/il_sy_locals*.cpp`):
 //!
-//! * `<kind> = 01` with `<size16> = 4` and `<tid> = 74` is plain `int`. `const`
+//! * `<kind> = 01` with `<size> = 4` and `<tid> = 74` is plain `int`. `const`
 //!   and `volatile` leave the kind at `01` and move only the id, to `0x1001` and
 //!   `0x1000` — so a gate on the kind admits a `volatile int` local and folds away
 //!   a store that must not be folded. The id is what this reader requires.
@@ -56,7 +86,8 @@
 //!   against `<cls>`.
 //! * `03 03 …` label declarations precede the block that uses them and have the
 //!   same width as a block header, told apart only by the byte after `03`. Reading
-//!   one as a header refuses every function with control flow.
+//!   one as a header refuses every function with control flow. A label that carries
+//!   its source name has a *longer* record — see [`skip_inter_block`].
 //! * A function-scope `static` is a `07` record: a memory object, carrying its
 //!   fully mangled name, no NUL between token and name, and a second token — the
 //!   one the body actually loads. This is the `$sv` hazard a second time, and the
@@ -67,8 +98,9 @@
 //!
 //! CONSTANT ACROSS EVERY WITNESS, and therefore not interpreted — required
 //! literally so a deviation fails the file closed rather than being read as a
-//! field this module claims to understand: the `04` between `<cls>` and
-//! `<size16>`.
+//! field this module claims to understand: the `04` between `<cls>` and the size, the
+//! `81` of a wide type prefix, the `80 00` of the flags-bit-7 extra field, and the
+//! `00` before a typedef's id.
 //!
 //! NOT constant, though it looked it: the block header's four-byte tail reads
 //! `1F 00 01 01` in every fixture and `1F 00 02 01` in a real translation unit, so
@@ -102,15 +134,40 @@ use super::readers::read_token_var;
 /// if the block count and the segment count disagree, *nothing* is bound. A
 /// plausible-looking off-by-one binding would attach one function's locals to
 /// another and mis-emit; refusing the whole file only costs coverage.
+///
+/// # This count check is now the binding blocker, and it must not be loosened
+///
+/// MEASURED, once [`sy_blocks`] began parsing real translation units to EOF: a large
+/// `.sy` has slightly MORE blocks than `.ex` has function segments — 9629 against
+/// 9602, 1541 against 1540 — so the count check refuses most real files and
+/// `param-width-undetermined` remains the top census blocker at 554,056 functions.
+/// The surplus blocks are presumably declarations `.ex` did not emit a body for.
+///
+/// The obvious loosening — take the first `n_segments` blocks and bind positionally —
+/// was tried and is **WRONG**, which is why this reads `==` and not `>=`. Under it,
+/// the per-formal token lookup in [`SyView::formals_are_one_register_each`] fails to
+/// find the `.ex` formal in the block it was handed for **343,315** functions of the
+/// 554,056 it reaches. So the surplus is not a tail that can be truncated; it is
+/// interspersed, and position is not the key. (Census would have risen by 2,981 and
+/// the workload would still have shown 0 mismatch — because the token lookup catches
+/// the misalignment and turns it into a refusal. A green scan would have hidden a
+/// binding that is wrong 62% of the time.)
+///
+/// What the next rung needs is a **key**, not an offset: bind a block to a segment by
+/// identity and validate it, rather than by ordinal. The block header's own `<tok>`
+/// is the obvious candidate — it coincides with the function's exit-label token in
+/// every probe — and the cheap positive check already exists in outline, since
+/// `formals_are_one_register_each` must find every `.ex` formal token in the block it
+/// is given. Requiring that agreement for *every* segment before binding *any* would
+/// replace this ordinal check with a content check. Until then the honest state is
+/// over-refusal, per this module's fail-closed asymmetry.
 pub(crate) struct SyLocals {
     blocks: Option<Vec<SyBlock>>,
 }
 
 impl SyLocals {
     pub(crate) fn new(sy: Option<&[u8]>, n_segments: usize) -> Self {
-        let blocks = sy
-            .and_then(sy_blocks)
-            .filter(|b| b.len() == n_segments);
+        let blocks = sy.and_then(sy_blocks).filter(|b| b.len() == n_segments);
         SyLocals { blocks }
     }
 
@@ -184,7 +241,12 @@ impl SyView<'_> {
     /// depends on how a type is passed, which depends on its triviality as well
     /// as its size, and that convention is not captured. Anything wider than
     /// [`Self::ONE_GPR_MAX`] refuses; see `fixtures/cpp/il_param_aggr_neg.cpp`.
-    const ONE_GPR_MAX: u16 = 8;
+    ///
+    /// Compared against a `u32` because the width is a **varint** and genuinely
+    /// exceeds 16 bits — a `char[65540]` member is a real declaration, and
+    /// reading the field as a `u16` is what made this comparison meaningless for
+    /// anything ≥ 128 bytes.
+    const ONE_GPR_MAX: u32 = 8;
 
     /// Whether every one of `formals` (tokens from `.ex`, in any order) is
     /// declared by `.sy` at a width that occupies exactly one argument register.
@@ -247,7 +309,11 @@ impl SyView<'_> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct SyFormal {
     pub(crate) tok: u32,
-    pub(crate) size: u16,
+    /// The declared byte size. A `u32` because the field is a varint whose observed
+    /// range reaches 4,116 — a `u16` truncation here would silently turn a
+    /// 65,540-byte object into a 4-byte one, and 4 bytes is the one value that
+    /// passes the one-register gate.
+    pub(crate) size: u32,
 }
 
 /// The tokens one `.sy` function block declares, split by what codegen may do
@@ -270,6 +336,39 @@ const BLOCK_OPEN: [u8; 2] = [0x03, 0x01];
 /// skipping one that *did* open a block cannot go unnoticed, because the block
 /// count then disagrees with the `.ex` segment count and nothing is bound.
 const REC_INTER_BLOCK: u8 = 0x03;
+/// A **second** inter-block record family, with its own lead byte and a payload
+/// that is nothing like the `03` family's. It sits at top level, always between a
+/// block's `06` close and the next `03 01` open, so it can never shift a variable's
+/// attribution — only stop the reader dead, which is what it did: it is the reason
+/// the 3 of 200 workload translation units whose `.sy` bound were the only ones
+/// without one.
+///
+/// It reads
+///
+/// ```text
+///   1A <b> <tok> <type prefix> <type extent>
+/// ```
+///
+/// — the same two type readers a variable record uses ([`read_type_prefix`],
+/// [`read_type_extent`]), and **not** the variable-record grammar itself: there is no
+/// name, and no `00 <cls> 04` between the prefix and the extent. Two witnesses fix
+/// that, and they fix it because the size field is where they differ:
+///
+/// ```text
+///   1A 02 <tok> C6 81 06 | 80 0C 01 00 00 | 00 | 00 00 | 80 04 12 00 00   size 268
+///   1A 05 <tok> C6 81 06 | 08          | 00 | 00 00 | 80 A1 14 00 00      size 8
+/// ```
+///
+/// One is 20 bytes and the other 16, and in both the next byte is exactly a `03 01`
+/// block open or a `03 03` label — so a fixed-width reading of this record is wrong,
+/// and it was: the first version of this function required the 20-byte shape
+/// literally and refused four of the 200 translation units measured. The size-8
+/// witness also carries type id `0x14A1`, the same id as the 8-byte `str` local, so
+/// the two fields corroborate each other.
+///
+/// UNVERIFIED, and stated as such: what the record *means*, and what the byte in the
+/// depth position (`02` or `05`) is. Nothing reads either.
+const REC_WIDE_INTER_BLOCK: u8 = 0x1A;
 /// The four bytes after a block's or label's token. **Not interpreted**, only
 /// stepped over: they read `1F 00 01 01` in every fixture and `1F 00 02 01` in a
 /// real translation unit, so requiring any of them literally refuses real input —
@@ -278,6 +377,9 @@ const REC_INTER_BLOCK: u8 = 0x03;
 /// A block header and a label declaration share this tail, and so share a width;
 /// the byte after `03` is the only thing that tells them apart.
 const HEADER_TAIL_LEN: usize = 4;
+/// The last two bytes of an inter-block record's tail, which the named shape keeps
+/// while replacing the first field with a string. See [`skip_inter_block`].
+const INTER_BLOCK_TAIL_LEN: usize = 2;
 const BLOCK_CLOSE: u8 = 0x06;
 /// Opens a lexical scope's variable group: `0D <depth>`, preorder. Depth 1 is the
 /// formals, 2 the function body, 3+ each nested brace.
@@ -291,10 +393,25 @@ const REC_ARRAY: u8 = 0x02;
 /// A function-scope `static` — a memory object with a relocation, carrying its
 /// fully mangled name and a second token. Never admitted, only stepped over.
 const REC_STATIC: u8 = 0x07;
+/// A **typedef**: a name bound to a type, declaring no object. Never admitted, only
+/// stepped over — see [`read_record`].
+const REC_TYPEDEF: u8 = 0x0B;
 /// The type tag of the 4-byte scalar family. **Not** a constant across the file —
 /// an 8-byte type reads `88`, so the tag is read as part of the type and only
 /// *admission* requires this value; the region's width does not depend on it.
 const TYPE_TAG: u8 = 0x86;
+/// A type tag with this bit set carries one **extra byte** before the kind (`C6 81
+/// 06`, `CA 81 0D`), displacing every field after it. See [`read_type_prefix`].
+const TYPE_TAG_WIDE_BIT: u8 = 0x40;
+/// The wide prefix's extra byte. Constant at every witness, so required and not
+/// interpreted.
+const TYPE_WIDE_MARK: u8 = 0x81;
+/// Flags bit 7: the type carries one extra 2-byte field before its id. See
+/// [`read_type_extent`] — the single-channel rule, and why the two-channel one it
+/// replaced was wrong.
+const FLAGS_HAS_EXTRA: u16 = 0x0080;
+/// That extra field's value at every witness. Meaning unknown, so required.
+const TYPE_EXTRA_FIELD: [u8; 2] = [0x80, 0x00];
 const TYPE_KIND_INT: u8 = 0x01;
 /// Storage class: `01` automatic, `03` formal. Redundant with the section depth in
 /// every witness, and required to agree with it.
@@ -302,7 +419,7 @@ const CLS_AUTOMATIC: u8 = 0x01;
 const CLS_FORMAL: u8 = 0x03;
 /// Constant across every witness, between the storage class and the size.
 const SIZE_LEAD: u8 = 0x04;
-const SIZEOF_INT: u16 = 4;
+const SIZEOF_INT: u32 = 4;
 /// `.ex` type-table id of plain `int`.
 const TID_INT: u32 = 0x74;
 /// Flags bit 0 is *referenced* and bit 5 is *address-taken*, so `0x0001` is an
@@ -333,11 +450,32 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
         // Inter-block declarations belong to the block that follows. Their tokens are
         // read past, never recorded: a label is not a value, so it can never be an
         // assignment destination.
-        while *sy.get(p)? == REC_INTER_BLOCK && *sy.get(p + 1)? != BLOCK_OPEN[1] {
-            let (_tok, w) = read_token_var(sy, p + 2)?;
-            // `03 03 <tok> <tail:4>` — the same width as a block header, which is
-            // why the byte after `03` is the only thing separating them.
-            p += 2 + w + HEADER_TAIL_LEN;
+        loop {
+            if sy.get(p) == Some(&REC_INTER_BLOCK) && sy.get(p + 1) != Some(&BLOCK_OPEN[1]) {
+                // `03 03 <tok> <tail:4>` shares a block header's width, which is why
+                // the byte after `03` is the only thing separating them.
+                p = skip_inter_block(sy, p)?;
+                continue;
+            }
+            if sy.get(p) == Some(&REC_WIDE_INTER_BLOCK) {
+                p = skip_wide_inter_block(sy, p)?;
+                continue;
+            }
+            break;
+        }
+        // A bare `06` at top level ends the **file**, not a block: every real
+        // translation unit's `.sy` closes with a run of them (46 to 246 bytes in the
+        // sample) and nothing after. It is required to be exactly that — a run
+        // reaching EOF — because that is what was measured, across 130 files, with
+        // an instrument that counted any top-level `06` followed by a non-`06` byte
+        // and found **zero**. An interleaved one therefore fails the file closed
+        // rather than being consumed as padding.
+        //
+        // UNVERIFIED: what they close. The lengths do not match the count of any one
+        // inter-block record kind, and this reader does not need them to — nothing
+        // is read out of them.
+        if *sy.get(p)? == BLOCK_CLOSE {
+            return sy[p..].iter().all(|b| *b == BLOCK_CLOSE).then_some(out);
         }
         if sy.get(p..p + 2)? != BLOCK_OPEN {
             return None;
@@ -369,7 +507,9 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
             seen_sections += 1;
             loop {
                 let (rec, next) = match *sy.get(p)? {
-                    REC_PLAIN | REC_ARRAY | REC_STATIC => read_record(sy, p, depth)?,
+                    REC_PLAIN | REC_ARRAY | REC_STATIC | REC_TYPEDEF => {
+                        read_record(sy, p, depth)?
+                    }
                     _ => break,
                 };
                 p = next;
@@ -398,6 +538,199 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
     Some(out)
 }
 
+/// Read a `.sy` type's **prefix** — `<tag> <kind>`, or `<tag> 81 <kind>` — and
+/// return `(tag, kind, width)`.
+///
+/// A tag with bit 6 set carries one extra byte before the kind, displacing every
+/// field after it. Getting this wrong was the single largest cause of `.sy` never
+/// binding on real input: 197 of 200 workload translation units contain such a
+/// record, each one desynced the reader by a byte, and the whole file's binding is
+/// all-or-nothing — so the `.sy` layer had, measurably, **never** bound on a real
+/// translation unit, only on the probe fixtures it was written from.
+///
+/// MEASURED, three witnesses whose tags differ while the extra byte does not:
+///
+/// * `C6 81 06` — `str`, an 8-byte class local whose address is taken.
+/// * `C6 81 03` — `v`, a polymorphic class parameter, kind 3 being a *data
+///   pointer*: MSVC passes a class with a vtable by hidden reference
+///   (`fixtures/cpp/il_param_poly.cpp`).
+/// * `CA 81 0D` — `vSrc`, a 16-byte value, on a tag whose low bits differ from
+///   `C6`'s. This is what makes the rule a **bit test** rather than the literal
+///   two-byte prefix `C6 81`: with only the first two witnesses those were
+///   indistinguishable, and requiring `C6` literally refuses this record.
+///
+/// Each is bracketed externally — the byte the enclosing grammar demands next lands
+/// exactly at the end of the record — so the width is pinned by the format and not
+/// by this function's own arithmetic.
+///
+/// The extra byte is `81` at every witness. Its meaning is unknown, so it is
+/// **required** and not stepped over by width: a field that never varies is
+/// indistinguishable from a constant, and the honest encoding of that is to fail
+/// the file closed on anything else.
+fn read_type_prefix(sy: &[u8], at: usize) -> Option<(u8, u8, usize)> {
+    let tag = *sy.get(at)?;
+    let mut p = at + 1;
+    if tag & TYPE_TAG_WIDE_BIT != 0 {
+        if *sy.get(p)? != TYPE_WIDE_MARK {
+            return None;
+        }
+        p += 1;
+    }
+    let kind = *sy.get(p)?;
+    Some((tag, kind, p + 1 - at))
+}
+
+/// The offset of the NUL ending a name that starts at `at`, or `None` if there is
+/// none within [`MAX_NAME`] or the name is empty.
+///
+/// A `.sy` name is read only to **bound** a record, never to bind anything: a
+/// variable's source name has no bearing on what codegen may do with it. The empty
+/// case is rejected because an immediate NUL is how a misread field looks, and the
+/// bound keeps a corrupt stream from scanning the rest of the file.
+fn name_end(sy: &[u8], at: usize) -> Option<usize> {
+    let end = sy
+        .iter()
+        .enumerate()
+        .skip(at)
+        .take(MAX_NAME)
+        .find(|&(_, &b)| b == 0x00)
+        .map(|(i, _)| i)?;
+    (end != at).then_some(end)
+}
+
+/// Step over one `03 <kind>` inter-block record, `kind != 01` — a label, a scope
+/// marker, and a dozen other kinds this reader does not distinguish.
+///
+/// Its tail has two shapes, differing only in one field and ending in the same two
+/// bytes:
+///
+/// ```text
+///   03 <k> <tok> <a> 00           <c> <d>      1E 00 01 01, 47 00 01 01, 05 00 01 02
+///   03 <k> <tok> 00 <name> 00     <c> <d>      "jump" 03 01, "ugh" 01 02
+/// ```
+///
+/// The names are source-level **goto labels**, so both shapes occur at the same kinds
+/// (`02`, `05`, `06`, `08` and more are witnessed in both) and the kind cannot be the
+/// discriminator. The byte after the token is: it is `00` in the named shape and, at
+/// every one of the tens of thousands of unnamed records in the sample, one of
+/// `05 06 07 08 0B 0C 1E 1F 47` — never `00`.
+///
+/// That is a **negative** discriminator, and it is stated as one. Two things keep it
+/// honest rather than merely convenient:
+///
+/// * the trailing `<c> <d>` is the *same* field in both shapes — `01 01`, `01 02`,
+///   `00 01`, `02 01`, `03 01` all occur across both — so the named shape is the
+///   unnamed one with a string spliced into one field, not a separate record whose
+///   layout was guessed. Missing those two bytes is what made the reader read the
+///   following `03 <k>` as a block open and then find zero sections in it, in 13 of
+///   200 files.
+/// * a corroborating co-occurrence exists and is deliberately NOT required: every
+///   named record in the sample is immediately preceded by a record whose tail begins
+///   `47`. Requiring it would mean reaching backwards to a field of a *different*
+///   record, and would refuse a named label that happens to open a function's label
+///   list.
+///
+/// The whole-file check is what carries the weight: the stream has to close as a block
+/// sequence at EOF and the block count has to equal the `.ex` segment count, or
+/// nothing binds.
+fn skip_inter_block(sy: &[u8], at: usize) -> Option<usize> {
+    let mut p = at + 2;
+    let (_tok, w) = read_token_var(sy, p)?;
+    p += w;
+    if *sy.get(p)? == 0x00 {
+        p = name_end(sy, p + 1)? + 1;
+        sy.get(p..p + INTER_BLOCK_TAIL_LEN)?;
+        return Some(p + INTER_BLOCK_TAIL_LEN);
+    }
+    sy.get(p..p + HEADER_TAIL_LEN)?;
+    Some(p + HEADER_TAIL_LEN)
+}
+
+/// Read a `.sy` type's **extent** — `<size varint> <b> <flags16 LE> [80 00] <tid>`
+/// — and return `(size, flags, width)`.
+///
+/// The size is a **varint** in the same 1-or-5-byte encoding [`read_tid`] reads, not
+/// a little-endian `u16`, and the byte after it is a separate field this reader does
+/// not name. The two readings are indistinguishable for every size below 128,
+/// because a varint `<n>` followed by `00` and a `u16` little-endian `<n> 00` are the
+/// same two bytes — and every probe fixture is a scalar or a small struct, so the
+/// corpus the `u16` reading was written from could not tell them apart. Two
+/// witnesses do:
+///
+/// * `fs`, a 4,116-byte class local: `86 06 00 01 04 | 80 14 10 00 00 | 00 | 21 00
+///   | 80 37 17 00 00`. Under the `u16` reading the record is four bytes short and
+///   the block's `06` close is consumed as part of the type id — which is how this
+///   was found.
+/// * `v`, the polymorphic parameter above, is where the unnamed byte **varies**: it
+///   is `08` there and `00` at every other witness. So it is a field and not
+///   padding, and folding it into the size is what made that parameter report a
+///   width of 2052 — a decode error that would have been reported as
+///   `param-multi-reg`, i.e. dressed up as a real construct.
+///
+/// One extra 2-byte field sits between the flags and the type id when **flags bit 7**
+/// is set. That single channel is the rule, and it is the rule because a
+/// two-channel version of it was refuted: the earlier reading also required the
+/// kind's class nibble to be 6 (an aggregate), on the grounds that both channels
+/// co-occurred at every witness then available. `vSrc` (`CA 81 0D`, class `D`, flags
+/// `0081`) carries the field with a class nibble that is not 6, so the conjunction
+/// refuses a record that is really there. The array-local counter-witness that
+/// motivated the second channel — class 6, flags bit 7 *clear*, and genuinely no
+/// extra field — is still handled correctly, because it is the flags bit that
+/// separates them.
+///
+/// The field's VALUE is `80 00` at all nine witnesses. Its meaning is unknown, so it
+/// is required literally rather than skipped by width.
+fn read_type_extent(sy: &[u8], at: usize) -> Option<TypeExtent> {
+    let mut p = at;
+    let (size, sw) = read_tid(sy, p)?;
+    p += sw;
+    // The unnamed byte between the size and the flags: `00` at every witness but
+    // the polymorphic parameter's `08`, so it is consumed and not interpreted.
+    sy.get(p)?;
+    let flags = u16::from_le_bytes([*sy.get(p + 1)?, *sy.get(p + 2)?]);
+    p += 3;
+    if flags & FLAGS_HAS_EXTRA != 0 {
+        if sy.get(p..p + TYPE_EXTRA_FIELD.len())? != TYPE_EXTRA_FIELD {
+            return None;
+        }
+        p += TYPE_EXTRA_FIELD.len();
+    }
+    let (tid, tw) = read_tid(sy, p)?;
+    Some(TypeExtent { size, flags, tid, width: p + tw - at })
+}
+
+/// What [`read_type_extent`] decodes: a declared object's size in bytes, its flags,
+/// its `.ex` type-table id, and the byte width of the region they were read from.
+struct TypeExtent {
+    size: u32,
+    flags: u16,
+    tid: u32,
+    width: usize,
+}
+
+/// Step over one [`REC_WIDE_INTER_BLOCK`] record, returning the offset just past
+/// it, or `None` if any byte deviates from the single measured shape.
+///
+/// Nothing is extracted: the record declares no variable this reader understands,
+/// and it sits outside every block, so the only thing needed is its exact end. It
+/// is *located and refused* in the module's usual sense — never scanned past, so a
+/// stream that does not match it withholds the whole file's binding instead of
+/// resynchronizing on a guess.
+fn skip_wide_inter_block(sy: &[u8], at: usize) -> Option<usize> {
+    let mut p = at + 1;
+    // The byte in a record's depth position. `02` and `05` both occur, so it is not
+    // a constant and is not required; nothing here reads it either, because this
+    // record is outside every lexical scope.
+    sy.get(p)?;
+    p += 1;
+    let (_tok, w) = read_token_var(sy, p)?;
+    p += w;
+    let (_tag, _kind, tw) = read_type_prefix(sy, p)?;
+    p += tw;
+    let ext = read_type_extent(sy, p)?;
+    Some(p + ext.width)
+}
+
 /// Read one variable record, returning its token when the record is one a
 /// value-substituting parse may fold — a plain, unqualified, 4-byte `int` whose
 /// address never escapes — and `None` when the record is merely *stepped over*.
@@ -418,27 +751,30 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
     let (tok, w) = read_token_var(sy, p)?;
     p += w;
     // A plain or array record has one byte between the token and the name; a static
-    // record has none and runs straight into its mangled name. That byte is **not**
-    // interpreted: it is `00` on every ordinary variable and `26` on a
+    // and a typedef record have none and run straight into the name. That byte is
+    // **not** interpreted: it is `00` on every ordinary variable and `26` on a
     // compiler-generated formal (`__flags`, from the exception-handling regime), so
     // requiring a NUL refuses real translation units.
-    if tag != REC_STATIC {
+    if tag != REC_STATIC && tag != REC_TYPEDEF {
         sy.get(p)?;
         p += 1;
     }
-    // The name is read only to bound the record — never to bind anything. A
-    // variable's source name has no bearing on what codegen may do with it.
-    let name_end = sy
-        .iter()
-        .enumerate()
-        .skip(p)
-        .take(MAX_NAME)
-        .find(|&(_, &b)| b == 0x00)
-        .map(|(i, _)| i)?;
-    if name_end == p {
-        return None;
+    p = name_end(sy, p)? + 1;
+
+    // A **typedef** binds a name to a type and declares no object at all, so there
+    // is nothing to admit and nothing to refuse — only a width to get right:
+    // `0B <depth> <tok> <name> 00 <b> <tid>`. Witnessed as STL-internal names
+    // (`_SrcType`, `_LIterator`) inside template bodies, each ending exactly on the
+    // next grammar byte — a `06` block close in one case, the next `01` record in
+    // the other. Only two witnesses, and `<b>` is `00` in both, so it is required
+    // literally.
+    if tag == REC_TYPEDEF {
+        if *sy.get(p)? != 0x00 {
+            return None;
+        }
+        let (_tid, tw) = read_tid(sy, p + 1)?;
+        return Some((None, p + 1 + tw));
     }
-    p = name_end + 1;
 
     // A `static` carries a different, shorter field region and a second token —
     // the one the body actually loads. It is a memory object either way, so it is
@@ -454,11 +790,16 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
         // an element size (`04` for that array, `00` for the scalar). Neither is
         // interpreted: a `static` is a memory object with a relocation whatever its
         // type, so the only thing needed here is the width.
-        sy.get(p)?;
-        if *sy.get(p + 2)? != 0x00 {
+        // The type prefix obeys the same wide/narrow rule as a variable record's
+        // ([`read_type_prefix`]): a function-scope `static Message msg` writes
+        // `C6 81 06 …`, and reading its prefix as two bytes desyncs the record. 49 of
+        // the 200 translation units measured contain one.
+        let (_tag, _kind, tw) = read_type_prefix(sy, p)?;
+        p += tw;
+        if *sy.get(p)? != 0x00 {
             return None;
         }
-        p += 3;
+        p += 1;
         let (_size, sw) = read_tid(sy, p)?;
         p += sw;
         if sy.get(p..p + 2)? != [SIZE_LEAD, 0x00] {
@@ -473,60 +814,27 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
         return Some((None, p + 1));
     }
 
-    // `<tag> <kind> 00 <cls> 04 <size16 LE> <flags16 LE> <tid>`. Read as fields
-    // rather than matched as a run: the earlier draft required `04 04 00`
-    // literally, which happened to be correct only because it pinned
-    // `size16 == 4` — true of `int` and of nothing wider.
-    let type_tag = *sy.get(p)?;
-    let kind = *sy.get(p + 1)?;
-    if *sy.get(p + 2)? != 0x00 {
-        return None;
-    }
-    let cls = *sy.get(p + 3)?;
-    if *sy.get(p + 4)? != SIZE_LEAD {
-        return None;
-    }
-    let size = u16::from_le_bytes([*sy.get(p + 5)?, *sy.get(p + 6)?]);
-    let flags = u16::from_le_bytes([*sy.get(p + 7)?, *sy.get(p + 8)?]);
-    p += 9;
-    // An **aggregate** carries one extra 2-byte field between the flags and the
-    // type id. Reading it is not about admitting aggregates — a struct local is
-    // refused below either way — but about the *size* of a struct **parameter**,
-    // which decides how many argument registers it takes ([`SyFormal`]). Without
-    // this, one aggregate parameter anywhere in a translation unit desyncs the
-    // record and withholds the whole file's binding, taking every other
-    // function's formal widths and locals with it.
+    // `<tag> [81] <kind> 00 <cls> 04 <size varint> <b> <flags16 LE> <tid>`.
     //
-    // Two channels have to agree that this is an aggregate before the extra field
-    // is consumed: the kind's class nibble is 6 (`06` a struct or class, `16` a
-    // union — both class 6, matching the `.ex` convention in `readers::read_type`)
-    // *and* flags bit 7 is set. They co-occur at every witness; requiring both
-    // means a stream where they disagree fails the file closed instead of being
-    // stepped over by whichever one this reader happened to trust.
-    //
-    // The field's VALUE is `80 00` at all eight witnesses (five struct parameters
-    // 4–20 B, a 12-byte class, a union, and a struct local whose flags differ in
-    // the referenced bit — so the flags and this field are separately observed,
-    // not one field read twice). Its MEANING is unknown, so it is required
-    // literally: this module's own rule is that a field which never varies is
-    // indistinguishable from a constant, and the honest encoding of that is to
-    // refuse anything else rather than to skip two bytes by width.
-    //
-    // NOT covered, and refused by the `00` check above rather than guessed at: a
-    // **polymorphic** class parameter, whose record opens `C6 81 03 …` — a
-    // three-byte type prefix on the `0x40` tag bit that `readers.rs` records as
-    // occurring and undetermined. One witness pair (`struct V { virtual void f();
-    // int a; }` and a derived class) is not enough to decode a new prefix form.
-    const AGGREGATE_CLASS: u8 = 0x6;
-    const AGGREGATE_FLAG: u16 = 0x0080;
-    if kind & 0x0F == AGGREGATE_CLASS && flags & AGGREGATE_FLAG != 0 {
-        if sy.get(p..p + 2)? != [0x80, 0x00] {
-            return None;
-        }
-        p += 2;
-    }
-    let (tid, tw) = read_tid(sy, p)?;
+    // Two fields of this region were previously misread, and both misreadings were
+    // invisible on the probe corpus because they agree with the truth on every
+    // small scalar. Fifteen witnesses now parse with **zero leftover bytes** — each
+    // one bracketed by the byte the enclosing grammar demands next (a `06` block
+    // close, a `0D` section open, or the following record's tag), so the width is
+    // pinned externally and not by this reader's own arithmetic.
+    let (type_tag, kind, tw) = read_type_prefix(sy, p)?;
     p += tw;
+    if *sy.get(p)? != 0x00 {
+        return None;
+    }
+    let cls = *sy.get(p + 1)?;
+    if *sy.get(p + 2)? != SIZE_LEAD {
+        return None;
+    }
+    p += 3;
+    let ext = read_type_extent(sy, p)?;
+    p += ext.width;
+    let TypeExtent { size, flags, tid, .. } = ext;
     // An array's element size trails the type region.
     if tag == REC_ARRAY {
         sy.get(p)?;
@@ -625,7 +933,7 @@ mod tests {
     ];
 
     /// `int arr(int a) { int v[4]; v[0] = a; return v[0]; }` — an `02` record whose
-    /// `size16` is `0x0010` (four ints), whose type id is in the constructed range,
+    /// size is `0x10` (four ints), whose type id is in the constructed range,
     /// and which carries a trailing element size. Verbatim capture.
     const ARRAY: &[u8] = &[
         0x03, 0x01, 0xf2, 0x09, 0x1f, 0x00, 0x01, 0x01, 0x0d, 0x01, 0x01, 0x01, 0xf0, 0x09, 0x00,
@@ -647,14 +955,26 @@ mod tests {
 
     /// One depth-2 `int` record with the type fields parameterized, so a single
     /// field is the only difference between two probes.
-    fn local_rec(kind: u8, size: u16, flags: u16, tid: &[u8]) -> Vec<u8> {
+    fn local_rec(kind: u8, size: u32, flags: u16, tid: &[u8]) -> Vec<u8> {
         let mut v = vec![REC_PLAIN, 0x02, 0xe6, 0x09, 0x00, b'x', 0x00, TYPE_TAG, kind, 0x00];
         v.push(CLS_AUTOMATIC);
         v.push(SIZE_LEAD);
-        v.extend_from_slice(&size.to_le_bytes());
+        v.extend_from_slice(&sy_varint(size));
+        // The unnamed byte between the size and the flags.
+        v.push(0x00);
         v.extend_from_slice(&flags.to_le_bytes());
         v.extend_from_slice(tid);
         v
+    }
+
+    /// A `.sy` size/id varint, in the same 1-or-5-byte encoding [`read_tid`] reads.
+    fn sy_varint(v: u32) -> Vec<u8> {
+        if v < 0x80 {
+            return vec![v as u8];
+        }
+        let mut out = vec![0x80];
+        out.extend_from_slice(&v.to_le_bytes());
+        out
     }
 
     fn int_rec() -> Vec<u8> {
@@ -955,19 +1275,53 @@ mod tests {
         assert_eq!(sy_blocks(&block_with(DEPTH_FORMALS, rec)), None);
     }
 
-    /// A **polymorphic** class parameter opens `C6 81 03 …`, a three-byte type
-    /// prefix on the undetermined `0x40` tag bit. One witness pair cannot decode a
-    /// new prefix form, so the record refuses and the file's widths go
-    /// undetermined — reported as `param-width-undetermined`, never as
-    /// `param-multi-reg`. Verbatim from `struct V { virtual void f(); int a; }`
-    /// passed by value (`fixtures/cpp/il_param_poly_neg.cpp`).
+    /// A **polymorphic** class parameter opens with the wide prefix `C6 81 03`, and
+    /// its kind is `03` — a *data pointer*, because MSVC passes a class with a
+    /// vtable by hidden reference. So its width is 4 and it occupies exactly one
+    /// argument register, which the old reader could not see: it folded the unnamed
+    /// byte after the size (`08` here, `00` everywhere else) into a
+    /// little-endian `u16` and reported a width of 2052.
+    ///
+    /// This is the discriminating witness for BOTH corrections at once. Under the
+    /// narrow-prefix reading the `00` check fails and the whole file refuses; under
+    /// the `u16` size reading the record is one byte long and the next section's
+    /// `0D` lands mid-field. Only both together end the record exactly where
+    /// `block_with` puts the next grammar byte.
+    ///
+    /// Verbatim from `struct V { virtual void f(); int a; }` passed by value
+    /// (`fixtures/cpp/il_param_poly.cpp`).
     #[test]
-    fn a_polymorphic_class_formal_is_undecoded_and_refuses() {
+    fn a_polymorphic_class_formal_is_a_hidden_pointer_of_one_register_width() {
         let rec = &[
             0x01, 0x01, 0x29, 0x0a, 0x00, b'v', 0x00, 0xc6, 0x81, 0x03, 0x00, 0x03, 0x04, 0x04,
             0x08, 0x00, 0x00, 0x80, 0x1a, 0x10, 0x00, 0x00,
         ];
-        assert_eq!(sy_blocks(&block_with(DEPTH_FORMALS, rec)), None);
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x290a, size: 4 }]);
+    }
+
+    /// The witness that separates a varint size from a little-endian `u16` one: a
+    /// 4,116-byte class local, whose size takes the `80`-escaped five-byte form.
+    /// Under the `u16` reading this record is four bytes short and the block's `06`
+    /// close is read as part of the type id. Verbatim from a real translation unit
+    /// (`fs`, a `system/rndobj` local).
+    #[test]
+    fn a_size_past_the_varint_escape_is_five_bytes_not_two() {
+        let rec = &[
+            0x01, 0x02, 0x46, 0x3a, 0x00, b'f', b's', 0x00, 0x86, 0x06, 0x00, 0x01, 0x04, 0x80,
+            0x14, 0x10, 0x00, 0x00, 0x00, 0x21, 0x00, 0x80, 0x37, 0x17, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(0x02, rec)).expect("real capture must parse");
+        assert!(b[0].int_locals.is_empty(), "a 4116-byte class local may not be folded");
+        // And as a formal the same record reports a width that refuses, rather than
+        // the 4 a truncating read would have produced from `0x1014 & 0xFFFF`… or the
+        // 0x1480 a `u16` read of `80 14` would.
+        let asf = &[
+            0x01, 0x01, 0x46, 0x3a, 0x00, b'f', b's', 0x00, 0x86, 0x06, 0x00, 0x03, 0x04, 0x80,
+            0x14, 0x10, 0x00, 0x00, 0x00, 0x21, 0x00, 0x80, 0x37, 0x17, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, asf)).expect("real capture must parse");
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x463a, size: 4116 }]);
     }
 
     /// An aggregate **local** has the same extra field, and its flags differ from a
@@ -1064,9 +1418,165 @@ mod tests {
         with_06.extend_from_slice(EMPTY);
         assert_eq!(sy_blocks(&with_06).unwrap().len(), 1);
 
-        let mut with_1a = vec![0x1a, 0x02, 0xa5, 0x28, 0xc6, 0x81, 0x06, 0x80];
-        with_1a.extend_from_slice(EMPTY);
-        assert_eq!(sy_blocks(&with_1a), None);
+        // A lead byte the reader has no rule for at all.
+        let mut with_2a = vec![0x2a, 0x02, 0xa5, 0x28, 0xc6, 0x81, 0x06, 0x80];
+        with_2a.extend_from_slice(EMPTY);
+        assert_eq!(sy_blocks(&with_2a), None);
+    }
+
+    /// A **named** inter-block record — a `goto` label carrying its source name —
+    /// keeps the two trailing bytes the unnamed shape ends with. Missing them made
+    /// the reader take the FOLLOWING `03 <k>` for a block open and then find zero
+    /// sections in it; that was 13 of the 200 translation units measured.
+    ///
+    /// Both witnesses are verbatim, and the pair is the point: the trailing field is
+    /// `03 01` in one and `01 02` in the other, so it is a real field of the named
+    /// shape and not two bytes of some fixed terminator.
+    #[test]
+    fn a_named_inter_block_record_still_carries_its_two_tail_bytes() {
+        for tail in [[0x03, 0x01], [0x01, 0x02]] {
+            let mut v = vec![0x03, 0x08, 0x52, 0xa6, 0x01, 0x00, 0x00];
+            v.extend_from_slice(b"quat_done\x00");
+            v.extend_from_slice(&tail);
+            v.extend_from_slice(EMPTY);
+            assert_eq!(sy_blocks(&v).map(|b| b.len()), Some(1), "tail {tail:02x?}");
+        }
+        // Two bytes short, which is how this was found: the next record's `03` is
+        // read as a block open whose first byte is not `0D`.
+        let mut short = vec![0x03, 0x08, 0x52, 0xa6, 0x01, 0x00, 0x00];
+        short.extend_from_slice(b"quat_done\x00");
+        short.extend_from_slice(EMPTY);
+        assert_eq!(sy_blocks(&short), None);
+    }
+
+    /// The `1A` inter-block record is **not** fixed-width: its size field is the same
+    /// varint the type extent uses, so one witness is 20 bytes and the other 16. A
+    /// reader that pinned the 20-byte shape literally refused four of 200 files.
+    /// Both verbatim from real translation units; the 16-byte one's type id `0x14A1`
+    /// is the same id as the 8-byte `str` local, and its size is 8.
+    #[test]
+    fn the_wide_inter_block_record_has_a_varint_size_not_a_fixed_width() {
+        let wide = &[
+            0x1a, 0x02, 0x7d, 0x28, 0xc6, 0x81, 0x06, 0x80, 0x0c, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x80, 0x04, 0x12, 0x00, 0x00,
+        ];
+        let narrow = &[
+            0x1a, 0x05, 0x2f, 0x45, 0xc6, 0x81, 0x06, 0x08, 0x00, 0x00, 0x00, 0x80, 0xa1, 0x14,
+            0x00, 0x00,
+        ];
+        for rec in [&wide[..], &narrow[..]] {
+            let mut v = rec.to_vec();
+            v.extend_from_slice(EMPTY);
+            assert_eq!(sy_blocks(&v).map(|b| b.len()), Some(1), "{rec:02x?}");
+        }
+    }
+
+    /// A `0B` **typedef** record: a name bound to a type, declaring no object, with
+    /// no byte between the token and the name. Verbatim from a real TU, where the
+    /// next byte is the block's `06` close — so its width is pinned externally.
+    #[test]
+    fn a_typedef_record_is_located_and_declares_nothing() {
+        let rec = &[
+            0x0b, 0x02, 0x0e, 0xd1, 0x02, 0x00, b'_', b'S', b'r', b'c', b'T', b'y', b'p', b'e',
+            0x00, 0x00, 0x80, 0x1f, 0x5b, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(0x02, rec)).expect("real capture must parse");
+        assert!(b[0].int_locals.is_empty(), "a typedef declares no object to fold");
+    }
+
+    /// A real translation unit's `.sy` ends with a run of bare `06` bytes. They are
+    /// accepted only as a run reaching EOF: an interleaved one fails the file closed,
+    /// because a top-level `06` followed by a non-`06` byte was never observed in the
+    /// 130 files that have a trailer.
+    #[test]
+    fn a_trailing_run_of_closes_ends_the_file_but_an_interleaved_one_refuses() {
+        let mut ok = LOC2.to_vec();
+        ok.extend_from_slice(&[BLOCK_CLOSE; 7]);
+        assert_eq!(sy_blocks(&ok).map(|b| b.len()), Some(1));
+
+        let mut bad = LOC2.to_vec();
+        bad.extend_from_slice(&[BLOCK_CLOSE, BLOCK_CLOSE, 0x03, 0x06, 0xf1, 0x15, 0x1e, 0x00]);
+        assert_eq!(sy_blocks(&bad), None);
+    }
+
+    /// The **wide type prefix** rule is a bit test, not the literal pair `C6 81`. A
+    /// `CA` tag carries the same extra byte, so a reader keyed on `C6` refuses a
+    /// record that is really there. Verbatim: `vSrc`, a 16-byte value from
+    /// `src/App.cpp`, whose flags carry bit 7 with a class nibble of `D` — see
+    /// [`a_flags_bit_seven_extra_field_does_not_require_an_aggregate_class`].
+    #[test]
+    fn a_wide_type_prefix_is_a_tag_bit_not_the_literal_c6_81() {
+        let rec = &[
+            0x01, 0x01, 0x46, 0x51, 0x00, b'v', b'S', b'r', b'c', 0x00, 0xca, 0x81, 0x0d, 0x00,
+            0x03, 0x04, 0x10, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x04, 0x1a, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0x4651, size: 16 }]);
+    }
+
+    /// The extra 2-byte field is keyed on **flags bit 7 alone**. The earlier rule also
+    /// required the kind's class nibble to be 6, on the grounds that both channels
+    /// co-occurred at every witness then available; `vSrc` above has class nibble `D`
+    /// and carries the field, so the conjunction desyncs on it. Two channels are
+    /// better than one only while both are true.
+    ///
+    /// The counter-witness that motivated the second channel is re-asserted here so a
+    /// future widening cannot quietly lose it: an **array** local is class 6 with
+    /// flags bit 7 CLEAR and genuinely has no extra field — its `80 00 10 00 00` is a
+    /// real wide id — and the flags bit is what separates the two.
+    #[test]
+    fn a_flags_bit_seven_extra_field_does_not_require_an_aggregate_class() {
+        // Class D, flags bit 7 set, extra field present: parses (asserted above by
+        // width). Here the discriminating negative, class 6 with the bit clear.
+        let array = &[
+            0x02, 0x02, 0x77, 0x28, 0x00, b'x', 0x00, 0x86, 0x06, 0x00, 0x01, 0x04, 0x10, 0x00,
+            0x01, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x04,
+        ];
+        let b = sy_blocks(&block_with(0x02, array)).expect("an array record must parse");
+        assert!(b[0].int_locals.is_empty());
+        // And with the bit SET the same bytes are read as carrying the field, which
+        // moves the id and leaves the record ending two bytes past the grammar's next
+        // byte — so the file refuses. That is the whole load the bit bears.
+        let mut set = array.to_vec();
+        set[14] = 0x81;
+        assert_eq!(sy_blocks(&block_with(0x02, &set)), None);
+    }
+
+    /// A class with a user copy constructor is passed by **hidden reference**: kind
+    /// `03` (a data pointer), size 4, and the unnamed byte after the size is `08` — on
+    /// a NARROW `86` tag, so the unnamed byte and the wide prefix are two separately
+    /// observed corrections and not one. The `u16` reading made this 0x0804 = 2052 and
+    /// reported `param-multi-reg`. Verbatim from
+    /// `struct CC { int a,b,c,d; CC(const CC&); }` passed by value;
+    /// `fixtures/cpp/il_sy_size_extent.cpp` grades it byte-exact.
+    #[test]
+    fn a_by_reference_class_parameter_is_a_four_byte_pointer_in_one_register() {
+        let rec = &[
+            0x01, 0x01, 0xf5, 0x09, 0x00, b'v', 0x00, 0x86, 0x03, 0x00, 0x03, 0x04, 0x04, 0x08,
+            0x00, 0x00, 0x80, 0x0c, 0x10, 0x00, 0x00,
+        ];
+        let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
+        assert_eq!(b[0].formals, vec![SyFormal { tok: 0xf509, size: 4 }]);
+    }
+
+    /// The size boundary the `u16` reading crossed, as a record rather than as a
+    /// source file: 127 is one varint byte and 128 is five. Reading `80 80` as a `u16`
+    /// yields 32,896 and ends the record four bytes early — and because binding is
+    /// all-or-nothing, one such local unbinds the whole translation unit. Graded
+    /// byte-exact by `fixtures/cpp/il_sy_size_extent.cpp`.
+    #[test]
+    fn the_size_varint_escape_boundary_is_at_128() {
+        for want in [127u32, 128, 300, 4116] {
+            // A formal, so the decoded size is observable and not just the width.
+            let mut rec = vec![REC_PLAIN, DEPTH_FORMALS, 0xe6, 0x09, 0x00, b'x', 0x00];
+            rec.extend_from_slice(&[TYPE_TAG, 0x06, 0x00, CLS_FORMAL, SIZE_LEAD]);
+            rec.extend_from_slice(&sy_varint(want));
+            rec.extend_from_slice(&[0x00]);
+            rec.extend_from_slice(&FLAGS_REFERENCED.to_le_bytes());
+            rec.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00]);
+            let b = sy_blocks(&block_with(DEPTH_FORMALS, &rec)).expect("must parse");
+            assert_eq!(b[0].formals, vec![SyFormal { tok: 0xe609, size: want }], "size {want}");
+        }
     }
 
     #[test]
@@ -1074,3 +1584,4 @@ mod tests {
         assert_eq!(sy_blocks(&[]), Some(Vec::new()));
     }
 }
+
