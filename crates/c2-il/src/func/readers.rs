@@ -138,6 +138,89 @@ pub(crate) fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     None
 }
 
+/// The `kind` byte's low nibble is a **class**: 1 signed int, 2 unsigned int,
+/// 3 data pointer, 4 function pointer, 5 real, **6 aggregate**, 7 void, A real
+/// literal (`docs/IL_LOAD_TYPES.md` §1). Class 6 is the only one whose payload is
+/// not simply the LEB id, so it is the only one [`read_type`] special-cases.
+///
+/// An aggregate's **size** is a 5-bit field spread across `tag` bit 0 (as bit 4)
+/// and `kind`'s high nibble (as bits 3..0); the tag's remaining low bits are an
+/// alignment class, not the value's width. When the size does not fit in 5 bits
+/// the field reads 0 and a *statement* varint ([`read_varint`]) carrying the real
+/// size is inserted **between the kind and the LEB id**.
+///
+/// MEASURED, from the struct-copy (`*d = *s;`) size ladder in
+/// `docs/IL_LOAD_TYPES.md` §1a — each row is a captured TYPE in a `30`/`32`
+/// position, and the table's whole point is that it is a *ladder*, so no single
+/// row carries the rule alone:
+///
+/// ```text
+///   S4  size 4  align 4   86 46 80 20        kind hi = 4,  tag bit0 = 0
+///   S8  size 8  align 4   86 86 86 20        kind hi = 8
+///   B12 size 12 align 4   86 C6 80 20        kind hi = C
+///   S15 size 15 align 1   82 F6 8C 20        kind hi = F,  tag 82
+///   S16 size 16 align 4   87 06 93 20        kind hi = 0,  tag bit0 = 1  → 16
+///   S20 size 20 align 4   87 46 99 20        16 + 4
+///   SD16 size 16 align 8  89 06 95 20        tag 88|1 — align moved, bit0 stayed
+///   S31 size 31 align 1   83 F6 80 20        16 + F, the top of the field
+///   S32 size 32 align 1   82 06 20 87 20     field 0 → varint 0x20, then id
+///   S33 size 33 align 1   82 06 21 8e 20     varint 0x21
+///   T40 size 40 align 4   86 06 28 a0 20     varint 0x28
+/// ```
+///
+/// Two plausible wrong rules this ladder rules out, because a rule believed
+/// without its discriminating neighbour is how this project has emitted wrong
+/// bytes before:
+///
+/// * **"the bytes after the kind are a fixed class token / suffix, not a size."**
+///   Then growing the struct by one byte could not move them. `S32`→`S33` moves
+///   `20`→`21` while nothing else about the source changes — and the id moves
+///   independently (0x1007 → 0x100E), so the two fields are separate. This is
+///   the pair the rule stands on.
+/// * **"the size is only the kind's high nibble (4 bits)."** Then `S16`'s kind
+///   `06` reads size 0 and the parse would look for a varint at `93` — which is
+///   a negative short-form varint and refuses here. So the 4-bit reading is
+///   *distinguishable*: it fails closed on S16/S20/SD16 where the 5-bit reading
+///   steps 4 bytes. `S15` (`82 F6`) vs `S31` (`83 F6`) shows the same bit
+///   carrying the +16, with the alignment nibble held constant.
+///
+/// Wild witness, aligned by a bracketing marker rather than by a probe:
+/// `src/system/meta/Sorting.cpp` at `.ex` 0xc7e3 carries
+/// `… 55 86 41 74 4C | 30 86 06 80 14 10 00 00 a5 29 | 4B …` — a 4,116-byte
+/// (0x1014) object. The type is 9 bytes wide and the statement-end `4B` sits
+/// exactly at its end; the old 4-byte read (`86 06 80 14`, the varint escape
+/// swallowed as LEB continuation bytes) left the parse standing on `10`.
+///
+/// The size itself is decoded and then **dropped**: aggregates are refused for
+/// acceptance by the class gates ([`is_int4_type`] / [`is_ptr_to_4`] are false
+/// for class 6), so nothing downstream needs it, and a second parser for it
+/// elsewhere is exactly the "one fact, two locators" mistake `find_byte` was
+/// deleted for. If a future rung needs the size, widen this return — do not
+/// re-read the field.
+///
+/// ## This branch is currently unreachable, and that is measured, not assumed
+///
+/// MEASURED 2026-07-30: with an `eprintln!` in this branch, a full 878-TU /
+/// 2,462,571-function workload scan enters it **zero** times, and so does a
+/// single-TU census of `Sorting.cpp` — the TU that contains the wild witness
+/// above. (The instrument was validated by watching it fire 16 times under the
+/// unit tests, so this is a positive measurement rather than a silent probe.)
+/// The reason is that every position where a `read_type` call could see class 6
+/// sits behind an earlier refusal: `fixtures/cpp/w12_aggr_type.cpp`'s struct
+/// copies stop at the base pointer LOAD, a by-value struct return stops at the
+/// `9B` sret bind, and the blocker *names* come from three raw bytes
+/// (`blk_type`) rather than from this width, so attribution never depended on it
+/// either. The before/after workload scan is identical in every per-TU field:
+/// same census numerator (110,366), same 900-odd blocker buckets, zero moves.
+///
+/// So the honest value of this fix is **entirely latent**: it removes a desync
+/// that would fire the moment any of those earlier gates widens — and the next
+/// rungs on the board widen exactly the `30`/`41`/`2C`/`27` leaf positions where
+/// an aggregate TYPE would first arrive. It buys no coverage and improves no
+/// bucket today. Anyone re-ranking work from this function's existence should
+/// read that paragraph before assuming it did.
+const AGGREGATE_CLASS: u8 = 0x6;
+
 /// Read a `.ex` inline **type**: `<tag> <kind> <LEB128 id>`, returning
 /// `(tag, kind, id, width)`.
 ///
@@ -156,19 +239,47 @@ pub(crate) fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
 ///
 /// The tag always has bit 7 set; its high bits are not understood (`0x86`,
 /// `0xA6`, `0x96`, `0xC6` all occur and behave identically here), but a decoder
-/// does not need them — the width rule is tag-independent. The `kind` byte is
-/// treated as a fixed byte rather than a second LEB because `88 85 41`
-/// (`double`) and `88 81 13` (`long long`) have bit 7 set there and would
-/// otherwise run on.
+/// does not need them for a scalar — the width rule is tag-independent *there*.
+/// The `kind` byte is treated as a fixed byte rather than a second LEB because
+/// `88 85 41` (`double`) and `88 81 13` (`long long`) have bit 7 set there and
+/// would otherwise run on.
+///
+/// **One exception, and it is the whole reason this function is not three lines:
+/// an aggregate carries its size inline, and above 31 bytes the size moves out
+/// of the tag/kind pair and in front of the id.** See
+/// [`AGGREGATE_CLASS`] and `docs/IL_LOAD_TYPES.md` §1a. Before that was decoded
+/// this function LEB-read straight past the size, which is a **parse desync
+/// inside the positive parser** — the worst failure mode this project has, since
+/// a stream read at the wrong alignment can land on a valid accepted shape by
+/// chance and emit bytes for a body it never actually understood, and (measured
+/// below) it mis-attributes the census bucket even when it does refuse.
 pub(crate) fn read_type(seg: &[u8], p: usize) -> Option<(u8, u8, u32, usize)> {
     let tag = *seg.get(p)?;
     if tag & 0x80 == 0 {
         return None;
     }
     let kind = *seg.get(p + 1)?;
+    let mut i = p + 2;
+    if kind & 0x0F == AGGREGATE_CLASS {
+        // The 5-bit inline size (see `AGGREGATE_CLASS`). Zero is not a legal
+        // struct size — C++ has no zero-sized object — so it is free to mean
+        // "the size did not fit; it follows as a statement varint".
+        let size5 = ((tag & 0x01) << 4) | (kind >> 4);
+        if size5 == 0 {
+            let size = read_varint(seg, &mut i)?;
+            // Fail closed on anything the 5-bit field could itself have carried
+            // (and on the negative values a mis-aligned byte produces): under
+            // this rule the escape is only reachable at >= 32, so a smaller
+            // value means we are not looking at an aggregate size and must not
+            // pretend to know where the type ends. This is the three-valued
+            // answer — "undetermined" refuses rather than guessing a width.
+            if size < 32 {
+                return None;
+            }
+        }
+    }
     let mut id: u32 = 0;
     let mut shift: u32 = 0;
-    let mut i = p + 2;
     loop {
         let b = *seg.get(i)?;
         id |= ((b & 0x7F) as u32) << shift;
@@ -448,6 +559,141 @@ mod tests {
         }
         // A tag without bit 7 set is not a type.
         assert_eq!(read_type(&[0x41, 0x86, 0x41], 0), None);
+    }
+
+    // ---- aggregates: the size ladder (docs/IL_LOAD_TYPES.md §1a) -------------
+
+    /// Every row of the §1a struct-copy ladder, verbatim, with the width the
+    /// bracketing marker in the capture pins. The rows below 32 bytes are the
+    /// ones the old reader got right *by accident* (opaque kind byte + LEB id);
+    /// they are here so a future change to the aggregate branch cannot quietly
+    /// break them.
+    #[test]
+    fn read_type_walks_the_aggregate_size_ladder() {
+        //           bytes                          tag    kind   id      width
+        let cases: &[(&[u8], u8, u8, u32, usize, &str)] = &[
+            (&[0x86, 0x46, 0x80, 0x20], 0x86, 0x46, 0x1000, 4, "S4 size 4 align 4"),
+            (&[0x86, 0x86, 0x86, 0x20], 0x86, 0x86, 0x1006, 4, "S8 size 8"),
+            (&[0x86, 0xC6, 0x80, 0x20], 0x86, 0xC6, 0x1000, 4, "B12 size 12"),
+            (&[0x82, 0xF6, 0x8C, 0x20], 0x82, 0xF6, 0x100C, 4, "S15 size 15 align 1"),
+            // tag bit 0 set → size bit 4. `type_width(0x87)` is None, so these
+            // used to refuse *before* stepping; now they step correctly and are
+            // refused by the class gate instead. Both are refusals.
+            (&[0x87, 0x06, 0x93, 0x20], 0x87, 0x06, 0x1013, 4, "S16 = 16 + 0"),
+            (&[0x87, 0x46, 0x99, 0x20], 0x87, 0x46, 0x1019, 4, "S20 = 16 + 4"),
+            (&[0x89, 0x06, 0x95, 0x20], 0x89, 0x06, 0x1015, 4, "SD16 align 8"),
+            (&[0x83, 0xF6, 0x80, 0x20], 0x83, 0xF6, 0x1000, 4, "S31 = 16 + F, field full"),
+            // …and above 31 the field is 0 and a statement varint precedes the id.
+            (&[0x82, 0x06, 0x20, 0x87, 0x20], 0x82, 0x06, 0x1007, 5, "S32 varint 0x20"),
+            (&[0x82, 0x06, 0x21, 0x8E, 0x20], 0x82, 0x06, 0x100E, 5, "S33 varint 0x21"),
+            (&[0x86, 0x06, 0x28, 0xA0, 0x20], 0x86, 0x06, 0x1020, 5, "T40 varint 0x28"),
+            // The original task-list witness, now readable: a 32-byte aggregate
+            // with id 0x106C. Five bytes, where the old reader said three.
+            (&[0x86, 0x06, 0x20, 0xEC, 0x20], 0x86, 0x06, 0x106C, 5, "32 B, id 0x106C"),
+        ];
+        for (bytes, tag, kind, id, w, label) in cases {
+            assert_eq!(
+                read_type(bytes, 0),
+                Some((*tag, *kind, *id, *w)),
+                "{label}: {bytes:02X?}"
+            );
+            // The point of the whole exercise: an aggregate is never accepted.
+            // Stepping it correctly must not turn into admitting it.
+            assert!(!is_int4_type(*tag, *kind), "{label} must not read as int4");
+            assert!(!is_ptr_to_4(*tag, *kind), "{label} must not read as ptr-to-4");
+        }
+    }
+
+    /// The S32/S33 pair is the *discriminating* capture, so assert the thing that
+    /// discriminates rather than only the two decodings: one byte of struct
+    /// growth moves the third byte. Under the "trailing bytes are a fixed class
+    /// token" reading it could not move, and under a "the third byte is part of
+    /// the id" reading the id would jump by 0x100 rather than the ids differing
+    /// independently.
+    #[test]
+    fn aggregate_size_field_moves_with_the_struct_and_the_id_moves_separately() {
+        let s32 = read_type(&[0x82, 0x06, 0x20, 0x87, 0x20], 0).unwrap();
+        let s33 = read_type(&[0x82, 0x06, 0x21, 0x8E, 0x20], 0).unwrap();
+        assert_eq!((s32.0, s32.1), (s33.0, s33.1), "tag/kind identical");
+        assert_eq!((s32.3, s33.3), (5, 5), "both five bytes wide");
+        assert_ne!(s32.2, s33.2, "the ids are independent of the size byte");
+        // A 4-bit-only size rule (kind's high nibble alone) would read S16's
+        // field as 0 and look for a varint at `93` — a negative short form — so
+        // it fails closed exactly where the 5-bit rule steps four bytes. That is
+        // what makes the two rules distinguishable rather than merely different.
+        assert_eq!(read_type(&[0x87, 0x06, 0x93, 0x20], 0).unwrap().3, 4);
+        let mut q = 0usize;
+        assert_eq!(read_varint(&[0x93], &mut q), Some(-109));
+    }
+
+    /// The wild witness, pinned the way the capture pins it: by the statement-end
+    /// `4B` that must sit exactly at the type's end. `src/system/meta/Sorting.cpp`,
+    /// `.ex` 0xc7e3 — a 4,116-byte object, the escape form of the size varint.
+    #[test]
+    fn aggregate_varint_size_escape_is_pinned_by_the_next_marker() {
+        // 4C (call end) 30 (indirect load) <TYPE> 4B (statement end)
+        let seg: &[u8] = &[
+            0x4C, 0x30, 0x86, 0x06, 0x80, 0x14, 0x10, 0x00, 0x00, 0xA5, 0x29, 0x4B,
+        ];
+        let (tag, kind, id, w) = read_type(seg, 2).expect("Sorting.cpp aggregate");
+        assert_eq!((tag, kind, id), (0x86, 0x06, 0x14A5));
+        assert_eq!(w, 9, "2 header + 5 varint escape + 2 LEB id");
+        assert_eq!(seg.get(2 + w), Some(&0x4B), "the marker must land exactly here");
+        // The old reading consumed `86 06 80 14` (the escape's lead byte taken
+        // for a LEB continuation) and left the parse standing on `10` — a desync,
+        // not a refusal at the right place.
+        assert_ne!(w, 4);
+    }
+
+    /// Everything that violates the rule refuses. `size < 32` is the interesting
+    /// one: a size the 5-bit field could have carried cannot legally appear in the
+    /// escape, so seeing one means we are not looking at an aggregate size and do
+    /// not know where the type ends — undetermined, therefore refused.
+    #[test]
+    fn malformed_aggregates_fail_closed() {
+        let cases: &[(&[u8], &str)] = &[
+            (&[0x82, 0x06, 0x1F, 0x87, 0x20], "size 31 fits the field → not the escape"),
+            (&[0x82, 0x06, 0x00, 0x87, 0x20], "size 0 is not a struct size"),
+            (&[0x82, 0x06, 0xFF, 0x87, 0x20], "negative short-form varint"),
+            (&[0x82, 0x06, 0x80, 0x1F, 0x00, 0x00, 0x00, 0x87, 0x20], "escape carrying 31"),
+            (
+                &[0x82, 0x06, 0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0x87, 0x20],
+                "escape carrying -1",
+            ),
+            (&[0x82, 0x06, 0x20], "size read, id truncated"),
+            (&[0x82, 0x06, 0x80, 0x14, 0x10], "escape truncated"),
+            (&[0x82, 0x06], "nothing after the kind"),
+            // LEB overflow after a valid size still refuses.
+            (
+                &[0x82, 0x06, 0x28, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80],
+                "id LEB runs away",
+            ),
+        ];
+        for (bytes, label) in cases {
+            assert_eq!(read_type(bytes, 0), None, "{label}: {bytes:02X?}");
+        }
+    }
+
+    /// Non-aggregate classes must be untouched by the aggregate branch — including
+    /// the neighbouring kinds that differ from `6` in one bit (`5` real, `7`
+    /// void) and the `86 06`-shaped bytes' scalar cousins. If the branch keyed on
+    /// the wrong nibble this is where it would show.
+    #[test]
+    fn the_aggregate_branch_does_not_touch_other_classes() {
+        let cases: &[(&[u8], usize, &str)] = &[
+            (&[0x86, 0x45, 0x40], 3, "float (class 5)"),
+            (&[0x88, 0x85, 0x41], 3, "double (class 5)"),
+            (&[0x82, 0x07, 0x03], 3, "void (class 7)"),
+            (&[0x86, 0x41, 0x74], 3, "int (class 1)"),
+            (&[0x86, 0x43, 0x83, 0x08], 4, "void* (class 3)"),
+            // Class 6 in the *high* nibble is not an aggregate: `86 65 …` is
+            // width-6-of-class-5 nonsense in this grammar, but it must at least
+            // not be re-parsed as one.
+            (&[0x86, 0x65, 0x20, 0x87, 0x20], 3, "class 5, high nibble 6"),
+        ];
+        for (bytes, w, label) in cases {
+            assert_eq!(read_type(bytes, 0).map(|t| t.3), Some(*w), "{label}");
+        }
     }
 
     #[test]
