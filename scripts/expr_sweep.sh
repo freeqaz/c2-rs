@@ -478,6 +478,53 @@ for src in (
 ):
     emit_raw(src)
 
+# ---- D14: the CALLEE NAME axis ---------------------------------------------------
+# Every shape above sweeps what the port *computes*; this block sweeps what it
+# *names*. A tail call and a generated destructor both emit one `b <callee>` with
+# one REL24, so the callee's name is essentially the whole obj — it is the string in
+# the string table, it sets the symbol count, and it is the only thing a wrong `.gl`
+# binding can change. D14 rewrote how `gl_symbol_index` locates a record (rightmost
+# separator-preceded run, symbol record kind, symbol alphabet, ambiguity dropped),
+# and no fixture had ever varied the SPELLING of a callee name.
+#
+# The axes are the ones the new rules turn on: whether the name contains `@@` at all
+# (an `extern "C"` callee does not, and gating the index on that silently
+# un-resolved five tail calls in one real TU), whether it carries `$` (template
+# instantiations), how long it is, and how many distinct callees compete for tokens
+# in one TU — token values are assigned in declaration order, so a TU with many
+# externals is the only way to reach a token whose bytes are printable, which is the
+# case the rightmost rule exists for.
+for nsyms in (1, 2, 8, 40):
+    decls = ''.join('void s%d();\n' % k for k in range(nsyms))
+    emit_raw(decls + "void f() { s%d(); }\n" % (nsyms - 1))
+    emit_raw(decls + 'extern "C" void cs();\nvoid f() { cs(); }\n')
+for callee in ('void c1();', 'extern "C" void c1();',
+               'namespace N { void c1(); }\nusing N::c1;',
+               'extern "C" void c1(void);'):
+    emit_raw(callee + "\nvoid f() { c1(); }\n")
+# Long and punctuation-heavy mangled names, which are what the alphabet test admits
+# and the path/type-name records do not.
+emit_raw("namespace A { namespace B { namespace C { void deep(); } } }\n"
+         "void f() { A::B::C::deep(); }\n")
+emit_raw("struct Outer { struct Inner { void m(); }; };\n"
+         "void f(Outer::Inner* p) { p->m(); }\n")
+# The destructor delegation with the callee's name varied the same way: a namespace
+# base, a nested base, a class-template base (whose name carries `$` twice), and a
+# base whose name is long enough to sit in the COFF string table rather than inline.
+for decl, base in (
+    ("namespace N14 { struct B { ~B(); int x; }; }", "N14::B"),
+    ("struct O14 { struct B { ~B(); int x; }; };", "O14::B"),
+    ("template <class T> struct B14 { ~B14(); T t; };", "B14<int>"),
+    ("template <class T, class U> struct B15 { ~B15(); T t; U u; };",
+     "B15<int, char>"),
+    ("struct AVeryLongBaseClassNameThatOverflowsTheEightByteInlineSymbolField "
+     "{ ~AVeryLongBaseClassNameThatOverflowsTheEightByteInlineSymbolField(); "
+     "int x; };",
+     "AVeryLongBaseClassNameThatOverflowsTheEightByteInlineSymbolField"),
+):
+    emit_raw("%s\nstruct D : %s { ~D(); int y; };\nD::~D() {}\n" % (decl, base))
+    emit_raw("%s\nstruct D { ~D(); int q; %s m; };\nD::~D() {}\n" % (decl, base))
+
 # ---- D5: DATA-SYMBOL ADDRESSES ---------------------------------------------------
 # `docs/IL_CALL_IN_EXPR.md` §17. The port emits NOTHING for this class — a data
 # symbol's address needs a REFHI/REFLO pair, and two of them in one call need a
@@ -1087,27 +1134,85 @@ for k1 in range(len(FRAMED_LEAFMATES)):
                     li += 1
             emit_raw('int g(int);\n' + '\n'.join(parts) + '\n')
 
-# 4. The REFUSING neighbours. A comparison leaf consumes 3 counter slots and a
-#    floating-point leaf 2, against the 1 every emitted class consumes, so a
-#    framed function sharing a TU with either would get `$M` numbers that are
-#    low by 2 or 1 — bytes that link and are wrong. The port refuses the whole
-#    TU; a MISMATCH here is that gate having a hole.
+# 4. The neighbours whose LABEL STRIDE decides the framed function's `$M`
+#    numbers. The counter is advanced by every function in the TU whether or not
+#    it emits a label, so a neighbour with a stride the emitter models wrongly
+#    gives the framed function `$M` numbers that link and are wrong.
+#
+#    The stride is 1 for every class the port emits EXCEPT the comparison leaf,
+#    which is 1 or 3 by relation, and the floating-point leaf, which is 2 (4 or 6
+#    with pooled constants). Both lists are swept: the first must MATCH, the
+#    second must refuse. A mismatch in either is the gate having a hole, and a
+#    *refusal* in the first list is the gate over-refusing — cheaper, but it is
+#    what this axis was added to measure.
+FRAMED_STRIDE1 = [
+    'int R(int x) { return x < 0; }',
+    'int R(int x) { return x >= 0; }',
+    'int R(int x) { return x == 0; }',
+    'int R(int x) { return x != 0; }',
+    'int R(int x) { return x == 5; }',
+    'int R(int x) { return x != -5; }',
+    'int R(int x) { return x == 32767; }',
+    'int R(unsigned x) { return x < 5u; }',
+    'int R(unsigned x) { return x >= 5u; }',
+    'int R(unsigned x) { return x > 5u; }',
+    'int R(unsigned x) { return x <= 5u; }',
+]
 FRAMED_REFUSERS = [
     'float R(float x, float y) { return x * y; }',
     'double R(double x, double y) { return x + y; }',
     'float R(float x) { return x * 2.5f; }',
     'int R(int x, int y) { return x < y; }',
     'int R(int x, int y) { return x >= y; }',
-    'int R(int x) { return x < 0; }',
+    'int R(int x) { return x < 5; }',
+    'int R(int x) { return x > 0; }',
+    'int R(int x) { return x <= 0; }',
     'int R(int x, int y) { return x == y; }',
 ]
-for r in FRAMED_REFUSERS:
+for r in FRAMED_REFUSERS + FRAMED_STRIDE1:
     emit_raw('int g(int);\n%s\nint F(int a) { return g(a) + 1; }\n' % r)
     emit_raw('int g(int);\nint F(int a) { return g(a) + 1; }\n%s\n' % r)
     emit_raw('int g(int);\nint F1(int a) { return g(a) + 1; }\n%s\n'
              'int F2(int a) { return g(a) + 2; }\n' % r)
 
-# ---- W23: the STORE leaf ---------------------------------------------------
+# 5. THE FRAMED CALL'S ARGUMENT REGISTER — the axis every case above holds
+#    fixed. `framed_fn` is `int F(int a) { return g(a) + 1; }`: one parameter,
+#    necessarily in r3, so the argument's *index* and its *register* were the
+#    same number in all 363 framed cases and in every framed fixture. c2 emits
+#    `or r3,rN,rN` when they differ and the port emitted nothing — a live
+#    wrong-bytes emit found 2026-07-30 by compiling the neighbours rather than
+#    by any instrument (`docs/GAPS.md` §6). Two things shift the register: the
+#    argument's position among the formals, and the ABI footprint of whatever
+#    precedes it — including a leading `float`/`double`/`long long`, which take
+#    a GPR slot each on this ABI even though they are passed elsewhere.
+for nf in range(1, 6):
+    ps = ', '.join('int p%d' % i for i in range(nf))
+    for i in range(nf):
+        emit_raw('int g(int);\nint F(%s) { return g(p%d) + %d; }\n' % (ps, i, i + 1))
+        # …and with a leaf ahead of it, so the `bl` displacement and the label
+        # counter move at the same time as the argument register.
+        emit_raw('int g(int);\nint L(int a) { return a + 1; }\n'
+                 'int F(%s) { return g(p%d) + %d; }\n' % (ps, i, i + 1))
+#    Past the eighth formal the argument is stack-homed (`lwz r3,180(r1)`), which
+#    the register-move model cannot express and which the constant-body emitter
+#    used to answer with no instruction at all. Refused; a MISMATCH here is that
+#    gate having a hole.
+for nf in (8, 9, 10):
+    ps = ', '.join('int p%d' % i for i in range(nf))
+    for i in (0, nf - 1):
+        emit_raw('int g(int);\nint F(%s) { return g(p%d) + 1; }\n' % (ps, i))
+FRAMED_ARG_LEADERS = ['float x', 'double x', 'long long x', 'int *x', 'char x',
+                      'short x', 'unsigned x', 'float x, float y', 'int *x, int *y']
+for lead in FRAMED_ARG_LEADERS:
+    emit_raw('int g(int);\nint F(%s, int a) { return g(a) + 1; }\n' % lead)
+    emit_raw('int g(int);\nint F(%s, int a, int b) { return g(b) + 1; }\n' % lead)
+# Member functions: `this` is r3, so every formal is shifted by one.
+for nf in range(1, 4):
+    ps = ', '.join('int p%d' % i for i in range(nf))
+    for i in range(nf):
+        emit_raw('int g(int);\nstruct S { int m; int F(%s); };\n'
+                 'int S::F(%s) { return g(p%d) + %d; }\n' % (ps, ps, i, i + 1))
+# ---- W25: the STORE leaf ---------------------------------------------------
 # `s->m = v;` is one `stb`/`sth`/`stw`/`std` at a folded displacement, and the
 # axes that pick it are (stored width) x (displacement) x (which designator) x
 # (which two registers). The hand-written fixture crosses them once each; this
@@ -1200,7 +1305,7 @@ for r in STORE_REFUSERS:
     emit_raw('%s\nint h(int a) { return a + 1; }\n' % r)
 
 
-# ---- W24: the one-byte-unsigned value class -------------------------------
+# ---- W26: the one-byte-unsigned value class -------------------------------
 # `bool` and `unsigned char` share the operand TYPE `82 12`, and inside the
 # class a value costs no instruction: `li r3,k`, a bare `blr`, or the W18
 # register move. The axes are (spelling) x (literal value) x (argument slot),

@@ -4290,7 +4290,7 @@ number against the one recorded here before believing a green sweep** (§6).
 Always difference the scans through **absolute** paths and print each one's row
 count and `fn_total` first — §18.8.
 
-## 25. W23, landed — the store leaf, and the row this document ranked last
+## 25. W25, landed — the store leaf, and the row this document ranked last
 
 Written up in full in **`docs/IL_STORE_LEAF.md`**; recorded here because it
 settles three of this document's own open items and corrects one of its
@@ -4314,7 +4314,7 @@ measurements.
   *token* inside `parse_expr`; half the row is a *statement* that no widening of
   `parse_expr` can finish. This rung took 22,095 out of it. See `GAPS.md` §6's
   corrected box.
-* **That rung was then taken in the same session (W24).** `expr-load-type-8212`
+* **That rung was then taken in the same session (W26).** `expr-load-type-8212`
   + `expr-lit-type-8212` — 52,650 released, **+22,311** in class, no emitter
   change, mismatch 0, disagreement 0. Census after both rungs: **464,584 /
   2,462,571 = 18.87 %**, from 418,628. `IL_STORE_LEAF.md` §9.

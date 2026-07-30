@@ -281,6 +281,25 @@ shift is `/Gy`'s, not the mode's.
 [callee external — only at its first introduction] [$M(n) @ prologue-end
 offset] [.pdata section sym + aux] [$T(n+2) @ 0]`.
 
+> **Extended 2026-07-30** (`docs/CODEGEN_FRAMED_CALLS.md` §4, byte evidence
+> there). Three refinements this template does not have, each needed as soon as
+> a body makes more than one call:
+> * **multiple** new callees are emitted in **reverse first-reference order**
+>   (`g1,g2,g3` referenced → `g3,g2,g1` in the table; the mirrored source
+>   refutes alphabetical and declaration order);
+> * a function's `.rdata` constant pairs precede its callee externals in the
+>   same region, so the full region is `[.rdata pairs, LIFO] [callees, LIFO]`;
+> * the `__savegprlr_N` / `__restgprlr_N` pair is **not** in that region — it
+>   follows the whole group, after `$T`, with **`rest` before `save`**. Same
+>   position `_fltused` occupies (§1.2).
+>
+> And the section order inside one function's group is
+> **`.text`, its `.rdata`(s), its `.pdata`** — `.pdata`'s aux `Number` still
+> names its own `.text`, counted through the intervening `.rdata` sections
+> (verified at Number=5 with one and with two `.rdata` between, and Number=7
+> when a leading float leaf shifted the framed function). That closes the
+> "`.pdata` beside `.rdata`" gap.
+
 The `$M` **values** are the prologue end and the function end in `.text`
 offsets: mvp_call_two_framed (5-instruction prologue, calls at 0x1c/0x28) has
 `$M2548 = 0x14`, `$M2549 = 0x48` — the call site is *not* labeled; the
@@ -361,6 +380,20 @@ The whole model, restated as one rule and now implemented in
       leaf   ->                                 cur += 1
 ```
 
+> **Refuted for one framed sub-class, 2026-07-30.** A framed function that saves
+> ≥3 callee-saved GPRs — i.e. one that uses the `__savegprlr_N` /
+> `__restgprlr_N` helper pair rather than inline `std`s — **consumes two extra
+> slots, allocated before its own `$M` pair**: its first label is `cur + 2` and
+> its stride is 7 under `/Gy`. Seven witnesses, with the seed pinned by this
+> section's own `.gl` rule, in `docs/CODEGEN_FRAMED_CALLS.md` §4.4. Four of them
+> are misses for the model above, three are hits, and the split is exactly
+> "does the prologue call the helper". The FPR-helper case (`__savefpr_M`) is
+> **not** captured, so whether it costs another +2 is open.
+>
+> This is latent rather than live: the emitter refuses helper-using bodies for
+> other reasons today. It becomes a wrong byte the moment a framed function with
+> ≥3 saved GPRs is admitted.
+
 **Why the earlier scan missed it.** §3.5 previously recorded "a byte-scan
 correlation breaks on FP TUs: max LE16 token in `.ex` vs B gives a constant gap
 of 10 for int-only TUs, 11 for `v_float_framed`, 13 for `v_fconst_framed`". Both
@@ -408,13 +441,47 @@ framed function shares the TU (`c2_il::IlBundle::functions`, with the other
 TU-level gates, so the census and the emitter cannot disagree), because a stride
 error of one is six wrong bytes in an obj that still links.
 
-**The gate's over-refusal, sized rather than left as a rumour.** It keys on "is
-this a comparison or floating-point leaf", not on the relation, so the two
-comparison forms that *do* consume 1 (`a==b`, `a<0`) are refused with the ones
-that consume 3. On the generated sweep that is **6 of the 21 framed-plus-refuser
-cases** — the other 15 need the gate. Relaxing it means measuring the stride per
-relation and per operand type, which is a table this rung did not need; the cost
-is a refusal, never a wrong byte.
+> ### 3.6a The comparison stride, measured over the whole grid (2026-07-30)
+>
+> The paragraph that used to sit here sized the gate's over-refusal as "6 of the
+> 21 framed-plus-refuser cases" and left the rule unmeasured. Both halves needed
+> correcting, in opposite directions.
+>
+> **The rule.** 60 rows — every relation × `{0, ±5, i16::MAX, i16::MIN, 40000}` ×
+> `{signed, unsigned}` — each compiled as
+> `int g(int); <leaf> ; int F(int a){ return g(a) + 1; }`, with `F`'s first `$M`
+> value differenced against the seed at `.gl+7` **plus 9**. Measuring against a
+> *known* seed is the whole point: §3.4's cautionary tale is a stride and a seed
+> absorbing each other's error, and a table of totals cannot separate them.
+>
+> | | slots |
+> |---|---|
+> | `==`, `!=` — every literal, both signednesses | **1** |
+> | any relation on an **unsigned** operand | **1** |
+> | signed `<` or `>=` against literal **0** | **1** |
+> | signed `<`, `<=`, `>`, `>=` otherwise (incl. `>` and `<=` against 0) | **3** |
+>
+> The 1-block is exactly the set whose spine is a sign-bit extraction or a bare
+> carry idiom; the 3-block is the general relational spine. The rule is
+> `c2_il::CompareLeaf::label_slots`, asked through the three-valued
+> `IlFunction::label_slots` so an unmeasured class refuses rather than defaulting
+> to 1.
+>
+> **The old sizing was high.** Of the sweep's seven `FRAMED_REFUSERS`, two
+> (`x < y`, `x == y`, formal-vs-formal) do not decode as a comparison leaf at all
+> — they are `expr-cmp-*` gaps and the whole TU is refused by the class gate
+> either way — so relaxing the label gate for them buys nothing. Only `x < 0`
+> was this gate's doing: **3 of 21, not 6.** And the true relaxation is much
+> larger than either number, because the grid is bigger than the sweep's sample
+> of it: 39 newly admitted probe TUs are byte-exact against real c2, 24
+> neighbours still refuse, 0 mismatch. Fixtures `wfr_cmp_stride.cpp` (positive,
+> 13/13 in class) and `wfr_cmp_stride_neg.cpp` (negative, must refuse).
+>
+> The generalizable bit: **an over-refusal quoted from the instrument that
+> happens to be lying around is sized against that instrument's coverage, not
+> against the construct.** The sweep had one member of a 4-cell rule and the
+> figure derived from it was wrong in both directions at once — high as a count
+> of what the gate cost on the sweep, low as a count of what relaxing it wins.
 
 Still not determined, and therefore still refused rather than guessed:
 
@@ -454,6 +521,12 @@ Still not determined, and therefore still refused rather than guessed:
    shifts its `$M` numbers by 60 relative to packed. The counters are the
    only place `/Gy` and function *count* interact numerically, and nothing
    in the obj names the mechanism.
-4. `/O1` vs `/Ox` never moved a single byte of any table in this document
+4. **`.rdata` is Selection 2 only for constant pools.** Under `/EHsc` a
+   function with a try block or a destructor gets a *second* kind of `.rdata`
+   COMDAT — the `__ehfuncinfo$`/`__tryblocktable$`/`__unwindtable$` block — and
+   it is **Selection 5, Number = its function's `.text`**, like `.pdata`
+   (`docs/EH_RECORDS.md` §3). Any rule of the form "`.rdata` ⇒ Sel 2" is a rule
+   about the FP pool, not about the section name.
+5. `/O1` vs `/Ox` never moved a single byte of any table in this document
    once `/Gy` was held fixed — every difference here keys on `/Gy` alone,
    consistent with `OPT_MODE.md` §3.3's two-axes reading.

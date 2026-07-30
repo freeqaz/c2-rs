@@ -208,12 +208,13 @@ bracketed:
 That hexdump is what converts a bucket into a decoded production; every
 grammar correction below came out of one.
 
-> **Current numerator, 2026-07-30: 464,584 / 2,462,571 (18.87 %)**, with a
+> **Current numerator, 2026-07-30: 473,611 / 2,462,571 (19.23 %)**, with a
 > **measured census/gate disagreement of 0** — see `ROADMAP.md` §6c (the repair
-> that took it *down* by 9,230), §6d (W22, +15,924) and §6f (W23 + W24, the store
-> leaf and the one-byte-unsigned value class, +45,956 between them), plus the
-> sizing box in §6 below. Everything in the rest of this section is historical;
-> quote the number above.
+> that took it *down* by 9,230), §6d (W22, +15,924), §6f (D14, the `.gl` record
+> form the symbol index could not see, +9,027) and §6i (W25 + W26, the store leaf
+> and the one-byte-unsigned value class, +45,956 between them), plus the sizing
+> box in §6 below. Everything in the rest of this section is historical; quote the
+> number above.
 
 **79,719 / 2,462,571 functions in class (3.24%)** (cebfb88, 37.3 s at
 `--jobs 16`); **re-measured at HEAD `2724ca5` on 2026-07-30: 109,501 (4.45%)**,
@@ -1048,13 +1049,23 @@ cargo test --workspace --release
 cargo run --release -p c2-harness --bin c2rs -- diff
 cargo run --release -p c2-harness --bin c2rs -- perf
 
-# 2. The real-workload gap scan (the census + scan gates; ~36 s at -j16).
-#    Prints the TU buckets, the FUNCTION CENSUS numerator, and the top-20
-#    blocking-feature histogram.
+# 2. The real-workload gap scan (the census + scan gates). Prints the TU
+#    buckets, the FUNCTION CENSUS numerator, and the top-20 blocking-feature
+#    histogram — and, since 2026-07-30, a PROVENANCE header (both trees' git
+#    HEADs, the resolved toolchain paths, the wibo version) before any of it.
+#    Captures are cached content-addressed, so this is ~47 s cold and ~1 s warm.
 cargo run --release -p c2-harness --bin c2rs -- gap \
   --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt \
   --cwd ../dc3-decomp --jsonl work/dc3-workload/scan-$(date +%Y%m%d).jsonl \
   --replay-every 25 --jobs 16
+
+# 2a. …and the cache is never trusted without a sampling check. This re-captures
+#     every 50th cache hit through the real toolchain and byte-compares it;
+#     a disagreement is named per entry and exits non-zero. Run it whenever a
+#     scan is about to be quoted, and use --no-cache to bypass entirely.
+cargo run --release -p c2-harness --bin c2rs -- gap \
+  --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt \
+  --cwd ../dc3-decomp --jobs 16 --validate-cache 50
 
 # 2b. Single-TU census while developing a widening step: run it before and
 #     after and watch named functions move from a blocking feature to a shape.
@@ -1184,6 +1195,30 @@ The rules that keep the numbers honest:
        rule (every formal must be an FP operand of the body). "A locator nobody
        consults is not shared" now has two instances, four years of code apart in
        spirit and two functions apart in fact.
+    8. **The eighth is the fourth instance's shape in the framed call's argument.**
+       `framed_call_text` emitted one byte-constant 0x24-byte body; the parser
+       required the call's argument to be *a* formal and then **dropped the
+       formals list**, so the emitter assumed the formal already in r3. c2 emits
+       `or r3,rN,rN` first whenever it is not, and the `.pdata` `FuncLen`, both
+       `$M` label values and the REL24 site all followed it wrong.
+       **37 of 47 probes around the accepted class mismatched** — every argument
+       at a non-zero formal position, every member function (`this` takes r3, so
+       a one-parameter member's argument is in r4), and every free function with
+       a leading `float`, `double`, `long long`, pointer or 8-byte aggregate
+       parameter, each of which takes one GPR slot on this ABI. Past the eighth
+       formal it is not a register move at all but `lwz r3,180(r1)`, which the
+       old emitter also answered with nothing.
+       It hid for a reason that is now boringly familiar and was *visible for
+       free*: every framed fixture and **all 363 generated framed cases** are
+       `int F(int a) { return g(a) + 1; }` — one parameter, necessarily in r3 —
+       so the argument's index and its register were the same number everywhere
+       the class had ever been graded. Four mode lanes, a 4,706-case sweep, an
+       878-TU scan and a green `cargo test` were all green over it. Found by
+       compiling the neighbours of a shape the rung was about to rewrite, which
+       is the same method that found #6 and #7. The tell available *before*
+       compiling anything: **`framed_call_text` took no parameter that could
+       distinguish two formals**, so it could not have been emitting a
+       formal-dependent word, and the class it served plainly had formals.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one
@@ -1317,6 +1352,29 @@ The rules that keep the numbers honest:
   made are ones the invariant confirmed. The census moved 211,012 → 228,298
   (+17,286, 0 functions lost, 0 TUs changing class) with mismatch 0 — but the
   mismatch-0 is *not* the evidence, and this bullet exists to keep that distinction.
+  **A second binding was made on this rule and it is the worked example of it**
+  (D14, `ROADMAP.md` §6e). `gl_symbol_index` anchored a `.gl` record on "the name
+  is the run right after a NUL", and 9,028 generated destructors had a callee whose
+  record uses a **second separator byte, `26`**, which that anchor cannot see. The
+  fix decides which symbol a token names, so it was graded on four things the
+  oracle could not have supplied, and the order they are listed in is the order of
+  their strength. **(a) Framing identity**: two adjacent records of the same class
+  differ in exactly one byte — `80 75 14 00 00 00 00 04 84 30 **00** ??YString@@…`
+  against `80 85 14 00 00 00 00 04 c2 30 **26** ??_GString@@…` — so the token field
+  is at the same offset in both, and a different field would have to occupy the
+  same position in the same layout. **(b) A population whose answer the SOURCE
+  fixes**: a generated empty destructor delegates to a sub-object's destructor, so
+  all 35,946 in-class ones must resolve to a destructor mangling, and all 35,946
+  do, with 0 exceptions — a misread field would name arbitrary symbols. **(c)
+  Injectivity, three-valued**: a token two records disagree about is dropped rather
+  than bound to the first. **(d) A counterfactual**: the identical binary with `26`
+  removed gains 0, so the whole +9,028 is that byte and not the rest of the
+  rewrite. What is NOT closed is stated too — no fixture grades a `26`-form binding
+  through an obj, because eleven probes failed to reproduce the form in a
+  controlled TU. The general form worth keeping: **when the oracle cannot grade a
+  correspondence, look for a population whose answer the SOURCE LANGUAGE fixes**
+  (here: what a generated destructor is allowed to call), because that is evidence
+  the container and the compiler both have to agree with.
   One more thing fell out of grading the correspondence instead of the output: the
   "surplus" blocks were never surplus. `.sy` has exactly one block per `.ex`
   **function tail** in all 856 files that parse; it is
@@ -1346,6 +1404,48 @@ The rules that keep the numbers honest:
   **absolute** paths for measurement artifacts, and print a scan's row count and
   denominator before differencing it against another, because two scans agreeing on
   `fn_total` proves only that the corpus is the same, never that the binary was.
+  **The denominator guard is now proven insufficient, not merely weak** (2026-07-30):
+  the corpus moved mid-session and `fn_total` matched anyway, because a workload tree
+  can change in ways that add and remove no IL body at all. A count is not an
+  identity. Every scan now prints and records the **workload tree's git HEAD plus a
+  dirty flag, the c2-rs HEAD, the resolved toolchain paths and the wibo version**
+  (`c2_harness::provenance`, JSONL record 0, tagged `"record":"provenance"`), and
+  every field degrades to `unknown` rather than failing when git is absent. Quote a
+  number with its provenance line or do not quote it.
+- **Name the loader, or it will name your results for you.** A stale sibling wibo
+  (`1.0.1-7` against the known-good `1.0.1-23`) turns the gap scan's replay column
+  from `36 checked / 0 diverged` into `36/30` — a **fake correctness alarm on the
+  oracle seam** — while the census, the mismatch count and every blocking-feature row
+  stay byte-identical. Nothing in the report named the binary, so the only visible
+  change was the one number that looked like a real regression. `gap` and `selftest`
+  now print the resolved wibo path and its `--version`, and warn loudly (never
+  fatally — env-driven toolchains are by design) when it parses older than
+  `c2_reference::WIBO_KNOWN_GOOD`. The version compare is numeric per component
+  precisely because the failing pair sorts the wrong way as text (`"7" > "23"`).
+- **A cache is an instrument that answers without doing the work, so the only
+  interesting property is whether a wrong one is detectable.** `c2rs gap` now caches
+  reference captures content-addressed — source **bytes**, the exact flag string, the
+  compile cwd, the `cl.exe`/`c1xx.dll`/`c2.dll` bytes, the wibo version, and the
+  workload tree's git identity (HEAD + a content digest of every tracked
+  modification, which is what closes the *header* hazard a `.cpp` hash cannot see);
+  never mtimes. Two properties are worth copying to the next cache in this repo:
+  **(1) a collision degrades to a miss, not to a wrong answer** — the entry stores
+  its full key material verbatim and a hit is served only when those bytes compare
+  equal, so the 128-bit hash's odds are a curiosity rather than a load-bearing claim;
+  **(2) it is never trusted without a bypass-and-compare** — `--validate-cache N`
+  re-captures every Nth hit through the real toolchain and byte-compares, naming the
+  field and offset that differed, and `--no-cache` bypasses entirely. Demonstrated:
+  one flipped byte in a cached 2.5 MB `.ex` is served silently as a clean scan
+  (exit 0, and in that instance the headline census did not move either), and is
+  named exactly — `.ex differs at offset 1276107` — with exit 1 under the validator.
+  **What the validator found on its own control case is the better argument for
+  having one.** Two facts about "the same" capture, neither previously written down:
+  `cl.exe` names the bundle `_CL_<hex>` from a **per-invocation nonce**, and the
+  reference obj's COFF `TimeDateStamp` is **wall clock** — one cold scan's 878 objs
+  carry 58 distinct values across its 5-minute window. Both are normalized away
+  explicitly (the timestamp by the project's own criterion, and reported as its own
+  verdict rather than folded into "identical"), and both would have been invisible
+  without a check whose control group is a capture that is supposed to agree.
 - **A failed search is not evidence of absence.** Three of this project's
   wrong-bytes emits are the same mistake: code asked "did I find X?" and read
   "no" as "there is no X". `.gl` did not name a destination, so the token was
@@ -1358,6 +1458,19 @@ The rules that keep the numbers honest:
   third value — **undetermined** — that refuses. A two-valued answer silently
   converts a decode failure into wrong bytes; a three-valued one converts it into
   a `NotImplemented`.
+  **The fourth instance cost coverage rather than correctness, which is why it sat
+  for so long.** `gl_symbol_index` looked for a record's name immediately after a
+  NUL; 12,505 of the 33,059 `?`-mangled names in eight real TUs have a `26` there
+  instead, so "no name found" was read as "no such symbol" and 9,028 generated
+  destructors refused (D14, `ROADMAP.md` §6e). Two things generalize. A search whose
+  failure is *fail-closed* still needs the same scrutiny as one whose failure is
+  wrong bytes — it just presents as a stubborn census bucket rather than an alarm,
+  and this project's own ranked worklist had been carrying it as "the largest named
+  item that needs no new instruction lowering" for a rung. And an anchor should be
+  chosen so that the thing it looks for is a **field of the record**, not a byte
+  value the record happens to contain: the separator is a field with two measured
+  values, and pinning it to one of them is the same class of mistake as pinning a
+  token's width to two bytes.
 - **One fact, one locator.** The `46` formals marker was located correctly in
   `parse_formals` (anchored to end on `LO`, after the line-70 bug) and
   incorrectly in `parse_this_token` (first matching byte) *at the same time*, for
@@ -1445,7 +1558,7 @@ The rules that keep the numbers honest:
   completeness, not by row size — and when the row has no `-whole` bit, spend the
   scan to get one before scheduling against it.**
 
-  > **CORRECTED 2026-07-30 by W23 (`docs/IL_STORE_LEAF.md`), and the correction
+  > **CORRECTED 2026-07-30 by W25 (`docs/IL_STORE_LEAF.md`), and the correction
   > is a limit on the instrument, not on the ranking rule.** That 685 is right
   > about what it measured and wrong as a statement about the row: the
   > counterfactual admitted the **token** `27` inside `parse_expr` and asked
@@ -1673,6 +1786,18 @@ The rules that keep the numbers honest:
   low byte falls under 0x80. A wrong decode that is *linear* in the right one is
   the worst kind, because a constant offset looks exactly like a calibration
   constant. Ask what property the sample shares before believing a constant.
+- **A constant that no input can move is not validated by any number of green
+  runs — and the signature is in the function's SIGNATURE.** `framed_call_text`
+  took `(add_k, base_off)`. Neither argument can distinguish two formals, so the
+  function was structurally incapable of emitting a formal-dependent word, and
+  the class it served (`return g(<formal>) + k`) obviously has formals. That is a
+  cheaper tell than any capture: **before trusting a lowering, check that its
+  inputs span the things its output is allowed to depend on.** The same reading
+  applies to the frame size it hardcoded — `96` could not vary with anything,
+  and the frame is `align16(80 + locals + 8 + 8×saved)`. Both were found in the
+  same hour by asking that one question of one signature, after the differential,
+  four mode lanes, a 4,706-case sweep and an 878-TU scan had been green over
+  them for as long as the function existed.
 - **A constant is only as validated as the inputs it was evaluated at.**
   `framed_call_text` wrote the `bl` word `4BFFFFF5` literally. That is correct —
   MSVC's `disp = −(own .text offset)` — for a framed function at `.text` 0, and

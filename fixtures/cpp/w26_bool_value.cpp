@@ -21,7 +21,7 @@
 // spelled with the same `2C … 00` that is free between the two width-4 classes
 // (`w20_convert.cpp`). So `ValueClass::Int1u` is its own class rather than a
 // spelling of `Int4`, the `41` result annotation is required to **restate** it,
-// and every conversion out of it lives in `w24_bool_value_neg.cpp`. That is the
+// and every conversion out of it lives in `w26_bool_value_neg.cpp`. That is the
 // whole boundary; the positives below are the part that costs nothing.
 //
 // ## What each function discriminates
@@ -40,7 +40,7 @@
 //
 // `x_get` / `x_set` / `x_int` are the accepted NEIGHBOURS, present so this file
 //   fails if the new class ever leaks into one of them: a `bool` **member** read
-//   is the T3 narrow getter (`lbz`), a `bool` member written is the W23 store
+//   is the T3 narrow getter (`lbz`), a `bool` member written is the W25 store
 //   leaf (`stb`), and an `int` literal beside them must keep emitting exactly
 //   what it always did.
 

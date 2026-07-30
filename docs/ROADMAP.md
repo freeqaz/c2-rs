@@ -1543,6 +1543,10 @@ recorded value, so a gate landing in codegen instead of the parser fails a test.
    governing precedent: the oracle cannot grade a correspondence, so it must be
    graded on the binding's own invariants, not on a green differential. This is
    the largest single named item on the board that needs no new instruction.
+   > **TAKEN — §6e (D14).** The prior was right and the mechanism was one byte:
+   > `.gl` has a **second record separator**, `26`, that the NUL-anchored name
+   > scan could not see. **+9,027** (the 9,028, less one function the new
+   > fail-closed ambiguity rule costs), 1:1 into the three `empty-dtor-*` shapes.
 2. **`opt-mode-00200001` — 202 functions in 2 TUs** (`HamRibbon.cpp`,
    `Ribbon.cpp`; 136 `calls-0` + 66 with the ctor/dtor bit). `00200001` is
    `/O1`'s `00200005` without bit `0x4`, and `docs/OPT_MODE.md` explicitly leaves
@@ -1688,21 +1692,29 @@ Everything below is *codegen*, not obj format. The unwind side is done for any
 frame the codegen can describe, because `Frame { prolog_len, func_len }` is all
 the record needs and both are byte offsets the emitter already computes.
 
-1. **The frame itself is one hardcoded shape.** `framed_call_text` emits a
-   constant 0x24-byte body with a 96-byte frame. #35 needs a frame-size model
-   (measured: 96 B for one by-value temporary, 112 B for two), callee-saved GPR
-   allocation descending from r31, the `__savegprlr_N`/`__restgprlr_N` helper
-   calls above roughly five saved registers, FPR saves, and `_RtlCheckStack12`
-   for frames past a page. Sizeable, and entirely unstarted.
+1. ~~**The frame itself is one hardcoded shape.**~~ **CLOSED 2026-07-30 — see
+   §6f.** The model is measured and implemented
+   (`c2_core::codegen::FrameLayout`); the three helper shapes are refused by
+   name with their thresholds pinned by paired captures. Two of this item's own
+   premises were wrong: "96 B for one by-value temporary, 112 for two" is really
+   the *callee-saved register count*, and `_RtlCheckStack12` does not arrive
+   "past a page" — inline `ld` probes cover the first four and the call starts
+   at five.
 2. **More than one call per body.** The accepted shape is one `bl` with the
    result consumed by one `addi`. Every large blocking row is 96–100 % framed
    *and* multi-call, so #35's customers all need call sequencing, argument
    registers r3–r10 with stack spill, and a live-range model across calls.
-3. **The label stride of every class #35 will admit.** The counter model is
-   measured for the classes the port emits and is *wrong* for two it decodes
-   (comparison leaves 3, FP leaves 2). Any class #35 adds needs its stride
-   measured before a framed function may share a TU with it — one compile each,
-   `<class> ; int F(int a){return g(a)+1;}`, differenced against `.gl+7+9`.
+3. **The label stride of every class #35 will admit.** Partly closed (§6g): the
+   comparison leaf's stride is now measured per relation over the whole 60-point
+   grid and the gate asks one three-valued predicate
+   (`IlFunction::label_slots`), so an unmeasured class refuses rather than
+   defaulting. What remains: the FP leaf (2, or 4/6 with pooled constants) and
+   — the live risk for step 2 — a framed function using the `__savegprlr_N`
+   pair, whose `/Gy` stride is **7, not 5**, with the two extra slots allocated
+   *before* its own `$M` pair (`CODEGEN_FRAMED_CALLS.md` §4.4). The helper
+   codegen and that correction must land together. Any new class needs one
+   compile, `<class> ; int F(int a){return g(a)+1;}`, differenced against
+   `.gl+7+9`.
 4. **EH is out of class and visibly so.** Bit 31 of the unwind word, and a
    function with a `try`/`catch` produces **several** records (the catch funclet
    first, with a non-zero `BeginAddress` addend). The workload compiles
@@ -1712,7 +1724,372 @@ the record needs and both are byte offsets the emitter already computes.
    combination is refused rather than guessed.
 6. Unchanged and unrelated to unwind: the whole-TU all-or-nothing gate, and the
    fact that the port has no model of *which* bodies c2 emits (§6a).
-## 6f. W23 — the store leaf (2026-07-30)
+
+## 6f. D14 — the `.gl` record form the symbol index could not see (2026-07-30)
+
+Roadmap item from §6c's ranked handoff, #1: `callee-unresolved-dtor-delegation:eof`,
+**9,028 functions in 826 TUs**, all `calls-1`, all grammar-complete. A generated
+empty destructor whose delegation callee has no `.gl` symbol, so `shape_to_function`
+refuses. The prior was that this is a decode/binding gap rather than an out-of-class
+construct, because all 826 of those TUs *also* hold resolved delegations.
+
+### What the tokens actually denote, and how that was established
+
+They denote exactly what a resolving one denotes — a `.gl` symbol record — in a
+**second record form the index could not reach**. A record is
+
+```text
+80 <LE32 type id>  <2 bytes>  <kind>  <operand token>  <SEP>  <name> 00  <TYPE> …
+```
+
+and `SEP` takes two values. Transcribed from `src/system/jpeg/Jpeg.cpp`, two
+adjacent records of the same class, same `04` kind byte, byte-identical framing on
+both sides:
+
+```text
+80 75 14 00 00  00 00  04  84 30  00  ??YString@@QAAAAV0@PBD@Z  00 86 03 04 04 …
+80 85 14 00 00  00 00  04  c2 30  26  ??_GString@@UAAPAXI@Z     00 86 03 04 04 …
+                           \_tok/ \sep/
+```
+
+That identity is the argument, and it is a **container** argument rather than an
+oracle one: the token field's position is fixed by the framing, so if the two bytes
+are the operand token in the `00` form — which 2,323 of 2,323 resolving call sites
+already say — they are the operand token in the `26` form too. `gl_symbol_index`
+anchored on "a name is the run right after a NUL", which cannot see past a
+separator that is not NUL; anchoring on the separator is what recovers them.
+
+Measured over eight real TUs: the byte before a `?`-mangled name takes exactly
+**two** values, `00` (20,336) and `26` (12,505), and nothing else. What `26`
+*means* is deliberately not named — every witness carrying it is a
+compiler-generated or header-inline symbol (`??_G`, `??_E`, `??_7`, `??_R*`,
+`_CT`/`_TI`, and `??1logic_error@stlpmtx_std@@UAA@XZ`) while an out-of-line
+`??1String@@UAA@XZ` carries `00`, but that is a correlation over one corpus and
+`GAPS.md` §6's rule against guessed names applies. Nothing branches on the value.
+
+### The wrong-but-green failure mode, stated and then closed
+
+**A green differential cannot grade a correspondence** (`GAPS.md` §6, the `.sy`
+bullet). For this binding to be wrong-but-green, the two bytes before the `26`
+separator would have to be something other than the operand token — a type id, a
+vftable slot, a neighbouring symbol's token — while still producing names that
+happen to be right wherever an obj was compared. Four measurements close it, none
+of which is an obj compare:
+
+1. **Framing identity.** The field is at the same offset in both forms, in records
+   whose every other byte agrees. A different field would have to occupy the same
+   position in the same record layout.
+2. **The shape's own semantics, over the whole workload.** A generated empty
+   destructor delegates to a sub-object's destructor, so its callee is a destructor
+   by construction of the *source*. All **35,946** in-class generated destructors on
+   the 878-TU workload resolve to a `??1` mangling; `??_G`, `??_E`, `??_D` and
+   "something else" are **0**. A misread field would produce arbitrary symbols.
+3. **Injectivity.** `.gl` assigns one token per symbol. Tokens two records disagree
+   about are **dropped**, not resolved to the first — the third value that refuses.
+   The workload's residual is 7, all in one record form this reader does not model
+   (`$…$initializer$` local statics), and their measured cost is **0 functions**.
+4. **The counterfactual.** Running the identical binary with `26` removed from the
+   separator set and everything else in place gains **0** functions. So the whole
+   +9,028 is this record form and nothing else in the rewrite.
+
+What is **not** closed, and is stated rather than implied: no fixture grades a
+`26`-form binding through the emitter, because the form could not be reproduced in
+a controlled TU (eleven probes over virtual, inline, template, `throw()` and
+EH-referenced destructors all produced `00`). The obj-level evidence for this rung
+covers the *rewrite* — every other rule changed here — and the `26` form rests on
+the four measurements above.
+
+### The rewrite the recovery needed, and what it cost
+
+Anchoring on the separator is not enough on its own, because a record's token bytes
+are frequently printable and run together with its name: `c2 30 26 ??_GString@@…`
+reads as one graphic run, `0&??_GString@@…`. Four rules, each measured:
+
+| rule | why | measured |
+|---|---|---|
+| the name is the **rightmost** separator-preceded start of its run | leftmost glues the record's own token bytes onto the name — which the old scan was doing whenever a kind byte was `00` (`b[&??_R0?AVFixedString@@@8`, 5 live entries in `Memory_Xbox.cpp` alone) | — |
+| the record **kind** must be one of `00 04 0E 10` | `.gl`'s type table puts a type id where the token is | exactly this set over 32,898 `?`-mangled records |
+| the name is spelled in `[A-Za-z0-9_$?@]` | separates a symbol from a path or a template-id | — |
+| a whole mangled name **outranks** a bare one on the same token; equal rank disagreeing → dropped | the type table's residue is bare, and a bare run is never a callee | 44 collisions → 0 |
+
+Cost of the rewrite, measured over eight real TUs (24,281 index entries before,
+34,208 after): **zero** `?`-mangled bindings change name, **zero** are lost except
+one that was itself a junk read, and **zero** conflicts involve a mangled name. On
+the workload it costs exactly **one** function (`callee-unresolved-tail-call:eof`
+0 → 1) and gains none — that is what the counterfactual scan measures.
+
+### The estimate
+
+Recorded before building: **+9,028, biased low**, cause named — tokens whose record
+carries a separator or kind outside the measured sets, plus the newly-dropped
+ambiguous tokens. Realized: **+9,027**. The single missing function is exactly the
+named cause, and is at the instrument's one-function noise floor.
+
+### Census
+
+**418,628 → 427,655 (17.00 % → 17.37 %)**, mismatch 0, no TU changing class,
+census/gate disagreement still **0**, 569 keys → 569.
+
+The accounting is exact and 1:1: `callee-unresolved-dtor-delegation:eof` **9,028 →
+0**, landing in `empty-dtor-delegation` (+7,196), `empty-dtor-member` (+1,694) and
+`empty-dtor-member-adjusted` (+138) — 9,028 — against `callee-unresolved-tail-call:eof`
++1 and `multiarg-tail-call` −1. **No other key moved at all.** All of it is
+`calls-1`, as §18's frame axis requires for this shape.
+
+### Gate evidence
+
+| lane | result |
+|---|---|
+| `cargo test --workspace --release` | 372 passed, 0 failed |
+| `c2rs bench` | **127 pass, 0 fail, 0 error** |
+| `scripts/mode_lane.sh /Ox` | 53 match, **0 mismatch**, 0 codegen-gap |
+| `/O1`, `/O2`, `/Ox /Gy` | 50 match, **0 mismatch**, 3 codegen-gap each |
+| `scripts/expr_sweep.sh` | checked=**4367**, mismatches=**0** |
+| 878-TU scan | match 6, **mismatch 0**, 427,655/2,462,571, 569 keys, census/gate disagreement **0**, `.gl` binding violations **0** |
+| `census fixtures/cpp/w23_gl_callee_bind.cpp` | **5/5 in class**, `Port=Match` |
+| `census fixtures/cpp/w23_gl_callee_bind_neg.cpp` | 3/3 in class, `Port=NotImplemented` (two TU-level gates) |
+
+Two invariants now print on **every** `gap` and `census` run, next to the numerator,
+for the same reason the census/gate disagreement does: the count of tokens `.gl`
+claims twice, and the mangling class every generated destructor's callee resolves
+to. A binding cannot be graded by the oracle, so the grader has to be permanent.
+
+### Found and not taken, ranked, with the frame axis applied
+
+1. **`expr-intrinsic-this-adjust` — 141,800 functions, of which 83,891 are
+   `calls-2plus`** and therefore need a frame. The takeable half is the ~57,909
+   `calls-0`/`calls-1` remainder, and it has no `-whole` bit, so `GAPS.md` §6's rule
+   applies: spend one counterfactual scan before scheduling against it.
+2. **The census's per-function `name` is bound POSITIONALLY** — `census_functions`
+   zips `mangled_names` onto segments when the counts happen to be equal, and
+   `mangled_names` drops every `??`-prefixed name, so on
+   `fixtures/cpp/w23_gl_callee_bind.cpp` the destructors are reported under the
+   *tail calls'* names. Diagnostic-only today, but the **varargs gate reads the same
+   positional name**, so a TU where the wrong name ends `ZZ` would refuse a
+   non-variadic function or admit a variadic one. `gl_defined_names` is the correct
+   locator and is already in the crate — this is roadmap #14's exact shape, one seam
+   over.
+3. **TU-level gates are outside the census/gate cross-check.** A function-template
+   callee makes c2 splice `/alternatename:…` into `.drectve`, so
+   `drectve_is_boilerplate` refuses the TU while the census reads 1/1 in class
+   (`w23_gl_callee_bind_neg.cpp` holds it). §6c's cross-check runs per function and
+   cannot see it; the numerator's error term is therefore still an upper bound by
+   the TU-level gates, unmeasured.
+4. **The `$…$initializer$` record form**, 7 ambiguous tokens on the workload, cost
+   0 functions. Its name starts with `$`, which no name test here admits, so the
+   scan reads the token bytes as the name's head. One capture of a local static with
+   a dynamic initializer would settle whether `$` is a third separator or a name
+   character — the two readings are one byte apart.
+## 6g. The frame model (#35 step 1), 2026-07-30
+
+**Byte evidence: `docs/CODEGEN_PPC_MVP.md` §"The frame model".** Established from
+44 reference objs, and then reconciled against `docs/CODEGEN_FRAMED_CALLS.md`,
+which was produced independently and in parallel from 480 designed compiles per
+mode. **The two derivations agree** — neither knew the other's probes, which is
+the strongest evidence either could have. Headline results, ordered by how much
+they should change what the next person does:
+
+1. **A live wrong-bytes emit, found before the model was written.**
+   `framed_call_text` emitted one byte-constant 0x24-byte body; the parser
+   required the call's argument to be *a* formal and then dropped the formals
+   list, so the emitter assumed it was the formal already in r3. c2 emits
+   `or r3,rN,rN` first whenever it is not, and the `.pdata` `FuncLen`, both `$M`
+   label values and the REL24 site all followed it wrong. **37 of 47 probes
+   around the accepted class mismatched** — every argument at a non-zero formal
+   position, every member function (`this` takes r3), and every free function
+   with a leading `float`/`double`/`long long`/pointer/8-byte aggregate
+   parameter. Four mode lanes, a 4,706-case sweep, an 878-TU scan and a green
+   test suite were all green over it, because every framed fixture and all 363
+   generated framed cases have exactly one parameter. `GAPS.md` §6 instance 8.
+   The *other* capture agent's 87 probe TUs found no mis-emit; this one was
+   inside the accepted class, which only a probe of the class's own neighbours
+   reaches.
+2. **The frame size is a function, and its shipped constants were its all-zero
+   case.** `align16(80 + locals + 8 + 8·nSaved)` for `nOutSlots ≤ 8`, exact on
+   all 44 witnesses; the general form with the `nOutSlots` term is
+   `CODEGEN_FRAMED_CALLS.md` §1.2 and `FrameLayout` implements it, carrying four
+   rows of that sweep as cross-check assertions. This item's own premise — "96 B
+   for one by-value temporary, 112 for two" — was the **saved-register count**
+   misread as a temporary count.
+3. **`_RtlCheckStack12` is not "past a page".** A frame under `0x5000` is probed
+   inline with `ld r12,-4096k(r1)`, one per page boundary *crossed*
+   (`floor((F−1)/4096)`, so `F = 4096` probes nothing); the call arrives at five
+   pages, `li r12,−F` / `bl _RtlCheckStack12` / `stwux r1,r1,r12`. Boundary
+   pinned by the pair `F = 20464` (inline) / `F = 20480` (call). This axis is not
+   in the other document — its `localsBytes` tops out at 132 and this one's at
+   200,000.
+4. **The two save-helper thresholds are different numbers**: `__savegprlr_N` at
+   3 saved GPRs, `__savefpr_N` at 4 saved FPRs, each pinned by the pair either
+   side of it. Independently confirmed by §2.3/§2.4 of the other document. The
+   GPR helper also carries the LR and the epilogue *tail-branches* into
+   `__restgprlr_N` with no `blr` at all; the FPR helper does not, and its restore
+   is an ordinary `bl`. The **mixed inline** case is this rung's alone: with GPRs
+   and FPRs both saved inline, the prologue stores GPRs then FPRs while the
+   epilogue restores in ascending slot address — so the two lists are **not**
+   mirror images.
+5. **The label-stride gate keyed on the wrong thing.** The comparison leaf's
+   stride is 1 or 3 *by relation*, measured over the whole 60-point grid
+   (relation × literal × signedness) against a seed read out of `.gl`
+   (`OBJ_GY_SHAPES.md` §3.6a). The old sizing of the over-refusal — "6 of 21
+   sweep cases" — was wrong in **both** directions: only 3 of 21 were this gate's
+   doing (two of the named refusers do not decode as comparison leaves at all and
+   are refused by the class gate either way), and the correct relaxation admits
+   far more than the sweep samples — 39 newly admitted probe TUs byte-exact, 24
+   neighbours still refusing, 0 mismatch. The gate now asks one three-valued
+   predicate (`IlFunction::label_slots`) so an unmeasured class refuses rather
+   than defaulting to 1.
+6. **A census/gate disagreement in the under-claiming direction, introduced by
+   this rung and closed inside it.** Reusing `select_text` for the argument setup
+   inherited its `params.len() > 8` refusal, so
+   `int f(int a,…,int i){ return g(a) + 1; }` censused 1/1 in class while the port
+   returned `NotImplemented`. Nothing tests that direction. Found by probing for
+   it; closed by moving the gate into the parser
+   (`framed-arg-over-eight-formals`) and sized at **zero functions** on the
+   workload. The genuinely-needed half of it is real: past the eighth formal the
+   argument setup is `lwz r3,180(r1)`, which the old emitter answered with no
+   instruction at all.
+
+**Scope kept narrow on purpose.** `FrameLayout` builds only layouts needing no
+external helper and no stack check; the three helper shapes refuse by name,
+because each puts a second REL24 site in the prologue that `coff::Function` does
+not model, and past 17 saved registers the sizing rule itself stops being exact.
+Which live value gets which callee-saved register is **not** modeled — with two
+the assignment is monotone in source order, with three or more it is not — and
+that is step 2's problem, which both documents independently call the expensive
+half.
+
+**Census: 0.** This rung's isolated effect, measured pre-merge against its own
+baseline binary on the same corpus HEAD (`dc3-decomp` `05ca6d09`):
+**418,628 → 418,628**, 878 rows and `fn_total` 2,462,571 both times, **0 TUs
+changing class, 0 blocker keys moving**. Post-merge the numerator is master's
+**427,655 / 2,462,571 = 17.37 %**, unchanged by this branch. Predicted 0 before
+the code was written — the shape the widening admits (`call-postop-0xB9`) has
+**zero** occurrences on the workload — and it was 0. This rung is correctness,
+not coverage.
+
+**Gate evidence** (merged tree, workload tree `dc3-decomp` at `05ca6d09`):
+`cargo test --workspace` **380 pass / 0 fail**; `c2rs bench` **138 pass / 0 fail /
+0 error**; mode lanes over 138 fixtures `/Ox` **61**, `/O1` **59**, `/O2` **59**,
+`/Ox /Gy` **59**, **0 mismatch in all four** (this branch adds 6 fixtures: 4
+matching in every lane, 2 refusing); the generated sweep **4,829 cases, 0
+mismatches**; 878-TU scan match 6, **mismatch 0**, codegen-gap 0, port-error 0,
+capture-fail 7, **census/gate disagreement 0** — checked in the under-claiming
+direction too, which is where this rung's own defect was.
+
+### The handoff for #35 step 2, ranked and sized
+
+`CODEGEN_FRAMED_CALLS.md` §7 has the rung order and this rung endorses it. What
+this rung changes about it:
+
+1. **Class A, many calls, no saved registers** — unchanged as the first rung, and
+   now cheaper: `FrameLayout::default()` already *is* the Class A frame, the
+   prologue/epilogue are derived rather than spelled, and `.pdata`/`$M` follow
+   the emitted length. What it still needs is a second REL24 site per function
+   in `coff::Function` (today one `Option<Call>`) and §4.1's symbol order.
+2. **Argument marshalling** — unchanged; and note that the *one-argument* case is
+   now done, including the register move this rung was missing, so the
+   generalization has a correct base case to extend.
+3. **`nOutSlots > 8` and addressed locals** — `FrameLayout` already computes
+   both; the missing half is deciding `out_slots` and `locals` from the IL, which
+   is a parser question, not a codegen one. **Add the stack-probe rules to
+   whatever gate that lands behind**: a frame past four pages is not a `stwu` at
+   all, and the port has no `_RtlCheckStack12` external today.
+4. **Class B (1–2 saved GPRs)** — the frame arithmetic and the exact prologue and
+   epilogue words are done and unit-pinned; the whole remaining cost is the
+   liveness answer plus the register-assignment order, which is measured for
+   `n = 2` (first live value → r30, second → r31) and **is not monotone at
+   `n ≥ 3`**.
+5. **Class C (≥3 saved GPRs)** — do not attempt without the `/Gy` stride
+   correction (7, not 5, with the extra two slots *before* the function's own
+   `$M` pair). It is latent today only because `FrameLayout` refuses these
+   frames, and it is six wrong bytes per label the moment one is admitted.
+6. **Classes D/E/F (FPRs)** last. The FPR-helper label stride is predicted +4 by
+   the same reading and is **not captured**; one TU pairing an FPR-helper
+   function with a following function settles it.
+
+## 6h. Instrument hardening (roadmap #15, #46, #47, #48 — 2026-07-30)
+
+Four instrument failures surfaced in one day, all of the same family: a
+measurement that was wrong, or expensive enough not to be re-taken, without
+anything in its own report saying so. This section records the four fixes and
+what measuring them turned up. **None of it moves the port**: the census reads
+**418,628 / 2,462,571 (17.00 %)** with **census/gate disagreement 0** and
+**mismatch 0** before and after, and every per-TU JSONL row is byte-identical
+across an uncached scan, a cold cached scan and a warm one.
+
+**Measured at** c2-rs `b36a046` + this change, workload `dc3-decomp` `05ca6d09`
+(one tracked file modified), wibo `1.0.1-23-g4a9dd6f`, XDK `16.00.11886.00`,
+`--jobs 16`.
+
+### #15 — the capture cache: 36.5 s → **0.9 s**
+
+`c2rs gap` re-ran `cl.exe` under wibo under strace for all 878 TUs on every
+invocation. Captures are pure in their inputs, so they are now cached
+content-addressed under `work/capture-cache` (gitignored; `C2RS_GAP_CACHE` or
+`--cache DIR`, `--no-cache` to bypass). Full accounting of the key, the
+collision handling and the validator: `crates/c2-harness/src/capture_cache.rs`.
+
+| run | wall | CPU | cache |
+|---|---|---|---|
+| uncached baseline (master) | 36.5 s | 446 s | — |
+| cold (fills the cache) | 46.6 s | 518 s | 0 hit / 878 miss |
+| **warm** | **0.9 s** | 6.0 s | 871 hit / 7 miss |
+| warm + `--validate-cache 50` | 2.4 s | 15.0 s | 17 re-captured, 0 poisoned |
+| warm + `--replay-every 25` | 1.5 s | 11.8 s | replay 36 checked / 0 diverged |
+
+**39× against the cold run, 30–41× against the uncached baseline.** The cold run
+costs ~28 % more than an uncached one (writing 2.2 GB of bundles), which is the
+honest price of the first scan. The 7 misses on every warm run are the 7
+`capture-fail` TUs: a failure is deliberately not cached, because a cached
+failure is indistinguishable from a real one.
+
+**Estimate vs outcome.** Predicted 1.5–3 s (12–25×) from a 20-TU sample, with a
+stated bias that bundle re-read I/O would dominate; outcome 0.9–1.2 s (39–52×).
+The bias direction was right and the magnitude was wrong by ~2× — 2.2 GB stays
+in page cache, and the census walk over 2.46 M function bodies costs ~6 s of CPU
+against the captures' ~440 s. **Capture is 98.7 % of a scan**, which is the
+number to reuse next time.
+
+### #46/#48 — provenance, and the loader
+
+Every scan and self-test now prints (and `gap` records as JSONL record 0,
+`"record":"provenance"`) the workload tree's git HEAD + dirty flag, the c2-rs
+HEAD + dirty flag, the resolved `wibo`/`cl.exe`/`c2.dll`/`c1xx.dll`/`strace`/
+`mingw` paths, and wibo's `--version` — warning loudly when it parses older than
+`WIBO_KNOWN_GOOD` (`1.0.1-23`). Everything degrades to `unknown` when git or the
+loader will not answer; nothing here can fail a run. Per-TU rows are unchanged,
+so two scans' rows stay byte-comparable. Rationale and the two failures that
+forced it: `docs/GAPS.md` §6.
+
+### #47 — the census/gate invariant, in both linkage modes
+
+`tests/census_gate.rs` asserted the invariant with `fn_level_linking=false`
+only — i.e. in the mode the fixtures capture in, and not in the mode the entire
+878-TU workload compiles in (`/O1` implies `/Gy`). Both lanes are now pinned,
+with their causes named rather than just their totals: **`/Ox` 1** (the
+`w13_fscratch.cpp` FP-scratch refusal) and **`/Gy` 9** (that one plus **8**
+pooled-FP-constant refusals — `emit_comdat_obj` does not place the `.rdata`
+COMDAT a W13b body needs). Both cost **0 functions on the workload**. A residual
+that stays at 9 while one refusal is traded for another now fails too. Moving
+the pooled-FP gate is a `c2-core` change and is **not** taken here.
+
+### What the validator found on its own control case
+
+Both facts came from the bypass-and-compare *failing where it was supposed to
+agree*, which is the argument for having a control group at all:
+
+1. **The bundle base is a per-invocation nonce.** `cl.exe` names the IL bundle
+   `_CL_<hex>` freshly each run, so two captures of one TU differ in their file
+   names and in the `-il` value of the `/Bd` argv echo — and nowhere else.
+2. **The reference obj's COFF `TimeDateStamp` is wall clock, not pinned.** One
+   cold scan's 878 objs carry **58 distinct** stamps, monotone across the scan's
+   5-minute window. 51 of 51 sampled re-captures differed in bytes 4..8 and were
+   byte-identical everywhere else. The project's criterion zeroes those four
+   bytes by definition so nothing moves, but `c2-reference`'s standing
+   "RAW-identical, wibo pins it" note is measured **back-to-back within one
+   second** and is corrected in place.
+
+## 6i. W25 + W26 — the store leaf and the one-byte-unsigned value class (2026-07-30)
 
 `void f(S* s, int v) { s->m = v; }` is one `stb`/`sth`/`stw`/`std` at a folded
 displacement, and it is the **third** consumer of the sub-object designator the
@@ -1755,20 +2132,20 @@ group: this production cannot describe a body containing a call.
 Corpus `dc3-decomp` at **`05ca6d09`**; baseline re-taken in this worktree and
 reproducing master `b36a046` to the function.
 
-| lane | baseline | W23 |
+| lane | baseline | W25 |
 |---|---|---|
 | `cargo test --workspace --release` | 370 pass | **372 pass**, 0 fail |
 | `c2rs bench` | 132 pass / 0 fail / 0 error | **132 pass / 0 fail / 0 error** |
 | `mode_lane.sh /Ox` | 56 match, **0 mismatch**, disagreement 1 | **57 match, 0 mismatch**, disagreement 1 |
 | `/O1` · `/O2` · `/Ox /Gy` | 54 match, **0 mismatch**, 2 codegen-gap, disagreement 9 | **55 match, 0 mismatch**, 2 codegen-gap, disagreement 9 |
-| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,900** after W24, mismatches **0** |
+| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,900** after W26, mismatches **0** |
 | 878-TU scan | match 6, mismatch 0, 418,628/2,462,571, 569 keys, disagreement 0 | match 6, **mismatch 0**, **442,273**/2,462,571, **569 keys**, disagreement **0** |
-| `census fixtures/cpp/w23_store_leaf.cpp` | — | **41/41 in class**, `Port=Match` |
-| `census fixtures/cpp/w23_store_leaf_neg.cpp` | — | **0/15 in class**, `Port=NotImplemented` |
+| `census fixtures/cpp/w25_store_leaf.cpp` | — | **41/41 in class**, `Port=Match` |
+| `census fixtures/cpp/w25_store_leaf_neg.cpp` | — | **0/15 in class**, `Port=NotImplemented` |
 
-### W24 — the one-byte-unsigned value class, taken in the same session
+### W26 — the one-byte-unsigned value class, taken in the same session
 
-The rung W23's own measurement ranked next, and it landed at the size the
+The rung W25's own measurement ranked next, and it landed at the size the
 counterfactual gave it. `bool` and `unsigned char` share the operand TYPE
 `82 12`, and **inside** the class a value costs no instruction at all —
 `return false;` is `li r3,0`, `return b;` is a bare `blr`, and from any other
@@ -1784,7 +2161,7 @@ counterfactual widened `eat_return_head`'s `41` gate globally and the shipped ru
 does not, so the 809 `calls-1` bodies (a `bool`-returning tail call) were expected
 to be lost; realized **+22,311**, two functions off the predicted `calls-0` half.
 
-`w24_bool_value.cpp` **15/15 in class, `Port=Match`**; `w24_bool_value_neg.cpp`
+`w26_bool_value.cpp` **15/15 in class, `Port=Match`**; `w26_bool_value_neg.cpp`
 **0/10**. Lanes `/Ox` 58, others 56, **0 mismatch**, disagreements unchanged at
 1/9/9/9. `bench` **134 pass**, workspace **373 pass**, sweep **4,900 cases, 0
 mismatches**. The two new guards (`expr-int1u-arith`, `expr-int1u-mixed`) cost
@@ -1795,7 +2172,7 @@ Full write-up, including what the refusals cost (the mask 4,947, the
 `char`/`signed char` class 1,646, the `bool` tail call 809), in
 `docs/IL_STORE_LEAF.md` §9.
 
-**One census/gate hole was found and closed on the way**, by probing W23's own
+**One census/gate hole was found and closed on the way**, by probing W25's own
 boundary rather than by a test: the parser admitted any literal as a stored value
 while `emit_load_imm` refuses a wide *negative* one, so
 `void f(S* s){ s->a = -70000; }` censused in class against a
@@ -1803,6 +2180,29 @@ while `emit_load_imm` refuses a wide *negative* one, so
 W5; the new shape reached the same literal by a second route and did not — the
 fifth instance of `GAPS.md` §6's "one fact, two locators". Fixed in the parser,
 cost 0 functions on the workload, pinned by `n_negwide` and 2 sweep cases.
+
+### Merged against master `7011b49`
+
+Both rungs were developed against `b36a046`; master advanced four times in
+flight (D14, the ground-truth docs drop, instrument hardening, the frame model).
+**Merged census 473,611 / 2,462,571 (19.23 %)** — and additivity was *measured*,
+not assumed: differencing this rung's own tree against the merged scan moves
+exactly two keys, `callee-unresolved-dtor-delegation:eof` (−9,028) and
+`callee-unresolved-tail-call:eof` (+1), which is D14's population and nothing
+else. Interaction term **0**.
+
+Merged-tree gate: workspace **398 pass**, `bench` **142 pass / 0 fail / 0 error**,
+lanes `/Ox` **63** and `/O1`·`/O2`·`/Ox /Gy` **61**, **0 mismatch** in all four,
+`census_gate.rs` passing at its recorded per-lane values (**1** packed / **9**
+`/Gy`) with its named causes unchanged, sweep **5,023 cases / 0 mismatches**,
+878-TU scan match 6 / **mismatch 0** / capture-fail 7 / disagreement **0** / 570
+keys, corpus `dc3-decomp` **`05ca6d09`** (carried in provenance record 0). Both
+positive fixtures still N/N `Port=Match`, and so do the frame rung's `wfr_*`.
+
+Two merge resolutions are recorded in `IL_STORE_LEAF.md` §10.3: a duplicate
+`encode_std` (byte-identical, two independent captures — the frame side's copy
+kept untouched, this rung's removed), and the rung tag `W23` having been taken
+twice, which is why this section is §6i and the fixtures are `w25_`/`w26_`.
 
 ## 7. Invariants (do not break)
 

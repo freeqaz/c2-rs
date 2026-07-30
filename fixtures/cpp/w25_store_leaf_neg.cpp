@@ -19,7 +19,7 @@
 //   `int` member carries `2C 86 41 74 00` and emits `548b063e ; 91630000`
 //   (`clrlwi r11,r4,24 ; stw r11,0(r3)`). Free-looking and not free. The
 //   production admits a `2C` on the value only in the two 4-byte classes, where
-//   `w23_store_leaf.cpp`'s `s_pv` grades it byte-exact.
+//   `w25_store_leaf.cpp`'s `s_pv` grades it byte-exact.
 //
 // `n_narrow` — the same in the other direction: an `int` parameter narrowed to a
 //   `char` member. Also a `2C`, also over a width that is not 4.

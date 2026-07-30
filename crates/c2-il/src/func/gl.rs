@@ -297,12 +297,88 @@ pub(crate) fn drectve_is_boilerplate(gl: &[u8]) -> bool {
 /// without letting "nearest preceding run" reach into a different record.
 const MAX_NAME_TO_OFFSET: usize = 32;
 
+/// The byte that separates a `.gl` record's operand token from the record's
+/// name. **MEASURED, and it is not always `00`.**
+///
+/// A record is
+/// `80 <LE32 type id> <2 bytes> <kind> <operand token> <SEP> <name> 00 <TYPE> …`,
+/// and the two forms differ in exactly one byte. Transcribed from
+/// `src/system/jpeg/Jpeg.cpp`'s `.gl`, two records of the *same* class, with the
+/// same `04` kind byte and byte-identical framing on both sides:
+///
+/// ```text
+/// 80 75 14 00 00  00 00  04  84 30  00  ??YString@@QAAAAV0@PBD@Z  00 86 03 04 04 …
+/// 80 85 14 00 00  00 00  04  c2 30  26  ??_GString@@UAAPAXI@Z     00 86 03 04 04 …
+///                            \_tok/ \sep/
+/// ```
+///
+/// That identity is what licenses reading the same two bytes as the operand token
+/// in both: the field's *position* is fixed by the record framing, not inferred
+/// from the value that follows it.
+///
+/// Measured over eight real translation units (33,059 `?`-mangled `.gl` names,
+/// 20,336 + 12,505 of them), the byte before the name takes exactly these two
+/// values and no others. The remaining candidates in that scan are all a name
+/// whose own first character is not `?` (`_TI4?AV…`, `_CT??_R0…`, `$?$S1@…`), so
+/// they are names, not separators.
+///
+/// **What `26` MEANS is not claimed here.** Every witness carrying it is a symbol
+/// with COMDAT-style linkage — `??_G`/`??_E` deleting destructors, `??_7`
+/// vftables, the `??_R*` RTTI records, `_CT`/`_TI` EH descriptors, and
+/// header-inline member functions such as `??1logic_error@stlpmtx_std@@UAA@XZ` —
+/// while `??1String@@UAA@XZ`, defined out of line, carries `00`. That is a
+/// correlation over one corpus and it is deliberately not turned into a name:
+/// `docs/GAPS.md` §6 ("a guessed name is worse than a hex bucket"). Nothing in
+/// this file branches on the value; both are simply records.
+///
+/// A third value, `25`, introduces a string-literal (`??_C@…`) record; it is
+/// **not** admitted, because nothing calls a string literal and admitting a record
+/// class is a licence to bind tokens from it.
+const NAME_SEPARATORS: [u8; 2] = [0x00, 0x26];
+
+/// The record-kind byte, immediately before the operand token. **MEASURED as
+/// exactly this set** over 32,898 `?`-mangled records in eight real translation
+/// units: `0E` (18,770), `00` (10,385), `04` (2,540), `10` (1,203), and nothing
+/// else.
+///
+/// It is required because `.gl` also carries a **type table** whose records have a
+/// different layout — `RndLight`, `MetaMaterial`, `stlpmtx_std::_List_node_base`,
+/// and the source paths — in which the two bytes at the operand token's offset are
+/// part of a type id instead. Those reads are the only thing that ever produced a
+/// token two names disagree about (105 in `system/world/Dir.cpp`, every one a path
+/// or a type name), and the kind byte is what tells the two record classes apart
+/// structurally rather than by guessing at their contents.
+///
+/// It does **not** remove all of them, and the residue is stated rather than
+/// implied: a type record whose id bytes happen to be printable reads as a junk run
+/// under a junk token (`k0String`), because the misparse lands on kind `00`, which
+/// is a real symbol kind. Measured on the 878-TU workload, that leaves **1,750**
+/// junk tokens, of which **44** collide with a real symbol's token — and those 44
+/// are decided by rank in [`gl_symbol_index`] rather than dropped, because a bare
+/// run is never a callee.
+///
+/// Fails **closed**: a fifth kind is not indexed, so its callees refuse.
+const SYMBOL_RECORD_KINDS: [u8; 4] = [0x00, 0x04, 0x0E, 0x10];
+
+/// The character set an MSVC symbol name is spelled in: identifiers, plus the
+/// four mangling punctuation characters `$ ? @`.
+///
+/// This is a *name* test, not a plausibility heuristic. `.gl` runs that fail it are
+/// paths (`z:\…\joypad.h`) and qualified or templated type names
+/// (`BoxLightArray<BoxMapLighting::LightParams_Directional,50>`) — records whose
+/// token field this reader does not model — and the junk a `<token> <sep> <name>`
+/// run leaves in front of a name when the token's own bytes are printable
+/// (`b[&??_R0?AVFixedString@@@8`).
+fn is_symbol_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || matches!(b, b'_' | b'$' | b'?' | b'@')
+}
+
 /// Build the `.gl` **symbol index**: operand token → mangled name.
 ///
-/// `.gl` records have the shape
-/// `<kind byte> <operand token> 00 <NUL-terminated name> 00 <TYPE> …`, so a
-/// record is located by its `00 <name> 00` core and the token read backwards
-/// from it with the same variable-width rule the operand stream uses.
+/// A record is located by its `<operand token> <SEP> <name> 00` core, with the
+/// token read backwards from the separator using the same variable-width rule the
+/// operand stream uses. See [`NAME_SEPARATORS`] for the record framing and for
+/// why the separator is an enumerated *pair* of bytes rather than `00`.
 ///
 /// This is what binds a call to its callee. The CALL token does *not* name the
 /// callee — three different callees sharing one signature produce byte-identical
@@ -315,53 +391,166 @@ const MAX_NAME_TO_OFFSET: usize = 32;
 /// `.sy` is deliberately not consulted: it holds local and parameter names, and
 /// real callees (`?MemPushTemp@@YAXXZ`) are absent from it and present here.
 ///
-/// Names are accepted only if they look like whole mangled identifiers, so a
-/// stray NUL-delimited run inside binary payload cannot inject a false symbol.
+/// Four rules keep this a *binding* rather than a plausible guess, because the
+/// differential cannot grade a correspondence (`docs/GAPS.md` §6, the `.sy`
+/// bullet):
+///
+/// * **The name is the RIGHTMOST separator-preceded start of its run, not the
+///   leftmost.** A record's token bytes are frequently printable, so the
+///   `<token> 26 <name>` form runs together into one graphic run — `c2 30 26
+///   ??_GString@@…` reads as `0&??_GString@@…`. Taking the leftmost start binds a
+///   token to a name with junk glued on its front, which is exactly what the
+///   NUL-anchored scan this replaces did whenever a record's kind byte was `00`:
+///   `b[&??_R0?AVFixedString@@@8` and four more like it were live index entries in
+///   `src/Memory_Xbox.cpp` alone.
+/// * **A record must carry a symbol [`SYMBOL_RECORD_KINDS`] kind byte**, which is
+///   what keeps `.gl`'s type table and its source-path records — whose bytes at the
+///   token's offset are a type id — out of a symbol index.
+/// * **A name must be spelled in the symbol alphabet** ([`is_symbol_char`]).
+/// * **A token claimed by two different names is dropped, not resolved to the
+///   first.** A wrong callee is a relocation against the wrong symbol — a
+///   mis-emit, not a gap — so an ambiguous token gets the third value that
+///   refuses (`docs/GAPS.md` §6, "a failed search is not evidence of absence").
+///   [`gl_symbol_conflicts`] counts them and every scan reports the count.
+///
+/// **What the widening was measured to cost, since a binding cannot be graded by
+/// the oracle** (eight real TUs, 24,281 index entries before / 34,208 after):
+/// **zero** `?`-mangled bindings change name, **zero** are lost except one that was
+/// itself a junk read (`?6%??_C@_0BM@…`, a string-literal record whose own token
+/// bytes are printable), and **zero** token conflicts involve a mangled name. What
+/// is lost is entirely the type-table pollution the old scan carried: `size_t`,
+/// `_PMD`, `RndBone`, `GfxMode`, `CODE`.
 pub fn gl_symbol_index(gl: &[u8]) -> std::collections::BTreeMap<u32, String> {
-    let mut out = std::collections::BTreeMap::new();
+    let (index, _) = gl_symbol_index_checked(gl);
+    index
+}
+
+/// How many operand tokens `.gl` claims for **two different names**, and which are
+/// therefore dropped from [`gl_symbol_index`] rather than bound to the first.
+///
+/// Returns `(dropped, of-which-mangled)`. The **second** number is the invariant
+/// with a known answer: `.gl` assigns one operand token per symbol, so a `?`-mangled
+/// name can never be in a disagreement. The first is expected to be small and
+/// nonzero — `.gl`'s type table shares this reader's record shape closely enough
+/// that two bare type names occasionally land on one token, and dropping them costs
+/// nothing because nothing calls a type.
+///
+/// Reported by `c2rs gap` / `c2rs census` next to the numerator, because a binding
+/// change cannot be graded by the oracle and this is one of the invariants that
+/// *can* grade it.
+pub fn gl_symbol_conflicts(gl: &[u8]) -> (usize, usize) {
+    let (_, conflicts) = gl_symbol_index_checked(gl);
+    conflicts
+}
+
+fn gl_symbol_index_checked(
+    gl: &[u8],
+) -> (std::collections::BTreeMap<u32, String>, (usize, usize)) {
+    // `None` is the third value: a token two records disagree about, which must
+    // refuse rather than pick one.
+    // The value is `(rank, name)`, rank 1 for a whole mangled name; `None` is the
+    // third value — a token two records of EQUAL rank disagree about, which must
+    // refuse rather than pick one.
+    let mut out: std::collections::BTreeMap<u32, Option<(usize, String)>> =
+        std::collections::BTreeMap::new();
+    let mut conflicts = 0usize;
+    let mut mangled_conflicts = 0usize;
     let mut i = 0usize;
     while i < gl.len() {
-        // A record's name is a NUL-terminated printable run preceded by a NUL.
-        if gl[i] != 0 {
+        if !gl[i].is_ascii_graphic() {
             i += 1;
             continue;
         }
-        let start = i + 1;
-        let mut end = start;
-        while end < gl.len() && gl[end] != 0 {
-            end += 1;
-        }
-        if end >= gl.len() || end == start {
+        let start = i;
+        while i < gl.len() && gl[i].is_ascii_graphic() {
             i += 1;
-            continue;
         }
-        let name_bytes = &gl[start..end];
-        let plausible = name_bytes.len() >= 3
-            && name_bytes.iter().all(|b| b.is_ascii_graphic())
-            && (name_bytes[0] == b'?' || name_bytes[0].is_ascii_alphabetic() || name_bytes[0] == b'_');
-        if !plausible {
-            i = end.max(i + 1);
-            continue;
+        // A record's name is NUL-terminated; a run that hits end-of-file is not
+        // one, and neither is one that ends on some other non-printable byte —
+        // which cannot happen, since the run ends where `is_ascii_graphic` does.
+        if i >= gl.len() {
+            break;
         }
-        // The operand token sits immediately before the leading NUL. Try the
-        // 4-byte form first, then the 2-byte one, and keep whichever decodes to
-        // a token whose own width lands exactly on that NUL.
-        for w in [4usize, 2] {
-            if i < w {
+        let end = i;
+        // The rightmost start in this run that a separator precedes. See the doc
+        // comment: leftmost is what glued a record's own token bytes onto the
+        // front of its name.
+        let mut name_at: Option<usize> = None;
+        for p in start..end {
+            if p == 0 {
                 continue;
             }
-            let p = i - w;
-            if let Some((tok, got)) = read_token_var(gl, p) {
-                if got == w {
-                    out.entry(tok)
-                        .or_insert_with(|| ascii_string(name_bytes));
-                    break;
-                }
+            if NAME_SEPARATORS.contains(&gl[p - 1]) && is_indexable_name(&gl[p..end]) {
+                name_at = Some(p);
             }
         }
-        i = end;
+        let Some(q) = name_at else { continue };
+        // The operand token sits immediately before the separator. Try the 4-byte
+        // form first, then the 2-byte one, and keep whichever decodes to a token
+        // whose own width lands exactly on that separator.
+        for w in [4usize, 2] {
+            if q < w + 2 {
+                continue;
+            }
+            let p = q - 1 - w;
+            if let Some((tok, got)) = read_token_var(gl, p) {
+                if got != w {
+                    continue;
+                }
+                // …and the record must be a SYMBOL record. `.gl`'s type table puts
+                // a type id where the token would be, and that is the whole source
+                // of the ambiguity this index used to carry.
+                if !SYMBOL_RECORD_KINDS.contains(&gl[p - 1]) {
+                    break;
+                }
+                let name = ascii_string(&gl[q..end]);
+                let rank = usize::from(looks_mangled(&name));
+                match out.get(&tok) {
+                    None => {
+                        out.insert(tok, Some((rank, name)));
+                    }
+                    // A WHOLE mangled name outranks a bare one. `.gl`'s type
+                    // table is the only thing that ever collides with a symbol
+                    // record here, its names are bare, and a bare name is never a
+                    // callee — so the tie-break is decided by what the two
+                    // records ARE, not by which came first. Measured: it is the
+                    // difference between 44 dropped mangled tokens on the
+                    // workload and 0.
+                    Some(Some((prev_rank, _))) if *prev_rank < rank => {
+                        out.insert(tok, Some((rank, name)));
+                    }
+                    Some(Some((prev_rank, _))) if *prev_rank > rank => {}
+                    Some(Some((_, prev))) if *prev != name => {
+                        conflicts += 1;
+                        if rank == 1 {
+                            mangled_conflicts += 1;
+                        }
+                        out.insert(tok, None);
+                    }
+                    _ => {}
+                }
+                break;
+            }
+        }
     }
-    out
+    (
+        out.into_iter()
+            .filter_map(|(t, n)| n.map(|(_, n)| (t, n)))
+            .collect(),
+        (conflicts, mangled_conflicts),
+    )
+}
+
+/// Whether a `.gl` run is a symbol name this index may bind a token to.
+///
+/// Deliberately **not** [`looks_mangled`]: `??2@YAPAXI@Z` (`operator new`),
+/// `_purecall`, `malloc` and `XMemAlloc` are real callees with no `@@` in them, and
+/// requiring one dropped five resolving tail calls in `src/system/jpeg/Jpeg.cpp`
+/// alone. The alphabet is what separates a symbol from a path or a template-id.
+fn is_indexable_name(b: &[u8]) -> bool {
+    b.len() >= 3
+        && (b[0] == b'?' || b[0].is_ascii_alphabetic() || b[0] == b'_')
+        && b.iter().all(|&c| is_symbol_char(c))
 }
 
 /// Extract the source path from `.gl`: a `<letter>:\…\<name>.cpp` NUL-terminated
@@ -686,6 +875,128 @@ mod tests {
         // An unknown token must not resolve — the caller rejects rather than
         // guessing, since a wrong callee is a relocation against a wrong symbol.
         assert!(idx.get(&0xFFFF).is_none());
+    }
+
+    /// The two `.gl` record forms, **transcribed verbatim** from
+    /// `src/system/jpeg/Jpeg.cpp`'s capture, adjacent records of the same class.
+    /// Their framing is identical byte for byte and the separator is the only
+    /// difference — which is the whole argument that the two bytes before it are
+    /// the operand token in both. See [`NAME_SEPARATORS`].
+    #[test]
+    fn gl_symbol_index_reads_both_separator_forms() {
+        let mut gl = Vec::new();
+        // 80 <LE32 type id> 00 00 <kind 04> <tok 8430> <sep 00> <name> 00 <TYPE…>
+        gl.extend_from_slice(&[
+            0x01, 0x80, 0x75, 0x14, 0x00, 0x00, 0x00, 0x00, 0x04, 0x84, 0x30, 0x00,
+        ]);
+        gl.extend_from_slice(b"??YString@@QAAAAV0@PBD@Z\x00\x86\x03\x04\x04\x00\x00\x00");
+        // …and the same record shape with the `26` separator.
+        gl.extend_from_slice(&[
+            0x00, 0x80, 0x85, 0x14, 0x00, 0x00, 0x00, 0x00, 0x04, 0xC2, 0x30, 0x26,
+        ]);
+        gl.extend_from_slice(b"??_GString@@UAAPAXI@Z\x00\x86\x03\x04\x04\x00\x20\x01");
+        let idx = gl_symbol_index(&gl);
+        assert_eq!(
+            idx.get(&0x8430).map(String::as_str),
+            Some("??YString@@QAAAAV0@PBD@Z")
+        );
+        assert_eq!(
+            idx.get(&0xC230).map(String::as_str),
+            Some("??_GString@@UAAPAXI@Z"),
+            "the `26`-separated record is the one 9,028 generated destructors \
+             resolve their callee through"
+        );
+    }
+
+    /// A record whose kind byte is `00` and whose token bytes are both printable
+    /// runs together with its name. Transcribed from `src/Memory_Xbox.cpp`, where
+    /// the NUL-anchored scan this replaces bound `b[&??_R0?AVFixedString@@@8` —
+    /// the name with the record's own token glued on the front, under a token read
+    /// from the *previous* record's tail.
+    #[test]
+    fn gl_symbol_index_does_not_glue_a_records_own_token_onto_its_name() {
+        let mut gl = vec![
+            0x1C, 0xA0, 0xA3, 0x00, 0x80, 0x8F, 0x28, 0x00, 0x80, 0x10, 0x1F, 0x00, 0x00, 0x01,
+            0x00, 0x62, 0x5B, 0x26,
+        ];
+        gl.extend_from_slice(b"??_R0?AVFixedString@@@8\x00\x86\x06");
+        let idx = gl_symbol_index(&gl);
+        assert_eq!(
+            idx.get(&0x625B).map(String::as_str),
+            Some("??_R0?AVFixedString@@@8")
+        );
+        assert!(
+            !idx.values().any(|n| n.starts_with("b[&")),
+            "the token bytes must not become part of the name: {idx:?}"
+        );
+    }
+
+    /// `.gl`'s **type table** uses the same neighbourhood with a different layout —
+    /// no separator at all, and a type id where the operand token would be.
+    /// Transcribed shape, from `src/system/jpeg/Jpeg.cpp`:
+    /// `80 <LE32> 00 00 0B 00 <id> <name> 00`.
+    ///
+    /// [`SYMBOL_RECORD_KINDS`] removes most of these, but **not this one**: reading
+    /// it as if it had a separator lands on kind `00`, which is a real symbol kind,
+    /// so what gets bound is a junk run (`k0String`) under a junk token. That is the
+    /// honest residue, and it is what this test states — the *type's* name is never
+    /// bound as a symbol, and the junk costs nothing until it collides with a real
+    /// token, which is what the rank tie-break below settles.
+    #[test]
+    fn a_type_table_record_never_binds_the_type_name() {
+        let mut gl = vec![0x80, 0x9E, 0x14, 0x00, 0x00, 0x00, 0x00, 0x0B, 0x00, 0x6B, 0x30];
+        gl.extend_from_slice(b"String\x00\x00");
+        let idx = gl_symbol_index(&gl);
+        assert!(
+            !idx.values().any(|n| n == "String"),
+            "a type is not a symbol: {idx:?}"
+        );
+    }
+
+    #[test]
+    fn a_token_two_symbols_claim_is_dropped_rather_than_guessed() {
+        // Both records are whole mangled names, so neither outranks the other and
+        // the token has no answer. A wrong callee is a relocation against the wrong
+        // symbol, so the third value refuses (`docs/GAPS.md` §6).
+        let mut gl = vec![0x00, 0x04, 0xE3, 0x09, 0x00];
+        gl.extend_from_slice(b"?a@@YAXXZ\x00");
+        gl.extend_from_slice(&[0x04, 0xE3, 0x09, 0x00]);
+        gl.extend_from_slice(b"?b@@YAXXZ\x00");
+        let idx = gl_symbol_index(&gl);
+        assert_eq!(idx.get(&0xE309), None);
+        assert_eq!(gl_symbol_conflicts(&gl), (1, 1));
+    }
+
+    #[test]
+    fn a_whole_mangled_name_outranks_a_bare_one_on_the_same_token() {
+        // The residue the type table leaves: a bare run landing on a real symbol's
+        // token. `?MemFree@@YAXPAXPBDH1@Z` and `O6FileStream` both read as token
+        // 0x000B in `src/system/utl/UTF8.cpp`; dropping the pair cost the mangled
+        // one its binding, so rank decides instead of order.
+        let mut gl = vec![0x00, 0x00, 0x00, 0x0B, 0x00];
+        gl.extend_from_slice(b"O6FileStream\x00");
+        gl.extend_from_slice(&[0x04, 0x00, 0x0B, 0x00]);
+        gl.extend_from_slice(b"?MemFree@@YAXPAXPBDH1@Z\x00");
+        assert_eq!(
+            gl_symbol_index(&gl).get(&0x000B).map(String::as_str),
+            Some("?MemFree@@YAXPAXPBDH1@Z")
+        );
+        assert_eq!(gl_symbol_conflicts(&gl), (0, 0));
+    }
+
+    #[test]
+    fn an_undecorated_callee_is_still_indexed() {
+        // `??2@YAPAXI@Z` (operator new), `_purecall` and `malloc` are real callees
+        // with no `@@` in them. Requiring one dropped five resolving tail calls in
+        // `src/system/jpeg/Jpeg.cpp` alone, which is why the name test is the symbol
+        // ALPHABET and not [`looks_mangled`].
+        let mut gl = vec![0x00, 0x04, 0xE3, 0x09, 0x00];
+        gl.extend_from_slice(b"??2@YAPAXI@Z\x00");
+        gl.extend_from_slice(&[0x04, 0xE4, 0x09, 0x00]);
+        gl.extend_from_slice(b"_purecall\x00");
+        let idx = gl_symbol_index(&gl);
+        assert_eq!(idx.get(&0xE309).map(String::as_str), Some("??2@YAPAXI@Z"));
+        assert_eq!(idx.get(&0xE409).map(String::as_str), Some("_purecall"));
     }
 
     #[test]

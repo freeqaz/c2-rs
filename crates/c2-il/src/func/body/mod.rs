@@ -152,7 +152,14 @@ pub(crate) enum BodyShape {
     /// whose argument region is exactly the single passthrough LOAD, a `55 <int>`
     /// call-end, then exactly one literal `+ k` (ADD, commutative), returned. A
     /// zero `k` is NOT framed — it folds to [`BodyShape::IntTailCall`].
-    FramedCall { add_k: i32, callee_tok: u32 },
+    ///
+    /// `params` are the formals and `arg_ops` is the argument — a bare `[Load]`
+    /// of one of them, which is **not necessarily the formal already in r3**.
+    /// Both are carried for the same reason [`BodyShape::IntTailCall`] carries
+    /// them: the argument register move is a function of the formal's position,
+    /// and dropping the list here made the emitter assume position 0 (a live
+    /// wrong-bytes emit — `c2_core::codegen::framed_call_text`).
+    FramedCall { add_k: i32, callee_tok: u32, params: Vec<u32>, arg_ops: Vec<IlOp> },
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
@@ -840,7 +847,12 @@ mod tests {
         // passthrough arg, `55` call-end, exactly one `+1` post-op.
         assert_eq!(
             parse_segment(&free_fn(MVP_FRAMED), NO_LOCALS),
-            Some(BodyShape::FramedCall { add_k: 1, callee_tok: 0xE409 })
+            Some(BodyShape::FramedCall {
+                add_k: 1,
+                callee_tok: 0xE409,
+                params: vec![0xE509],
+                arg_ops: vec![IlOp::Load(0xE509)],
+            })
         );
     }
 
@@ -886,7 +898,12 @@ mod tests {
         // an IntTailCall (5-section leaf). Same shape but for the immediate.
         assert_eq!(
             parse_segment(&free_fn(MVP_FRAMED), NO_LOCALS),
-            Some(BodyShape::FramedCall { add_k: 1, callee_tok: 0xE409 }),
+            Some(BodyShape::FramedCall {
+                add_k: 1,
+                callee_tok: 0xE409,
+                params: vec![0xE509],
+                arg_ops: vec![IlOp::Load(0xE509)],
+            }),
             "g(a)+1 is framed"
         );
         assert!(

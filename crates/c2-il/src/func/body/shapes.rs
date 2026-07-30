@@ -2684,10 +2684,32 @@ pub(crate) fn parse_call_shape(
     // The framed path takes a bare passthrough LOAD, which must still be a formal:
     // `int gi; g(gi) + 1` is a global read, not an argument already in r3.
     if matches!(arg_ops.as_slice(), [IlOp::Load(_)]) {
-        if !arg_loads_are_formals(&arg_ops, &parse_params(seg, lo).unwrap_or_default()) {
+        let params = parse_params(seg, lo)?;
+        if !arg_loads_are_formals(&arg_ops, &params) {
             return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
         }
-        return Ok(BodyShape::FramedCall { add_k: k, callee_tok });
+        // Past the eighth formal the value is stack-homed and its argument setup
+        // is `lwz r3,<slot>(r1)`, not a register move — measured:
+        // `int f(int a,…,int i){ return g(i) + 1; }` is `lwz r3,180(r1)`, and the
+        // constant-body emitter used to emit *nothing* there.
+        //
+        // The refusal is the whole formals LIST, not just an argument past the
+        // eighth, because that is the predicate `select_text` — which computes
+        // this setup — actually raises. Refusing on the argument's index alone
+        // would put the two out of step and re-open the census/gate disagreement
+        // in the under-claiming direction (`docs/GAPS.md` §6). It is more
+        // conservative than the ABI requires: `int f(int a,…,int i){ return g(a)
+        // + 1; }` has its argument in r3 and would emit the plain body. Sized on
+        // the 878-TU workload: **zero** functions, numerator unchanged either
+        // way.
+        if params.len() > 8 {
+            return Err(Block { ctx: "framed-arg-over-eight-formals", byte: None, off: *p, aux: 0 });
+        }
+        // The formals list is carried, not dropped: the argument is *a* formal
+        // but not necessarily the one already in r3, and c2 emits `or r3,rN,rN`
+        // when it is not. Dropping the list here is how that word went missing
+        // — see `c2_core::codegen::framed_call_text`.
+        return Ok(BodyShape::FramedCall { add_k: k, callee_tok, params, arg_ops });
     }
     Err(Block { ctx: "framed-computed-arg", byte: None, off: *p, aux: 0 })
 }
@@ -2772,7 +2794,7 @@ mod tests {
         );
     }
 
-    /// W24: `bool` / `unsigned char` as a value class — free inside the class,
+    /// W26: `bool` / `unsigned char` as a value class — free inside the class,
     /// and a real `rlwinm` on the way out of it.
     #[test]
     fn bool_value_class_is_free_inside_and_refuses_the_widening() {
@@ -2802,7 +2824,7 @@ mod tests {
         );
     }
 
-    /// W23: the store leaf, from whole captured segments — both designators, the
+    /// W25: the store leaf, from whole captured segments — both designators, the
     /// widths that pick the opcode, the literal value, and the FP refusal.
     #[test]
     fn store_leaf_decodes_both_designators_and_refuses_a_float_value() {

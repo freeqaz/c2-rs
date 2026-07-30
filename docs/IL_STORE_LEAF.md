@@ -1,4 +1,4 @@
-# The store leaf — W23, landed
+# The store leaf and the one-byte-unsigned value class — W25 + W26, landed
 
 The three candidates this rung was commissioned against were
 `expr-intrinsic-base-member-addr` (2117), `expr-load-type-8645` (float) and
@@ -180,7 +180,7 @@ were previously blocked earlier in the same body.
 > class and the baseline numerator is unchanged at 418,628) measured this
 > population and the shipped gate is the same parse. Biased low by one named
 > and *sized* cause: the counterfactual build did not yet admit the
-> class-preserving `2C` on the **value**, which `w23_store_leaf.cpp`'s `s_pv`
+> class-preserving `2C` on the **value**, which `w25_store_leaf.cpp`'s `s_pv`
 > needs. High only if a TU changed class or a body lost.
 
 **Outcome: +23,645**, i.e. **+824 above the point estimate, in the direction
@@ -222,7 +222,7 @@ Corpus `dc3-decomp` at **`05ca6d09`**; baseline scan taken in this worktree,
 418,628 (17.00 %), 569 keys, 6 `match` / 7 `capture-fail`, mismatch 0 —
 reproducing master `b36a046` to the function.
 
-| | baseline | W23 | delta |
+| | baseline | W25 | delta |
 |---|---:|---:|---:|
 | rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
 | in class | 418,628 (17.00 %) | **442,273 (17.96 %)** | **+23,645** |
@@ -232,17 +232,17 @@ reproducing master `b36a046` to the function.
 | census/gate disagreement | 0 | **0** | 0 |
 | sum of every blocker key's delta | — | — | **−23,645** |
 
-| lane | baseline | W23 |
+| lane | baseline | W25 |
 |---|---|---|
 | `cargo test --workspace --release` | 370 pass | **372 pass**, 0 fail |
 | `c2rs bench` | 132 pass / 0 fail / 0 error | **132 pass** (2 new fixtures added to both) |
 | `mode_lane.sh /Ox` | 56 match, 0 mismatch, disagreement 1 | **57 match, 0 mismatch, disagreement 1** |
 | `/O1` · `/O2` · `/Ox /Gy` | 54 match, 0 mismatch, 2 codegen-gap, disagreement 9 | **55 match, 0 mismatch, 2 codegen-gap, disagreement 9** |
-| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,830**, mismatches **0** (see §9.5 for the final figure with W24) |
+| `scripts/expr_sweep.sh` | checked 4,706 | checked **4,830**, mismatches **0** (see §9.5 for the final figure with W26) |
 
 Byte-graded, and the grading is not only census movement:
 
-* `fixtures/cpp/w23_store_leaf.cpp` — **41/41 in class, whole obj byte-exact**
+* `fixtures/cpp/w25_store_leaf.cpp` — **41/41 in class, whole obj byte-exact**
   against real `c2`. Both designators crossed against: every stored width
   (1/2/4/8 and a pointer), zero and nonzero displacements, the subscript-add run
   at one and two adds, the bare deref and the address cast, five literal values
@@ -252,7 +252,7 @@ Byte-graded, and the grading is not only census movement:
   accepted neighbours (`lwz`, `addi`, bare `blr`) that this production must not
   swallow. Three byte-identical bodies with different neighbours between them are
   the §17.3 locality tell — all three emit `90830004`.
-* `fixtures/cpp/w23_store_leaf_neg.cpp` — **0/15 in class**, and the file must
+* `fixtures/cpp/w25_store_leaf_neg.cpp` — **0/15 in class**, and the file must
   never mismatch. The float and double values, a bool→int and an int→char
   conversion of the value, a computed value, two stores in one body, the store's
   result returned, a 32,768 displacement, a global destination, a variable index,
@@ -286,7 +286,7 @@ new shape reached the same literal by a second route and did not. `GAPS.md` §6'
 
 Fixed in the parser rather than in codegen, per §6c's invariant. It costs **0
 functions on the workload** (the re-scan is identical to the function, 464,584,
-disagreement 0), and `w23_store_leaf_neg.cpp`'s `n_negwide` plus 2 sweep cases
+disagreement 0), and `w25_store_leaf_neg.cpp`'s `n_negwide` plus 2 sweep cases
 now pin it, with `s_kwide` (+70000) and `s_kneg` (−3) as the neighbours it must
 not take with it.
 
@@ -403,13 +403,13 @@ functions in the two `27`-family rows reachable.
 cargo build --release
 cargo test --workspace --release                                # 373 pass
 C2RS_JOBS=12 ./target/release/c2rs bench                        # 134 pass 0 fail 0 error
-./target/release/c2rs census fixtures/cpp/w23_store_leaf.cpp      # 41/41 in class
-./target/release/c2rs diff   fixtures/cpp/w23_store_leaf.cpp      # Port=Match
-./target/release/c2rs census fixtures/cpp/w23_store_leaf_neg.cpp  # 0/15 in class
-./target/release/c2rs census fixtures/cpp/w24_bool_value.cpp      # 15/15 in class
-./target/release/c2rs diff   fixtures/cpp/w24_bool_value.cpp      # Port=Match
-./target/release/c2rs census fixtures/cpp/w24_bool_value_neg.cpp  # 0/10 in class
-./target/release/c2rs diff   fixtures/cpp/w23_store_leaf_neg.cpp  # Port=NotImplemented
+./target/release/c2rs census fixtures/cpp/w25_store_leaf.cpp      # 41/41 in class
+./target/release/c2rs diff   fixtures/cpp/w25_store_leaf.cpp      # Port=Match
+./target/release/c2rs census fixtures/cpp/w25_store_leaf_neg.cpp  # 0/15 in class
+./target/release/c2rs census fixtures/cpp/w26_bool_value.cpp      # 15/15 in class
+./target/release/c2rs diff   fixtures/cpp/w26_bool_value.cpp      # Port=Match
+./target/release/c2rs census fixtures/cpp/w26_bool_value_neg.cpp  # 0/10 in class
+./target/release/c2rs diff   fixtures/cpp/w25_store_leaf_neg.cpp  # Port=NotImplemented
 C2RS_JOBS=12 scripts/mode_lane.sh /Ox                           # 58 match, 0 mismatch
 C2RS_JOBS=12 scripts/mode_lane.sh /O1                           # 56 match  (also /O2, "/Ox /Gy")
 C2RS_JOBS=12 scripts/expr_sweep.sh                              # checked=4900 mismatches=0
@@ -445,7 +445,7 @@ path has already produced a published wrong number in this project
 
 ---
 
-## 9. W24 — the one-byte-unsigned value class, landed
+## 9. W26 — the one-byte-unsigned value class, landed
 
 §7 (1) ranked this first and sized it at **23,122 whole-body complete, 22,313 of
 them `calls-0`**. It shipped as the `calls-0` half: **+22,311**, census
@@ -543,7 +543,7 @@ one-byte classes part company one token later, where the unsigned widening is a
 
 ### 9.5 Gate evidence
 
-| | after W23 | W24 | delta |
+| | after W25 | W26 | delta |
 |---|---:|---:|---:|
 | rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
 | in class | 442,273 (17.96 %) | **464,584 (18.87 %)** | **+22,311** |
@@ -552,20 +552,20 @@ one-byte classes part company one token later, where the unsigned widening is a
 | distinct keys | 569 | 570 | +1 |
 | census/gate disagreement | 0 | **0** | 0 |
 
-| lane | W23 | W24 |
+| lane | W25 | W26 |
 |---|---|---|
 | `cargo test --workspace --release` | 372 pass | **373 pass**, 0 fail |
 | `c2rs bench` | 132 pass | **134 pass**, 0 fail, 0 error |
 | `mode_lane.sh /Ox` | 57 match, 0 mismatch, disagreement 1 | **58 match, 0 mismatch**, disagreement 1 |
 | `/O1` · `/O2` · `/Ox /Gy` | 55 match, 0 mismatch, 2 codegen-gap, disagreement 9 | **56 match, 0 mismatch**, 2 codegen-gap, disagreement 9 |
 | `scripts/expr_sweep.sh` | checked 4,830 | checked **4,900**, mismatches **0** |
-| `census fixtures/cpp/w24_bool_value.cpp` | — | **15/15 in class**, `Port=Match` |
-| `census fixtures/cpp/w24_bool_value_neg.cpp` | — | **0/10 in class**, `Port=NotImplemented` |
+| `census fixtures/cpp/w26_bool_value.cpp` | — | **15/15 in class**, `Port=Match` |
+| `census fixtures/cpp/w26_bool_value_neg.cpp` | — | **0/10 in class**, `Port=NotImplemented` |
 
-`w24_bool_value.cpp` crosses both spellings against five literal values, the
+`w26_bool_value.cpp` crosses both spellings against five literal values, the
 identity from r3 and from argument slots 1, 2, 3 and 7, and the three accepted
-neighbours that share the class's bytes (the T3 `lbz` getter, the W23 `stb`
-store, and an ordinary int literal). `w24_bool_value_neg.cpp` is the more
+neighbours that share the class's bytes (the T3 `lbz` getter, the W25 `stb`
+store, and an ordinary int literal). `w26_bool_value_neg.cpp` is the more
 load-bearing file — the positives cost no instruction, so everything that can go
 wrong is a refusal: both conversions out of the class, arithmetic, `!`, `&&`,
 `char` and `signed char`, the local-variable path, the tail call, and a `bool*`
@@ -598,3 +598,95 @@ sized on its way past:
   discards the class) and then the shared `41` gate, so it refuses one token
   later; part of `assign-dst-not-formal:eof`'s 13,887;
 * the **mask** and the **`char` class** — 4,947 and 1,646 (§9.4).
+
+---
+
+## 10. The merged tree — W25 + W26 against master `7011b49`
+
+Both rungs were developed against master `b36a046` (census 418,628). Master
+advanced four times while they were in flight: D14 (`.gl` record separator,
++9,027), a ground-truth docs drop, instrument hardening (the capture cache,
+provenance record 0, per-lane pinned disagreements), and the frame model
+(#35 step 1, `FrameLayout` + argument setup + the comparison label-stride table).
+The merged configuration is one no prior run covered, so the whole gate was
+re-run on it.
+
+**Corpus `dc3-decomp` at `05ca6d09`** — unchanged, and now carried in the scan's
+own provenance record 0 (`workload_head 05ca6d09…`, `wibo_stale false`,
+`wibo_known_good 1.0.1-23`).
+
+### 10.1 The census, and additivity MEASURED rather than assumed
+
+| tree | in class | % |
+|---|---:|---:|
+| this rung's base, master `b36a046` | 418,628 | 17.00 |
+| + W25 + W26 (this document) | 464,584 | 18.87 |
+| master `7011b49` (with D14) | 427,655 | 17.37 |
+| **merged** | **473,611** | **19.23** |
+
+473,611 = 427,655 + 45,956 = 464,584 + 9,027, and the second identity is the one
+that was *measured* key by key rather than inferred. Differencing this document's
+own tree against the merged scan moves **exactly two keys**:
+
+| key | delta |
+|---|---:|
+| `callee-unresolved-dtor-delegation:eof` | **−9,028** |
+| `callee-unresolved-tail-call:eof` | +1 |
+| | **−9,027 net** |
+
+That is D14's population and nothing else: no key this rung touched moved, and no
+key moved that neither rung named. The two are independent, and the interaction
+term is **0**.
+
+### 10.2 Gate evidence on the merged tree
+
+| lane | master `7011b49` | merged | delta |
+|---|---|---|---:|
+| `cargo test --workspace --release` | — | **398 pass, 0 fail** | — |
+| `c2rs bench` | 138 pass | **142 pass / 0 fail / 0 error** | +4 fixtures |
+| `mode_lane.sh /Ox` | 61 match, 0 mismatch, disagreement 1 | **63 match, 0 mismatch**, disagreement **1** | +2 |
+| `/O1` · `/O2` · `/Ox /Gy` | 59 match, 0 mismatch, 2 codegen-gap, disagreement 9 | **61 match, 0 mismatch**, 2 codegen-gap, disagreement **9** | +2 |
+| `scripts/expr_sweep.sh` | 4,829 cases | **5,023 cases, 0 mismatches** | +194 |
+| 878-TU scan | 427,655, disagreement 0 | **473,611 / 2,462,571 (19.23 %)**, match 6, **mismatch 0**, capture-fail 7, disagreement **0**, 570 keys | +45,956 |
+
+The master lane figures were taken in this worktree with this rung's four
+fixtures moved aside, so the `+2` is attributable rather than assumed: it is
+`w25_store_leaf.cpp` and `w26_bool_value.cpp`, one match each, in every lane.
+
+**`census_gate.rs` passes at its recorded per-lane values (1 packed / 9 `/Gy`)
+with its named causes unchanged.** That is the honest outcome rather than an
+edited one: this rung's gates all live in the parser, so they add nothing to
+either lane's residual, and the test's assertions did not need to move.
+
+Both this rung's fixtures still grade N/N — `w25_store_leaf.cpp` **41/41
+`Port=Match`**, `w26_bool_value.cpp` **15/15 `Port=Match`**, the two negatives
+**0/15** and **0/10** `Port=NotImplemented` — and the frame rung's do too:
+`wfr_argreg` **4/4**, `wfr_argreg_member` **2/2**, `wfr_argreg_types` **7/7**,
+`wfr_cmp_stride` **13/13**, all `Port=Match`.
+
+### 10.3 The two resolutions worth recording
+
+* **`encode_std` was defined twice** after the merge — once here for the `long
+  long` store leaf (captured as `f8830020`, a member at offset 32) and once by
+  the frame model for the callee-saved GPR prologue (captured as `fbe1fff0` =
+  `std r31,-16(r1)`). Byte-identical encoders, two independent captures. The
+  frame side's definition is kept **untouched** (a concurrent agent owns that
+  region) and this rung's duplicate is removed, with its witness recorded in
+  `store_leaf_text`'s own table and a pointer left where the duplicate was. Git
+  did not flag this — it is a semantic conflict inside a cleanly auto-merged
+  file, and only the build caught it.
+* **The rung tag `W23` was taken twice.** D14's fixtures are
+  `w23_gl_callee_bind*.cpp` and this rung's were `w23_store_leaf*.cpp` /
+  `w24_bool_value*.cpp`, developed in parallel from the same base. There is no
+  filename collision, but the *label* is ambiguous in a ledger that indexes rungs
+  by tag, so this rung renumbered to **W25 + W26** — the same reason its ROADMAP
+  section renumbered from §6f to §6i. D14's references were left alone.
+
+### 10.4 What was NOT decided here
+
+The frame model's `select_function` framed path and `framed_call_text` merged
+cleanly and are untouched by this rung beyond the `encode_std` de-duplication;
+`framed-arg-over-eight-formals` and the other new parser-side gates live in
+`parse_call_shape`, which the store leaf's dispatch arm never reaches. If a
+resolution in that region turns out to be needed it belongs to the framed side,
+not here.
