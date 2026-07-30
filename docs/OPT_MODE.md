@@ -466,3 +466,51 @@ function in it (`n_k_add`, `n_self_add`, `n_div_k`, `n_i2f`, `n_f2i`,
 > when the FP-contraction rung is eventually built: with the bit clear the
 > correct lowering for `a*b+c` is `fmuls`+`fadds`, and a contracting emitter
 > would produce a valid, wrong, `fuzzy`-invisible `fmadds`.
+
+### 6.4 TAKEN, 2026-07-30 — and the `/Ox` half measured too
+
+`opt_word_mode` accepts `00200001` as `/O1` (`OPT_WORD_O1_NO_FP_CONTRACT`) and
+`00a00001` as `/Ox` (`OPT_WORD_OX_NO_FP_CONTRACT`). The second was **not**
+inherited from §6.3's argument — it got its own run of the same corpus-scale
+experiment, at `/Ox`: **145 byte-identical `.text`, 1 differing**, and the one is
+`w13_fneg` again, the FMA fixture, which is refused. Same shape, own measurement,
+because "the bit does the same thing at the other mode" is exactly the kind of
+claim this document exists to stop being assumed.
+
+It is worth 0 functions on the workload (which compiles `/O1`) and it is why the
+fixture **grades in every lane**: `c2rs bench` and `c2rs diff` use the `/Ox`
+profile, and a positive fixture that reports `NotImplemented` in the default lane
+is the decoration `GAPS.md` §6 records `w13_fabi.cpp` as having been for months.
+
+**Census 482,542 → 482,748, +206**, mismatch 0, disagreement 0, and the two
+`opt-mode` keys disappear entirely (**570 → 568 keys**) — the whole bucket, since
+this gate is applied last and only to otherwise-in-class functions, so everything
+under it was already complete. 188 `calls-0` and 18 `calls-1`. Estimate **+206,
+exact**: the counterfactual here is the census key itself.
+
+`fixtures/cpp/w29_fp_contract.cpp` is **16/16 in class, `Port=Match`**, and it
+carries the pragma over the integer, pointer, store, compare and floating-point
+classes. It deliberately does **not** carry a body that would contract — that
+case is the one thing the bit changes, it lives in `w13_fneg.cpp`, and it is
+refused.
+
+### 6.5 The word is a varint, and the reader was not (roadmap #52)
+
+§6.1 recorded the encoding correctly and `opt_word_at` was never updated: it
+required `seg[2] == 0x80` and read four little-endian bytes, so a short-form word
+returned `None`.
+
+**Audited, and the damage is naming rather than bytes.** `opt_word_mode(None)`
+refuses, so the reader was fail-closed the whole time — but the census key it
+produced was `opt-mode-00000000`, which asserts the word is *zero* when it is in
+fact unread, and a wrong name is the one thing this instrument cannot survive.
+Fixed to read both branches, with `81..FF` refused rather than sign-extended the
+way an operand-stream varint would be (an optimization word is a bit field, not a
+number). Worth **0 functions** on the 878-TU workload: no otherwise-in-class
+function there takes the short branch.
+
+One test moved with it, and the way it moved is the finding in miniature:
+`opt_words_reports_an_unreadable_prefix_rather_than_guessing` used `4F 1F 11 …`
+as its "unreadable" case, on the reading that anything but `80` was unreadable.
+`11` is the perfectly readable short-form word 17. The test now uses `F1`, and
+asserts the short form is *read* rather than merely tolerated.
