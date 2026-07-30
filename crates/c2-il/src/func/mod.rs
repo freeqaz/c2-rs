@@ -246,6 +246,44 @@ impl CompareLeaf {
         }
         None
     }
+
+    /// How many **compiler-label counter slots** this comparison leaf consumes.
+    ///
+    /// The counter is a per-TU running number that every function advances,
+    /// whether or not it emits a label (`docs/OBJ_GY_SHAPES.md` §3.5/§3.6), so a
+    /// framed function sharing a TU with a class whose stride is wrong gets `$M`
+    /// numbers that are low by the error — six wrong bytes in an obj that still
+    /// links. Every class the port emits consumes 1 **except** the comparison
+    /// leaf, which is 1 for some relations and 3 for others.
+    ///
+    /// Measured over the whole 60-point grid of `<relation> × <literal 0, ±5,
+    /// i16::MAX, i16::MIN, wide> × <signed, unsigned>`, each row compiled as
+    /// `<leaf> ; int F(int a){return g(a)+1;}` with `F`'s first label
+    /// differenced against the seed at `.gl+7` + 9 (so the stride is measured,
+    /// not fitted against an unknown seed — `docs/OBJ_GY_SHAPES.md` §3.4's
+    /// cautionary tale):
+    ///
+    /// ```text
+    ///   ==, !=            1   every literal, both signednesses
+    ///   unsigned operand  1   every relation, every literal
+    ///   signed <  k == 0  1     signed >= k == 0  1
+    ///   signed <  k != 0  3     signed >= k != 0  3
+    ///   signed >  anything 3    signed <= anything 3
+    /// ```
+    ///
+    /// The 1-block is exactly the set that lowers to a sign-bit extraction or a
+    /// carry idiom with no label pair; the 3-block is the general relational
+    /// spine. `OBJ_GY_SHAPES.md` §3.6 previously recorded only "`a==b` and `a<0`
+    /// consume 1" and the gate keyed on "is this a comparison leaf" instead, so
+    /// every comparison leaf was refused beside a framed function.
+    pub fn label_slots(&self) -> u32 {
+        match self.rel {
+            Rel::Eq | Rel::Ne => 1,
+            _ if !self.signed => 1,
+            Rel::Lt | Rel::Ge if self.k == 0 => 1,
+            _ => 3,
+        }
+    }
 }
 
 /// A parsed MVP function: enough to drive the codegen + COFF emitter.
@@ -303,6 +341,41 @@ pub struct IlFunction {
     /// was itself misattached to `float_leaf` for a while, which is the kind of
     /// damage the sum type prevents.)
     pub empty_body: bool,
+}
+
+impl IlFunction {
+    /// How many **compiler-label counter slots** this function consumes, for the
+    /// classes whose stride has been measured — `None` when it has not been.
+    ///
+    /// The counter is seeded from `.gl` and advanced once per function in `.text`
+    /// order (`c2_core::coff::plan_labels`), so a framed function's `$M`/`$T`
+    /// numbers depend on every function ahead of it, including ones that emit no
+    /// label at all. A stride that is wrong by one is six wrong bytes in an obj
+    /// that still links, which is why this is three-valued: an unmeasured class
+    /// beside a framed function is refused, never guessed.
+    ///
+    /// Measured strides (`docs/OBJ_GY_SHAPES.md` §3.6):
+    /// every integer leaf, tail call, empty body, indirect load and address leaf
+    /// consume **1**; a framed call **4** packed / **5** under `/Gy`; a
+    /// floating-point leaf **2**, or 4 with one pooled constant and 6 with two;
+    /// a comparison leaf 1 or 3 by relation ([`CompareLeaf::label_slots`]).
+    pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {
+        if self.framed_call.is_some() {
+            return Some(if fn_level_linking { 5 } else { 4 });
+        }
+        if let Some(c) = &self.compare {
+            return Some(c.label_slots());
+        }
+        // A float leaf is 2 without pooled constants and 4/6 with them; this
+        // record does not carry the constant count, and every value is ≠ 1, so
+        // "at least 2" is all any caller needs — but it is not an exact stride,
+        // so it is reported as undetermined rather than as a number that would
+        // be wrong for a leaf with a constant.
+        if self.float_leaf.is_some() {
+            return None;
+        }
+        Some(1)
+    }
 }
 
 /// Pinned `.ex` segments and helpers shared by the per-module test suites.

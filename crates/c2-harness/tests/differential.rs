@@ -374,6 +374,11 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         "mvp_call_argframed_plusk.cpp", // g(a + 1) + 1 — in-arg arith + framed op
         "mvp_call_two_framed.cpp",      // g(a) + g(a + 1) — a second call in +
         "mvp_call_plus1plus2.cpp",      // g(a) + 1 + 2 — a two-literal post-op
+        // A framed function beside a comparison leaf whose label stride is 3:
+        // its `$M`/`$T` numbers would come out low by 2 per neighbour, in an obj
+        // that still links. The positive half (stride 1) is `wfr_cmp_stride.cpp`
+        // and is graded by the mode lanes.
+        "wfr_cmp_stride_neg.cpp",
     ] {
         let w = work("oocreject");
         let port = PortC2::default();

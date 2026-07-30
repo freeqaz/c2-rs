@@ -1087,21 +1087,42 @@ for k1 in range(len(FRAMED_LEAFMATES)):
                     li += 1
             emit_raw('int g(int);\n' + '\n'.join(parts) + '\n')
 
-# 4. The REFUSING neighbours. A comparison leaf consumes 3 counter slots and a
-#    floating-point leaf 2, against the 1 every emitted class consumes, so a
-#    framed function sharing a TU with either would get `$M` numbers that are
-#    low by 2 or 1 — bytes that link and are wrong. The port refuses the whole
-#    TU; a MISMATCH here is that gate having a hole.
+# 4. The neighbours whose LABEL STRIDE decides the framed function's `$M`
+#    numbers. The counter is advanced by every function in the TU whether or not
+#    it emits a label, so a neighbour with a stride the emitter models wrongly
+#    gives the framed function `$M` numbers that link and are wrong.
+#
+#    The stride is 1 for every class the port emits EXCEPT the comparison leaf,
+#    which is 1 or 3 by relation, and the floating-point leaf, which is 2 (4 or 6
+#    with pooled constants). Both lists are swept: the first must MATCH, the
+#    second must refuse. A mismatch in either is the gate having a hole, and a
+#    *refusal* in the first list is the gate over-refusing — cheaper, but it is
+#    what this axis was added to measure.
+FRAMED_STRIDE1 = [
+    'int R(int x) { return x < 0; }',
+    'int R(int x) { return x >= 0; }',
+    'int R(int x) { return x == 0; }',
+    'int R(int x) { return x != 0; }',
+    'int R(int x) { return x == 5; }',
+    'int R(int x) { return x != -5; }',
+    'int R(int x) { return x == 32767; }',
+    'int R(unsigned x) { return x < 5u; }',
+    'int R(unsigned x) { return x >= 5u; }',
+    'int R(unsigned x) { return x > 5u; }',
+    'int R(unsigned x) { return x <= 5u; }',
+]
 FRAMED_REFUSERS = [
     'float R(float x, float y) { return x * y; }',
     'double R(double x, double y) { return x + y; }',
     'float R(float x) { return x * 2.5f; }',
     'int R(int x, int y) { return x < y; }',
     'int R(int x, int y) { return x >= y; }',
-    'int R(int x) { return x < 0; }',
+    'int R(int x) { return x < 5; }',
+    'int R(int x) { return x > 0; }',
+    'int R(int x) { return x <= 0; }',
     'int R(int x, int y) { return x == y; }',
 ]
-for r in FRAMED_REFUSERS:
+for r in FRAMED_REFUSERS + FRAMED_STRIDE1:
     emit_raw('int g(int);\n%s\nint F(int a) { return g(a) + 1; }\n' % r)
     emit_raw('int g(int);\nint F(int a) { return g(a) + 1; }\n%s\n' % r)
     emit_raw('int g(int);\nint F1(int a) { return g(a) + 1; }\n%s\n'
