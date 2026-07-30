@@ -198,11 +198,19 @@ pub struct Function<'a> {
     pub name: &'a str,
     pub text_offset: u32,
     pub call: Option<Call<'a>>,
-    /// True iff this function's body does floating-point arithmetic. The obj
-    /// then carries an undefined external `_fltused`, emitted immediately after
-    /// the FIRST such function's symbol group — the CRT's float-support hook.
-    /// Verified: a pure FP leaf changes the obj shell by exactly this one
+    /// True iff this function's body **touches floating point** in any way. The
+    /// obj then carries an undefined external `_fltused`, emitted immediately
+    /// after the FIRST such function's symbol group — the CRT's float-support
+    /// hook. Verified: a pure FP leaf changes the obj shell by exactly this one
     /// symbol (`docs/CODEGEN_W13_FLOAT.md` §4).
+    ///
+    /// **"Touches FP" and "is a float leaf" are two facts**, and they shared this
+    /// field until the FP store leaf pulled them apart:
+    /// `void f(S* s, float v){ s->f = v; }` needs the marker and is a store leaf
+    /// with a label stride of 1, not 2. The producer is
+    /// [`c2_il::IlFunction::touches_floating_point`]; the stride is
+    /// [`c2_il::IlFunction::label_slots`]. One field, two readers, and the
+    /// mismatch it caused was 14 out of 14 objs short by one symbol.
     pub is_float: bool,
     /// W13b: this function's floating-point constant reference sites, in
     /// emission order, with `hi_off` already rebased to the whole `.text`.
