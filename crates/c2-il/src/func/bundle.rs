@@ -1,6 +1,7 @@
 use super::body::{parse_segment, BodyShape};
 use super::gl::{drectve_is_boilerplate, gl_defined_names, source_path, GlIndex};
 use super::readers::{find_subslice, memchr_byte};
+use super::sy::SyLocals;
 use super::{FramedCall, IlFunction};
 use crate::IlBundle;
 
@@ -104,14 +105,10 @@ pub fn is_empty_module(ex: &[u8]) -> bool {
     !has_lo && !has_fn_start
 }
 
-fn split_functions(ex: &[u8]) -> Vec<&[u8]> {
-    split_functions_at(ex).1
-}
-
-/// [`split_functions`], keeping the `4F 1F` offsets alongside the segments. The
-/// offsets are what `.gl`'s framed body-start fields are matched against, so the
-/// name binding is per record rather than per position (see
-/// [`gl_defined_names`]).
+/// Split the `.ex` stream at every `4F 1F` function-start marker, keeping the
+/// offsets alongside the segments. The offsets are what `.gl`'s framed body-start
+/// fields are matched against, so the name binding is per record rather than per
+/// position (see [`gl_defined_names`]).
 fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
     let mut starts = Vec::new();
     let mut i = 0;
@@ -273,10 +270,15 @@ impl IlBundle {
         // of straight-line leaves never constructs the index at all.
         let symbols = GlIndex::new(gl);
         let resolve = |tok: u32| -> Option<String> { symbols.map().get(&tok).cloned() };
+        // `.sy` binds each function's automatic locals. It is bound 1:1 against the
+        // same segment list, and yields nothing at all unless it parses whole — so a
+        // TU without `.sy`, or with one this reader does not fully understand, is
+        // exactly as restricted as before locals were modeled.
+        let locals = SyLocals::new(self.get("sy"), n_defined);
 
         let mut funcs = Vec::with_capacity(n_defined);
-        for (name, seg) in names.iter().take(n_defined).zip(segs) {
-            match parse_segment(seg, &symbols)? {
+        for (i, (name, seg)) in names.iter().take(n_defined).zip(segs).enumerate() {
+            match parse_segment(seg, locals.of(i))? {
                 // An indirect-load leaf reaches the ordinary integer selector,
                 // which pattern-matches its exact two-op stream; `params` carries
                 // a member function's `this` at index 0 so the base register comes

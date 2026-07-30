@@ -3,7 +3,6 @@ use super::chain::{
 };
 use super::expr::{eat_return_plumbing, intrinsic_selector, parse_expr, parse_formals};
 use super::{blk, Block, BodyShape};
-use crate::func::gl::GlIndex;
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_opt_stmt_marker, find_byte, is_int4_type, is_ptr_to_4,
     read_token_var, read_type, read_varint, DOUBLE_LIT_TYPE, DOUBLE_TYPE, FLOAT_LIT_TYPE,
@@ -38,7 +37,8 @@ use crate::func::{CompareLeaf, IlOp, Rel};
 /// So this resolves the statement list by substitution and hands codegen the
 /// resulting straight-line expression, which is exactly what the reference emits.
 ///
-/// The destination must be a **formal**, established positively from the `2D` list.
+/// The destination must be a **formal** (positively, from the `2D` list) or an
+/// automatic `int` **local** (positively, from `.sy` — see [`crate::func::sy`]).
 ///
 /// An earlier version asked whether `.gl` named the destination and refused if so.
 /// That looked sound and was not: a file-scope `static int sv` appears there as
@@ -46,14 +46,18 @@ use crate::func::{CompareLeaf, IlOp, Rel};
 /// the token looked local and the store was silently dropped. Absence from a symbol
 /// table proves nothing — it only says the table did not happen to name it.
 ///
-/// Locals are consequently out of class: `.ex` uses the same `26 <tok>` push for
-/// parameter, local and global alike, so admitting them needs a positive local
-/// signal that does not exist yet.
+/// `.sy` replaces that absence test with a membership one. Globals, `extern`
+/// declarations and file-scope statics appear in `.sy` not at all, and a
+/// function-scope `static` appears as a differently-tagged record, so a token
+/// found in the locals section is a register-resident value and folding its store
+/// into the expression that reads it is what c2 itself does — measured: for
+/// `int f(int a){int x=a+1;int y=x+2;return y;}` and `int f(int a){return
+/// (a+1)+2;}` the reference objs differ only in the source-filename bytes.
 pub(crate) fn try_parse_assign_body_detail(
     seg: &[u8],
     start: usize,
     lo: usize,
-    globals: &GlIndex<'_>,
+    locals: &[u32],
 ) -> Result<BodyShape, Block> {
     let mut p = start;
     let mut env: Vec<(u32, Vec<IlOp>)> = Vec::new();
@@ -62,7 +66,6 @@ pub(crate) fn try_parse_assign_body_detail(
     // lets the right-hand side report its own reason first, which is what makes the
     // census name the innermost unmodeled construct rather than this outer gate.
     let formals = parse_formals(seg, lo).unwrap_or_default();
-    let _ = globals;
     loop {
         eat_opt_stmt_marker(seg, &mut p);
         if *seg.get(p).ok_or(blk(seg, p, "assign-stmt"))? != 0x26 {
@@ -97,24 +100,21 @@ pub(crate) fn try_parse_assign_body_detail(
         }
         p = probe;
         let rhs = parse_expr(seg, &mut p, 0x32)?;
-        // The destination must be a **formal**, established positively from the
-        // `2D` list — not "absent from `.gl`", which is what this used to test and
-        // which does not work.
-        //
         // A store to any memory object (a global, or a file-scope `static`) is a
         // real write with a relocation, and treating it as a register copy silently
-        // drops it. The absence test failed exactly there: a `static int sv` is in
-        // `.gl` as `$sv`, whose leading `$` `gl_symbol_index` does not accept as an
-        // identifier, so the token looked local and
-        // `static int sv; int f(int a){ sv = a; return a; }` mis-emitted. Found by
-        // probing the de-conflated census, not by a fixture.
+        // drops it. Testing *absence* from `.gl` failed exactly there: a
+        // `static int sv` is in `.gl` as `$sv`, whose leading `$`
+        // `gl_symbol_index` does not accept as an identifier, so the token looked
+        // local and `static int sv; int f(int a){ sv = a; return a; }` mis-emitted.
+        // Found by probing the de-conflated census, not by a fixture.
         //
-        // Locals are therefore out of class for now. There is no positive local
-        // signal in `.ex` — the statement grammar uses the same `26 <tok>` push for
-        // parameter, local and global alike — so admitting them needs a local-symbol
-        // production first. The coverage given up is measured at ~0 on the real
-        // workload, which is not a reason to keep a mis-emit.
-        if !formals.contains(&dst) {
+        // A local is admitted only on `.sy`'s positive evidence, and only when
+        // `.sy` said plain `int`, never address-taken, and bound its block 1:1 to
+        // the `.ex` segments. Everything `.sy` cannot vouch for — a global, a
+        // file-scope or function-scope static, a qualified or non-`int` local, a
+        // local whose address escapes — leaves this list empty and refuses here,
+        // exactly as before.
+        if !formals.contains(&dst) && !locals.contains(&dst) {
             return Err(Block { ctx: "assign-dst-not-formal", byte: None, off: probe, aux: 0 });
         }
         if !eat_byte(seg, &mut p, 0x32) || !eat_int_like(seg, &mut p) {
@@ -1249,14 +1249,14 @@ mod tests {
     #[test]
     fn indirect_load_leaf_decodes_deref_member_and_subscript() {
         assert_eq!(
-            parse_segment(IND_DEREF, &no_globals()),
+            parse_segment(IND_DEREF, NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0xEE09],
                 ops: vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }],
             })
         );
         assert_eq!(
-            parse_segment(IND_MEMBER0, &no_globals()),
+            parse_segment(IND_MEMBER0, NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0xFE09],
                 ops: vec![IlOp::Load(0xFE09), IlOp::LoadInd { off: 0 }],
@@ -1265,7 +1265,7 @@ mod tests {
         // The offset is a SIGNED short-form byte, and `-1` on an `int *` is −4
         // bytes — the scale is already applied by the front end.
         assert_eq!(
-            parse_segment(IND_SUBSCRIPT_NEG, &no_globals()),
+            parse_segment(IND_SUBSCRIPT_NEG, NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0x100A],
                 ops: vec![IlOp::Load(0x100A), IlOp::LoadInd { off: -4 }],
@@ -1280,7 +1280,7 @@ mod tests {
         // an explicit formal is mapped one register low).
         assert_eq!(parse_this_token(IND_THIS_GETTER, 21), Some(0xF809));
         assert_eq!(
-            parse_segment(IND_THIS_GETTER, &no_globals()),
+            parse_segment(IND_THIS_GETTER, NO_LOCALS),
             Some(BodyShape::IndirectLoad {
                 params: vec![0xF809],
                 ops: vec![IlOp::Load(0xF809), IlOp::LoadInd { off: 4 }],
@@ -1297,7 +1297,7 @@ mod tests {
             for &(i, b) in patch {
                 s[i] = b;
             }
-            parse_segment(&s, &no_globals())
+            parse_segment(&s, NO_LOCALS)
         };
         // A `char` pointee is `lbz`, not `lwz` (`30 82 11 70`).
         assert_eq!(bad(&[(16, 0x82), (17, 0x11), (18, 0x70), (20, 0x82), (21, 0x11), (22, 0x70)]), None);
@@ -1311,17 +1311,17 @@ mod tests {
         let mut with_add = IND_DEREF[..19].to_vec();
         with_add.extend_from_slice(&[0x33, 0x86, 0x41, 0x74, 0x01, 0x02]); // + 1
         with_add.extend_from_slice(&IND_DEREF[19..]);
-        assert_eq!(parse_segment(&with_add, &no_globals()), None);
+        assert_eq!(parse_segment(&with_add, NO_LOCALS), None);
 
         // A `28` payload other than `00 00` is unexplained and must refuse.
         let mut sub_bad = IND_SUBSCRIPT_NEG.to_vec();
         sub_bad[21] = 0x01;
-        assert_eq!(parse_segment(&sub_bad, &no_globals()), None);
+        assert_eq!(parse_segment(&sub_bad, NO_LOCALS), None);
 
         // An offset past the 16-bit displacement materializes an index register.
         let mut wide = IND_SUBSCRIPT_NEG[..19].to_vec();
         wide.extend_from_slice(&[0x80, 0x80, 0x1A, 0x06, 0x00]); // 400000
         wide.extend_from_slice(&IND_SUBSCRIPT_NEG[20..]);
-        assert_eq!(parse_segment(&wide, &no_globals()), None);
+        assert_eq!(parse_segment(&wide, NO_LOCALS), None);
     }
 }

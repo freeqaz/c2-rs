@@ -33,6 +33,7 @@ mod bundle;
 mod census;
 mod gl;
 mod readers;
+mod sy;
 
 pub use self::body::Block;
 pub use self::bundle::{is_empty_module, OPT_WORD_O1, OPT_WORD_OX};
@@ -218,13 +219,10 @@ pub struct IlFunction {
 /// each item's own comment); nothing here is hand-assembled.
 #[cfg(test)]
 pub(crate) mod test_fixtures {
-    use super::gl::GlIndex;
-
-    /// These pinned segments are synthetic and contain no global stores, so an
-    /// empty symbol index is the honest input: nothing here is a global.
-    pub(crate) fn no_globals() -> GlIndex<'static> {
-        GlIndex::new(&[])
-    }
+    /// These pinned segments are synthetic and have no `.sy` companion, so an
+    /// empty local set is the honest input: nothing here is a local the parse may
+    /// fold into the expression that reads it.
+    pub(crate) const NO_LOCALS: &[u32] = &[];
 
     // ---- indirect-load leaf -------------------------------------------------
     //

@@ -11,7 +11,6 @@ use self::shapes::{
     parse_call_shape, try_parse_assign_body_detail, try_parse_compare, try_parse_float_leaf,
     try_parse_indirect_load_leaf,
 };
-use super::gl::GlIndex;
 use super::readers::{eat_byte, eat_opt_stmt_marker, find_subslice, read_token_var};
 use super::{CompareLeaf, IlOp};
 
@@ -238,14 +237,14 @@ pub(crate) fn blk_type(seg: &[u8], p: usize, report_at: usize, ctx: &'static str
 /// `+ k` over a *computed* argument (`g(a+1)+1`), or a `* k`/`- k`/wide `k`/a
 /// second literal/a second call, all reject. The `callee` name is not in `.ex`;
 /// the caller pairs it from `.gl`.
-pub(crate) fn parse_segment(seg: &[u8], globals: &GlIndex<'_>) -> Option<BodyShape> {
-    parse_segment_detail(seg, globals).ok()
+pub(crate) fn parse_segment(seg: &[u8], locals: &[u32]) -> Option<BodyShape> {
+    parse_segment_detail(seg, locals).ok()
 }
 
 /// [`parse_segment`] with the fail-closed *reason* preserved (P2b census).
 /// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
 /// can never disagree with the gate about what is in class.
-pub(crate) fn parse_segment_detail(seg: &[u8], globals: &GlIndex<'_>) -> Result<BodyShape, Block> {
+pub(crate) fn parse_segment_detail(seg: &[u8], locals: &[u32]) -> Result<BodyShape, Block> {
     let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or(Block {
         ctx: "lo-marker",
         byte: None,
@@ -293,7 +292,7 @@ pub(crate) fn parse_segment_detail(seg: &[u8], globals: &GlIndex<'_>) -> Result<
             if is_call {
                 parse_call_shape(seg, &mut p, lo, None)
             } else {
-                try_parse_assign_body_detail(seg, p, lo, globals)
+                try_parse_assign_body_detail(seg, p, lo, locals)
             }
         }
         // Straight-line arithmetic opens with a LOAD or a bare literal — and so
@@ -383,7 +382,7 @@ mod tests {
             0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x4D, // module end
         ];
         assert_eq!(
-            parse_segment(seg, &no_globals()),
+            parse_segment(seg, NO_LOCALS),
             Some(BodyShape::StraightLine {
                 params: vec![0xE309, 0xE409, 0xE509], // a, b, c
                 ops: vec![
@@ -412,7 +411,7 @@ mod tests {
             0x4D,
         ];
         assert_eq!(
-            parse_segment(konst, &no_globals()),
+            parse_segment(konst, NO_LOCALS),
             Some(BodyShape::StraightLine {
                 params: vec![],
                 ops: vec![IlOp::Lit(42)],
@@ -427,7 +426,7 @@ mod tests {
             0x0F, 0x4D,
         ];
         assert_eq!(
-            parse_segment(kw, &no_globals()),
+            parse_segment(kw, NO_LOCALS),
             Some(BodyShape::StraightLine {
                 params: vec![],
                 ops: vec![IlOp::Lit(70000)],
@@ -453,7 +452,7 @@ mod tests {
             0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // GT terminate = segment end
         ];
         assert_eq!(
-            parse_segment(seg, &no_globals()),
+            parse_segment(seg, NO_LOCALS),
             Some(BodyShape::StraightLine {
                 params: vec![0xE309, 0xE409],
                 ops: vec![IlOp::Load(0xE309), IlOp::Load(0xE409), IlOp::Add],
@@ -466,7 +465,7 @@ mod tests {
         // `void f(){ g(); }` (mvp_call): exactly one void call, `4C 4B`, then
         // only the return plumbing → a bare `b g` tail call.
         assert_eq!(
-            parse_segment(MVP_CALL, &no_globals()),
+            parse_segment(MVP_CALL, NO_LOCALS),
             Some(BodyShape::VoidTailCall { callee_tok: 0xE309 })
         );
     }
@@ -476,7 +475,7 @@ mod tests {
         // `int f(int a){ return g(a) + 1; }` (mvp_framed): int call, single
         // passthrough arg, `55` call-end, exactly one `+1` post-op.
         assert_eq!(
-            parse_segment(MVP_FRAMED, &no_globals()),
+            parse_segment(MVP_FRAMED, NO_LOCALS),
             Some(BodyShape::FramedCall { add_k: 1, callee_tok: 0xE409 })
         );
     }
@@ -488,7 +487,7 @@ mod tests {
         //   arg-setup `g(a+1)` → arg `[Load a, Lit 1, Add]`. All are
         //   `IntTailCall` (a net-identity post-op is a tail call, not framed).
         assert_eq!(
-            parse_segment(INT_TAILRET, &no_globals()),
+            parse_segment(INT_TAILRET, NO_LOCALS),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509)],
@@ -497,7 +496,7 @@ mod tests {
             "passthrough g(a)"
         );
         assert_eq!(
-            parse_segment(INT_PLUS0, &no_globals()),
+            parse_segment(INT_PLUS0, NO_LOCALS),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509)],
@@ -506,7 +505,7 @@ mod tests {
             "identity-fold g(a)+0 routes to a tail call, not FramedCall{{add_k:0}}"
         );
         assert_eq!(
-            parse_segment(INT_ARGTAIL, &no_globals()),
+            parse_segment(INT_ARGTAIL, NO_LOCALS),
             Some(BodyShape::IntTailCall {
                 params: vec![0xE509],
                 arg_ops: vec![IlOp::Load(0xE509), IlOp::Lit(1), IlOp::Add],
@@ -522,12 +521,12 @@ mod tests {
         // passthrough arg is FramedCall (6-section frame); a ZERO `+k` folds to
         // an IntTailCall (5-section leaf). Same shape but for the immediate.
         assert_eq!(
-            parse_segment(MVP_FRAMED, &no_globals()),
+            parse_segment(MVP_FRAMED, NO_LOCALS),
             Some(BodyShape::FramedCall { add_k: 1, callee_tok: 0xE409 }),
             "g(a)+1 is framed"
         );
         assert!(
-            matches!(parse_segment(INT_PLUS0, &no_globals()), Some(BodyShape::IntTailCall { .. })),
+            matches!(parse_segment(INT_PLUS0, NO_LOCALS), Some(BodyShape::IntTailCall { .. })),
             "g(a)+0 must NOT be FramedCall{{add_k:0}}"
         );
     }
@@ -550,7 +549,7 @@ mod tests {
             ("g(a) + 1 + 2 (plus1plus2)", PLUS1PLUS2),
         ];
         for (label, seg) in cases {
-            assert_eq!(parse_segment(seg, &no_globals()), None, "must reject: {label}");
+            assert_eq!(parse_segment(seg, NO_LOCALS), None, "must reject: {label}");
         }
     }
 
@@ -566,7 +565,7 @@ mod tests {
             0x24, // GT — unmodeled → reject
             0x43, 0x42, 0x00, 0x00, 0x41, 0x86, 0x41, 0x74,
         ];
-        assert_eq!(parse_segment(cmp, &no_globals()), None);
+        assert_eq!(parse_segment(cmp, NO_LOCALS), None);
     }
 
     #[test]
@@ -585,7 +584,7 @@ mod tests {
             0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // fn tail = segment end
         ];
         assert_eq!(
-            parse_segment(seg, &no_globals()),
+            parse_segment(seg, NO_LOCALS),
             Some(BodyShape::StraightLine {
                 params: vec![0xA496_0300],
                 ops: vec![IlOp::Load(0xA496_0300)],
@@ -617,8 +616,8 @@ mod tests {
         ];
         for seg in all {
             assert_eq!(
-                parse_segment(seg, &no_globals()).is_some(),
-                parse_segment_detail(seg, &no_globals()).is_ok(),
+                parse_segment(seg, NO_LOCALS).is_some(),
+                parse_segment_detail(seg, NO_LOCALS).is_ok(),
                 "the two entry points have been re-forked"
             );
         }
@@ -662,7 +661,7 @@ mod tests {
             0x24, // GT
             0x43, 0x42, 0x00, 0x00, 0x41, 0x86, 0x41, 0x74,
         ];
-        let b = parse_segment_detail(cmp, &no_globals()).unwrap_err();
+        let b = parse_segment_detail(cmp, NO_LOCALS).unwrap_err();
         assert_eq!(b.feature(), "expr-cmp-gt");
         assert_eq!(cmp[b.off], 0x24);
     }
@@ -677,7 +676,7 @@ mod tests {
         // type), leaving everything else intact.
         let load = seg.windows(6).position(|w| w == [0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74]).unwrap();
         seg[load + 5] = 0x75;
-        let b = parse_segment_detail(&seg, &no_globals()).unwrap_err();
+        let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
         assert_eq!(b.feature(), "expr-load-type-864175");
         assert_eq!(seg[b.off], 0xB9, "reported at the LOAD, not mid-type");
     }

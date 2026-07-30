@@ -1,6 +1,7 @@
 use super::body::{parse_segment_detail, BodyShape};
 use super::bundle::split_function_bodies;
-use super::gl::{mangled_names, GlIndex};
+use super::gl::mangled_names;
+use super::sy::SyLocals;
 use super::Block;
 use crate::IlBundle;
 
@@ -81,23 +82,23 @@ impl IlBundle {
         // externals), so pairing there would attach wrong names to functions —
         // report none rather than a plausible-looking lie.
         let paired = names.len() == segs.len();
-        // The symbol index is threaded into the parse but is no longer consulted on
-        // this path: the assignment class used to decide "is this destination a
-        // global?" by asking whether `.gl` named it, and that was wrong (a file-scope
-        // `static` is `$sv`, which the index does not accept as an identifier), so
-        // the destination is now established positively from the formals list.
+        // `.gl` is deliberately NOT threaded into the body parse. The assignment
+        // class used to decide "is this destination a global?" by asking whether
+        // `.gl` named it, and that was wrong (a file-scope `static` is `$sv`, which
+        // the index does not accept as an identifier). The symbol view locals needed
+        // turned out to be `.sy`, not `.gl`, so the vestigial `.gl` thread is gone
+        // rather than left in place looking load-bearing. Do not restore the
+        // absence test.
         //
-        // It stays threaded because modelling locals will need a symbol view again
-        // and the plumbing is the awkward part — but do not restore the absence test.
-        // `GlIndex` builds the map lazily, so a TU with no call shape never pays for
-        // it at all; the contents are identical when it is built, so laziness cannot
-        // change acceptance.
-        let globals = GlIndex::new(gl);
+        // Same `.sy` binding as the gate, built from the same segment list, so the
+        // census cannot report a function in class that `IlBundle::functions` would
+        // refuse for want of a local — or the reverse.
+        let locals = SyLocals::new(self.get("sy"), segs.len());
         Some(
             segs.iter()
                 .enumerate()
                 .map(|(i, seg)| {
-                    let verdict = match parse_segment_detail(seg, &globals) {
+                    let verdict = match parse_segment_detail(seg, locals.of(i)) {
                         Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                         Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
                         Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
