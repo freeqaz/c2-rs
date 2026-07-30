@@ -1,5 +1,17 @@
-// **Negative** — everything one byte away from the indirect-load leaf. Every
-// function here must keep refusing.
+// **Negative** — everything one byte away from the indirect-load leaf.
+//
+// **`n_ldc` and `n_lds` are no longer negatives.** Narrow-integer getters landed
+// (`lbz`/`lhz` plus the extension, `w12_narrow_getters.cpp`), so a `char*` and a
+// `short*` load are now in class and byte-exact — verified standalone,
+// `Port=Match`. They stay here because the width table below is still the reason
+// each *other* line refuses, and deleting them would delete the contrast. The
+// header used to say "every function here must keep refusing"; that sentence was
+// false the moment narrow loads were admitted, and nothing noticed, because this TU
+// grades `NotImplemented` as a whole for the other fifteen. A negative fixture whose
+// negatives can silently turn positive is not a gate — see `docs/GAPS.md` §6. Found
+// by an adversarial reviewer, not by the suite.
+//
+// Every OTHER function here must keep refusing.
 //
 // The class accepted in `il_expr_deref.cpp` is *one* load, of *one* 4-byte
 // integer, through *one* byte-offset add that fits a 16-bit displacement, with
@@ -9,8 +21,8 @@
 //
 // ## The loaded width picks a different instruction
 //
-//   char*     30 82 11 70   ->  88630000  lbz  r3,0(r3)
-//   short*    30 84 21 11   ->  a0630000  lhz  r3,0(r3)     (lhz, NOT lha)
+//   char*     30 82 11 70   ->  88630000  lbz  r3,0(r3)     NOW IN CLASS
+//   short*    30 84 21 11   ->  a0630000  lhz  r3,0(r3)     NOW IN CLASS (lhz, NOT lha)
 //   float*    30 86 45 40   ->  c0230000  lfs  f1,0(r3)
 //   double*   30 88 85 41   ->  c8230000  lfd  f1,0(r3)
 //   int**     30 86 43 f4 08 -> 80630000  lwz  r3,0(r3)     (same word, still refused)

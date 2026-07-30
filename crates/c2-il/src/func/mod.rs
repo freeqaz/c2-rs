@@ -62,6 +62,36 @@ pub enum IlOp {
     /// strength-reduced to `lwz r11 ; slwi r10,r11,1 ; add r3,r11,r10`. See
     /// `docs/IL_EXPR_LAYER.md` §6 and `fixtures/cpp/il_expr_load_neg.cpp`.
     LoadInd { off: i32 },
+    /// **Indirect load of a non-4-byte scalar** (T3): pop a pointer, push the
+    /// `width`-byte value it designates, `off` bytes in. Same IL production as
+    /// [`IlOp::LoadInd`] (`30 <TYPE>`, optionally preceded by one byte-offset add)
+    /// — only the pointee TYPE differs, and with it the load opcode:
+    ///
+    /// ```text
+    ///  width 1  ->  lbz     width 2  ->  lhz     width 8  ->  ld (DS-form)
+    /// ```
+    ///
+    /// `sext` records that the IL widens the loaded value to `int` with a
+    /// `2C 86 41 74 00` **and c2 pays an instruction for it**: the load then targets
+    /// r11 and an `extsb` produces r3 (`89630000 7d630774` — the r11-then-r3 rule).
+    /// It is `true` only at `width == 1`, and only for a *signed* pointee:
+    ///
+    /// * an **unsigned** narrow pointee widens for free (`lbz`/`lhz` already
+    ///   zero-extend), so its `2C` decodes to `sext: false` — the same bytes as no
+    ///   conversion at all (measured: `int f(unsigned char*)`, `int f(bool*)`,
+    ///   `int f(unsigned short*)`, `int f(wchar_t*)` are each a bare
+    ///   `lbz`/`lhz r3` + `blr`);
+    /// * a **signed 2-byte** pointee widened to int is *mode-dependent* — `/O1`
+    ///   emits one `lha r3`, `/Ox` and `/O2` emit `lhz r11 ; extsh r3,r11` — and is
+    ///   refused by the parser rather than represented here (see
+    ///   [`try_parse_indirect_load_leaf`] and `fixtures/cpp/w12_narrow_neg.cpp`);
+    /// * `width == 8` never carries a conversion (a `long long`→int truncation is
+    ///   not captured), so `sext` is always `false` there.
+    ///
+    /// A separate variant rather than extra fields on [`IlOp::LoadInd`] so the
+    /// 4-byte integer load — every currently-matching fixture — keeps its exact
+    /// representation and provably identical bytes.
+    LoadIndSized { off: i32, width: u8, sext: bool },
     /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
     Lit(i32),
     /// Push a **floating-point literal** (W13b). The payload is always an
@@ -319,6 +349,99 @@ pub(crate) mod test_fixtures {
         0x41, 0x86, 0x41, 0x74, //
         0x3A, 0xF9, 0x09, 0x54, 0x02, 0x29, 0xF9, 0x09, //
         0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    // ---- T3: non-4-byte pointees --------------------------------------------
+    //
+    // Transcribed from a live capture of `fixtures/cpp/w12_narrow_getters.cpp` and
+    // `fixtures/cpp/w12_narrow_neg.cpp` (`c2rs census <cpp> --keep-il <dir>`).
+    // Whole segments, `53 53` statement start through `54 00` — not suffixes.
+
+    /// `char g_c_c(char* p) { return *p; }` — a 1-byte pointee, no conversion:
+    /// `30 82 11 70` / `41 82 11 70`. Emits `lbz r3,0(r3)` and *no* sign
+    /// extension, which is what makes "a signed load sign-extends" the wrong rule.
+    pub(crate) const NARROW_CHAR_DEREF: &[u8] = &[
+        0x53, 0x53, 0x26, 0x10, 0x0A, 0x46, 0x2D, 0x0F, 0x0A, 0x4C, 0x4F, 0x11,
+        0x53, 0xB9, 0x0F, 0x0A, 0x86, 0x43, 0xF0, 0x08, 0x30, 0x82, 0x11, 0x70,
+        0x41, 0x82, 0x11, 0x70, 0x3A, 0x11, 0x0A, 0x54, 0x02, 0x29, 0x11, 0x0A,
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int g_i_c(char* p) { return *p; }` — the same load plus the widening
+    /// `2C 86 41 74 00`, which costs `extsb r3,r11` and moves the load's target to
+    /// r11. Differs from [`NARROW_CHAR_DEREF`] by exactly those five bytes and the
+    /// result type.
+    pub(crate) const NARROW_CHAR_TO_INT: &[u8] = &[
+        0x53, 0x53, 0x26, 0x2B, 0x0A, 0x46, 0x2D, 0x2A, 0x0A, 0x4C, 0x4F, 0x11,
+        0x53, 0xB9, 0x2A, 0x0A, 0x86, 0x43, 0xF0, 0x08, 0x30, 0x82, 0x11, 0x70,
+        0x2C, 0x86, 0x41, 0x74, 0x00, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x2C, 0x0A,
+        0x54, 0x02, 0x29, 0x2C, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int g_i_us(unsigned short* p) { return *p; }` — an *unsigned* 2-byte
+    /// pointee (`30 84 22 21`) carrying the **same** widening token as
+    /// [`NARROW_CHAR_TO_INT`] and emitting nothing for it (`lhz r3` already
+    /// zero-extends). The pair is what pins the extension to the pointee's
+    /// signedness rather than to the token.
+    pub(crate) const NARROW_USHORT_TO_INT: &[u8] = &[
+        0x53, 0x53, 0x26, 0x3B, 0x0A, 0x46, 0x2D, 0x3A, 0x0A, 0x4C, 0x4F, 0x11,
+        0x53, 0xB9, 0x3A, 0x0A, 0x86, 0x43, 0xA1, 0x08, 0x30, 0x84, 0x22, 0x21,
+        0x2C, 0x86, 0x41, 0x74, 0x00, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x3C, 0x0A,
+        0x54, 0x02, 0x29, 0x3C, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `long long m_q(S* s) { return s->q; }` — an 8-byte pointee at offset 16.
+    /// The `27` type is `88 43 93 08` (a pointer tagged with the *pointee's* width
+    /// and alignment) over a `30 88 81 13` load: two independent statements of
+    /// "8 bytes, naturally aligned", which is what makes the DS-form `ld` legal.
+    pub(crate) const NARROW_LL_MEMBER: &[u8] = &[
+        0x53, 0x53, 0x26, 0x50, 0x0A, 0x46, 0x2D, 0x4F, 0x0A, 0x4C, 0x4F, 0x11,
+        0x53, 0xB9, 0x4F, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x33, 0x86, 0x41, 0x74,
+        0x10, 0x27, 0x88, 0x43, 0x93, 0x08, 0x30, 0x88, 0x81, 0x13, 0x41, 0x88,
+        0x81, 0x13, 0x3A, 0x51, 0x0A, 0x54, 0x02, 0x29, 0x51, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `char C::t_c() const { return c; }` — a `const` member getter through
+    /// `this`. The load is `const char` (`30 A2 11 98 20`) and the `2C` strips the
+    /// qualification to plain `char` (`2C 82 11 70 00`): same width, same
+    /// signedness, no instruction — the *other* thing a `2C` can mean here.
+    pub(crate) const NARROW_CONST_CHAR_THIS: &[u8] = &[
+        0x53, 0x53, 0x26, 0xF8, 0x09, 0xB9, 0x53, 0x0A, 0xA6, 0x43, 0x86, 0x20,
+        0x99, 0x86, 0x43, 0x88, 0x20, 0x00, 0x46, 0x4C, 0x4F, 0x11, 0x53, 0xB9,
+        0x53, 0x0A, 0xA6, 0x43, 0x86, 0x20, 0x33, 0x86, 0x41, 0x74, 0x00, 0x27,
+        0xA2, 0x43, 0x99, 0x20, 0x30, 0xA2, 0x11, 0x98, 0x20, 0x2C, 0x82, 0x11,
+        0x70, 0x00, 0x41, 0x82, 0x11, 0x70, 0x3A, 0x54, 0x0A, 0x54, 0x02, 0x29,
+        0x54, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int nw_widen_short(short* p) { return *p; }` — **refused**. Byte-for-byte
+    /// [`NARROW_USHORT_TO_INT`] with a *signed* 2-byte load (`30 84 21 11`), and
+    /// the only shape in the family whose instruction count depends on the
+    /// optimization mode: `/O1` emits one `lha r3`, `/Ox` and `/O2` emit
+    /// `lhz r11 ; extsh r3,r11`. This lowering path has no mode, so the parser
+    /// refuses instead of picking one.
+    pub(crate) const NARROW_SHORT_TO_INT_REFUSED: &[u8] = &[
+        0x53, 0x53, 0x26, 0xEE, 0x09, 0x46, 0x2D, 0xED, 0x09, 0x4C, 0x4F, 0x11,
+        0x53, 0xB9, 0xED, 0x09, 0x86, 0x43, 0x91, 0x08, 0x30, 0x84, 0x21, 0x11,
+        0x2C, 0x86, 0x41, 0x74, 0x00, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xEF, 0x09,
+        0x54, 0x02, 0x29, 0xEF, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `long long nw_ds(P* s) { return s->q; }` over a `#pragma pack(1)` struct —
+    /// **refused**, and the reason the width is matched as a (tag, kind) *pair*.
+    /// The member is at offset 3, and a packed member's TYPE tag carries the
+    /// *alignment* class, not the width: `30 82 81 13` (align 1, kind says 8 bytes)
+    /// against [`NARROW_LL_MEMBER`]'s `30 88 81 13`. Deriving the width from the
+    /// tag's low nibble reads this as one byte and emits `lbz` for a `long long`;
+    /// c2 emits `li r11,3 ; ldx r3,r3,r11`, since offset 3 is not a DS-form
+    /// displacement at all.
+    pub(crate) const NARROW_LL_PACKED_REFUSED: &[u8] = &[
+        0x53, 0x53, 0x26, 0x01, 0x0A, 0x46, 0x2D, 0x00, 0x0A, 0x4C, 0x4F, 0x11,
+        0x53, 0xB9, 0x00, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x33, 0x86, 0x41, 0x74,
+        0x03, 0x27, 0x82, 0x43, 0x93, 0x08, 0x30, 0x82, 0x81, 0x13, 0x41, 0x82,
+        0x81, 0x13, 0x3A, 0x02, 0x0A, 0x54, 0x02, 0x29, 0x02, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
     ];
 
     // ---- real captured segments (transcribed from live-toolchain `.ex`) -----
