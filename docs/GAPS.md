@@ -1137,10 +1137,12 @@ The rules that keep the numbers honest:
   and grouped them by production; and clearing one production can shrink several
   unrelated-looking buckets at once, so predicted movement should be stated
   per-production, never per-bucket.
-- **Four live wrong-bytes emits and one live panic, none of them found by the
-  fixture corpus.** Every one came from review or adversarial probing, and every one
-  has the same shape: *two facts that happen to share one field until some construct
-  pulls them apart.*
+- **Nine live wrong-bytes emits and two live panics, none of them found by the
+  fixture corpus.** Every one came from review or adversarial probing, and most
+  have the same shape: *two facts that happen to share one field until some
+  construct pulls them apart.* The last three break that pattern in a way worth
+  naming separately — see #9–#10: *one rule, two implementations, and the corpus
+  only ever exercised the correct one*.
     1. The `this` token was located by a bare first-`0x46` search. That byte is also
        the payload of the line marker for **source line 70**, so a member function
        there lost its `this` and every formal dropped a register.
@@ -1219,6 +1221,52 @@ The rules that keep the numbers honest:
        compiling anything: **`framed_call_text` took no parameter that could
        distinguish two formals**, so it could not have been emitting a
        formal-dependent word, and the class it served plainly had formals.
+    9. **One rule, two implementations, and each copy was missing a gate the
+       other had.** The direct `return g(…)` form and the bound-to-a-local form
+       (`int z = g(…); return z;`) both validate a call's arguments, in two
+       copies, and the copies had drifted apart in **both** directions:
+       * the bound form never asked [`leaves_ascending`], so
+         `int f(int a,int b){ int z = g(b + a); return z; }` emitted
+         `add r3,r4,r3` against the reference's `add r3,r3,r4` — c2 canonicalizes
+         a commutative argument's leaves, so `g(a+b)` and `g(b+a)` are the *same*
+         obj. `c2rs diff` read `Port=Match` for `a+b` beside
+         `Port=Mismatch @ 537` for `b+a`, **two lines of C++ that differ by one
+         transposition**;
+       * the bound form also never got instance #5's `call-arg-outer-formal`
+         gate, so `int f(int a,int b,int c){ int z = g2(a, c); return z; }`
+         **panicked** `c2rs census` with the identical `index out of bounds: the
+         len is 2 but the index is 2`. **The same defect, in the same file, four
+         months and one fix apart, because only one of the two copies was
+         repaired.**
+       Both closed by making the two copies one (`tail_call_shape`, which the new
+       statement-call sequence also uses). Fixture `il_call_bound_neg.cpp`, with
+       the canonical-order body as its control. Zero functions on the workload —
+       which is exactly why nothing saw it.
+    10. **A rule fitted to the shapes the corpus happened to contain.**
+       `permute_args_text` lowers a multi-argument call's register permutation by
+       decomposing it into cycles and walking each with one temp (r11). Measured
+       over **complete** grids rather than sampled — all 24 permutations of a
+       four-argument call, and all 84 single cycles of length 2–5 inside a
+       five-argument one — that rule is right at cycle length 2 (0/10 wrong) and 3
+       (0/20), and **wrong at 4 (10 of 30) and 5 (16 of 24)**. Past three, c2
+       hoists a *second* save into r10 and reorders the writes:
+       `int f(int a,int b,int c,int d){ return a4(c,d,b,a); }` is six moves and
+       two temps against the port's five and one, so the obj came out four bytes
+       short and diverged at offset 8. **Live on mainline**, in the plain
+       multi-argument tail call, with nothing framed about it.
+       It hid because twenty of the thirty four-cycles *do* agree with the minimal
+       walk, and because the two fixtures that grade this class
+       (`il_call_perm.cpp`, `il_call_multi.cpp`) between them contain no cycle
+       longer than three — `rev4`, the fixture written to be the hard case, is two
+       disjoint 2-cycles. Now gated at the measured edge (`call-arg-long-cycle`);
+       what c2 does past three is *described* by the grid and not explained, so
+       the boundary is drawn where the evidence stops rather than fitted to six
+       data points. Cost on the workload: **0 functions.**
+       The generalizable bit, and it is not the same as #1–#8: a rule can be
+       *derived* from captures, *verified* against every fixture, and still be
+       wrong on a region the corpus never entered — and the cheap way to find out
+       is to enumerate the parameter's whole range (here: all cycle lengths) rather
+       than to add one more hand-picked case.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one

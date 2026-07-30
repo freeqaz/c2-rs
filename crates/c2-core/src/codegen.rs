@@ -1363,6 +1363,156 @@ pub fn framed_call_text(
     Ok(FramedBody { text, bl_offset, prolog_len })
 }
 
+/// A **Class A many-call body**'s emitted `.text`, with one REL24 site per call.
+pub struct SeqBody {
+    pub text: Vec<u8>,
+    /// Absolute `.text` offsets of the `bl <callee>` words (already including
+    /// `base_off`), in call order — one relocation site each.
+    pub bl_offsets: Vec<u32>,
+    pub prolog_len: u32,
+}
+
+/// Emit the `.text` for a **Class A many-call body** (`docs/GAPS.md` #35 step 2,
+/// rung 1): a framed function whose body is a sequence of calls with nothing live
+/// across any of them.
+///
+/// ```text
+/// 7d8802a6  mflr r12                prologue — the shipped Class A three words
+/// 9181fff8  stw  r12,-8(r1)
+/// 9421ffa0  stwu r1,-96(r1)
+/// <setup 0>                         per call: the argument marshalling …
+/// 4bfffff5  bl   <callee 0>         … then the LINKING branch. REL24 site.
+/// <setup 1>
+/// 4bfffff1  bl   <callee 1>
+/// <tail>                            nothing, `addi r3,r3,k`, or `li r3,k`
+/// 38210060  addi r1,r1,96           epilogue
+/// 8181fff8  lwz  r12,-8(r1)
+/// 7d8803a6  mtlr r12
+/// 4e800020  blr
+/// ```
+///
+/// Byte evidence, one probe per row, all at `/O1 /GS- /c` (and the `.text` is
+/// identical at `/Ox` and `/O2` — `docs/CODEGEN_FRAMED_CALLS.md`'s mode note):
+///
+/// ```text
+///   void f(){ g1(); g2(); }             36 B  bl bl
+///   void f(){ g1(); g2(); g3(); g4(); } 44 B  bl bl bl bl
+///   void f(int a){ g1(a); g2(); }       36 B  a is already in r3
+///   void f(){ g1(1); g2(2); }           44 B  li r3,1 · bl · li r3,2 · bl
+///   void f(int a,int b){ g2(a,b); h(); }36 B  identity permutation, no moves
+///   void f(int a,int b){ g2(b,a); h(); }48 B  mr r11,r4 · mr r4,r3 · mr r3,r11
+///   void f(int a){ g1(a+1); g2(); }     40 B  addi r3,r3,1
+///   int  f(int a){ g1(a); return 5; }   36 B  li r3,5 after the last bl
+///   int  f(){ g1(); return g2(); }      36 B  no post-op at all
+///   int  f(){ g1(); return g2()+1; }    40 B  addi r3,r3,1
+/// ```
+///
+/// **The last call is a `bl`, never a `b`.** Every row above ends
+/// `bl <callee> … addi r1,r1,96 … blr`: c2's tail-call transform is off once the
+/// function is framed. The one shape that *is* tail-called is a lone statement
+/// call with nothing after it (`void f(int a){ g(a); }` → a bare `b ?g`, five
+/// sections, no `.pdata`), and the IL parser routes that to the tail-call
+/// production so it can never reach here.
+///
+/// `setups[i]` is call `i`'s argument marshalling, already computed by the caller
+/// through the *same* [`select_text`] / [`permute_args_text`] locators every other
+/// call shape uses; `tail` is the post-call word(s), empty for a void body.
+/// `base_off` is the function's start within its `.text` section — 0 under `/Gy`,
+/// its packed offset otherwise — because the `bl` displacement follows MSVC's
+/// `disp = −(own .text offset)` convention.
+pub fn call_seq_text(
+    setups: &[Vec<u8>],
+    tail: &[u8],
+    base_off: u32,
+    frame: FrameLayout,
+) -> Result<SeqBody, BackendError> {
+    if setups.is_empty() {
+        return Err(out_of_class("a call sequence with no calls"));
+    }
+    let prologue = frame.prologue()?;
+    let epilogue = frame.epilogue()?;
+    let prolog_len = prologue.len() as u32;
+    let mut text = prologue;
+    let mut bl_offsets = Vec::with_capacity(setups.len());
+    for setup in setups {
+        text.extend_from_slice(setup);
+        let off = base_off + text.len() as u32;
+        text.extend_from_slice(&encode_call_branch(off));
+        bl_offsets.push(off);
+    }
+    text.extend_from_slice(tail);
+    text.extend_from_slice(&epilogue);
+    Ok(SeqBody { text, bl_offsets, prolog_len })
+}
+
+/// Lower one call's argument setup, or a `Lit`-only tail, through
+/// [`select_text`] — the locator the integer tail call and the single framed call
+/// already use — and drop its trailing `blr`.
+///
+/// A synthetic [`IlFunction`] is the input because `select_text` reads exactly two
+/// of its fields (`params` and `ops`). Copying the selection logic instead is how
+/// the argument-register move went missing from `framed_call_text`
+/// (`docs/ROADMAP.md` §6g item 1): the one-implementation rule is the whole point.
+fn ops_setup_text(
+    params: &[u32],
+    ops: &[IlOp],
+    mode: OptMode,
+) -> Result<Vec<u8>, BackendError> {
+    if ops.is_empty() {
+        return Ok(Vec::new());
+    }
+    let synth = IlFunction {
+        mangled_name: String::new(),
+        source_path: None,
+        params: params.to_vec(),
+        ops: ops.to_vec(),
+        tail_call: None,
+        framed_call: None,
+        call_seq: None,
+        compare: None,
+        float_leaf: None,
+        arg_sources: None,
+        empty_body: false,
+    };
+    let mut t = select_text(&synth, mode)?;
+    let blr = encode_blr();
+    debug_assert!(t.ends_with(&blr), "select_text always terminates in blr");
+    t.truncate(t.len() - blr.len());
+    Ok(t)
+}
+
+/// The per-call argument setups and the post-call tail bytes of a Class A
+/// many-call body, in one place so the packed and `/Gy` emitters share them.
+pub fn call_seq_parts(
+    params: &[u32],
+    seq: &c2_il::CallSeq,
+    mode: OptMode,
+) -> Result<(Vec<Vec<u8>>, Vec<u8>), BackendError> {
+    let mut setups = Vec::with_capacity(seq.calls.len());
+    for c in &seq.calls {
+        let setup = match &c.arg_sources {
+            Some(sources) => permute_args_text(sources)?,
+            None => ops_setup_text(params, &c.arg_ops, mode)?,
+        };
+        setups.push(setup);
+    }
+    let tail = match seq.tail {
+        c2_il::SeqTail::Void => Vec::new(),
+        // The result is already in r3; `+0` folds away exactly as it does for the
+        // single framed call.
+        c2_il::SeqTail::CallValue { add_k: 0 } => Vec::new(),
+        c2_il::SeqTail::CallValue { add_k } => {
+            let k = i16::try_from(add_k)
+                .map_err(|_| out_of_class("call-sequence post-op wider than an addi immediate"))?;
+            encode_addi(RET_REG, RET_REG, k).to_vec()
+        }
+        // `return <literal>;` — the same `li r3,k` a bare-literal leaf emits, so it
+        // goes through the same selector rather than a second encoder.
+        c2_il::SeqTail::Lit(k) => ops_setup_text(params, &[IlOp::Lit(k)], mode)?,
+    };
+    Ok((setups, tail))
+}
+
 /// Emit the `.text` for an **integer tail call** `return g(<arg>)` (and the
 /// identity-fold `g(a) + 0`): the single call argument computed into r3 by the
 /// leaf arithmetic selector, then a `b <callee>` tail branch (paired with a
@@ -1478,6 +1628,30 @@ pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
         ));
     }
 
+    // **Only up to a three-element cycle.** Past three, c2 abandons the minimal
+    // single-temp walk below: it hoists a *second* save into r10 and writes the
+    // destinations in a different order. `return a4(c,d,b,a)` is
+    //
+    //   mr r11,r5 ; mr r10,r6 ; mr r6,r3 ; mr r5,r4 ; mr r4,r10 ; mr r3,r11
+    //
+    // — six moves and two temps against this function's five and one. Measured
+    // over complete grids, not sampled: all 24 four-argument permutations and all
+    // 84 single cycles of length 2–5 in a five-argument call give 0 mismatches at
+    // lengths 2 and 3, 10 of 30 at length 4 and 16 of 24 at length 5. It was a
+    // **live wrong-bytes emit on mainline** and no fixture reached it, because
+    // `il_call_perm.cpp` and `il_call_multi.cpp` between them hold no cycle longer
+    // than three. The order c2 picks past three is not characterized, so the
+    // boundary is the measured edge rather than a fit.
+    //
+    // The primary gate is `c2_il`'s (`call-arg-long-cycle`), so the census and the
+    // emitter agree; this is the backstop.
+    if cycles[0].len() > 3 {
+        return Err(out_of_class(
+            "argument permutation has a cycle longer than three: past three c2 \
+             hoists a second save into r10 and reorders the writes, and which \
+             order it picks is not characterized; out of class",
+        ));
+    }
     // One cycle. Its lowest destination is filled from the temp, last.
     let cycle = &cycles[0];
     let lowest = *cycle.iter().min().expect("non-empty cycle");
@@ -2370,6 +2544,7 @@ mod tests {
             ],
             tail_call: None,
             framed_call: None,
+            call_seq: None,
             compare: None,
             empty_body: false,
             float_leaf: None,
@@ -2461,6 +2636,7 @@ mod tests {
             ops: vec![IlOp::Load(0xEE09), IlOp::AddrOf { off: 4 }],
             tail_call: None,
             framed_call: None,
+        call_seq: None,
             compare: None,
             empty_body: false,
             float_leaf: None,
@@ -2523,6 +2699,7 @@ mod tests {
             ops: vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 0 }],
             tail_call: None,
             framed_call: None,
+        call_seq: None,
             compare: None,
             empty_body: false,
             float_leaf: None,
@@ -2602,6 +2779,7 @@ mod tests {
             ops,
             tail_call: None,
             framed_call: None,
+        call_seq: None,
             compare: None,
             empty_body: false,
             float_leaf: None,
@@ -3001,6 +3179,7 @@ mod tests {
             source_path: None,
             tail_call: None,
             framed_call: None,
+        call_seq: None,
             compare: None,
             empty_body: false,
             float_leaf: None,
@@ -3617,6 +3796,7 @@ mod tests {
             source_path: None,
             tail_call: None,
             framed_call: None,
+        call_seq: None,
             compare: None,
             empty_body: false,
             float_leaf: None,
@@ -3997,6 +4177,7 @@ mod tests {
             source_path: None,
             tail_call: None,
             framed_call: None,
+        call_seq: None,
             compare: None,
             empty_body: false,
             float_leaf: None,
@@ -4027,6 +4208,7 @@ mod tests {
             source_path: None,
             tail_call: None,
             framed_call: None,
+        call_seq: None,
             compare: None,
             empty_body: false,
             float_leaf: None,
@@ -4083,6 +4265,12 @@ pub enum Selected {
     /// whenever the call's argument is already the formal in r3, one
     /// `or r3,rN,rN` otherwise.
     Framed { setup: Vec<u8> },
+    /// A **Class A many-call body**. Like [`Selected::Framed`] it owns its whole
+    /// obj shape and every branch word encodes its own `.text` offset, so the
+    /// selector hands back the per-call argument setups and the post-call tail and
+    /// the caller — which knows where the function lands — finishes the body
+    /// through [`call_seq_text`].
+    Seq { setups: Vec<Vec<u8>>, tail: Vec<u8> },
 }
 
 /// **The port's per-function instruction selection**, in one place.
@@ -4118,6 +4306,10 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         debug_assert!(setup.ends_with(&blr), "select_text always terminates in blr");
         setup.truncate(setup.len() - blr.len());
         return Ok(Selected::Framed { setup });
+    }
+    if let Some(seq) = &func.call_seq {
+        let (setups, tail) = call_seq_parts(&func.params, seq, mode)?;
+        return Ok(Selected::Seq { setups, tail });
     }
     if func.tail_call.is_some() {
         // Multi-argument: a register permutation, then the branch.

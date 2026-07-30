@@ -26,6 +26,8 @@ and `*.il`; only the `.cpp` under `cpp/` is tracked.
 | `il_call_return.cpp` | dc3-decomp il-fixtures corpus | call / return / virtual-call shapes |
 | `add3.cpp` | written here | tiny freestanding int functions; `select_max`/`shift_mask` are still out of class |
 | `mvp_*.cpp` | written here | the MVP ladder: add/sub/mul chains, immediate folding, wide constants, tail calls, the framed non-leaf `g(a)+k`, and the empty TU |
+| `mvp_call_seq.cpp`, `mvp_call_seq_neg.cpp` | written here | **Ported (#35 step 2, rung 1)** — Class A many-calls: a framed body with several calls and nothing live across them. Ten shapes in one TU (which also stresses the label counter); the negative half holds the Class B boundary (a formal read after the first call needs `r31`) and the multi-argument literal list. See `docs/CODEGEN_PPC_MVP.md` §"Class A many-call bodies" |
+| `il_call_bound_neg.cpp` | written here | **Negative** — the call-bound-to-a-local form's two drifted gates. `int z = g(b + a); return z;` was a live wrong-bytes emit (c2 canonicalizes a commutative argument's leaves) and `int z = g2(a, c); return z;` panicked the census; one locator now (`docs/GAPS.md` §6 instance 9) |
 | `mvp_empty.cpp` | written here | **R1** — a TU that defines no functions; the smallest whole-TU byte-exact target (720 B, four sections, no `.text`) |
 | `w10_empty_fn.cpp` | written here | **R2** — empty *function* bodies (`void f() {}` → a bare `blr`), the `body-0x3A` census bucket |
 | `w5_chain.cpp` | written here | **W5 chains** — 3+-op `*`/`-` chains. This fixture caught a live mis-emit: the port reused one scratch where c2 descends `r11→r10→r9` |
