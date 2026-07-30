@@ -96,22 +96,90 @@ pub fn encode_lwz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// `lbz rD, D(rA)` — load a zero-extended byte: primary opcode 34. Transcribed
+/// from captures: `char f(char* p){return *p;}` is `88630000`, `s->c` at offset 4
+/// is `88630004`, and the r11 target an `extsb` consumes is `89630000`.
+pub fn encode_lbz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (34 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `lhz rD, D(rA)` — load a zero-extended halfword: primary opcode 40.
+/// Captured: `short f(short* p){return *p;}` is `a0630000` (**never `lha`** —
+/// see [`indirect_load_text`]), `s->h` at offset 6 is `a0630006`.
+pub fn encode_lhz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (40 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `ld rD, DS(rA)` — load a doubleword: primary opcode 58, **DS-form**. The low
+/// two bits of the 16-bit field are the form selector (0 for `ld`), so the
+/// displacement is only representable when it is a multiple of 4; callers gate on
+/// that rather than letting it round. Captured: `long long f(long long* p)` is
+/// `e8630000`, `s->q` at offset 16 is `e8630010`.
+pub fn encode_ld(rd: u8, ra: u8, ds: i16) -> [u8; 4] {
+    let word: u32 = (58 << 26)
+        | ((rd as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((ds as u16 as u32) & 0xFFFC);
+    word.to_be_bytes()
+}
+
+/// `extsb rA, rS` — sign-extend byte: opcode 31, XO 954. Captured as
+/// `7d630774` = `extsb r3,r11` (the r11-then-r3 rule; see
+/// [`indirect_load_text`]).
+pub fn encode_extsb(ra: u8, rs: u8) -> [u8; 4] {
+    xo31(rs, ra, 0, 954)
+}
+
+/// `extsh rA, rS` — sign-extend halfword: opcode 31, XO 922. Captured as
+/// `7d630734` = `extsh r3,r11`. Emitted by no shape the port accepts today: the
+/// one construct that produces it (`int f(short* p){return *p;}` under `/Ox`) is
+/// refused because the same source is one `lha` under `/O1`, and this path has no
+/// mode parameter. Kept, with its pinning test, because the *encoder* is measured
+/// and the missing piece is the mode plumbing, not the word.
+pub fn encode_extsh(ra: u8, rs: u8) -> [u8; 4] {
+    xo31(rs, ra, 0, 922)
+}
+
 /// Lower an **indirect-load leaf** — `return *p;` / `return s->m;` /
-/// `return p[k];` / `return mMember;` — to `lwz r3, off(rBase)` + `blr`.
+/// `return p[k];` / `return mMember;` — to one load + `blr`.
 ///
-/// Recognized by an **exact** two-op stream `[Load(base), LoadInd { off }]`,
-/// which `c2_il::try_parse_indirect_load_leaf` is the only producer of. Returns
-/// `None` for anything else so the ordinary selector keeps its behaviour
-/// unchanged; the pattern is deliberately not a prefix match, because c2 does
-/// *not* lower a load that feeds arithmetic this way — `*p + 1` puts the loaded
-/// value in the scratch register (`lwz r11,0(r3) ; addi r3,r11,1`) and `*p * 3`
-/// is strength-reduced (`lwz r11 ; slwi r10,r11,1 ; add r3,r11,r10`).
+/// Recognized by an **exact** two-op stream `[Load(base), LoadInd { off }]` or
+/// `[Load(base), LoadIndSized { … }]`, which `c2_il::try_parse_indirect_load_leaf`
+/// is the only producer of. Returns `None` for anything else so the ordinary
+/// selector keeps its behaviour unchanged; the pattern is deliberately not a prefix
+/// match, because c2 does *not* lower a load that feeds arithmetic this way —
+/// `*p + 1` puts the loaded value in the scratch register
+/// (`lwz r11,0(r3) ; addi r3,r11,1`, and for a `char*`
+/// `lbz r11 ; extsb r11,r11 ; addi r3,r11,1`) and `*p * 3` is strength-reduced.
+///
+/// The measured lowering table (`/Ox /GS-` and the workload's `/O1`, identical
+/// unless noted; `docs/IL_LOAD_TYPES.md` §3 plus this project's own re-capture):
+///
+/// ```text
+///   T f(T*)                          int f(T*)   (an IL `2C … 00` to int)
+///   char/schar   lbz r3              lbz r11 ; extsb r3,r11   <- the r11 rule
+///   uchar/bool   lbz r3              lbz r3      (the widening is free)
+///   short        lhz r3, NEVER lha    /O1: lha r3   /Ox,/O2: lhz r11 ; extsh r3,r11
+///   ushort/wchar lhz r3              lhz r3
+///   int/unsigned lwz r3              lwz r3
+///   long long    ld r3 (DS-form)     — not captured
+/// ```
+///
+/// The signed-halfword widening is the one row this function cannot emit: it is the
+/// only shape in the table whose *instruction count* depends on the optimization
+/// mode, and this path takes no mode. The parser refuses it, so it never arrives
+/// here; the `Err` below is the second lock, not the primary one.
 ///
 /// `func.params` maps the base token to its incoming argument register by
 /// declaration order, with a member function's `this` already at index 0.
 pub fn indirect_load_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>> {
-    let (base_tok, off) = match func.ops.as_slice() {
-        [IlOp::Load(t), IlOp::LoadInd { off }] => (*t, *off),
+    let (base_tok, off, width, sext) = match func.ops.as_slice() {
+        [IlOp::Load(t), IlOp::LoadInd { off }] => (*t, *off, 4u8, false),
+        [IlOp::Load(t), IlOp::LoadIndSized { off, width, sext }] => (*t, *off, *width, *sext),
         _ => return None,
     };
     let d = match i16::try_from(off) {
@@ -127,8 +195,30 @@ pub fn indirect_load_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendEr
             )))
         }
     };
-    let mut text = Vec::with_capacity(8);
-    text.extend_from_slice(&encode_lwz(RET_REG, base, d));
+    let mut text = Vec::with_capacity(12);
+    // A load that feeds a sign-extension targets r11 and the `exts*` produces r3;
+    // an unextended load targets r3 directly.
+    let dest = if sext { SCRATCH_REG } else { RET_REG };
+    match (width, sext) {
+        (1, _) => text.extend_from_slice(&encode_lbz(dest, base, d)),
+        (2, false) => text.extend_from_slice(&encode_lhz(dest, base, d)),
+        (4, false) => text.extend_from_slice(&encode_lwz(dest, base, d)),
+        (8, false) if d % 4 == 0 => text.extend_from_slice(&encode_ld(dest, base, d)),
+        (8, false) => {
+            return Some(Err(out_of_class(
+                "8-byte indirect load whose offset is not a multiple of 4 (ld is DS-form)",
+            )))
+        }
+        // Only `width == 1` is ever sign-extended here (see `IlOp::LoadIndSized`).
+        _ => {
+            return Some(Err(out_of_class(
+                "indirect load of an unmodeled width/extension combination",
+            )))
+        }
+    }
+    if sext {
+        text.extend_from_slice(&encode_extsb(RET_REG, dest));
+    }
     text.extend_from_slice(&encode_blr());
     Some(Ok(text))
 }
@@ -567,7 +657,11 @@ pub fn float_leaf_text(
                     IlOp::Sub => text.extend_from_slice(&encode_fsub(double, dest, lhs, rhs)),
                     IlOp::Mul => text.extend_from_slice(&encode_fmul(double, dest, lhs, rhs)),
                     IlOp::Div => text.extend_from_slice(&encode_fdiv(double, dest, lhs, rhs)),
-                    IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. } | IlOp::LoadInd { .. } => {
+                    IlOp::Load(_)
+                    | IlOp::Lit(_)
+                    | IlOp::FpLit { .. }
+                    | IlOp::LoadInd { .. }
+                    | IlOp::LoadIndSized { .. } => {
                         unreachable!("not a binary op")
                     }
                 }
@@ -1375,7 +1469,7 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
             // affine selector would mean lowering `*p` as if it were a register
             // operand — and c2 does not: the load lands in the scratch register
             // and the arithmetic reads it from there.
-            IlOp::LoadInd { .. } => {
+            IlOp::LoadInd { .. } | IlOp::LoadIndSized { .. } => {
                 return Err(out_of_class(
                     "indirect load feeding arithmetic; out of class",
                 ))
@@ -1530,7 +1624,8 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     | IlOp::Load(_)
                     | IlOp::Lit(_)
                     | IlOp::FpLit { .. }
-                    | IlOp::LoadInd { .. } => {
+                    | IlOp::LoadInd { .. }
+                    | IlOp::LoadIndSized { .. } => {
                         unreachable!("not a modeled integer binary op")
                     }
                 }
@@ -1616,7 +1711,15 @@ fn combine(
         )),
 
         (IlOp::Div, _, _) => Err(out_of_class("integer division; out of class")),
-        (IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. } | IlOp::LoadInd { .. }, _, _) => {
+        (
+            IlOp::Load(_)
+            | IlOp::Lit(_)
+            | IlOp::FpLit { .. }
+            | IlOp::LoadInd { .. }
+            | IlOp::LoadIndSized { .. },
+            _,
+            _,
+        ) => {
             unreachable!("not a binary op")
         }
     }
@@ -1685,6 +1788,133 @@ mod tests {
         assert!(indirect_load_text(&f).is_none());
         // …and the affine selector must refuse it rather than pick a register.
         assert!(select_text(&f, OptMode::Ox).is_err());
+    }
+
+    #[test]
+    fn narrow_load_encoders_match_reference_words() {
+        // Every word transcribed from a reference obj of
+        // `fixtures/cpp/w12_narrow_getters.cpp` (and the probe TUs behind
+        // `docs/IL_LOAD_TYPES.md` §3) — not derived from the encoding rule.
+        //
+        // `char f(char* p){return *p;}`            88630000  lbz r3,0(r3)
+        assert_eq!(encode_lbz(3, 3, 0), [0x88, 0x63, 0x00, 0x00]);
+        // `int f(char* p){return *p;}`             89630000  lbz r11,0(r3)
+        assert_eq!(encode_lbz(11, 3, 0), [0x89, 0x63, 0x00, 0x00]);
+        // `int f(int a,char* p){return *p;}`       89640000  lbz r11,0(r4)
+        assert_eq!(encode_lbz(11, 4, 0), [0x89, 0x64, 0x00, 0x00]);
+        // `s->c` at 4 / `s->u` at 8 / `p[3]`       88630004 / 88630008 / 88630003
+        assert_eq!(encode_lbz(3, 3, 4), [0x88, 0x63, 0x00, 0x04]);
+        assert_eq!(encode_lbz(3, 3, 8), [0x88, 0x63, 0x00, 0x08]);
+        assert_eq!(encode_lbz(3, 3, 3), [0x88, 0x63, 0x00, 0x03]);
+        assert_eq!(encode_lbz(11, 3, 4), [0x89, 0x63, 0x00, 0x04]);
+        // `short f(short* p){return *p;}`          a0630000  lhz r3,0(r3)
+        assert_eq!(encode_lhz(3, 3, 0), [0xA0, 0x63, 0x00, 0x00]);
+        // `s->h` at 6 / `p[2]` at 4 / `t_uh` at 6  a0630006 / a0630004
+        assert_eq!(encode_lhz(3, 3, 6), [0xA0, 0x63, 0x00, 0x06]);
+        assert_eq!(encode_lhz(3, 3, 4), [0xA0, 0x63, 0x00, 0x04]);
+        // `int f(short* p){return *p;}` under /Ox  a1630000  lhz r11,0(r3)
+        assert_eq!(encode_lhz(11, 3, 0), [0xA1, 0x63, 0x00, 0x00]);
+        // `long long f(long long* p){return *p;}`  e8630000  ld r3,0(r3)
+        assert_eq!(encode_ld(3, 3, 0), [0xE8, 0x63, 0x00, 0x00]);
+        // `s->q` at 16 / `t_q` at 8 / `p[2]` at 16 e8630010 / e8630008
+        assert_eq!(encode_ld(3, 3, 16), [0xE8, 0x63, 0x00, 0x10]);
+        assert_eq!(encode_ld(3, 3, 8), [0xE8, 0x63, 0x00, 0x08]);
+        // DS-form: the low two bits are the form's, never the displacement's. A
+        // caller must gate `off % 4`; if one ever did not, the word it would get is
+        // the truncated one, not a rounded-up address.
+        assert_eq!(encode_ld(3, 3, -8), [0xE8, 0x63, 0xFF, 0xF8]);
+        assert_eq!(encode_ld(3, 3, 3), [0xE8, 0x63, 0x00, 0x00]);
+        // `extsb r3,r11` / `extsh r3,r11` — rS in bits 21..25, rA in 16..20, so the
+        // operand order in the mnemonic is the reverse of the field order.
+        assert_eq!(encode_extsb(3, 11), [0x7D, 0x63, 0x07, 0x74]);
+        assert_eq!(encode_extsh(3, 11), [0x7D, 0x63, 0x07, 0x34]);
+        // `extsb r11,r11` (`*p + 1`, the refused arithmetic form) and `extsb r3,r3`
+        // (`int f(char a)`, the refused widen-param rung) — both captured, both
+        // distinct words, so the register fields are pinned in each direction.
+        assert_eq!(encode_extsb(11, 11), [0x7D, 0x6B, 0x07, 0x74]);
+        assert_eq!(encode_extsb(3, 3), [0x7C, 0x63, 0x07, 0x74]);
+    }
+
+    #[test]
+    fn narrow_indirect_load_text_matches_the_captured_bodies() {
+        let f = |ops: Vec<IlOp>, params: Vec<u32>| IlFunction {
+            mangled_name: "?g@@YADPAD@Z".into(),
+            source_path: None,
+            params,
+            ops,
+            tail_call: None,
+            framed_call: None,
+            compare: None,
+            empty_body: false,
+            float_leaf: None,
+            arg_sources: None,
+        };
+        let blr = [0x4E, 0x80, 0x00, 0x20];
+        let body = |ops: Vec<IlOp>, params: Vec<u32>| {
+            indirect_load_text(&f(ops, params)).unwrap().unwrap()
+        };
+        let sized = |width, sext, off| {
+            vec![IlOp::Load(0xEE09), IlOp::LoadIndSized { off, width, sext }]
+        };
+        // `char g_c_c(char* p){return *p;}`  ->  lbz r3,0(r3) ; blr
+        assert_eq!(
+            body(sized(1, false, 0), vec![0xEE09]),
+            [&[0x88, 0x63, 0x00, 0x00][..], &blr].concat()
+        );
+        // `int g_i_c(char* p){return *p;}`   ->  lbz r11,0(r3) ; extsb r3,r11 ; blr
+        // The load targets the SCRATCH register and the extension produces r3 —
+        // the r11-then-r3 rule. `lbz r3 ; extsb r3,r3` is the plausible wrong emit.
+        assert_eq!(
+            body(sized(1, true, 0), vec![0xEE09]),
+            [&[0x88 + 1, 0x63, 0x00, 0x00][..], &[0x7D, 0x63, 0x07, 0x74], &blr].concat()
+        );
+        // `int g_i_c2(int a,char* p){return *p;}` -> base r4, destination still r11
+        assert_eq!(
+            body(sized(1, true, 0), vec![0x1234, 0xEE09]),
+            [&[0x89, 0x64, 0x00, 0x00][..], &[0x7D, 0x63, 0x07, 0x74], &blr].concat()
+        );
+        // `short g_s_s(short* p){return *p;}` ->  lhz r3,0(r3) — never `lha`
+        assert_eq!(
+            body(sized(2, false, 0), vec![0xEE09]),
+            [&[0xA0, 0x63, 0x00, 0x00][..], &blr].concat()
+        );
+        // `short m_h(S* s){return s->h;}`    ->  lhz r3,6(r3)
+        assert_eq!(
+            body(sized(2, false, 6), vec![0xEE09]),
+            [&[0xA0, 0x63, 0x00, 0x06][..], &blr].concat()
+        );
+        // `long long m_q(S* s){return s->q;}` -> ld r3,16(r3)
+        assert_eq!(
+            body(sized(8, false, 16), vec![0xEE09]),
+            [&[0xE8, 0x63, 0x00, 0x10][..], &blr].concat()
+        );
+        // The 4-byte load keeps its own variant and its own bytes.
+        assert_eq!(
+            body(vec![IlOp::Load(0xEE09), IlOp::LoadInd { off: 4 }], vec![0xEE09]),
+            [&[0x80, 0x63, 0x00, 0x04][..], &blr].concat()
+        );
+        // An 8-byte load whose offset is not a multiple of 4 cannot be a DS-form
+        // displacement: c2 emits `li r11,3 ; ldx r3,r3,r11` instead (measured on a
+        // `#pragma pack(1)` member, `fixtures/cpp/w12_narrow_neg.cpp`). The parser
+        // refuses it; this is the second lock.
+        assert!(indirect_load_text(&f(sized(8, false, 3), vec![0xEE09]))
+            .unwrap()
+            .is_err());
+        // Sign extension is only ever modeled at width 1 — a signed halfword
+        // widening is mode-dependent and refused upstream.
+        assert!(indirect_load_text(&f(sized(2, true, 0), vec![0xEE09]))
+            .unwrap()
+            .is_err());
+        assert!(indirect_load_text(&f(sized(8, true, 0), vec![0xEE09]))
+            .unwrap()
+            .is_err());
+        // A narrow load feeding arithmetic is not this shape at all (c2 extends in
+        // place — `extsb r11,r11` — and the leaf extends across registers).
+        assert!(indirect_load_text(&f(
+            vec![IlOp::Load(0xEE09), IlOp::LoadIndSized { off: 0, width: 1, sext: true }, IlOp::Lit(1), IlOp::Add],
+            vec![0xEE09]
+        ))
+        .is_none());
     }
 
     #[test]

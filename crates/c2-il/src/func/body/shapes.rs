@@ -558,9 +558,10 @@ fn arg_loads_are_formals(arg_ops: &[IlOp], params: &[u32]) -> bool {
 ///   every site captured (constant and variable indices, 1/4/8-byte elements,
 ///   negative indices, 2-D arrays, bitfields) and their meaning is UNKNOWN, so
 ///   anything else refuses.
-/// * **The loaded type must be a 4-byte integer.** `char *` is `lbz`, `short *`
-///   is `lhz`, `float *` is `lfs`, `double *` is `lfd` — all captured, all
-///   different instructions.
+/// * **The loaded type must be a 1-, 2-, 4- or 8-byte integer** ([`SIZED_PTEE`]):
+///   `char *` is `lbz`, `short *` is `lhz`, `long long *` is `ld`, `float *` is
+///   `lfs`, `double *` is `lfd` — all captured, all different instructions, and
+///   the FP ones are still refused.
 /// * **Nothing may follow the load but the return.** `*p + 1` puts the load in
 ///   r11, and `*p * 3` is strength-reduced; see [`IlOp::LoadInd`].
 /// * **A `this`-bearing function must have its `this` found**, because `this`
@@ -597,6 +598,12 @@ pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) 
     // byte offset as a literal and add it to the designator; `27` re-types the
     // result and `28` does not (`docs/IL_EXPR_LAYER.md` §4).
     let mut off: i32 = 0;
+    // What the byte-offset add says the pointee's width is, when it says anything.
+    // `27` re-types the address and its tag carries the POINTEE width, so it is a
+    // second, independent statement of the width the `30` load will announce; the
+    // two are required to agree. `28` and the bare deref say nothing, and then the
+    // `30` type is the only evidence.
+    let mut ptee_width: Option<u8> = None;
     if *seg.get(p)? == 0x33 {
         let mut probe = p + 1;
         // The literal's own type: `86 41 74` (int) for a member offset,
@@ -609,9 +616,13 @@ pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) 
             0x27 => {
                 probe += 1;
                 let (tag, kind, _, tw) = read_type(seg, probe)?;
-                if !is_ptr_to_4(tag, kind) {
-                    return None;
-                }
+                ptee_width = if is_ptr_to_4(tag, kind) {
+                    Some(4)
+                } else {
+                    // A pointer to a 1-, 2- or 8-byte object; captured with and
+                    // without the tag's const bit ([`SIZED_PTR`]).
+                    Some(sized_ptr_width(tag, kind)?)
+                };
                 probe += tw;
             }
             0x28 => {
@@ -627,7 +638,70 @@ pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) 
         off = k;
         p = probe;
     }
-    finish_indirect_load(seg, p, lo, base_tok, off)
+    finish_indirect_load_of(seg, p, lo, base_tok, off, ptee_width)
+}
+
+/// Pointee TYPEs admitted at the `30` indirect-load position **beyond** the
+/// 4-byte integer class ([`is_int4_type`]), as `(tag, kind, width, signed)`.
+///
+/// Required **literally, as pairs**, rather than computed from the tag's
+/// width nibble: the width is stated twice in a TYPE — the tag's low nibble and
+/// the kind's high nibble — and demanding both is a free discriminator against a
+/// misaligned read landing on a plausible-looking byte. Every pair below has a
+/// capture in `fixtures/cpp/w12_narrow_getters.cpp` (see that file's header for
+/// the per-case witness); a tag not listed — notably `volatile` (`92`/`94`/`98`),
+/// which no probe produced — refuses rather than being assumed to behave like the
+/// `const` one.
+///
+/// `signed` is the pointee's own signedness (kind's low nibble 1 vs 2), which
+/// matters only when a `2C` widens the value to `int`: an unsigned narrow load is
+/// already zero-extended by `lbz`/`lhz`, a signed one is not.
+const SIZED_PTEE: &[(u8, u8, u8, bool)] = &[
+    (0x82, 0x11, 1, true),  // char / signed char        `30 82 11 70` / `… 10`
+    (0xA2, 0x11, 1, true),  // const char                `30 a2 11 8e 20`
+    (0x82, 0x12, 1, false), // unsigned char / bool      `30 82 12 20` / `… 30`
+    (0xA2, 0x12, 1, false), // const unsigned char/bool  `30 a2 12 95 20`
+    (0x84, 0x21, 2, true),  // short                     `30 84 21 11`
+    (0xA4, 0x21, 2, true),  // const short               `30 a4 21 99 20`
+    (0x84, 0x22, 2, false), // unsigned short / wchar_t  `30 84 22 21` / `… 71`
+    (0xA4, 0x22, 2, false), // const unsigned short/wchar_t `30 a4 22 9b 20`
+    (0x88, 0x81, 8, true),  // long long                 `30 88 81 13`
+    (0xA8, 0x81, 8, true),  // const long long           `30 a8 81 9f 20`
+    (0x88, 0x82, 8, false), // unsigned long long        `30 88 82 23`
+    (0xA8, 0x82, 8, false), // const unsigned long long  `30 a8 82 … 20`
+];
+
+/// `(tag, kind)` of a **pointer whose tag carries the pointee's width** — the
+/// shape the `27` byte-offset-add position uses (`27 82 43 f0 08` for `char *`,
+/// `27 a4 43 9a 20` for `const short *`, `27 a8 43 a0 20` for `const long long *`).
+/// The tag's const bit here does **not** track the loaded type's: a *non*-const
+/// member function's getter carries `27 a2 43 f0 08` over a `30 82 11 70`
+/// (`D::n_c()`), so both tags are listed for each width and neither implies
+/// anything about the load.
+const SIZED_PTR: &[(u8, u8, u8)] = &[
+    (0x82, 0x43, 1),
+    (0xA2, 0x43, 1),
+    (0x84, 0x43, 2),
+    (0xA4, 0x43, 2),
+    (0x88, 0x43, 8),
+    (0xA8, 0x43, 8),
+];
+
+/// `(width, signed)` of a [`SIZED_PTEE`] pair, or `None` — which is a refusal,
+/// never "assume 4".
+fn sized_ptee(tag: u8, kind: u8) -> Option<(u8, bool)> {
+    SIZED_PTEE
+        .iter()
+        .find(|&&(t, k, _, _)| t == tag && k == kind)
+        .map(|&(_, _, w, s)| (w, s))
+}
+
+/// Pointee width of a [`SIZED_PTR`] pair, or `None`.
+fn sized_ptr_width(tag: u8, kind: u8) -> Option<u8> {
+    SIZED_PTR
+        .iter()
+        .find(|&&(t, k, _)| t == tag && k == kind)
+        .map(|&(_, _, w)| w)
 }
 
 /// The tail shared by both indirect-load designators (the plain `27`/`28` offset
@@ -640,10 +714,29 @@ pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) 
 /// this tail would be two places for the `lwz` displacement bound to drift.
 fn finish_indirect_load(
     seg: &[u8],
+    p: usize,
+    lo: usize,
+    base_tok: u32,
+    off: i32,
+) -> Option<BodyShape> {
+    finish_indirect_load_of(seg, p, lo, base_tok, off, Some(4))
+}
+
+/// [`finish_indirect_load`] with the pointee width the *designator* announced, if
+/// it announced one (`Some(4)` = "a 4-byte object, and nothing else will do").
+///
+/// T3 widens the load type from "a 4-byte integer" to any [`SIZED_PTEE`] scalar,
+/// which is where the two designators stop being interchangeable: the plain `27`
+/// form re-types the address with the pointee's width and so *knows* it, while the
+/// intrinsic-2117 base-member form was captured only over 4-byte members and pins
+/// itself to 4 by passing `Some(4)`.
+fn finish_indirect_load_of(
+    seg: &[u8],
     mut p: usize,
     lo: usize,
     base_tok: u32,
     off: i32,
+    ptee_width: Option<u8>,
 ) -> Option<BodyShape> {
     if !(-0x8000..=0x7FFF).contains(&off) {
         return None;
@@ -654,26 +747,100 @@ fn finish_indirect_load(
         return None;
     }
     let (tag, kind, _, tw) = read_type(seg, p)?;
-    if !is_int4_type(tag, kind) {
-        return None;
-    }
-    p += tw;
-
-    // An optional cv-qualification strip. Provably free over a 4-byte integer
-    // source (see [`is_int4_type`]); the target must still be int-like, and the
-    // trailing varint must be the `00` observed at all 14,098 aligned sites.
-    if *seg.get(p)? == 0x2C {
-        let mut probe = p + 1;
-        if !eat_int_like(seg, &mut probe) || !eat_byte(seg, &mut probe, 0x00) {
+    let load_op = if is_int4_type(tag, kind) {
+        if matches!(ptee_width, Some(w) if w != 4) {
             return None;
         }
-        p = probe;
-    }
+        p += tw;
 
-    // Result type, then the shared plumbing, which must reach the segment end.
-    if !eat_byte(seg, &mut p, 0x41) || !eat_int_like(seg, &mut p) {
-        return None;
-    }
+        // An optional cv-qualification strip. Provably free over a 4-byte integer
+        // source (see [`is_int4_type`]); the target must still be int-like, and the
+        // trailing varint must be the `00` observed at all 14,098 aligned sites.
+        if *seg.get(p)? == 0x2C {
+            let mut probe = p + 1;
+            if !eat_int_like(seg, &mut probe) || !eat_byte(seg, &mut probe, 0x00) {
+                return None;
+            }
+            p = probe;
+        }
+
+        // Result type.
+        if !eat_byte(seg, &mut p, 0x41) || !eat_int_like(seg, &mut p) {
+            return None;
+        }
+        IlOp::LoadInd { off }
+    } else {
+        let (width, signed) = sized_ptee(tag, kind)?;
+        if matches!(ptee_width, Some(w) if w != width) {
+            return None;
+        }
+        // `ld` is DS-form: the displacement's low two bits are the form's, so an
+        // offset that is not a multiple of 4 cannot be encoded at all. Natural
+        // alignment makes one unreachable through a struct member, so this gate has
+        // no witness — which is exactly why it refuses instead of masking.
+        if width == 8 && off % 4 != 0 {
+            return None;
+        }
+        p += tw;
+
+        // The optional conversion. Two — and only two — targets are captured over a
+        // narrow load, and they are not the same thing:
+        //
+        //  * the **same** width and signedness (a cv strip: `30 a2 11 93 20`
+        //    `2c 82 11 70 00`) emits nothing, exactly as at width 4;
+        //  * **exactly `int`** (`2c 86 41 74 00`) is a real widening. Free for an
+        //    unsigned pointee (`lbz`/`lhz` zero-extend), one extra `extsb` for a
+        //    signed byte, and **mode-dependent** for a signed halfword — `/O1`
+        //    emits `lha r3` where `/Ox` and `/O2` emit `lhz r11 ; extsh r3,r11`
+        //    (measured, both ways, `docs/IL_LOAD_TYPES.md` §3 states only the `/Ox`
+        //    form). This lowering path has no optimization-mode parameter, so the
+        //    signed-halfword widening is refused rather than guessed at.
+        //
+        // Anything else — `unsigned int` as the target (whose emit is measured
+        // identical to `int`'s, but whose (source × target) matrix is not),
+        // a widening of a `long long`, a narrowing, a change of signedness at the
+        // same width — refuses. Each would need its own capture set.
+        let mut sext = false;
+        let mut int_result = false;
+        if *seg.get(p)? == 0x2C {
+            let mut probe = p + 1;
+            let (t2, k2, _, tw2) = read_type(seg, probe)?;
+            if eat(seg, &mut probe, &INT_TYPE) {
+                if width != 1 && !(width == 2 && !signed) {
+                    return None;
+                }
+                sext = signed;
+                int_result = true;
+            } else if sized_ptee(t2, k2) == Some((width, signed)) {
+                probe += tw2;
+            } else {
+                return None;
+            }
+            if !eat_byte(seg, &mut probe, 0x00) {
+                return None;
+            }
+            p = probe;
+        }
+
+        // Result type: the value's type after the conversion, stated again. Every
+        // capture agrees byte for byte, so this is required rather than skipped.
+        if !eat_byte(seg, &mut p, 0x41) {
+            return None;
+        }
+        if int_result {
+            if !eat(seg, &mut p, &INT_TYPE) {
+                return None;
+            }
+        } else {
+            let (t3, k3, _, tw3) = read_type(seg, p)?;
+            if sized_ptee(t3, k3) != Some((width, signed)) {
+                return None;
+            }
+            p += tw3;
+        }
+        IlOp::LoadIndSized { off, width, sext }
+    };
+    // The shared plumbing, which must reach the segment end.
     eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
 
     // Bind the base to its argument register. `this` is argument 0, and when it
@@ -696,7 +863,7 @@ fn finish_indirect_load(
     }
     Some(BodyShape::IndirectLoad {
         params,
-        ops: vec![IlOp::Load(base_tok), IlOp::LoadInd { off }],
+        ops: vec![IlOp::Load(base_tok), load_op],
     })
 }
 
@@ -1399,6 +1566,78 @@ mod tests {
         );
     }
 
+    /// T3: the four accepted non-4-byte pointee shapes, each from a whole captured
+    /// segment, plus the two refusals that separate them from wrong bytes.
+    #[test]
+    fn indirect_load_leaf_decodes_narrow_and_wide_pointees() {
+        let ind = |tok: u32, off: i32, width: u8, sext: bool| {
+            Some(BodyShape::IndirectLoad {
+                params: vec![tok],
+                ops: vec![IlOp::Load(tok), IlOp::LoadIndSized { off, width, sext }],
+            })
+        };
+        // `char g_c_c(char*)`: a signed byte with NO conversion extends nothing.
+        assert_eq!(
+            parse_segment(NARROW_CHAR_DEREF, NO_LOCALS),
+            ind(0x0F0A, 0, 1, false)
+        );
+        // `int g_i_c(char*)`: the same load + `2C 86 41 74 00` — the one case that
+        // pays an instruction, so `sext` is the only field that differs.
+        assert_eq!(
+            parse_segment(NARROW_CHAR_TO_INT, NO_LOCALS),
+            ind(0x2A0A, 0, 1, true)
+        );
+        // `int g_i_us(unsigned short*)`: the same token over an unsigned pointee is
+        // free. If the parse read the token instead of the pointee's signedness,
+        // this and the previous case would be indistinguishable — and one of the two
+        // objs would be wrong.
+        assert_eq!(
+            parse_segment(NARROW_USHORT_TO_INT, NO_LOCALS),
+            ind(0x3A0A, 0, 2, false)
+        );
+        // `long long m_q(S*)`: offset 16 folds into the DS-form displacement.
+        assert_eq!(
+            parse_segment(NARROW_LL_MEMBER, NO_LOCALS),
+            ind(0x4F0A, 16, 8, false)
+        );
+        // `char C::t_c() const`: `this` binds at index 0, and the `2C` is a cv-strip
+        // (const char → char) rather than a widening, so no extension.
+        assert_eq!(
+            parse_segment(NARROW_CONST_CHAR_THIS, NO_LOCALS),
+            ind(0x530A, 0, 1, false)
+        );
+        // Refused: a signed halfword widened to int is `lha r3` at `/O1` and
+        // `lhz r11 ; extsh r3,r11` at `/Ox` — one shape, two lowerings, no mode
+        // here to choose with.
+        assert_eq!(parse_segment(NARROW_SHORT_TO_INT_REFUSED, NO_LOCALS), None);
+        // Refused: a `#pragma pack(1)` 8-byte member. Its tag says align-1, and
+        // reading the width from the tag would emit `lbz` for a `long long`.
+        assert_eq!(parse_segment(NARROW_LL_PACKED_REFUSED, NO_LOCALS), None);
+    }
+
+    /// The `27` byte-offset-add type states the pointee's width, and the `30` load
+    /// states it again. They must **agree**: the two are separate fields in separate
+    /// productions, and a parse that trusted only one of them would accept a
+    /// splice whose two halves disagree — where c2's own output cannot.
+    #[test]
+    fn indirect_load_leaf_requires_the_offset_type_and_the_load_to_agree_on_width() {
+        // `long long m_q(S*)`, with the `27` type re-tagged to a pointer-to-1-byte
+        // (`88 43 93 08` → `82 43 93 08`) and nothing else touched.
+        let lo = find_subslice(NARROW_LL_MEMBER, &LO_MARKER).unwrap();
+        let mut mismatched = NARROW_LL_MEMBER.to_vec();
+        let at = lo + 17; // the `27` type's tag
+        assert_eq!(mismatched[at - 1], 0x27, "the 27 marker");
+        assert_eq!(mismatched[at], 0x88, "the pointee-width tag");
+        mismatched[at] = 0x82;
+        assert_eq!(parse_segment(&mismatched, NO_LOCALS), None);
+        // Control: the same splice on the *load's* tag alone also refuses, so the
+        // agreement is required in both directions rather than one being ignored.
+        let mut load_only = NARROW_LL_MEMBER.to_vec();
+        assert_eq!(load_only[lo + 21], 0x30, "the load marker");
+        load_only[lo + 22] = 0x82;
+        assert_eq!(parse_segment(&load_only, NO_LOCALS), None);
+    }
+
     #[test]
     fn indirect_load_leaf_refuses_the_adjacent_shapes() {
         // Splice one field of IND_DEREF at a time. Each variant is a construct
@@ -1418,10 +1657,18 @@ mod tests {
             }
             parse_segment(&s, NO_LOCALS)
         };
-        // A `char` pointee is `lbz`, not `lwz` (`30 82 11 70`).
+        // A `char` pointee is `lbz`, not `lwz` (`30 82 11 70`) — a *different* op,
+        // and since T3 a modeled one: it must come out as a width-1 load, never as
+        // the 4-byte [`IlOp::LoadInd`] whose `lwz` would read three bytes too many.
         assert_eq!(
             bad(&[(12, 0x82), (13, 0x11), (14, 0x70), (16, 0x82), (17, 0x11), (18, 0x70)]),
-            None
+            Some(BodyShape::IndirectLoad {
+                params: vec![0xEE09],
+                ops: vec![
+                    IlOp::Load(0xEE09),
+                    IlOp::LoadIndSized { off: 0, width: 1, sext: false },
+                ],
+            })
         );
         // A `float` pointee is `lfs` (`30 86 45 40`).
         assert_eq!(bad(&[(13, 0x45), (14, 0x40), (17, 0x45), (18, 0x40)]), None);
