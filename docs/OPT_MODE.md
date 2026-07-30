@@ -233,10 +233,27 @@ flag it as a mode problem rather than a codegen bug.
 
 ### 4.1 Order of work
 
-1. **Gate on the word.** Refuse any function whose optimization word is not the
-   value the port was verified against. Cheap, fails closed, and covers every
-   mode variation including the ones not enumerated here. Until this lands, the
-   port is one decode widening away from a wrong-bytes emit on real input.
+1. **Gate on the word — LANDED** (`187a897`). `IlBundle::opt_words` exposes the
+   word per segment and `PortC2::build` refuses anything but `00a00005`, naming
+   the mode it found. Fails closed, so it covers the mode variations not
+   enumerated here as well as the ones that are.
+
+   Enforced in `c2-core` rather than in the IL parser, which is the one place this
+   project deliberately departs from "gates live in the parser". The word is a
+   *codegen-target* property: gating it in `functions()` would report a
+   perfectly-decoded `/O1` TU as `vocab-gap`, blaming the IL model for something
+   it read correctly, and gating it in the census would replace every real
+   function's actual blocking feature with this one and destroy the histogram
+   that ranks the roadmap. As a `codegen-gap` with a named reason it is both
+   honest and useful — and it is the project's **first non-zero `codegen-gap`**,
+   because until now the decode gate always refused first.
+
+   Cost, stated plainly: the workload goes from **6 matching TUs to 5**.
+   `src/system/utl/Spew.cpp` matched at `/O1` because its two bodies happen to
+   agree across modes, and the port cannot know that. Trading a match that was
+   correct by luck for the closure of a whole wrong-bytes class is what
+   `GAPS.md` §6 already commits to. The other five are empty modules and are
+   unaffected.
 2. **Re-target to `/O1`.** This is the mode parity on the workload requires, and
    it looks *simpler* than `/Ox`: ordinary liveness allocation instead of the
    operator-dependent descending rule, no inter-function padding, no strength
