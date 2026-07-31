@@ -68,6 +68,20 @@ no graduated middle, while `inline` is worth exactly 8 bytes in BOTH classes
 and `__forceinline` ignores the whole schedule. SCHEDULE D is a claim about an
 INTERNAL-LINKAGE, non-`inline` callee — see §6.17.
 
+WHICH HALF OF THE PAIR IS THE TABLE ABOUT?
+------------------------------------------
+Every probe above varies the CALLEE. The decision is a property of a (caller,
+callee) pair and until §6.19 the caller was, without one exception,
+`int P(int a){ int s=gs(a)+a; ... return s; }` — external, one parameter, `int`,
+and non-leaf. `--caller` varies it: leafness, linkage, `inline`, parameter
+count, return type, member-ness, varargs, and the call SITE's own form. 192
+discriminating cells, zero disagreements — no property of the caller measured
+here enters the decision. `--helper` closes the other half of §6.18.10's open
+list: `bl __savegprlr_N` is NOT "a call" for the 48-byte leaf term (21 cells
+against a matched control that adds one real call, 19 the other way), and an
+indirect call IS one — including in tail position, where it is `bctr` with LK
+clear and the shipped predicate missed it.
+
 Usage:
     scripts/gt_inline_decline.py [--mode '/O1 /GS- /c'] [--max N] [ladder ...]
     scripts/gt_inline_decline.py --list
@@ -82,6 +96,16 @@ Usage:
     scripts/gt_inline_decline.py --lawd              # the clamped form, and
                                                      # the ceiling clamp's
                                                      # held-out cells
+    scripts/gt_inline_decline.py --caller [--callee c-framed|c-leaf]
+                                         [--kmin K] [--kmax K]
+                                                     # vary the CALLER: the
+                                                     # other half of the pair.
+                                                     # SWEEP TO THE CEILING —
+                                                     # §6.19's site term is
+                                                     # entirely above the
+                                                     # default range.
+    scripts/gt_inline_decline.py --helper            # what counts as "a call"
+                                                     # for the 48-byte term
     scripts/gt_inline_decline.py --thisctl           # is `this` an ordinary p0?
     scripts/gt_inline_decline.py --pressure [--pair SUBSTR]  # same IL, diff `s`
     scripts/gt_inline_decline.py --ends              # the two round boundaries
@@ -142,8 +166,14 @@ def extent(o, g):
 REL24 = 0x0006
 
 
-def read(o):
+def read(o, pfx="P"):
     """P's OWN surviving CALL SITES and every emitted function's OWN size.
+
+    `pfx` names the CALLER, and defaults to the `P` every probe in §6.15-§6.18
+    uses, so every existing row is byte-for-byte unaffected. It exists because
+    §6.19 varies the caller for the first time and a MEMBER caller mangles as
+    `?P@CP@@...`, which `?P@@` does not match — a silent `no P` on the one row
+    the probe is about would be the same fault as §6.15.0 and §6.18.0(B).
 
     TWO THINGS THIS HAS TO GET RIGHT, both of which it got wrong first (§6.18):
 
@@ -169,7 +199,7 @@ def read(o):
                 return g
         return None
 
-    P = find("P")
+    P = find(pfx)
     if P is None:
         return {"error": "no P among %s" % [g["name"] for g in gs_]}
     sec, lo, hi = extent(o, P)
@@ -1601,6 +1631,16 @@ EXT_MAX = 64                  # == the top of SCHEDULE D's `unbounded` band
 INLINE_BONUS, PARAM_BONUS, LEAF_BONUS = 8, 4, 48
 
 
+# The allocator's own save/restore pair. It is a REL24 and it is NOT a call for
+# the 48-byte term — §6.19.6, measured on a matched pair that holds the volatile
+# shape, the liveness, the frame and the helper pair itself fixed and varies
+# only whether the SOURCE contains a call: 21 discriminating cells on the leaf
+# schedule for the helper-only callee, 19 on the non-leaf schedule for the one
+# with a call added. §6.18.10 shipped this as an open risk and named it exactly.
+ALLOC_HELPERS = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_",
+                 "__savevmx_", "__restvmx_")
+
+
 def callee_is_leaf(o, want):
     """Does the planted callee contain a CALL? Read out of the obj.
 
@@ -1611,9 +1651,13 @@ def callee_is_leaf(o, want):
     cells, 0 misses), and this compiler never gives a leaf a frame at all, so
     "has a frame" cannot be the reading.
 
-    A REL24 anywhere in the callee is a call, tail or otherwise. NOT MEASURED
-    and worth knowing: whether a `bl __savegprlr_N` — a helper the allocator
-    introduces, not the source — counts. It is a REL24, so this counts it.
+    A REL24 anywhere in the callee is a call — EXCEPT the allocator's own
+    save/restore pair, which §6.18.10 shipped as an unmeasured risk and §6.19.6
+    measures. `bl __savegprlr_N` does NOT count: a callee whose only REL24 is
+    the helper sits on the LEAF schedule (21 discriminating cells, 0 misses),
+    while the matched control that adds ONE real call to the identical shape
+    sits on the non-leaf one (19 cells, 0 misses). The trigger is a call the
+    SOURCE contains, and the helper does not exist until after allocation.
     """
     for g in groups(o):
         if name_matches(g["name"], want):
@@ -1621,15 +1665,14 @@ def callee_is_leaf(o, want):
     else:
         return None
     sec, lo, hi = extent(o, g)
-    for va, _sy, ty in o.relocs(sec):
-        if lo <= va < hi and ty == REL24:
-            return False
-    d = o.raw(sec)[lo:hi]
-    for i in range(0, len(d) - 3, 4):
-        w = struct.unpack_from(">I", d, i)[0]
-        if (w >> 26) == 19 and ((w >> 1) & 0x3FF) == 528 and (w & 1):
-            return False              # an indirect call is still a call
-    return True
+    for va, sy, ty in o.relocs(sec):
+        if not (lo <= va < hi) or ty != REL24:
+            continue
+        s = o.sym_by_index(sy)
+        if s is not None and s["name"].startswith(ALLOC_HELPERS):
+            continue                  # the allocator's, not the source's
+        return False
+    return bcctr_count(o, want) == 0  # an indirect call is still a call
 
 
 def sched_index(s, nparams=1, inline_kw=False, external=False, leaf=False):
@@ -1666,6 +1709,53 @@ def linkage_verdict(idx, sc, force=False):
     if sc != 2:
         return None                        # internal: SCHEDULE D applies
     return "inlined" if idx <= EXT_MAX else "declined"
+
+
+def bcctr_count(o, want, linked=False):
+    """Indirect control transfers inside one planted function.
+
+    `linked=True` counts only `bcctrl` (LK set), i.e. indirect CALLS. The
+    default counts `bcctr` as well, because a tail call through a function
+    pointer is `bctr` with LK clear and is still a call for every purpose here.
+    """
+    for g in groups(o):
+        if name_matches(g["name"], want):
+            break
+    else:
+        return 0
+    sec, lo, hi = extent(o, g)
+    d = o.raw(sec)[lo:hi]
+    n = 0
+    for i in range(0, len(d) - 3, 4):
+        w = struct.unpack_from(">I", d, i)[0]
+        if (w >> 26) == 19 and ((w >> 1) & 0x3FF) == 528:
+            if not linked or (w & 1):
+                n += 1
+    return n
+
+
+def surviving(o, r, n, want="c1"):
+    """How many of P's N sites the front end DECLINED — the ninth cry-wolf.
+
+    `read()` counts every `bcctrl` in P, and §6.18.0(B) added that term for a
+    real reason: a VIRTUAL site is an indirect branch with no relocation, so a
+    reloc-only detector reports the one call kind that cannot be inlined as
+    INLINED. But the term is one-sided, and the other side bites the moment the
+    CALLEE itself contains an indirect call: inlining such a callee at n sites
+    puts n `bcctrl`s into P, and the detector reads its own success as n
+    declines. Measured: `indirect` and `tailind` read `Ndir = 0` at EVERY size,
+    including s=20 — far below any band — which looks exactly like a new
+    categorical class and is nothing but the detector counting the expansion.
+
+    So the indirect term is kept, and made ACCOUNTED FOR rather than absolute:
+    only indirect calls P has that its own expansion cannot explain are
+    declines. On every callee in §6.15-§6.18 the callee's own count is 0, so
+    this is identically the old expression there — the virtual rows still read
+    `Ndir = 0` and still print their five disagreeing cells.
+    """
+    nd = sum(declined(r["rel"], [want]).values())
+    cb = bcctr_count(o, want)
+    return nd + max(0, r["nind"] - n * cb)
 
 
 def callee_bytes(o, want):
@@ -2071,7 +2161,7 @@ def axis_sweep(kind, mode, wd, nmax, kmax, scout=False):
             # A surviving `bl` and a surviving `bctrl` are both declines. The
             # reloc table sees only the first, and the whole point of the
             # `virtual` rows is that they take the second (§6.18).
-            nd = sum(declined(r["rel"], ["c1"]).values()) + r["nind"]
+            nd = surviving(o, r, n)
             ind = max(ind, r["nind"])
             if 0 < nd < n:
                 mixed = True
@@ -2278,6 +2368,596 @@ def run_axes(mode, wd, nmax, want=None, scout=False, kmax=None):
     return bad
 
 
+# --------------------------------------------------------------------------
+# CALLER — the other half of the pair, which has never been a variable
+#
+# The decision is a property of a (caller, callee) PAIR and across the whole of
+# §6.15 to §6.18, without one exception, the caller is
+#
+#       int P(int a){ int s = gs(a) + a;  <N sites>  return s; }
+#
+# §6.15.3a measured that P's SIZE and P's EXISTING EXPANSION do not move the
+# limit — by padding P's body with up to 40 statements of its own and by giving
+# it a second, unrelated callee. Both are properties of P's BODY. What has never
+# been touched is P's INTERFACE (linkage, parameter count, return type, `inline`,
+# variadic, member-ness) and P's OWN LEAFNESS — and that last one matters
+# because §6.18.6 measured the CALLEE's leafness at 48 bytes, six times the only
+# other term this document has found.
+#
+# THE 2x2 IS THE POINT, not a list of caller spellings. With a NON-leaf callee a
+# "leaf" P stops being one the instant it inlines, so only the leaf-callee
+# column can produce a genuinely call-free caller; a probe that varied P's
+# leafness against the framed callee alone would be measuring nothing and would
+# PRINT THE SAME THING as one that was (§6.16.2).
+#
+# GRADED MODEL-FREE FIRST. The shipped model has no caller term at all, so its
+# `REFUTES` column would fire on any shift whatsoever and says nothing about
+# WHICH side moved. The load-bearing column is the index-matched comparison
+# against the matched control: at every index both rows reached, do they take
+# the same number of sites? A disagreeing shared index is a caller term, full
+# stop. The `s` column is the confound control — the callee's COMDAT is emitted
+# independently of the caller, so if `s` ever differs between a variant and its
+# control at the same rung the comparison is not index-matched and the row says
+# so instead of being read.
+#
+# THE RUNG RANGES ARE MODE-DEPENDENT, and that is not a detail. At `/O1` the
+# interesting cells are SCHEDULE D's seven band boundaries, which the framed
+# callee walks over index 48..104. At `/Ox` there is no schedule at all — one
+# threshold, at 108/112 on the /O1-EMITTED size (§6.15.4), 152/156 for a leaf
+# (§6.18.7a) — so the /O1 ranges never reach it and an /Ox run over them is
+# VACUOUS: twelve of twelve at every rung, exactly what a passing run prints.
+# The first /Ox capture of this round did precisely that and was thrown away.
+CALLEE_KINDS = {
+    # (name, template, nparams, inline?, kmin, kmax, kmin@/Ox, kmax@/Ox, note)
+    "c-framed": ("c-framed",
+                 "static int c1(int a){ int v=gs(a)+a; %s return v; }",
+                 1, False, 0, 14, 8, 24,
+                 "the callee EVERY ladder in §6.15-§6.17 uses: static,"
+                 " non-`inline`, one parameter, CONTAINS A CALL"),
+    "c-leaf": ("c-leaf",
+               "static int c1(int a){ int v=a*3; %s return v; }",
+               1, False, 22, 36, 30, 44,
+               "§6.18.6's LEAF callee — indexed on s-48. The only column in"
+               " which an inlining P can end up call-free."),
+}
+
+# (name, control, P's mangled prefix, extra decls, head, tail, sites(n), note)
+CALLER_KINDS = [
+    ("P-base", None, "P", "",
+     "int P(int a){ int s=gs(a)+a;", "return s; }", None,
+     "CONTROL: the caller of §6.15-§6.18, verbatim. External, 1 param,"
+     " `int`, and NON-LEAF — its own body calls `gs`."),
+
+    # ---- P1: the 2x2's caller axis -------------------------------------
+    ("P-leaf", "P-base", "P", "",
+     "int P(int a){ int s=a*3;", "return s; }", None,
+     "THE PROBE: P's body contains NO call of its own. Against `c-leaf` an"
+     " inlining P is call-free end to end; against `c-framed` it is not."),
+
+    # ---- P2: P's declared interface ------------------------------------
+    # `static` and `inline` callers need a reference or they may not be
+    # emitted at all, so they take a keeper AND are graded against a matched
+    # keeper control — comparing an address-taken P against a plain one would
+    # be a confound and is registered against in the estimate.
+    ("P-addr-ctl", "P-base", "P", "",
+     "int P(int a){ int s=gs(a)+a;",
+     "return s; }\nint (*pk)(int)=&P;", None,
+     "CONTROL for the two rows that need a keeper: `P-base` with its address"
+     " taken and nothing else"),
+    ("P-static", "P-addr-ctl", "P", "",
+     "static int P(int a){ int s=gs(a)+a;",
+     "return s; }\nint (*pk)(int)=&P;", None,
+     "the CALLER's linkage — the mirror of §6.17, which was the largest"
+     " rescoping this document has had"),
+    ("P-inline", "P-addr-ctl", "P", "",
+     "inline int P(int a){ int s=gs(a)+a;",
+     "return s; }\nint (*pk)(int)=&P;", None,
+     "…and the mirror of §6.17.5's 8 bytes, on the caller"),
+    ("P-2arg", "P-base", "P", "",
+     "int P(int q,int a){ int s=gs(a)+a;", "return s+q; }", None,
+     "the CALLER's parameter count — the mirror of §6.17.6"),
+    ("P-void", "P-base", "P", "extern int gv;",
+     "void P(int a){ int s=gs(a)+a;", "gv=s; }", None,
+     "the CALLER's return type — §6.18.2 returned ten spellings of zero on"
+     " the callee side"),
+    ("P-ptrarg", "P-base", "P", "struct CP { int m; };\nextern CP* cpp;",
+     "int P(int a){ int s=gs(a)+a;", "return s+cpp->m; }", None,
+     "the MATCHED control for `P-member`: the same extra load, through a"
+     " pointer instead of through `this`"),
+    ("P-member", "P-ptrarg", "P@CP", "struct CP { int m; int P(int a); };",
+     "int CP::P(int a){ int s=gs(a)+a;", "return s+m; }", None,
+     "a MEMBER caller: `this` is live from entry. §6.17.2 needed exactly this"
+     " control to show the callee's member-ness was never the variable."),
+    ("P-vararg", "P-base", "P", "",
+     "int P(int a, ...){ int s=gs(a)+a;", "return s; }", None,
+     "a VARIADIC caller — §6.18.5's only categorical class, on the other"
+     " side of the pair"),
+
+    # ---- P3: the call SITE's form. No hypothesis; this is the control
+    # tranche, and §6.18.11 records that all three of the last three
+    # mechanisms were found by controls rather than by the probe.
+    ("S-discard", "P-base", "P",
+     "", "int P(int a){ int s=gs(a)+a;", "return s; }",
+     lambda n: " ".join(["c1(s);"] * n) + " s^=a;",
+     "the site's RESULT IS DISCARDED — the callee's return value is dead"),
+    ("S-const", "P-base", "P", "",
+     "int P(int a){ int s=gs(a)+a;", "return s; }",
+     lambda n: " ".join("s+=c1(%d);" % (7 * (i + 1)) for i in range(n)),
+     "a CONSTANT argument at every site, distinct per site so nothing can be"
+     " CSE'd — the argument has never not been a live chained value"),
+    ("S-if", "P-base", "P", "",
+     "int P(int a){ int s=gs(a)+a;", "return s; }",
+     lambda n: " ".join("if(a&%d){ s=c1(s); }" % (1 << i) for i in range(n)),
+     "each site in its OWN basic block — every site so far is straight-line"),
+    ("S-loop", "P-base", "P", "",
+     "int P(int a){ int s=gs(a)+a;", "return s; }",
+     lambda n: "for(int i=0;i<a;i++){ %s }"
+               % " ".join(["s=c1(s);"] * n),
+     "the sites inside a LOOP in the CALLER: N sites but not N executions"),
+]
+
+
+def _sites_default(n):
+    return " ".join(["s=c1(s);"] * n)
+
+
+def caller_sweep(ck, ce, mode, wd, nmax, krange=None):
+    """One (caller variant, callee) sweep over the callee's 4-byte rungs."""
+    name, _ctl, pfx, decls, head, tail, sites, _note = ck
+    cname, ctmpl, cnp, cinl, kmin, kmax, kmin_ox, kmax_ox, _cnote = ce
+    if "/O1" not in mode:
+        kmin, kmax = kmin_ox, kmax_ox
+    if krange:
+        kmin, kmax = krange
+    sites = sites or _sites_default
+    if tail is None:                        # variadic caller: `...` needs a
+        tail = "return s; }"                # tail of its own only if it moves
+    rows, bad = [], 0
+    for k in range(kmin, kmax + 1):
+        leads = ctmpl % stmts_fine(k)
+        s, sc, ndir, mixed, ind, leaf = None, None, 0, False, 0, False
+        psc, pleaf = None, None
+        for n in range(1, nmax + 1):
+            probe = "%s %s %s" % (head, sites(n), tail)
+            src = src_of(GS + (("\n" + decls) if decls else ""),
+                         [leads], probe)
+            o = capture(src, mode, wd,
+                        "cl_%s_%s_%d_%d" % (name, cname, k, n))
+            r = None if o is None else read(o, pfx)
+            if r is None or "error" in r:
+                bad += 1
+                break
+            if n == 1:
+                s = size_of(r["emit"], "c1")
+                sc = (pressure_of(o, "c1") or {}).get("sc")
+                leaf = callee_is_leaf(o, "c1")
+                # The CALLER's own class and leafness, read out of the obj and
+                # never from the spelling — §6.17.3's anonymous-namespace row
+                # is the standing reason. `pleaf` is measured at N=1, i.e.
+                # AFTER whatever inlining happened, which is the only sense in
+                # which "P is a leaf" is a fact about the emitted code.
+                psc = (pressure_of(o, pfx) or {}).get("sc")
+                pleaf = callee_is_leaf(o, pfx)
+            nd = surviving(o, r, n)
+            ind = max(ind, r["nind"])
+            if 0 < nd < n:
+                mixed = True
+            if nd:
+                break
+            ndir = n
+        rows.append({"k": k, "s": s, "sc": sc, "ndir": ndir, "mixed": mixed,
+                     "ind": ind, "leaf": bool(leaf), "psc": psc,
+                     "pleaf": pleaf,
+                     "idx": sched_index(s, cnp, cinl, sc == 2, bool(leaf))})
+    return {"name": name, "ctl": ck[1], "note": ck[7], "rows": rows,
+            "bad": bad, "callee": cname}
+
+
+def caller_report(res, nmax, o1):
+    """Print one caller variant's sweep; return its summary."""
+    name, rows = res["name"], res["rows"]
+    disc = ref = disc_ref = 0
+    prof, byidx, byk, sbyk, pcls = [], {}, {}, {}, set()
+    print("    %-14s %-3s %-6s %-6s %-6s %-9s %-11s %-10s %s"
+          % ("caller", "k", "s", "index", "Ndir", "callee", "CALLER",
+             "predicted", ""))
+    for r in rows:
+        if r["s"] is None or r["sc"] is None:
+            print("    %-14s %-3d %-6s %-6s %-6s %-9s %-11s %-10s %s"
+                  % (name, r["k"], "-", "-", "-", "-", "-", "-",
+                     "not graded: NO CALLEE or NO CALLER (did it compile?)"))
+            continue
+        pc = ("%s%s" % ({2: "EXT", 3: "STA"}.get(r["psc"], "sc=%s" % r["psc"]),
+                        "/leaf" if r["pleaf"] else ""))
+        pcls.add(pc)
+        cls = {2: "EXTERNAL", 3: "STATIC"}.get(r["sc"], "sc=%s" % r["sc"])
+        prof.append(r["ndir"])
+        byidx[r["idx"]] = r["ndir"]
+        byk[r["k"]] = r["ndir"]
+        sbyk[r["k"]] = r["s"]
+        if not o1:
+            mark = "not graded: /Ox is a different mechanism"
+        elif r["ind"]:
+            mark = ("not graded: INDIRECT CALL SITE (%d x `bctrl`)" % r["ind"])
+        else:
+            want, lbl = axis_predict(r["idx"], r["sc"], nmax)
+            d = axis_discriminates(r["idx"], r["sc"], nmax)
+            disc += 1 if d else 0
+            if r["ndir"] == want:
+                mark = "%s OK%s" % (lbl, "   <== discriminating" if d else "")
+            else:
+                ref += 1
+                disc_ref += 1 if d else 0
+                mark = ("%s vs %d   <== *** the CALLEE-ONLY model misses this"
+                        " cell ***" % (lbl, r["ndir"]))
+        if r["mixed"]:
+            mark += "   <== *** MIXED SITES ***"
+        print("    %-14s %-3d %-6d %-6s %-6d %-9s %-11s %-10s %s"
+              % (name, r["k"], r["s"], r["idx"], r["ndir"],
+                 "%s%s" % (cls[:3], "/leaf" if r["leaf"] else ""), pc,
+                 axis_predict(r["idx"], r["sc"], nmax)[1] if o1 else "-",
+                 mark))
+    if not o1:
+        # /Ox has no schedule to differ at index+-8 (§6.15.4: one threshold, on
+        # the /O1-emitted size), so the model cannot define the counter. What
+        # CAN be defined, and measured out of this row alone: a rung is
+        # discriminating iff the verdict differs two rungs away — the same
+        # 8-byte window, expressed in rungs. A row whose profile never changes
+        # never crossed the threshold and is VACUOUS, which is exactly what the
+        # first /Ox capture of this round was.
+        disc = sum(1 for i, v in enumerate(prof)
+                   if (i >= 2 and prof[i - 2] != v)
+                   or (i + 2 < len(prof) and prof[i + 2] != v))
+    print("       CALLER as measured in the obj: %s"
+          % ("/".join(sorted(pcls)) or "?"))
+    print("       discriminating cells %-3d  cells the callee-only model"
+          " misses %-3d  (of which discriminating: %d)"
+          % (disc, ref, disc_ref))
+    if not disc:
+        print("       NO DISCRIMINATING CELL — a term could not have shown up")
+        print("       in this row, so its agreement says NOTHING.")
+    if res["note"]:
+        print("       %s" % res["note"])
+    print()
+    return {"name": name, "ctl": res["ctl"], "prof": prof, "byidx": byidx,
+            "byk": byk, "sbyk": sbyk, "disc": disc, "ref": ref,
+            "disc_ref": disc_ref, "pcls": "/".join(sorted(pcls)) or "?"}
+
+
+def run_caller(mode, wd, nmax, want=None, callees=None, krange=None):
+    """Vary the CALLER. See the block comment above CALLEE_KINDS."""
+    o1 = "/O1" in mode
+    print("=== caller   the other half of the pair — never varied before")
+    print("    Each rung moves the CALLEE by one instruction (4 bytes); the")
+    print("    caller is held fixed within a block and varied between them.")
+    print("    `index` is the CALLEE's, per §6.17/§6.18 — the shipped model")
+    print("    has NO caller term, so a caller term shows up as a whole")
+    print("    profile that disagrees with the control at a SHARED index.")
+    print()
+    bad, tot_d, tot_r = 0, 0, 0
+    for cekey in (callees or ["c-framed", "c-leaf"]):
+        ce = CALLEE_KINDS[cekey]
+        print("=== callee %s   %s" % (ce[0], ce[-1]))
+        print()
+        out = {}
+        for ck in CALLER_KINDS:
+            if want and ck[0] not in want:
+                continue
+            if cekey == "c-leaf" and ck[0] not in ("P-base", "P-leaf"):
+                continue        # the 2x2 only; the interface rows are §P2
+            res = caller_sweep(ck, ce, mode, wd, nmax, krange)
+            bad += res["bad"]
+            out[ck[0]] = caller_report(res, nmax, o1)
+        print("    --- summary, callee %s: each caller against its control"
+              % ce[0])
+        print("    %-14s %-11s %-6s %-6s %s"
+              % ("caller", "CALLER", "disc", "miss",
+                 "vs control (MODEL-FREE)"))
+        for nm, r in out.items():
+            tot_d += r["disc"]
+            tot_r += r["ref"]
+            c = out.get(r["ctl"])
+            v = "-"
+            if c:
+                # confound control FIRST: the callee's COMDAT does not depend
+                # on the caller, so a differing `s` at the same rung means the
+                # two rows are not index-matched and nothing below is readable.
+                sk = sorted(set(r["sbyk"]) & set(c["sbyk"]))
+                sdiff = [k for k in sk if r["sbyk"][k] != c["sbyk"][k]]
+                key = "byidx" if o1 else "byk"
+                sh = sorted(set(r[key]) & set(c[key]))
+                dis = [i for i in sh if r[key][i] != c[key][i]]
+                if sdiff:
+                    v = ("<== *** CONFOUND: the callee's own `s` differs from"
+                         " %s at rung(s) %s — not index-matched ***"
+                         % (r["ctl"], ",".join(str(k) for k in sdiff[:6])))
+                elif not sh:
+                    v = "not comparable: NO SHARED CELL with %s" % r["ctl"]
+                elif not dis:
+                    v = ("IDENTICAL to %s on all %d shared %s cells"
+                         % (r["ctl"], len(sh), "index" if o1 else "rung"))
+                else:
+                    v = ("<== *** THE CALLER MOVES IT: %d of %d shared"
+                         " cells disagree: %s ***"
+                         % (len(dis), len(sh),
+                            ",".join("%s%d(%d vs %d)"
+                                     % ("" if o1 else "k=", i,
+                                        r[key][i], c[key][i])
+                                     for i in dis[:6])))
+            print("    %-14s %-11s %-6d %-6d %s"
+                  % (nm, r["pcls"], r["disc"], r["ref"], v))
+        print()
+    print("    TOTAL discriminating cells: %d   cells the callee-only model"
+          " misses: %d" % (tot_d, tot_r))
+    if not o1:
+        print("    /Ox: the index means nothing here (§6.15.4 states its")
+        print("    threshold on the /O1-emitted size), so the model columns")
+        print("    abstain and the MODEL-FREE rung comparison carries the")
+        print("    whole claim — which is what it was written to do.")
+    elif not tot_d:
+        print("    NO DISCRIMINATING CELL ANYWHERE — this run says NOTHING")
+        print("    about whether the caller carries a term.")
+    return bad
+
+
+# --------------------------------------------------------------------------
+# HELPER — does `bl __savegprlr_N` count as "a call"?
+#
+# §6.18.10 ships this as an open risk and names it precisely: `callee_is_leaf()`
+# counts the allocator's save/restore helper because it IS a REL24, and no probe
+# in this document has a callee whose only call is that helper. A 48-byte term —
+# the largest in the index — therefore rests on an unmeasured answer.
+#
+# THE SHAPE. Liveness without a call needs an opaque barrier that is not a call.
+# `volatile` is one: m ordered volatile READS, then the same m values written
+# back to a volatile global in REVERSE order. Neither the reads nor the writes
+# may be reordered or elided, and the reverse order means every value is live
+# across the whole write sequence, so the allocator must take nonvolatiles —
+# and past two of them this compiler switches to the out-of-line helper pair
+# (§6.16.3, measured, six instructions cheaper).
+#
+# It is also the cheapest test yet available of §6.16.5a's (A) vs (B): the
+# helper does not exist until after allocation and is not in the source at all.
+# (A) — the decider measures a COMPILED callee — predicts the helper counts.
+# (B) — the decider works from something upstream — predicts it does not.
+#
+# A SECOND untested branch of the same shipped predicate: `callee_is_leaf()`
+# also counts a `bcctrl`, so a callee whose ONLY call is INDIRECT — through a
+# function pointer — is charged the 48 bytes as well, and no probe tests that
+# either. §6.18.4 measured what an indirect CALL SITE does to the decision (it
+# removes it: there is no callee to price); an indirect call INSIDE the callee
+# is a different question and is untouched.
+HELPER_DECLS = "extern volatile int gvv;\nextern int (*fp)(int);"
+
+
+def helper_body(m, k):
+    """A callee with m simultaneously live values and NO call in its source.
+
+    The rung chain starts from `t0`, a VOLATILE read, and not from `a`. The
+    first spelling started `int v=a;` and the whole ladder folded — `s` took
+    two values, 96 and 100, over twenty-one rungs — because `v^=a; v+=a;` on
+    `v=a` collapses. A ladder that does not move is not a ladder, and it prints
+    exactly what a moving one does; the `distinct s reached` counter exists so
+    that failure is a printed line rather than a silently mis-read verdict.
+    """
+    rd = " ".join("int t%d=gvv;" % i for i in range(m))
+    wr = " ".join("gvv=t%d;" % i for i in range(m - 1, -1, -1))
+    return ("static int c1(int a){ %s %s int v=t0; %s return v; }"
+            % (rd, wr, stmts_fine(k)))
+
+
+def helper_ctl_body(m, k):
+    """The same shape with ONE real call, so BOTH kinds of REL24 are present.
+
+    Without this the `helper` row's verdict could be a fact about volatile
+    bodies rather than about the helper: this row holds the volatile reads, the
+    volatile writes, the liveness and the helper pair fixed and adds a call.
+    """
+    rd = " ".join("int t%d=gvv;" % i for i in range(m))
+    wr = " ".join("gvv=t%d;" % i for i in range(m - 1, -1, -1))
+    return ("static int c1(int a){ %s int u=gs(a); %s int v=t0^u; %s"
+            " return v; }" % (rd, wr, stmts_fine(k)))
+
+
+def indirect_body(_m, k):
+    """A callee whose ONLY call is through a function pointer (`bctrl`)."""
+    return ("static int c1(int a){ int v=fp(a)+a; %s return v; }"
+            % stmts_fine(k))
+
+
+def tailind_body(_m, k):
+    """…and the same as a TAIL call through the pointer: a `bctr`, no frame."""
+    return ("static int c1(int a){ int v=a*3; %s return fp(v); }"
+            % stmts_fine(k))
+
+
+def call_ctl_body(_m, k):
+    """§6.15's own callee — the row where H3 is known to be the answer."""
+    return ("static int c1(int a){ int v=gs(a)+a; %s return v; }"
+            % stmts_fine(k))
+
+
+def leafshape_ctl_body(_m, k):
+    """§6.18.6's own leaf callee — the row where H4 is known to be it."""
+    return "static int c1(int a){ int v=a*3; %s return v; }" % stmts_fine(k)
+
+
+
+
+def callee_calls(o, want):
+    """Every REL24 target inside one planted callee, by name."""
+    for g in groups(o):
+        if name_matches(g["name"], want):
+            break
+    else:
+        return None
+    sec, lo, hi = extent(o, g)
+    out = []
+    for va, symidx, ty in o.relocs(sec):
+        if lo <= va < hi and ty == REL24:
+            s = o.sym_by_index(symidx)
+            out.append(s["name"] if s else "?")
+    return out
+
+
+HELPER_SHAPES = [
+    # (name, body(m,k), m, note)
+    ("helper", helper_body, 10,
+     "THE PROBE: the callee's ONLY REL24 is `bl __savegprlr_N`, a call the"
+     " SOURCE does not contain and that does not exist until after register"
+     " allocation"),
+    ("helper-ctl", helper_ctl_body, 10,
+     "CONTROL: the same volatile shape with ONE real call added, so the helper"
+     " AND a source-level call are both present. Without this row, `helper`"
+     " landing on the leaf schedule could be a fact about volatile bodies."),
+    ("indirect", indirect_body, 0,
+     "the second untested branch of the same predicate: the callee's only"
+     " call is INDIRECT (`bctrl`), which leaves no REL24 at all"),
+    ("tailind", tailind_body, 0,
+     "…and the same indirect call in TAIL position: `bctr`, no frame, no LR"
+     " save (§6.18.7's tail-call shape, through a pointer)"),
+    ("call-ctl", call_ctl_body, 0,
+     "CONTROL: §6.15's own callee, so H3 is graded on a row where it is known"
+     " to be the right answer"),
+    ("leaf-ctl", leafshape_ctl_body, 0,
+     "CONTROL: §6.18.6's own leaf callee, so H4 is graded on a row where IT is"
+     " known to be the right answer"),
+]
+
+
+def run_helper(mode, wd, nmax, want=None):
+    """Which REL24s and which `bcctrl`s does the 48-byte term actually count?
+
+    `callee_is_leaf()` counts BOTH the allocator's save/restore helper and an
+    indirect `bcctrl`, and §6.18.10 records that no probe tests either. Both are
+    graded here against the two rival readings, on rungs where they DIFFER, with
+    a control at each end so the grader is known to be able to print either
+    answer.
+    """
+    o1 = "/O1" in mode
+    print("=== helper   what counts as 'a call' for §6.18.6's 48 bytes?")
+    print("    H3 'it counts'      -> SCHEDULE D on raw `s`      (the SHIPPED")
+    print("                            rule: `callee_is_leaf()` says non-leaf)")
+    print("    H4 'it does not'    -> SCHEDULE D on `s`-48")
+    print("    A cell counts only where the two DIFFER; the rest are printed")
+    print("    and not counted, per §6.16.2.")
+    print()
+    bad = 0
+    print("    --- scout: what is actually in each callee, read out of the obj")
+    print("    %-12s %-4s %-6s %-7s %-7s %-6s %s"
+          % ("shape", "m", "s", "nsave", "is_leaf", "bctrl/any",
+             "REL24 targets"))
+    live = []
+    for name, fn, m, note in HELPER_SHAPES:
+        if want and name not in want:
+            continue
+        src = src_of(GS + "\n" + HELPER_DECLS, [fn(m, 0)],
+                     "%s %s %s" % (INT_HEAD, "s=c1(s);", INT_TAIL))
+        o = capture(src, mode, wd, "hlp_scout_%s" % name)
+        r = None if o is None else read(o)
+        if r is None or "error" in r:
+            bad += 1
+            print("    %-12s capture failed" % name)
+            continue
+        p = pressure_of(o, "c1") or {}
+        calls = callee_calls(o, "c1") or []
+        nb = bcctr_count(o, "c1")
+        print("    %-12s %-4d %-6s %-7s %-7s %-6s %s"
+              % (name, m, size_of(r["emit"], "c1"), p.get("nsave"),
+                 callee_is_leaf(o, "c1"),
+                 "%d/%d" % (bcctr_count(o, "c1", True), nb),
+                 ",".join(calls) or "(none)"))
+        live.append((name, fn, m, note))
+    print()
+    if not o1:
+        print("    not graded: /Ox is a different mechanism (§6.15.4).")
+        return bad
+    tot_d = 0
+    for name, fn, m, note in live:
+        print("    --- %s   %s" % (name, note))
+        print("    %-12s %-4s %-6s %-6s %-8s %-9s %-14s %s"
+              % ("shape", "k", "s", "Ndir", "H3(s)", "H4(s-48)",
+                 "in the callee", ""))
+        nd3 = nd4 = disc = neither = 0
+        seen, ungraded = set(), 0
+        for k in range(0, 22):
+            leads = fn(m, k)
+            s, ndir, calls, nb = None, 0, [], 0
+            for n in range(1, nmax + 1):
+                src = src_of(GS + "\n" + HELPER_DECLS, [leads],
+                             "%s %s %s" % (INT_HEAD,
+                                           " ".join(["s=c1(s);"] * n),
+                                           INT_TAIL))
+                o = capture(src, mode, wd, "hlp_%s_%d_%d" % (name, k, n))
+                r = None if o is None else read(o)
+                if r is None or "error" in r:
+                    bad += 1
+                    break
+                if n == 1:
+                    s = size_of(r["emit"], "c1")
+                    # PER RUNG, not once. The first spelling of this probe read
+                    # the callee's calls from a single scout capture and the
+                    # ladder MOVED THE CONDITION under it: `a` is dead at k=0
+                    # and live from k=1, which is the difference between ten
+                    # live values (all volatile registers, no helper) and
+                    # eleven (a helper pair). A row graded on a condition it
+                    # does not have is the same fault as §6.16.10a's inert
+                    # cells, and it prints the same thing.
+                    calls = callee_calls(o, "c1") or []
+                    nb = bcctr_count(o, "c1")
+                if surviving(o, r, n):
+                    break
+                ndir = n
+            if s is None:
+                continue
+            has = {("HELPER" if "gprlr" in c or "fpr" in c else "CALL")
+                   for c in calls}
+            if nb:
+                has.add("BCTRL")
+            has = ",".join(sorted(has)) or "nothing"
+            p3 = law_d(s)
+            p4 = law_d(s - LEAF_BONUS)
+            p3 = nmax if p3 is None else min(p3, nmax)
+            p4 = nmax if p4 is None else min(p4, nmax)
+            d = p3 != p4
+            tag = ""
+            if d and has == "nothing" and name in ("helper", "helper-ctl"):
+                # The rung does not have the condition this shape is about, so
+                # it is NOT evidence about it — measured, printed, not counted.
+                ungraded += 1
+                tag = "not graded: NO HELPER IN THIS RUNG (an ordinary leaf)"
+                d = False
+            if d:
+                disc += 1
+                if ndir == p3:
+                    nd3 += 1
+                    tag = "<== discriminating: H3 — it IS a call (shipped OK)"
+                elif ndir == p4:
+                    nd4 += 1
+                    tag = ("<== discriminating: H4 — NOT a call"
+                           " (*** the shipped rule is WRONG ***)")
+                else:
+                    neither += 1
+                    tag = "<== discriminating: *** NEITHER — a third offset ***"
+            seen.add(s)
+            print("    %-12s %-4d %-6d %-6d %-8d %-9d %-14s %s"
+                  % (name, k, s, ndir, p3, p4, has, tag))
+        tot_d += disc
+        print("    -> distinct `s` reached: %d over 22 rungs%s"
+              % (len(seen),
+                 "" if len(seen) > 4 else
+                 "   <== *** THE LADDER IS NOT MOVING — rungs are folding ***"))
+        print("    -> discriminating cells %d   H3 %d   H4 %d   neither %d"
+              "   ungraded (condition absent) %d"
+              % (disc, nd3, nd4, neither, ungraded))
+        if not disc:
+            print("    -> NO DISCRIMINATING CELL — the two readings agree on")
+            print("       every cell reached. VACUOUS, not a pass.")
+        print()
+    print("    TOTAL discriminating cells: %d" % tot_d)
+    return bad
+
+
 def run_lawd(mode, wd, nmax):
     """Grade LAW Dc, and take its ONE real hold-out — the >=260 ceiling.
 
@@ -2324,7 +3004,7 @@ def run_lawd(mode, wd, nmax):
                 if n == 1:
                     s = size_of(r["emit"], "c1")
                     sc = (pressure_of(o, "c1") or {}).get("sc")
-                if sum(declined(r["rel"], ["c1"]).values()) + r["nind"]:
+                if surviving(o, r, n):
                     break
                 ndir = n
             if s is None or sc is None:
@@ -2680,6 +3360,13 @@ def main(argv):
         for nm in list(LADDERS):
             t, g, km, nt = LADDERS[nm]
             LADDERS[nm] = (t, g, min(km, kcap), nt)
+    kmin = None
+    if "--kmin" in argv:
+        i = argv.index("--kmin"); kmin = int(argv[i + 1]); del argv[i:i + 2]
+    callees = []
+    while "--callee" in argv:
+        i = argv.index("--callee")
+        callees.append(argv[i + 1]); del argv[i:i + 2]
     while "--pair" in argv:
         i = argv.index("--pair"); pairs.append(argv[i + 1]); del argv[i:i + 2]
     while "--family" in argv:
@@ -2708,6 +3395,17 @@ def main(argv):
     if "--axes" in argv:
         bad += run_axes(mode, wd, nmax, want, "--scout" in argv,
                         kcap if kset else None)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
+    if "--caller" in argv:
+        kr = None
+        if kmin is not None:
+            kr = (kmin, kcap)
+        bad += run_caller(mode, wd, nmax, want, callees or None, kr)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
+    if "--helper" in argv:
+        bad += run_helper(mode, wd, nmax, want)
         print("captures failed: %d" % bad)
         return 1 if bad else 0
     if "--lawd" in argv:
