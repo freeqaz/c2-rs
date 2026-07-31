@@ -1768,6 +1768,56 @@ The rules that keep the numbers honest:
   of positions that imply completeness, and the census key spells them** — read
   the key's *position* before spending a counterfactual on its size.
   `fn-tail-0x26`, 4,663 functions, is the same family and is still unexamined.
+
+  > **A third measurement of the same row, 2026-07-31 (W34), and it found the
+  > answer somewhere neither of the first two looked.** The production-level
+  > counterfactual — admit the whole indirect-load *operand* production inside
+  > `parse_expr`, not just the token — released `expr-op-0x27`'s 461,786 and
+  > finished **6,816**, a **67.8×** row-to-counterfactual gap against the
+  > control-flow lane's 67×. So the rule above holds a third time and the prior
+  > is now stable enough to quote. What it did **not** predict is where those
+  > 6,816 live. The estimate reasoned about which *new* sub-shape the surrounding
+  > grammar could finish and guessed the call argument (`return g(s->m);`);
+  > measured, that sub-shape is worth **at most 7 functions on the whole
+  > workload**. **5,161 of the 6,816 were bodies the port already had a
+  > recognizer for** — plain `return p->mid.in.b;`, refused by a private
+  > "exactly one offset add" limit inside the indirect-load leaf that the address
+  > and store leaves had never had. The rule that generalizes, and it is cheap:
+  > **before sizing a big blocker row's sub-shapes, ask what the recognizer that
+  > already covers the obvious one is refusing.** A first-blocker histogram
+  > cannot distinguish "this construct is unimplemented" from "this construct is
+  > implemented and one gate inside it says no" — both stop the parse at the same
+  > byte — so the largest sub-population in a head row can be a shape the port
+  > thinks it already has. The tell is available without compiling anything:
+  > the row's blocking byte was `27`, and `27` appears in four *accepted* shapes.
+- **"One fact, one locator" has a coverage-costing form, and it is easier to miss
+  than the wrong-bytes form.** The `27`/`28` byte-offset-add run is walked by the
+  address leaf, the store leaf and the load leaf. The first folds an arbitrary
+  run of literal offsets and has since it was written — its own comment carries
+  the capture, `&s->arr[2]` emits one `addi r3,r3,48` — and the store leaf
+  inherited that walk when it was built on the shared designator. The load leaf
+  kept a **private single-add copy** and refused everything past the first,
+  costing **5,161 functions**. Nothing was ever wrong; a rule simply existed
+  three times and one copy was older than the other two. Two things follow.
+  The instances in the list above are all *wrong bytes*, so a reader could
+  reasonably conclude the pattern is a correctness pattern — it is not, and this
+  form presents as a stubborn census bucket that stays at the top of the ranking
+  for weeks. And **the direction of the drift is asymmetric**: a copy that is
+  narrower than its siblings is invisible to every gate this project has, because
+  refusing more is never an alarm. When a rule is found to have N sites, the
+  question is not only "do they agree" but "**does the oldest one still do what
+  the newest one does**".
+- **Estimate the fix, not the finding — and the way to do that is to size the
+  second site as its own counterfactual BEFORE shipping the first.** §6 already
+  records the `66` descriptor fix realizing 2.4× its estimate because a second
+  site was found afterwards. W34 had the same structure — the offset-add run has
+  two call sites, the plain designator and the intrinsic-2117 one — and measured
+  the second (**+1,346**) as a separate scan before either shipped, so the rung's
+  number was 6,507 and not 5,161-then-a-surprise. The two were then confirmed
+  **exactly additive** by a third scan with both lifted, which is the only way to
+  know the smaller site was not being masked by the larger. `grep` for every site
+  is step one; a counterfactual per site is step two, and it costs one warm scan
+  each.
 - **A conservative gate can be sized, and until it is, its cost is a rumour.**
   The FP leaf was gated closed on 2026-07-30 by requiring every formal to be an
   FP operand of the body, which shut two live wrong-bytes emits and cost 1,005
