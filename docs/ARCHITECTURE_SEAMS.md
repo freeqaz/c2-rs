@@ -874,6 +874,15 @@ forms**, and they decompose almost entirely into one arm:
 | `disp-expr-load` — body's first token is a LOAD | 701 | 8.0 % |
 | `disp-plain-call` — member call inside a plain call's arguments | 219 | 2.5 % |
 
+**Reconciled with `ROADMAP.md` §6u's published 21,666 / 8,809.** The totals agree
+(30,475); the split differs by exactly 2, and the 2 are named rather than left as
+a rounding rumour. They are `expr-call-in-expr-chained-then-plain-call-and-type-
+real-whole2`, a member-call **chain** — a member-call form whose key is spelled
+`chained-…` and not `recv-…`. This table classifies on the `recv` prefix, §6u
+counted the chain on the member-call side. Both readings are defensible and the
+difference is 2 functions in 30,475; the prefix rule is stated here so the next
+scan reproduces this number rather than a third one.
+
 Eight of the nine keys above 200 functions sit in a **single** arm at 100 %, so
 these are not partially-reachable rows: the whole census row is out of reach of
 every member-call production. All 8,807 read `cflow-straight` (one basic block),
