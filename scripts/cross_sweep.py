@@ -176,6 +176,12 @@ def families_of(row):
     return set(k.split("|", 1)[1] for k in row["fn_frames"])
 
 
+def pairs_of(fams):
+    """Every unordered family pair a TU exhibiting `fams` covers, self-pairs included."""
+    fs = sorted(set(fams))
+    return set((a, b) for i, a in enumerate(fs) for b in fs[i:])
+
+
 def splice(sources):
     """One TU holding every source, each after the first inside its own namespace.
 
@@ -203,9 +209,15 @@ def externals_of(cpp, work):
     cmd = [C2RS, "prefilter", "--source", wibo_path(cpp), "--emit-obj", obj]
     for f in BASE_MODE:
         cmd += ["--flag", f]
-    subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True)
     if not os.path.exists(obj):
-        return set()
+        # Every representative is a matched TU, so this cannot happen — and an
+        # empty answer would silently shrink tier C rather than fail, so it says
+        # so instead of returning "no externals".
+        raise SystemExit(
+            "prefilter emitted no obj for the representative %s, so its TU-level "
+            "externals cannot be measured:\n%s" % (cpp, res.stdout.strip())
+        )
     blob = open(obj, "rb").read()
     return set(e.decode() for e in TU_EXTERNALS if e in blob)
 
@@ -255,26 +267,16 @@ def main():
     # the port refuses compared no bytes. Unordered, because `fn_frames` is a map
     # and cannot say which function came first — the cross grades both orders,
     # a distinction the baseline cannot even express.
-    graded_before = set()
-    for r in rows.values():
-        if r["class"] != "match":
-            continue
-        fs = sorted(families_of(r))
-        for i, a in enumerate(fs):
-            for b in fs[i:]:
-                graded_before.add((a, b))
     fixtures = sorted(
         os.path.join(REPO, "fixtures/cpp", f)
         for f in os.listdir(os.path.join(REPO, "fixtures/cpp")) if f.endswith(".cpp")
     )
     _, frows = run_gap(fixtures, BASE_MODE, work, "fixtures")
-    for r in frows.values():
-        if r["class"] != "match":
-            continue
-        fs = sorted(families_of(r))
-        for i, a in enumerate(fs):
-            for b in fs[i:]:
-                graded_before.add((a, b))
+
+    graded_before = set()
+    for r in list(rows.values()) + list(frows.values()):
+        if r["class"] == "match":
+            graded_before |= pairs_of(families_of(r))
 
     # ---- representatives -------------------------------------------------------
     cands = {}
@@ -415,16 +417,11 @@ def main():
     if len(set(paths)) != len(paths):
         raise SystemExit("two cross configurations claim one filename")
 
-    npairs_new = 0
     seen_pairs = set()
     for _n, _s, tier, fams in plan:
-        if tier != "A":
-            continue
-        key = tuple(sorted(set(fams))) if len(set(fams)) > 1 else (fams[0], fams[0])
-        seen_pairs.add(key)
-    for key in seen_pairs:
-        if key not in graded_before:
-            npairs_new += 1
+        if tier == "A":
+            seen_pairs |= pairs_of(fams)
+    npairs_new = len(seen_pairs - graded_before)
 
     print()
     print("CONFIGURATIONS")
@@ -457,8 +454,7 @@ def main():
             counts[r["class"]] = counts.get(r["class"], 0) + 1
             per_tier.setdefault(tier, {})
             per_tier[tier][r["class"]] = per_tier[tier].get(r["class"], 0) + 1
-            fs = sorted(set(fams))
-            pairs = set((a, b) for i, a in enumerate(fs) for b in fs[i:])
+            pairs = pairs_of(fams)
             if r["class"] == "mismatch":
                 alarms.append((label, p, r["reason"], r["detail"]))
             elif r["class"] == "match":
