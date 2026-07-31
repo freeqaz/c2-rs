@@ -413,6 +413,8 @@ where `E(I)` counts, **in that callee's body**:
 | a `switch`, by statement group | groups + 2 | `sw-arms2`…`sw-arms6` 7…11 (§6.8) |
 | a parameter the body **assigns to** | 1 each | `parammod` 4 |
 | an argument at that site that is not already a plain lvalue | 1 each | `arg-expr` 4, `arg-call` 4 (`arg-plain`, `arg-const` 3) |
+| an **unnamed temporary object** | 1 each, **and a flat +1 beside it** | `ctor-noloc` 10, `d3-ctor-noloc` 28 (§6.12) |
+| the hidden **return slot** of a by-value struct return | 1, alongside the declared local | `struct-ret` 5, `d2-struct-ret` 13 (§6.12) |
 
 Two rules that used to be listed in this table are **not `E` features** — see
 §6.12, which removed them from it:
@@ -424,8 +426,9 @@ Two rules that used to be listed in this table are **not `E` features** — see
 
 plus **+1 flat, at any depth**, once per multi-exit callee whose result has to
 be materialised — i.e. unless it is `void`, or its result is assigned straight
-to a variable at depth 1; plus, for each **loop** in that callee's body, a term
-that is *not* part of the `d * E` product (§6.6):
+to a variable at depth 1 — and the *same* flat +1 once per unnamed temporary
+(§6.12); plus, for each **loop** in that callee's body, a term that is *not*
+part of the `d * E` product (§6.6):
 
 | loop form | cost at depth `d` | d=1 | d=2 | d=3 |
 |---|---|---:|---:|---:|
@@ -1033,8 +1036,11 @@ Twenty-one families later: the `switch` rule survives depth 3 unchanged, the
 Nothing here was fitted away — every `PRED` below was committed to
 `scripts/gt_label_inline.py` *before* the capture that graded it (the file's git
 history is the record), and the corrections are derived from cells that were
-held out from them. Three of the registered predictions missed; those are the
-useful rows and they are marked ✗.
+held out from them. **Nine of the twenty-one registered predictions missed** —
+`d2-dtor-only`, `d2-dtor-2obj`, `d3-dtor`, `d2-ptr-p`, `d3-ptr-auto`,
+`ptr-use-d1`, `ptr-use-nest`, `ptr-sibling`, `d2-ctor-noloc` — and those are the
+useful rows. Two of the three rules this ladder was built to test did not
+survive it.
 
 Every row in this section is `TEXT-IDENTICAL` to its hand control at every `N`,
 which is the only column that carries evidence about how deep the expansion tree
