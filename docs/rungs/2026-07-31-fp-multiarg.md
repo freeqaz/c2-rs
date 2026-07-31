@@ -206,8 +206,8 @@ arguments and cannot see it.
 | `cargo test --workspace --release` | **446 pass, 0 fail** (438 before) |
 | `c2rs bench` | **165 pass, 0 fail, 0 error** (163 before) |
 | `scripts/mode_lane.sh` `/Ox` / `/O1` / `/O2` / `/Ox /Gy` | **77 / 75 / 75 / 75 match, mismatch 0** in every lane (76/74/74/74 before) |
-| `scripts/expr_sweep.sh` | **9,986 checked, 0 mismatches** — printed = generated = on disk (7,673 + 2,313 W34) |
-| `scripts/cross_sweep.sh` | **0 mismatches**, and it discovered `fp-multiarg-tail-call` / `fp-multiarg-tail-call-perm` from `census.rs` without being told |
+| `scripts/expr_sweep.sh` | **9,986 checked, 0 mismatches** — printed = generated = on disk (7,673 + 2,313 W34), run twice: once on the widened tree and again on the final one |
+| `scripts/cross_sweep.sh` | **11,341 configurations × 4 mode lanes, 0 mismatches** (7,545 × 4 before). It discovered `fp-multiarg-tail-call` and `fp-multiarg-tail-call-perm` from `census.rs` without being told, and found representatives for both — 22 declared families, 66 representatives, none missing. The 8-pair TU-level refusal frontier it reports is unchanged and involves neither new family |
 | 878-TU workload scan | match 6, **mismatch 0**, census **575,284 / 2,462,571 = 23.36 %**, **census/gate disagreement 0** |
 | blocker histogram | **580 keys, none added or removed**; the sum of the key deltas is exactly **−26,136** over exactly two keys — `expr-load-type-8885` −13,794 and `expr-load-type-8645` −12,342. The eleventh rung running where the bucket drop equals the gain to the function |
 | frame class | all 26,136 are `calls-1`; `calls-2plus` is unmoved |
@@ -248,3 +248,30 @@ reads first.
 26,136") is now taken in full, and §1.1's "nothing here models a permutation in
 both files at once" should point at §1.2 for what *is* modeled: a permutation in
 the FP file beside a GPR file that does not move.
+
+## The riskiest thing left unmeasured
+
+**The GPR destination rule now has a consumer, and its evidence stops at five
+arguments.** `r(2 + slot)`, with an FP argument consuming a slot it does not
+fill, is `docs/CODEGEN_FP_ARGS.md` §0 — established by three captures (`t4`,
+`t5`, `t6`) and graded here over every GPR/FP pattern up to **five** arguments in
+three GPR types. Six, seven and eight are not graded, and eight is where the
+argument registers run out: `MAX_ARGS = 8` refuses past it and a source or
+destination that would land above r10 fails the equality test, so the failure
+mode is a refusal rather than wrong bytes — but "fails closed by arithmetic
+accident" is a weaker claim than "measured", and it is the weakest claim in this
+rung.
+
+Second, and shared rather than new: everything here assumes the callee named by
+`26 <tok> BD … conv=00` has **no implicit receiver**, so argument slot 1 is r3.
+A member call reaches the parser through `mcall`'s own productions and its `this`
+would appear as an explicit argument (and then as a non-formal, which refuses),
+so the assumption is believed sound — but it is the same assumption
+`permute_args_text` and `ARG_REGS` have always made, and no capture in this repo
+tests it directly. If it is ever wrong, it is wrong for the integer multi-argument
+rung too.
+
+Third, `25,785` for the result-consumed population is a **decode-only** count
+from a scratch classifier. It is one census key over what is certainly several
+shapes, and its frame-class split is not measured. Treat it as an upper bound on
+what a framed-FP-body rung would find there, not as a rung size.
