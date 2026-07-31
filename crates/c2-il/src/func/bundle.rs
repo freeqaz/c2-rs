@@ -355,7 +355,7 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
-            // The multi-argument FP tail call (W33). `params` is the FP formals
+            // The multi-argument FP tail call (W34). `params` is the FP formals
             // alone, in FP-file order, and `fp_arg_sources` is the permutation
             // over that file. Deliberately a *different* field from
             // [`IlFunction::arg_sources`]: that one indexes the GPR argument

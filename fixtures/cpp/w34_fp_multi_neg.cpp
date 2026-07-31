@@ -24,10 +24,14 @@
 // floating-point" is what makes the positive fixture a claim that does not
 // depend on it.
 //
-// **`gpr` is the boundary's other side, and it is pure coverage.** Only the GPR
-// file moves, so there is nothing to interleave; it is refused because this
-// recognizer indexes the FP file and has no destination numbering for the other
-// one. Its cost is measured in the rung doc.
+// **`gpr` and `C::m` are the boundary's other side: the GPR file moves.** In
+// `gpr` an integer argument changes slot, and in `C::m` the caller's own `this`
+// takes r3 so its first explicit formal sits in r4 while the call wants it in
+// r3 — one `mr` in each, and nothing about the FP half is wrong. They are
+// refused because this recognizer's claim about GPR arguments is that they cost
+// **nothing**; the moment one moves, its schedule against the FP moves is the
+// open question. `C::m` is the case worth having, because the *positive*
+// fixture's member functions pass only FP arguments and cannot see it.
 //
 // **`two` and `vall` are the two-scratch cases, and they are the reason the gate
 // counts LOCAL MINIMA rather than cycle length.** `two` is two disjoint
@@ -59,6 +63,7 @@
 // `.rdata` COMDAT, and a conversion applied to the call's RESULT.
 
 float  g2f(float, float);
+void   gviff(int, float, float);
 float  g3f(float, float, float);
 float  g4f(float, float, float, float);
 int    gif2(int, int, float, float);
@@ -74,3 +79,5 @@ float  out (float a, float b, float c)              { return g2f(b, c); }
 float  cmp (float a, float b)                       { return g2f(b, a + b); }
 float  lit (float a)                                { return g2f(a, 1.5f); }
 double res (float a, float b)                       { return g2f(b, a); }
+struct C { void m(int k, float a, float b); };
+void   C::m(int k, float a, float b)                { gviff(k, a, b); }

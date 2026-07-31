@@ -463,7 +463,7 @@ pub struct IlFunction {
     /// (`docs/CODEGEN_FP_ARGS.md` §4, §4.1). This shape's stride is 1 like any
     /// other tail call's; only [`Self::touches_floating_point`] is true of it.
     pub fp_tail: Option<FpTail>,
-    /// A **multi-argument** floating-point tail call's argument permutation, W33.
+    /// A **multi-argument** floating-point tail call's argument permutation, W34.
     /// `Some(sources)` means `return g(x1, …, xn)` with `n >= 2` and every
     /// argument a bare FP formal: `sources[i]` is the index into [`Self::params`]
     /// — which then holds the FP formals **alone**, in FP-file order — of the

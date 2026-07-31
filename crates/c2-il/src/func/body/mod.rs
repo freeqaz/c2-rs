@@ -192,7 +192,7 @@ pub(crate) enum BodyShape {
     /// [`super::shapes::try_parse_fp_tail_call`] for the captures.
     FpTailCall { params: Vec<u32>, arg_tok: u32, narrowing: bool, callee_tok: u32 },
     /// `return g(x1, …, xn)` with `n >= 2` and **every argument a floating-point
-    /// formal** — the other half of the FP tail-call family, W33.
+    /// formal** — the other half of the FP tail-call family, W34.
     ///
     /// `params` is the FP formals alone in FP-file order (entry `k` is `f(k+1)`,
     /// exactly as [`BodyShape::FpTailCall`] carries it) and `arg_sources[i]`

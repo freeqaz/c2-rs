@@ -284,7 +284,7 @@ impl IlBundle {
                             Ok(BodyShape::MultiArgTailCall { .. }) => {
                                 FnVerdict::InClass("multiarg-tail-call")
                             }
-                            // W33, the multi-argument FP tail call. Split by
+                            // W34, the multi-argument FP tail call. Split by
                             // whether the permutation moves anything at all: the
                             // identity is a bare `b <callee>` and a cycle is
                             // `fmr`s through f0, and the two are worth different

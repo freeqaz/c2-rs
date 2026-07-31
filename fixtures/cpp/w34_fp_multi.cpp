@@ -1,4 +1,4 @@
-// **Positive** — the multi-argument floating-point tail call, W33. Every
+// **Positive** — the multi-argument floating-point tail call, W34. Every
 // function here must emit, and the whole obj must be byte-exact.
 //
 // `docs/rungs/2026-07-31-fp-multiarg.md`. This is the other half of the family
@@ -7,7 +7,7 @@
 // **all-FP-argument** restriction is the whole reason the rung is shippable —
 // a call that also passes a GPR argument can need moves in *both* register
 // files, and their schedules interleave on a rule `docs/CODEGEN_FP_ARGS.md`
-// §1.1 records as uncharacterized (`w33_fp_multi_neg.cpp` holds one).
+// §1.1 records as uncharacterized (`w34_fp_multi_neg.cpp` holds one).
 //
 // ## Every word below is read off a reference obj (`/O1 /GS- /c`)
 //
@@ -50,6 +50,16 @@
 // two or more arguments trips `call-arg-outer-formal`. Indexing the FP file
 // instead makes it free.
 //
+// **The `mx*` block — a GPR argument that does not move.** The rung's real gate
+// is not "every argument is floating-point", it is **no GPR argument moves**: a
+// marshalling with no moves in the other file has nothing for the FP moves to
+// interleave with, and `mx7`/`mx8` show the FP permutation is then byte-
+// identical to the pure-FP one. The GPR destination is `r(2+slot)` counting the
+// FP arguments' slots and the source is `r(base+ix)` in the caller's own
+// numbering, so `mx3`/`mx5` are the cases where an FP argument's *slot* is what
+// keeps the integers in place; a model that packed the GPRs moves them. Their
+// twin that really does move is in the negative fixture.
+//
 // **`d2` — the numbering is width-agnostic**, so a `double` swap is byte-
 // identical to the `float` one (`fmr` is primary 63 at either width).
 
@@ -84,3 +94,23 @@ void   vd2(float a, float b)                        { gv2(b, a); }
 struct C { float m(float a, float b) const; float n(float a, float b, float c); };
 float  C::m(float a, float b) const                 { return g2f(b, a); }
 float  C::n(float a, float b, float c)              { return g3f(b, c, a); }
+
+// ---- a GPR argument that is already in the register the call wants ---------
+void gvif(int, float);
+void gviff(int, float, float);
+void gvfif(float, int, float);
+void gvffi(float, float, int);
+void gviiff(int, int, float, float);
+void gvifif(int, float, int, float);
+void gvpff(void*, float, float);
+float gfif(float, int, float);
+
+void   mx1(int a, float b)                       { gvif(a, b); }
+void   mx2(int a, float b, float c)              { gviff(a, b, c); }
+void   mx3(float a, int b, float c)              { gvfif(a, b, c); }
+void   mx4(float a, float b, int c)              { gvffi(a, b, c); }
+void   mx5(int a, int b, float c, float d)       { gviiff(a, b, c, d); }
+void   mx6(int a, float b, int c, float d)       { gvifif(a, b, c, d); }
+void   mx7(int a, int b, float c, float d)       { gviiff(a, b, d, c); }
+void   mx8(void* p, float u, float v)            { gvpff(p, v, u); }
+float  mx9(float a, int k, float b)              { return gfif(b, k, a); }

@@ -1,6 +1,6 @@
 # Sweep fragment — see scripts/expr_sweep.sh for the contract.
 #
-# W33, the multi-argument floating-point tail call. The axes are the ones that
+# W34, the multi-argument floating-point tail call. The axes are the ones that
 # separate candidate rules, not the ones that are easy to enumerate:
 #
 #   * **the complete permutation grid at n = 2, 3 and 4.** The whole rung is a
@@ -120,6 +120,56 @@ def cases(emit):
                     % ', '.join(perm)
                 emit('%s g(%s,%s);\n%s f(%s a, %s b) { %s }\n'
                      % (rty, fty, fty, rty, fty, fty, body))
+
+    # ---- the OTHER register file, which must not move -----------------------
+    # The gate is not "every argument is floating-point", it is "no GPR argument
+    # moves" — and the GPR destination is `r(2+slot)` counting the FP arguments'
+    # slots while the source is `r(base+ix)` in the caller's own numbering, with
+    # `base` = r4 for a member. Both numberings count an FP parameter as
+    # occupying a slot it does not fill, which is the half of §0 that a packed
+    # model gets wrong. Enumerate every GPR/FP pattern up to five arguments,
+    # forward the whole list unchanged (so the GPRs must all stay put), and then
+    # permute the FP ones only.
+    for k in range(2, 6):
+        for bits in range(1, (1 << k) - 1):
+            pat = ''.join('F' if (bits >> i) & 1 else 'G' for i in range(k))
+            fps = [i for i, c in enumerate(pat) if c == 'F']
+            for gty in ('int', 'void*', 'char*'):
+                for fty in ('float', 'double'):
+                    decl = ', '.join(
+                        ('%s p%d' % (gty if c == 'G' else fty, i))
+                        for i, c in enumerate(pat))
+                    ctys = ', '.join((gty if c == 'G' else fty) for c in pat)
+                    args = ', '.join('p%d' % i for i in range(k))
+                    emit('void g(%s);\nvoid f(%s) { g(%s); }\n'
+                         % (ctys, decl, args))
+                    # …and with the FP arguments permuted in place. Only the FP
+                    # file moves, and the capture says its schedule is then the
+                    # pure-FP one.
+                    for perm in itertools.permutations(fps):
+                        if tuple(perm) == tuple(fps):
+                            continue
+                        it = iter(perm)
+                        args = ', '.join(
+                            ('p%d' % next(it)) if c == 'F' else ('p%d' % i)
+                            for i, c in enumerate(pat))
+                        emit('void g(%s);\nvoid f(%s) { g(%s); }\n'
+                             % (ctys, decl, args))
+    # …and the member form, where `this` takes r3 and every explicit GPR formal
+    # sits one register above the slot the call wants it in — so forwarding a
+    # member's own integer formal MOVES and must refuse, while its floating-point
+    # formals do not.
+    for pat in ('GF', 'FG', 'GFF', 'FGF', 'FFG', 'FF', 'FFF'):
+        for fty in ('float', 'double'):
+            decl = ', '.join(
+                ('int p%d' % i) if c == 'G' else ('%s p%d' % (fty, i))
+                for i, c in enumerate(pat))
+            ctys = ', '.join('int' if c == 'G' else fty for c in pat)
+            args = ', '.join('p%d' % i for i in range(len(pat)))
+            for q in ('', ' const'):
+                emit('void g(%s);\nstruct C { void m(%s)%s; };\n'
+                     'void C::m(%s)%s { g(%s); }\n'
+                     % (ctys, decl, q, decl, q, args))
 
     # ---- refusals that must STAY refusals -----------------------------------
     # Each of these is a shape c2 emits differently, and each is one token away

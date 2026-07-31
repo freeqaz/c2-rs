@@ -104,8 +104,91 @@ The FP file's cycle scratch is **f0** exactly as the GPR file's is r11, and the
 shapes match one for one. But `both` shows the two files' move sequences
 **interleaved** — save-FP, save-GPR, move-GPR, move-FP, restore-GPR, restore-FP —
 which is a scheduling decision no per-file solver reproduces, and the 8-argument
-case hoists all four saves into a group first. Nothing here models a permutation
-in both files at once, and §5 ranks it.
+case hoists all four saves into a group first.
+
+> **"The shapes match one for one" is right about the mechanism and wrong about
+> the order — refuted at n = 4 by §1.2 below.** These two captures are a 2-cycle
+> and a 3-cycle, which is precisely the evidence that carried the GPR file's "one
+> r11 breaks the cycle" rule to length 3 and then failed
+> (`docs/CODEGEN_ARG_PERM.md` §2).
+
+W34 models a permutation in the FP file beside a GPR file that **does not move**;
+a permutation in both files at once is still open, and §5 ranks it.
+
+## 1.2 The FP file over the complete grid — MEASURED, and §1.1 refuted
+
+`scripts/gt_fpperm.py` is the FP twin of `scripts/gt_argperm.py`: the complete
+permutation grid at n = 2, 3, 4, 5 (152 cells), each cell scored against
+`docs/CODEGEN_ARG_PERM.md` §2's GPR model with the FP file's numbering and
+scratch pool substituted and **nothing else changed**. Destination slot *k* is
+`f(k+1)` and wants the formal whose FP-file index is `perm[k]`.
+
+```text
+                                          n=2     n=3     n=4      n=5
+  readback = park order (f0 then f13)     0/2     0/6     0/24    26/120
+  readback = ascending local minimum      0/2     0/6     2/24    40/120
+  readback = descending  (the GPR rule)   0/2     0/6     3/24    47/120
+```
+
+Three facts, none of them available from §1.1's two captures:
+
+* **The second scratch is `f13`.** Handed out after `f0`, i.e. the same pool
+  order `float_leaf_text`'s `FP_POOL` already uses for temporaries — `f0` first,
+  then descending from `f13`. The GPR file's second is r10, one *below* its
+  first; the FP file's is at the other end of the file.
+* **The read-back order is the park order, not descending order of the local
+  minimum.** The two files agree on the parks (ascending source register) and
+  **disagree on the restores**. They cannot disagree below n = 4: with one
+  scratch all three candidate orders are the same one-element sequence, which is
+  why §1.1 could not have seen it.
+* **The residue is the same 26 of 120 cells at n = 5 that the GPR file leaves,
+  and it is the same kind** — identical instruction multisets in a different
+  order, the independent-chain interleaving `docs/CODEGEN_ARG_PERM.md` §2.1
+  declines to fit a fourth time. Not fitted here either.
+
+**Every cell with one scratch is exact: 126 of 152, and 100 % of the
+one-minimum subset.** So the modelable boundary is the number of **local
+minima**, not the cycle length — a unimodal 4- or 5-cycle stays at one scratch
+and is byte-exact, while a 4-cycle with a valley needs two. That is what W34
+gates on.
+
+### 1.2.1 A GPR argument that does not move, and the FP half is unchanged
+
+```text
+  void f(int a,int b,float c,float d) { g(a,b,d,c); }   fmr f0,f2 ; fmr f2,f1 ; fmr f1,f0
+  int  f(int a,float b,int c,float d) { return gifm(a,c,b,d); }   mr r5,r4
+```
+
+The first row is the **whole** emission — byte-identical to the pure-FP swap
+`float f(float a,float b){ g(b,a); }`. So the blocker in §1.1 is not "the call
+touches both files", it is "**both files have to move**": a marshalling with no
+GPR moves in it has nothing for the FP moves to interleave with. The second row
+is the other side — one `mr` and no `fmr` at all, still refused, because the
+moment a GPR argument moves its schedule against the FP moves is the open
+question.
+
+The gate is §0's own rule with `sy::gpr_reg_of` as its reader: a GPR argument's
+destination is `r(2 + slot)` where `slot` is its 1-based position in the *call*
+(FP arguments consume a slot there), and its source is `r(base + ix)` in the
+caller's numbering, `base` = r3 free / r4 member. Until W34 that function had
+**no consumer at all**.
+
+### 1.2.2 A narrowing inside a permutation changes the schedule
+
+```text
+  f(double a,b,c) -> g3(double,double,double)(b,c,a)
+      fmr f0,f2 ; fmr f2,f3 ; fmr f3,f1 ; fmr f1,f0                 4 moves, 1 scratch
+  f(double a,b,c) -> g3(float,float,float)(b,c,a)
+      fmr f0,f2 ; fmr f13,f3 ; frsp f3,f1 ; frsp f1,f0 ; frsp f2,f13  5 moves, 2 scratches
+```
+
+A type change alone, and the permutation is lowered differently. Partial
+narrowings *do* fuse into whichever move writes the destination and leave the
+schedule alone (`g3(float,double,double)` is `fmr f0,f2 ; fmr f2,f3 ; fmr f3,f1 ;
+frsp f1,f0`), and the park is never the narrowed one. The rule that decides
+between those is not characterized, so W34 refuses the whole conversion inside a
+multi-argument list — which costs **0** on the workload, exactly as W31's
+single-argument `frsp` did.
 
 ## 2. Conversions at the boundary — the asymmetry is c2's, not the C standard's
 
@@ -235,11 +318,12 @@ ranks admitting it.
 
 | item | size | what stops it |
 |---|---:|---|
-| the FP **tail call**, multi-argument | **26,136** measured, strictly (was "85,231" for the whole family; the single-argument half landed as W31, +58,135) | the two files' *interleaved* move schedule (§1.1) — so **split it**: an all-FP-argument call has no GPR moves to interleave with and is a strictly smaller claim |
+| ~~the FP **tail call**, multi-argument~~ | ~~26,136~~ **TAKEN — W34, +26,136, the whole row** | the split was one step wider than §1.1 suggested: not "every argument is FP" but "**no GPR argument moves**" (§1.2.1). All 26,136 turned out to be the identity permutation; the permutation solver itself earns 0 |
+| a multi-argument FP call whose **result is consumed** (`x = g(a,b);`, `return g(a,b)+1;`) | **25,785** measured, the largest item W34 uncovered | not a tail call — it needs a frame and the result plumbing. The argument marshalling is done and reusable (`fp_permute_args_text`) |
 | `2C` float→double in any position | not separated | free at the call boundary (§2) and at a store; the *narrowing* twin is a real `frsp` through f0 and the IL spells both the same |
 | a pooled FP constant under `/Gy` | 1 on the workload | `.rdata` COMDAT association under function-level linking; W27 holds the pooled-constant population at exactly what it was to keep the census/gate disagreement at 0 |
-| a permutation in **both** register files | inside the 85,231 | the two files' moves interleave on a schedule (§1.1) that no per-file solver reproduces |
-| more than one FP cycle | inside the 85,231 | c2 hoists every save into a group first (the 8-argument capture) |
+| a permutation in **both** register files | **0 on the workload** (W34 measured it) | the two files' moves interleave on a schedule (§1.1) that no per-file solver reproduces. The number is the point: the question that blocked this family for two sections is worth nothing on this corpus |
+| an FP permutation with **two local minima** (two cycles, or a cycle with a valley) | **0 on the workload** | c2 parks a second scratch — **f13**, §1.2 — and the order the independent chains interleave in is open in both files |
 | `__vector` / VMX128 formals | unmeasured | a **third** register file; `docs/ABI_EDGES.md` §5 has it unprobed, and `.sy` class `D` is it (`arg_classes` refuses under `param-kind-unknown`) |
 | a `.sy` formal class outside the whitelist | 0 observed | refused rather than assumed to be a GPR |
 | an FP function sharing a TU with a **framed** one | 0 on the workload | `coff::plan_labels` advances the compiler-label counter by 1 per non-framed function; admitting a stride-2 leaf beside a framed one needs the planner to take a per-function stride, which is the framed side's label model rather than an FP class (§4.1) |
@@ -344,3 +428,22 @@ c2rs census /tmp/fpgt_sy.cpp --keep-il /tmp/fpil   # then hexdump the .sy
 #   the same with the FP LITERAL classes (kind class A) added   -> +0 bodies
 #   the FP store: the same tripwire in `store_value_width`      -> 7,984
 ```
+
+## 9. W34 — the multi-argument half, against its estimate
+
+| rung | estimate | outcome | bias, and its cause |
+|---|---:|---:|---|
+| **W34 the multi-argument FP tail call** | **+14,000** | **+26,136** | **LOW by 12,136 (1.87×)**, recorded in advance as biased LOW and for the right reason — the bucket's `call-arg-outer-formal` filter had removed every member function with two or more arguments, and indexing the FP file instead of the formals list gives them back. What was not anticipated is that the *gate* would widen on the measurement: the counterfactual said a mixed call where the GPR file does not move is 8,712 functions and free, so the class shipped is "no GPR argument moves" rather than "every argument is FP". +17,424 as scoped, +26,136 as shipped. |
+
+**+26,136 is §6's lax counterfactual figure to the function.** W31 resolved its
+half at 98.4 % of the bound and this one at 100.0 %, so the whole 85,231 is now
+in class at 99.4 % of the number that section warned was "an upper bound, and the
+strict rung is smaller by an unmeasured amount". Twice now the conservative
+reading of a lax counterfactual has been the wrong end of the error bar — the
+generalization worth keeping is that a counterfactual over *whole bodies* is a
+much tighter bound than one over a blocking key, because everything the strict
+rung adds is a gate the surrounding grammar has usually already applied.
+
+Also worth recording against §6's own hedge about what the probe *cannot* see:
+it named "§1.1's two-file interleaving" as the codegen fact hiding inside the
+number. It was there, and it is **0 functions**.

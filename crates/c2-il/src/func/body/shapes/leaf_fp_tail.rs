@@ -2,7 +2,7 @@
 //! where every argument is an FP formal, the whole body, no frame.
 //!
 //! Two rungs, one recognizer, because they differ only in how many times the
-//! argument production repeats: W31 is `n = 1` and W33 (`docs/rungs/2026-07-31-
+//! argument production repeats: W31 is `n = 1` and W34 (`docs/rungs/2026-07-31-
 //! fp-multiarg.md`) is `n >= 2`, where the argument setup becomes a permutation
 //! of the FP file broken through **f0**. **Every** argument being floating-point
 //! is the load-bearing restriction of the second: a call that also passes a GPR
@@ -97,10 +97,10 @@ use crate::func::body::BodyShape;
 use crate::func::readers::{
     eat_byte, eat_fp_type, eat_int_like_or_ptr4, read_token_var,
 };
-use crate::func::sy::{ArgClass, SyView};
+use crate::func::sy::{fp_reg_of, gpr_reg_of, ArgClass, SyView};
 
 use super::calls::eat_call_head;
-use super::this_binding::parse_this_token;
+use super::this_binding::{parse_this_token, ThisBinding};
 
 /// The most FP parameters a body in this class may declare. Past `f13` a
 /// floating-point formal is stack-homed and reading it is an `lfs`/`lfd` off r1,
@@ -109,9 +109,24 @@ use super::this_binding::parse_this_token;
 /// capture frames and spills, so it is not a leaf at all).
 const MAX_FP_FORMALS: usize = 13;
 
+/// The most arguments a call in this class may carry. Past the eighth an
+/// argument is stack-homed and needs a frame — the same boundary
+/// `super::calls`' `MAX_REGISTER_FORMALS` draws on the formals side.
+const MAX_ARGS: usize = 8;
+
+/// One parsed call argument: its token, and which register file its `.ex` TYPE
+/// puts it in. `Some((src_double, want_double))` is a floating-point value with
+/// the widths on either side of an optional boundary conversion; `None` is a
+/// width-4 int-like or pointer value, which this production admits only when it
+/// is already in the register the call wants.
+struct Arg {
+    tok: u32,
+    fp: Option<(bool, bool)>,
+}
+
 /// Try to parse a **floating-point tail call**, positioned at the `26 <callee>`
 /// symbol push that opens the body. One argument is [`BodyShape::FpTailCall`]
-/// (W31) and two or more are [`BodyShape::FpMultiArgTailCall`] (W33).
+/// (W31) and two or more are [`BodyShape::FpMultiArgTailCall`] (W34).
 ///
 /// ```text
 ///   26 <callee> BD <ret TYPE> 00 <fn-type-id>     the shared call head
@@ -149,46 +164,69 @@ pub(crate) fn try_parse_fp_tail_call(
     let callee_tok = eat_call_head(seg, &mut p).ok()?;
 
     // ---- the argument region ------------------------------------------------
-    // `( B9 <tok> <FP TYPE> [ 2C <FP TYPE> 00 ] 55 <FP TYPE> )+ 4C`, arguments
-    // in **reverse source order** — rightmost first, the same convention
+    // `( B9 <tok> <TYPE> [ 2C <FP TYPE> 00 ] 55 <TYPE> )+ 4C`, arguments in
+    // **reverse source order** — rightmost first, the same convention
     // [`super::calls::parse_call_shape`] anchors on `parse_formals`' reversal.
     // Every argument is a bare formal LOAD; a computed one is `float_leaf_text`'s
     // selector in argument position and a different lowering (W31's rung doc).
-    let mut stream: Vec<(u32, bool, bool)> = Vec::new(); // (tok, src_double, want_double)
+    //
+    // A **GPR** argument is admitted here and carries no conversion: it is
+    // checked below to be already in the register the call wants, so it emits
+    // nothing. That is what keeps this production out of the two-file
+    // interleaving question — a schedule with no GPR moves in it has nothing to
+    // interleave, and the capture confirms the FP half is then byte-identical to
+    // the pure-FP one (`docs/CODEGEN_FP_ARGS.md` §1.2).
+    let mut stream: Vec<Arg> = Vec::new();
     while !eat_byte(seg, &mut p, 0x4C) {
         if !eat_byte(seg, &mut p, 0xB9) {
             return None;
         }
         let (arg_tok, w) = read_token_var(seg, p)?;
         p += w;
-        let src_double = eat_fp_type(seg, &mut p)?;
-        // An optional FP→FP conversion of the argument. `2C <TYPE target> <varint 0>`,
-        // the same production `parse_expr` admits for the class-preserving integer
-        // case — required to be literally `00` for the same reason: a field that never
-        // varied across the captures is indistinguishable from a constant.
-        let mut want_double = src_double;
-        if eat_byte(seg, &mut p, 0x2C) {
-            want_double = eat_fp_type(seg, &mut p)?;
-            if !eat_byte(seg, &mut p, 0x00) {
+        let mut q = p;
+        let arg = if let Some(src_double) = eat_fp_type(seg, &mut q) {
+            p = q;
+            // An optional FP→FP conversion of the argument. `2C <TYPE target> <varint 0>`,
+            // the same production `parse_expr` admits for the class-preserving integer
+            // case — required to be literally `00` for the same reason: a field that never
+            // varied across the captures is indistinguishable from a constant.
+            let mut want_double = src_double;
+            if eat_byte(seg, &mut p, 0x2C) {
+                want_double = eat_fp_type(seg, &mut p)?;
+                if !eat_byte(seg, &mut p, 0x00) {
+                    return None;
+                }
+            }
+            // `55 <TYPE>` carries the **callee's declared formal type**, and it must agree
+            // in width with whatever the conversion (or its absence) left on the stack.
+            // Compared by decoded width and not byte-for-byte, because the two positions
+            // are free to differ in cv-qualification and a `const float` parameter emits
+            // the identical instruction.
+            if !eat_byte(seg, &mut p, 0x55) {
                 return None;
             }
-        }
-        // `55 <TYPE>` carries the **callee's declared formal type**, and it must agree
-        // in width with whatever the conversion (or its absence) left on the stack.
-        // Compared by decoded width and not byte-for-byte, because the two positions
-        // are free to differ in cv-qualification and a `const float` parameter emits
-        // the identical instruction.
-        if !eat_byte(seg, &mut p, 0x55) {
-            return None;
-        }
-        if eat_fp_type(seg, &mut p)? != want_double {
-            return None;
-        }
-        stream.push((arg_tok, src_double, want_double));
-        // Past the thirteenth the FP argument registers run out; the `4C` gate
-        // above is the real terminator, and this only keeps a malformed segment
-        // from being walked forever.
-        if stream.len() > MAX_FP_FORMALS {
+            if eat_fp_type(seg, &mut p)? != want_double {
+                return None;
+            }
+            Arg { tok: arg_tok, fp: Some((src_double, want_double)) }
+        } else {
+            // A general-purpose argument: the same width-4 int-like/pointer
+            // vocabulary `parse_expr` spells, and **no `2C` at all** — a
+            // conversion in this file is an `extsb`/`rlwinm`/`extsw`, i.e. an
+            // instruction, and this production's whole claim about GPR arguments
+            // is that they cost none.
+            eat_int_like_or_ptr4(seg, &mut p)?;
+            if !eat_byte(seg, &mut p, 0x55) {
+                return None;
+            }
+            eat_int_like_or_ptr4(seg, &mut p)?;
+            Arg { tok: arg_tok, fp: None }
+        };
+        stream.push(arg);
+        // Past the eighth an argument is stack-homed, which needs a frame; the
+        // `4C` gate above is the real terminator and this only keeps a malformed
+        // segment from being walked forever.
+        if stream.len() > MAX_ARGS {
             return None;
         }
     }
@@ -243,30 +281,61 @@ pub(crate) fn try_parse_fp_tail_call(
     if params.len() > MAX_FP_FORMALS {
         return None;
     }
-    // Every argument must be one of the FP formals — not a local, not a global,
-    // not a formal in the *other* file. **This is the all-FP-arguments gate**:
-    // `params` holds the FP formals alone, so a GPR argument has no position in
-    // it and the whole body declines. That is the split W33 exists to make — a
-    // call with a GPR argument as well as an FP one can need moves in both
-    // register files at once, and their schedule interleaves
-    // (`docs/CODEGEN_FP_ARGS.md` §1.1) on a rule no per-file solver reproduces.
-    let mut arg_sources = Vec::with_capacity(stream.len());
-    for &(tok, src_double, want_double) in &stream {
-        let ix = params.iter().position(|&t| t == tok)?;
-        // `.ex` says this value is a `float`/`double`; `.sy` says the formal is one.
-        // They are two channels on one fact and a disagreement is a misread record,
-        // never a width to guess at — the same all-or-nothing discipline `arg_classes`
-        // itself applies.
-        match classes[formals.iter().position(|&t| t == tok)?] {
-            ArgClass::Fp { double } if double == src_double => {}
+    // The base of the caller's own GPR argument numbering: r3 for a free function
+    // and r4 for a member, because `this` takes r3 and shifts every formal up one
+    // (`sy::gpr_reg_of`). An FP formal still **consumes a slot** in that
+    // numbering even though it fills no register, which is the half of
+    // `docs/CODEGEN_FP_ARGS.md` §0 the FP file's own rule is not.
+    let gpr_base: u8 = match parse_this_token(seg, lo)? {
+        ThisBinding::Absent => 3,
+        ThisBinding::Bound(_) => 4,
+    };
+    // Walk the arguments in call order, sorting them into the two files.
+    //
+    // **A GPR argument is admitted only when it does not move.** Its destination
+    // is `r(2 + slot)` where `slot` is its 1-based position in the *call* — FP
+    // arguments consume a slot there too — and its source is `r(base + ix)` in
+    // the caller's own numbering. When those agree the argument costs nothing,
+    // and a marshalling with no GPR moves in it has nothing for the FP moves to
+    // interleave with: the capture shows the FP half is then byte-identical to
+    // the pure-FP permutation (`docs/CODEGEN_FP_ARGS.md` §1.2). When they
+    // disagree — `int f(int a,int b,float c,float d){ return g(a,c,b,d); }` is
+    // one `mr r5,r4` — the body declines, and the rung doc prices it.
+    let mut arg_sources = Vec::new();
+    let mut fp_stream = Vec::new();
+    for (slot, arg) in stream.iter().enumerate() {
+        let ix = formals.iter().position(|&t| t == arg.tok)?;
+        match (arg.fp, classes[ix]) {
+            // `.ex` says this value is a `float`/`double`; `.sy` says the formal is one.
+            // They are two channels on one fact and a disagreement is a misread record,
+            // never a width to guess at — the same all-or-nothing discipline `arg_classes`
+            // itself applies.
+            (Some((src_double, want_double)), ArgClass::Fp { double }) if double == src_double => {
+                arg_sources.push(fp_reg_of(&classes, ix)? as usize - 1);
+                fp_stream.push((arg.tok, src_double, want_double));
+            }
+            (None, ArgClass::Gpr) => {
+                let src = gpr_reg_of(&classes, ix, gpr_base)?;
+                let dst = u8::try_from(2 + slot + 1).ok()?;
+                if src != dst {
+                    return None;
+                }
+            }
+            // A conversion **across** the register files (`int`↔`float`), or a
+            // `.ex`/`.sy` disagreement about the width. Both are frames, and
+            // neither is ever a width to guess at.
             _ => return None,
         }
-        let _ = want_double;
-        arg_sources.push(ix);
+    }
+    // No floating-point argument at all: `parse_call_shape`'s integer productions
+    // own that body, and this recognizer must not take it — its own file has
+    // nothing to say and it would lose the integer path's argument grammar.
+    if fp_stream.is_empty() {
+        return None;
     }
 
-    if stream.len() == 1 {
-        let (arg_tok, src_double, want_double) = stream[0];
+    if fp_stream.len() == 1 {
+        let (arg_tok, src_double, want_double) = fp_stream[0];
         return Some(BodyShape::FpTailCall {
             params,
             arg_tok,
@@ -276,6 +345,7 @@ pub(crate) fn try_parse_fp_tail_call(
             callee_tok,
         });
     }
+    let stream = fp_stream;
 
     // ---- two or more arguments: the FP file's permutation ---------------------
     // `docs/CODEGEN_FP_ARGS.md` §1.2. Everything below is a gate the complete
@@ -610,7 +680,7 @@ mod tests {
         ));
     }
 
-    // ---- W33: the multi-argument FP tail call --------------------------------
+    // ---- W34: the multi-argument FP tail call --------------------------------
 
     /// `float sw2(float a, int k, float b) { return g2f(b, a); }` — whole captured
     /// segment, the swap with a non-FP formal wedged between the two FP ones.
@@ -787,5 +857,61 @@ mod tests {
         // A source outside the destination range never closes a cycle; the walk
         // reports "unmodelable" rather than indexing out of bounds.
         assert_eq!(fp_perm_local_minima(&[1, 2]), usize::MAX);
+    }
+
+    /// `void mx(int k, float a, float b) { gviff(k, b, a); }` — whole captured
+    /// segment. A **GPR argument beside the FP ones**, in the position where it
+    /// does not move: `k` is formal 0 so it sits in r3, and it is the call's
+    /// first argument so the callee wants it in r3 too. Nothing is emitted for
+    /// it, and the FP half is the byte-identical pure-FP swap
+    /// (`fmr f0,f2 ; fmr f2,f1 ; fmr f1,f0`).
+    ///
+    /// This is the shape that makes the rung's gate "no GPR argument moves"
+    /// rather than "every argument is floating-point" — a marshalling with no
+    /// moves in the other file has nothing for the FP moves to interleave with.
+    const FP_MULTI_MIXED: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x53, 0x53, 0x26, 0xEA, 0x09,
+        0x46, 0x2D, 0xE9, 0x09, 0x2D, 0xE8, 0x09, 0x2D, 0xE7, 0x09, // formals, reversed: k a b
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x26, 0xE6, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // void ret
+        0xB9, 0xE8, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, // arg 3: `a`, float
+        0xB9, 0xE9, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, // arg 2: `b`, float
+        0xB9, 0xE7, 0x09, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, // arg 1: `k`, INT
+        0x4C, 0x4B, // the result is discarded
+        0x3A, 0xEB, 0x09, 0x54, 0x02, 0x29, 0xEB, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// The gate is **no GPR argument moves**, not "every argument is FP". `k`
+    /// occupies argument slot 1 in the caller's numbering and in the call's, so
+    /// it costs nothing and the body is in class with the FP file's own swap.
+    #[test]
+    fn a_gpr_argument_that_does_not_move_is_free_and_the_fp_half_is_unchanged() {
+        const F: [SyFormal; 3] = [
+            SyFormal { tok: 0xE709, size: 4, kind: INT },
+            SyFormal { tok: 0xE809, size: 4, kind: FLOAT },
+            SyFormal { tok: 0xE909, size: 4, kind: FLOAT },
+        ];
+        assert_eq!(
+            parse_segment(FP_MULTI_MIXED, sy(&F)),
+            Some(BodyShape::FpMultiArgTailCall {
+                params: vec![0xE809, 0xE909],
+                arg_sources: vec![1, 0],
+                callee_tok: 0xE609,
+            })
+        );
+        // …and the moment a GPR argument would have to MOVE, the body declines.
+        // Declaring the *second* formal `int` as well leaves `b` the only FP
+        // argument, so `a` becomes the call's third slot — r5 — while the
+        // caller has it in r4. One `mr`, and how that move schedules against the
+        // FP one is the open question this rung refuses.
+        const G: [SyFormal; 3] = [
+            SyFormal { tok: 0xE709, size: 4, kind: INT },
+            SyFormal { tok: 0xE809, size: 4, kind: INT },
+            SyFormal { tok: 0xE909, size: 4, kind: FLOAT },
+        ];
+        assert_eq!(parse_segment(FP_MULTI_MIXED, sy(&G)), None);
     }
 }

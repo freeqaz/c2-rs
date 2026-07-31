@@ -381,7 +381,7 @@ const FP_CYCLE_SCRATCH: u8 = 0;
 
 /// Lower a **multi-argument floating-point tail call**'s argument permutation:
 /// the `fmr`s that put each FP argument register's wanted value in place, with
-/// `f0` as the single break scratch (W33).
+/// `f0` as the single break scratch (W34).
 ///
 /// `sources[i]` is the index, into the FP formals in FP-file order, of the value
 /// that FP argument register `f(i+1)` wants — so the identity is the passthrough
@@ -783,8 +783,8 @@ mod tests {
         ));
     }
 
-    /// W33 — the multi-argument FP tail call's whole emission. Every word is read
-    /// off a reference obj (`fixtures/cpp/w33_fp_multi.cpp`, `/O1 /GS- /c`) and
+    /// W34 — the multi-argument FP tail call's whole emission. Every word is read
+    /// off a reference obj (`fixtures/cpp/w34_fp_multi.cpp`, `/O1 /GS- /c`) and
     /// the model is scored on the complete n = 2…5 permutation grid by
     /// `scripts/gt_fpperm.py --pure --model`.
     #[test]
