@@ -3,7 +3,7 @@
 
 use crate::func::body::expr::{eat_return_plumbing, BODY_SCOPE_DEPTH};
 use crate::func::body::BodyShape;
-use crate::func::readers::{eat_byte, is_ptr4_kind, read_token_var, read_type};
+use crate::func::readers::{eat_byte, is_ptr4_kind, is_volatile_tag, read_token_var, read_type};
 use crate::func::IlOp;
 
 use super::designator::{eat_addr_offset_adds, is_ptr_any, parse_base_member_designator};
@@ -85,7 +85,12 @@ pub(crate) fn try_parse_addr_leaf(seg: &[u8], start: usize, lo: usize) -> Option
             let (tag, kind, _, tw) = read_type(seg, p)?;
             // A pointer *value* in a register: the `B9` operand position, where
             // the tag carries the pointer's own width.
-            if !is_ptr4_kind(tag, kind) {
+            // …and NOT `volatile`. A volatile pointer formal is a memory
+            // object: c2 homes it in the frame and reloads it, so this leaf is a
+            // whole framed body. See `readers::is_volatile_tag` — the thirteenth
+            // live wrong-bytes emit, and the position is load-bearing (the same
+            // bit at the `27`/`30` designator positions is free).
+            if !is_ptr4_kind(tag, kind) || is_volatile_tag(tag) {
                 return None;
             }
             p += tw;

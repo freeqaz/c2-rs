@@ -198,6 +198,29 @@ pub struct FramedCall {
     pub add_k: i32,
 }
 
+/// **A single-argument floating-point tail call's argument marshalling** — the
+/// whole of it.
+///
+/// `return g(x);` / `g(x);` where `x` is an FP formal is at most one instruction
+/// plus the branch, and which instruction depends on two facts: where the value
+/// is in the FP file, and whether the callee's formal is the narrower width.
+/// [`IlFunction::params`] carries the first (the FP formals alone, in FP order —
+/// entry `n` is `f(n+1)`), this record the second.
+///
+/// Set together with [`IlFunction::tail_call`], which is what makes the branch
+/// and its REL24 come out of the shared tail-call path rather than a second copy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FpTail {
+    /// The argument formal's token; its index in [`IlFunction::params`] is its
+    /// FP register number minus one.
+    pub arg: u32,
+    /// The callee's formal is `float` where the source is `double`, so the move
+    /// is an `frsp f1,fS` — **fused**, not `fmr f1,fS` followed by
+    /// `frsp f1,f1`. Captured: `float n2(double a, double b){ return g1f(b); }`
+    /// is the single word `fc201018`.
+    pub narrowing: bool,
+}
+
 /// One call of a [`CallSeq`], with its callee resolved and its argument setup in
 /// whichever of the two forms the shared marshalling locator produced.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -429,6 +452,17 @@ pub struct IlFunction {
     /// If this function is a **W13a floating-point leaf**, whether it is double
     /// precision. Mutually exclusive with the other body kinds.
     pub float_leaf: Option<bool>,
+    /// If this function is a **single-argument floating-point tail call**, its
+    /// argument marshalling. Set together with [`Self::tail_call`], and then
+    /// [`Self::params`] holds the FP formals **alone**, in FP-file order.
+    ///
+    /// Deliberately not folded into [`Self::float_leaf`], whose two readers
+    /// ([`Self::label_slots`] and `float_leaf_text`) both want "this body is a
+    /// W13 arithmetic chain" and neither wants "this body touches FP" — that
+    /// conflation was the tenth, eleventh and twelfth wrong-bytes emits
+    /// (`docs/CODEGEN_FP_ARGS.md` §4, §4.1). This shape's stride is 1 like any
+    /// other tail call's; only [`Self::touches_floating_point`] is true of it.
+    pub fp_tail: Option<FpTail>,
     /// A **multi-argument** tail call's argument permutation. `Some(sources)`
     /// means this is `return g(a1, …, an)` with `n >= 2` and every argument a bare
     /// parameter: `sources[i]` is the index into [`Self::params`] of the value that
@@ -484,6 +518,7 @@ impl IlFunction {
             call_seq: None,
             compare: None,
             float_leaf: None,
+            fp_tail: None,
             arg_sources: None,
             empty_body: false,
         }
@@ -541,8 +576,14 @@ impl IlFunction {
     /// `int; fp-store; int; fp-store` puts it after the second function, and one
     /// of `fp-store; int; float-leaf` puts it after the **first**, ahead of the
     /// leaf (`docs/CODEGEN_FP_ARGS.md` §4).
+    /// The **FP tail call** is the third producer, and it is the third kind of
+    /// body that satisfies this and not "is a float leaf": `float f(float a,
+    /// float b){ return g(b); }` is one `fmr` and a branch, stride 1, and its obj
+    /// carries `_fltused` — verified, and placed by the same rule, immediately
+    /// after the first FP-touching function's symbol group.
     pub fn touches_floating_point(&self) -> bool {
         self.float_leaf.is_some()
+            || self.fp_tail.is_some()
             || self
                 .ops
                 .iter()
@@ -637,6 +678,19 @@ impl IlFunction {
         // structural reason the old rule could not be stated correctly here:
         // the `+1` is applied by [`c2_core::coff::plan_labels`], which has the
         // whole function list.
+        //
+        // **The FP tail call was measured against the same rule rather than
+        // assumed into it**, by the same seed-free two-framed-function
+        // construction (`/O1 /GS- /c`, so `/Gy` and the framed stride is 5):
+        //
+        // ```text
+        //   fr1;                     fr2      delta 5     leaves 0
+        //   fr1; fp_tail;            fr2      delta 7     leaves 1
+        //   fr1; fp_tail fp_tail;    fr2      delta 8     leaves 2
+        // ```
+        //
+        // 5 + 1·leaves + 1 for the TU, with zero residual — the extra slot is
+        // `_fltused` and it is charged once however many FP functions there are.
         Some(1)
     }
 }

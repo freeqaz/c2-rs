@@ -13,6 +13,7 @@ use crate::codegen::encode::{
     encode_fdiv,
     encode_fmr,
     encode_fmul,
+    encode_frsp,
     encode_fsub,
     encode_lfs,
 };
@@ -309,6 +310,65 @@ pub fn float_leaf_text(
     Ok((text, consts))
 }
 
+/// Select the argument setup for a **single-argument floating-point tail call** —
+/// everything before the `b <callee>`, which the caller appends because the
+/// branch encodes its own `.text` offset (`Selected::Tail`).
+///
+/// `params` is the FP formals **alone**, in FP-file order, so entry `n` is
+/// `f(n+1)`; `fp.arg` names which of them the call passes. The destination is
+/// always `f1`: the argument region held exactly one argument and it is FP, so it
+/// is the callee's first floating-point parameter.
+///
+/// Three cases and one instruction between them, all captured
+/// (`docs/CODEGEN_FP_ARGS.md`, and the module doc of
+/// `c2_il`'s `shapes::leaf_fp_tail`):
+///
+/// ```text
+///   the value is already in f1        (nothing)   b g
+///   it is in fN, same width           fmr  f1,fN
+///   it is in fN, callee wants float   frsp f1,fN
+/// ```
+///
+/// The narrowing case is **fused** and that is the row worth having:
+/// `float n2(double a, double b){ return g1f(b); }` is the single word
+/// `fc201018` — `frsp f1,f2` — and *not* `fmr f1,f2 ; frsp f1,f1`. It is also
+/// unconditional: `frsp f1,f1` is emitted even when the source is already f1,
+/// because the rounding is the point, not the move.
+///
+/// This lives beside [`float_leaf_text`] rather than in `codegen/calls.rs`
+/// because what it decides is the FP *register file* — the same numbering, the
+/// same `f(n+1)` convention, the same `.sy`-derived parameter list — and the one
+/// thing it shares with the integer tail call is the branch, which it does not
+/// emit.
+pub fn fp_tail_call_text(
+    params: &[u32],
+    fp: &c2_il::FpTail,
+) -> Result<Vec<u8>, BackendError> {
+    if params.len() > 13 {
+        return Err(out_of_class(
+            "more than 13 FP parameters: the 14th is stack-homed; out of class",
+        ));
+    }
+    // Parameter n → f(n+1), exactly as `float_leaf_text` maps it. The parser has
+    // already established that the argument is one of them; a miss here is a
+    // refusal rather than a guessed register, because guessing one is precisely
+    // the mis-emit `docs/CODEGEN_FP_ARGS.md` §1 records.
+    let src = params
+        .iter()
+        .position(|&t| t == fp.arg)
+        .map(|i| (i + 1) as u8)
+        .ok_or_else(|| {
+            out_of_class("FP tail-call argument is not one of the FP parameters")
+        })?;
+    Ok(if fp.narrowing {
+        encode_frsp(FP_RET, src).to_vec()
+    } else if src == FP_RET {
+        Vec::new()
+    } else {
+        encode_fmr(FP_RET, src).to_vec()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     // The single `mod tests` this was split out of opened with
@@ -555,4 +615,50 @@ mod tests {
         ));
     }
 
+
+    /// The FP tail call's whole emission: the move that is elided, the move that
+    /// is one `fmr`, and the narrowing that is one **fused** `frsp`.
+    ///
+    /// Every word is read off a reference obj (`fixtures/cpp/w31_fp_tail.cpp`,
+    /// `/O1 /GS- /c`). `n2` is the row that matters: `frsp f1,f2` is `fc201018`,
+    /// a single instruction — c2 does not emit `fmr f1,f2` and then round f1, so
+    /// a port that composed the two would be wrong by one word on every
+    /// narrowing call from anything but f1.
+    #[test]
+    fn fp_tail_call_emits_the_move_the_capture_shows() {
+        let params = vec![0xE309u32, 0xE409, 0xE509];
+        // `a1` — the argument is already in f1: a bare `b g1f`, no setup at all.
+        assert_eq!(
+            fp_tail_call_text(&params, &c2_il::FpTail { arg: 0xE309, narrowing: false }).unwrap(),
+            Vec::<u8>::new()
+        );
+        // `a2` — from f2:  fc201090  fmr f1,f2
+        assert_eq!(
+            fp_tail_call_text(&params, &c2_il::FpTail { arg: 0xE409, narrowing: false }).unwrap(),
+            vec![0xFC, 0x20, 0x10, 0x90]
+        );
+        // `a3` — from f3:  fc201890  fmr f1,f3
+        assert_eq!(
+            fp_tail_call_text(&params, &c2_il::FpTail { arg: 0xE509, narrowing: false }).unwrap(),
+            vec![0xFC, 0x20, 0x18, 0x90]
+        );
+        // `n1` — narrowing from f1: still a real instruction, because the
+        // ROUNDING is the point and not the move.  fc200818  frsp f1,f1
+        assert_eq!(
+            fp_tail_call_text(&params, &c2_il::FpTail { arg: 0xE309, narrowing: true }).unwrap(),
+            vec![0xFC, 0x20, 0x08, 0x18]
+        );
+        // `n2` — narrowing from f2, FUSED.  fc201018  frsp f1,f2
+        assert_eq!(
+            fp_tail_call_text(&params, &c2_il::FpTail { arg: 0xE409, narrowing: true }).unwrap(),
+            vec![0xFC, 0x20, 0x10, 0x18]
+        );
+        // An argument that is not one of the FP parameters is a refusal, never a
+        // guessed register: guessing one is exactly the mis-emit
+        // `docs/CODEGEN_FP_ARGS.md` §1 records.
+        assert!(matches!(
+            fp_tail_call_text(&params, &c2_il::FpTail { arg: 0xEE09, narrowing: false }),
+            Err(BackendError::NotImplemented(_))
+        ));
+    }
 }

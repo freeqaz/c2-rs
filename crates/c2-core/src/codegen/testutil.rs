@@ -21,6 +21,7 @@ pub(crate) fn func_with(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         compare: None,
         empty_body: false,
         float_leaf: None,
+        fp_tail: None,
         arg_sources: None,
         params,
         ops,

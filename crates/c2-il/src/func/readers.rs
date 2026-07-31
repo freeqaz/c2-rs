@@ -504,6 +504,116 @@ pub(crate) fn is_ptr_to_4(tag: u8, kind: u8) -> bool {
     type_width(tag) == Some(4) && (kind >> 4) == 4 && (kind & 0x0F) == 0x3
 }
 
+/// True for a TYPE tag carrying the **`volatile`** qualifier (bit `0x10`), which
+/// at a `B9` operand LOAD is a whole stack frame and nowhere else is anything.
+///
+/// The thirteenth live wrong-bytes emit, found by this rung's neighbour grid and
+/// **pre-existing on mainline across five shapes at once** — the straight-line
+/// leaf, the integer tail call, the framed call, the discarded statement call and
+/// the multi-argument permutation. A `volatile`-qualified *parameter* is a
+/// volatile object, so c2 homes the incoming register in the frame and reads it
+/// back from memory at every use:
+///
+/// ```text
+///   int   f(int x, volatile int y)   { return y; }        stw r4,124(r1) ; lwz r3,124(r1)
+///   float f(float x, volatile float y) { return gf(y); }  <96-byte frame>
+///     mflr r12 · stw r12,-8(r1) · stwu r1,-96(r1)
+///     d041007c  stfs f2,124(r1)      <- homed
+///     c021007c  lfs  f1,124(r1)      <- read back
+///     4bffffed  bl ?gf               <- and therefore NOT a tail call
+///     addi r1,r1,96 · lwz r12,-8(r1) · mtlr r12 · blr
+/// ```
+///
+/// against the port's `fmr f1,f2 ; b ?gf`. `Port=Mismatch @ offset 2` — the
+/// section count, because the reference obj has a `.pdata` the port never
+/// emitted.
+///
+/// **The bit is only load-bearing at the `B9` LOAD**, and that is measured, not
+/// assumed. Three positions carry a volatile tag and two of them are free:
+///
+/// ```text
+///   int f(volatile int y)      { return y; }    b9 <y> 96 41 …   REFUSE  (spills)
+///   int f(int* volatile p)     { return *p; }   b9 <p> 96 43 …   REFUSE  (spills)
+///   int f(volatile S* p)       { return p->i; } b9 <p> 86 43 …   free — the POINTER
+///                                               30     96 41 …   is not volatile and
+///   struct S { volatile int i; };                                 the load-through is
+///   int f(S* p)                { return p->i; } 30     96 41 …   one `lwz` either way
+/// ```
+///
+/// So the gate goes on the operand LOAD and **not** on [`eat_int_like`],
+/// [`eat_value_type`] or the `27`/`30` designator readers, where the same two
+/// bytes appear and cost nothing. A `volatile` formal the body never reads is
+/// also free (`int f(int x, volatile int y){ return x; }` is a bare `blr`), and
+/// it stays in class for the same reason: there is no LOAD to refuse.
+///
+/// `const` (bit `0x20`) is genuinely free everywhere and is untouched —
+/// `A6 41 84 20` is admitted exactly as before. It is the *pair* that makes this
+/// a measurement rather than a guess: `const float` and `volatile float` differ
+/// in one bit of one byte and in a whole stack frame.
+pub(crate) fn is_volatile_tag(tag: u8) -> bool {
+    tag & TAG_VOLATILE != 0
+}
+
+/// The TYPE tag's `volatile` bit. `86` is plain, `A6` adds `const` (`0x20`),
+/// `96` adds `volatile`, `B6` is both — the four combinations `is_ptr4_kind`
+/// whitelists, read as bits here because only one of them changes the emission.
+const TAG_VOLATILE: u8 = 0x10;
+
+/// True for a TYPE naming a **floating-point value**, returning `true` for the
+/// 8-byte (`double`) one and `false` for the 4-byte (`float`) one.
+///
+/// The same two-channel test [`is_int4_type`] uses, with the class nibble moved
+/// from "signed or unsigned" to **`5` = real**: the tag's low nibble is the
+/// value's alignment and the kind's high nibble is its *size*, and both must say
+/// the same width. Captured witnesses are the two bare triples
+/// ([`FLOAT_TYPE`] `86 45 40`, [`DOUBLE_TYPE`] `88 85 41`); reading the nibbles
+/// rather than whitelisting the triples is what admits a `const float` parameter
+/// (`A6 45 …`) and a `typedef float Real` — which carry a **per-TU type id** in
+/// place of the fixed third byte and are therefore invisible to an exact-triple
+/// compare, however ordinary the code. That is `docs/ROADMAP.md` §6d's lesson
+/// (`eat_int_like`'s whitelist was over-refusing by 15,924 functions) applied to
+/// the FP file rather than re-learned on it.
+///
+/// The width is **not** a licence to ignore it: `float` and `double` occupy one
+/// FP register each (`docs/CODEGEN_FP_ARGS.md` §1, the `t8` capture), but a
+/// conversion *between* them is free in one direction and an `frsp` in the other,
+/// so every consumer is handed the bit rather than a bare bool.
+pub(crate) fn is_fp_type(tag: u8, kind: u8) -> Option<bool> {
+    // `volatile float` is a memory object and its LOAD is a spill, not a move —
+    // see [`is_volatile_tag`], and `float f(float x, volatile float y)
+    // { return gf(y); }` is a 40-byte framed body where this rung emits 8.
+    if is_volatile_tag(tag) {
+        return None;
+    }
+    let w = type_width(tag)?;
+    if u32::from(kind >> 4) != w || (kind & 0x0F) != TYPE_KIND_REAL_CLASS {
+        return None;
+    }
+    match w {
+        4 => Some(false),
+        8 => Some(true),
+        // A "real" that is neither 4 nor 8 bytes — `long double` under some other
+        // flag, or a misread record. Never guessed; the same refusal
+        // `sy::SyView::arg_classes` makes on the `.sy` side of the same fact.
+        _ => None,
+    }
+}
+
+/// The TYPE kind's **class nibble** for a floating-point ("real") type. The `.sy`
+/// side of the same fact is `sy::TYPE_KIND_REAL`; both read the low nibble of the
+/// kind byte, and a union being `16` where a struct is `06` is why neither may
+/// compare the whole byte.
+const TYPE_KIND_REAL_CLASS: u8 = 0x5;
+
+/// Consume a floating-point TYPE at `p` ([`is_fp_type`]), reporting `true` for a
+/// `double`. `p` is untouched when the type is not an FP one.
+pub(crate) fn eat_fp_type(seg: &[u8], p: &mut usize) -> Option<bool> {
+    let (tag, kind, _, w) = read_type(seg, *p)?;
+    let double = is_fp_type(tag, kind)?;
+    *p += w;
+    Some(double)
+}
+
 /// A TYPE naming a **width-4 pointer value**: a data pointer (kind class 3) or a
 /// function/code pointer (kind class 4), in any cv-qualification.
 ///
@@ -611,6 +721,17 @@ pub(crate) fn value_class(tag: u8, kind: u8) -> Option<ValueClass> {
 /// enter arithmetic, may not be converted, and its `41` result annotation must
 /// restate the class.
 pub(crate) fn eat_operand_type(seg: &[u8], p: &mut usize) -> Option<ValueClass> {
+    // **A `volatile` operand is a memory object, and reading it is a memory
+    // access.** See [`is_volatile_tag`]: at THIS position the qualifier costs a
+    // whole frame, and the port emitted the register move — a live wrong-bytes
+    // emit across five shapes at once. The gate is here, at the operand type,
+    // rather than inside [`eat_int_like_or_ptr4`], because that locator also
+    // serves the `55` call-end, the `41` result and the `2C` target, where the
+    // same qualifier is free and where refusing it would cost coverage for
+    // nothing.
+    if read_type(seg, *p).is_some_and(|(tag, _, _, _)| is_volatile_tag(tag)) {
+        return None;
+    }
     if let Some(is_ptr) = eat_int_like_or_ptr4(seg, p) {
         return Some(if is_ptr { ValueClass::Ptr4 } else { ValueClass::Int4 });
     }
@@ -689,6 +810,44 @@ mod tests {
         // The pointer's own size sits in the kind's high nibble and is 4 in every
         // witness; a kind claiming 8 is not a pointer this target emits.
         assert!(!is_ptr_to_4(0x86, 0x83));
+    }
+
+    /// The `volatile` bit is `0x10` on the tag, `const` is `0x20`, and only the
+    /// first of them reaches the emitted bytes — W32, the thirteenth live
+    /// wrong-bytes emit. Every tag below is transcribed from a live capture; the
+    /// four rows of the `const`/`volatile` cross product occur and are named.
+    #[test]
+    fn the_volatile_qualifier_is_a_tag_bit_and_const_is_a_different_one() {
+        for tag in [0x96u8, 0xB6] {
+            assert!(is_volatile_tag(tag), "tag {tag:02X} is volatile");
+        }
+        for tag in [0x86u8, 0xA6, 0x82, 0x88, 0x84] {
+            assert!(!is_volatile_tag(tag), "tag {tag:02X} is not volatile");
+        }
+        // …and the operand LOAD refuses it in every class it would otherwise
+        // admit, while `const` is admitted in all of them. Captured spellings:
+        //   96 41 80 20  volatile int      A6 41 84 20  const int
+        //   96 43 80 20  int* volatile     A6 43 8F 20  int* const (and `this`)
+        //   96 45 82 20  volatile float    A6 45 …      const float
+        for (kind, what) in [(0x41u8, "int"), (0x43, "pointer"), (0x45, "float")] {
+            let mut p = 0usize;
+            assert!(
+                eat_operand_type(&[0x96, kind, 0x80, 0x20], &mut p).is_none(),
+                "volatile {what} must refuse at the operand LOAD"
+            );
+            assert_eq!(p, 0, "a refusal must not advance the cursor");
+        }
+        // The FP predicate answers the same way, and keeps the width.
+        assert_eq!(is_fp_type(0x86, 0x45), Some(false));
+        assert_eq!(is_fp_type(0x88, 0x85), Some(true));
+        assert_eq!(is_fp_type(0xA6, 0x45), Some(false)); // `const float` is free
+        assert_eq!(is_fp_type(0x96, 0x45), None); // `volatile float` is a spill
+        assert_eq!(is_fp_type(0xB6, 0x85), None);
+        // …and the non-FP classes are not real types however wide they are.
+        assert_eq!(is_fp_type(0x86, 0x41), None); // int
+        assert_eq!(is_fp_type(0x86, 0x43), None); // pointer
+        assert_eq!(is_fp_type(0x86, 0x85), None); // tag says 4, kind says 8
+        assert_eq!(is_fp_type(0x82, 0x15), None); // a 1-byte "real"
     }
 
     /// The widened operand-type reader. Both halves are required to be exactly

@@ -591,6 +591,7 @@ mod tests {
             compare: None,
             empty_body: false,
             float_leaf: None,
+            fp_tail: None,
             arg_sources: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
@@ -948,6 +949,7 @@ mod tests {
             compare: None,
             empty_body: false,
             float_leaf: None,
+            fp_tail: None,
             arg_sources: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
@@ -979,6 +981,7 @@ mod tests {
             compare: None,
             empty_body: false,
             float_leaf: None,
+            fp_tail: None,
             arg_sources: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![

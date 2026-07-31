@@ -269,6 +269,18 @@ impl IlBundle {
                                 FnVerdict::InClass("empty-dtor-member-adjusted")
                             }
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
+                            // Split from the integer tail call by the register
+                            // FILE, and split again by whether the boundary
+                            // narrows, so the rung's gain is attributable to the
+                            // free move and to the `frsp` separately rather than
+                            // to their sum — the same reason the dtor
+                            // delegation carries three buckets for one shape.
+                            Ok(BodyShape::FpTailCall { narrowing: false, .. }) => {
+                                FnVerdict::InClass("fp-tail-call")
+                            }
+                            Ok(BodyShape::FpTailCall { .. }) => {
+                                FnVerdict::InClass("fp-tail-call-narrowing")
+                            }
                             Ok(BodyShape::MultiArgTailCall { .. }) => {
                                 FnVerdict::InClass("multiarg-tail-call")
                             }

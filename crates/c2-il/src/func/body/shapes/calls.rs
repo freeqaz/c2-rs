@@ -249,7 +249,15 @@ fn tail_call_shape(
 /// Split out of [`parse_call_shape`] byte for byte so the statement-call sequence
 /// ([`parse_call_sequence`]) reads the second and later calls through the same
 /// decoder rather than a copy of it. Every refusal key is unchanged.
-fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
+///
+/// `pub(crate)` for the third importer, [`super::leaf_fp_tail`]: the FP tail call
+/// has its own **argument** grammar (the integer operand vocabulary cannot spell
+/// an FP value) but the identical call *head*, and a second copy of the head
+/// decode is exactly the drift `docs/GAPS.md` §6 instance #9 records. In
+/// particular the `call-conv` gate is here and nowhere else — a varargs callee
+/// must place an FP argument in a GPR pair as well as in the FP file, and a
+/// recognizer that re-read the head without that byte would emit half of it.
+pub(crate) fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     // 26 <tok> function/result ref.
     if !eat_byte(seg, p, 0x26) {
         return Err(blk(seg, *p, "call-ref"));
