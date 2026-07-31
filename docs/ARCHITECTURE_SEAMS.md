@@ -372,6 +372,41 @@ emits zero cases** (the observable symptom of the shadowing bug, now a hard
 error). Two rungs adding fragments never conflict; two rungs claiming the
 same fragment *name* is an add/add conflict git flags loudly.
 
+**Three drivers now consume `sweep.d/`, and a fragment is graded by all of
+them.** That is the whole reason the loader is a module rather than an inline
+block — two copies of the enumeration is the "one rule, two implementations"
+shape `GAPS.md` §6 keeps recording:
+
+```
+scripts/expr_sweep.sh          c2rs diff, one case at a time.  FIXED PROFILE:
+                               /Ox /GS- /c, hardcoded in c2-reference.
+scripts/cross_sweep.py/.sh     the CROSS PRODUCT of the shape families these
+                               cases exercise, 4 mode lanes.
+scripts/sweep_mode.sh          the same cases at an ARBITRARY mode, via
+                               `c2rs gap --flags-file`.  This is the one that
+                               can pass /EHsc.
+```
+
+`sweep_mode.sh` exists because the intersection *generated case × `/EHsc`* was
+empty and nothing said so. `expr_sweep.sh` drives `c2rs diff`, and `c2rs diff`
+hardcodes `/Ox /GS- /c` — **no `/EH`, at any invocation**. `mode_lane.sh` does
+take arbitrary flags and does run `/EHsc`, but it grades `fixtures/cpp/`, not
+generated cases. So the generated axes — the instrument that has found **four
+live mis-emits the hand-written corpus never found** — had only ever been
+compiled with exceptions off, while the port admits **35,964 `eh-bare`
+functions in class** on the workload and those shapes only carry EH markers
+under `/EHsc`.
+
+This is WEC's finding restated one level down: *every standing mode lane
+compiled without `/EH`, which made the entire EH surface vacuous.* Two `/EHsc`
+fixture lanes closed that for fixtures. This closes it for the axes that
+actually find things.
+
+The rule generalizes past EH, and it is the third time it has been paid for:
+**a green run is sound only over the configurations it was RUN at.** A flag no
+lane varies is not "verified as irrelevant" — it is untested, and from outside
+it looks exactly like verified.
+
 ### 2.5 Docs: freeze the monoliths, per-rung files, generated index
 
 ```
