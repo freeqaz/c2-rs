@@ -3004,6 +3004,76 @@ gate is per TU; `census_gate.rs` asks the per-function gate, which both pass).
   is not shared" is `GAPS.md` §6 #2, and it has now produced two mis-emits;
   wiring it is the FP seam's call and is flagged rather than done.
 
+## 6n. 2026-07-31 — the per-rung docs take over, and what the session established
+
+**Census 491,013 → 655,245 (19.94 % → 26.61 %), +164,232**, across seventeen
+merges, with **mismatch 0 and census/gate disagreement 0 at every intermediate
+state**. Corpus `dc3-decomp` `05ca6d09`.
+
+This section deliberately does **not** narrate those rungs. From this session on,
+each rung carries its own document under `docs/rungs/`, indexed by
+`docs/rungs/INDEX.md` (generated — `scripts/gen_rung_index.sh`) and enforced by
+`crates/c2-harness/tests/rung_registry.rs`, which requires a positive and a
+negative fixture graded N/N and 0/N. **A measurement that admits nothing is not a
+rung** and belongs in `docs/` proper; that test rejected a merge for exactly this
+and was right to.
+
+What generalizes, and is not recorded anywhere else:
+
+**A large blocking row is one of five things, and a first-blocker histogram
+distinguishes none of them — they all stop at the same byte.** Check in this
+order, cheapest first:
+
+1. **A private limit inside a recognizer that already exists.** W35 (76 % of the
+   head row), W38 (81 %), WSL. Three rungs running.
+2. **A production misfiled under an opcode.** W36 — `p->m();` reached the
+   assignment parser because the dispatch keys on a byte a member call lacks.
+3. **Real, but far smaller than its size.** W37 eliminated 134,763 functions —
+   7.2 % of everything blocked — **for free**, by crossing the row against two
+   axes *already in the baseline scan*.
+4. **Unmeasurable, because the instrument has no production for it.** A blocker
+   with no production stops the completeness walk dead, so no such row can ever
+   carry a `-whole` bit. Indistinguishable from (2) from outside; the repairs are
+   opposite.
+5. **Mis-described.** W41's row was scheduled as "the member call preceded by
+   assignment statements" and contained zero of those.
+
+**The standing locator check, in both directions.** W35 found a *private copy*
+that refused **more** than its siblings; W38 found a *shared locator* that
+**nobody else asked** (`eat_ctor_this_epilogue`, one caller since W19, worth
+42,238 from a second production). **Neither is visible to any gate here**: they
+emit nothing, so no byte compare sees them, and they agree with census by
+construction, so no disagreement check does either.
+
+**Ranking numbers, measured.** Row → realized: 67×, 67.8× (first-blocker rows),
+2.62× (a `-whole` first-blocker key), 1.45× (a counterfactual successor),
+1.0002× (a counterfactual *of the production being widened*). The last is the
+rule: **when the instrument is a counterfactual of the production you are
+widening, the ceiling IS the estimate** — all that remains is counting the
+independent refusals between it and the emitter.
+
+**Estimates missed seven times running.** Three causes, all recorded: borrowing a
+rate across populations (W36 2.99×; the relational measurement missed by two
+orders of magnitude doing this, with the lesson available); enumerating
+sub-shapes when the winner is not among them (W35, W38, W41); and multiplying a
+ceiling by a previous rung's realized fraction without asking what produced it
+(WSL). The two methods that worked: **instrument the production**, and **cross
+the row with the frame class and the control-flow class** — both free, both from
+axes already in every scan.
+
+**Generated sweep axes found six live wrong-bytes emits; hand-written fixtures
+found none.** All six vary something that changes no operator and no shape —
+cv-qualification on a formal, a callee's *return type*, `const` on a
+copy-assignment source — and are therefore invisible to review.
+
+**Five instrument defects, one shape: a shared artifact consulted or rewritten
+under an assumption nothing enforces.** A gate binary never rebuilt (47 phantom
+mismatches; the false-*green* direction is the hazard), an in-place mingw stub
+(a "flake" that was a half-written PE), one shared `/tmp` dir across four
+concurrent lanes, a **non-relocatable capture cache** (embeds its own absolute
+path, faked a 6-TU port regression), and two sweeps in one outdir deleting each
+other's cases mid-grade. All five now fail closed or are refused outright.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp
