@@ -111,6 +111,16 @@ pub(crate) fn try_parse_member_tail_call(
 ) -> Result<BodyShape, Option<Block>> {
     let mut p = start;
     let callee_tok = eat_callee_push(seg, &mut p).map_err(|_| None)?;
+    // **A second method symbol where the receiver must be**: the method pushes
+    // stack LIFO, so `p->a()->b()` is `26 <b> 26 <a> B9 <p> …` and the `26` this
+    // production just read as its callee is the *outermost* method of a chain.
+    // See [`super::mcall_chain`] — the largest `-whole` row on the board, and the
+    // reason the split is here rather than one locator deeper: `eat_receiver_this`
+    // must keep meaning "the receiver designator", not "the receiver or some
+    // number of further methods".
+    if seg.get(p) == Some(&0x26) {
+        return super::mcall_chain::try_parse_member_chain_call(seg, p, lo, depth, callee_tok);
+    }
     let recv_tok = eat_receiver_this(seg, &mut p).map_err(|_| None)?;
     let ret = eat_call_token(seg, &mut p).map_err(|_| None)?;
     let mut args = eat_call_args(seg, &mut p).map_err(|_| None)?;
@@ -320,6 +330,22 @@ pub(crate) fn eat_receiver_this(seg: &[u8], p: &mut usize) -> Result<u32, Block>
             return Err(blk(seg, *p, "mcall-recv-convert"));
         }
     }
+    eat_this_bind(seg, p)?;
+    Ok(tok)
+}
+
+/// `99 <TYPE ptr4> 00` — **bind the value on top of the operand stack as argument
+/// zero**, the `this` bind alone.
+///
+/// Split out of [`eat_receiver_this`] byte for byte, every refusal key unchanged,
+/// because a **chain link** is this bind with no receiver designator in front of
+/// it: `p->a()->b()` binds the first call's *result*
+/// ([`super::mcall_chain::try_parse_member_chain_call`]). A second copy of the
+/// three gates below is the drift `docs/GAPS.md` §6 instance #9 records — and the
+/// `mcall-bind-offset` key in particular exists so that what the literal `00`
+/// requirement costs is a number rather than an argument, which a private copy
+/// would silently re-decide.
+pub(crate) fn eat_this_bind(seg: &[u8], p: &mut usize) -> Result<(), Block> {
     if !eat_byte(seg, p, 0x99) {
         return Err(blk(seg, *p, "mcall-bind"));
     }
@@ -327,6 +353,11 @@ pub(crate) fn eat_receiver_this(seg: &[u8], p: &mut usize) -> Result<u32, Block>
     // Required to be a width-4 pointer for the same reason the receiver is: this is
     // the token that says the call is a *direct* member dispatch on an ordinary
     // object pointer (virtual dispatch is `67`/`9A`, a different opcode pair).
+    //
+    // For a chain link it carries a second fact for free: the *previous* call's
+    // result is a class pointer. A link whose bound value is an `int` or a
+    // `float` cannot exist, so the intermediate calls need no return-type gate of
+    // their own.
     match read_type(seg, *p) {
         Some((tag, kind, _, w)) if is_ptr4_kind(tag, kind) => *p += w,
         _ => return Err(blk(seg, *p, "mcall-bind-type")),
@@ -344,7 +375,7 @@ pub(crate) fn eat_receiver_this(seg: &[u8], p: &mut usize) -> Result<u32, Block>
         }
         None => return Err(blk(seg, *p, "mcall-bind-tail")),
     }
-    Ok(tok)
+    Ok(())
 }
 
 #[cfg(test)]

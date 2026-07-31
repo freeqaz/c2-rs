@@ -3262,11 +3262,12 @@ mod tests {
     #[test]
     fn every_second_blocker_names_its_own_construct() {
         let cases: &[(&[u8], &str)] = &[
-            // §18.3: this used to read `recv-load-then-chain-bind-whole`, which was
-            // the mis-anchor, not the construct — the head method push had been
-            // eaten by the assignment dispatch. Both statement positions of the
-            // same two-link chain now name the same form.
-            (PROBE_CHAIN_IN_RETURN, "expr-call-in-expr-chained-whole"),
+            // §18.3's own row — the value-position two-link chain — is NOT here
+            // any more: WCH gave `chained` an acceptance production and
+            // `PROBE_CHAIN_IN_RETURN` is in class, so it has no blocker key to
+            // name. The form claim it carried is now made directly against
+            // [`classify`], which is the decode this test is about, in
+            // `a_chain_is_a_chain_in_both_statement_positions` below.
             // The wild one keeps its third construct — the `30 A6 45 F3 30` the
             // hand-read of this segment predicted, an indirect load of a const float
             // — and moves to the same form for the same reason.
@@ -3300,22 +3301,34 @@ mod tests {
     /// the `chained` bucket understated the chain population ~4.4× as a result. The
     /// statement-head re-anchor ([`reanchor_chain`], §18.3) puts the value-position
     /// form back where the assignment form already was.
+    ///
+    /// **The value-position half is asserted against [`classify`] rather than
+    /// against the body dispatch**, because WCH accepted that half: a chain in a
+    /// return position is now in class and raises no blocker at all. The claim
+    /// this test makes is about the *decode*, and `classify` is the decode — going
+    /// through `parse_segment_detail` for it was always one indirection more than
+    /// the claim needed, and acceptance is exactly what that indirection is
+    /// sensitive to.
     #[test]
     fn a_chain_is_a_chain_in_both_statement_positions() {
-        let ret = parse_segment_detail(&free_fn(PROBE_CHAIN_IN_RETURN), NO_LOCALS).unwrap_err();
+        let ret_seg = free_fn(PROBE_CHAIN_IN_RETURN);
+        let lo = crate::func::readers::find_subslice(&ret_seg, &[0x4C, 0x4F, 0x11]).unwrap();
+        let at = lo + 4; // past `LO` and the `53`
+        assert_eq!(ret_seg[at], 0x26, "the chain's outermost method push");
+        let ret = classify(&ret_seg, at);
         let asg = parse_segment_detail(&free_fn(PROBE_CHAIN_IN_ASSIGNMENT), NO_LOCALS).unwrap_err();
         // The same *form* now, which is the fix.
         assert_eq!(ret.aux & FORM_MASK, asg.aux & FORM_MASK);
-        assert_eq!(ret.feature(), "expr-call-in-expr-chained-whole");
+        assert_eq!(ret.feature(), "expr-call-in-expr-chained");
         assert_eq!(asg.feature(), "expr-call-in-expr-chained-whole");
         // …and the assignment body really is the return body plus one `26 <dst>`
         // push, byte for byte, plus the store and load of the local.
         assert!(PROBE_CHAIN_IN_ASSIGNMENT.len() > PROBE_CHAIN_IN_RETURN.len());
-        // The refusal is still a refusal, still at a `26`, and still whole-body
-        // accounted for: the key moved, the gate did not.
-        let seg = free_fn(PROBE_CHAIN_IN_RETURN);
-        assert_eq!(seg[ret.off], 0x26);
-        assert!(parse_segment(&seg, NO_LOCALS).is_none());
+        // The assignment half is still a refusal, still at a `26`, and still
+        // whole-body accounted for: the key moved, the gate did not.
+        let asg_seg = free_fn(PROBE_CHAIN_IN_ASSIGNMENT);
+        assert_eq!(asg_seg[asg.off], 0x26);
+        assert!(parse_segment(&asg_seg, NO_LOCALS).is_none());
     }
 
     /// **The guard on the re-anchor, and the reason it needs a bind count.**
@@ -3331,10 +3344,14 @@ mod tests {
         let one = parse_segment_detail(&free_fn(PROBE_ONE_LINK_ASSIGN), NO_LOCALS).unwrap_err();
         assert_eq!(one.feature(), "expr-call-in-expr-recv-load-whole");
         assert_eq!(depth0_binds(&free_fn(PROBE_ONE_LINK_ASSIGN), one.off, 4), 1);
-        // …against the two-link value form, which has two.
+        // …against the two-link value form, which has two. Counted from the
+        // statement's own `26` rather than from a refusal's offset: WCH accepts
+        // this body, so there is no refusal here to take an offset from, and the
+        // bind count was never a property of one.
         let two = free_fn(PROBE_CHAIN_IN_RETURN);
-        let b = parse_segment_detail(&two, NO_LOCALS).unwrap_err();
-        assert_eq!(depth0_binds(&two, b.off, 4), 2);
+        let at = crate::func::readers::find_subslice(&two, &[0x4C, 0x4F, 0x11]).unwrap() + 4;
+        assert_eq!(two[at], 0x26);
+        assert_eq!(depth0_binds(&two, at, 4), 2);
     }
 
     /// A branch is named a branch because its label is **defined later in the same
@@ -3384,7 +3401,9 @@ mod tests {
             assert!(!f.contains("-whole"), "{f}");
         }
         // …while a modelable one always carries one or the other.
-        for seg in [PROBE_CHAIN_IN_RETURN, WILD_CHAIN_AS_RECV_LOAD, WILD_DTOR_DELETES_A_MEMBER] {
+        // (`PROBE_CHAIN_IN_RETURN` was the third row here and is now in class —
+        // WCH — so it raises no block to carry either suffix.)
+        for seg in [WILD_CHAIN_AS_RECV_LOAD, WILD_DTOR_DELETES_A_MEMBER] {
             let f = parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
             assert!(f.ends_with("-more") || f.contains("-whole"), "{f}");
         }
@@ -3760,7 +3779,7 @@ mod tests {
             DTOR_MEMBER_OFF4,
             BYVAL_TEMP,
             WILD_DTOR_WIDE_DESCRIPTOR,
-            PROBE_CHAIN_IN_RETURN,
+            // (`PROBE_CHAIN_IN_RETURN` is in class since WCH and raises no key.)
             PROBE_CHAIN_IN_ASSIGNMENT,
             PROBE_IF_ON_NAMED_OBJECT,
             WILD_CHAIN_AS_RECV_LOAD,
