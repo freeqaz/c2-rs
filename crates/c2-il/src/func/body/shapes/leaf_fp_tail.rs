@@ -166,7 +166,10 @@ pub(crate) fn try_parse_fp_tail_call(
     sy: SyView,
 ) -> Option<BodyShape> {
     let mut p = start;
-    let callee_tok = eat_call_head(seg, &mut p).ok()?;
+    // The FP tail call is the one shape whose own body IS floating point, so a
+    // real result here is expected rather than refused: `fp_tail` marks the
+    // function and `_fltused` follows from that.
+    let (callee_tok, _ret) = eat_call_head(seg, &mut p).ok()?;
 
     // ---- the argument region ------------------------------------------------
     // `( B9 <tok> <TYPE> [ 2C <FP TYPE> 00 ] 55 <TYPE> )+ 4C`, arguments in
