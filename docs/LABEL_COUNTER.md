@@ -2036,8 +2036,9 @@ refused at all twelve. Grading those against the schedule produced nine false
 `REFUTES` lines before the split was added, and a falsifier that cries wolf is
 worse than none.
 
-**Current score of the shipped falsifier**, all 17 ladders at `--max 12` in
-both modes: `captures failed: 0`, **0 rows refuting SCHEDULE D**, with 9
+**Current score of the shipped falsifier** *(as of round 28; superseded by
+§6.16.13, which re-gates the same falsifier over 26 ladders after round 29
+added nine)*, all 17 ladders at `--max 12` in both modes: `captures failed: 0`, **0 rows refuting SCHEDULE D**, with 9
 `INNER-DECLINED` rows at `/O1` and 49 at `/Ox`. That second number is the one
 to read alongside the first: it is the categorical refusals being attributed
 to the pair that was actually refused instead of to the pair the schedule is
@@ -2354,6 +2355,56 @@ Not one `bl` survives at any of 64 sites. The floor is unbounded as far as
 this instrument can reach, measured at the boundary rung rather than inside
 the band.
 
+### 6.16.10a The FPR frame class: the pair separates, and it still says nothing
+
+The draft of §6.16.11 was about to ship *"every callee in this section is
+`int f(int)`"* as the top remaining risk. Naming a gap is worth less than
+closing it when closing it costs one generator, so the same permutation pair
+was re-run with **`double` temps defined by `gd` calls** — an FPR frame,
+`_fltused`, a `__savefpr_` set alongside the GPR one, and an entirely
+different opcode mix, with the statement, declaration, call and operator
+counts still equal between the spellings at every `k`.
+
+It half worked, and the half that did not is the interesting half.
+
+**The pair does separate, and in the opposite direction.** FPR saves are
+emitted **inline, one `stfd` per register**, with no cheap out-of-line idiom to
+cross, so more live `double`s makes the callee **bigger**, not smaller:
+
+```
+k   s_lo   s_hi   ds    body lo/hi  Nlo  Nhi  press_lo        press_hi
+2   176    184    +8    132/132     1    1    1+1f/112/0+2    1+2f/128/0+2
+3   228    244    +16   184/184     1    1    1+1f/112/0+2    1+3f/128/0+2
+8   488    496    +8    444/444     0    0    1+1f/112/0+2    1+8f/176/0+2
+```
+
+`LOW` holds one live FPR at every `k`; `HIGH` holds `k`. The `body` column is
+**identical at every k** again, so this separation is also 100% frame idiom.
+So the *mechanism* generalises: a frame class the schedule was not fitted to
+still moves `s` by pure allocation.
+
+**But not one cell discriminates, and the instrument says so rather than
+banking the agreement.** The cheapest FP callee this shape can build already
+emits **116 bytes**, past the narrow region (68–100 B) where an 8–16 byte
+delta could straddle a boundary; from 104 B up the bands are 36 and 112 bytes
+wide and nothing this small crosses them. The run therefore prints:
+
+```
+discriminating cells: 0   refuting rows: 0   inert rows: 1
+NO DISCRIMINATING CELL — the probe did not separate
+axes and this run says NOTHING about which is real.
+```
+
+which is exactly the report §6.16.2 built that counter for. Sixteen FP rungs
+of SCHEDULE D agreement is a **schedule** confirmation in a new frame class
+and **zero** axis evidence, and those are different currencies.
+
+> **The gap is narrowed, not closed.** SCHEDULE D now holds on a callee with
+> an FPR frame and `_fltused`; the pure-allocation delta exists there too. What
+> is still unmeasured is whether **`s` is the axis** in that frame class, and
+> with this mechanism it is **not separable** — the FP idiom delta is too small
+> and the FP callee too large for the two to meet at a band boundary.
+
 ### 6.16.11 What round 29 leaves `NOT MODELLED`
 
 Unchanged from §6.15.7, and deliberately **not** narrowed:
@@ -2371,27 +2422,34 @@ What round 29 **removes** from the risk list is the top item: `s` surviving the
 allocator is now measured rather than hoped for, and the spill floor bounds the
 one mechanism that could have hidden a wrong row.
 
-> **The riskiest thing still unmeasured**, in this round's judgement, is no
-> longer the proxy. It is that **every callee in this entire section is
-> `int f(int)`.** §6.15.7 listed virtual and template callees third; after this
-> round they are first, because the two mechanisms round 29 exercised — the
-> save/restore idiom threshold and the spill floor — are both about **GPR**
-> pressure in a body with one integer argument and one integer return. A callee
-> with an FPR frame, a struct return, or a `this` plus four arguments starts
-> from a different prologue and a different number of live values *before its
-> first statement*, and nothing here says the schedule's 4-byte bands survive
-> that. `d1-dbl` (§6.15.2) is one ladder of evidence that they do and it moves
-> `s` by statements, so it is confounded in the same way the other thirteen
-> were. **The pressure pair should be re-run on a `double` and on a member
-> function, and it has not been.**
+> **The riskiest thing still unmeasured** is no longer the proxy — it is that
+> the axis result rests on **one frame class**. Every discriminating cell in
+> this round is GPR pressure in an `int f(int)` body, and §6.16.10a shows why
+> that is not an oversight that one more ladder fixes: the FP pair **separates
+> `s` and still cannot discriminate**, because the cheapest FP callee is
+> already past the narrow bands. So the honest statement is not "the `double`
+> case is untested" — it is tested and it is **uninformative on the axis**, and
+> the same arithmetic will defeat any frame class whose minimum callee is
+> large relative to its idiom delta.
+>
+> What would actually settle it is a shape with a **large** allocator delta at
+> a **small** callee size. The GPR helper-pair threshold is the only one found
+> so far that qualifies (24 bytes at 68–92 B). A **member function** — a `this`
+> pointer live from entry, so one more live value before the first statement —
+> is the cheapest untried candidate, and a **struct return** (hidden pointer
+> parameter, sret) the next. Neither has been run.
+>
+> Unchanged and still third: a **virtual** call the front end devirtualises and
+> a **template** instantiation have no row anywhere in this document.
 
 ### 6.16.12 The pre-registration, scored
 
 Written before the captures, in `work/gt-inline-decline/ESTIMATE-round29.txt`
-and reproduced here because `work/` is gitignored. Fourteen registered,
-**thirteen landed, one missed** — in three tranches, each written before its
-own capture, with the second and third addenda naming what the previous result
-had just made questionable.
+and reproduced here because `work/` is gitignored. Seventeen registered,
+**fifteen landed, one missed, one vacuous** — in four tranches, each written
+before its own capture, with each addendum naming what the previous result had
+just made questionable. The vacuous one is kept in the table rather than
+dropped: a prediction whose antecedent never occurred is not a hit.
 
 | prediction | p | outcome |
 |---|---:|---|
@@ -2409,6 +2467,9 @@ had just made questionable.
 | S11 `s = 48` likewise | 0.80 | ✓ |
 | O1 definition order does not move the schedule | 0.70 | ✓ |
 | O3 …nor `s` itself (the confound control) | 0.90 | ✓ |
+| F1 the FP pair is not inert — `s` separates for FP too | 0.75 | ✓ +8 to +16 B |
+| F2 where the FP pair straddles a band, SCHEDULE D holds | 0.65 | **vacuous — no FP cell straddles one** |
+| F3 the FP separation is not 24 B, being a different idiom | 0.60 | ✓ and the opposite sign |
 
 **The named bias, and what it actually did.** The estimate opened by naming
 anchoring in *both* directions — 449 confirming rungs pulling one way, "the
@@ -2446,6 +2507,42 @@ scripts/gt_inline_decline.py --max 64 --kmax 2 d1-noloop-arith
 # does the callee's DEFINITION ORDER move anything? (it does not)
 scripts/gt_inline_decline.py --order --max 12
 ```
+
+The fourth `--pressure` block is the FPR frame class of §6.16.10a; read its
+`discriminating cells: 0` line before reading its `refuting rows: 0` one.
+
+**Re-gate of the shipped falsifier, superseding §6.15.8's 17-ladder score.**
+Round 29 adds nine ladders (`d1-live-lo/hi`, `d2-live-lo/hi`, `d1-perm-lo/hi`,
+`d1-cheap-hi`, `d1-fp-lo/hi`), so the whole set was re-run end to end in both
+modes:
+
+| | `/O1` | `/Ox` |
+|---|---:|---:|
+| ladders | 26 | 26 |
+| rungs | **344** | **344** |
+| objects | 4 128 | 4 128 |
+| `captures failed` | **0** | **0** |
+| rows refuting SCHEDULE D | **0** | **0** |
+| `INNER-DECLINED` rows | 9 (unchanged) | 59 (was 49) |
+
+The `/O1` `INNER-DECLINED` count is **unchanged at 9**, which is the control: the
+nine new ladders are depth-1 and depth-2 shapes whose direct callee is never
+the refused one, so any movement there would have meant the split had broken.
+The `/Ox` count rises by ten, all from the new depth-2 rows where the wrapper
+collapses to a thunk (§6.16.9).
+
+Every existing function in the script is **untouched** — the round-29 diff
+removes exactly one line (`mode, nmax = …` gains a third name) and is otherwise
+pure addition — so the pre-existing rows could not have moved, and the re-gate
+confirms they did not.
+
+> **The two background re-gates wrote to distinct paths and each capture
+> process makes its own `mkdtemp`, so the shared-cache hazard does not apply
+> here; the `mode:` header line was checked in both files before the numbers
+> were read.** Worth recording separately: the *readiness check* lied. `pgrep -f
+> gt_inline_decline.py` matched the waiting shell's own command line, so both
+> runs read as still-running long after they had finished. A watcher that can
+> match itself is a watcher that never fires.
 
 `--pressure` prints `<== s TRACKS` on a discriminating cell that agrees,
 `<== *** s IS NOT THE AXIS: same IL, ±n bytes, same Nfull ***` on one that

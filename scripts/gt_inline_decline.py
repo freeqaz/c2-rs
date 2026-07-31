@@ -180,7 +180,7 @@ def pressure_of(o, want):
     sec, lo, hi = extent(o, g)
     d = o.raw(sec)[lo:hi]
     rels = {va: sy for va, sy, _t in o.relocs(sec) if lo <= va < hi}
-    nsave, frame, st, ld, pushed = 0, 0, 0, 0, False
+    nsave, nfsave, frame, st, ld, pushed = 0, 0, 0, 0, 0, False
     pro, epi = 0, len(d)
     for i in range(0, len(d) - 3, 4):
         w = struct.unpack_from(">I", d, i)[0]
@@ -197,18 +197,23 @@ def pressure_of(o, want):
         if not pushed:
             if op == 36 and ra == 1:                            # stw rX,d(r1)
                 nsave += 1
+            elif op == 54 and ra == 1:                          # stfd fX,d(r1)
+                nfsave += 1
             s = rels.get(lo + i)
             if s is not None:
                 nm = o.sym_by_index(s)
                 nm = nm["name"] if nm else ""
                 if nm.startswith("__savegprlr_"):
                     nsave += 32 - int(nm.rsplit("_", 1)[1])
+                elif nm.startswith("__savefpr_"):
+                    nfsave += 32 - int(nm.rsplit("_", 1)[1])
         else:
             if op == 36 and ra == 1:
                 st += 1
             elif op == 32 and ra == 1:
                 ld += 1
-    return {"nsave": nsave, "frame": frame, "st": st, "ld": ld,
+    return {"nsave": nsave, "nfsave": nfsave, "frame": frame, "st": st,
+            "ld": ld,
             "pro": pro, "epi": len(d) - epi, "body": max(0, epi - pro)}
 
 
@@ -432,6 +437,31 @@ def stmts_live_hi(k, var="v"):
     return " ".join(defs + uses)
 
 
+def stmts_fp_lo(k, var="v"):
+    """LOW pressure, DOUBLE temps — the pressure pair in a different frame class.
+
+    §6.16.11 named "every callee in this section is `int f(int)`" as the top
+    remaining risk after round 29's GPR result. These two generators move the
+    pair into an FPR frame: `double` temps defined by `gd` calls, `_fltused`,
+    a `__savefpr_` set alongside the GPR one, and an entirely different opcode
+    mix — with the statement, declaration, call and operator counts still
+    equal between the two spellings at every k.
+    """
+    parts = []
+    for i in range(k):
+        parts.append("double d%d=gd((double)a+%d);" % (i, i + 1))
+        parts.append("%s=(int)gd((double)%s+d%d);" % (var, var, i))
+    return " ".join(parts)
+
+
+def stmts_fp_hi(k, var="v"):
+    """…the same 2k statements permuted: all k `double`s live at once."""
+    defs = ["double d%d=gd((double)a+%d);" % (i, i + 1) for i in range(k)]
+    uses = ["%s=(int)gd((double)%s+d%d);" % (var, var, i)
+            for i in range(k - 1, -1, -1)]
+    return " ".join(defs + uses)
+
+
 def stmts_live_hi_cheap(k, var="v"):
     """Maximum live values per INSTRUCTION — built to look for a cheap spill.
 
@@ -476,6 +506,19 @@ def tree_d1(inner_extra, loop=LOOP):
 
 def tree_d1_noloop(inner_extra):
     leads = ("static int in1(int a){ int v=gs(a)+a; %s return v; }"
+             % inner_extra)
+    return leads, "s=in1(s);", ["in1"]
+
+
+def tree_d1_fp(inner_extra):
+    """depth 1, no loop, and the TU also declares the `double` barrier `gd`.
+
+    `gd` is declared in the LEAD rather than in `GS` so that nothing about the
+    integer ladders moves; `_fltused` is introduced by the callee itself,
+    which is what an FP frame class means here.
+    """
+    leads = ("double gd(double);\n"
+             "static int in1(int a){ int v=gs(a)+a; %s return v; }"
              % inner_extra)
     return leads, "s=in1(s);", ["in1"]
 
@@ -557,6 +600,10 @@ ladder("d1-perm-lo", tree_d1_noloop, stmts_perm_lo, 8,
        "INERT control: a RE-ASSOCIABLE use — c2 collapses the permutation")
 ladder("d1-perm-hi", tree_d1_noloop, stmts_perm_hi, 8,
        "INERT control: byte-identical to d1-perm-lo at every k")
+ladder("d1-fp-lo", tree_d1_fp, stmts_fp_lo, 8,
+       "PRESSURE control in an FPR frame class: k double temps, used at once")
+ladder("d1-fp-hi", tree_d1_fp, stmts_fp_hi, 8,
+       "PRESSURE probe in an FPR frame class: the same 2k statements permuted")
 ladder("d1-cheap-hi", tree_d1_noloop, stmts_live_hi_cheap, 30,
        "7th mechanism: 1-instruction temps, 8-byte rungs, all live at once")
 
@@ -946,8 +993,12 @@ def sweep_rung(tree, gen, k, mode, wd, nmax, tag):
 
 
 def pcol(p):
-    return "-" if p is None else "%d/%d/%d+%d" % (p["nsave"], p["frame"],
-                                                  p["st"], p["ld"])
+    """savedGPRs[+savedFPRs]/frame/postpush-stores+loads."""
+    if p is None:
+        return "-"
+    n = "%d" % p["nsave"] if not p["nfsave"] else "%d+%df" % (p["nsave"],
+                                                              p["nfsave"])
+    return "%s/%d/%d+%d" % (n, p["frame"], p["st"], p["ld"])
 
 
 # §6.15.4's /Ox rule for LOOP-FREE callees, stated on the callee's size AS
@@ -985,6 +1036,7 @@ PRESSURE_PAIRS = [
     ("d2 opaque use", tree_d2_noloop, stmts_live_lo, stmts_live_hi, 8),
     ("d1 re-associable use (expected INERT)",
      tree_d1_noloop, stmts_perm_lo, stmts_perm_hi, 8),
+    ("d1 FPR frame class, opaque use", tree_d1_fp, stmts_fp_lo, stmts_fp_hi, 8),
 ]
 
 
