@@ -1,0 +1,927 @@
+//! **The control-flow statement layer — DECODE ONLY.**
+//!
+//! Nothing in this file can make a function in class. It adds no arm to
+//! [`super::super::parse_segment_shape`]'s ladder, it constructs no
+//! [`BodyShape`](super::super::BodyShape), and every body it understands still
+//! refuses. What it adds is a **measurement**: given a function segment, walk the
+//! whole body as the flat statement token stream of `docs/IL_STMT_GRAMMAR.md` §0
+//! and say which control-flow shape it is — or which byte stopped the walk.
+//!
+//! ## Why decode without lowering
+//!
+//! `docs/ARCHITECTURE_SEAMS.md` §7: lowering control flow forces a real block IR
+//! (`IlFunction.body: BodyShape` plus basic blocks), which is a serial restructure
+//! sequenced with or behind the frame/liveness spine. The restructure has never
+//! been *sized* — every estimate of it has come from adding up census rows named
+//! after the byte a straight-line parser happened to stop on, and
+//! `docs/GAPS.md` §6's unstable-attribution rule says that number is not the
+//! shape's population. This scanner is the counterfactual that replaces the
+//! guess: it reports, per body, whether the statement layer decodes end to end and
+//! what CFG the body actually has, so the block-IR work can be ranked against the
+//! expression-layer work on the same footing.
+//!
+//! ## The two things that must hold for a body to count as decoded
+//!
+//! Taken from the throwaway Python validator that produced
+//! `docs/IL_STMT_GRAMMAR.md` §13, because they are what made that document
+//! falsifiable rather than merely consistent:
+//!
+//! 1. the walk lands **exactly** on the 7-byte function tail `4F 12 47 54 01 54
+//!    00` — not near it, on it;
+//! 2. every `54 <k>` scope close carries `k == the depth remaining after the pop`.
+//!
+//! (2) is the falsification test. A wrong field width anywhere desynchronizes it
+//! almost immediately, and (1) always. Measured there: with the TYPE read as a
+//! fixed three bytes, 34 bodies land on a *wrong* function tail — that is what
+//! over-acceptance looks like in this grammar, and it is why this scanner decodes
+//! every field rather than matching fixed patterns.
+//!
+//! ## The expression layer here is a SKIP layer, and that bounds the claim
+//!
+//! To reach the tail the walk has to step over operand-stream tokens, and it does
+//! so by **width only** — it does not model, type-check or accept them. So
+//! "the statement layer decoded" means *"this body's control flow is fully
+//! readable"*, NOT *"this body would be in class if control flow were lowered"*.
+//! The second question needs the expression layer too, and [`CfBody::residue`] is
+//! how this file answers it honestly: it records whether every token the walk
+//! stepped over was inside the modeled operand vocabulary, so the counterfactual
+//! splits into "the block IR would have to serve this shape" and the strictly
+//! smaller "…and nothing else is missing".
+//!
+//! This is the same discipline `mcall`'s `-whole` / `-more` suffixes apply one
+//! layer down, for the same reason: a completeness claim with no production behind
+//! it is the failure a census instrument cannot survive.
+
+use super::super::mcall::eat_class_descriptor;
+use super::super::{blk, Block};
+use crate::func::readers::{
+    eat, eat_byte, is_int4_type, is_ptr_to_4, read_token_var, read_type, read_varint,
+};
+
+/// The lexical depth a function body starts at: the formals scope is 1 and the
+/// body is 2 (`docs/IL_STMT_GRAMMAR.md` §1), so the body's own `53` opens 3.
+const PRE_BODY_DEPTH: u32 = 2;
+/// Deeper than any real function; a stream claiming more has desynchronized.
+/// (The widest witness is 40 nested braces at depth 42 — **[P] `p6.cpp`**.)
+const MAX_DEPTH: u32 = 96;
+/// The function tail every decoded body lands exactly on.
+const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
+
+/// A body's control-flow **shape**, as decoded. Purely a census axis — no arm of
+/// this enum is accepted by anything.
+///
+/// The split is by *what a lowering would have to build*, not by source syntax,
+/// because source syntax is not recoverable and does not matter: `for`, `while`
+/// and `do`/`while` all lower to the same back edge, and `break`, `continue`,
+/// `goto` and `return` are all the same `3A <label>` (§8.4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CfShape {
+    /// One jump and one label, and they are the epilogue's. The body is a single
+    /// basic block; a lowering needs no CFG at all. This is the shape the port's
+    /// existing straight-line, leaf and tail-call classes already live in — so a
+    /// body here that still refuses is blocked on *expression* vocabulary, never
+    /// on control flow, and counting it against the block-IR restructure would be
+    /// double-counting the expression rungs.
+    Straight,
+    /// No conditional branch, but more than one jump or label: several `return`s
+    /// (or a `goto`) converging on the epilogue. Still a DAG with a single exit,
+    /// and the cheapest real CFG — no join needs a value merged, because every arm
+    /// jumps to the same epilogue that reads the result.
+    MultiExit,
+    /// Forward conditional branches only, and no switch: `if`, `if`/`else`, `&&`,
+    /// `||`, `!` and the conditional expression, in any nesting. A DAG. Payload is
+    /// the number of conditional branches, capped — one is the diamond, many is a
+    /// short-circuit chain or a nest, and they are different sizes of work.
+    Forward(u8),
+    /// At least one branch targets a label defined **earlier in the byte stream** —
+    /// a back edge, i.e. a loop. The distinguishing cost, and the reason this is
+    /// its own shape rather than a `Forward` with a bigger number: a back edge
+    /// needs register allocation *across* it, which is the frame/liveness spine's
+    /// work and not the block IR's alone (`docs/IL_STMT_GRAMMAR.md` §14.2 step 5).
+    Loop,
+    /// Carries `3B` / `3C` / `3D` — a switch. Its own shape because it needs a
+    /// jump table in `.rdata` or `.text` on top of everything `Forward` needs
+    /// (§11), so it can never be part of a first block-IR rung.
+    Switch,
+}
+
+impl CfShape {
+    /// The census sub-key, without the `cflow-` prefix.
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            CfShape::Straight => "straight",
+            CfShape::MultiExit => "multi-exit",
+            CfShape::Forward(1) => "if-1",
+            CfShape::Forward(2) => "if-2",
+            CfShape::Forward(_) => "if-n",
+            CfShape::Loop => "loop",
+            CfShape::Switch => "switch",
+        }
+    }
+}
+
+/// What a decoded body's **operand stream** needs beyond the modeled vocabulary.
+///
+/// The point of the field: `cflow-<shape>` alone says how many bodies the block IR
+/// must serve, which is an upper bound on what lowering control flow is worth. This
+/// splits that population into the part that is *only* waiting on the block IR and
+/// the part that is waiting on the expression layer as well — the two numbers a
+/// rung has to be ranked from, and a single count cannot be both.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CfResidue {
+    /// Every operand token the walk stepped over is one the **modeled shapes
+    /// already consume**: an int4/ptr4 LOAD or literal, the plain `+ - *` chain, a
+    /// class-preserving `2C`, the `41` result annotation, an int4 `32` store, and
+    /// the call quadruple `26 <tok>` · `BD` · `55 <TYPE>` · `4C`. A body here is
+    /// blocked on **control flow alone** — its operand vocabulary is inside the
+    /// class the port has been byte-graded on.
+    ///
+    /// The membership test is the *same* one the accepting parser applies at the
+    /// same positions ([`is_int4_type`] / [`is_ptr_to_4`], the pair behind
+    /// `eat_int_like_or_ptr4`), deliberately: a residue computed from a looser
+    /// vocabulary than the emitter's would report bodies as "waiting on control
+    /// flow alone" that are in fact waiting on a type gate too, which is the
+    /// over-claim a counterfactual exists to avoid.
+    Modeled,
+    /// Something else: a call, a float, a member designator, an intrinsic, a
+    /// conversion, a temporary bind. Naming *which* would re-derive the existing
+    /// `expr-*` histogram inside this axis, so it does not — the existing key
+    /// already says which, and this field only says "not only control flow".
+    Expression,
+}
+
+/// One body's decoded control flow.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CfBody {
+    pub(crate) shape: CfShape,
+    pub(crate) residue: CfResidue,
+}
+
+impl CfBody {
+    /// The census key for the control-flow axis.
+    pub(crate) fn key(self) -> String {
+        match self.residue {
+            CfResidue::Modeled => format!("cflow-{}+expr-modeled", self.shape.name()),
+            CfResidue::Expression => format!("cflow-{}", self.shape.name()),
+        }
+    }
+}
+
+/// A branch or label site, in stream order.
+#[derive(Clone, Copy)]
+struct Site {
+    tok: u32,
+    /// Offset of the *opcode*, so "defined before" is a plain comparison.
+    at: usize,
+}
+
+/// Scanner state. Kept in one struct because the walk is one loop and the
+/// alternative — threading six `&mut`s through twenty arms — is how the widths
+/// drift apart.
+struct Scan<'a> {
+    seg: &'a [u8],
+    p: usize,
+    depth: u32,
+    labels: Vec<Site>,
+    conds: Vec<Site>,
+    jumps: Vec<Site>,
+    switches: usize,
+    /// Set the moment a stepped-over operand token is outside the modeled class.
+    off_class: bool,
+}
+
+impl<'a> Scan<'a> {
+    fn at(&self, k: usize) -> Option<u8> {
+        self.seg.get(self.p + k).copied()
+    }
+
+    /// A typed field read that fails closed. Every width in this file goes
+    /// through one of these three, never through a constant.
+    fn ty(&mut self, ctx: &'static str) -> Result<(u8, u8), Block> {
+        match read_type(self.seg, self.p) {
+            Some((tag, kind, _, w)) => {
+                self.p += w;
+                Ok((tag, kind))
+            }
+            None => Err(blk(self.seg, self.p, ctx)),
+        }
+    }
+
+    fn tok(&mut self, ctx: &'static str) -> Result<u32, Block> {
+        match read_token_var(self.seg, self.p) {
+            Some((t, w)) => {
+                self.p += w;
+                Ok(t)
+            }
+            None => Err(blk(self.seg, self.p, ctx)),
+        }
+    }
+
+    fn vint(&mut self, ctx: &'static str) -> Result<i32, Block> {
+        let mut q = self.p;
+        match read_varint(self.seg, &mut q) {
+            Some(v) => {
+                self.p = q;
+                Ok(v)
+            }
+            None => Err(blk(self.seg, self.p, ctx)),
+        }
+    }
+
+    /// `4F 01 <varint>` source-line markers, any number of them. They appear at
+    /// **every** statement boundary and two in a row is normal (§3); a decoder that
+    /// consumes one is the width bug that mis-filed 57,928 functions.
+    fn line_markers(&mut self) {
+        while self.at(0) == Some(0x4F) && self.at(1) == Some(0x01) {
+            let mut q = self.p + 2;
+            if read_varint(self.seg, &mut q).is_none() {
+                return; // malformed payload — leave `p` put and let the walk block
+            }
+            self.p = q;
+        }
+    }
+
+    /// Note that the operand stream left the modeled class. Called with the token's
+    /// own reason so the call sites read as a list of what is *not* modeled.
+    fn off_class(&mut self) {
+        self.off_class = true;
+    }
+}
+
+/// **Decode one function body's control flow.** `lo` is the `4C 4F 11` body
+/// marker's offset within `seg`.
+///
+/// `Ok` means the walk consumed every byte of the body through a decoded field and
+/// landed exactly on the function tail with the depth invariant intact. `Err` names
+/// the production it stopped in and the byte — the same fail-closed contract, and
+/// the same [`Block`] vocabulary, the accepting parser uses, so a caller cannot
+/// confuse "decoded" with "accepted".
+pub(crate) fn scan_control_flow(seg: &[u8], lo: usize) -> Result<CfBody, Block> {
+    let mut s = Scan {
+        seg,
+        p: lo + 3,
+        depth: PRE_BODY_DEPTH,
+        labels: Vec::new(),
+        conds: Vec::new(),
+        jumps: Vec::new(),
+        switches: 0,
+        off_class: false,
+    };
+    if !eat_byte(seg, &mut s.p, 0x53) {
+        return Err(blk(seg, s.p, "cf-body-open"));
+    }
+    s.depth += 1;
+    while step(&mut s)? {}
+    // (1) The parse must land ON the tail. `4F 12` is what ended the statement
+    // loop; anything but the full seven bytes here is a walk that stopped in the
+    // right neighbourhood for the wrong reason, which §13 measured as the
+    // over-acceptance mode of this grammar.
+    if !eat(seg, &mut s.p, &FN_TAIL) {
+        return Err(blk(seg, s.p, "cf-tail"));
+    }
+    Ok(CfBody { shape: shape_of(&s), residue: residue_of(&s) })
+}
+
+fn residue_of(s: &Scan) -> CfResidue {
+    if s.off_class {
+        CfResidue::Expression
+    } else {
+        CfResidue::Modeled
+    }
+}
+
+/// Classify the decoded sites. Order matters and is by **cost of lowering**, not
+/// by frequency: a switch is a switch even if it also loops, and a loop is a loop
+/// however few conditionals it has, because the back edge is the expensive fact.
+fn shape_of(s: &Scan) -> CfShape {
+    if s.switches > 0 {
+        return CfShape::Switch;
+    }
+    // A back edge: some branch or jump names a label whose `29` already went past.
+    // `3A` carries no direction (§8.1) — the target is a token and forward/backward
+    // is decided by where the definition happens to sit — so this is the only way
+    // to know, and it is why the scan records positions rather than counts.
+    let backward = s
+        .jumps
+        .iter()
+        .chain(s.conds.iter())
+        .any(|b| s.labels.iter().any(|l| l.tok == b.tok && l.at < b.at));
+    if backward {
+        return CfShape::Loop;
+    }
+    if s.conds.is_empty() {
+        // Every body has exactly one epilogue `3A` and one epilogue `29` (§9), so
+        // one of each is the single-basic-block case and anything more is a second
+        // exit path converging on it.
+        if s.jumps.len() <= 1 && s.labels.len() <= 1 {
+            return CfShape::Straight;
+        }
+        return CfShape::MultiExit;
+    }
+    CfShape::Forward(s.conds.len().min(255) as u8)
+}
+
+/// One `item` of `docs/IL_STMT_GRAMMAR.md` §0. `Ok(false)` ends the statement list
+/// (the walk is standing on the function tail's `4F 12`).
+fn step(s: &mut Scan) -> Result<bool, Block> {
+    s.line_markers();
+    let Some(b) = s.at(0) else {
+        return Err(blk(s.seg, s.p, "cf-stmt"));
+    };
+    match b {
+        // ---- the scope stack (§1) -----------------------------------------
+        0x53 => {
+            if s.depth >= MAX_DEPTH {
+                return Err(blk(s.seg, s.p, "cf-scope-too-deep"));
+            }
+            s.p += 1;
+            s.depth += 1;
+        }
+        0x54 => {
+            let Some(k) = s.at(1) else {
+                return Err(blk(s.seg, s.p, "cf-scope-close"));
+            };
+            let Some(d) = s.depth.checked_sub(1) else {
+                return Err(blk(s.seg, s.p, "cf-scope-underflow"));
+            };
+            // **The falsification test.** `k` is the depth remaining after the pop,
+            // so this is a free integrity check on every field width consumed since
+            // the last close — and the reason it is a comparison rather than a
+            // decode is §12.1: whether `k` is a plain byte or a varint is UNKNOWN,
+            // and both readings agree on every value ever observed (max `0x2A`).
+            if u32::from(k) != d {
+                return Err(Block { ctx: "cf-scope-depth", byte: Some(k), off: s.p, aux: 0 });
+            }
+            s.p += 2;
+            s.depth = d;
+        }
+        // ---- control flow (§7, §8, §9, §11) --------------------------------
+        0x29 => {
+            let at = s.p;
+            s.p += 1;
+            let tok = s.tok("cf-label-tok")?;
+            s.labels.push(Site { tok, at });
+        }
+        0x38 | 0x39 => {
+            let at = s.p;
+            s.p += 1;
+            let tok = s.tok("cf-branch-tok")?;
+            s.conds.push(Site { tok, at });
+        }
+        0x3A => {
+            let at = s.p;
+            s.p += 1;
+            let tok = s.tok("cf-jump-tok")?;
+            s.jumps.push(Site { tok, at });
+        }
+        0x3B => {
+            s.p += 1;
+            s.tok("cf-switch-tok")?;
+            s.switches += 1;
+        }
+        0x3C => {
+            s.p += 1;
+            s.ty("cf-switch-type")?;
+            s.tok("cf-switch-default")?;
+            s.switches += 1;
+        }
+        0x3D => {
+            s.p += 1;
+            s.tok("cf-switch-case")?;
+            s.switches += 1;
+        }
+        // ---- statement end (§2) --------------------------------------------
+        // `4B` pops the expression stack to empty and discards whatever is left; it
+        // is emitted for the last statement too. The `return` statement is the one
+        // that has none (§9).
+        0x4B => s.p += 1,
+        // `4F 12` opens the function tail. Any other `4F NN` at a statement
+        // boundary is not statement layer (§12.6) and the tail check refuses it.
+        0x4F => return Ok(false),
+        _ => {
+            operand(s)?;
+        }
+    }
+    Ok(true)
+}
+
+/// Step over exactly one operand-stream token, by **width only**.
+///
+/// Every arm either (a) is a token the modeled expression class handles, in which
+/// case it may also class-check its TYPE, or (b) calls [`Scan::off_class`] to
+/// record that this body needs expression work beyond control flow. Nothing here
+/// accepts anything: the widths come from `docs/IL_EXPR_LAYER.md`,
+/// `docs/IL_CAST_CONVERT.md` and `docs/IL_TYPE_TAGS.md`, and a token whose width
+/// this file does not know is an `Err`, never a guessed skip.
+fn operand(s: &mut Scan) -> Result<(), Block> {
+    let Some(b) = s.at(0) else {
+        return Err(blk(s.seg, s.p, "cf-expr"));
+    };
+    match b {
+        // LOAD `B9 <tok> <TYPE>` — modeled when the value is int4 or a 4-byte
+        // pointer, which is exactly the gate `parse_expr` uses.
+        0xB9 => {
+            s.p += 1;
+            s.tok("cf-load-tok")?;
+            let (tag, kind) = s.ty("cf-load-type")?;
+            if !(is_int4_type(tag, kind) || is_ptr_to_4(tag, kind)) {
+                s.off_class();
+            }
+        }
+        // LITERAL `33 <TYPE> <payload>`. The payload width is a function of the
+        // type: a real is 8 IEEE bytes + a 2-byte size, an 8-byte integer's escape
+        // is 8 bytes, everything else is the ordinary varint.
+        0x33 => {
+            s.p += 1;
+            let (tag, kind) = s.ty("cf-lit-type")?;
+            if !(is_int4_type(tag, kind) || is_ptr_to_4(tag, kind)) {
+                s.off_class();
+            }
+            lit_payload(s, tag, kind)?;
+        }
+        // SYMBOL PUSH `26 <tok>` — a designator. In the modeled vocabulary: it is
+        // how every accepted call names its callee and how every accepted
+        // assignment names its destination. What is *not* modeled is a designator
+        // built ON one (an offset add, a subscript, a deref), and those are their
+        // own opcodes below.
+        0x26 => {
+            s.p += 1;
+            s.tok("cf-sym-tok")?;
+        }
+        // The plain additive/multiplicative chain — the whole of the modeled
+        // operator vocabulary.
+        0x02 | 0x03 | 0x04 => s.p += 1,
+        // The rest of the payload-free operator table, and **only the entries a
+        // capture has established**: `%` and `~` from `IL_STMT_GRAMMAR.md` §5's
+        // `p4.cpp` one-function-per-operator probe, the shifts and bitwise trio
+        // from the same, the short-circuit trio, and the six relations that
+        // `docs/CODEGEN_W6_COMPARE.md` pins by compiling a probe per relation and
+        // reading the emitted byte.
+        //
+        // The gaps are deliberate and are the point. `05`, `07`, `08`, `14`, `1D`,
+        // `1E`, `25` are unwitnessed; `14` in particular has no C operator between
+        // `%=` and `<<=` and §5 says in as many words not to fill it. Guessing
+        // width 1 for them would be right most of the time and silently
+        // desynchronize the rest — and a desync that lands on a plausible tail is
+        // the failure this whole scanner is built to make impossible. They refuse,
+        // and the size of the `cf-expr-0xNN` row they produce is what tells the
+        // next rung whether establishing them is worth a probe.
+        0x06 | 0x09 | 0x0A | 0x0B | 0x0C | 0x0D | 0x0E | 0x1A | 0x1B | 0x1C | 0x1F | 0x20
+        | 0x21 | 0x22 | 0x23 | 0x24 => {
+            s.p += 1;
+            s.off_class();
+        }
+        // Compound assignment / inc-dec: `<op> <TYPE>`, the twelve witnessed
+        // opcodes of §5. `0x14` is deliberately NOT here — it is unobserved, and it
+        // is handled above as a payload-free operator only because a width guess in
+        // the other direction desynchronizes; see the test that pins it.
+        0x0F | 0x10 | 0x11 | 0x12 | 0x13 | 0x15 | 0x16 | 0x17 | 0x18 | 0x19 | 0x35 | 0x36 => {
+            s.p += 1;
+            s.ty("cf-rmw-type")?;
+            s.off_class();
+        }
+        // The three `<op> <TYPE>` tokens the modeled shapes DO consume, each with
+        // the same class gate the accepting parser applies at that position: the
+        // `41` result annotation and the `55` argument push take
+        // `eat_int_like_or_ptr4`'s pair, and the `32` store takes `eat_int_like`.
+        // A wider type here is a real lowering difference (a `stb`, an `stfs`, a
+        // 64-bit pair), not an annotation, which is why the class is asked rather
+        // than the opcode alone.
+        0x32 | 0x41 | 0x55 => {
+            s.p += 1;
+            let (tag, kind) = s.ty(match b {
+                0x32 => "cf-store-type",
+                0x41 => "cf-result-type",
+                _ => "cf-argpush-type",
+            })?;
+            let ok = if b == 0x32 {
+                is_int4_type(tag, kind)
+            } else {
+                is_int4_type(tag, kind) || is_ptr_to_4(tag, kind)
+            };
+            if !ok {
+                s.off_class();
+            }
+        }
+        // …and the `<op> <TYPE>` tokens that are their own missing production:
+        // indirect load, byte-offset add, virtual dispatch, and the rest.
+        //
+        // **One `ctx` per opcode, deliberately.** These arms shared a single
+        // `cf-op-type` key for exactly one measurement, and it reported 112,389
+        // bodies blocked on the byte `55` — a byte that cannot be a TYPE tag,
+        // i.e. a desync, with no way to tell WHICH of the seven opcodes had
+        // desynchronized. The cause was `44`, which is **payload-free**
+        // (`docs/IL_EXPR_LAYER.md` §7: the following byte is `30`/`55`, whose bit
+        // 7 is clear, so it cannot be a TYPE) and had been given a TYPE here on
+        // `IL_CALL_GRAMMAR.md` §7's superseded reading. A shared key hid a live
+        // width bug behind an opaque hex bucket, which is `GAPS.md` §6's
+        // by-position mis-attribution in miniature — so the keys are split.
+        0x27 => {
+            s.p += 1;
+            s.ty("cf-offadd-type")?;
+            s.off_class();
+        }
+        0x30 => {
+            s.p += 1;
+            s.ty("cf-deref-type")?;
+            s.off_class();
+        }
+        // `31`, `5C`, `64` and `67` are NOT here, and that is a result rather than
+        // an omission. `IL_CALL_GRAMMAR.md` §7 lists them as unidentified, and a
+        // first cut of this file gave `67` a TYPE on the strength of the shape of
+        // its neighbours. Measured over the workload, that read failed at a
+        // non-tag byte in 29,687 bodies (`cf-virtual-type-0x04` / `-0x08`) — which
+        // is the *visible* half. The invisible half is the bodies where a wrong
+        // width happens to land on a legal type and the walk carries on
+        // desynchronized, and there is no counter for those. So an opcode whose
+        // payload no capture has established refuses here, at itself, as
+        // `cf-expr-0xNN`. The row is then an honest measurement of what
+        // establishing it would buy: `5C` is 213,282 bodies and `67` is 29,687,
+        // and both are expression-layer work, not this rung's.
+        // `44` — PAYLOAD-FREE. Witnessed twice (`44 30 …` and `44 55 …`), and the
+        // byte after it has bit 7 clear at both sites, so it cannot be carrying a
+        // TYPE. Its meaning is UNKNOWN ("materialize / bind" is the obvious guess
+        // and nothing tests it); its width is not.
+        0x44 => {
+            s.p += 1;
+            s.off_class();
+        }
+        // `28 00 00` — the subscript byte-offset add. The two trailing bytes are
+        // `00 00` at every captured site and are NOT understood
+        // (`docs/IL_EXPR_LAYER.md` §4.1), so anything else is not this token and
+        // must refuse rather than be skipped as "two bytes of something".
+        0x28 => {
+            s.p += 1;
+            if !eat(s.seg, &mut s.p, &[0x00, 0x00]) {
+                return Err(blk(s.seg, s.p, "cf-subscript-payload"));
+            }
+            s.off_class();
+        }
+        // CONVERT `2C <TYPE target> <varint>`. Modeled only when the target is
+        // inside the int4/ptr4 class — the class-preserving case `parse_expr`
+        // admits because c2 emits nothing for it. A conversion OUT of the class is
+        // a real instruction (`extsb`, `rlwinm`, `fctiwz`), so it is residue.
+        0x2C => {
+            s.p += 1;
+            let (tag, kind) = s.ty("cf-convert-type")?;
+            s.vint("cf-convert-payload")?;
+            if !(is_int4_type(tag, kind) || is_ptr_to_4(tag, kind)) {
+                s.off_class();
+            }
+        }
+        // INTRINSIC CALL `40 <TYPE result>` — no trailing field
+        // (`docs/IL_INTRINSIC_CALL.md` §1).
+        0x40 => {
+            s.p += 1;
+            s.ty("cf-intrinsic-type")?;
+            s.off_class();
+        }
+        // `43 <sub-opcode> [payload]` — an ESCAPE, and the payload width is a
+        // function of the sub-opcode (`docs/IL_EXPR_LAYER.md` §8): `42` (the
+        // conditional expression) carries two bytes, `37` (a bitfield designator)
+        // carries none. Only those two are witnessed, so every other sub-opcode
+        // refuses — a fixed four-byte read desynchronizes on every bitfield in the
+        // corpus, which is precisely the census name `expr-ternary` was a
+        // generalization from.
+        0x43 => {
+            let Some(sub) = s.at(1) else {
+                return Err(blk(s.seg, s.p, "cf-escape-43"));
+            };
+            match sub {
+                0x42 => s.p += 4,
+                0x37 => s.p += 2,
+                _ => return Err(Block { ctx: "cf-escape-43", byte: Some(sub), off: s.p, aux: 0 }),
+            }
+            if s.p > s.seg.len() {
+                return Err(blk(s.seg, s.seg.len(), "cf-escape-43"));
+            }
+            s.off_class();
+        }
+        // `66 <n> <n tokens>` — the class-pair descriptor of the 2113–2119
+        // intrinsic family. Its second byte is an ARITY, not the constant `02`
+        // (`docs/IL_INTRINSIC_CALL.md` §4.3), and the tokens are LEB-width; the ONE
+        // decoder for it is `mcall`'s, imported rather than restated.
+        0x66 => {
+            if eat_class_descriptor(s.seg, &mut s.p).is_none() {
+                return Err(blk(s.seg, s.p, "cf-class-descriptor"));
+            }
+            s.off_class();
+        }
+        // `99 <TYPE> <varint>` member bind and `9B <TYPE> <token>` temporary bind.
+        // **Adjacent opcodes with different trailing-field encodings**, and neither
+        // is inferable from the other (`docs/IL_EXPR_LAYER.md` §7) — reading `9B`'s
+        // as a varint is the desync that produced `IL_STMT_GRAMMAR.md` §12.4's one
+        // real-TU scope-depth counterexample.
+        0x99 => {
+            s.p += 1;
+            s.ty("cf-bind-type")?;
+            s.vint("cf-bind-payload")?;
+            s.off_class();
+        }
+        0x9B => {
+            s.p += 1;
+            s.ty("cf-temp-type")?;
+            s.tok("cf-temp-tok")?;
+            s.off_class();
+        }
+        // CALL `BD <ret TYPE> <cc> <varint fn-type-id>`, and the `4C` that ends an
+        // argument list. 8–13 bytes, every field self-delimiting. In the modeled
+        // vocabulary — the port lowers calls — but only at the one calling
+        // convention it has been graded on: `00` is cdecl/stdcall, `04` fastcall
+        // and `40` varargs need argument passing the port does not implement, and
+        // admitting one as the other is a mis-emit rather than a gap.
+        0xBD => {
+            s.p += 1;
+            s.ty("cf-call-ret-type")?;
+            let cc = s.at(0);
+            s.p += 1;
+            s.vint("cf-call-fn-type-id")?;
+            if cc != Some(0x00) {
+                s.off_class();
+            }
+        }
+        0x4C => s.p += 1,
+        _ => return Err(blk(s.seg, s.p, "cf-expr")),
+    }
+    Ok(())
+}
+
+/// The literal payload of `33 <TYPE> …`, the type triple already consumed.
+///
+/// One copy of the rule `mcall::eat_literal_payload` also owns; it is restated here
+/// rather than imported because that one is private to a walk with different
+/// failure semantics (it returns `bool` and leaves the cursor unspecified), and a
+/// scanner whose whole contract is "fail closed on an offset" cannot use a reader
+/// that does not say where it stopped.
+fn lit_payload(s: &mut Scan, tag: u8, kind: u8) -> Result<(), Block> {
+    // A real literal: 8 IEEE bytes then a 2-byte LE size. Not a varint at all.
+    if kind & 0x0F == 0xA {
+        s.p += 10;
+        return if s.p <= s.seg.len() {
+            Ok(())
+        } else {
+            Err(blk(s.seg, s.seg.len(), "cf-lit-real"))
+        };
+    }
+    match s.at(0) {
+        // The escape. Its payload is 8 bytes for an 8-byte scalar and 4 otherwise —
+        // the `read_varint` note that a tag-`0x88` escape is not 4 bytes.
+        Some(0x80) => {
+            s.p += 1 + if tag == 0x88 { 8 } else { 4 };
+            if s.p <= s.seg.len() {
+                Ok(())
+            } else {
+                Err(blk(s.seg, s.seg.len(), "cf-lit-escape"))
+            }
+        }
+        Some(_) => {
+            s.p += 1;
+            Ok(())
+        }
+        None => Err(blk(s.seg, s.p, "cf-lit-payload")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::func::bundle::LO_MARKER;
+    use crate::func::readers::find_subslice;
+
+    fn scan(seg: &[u8]) -> Result<CfBody, Block> {
+        let lo = find_subslice(seg, &LO_MARKER).expect("a body marker");
+        scan_control_flow(seg, lo)
+    }
+
+    /// **[CF] `il_stmt_seq.cpp` `void stmt_seq0() {}`** — the smallest body there
+    /// is, and the calibration for every shape below: one epilogue jump, one
+    /// epilogue label, nothing else.
+    const EMPTY: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, // LO SS
+        0x3A, 0xE5, 0x09, // jump epilogue
+        0x54, 0x02, // close the body scope
+        0x29, 0xE5, 0x09, // epilogue:
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // fn tail
+    ];
+
+    #[test]
+    fn empty_body_is_one_basic_block() {
+        assert_eq!(
+            scan(EMPTY),
+            Ok(CfBody { shape: CfShape::Straight, residue: CfResidue::Modeled })
+        );
+    }
+
+    /// **[CF] `il_stmt_if_else.cpp` `void stmt_if_else(int a){ if(a) g(); else h(); }`**,
+    /// transcribed byte for byte from `docs/IL_STMT_GRAMMAR.md` §7. The shape is a
+    /// diamond: one conditional, forward only.
+    const IF_ELSE: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0D, 0x53, //
+        0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74, // load a
+        0x38, 0xE8, 0x09, // brFALSE -> else
+        0x53, 0x26, 0xE3, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0x4C,
+        0x4B, // then: g();
+        0x4F, 0x01, 0x0E, 0x54, 0x04, // close the then scope
+        0x3A, 0xE9, 0x09, // jump join
+        0x29, 0xE8, 0x09, // else:
+        0x53, 0x26, 0xE4, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0x4C,
+        0x4B, // else: h();
+        0x54, 0x04, // close the else scope
+        0x29, 0xE9, 0x09, // join:
+        0x54, 0x03, 0x4F, 0x01, 0x0F, 0x3A, 0xE7, 0x09, 0x54, 0x02, 0x29, 0xE7, 0x09, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn if_else_is_a_forward_diamond_blocked_on_control_flow_alone() {
+        // Every operand in it — the `B9` int load, the two `26 <callee>` pushes,
+        // the two cdecl `BD` calls — is one the port already lowers. So this body
+        // is `+expr-modeled`: the ONLY thing between it and an obj is the CFG. That
+        // is the population the block-IR restructure is worth, and separating it
+        // from the bodies that also need expression work is the whole point of the
+        // residue field.
+        assert_eq!(
+            scan(IF_ELSE),
+            Ok(CfBody { shape: CfShape::Forward(1), residue: CfResidue::Modeled })
+        );
+    }
+
+    /// …and the counter-case, which must NOT read `+expr-modeled`: the same
+    /// diamond with one indirect load (`30 <TYPE>`) spliced into its condition.
+    /// A residue that could not separate these two would report the block IR as
+    /// worth every branching body in the corpus.
+    #[test]
+    fn one_unmodeled_operand_takes_a_body_out_of_expr_modeled() {
+        let mut with_deref = IF_ELSE.to_vec();
+        let load = with_deref
+            .windows(3)
+            .position(|w| w == [0xB9, 0xE5, 0x09])
+            .expect("the condition load");
+        with_deref.splice(load + 6..load + 6, [0x30, 0x86, 0x41, 0x74]);
+        assert_eq!(
+            scan(&with_deref),
+            Ok(CfBody { shape: CfShape::Forward(1), residue: CfResidue::Expression })
+        );
+    }
+
+    /// **[CF] `il_stmt_while.cpp` `void stmt_while_call(int a){ while(a){ g(); a=a-1; } }`**,
+    /// §8.1. The `3A E8 09` at the end of the body targets the `29 E8 09` that
+    /// opened it — a BACK edge, and `3A` carries no direction, so nothing but the
+    /// recorded positions can tell.
+    const WHILE: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0D, 0x53, //
+        0x29, 0xE8, 0x09, // TOP:
+        0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, 0x38, 0xE9, 0x09, // brFALSE -> EXIT
+        0x53, 0x4F, 0x01, 0x0E, //
+        0x26, 0xE3, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0x4C,
+        0x4B, // g();
+        0x4F, 0x01, 0x0F, //
+        0x26, 0xE4, 0x09, 0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x01, 0x03,
+        0x32, 0x86, 0x41, 0x74, 0x4B, // a = a - 1;
+        0x4F, 0x01, 0x10, 0x54, 0x04, //
+        0x3A, 0xE8, 0x09, // jump TOP  <- the back edge
+        0x29, 0xE9, 0x09, // EXIT:
+        0x54, 0x03, 0x4F, 0x01, 0x11, 0x3A, 0xE6, 0x09, 0x54, 0x02, 0x29, 0xE6, 0x09, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn while_is_a_loop_by_its_back_edge() {
+        assert_eq!(
+            scan(WHILE),
+            Ok(CfBody { shape: CfShape::Loop, residue: CfResidue::Modeled })
+        );
+    }
+
+    /// **[CF] `il_stmt_early_return.cpp` `int stmt_early_int(int a){ if(a) return 1; return 2; }`**,
+    /// §9. Two returns, ONE epilogue label — the pattern that makes `MultiExit`
+    /// worth separating from `Forward`, since here the second exit rides on a
+    /// conditional and elsewhere it does not.
+    const EARLY_RETURN: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01, 0x0E, 0x53, //
+        0xB9, 0xE4, 0x09, 0x86, 0x41, 0x74, 0x38, 0xE7, 0x09, //
+        0x53, 0x33, 0x86, 0x41, 0x74, 0x01, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xE6,
+        0x09, // return 1;
+        0x4F, 0x01, 0x0F, 0x54, 0x04, 0x29, 0xE7, 0x09, //
+        0x54, 0x03, //
+        0x33, 0x86, 0x41, 0x74, 0x02, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xE6, 0x09, // return 2;
+        0x4F, 0x01, 0x10, 0x54, 0x02, 0x29, 0xE6, 0x09, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn early_return_is_forward_with_two_jumps_to_one_label() {
+        assert_eq!(
+            scan(EARLY_RETURN),
+            Ok(CfBody { shape: CfShape::Forward(1), residue: CfResidue::Modeled })
+        );
+    }
+
+    /// A wrong `54 <k>` is the falsification test, and it must fire. Corrupting the
+    /// depth operand of `EMPTY`'s single close is the minimal witness: every field
+    /// width is still correct, so nothing but the invariant can catch it.
+    #[test]
+    fn a_wrong_scope_depth_refuses_rather_than_landing_on_the_tail() {
+        let mut bad = EMPTY.to_vec();
+        let close = bad.windows(2).position(|w| w == [0x54, 0x02]).expect("the body close");
+        bad[close + 1] = 0x03;
+        let err = scan(&bad).expect_err("a depth mismatch must refuse");
+        assert_eq!(err.ctx, "cf-scope-depth");
+    }
+
+    /// …and so must a body that stops in the right neighbourhood for the wrong
+    /// reason. Truncating the tail by one byte leaves the statement loop ending in
+    /// exactly the same place; only requirement (1) separates them.
+    #[test]
+    fn landing_near_the_tail_is_not_landing_on_it() {
+        let mut bad = EMPTY.to_vec();
+        bad.pop();
+        let err = scan(&bad).expect_err("a short tail must refuse");
+        assert_eq!(err.ctx, "cf-tail");
+    }
+
+    /// `43` is an escape whose payload width is a function of its sub-opcode. A
+    /// fixed four-byte read desynchronizes on every bitfield read in the corpus, so
+    /// both witnessed widths are pinned and an unwitnessed sub-opcode refuses
+    /// rather than being skipped at a guessed width.
+    #[test]
+    fn the_43_escape_is_sub_opcode_width_and_unknown_sub_opcodes_refuse() {
+        // `43 42 00 00` (conditional) inside an otherwise empty body.
+        let mut cond = EMPTY.to_vec();
+        cond.splice(4..4, [0x43, 0x42, 0x00, 0x00]);
+        assert_eq!(scan(&cond).map(|b| b.shape), Ok(CfShape::Straight));
+        // `43 37` (bitfield designator) carries nothing.
+        let mut bits = EMPTY.to_vec();
+        bits.splice(4..4, [0x43, 0x37]);
+        assert_eq!(scan(&bits).map(|b| b.shape), Ok(CfShape::Straight));
+        // …and an unwitnessed sub-opcode is an honest refusal.
+        let mut other = EMPTY.to_vec();
+        other.splice(4..4, [0x43, 0x11, 0x00, 0x00]);
+        let err = scan(&other).expect_err("an unwitnessed 43 sub-opcode must refuse");
+        assert_eq!(err.ctx, "cf-escape-43");
+    }
+
+    /// The census rename is **1:1**: seven control-flow bytes, seven names, no two
+    /// the same, and nothing outside the set renamed. A rename that merged two
+    /// buckets would silently invalidate every recorded comparison in
+    /// `docs/rungs/`, which is the one thing a key change must not do.
+    #[test]
+    fn the_control_flow_rename_is_one_to_one() {
+        use crate::func::body::cflow_opcode_name;
+        let mut names: Vec<&str> = Vec::new();
+        for b in 0..=0xFFu8 {
+            match cflow_opcode_name(b) {
+                Some(n) => {
+                    assert!(!names.contains(&n), "two opcodes share the name {n}");
+                    names.push(n);
+                }
+                None => {}
+            }
+        }
+        assert_eq!(names.len(), 7, "the statement layer has exactly seven: {names:?}");
+        // …and the neighbours that are NOT control flow keep their hex, including
+        // the two the grammar deliberately leaves alone: `3E`/`3F` are unwitnessed
+        // and `2C`/`32` are expression-layer tokens that happen to sit next to the
+        // range.
+        for b in [0x28, 0x2C, 0x32, 0x37, 0x3E, 0x3F, 0x40, 0x41] {
+            assert!(cflow_opcode_name(b).is_none(), "0x{b:02X} is not control flow");
+        }
+    }
+
+    /// …and the key a real refusal renders. Two productions blocked on the *same*
+    /// byte must stay two buckets, because the production they interrupted is
+    /// different work: `body-cflow-label` is a `do`/`while`'s top label and
+    /// `return-scope-close-cflow-label` is one met in the return plumbing.
+    #[test]
+    fn the_same_byte_in_two_productions_stays_two_buckets() {
+        let label = |ctx| Block { ctx, byte: Some(0x29), off: 0, aux: 0 }.feature();
+        assert_eq!(label("body"), "body-cflow-label");
+        assert_eq!(label("return-scope-close"), "return-scope-close-cflow-label");
+        assert_ne!(label("body"), label("return-scope-close"));
+        // The `expr` production renders through its own table first and falls
+        // through to this one, so a branch met as an operand is `expr-brfalse`
+        // rather than `expr-cflow-brfalse` — one prefix per production, as every
+        // other `expr-*` key has.
+        assert_eq!(
+            Block { ctx: "expr", byte: Some(0x38), off: 0, aux: 0 }.feature(),
+            "expr-brfalse"
+        );
+        assert_eq!(
+            Block { ctx: "call-ref", byte: Some(0x3A), off: 0, aux: 0 }.feature(),
+            "call-ref-cflow-jump"
+        );
+    }
+
+    /// The scanner is decode-only, and this is the test that says so: a body it
+    /// decodes completely is still refused by the accepting parser. If this ever
+    /// fails, something has wired the scanner into acceptance.
+    #[test]
+    fn decoding_a_body_never_makes_it_in_class() {
+        use crate::func::body::parse_segment_detail;
+        use crate::func::sy::SyView;
+        assert!(scan(IF_ELSE).is_ok());
+        assert!(parse_segment_detail(IF_ELSE, SyView::UNKNOWN).is_err());
+        assert!(scan(WHILE).is_ok());
+        assert!(parse_segment_detail(WHILE, SyView::UNKNOWN).is_err());
+    }
+}
