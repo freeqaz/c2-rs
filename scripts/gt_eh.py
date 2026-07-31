@@ -16,7 +16,12 @@ It answers, from bytes and never from a layout assumed off x86 MSVC:
     field by field with its relocation target;
   * item 4 — the `.data` type-descriptor COMDATs;
   * the SECTION ORDER of the whole function group, which is the composition
-    question `CODEGEN_FRAMED_CALLS.md` §5 left open for EH.
+    question `CODEGEN_FRAMED_CALLS.md` §5 left open for EH;
+  * §9 — the ip2state map resolved back onto `.text`: every entry's `$M`
+    label as a `.text` offset with the instruction standing there, listed
+    against EVERY outbound control transfer in the section.  That table is
+    what separates "entries sit on call sites" from every rival placement,
+    and it is why a map entry landing on a non-call is printed as `!!`.
 
 Usage:
     scripts/gt_eh.py <src.cpp> [--mode '<flags>']     # capture, then decode
@@ -111,6 +116,112 @@ class EhObj:
 def label(eh, sec_idx, off):
     names = eh.at.get((sec_idx, off), [])
     return ("  <- " + ", ".join(names)) if names else ""
+
+
+def text_sections(eh):
+    return [s for s in eh.o.sections if s["name"] == ".text"]
+
+
+def sym_site(eh, name):
+    """(section index, value) of a defined symbol, or None.
+
+    An ip2state entry relocates against a `$M` label; the whole question of
+    §9 is WHERE in `.text` that label sits, so every ip2state row is resolved
+    back to a `.text` offset and the instruction standing there.
+    """
+    s = eh.sym_named(name)
+    if s is None or s["sec"] <= 0:
+        return None
+    return (s["sec"], s["value"])
+
+
+def call_sites(eh):
+    """Every control transfer OUT of the function, with its target.
+
+    Three kinds, all read from bytes and never from a statement model:
+      `bl`     0x48......1  (AA=0, LK=1)  — an ordinary call
+      `b`      0x48......0  carrying a relocation — a TAIL branch to an
+               external, which `qDUP` proved the ip2state map also marks
+      `bctrl`  0x4e800421                 — an indirect call
+    This is the throw-point list the ip2state map is tested against.
+    """
+    out = []
+    for s in text_sections(eh):
+        raw = eh.o.raw(s)
+        rm = eh.relmap(s)
+        for i in range(0, len(raw) & ~3, 4):
+            w = be32(raw, i)
+            kind = None
+            if (w & 0xFC000003) == 0x48000001:
+                kind = "bl"
+            elif (w & 0xFC000003) == 0x48000000 and i in rm:
+                kind = "b "
+            elif w == 0x4E800421:
+                kind = "bctrl"
+            if kind:
+                tgt = rm.get(i, [("", "(local)")])[0][1]
+                out.append((s["idx"], i, "%s %s" % (kind, tgt)))
+    return out
+
+
+def ip2state_pairs(eh):
+    """[(sec, off, state)] for the ip2state map of every EH .rdata."""
+    out = []
+    for s in eh.o.sections:
+        if s["name"] != ".rdata":
+            continue
+        raw = eh.o.raw(s)
+        rm = eh.relmap(s)
+        fi = None
+        pip = None
+        for sy in eh.o.symbols:
+            if sy["sec"] == s["idx"] and sy["naux"] == 0:
+                if sy["name"].startswith("__ehfuncinfo$"):
+                    fi = sy["value"]
+                elif sy["name"].startswith("$T"):
+                    pip = sy["value"]
+        if fi is None or pip is None:
+            continue
+        for k in range(be32(raw, fi + 0x14)):
+            o = pip + 8 * k
+            r = rm.get(o)
+            site = sym_site(eh, r[0][1]) if r else None
+            out.append((site, sbe32(raw, o + 4), r[0][1] if r else "?"))
+    return out
+
+
+def decode_ipmap_vs_calls(eh):
+    """The §9 instrument: the call sites and the ip2state map, interleaved.
+
+    Prints one row per `bl`, with the state the map assigns to it under the
+    rule "the last entry whose ip <= this address", and marks the rows an
+    ip2state label actually lands on.  A map entry whose label is NOT on a
+    `bl` is flagged, because that is the single observation that separates
+    "entries sit on call sites" from every rival placement.
+    """
+    ip = ip2state_pairs(eh)
+    lines = []
+    byoff = {}
+    for site, st, nm in ip:
+        if site:
+            byoff[site] = (st, nm)
+    calls = call_sites(eh)
+    for sec, off, tgt in calls:
+        cur, curnm = -1, "(implicit)"
+        for site, st, nm in ip:
+            if site and site[0] == sec and site[1] <= off:
+                cur, curnm = st, nm
+        mark = "  <== %s" % byoff[(sec, off)][1] if (sec, off) in byoff else ""
+        lines.append("    sec%d+0x%04x  bl %-32s state=%-3d (%s)%s"
+                     % (sec, off, tgt, cur, curnm, mark))
+    stray = [(site, st, nm) for site, st, nm in ip
+             if site and site not in [(c[0], c[1]) for c in calls]]
+    for site, st, nm in stray:
+        raw = eh.o.raw(eh.sec(site[0]))
+        w = be32(raw, site[1]) if site[1] + 4 <= len(raw) else 0
+        lines.append("    !! %s at sec%d+0x%04x is NOT a call site: %08x %s"
+                     % (nm, site[0], site[1], w, disasm([w])[0]))
+    return lines
 
 
 def decode_pdata(eh, sec, funcs):
@@ -247,7 +358,20 @@ def decode_ehrdata(eh, sec):
             out.append("    ip2state @0x%02x  (nIPMapEntries=%d)" % (pip, nip))
             for k in range(nip):
                 o = pip + 8 * k
-                out.append("      [%d] ip=%-24s state=%s" % (k, word(o), word(o + 4)))
+                r = rm.get(o)
+                where = ""
+                if r:
+                    site = sym_site(eh, r[0][1])
+                    if site:
+                        traw = eh.o.raw(eh.sec(site[0]))
+                        w = be32(traw, site[1]) if site[1] + 4 <= len(traw) else 0
+                        trm = eh.relmap(eh.sec(site[0]))
+                        t = trm.get(site[1])
+                        where = "  @ sec%d+0x%04x  %08x %s%s" % (
+                            site[0], site[1], w, disasm([w])[0],
+                            ("  ->%s" % t[0][1]) if t else "")
+                out.append("      [%d] ip=%-24s state=%-24s%s"
+                           % (k, word(o), word(o + 4), where))
     return out
 
 
@@ -323,6 +447,10 @@ def report(path, mode, show_text=False):
               % (s["idx"], s["rawsize"], names,
                  raw[8:].rstrip(b"\0").decode("latin1", "replace"),
                  [(hex(v), rm[v][0][1]) for v in sorted(rm)]))
+
+    print("-- ip2state against the call sites")
+    for l in decode_ipmap_vs_calls(eh):
+        print(l)
 
     print("-- labels in .text")
     for s in o.sections:
@@ -417,6 +545,80 @@ PROBES = {
 }
 
 
+# The probe corpus of docs/EH_RECORDS.md §9 — the ip-to-state and unwind maps
+# of the NO-TRY unwind shape.  Every row varies exactly one thing against
+# `qN1`, or is the matched control for a row that does.  Same embedding
+# rationale as PROBES above.
+SE = "struct SE { SE(); ~SE(); int m; };\nint gp(int);\n"
+PROBES_IP = {
+    # --- the count ladder: n destructible locals + one further statement.
+    #     n = 1, 2 reproduce eh2/pR; n = 3, 4 are the HELD-OUT cells.
+    "qN1": SE + "int P(int a){ SE s; return gp(a)+s.m; }\n",
+    "qN2": SE + "int P(int a){ SE s; SE t; return gp(a)+s.m+t.m; }\n",
+    "qN3": SE + "int P(int a){ SE s; SE t; SE u; return gp(a)+s.m+t.m+u.m; }\n",
+    "qN4": SE + "int P(int a){ SE s; SE t; SE u; SE v;"
+                " return gp(a)+s.m+t.m+u.m+v.m; }\n",
+    # --- no outbound transfer while the object is live => NO EH RECORDS.
+    #     The falsifier for "the statement count decides" (§6/§7.2).
+    "qNC": SE + "int P(int a){ SE s; return a+1; }\n",
+    "qB1": SE + "int P(int a){ SE s; int x=a*3; int y=x^7; return y+1; }\n",
+    "qB2": SE + "int P(int a){ SE s; return gp(a); }\n",
+    "qB3": SE + "int P(int a){ SE s; SE t; return a+1; }\n",
+    "qB4": "struct SE { SE(); ~SE(); int m; };\nvoid P(){ SE s; }\n",
+    # --- placement: 5 words of non-call work between the ctor and the call
+    "qGAP": SE + "int P(int a){ SE s; int x=a*3+1; int y=x^7; int z=y|5;"
+                 " return gp(z)+s.m; }\n",
+    # --- two calls at the SAME state
+    "qDUP": SE + "int P(int a){ SE s; return gp(a)+gp(a+1)+s.m; }\n",
+    # --- an object constructed AFTER a call / interleaved with one
+    "qMID": SE + "int P(int a){ int r=gp(a); SE s; return r+gp(a)+s.m; }\n",
+    "qORD": SE + "int P(int a){ SE s; int r=gp(a); SE t;"
+                 " return r+gp(a)+s.m+t.m; }\n",
+    # --- two DISJOINT scopes: the toState falsifier
+    "qSC2": SE + "int P(int a){ { SE s; a=gp(a)+s.m; } { SE t; a=gp(a)+t.m; }"
+                 " return a; }\n",
+    # --- frame class: the tail `b __restgprlr_N` and its matched controls
+    "qC0": SE + "int P(int a,int b,int c){ return gp(a)+gp(b)+gp(c); }\n",
+    "qC1": SE + "int P(int a,int b,int c){ SE s;"
+                " return gp(a)+gp(b)+gp(c)+s.m; }\n",
+    "qC2": SE + "int P(int a,int b,int c){ SE s; SE t;"
+                " return gp(a)+gp(b)+gp(c)+s.m+t.m; }\n",
+    "qC3": SE + "int P(int a,int b,int c){ SE s; SE t; SE u;"
+                " return gp(a)+gp(b)+gp(c)+s.m+t.m+u.m; }\n",
+    "qBB": SE + "int P(int a,int b){ SE s; return gp(a)+gp(b)+s.m; }\n",
+    # Class E: an FPR helper pair whose epilogue is a `bl`, not a tail `b`
+    "qE1": SE + "double gd(double);\n"
+                "double P(double a,double b,double c,double d){ SE s;"
+                " return gd(a)+gd(b)+gd(c)+gd(d)+s.m; }\n",
+    "qF1": SE + "double gd(double);\n"
+                "double P(int i1,int i2,int i3,int i4,double d1,double d2,"
+                "double d3,double d4){ SE s; return gp(i1)+gp(i2)+gp(i3)+gp(i4)"
+                "+gd(d1)+gd(d2)+gd(d3)+gd(d4)+s.m; }\n",
+    # --- an INDIRECT call as the throw point
+    "qIND": SE + "struct V { virtual int f(int); };\n"
+                 "int P(V* v,int a){ SE s; return v->f(a)+s.m; }\n",
+    # --- control flow
+    "qIF": SE + "int P(int a){ if (a) { SE s; return gp(a)+s.m; }"
+                " return gp(a+1); }\n",
+    "qLOOP": SE + "int P(int a){ int r=0; for(int i=0;i<a;i++){ SE s;"
+                  " r+=gp(i)+s.m; } return r; }\n",
+    "qREV": SE + "int P(int a){ if(a>0) goto L; { SE s; a=gp(a)+s.m; }"
+                 " return a; L: return gp(a+1); }\n",
+    "qRE": SE + "int P(int a){ if(a){ SE s; a=gp(a)+s.m; } a=gp(a);"
+                " if(a){ SE t; a=gp(a)+t.m; } return a; }\n",
+    "qSW": SE + "int P(int a){ switch(a){ case 1: return gp(1);"
+                " case 2: { SE s; return gp(2)+s.m; } case 3: return gp(3);"
+                " case 7: return gp(7); case 9: return gp(9); } return 0; }\n",
+    # --- do the ORDINARY LABEL_COUNTER.md §1.1 surcharges still apply?
+    "qG1": SE + "float gf(float);\n"
+                "float P(float a){ SE s; return gf(a)*2.5f + s.m; }\n",
+    "qG2": SE + "float gf(float);\n"
+                "float P(float a){ SE s; return gf(a) + s.m; }\n",
+    "qG3": SE + "int P(int a){ SE s; return (gp(a) < gp(a+1)) + s.m; }\n",
+    "qG4": SE + "int P(int a){ SE s; return (gp(a) == gp(a+1)) + s.m; }\n",
+}
+
+
 def main(argv):
     mode = WORKLOAD
     if "--write-probes" in argv:
@@ -425,7 +627,10 @@ def main(argv):
         os.makedirs(d, exist_ok=True)
         for n, src in sorted(PROBES.items()):
             open(os.path.join(d, n + ".cpp"), "w").write(src)
-        print("wrote %d probes to %s" % (len(PROBES), d))
+        for n, src in sorted(PROBES_IP.items()):
+            open(os.path.join(d, n + ".cpp"), "w").write(src)
+        print("wrote %d §8 + %d §9 probes to %s"
+              % (len(PROBES), len(PROBES_IP), d))
         return 0
     show_text = "--text" in argv
     argv = [a for a in argv if a != "--text"]

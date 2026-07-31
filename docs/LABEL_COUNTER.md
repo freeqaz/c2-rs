@@ -116,6 +116,16 @@ Reproduce: `scripts/gt_label_stride.py` (whole table),
 > | a callee external the IL names | — | **0**, at any count |
 > | a helper width / FP constant an earlier function already introduced | — | **0** |
 
+> **This table is complete only for functions with NO EH records.** An EH
+> function pays these surcharges *and* a large EH term on top:
+> `stride = 11 + 5·S + E + Σ(this table)` for the no-try unwind shape, where `S`
+> is the number of EH states and `E` is `nIPMapEntries` — measured on 12 rows in
+> `docs/EH_RECORDS.md` §9.8, fitted with three named misses, and reaching **39**
+> for four destructible locals. Applying the table above alone to `eh-dtor`
+> predicts **5** against a measured **18**, so every following function in that
+> TU would be 13 numbers low. The EH terms *add* to this table; all four kinds
+> of surcharge here were re-measured on top of an EH body and are unchanged.
+
 The three predictions `docs/CODEGEN_FRAMED_CALLS.md` §6 declined to claim are
 now **measured and all three hold**:
 
