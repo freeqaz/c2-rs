@@ -20,6 +20,13 @@ normalized).
   holds hostage in the real 878-TU workload (frequencies from `c2rs gap`),
   per-rung acceptance gates for the W-ladder, the downstream payoff contract,
   and the exact verification commands.
+- `CROSS_PRODUCT.md` — the cross-product lane (`scripts/cross_sweep.sh`): why a
+  merge of two independently-green branches is a new corpus, how the accepted
+  shape families are enumerated from the port rather than listed by hand, the
+  four tiers it grades (pairs in both orders, arity, triples over the TU-level
+  externals, and the wrapping check that keeps it honest), and — stated
+  explicitly — what it leaves ungraded, including the eight family pairs on the
+  port's TU-level refusal frontier.
 - `OBJ_FORMAT_MVP.md` — COFF file layout: header, section headers, raw-data
   contents (`.drectve`, `.debug$S`, `.XBLD$W`), symbol table, string table,
   the COMDAT checksum algorithm, and the constant-vs-derived classification
