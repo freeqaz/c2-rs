@@ -284,6 +284,20 @@ impl IlBundle {
                             Ok(BodyShape::MultiArgTailCall { .. }) => {
                                 FnVerdict::InClass("multiarg-tail-call")
                             }
+                            // W33, the multi-argument FP tail call. Split by
+                            // whether the permutation moves anything at all: the
+                            // identity is a bare `b <callee>` and a cycle is
+                            // `fmr`s through f0, and the two are worth different
+                            // amounts of evidence even though they are one shape.
+                            Ok(BodyShape::FpMultiArgTailCall { arg_sources, .. }) => {
+                                FnVerdict::InClass(
+                                    if arg_sources.iter().enumerate().all(|(i, &s)| i == s) {
+                                        "fp-multiarg-tail-call"
+                                    } else {
+                                        "fp-multiarg-tail-call-perm"
+                                    },
+                                )
+                            }
                             Ok(BodyShape::FramedCall { .. }) => FnVerdict::InClass("framed-call"),
                             // Class A many-calls. Split by tail so the rung's gain
                             // can be attributed to the production that earned it

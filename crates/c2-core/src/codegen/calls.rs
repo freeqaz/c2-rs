@@ -241,6 +241,7 @@ fn ops_setup_text(
         compare: None,
         float_leaf: None,
         fp_tail: None,
+        fp_arg_sources: None,
         arg_sources: None,
         empty_body: false,
     };

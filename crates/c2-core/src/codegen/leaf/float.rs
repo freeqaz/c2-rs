@@ -369,6 +369,127 @@ pub fn fp_tail_call_text(
     })
 }
 
+/// The FP file's **cycle scratch registers**, in allocation order.
+///
+/// `docs/CODEGEN_FP_ARGS.md` §1.1 had only `f0`, from a 2-cycle and a 3-cycle —
+/// which is exactly the evidence that carried the GPR file's "one r11 breaks the
+/// cycle" rule to length 3 and then failed. `f13` is the second, measured over
+/// the complete n = 4 grid (`scripts/gt_fpperm.py`, §1.2). Only the first entry
+/// is reachable from [`fp_permute_args_text`], which refuses a second scratch;
+/// the second is here because the constant it is *not* is the point.
+const FP_CYCLE_SCRATCH: u8 = 0;
+
+/// Lower a **multi-argument floating-point tail call**'s argument permutation:
+/// the `fmr`s that put each FP argument register's wanted value in place, with
+/// `f0` as the single break scratch (W33).
+///
+/// `sources[i]` is the index, into the FP formals in FP-file order, of the value
+/// that FP argument register `f(i+1)` wants — so the identity is the passthrough
+/// case and emits nothing. Every argument is floating-point by construction
+/// (`c2_il`'s `shapes::leaf_fp_tail`), which is what makes the destination
+/// numbering `f1…fn` and what keeps the **other** register file out of it: a call
+/// that moved values in both files interleaves their schedules on a rule
+/// `docs/CODEGEN_FP_ARGS.md` §1.1 records as uncharacterized.
+///
+/// The rule, measured over the complete permutation grids at n = 2…5
+/// (`scripts/gt_fpperm.py --pure --model`, `docs/CODEGEN_FP_ARGS.md` §1.2):
+/// decompose the destination→source map into cycles; each **local minimum** of a
+/// cycle parks its source into a scratch and reads it back at the end. This
+/// function accepts **one** local minimum — one scratch — where the emission is
+/// fully determined and the model is exact on every measured cell. With two, the
+/// order the independent chains interleave in is open, in this file exactly as
+/// it is in the GPR one (`docs/CODEGEN_ARG_PERM.md` §2.1: 26 of 120 cells at
+/// n = 5, and the FP grid refutes the same 26).
+///
+/// Captured, and each row is a whole function body:
+///
+/// ```text
+///   float f(float a,float b)         { return g2(a,b); }   (nothing)  b g2
+///   float f(float a,float b)         { return g2(b,a); }   fmr f0,f2 ; fmr f2,f1 ; fmr f1,f0
+///   float f(float a,float b,float c) { return g3(b,c,a); } fmr f0,f2 ; fmr f2,f3 ; fmr f3,f1 ; fmr f1,f0
+/// ```
+///
+/// The primary gate is the IL parser's, so the census and the emitter cannot
+/// disagree about what is in class; everything here is the backstop.
+pub fn fp_permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
+    let n = sources.len();
+    if n > 13 {
+        return Err(out_of_class(
+            "more than 13 FP arguments: the 14th is stack-homed; out of class",
+        ));
+    }
+    for (i, s) in sources.iter().enumerate() {
+        if *s >= n {
+            // A source FP register the call does not otherwise write: a shift,
+            // not a permutation, and the walk below would not terminate on it.
+            return Err(out_of_class(
+                "FP argument permutation reads a register outside the argument \
+                 list; out of class",
+            ));
+        }
+        if sources[..i].contains(s) {
+            return Err(out_of_class(
+                "an FP argument value is passed twice; out of class",
+            ));
+        }
+    }
+
+    // Cycle-decompose. `sources[i] == i` is a fixed point and needs no move.
+    let mut seen = vec![false; n];
+    let mut cycles: Vec<Vec<usize>> = Vec::new();
+    for start in 0..n {
+        if seen[start] || sources[start] == start {
+            seen[start] = true;
+            continue;
+        }
+        let mut cycle = Vec::new();
+        let mut at = start;
+        while !seen[at] {
+            seen[at] = true;
+            cycle.push(at);
+            at = sources[at];
+        }
+        cycles.push(cycle);
+    }
+    if cycles.is_empty() {
+        return Ok(Vec::new()); // passthrough: every value is already in place
+    }
+    if cycles.len() > 1 {
+        return Err(out_of_class(
+            "FP argument permutation has two or more disjoint cycles: c2 parks \
+             one scratch per cycle (f0 then f13) and the order the chains \
+             interleave in is not characterized; out of class",
+        ));
+    }
+    let cycle = &cycles[0];
+    let k = cycle.len();
+    let minima: Vec<usize> = (0..k)
+        .filter(|&i| cycle[(i + k - 1) % k] > cycle[i] && cycle[i] < cycle[(i + 1) % k])
+        .collect();
+    if minima.len() != 1 {
+        return Err(out_of_class(
+            "FP argument permutation has a cycle with two local minima: c2 parks \
+             a second scratch (f13) and reorders the writes, and that order is \
+             not characterized; out of class",
+        ));
+    }
+    // `f(i+1)` for destination slot `i`, in both roles.
+    let reg = |slot: usize| (slot + 1) as u8;
+    let lowest = cycle[minima[0]];
+    let mut text = Vec::new();
+    text.extend_from_slice(&encode_fmr(FP_CYCLE_SCRATCH, reg(sources[lowest])));
+    // Walk from the parked source back to the minimum: each step writes a
+    // destination whose old value has already been consumed. With one minimum
+    // this is a single chain and the order is forced.
+    let mut dst = sources[lowest];
+    while dst != lowest {
+        text.extend_from_slice(&encode_fmr(reg(dst), reg(sources[dst])));
+        dst = sources[dst];
+    }
+    text.extend_from_slice(&encode_fmr(reg(lowest), FP_CYCLE_SCRATCH));
+    Ok(text)
+}
+
 #[cfg(test)]
 mod tests {
     // The single `mod tests` this was split out of opened with
@@ -658,6 +779,100 @@ mod tests {
         // `docs/CODEGEN_FP_ARGS.md` §1 records.
         assert!(matches!(
             fp_tail_call_text(&params, &c2_il::FpTail { arg: 0xEE09, narrowing: false }),
+            Err(BackendError::NotImplemented(_))
+        ));
+    }
+
+    /// W33 — the multi-argument FP tail call's whole emission. Every word is read
+    /// off a reference obj (`fixtures/cpp/w33_fp_multi.cpp`, `/O1 /GS- /c`) and
+    /// the model is scored on the complete n = 2…5 permutation grid by
+    /// `scripts/gt_fpperm.py --pure --model`.
+    #[test]
+    fn fp_argument_permutation_breaks_its_cycle_through_f0() {
+        // The identity: every value is already in place, so a bare `b g`.
+        assert_eq!(fp_permute_args_text(&[0, 1]).unwrap(), Vec::<u8>::new());
+        assert_eq!(fp_permute_args_text(&[0, 1, 2]).unwrap(), Vec::<u8>::new());
+        // `g2f(b,a)` — fc001090 fc400890 fc200090
+        assert_eq!(
+            fp_permute_args_text(&[1, 0]).unwrap(),
+            vec![
+                0xFC, 0x00, 0x10, 0x90, // fmr f0,f2
+                0xFC, 0x40, 0x08, 0x90, // fmr f2,f1
+                0xFC, 0x20, 0x00, 0x90, // fmr f1,f0
+            ]
+        );
+        // `g3f(b,c,a)` — the 3-cycle, and it runs in the direction the cycle
+        // happens to go.
+        assert_eq!(
+            fp_permute_args_text(&[1, 2, 0]).unwrap(),
+            vec![
+                0xFC, 0x00, 0x10, 0x90, // fmr f0,f2
+                0xFC, 0x40, 0x18, 0x90, // fmr f2,f3
+                0xFC, 0x60, 0x08, 0x90, // fmr f3,f1
+                0xFC, 0x20, 0x00, 0x90, // fmr f1,f0
+            ]
+        );
+        // `g3f(c,a,b)` — the other 3-cycle, which walks the other way.
+        assert_eq!(
+            fp_permute_args_text(&[2, 0, 1]).unwrap(),
+            vec![
+                0xFC, 0x00, 0x18, 0x90, // fmr f0,f3
+                0xFC, 0x60, 0x10, 0x90, // fmr f3,f2
+                0xFC, 0x40, 0x08, 0x90, // fmr f2,f1
+                0xFC, 0x20, 0x00, 0x90, // fmr f1,f0
+            ]
+        );
+        // `g3f(a,c,b)` — a fixed point beside a 2-cycle: the scratch is still f0
+        // and the untouched destination emits nothing.
+        assert_eq!(
+            fp_permute_args_text(&[0, 2, 1]).unwrap(),
+            vec![
+                0xFC, 0x00, 0x18, 0x90, // fmr f0,f3
+                0xFC, 0x60, 0x10, 0x90, // fmr f3,f2
+                0xFC, 0x40, 0x00, 0x90, // fmr f2,f0
+            ]
+        );
+        // **A 4-cycle, with ONE scratch.** The GPR file's rung stops at three
+        // because past three c2 hoists a second temp — but that is a property of
+        // the number of local minima, not of the length, and this one is
+        // unimodal. `?u4@@YAMMMMM@Z` in the fixture is these five words.
+        assert_eq!(
+            fp_permute_args_text(&[1, 2, 3, 0]).unwrap(),
+            vec![
+                0xFC, 0x00, 0x10, 0x90, // fmr f0,f2
+                0xFC, 0x40, 0x18, 0x90, // fmr f2,f3
+                0xFC, 0x60, 0x20, 0x90, // fmr f3,f4
+                0xFC, 0x80, 0x08, 0x90, // fmr f4,f1
+                0xFC, 0x20, 0x00, 0x90, // fmr f1,f0
+            ]
+        );
+    }
+
+    /// The refusals, each because a capture shows c2 emits something else.
+    #[test]
+    fn fp_argument_permutation_refuses_the_two_scratch_shapes() {
+        // Two disjoint 2-cycles (`g4f(b,a,d,c)`): c2 parks f0 AND f13 and then
+        // has several clobber-free orders to choose between.
+        assert!(matches!(
+            fp_permute_args_text(&[1, 0, 3, 2]),
+            Err(BackendError::NotImplemented(_))
+        ));
+        // One 4-cycle with a valley (`g4f(c,d,b,a)`): also two scratches, and its
+        // unimodal neighbour above is one — which is why the gate counts minima.
+        assert!(matches!(
+            fp_permute_args_text(&[2, 3, 1, 0]),
+            Err(BackendError::NotImplemented(_))
+        ));
+        // A value passed twice is a copy graph, not a permutation.
+        assert!(matches!(
+            fp_permute_args_text(&[0, 0]),
+            Err(BackendError::NotImplemented(_))
+        ));
+        // A source outside the destination range is a shift out of a register the
+        // call does not otherwise write — and the walk must refuse rather than
+        // run off the end, which is how the GPR twin panicked.
+        assert!(matches!(
+            fp_permute_args_text(&[1, 2]),
             Err(BackendError::NotImplemented(_))
         ));
     }

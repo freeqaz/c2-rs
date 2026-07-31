@@ -1,5 +1,15 @@
-//! **The single-argument floating-point tail call** — `return g(x);` and
-//! `g(x);` where `x` is an FP formal, the whole body, no frame.
+//! **The floating-point tail call** — `return g(x1, …, xn);` and `g(x1, …, xn);`
+//! where every argument is an FP formal, the whole body, no frame.
+//!
+//! Two rungs, one recognizer, because they differ only in how many times the
+//! argument production repeats: W31 is `n = 1` and W33 (`docs/rungs/2026-07-31-
+//! fp-multiarg.md`) is `n >= 2`, where the argument setup becomes a permutation
+//! of the FP file broken through **f0**. **Every** argument being floating-point
+//! is the load-bearing restriction of the second: a call that also passes a GPR
+//! argument can need moves in both register files at once, and c2 interleaves
+//! their schedules on a rule `docs/CODEGEN_FP_ARGS.md` §1.1 records as
+//! uncharacterized. Refusing that is what makes this rung a claim that does not
+//! depend on it.
 //!
 //! This is the FP twin of [`super::calls::parse_call_shape`]'s integer tail
 //! call, and it is a separate recognizer for one reason: the *argument* grammar
@@ -99,14 +109,17 @@ use super::this_binding::parse_this_token;
 /// capture frames and spills, so it is not a leaf at all).
 const MAX_FP_FORMALS: usize = 13;
 
-/// Try to parse a **single-argument floating-point tail call**, positioned at the
-/// `26 <callee>` symbol push that opens the body.
+/// Try to parse a **floating-point tail call**, positioned at the `26 <callee>`
+/// symbol push that opens the body. One argument is [`BodyShape::FpTailCall`]
+/// (W31) and two or more are [`BodyShape::FpMultiArgTailCall`] (W33).
 ///
 /// ```text
 ///   26 <callee> BD <ret TYPE> 00 <fn-type-id>     the shared call head
-///   B9 <tok> <FP TYPE>                            the argument: one bare formal LOAD
-///   [ 2C <FP TYPE> 00 ]                           …optionally converted, FP→FP
-///   55 <FP TYPE>                                  the callee's formal type
+///   (                                             one or more arguments,
+///     B9 <tok> <FP TYPE>                            each a bare formal LOAD
+///     [ 2C <FP TYPE> 00 ]                           …optionally converted, FP→FP
+///     55 <FP TYPE>                                  the callee's formal type
+///   )+                                            …in REVERSE source order
 ///   4C                                            end of the argument region
 ///   ( 4B <void plumbing>                          the result is discarded
 ///   | 41 <scalar TYPE> <void plumbing> )          …or it is the return value
@@ -136,41 +149,54 @@ pub(crate) fn try_parse_fp_tail_call(
     let callee_tok = eat_call_head(seg, &mut p).ok()?;
 
     // ---- the argument region ------------------------------------------------
-    // Exactly ONE argument, and it is a bare LOAD. A second `B9` before the `4C`
-    // is the multi-argument case: two register files whose move sequences
-    // interleave on a schedule no per-file solver reproduces
-    // (`docs/CODEGEN_FP_ARGS.md` §1.1), refused here by declining.
-    if !eat_byte(seg, &mut p, 0xB9) {
-        return None;
-    }
-    let (arg_tok, w) = read_token_var(seg, p)?;
-    p += w;
-    let src_double = eat_fp_type(seg, &mut p)?;
-    // An optional FP→FP conversion of the argument. `2C <TYPE target> <varint 0>`,
-    // the same production `parse_expr` admits for the class-preserving integer
-    // case — required to be literally `00` for the same reason: a field that never
-    // varied across the captures is indistinguishable from a constant.
-    let mut want_double = src_double;
-    if eat_byte(seg, &mut p, 0x2C) {
-        want_double = eat_fp_type(seg, &mut p)?;
-        if !eat_byte(seg, &mut p, 0x00) {
+    // `( B9 <tok> <FP TYPE> [ 2C <FP TYPE> 00 ] 55 <FP TYPE> )+ 4C`, arguments
+    // in **reverse source order** — rightmost first, the same convention
+    // [`super::calls::parse_call_shape`] anchors on `parse_formals`' reversal.
+    // Every argument is a bare formal LOAD; a computed one is `float_leaf_text`'s
+    // selector in argument position and a different lowering (W31's rung doc).
+    let mut stream: Vec<(u32, bool, bool)> = Vec::new(); // (tok, src_double, want_double)
+    while !eat_byte(seg, &mut p, 0x4C) {
+        if !eat_byte(seg, &mut p, 0xB9) {
+            return None;
+        }
+        let (arg_tok, w) = read_token_var(seg, p)?;
+        p += w;
+        let src_double = eat_fp_type(seg, &mut p)?;
+        // An optional FP→FP conversion of the argument. `2C <TYPE target> <varint 0>`,
+        // the same production `parse_expr` admits for the class-preserving integer
+        // case — required to be literally `00` for the same reason: a field that never
+        // varied across the captures is indistinguishable from a constant.
+        let mut want_double = src_double;
+        if eat_byte(seg, &mut p, 0x2C) {
+            want_double = eat_fp_type(seg, &mut p)?;
+            if !eat_byte(seg, &mut p, 0x00) {
+                return None;
+            }
+        }
+        // `55 <TYPE>` carries the **callee's declared formal type**, and it must agree
+        // in width with whatever the conversion (or its absence) left on the stack.
+        // Compared by decoded width and not byte-for-byte, because the two positions
+        // are free to differ in cv-qualification and a `const float` parameter emits
+        // the identical instruction.
+        if !eat_byte(seg, &mut p, 0x55) {
+            return None;
+        }
+        if eat_fp_type(seg, &mut p)? != want_double {
+            return None;
+        }
+        stream.push((arg_tok, src_double, want_double));
+        // Past the thirteenth the FP argument registers run out; the `4C` gate
+        // above is the real terminator, and this only keeps a malformed segment
+        // from being walked forever.
+        if stream.len() > MAX_FP_FORMALS {
             return None;
         }
     }
-    // `55 <TYPE>` carries the **callee's declared formal type**, and it must agree
-    // in width with whatever the conversion (or its absence) left on the stack.
-    // Compared by decoded width and not byte-for-byte, because the two positions
-    // are free to differ in cv-qualification and a `const float` parameter emits
-    // the identical instruction.
-    if !eat_byte(seg, &mut p, 0x55) {
-        return None;
+    if stream.is_empty() {
+        return None; // the bare `b <callee>`; `parse_call_shape` owns it
     }
-    if eat_fp_type(seg, &mut p)? != want_double {
-        return None;
-    }
-    if !eat_byte(seg, &mut p, 0x4C) {
-        return None;
-    }
+    // Source order: slot `i` is `stream[len - 1 - i]`.
+    stream.reverse();
 
     // ---- the tail: the result is discarded, or it is the return value --------
     if eat_byte(seg, &mut p, 0x4B) {
@@ -217,26 +243,139 @@ pub(crate) fn try_parse_fp_tail_call(
     if params.len() > MAX_FP_FORMALS {
         return None;
     }
-    // The argument must be one of the FP formals — not a local, not a global, not
-    // a formal in the *other* file (which would be an `int`→`float` conversion,
-    // and that is a frame). Its index here is its FP register number minus one.
-    params.iter().position(|&t| t == arg_tok)?;
-    // `.ex` says this value is a `float`/`double`; `.sy` says the formal is one.
-    // They are two channels on one fact and a disagreement is a misread record,
-    // never a width to guess at — the same all-or-nothing discipline `arg_classes`
-    // itself applies.
-    match classes[formals.iter().position(|&t| t == arg_tok)?] {
-        ArgClass::Fp { double } if double == src_double => {}
-        _ => return None,
+    // Every argument must be one of the FP formals — not a local, not a global,
+    // not a formal in the *other* file. **This is the all-FP-arguments gate**:
+    // `params` holds the FP formals alone, so a GPR argument has no position in
+    // it and the whole body declines. That is the split W33 exists to make — a
+    // call with a GPR argument as well as an FP one can need moves in both
+    // register files at once, and their schedule interleaves
+    // (`docs/CODEGEN_FP_ARGS.md` §1.1) on a rule no per-file solver reproduces.
+    let mut arg_sources = Vec::with_capacity(stream.len());
+    for &(tok, src_double, want_double) in &stream {
+        let ix = params.iter().position(|&t| t == tok)?;
+        // `.ex` says this value is a `float`/`double`; `.sy` says the formal is one.
+        // They are two channels on one fact and a disagreement is a misread record,
+        // never a width to guess at — the same all-or-nothing discipline `arg_classes`
+        // itself applies.
+        match classes[formals.iter().position(|&t| t == tok)?] {
+            ArgClass::Fp { double } if double == src_double => {}
+            _ => return None,
+        }
+        let _ = want_double;
+        arg_sources.push(ix);
     }
-    Some(BodyShape::FpTailCall {
-        params,
-        arg_tok,
-        // `double`→`float` at the boundary is a real `frsp`, and it is **fused**
-        // with the register move rather than following one (`n2` above).
-        narrowing: src_double && !want_double,
-        callee_tok,
-    })
+
+    if stream.len() == 1 {
+        let (arg_tok, src_double, want_double) = stream[0];
+        return Some(BodyShape::FpTailCall {
+            params,
+            arg_tok,
+            // `double`→`float` at the boundary is a real `frsp`, and it is **fused**
+            // with the register move rather than following one (`n2` above).
+            narrowing: src_double && !want_double,
+            callee_tok,
+        });
+    }
+
+    // ---- two or more arguments: the FP file's permutation ---------------------
+    // `docs/CODEGEN_FP_ARGS.md` §1.2. Everything below is a gate the complete
+    // n = 2…5 grid (`scripts/gt_fpperm.py --pure --model`) puts a boundary on;
+    // each one is a shape c2 emits differently, never conservatism.
+    //
+    // **No narrowing anywhere in the list.** `double`→`float` inside a
+    // permutation is fused into whichever move writes the destination — but with
+    // *every* argument of a 3-cycle narrowing, c2 changes the schedule outright
+    // and parks a second value:
+    //
+    // ```text
+    //   f(double a,b,c) -> g3(double,double,double)(b,c,a)
+    //       fmr f0,f2 ; fmr f2,f3 ; fmr f3,f1 ; fmr f1,f0
+    //   f(double a,b,c) -> g3(float,float,float)(b,c,a)
+    //       fmr f0,f2 ; fmr f13,f3 ; frsp f3,f1 ; frsp f1,f0 ; frsp f2,f13
+    // ```
+    //
+    // Five moves and two scratches against four and one, from a type change
+    // alone. The rule that produces it is not characterized, and W31 measured the
+    // single-argument `frsp`'s census value at **0**, so the whole conversion is
+    // refused here rather than modeled from the cases that happen to fuse.
+    if stream.iter().any(|&(_, src, want)| src && !want) {
+        return None;
+    }
+    // A value passed twice is not a permutation at all; the GPR file emits a dead
+    // move through the temp for it (`call-arg-duplicated`) and nothing here has
+    // captured the FP file's version.
+    for i in 0..arg_sources.len() {
+        if arg_sources[..i].contains(&arg_sources[i]) {
+            return None;
+        }
+    }
+    // **A source FP register above the destination count.**
+    // `float f(float a,float b,float c){ return g2(b,c); }` wants f1←f2, f2←f3 —
+    // a shift out of a register the call does not otherwise write, not a
+    // permutation of the destinations. The GPR file refuses the same shape
+    // (`call-arg-outer-formal`), where it was also a panic.
+    if arg_sources.iter().any(|&ix| ix >= arg_sources.len()) {
+        return None;
+    }
+    // **At most one local minimum**, i.e. at most one scratch — none at all for
+    // the identity, which is every value already in place and emits nothing.
+    // Measured over the complete
+    // grid: with one scratch the emission is fully determined and the model is
+    // exact on every cell of n = 2…5; with two it is not, and the residue is the
+    // same independent-chain interleaving `docs/CODEGEN_ARG_PERM.md` §2.1 leaves
+    // open in the other file (26 of 120 cells at n = 5, in both files).
+    if fp_perm_local_minima(&arg_sources) > 1 {
+        return None;
+    }
+    Some(BodyShape::FpMultiArgTailCall { params, arg_sources, callee_tok })
+}
+
+/// The number of **local minima** over the cycles of the destination→source map
+/// `sources` — which is the number of scratch FP registers c2 parks into, and
+/// therefore the boundary of the modeled class.
+///
+/// `sources[i]` is the FP-file index of the value destination `f(i+1)` wants, so
+/// σ(i) = `sources[i]` as a permutation of the destinations. Write a cycle as the
+/// cyclic sequence `c0, c1 = σ(c0), …`; `ci` is a local minimum when
+/// `c(i-1) > ci < c(i+1)`, cyclically. A fixed point is not a cycle and
+/// contributes nothing.
+///
+/// Measured, not assumed: `docs/CODEGEN_ARG_PERM.md` §2 establishes the count for
+/// the GPR file over 152 cells and `docs/CODEGEN_FP_ARGS.md` §1.2 does the same
+/// for the FP file. One minimum implies exactly one non-trivial cycle, so a
+/// separate multi-cycle gate would be redundant.
+pub(crate) fn fp_perm_local_minima(sources: &[usize]) -> usize {
+    let n = sources.len();
+    let mut seen = vec![false; n];
+    let mut minima = 0usize;
+    for start in 0..n {
+        if seen[start] || sources[start] == start {
+            seen[start] = true;
+            continue;
+        }
+        let mut cycle = Vec::new();
+        let mut at = start;
+        while !seen[at] {
+            seen[at] = true;
+            cycle.push(at);
+            at = sources[at];
+            // An entry outside the destination range cannot close a cycle. The
+            // caller has already refused that shape; this is the backstop that
+            // keeps a misread record from indexing out of bounds — the GPR twin
+            // of this walk *panicked* on exactly that, and the CLI must degrade
+            // cleanly (`docs/GAPS.md` §6, `call-arg-outer-formal`).
+            if at >= n {
+                return usize::MAX;
+            }
+        }
+        let k = cycle.len();
+        for i in 0..k {
+            if cycle[(i + k - 1) % k] > cycle[i] && cycle[i] < cycle[(i + 1) % k] {
+                minima += 1;
+            }
+        }
+    }
+    minima
 }
 
 #[cfg(test)]
@@ -469,5 +608,184 @@ mod tests {
             parse_segment(&seg, sy(&F)),
             Some(BodyShape::FpTailCall { .. })
         ));
+    }
+
+    // ---- W33: the multi-argument FP tail call --------------------------------
+
+    /// `float sw2(float a, int k, float b) { return g2f(b, a); }` — whole captured
+    /// segment, the swap with a non-FP formal wedged between the two FP ones.
+    ///
+    /// **The discriminator for both numberings at once.** The *sources* are the
+    /// FP file over the formals (a → f1, b → f2 — `k` occupies no FP register),
+    /// and the *destinations* are the FP file over the ARGUMENTS (slot 1 → f1,
+    /// slot 2 → f2). A model that used formal positions anywhere names f3 and
+    /// emits a permutation of three registers where c2 emits one of two.
+    ///
+    /// Arguments appear in **reverse source order**, so the stream is `a` then
+    /// `b` for the call `g2f(b, a)` — the same convention
+    /// [`super::calls::parse_call_shape`] anchors on `parse_formals`' reversal,
+    /// and reading it the other way round turns every swap into an identity.
+    const FP_MULTI_SWAP: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x53, 0x53, 0x26, 0xE9, 0x09,
+        0x46, 0x2D, 0xE8, 0x09, 0x2D, 0xE7, 0x09, 0x2D, 0xE6, 0x09, // formals, reversed: a k b
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x26, 0xE5, 0x09, 0xBD, 0x86, 0x45, 0x40, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, // call head
+        0xB9, 0xE6, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, // arg 2 of 2: `a`
+        0xB9, 0xE8, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, // arg 1 of 2: `b`
+        0x4C, 0x41, 0x86, 0x45, 0x40, //
+        0x3A, 0xEA, 0x09, 0x54, 0x02, 0x29, 0xEA, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `float rt3(float a, float b, float c) { return g3f(b, c, a); }` — whole
+    /// captured segment. The 3-cycle, which c2 breaks through **f0**.
+    const FP_MULTI_ROT3: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x53, 0x53, 0x26, 0xEA, 0x09,
+        0x46, 0x2D, 0xE9, 0x09, 0x2D, 0xE8, 0x09, 0x2D, 0xE7, 0x09, //
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x26, 0xE6, 0x09, 0xBD, 0x86, 0x45, 0x40, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00, //
+        0xB9, 0xE7, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, // `a`, the LAST argument
+        0xB9, 0xE9, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, // `c`
+        0xB9, 0xE8, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, // `b`, the FIRST
+        0x4C, 0x41, 0x86, 0x45, 0x40, //
+        0x3A, 0xEB, 0x09, 0x54, 0x02, 0x29, 0xEB, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `float C::m(float a, float b) const { return g2f(a, b); }` — whole captured
+    /// segment. A member function forwarding both arguments unchanged.
+    ///
+    /// **The case the integer multi-argument rung cannot reach at all.** Its
+    /// `arg_sources` indexes the formals list with `this` at index 0, so every
+    /// member function with two or more arguments trips `call-arg-outer-formal`.
+    /// `this` (token 0xF309) takes r3 and is outside the FP file entirely, so
+    /// indexing that file instead makes the shape free — and the identity
+    /// permutation emits **nothing**, a bare `b ?g2f`.
+    const FP_MULTI_MEMBER_ID: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x53, 0x53, 0x26, 0xE9, 0x09,
+        0xB9, 0xF3, 0x09, 0xA6, 0x43, 0x82, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, // `this`
+        0x46, 0x2D, 0xF1, 0x09, 0x2D, 0xF0, 0x09, //
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x26, 0xE5, 0x09, 0xBD, 0x86, 0x45, 0x40, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, //
+        0xB9, 0xF1, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, //
+        0xB9, 0xF0, 0x09, 0x86, 0x45, 0x40, 0x55, 0x86, 0x45, 0x40, //
+        0x4C, 0x41, 0x86, 0x45, 0x40, //
+        0x3A, 0xF4, 0x09, 0x54, 0x02, 0x29, 0xF4, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// Both numberings run over their own file, and a non-FP formal moves
+    /// neither. Declaring the middle formal `float` instead re-numbers the
+    /// SOURCES and nothing else — the same `.ex` bytes, a different permutation.
+    #[test]
+    fn the_destinations_are_numbered_over_the_fp_arguments_and_the_sources_over_the_fp_formals() {
+        const F: [SyFormal; 3] = [
+            SyFormal { tok: 0xE609, size: 4, kind: FLOAT },
+            SyFormal { tok: 0xE709, size: 4, kind: INT },
+            SyFormal { tok: 0xE809, size: 4, kind: FLOAT },
+        ];
+        assert_eq!(
+            parse_segment(FP_MULTI_SWAP, sy(&F)),
+            Some(BodyShape::FpMultiArgTailCall {
+                params: vec![0xE609, 0xE809],
+                arg_sources: vec![1, 0],
+                callee_tok: 0xE509,
+            })
+        );
+        // With the middle formal floating-point the FP file has THREE entries and
+        // `b` is f3, so the same call is a permutation out of a register the
+        // argument list does not otherwise write — a shift, which c2 lowers as
+        // two independent moves and this rung refuses.
+        const G: [SyFormal; 3] = [
+            SyFormal { tok: 0xE609, size: 4, kind: FLOAT },
+            SyFormal { tok: 0xE709, size: 4, kind: FLOAT },
+            SyFormal { tok: 0xE809, size: 4, kind: FLOAT },
+        ];
+        assert_eq!(parse_segment(FP_MULTI_SWAP, sy(&G)), None);
+    }
+
+    /// The 3-cycle, and the argument stream really is reversed: read the other
+    /// way round `g3f(b,c,a)` would come out as `arg_sources = [2, 0, 1]`, which
+    /// is the *other* 3-cycle and four different instructions.
+    #[test]
+    fn the_argument_stream_is_reverse_source_order() {
+        const F: [SyFormal; 3] = [
+            SyFormal { tok: 0xE709, size: 4, kind: FLOAT },
+            SyFormal { tok: 0xE809, size: 4, kind: FLOAT },
+            SyFormal { tok: 0xE909, size: 4, kind: FLOAT },
+        ];
+        assert_eq!(
+            parse_segment(FP_MULTI_ROT3, sy(&F)),
+            Some(BodyShape::FpMultiArgTailCall {
+                params: vec![0xE709, 0xE809, 0xE909],
+                arg_sources: vec![1, 2, 0],
+                callee_tok: 0xE609,
+            })
+        );
+    }
+
+    /// A member function's `this` is outside the FP file, so a two-argument
+    /// forwarding call is in class here where the integer twin refuses it.
+    #[test]
+    fn a_member_receivers_this_does_not_enter_the_fp_argument_file() {
+        const F: [SyFormal; 2] = [
+            SyFormal { tok: 0xF009, size: 4, kind: FLOAT },
+            SyFormal { tok: 0xF109, size: 4, kind: FLOAT },
+        ];
+        assert_eq!(
+            parse_segment(FP_MULTI_MEMBER_ID, sy(&F)),
+            Some(BodyShape::FpMultiArgTailCall {
+                params: vec![0xF009, 0xF109],
+                arg_sources: vec![0, 1],
+                callee_tok: 0xE509,
+            })
+        );
+    }
+
+    /// A **GPR argument alongside the FP one refuses**, and this is the gate the
+    /// whole rung rests on: c2 interleaves the two files' move sequences on a
+    /// schedule no per-file solver reproduces. Retyping one formal `int` — which
+    /// is what makes its argument a GPR one — must flip acceptance, and it does
+    /// so through `arg_classes` alone: the `.ex` bytes are identical.
+    #[test]
+    fn a_gpr_argument_beside_an_fp_one_refuses_because_the_two_files_interleave() {
+        const MIXED: [SyFormal; 3] = [
+            SyFormal { tok: 0xE609, size: 4, kind: INT },
+            SyFormal { tok: 0xE709, size: 4, kind: INT },
+            SyFormal { tok: 0xE809, size: 4, kind: FLOAT },
+        ];
+        assert_eq!(parse_segment(FP_MULTI_SWAP, sy(&MIXED)), None);
+    }
+
+    /// The gate is the number of **local minima**, which is the number of
+    /// scratch registers c2 parks into — not the cycle length. Measured over the
+    /// complete n = 2…5 grid, `scripts/gt_fpperm.py`.
+    #[test]
+    fn the_permutation_gate_counts_local_minima_and_not_cycle_length() {
+        // Fixed points and the identity: no scratch at all.
+        assert_eq!(fp_perm_local_minima(&[0, 1, 2]), 0);
+        // Every cycle of length <= 3 is unimodal, which is why the published
+        // "one temp breaks the cycle" rule survived to three and no further.
+        assert_eq!(fp_perm_local_minima(&[1, 0]), 1);
+        assert_eq!(fp_perm_local_minima(&[1, 2, 0]), 1);
+        assert_eq!(fp_perm_local_minima(&[2, 0, 1]), 1);
+        // A 4- and a 5-cycle that ascend after their minimum stay at one scratch
+        // and are in class — the length is not the boundary.
+        assert_eq!(fp_perm_local_minima(&[1, 2, 3, 0]), 1);
+        assert_eq!(fp_perm_local_minima(&[1, 2, 3, 4, 0]), 1);
+        // `g4f(b,a,d,c)` — two disjoint 2-cycles, one minimum each.
+        assert_eq!(fp_perm_local_minima(&[1, 0, 3, 2]), 2);
+        // `g4f(c,d,b,a)` — ONE 4-cycle whose sequence descends then ascends, so
+        // it needs two scratches even though a 4-cycle above needs one.
+        assert_eq!(fp_perm_local_minima(&[2, 3, 1, 0]), 2);
+        // A source outside the destination range never closes a cycle; the walk
+        // reports "unmodelable" rather than indexing out of bounds.
+        assert_eq!(fp_perm_local_minima(&[1, 2]), usize::MAX);
     }
 }
