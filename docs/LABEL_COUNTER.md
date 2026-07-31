@@ -1735,7 +1735,10 @@ entire fourteen-ladder dataset at N ≤ 6**, which is where the sweep's own cap
 had always stopped. It was written down as LAW D with its falsifier column
 (`work/gt-inline-decline/ESTIMATE-round28d.txt`, p≈0.55) and **killed by the
 first capture above the cap**: it predicts ≥12 sites at `s=68` where 9 are
-taken, and 10 at `s=72` where 9 are taken. The retired wording is in the
+taken, and 10 at `s=72` where 9 are taken. The refutation does not rest on one
+row — `s=68` is `d1-fine` alone (only 4-byte rungs reach it), but **`s=72` → 9
+is reproduced by five ladders**, `d1-fine`, `d1-if`, `d1-noloop-arith`,
+`d1-noloop-call` and `d2-noloop-arith`. The retired wording is in the
 script's `SUPERSEDED_D` and is re-derived from each run's own numbers.
 
 What the table refutes, computed rather than asserted:
