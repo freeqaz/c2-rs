@@ -24,7 +24,7 @@ The rule those two wrote down is:
 Until this lane, applying that rule was manual — it depended on whoever was
 merging remembering to compile the cross product. `scripts/expr_sweep.sh` grows
 **additively**: each fragment varies its own parameters inside one shape family,
-so 23 fragments give 23 independently-swept axes and **zero** graded
+so 24 fragments give 24 independently-swept axes and **zero** graded
 combinations beyond whatever a fragment happened to put in one file. This lane
 grows the corpus **combinatorially** instead.
 
@@ -138,12 +138,12 @@ Stated because a silent cap reads as "covered everything", which §6 forbids.
   and named, but the port refuses the TU, so no bytes were compared. They are
   **unmeasured**, not green.
 
-## Result, 2026-07-31 (master `0fa82f1` + this branch)
+## Result, 2026-07-31 (master `ded71a4` merged into this branch)
 
 **0 mismatches**, all four lanes, 19,604 gradings.
 
 * **86 of the 171 unordered family pairs occur in no matched TU of the fixture
-  corpus or the whole 6,225-case sweep corpus** — nothing had ever graded them.
+  corpus or the whole 6,365-case sweep corpus** — nothing had ever graded them.
 * **163 of the 171 emit somewhere in this lane** and are now graded.
 * **8 pairs are the TU-level refusal frontier** — they never emitted in *any*
   configuration, at any arity or mode:
