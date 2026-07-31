@@ -28,6 +28,7 @@
 //! (`ILGlobals`, `_detect_token_width`, `ILFunction._parse_body`);
 //! grammar cross-checked against live-toolchain `.ex` captures of every fixture.
 
+mod bind;
 mod body;
 mod bundle;
 mod census;
@@ -454,6 +455,40 @@ pub struct IlFunction {
 }
 
 impl IlFunction {
+    /// Everything a body shape does **not** discriminate on: provenance, and
+    /// "no shape" for every parallel option.
+    ///
+    /// `shape_to_function`'s twelve arms each set the two or three fields they
+    /// own and `None`/`false`/empty for the other nine — so before this
+    /// existed, adding one field meant editing twelve arms, which is how a
+    /// concurrent branch's new arm silently missed `call_seq`
+    /// (`docs/ARCHITECTURE_SEAMS.md` §1, class 4, and the 231-line `bundle.rs`
+    /// conflict). With `..IlFunction::base(…)` a new field is one edit here.
+    ///
+    /// **The trade-off, stated:** with struct-update syntax the compiler no
+    /// longer forces every arm to consider a new field. That is acceptable
+    /// *only* because for a shape-discriminant field the correct value in every
+    /// arm that does not own it **is** the default — today's arms say so
+    /// explicitly eleven times over. **If a future field ever has a non-default
+    /// correct value for some shape, it must NOT go through `base()`**: give it
+    /// to the arms that own it explicitly, or the default becomes a silent
+    /// wrong answer that only the census/gate cross-check would catch.
+    pub(crate) fn base(name: &str, src: &Option<String>) -> IlFunction {
+        IlFunction {
+            mangled_name: name.to_string(),
+            source_path: src.clone(),
+            params: Vec::new(),
+            ops: Vec::new(),
+            tail_call: None,
+            framed_call: None,
+            call_seq: None,
+            compare: None,
+            float_leaf: None,
+            arg_sources: None,
+            empty_body: false,
+        }
+    }
+
     /// How many **compiler-label counter slots** this function consumes, for the
     /// classes whose stride has been measured — `None` when it has not been.
     ///

@@ -56,6 +56,15 @@ __pycache__/
 *.pyc
 gens_*.jsonl
 
+# Generated scan JSONL at the REPO ROOT. `c2rs gap --jsonl` output belongs under
+# /work (already ignored above); a run that forgets the prefix drops a ~10 MB
+# untracked artifact in the worktree root, and `git add -A` would commit it —
+# it embeds absolute machine paths in its provenance record, which CLAUDE.md
+# forbids. Anchored with a leading slash ON PURPOSE: the tracked test fixture
+# crates/c2-harness/tests/corpus_sample/manifest.jsonl must stay tracked.
+# (Verify with `git check-ignore -v` before changing this.)
+/*.jsonl
+
 # Git worktrees created by scripts/setup_worktree.sh (and by Claude Code's own
 # worktree isolation). Each is a real checkout with a reflinked target/ and a
 # symlinked compilers/ — never committed.

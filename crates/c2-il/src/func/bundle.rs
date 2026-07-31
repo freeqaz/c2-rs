@@ -1,7 +1,7 @@
 use super::body::{self, parse_segment, BodyShape};
-use super::gl::{drectve_is_boilerplate, gl_defined_names, source_path, GlIndex};
+use super::bind::Bindings;
+use super::gl::drectve_is_boilerplate;
 use super::readers::{find_subslice, memchr_byte};
-use super::sy::SyLocals;
 use super::{CallSeq, FramedCall, IlFunction, IlOp, SeqCall, SeqTail};
 use crate::IlBundle;
 
@@ -105,63 +105,12 @@ pub fn is_empty_module(ex: &[u8]) -> bool {
     !has_lo && !has_fn_start
 }
 
-/// Whether a mangled name declares a **variadic** function — `int f(int, ...)`.
-///
-/// This is the one fact about a function that has to be read off its *name*,
-/// because the IL body does not carry it. Measured: the `.ex` and `.sy` streams of
-/// `int va(int a, ...) { return a; }` and `int va(int a) { return a; }` are
-/// **byte-identical** (2745 B and 30 B respectively, compared whole), and the only
-/// files that differ are `.gl` — by the one byte of this name — and `.db`. So no
-/// body-level or local-symbol gate can see it, and there is nothing to decode.
-///
-/// It is not cosmetic. c2 gives a variadic function a frame that homes r4–r10 and
-/// a `.pdata` entry, so the obj has six sections where the port emits four
-/// instructions and five:
-///
-/// ```text
-/// int va(int a, ...) { return a; }
-///   c2:   std r4,0x18(r1) … std r10,0x48(r1) ; blr     + .pdata
-///   port: blr
-///   Port=Mismatch @ offset 2   (NumberOfSections, 06 vs 05)
-/// ```
-///
-/// It fires in every optimization mode including the workload's own, and it was
-/// live on `straight-line`, `indirect-load-leaf`, `__stdcall`, and member-function
-/// bodies — the oldest accepted shapes in the port.
-///
-/// **The rule.** MSVC terminates a mangled argument list with `@` (a list ended),
-/// `X` (no arguments), or `Z` (an ellipsis), and then closes the name with a final
-/// `Z`. So a variadic function's name ends `ZZ`. Measured, with the neighbour that
-/// breaks the naive reading:
-///
-/// ```text
-/// ?a1@@YAHH@Z          int a1(int)                     not variadic
-/// ?a2@@YAHXZ           int a2()                        not variadic — ends XZ, not @Z
-/// ?a3@@YAHPAUZ@@@Z     int a3(Z*)   a type NAMED Z     not variadic
-/// ?a4@@YAHW4E@@@Z      int a4(E)    an enum            not variadic
-/// ?a5@@YAHHZZ          int a5(int, ...)                VARIADIC
-/// ?a6@@YAHZZ           int a6(...)                     VARIADIC
-/// ?f@C@@QBAHHZZ        int C::f(int, ...) const        VARIADIC
-/// ```
-///
-/// `a3` is the discriminating case: a parameter whose *type* is `struct Z` puts a
-/// `Z` in the name and must not be caught. `a2` is why the test cannot be "does
-/// not end `@Z`".
-///
-/// An `extern "C"` variadic function has an undecorated name and is invisible here.
-/// That is covered, for a different reason that must not be quietly relied upon:
-/// `gl_defined_names` accepts only `?…@@…` forms, so a TU containing one binds no
-/// names at all and `functions` refuses it whole. If that ever loosens, this gate
-/// stops covering C variadics — measured today (`extern "C" int cva(int, ...)` is
-/// `Port=NotImplemented`), and stated here so the coupling is visible.
-pub(crate) fn mangled_is_varargs(name: &str) -> bool {
-    name.ends_with("ZZ")
-}
 
 /// Split the `.ex` stream at every `4F 1F` function-start marker, keeping the
 /// offsets alongside the segments. The offsets are what `.gl`'s framed body-start
 /// fields are matched against, so the name binding is per record rather than per
-/// position (see [`gl_defined_names`]).
+/// position (see [`super::gl::gl_defined_names`], applied by
+/// [`super::bind::Bindings::per_record`]).
 fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
     let mut starts = Vec::new();
     let mut i = 0;
@@ -313,17 +262,9 @@ pub(crate) fn shape_to_function(
             // out right.
             BodyShape::IndirectLoad { params, ops } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
                     ops,
-                    tail_call: None,
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             // An address leaf (`return &s->m;`) travels the same way: an exact
@@ -335,47 +276,23 @@ pub(crate) fn shape_to_function(
             // selector.
             BodyShape::StoreLeaf { params, ops } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
                     ops,
-                    tail_call: None,
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             BodyShape::AddrLeaf { params, ops } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
                     ops,
-                    tail_call: None,
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             BodyShape::StraightLine { params, ops } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
                     ops,
-                    tail_call: None,
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             // Tail calls: the callee is resolved BY TOKEN through the `.gl`
@@ -385,17 +302,8 @@ pub(crate) fn shape_to_function(
             // a mis-emit, not a gap.
             BodyShape::VoidTailCall { callee_tok } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
-                    params: Vec::new(),
-                    ops: Vec::new(),
                     tail_call: Some(resolve(callee_tok)?),
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             // The generated empty destructor is a tail call in every respect the
@@ -421,32 +329,18 @@ pub(crate) fn shape_to_function(
                     )
                 };
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
                     ops,
                     tail_call: Some(resolve(callee_tok)?),
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             BodyShape::IntTailCall { params, arg_ops, callee_tok } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
                     ops: arg_ops,
                     tail_call: Some(resolve(callee_tok)?),
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             // A multi-argument tail call is still a tail call — same resolved
@@ -455,17 +349,10 @@ pub(crate) fn shape_to_function(
             // and `arg_sources` carries the mapping.
             BodyShape::MultiArgTailCall { params, arg_sources, callee_tok } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
-                    ops: Vec::new(),
                     tail_call: Some(resolve(callee_tok)?),
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
                     arg_sources: Some(arg_sources),
+                    ..IlFunction::base(name, src)
                 })
             }
             // A framed non-leaf call. `params`/`ops` carry the call ARGUMENT (a
@@ -475,67 +362,36 @@ pub(crate) fn shape_to_function(
             // call's argument setup.
             BodyShape::FramedCall { add_k, callee_tok, params, arg_ops } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
                     ops: arg_ops,
-                    tail_call: None,
                     framed_call: Some(FramedCall {
                         callee: resolve(callee_tok)?,
                         add_k,
                     }),
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             // W6: a comparison leaf carries no op stream — codegen emits its
             // spine from the decoded relation instead.
             BodyShape::EmptyBody => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
-                    params: Vec::new(),
-                    ops: Vec::new(),
-                    tail_call: None,
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
                     empty_body: true,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             BodyShape::FloatLeaf { params, ops, double } => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
                     ops,
-                    tail_call: None,
-                    framed_call: None,
-                    call_seq: None,
-                    compare: None,
-                    empty_body: false,
                     float_leaf: Some(double),
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             BodyShape::Compare(cmp) => {
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params: vec![cmp.param],
-                    ops: Vec::new(),
-                    tail_call: None,
-                    framed_call: None,
-                    call_seq: None,
                     compare: Some(cmp),
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
             // Class A many-calls. Every callee is resolved by token through the
@@ -552,12 +408,7 @@ pub(crate) fn shape_to_function(
                     });
                 }
                 Some(IlFunction {
-                    mangled_name: name.to_string(),
-                    source_path: src.clone(),
                     params,
-                    ops: Vec::new(),
-                    tail_call: None,
-                    framed_call: None,
                     call_seq: Some(CallSeq {
                         calls: resolved,
                         saved,
@@ -567,10 +418,7 @@ pub(crate) fn shape_to_function(
                             body::SeqTail::Lit(k) => SeqTail::Lit(k),
                         },
                     }),
-                    compare: None,
-                    empty_body: false,
-                    float_leaf: None,
-                    arg_sources: None,
+                    ..IlFunction::base(name, src)
                 })
             }
     }
@@ -690,14 +538,14 @@ impl IlBundle {
     ///
     /// Bodies come from `.ex` split at each `4F 1F`; each body's name comes from
     /// the `.gl` record whose framed body-start offset **is** that split point
-    /// ([`gl_defined_names`]) — a per-record binding, not a positional one. Any
+    /// ([`super::bind::Bindings::per_record`]) — a per-record binding, not a
+    /// positional one. Any
     /// `.gl` symbol no record claimed must be a resolved callee, or the TU is
     /// refused: an unclaimed symbol is one the real obj defines and the port does
     /// not model.
     pub fn functions(&self) -> Option<Vec<IlFunction>> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
-        let src = source_path(gl);
 
         // The port emits `.drectve` as a constant, so a TU that adds a linker
         // directive is out of class before any function is even looked at — the
@@ -732,49 +580,35 @@ impl IlBundle {
                 None
             };
         }
-        // Per-record name binding, gated fail-closed: the `.gl` records' framed
-        // body-start offsets must be exactly the `.ex` split points, in order and
-        // 1:1. A disagreement means either `.gl` has a record shape we cannot
-        // frame or the splitter miscounted bodies, and in both cases every name
-        // after the divergence would be wrong — so bind none of them.
+        // The whole correspondence seam — names, locals, callee resolution and
+        // the name-derived varargs gate — comes from ONE place
+        // ([`super::bind`]), built once here and consumed below. The binding is
+        // per record and gated fail-closed: the `.gl` records' framed body-start
+        // offsets must be exactly the `.ex` split points, in order and 1:1, or
+        // `per_record` binds none of them.
         //
-        // A *defined* function's own name comes from here. Callee names do NOT:
+        // A *defined* function's own name comes from there. Callee names do NOT:
         // they are resolved by token through the `.gl` symbol index, because the
         // CALL token carries only a function-type id and cannot distinguish two
         // callees with the same signature.
-        let (bound, unclaimed) = gl_defined_names(gl);
-        if bound.len() != segs.len()
-            || bound
-                .iter()
-                .zip(&starts)
-                .any(|(&(off, _), &s)| off as usize != s)
-        {
-            return None;
-        }
-        let names: Vec<String> = bound.into_iter().map(|(_, n)| n).collect();
+        let bind = Bindings::per_record(gl, self.get("sy"), &segs, &starts)?;
+        let names = bind.names();
+        let src = bind.src.clone();
+        let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
         let n_defined = segs.len();
-        // Lazily built: only the call productions resolve through it, so a TU
-        // of straight-line leaves never constructs the index at all.
-        let symbols = GlIndex::new(gl);
-        let resolve = |tok: u32| -> Option<String> { symbols.map().get(&tok).cloned() };
-        // `.sy` binds each function's automatic locals, keyed on the segment's exit
-        // label against the block's header token, over the same segment list the
-        // shapes parse. It yields nothing at all unless `.sy` parses whole — so a TU
-        // without `.sy`, or with one this reader does not fully understand, is
-        // exactly as restricted as before locals were modeled.
-        let locals = SyLocals::new(self.get("sy"), &segs);
 
         let mut funcs = Vec::with_capacity(n_defined);
         for (i, (name, seg)) in names.iter().take(n_defined).zip(&segs).enumerate() {
             // A variadic function's body IL is byte-identical to its non-variadic
             // twin's, so this is the one gate that cannot live in the body parser
-            // ([`mangled_is_varargs`]). The census applies the same predicate to the
-            // same name, so the two still cannot disagree about what is in class.
-            if mangled_is_varargs(name) {
+            // ([`super::bind::mangled_is_varargs`]). The census asks the SAME
+            // predicate through the same `Bindings`, so the two cannot disagree
+            // about what is in class.
+            if bind.is_varargs(i) {
                 return None;
             }
             let f = shape_to_function(
-                parse_segment(seg, locals.view(i))?,
+                parse_segment(seg, bind.locals(i))?,
                 name,
                 &src,
                 &resolve,
@@ -842,7 +676,11 @@ impl IlBundle {
                 accounted.push(c);
             }
         }
-        if unclaimed.iter().any(|n| !accounted.contains(&n.as_str())) {
+        if bind
+            .unclaimed
+            .iter()
+            .any(|n| !accounted.contains(&n.as_str()))
+        {
             return None;
         }
         // A callee that is also DEFINED here is out of class: c2 may inline it,
