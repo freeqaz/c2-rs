@@ -190,12 +190,15 @@ operator, in the same lane. The family is not uniform: its *mcall* half carries
 ## Re-running it
 
 ```sh
-# capture — is the token bare?
-./target/release/c2rs census work/gt-relational/rel_probe.cpp \
-    --keep-il work/gt-relational/il
-python3 scripts/gt_relational_redist.py --il work/gt-relational/il
+# capture — is the token bare?  (the probe carries its own controls: the
+# compound-assign family, which MUST print `CARRIES A TYPE`, and the already
+# granted bare set, which must not)
+python3 scripts/gt_relational_redist.py --emit-probe work/gt-rel/probe.cpp
+./target/release/c2rs census work/gt-rel/probe.cpp --keep-il work/gt-rel/il
+python3 scripts/gt_relational_redist.py --il work/gt-rel/il
 
-# redistribution — does it sum to 0?
+# redistribution — does it sum to 0?  (two `c2rs gap --jsonl` scans: a
+# baseline, and one from a scratch build with 1F-24 in BARE_BINARY_OPS)
 python3 scripts/gt_relational_redist.py \
     --base work/gt-relational/scan-rel-base.jsonl \
     --grant work/gt-relational/scan-rel-grant.jsonl \
