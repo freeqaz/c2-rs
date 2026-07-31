@@ -1159,6 +1159,25 @@ FAMILIES = [
            note="the same shape at DEPTH 2 with the pointee a GLOBAL   PRED 8"
                 " (3 + 5) under every reading — the control that isolates"
                 " d2-ptr-auto's local `t` from its pointer argument"),
+
+    # === ROUND 19: `d2-ptr-p` came in at 8 and BOTH pre-registered rivals (9
+    #     and 11) missed. 8 decomposes as 3 + 5 with E = 0 on both instances,
+    #     so `pb2` pays nothing even though it sits at DEPTH 1 and is handed
+    #     `&t` where `t` is P's own scalar automatic. The shipped wording —
+    #     "a callee HANDED the address of a scalar automatic" — is therefore
+    #     wrong twice over: it over-fires here and it over-fires at depth 2.
+    #     The one thing pb2 does not do is USE the pointee: it forwards `o` to
+    #     pb1 and returns `a+1`. `ptr-use-d1` is the same tree with the
+    #     depth-1 instance reading `*o` as well, which is the only difference.
+    Family("ptr-use-d1", GS,
+           "static void pe1(int* o, int a){ *o = gs(a)+a; }\n"
+           "static int pe2(int* o, int a){ pe1(o, a); return *o + 1; }",
+           "s=pe2(&t, s); s+=t;", "{t = gs(s)+s;} s=t+1; s+=t;",
+           head="int P(int a){ int t=a; int s=gs(a)+a;", tail="return s+t; }",
+           note="the depth-1 instance USES the pointee as well as forwarding"
+                " it   PRED 9 if the trigger is a load/store through the"
+                " address AT DEPTH 1 (d2-ptr-p's 8 plus that +1) / 8 if the"
+                " trigger also requires the address not to escape deeper"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1341,6 +1360,8 @@ LAW_BOOK = {
     "d2-dtor-only": 21, "d2-dtor-2obj": 44, "d3-dtor": 42,
     "d3-switch": 37, "d3-sw2": 28, "d2-sw-void": 22, "d2-sw-1exit": 24,
     "d2-ptr-p": 11, "d3-ptr-auto": 20, "d2-ptr-glob": 8,
+    # --- ROUND 19: committed before its capture, same discipline -----------
+    "ptr-use-d1": 9,
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
