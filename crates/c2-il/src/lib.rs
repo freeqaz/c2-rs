@@ -41,7 +41,8 @@ pub use func::{
     mangled_name, mangled_names, opt_word_mode, source_path, Block, FnCensus, OptWordMode,
     OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,
-    CallSeq, CompareLeaf, FpTail, FramedCall, IlFunction, IlOp, Rel, SeqCall, SeqTail,
+    CallSeq, CompareLeaf, FpTail, FramedCall, IlFunction, IlOp, Rel, SeqCall, SeqCmp,
+    SeqTail,
 };
 
 /// The five IL suffixes (no leading dot), in canonical order. `.ex` first

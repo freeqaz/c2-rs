@@ -265,8 +265,8 @@ pub enum SeqTail {
     CallValue { add_k: i32 },
     /// `return <literal>;` — one `li r3,k`.
     Lit(i32),
-    /// **WCB — the two calls' results compared for `==`**, materialized to a
-    /// 0/1 in r3: `return a->m() == b->n();`.
+    /// **WCB/WCR — the two calls' results compared**, materialized to a 0/1 in
+    /// r3: `return a->m() <rel> b->n();`.
     ///
     /// The **first** call's result is itself live across the second `bl`, so it
     /// takes a callee-saved register of its own — the one *after* the saved
@@ -279,10 +279,38 @@ pub enum SeqTail {
     /// `lhs_first` says whether the source's **left** operand is the call emitted
     /// first. It is not always true: c2 orders the two calls by the order c1xx
     /// NUMBERED their receivers — `this` last, although it is `params[0]` — and
-    /// the spine is `subf r11, <lhs reg>, <rhs reg>` over
-    /// (r30 = first result, r3 = second), so the operand roles and the call order
-    /// are two independent facts. See `docs/rungs/2026-07-31-cmp-two-calls.md`.
-    CmpEq { lhs_first: bool },
+    /// the spine's two operands are (the saved first result, r3), so the operand
+    /// roles and the call order are two independent facts. See
+    /// `docs/rungs/2026-07-31-cmp-two-calls.md`.
+    Cmp { cmp: SeqCmp, lhs_first: bool },
+}
+
+/// **Which comparison** a [`SeqTail::Cmp`] performs — and, for the order
+/// relations only, the operand signedness.
+///
+/// The signedness lives *inside* the `Order` variant rather than beside the
+/// relation because `==` does not read it: the `sub`/`cntlzw`/`rlwinm` zero fold
+/// is byte-identical for `int` and `unsigned` operands, so a shared `signed`
+/// field would be a fact carried where nothing consumes it — `docs/GAPS.md` §6's
+/// recurring shape, and here it would also mean the shipped `==` production
+/// acquiring an operand-type gate it has never needed and losing census to it.
+///
+/// The **result** type (`int` against `bool`) is deliberately absent, and that is
+/// measured rather than assumed. `docs/CMP_PRODUCES_A_VALUE.md` reading 1 records
+/// two of 24 literal-comparison cells where a `bool` result is two words longer;
+/// over two call results the divergence is signed `>=`/`<=` (which this enum does
+/// not admit) and **`>`, `<`, `==` and `!=` are byte-identical in `int`, `bool`
+/// and `unsigned`**, in all four modes — `scripts/gt_cmp_rr.py`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SeqCmp {
+    /// `==`: `sub r11,<rhs>,<lhs>` then the zero fold. Signedness-free.
+    Eq,
+    /// `>` (`greater`) or `<`, over two operands of the same signedness.
+    ///
+    /// One spine with the operand roles swapped, in both signednesses: `a < b`
+    /// is `a > b` read right-to-left, exactly as the comparison *leaf*'s
+    /// `Rel::Lt` arm is its `Rel::Gt` arm with two operand fields exchanged.
+    Order { greater: bool, signed: bool },
 }
 
 /// **A framed many-call body** (#35 step 2): a sequence of statement-position
@@ -331,7 +359,40 @@ impl SeqTail {
     /// Whether this tail keeps an **earlier call's result** live across a later
     /// `bl`, which costs one callee-saved GPR beyond the saved formals.
     pub fn saves_a_call_result(self) -> bool {
-        matches!(self, SeqTail::CmpEq { .. })
+        matches!(self, SeqTail::Cmp { .. })
+    }
+
+    /// **Extra compiler-label counter slots this tail consumes AHEAD of the
+    /// function's own `$M`/`$M`/`$T` triple.**
+    ///
+    /// Measured seed-free and in-TU by `gt_label_stride.py`'s method, with the
+    /// in-TU `a2` anchor control holding on every row
+    /// (`scripts/gt_cmp_rr.py --stride`, `/Ox /Gy`, `/O1 /Gy` and packed `/Ox`):
+    ///
+    /// ```text
+    ///                                          /Gy      packed
+    ///   two calls, arithmetic tail            5    0    4    0
+    ///   two calls, cmp `==`                   5    0    4    0
+    ///   two calls, cmp UNSIGNED any relation  5    0    4    0
+    ///   two calls, cmp SIGNED  `>` `<`        7    2    6    2
+    ///                                       stride lead stride lead
+    /// ```
+    ///
+    /// This is [`CompareLeaf::label_slots`]'s existing 1-or-3 table re-expressed
+    /// as a surcharge, and it lands on the same **signed order relation** set —
+    /// with the leaf's "`k == 0`" escape absent, because a register operand is
+    /// not a zero literal. Placed ahead of the triple, the same way
+    /// `docs/CODEGEN_FRAMED_CALLS.md` §4.4 records for the
+    /// `__savegprlr_N`/`__restgprlr_N` pair (`docs/LABEL_COUNTER.md` §1.1).
+    ///
+    /// **The result type does NOT enter the stride** — `int` and `bool` give the
+    /// same number on every row, which is why the counter cannot be used as a
+    /// proxy for the spine.
+    pub fn label_lead(self) -> u32 {
+        match self {
+            SeqTail::Cmp { cmp: SeqCmp::Order { signed: true, .. }, .. } => 2,
+            _ => 0,
+        }
     }
 }
 
@@ -675,6 +736,18 @@ impl IlFunction {
         self.framed_call.is_some() || self.call_seq.is_some()
     }
 
+    /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
+    ///
+    /// Zero for every class the port emitted before WCR. The two-call comparator
+    /// with a **signed** `>`/`<` takes 2, measured on the grid
+    /// [`SeqTail::label_lead`] tabulates. Split out from
+    /// [`Self::label_slots`] because `c2_core::coff::plan_labels` needs the two
+    /// numbers separately: the lead moves the function's own triple *and* every
+    /// later function's, and the total moves only the later ones.
+    pub fn label_lead(&self) -> u32 {
+        self.call_seq.as_ref().map_or(0, |s| s.tail.label_lead())
+    }
+
     /// Every external this function calls, in **first-reference order** — which is
     /// the order the symbol table's per-function region is built from (reversed;
     /// `docs/OBJ_GY_SHAPES.md` §3.3). Duplicates are kept: a body may call the same
@@ -694,7 +767,7 @@ impl IlFunction {
 
     pub fn label_slots(&self, fn_level_linking: bool) -> Option<u32> {
         if self.framed_call.is_some() || self.call_seq.is_some() {
-            return Some(if fn_level_linking { 5 } else { 4 });
+            return Some(self.label_lead() + if fn_level_linking { 5 } else { 4 });
         }
         if let Some(c) = &self.compare {
             return Some(c.label_slots());

@@ -17,6 +17,7 @@ use crate::codegen::encode::{
     encode_rlwinm,
     encode_srawi,
     encode_srwi31,
+    encode_subf,
     encode_subfc,
     encode_subfe,
     encode_subfic,
@@ -51,6 +52,93 @@ pub fn eq_zero_of_difference_in_r11(mode: OptMode) -> Vec<u8> {
     t.extend_from_slice(&encode_cntlzw(d, 11));
     t.extend_from_slice(&encode_rlwinm(RET_REG, d, 27, 31, 31));
     t
+}
+
+/// **WCR — the two-call comparator's spine**: `return a->m() <rel> b->n();`
+/// lowered to a 0/1 in r3, with both operands in registers.
+///
+/// `first` is the callee-saved register holding the **first** call's result;
+/// the second call's is still in r3. `lhs_first` says which of those two is the
+/// source's *left* operand — c2 orders the calls by the order c1xx numbered
+/// their receivers, so the operand roles and the emission order are two
+/// independent facts (`docs/rungs/2026-07-31-cmp-two-calls.md`).
+///
+/// ## The three spines, read off reference objs rather than derived
+///
+/// `scripts/gt_cmp_rr.py`, all four modes, leaf and framed in one TU. With
+/// `p->m()` in r30 and `q->n()` in r3 (`/O1` register numbers):
+///
+/// ```text
+///   ==   sub   r11,r3,r30 ; cntlzw r11,r11 ; rlwinm r3,r11,27,31,31
+///   >    subfc r11,r30,r3 ; eqv r10,r30,r3 ; srwi r11,r10,31 ; addze r11,r11
+///                         ; clrlwi r3,r11,31
+///   > u  subfc r11,r30,r3 ; subfe r11,r11,r11 ; clrlwi r3,r11,31
+/// ```
+///
+/// **`<` is `>` with the two operands exchanged and nothing else** — the same
+/// relationship [`compare_leaf_text`]'s `Rel::Lt` arm has to its `Rel::Gt` arm,
+/// so it is one spine here rather than two, and the exchange composes with
+/// `lhs_first`'s.
+///
+/// **This is the register-register family `docs/CMP_PRODUCES_A_VALUE.md`
+/// reading 4 names, and it is not the leaf spine with the `li` deleted.** The
+/// leaf materializes its literal into r11 first, so its temporaries start at
+/// r10; here nothing occupies r11, so every `/Ox` temp is **one number higher**
+/// (`subfc` into r11, `eqv` into r10, …) and the `/O1` collapse lands
+/// differently too — the leaf's `eqv` is r11's last use and takes r11, while
+/// here it is the *`srwi`* that does. Both sets are transcribed, neither is
+/// computed from the other.
+///
+/// **The result type does not enter any of this.** Reading 1 of that document
+/// records a `bool` result costing two extra words for signed `>=`/`<=` against
+/// a non-zero literal; over two call results the same two relations diverge (and
+/// are refused in the IL parser for exactly that reason), while `>`, `<`, `==`
+/// and `!=` are byte-identical in `int`, `bool` and `unsigned` in all four modes.
+pub fn cmp_of_two_call_results(
+    cmp: c2_il::SeqCmp,
+    lhs_first: bool,
+    first: Option<u8>,
+    mode: OptMode,
+) -> Result<Vec<u8>, BackendError> {
+    let first = first.ok_or_else(|| {
+        out_of_class("a comparison of two call results needs a callee-saved register for the first")
+    })?;
+    let (lhs, rhs) = if lhs_first { (first, RET_REG) } else { (RET_REG, first) };
+    let o1 = mode == OptMode::O1;
+    let mut t: Vec<u8> = Vec::with_capacity(24);
+    match cmp {
+        // The difference, then "is it zero" — the two words shared with the
+        // comparison leaf's `==` arm.
+        c2_il::SeqCmp::Eq => {
+            t.extend_from_slice(&encode_subf(11, lhs, rhs));
+            t.extend_from_slice(&eq_zero_of_difference_in_r11(mode));
+        }
+        // `a > b` (and `a < b`, which is `b > a`). The `subfc` result is dead —
+        // only its carry is read — but its register number is byte-visible.
+        c2_il::SeqCmp::Order { greater, signed } => {
+            let (a, b) = if greater { (lhs, rhs) } else { (rhs, lhs) };
+            t.extend_from_slice(&encode_subfc(11, a, b));
+            if signed {
+                // /O1 collapses the two temps *after* the `eqv` onto r11; /Ox
+                // keeps allocating descending. The `eqv` itself takes r10 in
+                // both, which is what makes this not a one-line substitution of
+                // the leaf's `(11,11,11)` / `(9,8,7)` triple.
+                let (e, f, g) = if o1 { (10, 11, 11) } else { (10, 9, 8) };
+                t.extend_from_slice(&encode_eqv(e, a, b));
+                t.extend_from_slice(&encode_srwi31(f, e));
+                t.extend_from_slice(&encode_addze(g, f));
+                t.extend_from_slice(&encode_clrlwi31(RET_REG, g));
+            } else {
+                // The don't-care `subfe` source, same numbers as the leaf's
+                // unsigned `>` arm — there the `subfic` occupies r11, here the
+                // `subfc` does, so the descending allocation is in step.
+                let (d, src) = if o1 { (11, 11) } else { (9, 10) };
+                t.extend_from_slice(&encode_subfe(d, src, src));
+                t.extend_from_slice(&encode_clrlwi31(RET_REG, d));
+            }
+        }
+    }
+    Ok(t)
 }
 
 /// Select `.text` for a **W6 comparison leaf** (`return a <rel> k;`), returning

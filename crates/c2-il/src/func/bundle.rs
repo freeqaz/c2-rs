@@ -452,8 +452,8 @@ pub(crate) fn shape_to_function(
                             body::SeqTail::Void => SeqTail::Void,
                             body::SeqTail::CallValue { add_k } => SeqTail::CallValue { add_k },
                             body::SeqTail::Lit(k) => SeqTail::Lit(k),
-                            body::SeqTail::CmpEq { lhs_first } => {
-                                SeqTail::CmpEq { lhs_first }
+                            body::SeqTail::Cmp { cmp, lhs_first } => {
+                                SeqTail::Cmp { cmp, lhs_first }
                             }
                         },
                     }),

@@ -122,6 +122,12 @@ pub(crate) fn try_parse_member_tail_call(
         return super::mcall_chain::try_parse_member_chain_call(seg, p, lo, depth, callee_tok);
     }
     let recv_tok = eat_receiver_this(seg, &mut p).map_err(|_| None)?;
+    // The `BD` this call's result TYPE hangs off, kept because
+    // [`super::mcall_cmp`] needs the type's **signedness** and `eat_call_token`
+    // resolves it only to real / not-real. Recorded rather than re-found: going
+    // back to it from a later cursor is the kind of reverse scan that reads a
+    // different byte when the receiver's encoding changes width.
+    let ret_at = p;
     let ret = eat_call_token(seg, &mut p).map_err(|_| None)?;
     let mut args = eat_call_args(seg, &mut p).map_err(|_| None)?;
 
@@ -170,7 +176,7 @@ pub(crate) fn try_parse_member_tail_call(
         // **Class B** — see [`super::mcall_cmp`]. Tried before the literal post-op
         // because a `26` cannot open one.
         return super::mcall_cmp::try_parse_member_cmp_calls(
-            seg, p, lo, depth, &args, callee_tok, recv_tok,
+            seg, p, lo, depth, &args, callee_tok, recv_tok, ret_at,
         );
     } else {
         // …or the call's result is consumed by a literal `± k` and *then* returned,
