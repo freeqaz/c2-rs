@@ -344,6 +344,29 @@ pub enum SeqTail {
     /// roles and the call order are two independent facts. See
     /// `docs/rungs/2026-07-31-cmp-two-calls.md`.
     Cmp { cmp: SeqCmp, lhs_first: bool },
+    /// **WEC** — the body returns a **callee-saved formal**: one `mr r3, rSaved`
+    /// after the last `bl`. `param` indexes [`IlFunction::params`], and that
+    /// formal must be in [`CallSeq::saved`] (the parser puts it there; the
+    /// emitter re-derives the register and refuses if it is not).
+    ///
+    /// Its one producer is the **empty constructor that delegates to one
+    /// destructible base**: an MSVC constructor hands `this` back in r3, `this`
+    /// is live across the base constructor's `bl`, and the whole body is
+    /// therefore `mr r31,r3 ; bl ?B ; mr r3,r31` inside the shipped 1-saved-GPR
+    /// frame. MEASURED at the workload's own `/O1 /Oi /EHsc`, 48 B, `F = 96`,
+    /// **byte-identical across four source forms** (`work/WEC/probe/p2.obj`):
+    /// a base with a destructor, a base without one, a constructor with an
+    /// unused formal of its own, and a constructor that forwards its formal to
+    /// the base. Only the last of those four is refused by the parser, and for a
+    /// reason that has nothing to do with this tail.
+    ///
+    /// **It is not [`SeqTail::CallValue`] with `add_k: 0`.** That tail returns
+    /// what the last `bl` left in r3; this one *overwrites* r3 with a value that
+    /// predates the call. Folding it into `CallValue` would emit nothing at all
+    /// here and return the base constructor's result — which happens to be the
+    /// same pointer on this ABI, so the obj would still link and still run, and
+    /// the four missing bytes would show up only as a length mismatch.
+    SavedFormal { param: usize },
 }
 
 /// **Which comparison** a [`SeqTail::Cmp`] performs — and, for the order
@@ -681,6 +704,98 @@ pub struct IlFunction {
     /// was itself misattached to `float_leaf` for a while, which is the kind of
     /// damage the sum type prevents.)
     pub empty_body: bool,
+    /// **This body carries an EH-enabled `5C`/`5D`/`5E` object-goes-live marker
+    /// and is on the CHEAP side of `docs/EH_RECORDS.md` §6's boundary** —
+    /// `eh-bare`: one object live, one statement, nothing else. c2 emits an
+    /// ordinary function for it: no `__CxxFrameHandler` prefix, no funclet, no
+    /// EH `.rdata`, and the function symbol stays at `Value = 0` (against
+    /// `Value = 8` on every EH function — §8.1, and the reason this flag says
+    /// *cheap* rather than *EH*).
+    ///
+    /// **It is not free: it costs one label-counter slot.** MEASURED
+    /// (`docs/EH_RECORDS.md` §8.5d for the framed row, and
+    /// `scripts/gt_label_stride.py`'s `eh-bare-*` rows here for the two the port
+    /// actually emits), seed-free and in-TU, with the anchor control holding on
+    /// every row:
+    ///
+    /// ```text
+    ///                                 /EHsc            no /EH
+    ///                             extra  stride     extra  stride
+    ///   eh-bare-dtor      leaf        -      2          -      1
+    ///   eh-bare-dtor-led  leaf        -      2          -      1
+    ///   eh-bare-dtor-adj  leaf        -      2          -      1
+    ///   eh-bare-dtor-deleg leaf       -      2          -      1
+    ///   eh-bare-ctor      framed      1      6          0      5
+    ///   eh-bare-ctor-led  framed      1      6
+    ///   eh-none-ctor-ctl  framed      0      5          0      5   <- CONTROL
+    /// ```
+    ///
+    /// Four things that table settles and that nothing else here could:
+    ///
+    /// * **The `+1` is per FUNCTION, not per TU** — the `-led` rows charge it
+    ///   again behind an `eh-bare` function that already paid it, in both the
+    ///   leaf and the framed family. (`__CxxFrameHandler`'s own `+1` *is* per
+    ///   TU, but an `eh-bare` function does not reference it at all.)
+    /// * **It applies to a LEAF**, which `docs/EH_RECORDS.md` §8.5d's single
+    ///   framed row could not have shown — and the three `empty-dtor-*` shapes
+    ///   the port has emitted since W14/W15 are exactly that leaf. Before this
+    ///   field they consumed 1, and a two-function TU of one such destructor
+    ///   ahead of an ordinary framed call at the workload's own flags was a
+    ///   **live `mismatch`** — `work/WEC/live/t1.cpp`, first divergence at file
+    ///   offset 1039, both objs 1221 B: the `$M`/`$T` names, six wrong bytes in
+    ///   an obj that still links.
+    /// * **It is keyed on `/EHsc`, not on the shape**, and the IL says which:
+    ///   `/EH…` clears bit `0x10` in both the `5C` statement trailer's flag and
+    ///   the `5D`/`5E` count trailer's, so `(0x11, 0x31)` is the no-EH profile
+    ///   and `(0x01, 0x21)` the workload's. This flag is set from **that byte**,
+    ///   never from the compiler flags — the IL bundle does not record argv, and
+    ///   a stride keyed on a flag the emitter cannot see is the failure this
+    ///   whole three-valued counter exists to prevent.
+    /// * **`eh-none-ctor-ctl` is the separating control**: the identical body
+    ///   over a base with no destructor prints 5 at `/EHsc`. Without it the
+    ///   `+1` could just as well have been a property of the constructor shape.
+    ///
+    /// Widened only from `docs/LABEL_COUNTER.md` §1.1's measured surcharge table
+    /// — never from §2.1's retracted "one slot per TU-level external" reading,
+    /// which would price this at **0** (an `eh-bare` function mints no external
+    /// whatsoever: see the `minted` column, 1 for the leaf and 5 for the framed
+    /// row, unchanged from their non-EH controls).
+    ///
+    /// # What this flag does NOT claim
+    ///
+    /// It is **not** a reading of `docs/EH_RECORDS.md` §6/§7's cheap/EH
+    /// predicate, and it must not be widened by one. That predicate — *"one
+    /// sub-object statement and nothing else"* — is refuted: the boundary is
+    /// `maxState >= 1` over the distinct sets of live destructible objects
+    /// observed at an outbound control transfer, and `int P(int a){ SE s;
+    /// return a+1; }` has another statement beside the object and is still
+    /// cheap. So §7's `eh-bare` count is a **lower** bound and its
+    /// `eh-plus-stmt` an upper one.
+    ///
+    /// None of that reaches this field, because this field is not set from the
+    /// axis. It is set by the two *grammars* that produce it — the generated
+    /// empty destructor and the empty base-delegating constructor — from the
+    /// trailer byte in their own bodies, and the `+1` is measured on exactly
+    /// those four shapes. Both grammars require the count trailer to be `01`, so
+    /// no body that reaches this flag can carry a second tracked object; the
+    /// question "is the surcharge per function or per state" cannot arise inside
+    /// the class, and is **NOT MEASURED** outside it.
+    pub eh_bare: bool,
+    /// **Names the IL references as an EH unwind action and the obj does NOT
+    /// carry.** The base destructor a constructor would run if a later statement
+    /// threw: it is in `.gl`, it is bound by a `26` push in the body, and — on
+    /// the cheap side, where there is no funclet — c2 emits no `bl`, no
+    /// relocation and **no symbol** for it. MEASURED: `work/WEC/probe/p2.obj` at
+    /// `/O1 /Oi /EHsc` has one REL24 per constructor, to the base *constructor*,
+    /// and no `??1B1@@QAA@XZ` anywhere in its symbol table.
+    ///
+    /// It exists for one consumer — the TU-level gate that refuses a bundle
+    /// whose `.gl` has a name no record and no callee claims. That gate is right
+    /// in general (an unclaimed name is usually a symbol the port would omit)
+    /// and wrong here, so the exception is *named* rather than the gate
+    /// loosened: this list accounts for the name and contributes nothing to
+    /// [`Self::callees`], which is what the emitter reads.
+    pub eh_unwind_callees: Vec<String>,
 }
 
 impl IlFunction {
@@ -717,6 +832,8 @@ impl IlFunction {
             fp_arg_sources: None,
             arg_sources: None,
             empty_body: false,
+            eh_bare: false,
+            eh_unwind_callees: Vec::new(),
         }
     }
 
@@ -829,8 +946,20 @@ impl IlFunction {
     /// [`Self::label_slots`] because `c2_core::coff::plan_labels` needs the two
     /// numbers separately: the lead moves the function's own triple *and* every
     /// later function's, and the total moves only the later ones.
+    /// **The `eh-bare` `+1` is a LEAD, and that is measured, not assumed.**
+    /// `gt_label_stride.py`'s `eh-bare-ctor` row prints `extra 1` beside
+    /// `stride 6`, i.e. the slot is taken before the function's own `$M` pair
+    /// and moves this function's labels as well as every later one's — the same
+    /// placement `docs/LABEL_COUNTER.md` §1.1 records for every other surcharge
+    /// in the table. Moving it after the triple would leave every later
+    /// function right and this one's `$M`/`$M`/`$T` low by one.
+    ///
+    /// A leaf has no triple, so lead and total are the same number for it; it
+    /// is still added here rather than in [`Self::label_slots`]'s leaf arm so
+    /// that `c2_core::coff::plan_labels` — which adds the lead before looking at
+    /// the frame at all — charges both kinds through one path.
     pub fn label_lead(&self) -> u32 {
-        self.call_seq.as_ref().map_or(0, |s| s.tail.label_lead())
+        self.call_seq.as_ref().map_or(0, |s| s.tail.label_lead()) + u32::from(self.eh_bare)
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -855,7 +984,7 @@ impl IlFunction {
             return Some(self.label_lead() + if fn_level_linking { 5 } else { 4 });
         }
         if let Some(c) = &self.compare {
-            return Some(c.label_slots());
+            return Some(self.label_lead() + c.label_slots());
         }
         // A float leaf is 2 without pooled constants and 4/6 with them; this
         // record does not carry the constant count, and every value is ≠ 1, so
@@ -924,7 +1053,16 @@ impl IlFunction {
         //
         // 5 + 1·leaves + 1 for the TU, with zero residual — the extra slot is
         // `_fltused` and it is charged once however many FP functions there are.
-        Some(1)
+        //
+        // **`+ label_lead()` is the `eh-bare` surcharge and it is not zero here.**
+        // `docs/EH_RECORDS.md` §8.5d measured `eh-bare` at +1 on a *framed* row
+        // only; the port's three `empty-dtor-*` shapes are `eh-bare` LEAVES, and
+        // `scripts/gt_label_stride.py`'s `eh-bare-dtor{,-led,-adj,-deleg}` rows
+        // print stride **2** at `/EHsc` against **1** without it — four shapes,
+        // both modes, the anchor control holding on every row. Returning a bare
+        // `1` here was a live wrong-bytes emit at the workload's own flags; see
+        // [`Self::eh_bare`].
+        Some(self.label_lead() + 1)
     }
 }
 
@@ -1056,6 +1194,58 @@ pub(crate) mod test_fixtures {
     // They differ from each other in exactly two places — the offset literal and
     // the per-TU token/type ids — and from `DTOR_DELEGATE` only in the receiver
     // designator, everything from the `2C` strip onward being the same skeleton.
+
+    // ---- WEC: the empty constructor delegating to ONE base ------------------
+    //
+    // Both transcribed verbatim from live captures at the workload's own flags
+    // (`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`) of
+    //
+    //   struct B1 { B1(); ~B1(); int x; };  struct Ct1 : B1 { Ct1(); };  Ct1::Ct1(){}
+    //   struct B0 { B0();        int x; };  struct Cn1 : B0 { Cn1(); };  Cn1::Cn1(){}
+    //
+    // — the SAME body over a base that has a destructor and one that does not.
+    // Their `.text` is byte-identical (48 B, `F = 96`, `mr r31,r3 ; bl ; mr
+    // r3,r31`, function symbol `Value = 0`); they differ by the unwind half of
+    // the statement, the two EH trailers, and **one label-counter slot**.
+
+    /// `Ct1::Ct1() {}` over a base **with** a destructor: `eh-bare`, carries the
+    /// `26 <base dtor>` unwind action, `5C … 01` and `5D 01 21`.
+    pub(crate) const CTOR_BASE_EH: &[u8] = &[
+        0x53, 0x53, 0x26, 0xF0, 0x09, 0xB9, 0xFB, 0x09, 0xA6, 0x43, 0x81, 0x20,
+        0x99, 0x86, 0x43, 0x8C, 0x20, 0x00, 0x46, 0x4C, 0x4F, 0x11, 0x53, 0x26,
+        0xE4, 0x09, 0x33, 0x86, 0x41, 0x74, 0x80, 0x41, 0x08, 0x00, 0x00, 0x40,
+        0x86, 0x43, 0x90, 0x20, 0x66, 0x02, 0x80, 0x20, 0x82, 0x20, 0x55, 0x86,
+        0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x00, 0x55, 0x86, 0x41, 0x74, 0xB9,
+        0xFB, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x55, 0xA6, 0x43, 0x81, 0x20, 0x4C,
+        0x99, 0x86, 0x43, 0x86, 0x20, 0x00, 0xBD, 0xA6, 0x43, 0x84, 0x20, 0x00,
+        0x80, 0x05, 0x10, 0x00, 0x00, 0x4C, 0x30, 0x86, 0x46, 0x82, 0x20, 0x26,
+        0xE5, 0x09, 0x33, 0x86, 0x41, 0x74, 0x80, 0x41, 0x08, 0x00, 0x00, 0x40,
+        0x86, 0x43, 0x90, 0x20, 0x66, 0x02, 0x80, 0x20, 0x82, 0x20, 0x55, 0x86,
+        0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x00, 0x55, 0x86, 0x41, 0x74, 0xB9,
+        0xFB, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x55, 0xA6, 0x43, 0x81, 0x20, 0x4C,
+        0x2C, 0xA6, 0x43, 0x84, 0x20, 0x00, 0x99, 0x86, 0x43, 0x86, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00, 0x4C, 0x5C,
+        0x86, 0x46, 0x82, 0x20, 0x01, 0x4B, 0x3A, 0xFC, 0x09, 0x54, 0x02, 0x29,
+        0xFC, 0x09, 0x5D, 0x01, 0x21, 0x4B, 0xB9, 0xFB, 0x09, 0xA6, 0x43, 0x81,
+        0x20, 0x41, 0xA6, 0x43, 0x81, 0x20, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54,
+        0x00,
+    ];
+
+    /// `Cn1::Cn1() {}` over a base with **no** destructor: `eh-none`, no unwind
+    /// half, no `5C`, no `5D` — the statement is `… 4C 30 <OBJ> 4B`.
+    pub(crate) const CTOR_BASE_NOEH: &[u8] = &[
+        0x53, 0x53, 0x26, 0xEC, 0x09, 0xB9, 0xF3, 0x09, 0xA6, 0x43, 0x81, 0x20,
+        0x99, 0x86, 0x43, 0x8B, 0x20, 0x00, 0x46, 0x4C, 0x4F, 0x11, 0x53, 0x26,
+        0xE4, 0x09, 0x33, 0x86, 0x41, 0x74, 0x80, 0x41, 0x08, 0x00, 0x00, 0x40,
+        0x86, 0x43, 0x8C, 0x20, 0x66, 0x02, 0x80, 0x20, 0x82, 0x20, 0x55, 0x86,
+        0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x00, 0x55, 0x86, 0x41, 0x74, 0xB9,
+        0xF3, 0x09, 0xA6, 0x43, 0x81, 0x20, 0x55, 0xA6, 0x43, 0x81, 0x20, 0x4C,
+        0x99, 0x86, 0x43, 0x8D, 0x20, 0x00, 0xBD, 0xA6, 0x43, 0x84, 0x20, 0x00,
+        0x80, 0x05, 0x10, 0x00, 0x00, 0x4C, 0x30, 0x86, 0x46, 0x82, 0x20, 0x4B,
+        0x3A, 0xF4, 0x09, 0x54, 0x02, 0x29, 0xF4, 0x09, 0xB9, 0xF3, 0x09, 0xA6,
+        0x43, 0x81, 0x20, 0x41, 0xA6, 0x43, 0x81, 0x20, 0x4F, 0x12, 0x47, 0x54,
+        0x01, 0x54, 0x00,
+    ];
 
     /// `HasMem::~HasMem() {}` — the destructible member at offset **0**. The
     /// reference emits the four bytes `b ??1MemA@@QAA@XZ`.

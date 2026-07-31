@@ -70,6 +70,14 @@ EH_DECL = "int gp(int); struct SE { SE(); ~SE(); int m; };"
 EH_LEAD = ["int ehld(int a){ try { return gp(a); }"
            " catch(int e){ return e+1; } }"]
 
+# WEC: the cheap side. `B0` has NO destructor and is the control base — a
+# derived constructor delegating to it carries no `5C` marker at all and reads
+# `eh-none`, which is what separates "the +1 is EH" from "the +1 is the shape".
+EH_BARE_DECL = ("int gp(int); struct MemA { ~MemA(); int a; };"
+                " struct B1 { B1(); ~B1(); int x; };"
+                " struct B0 { B0(); int x; };")
+EH_BARE_LEAD = ["struct LdOne { ~LdOne(); MemA m; };", "LdOne::~LdOne(){}"]
+
 PROBES = [
     # --- controls: the classes whose stride is already measured -------------
     ("plain", "int gp(int);", [],
@@ -292,6 +300,47 @@ PROBES = [
     ("eh-dtor-loop", EH_DECL, [],
      "int P(int a){ int r=0; for(int i=0;i<a;i++){ SE s; r+=gp(i)+s.m; } return r; }",
      "the destructible object inside a LOOP body"),
+    # --- WEC: the CHEAP side, in the two shapes the port emits or wants to.
+    #     `docs/EH_RECORDS.md` §8.5d measured `eh-bare` at +1 on ONE row
+    #     (`void P(){ SE s; }`, framed). These are the two shapes the port
+    #     actually has to charge: the generated destructor that lowers to a
+    #     BARE BRANCH (a leaf — outside §8.5d's framed row entirely, and
+    #     already in class, so its stride is live today), and the empty
+    #     constructor with one destructible base (framed, the widening).
+    #     The 6th tuple element is the probe's own symbol prefix, because
+    #     neither of these can be a function called `P`.
+    ("eh-bare-dtor", EH_BARE_DECL, [],
+     "struct One { ~One(); MemA m; };\nOne::~One(){}",
+     "eh-bare LEAF: the port's `empty-dtor-member`, one bare branch",
+     "?1One"),
+    ("eh-bare-dtor-led", EH_BARE_DECL, EH_BARE_LEAD,
+     "struct One { ~One(); MemA m; };\nOne::~One(){}",
+     "same, with an eh-bare function already led: per function or per TU?",
+     "?1One"),
+    ("eh-bare-dtor-adj", EH_BARE_DECL, [],
+     "struct Pad { ~Pad(); int pad; MemA m; };\nPad::~Pad(){}",
+     "eh-bare LEAF, member at offset 4: `addi r3,r3,4 ; b` — two words",
+     "?1Pad"),
+    ("eh-bare-dtor-deleg", EH_BARE_DECL, [],
+     "struct D1 : B1 { ~D1(); };\nD1::~D1(){}",
+     "eh-bare LEAF: `empty-dtor-delegation`, the base form",
+     "?1D1"),
+    ("eh-bare-ctor", EH_BARE_DECL, [],
+     "struct Ct1 : B1 { Ct1(); };\nCt1::Ct1(){}",
+     "eh-bare FRAMED: empty ctor, one destructible base  <== THE WIDENING",
+     "?0Ct1"),
+    ("eh-bare-ctor-led", EH_BARE_DECL, EH_BARE_LEAD,
+     "struct Ct1 : B1 { Ct1(); };\nCt1::Ct1(){}",
+     "same, with an eh-bare function already led",
+     "?0Ct1"),
+    ("eh-bare-ctor-ehled", EH_BARE_DECL, EH_LEAD,
+     "struct Ct1 : B1 { Ct1(); };\nCt1::Ct1(){}",
+     "same, with a full EH function led (so __CxxFrameHandler is charged away)",
+     "?0Ct1"),
+    ("eh-none-ctor-ctl", EH_BARE_DECL, [],
+     "struct Cn1 : B0 { Cn1(); };\nCn1::Cn1(){}",
+     "CONTROL for eh-bare-ctor: same body, base with NO destructor -> eh-none",
+     "?0Cn1"),
 ]
 
 
@@ -425,7 +474,11 @@ def prologue_class(o, sec_index):
     return ngpr, nfpr, helpers
 
 
-def run(name, decls, leads, probe, note, mode, workdir):
+def run(name, decls, leads, probe, note, mode, workdir, psym="P"):
+    """`psym` is the probe function's own mangled-name stem — `P` for every row
+    written as `… P(…)`, and e.g. `?1One` for a probe that has to BE a
+    destructor. A destructor cannot be called `P`, and defaulting the lookup to
+    one would have silently reported `missing group` rather than a stride."""
     src = build_src(decls, leads, probe)
     o = capture(src, mode, workdir, name.replace("-", "_"))
     if o is None:
@@ -437,7 +490,7 @@ def run(name, decls, leads, probe, note, mode, workdir):
             if g["name"].startswith("?" + sfx + "@@") or g["name"] == sfx:
                 return g
         return None
-    a0, a1, a2, P = find("a0"), find("a1"), find("a2"), find("P")
+    a0, a1, a2, P = find("a0"), find("a1"), find("a2"), find(psym)
     if not (a0 and a1 and a2 and P):
         return {"name": name, "error": "missing group (%s)" % [g["name"] for g in gs]}
     f = lambda g: min(g["labels"]) if g["labels"] else None
@@ -486,7 +539,8 @@ def main(argv):
     refuted = 0
     wd = tempfile.mkdtemp(prefix="gtlbl")
     for p in probes:
-        row = run(p[0], p[1], p[2], p[3], p[4], mode, wd)
+        row = run(p[0], p[1], p[2], p[3], p[4], mode, wd,
+                  p[5] if len(p) > 5 else "P")
         if row is None:
             print("%-20s  CAPTURE FAILED" % p[0]); bad += 1; continue
         if "error" in row:

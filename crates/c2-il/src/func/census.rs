@@ -305,6 +305,23 @@ impl IlBundle {
                             Ok(BodyShape::EmptyDtorDelegation { .. }) => {
                                 FnVerdict::InClass("empty-dtor-member-adjusted")
                             }
+                            // WEC — the empty constructor delegating to one
+                            // base. **ONE bucket**, although the shape has two
+                            // forms whose label strides differ by 1: the split
+                            // that matters is `/EHsc` on or off, and the *`eh`
+                            // axis* already carries it exactly
+                            // (`eh-bare|empty-ctor-base` against
+                            // `eh-none|empty-ctor-base`). A second
+                            // `FnVerdict::InClass` label would also be a family
+                            // `scripts/cross_sweep.py` enumerates and demands a
+                            // representative for — and no representative exists,
+                            // because the sweep corpus is compiled without
+                            // `/EHsc` and every case there reads `eh: false`.
+                            // A declared family the sweep cannot supply is a
+                            // hole that lane fails on, correctly.
+                            Ok(BodyShape::EmptyCtorBaseDelegation { .. }) => {
+                                FnVerdict::InClass("empty-ctor-base")
+                            }
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             // Split from the integer tail call by the register
                             // FILE, and split again by whether the boundary

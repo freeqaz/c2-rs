@@ -328,7 +328,7 @@ pub(crate) fn shape_to_function(
             // sweep already grade. The parser has bounded `k` to a non-negative
             // signed-16-bit value (`eat_dtor_member_receiver`), which is exactly
             // the range that selector folds into one `addi`.
-            BodyShape::EmptyDtorDelegation { callee_tok, this_tok, adjust, .. } => {
+            BodyShape::EmptyDtorDelegation { callee_tok, this_tok, adjust, eh, .. } => {
                 let (params, ops) = if adjust == 0 {
                     (Vec::new(), Vec::new())
                 } else {
@@ -341,6 +341,48 @@ pub(crate) fn shape_to_function(
                     params,
                     ops,
                     tail_call: Some(resolve(callee_tok)?),
+                    // The `/EHsc` label surcharge. It changes no byte of this
+                    // function's own `.text` — it changes every framed function
+                    // BEHIND it in the same TU.
+                    eh_bare: eh,
+                    ..IlFunction::base(name, src)
+                })
+            }
+            // **WEC — the empty constructor delegating to one base.** Class B
+            // with one saved formal: `this` is live across the base
+            // constructor's `bl` because an MSVC constructor returns it, so the
+            // whole body is `mr r31,r3 ; bl ?B ; mr r3,r31` in the shipped
+            // 1-saved-GPR frame. The call marshals nothing — `this` is already
+            // in r3 and the parser admitted no explicit argument — so `arg_ops`
+            // is empty and the save move is the only setup.
+            BodyShape::EmptyCtorBaseDelegation {
+                callee_tok,
+                this_tok,
+                params,
+                unwind_tok,
+                eh,
+            } => {
+                let this_index = params.iter().position(|&t| t == this_tok)?;
+                Some(IlFunction {
+                    params,
+                    call_seq: Some(CallSeq {
+                        calls: vec![SeqCall {
+                            callee: resolve(callee_tok)?,
+                            arg_ops: Vec::new(),
+                            arg_sources: None,
+                            link_args: None,
+                        }],
+                        tail: SeqTail::SavedFormal { param: this_index },
+                        saved: vec![this_index],
+                    }),
+                    eh_bare: eh,
+                    // The unwind action's destructor: named by the IL, absent
+                    // from the obj, and accounted for below so the unclaimed
+                    // `.gl` symbol gate does not refuse the whole TU for it.
+                    eh_unwind_callees: match unwind_tok {
+                        Some(t) => vec![resolve(t)?],
+                        None => Vec::new(),
+                    },
                     ..IlFunction::base(name, src)
                 })
             }
@@ -703,7 +745,20 @@ impl IlBundle {
                 if f.is_framed() {
                     continue;
                 }
-                if f.label_slots(false)? != 1 {
+                // **The gate is "does this class's stride agree with what
+                // `plan_labels` will actually advance", not "is it 1".**
+                //
+                // `plan_labels` advances `label_lead + 1` for a non-framed
+                // function, so a class whose lead is nonzero is *not* a class
+                // the counter mis-handles — it is one the counter already
+                // charges. Written as `!= 1` this gate refused the `eh-bare`
+                // leaf (`docs/EH_RECORDS.md` §8.5d, stride 2 at `/EHsc`), which
+                // would have turned a wrong-bytes emit into a wholesale refusal
+                // of every `/EHsc` TU containing a generated destructor — the
+                // safe direction, but it hides the 35,964 functions §7.3 counts
+                // as already in class. What still refuses here is what always
+                // did: a comparison leaf's 3 and a float leaf's `None`.
+                if f.label_slots(false)? != f.label_lead() + 1 {
                     return None;
                 }
             }
@@ -725,6 +780,18 @@ impl IlBundle {
         for f in &funcs {
             for c in f.callees() {
                 accounted.push(c);
+            }
+            // **A name the IL references and the obj legitimately does not
+            // carry.** The only member of this set today is the base destructor
+            // an empty constructor names as its unwind action: on the cheap side
+            // there is no funclet, so c2 emits no `bl`, no relocation and no
+            // symbol for it (measured, `work/WEC/probe/p2.obj`). Accounted here
+            // rather than by loosening the gate, because the gate's reading —
+            // "an unclaimed `.gl` name is a symbol the real obj has and this one
+            // would not" — is right everywhere else and cost two mismatches at
+            // file offset 2 to learn.
+            for c in &f.eh_unwind_callees {
+                accounted.push(c.as_str());
             }
         }
         if bind
