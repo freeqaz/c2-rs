@@ -188,8 +188,19 @@ mm=$(sed -n 's/^  mismatch  *\([0-9]*\) .*/\1/p' "$report" | head -1)
 # `expr_sweep.sh` cannot see it at all — it greps `c2rs diff`'s per-case verdict
 # for `*Mismatch*`, and the disagreement check exists only on the `gap` path.
 #
+# 2026-07-31, WAFF (`docs/ROADMAP.md` §6t): **7 -> 3** at `/EHsc /O1`. The four
+# that closed were one predicate — the gate simulated a two-deep operand STACK
+# (`chain_form`) while `select_text` is AFFINE, a register plus one immediate it
+# still owes, so every stream owing a constant at a reg-reg operator was in the
+# gate's class and outside codegen's. Half of them canonicalize and are now
+# emitted (the locals producer was not calling `canonicalize_chain` at all); half
+# mix `*` with `+`, have no canonical form, and are now refused.
+#
+# The residue of **3** is NOT that class and is characterized: an FP leaf beside
+# a framed int function, `81-fp-beside-framed.py`, the §WEC refusal frontier.
+#
 # Set C2RS_SWEEP_MODE_MAX_DISAGREE to the number you are prepared to carry. Drive
-# it to 0 as the two known defects land, and it becomes an ordinary gate. Raising
+# it to 0 as that last class lands, and it becomes an ordinary gate. Raising
 # it needs a reason written down next to the number, not just a passing run.
 max_dis="${C2RS_SWEEP_MODE_MAX_DISAGREE:-0}"
 dis=$(sed -n 's/^  census\/gate DISAGREEMENT: *\([0-9]*\) .*/\1/p' "$report" | head -1)
