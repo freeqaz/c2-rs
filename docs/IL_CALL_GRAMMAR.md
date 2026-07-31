@@ -582,6 +582,17 @@ left *after* the CALL grammar is implemented.
 | `0x44` | 31 | `44 <TYPE>` | unary |
 | `0x0f`/`0x35`/`0x36`/`0x1a`/`0x1c` | ~100 | mostly `<op> <TYPE>` | |
 
+**SUPERSEDED for `0x67`, and for `0x64` (which this table does not list at all) —
+see `docs/IL_DECODE_REACH.md`.** `0x67` is **virtual dispatch**, not a prologue
+op: `67 <varint vtable-BYTE-offset> <method token>`, followed by two indirect
+loads, a `9A <TYPE>` slot bind and the call. The row's *"`67 <byte>`"* is the
+reading this document could reach — `04`, `34`, `38` are all below `0x80`, where
+a plain byte and a signed varint are the same bytes. A class with forty virtual
+functions separates them (`67 80 80 00 00 00 <tok>` at slot 32) and the plain-byte
+reading costs 926 bodies on the 878-TU workload. `0x64` is the **by-value
+return's materialize**, `64 <TYPE>`, in the slot a `BD` occupies and closed by the
+same `4C`.
+
 Identified along the way and folded into the validation parser (all consistent,
 none contradicted): `0x30 <TYPE>` indirect load, `0x27 <TYPE>` pointer add,
 `0x40 <TYPE>` cast/convert, `0x32 <TYPE>` store, `0x41 <TYPE>` result-type
