@@ -39,7 +39,7 @@ use super::params::parse_params;
 ///
 /// Found by an independent characterization agent probing the bucket, not by any
 /// fixture — the corpus had no call whose argument was a global.
-fn arg_loads_are_formals(arg_ops: &[IlOp], params: &[u32]) -> bool {
+pub(crate) fn arg_loads_are_formals(arg_ops: &[IlOp], params: &[u32]) -> bool {
     arg_ops.iter().all(|o| match o {
         IlOp::Load(t) => params.contains(t),
         _ => true,
@@ -410,6 +410,69 @@ pub(crate) fn eat_call_args(seg: &[u8], p: &mut usize) -> Result<Vec<Vec<IlOp>>,
     Ok(args)
 }
 
+/// Consume a call's **post-op region** — `33 <int-like TYPE> k · (02 | 03)` — and
+/// return the value the emitted `addi r3,r3,<imm>` adds. `+ k` gives `k` and
+/// `- k` gives `-k`, because **the two are the same instruction**: MEASURED, one
+/// probe per row at `/O1 /GS- /c` (`work/w41/probe/p1.cpp`, `p5.cpp`), and the
+/// bodies differ in exactly the immediate field:
+///
+/// ```text
+///   int f(int a){ return gf() + 20; }        … bl ?gf ; 38630014  addi r3,r3,20
+///   int f(int a){ return gf() - 20; }        … bl ?gf ; 3863ffec  addi r3,r3,-20
+///   int f(S* p){ return p->g() - 20; }       … bl ?g  ; 3863ffec  addi r3,r3,-20
+///   int f(S* p){ return p->g() - 40000; }    … 3c63ffff addis ; 386363c0 addi   REFUSED
+/// ```
+///
+/// **`03` was refused here and the refusal was not a measurement.** The comment
+/// this replaces said "SUB/MUL (`03`/`04`) fail one of these eats" and grouped the
+/// two, but they are not one fact: `- k` is `addi` with a negative immediate and
+/// costs nothing, while `* k` strength-reduces to a shift/add sequence and is
+/// genuinely out of class. Splitting them is worth **3,559** functions on the
+/// 878-TU workload, every one of them a *member* call
+/// (`expr-call-in-expr-recv-load-whole`, W41), and **0** free-function ones —
+/// the row that pays for it is not the row this locator was written for, which
+/// is why nobody had asked.
+///
+/// Shared rather than copied: [`super::mcall_tail::try_parse_member_tail_call`]
+/// needs the identical region, and `GAPS.md` §6 instance #9 is the drift that
+/// results when a second consumer re-reads a call region for itself.
+pub(crate) fn eat_call_postop(seg: &[u8], p: &mut usize) -> Result<i32, Block> {
+    // EXACTLY one literal `33 <TYPE> k` immediately followed by the operator. A
+    // second call (`g(a)+g(1)` → `26 …`) or a second literal (`g(a)+1+2` → a
+    // second `33 …`) fails one of these `eat`s.
+    //
+    // W30: the literal's TYPE goes through [`eat_int_like`], not an exact
+    // `86 41 74` compare — see the call-tail literal note on
+    // [`parse_call_sequence`]. `k` is a value and the emit is `addi r3,r3,k`
+    // whatever width-4 integer spelling names it.
+    if !eat_byte(seg, p, 0x33) || !eat_int_like(seg, p) {
+        return Err(blk(seg, *p, "call-postop"));
+    }
+    let k = read_varint(seg, p).ok_or(blk(seg, *p, "call-postop-varint"))?;
+    let k = match seg.get(*p) {
+        Some(0x02) => k,
+        // `- k` is `+ (-k)` in the same instruction. Negated with a checked
+        // operation rather than a bare `-`: the varint is an `i64` and the range
+        // test below is the only thing that bounds it, so the negation must not be
+        // the thing that overflows.
+        Some(0x03) => match k.checked_neg() {
+            Some(n) => n,
+            None => return Err(Block { ctx: "call-postop-wide", byte: None, off: *p, aux: 0 }),
+        },
+        // MUL and everything else: strength-reduced or non-commutative, and
+        // neither is one `addi`.
+        _ => return Err(blk(seg, *p, "call-postop-op")),
+    };
+    *p += 1;
+    // `k` must fit a single signed-16-bit `addi` immediate (the 0x24 frame).
+    // Past it c2 emits `addis` + `addi`, which is a second instruction and a
+    // different body length — measured on `± 40000` in `work/w41/probe/p5.cpp`.
+    if !(-0x8000..=0x7FFF).contains(&k) {
+        return Err(Block { ctx: "call-postop-wide", byte: None, off: *p, aux: 0 });
+    }
+    Ok(k as i32)
+}
+
 /// The most formals a body this port emits may declare: past the eighth a
 /// parameter is stack-homed and reading it is `lwz rD,<slot>(r1)`, not a register
 /// move, which [`crate`]'s consumer `c2_core::codegen::select_text` refuses. Kept
@@ -603,26 +666,7 @@ pub(crate) fn parse_call_shape(
         let params = parse_params(seg, lo)?;
         return tail_call_shape(vec![arg_ops], params, callee_tok, *p);
     }
-    // Post-op `+ k`: EXACTLY one literal `33 <TYPE> k` immediately followed by
-    // ADD. A second call (`g(a)+g(1)` → `26 …`), a second literal (`g(a)+1+2` →
-    // a second `33 …`), or SUB/MUL (`03`/`04`) all fail one of these `eat`s.
-    //
-    // W30: the literal's TYPE goes through [`eat_int_like`], not an exact
-    // `86 41 74` compare — see the call-tail literal note on
-    // [`parse_call_sequence`]. `k` is a value and the emit is `addi r3,r3,k`
-    // whatever width-4 integer spelling names it.
-    if !eat_byte(seg, p, 0x33) || !eat_int_like(seg, p) {
-        return Err(blk(seg, *p, "call-postop"));
-    }
-    let k = read_varint(seg, p).ok_or(blk(seg, *p, "call-postop-varint"))?;
-    if !eat_byte(seg, p, 0x02) {
-        // non-ADD post-op → non-commutative / strength-reduced
-        return Err(blk(seg, *p, "call-postop-op"));
-    }
-    // `k` must fit a single signed-16-bit `addi` immediate (the 0x24 frame).
-    if !(-0x8000..=0x7FFF).contains(&k) {
-        return Err(Block { ctx: "call-postop-wide", byte: None, off: *p, aux: 0 });
-    }
+    let k = eat_call_postop(seg, p)?;
     eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
 
     // W4b2-vi identity fold: a net post-op of 0 is NOT a framed call. `g(a)+0`

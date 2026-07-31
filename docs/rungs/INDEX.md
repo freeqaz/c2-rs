@@ -19,6 +19,7 @@ the header block this table is read from.
 | 2026-07-31 | W34 | [fp-multiarg](2026-07-31-fp-multiarg.md) | 2 | 549,148 → 575,284 (22.30 % → 23.36 %), +26,136 |
 | 2026-07-31 | W31 | [fp-tail](2026-07-31-fp-tail.md) | 2 | 491,013 → 549,148 (19.94 % → 22.30 %), +58,135 |
 | 2026-07-31 | W33 | [frame-class-c-declined](2026-07-31-frame-class-c-declined.md) | 1 | 549,148 unchanged — the rung is DECLINED; its measured worth is 0 |
+| 2026-07-31 | W41 | [framed-member-call](2026-07-31-framed-member-call.md) | 2 | 651,247 → 655,245 (26.45 % → 26.61 %), +3,998  [on the merged tree; branch measured 639,387 → 643,385 against its own pre-WSL baseline, same +3,998] |
 | 2026-07-31 | W36 | [member-call](2026-07-31-member-call.md) | 2 | 581,791 → 602,703 (23.63 % → 24.47 %), +20,912 |
 | 2026-07-31 | W35 | [offset-run](2026-07-31-offset-run.md) | 2 | 575,284 → 581,791 (23.36 % → 23.63 %), +6,507  [on the merged tree] |
 | 2026-07-31 | WSL | [store-load](2026-07-31-store-load.md) | 2 | 639,387 → 651,247 (25.96 % → 26.45 %), +11,860 |

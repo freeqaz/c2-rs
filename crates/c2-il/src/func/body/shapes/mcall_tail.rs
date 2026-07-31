@@ -1,14 +1,21 @@
 //! **W36 — the member call as a whole body**: `p->m(a…);` and `return p->m(a…);`
 //! where `p` is a plain pointer-valued formal.
 //!
+//! **W41** adds the two things the 10,494-function residue of that row turned out
+//! to be: a **pointer conversion on the receiver** (440), and a **literal `± k`
+//! on the result**, which makes the body a *framed* non-leaf call rather than a
+//! tail one (3,559) — see [`framed_member_call`].
+//!
 //! ```text
 //!   26 <method>              push the method symbol      the callee
 //!   B9 <recv> <TYPE ptr4>    the receiver value          `this`
+//!   [ 2C <TYPE ptr4> 00 ]    a pointer conversion on it  (W41)
 //!   99 <TYPE ptr4> 00        bind it as argument zero
 //!   BD <ret TYPE> 00 <id>    the CALL token
 //!   ( <operands> 55 <T> )*   the explicit arguments, rightmost first
 //!   4C                       apply
-//!   4B | 41 <T>              statement end, or the result is returned
+//!     4B | 41 <T>                    statement end, or the result is returned
+//!   | 33 <T> k (02|03) 41 <T>        …or `± k` and then returned  (W41, framed)
 //! ```
 //!
 //! **The whole production is the existing tail call with one extra argument
@@ -66,12 +73,14 @@
 use crate::func::body::expr::{eat_return_plumbing, eat_scopes};
 use crate::func::body::{blk, Block, BodyShape};
 use crate::func::readers::{
-    eat_byte, eat_operand_type, is_ptr4_kind, read_token_var, read_type, read_varint, ValueClass,
+    eat_byte, eat_operand_type, eat_value_type, is_ptr4_kind, read_token_var, read_type,
+    read_varint, ValueClass,
 };
 use crate::func::IlOp;
 
 use super::calls::{
-    eat_call_args, eat_call_token, eat_callee_push, tail_call_shape, MAX_REGISTER_FORMALS,
+    arg_loads_are_formals, eat_call_args, eat_call_postop, eat_call_token, eat_callee_push,
+    tail_call_shape, MAX_REGISTER_FORMALS,
 };
 use super::params::parse_params;
 
@@ -145,7 +154,10 @@ pub(crate) fn try_parse_member_tail_call(
     } else if seg.get(p) == Some(&0x41) {
         eat_return_plumbing(seg, &mut p, true, depth).map_err(|_| None)?;
     } else {
-        return Err(None);
+        // …or the call's result is consumed by a literal `± k` and *then* returned,
+        // which makes the body a **framed non-leaf call** rather than a tail one.
+        // See [`framed_member_call`].
+        return framed_member_call(seg, p, lo, depth, args, callee_tok, recv_tok);
     }
 
     // From here the body is a member call that parses to the end of the segment, so
@@ -158,8 +170,103 @@ pub(crate) fn try_parse_member_tail_call(
     tail_call_shape(args, params, callee_tok, p).map_err(Some)
 }
 
-/// `B9 <tok> <TYPE ptr4> · 99 <TYPE ptr4> 00` — the receiver value and its bind as
-/// argument zero. Returns the receiver's token.
+/// **W41 — `return p->m() ± k;`**: the member call whose result is consumed by a
+/// literal add, which makes the body a **framed non-leaf call** and not a tail one.
+///
+/// ```text
+///   … 4C            the member call's apply
+///   33 <T> k 02|03  the post-op literal        — [`eat_call_postop`]
+///   41 <T> …        the result is returned
+/// ```
+///
+/// The emission is [`BodyShape::FramedCall`], **which needs no codegen at all**:
+/// `this` is argument zero exactly as it is for the tail form, so the argument
+/// setup is the same `select_text` register move and the rest is the shipped
+/// 0x24-byte frame. MEASURED, every word read off the reference obj
+/// (`work/w41/probe/p1.cpp`, `p5.cpp` at `/O1 /GS- /c`):
+///
+/// ```text
+///   int f(A* p)            { return p->gi() - 20; }   bl ; addi r3,r3,-20
+///   int f(int k, A* p)     { return p->gi() - 20; }   mr r3,r4 ; bl ; addi r3,r3,-20
+///   int f(int j,int k,A*p) { return p->gi() - 20; }   mr r3,r5 ; bl ; addi r3,r3,-20
+///   E*  f(A* p)            { return p->ge() - 1; }    bl ; addi r3,r3,-20   (sizeof E)
+///   int f(A* p)            { return p->gi() + 0; }    b ?gi        — the identity FOLD
+///   int f(A* p)            { return p->gi() - 40000; } addis + addi         — REFUSED
+/// ```
+///
+/// **This is where the row was**, and it is not where its name said. The whole of
+/// `expr-call-in-expr-recv-load-whole` — 10,494 functions, the residue W36 left —
+/// decomposes over the 878-TU workload into exactly three shapes, measured by a
+/// member-call *production* first-blocker histogram (`docs/rungs/`'s W41 §
+/// reproduction): 6,463 with a value live across the call (**Class B**, a frame
+/// class this port does not have), **3,559 here**, 440 whose receiver carries a
+/// pointer conversion, and 32 residue. Not one function of it is the "member call
+/// preceded by assignment statements" the row was scheduled as.
+///
+/// Every one of the 3,559 is a **subtraction**, and the free-function twin
+/// `return g(a) - k;` is **0** functions — which is why the `03` byte had never
+/// been asked for at the one locator that decodes this region.
+fn framed_member_call(
+    seg: &[u8],
+    at: usize,
+    lo: usize,
+    depth: usize,
+    args: Vec<Vec<IlOp>>,
+    callee_tok: u32,
+    recv_tok: u32,
+) -> Result<BodyShape, Option<Block>> {
+    let mut p = at;
+    // Not this production: the cursor is untouched and the body keeps its own
+    // census key, exactly as the non-committal contract requires.
+    let k = eat_call_postop(seg, &mut p).map_err(|_| None)?;
+    eat_return_plumbing(seg, &mut p, true, depth).map_err(|_| None)?;
+
+    // From here the body parses to the end of the segment, so every refusal is a
+    // codegen-class one over a complete body and is reported under its own key.
+    //
+    // **Only the receiver.** [`BodyShape::FramedCall`] carries a single operand
+    // stream, so it can spell "put this formal in r3" and nothing else; a member
+    // call with explicit arguments would need the permutation the *tail* form
+    // gets from [`tail_call_shape`], and c2 does emit one under a frame
+    // (`int f(S* p,int a,int b){ return p->ga(b) - 20; }` is `mr r4,r5 ; bl ;
+    // addi`), so this is a real limit and not a restatement of one.
+    if args.len() != 1 {
+        return Err(Some(Block { ctx: "mcall-framed-args", byte: None, off: p, aux: 0 }));
+    }
+    let params = parse_params(seg, lo).map_err(Some)?;
+    // A net post-op of **0** is not a framed call at all: `p->m() + 0` == `p->m()`
+    // and the optimizer folds it to the bare tail branch. MEASURED — `zero_add`,
+    // `zero_sub` and `plain` in `work/w41/probe/p5.cpp` are the same 4-byte
+    // `b ?g@S@@QAAHXZ`, so emitting a frame here would be wrong bytes rather than
+    // a gap. Routed to the tail production, which is the same decision
+    // [`super::calls::parse_call_shape`] makes for the free-function form.
+    if k == 0 {
+        return tail_call_shape(args, params, callee_tok, p).map_err(Some);
+    }
+    let arg_ops = vec![IlOp::Load(recv_tok)];
+    // The receiver has to be one of this function's own formals: the framed path
+    // emits a register *move*, and a global or a local would be a load.
+    if !arg_loads_are_formals(&arg_ops, &params) {
+        return Err(Some(Block { ctx: "call-arg-nonformal", byte: None, off: p, aux: 0 }));
+    }
+    // Past the eighth formal a parameter is stack-homed and its setup is
+    // `lwz r3,<slot>(r1)`, not a register move. The refusal is on the whole formals
+    // LIST rather than on the receiver's index, because that is the predicate
+    // `select_text` actually raises — the same reasoning, and the same key, as the
+    // free-function framed call beside it.
+    if params.len() > MAX_REGISTER_FORMALS {
+        return Err(Some(Block {
+            ctx: "framed-arg-over-eight-formals",
+            byte: None,
+            off: p,
+            aux: 0,
+        }));
+    }
+    Ok(BodyShape::FramedCall { add_k: k, callee_tok, params, arg_ops })
+}
+
+/// `B9 <tok> <TYPE ptr4> [ 2C <TYPE ptr4> 00 ] · 99 <TYPE ptr4> 00` — the receiver
+/// value and its bind as argument zero. Returns the receiver's token.
 ///
 /// The receiver's TYPE goes through [`eat_operand_type`] rather than a local
 /// tag/kind test, so this position inherits the **`volatile` gate** with it:
@@ -177,6 +284,32 @@ fn eat_receiver_this(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     match eat_operand_type(seg, p) {
         Some(ValueClass::Ptr4) => {}
         _ => return Err(blk(seg, *p, "mcall-recv-type")),
+    }
+    // An optional **pointer→pointer conversion** on the receiver, `2C <TYPE> 00`.
+    // It emits nothing — the value stays in the register it is already in — and
+    // the class is required to be preserved through the shared [`eat_value_type`]
+    // locator, so a conversion that changes what the value *is* still refuses.
+    //
+    // Which C++ spellings produce it was measured rather than guessed
+    // (`work/w41/probe/p2.cpp`, `p4.cpp`): a C-style or `static_cast` to the
+    // receiver's own type is folded away and emits no `2C` at all; `const`
+    // qualification on either the pointer, the pointee or the method emits none
+    // either; and a base-class adjustment is `intrinsic 2113`, a different
+    // production with a different lowering. What is left, and what this admits,
+    // is a cast that genuinely changes the pointee type without changing the
+    // address — `const_cast<S*>(p)->m()` and `((S*)v)->m()` from a `void*`.
+    // Both are `b ?m@S@@QAAXXZ`, identical to the uncast form.
+    //
+    // Worth **440** functions of `expr-call-in-expr-recv-load-whole` on the
+    // 878-TU workload, every one of which the production already accepted in full
+    // apart from this one token.
+    if seg.get(*p) == Some(&0x2C) {
+        let mut q = *p + 1;
+        if eat_value_type(seg, &mut q, ValueClass::Ptr4) && eat_byte(seg, &mut q, 0x00) {
+            *p = q;
+        } else {
+            return Err(blk(seg, *p, "mcall-recv-convert"));
+        }
     }
     if !eat_byte(seg, p, 0x99) {
         return Err(blk(seg, *p, "mcall-bind"));
@@ -244,6 +377,118 @@ mod tests {
         0x4C, 0x4B, 0x3A, 0xF2, 0x09, 0x54, 0x02, 0x29, 0xF2, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01,
         0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x4D,
     ];
+
+    /// W41: `int fsub(S* p) { return p->g() - 20; }` — the member call whose
+    /// result a literal is subtracted from, which makes the body a **framed**
+    /// non-leaf call. The post-op is `… 4C · 33 86 41 74 14 · 03 · 41 …` — the
+    /// literal 20, then the SUB byte, and the emission is
+    /// `bl ?g@S@@QAAHXZ ; 3863ffec addi r3,r3,-20`.
+    ///
+    /// Transcribed verbatim from a live-toolchain capture
+    /// (`c2rs census … --keep-il`), same TU discipline as the two above.
+    const MC_FRAMED_SUB: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x53, 0x53, 0x26, 0xED, 0x09,
+        0x46, 0x2D, 0xEC, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0xB9, 0xEC, 0x09, 0x86,
+        0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80,
+        0x04, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41, 0x74, 0x14, 0x03, 0x41, 0x86, 0x41, 0x74,
+        0x3A, 0xEE, 0x09, 0x54, 0x02, 0x29, 0xEE, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// W41: `void fcast(void* v) { ((S*)v)->v(); }` — the receiver carries a
+    /// **pointer conversion** between its LOAD and the `99` bind:
+    /// `B9 <v> 86 43 83 08 · 2C 86 43 81 20 00 · 99 …`, `void*` to `S*`. It emits
+    /// nothing (the address is the same and the register does not move) and the
+    /// body is the bare `b ?v@S@@QAAXXZ`.
+    ///
+    /// Which spellings produce this was measured, not guessed
+    /// (`work/w41/probe/p2.cpp`, `p4.cpp`): a C-style or `static_cast` to the
+    /// receiver's *own* type emits no `2C` at all, cv-qualification emits none
+    /// either, and a base-class adjustment is `intrinsic 2113`. What is left is a
+    /// cast that changes the pointee without changing the address.
+    const MC_RECV_CAST: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x53, 0x53, 0x26, 0xF0, 0x09,
+        0x46, 0x2D, 0xEF, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE5, 0x09, 0xB9, 0xEF, 0x09, 0x86,
+        0x43, 0x83, 0x08, 0x2C, 0x86, 0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x85, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x05, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x3A, 0xF1, 0x09,
+        0x54, 0x02, 0x29, 0xF1, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    #[test]
+    fn a_member_call_with_a_literal_postop_is_a_framed_call() {
+        // `this` is the only argument, so the setup is empty and the body is the
+        // shipped 0x24-byte frame with a NEGATIVE immediate. The whole point of
+        // the rung: no new codegen, only `add_k`'s sign.
+        assert_eq!(
+            parse_segment(MC_FRAMED_SUB, NO_LOCALS),
+            Some(BodyShape::FramedCall {
+                add_k: -20,
+                callee_tok: 58377,
+                params: vec![60425],
+                arg_ops: vec![IlOp::Load(60425)],
+            })
+        );
+    }
+
+    #[test]
+    fn a_postop_of_zero_folds_to_the_tail_call_rather_than_a_frame() {
+        // `p->m() + 0` == `p->m()`, and c2 emits the bare `b <method>` for both —
+        // MEASURED, `zero_add`/`zero_sub`/`plain` in `work/w41/probe/p5.cpp` are
+        // the same four bytes. Emitting a frame here would be wrong bytes, not a
+        // gap, so the routing is pinned in both directions.
+        let at = MC_FRAMED_SUB
+            .windows(6)
+            .position(|w| w[0] == 0x33 && w[4] == 0x14 && w[5] == 0x03)
+            .expect("the post-op literal");
+        for (k, op) in [(0x00u8, 0x03u8), (0x00, 0x02)] {
+            let mut seg = MC_FRAMED_SUB.to_vec();
+            seg[at + 4] = k;
+            seg[at + 5] = op;
+            assert!(
+                matches!(
+                    parse_segment(&seg, NO_LOCALS),
+                    Some(BodyShape::IntTailCall { .. })
+                ),
+                "a net-zero post-op must fold to the tail call, not FramedCall{{add_k:0}}"
+            );
+        }
+        // …and a MULTIPLY is the neighbour SUB was wrongly grouped with: it
+        // strength-reduces to a shift/add sequence and is not one `addi`.
+        let mut seg = MC_FRAMED_SUB.to_vec();
+        seg[at + 5] = 0x04;
+        assert!(parse_segment(&seg, NO_LOCALS).is_none(), "a `* k` post-op must refuse");
+    }
+
+    #[test]
+    fn the_receiver_may_carry_a_pointer_conversion_and_it_emits_nothing() {
+        // The receiver is the sole argument, so the shape is the one-operand
+        // tail call the W36 nullary case produces — the conversion contributes
+        // nothing to it, which is the claim.
+        assert_eq!(
+            parse_segment(MC_RECV_CAST, NO_LOCALS),
+            Some(BodyShape::IntTailCall {
+                params: vec![61193],
+                arg_ops: vec![IlOp::Load(61193)],
+                callee_tok: 58633,
+            })
+        );
+        // The conversion's target class is required, not skipped: retyping it to
+        // `int` (`86 41 74`) makes it a value change rather than an address
+        // reinterpretation, and the body refuses through the shared
+        // `eat_value_type` locator.
+        let at = MC_RECV_CAST
+            .windows(5)
+            .position(|w| w[0] == 0x2C && w[1] == 0x86 && w[2] == 0x43 && w[4] == 0x20)
+            .expect("the receiver conversion");
+        let mut seg = MC_RECV_CAST.to_vec();
+        seg.splice(at + 1..at + 5, [0x86, 0x41, 0x74]);
+        assert!(parse_segment(&seg, NO_LOCALS).is_none());
+    }
 
     /// The offset of the `99` bind's trailing field in a captured segment: the
     /// `99`, its 4-byte TYPE, then the one-byte varint, with the `BD` after it.
