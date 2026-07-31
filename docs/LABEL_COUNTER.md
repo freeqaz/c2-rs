@@ -302,17 +302,29 @@ recalled.
 
 # 6. The label cost of inlining (2026-07-31)
 
-`scripts/gt_label_inline.py`, **138 probe families**, `/O1 /GS- /c` and
+`scripts/gt_label_inline.py`, **161 probe families**, `/O1 /GS- /c` and
 `/Ox /GS- /c`, every row's in-object control held. Each family carries a
 predicted charge that the script checks and can print `REFUTES` against; the
-handful recorded as `NOT MODELLED` are listed with their reasons in §6.11.
+handful recorded as `NOT MODELLED` are listed with their reasons in §6.11
+and §6.12.
 
 > **Rounds 13–17 (§6.8–§6.11) extended the law to the C++ shapes and, in doing
 > so, retracted most of §6.7.** Of the ten shapes §6.7 recorded as beyond law
 > L′, **eight are now modelled and exact**; the `switch` was never non-uniform
 > in N; the constructor and destructor were never refutations at all, only law
 > L′ asked about a tree two instances deeper than the prediction assumed. Two
-> rows are now **live refutations** the script re-runs rather than remembers.
+> rows were left as **live refutations** the script re-ran rather than
+> remembered.
+>
+> **Rounds 18–22 (§6.12) took the law down the depth ladder and rewrote two of
+> those three new rules.** The `switch` survives depth 3 exactly. The
+> scope-exit charge is **not an `E` unit** — arithmetically it cannot be one —
+> and is `d + 1`. The addressability +1 is **not a per-callee charge**: four
+> pre-registered rivals died, and what is left fires only when P's entire
+> expansion is flat, which in a real TU is almost never. Both of §6.11's live
+> refutations are consequences of the corrections rather than outstanding
+> misses, and the wordings they killed are re-refuted from each run's own
+> numbers by the script's `SUPERSEDED` dict.
 
 **This section retracts §4's inlining row.** The retracted claim was "+3 / +8 /
 +13 for 1 / 2 / 3 sites, +5 per site after the first". The truth is **+3 per
@@ -401,13 +413,22 @@ where `E(I)` counts, **in that callee's body**:
 | a `switch`, by statement group | groups + 2 | `sw-arms2`…`sw-arms6` 7…11 (§6.8) |
 | a parameter the body **assigns to** | 1 each | `parammod` 4 |
 | an argument at that site that is not already a plain lvalue | 1 each | `arg-expr` 4, `arg-call` 4 (`arg-plain`, `arg-const` 3) |
-| the address of a **scalar automatic** handed to the callee | 1, once per callee | `ptr-param` 4 vs `ptr-global` 3 (§6.10) |
-| owning a local with a **non-trivial destructor** | 2, once per function | `dtor-only` 11, `dtor-3obj` 38 (§6.9) |
+| an **unnamed temporary object** | 1 each, **and a flat +1 beside it** | `ctor-noloc` 10, `d3-ctor-noloc` 28 (§6.12) |
+| the hidden **return slot** of a by-value struct return | 1, alongside the declared local | `struct-ret` 5, `d2-struct-ret` 13 (§6.12) |
+
+Two rules that used to be listed in this table are **not `E` features** — see
+§6.12, which removed them from it:
+
+| charge | worth | measured by |
+|---|---|---|
+| owning a local with a **non-trivial destructor** | `d + 1` at the owner's own depth, once per function, **not per object** and **not** `2d` | `dtor-3obj` 38, `d2-dtor` 27, `d3-dtor` 40 (§6.9, §6.12) |
+| the address of a **scalar automatic** handed to the callee | **+1**, once per depth-1 instance, and **only when P's whole expansion is flat** | `ptr-param` 4 vs `ptr-global` 3 (§6.10); `d2-ptr-p` 8, `ptr-sibling` 11 (§6.12) |
 
 plus **+1 flat, at any depth**, once per multi-exit callee whose result has to
 be materialised — i.e. unless it is `void`, or its result is assigned straight
-to a variable at depth 1; plus, for each **loop** in that callee's body, a term
-that is *not* part of the `d * E` product (§6.6):
+to a variable at depth 1 — and the *same* flat +1 once per unnamed temporary
+(§6.12); plus, for each **loop** in that callee's body, a term that is *not*
+part of the `d * E` product (§6.6):
 
 | loop form | cost at depth `d` | d=1 | d=2 | d=3 |
 |---|---|---:|---:|---:|
@@ -491,8 +512,9 @@ that forced loops out of the `d * E` product entirely; see §6.6.
 
 `scripts/gt_label_inline.py` carries the whole law as a `LAW` dict, prints it
 beside each family's measured slope, and prints
-`<== *** REFUTES LAW L' ***` on any disagreement. **Current score: 90 families,
-0 refutations at `/O1`, 0 at `/Ox`.**
+`<== *** REFUTES LAW L' ***` on any disagreement. **Score at the time this
+subsection was written: 90 families, 0 refutations at `/O1`, 0 at `/Ox`.** The
+current score, over all 161, is in §6.13.
 
 ## 6.4 Packed is the same law — but the *inliner* is not the same inliner
 
@@ -828,6 +850,14 @@ destructible object:
     pays  E += 2,  ONCE — not per object.
 ```
 
+> **Superseded by §6.12 — the `ONCE, not per object` half is right and the
+> `E += 2` half is not.** Every row in this subsection has its owner at depth 1,
+> where an `E` unit is worth `2·1 = 2` and so is the true charge; the two only
+> separate when the owner is deeper. Measured, the charge is `d + 1` at the
+> owner's own depth, and it is a **separate term, not an `E` unit at all** —
+> at depth 2 no integer `E` even reaches the measured value. Read §6.12 before
+> using the decompositions below at any depth but 1.
+
 P pays nothing because P is not an inline instance. That single rule fits every
 measured row, and three of them were held out from it:
 
@@ -888,14 +918,26 @@ register and now needs a stack slot.
 The charge is **once per callee**, not per argument (`ptr-2args` = 4, and
 `ptr-mixed` = 4 with only one of its two arguments qualifying).
 
-## 6.11 What is still `NOT MODELLED`, and the two live refutations
+> **Superseded by §6.12 on *when*, not on *which*.** Every row in the table
+> above is a one-instance expansion, and on those the rule as stated is exact.
+> It is wrong about everything else: the +1 does **not** fire at depth 2
+> (`d2-ptr-auto`), does not fire on a depth-1 callee that is merely *handed*
+> the address (`d2-ptr-p` = 8), does not fire on one that *uses* the pointee
+> while something deeper also does (`ptr-use-d1` = 8), and does not survive a
+> nested inline at an **unrelated call site** (`ptr-sibling` = 11). What
+> actually gates it is that P's whole expansion be flat. The "one thing that
+> has to leave a register in order to have an address at all" is still the best
+> account of *which pointees* qualify — the table above stands — and is not an
+> account of when the charge appears.
 
-**Two rows are refutations of the law as extended above.** They are recorded in
-`LAW_BOOK` as the *law's* prediction, not as the measurement, so every run
-prints `*** REFUTES LAW L' ***` against them and a future fix has to face them
+## 6.11 What is still `NOT MODELLED`, and the two refutations §6.12 answered
+
+**Two rows were refutations of the law as extended above.** They were recorded
+in `LAW_BOOK` as the *law's* prediction, not as the measurement, so every run
+printed `*** REFUTES LAW L' ***` against them and a future fix had to face them
 rather than inherit a fitted constant:
 
-| probe | law says | measured | |
+| probe | law said | measured | |
 |---|---:|---:|---|
 | `d2-dtor` — the destructible object one level deeper | 28 | **27** | off by 1 |
 | `d2-ptr-auto` — the scalar-address +1 at depth 2 | 11 | **9** | the +1 does not fire at all |
@@ -904,18 +946,30 @@ Both are the same shape of failure, and it is the shape this lane keeps finding:
 **a rule fitted where it was cheap to measure and then extended past its capture
 set.** The scope-exit +2 is exact on eight rows whose owner is at depth 1 and
 misses by one when the owner is at depth 2. The scalar-address +1 is exact on
-ten rows at depth 1 and is simply absent at depth 2. Nothing about depth ≥ 2 for
-either rule should be believed until it is measured — which is why they print.
+ten rows at depth 1 and is simply absent at depth 2.
+
+> **Both were answered later the same day by §6.12, and neither was fitted
+> away.** The scope-exit charge is not an `E` unit at all — no integer `E`
+> reaches `d2-dtor`'s measured value — and is `d + 1`, derived by subtracting a
+> control that carries no contested term and then held out at depth 3. The
+> scalar-address +1 turned out to be wrong in a second, larger way that
+> `d2-ptr-auto` alone could not show: it does not fire when **P's expansion is
+> not flat**, and four pre-registered rivals died establishing that. The retired
+> wordings live in the script's `SUPERSEDED` dict and are **re-refuted from each
+> run's own measurement** rather than remembered.
 
 Left `NOT MODELLED` on purpose, because a number here is worse than a blank:
 
-* **`struct-ret`** (a callee returning a 2-int struct by value) — 5 against L′'s
-  4. `E = 2` fits the single row if the hidden return slot counts alongside the
-  declared local, but that is one row and one free parameter, so it is not
-  written down as a rule.
-* **`ctor-noloc`** (`return CN(a).v;`, an unnamed temporary) — 10, where both
+* ~~**`struct-ret`**~~ (a callee returning a 2-int struct by value) — 5 against
+  L′'s 4. `E = 2` fits the single row if the hidden return slot counts alongside
+  the declared local, but that is one row and one free parameter, so it is not
+  written down as a rule. **RESOLVED in §6.12**: predicted at depth 2 from that
+  one parameter and measured exactly, against a rival that missed.
+* ~~**`ctor-noloc`**~~ (`return CN(a).v;`, an unnamed temporary) — 10, where both
   pre-registered readings (8 for "no local", 9 for "the temporary is a local")
   missed. Two different decompositions reach 10 and nothing distinguishes them.
+  **RESOLVED in §6.12**: depth distinguishes them. One `E` unit plus one flat
+  unit — and a third pre-registered reading missed on the way.
 * **`lp-two`** — §6.6; the inliner's budget, not the counter.
 * the `while` / `do-while` loop ladders at **`/Ox`** — §6.4; unobservable there,
   not different there.
@@ -924,8 +978,10 @@ Left `NOT MODELLED` on purpose, because a number here is worse than a blank:
 
 Re-run at `/Ox /GS- /c`: **every charge in §6.8–§6.10 is the same integer**, both
 refutations included, so all of it is a two-mode result and not a `/O1`
-artefact. The whole run is `controls failed: 0   families refuting LAW L': 2` in
-both modes, on 138 families.
+artefact. The whole run **as this subsection was written** was
+`controls failed: 0   families refuting LAW L': 2` in both modes, on 138
+families; §6.12 added 23 more and drove the second number to 0 by explaining
+those two rather than by adjusting them.
 
 One asymmetry with §6.4 is worth carrying. §6.4 records `/Ox` as the mode that
 *declines* inlines `/O1` accepts (the `while`/`do` loop bodies). On the C++
@@ -949,6 +1005,11 @@ shape, per mode, on every row.**
 > (`d2-switch` is declined outright at three sites), so the depth ladder has to
 > be built with the `INLINE-DECLINED?` check live on every row or it will
 > measure a shallower tree and stay perfectly linear while doing it.
+>
+> **That was written before §6.12 and it was right on every count**, including
+> the last one: at `/Ox` the front end declines three of the four new switch
+> shapes from the very first site, and only P's `.text` growth says so. Two of
+> the three rules did not survive the ladder.
 
 ### A second reading of §6.6's loop terms, from the same run
 
@@ -968,11 +1029,305 @@ captures, not a new measurement**, and `lp-inf` (`for(;;)` with a `break`)
 splits 2/3 rather than 3/2, so the decomposition is *not* established as
 general across loop spellings. §6.6's table stays as the measured total.
 
-## 6.12 Reproduction
+## 6.12 The depth ladder — two of the three new rules did not survive it
+
+§6.11 closed by naming **depth** as the riskiest thing unmeasured on this axis.
+Twenty-three families later: the `switch` rule survives depth 3 unchanged, the
+**scope-exit and addressability rules are both rewritten**, and the two rows
+§6.11 refused to model turn out to be separable by depth and nothing else.
+Nothing here was fitted away — every `PRED` below was committed to
+`scripts/gt_label_inline.py` *before* the capture that graded it (the file's git
+history is the record), and the corrections are derived from cells that were
+held out from them. **Nine of the twenty-three registered predictions missed** —
+`d2-dtor-only`, `d2-dtor-2obj`, `d3-dtor`, `d2-ptr-p`, `d3-ptr-auto`,
+`ptr-use-d1`, `ptr-use-nest`, `ptr-sibling`, `d2-ctor-noloc` — and those are the
+useful rows. Two of the three rules this ladder was built to test did not
+survive it.
+
+Every row in this section is `TEXT-IDENTICAL` to its hand control at every `N`
+— except `ctor-base`, where the two objs' `.text` for P is the same **size**
+(16 bytes per site, matching the control exactly) in a different instruction
+order. That column is the only evidence about how deep the expansion tree
+actually is (§6.4); where it collapses, the row is reported as a budget finding
+and not as a measurement — see the table at the end.
+
+### The two uncontested controls, and why they come first
+
+| probe | law | measured |
+|---|---:|---:|
+| `d2-ctor` — a constructed object at depth 2, `3 + [5+2·1] + 7` | 17 | **17** ✓ |
+| `d3-ctor` — …at depth 3, `3 + 5 + [7+3·1] + 9` | 27 | **27** ✓ |
+
+These carry **no contested term at all**: a constructed object with no
+destructor is plain L′ arithmetic on a tree one and two instances deeper than
+the wrapper. That makes `d2-ctor` the *instrument* for the scope-exit term
+rather than another test of it, which is the whole point — §6.11's `d2-dtor`
+miss could otherwise only be diagnosed from the row that was failing.
+
+### Scope-exit is not an `E` unit. It is `d + 1`
+
+> **`E += 2` was refuted, and it could not have been an `E` unit in the first
+> place.** `d2-dtor` = 27 forces the depth-2 owner instance to cost 10, and
+> `2d+1 + d·E` at `d = 2` is `5 + 2E` — **there is no integer `E` that reaches
+> 10.** That is an arithmetic impossibility, not a poor fit. The scope-exit
+> charge is a separate term, like a loop (§6.6), and never was an `E` feature.
+
+Subtracting the control reads its value off the measurement:
+
+```
+    d2-dtor  27  =  3  +  [5 + 2·1 + S(2)]  +  7  +  7
+    d2-ctor  17  =  3  +  [5 + 2·1       ]  +  7
+    ------------------------------------------------------
+    difference 10 = the depth-3 destructor instance (7)  +  S(2)   ->  S(2) = 3
+```
+
+The wrapper, the declared local, the constructor and the whole depth arithmetic
+cancel. With `S(1) = 2` from eight depth-1-owner rows and `S(2) = 3` from that
+subtraction, the affine form is `S(d) = d + 1`, and depth 3 was then held out:
+
+| probe | old law (`E += 2`) | new law (`S(d)=d+1`) | other rivals | measured |
+|---|---:|---:|---|---:|
+| `d2-dtor` | 28 | 27 | — | **27** |
+| `d2-dtor-only` — a dtor-only object at depth 2 | 21 | 20 | 19 flat | **20** ✓ |
+| `d2-dtor-2obj` — **two** objects at depth 2 | 44 | 43 | 48 per-object, 42 flat | **43** ✓ |
+| `d3-dtor` — the object at depth 3 — **hold-out** | 42 | **40** | 38 flat | **40** ✓ |
+| `d2-dtor-if` — …**plus** an if/else at depth 2 | 34 | 33 | — | **33** ✓ |
+
+`d3-dtor` is the one that counts: the affine form is pinned by `(1,2)` and
+`(2,3)`, so `S(3) = 4` is an extrapolation, and it lands. `d2-dtor-2obj` says
+the **once-per-function, not per-object** finding of §6.9 survives at depth 2
+(per-object would be 48). `d2-dtor-if` says `d+1` is not an artefact of a callee
+body that had nothing else in it — it stacks on three ordinary `E` features and
+the total is still exact.
+
+The depth-1 table of §6.9 is unaffected, because `S(1) = 2` either way. **That
+is exactly the merge this document keeps recording** — the FP leaf stride, §4's
+`do/while`, §6.6's `while` vs `do/while`, §6.9's `else` — and it is now the
+fifth instance. A capture set that never inlines a destructible object two
+levels deep gets every row right and is wrong by `d − 1` the first time one
+appears.
+
+### Addressability: four pre-registered rivals, four refutations
+
+`d2-ptr-p` was written to separate two readings of §6.11's miss, and it
+**killed both**. It measured **8** where the rivals said 9 and 11, and 8
+decomposes as `3 + 5` with `E = 0` on *both* instances — so `pb2`, which sits at
+depth 1 and is handed `&t` where `t` is P's own scalar automatic, pays nothing.
+The shipped wording ("+1 once per callee **handed** the address of a scalar
+automatic") is therefore wrong in two independent ways at once.
+
+Each subsequent probe was predicted from the reading that survived the previous
+one, and each killed it:
+
+| probe | the reading it was predicted from | pred | measured | what died |
+|---|---|---:|---:|---|
+| `d2-ptr-p` | depth-scaled `E` unit / fires at depth 1 | 11 / 9 | **8** | both |
+| `ptr-use-d1` | fires on a load/store through the address **at depth 1** | 9 | **8** | "use at depth 1" |
+| `ptr-use-nest` | fires when the **deepest use** is at depth 1 | 9 | **8** | "deepest use" |
+| `ptr-sibling` | scoped to the **call site's own tree** | 12 | **11** | "per tree" |
+| `ptr-sibling-rev` | the kill is order-independent | 11 | **11** ✓ | — |
+| `d3-ptr-auto` | never fires below depth 1 | 17 | **17** ✓ | — |
+| `d2-ptr-glob` | control: the pointee is a global | 8 | **8** ✓ | — |
+
+The arithmetic that all seven rows agree on is blunt: **a two-instance tree with
+a pointer costs exactly what a two-instance tree without one costs.**
+`d2-ptr-p` 8, `ptr-use-d1` 8, `ptr-use-nest` 8, `d2-ptr-glob` 8 — and `nest2`,
+which has no pointer anywhere, is **8**. One instance deep, the pointer costs
+one more than the same tree without it: `ptr-param` 4 against `nest1` 3.
+
+```
+    +1, once per depth-1 instance handed the address of a SCALAR AUTOMATIC —
+    but ONLY when P's ENTIRE expansion is flat, i.e. P contains no inline
+    instance below depth 1 at all.
+```
+
+`ptr-sibling` is what forces the last clause, and it is the row worth reading
+twice: a two-deep tree at one call site and a one-deep pointer tree at another,
+and the two-deep tree — which never touches the address, never sees the
+pointer, and shares nothing with it but the enclosing function — **removes the
++1 from the other site**. `ptr-sibling-rev` puts the pointer site first and gets
+the same 11, so it is a property of P and not of what the front end has already
+expanded.
+
+> **The practical consequence is that this rule is nearly dead in real code.** A
+> DC3 TU's function inlines something that inlines something else, so P is
+> essentially never flat, and the +1 essentially never fires. Where it *does*
+> fire is the small flat function an emitter is most likely to believe it
+> already has right. §6.10's "the one thing that has to leave a register in
+> order to have an address at all" is still the best physical story for *which*
+> pointees qualify, and it is now known not to be the story for *when*.
+
+### The `switch` needed no correction
+
+Predicted before capture, measured after, all four exact:
+
+| probe | law | measured |
+|---|---:|---:|
+| `d3-switch` — 5 statement groups at depth 3, `3 + 5 + [7+3·7] + 1` | 37 | **37** ✓ |
+| `d3-sw2` — 2 groups at depth 3, `3 + 5 + [7+3·4] + 1` | 28 | **28** ✓ |
+| `d2-sw-void` — the same 5 arms, `void`, at depth 2 | 22 | **22** ✓ |
+| `d2-sw-1exit` — 5 arms funnelled through one local, at depth 2 | 24 | **24** ✓ |
+
+Two group counts at depth 3 give a group slope of `(37−28)/(5−2) = 3 = d`, so
+`E(switch) = groups + 2` scales with depth at rate 1 three levels down, exactly
+as an ordinary `E` feature. `d2-sw-void` is `d2-switch`'s 23 less 1: the temp
+is **still flat two levels down**, which is §6.3's `d3-inner-if` finding holding
+on a completely different construct. `d2-sw-1exit` is `d2-sw-void` plus `2·1`
+for the local and no temp — ordinary `E` features stack on the switch term at
+depth 2 as they do at depth 1.
+
+`d2-mix` (three locals + an `if` + an `else` at depth 2, one exit) is **18**,
+predicted 18: the `E` features simply add inside the `d·E` product two levels
+down. Every other depth-2/3 row in this section varies exactly one feature, so
+this is the row that says the additivity is not an accident of that design.
+
+### The base-class constructor is an ordinary instance one level down
+
+§6.9's constructor tree was measured entirely on standalone `struct`s, and the
+commonest constructor in a DC3 TU runs a **base-class** constructor first. That
+is the shape where §6.9's own trap — a tree one instance deeper than the
+prediction assumes — is easiest to fall into, so it was predicted before
+capture:
+
+| probe | law | rival | measured |
+|---|---:|---:|---:|
+| `ctor-base` — a derived ctor with a base ctor, `4 + [5] + [7]` | 16 | 11 if the base ctor folds in | **16** ✓ |
+
+So a wrapper owning one derived object builds a **three-instance tree**:
+the wrapper at depth 1, `DD2::DD2` at depth 2, `BB::BB` at depth 3 — and both
+constructors appear as their own COMDATs in the `EMIT:` column, exactly as §6.5
+says an inlined callee does. Same integer at `/Ox`.
+
+This is the one row in the section whose `.text` is not byte-identical to its
+hand control: the same 16 bytes per site in a different instruction order, so
+the evidence that the inline happened is `dtext` matching the control at every
+`N` rather than the hash. Worth naming rather than glossing, because `.text`
+growth is the *only* column that carries depth evidence.
+
+### The two terms outside the `d·E` product do add — and mind the units
+
+Law L′ now has two charges that are *not* `E` features: §6.6's affine loop term
+and §6.12's scope-exit `d + 1`. They were fitted on disjoint bodies and had
+never appeared in the same instance, which is a large hole given that a DC3
+constructor looping over its members is an ordinary sight.
+
+`dtor-loop` — a callee that owns a destructible object **and** runs a `for`
+loop — is the row, and it comes with a units trap worth recording:
+
+| reading | decomposition | value |
+|---|---|---:|
+| marginal (what §6.6's `for` = `3d + 2` is stated in) | `[3 + 3 locals + 5 + S(1)=2] + 5 + 5` | **23** ✓ predicted |
+| inline record (`bookkeeping`, what `LAW_BOOK` grades) | `[3 + 3 + 3d + 2] + 5 + 5` | **21** |
+| the difference | P's own §1.1 surcharge for containing a loop at all | **+2/site**, measured by the hand control on this very row |
+
+**The two terms simply add**, under either convention. Two things fall out for
+free. The hand control reproduces §4's "a `for` loop written out costs P +2 at
+`/O1`" **independently, on a body it was not fitted on**. And the inline record
+of 21 is §6.11's split of the `for` term into `3d` plus P's own `+2` holding on
+a new body — which §6.11 explicitly declined to call established, because
+`lp-inf` splits 2/3 rather than 3/2. One more confirming body does not settle
+that; it is **strengthened, still not general**.
+
+The trap itself is the transferable part: **the `LAW` dict is stated in
+marginals and `LAW_BOOK` in inline records, and the two only differ where the
+hand control is non-zero.** This is the first family with both a loop and a
+non-zero hand control, so it is the first place the choice of dict changes the
+number — and filing a marginal prediction under `LAW_BOOK` reads as a
+refutation when it is an arithmetic error. §6.2's warning to *"read `book`, not
+`marginal`, when you want the cost of inlining"* has a converse, and this row is
+it.
+
+### The inliner's budget, per shape and per mode — checked, not inferred
+
+§6.11 warns that the budget "has to be checked per shape, per mode, on every
+row", and on these shapes it bites hard. `INLINE-DECLINED?` caught every case
+from P's `.text` growth against the hand control:
+
+| family | `/O1` | `/Ox` |
+|---|---|---|
+| `d3-switch` (5 groups, depth 3) | inlines to **N=2**, declines at N=3 | **declined from the first site** — 3/site, `dtext` 8 against the hand's 88, i.e. a `bl` |
+| `d3-sw2` (2 groups, depth 3) | inlines to N≥3 | inlines to N≥3, **confirms 28** |
+| `d2-sw-void`, `d2-sw-1exit` | inline to **N=2** | **declined from the first site** (0/site) |
+| `dtor-loop` | N≥3 | **declined from the first site** — a small loop body, exactly §6.4's `/Ox` refusal |
+| every ctor / dtor / pointer / temporary row above, and `ctor-base` | N≥3 | N≥3, **every charge the same integer** |
+
+So the whole ctor/dtor/addressability ladder is a **two-mode** result, and
+three of the four switch rows are `/O1`-only — *unobservable* at `/Ox`, not
+different there, in the same sense as §6.4's `while`/`do` ladders. Note the
+direction: §6.4 has `/Ox` declining what `/O1` accepts, §6.11 has `/O1`
+declining what `/Ox` accepts, and here `/Ox` declines a shape `/O1` takes to two
+sites. **There is no monotone reading of the budget in the optimisation level,
+and there never has been.**
+
+### Depth also settles the two rows §6.11 refused to put a number on
+
+`struct-ret` and `ctor-noloc` were left blank because several decompositions
+reached the one measured value and nothing at depth 1 could separate them. That
+is exactly what depth separates: **an `E` unit is worth `d` and a flat unit is
+worth 1 however deep it sits** — the same lever §6.3 used to pin the multi-exit
+result temp as flat rather than scaled.
+
+| probe | readings it separates | pred | measured |
+|---|---|---:|---:|
+| `d2-struct-ret` | `E = 2` (the hidden return slot counts alongside the declared local) **vs** `E = 1` + a flat +1 | 13 / 12 | **13** ✓ |
+| `d2-ctor-noloc` | the temporary is 2 `E` units / 1 `E` + 1 flat / 2 flat | 19 / 18 / 17 | **18** ✗ |
+| `d3-ctor-noloc` | …1 `E` + 1 **flat** vs the second unit scaling after all | 28 / 30 | **28** ✓ |
+
+**`struct-ret` is resolved and tested**: one free parameter, fitted at depth 1
+and then *predicted* at depth 2 against a rival that missed. `E = 2` — the
+hidden return slot counts as a second declared local.
+
+**`ctor-noloc` is resolved, and the registered prediction was wrong.** I
+recorded reading A (two `E` units, 19) in `LAW_BOOK` before the capture, with
+the bias written down beside it — *"'surely it just adds' has been wrong twice
+in this file already"* — and it was wrong a third time. The measurement is 18:
+an unnamed temporary is **one `E` unit and one flat unit**, i.e. it counts as a
+declared local *and* its materialisation costs the same flat +1 that a
+multi-exit result costs. That is two parameters solved from two cells, which is
+exactly determined and therefore tests nothing, so `d3-ctor-noloc` was added as
+the first cell that could disagree: **28**, predicted 28 against 30 for a
+second unit that scaled. Both readings hold at `/Ox` unchanged.
+
+`ctor-noloc` = `3 + 1·1 + 1 + 5` = 10 and `d3-ctor-noloc` = `3 + 5 + [7+3·1] +
+1 + 9` = 28 — the same two constants, three depths apart.
+
+### What this section leaves `NOT MODELLED`
+
+* **`S(d)` above depth 3.** Three points fix an affine form and the fourth was
+  the hold-out; `d = 4` is unmeasured, and the ctor/dtor tree reaches depth 4
+  in `d3-dtor` only as an ordinary instance, never as an owner.
+* **the addressability rule's "flat P" clause rests on two rows** (`ptr-sibling`
+  and its reverse). They are decisive against the three rivals that preceded
+  them, but the clause is a strange shape for a rule and deserves more cells
+  before an emitter leans on it. Since it can only ever *remove* a +1, the safe
+  reading for a port is to treat the +1 as absent.
+* **the depth-2/3 `switch` at `/Ox`** — unobservable, per the budget table.
+* `lp-two` and the `while`/`do-while` ladders at `/Ox` — both pre-existing, and
+  both the inliner's budget rather than the counter. **`struct-ret` and
+  `ctor-noloc` have left this list**, see above.
+
+> **The riskiest thing still unmeasured on this axis** is no longer depth in
+> the abstract — it is **depth combined with the non-`E` terms**. `dtor-loop`
+> shows the loop term and the scope-exit term add *at depth 1*, and that is the
+> only cell where they have ever met. Neither the loop term nor the scope-exit
+> term has been measured against the other at depth 2, and the loop term has
+> never been measured inside a C++ shape at any depth — no probe here puts a
+> `for` in a constructor, which is what a DC3 container's constructor mostly
+> is. The two terms have different depth laws (`3d + 2` against `d + 1`), so
+> there is no reason beyond habit to expect them to keep adding when both are
+> scaled; that is exactly the assumption §6.6 refuted for loops the first time
+> it was made. **The probe to write next is `d2-dtor-loop`**, and its rivals
+> separate by 3 at depth 2.
+>
+> Second on the list, and cheap: the whole ladder is `int` and small structs.
+> A **virtual** call the front end devirtualises and inlines, and a **template**
+> instantiation, are both ordinary in a real TU and neither has a single row.
+
+## 6.13 Reproduction
 
 ```sh
 export C2RS_WIBO=<the repo's resolved wibo>          # NOT ../wibo/build/wibo
-scripts/gt_label_inline.py                            # /O1, all 138 families
+scripts/gt_label_inline.py                            # /O1, all 161 families
 scripts/gt_label_inline.py --mode '/Ox /GS- /c'       # packed
 scripts/gt_label_inline.py --max 6 framed leaf        # the retraction, in 6 s
 scripts/gt_label_inline.py nest1 nest2 nest3 nest4 nest5 nest6   # the depth law
@@ -984,16 +1339,32 @@ scripts/gt_label_inline.py --max 3 ctor ctor-direct dtor dtor-direct \
     dtor-3obj                                         # §6.9, the ctor/dtor tree
 scripts/gt_label_inline.py --max 3 ref-const-read struct-ref ptr-arrelem \
     ptr-static-local                                  # §6.10, addressability
-scripts/gt_label_inline.py --max 3 d2-dtor d2-ptr-auto  # the two refutations
+scripts/gt_label_inline.py --max 3 d2-dtor d2-ptr-auto  # §6.11's two, now answered
+# --- §6.12, the depth ladder ---------------------------------------------
+scripts/gt_label_inline.py --max 3 d2-ctor d3-ctor    # the uncontested controls
+scripts/gt_label_inline.py --max 3 d2-dtor d2-ctor d2-dtor-only \
+    d2-dtor-2obj d3-dtor d2-dtor-if                   # scope-exit = d+1
+scripts/gt_label_inline.py --max 3 d2-ptr-p ptr-use-d1 ptr-use-nest \
+    ptr-sibling ptr-sibling-rev d3-ptr-auto d2-ptr-glob   # the four rivals
+scripts/gt_label_inline.py --max 2 d3-switch d3-sw2 d2-sw-void d2-sw-1exit
 scripts/gt_label_inline.py --list
 ```
 
-`--max 2` on the depth-2 switch rows is not tuning: the front end abandons
-inlining that shape at three sites, the run tags the row `INLINE-DECLINED?`
-from P's own `.text` growth, and the charge stops growing. Reading a marginal
-across that row measures the inliner, not the counter.
+`--max 2` on the depth-2 **and depth-3** switch rows is not tuning: the front
+end abandons inlining that shape at three sites, the run tags the row
+`INLINE-DECLINED?` from P's own `.text` growth, and the charge stops growing.
+Reading a marginal across that row measures the inliner, not the counter. At
+`/Ox` three of those four rows are declined **from the first site** and are
+unobservable rather than different — §6.12's budget table.
 
 The last line of a run is
-`controls failed: 0   families refuting LAW L': 2`. The second number is the one
-to read: it is the law's own falsifier, computed rather than remembered, and the
-2 is §6.11's two depth-2 rows — deliberately left in, not a run to be fixed.
+`controls failed: 0   families refuting LAW L': 0`, on 161 families in both
+modes. The second number is the one to read: it is the law's own falsifier,
+computed rather than remembered. It reached 0 by the two rows §6.11 left
+printing being **explained** — see §6.12 — and the wordings they refuted are
+kept in the script's `SUPERSEDED` dict, which re-derives each refutation from
+the run's own measurement and prints it beside the verdict:
+
+```
+d2-dtor  -> ... law(book) 27 OK   [retired 'scope-exit as E += 2' said 28, measured 27]
+```
