@@ -183,3 +183,92 @@ per-function optimization word is unmoved (`docs/OPT_MODE.md` §5), and a
 function with no try block and no object with a destructor gets none of the
 above. The workload's `/EHsc` is only a cost where the function actually needs
 unwind data.
+
+---
+
+## 6. The sub-object boundary — where a generated ctor/dtor crosses into EH (2026-07-31, WRD)
+
+§5 ends *"a function with no try block and no object with a destructor gets none
+of the above"*. True, and it hides the boundary that matters for ranking: a
+**compiler-generated constructor or destructor** has objects with destructors by
+definition, and it is on the cheap side of the boundary only under a condition
+nothing had stated. Measured, `work/WRD/probe/p6.cpp`, the workload's own flags
+(`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`):
+
+| body | `.text` | EH funclet |
+|---|---|---|
+| `~One(){}` — ONE destructible member, nothing else | **4 B** (`b ??1MemA`) | no |
+| `Ct1::Ct1(){}` — ctor, one base, nothing else | 48 B | no |
+| `~Two(){}` — **two** destructible members | 120 B | **YES** |
+| `~OneB(){ Fini(); }` — one member **plus one body statement** | 116 B | **YES** |
+| `Ct2::Ct2(){ Init(); }` — ctor, one base **plus one body statement** | 120 B | **YES** |
+
+> **Exactly one sub-object statement and nothing else is a bare branch. A second
+> sub-object, or any other statement beside it, is the whole of §1–§5.**
+
+That is not a frame-class step. Crossing it mints, per function: the two-word
+`__CxxFrameHandler` / `__ehfuncinfo$` prefix (§1), a **second** `.pdata` COMDAT
+(§2), a 64-byte `Selection = 5` `.rdata` with five relocations (§3), an unwind
+funclet emitted after the body in the same COMDAT with the r12→r31 establisher
+convention (§4), and an r31 frame-pointer discipline. `??1OneB@@QAA@XZ` in full,
+relocations aligned:
+
+```text
+  <ADDR32 __CxxFrameHandler> <ADDR32 __ehfuncinfo$??1OneB@@QAA@XZ>
+  mflr r12 ; stw r12,-8(r1) ; std r30,-24(r1) ; std r31,-16(r1)
+  addi r31,r1,-112 ; stwu r1,-112(r1)
+  mr   r30,r3 ; stw r3,132(r31)      ; `this` in BOTH a GPR and the EH frame
+  bl   ?Fini@OneB                    ; the BODY statement — emitted FIRST
+  mr   r3,r30
+  bl   ??1MemA                       ; the sub-object dtor — emitted LAST
+  addi r1,r31,112 ; lwz r12,-8(r1) ; mtlr r12 ; ld r30,-24(r1) ; ld r31,-16(r1) ; blr
+  ---- unwind funclet, same COMDAT ----
+  addi r31,r12,-112
+  mflr r12 ; stw r12,-8(r1) ; stwu r1,-96(r1)
+  lwz  r3,132(r31)                   ; `this` from the PARENT frame via r12
+  bl   ??1MemA
+  addi r1,r1,96 ; lwz r12,-8(r1) ; mtlr r12 ; blr
+```
+
+Two further facts, both free and neither recorded anywhere:
+
+* **The emission order is the reverse of the IL statement order.** `.ex` puts the
+  sub-object statement — the one carrying the `5C <int> <f>` trailer — *first*
+  and the body statement second; the obj emits the body first and the sub-object
+  destructor last. One bit, and it separates.
+* **`this` is stack-homed at `132(r31)` as well as held in r30**, because the
+  funclet reaches it only through the establisher frame. No non-EH body in the
+  port does this.
+
+### 6.1 What it retires
+
+`shapes/ctor_dtor.rs`'s doc comment measures `~Two(){}` at the **fixture** profile
+(`/Ox`, no `/EH`) as *"a frame, a callee-saved register and a call order this rung
+does not model"* — `or r31,r3,r3 ; addi r3,r3,4 ; bl ; or r3,r31,r31 ; bl`. That
+is correct at that profile and confirmed here (`p6.cpp` at `/Ox /GS- /c` has no
+`__ehfuncinfo` anywhere). **It is not the workload's answer**, and every census
+row is counted on the workload. Do not size a ctor/dtor widening from the
+fixture-profile capture.
+
+### 6.2 What it costs the board, measured
+
+`cf-expr-0x5C` — the statement-layer decoder stopping on the `5C` sub-object
+trailer — is **309,804 functions, 17.4 % of everything blocked** on the 878-TU
+workload. The three rows WCH and WCL both ranked second and described as *"this
+rung's body with the `B9 <formal>` swapped for a designator"* are inside it and
+are none of that:
+
+| census key | n | what it actually is |
+|---|---|---|
+| `expr-call-in-expr-recv-field-off0-then-chain-bind-whole` | 2,666 | dtor, member sub-object at **offset 0**, + one body statement |
+| `expr-call-in-expr-recv-intrinsic-this-adjust-then-chain-bind-whole` | 1,686 | dtor, **base** sub-object (intrinsic 2113, adjust 0), + one body statement |
+| `expr-call-in-expr-recv-field-then-chain-bind-whole` | 836 | dtor, member sub-object at **nonzero offset**, + one body statement |
+
+There is no chain in any of them. `Blocker::ChainBind` is *"a `99` at depth 0 in a
+value position"*, and here that `99` is the bind of the **body statement's own
+member call on `this`** — `~T(){ Fini(); }`. Reproduced exactly, all three keys,
+from `work/WRD/probe/p5.cpp` under the workload flags, and 33 of 33 census
+representatives across 26 witness TUs carry both the `5C` statement trailer and
+the `5E 01` one-sub-object trailer.
+
+**Realizable without the EH model: 0 of 5,188.**

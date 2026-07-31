@@ -3074,6 +3074,34 @@ concurrent lanes, a **non-relocatable capture cache** (embeds its own absolute
 path, faked a 6-TU port regression), and two sweeps in one outdir deleting each
 other's cases mid-grade. All five now fail closed or are refused outright.
 
+**Addendum 2026-07-31 (WRD) — reproduce the key before believing the name, and
+the ranked item that retires.** Category (5) *mis-described* has a cheap
+detector nobody had named: **write a probe TU that reproduces the census key from
+hand-written source, before estimating.** It costs one capture. Applied to the
+5,188-function row WCH *and* WCL both ranked **second** and both described as
+*"this rung's body with the `B9 <formal>` swapped for a designator"*, the first
+probe produced a key that occurs **zero** times on the workload — and that, not
+any cross, is what said the row was something else. It is not a chain at all: it
+is the compiler-generated **destructor with one sub-object plus one body
+statement**, and `Blocker::ChainBind` is that body statement's own `99`. At the
+workload's `/EHsc` the family mints a `__CxxFrameHandler` / `__ehfuncinfo$`
+prefix, a second `.pdata` and an unwind funclet, so **0 of 5,188 is reachable**
+(`docs/EH_RECORDS.md` §6). Two things generalize past the row:
+
+* **Crossing with the operand type and the frame class is necessary and not
+  sufficient.** Both crosses came back degenerate and reassuring here. They are
+  axes *of the port's model*; a blocker outside the model passes every one.
+* **A ctor/dtor capture taken at the fixture profile understates the workload's
+  by a phase.** One sub-object statement and nothing else is a bare branch; a
+  second sub-object, or one plus any other statement, is the whole of
+  `docs/EH_RECORDS.md` §1–§5. `cf-expr-0x5C` — 309,804 functions, **17.4 % of
+  everything blocked** — sits on that boundary.
+
+And WCL's closing warning is **discharged**: both of its candidate rules for the
+ascending link order are refuted, each by its own capture, and the rule that fits
+all nine is *whether argument slot 0 is marshalled* — `docs/CODEGEN_ARG_PERM.md`
+§7.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp

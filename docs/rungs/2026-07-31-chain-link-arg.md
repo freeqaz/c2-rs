@@ -226,7 +226,13 @@ an argument region rather than an operator.
    `lwz r3,k(r3)`, and the offset-0 case emits nothing at all. This is the
    cheapest large thing on the board and the first successor that is *two*
    already-built emitters wearing an unfamiliar key.
-2. **The innermost receiver's designator — 5,188, unchanged from WCH's
+2. **RETRACTED 2026-07-31 (WRD).** Not a chain, not a receiver designator, and
+   not reachable: the three keys are generated **destructors with one sub-object
+   and one body statement**, and at `/EHsc` they are the full EH funclet shape —
+   `docs/EH_RECORDS.md` §6, **0 of 5,188** without the EH model. The original
+   text, retained:
+
+   **The innermost receiver's designator — 5,188, unchanged from WCH's
    ranking**, all `-whole`, one production each:
    `-recv-field-off0-then-chain-bind-whole` **2,666**,
    `-recv-intrinsic-this-adjust-then-chain-bind-whole` **1,686**,
@@ -250,6 +256,17 @@ an argument region rather than an operator.
    graded against a rule fitted to a confound, and neither reading is more
    likely than the other from here. **Measure that before widening the receiver
    side**, not after.
+
+   **MEASURED 2026-07-31 (WRD): both readings are refuted**, each by its own
+   capture — `docs/CODEGEN_ARG_PERM.md` §7. `p->Next()->m2(j,k)` with a
+   `this`-adjust on the link's receiver costs `addi r3,r3,4` at slot 0 and is
+   still ascending (kills *"slot 0 needs no instruction"*); `g3(p->Next(),j,k)`
+   is a slot-**0**-based ordinary call and is also ascending (kills *"the list is
+   based at slot 1"*). The rule that fits all nine captures is **whether slot 0
+   is marshalled** — filled from a saved GPR or a literal → descending, r3
+   instruction last; inherited from the preceding `bl` → ascending, an in-place
+   adjust emitted first. It predicts that a future `CallForm::NestedCall`
+   widening must **not** reuse `moves_descending`.
 
    Two lesser ones, both inherited: every one of the 12,092 realized functions
    lives in a TU the port never emits (`vocab-gap` ~99 %), so not one has been

@@ -225,6 +225,19 @@ pub(crate) fn eat_ctor_this_epilogue(seg: &[u8], p: &mut usize, lo: usize) -> bo
 ///   offset split, and the loss is real rather than an artifact: those bodies are
 ///   *grammar*-complete with both offsets admitted and *codegen*-complete under
 ///   neither.
+///
+///   **That capture is the FIXTURE profile's, and it understates the workload's
+///   by a phase** (measured 2026-07-31, `docs/EH_RECORDS.md` §6). At the dc3
+///   workload's `/O1 /Oi /EHsc`, *one* sub-object statement and nothing else is
+///   the bare branch above, but a **second** sub-object — or one sub-object plus
+///   any other body statement — mints a `__CxxFrameHandler` /
+///   `__ehfuncinfo$` prefix, a second `.pdata`, a 64-byte `Selection = 5`
+///   `.rdata` and an unwind funclet with the r12→r31 establisher convention.
+///   `~Two(){}` is 120 B with EH at the workload profile and 0 B of EH at
+///   `/Ox /GS-`. Do not size a widening of this production from the fixture
+///   profile: `expr-call-in-expr-recv-{field-off0,field,intrinsic-this-adjust}-then-chain-bind-whole`
+///   is 5,188 workload functions of exactly that shape and **none** of it is
+///   reachable without the EH model.
 /// * **`<f>` and `<g>` carry an exception-handling bit, and they co-vary.**
 ///   MEASURED by isolating one flag at a time over
 ///   `{/Od, /O1, /Ox} × {—, /Oi, /GS-, /GR, /EHsc, /EHa}`: **`/EH…` clears bit

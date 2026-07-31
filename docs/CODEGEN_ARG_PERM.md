@@ -273,3 +273,96 @@ scripts/gt_argperm.py --pure --model --n 6 --minima 2   # §5.3: the 344-cell re
 `--minima K` filters the grid to the cells whose predicted scratch count is at
 least K. It is what makes n = 6 tractable: the full grid is 720 objects and 659
 of them repeat what n ≤ 5 already said.
+
+---
+
+## 7. The ASCENDING marshalling of a chain link — both candidate rules refuted (2026-07-31, WRD)
+
+`shapes/mcall_chain.rs` and `docs/rungs/2026-07-31-chain-link-arg.md` §3 record
+that a **chain link** marshals its arguments **lowest destination first**, while
+every other call in the port marshals highest first (`moves_descending`, §2 of
+this document). WCL closed by naming that a **boundary, not an explanation**, and
+by naming the two readings that were inseparable inside the accepted class:
+
+> *"the list is based at slot 1"* and *"slot 0 needs no instruction"* are the
+> same set of bodies, because every slot-0-based call in the class does need one.
+> The first widening that pulls them apart is a link whose receiver needs a
+> `this`-adjust. **Measure that before widening the receiver side.**
+
+Measured. `work/WRD/probe/p1.cpp`, `p2.cpp`, `/O1 /GS- /c`, one TU each so the
+two families sit side by side.
+
+### 7.1 Both readings are wrong, and each is refuted by its own capture
+
+```c
+  struct B1 { int b1; int n1(int a,int b); };
+  struct B2 { int b2; int m2(int a,int b); };     // at +4 inside D
+  struct D : B1, B2 { int d; D* Next(); };
+  int  g3(D*,int,int);  int g4(D*,int,int,int);
+```
+
+| body | slot 0 | list based at | moves |
+|---|---|---|---|
+| `return p->Next()->n1(j,k);` | inherited in r3 | 1 | `mr r4,r31 ; mr r5,r30` |
+| `return p->Next()->m2(j,k);` | **`addi r3,r3,4`** | 1 | `addi r3,r3,4 ; mr r4,r31 ; mr r5,r30` |
+| `return p->Next()->m2c(j,k,m);` | **`addi r3,r3,4`** | 1 | `addi r3,r3,4 ; mr r4,r31 ; mr r5,r30 ; mr r6,r29` |
+| `return g3(p->Next(), j, k);` | inherited in r3 | **0** | `mr r4,r31 ; mr r5,r30` |
+| `return g4(p->Next(), j, k, m);` | inherited in r3 | **0** | `mr r4,r31 ; mr r5,r30 ; mr r6,r29` |
+| `v1(j); return g3(p,j,k);` | `mr r3,r31` | 0 | `mr r5,r29 ; mr r4,r30 ; mr r3,r31` |
+| `v1(j); return p->m2(j,k);` | `addi r3,r31,4` | 0 | `mr r5,r29 ; mr r4,r30 ; addi r3,r31,4` |
+| `v1(j); return g4(p,j,k,m);` | `mr r3,r31` | 0 | `mr r6,r28 ; mr r5,r29 ; mr r4,r30 ; mr r3,r31` |
+| `v1(j); return g3(0,j,k);` | **`li r3,0`** | 0 | `mr r5,r30 ; mr r4,r31 ; li r3,0` |
+
+* **"The list is based at slot 1" is refuted** by rows 4 and 5: `g3(p->Next(),
+  j, k)` is an ordinary free function, its list is based at slot **0**, and it
+  comes out **ascending**.
+* **"Slot 0 needs no instruction" is refuted as stated** by rows 2 and 3: the
+  link's slot 0 costs `addi r3,r3,4` and the body is still **ascending**.
+
+Neither reading survives, so the boundary WCL drew is in the wrong place, and a
+receiver-side rung graded against either of them would have been graded against
+a rule fitted to a confound — exactly what WCL predicted, for a reason it did
+not have.
+
+### 7.2 The rule that fits all nine, and what it predicts
+
+> **The direction is decided by whether argument slot 0 is MARSHALLED.** If r3
+> has to be *filled* — from a callee-saved register, from a literal, or from a
+> callee-saved register plus an adjust — the moves run **descending** and the r3
+> instruction is emitted **last**, immediately before the `bl`. If r3 is
+> *inherited* (the preceding `bl` left the value there) the moves run
+> **ascending**, and an in-place adjust of that inherited value (`addi r3,r3,k`)
+> is emitted **first**, immediately after the preceding `bl`.
+
+Nine captures, no exceptions. Note what it is *not*: it is not "member calls go
+the other way" (row 7 is a member call and is descending), it is not the slot
+base (rows 4–5), and it is not the presence or absence of an instruction at slot
+0 (rows 2–3 and 9). `addi r3,r3,4` and `addi r3,r31,4` are the same operator and
+land on opposite sides, which is why only a probe separates them.
+
+The rule still describes rather than explains, but it is a **strictly better
+boundary**: it is not co-extensive with either of WCL's candidates, and it makes
+a falsifiable prediction the port does not yet exercise —
+
+> **`g4(p->Next(), j, k, m)` is ascending.** It is a slot-0-based ordinary call,
+> so a widening that admits a call whose first argument is another call's result
+> and reuses `moves_descending` would mis-emit. The shape is
+> `CallForm::NestedCall` and is out of class today, so this is a bounded warning
+> and not a live defect — checked: `expr-call-in-expr-recv-load-then-call-nested-call-whole`
+> and its siblings are all blocked.
+
+### 7.3 What this does NOT bind
+
+The receiver-side widening it was measured for is unaffected: a chain link whose
+**receiver** carries a `this`-adjust keeps the ascending order and adds one
+leading `addi`, and the port's shipped rule reproduces it —
+
+```text
+  int Der::fa(int j,int k){ return Next()->n1(j,k); }   // Der : B1, Bse
+    addi r3,r3,4 ; mr r31,r4 ; mr r30,r5
+    bl ?Next@Bse ; mr r4,r31 ; mr r5,r30 ; bl ?n1@B1
+```
+
+The receiver designator's instruction is emitted **before** the callee-saved
+prologue moves, which is a placement fact in its own right and is not graded
+anywhere today.
