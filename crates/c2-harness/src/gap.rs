@@ -177,6 +177,48 @@ pub struct TuResult {
     /// `eh-partial` is what is left — a marker, no such call yet, and the walk
     /// stopped — and it claims **nothing**, in either direction.
     pub fn_eh: BTreeMap<String, usize>,
+    /// **The body-dispatch axis**: which arm of the IL parser's dispatch ladder
+    /// claimed each body (`c2_il`'s `disp-*` tags). Row shapes, and the shape is in
+    /// the key so no two populations can share a row — the same discipline
+    /// [`TuResult::fn_eh`] had to be retrofitted with:
+    ///
+    /// * `"<disp>"` — the total, over every function, in class or not.
+    /// * `"<disp>|BLOCKED"` — the blocked subtotal. **The row to size a rung off.**
+    /// * `"<disp>|BLOCKED|<blocker key>"` / `"<disp>|INCLASS|<shape>"` — the cross,
+    ///   with the population named.
+    ///
+    /// **What this axis says that no census key can.** A member-call construct
+    /// gets an `expr-call-in-expr-recv-*` key wherever it stands, and only the
+    /// bodies that *begin* with the member call ever reach the three member-call
+    /// productions. The rest are a store's right-hand side (`disp-expr`) or a plain
+    /// call's argument (`disp-plain-call`), and **no widening inside any of those
+    /// productions can move one of them**. Ranked without this cross, those rows
+    /// are indistinguishable from the ones a widening would serve — which is how a
+    /// production-first-blocker table can decompose 41,292 of a 71,767-function
+    /// family and leave 30,475 in a single row reading "none of the three
+    /// productions was entered".
+    pub fn_dispatch: BTreeMap<String, usize>,
+    /// **The member-call production first-blocker axis**: for the bodies that
+    /// reached `try_parse_member_tail_call`, which non-committal bail inside it (or
+    /// inside the chain / comparison productions it delegates to) fired.
+    ///
+    /// Rows are `"<prod>"` totals, `"<prod>|BLOCKED"` subtotals, and — for the
+    /// bodies that actually entered a production — the `"<prod>|BLOCKED|<key>"`
+    /// cross. The bare totals are emitted for **every** function including
+    /// `prod-not-entered`, so the axis always sums to the census.
+    ///
+    /// **This is the only instrument on the board that tells a missing construct
+    /// apart from a private limit inside a recognizer that already ships**, and
+    /// "a private limit inside a shipping recognizer" has been the answer to
+    /// "what is this big blocking row" six rungs running. A ranking made without
+    /// it is a guess about which of the two a row is.
+    ///
+    /// `prod-entered-untagged` is the **tag-coverage residue**: bodies that
+    /// entered a production, declined non-committally, and hit no tagged bail. It
+    /// is printed like any other row rather than suppressed, because an
+    /// unattributed population that renders as an absence is precisely the failure
+    /// this axis exists to close. Its target is 0.
+    pub fn_prod: BTreeMap<String, usize>,
     /// **The census/gate cross-check** (roadmap #44): of the functions this TU's
     /// census calls in class, how many does `PortC2`'s own per-function selector
     /// **refuse**, keyed by the refusal.
@@ -250,63 +292,27 @@ impl GapReport {
     /// Blocking features across all scanned functions, most frequent first.
     /// **This histogram is the widening order** (docs/ROADMAP.md §G5/P2b).
     pub fn fn_blocker_histogram(&self) -> Vec<(String, usize)> {
-        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
-        for r in &self.results {
-            for (k, n) in &r.fn_blockers {
-                *map.entry(k.as_str()).or_insert(0) += n;
-            }
-        }
-        let mut v: Vec<(String, usize)> =
-            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
-        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        v
+        merge_counts(self.results.iter().map(|r| &r.fn_blockers))
     }
 
     /// **The D6 frame measure**, aggregated: `"<calls-class>|<census key>"` counts
     /// over every scanned function, most frequent first.
     pub fn fn_frame_histogram(&self) -> Vec<(String, usize)> {
-        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
-        for r in &self.results {
-            for (k, n) in &r.fn_frames {
-                *map.entry(k.as_str()).or_insert(0) += n;
-            }
-        }
-        let mut v: Vec<(String, usize)> =
-            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
-        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        v
+        merge_counts(self.results.iter().map(|r| &r.fn_frames))
     }
 
     /// **The control-flow axis**, aggregated, most frequent first. Rows are either
     /// a bare class (`cflow-…` decoded, `cf-…` the decoder's own residue) or a
     /// `"<cflow class>|<census key>"` cross-tab; see [`TuResult::fn_cflow`].
     pub fn fn_cflow_histogram(&self) -> Vec<(String, usize)> {
-        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
-        for r in &self.results {
-            for (k, n) in &r.fn_cflow {
-                *map.entry(k.as_str()).or_insert(0) += n;
-            }
-        }
-        let mut v: Vec<(String, usize)> =
-            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
-        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        v
+        merge_counts(self.results.iter().map(|r| &r.fn_cflow))
     }
 
     /// **The EH axis**, aggregated, most frequent first. Rows are either a bare
     /// class (`eh-…`) or an `"<eh class>|<census key>"` cross-tab; see
     /// [`TuResult::fn_eh`].
     pub fn fn_eh_histogram(&self) -> Vec<(String, usize)> {
-        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
-        for r in &self.results {
-            for (k, n) in &r.fn_eh {
-                *map.entry(k.as_str()).or_insert(0) += n;
-            }
-        }
-        let mut v: Vec<(String, usize)> =
-            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
-        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        v
+        merge_counts(self.results.iter().map(|r| &r.fn_eh))
     }
 
     /// How many scanned functions the statement-layer scanner decoded end to end,
@@ -350,22 +356,63 @@ impl GapReport {
         t
     }
 
+    /// **The body-dispatch axis**, aggregated, most frequent first. See
+    /// [`TuResult::fn_dispatch`] for the row shapes.
+    pub fn fn_dispatch_histogram(&self) -> Vec<(String, usize)> {
+        merge_counts(self.results.iter().map(|r| &r.fn_dispatch))
+    }
+
+    /// **The member-call production first-blocker axis**, aggregated, most frequent
+    /// first. See [`TuResult::fn_prod`].
+    pub fn fn_prod_histogram(&self) -> Vec<(String, usize)> {
+        merge_counts(self.results.iter().map(|r| &r.fn_prod))
+    }
+
+    /// The **tag-coverage residue** of the production axis: bodies that entered a
+    /// member-call production, declined non-committally, and reached no tagged
+    /// bail — so their refusal is inside a shipping recognizer and is **not yet
+    /// attributed to a site**.
+    ///
+    /// Reported as a number on every scan rather than inferred from the absence of
+    /// rows. It is an upper bound on what the 37 tag sites in
+    /// `body::shapes::mcall_{tail,chain,cmp}` have left to explain, and it reaches
+    /// 0 when they are all placed.
+    pub fn prod_untagged_residue(&self) -> usize {
+        self.results
+            .iter()
+            .map(|r| {
+                r.fn_prod
+                    .get("prod-entered-untagged")
+                    .copied()
+                    .unwrap_or(0)
+            })
+            .sum()
+    }
+
+    /// How many functions each dispatch axis saw in total. Both must equal the
+    /// census's own function total: every body takes exactly one arm and reaches
+    /// exactly one production state, so a short count means a body slipped through
+    /// untagged and the axis is under-reporting rather than the population being
+    /// small.
+    pub fn dispatch_axis_totals(&self) -> (usize, usize) {
+        let bare = |m: &BTreeMap<String, usize>| -> usize {
+            m.iter()
+                .filter(|(k, _)| !k.contains('|'))
+                .map(|(_, n)| *n)
+                .sum()
+        };
+        self.results.iter().fold((0, 0), |(a, b), r| {
+            (a + bare(&r.fn_dispatch), b + bare(&r.fn_prod))
+        })
+    }
+
     /// **The census/gate disagreement**, aggregated: how many censused-in-class
     /// functions `PortC2` refuses, per refusal, most frequent first.
     ///
     /// Every entry is an error term on [`GapReport::fn_coverage`]'s numerator.
     /// The target is an empty list.
     pub fn fn_gate_histogram(&self) -> Vec<(String, usize)> {
-        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
-        for r in &self.results {
-            for (k, n) in &r.fn_gate_refusals {
-                *map.entry(k.as_str()).or_insert(0) += n;
-            }
-        }
-        let mut v: Vec<(String, usize)> =
-            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
-        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        v
+        merge_counts(self.results.iter().map(|r| &r.fn_gate_refusals))
     }
 
     /// Total censused-in-class functions the port refuses across the scan.
@@ -378,16 +425,7 @@ impl GapReport {
 
     /// **The `.gl` binding invariants**, aggregated (see [`TuResult::bind_checks`]).
     pub fn bind_check_histogram(&self) -> Vec<(String, usize)> {
-        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
-        for r in &self.results {
-            for (k, n) in &r.bind_checks {
-                *map.entry(k.as_str()).or_insert(0) += n;
-            }
-        }
-        let mut v: Vec<(String, usize)> =
-            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
-        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        v
+        merge_counts(self.results.iter().map(|r| &r.bind_checks))
     }
 
     /// The binding invariant that must be **zero**: a generated destructor bound to
@@ -425,6 +463,23 @@ impl GapReport {
             .count();
         (checked, bad)
     }
+}
+
+/// Sum a per-TU count map across the scan and rank it, most frequent first with
+/// ties broken by key. The six axis histograms above differ only in which map they
+/// read, and each used to spell this same fold out longhand.
+fn merge_counts<'a>(
+    maps: impl Iterator<Item = &'a BTreeMap<String, usize>>,
+) -> Vec<(String, usize)> {
+    let mut map: BTreeMap<&str, usize> = BTreeMap::new();
+    for m in maps {
+        for (k, n) in m {
+            *map.entry(k.as_str()).or_insert(0) += n;
+        }
+    }
+    let mut v: Vec<(String, usize)> = map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
+    v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    v
 }
 
 /// Pull a normalized headline out of a cl.exe failure blob: the first line
@@ -522,6 +577,8 @@ fn scan_one(
         fn_frames: BTreeMap::new(),
         fn_cflow: BTreeMap::new(),
         fn_eh: BTreeMap::new(),
+        fn_dispatch: BTreeMap::new(),
+        fn_prod: BTreeMap::new(),
         fn_gate_refusals: BTreeMap::new(),
         bind_checks: BTreeMap::new(),
     };
@@ -624,6 +681,39 @@ fn scan_one(
             *res.fn_eh
                 .entry(format!("{}|{pop}|{}", f.eh, f.verdict.key()))
                 .or_insert(0) += 1;
+            // The two DISPATCH axes, over every function — same row shapes as the
+            // EH cross above and for the same reason: `FnVerdict::key` spells
+            // accepted shapes and blockers into one namespace, so the population
+            // has to be in the key or an accepted control group reads like a rung.
+            //
+            // The bare totals are emitted for EVERY function, so both axes sum to
+            // the census and a body that reached no tagged site is a printed row
+            // rather than a hole. That is the whole discipline here: this axis
+            // exists because 30,475 functions were previously reported only as
+            // "none of the three productions was entered", which is an absence,
+            // and an absence cannot be ranked.
+            *res.fn_dispatch.entry(f.dispatch.to_string()).or_insert(0) += 1;
+            *res.fn_prod.entry(f.prod.to_string()).or_insert(0) += 1;
+            if !f.verdict.in_class() {
+                *res.fn_dispatch
+                    .entry(format!("{}|BLOCKED", f.dispatch))
+                    .or_insert(0) += 1;
+                *res.fn_prod
+                    .entry(format!("{}|BLOCKED", f.prod))
+                    .or_insert(0) += 1;
+            }
+            *res.fn_dispatch
+                .entry(format!("{}|{pop}|{}", f.dispatch, f.verdict.key()))
+                .or_insert(0) += 1;
+            // The production cross is emitted only for the bodies that actually
+            // reached a member-call production. Crossing `prod-not-entered` with a
+            // census key would restate the dispatch axis under a second name, and
+            // it is the dispatch axis that owns that population.
+            if f.prod != "prod-not-entered" {
+                *res.fn_prod
+                    .entry(format!("{}|{pop}|{}", f.prod, f.verdict.key()))
+                    .or_insert(0) += 1;
+            }
             // …and the migration cross: the measured `maxState` axis against the
             // refuted statement-count one it replaces (`docs/EH_RECORDS.md` §9.4,
             // §10). This is what reconciles §7.3's published split with the real
@@ -859,6 +949,18 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let dispatch = r
+                .fn_dispatch
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
+            let prod = r
+                .fn_prod
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             let gate = r
                 .fn_gate_refusals
                 .iter()
@@ -873,7 +975,7 @@ pub fn gap_scan(
                 .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -890,6 +992,8 @@ pub fn gap_scan(
                 frames,
                 cflow,
                 eh,
+                dispatch,
+                prod,
                 gate,
                 binds,
             )?;
@@ -944,6 +1048,8 @@ mod tests {
             fn_frames: BTreeMap::new(),
             fn_cflow: BTreeMap::new(),
             fn_eh: BTreeMap::new(),
+            fn_dispatch: BTreeMap::new(),
+            fn_prod: BTreeMap::new(),
             fn_gate_refusals: BTreeMap::new(),
             bind_checks: BTreeMap::new(),
         }
@@ -978,6 +1084,119 @@ mod tests {
         assert_eq!(
             rep.fn_blocker_histogram(),
             vec![("expr-cmp-gt".to_string(), 11), ("expr-shift".to_string(), 2)]
+        );
+    }
+
+    /// **The dispatch axes aggregate, and the residue is a NUMBER.**
+    ///
+    /// The rows below are the ones a ranking reads: two dispatch arms, one of
+    /// which (`disp-expr`) can never reach a member-call production, and the
+    /// tag-coverage residue on the production axis. Each is asserted as a positive
+    /// count with its own message, because the way this report fails is by
+    /// printing a short table that looks complete.
+    #[test]
+    fn dispatch_axes_aggregate_across_tus() {
+        let mut a = mk("x");
+        a.fn_total = 10;
+        a.fn_in_class = 1;
+        // Six bodies took the expression arm; four of those are blocked on a
+        // member-call construct they can never reach a member-call production
+        // with, which is the whole point of the axis.
+        a.fn_dispatch.insert("disp-expr".into(), 6);
+        a.fn_dispatch.insert("disp-expr|BLOCKED".into(), 6);
+        a.fn_dispatch
+            .insert("disp-expr|BLOCKED|expr-call-in-expr-recv-field-whole".into(), 4);
+        a.fn_dispatch.insert("disp-assign".into(), 4);
+        a.fn_dispatch.insert("disp-assign|BLOCKED".into(), 3);
+        a.fn_prod.insert("prod-not-entered".into(), 6);
+        a.fn_prod.insert("prod-entered-untagged".into(), 3);
+        a.fn_prod.insert("prod-accepted".into(), 1);
+        let mut b = mk("x");
+        b.fn_total = 5;
+        b.fn_dispatch.insert("disp-expr".into(), 5);
+        b.fn_dispatch.insert("disp-expr|BLOCKED".into(), 5);
+        b.fn_prod.insert("prod-not-entered".into(), 3);
+        b.fn_prod.insert("prod-entered-untagged".into(), 2);
+        let rep = mk_report(vec![a, b]);
+
+        let disp = rep.fn_dispatch_histogram();
+        let get = |h: &[(String, usize)], k: &str| -> usize {
+            h.iter().find(|(a, _)| a == k).map(|(_, n)| *n).unwrap_or(0)
+        };
+        assert_eq!(
+            get(&disp, "disp-expr"),
+            11,
+            "the expression arm must sum across TUs — this is the arm that CANNOT \
+             reach a member-call production, so its size is the part of a \
+             member-call row no widening there can serve"
+        );
+        assert_eq!(
+            get(&disp, "disp-expr|BLOCKED|expr-call-in-expr-recv-field-whole"),
+            4,
+            "the arm x census-key cross must survive aggregation: it is the only \
+             row that says a member-call CONSTRUCT arrived in an arm the member-call \
+             productions never see"
+        );
+        let prod = rep.fn_prod_histogram();
+        assert_eq!(
+            get(&prod, "prod-not-entered"),
+            9,
+            "`prod-not-entered` is a measured population and must aggregate like \
+             any other row, not be suppressed as a default"
+        );
+        assert_eq!(
+            rep.prod_untagged_residue(),
+            5,
+            "the tag-coverage residue must be reported as a NUMBER — it is what the \
+             tag sites in mcall_*.rs have left to explain, and inferring it from \
+             missing rows is the mistake this axis exists to stop"
+        );
+        // Both axes must sum to the same population the census counted. A short
+        // count means bodies went untagged and every row above is a lower bound.
+        assert_eq!(
+            rep.dispatch_axis_totals(),
+            (15, 15),
+            "both axes must account for all 15 functions: a body takes exactly one \
+             arm and reaches exactly one production state, so a short total is an \
+             under-reporting instrument rather than a small population"
+        );
+    }
+
+    /// **A scan in which nothing reached a tagged site still reports numbers.**
+    ///
+    /// This is the state of the board before the 37 tag sites in
+    /// `body::shapes::mcall_{tail,chain,cmp}` are placed: every body that entered
+    /// a production lands in `prod-entered-untagged`. The residue must read as
+    /// that population's exact size — not as 0, and not as an empty histogram,
+    /// either of which would be indistinguishable from "no bodies enter a
+    /// production at all".
+    #[test]
+    fn an_entirely_untagged_scan_reports_its_residue_rather_than_nothing() {
+        let mut a = mk("x");
+        a.fn_total = 7;
+        a.fn_prod.insert("prod-not-entered".into(), 3);
+        a.fn_prod.insert("prod-entered-untagged".into(), 4);
+        a.fn_prod.insert("prod-entered-untagged|BLOCKED".into(), 4);
+        a.fn_dispatch.insert("disp-assign".into(), 4);
+        a.fn_dispatch.insert("disp-expr".into(), 3);
+        let rep = mk_report(vec![a]);
+        assert_eq!(
+            rep.prod_untagged_residue(),
+            4,
+            "with no tag site placed, the residue IS the whole entered population \
+             and must be printed as such"
+        );
+        assert!(
+            rep.fn_prod_histogram()
+                .iter()
+                .any(|(k, n)| k == "prod-entered-untagged" && *n == 4),
+            "the residue must appear as a ranked row too, so a reader of the table \
+             sees it beside the named sites rather than having to know it is missing"
+        );
+        assert_eq!(
+            rep.dispatch_axis_totals(),
+            (7, 7),
+            "and the axes still account for every function"
         );
     }
 }
