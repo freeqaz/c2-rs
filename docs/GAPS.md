@@ -2161,3 +2161,58 @@ The rules that keep the numbers honest:
   a real distinction can hide, and the cheap test is to diff the `.ex` of two
   sources that differ *only* in the property you suspect — four changed bytes
   is a much easier read than a grammar.
+- **A row can be UNMEASURABLE rather than unmeasured, and from the outside the
+  two look identical.** This document already records that "a row with no
+  `-whole` bit sitting at the top of the ranking is not 'unmeasured'; it is
+  evidence that the row is not reaching the classifier that would measure it"
+  (`expr-op-0x99`, W36). W37 is the other half of that pair and it is worse:
+  `expr-call-in-expr-recv-load-then-bit-and` — **102,382 functions, 5.5 % of
+  everything blocked, the largest key on the board** — *was* reaching the
+  classifier, and the classifier had no production for a bare binary operator, so
+  `mark_whole`'s greedy chain stopped dead at the token and the pair was reported
+  UNMEASURED **by construction, for every operator row, forever**. Both failures
+  present as the same thing: a six-figure row at the top of a ranking with no
+  completeness figure. The distinction matters because the repairs are opposite —
+  one is a mis-anchored dispatch, the other is a missing arm in the measure — and
+  neither is visible from the key. **Ask of a bare row whether the instrument
+  could have printed a bit for it at all**, and if the answer is no, fix the
+  instrument before ranking anything against the row. Granting the five bare
+  one-byte operators (`09 0A 0B 0C 0D`, `BARE_BINARY_OPS`) de-conflated this one
+  in a single warm scan, with the numerator unchanged and all 219 moved keys
+  summing to exactly 0.
+- **Two free axes said zero and the row was ranked anyway.** The same document
+  says the frame axis refutes candidates for free and names `expr-op-0x99` as the
+  row to refute that way. That row *became* the bit-and row, and the answer was
+  sitting in the baseline scan's own cross-tables: **102,379 of 102,382 are
+  `calls-2plus` and 102,370 are `cflow-if-1`** — `if (p->Flags() & k)`, which
+  needs a frame *and* basic blocks before it needs an `and`. The takeable
+  population is at most 4. Two additions to the rule as stated. **The
+  control-flow axis refutes for free too**, it is printed in the same block as
+  the frame axis, and either one alone settles this row. And **read the
+  cross-tabulation before writing the estimate, not after**: doing so would have
+  made W37's estimate "0, range 0–4" instead of "8,000, range 1,500–30,000" and
+  the whole rung a fifteen-minute decline. `docs/rungs/2026-07-31-bit-and-declined.md`.
+- **An estimate built from "what token comes next" beat four estimates built
+  from a ratio.** Every recent estimate that missed was a *scaling* — a
+  67× row-to-counterfactual prior, a sibling family's `-whole` rate — and each
+  missed by 1.3× to 3.0×, one of them in the wrong direction and outside its own
+  range. W37's was built instead by tabulating the four C++ spellings of `x & k`
+  and asking, for each, which IL token follows the operator: a result annotation
+  (`-whole`), a branch, a compare, a store. Three of the four rows were right and
+  the fourth was right in kind, and the direction was called correctly for the
+  first time in five rungs. The generalizable form: **a prediction about the next
+  token is checkable against the grammar you already have; a prediction scaled
+  from another row's rate is checkable against nothing.** Where both are
+  available, the first is the estimate and the second is a sanity bound.
+- **The whole `&` operator is worth zero, measured at both of its rows, and that
+  is a fact about the workload rather than about the port.** 134,763 functions —
+  7.2 % of everything blocked — stop at a `0B`. Admitting the token in
+  `parse_expr` releases every one of them and moves the census numerator by
+  **exactly 0**: 32,368 of the free-standing `expr-bit-and` row land on
+  `expr-brtrue` and 102,374 of the member-call row on a `brfalse`/`brtrue` one
+  token later. `&` on this corpus is a **condition**, never a value. The reusable
+  observation is not about `&`: it is that a row's *operator* can be perfectly
+  homogeneous and still be a control-flow row, because an operator names what is
+  computed and says nothing about what consumes it. The `-then-` key's second
+  half is what says that, which is the whole argument for the instrument fix
+  above.
