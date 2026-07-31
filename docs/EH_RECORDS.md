@@ -1597,6 +1597,58 @@ identities forward, and it is the one that was wrong in kind rather than in size
 
 ### 10.9 Reproduction
 
+`work/` is gitignored, so the probe sources are reproduced here in full rather
+than referenced. `m1.cpp` (11 functions) and `m3.cpp` (15) carry every
+disagreeing cell; `m2.cpp` re-grades §7.2's own ctor/dtor shapes and is
+confirmatory.
+
+```cpp
+// m1.cpp — the two predicates against each other
+struct SE { int m; SE(); ~SE(); };
+struct NC { int m; ~NC(); };            // destructor, no user constructor
+int gp(int);  void gv();
+int mA(int a){ SE s; int x=a*3; int y=x^7; return y+1; }   // cheap, stmt rule says EH
+int mC(int a){ SE s; return gp(a); }                       // EH,    stmt rule says cheap
+int mI(int a){ int x=gp(a); SE s; return x+1; }            // cheap, stmt rule says EH
+int mF(int a){ { SE s; } { SE t; } return a+1; }           // cheap, stmt rule says EH
+int mJ(int a){ SE s; for(int i=0;i<4;i++) a+=i; return a; }// cheap, stmt rule says EH
+int mB(int a){ SE s; gv(); return a+1; }                   // EH,    both agree
+int mD(int a){ SE s; return a+1; }                         // cheap, both agree
+int mE(int a){ SE s; SE t; return a+1; }                   // EH,    both agree
+int mG(int a){ NC s; return a+1; }                         // cheap, both agree
+int mH(int a){ NC s; NC t; return a+1; }                   // EH — the raising
+int mK(int a){ NC s; return gp(a); }                       // transfer is a DTOR call
+
+// m2.cpp — §7.2's shapes, re-graded (all 20 agree, both rules)
+struct Mem { int m; Mem(); ~Mem(); };  void Fini();  void Init();
+struct One  { Mem a; ~One(){} };
+struct Two  { Mem a; Mem b; ~Two(){} };
+struct OneB { Mem a; ~OneB(){ Fini(); } };
+struct B1   { Mem a; };
+struct Ct1 : B1 { Ct1(){} };
+struct Ct2 : B1 { Ct2(){ Init(); } };
+struct Ct3 : B1 { Ct3(); };   Ct3::Ct3(){}
+void u1(){ One x; }  void u2(){ Two x; }  void u3(){ OneB x; }
+void u4(){ Ct1 x; }  void u5(){ Ct2 x; }  void u6(){ Ct3 x; }
+
+// m3.cpp — the hardening cells
+struct SE { int m; SE(); ~SE(); };
+struct Mem { int m; Mem(); ~Mem(); };
+int gp(int);  void gv();  SE mkSE();
+void n1(){ { SE s; gv(); } }                          // EH
+void n2(){ { SE s; } gv(); }                          // cheap, stmt rule says EH
+int  n3(int a){ if(a){ SE s; } return gp(a); }        // cheap
+int  n4(int a){ if(a){ SE s; gv(); } return a; }      // EH
+int  n5(int a){ {SE s;}{SE t;}{SE u;} return a+1; }   // cheap, stmt rule says EH
+struct C1 { Mem a; int k; C1(int); };  C1::C1(int x):k(gp(x)){}  // EH
+struct C2 { int k; Mem a; C2(int); };  C2::C2(int x):k(gp(x)){}  // cheap — the
+int  t1(int a){ return gp(mkSE().m) + a; }            // EH  — decisive pair, and
+int  t2(int a){ mkSE(); return a+1; }                 // cheap  the temporary cell
+int  l1(int a){ SE s; for(int i=0;i<4;i++) gv(); return a; }  // EH
+int  l2(int a){ SE s; for(int i=0;i<4;i++) a+=i; return a; }  // cheap
+void u1(){ C1 x(1); }  void u2(){ C2 x(1); }
+```
+
 ```sh
 export C2RS_WIBO=<the repo's resolved wibo>
 cargo build --release                       # binary identity now prints in the
@@ -1620,3 +1672,25 @@ The four decisive cells are pinned as unit tests in
 `the_boundary_is_one_transfer_wide`, `a_proven_state_survives_an_undecoded_tail`),
 each with the obj reading in its doc comment, so the axis cannot regress silently
 without the toolchain present.
+
+### 10.10 A gate finding, beside the measurement
+
+**The two `/EHsc` mode lanes are not standing lanes.** `scripts/mode_lane.sh`
+takes extra flags, so `scripts/mode_lane.sh /O1 /EHsc` and `/Ox /EHsc` work and
+were run for `docs/rungs/2026-07-31-ctor-base-delegation.md` — but nothing
+enumerates the lanes. There is no lane registry, no gate script, and the four
+recorded everywhere in `docs/` are `/Ox` · `/O1` · `/O2` · `/Ox /Gy`, none of
+which compiles `/EH` at all. The `/EHsc` lanes exist only as an invocation a rung
+author has to remember, on a workload that compiles `/EHsc` on **every** TU.
+
+Run here, all six are green and the two `/EHsc` lanes reproduce the figures that
+rung recorded:
+
+| lane | match | mismatch |
+|---|---:|---:|
+| `/O1` | 89 | **0** |
+| `/Ox` | 91 | **0** |
+| `/O2` | 89 | **0** |
+| `/Ox /Gy` | 89 | **0** |
+| **`/O1 /EHsc`** | **89** | **0** |
+| **`/Ox /EHsc`** | **91** | **0** |
