@@ -3513,10 +3513,17 @@ that seam has been measurable instead of merely absent from coverage.
 
 ### Also standing open
 
-The `/EHsc` mode lanes **work and are green, but are not standing lanes** —
+~~The `/EHsc` mode lanes **work and are green, but are not standing lanes** —
 nothing enumerates them, and the four lanes recorded throughout these docs are
 `/Ox`, `/O1`, `/O2`, `/Ox /Gy`, none of which compiles `/EH`, on a workload that
-compiles `/EHsc` on every TU.
+compiles `/EHsc` on every TU.~~
+
+**CLOSED 2026-07-31 (WGATE).** The lane list is data — `scripts/lanes.txt`, 12
+lanes, six code-shape configurations crossed with the EH axis — `scripts/gate.sh`
+is the one command that runs it, and `crates/c2-harness/tests/lane_registry.rs`
+fails if the shipped registry stops carrying an `/EH` lane, stops *varying*
+`/Oi`, or loses `/O1 /EHsc` by name. **Adding a lane never closed this; only
+enumerating them did** (`docs/GAPS.md` §7).
 
 ## 6t. The gate was simulating the wrong machine — WAFF, 2026-07-31
 
@@ -3650,6 +3657,111 @@ byte-graded tests prove it lowers is asserted to survive the gate. That directio
 had nothing testing it, and it is the invisible one: a gate that refuses too much
 reports a smaller numerator and every differential still passes, because a
 refused function is never graded.
+
+## 6u. The `-whole` family, decomposed — WRANK, 2026-07-31 (measurement only, nothing merged)
+
+71,767 functions across 96 keys had been *confirmed* and never *decomposed*. The
+lane that decomposed them merged no code and shipped no rung; its output is a
+ranking, and three of its findings change how the rest of the board reads.
+
+### The instruments came first, and one of them failed
+
+**Distinct-source-function attribution is not measurable on this workload** —
+stated positively, because the failure mode is that it looks measurable. A
+per-function name side-channel returned **2 distinct names for 81,615 blocked
+instances** (81,614 `(unnamed)`). `Bindings::positional` only reports names when
+`names.len() == segs.len()`, and every real TU is unpaired — `src/App.cpp` has
+3,752 `.gl` names against 9,033 segments. Read naively the table said "distinct
+= 1" for an 18,926-function row, which is precisely the artifact-shaped answer.
+A hex-window hash is token-polluted (6,494 distinct windows for 6,495
+instances). What is needed is a **body hash with the per-TU token fields
+masked**. `seg_len` gives a clean *lower* bound only, and it is a striking one:
+three rows are a single byte length at 100 % across 700+ TUs — near-certainly
+**one header inline apiece, i.e. one refusal, not seven hundred**.
+
+**The `-whole{k}` suffix over-counts by one on ~27,600 functions.** `mcall.rs`'s
+completeness walker charges a `Blocker::Type(Ptr)` grant for a pointer argument,
+while the production it is measuring already accepts one — and so does the
+walker's own sibling `eat_admitted_type`, **in the same file**. `eat_int_like_or_admitted`
+is the only one of the three that refuses a pointer: category (1) of §6n in its
+*shared-locator-nobody-else-asks* form. Verified positively from hand-written
+source rather than inferred. The counterfactual moves 217 keys net 0 and leaves
+census, blocked total and disagreement identical — and the board's **top row**,
+`data-addr-2sym-then-plain-call-and-type-ptr-whole2`, becomes `…-plain-call-whole`:
+need = 1, not 2. **Its "second construct" was never a construct.**
+
+### The 55.4 % data-symbol claim: verified, and its attribution refuted
+
+Directly measured rather than summed from three named groups: **40,871 of
+71,767 = 56.95 %** of the family renders at least one data designator — a slight
+*undercount* in the original, which omitted 1,089 functions in seven smaller
+keys. But it is not one seam, and the split is almost exactly half:
+
+| | functions | share | unruled blockers? |
+|---|---:|---:|---|
+| single symbol | **20,505** | 50.2 % | **no** — one REFHI/REFLO+PAIR quad, the shape `coff.rs` already emits for pooled FP constants |
+| two or more | **20,366** | 49.8 % | **yes** — §17.3(b) anchor choice and (c) argument scheduler, both fitted hypotheses with no derived rule |
+
+§17.3(b)/(c) are properties of the **multi-symbol case only**. Quoting them
+against the whole 55.4 % makes half the population look unbuildable when it is
+not. **The takeable half is 20,505 — not 0, and not 40,871.**
+
+### The instrument that actually decomposes the family
+
+A **production first-blocker** tag at every non-committal bail in the three
+member-call productions says *which limit inside the shipped recognizer refused*.
+No census key does that, and §6n's category (1) — a private limit inside a
+recognizer that already exists — is by far the most common answer to "what is
+this big row", six rungs running. **It has now been built and thrown away twice.**
+
+| production first blocker | functions | share |
+|---|---:|---:|
+| none of the three productions entered | 30,475 | 42.5 % |
+| `eat_call_args` — an argument the port cannot spell | 14,621 | 20.4 % |
+| `mcall_chain`: receiver not a plain `B9` load | 11,877 | 16.5 % |
+| framed post-op | 8,062 | 11.2 % |
+| body does not END at the call | 3,326 | 4.6 % |
+| inner call-args | 2,214 | 3.1 % |
+| tail: receiver not a plain `B9` load | 557 | 0.8 % |
+| tail: return plumbing (value) | 409 | 0.6 % |
+| everything else | 226 | 0.3 % |
+
+The 30,475 splits into **21,666 correctly not applicable** (the `data-addr`
+family) and **8,809 that are member-call forms and reach no production at all** —
+so no widening inside any of them can move one function. That 8,809 was **not
+sized and not reported as 0**; it needs a dispatch-ladder tag.
+
+All five top rows were reproduced from hand-written source through the live
+toolchain **before** the table was believed.
+
+### Ranked, with the framing corrections that fell out
+
+1. **Single-symbol data address — 15,583**, three shapes behind **one** unbuilt
+   emitter: `recv-load-then-call-data-addr-1sym` 10,540, `data-addr-1sym-then-plain-call`
+   2,718, and a bare global read 2,325 split out of `expr-out-of-class-bare-nonformal:eof`.
+   The ceiling is the estimate: for the 10,540 the member-call emitter **already
+   exists** and 100 % bail at `eat_call_args` — one variable, one place. This
+   **corrects** the earlier framing that the row sat behind "the member-call
+   emitter *and* the data-symbol emitter, both unbuilt". It is behind one.
+2. **The statement sequence with a member call — 3,326.** Its largest key,
+   `recv-load-then-type-ptr-whole` (2,107), is **mis-described** — category (5).
+   The name says "a pointer"; the construct is a statement sequence, and 2,106 of
+   2,107 bail at *body does not end at the call*. Both halves are built.
+3. **The `-whole{k}` repair** — census delta 0 by construction, but ship it
+   **with** a production first-blocker key or it merges (2) into `recv-load-whole`
+   and creates a conflated 8,602 bucket.
+4. **Class B, a value live across a call** — 8,062 at the framed post-op, plus
+   3,197 and 8,656 behind it. A **frame class, not a rung**; schedule as a phase.
+   `recv-load-whole` (6,495) is category (6) and refuted as a rung on the same
+   grounds: 99.5 % of it is this.
+5. **Tag the body-dispatch ladder** — an instrument, and 8,809 functions cannot
+   be ranked at all until it exists.
+6. **`bool`/`char` argument to a member call — 786.** `parse_expr_classed`
+   already computes the class; `eat_call_args` calls the class-discarding
+   `parse_expr`. Category (1), small and cheap.
+
+**Not scheduled:** the two-symbol phase (20,366), `fn-tail-0x26` (refuted at
+zero — all `calls-2plus`), and `call-arg-computed:eof` (owned by a live lane).
 
 ## 7. Invariants (do not break)
 
