@@ -746,12 +746,12 @@ def run_ladder(name, mode, wd, nmax):
     tree, gen, kmax, note = LADDERS[name]
     o1 = "/O1" in mode
     print("=== %-18s %s" % (name, note))
-    print("    %-3s %-5s %-6s %-6s %-6s  %-26s %s"
-          % ("k", "Nfull", "s(dir)", "s(in)", "P@N=1", "declined per N (1..%d)"
-             % nmax, "SCHED D"))
+    print("    %-3s %-5s %-5s %-6s %-6s %-6s  %-24s %s"
+          % ("k", "Nfull", "Ndir", "s(dir)", "s(in)", "P@N=1",
+             "declined per N (1..%d)" % nmax, "SCHED D"))
     bad, out, refuted = 0, [], 0
     for k in range(kmax + 1):
-        per_n, nfull, ptext = [], 0, None
+        per_n, nfull, ndir, ptext = [], 0, 0, None
         dsz = isz = None
         watch = tree(gen(k))[2]
         for n in range(1, nmax + 1):
@@ -767,18 +767,28 @@ def run_ladder(name, mode, wd, nmax):
                 dsz = size_of(r["emit"], watch[0])
                 isz = size_of(r["emit"], watch[-1])
             d = r["declined"]
+            # SCHEDULE D is a claim about ONE (caller, callee) pair. When a
+            # DEEPER instance is refused — a constructor inside an inlined
+            # wrapper, say — that is a different pair and grading it here
+            # would cry wolf: the `ctor-*` ladders inline their wrapper at
+            # every one of 12 sites and have the ctor declined at all of them.
+            nd = sum(c for w, c in d.items() if w == watch[0])
+            if nd == 0 and ndir == n - 1:
+                ndir = n
             tot = sum(d.values())
             per_n.append("." if tot == 0
                          else "".join("%s%d" % (w[0], c) for w, c in
                                       sorted(d.items())))
             if tot == 0 and nfull == n - 1:
                 nfull = n
-        v = grade_d(nfull, dsz, nmax, o1)
+        v = grade_d(ndir, dsz, nmax, o1)
+        if nfull != ndir:
+            v += "   INNER-DECLINED (a different pair)"
         if "REFUTES" in v:
             refuted += 1
-        print("    %-3d %-5d %-6s %-6s %-6s  %-26s %s"
-              % (k, nfull, dsz, isz, ptext, " ".join(per_n), v))
-        out.append((k, nfull, dsz, isz, ptext))
+        print("    %-3d %-5d %-5d %-6s %-6s %-6s  %-24s %s"
+              % (k, nfull, ndir, dsz, isz, ptext, " ".join(per_n), v))
+        out.append((k, nfull, ndir, dsz, isz, ptext))
     print()
     return bad, refuted
 
