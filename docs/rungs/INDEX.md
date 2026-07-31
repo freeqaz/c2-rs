@@ -17,4 +17,5 @@ the header block this table is read from.
 | 2026-07-31 | WCF | [cflow-decode](2026-07-31-cflow-decode.md) | 2 | 491013 → 491013 (19.94% → 19.94%), +0 |
 | 2026-07-31 | W31 | [fp-tail](2026-07-31-fp-tail.md) | 2 | 491,013 → 549,148 (19.94 % → 22.30 %), +58,135 |
 | 2026-07-31 | W33 | [frame-class-c-declined](2026-07-31-frame-class-c-declined.md) | 1 | 549,148 unchanged — the rung is DECLINED; its measured worth is 0 |
+| 2026-07-31 | W34 | [offset-run](2026-07-31-offset-run.md) | 2 | 549,148 → 555,655 (22.30 % → 22.56 %), +6,507 |
 | 2026-07-31 | W32 | [volatile-formal](2026-07-31-volatile-formal.md) | 2 | 549,148 unchanged — the refusal costs exactly 0 (measured) |
