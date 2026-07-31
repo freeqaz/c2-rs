@@ -82,7 +82,7 @@ while [ $# -gt 0 ]; do
         --jobs)     shift; jobs="$1" ;;
         --work)     shift; work="$1" ;;
         --registry) shift; registry="$1" ;;
-        -h|--help)  sed -n '2,66p' "$0"; exit 0 ;;
+        -h|--help)  sed -n '2,/^set -eu$/p' "$0" | sed '$d'; exit 0 ;;
         *) echo "gate.sh: unknown argument '$1' (try --help)" >&2; exit 2 ;;
     esac
     shift
