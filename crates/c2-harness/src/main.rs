@@ -344,20 +344,32 @@ fn cmd_census(rest: &[String]) -> ExitCode {
     // One representative blocking-site hexdump per feature, so a big TU reports
     // each distinct gap once instead of thousands of times.
     let mut sample: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    // The control-flow axis, over EVERY function including the in-class ones —
+    // they are the control group, and every one of them must read
+    // `cflow-straight`, because every shape the port accepts is a single basic
+    // block. A `cflow-loop` among them would indict the measure.
+    let mut cflow_hist: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
     // Per-function lines are only readable for a small TU; a real one has
     // thousands of functions and the histogram is the useful view.
     let list_each = census.len() <= 64;
     for f in &census {
         let mark = if f.verdict.in_class() { "ok " } else { "GAP" };
         if list_each {
+            // Both census axes on one line. A control-flow fixture is graded on
+            // the pair: it must refuse (the first column) AND its shape must be
+            // decoded (the second), and a single column can show only one of
+            // those. `c2rs gap` prints the same second axis aggregated.
             println!(
-                "  [{:>3}] {mark} {:<24} {:>6} B  {}",
+                "  [{:>3}] {mark} {:<24} {:<26} {:>6} B  {}",
                 f.index,
                 f.verdict.key(),
+                f.cflow,
                 f.seg_len,
                 f.name.as_deref().unwrap_or("(unnamed)")
             );
         }
+        *cflow_hist.entry(f.cflow.clone()).or_insert(0) += 1;
         if !f.verdict.in_class() {
             *hist.entry(f.verdict.key()).or_insert(0) += 1;
             sample
@@ -377,6 +389,18 @@ fn cmd_census(rest: &[String]) -> ExitCode {
         }
         if v.len() > 24 {
             println!("    … and {} more distinct features", v.len() - 24);
+        }
+    }
+    {
+        let mut v: Vec<_> = cflow_hist.into_iter().collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        let decoded: usize = v.iter().filter(|(k, _)| k.starts_with("cflow-")).map(|(_, n)| n).sum();
+        println!(
+            "  control-flow class (decode-only): {decoded}/{} bodies decoded end to end",
+            census.len()
+        );
+        for (class, count) in v.iter().take(16) {
+            println!("    {count:>6} x {class}");
         }
     }
     if !gate_hist.is_empty() {
@@ -2035,6 +2059,39 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 .iter()
                 .filter(|(k, _)| k.starts_with("calls-2plus|"))
                 .take(10)
+            {
+                println!("    {count:>7}           {key}");
+            }
+        }
+        // The control-flow axis (roadmap #25/#61) — DECODE ONLY, and the sizing of
+        // the block-IR restructure. `cflow-*` rows are bodies whose statement layer
+        // decoded end to end, so their CFG is known; `cf-*` rows are where the
+        // statement-layer decoder itself stopped, which is the residue of the
+        // grammar and the next decode rung's own widening order.
+        let (dec, undec) = report.cflow_decoded_totals();
+        let cf_seen = dec + undec;
+        if cf_seen > 0 {
+            println!(
+                "  control-flow class (statement layer, decode-only): {dec} of {cf_seen} bodies \
+                 decoded end to end ({:.1}%)",
+                100.0 * dec as f64 / cf_seen as f64
+            );
+            let cflow = report.fn_cflow_histogram();
+            for (key, count) in cflow.iter().filter(|(k, _)| !k.contains('|')).take(14) {
+                println!(
+                    "    {count:>7} ({:>5.1}%)  {key}",
+                    100.0 * *count as f64 / cf_seen as f64
+                );
+            }
+            // …and what each decoded shape is worth **if it were lowered**: the
+            // shape crossed with what else the body is blocked on. A row whose
+            // census key is an `expr-*` feature is waiting on the expression layer
+            // too; the `+expr-modeled` rows are the ones waiting on control flow
+            // alone, and their total is the number this restructure is worth today.
+            for (key, count) in cflow
+                .iter()
+                .filter(|(k, _)| k.contains('|') && !k.starts_with("cflow-straight"))
+                .take(12)
             {
                 println!("    {count:>7}           {key}");
             }
