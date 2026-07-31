@@ -83,7 +83,10 @@ So the new entry for the ranking table is not a ratio, it is a rule:
 
 ## What was built, graded and reverted
 
-Kept in `work/W42/framed_compare.rs.declined` rather than in the tree.
+The new recognizer is kept verbatim in `work/W42/framed_compare.rs.declined`;
+the rest was a set of mechanical edits and is **not** kept, so the list below is
+the spec rather than a pointer. Everything hard about rebuilding it is in "the
+four readings" — that is the part that took the measurements.
 
 * `shapes/framed_compare.rs` — the relational post-op after a call's `4C`, shared
   by the free-function and member-call heads (the seam W41 had to repair), with
