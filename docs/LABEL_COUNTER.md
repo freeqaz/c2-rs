@@ -356,6 +356,24 @@ That is the practically important half of this section. Any emitter that decides
 label numbers by looking at the *instructions* it is about to emit will be wrong
 by 3 per inlined site on a TU it otherwise gets exactly right.
 
+> **Latent in this port, not live — checked rather than argued (2026-07-31).**
+> `PortC2` decides label numbers exactly that way, so the hazard above is real
+> for it. What stops it reaching an obj is the TU-level gate in
+> `crates/c2-il/src/func/bundle.rs`: *"a callee that is also DEFINED here is out
+> of class: c2 may inline it"* — a rule that was added for a different reason
+> (c2 cloned a callee into its caller and the port emitted a `b` against an
+> external that no longer existed) and turns out to cover this one exactly.
+> Verified through `c2rs diff` on both spellings that reach the inliner —
+> `static int helper(int a){...}` called twice, and an `inline` function called
+> once — with a second, non-inlined function present so the counter has somewhere
+> to go wrong. Both return `Port=NotImplemented`, reference replay byte-exact.
+>
+> So this section is a **licence check**, in the same sense as §2.1: nothing the
+> port emits today is wrong, and the number is here so that the first rung to
+> relax that gate — which is what admitting real workload TUs will require, since
+> they are inlined into constantly — cannot do it on the assumption that an
+> inlined site is free. It is not free. It costs 3, and 2*d+1 + d*E when nested.
+
 ## 6.2 Law L′
 
 For each inline instance `I` in the expansion tree of one call site (P's own
