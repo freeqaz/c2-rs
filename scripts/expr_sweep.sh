@@ -62,8 +62,10 @@ rm -f "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true
 # `target/release/c2rs` directly. `scripts/harness_bin.sh` has the two failures
 # this closes: the `if [ ! -x ]` guard that let a sweep grade today's cases with
 # yesterday's code (47 phantom mismatches, false-green in the other direction),
-# and `cargo` republishing the binary non-atomically under a running sweep
-# (observed: exit 144 after 6,225 cases). The identity line it prints — build
+# and a gate reading a file the rest of the tree may rewrite mid-run (one sweep
+# did die that way at 6,225 cases; the mechanism is an unproven hypothesis and
+# `harness_bin.sh` says so — the fix rests on the structural property, not on
+# that observation). The identity line it prints — build
 # time, content sha, tree HEAD — is what makes "which code produced this number"
 # answerable from the log.
 . "$repo_root/scripts/harness_bin.sh"

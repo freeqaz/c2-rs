@@ -21,12 +21,23 @@
 # the log to tell the two apart. `cargo build` is a no-op when current, so the
 # guard was never buying anything.
 #
-# **2. A binary republished under a running gate.** `cargo` writes
-# `target/release/c2rs` non-atomically, so a `cargo build` anywhere in the tree —
-# another lane, another agent, a `cargo test` — can kill an in-flight sweep
-# mid-run (observed: exit 144, no `checked=` line, 6,225 cases discarded). It can
-# also, in principle, hand a run a partially written binary. That is the same
-# defect as the `c2host.exe` in-place link this repo fixed today, one layer up.
+# **2. A binary republished under a running gate.** A gate that executes
+# `target/release/c2rs` directly depends on a file the rest of the tree may
+# rewrite at any moment — another lane, another agent, a `cargo test`.
+#
+# Be careful about what is established here. One sweep did die mid-run (exit 144,
+# no `checked=` line, 6,225 cases discarded) with a `cargo` build alongside it,
+# **and that death could not be reproduced on demand**: 400-case runs against
+# `target/release/c2rs` survived three forced relinks and a full
+# `cargo test --workspace`. So the mechanism is an unproven hypothesis, not a
+# measured fact, and it should not be cited as one. (Some of those deaths were
+# later traced to something else entirely — a `pkill -f expr_sweep` whose pattern
+# matched its own command line.)
+#
+# The fix does not rest on that hypothesis. It rests on a structural property:
+# a run that holds its own copy is unaffected by anything the tree does to
+# `target/`, whether or not cargo's publication is atomic. Same shape as the
+# `c2host.exe` in-place link this repo fixed today, one layer up.
 #
 # Both go away together: **build unconditionally, then copy the binary into the
 # run's own directory and run THAT copy.** The copy is published by `rename`, so
