@@ -252,6 +252,39 @@ pub struct SeqCall {
     /// A 2+-argument call's register permutation over the formals, exactly as
     /// [`IlFunction::arg_sources`] carries it for a multi-argument tail call.
     pub arg_sources: Option<Vec<usize>>,
+    /// **WCL** — set when this call is a **chain link**: `p->a()->b(k)`'s outer
+    /// call, whose receiver is the previous call's result and is therefore
+    /// already in r3. Its explicit arguments start at argument slot **1** and
+    /// are listed here in ascending slot order. `None` for every other call,
+    /// including a chain's innermost one. See `c2_il::func::body::SlotArg`'s
+    /// internal twin and `docs/rungs/2026-07-31-chain-link-arg.md`.
+    pub link_args: Option<Vec<SlotArg>>,
+}
+
+/// **The argument slot a chain link's explicit arguments start at.** Its
+/// receiver is the previous call's result, which a `bl` has already left in r3 =
+/// argument slot 0, so the first explicit argument goes to r4.
+///
+/// One fact, so one constant, and it lives in *this* crate although only the
+/// backend reads a register out of it: the IL parser uses it to bound the slot
+/// list and the emitter uses it to pick the register, and those two agreeing is
+/// the whole reason the census cannot claim a body the gate declines. A second
+/// copy on the codegen side is the `docs/GAPS.md` §6 #9 shape exactly.
+///
+/// Measured at one and **only** one: no capture in this family separates "the
+/// receiver occupies slot 0" from "the first explicit argument goes to r4", so a
+/// per-call slot *number* would be a degree of freedom nothing has graded.
+pub const LINK_FIRST_SLOT: usize = 1;
+
+/// One explicit argument of a chain link ([`SeqCall::link_args`]) — the resolved
+/// twin of `c2_il::func::body::SlotArg`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotArg {
+    /// A formal, by index into [`IlFunction::params`]; it is in a callee-saved
+    /// GPR by the time the link runs ([`CallSeq::saved`] says which).
+    Formal(usize),
+    /// A literal — `li r<slot>,k`, which costs no callee-saved register.
+    Lit(i32),
 }
 
 /// What a [`CallSeq`] body does after its last call. See

@@ -16,12 +16,12 @@ use crate::func::body::chain::{
 use crate::func::body::expr::{
     eat_return_plumbing, intrinsic_selector, parse_expr, BODY_SCOPE_DEPTH,
 };
-use crate::func::body::{blk, Block, BodyShape, SeqCall, SeqTail};
+use crate::func::body::{blk, Block, BodyShape, SeqCall, SeqTail, SlotArg};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, read_token_var,
     read_type, read_varint, TYPE_KIND_REAL_CLASS,
 };
-use crate::func::IlOp;
+use crate::func::{IlOp, LINK_FIRST_SLOT};
 
 use super::params::parse_params;
 
@@ -241,6 +241,78 @@ pub(crate) fn tail_call_shape(
         return Err(Block { ctx, byte: None, off, aux: 0 });
     }
     Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok })
+}
+
+/// **WCL — the argument list of a call whose slot 0 is already filled.**
+///
+/// [`tail_call_shape`]'s sibling for a **chain link**: the outer call of
+/// `p->a()->b(k)`, whose receiver is the previous call's result and is therefore
+/// already in r3. It is a separate locator rather than a parameter of that one
+/// because almost nothing it does carries over — the two disagree on every rule
+/// they both have an opinion about, and each disagreement is a capture:
+///
+/// * **the slot base.** Slot 0 is the receiver, so the explicit arguments start
+///   at slot **1** and the first one goes to **r4**;
+/// * **there is no permutation.** Every argument's value is in a callee-saved
+///   GPR (that is what being live across the previous `bl` means) or is a
+///   literal, and the two register files are disjoint, so no move can clobber
+///   another's source and the cycle machinery has nothing to decompose. In
+///   particular a value passed **twice** is two ordinary moves, not the dead
+///   `mr r11` `tail_call_shape` refuses under `call-arg-duplicated`:
+///   `p->Next()->gia2(j, j)` is `mr r4,r31 ; mr r5,r31`, captured;
+/// * **the emission order is the opposite one**, ascending rather than
+///   descending — see `c2_core::codegen::calls`, where the bytes are.
+///
+/// Sharing the *name* of a rule those three disagree with is how one fact grows
+/// two implementations (`docs/GAPS.md` §6 #9); sharing the *code* here would be
+/// how one implementation grows two facts.
+///
+/// `args` is the link's argument region in **stream order** (reverse source
+/// order), exactly as [`eat_call_args`] hands it over, so slot `1 + i` is
+/// `args[len-1-i]`. Read off the IL of `int f(O* p,int j,int k) { return
+/// p->Next()->gia2(j, k); }`, whose link region is `B9 <k> … 55 · B9 <j> … 55 ·
+/// 4C` — the same reversal every other argument position in this file uses, and
+/// the one a private copy would have had to restate.
+pub(crate) fn link_arg_slots(
+    args: Vec<Vec<IlOp>>,
+    params: &[u32],
+    off: usize,
+) -> Result<Vec<SlotArg>, Block> {
+    let refuse = |ctx: &'static str| Block { ctx, byte: None, off, aux: 0 };
+    // Slot 0 is the receiver, so `n` explicit arguments occupy slots `1..=n` and
+    // the last of them must still be a register. Past that a parameter is
+    // stack-homed and its setup is a store, not a move — the same boundary
+    // `callseq-over-eight-formals` draws for the formals list, drawn here for the
+    // argument list because these two lengths are independent.
+    if args.len() + LINK_FIRST_SLOT > MAX_REGISTER_FORMALS {
+        return Err(refuse("mcall-chain-link-arg-overflow"));
+    }
+    let mut slots = Vec::with_capacity(args.len());
+    for slot in 0..args.len() {
+        slots.push(match args[args.len() - 1 - slot].as_slice() {
+            [IlOp::Load(t)] => match params.iter().position(|&q| q == *t) {
+                Some(ix) => SlotArg::Formal(ix),
+                // A local, a global, or another call's result: not something the
+                // save plan can have put in a callee-saved register.
+                None => return Err(refuse("mcall-chain-link-arg-nonformal")),
+            },
+            // `li r<slot>,k` — the signed-16-bit immediate, the same bound the
+            // call-sequence tail literal carries. A wider one is `lis`+`ori`.
+            [IlOp::Lit(k)] => {
+                if !(-0x8000..=0x7FFF).contains(k) {
+                    return Err(refuse("mcall-chain-link-arg-lit-wide"));
+                }
+                SlotArg::Lit(*k)
+            }
+            // Anything computed. The operand stream would be rebased onto the
+            // callee-saved register — `p->Next()->gia(k + 1)` is `addi r4,r31,1`,
+            // captured — which is a second lowering of the leaf selector rather
+            // than a use of it, and is the same refusal `plan_saved_gprs` makes
+            // for a later statement call under `callseq-saved-computed-arg`.
+            _ => return Err(refuse("mcall-chain-link-arg-computed")),
+        });
+    }
+    Ok(slots)
 }
 
 /// Consume one **call header** — `26 <callee-tok> BD <ret TYPE> <conv> <varint
@@ -900,7 +972,9 @@ fn parse_call_sequence(
                 _ => return Err(Block { ctx: "callseq-arg-shape", byte: None, off: *p, aux: 0 }),
             };
         let _ = i;
-        calls.push(SeqCall { callee_tok, arg_ops, arg_sources });
+        // Never a chain link: this production's calls are STATEMENTS, each
+        // with its own complete argument list starting at slot 0.
+        calls.push(SeqCall { callee_tok, arg_ops, arg_sources, link_args: None });
     }
     // Class A saves nothing; Class B saves one or two GPRs. Which formals, and in
     // which register, is [`plan_saved_gprs`].
@@ -1004,6 +1078,20 @@ pub(crate) fn plan_saved_gprs(
                 }
             }
         }
+        // **WCL — a chain link's arguments.** The third argument form, and it
+        // has to be asked here for the same reason the other two are: a formal a
+        // link reads is live across the previous `bl` and therefore has to be
+        // saved. It is exactly this that makes `p->a()->b(k)` Class B while
+        // `p->a()->b()` is Class A. A `Lit` costs no register — which is why the
+        // literal cell stays Class A — and a link argument is never anything
+        // else, because `link_arg_slots` refused it before this ran.
+        for a in c.link_args.iter().flatten() {
+            if let SlotArg::Formal(i) = a {
+                if let Some(slot) = live.get_mut(*i) {
+                    *slot = true;
+                }
+            }
+        }
     }
     let saved: Vec<usize> = (0..params.len()).filter(|&i| live[i]).collect();
     if saved.is_empty() && extra_saved == 0 {
@@ -1061,7 +1149,13 @@ pub(crate) fn plan_saved_gprs(
     // (`void f(int a,int b){ v1(a); v2(b + 1); }` -> `addi r3,r31,1`) and
     // refused until it goes through one locator.
     for c in calls.iter().skip(1) {
+        // A **chain link** carries its arguments in `link_args` and nowhere else,
+        // and `link_arg_slots` has already reduced each of them to a formal or a
+        // literal — the identical predicate, asked at the point the bytes are
+        // read. Its `arg_ops` is empty, so it takes the `(None, [])` arm below;
+        // spelled out because "it happens to be empty" is not a reason.
         let ok = match (&c.arg_sources, c.arg_ops.as_slice()) {
+            _ if c.link_args.is_some() => c.arg_sources.is_none() && c.arg_ops.is_empty(),
             (Some(_), _) => true,
             (None, []) | (None, [IlOp::Lit(_)]) => true,
             (None, [IlOp::Load(t)]) => index_of(*t).is_some(),
@@ -1299,8 +1393,23 @@ mod tests {
             callee_tok: 1,
             arg_ops: args.iter().map(|t| IlOp::Load(*t)).collect(),
             arg_sources: None,
+            link_args: None,
         };
-        let nullary = || SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: None };
+        let nullary = || SeqCall {
+            callee_tok: 1,
+            arg_ops: Vec::new(),
+            arg_sources: None,
+            link_args: None,
+        };
+        // **WCL** — a chain LINK reading `params[i]`, which is the third way a
+        // formal can be live across a `bl` and the third one this planner has to
+        // see. A `Lit` link argument costs no register at all.
+        let link = |slots: &[SlotArg]| SeqCall {
+            callee_tok: 1,
+            arg_ops: Vec::new(),
+            arg_sources: None,
+            link_args: Some(slots.to_vec()),
+        };
         let plan = |calls: &[SeqCall]| plan_saved_gprs(&params, calls, 0, 0);
 
         // Nothing read after the first call: Class A, nothing saved.
@@ -1335,7 +1444,12 @@ mod tests {
         assert_eq!(plan(&setup0).unwrap(), vec![2]);
         // …and the IDENTITY permutation is not marshalling at all.
         let id0 = [
-            SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: Some(vec![0, 1]) },
+            SeqCall {
+                callee_tok: 1,
+                arg_ops: Vec::new(),
+                arg_sources: Some(vec![0, 1]),
+                link_args: None,
+            },
             call(&[0xA2]),
         ];
         assert_eq!(plan(&id0).unwrap(), vec![2]);
@@ -1344,7 +1458,12 @@ mod tests {
         // and emits no r11 at all. The hoist/trail model is wrong on 11 of 17
         // probes there, so it is refused at the measured edge.
         let perm0 = [
-            SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: Some(vec![1, 0]) },
+            SeqCall {
+                callee_tok: 1,
+                arg_ops: Vec::new(),
+                arg_sources: Some(vec![1, 0]),
+                link_args: None,
+            },
             call(&[0xA2]),
         ];
         assert_eq!(
@@ -1358,6 +1477,7 @@ mod tests {
                 callee_tok: 1,
                 arg_ops: vec![IlOp::Load(0xA0), IlOp::Lit(1), IlOp::Add],
                 arg_sources: None,
+                link_args: None,
             },
             call(&[0xA2]),
         ];
@@ -1375,6 +1495,7 @@ mod tests {
                 callee_tok: 1,
                 arg_ops: vec![IlOp::Load(0xA1), IlOp::Lit(1), IlOp::Add],
                 arg_sources: None,
+                link_args: None,
             },
         ];
         assert_eq!(plan(&comp1).unwrap_err().ctx, "callseq-saved-computed-arg");
@@ -1382,7 +1503,12 @@ mod tests {
         // else and needs no saved register of its own.
         let lit1 = [
             call(&[0xA0]),
-            SeqCall { callee_tok: 1, arg_ops: vec![IlOp::Lit(5)], arg_sources: None },
+            SeqCall {
+                callee_tok: 1,
+                arg_ops: vec![IlOp::Lit(5)],
+                arg_sources: None,
+                link_args: None,
+            },
             call(&[0xA1]),
         ];
         assert_eq!(plan(&lit1).unwrap(), vec![1]);

@@ -2,7 +2,7 @@ use super::body::{self, parse_segment, BodyShape};
 use super::bind::Bindings;
 use super::gl::drectve_is_boilerplate;
 use super::readers::{find_subslice, memchr_byte};
-use super::{CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqTail};
+use super::{CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqTail, SlotArg};
 use crate::IlBundle;
 
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
@@ -441,6 +441,14 @@ pub(crate) fn shape_to_function(
                         callee: resolve(c.callee_tok)?,
                         arg_ops: c.arg_ops,
                         arg_sources: c.arg_sources,
+                        link_args: c.link_args.map(|v| {
+                            v.into_iter()
+                                .map(|a| match a {
+                                    body::SlotArg::Formal(i) => SlotArg::Formal(i),
+                                    body::SlotArg::Lit(k) => SlotArg::Lit(k),
+                                })
+                                .collect()
+                        }),
                     });
                 }
                 Some(IlFunction {

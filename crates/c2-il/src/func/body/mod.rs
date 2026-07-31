@@ -136,11 +136,46 @@ pub(crate) enum DtorSubObject {
 /// The two argument forms are the two the tail call already had: an operand
 /// stream computed into r3 (0 or 1 argument, `arg_ops` empty for a nullary call),
 /// or a register permutation over the formals (2+ bare-parameter arguments).
+///
+/// [`Self::link_args`] is a **third** form and is not a variant of either: it
+/// belongs to a call whose slot 0 is already filled.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct SeqCall {
     pub(crate) callee_tok: u32,
     pub(crate) arg_ops: Vec<IlOp>,
     pub(crate) arg_sources: Option<Vec<usize>>,
+    /// **WCL — this call is a CHAIN LINK**: its receiver is the previous call's
+    /// result, already sitting in r3, so its own explicit arguments start at
+    /// argument slot **1** and its marshalling is a different lowering from
+    /// every other call's. `Some` for exactly the links of
+    /// [`super::shapes::mcall_chain`]; `None` everywhere else, including for a
+    /// chain's innermost call, whose argument list is complete and goes through
+    /// [`super::shapes::tail_call_shape`] like any other.
+    ///
+    /// One entry per explicit argument, in **slot order** (ascending), which is
+    /// the order c2 emits them in — the opposite of the order it uses for a call
+    /// whose list starts at slot 0. That is measured, not assumed; see
+    /// `c2_core::codegen::calls::link_setup_text`.
+    pub(crate) link_args: Option<Vec<SlotArg>>,
+}
+
+/// One explicit argument of a **chain link**, already resolved to the only two
+/// things a link is admitted to carry.
+///
+/// It is a small closed enum rather than an operand stream because a link's
+/// argument is never *computed*: the register it would be computed into is the
+/// callee-saved file the saves live in (`addi r4,r31,1`, captured), which is a
+/// second lowering of the leaf selector rather than a use of it, and
+/// `super::shapes::calls::plan_saved_gprs` refuses it by name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SlotArg {
+    /// A formal, by index into the `params` list. It is live across the previous
+    /// `bl`, so it is in a callee-saved GPR by the time the link runs, and
+    /// `plan_saved_gprs` is what put it there.
+    Formal(usize),
+    /// A literal — `li r<slot>,k`. It costs no callee-saved register, so a chain
+    /// whose only link arguments are literals stays **Class A**.
+    Lit(i32),
 }
 
 /// What a [`BodyShape::CallSeq`] does after its last call.
