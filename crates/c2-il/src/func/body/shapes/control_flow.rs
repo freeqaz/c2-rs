@@ -167,6 +167,96 @@ impl CfBody {
     }
 }
 
+/// **The exception-handling state markers a body carries** — the `5C` / `5D` /
+/// `5E` trailer family, counted rather than interpreted.
+///
+/// This is the raw material of the EH axis ([`EhMarkers::key`]); what it is FOR
+/// is on that method. Everything here is a count the walk collected, and it is
+/// collected whether or not the walk finished, because "a marker was seen before
+/// the stop" is itself the answer for a body that does not decode.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EhMarkers {
+    /// `5C <TYPE> <varint>` trailers — one per statement in which an object with
+    /// a destructor became live. In a compiler-generated constructor or
+    /// destructor that is the sub-object statement; in an ordinary function it is
+    /// the statement that declared the local or materialized the temporary.
+    pub(crate) live_stmts: usize,
+    /// The largest `<n>` on a `5D` / `5E` count trailer — how many destructible
+    /// objects the body's EH state tracks at once.
+    pub(crate) count: u32,
+    /// `5D` / `5E` trailers standing immediately before a `4B`, i.e. the ones
+    /// that are a statement of their own rather than an operand of the statement
+    /// they sit inside. Subtracted out below so the trailer is not counted as a
+    /// body statement.
+    pub(crate) trailer_stmts: usize,
+    /// `4B` statement ends seen anywhere in the body.
+    pub(crate) stmt_ends: usize,
+    /// Any `5C` / `5D` / `5E` at all.
+    pub(crate) any: bool,
+}
+
+impl EhMarkers {
+    /// Statements that are neither a `5C` object-goes-live statement nor a
+    /// `5D`/`5E` trailer's own — i.e. **the "anything else" of the boundary**.
+    ///
+    /// A `return` statement carries no `4B` (`docs/IL_STMT_GRAMMAR.md` §9) and so
+    /// is not counted here. That is the conservative direction for the cheap side
+    /// and it is stated rather than hidden: a body whose only extra statement were
+    /// a bare `return;` would read as bare.
+    pub(crate) fn other_stmts(self) -> usize {
+        self.stmt_ends
+            .saturating_sub(self.live_stmts)
+            .saturating_sub(self.trailer_stmts)
+    }
+
+    /// **The EH census axis.** Which side of `docs/EH_RECORDS.md` §6's boundary
+    /// this body falls on:
+    ///
+    /// > Exactly one sub-object statement and nothing else is a bare branch. A
+    /// > second sub-object, or any other statement beside it, is the WHOLE EH
+    /// > RECORD.
+    ///
+    /// Nothing in the blocking-feature key says which side a body is on — the
+    /// probe `work/WEH/probe/p1.cpp` has a cheap constructor and an EH
+    /// constructor filed under the *same* key `expr-intrinsic-this-adjust` — and
+    /// that is the whole reason this axis exists. `docs/EH_RECORDS.md` §7 is the
+    /// measurement: 14 hand-written functions, both sides, at the workload's own
+    /// flags. Twelve are classified and the key agrees with whether the obj
+    /// carries an `__ehfuncinfo$` in **all twelve**; the other two stop decoding
+    /// before any marker and claim nothing.
+    ///
+    /// `decoded` is whether the statement walk reached the function tail. It
+    /// matters because **the bare shape always decodes**: every token in it is one
+    /// this scanner knows, so a body that carries a marker and then stops is
+    /// certainly not bare. That is what makes `eh-partial` an answer rather than
+    /// an absence.
+    pub(crate) fn key(self, decoded: bool) -> &'static str {
+        if !decoded {
+            return if self.any { "eh-partial" } else { "eh-unknown" };
+        }
+        if !self.any {
+            return "eh-none";
+        }
+        if self.live_stmts >= 2 || self.count >= 2 {
+            return "eh-multi";
+        }
+        if self.other_stmts() > 0 {
+            return "eh-plus-stmt";
+        }
+        "eh-bare"
+    }
+}
+
+/// One body's two decode-only readings: the control-flow verdict (or the byte
+/// that stopped it) and the EH markers counted up to that point.
+pub(crate) struct CfScan {
+    pub(crate) body: Result<CfBody, Block>,
+    pub(crate) eh: EhMarkers,
+    /// Whether the walk reached the function tail — the same fact as
+    /// `body.is_ok()`, named because [`EhMarkers::key`] reads it.
+    pub(crate) decoded: bool,
+}
+
 /// A branch or label site, in stream order.
 #[derive(Clone, Copy)]
 struct Site {
@@ -188,6 +278,8 @@ struct Scan<'a> {
     switches: usize,
     /// Set the moment a stepped-over operand token is outside the modeled class.
     off_class: bool,
+    /// The EH-state trailer counts — see [`EhMarkers`].
+    eh: EhMarkers,
 }
 
 impl<'a> Scan<'a> {
@@ -256,7 +348,10 @@ impl<'a> Scan<'a> {
 /// the production it stopped in and the byte — the same fail-closed contract, and
 /// the same [`Block`] vocabulary, the accepting parser uses, so a caller cannot
 /// confuse "decoded" with "accepted".
-pub(crate) fn scan_control_flow(seg: &[u8], lo: usize) -> Result<CfBody, Block> {
+/// It also keeps the EH-marker counts it collected **whether or not it
+/// finished**. One walk, two readings — the census needs both and must not pay
+/// for the body twice.
+pub(crate) fn scan_full(seg: &[u8], lo: usize) -> CfScan {
     let mut s = Scan {
         seg,
         p: lo + 3,
@@ -266,20 +361,26 @@ pub(crate) fn scan_control_flow(seg: &[u8], lo: usize) -> Result<CfBody, Block> 
         jumps: Vec::new(),
         switches: 0,
         off_class: false,
+        eh: EhMarkers::default(),
     };
-    if !eat_byte(seg, &mut s.p, 0x53) {
-        return Err(blk(seg, s.p, "cf-body-open"));
+    let body = walk(&mut s);
+    CfScan { decoded: body.is_ok(), body, eh: s.eh }
+}
+
+fn walk(s: &mut Scan) -> Result<CfBody, Block> {
+    if !eat_byte(s.seg, &mut s.p, 0x53) {
+        return Err(blk(s.seg, s.p, "cf-body-open"));
     }
     s.depth += 1;
-    while step(&mut s)? {}
+    while step(s)? {}
     // (1) The parse must land ON the tail. `4F 12` is what ended the statement
     // loop; anything but the full seven bytes here is a walk that stopped in the
     // right neighbourhood for the wrong reason, which §13 measured as the
     // over-acceptance mode of this grammar.
-    if !eat(seg, &mut s.p, &FN_TAIL) {
-        return Err(blk(seg, s.p, "cf-tail"));
+    if !eat(s.seg, &mut s.p, &FN_TAIL) {
+        return Err(blk(s.seg, s.p, "cf-tail"));
     }
-    Ok(CfBody { shape: shape_of(&s), residue: residue_of(&s) })
+    Ok(CfBody { shape: shape_of(s), residue: residue_of(s) })
 }
 
 fn residue_of(s: &Scan) -> CfResidue {
@@ -394,7 +495,10 @@ fn step(s: &mut Scan) -> Result<bool, Block> {
         // `4B` pops the expression stack to empty and discards whatever is left; it
         // is emitted for the last statement too. The `return` statement is the one
         // that has none (§9).
-        0x4B => s.p += 1,
+        0x4B => {
+            s.p += 1;
+            s.eh.stmt_ends += 1;
+        }
         // `4F 12` opens the function tail. Any other `4F NN` at a statement
         // boundary is not statement layer (§12.6) and the tail check refuses it.
         0x4F => return Ok(false),
@@ -526,8 +630,54 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             s.ty("cf-deref-type")?;
             s.off_class();
         }
-        // `31`, `5C`, `64` and `67` are NOT here, and that is a result rather than
-        // an omission. `IL_CALL_GRAMMAR.md` §7 lists them as unidentified, and a
+        // ---- the EH-state trailer family (WEH, `docs/EH_RECORDS.md` §7) -----
+        //
+        // `5C <TYPE> <varint>` — emitted at the end of a statement in which an
+        // object with a destructor became live. `5D <varint> <varint>` and
+        // `5E <varint> <varint>` — the constructor-side and destructor-side count
+        // trailers, whose first field is how many such objects the body's EH state
+        // tracks (`docs/EH_RECORDS.md` §6 measured `5E 02` for a two-member
+        // destructor against `5E 01` for a one-member one).
+        //
+        // Widths MEASURED, not inferred, at the workload's own flags —
+        // `work/WEH/probe/p1.cpp` and `p2.cpp`, fourteen hand-written functions:
+        // the `5C` TYPE is a decoded type of varying width (`86 41 74`,
+        // `86 46 AB 20`, `A6 43 8C 20` all occur) and every second field is a
+        // varint that really does escape (`5D 01 80 A1 00 00 00`,
+        // `5C 86 41 74 80 01 01 00 00`), so neither a fixed width nor a plain byte
+        // read survives the corpus.
+        //
+        // This is the rung `cf-expr-0x5C` — **309,804 bodies, the largest single
+        // row on the control-flow axis** — was measuring, and what it was
+        // measuring was not a ctor/dtor row: `int userfn(int a){ MemA s; g(a);
+        // return a+1; }` carries a `5C` too. See [`EhMarkers`].
+        0x5C => {
+            s.p += 1;
+            s.ty("cf-eh-live-type")?;
+            s.vint("cf-eh-live-state")?;
+            s.eh.live_stmts += 1;
+            s.eh.any = true;
+            s.off_class();
+        }
+        0x5D | 0x5E => {
+            s.p += 1;
+            let n = s.vint("cf-eh-count")?;
+            s.vint("cf-eh-count-state")?;
+            s.eh.count = s.eh.count.max(n.max(0) as u32);
+            // A trailer standing immediately before a `4B` is a statement of its
+            // own; one standing before anything else is an operand of the
+            // statement it sits inside. Both spellings occur in one probe
+            // (`5E 01 21 4B` in `??1One`, `5E 01 01 44` in `?userfn`), and
+            // counting them alike is what would make a bare body read as one with
+            // an extra statement.
+            if s.at(0) == Some(0x4B) {
+                s.eh.trailer_stmts += 1;
+            }
+            s.eh.any = true;
+            s.off_class();
+        }
+        // `31`, `64` and `67` are NOT here, and that is a result rather than an
+        // omission. `IL_CALL_GRAMMAR.md` §7 lists them as unidentified, and a
         // first cut of this file gave `67` a TYPE on the strength of the shape of
         // its neighbours. Measured over the workload, that read failed at a
         // non-tag byte in 29,687 bodies (`cf-virtual-type-0x04` / `-0x08`) — which
@@ -536,7 +686,8 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         // desynchronized, and there is no counter for those. So an opcode whose
         // payload no capture has established refuses here, at itself, as
         // `cf-expr-0xNN`. The row is then an honest measurement of what
-        // establishing it would buy: `5C` is 213,282 bodies and `67` is 29,687,
+        // establishing it would buy: `64` is 145,237 bodies and `67` is 45,631
+        // — the two largest rows on this axis now that the EH trailers decode —
         // and both are expression-layer work, not this rung's.
         // `44` — PAYLOAD-FREE. Witnessed twice (`44 30 …` and `44 55 …`), and the
         // byte after it has bit 7 clear at both sites, so it cannot be carrying a
@@ -690,7 +841,14 @@ mod tests {
 
     fn scan(seg: &[u8]) -> Result<CfBody, Block> {
         let lo = find_subslice(seg, &LO_MARKER).expect("a body marker");
-        scan_control_flow(seg, lo)
+        scan_full(seg, lo).body
+    }
+
+    /// The EH axis's reading of the same body: `(key, markers)`.
+    fn eh(seg: &[u8]) -> (&'static str, EhMarkers) {
+        let lo = find_subslice(seg, &LO_MARKER).expect("a body marker");
+        let s = scan_full(seg, lo);
+        (s.eh.key(s.decoded), s.eh)
     }
 
     /// **[CF] `il_stmt_seq.cpp` `void stmt_seq0() {}`** — the smallest body there
@@ -910,6 +1068,187 @@ mod tests {
             Block { ctx: "call-ref", byte: Some(0x3A), off: 0, aux: 0 }.feature(),
             "call-ref-cflow-jump"
         );
+    }
+
+    // ---- the EH axis (WEH) --------------------------------------------------
+    //
+    // Five bodies, transcribed from two probes captured at the **workload's own**
+    // flags (`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`), never the fixture
+    // profile — `docs/EH_RECORDS.md` §6.1 measured that the fixture profile
+    // understates this exact production by a phase. Each one's obj was checked for
+    // an `__ehfuncinfo$` and the axis agrees with the obj in every case; the whole
+    // table is `docs/EH_RECORDS.md` §7.
+
+    /// **[P] `work/WEH/probe/p1.cpp` `struct One { ~One(); MemA m; };  One::~One(){}`**
+    /// — ONE sub-object statement and nothing else. `.text` is `b ??1MemA`, four
+    /// bytes, and the obj carries **no** `__ehfuncinfo$`. The cheap side.
+    const EH_ONE: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x33, 0x86, 0x41, 0x74, 0x00, 0x26, 0xE5, 0x09, 0xB9, 0x0A,
+        0x0A, 0xA6, 0x43, 0x81, 0x20, 0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0xA6, 0x43, 0x8B,
+        0x20, 0x2C, 0xA6, 0x43, 0x8C, 0x20, 0x00, 0x99, 0x86, 0x43, 0x8E, 0x20, 0x00, 0xBD,
+        0x82, 0x07, 0x03, 0x00, 0x80, 0x0E, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0x86, 0x41, 0x74,
+        0x01, 0x4B, 0x3A, 0x0B, 0x0A, 0x54, 0x02, 0x29, 0x0B, 0x0A, 0x5E, 0x01, 0x21, 0x4B,
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[P] `p1.cpp` `struct Two { ~Two(); MemA m; MemB n; };  Two::~Two(){}`** —
+    /// TWO sub-object statements, `5E 02 21`, and an `__ehfuncinfo$??1Two@@QAA@XZ`
+    /// in the obj.
+    const EH_TWO: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x33, 0x86, 0x41, 0x74, 0x00, 0x26, 0xE5, 0x09, 0xB9, 0x1A,
+        0x0A, 0xA6, 0x43, 0x93, 0x20, 0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0xA6, 0x43, 0x8B,
+        0x20, 0x2C, 0xA6, 0x43, 0x8C, 0x20, 0x00, 0x99, 0x86, 0x43, 0x8E, 0x20, 0x00, 0xBD,
+        0x82, 0x07, 0x03, 0x00, 0x80, 0x0E, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0x86, 0x41, 0x74,
+        0x01, 0x4B, 0x33, 0x86, 0x41, 0x74, 0x00, 0x26, 0xF1, 0x09, 0xB9, 0x1A, 0x0A, 0xA6,
+        0x43, 0x93, 0x20, 0x33, 0x86, 0x41, 0x74, 0x04, 0x27, 0xA6, 0x43, 0x9B, 0x20, 0x2C,
+        0xA6, 0x43, 0x9C, 0x20, 0x00, 0x99, 0x86, 0x43, 0x9E, 0x20, 0x00, 0xBD, 0x82, 0x07,
+        0x03, 0x00, 0x80, 0x1E, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0x86, 0x41, 0x74, 0x01, 0x4B,
+        0x3A, 0x1B, 0x0A, 0x54, 0x02, 0x29, 0x1B, 0x0A, 0x5E, 0x02, 0x21, 0x4B, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[P] `p1.cpp` `struct OneB { ~OneB(); void Fini(); MemA m; };  OneB::~OneB(){ Fini(); }`**
+    /// — ONE sub-object statement, `5E 01 21`, **plus one body statement**, and an
+    /// `__ehfuncinfo$??1OneB@@QAA@XZ`. This is the census key
+    /// `expr-call-in-expr-recv-field-off0-then-chain-bind-whole` that
+    /// `docs/EH_RECORDS.md` §6.2 sized at 2,666 functions.
+    const EH_ONEB: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x33, 0x86, 0x41, 0x74, 0x00, 0x26, 0xE5, 0x09, 0xB9, 0x2A,
+        0x0A, 0xA6, 0x43, 0xA3, 0x20, 0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0xA6, 0x43, 0x8B,
+        0x20, 0x2C, 0xA6, 0x43, 0x8C, 0x20, 0x00, 0x99, 0x86, 0x43, 0x8E, 0x20, 0x00, 0xBD,
+        0x82, 0x07, 0x03, 0x00, 0x80, 0x0E, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0x86, 0x41, 0x74,
+        0x01, 0x4B, 0x26, 0x1E, 0x0A, 0xB9, 0x2A, 0x0A, 0xA6, 0x43, 0xA3, 0x20, 0x2C, 0xA6,
+        0x43, 0xA3, 0x20, 0x00, 0x99, 0x86, 0x43, 0xA4, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03,
+        0x00, 0x80, 0x24, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x3A, 0x2B, 0x0A, 0x54, 0x02, 0x29,
+        0x2B, 0x0A, 0x5E, 0x01, 0x21, 0x4B, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[P] `p1.cpp` `int userfn(int a){ MemA s; g(a); return a + 1; }`** — and the
+    /// reason this axis is not a ctor/dtor axis. An ordinary user function, no
+    /// sub-object anywhere, and it carries a `5C` because a destructible local
+    /// became live. Its obj has an `__ehfuncinfo$?userfn@@YAHH@Z`.
+    ///
+    /// It is also the witness for the trailer's two positions: `5E 01 01` here
+    /// stands before a `44`, not a `4B`, so it is an operand of the statement it
+    /// sits in rather than a statement of its own — and `5D 01 80 A1 00 00 00`
+    /// is the escaped varint that rules out reading the second field as a byte.
+    const EH_USERFN: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0x26, 0x58, 0x0A, 0x2C, 0xA6, 0x43, 0x8C,
+        0x20, 0x00, 0x99, 0x86, 0x43, 0x8E, 0x20, 0x00, 0xBD, 0xA6, 0x43, 0x8C, 0x20, 0x00,
+        0x80, 0x0D, 0x10, 0x00, 0x00, 0x4C, 0x26, 0xE5, 0x09, 0x26, 0x58, 0x0A, 0x2C, 0xA6,
+        0x43, 0x8C, 0x20, 0x00, 0x99, 0x86, 0x43, 0x8E, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03,
+        0x00, 0x80, 0x0E, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0xA6, 0x43, 0x8C, 0x20, 0x01, 0x4B,
+        0x26, 0xFC, 0x09, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x40, 0x10, 0x00, 0x00, 0xB9,
+        0x55, 0x0A, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C, 0x4B, 0x9B, 0x86, 0x41,
+        0x74, 0x59, 0x0A, 0xB9, 0x55, 0x0A, 0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x01,
+        0x02, 0x32, 0x86, 0x41, 0x74, 0x5E, 0x01, 0x01, 0x44, 0x9B, 0x86, 0x41, 0x74, 0x59,
+        0x0A, 0x30, 0x86, 0x41, 0x74, 0x44, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x57, 0x0A, 0x5D,
+        0x01, 0x80, 0xA1, 0x00, 0x00, 0x00, 0x4B, 0x54, 0x02, 0x29, 0x57, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[P] `work/WEH/probe/p2.cpp` `void onlylocal(){ MemA s; }`** — the other
+    /// half of the same point. An ordinary function, one destructible object, no
+    /// other statement, and **no `__ehfuncinfo$`**: the cheap side is not a
+    /// property of being a generated destructor, it is a property of the count.
+    const EH_ONLYLOCAL: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0x26, 0x10, 0x0A, 0x2C, 0xA6, 0x43, 0x8C,
+        0x20, 0x00, 0x99, 0x86, 0x43, 0x8E, 0x20, 0x00, 0xBD, 0xA6, 0x43, 0x8C, 0x20, 0x00,
+        0x80, 0x0D, 0x10, 0x00, 0x00, 0x4C, 0x26, 0xE5, 0x09, 0x26, 0x10, 0x0A, 0x2C, 0xA6,
+        0x43, 0x8C, 0x20, 0x00, 0x99, 0x86, 0x43, 0x8E, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03,
+        0x00, 0x80, 0x0E, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0xA6, 0x43, 0x8C, 0x20, 0x01, 0x4B,
+        0x5E, 0x01, 0x21, 0x4B, 0x3A, 0x0F, 0x0A, 0x54, 0x02, 0x29, 0x0F, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **The axis, graded against the obj.** Every one of these five was compiled
+    /// at the workload's flags and its obj inspected for an `__ehfuncinfo$`; the
+    /// right-hand column is that inspection, not a prediction.
+    #[test]
+    fn the_eh_axis_agrees_with_whether_the_obj_carries_an_eh_record() {
+        for (seg, want, ehfuncinfo, what) in [
+            (EH_ONE, "eh-bare", false, "one sub-object, nothing else"),
+            (EH_ONLYLOCAL, "eh-bare", false, "one destructible local, nothing else"),
+            (EH_TWO, "eh-multi", true, "two sub-objects"),
+            (EH_ONEB, "eh-plus-stmt", true, "one sub-object plus a body statement"),
+            (EH_USERFN, "eh-plus-stmt", true, "a destructible local plus two statements"),
+            (EMPTY, "eh-none", false, "no destructible object at all"),
+        ] {
+            let (key, _) = eh(seg);
+            assert_eq!(key, want, "{what}");
+            assert_eq!(
+                key != "eh-bare" && key != "eh-none",
+                ehfuncinfo,
+                "{what}: the axis and the obj must agree about the EH record"
+            );
+        }
+    }
+
+    /// The counts behind the key, so a future change that keeps the key by luck
+    /// still has to keep the arithmetic. `EH_ONE` and `EH_ONEB` differ by exactly
+    /// one statement and nothing else — which is the boundary, in two numbers.
+    #[test]
+    fn the_boundary_is_one_statement_wide() {
+        let (_, one) = eh(EH_ONE);
+        assert_eq!((one.live_stmts, one.count, one.other_stmts()), (1, 1, 0));
+        let (_, oneb) = eh(EH_ONEB);
+        assert_eq!((oneb.live_stmts, oneb.count, oneb.other_stmts()), (1, 1, 1));
+        let (_, two) = eh(EH_TWO);
+        assert_eq!((two.live_stmts, two.count, two.other_stmts()), (2, 2, 0));
+        // …and the trailer in operand position must not be counted as a statement:
+        // `userfn` has three `4B`, one `5C`, and only ONE of its two `5D`/`5E`
+        // trailers stands before a `4B`.
+        let (_, u) = eh(EH_USERFN);
+        assert_eq!((u.live_stmts, u.count, u.stmt_ends, u.trailer_stmts), (1, 1, 3, 1));
+        assert_eq!(u.other_stmts(), 1);
+    }
+
+    /// **`eh-partial` is a positive claim, not an absence.** A body that carries a
+    /// marker and then stops decoding is certainly not bare, because the bare shape
+    /// decodes end to end by construction — which is what makes the undecoded
+    /// residue of `cf-expr-0x5C` rankable at all rather than a hole in the census.
+    #[test]
+    fn a_marker_then_a_stop_is_not_bare() {
+        // Splice an opcode this scanner refuses (`64`, still unestablished) after
+        // the sub-object statement's `4B`.
+        let mut seg = EH_ONE.to_vec();
+        let at = seg
+            .windows(6)
+            .position(|w| w == [0x5C, 0x86, 0x41, 0x74, 0x01, 0x4B])
+            .expect("the statement trailer")
+            + 6;
+        seg.splice(at..at, [0x64]);
+        assert_eq!(eh(&seg).0, "eh-partial");
+        // …and a body that stops BEFORE any marker claims nothing.
+        let mut early = EH_ONE.to_vec();
+        early.splice(4..4, [0x64]);
+        assert_eq!(eh(&early).0, "eh-unknown");
+    }
+
+    /// **The widths are decoded, not guessed, and the corpus rules out both
+    /// shortcuts.**
+    ///
+    /// * The `5C` TYPE is a real type of varying width — `86 41 74` in `??1One`,
+    ///   `A6 43 8C 20` in `?userfn` — so a fixed read is impossible by inspection.
+    /// * The trailers' state field escapes: `5D 01 80 A1 00 00 00` in `?userfn`.
+    ///   Dropping the `80` marker leaves the walk standing on a `00`, which is not
+    ///   a token this scanner knows, and it refuses instead of wandering.
+    ///
+    /// The standing falsification is bigger than this test and is what the widths
+    /// actually rest on: the walk must land exactly on the seven-byte function
+    /// tail with every `54 <k>` depth agreeing, over the whole workload.
+    #[test]
+    fn the_trailer_widths_are_decoded_not_guessed() {
+        assert!(EH_ONE.windows(4).any(|w| w == [0x5C, 0x86, 0x41, 0x74]));
+        assert!(EH_USERFN.windows(5).any(|w| w == [0x5C, 0xA6, 0x43, 0x8C, 0x20]));
+        assert!(scan(EH_ONE).is_ok() && scan(EH_USERFN).is_ok());
+        let mut bad = EH_USERFN.to_vec();
+        let at = bad
+            .windows(7)
+            .position(|w| w == [0x5D, 0x01, 0x80, 0xA1, 0x00, 0x00, 0x00])
+            .expect("the 5D trailer");
+        bad.remove(at + 2); // the escape marker
+        assert!(scan(&bad).is_err(), "a mis-read state field must not reach the tail");
     }
 
     /// The scanner is decode-only, and this is the test that says so: a body it

@@ -350,6 +350,12 @@ fn cmd_census(rest: &[String]) -> ExitCode {
     // block. A `cflow-loop` among them would indict the measure.
     let mut cflow_hist: std::collections::BTreeMap<String, usize> =
         std::collections::BTreeMap::new();
+    // The EH axis beside it, likewise over every function. Here the in-class
+    // rows are more than a control group: the three `empty-dtor-*` shapes ARE
+    // the cheap side of `docs/EH_RECORDS.md` §6's boundary, so one of them
+    // reading anything but `eh-bare` indicts the axis.
+    let mut eh_hist: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
     // Per-function lines are only readable for a small TU; a real one has
     // thousands of functions and the histogram is the useful view.
     let list_each = census.len() <= 64;
@@ -361,15 +367,17 @@ fn cmd_census(rest: &[String]) -> ExitCode {
             // decoded (the second), and a single column can show only one of
             // those. `c2rs gap` prints the same second axis aggregated.
             println!(
-                "  [{:>3}] {mark} {:<24} {:<26} {:>6} B  {}",
+                "  [{:>3}] {mark} {:<24} {:<26} {:<13} {:>6} B  {}",
                 f.index,
                 f.verdict.key(),
                 f.cflow,
+                f.eh,
                 f.seg_len,
                 f.name.as_deref().unwrap_or("(unnamed)")
             );
         }
         *cflow_hist.entry(f.cflow.clone()).or_insert(0) += 1;
+        *eh_hist.entry(f.eh.clone()).or_insert(0) += 1;
         if !f.verdict.in_class() {
             *hist.entry(f.verdict.key()).or_insert(0) += 1;
             sample
@@ -400,6 +408,23 @@ fn cmd_census(rest: &[String]) -> ExitCode {
             census.len()
         );
         for (class, count) in v.iter().take(16) {
+            println!("    {count:>6} x {class}");
+        }
+    }
+    {
+        let mut v: Vec<_> = eh_hist.into_iter().collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        let need: usize = v
+            .iter()
+            .filter(|(k, _)| matches!(k.as_str(), "eh-plus-stmt" | "eh-multi" | "eh-partial"))
+            .map(|(_, n)| n)
+            .sum();
+        println!(
+            "  EH class (sub-object boundary, decode-only): {need}/{} bodies need the whole EH \
+             record",
+            census.len()
+        );
+        for (class, count) in v.iter() {
             println!("    {count:>6} x {class}");
         }
     }
@@ -2092,6 +2117,45 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 .iter()
                 .filter(|(k, _)| k.contains('|') && !k.starts_with("cflow-straight"))
                 .take(12)
+            {
+                println!("    {count:>7}           {key}");
+            }
+        }
+        // The EH axis (WEH, `docs/EH_RECORDS.md` §7) — DECODE ONLY, and the
+        // sizing of the EH phase. `eh-bare` is the cheap side of the sub-object
+        // boundary (no handler prefix, no funclet, a bare branch); everything
+        // else that carries a marker needs the whole EH record.
+        let ehh = report.fn_eh_histogram();
+        let eh_seen: usize = ehh
+            .iter()
+            .filter(|(k, _)| !k.contains('|'))
+            .map(|(_, n)| *n)
+            .sum();
+        if eh_seen > 0 {
+            let need: usize = ehh
+                .iter()
+                .filter(|(k, _)| {
+                    !k.contains('|') && matches!(k.as_str(), "eh-plus-stmt" | "eh-multi" | "eh-partial")
+                })
+                .map(|(_, n)| *n)
+                .sum();
+            println!(
+                "  EH class (sub-object boundary, decode-only): {need} of {eh_seen} bodies need \
+                 the whole EH record ({:.1}%)",
+                100.0 * need as f64 / eh_seen as f64
+            );
+            for (key, count) in ehh.iter().filter(|(k, _)| !k.contains('|')) {
+                println!(
+                    "    {count:>7} ({:>5.1}%)  {key}",
+                    100.0 * *count as f64 / eh_seen as f64
+                );
+            }
+            // …and what each side is made of. The cross is what says which census
+            // rows are two rungs wearing one key.
+            for (key, count) in ehh
+                .iter()
+                .filter(|(k, _)| k.contains('|') && !k.starts_with("eh-none|"))
+                .take(16)
             {
                 println!("    {count:>7}           {key}");
             }

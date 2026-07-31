@@ -77,6 +77,35 @@ pub struct FnCensus {
     /// report. It is not consulted by acceptance, by `shape_to_function`, or by the
     /// emitter, and the scanner that produces it constructs no `BodyShape`.
     pub cflow: String,
+    /// **The exception-handling axis** — which side of `docs/EH_RECORDS.md` §6's
+    /// sub-object boundary this body falls on:
+    ///
+    /// > Exactly one sub-object statement and nothing else is a bare branch. A
+    /// > second sub-object, or any other statement beside it, is the WHOLE EH
+    /// > RECORD.
+    ///
+    /// * `eh-none` — the body decoded and carries no `5C`/`5D`/`5E` marker. No
+    ///   destructible object is ever live in it, so `/EHsc` costs it nothing.
+    /// * `eh-bare` — one object goes live, one is tracked, and there is no other
+    ///   statement. **The cheap side**: no `__CxxFrameHandler` prefix, no second
+    ///   `.pdata`, no funclet. The port's three `empty-dtor-*` shapes all live
+    ///   here, which is this axis's control group.
+    /// * `eh-plus-stmt` — one object, plus a body statement.
+    /// * `eh-multi` — two or more objects.
+    /// * `eh-partial` — a marker was seen and then the walk stopped. **Not bare**:
+    ///   the bare shape decodes end to end by construction, so a body that carries
+    ///   a marker and does not decode is on the EH side whatever else it needs.
+    /// * `eh-unknown` — the walk stopped before any marker; nothing is claimed.
+    ///
+    /// A separate field from [`FnCensus::cflow`] and from the blocking feature for
+    /// the reason both of those are separate from each other: **nothing in the
+    /// blocking-feature key says which side a body is on.** `work/WEH/probe/p1.cpp`
+    /// files a cheap constructor and an EH constructor under the *same* key
+    /// `expr-intrinsic-this-adjust`, and that is not a defect of the key — the two
+    /// bodies differ by one statement the key never reaches.
+    ///
+    /// **Decode-only, structurally**: nothing reads this field except the report.
+    pub eh: String,
     /// **How many CALL tokens the body issues** — see [`call_tokens`]. Counted for
     /// every function, in class or not, because the in-class shapes are the control
     /// group: they are all leaves or single tail calls, so a non-zero count among
@@ -123,14 +152,22 @@ impl FnCensus {
 /// A segment with no `LO` body marker has no body to scan; that is already the
 /// `lo-marker` refusal on the primary axis, and restating it here would put a
 /// container-level fact into a control-flow histogram.
-fn cflow_key(seg: &[u8]) -> String {
+/// …and the EH axis beside it, from the SAME walk. Returns
+/// `(control-flow key, EH key)`.
+///
+/// One scan, two readings. The two axes answer different questions off one
+/// traversal and a second traversal would double the census's cost for a fact the
+/// first one already collected.
+fn cflow_key(seg: &[u8]) -> (String, String) {
     let Some(lo) = crate::func::readers::find_subslice(seg, &crate::func::bundle::LO_MARKER) else {
-        return "cf-no-body".to_string();
+        return ("cf-no-body".to_string(), "eh-unknown".to_string());
     };
-    match body::shapes::control_flow::scan_control_flow(seg, lo) {
+    let scan = body::shapes::control_flow::scan_full(seg, lo);
+    let cflow = match &scan.body {
         Ok(cf) => cf.key(),
         Err(b) => b.feature(),
-    }
+    };
+    (cflow, scan.eh.key(scan.decoded).to_string())
 }
 
 /// Bytes of context kept before / after a blocking site.
@@ -420,6 +457,7 @@ impl IlBundle {
                             (seg[start..end].to_vec(), b.off - start)
                         }
                     };
+                    let (cflow, eh) = cflow_key(seg);
                     (
                         FnCensus {
                             index: i,
@@ -429,7 +467,8 @@ impl IlBundle {
                             hex,
                             hex_mark,
                             calls: call_tokens(seg),
-                            cflow: cflow_key(seg),
+                            cflow,
+                            eh,
                             opt_word,
                         },
                         func,
