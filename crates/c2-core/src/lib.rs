@@ -359,7 +359,7 @@ impl PortC2 {
                     codegen::Selected::Float { text, .. } => (text, Vec::new()),
                     codegen::Selected::Plain(t) => (t, Vec::new()),
                 };
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, calls, is_float: f.touches_floating_point(), fp_refs: Vec::new(), frame });
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, calls, is_float: f.touches_floating_point(), fp_refs: Vec::new(), frame, label_lead: f.label_lead() });
                 texts.push(text);
             }
             return Ok(ObjImage::new(coff::emit_comdat_obj(
@@ -488,6 +488,7 @@ impl PortC2 {
                 is_float: f.touches_floating_point(),
                 fp_refs,
                 frame,
+                label_lead: f.label_lead(),
             });
         }
 

@@ -10,7 +10,7 @@
 
 use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
-use crate::codegen::encode::{encode_addi, encode_blr, encode_mr, encode_subf};
+use crate::codegen::encode::{encode_addi, encode_blr, encode_mr};
 use crate::codegen::frame::FrameLayout;
 use c2_il::LINK_FIRST_SLOT;
 use crate::codegen::select::{ARG_REGS, OptMode, RET_REG, SCRATCH_REG, out_of_class};
@@ -576,28 +576,21 @@ pub fn call_seq_parts(
         // `return <literal>;` — the same `li r3,k` a bare-literal leaf emits, so it
         // goes through the same selector rather than a second encoder.
         c2_il::SeqTail::Lit(k) => ops_setup_text(params, &[IlOp::Lit(k)], mode)?,
-        // **WCB — `return a->m() == b->n();`**, the register-register difference
-        // spine (`docs/CMP_PRODUCES_A_VALUE.md` reading 4, `docs/rungs/2026-07-31-cmp-two-calls.md`):
-        //
-        // ```text
-        //   subf r11,<lhs>,<rhs>          rB - rA, i.e. rhs - lhs
-        //   cntlzw r10,r11 ; rlwinm r3,r10,27,31,31        (r11,r11 under /O1)
-        // ```
+        // **WCB/WCR — `return a->m() <rel> b->n();`**, the register-register
+        // comparison spines (`docs/CMP_PRODUCES_A_VALUE.md` reading 4). All three
+        // — `==`, signed order, unsigned order — live in
+        // [`crate::codegen::leaf::compare::cmp_of_two_call_results`] beside the
+        // *leaf* comparison spines they share their temp-allocation rule with,
+        // rather than here beside the call sequence they share a frame with.
         //
         // The operand roles are **not** the emission order: the first call's
         // result is in `result_reg` and the second's is still in r3, and which of
-        // those is the source's left operand is `lhs_first`. c2 orders the calls by the order c1xx
-        // NUMBERED their receivers (`this` last, whatever register it is in) and
-        // keeps the spine's operands in source order, so both facts are needed
-        // and neither implies the other.
-        c2_il::SeqTail::CmpEq { lhs_first } => {
-            let first = result_reg.ok_or_else(|| {
-                out_of_class("a comparison of two call results needs a callee-saved register for the first")
-            })?;
-            let (lhs, rhs) = if lhs_first { (first, RET_REG) } else { (RET_REG, first) };
-            let mut w = encode_subf(11, lhs, rhs).to_vec();
-            w.extend_from_slice(&crate::codegen::leaf::compare::eq_zero_of_difference_in_r11(mode));
-            w
+        // those is the source's left operand is `lhs_first`. c2 orders the calls
+        // by the order c1xx NUMBERED their receivers (`this` last, whatever
+        // register it is in) and keeps the spine's operands in source order, so
+        // both facts are needed and neither implies the other.
+        c2_il::SeqTail::Cmp { cmp, lhs_first } => {
+            crate::codegen::leaf::compare::cmp_of_two_call_results(cmp, lhs_first, result_reg, mode)?
         }
     };
     Ok((setups, tail))

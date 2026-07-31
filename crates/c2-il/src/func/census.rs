@@ -307,7 +307,15 @@ impl IlBundle {
                                     body::SeqTail::Void => "call-sequence",
                                     body::SeqTail::CallValue { .. } => "call-sequence-value",
                                     body::SeqTail::Lit(_) => "call-sequence-lit",
-                                    body::SeqTail::CmpEq { .. } => "call-sequence-cmp-eq",
+                                    // Split by relation, not merged: the `==`
+                                    // fold and the order spines are different
+                                    // instruction counts and different label
+                                    // strides, so a shared key would hide which
+                                    // of the two a census delta came from.
+                                    body::SeqTail::Cmp { cmp: crate::func::SeqCmp::Eq, .. } => {
+                                        "call-sequence-cmp-eq"
+                                    }
+                                    body::SeqTail::Cmp { .. } => "call-sequence-cmp-order",
                                 })
                             }
                             Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),

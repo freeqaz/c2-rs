@@ -112,6 +112,7 @@ Reproduce: `scripts/gt_label_stride.py` (whole table),
 > | `__savegprlr_N` / `__restgprlr_N` | each **distinct N** first introduced | **+2** |
 > | `__savefpr_M` / `__restfpr_M` | each **distinct M** first introduced | **+2** |
 > | a newly pooled FP constant | each distinct `(bits,width)` first introduced | **+2** |
+> | a **signed `>` / `<` over two call results** | the function | **+2** |
 > | a callee external the IL names | — | **0**, at any count |
 > | a helper width / FP constant an earlier function already introduced | — | **0** |
 
@@ -122,6 +123,31 @@ now **measured and all three hold**:
 * **both pairs together cost +4** (`both-led`: stride 9 = 5 + 2 + 2);
 * and the FP function that uses them pays `_fltused` on top when it is the first
   one (`both`: stride 10 = 5 + 1 + 2 + 2).
+
+**The comparison row was added by WCR and it is the first surcharge in this table
+that mints no symbol at all.** Every earlier row corresponds to something in the
+symbol table (a helper external, a pooled constant, `_fltused`); a signed order
+comparison of two call results introduces nothing and still costs +2. Measured
+seed-free and in-TU by `scripts/gt_cmp_rr.py --stride`, four modes, with the
+in-TU anchor control holding on every row:
+
+```text
+                                        /Gy      packed
+  two calls, arithmetic tail          5    0     4    0
+  two calls, cmp `==`                 5    0     4    0
+  two calls, cmp UNSIGNED, any rel    5    0     4    0
+  two calls, cmp SIGNED  `>` `<`      7    2     6    2
+                                    stride lead stride lead
+```
+
+It is the same +2, in the same *leading* position, that `CompareLeaf`'s own
+1-or-3 stride table describes for the comparison **leaf** — with the leaf's
+"signed `<`/`>=` against `k == 0` escapes to 1" clause absent, because a register
+operand is not a zero literal. So the table's shape survives; the "one slot per
+TU-level external" explanation §2.1 already retracts is refuted once more, from
+a fourth direction. The **result type** (`int` against `bool`) does not enter the
+stride on any row, although it moves the *bytes* on two of them — the one place
+in this family where the counter cannot be used as a proxy for the spine.
 
 ## 1.2 Packed is the same rule with a different base
 

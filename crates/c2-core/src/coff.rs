@@ -230,6 +230,22 @@ pub struct Function<'a> {
     /// leaf — c2 emits no unwind record for one, so this field alone decides
     /// whether the obj has a `.pdata` section at all.
     pub frame: Option<Frame>,
+    /// **Compiler-label counter slots this function takes BEFORE its own `$M`
+    /// triple** — 0 for every class but WCR's signed two-call comparator, which
+    /// takes 2.
+    ///
+    /// A *leading* count and not merely a bigger stride: it moves this
+    /// function's own `$M`/`$M`/`$T` numbers up as well as every later
+    /// function's, which is the placement `docs/CODEGEN_FRAMED_CALLS.md` §4.4
+    /// records for the `__savegprlr_N`/`__restgprlr_N` pair and
+    /// `docs/LABEL_COUNTER.md` §1.1 tabulates as a surcharge. Producer:
+    /// [`c2_il::IlFunction::label_lead`]; the total stride it feeds is
+    /// `c2_il::IlFunction::label_slots`, and the two are separate because
+    /// [`plan_labels`] needs to add them at different points. Moving the same
+    /// two slots to *after* the triple is 119 mismatches in
+    /// `scripts/sweep.d/98-cmp-order.py`, i.e. the placement is graded and not
+    /// merely the total.
+    pub label_lead: u32,
 }
 
 impl<'a> Function<'a> {
@@ -242,6 +258,7 @@ impl<'a> Function<'a> {
             is_float: false,
             fp_refs: Vec::new(),
             frame: None,
+            label_lead: 0,
         }
     }
 
@@ -483,6 +500,17 @@ pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option
                 fltused_slot_taken = true;
                 cur += 1;
             }
+            // **The leading surcharge is taken before the function's own triple**,
+            // so it moves this function's `$M` numbers as well as every later
+            // one's. Measured seed-free and in-TU (`scripts/gt_cmp_rr.py
+            // --stride`, with the in-TU anchor control holding on every row):
+            // a signed `>`/`<` two-call comparator is stride 7 / lead 2 under
+            // `/Gy` and 6 / 2 packed, against 5 / 0 and 4 / 0 for its `==`,
+            // unsigned and arithmetic-tailed siblings. Same shape as the
+            // `__savegprlr_N` pair's, from `docs/LABEL_COUNTER.md` §1.1's
+            // surcharge table and not from counting anything's externals — the
+            // rule that once explained the `+1` above is refuted.
+            cur += f.label_lead;
             match f.frame {
                 Some(_) => {
                     let n = cur;
@@ -678,6 +706,7 @@ mod comdat_tests {
             is_float: false,
             fp_refs: Vec::new(),
             frame: None,
+            label_lead: 0,
         };
         // Three functions, two of them calling the same callee.
         let funcs = [mk("?a@@YAHXZ", 0, "?g@@YAHXZ"), mk("?b@@YAHXZ", 4, "?h@@YAHXZ"), mk("?c@@YAHXZ", 8, "?g@@YAHXZ")];
@@ -717,6 +746,7 @@ mod comdat_tests {
             is_float: false,
             fp_refs: Vec::new(),
             frame: None,
+            label_lead: 0,
         };
         // Three functions, two calling the same callee — the shape `il_call_perm.cpp`
         // has six of, where the port came out five symbols long.
@@ -1687,6 +1717,45 @@ mod tests {
         assert_eq!(
             plan_labels(2539, &two, true),
             vec![Some([2554, 2555, 2556]), Some([2559, 2560, 2561])]
+        );
+    }
+
+    /// **The leading surcharge moves the function's OWN triple, not just the
+    /// next one's** — which is the whole reason it is a separate field rather
+    /// than a bigger stride, and the direction a "stride 7" model gets wrong.
+    /// Allocating the same two slots after the triple instead of before it is
+    /// **119 mismatches** in `scripts/sweep.d/98-cmp-order.py`, the same number
+    /// as dropping them entirely: the total and the placement are two claims and
+    /// this test is the one that pins the second.
+    ///
+    /// Measured: a signed `>`/`<` two-call comparator is stride 7 / lead 2 under
+    /// `/Gy`, 6 / 2 packed (`scripts/gt_cmp_rr.py --stride`).
+    #[test]
+    fn a_leading_label_surcharge_moves_its_own_triple_and_every_later_one() {
+        let cmp = |name| Function {
+            frame: Some(frame(0x24)),
+            label_lead: 2,
+            ..Function::plain(name, 0)
+        };
+        let plain = |name| Function {
+            frame: Some(frame(0x24)),
+            ..Function::plain(name, 0)
+        };
+        // Packed: base 2545 (see the row above), + 2 for the lead, then the
+        // following function starts 6 later rather than 4.
+        assert_eq!(
+            plan_labels(2536, &[cmp("?c@@YA_NPBU@Z"), plain("?f@@YAHH@Z")], false),
+            vec![Some([2547, 2548, 2549]), Some([2551, 2552, 2553])]
+        );
+        // `/Gy`: the flat 3-per-function pre-pass, then the same +2 / stride 7.
+        assert_eq!(
+            plan_labels(2536, &[cmp("?c@@YA_NPBU@Z"), plain("?f@@YAHH@Z")], true),
+            vec![Some([2553, 2554, 2555]), Some([2558, 2559, 2560])]
+        );
+        // A lead of 0 is the shipped behaviour, unchanged.
+        assert_eq!(
+            plan_labels(2536, &[plain("?f@@YAHH@Z")], false),
+            vec![Some([2545, 2546, 2547])]
         );
     }
 

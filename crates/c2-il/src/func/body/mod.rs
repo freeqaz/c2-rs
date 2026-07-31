@@ -189,12 +189,12 @@ pub(crate) enum SeqTail {
     CallValue { add_k: i32 },
     /// `return <literal>;` after the last statement call — one `li r3,k`.
     Lit(i32),
-    /// **WCB** — `return <call> == <call>;`: the two calls' results compared for
-    /// equality and materialized to a 0/1 in r3. `lhs_first` says whether the
+    /// **WCB/WCR** — `return <call> <rel> <call>;`: the two calls' results
+    /// compared and materialized to a 0/1 in r3. `lhs_first` says whether the
     /// source's left operand is the call emitted *first*; c2 orders the pair by
     /// receiver token, not by source position, so the two are independent.
     /// See [`super::shapes::mcall_cmp`].
-    CmpEq { lhs_first: bool },
+    Cmp { cmp: crate::func::SeqCmp, lhs_first: bool },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
