@@ -195,14 +195,15 @@ excluded exactly the row that mattered.**
 | lane | result |
 |---|---|
 | `cargo test --workspace` | **509 / 0** (baseline 504; +5 new, 0 changed verdicts) |
-| `c2rs bench` | **191 / 0 / 0** |
-| `scripts/mode_lane.sh` `/Ox` `/O1` `/O2` `/Ox /Gy` | **91 / 89 / 89 / 89**, 0 mismatch |
-| `scripts/mode_lane.sh /O1 /EHsc` (the new lane) | see below |
-| `scripts/expr_sweep.sh` | **13,707** cases, **0** mismatches |
-| `scripts/cross_sweep.sh` | see below |
+| `c2rs bench` | **193 / 0 / 0** (baseline 191; +2 fixtures) |
+| `scripts/mode_lane.sh` `/Ox` `/O1` `/O2` `/Ox /Gy` | **91 / 89 / 89 / 89**, mismatch **0** |
+| `scripts/mode_lane.sh /O1 /EHsc` and `/Ox /EHsc` — **new lanes** | **89** and **91**, mismatch **0** |
+| the same two lanes with the surcharge disabled | **1 mismatch each**; `/O1` without `/EH` unaffected |
+| `scripts/expr_sweep.sh` | **13,707** cases (42 fragments, +106 from this rung), mismatch **0** |
+| `scripts/cross_sweep.sh` | 28 families (this rung adds `empty-ctor-base`, 3 representatives from 3 fragments — no hole), **27,956 configurations x 4 lanes, 0 mismatches**; 388 of the 406 unordered family pairs covered. Its own re-grade of the 13,707-case pool: 9,577 match, **0 mismatched** |
 | 878-TU workload scan | match 6, **mismatch 0**, census 691,744 / 2,462,571 = **28.09 %**, disagreement **0** |
-| debug-build workload lane | see below |
-| fixtures, `c2rs census` | positive **8/8**, negative **0/8**, at both profiles |
+| 878-TU workload scan, **debug build** | **0 panics**, mismatch **0**, census **691,744**, disagreement **0** — identical to release |
+| fixtures, `c2rs census` | positive **8/8**, negative **0/8**, at both the fixture profile and the workload's |
 
 **A standing `/EHsc` lane did not exist and this rung needed one.** Every mode
 lane is `/Ox`, `/O1`, `/O2` or `/Ox /Gy`, none of them with `/EH`, and at those
