@@ -233,8 +233,18 @@ pub(crate) fn try_parse_member_cmp_calls(
         ((callee2, recv2), (callee1, recv1))
     };
     let calls = vec![
-        SeqCall { callee_tok: c0.0, arg_ops: vec![IlOp::Load(c0.1)], arg_sources: None },
-        SeqCall { callee_tok: c1.0, arg_ops: vec![IlOp::Load(c1.1)], arg_sources: None },
+        SeqCall {
+            callee_tok: c0.0,
+            arg_ops: vec![IlOp::Load(c0.1)],
+            arg_sources: None,
+            link_args: None,
+        },
+        SeqCall {
+            callee_tok: c1.0,
+            arg_ops: vec![IlOp::Load(c1.1)],
+            arg_sources: None,
+            link_args: None,
+        },
     ];
     // The saved FORMALS, through the one locator the Class A/B statement
     // sequence already uses — the second call's receiver is read after the first

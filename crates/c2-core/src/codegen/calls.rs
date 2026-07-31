@@ -12,6 +12,7 @@ use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
 use crate::codegen::encode::{encode_addi, encode_blr, encode_mr, encode_subf};
 use crate::codegen::frame::FrameLayout;
+use c2_il::LINK_FIRST_SLOT;
 use crate::codegen::select::{ARG_REGS, OptMode, RET_REG, SCRATCH_REG, out_of_class};
 use crate::codegen::straightline::select_text;
 
@@ -286,6 +287,75 @@ fn moves_descending(moves: &[(u8, u8)]) -> Vec<u8> {
     w
 }
 
+/// **WCL — a CHAIN LINK's argument setup**: the marshalling for a call whose
+/// slot 0 is already filled, because its receiver is the previous call's result
+/// and a `bl` has just left it in r3.
+///
+/// It disagrees with [`moves_descending`] — the rule every other call in this
+/// file uses — on the one thing they both have an opinion about, and the
+/// disagreement is **measured on both sides of the same probe TU**
+/// (`work/WCL/probe/p2.cpp`, `p3.cpp`, `/O1 /GS- /c`):
+///
+/// ```text
+///   a call whose list starts at slot 0 — DESCENDING destination
+///     void f(int a,int b,int c){ v1(a); g2(c,b); }   mr r4,r31 ; mr r3,r30
+///     void f(int a,int b,int c){ v1(a); g2(b,c); }   mr r4,r30 ; mr r3,r31
+///     void f(int a,int b){ v1(a); g3(a,b,5); }       li r5,5 ; mr r4,r30 ; mr r3,r31
+///     int  f(O* p,int j){ v1(j); return p->gia(j); } mr r4,r30 ; mr r3,r31
+///
+///   a chain link, whose list starts at slot 1 — ASCENDING destination
+///     int f(O* p,int j,int k){ return p->Next()->gia2(j,k); }
+///       … mr r31,r4 ; mr r30,r5 ; bl ?Next ; mr r4,r31 ; mr r5,r30 ; bl ?gia2
+///     int f(O* p,int j,int k){ return p->Next()->gia2(k,j); }
+///       …                        bl ?Next ; mr r4,r30 ; mr r5,r31
+///     int f(O* p,int j,int k){ return p->Next()->gia3(j,5,k); }
+///       …                        bl ?Next ; mr r4,r31 ; li r5,5 ; mr r6,r30
+/// ```
+///
+/// The fourth free-function row is the one that matters, and it is why this is
+/// not "member calls go the other way": it **is** a member call, its `this` is
+/// saved, its slot 0 therefore needs an instruction, and it comes out
+/// descending with everything else. The axis is whether the argument list
+/// starts at slot 0, not whether there is a receiver.
+///
+/// Literals interleave in the same order rather than being grouped, in both
+/// families — `li r5,5` sits between the two moves in the third row above and
+/// between them again in the last. That is the reason this walks the slots once
+/// instead of emitting the moves and then the constants.
+///
+/// No cycle machinery: the sources are the callee-saved file (`r31`/`r30`) and
+/// the destinations are argument registers, two disjoint sets, so nothing can
+/// clobber anything and a value wanted **twice** is simply written twice
+/// (`p->Next()->gia2(j,j)` → `mr r4,r31 ; mr r5,r31`, captured).
+fn link_setup_text(
+    link: &[c2_il::SlotArg],
+    saved_reg: impl Fn(usize) -> Option<u8>,
+) -> Result<Vec<u8>, BackendError> {
+    let mut w = Vec::with_capacity(4 * link.len());
+    for (i, a) in link.iter().enumerate() {
+        // Ascending slot order IS the emission order; the loop is the rule.
+        let dst = *ARG_REGS.get(LINK_FIRST_SLOT + i).ok_or_else(|| {
+            out_of_class("a chain link's argument past the eight register slots")
+        })?;
+        match a {
+            c2_il::SlotArg::Formal(pi) => {
+                let src = saved_reg(*pi).ok_or_else(|| {
+                    out_of_class("a chain link reads a formal that is not callee-saved")
+                })?;
+                w.extend_from_slice(&encode_mr(dst, src));
+            }
+            // `li rD,k` is `addi rD,0,k` — the same encoder the leaf selector's
+            // bare constant goes through, at a register it cannot name.
+            c2_il::SlotArg::Lit(k) => {
+                let k = i16::try_from(*k)
+                    .map_err(|_| out_of_class("a chain link's literal wider than an addi immediate"))?;
+                w.extend_from_slice(&encode_addi(dst, 0, k));
+            }
+        }
+    }
+    Ok(w)
+}
+
 /// The per-call argument setups and the post-call tail bytes of a framed
 /// many-call body, in one place so the packed and `/Gy` emitters share them.
 ///
@@ -345,7 +415,22 @@ pub fn call_seq_parts(
 
     let mut setups = Vec::with_capacity(seq.calls.len());
     for (i, c) in seq.calls.iter().enumerate() {
-        let mut setup = if i == 0 || seq.saved.is_empty() {
+        // **WCL** — a chain link is its own arm, and it is asked FIRST because
+        // the two arms below both key on Class A/Class B, and a link's lowering
+        // is the same in either: its arguments come out of the callee-saved file
+        // when there are any and out of nowhere when there are not. The Class A
+        // chain with a literal link argument (`p->Next()->gia(7)` → `li r4,7`)
+        // is exactly the case that would take the wrong arm otherwise, and it
+        // would take it silently, into `li r3,7`.
+        let mut setup = if let Some(link) = &c.link_args {
+            if i == 0 {
+                // A link is never the first call: its receiver is a previous
+                // call's result. The IL parser builds it that way; this is the
+                // backstop, because the arm below would then emit no saves.
+                return Err(out_of_class("a chain link in the first call position"));
+            }
+            link_setup_text(link, saved_reg)?
+        } else if i == 0 || seq.saved.is_empty() {
             // The first call still reads its arguments out of the argument
             // registers — nothing has been clobbered yet — so it goes through the
             // same locators every other call shape uses. Class A takes this arm
@@ -855,6 +940,94 @@ mod tests {
                 0x7D, 0x63, 0x5B, 0x78, // mr r3,r11
             ]
         );
+    }
+
+    // ---- WCL: a chain link's marshalling runs the OTHER way ------------------
+
+    /// The two orders, side by side, from the two halves of one probe TU.
+    ///
+    /// This is the whole rung in one assertion. Both bodies are Class B with the
+    /// same two saved formals in the same two registers; they differ only in
+    /// whether argument slot 0 belongs to the call or to the `bl` in front of it,
+    /// and c2 emits the moves in opposite orders because of it. A single
+    /// `moves_descending` for both — which is what "reuse the shipped rule, it is
+    /// the same marshalling" would have produced — is byte-wrong on every chain
+    /// link that carries two or more arguments.
+    #[test]
+    fn a_chain_links_moves_ascend_where_every_other_calls_descend() {
+        let saved = |pi: usize| [Some(31u8), Some(30u8)].get(pi.wrapping_sub(1)).copied().flatten();
+        // `int f(O* p,int j,int k){ return p->Next()->gia2(j,k); }`
+        //   … bl ?Next ; mr r4,r31 ; mr r5,r30 ; bl ?gia2
+        assert_eq!(
+            link_setup_text(&[c2_il::SlotArg::Formal(1), c2_il::SlotArg::Formal(2)], saved).unwrap(),
+            vec![
+                0x7F, 0xE4, 0xFB, 0x78, // mr r4,r31
+                0x7F, 0xC5, 0xF3, 0x78, // mr r5,r30
+            ]
+        );
+        // …and the same slots wanting the other values: still ascending, so the
+        // ORDER is not a function of which register the value is in.
+        // `gia2(k,j)` → `mr r4,r30 ; mr r5,r31`.
+        assert_eq!(
+            link_setup_text(&[c2_il::SlotArg::Formal(2), c2_il::SlotArg::Formal(1)], saved).unwrap(),
+            vec![
+                0x7F, 0xC4, 0xF3, 0x78, // mr r4,r30
+                0x7F, 0xE5, 0xFB, 0x78, // mr r5,r31
+            ]
+        );
+        // The shipped rule for a list that starts at slot 0 — captured from
+        // `void f(int a,int b,int c){ v1(a); g2(c,b); }` — goes the other way,
+        // and it still does.
+        assert_eq!(
+            moves_descending(&[(RET_REG, 30), (4, 31)]),
+            vec![
+                0x7F, 0xE4, 0xFB, 0x78, // mr r4,r31
+                0x7F, 0xC3, 0xF3, 0x78, // mr r3,r30
+            ]
+        );
+    }
+
+    /// A literal link argument is `li r<slot>,k` **in slot order**, interleaved
+    /// with the moves rather than grouped before or after them. Captured:
+    /// `int f(O* p,int j,int k){ return p->Next()->gia3(j,5,k); }` is
+    /// `mr r4,r31 ; li r5,5 ; mr r6,r30`.
+    #[test]
+    fn a_chain_links_literals_interleave_in_slot_order() {
+        let saved = |pi: usize| [Some(31u8), Some(30u8)].get(pi.wrapping_sub(1)).copied().flatten();
+        assert_eq!(
+            link_setup_text(
+                &[
+                    c2_il::SlotArg::Formal(1),
+                    c2_il::SlotArg::Lit(5),
+                    c2_il::SlotArg::Formal(2)
+                ],
+                saved
+            )
+            .unwrap(),
+            vec![
+                0x7F, 0xE4, 0xFB, 0x78, // mr r4,r31
+                0x38, 0xA0, 0x00, 0x05, // li r5,5
+                0x7F, 0xC6, 0xF3, 0x78, // mr r6,r30
+            ]
+        );
+        // A value wanted TWICE is two ordinary moves — the sources are the
+        // callee-saved file and the destinations the argument one, so there is no
+        // cycle to break and no dead `mr r11`.
+        // `p->Next()->gia2(j,j)` → `mr r4,r31 ; mr r5,r31`.
+        assert_eq!(
+            link_setup_text(&[c2_il::SlotArg::Formal(1), c2_il::SlotArg::Formal(1)], saved).unwrap(),
+            vec![
+                0x7F, 0xE4, 0xFB, 0x78, // mr r4,r31
+                0x7F, 0xE5, 0xFB, 0x78, // mr r5,r31
+            ]
+        );
+        // Slot 0 is the receiver, so seven explicit arguments fill r4..r10 and an
+        // eighth would be stack-homed. The IL parser draws the same bound
+        // (`mcall-chain-link-arg-overflow`); this is the backstop.
+        let seven = vec![c2_il::SlotArg::Lit(1); 7];
+        assert_eq!(link_setup_text(&seven, saved).unwrap().len(), 28);
+        let eight = vec![c2_il::SlotArg::Lit(1); 8];
+        assert!(link_setup_text(&eight, saved).is_err());
     }
 
     #[test]
