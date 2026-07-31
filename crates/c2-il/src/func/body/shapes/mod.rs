@@ -34,6 +34,7 @@ pub(crate) mod leaf_float;
 pub(crate) mod leaf_fp_tail;
 pub(crate) mod leaf_load;
 pub(crate) mod leaf_store;
+pub(crate) mod mcall_tail;
 pub(crate) mod params;
 pub(crate) mod this_binding;
 #[cfg(test)]
@@ -63,6 +64,7 @@ pub(crate) use leaf_fp_tail::*;
 pub(crate) use leaf_load::*;
 #[allow(unused_imports)]
 pub(crate) use leaf_store::*;
+pub(crate) use mcall_tail::*;
 #[allow(unused_imports)]
 pub(crate) use params::*;
 #[allow(unused_imports)]
