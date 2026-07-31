@@ -199,7 +199,29 @@ fn lit_arg_tail_call(
         .iter()
         .enumerate()
         .all(|(slot, a)| matches!(a, SlotArg::Lit(_)) || *a == SlotArg::Formal(slot));
-    if !in_place {
+    // **WLB — the one moved formal, at exactly two slots.** `g2(b, 7)`: slot 0
+    // wants a formal that is not in r3, slot 1 is the literal. 699 of the 733
+    // `call-arg-lit-permuted` functions are this, it is the ONLY list shape two
+    // slots can take once a formal is out of place, and both of its cells are
+    // captured (`work/WLA/probe/p2.cpp`, `/O1 /GS- /c`):
+    //
+    // ```text
+    //   void f(int a,int b)      { g2(b, 7); }  mr r3,r4 · li r4,7   <- HOISTED
+    //   void f(int a,int b,int c){ g2(c, 7); }  li r4,7 · mr r3,r5   <- descending
+    // ```
+    //
+    // The deciding variable is a single boolean — does the `li`'s destination
+    // register hold the value the move needs — and both of its values are
+    // witnessed, which is what makes two slots a complete cell rather than a
+    // sample. **Three slots is not**, and the same probe says why: `g3(c,b,7)`
+    // and `g3(b,c,7)` follow the same hoist, and `g3(c,a,7)` — one formal moving
+    // up while another moves down — breaks with `mr r11,r5` and puts the `li`
+    // *inside* the walk. So the bound is the measured edge and not a fit; the
+    // 34 remaining functions are `call-arg-lit-permuted` still.
+    let one_moved_at_two = slots.len() == 2
+        && matches!(slots[1], SlotArg::Lit(_))
+        && matches!(slots[0], SlotArg::Formal(ix) if ix >= 1 && ix < MAX_REGISTER_FORMALS);
+    if !in_place && !one_moved_at_two {
         return Err(refuse("call-arg-lit-permuted"));
     }
     Ok(BodyShape::MultiArgTailCall { params, arg_sources: slots, callee_tok })

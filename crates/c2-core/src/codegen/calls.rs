@@ -732,18 +732,65 @@ fn formal_slots(sources: &[usize]) -> Vec<c2_il::SlotArg> {
 ///   void f(int a)       { g3(a, 5, 6); }   38a00006  li 5,6
 ///                                          38800005  li 4,5     <- 6 before 5
 /// ```
+/// **WLB — `g2(b, 7)`**: two argument slots, the literal in slot 1 and slot 0
+/// wanting a formal that is **not** in r3.
+///
+/// The order is not a fixed one, and that is the whole content of this function.
+/// c2's default is [`moves_descending`]'s — highest destination first, which
+/// puts the `li` in front — and it **hoists** the move ahead of the `li` exactly
+/// when the `li`'s destination register is the one holding the value the move
+/// needs. Both cells, one probe TU apart (`work/WLA/probe/p2.cpp`, `/O1 /GS- /c`):
+///
+/// ```text
+///   void f(int a,int b)       { g2(b, 7); }   7c832378 mr r3,r4 · 38800007 li 4,7
+///   void f(int a,int b,int c) { g2(c, 7); }   38800007 li 4,7   · 7ca32b78 mr r3,r5
+/// ```
+///
+/// — the same hoist/trail rule [`call_seq_parts`] applies to the callee-saved
+/// copies, which is why it is *recognised* here rather than discovered.
+///
+/// **Two slots only, and the reason is measured.** At three the same probe has
+/// `g3(c,b,7)` (`mr r3,r5 ; li r5,7`) and `g3(b,c,7)`
+/// (`mr r3,r4 ; mr r4,r5 ; li r5,7`) following the hoist, and `g3(c,a,7)` —
+/// one formal moving up while another moves down — going
+/// `mr r11,r5 ; mr r4,r3 ; li r5,7 ; mr r3,r11`, with the `li` *inside* the
+/// break walk. Any rule fitted to the first two mis-emits the third. The IL
+/// parser is the gate (`call-arg-lit-permuted`); this is the backstop.
+fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+    let [c2_il::SlotArg::Formal(pi), c2_il::SlotArg::Lit(k)] = slots else {
+        return Err(out_of_class(
+            "a literal argument beside a formal that has to move, in a list that \
+             is not the captured two-slot one: at three slots c2 breaks through \
+             r11 and emits the `li` inside the walk, which is not characterized",
+        ));
+    };
+    let src = *ARG_REGS.get(*pi).ok_or_else(|| {
+        out_of_class("a call argument sources a stack-homed parameter")
+    })?;
+    let k = i16::try_from(*k)
+        .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
+    let mv = encode_mr(ARG_REGS[0], src);
+    let li = encode_addi(ARG_REGS[1], 0, k);
+    let mut w = Vec::with_capacity(8);
+    // The hoist, stated as the dependence it is: the `li` writes slot 1's
+    // register, and the move reads it.
+    if src == ARG_REGS[1] {
+        w.extend_from_slice(&mv);
+        w.extend_from_slice(&li);
+    } else {
+        w.extend_from_slice(&li);
+        w.extend_from_slice(&mv);
+    }
+    Ok((w, vec![ARG_REGS[0], ARG_REGS[1]]))
+}
+
 fn lit_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
     let in_place = slots.iter().enumerate().all(|(i, a)| match a {
         c2_il::SlotArg::Lit(_) => true,
         c2_il::SlotArg::Formal(pi) => *pi == i,
     });
     if !in_place {
-        return Err(out_of_class(
-            "a literal argument beside a formal that has to move: the moves and \
-             the `li` interleave, and the same list over a real permutation cycle \
-             — where the r11 break temp wants a slot in that order too — is not \
-             characterized",
-        ));
+        return one_moved_formal_text(slots);
     }
     let mut w = Vec::new();
     let mut writes = Vec::new();
@@ -1285,6 +1332,52 @@ mod tests {
         // …and a literal wider than the `addi` immediate. The IL parser draws
         // the same bound (`call-arg-lit-wide`); this is the backstop.
         assert!(permute_args_text(&[Formal(0), Lit(70000)]).is_err());
+    }
+
+    /// **WLB — the moved formal beside the literal, and the hoist that is not a
+    /// sort order.**
+    ///
+    /// The two cells differ only in whether the `li`'s destination register is
+    /// the one the move reads, and c2 emits them in opposite orders because of
+    /// it. Both read off `work/WLA/probe/p2.cpp` at `/O1 /GS- /c`. A single
+    /// fixed order — which is what "reuse `moves_descending`, it is the same
+    /// marshalling" would have produced — is byte-wrong on one of them.
+    #[test]
+    fn a_moved_formal_hoists_past_the_literal_only_when_the_li_clobbers_it() {
+        use c2_il::SlotArg::{Formal, Lit};
+        // `void f(int a,int b){ g2(b, 7); }` — b is in r4, which is where the
+        // `li` goes, so the move is HOISTED: mr r3,r4 ; li r4,7.
+        assert_eq!(
+            permute_args_text(&[Formal(1), Lit(7)]).unwrap(),
+            vec![
+                0x7C, 0x83, 0x23, 0x78, // mr r3,r4
+                0x38, 0x80, 0x00, 0x07, // li r4,7
+            ]
+        );
+        // `void f(int a,int b,int c){ g2(c, 7); }` — c is in r5, which the `li`
+        // does not touch, so the default descending order stands:
+        // li r4,7 ; mr r3,r5.
+        assert_eq!(
+            permute_args_text(&[Formal(2), Lit(7)]).unwrap(),
+            vec![
+                0x38, 0x80, 0x00, 0x07, // li r4,7
+                0x7C, 0xA3, 0x2B, 0x78, // mr r3,r5
+            ]
+        );
+        // The source walks to r10 and the order does not change again.
+        assert_eq!(
+            &permute_args_text(&[Formal(7), Lit(7)]).unwrap()[4..],
+            &[0x7D, 0x43, 0x53, 0x78] // mr r3,r10
+        );
+        // THREE slots is a different lowering — `g3(c,a,7)` breaks through r11
+        // and emits the `li` inside the walk — and all of it stays refused.
+        assert!(permute_args_text(&[Formal(2), Formal(1), Lit(7)]).is_err());
+        assert!(permute_args_text(&[Formal(2), Formal(0), Lit(7)]).is_err());
+        // A literal in slot 0 beside a moved formal is a different register
+        // pair and is not this cell.
+        assert!(permute_args_text(&[Lit(7), Formal(2)]).is_err());
+        // …and the immediate bound still applies.
+        assert!(permute_args_text(&[Formal(1), Lit(70000)]).is_err());
     }
 
     #[test]

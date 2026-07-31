@@ -4548,3 +4548,73 @@ python3 scripts/gt_dump.py work/WLA/probe/p1.obj    # li 5,7 · b ?g3
 Always difference the scans through **absolute** paths and print each one's row
 count and `fn_total` first — §18.8. And re-measure a row before ranking it: this
 section's first candidate was 12,479 functions in a brief and 0 on disk.
+
+### 26.7 WLB — the residue this section declined, decomposed and then taken
+
+§26.5 labelled `call-arg-lit-permuted`'s **733** a *ceiling, not a yield*, and
+said sizing it was one more re-key of the same refusal site. That is what it was,
+and the answer inverted the reading in §26.3.
+
+| functions | shape |
+|---:|---|
+| **699** | two slots, the literal in slot 1, slot 0 wanting a formal **not** in r3 |
+| 34 | four or more slots, every formal moving to a lower slot |
+| **0** | everything else, including anything at three slots |
+
+95 % of the row is one shape. It is not a *cycle* at all — two slots holding one
+formal and one literal cannot make one — and it is the **only** list two slots
+can take once a formal is out of place, so the cell is closed by enumeration
+rather than by sampling. §26.3 had called the whole 733 "the captured shift cells
+and the uncaptured cycle cell sharing one gate", and the population of the cycle
+cell at two slots is zero: the gate was right, the description of what it was
+holding was not.
+
+**The lowering, and why the order is not a sort key** (`work/WLA/probe/p2.cpp`,
+`/O1 /GS- /c`):
+
+```text
+  void f(int a,int b)       { g2(b, 7); }   7c832378 mr r3,r4 · 38800007 li 4,7
+  void f(int a,int b,int c) { g2(c, 7); }   38800007 li 4,7   · 7ca32b78 mr r3,r5
+```
+
+The default is highest destination first — the `li` in front — and the move is
+**hoisted** past it exactly when the `li`'s destination register is the one the
+move reads. That is the hoist/trail rule `call_seq_parts` already applies to the
+callee-saved copies, and finding it again here is the useful part: two of this
+project's marshalling schedules are the same rule, and the third (a chain link's
+ascending walk, §WCL) is not.
+
+**Three slots is where a rule fitted to two mis-emits**, from the same probe:
+
+```text
+  void f(int a,int b,int c) { g3(c, b, 7); }  mr r3,r5 · li r5,7
+  void f(int a,int b,int c) { g3(b, c, 7); }  mr r3,r4 · mr r4,r5 · li r5,7
+  void f(int a,int b,int c) { g3(c, a, 7); }  mr r11,r5 · mr r4,r3
+                                              · li r5,7 · mr r3,r11
+```
+
+The first two follow the hoist and the third — one formal moving **up** while
+another moves **down** — breaks through r11 and puts the `li` *inside* the walk.
+Nothing about the first two predicts it. So the bound is two slots, and the 34
+that remain are recorded with their captures rather than taken on a fit.
+
+> **Estimate: +699, biased LOW by at most 1** — the one `:mid` body of the same
+> shape. **Outcome +700**, census **696,551 → 697,251 (28.29 % → 28.31 %)**,
+> mismatch 0, census/gate disagreement 0, 0 TUs changed class, 0 functions lost,
+> 699 TUs gaining with a maximum single gain of 2. `call-arg-lit-permuted`
+> 733 → **34** and 2 → 1, and no other key moved by one function.
+
+Byte-graded: `fixtures/cpp/wlb_moved_formal.cpp` **24/24 in class, whole obj
+byte-exact** (the source register walked across r4..r10, both cells at four
+immediates each, the returned and pointer forms, and three byte-identical bodies
+for the locality tell); `wlb_moved_formal_neg.cpp` **0/14**, carrying all three
+three-slot arrangements so the refuted fit is graded and not merely described;
+`scripts/sweep.d/75-moved-lit-call-arg.py` **72 cases, 43 grading `Match`**,
+full sweep **13,880 cases, `mismatches=0`**; `scripts/gate.sh` **12/12 PASS,
+2,412 fixture-verdicts, 0 mismatch**; `cargo test --workspace` **523 pass**;
+`c2rs bench` **201 pass, 0 fail, 0 error**.
+
+**The `call-arg-*` family is now 34 functions in total on this workload, from
+5,544 two rungs ago.** Whatever ranks next in the call seam, it is not an
+argument-list question — which is the more useful handoff than any of the three
+row sizes this section started from.
