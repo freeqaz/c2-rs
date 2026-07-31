@@ -2549,3 +2549,395 @@ confirms they did not.
 does not, and `INERT` where c2 collapsed the permutation. The `body lo/hi`
 column is the load-bearing one: while it reads `x/x`, the whole of `ds` is
 prologue and epilogue and the front end cannot have seen any of it.
+
+## 6.17 Round 30 — the member function was never the variable: LINKAGE is
+
+§6.16.11 closed by naming the one thing the axis result still rested on — one
+frame class — and named the cheapest untried probe for it: **a member
+function**, because `this` is live from entry and the allocator sees pressure
+the source does not show.
+
+The probe was built and it answered a different question than the one it was
+asked. **A member function is refused at `N=1` at sizes where the schedule
+says four sites**, and four rounds of disambiguation say it is not `this`, not
+the member access, not the object, not the call site and not the class. It is
+**linkage**. Every ladder in §6.15 and §6.16 declares its callee
+`static int in1(int)`, and
+
+> **SCHEDULE D is a claim about `static`, non-`inline` callees. Remove the
+> `static` — the same body, the same emitted bytes, byte for byte — and the
+> graduated 9/7/5/4/3/2/1 middle of the table does not exist.**
+
+That is the fourth shipped reading this document has had to rescope, and the
+largest.
+
+### 6.17.0 The member pair separates `s` — but only in its second spelling
+
+The first spelling was **inert on `s`**, for a reason that is the exact
+opposite of §6.16.10a's. There the idiom delta was too small; here the
+baseline had already spent it. A member callee whose temps are defined from
+the parameter holds `{this, a, v}` — **three** values — so the LOW spelling
+already takes the `__savegprlr_` helper and the HIGH spelling has no threshold
+left to cross: `ds = 0` at k=1,2,3 with `nsave` running 3 against 3/4/5.
+
+> **`this` does not add an allocator delta. It consumes one.**
+
+Defining the temps from constants kills `a` at the first statement, leaving
+member LOW on `{this, v}` = 2, and the 24-byte idiom delta is back: `ds = -24`
+at every `k >= 2`, `body` column identical at every k, exactly as §6.16.3. The
+matched free control crosses **one `k` later** (`+8` at k=2, `-16` from k=3),
+which is `this` costing exactly one live value — the one thing the original
+probe design did establish.
+
+### 6.17.1 Three discriminating cells, and all three were FALSE ALARMS
+
+The pair straddles a band at k=2 (108/84), k=4 (148/124) and k=10 (268/244 —
+the ceiling). The pre-registration predicted exactly three, from the `s`
+profile, before any verdict. And every member cell reads `Nfull = 0`,
+including `s=88` where the free control at `s=84` measures 4 — so the grader
+printed
+
+```
+sched D 2 vs 4   <== *** s IS NOT THE AXIS: same IL, -24 bytes, same Nfull ***
+```
+
+three times, and all three are wrong. Both spellings read 0 for a reason
+outside the table. **This is the fifth time an instrument in this document has
+cried wolf**, and the second time on a `--pressure` grader that was itself
+written as a fix for the fourth (§6.16.9).
+
+Fixed the way the others were — with an abstention that is *measured*, not
+asserted. `pressure_of` now reads the callee's own COFF **storage class** out
+of the symbol table, and any row whose callee is `EXTERNAL` prints
+
+```
+not graded: EXTERNAL LINKAGE (lo,hi) — outside SCHEDULE D's class (§6.17)
+```
+
+and is counted in a fourth column, `ungraded (external linkage)`, so an
+abstention can never be read as either a pass or a refutation.
+
+### 6.17.2 Nine cells that eliminate everything the probe was designed around
+
+One body, `/O1`, `N=1..4`, one feature changed at a time:
+
+| case | `s` | `Ndir` | |
+|---|---:|---:|---|
+| member fn, `extern MB*`, reads `this->m` at the end | 108 | **0** | refused |
+| …on a **local** object, no pointer | 108 | **0** | refused |
+| …member fn that **never touches a member** | 88 | **0** | refused |
+| …reads `this->m` **first**, before the calls | 108 | **0** | refused |
+| **static** member fn — **no `this` at all** | 96 | **0** | refused |
+| same body, free fn taking `MB*` | 108 | 2 | sched D 2 ✓ |
+| same body, free fn taking `int*` | 108 | 2 | sched D 2 ✓ |
+| same body, free fn reading an extern **global** | 96 | 3 | sched D 3 ✓ |
+| the control: plain `static` free fn | 84 | 4 | sched D 4 ✓ |
+
+The pair that carries it is rows 5 and 8: **identical body, identical `s`=96,
+one a static member of a struct and one a file-scope `static` function, and
+opposite verdicts.** Not `this`, not the member read, not the pointer, not the
+object's storage.
+
+### 6.17.3 It is linkage, and the storage class predicts every row
+
+| case | `s` | storage class | `Ndir` |
+|---|---:|---|---:|
+| `static int fn1(int)` | 84 | STATIC | **4** |
+| the same body without `static` | 84 | EXTERNAL | **0** |
+| …marked `inline` | 84 | EXTERNAL | **0** |
+| member defined in-class | 88 | EXTERNAL | **0** |
+| member defined out-of-class | 88 | EXTERNAL | **0** |
+| in-class member through a static **wrapper** | 88 | EXTERNAL | **0** |
+| an external free fn through a static wrapper | 84 | EXTERNAL | **0** |
+| **anonymous-namespace** free fn | 84 | **EXTERNAL** | **0** |
+| named-namespace free fn | 84 | EXTERNAL | **0** |
+
+The anonymous-namespace row is the informative miss: it was pre-registered at
+p=0.8 as *internal* linkage and this compiler emits it **EXTERNAL** with a
+unique mangled name — and it is refused with the rest. Every row tracks the
+storage class and nothing else.
+
+And the sharpest form of it, from `--thisctl`, which compares the callee's own
+code bytes rather than its size: **`MB::mf1(int)` and the free
+`pf1(MB*,int)` with the same body are BYTE-IDENTICAL at every `k`** — same
+prologue, same body, same epilogue, same saved-register idiom — and get
+opposite inline verdicts. The only difference between the two objs, inside the
+function, is which storage class its symbol carries. That also settles the
+question the round was nominally about: **`this` is an ordinary parameter 0 to
+the back end**, whatever the IL's own parameter numbering does with it.
+
+### 6.17.4 The external schedule: one step, and no graduated middle
+
+4-byte rungs, N swept to 12, **four independent rung kinds** so the axis cannot
+be confused with a statement count — 1 instruction, 2 instructions, a call
+(3 instructions, 12 bytes a rung), and a **dead local that emits nothing**:
+
+| callee | schedule |
+|---|---|
+| `static` | 9 / 7 / 5 / 4 / 3 / 2 / 1 …, the whole of §6.15.3 |
+| external | **`<= 64` B inlined at every N (12 measured); `>= 68` B never** |
+
+All-or-nothing at `N=1` at every size above the step; no N-dependence at all.
+Dead locals move it by zero in **both** classes, so §6.15.2's "the decline axis
+is not the charge axis" holds in the new class too.
+
+> The two tables are **one** table. `<= 64 B -> unbounded` is SCHEDULE D's own
+> first row, and an external callee gets **that row and nothing else**. Linkage
+> decides whether the graduated part of the schedule exists for you.
+
+### 6.17.5 `inline` is worth exactly 8 bytes — in BOTH classes
+
+This was found by a **control that was written as an assumption**. `sta-inline`
+went into the instrument with the note *"`inline` does not move an internal
+callee"*, and it refuted SCHEDULE D on its own row: 12 sites at `s=68` and 72
+where the table says 9, and 9 sites at 76 and 80 where it says 7 and 5. Every
+one of those is the table's value for **`s-8`**.
+
+Held out afterwards on cells the shift was not fitted to, across the whole
+remaining table — **7 discriminating cells, 0 misses**:
+
+| `s` | plain `static` | `static inline` | table at `s-8` |
+|---:|---:|---:|---:|
+| 84 | 4 | **7** | 7 |
+| 88 | 4 | **5** | 5 |
+| 92 | 3 | **4** | 4 |
+| 104 | 2 | **3** | 3 |
+| 144 | 1 | **2** | 2 |
+| 260 | **0** | **1** | 1 |
+| 264 | **0** | **1** | 1 |
+
+The last two are the ceiling: a **264-byte `inline` callee is inlined once
+where a plain one is refused outright**. And in the external class `inline`
+buys the same 8 bytes — the step moves 64/68 to 72/76 — which is why an
+in-class member (implicitly `inline`) behaves exactly like `inline int f(int)`
+and an out-of-class member without the keyword behaves exactly like a plain
+external one, row for row.
+
+`__forceinline` overrides the lot: **12 of 12 sites at every size measured, to
+264 bytes, in both linkage classes.**
+
+### 6.17.6 The parameter correction — and the pre-registration it broke
+
+An unused extra parameter adds 4 bytes to `s` and does **not** move the
+external step. Two spellings at `s=68`, one inlined and one refused, differing
+by one unused `int`. So in the external class the index is
+
+```
+    index = s  -  4*(nparams - 1)  -  8*(inline ? 1 : 0)      [external]
+    inlined at every N  iff  index <= 64,  else never
+```
+
+`this` is one of those parameters, and `const` changes nothing. Fitted on 1-
+and 2-parameter callees and **held out on 3 and 4: 24 of 24 cells**.
+
+The matching prediction for the internal class was pre-registered at p=0.55 —
+that SCHEDULE D is indexed on the same corrected size, which would mean every
+fixture ever built from the table with a multi-parameter callee sits in the
+wrong row — and it is **REFUTED on 10 discriminating cells**: a static two- and
+three-parameter callee follows raw `s`, not the corrected index.
+
+```
+    params k   s    index  Nfull  sched(s)  sched(index)
+    2      7   76   72     7      7         9        <== `s` IS THE INDEX
+    3      8   80   72     5      5         9        <== `s` IS THE INDEX
+```
+
+So the two classes **do not share a size measure**, and that asymmetry is
+measured, not modelled. What it does buy is a real strengthening of §6.16's
+result: `s` is now confirmed as SCHEDULE D's index against a shape the table
+had never been tested on, by a probe that was pre-registered to break it.
+
+### 6.17.7 §6.15.5's twenty-two categorical refusals are resolved
+
+§6.15.5 filled a 2x2, found *"three pairs differing in exactly one source
+feature give opposite verdicts, and they do not agree on which feature
+matters"*, and shipped **`NOT MODELLED`** twice (§6.15.7, §6.16.11). Every one
+of those callees is a constructor or a member function — **implicitly `inline`,
+hence EXTERNAL** — and every "inlined" free-function control in the same table
+is `static`. Re-graded with the index above, **fitted on none of them**:
+
+| case | inner callee `s` | class | index | predicted | §6.15.5 measured |
+|---|---:|---|---:|---|---|
+| `ctor-loop` | 80 | ext+inline, 2 params | **68** | declined | declined ✓ |
+| `ctor-loop-while` | 100 | ” | 88 | declined | declined ✓ |
+| `member-noloop-store` | 108 | ” | 96 | declined | declined ✓ |
+| `ctor-2store-call` | 88 | ” | 76 | declined | declined ✓ |
+| `ctor-2mem-call` | 80 | ” | 68 | declined | declined ✓ |
+| `method-2store-call` | 84 | ” | 72 | declined | declined ✓ |
+| `ctor-loop-local` | 76 | ” | **64** | inlined | inlined ✓ |
+| `method-loop-call` | 76 | ” | **64** | inlined | inlined ✓ |
+| `method-loop-local` | 72 | ” | 60 | inlined | inlined ✓ |
+| `ctor-call-noloop` | 72 | ” | 60 | inlined | inlined ✓ |
+| `ctor-1store-2call` | 60 | ” | 48 | inlined | inlined ✓ |
+| `ctor-2store-nocall` | 20 | ” | 8 | inlined | inlined ✓ |
+| `ctor-loop-leaf`, `ctor-loop-nocall-store` | 44 | ” | 32 | inlined | inlined ✓ |
+| `ptr-loop-call`, `ptr-loop-local` | 76, 72 | **static** | — | sched D 7 / 9 | inlined ✓ |
+| `glob-loop-call` | 80 | **static** | — | sched D **5** | **5** ✓ |
+| `ptr-store-noloop` | 104→ direct 80 | **static** | — | sched D **5** | **5** ✓ |
+
+**Twenty-two cells, no exceptions**, and the boundary is pinned by the corpus
+itself: the two inlined rows at index **64** and the smallest refused row at
+**68** are the same 64/68 step measured on the ladders. The constructor, the
+loop, the store through `this`, the pointer — every feature that 2x2 varied was
+a proxy that moved `s` or the linkage class.
+
+> `/O1`'s "categorical refusal" was never categorical. It is the same size
+> threshold, on a class this document had not noticed it was in.
+
+### 6.17.8 `/Ox`: there is no linkage split at all
+
+The same three-class ladder at `/Ox`, k=0..14: the `static` and `external`
+columns are **identical in every cell** — same `s`, same `body`, 12 of 12 sites
+at every size up to 108 B. So the split is `/O1`-only, and §6.15.4's `/Ox`
+loop-free threshold (`<=108` inlined) needs no linkage qualifier. Two mechanisms
+that disagree in both directions yet again (§6.15.6).
+
+### 6.17.9 What this rescopes, and what it leaves standing
+
+* **SCHEDULE D (§6.15.3)** is exact and unchanged **for `static`, non-`inline`,
+  callees** — which is every ladder it was measured on. Its index is `s`,
+  confirmed here against parameter count. Outside that class it does not
+  describe the compiler at all, and a fixture built from it with an `inline` or
+  external callee sits in the wrong row or is not inlined at all.
+* **Round 29's axis result stands** and gains a second confirmation of a
+  different kind. What does **not** stand is the framing: the residue was never
+  "one frame class", it was "one *linkage* class", and no amount of FPR or
+  member-function probing inside the external class could have found it,
+  because there the schedule has only one row.
+* **§6.16.5a's reading (A)** — that the decision is `c2`'s, made on a compiled
+  callee — is strained from the other side now: the external index subtracts
+  parameter-setup instructions that the emitted code *contains*, which is not a
+  quantity you get by measuring bytes. Reading (A) survives only if the decider
+  measures the callee and then adjusts for what an inline expansion would not
+  emit. Still a hypothesis; still not something a differential capture can
+  settle.
+
+### 6.17.10 Task 2 — the cost-model negative, at the width it actually holds
+
+No seventh closed form is proposed: the existing table admits no hold-out
+(§6.16.11), and the linkage split does not change that. What can be done
+without a hold-out is refutation, and the shipped one was **overstated**.
+
+§6.15.3 and the script both claim the table *"is NOT generated by `cost x count
+<= budget` for any cost … an arithmetic impossibility for any product model"*.
+That is false as written. For `N_max(s) = floor(B/f(s))`, the choice
+`f(s) = B/N(s)` is positive, non-decreasing (because `N` is non-increasing) and
+reproduces every row exactly. **A product model exists.**
+
+What the table *does* refute, computed: each row pins `f(s)` to
+`(B/(n+1), B/n]`, so `n(68)=n(72)=9` and `n(76)=7` force
+
+```
+      f(72)/f(68) < 10/9 = 1.111      and      f(76)/f(72) > 9/8 = 1.125
+```
+
+— the relative growth per 4-byte step must **increase**. Every cost whose
+relative growth is non-increasing therefore dies at once: **all affine costs,
+every power `c*(s-h)^p`, and every exponential**, since
+`(72-h)^2 - (76-h)(68-h) = 16 > 0` makes the first ratio the larger one for any
+`p > 0`. That subsumes LAW D, its `N-1` variant and §6.15.3's first table row
+in one line, and it is a statement about an infinite family rather than six
+named formulas. `NOT MODELLED` stands; its *scope* is now precise.
+
+### 6.17.11 What round 30 leaves `NOT MODELLED`
+
+* **The rule generating the `/O1` schedule**, unchanged, now bounded as above.
+* **Why the two linkage classes use different size measures.** The external
+  index subtracts 4 bytes per extra parameter and the internal one does not —
+  measured twice, pre-registered the other way, unexplained.
+* **The `/Ox` threshold for callees containing a loop**, untouched.
+* **`/Ox`'s own categorical refusals** (§6.15.5's triggers A and B). `/O1`'s
+  are resolved; `/Ox` shows no linkage split, so nothing here touches them.
+
+> **The riskiest thing still unmeasured** is now **what else the ladders held
+> fixed without noticing**. Linkage was invisible for two rounds because every
+> ladder in this document is a `static int f(int)` with one parameter and no
+> keyword, and it took a probe aimed at something else to find it. The same
+> design has never varied: the callee's **return type** (every callee returns
+> `int` or `void`), its **storage duration**, `extern "C"`, a **virtual** call,
+> a **template** instantiation, or a callee in a **header** compiled twice. Any
+> of those could carry another 8-byte term or another class, and the
+> instrument's own controls would not notice — that is exactly how this one was
+> missed. The cheapest next probe is the return type, then `extern "C"`.
+>
+> Second, unchanged: `s` is measured on the emitted obj and the external index
+> is not a size of anything the obj contains.
+
+### 6.17.12 The pre-registration, scored
+
+`work/gt-member/ESTIMATE-round30.txt`, five tranches, each written before its
+own capture and each addendum naming what the previous result had made
+questionable. **Twenty-two registered: fourteen landed, seven missed, one
+vacuous.**
+
+| prediction | p | outcome |
+|---|---:|---|
+| M1 the member pair has >=2 discriminating cells | 0.85 | ✓ exactly 3, as computed — but see M2 |
+| M2 the member callee is a CATEGORICAL refusal | 0.5 | ✓ every rung, both spellings |
+| M3 if not categorical, SCHEDULE D is refuted | 0.8 | **vacuous** — antecedent never occurred |
+| M4 the two spellings agree | 0.7 | ✓ |
+| M5 `this` costs one live value | 0.6 | ✓ the crossing moves one `k` |
+| M6 member == `MB*` free fn, byte-identical | 0.7 | **half ✓** — byte-identical at every k, and opposite verdicts |
+| M7 `/Ox` loop-free threshold survives | 0.55 | ✓ (no linkage effect at `/Ox` at all) |
+| M8 the free control reproduces SCHEDULE D | 0.85 | ✓ 4 discriminating cells, 0 refutations |
+| D1 the `MB*` free fn is refused too | 0.45 | ✗ it inlines |
+| D2 member on a local object inlines | 0.5 | ✗ |
+| D3 member that touches no member inlines | 0.5 | ✗ |
+| D4 free fn reading a global inlines | 0.6 | ✓ |
+| D5 the control inlines to exactly 4 | 0.95 | ✓ |
+| D6 ONE feature explains all nine rows | 0.4 | ✓ linkage |
+| L1 an external free fn is refused | 0.6 | ✓ |
+| L2 …`inline` too | 0.6 | ✓ |
+| L3 …out-of-class member too | 0.65 | ✓ |
+| L4 a static wrapper rescues it | 0.6 | ✗ rescues nothing |
+| L5 anonymous namespace is internal | 0.8 | ✗ **EXTERNAL**, and refused |
+| H1 `est` holds for a 3-parameter callee | 0.7 | ✓ and for 4 — 24/24 |
+| H2 SCHEDULE D is indexed on `est` too | 0.55 | ✗ **refuted on 10 cells** |
+| S1 `inline` shifts the WHOLE table by 8 | 0.6 | ✓ 7 cells, incl. the ceiling |
+| S3 `__forceinline` is unbounded internally | 0.7 | ✓ 12/12 to 264 B |
+
+**The named bias, and what it did.** The estimate opened by naming both signs —
+the brief handed me the member function as "the cheapest untried candidate"
+with an outcome it wanted, and one leaked cell pointed the other way — and
+pre-committed to deciding categorical-vs-scheduled from the `N=1` column before
+claiming anything. That is the only reason the three `s IS NOT THE AXIS` lines
+were caught instead of published. The misses cluster in one place and it is
+informative: **M6, D1, D2, D3 are four different ways of asking "is it about
+`this`", and all four are wrong in the same direction** — I priced C++ semantics
+as the mechanism and the answer was a COFF storage class. The one prediction
+that named a *linkage* mechanism (L1, p=0.6) is the one that opened the round.
+
+### 6.17.13 Reproduction
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+# THE ROUND: three linkage classes x four rung kinds, N swept to 12.
+# `deadloc` rungs emit NO code, so a class whose verdict moves on them is
+# reading the source and not the size — none does.
+scripts/gt_inline_decline.py --linkage --max 12
+scripts/gt_inline_decline.py --linkage --max 12 --mode '/Ox /GS- /c'
+# the member pressure pair — reads `not graded: EXTERNAL LINKAGE` now
+scripts/gt_inline_decline.py --pressure --max 12 --pair 'MEMBER fn'
+# …and its free control, which is a seventh mechanism for SCHEDULE D
+scripts/gt_inline_decline.py --pressure --max 12 --pair 'free control'
+# is `this` an ordinary parameter 0 to the back end? (byte compare)
+scripts/gt_inline_decline.py --thisctl
+# the 22 categorical refusals, now graded by §6.17.7 rather than shrugged at
+scripts/gt_inline_decline.py --cases --max 6
+```
+
+Two instrument fixes shipped with this round, both of the same kind — an
+instrument that could not say what it meant:
+
+* `size_of` matched callee names by substring, so `g6` matched `?g6a@@…` — a
+  different function one band away — and `--cases` printed **two false
+  `*** REFUTES SCHEDULE D ***` lines** that were nothing but the collision.
+  Exact matches are tried first now; both lines are gone and no other row
+  moved.
+* `--pressure` abstains on external callees instead of grading them, and
+  reports the count separately (§6.17.1).
+
+`--linkage` prints `<== *** REFUTES THE LINKAGE MODEL ***` on any external row
+whose verdict disagrees with `index <= 64`, and grades every internal row
+against SCHEDULE D on the index, so the `inline` shift is falsifiable in the
+same run rather than remembered from this section.
