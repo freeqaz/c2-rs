@@ -1005,6 +1005,160 @@ FAMILIES = [
            always_lead=True,
            note="int& bound to a MEMBER of a local struct   PRED 3 / 4, same"
                 " two readings"),
+
+    # === ROUND 18: THE DEPTH LADDER. Every one of the three rules rounds
+    #     13-17 arrived at is exact at depth 1 and thin or wrong above it: the
+    #     switch has two depth-2 rows and no depth-3 row, and the scope-exit
+    #     and addressability rules have one depth-2 row EACH and both MISS
+    #     (`d2-dtor` law 28 / measured 27, `d2-ptr-auto` law 11 / measured 9).
+    #     Real TUs inline several levels deep and are made of ctors, dtors and
+    #     switches, so this is where the law will actually be used.
+    #
+    #     Every PRED below was written down and committed BEFORE the capture.
+    #     The two misses are NOT fitted away: the corrections these rows test
+    #     are derived from HELD-OUT cells (`d2-ctor` / `d3-ctor` carry no
+    #     contested term at all and pin the ctor tree's depth arithmetic on
+    #     their own), and each row states its rivals so the run discriminates
+    #     rather than confirms.
+    #
+    #  (a) CTOR TREE, uncontested. §6.9 says a constructor is itself an inline
+    #      instance, so `lq1` at depth d puts CQ::CQ at depth d+1. Nothing
+    #      about scope-exit or addressability enters these two rows, which is
+    #      the point: they are the control that lets `d2-dtor` minus `d2-ctor`
+    #      read the scope-exit term OFF THE MEASUREMENT instead of off the law.
+    Family("d2-ctor", GS,
+           "struct CQ { int v; CQ(int a){ v = gs(a)+a; } };\n"
+           "static int lq1(int a){ CQ c(a); return c.v; }\n"
+           "static int lq2(int a){ return lq1(a)+1; }",
+           "s=lq2(s);", "s=gs(s)+s+1;",
+           always_lead=True,
+           note="the constructed object at DEPTH 2   PRED 17"
+                " (3 + [5+2*1] + 7) — no contested term; the CONTROL for"
+                " d2-dtor"),
+    Family("d3-ctor", GS,
+           "struct CR { int v; CR(int a){ v = gs(a)+a; } };\n"
+           "static int lr1(int a){ CR c(a); return c.v; }\n"
+           "static int lr2(int a){ return lr1(a)+1; }\n"
+           "static int lr3(int a){ return lr2(a)+2; }",
+           "s=lr3(s);", "s=gs(s)+s+3;",
+           always_lead=True,
+           note="the constructed object at DEPTH 3   PRED 27"
+                " (3 + 5 + [7+3*1] + 9) — the CONTROL for d3-dtor"),
+    #  (b) SCOPE-EXIT at depth. The law's word is `E += 2`, i.e. a term worth
+    #      2*d at depth d. That is exact on eight depth-1-owner rows and
+    #      misses by 1 on the one depth-2 row. An affine S(d) through (1,2)
+    #      and the value d2-dtor implies at d=2 is S(d) = d+1; `d3-dtor` is
+    #      then a genuine extrapolation and `d2-dtor-only` / `d2-dtor-2obj`
+    #      are independent depth-2 cells that test whether the 3 is really S
+    #      and not something peculiar to d2-dtor's shape.
+    Family("d2-dtor-only", GS,
+           "struct DY { int v; ~DY(){ gs(v); } };\n"
+           "static int ldy(int a){ DY d; d.v=gs(a)+a; return d.v; }\n"
+           "static int ldw(int a){ return ldy(a)+1; }",
+           "s=ldw(s);", "{int dv=gs(s)+s; gs(dv); s=dv+1;}",
+           always_lead=True,
+           note="a dtor-only object at DEPTH 2   PRED 21 if scope-exit is"
+                " E+=2 (3 + [5+2*(1+2)] + 7) / 20 if it is d+1 / 19 if flat"),
+    Family("d2-dtor-2obj", GS,
+           "struct DW { int v; DW(int a){ v = gs(a)+a; } ~DW(){ gs(v); } };\n"
+           "static int ldu(int a){ DW p(a); DW q(a); return p.v+q.v; }\n"
+           "static int ldv(int a){ return ldu(a)+1; }",
+           "s=ldv(s);",
+           "{int pv=gs(s)+s; int qv=gs(s)+s; int rr=pv+qv; gs(qv); gs(pv);"
+           " s=rr+1;}",
+           always_lead=True,
+           note="TWO destructible objects at DEPTH 2   PRED 44 if scope-exit"
+                " is E+=2 once (3 + [5+2*(2+2)] + 2*7 + 2*7) / 43 if d+1 /"
+                " 42 if a flat +2 / 48 if it is per-OBJECT and scaled"),
+    Family("d3-dtor", GS,
+           "struct DX { int v; DX(int a){ v = gs(a)+a; } ~DX(){ gs(v); } };\n"
+           "static int lx1(int a){ DX d(a); return d.v; }\n"
+           "static int lx2(int a){ return lx1(a)+1; }\n"
+           "static int lx3(int a){ return lx2(a)+2; }",
+           "s=lx3(s);", "{int dv=gs(s)+s; gs(dv); s=dv+3;}",
+           always_lead=True,
+           note="the destructible object at DEPTH 3   PRED 42 if scope-exit"
+                " is E+=2 (3 + 5 + [7+3*(1+2)] + 9 + 9) / 40 if d+1 / 38 if"
+                " flat  <== the extrapolation, held out from the d+1 fit"),
+    #  (c) SWITCH at depth 3. E(switch) = groups + 2, depth-scaled, was fitted
+    #      on the depth-1 arm ladder and confirmed at depth 2 at TWO group
+    #      counts (d2-sw2 17, d2-switch 23). Depth 3 at the same two group
+    #      counts is pure extrapolation: if the term were affine in d with a
+    #      non-zero intercept the two depth-2 rows would already have caught
+    #      it, so what these test is that nothing new appears below depth 2.
+    Family("d3-switch", GS,
+           "static int st1(int a){ switch(a){ case 1: return gs(a);"
+           " case 2: return a+2; case 7: return a+7; case 8: return a+8;"
+           " default: return 0; } }\n"
+           "static int st2(int a){ return st1(a)+1; }\n"
+           "static int st3(int a){ return st2(a)+2; }",
+           "s=st3(s);",
+           "{switch(s){ case 1: s=gs(s); break; case 2: s=s+2; break;"
+           " case 7: s=s+7; break; case 8: s=s+8; break; default: s=0; }"
+           " s=s+3;}",
+           note="the 5-arm switch at DEPTH 3   PRED 37 (3 + 5 + [7+3*7] + 1)"),
+    Family("d3-sw2", GS,
+           "static int sn1(int a){ switch(a){ case 1: return gs(a);"
+           " default: return 0; } }\n"
+           "static int sn2(int a){ return sn1(a)+1; }\n"
+           "static int sn3(int a){ return sn2(a)+2; }",
+           "s=sn3(s);",
+           "{switch(s){ case 1: s=gs(s); break; default: s=0; } s=s+3;}",
+           note="a 2-arm switch at DEPTH 3      PRED 28 (3 + 5 + [7+3*4] + 1)"
+                " — the group slope at depth 3 is (37-28)/(5-2) = 3 = d"),
+    Family("d2-sw-void", GS,
+           "static void sv1(int a){ switch(a){ case 1: gs(a); break;"
+           " case 2: gs(a+2); break; case 7: gs(a+7); break;"
+           " case 8: gs(a+8); break; default: gs(0); } }\n"
+           "static int sv2(int a){ sv1(a); return a+1; }",
+           "s=sv2(s);",
+           "{switch(s){ case 1: gs(s); break; case 2: gs(s+2); break;"
+           " case 7: gs(s+7); break; case 8: gs(s+8); break; default: gs(0); }"
+           " s=s+1;}",
+           note="the same 5 arms, VOID, at DEPTH 2   PRED 22 (3 + [5+2*7]) —"
+                " d2-switch's 23 less the FLAT multi-exit +1, which is the"
+                " row that says the +1 is still flat two levels down"),
+    Family("d2-sw-1exit", GS,
+           "static int se1(int a){ int r; switch(a){ case 1: r=gs(a); break;"
+           " case 2: r=a+2; break; case 7: r=a+7; break; case 8: r=a+8; break;"
+           " default: r=0; } return r; }\n"
+           "static int se2(int a){ return se1(a)+1; }",
+           "s=se2(s);",
+           "{int r; switch(s){ case 1: r=gs(s); break; case 2: r=s+2; break;"
+           " case 7: r=s+7; break; case 8: r=s+8; break; default: r=0; }"
+           " s=r+1;}",
+           note="5 arms, ONE exit through a local, at DEPTH 2   PRED 24"
+                " (3 + [5+2*(7+1)]) — an ordinary E feature stacking on the"
+                " switch term at depth 2, and no multi-exit temp"),
+    #  (d) ADDRESSABILITY at depth. `d2-ptr-auto` says the +1 does not fire at
+    #      all at depth 2 — 9, not 11, and 9 decomposes as 4 + 5 with E(pa1)
+    #      = 0 exactly. Two readings survive that, and they differ on
+    #      `d2-ptr-p`: R1 "the +1 only ever fires at depth 1" and R2 "it fires
+    #      wherever the pointee is an automatic of a REAL function", pa1's
+    #      pointee being a local of the inlined pa2 rather than of P.
+    Family("d2-ptr-p", GS,
+           "static void pb1(int* o, int a){ *o = gs(a)+a; }\n"
+           "static int pb2(int* o, int a){ pb1(o, a); return a+1; }",
+           "s=pb2(&t, s); s+=t;", "{t = gs(s)+s;} s=s+1; s+=t;",
+           head="int P(int a){ int t=a; int s=gs(a)+a;", tail="return s+t; }",
+           note="P's OWN scalar automatic addressed and handed down to DEPTH 2"
+                "   PRED 9 by R1 (the +1 fires only at depth 1) / 11 by R2"
+                " (it fires wherever the pointee is a real automatic)"),
+    Family("d3-ptr-auto", GS,
+           "static void pc1(int* o, int a){ *o = gs(a)+a; }\n"
+           "static int pc2(int a){ int t=a; pc1(&t, a); return t+1; }\n"
+           "static int pc3(int a){ return pc2(a)+2; }",
+           "s=pc3(s);", "{int t=s; t=gs(s)+s; s=t+3;}",
+           note="the automatic-address argument at DEPTH 3   PRED 17 if the +1"
+                " never fires below depth 1 (3 + 5 + [7+3*0]) / 20 if it fires"
+                " depth-scaled there"),
+    Family("d2-ptr-glob", "int gs(int); extern int gv;",
+           "static void pd1(int* o, int a){ *o = gs(a)+a; }\n"
+           "static int pd2(int a){ pd1(&gv, a); return gv+1; }",
+           "s=pd2(s);", "{gv = gs(s)+s;} s=gv+1;",
+           note="the same shape at DEPTH 2 with the pointee a GLOBAL   PRED 8"
+                " (3 + 5) under every reading — the control that isolates"
+                " d2-ptr-auto's local `t` from its pointer argument"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1179,6 +1333,14 @@ LAW_BOOK = {
     "ptr-global": 3, "ref-global": 3, "ptr-static-local": 3, "ptr-2global": 3,
     "ptr-arrelem": 3, "ref-member": 3, "struct-ref": 3, "struct-param": 3,
     "d2-ptr-auto": 11,      # <== REFUTED: measured 9.  Kept as the law's word.
+    # --- ROUND 18, THE DEPTH LADDER: the law's word BEFORE the capture ------
+    # Committed ahead of the run so the grading is a prediction and not a fit.
+    # Each is law L' as stated above, evaluated on the tree the front end is
+    # expected to build; the rivals are in each family's note.
+    "d2-ctor": 17, "d3-ctor": 27,
+    "d2-dtor-only": 21, "d2-dtor-2obj": 44, "d3-dtor": 42,
+    "d3-switch": 37, "d3-sw2": 28, "d2-sw-void": 22, "d2-sw-1exit": 24,
+    "d2-ptr-p": 11, "d3-ptr-auto": 20, "d2-ptr-glob": 8,
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
