@@ -1081,6 +1081,15 @@ cargo run --release -p c2-harness --bin c2rs -- census system/world/Dir.cpp \
 cargo run --release -p c2-harness --bin c2rs -- gap \
   --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt \
   --cwd ../dc3-decomp --replay-every 1 --jobs 16
+
+# 4. The generated sweep (one axis at a time) and the CROSS-PRODUCT lane (every
+#    accepted shape family beside every other, both orders, four mode lanes).
+#    The second is what #12 below says a merge needs and nobody was doing by
+#    hand: it asks the port for its own family list, discovers a representative
+#    of each by grading the sweep corpus, and fails by name on a family no
+#    fragment can supply. ~70 s cold. See docs/CROSS_PRODUCT.md.
+scripts/expr_sweep.sh
+scripts/cross_sweep.sh
 ```
 
 The rules that keep the numbers honest:
@@ -1337,6 +1346,26 @@ The rules that keep the numbers honest:
        contains have never been graded by anyone.** `scripts/expr_sweep.sh` now
        generates that cross product (six leaf kinds x three call bodies x three
        orderings) rather than relying on someone thinking of it again.
+       **Generalized 2026-07-31** to every family rather than these two:
+       `scripts/cross_sweep.sh` asks the port for its own list of accepted
+       shape families (the `FnVerdict::InClass` labels), discovers a
+       representative of each by grading the whole sweep corpus, and compiles
+       every ordered pair of them — both orders, diagonal included — plus the
+       arity axis #13 needs and every ordered triple over the families that
+       carry a TU-level external, in packed / `/Gy` / `/O1` / `/O2`. 4,901
+       configurations, 19,604 gradings, **0 mismatches**, and **86 of the 171
+       unordered family pairs occurred in no matched TU of the fixture corpus
+       or the whole sweep corpus** — nothing had ever graded them. Two things
+       it found on its first run, neither of them a mis-emit and both of them
+       holes: the three `call-sequence*` families — *the* class that made #12
+       reachable — had **no single-family case anywhere** in 5,922 generated
+       cases, since every TU that reached them carried a second function
+       (`scripts/sweep.d/71-call-sequence.py` closes it); and 8 family pairs
+       never emit in **any** configuration, at any arity or mode — every FP
+       family beside every framed or call-sequence one, which is exactly #12's
+       configuration and exactly #13's outstanding debt. The lane can prove the
+       port does not mis-emit those only because it emits nothing at all, and
+       it says so out loud rather than counting them green. `docs/CROSS_PRODUCT.md`.
     13. **Not a thirteenth emit — the TWELFTH's repair, wrong one row further
        out.** #12 was fixed by giving any FP-touching function a label stride of
        2. That fits the capture it was taken from — *one* FP leaf ahead of one

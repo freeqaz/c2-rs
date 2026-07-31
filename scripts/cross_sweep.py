@@ -49,11 +49,21 @@ What it grades, and what it does not
   graded at n = 1, 2, 3, 4 copies of itself, alone and with a framed observer
   before and after it — a framed function is the only thing that *renders* the
   counter, so a TU without one cannot grade it however many copies it has.
+* **Tier C — triples over the TU-external families.** Every TU-level external
+  takes a slot in the same compiler-label sequence, so pairs cannot separate
+  "one slot per external" from "one slot per external-bearing function" once
+  two externals come from one function. The external families are therefore
+  crossed three deep in all orders, and again with a stride-1 integer leaf
+  inserted at each of the four positions — a counter error an adjacent function
+  absorbs is invisible without a separator.
+* **Tier W — the wrapping check.** Every representative is also compiled ALONE
+  inside a namespace. If a namespace by itself pushed a shape out of class, the
+  whole lane would grade refusals and report a green that means nothing.
 * **Deliberately NOT graded**, and this is not a footnote:
-  - **triples of three distinct families.** Tier B covers `X…X` + observer;
-    (A, B, C) with three different families is `R³` and is not run. The known
-    defect class needs two facts and a witness, which pairs-plus-observer
-    reaches; a three-way interaction would not be caught.
+  - **triples of three distinct NON-external families.** Tier C is restricted to
+    the families whose representative carries a TU-level external; the full
+    `R³` is not run, so a three-way interaction among plain leaves would not be
+    caught.
   - **the intra-family parameter space.** A family is represented by `k`
     (default 3) TUs out of the hundreds the sweep generates. Operand order,
     widths, offsets and argument positions are swept *within* a family by the
@@ -370,12 +380,21 @@ def main():
     # families are also crossed three deep, in all orders — and again with a
     # stride-1 integer leaf inserted at each position, because a counter error
     # that an adjacent function absorbs is invisible without a separator.
-    ext_families = sorted(set(f for (f, _fr, p, _s) in reps if ext_of[(f, p)]))
+    # The representative used here must be one that ACTUALLY carries an
+    # external, not merely the first of a family that has some such member:
+    # `store-leaf` covers both the FP store (which brings `_fltused`) and the
+    # integer one (which does not), and picking the wrong one would label the
+    # tier honestly and grade something else.
+    ext_rep = {}
+    for fam, _fr, p, src in reps:
+        if ext_of[(fam, p)]:
+            ext_rep.setdefault(fam, src)
+    ext_families = sorted(ext_rep)
     sep = first_by_family.get("straight-line")
     for a in ext_families:
         for b in ext_families:
             for c in ext_families:
-                body = [first_by_family[a], first_by_family[b], first_by_family[c]]
+                body = [ext_rep[a], ext_rep[b], ext_rep[c]]
                 plan.append(("C-%s__%s__%s" % (a, b, c), body, "C", [a, b, c]))
                 if sep is None:
                     continue
