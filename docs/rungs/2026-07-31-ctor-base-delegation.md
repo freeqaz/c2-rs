@@ -260,3 +260,29 @@ producers and one refused sixth). Every future rung that admits a call with
 arguments inherits this, and the failure mode is silent on the workload scan: the
 refusal costs 0 functions there, so no census number and no ranking would ever
 have surfaced it. Only an adversarial probe did.
+
+**And the cross-product lane's own frontier report says the same thing from the
+other side.** Of the 406 unordered family pairs, **18 never emitted a TU in any
+configuration, at any arity or mode** — and every one of them is an FP *leaf*
+beside a *framed* family:
+
+```
+    call-sequence{,-cmp-eq,-cmp-order,-lit,-load,-load-fp,-value} + {float,double}-leaf
+    framed-call + {float,double}-leaf
+    empty-ctor-base + {float,double}-leaf          <- this rung's, and the shape is pre-existing
+```
+
+That is the label counter refusing, not the emitter mis-emitting: a float leaf's
+stride is 2 (or 4, or 6 with pooled constants), `IlFunction::label_slots` returns
+`None` for it, and the TU-level gate then refuses any TU that also contains a
+framed function. `empty-ctor-base` joined a frontier that already had 16 members
+rather than creating a new one, and it joined it in the **safe** direction.
+
+But *refused* and *graded* are different things, and this is the second measured
+fact this rung has about the same seam: an FP value beside this production is
+untested at the TU level and was a live mismatch inside a single function. The
+two are the same seam — `_fltused` and the first-FP-function `+1` label slot are
+**one** fact by construction (`Function::is_float` decides both), so whoever
+prices the float leaf's stride and clears that frontier is also the one who has
+to decide whether "passes an FP value" is a producer of it. `docs/GAPS.md` §6 #13
+already names the frontier a debt; this rung adds two rows to it and the reason.
