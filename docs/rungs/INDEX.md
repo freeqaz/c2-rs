@@ -14,6 +14,7 @@ the header block this table is read from.
 | 2026-07-30 | W22 | [int-like-spelling](2026-07-30-int-like-spelling.md) | 2 | 402,704 → 418,628 (16.35 % → 17.00 %), +15,924 |
 | 2026-07-30 | W25 | [store-leaf](2026-07-30-store-leaf.md) | 2 | 418,628 → 442,273 (17.00 % → 17.96 %), +23,645 |
 | 2026-07-30 | W-UNW-1 | [unwind-pdata](2026-07-30-unwind-pdata.md) | 5 | unchanged (a codegen rung, not a decode one) |
+| 2026-07-31 | WAE | [assign-eof](2026-07-31-assign-eof.md) | 2 | 691,744 unchanged (28.09 %) — the widening is DECLINED; its measured worth is 0 |
 | 2026-07-31 | W37 | [bit-and-declined](2026-07-31-bit-and-declined.md) | 1 | 602,703 unchanged — the rung is DECLINED; its measured worth is 0 |
 | 2026-07-31 | WCF | [cflow-decode](2026-07-31-cflow-decode.md) | 2 | 491013 → 491013 (19.94% → 19.94%), +0 |
 | 2026-07-31 | WCH | [chained-call](2026-07-31-chained-call.md) | 2 | 661245 → 673006 (26.85 % → 27.33 %), +11,761 |

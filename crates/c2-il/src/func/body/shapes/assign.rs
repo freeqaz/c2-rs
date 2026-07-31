@@ -43,6 +43,9 @@ use super::params::parse_params;
 ///
 /// The destination must be a **formal** (positively, from the `2D` list) or an
 /// automatic `int` **local** (positively, from `.sy` — see [`crate::func::sy`]).
+/// Both sites that bind one ask, and the refusal is raised LAST, at the `26`
+/// that pushed it — see [`dst_not_formal`], which carries what deferring it
+/// measured (WAE, `docs/rungs/2026-07-31-assign-eof.md`).
 ///
 /// An earlier version asked whether `.gl` named the destination and refused if so.
 /// That looked sound and was not: a file-scope `static int sv` appears there as
@@ -65,6 +68,10 @@ pub(crate) fn try_parse_assign_body_detail(
     mut depth: usize,
 ) -> Result<BodyShape, Block> {
     let mut p = start;
+    // The `26` push of the FIRST statement whose destination this class will not
+    // fold, held until the rest of the body has had its say. See `dst_not_formal`
+    // below for why it is deferred rather than refused on the spot.
+    let mut deferred: Option<usize> = None;
     let mut env: Vec<(u32, Vec<IlOp>)> = Vec::new();
     // Read once for the per-destination check. A body with no formals marker is not
     // rejected here — the destination check below refuses it anyway, and deferring
@@ -101,7 +108,30 @@ pub(crate) fn try_parse_assign_body_detail(
         if rhs_is_call {
             if env.is_empty() {
                 let mut q = probe;
-                return parse_call_shape(seg, &mut q, lo, Some(dst));
+                // The destination test applies HERE TOO, and used to not: this
+                // route hands `dst` to the call shape as a bound token without
+                // ever asking what `dst` is, so `extern int gv; int f(int a){ gv =
+                // g(a); return gv; }` censused in class as an `int-tail-call`
+                // with the store to `gv` folded away — the exact defect `.sy` was
+                // built to stop, at the one site that did not consult it. It was
+                // never a live mis-emit, but only because `IlBundle::functions`
+                // refuses any TU whose `.gl` carries an unclaimed data symbol
+                // (`fixtures/cpp/il_gl_data_symbol.cpp`), and a function-level
+                // class must not be sound only by a translation-unit accounting
+                // rule about something else.
+                //
+                // AFTER the call parse, not before, for the reason the main path
+                // defers as well — a check placed before it would relabel every
+                // body this production already refuses for its own reasons.
+                // MEASURED: 14,454 workload functions reach this branch with a
+                // destination the class will not fold, and **0** of them parse;
+                // refusing them up front would invent a 14,454-row census bucket
+                // naming none of its own contents.
+                let shape = parse_call_shape(seg, &mut q, lo, Some(dst))?;
+                if !formals.contains(&dst) && !locals.contains(&dst) {
+                    return Err(dst_not_formal(p));
+                }
+                return Ok(shape);
             }
             return Err(blk(seg, probe, "assign-rhs-call"));
         }
@@ -131,10 +161,10 @@ pub(crate) fn try_parse_assign_body_detail(
         // `.sy` said plain `int`, never address-taken, and bound its block 1:1 to
         // the `.ex` segments. Everything `.sy` cannot vouch for — a global, a
         // file-scope or function-scope static, a qualified or non-`int` local, a
-        // local whose address escapes — leaves this list empty and refuses here,
-        // exactly as before.
-        if !formals.contains(&dst) && !locals.contains(&dst) {
-            return Err(Block { ctx: "assign-dst-not-formal", byte: None, off: probe, aux: 0 });
+        // local whose address escapes — leaves this list empty and refuses, as
+        // before. **Recorded, not raised** — see [`dst_not_formal`].
+        if !formals.contains(&dst) && !locals.contains(&dst) && deferred.is_none() {
+            deferred = Some(start_of_stmt);
         }
         if !eat_byte(seg, &mut p, 0x32) || !eat_int_like(seg, &mut p) {
             return Err(blk(seg, p, "assign-store-type"));
@@ -190,5 +220,65 @@ pub(crate) fn try_parse_assign_body_detail(
     if let Some(ctx) = straight_line_out_of_class_ctx(&ret, &params) {
         return Err(Block { ctx, byte: None, off: p, aux: 0 });
     }
+    // …and LAST, the destination. Everything above reports first, so this key names
+    // a function only when the destination really is the one thing left.
+    if let Some(off) = deferred {
+        return Err(dst_not_formal(off));
+    }
     Ok(BodyShape::StraightLine { params, ops: ret })
+}
+
+/// The destination refusal, raised at the `26` push it is about — **after** the
+/// whole body has had its say (WAE).
+///
+/// # Why it is deferred, and what the immediate version measured
+///
+/// The gate itself is right and does not move: a destination this class cannot
+/// prove register-resident must not have its store folded away. What moved is
+/// *when it speaks*. Refused on the spot, it fired on the FIRST assignment
+/// statement — before the remaining statements, the returned expression, the
+/// return plumbing and the four post-substitution gates had been parsed at all —
+/// so it named every body it stopped, whatever that body's real problem was.
+///
+/// MEASURED on the 878-TU dc3 workload (2,462,571 functions), by deferring exactly
+/// as this function now does and reading the redistribution:
+///
+/// ```text
+///   assign-dst-not-formal      13,887  ->  0        census 691,744 unchanged, +0
+///     8,221  assign-store-type-0x86     the very next line: a 4-byte non-integer
+///     1,906  assign-store-type-0x82     a 1-byte store
+///     1,364  expr-jump                  a goto / break / loop exit
+///       830  expr-op-0x27
+///       789  expr-call-in-expr-recv-load-then-call-op-0x64
+///       468  expr-call-in-expr-recv-load-then-call-data-addr-and-deref-load-more
+///       232  expr-call-in-expr-recv-intrinsic-this-adjust-then-intrinsic-call
+///        77  … 20 further keys
+/// ```
+///
+/// **Not one function in the workload has the destination as its only blocker.**
+/// Lifting the gate entirely converts 0; lifting it *and* the store-type check
+/// below it converts 0 as well (the 8,221 then land on `expr-jump` / `expr-op-0x60`
+/// / `expr-op-0x10`). The row was the 20th-largest on the board and its realizable
+/// worth is exactly zero — `docs/rungs/2026-07-31-assign-eof.md` is the write-up.
+///
+/// This is the same discipline the formals-marker check at the head of
+/// [`try_parse_assign_body_detail`] already follows, and for the same stated
+/// reason: an outer gate that refuses early makes the census name *it* instead of
+/// the innermost unmodeled construct, and the census's histogram IS the widening
+/// order.
+///
+/// # The byte, and the `:eof` that was not one
+///
+/// The block carries `byte: Some(0x26)` at the destination push. The previous
+/// version passed `byte: None` at a mid-segment offset, and
+/// [`crate::func::body::Block::feature`] renders any `byte: None` block as
+/// `<ctx>:eof` — so the key read `assign-dst-not-formal:eof` on a refusal that had
+/// not reached the end of anything. That suffix is load-bearing when it is true
+/// (it means the parse ran out of segment, so nothing can be hiding behind the
+/// refusal) and this key claimed it falsely: 4,466 of the 13,887 rows were
+/// `cflow-loop` bodies. A rung was ranked and scheduled on the strength of it.
+/// `0x26` is the opcode the gate is actually about, it is one key rather than a
+/// shard per right-hand side, and `hex[hex_mark]` now points at the push.
+fn dst_not_formal(off: usize) -> Block {
+    Block { ctx: "assign-dst-not-formal", byte: Some(0x26), off, aux: 0 }
 }
