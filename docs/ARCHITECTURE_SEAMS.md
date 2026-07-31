@@ -783,3 +783,110 @@ with each other or with the spine.
    "half a register-assignment rule". The spine is serial because the
    *evidence* is serial: each rung's captures only exist once the previous
    rung's model is byte-exact. Stated plainly rather than worked around.
+
+## 10. The dispatch axes — telling "unreachable" apart from "refused"
+
+**The problem this section closes.** Every ranking instrument in the repo names
+the *construct* a body needs: `FnVerdict::key` is minted by `mcall`'s
+completeness walk, the control-flow and EH axes decode the body independently,
+and all three answer "what is in this body". None of them answers **which
+recognizer looked at it**. That gap has cost two things, repeatedly:
+
+1. A **member-call construct gets the same census key wherever it stands** — as
+   the whole body, as a store's right-hand side, as a plain call's argument. Only
+   the first ever reaches `try_parse_member_tail_call`. So a row can be ranked,
+   scheduled and widened, and a large fraction of it never comes within reach of
+   the production that was widened.
+2. A big blocking row is either a **missing construct** or a **private limit
+   inside a recognizer that already ships**, and those are different orders of
+   work. Six rungs running the answer has been the second, and no key says which.
+
+Two thread-local axes in `crates/c2-il/src/func/body/mod.rs` answer these, carried
+on `FnCensus` and crossed with the census key in the gap report. They are
+**decode-only, structurally**: nothing but the report reads them, acceptance never
+branches on them, and adding them moved the census by 0.
+
+### 10.1 `disp-*` — the body-dispatch ladder
+
+`parse_segment_shape` sets a named arm at every point its ladder commits, and each
+non-committal leaf production overwrites it **only when it accepts**. For a
+blocked body every leaf declined, so "the last one tried" would be an artefact of
+the ordering; the arm label is the true statement.
+
+The arm split that matters is the `0xB9 | 0x33` one, and it is split **by the
+opening byte**: `disp-expr-load` (first token is a LOAD) against `disp-expr-lit`
+(first token is a LITERAL). `33 86 41 74 00` — LIT int 0 — followed by a `26`
+method push is the generated-destructor prologue, so `disp-expr-lit` is where *a
+member call preceded by one literal* lands. Merged into one row that distinction
+is invisible, and it is the entire question of whether the row is takeable.
+
+### 10.2 `prod-*` — the member-call production first blocker
+
+`try_parse_member_tail_call` is the sole entry to all three member-call
+productions (`mcall_chain` and `mcall_cmp` are reached only through it), so the
+ladder arms the axis there and reads back one of four states plus the named
+per-site tags. The seam the tag sites write against is one call:
+
+```rust
+eat_receiver_this(seg, &mut p).map_err(|_| prod_tag("tail-recv-not-a-plain-b9-load"))?;
+return Err(prod_tag("chain-body-does-not-end-at-the-call"));
+```
+
+`prod_tag` returns `None`, which is exactly what those productions already return
+for "not this production, cursor untouched" — so tagging a site is adding words,
+never restructuring control flow. Tags live in
+`body/shapes/mcall_{tail,chain,cmp}.rs`; the carrier is in `body/mod.rs`,
+`census.rs` and `gap.rs` and is complete without them.
+
+### 10.3 The discipline: no state may render as an absence
+
+Every state is **named and printed**, including the ones that mean "nothing
+happened":
+
+* `disp-not-run` — the ladder never ran (a function refused on its mangled name).
+* `prod-not-entered` — the productions were never entered. **This is a claim, not
+  a hole**: it is precisely the fact that makes a widening inside them unable to
+  move the body.
+* `prod-entered-untagged` — entered, declined non-committally, reached no tagged
+  bail. It is the **tag-coverage residue**, it is reported as a number on every
+  scan (`GapReport::prod_untagged_residue`), and it reaches 0 when the tag sites
+  are all placed. It is not suppressed as a default, because a population that
+  renders as an absence is the failure both axes exist to close.
+
+Both axes also print their totals against the census's own function count. A
+short total means bodies took a path nobody tagged, and every row in the table
+would be a lower bound while looking perfectly well formed.
+
+### 10.4 What the axes measured, first run (878 TUs, 2,462,571 functions)
+
+Both axes account for 2,462,571 of 2,462,571 bodies; census 691,744 (28.09 %),
+mismatch 0, census/gate disagreement 0 — the axes are instrumentation and moved
+nothing.
+
+Of the 71,767-function `-whole` family, 30,475 entered **no** member-call
+production. 21,668 are the data-designator family and correctly not applicable —
+all of them `disp-plain-call`. The other **8,807 are member-call (`-recv-*`)
+forms**, and they decompose almost entirely into one arm:
+
+| dispatch arm | functions | share |
+|---|---:|---:|
+| `disp-expr-lit` — body's first token is a LITERAL | 7,887 | 89.6 % |
+| `disp-expr-load` — body's first token is a LOAD | 701 | 8.0 % |
+| `disp-plain-call` — member call inside a plain call's arguments | 219 | 2.5 % |
+
+Eight of the nine keys above 200 functions sit in a **single** arm at 100 %, so
+these are not partially-reachable rows: the whole census row is out of reach of
+every member-call production. All 8,807 read `cflow-straight` (one basic block),
+and 6,683 read `calls-2plus` (a frame is required whatever else happens).
+
+The consequence is a dispatch-level statement rather than a grammar one: the
+`0x33` arm already anchors "literal 0 then a `26` method push" for the empty
+destructor, and when that shape declines the body is never offered to the
+member-call productions at all. Nothing inside `mcall_{tail,chain,cmp}` can move
+these 7,887 functions today — not because they are hard, but because the ladder
+does not route them there.
+
+The production axis, with no per-site tag placed yet, reads `prod-not-entered`
+1,673,096 / `prod-entered-untagged` 731,921 / `prod-accepted` 55,547 /
+`prod-committed-refusal` 2,007. The 731,921 is what the tag sites have left to
+explain.
