@@ -16,7 +16,8 @@
 #
 # Four axes exist here that `==` cannot reach, and each is swept because
 # reverting its rule has to produce mismatches here or the axis is worth nothing.
-# Measured, on this file's 356 cases, with each rule individually reverted:
+# Measured, on this file's cases (356 at the time of the reverts, 362 now), with
+# each rule individually reverted:
 #
 #     signedness forced to `signed`                      122 mismatches
 #     the `<`/`>` operand exchange dropped               118
@@ -146,6 +147,18 @@ def cases(emit):
                  % (DECL, ret, rel))
             emit('%s%s f(const U* p, const U* q) { return p->um() %s q->n(); }\n'
                  % (DECL, ret, rel))
+    # …and the finer cell: `int` against `long` is the SAME signedness and the
+    # same width, differing only in the type id — and c1xx converts there too, so
+    # it refuses in the grammar as well. Swept because `operand_signedness`
+    # deliberately does NOT compare ids (both answer "signed"), which makes this
+    # the row that says the grammar and not the predicate is what stops it.
+    for rel in ORDER:
+        emit('%sbool f(const U* p, const U* q) { return p->m() %s q->ml(); }\n'
+             % (DECL, rel))
+        emit('%sbool f(const U* p, const U* q) { return p->ml() %s q->m(); }\n'
+             % (DECL, rel))
+        emit('%sbool f(const U* p, const U* q) { return p->um() %s q->mul(); }\n'
+             % (DECL, rel))
 
     # 6. **POINTER OPERANDS TAKE THE UNSIGNED SPINE, BYTE FOR BYTE** — 66 of this
     #    rung's 67 realized functions, and the row a fixture written from
