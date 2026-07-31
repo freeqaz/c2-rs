@@ -615,7 +615,7 @@ from memory was **wrong**: there is no `dispUnwindHelp` field.
 | +0x10 | `pTryBlockMap` | `ADDR32`, or **0** when `nTryBlocks == 0` |
 | +0x14 | `nIPMapEntries` | 1..6 |
 | +0x18 | `pIPtoStateMap` | `ADDR32 $TNNNN`, never null |
-| +0x1c | `pESTypeList` | 0 on all 15 |
+| +0x1c | `pESTypeList` | 0 on all 21 |
 | +0x20 | `EHFlags` | **1** on all 21 (`/EHsc`) |
 
 The ip-to-state map is 8-byte aligned after `FuncInfo`: pad 0 when the array
