@@ -546,11 +546,13 @@ case("ptr-loop-store-nocall",
 
 
 def run_cases(mode, wd, nmax, want):
+    print("    `s` is what the /O1 schedule is a function of, so a row with")
+    print("    Nfull=0 at a small `s` is a CATEGORICAL refusal, not the budget.")
+    print("    Ndir counts the DIRECT callee only; INNER-DECLINED means a")
+    print("    deeper instance was refused, which is a different pair.")
     print("    %-22s %-5s %-5s %-6s %-22s %s"
           % ("case", "Nfull", "Ndir", "P@N=1", "callee .text (s)",
              "declined per N (1..%d)" % nmax))
-    print("    `s` is what the /O1 SIZE budget is a function of, so a row with")
-    print("    Nfull=0 at a small `s` is a CATEGORICAL refusal, not the budget.")
     bad = 0
     for name, leads, site, watch, note in CASES:
         if want and name not in want:
