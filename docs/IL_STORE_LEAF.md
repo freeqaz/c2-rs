@@ -709,3 +709,41 @@ cleanly and are untouched by this rung beyond the `encode_std` de-duplication;
 `parse_call_shape`, which the store leaf's dispatch arm never reaches. If a
 resolution in that region turns out to be needed it belongs to the framed side,
 not here.
+
+## 11. W37 — the store RUN, and the free return that ends it (+36,684)
+
+`docs/rungs/2026-07-31-store-run.md` is the record. Three things in this document
+are corrected or completed by it.
+
+**§6's last bullet ranked the wrong neighbour.** It recorded, from a sample of 87
+workload TUs, that "the *two stores in one body* neighbour is the dominant shape
+in the 2117 row's `calls-0` population" and that the shape needing the `0x19`
+compound assign was what remained. Both halves are real and the *weighting* was
+wrong: W37 took **36,684** functions out of `expr-op-0x27` (−34,420) and
+`expr-intrinsic-base-member-addr` (−2,264) **without touching `0x19` at all**,
+and 81 % of its ceiling was not a two-statement body but a one-statement body
+with a `return *this` / constructor tail. A sample says which shapes are present;
+it does not say which gate is binding.
+
+**§7.1's "the store leaf leaves nothing behind the frame axis" still holds.** All
+36,684 are `calls-0`, as all 23,645 of W25's were.
+
+**The statement is now one locator, not two.** `parse_store_stmt` is the unit
+`try_parse_store_leaf` admits exactly one of and `try_parse_store_run` admits a
+run of, so every gate this document lists — the value's width class, the FP
+split, the `2C` rules, the displacement bound, the DS-form alignment, the
+argument-register positions — is stated once and a run cannot admit a statement
+the leaf refuses.
+
+**And one of the gates this document listed was missing.** The value's TYPE was
+never checked for the `volatile` bit, so `void f(Q* s, volatile int v)
+{ s->a = v; }` emitted a bare `stw` where c2 homes the parameter in the frame and
+reloads it — live since W25, `GAPS.md` §6 instance #15, cost of the repair 0
+functions.
+
+W37 adds two gates the single store does not have, both measured: **no literal
+value in a run of more than one** (c2 hoists the `li`s, allocates them r11/r10/r9
+descending, CSEs equal ones, and *reorders the stores* around them — 11,391
+functions) and **no run of three or more that mixes the two register files** (c2
+schedules; correct in all 42 ordered mixed pairs at length 2 and wrong in 16 of
+the 24 mixed triples — 618 functions).
