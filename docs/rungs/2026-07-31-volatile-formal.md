@@ -4,7 +4,7 @@
     Slug:      volatile-formal
     Date:      2026-07-31
     Fixtures:  w32_volatile_formal_neg.cpp w32_volatile_free.cpp
-    Census:    PENDING (a refusal rung — the delta is negative by construction)
+    Census:    549,148 unchanged — the refusal costs exactly 0 (measured)
     Record:    c2_il::func::readers::is_volatile_tag
 
 A `volatile`-qualified parameter that the body **reads** was in class and emitted
@@ -91,14 +91,36 @@ there is no access to emit. That is the second reason the gate is on the LOAD.
 
 ## Estimate vs outcome
 
-**Estimate, recorded before the scan: −150 functions**, biased HIGH in magnitude
-(i.e. I expect it to cost fewer than 150). `volatile` on a *by-value scalar
-parameter* is rare in application C++ — the idiom is a `volatile` member or a
-`volatile*`, both of which stay in class. Outcome: PENDING.
+**Estimate, recorded before the scan: −150 functions**, biased HIGH in
+magnitude. **Outcome: exactly 0.**
+
+Measured directly rather than inferred: a scratch build with `is_volatile_tag`
+neutralized to `false` and the 878-TU workload rescanned gives the **identical**
+census, 549,148. The blocker histogram's only trace of the fix on the whole
+workload is a single **blocked → blocked** reattribution — one function moving
+from `expr-op-0x35` to `expr-lit-type-9641` (a volatile-tagged literal), which
+is why the key count went 576 → 577 while the sum of the key deltas stayed
+exactly equal to W31's gain.
+
+So this is a wrong-bytes emit that the 878-TU workload's *in-class* population
+never reached, and that a generated grid found in twenty minutes. That is the
+honest statement of what it cost and what it was worth: **0 coverage, seven
+shapes of correctness**, and it says something about the corpus rather than
+about the bug — `docs/GAPS.md` §6's standing point that a green fixture run is
+only as strong as the corpus's ability to separate the candidate rules. Nothing
+in `fixtures/cpp` had ever written `volatile` on a parameter.
 
 ## Gate evidence
 
-PENDING
+| lane | result |
+|---|---|
+| `cargo test --workspace --release` | **423 pass, 0 fail**; the `is_ptr4_kind` whitelist test that had asserted all four tag spellings alike is split into its free and refusing halves |
+| `c2rs bench` | **161 pass, 0 fail, 0 error** |
+| `scripts/mode_lane.sh` `/Ox` / `/O1` / `/O2` / `/Ox /Gy` | **76 / 74 / 74 / 74 match, mismatch 0** |
+| `scripts/expr_sweep.sh` | **7,230 checked, 0 mismatches**, of which 408 are this rung's `34-volatile-formal.py` — both halves, `const` as the control |
+| 878-TU workload scan | census **549,148**, unchanged by this rung; **disagreement 0**; mismatch 0 |
+| fixtures, `c2rs census` | `w32_volatile_formal_neg.cpp` **0/14**, `w32_volatile_free.cpp` **7/7** (byte-exact) |
+| the 28-case volatile probe family | 13 `Port=Mismatch` before, **0** after; the 15 free cases still `Port=Match` |
 
 ## Found and not taken
 

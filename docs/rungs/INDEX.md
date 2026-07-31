@@ -14,5 +14,5 @@ the header block this table is read from.
 | 2026-07-30 | W22 | [int-like-spelling](2026-07-30-int-like-spelling.md) | 2 | 402,704 → 418,628 (16.35 % → 17.00 %), +15,924 |
 | 2026-07-30 | W25 | [store-leaf](2026-07-30-store-leaf.md) | 2 | 418,628 → 442,273 (17.00 % → 17.96 %), +23,645 |
 | 2026-07-30 | W-UNW-1 | [unwind-pdata](2026-07-30-unwind-pdata.md) | 5 | unchanged (a codegen rung, not a decode one) |
-| 2026-07-31 | W31 | [fp-tail](2026-07-31-fp-tail.md) | 2 | PENDING |
-| 2026-07-31 | W32 | [volatile-formal](2026-07-31-volatile-formal.md) | 2 | PENDING (a refusal rung — the delta is negative by construction) |
+| 2026-07-31 | W31 | [fp-tail](2026-07-31-fp-tail.md) | 2 | 491,013 → 549,148 (19.94 % → 22.30 %), +58,135 |
+| 2026-07-31 | W32 | [volatile-formal](2026-07-31-volatile-formal.md) | 2 | 549,148 unchanged — the refusal costs exactly 0 (measured) |
