@@ -2202,6 +2202,105 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 println!("    {count:>7}           {key}");
             }
         }
+        // The two DISPATCH axes — DECODE ONLY, and the answer to a question no
+        // census key can be asked: **which recognizer looked at this body, and
+        // where inside it did the refusal happen.**
+        //
+        // The blocking-feature histogram above names the *construct*. It cannot
+        // say whether a widening could reach the body at all: a member call that
+        // is a store's right-hand side or a plain call's argument gets the same
+        // `expr-call-in-expr-recv-*` key as one that is the whole body, and only
+        // the last of the three ever enters a member-call production. Nor can it
+        // say whether a row is a missing construct or a **private limit inside a
+        // recognizer that already ships** — which has been the answer six rungs
+        // running.
+        let disph = report.fn_dispatch_histogram();
+        let prodh = report.fn_prod_histogram();
+        let (disp_seen, prod_seen) = report.dispatch_axis_totals();
+        if disp_seen > 0 {
+            // Both axes must sum to the census. Stated as an equality rather than
+            // left implicit: a short count means bodies took an arm nobody tagged,
+            // and the resulting table would under-report every row in it while
+            // looking perfectly well formed.
+            println!(
+                "  body dispatch (which recognizer claimed the body, decode-only): {disp_seen} of \
+                 {fn_total} bodies tagged on the dispatch axis, {prod_seen} on the production axis"
+            );
+            if disp_seen != fn_total || prod_seen != fn_total {
+                println!(
+                    "    AXIS UNDER-REPORTS: {} / {} bodies are missing a tag — every row below \
+                     is a lower bound",
+                    fn_total - disp_seen.min(fn_total),
+                    fn_total - prod_seen.min(fn_total)
+                );
+            }
+            // Every bare row, untruncated. A dispatch arm that is dropped for
+            // being small reads as an arm no body takes, and the whole reason
+            // this axis exists is that "reported as nothing" and "measured at
+            // zero" had become the same rendering.
+            for (key, count) in disph.iter().filter(|(k, _)| !k.contains('|')) {
+                let blocked = disph
+                    .iter()
+                    .find(|(a, _)| *a == format!("{key}|BLOCKED"))
+                    .map(|(_, n)| *n)
+                    .unwrap_or(0);
+                println!(
+                    "    {count:>7} ({:>5.1}%)  {key:<32}  blocked {blocked:>7}",
+                    100.0 * *count as f64 / disp_seen as f64
+                );
+            }
+            // The BLOCKED cross for the arms that cannot reach a member-call
+            // production at all. **This is the row set that says a member-call
+            // widening cannot serve these bodies** — they are the same construct
+            // in a statement position the productions never see.
+            //
+            // Selected by EXCLUDING the two arms that do reach a production
+            // (`disp-member-call`, and `disp-assign` which is only ever arrived at
+            // by falling through one), rather than by listing the arms that do
+            // not: a list of names silently drops any arm added later, and an arm
+            // that vanishes from this table is a population reported as zero.
+            println!("    blocked residue of the arms that never enter a member-call production:");
+            for (key, count) in disph
+                .iter()
+                .filter(|(k, _)| {
+                    k.contains("|BLOCKED|")
+                        && !k.starts_with("disp-assign|")
+                        && !k.starts_with("disp-member-call|")
+                })
+                .take(24)
+            {
+                println!("    {count:>7}           {key}");
+            }
+            // The production axis. `prod-entered-untagged` is the tag-coverage
+            // residue and is printed as a number on every scan: it is what the 37
+            // tag sites in `body::shapes::mcall_{tail,chain,cmp}` have left to
+            // explain, and inferring it from missing rows is exactly the mistake
+            // this axis was built to stop.
+            let residue = report.prod_untagged_residue();
+            println!(
+                "  member-call production first blocker (decode-only): {residue} bodies entered a \
+                 production, declined, and reached NO tagged bail — the tag-coverage residue \
+                 (target 0)"
+            );
+            for (key, count) in prodh.iter().filter(|(k, _)| !k.contains('|')) {
+                let blocked = prodh
+                    .iter()
+                    .find(|(a, _)| *a == format!("{key}|BLOCKED"))
+                    .map(|(_, n)| *n)
+                    .unwrap_or(0);
+                println!(
+                    "    {count:>7} ({:>5.1}%)  {key:<32}  blocked {blocked:>7}",
+                    100.0 * *count as f64 / prod_seen.max(1) as f64
+                );
+            }
+            for (key, count) in prodh
+                .iter()
+                .filter(|(k, _)| k.contains("|BLOCKED|"))
+                .take(20)
+            {
+                println!("    {count:>7}           {key}");
+            }
+        }
     }
 
     for (class, title) in [

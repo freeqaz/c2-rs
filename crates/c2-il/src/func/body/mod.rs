@@ -27,6 +27,113 @@ use super::readers::{
 use super::sy::SyView;
 use super::{CompareLeaf, IlOp};
 
+// ---- the two DISPATCH axes ------------------------------------------------
+//
+// **Neither of these is a census key, and that is the whole point.** A census key
+// names the *construct* a body needs; these name **which recognizer looked at the
+// body and where inside it the refusal happened**. Six ranking rungs running, the
+// answer to "what is this large blocking row" has been "a private limit inside a
+// recognizer that already ships", and no census key can say that — the key is
+// minted by `mcall`'s completeness walk, which runs to the side of the production
+// and cannot see whether the production was even entered.
+//
+// The two axes answer two different halves of that, and they compose:
+//
+// * [`DISPATCH`] — **which arm of [`parse_segment_shape`]'s ladder claimed this
+//   body.** A member-call construct whose body does not *begin* with the member
+//   call (it is a store's right-hand side, or a plain call's argument) never
+//   reaches the member-call productions at all, so **no widening inside any of
+//   them can move it**. Before this axis existed those bodies were
+//   indistinguishable, in every table, from the ones a widening could move.
+// * [`PROD`] — **which non-committal bail inside the member-call productions
+//   fired.** The 37 tag sites live in `shapes::mcall_{tail,chain,cmp}`; the
+//   carrier here is deliberately independent of them, so those files can be
+//   tagged one call at a time without touching this module.
+//
+// Both are **diagnostic only, structurally**: nothing but [`crate::func::census`]
+// reads them, acceptance never branches on them, and a body's verdict is
+// identical whether or not a tag was ever set.
+//
+// ### Why every state is NAMED, including "nothing happened"
+//
+// A tag that is only set on the interesting path reports the *previous* body's
+// value on the boring one, and an axis whose default is "absent" makes the
+// largest population on the board invisible rather than large. So the defaults
+// are positive claims — `disp-not-run` means *the ladder did not run for this
+// body*, `prod-not-entered` means *the member-call productions were never
+// entered* — they are reset per body, and the report prints them like any other
+// row. `prod-entered-untagged` is the same discipline applied to the tag sites
+// themselves: it counts the bodies that entered a production, declined
+// non-committally, and hit **no** tagged bail — i.e. it is the exact measure of
+// how much of `mcall_*.rs` is still untagged, and it reaches 0 when that work is
+// finished.
+
+/// The dispatch ladder never ran for this body (it was refused on its NAME, before
+/// any byte of it was read — see `census`'s varargs arm).
+pub(crate) const DISP_NOT_RUN: &str = "disp-not-run";
+/// [`try_parse_member_tail_call`] — and therefore `mcall_chain` and `mcall_cmp`,
+/// which are reached only through it — was never entered for this body.
+pub(crate) const PROD_NOT_ENTERED: &str = "prod-not-entered";
+/// A member-call production was entered, declined **non-committally**, and no
+/// tagged bail inside it fired. The residue that measures the tag coverage of
+/// `shapes::mcall_{tail,chain,cmp}`; its target is 0.
+pub(crate) const PROD_ENTERED_UNTAGGED: &str = "prod-entered-untagged";
+/// A member-call production accepted the body. Not a blocker at all — the
+/// in-class control group for this axis.
+pub(crate) const PROD_ACCEPTED: &str = "prod-accepted";
+/// A member-call production **committed** and then refused, so the body's census
+/// key is that gate's own and no first-blocker attribution is owed.
+pub(crate) const PROD_COMMITTED_REFUSAL: &str = "prod-committed-refusal";
+
+thread_local! {
+    static DISPATCH: std::cell::Cell<&'static str> = const { std::cell::Cell::new(DISP_NOT_RUN) };
+    static PROD: std::cell::Cell<&'static str> = const { std::cell::Cell::new(PROD_NOT_ENTERED) };
+}
+
+/// Record which dispatch arm the ladder is in. Called only from
+/// [`parse_segment_shape`].
+#[inline]
+fn disp(tag: &'static str) {
+    DISPATCH.with(|c| c.set(tag));
+}
+
+/// **The tag call for a non-committal bail inside a member-call production.**
+///
+/// Returns `None` so it drops straight into the two shapes those productions
+/// already use for "not this production, cursor untouched":
+///
+/// ```ignore
+/// eat_receiver_this(seg, &mut p).map_err(|_| prod_tag("tail-recv-not-b9-load"))?;
+/// return Err(prod_tag("chain-body-does-not-end-at-call"));
+/// ```
+///
+/// The name is the tag's own words — a construct or a limit, never a line number,
+/// which moves whenever the file is edited and says nothing to a reader of the
+/// report. Last write wins, so an inner production's tag correctly replaces the
+/// outer one's on the way out.
+pub(crate) fn prod_tag(tag: &'static str) -> Option<Block> {
+    PROD.with(|c| c.set(tag));
+    None
+}
+
+/// Reset both axes to their named defaults. Per body, and **before** the parse —
+/// a stale tag from the previous segment is the one failure mode that would make
+/// this whole instrument report fiction.
+pub(crate) fn dispatch_reset() {
+    DISPATCH.with(|c| c.set(DISP_NOT_RUN));
+    PROD.with(|c| c.set(PROD_NOT_ENTERED));
+}
+
+/// The dispatch arm that claimed the last body parsed on this thread.
+pub(crate) fn dispatch_site() -> &'static str {
+    DISPATCH.with(|c| c.get())
+}
+
+/// The member-call production first-blocker of the last body parsed on this thread.
+pub(crate) fn prod_site() -> &'static str {
+    PROD.with(|c| c.get())
+}
+
 /// **How many CALL tokens a function segment contains** — the D6 frame measure
 /// (`docs/IL_CALL_IN_EXPR.md` §18).
 ///
@@ -836,6 +943,11 @@ pub(crate) fn parse_segment(seg: &[u8], sy: SyView) -> Option<BodyShape> {
 /// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
 /// can never disagree with the gate about what is in class.
 pub(crate) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
+    // The two dispatch axes are per-body, so they are cleared HERE — at the one
+    // entry every reader goes through — rather than at each tag site. A tag left
+    // over from the previous segment would attribute this body's row to a
+    // recognizer that never saw it.
+    dispatch_reset();
     let r = parse_segment_shape(seg, sy);
     // D2's whole-body-completeness bit. `parse_expr` classified the construct but
     // has no view of the segment as a whole, and this is the one place that has
@@ -859,8 +971,10 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     // marker is not in it, so the parse never started. Reporting it at the end
     // would claim `:eof` — "the parse ran out of segment" — for a body whose
     // grammar is entirely unexamined.
-    let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11])
-        .ok_or_else(|| Block::refuse(seg, 0, "lo-marker"))?;
+    let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or_else(|| {
+        disp("disp-no-lo-marker");
+        Block::refuse(seg, 0, "lo-marker")
+    })?;
 
     // Every shape below maps a formal token to an argument register by its
     // **position** in the formals list. That is only the same thing as its
@@ -887,6 +1001,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     // blocker instead of `formals-marker` for every such body.
     if let Ok(formals) = parse_formals(seg, lo) {
         if let Err(ctx) = sy.formals_are_one_register_each(&formals) {
+            disp("disp-formals-width");
             return Err(Block::refuse(seg, lo, ctx));
         }
     }
@@ -897,17 +1012,25 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     // scopes and line markers. A body wrapped in braces used to refuse here as
     // `body-0x53`, the largest single blocking feature on the real workload.
     if !eat_byte(seg, &mut p, 0x53) {
+        disp("disp-stmt-start");
         return Err(blk(seg, p, "stmt-start"));
     }
     let mut depth = BODY_SCOPE_DEPTH;
-    eat_scopes(seg, &mut p, &mut depth)?;
+    if let Err(b) = eat_scopes(seg, &mut p, &mut depth) {
+        disp("disp-scopes");
+        return Err(b);
+    }
 
-    match *seg.get(p).ok_or(blk(seg, p, "body"))? {
+    match *seg.get(p).ok_or_else(|| {
+        disp("disp-body-truncated");
+        blk(seg, p, "body")
+    })? {
         // An EMPTY body opens directly on the return plumbing's `3A` assign —
         // there is no expression at all. `eat_return_plumbing` still has to
         // reach the segment end, so any trailing statement or unexpected operand
         // fails the function closed exactly as it does for every other shape.
         0x3A => {
+            disp("disp-empty-body");
             eat_return_head(seg, &mut p, false, depth)?;
             // …and then, for a **constructor**, the `return this` that sits
             // between the RETURN and the tail. It emits nothing — `this` is
@@ -943,6 +1066,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 None => false,
             };
             if is_call {
+                disp("disp-plain-call");
                 // …and the **floating-point** tail call, which shares this
                 // production's call head and has its own argument grammar (the
                 // integer operand vocabulary cannot spell an FP value, so every
@@ -952,10 +1076,12 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // declines still reports its own blocker below and no census key
                 // moves.
                 if let Some(shape) = try_parse_fp_tail_call(seg, p, lo, sy) {
+                    disp("disp-fp-tail-call");
                     return Ok(shape);
                 }
                 parse_call_shape(seg, &mut p, lo, None)
             } else {
+                disp("disp-stmt-26");
                 // …and the **member call as a whole body** (W36) — `p->m(a…);` and
                 // `return p->m(a…);`, whose method push is the very `26` this arm
                 // just decided was not a callee. It is not: the receiver sits
@@ -983,13 +1109,37 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // cursor and returns None with no side effects, so a declining
                 // body keeps its own `expr-intrinsic-this-adjust` key.
                 if let Some(shape) = try_parse_empty_ctor_base_delegation(seg, p, lo, depth) {
+                    disp("disp-empty-ctor-base-delegation");
                     return Ok(shape);
                 }
+                // **The entry to all three member-call productions**, and so the
+                // one place the [`PROD`] axis can be armed. `mcall_chain` and
+                // `mcall_cmp` are reached only from inside this call, so a body
+                // that does not get here provably cannot be moved by a widening in
+                // any of the three — which is the fact the `disp-*` axis exists to
+                // publish.
+                //
+                // Armed to `PROD_ENTERED_UNTAGGED` rather than left at
+                // `PROD_NOT_ENTERED`, so the two are never confused: the residue
+                // under this name is the population whose refusal is inside a
+                // production and not yet attributed to a site.
+                disp("disp-member-call");
+                prod_tag(PROD_ENTERED_UNTAGGED);
                 match try_parse_member_tail_call(seg, p, lo, depth) {
-                    Ok(shape) => return Ok(shape),
-                    Err(Some(b)) => return Err(b),
+                    Ok(shape) => {
+                        prod_tag(PROD_ACCEPTED);
+                        return Ok(shape);
+                    }
+                    // Committed, then refused: the body's key is that gate's own,
+                    // so it owes no first-blocker attribution and must not be
+                    // ranked as if a tag site had declined.
+                    Err(Some(b)) => {
+                        prod_tag(PROD_COMMITTED_REFUSAL);
+                        return Err(b);
+                    }
                     Err(None) => {}
                 }
+                disp("disp-assign");
                 try_parse_assign_body_detail(seg, p, lo, locals, depth)
             }
         }
@@ -999,14 +1149,35 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
         // relational opcode). `try_parse_compare` is non-committal: it works on
         // a copy of the cursor and returns None without side effects, so a
         // non-comparison body falls through to the arithmetic parse unchanged.
-        0xB9 | 0x33 => {
+        b @ (0xB9 | 0x33) => {
+            // The arm label is set on ENTRY and each leaf production overwrites it
+            // only when it **accepts**. For a blocked body every one of them
+            // declined, so "the last one tried" would be an artefact of the
+            // ordering rather than a fact about the body; `disp-expr-*` is the true
+            // statement — the ladder reached the expression layer and the refusal
+            // is inside `parse_expr`.
+            //
+            // **Split by the opening byte, because the two halves are different
+            // findings.** A body opening on `B9` is an expression whose first
+            // token is a LOAD. A body opening on `33` is one whose first token is a
+            // LITERAL — and `33 86 41 74 00` (int 0) followed by a `26` method push
+            // is the generated-destructor prologue, i.e. a body that is a member
+            // call *after one literal*. Those reach this arm on their first byte
+            // and are never offered to the member-call productions at all, which is
+            // a dispatch fact and not a limit inside any of them. Merged into one
+            // `disp-expr` row that distinction is invisible, and it is the whole
+            // question of whether the row is takeable.
+            disp(if b == 0x33 { "disp-expr-lit" } else { "disp-expr-load" });
             if let Some(shape) = try_parse_compare(seg, p, lo) {
+                disp("disp-compare-leaf");
                 return Ok(shape);
             }
             if let Some(shape) = try_parse_float_leaf(seg, p, lo, sy) {
+                disp("disp-float-leaf");
                 return Ok(shape);
             }
             if let Some(shape) = try_parse_indirect_load_leaf(seg, p, lo) {
+                disp("disp-indirect-load-leaf");
                 return Ok(shape);
             }
             // …and the pointer *identity* leaf (`return p;` / `return this;` /
@@ -1017,6 +1188,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // is refused by both. Non-committal like the others: it works on a
             // copy of the cursor and returns None with no side effects.
             if let Some(shape) = try_parse_ptr_identity_leaf(seg, p, lo) {
+                disp("disp-ptr-identity-leaf");
                 return Ok(shape);
             }
             // …and the **address** leaf, which is that same shape *with* the
@@ -1027,6 +1199,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // on the `41` result following the adds. Non-committal: it works on a
             // copy of the cursor and returns None with no side effects.
             if let Some(shape) = try_parse_addr_leaf(seg, p, lo) {
+                disp("disp-addr-leaf");
                 return Ok(shape);
             }
             // …and the generated empty destructor, whose body opens on a literal
@@ -1037,6 +1210,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // Non-committal: works on a copy of the cursor, returns None with no
             // side effects, so a declining body still reports its own blocker.
             if let Some(shape) = try_parse_empty_dtor_delegation(seg, p, lo, depth) {
+                disp("disp-empty-dtor-delegation");
                 return Ok(shape);
             }
             // …and the **store** leaf, the third consumer of the same sub-object
@@ -1047,6 +1221,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // cursor and returns None with no side effects, so a declining body
             // still reports its own blocker.
             if let Some(shape) = try_parse_store_leaf(seg, p, lo, sy) {
+                disp("disp-store-leaf");
                 return Ok(shape);
             }
             // …and the **store run** (W37): the same statement, a *sequence* of
@@ -1057,9 +1232,15 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // copy of the cursor and returns None with no side effects, so a
             // declining body still reports its own blocker.
             if let Some(shape) = try_parse_store_run(seg, p, lo, sy, depth) {
+                disp("disp-store-run");
                 return Ok(shape);
             }
             let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;
+            // The expression itself parsed. Everything from here down is the
+            // straight-line class's own gates, which is a materially different
+            // answer to "where did this body stop" than `disp-expr` — the
+            // `bare-nonformal` population lives here, not in the expression layer.
+            disp("disp-straight-line");
             // The result annotation, and the ONE place the value's class has to be
             // carried across it. `eat_return_plumbing`'s own `41` gate is
             // `eat_int_like_or_ptr4` — shared with three byte-graded shapes and
@@ -1110,7 +1291,10 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             };
             Ok(BodyShape::StraightLine { params, ops })
         }
-        _ => Err(blk(seg, p, "body")),
+        _ => {
+            disp("disp-body-byte");
+            Err(blk(seg, p, "body"))
+        }
     }
 }
 
@@ -1855,4 +2039,205 @@ mod tests {
             "a fn-type id below 0x1000 is not one c2 allocated"
         );
     }
+
+    // ---- the two DISPATCH axes ------------------------------------------
+    //
+    // These grade the *instrument*, not the grammar. Every assertion below is
+    // stated POSITIVELY — "this arm must claim this body", "this many must be
+    // tagged" — because the failure mode the axes exist to close is a population
+    // that renders as an absence, and a test written as "no unexpected value
+    // appeared" passes just as happily when nothing ran at all.
+
+    /// **Positive coverage: each arm the ladder reaches NAMES itself.**
+    ///
+    /// Six pinned bodies, six different arms, each asserted by name with its own
+    /// failure message — so a regression says which arm broke rather than that
+    /// "the axis" did. The distinct-arm count at the end is not redundant with
+    /// the loop: a count of six cases is also satisfied by six readings of ONE
+    /// stuck tag, which is exactly what a broken instrument produces.
+    #[test]
+    fn the_dispatch_axis_names_the_arm_that_claimed_each_body() {
+        let cases: &[(&str, &[u8], &str)] = &[
+            ("MVP_CALL", MVP_CALL, "disp-plain-call"),
+            ("BOOL_LIT", BOOL_LIT, "disp-straight-line"),
+            ("NARROW_SHORT_TO_INT_REFUSED", NARROW_SHORT_TO_INT_REFUSED, "disp-expr-load"),
+            ("STORE_MEMBER", STORE_MEMBER, "disp-store-leaf"),
+            ("IND_DEREF", IND_DEREF, "disp-indirect-load-leaf"),
+            ("DTOR_DELEGATE", DTOR_DELEGATE, "disp-empty-dtor-delegation"),
+            ("BOUND_ARG_CANON", BOUND_ARG_CANON, "disp-assign"),
+        ];
+        let mut seen: Vec<&str> = Vec::new();
+        for (name, body, want) in cases {
+            let seg = free_fn(body);
+            let _ = parse_segment_detail(&seg, NO_LOCALS);
+            assert_eq!(
+                dispatch_site(),
+                *want,
+                "{name} must be claimed by {want}: the dispatch axis says which \
+                 recognizer looked at the body, and a wrong arm here mis-attributes \
+                 every census row that body is in"
+            );
+            if !seen.contains(want) {
+                seen.push(want);
+            }
+        }
+        assert_eq!(
+            seen.len(),
+            7,
+            "seven DISTINCT arms must have been read, not seven readings of one arm"
+        );
+        // …and the other half of the expression arm, which no pinned fixture
+        // reaches: a body whose first token is a LITERAL rather than a LOAD.
+        // The split is not cosmetic — `33 86 41 74 00` then a `26` method push is
+        // the generated-destructor prologue, so `disp-expr-lit` is where a member
+        // call preceded by one literal statement lands, and it is the largest
+        // population that no member-call widening can reach.
+        let body: Vec<u8> = vec![
+            0x4C, 0x4F, 0x11, 0x53, // LO SS
+            0x33, 0x86, 0x41, 0x74, 0x05, // LIT int 5
+            0x9B, 0x00, 0x00, // a byte with no production
+        ];
+        let seg = free_fn(&body);
+        let _ = parse_segment_detail(&seg, NO_LOCALS);
+        assert_eq!(
+            dispatch_site(),
+            "disp-expr-lit",
+            "a body whose first token is a LITERAL must be told apart from one \
+             whose first token is a LOAD: the two halves of this arm are different \
+             findings and merging them hides which is takeable"
+        );
+    }
+
+    /// **Every body gets a NAMED reading, including "nothing happened".**
+    ///
+    /// `prod-not-entered` is a claim, not a hole: it says the member-call
+    /// productions were never entered, which is precisely the fact that makes a
+    /// widening inside them unable to move the body. The pinned bodies below are
+    /// all such bodies, and the axis must say so out loud.
+    #[test]
+    fn a_body_that_reaches_no_tagged_site_still_reads_a_named_default() {
+        let never_enter: &[(&str, &[u8])] = &[
+            ("MVP_CALL", MVP_CALL),
+            ("BOOL_LIT", BOOL_LIT),
+            ("STORE_MEMBER", STORE_MEMBER),
+            ("DTOR_DELEGATE", DTOR_DELEGATE),
+        ];
+        let mut named = 0;
+        for (name, body) in never_enter {
+            let seg = free_fn(body);
+            let _ = parse_segment_detail(&seg, NO_LOCALS);
+            assert_eq!(
+                prod_site(),
+                PROD_NOT_ENTERED,
+                "{name} never reaches try_parse_member_tail_call, so the production \
+                 axis must SAY that rather than leave the row empty"
+            );
+            named += 1;
+        }
+        assert_eq!(
+            named, 4,
+            "all four pinned bodies must have been graded — a loop that ran zero \
+             times reports no failures either"
+        );
+        // …and the other named default: a body that DID enter a production,
+        // declined non-committally, and hit no tagged bail. This is the residue
+        // that measures how much of `mcall_*.rs` is still untagged, and it must
+        // be a positive reading rather than an absence.
+        let seg = free_fn(BOUND_ARG_CANON);
+        let _ = parse_segment_detail(&seg, NO_LOCALS);
+        assert_eq!(
+            prod_site(),
+            PROD_ENTERED_UNTAGGED,
+            "a body that entered a member-call production and declined without \
+             hitting a tagged bail must read `prod-entered-untagged` — that count \
+             IS the tag-coverage residue, and rendering it as nothing is the exact \
+             failure this axis was built to stop"
+        );
+    }
+
+    /// **No tag may ever be stale.** The axes are thread-locals, so the one way
+    /// they can lie is by reporting the *previous* body's reading for a body that
+    /// set nothing. The order below is the adversarial one — a body that sets a
+    /// non-default value immediately before one that sets none.
+    #[test]
+    fn the_dispatch_axes_are_reset_per_body() {
+        let seg = free_fn(BOUND_ARG_CANON);
+        let _ = parse_segment_detail(&seg, NO_LOCALS);
+        assert_eq!(
+            prod_site(),
+            PROD_ENTERED_UNTAGGED,
+            "precondition: this body must leave a NON-default production reading, \
+             or the staleness check below has nothing to detect"
+        );
+        assert_eq!(
+            dispatch_site(),
+            "disp-assign",
+            "precondition: this body must leave a non-default dispatch reading too"
+        );
+        let seg = free_fn(BOOL_LIT);
+        let _ = parse_segment_detail(&seg, NO_LOCALS);
+        assert_eq!(
+            prod_site(),
+            PROD_NOT_ENTERED,
+            "the production axis must be cleared per body: this body never enters a \
+             production, so inheriting the previous one's tag would attribute it to \
+             a recognizer that never saw it"
+        );
+        assert_eq!(
+            dispatch_site(),
+            "disp-straight-line",
+            "the dispatch axis must be cleared per body as well"
+        );
+        // …and the explicit reset, which is what the census's varargs arm uses:
+        // that arm never calls the parser at all.
+        dispatch_reset();
+        assert_eq!(
+            dispatch_site(),
+            DISP_NOT_RUN,
+            "an explicit reset must leave the named `disp-not-run` — the ladder did \
+             not run for this body, which is a fact, not a blank"
+        );
+        assert_eq!(
+            prod_site(),
+            PROD_NOT_ENTERED,
+            "an explicit reset must leave the named `prod-not-entered` too"
+        );
+    }
+
+    /// **The carrier the 37 tag sites in `shapes::mcall_{tail,chain,cmp}` will
+    /// use.** Those files belong to another lane; this pins the seam they write
+    /// against, so their work is adding call sites and nothing else.
+    ///
+    /// Two properties, and both matter: the tag's own words survive verbatim (a
+    /// report row IS the tag), and `prod_tag` evaluates to the `None` those
+    /// productions already return for "not this production, cursor untouched" —
+    /// so a site is `.map_err(|_| prod_tag("…"))?` with no other change.
+    #[test]
+    fn prod_tag_is_the_seam_the_member_call_productions_write_against() {
+        dispatch_reset();
+        let r: Option<Block> = prod_tag("tail-recv-not-a-plain-b9-load");
+        assert!(
+            r.is_none(),
+            "prod_tag must evaluate to None so it drops into the existing \
+             non-committal bail idiom without changing what is returned"
+        );
+        assert_eq!(
+            prod_site(),
+            "tail-recv-not-a-plain-b9-load",
+            "the tag's own words must reach the census verbatim — the report row IS \
+             the tag, and a line number would say nothing to its reader"
+        );
+        // Last write wins, so an inner production's tag replaces the outer arm's
+        // on the way out — which is what makes `mcall_chain`'s bails visible even
+        // though `mcall_tail` armed the axis first.
+        prod_tag("chain-receiver-not-a-plain-b9-load");
+        assert_eq!(
+            prod_site(),
+            "chain-receiver-not-a-plain-b9-load",
+            "the LAST tag written must win: a chain bail happens after the tail \
+             production armed the axis, and the chain's is the specific one"
+        );
+    }
 }
+
+

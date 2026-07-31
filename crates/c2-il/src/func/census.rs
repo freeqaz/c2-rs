@@ -126,6 +126,47 @@ pub struct FnCensus {
     /// group: they are all leaves or single tail calls, so a non-zero count among
     /// them would say the measure is wrong.
     pub calls: usize,
+    /// **Which arm of the body-dispatch ladder claimed this body** — the `disp-*`
+    /// axis of [`super::body`], recorded for every function whether in class or
+    /// not.
+    ///
+    /// A fourth census axis, and a separate field for exactly the reason
+    /// [`FnCensus::cflow`] and [`FnCensus::eh`] are: **nothing in the blocking
+    /// feature says which recognizer looked at the body.** `mcall`'s completeness
+    /// walk mints `expr-call-in-expr-recv-*` for a member call wherever it stands
+    /// — as a whole body, as the right-hand side of a store, as the argument of a
+    /// plain call — and only the first of those three ever reaches
+    /// `try_parse_member_tail_call`. The other two are `disp-expr` and
+    /// `disp-plain-call`, and **no widening inside any member-call production can
+    /// move one of them**, so a rung sized off the census key alone is sized off a
+    /// population it cannot serve.
+    ///
+    /// In-class rows are the control group and they are worth reading: an accepted
+    /// body's arm is the production that accepted it, so a `store-leaf` reading
+    /// anything but `disp-store-leaf` would indict the axis rather than reveal
+    /// anything about the body.
+    ///
+    /// **Decode-only, structurally**: nothing reads this field except the report.
+    pub dispatch: &'static str,
+    /// **Which non-committal bail inside the member-call productions fired** — the
+    /// `prod-*` axis of [`super::body`], for the bodies that reached them.
+    ///
+    /// The distinction this axis exists to draw, which no census key draws: a big
+    /// blocking row is either a **construct the port has no production for** or a
+    /// **private limit inside a production that already ships**, and those are
+    /// different orders of work. Six ranking rungs running, the answer has been
+    /// the second.
+    ///
+    /// Four states are set by the ladder itself ([`super::body::PROD_NOT_ENTERED`],
+    /// `PROD_ENTERED_UNTAGGED`, `PROD_ACCEPTED`, `PROD_COMMITTED_REFUSAL`); the
+    /// named per-site values come from tag calls inside
+    /// `body::shapes::mcall_{tail,chain,cmp}`. `prod-entered-untagged` is
+    /// therefore **the measure of how much of those files is still untagged**, and
+    /// it is printed rather than suppressed precisely so that it cannot be
+    /// mistaken for "no bodies land here".
+    ///
+    /// **Decode-only, structurally**: nothing reads this field except the report.
+    pub prod: &'static str,
     /// This function's **optimization-settings word**, read out of this segment's
     /// own `4F 1F 80 <LE32>` head (never zipped in from `IlBundle::opt_words`,
     /// which walks a different segmentation). The census/gate cross-check needs
@@ -290,6 +331,13 @@ impl IlBundle {
                     // refuses that whole TU for want of names anyway, so nothing
                     // here can be emitted either way.
                     let varargs = bind.is_varargs(i);
+                    // The dispatch axes are per-body and the varargs arm below
+                    // never calls the parser, so they are cleared HERE as well as
+                    // inside `parse_segment_detail`. Without this a variadic
+                    // function would inherit the previous segment's arm — the
+                    // exact "a stale reading looks like a measurement" failure the
+                    // axis is supposed to close.
+                    body::dispatch_reset();
                     // Held across the verdict so the gate side can convert the
                     // very same parse — two readings of one parse, never two parses.
                     //
@@ -438,6 +486,14 @@ impl IlBundle {
                             Err(b) => FnVerdict::Blocked(*b),
                         }
                     };
+                    // Read the dispatch axes **immediately** after the parse, while
+                    // the values provably belong to this segment: everything below
+                    // (the post-parse gates, `shape_to_function`, the control-flow
+                    // scan) runs after, and a future one of them acquiring its own
+                    // `parse_segment_detail` call would otherwise silently
+                    // overwrite them.
+                    let dispatch = body::dispatch_site();
+                    let prod = body::prod_site();
                     // ---- The two POST-PARSE gates -----------------------------
                     //
                     // Both are per-function facts `PortC2` has always enforced and
@@ -532,6 +588,8 @@ impl IlBundle {
                             cflow,
                             eh,
                             eh_stmt,
+                            dispatch,
+                            prod,
                             opt_word,
                         },
                         func,
@@ -662,5 +720,105 @@ mod tests {
         assert!(!c.verdict.in_class());
         assert!(c.hex_mark < c.hex.len().max(1));
         assert!(c.hex.len() <= CENSUS_HEX_BACK + CENSUS_HEX_FWD);
+    }
+
+    /// **The two dispatch axes reach the census, and every row carries a NAMED
+    /// reading.**
+    ///
+    /// The second half is the one that matters. `dispatch` and `prod` are new
+    /// axes, and the way a new axis fails is not by carrying a wrong value — it is
+    /// by carrying none, so its rows never appear and the population it describes
+    /// reads as zero. So the assertion is stated as a count of rows that DO carry
+    /// a named value, floored at the number of functions in the bundle.
+    #[test]
+    fn every_census_row_carries_a_named_dispatch_and_production_reading() {
+        let mut ex: Vec<u8> = Vec::new();
+        ex.extend_from_slice(&seg_head());
+        ex.extend_from_slice(MVP_CALL);
+        ex.extend_from_slice(&seg_head());
+        ex.extend_from_slice(CALL_THEN_STMT);
+        let bundle = crate::IlBundle {
+            base_name: "t".into(),
+            files: vec![("ex".to_string(), ex), ("gl".to_string(), gl_two_records())]
+                .into_iter()
+                .collect(),
+        };
+        let census = bundle.function_census().unwrap();
+        assert_eq!(census.len(), 2, "both segments must have been censused");
+        let named = census
+            .iter()
+            .filter(|f| f.dispatch.starts_with("disp-") && f.prod.starts_with("prod-"))
+            .count();
+        assert_eq!(
+            named, 2,
+            "every censused function must carry a named reading on BOTH axes — an \
+             axis that is silently absent renders as a population of zero, which is \
+             the exact failure these axes exist to close"
+        );
+        // …and the value itself, so "named" cannot be satisfied by a constant.
+        // Both of these bodies open on a plain call, and neither can reach the
+        // member-call productions — which is the fact that makes a widening
+        // inside those productions unable to move them.
+        for f in &census {
+            assert_eq!(
+                f.dispatch, "disp-plain-call",
+                "function #{} opens on a plain call and must be claimed by that arm",
+                f.index
+            );
+            assert_eq!(
+                f.prod,
+                crate::func::body::PROD_NOT_ENTERED,
+                "function #{} never reaches a member-call production, and the axis \
+                 must SAY so rather than leave the row blank",
+                f.index
+            );
+        }
+    }
+
+    /// **A function refused on its NAME never runs the ladder, and the axis says
+    /// exactly that.** A variadic function is blocked before a byte of its body is
+    /// read, so any `disp-*` arm here would be a reading inherited from the
+    /// previous segment — the one way a thread-local instrument can report
+    /// fiction.
+    #[test]
+    fn a_body_the_ladder_never_ran_for_reads_disp_not_run() {
+        // Segment 0 is an ordinary body that leaves a non-default arm behind;
+        // segment 1 is variadic (`…ZZ`) and is refused on its name. The ORDER is
+        // the adversarial one.
+        let mut ex: Vec<u8> = Vec::new();
+        ex.extend_from_slice(&seg_head());
+        ex.extend_from_slice(MVP_CALL);
+        ex.extend_from_slice(&seg_head());
+        ex.extend_from_slice(MVP_CALL);
+        let mut gl = vec![0xE4, 0x09, 0x00];
+        gl.extend_from_slice(b"?f@@YAXXZ\x00");
+        gl.extend_from_slice(&[0xE3, 0x09, 0x00]);
+        gl.extend_from_slice(b"?v@@YAXZZ\x00");
+        let bundle = crate::IlBundle {
+            base_name: "t".into(),
+            files: vec![("ex".to_string(), ex), ("gl".to_string(), gl)]
+                .into_iter()
+                .collect(),
+        };
+        let census = bundle.function_census().unwrap();
+        assert_eq!(census.len(), 2, "both segments must have been censused");
+        assert_eq!(
+            census[0].dispatch, "disp-plain-call",
+            "precondition: the first segment must leave a NON-default arm behind, \
+             or the staleness check below has nothing to detect"
+        );
+        assert!(
+            census[1].verdict.key().starts_with("fn-varargs"),
+            "precondition: the second segment must be refused on its name, before \
+             the ladder runs — it reads {}",
+            census[1].verdict.key()
+        );
+        assert_eq!(
+            census[1].dispatch,
+            crate::func::body::DISP_NOT_RUN,
+            "a body refused on its NAME must read `disp-not-run` — inheriting the \
+             previous segment's arm would attribute it to a recognizer that never \
+             saw a byte of it"
+        );
     }
 }
