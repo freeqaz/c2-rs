@@ -1203,6 +1203,23 @@ FAMILIES = [
                 " that never sees it   PRED 9 by G (the deepest USE is still"
                 " at depth 1) / 8 by I (the instance is no longer a LEAF of"
                 " the expansion tree)"),
+
+    # === ROUND 21: `ptr-use-nest` is 8, so reading I stands — the +1 fires
+    #     only when the site's whole expansion is ONE instance deep. The last
+    #     thing that decides whether it ever fires in a real TU is scope: is
+    #     "one instance deep" a property of the SITE's tree, or of P? This
+    #     site has both — a two-deep tree that never touches the address, and
+    #     a one-deep pointer tree beside it.
+    Family("ptr-sibling", GS,
+           "static int pg0(int a){ return gs(a)+a; }\n"
+           "static int pg1(int a){ return pg0(a)+1; }\n"
+           "static void pg2(int* o, int a){ *o = gs(a)+a; }",
+           "s=pg1(s); pg2(&t, s); s+=t;",
+           "s=gs(s)+s+1; {t = gs(s)+s;} s+=t;",
+           head="int P(int a){ int t=a; int s=gs(a)+a;", tail="return s+t; }",
+           note="a two-deep tree and a one-deep POINTER tree at the same site"
+                "   PRED 12 if the +1 is per-TREE (8 + 4) / 11 if a nested"
+                " instance anywhere in P kills it (8 + 3)"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1389,6 +1406,8 @@ LAW_BOOK = {
     "ptr-use-d1": 9,
     # --- ROUND 20 ----------------------------------------------------------
     "ptr-use-nest": 9,
+    # --- ROUND 21 ----------------------------------------------------------
+    "ptr-sibling": 12,
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
