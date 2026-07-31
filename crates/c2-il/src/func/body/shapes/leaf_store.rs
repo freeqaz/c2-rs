@@ -1,7 +1,9 @@
 //! The **store leaf**: `s->m = v;`, integer and floating-point.
 //! Third consumer of [`super::designator`]; see `docs/IL_STORE_LEAF.md`.
 
-use crate::func::body::expr::{eat_return_plumbing, parse_formals, BODY_SCOPE_DEPTH};
+use crate::func::body::expr::{
+    eat_fn_tail, eat_return_head, eat_return_plumbing, eat_scopes, parse_formals, BODY_SCOPE_DEPTH,
+};
 use crate::func::body::BodyShape;
 use crate::func::readers::{
     eat_byte, eat_opt_stmt_marker, eat_value_type, is_ptr4_kind, is_volatile_tag, read_token_var,
@@ -11,6 +13,7 @@ use crate::func::readers::{
 use crate::func::sy::{fp_reg_of, ArgClass, SyView};
 use crate::func::IlOp;
 
+use super::ctor_dtor::eat_ctor_this_epilogue;
 use super::designator::{
     eat_addr_offset_adds, is_ptr_any, parse_base_member_designator, store_fp_value_width,
     store_value_width,
@@ -87,7 +90,51 @@ pub(crate) fn try_parse_store_leaf(
     lo: usize,
     sy: SyView,
 ) -> Option<BodyShape> {
+    let params = parse_params(seg, lo).ok()?;
     let mut p = start;
+    let st = parse_store_stmt(seg, &mut p, lo, sy, &params)?;
+    eat_opt_stmt_marker(seg, &mut p);
+    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
+    Some(BodyShape::StoreLeaf { params, ops: st.ops })
+}
+
+/// One store **statement**, from its designator through its `4B` — the unit
+/// [`try_parse_store_leaf`] admits exactly one of and [`try_parse_store_run`]
+/// admits a run of.
+///
+/// Extracted rather than copied: every gate the single store was byte-graded on
+/// (the value's width class, the FP split, the `2C` rules, the displacement
+/// bound, the DS-form alignment, the argument-register positions) is stated
+/// **here, once**, so a run cannot admit a statement the leaf refuses.
+/// `GAPS.md` §6's "one fact, one locator" in the form that costs coverage:
+/// the store family already had three consumers of one designator, and a fourth
+/// copy of the *statement* would have been the same mistake one layer out.
+pub(crate) struct StoreStmt {
+    /// The op group this statement contributes: `[Load(base), value,
+    /// StoreInd]` for a GPR value, `[Load(base), StoreIndFp]` for an FP one.
+    pub(crate) ops: Vec<IlOp>,
+    /// The base object token and the byte range written, for the run's
+    /// **overlap** gate. See [`try_parse_store_run`].
+    pub(crate) base_tok: u32,
+    pub(crate) off: i32,
+    pub(crate) width: u8,
+    /// True when the stored value is a literal, which a run of more than one
+    /// store refuses — MEASURED, see [`try_parse_store_run`].
+    pub(crate) value_is_lit: bool,
+    /// True when the value comes out of the FLOATING-POINT register file. A run
+    /// that mixes the two files is scheduled rather than emitted in source
+    /// order — see [`try_parse_store_run`].
+    pub(crate) value_is_fp: bool,
+}
+
+fn parse_store_stmt(
+    seg: &[u8],
+    cursor: &mut usize,
+    lo: usize,
+    sy: SyView,
+    params: &[u32],
+) -> Option<StoreStmt> {
+    let mut p = *cursor;
     // The designator. The intrinsic form is anchored on a `33` literal and the
     // plain form on a `B9`, so the two cannot be confused; the intrinsic is tried
     // first for the same reason the load and address leaves try it first.
@@ -160,6 +207,21 @@ pub(crate) fn try_parse_store_leaf(
         }
         _ => return None,
     };
+    // **A `volatile` VALUE is a memory object, and reading it is a memory
+    // access.** `void f(Q* s, volatile int v){ s->a = v; }` is
+    // `stw r4,28(r1) ; lwz r11,28(r1) ; stw r11,0(r3)` — c2 homes the parameter
+    // in the frame and reloads it, so the body is not a leaf at all — where this
+    // production emitted the bare `stw r4,0(r3)`. **Live on mainline for as long
+    // as the store leaf has existed** (`Port=Mismatch @ 8`, the whole obj a frame
+    // short), and it is `readers::is_volatile_tag` at a THIRD position: `GAPS.md`
+    // §6's thirteenth instance put the gate on the base LOAD, W35 measured that
+    // the same bit at the `27`/`30` designator positions is free, and nobody
+    // asked about the VALUE. Found by `scripts/sweep.d/82-store-run.py`'s
+    // cv-qualification axis, which varies a qualifier that changes no operator
+    // and no shape.
+    if is_volatile_tag(value_tag) {
+        return None;
+    }
     // A **floating-point** stored value is `stfs`/`stfd` out of the FP argument
     // file, so it takes the whole rest of this production down a parallel path:
     // its register is not the formal's index, and the `2C` rules below are the
@@ -173,7 +235,10 @@ pub(crate) fn try_parse_store_leaf(
     // **7,984 functions**, all `calls-0`.
     let fp_width = store_fp_value_width(value_tag, value_kind);
     if let Some(w) = fp_width {
-        return finish_fp_store_leaf(seg, p, lo, base_tok, value_op, value_tag, value_kind, off, w, sy);
+        let st =
+            finish_fp_store_stmt(seg, p, lo, base_tok, value_op, value_tag, value_kind, off, w, sy, params)?;
+        *cursor = st.1;
+        return Some(st.0);
     }
     let width = store_value_width(value_tag, value_kind)?;
 
@@ -211,8 +276,6 @@ pub(crate) fn try_parse_store_leaf(
     if !eat_byte(seg, &mut p, 0x4B) {
         return None;
     }
-    eat_opt_stmt_marker(seg, &mut p);
-    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
 
     if !(-0x8000..=0x7FFF).contains(&off) {
         return None;
@@ -224,7 +287,6 @@ pub(crate) fn try_parse_store_leaf(
     if width == 8 && off % 4 != 0 {
         return None;
     }
-    let params = parse_params(seg, lo).ok()?;
     let bix = params.iter().position(|&t| t == base_tok)?;
     // Past the eighth argument the value is stack-homed, which needs a frame.
     if bix >= 8 {
@@ -250,13 +312,18 @@ pub(crate) fn try_parse_store_leaf(
         IlOp::Lit(k) if k < -0x8000 => return None,
         _ => {}
     }
-    Some(BodyShape::StoreLeaf {
-        params,
+    *cursor = p;
+    Some(StoreStmt {
         ops: vec![IlOp::Load(base_tok), value_op, IlOp::StoreInd { off, width }],
+        base_tok,
+        off,
+        width,
+        value_is_lit: matches!(value_op, IlOp::Lit(_)),
+        value_is_fp: false,
     })
 }
 
-/// The tail of [`try_parse_store_leaf`] for a **floating-point** stored value.
+/// The tail of [`parse_store_stmt`] for a **floating-point** stored value.
 ///
 /// Split out rather than branched inline because almost every gate differs: the
 /// value's register comes from the FP file, the conversion rules are the FP ones,
@@ -278,7 +345,7 @@ pub(crate) fn try_parse_store_leaf(
 /// * **A value that is not a formal**, and a formal whose FP register the `.sy`
 ///   argument classes cannot determine.
 #[allow(clippy::too_many_arguments)]
-fn finish_fp_store_leaf(
+fn finish_fp_store_stmt(
     seg: &[u8],
     mut p: usize,
     lo: usize,
@@ -289,7 +356,8 @@ fn finish_fp_store_leaf(
     off: i32,
     width: u8,
     sy: SyView,
-) -> Option<BodyShape> {
+    params: &[u32],
+) -> Option<(StoreStmt, usize)> {
     // No conversion, and no pooled constant.
     if seg.get(p) == Some(&0x2C) {
         return None;
@@ -310,8 +378,6 @@ fn finish_fp_store_leaf(
     if !eat_byte(seg, &mut p, 0x4B) {
         return None;
     }
-    eat_opt_stmt_marker(seg, &mut p);
-    eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
 
     if !(-0x8000..=0x7FFF).contains(&off) {
         return None;
@@ -321,7 +387,6 @@ fn finish_fp_store_leaf(
     // alignment gate here, and the absence is a measured difference between the
     // two paths rather than an omission (`d8230008` is `stfd f1,8(r3)`, primary
     // 54, with all sixteen displacement bits its own).
-    let params = parse_params(seg, lo).ok()?;
     let bix = params.iter().position(|&t| t == base_tok)?;
     if bix >= 8 {
         return None;
@@ -342,12 +407,260 @@ fn finish_fp_store_leaf(
     if matches!(classes.get(fix), Some(ArgClass::Fp { double }) if *double != (width == 8)) {
         return None;
     }
-    Some(BodyShape::StoreLeaf {
+    Some((
+        StoreStmt {
+            ops: vec![
+                IlOp::Load(base_tok),
+                IlOp::StoreIndFp { off, double: width == 8, src },
+            ],
+            base_tok,
+            off,
+            width,
+            value_is_lit: false,
+            value_is_fp: true,
+        },
+        p,
+    ))
+}
+
+/// A returned value that is the **first formal** — `return s;` in
+/// `S* g(S* s,int u){ s->a=u; return s; }`, and `return *this;` in a member,
+/// where `this` is the first formal. Spelled `B9 <tok> <TYPE> 41 <same TYPE>`,
+/// the ordinary value-return head.
+///
+/// **It costs nothing, and only at index 0.** MEASURED (`work/w37/probe/p6.cpp`,
+/// four neighbours in one TU):
+///
+/// ```text
+///   S*  r_first (S* s,int u,int v) { s->a=u; s->b=v; return s; }  90830000 90a30004         blr
+///   int r_first_i(int u,S* s,int v){ s->a=v;         return u; }  90a40000                  blr
+///   S*  r_second(int k,S* s,int u) { s->a=u;         return s; }  90a40000 7c832378  mr r3,r4
+///   int r_formal(S* s,int u,int v) { s->a=u;s->b=v;  return u; }  mr r11,r3 ; … ; mr r3,r4
+/// ```
+///
+/// The first two are a bare `blr` because the value is already in r3; the third
+/// is one register move; and the fourth is worse than a move — the result
+/// register displaces the base, so c2 saves it into r11 and **re-bases the later
+/// stores**. So the gate is on the formal's *position*, which is the same fact
+/// [`crate::func::body::chain::straight_line_out_of_class_ctx`] states for a bare
+/// `return <formal>` in the integer class, and it refuses rather than emitting a
+/// move this production has no capture for.
+///
+/// The LOAD, an optional class-preserving `2C`, and the `41` result must all
+/// name the **same [`crate::func::readers::ValueClass`]** — reached through
+/// [`eat_value_type`], the one locator the getter rungs byte-graded a free
+/// conversion on. Byte-identity would have been tighter and is wrong here: `this`
+/// is `T* const` and loads as `A6 43`, while `T* pset2(…){ …; return this; }`
+/// annotates its result `86 43`, and that qualification conversion emits nothing
+/// (`?ptr2@T@@QAAPAU1@HH@Z` is `90830000 90a30004 4e800020`, the same three words
+/// as its `T&` twin). A CROSS-class one still refuses.
+fn eat_first_formal_result(seg: &[u8], p: &mut usize, params: &[u32]) -> bool {
+    let Some(&first) = params.first() else {
+        return false;
+    };
+    let mut q = *p;
+    if seg.get(q) != Some(&0xB9) {
+        return false;
+    }
+    q += 1;
+    let Some((tok, w)) = read_token_var(seg, q) else {
+        return false;
+    };
+    if tok != first {
+        return false;
+    }
+    q += w;
+    let Some((tag, kind, _, tw)) = read_type(seg, q) else {
+        return false;
+    };
+    let Some(cls) = value_class(tag, kind) else {
+        return false;
+    };
+    q += tw;
+    if seg.get(q) == Some(&0x2C) {
+        let mut probe = q + 1;
+        if !(eat_value_type(seg, &mut probe, cls) && eat_byte(seg, &mut probe, 0x00)) {
+            return false;
+        }
+        q = probe;
+    }
+    if seg.get(q) != Some(&0x41) {
+        return false;
+    }
+    q += 1;
+    if !eat_value_type(seg, &mut q, cls) {
+        return false;
+    }
+    *p = q;
+    true
+}
+
+/// Try to parse a **store run**: a whole body that is a *sequence* of the store
+/// statements [`parse_store_stmt`] admits, ending either on the ordinary void
+/// return plumbing or on a `return *this` / `return this`.
+///
+/// ```text
+///   ( <scopes / line markers> <store statement> )+
+///   <return plumbing, void>            OR   <return head> <return this> <fn tail>
+/// ```
+///
+/// **The store leaf's own limit was "and the body ends here", and it is exactly
+/// the shape `GAPS.md` §6 calls the coverage-costing form of "one fact, one
+/// locator".** The *assignment* statement parser beside it
+/// ([`super::assign::try_parse_assign_body_detail`]) has had a statement list
+/// since it was written; the store leaf, built later on the same shared
+/// designator, never got one. Nothing was wrong — a recognizer that refuses more
+/// than its sibling emits nothing, so no byte compare and no disagreement check
+/// can see it. On the 878-TU dc3 workload the missing statement list and the
+/// missing `return this` tail were worth **54,433 whole bodies, every one
+/// `calls-0`**, measured by counterfactual before any of this was written.
+///
+/// **The lowering is one store per statement, in source order** — no scheduling,
+/// no reordering, no coalescing. MEASURED, every word read off the reference obj
+/// (`work/w37/probe/p1.cpp`, `p2.cpp`, `p4.cpp` at `/O1` and `/Ox`, which agree):
+///
+/// ```text
+///   void s2 (S* s,int u,int v)      { s->a=u; s->b=v; }   90830000 90a30004
+///   void s2r(S* s,int u,int v)      { s->b=v; s->a=u; }   90a30004 90830000  <- SOURCE order
+///   void s2s(S* s,int v)            { s->a=v; s->b=v; }   90830000 90830004  <- one formal twice
+///   void s2t(S* t,S* s,int u,int v) { t->a=u; s->b=v; }   90a30000 90c40004  <- two bases
+///   void W3 (S* s,char h,short i,long long j)             9883001c b0a3001e f8c30020
+///   void Fp2(S* s,float f,double d) { s->f=f; s->d=d; }   d0230010 d8430018  <- the FP file
+///   T& set2(int u,int v) { a=u; b=v; return *this; }      90830000 90a30004  <- the epilogue is FREE
+///   void F7(S*,int×7)  — seven stores, r4..r10, all one `stw` each
+/// ```
+///
+/// Both refusals below are *captured* neighbours that emit something else, and
+/// each is the reason the gate is not conservatism:
+///
+/// * **A LITERAL value, in a run of more than one.** c2 hoists the `li`s out of
+///   the store sequence, allocates them r11/r10/r9 **descending**, common-subexpresses
+///   equal literals, interleaves them with the stores past three, and — decisively —
+///   **reorders the stores themselves**: `{ s->a=1; s->b=u; }` is
+///   `li r11,1 ; stw r4,4(r3) ; stw r11,0(r3)`, the two statements emitted in the
+///   *opposite* order to the source. Nothing in the single-store capture predicts
+///   any of that, so a run whose values are not all formals refuses. A run of ONE
+///   is unaffected — that is [`try_parse_store_leaf`]'s own captured `li r11,k ;
+///   stw r11` — and it stays in class here for the `return this` tail.
+/// * **Two statements writing overlapping bytes of the SAME base token.** c2
+///   eliminates the dead one: `{ s->a=u; s->a=w; }` is a *single*
+///   `stw r5,0(r3)`. Emitting both would be wrong bytes, and the gate is on the
+///   byte RANGE rather than on the offset so that a packed/union overlap refuses
+///   too. Two *different* base tokens may alias at run time and c2 keeps both
+///   stores (`void s2t(S* t,S* s,…)` above), so the gate is deliberately keyed on
+///   the token and not on "some pointer".
+///
+/// The tail that is **refused** is `return <formal>`: `int iset2(int u,int v)
+/// { a=u; b=v; return u; }` is `mr r11,r3 ; stw r4,0(r3) ; mr r3,r4 ;
+/// stw r5,4(r11)` — the result register displaces `this`, so the stores are
+/// re-based and the body is no longer a plain sequence. `return *this` is free
+/// for the opposite reason: `this` is already in r3 and a store writes no
+/// register, so the epilogue is the same no-op
+/// [`super::ctor_dtor::eat_ctor_this_epilogue`] measured for the empty
+/// constructor. That recognizer had exactly **one** consumer before this rung —
+/// the empty-body arm — which is the same "a locator nobody consults is not
+/// shared" reading as the paragraph above, and it is worth 42,238 of the 54,433.
+///
+/// Returns `None` — cursor untouched — for anything that is not exactly this
+/// shape.
+pub(crate) fn try_parse_store_run(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    sy: SyView,
+    depth0: usize,
+) -> Option<BodyShape> {
+    let params = parse_params(seg, lo).ok()?;
+    let mut p = start;
+    let mut depth = depth0;
+    let mut stmts: Vec<StoreStmt> = Vec::new();
+    loop {
+        let (sp, sd) = (p, depth);
+        // Brace scopes and line markers open and close *between* statements, so
+        // they are consumed at the boundary — the same rule
+        // [`super::assign::try_parse_assign_body_detail`] applies, through the
+        // same locator.
+        if eat_scopes(seg, &mut p, &mut depth).is_err() {
+            p = sp;
+            depth = sd;
+            break;
+        }
+        let mut q = p;
+        match parse_store_stmt(seg, &mut q, lo, sy, &params) {
+            Some(st) => {
+                stmts.push(st);
+                p = q;
+            }
+            // The cursor stays where the scopes left it: the tail is what follows
+            // the last store, and `eat_return_head` requires the scope closes to
+            // descend from the depth the statement walk actually reached.
+            None => break,
+        }
+    }
+    if stmts.is_empty() {
+        return None;
+    }
+    if stmts.len() > 1 && stmts.iter().any(|s| s.value_is_lit) {
+        return None;
+    }
+    // **A run of THREE or more may not mix the two register files.** c2 stops
+    // emitting source order and SCHEDULES: `{ s->i=u; s->j=v; s->a=w; }` (two
+    // `stw`s then a `stfs`) comes back `stfs f1,0(r3) ; stw r4,32(r3) ;
+    // stw r5,36(r3)`, and `{ s->a=u; s->x=v; s->y=w; }` (one `stw`, two FP)
+    // comes back `stfs ; stw ; stfd` — the FIRST FP store moved and the second
+    // did not, so it is not "floating point first" either and no rule here is
+    // derived. MEASURED at the edge rather than fitted, which is `GAPS.md` §6
+    // instance #10's lesson applied in advance: source order holds for every
+    // pure-GPR run to length 7, for every pure-FP run to length 4, and for
+    // **every** mixed run of exactly 2 (42 ordered type pairs in
+    // `scripts/sweep.d/82-store-run.py`, both orders) — and breaks in 16 of the
+    // 24 mixed triples. So the gate is drawn where the evidence stops.
+    if stmts.len() > 2 {
+        let fp = stmts[0].value_is_fp;
+        if stmts.iter().any(|s| s.value_is_fp != fp) {
+            return None;
+        }
+    }
+    for (i, a) in stmts.iter().enumerate() {
+        for b in &stmts[i + 1..] {
+            if a.base_tok == b.base_tok
+                && a.off < b.off + i64::from(b.width) as i32
+                && b.off < a.off + i64::from(a.width) as i32
+            {
+                return None;
+            }
+        }
+    }
+    // The tail. Three spellings, and the two non-void ones are **the same fact
+    // twice** — the value the function returns is already in r3, so the return
+    // costs nothing. Which spelling appears is decided by the SOURCE construct
+    // and not by this parser: an explicit `return *this;` / `return s;` is an
+    // ordinary value return (`B9 <tok> <T> 41 <T>` ahead of the `3A`), while a
+    // CONSTRUCTOR's implicit result sits *after* the `29`
+    // ([`eat_ctor_this_epilogue`]). On the 878-TU workload the constructor form
+    // is 42,238 of the 54,433 and the explicit one is ~1,000.
+    let mut q = p;
+    if eat_first_formal_result(seg, &mut q, &params)
+        && eat_return_plumbing(seg, &mut q, false, depth).is_ok()
+    {
+        return Some(BodyShape::StoreRun {
+            params,
+            ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
+        });
+    }
+    let mut q = p;
+    eat_return_head(seg, &mut q, false, depth).ok()?;
+    let mut r = q;
+    if eat_fn_tail(seg, &mut r).is_err() {
+        // …or the constructor's `return this`, between the RETURN and the tail.
+        r = q;
+        if !(eat_ctor_this_epilogue(seg, &mut r, lo) && eat_fn_tail(seg, &mut r).is_ok()) {
+            return None;
+        }
+    }
+    Some(BodyShape::StoreRun {
         params,
-        ops: vec![
-            IlOp::Load(base_tok),
-            IlOp::StoreIndFp { off, double: width == 8, src },
-        ],
+        ops: stmts.into_iter().flat_map(|s| s.ops).collect(),
     })
 }
 

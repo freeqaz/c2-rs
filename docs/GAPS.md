@@ -1160,7 +1160,7 @@ The rules that keep the numbers honest:
   and grouped them by production; and clearing one production can shrink several
   unrelated-looking buckets at once, so predicted movement should be stated
   per-production, never per-bucket.
-- **Twelve live wrong-bytes emits and two live panics, none of them found by the
+- **Fourteen live wrong-bytes emits and two live panics, none of them found by the
   fixture corpus.** Every one came from review, adversarial probing or a
   *generated* sweep axis, and most have the same shape: *two facts that happen to
   share one field until some construct pulls them apart.* Two of them break that
@@ -1426,6 +1426,40 @@ The rules that keep the numbers honest:
        pointer. A green scan of 2.4 million functions is green only on the IL it
        saw, and the *return type of a callee* is a property no census bucket has
        ever been keyed on, so nothing could have reported its absence.
+    15. **The fifteenth is `is_volatile_tag` at a THIRD position, and it had been
+       live on mainline since the store leaf landed (W25).** A `volatile` stored
+       VALUE is a memory object: `void f(Q* s, volatile int v){ s->a = v; }` is
+       `stw r4,28(r1) ; lwz r11,28(r1) ; stw r11,0(r3)` — c2 homes the parameter
+       in the frame and reloads it, so the body is not a leaf at all — where the
+       store leaf emitted the bare `stw r4,0(r3)`. `Port=Mismatch @ 12`/`@ 8`, on
+       two lines of C++, in class, with `census` reading 1/1. Instance #13 put
+       the gate on the base LOAD; W35 then measured that the same bit at the
+       `27`/`30` designator positions is **free** and wrote that down; and the
+       VALUE position was never asked. So this is not "one fact, two locators" —
+       it is one fact with **three** positions, two of them examined and one of
+       them never named. The tell needed no compiling: a predicate whose comment
+       enumerates the positions where it matters, applied at a strict subset of
+       them. Found 2026-07-31 by W37's generated cv-qualification axis, which
+       varies a qualifier that changes no operator and no shape. Cost of the
+       repair: **0 functions** on the workload.
+    16. **The sixteenth is the EMPTY PREFIX, and it is the only one on this list
+       created by the rung that found it.** Generalizing `store_leaf_text` from
+       an *exact* three-op pattern match to a **loop** over op groups added a
+       case the exact match did not have: the empty `ops` slice, which every
+       shape whose data lives in another field (`IlFunction::compare`) presents.
+       Those walked past the loop with nothing matched and came out as a bare
+       `blr` — every comparison leaf sharing a TU with a store, four bytes where
+       c2 emits seven instructions. Caught within the hour by the one fixture
+       that puts a compare leaf in the same TU as a store
+       (`w29_fp_contract.cpp`, `Port=Mismatch @ 8`); `w25_store_leaf.cpp`, the
+       store rung's own fixture, has no compare and was green over it. Two
+       things generalize. **Turning an exact match into a prefix match adds the
+       empty case, and the empty case is never the one the rung is about** —
+       so a generalization of a pattern needs its degenerate input tested, not
+       just its new one. And the fixture that caught it is a *cross-shape* TU,
+       which is the same argument `scripts/cross_sweep.sh` makes at corpus scale:
+       the shapes a merge or a generalization newly puts side by side have never
+       been graded by anyone.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one
@@ -1871,6 +1905,21 @@ The rules that keep the numbers honest:
   reasoning (28,500, the closest of the three, off by 1.36×). **When the anchors
   disagree by 7×, the one to trust is the one whose population you can show is
   the same population.**
+- **The coverage-costing form has a MIRROR, and it is harder to see than the
+  original.** §6 already records the "one rule, N implementations, and the oldest
+  copy is narrower" shape — the `27`/`28` run walked by three leaves with one
+  private single-add copy, 5,161 functions (W35). W37 found the same cost with the
+  opposite structure: a **shared** recognizer that only one caller ever asks.
+  `eat_ctor_this_epilogue` decodes a constructor's `return this` and has since
+  W19; it had **exactly one consumer**, the empty-body arm; and the moment a
+  second production asked it, it was worth **42,238 functions** — 81 % of that
+  rung's whole counterfactual ceiling, in a rung whose estimate was about
+  statement lists and never mentioned tails. Neither form is visible to any gate
+  here, for the same reason: refusing more emits nothing, so no byte compare and
+  no census/gate disagreement can see it. The question to ask of a shared helper
+  is therefore not only "do its callers agree" but "**how many callers does it
+  have, and is that number 1?**" — a `grep` with one hit is the same evidence as a
+  `grep` with two that disagree.
 - **"One fact, one locator" has a coverage-costing form, and it is easier to miss
   than the wrong-bytes form.** The `27`/`28` byte-offset-add run is walked by the
   address leaf, the store leaf and the load leaf. The first folds an arbitrary

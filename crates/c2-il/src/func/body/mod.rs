@@ -18,7 +18,7 @@ use self::shapes::{
     try_parse_compare, try_parse_empty_dtor_delegation, try_parse_float_leaf,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
-    try_parse_store_leaf,
+    try_parse_store_leaf, try_parse_store_run,
 };
 use super::readers::{
     eat_byte, eat_value_type, find_subslice, read_token_var, read_type, read_varint, ValueClass,
@@ -320,6 +320,20 @@ pub(crate) enum BodyShape {
     /// admitting one as another is a wrong-bytes emit rather than a gap. See
     /// [`shapes::try_parse_store_leaf`].
     StoreLeaf { params: Vec<u32>, ops: Vec<IlOp> },
+    /// A **store run**: a whole body that is a *sequence* of the store
+    /// statements [`BodyShape::StoreLeaf`] admits one of, ending on the void
+    /// return plumbing or on a `return *this` — `void S::set(int u,int v)
+    /// { a = u; b = v; }`, `T& T::set(int u,int v){ a=u; b=v; return *this; }`.
+    /// `ops` is the statements' op groups concatenated, in **source order**,
+    /// each `[Load(base), Load(value) | Lit(k), StoreInd { off, width }]` or
+    /// `[Load(base), StoreIndFp { off, double, src }]`.
+    ///
+    /// Kept apart from [`BodyShape::StoreLeaf`] because it is a different
+    /// production with two gates the single store does not have (no literal
+    /// value in a run, no two statements writing overlapping bytes of one base)
+    /// and a tail the single store does not admit. See
+    /// [`shapes::try_parse_store_run`].
+    StoreRun { params: Vec<u32>, ops: Vec<IlOp> },
 }
 
 /// **Why** a function segment fell outside the modeled class (P2b census).
@@ -843,6 +857,16 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // cursor and returns None with no side effects, so a declining body
             // still reports its own blocker.
             if let Some(shape) = try_parse_store_leaf(seg, p, lo, sy) {
+                return Ok(shape);
+            }
+            // …and the **store run** (W37): the same statement, a *sequence* of
+            // them, plus the `return *this` tail. Tried after the single store so
+            // that shape keeps its own census key and its byte-graded lowering
+            // untouched; this one takes everything the leaf's "and the body ends
+            // here" limit refused. Non-committal like the others: it works on a
+            // copy of the cursor and returns None with no side effects, so a
+            // declining body still reports its own blocker.
+            if let Some(shape) = try_parse_store_run(seg, p, lo, sy, depth) {
                 return Ok(shape);
             }
             let (ops, cls) = parse_expr_classed(seg, &mut p, 0x41)?;

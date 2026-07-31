@@ -281,6 +281,15 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // A store RUN travels the same way — the same op vocabulary, one
+            // group per statement, which `codegen::store_leaf_text` walks.
+            BodyShape::StoreRun { params, ops } => {
+                Some(IlFunction {
+                    params,
+                    ops,
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::AddrLeaf { params, ops } => {
                 Some(IlFunction {
                     params,

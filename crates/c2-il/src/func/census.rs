@@ -327,6 +327,11 @@ impl IlBundle {
                             // `expr-intrinsic-base-member-addr` bucket drops it
                             // claims rather than against their sum.
                             Ok(BodyShape::StoreLeaf { .. }) => FnVerdict::InClass("store-leaf"),
+                            // W37. Its own family, kept apart from `store-leaf`
+                            // for the same reason: it is a different production
+                            // with two gates the single store does not have, and
+                            // `cross_sweep.sh` discovers families by this label.
+                            Ok(BodyShape::StoreRun { .. }) => FnVerdict::InClass("store-run"),
                             Ok(BodyShape::FloatLeaf { double, .. }) => {
                                 FnVerdict::InClass(if *double { "double-leaf" } else { "float-leaf" })
                             }
