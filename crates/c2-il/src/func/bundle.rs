@@ -2,7 +2,7 @@ use super::body::{self, parse_segment, BodyShape};
 use super::bind::Bindings;
 use super::gl::drectve_is_boilerplate;
 use super::readers::{find_subslice, memchr_byte};
-use super::{CallSeq, FramedCall, IlFunction, IlOp, SeqCall, SeqTail};
+use super::{CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqTail};
 use crate::IlBundle;
 
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
@@ -340,6 +340,18 @@ pub(crate) fn shape_to_function(
                     params,
                     ops: arg_ops,
                     tail_call: Some(resolve(callee_tok)?),
+                    ..IlFunction::base(name, src)
+                })
+            }
+            // A single-argument FP tail call is still a tail call — same resolved
+            // callee, same `b <callee>`, same REL24 — but its argument lives in
+            // the *other* register file, so `params` is the FP formals alone (in
+            // FP order) and `ops` stays empty. The move itself is `fp_tail`.
+            BodyShape::FpTailCall { params, arg_tok, narrowing, callee_tok } => {
+                Some(IlFunction {
+                    params,
+                    tail_call: Some(resolve(callee_tok)?),
+                    fp_tail: Some(FpTail { arg: arg_tok, narrowing }),
                     ..IlFunction::base(name, src)
                 })
             }

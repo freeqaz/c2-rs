@@ -240,6 +240,7 @@ fn ops_setup_text(
         call_seq: None,
         compare: None,
         float_leaf: None,
+        fp_tail: None,
         arg_sources: None,
         empty_body: false,
     };

@@ -30,6 +30,7 @@ pub(crate) mod designator;
 pub(crate) mod leaf_addr;
 pub(crate) mod leaf_compare;
 pub(crate) mod leaf_float;
+pub(crate) mod leaf_fp_tail;
 pub(crate) mod leaf_load;
 pub(crate) mod leaf_store;
 pub(crate) mod params;
@@ -53,6 +54,8 @@ pub(crate) use leaf_addr::*;
 pub(crate) use leaf_compare::*;
 #[allow(unused_imports)]
 pub(crate) use leaf_float::*;
+#[allow(unused_imports)]
+pub(crate) use leaf_fp_tail::*;
 #[allow(unused_imports)]
 pub(crate) use leaf_load::*;
 #[allow(unused_imports)]

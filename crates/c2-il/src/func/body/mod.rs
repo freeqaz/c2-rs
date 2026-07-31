@@ -16,6 +16,7 @@ use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
     try_parse_compare, try_parse_empty_dtor_delegation, try_parse_float_leaf,
+    try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf, try_parse_store_leaf,
 };
 use super::readers::{
@@ -172,6 +173,24 @@ pub(crate) enum BodyShape {
     /// arg-setup `g(a + 1)` (→ `addi r3,r3,1 ; b g`). `params` are the formals
     /// (token→register mapping the arg-setup needs).
     IntTailCall { params: Vec<u32>, arg_ops: Vec<IlOp>, callee_tok: u32 },
+    /// **The single-argument floating-point tail call** — `return g(x);` and
+    /// `g(x);` where `x` is an FP formal. The whole emission is at most one
+    /// instruction plus the branch: `fmr f1,f<n+1>` (elided when the argument is
+    /// already f1), or `frsp f1,f<n+1>` when the callee's formal is the narrower
+    /// width.
+    ///
+    /// Kept apart from [`BodyShape::IntTailCall`] because the argument register
+    /// is in a different **file**: `params` here is the FP formals *alone*, in FP
+    /// order, so entry `n` is `f(n+1)` — exactly [`BodyShape::FloatLeaf`]'s
+    /// convention and for the same reason (`docs/CODEGEN_FP_ARGS.md` §0). A
+    /// positional model puts `float f(int k, float b){ return g(b); }`'s argument
+    /// in f2 and emits an `fmr` c2 does not.
+    ///
+    /// `arg_tok` is the argument formal's token; `narrowing` says the callee's
+    /// formal is `float` where the source is `double`, which is the one case that
+    /// emits `frsp` instead of `fmr` — **fused**, not `fmr` then `frsp`. See
+    /// [`super::shapes::try_parse_fp_tail_call`] for the captures.
+    FpTailCall { params: Vec<u32>, arg_tok: u32, narrowing: bool, callee_tok: u32 },
     /// `return g(a1, …, an)` with `n >= 2`, every argument a bare parameter.
     /// `arg_sources[i]` indexes `params` for the value argument slot `i` wants;
     /// codegen turns that into a register permutation plus the tail branch.
@@ -666,6 +685,17 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 None => false,
             };
             if is_call {
+                // …and the **floating-point** tail call, which shares this
+                // production's call head and has its own argument grammar (the
+                // integer operand vocabulary cannot spell an FP value, so every
+                // body in the class blocks at `expr-load-type-8645`/`-8885`).
+                // Tried first and non-committally: it works on a copy of the
+                // cursor and returns None with no side effects, so a body that
+                // declines still reports its own blocker below and no census key
+                // moves.
+                if let Some(shape) = try_parse_fp_tail_call(seg, p, lo, sy) {
+                    return Ok(shape);
+                }
                 parse_call_shape(seg, &mut p, lo, None)
             } else {
                 try_parse_assign_body_detail(seg, p, lo, locals, depth)
@@ -1161,34 +1191,57 @@ mod tests {
 
     /// The rung: a 4-byte pointer TYPE at the LOAD is an operand, not a blocker.
     /// Retyping the argument LOAD of [`INT_TAILRET`] — one field, every other byte
-    /// left alone — must now PARSE rather than bucket, in all four tag spellings
-    /// and both pointer kinds, and the resulting shape must be the same
-    /// `int-tail-call` the int spelling produced. The negative half is the table
-    /// above: the classes that are not 4-byte pointers still refuse at the same
-    /// position with the same key.
+    /// left alone — must PARSE rather than bucket, and the resulting shape must be
+    /// the same `int-tail-call` the int spelling produced. The negative half is the
+    /// table above: the classes that are not 4-byte pointers still refuse at the
+    /// same position with the same key.
+    ///
+    /// **The `volatile` spellings are in the refusing half, and they used not to
+    /// be.** This test originally asserted all four tag spellings alike, from
+    /// `is_ptr4_kind`'s whitelist rather than from a capture of each — and
+    /// `int f(int x, int* volatile p) { return *p; }` emitted `lwz r3,0(r4)`
+    /// where c2 homes the pointer in a frame and reads it back
+    /// (`Port=Mismatch @ 8`, W32, `docs/rungs/2026-07-31-volatile-formal.md`). A
+    /// volatile operand is a memory object; `const` is free. One bit of one byte,
+    /// and a whole stack frame — so the two halves are asserted apart.
     #[test]
     fn a_four_byte_pointer_at_the_load_is_an_operand_not_a_blocker() {
         let int_shape = parse_segment(&free_fn(INT_TAILRET), NO_LOCALS).unwrap();
-        // Three-byte spellings, so the substitution is field-for-field and no
-        // other byte of the segment moves. (A real `int*` id is usually two LEB
-        // bytes — `86 43 F4 08` — and `read_type` walks either.)
-        for t in [
-            [0x86u8, 0x43, 0x74], // a data pointer
-            [0xA6, 0x43, 0x74],   // const-qualified: `int* const`, and `this`
-            [0x96, 0x43, 0x74],   // volatile-qualified
-            [0xB6, 0x43, 0x74],   // const volatile
-            [0x86, 0x44, 0x74],   // a CODE pointer, kind class 4
-        ] {
+        let retyped = |t: [u8; 3]| {
             let mut seg = INT_TAILRET.to_vec();
+            // Three-byte spellings, so the substitution is field-for-field and no
+            // other byte of the segment moves. (A real `int*` id is usually two
+            // LEB bytes — `86 43 F4 08` — and `read_type` walks either.)
             let load = seg
                 .windows(6)
                 .position(|w| w == [0xB9, 0xE5, 0x09, 0x86, 0x41, 0x74])
                 .unwrap();
             seg[load + 3..load + 6].copy_from_slice(&t);
+            free_fn(&seg)
+        };
+        for t in [
+            [0x86u8, 0x43, 0x74], // a data pointer
+            [0xA6, 0x43, 0x74],   // const-qualified: `int* const`, and `this`
+            [0x86, 0x44, 0x74],   // a CODE pointer, kind class 4
+        ] {
             assert_eq!(
-                parse_segment(&free_fn(&seg), NO_LOCALS).as_ref(),
+                parse_segment(&retyped(t), NO_LOCALS).as_ref(),
                 Some(&int_shape),
                 "pointer type {t:02X?} must parse as the int spelling does"
+            );
+        }
+        // …and the volatile pair refuses, at the same position, under a key that
+        // names the tag it refused on.
+        for (t, want) in [
+            ([0x96u8, 0x43, 0x74], "expr-load-type-9643"), // volatile
+            ([0xB6, 0x43, 0x74], "expr-load-type-B643"),   // const volatile
+        ] {
+            assert_eq!(parse_segment(&retyped(t), NO_LOCALS), None, "type {t:02X?}");
+            assert_eq!(
+                parse_segment_detail(&retyped(t), NO_LOCALS)
+                    .unwrap_err()
+                    .feature(),
+                want
             );
         }
     }

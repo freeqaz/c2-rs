@@ -9,7 +9,8 @@ use crate::func::body::chain::straight_line_is_out_of_class;
 use crate::func::body::expr::{eat_return_plumbing, BODY_SCOPE_DEPTH};
 use crate::func::body::BodyShape;
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like, eat_value_type, is_ptr4_kind, is_ptr_to_4, read_token_var,
+    eat, eat_byte, eat_int_like, eat_value_type, is_ptr4_kind, is_ptr_to_4, is_volatile_tag,
+    read_token_var,
     read_type, read_varint, value_class, ValueClass, INT_TYPE,
 };
 use crate::func::IlOp;
@@ -101,7 +102,14 @@ pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) 
     let (base_tok, w) = read_token_var(seg, p)?;
     p += w;
     let (tag, kind, _, tw) = read_type(seg, p)?;
-    if !is_ptr_to_4(tag, kind) {
+    // …and NOT `volatile`. `int f(int x, int* volatile p){ return *p; }` homes the
+    // pointer in the frame and reloads it, where this leaf emits one `lwz` —
+    // `Port=Mismatch @ 8`, and pre-existing. The gate is on the base LOAD ONLY:
+    // the same bit on the `27` pointee below is a pointer-to-volatile
+    // (`volatile S* p`) and on the `30` it is a volatile member, and BOTH of those
+    // are one `lwz` either way and stay in class. `readers::is_volatile_tag` has
+    // the four-row measurement.
+    if !is_ptr_to_4(tag, kind) || is_volatile_tag(tag) {
         return None;
     }
     p += tw;
@@ -376,7 +384,9 @@ pub(crate) fn try_parse_ptr_identity_leaf(seg: &[u8], start: usize, lo: usize) -
     let (tok, w) = read_token_var(seg, p)?;
     p += w;
     let (tag, kind, _, tw) = read_type(seg, p)?;
-    if !is_ptr4_kind(tag, kind) {
+    // …and NOT `volatile`: the identity of a volatile pointer formal is a frame,
+    // not a bare `blr` (`readers::is_volatile_tag`).
+    if !is_ptr4_kind(tag, kind) || is_volatile_tag(tag) {
         return None;
     }
     p += tw;

@@ -98,6 +98,7 @@ mod tests {
             compare: None,
             empty_body: false,
             float_leaf: None,
+            fp_tail: None,
             arg_sources: None,
         };
         assert_eq!(
