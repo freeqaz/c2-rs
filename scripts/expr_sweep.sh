@@ -55,27 +55,20 @@ set -eu
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 out="${1:-/tmp/c2rs-expr-sweep}"
 limit="${2:-0}"
-c2rs="$repo_root/target/release/c2rs"
-
-# ALWAYS rebuild. This used to be `if [ ! -x "$c2rs" ]`, which builds only when
-# the binary is ABSENT and otherwise runs whatever is on disk — so a sweep could
-# grade the current tree's *cases* with a previous tree's *code*. That is not
-# hypothetical: it reported 47 mismatches against a binary five hours behind HEAD,
-# and the rebuild that resolved it took 3.43s. The guard saved nothing.
-#
-# The false-MISMATCH direction only costs an investigation. **The false-GREEN
-# direction is the hazard**: land a regression, run the gate, and the sweep passes
-# because it graded the old binary. `cargo build` is already a no-op when current,
-# so there was never a reason to second-guess it.
-echo "building the harness (no-op if current)"
-(cd "$repo_root" && cargo build --release -p c2-harness)
-
-# Print what is actually about to run, so a stale or surprising binary is visible
-# in the log instead of being inferred afterwards from a mismatch count.
-echo "harness: $c2rs  built $(date -r "$c2rs" '+%F %T')  tree $(cd "$repo_root" && git rev-parse --short HEAD 2>/dev/null || echo '?')"
-
 mkdir -p "$out"
 rm -f "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true
+
+# Build unconditionally and run a RUN-PRIVATE COPY of the binary — never
+# `target/release/c2rs` directly. `scripts/harness_bin.sh` has the two failures
+# this closes: the `if [ ! -x ]` guard that let a sweep grade today's cases with
+# yesterday's code (47 phantom mismatches, false-green in the other direction),
+# and `cargo` republishing the binary non-atomically under a running sweep
+# (observed: exit 144 after 6,225 cases). The identity line it prints — build
+# time, content sha, tree HEAD — is what makes "which code produced this number"
+# answerable from the log.
+. "$repo_root/scripts/harness_bin.sh"
+pin_harness "$repo_root" "$out"
+c2rs="$C2RS_PINNED"
 
 python3 "$repo_root/scripts/sweep_gen.py" "$out" "$repo_root/scripts/sweep.d"
 

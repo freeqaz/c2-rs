@@ -51,12 +51,27 @@ failure `GAPS.md` §6 keeps recording. So:
    Every TU that reached them carried a second function, so the class had only
    ever been graded beside something else. `scripts/sweep.d/71-call-sequence.py`
    is what closed it (+303 cases).
-4. **The TU-level externals are measured, not assumed.** A representative is
-   "external-bearing" if its own obj carries `_fltused`, `__savegprlr`,
-   `__restgprlr` or a `.pdata` — read out of the bytes, never inferred from the
-   family's name. Those externals are what take slots in the compiler-label
-   sequence (`CODEGEN_FRAMED_CALLS.md` §4.4), which is the mechanism behind
-   every bug this lane exists for.
+4. **The external-bearing predicate is measured, not assumed — and it is a
+   heuristic, not a derivation.** A representative is "external-bearing" if its
+   own obj carries `_fltused`, `__savegprlr`, `__restgprlr` or a `.pdata` — read
+   out of the bytes, never inferred from the family's name.
+
+   What that predicate is *for* is picking tier-C representatives likely to
+   disturb the compiler-label counter, which is the mechanism behind every bug
+   this lane exists for. It is **not** an instance of "one slot per TU-level
+   external": that rule was **refuted** on 2026-07-31 — `docs/LABEL_COUNTER.md`
+   §2.1 — in both directions, by a newly pooled FP constant that costs **+2 and
+   mints no external at all**, and by a string literal that mints one and costs
+   **0**. The rule that fits the measurements is a per-function **surcharge
+   table**, `LABEL_COUNTER.md` §1.1: base 1 for a leaf and 4 packed / 5 `/Gy`
+   framed, plus `+1` for `_fltused` on the *first* FP-touching function, `+2`
+   per distinct GPR/FPR helper width first introduced, `+2` per newly pooled FP
+   constant, and `0` for a callee external at any count.
+
+   The predicate still selects well because three of its four markers *are*
+   surcharge-bearing (`_fltused` +1, the helper pairs +2 each, `.pdata` marks
+   the framed base). What it **misses** is stated under "what it deliberately
+   does not grade": the surcharges that mint nothing.
 
 ## What it grades
 
@@ -82,12 +97,16 @@ Two of those tiers need their reason stated, because neither is obvious:
   names out of the IL so the extra mangling is not a variable. The **first**
   half is left unwrapped, so it is byte-identical to the standalone case that
   was graded.)
-* **Tier C is where #13's rule is separable.** "One slot per function plus one
-  for the TU if anything touches floating point" and "two slots per FP function"
-  agree at n = 1 and disagree at n ≥ 2 — which is why a single-FP-function probe
-  could never have separated them, and why the wrong one looked right. Pairs get
-  n = 2; the triples get n = 3 with every ordering and with a separator, because
-  a counter error that an adjacent function absorbs is invisible without one.
+* **Tier C is where a per-function and a per-TU counter rule come apart.** #13's
+  candidate pair — "one slot per function plus one for the TU if anything
+  touches floating point" versus "two slots per FP function" — agree at n = 1
+  and disagree at n ≥ 2, which is why a single-FP-function probe could never
+  have separated them and why the wrong one looked right. Pairs get n = 2; the
+  triples get n = 3 with every ordering and with a separator, because a counter
+  error an adjacent function absorbs is invisible without one. (Both of those
+  candidates have since been superseded by the measured surcharge table,
+  `docs/LABEL_COUNTER.md` §1.1; what tier C grades is unchanged, and *n* is
+  still the axis that separates a per-function quantity from a per-TU one.)
 
 ## What it deliberately does NOT grade
 
@@ -102,6 +121,17 @@ Stated because a silent cap reads as "covered everything", which §6 forbids.
   per-axis fragments and are **not** crossed against another family here.
   Concretely: the lane grades "an addr-leaf beside a framed call", not "every
   addr-leaf beside every framed call".
+* **The label surcharges that mint no symbol.** Tier C selects its triples on an
+  *external-bearing* predicate, and `docs/LABEL_COUNTER.md` §1.1 measures three
+  surcharges that predicate cannot see: a **newly pooled FP constant** (+2), a
+  **materialised signed relational** (+2), and a **loop** (+2 to +5, and not
+  uniform). A TU built from those would disturb the counter exactly as an
+  external-bearing one does, and tier C would not have selected it. Two of the
+  three are not reachable today anyway — §2.1 checked each counterexample
+  through `c2rs diff` and the TU-level gate refuses all of them — so this
+  overlaps the refusal frontier rather than adding to it, but the overlap is
+  incidental and will stop holding the moment that gate moves. When it does, the
+  predicate should be re-grounded on the surcharge table rather than on symbols.
 * **Flags beyond the four lanes** — `/Od`, `/EHsc`, `/GS`, `/GR`, `/Zi`, `/Oi`,
   and every combination of them.
 * **Everything on the refusal frontier below.** Those are compiled and counted

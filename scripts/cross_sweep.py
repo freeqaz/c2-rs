@@ -49,13 +49,18 @@ What it grades, and what it does not
   graded at n = 1, 2, 3, 4 copies of itself, alone and with a framed observer
   before and after it — a framed function is the only thing that *renders* the
   counter, so a TU without one cannot grade it however many copies it has.
-* **Tier C — triples over the TU-external families.** Every TU-level external
-  takes a slot in the same compiler-label sequence, so pairs cannot separate
-  "one slot per external" from "one slot per external-bearing function" once
-  two externals come from one function. The external families are therefore
-  crossed three deep in all orders, and again with a stride-1 integer leaf
+* **Tier C — triples over the external-bearing families.** These are the
+  families most likely to disturb the compiler-label counter, so they are
+  crossed three deep in all orders and again with a stride-1 integer leaf
   inserted at each of the four positions — a counter error an adjacent function
-  absorbs is invisible without a separator.
+  absorbs is invisible without a separator. Pairs reach n = 2, which is the
+  smallest n at which a per-function rule and a per-TU one can disagree at all;
+  the triples reach n = 3. The selector is a HEURISTIC and not a rule: "one slot
+  per TU-level external" was refuted (`docs/LABEL_COUNTER.md` §2.1) and the
+  measured model is a per-function surcharge table (§1.1), which charges +2 for
+  a newly pooled FP constant that mints no external and 0 for a string literal
+  that mints one. See the module's `docs/CROSS_PRODUCT.md` for what that leaves
+  unselected.
 * **Tier W — the wrapping check.** Every representative is also compiled ALONE
   inside a namespace. If a namespace by itself pushed a shape out of class, the
   whole lane would grade refusals and report a green that means nothing.
@@ -101,10 +106,14 @@ MODES = (
 )
 BASE_MODE = MODES[0][1]
 
-# TU-level externals: symbols a *translation unit* carries because some function
-# in it needed them. Each one occupies a slot in the compiler-label sequence
-# (`docs/CODEGEN_FRAMED_CALLS.md` §4.4, `docs/GAPS.md` §6 #13), which is the
-# mechanism behind every bug this lane exists to find. Detected by reading the
+# Markers a *translation unit* carries because some function in it needed them.
+# Used only to CHOOSE tier-C representatives: three of the four are surcharges in
+# the measured compiler-label model (`docs/LABEL_COUNTER.md` §1.1 — `_fltused`
+# +1 on the first FP-touching function, each distinct helper width +2, `.pdata`
+# marking the framed base), and that counter is the mechanism behind every bug
+# this lane exists to find. It is a heuristic, not a derivation: "one slot per
+# TU-level external" is REFUTED (§2.1 — a newly pooled FP constant costs +2 and
+# mints no external; a string literal mints one and costs 0). Read out of the
 # representative's own obj, never assumed from the family's name.
 TU_EXTERNALS = (b"_fltused", b"__savegprlr", b"__restgprlr", b".pdata")
 
@@ -373,15 +382,15 @@ def main():
                 plan.append(("B-%s.x%d.obs-before" % (fam, n), [obs] + body, "B",
                             ["framed-call", fam]))
 
-    # ---- tier C: three TU-level externals, in every order ----------------------
+    # ---- tier C: three external-bearing families, in every order ---------------
     # The bug class this lane exists for is a *per-TU* quantity read from a
-    # per-function place, and every TU-level external takes a slot in the same
-    # compiler-label sequence (`docs/CODEGEN_FRAMED_CALLS.md` §4.4). Pairs cannot
-    # separate "one slot per external" from "one slot per external-bearing
-    # function" once two externals come from one function, so the external
-    # families are also crossed three deep, in all orders — and again with a
-    # stride-1 integer leaf inserted at each position, because a counter error
-    # that an adjacent function absorbs is invisible without a separator.
+    # per-function place, and the compiler-label counter is where it lives. The
+    # families selected here are the ones whose representative carries a marker
+    # that the measured surcharge table charges for (`docs/LABEL_COUNTER.md`
+    # §1.1) — a heuristic, see TU_EXTERNALS. Crossed three deep in all orders,
+    # and again with a stride-1 integer leaf inserted at each position, because a
+    # counter error that an adjacent function absorbs is invisible without a
+    # separator.
     # The representative used here must be one that ACTUALLY carries an
     # external, not merely the first of a family that has some such member:
     # `store-leaf` covers both the FP store (which brings `_fltused`) and the

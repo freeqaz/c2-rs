@@ -31,11 +31,17 @@
 set -eu
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-c2rs="$repo_root/target/release/c2rs"
+work="${1:-/tmp/c2rs-cross-sweep}"
+mkdir -p "$work"
 
-if [ ! -x "$c2rs" ]; then
-    echo "building the harness first"
-    (cd "$repo_root" && cargo build --release -p c2-harness)
-fi
+# Build unconditionally and hand the driver a RUN-PRIVATE COPY of the binary.
+# `scripts/harness_bin.sh` has the reasoning; the short version is that this lane
+# exists to make merge grading trustworthy, so it is the last place that should be
+# able to grade today's cases with yesterday's code — and the last place that
+# should die because someone ran `cargo build` in another window.
+. "$repo_root/scripts/harness_bin.sh"
+pin_harness "$repo_root" "$work"
+C2RS_BIN="$C2RS_PINNED"
+export C2RS_BIN
 
-exec python3 "$repo_root/scripts/cross_sweep.py" "$@"
+exec python3 "$repo_root/scripts/cross_sweep.py" "$work"
