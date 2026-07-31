@@ -15,10 +15,11 @@ use crate::func::IlOp;
 
 use super::ctor_dtor::eat_ctor_this_epilogue;
 use super::designator::{
-    eat_addr_offset_adds, is_ptr_any, parse_base_member_designator, store_fp_value_width,
-    store_value_width,
+    eat_addr_offset_adds, eat_offset_adds, is_ptr_any, parse_base_member_designator,
+    sized_ptr_width, store_fp_value_width, store_value_width,
 };
 use super::params::parse_params;
+use crate::func::readers::is_ptr_to_4;
 
 /// Try to parse a **store leaf**: a whole body that is one store into a
 /// sub-object and nothing else — `void f(S* s, int v){ s->m = v; }`,
@@ -30,7 +31,12 @@ use super::params::parse_params;
 ///   ( 33 <int-like> k 27 <PTR>         byte-offset adds, any number, summed
 ///   | 33 <int-like> k 28 00 00 )*
 ///   [ 2C <PTR> 00 ]                    a cv strip / array-to-pointer decay
-///   ( B9 <tok> <VT> | 33 <VT> <k> )    THE VALUE: a formal, or an integer literal
+///   ( B9 <tok> <VT>                    THE VALUE: a formal,
+///   | 33 <VT> <k>                      an integer literal,
+///   | <designator> 30 <VT> [2C <VT'> 00] )   or an indirect LOAD — WSL,
+///                                      `d->a = s->b;`, the body of every
+///                                      hand-written copy assignment
+///                                      ([`parse_load_value`])
 ///   32 <VT>                            the store; its TYPE restates the value's
 ///   4B                                 statement end — and the body ends here
 ///   <return plumbing, void, reaching the segment end>
@@ -125,7 +131,268 @@ pub(crate) struct StoreStmt {
     /// that mixes the two files is scheduled rather than emitted in source
     /// order — see [`try_parse_store_run`].
     pub(crate) value_is_fp: bool,
+    /// True when the value is an **indirect load** (`d->a = s->b;`) rather than a
+    /// formal or a literal. A run may not mix the two kinds — MEASURED, see
+    /// [`try_parse_store_run`].
+    pub(crate) value_is_load: bool,
+    /// The **source** object token of a loaded value, for the run's aliasing gate.
+    /// See [`try_parse_store_run`].
+    pub(crate) src_tok: Option<u32>,
 }
+
+/// The **VALUE as an indirect load** — `d->a = s->b;`, the body of every
+/// hand-written copy constructor and copy assignment operator.
+///
+/// ```text
+///   <designator>                   the source object pointer, the same two
+///   ( 33 <int-like> k 27 <PTR>     spellings and the same shared offset-add run
+///   | 33 <int-like> k 28 00 00 )*  the destination designator above uses
+///   30 <TYPE>                      THE LOAD — and no `41`, which is the return
+/// ```                              production's, not this one's
+///
+/// **Two instructions, one scratch register, no frame.** MEASURED — every word
+/// read off the reference obj (`work/wsl/probe/p1.cpp`, `p2.cpp`, `p4.cpp` at
+/// `/O1 /GS- /c`):
+///
+/// ```text
+///   void c1 (S* d, Q* s) { d->a = s->qb; }   81640004 91630000  lwz r11,4(r4) ; stw r11,0(r3)
+///   void c1s(S* d)       { d->a = d->b;  }   81630004 91630000  ONE base register
+///   void c1d(int* d, int* s) { *d = *s;  }   81640000 91630000  the bare deref
+///   void w_c(W* d, W* s) { d->c = s->c;  }   89640000 99630000  lbz ; stb
+///   void w_h(W* d, W* s) { d->h = s->h;  }   a1640002 b1630002  lhz ; sth
+///   void w_q(W* d, W* s) { d->q = s->q;  }   e9640008 f9630008  ld  ; std   (both DS-form)
+///   void w_f(W* d, W* s) { d->f = s->f;  }   c0040010 d0030010  lfs f0 ; stfs f0
+///   void w_g(W* d, W* s) { d->g = s->g;  }   c8040018 d8030018  lfd f0 ; stfd f0
+///   void n1 (N* d, N* s) { d->m0 = s->in.y; } 81640008 91630000 the offset RUN folds
+///   void bm1(D* d, D* s) { d->d0 = s->b1; }  8164000c 91630010  the 2117 designator
+/// ```
+///
+/// The value goes through the **scratch** register in both files — `r11` and
+/// `f0`, never `r3`/`f1` — which is the same r11 rule
+/// [`super::leaf_load`] records for a load feeding an extension, and it is read
+/// off the capture rather than assumed.
+///
+/// Why each gate is load-bearing — every one is a *captured* neighbour that
+/// emits something else:
+///
+/// * **No conversion on the loaded value.** `d->i = s->c` (a `char` member into
+///   an `int` one) carries a `2C 86 41 74 00` and emits
+///   `lbz r11,0(r4) ; extsb r11,r11 ; stw r11,4(r3)` — a real instruction in
+///   between. The narrowing twin `d->c = (char)s->i` *is* free
+///   (`lwz r11,4(r4) ; stb r11,0(r3)`), so the asymmetry is c2's own; both are
+///   refused, because admitting the free one means deciding the direction from
+///   two type triples and this production's whole point is that the two ends
+///   agree.
+/// * **The stored TYPE must restate the LOADED type**, byte for byte — the same
+///   rule the formal-valued path makes, and here it is what pins the load's
+///   opcode to the store's.
+/// * **The `27`'s announced pointee width and the `30`'s must agree**, through
+///   [`eat_offset_adds`] — [`super::leaf_load`]'s rule, reached through the same
+///   shared walk rather than restated. Forking that walk is the exact defect W35
+///   fixed.
+/// * **The source base must be a register argument** (`< 8`) **and not
+///   `volatile`**: a `volatile`-qualified pointer *formal* is a memory object
+///   that c2 homes in the frame, so the body is not a leaf at all. A pointer *to*
+///   volatile is a different bit position and is free — MEASURED, `v_src`/`v_dst`
+///   in `work/wsl/probe/p2.cpp` are both the bare `lwz`/`stw` pair.
+/// * **`ld` is DS-form**, so a width-8 load's offset must be a multiple of 4 —
+///   the same bound the store side draws, now drawn twice because there are two
+///   displacements.
+///
+/// Returns `None` — cursor untouched — for anything else, which is how a plain
+/// pointer formal (`B9 <tok> <PTR> 32 <PTR>`) falls through to the ordinary value
+/// position: it has no `30`.
+fn parse_load_value(
+    seg: &[u8],
+    cursor: &mut usize,
+    params: &[u32],
+) -> Option<(StoreStmt, u8, u8)> {
+    let mut p = *cursor;
+    // The source designator — the same two spellings, tried in the same order,
+    // as the destination one above.
+    let (mut off, src_tok) = match parse_base_member_designator(seg, p, is_ptr_any) {
+        Some((off, tok, end)) => {
+            p = end;
+            (off, tok)
+        }
+        None => {
+            if !eat_byte(seg, &mut p, 0xB9) {
+                return None;
+            }
+            let (tok, w) = read_token_var(seg, p)?;
+            p += w;
+            let (tag, kind, _, tw) = read_type(seg, p)?;
+            if !is_ptr4_kind(tag, kind) || is_volatile_tag(tag) {
+                return None;
+            }
+            p += tw;
+            (0, tok)
+        }
+    };
+    let (run, last_retype) = eat_offset_adds(seg, &mut p)?;
+    off = off.checked_add(run)?;
+
+    // The load.
+    if !eat_byte(seg, &mut p, 0x30) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    p += tw;
+    // The width and the register file, through the SAME two locators the
+    // formal-valued path asks — so "what is this value" has one answer in this
+    // file and not two.
+    let (width, is_fp) = match store_fp_value_width(tag, kind) {
+        Some(w) => (w, true),
+        None => (store_value_width(tag, kind)?, false),
+    };
+    // The `27` re-types the address and its tag carries the POINTEE width, so it
+    // is a second, independent statement of what the `30` announces. Only the
+    // LAST one is in a position to say — [`eat_offset_adds`] has the reason.
+    if let Some((rt, rk)) = last_retype {
+        let announced = if is_ptr_to_4(rt, rk) { 4 } else { sized_ptr_width(rt, rk)? };
+        if announced != width {
+            return None;
+        }
+    }
+    // **A cv-qualification STRIP, which is the whole reason a copy assignment
+    // parses at all.** A copy constructor and a copy assignment take
+    // `const T&`, so the loaded member is `const int` and the member it is
+    // stored into is plain `int`, and c1xx spells the difference as an explicit
+    // `2C` between the two. MEASURED (`work/wsl/probe/p5.cpp`, the IL read off
+    // the captured `.ex`):
+    //
+    // ```text
+    //   d->a = s->a   const T* s     30 a6 41 86 20  2c 86 41 74 00  32 86 41 74
+    //   d->a = s->a   volatile T* s  30 96 41 8a 20  2c 86 41 74 00  32 86 41 74
+    //   d->c = s->c   const T* s     30 a2 11 8c 20  2c 82 11 70 00  32 82 11 70
+    //   d->g = s->g   const T* s     30 a8 85 8e 20  2c 88 85 41 00  32 88 85 41
+    // ```
+    //
+    // and it emits **nothing** — `f_const` is the same `lwz r11,0(r4) ;
+    // stw r11,0(r3)` as its unqualified twin `f_plain`.
+    //
+    // **Class-preserving only**, and the gate is on the *kind byte* plus the
+    // width, not on the tag: a `2C` here can also be a real widening —
+    // `d->i = s->c` carries `2C 86 41 74 00` over a `30 82 11 70` and pays an
+    // `extsb` between the two instructions — and the two are told apart by the
+    // kind, which is the type's class-and-signedness and does not move under a
+    // cv strip. Requiring it equal refuses every widening, including the
+    // *free* unsigned ones, for the reason [`super::leaf_load`] gives about
+    // deciding a direction from two type triples.
+    let (mut vtag, mut vkind) = (tag, kind);
+    if seg.get(p) == Some(&0x2C) {
+        let mut probe = p + 1;
+        let (t2, k2, _, tw2) = read_type(seg, probe)?;
+        probe += tw2;
+        if !eat_byte(seg, &mut probe, 0x00) {
+            return None;
+        }
+        let w2 = match store_fp_value_width(t2, k2) {
+            Some(w) => (w, true),
+            None => (store_value_width(t2, k2)?, false),
+        };
+        if w2 != (width, is_fp) || k2 != kind {
+            return None;
+        }
+        vtag = t2;
+        vkind = k2;
+        p = probe;
+    }
+    if !(-0x8000..=0x7FFF).contains(&off) {
+        return None;
+    }
+    // `ld` is DS-form, exactly as `std` is on the store side.
+    if width == 8 && !is_fp && off % 4 != 0 {
+        return None;
+    }
+    let six = params.iter().position(|&t| t == src_tok)?;
+    if six >= 8 {
+        return None;
+    }
+    *cursor = p;
+    Some((StoreStmt {
+        // Only the value half; the caller prepends the destination's `Load` and
+        // appends the store.
+        ops: vec![
+            IlOp::Load(src_tok),
+            if is_fp {
+                IlOp::LoadIndFp { off, double: width == 8 }
+            } else if width == 4 {
+                IlOp::LoadInd { off }
+            } else {
+                IlOp::LoadIndSized { off, width, sext: false }
+            },
+        ],
+        base_tok: 0,
+        off,
+        width,
+        value_is_lit: false,
+        value_is_fp: is_fp,
+        value_is_load: true,
+        src_tok: Some(src_tok),
+    }, vtag, vkind))
+}
+
+/// The tail of a statement whose value is an [indirect load](parse_load_value):
+/// the `32` store, its type restatement, the `4B`, and the destination's own two
+/// bounds.
+///
+/// Split out for the reason [`super::leaf_load::finish_indirect_load`] is: the
+/// value production and the store production are two decoders that must agree on
+/// one width, and threading that agreement through a nest of `if let`s is where a
+/// bound goes missing. Everything it checks is stated once, here, and restated in
+/// `store_leaf_text` — the census/gate invariant.
+fn finish_load_store_stmt(
+    seg: &[u8],
+    cursor: &mut usize,
+    params: &[u32],
+    base_tok: u32,
+    off: i32,
+    (mut st, ltag, lkind): (StoreStmt, u8, u8),
+) -> Option<StoreStmt> {
+    let mut p = *cursor;
+    // The store, whose TYPE restates the LOADED value's — byte for byte, the same
+    // requirement the formal path makes, and here it is what pins the load's
+    // opcode to the store's.
+    if !eat_byte(seg, &mut p, 0x32) {
+        return None;
+    }
+    let (tag, kind, _, tw) = read_type(seg, p)?;
+    if (tag, kind) != (ltag, lkind) {
+        return None;
+    }
+    p += tw;
+    if !eat_byte(seg, &mut p, 0x4B) {
+        return None;
+    }
+    // The DESTINATION's displacement bound and DS-form alignment. Its source-side
+    // twins were drawn in [`parse_load_value`]; both ends of a copy have their own
+    // displacement and there is no reason for them to be equal.
+    if !(-0x8000..=0x7FFF).contains(&off) {
+        return None;
+    }
+    if st.width == 8 && !st.value_is_fp && off % 4 != 0 {
+        return None;
+    }
+    let bix = params.iter().position(|&t| t == base_tok)?;
+    if bix >= 8 {
+        return None;
+    }
+    st.ops.insert(0, IlOp::Load(base_tok));
+    st.ops.push(if st.value_is_fp {
+        IlOp::StoreIndFp { off, double: st.width == 8, src: FP_SCRATCH }
+    } else {
+        IlOp::StoreInd { off, width: st.width }
+    });
+    st.base_tok = base_tok;
+    st.off = off;
+    *cursor = p;
+    Some(st)
+}
+
+/// The FP scratch register a loaded floating-point value lands in — `f0`, never
+/// `f1`. MEASURED: `lfs f0,16(r4) ; stfs f0,16(r3)`.
+pub const FP_SCRATCH: u8 = 0;
 
 fn parse_store_stmt(
     seg: &[u8],
@@ -181,6 +448,21 @@ fn parse_store_stmt(
             return None;
         }
         p = probe;
+    }
+
+    // THE VALUE AS AN INDIRECT LOAD — `d->a = s->b;`, tried FIRST because both
+    // spellings of a source designator (`B9 <tok> <PTR>` and the 2117 `33 …`) are
+    // prefixes of the formal/literal value's own two spellings, and only the `30`
+    // separates them. On failure the cursor is untouched and the formal/literal
+    // path below sees exactly what it always saw.
+    {
+        let mut probe = p;
+        if let Some(st) = parse_load_value(seg, &mut probe, params)
+            .and_then(|v| finish_load_store_stmt(seg, &mut probe, params, base_tok, off, v))
+        {
+            *cursor = probe;
+            return Some(st);
+        }
     }
 
     // THE VALUE — a bare formal or an integer literal, and nothing computed. A
@@ -320,6 +602,8 @@ fn parse_store_stmt(
         width,
         value_is_lit: matches!(value_op, IlOp::Lit(_)),
         value_is_fp: false,
+        value_is_load: false,
+        src_tok: None,
     })
 }
 
@@ -418,6 +702,8 @@ fn finish_fp_store_stmt(
             width,
             value_is_lit: false,
             value_is_fp: true,
+            value_is_load: false,
+            src_tok: None,
         },
         p,
     ))
@@ -603,6 +889,47 @@ pub(crate) fn try_parse_store_run(
     if stmts.len() > 1 && stmts.iter().any(|s| s.value_is_lit) {
         return None;
     }
+    // **A run may not MIX loaded values with formal/literal ones.** A run whose
+    // values are *all* indirect loads is emitted in source order at every length
+    // and every width probed (below); a run whose values are all formals is the
+    // same; a run that mixes them is SCHEDULED. MEASURED
+    // (`work/wsl/probe/p1.cpp`, `p4.cpp`, read off the reference obj):
+    //
+    // ```text
+    //   { d->a = s->a; d->b = u; }        lwz r11,0(r4) ; stw r5,4(r3) ; stw r11,0(r3)
+    //   { d->a = s->a; d->b = 2;  }       lwz r11,0(r4) ; li r10,2 ; stw r10,4(r3) ; stw r11,0(r3)
+    //   { d->a=s->a; d->b=u; d->c=s->c; d->d=v; }
+    //                                     lwz ; stw r5 ; stw r11 ; lwz ; stw ; stw r6
+    // ```
+    //
+    // — the load is hoisted, its store SINKS past the next statement, and a
+    // literal in that company gets its own second scratch register (r10, where
+    // a pure run uses only r11). The reverse order happens to come back in
+    // source order (`{ d->a = u; d->b = s->b; }` is `stw r5 ; lwz r11 ; stw r11`),
+    // and it is refused anyway: two orders of one mixed pair disagree, so there
+    // is no rule here, only two data points. `GAPS.md` §6 instance #10 —
+    // measure at the edge, do not fit the scheduler.
+    if stmts.len() > 1 {
+        let ld = stmts[0].value_is_load;
+        if stmts.iter().any(|s| s.value_is_load != ld) {
+            return None;
+        }
+    }
+    // **No object may be both loaded FROM and stored TO in one run.** c2 forwards
+    // through the pair and eliminates the dead half: MEASURED,
+    // `void SW(S* d){ d->a = d->b; d->b = d->a; }` is a *single*
+    // `lwz r11,4(r3) ; stw r11,0(r3)` — the second statement is gone entirely.
+    // The gate is on the TOKEN and not on the byte range, because the elimination
+    // is a dataflow fact about one object and not about one offset, and a run of
+    // ONE is unaffected (`void c1s(S* d){ d->a = d->b; }` is the plain pair).
+    if stmts.len() > 1 {
+        for a in &stmts {
+            let Some(src) = a.src_tok else { continue };
+            if stmts.iter().any(|b| b.base_tok == src) {
+                return None;
+            }
+        }
+    }
     // **A run of THREE or more may not mix the two register files.** c2 stops
     // emitting source order and SCHEDULES: `{ s->i=u; s->j=v; s->a=w; }` (two
     // `stw`s then a `stfs`) comes back `stfs f1,0(r3) ; stw r4,32(r3) ;
@@ -615,9 +942,69 @@ pub(crate) fn try_parse_store_run(
     // **every** mixed run of exactly 2 (42 ordered type pairs in
     // `scripts/sweep.d/82-store-run.py`, both orders) — and breaks in 16 of the
     // 24 mixed triples. So the gate is drawn where the evidence stops.
-    if stmts.len() > 2 {
+    //
+    // **It does not apply to a run of loaded values**, and that is measured, not
+    // assumed: a loaded value is a self-contained `lfs f0 ; stfs f0` or
+    // `lwz r11 ; stw r11` pair with no live range to schedule across, and every
+    // mixed-file order probed comes back in source order —
+    // `{ d->f=s->f; d->i=s->i; d->q=s->q; }`, `{ d->i; d->q; d->g; }`,
+    // `{ d->f; d->g; d->i; }` and the four-statement
+    // `{ d->c; d->f; d->h; d->g; }` (`work/wsl/probe/p4.cpp`, MF1–MF4), against
+    // 16 of 24 wrong for the formal-valued triples. The two populations differ in
+    // exactly the property the scheduler acts on, so they get different gates.
+    if stmts.len() > 2 && !stmts[0].value_is_load {
         let fp = stmts[0].value_is_fp;
         if stmts.iter().any(|s| s.value_is_fp != fp) {
+            return None;
+        }
+    }
+    // **The `/Ox` scratch descent, bounded where it stops being a plain descent.**
+    // A loaded value needs a register to sit in between its load and its store,
+    // and at `/Ox` c2 gives each statement its OWN, descending — r11, r10, r9, …
+    // in the GPR file and f0 then f13, f12, … in the FP one, the two files
+    // counted independently. (`/O1` reuses r11/f0 for every statement, so it has
+    // no bound at all; the gate is drawn for the stricter mode because this
+    // parser has no mode and the census must not over-claim in either.)
+    //
+    // MEASURED, `work/wsl/probe/p6.cpp` (runs of 1..8 × 2..6 pointer parameters,
+    // both modes) and `p7.cpp` for the edge. The descent is a plain one until it
+    // reaches a register a PARAMETER holds, and then c2 starts skipping and
+    // wrapping:
+    //
+    // ```text
+    //   L7 (S* d, S* s)                r11 r10 r9 r8 r7 r6 r5            a plain descent
+    //   L8 (S* d, S* s)                r11 … r5, r4        <- r4 is `s`, dead after its
+    //                                                         own last load
+    //   L9 (S* d, S* s)                r11 … r5, r11, r10  <- WRAPS instead
+    //   P8 (int,int,S* d,S* s)         r11 … r7, r4, r3, r11  <- SKIPS r6/r5, uses the
+    //                                                            two dead int params,
+    //                                                            then wraps
+    // ```
+    //
+    // Reconstructing that needs a liveness model of the parameter registers, and
+    // fitting one from these four rows is `GAPS.md` §6 instance #10's mistake. So
+    // the run is admitted only while the descent stays strictly ABOVE every
+    // register a parameter could hold, which is exactly the region where every
+    // witness is a plain descent. A parameter that is never read is dead from
+    // entry and c2 will happily use its register (`P8`); counting it as live only
+    // refuses more, and refusing more is the safe direction.
+    let nload_gpr = stmts.iter().filter(|s| s.value_is_load && !s.value_is_fp).count();
+    let nload_fp = stmts.iter().filter(|s| s.value_is_load && s.value_is_fp).count();
+    if nload_gpr > 0 {
+        // `params` past the eighth are stack-homed and hold no register, so the
+        // highest register a parameter can occupy is r10.
+        let max_arg_reg = 2 + params.len().min(8);
+        if 11usize.checked_sub(nload_gpr - 1).is_none_or(|lowest| lowest <= max_arg_reg) {
+            return None;
+        }
+    }
+    if nload_fp > 1 {
+        // The FP descent is f0 then f13, f12, … . Its floor is the highest
+        // FP *argument* register, and 8 is the longest run witnessed (`FF8`).
+        let formals = parse_formals(seg, lo).ok()?;
+        let classes = sy.arg_classes(&formals).ok()?;
+        let nfp = classes.iter().filter(|c| matches!(c, ArgClass::Fp { .. })).count();
+        if nload_fp > 8 || 14usize.checked_sub(nload_fp - 1).is_none_or(|lowest| lowest <= nfp) {
             return None;
         }
     }

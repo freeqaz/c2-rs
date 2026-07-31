@@ -269,7 +269,8 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
             // affine selector would mean lowering `*p` as if it were a register
             // operand — and c2 does not: the load lands in the scratch register
             // and the arithmetic reads it from there.
-            IlOp::LoadInd { .. } | IlOp::LoadIndSized { .. } => {
+            IlOp::LoadInd { .. } | IlOp::LoadIndSized { .. }
+                    | IlOp::LoadIndFp { .. } => {
                 return Err(out_of_class(
                     "indirect load feeding arithmetic; out of class",
                 ))
@@ -460,6 +461,7 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     | IlOp::FpLit { .. }
                     | IlOp::LoadInd { .. }
                     | IlOp::LoadIndSized { .. }
+                    | IlOp::LoadIndFp { .. }
                     | IlOp::AddrOf { .. }
                     | IlOp::StoreInd { .. }
                     | IlOp::StoreIndFp { .. } => {
@@ -555,6 +557,7 @@ fn combine(
             | IlOp::FpLit { .. }
             | IlOp::LoadInd { .. }
             | IlOp::LoadIndSized { .. }
+                    | IlOp::LoadIndFp { .. }
             | IlOp::AddrOf { .. }
             | IlOp::StoreInd { .. }
             | IlOp::StoreIndFp { .. },

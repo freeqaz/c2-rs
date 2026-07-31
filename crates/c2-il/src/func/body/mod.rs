@@ -1,5 +1,6 @@
 pub(crate) mod chain;
 pub use self::chain::{chain_form, ChainForm};
+pub use self::shapes::leaf_store::FP_SCRATCH;
 pub(crate) mod expr;
 pub(crate) mod mcall;
 pub(crate) mod shapes;
