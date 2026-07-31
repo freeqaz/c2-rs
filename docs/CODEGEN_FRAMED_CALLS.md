@@ -337,6 +337,18 @@ int g3(int,int,int); int f(int a,int b,int c){ return g3(c,a,b)+1; }
 `g2(b,a)` and `g3(b,c,a)` produce the same three-step shape. r11 is the same
 scratch the leaf selector uses (`CODEGEN_PPC_MVP.md` "COLOR scratch order").
 
+> **Measured over the complete grid 2026-07-31 — `docs/CODEGEN_ARG_PERM.md`.**
+> "A permutation is broken with r11" is a rule about cycles short enough to be
+> **unimodal**, and every cycle of length ≤ 3 is. From length 4 up, c2 uses
+> **r11 *and* r10** whenever a cycle's register sequence descends and then
+> ascends after its minimum — `g4(a3,a4,a2,a1)` is a single 4-cycle needing two
+> scratches while `g4(a2,a3,a4,a1)` is a single 4-cycle needing one. The rule
+> that fits all 152 cells at n = 2…5: **one scratch per local minimum of each
+> cycle**, parked in ascending order of the parked register, read back in
+> descending order of the minimum. Move multiset, park prefix and read-back
+> suffix are exact on 152/152; only the interleaving of independent chains is
+> still open (26 cells, all at n = 5).
+
 ### 3.3 The multi-call accumulator shape
 
 `int f(int a){ int s=0; s+=g(a+1); … s+=g(a+n); return s; }` is exactly regular
@@ -536,6 +548,15 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
   cannot reach one (a result is discarded or is the tail), so §3.1's
   "parameters in order then results" is confirmed by capture and unexercised by
   code.
+
+  > **Extended past n = 2, 2026-07-31 — `docs/CODEGEN_ARG_PERM.md` §4.** The
+  > assignment **is** monotone at n ≥ 3: the formals live across the call take
+  > r31, r30, r29, r28, r27 in parameter order, and the numbering runs over the
+  > **live subset** rather than the formal index (`live = {a2,a4}` gives
+  > `r31<-r4 ; r30<-r6`). Exact over every subset of a 4-formal list and over
+  > 152 permutation cells to 5 saved registers. What is *not* monotone — and
+  > what made this look unmodelled — is the order the save `mr`s are **emitted**
+  > in, which is a different question sharing the same name.
 * **Where the save moves go when the first call also marshals arguments.**
   Two rules, both measured: a save whose source register the marshalling
   overwrites is hoisted in front of the *whole* marshalling (not merely before
@@ -546,6 +567,20 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
   `{ g2(b,a); v1(a); v2(b); }` is `mr r30,r4 ; mr r31,r3 ; mr r4,r3 ;
   mr r3,r30`. Which saved register is the temp when several are saved is not
   determined by the three captures available. Refused, not fitted.
+
+  > **ANSWERED 2026-07-31 — `docs/CODEGEN_ARG_PERM.md` §3. The question has no
+  > answer because c2 does not pick a temp.** Over all 152 cells of the
+  > every-formal-live grid at n = 2…5, `r11` is never emitted and each permuted
+  > value is read from **its own** callee-saved register — original register
+  > while it still holds the value, saved home once it has been overwritten
+  > (exact on 152/152, as is the r31/r30/r29… assignment in parameter order).
+  >
+  > And the phrasing above needs a boundary it does not have: the no-`r11`
+  > property belongs to the **value**, not to the function. With only *some*
+  > formals live across the call, r11 **and** r10 come back alongside the saved
+  > registers — `g4(d,c,b,a)` with only `a3` live is
+  > `r11<-r4 ; r10<-r6 ; r31<-r5 ; r6<-r3 ; r4<-r5 ; r5<-r11 ; r3<-r10`. A mix
+  > of live and dead formals is the common case, not the corner.
 * **The spill regime.** Past 18 saved GPRs the frame grows by an amount this
   measurement does not model (39/480 cases, §1.3). Not chased — the workload's
   calls-0 population is nowhere near that pressure.
