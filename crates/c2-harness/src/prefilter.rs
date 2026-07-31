@@ -377,7 +377,10 @@ mod tests {
             emit_obj: None,
             compare_obj: None,
             obj_name: None,
-            work: std::env::temp_dir().join("c2rs-prefilter-unit"),
+            // Per-process: a fixed scratch name is shared by every concurrent
+            // test run on the machine (roadmap #55).
+            work: std::env::temp_dir()
+                .join(format!("c2rs-prefilter-unit-{}", std::process::id())),
         }
     }
 

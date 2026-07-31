@@ -163,3 +163,83 @@ fn p0_1_replay_byte_exact() {
         std::fs::remove_dir_all(&w).ok();
     }
 }
+
+/// **The concurrent-stub-build race** (roadmap #55). Pins the fix for a flake
+/// that made `cargo test --workspace --release` fail several `differential`
+/// tests at once, always green serially and on re-run.
+///
+/// `ensure_c2host` rebuilds the x86 host stub whenever it is older than its
+/// `.c` — which is true exactly once per freshly created worktree, because the
+/// checkout gives the source a new mtime and the reflinked `target/` copy of
+/// the exe is older. Every integration test that replays reaches
+/// `ensure_c2host`, the harness runs them multi-threaded, and the old code
+/// linked **in place**: N concurrent `i686-w64-mingw32-gcc` writing one output
+/// file while other threads were launching it. wibo answers a half-written file
+/// with `Failed to load PE image …/c2host.exe`, which surfaces as
+/// `ReferenceError` — a *toolchain* failure wearing the costume of a
+/// differential failure. Measured on the real binary: **4–13 of 17 tests failed
+/// per run, six runs out of six**, and zero out of eight after the fix.
+///
+/// The test is not decorative: pointed at the old in-place link (one line, the
+/// scratch build writing straight to `exe`) it fails **3 runs out of 3** with
+/// `published exe is 0 bytes`. With the rename it passes.
+///
+/// This test reproduces the mechanism without touching the repo's own stub: it
+/// copies the source into a scratch dir, points a cloned toolchain at it, and
+/// has many threads race to build it. Each thread reads back what it published
+/// and every read must be a complete PE of one single length — a partial link
+/// is exactly what the old code let another thread observe.
+#[test]
+fn concurrent_host_stub_builds_never_publish_a_partial_exe() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_mingw() {
+        eprintln!("SKIP: mingw absent — the host stub cannot be built");
+        return;
+    }
+    let w = work("stubrace");
+    let src = w.join("c2host.c");
+    std::fs::copy(&tc.c2host_src, &src).expect("copy the stub source");
+
+    let mut scratch = tc.clone();
+    scratch.c2host_src = src;
+    scratch.c2host_exe = w.join("build/c2host.exe");
+    // `ensure_clui_beside` wants a `1033` next to the exe; give the scratch
+    // build the real toolchain's, so this test exercises that path too.
+    let scratch = std::sync::Arc::new(scratch);
+
+    let mut handles = Vec::new();
+    for _ in 0..16 {
+        let tc = std::sync::Arc::clone(&scratch);
+        handles.push(std::thread::spawn(move || -> Result<(usize, [u8; 2]), String> {
+            let exe = tc.ensure_c2host().map_err(|e| e.to_string())?;
+            let bytes = std::fs::read(&exe).map_err(|e| e.to_string())?;
+            if bytes.len() < 2 {
+                return Err(format!("published exe is {} bytes", bytes.len()));
+            }
+            Ok((bytes.len(), [bytes[0], bytes[1]]))
+        }));
+    }
+    let mut seen: Vec<(usize, [u8; 2])> = Vec::new();
+    for h in handles {
+        match h.join().expect("stub-build thread panicked") {
+            Ok(v) => seen.push(v),
+            Err(e) => panic!(
+                "a concurrent ensure_c2host failed or read a partial exe: {e} — \
+                 the stub must be published atomically (rename), never linked in place"
+            ),
+        }
+    }
+    for (len, magic) in &seen {
+        assert_eq!(magic, b"MZ", "published exe is not a PE image ({len} bytes)");
+        assert_eq!(
+            *len, seen[0].0,
+            "two threads read DIFFERENT lengths of the same published exe \
+             ({len} vs {}) — that is a half-written link being observed",
+            seen[0].0
+        );
+    }
+    std::fs::remove_dir_all(&w).ok();
+}

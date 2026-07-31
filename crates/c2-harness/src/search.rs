@@ -3114,7 +3114,14 @@ mod tests {
             eprintln!("SKIP stuck_dc3_step1: toolchain absent");
             return;
         };
-        let dir = std::env::temp_dir().join("c2rs_stuck_dc3_step1");
+        // Per-process scratch: a FIXED name here is a cross-process race —
+        // one run's `remove_dir_all` deletes another's working tree
+        // mid-compile, which fails as a mysterious capture error
+        // (roadmap #55, and the same shape as the c2host stub race).
+        let dir = std::env::temp_dir().join(format!(
+            "c2rs_stuck_dc3_step1-{}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&dir);
 
         // (name, source) — each a single leaf function; one opcode class each.
@@ -3209,7 +3216,14 @@ mod tests {
             eprintln!("SKIP stuck_dc3_step2: strace absent (IL capture needs it)");
             return;
         }
-        let dir = std::env::temp_dir().join("c2rs_stuck_dc3_step2");
+        // Per-process scratch: a FIXED name here is a cross-process race —
+        // one run's `remove_dir_all` deletes another's working tree
+        // mid-compile, which fails as a mysterious capture error
+        // (roadmap #55, and the same shape as the c2host stub race).
+        let dir = std::env::temp_dir().join(format!(
+            "c2rs_stuck_dc3_step2-{}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&dir);
 
         // (name, source, in_class) — in_class = the codec's straight-line int

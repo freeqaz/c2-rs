@@ -19,18 +19,22 @@ set -eu
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 mode="${1:-/O1}"
 [ $# -gt 0 ] && shift
-c2rs="$repo_root/target/release/c2rs"
-
-# ALWAYS rebuild — same defect and same reasoning as `expr_sweep.sh`. This guard
-# built only when the binary was ABSENT, so a lane could grade the current tree
-# with a previous tree's code. The four mode lanes are part of the merge gate, and
-# a lane that passes because it ran yesterday's binary is a false green.
-echo "building the harness (no-op if current)"
-(cd "$repo_root" && cargo build --release -p c2-harness)
-echo "harness: $c2rs  built $(date -r "$c2rs" '+%F %T')  tree $(cd "$repo_root" && git rev-parse --short HEAD 2>/dev/null || echo '?')"
-
-work="${C2RS_MODE_LANE_WORK:-/tmp/c2rs-mode-lane}"
+# The run directory is PER MODE. It used to be one shared `/tmp/c2rs-mode-lane`
+# holding `flags.txt`, `list.txt` and `report.txt` — so running the four lanes
+# concurrently (the obvious thing to do, they are independent) had each lane
+# overwriting the others' flags file and report, and the mismatch count was then
+# parsed out of whichever report won. That is a false green by the same mechanism
+# as a stale binary: the number comes from a run nobody asked for.
+work="${C2RS_MODE_LANE_WORK:-/tmp/c2rs-mode-lane}/$(printf '%s%s' "$mode" "$*" | tr -c 'A-Za-z0-9' '-')"
 mkdir -p "$work"
+
+# Build unconditionally and run a RUN-PRIVATE COPY — see `scripts/harness_bin.sh`
+# for the stale-binary and republished-under-a-running-gate failures this closes.
+# The four mode lanes are part of the merge gate; a lane that passes because it
+# ran yesterday's binary is exactly the false green the gate exists to prevent.
+. "$repo_root/scripts/harness_bin.sh"
+pin_harness "$repo_root" "$work"
+c2rs="$C2RS_PINNED"
 flags="$work/flags.txt"
 list="$work/list.txt"
 echo "$mode /GS- /c $*" > "$flags"
