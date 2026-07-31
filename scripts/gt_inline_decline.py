@@ -46,11 +46,28 @@ for each rung reports `Nfull` — the largest N at which every site was inlined
 size shows up as `Nfull` falling monotonically along the ladder; where it does
 not, that is the finding and the row prints it.
 
+IS `s` THE AXIS, OR A PROXY FOR ONE?
+------------------------------------
+Every ladder here grows `s` by ADDING IL, so `s` and any count the FRONT END
+could hold move together in every cell — and the front end chooses before
+register allocation, so `s` is a c2-side number standing in for a c1xx-side
+decision. `--pressure` separates them: a matched PERMUTATION pair, the same
+statements/declarations/calls/operators in a different ORDER, so every
+source-side count is equal and only the live-value count differs. The
+measured `ds` is then 100% prologue+epilogue (the `body` column proves it),
+i.e. pure allocator idiom, and the question is whether the decision follows
+it. `--ends` does the same for the two round boundaries and locates the
+SPILL FLOOR — the smallest callee that actually spills.
+
 Usage:
     scripts/gt_inline_decline.py [--mode '/O1 /GS- /c'] [--max N] [ladder ...]
     scripts/gt_inline_decline.py --list
     scripts/gt_inline_decline.py --family NAME ...   # gt_label_inline families
     scripts/gt_inline_decline.py --cases             # the categorical refusals
+    scripts/gt_inline_decline.py --pressure          # same IL, different `s`
+    scripts/gt_inline_decline.py --ends              # the two round boundaries
+    scripts/gt_inline_decline.py --sibling           # per-PAIR, not per-caller
+    scripts/gt_inline_decline.py --padp              # …nor per-caller-size
     scripts/gt_inline_decline.py --max N --kmax K
 
 Env: C2RS_WIBO / C2RS_COMPILERS as for scripts/gt_capture.sh.
@@ -59,6 +76,7 @@ prediction held — read the table.
 """
 
 import os
+import struct
 import sys
 import tempfile
 
@@ -130,6 +148,73 @@ def read(o):
         _s, glo, ghi = extent(o, g)
         emitted[g["name"]] = ghi - glo
     return {"rel": rel, "tsize": hi - lo, "emit": emitted}
+
+
+def name_matches(nm, want):
+    d = demangle_ish(nm)
+    return d == want or d.endswith(want) or want in nm
+
+
+def pressure_of(o, want):
+    """(saved nonvolatile GPRs, frame bytes, post-prologue r1 stores/loads).
+
+    A pressure probe that cannot PROVE it created pressure is worthless: "no
+    divergence" and "no pressure" look identical in the `s` column. This reads
+    the allocator's own answer out of the callee's bytes —
+
+      * `nsave`  = 32 - N from `bl __savegprlr_N`, plus any explicit
+                   `stw rX,d(r1)` ahead of the frame push. 18 means every
+                   nonvolatile GPR (r14..r31) is in use and the next live
+                   value MUST go to the stack.
+      * `frame`  = the `stwu r1,-F(r1)` displacement.
+      * `spill`  = `stw rX,d(r1)` / `lwz rX,d(r1)` AFTER the frame push. For
+                   these probes every callee is `int f(int)` and every call
+                   takes one register argument, so nothing is an outgoing
+                   argument store: these are spills and reloads.
+    """
+    for g in groups(o):
+        if name_matches(g["name"], want):
+            break
+    else:
+        return None
+    sec, lo, hi = extent(o, g)
+    d = o.raw(sec)[lo:hi]
+    rels = {va: sy for va, sy, _t in o.relocs(sec) if lo <= va < hi}
+    nsave, nfsave, frame, st, ld, pushed = 0, 0, 0, 0, 0, False
+    pro, epi = 0, len(d)
+    for i in range(0, len(d) - 3, 4):
+        w = struct.unpack_from(">I", d, i)[0]
+        op, ra = w >> 26, (w >> 16) & 31
+        # stwu r1,-F(r1)
+        if op == 37 and ((w >> 21) & 31) == 1 and ra == 1:
+            frame = 0x10000 - (w & 0xFFFF) if (w & 0x8000) else -(w & 0xFFFF)
+            pushed, pro = True, i + 4
+            continue
+        # `addi r1,r1,F` pops the frame and opens the epilogue
+        if pushed and op == 14 and ((w >> 21) & 31) == 1 and ra == 1 \
+                and (w & 0xFFFF) == frame:
+            epi = min(epi, i)
+        if not pushed:
+            if op == 36 and ra == 1:                            # stw rX,d(r1)
+                nsave += 1
+            elif op == 54 and ra == 1:                          # stfd fX,d(r1)
+                nfsave += 1
+            s = rels.get(lo + i)
+            if s is not None:
+                nm = o.sym_by_index(s)
+                nm = nm["name"] if nm else ""
+                if nm.startswith("__savegprlr_"):
+                    nsave += 32 - int(nm.rsplit("_", 1)[1])
+                elif nm.startswith("__savefpr_"):
+                    nfsave += 32 - int(nm.rsplit("_", 1)[1])
+        else:
+            if op == 36 and ra == 1:
+                st += 1
+            elif op == 32 and ra == 1:
+                ld += 1
+    return {"nsave": nsave, "nfsave": nfsave, "frame": frame, "st": st,
+            "ld": ld,
+            "pro": pro, "epi": len(d) - epi, "body": max(0, epi - pro)}
 
 
 # --------------------------------------------------------------------------
@@ -289,6 +374,113 @@ def stmts_if(k, var="v"):
     return " ".join("if(a>%d) %s+=%d;" % (i + 1, var, i + 3) for i in range(k))
 
 
+# --- THE PRESSURE PAIR: same IL, different allocation ----------------------
+# Every other ladder in this file grows `s` by ADDING IL, so `s` and any
+# c1xx-side count of the source move together and the whole 449-rung dataset
+# cannot say which of the two the front end is actually reading. These two
+# generators emit the SAME 2k statements, the SAME k declarations, the SAME k
+# calls and the SAME operators at every k, PERMUTED — so every statement-,
+# node- or operator-count metric is equal — and differ only in how many values
+# are simultaneously live, which is a register-allocator question and
+# therefore a c2-side one. §6.15.7 names this as the one probe that was
+# missing and the one failure mode that would be invisible.
+def stmts_perm_lo(k, var="v"):
+    """FIRST SPELLING, kept because it is INERT and the inertness is a finding.
+
+    k call-defined temps each combined into `v` immediately with `(v<<1)^t`.
+    That chain is LINEAR over xor — `((v<<1)^t0)<<1)^t1` is exactly
+    `v<<2 ^ t0<<1 ^ t1` — so the compiler is free to re-associate it, and it
+    does: this and `stmts_perm_hi` compile to BYTE-IDENTICAL code at every k,
+    and to the HIGH-pressure schedule (nsave = k+1) in both. A permutation
+    probe built on a re-associable operator measures nothing.
+    """
+    parts = []
+    for i in range(k):
+        parts.append("int t%d=gs(a+%d);" % (i, i + 1))
+        parts.append("%s=(%s<<1)^t%d;" % (var, var, i))
+    return " ".join(parts)
+
+
+def stmts_perm_hi(k, var="v"):
+    """…the same 2k statements permuted. Byte-identical to `perm_lo`: INERT."""
+    defs = ["int t%d=gs(a+%d);" % (i, i + 1) for i in range(k)]
+    uses = ["%s=(%s<<1)^t%d;" % (var, var, i) for i in range(k - 1, -1, -1)]
+    return " ".join(defs + uses)
+
+
+def stmts_live_lo(k, var="v"):
+    """LOW pressure: k call-defined temps, each CONSUMED IMMEDIATELY.
+
+    The use is `v=gs(v^t)` — an OPAQUE EXTERN CALL. Nothing algebraic connects
+    a use to its def, so no re-association can move it (which is what made
+    `stmts_perm_*` inert), and calls to an extern cannot be reordered among
+    themselves, so the def sequence is pinned too. Each `t` dies at the very
+    next statement: measured nsave = 1 at every k.
+    """
+    parts = []
+    for i in range(k):
+        parts.append("int t%d=gs(a+%d);" % (i, i + 1))
+        parts.append("%s=gs(%s^t%d);" % (var, var, i))
+    return " ".join(parts)
+
+
+def stmts_live_hi(k, var="v"):
+    """HIGH pressure: THE SAME 2k statements, PERMUTED.
+
+    All k defs, then all k uses in REVERSE def order. Identical declaration,
+    statement, call and operator counts to `stmts_live_lo` at every k — the
+    two source texts are permutations of one multiset — but all k temps are
+    simultaneously live across k calls: measured nsave = k+1.
+    """
+    defs = ["int t%d=gs(a+%d);" % (i, i + 1) for i in range(k)]
+    uses = ["%s=gs(%s^t%d);" % (var, var, i) for i in range(k - 1, -1, -1)]
+    return " ".join(defs + uses)
+
+
+def stmts_fp_lo(k, var="v"):
+    """LOW pressure, DOUBLE temps — the pressure pair in a different frame class.
+
+    §6.16.11 named "every callee in this section is `int f(int)`" as the top
+    remaining risk after round 29's GPR result. These two generators move the
+    pair into an FPR frame: `double` temps defined by `gd` calls, `_fltused`,
+    a `__savefpr_` set alongside the GPR one, and an entirely different opcode
+    mix — with the statement, declaration, call and operator counts still
+    equal between the two spellings at every k.
+    """
+    parts = []
+    for i in range(k):
+        parts.append("double d%d=gd((double)a+%d);" % (i, i + 1))
+        parts.append("%s=(int)gd((double)%s+d%d);" % (var, var, i))
+    return " ".join(parts)
+
+
+def stmts_fp_hi(k, var="v"):
+    """…the same 2k statements permuted: all k `double`s live at once."""
+    defs = ["double d%d=gd((double)a+%d);" % (i, i + 1) for i in range(k)]
+    uses = ["%s=(int)gd((double)%s+d%d);" % (var, var, i)
+            for i in range(k - 1, -1, -1)]
+    return " ".join(defs + uses)
+
+
+def stmts_live_hi_cheap(k, var="v"):
+    """Maximum live values per INSTRUCTION — built to look for a cheap spill.
+
+    Each temp is one instruction (`a^K`) instead of a call, so k live values
+    cost ~2k instructions rather than ~4k, and the rungs are 8 bytes each,
+    which makes this a SEVENTH mechanism reproducing the schedule at fine
+    resolution (68->9, 76->7, 84->4, 92->3, 100->3, 108->2, 144->1, 256->1,
+    264->0).
+
+    It did NOT find a cheap spill, and could not have: `a^K` is trivially
+    REMATERIALISABLE, so c2 recomputes rather than spilling. `--ends` measures
+    the real spill floor on call-defined values instead, and finds it at 19
+    live values / 324 bytes — past the ceiling either way.
+    """
+    defs = ["int t%d=a^%d;" % (i, 0x11 * (i + 1)) for i in range(k)]
+    uses = ["%s=(%s<<1)^t%d;" % (var, var, i) for i in range(k - 1, -1, -1)]
+    return " ".join(defs + uses)
+
+
 LOOP = "for(int i=0;i<a;i++) v+=gs(i);"
 LOOP_LEAF = "for(int i=0;i<a;i++) v+=i*3;"
 
@@ -314,6 +506,19 @@ def tree_d1(inner_extra, loop=LOOP):
 
 def tree_d1_noloop(inner_extra):
     leads = ("static int in1(int a){ int v=gs(a)+a; %s return v; }"
+             % inner_extra)
+    return leads, "s=in1(s);", ["in1"]
+
+
+def tree_d1_fp(inner_extra):
+    """depth 1, no loop, and the TU also declares the `double` barrier `gd`.
+
+    `gd` is declared in the LEAD rather than in `GS` so that nothing about the
+    integer ladders moves; `_fltused` is introduced by the callee itself,
+    which is what an FP frame class means here.
+    """
+    leads = ("double gd(double);\n"
+             "static int in1(int a){ int v=gs(a)+a; %s return v; }"
              % inner_extra)
     return leads, "s=in1(s);", ["in1"]
 
@@ -382,6 +587,25 @@ ladder("ctor-leaf-arith", lambda e: tree_ctor(e, LOOP_LEAF), stmts_arith, 6,
        "the ctor whose loop makes NO call + k arithmetic statements")
 ladder("d2-leaf-arith", lambda e: tree_d2(e, LOOP_LEAF), stmts_arith, 8,
        "d2 tree whose loop makes NO call + k arithmetic statements")
+# --- THE PRESSURE PAIR: the one probe §6.15.7 says was missing --------------
+ladder("d1-live-lo", tree_d1_noloop, stmts_live_lo, 10,
+       "PRESSURE control: k call-defined temps, each used IMMEDIATELY")
+ladder("d1-live-hi", tree_d1_noloop, stmts_live_hi, 10,
+       "PRESSURE probe: the SAME 2k statements permuted — all k live at once")
+ladder("d2-live-lo", tree_d2_noloop, stmts_live_lo, 8,
+       "…the low-pressure spelling one level down")
+ladder("d2-live-hi", tree_d2_noloop, stmts_live_hi, 8,
+       "…the high-pressure spelling one level down")
+ladder("d1-perm-lo", tree_d1_noloop, stmts_perm_lo, 8,
+       "INERT control: a RE-ASSOCIABLE use — c2 collapses the permutation")
+ladder("d1-perm-hi", tree_d1_noloop, stmts_perm_hi, 8,
+       "INERT control: byte-identical to d1-perm-lo at every k")
+ladder("d1-fp-lo", tree_d1_fp, stmts_fp_lo, 8,
+       "PRESSURE control in an FPR frame class: k double temps, used at once")
+ladder("d1-fp-hi", tree_d1_fp, stmts_fp_hi, 8,
+       "PRESSURE probe in an FPR frame class: the same 2k statements permuted")
+ladder("d1-cheap-hi", tree_d1_noloop, stmts_live_hi_cheap, 30,
+       "7th mechanism: 1-instruction temps, 8-byte rungs, all live at once")
 
 
 # --------------------------------------------------------------------------
@@ -742,6 +966,374 @@ def grade_d(nfull, s, nmax, o1):
     return v
 
 
+def sweep_rung(tree, gen, k, mode, wd, nmax, tag):
+    """One ladder rung swept over N — (Nfull, Ndirect, s, pressure, trace)."""
+    nfull = ndir = bad = 0
+    dsz, press, per = None, None, []
+    for n in range(1, nmax + 1):
+        src, watch = ladder_source(tree, gen, k, n)
+        o = capture(src, mode, wd, "%s_k%d_n%d" % (tag, k, n))
+        r = None if o is None else read(o)
+        if r is None or "error" in r:
+            per.append("!")
+            bad += 1
+            continue
+        if n == 1:
+            dsz = size_of(r["emit"], watch[0])
+            press = pressure_of(o, watch[0])
+        d = declined(r["rel"], watch)
+        nd = sum(c for w, c in d.items() if w == watch[0])
+        if nd == 0 and ndir == n - 1:
+            ndir = n
+        tot = sum(d.values())
+        per.append("." if tot == 0 else "x")
+        if tot == 0 and nfull == n - 1:
+            nfull = n
+    return nfull, ndir, dsz, press, "".join(per), bad
+
+
+def pcol(p):
+    """savedGPRs[+savedFPRs]/frame/postpush-stores+loads."""
+    if p is None:
+        return "-"
+    n = "%d" % p["nsave"] if not p["nfsave"] else "%d+%df" % (p["nsave"],
+                                                              p["nfsave"])
+    return "%s/%d/%d+%d" % (n, p["frame"], p["st"], p["ld"])
+
+
+# §6.15.4's /Ox rule for LOOP-FREE callees, stated on the callee's size AS
+# EMITTED AT /O1 (the /Ox-emitted size demonstrably does not decide it: /Ox is
+# /Ot and unrolls the standalone callee). Every callee in the pressure pair is
+# loop-free, so this applies, and it was fitted entirely on ladders that grow
+# the body by adding statements — the pressure pair is held out from it.
+OX_LOOPFREE = (108, 112)
+
+
+def ref_size(tree, gen, k, wd, tag):
+    """The callee's `s` AS EMITTED AT /O1, whatever mode the run is in."""
+    src, watch = ladder_source(tree, gen, k, 1)
+    o = capture(src, "/O1 /GS- /c", wd, tag)
+    if o is None:
+        return None
+    r = read(o)
+    return None if "error" in r else size_of(r["emit"], watch[0])
+
+
+def grade_ox(s_o1, ndir, nmax):
+    """/Ox is all-or-nothing (§6.15.4), so `ndir` is 0 or `nmax`."""
+    if s_o1 is None:
+        return "?", "?"
+    got = "inlined" if ndir >= nmax else ("declined" if ndir == 0 else "mixed")
+    if s_o1 <= OX_LOOPFREE[0]:
+        return "inlined", got
+    if s_o1 >= OX_LOOPFREE[1]:
+        return "declined", got
+    return "?", got
+
+
+PRESSURE_PAIRS = [
+    ("d1 opaque use", tree_d1_noloop, stmts_live_lo, stmts_live_hi, 12),
+    ("d2 opaque use", tree_d2_noloop, stmts_live_lo, stmts_live_hi, 8),
+    ("d1 re-associable use (expected INERT)",
+     tree_d1_noloop, stmts_perm_lo, stmts_perm_hi, 8),
+    ("d1 FPR frame class, opaque use", tree_d1_fp, stmts_fp_lo, stmts_fp_hi, 8),
+]
+
+
+def run_pressure(mode, wd, nmax, kmax):
+    """SAME IL, DIFFERENT ALLOCATION — is `s` the axis, or a proxy for one?
+
+    Every ladder in §6.15 moves `s` by adding IL, so `s` and any c1xx-side
+    count of the source move TOGETHER and 449 rungs of that design cannot say
+    which one the front end reads. This pairs two bodies that are the same
+    2k statements in a different ORDER: identical to every source-side count,
+    different in how many values are live, and therefore different in `s`.
+
+    The falsifier is one printed row where the pair straddles a schedule band
+    (law_d(s_lo) != law_d(s_hi)) and Nfull comes out the SAME anyway. That is
+    `s` moving a whole band with the IL held fixed and the front end not
+    noticing, and it means the table is indexed on the wrong number.
+    """
+    bad = 0
+    for label, tree, glo, ghi, kk in PRESSURE_PAIRS:
+        bad += run_pressure_pair(label, tree, glo, ghi, mode, wd, nmax,
+                                 min(kmax, kk))
+    return bad
+
+
+def run_pressure_pair(label, tree, glo, ghi, mode, wd, nmax, kmax):
+    o1 = "/O1" in mode
+    print("=== pressure [%s]" % label)
+    print("    the SAME 2k statements, permuted: LOW = each temp used")
+    print("    immediately (<=1 live), HIGH = all k defs then all k uses in")
+    print("    REVERSE order (k live across k calls). Identical statement,")
+    print("    declaration, call and operator counts at every k.")
+    print("    pressure column = savedGPRs/frame/postpush-stores+loads;")
+    print("    nsave=18 means every nonvolatile is gone and the next live")
+    print("    value MUST hit the stack.")
+    print()
+    print("    body = the bytes BETWEEN the frame push and the frame pop,")
+    print("    everything that is not prologue or epilogue. If body_lo ==")
+    print("    body_hi at every k, the whole of `ds` is FRAME IDIOM — a")
+    print("    register-allocator choice the front end cannot have seen.")
+    print()
+    print("    %-3s %-6s %-6s %-5s %-11s %-6s %-6s %-14s %-14s %s"
+          % ("k", "s_lo", "s_hi", "ds", "body lo/hi", "Nlo", "Nhi",
+             "press_lo", "press_hi", "verdict"))
+    bad = disc = broke = inert = bodydiff = 0
+    pfx = "".join(c for c in label if c.isalnum())[:12]
+    for k in range(1, kmax + 1):
+        nlo, dlo, slo, plo_, _t1, b1 = sweep_rung(
+            tree, glo, k, mode, wd, nmax, pfx + "lo")
+        nhi, dhi, shi, phi_, _t2, b2 = sweep_rung(
+            tree, ghi, k, mode, wd, nmax, pfx + "hi")
+        bad += b1 + b2
+        if slo is None or shi is None:
+            continue
+        cap = lambda p: nmax if p is None else min(p, nmax)
+        v = ""
+        if not o1:
+            # §6.15.4's threshold is stated on the /O1-emitted size, so read
+            # that for the SAME source rather than leaving /Ox ungraded.
+            #
+            # Graded PER SPELLING, and SKIPPED where a deeper instance was
+            # refused. Charging an inner decline to the direct pair is the
+            # cry-wolf §6.15.8 fixed for SCHEDULE D, and it reappeared here
+            # the first time this grader ran: at /Ox the d2 wrapper collapses
+            # to an 8-byte tail-call thunk and is inlined everywhere while
+            # `in2` — a different pair — is the one refused. An /O1 reference
+            # size is not a measurement of that thunk either.
+            parts, wants = [], []
+            spellings = (("lo", glo, dlo, nlo), ("hi", ghi, dhi, nhi))
+            for nm, gg, dd, nf in spellings:
+                if nf != dd:
+                    parts.append("%s not graded: INNER-DECLINED "
+                                 "(a different pair)" % nm)
+                    continue
+                rs = ref_size(tree, gg, k, wd, pfx + "ref%s_%d" % (nm, k))
+                want, got = grade_ox(rs, dd, nmax)
+                wants.append(want)
+                bad_ = want not in ("?", got)
+                if bad_:
+                    broke += 1
+                parts.append("%s s@O1 %s->%s got %s%s"
+                             % (nm, rs, want, got,
+                                "  <== *** REFUTES the /Ox LOOP-FREE "
+                                "THRESHOLD ***" if bad_ else ""))
+            v = "/Ox loop-free: " + " | ".join(parts)
+            if len(wants) == 2 and wants[0] != wants[1] and "?" not in wants:
+                disc += 1
+                v += "   <== s@O1 TRACKS at /Ox too"
+        elif slo == shi:
+            inert += 1
+            v = "INERT (c2 collapsed the permutation)"
+        else:
+            plo, phi = cap(law_d(slo)), cap(law_d(shi))
+            if plo == phi:
+                v = "same band (not discriminating)"
+            else:
+                disc += 1
+                if dlo == dhi:
+                    broke += 1
+                    v = ("sched D %d vs %d   <== *** s IS NOT THE AXIS: "
+                         "same IL, %+d bytes, same Nfull ***" % (plo, phi,
+                                                                 shi - slo))
+                elif dlo == plo and dhi == phi:
+                    v = ("sched D %d/%d OK   <== s TRACKS: %+d bytes of pure "
+                         "allocation moved the decision" % (plo, phi,
+                                                            shi - slo))
+                else:
+                    broke += 1
+                    v = ("sched D %d/%d vs %d/%d   <== *** REFUTES SCHEDULE D "
+                         "***" % (plo, phi, dlo, dhi))
+        # §6.15.8: a deeper instance being refused is a DIFFERENT pair, and
+        # folding it in here is exactly the cry-wolf the falsifier was fixed
+        # for. Mark it instead.
+        if (nlo != dlo or nhi != dhi) and "INNER-DECLINED" not in v:
+            v += "   INNER-DECLINED (a different pair)"
+        blo = plo_["body"] if plo_ else -1
+        bhi = phi_["body"] if phi_ else -1
+        if blo != bhi:
+            bodydiff += 1
+        print("    %-3d %-6s %-6s %-5d %-11s %-6d %-6d %-14s %-14s %s"
+              % (k, slo, shi, shi - slo, "%d/%d" % (blo, bhi), dlo, dhi,
+                 pcol(plo_), pcol(phi_), v))
+    print()
+    print("    discriminating cells: %d   refuting rows: %d   inert rows: %d"
+          % (disc, broke, inert))
+    print("    rows where the BODY sizes differ: %d — every other row's `ds`"
+          % bodydiff)
+    print("    is prologue+epilogue only, i.e. 100% allocator idiom.")
+    if o1 and disc == 0:
+        print("    NO DISCRIMINATING CELL — the probe did not separate")
+        print("    axes and this run says NOTHING about which is real.")
+    return bad
+
+
+# --------------------------------------------------------------------------
+# ENDS — the two ROUND boundaries a fixture author actually CONSTRUCTS with
+#
+# `<=16 instructions -> unbounded` and `>=65 -> never` are the two ends that
+# let a fixture author build a KNOWN expansion tree instead of guessing at
+# one. Both were pinned on bodies whose size is all statements and whose
+# register demand is trivial. These bodies keep the statement count where the
+# schedule wants it and push the LIVE-VALUE count as high as it will go.
+# --------------------------------------------------------------------------
+def live_body(k):
+    """k values live AT ONCE, defined by opaque call, combined once at the end.
+
+    The cheapest shape per live value this instrument can build: each value
+    costs one `addi` + one `bl` + one `mr` to park it, and one `xor` to
+    consume it. That matters because it decides whether a SPILLING callee can
+    exist inside the schedule's non-trivial band at all.
+    """
+    return ("static int in1(int a){ %s return %s; }"
+            % (" ".join("int t%d=gs(a+%d);" % (i, i) for i in range(k)),
+               "^".join("t%d" % i for i in range(k))))
+
+
+# `prereg` is what I wrote down BEFORE the capture. It is printed as a
+# pre-registration score, NOT as an alarm: the only alarm on these rows is
+# SCHEDULE D's own, because a falsifier that fires on my estimate being wrong
+# is a falsifier that cries wolf (§6.15.8).
+END_BODIES = [
+    ("bot-3live", 24, "unbounded", live_body(3),
+     "THREE call-defined values all live at once — enough to take the"
+     " __savegprlr_ helper — and still inside the <=64 B / <=16 instr floor"),
+    ("bot-4live", 24, "unbounded", live_body(4),
+     "one more live value. PRE-REGISTERED as still <=64 B, and it is NOT:"
+     " liveness alone carries a body over the floor"),
+    ("spill-20", 3, "0", live_body(20),
+     "TWENTY values live at once — past the 18 nonvolatile GPRs, so the"
+     " allocator MUST spill. Does the >=65-instruction ceiling still hold"
+     " when the bytes are spill code?"),
+    ("spill-24", 3, "0", live_body(24),
+     "…and deeper into the spill region"),
+]
+
+
+def run_order(mode, wd, nmax):
+    """Does the callee's DEFINITION ORDER move the schedule?
+
+    The pressure pair (§6.16) shows the decision tracking the __savegprlr_
+    idiom threshold — a quantity that does not exist until after register
+    allocation. Whatever makes the decision therefore either IS the back end
+    or is reading a number the back end produced, which is only possible if
+    the callee has already been compiled. This asks the cheapest consequence
+    of that: put the DEFINITION after the caller and see whether anything
+    moves.
+
+    `s` itself is printed for both orders as the control — if the callee
+    compiles differently, the comparison is confounded and the row says so.
+    """
+    print("=== order   callee defined BEFORE vs AFTER the caller")
+    print("    both are the same TU with the same text; only the position of")
+    print("    the DEFINITION moves (a forward declaration stands in).")
+    print("    %-3s %-7s %-7s %-6s %-6s %s"
+          % ("k", "s_before", "s_after", "N_bef", "N_aft", "verdict"))
+    bad = 0
+    for k in (1, 2, 3, 5, 8):
+        body = stmts_live_lo(k)
+        defn = "static int in1(int a){ int v=gs(a)+a; %s return v; }" % body
+        got = {}
+        for which in ("before", "after"):
+            leads = defn if which == "before" else "static int in1(int);"
+            tail = "" if which == "before" else "\n" + defn
+            ndir, s = 0, None
+            for n in range(1, nmax + 1):
+                probe = ("%s %s %s%s"
+                         % (INT_HEAD, " ".join(["s=in1(s);"] * n), INT_TAIL,
+                            tail))
+                o = capture(src_of(GS, [leads], probe), mode, wd,
+                            "ord_%s_%d_%d" % (which, k, n))
+                r = None if o is None else read(o)
+                if r is None or "error" in r:
+                    bad += 1
+                    continue
+                if n == 1:
+                    s = size_of(r["emit"], "in1")
+                d = declined(r["rel"], ["in1"])
+                if sum(d.values()) == 0 and ndir == n - 1:
+                    ndir = n
+            got[which] = (ndir, s)
+        (nb, sb), (na, sa) = got["before"], got["after"]
+        if sb != sa:
+            v = "CONFOUNDED: the callee itself compiled differently"
+        elif nb == na:
+            pr = law_d(sb)
+            v = ("order does not move it (sched D %s%s)"
+                 % ("unbounded" if pr is None else pr,
+                    ", capped at N=%d here" % nmax
+                    if pr is None or pr > nmax else ""))
+        else:
+            v = "<== *** DEFINITION ORDER MOVES THE SCHEDULE ***"
+        print("    %-3d %-7s %-7s %-6d %-6d %s" % (k, sb, sa, nb, na, v))
+    return bad
+
+
+def run_ends(mode, wd):
+    """The two round boundaries, with allocation pressure in play."""
+    print("=== ends   the two ROUND boundaries, under allocation pressure")
+    print("    press = savedGPRs/frame/postpush-stores+loads. nsave=18 means")
+    print("    every nonvolatile GPR is gone; postpush stores after that are")
+    print("    SPILLS (every callee here is int f(int), so no store to r1 is")
+    print("    an outgoing argument).")
+    print()
+    bad = 0
+    for name, nmax, prereg, leads, note in END_BODIES:
+        tree = lambda _e, _l=leads: (_l, "s=in1(s);", ["in1"])
+        nfull, ndir, s, p, trace, b = sweep_rung(
+            tree, lambda _k: "", 0, mode, wd, nmax, "end_" + name)
+        bad += b
+        pred = law_d(s)
+        sched = "unbounded" if pred is None else str(pred)
+        sched_ok = ((ndir >= nmax) if pred is None
+                    else (ndir == min(pred, nmax)))
+        spill = ("SPILLING (%d stores past 18 nonvolatiles)" % p["st"]
+                 if p and p["nsave"] >= 18 and p["st"] else
+                 ("%d postpush stores" % p["st"] if p and p["st"] else
+                  "no spill"))
+        print("    %-10s s=%-5s press=%-14s %s" % (name, s, pcol(p), spill))
+        print("    %-10s Ndir=%-3d over N=1..%-3d trace %-26s"
+              " sched D says %-9s %s"
+              % ("", ndir, nmax, trace, sched,
+                 "OK" if sched_ok else "<== *** REFUTES SCHEDULE D ***"))
+        print("    %-10s pre-registered %-10s %s" % (
+            "", prereg,
+            "landed" if prereg == (sched if sched_ok else "?") or
+            (prereg == "unbounded" and ndir >= nmax) or
+            (prereg == str(ndir)) else "MISSED (recorded, not an alarm)"))
+        print("    %-10s %s" % ("", note))
+        print()
+
+    print("    the SPILL FLOOR — how small can a callee that spills be?")
+    print("    If the smallest spilling body is already past the 260-byte")
+    print("    ceiling, then at /O1 a spilling callee is ARITHMETICALLY")
+    print("    confined to the never-inlined row and the ceiling is the only")
+    print("    place spilling can be tested at all.")
+    print("    %-4s %-6s %-6s %-6s %-5s %-5s %-10s %s"
+          % ("live", "s", "nsave", "frame", "st", "ld", "spill?", "sched D"))
+    for k in range(12, 25):
+        tree = lambda _e, _l=live_body(k): (_l, "s=in1(s);", ["in1"])
+        src, watch = ladder_source(tree, lambda _k: "", 0, 1)
+        o = capture(src, mode, wd, "spillfloor_%d" % k)
+        if o is None:
+            bad += 1
+            continue
+        r = read(o)
+        if "error" in r:
+            bad += 1
+            continue
+        s = size_of(r["emit"], "in1")
+        p = pressure_of(o, "in1")
+        pred = law_d(s)
+        print("    %-4d %-6s %-6d %-6d %-5d %-5d %-10s %s"
+              % (k, s, p["nsave"], p["frame"], p["st"], p["ld"],
+                 "SPILL" if (p["nsave"] >= 18 and p["st"]) else "-",
+                 "unbounded" if pred is None else pred))
+    return bad
+
+
 def run_ladder(name, mode, wd, nmax):
     tree, gen, kmax, note = LADDERS[name]
     o1 = "/O1" in mode
@@ -878,7 +1470,7 @@ def main(argv):
         for k, (_, _, kmax, note) in sorted(LADDERS.items()):
             print("%-20s k=0..%-3d %s" % (k, kmax, note))
         return 0
-    mode, nmax = "/O1 /GS- /c", 6
+    mode, nmax, kcap = "/O1 /GS- /c", 6, 14
     fams = []
     if "--mode" in argv:
         i = argv.index("--mode"); mode = argv[i + 1]; del argv[i:i + 2]
@@ -904,6 +1496,18 @@ def main(argv):
     print()
     wd = tempfile.mkdtemp(prefix="gtdec")
     bad = 0
+    if "--pressure" in argv:
+        bad += run_pressure(mode, wd, nmax, kcap)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
+    if "--order" in argv:
+        bad += run_order(mode, wd, nmax)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
+    if "--ends" in argv:
+        bad += run_ends(mode, wd)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
     if "--padp" in argv:
         bad += run_padp(mode, wd)
         print("captures failed: %d" % bad)
