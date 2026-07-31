@@ -1297,6 +1297,16 @@ arithmetic or a call is still refused, and widening it is not decode-only — a
 pointer in an add chain needs element-size scaling. That, and `.sy` binding on real
 TUs (`param-width-undetermined`, 567,549), are the next two rungs.
 
+> **§6a–§6m are frozen.** They are the historical rung ledger and every
+> cross-reference in the repo points at these letters, so nothing here is
+> renumbered or moved (`docs/ARCHITECTURE_SEAMS.md` §9.6 — history does not
+> conflict, only growth does). **New rungs land in `docs/rungs/<date>-<slug>.md`**,
+> one file per rung, indexed by `docs/rungs/INDEX.md` and registered by
+> `crates/c2-harness/tests/rung_registry.rs`: section letters and `W`-numbers
+> allocated concurrently collide silently (§6e/§6f/§6g/§6i and the tag `W23`
+> were each claimed twice on 2026-07-30), and filenames collide as add/add
+> conflicts git flags loudly.
+
 ## 6a. The frame audit, 2026-07-30 (D6) — the next rung is the general frame
 
 **The strategic answer, MEASURED.** `docs/IL_CALL_IN_EXPR.md` §18 asked whether the

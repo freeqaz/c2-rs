@@ -1,13 +1,73 @@
 # ARCHITECTURE_SEAMS — restructuring c2-rs for concurrent agents
 
-Status: plan, written 2026-07-30 against master `9ec4871`. Nothing here is
-implemented; every step below is sized, ordered, and gated by the existing
-differential. The constraints of `CLAUDE.md` bound everything in this
-document: std only / zero external crates (so every "registry" below is a
-hand-rolled match or a const table, never a macro crate); real `c2.dll` under
-wibo + byte-exact obj compare is the sole judge; acceptance fails closed
-(`NotImplemented`, never a guess); the CLI degrades cleanly without the
-toolchain.
+Status: written 2026-07-30 against master `9ec4871` as a plan. **Steps 0–3
+landed on 2026-07-30 against master `536373f`**, in one announced quiesce
+window, each as its own verified commit — see §0 below for what was executed
+and what the plan got wrong. Steps 4 and 5 are still plan. The constraints of
+`CLAUDE.md` bound everything in this document: std only / zero external crates
+(so every "registry" below is a hand-rolled match or a const table, never a
+macro crate); real `c2.dll` under wibo + byte-exact obj compare is the sole
+judge; acceptance fails closed (`NotImplemented`, never a guess); the CLI
+degrades cleanly without the toolchain.
+
+---
+
+## 0. What landed, and what the plan got wrong
+
+Steps 0–3, one commit each, on `wt-arch-split` from master `536373f`. Every
+step was graded by the same criterion — the census numerator, the **whole**
+blocker histogram key-for-key, the scan JSONL rows byte-for-byte, both
+disagreement counters, `bench`, all four mode lanes, the sweep, and the
+workspace tests:
+
+| | census | hist keys | rows sha256 | disagree | bench | lanes | sweep | tests |
+|---|---|---|---|---|---|---|---|---|
+| master `536373f` | 491,013 / 2,462,571 | 576 | `5899189043e8…` | 0 | 157/0/0 | 74/72/72/72 | 5,922 / 0 | 409 |
+| step 0 sweep + rungs | — | — | — | — | — | — | **5,922 / 0** | **411** |
+| step 1 `codegen/` | **491,013** | **576, identical** | **identical** | **0** | **157/0/0** | **74/72/72/72** | 5,922 / 0 | 411 |
+| step 2 `body/shapes/` | **491,013** | **576, identical** | **identical** | **0** | **157/0/0** | **74/72/72/72** | **5,922 / 0** | 411 |
+| step 3 `bind.rs` + `..base` | **491,013** | **576, identical** | **identical** | **0** | **157/0/0** | **74/72/72/72** | **5,922 / 0** | **416** |
+
+Binding counters across all three: `dtor-callee-1` 35,964,
+`gl-token-ambiguous-dropped` 1,734, `gl-token-conflict-mangled` 7 — unchanged,
+which with the byte-identical rows is how step 3's *correspondence* was graded
+(a green differential cannot grade a correspondence; §8). One-definition greps:
+161/161 symbols in step 1, 84/84 in step 2, all one definition.
+
+**Three corrections to the plan, from executing it.**
+
+1. **§2.3a is wrong that one `Bindings` can be "built once and consumed by
+   both" `functions()` and `census_functions()` as a move.** The two callers do
+   not merely name segments differently — they work over **different segment
+   lists produced by different splitters**: the gate splits at every `4F 1F`
+   (`split_functions_at`), the census anchors on the `LO` body marker
+   (`split_function_bodies`), because a raw `4F 1F` scan over-counts a real TU
+   by ~2 %. On top of that the gate binds per record with a 1:1 offset check
+   and the census pairs `mangled_names` positionally. Making them one binding
+   is not a refactor; it **moves the census numerator**, which is the
+   measurement everything else is differenced against. What `func/bind.rs`
+   therefore is: both bindings and all three of the census's different reads of
+   its name list, in one file, with the disagreement named and **pinned by a
+   test** (`the_two_bindings_are_the_open_seam_and_are_pinned_apart`) so the day
+   roadmap #14's follow-up closes it, the numerator move is recorded rather than
+   absorbed. That is strictly better than before and is the precondition for the
+   fix — but it is not what §2.3a describes.
+2. **§2.4's stated transition total (5,023) was stale**; the sweep was 5,922 at
+   `536373f`. The fragmentation was graded on a stronger criterion anyway: the
+   **multiset of generated case sources is byte-identical** to the old
+   generator's (5,922 files, 5,888 distinct, equal counts), not merely
+   equinumerous.
+3. **§3.4's "no two fixtures claim the same `wNN` prefix" is not the right
+   check** — `w28` legitimately has five fixtures. The registry test asserts
+   tag uniqueness, slug-equals-filename, fixture existence, and that no *prefix*
+   is claimed by two rung **docs**. It deliberately does **not** assert that
+   every prefix in `fixtures/cpp` is claimed, because the backfill is step 4;
+   the unclaimed prefixes are printed instead of a green light that means
+   nothing.
+
+Cheaper than described: steps 1 and 2 are almost entirely mechanical and were
+verifiable in minutes each on the warm cache, exactly as §4 predicted. The
+`..base` flatten defuse (§2.3b) is a ten-minute change that removes 101 lines.
 
 **The problem being solved.** On 2026-07-30, ~9 rungs landed in parallel
 worktrees with a serial merge funnel. It worked (census 140,476 → 474,103;
