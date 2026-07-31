@@ -1301,6 +1301,25 @@ FAMILIES = [
            note="a by-value struct return at DEPTH 2   PRED 13 if the hidden"
                 " return slot is a second E unit (4 + [5+2*2]) / 12 if it is"
                 " a flat +1 (4 + [5+2*1] + 1)"),
+
+    # === ROUND 24: `d2-struct-ret` = 13 confirmed E = 2 — one parameter, two
+    #     depths, a rival refuted, so that row is now tested rather than
+    #     fitted. `d2-ctor-noloc` = 18 refuted the registered reading A and
+    #     leaves B: the unnamed temporary is ONE E unit and there is ONE flat
+    #     unit beside it. But that is two parameters solved from two cells
+    #     (d1: a + b = 2, d2: 2a + b = 3), so it is EXACTLY DETERMINED and
+    #     nothing has been tested. Depth 3 is the first cell with a residual:
+    #     a = 1, b = 1 flat predicts 3 + 5 + [7+3*1] + 1 + 9.
+    Family("d3-ctor-noloc", GS,
+           "struct CP { int v; CP(int a){ v = gs(a)+a; } };\n"
+           "static int lcq(int a){ return CP(a).v; }\n"
+           "static int lcr(int a){ return lcq(a)+1; }\n"
+           "static int lcs(int a){ return lcr(a)+2; }",
+           "s=lcs(s);", "s=gs(s)+s+3;",
+           always_lead=True,
+           note="ctor-noloc's unnamed temporary at DEPTH 3   PRED 28 if the"
+                " temporary is 1 E unit plus 1 FLAT unit (3 + 5 + [7+3*1] +"
+                " 1 + 9) / 30 if the second unit scales with depth after all"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1510,7 +1529,9 @@ LAW_BOOK = {
     # rows. A miss prints, which is the point — these are the two shapes the
     # document has refused to put a number on, and a wrong guess here is
     # worse than the blank they currently have.
-    "d2-ctor-noloc": 19, "d2-struct-ret": 13,
+    "d2-ctor-noloc": 18, "d2-struct-ret": 13, "struct-ret": 5,
+    # --- ROUND 24: the first cell with a residual for ctor-noloc ------------
+    "d3-ctor-noloc": 28,
 }
 
 # ---------------------------------------------------------------------------
@@ -1540,6 +1561,7 @@ SUPERSEDED = {
     "ptr-use-nest": (9, "addressability keyed on the DEEPEST use being depth 1"),
     "ptr-sibling": (12, "addressability scoped to the call site's own tree"),
     "d2-dtor-if": (34, "scope-exit as E += 2"),
+    "d2-ctor-noloc": (19, "the unnamed temporary as TWO E units"),
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
