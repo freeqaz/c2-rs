@@ -528,7 +528,9 @@ fn step(s: &mut Scan) -> Result<bool, Block> {
             // decode is §12.1: whether `k` is a plain byte or a varint is UNKNOWN,
             // and both readings agree on every value ever observed (max `0x2A`).
             if u32::from(k) != d {
-                return Err(Block { ctx: "cf-scope-depth", byte: Some(k), off: s.p, seg_len: s.seg.len(), aux: 0 });
+                let seg_len = s.seg.len();
+                let ctx = "cf-scope-depth";
+                return Err(Block { ctx, byte: Some(k), off: s.p, seg_len, aux: 0 });
             }
             s.p += 2;
             s.depth = d;
@@ -832,7 +834,11 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             match sub {
                 0x42 => s.p += 4,
                 0x37 => s.p += 2,
-                _ => return Err(Block { ctx: "cf-escape-43", byte: Some(sub), off: s.p, seg_len: s.seg.len(), aux: 0 }),
+                _ => {
+                    let seg_len = s.seg.len();
+                    let ctx = "cf-escape-43";
+                    return Err(Block { ctx, byte: Some(sub), off: s.p, seg_len, aux: 0 });
+                }
             }
             if s.p > s.seg.len() {
                 return Err(blk(s.seg, s.seg.len(), "cf-escape-43"));
