@@ -235,7 +235,7 @@ Corpus `dc3-decomp`; baseline re-taken in this worktree and reproducing master
 | `scripts/mode_lane.sh /Ox` | 80 match, 0 mismatch, 0 codegen-gap | **81 match, 0 mismatch, 0 codegen-gap** |
 | `/O1` · `/O2` · `/Ox /Gy` | 78 match, 0 mismatch, 2 codegen-gap | **79 match, 0 mismatch, 2 codegen-gap** each |
 | `scripts/expr_sweep.sh` | 10,996 cases, 0 mismatches | **11,390 cases (+394), 0 mismatches** |
-| `scripts/cross_sweep.sh` | 11,761 × 4, 0 mismatches | **12,180 × 4, 0 mismatches** |
+| `scripts/cross_sweep.sh` | 11,761 × 4, 0 mismatches | **11,761 × 4 = 47,044 gradings, 0 mismatches**; its representative-discovery pass grades the whole sweep corpus as TUs — **11,390 graded, 7,889 matched, 0 mismatched** |
 | 878-TU scan | 639,387 / 2,462,571 (25.96 %), mismatch 0, disagreement 0 | **651,247 / 2,462,571 (26.45 %)**, mismatch 0, **disagreement 0** |
 | `census fixtures/cpp/wsl_store_load.cpp` | — | **40/40 in class**, `Port=Match` |
 | `census fixtures/cpp/wsl_store_load_neg.cpp` | — | **0/11 in class**, `Port=NotImplemented` |
@@ -248,6 +248,14 @@ the add) and `expr-op-0x30` −1,622 (a destination without one — `*d = *s` an
 is created. `expr-intrinsic-base-member-addr` does not move at all, which is
 worth stating: W38 took 2,264 out of it and this row takes none, so the two
 rungs drained different halves of the same designator family.
+
+The cross-sweep configuration count does not move, and that is the correct
+result rather than a missing number: it is derived from the **23 accepted shape
+families**, and this rung adds no family — a load-valued store is still a
+`store-leaf` or a `store-run`. What it does add is a representative
+(`83-store-load-0233.cpp` is now one of `store-leaf`'s three), so the same 276
+family pairs are exercised through a body that carries two designators instead
+of one.
 
 The new axis is `scripts/sweep.d/83-store-load.py`, **394 cases**, one file per
 axis so it cannot conflict with a peer's fragment. It varies what only a *loaded
