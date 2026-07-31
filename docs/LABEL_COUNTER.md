@@ -3129,6 +3129,30 @@ prints `CONSISTENT with`, not `MOVED`. Calling an 8-byte ladder's looser
 bracket a moved step would have been the seventh cry-wolf's little brother, and
 the compatibility test exists so it cannot be.
 
+#### 6.18.2a Re-run to the ceiling (task #92, 2026-07-31, GT-EH)
+
+The table above is scoped to `AXIS_KMAX = 14`, i.e. **s = 48..104** — the range
+§6.19 has just shown can hide a 96-byte term (`S-if` printed `IDENTICAL on all
+15 shared index cells` on a row that carries one). Re-run at `--kmax 56`,
+s = 48..288, the same ten spellings plus both controls:
+
+```
+scripts/gt_inline_decline.py --axes --max 12 --kmax 56 \
+    sta-base ext-base sta-ret-char ext-ret-char sta-ret-short sta-ret-bool \
+    sta-ret-uint sta-ret-ll ext-ret-ll sta-ret-dbl ext-ret-dbl sta-ret-ptr
+```
+
+**TOTAL discriminating cells 182, refuting rows 0, captures failed 0.** Shared
+index cells per row rose from 11–15 to **53–57** and every one still disagrees
+on **zero**. The `long long` rows keep their 8-byte rungs and so keep the
+narrower window (28 cells each, up from 7) and keep printing `CONSISTENT with`
+rather than `SAME STEP` — the compatibility test is unchanged by the wider
+sweep, which is the point of it.
+
+**The negative survives roughly a 4x wider range.** It is now scoped to
+s = 48..288 at `/O1`; `/Ox` is still at its own `AXIS_KMAX_OX = 22` and has not
+been re-run.
+
 ### 6.18.3 `extern "C"`, storage duration, templates — and the prior that died
 
 | axis | class measured | result |
