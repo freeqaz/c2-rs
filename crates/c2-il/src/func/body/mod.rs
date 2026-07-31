@@ -17,7 +17,8 @@ use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
     try_parse_compare, try_parse_empty_dtor_delegation, try_parse_float_leaf,
     try_parse_fp_tail_call,
-    try_parse_indirect_load_leaf, try_parse_ptr_identity_leaf, try_parse_store_leaf,
+    try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
+    try_parse_store_leaf,
 };
 use super::readers::{
     eat_byte, eat_value_type, find_subslice, read_token_var, read_type, read_varint, ValueClass,
@@ -764,6 +765,27 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 }
                 parse_call_shape(seg, &mut p, lo, None)
             } else {
+                // …and the **member call as a whole body** (W36) — `p->m(a…);` and
+                // `return p->m(a…);`, whose method push is the very `26` this arm
+                // just decided was not a callee. It is not: the receiver sits
+                // between the method push and the `BD`, so the one-byte test above
+                // cannot see the call at all and the statement reaches the
+                // assignment parser, which reads the receiver as a LOAD and stops
+                // on the `99` bind. That was `expr-op-0x99` — 280,283 functions and
+                // the largest key on the board — filed as an opcode.
+                //
+                // Tried before the assignment parse. A body that is not this
+                // production leaves the cursor untouched and falls through, keeping
+                // its own blocker (now the de-conflated `expr-call-in-expr-recv-*`
+                // key, via [`mcall::reanchor_chain`]); one that IS this production
+                // and parsed to the end of the segment reports the codegen-class
+                // gate that refused it, under that gate's own key, rather than
+                // vanishing back into the grammar bucket.
+                match try_parse_member_tail_call(seg, p, lo, depth) {
+                    Ok(shape) => return Ok(shape),
+                    Err(Some(b)) => return Err(b),
+                    Err(None) => {}
+                }
                 try_parse_assign_body_detail(seg, p, lo, locals, depth)
             }
         }

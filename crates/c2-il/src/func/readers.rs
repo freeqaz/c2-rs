@@ -603,7 +603,7 @@ pub(crate) fn is_fp_type(tag: u8, kind: u8) -> Option<bool> {
 /// side of the same fact is `sy::TYPE_KIND_REAL`; both read the low nibble of the
 /// kind byte, and a union being `16` where a struct is `06` is why neither may
 /// compare the whole byte.
-const TYPE_KIND_REAL_CLASS: u8 = 0x5;
+pub(crate) const TYPE_KIND_REAL_CLASS: u8 = 0x5;
 
 /// Consume a floating-point TYPE at `p` ([`is_fp_type`]), reporting `true` for a
 /// `double`. `p` is untouched when the type is not an FP one.

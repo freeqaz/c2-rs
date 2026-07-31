@@ -19,7 +19,7 @@ use crate::func::body::expr::{
 use crate::func::body::{blk, Block, BodyShape, SeqCall, SeqTail};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, read_token_var,
-    read_type, read_varint,
+    read_type, read_varint, TYPE_KIND_REAL_CLASS,
 };
 use crate::func::IlOp;
 
@@ -140,7 +140,7 @@ pub(crate) const MAX_VERIFIED_PERM_CYCLE: usize = 3;
 /// `args` is the argument list in **stream order** (reverse source order, so slot
 /// `i` is `args[len-1-i]`); `params` is the formals list with a member function's
 /// `this` at index 0; `off` is the segment offset a refusal reports.
-fn tail_call_shape(
+pub(crate) fn tail_call_shape(
     args: Vec<Vec<IlOp>>,
     params: Vec<u32>,
     callee_tok: u32,
@@ -257,7 +257,64 @@ fn tail_call_shape(
 /// particular the `call-conv` gate is here and nowhere else — a varargs callee
 /// must place an FP argument in a GPR pair as well as in the FP file, and a
 /// recognizer that re-read the head without that byte would emit half of it.
-pub(crate) fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
+pub(crate) fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<(u32, CallRet), Block> {
+    let callee_tok = eat_callee_push(seg, p)?;
+    let ret = eat_call_token(seg, p)?;
+    Ok((callee_tok, ret))
+}
+
+/// What a CALL token's result TYPE is, to the one resolution any consumer needs:
+/// whether it is in the **real** class.
+///
+/// A call whose result is a `float`/`double` makes the whole translation unit
+/// carry the undefined external `_fltused` — **even when the result is discarded
+/// and no FP register is touched at all**. `float gf(); void f(){ gf(); }` is a
+/// bare `b ?gf@@YAMXZ` and its obj has one more symbol than the port emitted:
+/// `Port=Mismatch @ offset 12`, the COFF header's `NumberOfSymbols`. That was a
+/// **live wrong-bytes emit on mainline** (`docs/GAPS.md` §6 instance #14), found
+/// by W36's generated sweep on the axis "the callee's return type, crossed with
+/// discarded and returned", which no fixture had ever varied — every call in the
+/// corpus returned `void`, `int` or a pointer.
+///
+/// It is instance #11's field one producer further out: `touches_floating_point`
+/// enumerates the shapes whose *own body* does FP work, and a body that merely
+/// **calls** an FP-returning function does none and still needs the hook. The
+/// honest resolution here is a refusal, not a guess: `_fltused`'s placement is
+/// measured as "after the first FP-touching function's symbol group", and whether
+/// this new kind of FP-touching function participates in that ordering — and in
+/// the per-TU label-counter surcharge it also drives (`docs/LABEL_COUNTER.md`
+/// §1.1) — has not been captured. `call-ret-fp` is that refusal's census key, so
+/// what it costs is a number rather than an argument.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum CallRet {
+    /// A `float`/`double`/other class-5 result.
+    Real,
+    /// Anything else — `void`, an integer, a pointer, an aggregate.
+    Other,
+}
+
+impl CallRet {
+    /// Refuse a **discarded** real result. Called at every site where the call's
+    /// value is thrown away (`4C 4B`), which is exactly where nothing downstream
+    /// can notice the FP-ness — the value-consuming sites are gated by their own
+    /// `41` result annotation, and the FP tail call marks the function itself.
+    pub(crate) fn discarded(self, off: usize) -> Result<(), Block> {
+        match self {
+            CallRet::Real => Err(Block { ctx: "call-ret-fp", byte: None, off, aux: 0 }),
+            CallRet::Other => Ok(()),
+        }
+    }
+}
+
+/// The `26 <callee-tok>` half of [`eat_call_head`].
+///
+/// Split out — byte for byte, every refusal key unchanged — because the **member**
+/// call puts its receiver *between* the two halves:
+/// `26 <method> · B9 <recv> <TYPE> 99 <TYPE> 00 · BD …`. W36's
+/// [`super::mcall_tail`] therefore needs the halves separately, and a second copy
+/// of either is the drift `docs/GAPS.md` §6 instance #9 records — in particular
+/// the `call-conv` gate below, which lives in `eat_call_token` and nowhere else.
+pub(crate) fn eat_callee_push(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     // 26 <tok> function/result ref.
     if !eat_byte(seg, p, 0x26) {
         return Err(blk(seg, *p, "call-ref"));
@@ -268,6 +325,11 @@ pub(crate) fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     // symbol index (see `gl_symbol_index`).
     let (callee_tok, w) = read_token_var(seg, *p).ok_or(blk(seg, *p, "call-ref-tok"))?;
     *p += w;
+    Ok(callee_tok)
+}
+
+/// The `BD <ret TYPE> <conv> <varint fn-type-id>` half of [`eat_call_head`].
+pub(crate) fn eat_call_token(seg: &[u8], p: &mut usize) -> Result<CallRet, Block> {
     // The CALL token: `BD <TYPE ret> <flags> <varint fn-type-id>`. Nothing in it
     // is fixed but the `BD` — it is 8 to 13 bytes and self-delimiting field by
     // field, so it is decoded rather than matched.
@@ -297,8 +359,9 @@ pub(crate) fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
         }
         return Err(blk(seg, *p, "call-token"));
     }
-    let (_, _, _, ret_w) = read_type(seg, *p).ok_or(blk(seg, *p, "call-ret-type"))?;
+    let (_, ret_kind, _, ret_w) = read_type(seg, *p).ok_or(blk(seg, *p, "call-ret-type"))?;
     *p += ret_w;
+    let ret = if ret_kind & 0x0F == TYPE_KIND_REAL_CLASS { CallRet::Real } else { CallRet::Other };
     // Calling convention: 0x00 = cdecl/stdcall, 0x04 = fastcall, 0x40 = varargs.
     // Only cdecl is in class — the others need argument-passing the port does
     // not implement, and accepting them would mis-emit rather than refuse.
@@ -311,7 +374,7 @@ pub(crate) fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     // `26 <tok>` symbol push instead, so this field is decoded only to find the
     // token's end, then discarded.
     read_varint(seg, p).ok_or(blk(seg, *p, "call-fn-type-id"))?;
-    Ok(callee_tok)
+    Ok(ret)
 }
 
 /// Consume a call's **argument region** — `( expr 55 <TYPE> )* 4C` — and return
@@ -319,7 +382,7 @@ pub(crate) fn eat_call_head(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
 ///
 /// Split out of [`parse_call_shape`] byte for byte, for the same reason
 /// [`eat_call_head`] is. Every refusal key is unchanged.
-fn eat_call_args(seg: &[u8], p: &mut usize) -> Result<Vec<Vec<IlOp>>, Block> {
+pub(crate) fn eat_call_args(seg: &[u8], p: &mut usize) -> Result<Vec<Vec<IlOp>>, Block> {
     let mut args: Vec<Vec<IlOp>> = Vec::new();
     loop {
         if eat_byte(seg, p, 0x4C) {
@@ -352,7 +415,7 @@ fn eat_call_args(seg: &[u8], p: &mut usize) -> Result<Vec<Vec<IlOp>>, Block> {
 /// move, which [`crate`]'s consumer `c2_core::codegen::select_text` refuses. Kept
 /// in the parser so the census and the gate cannot disagree about it (the
 /// under-claiming direction of `docs/GAPS.md` §6).
-const MAX_REGISTER_FORMALS: usize = 8;
+pub(crate) const MAX_REGISTER_FORMALS: usize = 8;
 
 /// Parse a call shape (already positioned at the `26 <tok>` function ref): the
 /// bare terminal void call, an integer tail call `return g(<arg>)` (passthrough
@@ -367,7 +430,7 @@ pub(crate) fn parse_call_shape(
     lo: usize,
     bound_to: Option<u32>,
 ) -> Result<BodyShape, Block> {
-    let callee_tok = eat_call_head(seg, p)?;
+    let (callee_tok, ret) = eat_call_head(seg, p)?;
 
     // VOID terminal tail call: the `4C 4B` void call-end immediately follows the
     // CALL token (no argument setup, no consumed value), then only return
@@ -379,6 +442,9 @@ pub(crate) fn parse_call_shape(
     // therefore made on a **copy** of the cursor, so a body that really is the
     // single terminal call still takes this arm and still emits the bare `b g`.
     if eat(seg, p, &[0x4C, 0x4B]) {
+        // The result is thrown away — including, if it is a `float`/`double`, the
+        // `_fltused` the discarded FP result still obliges the TU to declare.
+        ret.discarded(*p)?;
         let mut q = *p;
         if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
             *p = q;
@@ -413,6 +479,7 @@ pub(crate) fn parse_call_shape(
     // calls exactly like the zero-argument form above — or the first statement of
     // a Class A sequence.
     if seg.get(*p) == Some(&0x4B) && bound_to.is_none() {
+        ret.discarded(*p)?;
         *p += 1;
         let mut q = *p;
         if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
@@ -727,9 +794,10 @@ fn parse_call_sequence(
         }
         // (3) Another call. Either a statement (`4B`, result discarded) or the
         // value the body returns.
-        let tok = eat_call_head(seg, p)?;
+        let (tok, ret) = eat_call_head(seg, p)?;
         let args = eat_call_args(seg, p)?;
         if eat_byte(seg, p, 0x4B) {
+            ret.discarded(*p)?;
             raw.push((tok, args));
             if raw.len() > MAX_SEQ_CALLS {
                 return Err(Block { ctx: "callseq-too-long", byte: None, off: *p, aux: 0 });

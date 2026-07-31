@@ -1160,14 +1160,16 @@ The rules that keep the numbers honest:
   and grouped them by production; and clearing one production can shrink several
   unrelated-looking buckets at once, so predicted movement should be stated
   per-production, never per-bucket.
-- **Eleven live wrong-bytes emits and two live panics, none of them found by the
-  fixture corpus.** Every one came from review or adversarial probing, and most
-  have the same shape: *two facts that happen to share one field until some
-  construct pulls them apart.* Two of them break that pattern in a way worth
-  naming separately — see #9–#10: *one rule, two implementations, and the corpus
-  only ever exercised the correct one*. #11 returns to the original shape, in the
-  obj shell rather than in an instruction, and **#12 is #11's own field one
-  consumer later** — the sharpest instance of #2 the project has produced.
+- **Twelve live wrong-bytes emits and two live panics, none of them found by the
+  fixture corpus.** Every one came from review, adversarial probing or a
+  *generated* sweep axis, and most have the same shape: *two facts that happen to
+  share one field until some construct pulls them apart.* Two of them break that
+  pattern in a way worth naming separately — see #9–#10: *one rule, two
+  implementations, and the corpus only ever exercised the correct one*. #11
+  returns to the original shape, in the obj shell rather than in an instruction;
+  **#12 is #11's own field one consumer later** — the sharpest instance of #2 the
+  project has produced — and **#14 is that same field one PRODUCER out**, which
+  makes `_fltused` the single most productive four bytes in this list.
     1. The `this` token was located by a bare first-`0x46` search. That byte is also
        the payload of the line marker for **source line 70**, so a member function
        there lost its `this` and every formal dropped a register.
@@ -1392,6 +1394,38 @@ The rules that keep the numbers honest:
        And **a gate that hides a wrong rule is a debt, not a fix** — the refusal
        that kept this latent was itself recorded as a handoff, so the wrong rule
        and the thing that would expose it were scheduled together.
+    14. **The fourteenth is #11's field one PRODUCER further out, and it had been
+       live on mainline for as long as the void tail call has existed.**
+       `float gf(); void f() { gf(); }` is a bare `b ?gf@@YAMXZ`. It touches no
+       floating-point register at all — the result is discarded — and its obj
+       still carries the undefined external `_fltused`. The port emitted one
+       symbol too few: **`Port=Mismatch @ offset 12`**, the COFF header's
+       `NumberOfSymbols`, exactly #11's failure at exactly #11's offset.
+       #11 split `is_float` into `touches_floating_point` and #12 fixed its
+       second *consumer*; this is its second **producer**. The predicate
+       enumerates the shapes whose own *body* does FP work — the float leaf, the
+       FP tail call, the FP store — and a body that merely **calls** an
+       FP-returning function does none of them and still needs the hook. So the
+       tell was in the same place as always and needed no compiling: a predicate
+       named "touches floating point" that is defined as a list of *shapes*
+       cannot be complete, because the property is about the whole translation
+       unit and the list is about this port's grammar.
+       Bounded by probe rather than guessed: `float`, `double` and `long double`
+       results mis-emit; `float*` does not; an FP *argument* does not (the FP
+       tail call marks the function itself); and merely declaring the callee
+       without calling it does not. Refused under `call-ret-fp` at the one
+       locator every call shape goes through — modeling it would mean claiming
+       that `_fltused`'s measured placement rule and the per-TU label-counter
+       surcharge extend to a new kind of FP-touching function, and neither has
+       been captured. Cost: **0 functions** on the workload.
+       **How it was found is the transferable part.** It came from a generated
+       sweep axis W36 added — *the callee's return type, crossed with discarded
+       and returned* — on that axis's first run. Nothing had ever varied it:
+       every call in the fixture corpus, in all 10,194 pre-existing sweep cases,
+       in four mode lanes and in the 878-TU scan returns `void`, `int` or a
+       pointer. A green scan of 2.4 million functions is green only on the IL it
+       saw, and the *return type of a callee* is a property no census bucket has
+       ever been keyed on, so nothing could have reported its absence.
   What the corpus had in each case was the *safe half of the pair*: member functions
   with load bodies but not straight-line ones, straight-line bodies in free functions
   but not members, `long long` at natural alignment but never packed, for #4 not one
@@ -1790,6 +1824,53 @@ The rules that keep the numbers honest:
   > byte — so the largest sub-population in a head row can be a shape the port
   > thinks it already has. The tell is available without compiling anything:
   > the row's blocking byte was `27`, and `27` appears in four *accepted* shapes.
+- **A row can be a whole PRODUCTION filed under an opcode, and the tell is that
+  the row has no `-whole` bit while its twin does.** `expr-op-0x99` was the
+  largest single key on the board — 280,283 functions, 11.4 % of everything
+  blocked, and 364,690 behind a cleared `expr-op-0x27`. It was not a missing
+  token. It is this document's own `expr-call-in-expr-recv-*` family under a
+  second name, reached by the one route that never calls `mcall::classify`: the
+  body dispatch tells a call from an assignment by asking whether a `BD` follows
+  the statement-head `26 <tok>`, and for a **member** call it does not — the
+  receiver sits between the method push and the CALL token — so `p->m();` went to
+  the assignment parser, which read the receiver as an ordinary LOAD and stopped
+  on the `99` bind under `parse_expr`'s generic fall-through. `x = p->m();`, one
+  byte different, kept its method push where `parse_expr` could see it and was
+  filed as a member call all along.
+  This is the unstable-*attribution* bullet above in its worst form so far, and
+  the difference is worth stating: a **sharded key** splits one construct across
+  names that still look like the construct, so summing them recovers it. This
+  split one construct across a call bucket and an **opcode** bucket, and no
+  amount of regrouping by name could have joined them. Two things follow.
+  **The diagnostic was available for free and nobody read it**: the D2 family
+  prints a whole-body-completeness bit and `expr-op-0x99` printed none, because
+  the opcode fall-through raises a bare `Block`. *A row with no `-whole` bit
+  sitting at the top of the ranking is not "unmeasured"; it is evidence that the
+  row is not reaching the classifier that would measure it.* And **the repair was
+  already in the tree, scoped to one case**: `reanchor_chain` had fixed exactly
+  this mis-anchoring for *chained* receivers (a measured 4.4× undercount) and
+  stopped there. Generalizing it — same walk, same three conditions, no second
+  tokenizer — de-conflated the row 1:1 with the census unchanged, and the rung it
+  then made visible was **+20,912** (W36, `docs/rungs/2026-07-31-member-call.md`).
+  "Fixed in the one shape where the bug had been found" is instance #2's shape,
+  and this is its census-instrument form.
+- **Before borrowing a rate from a sibling bucket, check that the two agree on
+  the axis that decides the rate.** W36's estimate was LOW by 2.99× and the whole
+  error is one line of reasoning. It took the `-whole` rate of the sibling
+  `expr-call-in-expr-*` family on `calls-1` bodies (3,849 / 59,346 = 6.5 %) and
+  applied it to the row's own 114,059 `calls-1` functions. But the sibling family
+  is the same production in a *value* position, and `recv-load*` there is 25,308
+  functions with **two** `calls-1` in the whole of it — a member call in an
+  assignment RHS is nearly always in a body that makes more than one call, while
+  a member call that IS the statement is nearly always the only one. The
+  statement-position rate is 30 %, not 6.5 %. The asymmetry was in the scan
+  before the estimate was written and was read as context rather than as the
+  reason the rate could not transfer. Two other anchors were written down at the
+  same time: the 67× row-to-counterfactual prior (which the estimate explicitly
+  discounted, correctly — the realized ratio is 13.4×) and plain source-language
+  reasoning (28,500, the closest of the three, off by 1.36×). **When the anchors
+  disagree by 7×, the one to trust is the one whose population you can show is
+  the same population.**
 - **"One fact, one locator" has a coverage-costing form, and it is easier to miss
   than the wrong-bytes form.** The `27`/`28` byte-offset-add run is walked by the
   address leaf, the store leaf and the load leaf. The first folds an arbitrary

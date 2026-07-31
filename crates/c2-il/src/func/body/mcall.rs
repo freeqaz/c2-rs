@@ -750,7 +750,10 @@ pub(crate) fn classify(seg: &[u8], at: usize) -> Block {
 /// Condition 3 is measured by iterating [`walk_detail`] itself rather than by a
 /// second tokenizer, so the count and the classification cannot drift apart.
 pub(crate) fn reanchor_chain(seg: &[u8], stmt_head: usize, probe: usize, b: Block) -> Block {
-    if b.ctx != CALL_IN_EXPR || b.off != probe {
+    if b.ctx != CALL_IN_EXPR {
+        return reanchor_stmt_member_call(seg, stmt_head, probe, b);
+    }
+    if b.off != probe {
         return b;
     }
     // (2) the probe-anchored form is whatever `parse_expr` recorded.
@@ -768,6 +771,84 @@ pub(crate) fn reanchor_chain(seg: &[u8], stmt_head: usize, probe: usize, b: Bloc
     }
     let (disc, payload) = CallForm::Chained.code();
     Block { off: stmt_head, aux: disc | (payload << FORM_BITS), ..b }
+}
+
+/// **W36 — the statement-position member call**, and the other half of the same
+/// mis-anchoring [`reanchor_chain`] repairs.
+///
+/// `x = p->M();` keeps its method push where `parse_expr` can see it, so it reaches
+/// [`classify`] and files under this module. **`p->M();` does not.** The body
+/// dispatch consumes its `26 <method>` as an assignment *destination* (the byte
+/// after the token is the receiver's `B9`, not a `BD`), the assignment parser hands
+/// the rest to `parse_expr`, and `parse_expr` takes the receiver as an ordinary
+/// LOAD and stops dead on the `99` bind under the generic `expr` fall-through. The
+/// whole production is then filed as an **opcode**, `expr-op-0x99` — 280,283
+/// functions, 11.4 % of everything blocked and the largest single key on the board.
+///
+/// So `expr-op-0x99` was never a missing token: it is this module's own
+/// `recv-*` family under a second name, reached by the one route that does not call
+/// [`classify`]. That is `GAPS.md` §6's unstable-*attribution* hazard in its purest
+/// form so far — the same construct filed under a call bucket or an opcode bucket
+/// depending only on whether the statement had a destination — and it is a
+/// **coverage-costing** instance: the row carried no `-whole` bit at all, so no
+/// ranking taken from it could see what was complete behind it.
+///
+/// Three conditions, and the second is what makes this a measurement rather than a
+/// guess about an ambiguous head token:
+///
+/// 1. The refusal is not this module's (a refusal that *is* goes to
+///    [`reanchor_chain`]'s original arm) and it lands strictly past the consumed
+///    destination token, **on a `99`**.
+/// 2. The forward walk from `stmt_head` — the same [`walk_detail`] every other
+///    reading in this module uses, never a second tokenizer — stops at **exactly
+///    that byte**. Nothing else can produce that coincidence: the walk stops on a
+///    depth-0 `99` and `parse_expr` stopped on a depth-0 `99`, so both readings
+///    agree the head run and the receiver are one member-call production.
+/// 3. The bind count corroborates the method run, exactly as the original arm
+///    requires it to — one depth-0 `99` per stacked method.
+///
+/// Acceptance is untouched: the `Err` stays an `Err` and only its census key moves.
+fn reanchor_stmt_member_call(seg: &[u8], stmt_head: usize, probe: usize, b: Block) -> Block {
+    // (1) past the destination token, and on the bind.
+    if b.off <= probe || seg.get(b.off) != Some(&0x99) {
+        return b;
+    }
+    let (form, methods, stop) = walk_detail(seg, stmt_head);
+    // (2) the two readings stopped on the same byte.
+    if stop != b.off {
+        return b;
+    }
+    // A walk that stops on a depth-0 `99` classifies through `Stop::Bind`, so the
+    // form is one of the receiver family. Requiring that positively rather than
+    // assuming it keeps a `CallForm::Eof` (a walk that gave up at this offset for
+    // an unrelated reason) from being promoted to a receiver form.
+    if !matches!(
+        form,
+        CallForm::RecvLoad
+            | CallForm::RecvDeref
+            | CallForm::RecvField
+            | CallForm::RecvFieldZero
+            | CallForm::RecvObject
+            | CallForm::RecvCall
+            | CallForm::RecvIntrinsic(_)
+            | CallForm::RecvOther
+            | CallForm::Chained
+    ) {
+        return b;
+    }
+    // (3) one bind per stacked method — `>= 1`, because a single-method head still
+    // has to have produced the bind the walk stopped on.
+    let want = methods.max(1);
+    if depth0_binds(seg, stmt_head, want) < want {
+        return b;
+    }
+    let (disc, payload) = form.code();
+    Block {
+        ctx: CALL_IN_EXPR,
+        byte: Some(0x26),
+        off: stmt_head,
+        aux: disc | (payload << FORM_BITS),
+    }
 }
 
 /// How many depth-0 `99 <TYPE> 00` member binds the statement at `start` contains,
