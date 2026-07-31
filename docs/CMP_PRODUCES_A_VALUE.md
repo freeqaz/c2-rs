@@ -233,6 +233,27 @@ Without it the row carries no `-whole` bit and cannot be ranked at all; with it,
 the row splits into the table at the top of this document. That split is the
 only reason this measurement could be made.
 
+## Gate evidence
+
+Corpus `dc3-decomp` at `05ca6d09` (dirty, as recorded in every provenance line).
+The tree that carries this document differs from the baseline by **one constant
+and its test** — the operator grant — so every lane is expected to reproduce the
+baseline exactly, and does.
+
+| lane | baseline (`c2c0c37`) | this tree |
+|---|---|---|
+| `cargo test --workspace --release` | 464 pass / 0 fail | **464 / 0** |
+| `c2rs bench` | 176 / 0 / 0 | **176 / 0 / 0** |
+| `scripts/mode_lane.sh` `/Ox` · `/O1` · `/O2` · `/Ox /Gy` | 83 · 81 · 81 · 81 match, 0 mismatch | **83 · 81 · 81 · 81, 0 mismatch** |
+| `scripts/expr_sweep.sh` | 11,636 cases, 0 mismatches | **11,636, 0 mismatches** |
+| `scripts/cross_sweep.sh` | 11,761 × 4, 0 mismatches | **11,761 × 4, 0 mismatches** |
+| 878-TU scan | 655,245 / 2,462,571 (26.61 %), mismatch 0, disagreement 0 | **655,245 / 2,462,571 (26.61 %), mismatch 0, disagreement 0** |
+| `--validate-cache 50 --replay-every 25` | — | **17 re-captured and agreed, 0 POISONED; replay 36 checked, 0 diverged** |
+
+**No fixture is added and none is expected**, because nothing here changes what
+the port accepts. `docs/rungs/` is for rungs; this is a measurement and it lives
+in `docs/` proper.
+
 ## Found and not taken
 
 Ranked, frame axis applied first because it is free.
