@@ -1338,6 +1338,25 @@ FAMILIES = [
            note="a derived ctor running a BASE ctor   PRED 16 if the base ctor"
                 " is an ordinary instance one level below the derived one"
                 " (4 + [5] + [7]) / 11 if it folds into the derived ctor"),
+
+    # === ROUND 26: law L' now has TWO terms that sit outside the d*E product
+    #     — §6.6's affine loop term and §6.12's scope-exit `d + 1` — and they
+    #     have never appeared in the SAME instance. Nothing measured so far
+    #     says they add; they were fitted on disjoint bodies. A DC3 constructor
+    #     that loops over its members is an ordinary sight, so this is the
+    #     cheapest large hole left in the law.
+    Family("dtor-loop", GS,
+           "struct DS { int v; DS(int a){ v = gs(a)+a; } ~DS(){ gs(v); } };\n"
+           "static int lds(int a){ DS d(a); int t=0;"
+           " for(int i=0;i<a;i++) t+=gs(i); return t+d.v; }",
+           "s=lds(s);",
+           "{int dv=gs(s)+s; int t=0; for(int i=0;i<s;i++) t+=gs(i);"
+           " s=t+dv; gs(dv);}",
+           always_lead=True,
+           note="a destructible object AND a for loop in ONE instance"
+                "   PRED 23 if the two non-E terms simply ADD"
+                " ([3 + 3 locals + for(1)=5 + S(1)=2] + 5 + 5); 21 if the"
+                " scope-exit term is not paid when a loop is present"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1552,6 +1571,8 @@ LAW_BOOK = {
     "d3-ctor-noloc": 28, "ctor-noloc": 10,
     # --- ROUND 25 ----------------------------------------------------------
     "ctor-base": 16,
+    # --- ROUND 26 ----------------------------------------------------------
+    "dtor-loop": 23,
 }
 
 # ---------------------------------------------------------------------------
