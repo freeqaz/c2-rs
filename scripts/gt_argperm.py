@@ -281,8 +281,140 @@ def run_saved(n, workdir):
     return rows
 
 
+# ---------------------------------------------------------------------------
+# --dest: the DESTINATION grid, past where CODEGEN_FP_ARGS.md §0 was measured.
+#
+# §0's rule — a non-FP scalar takes r(2+k) for its 1-based argument slot k, an
+# FP parameter consuming a slot without filling a register — is measured only
+# to FIVE arguments, and EIGHT is where the argument GPRs run out (r3..r10).
+# The port fails closed past 5 by arithmetic rather than by measurement, which
+# is the weaker guarantee and the exact shape this lane has caught wrong twice.
+#
+# The instrument is deliberately not the permutation machinery: each integer
+# argument is a DISTINCT CONSTANT, so c2 must materialise it with `li rD,imm`
+# and the destination register is read straight off the instruction with no
+# model in between. The FP arguments are the caller's own FP formals in the
+# same relative order, so they are already in f1,f2,... and emit nothing —
+# they are present only to consume slots.
+#
+#   sig "diiii" -> void g(double,int,int,int,int);
+#                  void f(double x1){ g(x1, 101, 102, 103, 104); }
+#
+# Anything the caller cannot put in a register has to go to the stack, so a
+# `stw rD,off(r1)` (and the `stwu` that makes room for it) is the homing
+# answer, read the same way.
+# ---------------------------------------------------------------------------
+def dest_src(sig):
+    """(source, {constant: slot}) for one signature over 'i' and 'd'/'f'."""
+    ctys = {"i": "int", "d": "double", "f": "float"}
+    decl = "void gd(%s);" % ",".join(ctys[c] for c in sig)
+    formals, args, want = [], [], {}
+    nfp = 0
+    for k, c in enumerate(sig, 1):
+        if c == "i":
+            args.append(str(100 + k))
+            want[100 + k] = k
+        else:
+            nfp += 1
+            formals.append("%s x%d" % (ctys[c], nfp))
+            args.append("x%d" % nfp)
+    src = "%s\nvoid f(%s){ gd(%s); }\n" % (
+        decl, ",".join(formals), ",".join(args))
+    return src, want
+
+
+def run_dest(sig, wd):
+    src, want = dest_src(sig)
+    o = compile_src(src, wd, tag="dest_" + sig)
+    if o is None:
+        return None
+    words, rels = body(o)
+    if words is None:
+        return None
+    got, stores, frame = {}, [], None
+    for w in words:
+        d = decode(w)
+        if d[0] == "stwu":
+            frame = d[3]
+        elif d[0] == "addi" and d[2] == 0 and d[3] in want:
+            got[want[d[3]]] = "r%d" % d[1]          # li rD, 100+k
+        elif d[0] == "stw" and d[2] == 1:
+            stores.append((d[1], d[3]))
+        elif d[0] in ("bl", "b"):
+            break
+    # A constant stored rather than left in a register is a homed argument: the
+    # `li` names a register and the `stw` sends it to the frame, so report the
+    # slot as the stack offset it actually reached. The pairing is by POSITION,
+    # not by register: with three or more homed slots c2 reuses one scratch for
+    # all of them (`li r8,109; stw r8,84(r1); li r8,106`), so a register->slot
+    # map silently attributes the store to whichever slot wrote that register
+    # last. Walking the stream in order and consuming the most recent `li` into
+    # the register being stored is the only reading that survives reuse.
+    order = []
+    for w in words:
+        d = decode(w)
+        if d[0] == "addi" and d[2] == 0 and d[3] in want:
+            order.append(("li", d[1], want[d[3]]))
+        elif d[0] == "stw" and d[2] == 1:
+            order.append(("stw", d[1], d[3]))
+        elif d[0] in ("bl", "b"):
+            break
+    live = {}
+    for ev in order:
+        if ev[0] == "li":
+            live[ev[1]] = ev[2]
+        elif ev[1] in live:
+            got[live[ev[1]]] = "r%d->%d(r1)" % (ev[1], ev[2])
+    return got, frame, words
+
+
+def dest_grid(sigs, wd):
+    print("sig            frame   slot->destination"
+          "   (li rD,100+k reads the destination directly)")
+    bad = 0
+    for sig in sigs:
+        r = run_dest(sig, wd)
+        if r is None:
+            print("  %-12s capture failed" % sig)
+            bad += 1
+            continue
+        got, frame, _ = r
+        cells = []
+        for k, c in enumerate(sig, 1):
+            if c != "i":
+                cells.append("%d:%s(f)" % (k, c))
+            else:
+                # §0's rule, stated as a prediction on every row so the grid
+                # falsifies it rather than illustrating it. Past r10 the rule
+                # has to stop, and the prediction is that the slot is HOMED —
+                # which register stages the store is not part of the claim, so
+                # any `...->off(r1)` satisfies it.
+                g = got.get(k, "MISSING")
+                if 2 + k <= 10:
+                    ok, pred = g == "r%d" % (2 + k), "r%d" % (2 + k)
+                else:
+                    ok, pred = "->" in g, "homed"
+                cells.append("%d:%s%s" % (k, g, "" if ok
+                                          else "[PRED %s]" % pred))
+        print("  %-12s %-7s %s"
+              % (sig, "-" if frame is None else "0x%x" % frame,
+                 "  ".join(cells)))
+    return bad
+
+
 def main(argv):
     wd = tempfile.mkdtemp(prefix="gtperm")
+    if "--dest" in argv:
+        i = argv.index("--dest")
+        rest = [a for a in argv[i + 1:] if not a.startswith("--")]
+        sigs = rest or (
+            ["i" * n for n in range(1, 11)]
+            + ["d" + "i" * n for n in range(1, 10)]
+            + ["i" * n + "d" for n in range(1, 10)]
+            + ["idididid", "iiiidiii", "ddiiiiii", "iiiiiidd",
+               "fiiiiiii", "fffffffi", "iiiiiiidi", "diiiiiiii",
+               "iiiiiiiid", "iiiiiiiii", "iiiiiiiiii"])
+        return 1 if dest_grid(sigs, wd) else 0
     ns = [2, 3, 4, 5]
     if "--n" in argv:
         ns = [int(x) for x in argv[argv.index("--n") + 1].split(",")]

@@ -302,12 +302,17 @@ recalled.
 
 # 6. The label cost of inlining (2026-07-31)
 
-`scripts/gt_label_inline.py`, **100 probe families**, `/O1 /GS- /c` and
-`/Ox /GS- /c`, every row's in-object control held. 89 of them carry a predicted
-charge that the script checks and can print `REFUTES` against; the other 11 are
-recorded as `NOT MODELLED` on purpose — `lp-two`, where the *inliner* gives up
-(§6.6), and the ten C++ shapes of §6.7 where the fitted law simply does not
-reach.
+`scripts/gt_label_inline.py`, **138 probe families**, `/O1 /GS- /c` and
+`/Ox /GS- /c`, every row's in-object control held. Each family carries a
+predicted charge that the script checks and can print `REFUTES` against; the
+handful recorded as `NOT MODELLED` are listed with their reasons in §6.11.
+
+> **Rounds 13–17 (§6.8–§6.11) extended the law to the C++ shapes and, in doing
+> so, retracted most of §6.7.** Of the ten shapes §6.7 recorded as beyond law
+> L′, **eight are now modelled and exact**; the `switch` was never non-uniform
+> in N; the constructor and destructor were never refutations at all, only law
+> L′ asked about a tree two instances deeper than the prediction assumed. Two
+> rows are now **live refutations** the script re-runs rather than remembers.
 
 **This section retracts §4's inlining row.** The retracted claim was "+3 / +8 /
 +13 for 1 / 2 / 3 sites, +5 per site after the first". The truth is **+3 per
@@ -392,8 +397,12 @@ where `E(I)` counts, **in that callee's body**:
 | …even if it generates no code | 1 | `loc1-dead` 4 |
 | …two names in one declaration | 2 | `hold-2in1decl` 5 |
 | an `if` | 1 each | `cf-if` 4, `cf-if2` 5 |
+| …and an explicit `else` on top of it | 1 each | `cf-else` 5 vs `cf-if` 4 (§6.9) |
+| a `switch`, by statement group | groups + 2 | `sw-arms2`…`sw-arms6` 7…11 (§6.8) |
 | a parameter the body **assigns to** | 1 each | `parammod` 4 |
 | an argument at that site that is not already a plain lvalue | 1 each | `arg-expr` 4, `arg-call` 4 (`arg-plain`, `arg-const` 3) |
+| the address of a **scalar automatic** handed to the callee | 1, once per callee | `ptr-param` 4 vs `ptr-global` 3 (§6.10) |
+| owning a local with a **non-trivial destructor** | 2, once per function | `dtor-only` 11, `dtor-3obj` 38 (§6.9) |
 
 plus **+1 flat, at any depth**, once per multi-exit callee whose result has to
 be materialised — i.e. unless it is `void`, or its result is assigned straight
@@ -414,6 +423,16 @@ ends up containing. `cf-tern`'s 7 is 5 of bookkeeping plus the 2 that a
 materialised signed relational costs — and the hand control measures that 2
 independently on the same row.
 
+> **Read `book`, not `marginal`, when you want the cost of inlining.** The run
+> now prints `bookkeeping = marginal(inlined) − marginal(hand)` on every family:
+> the inline record with P's own surcharge differenced out. On 72 of the
+> original 100 families the hand control is 0 and the two are the same number.
+> On the rest they are not, and confusing them is what made §6.7 report the
+> `switch` as "10 at N=1, 14 marginal, not even uniform in N" — see §6.8. The
+> `LAW_BOOK` dict grades the C++ shapes against `book`; the older `LAW` dict
+> grades everything fitted before round 13 against the marginal, which is what
+> those entries have always meant.
+
 ### What costs nothing
 
 | | measured |
@@ -424,6 +443,9 @@ independently on the same row.
 | the number of **distinct** callees | `distinct` **3/site** at 1…5 distinct callees, one site each |
 | whether the callee introduces a symbol new to P | `newsym` = `samesym` = **3** |
 | `static` vs `inline` vs a C++ **member function** | `framed` = `extern-inline` = `method` = **3** |
+| a **constructor** or **destructor**, as an instance | `ctor-direct`, `dtor-direct-only` **3** — ordinary instances, `E = 0` (§6.9) |
+| a struct passed **by value**, or by `const&` | `struct-param`, `struct-ref` **3** |
+| whether a `switch`'s case values are dense or sparse | `sw-dense` = `switch-body` **10** (§6.8) |
 | whether P is framed or a **leaf** | `leafP` **3** |
 | a call the front end did **not** inline | `noinline` **0/site** |
 | `/Gy` vs packed | §6.4 |
@@ -600,7 +622,7 @@ counter: it is 16 at N=1 and then the front end **refuses to keep inlining**, so
 its marginal slope is 0 and there is nothing to check a law against. That row
 measures the inliner's budget, not the label allocator.
 
-## 6.7 Where law L′ stops: the C++ shapes a real TU is made of
+## 6.7 Where law L′ was thought to stop (superseded by §6.8–§6.11)
 
 Law L′ was fitted entirely on `int` scalars. A DC3-shaped TU passes structs by
 value, returns them, takes references, and runs constructors, so those are all
@@ -631,35 +653,347 @@ lvalue and L′ already charges +1". Predicting *from* that story:
 
 Both inverted. Whatever the +1 is, it is not "the argument needed a temp"; the
 only thing that separates the 4s from the 3s in these five rows is that the 4s
-point **into a local of P** and the 3 points at a global. That is a third story
-and it has not been tested, so it is written here as an observation and not as a
-rule.
+point **into a local of P** and the 3 points at a global.
 
-`switch`, `ctor` and `dtor` are not near-misses at all — they are 3×, 2× and 4×
-the scalar prediction, and `switch-body` is not even uniform in N (10 at the
-first site, 14 marginal after). A `switch` that costs **+0** written out costs
-10 inlined.
+> **That third story was then tested too, and it is also wrong.** §6.10 settles
+> it: a `const int&` bound to a local **scalar** costs 4 and a `const SR&` bound
+> to a local **struct** costs 3 — same storage class, same constness, same
+> read-only use. It is not locality and it is not storage class. It is whether
+> the pointee had to acquire an address.
 
-> **This is the riskiest thing still unmeasured on this axis.** Law L′ is
-> exhaustively tested and, as far as it goes, exact — but "as far as it goes" is
-> `int` scalars, `if`s, locals and loops. Constructors and destructors are not a
-> corner of a C++ workload; they are most of one, and they are the shapes where
-> the fitted law is worst. `LAW` records all eight as `None` so the script prints
-> `law: NOT MODELLED` rather than a number a widening class gate could act on.
+### What §6.8–§6.11 retract from the table above
 
-## 6.8 Reproduction
+Everything in the table is a correctly measured number; what was wrong was the
+disposition — three separate ways of asking law L′ the wrong question.
+
+| row | §6.7's reading | what it actually is |
+|---|---|---|
+| `switch-body` | "10 at N=1, 14 marginal — not even uniform in N" | **uniform at 10.** `dhand` is +10/site flat to N=5; the 4 is what a *second written-out* switch costs P, on the same row, with nothing inlined (§6.8) |
+| `ctor` = 9 | "2× the prediction" | **law L′ exactly**, on the depth-**2** tree the front end builds. A constructor is itself an inlined function; the prediction of 4 counted only the wrapper (§6.9) |
+| `dtor` = 16 | "4× the prediction" | **law L′ plus one new rule** — the function that *owns* a destructible local pays E += 2, once (§6.9) |
+| `ref-param` / `ptr-param` = 4 | "points into a local of P" | a scalar automatic that had to acquire an address (§6.10) |
+
+And §4's "a `switch` written out costs **+0**" is itself incomplete: the *first*
+written-out switch costs 0 and every one after it costs `groups − 1` (§6.8).
+
+`struct-ret` and `ctor-noloc` are the two shapes still `NOT MODELLED`; see
+§6.11, which also carries the two live refutations.
+
+## 6.8 The `switch` is an ordinary E feature, and it was never non-uniform
+
+§6.7 recorded `switch-body` at "10 at N=1, 14 marginal". Both numbers are right
+and the reading was wrong. The same run's **hand control** — the identical
+switch written out at the call site with no callee in the TU — charges 0 at
+N=1 and then **4 per site**, and `dhand` (inlined minus hand, same N) is:
+
+```
+N        1     2     3     4     5
+dhand  +10   +20   +30   +40   +50
+```
+
+Dead linear at **10 per site to N=5**, every row `TEXT-IDENTICAL`. The 4 is
+what a *second* written-out `switch` costs P under §1.1 — P's own code, nothing
+to do with inlining. The instrument now prints that subtraction as
+`bookkeeping` on every family so the mistake cannot be repeated silently.
+
+**The arm ladder, all four hold-outs exact.** Predicted before capture, from
+"one E unit per case arm plus one for the construct plus the multi-exit temp",
+against a slope-2 rival:
+
+| probe | arms | predicted | measured |
+|---|---:|---:|---:|
+| `sw-arms2` | 2 | 7 (rival 4) | **7** ✓ |
+| `sw-arms3` | 3 | 8 (rival 6) | **8** ✓ |
+| `sw-arms4` | 4 | 9 (rival 8) | **9** ✓ |
+| `switch-body` | 5 | — (fitted) | **10** |
+| `sw-arms6` | 6 | 11 (rival 12) | **11** ✓ |
+
+So at depth 1 the charge is `3 + E` with
+
+```
+    E(switch) = (number of statement groups) + 2
+```
+
+and the switch **scales with depth like every other E feature** — it is *not* an
+affine term of its own the way a loop is (§6.6). Both depth-2 rows are exact:
+
+| probe | law | measured |
+|---|---:|---:|
+| `d2-sw2` — 2 arms at depth 2, `3 + [5 + 2·4] + 1` | 17 | **17** ✓ |
+| `d2-switch` — 5 arms at depth 2, `3 + [5 + 2·7] + 1` | 21 → **23** | **23** |
+
+`d2-switch` is the one row whose *first* prediction missed (21 against 23) and
+it missed for an instructive reason: the 21 was written assuming the +1 in
+`E = groups + 2` was the multi-exit result temp. It is not — the temp is a
+*separate* flat +1 that applies to a switch exactly as L′ already says it
+applies to an `if`, and the hold-out that proves it is `sw-ctx-expr` (the same
+five arms with the result used in an expression rather than assigned straight
+to a variable): predicted **11**, measured **11**.
+
+**What the +2 is, and what it is not.** Four probes, all predicted first:
+
+| probe | question | predicted | measured |
+|---|---|---:|---:|
+| `sw-nodefault` | 3 arms, **no** `default` | 9 | **9** ✓ |
+| `sw-withdefault` | the same body **plus** a written `default` | 10 | **10** ✓ |
+| `sw-fall` | 5 case **labels** sharing 4 statement groups | 10 labels / 9 groups | **9** ✗ (labels) |
+| `sw-dense` | 5 arms, **contiguous** case values | 10 | **10** ✓ |
+
+So a `default` is counted only when it is **written** — there is no implicit
+default arm in the charge — and what is counted is **statement groups, not case
+labels**: `case 1: case 2: return x;` is one group and costs one. The +2 is
+therefore not a hidden default; it is the construct itself, twice over, and it
+survives with no default present. Dense and sparse case values cost the same,
+so the jump table does not enter the counter.
+
+`sw-void` (the same five arms, `void` callee) is **10**, equal to the
+int-returning row, which is L′'s own multi-exit rule doing its job: a result
+assigned straight to a variable at depth 1 is exempt, and so is `void`.
+`sw-1exit` (five arms funnelled through one local and one `return`) is **11** =
+10 + 1 for the local, confirming that ordinary E features stack on top of the
+switch term normally.
+
+> **The practical form.** A five-arm `switch` — a small one by real-workload
+> standards — costs **10 label slots per inlined site at depth 1 and 23 at
+> depth 2**, while the identical control flow written out costs 0 the first
+> time. `PortC2` decides label numbers by looking at the instructions it is
+> about to emit, so this is the single largest number in this document that
+> such an emitter gets wrong, and switches are not rare in a DC3 TU.
+
+## 6.9 Constructors and destructors: the tree was two instances deeper
+
+§6.7 graded `ctor` at 9 against a prediction of 4 and called it a 2× miss. It is
+not a miss. **A constructor is itself an inlined function**, so
+`static int lct(int a){ CT c(a); return c.v; }` is a **depth-2** expansion, and
+law L′ on the tree the front end actually builds reads
+
+```
+    lct     depth 1, E = 1 (the declared local `c`)   ->  3 + 1*1 = 4
+    CT::CT  depth 2, E = 0                            ->  2*2 + 1 = 5
+                                                          ---------
+                                                                  9
+```
+
+which is what was measured. The prediction of 4 was law L′ asked about a
+depth-1 tree. **This is the §6.4 failure mode with the sign reversed**: there
+the front end declined an inline and the law was asked about a *shallower*
+tree; here it silently took one more and the law was asked about a *deeper*
+one. Neither is visible in the stride, the residual or the linearity. The
+`EMIT:` column carries it — `??0CT@@QAA@H@Z` appears as its own COMDAT beside
+the wrapper, exactly as §6.5 says an inlined callee does.
+
+The probe that settles it structurally rather than arithmetically is
+`ctor-direct`, where **P** constructs the object so the constructor sits at
+depth 1 and the depth term is read directly: predicted **3**, measured **3** —
+an ordinary inline instance with `E = 0`, indistinguishable from a free
+function. Four more, all predicted first:
+
+| probe | law | measured |
+|---|---:|---:|
+| `ctor-loc` — the ctor **body** declares a local, `4 + [5 + 2·1]` | 11 | **11** ✓ |
+| `ctor-init` — a member-initializer list instead of an assignment | 9 | **9** ✓ |
+| `ctor-2mem` — the ctor assigns **two** members | 9 | **9** ✓ |
+| `ctor-if` — the ctor body has an `if`/`else` | 11 | **13** ✗ |
+
+`ctor-if` overshot by exactly 2 = 2 × (depth 2), i.e. one extra E unit, and the
+only difference from `cf-if` is an explicit `else`. Tested at depth 1, where
+the scaling cannot hide it:
+
+| probe | body | law | measured |
+|---|---|---:|---:|
+| `cf-if` | `if (a>0) return gs(a); return a+1;` | 4 | **4** |
+| `cf-else` | the same code **with `else`** | 5 if `else` counts | **5** ✓ |
+| `cf-else-assign` | `int r; if…else…; return r;` | 6 | **6** ✓ |
+
+> **An explicit `else` is its own `E` unit.** This is a new row in §6.2's
+> feature table and it is not a corner case — a capture set built only from
+> `if`-plus-fallthrough merges it, gets every row right, and is wrong by `d`
+> the first time an `if/else` appears. It is the fourth instance of that
+> pattern this document records (the FP leaf stride, §4's `do/while`, §6.6's
+> `while` vs `do/while`, and now this).
+
+### The destructor, and the one genuinely new rule
+
+`dtor` = 16 against L′'s 14 for the three-instance tree. The tempting fix is to
+give the destructor `E = 1`. **`dtor-direct` refutes it**: P declaring the
+object itself costs **6** = 3 (ctor at depth 1) + 3 (dtor at depth 1), so a
+destructor is an ordinary instance with `E = 0`, exactly like a constructor.
+`dtor-direct-only` (a dtor-only class, no user ctor) is **3**, confirming it.
+
+The 2 is not in the destructor. It is charged to the function that **owns** the
+destructible object:
+
+```
+    a function that owns any local with a non-trivial destructor
+    pays  E += 2,  ONCE — not per object.
+```
+
+P pays nothing because P is not an inline instance. That single rule fits every
+measured row, and three of them were held out from it:
+
+| probe | decomposition | law | measured |
+|---|---|---:|---:|
+| `dtor` | `[3+1+2] + 5 + 5` | 16 | **16** |
+| `dtor-only` (no user ctor) | `[3+1+2] + 5` | 11 | **11** ✓ |
+| `dtor-2obj` | `[3+2+2] + 2·5 + 2·5` | 27 | **27** ✓ |
+| `dtor-3obj` — **hold-out** | `[3+3+2] + 3·5 + 3·5` | **38** (42 if per-object) | **38** ✓ |
+| `dtor-body-loc` — **hold-out** | `16 + 2·1` | **18** | **18** ✓ |
+| `dtor-empty` — **hold-out** | an empty `~DE(){}` is still a full instance | **16** | **16** ✓ |
+
+`dtor-3obj` is the one that matters: per-object would give 42 and it is 38, so
+the +2 is a **once-per-function scope-exit record**, not a per-object one.
+`dtor-empty` is the §6.1 restatement — a destructor whose body is empty still
+costs the full 5, because the charge is bookkeeping about the expansion and not
+about the code.
+
+## 6.10 The pointer/reference +1 is addressability, not storage and not locality
+
+§6.7 offered three stories for why `ref-param` and `ptr-param` cost 4 where L′
+says 3. The first two were turned into predictions and both inverted; the third
+("it points into a local of P") was left as an observation. **It is wrong too.**
+The row that kills it was already in §6.7's own table and went unread:
+`struct-ref` binds a `const SR&` to a **local struct** of P and costs **3**,
+while `ref-const-read` binds a `const int&` to a **local scalar** of P and costs
+**4** — same storage class, same constness, same read-only use.
+
+The rule that fits all twelve rows:
+
+```
+    +1, ONCE per callee, for a callee handed the address of a
+    SCALAR AUTOMATIC variable — the one thing that has to leave a
+    register in order to have an address at all.
+```
+
+| pointee | probe | law | measured |
+|---|---|---:|---:|
+| a scalar local of P | `ref-param`, `ptr-param`, `ref-const-read` | 4 | **4** |
+| …reached through a pointer **variable** | `ptr-already` | 4 | **4** |
+| …**two** such parameters | `ptr-2args` | 4 once / 5 per-arg | **4** ✓ |
+| …one such plus one global | `ptr-mixed` | 4 | **4** ✓ |
+| a global | `ptr-global`, `ref-global` | 3 | **3** ✓ |
+| a **function-static** | `ptr-static-local` | 3 storage / 4 locality | **3** ✓ |
+| two globals | `ptr-2global` | 3 | **3** ✓ |
+| an element of a **local array** | `ptr-arrelem` | 3 addressability / 4 storage | **3** ✓ |
+| a **member of a local struct** | `ref-member` | 3 / 4 | **3** ✓ |
+| a whole local struct by `const&` | `struct-ref` | 3 | **3** |
+
+Three things fall out that a "storage class" reading gets wrong. A
+**function-static** is lexically inside P and costs 3, so it is not locality. A
+**local array element** and a **local struct member** are automatic and cost 3,
+so it is not storage class either. And `ref-const-read` costs 4 while never
+writing through the reference, so it is not the write. What is left is the one
+property the 4s share and the 3s do not: the pointee was a scalar living in a
+register and now needs a stack slot.
+
+The charge is **once per callee**, not per argument (`ptr-2args` = 4, and
+`ptr-mixed` = 4 with only one of its two arguments qualifying).
+
+## 6.11 What is still `NOT MODELLED`, and the two live refutations
+
+**Two rows are refutations of the law as extended above.** They are recorded in
+`LAW_BOOK` as the *law's* prediction, not as the measurement, so every run
+prints `*** REFUTES LAW L' ***` against them and a future fix has to face them
+rather than inherit a fitted constant:
+
+| probe | law says | measured | |
+|---|---:|---:|---|
+| `d2-dtor` — the destructible object one level deeper | 28 | **27** | off by 1 |
+| `d2-ptr-auto` — the scalar-address +1 at depth 2 | 11 | **9** | the +1 does not fire at all |
+
+Both are the same shape of failure, and it is the shape this lane keeps finding:
+**a rule fitted where it was cheap to measure and then extended past its capture
+set.** The scope-exit +2 is exact on eight rows whose owner is at depth 1 and
+misses by one when the owner is at depth 2. The scalar-address +1 is exact on
+ten rows at depth 1 and is simply absent at depth 2. Nothing about depth ≥ 2 for
+either rule should be believed until it is measured — which is why they print.
+
+Left `NOT MODELLED` on purpose, because a number here is worse than a blank:
+
+* **`struct-ret`** (a callee returning a 2-int struct by value) — 5 against L′'s
+  4. `E = 2` fits the single row if the hidden return slot counts alongside the
+  declared local, but that is one row and one free parameter, so it is not
+  written down as a rule.
+* **`ctor-noloc`** (`return CN(a).v;`, an unnamed temporary) — 10, where both
+  pre-registered readings (8 for "no local", 9 for "the temporary is a local")
+  missed. Two different decompositions reach 10 and nothing distinguishes them.
+* **`lp-two`** — §6.6; the inliner's budget, not the counter.
+* the `while` / `do-while` loop ladders at **`/Ox`** — §6.4; unobservable there,
+  not different there.
+
+### `/Ox` says the same thing, and the inliner's budget runs the other way
+
+Re-run at `/Ox /GS- /c`: **every charge in §6.8–§6.10 is the same integer**, both
+refutations included, so all of it is a two-mode result and not a `/O1`
+artefact. The whole run is `controls failed: 0   families refuting LAW L': 2` in
+both modes, on 138 families.
+
+One asymmetry with §6.4 is worth carrying. §6.4 records `/Ox` as the mode that
+*declines* inlines `/O1` accepts (the `while`/`do` loop bodies). On the C++
+shapes it is the reverse: at `/O1` the front end abandons `sw-arms6`,
+`dtor-2obj` and `dtor-3obj` at high site counts while `/Ox` inlines all six
+sites and confirms 11 / 27 / 38. The `INLINE-DECLINED?` check caught all three
+from P's `.text` growth and the verdict downgraded itself to *"a different
+expansion tree"* rather than reporting three refutations — which is the check
+earning its keep on shapes it was not written for. **The budget is not a
+property of the optimisation level in one direction; it has to be checked per
+shape, per mode, on every row.**
+
+> **The riskiest thing still unmeasured on this axis** is no longer the C++
+> shapes themselves — it is **depth**. Everything new in §6.8–§6.10 is exact at
+> depth 1 and thin above it: the switch has two depth-2 rows and no depth-3 row
+> at all, the scope-exit rule has one depth-2 row and it *misses*, and the
+> scalar-address rule has one depth-2 row and it *misses*. Real workload TUs
+> inline several levels deep — §6.3's `nest6` reaches six — and a ctor calling a
+> ctor calling an accessor is an ordinary sight in DC3, not an exotic one. The
+> inliner also refuses these shapes earlier than it refuses `int` scalars
+> (`d2-switch` is declined outright at three sites), so the depth ladder has to
+> be built with the `INLINE-DECLINED?` check live on every row or it will
+> measure a shallower tree and stay perfectly linear while doing it.
+
+### A second reading of §6.6's loop terms, from the same run
+
+The `bookkeeping` column also splits §6.6's three affine loop terms, at no extra
+capture cost, into an inline part and a part that is P's own §1.1 surcharge for
+containing a loop at all (which §4 measures independently at `for` +2 / `/O1`):
+
+| form | §6.6's measured total | inline record | P's own |
+|---|---|---|---|
+| `for` | `3d + 2` | `3d` (3, 6, 9) | +2 |
+| `while` | `d + 3` | `d + 1` (2, 3, 4) | +2 |
+| `do`/`while` | `2d + 2` | `2d + 1` (3, 5, 7) | +1 |
+
+Exact on all nine measured depth-1/2/3 rows. It is a tidier statement — the
+`for` term loses its intercept entirely — but it is a **re-reading of existing
+captures, not a new measurement**, and `lp-inf` (`for(;;)` with a `break`)
+splits 2/3 rather than 3/2, so the decomposition is *not* established as
+general across loop spellings. §6.6's table stays as the measured total.
+
+## 6.12 Reproduction
 
 ```sh
 export C2RS_WIBO=<the repo's resolved wibo>          # NOT ../wibo/build/wibo
-scripts/gt_label_inline.py                            # /O1, all 100 families
+scripts/gt_label_inline.py                            # /O1, all 138 families
 scripts/gt_label_inline.py --mode '/Ox /GS- /c'       # packed
 scripts/gt_label_inline.py --max 6 framed leaf        # the retraction, in 6 s
 scripts/gt_label_inline.py nest1 nest2 nest3 nest4 nest5 nest6   # the depth law
 scripts/gt_label_inline.py lp-for d2-lp-for d3-lp-for            # the loop ladder
-scripts/gt_label_inline.py ctor dtor switch-body                 # where it stops
+scripts/gt_label_inline.py --max 3 sw-arms2 sw-arms3 sw-arms4 \
+    switch-body sw-arms6                              # §6.8, the arm ladder
+scripts/gt_label_inline.py --max 2 d2-sw2 d2-switch   # …at depth 2
+scripts/gt_label_inline.py --max 3 ctor ctor-direct dtor dtor-direct \
+    dtor-3obj                                         # §6.9, the ctor/dtor tree
+scripts/gt_label_inline.py --max 3 ref-const-read struct-ref ptr-arrelem \
+    ptr-static-local                                  # §6.10, addressability
+scripts/gt_label_inline.py --max 3 d2-dtor d2-ptr-auto  # the two refutations
 scripts/gt_label_inline.py --list
 ```
 
+`--max 2` on the depth-2 switch rows is not tuning: the front end abandons
+inlining that shape at three sites, the run tags the row `INLINE-DECLINED?`
+from P's own `.text` growth, and the charge stops growing. Reading a marginal
+across that row measures the inliner, not the counter.
+
 The last line of a run is
-`controls failed: 0   families refuting LAW L': 0`. The second number is the one
-to read: it is the law's own falsifier, computed rather than remembered.
+`controls failed: 0   families refuting LAW L': 2`. The second number is the one
+to read: it is the law's own falsifier, computed rather than remembered, and the
+2 is §6.11's two depth-2 rows — deliberately left in, not a run to be fixed.
