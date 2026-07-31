@@ -3,7 +3,7 @@
 
 Two modes, matching the two pieces of evidence `BARE_BINARY_OPS` demands
 (`crates/c2-il/src/func/body/mcall.rs`), and the write-up in
-`docs/rungs/2026-07-31-relational-bare.md`.
+`docs/OPERATOR_GRANTS.md`.
 
   --il DIR      **Is the token bare?** Read a `c2rs census ... --keep-il`
                 bundle and print, for every relational opcode found, the byte

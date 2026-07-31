@@ -1,13 +1,12 @@
-# WREL — the relational family is bare, and it is the first operator worth ranking
+# Operator grants — the relational family is bare, and it is the first operator worth ranking
 
-    Tag:       WREL
-    Slug:      relational-bare
-    Date:      2026-07-31
-    Fixtures:
-    Probe:     scripts/gt_relational_redist.py --emit-probe (no tracked fixture:
-               this rung admits nothing, so it must not enter `c2rs bench`)
-    Census:    639,387 unchanged — this is an INSTRUMENT rung, not a widening one
-    Record:    this document
+Measured 2026-07-31. **Not a rung** — it ships no acceptance change and lands no
+fixture, so it does not belong under `docs/rungs/` (the registry test caught
+that, correctly). It replaces an *inference* with a capture, and re-ranks a row
+that the inference had made unrankable.
+
+Probe: `scripts/gt_relational_redist.py --emit-probe`. Census numerator
+unchanged; the whole-body completeness figure below is the ranking result.
 
 This rung ships **no acceptance change**. It replaces an *inference* with a
 *capture*, and the inference turns out to have been wrong.

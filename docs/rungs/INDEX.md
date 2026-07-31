@@ -22,7 +22,6 @@ the header block this table is read from.
 | 2026-07-31 | W41 | [framed-member-call](2026-07-31-framed-member-call.md) | 2 | 651,247 → 655,245 (26.45 % → 26.61 %), +3,998  [on the merged tree; branch measured 639,387 → 643,385 against its own pre-WSL baseline, same +3,998] |
 | 2026-07-31 | W36 | [member-call](2026-07-31-member-call.md) | 2 | 581,791 → 602,703 (23.63 % → 24.47 %), +20,912 |
 | 2026-07-31 | W35 | [offset-run](2026-07-31-offset-run.md) | 2 | 575,284 → 581,791 (23.36 % → 23.63 %), +6,507  [on the merged tree] |
-| 2026-07-31 | WREL | [relational-bare](2026-07-31-relational-bare.md) | 0 | 639,387 unchanged — this is an INSTRUMENT rung, not a widening one |
 | 2026-07-31 | WSL | [store-load](2026-07-31-store-load.md) | 2 | 639,387 → 651,247 (25.96 % → 26.45 %), +11,860 |
 | 2026-07-31 | W38 | [store-run](2026-07-31-store-run.md) | 2 | 602,703 → 639,387 (24.47 % → 25.96 %), +36,684 |
 | 2026-07-31 | W32 | [volatile-formal](2026-07-31-volatile-formal.md) | 2 | 549,148 unchanged — the refusal costs exactly 0 (measured) |
