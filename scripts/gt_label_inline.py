@@ -1531,7 +1531,7 @@ LAW_BOOK = {
     # worse than the blank they currently have.
     "d2-ctor-noloc": 18, "d2-struct-ret": 13, "struct-ret": 5,
     # --- ROUND 24: the first cell with a residual for ctor-noloc ------------
-    "d3-ctor-noloc": 28,
+    "d3-ctor-noloc": 28, "ctor-noloc": 10,
 }
 
 # ---------------------------------------------------------------------------
