@@ -426,7 +426,23 @@ scripts/gate.sh        the one command that runs it. --list / --check /
 scripts/mode_lane.sh   still runs ONE lane, unchanged in interface. It now
                        prints a machine-readable `LANE-RESULT` line, which is
                        its whole contract with the gate.
+
+crates/c2-harness/tests/lane_registry.rs
+                       what makes the registry BINDING. Portable, no toolchain.
+                       Asserts a positive lane count, that /EHsc is crossed over
+                       every base configuration, that some lane actually varies
+                       /Oi, that /O1 and /O2 are separate lanes, and that
+                       `/O1 /EHsc` is present by name.
 ```
+
+For its first day the only thing asserting that the shipped registry still
+carried an `/EH` lane was a case inside `gate.sh --selftest` — a shell script run
+by hand, guarding the property the registry exists for. That is a registry which
+is data but not *checked* data, and a "tidy up the lane list" commit would have
+passed `cargo test`. The `--selftest` case is kept as a strictly weaker subset
+(at least 2 lanes, at least 1 `/EH`) so the gate stays self-contained without
+cargo, and is labelled in-file as a subset rather than a second definition of the
+rule.
 
 The gate's promise is stated as a **positive**: *every lane in the registry
 produced a result, and the gate says how many.* Not "no lane failed" — the

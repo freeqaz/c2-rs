@@ -466,8 +466,16 @@ if [ "$mode" = selftest ]; then
     fi
 
     # And the registry actually shipped must parse, and must carry an /EH lane —
-    # the specific hole this whole registry was built to close. If somebody
-    # deletes those rows, this is what notices.
+    # the specific hole this whole registry was built to close.
+    #
+    # This is a deliberately WEAKER SUBSET of `crates/c2-harness/tests/
+    # lane_registry.rs`, which is the binding assertion and is what `cargo test`
+    # runs: that test additionally requires the /EHsc axis to be crossed over
+    # EVERY base configuration, requires a lane that actually varies `/Oi`, and
+    # requires the full lane count. This case is kept only so `--selftest` remains
+    # self-contained on a machine with no cargo. It is a smoke check, not a second
+    # definition of the rule — it cannot pass anything the test rejects, so the
+    # two cannot drift in the direction that matters.
     cases=$((cases + 1))
     _n_real=$(wc -l < "$work/registry.tsv")
     _n_eh=$(cut -f2 "$work/registry.tsv" | grep -c -- '/EH' || true)

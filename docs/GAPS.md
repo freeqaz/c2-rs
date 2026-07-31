@@ -1049,6 +1049,15 @@ cargo test --workspace --release
 cargo run --release -p c2-harness --bin c2rs -- diff
 cargo run --release -p c2-harness --bin c2rs -- perf
 
+# 1a. THE MODE-LANE GATE — every lane in scripts/lanes.txt, one result each.
+#     This is ONE command and it is the whole lane set; do not hand-type a list
+#     of modes. `c2rs diff` above hardcodes `/Ox /GS- /c`, so on its own it has
+#     never compiled /EH, /Oi or /O1 at all. 12 lanes, ~6 s cold at --jobs 4,
+#     ~1 s warm. It prints `N/N lanes ... M fixture-verdicts`; quote both, and
+#     treat a run reporting 0 graded as a failure, not a pass. `--selftest`
+#     needs no toolchain and proves the gate fails when it should.
+scripts/gate.sh --jobs 4
+
 # 2. The real-workload gap scan (the census + scan gates). Prints the TU
 #    buckets, the FUNCTION CENSUS numerator, and the top-20 blocking-feature
 #    histogram — and, since 2026-07-30, a PROVENANCE header (both trees' git
@@ -1083,7 +1092,10 @@ cargo run --release -p c2-harness --bin c2rs -- gap \
   --cwd ../dc3-decomp --replay-every 1 --jobs 16
 
 # 4. The generated sweep (one axis at a time) and the CROSS-PRODUCT lane (every
-#    accepted shape family beside every other, both orders, four mode lanes).
+#    accepted shape family beside every other, both orders). NOTE: cross_sweep
+#    still carries its OWN four modes (packed, /Gy, /O1, /O2) rather than the
+#    registry, so it compiles no /EH — a named, still-open instance of the
+#    un-enumerated-lane defect (§7, docs/CROSS_PRODUCT.md).
 #    The second is what #12 below says a merge needs and nobody was doing by
 #    hand: it asks the port for its own family list, discovers a representative
 #    of each by grading the sweep corpus, and fails by name on a family no
@@ -1835,7 +1847,21 @@ The rules that keep the numbers honest:
   part is not the shape: it is that **"where the parse stopped" has a small set
   of positions that imply completeness, and the census key spells them** — read
   the key's *position* before spending a counterfactual on its size.
-  `fn-tail-0x26`, 4,663 functions, is the same family and is still unexamined.
+
+  **`fn-tail-0x26`, 4,663 functions, is the same family and is MEASURED AT ZERO**
+  (`docs/IL_CALL_IN_EXPR.md` §24.1, refuted at zero build cost — one query
+  against a scan that already existed). All 4,663 are `calls-2plus`: 0 `calls-0`,
+  0 `calls-1`. §18's frame axis settles it outright, because two calls always
+  need a frame, so the **takeable population is 0** until the general-frame
+  phase. Its twin `fn-tail-0xB9` split 28,720 `calls-0` / 832 `calls-1`, which is
+  precisely why *that* one converted 28,717 of 29,552 at 1:1 and this one
+  converts nothing. **Membership in the free-completeness family says a body
+  finished parsing and says nothing whatever about whether it needs a frame —
+  they are independent axes, and the frame axis is the cheap one.** Check it
+  first, on every candidate, before any counterfactual: this is the third time a
+  row has re-entered a ranking on its size alone after already having been
+  measured at zero, and each time the re-entry happened because the row was
+  carried forward by its *population* rather than by its verdict.
 
   > **A third measurement of the same row, 2026-07-31 (W34), and it found the
   > answer somewhere neither of the first two looked.** The production-level
@@ -1970,11 +1996,23 @@ The rules that keep the numbers honest:
   it: **all 4,663 are `calls-2plus`**, which §18 already proves needs a frame, so
   its takeable population is 0 — no scratch build, no counterfactual, one query
   against a scan that already existed. Its sibling `fn-tail-0xB9` split 28,720
-  `calls-0` / 832 `calls-1`, so the family says a body has *finished parsing* and
-  says nothing whatever about whether it needs a frame. **Two independent axes;
-  check the cheap one first.** `expr-op-0x99`, now the #2 row at 280,282, has
-  **zero** `calls-0` functions and should be refuted the same way before anyone
-  ranks it.
+  `calls-0` / 832 `calls-1` — which is exactly why *that* one converted 28,717 of
+  29,552 at 1:1 while this one converts nothing. So the family says a body has
+  *finished parsing* and says nothing whatever about whether it needs a frame.
+  **Two independent axes; check the cheap one first.** `expr-op-0x99`, now the #2
+  row at 280,282, has **zero** `calls-0` functions and should be refuted the same
+  way before anyone ranks it.
+
+  > **And the re-entry is the recurring part, not the row.** `fn-tail-0x26` was
+  > still being written up as "the same family and still unexamined" *after* this
+  > bullet was written, in the same document, because the two live 130 lines
+  > apart and the earlier one carried the row forward by its **population**
+  > (4,663) rather than by its **verdict** (0). Corrected 2026-07-31. That is the
+  > third row to re-enter a ranking on size alone having already been measured at
+  > zero, so the operational rule is not "measure the frame axis" — that already
+  > happened — it is: **when a row is refuted, go back and amend every place its
+  > size is quoted.** A refutation recorded in only one of the places that rank
+  > the row has not removed the row from the ranking.
 - **A row that names a token near the leaves of the grammar is a gate, not a
   rung — three measurements now say so.** The pointer *type* released 983,707 and
   finished **1.4 %**; `expr-op-0x27` released 505,122 and finished **0.14 %**;
@@ -2380,7 +2418,8 @@ configurations it was RUN at** — and the first two payments both produced a fi
 that added a lane. Adding a lane does not close it. Only enumerating them does.
 
 Closed by `scripts/lanes.txt` (the list, in one place, as data) plus
-`scripts/gate.sh` (the one command that runs it). Four things are worth carrying
+`scripts/gate.sh` (the one command that runs it), and made binding by
+`crates/c2-harness/tests/lane_registry.rs`. Five things are worth carrying
 forward past this instance:
 
 - **A lane's absence must be visible as an absence.** Each lane now prints a
@@ -2426,6 +2465,23 @@ forward past this instance:
   flag is already implied, not because its rows matched; the two look alike in a
   verdict table and are not alike, and a registry pruned on the table alone would
   have deleted the `/EHsc` lanes as duplicates.
+- **A property this load-bearing cannot be asserted only by a script somebody
+  runs by hand.** For its first day, the only thing checking that the shipped
+  registry still carried an `/EH` lane was a case inside `gate.sh --selftest` —
+  so a "tidy up the lane list" commit would have been caught by nothing `cargo
+  test` runs, and the failure would have been silent in exactly the way this
+  whole section is about. The assertion now lives in
+  `crates/c2-harness/tests/lane_registry.rs` (portable, no toolchain): the
+  registry parses to a **positive** lane count, the `/EHsc` axis is crossed over
+  **every** base configuration, some lane actually *varies* `/Oi` (a `/Ox /Oi`
+  lane would not — `/Ox` already implies it), `/O1` and `/O2` are separate lanes,
+  and `/O1 /EHsc` is required by name so a future prune cannot delete it for
+  grading zero new rows. Each of those was **observed failing** against a
+  deliberately mutated registry before being believed; the count floor is checked
+  first and masks the specific assertions on a deletion, so the mutations that
+  demonstrate them substitute flags instead and keep the count at 12. The
+  `gate.sh --selftest` case is kept as a strictly weaker subset for machines with
+  no cargo, and is labelled as such so it is not read as a second definition.
 
 **The gate reproduced the bug class on itself within an hour of existing**, which
 is worth recording precisely because it shows how low in the stack this shape

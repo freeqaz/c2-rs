@@ -132,15 +132,32 @@ Stated because a silent cap reads as "covered everything", which §6 forbids.
   overlaps the refusal frontier rather than adding to it, but the overlap is
   incidental and will stop holding the moment that gate moves. When it does, the
   predicate should be re-grounded on the surcharge table rather than on symbols.
-* **Flags beyond the four lanes** — `/Od`, `/EHsc`, `/GS`, `/GR`, `/Zi`, `/Oi`,
-  and every combination of them.
+* **Flags beyond this lane's own four modes** — `/Od`, `/EHsc`, `/GS`, `/GR`,
+  `/Zi`, `/Oi`, and every combination of them.
+
+  > **This is now the last place the un-enumerated four survive, and it is worth
+  > naming as such (2026-07-31).** `cross_sweep.sh` carries its own hardcoded
+  > mode list — packed, `/Gy`, `/O1`, `/O2` — which is the same four that ran
+  > everywhere else and compiles **no `/EH` at any invocation**. The fixture gate
+  > no longer works that way: the lane list is data (`scripts/lanes.txt`), one
+  > command runs all 12 (`scripts/gate.sh`), and a test fails if the registry
+  > stops carrying an `/EH` lane
+  > (`crates/c2-harness/tests/lane_registry.rs`). The cross-product lane has not
+  > been converted, so **its `/EHsc` intersection is empty and reads exactly like
+  > a lane that verified those flags** — `docs/GAPS.md` §7's defect, still open
+  > here. Note the specific shape of the hazard before assuming it is small: this
+  > lane's whole reason for existing is that it finds mis-emits the hand-written
+  > corpus does not, and 35,964 `eh-bare` functions are in class on the workload
+  > with markers that only appear under `/EHsc`.
 * **Everything on the refusal frontier below.** Those are compiled and counted
   and named, but the port refuses the TU, so no bytes were compared. They are
   **unmeasured**, not green.
 
 ## Result, 2026-07-31 (master `ded71a4` merged into this branch)
 
-**0 mismatches**, all four lanes, 19,604 gradings.
+**0 mismatches**, all four of *this lane's* modes (packed / `/Gy` / `/O1` /
+`/O2` — not the 12-lane fixture registry, which did not exist yet and which this
+lane still does not use), 19,604 gradings.
 
 * **86 of the 171 unordered family pairs occur in no matched TU of the fixture
   corpus or the whole 6,365-case sweep corpus** — nothing had ever graded them.
