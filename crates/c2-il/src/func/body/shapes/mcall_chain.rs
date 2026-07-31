@@ -64,9 +64,14 @@
 //! The formal case is Class B *and* needs the save/marshalling interleave
 //! `super::calls::plan_saved_gprs` refuses by name. The literal case is Class A
 //! but writes **r4**, and `select_text` — the one argument-setup locator, which
-//! `call_seq_parts` calls for every setup — computes into r3 and only r3. So both
-//! are refused under one key, `mcall-chain-link-args`, with their cost measured
-//! rather than argued.
+//! `call_seq_parts` calls for every setup — computes into r3 and only r3.
+//!
+//! Both refuse, under **two** keys, and the split is the measurement that
+//! mattered: the row is **12,092 functions on the 878-TU workload, larger than
+//! the row this file admits**, and the obvious next move was its cheap Class A
+//! half. It is `mcall-chain-link-arg-lit` = **2** against `mcall-chain-link-args`
+//! = **12,090**. One predicate and one rescan, and the `li r4,k` slot machinery
+//! did not get built for nothing.
 //!
 //! ## What else is refused, each with its own census key
 //!
@@ -202,13 +207,15 @@ pub(crate) fn try_parse_member_chain_call(
     // * `mcall-chain-link-arg-lit` — every such argument is a bare literal. The
     //   body stays **Class A** and the whole gap is one `li r4,k`: a per-call
     //   *first argument slot* in `call_seq_parts`, because slot 0 is the `this`
-    //   already in r3 and the explicit arguments start at r4.
+    //   already in r3 and the explicit arguments start at r4. **2 functions.**
     // * `mcall-chain-link-args` — anything else. A formal is live across the
     //   previous `bl`, which is Class B **and** needs the save/marshalling
-    //   interleave `plan_saved_gprs` refuses by name.
+    //   interleave `plan_saved_gprs` refuses by name. **12,090 functions**, i.e.
+    //   all of it.
     //
     // Split on the way in rather than after somebody asks which half the row is
-    // (`docs/GAPS.md` §6), because the two repairs have nothing in common.
+    // (`docs/GAPS.md` §6), because the two repairs have nothing in common — and
+    // the split is what showed that the cheap one is worth nothing.
     if !link_args.is_empty() {
         let ctx = if link_args.iter().all(|a| matches!(a.as_slice(), [IlOp::Lit(_)])) {
             "mcall-chain-link-arg-lit"
@@ -396,6 +403,21 @@ mod tests {
         seg.splice(
             close..close,
             [0x33, 0x86, 0x41, 0x74, 0x07, 0x55, 0x86, 0x41, 0x74],
+        );
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(&seg, NO_LOCALS).unwrap_err().ctx,
+            "mcall-chain-link-arg-lit"
+        );
+        // …and a FORMAL argument in the same position is the OTHER key. The two
+        // cells are different lowerings — this one is Class B, `std r31 ; mr
+        // r31,r4 ; bl ; mr r4,r31` — and the split is what measured the literal
+        // cell at 2 functions against this one's 12,090. A recognizer that
+        // reported one key for both hides that ranking completely.
+        let mut seg = MC_CHAIN_RET.to_vec();
+        seg.splice(
+            close..close,
+            [0xB9, 0x01, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x55, 0x86, 0x43, 0x81, 0x20],
         );
         assert_eq!(parse_segment(&seg, NO_LOCALS), None);
         assert_eq!(
