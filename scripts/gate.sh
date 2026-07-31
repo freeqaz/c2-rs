@@ -508,6 +508,19 @@ export C2RS_MODE_LANE_WORK="$work/lanes"
 : "${C2RS_JOBS:=8}"
 export C2RS_JOBS
 
+# Clear every lane's log and status FIRST, as its own pass, so that a result file
+# which EXISTS is necessarily from this run. The `>` redirection below already
+# truncates the log of any lane that is actually launched, so this is not covering
+# a live hole; it closes the residual one — a lane the loop never launches at all
+# (an interrupted run, a future `continue`, a re-run into a `--work` directory a
+# previous run used) being graded from a previous run's log. That would be a stale
+# PASS indistinguishable from a real one, which is the class `harness_bin.sh` was
+# written to close one level down, and it is a two-line pass to make impossible.
+while IFS="$TAB" read -r slug flags; do
+    [ -n "$slug" ] || continue
+    rm -f "$work/$slug.log" "$work/$slug.status"
+done < "$reg"
+
 started=$(date +%s)
 running=0
 while IFS="$TAB" read -r slug flags; do
