@@ -42,21 +42,36 @@
 // > **Every function consumes 1 slot, plus ONE extra for the translation unit if
 // > any function touches floating point.**
 //
-// The extra slot is `_fltused`, the one TU-level external an FP-touching
-// function introduces — which makes this the same rule
-// `docs/CODEGEN_FRAMED_CALLS.md` §4.4 measured for the
-// `__savegprlr_N`/`__restgprlr_N` pair, where **two** externals consume **two**
-// extra slots. One slot per TU-level external. The two facts `is_float` carries
-// — where `_fltused` goes and where the extra slot goes — are now the *same*
-// fact rather than two readers of one field, which is what stopped the third
-// instance of this bug.
+// The extra slot is `_fltused`. The two facts `is_float` carries — where
+// `_fltused` goes and where the extra slot goes — are now the *same* fact rather
+// than two readers of one field, which is what stopped the third instance of this
+// bug.
+//
+// **This comment used to add a generalization, and it is REFUTED**
+// (`docs/LABEL_COUNTER.md` §2.1): *the extra slot is the one TU-level external an
+// FP-touching function introduces, so the rule is one slot per TU-level external,
+// the same rule `docs/CODEGEN_FRAMED_CALLS.md` §4.4 measured as two for the
+// `__savegprlr_N`/`__restgprlr_N` pair.* Every number above survives — `_fltused`
+// is +1 and the GPR helper pair is +2 — but the reason is wrong in **both**
+// directions: a newly pooled FP constant costs **+2** and mints no external at
+// all, a string literal costs **0** while minting one, and a materialised signed
+// relational costs **+2** and mints nothing. The reason is what licenses the next
+// class, so widen the counter from §1.1's measured surcharge table and from
+// nothing else — this rule would have admitted a pooled constant at +0.
 //
 // A per-function method cannot express a per-TU quantity, and that is the
 // structural reason the wrong rule could not be stated correctly where it lived:
 // the `+1` is applied by `c2_core::coff::plan_labels`, which has the whole
-// function list. The negatives that still refuse — an FP *arithmetic* leaf
-// beside a framed function, whose pooled-constant stride is undetermined — are
-// in `w28_fp_store_framed_neg.cpp`.
+// function list.
+//
+// The FP **arithmetic** leaf used to be the negative half of this pair, on the
+// same over-charge — `label_slots` answered `None` for every float leaf, so one
+// predicate refused every (FP leaf, framed family) pair there is. It is admitted
+// now (`leaf-float-led` = `leaf-double-led` = **1**) and both widths are rows
+// below. What still refuses is the leaf that POOLS A CONSTANT, whose surcharge is
+// +2 per *newly* pooled `(bits,width)` — a per-TU question again — and whose
+// `.rdata`-beside-`.pdata` section order no capture settles:
+// `w28_fp_store_framed_neg.cpp` and `wunw_float_neg.cpp`.
 
 struct S { int i; float f; double d; };
 void g1();
@@ -80,3 +95,10 @@ void seqB(int a, int b)         { v1(a); v2(b); }
 // An integer store leaf, stride 1 — the control. It is what makes this file a
 // test of the FP stride rather than of "any leaf beside a framed function".
 void int_store(S* s, int v)     { s->i = v; }
+
+// The FP **arithmetic** leaf at both widths — rows 8 and 9 of the table above,
+// and the half this file's negative used to hold. Constant-free, so `leaf-float-led`
+// / `leaf-double-led` = 1 each, and placed AFTER the framed functions so the pair
+// is graded in both orders across this file and `wunw_float_beside_framed.cpp`.
+float  fp_arith_f(float a, float b)   { return a * b; }
+double fp_arith_d(double a, double b) { return a * b; }

@@ -514,15 +514,16 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // a second save into r10 and reorders the writes. Live wrong bytes until
         // the grid was measured — `il_call_multi.cpp`'s `cyc4a`/`cyc4b`.
         "il_call_multi.cpp",
-        // An FP store leaf sharing a TU with a framed function. Every function
-        // in it is individually in class; the TU refuses because an FP-touching
-        // function consumes **2** label-counter slots and `coff::plan_labels`
-        // advances by 1 for every non-framed one. Live wrong bytes until the
-        // merge that created the pair — `$M2564/$M2563/$T2565` against
-        // `$M2565/$M2564/$T2566` (`docs/GAPS.md` §6 instance 12).
-        // Still refused, and for a different reason than it used to be: an FP
-        // ARITHMETIC leaf's stride is undetermined with pooled constants. The
-        // store half of this pair is byte-exact — `w28_fp_store_framed.cpp`.
+        // TWO float leaves pooling the SAME constant, beside a framed function —
+        // the row that separates "+2 per pooled FP constant" (a per-function rule
+        // `label_slots` could state) from "+2 per **newly** pooled `(bits,width)`"
+        // (the measured one, which it cannot). `const1-dup-led` measures the
+        // second leaf's surcharge at 0. At n = 1 the two rules are
+        // indistinguishable, which is how the `_fltused` repair came out wrong
+        // the first time; this is the n = 2 case.
+        //
+        // The FP store and FP arithmetic halves of this file's history are both
+        // byte-exact now — `w28_fp_store_framed.cpp`.
         "w28_fp_store_framed_neg.cpp",
         // The FP store's own boundary: a conversion on the stored value in
         // either direction (the narrowing one is a real `frsp` through f0), a
@@ -644,6 +645,11 @@ fn differential_wunw_multi_function_framed_byte_exact() {
         "wunw_leaf_then_framed.cpp",
         "wunw_two_leaves_framed.cpp",
         "wunw_mixed_order.cpp",
+        // A constant-free FP leaf beside a framed function, both widths and both
+        // orders: the pair that `label_slots`'s blanket `None` for every float
+        // leaf refused, and the whole of `docs/CROSS_PRODUCT.md`'s 18-pair
+        // never-emitted residue.
+        "wunw_float_beside_framed.cpp",
     ] {
         let w = work(&format!("wunw_{}", name.trim_end_matches(".cpp")));
         let port = PortC2::default();
@@ -658,15 +664,22 @@ fn differential_wunw_multi_function_framed_byte_exact() {
     }
 }
 
-/// W-UNW-1 (fail closed): a floating-point leaf sharing a TU with a framed
-/// function must be **refused**, not emitted.
+/// W-UNW-1 (fail closed): a floating-point leaf that **pools a constant**,
+/// sharing a TU with a framed function, must be refused rather than emitted.
 ///
 /// Both functions are in class on their own and `c2rs census` grades the TU
-/// 2/2, so nothing upstream of the emitter objects. The obstacle is the
-/// compiler label counter: an FP leaf consumes 2 counter slots against the 1
-/// every emitted class consumes, so every `$M`/`$T` number after it would be
-/// one low — an obj that links, differs in six bytes, and would have been
-/// invisible to a corpus with no framed multi-function TU in it.
+/// 2/2, so nothing upstream of the emitter objects. The obstacle is the compiler
+/// label counter: a newly pooled `(bits,width)` costs **+2**, and *newly* is a
+/// per-TU question — `const1-dup-led` measures the same constant at **0** once an
+/// earlier function has pooled it — so no per-function stride is right for both.
+/// A guess there is six wrong bytes in an obj that still links. Independently,
+/// `coff::emit_obj` has no captured `.rdata`/`.pdata` section order.
+///
+/// The **constant-free** half of this pair is admitted and byte-exact; it is
+/// `wunw_float_beside_framed.cpp`, graded above. This assertion is reachable only
+/// because that one is: if the pooled-constant guard in
+/// `IlFunction::label_slots` is removed, this fixture emits and the differential
+/// reports a byte comparison rather than `NotImplemented`.
 #[test]
 fn differential_wunw_float_beside_framed_refuses() {
     let Some(tc) = Toolchain::locate() else {

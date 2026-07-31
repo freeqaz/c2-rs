@@ -460,11 +460,18 @@ pub const LABEL_SEED_GAP: u32 = 9;
 ///   (function end) and `$T(n+2)` (its `.pdata` record).
 ///
 /// The "1 per leaf" holds for every function class this port emits and **not**
-/// for every function class: a comparison leaf (`a < b`) consumes 3, a
-/// floating-point leaf 2, and each pooled FP constant a further 2. Those are
+/// for every function class: a signed-relational comparison leaf (`a < b`)
+/// consumes 3, and each **newly pooled** FP constant a further 2. Those are
 /// refused upstream ([`crate::PortC2::build`]) rather than modeled, because a
 /// wrong stride is a wrong `$M` number and a wrong `$M` number is a wrong-bytes
 /// obj — the whole point of the counter.
+///
+/// **A constant-free floating-point leaf is 1, not 2**, and this comment used to
+/// say 2. The 2 is a whole-TU reading of a leaf that is itself the TU's first FP
+/// function — `_fltused`'s slot, which the `+1` below already charges once per
+/// TU. `docs/LABEL_COUNTER.md` §1: `leaf-float` = 2, `leaf-float-led` = 1,
+/// `leaf-double-led` = 1. Charging it twice was what kept every (FP leaf, framed
+/// function) pair out of class.
 pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option<[u32; 3]>> {
     let mut cur = counter + LABEL_SEED_GAP;
     if comdat {

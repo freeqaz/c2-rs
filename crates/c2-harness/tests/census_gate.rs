@@ -66,7 +66,17 @@ const KNOWN_DISAGREEMENTS_PACKED: usize = 1;
 /// pooled constant). Moving *this* gate means teaching the census about a
 /// whole-obj layout decision, which is `c2-core`'s seam, not the harness's —
 /// recorded here so the number cannot drift, not endorsed as where it belongs.
-const KNOWN_DISAGREEMENTS_GY: usize = 9;
+///
+/// **8 → 11 pooled-constant entries (9 → 12 total) when the FP-leaf-beside-framed
+/// pair landed**, and the three new ones are *not* a new refusal: they are three
+/// more W13b bodies in the fixture corpus, hitting the same standing
+/// `emit_comdat_obj` limit as the eight already here. `wunw_float_neg.cpp` gains
+/// one and `w28_fp_store_framed_neg.cpp` two — those two fixtures are the
+/// negatives that hold the pooled-constant half of the pair, so a pooled constant
+/// is precisely what they have to contain. The `causes` table below pins them by
+/// name, so trading one of these for a genuinely new refusal still fails even
+/// though the total would not move.
+const KNOWN_DISAGREEMENTS_GY: usize = 12;
 
 fn fixtures_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cpp")
@@ -157,7 +167,7 @@ fn the_census_and_the_port_agree_about_what_is_in_class() {
             KNOWN_DISAGREEMENTS_GY,
             &[
                 ("no free FP scratch register", 1),
-                ("pooled floating-point constant under function-level linking", 8),
+                ("pooled floating-point constant under function-level linking", 11),
             ][..],
         ),
     ] {
