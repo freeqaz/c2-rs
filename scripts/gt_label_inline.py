@@ -1220,6 +1220,16 @@ FAMILIES = [
            note="a two-deep tree and a one-deep POINTER tree at the same site"
                 "   PRED 12 if the +1 is per-TREE (8 + 4) / 11 if a nested"
                 " instance anywhere in P kills it (8 + 3)"),
+    Family("ptr-sibling-rev", GS,
+           "static int ph0(int a){ return gs(a)+a; }\n"
+           "static int ph1(int a){ return ph0(a)+1; }\n"
+           "static void ph2(int* o, int a){ *o = gs(a)+a; }",
+           "ph2(&t, s); s+=t; s=ph1(s);",
+           "{t = gs(s)+s;} s+=t; s=gs(s)+s+1;",
+           head="int P(int a){ int t=a; int s=gs(a)+a;", tail="return s+t; }",
+           note="the same two trees with the POINTER SITE FIRST   PRED 11 if"
+                " the kill is order-independent, i.e. a property of P and not"
+                " of what the front end has already expanded"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1407,7 +1417,7 @@ LAW_BOOK = {
     # --- ROUND 20 ----------------------------------------------------------
     "ptr-use-nest": 9,
     # --- ROUND 21 ----------------------------------------------------------
-    "ptr-sibling": 12,
+    "ptr-sibling": 12, "ptr-sibling-rev": 11,
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
