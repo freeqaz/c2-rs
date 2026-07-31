@@ -1,15 +1,20 @@
 //! **The floating-point tail call** — `return g(x1, …, xn);` and `g(x1, …, xn);`
-//! where every argument is an FP formal, the whole body, no frame.
+//! where at least one argument is an FP formal, the whole body, no frame.
 //!
 //! Two rungs, one recognizer, because they differ only in how many times the
-//! argument production repeats: W31 is `n = 1` and W34 (`docs/rungs/2026-07-31-
-//! fp-multiarg.md`) is `n >= 2`, where the argument setup becomes a permutation
-//! of the FP file broken through **f0**. **Every** argument being floating-point
-//! is the load-bearing restriction of the second: a call that also passes a GPR
-//! argument can need moves in both register files at once, and c2 interleaves
-//! their schedules on a rule `docs/CODEGEN_FP_ARGS.md` §1.1 records as
-//! uncharacterized. Refusing that is what makes this rung a claim that does not
-//! depend on it.
+//! argument production repeats: W31 is one FP argument and W34
+//! (`docs/rungs/2026-07-31-fp-multiarg.md`) is two or more, where the setup
+//! becomes a permutation of the FP file broken through **f0**.
+//!
+//! The load-bearing restriction of the second is **no GPR argument moves** —
+//! not "every argument is floating-point", which is where W31's handoff put it
+//! and which is one step short. c2 *interleaves* the two files' move sequences
+//! (`docs/CODEGEN_FP_ARGS.md` §1.1) on a rule no per-file solver reproduces, but
+//! a marshalling with no GPR moves in it has nothing to interleave with, and the
+//! capture confirms the FP half is then byte-identical to the pure-FP one
+//! (§1.2.1). So a general-purpose argument is admitted here exactly when it is
+//! already in the register the call wants, which costs no instruction at all —
+//! and refused the moment it is not.
 //!
 //! This is the FP twin of [`super::calls::parse_call_shape`]'s integer tail
 //! call, and it is a separate recognizer for one reason: the *argument* grammar
@@ -131,9 +136,9 @@ struct Arg {
 /// ```text
 ///   26 <callee> BD <ret TYPE> 00 <fn-type-id>     the shared call head
 ///   (                                             one or more arguments,
-///     B9 <tok> <FP TYPE>                            each a bare formal LOAD
-///     [ 2C <FP TYPE> 00 ]                           …optionally converted, FP→FP
-///     55 <FP TYPE>                                  the callee's formal type
+///     B9 <tok> <TYPE>                               each a bare formal LOAD
+///     [ 2C <FP TYPE> 00 ]                           …FP only, converted FP→FP
+///     55 <TYPE>                                     the callee's formal type
 ///   )+                                            …in REVERSE source order
 ///   4C                                            end of the argument region
 ///   ( 4B <void plumbing>                          the result is discarded
@@ -371,9 +376,11 @@ pub(crate) fn try_parse_fp_tail_call(
     if stream.iter().any(|&(_, src, want)| src && !want) {
         return None;
     }
-    // A value passed twice is not a permutation at all; the GPR file emits a dead
-    // move through the temp for it (`call-arg-duplicated`) and nothing here has
-    // captured the FP file's version.
+    // A value passed twice is not a permutation at all — it is a copy graph, and
+    // `float f(float a,float b){ return g2f(a,a); }` is the single word
+    // `fmr f2,f1` with no scratch anywhere in it. The GPR file refuses the same
+    // shape (`call-arg-duplicated`), where it emits a *dead* move through the
+    // temp instead; the two files do not even agree on what a duplicate costs.
     for i in 0..arg_sources.len() {
         if arg_sources[..i].contains(&arg_sources[i]) {
             return None;
@@ -389,8 +396,7 @@ pub(crate) fn try_parse_fp_tail_call(
     }
     // **At most one local minimum**, i.e. at most one scratch — none at all for
     // the identity, which is every value already in place and emits nothing.
-    // Measured over the complete
-    // grid: with one scratch the emission is fully determined and the model is
+    // Measured over the complete n = 2…5 grid: with one scratch the emission is fully determined and the model is
     // exact on every cell of n = 2…5; with two it is not, and the residue is the
     // same independent-chain interleaving `docs/CODEGEN_ARG_PERM.md` §2.1 leaves
     // open in the other file (26 of 120 cells at n = 5, in both files).
