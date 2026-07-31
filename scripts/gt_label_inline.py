@@ -980,6 +980,31 @@ FAMILIES = [
            "s=pa2(s);", "{int t=s; t=gs(s)+s; s=t+1;}",
            note="the automatic-storage pointer argument at DEPTH 2   PRED 11"
                 " (4 + [5+2*1]) — is the +1 depth-scaled like any E feature?"),
+
+    # === ROUND 17: "points at automatic storage" is not the rule either.
+    #     `struct-ref` binds a `const SR&` to a LOCAL STRUCT of P and costs 3,
+    #     while `ref-const-read` binds a `const int&` to a LOCAL SCALAR of P
+    #     and costs 4 — same storage class, same constness, same read-only
+    #     use. The one thing that separates them is that a struct is already
+    #     in memory and a scalar is in a register, so the +1 would be "a
+    #     scalar had to be given an address". Both of these probes point at
+    #     automatic storage that is ALREADY addressable, so the two readings
+    #     disagree about them: 3 for "a scalar left a register", 4 for
+    #     "automatic storage".
+    Family("ptr-arrelem", GS,
+           "static void lar(int* o, int a){ *o = gs(a)+a; }",
+           "lar(&arr[0], s); s+=arr[0];", "{arr[0] = gs(s)+s;} s+=arr[0];",
+           head="int P(int a){ int arr[4]; arr[0]=a; int s=gs(a)+a;",
+           note="&<element of a LOCAL ARRAY>   PRED 3 scalar-left-a-register"
+                " / 4 automatic-storage"),
+    Family("ref-member", GS,
+           "struct RM { int x, y; };\n"
+           "static void lrm(int& o, int a){ o = gs(a)+a; }",
+           "lrm(ob.x, s); s+=ob.x;", "{ob.x = gs(s)+s;} s+=ob.x;",
+           head="int P(int a){ RM ob; ob.x=a; ob.y=a; int s=gs(a)+a;",
+           always_lead=True,
+           note="int& bound to a MEMBER of a local struct   PRED 3 / 4, same"
+                " two readings"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1087,6 +1112,8 @@ LAW = {
     "dtor-direct-only": None, "dtor-3obj": None, "dtor-body-loc": None,
     "d2-dtor": None,
     "ptr-mixed": None, "ptr-2global": None, "d2-ptr-auto": None,
+    # round 17
+    "ptr-arrelem": None, "ref-member": None,
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
