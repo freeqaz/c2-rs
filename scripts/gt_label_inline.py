@@ -1771,6 +1771,12 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
         verdict = "%s: NOT MODELLED" % tag
     elif want == "?":
         verdict = "%s: no entry" % tag
+    # A capture that never happened is not a measurement, and reporting it as a
+    # refutation is the one thing this instrument must never do — a reader
+    # without the toolchain would otherwise be told the law had been falsified
+    # by an empty run. `bad` already carries the real signal.
+    elif got is None:
+        verdict = "%s %d n/a — no measurement (capture failed)" % (tag, want)
     elif want == got:
         verdict = "%s %d OK" % (tag, want)
     elif refused:
@@ -1792,7 +1798,8 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
           % (kinc, ki, shape, kh, khinc, book, verdict,
              "  (see INLINE-DECLINED? rows)" if refused else ""))
     print()
-    return bad, (want not in (None, "?") and want != got and not refused)
+    return bad, (want not in (None, "?") and got is not None
+                 and want != got and not refused)
 
 
 def main(argv):
