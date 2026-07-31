@@ -397,6 +397,15 @@ A callee already introduced by an earlier function is not re-emitted:
 
 ### 4.3 `__savegprlr_N` / `__restgprlr_N` are emitted **after the whole group**
 
+> **Simplified 2026-07-31** (`docs/LABEL_COUNTER.md` §2.3). "`rest` precedes
+> `save` even though `save` is referenced first" is not a rule of its own — it is
+> §4.1's **reverse-first-reference LIFO**, which the pair obeys like everything
+> else. The Class F capture makes it unambiguous: reference order is
+> `__savegprlr_28`, `__savefpr_28`, `__restfpr_28`, `__restgprlr_28` and the
+> symbol table is `__restgprlr_28`, `__restfpr_28`, `__savefpr_28`,
+> `__savegprlr_28` — the exact reverse, across *both* pairs. One LIFO, three
+> consumers (callees, the `.rdata` pool, the helper externals).
+
 They are not inside the callee-external region. They land after the `$T`, and
 **`rest` precedes `save`** even though `save` is referenced first:
 
@@ -440,6 +449,23 @@ function using both the GPR and the FPR helper pair — **not captured, and
 therefore not claimed.** A TU pairing an FPR-helper function with a following
 function would separate them in one capture; that is the next probe if step 2
 touches this.
+
+> **Captured 2026-07-31, seed-free — see `docs/LABEL_COUNTER.md`.** The FPR
+> helper pair is **+2** and both pairs together are **+4**, so both predictions
+> hold. Three things this section gets wrong or under-claims, though:
+> * the pre-allocation is **not** a property of the helper pair. `extra ==
+>   stride - base` on every framed probe measured, including `_fltused`, pooled
+>   FP constants and materialised comparisons. Every surcharge is taken ahead of
+>   the function's own `$M` pair.
+> * the surcharges are **identical packed and under `/Gy`**; only the framed
+>   *base* moves (4 → 5). This section's "+2" needed no `/Gy` qualifier.
+> * "one slot per TU-level external" (§6) is refuted — see the note there.
+>
+> And the instrument changed: the seven rows above are differenced against the
+> IL seed, one TU per row. `scripts/gt_label_stride.py` differences **inside one
+> TU** against three anchor functions, so the seed, the mangled name lengths and
+> the `/Gy` per-function surcharge cancel exactly and the anchor stride is
+> measured rather than assumed.
 
 The existing `plan_labels` gate refuses these bodies for other reasons today, so
 this is a latent rather than a live wrong byte. It becomes live the moment a
@@ -539,8 +565,32 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
   a guess. Still uncaptured, so still not claimed.
   The extra slot is consumed at the **first** such function in the TU, the same
   position `_fltused` itself is emitted at, so the two are one fact.
+
+  > **REFUTED 2026-07-31 — `docs/LABEL_COUNTER.md` §2.1. Read that before
+  > touching `plan_labels`.** "One slot per TU-level external" is wrong in both
+  > directions, and the counterexamples are ordinary:
+  > * a **newly pooled FP constant costs +2 and introduces no external at all**
+  >   (`float P(float a){ return gf(a)*2.5f; }` is stride 7 against the rule's 5;
+  >   two constants, 9 against 5);
+  > * a **string literal costs 0** while creating the same shape of `.rdata`
+  >   COMDAT and its own `??_C@…` symbol — one, two or three strings are all
+  >   stride 1;
+  > * a **materialised signed relational costs +2 and mints nothing**
+  >   (`return a<5;` is stride 3, two are 5, three are 7);
+  > * a **loop costs slots and mints nothing**, and not even uniformly — `while`
+  >   +2 against `do/while` +1.
+  >
+  > The correct half survives: `_fltused` is +1 and each helper pair is +2, both
+  > per *first* introduction (a second function reusing the same `__savegprlr_29`
+  > pays 0; one needing `_28` instead pays 2). The rest of the rule was a fit to
+  > the two classes that were in the capture set.
 * **The FPR-helper label stride.** Predicted +4 by the "one slot per helper
   external" reading, not captured. Explicitly not claimed.
+
+  > **Captured 2026-07-31: +2 for the FPR pair, +4 for both pairs — the
+  > prediction holds** (`docs/LABEL_COUNTER.md` §1.1). A Class F function that is
+  > also the TU's first FP function pays 5 on top of the base: `_fltused` +1,
+  > GPR pair +2, FPR pair +2.
 * **The reserved 8 bytes at SP+8.** No probe ever wrote or read them. Every
   frame reserves them and the parameter area starts at +16.
 
