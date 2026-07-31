@@ -87,7 +87,15 @@ Usage:
     scripts/gt_inline_decline.py --list
     scripts/gt_inline_decline.py --family NAME ...   # gt_label_inline families
     scripts/gt_inline_decline.py --cases             # the categorical refusals
-    scripts/gt_inline_decline.py --linkage           # static vs extern vs inline
+    scripts/gt_inline_decline.py --linkage [--kmin K] [--kmax K]
+                                                     # static vs extern vs
+                                                     # inline. The range was
+                                                     # hardcoded k=0..8 and
+                                                     # §6.17.8's /Ox negative
+                                                     # was read off it; the
+                                                     # SPLIT SUMMARY now says
+                                                     # how many cells could
+                                                     # have disagreed.
     scripts/gt_inline_decline.py --axes [--scout] [kind ...]  # the held-fixed
                                                      # variables: return type,
                                                      # extern "C", storage
@@ -1801,18 +1809,55 @@ LINK_KINDS = [
 ]
 
 
-def run_linkage(mode, wd, nmax):
+def stmts_fine_dead(k, ndead):
+    """`stmts_fine`'s k code rungs PLUS a fixed number of DEAD locals.
+
+    §6.15.2's dead-local negative — "dead locals move the decline by ZERO" —
+    and §6.17.4's restatement of it in both linkage classes are both measured
+    on a ladder whose `s` does not move: every rung is the base body's size.
+    That base sits at index 48, sixteen bytes below the nearest band boundary,
+    and both classes read 12-of-12 at every rung. A charge of anything under
+    16 bytes per local could not have shown up, so "zero" is a bound of
+    `< 16/k`, not a measurement of zero (task #92).
+
+    This generator walks the same question ACROSS the boundaries instead: the
+    dead locals are held fixed and `stmts_fine`'s 4-byte rungs move the body
+    over every band edge SCHEDULE D has. If a dead local carries any charge at
+    all, this row's profile is the plain `fine` row's shifted by `ndead` times
+    it — at 4-byte resolution, at eight boundaries, in both classes.
+    """
+    return (stmts_fine(k) + " "
+            + " ".join("int dd%d=%d;" % (i, i + 5) for i in range(ndead)))
+
+
+def run_linkage(mode, wd, nmax, krange=None, deadpad=False, kinds=None):
     """The /O1 decision is a function of LINKAGE first, `s` second.
 
     Four rung kinds so the axis cannot be confused with a statement count:
     `fine` (1 instruction), `2instr`, `call` (3 instructions) and `deadloc`
     (a declared local that emits NOTHING — §6.15.2's sharpest probe, which
     moves `s` by zero).
+
+    THE RUNG RANGE IS A PARAMETER, and was not (task #92). `k = 0..8` was
+    hardcoded, and §6.17.8's `/Ox` negative — "the `static` and `external`
+    columns are IDENTICAL in every cell" — was read off it. At `/Ox` the only
+    decision boundary is the 108/112 threshold (§6.15.4), and over `k = 0..8`
+    three of the four rung kinds never take EITHER class past it: every cell
+    is 12-of-12 against 12-of-12. A negative measured entirely on one side of
+    the boundary it is about is not a measured negative, so `--kmin`/`--kmax`
+    reach this mode now and the SPLIT SUMMARY below counts, per rung kind, how
+    many cells could have disagreed.
     """
     o1 = "/O1" in mode
+    kmin, kmax = krange or (0, 8)
+    seen = {}
     rungs = [("fine", stmts_fine), ("2instr", lambda k: " ".join(
         "v=(v*3)^%d;" % (0x11 * (i + 1)) for i in range(k))),
         ("call", stmts_call), ("deadloc", stmts_deadloc)]
+    if deadpad:
+        rungs = [("fine", stmts_fine),
+                 ("fine+3dead", lambda k: stmts_fine_dead(k, 3)),
+                 ("fine+8dead", lambda k: stmts_fine_dead(k, 8))]
     bad = wrong = 0
     for rname, gen in rungs:
         print("=== linkage [rung: %s]   `s`=own size; index = s - 8*inline"
@@ -1824,7 +1869,15 @@ def run_linkage(mode, wd, nmax):
         print("    %-16s %-3s %-6s %-6s %-6s %-10s %s"
               % ("kind", "k", "s", "index", "Ndir", "predicted", "note"))
         for kind, np_, inl, force, tmpl, site, note in LINK_KINDS:
-            for k in range(0, 9):
+            # NOT `want`: that name is already a per-rung LOCAL below
+            # (the predicted verdict). Shadowing it made the filter
+            # read `kind not in 'inlined'` from the second kind on and
+            # silently drop every external row — caught by the SPLIT
+            # SUMMARY printing `no cells`, which is what that counter
+            # is for, before a single verdict was read off the run.
+            if kinds and kind not in kinds:
+                continue
+            for k in range(kmin, kmax + 1):
                 body = "int v=gs(a)+a; %s return v;" % gen(k)
                 leads = tmpl % body
                 s, ndir = None, 0
@@ -1865,13 +1918,118 @@ def run_linkage(mode, wd, nmax):
                 else:
                     mark = ("not graded: /Ox is a different mechanism — and"
                             " §6.17.8 measures NO linkage split there")
+                seen[(rname, kind, k)] = (s, ndir)
                 print("    %-16s %-3d %-6s %-6d %-6d %-10s %s"
                       % (kind, k, s, idx, ndir, want or "sched D",
                          mark if k else (mark + "   " + note)))
             print()
+        linkage_split_summary(rname, seen, nmax, kmin, kmax)
+    if deadpad:
+        deadpad_summary(seen, nmax, kmin, kmax)
     print("    rows refuting the linkage model (external) or SCHEDULE D on"
           " the index (internal): %d" % wrong)
     return bad
+
+
+def deadpad_summary(seen, nmax, kmin, kmax):
+    """Do DEAD LOCALS carry any charge, measured at every band boundary?
+
+    Model-free and index-matched: `fine+Ndead` against `fine`, per linkage
+    kind, at every rung. Two counters, per §6.16.2 — a cell where both rows
+    are fully inlined cannot express a charge and is not counted as agreement.
+    """
+    print("    --- DEAD LOCALS ACROSS THE BOUNDARIES [k=%d..%d]" % (kmin, kmax))
+    print("        §6.15.2/§6.17.4 measured this at ONE index (48), sixteen")
+    print("        bytes from the nearest band edge and 12/12 in both classes:")
+    print("        a charge under 16 bytes could not have shown up there. Here")
+    print("        the SAME dead locals ride a 4-byte ladder over every edge.")
+    for probe in ("fine+3dead", "fine+8dead"):
+        for kind, _np, _inl, _f, _t, _s, _n in LINK_KINDS:
+            cells = disc = dis = dsz = 0
+            first = None
+            for k in range(kmin, kmax + 1):
+                ra, rb = seen.get(("fine", kind, k)), seen.get((probe, kind, k))
+                if ra is None or rb is None:
+                    continue
+                cells += 1
+                if ra[0] != rb[0]:
+                    dsz += 1
+                if ra[1] < nmax or rb[1] < nmax:
+                    disc += 1
+                if ra[1] != rb[1]:
+                    dis += 1
+                    if first is None:
+                        first = (k, ra, rb)
+            if not cells:
+                continue
+            if not disc:
+                tail = ("<== NO DISCRIMINATING CELL — %d/%d everywhere"
+                        % (nmax, nmax))
+            elif dis:
+                tail = ("<== *** DEAD LOCALS MOVE IT: %d of %d ***  first at"
+                        " k=%d (s %s vs %s, Ndir %d vs %d)"
+                        % (dis, cells, first[0], first[1][0], first[2][0],
+                           first[1][1], first[2][1]))
+            else:
+                tail = "IDENTICAL on all %d cells, %d discriminating" \
+                       % (cells, disc)
+            print("        %-11s %-13s cells %-3d disc %-3d dNdir %-3d ds %-3d"
+                  " %s" % (probe, kind, cells, disc, dis, dsz, tail))
+    print()
+
+
+# The three matched (internal, external) spellings of ONE body. Anything else
+# in LINK_KINDS differs by more than the storage class.
+LINK_PAIRS = [("sta-plain", "ext-plain"), ("sta-inline", "ext-inline"),
+              ("sta-force", "ext-force")]
+
+
+def linkage_split_summary(rname, seen, nmax, kmin, kmax):
+    """Model-free: does the storage class move the verdict, and COULD it?
+
+    §6.17.8 read "identical in every cell" as a negative. A cell in which both
+    spellings are fully inlined at every one of `nmax` sites cannot express a
+    split in either direction — it is §6.16.2's inert row, and it prints what
+    a discriminating one prints. This counts the two separately, and says in
+    words when there is nothing to read.
+    """
+    print("    --- LINKAGE SPLIT, model-free [rung: %s, k=%d..%d]"
+          % (rname, kmin, kmax))
+    print("        a cell DISCRIMINATES iff at least one of the two spellings")
+    print("        is NOT fully inlined: while both read %d/%d the cell cannot"
+          % (nmax, nmax))
+    print("        express a split and agreeing costs nothing (§6.16.2).")
+    for a, b in LINK_PAIRS:
+        cells = disc = dis = 0
+        first = None
+        for k in range(kmin, kmax + 1):
+            ra, rb = seen.get((rname, a, k)), seen.get((rname, b, k))
+            if ra is None or rb is None:
+                continue
+            cells += 1
+            if ra[1] < nmax or rb[1] < nmax:
+                disc += 1
+            if ra[1] != rb[1]:
+                dis += 1
+                if first is None:
+                    first = (k, ra, rb)
+        tail = ""
+        if not cells:
+            tail = "no cells"
+        elif not disc:
+            tail = ("<== NO DISCRIMINATING CELL — every cell is %d/%d in BOTH"
+                    " classes; this rung says NOTHING about a linkage split"
+                    % (nmax, nmax))
+        elif dis:
+            tail = ("<== *** THE CLASSES DIFFER: %d of %d ***  first at k=%d"
+                    " (s=%s: %d vs %s: %d)"
+                    % (dis, cells, first[0], a, first[1][1], b, first[2][1]))
+        else:
+            tail = "IDENTICAL on all %d cells, %d of them discriminating" \
+                   % (cells, disc)
+        print("        %-12s vs %-12s  cells %-3d disc %-3d disagree %-3d %s"
+              % (a, b, cells, disc, dis, tail))
+    print()
 
 
 # --------------------------------------------------------------------------
@@ -3389,7 +3547,10 @@ def main(argv):
         print("captures failed: %d" % bad)
         return 1 if bad else 0
     if "--linkage" in argv:
-        bad += run_linkage(mode, wd, nmax)
+        bad += run_linkage(mode, wd, nmax,
+                           (kmin if kmin is not None else 0, kcap)
+                           if (kmin is not None or kset) else None,
+                           "--deadpad" in argv, want)
         print("captures failed: %d" % bad)
         return 1 if bad else 0
     if "--axes" in argv:
