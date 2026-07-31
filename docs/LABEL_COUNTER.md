@@ -246,11 +246,27 @@ it.**
 | a loop at `/Ox` | `for` +8, nested +10 | measured, and wildly different from `/O1` — the only place in this document where the `/O` level moves the counter, and it is the unroller changing the body, not `/Gy` |
 | `switch` (8 dense arms) | +0 | measured; no jump table was emitted, so a jump-tabled switch is still unknown |
 | integer `/`, `%`, variable shift | +0 | measured |
-| a body the front end **inlined into** | +8 above the framed base for two inlined call sites | measured once, **not modelled** — and this is the one that matters on the real workload |
+| a body the front end **inlined into** | **+3 / +8 / +13** for 1 / 2 / 3 inlined call sites of the same framed callee — +5 per site after the first | measured, **not modelled**; see below |
 | whether the `/Gy` upfront surcharge is per function or per `.text` COMDAT | — | **still open**: it is an absolute-seed question and cancels out of every difference here. A `static` function that is *not* emitted (fully inlined, no COMDAT) is the discriminator |
 
 The `do/while` row is the small print worth reading twice: "a loop costs 2" is
 already a rule fitted to two of three loop forms.
+
+**Inlining is the riskiest row, and it nearly got fitted wrong.** With a static
+callee `int lst(int a){ return gs(a)+a; }` (framed, stride 5 on its own) inlined
+into P, P's *total* strides are 8, 13 and 20 for one, two and three call sites —
+deltas 3, 5, 7, which reads as quadratic. It is not: at three sites P has
+crossed into Class C and 2 of that 7 is the `__savegprlr_29` pair, which
+`scripts/gt_label_stride.py`'s `minted` column shows independently (5, 5, 7).
+Net of it the surcharge is **3, 8, 13** — linear at +5 per additional site,
+which is one framed function's worth per inlined body. A marked `inline` free
+function behaves identically to a `static` one (13 at two sites).
+
+Three data points, one callee class, and the first site's 3 unexplained, so it
+is recorded and not claimed. It matters more than anything else in this table
+because **real workload TUs are inlined into constantly**, and a framed function
+downstream of an inlined body gets the wrong `$M` the moment the class gate
+admits one.
 
 ---
 
