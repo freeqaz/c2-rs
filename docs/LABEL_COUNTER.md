@@ -1574,3 +1574,473 @@ callee replaced by a single call.
 > Second, unchanged and still cheap: the whole ladder is `int` and small
 > structs. A **virtual** call the front end devirtualises, and a **template**
 > instantiation, are both ordinary in a real TU and neither has a single row.
+
+> **Answered by §6.15 (round 28), with a second instrument and three
+> refutations.** There *is* a rule at `/O1`: the decision is all-or-nothing per
+> (caller, callee) pair and the number of sites taken is an exact function of
+> the callee's own emitted `.text` size — including for the four families whose
+> budget this section measured. `/Ox` is a different mechanism with no
+> N-dependence at all. What did *not* survive is this section's own reading of
+> two rows: `d2-loop-3loc` at `/Ox` is declined from **N=1**, at the **inner**
+> level, and it differs from `d2-loop-asctor` by rather more than "one declared
+> local". The `ctor-loop` refusal is **not** "the conjunction" — filling the
+> 2×2 breaks it in both directions.
+
+## 6.15 Round 28 — the DECLINE, on its own axis, with a second instrument
+
+§6.14 closed by naming the gap: *"law L′ predicts the declined tree exactly …
+what does not exist yet is any rule for predicting the decline itself."* This
+round builds a predictor for `/O1`, characterizes `/Ox` separately as the
+different mechanism it turns out to be, and refutes **four** things this
+document had shipped — one of its own instruments (for the third time), and
+three of §6.14's readings — plus **two** closed-form fits written and
+pre-registered inside this round itself.
+
+New instrument: `scripts/gt_inline_decline.py`. It does not use `.text`
+growth. **An inlined call leaves no trace in P's relocation table; a declined
+one leaves exactly one `bl` against the callee's symbol.** So the reloc
+*count* is the number of sites that were declined — per-site resolution from
+one capture — and the reloc *name* says **which instance of a multi-level tree
+was refused**, which no inequality on byte counts can say. Both detectors are
+printed side by side on every family row, so a disagreement is a printed row
+rather than a memory.
+
+### 6.15.0 The instrument lied a third time, and in a new place
+
+**`/O1` implies `/Gy`. `/Ox` does not.** At `/O1` every function gets its own
+`.text` COMDAT, so "P's section" and "P" are the same bytes. At `/Ox` this
+compiler packs the whole TU into **one** `.text`, and `gt_label_inline.py` was
+reading `len(section)` — P *plus both callees plus all three anchors*.
+
+| | consequence |
+|---|---|
+| `dtext` at N=0→1, `/Ox` | inflated by the callee's **own first emission** — the largest single term in the sweep, and precisely the row where a decline has to be caught |
+| `TEXT-IDENTICAL` at `/Ox` | a claim about the whole section, not about P; §6.12's *"every row is `TEXT-IDENTICAL` at every N"* is an **`/O1` statement** |
+| `INLINE-DECLINED?` at `/Ox` N=1 | passes `noinline` — **the family whose entire purpose is to be declined** |
+
+That last one is the same row §6.14 widened the test from `<` to `<=` for, and
+the widening did not reach it: at `/Ox` `noinline` N=1 read `dtext` **56**
+against a hand control of 16, and 48 of those 56 bytes are the callee
+appearing in the section for the first time. Sliced to P's own bytes it reads
+**8 against 16** and the flag fires. The fix is to take P's `[start, next
+function)` range out of the section, and it is now in both scripts.
+
+**Graded before it was kept**, per §6.14's own precedent, on all 170 families
+in both modes:
+
+| | `/O1` | `/Ox` |
+|---|---|---|
+| verdict lines moved | **0** | **0** |
+| `controls failed` / `refuting LAW L'` | 0 / 0, unchanged | 0 / 0, unchanged |
+| `INLINE-DECLINED?` flags | 92 → **92** (output byte-identical) | 139 → **160** |
+| `TEXT-IDENTICAL` rows | 1042 → **1042** | 213 → **219** |
+
+`/O1` is byte-for-byte unchanged, which is the control: `/O1` implies `/Gy`, so
+there the slice is a no-op and any movement would have meant a broken fix. At
+`/Ox` the flag count jumps by **21** — twenty-one rows where the front end had
+declined an inline and this document's instrument said it had not — and the
+before-run reproduces §6.14's recorded 139 exactly, so the two runs are
+comparable. No verdict changed, because §6's law is graded on label strides
+and the declines it now sees were already being handled correctly for other
+reasons; what changed is that the rows now say so.
+
+> **`.text` growth was called "the *only* column that carries depth evidence"
+> in §6.4 and again in §6.12, and it is the column that was wrong.** The
+> relocation table carries the same evidence exactly, by name, and cannot be
+> fooled by a section boundary.
+
+### 6.15.1 The decision is ALL-OR-NOTHING, per (caller, callee)
+
+Fourteen ladders, both modes, N swept to 12 throughout and to **24** on the
+ladder that pins the boundaries — **449 rungs, 2 904 objects, not one of them
+mixed.** The front end never inlines the first K sites and declines the rest.
+When it declines, `.text` for P collapses to a call sequence and *every* site
+keeps its `bl` — `d2-loop-3loc` at `/O1` goes from 332 bytes of inlined P at
+N=5 to 72 bytes and six `bl`s at N=6.
+
+This **refutes the depleting-budget reading** that "inlines to N=4, declines at
+N=5" invites, and which was pre-registered here at p≈0.65
+(`work/gt-inline-decline/ESTIMATE-round28.txt`). There is no depletion. The
+front end decides once, for the pair, knowing N.
+
+### 6.15.2 `/O1` — the axis is the callee's OWN emitted size, and it is NOT the charge axis
+
+`Nfull`, the largest N at which every site is inlined, is a function of exactly
+one variable: **`s`, the direct callee's own emitted `.text` size**. §6.5
+guarantees `s` is in every obj for free, because c2 emits the callee's COMDAT
+whether or not it inlined it.
+
+Fourteen ladders move `s` by **five independent mechanisms** — rungs of one
+instruction, one-statement integer arithmetic, calls, `if` statements, and
+`double` arithmetic with an FPR frame and `_fltused` — at depth 1 and depth 2,
+with and without a loop. **Zero disagreements at every shared value of `s`.**
+Three of the five were pre-registered as hold-outs, `d1-dbl` at p≈0.45 and
+`d1-if` at p≈0.5, and both landed.
+
+Two negatives make the result mean something:
+
+* **It is not the per-site expansion size.** `s=72, g=36` gives 6+ sites and
+  `s=80, g=36` gives 5, where `g` is the bytes P actually gains per site. The
+  front end prices the callee's own body, not what lands at the site.
+* **It is not statements.** `d2-arith` and `d2-call` at k=2 have the same
+  statement count and different `s`, and give 5 and 4.
+
+And the finding that matters most for this document:
+
+> **Dead locals move the decline by ZERO.** Twenty rungs across `d1-deadloc`
+> and `d2-deadloc` add a declared local that generates no code; `s` does not
+> move one byte and neither does `Nfull`. Law L′ charges each of those locals a
+> **full `E` unit** (`loc1-dead` = 4 against `loc0` = 3). **The axis the
+> counter charges on and the axis the inliner declines on are different
+> axes**, and an emitter that assumes one predicts the other is wrong on the
+> cheapest possible probe.
+
+### 6.15.3 The schedule — measured exactly, and generated by no formula
+
+Boundaries pinned to a single 4-byte step by `d1-fine`, whose rungs are one
+instruction each, and reproduced by the other thirteen ladders:
+
+| `s` (bytes) | instructions | sites inlined |
+|---:|---:|---:|
+| ≤ 64 | ≤ 16 | **unbounded** (≥ 24 measured) |
+| 68 – 72 | 17 – 18 | 9 |
+| 76 | 19 | 7 |
+| 80 | 20 | 5 |
+| 84 – 88 | 21 – 22 | 4 |
+| 92 – 100 | 23 – 25 | 3 |
+| 104 – 140 | 26 – 35 | 2 |
+| 144 – 256 | 36 – 64 | 1 |
+| ≥ 260 | ≥ 65 | **0 — never inlined, not even once** |
+
+Both ends are round numbers in instructions: a callee of **16 instructions or
+fewer is inlined at any number of sites**, and one of **65 or more is never
+inlined at all**.
+
+> **What this buys, concretely.** §6.1 records the inline charge as *latent*
+> in this port: `crates/c2-il/src/func/bundle.rs` refuses any TU where a callee
+> is also defined, and the first rung to relax that gate has to know which tree
+> it is counting for. The schedule turns that from a guess into a construction.
+> A fixture whose callee is **≤ 64 bytes and loop-free** is inlined at every
+> site in **both** modes and exercises law L′ at a known depth; one at **≥ 260
+> bytes** is never inlined at `/O1` and exercises the un-inlined path with the
+> callee still emitted (§6.5). Both ends are stable enough to build a corpus
+> on, and the middle of the table is where a fixture will silently measure a
+> different tree than its author intended — which is exactly what happened to
+> §6.14's `d2-loop-3loc`.
+
+**There is no closed form, and this is the second two-parameter fit this lane
+has watched die.** `(N−1)·(s−64) < 80` — "the first copy is free; spend at most
+20 instructions of net duplication per pair" — is **exact on every cell of the
+entire fourteen-ladder dataset at N ≤ 6**, which is where the sweep's own cap
+had always stopped. It was written down as LAW D with its falsifier column
+(`work/gt-inline-decline/ESTIMATE-round28d.txt`, p≈0.55) and **killed by the
+first capture above the cap**: it predicts ≥12 sites at `s=68` where 9 are
+taken, and 10 at `s=72` where 9 are taken. The refutation does not rest on one
+row — `s=68` is `d1-fine` alone (only 4-byte rungs reach it), but **`s=72` → 9
+is reproduced by five ladders**, `d1-fine`, `d1-if`, `d1-noloop-arith`,
+`d1-noloop-call` and `d2-noloop-arith`. The retired wording is in the
+script's `SUPERSEDED_D` and is re-derived from each run's own numbers.
+
+What the table refutes, computed rather than asserted:
+
+| rival | killed by |
+|---|---|
+| `N·(s−h) ≤ B`, any affine cost | the `s=68`/`s=76` pair forces `h < 49.3`; the `s=72`/`s=80` pair forces `h > 56` |
+| any single-tier cost model | `s ≤ 64` is **unbounded**, so the cost there would have to be ≤ 0 |
+| a threshold on P's final size | 372 bytes accepted (`s=72`, N=9) against 252 refused (`s=104`, N=3) |
+| a threshold on P's growth | 288 accepted against 136 refused |
+| a threshold on the growth *ratio* | 4.43× accepted against 2.17× refused |
+| `(N−1)·(s−64) < 80` (LAW D) | `s=68` → 9, not ≥12; `s=72` → 9, not 10 |
+
+Note the shape of the first row's kill: **`N=10` is refused at `s=68` while
+`N=9` is accepted at `s=72`** — a strictly *smaller* total accepted nowhere and
+a larger one accepted. That is an arithmetic impossibility for any product
+model, in the same sense as §6.12's "there is no integer `E` that reaches 10",
+not a poor fit.
+
+So the honest statement is: **the axis is found and the schedule is exact; the
+rule that generates the schedule is `NOT MODELLED`.** The table is what a
+fixture author or a corpus builder needs, and it is falsifiable — the script
+prints `sched D n vs m <== *** REFUTES SCHEDULE D ***` on any row that
+disagrees.
+
+**Held out, and it lands.** The schedule was fitted entirely on `int` ladders.
+Graded against twelve of this document's own families — destructors,
+constructors, a depth-3 tree, a `switch` — it is exact on all twelve, and the
+four §6.14 recorded a `/O1` budget for come out on the integer:
+
+| family | direct callee `s` | schedule | §6.14 measured |
+|---|---:|---:|---:|
+| `d2-loop-asctor` | 68 | 9 | ≥6 ✓ |
+| `d2-loop-3loc` | 80 | 5 | 5 ✓ |
+| `d2-dtor-3loc` | 84 | 4 | 4 ✓ |
+| `d2-dtor-loop`, `d3-dtor-loop` | 88 | 4 | 4 ✓ |
+
+That also settles §6.14's *"`d2-loop-3loc` and `d2-loop-asctor` differ by one
+declared local"*, which was **wrong**: the two inner bodies differ by a local
+**and a statement and a call**, and the two direct callees differ by 12 bytes —
+three instructions, two bands of the schedule apart.
+
+### 6.15.3a The limit is per PAIR — P's existing expansion does not move it
+
+Every ladder above puts exactly one callee in P, so none of them can say
+whether the limit for one pair moves once the caller has already absorbed an
+unrelated expansion. §6.12's `ptr-sibling` is the standing warning that it
+might: there, a two-deep tree at one call site **removed a `+1` from an
+unrelated site**, and that rule is a property of P's *whole* expansion.
+
+Two callees in one P — `sba` sized to sit exactly at its limit (`s=80`, five
+sites), `sbb` unrelated:
+
+| `nA` | `nB` | `s(sbb)` | P `.text` | declined |
+|---:|---:|---:|---:|---|
+| 5 | 0 | — | 268 | — |
+| 5 | 5 | 80 | **488** | — |
+| 6 | 1 | 80 | 116 | `sba`×6 |
+| 5 | 1 | 208 | 440 | — |
+| **5** | **2** | **208** | 276 | **`sbb`×2 only** |
+
+**The two pairs are decided independently.** `sba` takes its five sites with P
+grown to 488 bytes beside it and loses all six at `nA=6` with or without a
+sibling; `sbb` at `s=208` takes exactly the one site its own row of the
+schedule allows and is refused at two — **in the same object where `sba` is
+fully inlined**. There is no shared pot.
+
+And it is not P's *own* size either. Padding P with up to **40 statements of
+its own** — P's `.text` from 268 to 428 bytes at the same five sites — leaves
+the limit at exactly 5, declining at 6 in every one of the four rungs
+(`--padp`). So the number of sites the front end will take is a function of
+**the callee alone**: not of what P already contains, not of what P has
+already inlined, not of how big P is.
+
+That **refutes this round's own pre-registered PRED M3** ("the threshold
+depends on what has already been inlined into P", p≈0.7, from `ptr-sibling`).
+The prior had already been revised down to p≈0.3 *before* the capture
+(`ESTIMATE-round28d.txt`), on the grounds that the schedule turned out to
+depend on one callee's size and nothing else — so the swing is on the record
+rather than reconstructed after it. `/Ox` says the same: independent verdicts,
+`sba` inlined at every `nA`, `sbb` refused at every `nB`.
+
+### 6.15.4 `/Ox` — a different mechanism, not a different constant
+
+Characterized separately throughout, per this lane's rule, and it is not a
+rescaling of `/O1`:
+
+* **No N-dependence whatsoever.** Fourteen ladders, N swept to 12: every row
+  is *all* or *none*. There is no `/Ox` counterpart to the schedule above.
+* **Loop-free callees: one sharp threshold**, on the callee's size *as emitted
+  at `/O1`* — **≤ 108 bytes (27 instructions) inlined, ≥ 112 (28) declined** —
+  confirmed on five ladders (`d1-fine`, `d1-noloop-arith`, `d1-noloop-call`,
+  `d1-if`, `d1-dbl`), three of them held out. The **nine loop-free cases** of
+  §6.15.5 — constructors, member functions and pointer stores, all between 24
+  and 108 bytes — are inlined at `/Ox` without exception, which is a tenth
+  agreement on a shape family the threshold was not fitted to.
+* **The `/Ox`-emitted size does not decide it**, and the refutation is as fine
+  as it can be: `d1-fine` k=15 and k=16 both emit a **112-byte** callee at
+  `/Ox` and get opposite verdicts. `/Ox` is `/Ot`; the standalone callee is
+  unrolled, and the front end's estimate is not recoverable from those bytes.
+* **Callees containing a loop are declined far earlier.** `d1-arith`,
+  `d2-arith` and `d2-liveloc` accept at 72 bytes of `/O1` size and refuse at
+  80; `d1-call` and `d2-call` accept at 68 and refuse at 76 — against 108–112
+  for loop-free, and **no size measured in either mode unifies the two
+  groups.** `NOT MODELLED`.
+
+### 6.15.5 The categorical refusals — §6.14's "it is the conjunction" is refuted
+
+Some callees are refused **at N=1**, at sizes the schedule says should take
+several sites. Those are not the budget. Twenty-two one-off cases, run in both
+modes (`--cases`), with the refused callee's own `s` printed so a categorical
+refusal cannot be confused with a schedule row.
+
+§6.14 concluded from two cells that the `ctor-loop` refusal is *"the
+conjunction"* of a constructor and a call inside a loop. Filling the 2×2
+**refutes that in both directions at `/O1`**:
+
+(`s` is the **innermost** callee's own size — the one the front end refuses —
+so the rows are comparable; in every case the outer wrapper was inlined.)
+
+| body | `/O1` | `s` |
+|---|---|---:|
+| ctor, loop, call, store to `this->v` in the loop (`ctor-loop`) | **declined** | 80 |
+| …the identical body accumulating into a **local** (`ctor-loop-local`) | **inlined** | 76 |
+| …the identical body as a **member function** (`method-loop-call`) | **inlined** | 76 |
+| member fn, **no loop**, two stores to `this->v` with a call between | **declined** | 84 |
+| …the same through an `int*` instead of `this` (`ptr-2store-call`) | **inlined** | 84 |
+| ctor, one store, two calls (`ctor-1store-2call`) | **inlined** | 60 |
+
+Two of the 22 cases show the two mechanisms coexisting cleanly, which is the
+check that the separation is real rather than a reading: `glob-loop-call` and
+`ptr-store-noloop` both have an 80-byte direct callee and both take **exactly
+5 sites** — the schedule's row for `s=80`, not a categorical refusal, on
+shapes (a static global written in a loop, a pointer written between calls)
+that look like the refused ones.
+
+`method-2store-call` is refused with **no constructor and no loop**, and
+`ctor-loop-local` is accepted **with both**. Three pairs differing in exactly
+one source feature give opposite verdicts, and they do not agree on which
+feature matters. **No single-feature rule survives; the `/O1` categorical
+refusal is `NOT MODELLED`**, and the 22 cells are in the script so the next
+attempt starts from measurements rather than from a story.
+
+**`/Ox` is cleaner, and has two separable triggers** — which is exactly why the
+2×2 was worth filling:
+
+* **(A) a store to memory inside a loop** — refused through `this`, through a
+  pointer parameter, or to a static global, and refused even when the loop
+  makes **no call**;
+* **(B) a constructor whose body contains a loop at all** — `ctor-loop-local`
+  and `ctor-loop-nostore` are refused while the byte-identical **member
+  functions** `method-loop-local` and `method-loop-nostore` are **inlined**.
+
+Controls that inline at `/Ox`: a ctor with a call and no loop; stores through a
+pointer with calls between and no loop; every straight-line two-store shape.
+
+### 6.15.6 The non-monotonicity, now twelve more instances
+
+§6.14 recorded four cases where the budget runs the *other* way with the
+optimisation level and concluded "there is no monotone reading". One 22-case
+table adds **twelve more**, in both directions:
+
+* `/O1` refuses what `/Ox` takes — `member-noloop-store`, `ctor-2store-call`,
+  `ctor-2mem-call`, `method-2store-call` (4);
+* `/Ox` refuses what `/O1` takes — `ctor-loop-local`, `ctor-loop-leaf`,
+  `ctor-loop-nostore`, `method-loop-nostore`, `method-loop-call`,
+  `ptr-loop-call`, `ptr-loop-store-nocall`, `glob-loop-call` (8).
+
+And §6.14's own budget table needs one correction the old detector could not
+have made: **`d2-loop-3loc` at `/Ox` is declined from N=1, not "from N=2", and
+the instance refused is the INNER callee `lsa`** — the outer `lsb` is inlined
+at every site. At `/O1` the same family refuses the **outer** one. Different
+level, different mode, same source; only a symbol name can say so.
+
+### 6.15.7 What round 28 leaves `NOT MODELLED`
+
+* **The rule generating the `/O1` schedule.** The table is exact to a 4-byte
+  step and reproduced by five mechanisms; six candidate closed forms are
+  refuted above. A seventh should be checked against the table before it is
+  believed, not against a ladder.
+* **The `/Ox` threshold for callees containing a loop.** Loop-free is
+  modelled; loops are declined far earlier and no measured size unifies them.
+* **Every categorical refusal at `/O1`.** Twenty-two cells, three
+  single-feature pairs disagreeing, no rule.
+
+> **The riskiest thing still unmeasured** is that **`s` is a c2-side number
+> standing in for a c1xx-side decision.** The front end chooses before register
+> allocation; that the *emitted* size predicts its choice to a 4-byte step
+> across fourteen ladders, five mechanisms and twelve of this document's own
+> families is a strong empirical fact and **not a mechanism**. The place it has
+> to break is a body where allocation moves the size a long way without moving
+> the IL much — heavy spilling, many simultaneously live values, a large
+> `__savegprlr_` pair — and **no such shape was probed**. That is also the one
+> failure mode that would be invisible: such a callee would sit in the wrong
+> row of the table and the table would look fine everywhere else. A ladder that
+> grows the *live-value count* rather than the statement count, at roughly
+> fixed statement count, is the probe, and it is cheap.
+>
+> Second: the schedule's own shape is unexplained. `≤ 16 instructions →
+> unbounded` and `≥ 65 → never` are suspiciously round, and between them sits a
+> sequence — 9, 7, 5, 4, 3, 2, 1 — that skips 8 and 6. A mechanism that
+> produces exactly that is worth looking for, and finding it is what would turn
+> §6.15.3 from a table into a law.
+>
+> Third, unchanged from §6.14: the whole of §6.15 is `int`, `double` and small
+> structs, and every ladder callee has the same `int f(int)` signature. A
+> **virtual** call the front end devirtualises and a **template** instantiation
+> still have no row anywhere in this document.
+
+### 6.15.7a The pre-registration, scored
+
+Written before each capture and reproduced here because `work/` is gitignored
+and a prediction nobody can check later is not a prediction. Twenty-five
+registered, **sixteen landed and nine missed**, which is the useful ratio.
+
+| prediction | p | outcome |
+|---|---:|---|
+| relocations catch a decline `dtext` misses | 0.5 | ✓ three `/Ox` N=1 rows, `noinline` among them |
+| the budget depletes: sites 1..K inlined, K+1..N not | 0.65 | ✗ **no mixed row in 2 904 objects** |
+| `/Ox`'s "declined from N=2" rows are a K=1 depletion | 0.6 | ✗ declined from N=1; `/Ox` has no N-dependence |
+| the limit depends on what P has already inlined | 0.7 | ✗ and P's own size does not move it either |
+| §6.14's "one declared local" wording is wrong | 0.75 | ✓ |
+| **the ladders will NOT all flip at the same callee size** | **0.7** | ✗ **at `/O1` all fourteen do** |
+| the decline axis is not the charge axis | 0.6 | ✓ dead locals move it by zero |
+| `N_max × per-site growth` ≈ constant | 0.45 | ✗ |
+| MODEL B: `N·(c₀+wk) ≤ 20`, fitted on `d2-arith` | 0.55 | ✗ dead on the first held-out ladder |
+| `ctor-arith` refused at every rung | 0.85 | ✓ |
+| `ctor-leaf-arith` behaves like an ordinary ladder | 0.8 | ✗ it is categorical too, from k=3 |
+| `d1-fine` reproduces the curve at 4-byte resolution | 0.7 | ✓ |
+| `d1-dbl` (FP opcodes, FPR frame, `_fltused`) lands on it | 0.45 | ✓ |
+| `d1-if` (branches, basic blocks) lands on it | 0.5 | ✓ |
+| `/Ox` is 6-or-0 everywhere | 0.9 | ✓ and still 12-or-0 at N=12 |
+| `ctor-loop-local` inlines — "it is aliasing, not C++" | 0.5 | ✓ at `/O1`, ✗ at `/Ox` |
+| `method-loop-call` is declined | 0.5 | ✗ at `/O1`, ✓ at `/Ox` |
+| `ptr-loop-call` is declined | 0.4 | ✗ at `/O1`, ✓ at `/Ox` |
+| `member-noloop-store` inlines | 0.85 | ✗ at `/O1`, ✓ at `/Ox` |
+| LAW D: `(N−1)(s−64) < 80`, read 10 / 7 / 5 out of sample | 0.55 | ✗ **9** / 7 / 5 |
+| no mixed row up to N=12 | 0.8 | ✓ |
+| the doc's own ctor/dtor/depth-3 families reproduce | 0.5 | ✓ all twelve |
+| the `/Ox` loop split survives N=12 | 0.85 | ✓ |
+| a sibling callee does not move the limit | 0.7 | ✓ |
+| padding P's own body does not move it | 0.85 | ✓ |
+
+**The named bias fired, and in the direction I flagged.** Round 28's estimate
+opened by naming *"the budget is chaotic, NOT MODELLED"* as the cheap answer
+that lets me stop early, and pre-committed against it. The single biggest miss
+in the table is exactly that prime: `/O1`'s axis is **cleaner** than I gave it
+a 30 % chance of being. §6.14's opposite lesson — that expecting a refutation
+because the last six probes produced one is the same bias with the sign
+flipped — has a converse too, and this is it: after reading a section that
+says *"non-monotone four times over"*, I priced order too low.
+
+I was also **right for the wrong reason at `/Ox`**. "The ladders will not all
+flip at the same size" is true there, and my stated reason — that emitted size
+is a c2-side proxy for a c1xx-side decision — is not why. The reason is that
+`/Ox` is `/Ot` and unrolls the standalone callee, which is a fact about the
+back end, not about the proxy. A correct prediction from a wrong model is
+worth less than a miss from a stated one, and it is recorded that way.
+
+### 6.15.8 Reproduction
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+scripts/gt_inline_decline.py --list
+# the axis, and the five mechanisms that agree on it
+scripts/gt_inline_decline.py --max 6                       # all 14 ladders, /O1
+scripts/gt_inline_decline.py --max 6 --mode '/Ox /GS- /c'  # …and packed
+# the boundaries, at 4-byte resolution — this is the row that pins the table
+scripts/gt_inline_decline.py --max 12 d1-fine
+scripts/gt_inline_decline.py --max 2  d1-fine              # the >=260 ceiling
+# the charge axis is not the decline axis: 20 rungs, zero movement
+scripts/gt_inline_decline.py --max 6 d1-deadloc d2-deadloc
+# the categorical refusals, both modes
+scripts/gt_inline_decline.py --cases
+scripts/gt_inline_decline.py --cases --mode '/Ox /GS- /c'
+# HELD OUT: this document's own ctor/dtor/depth-3 families, graded
+scripts/gt_inline_decline.py --max 8 --family d2-loop-3loc \
+    --family d2-dtor-3loc --family d2-dtor-loop --family d3-dtor-loop
+# the two detectors side by side; `noinline` at /Ox is the one that mattered
+scripts/gt_inline_decline.py --mode '/Ox /GS- /c' --family noinline
+# per-PAIR, not per-caller: two callees in one P, decided independently
+scripts/gt_inline_decline.py --sibling
+scripts/gt_inline_decline.py --sibling --mode '/Ox /GS- /c'
+# …nor does the CALLER's own size: P padded with 40 of its own statements
+scripts/gt_inline_decline.py --padp
+```
+
+Reading the columns: `Nfull` is the largest N at which the **whole** planted
+tree was inlined and `Ndir` the largest at which the **direct** callee was.
+Schedule D is a claim about one (caller, callee) pair, so it is graded on
+`Ndir`; a row where the two differ prints `INNER-DECLINED (a different pair)`
+and is a categorical refusal of something deeper — the `ctor-*` ladders are
+entirely of that kind, wrapper inlined at all twelve sites, constructor
+refused at all twelve. Grading those against the schedule produced nine false
+`REFUTES` lines before the split was added, and a falsifier that cries wolf is
+worse than none.
+
+A row that genuinely disagrees with the table prints
+`<== *** REFUTES SCHEDULE D ***`, and the readings this round retired are
+re-derived from the run's own numbers beside the verdict:
+
+```
+d2-loop-3loc -> direct callee lsb  s=80  Ndirect=5  sched D 5 OK
+               [retired 'N*(s-64) < 80' said 4]
+```

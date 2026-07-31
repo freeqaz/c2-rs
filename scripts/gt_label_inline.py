@@ -1808,7 +1808,25 @@ def measure(src, mode, workdir, tag):
     f = lambda g: min(g["labels"]) if g["labels"] else None  # noqa: E731
     base = f(a2) - f(a1)
     known = {a0["name"], a1["name"], a2["name"], P["name"]}
-    text = o.raw(o.sections[P["sec"] - 1])
+    # P'S OWN BYTES, not its section's. `/O1` implies `/Gy`, so each function
+    # is its own `.text` COMDAT and the two are the same thing; **`/Ox` does
+    # NOT imply `/Gy`** and packs the whole TU into ONE `.text`. Reading the
+    # section there measured P *plus both callees plus all three anchors*,
+    # which inflated `dtext` at N=0->1 by the callee's own first emission —
+    # the largest single term in the sweep, and exactly the row where a
+    # decline has to be caught. That is why `INLINE-DECLINED?` passed
+    # `noinline`, the family whose entire purpose is to be declined, at `/Ox`
+    # N=1. It also made `TEXT-IDENTICAL` at `/Ox` a claim about the whole
+    # section rather than about P. Measured by scripts/gt_inline_decline.py,
+    # which reads the decline out of P's relocations instead.
+    sec = o.sections[P["sec"] - 1]
+    starts = sorted({s["value"] for s in o.symbols
+                     if s["sec"] == P["sec"] and s["type"] == 0x0020
+                     and s["sc"] in (2, 3)})
+    lo = next((s["value"] for s in o.symbols
+               if s["name"] == P["name"] and s["sec"] == P["sec"]), 0)
+    hi = next((v for v in starts if v > lo), sec["rawsize"])
+    text = o.raw(sec)[lo:hi]
     return {
         "base": base,
         "stride": f(a1) - f(a0) - base,
