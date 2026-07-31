@@ -302,7 +302,7 @@ recalled.
 
 # 6. The label cost of inlining (2026-07-31)
 
-`scripts/gt_label_inline.py`, **156 probe families**, `/O1 /GS- /c` and
+`scripts/gt_label_inline.py`, **159 probe families**, `/O1 /GS- /c` and
 `/Ox /GS- /c`, every row's in-object control held. Each family carries a
 predicted charge that the script checks and can print `REFUTES` against; the
 handful recorded as `NOT MODELLED` are listed with their reasons in §6.11
@@ -511,7 +511,7 @@ that forced loops out of the `d * E` product entirely; see §6.6.
 beside each family's measured slope, and prints
 `<== *** REFUTES LAW L' ***` on any disagreement. **Score at the time this
 subsection was written: 90 families, 0 refutations at `/O1`, 0 at `/Ox`.** The
-current score, over all 156, is in §6.13.
+current score, over all 159, is in §6.13.
 
 ## 6.4 Packed is the same law — but the *inliner* is not the same inliner
 
@@ -957,13 +957,16 @@ ten rows at depth 1 and is simply absent at depth 2.
 
 Left `NOT MODELLED` on purpose, because a number here is worse than a blank:
 
-* **`struct-ret`** (a callee returning a 2-int struct by value) — 5 against L′'s
-  4. `E = 2` fits the single row if the hidden return slot counts alongside the
-  declared local, but that is one row and one free parameter, so it is not
-  written down as a rule.
-* **`ctor-noloc`** (`return CN(a).v;`, an unnamed temporary) — 10, where both
+* ~~**`struct-ret`**~~ (a callee returning a 2-int struct by value) — 5 against
+  L′'s 4. `E = 2` fits the single row if the hidden return slot counts alongside
+  the declared local, but that is one row and one free parameter, so it is not
+  written down as a rule. **RESOLVED in §6.12**: predicted at depth 2 from that
+  one parameter and measured exactly, against a rival that missed.
+* ~~**`ctor-noloc`**~~ (`return CN(a).v;`, an unnamed temporary) — 10, where both
   pre-registered readings (8 for "no local", 9 for "the temporary is a local")
   missed. Two different decompositions reach 10 and nothing distinguishes them.
+  **RESOLVED in §6.12**: depth distinguishes them. One `E` unit plus one flat
+  unit — and a third pre-registered reading missed on the way.
 * **`lp-two`** — §6.6; the inliner's budget, not the counter.
 * the `while` / `do-while` loop ladders at **`/Ox`** — §6.4; unobservable there,
   not different there.
@@ -1024,11 +1027,14 @@ general across loop spellings. §6.6's table stays as the measured total.
 ## 6.12 The depth ladder — two of the three new rules did not survive it
 
 §6.11 closed by naming **depth** as the riskiest thing unmeasured on this axis.
-Eighteen families later: the `switch` rule survives depth 3 unchanged, and the
-**scope-exit and addressability rules are both rewritten**. Neither was fitted
-away — every `PRED` below was committed to `scripts/gt_label_inline.py` *before*
-the capture that graded it (the file's git history is the record), and the
-corrections are derived from cells that were held out from them.
+Twenty-one families later: the `switch` rule survives depth 3 unchanged, the
+**scope-exit and addressability rules are both rewritten**, and the two rows
+§6.11 refused to model turn out to be separable by depth and nothing else.
+Nothing here was fitted away — every `PRED` below was committed to
+`scripts/gt_label_inline.py` *before* the capture that graded it (the file's git
+history is the record), and the corrections are derived from cells that were
+held out from them. Three of the registered predictions missed; those are the
+useful rows and they are marked ✗.
 
 Every row in this section is `TEXT-IDENTICAL` to its hand control at every `N`,
 which is the only column that carries evidence about how deep the expansion tree
@@ -1186,6 +1192,38 @@ declining what `/Ox` accepts, and here `/Ox` declines a shape `/O1` takes to two
 sites. **There is no monotone reading of the budget in the optimisation level,
 and there never has been.**
 
+### Depth also settles the two rows §6.11 refused to put a number on
+
+`struct-ret` and `ctor-noloc` were left blank because several decompositions
+reached the one measured value and nothing at depth 1 could separate them. That
+is exactly what depth separates: **an `E` unit is worth `d` and a flat unit is
+worth 1 however deep it sits** — the same lever §6.3 used to pin the multi-exit
+result temp as flat rather than scaled.
+
+| probe | readings it separates | pred | measured |
+|---|---|---:|---:|
+| `d2-struct-ret` | `E = 2` (the hidden return slot counts alongside the declared local) **vs** `E = 1` + a flat +1 | 13 / 12 | **13** ✓ |
+| `d2-ctor-noloc` | the temporary is 2 `E` units / 1 `E` + 1 flat / 2 flat | 19 / 18 / 17 | **18** ✗ |
+| `d3-ctor-noloc` | …1 `E` + 1 **flat** vs the second unit scaling after all | 28 / 30 | **28** ✓ |
+
+**`struct-ret` is resolved and tested**: one free parameter, fitted at depth 1
+and then *predicted* at depth 2 against a rival that missed. `E = 2` — the
+hidden return slot counts as a second declared local.
+
+**`ctor-noloc` is resolved, and the registered prediction was wrong.** I
+recorded reading A (two `E` units, 19) in `LAW_BOOK` before the capture, with
+the bias written down beside it — *"'surely it just adds' has been wrong twice
+in this file already"* — and it was wrong a third time. The measurement is 18:
+an unnamed temporary is **one `E` unit and one flat unit**, i.e. it counts as a
+declared local *and* its materialisation costs the same flat +1 that a
+multi-exit result costs. That is two parameters solved from two cells, which is
+exactly determined and therefore tests nothing, so `d3-ctor-noloc` was added as
+the first cell that could disagree: **28**, predicted 28 against 30 for a
+second unit that scaled. Both readings hold at `/Ox` unchanged.
+
+`ctor-noloc` = `3 + 1·1 + 1 + 5` = 10 and `d3-ctor-noloc` = `3 + 5 + [7+3·1] +
+1 + 9` = 28 — the same two constants, three depths apart.
+
 ### What this section leaves `NOT MODELLED`
 
 * **`S(d)` above depth 3.** Three points fix an affine form and the fourth was
@@ -1197,14 +1235,15 @@ and there never has been.**
   before an emitter leans on it. Since it can only ever *remove* a +1, the safe
   reading for a port is to treat the +1 as absent.
 * **the depth-2/3 `switch` at `/Ox`** — unobservable, per the budget table.
-* everything §6.11 already lists: `struct-ret`, `ctor-noloc`, `lp-two`, and the
-  `while`/`do-while` ladders at `/Ox`.
+* `lp-two` and the `while`/`do-while` ladders at `/Ox` — both pre-existing, and
+  both the inliner's budget rather than the counter. **`struct-ret` and
+  `ctor-noloc` have left this list**, see above.
 
 ## 6.13 Reproduction
 
 ```sh
 export C2RS_WIBO=<the repo's resolved wibo>          # NOT ../wibo/build/wibo
-scripts/gt_label_inline.py                            # /O1, all 156 families
+scripts/gt_label_inline.py                            # /O1, all 159 families
 scripts/gt_label_inline.py --mode '/Ox /GS- /c'       # packed
 scripts/gt_label_inline.py --max 6 framed leaf        # the retraction, in 6 s
 scripts/gt_label_inline.py nest1 nest2 nest3 nest4 nest5 nest6   # the depth law
@@ -1235,7 +1274,7 @@ Reading a marginal across that row measures the inliner, not the counter. At
 unobservable rather than different — §6.12's budget table.
 
 The last line of a run is
-`controls failed: 0   families refuting LAW L': 0`, on 156 families in both
+`controls failed: 0   families refuting LAW L': 0`, on 159 families in both
 modes. The second number is the one to read: it is the law's own falsifier,
 computed rather than remembered. It reached 0 by the two rows §6.11 left
 printing being **explained** — see §6.12 — and the wordings they refuted are
