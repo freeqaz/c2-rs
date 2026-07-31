@@ -978,8 +978,10 @@ Left `NOT MODELLED` on purpose, because a number here is worse than a blank:
 
 Re-run at `/Ox /GS- /c`: **every charge in §6.8–§6.10 is the same integer**, both
 refutations included, so all of it is a two-mode result and not a `/O1`
-artefact. The whole run is `controls failed: 0   families refuting LAW L': 2` in
-both modes, on 138 families.
+artefact. The whole run **as this subsection was written** was
+`controls failed: 0   families refuting LAW L': 2` in both modes, on 138
+families; §6.12 added 23 more and drove the second number to 0 by explaining
+those two rather than by adjusting them.
 
 One asymmetry with §6.4 is worth carrying. §6.4 records `/Ox` as the mode that
 *declines* inlines `/O1` accepts (the `while`/`do` loop bodies). On the C++
