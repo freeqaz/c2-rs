@@ -2036,6 +2036,14 @@ refused at all twelve. Grading those against the schedule produced nine false
 `REFUTES` lines before the split was added, and a falsifier that cries wolf is
 worse than none.
 
+**Current score of the shipped falsifier**, all 17 ladders at `--max 12` in
+both modes: `captures failed: 0`, **0 rows refuting SCHEDULE D**, with 9
+`INNER-DECLINED` rows at `/O1` and 49 at `/Ox`. That second number is the one
+to read alongside the first: it is the categorical refusals being attributed
+to the pair that was actually refused instead of to the pair the schedule is
+about, and `/Ox` having five times as many is §6.15.4 and §6.15.5 showing up
+in the same column.
+
 A row that genuinely disagrees with the table prints
 `<== *** REFUTES SCHEDULE D ***`, and the readings this round retired are
 re-derived from the run's own numbers beside the verdict:
