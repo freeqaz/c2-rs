@@ -129,7 +129,7 @@ pub(crate) fn try_parse_assign_body_detail(
                 // naming none of its own contents.
                 let shape = parse_call_shape(seg, &mut q, lo, Some(dst))?;
                 if !formals.contains(&dst) && !locals.contains(&dst) {
-                    return Err(dst_not_formal(p));
+                    return Err(dst_not_formal(seg, p));
                 }
                 return Ok(shape);
             }
@@ -175,19 +175,19 @@ pub(crate) fn try_parse_assign_body_detail(
             return Err(blk(seg, p, "assign-stmt-end"));
         }
         let rhs = substitute(&rhs, &env)
-            .ok_or(Block { ctx: "assign-subst-overflow", byte: None, off: p, aux: 0 })?;
+            .ok_or(Block::refuse(seg, p, "assign-subst-overflow"))?;
         // Re-assigning shadows the previous definition, which is how a dead store
         // disappears: only the last definition can reach the return.
         env.retain(|(t, _)| *t != dst);
         env.push((dst, rhs));
         if env.len() > MAX_SUBST_OPS {
-            return Err(Block { ctx: "assign-too-many-locals", byte: None, off: p, aux: 0 });
+            return Err(Block::refuse(seg, p, "assign-too-many-locals"));
         }
     }
     eat_scopes(seg, &mut p, &mut depth)?;
     let ret = parse_expr(seg, &mut p, 0x41)?;
     let ret = substitute(&ret, &env)
-        .ok_or(Block { ctx: "assign-subst-overflow", byte: None, off: p, aux: 0 })?;
+        .ok_or(Block::refuse(seg, p, "assign-subst-overflow"))?;
     eat_return_plumbing(seg, &mut p, true, depth)?;
     let params = parse_params(seg, lo)?;
     // After substitution every remaining LOAD must be a parameter. Anything else
@@ -197,17 +197,17 @@ pub(crate) fn try_parse_assign_body_detail(
         IlOp::Load(t) => params.contains(t),
         _ => true,
     }) {
-        return Err(Block { ctx: "assign-ret-nonformal", byte: None, off: p, aux: 0 });
+        return Err(Block::refuse(seg, p, "assign-ret-nonformal"));
     }
     // Substitution is a *source* of repeated leaves even when the written source
     // has none: `int x = a; x = x + x;` substitutes to `a + a`, which c2 emits as
     // `slwi r3,r3,1`. This gate is what keeps that from being wrong bytes.
     if has_repeated_leaf(&ret) {
-        return Err(Block { ctx: "assign-repeated-leaf", byte: None, off: p, aux: 0 });
+        return Err(Block::refuse(seg, p, "assign-repeated-leaf"));
     }
     // Substitution reorders too: `int x = b; return x + a;` resolves to `b + a`.
     if !leaves_ascending(&ret, &params) || !additive_chain_canonical(&ret) {
-        return Err(Block { ctx: "assign-noncanonical-order", byte: None, off: p, aux: 0 });
+        return Err(Block::refuse(seg, p, "assign-noncanonical-order"));
     }
     // The **same** gate the straight-line path applies, at the second site that
     // produces a `StraightLine`. It was missing here, and the census therefore
@@ -218,12 +218,12 @@ pub(crate) fn try_parse_assign_body_detail(
     // reintroduced by a second producer that did not consult it. One fact, one
     // locator: the predicate is shared, not copied.
     if let Some(ctx) = straight_line_out_of_class_ctx(&ret, &params) {
-        return Err(Block { ctx, byte: None, off: p, aux: 0 });
+        return Err(Block::refuse(seg, p, ctx));
     }
     // …and LAST, the destination. Everything above reports first, so this key names
     // a function only when the destination really is the one thing left.
     if let Some(off) = deferred {
-        return Err(dst_not_formal(off));
+        return Err(dst_not_formal(seg, off));
     }
     Ok(BodyShape::StraightLine { params, ops: ret })
 }
@@ -279,6 +279,6 @@ pub(crate) fn try_parse_assign_body_detail(
 /// `cflow-loop` bodies. A rung was ranked and scheduled on the strength of it.
 /// `0x26` is the opcode the gate is actually about, it is one key rather than a
 /// shard per right-hand side, and `hex[hex_mark]` now points at the push.
-fn dst_not_formal(off: usize) -> Block {
-    Block { ctx: "assign-dst-not-formal", byte: Some(0x26), off, aux: 0 }
+fn dst_not_formal(seg: &[u8], off: usize) -> Block {
+    Block { ctx: "assign-dst-not-formal", byte: Some(0x26), off, seg_len: seg.len(), aux: 0 }
 }

@@ -420,6 +420,7 @@ pub(crate) fn parse_expr_classed(
                 ctx: "expr-intrinsic",
                 byte: Some(0x40),
                 off: *p,
+                seg_len: seg.len(),
                 aux: id as u64,
             });
         }
@@ -545,7 +546,7 @@ pub(crate) fn parse_expr_classed(
             .iter()
             .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
     {
-        return Err(Block { ctx: "expr-ptr-arith", byte: None, off: *p, aux: 0 });
+        return Err(Block::refuse(seg, *p, "expr-ptr-arith"));
     }
     // The one-byte-unsigned guard, and it is the pointer guard's twin: the class
     // is free to be *moved* and not to be *computed on*. `b1 + b2` in C++ converts
@@ -558,10 +559,10 @@ pub(crate) fn parse_expr_classed(
             .iter()
             .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
         {
-            return Err(Block { ctx: "expr-int1u-arith", byte: None, off: *p, aux: 0 });
+            return Err(Block::refuse(seg, *p, "expr-int1u-arith"));
         }
         if saw_wide {
-            return Err(Block { ctx: "expr-int1u-mixed", byte: None, off: *p, aux: 0 });
+            return Err(Block::refuse(seg, *p, "expr-int1u-mixed"));
         }
     }
     Ok((ops, saw_int1u.then_some(ValueClass::Int1u)))
@@ -594,13 +595,13 @@ pub(crate) fn parse_expr_classed(
 /// true marker's own `0x46` is neither `0x2D` nor a token continuation there.
 pub(crate) fn parse_formals(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
     let f = formals_marker(seg, lo)
-        .ok_or(Block { ctx: "formals-marker", byte: None, off: lo, aux: 0 })?;
+        .ok_or(Block::refuse(seg, lo, "formals-marker"))?;
     let mut rev = Vec::new();
     let mut p = f + 1;
     while p < lo && seg.get(p) == Some(&0x2D) {
         p += 1;
         let (tok, w) = read_token_var(seg, p)
-            .ok_or(Block { ctx: "formals-tok", byte: None, off: p, aux: 0 })?;
+            .ok_or(Block::refuse(seg, p, "formals-tok"))?;
         p += w;
         rev.push(tok);
     }

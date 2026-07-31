@@ -454,10 +454,32 @@ pub(crate) enum BodyShape {
 pub struct Block {
     /// The grammar production the parse was inside (`"expr"`, `"call-end"`, …).
     pub ctx: &'static str,
-    /// The byte that could not be consumed (`None` at end-of-segment).
+    /// The byte that could not be consumed. `None` at end-of-segment — and also
+    /// for a refusal that is **not about a byte at all** (a post-parse predicate
+    /// over the operand stream, a width the `.sy` layer withheld, a name-level
+    /// refusal). Those two cases are told apart by [`Self::off`] against
+    /// [`Self::seg_len`], never by this field alone; see [`Self::at_end`].
     pub byte: Option<u8>,
     /// Byte offset within the function segment.
     pub off: usize,
+    /// **The length of the segment [`Self::off`] indexes.** Carried so
+    /// [`Self::feature`] can say whether the refusal was raised at the end of the
+    /// segment or in the middle of it — an offset is meaningless without the
+    /// frame it indexes, so the two travel together and no producer records one
+    /// without the other.
+    ///
+    /// **Why this field exists.** `:eof` is a *ranking signal*, not decoration: a
+    /// key that ends `:eof` says the refusal was raised **after** the parse
+    /// reached the segment end, so every function under it is grammar-complete by
+    /// construction and no second blocker hides behind it. That property is what
+    /// makes such a row directly sizeable. The renderer used to print `:eof` for
+    /// **any** `byte: None`, and ~73 producers raise a byte-less refusal at a
+    /// *mid-segment* cursor — so the signal was being claimed by rows that had
+    /// not parsed past their own blocking point. `assign-dst-not-formal:eof` was
+    /// ranked at 13,887 on that reading and measured **+0** twice; 4,466 of its
+    /// bodies were `cflow-loop` bodies, which cannot be at the end of anything.
+    /// See `docs/GAPS.md` §6.
+    pub seg_len: usize,
     /// Context payload for the operand-*type* blocks, where the single blocking
     /// byte is uninformative: an operand's 3-byte inline type differs from the
     /// modeled `86 41 74` (int), but the first byte `86` is shared by every
@@ -491,6 +513,34 @@ pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call
 pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence";
 
 impl Block {
+    /// A refusal that is **not about a single byte**, raised at `off` in `seg`.
+    ///
+    /// The constructor for every predicate the byte stream cannot express: a
+    /// post-parse property of the decoded operand list, a parameter width the
+    /// `.sy` layer withheld, an argument count past the register file. `seg_len`
+    /// is *derived* from the segment rather than passed, so a producer cannot
+    /// record an offset against the wrong frame — which is the whole reason the
+    /// segment is a parameter here instead of the length being one.
+    ///
+    /// Whether this renders `:eof` or `:mid` is decided by `off` against
+    /// `seg.len()` and by nothing else. A producer that means "at the end" says
+    /// so with [`Self::at_end`], which is the same thing spelled positively.
+    pub(crate) fn refuse(seg: &[u8], off: usize, ctx: &'static str) -> Block {
+        Block { ctx, byte: None, off, seg_len: seg.len(), aux: 0 }
+    }
+
+    /// A refusal raised **after the parse reached the end of the segment** — the
+    /// post-parse gates, which run only on a body that already parsed end to end
+    /// (`eat_fn_tail` returns `Ok` only at `p == seg.len()`, so an in-class body's
+    /// cursor *is* the segment end).
+    ///
+    /// This is the one thing a positional test cannot derive on its own: the
+    /// producer knows the parse completed, and states it. Stated positively —
+    /// "this was raised at the end" — rather than as an absence.
+    pub(crate) fn at_end(seg: &[u8], ctx: &'static str) -> Block {
+        Block::refuse(seg, seg.len(), ctx)
+    }
+
     /// A short, stable census key naming the blocking *feature*.
     ///
     /// Operand-stream opcodes get a named bucket when the byte's meaning is
@@ -562,9 +612,30 @@ impl Block {
                 (self.aux >> 8) & 0xFF,
             );
         }
+        // The two byte-less renderings, and the difference between them is a
+        // fact about the parse rather than a spelling.
+        //
+        // `:eof` PROMISES that the parse reached the end of the segment before
+        // this refusal was raised — so the body is grammar-complete, nothing is
+        // hiding behind the row, and its count is directly a widening estimate.
+        // It is earned by `off == seg_len` and by nothing else. Both ways to
+        // reach that offset are exact rather than approximate: `blk` reads
+        // `seg.get(p)` at the live cursor, which is `None` only past the last
+        // byte, and [`Block::at_end`] is raised by the post-parse gates, which
+        // run only after `eat_fn_tail` has already required `p == seg.len()`.
+        //
+        // `:mid` is the honest complement: a refusal with no blocking byte,
+        // raised at a cursor with segment left to parse. It is a **separate
+        // bucket**, not a merge into the byte-named one — the same `ctx` can
+        // legitimately produce both keys (a predicate checked once mid-parse for
+        // a call argument and once post-parse for a whole body), and collapsing
+        // them would destroy exactly the distinction this renderer exists to
+        // draw. Merging buckets is the one failure a census instrument cannot
+        // survive (`docs/GAPS.md` §6).
         let b = match self.byte {
             Some(b) => b,
-            None => return format!("{}:eof", self.ctx),
+            None if self.off >= self.seg_len => return format!("{}:eof", self.ctx),
+            None => return format!("{}:mid", self.ctx),
         };
         if self.ctx == "expr" {
             // Operand-stream opcodes VERIFIED against live-toolchain captures
@@ -698,7 +769,7 @@ pub(crate) fn expr_opcode_name(b: u8) -> Option<&'static str> {
 
 /// Build a [`Block`] at the current parse position.
 pub(crate) fn blk(seg: &[u8], p: usize, ctx: &'static str) -> Block {
-    Block { ctx, byte: seg.get(p).copied(), off: p, aux: 0 }
+    Block { ctx, byte: seg.get(p).copied(), off: p, seg_len: seg.len(), aux: 0 }
 }
 
 /// Build an operand-*type* [`Block`]: `p` points at the 3-byte inline type that
@@ -715,6 +786,7 @@ pub(crate) fn blk_type(seg: &[u8], p: usize, report_at: usize, ctx: &'static str
         ctx,
         byte: seg.get(p).copied(),
         off: report_at,
+        seg_len: seg.len(),
         aux: (g(0) << 16) | (g(1) << 8) | g(2),
     }
 }
@@ -784,12 +856,12 @@ pub(crate) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, 
 }
 
 fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
-    let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or(Block {
-        ctx: "lo-marker",
-        byte: None,
-        off: 0,
-        aux: 0,
-    })?;
+    // Offset 0, and NOT the segment end: the whole segment was searched and the
+    // marker is not in it, so the parse never started. Reporting it at the end
+    // would claim `:eof` — "the parse ran out of segment" — for a body whose
+    // grammar is entirely unexamined.
+    let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11])
+        .ok_or_else(|| Block::refuse(seg, 0, "lo-marker"))?;
 
     // Every shape below maps a formal token to an argument register by its
     // **position** in the formals list. That is only the same thing as its
@@ -816,7 +888,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     // blocker instead of `formals-marker` for every such body.
     if let Ok(formals) = parse_formals(seg, lo) {
         if let Err(ctx) = sy.formals_are_one_register_each(&formals) {
-            return Err(Block { ctx, byte: None, off: lo, aux: 0 });
+            return Err(Block::refuse(seg, lo, ctx));
         }
     }
 
@@ -1014,32 +1086,22 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             let params = parse_params(seg, lo)?;
             // A parameter used twice licenses c2's algebraic rewriter.
             if has_repeated_leaf(&ops) {
-                return Err(Block { ctx: "expr-repeated-leaf", byte: None, off: p, aux: 0 });
+                return Err(Block::refuse(seg, p, "expr-repeated-leaf"));
             }
             // Gates that used to live in codegen; see
             // `straight_line_out_of_class_ctx`, which names *which* of them fired
             // so the row can be ranked clause by clause.
             if let Some(ctx) = straight_line_out_of_class_ctx(&ops, &params) {
-                return Err(Block { ctx, byte: None, off: p, aux: 0 });
+                return Err(Block::refuse(seg, p, ctx));
             }
             let ops = match canonicalize_chain(&ops, &params) {
                 Some(c) => c,
                 None => {
                     if !leaves_ascending(&ops, &params) {
-                        return Err(Block {
-                            ctx: "expr-noncanonical-order",
-                            byte: None,
-                            off: p,
-                            aux: 0,
-                        });
+                        return Err(Block::refuse(seg, p, "expr-noncanonical-order"));
                     }
                     if !additive_chain_canonical(&ops) {
-                        return Err(Block {
-                            ctx: "expr-noncanonical-additive",
-                            byte: None,
-                            off: p,
-                            aux: 0,
-                        });
+                        return Err(Block::refuse(seg, p, "expr-noncanonical-additive"));
                     }
                     ops
                 }
@@ -1518,7 +1580,10 @@ mod tests {
         ];
         let seg = free_fn(ptr_add);
         let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
-        assert_eq!(b.feature(), "expr-ptr-arith:eof");
+        // `:mid`: the guard fires on the ADD, with the result type and the whole
+        // return plumbing still unread.
+        assert!(b.off < b.seg_len, "the refusal is at the ADD, with the plumbing still ahead");
+        assert_eq!(b.feature(), "expr-ptr-arith:mid");
         assert!(parse_segment(&seg, NO_LOCALS).is_none());
         // The same body with an `int` operand and the same literal is exactly the
         // shape the port has emitted since the MVP, so the guard is keying on the
@@ -1545,6 +1610,78 @@ mod tests {
         let mut plain = ptr_add.to_vec();
         plain.drain(15..21); // the LIT (5 bytes) and the ADD
         assert!(parse_segment(&free_fn(&plain), NO_LOCALS).is_some());
+    }
+
+    /// **`:eof` means the parse reached the end of the segment, and the two
+    /// cases are told apart.** The positive and the negative for the census
+    /// instrument's one ranking signal.
+    ///
+    /// A key ending `:eof` is read as "the refusal was raised *after* the parse
+    /// reached the segment end", which makes every function under it
+    /// grammar-complete by construction — nothing else is hiding behind the row,
+    /// so its count is directly a widening estimate. Both halves are checked
+    /// here because only the pair pins the property: a renderer that printed
+    /// `:eof` for everything passes the first assertion.
+    ///
+    /// Both bodies are reproduced from hand-written source through the live
+    /// toolchain, not just transcribed: `int rep(int a){ return a+a; }` reports
+    /// `expr-repeated-leaf:eof` and `int* ptr(int* p){ return p+1; }` reports
+    /// `expr-ptr-arith:mid` under `c2rs census`.
+    #[test]
+    fn the_eof_suffix_is_earned_by_reaching_the_segment_end() {
+        // `int rep(int a,int b,int c){ return a+a; }` — every byte from the
+        // captured `add3` fixture above, with the second LOAD naming `a` again.
+        // The repeated leaf licenses c2's algebraic rewriter, so the body is
+        // refused — but only AFTER `eat_return_plumbing`, which returns `Ok`
+        // solely at `p == seg.len()` (`eat_fn_tail`). So this refusal is at the
+        // segment end and the parse has accounted for every byte of the body.
+        let repeated: &[u8] = &[
+            0x46, 0x2D, 0xE5, 0x09, 0x2D, 0xE4, 0x09, 0x2D, 0xE3, 0x09, // formals c,b,a
+            0x4C, 0x4F, 0x11, 0x53, // LO SS
+            0xB9, 0xE3, 0x09, 0x86, 0x41, 0x74, // LOAD a
+            0xB9, 0xE3, 0x09, 0x86, 0x41, 0x74, // LOAD a — the repeat
+            0x02, // ADD
+            0x41, 0x86, 0x41, 0x74, // result-type int
+            0x3A, 0xE7, 0x09, // ASSIGN
+            0x54, 0x02, 0x29, 0xE7, 0x09, // RETURN
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // separator + GT terminate
+            0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x4D, // module end
+        ];
+        let seg = free_fn(repeated);
+        let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+        assert_eq!(b.ctx, "expr-repeated-leaf");
+        assert_eq!(
+            b.off, b.seg_len,
+            "a post-parse refusal is raised at the segment end, which is what :eof reports"
+        );
+        assert_eq!(b.feature(), "expr-repeated-leaf:eof");
+
+        // The negative, and the defect this test exists for: the identical
+        // *shape* of refusal — no blocking byte, `byte: None` — raised at a
+        // cursor with segment still ahead of it. It must NOT claim `:eof`, and
+        // it must not be merged into the byte-named bucket either.
+        let ptr_add: &[u8] = &[
+            0x46, 0x2D, 0xE3, 0x09, //
+            0x4C, 0x4F, 0x11, 0x53, //
+            0xB9, 0xE3, 0x09, 0x86, 0x43, 0xF4, 0x08, // LOAD p, type int*
+            0x33, 0x86, 0x41, 0x12, 0x04, // LIT (long) 4
+            0x02, // ADD
+            0x41, 0x86, 0x43, 0xF4, 0x08, // result-type int*
+            0x3A, 0xE5, 0x09, 0x54, 0x02, 0x29, 0xE5, 0x09, //
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+        ];
+        let seg = free_fn(ptr_add);
+        let m = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+        assert_eq!(m.byte, None, "the two cases are the same shape of block");
+        assert!(
+            m.off < m.seg_len,
+            "this refusal has segment left after it, so a second blocker may be in it"
+        );
+        assert_eq!(m.feature(), "expr-ptr-arith:mid");
+        assert!(
+            !m.feature().ends_with(":eof"),
+            "a mid-segment refusal must never claim the completeness :eof promises"
+        );
     }
 
     #[test]
@@ -1621,7 +1758,11 @@ mod tests {
         let mut map: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
         for (ctx, aux) in cases {
             for byte in [None, Some(0x24u8), Some(0xB9)] {
-                let b = Block { ctx, byte, off: 0, aux };
+                // `off: 0, seg_len: 0` — cursor at the end of an empty segment,
+                // which is the shape a genuine `:eof` block has. The property
+                // under test is the operand-TYPE rekey, and holding the eof axis
+                // fixed is what keeps it the only thing moving.
+                let b = Block { ctx, byte, off: 0, seg_len: 0, aux };
                 let (o, n) = (old(b), b.feature());
                 // Same old key ⇒ same new key. That is exactly "the new
                 // partition is a coarsening of the old one", and it is what

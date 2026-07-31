@@ -212,19 +212,19 @@ pub(crate) fn try_parse_member_cmp_calls(
             };
             SeqCmp::Order { greater: rel == Rel::Gt, signed }
         }
-        _ => return Err(Some(Block { ctx: rel_refusal_key(rel), byte: None, off: p, aux: 0 })),
+        _ => return Err(Some(Block::refuse(seg, p, rel_refusal_key(rel)))),
     };
     // A `float`/`double` result would oblige the TU to carry `_fltused`, which
     // is the `call-ret-fp` refusal one production out — asked through the shared
     // [`CallRet`] so this position cannot drift from the others.
-    ret2.discarded(p).map_err(Some)?;
+    ret2.discarded(seg, p).map_err(Some)?;
     // Both calls must be NULLARY. `this` is the only argument either one carries;
     // an explicit argument marshals into r4… beside the callee-saved move, and
     // which of the two is hoisted is exactly what `plan_saved_gprs` refuses to
     // guess (`callseq-saved-with-first-call-setup`, 11 of 17 probes wrong for the
     // model that assumed it).
     if first_args.len() != 1 || !args2.is_empty() {
-        return Err(Some(Block { ctx: "mcall-cmp-args", byte: None, off: p, aux: 0 }));
+        return Err(Some(Block::refuse(seg, p, "mcall-cmp-args")));
     }
 
     let params = parse_params(seg, lo).map_err(Some)?;
@@ -234,19 +234,14 @@ pub(crate) fn try_parse_member_cmp_calls(
     // receiver passes here exactly like a declared one.
     let recv_ops = [IlOp::Load(recv1), IlOp::Load(recv2)];
     if !arg_loads_are_formals(&recv_ops, &params) {
-        return Err(Some(Block { ctx: "call-arg-nonformal", byte: None, off: p, aux: 0 }));
+        return Err(Some(Block::refuse(seg, p, "call-arg-nonformal")));
     }
     // Past the eighth formal a parameter is stack-homed and reading it is
     // `lwz r3,<slot>(r1)`. The refusal is on the whole formals LIST, not on a
     // receiver's index, because that is the predicate `select_text` raises —
     // the same reasoning and the same key as every other framed shape.
     if params.len() > MAX_REGISTER_FORMALS {
-        return Err(Some(Block {
-            ctx: "framed-arg-over-eight-formals",
-            byte: None,
-            off: p,
-            aux: 0,
-        }));
+        return Err(Some(Block::refuse(seg, p, "framed-arg-over-eight-formals")));
     }
 
     // **The call order.** c2 emits the two calls in the order c1xx **numbered
@@ -257,14 +252,14 @@ pub(crate) fn try_parse_member_cmp_calls(
         Some(ThisBinding::Absent) => false,
         Some(ThisBinding::Bound(_)) => true,
         // `parse_params` above already refused an undetermined binding.
-        None => return Err(Some(Block { ctx: "this-undetermined", byte: None, off: p, aux: 0 })),
+        None => return Err(Some(Block::refuse(seg, p, "this-undetermined"))),
     };
     let (Some(r1), Some(r2)) = (
         alloc_rank(&params, member, recv1),
         alloc_rank(&params, member, recv2),
     ) else {
         // Unreachable: `arg_loads_are_formals` just proved both are in `params`.
-        return Err(Some(Block { ctx: "mcall-cmp-recv-rank", byte: None, off: p, aux: 0 }));
+        return Err(Some(Block::refuse(seg, p, "mcall-cmp-recv-rank")));
     };
     let lhs_first = r1 <= r2;
     let (c0, c1) = if lhs_first {
@@ -293,7 +288,7 @@ pub(crate) fn try_parse_member_cmp_calls(
     // next descending register; it is passed in so the `MAX_INLINE_SAVED_GPRS`
     // gate is applied to the TOTAL and a body that would need `__savegprlr_29`
     // refuses there rather than mis-emitting a Class C prologue.
-    let saved = plan_saved_gprs(&params, &calls, 1, p).map_err(Some)?;
+    let saved = plan_saved_gprs(seg, &params, &calls, 1, p).map_err(Some)?;
     Ok(BodyShape::CallSeq { params, calls, tail: SeqTail::Cmp { cmp, lhs_first }, saved })
 }
 

@@ -657,10 +657,11 @@ mod tests {
     fn an_undetermined_sy_declines_and_leaves_the_census_key_alone() {
         let unknown = SyView { locals: &[], formals: Formals::Undetermined };
         assert_eq!(parse_segment(FP_TAIL_GAP, unknown), None);
-        assert_eq!(
-            parse_segment_detail(FP_TAIL_GAP, unknown).unwrap_err().feature(),
-            "param-width-undetermined:eof"
-        );
+        let b = parse_segment_detail(FP_TAIL_GAP, unknown).unwrap_err();
+        // `:mid`: the widths are withheld *before* the body is parsed at all, at
+        // the `LO` marker, so the whole body is still ahead of the cursor.
+        assert!(b.off < b.seg_len, "the refusal is at the LO marker, with the body still ahead");
+        assert_eq!(b.feature(), "param-width-undetermined:mid");
     }
 
     /// A `volatile` FP formal is a memory object: c2 homes it in a frame and

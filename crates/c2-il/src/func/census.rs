@@ -292,19 +292,15 @@ impl IlBundle {
                     let varargs = bind.is_varargs(i);
                     // Held across the verdict so the gate side can convert the
                     // very same parse — two readings of one parse, never two parses.
-                    let mut shape: Result<BodyShape, Block> = Err(Block {
-                        ctx: "fn-varargs",
-                        byte: None,
-                        off: 0,
-                        aux: 0,
-                    });
+                    //
+                    // Offset 0 and NOT the segment end. This refusal is raised on
+                    // the mangled NAME before the body is looked at, so nothing is
+                    // known about the body's grammar — `:eof` would claim the
+                    // opposite (parse complete, nothing hiding behind the row).
+                    let mut shape: Result<BodyShape, Block> =
+                        Err(Block::refuse(seg, 0, "fn-varargs"));
                     let verdict = if varargs {
-                        FnVerdict::Blocked(Block {
-                            ctx: "fn-varargs",
-                            byte: None,
-                            off: 0,
-                            aux: 0,
-                        })
+                        FnVerdict::Blocked(Block::refuse(seg, 0, "fn-varargs"))
                     } else {
                         shape = parse_segment_detail(seg, bind.locals(i));
                         match &shape {
@@ -463,10 +459,23 @@ impl IlBundle {
                             // symbol — a mis-emit, not a gap. `shape_to_function` is
                             // the same conversion `IlBundle::functions` runs, so the
                             // two cannot disagree about this.
+                            //
+                            // Both gates below are raised with [`Block::at_end`],
+                            // and they are the two producers entitled to it: this
+                            // arm runs only for a body the whole-segment parser
+                            // already accepted, and acceptance requires the cursor
+                            // to reach `seg.len()` (`eat_fn_tail`). So the `:eof`
+                            // these render is the true statement — the body is
+                            // grammar-complete and this is the only thing left
+                            // wrong with it — rather than the artefact of a
+                            // byte-less refusal. (It used to be recorded at
+                            // `len - 1`, the last byte, which is a *different*
+                            // claim and one the renderer now tells apart.)
                             let name = bind.name_for_shape(i);
                             match shape_to_function(sh, &name, &src, &resolve) {
-                                None => FnVerdict::Blocked(Block {
-                                    ctx: match label {
+                                None => FnVerdict::Blocked(Block::at_end(
+                                    seg,
+                                    match label {
                                         "framed-call" => CALLEE_UNRESOLVED_FRAMED,
                                         l if l.starts_with("call-sequence") => {
                                             CALLEE_UNRESOLVED_SEQ
@@ -476,10 +485,7 @@ impl IlBundle {
                                         }
                                         _ => CALLEE_UNRESOLVED_TAIL,
                                     },
-                                    byte: None,
-                                    off: seg.len().saturating_sub(1),
-                                    aux: 0,
-                                }),
+                                )),
                                 // (b) The optimization mode. `.ex` records it per
                                 // function and the port emits only the two words it
                                 // has been verified against; the rest — `/Od`, a
@@ -488,10 +494,8 @@ impl IlBundle {
                                 Some(f) if opt_word_mode(opt_word).is_none() => {
                                     let _ = f;
                                     FnVerdict::Blocked(Block {
-                                        ctx: OPT_MODE,
-                                        byte: None,
-                                        off: seg.len().saturating_sub(1),
                                         aux: opt_word.unwrap_or(0) as u64,
+                                        ..Block::at_end(seg, OPT_MODE)
                                     })
                                 }
                                 Some(f) => {

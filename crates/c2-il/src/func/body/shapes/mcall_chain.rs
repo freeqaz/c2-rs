@@ -209,7 +209,7 @@ pub(crate) fn try_parse_member_chain_call(
         // A discarded `float`/`double` result still obliges the TU to carry
         // `_fltused`, which the port has no model of — asked through the shared
         // [`super::calls::CallRet`], so this position cannot drift from the others.
-        ret.discarded(p).map_err(Some)?;
+        ret.discarded(seg, p).map_err(Some)?;
         // A brace scope closes **between** the statement end and the return branch
         // — same reasoning, and same call site, as the one-link form's.
         eat_scopes(seg, &mut p, &mut depth).map_err(|_| None)?;
@@ -244,7 +244,7 @@ pub(crate) fn try_parse_member_chain_call(
     // LIST because that is the predicate `select_text` raises — the same reasoning
     // and the same key as the Class A statement sequence this body becomes.
     if params.len() > MAX_REGISTER_FORMALS {
-        return Err(Some(Block { ctx: "callseq-over-eight-formals", byte: None, off: p, aux: 0 }));
+        return Err(Some(Block::refuse(seg, p, "callseq-over-eight-formals")));
     }
     // The innermost call's arguments — the receiver plus any explicit ones —
     // validated and normalized through the ONE locator every other call shape
@@ -252,14 +252,14 @@ pub(crate) fn try_parse_member_chain_call(
     // the permutation-cycle bound and the computed-argument rules all arrive with
     // it rather than being restated here.
     let (arg_ops, arg_sources) =
-        match tail_call_shape(inner_args, params.clone(), methods[methods.len() - 1], p)
+        match tail_call_shape(seg, inner_args, params.clone(), methods[methods.len() - 1], p)
             .map_err(Some)?
         {
             BodyShape::VoidTailCall { .. } => (Vec::new(), None),
             BodyShape::IntTailCall { arg_ops, .. } => (arg_ops, None),
             BodyShape::MultiArgTailCall { arg_sources, .. } => (Vec::new(), Some(arg_sources)),
             // `tail_call_shape` returns exactly those three.
-            _ => return Err(Some(Block { ctx: "callseq-arg-shape", byte: None, off: p, aux: 0 })),
+            _ => return Err(Some(Block::refuse(seg, p, "callseq-arg-shape"))),
         };
     let mut calls = Vec::with_capacity(methods.len());
     // The innermost call's list is COMPLETE — `this` is its slot 0 — so it is not
@@ -280,14 +280,14 @@ pub(crate) fn try_parse_member_chain_call(
             callee_tok: *m,
             arg_ops: Vec::new(),
             arg_sources: None,
-            link_args: Some(link_arg_slots(args, &params, p).map_err(Some)?),
+            link_args: Some(link_arg_slots(seg, args, &params, p).map_err(Some)?),
         });
     }
     // Class A by construction — no later call reads a formal, so this returns
     // empty. Asked anyway, through the one locator, rather than asserting it: the
     // rule is the same one the statement sequence runs, and a private restatement
     // of "this is Class A" is exactly the shape of drift `GAPS.md` §6 records.
-    let saved = plan_saved_gprs(&params, &calls, 0, p).map_err(Some)?;
+    let saved = plan_saved_gprs(seg, &params, &calls, 0, p).map_err(Some)?;
     Ok(BodyShape::CallSeq { params, calls, tail, saved })
 }
 
@@ -413,19 +413,14 @@ fn chain_result_designator(
     // instruction count, so it refuses rather than truncating. Gated on the SUM,
     // the same boundary `finish_indirect_load_of` draws for the leaf.
     if !(-0x8000..=0x7FFF).contains(&off) {
-        return Err(Some(Block { ctx: "mcall-chain-tail-off-wide", byte: None, off: *p, aux: 0 }));
+        return Err(Some(Block::refuse(seg, *p, "mcall-chain-tail-off-wide")));
     }
     let Some((tag, kind, conv)) = loaded else {
         // **The address form.** No load: the value is the adjusted pointer, and
         // the result type must say so. `SeqTail::CallValue` is the same `addi`
         // the W41 post-op emits and folds `+0` to nothing all by itself.
         if !is_ptr4_kind(rt, rk) {
-            return Err(Some(Block {
-                ctx: "mcall-chain-tail-addr-class",
-                byte: None,
-                off: *p,
-                aux: 0,
-            }));
+            return Err(Some(Block::refuse(seg, *p, "mcall-chain-tail-addr-class")));
         }
         return Ok(SeqTail::CallValue { add_k: off });
     };
@@ -443,7 +438,7 @@ fn chain_result_designator(
         // tail call and the FP leaf ask — and NOT through a nibble test written
         // here, which is `docs/GAPS.md` §6's "one rule, two implementations".
         if let Some(double) = is_fp_type(tag, kind) {
-            return fp_chain_result_load(off, double, conv, rt, rk, loaded_at);
+            return fp_chain_result_load(seg, off, double, conv, rt, rk, loaded_at);
         }
         // Named, because what each costs is a number and not an argument. The
         // narrow and 8-byte scalars are `lbz`/`lhz`/`ld`; what is left in this
@@ -454,15 +449,10 @@ fn chain_result_designator(
             Some(_) => "mcall-chain-tail-load-width",
             None => "mcall-chain-tail-load-class",
         };
-        return Err(Some(Block { ctx, byte: None, off: loaded_at, aux: 0 }));
+        return Err(Some(Block::refuse(seg, loaded_at, ctx)));
     };
     if !matches!(cls, ValueClass::Int4 | ValueClass::Ptr4) {
-        return Err(Some(Block {
-            ctx: "mcall-chain-tail-load-class",
-            byte: None,
-            off: loaded_at,
-            aux: 0,
-        }));
+        return Err(Some(Block::refuse(seg, loaded_at, "mcall-chain-tail-load-class")));
     }
     // The conversion, when there was one, must stay **inside** the loaded class:
     // `2C int→int` and `2C ptr→ptr` are cv strips and emit nothing. A
@@ -473,23 +463,13 @@ fn chain_result_designator(
     // it refuses rather than being skipped.
     if let Some((t2, k2)) = conv {
         if value_class(t2, k2) != Some(cls) {
-            return Err(Some(Block {
-                ctx: "mcall-chain-tail-load-convert",
-                byte: None,
-                off: loaded_at,
-                aux: 0,
-            }));
+            return Err(Some(Block::refuse(seg, loaded_at, "mcall-chain-tail-load-convert")));
         }
     }
     // …and the result type restates the loaded class. Required rather than
     // skipped: every capture agrees byte for byte.
     if value_class(rt, rk) != Some(cls) {
-        return Err(Some(Block {
-            ctx: "mcall-chain-tail-load-result",
-            byte: None,
-            off: loaded_at,
-            aux: 0,
-        }));
+        return Err(Some(Block::refuse(seg, loaded_at, "mcall-chain-tail-load-result")));
     }
     Ok(SeqTail::CallLoad { off })
 }
@@ -529,6 +509,7 @@ fn chain_result_designator(
 /// displacement encodes fine and needs no gate. One instruction, two widths, one
 /// encoder ([`c2_core::codegen::encode::encode_lfs`], which takes the width).
 fn fp_chain_result_load(
+    seg: &[u8],
     off: i32,
     double: bool,
     conv: Option<(u8, u8)>,
@@ -545,20 +526,10 @@ fn fp_chain_result_load(
                 // FP → integer (`int f(){ return …->fltmember; }`) is a
                 // `fctiwz`, a spill through the frame and a reload; nothing in
                 // this tail's one instruction.
-                return Err(Some(Block {
-                    ctx: "mcall-chain-tail-load-fp-convert",
-                    byte: None,
-                    off: loaded_at,
-                    aux: 0,
-                }));
+                return Err(Some(Block::refuse(seg, loaded_at, "mcall-chain-tail-load-fp-convert")));
             };
             if double && !conv_double {
-                return Err(Some(Block {
-                    ctx: "mcall-chain-tail-load-fp-narrow",
-                    byte: None,
-                    off: loaded_at,
-                    aux: 0,
-                }));
+                return Err(Some(Block::refuse(seg, loaded_at, "mcall-chain-tail-load-fp-narrow")));
             }
             conv_double
         }
@@ -567,12 +538,7 @@ fn fp_chain_result_load(
     // Required rather than skipped: every capture agrees byte for byte, and this
     // is the one place a promotion could be mis-read as a same-width strip.
     if is_fp_type(rt, rk) != Some(value_double) {
-        return Err(Some(Block {
-            ctx: "mcall-chain-tail-load-fp-result",
-            byte: None,
-            off: loaded_at,
-            aux: 0,
-        }));
+        return Err(Some(Block::refuse(seg, loaded_at, "mcall-chain-tail-load-fp-result")));
     }
     Ok(SeqTail::CallLoadFp { off, double })
 }
