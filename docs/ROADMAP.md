@@ -3102,6 +3102,42 @@ ascending link order are refuted, each by its own capture, and the rule that fit
 all nine is *whether argument slot 0 is marshalled* — `docs/CODEGEN_ARG_PERM.md`
 §7.
 
+## 6o. The next phase is EH, and no histogram was ever going to say so
+
+Measured 2026-07-31 (`docs/EH_RECORDS.md` §7), census delta **0** — an axis, not
+a rung.
+
+**233,526 functions — 13.1 % of everything blocked — sit behind the C++
+exception-handling model**, and they are invisible to every ranking instrument
+this project has. Of the 310,371 bodies carrying an EH marker, **75.2 % are on
+the EH side** (`plus-stmt` 160,944 + `partial` 44,688 + `multi` 27,894) against
+**24.8 % cheap** (`eh-bare` 76,845, of which 35,964 are already in class). Of the
+blocked residue: **85.1 % behind EH.**
+
+**Why no first-blocker histogram sees it.** The stock is spread across rows that
+each look like ordinary expression work, and **the same census key straddles the
+boundary** — `Ct1::Ct1(){}` and `Ct2::Ct2(){Init();}` are both
+`expr-intrinsic-this-adjust`, the #2 blocker at 141,800, on opposite sides.
+Crossed: `expr-bit-and` and `…-recv-object-then-branch-brtrue` are **99.9 %**
+behind EH; `expr-intrinsic-base-member-addr` 62.5 %; while the #1 row
+`expr-op-0x27` is only **8.2 %** and `body-0x9B` is 61.8 % cheap. **No expression
+rung retires the EH stock.**
+
+It is not the *cheapest* next thing — the cheap side's 40,881 blocked functions
+are — but it is the largest thing that was hidden, and every expression rung from
+here on should be sized against its EH share before it is scheduled.
+
+Two corrections that came with it. `5C` is **not** a ctor/dtor trailer: it ends
+**any** statement in which an object with a destructor became live, so
+`int userfn(int a){ MemA s; g(a); return a+1; }` carries one with no sub-object
+anywhere. And the cheap/EH split is **the count of such statements**, not the
+kind of function. Both were caught in one capture by the rule §6n now carries:
+*reproduce the census key from hand-written source before believing a sizing.*
+
+**Larger than either side and unmeasured: `eh-unknown` = 288,072** bodies that
+stop decoding before any marker, so the axis says nothing about them. Establishing
+`0x64` (145,237) and `0x67` (45,631) is what shrinks that.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp
