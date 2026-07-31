@@ -27,13 +27,19 @@
 #     def cases(emit):
 #         emit("int f(int a) { return a + 1; }\n")   # one .cpp case
 #
-# `emit` is supplied by THIS driver, which owns the counter and namespaces the
-# output by fragment (`10-int-chains-0007.cpp`). A fragment therefore cannot see
-# or touch another fragment's counter: the `n`-shadowing trap that silently
-# rewound the file counter and overwrote 1,233 already-written cases is now
-# *unrepresentable*, not merely fixed. The driver prints a per-fragment count and
-# **fails if any fragment emits zero cases** — the observable symptom of that bug
-# is now a hard error.
+# `emit` is supplied by the LOADER (`scripts/sweep_gen.py`), which owns the
+# counter and namespaces the output by fragment (`10-int-chains-0007.cpp`). A
+# fragment therefore cannot see or touch another fragment's counter: the
+# `n`-shadowing trap that silently rewound the file counter and overwrote 1,233
+# already-written cases is now *unrepresentable*, not merely fixed. The loader
+# prints a per-fragment count, **fails if any fragment emits zero cases** — the
+# observable symptom of that bug is now a hard error — and **fails if what it
+# counted is not what is on disk**, which is that bug's actual damage.
+#
+# The loader is a module rather than an inline block because it has a second
+# consumer: `scripts/cross_sweep.py` grades the CROSS PRODUCT of the shape
+# families these cases exercise, and two copies of the enumeration is the
+# "one rule, two implementations" shape `docs/GAPS.md` §6 keeps recording.
 #
 # Usage:  scripts/expr_sweep.sh [outdir] [max-cases]
 #         scripts/expr_sweep.sh /tmp/sweep 400     # a quick subset
@@ -59,55 +65,7 @@ fi
 mkdir -p "$out"
 rm -f "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true
 
-python3 - "$out" "$repo_root/scripts/sweep.d" <<'PY'
-import os, sys
-
-out, frag_dir = sys.argv[1], sys.argv[2]
-only = os.environ.get('C2RS_SWEEP_ONLY', '')
-
-names = sorted(f for f in os.listdir(frag_dir)
-               if f.endswith('.py') and not f.startswith('_'))
-if not names:
-    sys.exit('no sweep fragments in %s' % frag_dir)
-
-selected = [f for f in names if only in f]
-if only:
-    print('C2RS_SWEEP_ONLY=%r: %d of %d fragments — THE TOTAL BELOW IS PARTIAL'
-          % (only, len(selected), len(names)))
-    if not selected:
-        sys.exit('C2RS_SWEEP_ONLY=%r matched no fragment' % only)
-
-total = 0
-empty = []
-for name in selected:
-    stem = name[:-3]
-    # The driver owns the counter. A fragment is handed `emit` and nothing else,
-    # so it cannot reach another fragment's namespace or rewind its count.
-    count = [0]
-
-    def emit(src, _stem=stem, _count=count):
-        _count[0] += 1
-        path = os.path.join(out, '%s-%04d.cpp' % (_stem, _count[0]))
-        with open(path, 'w') as fh:
-            fh.write(src)
-
-    path = os.path.join(frag_dir, name)
-    ns = {'__name__': 'sweep_' + stem.replace('-', '_'), '__file__': path}
-    exec(compile(open(path).read(), path, 'exec'), ns)
-    if 'cases' not in ns:
-        sys.exit('fragment %s defines no cases(emit)' % name)
-    ns['cases'](emit)
-
-    print('  fragment %-26s %5d cases' % (stem, count[0]))
-    if count[0] == 0:
-        empty.append(stem)
-    total += count[0]
-
-if empty:
-    sys.exit('FRAGMENT EMITTED ZERO CASES: %s — a silent generator drop is a hard '
-             'error here (docs/ARCHITECTURE_SEAMS.md §2.4)' % ', '.join(empty))
-print('  %d fragments, %d cases total' % (len(selected), total))
-PY
+python3 "$repo_root/scripts/sweep_gen.py" "$out" "$repo_root/scripts/sweep.d"
 
 ls "$out"/*.cpp | sort > "$out/cases.txt"
 total=$(wc -l < "$out/cases.txt")
