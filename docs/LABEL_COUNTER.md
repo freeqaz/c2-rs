@@ -1945,6 +1945,56 @@ level, different mode, same source; only a symbol name can say so.
 > **virtual** call the front end devirtualises and a **template** instantiation
 > still have no row anywhere in this document.
 
+### 6.15.7a The pre-registration, scored
+
+Written before each capture and reproduced here because `work/` is gitignored
+and a prediction nobody can check later is not a prediction. Twenty-five
+registered, **sixteen landed and nine missed**, which is the useful ratio.
+
+| prediction | p | outcome |
+|---|---:|---|
+| relocations catch a decline `dtext` misses | 0.5 | ✓ three `/Ox` N=1 rows, `noinline` among them |
+| the budget depletes: sites 1..K inlined, K+1..N not | 0.65 | ✗ **no mixed row in 2 904 objects** |
+| `/Ox`'s "declined from N=2" rows are a K=1 depletion | 0.6 | ✗ declined from N=1; `/Ox` has no N-dependence |
+| the limit depends on what P has already inlined | 0.7 | ✗ and P's own size does not move it either |
+| §6.14's "one declared local" wording is wrong | 0.75 | ✓ |
+| **the ladders will NOT all flip at the same callee size** | **0.7** | ✗ **at `/O1` all fourteen do** |
+| the decline axis is not the charge axis | 0.6 | ✓ dead locals move it by zero |
+| `N_max × per-site growth` ≈ constant | 0.45 | ✗ |
+| MODEL B: `N·(c₀+wk) ≤ 20`, fitted on `d2-arith` | 0.55 | ✗ dead on the first held-out ladder |
+| `ctor-arith` refused at every rung | 0.85 | ✓ |
+| `ctor-leaf-arith` behaves like an ordinary ladder | 0.8 | ✗ it is categorical too, from k=3 |
+| `d1-fine` reproduces the curve at 4-byte resolution | 0.7 | ✓ |
+| `d1-dbl` (FP opcodes, FPR frame, `_fltused`) lands on it | 0.45 | ✓ |
+| `d1-if` (branches, basic blocks) lands on it | 0.5 | ✓ |
+| `/Ox` is 6-or-0 everywhere | 0.9 | ✓ and still 12-or-0 at N=12 |
+| `ctor-loop-local` inlines — "it is aliasing, not C++" | 0.5 | ✓ at `/O1`, ✗ at `/Ox` |
+| `method-loop-call` is declined | 0.5 | ✗ at `/O1`, ✓ at `/Ox` |
+| `ptr-loop-call` is declined | 0.4 | ✗ at `/O1`, ✓ at `/Ox` |
+| `member-noloop-store` inlines | 0.85 | ✗ at `/O1`, ✓ at `/Ox` |
+| LAW D: `(N−1)(s−64) < 80`, read 10 / 7 / 5 out of sample | 0.55 | ✗ **9** / 7 / 5 |
+| no mixed row up to N=12 | 0.8 | ✓ |
+| the doc's own ctor/dtor/depth-3 families reproduce | 0.5 | ✓ all twelve |
+| the `/Ox` loop split survives N=12 | 0.85 | ✓ |
+| a sibling callee does not move the limit | 0.7 | ✓ |
+| padding P's own body does not move it | 0.85 | ✓ |
+
+**The named bias fired, and in the direction I flagged.** Round 28's estimate
+opened by naming *"the budget is chaotic, NOT MODELLED"* as the cheap answer
+that lets me stop early, and pre-committed against it. The single biggest miss
+in the table is exactly that prime: `/O1`'s axis is **cleaner** than I gave it
+a 30 % chance of being. §6.14's opposite lesson — that expecting a refutation
+because the last six probes produced one is the same bias with the sign
+flipped — has a converse too, and this is it: after reading a section that
+says *"non-monotone four times over"*, I priced order too low.
+
+I was also **right for the wrong reason at `/Ox`**. "The ladders will not all
+flip at the same size" is true there, and my stated reason — that emitted size
+is a c2-side proxy for a c1xx-side decision — is not why. The reason is that
+`/Ox` is `/Ot` and unrolls the standalone callee, which is a fact about the
+back end, not about the proxy. A correct prediction from a wrong model is
+worth less than a miss from a stated one, and it is recorded that way.
+
 ### 6.15.8 Reproduction
 
 ```sh
