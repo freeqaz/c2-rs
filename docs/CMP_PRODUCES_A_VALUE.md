@@ -242,12 +242,20 @@ Ranked, frame axis applied first because it is free.
    bigger rung than "a frame plus a save pair": the comparison spines it needs
    take a callee-saved register as an operand and are a family this port has
    never emitted. It should be sized with the register-register spines counted.
-2. **`recv-intrinsic-vbase-upcast` — 699, all `calls-1`, all `!=`.** The only
-   part of this row that is *not* Class B, and it is a **receiver** widening, not
-   a comparison one: `try_parse_member_tail_call`'s `eat_receiver_this` requires
-   a plain `B9 <tok> <ptr4>` and declines the upcast intrinsic before the post-op
-   is ever read. Whether it then lands depends on its right-hand side, which
-   nobody has decomposed. First candidate for a cheap next rung in this family.
+2. **`recv-intrinsic-vbase-upcast` — 699, all `calls-1`, all `!=` … and it is
+   ONE source function.** The row is **1 function in each of 699 translation
+   units** — an inlined header template (`ObjDirPtr<T>::IsDirPtr`, a virtual
+   returning `bool`), counted once per TU exactly as W41's container iterator
+   arithmetic was. It is still 699 census functions and it is still the only part
+   of this ceiling that is not Class B, but it is one shape, so its *risk* is one
+   shape's worth and its *reward* is 699.
+
+   It is a **receiver** widening, not a comparison one:
+   `try_parse_member_tail_call`'s `eat_receiver_this` requires a plain
+   `B9 <tok> <ptr4>` and declines the upcast intrinsic (`2116`, through a virtual
+   base's vbtable) before any post-op is read. Its right-hand side has not been
+   decomposed. Cheapest next rung in this family, and the per-TU multiplicity is
+   the reason it looks bigger than it is.
 3. **A pointer-typed literal right-hand side.** `bool f(const S* p){ return
    p->s() == 0; }` is Class A and its spine is the ordinary `== 0` fold
    (`cntlzw 11,3 · rlwinm 3,11,27,31,31`) — captured. The declined production
