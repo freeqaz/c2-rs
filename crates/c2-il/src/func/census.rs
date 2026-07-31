@@ -307,6 +307,7 @@ impl IlBundle {
                                     body::SeqTail::Void => "call-sequence",
                                     body::SeqTail::CallValue { .. } => "call-sequence-value",
                                     body::SeqTail::Lit(_) => "call-sequence-lit",
+                                    body::SeqTail::CmpEq { .. } => "call-sequence-cmp-eq",
                                 })
                             }
                             Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),

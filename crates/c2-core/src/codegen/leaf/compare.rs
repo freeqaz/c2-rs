@@ -25,6 +25,34 @@ use crate::codegen::encode::{
 };
 use crate::codegen::select::{OptMode, RET_REG, out_of_class};
 
+/// **"Is the difference already in r11 zero?"** — the two words that turn a
+/// difference into a 0/1 in r3, with the `/O1` temp collapse.
+///
+/// One locator, two consumers. The comparison *leaf* reaches it after
+/// `addi r11,a,-k` ([`compare_leaf_text`]'s `Rel::Eq` arm); the **two-call
+/// comparator** reaches it after `subf r11,<lhs>,<rhs>`, which is the
+/// register-register spine family `docs/CMP_PRODUCES_A_VALUE.md` reading 4
+/// names. The instructions after the difference are byte-identical in both, in
+/// all four modes:
+///
+/// ```text
+///   /Ox, /O2, packed   cntlzw r10,r11 ; rlwinm r3,r10,27,31,31
+///   /O1                cntlzw r11,r11 ; rlwinm r3,r11,27,31,31
+/// ```
+///
+/// `/O1` collapses the temp because the `cntlzw` is the difference's last use —
+/// the same rule, stated the same way, that every arm of the leaf spine carries.
+/// Copying these two words into the second consumer instead of importing them is
+/// exactly the one-fact-two-implementations drift `docs/GAPS.md` §6 records, and
+/// the mode axis is the field that would have silently diverged.
+pub fn eq_zero_of_difference_in_r11(mode: OptMode) -> Vec<u8> {
+    let d = if mode == OptMode::O1 { 11 } else { 10 };
+    let mut t = Vec::with_capacity(8);
+    t.extend_from_slice(&encode_cntlzw(d, 11));
+    t.extend_from_slice(&encode_rlwinm(RET_REG, d, 27, 31, 31));
+    t
+}
+
 /// Select `.text` for a **W6 comparison leaf** (`return a <rel> k;`), returning
 /// the spine plus its trailing `blr`.
 ///
@@ -185,10 +213,10 @@ pub fn compare_leaf_text(
         // `a == k` → difference, then "is it zero".
         (Rel::Eq, _) => {
             // /O1: the `cntlzw` is the difference's last use, so it lands in r11.
-            let d = if o1 { 11 } else { 10 };
+            // Both words are [`eq_zero_of_difference_in_r11`]'s, shared with the
+            // two-call comparator, whose difference is a `subf` instead.
             t.extend_from_slice(&encode_addi(11, a, -k16));
-            t.extend_from_slice(&encode_cntlzw(d, 11));
-            t.extend_from_slice(&encode_rlwinm(RET_REG, d, 27, 31, 31));
+            t.extend_from_slice(&eq_zero_of_difference_in_r11(mode));
         }
         // `a != k` → the `!= 0` spine applied to the difference.
         (Rel::Ne, _) => {

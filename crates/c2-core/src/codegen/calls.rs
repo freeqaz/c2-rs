@@ -10,7 +10,7 @@
 
 use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
-use crate::codegen::encode::{encode_addi, encode_blr, encode_mr};
+use crate::codegen::encode::{encode_addi, encode_blr, encode_mr, encode_subf};
 use crate::codegen::frame::FrameLayout;
 use crate::codegen::select::{ARG_REGS, OptMode, RET_REG, SCRATCH_REG, out_of_class};
 use crate::codegen::straightline::select_text;
@@ -317,7 +317,10 @@ pub fn call_seq_parts(
     seq: &c2_il::CallSeq,
     mode: OptMode,
 ) -> Result<(Vec<Vec<u8>>, Vec<u8>), BackendError> {
-    if seq.saved.len() > SAVED_GPRS.len() {
+    // The TOTAL, not `seq.saved.len()`: a tail that keeps an earlier call's
+    // result alive takes a register from the same file, so a body with two saved
+    // formals and such a tail is already the helper class.
+    if seq.saved_gprs() > SAVED_GPRS.len() {
         return Err(out_of_class(
             "three or more callee-saved GPRs: that is the `__savegprlr_N` helper \
              class, with a second REL24 site, a tail-branch epilogue and a \
@@ -328,6 +331,17 @@ pub fn call_seq_parts(
     let saved_reg = |pi: usize| -> Option<u8> {
         seq.saved.iter().position(|&s| s == pi).map(|k| SAVED_GPRS[k])
     };
+    // **The first call's RESULT**, when the tail consumes it across a later `bl`.
+    // `docs/CODEGEN_FRAMED_CALLS.md` §3.1: "call results take the next descending
+    // register after the parameters" — so it is `SAVED_GPRS[seq.saved.len()]`,
+    // never a fixed r30. Captured at both widths: `bool f(const U* p){ return
+    // p->m() == p->n(); }` saves one formal and takes r30 for the result, and the
+    // hypothetical zero-formal form would take r31.
+    let result_reg: Option<u8> = seq
+        .tail
+        .saves_a_call_result()
+        .then(|| SAVED_GPRS.get(seq.saved.len()).copied())
+        .flatten();
 
     let mut setups = Vec::with_capacity(seq.calls.len());
     for (i, c) in seq.calls.iter().enumerate() {
@@ -440,6 +454,28 @@ pub fn call_seq_parts(
                 (None, ops) => ops_setup_text(params, ops, mode)?,
             }
         };
+        // **Save the first call's result** before the second call's setup can
+        // clobber r3. Measured, every capture of the shape:
+        //
+        // ```text
+        //   mr r30,r3      the first result -> its callee-saved register
+        //   mr r3,r31      the second call's receiver -> r3
+        //   bl ?n
+        // ```
+        //
+        // Emitted as a prefix rather than folded into `moves_descending`'s set:
+        // the two are not one non-conflicting group — `mr r3,r31` reads r31 and
+        // `mr r30,r3` reads r3, so their order is a data dependence, not a
+        // sort key. (Descending order happens to agree here, and relying on that
+        // coincidence is how a later widening with a lower-numbered save register
+        // would silently invert them.)
+        if i == 1 {
+            if let Some(rr) = result_reg {
+                let mut w = encode_mr(rr, RET_REG).to_vec();
+                w.extend_from_slice(&setup);
+                setup = w;
+            }
+        }
         setups.push(std::mem::take(&mut setup));
     }
     let tail = match seq.tail {
@@ -455,6 +491,29 @@ pub fn call_seq_parts(
         // `return <literal>;` — the same `li r3,k` a bare-literal leaf emits, so it
         // goes through the same selector rather than a second encoder.
         c2_il::SeqTail::Lit(k) => ops_setup_text(params, &[IlOp::Lit(k)], mode)?,
+        // **WCB — `return a->m() == b->n();`**, the register-register difference
+        // spine (`docs/CMP_PRODUCES_A_VALUE.md` reading 4, `docs/rungs/2026-07-31-cmp-two-calls.md`):
+        //
+        // ```text
+        //   subf r11,<lhs>,<rhs>          rB - rA, i.e. rhs - lhs
+        //   cntlzw r10,r11 ; rlwinm r3,r10,27,31,31        (r11,r11 under /O1)
+        // ```
+        //
+        // The operand roles are **not** the emission order: the first call's
+        // result is in `result_reg` and the second's is still in r3, and which of
+        // those is the source's left operand is `lhs_first`. c2 orders the calls by the order c1xx
+        // NUMBERED their receivers (`this` last, whatever register it is in) and
+        // keeps the spine's operands in source order, so both facts are needed
+        // and neither implies the other.
+        c2_il::SeqTail::CmpEq { lhs_first } => {
+            let first = result_reg.ok_or_else(|| {
+                out_of_class("a comparison of two call results needs a callee-saved register for the first")
+            })?;
+            let (lhs, rhs) = if lhs_first { (first, RET_REG) } else { (RET_REG, first) };
+            let mut w = encode_subf(11, lhs, rhs).to_vec();
+            w.extend_from_slice(&crate::codegen::leaf::compare::eq_zero_of_difference_in_r11(mode));
+            w
+        }
     };
     Ok((setups, tail))
 }
