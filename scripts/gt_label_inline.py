@@ -1320,6 +1320,24 @@ FAMILIES = [
            note="ctor-noloc's unnamed temporary at DEPTH 3   PRED 28 if the"
                 " temporary is 1 E unit plus 1 FLAT unit (3 + 5 + [7+3*1] +"
                 " 1 + 9) / 30 if the second unit scales with depth after all"),
+
+    # === ROUND 25: §6.9's constructor tree was measured entirely on standalone
+    #     structs, and the single most common constructor in a DC3 TU is one
+    #     that runs a BASE-CLASS constructor first. If a base ctor is an
+    #     ordinary inline instance one level below the derived ctor — which is
+    #     what §6.9's "a constructor is itself an inlined function" implies —
+    #     then a depth-1 wrapper owning a derived object builds a THREE-deep
+    #     tree, and this is the shape where getting the depth wrong is easiest
+    #     (§6.9's own trap, in the direction that made `ctor` read as 9).
+    Family("ctor-base", GS,
+           "struct BB { int b; BB(int a){ b = gs(a); } };\n"
+           "struct DD2 : BB { int v; DD2(int a) : BB(a) { v = a+1; } };\n"
+           "static int lbc(int a){ DD2 d(a); return d.v + d.b; }",
+           "s=lbc(s);", "{int b=gs(s); int v=s+1; s=v+b;}",
+           always_lead=True,
+           note="a derived ctor running a BASE ctor   PRED 16 if the base ctor"
+                " is an ordinary instance one level below the derived one"
+                " (4 + [5] + [7]) / 11 if it folds into the derived ctor"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1532,6 +1550,8 @@ LAW_BOOK = {
     "d2-ctor-noloc": 18, "d2-struct-ret": 13, "struct-ret": 5,
     # --- ROUND 24: the first cell with a residual for ctor-noloc ------------
     "d3-ctor-noloc": 28, "ctor-noloc": 10,
+    # --- ROUND 25 ----------------------------------------------------------
+    "ctor-base": 16,
 }
 
 # ---------------------------------------------------------------------------
