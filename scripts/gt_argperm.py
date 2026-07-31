@@ -24,7 +24,7 @@ Two families:
              value is also saved.
 
 Usage:
-    scripts/gt_argperm.py --pure [--n 2,3,4,5] [--model]
+    scripts/gt_argperm.py --pure [--n 2,3,4,5] [--model] [--minima K]
     scripts/gt_argperm.py --saved [--n 3,4]
     scripts/gt_argperm.py --one 3,1,2            # one permutation, disassembled
 
@@ -214,11 +214,38 @@ def predict_pure(perm):
     return moves
 
 
-def run_pure(n, workdir, show_all=False, model=False):
+def n_minima(perm):
+    """The scratch count §2's rule predicts: total local minima of sigma's cycles.
+
+    Split out of predict_pure() so a grid can be FILTERED on it. The whole grid
+    at n = 6 is 720 objects; the cells that decide whether a third scratch (r9)
+    exists are the 61 with three local minima, and nothing is learned by
+    compiling the other 659.
+    """
+    n = len(perm)
+    sigma = {2 + k + 1: 2 + perm[k] for k in range(n)}
+    seen, tot = set(), 0
+    for d in sorted(sigma):
+        if d in seen:
+            continue
+        c, x = [], d
+        while x not in seen:
+            seen.add(x)
+            c.append(x)
+            x = sigma[x]
+        if len(c) > 1:
+            k = len(c)
+            tot += sum(1 for i in range(k) if c[i - 1] > c[i] < c[(i + 1) % k])
+    return tot
+
+
+def run_pure(n, workdir, show_all=False, model=False, min_minima=0):
     ident = tuple(range(1, n + 1))
     decl = "void g%d(%s);" % (n, ",".join(["int"] * n))
     rows = []
     for perm in itertools.permutations(ident):
+        if n_minima(perm) < min_minima:
+            continue
         params = ",".join("int a%d" % i for i in ident)
         args = ",".join("a%d" % p for p in perm)
         src = "%s\nvoid f(%s){ g%d(%s); }\n" % (decl, params, n, args)
@@ -276,10 +303,29 @@ def main(argv):
 
     fam = "saved" if "--saved" in argv else "pure"
     check = "--model" in argv
+    mm = 0
+    if "--minima" in argv:
+        mm = int(argv[argv.index("--minima") + 1])
     for n in ns:
-        rows = run_saved(n, wd) if fam == "saved" else run_pure(n, wd)
+        rows = (run_saved(n, wd) if fam == "saved"
+                else run_pure(n, wd, min_minima=mm))
         miss = 0
-        print("== %s, n=%d  (%d permutations)" % (fam, n, len(rows)))
+        print("== %s, n=%d  (%d permutations%s)"
+              % (fam, n, len(rows),
+                 ", filtered to >= %d predicted minima" % mm if mm else ""))
+        # The scratch registers c2 ACTUALLY used, as a census. §2 predicts they
+        # are handed out r11, r10, r9, ... one per local minimum; r9 has never
+        # been observed, because n <= 5 cannot produce three minima.
+        used = {}
+        for _, moves in rows:
+            for r in sorted({d for op, d, sx in moves if op == "mr" and d >= 9
+                             and d > n + 2}):
+                used[r] = used.get(r, 0) + 1
+        if rows:
+            print("   scratch registers observed: %s"
+                  % (", ".join("r%d in %d cells" % (r, c)
+                               for r, c in sorted(used.items(), reverse=True))
+                     or "none"))
         for perm, moves in rows:
             if check and fam == "pure":
                 pred = predict_pure(perm)

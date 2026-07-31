@@ -78,6 +78,8 @@ about "the length of the cycle" separates them. The grid census:
 (n = 5 rows; the local-minimum count predicts every cell, 120/120.) **No cell at
 n ≤ 5 ever used r9** — a third scratch is predicted by the rule (a 6-element
 cycle with two valleys, or three cycles) and is **not captured**.
+*(2026-07-31: captured at n = 6, and the reason it could not appear below that
+is that n ≤ 5 admits at most two local minima. See §5.)*
 
 ### 2.1 What is still uncharacterized: the interleaving
 
@@ -98,7 +100,9 @@ descending destination globally (refuted by every 1-scratch chain, where the
 dependencies force ascending), greedy "highest legal destination" (refuted by
 `(4,3,5,1,2)`, which takes r5 while r6 is legal), and chain order by park order
 (refuted by `(4,5,1,2,3)`). **Stated as uncharacterized rather than fitted a
-fourth time.**
+fourth time.** *(2026-07-31: §5.3 raises the corpus from 26 refuting cells to
+370 across two arities, and adds an inversion any candidate rule must explain —
+the cells needing THREE scratches are the ones that come out exact.)*
 
 An emitter can still use this: the multiset is exact, so a body whose σ has one
 non-trivial cycle is fully determined (0/32 refutations at n ≤ 4, and every
@@ -180,7 +184,81 @@ the same way as §2.1 and §3.3 — it is one residue, not three.
 
 ---
 
-## 5. Reproduction
+## 5. n = 6 — **r9 observed**, and the residue is 20× bigger than it looked (2026-07-31)
+
+§2 predicted a third scratch and recorded it as *"a third scratch is predicted by
+the rule … and is **not captured**"*. It is captured now, and the reason it never
+was is arithmetic rather than luck: **n ≤ 5 cannot produce three local minima at
+all.** The histogram of the predicted scratch count over the full grid —
+
+| n | 0 minima | 1 | 2 | 3 |
+|---:|---:|---:|---:|---:|
+| 5 | 1 | 58 | 61 | **0** |
+| 6 | 1 | 179 | 479 | **61** |
+| 7 | 1 | 543 | 3111 | **1385** |
+
+`scripts/gt_argperm.py` grew a `--minima K` filter so the 61 deciding cells can
+be compiled without the 659 that decide nothing.
+
+### 5.1 The prediction holds, verbatim
+
+```
+  void f(int a1,int a2,int a3,int a4,int a5,int a6){ g6(a4,a5,a6,a1,a2,a3); }
+
+    mr r11,r6 ; mr r10,r7 ; mr r9,r8            <- three parks, r11 then r10 then r9
+    mr r8,r5  ; mr r7,r4  ; mr r6,r3            <- the three chains
+    mr r5,r9  ; mr r4,r10 ; mr r3,r11           <- three read-backs, descending minimum
+    b ?g6@@YAXHHHHHH@Z
+```
+
+σ is `(r3 r6)(r4 r7)(r5 r8)` — three 2-cycles, three local minima, three
+scratches. **r9 appears in 61 of 61 three-minima cells and in 0 of the other
+479**, exactly where the rule puts it. The scratch registers are handed out
+`r11, r10, r9` in ascending order of the parked source, as §2 says.
+
+Reproduce: `scripts/gt_argperm.py --pure --n 6 --minima 3 --model`.
+
+### 5.2 …and on those 61 cells the model is exact, interleaving included
+
+**0 refutations / 61.** Every one of the 61 three-minima cells matches the
+predicted instruction *sequence*, not just its multiset.
+
+### 5.3 The interleaving residue at n = 6 — 344 cells, not 26
+
+That makes the two-minima cells the interesting ones, and there the picture is
+much worse than §2.1's 26:
+
+| grid | cells | refutations | |
+|---|---:|---:|---|
+| n = 5, ≥ 2 minima | 61 | 26 | 43 % |
+| n = 6, 3 minima | 61 | **0** | 0 % |
+| n = 6, 2 minima | 479 | **344** | 72 % |
+
+**In all 344 the move multiset is identical to the prediction** (checked
+mechanically: sorted move lists compare equal in 344/344), so this is still
+purely the chain-interleaving order of §2.1 and §3.3 — the scratch count, the
+parks and the read-backs remain exact everywhere.
+
+Two things follow, and neither is a new ordering rule:
+
+* **The residue is not "more scratches ⇒ more reordering."** The three-minima
+  cells, which have the most chains to interleave, are the ones that come out
+  perfect. Any candidate rule has to explain that inversion, and the two
+  orderings §2.1 already refuted do not.
+* **There is now a 344-cell corpus to test a candidate against instead of two
+  hand-picked cells.** §2.1 was refuted by exactly two cells, which is enough to
+  kill a rule and nowhere near enough to confirm one. A fourth ordering fitted
+  to 26 cells and passing would still have been a coin toss; one that survives
+  344 across two arities would not be.
+
+Still **stated as uncharacterized rather than fitted a fifth time.** The
+emitter-usable boundary is unchanged and now has a much larger warrant: every
+cell with a single non-trivial chain is forced by its dependencies and is exact,
+at n = 6 as at n ≤ 5.
+
+---
+
+## 6. Reproduction
 
 ```sh
 export C2RS_WIBO=<the repo's resolved wibo>       # NOT ../wibo/build/wibo
@@ -188,4 +266,10 @@ scripts/gt_argperm.py --pure  --n 2,3,4,5         # the grid, as emitted
 scripts/gt_argperm.py --pure  --model --n 2,3,4,5 # score §2's model, print refutations only
 scripts/gt_argperm.py --saved --n 2,3,4,5         # the callee-saved family
 scripts/gt_argperm.py --one 3,1,2                 # one permutation, disassembled
+scripts/gt_argperm.py --pure --model --n 6 --minima 3   # §5: r9, 61 cells, 0 refutations
+scripts/gt_argperm.py --pure --model --n 6 --minima 2   # §5.3: the 344-cell residue
 ```
+
+`--minima K` filters the grid to the cells whose predicted scratch count is at
+least K. It is what makes n = 6 tractable: the full grid is 720 objects and 659
+of them repeat what n ≤ 5 already said.
