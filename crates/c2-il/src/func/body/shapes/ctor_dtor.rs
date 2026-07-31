@@ -238,6 +238,15 @@ pub(crate) fn eat_ctor_this_epilogue(seg: &[u8], p: &mut usize, lo: usize) -> bo
 ///   profile: `expr-call-in-expr-recv-{field-off0,field,intrinsic-this-adjust}-then-chain-bind-whole`
 ///   is 5,188 workload functions of exactly that shape and **none** of it is
 ///   reachable without the EH model.
+///
+///   **And `5C` is not this production's token** (`docs/EH_RECORDS.md` §7). It
+///   ends any statement in which an object with a destructor became live —
+///   `int userfn(int a){ MemA s; g(a); return a+1; }` carries one, has no
+///   sub-object anywhere, and gets an `__ehfuncinfo$`. This shape is on the cheap
+///   side because of the **count**, not because it is a destructor:
+///   `void onlylocal(){ MemA s; }` is equally bare. Measured over the workload,
+///   310,371 bodies carry a marker and **75.2 % of them are on the EH side**; the
+///   three `empty-dtor-*` buckets are 35,964 of the 76,845 that are not.
 /// * **`<f>` and `<g>` carry an exception-handling bit, and they co-vary.**
 ///   MEASURED by isolating one flag at a time over
 ///   `{/Od, /O1, /Ox} × {—, /Oi, /GS-, /GR, /EHsc, /EHa}`: **`/EH…` clears bit

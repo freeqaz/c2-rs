@@ -144,6 +144,25 @@ pub struct TuResult {
     /// stopped — crossing "we could not read this body's control flow" with a
     /// blocker would be a product of two ignorances.
     pub fn_cflow: BTreeMap<String, usize>,
+    /// **The exception-handling axis** (WEH, `docs/EH_RECORDS.md` §7): which side
+    /// of the sub-object boundary each body falls on, bare and crossed with the
+    /// census key as `"<eh class>|<census key>"`.
+    ///
+    /// A third axis for the same reason there is a second: **nothing in the
+    /// blocking-feature key says which side a body is on.** The cheap side is a
+    /// bare branch the port already emits; the EH side mints a
+    /// `__CxxFrameHandler` prefix, a second `.pdata`, a `Selection = 5` `.rdata`
+    /// and an unwind funclet — a whole phase of work — and the two are filed
+    /// under the *same* census key in the largest population on the board
+    /// (`expr-intrinsic-this-adjust`, 141,800). Ranking either without this axis
+    /// is ranking the sum of two different rungs.
+    ///
+    /// The cross is emitted for **every** function, decoded or not, unlike
+    /// [`TuResult::fn_cflow`]'s. The difference is that an undecoded body's EH key
+    /// is not an ignorance: `eh-partial` is the positive statement *"this body
+    /// carries EH state and is not the bare shape"*, which is exactly what the
+    /// ranking needs.
+    pub fn_eh: BTreeMap<String, usize>,
     /// **The census/gate cross-check** (roadmap #44): of the functions this TU's
     /// census calls in class, how many does `PortC2`'s own per-function selector
     /// **refuse**, keyed by the refusal.
@@ -251,6 +270,22 @@ impl GapReport {
         let mut map: BTreeMap<&str, usize> = BTreeMap::new();
         for r in &self.results {
             for (k, n) in &r.fn_cflow {
+                *map.entry(k.as_str()).or_insert(0) += n;
+            }
+        }
+        let mut v: Vec<(String, usize)> =
+            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// **The EH axis**, aggregated, most frequent first. Rows are either a bare
+    /// class (`eh-…`) or an `"<eh class>|<census key>"` cross-tab; see
+    /// [`TuResult::fn_eh`].
+    pub fn fn_eh_histogram(&self) -> Vec<(String, usize)> {
+        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
+        for r in &self.results {
+            for (k, n) in &r.fn_eh {
                 *map.entry(k.as_str()).or_insert(0) += n;
             }
         }
@@ -472,6 +507,7 @@ fn scan_one(
         fn_blockers: BTreeMap::new(),
         fn_frames: BTreeMap::new(),
         fn_cflow: BTreeMap::new(),
+        fn_eh: BTreeMap::new(),
         fn_gate_refusals: BTreeMap::new(),
         bind_checks: BTreeMap::new(),
     };
@@ -551,6 +587,14 @@ fn scan_one(
                     .entry(format!("{}|{}", f.cflow, f.verdict.key()))
                     .or_insert(0) += 1;
             }
+            // The EH axis, likewise over every function — and here the in-class
+            // shapes are more than a control group: the three `empty-dtor-*`
+            // buckets ARE the cheap side of the boundary, so any of them reading
+            // anything but `eh-bare` would say the axis is wrong.
+            *res.fn_eh.entry(f.eh.clone()).or_insert(0) += 1;
+            *res.fn_eh
+                .entry(format!("{}|{}", f.eh, f.verdict.key()))
+                .or_insert(0) += 1;
             // 1d. The binding invariant (D14): what did the `.gl` symbol index
             //     say a generated destructor delegates to? A destructor, always —
             //     anything else is a binding the oracle would have had no chance
@@ -773,6 +817,12 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let eh = r
+                .fn_eh
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             let gate = r
                 .fn_gate_refusals
                 .iter()
@@ -787,7 +837,7 @@ pub fn gap_scan(
                 .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -803,6 +853,7 @@ pub fn gap_scan(
                 blockers,
                 frames,
                 cflow,
+                eh,
                 gate,
                 binds,
             )?;
@@ -856,6 +907,7 @@ mod tests {
             fn_blockers: BTreeMap::new(),
             fn_frames: BTreeMap::new(),
             fn_cflow: BTreeMap::new(),
+            fn_eh: BTreeMap::new(),
             fn_gate_refusals: BTreeMap::new(),
             bind_checks: BTreeMap::new(),
         }
