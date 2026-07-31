@@ -407,6 +407,87 @@ The rule generalizes past EH, and it is the third time it has been paid for:
 lane varies is not "verified as irrelevant" — it is untested, and from outside
 it looks exactly like verified.
 
+### 2.4a The lane registry: `scripts/lanes.txt` + `scripts/gate.sh`
+
+§2.4 closed the `/EHsc` gap for the generated axes by **adding a driver**, and
+the two `/EHsc` fixture lanes closed it for fixtures by **adding lanes**. Neither
+closes the actual defect, which is one level up again: *nothing enumerated the
+lanes*. There was no registry, no gate command and no test, so the set of lanes
+that ran on a given day was the set somebody remembered to type — and the four
+recorded throughout these docs (`/Ox`, `/O1`, `/O2`, `/Ox /Gy`) contain no `/EH`
+at all. **A lane that exists but is not enumerated is a lane that does not run.**
+
+```
+scripts/lanes.txt      THE LIST, as data. `<slug> <cl flags…>`, one lane per
+                       line. Adding a lane is editing this file. Nothing else
+                       enumerates lanes; there is no second copy to drift.
+scripts/gate.sh        the one command that runs it. --list / --check /
+                       --lane <slug> / --jobs N / --selftest.
+scripts/mode_lane.sh   still runs ONE lane, unchanged in interface. It now
+                       prints a machine-readable `LANE-RESULT` line, which is
+                       its whole contract with the gate.
+```
+
+The gate's promise is stated as a **positive**: *every lane in the registry
+produced a result, and the gate says how many.* Not "no lane failed" — the
+expensive failure class here is not a lane going red, it is a lane going absent
+and the absence reading as zero. Concretely, and each of these is a case in
+`--selftest`:
+
+- **A zero exit status is not evidence a lane ran.** The gate requires the
+  `LANE-RESULT` line and re-derives the verdict from its fields. A lane that
+  dies, is killed, or is skipped by the loop is `NO-RESULT` — a failure, named.
+- **`PASS` requires `graded > 0`.** `mode_lane.sh` carried the identical vacuity
+  hole `sweep_mode.sh` was written to close: every check `sed`-ed a number out of
+  the report and an absent number parses as 0. One rule, two implementations,
+  and only one had the guard. Checked positively, never by enumerating the ways
+  a run can be empty.
+- **The table is rendered by walking the registry**, never the directory
+  listing, and its row count is compared against the registry length *before*
+  any verdict is computed.
+- **All-SKIP prints `GATE: SKIPPED … NOTHING WAS GRADED`** and exits 0 per the
+  CLAUDE.md degrade-cleanly constraint, but cannot read as green. A **partial**
+  skip fails: toolchain absence skips every lane, so a lane skipping alone
+  declined for a reason of its own.
+- **The gate pins one binary and hands it to every lane** (`C2RS_BIN`), so all
+  12 lanes provably grade the same code and the table has one `sha` under it.
+  Lane run directories stay per-lane, inherited from `mode_lane.sh`.
+
+**The lane set is a measured cross, not a list.** Six code-shape configurations ×
+the EH axis = 12. A candidate configuration was kept only where it graded the 197
+fixtures *differently* from one already present: `/Ox /Gy` vs `/Ox` differs in 8
+rows, `/O1 /Oi` in 6, `/O2` in 6; `/O1 /Gy`, `/O2 /Gy` and `/Ox /Oi` differ in 0,
+because `/O1` and `/O2` already imply `/Gy` (`OPT_MODE.md` §3.3) and `/Ox`
+implies `/Oi`. So `/Gy` is crossed only over `/Ox` and `/Oi` only over `/O1`:
+**a cross that manufactures aliases buys breadth on paper and none in fact.**
+
+The pruning rule has a sharp edge worth stating, because applying it naively
+would have deleted the very lanes this section exists for. `/O1 /EHsc` also
+differs from `/O1` in **0** verdict rows today — and is not redundant: the
+reference obj is a *different obj*, so the port is reproducing genuinely
+different output and merely arriving at the same verdict. **Verdict-identical is
+not redundant.** `/Gy` on `/O1` is dropped because the flag is *already implied*,
+which is a fact about the compiler's invocation, not about the rows.
+
+Two holes of the same shape as `/EH` turned up while measuring it: **no lane had
+ever passed `/Oi`**, though the workload compiles `/O1 /Oi /EHsc` (now the lane
+`O1-Oi-EHsc`, the workload's exact profile); and **`/O2` does not exercise the
+port's `OptMode::O1` path** — a break planted there failed all four `/O1` lanes
+and left `/O2` green — so `/O2` is not standing in for `/O1` in any lane budget.
+
+Cost: **6 s wall for all 12 lanes at `--jobs 4` cold** — 2,364 fixture-verdicts,
+every one a real `cl.exe` capture, because each lane's flag string is a fresh
+cache key. Warm it is 4 s serial and ~1 s at `--jobs 4`. The gate is cheap enough
+that there is no argument for running a subset, which was always the real reason
+the list stayed implicit.
+
+The one thing this does **not** yet have is a registry test in the workspace —
+`crates/c2-harness/tests/` was owned by a concurrent lane. `gate.sh --selftest`
+covers the gate's own logic (14 cases, no toolchain, drives the real
+`collect`+`decide` rather than a copy of it) and asserts that the shipped
+registry still carries an `/EH` lane; promoting the registry-shape assertions
+into a `#[test]` beside `rung_registry.rs` is the natural follow-up.
+
 ### 2.5 Docs: freeze the monoliths, per-rung files, generated index
 
 ```
@@ -542,9 +623,11 @@ reasons, stated honestly with their limits:
 plan touches `c2-reference`, the capture path, or the gate commands in
 `GAPS.md` §6. The capture cache (36.5 s → 0.9 s warm) is what makes the
 migration plan viable at all: every step, however mechanical, gets the
-*full* gate (workspace tests, `bench`, four mode lanes, the sweep, the
-878-TU scan with census + disagreement compared to the function) for about a
-minute of wall clock, not forty.
+*full* gate (workspace tests, `bench`, `scripts/gate.sh` — every lane in
+`scripts/lanes.txt`, 12 of them, 6 s — the sweep, and the 878-TU scan with
+census + disagreement compared to the function) for about a minute of wall
+clock, not forty. "Four mode lanes" is how this read until 2026-07-31, when
+the lanes stopped being whichever four somebody typed (§2.4a).
 
 ---
 

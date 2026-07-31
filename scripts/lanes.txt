@@ -1,0 +1,102 @@
+# THE MODE-LANE REGISTRY — the list of lanes lives HERE, and only here.
+#
+# Adding a lane is adding a line to this file. It is not remembering a command.
+#
+# ---- why this file exists ------------------------------------------------------
+#
+# `scripts/mode_lane.sh` has always taken a mode plus arbitrary flags and it has
+# always worked. Nothing enumerated the lanes. So the four lanes recorded through
+# `docs/` — `/Ox`, `/O1`, `/O2`, `/Ox /Gy` — were the four somebody happened to
+# type, and **not one of them compiles `/EH`**, on a workload whose every single TU
+# is compiled `/EHsc`. Two `/EHsc` lanes were added on 2026-07-31, both green, and
+# they caught a live wrong-bytes emit every other lane was blind to; whether they
+# ran again the next day depended entirely on whoever was at the keyboard
+# remembering they existed.
+#
+# That is the same defect one level up from the one `sweep_mode.sh` was written
+# for, and it has now been paid for twice: **a green run is sound only over the
+# configurations it was RUN at, and a lane that is not enumerated is a lane that
+# does not run.** The `/EHsc` gap alone made the entire EH surface vacuous once —
+# a defect exposing 35,964 already-in-class functions survived two rungs because
+# every standing lane compiled without `/EH`, so the row collapsed onto its own
+# control.
+#
+# ---- format --------------------------------------------------------------------
+#
+#   <slug>  <cl flags...>
+#
+# First field is the lane's name (used by `gate.sh --lane <slug>` and in the
+# result table). The rest of the line is spliced into `<flags> /GS- /c` by
+# `mode_lane.sh`. Blank lines and `#` comments are ignored. Slugs must be unique —
+# `gate.sh --check` enforces that, and enforces that this file is non-empty,
+# because an empty registry is a gate that grades nothing while exiting 0.
+#
+# ---- what the lane set IS, and how it was chosen --------------------------------
+#
+# Six code-shape configurations crossed with the exception-handling axis: 6 x 2 =
+# 12 lanes. The cross is deliberate rather than ad hoc, and the configurations were
+# picked by MEASUREMENT (2026-07-31, 197 fixtures, master 814ba7d) — a candidate
+# lane was kept only if it graded the corpus differently from a lane already in the
+# list. Rows differing, per-TU verdicts compared over the whole scan JSONL:
+#
+#     /Ox /Gy   vs /Ox    8 rows differ   KEPT   section layout is a real axis
+#     /O1 /Oi   vs /O1    6 rows differ   KEPT   and it is what the workload uses
+#     /O2       vs /O1    6 rows differ   KEPT
+#     /O1 /Gy   vs /O1    0 rows differ   DROPPED — /O1 implies /Gy (OPT_MODE.md
+#     /O2 /Gy   vs /O2    0 rows differ   DROPPED   §3.3), confirmed here
+#     /Ox /Oi   vs /Ox    0 rows differ   DROPPED — /Ox implies /Oi
+#
+# So `/Gy` is crossed only over `/Ox` and `/Oi` only over `/O1`: crossing them
+# everywhere would have added four lanes that grade nothing the list already has.
+# **A cross that manufactures aliases buys breadth on paper and none in fact.**
+#
+# The `/EHsc` axis is crossed over ALL SIX, and that is the point of the file. Note
+# carefully what its measurement does and does not say: `/O1 /EHsc` vs `/O1` also
+# differs in **0** verdict rows today — but the reference obj is NOT the same obj
+# (byte-compared: the `/EHsc` capture of `w27_fp_reg` is 4,662 bytes against
+# 4,654), so the port is reproducing a genuinely different output and merely
+# arriving at the same verdict. **Verdict-identical is not redundant.** `/Gy` on
+# `/O1` is dropped because the flag is already implied, not because its rows
+# matched; the two situations look alike in a verdict table and are not alike.
+#
+# ---- cost ----------------------------------------------------------------------
+#
+# Measured 2026-07-31 on a 32-core host at `C2RS_JOBS=8`, 2,364 fixture-verdicts:
+#
+#     COLD (2,364 real cl.exe captures — every lane's flag string is a new
+#     cache key):                                      6 s at `--jobs 4`
+#     WARM:                        4 s at `--jobs 1`,  1 s at `--jobs 4`
+#
+# Quote the cold number; it is what the gate costs the first time a tree runs it.
+# Either way this is nowhere near impractical, which is the whole reason there is
+# no excuse for the list to be implicit. Re-measure before adding an axis, and do
+# not add a lane whose cost you have not measured.
+
+# --- /O1 : the mode the dc3 workload is built at (docs/OPT_MODE.md) -------------
+O1              /O1
+O1-EHsc         /O1 /EHsc
+
+# --- /O1 /Oi : the workload's ACTUAL profile is `/O1 /Oi /EHsc`. Until this file
+#     existed, no lane had ever passed `/Oi` at all — the same "flag no lane
+#     varies" hole as `/EH`, found while measuring this registry.
+O1-Oi           /O1 /Oi
+O1-Oi-EHsc      /O1 /Oi /EHsc
+
+# --- /Ox : the profile `c2rs diff` and `expr_sweep.sh` hardcode ------------------
+Ox              /Ox
+Ox-EHsc         /Ox /EHsc
+
+# --- /Ox /Gy : COMDAT-per-function section layout. Only meaningful on /Ox, which
+#     is the one mode that does not already imply /Gy.
+Ox-Gy           /Ox /Gy
+Ox-Gy-EHsc      /Ox /Gy /EHsc
+
+# --- /O2 : same layout as /O1, differing only in the optimization mode -----------
+O2              /O2
+O2-EHsc         /O2 /EHsc
+
+# --- /Od : unoptimized. Grades ~1 of 197 in class; it is here as the FAIL-CLOSED
+#     boundary lane — the assertion is that the port refuses at an unported mode
+#     rather than mis-emitting, and `mismatch 0` is the whole content of the lane.
+Od              /Od
+Od-EHsc         /Od /EHsc

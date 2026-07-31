@@ -14,6 +14,19 @@
 # `mismatch` is the alarm: it means the port emitted bytes for a mode and they were
 # wrong. `codegen-gap` is the honest refusal — a shape not yet re-targeted for that
 # mode. Exits non-zero on any mismatch.
+#
+# THE LANE SET IS `scripts/lanes.txt` AND THE GATE IS `scripts/gate.sh`. This
+# script runs ONE lane; running the right set of them is not a thing to remember.
+#
+# Every exit path prints exactly one `LANE-RESULT` line, which is the lane's whole
+# machine-readable contract with `gate.sh`:
+#
+#     LANE-RESULT <PASS|FAIL|SKIP> flags=[…] graded=<n> total=<n> match=<n> mismatch=<n>
+#
+# The gate requires that line to be present and re-derives the verdict from its
+# fields; it does not take a zero exit status as evidence a lane ran. A lane that
+# dies before printing it is a lane with NO RESULT, which the gate reports as a
+# failure and never as a pass.
 set -eu
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,8 +59,11 @@ for f in "$repo_root"/fixtures/cpp/*.cpp; do
 done
 total=$(wc -l < "$list")
 
+lane_flags="$(cat "$flags")"
+
 if "$c2rs" gap --list "$list" --flags-file "$flags" --limit 1 --jobs 1 2>&1 | grep -q "SKIP"; then
     echo "SKIP: toolchain absent — the lane would be vacuous"
+    echo "LANE-RESULT SKIP flags=[$lane_flags] graded=0 total=$total match=0 mismatch=0"
     exit 0
 fi
 
@@ -57,10 +73,48 @@ out="$work/report.txt"
     --jsonl "$work/scan.jsonl" > "$out" 2>&1 || true
 sed -n '/GAP REPORT/,$p' "$out"
 
-mm=$(sed -n 's/^  mismatch  *\([0-9]*\) .*/\1/p' "$out" | head -1)
-[ "${mm:-0}" -eq 0 ] || {
+bucket() { sed -n "s|^  $1  *\([0-9]*\) .*|\1|p" "$out" | head -1; }
+mm=$(bucket mismatch); mm=${mm:-0}
+match=$(bucket match);  match=${match:-0}
+
+# ---- vacuity guard ------------------------------------------------------------
+#
+# Everything below reads a number out of the report with `sed`, and a number that
+# is NOT THERE parses as zero. So a lane in which nothing was graded at all passed
+# every check here: `mismatch` absent -> 0 -> exit 0, with a green line in the gate
+# table and no denominator anywhere to contradict it. This lane shipped that hole
+# for its whole existence; `sweep_mode.sh` had already been bitten by the identical
+# mechanism and grown the guard, which is exactly the "one rule, two
+# implementations" shape `docs/GAPS.md` §6 keeps recording.
+#
+# The SKIP pre-check above does not cover it. SKIP is the toolchain being ABSENT;
+# this is the toolchain being present and every TU failing to capture — which is
+# what a relative outdir, an exhausted tmpfs inode table (`df -i`, not `df -h`) or
+# a bad flag string all look like. So it is checked POSITIVELY: the run must have
+# GRADED something. Never as an enumeration of the ways a run can come back empty,
+# because the next empty run will be empty in a way nobody enumerated.
+graded=$mm
+for cls in match codegen-gap vocab-gap port-error; do
+    n=$(bucket "$cls")
+    graded=$((graded + ${n:-0}))
+done
+capfail=$(bucket capture-fail)
+if [ "$graded" -eq 0 ]; then
+    echo
+    echo "VACUOUS LANE at [$lane_flags]: $total fixtures submitted, NONE graded"
+    echo "(capture-fail ${capfail:-?}). Every check below reads a number that is not"
+    echo "in the report and parses it as 0, so this would otherwise have passed."
+    sed -n '/top capture-fail reasons/,/^$/p' "$out" | head -8
+    echo "LANE-RESULT FAIL flags=[$lane_flags] graded=0 total=$total match=0 mismatch=0"
+    exit 1
+fi
+
+if [ "$mm" -ne 0 ]; then
     echo
     echo "MISMATCH at $mode — the port emitted wrong bytes, not a gap:"
     grep -F "mismatch" "$out" | grep -v "^  mismatch" || true
+    echo "LANE-RESULT FAIL flags=[$lane_flags] graded=$graded total=$total match=$match mismatch=$mm"
     exit 1
-}
+fi
+
+echo "LANE-RESULT PASS flags=[$lane_flags] graded=$graded total=$total match=$match mismatch=0"

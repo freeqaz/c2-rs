@@ -2265,3 +2265,130 @@ The rules that keep the numbers honest:
   computed and says nothing about what consumes it. The `-then-` key's second
   half is what says that, which is the whole argument for the instrument fix
   above.
+
+---
+
+## 7. The lane that existed and was not enumerated (2026-07-31)
+
+*Appended as its own section rather than folded into §6's instrument-failure log,
+because a peer lane is editing §6 concurrently. Same class of finding; it belongs
+with those entries and should be read beside them.*
+
+**A lane that exists but is not enumerated is a lane that does not run.**
+
+`scripts/mode_lane.sh` has taken a mode plus arbitrary flags since it was written,
+and it has always worked. Nothing enumerated the lanes. There was no registry, no
+gate command, no test — so the set of lanes that ran on any given day was the set
+whoever was at the keyboard remembered to type. The four recorded throughout these
+docs are `/Ox`, `/O1`, `/O2` and `/Ox /Gy`, and **not one of them compiles `/EH`**,
+on a workload whose every TU is compiled `/EHsc`. Two `/EHsc` lanes were added on
+2026-07-31, both green, and they caught a live wrong-bytes emit every other lane
+was blind to. Nothing whatsoever made them run again the next day.
+
+That gap had already made the entire EH surface vacuous once: a defect exposing
+35,964 already-in-class functions survived two rungs because every standing lane
+compiled without `/EH`, so the row collapsed onto its own control. This is the
+third time the same rule has been paid for — **a green run is sound only over the
+configurations it was RUN at** — and the first two payments both produced a fix
+that added a lane. Adding a lane does not close it. Only enumerating them does.
+
+Closed by `scripts/lanes.txt` (the list, in one place, as data) plus
+`scripts/gate.sh` (the one command that runs it). Four things are worth carrying
+forward past this instance:
+
+- **A lane's absence must be visible as an absence.** Each lane now prints a
+  `LANE-RESULT` line and the gate re-derives the verdict from its fields; a zero
+  exit status is not accepted as evidence that a lane ran. The result table is
+  rendered by walking the **registry**, never by walking whatever result files
+  happen to exist, and its row count is compared against the registry length
+  before any verdict is computed. A lane that dies, is killed or is skipped by the
+  loop is `NO-RESULT`, which fails and is named. Demonstrated live: a lane patched
+  to `exit 0` before grading is reported `NO-RESULT`, not `PASS`.
+- **`mode_lane.sh` had the vacuity hole `sweep_mode.sh` was written to close.**
+  Every check `sed`-ed a number out of the gap report, and a number that is not
+  there parses as zero — so a lane in which nothing was graded passed: `mismatch`
+  absent → 0 → exit 0, a green row in any table, and no denominator anywhere to
+  contradict it. The SKIP pre-check does not cover it, because SKIP is the
+  toolchain being **absent** and this is the toolchain being **present and
+  refusing everything**. One rule, two implementations, and only one of them had
+  the guard. It is now checked **positively — the lane must have GRADED
+  something** — and never as an enumeration of the ways a run can come back
+  empty, because the next empty run will be empty in a way nobody enumerated.
+  Demonstrated live with a realistic cause (a forced include of a missing header:
+  197/197 `C1034` capture-fail), which the gate reports as
+  `vacuous — 0 of 197 graded`.
+- **All-SKIP is not green, and partial-SKIP is a failure.** Toolchain absence
+  exits 0 per the CLAUDE.md hard constraint, but prints `GATE: SKIPPED … NOTHING
+  WAS GRADED` and says in the headline that the run establishes nothing. Absence
+  of the toolchain skips *every* lane, so some lanes skipping while others run
+  means a lane declined for a reason of its own — a fault, not a degradation.
+- **A cross that manufactures aliases buys breadth on paper and none in fact.**
+  The lane set is `6 code-shape configurations × the EH axis = 12`, and each
+  configuration was kept only where it graded the 197 fixtures **differently**
+  from one already in the list: `/Ox /Gy` differs from `/Ox` in 8 rows, `/O1 /Oi`
+  in 6, `/O2` in 6, while `/O1 /Gy`, `/O2 /Gy` and `/Ox /Oi` differ in **0** —
+  `/O1` and `/O2` already imply `/Gy` (`OPT_MODE.md` §3.3) and `/Ox` implies
+  `/Oi`. Crossing both flags everywhere would have added four lanes grading
+  nothing new.
+  **But note carefully what that measurement does and does not license.**
+  `/O1 /EHsc` also differs from `/O1` in **0** verdict rows today, and it is
+  emphatically not redundant: the reference obj is a *different obj* (the `/EHsc`
+  capture of `w27_fp_reg` is 4,662 bytes against 4,654), so the port is
+  reproducing genuinely different output and merely arriving at the same verdict.
+  **Verdict-identical is not redundant.** `/Gy` on `/O1` is dropped because the
+  flag is already implied, not because its rows matched; the two look alike in a
+  verdict table and are not alike, and a registry pruned on the table alone would
+  have deleted the `/EHsc` lanes as duplicates.
+
+**The gate reproduced the bug class on itself within an hour of existing**, which
+is worth recording precisely because it shows how low in the stack this shape
+sits. `parse_registry` filtered rows with `awk 'NF >= 2'`, so a row carrying a
+slug and no flags was **silently dropped**: `--list` reported one lane fewer than
+the file contained, and the gate would then have run, and faithfully reported on,
+a list that was not the list in the file. Every honesty property above would have
+held — over the wrong registry. The fix is the same positive shape as everywhere
+else: count the non-comment rows *before* parsing and require the two counts to
+agree, so a row that does not parse is named rather than absent. **A component
+built to make absences visible will still have absences of its own; the rule has
+to be applied to the instrument, not just through it.**
+
+Two more findings fell out of building it, both of the same shape as the `/EH`
+gap:
+
+- **No lane had ever passed `/Oi`.** The dc3 workload compiles `/O1 /Oi /EHsc`;
+  `/Oi` moves 6 of the 197 fixture verdicts and had never appeared on any lane.
+  The workload's exact profile is now the lane `O1-Oi-EHsc`.
+- **`/O2` does not exercise the port's `/O1` code path.** A deliberate break
+  planted in the `OptMode::O1` arm of `straightline.rs` failed all four `/O1`
+  lanes and **left `/O2` green**, so `/O2` is not standing in for `/O1` in any
+  lane budget. That is a fact about the port's mode mapping, established by the
+  gate demonstration rather than assumed from `OPT_MODE.md`'s "same layout,
+  differing only in the mode".
+
+**Has anyone seen it fail?** Yes, four ways, all reproduced:
+
+| break | gate says |
+|---|---|
+| wrong scratch register in the `OptMode::O1` arm (scratch copy) | `GATE: FAIL`, names `O1`, `O1-EHsc`, `O1-Oi`, `O1-Oi-EHsc`; `/Ox`, `/Ox /Gy`, `/O2`, `/Od` stay `PASS`; raises the MISMATCH alarm |
+| a lane patched to `exit 0` before grading | `GATE: FAIL`, names `Ox-Gy`, `Ox-Gy-EHsc` as `NO-RESULT` |
+| a lane whose every capture fails (`/FIno_such_header.h`) | `GATE: FAIL`, names it `vacuous — 0 of 197 graded` |
+| sibling `wibo` not resolvable from a scratch tree | `GATE: SKIPPED … NOTHING WAS GRADED`, exit 0, explicitly not green |
+
+`gate.sh --selftest` keeps all of that as 15 automated cases. It drives the real
+`collect`+`decide` path with fabricated lane logs — not a reimplementation, which
+would only prove the copy agrees — needs no toolchain, and asserts among other
+things that the shipped registry still carries an `/EH` lane, so deleting those
+rows is noticed. It also asserts its own case count, because a truncated selftest
+is precisely the failure it exists to catch.
+
+**Cost of the full gate**, 32-core host, `C2RS_JOBS=8`, 2,364 fixture-verdicts:
+
+| capture cache | `--jobs 1` | `--jobs 4` | `--jobs 12` |
+|---|---|---|---|
+| cold (2,364 real `cl.exe` captures — every lane's flag string is a new key) | — | **6 s** | — |
+| warm | 4 s | 1 s | <1 s |
+
+Quote the cold number: it is what the gate costs the first time a tree runs it,
+and the warm ones only hold once the flag strings are in the cache. Either way
+this is nowhere near impractical, which is exactly why there was never an excuse
+for the list to be implicit. Re-measure before adding an axis.
