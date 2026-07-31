@@ -2052,3 +2052,403 @@ re-derived from the run's own numbers beside the verdict:
 d2-loop-3loc -> direct callee lsb  s=80  Ndirect=5  sched D 5 OK
                [retired 'N*(s-64) < 80' said 4]
 ```
+
+## 6.16 Round 29 — the register-pressure probe: `s` is the axis, not a proxy
+
+§6.15.7 closed by naming the riskiest thing left unmeasured, and named the
+probe for it:
+
+> **`s` is a c2-side number standing in for a c1xx-side decision.** … The
+> place it has to break is a body where allocation moves the size a long way
+> without moving the IL much … and **no such shape was probed**. That is also
+> the one failure mode that would be invisible: such a callee would sit in the
+> wrong row of the table and the table would look fine everywhere else.
+
+This round builds it — **231 rungs, 2 837 objects**, in both modes. The
+outcome is a **confirmation**, which this lane normally rates below a
+refutation, but this one is worth more than the 449 rungs it checks, for a
+reason worth stating before the numbers.
+
+### 6.16.0 Why the existing 449 rungs could not have answered this
+
+All fourteen ladders of §6.15 move `s` by **appending statements**. So in
+every one of their cells `s` and any source-side count the front end could
+hold — statements, expressions, IL nodes — move **together**. The design is
+perfectly confounded, and 449 agreeing rungs of it are *silent* on which of
+the two the front end reads. Breadth does not fix a confound; only a probe
+that moves one and holds the other does.
+
+That is why the schedule was shipped in §6.15.3 as an exact table with an
+explicitly `NOT MODELLED` mechanism, and why this probe was named rather than
+assumed away.
+
+### 6.16.1 The design: a matched permutation pair
+
+Two bodies that are **permutations of one multiset of statements**:
+
+```c
+LOW   int t0=gs(a+1); v=gs(v^t0);  int t1=gs(a+2); v=gs(v^t1);  …
+HIGH  int t0=gs(a+1); int t1=gs(a+2); … ;  v=gs(v^t_{k-1}); … ; v=gs(v^t0);
+```
+
+Same `2k` statements, same `k` declarations, same `2k` calls, same operators,
+at every `k`. **Every source-side count is equal by construction.** What
+differs is that `LOW` kills each temp at the very next statement while `HIGH`
+holds all `k` live across `k` calls — measured `nsave` of **1** against
+**k+1** at every `k ≥ 2` (at `k = 1` the two source texts are identical, and
+the row prints `INERT`).
+
+The use is an **opaque extern call**, deliberately. Nothing algebraic connects
+a use to its def, so no re-association can move it, and calls to an extern
+cannot be reordered among themselves, so the def sequence is pinned too.
+
+### 6.16.2 The first spelling was INERT, and an inert probe looks like a passing one
+
+The pre-registration (reproduced in §6.16.12) specified the use as
+`v=(v<<1)^t`, called it *"non-associative"*, and was **wrong**: that chain is
+**linear over xor** — `((v<<1)^t0)<<1)^t1` is exactly `v<<2 ^ t0<<1 ^ t1` — so
+the compiler re-associates it freely. The two orders compile **byte-identically
+at every k**, and to the *high*-pressure schedule (`nsave = k+1`) in both: the
+compiler chooses to keep `k` values live even where the source did not ask it
+to. (Which component does it is not observable here; see §6.16.5a.)
+
+That null is kept in the instrument as `d1-perm-lo` / `d1-perm-hi`, because of
+what it would have looked like if it had not been checked:
+
+> **An inert probe and a passing probe print the same thing.** Had the run
+> reported only "no row refutes SCHEDULE D", that reads as a confirmation of
+> the table, while in fact it is a report that the experiment never happened.
+> `--pressure` therefore counts and prints **discriminating cells** and
+> **inert rows** separately, and says in plain words `NO DISCRIMINATING CELL —
+> this run says NOTHING about which axis is real` when there are none. This is
+> the same class of error as §6.15.0's polluted `dtext` and §6.15.8's
+> crying-wolf falsifier: the instrument agreeing with you is not evidence
+> until you know it *could* have disagreed.
+
+### 6.16.3 The divergence is 100% frame idiom — every byte of it
+
+With the opaque use, the pair separates by exactly **−24 bytes at every k ≥ 2**
+(`HIGH` is the *smaller* one), and the `body` column — bytes strictly between
+the frame push and the frame pop — is **identical at every single k**:
+
+```
+k   s_lo   s_hi   ds    body lo/hi  Nlo  Nhi  press_lo    press_hi
+1   72     72     0     28/28       9    9    1/112/0+1   1/112/0+1   INERT (same text)
+2   92     68     -24   48/48       3    9    1/112/0+1   3/112/0+0
+3   112    88     -24   68/68       2    4    1/112/0+1   4/128/0+0
+4   132    108    -24   88/88       2    2    1/112/0+1   5/128/0+0
+5   152    128    -24   108/108     1    2    1/112/0+1   6/144/0+0
+…
+11  272    248    -24   228/228     0    1    1/112/0+1   12/192/0+0
+12  292    268    -24   248/248     0    0    1/112/0+1   13/192/0+0
+```
+
+**rows where the body sizes differ: 0.** The whole 24 bytes is prologue and
+epilogue, and the mechanism is visible in the disassembly of the `k=2` pair —
+both bodies are 48 bytes, and the frame code is not:
+
+| | prologue | epilogue | frame code total |
+|---|---:|---:|---:|
+| LOW, 2 saved nonvolatiles, **inline** (`mflr`, `stw r12,-8(r1)`, `std 30`, `std 31`, `stwu` … `addi r1`, `lwz r12`, `mtlr`, `ld 30`, `ld 31`, `blr`) | 20 B | 24 B | **44 B** |
+| HIGH, 3 saved nonvolatiles, **out-of-line helper pair** (`mflr`, `bl __savegprlr_29`, `stwu` … `addi r1`, `b __restgprlr_29`) | 12 B | 8 B | **20 B** |
+
+Crossing from two saved nonvolatiles to three *removes* six instructions.
+
+That is as clean as this question gets: a **register-allocator idiom
+threshold**, six instructions wide, in code that does not exist until after
+allocation, with every source-side count held fixed. What that implies about
+*which component* is deciding is §6.16.5a.
+
+### 6.16.4 The result: seven discriminating cells, zero refutations
+
+A cell is **discriminating** when the pair straddles a schedule band. The
+falsifier is one row where it straddles and `Nfull` comes out the same anyway.
+
+| pair | discriminating cells | refuting rows |
+|---|---:|---:|
+| depth 1, opaque use | 4 | **0** |
+| depth 2, opaque use | 3 | **0** |
+| depth 1, re-associable use | 0 (all inert) | 0 |
+
+The headline cell is `k=2`: **four statements — two declarations and two
+assignments — and four calls, the identical multiset in both spellings, and
+the front end takes 3 sites of the low-pressure one and 9 of the
+high-pressure one.** `s` moved from 92 to 68 and
+`Nfull` moved from 3 to 9, exactly as §6.15.3 tabulates both.
+
+And `k=11` moves the **ceiling** itself: `s_lo=272` is never inlined, `s_hi=248`
+is inlined once. The `≥260 → 0` boundary is crossed by nothing but a choice of
+save/restore idiom.
+
+> **`s` is not a proxy that happens to correlate.** It moves with every
+> source-side count held constant, and the decision moves with it, to the
+> tabulated row, at depth 1 and depth 2. This is the statement §6.15.3 could
+> not make and the reason the table can now be used to construct fixtures
+> rather than merely to describe measurements.
+
+### 6.16.5 The direction is the opposite of the intuition that motivated the probe
+
+§6.15.7 expected pressure to make a callee **bigger** ("heavy spilling … a
+large `__savegprlr_` pair"). It makes it **smaller**: more simultaneously live
+values crosses the helper-pair threshold and *saves* six instructions, so a
+higher-pressure callee is inlined at **more** sites, not fewer. The prediction
+that a `__savegprlr_` pair inflates the callee is **refuted** — the helper is
+one instruction at every width. Across `d1-live-hi`, `nsave` runs 3 → 13 while
+`s` moves in a straight line of +20 bytes per rung: **the save set's width
+costs `s` exactly zero.**
+
+### 6.16.5a This strains the premise §6.15.7 was written on
+
+§6.15.7 states the risk as *"the front end chooses **before register
+allocation**; that the emitted size predicts its choice … is a strong
+empirical fact and **not a mechanism**."* The measurement above makes that
+premise hard to hold:
+
+> **The decision tracks a quantity that does not exist until after register
+> allocation.** The three-nonvolatile save/restore idiom threshold is a
+> register-allocator output. A chooser running before allocation cannot read
+> it. Yet the decision moves with it, in both directions, at both depths, and
+> at `/Ox` as well.
+
+Two readings survive:
+
+* **(A)** the decision is not the *front* end's at all. In the MSVC split
+  `c1xx` parses and emits IL and **`c2` optimises and generates code**, so
+  inlining is `c2`'s job — and `c2` can compile the callee first (§6.5: its
+  COMDAT is emitted whether or not it was inlined), **measure** it, and then
+  decide on the caller. On this reading `s` is not a proxy for the deciding
+  quantity, it **is** the deciding quantity, which is what a schedule exact to
+  a 4-byte step looks like.
+* **(B)** the decision is `c1xx`'s and its own estimate happens to track the
+  helper-pair threshold. That requires a coincidence at 4-byte resolution
+  between two mechanisms with no shared input.
+
+**(A) is far more economical, and this document should stop asserting (B).**
+But (A) is a **hypothesis, not a measurement**, and is written here as one —
+nothing in this lane has looked inside either binary, and "which component
+decides" is not a question a differential capture can answer on its own.
+
+One cheap consequence *was* tested. If the decider measures a compiled callee,
+it needs the callee compiled first — so move the **definition** after the
+caller, behind a forward declaration:
+
+| `k` | `s` defined before | `s` defined after | sites before | sites after |
+|---:|---:|---:|---:|---:|
+| 1 | 72 | 72 | 9 | 9 |
+| 2 | 92 | 92 | 3 | 3 |
+| 3 | 112 | 112 | 2 | 2 |
+| 5 | 152 | 152 | 1 | 1 |
+| 8 | 212 | 212 | 1 | 1 |
+
+**Definition order moves nothing** — not the schedule and not `s` itself, so
+the comparison is not confounded. That is what a two-pass back end looks like,
+and it rules out the naive single-forward-pass version of (A) without
+distinguishing (A) from (B). `scripts/gt_inline_decline.py --order`.
+
+### 6.16.6 The two round ends, under pressure
+
+These are the ends a fixture author *constructs* with, so they were re-checked
+with liveness rather than statements carrying the size:
+
+| body | `s` | allocator state | sites | schedule |
+|---|---:|---|---:|---|
+| 3 call-defined values, all live at once | 60 | `nsave=3`, takes the helper | **24 / 24** | unbounded ✓ |
+| 4 call-defined values, all live at once | 76 | `nsave=4` | **7** | 7 ✓ |
+| 20 call-defined values, all live at once | 344 | `nsave=18`, **2 spill stores + 2 reloads** | **0** | 0 ✓ |
+| 24 call-defined values, all live at once | 424 | `nsave=18`, **6 spill stores + 6 reloads** | **0** | 0 ✓ |
+
+Both ends hold with real spill code in the callee. The 4-live row is a
+**pre-registration miss** worth keeping: it was written down as "still ≤64 B,
+the control that says the floor is a size and not 'small bodies always
+inline'", and it is **76 bytes** — liveness alone carries a body over the floor
+— so it became a held-out cell for the `76 → 7` row instead, which it hit
+exactly.
+
+### 6.16.7 The spill floor: a spilling callee cannot sit in the wrong row
+
+The named risk was that spilling puts a callee in the **wrong** row. Scanning
+the live-value count directly:
+
+| values live | `s` | `nsave` | spill stores | schedule row |
+|---:|---:|---:|---:|---:|
+| 15 | 252 | 15 | 0 | 1 |
+| 18 | 300 | **18** | 0 | 0 |
+| **19** | **324** | 18 | **1** | 0 |
+| 24 | 424 | 18 | 6 | 0 |
+
+`nsave` saturates at **18** — every nonvolatile GPR, r14..r31 — and the first
+byte of actual spill code appears at **19 live values and 324 bytes**.
+
+> **At `/O1` a callee that genuinely spills is arithmetically confined to the
+> never-inlined row.** Nineteen simultaneously live values cost at least one
+> def and one use instruction each before any spill code exists, which lands
+> the body **64 bytes past the 260-byte ceiling** — measured, not argued. There
+> is no `s` at which a spilling callee could be in the *wrong* row, because
+> there is only one row it can occupy.
+>
+> The risk was real but it was aimed one mechanism too far. The allocator
+> artifact that *does* land inside the schedule's live range is far cheaper
+> than spilling — the **three-nonvolatile save/restore idiom threshold** of
+> §6.16.3 — and the schedule prices it correctly.
+
+### 6.16.8 `/Ox`: §6.15.4's threshold is held out on this pair too, and it lands
+
+§6.15.4's loop-free rule — **≤108 bytes of `/O1`-emitted size inlined, ≥112
+declined** — was fitted entirely on statement-ladders. Graded on the pressure
+pair (the runner captures the `/O1` reference size for the same source, since
+the rule is stated on it):
+
+**46 graded cells, 0 refutations, 2 discriminating.** The discriminating cells
+are the sharp ones:
+
+| `k` | spelling | `s` at `/O1` | `/Ox` predicted | `/Ox` measured |
+|---:|---|---:|---|---|
+| 3 | LOW | 112 | declined | **declined** |
+| 3 | HIGH | 88 | inlined | **inlined** |
+| 4 | LOW | 132 | declined | **declined** |
+| 4 | HIGH | **108** | inlined | **inlined** |
+
+Same source counts, opposite `/Ox` verdicts, and the `k=4` HIGH cell sits
+**exactly on the 108-byte boundary** and inlines. So the allocator idiom moves
+the `/Ox` decision as well, and §6.15.4's choice to state its threshold on the
+`/O1`-emitted size rather than the `/Ox` one survives a mechanism it was not
+fitted to.
+
+### 6.16.9 The new grader cried wolf, in exactly the place §6.15.8 warned about
+
+The `/Ox` grader above printed **six `*** REFUTES ***` lines** the first time
+it ran, all on the depth-2 pair — and all false, for two compounding reasons:
+
+* it charged an **inner** decline to the direct pair, which is precisely the
+  failure §6.15.8 fixed for SCHEDULE D and re-introduced here from scratch;
+* at `/Ox` the depth-2 wrapper collapses to an **8-byte tail-call thunk** and
+  is inlined everywhere while `in2` — a different pair — is the one refused, so
+  the `/O1` reference size is not a measurement of the function being graded
+  at all.
+
+Fixed, not fudged: the grade is now taken **per spelling** and **skipped** with
+`not graded: INNER-DECLINED (a different pair)` wherever `Nfull != Ndirect`.
+Six rows moved from a false alarm to an honest abstention; the twenty-four
+depth-1 cells were unaffected and are what the claim rests on.
+
+> This is the **fourth** time this document's instrument has misled, and the
+> second time on this exact fault line. The lesson is not "be careful" — it is
+> that the inner/outer distinction is not a detail of one grader but a property
+> of every claim about a *pair*, and any new grader inherits it.
+
+### 6.16.10 The cap the `unbounded` row still rested on — lifted
+
+`≤64 B → unbounded` was never a measurement of *unbounded*; it was a
+measurement of *at least 24*, and 24 is where the sweep stopped. **LAW D died
+precisely because a cap was believed** (exact on every cell below the sweep's
+own `N ≤ 6`, dead on the first capture above it), so the row was re-run to
+**N = 64** — including on `s = 64` exactly, the band's own top boundary:
+
+| `s` | sites inlined |
+|---:|---:|
+| 48 | 64 / 64 |
+| 56 | 64 / 64 |
+| **64** | **64 / 64** |
+
+Not one `bl` survives at any of 64 sites. The floor is unbounded as far as
+this instrument can reach, measured at the boundary rung rather than inside
+the band.
+
+### 6.16.11 What round 29 leaves `NOT MODELLED`
+
+Unchanged from §6.15.7, and deliberately **not** narrowed:
+
+* **The rule generating the `/O1` schedule.** Six closed forms refuted; no
+  seventh is proposed here. Every cell this round produced *reproduces*
+  §6.15.3's existing table, so a form fitted now would have **no hold-out at
+  all** — the exact condition that killed LAW D. Lifting a cap (§6.16.10) was
+  the available honest move and it was taken instead.
+* **The `/Ox` threshold for callees containing a loop.** Untouched here; every
+  pressure-pair callee is loop-free.
+* **Every categorical refusal at `/O1`.** Untouched: 22 cells, no rule.
+
+What round 29 **removes** from the risk list is the top item: `s` surviving the
+allocator is now measured rather than hoped for, and the spill floor bounds the
+one mechanism that could have hidden a wrong row.
+
+> **The riskiest thing still unmeasured**, in this round's judgement, is no
+> longer the proxy. It is that **every callee in this entire section is
+> `int f(int)`.** §6.15.7 listed virtual and template callees third; after this
+> round they are first, because the two mechanisms round 29 exercised — the
+> save/restore idiom threshold and the spill floor — are both about **GPR**
+> pressure in a body with one integer argument and one integer return. A callee
+> with an FPR frame, a struct return, or a `this` plus four arguments starts
+> from a different prologue and a different number of live values *before its
+> first statement*, and nothing here says the schedule's 4-byte bands survive
+> that. `d1-dbl` (§6.15.2) is one ladder of evidence that they do and it moves
+> `s` by statements, so it is confounded in the same way the other thirteen
+> were. **The pressure pair should be re-run on a `double` and on a member
+> function, and it has not been.**
+
+### 6.16.12 The pre-registration, scored
+
+Written before the captures, in `work/gt-inline-decline/ESTIMATE-round29.txt`
+and reproduced here because `work/` is gitignored. Fourteen registered,
+**thirteen landed, one missed** — in three tranches, each written before its
+own capture, with the second and third addenda naming what the previous result
+had just made questionable.
+
+| prediction | p | outcome |
+|---|---:|---|
+| S1 the permutation moves `s` at all | 0.85 | **✓ only after a redesign** — see below |
+| S2 where the pair straddles a band, `Nfull` follows `s` | 0.60 | ✓ 7 / 7 cells |
+| S3 at least one discriminating cell exists | 0.75 | ✓ seven |
+| S4 no true spilling inside `68 ≤ s ≤ 256` | 0.80 | ✓ floor measured at 324 |
+| S5 `≥65 instr → never` holds on spill bytes | 0.90 | ✓ at 344 and 424 |
+| S6 `≤16 instr → unbounded` holds under max liveness | 0.90 | ✓ 24/24 at `s=60` |
+| S7 the LOW ladder alone reproduces the schedule | 0.85 | ✓ 11 rungs |
+| S8 `__savegprlr_` **width** moves the decline by zero | 0.85 | ✓ `nsave` 3→13, `s` linear |
+| S9 depth 2 says the same as depth 1 | 0.85 | ✓ identical numbers |
+| (unnumbered) the 4-live body is still ≤64 B | — | ✗ **76 B** |
+| S10 `s = 64` still fully inlined at `N = 64` | 0.70 | ✓ |
+| S11 `s = 48` likewise | 0.80 | ✓ |
+| O1 definition order does not move the schedule | 0.70 | ✓ |
+| O3 …nor `s` itself (the confound control) | 0.90 | ✓ |
+
+**The named bias, and what it actually did.** The estimate opened by naming
+anchoring in *both* directions — 449 confirming rungs pulling one way, "the
+brief hands me this as the invisible failure mode" pulling the other — and set
+S2 at 0.60 while stating that un-anchored it would be 0.50. The confirmation
+landed, so the anchor was not punished. That is not the same as the anchor
+being harmless, and the honest reading is the one the estimate itself
+pre-committed to: **the 449 rungs contributed nothing to this result and the
+seven new cells carry all of it.**
+
+**S1 is the entry that matters.** Its *outcome* landed and its *stated reason*
+was wrong — the operator called "non-associative" in the estimate is linear
+over xor, and the first probe measured nothing. §6.15.7a recorded the converse
+case ("right for the wrong reason at `/Ox`") and rated it below a stated miss;
+this is the same coin. What saved it was not insight but the estimate having
+written down the inert failure mode as *"a real outcome and the first thing
+the run must check"* — a pre-registered null check, doing the job a
+pre-registered null check exists to do.
+
+### 6.16.13 Reproduction
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+# THE PROBE: same statements, different allocation. Read the two counters at
+# the bottom of each block — discriminating cells and inert rows.
+scripts/gt_inline_decline.py --pressure --max 12
+scripts/gt_inline_decline.py --pressure --max 12 --mode '/Ox /GS- /c'
+# the two round ends under pressure, and the SPILL FLOOR scan
+scripts/gt_inline_decline.py --ends
+# the new ladders through the shipped falsifier
+scripts/gt_inline_decline.py --max 12 d1-live-lo d1-live-hi d2-live-lo \
+    d2-live-hi d1-perm-lo d1-perm-hi d1-cheap-hi
+# the cap lift: `unbounded` measured at N=64, at s=64 exactly
+scripts/gt_inline_decline.py --max 64 --kmax 2 d1-noloop-arith
+# does the callee's DEFINITION ORDER move anything? (it does not)
+scripts/gt_inline_decline.py --order --max 12
+```
+
+`--pressure` prints `<== s TRACKS` on a discriminating cell that agrees,
+`<== *** s IS NOT THE AXIS: same IL, ±n bytes, same Nfull ***` on one that
+does not, and `INERT` where c2 collapsed the permutation. The `body lo/hi`
+column is the load-bearing one: while it reads `x/x`, the whole of `ds` is
+prologue and epilogue and the front end cannot have seen any of it.
