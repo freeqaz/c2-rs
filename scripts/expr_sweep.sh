@@ -57,10 +57,22 @@ out="${1:-/tmp/c2rs-expr-sweep}"
 limit="${2:-0}"
 c2rs="$repo_root/target/release/c2rs"
 
-if [ ! -x "$c2rs" ]; then
-    echo "building the harness first"
-    (cd "$repo_root" && cargo build --release -p c2-harness)
-fi
+# ALWAYS rebuild. This used to be `if [ ! -x "$c2rs" ]`, which builds only when
+# the binary is ABSENT and otherwise runs whatever is on disk — so a sweep could
+# grade the current tree's *cases* with a previous tree's *code*. That is not
+# hypothetical: it reported 47 mismatches against a binary five hours behind HEAD,
+# and the rebuild that resolved it took 3.43s. The guard saved nothing.
+#
+# The false-MISMATCH direction only costs an investigation. **The false-GREEN
+# direction is the hazard**: land a regression, run the gate, and the sweep passes
+# because it graded the old binary. `cargo build` is already a no-op when current,
+# so there was never a reason to second-guess it.
+echo "building the harness (no-op if current)"
+(cd "$repo_root" && cargo build --release -p c2-harness)
+
+# Print what is actually about to run, so a stale or surprising binary is visible
+# in the log instead of being inferred afterwards from a mismatch count.
+echo "harness: $c2rs  built $(date -r "$c2rs" '+%F %T')  tree $(cd "$repo_root" && git rev-parse --short HEAD 2>/dev/null || echo '?')"
 
 mkdir -p "$out"
 rm -f "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true

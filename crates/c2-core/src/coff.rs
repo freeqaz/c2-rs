@@ -465,10 +465,16 @@ pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option
     // function and predicts 4 slots for two where c2 gives 3, and 6 for three
     // where c2 gives 4. Measured seed-free as the *difference* between two framed
     // functions' labels in one TU, so nothing depends on the `.gl` seed; the
-    // table is on `c2_il::IlFunction::label_slots`. Same shape as
-    // `docs/CODEGEN_FRAMED_CALLS.md` §4.4's `__savegprlr_N`/`__restgprlr_N` pair
-    // consuming **two** extra slots for its **two** externals: one slot per
-    // TU-level external.
+    // table is on `c2_il::IlFunction::label_slots`.
+    //
+    // This `+1` was once explained as "one slot per TU-level external", the same
+    // rule as `docs/CODEGEN_FRAMED_CALLS.md` §4.4's `__savegprlr_N`/
+    // `__restgprlr_N` pair consuming two slots for its two externals.
+    // **The explanation is refuted** (`docs/LABEL_COUNTER.md` §2.1): a pooled FP
+    // constant costs +2 and mints no external, a string literal costs 0 and
+    // mints one. The `+1` and the `+2` are both still exact — see §1.1 for the
+    // surcharge table that actually fits — but no new class may be added here on
+    // the strength of counting its externals.
     let mut fltused_slot_taken = !funcs.iter().any(|f| f.is_float);
     funcs
         .iter()

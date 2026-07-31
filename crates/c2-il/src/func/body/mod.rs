@@ -429,13 +429,67 @@ impl Block {
             // Signedness is NOT in the opcode: signed and unsigned probes emit
             // the same byte and differ only in the operand type (`86 41 74` int
             // vs `86 42 75` unsigned).
-            let named = expr_opcode_name(b);
+            let named = expr_opcode_name(b).or_else(|| cflow_opcode_name(b));
             return match named {
                 Some(n) => format!("expr-{n}"),
                 None => format!("expr-op-0x{b:02X}"),
             };
         }
+        // A **control-flow** opcode met by a straight-line production. The byte is
+        // the same in every `ctx` and it always means the same thing, so it gets
+        // the same name everywhere — `body-cflow-label` and
+        // `return-scope-close-cflow-label` are both a `29` and both say so, while
+        // staying separate buckets because the production they interrupted is
+        // different work.
+        //
+        // A pure RENAME: one old key maps to exactly one new key, so no bucket
+        // merges and no recorded comparison is invalidated. What it buys is that
+        // the largest structural blockers stop being hex — `body-0x29` (48,102) is
+        // a `do`/`while`'s top label and `call-ref-0x3A` (5,335) is a branch to a
+        // label that is not the epilogue, and neither of those is readable from
+        // "0x29" or "0x3A".
+        if let Some(n) = cflow_opcode_name(b) {
+            return format!("{}-cflow-{n}", self.ctx);
+        }
         format!("{}-0x{b:02X}", self.ctx)
+    }
+}
+
+/// The **capture-verified** names of the control-flow opcodes
+/// (`docs/IL_STMT_GRAMMAR.md` §7–§9, §11).
+///
+/// Same discipline as [`expr_opcode_name`], and the same reason: a wrong name is a
+/// lie that survives into the roadmap. The two that could be guessed wrong are the
+/// conditional pair, and they are not guessed — `fixtures/cpp/wcf_shapes.cpp` holds
+/// the controlled witness, two functions in one TU differing only by a `!`:
+///
+/// ```text
+///   if (a)  return 1; return 2;   b9 <a> 86 41 74  38 <L>  53 …then… 54 04  29 <L>
+///   if (!a) return 1; return 2;   b9 <a> 86 41 74  39 <L>  53 …then… 54 04  29 <L>
+/// ```
+///
+/// Both load `a` itself — the `!` never becomes an opcode — and both define `<L>`
+/// *after* the then-clause, so `<L>` is "skip the then". The branch to it is taken
+/// when the condition is false, and negating the condition swaps `38` for `39`.
+/// So `38` is branch-if-FALSE and `39` is branch-if-TRUE, on this toolchain, from
+/// a tracked fixture. `&&`/`||` corroborate independently in the same file: `a &&
+/// b` emits `38` twice (short-circuit on false) and `a || b` emits `39` then `38`.
+///
+/// `mcall`'s `Blocker::Branch` recorded the polarity as UNDETERMINED on the
+/// strength of two wild witnesses that could not separate the senses. It is
+/// determined now, and both key producers read this one table so they cannot
+/// disagree about what a byte is called.
+pub(crate) fn cflow_opcode_name(b: u8) -> Option<&'static str> {
+    match b {
+        0x29 => Some("label"),           // define label <tok>              §7
+        0x38 => Some("brfalse"),         // branch if the value is FALSE    §7
+        0x39 => Some("brtrue"),          // branch if the value is TRUE     §7
+        0x3A => Some("jump"),            // unconditional; also break /
+        //                                  continue / goto / return        §8.4, §9
+        0x3B => Some("switch-dispatch"), // dispatch on the table symbol    §11
+        0x3C => Some("switch-table"),    // table header `3C <TYPE> <def>`  §11
+        0x3D => Some("switch-case"),     // one case entry `3D <label>`     §11
+        _ => None,
     }
 }
 

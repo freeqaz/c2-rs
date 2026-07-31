@@ -55,6 +55,28 @@ pub struct FnCensus {
     pub hex: Vec<u8>,
     /// Index of the blocking byte inside [`FnCensus::hex`].
     pub hex_mark: usize,
+    /// **The control-flow class** of this body, decoded independently of whether
+    /// the body is in class (`crates/c2-il/src/func/body/shapes/control_flow.rs`).
+    ///
+    /// Two families of value, and the prefix says which:
+    ///
+    /// * `cflow-<shape>` / `cflow-<shape>+expr-modeled` — the statement layer
+    ///   decoded end to end, so this body's CFG is fully known. The `+expr-modeled`
+    ///   half is the one blocked on **control flow alone**; without the suffix the
+    ///   body needs expression work as well.
+    /// * `cf-<production>-0xNN` — the statement-layer decoder itself stopped, and
+    ///   this is where. Ranked, it is the residue of the grammar.
+    ///
+    /// A third census axis, beside the blocking feature and the frame class, and a
+    /// separate field for the same reason the frame class is one: the
+    /// blocking-feature histogram IS the widening order and several sessions of
+    /// documented tables name its keys, so an orthogonal fact goes beside it rather
+    /// than into its names.
+    ///
+    /// **Decode-only, and structurally so**: nothing reads this field except the
+    /// report. It is not consulted by acceptance, by `shape_to_function`, or by the
+    /// emitter, and the scanner that produces it constructs no `BodyShape`.
+    pub cflow: String,
     /// **How many CALL tokens the body issues** — see [`call_tokens`]. Counted for
     /// every function, in class or not, because the in-class shapes are the control
     /// group: they are all leaves or single tail calls, so a non-zero count among
@@ -87,6 +109,27 @@ impl FnCensus {
             1 => "calls-1",
             _ => "calls-2plus",
         }
+    }
+}
+
+/// The control-flow axis for one segment: run the statement-layer scanner and
+/// render its verdict as a census key.
+///
+/// Run for **every** function, in class or not, for the reason the frame class is:
+/// the in-class shapes are the control group. Every one of them is a single basic
+/// block, so a `cflow-loop` reading among the accepted rows would indict the
+/// measure rather than reveal a loop the port lowers.
+///
+/// A segment with no `LO` body marker has no body to scan; that is already the
+/// `lo-marker` refusal on the primary axis, and restating it here would put a
+/// container-level fact into a control-flow histogram.
+fn cflow_key(seg: &[u8]) -> String {
+    let Some(lo) = crate::func::readers::find_subslice(seg, &crate::func::bundle::LO_MARKER) else {
+        return "cf-no-body".to_string();
+    };
+    match body::shapes::control_flow::scan_control_flow(seg, lo) {
+        Ok(cf) => cf.key(),
+        Err(b) => b.feature(),
     }
 }
 
@@ -346,6 +389,7 @@ impl IlBundle {
                             hex,
                             hex_mark,
                             calls: call_tokens(seg),
+                            cflow: cflow_key(seg),
                             opt_word,
                         },
                         func,
@@ -413,6 +457,47 @@ mod tests {
             panic!("expected a block");
         };
         assert_eq!(census[1].hex[census[1].hex_mark], b.byte.unwrap());
+    }
+
+    /// **The control group for the control-flow axis.** Every shape the port
+    /// accepts is a single basic block, so an in-class row must read
+    /// `cflow-straight`. Asserted here on the pinned segments and measured on the
+    /// workload, where all 455,049 readable in-class bodies agree — a `cflow-loop`
+    /// among them would mean the port had been handed a back edge, and a
+    /// `cflow-if-1` would mean the scanner invents branches.
+    ///
+    /// The axis is also **decode-only**, which the second half asserts: the row's
+    /// verdict is the same whatever the scanner said, because nothing reads the
+    /// field except the report.
+    #[test]
+    fn every_in_class_row_is_a_single_basic_block() {
+        let mut ex: Vec<u8> = Vec::new();
+        ex.extend_from_slice(&seg_head());
+        ex.extend_from_slice(MVP_CALL);
+        ex.extend_from_slice(&seg_head());
+        ex.extend_from_slice(CALL_THEN_STMT);
+        let bundle = crate::IlBundle {
+            base_name: "t".into(),
+            files: vec![("ex".to_string(), ex), ("gl".to_string(), gl_two_records())]
+                .into_iter()
+                .collect(),
+        };
+        let census = bundle.function_census().unwrap();
+        for f in &census {
+            if f.verdict.in_class() {
+                assert!(
+                    f.cflow.starts_with("cflow-straight"),
+                    "in-class function #{} reads {} — the port accepts only single \
+                     basic blocks, so this is either a scanner inventing control \
+                     flow or an emitter that has been handed some",
+                    f.index,
+                    f.cflow
+                );
+            }
+        }
+        // …and a blocked row still carries the axis, because the measurement is
+        // over every function, not only the refused ones.
+        assert!(census.iter().all(|f| !f.cflow.is_empty()));
     }
 
     #[test]

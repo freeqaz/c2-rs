@@ -475,7 +475,15 @@ pub(crate) fn parse_call_shape(
         // Only a terminal tail call: a post-op would consume the result and need
         // the framed path, which does not model multi-argument setup.
         if seg.get(*p) != Some(&0x41) {
-            return Err(Block { ctx: "call-multiarg-postop", byte: None, off: *p, aux: 0 });
+            // `blk`, not a bare `byte: None`. The refusal IS about a byte — "the
+            // token after a multi-argument call's `4C` is not the `41` result
+            // annotation" — and discarding it rendered the key as
+            // `call-multiarg-postop:eof`, which is what `Block::feature` prints
+            // when there is no byte at all. 13,425 functions, the largest bucket in
+            // the call family, filed under a name that says "end of segment" about
+            // a position that is nowhere near one, with their composition
+            // unsampled because the one distinguishing byte had been thrown away.
+            return Err(blk(seg, *p, "call-multiarg-postop"));
         }
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         return Ok(shape);

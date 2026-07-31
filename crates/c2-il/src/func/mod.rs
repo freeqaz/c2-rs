@@ -618,13 +618,20 @@ impl IlFunction {
         //
         // Eleven rows, one rule, zero residual: **every function consumes 1, plus
         // one extra slot for the TU if any function touches floating point.** The
-        // extra slot is `_fltused` — the one TU-level external an FP-touching
-        // function introduces — which makes this the same rule
-        // `docs/CODEGEN_FRAMED_CALLS.md` §4.4 measured for the
-        // `__savegprlr_N`/`__restgprlr_N` pair, where **two** externals consume
-        // **two** extra slots. One slot per TU-level external, and the two facts
-        // `is_float` carries (where `_fltused` goes, and where the extra slot
-        // goes) are now the same fact rather than two readers of one field.
+        // extra slot is `_fltused`, and the two facts `is_float` carries (where
+        // `_fltused` goes, and where the extra slot goes) are now the same fact
+        // rather than two readers of one field.
+        //
+        // This comment used to *explain* the `+1` as "one slot per TU-level
+        // external", unifying it with the `__savegprlr_N`/`__restgprlr_N` pair's
+        // `+2`. **That explanation is refuted** (`docs/LABEL_COUNTER.md` §2.1,
+        // measured seed-free against three in-TU anchors): a newly pooled FP
+        // constant costs +2 and introduces no external at all, while a string
+        // literal costs 0 and introduces one. Every number this method returns
+        // survives — only the reason was wrong — but the reason is what would
+        // license the next class, so widen this from `LABEL_COUNTER.md` §1.1's
+        // measured surcharge table and from nothing else. The rule as stated
+        // would have admitted a pooled constant at +0 and under-counted by 2.
         //
         // A per-function method cannot express a per-TU quantity, which is the
         // structural reason the old rule could not be stated correctly here:

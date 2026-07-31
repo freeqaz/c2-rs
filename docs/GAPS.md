@@ -1376,10 +1376,13 @@ The rules that keep the numbers honest:
        came off, which is exactly what the next rung did. Re-measured seed-free
        (the *difference* between two framed functions' labels in one TU, so the
        `.gl` seed cancels), the rule is **one slot per function plus one for the
-       TU if anything touches floating point** — the `_fltused` external's slot,
-       which is the same "one slot per TU-level external" that
-       `CODEGEN_FRAMED_CALLS.md` §4.4 measured as **two** for the
-       `__savegprlr`/`__restgprlr` pair. `docs/ROADMAP.md` §6m.
+       TU if anything touches floating point** — the `_fltused` external's slot.
+       `docs/ROADMAP.md` §6m. (That measurement stands; the *unification* built
+       on it — "one slot per TU-level external", matching §4.4's **two** for the
+       `__savegprlr`/`__restgprlr` pair — is **refuted**, and is itself a fourth
+       instance of this section's shape: a rule fitted to the two points it was
+       derived from, correct at both, wrong just outside. `LABEL_COUNTER.md`
+       §2.1; the surcharge table that fits is §1.1.)
        Three things worth keeping. **A per-function method cannot hold a per-TU
        quantity**, and `IlFunction::label_slots` is one — at `n = 1` the two
        formulations are indistinguishable, which is why the wrong one looked
