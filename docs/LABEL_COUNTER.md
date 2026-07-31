@@ -302,7 +302,7 @@ recalled.
 
 # 6. The label cost of inlining (2026-07-31)
 
-`scripts/gt_label_inline.py`, **159 probe families**, `/O1 /GS- /c` and
+`scripts/gt_label_inline.py`, **160 probe families**, `/O1 /GS- /c` and
 `/Ox /GS- /c`, every row's in-object control held. Each family carries a
 predicted charge that the script checks and can print `REFUTES` against; the
 handful recorded as `NOT MODELLED` are listed with their reasons in §6.11
@@ -514,7 +514,7 @@ that forced loops out of the `d * E` product entirely; see §6.6.
 beside each family's measured slope, and prints
 `<== *** REFUTES LAW L' ***` on any disagreement. **Score at the time this
 subsection was written: 90 families, 0 refutations at `/O1`, 0 at `/Ox`.** The
-current score, over all 159, is in §6.13.
+current score, over all 160, is in §6.13.
 
 ## 6.4 Packed is the same law — but the *inliner* is not the same inliner
 
@@ -1030,22 +1030,24 @@ general across loop spellings. §6.6's table stays as the measured total.
 ## 6.12 The depth ladder — two of the three new rules did not survive it
 
 §6.11 closed by naming **depth** as the riskiest thing unmeasured on this axis.
-Twenty-one families later: the `switch` rule survives depth 3 unchanged, the
+Twenty-two families later: the `switch` rule survives depth 3 unchanged, the
 **scope-exit and addressability rules are both rewritten**, and the two rows
 §6.11 refused to model turn out to be separable by depth and nothing else.
 Nothing here was fitted away — every `PRED` below was committed to
 `scripts/gt_label_inline.py` *before* the capture that graded it (the file's git
 history is the record), and the corrections are derived from cells that were
-held out from them. **Nine of the twenty-one registered predictions missed** —
+held out from them. **Nine of the twenty-two registered predictions missed** —
 `d2-dtor-only`, `d2-dtor-2obj`, `d3-dtor`, `d2-ptr-p`, `d3-ptr-auto`,
 `ptr-use-d1`, `ptr-use-nest`, `ptr-sibling`, `d2-ctor-noloc` — and those are the
 useful rows. Two of the three rules this ladder was built to test did not
 survive it.
 
-Every row in this section is `TEXT-IDENTICAL` to its hand control at every `N`,
-which is the only column that carries evidence about how deep the expansion tree
-actually is (§6.4). Where it is not, the row is reported as a budget finding and
-not as a measurement — see the table at the end.
+Every row in this section is `TEXT-IDENTICAL` to its hand control at every `N`
+— except `ctor-base`, where the two objs' `.text` for P is the same **size**
+(16 bytes per site, matching the control exactly) in a different instruction
+order. That column is the only evidence about how deep the expansion tree
+actually is (§6.4); where it collapses, the row is reported as a budget finding
+and not as a measurement — see the table at the end.
 
 ### The two uncontested controls, and why they come first
 
@@ -1177,6 +1179,29 @@ predicted 18: the `E` features simply add inside the `d·E` product two levels
 down. Every other depth-2/3 row in this section varies exactly one feature, so
 this is the row that says the additivity is not an accident of that design.
 
+### The base-class constructor is an ordinary instance one level down
+
+§6.9's constructor tree was measured entirely on standalone `struct`s, and the
+commonest constructor in a DC3 TU runs a **base-class** constructor first. That
+is the shape where §6.9's own trap — a tree one instance deeper than the
+prediction assumes — is easiest to fall into, so it was predicted before
+capture:
+
+| probe | law | rival | measured |
+|---|---:|---:|---:|
+| `ctor-base` — a derived ctor with a base ctor, `4 + [5] + [7]` | 16 | 11 if the base ctor folds in | **16** ✓ |
+
+So a wrapper owning one derived object builds a **three-instance tree**:
+the wrapper at depth 1, `DD2::DD2` at depth 2, `BB::BB` at depth 3 — and both
+constructors appear as their own COMDATs in the `EMIT:` column, exactly as §6.5
+says an inlined callee does. Same integer at `/Ox`.
+
+This is the one row in the section whose `.text` is not byte-identical to its
+hand control: the same 16 bytes per site in a different instruction order, so
+the evidence that the inline happened is `dtext` matching the control at every
+`N` rather than the hash. Worth naming rather than glossing, because `.text`
+growth is the *only* column that carries depth evidence.
+
 ### The inliner's budget, per shape and per mode — checked, not inferred
 
 §6.11 warns that the budget "has to be checked per shape, per mode, on every
@@ -1188,7 +1213,7 @@ from P's `.text` growth against the hand control:
 | `d3-switch` (5 groups, depth 3) | inlines to **N=2**, declines at N=3 | **declined from the first site** — 3/site, `dtext` 8 against the hand's 88, i.e. a `bl` |
 | `d3-sw2` (2 groups, depth 3) | inlines to N≥3 | inlines to N≥3, **confirms 28** |
 | `d2-sw-void`, `d2-sw-1exit` | inline to **N=2** | **declined from the first site** (0/site) |
-| every ctor / dtor / pointer row above | N≥3 | N≥3, **every charge the same integer** |
+| every ctor / dtor / pointer / temporary row above, and `ctor-base` | N≥3 | N≥3, **every charge the same integer** |
 
 So the whole ctor/dtor/addressability ladder is a **two-mode** result, and
 three of the four switch rows are `/O1`-only — *unobservable* at `/Ox`, not
@@ -1249,7 +1274,7 @@ second unit that scaled. Both readings hold at `/Ox` unchanged.
 
 ```sh
 export C2RS_WIBO=<the repo's resolved wibo>          # NOT ../wibo/build/wibo
-scripts/gt_label_inline.py                            # /O1, all 159 families
+scripts/gt_label_inline.py                            # /O1, all 160 families
 scripts/gt_label_inline.py --mode '/Ox /GS- /c'       # packed
 scripts/gt_label_inline.py --max 6 framed leaf        # the retraction, in 6 s
 scripts/gt_label_inline.py nest1 nest2 nest3 nest4 nest5 nest6   # the depth law
@@ -1280,7 +1305,7 @@ Reading a marginal across that row measures the inliner, not the counter. At
 unobservable rather than different — §6.12's budget table.
 
 The last line of a run is
-`controls failed: 0   families refuting LAW L': 0`, on 159 families in both
+`controls failed: 0   families refuting LAW L': 0`, on 160 families in both
 modes. The second number is the one to read: it is the law's own falsifier,
 computed rather than remembered. It reached 0 by the two rows §6.11 left
 printing being **explained** — see §6.12 — and the wordings they refuted are
