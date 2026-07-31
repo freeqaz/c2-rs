@@ -9,13 +9,14 @@ use crate::func::body::chain::straight_line_is_out_of_class;
 use crate::func::body::expr::{eat_return_plumbing, BODY_SCOPE_DEPTH};
 use crate::func::body::BodyShape;
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like, eat_value_type, is_ptr4_kind, is_ptr_to_4, is_volatile_tag,
-    read_token_var,
-    read_type, read_varint, value_class, ValueClass, INT_TYPE,
+    eat, eat_byte, eat_value_type, is_ptr4_kind, is_ptr_to_4, is_volatile_tag, read_token_var,
+    read_type, value_class, ValueClass, INT_TYPE,
 };
 use crate::func::IlOp;
 
-use super::designator::{parse_base_member_designator, sized_ptee, sized_ptr_width};
+use super::designator::{
+    eat_offset_adds, parse_base_member_designator, sized_ptee, sized_ptr_width,
+};
 use super::params::parse_params;
 
 /// Try to parse an **indirect-load leaf**: a whole body that is one load through
@@ -23,8 +24,9 @@ use super::params::parse_params;
 ///
 /// ```text
 ///   B9 <base-tok> <PTR-TYPE>                     the base pointer
-///   [ 33 <int-like> <off>  27 <PTR-TYPE> ]       ONE member byte-offset add, or
-///   [ 33 <long>     <off>  28 00 00      ]       ONE subscript byte-offset add
+///   ( 33 <int-like> <off>  27 <PTR-TYPE>         member byte-offset adds and
+///   | 33 <long>     <off>  28 00 00      )*      subscript ones — ANY number,
+///                                                summed into one displacement
 ///   30 <INT4|PTR4-TYPE>                          the indirect load
 ///   [ 2C <same class> 00 ]                       a cv-qualification strip
 ///   41 <same class>                              result type
@@ -49,13 +51,19 @@ use super::params::parse_params;
 /// Why every gate below is load-bearing rather than defensive — each is a
 /// *captured* case where the same-looking IL lowers differently:
 ///
-/// * **Exactly one offset add.** `p[i][j]` chains two of them and needs
-///   `slwi ; add ; slwi ; lwzx`; `p[i].b` chains a `28` and a `27`.
-/// * **The offset must fit the 16-bit displacement.** `p[100000]` (offset 400000)
-///   is `lis r11,6 ; ori r11,r11,0x1a80 ; lwzx r3,r3,r11` instead.
-/// * **The offset must be a literal.** A variable index is
-///   `slwi r11,r4,2 ; lwzx r3,r11,r3` — a different instruction, an extra one, and
-///   a scratch register.
+/// * **Every offset must be a compile-time literal, and the SUM is what is
+///   gated.** A RUN of literal adds folds into one displacement:
+///   `p->mid.in.b` is `27 · 27 · 27` and emits one `lwz r3,16(r3)`, exactly as
+///   the address leaf has always folded `&s->arr[2]` into one `addi r3,r3,48`.
+///   A *variable* index (`p[i][j]`, `p->rows[i].e`) is not a `33 <literal>` at
+///   all, never enters the walk, and really does need
+///   `slwi r11,r4,2 ; lwzx r3,r11,r3` — a different instruction, an extra one
+///   and a scratch register.
+/// * **The offset must fit the 16-bit displacement, and the gate is on the
+///   SUM.** `p[100000]` (offset 400000) is
+///   `lis r11,6 ; ori r11,r11,0x1a80 ; lwzx r3,r3,r11` instead, and so is a
+///   chain whose individual adds each fit while their total does not
+///   (`w34_offset_run_neg.cpp`'s `n_disp`, sum 32768).
 /// * **The `28` payload must be exactly `00 00`.** Those two bytes are `00 00` at
 ///   every site captured (constant and variable indices, 1/4/8-byte elements,
 ///   negative indices, 2-D arrays, bitfields) and their meaning is UNKNOWN, so
@@ -114,50 +122,40 @@ pub(crate) fn try_parse_indirect_load_leaf(seg: &[u8], start: usize, lo: usize) 
     }
     p += tw;
 
-    // At most ONE byte-offset add, in either of its two forms. Both push a
-    // byte offset as a literal and add it to the designator; `27` re-types the
-    // result and `28` does not (`docs/IL_EXPR_LAYER.md` §4).
+    // A RUN of byte-offset adds, in either of their two forms, summed — the same
+    // walk the address and store leaves have always used
+    // ([`super::designator::eat_offset_adds`]). Both push a byte offset as a
+    // literal and add it to the designator; `27` re-types the result and `28`
+    // does not (`docs/IL_EXPR_LAYER.md` §4).
+    //
+    // This used to admit **exactly one**, and that limit was neither measured nor
+    // shared: the address leaf has folded an arbitrary run since it was written
+    // (`&s->arr[2]` is `LIT(40) 27 · LIT(8) 28` and emits one `addi r3,r3,48`),
+    // the store leaf inherited that walk, and the load leaf kept a private
+    // single-add copy. One rule, three implementations, and the third was missing
+    // a widening the other two had — `docs/GAPS.md` §6's recurring shape, costing
+    // coverage rather than correctness this time. It refused **5,161** functions
+    // on the 878-TU dc3 workload, every one a nested member access that c2 folds
+    // into the same single `lwz` displacement. MEASURED byte-exact in
+    // `fixtures/cpp/w34_offset_run.cpp`; `_neg.cpp` carries the boundary.
     let mut off: i32 = 0;
     // What the byte-offset add says the pointee's width is, when it says anything.
     // `27` re-types the address and its tag carries the POINTEE width, so it is a
     // second, independent statement of the width the `30` load will announce; the
     // two are required to agree. `28` and the bare deref say nothing, and then the
-    // `30` type is the only evidence.
-    let mut ptee_width: Option<u8> = None;
-    if *seg.get(p)? == 0x33 {
-        let mut probe = p + 1;
-        // The literal's own type: `86 41 74` (int) for a member offset,
-        // `86 41 12` (long) for a subscript offset. Both are int-like.
-        if !eat_int_like(seg, &mut probe) {
-            return None;
-        }
-        let k = read_varint(seg, &mut probe)?;
-        match *seg.get(probe)? {
-            0x27 => {
-                probe += 1;
-                let (tag, kind, _, tw) = read_type(seg, probe)?;
-                ptee_width = if is_ptr_to_4(tag, kind) {
-                    Some(4)
-                } else {
-                    // A pointer to a 1-, 2- or 8-byte object; captured with and
-                    // without the tag's const bit ([`SIZED_PTR`]).
-                    Some(sized_ptr_width(tag, kind)?)
-                };
-                probe += tw;
-            }
-            0x28 => {
-                // The two trailing bytes are `00 00` at every captured site and
-                // are not understood; anything else refuses.
-                probe += 1;
-                if !eat(seg, &mut probe, &[0x00, 0x00]) {
-                    return None;
-                }
-            }
-            _ => return None,
-        }
-        off = k;
-        p = probe;
-    }
+    // `30` type is the only evidence. Only the LAST `27` is asked — see
+    // [`super::designator::eat_offset_adds`] for why an intermediate one is not in
+    // a position to answer.
+    let (run, last_retype) = eat_offset_adds(seg, &mut p)?;
+    off = off.checked_add(run)?;
+    let ptee_width = match last_retype {
+        None => None,
+        Some((tag, kind)) if is_ptr_to_4(tag, kind) => Some(4),
+        // A pointer to a 1-, 2- or 8-byte object; captured with and without the
+        // tag's const bit ([`SIZED_PTR`]). Anything else is undetermined and
+        // refuses — never "assume 4".
+        Some((tag, kind)) => Some(sized_ptr_width(tag, kind)?),
+    };
     finish_indirect_load_of(seg, p, lo, base_tok, off, ptee_width)
 }
 
@@ -478,8 +476,23 @@ pub(crate) fn try_parse_ptr_identity_leaf(seg: &[u8], start: usize, lo: usize) -
 ///   16-bit displacement — checked by the shared tail, so a class large enough to
 ///   overflow it refuses instead of wrapping.
 pub(crate) fn try_parse_base_member_load(seg: &[u8], start: usize, lo: usize) -> Option<BodyShape> {
-    let (off, base_tok, p) = parse_base_member_designator(seg, start, is_ptr_to_4)?;
-    finish_indirect_load(seg, p, lo, base_tok, off)
+    let (off, base_tok, mut p) = parse_base_member_designator(seg, start, is_ptr_to_4)?;
+    // …and then the SAME run of byte-offset adds the plain designator folds.
+    // `p->Base::m.sub` is intrinsic 2117 for the inherited sub-object's address
+    // and then a `27` per further member, and c2 folds the whole thing into the
+    // one `lwz` displacement exactly as it does without the intrinsic.
+    //
+    // This is `docs/GAPS.md` §6's "estimate the fix, not the finding" applied
+    // before the fact rather than after it: the run rule has TWO sites in this
+    // file, and sizing only the plain one would have under-counted the rung by
+    // **1,346** functions — measured as its own counterfactual, and additive
+    // with the plain site (the two together are exactly the sum).
+    let (run, _last_retype) = eat_offset_adds(seg, &mut p)?;
+    // `finish_indirect_load` pins the pointee width to 4: this designator was
+    // captured only over 4-byte members, and a trailing run does not widen that
+    // claim, so the last `27`'s announced width is deliberately NOT consulted
+    // here. Widening it is a rung with its own captures, not a line.
+    finish_indirect_load(seg, p, lo, base_tok, off.checked_add(run)?)
 }
 
 #[cfg(test)]
@@ -502,6 +515,102 @@ mod tests {
     use crate::func::sy::{Formals, SyView};
     #[allow(unused_imports)]
     use crate::func::test_fixtures::*;
+
+    // ---- W34: a RUN of byte-offset adds folds into one displacement --------
+
+    /// `int d4(Outer* p) { return p->mid.in.b; }` over
+    /// `struct Inner{int a;int b;}; struct Mid{int m0;Inner in;};`
+    /// `struct Outer{int o0;int o1;Mid mid;};` — transcribed VERBATIM from a
+    /// live-toolchain capture (`c2rs census … --keep-il`), not hand-assembled.
+    /// Three `27`s, offsets 8 + 4 + 4, one `lwz r3,16(r3)`.
+    ///
+    /// Note the three re-typings: `86 43 86 20` (Mid *), `86 43 8B 20`
+    /// (Inner *), `86 43 F4 08` (int *). The first two are pointers to
+    /// AGGREGATES and carry tag width nibble 6 — the pointer's own alignment,
+    /// not the aggregate's size — which is why only the last one may be asked
+    /// what is being loaded.
+    const IND_RUN3: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x04, 0x53, 0x53, 0x26, 0x00, 0x0A,
+        0x46, 0x2D, 0xFF, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0xB9, 0xFF, 0x09, 0x86, 0x43, 0x81, 0x20,
+        0x33, 0x86, 0x41, 0x74, 0x08, 0x27, 0x86, 0x43, 0x86, 0x20, 0x33, 0x86, 0x41, 0x74, 0x04,
+        0x27, 0x86, 0x43, 0x8B, 0x20, 0x33, 0x86, 0x41, 0x74, 0x04, 0x27, 0x86, 0x43, 0xF4, 0x08,
+        0x30, 0x86, 0x41, 0x74, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x01, 0x0A, 0x54, 0x02, 0x29, 0x01,
+        0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x05,
+        0x4D,
+    ];
+
+    #[test]
+    fn a_run_of_offset_adds_folds_into_one_displacement() {
+        // 8 + 4 + 4 = 16, one `LoadInd`, no second op. The old parser admitted
+        // exactly one add and refused this as `expr-op-0x27` — 5,161 functions
+        // on the 878-TU workload.
+        assert_eq!(
+            parse_segment(IND_RUN3, NO_LOCALS),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0xFF09],
+                ops: vec![IlOp::Load(0xFF09), IlOp::LoadInd { off: 16 }],
+            })
+        );
+    }
+
+    #[test]
+    fn only_the_last_offset_add_announces_the_pointee_width() {
+        // The intermediate `27`s in `IND_RUN3` re-type to aggregate pointers,
+        // whose tag width nibble is the POINTER's alignment. Retyping the FIRST
+        // one to a `char *` (`82 43 …`, width nibble 2) must change nothing:
+        // only the last one is cross-checked against the `30` load type. A rule
+        // that read the first would refuse here, because a 1-byte pointee
+        // contradicts the `86 41 74` int load.
+        let at = find_subslice(IND_RUN3, &[0x27, 0x86, 0x43, 0x86, 0x20]).unwrap();
+        let mut seg = IND_RUN3.to_vec();
+        seg[at + 1] = 0x82;
+        assert_eq!(
+            parse_segment(&seg, NO_LOCALS),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0xFF09],
+                ops: vec![IlOp::Load(0xFF09), IlOp::LoadInd { off: 16 }],
+            }),
+            "an intermediate `27`'s width nibble is not a claim about the load"
+        );
+        // …and the LAST one is. Retyping it to `char *` contradicts the `30`'s
+        // `86 41 74` and must refuse rather than pick either.
+        let at = find_subslice(IND_RUN3, &[0x27, 0x86, 0x43, 0xF4, 0x08]).unwrap();
+        let mut seg = IND_RUN3.to_vec();
+        seg[at + 1] = 0x82;
+        assert!(parse_segment(&seg, NO_LOCALS).is_none());
+    }
+
+    #[test]
+    fn the_displacement_gate_is_on_the_sum_not_on_any_one_add() {
+        // Each add in `IND_RUN3` is tiny. Raise the middle one so the TOTAL
+        // leaves the signed 16-bit field while every individual offset still
+        // fits: a per-add gate admits this and emits a folded `lwz` where c2
+        // emits `lis`/`lwzx`. Measured cost of the refusal on the whole
+        // workload: 16 functions.
+        let at = find_subslice(IND_RUN3, &[0x33, 0x86, 0x41, 0x74, 0x04, 0x27]).unwrap();
+        let mut seg = IND_RUN3.to_vec();
+        // `80 <4 LE bytes>` is the escaped wide literal form.
+        seg.splice(at + 4..at + 5, [0x80, 0xF4, 0x7F, 0x00, 0x00]);
+        let _ = at;
+        assert!(parse_segment(&seg, NO_LOCALS).is_none(), "8 + 32756 + 4 = 32768");
+    }
+
+    #[test]
+    fn a_single_offset_add_is_unchanged_by_the_run_walk() {
+        // The regression the shared walk could have caused: every previously
+        // accepted one-add body must decode to the identical shape.
+        assert_eq!(
+            parse_segment(&free_fn(IND_MEMBER0), NO_LOCALS),
+            Some(BodyShape::IndirectLoad {
+                params: vec![0xFE09],
+                ops: vec![IlOp::Load(0xFE09), IlOp::LoadInd { off: 0 }],
+            })
+        );
+    }
+
     #[test]
     fn indirect_load_leaf_decodes_deref_member_and_subscript() {
         assert_eq!(

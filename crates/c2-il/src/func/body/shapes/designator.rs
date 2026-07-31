@@ -256,35 +256,68 @@ pub(crate) fn is_ptr_any(tag: u8, kind: u8) -> bool {
 /// consuming at the first token that is not an offset add, which is not a
 /// failure: zero adds is the legitimate `return &p->Base::m;`.
 pub(crate) fn eat_addr_offset_adds(seg: &[u8], p: &mut usize) -> Option<i32> {
+    eat_offset_adds(seg, p).map(|(total, _)| total)
+}
+
+/// [`eat_addr_offset_adds`] with the **last `27`'s TYPE** preserved, which is the
+/// one thing the LOAD side needs and the address side does not.
+///
+/// The walk is the same walk — one locator, three consumers (the address leaf,
+/// the store leaf and the indirect-load leaf) — because a second copy of a
+/// summing loop is a second place for the overflow check, the `28` payload rule
+/// and the stop condition to drift. `GAPS.md` §6's "one fact, one locator", and
+/// this module's header states it as the module's whole purpose.
+///
+/// Why the extra return value exists at all: `27` **re-types** the address, so
+/// its tag is a second, independent statement of the width the following `30`
+/// load will announce, and [`super::leaf_load::try_parse_indirect_load_leaf`]
+/// requires the two to agree. `addi` is the same word for every pointee width,
+/// so the address and store leaves have nothing to cross-check and ignore it.
+///
+/// Only the **last** one is reported, and that is not an approximation. An
+/// intermediate `27` in a run re-types the address to a pointer to the enclosing
+/// sub-object — `p->c.b.a.e[3]` walks `27 C* · 27 B* · 27 A* · 28` — and an
+/// aggregate pointer's tag width nibble is the POINTER's alignment, not the
+/// aggregate's size (MEASURED: `work/w34/probe/p3.cpp` types a pointer to a
+/// 24,004-byte struct `86 43`). So an intermediate `27`'s tag says nothing about
+/// what is finally loaded, and only the last one is in a position to.
+pub(crate) fn eat_offset_adds(seg: &[u8], p: &mut usize) -> Option<(i32, Option<(u8, u8)>)> {
     let mut total: i32 = 0;
+    let mut last_retype: Option<(u8, u8)> = None;
+    macro_rules! done {
+        () => {
+            return Some((total, last_retype))
+        };
+    }
     loop {
         if seg.get(*p) != Some(&0x33) {
-            return Some(total);
+            done!();
         }
         let mut probe = *p + 1;
         if !eat_int_like(seg, &mut probe) {
-            return Some(total);
+            done!();
         }
         let k = match read_varint(seg, &mut probe) {
             Some(k) => k,
-            None => return Some(total),
+            None => done!(),
         };
         match seg.get(probe) {
             Some(&0x27) => {
                 probe += 1;
                 let (tag, kind, _, tw) = read_type(seg, probe)?;
                 if !is_ptr_any(tag, kind) {
-                    return Some(total);
+                    done!();
                 }
+                last_retype = Some((tag, kind));
                 probe += tw;
             }
             Some(&0x28) => {
                 probe += 1;
                 if !eat(seg, &mut probe, &[0x00, 0x00]) {
-                    return Some(total);
+                    done!();
                 }
             }
-            _ => return Some(total),
+            _ => done!(),
         }
         total = total.checked_add(k)?;
         *p = probe;
@@ -354,6 +387,41 @@ mod tests {
     use crate::func::sy::{Formals, SyView};
     #[allow(unused_imports)]
     use crate::func::test_fixtures::*;
+    #[test]
+    fn the_offset_add_run_is_one_walk_with_two_readings() {
+        // `27 · 28 · 27` — a member, a subscript, a member. Offsets 8, 4, 16.
+        // The address/store reading and the load reading must be the SAME walk:
+        // same cursor, same sum, and the load's extra return value is the LAST
+        // `27`'s TYPE, never the first (`86 43` here, not `82 43`).
+        let seg: &[u8] = &[
+            0x33, 0x86, 0x41, 0x74, 0x08, 0x27, 0x82, 0x43, 0xF0, 0x08, // + 8  -> char *
+            0x33, 0x86, 0x41, 0x12, 0x04, 0x28, 0x00, 0x00, //             + 4  (no retype)
+            0x33, 0x86, 0x41, 0x74, 0x10, 0x27, 0x86, 0x43, 0xF4, 0x08, // + 16 -> int *
+            0x30, 0x86, 0x41, 0x74, // the load, which is NOT part of the run
+        ];
+        let mut p_addr = 0usize;
+        let total = eat_addr_offset_adds(seg, &mut p_addr).unwrap();
+        let mut p_load = 0usize;
+        let (total2, last) = eat_offset_adds(seg, &mut p_load).unwrap();
+        assert_eq!(total, 28);
+        assert_eq!((total2, last), (28, Some((0x86, 0x43))));
+        // One walk: both readings stop at the same byte, on the `30`.
+        assert_eq!(p_addr, p_load);
+        assert_eq!(seg[p_load], 0x30);
+    }
+
+    #[test]
+    fn an_empty_offset_add_run_reports_no_retype() {
+        // Zero adds is the legitimate `return *p;` / `return &p->Base::m;`, and
+        // it must report `None` rather than a width — the `30` type is then the
+        // only evidence, and "assume 4" is exactly the guess that must not be
+        // made here.
+        let seg: &[u8] = &[0x30, 0x86, 0x41, 0x74];
+        let mut p = 0usize;
+        assert_eq!(eat_offset_adds(seg, &mut p), Some((0, None)));
+        assert_eq!(p, 0, "the cursor is untouched when nothing is consumed");
+    }
+
     #[test]
     fn the_any_pointee_pointer_gate_is_a_literal_whitelist() {
         // The address path admits every pointee width where the load path picks
