@@ -45,6 +45,9 @@ def cases(emit):
     # "whichever is nonzero".
     for mem in ('a0', 'a1', 'b0', 'b1', 'b2', 'd'):
         emit(STRUCTS + "int f(D4* p) { return p->%s; }\n" % mem)
-    # Two adds chained, which must refuse rather than fold to one.
+    # Two adds chained. These used to be expected to REFUSE; W34 measured that
+    # c2 folds a run of literal offsets into the one displacement and the leaf
+    # now does too (`scripts/sweep.d/45-offset-run.py` sweeps that axis proper).
+    # `*p[1]` is still two DEREFS, which is a different thing and still refuses.
     emit(STRUCTS + "int f(S4* p) { return p[2].c; }\n")
     emit(STRUCTS + "int f(int** p) { return *p[1]; }\n")
