@@ -16,6 +16,7 @@ the header block this table is read from.
 | 2026-07-30 | W-UNW-1 | [unwind-pdata](2026-07-30-unwind-pdata.md) | 5 | unchanged (a codegen rung, not a decode one) |
 | 2026-07-31 | W37 | [bit-and-declined](2026-07-31-bit-and-declined.md) | 1 | 602,703 unchanged — the rung is DECLINED; its measured worth is 0 |
 | 2026-07-31 | WCF | [cflow-decode](2026-07-31-cflow-decode.md) | 2 | 491013 → 491013 (19.94% → 19.94%), +0 |
+| 2026-07-31 | WCB | [cmp-two-calls](2026-07-31-cmp-two-calls.md) | 2 | 655245 → 661245 (26.61 % → 26.85 %), +6,000 |
 | 2026-07-31 | W34 | [fp-multiarg](2026-07-31-fp-multiarg.md) | 2 | 549,148 → 575,284 (22.30 % → 23.36 %), +26,136 |
 | 2026-07-31 | W31 | [fp-tail](2026-07-31-fp-tail.md) | 2 | 491,013 → 549,148 (19.94 % → 22.30 %), +58,135 |
 | 2026-07-31 | W33 | [frame-class-c-declined](2026-07-31-frame-class-c-declined.md) | 1 | 549,148 unchanged — the rung is DECLINED; its measured worth is 0 |
