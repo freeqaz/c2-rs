@@ -98,10 +98,22 @@ parse_registry() {
         echo "FATAL: no lane registry at $_pr_src" >&2
         return 1
     fi
-    sed 's/#.*//' "$_pr_src" \
-        | awk 'NF >= 2 { slug=$1; $1=""; sub(/^[ \t]+/,""); printf "%s\t%s\n", slug, $0 }' \
-        > "$_pr_dst"
+    # Every line with content must BECOME a lane. A row that carries a slug and no
+    # flags used to be dropped by the `NF >= 2` filter, so `--list` reported one
+    # lane fewer than the file contains and nothing said so — a registry silently
+    # short a row is the same absence-reads-as-success bug one layer further out
+    # than the one this gate was built for. Malformed rows are named and fatal.
+    sed 's/#.*//' "$_pr_src" | awk 'NF > 0' > "$_pr_dst.rows"
+    awk 'NF >= 2 { slug=$1; $1=""; sub(/^[ \t]+/,""); printf "%s\t%s\n", slug, $0 }' \
+        "$_pr_dst.rows" > "$_pr_dst"
+    _pr_rows=$(wc -l < "$_pr_dst.rows")
     _pr_n=$(wc -l < "$_pr_dst")
+    if [ "$_pr_n" -ne "$_pr_rows" ]; then
+        echo "FATAL: $_pr_src has $_pr_rows non-comment rows but only $_pr_n parse as lanes." >&2
+        echo "  A row needs a slug AND at least one flag. Offending row(s):" >&2
+        awk 'NF > 0 && NF < 2 { printf "    %s\n", $0 }' "$_pr_dst.rows" >&2
+        return 1
+    fi
     # An EMPTY registry is a gate that runs nothing and exits 0 — the exact shape
     # this whole file exists to make impossible. It is a hard error, never a pass.
     if [ "$_pr_n" -eq 0 ]; then
@@ -441,6 +453,18 @@ if [ "$mode" = selftest ]; then
         printf '  ok    %-32s refused\n' duplicate-slug
     fi
 
+    # As must a row that carries a slug and no flags. It used to be dropped, so
+    # the registry silently held one lane fewer than the file listed.
+    printf 'A /O1\nBroken\nC /Ox\n' > "$st/short.txt"
+    cases=$((cases + 1))
+    if parse_registry "$st/short.txt" "$st/short.tsv" >/dev/null 2>&1; then
+        printf '  FAIL  %-32s a slug-only row was silently dropped (%s lanes from 3 rows)\n' \
+            malformed-row "$(wc -l < "$st/short.tsv")"
+        fails=$((fails + 1))
+    else
+        printf '  ok    %-32s refused (a row that does not parse is not a row that vanishes)\n' malformed-row
+    fi
+
     # And the registry actually shipped must parse, and must carry an /EH lane —
     # the specific hole this whole registry was built to close. If somebody
     # deletes those rows, this is what notices.
@@ -455,7 +479,7 @@ if [ "$mode" = selftest ]; then
     fi
 
     echo
-    if [ "$cases" -lt 14 ]; then
+    if [ "$cases" -lt 15 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
