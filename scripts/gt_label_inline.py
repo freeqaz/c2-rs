@@ -1230,6 +1230,36 @@ FAMILIES = [
            note="the same two trees with the POINTER SITE FIRST   PRED 11 if"
                 " the kill is order-independent, i.e. a property of P and not"
                 " of what the front end has already expanded"),
+
+    # === ROUND 22: every depth-2 and depth-3 row above varies exactly ONE
+    #     feature of the callee, and law L' assumes the features ADD inside
+    #     the d*E product. A real TU's callee has several at once. These two
+    #     hold the depth fixed at 2 and combine — the second one combining the
+    #     freshly-corrected scope-exit term with ordinary E features, which is
+    #     the row that would catch `d+1` being an artefact of a body that had
+    #     nothing else in it.
+    Family("d2-mix", GS,
+           "static int mx1(int a){ int t=gs(a); int u=t+a; int r;"
+           " if (u > 0) r=u; else r=u+1; return r; }\n"
+           "static int mx2(int a){ return mx1(a)+1; }",
+           "s=mx2(s);",
+           "{int t=gs(s); int u=t+s; int r; if (u>0) r=u; else r=u+1;"
+           " s=r+1;}",
+           note="3 locals + an if + an else at DEPTH 2, one exit   PRED 18"
+                " (3 + [5 + 2*5]) if E features simply ADD two levels down"),
+    Family("d2-dtor-if", GS,
+           "struct DI { int v; DI(int a){ v = gs(a)+a; } ~DI(){ gs(v); } };\n"
+           "static int ldi(int a){ DI d(a); int r; if (a>0) r=d.v;"
+           " else r=d.v+1; return r; }\n"
+           "static int ldj(int a){ return ldi(a)+1; }",
+           "s=ldj(s);",
+           "{int dv=gs(s)+s; int r; if (s>0) r=dv; else r=dv+1; gs(dv);"
+           " s=r+1;}",
+           always_lead=True,
+           note="a destructible object AND an if/else at DEPTH 2   PRED 33"
+                " (3 + [5 + 2*(2 locals + if + else) + S(2)=3] + 7 + 7) —"
+                " the corrected scope-exit term stacking on ordinary E"
+                " features; 34 if scope-exit were still E += 2"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1433,6 +1463,8 @@ LAW_BOOK = {
     "d2-ptr-p": 8, "d3-ptr-auto": 17, "d2-ptr-glob": 8,
     "ptr-use-d1": 8, "ptr-use-nest": 8,
     "ptr-sibling": 11, "ptr-sibling-rev": 11,
+    # --- ROUND 22: additivity at depth 2, committed before capture ----------
+    "d2-mix": 18, "d2-dtor-if": 33,
 }
 
 # ---------------------------------------------------------------------------
@@ -1461,6 +1493,7 @@ SUPERSEDED = {
     "ptr-use-d1": (9, "addressability keyed on USE at depth 1"),
     "ptr-use-nest": (9, "addressability keyed on the DEEPEST use being depth 1"),
     "ptr-sibling": (12, "addressability scoped to the call site's own tree"),
+    "d2-dtor-if": (34, "scope-exit as E += 2"),
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
