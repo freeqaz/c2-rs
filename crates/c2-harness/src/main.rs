@@ -367,11 +367,12 @@ fn cmd_census(rest: &[String]) -> ExitCode {
             // decoded (the second), and a single column can show only one of
             // those. `c2rs gap` prints the same second axis aggregated.
             println!(
-                "  [{:>3}] {mark} {:<24} {:<26} {:<13} {:>6} B  {}",
+                "  [{:>3}] {mark} {:<24} {:<26} {:<11} ({:<12}) {:>6} B  {}",
                 f.index,
                 f.verdict.key(),
                 f.cflow,
                 f.eh,
+                f.eh_stmt,
                 f.seg_len,
                 f.name.as_deref().unwrap_or("(unnamed)")
             );
@@ -416,12 +417,12 @@ fn cmd_census(rest: &[String]) -> ExitCode {
         v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         let need: usize = v
             .iter()
-            .filter(|(k, _)| matches!(k.as_str(), "eh-plus-stmt" | "eh-multi" | "eh-partial"))
+            .filter(|(k, _)| k.as_str() == "eh-state1")
             .map(|(_, n)| n)
             .sum();
         println!(
-            "  EH class (sub-object boundary, decode-only): {need}/{} bodies need the whole EH \
-             record",
+            "  EH class (maxState, decode-only): {need}/{} bodies have maxState >= 1 and need the \
+             whole EH record",
             census.len()
         );
         for (class, count) in v.iter() {
@@ -2138,42 +2139,66 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 println!("    {count:>7}           {key}");
             }
         }
-        // The EH axis (WEH, `docs/EH_RECORDS.md` §7) — DECODE ONLY, and the
-        // sizing of the EH phase. `eh-bare` is the cheap side of the sub-object
-        // boundary (no handler prefix, no funclet, a bare branch); everything
-        // else that carries a marker needs the whole EH record.
+        // The EH axis (`docs/EH_RECORDS.md` §9.4, §10) — DECODE ONLY, and the
+        // sizing of the EH phase. `eh-state0` is the cheap side: a destructible
+        // object is live but no call crosses it, so `maxState = 0` and no handler
+        // prefix, no second `.pdata`, no `.rdata`, no funclet is emitted.
+        // `eh-state1` is the whole of §1–§5.
         let ehh = report.fn_eh_histogram();
         let eh_seen: usize = ehh
             .iter()
             .filter(|(k, _)| !k.contains('|'))
             .map(|(_, n)| *n)
             .sum();
+        let get = |k: &str| -> usize {
+            ehh.iter().find(|(a, _)| a == k).map(|(_, n)| *n).unwrap_or(0)
+        };
         if eh_seen > 0 {
-            let need: usize = ehh
-                .iter()
-                .filter(|(k, _)| {
-                    !k.contains('|') && matches!(k.as_str(), "eh-plus-stmt" | "eh-multi" | "eh-partial")
-                })
-                .map(|(_, n)| *n)
-                .sum();
+            let need = get("eh-state1");
             println!(
-                "  EH class (sub-object boundary, decode-only): {need} of {eh_seen} bodies need \
-                 the whole EH record ({:.1}%)",
+                "  EH class (maxState, decode-only): {need} of {eh_seen} bodies have maxState >= 1 \
+                 and need the whole EH record ({:.1}%)",
                 100.0 * need as f64 / eh_seen as f64
             );
+            // Totals over EVERY function, with the blocked subtotal beside each —
+            // the two are different populations and a table that prints only one
+            // of them invites the reader to rank the other by mistake.
             for (key, count) in ehh.iter().filter(|(k, _)| !k.contains('|')) {
                 println!(
-                    "    {count:>7} ({:>5.1}%)  {key}",
-                    100.0 * *count as f64 / eh_seen as f64
+                    "    {count:>7} ({:>5.1}%)  {key:<12}  blocked {:>7}",
+                    100.0 * *count as f64 / eh_seen as f64,
+                    get(&format!("{key}|BLOCKED"))
                 );
             }
-            // …and what each side is made of. The cross is what says which census
-            // rows are two rungs wearing one key.
+            // The BLOCKED cross: what a rung on this side would actually have to
+            // widen. In-class rows are excluded here by construction — they are
+            // printed separately below as the control group they are.
+            println!("    blocked residue, by census key (accepted shapes excluded):");
             for (key, count) in ehh
                 .iter()
-                .filter(|(k, _)| k.contains('|') && !k.starts_with("eh-none|"))
+                .filter(|(k, _)| k.contains("|BLOCKED|") && !k.starts_with("eh-none|"))
                 .take(16)
             {
+                println!("    {count:>7}           {key}");
+            }
+            // …and the control group, labelled as one. These are functions the
+            // port ACCEPTS. They are here because the cheap side of the boundary
+            // is exactly where the accepted `empty-dtor-*` shapes live, so one of
+            // them reading anything but `eh-state0` indicts the axis.
+            println!("    in-class control group (ACCEPTED functions, never a rung):");
+            for (key, count) in ehh
+                .iter()
+                .filter(|(k, _)| k.contains("|INCLASS|") && !k.starts_with("eh-none|"))
+                .take(10)
+            {
+                println!("    {count:>7}           {key}");
+            }
+            // The migration cross against the refuted statement-count axis.
+            println!("    maxState x statement-count (the refuted predicate, for reconciliation):");
+            for (key, count) in ehh.iter().filter(|(k, _)| k.starts_with("eh-migrate|")) {
+                if key.ends_with("|eh-none") && key.starts_with("eh-migrate|eh-none") {
+                    continue;
+                }
                 println!("    {count:>7}           {key}");
             }
         }

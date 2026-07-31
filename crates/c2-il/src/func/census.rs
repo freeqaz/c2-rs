@@ -105,7 +105,22 @@ pub struct FnCensus {
     /// bodies differ by one statement the key never reaches.
     ///
     /// **Decode-only, structurally**: nothing reads this field except the report.
+    ///
+    /// **This field is now the `maxState` axis** (`eh-none` / `eh-state0` /
+    /// `eh-state1` / `eh-partial` / `eh-unknown`) — see
+    /// [`EhMarkers::state_key`](body::shapes::control_flow). The
+    /// statement-count axis it used to hold moved to [`FnCensus::eh_stmt`],
+    /// unchanged, because §7.3's published split is keyed on it.
     pub eh: String,
+    /// **The superseded statement-count EH axis** (`eh-bare` / `eh-plus-stmt` /
+    /// `eh-multi` / …), kept so the two can be crossed.
+    ///
+    /// It is REFUTED (`docs/EH_RECORDS.md` §9.4, §10) and it is not for ranking.
+    /// It is here because a published number that changes silently is worse than
+    /// a wrong one: `docs/EH_RECORDS.md` §7.3 and `docs/ROADMAP.md` §6o both size
+    /// the EH phase off this key, and the cross `eh × eh_stmt` is what says
+    /// exactly which bodies moved and in which direction.
+    pub eh_stmt: String,
     /// **How many CALL tokens the body issues** — see [`call_tokens`]. Counted for
     /// every function, in class or not, because the in-class shapes are the control
     /// group: they are all leaves or single tail calls, so a non-zero count among
@@ -152,22 +167,31 @@ impl FnCensus {
 /// A segment with no `LO` body marker has no body to scan; that is already the
 /// `lo-marker` refusal on the primary axis, and restating it here would put a
 /// container-level fact into a control-flow histogram.
-/// …and the EH axis beside it, from the SAME walk. Returns
-/// `(control-flow key, EH key)`.
+/// …and BOTH EH axes beside it, from the SAME walk. Returns
+/// `(control-flow key, maxState EH key, statement-count EH key)`.
 ///
-/// One scan, two readings. The two axes answer different questions off one
-/// traversal and a second traversal would double the census's cost for a fact the
-/// first one already collected.
-fn cflow_key(seg: &[u8]) -> (String, String) {
+/// One scan, three readings. The axes answer different questions off one
+/// traversal and a second traversal would double the census's cost for facts the
+/// first one already collected. The two EH keys are the measured predicate and
+/// the refuted one it replaces; see [`FnCensus::eh`] and [`FnCensus::eh_stmt`].
+fn cflow_key(seg: &[u8]) -> (String, String, String) {
     let Some(lo) = crate::func::readers::find_subslice(seg, &crate::func::bundle::LO_MARKER) else {
-        return ("cf-no-body".to_string(), "eh-unknown".to_string());
+        return (
+            "cf-no-body".to_string(),
+            "eh-unknown".to_string(),
+            "eh-unknown".to_string(),
+        );
     };
     let scan = body::shapes::control_flow::scan_full(seg, lo);
     let cflow = match &scan.body {
         Ok(cf) => cf.key(),
         Err(b) => b.feature(),
     };
-    (cflow, scan.eh.key(scan.decoded).to_string())
+    (
+        cflow,
+        scan.eh.state_key(scan.decoded).to_string(),
+        scan.eh.key(scan.decoded).to_string(),
+    )
 }
 
 /// Bytes of context kept before / after a blocking site.
@@ -491,7 +515,7 @@ impl IlBundle {
                             (seg[start..end].to_vec(), b.off - start)
                         }
                     };
-                    let (cflow, eh) = cflow_key(seg);
+                    let (cflow, eh, eh_stmt) = cflow_key(seg);
                     (
                         FnCensus {
                             index: i,
@@ -503,6 +527,7 @@ impl IlBundle {
                             calls: call_tokens(seg),
                             cflow,
                             eh,
+                            eh_stmt,
                             opt_word,
                         },
                         func,
