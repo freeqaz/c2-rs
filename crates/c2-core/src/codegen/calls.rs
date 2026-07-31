@@ -598,6 +598,21 @@ pub fn call_seq_parts(
             })?;
             crate::codegen::encode::encode_lwz(RET_REG, RET_REG, d).to_vec()
         }
+        // **WFL — the same read-through whose member is floating point**: one
+        // `lfs`/`lfd` into **f1**, the other register file. Delegated to
+        // [`crate::codegen::leaf::float::chain_result_fp_load_text`] rather than
+        // encoded here, beside the FP leaf's register model and for the same
+        // reason `fp_tail_call_text` lives there: what the instruction decides is
+        // that the destination is f1 and not r3. The base register is this
+        // sequence's contribution — the last `bl` left the pointer in r3.
+        //
+        // The TU-level half of this tail is `_fltused`, produced by
+        // `c2_il::IlFunction::touches_floating_point` and consumed by
+        // `coff::Function::is_float`; a body that reached here without it emits
+        // an obj one symbol short.
+        c2_il::SeqTail::CallLoadFp { off, double } => {
+            crate::codegen::leaf::float::chain_result_fp_load_text(RET_REG, off, double)?
+        }
         // **WCB/WCR — `return a->m() <rel> b->n();`**, the register-register
         // comparison spines (`docs/CMP_PRODUCES_A_VALUE.md` reading 4). All three
         // — `==`, signed order, unsigned order — live in
@@ -830,6 +845,52 @@ mod tests {
         // Past the signed-16-bit displacement it refuses rather than truncating.
         // The IL parser gates this; the second lock is here.
         assert!(call_seq_parts(&[9], &seq(c2_il::SeqTail::CallLoad { off: 0x8000 }), OptMode::O1).is_err());
+    }
+
+    /// **WFL — the same designator step in the other register file.**
+    ///
+    /// The words are read off the reference obj (`work/WFL/probe/p1.cpp`,
+    /// `/O1 /GS- /c`) and the destination is `f1`, not r3 — which is the whole
+    /// reason this is a variant and not a width flag on `CallLoad`. It does not
+    /// fold at 0 either, for the same reason its integer sibling does not.
+    #[test]
+    fn the_chain_tail_fp_load_is_an_lfs_or_an_lfd_into_f1() {
+        let seq = |tail| c2_il::CallSeq {
+            calls: vec![
+                c2_il::SeqCall { callee: "?a@@YAPAUM@@XZ".into(), arg_ops: vec![IlOp::Load(9)], arg_sources: None, link_args: None },
+                c2_il::SeqCall { callee: "?b@@YAPAUM@@XZ".into(), arg_ops: Vec::new(), arg_sources: None, link_args: Some(Vec::new()) },
+            ],
+            tail,
+            saved: Vec::new(),
+        };
+        let tail_of = |t| call_seq_parts(&[9], &seq(t), OptMode::O1).expect("in class").1;
+        // `lfs f1,4(r3)` = c0230004 and `lfd f1,16(r3)` = c8230010 — the two
+        // cells `c_f` and `c_d` compile to, one primary opcode apart.
+        assert_eq!(
+            tail_of(c2_il::SeqTail::CallLoadFp { off: 4, double: false }),
+            vec![0xC0, 0x23, 0x00, 0x04]
+        );
+        assert_eq!(
+            tail_of(c2_il::SeqTail::CallLoadFp { off: 16, double: true }),
+            vec![0xC8, 0x23, 0x00, 0x10]
+        );
+        // No fold at 0: `*(r3 + 0)` is a memory read that has to happen.
+        assert_eq!(
+            tail_of(c2_il::SeqTail::CallLoadFp { off: 0, double: false }),
+            vec![0xC0, 0x23, 0x00, 0x00]
+        );
+        // `lfd` is D-form, NOT the DS-form the integer `ld` is, so an 8-byte
+        // load at a displacement that is not a multiple of 4 encodes fine and
+        // needs none of the alignment gate the load leaf carries.
+        assert_eq!(
+            tail_of(c2_il::SeqTail::CallLoadFp { off: 6, double: true }),
+            vec![0xC8, 0x23, 0x00, 0x06]
+        );
+        // Past the signed-16-bit displacement it refuses rather than truncating.
+        assert!(
+            call_seq_parts(&[9], &seq(c2_il::SeqTail::CallLoadFp { off: 0x8000, double: false }), OptMode::O1)
+                .is_err()
+        );
     }
 
     #[test]

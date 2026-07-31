@@ -351,6 +351,16 @@ impl IlBundle {
                                     // the two indistinguishable in a census
                                     // delta and this rung ships both.
                                     body::SeqTail::CallLoad { .. } => "call-sequence-load",
+                                    // WFL — the same read-through in the OTHER
+                                    // register file. Its own key rather than
+                                    // sharing `-load`'s: the instruction is
+                                    // `lfs`/`lfd` into f1 and the obj acquires
+                                    // `_fltused`, so a shared name would make a
+                                    // census delta unable to say which of the
+                                    // two produced it — and this family's whole
+                                    // history is deltas attributed to the wrong
+                                    // production.
+                                    body::SeqTail::CallLoadFp { .. } => "call-sequence-load-fp",
                                     // Split by relation, not merged: the `==`
                                     // fold and the order spines are different
                                     // instruction counts and different label

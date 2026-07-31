@@ -308,6 +308,24 @@ pub enum SeqTail {
     /// fold at offset 0: `lwz r3,0(r3)` is emitted (measured, `c_off0` in
     /// `work/WCO/probe/p1.cpp`), which is the one place the two disagree.
     CallLoad { off: i32 },
+    /// **WFL** — the same read-through whose member is **floating point**:
+    /// `float f(O* p){ return p->a()->b()->m; }` is one `lfs f1,off(r3)`
+    /// (`c0230004`), and a `double` member `lfd f1,off(r3)` (`c8230010`).
+    ///
+    /// A sibling of [`SeqTail::CallLoad`] rather than a width flag on it, for the
+    /// reason `CallLoad` is a sibling of `CallValue`: the value lands in the
+    /// **other register file**. Two consequences no integer tail has —
+    /// [`IlFunction::touches_floating_point`] must be true of the body, which is
+    /// what puts `_fltused` in the obj, and the lowering lives beside the FP
+    /// leaf's register model rather than beside the call sequence's.
+    ///
+    /// `double` is the **loaded** width. `lfs` loads and converts in one
+    /// instruction, so a `float` member returned as a `double` is byte-identical
+    /// to the unpromoted body (measured) and the opcode follows the member; the
+    /// reverse — a `double` member narrowed to a `float` result — is
+    /// `lfd f0 ; frsp f1,f0`, two words into a scratch register, and the parser
+    /// refuses it.
+    CallLoadFp { off: i32, double: bool },
     /// **WCB/WCR — the two calls' results compared**, materialized to a 0/1 in
     /// r3: `return a->m() <rel> b->n();`.
     ///
@@ -759,10 +777,34 @@ impl IlFunction {
     /// float b){ return g(b); }` is one `fmr` and a branch, stride 1, and its obj
     /// carries `_fltused` — verified, and placed by the same rule, immediately
     /// after the first FP-touching function's symbol group.
+    /// **WFL is the fourth producer, and it is the first FRAMED one.** A
+    /// `CallSeq` whose tail is [`SeqTail::CallLoadFp`] — `float f(O* p){ return
+    /// p->a()->b()->m; }` — is a 40-byte framed body whose only FP is one `lfs`,
+    /// and its obj carries `_fltused`. MEASURED (`work/WFL/probe/p1.obj`): the
+    /// symbol lands immediately after the first FP-touching function's
+    /// **complete** framed group — `.text` aux, the function, `$M`, `$M`, the
+    /// `.pdata` aux, `$T` — which is the same "after the first FP-touching
+    /// function's symbol group" rule, applied to a group that is now six symbols
+    /// rather than three. The **label stride does not move**: `$M2646/$M2647/
+    /// $T2648` then `$M2651/…` is the ordinary framed 5. FP costs a symbol here
+    /// and not a label slot.
+    ///
+    /// This enumerates **shapes**, and W36's lesson is that the shape that gets
+    /// missed is the one that is FP-touching without being FP-*shaped* — there,
+    /// a callee's FP return type on an otherwise integer body. A `CallSeq` is
+    /// integer-shaped in every field but its tail, so a producer written as
+    /// "does the body have FP ops" would miss this one exactly the way that one
+    /// was missed. The reader is `c2_core::coff::Function::is_float`, and the
+    /// failure mode is an obj one symbol short — `Port=Mismatch @ offset 12`, the
+    /// COFF header's `NumberOfSymbols`, on every positive case at once.
     pub fn touches_floating_point(&self) -> bool {
         self.float_leaf.is_some()
             || self.fp_tail.is_some()
             || self.fp_arg_sources.is_some()
+            || self
+                .call_seq
+                .as_ref()
+                .is_some_and(|s| matches!(s.tail, SeqTail::CallLoadFp { .. }))
             || self
                 .ops
                 .iter()

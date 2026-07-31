@@ -3272,10 +3272,11 @@ mod tests {
             // more: **WCO** gave the chain-plus-designator an acceptance
             // production, and that segment parses to the end of the body under
             // it (`30 A6 45 F3 30` is an indirect load of a `const float`), so
-            // it now refuses under `mcall-chain-tail-load-class` — a complete
-            // body stopped by a named gate, which is strictly more informative
-            // than a second-blocker name. Asserted at its new site, in
-            // `shapes::mcall_chain`.
+            // it refused under `mcall-chain-tail-load-class` — a complete body
+            // stopped by a named gate, which is strictly more informative than
+            // a second-blocker name. **WFL then emitted that instruction**
+            // (`lfs f1,k(r3)`), so the segment is now an ACCEPTANCE witness and
+            // not a refusal one. Asserted at its site, in `shapes::mcall_chain`.
             (PROBE_CHAIN_IN_ASSIGNMENT, "expr-call-in-expr-chained-whole"),
             (PROBE_IF_ON_NAMED_OBJECT, "expr-call-in-expr-recv-object-then-branch-brfalse"),
             // …and here too: off-add, then the `30 86 43 D5 30` indirect load of the

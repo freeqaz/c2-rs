@@ -198,6 +198,24 @@ pub(crate) enum SeqTail {
     /// instruction and by nothing else, which is why the address form needed no
     /// variant and this one does. Measured, `work/WCO/probe/p1.cpp`.
     CallLoad { off: i32 },
+    /// **WFL** — the same designator step whose member is **floating point**:
+    /// `float f(O* p){ return p->a()->b()->m; }` is one `lfs f1,off(r3)`, and a
+    /// `double` member is `lfd`.
+    ///
+    /// Its own variant rather than a `double` flag on [`Self::CallLoad`] for the
+    /// reason `CallLoad` is not a flag on `CallValue`: it is a **different
+    /// register file**. The value lands in `f1`, not r3, and the body's obj
+    /// acquires the undefined external `_fltused`
+    /// ([`crate::func::IlFunction::touches_floating_point`]) — a TU-level
+    /// obligation no integer tail carries. Measured, `work/WFL/probe/p1.cpp`
+    /// `/O1 /GS- /c`: `c0230004` = `lfs f1,4(r3)` and `c8230010` =
+    /// `lfd f1,16(r3)`.
+    ///
+    /// `double` is the **loaded** width, not the returned one. A `float` member
+    /// returned as a `double` is byte-identical to the unpromoted form — `lfs`
+    /// loads and converts in one instruction — so the promotion is free and the
+    /// emitted opcode still follows the member.
+    CallLoadFp { off: i32, double: bool },
     /// **WCB/WCR** — `return <call> <rel> <call>;`: the two calls' results
     /// compared and materialized to a 0/1 in r3. `lhs_first` says whether the
     /// source's left operand is the call emitted *first*; c2 orders the pair by
