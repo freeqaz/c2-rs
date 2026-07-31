@@ -101,6 +101,8 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
+            eh_bare: false,
+            eh_unwind_callees: Vec::new(),
         };
         assert_eq!(
             addr_leaf_text(&f).unwrap().unwrap(),

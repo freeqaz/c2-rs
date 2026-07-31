@@ -9,8 +9,8 @@ use crate::func::body::expr::{eat_fn_tail, eat_scopes, BODY_SCOPE_DEPTH};
 use crate::func::body::mcall;
 use crate::func::body::{BodyShape, DtorSubObject};
 use crate::func::readers::{
-    eat, eat_byte, eat_opt_stmt_marker, eat_value_type, is_ptr4_kind, read_token_var, read_type,
-    read_varint, ValueClass, INT_TYPE,
+    eat, eat_byte, eat_opt_stmt_marker, eat_value_type, is_fp_type, is_ptr4_kind,
+    read_token_var, read_type, read_varint, ValueClass, INT_TYPE,
 };
 
 use super::params::parse_params;
@@ -423,7 +423,21 @@ pub(crate) fn try_parse_empty_dtor_delegation(
     if params.as_slice() != [recv_tok] {
         return None;
     }
-    Some(BodyShape::EmptyDtorDelegation { callee_tok, this_tok: recv_tok, adjust, sub_object })
+    Some(BodyShape::EmptyDtorDelegation {
+        callee_tok,
+        this_tok: recv_tok,
+        adjust,
+        sub_object,
+        // **The trailer flag IS the `/EHsc` bit** — `/EH…` clears `0x10` in both
+        // trailers, so `(0x11, 0x31)` is the no-EH profile and `(0x01, 0x21)` the
+        // workload's, and the pair is required to agree (above). That bit is the
+        // *only* thing in the bundle that says whether this body costs a label
+        // slot: at `/EHsc` this leaf's stride is 2 and without it 1, measured on
+        // all three `empty-dtor-*` shapes. It is read out of the IL rather than
+        // from the compile flags because the bundle does not record argv and
+        // `plan_labels` cannot see them.
+        eh: stmt_flag & 0x10 == 0,
+    })
 }
 
 /// The **base** sub-object's receiver: the `this`-adjust intrinsic 2113 at
@@ -529,6 +543,351 @@ fn eat_dtor_member_receiver(seg: &[u8], p: &mut usize) -> Option<(u32, i32)> {
     Some((recv_tok, adjust))
 }
 
+/// **WEC — the empty constructor that delegates to exactly ONE base
+/// sub-object**: `struct D : B { D(); };  D::D() {}`.
+///
+/// The mirror of [`try_parse_empty_dtor_delegation`]'s base form, sharing its
+/// receiver recognizer ([`eat_dtor_base_receiver`], the `this`-adjust intrinsic
+/// 2113 at adjust 0) and none of its lowering — because a constructor is **not
+/// a leaf**. MSVC constructors hand `this` back in r3, `this` is live across the
+/// base constructor's `bl`, and c2 frames the body:
+///
+/// ```text
+///   struct B1{ B1(); ~B1(); int x; };  struct Ka : B1 { Ka(); };  Ka::Ka(){}
+///   ??0Ka@@QAA@XZ:  48 B, F = 96
+///     mflr r12 ; stw r12,-8(r1) ; std r31,-16(r1) ; stwu r1,-96(r1)
+///     mr r31,r3 ; bl ??0B1@@QAA@XZ ; mr r3,r31
+///     addi r1,r1,96 ; lwz r12,-8(r1) ; mtlr r12 ; ld r31,-16(r1) ; blr
+/// ```
+///
+/// which is Class B with one saved formal and [`SeqTail::SavedFormal`].
+///
+/// # The grammar, in both EH profiles
+///
+/// ```text
+///   26 <base-ctor>                 the base CONSTRUCTOR, pushed first
+///   <RECV-BASE>                    the 2113 frame, adjust 0, over `this`
+///   99 <PTR4> 00                   member bind — DIRECT dispatch
+///   BD <PTR4> 00 <fn-type-id>      the CALL, POINTER result, cdecl
+///   4C                             zero explicit arguments
+///   30 <OBJ>                       the constructed object, read through
+///
+///   ── /EHsc AND a base with a destructor only, the "unwind action" ──
+///   26 <base-dtor>                 the destructor that runs if a later
+///   <RECV-BASE>                    statement throws — SAME receiver frame
+///   2C <PTR4> 00                   cv strip (the ctor half has none)
+///   99 <PTR4> 00
+///   BD <void> 00 <fn-type-id>
+///   4C
+///   5C <OBJ> 01                    "an object became live", THIS statement
+///   ──────────────────────────────────────────────────────────────────
+///
+///   4B                             statement end
+///   3A <lbl> 54 02 29 <lbl>        the return plumbing
+///   5D 01 21                       /EHsc only: the CONSTRUCTOR-side count
+///   4B                             trailer, `n` = 1 object tracked
+///   B9 <this> <T> 41 <T>           the `return this` epilogue (W19)
+///   <function tail>
+/// ```
+///
+/// **The unwind half emits NOTHING**, and that is measured rather than assumed:
+/// `work/WEC/probe/p2.obj` at the workload's own `/O1 /Oi /EHsc` has one REL24
+/// per constructor, to the base *constructor*, and `??1B1@@QAA@XZ` — which the
+/// `.gl` symbol index does carry — is in **no** symbol table. It is returned as
+/// `unwind_tok` for exactly one reason: the TU-level gate in `bundle.rs` refuses
+/// a TU with a `.gl` name no record and no callee claims, and without it every
+/// constructor in this class would be refused by that gate rather than by
+/// anything about its shape.
+///
+/// **This is the cheap side of `docs/EH_RECORDS.md` §6, and the census key says
+/// so**: the four functions of `work/WEC/probe/p2.cpp` that reach this shape
+/// read `eh-bare`, the polymorphic one reads `eh-plus-stmt` (the vfptr store is
+/// a second statement) and the two-base one `eh-multi` — and those last two
+/// really do need the whole EH record. Both admitted forms carry the **same
+/// 48 bytes** of `.text`; the EH one costs one extra label slot
+/// ([`crate::IlFunction::eh_bare`]) and the `eh-none` one costs none, which is
+/// the only difference the obj ever sees.
+///
+/// # Each gate, and the neighbour it separates
+///
+/// * **Zero explicit arguments to the base constructor.** `Kd::Kd(int a) :
+///   B1(a) {}` pushes its formal into the argument region and emits the *same*
+///   48 bytes (identity permutation, slot 1 already in r4) — so this refusal
+///   costs real functions and is not free. It stands because a permuted or
+///   computed argument beside a callee-saved copy is the case
+///   `codegen::calls` records as uncharacterized (c2 breaks the cycle through
+///   the callee-saved register, not r11), and admitting the identity here would
+///   need the parser to prove the permutation is the identity over a formal list
+///   whose FP members occupy a different file entirely.
+/// * **The adjust offset must be 0**, via the shared receiver. `Ke : B1` with a
+///   virtual function puts the base at offset 4 and emits an `addi r3,r3,4` —
+///   and it is `eh-plus-stmt` besides.
+/// * **The `BD` result must be a 4-byte pointer** — a constructor returns the
+///   object pointer. A `void` there is the *destructor* production.
+/// * **The `30 <OBJ>` type must be a class type** (kind `0x46` on every witness
+///   — `B1`, `B0` and `M1` across six probes) **and must be byte-identical to
+///   the `5C` trailer's**, in the EH form. That equality is the one structural
+///   check that ties the unwind action to the object that went live.
+/// * **The unwind call must be `void`, cdecl, zero arguments, over the same
+///   receiver token**, and its receiver frame is parsed by the same function as
+///   the constructor's. A different receiver would be a second sub-object.
+/// * **The trailers' `/EHsc` bit must agree** between `5C` and `5D`, exactly as
+///   the destructor form requires, and the `5D` count must be `01`. `5D 02` is
+///   two sub-objects — `Kf : B1, M1`, which emits two `bl`s and is `eh-multi`.
+/// * **The `this` epilogue must be present and name `this`** —
+///   [`eat_ctor_this_epilogue`], the same recognizer W19 shipped.
+/// * **The parse must reach the segment end.**
+///
+/// Returns `None` — cursor untouched — for anything else.
+pub(crate) fn try_parse_empty_ctor_base_delegation(
+    seg: &[u8],
+    start: usize,
+    lo: usize,
+    depth: usize,
+) -> Option<BodyShape> {
+    /// The `void` result TYPE of the unwind action, required literally.
+    const VOID_TYPE: [u8; 3] = [0x82, 0x07, 0x03];
+    /// `(5C statement-trailer flag, 5D count-trailer flag)`, the same two
+    /// measured profiles the destructor form admits: `/EH…` clears bit `0x10`.
+    /// The `eh-none` body carries neither trailer at all.
+    const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
+    /// The `kind` byte of the constructed object's type on every witness. A
+    /// scalar here would be a different production entirely.
+    const CLASS_KIND: u8 = 0x46;
+
+    let mut p = start;
+    let mut arg_toks: Vec<u32> = Vec::new();
+    // The base constructor's symbol, pushed before its receiver.
+    if !eat_byte(seg, &mut p, 0x26) {
+        return None;
+    }
+    let (callee_tok, w) = read_token_var(seg, p)?;
+    p += w;
+    // The receiver: the `this`-adjust intrinsic at adjust 0 — the destructor
+    // form's own recognizer, unchanged, so the two productions cannot drift
+    // about what a base sub-object's address is.
+    let recv_tok = eat_dtor_base_receiver(seg, &mut p)?;
+    // The bind and the CALL. No `2C` cv strip on this half (the destructor's
+    // receiver has one and the constructor's does not — measured on all six
+    // probes), and the result is a POINTER, not `void`.
+    if !eat_byte(seg, &mut p, 0x99)
+        || !eat_value_type(seg, &mut p, ValueClass::Ptr4)
+        || !eat_byte(seg, &mut p, 0x00)
+    {
+        return None;
+    }
+    if !eat_byte(seg, &mut p, 0xBD) || !eat_value_type(seg, &mut p, ValueClass::Ptr4) {
+        return None;
+    }
+    if !eat_byte(seg, &mut p, 0x00) {
+        return None;
+    }
+    read_varint(seg, &mut p)?;
+    // The base constructor's explicit arguments — the **member-initializer
+    // forwarding** form, `D::D(int a) : B(a) {}`, and the single largest gate in
+    // this production by a factor of 24. MEASURED: with this required to be a
+    // bare `4C` the whole shape admitted **5** functions on the 878-TU workload;
+    // admitted, it is **5,862**. The refusal tally over three real TUs
+    // (`MoveDir.cpp`, `MetagameRank.cpp`, `BustAMovePanel.cpp`, instrumented
+    // build) put 643 of 1,063 candidates here — 60.5 %, against 237 on the
+    // pointer result, 160 on the object type and 23 on a virtual bind.
+    //
+    // **Every admitted argument is already in the register the callee wants**,
+    // which is why this costs no instruction and needs no marshalling model:
+    // argument `j` must be a bare load of formal `j + 1` (slot 0 is `this`), and
+    // the caller's formals and the callee's parameters are then the same list,
+    // in the same order, walked by the same ABI. A permutation or a literal
+    // would need a move, and beside a callee-saved copy c2 breaks the cycle
+    // through the callee-saved register rather than r11 — the case
+    // `codegen::calls` records as uncharacterized. So this is a **positive
+    // identity check**, not "consume the argument region".
+    //
+    // Both types are required to be byte-identical, which is what rules out a
+    // conversion: `: B((float)a)` puts a convert between the load and the push
+    // and would be a value this shape cannot place.
+    while !eat_byte(seg, &mut p, 0x4C) {
+        if !eat_byte(seg, &mut p, 0xB9) {
+            return None;
+        }
+        let (tok, w) = read_token_var(seg, p)?;
+        p += w;
+        let load_ty = {
+            let (_, _, _, tw) = read_type(seg, p)?;
+            &seg[p..p + tw]
+        };
+        p += load_ty.len();
+        if !eat_byte(seg, &mut p, 0x55) {
+            return None;
+        }
+        let (a_tag, a_kind, _, a_tw) = read_type(seg, p)?;
+        let arg_ty = &seg[p..p + a_tw];
+        if arg_ty != load_ty {
+            return None;
+        }
+        // **A forwarded FLOATING-POINT argument makes the obj carry `_fltused`,
+        // and this body has no other FP tell.** MEASURED, and it was a live
+        // mismatch found by this rung's own probe set:
+        // `Kd3::Kd3(int,float,void*) : B0(a,f,p) {}` and
+        // `Kd5::Kd5(double x5) : B0(x5) {}` are `Port=Mismatch @ offset 12` —
+        // the COFF header's `NumberOfSymbols`, one symbol short, in all five
+        // modes. An *unused* FP formal costs nothing (`int f(double d,int a)
+        // { return a+1; }` is byte-exact today); it is passing the value that
+        // does it. Refused rather than modelled, because
+        // `IlFunction::touches_floating_point` enumerates SHAPES and this would
+        // be a fifth producer whose `_fltused` placement and whose share of the
+        // TU's first-FP-function `+1` label slot are ungraded here.
+        if is_fp_type(a_tag, a_kind).is_some() {
+            return None;
+        }
+        p += arg_ty.len();
+        arg_toks.push(tok);
+    }
+    // `30 <OBJ>` — the constructed object itself, read through the pointer the
+    // call returned. Its type is the base class and it is kept, because in the
+    // EH form the `5C` trailer must restate it byte for byte.
+    if !eat_byte(seg, &mut p, 0x30) {
+        return None;
+    }
+    let (_, kind, _, tw) = read_type(seg, p)?;
+    if kind != CLASS_KIND {
+        return None;
+    }
+    let obj_ty = &seg[p..p + tw];
+    p += tw;
+    // The unwind action, present iff the base has a destructor and `/EHsc` is
+    // on. Its absence is the `eh-none` body, which is byte-identical `.text`.
+    let mut unwind_tok = None;
+    let mut want_count_flag = None;
+    if seg.get(p) == Some(&0x26) {
+        p += 1;
+        let (dtor_tok, w) = read_token_var(seg, p)?;
+        p += w;
+        // The SAME receiver, positively: same intrinsic, same adjust, and the
+        // same object-pointer token. A different token here would be a second
+        // sub-object, which is `eh-multi` and emits two branches.
+        if eat_dtor_base_receiver(seg, &mut p)? != recv_tok {
+            return None;
+        }
+        if !eat_byte(seg, &mut p, 0x2C)
+            || !eat_value_type(seg, &mut p, ValueClass::Ptr4)
+            || !eat_byte(seg, &mut p, 0x00)
+        {
+            return None;
+        }
+        if !eat_byte(seg, &mut p, 0x99)
+            || !eat_value_type(seg, &mut p, ValueClass::Ptr4)
+            || !eat_byte(seg, &mut p, 0x00)
+        {
+            return None;
+        }
+        if !eat_byte(seg, &mut p, 0xBD)
+            || !eat(seg, &mut p, &VOID_TYPE)
+            || !eat_byte(seg, &mut p, 0x00)
+        {
+            return None;
+        }
+        read_varint(seg, &mut p)?;
+        if !eat_byte(seg, &mut p, 0x4C) {
+            return None;
+        }
+        // `5C <OBJ> <flag>` — and the type must be the one the `30` named.
+        if !eat_byte(seg, &mut p, 0x5C) || !eat(seg, &mut p, obj_ty) {
+            return None;
+        }
+        let stmt_flag = *seg.get(p)?;
+        want_count_flag =
+            Some(TRAILER_FLAGS.iter().copied().find(|&(f, _)| f == stmt_flag)?.1);
+        p += 1;
+        unwind_tok = Some(dtor_tok);
+    }
+    if !eat_byte(seg, &mut p, 0x4B) {
+        return None;
+    }
+    // The return plumbing, with the count trailer wedged between the `29` and
+    // the `this` epilogue — the same split the destructor form hand-rolls, and
+    // for the same reason.
+    let mut depth = depth;
+    eat_scopes(seg, &mut p, &mut depth).ok()?;
+    if !eat_byte(seg, &mut p, 0x3A) {
+        return None;
+    }
+    let (label, w) = read_token_var(seg, p)?;
+    p += w;
+    for d in (BODY_SCOPE_DEPTH..=depth).rev() {
+        eat_opt_stmt_marker(seg, &mut p);
+        if !eat(seg, &mut p, &[0x54, d as u8]) {
+            return None;
+        }
+    }
+    eat_opt_stmt_marker(seg, &mut p);
+    if !eat_byte(seg, &mut p, 0x29) {
+        return None;
+    }
+    let (back, w) = read_token_var(seg, p)?;
+    p += w;
+    if back != label {
+        return None;
+    }
+    // `5D <n> <g>`: exactly one constructed sub-object, with the EH bit agreeing
+    // with the statement trailer's. Present exactly when the unwind action was.
+    match want_count_flag {
+        Some(g) => {
+            if !eat(seg, &mut p, &[0x5D, 0x01, g]) || !eat_byte(seg, &mut p, 0x4B) {
+                return None;
+            }
+        }
+        None => {
+            if seg.get(p) == Some(&0x5D) {
+                return None;
+            }
+        }
+    }
+    // `return this`, then the segment must end.
+    if !eat_ctor_this_epilogue(seg, &mut p, lo) {
+        return None;
+    }
+    eat_fn_tail(seg, &mut p).ok()?;
+
+    // `this` is argument 0 and the receiver IS that `this`. Later formals are
+    // admitted and are inert: nothing reads them, because the base constructor
+    // takes no explicit argument.
+    let params = parse_params(seg, lo).ok()?;
+    if params.first() != Some(&recv_tok) {
+        return None;
+    }
+    // **The identity**: explicit argument `j` goes to slot `j + 1`, and it must
+    // be formal `j + 1`. Checked here rather than in the loop above because the
+    // formal list comes from the pre-body region, which is parsed once, at the
+    // end, by the one locator every shape shares (`parse_params` — the
+    // positional index of a formal and its register number are two facts that
+    // come apart, and a second reader is where they would disagree).
+    if arg_toks.len() + 1 > params.len() {
+        return None;
+    }
+    // **The argument region is in STREAM order, which is REVERSE source order** —
+    // slot `i` is `args[len-1-i]`, exactly as `shapes::calls::tail_call_shape`
+    // documents and reads it, and as `parse_formals` compensates for by
+    // reversing the `2D` list. Reading it forwards costs nothing on a one-argument
+    // constructor and refuses **every** two-argument one, which is what it did:
+    // `D::D(int a,int b) : B(a,b) {}` declined on this check with the two tokens
+    // present and in the other order.
+    if arg_toks
+        .iter()
+        .rev()
+        .enumerate()
+        .any(|(j, t)| params.get(j + 1) != Some(t))
+    {
+        return None;
+    }
+    Some(BodyShape::EmptyCtorBaseDelegation {
+        callee_tok,
+        this_tok: recv_tok,
+        params,
+        unwind_tok,
+        eh: want_count_flag.is_some_and(|g| g == 0x21),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     // The single `mod tests` this was split out of opened with
@@ -570,14 +929,21 @@ mod tests {
         // The same source captured twice, at the workload's flags and at the
         // fixtures'. The two differ only in the trailers' `0x10` bit and the
         // reference emits the same four bytes for both.
-        for (seg, label) in [(DTOR_DELEGATE, "/O1 /Oi /EHsc"), (DTOR_DELEGATE_NOEH, "/Ox")] {
+        // …and `eh` differs, which is the ONLY thing that does: it is the
+        // trailers' `0x10` bit, and it is worth one label-counter slot to every
+        // framed function behind this one in the same TU.
+        for (seg, label, eh) in [
+            (DTOR_DELEGATE, "/O1 /Oi /EHsc", true),
+            (DTOR_DELEGATE_NOEH, "/Ox", false),
+        ] {
             assert_eq!(
                 parse_segment(seg, NO_LOCALS),
                 Some(BodyShape::EmptyDtorDelegation {
                     callee_tok: 0xE409,
                     this_tok: 0xFC09,
                     adjust: 0,
-                    sub_object: DtorSubObject::Base
+                    sub_object: DtorSubObject::Base,
+                    eh,
                 }),
                 "{label}"
             );
@@ -612,7 +978,14 @@ mod tests {
                 callee_tok: 0xE409,
                 this_tok: 0x090A,
                 adjust: 0,
-                sub_object: DtorSubObject::Member
+                sub_object: DtorSubObject::Member,
+                // Both member segments are FIXTURE-profile captures (`/Ox`, no
+                // `/EH`), so the trailers carry `(0x11, 0x31)` and this body
+                // costs no label slot. The base segment above is captured at the
+                // workload's flags and does. Pinned rather than derived: which
+                // profile a pinned segment came from is the fact the label
+                // surcharge keys on.
+                eh: false,
             }),
             "member at offset 0"
         );
@@ -622,7 +995,8 @@ mod tests {
                 callee_tok: 0xE409,
                 this_tok: 0x0C0A,
                 adjust: 4,
-                sub_object: DtorSubObject::Member
+                sub_object: DtorSubObject::Member,
+                eh: false,
             }),
             "member at offset 4"
         );
@@ -822,6 +1196,147 @@ mod tests {
         // terminal every accepted shape shares.
         let cut = DTOR_DELEGATE.len() - 7; // drop the `47 54 01 54 00` fn tail
         assert_eq!(parse_segment(&DTOR_DELEGATE[..cut], NO_LOCALS), None);
+    }
+
+    // ---- WEC: the empty constructor delegating to one base ------------------
+
+    /// Splice a replacement for the first occurrence of `find` in one of the two
+    /// pinned constructor segments. Every negative below is one such edit, so
+    /// each asserts about exactly one field.
+    fn ctor_with(seg: &[u8], find: &[u8], repl: &[u8]) -> Vec<u8> {
+        let at = seg
+            .windows(find.len())
+            .position(|w| w == find)
+            .expect("the field being edited");
+        let mut v = seg[..at].to_vec();
+        v.extend_from_slice(repl);
+        v.extend_from_slice(&seg[at + find.len()..]);
+        v
+    }
+
+    #[test]
+    fn the_empty_base_constructor_parses_with_and_without_the_unwind_half() {
+        // The SAME source over a base that has a destructor and one that does
+        // not, both captured at the workload's own `/EHsc`. Their `.text` is
+        // byte-identical; the difference this asserts on is `eh`, which is worth
+        // one label-counter slot to every framed function behind them.
+        assert_eq!(
+            parse_segment(CTOR_BASE_EH, NO_LOCALS),
+            Some(BodyShape::EmptyCtorBaseDelegation {
+                callee_tok: 0xE409,
+                this_tok: 0xFB09,
+                params: vec![0xFB09],
+                unwind_tok: Some(0xE509),
+                eh: true,
+            }),
+            "the base has a destructor: the unwind action is named and eh is set"
+        );
+        assert_eq!(
+            parse_segment(CTOR_BASE_NOEH, NO_LOCALS),
+            Some(BodyShape::EmptyCtorBaseDelegation {
+                callee_tok: 0xE409,
+                this_tok: 0xF309,
+                params: vec![0xF309],
+                unwind_tok: None,
+                eh: false,
+            }),
+            "the base has none: no unwind action, no trailers, no slot"
+        );
+    }
+
+    #[test]
+    fn the_constructor_call_must_return_a_pointer_and_bind_directly() {
+        // A `void` result is the DESTRUCTOR production, whose lowering is a bare
+        // branch rather than a frame — the two share a receiver recognizer and
+        // nothing else. `82 07 03` is `void`; `A6 43 84 20` is the pointer.
+        assert_eq!(
+            parse_segment(
+                &ctor_with(
+                    CTOR_BASE_NOEH,
+                    &[0xBD, 0xA6, 0x43, 0x84, 0x20, 0x00],
+                    &[0xBD, 0x82, 0x07, 0x03, 0x00]
+                ),
+                NO_LOCALS
+            ),
+            None,
+            "a void call result"
+        );
+        // `9A` is the VIRTUAL bind (`docs/IL_CALL_IN_EXPR.md` §3) and dispatches
+        // through the vtable; only `99` is the direct branch this emits.
+        assert_eq!(
+            parse_segment(
+                &ctor_with(
+                    CTOR_BASE_NOEH,
+                    &[0x4C, 0x99, 0x86, 0x43, 0x8D, 0x20, 0x00, 0xBD],
+                    &[0x4C, 0x9A, 0x86, 0x43, 0x8D, 0x20, 0x00, 0xBD]
+                ),
+                NO_LOCALS
+            ),
+            None,
+            "a virtual bind"
+        );
+    }
+
+    #[test]
+    fn the_unwind_half_must_agree_with_the_statement_it_belongs_to() {
+        // The `5D` count must be ONE. `5D 02` is two constructed sub-objects,
+        // which emits two `bl`s and is `eh-multi`.
+        assert_eq!(
+            parse_segment(&ctor_with(CTOR_BASE_EH, &[0x5D, 0x01, 0x21], &[0x5D, 0x02, 0x21]), NO_LOCALS),
+            None,
+            "two sub-objects"
+        );
+        // …and the two trailers' `/EHsc` bits must agree with each other, the
+        // same requirement the destructor form carries. `(0x01, 0x21)` and
+        // `(0x11, 0x31)` are the two measured profiles; nothing else.
+        assert_eq!(
+            parse_segment(&ctor_with(CTOR_BASE_EH, &[0x5D, 0x01, 0x21], &[0x5D, 0x01, 0x31]), NO_LOCALS),
+            None,
+            "trailer flags from two different profiles"
+        );
+        // The `5C` trailer's TYPE must be the one the `30` named — the one
+        // structural check tying the unwind action to the object that went live.
+        assert_eq!(
+            parse_segment(
+                &ctor_with(CTOR_BASE_EH, &[0x5C, 0x86, 0x46, 0x82, 0x20, 0x01], &[0x5C, 0x86, 0x46, 0x83, 0x20, 0x01]),
+                NO_LOCALS
+            ),
+            None,
+            "a 5C type that is not the constructed object's"
+        );
+    }
+
+    #[test]
+    fn a_missing_count_trailer_on_an_eh_body_refuses_and_so_does_a_spurious_one() {
+        // The `5D` is present exactly when the unwind action is. Deleting it
+        // from the EH body leaves the `4B` where the trailer belongs…
+        let no_5d = ctor_with(CTOR_BASE_EH, &[0x5D, 0x01, 0x21, 0x4B], &[]);
+        assert_eq!(parse_segment(&no_5d, NO_LOCALS), None, "an EH body with no count trailer");
+        // …and adding one to the `eh-none` body is the mirror. Without this
+        // check a constructed-but-untracked object would read as untracked.
+        let spurious = ctor_with(
+            CTOR_BASE_NOEH,
+            &[0x29, 0xF4, 0x09, 0xB9],
+            &[0x29, 0xF4, 0x09, 0x5D, 0x01, 0x21, 0x4B, 0xB9],
+        );
+        assert_eq!(parse_segment(&spurious, NO_LOCALS), None, "a count trailer with no unwind action");
+    }
+
+    #[test]
+    fn the_object_type_must_be_a_class_and_the_body_must_end() {
+        // `30 <OBJ>` names the constructed object; every witness is kind `0x46`.
+        // `0x41` there is `int`, which is a different production entirely — and
+        // it is the largest single refusal this shape makes on the real workload
+        // (505 of 1,068 candidates over three dc3 TUs).
+        assert_eq!(
+            parse_segment(&ctor_with(CTOR_BASE_NOEH, &[0x30, 0x86, 0x46, 0x82, 0x20], &[0x30, 0x86, 0x41, 0x74]), NO_LOCALS),
+            None,
+            "a scalar object type"
+        );
+        // And the parse must reach the segment end — the fail-closed terminal
+        // every accepted shape shares.
+        let cut = CTOR_BASE_NOEH.len() - 7;
+        assert_eq!(parse_segment(&CTOR_BASE_NOEH[..cut], NO_LOCALS), None, "a truncated segment");
     }
 
 }

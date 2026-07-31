@@ -245,6 +245,11 @@ fn ops_setup_text(
         fp_arg_sources: None,
         arg_sources: None,
         empty_body: false,
+        // A synthetic operand-stream carrier, never a function: `select_text`
+        // reads `params` and `ops` and nothing else, and the label counter never
+        // sees this value.
+        eh_bare: false,
+        eh_unwind_callees: Vec::new(),
     };
     let mut t = select_text(&synth, mode)?;
     let blr = encode_blr();
@@ -628,6 +633,20 @@ pub fn call_seq_parts(
         // both facts are needed and neither implies the other.
         c2_il::SeqTail::Cmp { cmp, lhs_first } => {
             crate::codegen::leaf::compare::cmp_of_two_call_results(cmp, lhs_first, result_reg, mode)?
+        }
+        // **WEC — `return <a callee-saved formal>;`**: one `mr r3, rSaved`, in
+        // exactly the position `CallValue`'s `addi` post-op occupies.
+        //
+        // The register is re-derived from `seq.saved` through the same
+        // `saved_reg` closure every other consumer here uses, and a formal that
+        // is not saved is an error rather than a guessed register: this tail
+        // exists precisely because the value predates the last `bl`, so reading
+        // it out of an argument register would be reading a clobbered one.
+        c2_il::SeqTail::SavedFormal { param } => {
+            let src = saved_reg(param).ok_or_else(|| {
+                out_of_class("the tail returns a formal that is not callee-saved")
+            })?;
+            moves_descending(&[(RET_REG, src)])
         }
     };
     Ok((setups, tail))

@@ -16,7 +16,8 @@ use self::expr::{
 use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
-    try_parse_compare, try_parse_empty_dtor_delegation, try_parse_float_leaf,
+    try_parse_compare, try_parse_empty_ctor_base_delegation, try_parse_empty_dtor_delegation,
+    try_parse_float_leaf,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
     try_parse_store_leaf, try_parse_store_run,
@@ -353,11 +354,47 @@ pub(crate) enum BodyShape {
     /// Kept as its own variant so the census can attribute the movement, and
     /// because its grammar admits two opaque trailers that must not be admitted
     /// anywhere else. See [`shapes::try_parse_empty_dtor_delegation`].
+    ///
+    /// `eh` is the `/EHsc` bit of the two opaque trailers (`/EH…` clears `0x10`
+    /// in both), and it is **not** decoration: this body is `eh-bare` and an
+    /// `eh-bare` function costs one extra label-counter slot, so the same source
+    /// compiled with and without `/EHsc` emits the same four bytes of `.text`
+    /// and different `$M`/`$T` numbers for every framed function behind it.
+    /// See [`crate::IlFunction::eh_bare`].
     EmptyDtorDelegation {
         callee_tok: u32,
         this_tok: u32,
         adjust: i32,
         sub_object: DtorSubObject,
+        eh: bool,
+    },
+    /// **WEC — the empty constructor that delegates to ONE base sub-object**:
+    /// `struct D : B { D(); };  D::D() {}`. The mirror image of
+    /// [`BodyShape::EmptyDtorDelegation`]'s base form, and *not* a leaf: an MSVC
+    /// constructor returns `this` in r3, `this` is live across the base
+    /// constructor's `bl`, so c2 frames the body and homes `this` in `r31`.
+    ///
+    /// ```text
+    ///   mflr r12 ; stw r12,-8(r1) ; std r31,-16(r1) ; stwu r1,-96(r1)
+    ///   mr r31,r3 ; bl <base ctor> ; mr r3,r31
+    ///   addi r1,r1,96 ; lwz r12,-8(r1) ; mtlr r12 ; ld r31,-16(r1) ; blr
+    /// ```
+    ///
+    /// `unwind_tok` is the base **destructor** the IL names as the unwind action
+    /// for the sub-object that just went live. It emits **nothing** — no `bl`,
+    /// no relocation, and no symbol — and it is carried only so the TU-level
+    /// unclaimed-`.gl`-symbol gate can account for a name that is in `.gl` and
+    /// legitimately absent from the obj. `None` when the base has no destructor,
+    /// which is the same body with the whole second half of the statement and
+    /// the `5C`/`5D` trailers missing (`eh-none`, and byte-identical `.text`).
+    ///
+    /// See [`shapes::try_parse_empty_ctor_base_delegation`].
+    EmptyCtorBaseDelegation {
+        callee_tok: u32,
+        this_tok: u32,
+        params: Vec<u32>,
+        unwind_tok: Option<u32>,
+        eh: bool,
     },
     /// An **indirect-load leaf**: the whole body is one load through a pointer
     /// (`return *p;`, `return s->m;`, `return p[k];`, `return mMember;`), which c2
@@ -864,6 +901,19 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // and parsed to the end of the segment reports the codegen-class
                 // gate that refused it, under that gate's own key, rather than
                 // vanishing back into the grammar bucket.
+                // …and the **empty constructor delegating to one base**, which
+                // is the generated destructor's own production reached without
+                // the leading `33 <int> 0` literal — one production split across
+                // two census buckets by one byte, which is why it arrives here
+                // and its twin arrives in the `0x33` arm below. Tried before the
+                // member-call parse because its head IS a member call (`26` then
+                // a receiver) and that parse would report a blocker for a body
+                // this one accepts whole. Non-committal: works on a copy of the
+                // cursor and returns None with no side effects, so a declining
+                // body keeps its own `expr-intrinsic-this-adjust` key.
+                if let Some(shape) = try_parse_empty_ctor_base_delegation(seg, p, lo, depth) {
+                    return Ok(shape);
+                }
                 match try_parse_member_tail_call(seg, p, lo, depth) {
                     Ok(shape) => return Ok(shape),
                     Err(Some(b)) => return Err(b),
