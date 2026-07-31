@@ -860,6 +860,126 @@ FAMILIES = [
            head="int P(int a){ int t=a; int s=gs(a)+a;", tail="return s+t; }",
            note="TWO int* args, both &<local of P>   PRED 5 per-argument / 4"
                 " once per callee"),
+
+    # === ROUND 16: hold-outs for the three rules rounds 13-15 arrived at.
+    #
+    #  (a) SWITCH. The arm ladder came in at 7/8/9/10/11 for 2..6 arms, so the
+    #      switch is an ordinary depth-scaled E feature with E = arms + 2 — not
+    #      an affine term of its own like the loop. What is the +2? These rows
+    #      ask whether the `default` arm is counted because it is WRITTEN or
+    #      because the front end always has one, and whether a shared case
+    #      label counts once or twice.
+    #  (b) IF/ELSE. `ctor-if` overshot by exactly 2 = 2 * (depth 2), which is
+    #      one extra E unit in a body whose only difference from `cf-if` is an
+    #      explicit `else`. Test it at depth 1 where the scaling cannot hide.
+    #  (c) DESTRUCTORS. `dtor-direct` = 6 says a destructor is an ordinary
+    #      depth-1 instance with E = 0, same as a constructor — so the 16 is
+    #      not in the destructor. A single rule fits all four measured rows:
+    #      **a function that owns any destructible local pays E += 2, once,
+    #      not per object**, and P pays nothing because P is not an inline
+    #      instance. dtor 4+2 ->6, +5 ctor, +5 dtor = 16; dtor-only 3+(1+2)=6,
+    #      +5 = 11; dtor-2obj 3+(2+2)=7, +10, +10 = 27; dtor-empty = 16.
+    #      Three rows now hold it out.
+    Family("sw-ctx-expr", GS,
+           "static int swe(int a){ switch(a){ case 1: return gs(a);"
+           " case 2: return a+2; case 7: return a+7; case 8: return a+8;"
+           " default: return 0; } }",
+           "s=swe(s)+1;",
+           "{switch(s){ case 1: s=gs(s); break; case 2: s=s+2; break;"
+           " case 7: s=s+7; break; case 8: s=s+8; break; default: s=0; }"
+           " s=s+1;}",
+           note="5 arms, result used in an EXPRESSION at depth 1  PRED 11"
+                " (10 + the flat multi-exit +1)"),
+    Family("sw-nodefault", GS,
+           "static int swn(int a){ int r=0; switch(a){ case 1: r=gs(a); break;"
+           " case 2: r=a+2; break; case 7: r=a+7; break; } return r; }",
+           "s=swn(s);",
+           "{int r=0; switch(s){ case 1: r=gs(s); break; case 2: r=s+2; break;"
+           " case 7: r=s+7; break; } s=r;}",
+           note="3 arms and NO default, 1 local, 1 exit   PRED 9 (3 + [3+2+1])"
+                " if `default` counts only when written"),
+    Family("sw-withdefault", GS,
+           "static int swy(int a){ int r=0; switch(a){ case 1: r=gs(a); break;"
+           " case 2: r=a+2; break; case 7: r=a+7; break; default: r=0; }"
+           " return r; }",
+           "s=swy(s);",
+           "{int r=0; switch(s){ case 1: r=gs(s); break; case 2: r=s+2; break;"
+           " case 7: r=s+7; break; default: r=0; } s=r;}",
+           note="the SAME body plus a written default      PRED 10 — the pair"
+                " with sw-nodefault is the discriminator, not either alone"),
+    Family("sw-fall", GS,
+           "static int swf(int a){ switch(a){ case 1: case 2: return gs(a);"
+           " case 7: return a+7; case 8: return a+8; default: return 0; } }",
+           "s=swf(s);",
+           "switch(s){ case 1: case 2: s=gs(s); break; case 7: s=s+7; break;"
+           " case 8: s=s+8; break; default: s=0; }",
+           note="5 case LABELS sharing 4 statement groups  PRED 10 if labels"
+                " are what is counted / 9 if groups are"),
+    Family("d2-sw2", GS,
+           "static int sr1(int a){ switch(a){ case 1: return gs(a);"
+           " default: return 0; } }\n"
+           "static int sr2(int a){ return sr1(a)+1; }",
+           "s=sr2(s);",
+           "{switch(s){ case 1: s=gs(s); break; default: s=0; } s=s+1;}",
+           note="a 2-arm switch at DEPTH 2   PRED 17 (3 + [5+2*4] + 1), which"
+                " is d2-switch's 23 less 2*(6-4) arms"),
+    Family("cf-else", GS,
+           "static int lfe2(int a){ if (a > 0) return gs(a); else return a+1; }",
+           "s=lfe2(s);", "if (s > 0) s=gs(s); else s=s+1;",
+           note="an explicit ELSE, two returns   PRED 5 if `else` is its own E"
+                " unit / 4 if not (cf-if, the same code without `else`, is 4)"),
+    Family("cf-else-assign", GS,
+           "static int lfg(int a){ int r; if (a > 0) r=gs(a); else r=a+1;"
+           " return r; }",
+           "s=lfg(s);", "{int r; if (s>0) r=gs(s); else r=s+1; s=r;}",
+           note="if/else assigning a local, ONE exit   PRED 6 (1 local + if +"
+                " else) / 5 if `else` does not count"),
+    Family("dtor-direct-only", GS,
+           "struct DP { int v; ~DP(){ gs(v); } };",
+           "{DP d; d.v=gs(s)+s; s=d.v;}", "{int dv=gs(s)+s; s=dv; gs(dv);}",
+           note="P owns a dtor-only object — dtor at DEPTH 1 and P, not being"
+                " an inline instance, pays no scope-exit E   PRED 3"),
+    Family("dtor-3obj", GS,
+           "struct D3 { int v; D3(int a){ v = gs(a)+a; } ~D3(){ gs(v); } };\n"
+           "static int ld3(int a){ D3 p(a); D3 q(a); D3 r(a);"
+           " return p.v+q.v+r.v; }",
+           "s=ld3(s);",
+           "{int pv=gs(s)+s; int qv=gs(s)+s; int rv=gs(s)+s; s=pv+qv+rv;"
+           " gs(rv); gs(qv); gs(pv);}",
+           always_lead=True,
+           note="THREE objects   PRED 38 ([3+3+2] + 3*5 + 3*5); 42 if the"
+                " scope-exit charge were per OBJECT rather than per function"),
+    Family("dtor-body-loc", GS,
+           "struct DL { int v; DL(int a){ v = gs(a)+a; }"
+           " ~DL(){ int t=gs(v); gs(t); } };\n"
+           "static int ldl2(int a){ DL d(a); return d.v; }",
+           "s=ldl2(s);", "{int dv=gs(s)+s; int t=gs(dv); gs(t); s=dv;}",
+           always_lead=True,
+           note="the DESTRUCTOR BODY declares one local   PRED 18 (16 + 2*1),"
+                " i.e. the destructor's own E scales with ITS depth"),
+    Family("d2-dtor", GS,
+           "struct DQ { int v; DQ(int a){ v = gs(a)+a; } ~DQ(){ gs(v); } };\n"
+           "static int ldq(int a){ DQ d(a); return d.v; }\n"
+           "static int ldr(int a){ return ldq(a)+1; }",
+           "s=ldr(s);", "{int dv=gs(s)+s; gs(dv); s=dv+1;}",
+           always_lead=True,
+           note="the destructible object one level DEEPER  PRED 28"
+                " (3 + [5+2*(1+2)] + 7 + 7)"),
+    Family("ptr-mixed", "int gs(int); extern int gv;",
+           "static void lpx(int* o, int* p, int a){ *o = gs(a); *p = a+1; }",
+           "lpx(&s, &gv, s);", "{int q=s; s=gs(q); gv=q+1;}",
+           note="one arg &<local>, one arg &<global>   PRED 4 — the +1 fires"
+                " once if ANY argument points at automatic storage"),
+    Family("ptr-2global", "int gs(int); extern int gv; extern int gw;",
+           "static void lpy(int* o, int* p, int a){ *o = gs(a); *p = a+1; }",
+           BAR + "lpy(&gv, &gw, s);", BAR + "{gv = gs(s); gw = s+1;}",
+           note="BOTH args &<global>                    PRED 3"),
+    Family("d2-ptr-auto", GS,
+           "static void pa1(int* o, int a){ *o = gs(a)+a; }\n"
+           "static int pa2(int a){ int t=a; pa1(&t, a); return t+1; }",
+           "s=pa2(s);", "{int t=s; t=gs(s)+s; s=t+1;}",
+           note="the automatic-storage pointer argument at DEPTH 2   PRED 11"
+                " (4 + [5+2*1]) — is the +1 depth-scaled like any E feature?"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -960,6 +1080,13 @@ LAW = {
     "dtor-2obj": None,
     "ref-global": None, "ref-const-read": None, "ptr-static-local": None,
     "ptr-2args": None,
+    # round 16 — hold-outs for the rules rounds 13-15 arrived at
+    "sw-ctx-expr": None, "sw-nodefault": None, "sw-withdefault": None,
+    "sw-fall": None, "d2-sw2": None,
+    "cf-else": None, "cf-else-assign": None,
+    "dtor-direct-only": None, "dtor-3obj": None, "dtor-body-loc": None,
+    "d2-dtor": None,
+    "ptr-mixed": None, "ptr-2global": None, "d2-ptr-auto": None,
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
