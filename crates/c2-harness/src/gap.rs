@@ -127,6 +127,23 @@ pub struct TuResult {
     /// orthogonal fact would break every recorded comparison for no gain. This is
     /// the second axis, kept beside the first.
     pub fn_frames: BTreeMap<String, usize>,
+    /// **The control-flow axis** (roadmap #25/#61): the body's decoded CFG shape,
+    /// and — for the bodies whose statement layer decodes end to end — that shape
+    /// crossed with the census key, `"<cflow class>|<census key>"`.
+    ///
+    /// This is the **sizing of the block-IR restructure**. Every previous estimate
+    /// of that work came from summing blocker rows named after the byte a
+    /// straight-line parser stopped on, which `docs/GAPS.md` §6's
+    /// unstable-attribution rule says is not the shape's population: a row's size is
+    /// not its yield, and a first-blocker attribution is not a shape. The cross
+    /// product is, because it says of each shape *how many* bodies have it and
+    /// *what else* those bodies are waiting on.
+    ///
+    /// The cross-tab is emitted only for a decoded body. An undecoded one
+    /// contributes just the bare `cf-…` key naming where the statement-layer walk
+    /// stopped — crossing "we could not read this body's control flow" with a
+    /// blocker would be a product of two ignorances.
+    pub fn_cflow: BTreeMap<String, usize>,
     /// **The census/gate cross-check** (roadmap #44): of the functions this TU's
     /// census calls in class, how many does `PortC2`'s own per-function selector
     /// **refuse**, keyed by the refusal.
@@ -225,6 +242,46 @@ impl GapReport {
             map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
         v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         v
+    }
+
+    /// **The control-flow axis**, aggregated, most frequent first. Rows are either
+    /// a bare class (`cflow-…` decoded, `cf-…` the decoder's own residue) or a
+    /// `"<cflow class>|<census key>"` cross-tab; see [`TuResult::fn_cflow`].
+    pub fn fn_cflow_histogram(&self) -> Vec<(String, usize)> {
+        let mut map: BTreeMap<&str, usize> = BTreeMap::new();
+        for r in &self.results {
+            for (k, n) in &r.fn_cflow {
+                *map.entry(k.as_str()).or_insert(0) += n;
+            }
+        }
+        let mut v: Vec<(String, usize)> =
+            map.into_iter().map(|(k, n)| (k.to_string(), n)).collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// How many scanned functions the statement-layer scanner decoded end to end,
+    /// and how many it did not — `(decoded, undecoded)`.
+    ///
+    /// The ratio is the honest bound on everything the control-flow axis claims: a
+    /// shape histogram over half the corpus is a shape histogram over half the
+    /// corpus, and the other half's CFG is simply not known yet.
+    pub fn cflow_decoded_totals(&self) -> (usize, usize) {
+        let mut d = 0;
+        let mut u = 0;
+        for r in &self.results {
+            for (k, n) in &r.fn_cflow {
+                if k.contains('|') {
+                    continue; // a cross-tab row, already counted in its bare class
+                }
+                if k.starts_with("cflow-") {
+                    d += n;
+                } else {
+                    u += n;
+                }
+            }
+        }
+        (d, u)
     }
 
     /// The three frame classes' totals across the scan, in `calls-0`, `calls-1`,
@@ -414,6 +471,7 @@ fn scan_one(
         fn_in_class: 0,
         fn_blockers: BTreeMap::new(),
         fn_frames: BTreeMap::new(),
+        fn_cflow: BTreeMap::new(),
         fn_gate_refusals: BTreeMap::new(),
         bind_checks: BTreeMap::new(),
     };
@@ -484,6 +542,15 @@ fn scan_one(
             *res.fn_frames
                 .entry(format!("{}|{}", f.frame_class(), f.verdict.key()))
                 .or_insert(0) += 1;
+            // The control-flow axis, likewise over every function — the in-class
+            // shapes are the control group here too, and they must all read
+            // `cflow-straight`.
+            *res.fn_cflow.entry(f.cflow.clone()).or_insert(0) += 1;
+            if f.cflow.starts_with("cflow-") {
+                *res.fn_cflow
+                    .entry(format!("{}|{}", f.cflow, f.verdict.key()))
+                    .or_insert(0) += 1;
+            }
             // 1d. The binding invariant (D14): what did the `.gl` symbol index
             //     say a generated destructor delegates to? A destructor, always —
             //     anything else is a binding the oracle would have had no chance
@@ -700,6 +767,12 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let cflow = r
+                .fn_cflow
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             let gate = r
                 .fn_gate_refusals
                 .iter()
@@ -714,7 +787,7 @@ pub fn gap_scan(
                 .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -729,6 +802,7 @@ pub fn gap_scan(
                 r.fn_in_class,
                 blockers,
                 frames,
+                cflow,
                 gate,
                 binds,
             )?;
@@ -781,6 +855,7 @@ mod tests {
             fn_in_class: 0,
             fn_blockers: BTreeMap::new(),
             fn_frames: BTreeMap::new(),
+            fn_cflow: BTreeMap::new(),
             fn_gate_refusals: BTreeMap::new(),
             bind_checks: BTreeMap::new(),
         }

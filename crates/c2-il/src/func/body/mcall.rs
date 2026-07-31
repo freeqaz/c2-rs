@@ -307,8 +307,15 @@ pub(crate) enum Blocker {
     /// token a `39` carries is *defined* later in the same segment by a `29 <same
     /// token>` label, twice over (`39 30 67` … `29 30 67`, `39 38 67` … `29 38 67`),
     /// and the second witness `b9 <x> 86 42 75 33 86 41 74 01 0b 39 2b 67` is
-    /// `if (x & 1)` — a bit-and feeding it. The **polarity** of `38` versus `39` is
-    /// UNDETERMINED, so the byte stays in the name.
+    /// `if (x & 1)` — a bit-and feeding it.
+    ///
+    /// The **polarity** of `38` versus `39` was recorded here as UNDETERMINED, on
+    /// the strength of those two wild witnesses, which cannot separate the senses:
+    /// a branch to a later label is consistent with either reading. It is
+    /// determined now — `fixtures/cpp/wcf_shapes.cpp` holds a controlled pair
+    /// differing only by a `!`, and the name comes from the ONE table
+    /// [`super::cflow_opcode_name`], shared with the `expr-*` keys so the two
+    /// producers cannot disagree about what a byte is called.
     ///
     /// Deliberately has **no production**: admitting a branch as a value token would
     /// report grammar-completeness for bodies that need basic blocks, a register
@@ -611,7 +618,10 @@ impl Blocker {
             Blocker::DerefLoad => "deref-load".into(),
             Blocker::TempBind => "temp-bind".into(),
             Blocker::PlainCall => "plain-call".into(),
-            Blocker::Branch(b) => format!("branch-0x{b:02X}"),
+            Blocker::Branch(b) => match super::cflow_opcode_name(b) {
+                Some(n) => format!("branch-{n}"),
+                None => format!("branch-0x{b:02X}"),
+            },
             Blocker::ChainBind => "chain-bind".into(),
             Blocker::OffAdd => "off-add".into(),
             Blocker::Virtual => "virtual".into(),
@@ -3090,7 +3100,7 @@ mod tests {
                 "expr-call-in-expr-chained-then-deref-load-more",
             ),
             (PROBE_CHAIN_IN_ASSIGNMENT, "expr-call-in-expr-chained-whole"),
-            (PROBE_IF_ON_NAMED_OBJECT, "expr-call-in-expr-recv-object-then-branch-0x38"),
+            (PROBE_IF_ON_NAMED_OBJECT, "expr-call-in-expr-recv-object-then-branch-brfalse"),
             // …and here too: off-add, then the `30 86 43 D5 30` indirect load of the
             // pointer member, then the conditional branch that stops the chain.
             (
@@ -3179,7 +3189,10 @@ mod tests {
         // `Blocker::Branch` has no production, so the pair is UNMEASURED and the key
         // carries neither `-whole…` nor `-more`.
         let f = parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
-        assert!(f.ends_with("-then-branch-0x38"), "{f}");
+        // …and it is named, not hex: the polarity of the pair is capture-verified
+        // (`super::cflow_opcode_name`), and this key producer reads that one table
+        // so it cannot drift from the `expr-*` keys.
+        assert!(f.ends_with("-then-branch-brfalse"), "{f}");
     }
 
     /// An UNMEASURED pair must not be readable as a measured incompleteness. The
