@@ -415,6 +415,13 @@ scripts/gt_capture.sh /tmp/fpgt/p1.cpp /O1 /GS- /c && scripts/gt_dump.py /tmp/fp
 #   p4  the FP store: both widths, every offset form, both files' numbering, the refusers
 #   flt/flt2  `_fltused` placement in a MIXED translation unit
 
+# the FP permutation, over the COMPLETE grid (§1.2) — this is the one that
+# refuted §1.1's "the shapes match one for one"
+scripts/gt_fpperm.py --pure --model --n 2,3,4,5   # 152 cells, three read-back orders scored
+scripts/gt_fpperm.py --mixed                      # both files at once: the interleaved schedule
+scripts/gt_fpperm.py --widths                     # the narrowing inside a cycle (§1.2.2)
+scripts/gt_fpperm.py --one 3,1,2                  # one permutation, disassembled
+
 # the `.sy` side — six formal types in one function, which is what separates the
 # type KIND from the per-TU tid
 c2rs census /tmp/fpgt_sy.cpp --keep-il /tmp/fpil   # then hexdump the .sy
