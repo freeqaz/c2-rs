@@ -357,6 +357,15 @@ function got exactly one COMDAT.
 > each other's error**, and a table of totals cannot separate them however many
 > rows it has — only a witness that pins one of the two can.
 
+> **Superseded as the instrument, 2026-07-31 — `docs/LABEL_COUNTER.md`.** §3.5's
+> seed rule stays true and stays the only way to get an *absolute* label number.
+> But every *stride* below can now be measured without it, by differencing two
+> framed anchor functions on either side of the probe inside one TU
+> (`scripts/gt_label_stride.py`), which cancels the seed, the mangled name
+> lengths and the `/Gy` surcharge at once and measures the anchor base rather
+> than assuming it. The strides in §3.6 are re-measured there, one class per row,
+> and two of the rules stated below are refuted — see §2 of that document.
+
 ### 3.5 The seed B — DETERMINED 2026-07-30
 
 **B is the u32 at `.gl` offset 7, plus 9.**
@@ -406,6 +415,15 @@ The whole model, restated as one rule and now implemented in
 > This is latent rather than live: the emitter refuses helper-using bodies for
 > other reasons today. It becomes a wrong byte the moment a framed function with
 > ≥3 saved GPRs is admitted.
+>
+> **Captured 2026-07-31 (`docs/LABEL_COUNTER.md`): the FPR helper pair is +2,
+> both pairs together +4, and a Class F function that is also the TU's first FP
+> function pays +5** (`_fltused` 1 + 2 + 2), for a `/Gy` stride of 10. Three
+> corrections to the paragraph above come with it: the pre-allocation is a
+> property of **every** surcharge, not of the helper pair; the surcharges are
+> identical **packed**, so only the base moves with `/Gy`; and a second function
+> reusing the *same* helper width pays **0** while one needing a different width
+> pays 2 — the charge is per distinct symbol first introduced, not per user.
 
 **Why the earlier scan missed it.** §3.5 previously recorded "a byte-scan
 correlation breaks on FP TUs: max LE16 token in `.ex` vs B gives a constant gap
@@ -446,6 +464,14 @@ read out of the obj and differenced against `.gl+7+9`:
 | `float L(float a){return a*2.5f;}` (one pooled constant) | **4** |
 | `float L(float a){return a*2.5f+3.5f;}` (two) | **6** |
 | `int L(int a,int b){return a<b;}` / `a>=b` | **3** |
+
+> **Re-measured seed-free 2026-07-31 (`docs/LABEL_COUNTER.md` §1).** Every row
+> above reproduces, and the table decomposes: the float rows are `1 + 1
+> (_fltused) + 2 per pooled constant` and the comparison row is `1 + 2 per
+> materialised signed relational` (two comparisons in one leaf give 5, three
+> give 7). The decomposition matters because the surcharges are *per first
+> introduction TU-wide* — a second float leaf pooling the same constant consumes
+> **1**, not 4, and this table's per-class framing cannot express that.
 
 `a==b` and `a<0` consume 1; `a<b`, `a>=b` and `bool a<b` consume 3, so the
 comparison stride is **not** uniform over the relation either. Every class in

@@ -195,6 +195,47 @@ r29–r31:
 (6), `_25` (7), `_24` (8). The helper also saves/restores LR — `mflr r12` still
 runs first because the helper expects LR in r12.
 
+#### 2.3a The whole Class C obj, as one witness (2026-07-31)
+
+§7's rung 5 needs the helper externals, the tail-branch epilogue **and** the
+label stride at the same time; here they are in one capture. `work/gt/cc.cpp`,
+`/O1 /GS- /c`: `int g(int); f1(a,b,c)` and `f3(a,b,c)` (both `_29`), `f2` with
+four (`_28`).
+
+```
+ ?f1  .text 60 B, 5 relocs, chars 0x60401020
+   0000 7d8802a6 mflr r12
+   0004 4bfffffd bl  __savegprlr_29        REL24 -> [21]
+   0008 9421ff90 stwu r1,-112(r1)
+   000c 7c9f2378 mr  r31,r4
+   0010 7cbe2b78 mr  r30,r5
+   0014 4bffffed bl  ?g                    REL24 -> [15]
+   0018 7c7d1b78 mr  r29,r3
+   001c 7fe3fb78 mr  r3,r31
+   0020 4bffffe1 bl  ?g
+   0024 7ffd1a14 add r31,r29,r3
+   0028 7fc3f378 mr  r3,r30
+   002c 4bffffd5 bl  ?g
+   0030 7c63fa14 add r3,r3,r31
+   0034 38210070 addi r1,r1,112
+   0038 4bffffc8 b   __restgprlr_29        REL24 -> [20], LK=0, and NO blr
+ .pdata 00000000 40000f03                  15 words, 3-word prologue
+```
+
+Three things a rung has to get right at once, all visible here:
+
+* **the relocation count is 5**, not 3: the two helper references are ordinary
+  REL24s against ordinary undefined externals, and the epilogue's is an
+  **unlinked** branch (`4bffffc8`, bit 0 clear) while the prologue's is a `bl`;
+* **the symbol group is** `.text+aux, ?f1, $M(end)=0x3c, ?g, $M(prologue)=0x0c,
+  .pdata+aux (Number=5, Sel=5, CheckSum 0x85851548), $T, __restgprlr_29,
+  __savegprlr_29` — the helper pair after `$T`, reverse-first-reference (§4.3),
+  and the callee `?g` still in its §3.3 position inside the group;
+* **the stride is per distinct helper width, not per user.** f1 `$M2569` (+2),
+  f2 `$M2576` (its own `_28`, +2), f3 `$M2581` — f3 **reuses** `_29` and pays
+  the plain 5, with no helper symbols in its group at all. A model that charges
+  +2 per helper-using *function* puts f3's labels two too high.
+
 ### 2.4 Class D/E — saved FPRs
 
 **The FPR threshold is 4, not 3** — it is a different number from the GPR
@@ -337,6 +378,18 @@ int g3(int,int,int); int f(int a,int b,int c){ return g3(c,a,b)+1; }
 `g2(b,a)` and `g3(b,c,a)` produce the same three-step shape. r11 is the same
 scratch the leaf selector uses (`CODEGEN_PPC_MVP.md` "COLOR scratch order").
 
+> **Measured over the complete grid 2026-07-31 — `docs/CODEGEN_ARG_PERM.md`.**
+> "A permutation is broken with r11" is a rule about cycles short enough to be
+> **unimodal**, and every cycle of length ≤ 3 is. From length 4 up, c2 uses
+> **r11 *and* r10** whenever a cycle's register sequence descends and then
+> ascends after its minimum — `g4(a3,a4,a2,a1)` is a single 4-cycle needing two
+> scratches while `g4(a2,a3,a4,a1)` is a single 4-cycle needing one. The rule
+> that fits all 152 cells at n = 2…5: **one scratch per local minimum of each
+> cycle**, parked in ascending order of the parked register, read back in
+> descending order of the minimum. Move multiset, park prefix and read-back
+> suffix are exact on 152/152; only the interleaving of independent chains is
+> still open (26 cells, all at n = 5).
+
 ### 3.3 The multi-call accumulator shape
 
 `int f(int a){ int s=0; s+=g(a+1); … s+=g(a+n); return s; }` is exactly regular
@@ -397,6 +450,15 @@ A callee already introduced by an earlier function is not re-emitted:
 
 ### 4.3 `__savegprlr_N` / `__restgprlr_N` are emitted **after the whole group**
 
+> **Simplified 2026-07-31** (`docs/LABEL_COUNTER.md` §2.3). "`rest` precedes
+> `save` even though `save` is referenced first" is not a rule of its own — it is
+> §4.1's **reverse-first-reference LIFO**, which the pair obeys like everything
+> else. The Class F capture makes it unambiguous: reference order is
+> `__savegprlr_28`, `__savefpr_28`, `__restfpr_28`, `__restgprlr_28` and the
+> symbol table is `__restgprlr_28`, `__restfpr_28`, `__savefpr_28`,
+> `__savegprlr_28` — the exact reverse, across *both* pairs. One LIFO, three
+> consumers (callees, the `.rdata` pool, the helper externals).
+
 They are not inside the callee-external region. They land after the `$T`, and
 **`rest` precedes `save`** even though `save` is referenced first:
 
@@ -440,6 +502,23 @@ function using both the GPR and the FPR helper pair — **not captured, and
 therefore not claimed.** A TU pairing an FPR-helper function with a following
 function would separate them in one capture; that is the next probe if step 2
 touches this.
+
+> **Captured 2026-07-31, seed-free — see `docs/LABEL_COUNTER.md`.** The FPR
+> helper pair is **+2** and both pairs together are **+4**, so both predictions
+> hold. Three things this section gets wrong or under-claims, though:
+> * the pre-allocation is **not** a property of the helper pair. `extra ==
+>   stride - base` on every framed probe measured, including `_fltused`, pooled
+>   FP constants and materialised comparisons. Every surcharge is taken ahead of
+>   the function's own `$M` pair.
+> * the surcharges are **identical packed and under `/Gy`**; only the framed
+>   *base* moves (4 → 5). This section's "+2" needed no `/Gy` qualifier.
+> * "one slot per TU-level external" (§6) is refuted — see the note there.
+>
+> And the instrument changed: the seven rows above are differenced against the
+> IL seed, one TU per row. `scripts/gt_label_stride.py` differences **inside one
+> TU** against three anchor functions, so the seed, the mangled name lengths and
+> the `/Gy` per-function surcharge cancel exactly and the anchor stride is
+> measured rather than assumed.
 
 The existing `plan_labels` gate refuses these bodies for other reasons today, so
 this is a latent rather than a live wrong byte. It becomes live the moment a
@@ -510,6 +589,15 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
   cannot reach one (a result is discarded or is the tail), so §3.1's
   "parameters in order then results" is confirmed by capture and unexercised by
   code.
+
+  > **Extended past n = 2, 2026-07-31 — `docs/CODEGEN_ARG_PERM.md` §4.** The
+  > assignment **is** monotone at n ≥ 3: the formals live across the call take
+  > r31, r30, r29, r28, r27 in parameter order, and the numbering runs over the
+  > **live subset** rather than the formal index (`live = {a2,a4}` gives
+  > `r31<-r4 ; r30<-r6`). Exact over every subset of a 4-formal list and over
+  > 152 permutation cells to 5 saved registers. What is *not* monotone — and
+  > what made this look unmodelled — is the order the save `mr`s are **emitted**
+  > in, which is a different question sharing the same name.
 * **Where the save moves go when the first call also marshals arguments.**
   Two rules, both measured: a save whose source register the marshalling
   overwrites is hoisted in front of the *whole* marshalling (not merely before
@@ -520,6 +608,20 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
   `{ g2(b,a); v1(a); v2(b); }` is `mr r30,r4 ; mr r31,r3 ; mr r4,r3 ;
   mr r3,r30`. Which saved register is the temp when several are saved is not
   determined by the three captures available. Refused, not fitted.
+
+  > **ANSWERED 2026-07-31 — `docs/CODEGEN_ARG_PERM.md` §3. The question has no
+  > answer because c2 does not pick a temp.** Over all 152 cells of the
+  > every-formal-live grid at n = 2…5, `r11` is never emitted and each permuted
+  > value is read from **its own** callee-saved register — original register
+  > while it still holds the value, saved home once it has been overwritten
+  > (exact on 152/152, as is the r31/r30/r29… assignment in parameter order).
+  >
+  > And the phrasing above needs a boundary it does not have: the no-`r11`
+  > property belongs to the **value**, not to the function. With only *some*
+  > formals live across the call, r11 **and** r10 come back alongside the saved
+  > registers — `g4(d,c,b,a)` with only `a3` live is
+  > `r11<-r4 ; r10<-r6 ; r31<-r5 ; r6<-r3 ; r4<-r5 ; r5<-r11 ; r3<-r10`. A mix
+  > of live and dead formals is the common case, not the corner.
 * **The spill regime.** Past 18 saved GPRs the frame grows by an amount this
   measurement does not model (39/480 cases, §1.3). Not chased — the workload's
   calls-0 population is nowhere near that pressure.
@@ -539,8 +641,32 @@ Symbol order is §4.2's: `.text`+aux, `?f`, `$M(end)`, `.rdata`+aux,
   a guess. Still uncaptured, so still not claimed.
   The extra slot is consumed at the **first** such function in the TU, the same
   position `_fltused` itself is emitted at, so the two are one fact.
+
+  > **REFUTED 2026-07-31 — `docs/LABEL_COUNTER.md` §2.1. Read that before
+  > touching `plan_labels`.** "One slot per TU-level external" is wrong in both
+  > directions, and the counterexamples are ordinary:
+  > * a **newly pooled FP constant costs +2 and introduces no external at all**
+  >   (`float P(float a){ return gf(a)*2.5f; }` is stride 7 against the rule's 5;
+  >   two constants, 9 against 5);
+  > * a **string literal costs 0** while creating the same shape of `.rdata`
+  >   COMDAT and its own `??_C@…` symbol — one, two or three strings are all
+  >   stride 1;
+  > * a **materialised signed relational costs +2 and mints nothing**
+  >   (`return a<5;` is stride 3, two are 5, three are 7);
+  > * a **loop costs slots and mints nothing**, and not even uniformly — `while`
+  >   +2 against `do/while` +1.
+  >
+  > The correct half survives: `_fltused` is +1 and each helper pair is +2, both
+  > per *first* introduction (a second function reusing the same `__savegprlr_29`
+  > pays 0; one needing `_28` instead pays 2). The rest of the rule was a fit to
+  > the two classes that were in the capture set.
 * **The FPR-helper label stride.** Predicted +4 by the "one slot per helper
   external" reading, not captured. Explicitly not claimed.
+
+  > **Captured 2026-07-31: +2 for the FPR pair, +4 for both pairs — the
+  > prediction holds** (`docs/LABEL_COUNTER.md` §1.1). A Class F function that is
+  > also the TU's first FP function pays 5 on top of the base: `_fltused` +1,
+  > GPR pair +2, FPR pair +2.
 * **The reserved 8 bytes at SP+8.** No probe ever wrote or read them. Every
   frame reserves them and the parameter area starts at +16.
 
