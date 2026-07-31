@@ -250,6 +250,48 @@ PROBES = [
     ("eh-catchall", EH_DECL, [],
      "int P(int a){ try { return gp(a); } catch(...){ return 7; } }",
      "catch(...): a funclet with NO type descriptor"),
+    # --- the ip2state / unwind-state ladder (docs/EH_RECORDS.md §9). The
+    #     no-try unwind shape only, one variable per row against `eh-dtor`.
+    ("eh-dtor3", EH_DECL, [],
+     "int P(int a){ SE s; SE t; SE u; return gp(a)+s.m+t.m+u.m; }",
+     "THREE destructible locals: 3 states, 3 funclets, 6 ipmap entries"),
+    ("eh-dtor4", EH_DECL, [],
+     "int P(int a){ SE s; SE t; SE u; SE v; return gp(a)+s.m+t.m+u.m+v.m; }",
+     "FOUR destructible locals: 4 states, 4 funclets, 8 ipmap entries"),
+    ("eh-nostate", EH_DECL, [],
+     "int P(int a){ SE s; return a+1; }",
+     "one destructible local and a SECOND STATEMENT WITH NO CALL: maxState 0,"
+     " so NO EH records at all -- the eh-bare/eh-plus-stmt boundary, corrected"),
+    ("eh-nostate3", EH_DECL, [],
+     "int P(int a){ SE s; int x=a*3; int y=x^7; return y+1; }",
+     "same with THREE statements: still no EH records"),
+    ("eh-1state-2obj", EH_DECL, [],
+     "int P(int a){ SE s; SE t; return a+1; }",
+     "TWO destructible locals, no other call: ONE state, ONE funclet,"
+     " 2 ipmap entries -- states are per OBSERVED live-set, not per object"),
+    ("eh-dtor-dup", EH_DECL, [],
+     "int P(int a){ SE s; return gp(a)+gp(a+1)+s.m; }",
+     "two calls at the SAME state: no extra ipmap entry, but the Class-C"
+     " tail `b __restgprlr_N` adds one"),
+    ("eh-dtor-scope2", EH_DECL, [],
+     "int P(int a){ { SE s; a=gp(a)+s.m; } { SE t; a=gp(a)+t.m; } return a; }",
+     "two DISJOINT scopes: 2 states whose toState is -1 for BOTH"),
+    # do the ORDINARY §1.1 surcharges still apply on top of an EH body?
+    ("eh-dtor-const", EH_DECL + " float gf(float);", [],
+     "float P(float a){ SE s; return gf(a)*2.5f + s.m; }",
+     "EH + ONE pooled FP constant + _fltused"),
+    ("eh-dtor-fp", EH_DECL + " float gf(float);", [],
+     "float P(float a){ SE s; return gf(a) + s.m; }",
+     "EH + _fltused, NO pooled constant"),
+    ("eh-dtor-cmprr", EH_DECL, [],
+     "int P(int a){ SE s; return (gp(a) < gp(a+1)) + s.m; }",
+     "EH + a SIGNED < over two call results (§1.1 says +2)"),
+    ("eh-dtor-cmpeq", EH_DECL, [],
+     "int P(int a){ SE s; return (gp(a) == gp(a+1)) + s.m; }",
+     "matched control: == over two call results (§1.1 says +0)"),
+    ("eh-dtor-loop", EH_DECL, [],
+     "int P(int a){ int r=0; for(int i=0;i<a;i++){ SE s; r+=gp(i)+s.m; } return r; }",
+     "the destructible object inside a LOOP body"),
 ]
 
 
