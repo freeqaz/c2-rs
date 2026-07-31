@@ -21,6 +21,6 @@ the header block this table is read from.
 | 2026-07-31 | W33 | [frame-class-c-declined](2026-07-31-frame-class-c-declined.md) | 1 | 549,148 unchanged — the rung is DECLINED; its measured worth is 0 |
 | 2026-07-31 | W36 | [member-call](2026-07-31-member-call.md) | 2 | 581,791 → 602,703 (23.63 % → 24.47 %), +20,912 |
 | 2026-07-31 | W35 | [offset-run](2026-07-31-offset-run.md) | 2 | 575,284 → 581,791 (23.36 % → 23.63 %), +6,507  [on the merged tree] |
-| 2026-07-31 | WREL | [relational-bare](2026-07-31-relational-bare.md) | 13 | 639,387 unchanged — this is an INSTRUMENT rung, not a widening one |
+| 2026-07-31 | WREL | [relational-bare](2026-07-31-relational-bare.md) | 0 | 639,387 unchanged — this is an INSTRUMENT rung, not a widening one |
 | 2026-07-31 | W38 | [store-run](2026-07-31-store-run.md) | 2 | 602,703 → 639,387 (24.47 % → 25.96 %), +36,684 |
 | 2026-07-31 | W32 | [volatile-formal](2026-07-31-volatile-formal.md) | 2 | 549,148 unchanged — the refusal costs exactly 0 (measured) |

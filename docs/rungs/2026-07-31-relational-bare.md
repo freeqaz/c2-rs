@@ -3,7 +3,9 @@
     Tag:       WREL
     Slug:      relational-bare
     Date:      2026-07-31
-    Fixtures:  (measurement only — no fixture, no widening; see "What to do with it")
+    Fixtures:
+    Probe:     scripts/gt_relational_redist.py --emit-probe (no tracked fixture:
+               this rung admits nothing, so it must not enter `c2rs bench`)
     Census:    639,387 unchanged — this is an INSTRUMENT rung, not a widening one
     Record:    this document
 
