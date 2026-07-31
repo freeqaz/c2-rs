@@ -61,11 +61,16 @@
 #
 # ---- cost ----------------------------------------------------------------------
 #
-# Measured on 2026-07-31, 32-core host, capture cache warm-ish: the full 12-lane
-# gate is ~13 s wall at `--jobs 4`, ~25 s serial. Per lane ~1-2 s. It is not
-# anywhere near impractical, which is the whole reason there is no excuse for the
-# list to be implicit. Re-measure before adding an axis; do not add lanes whose
-# cost you have not measured.
+# Measured 2026-07-31 on a 32-core host at `C2RS_JOBS=8`, 2,364 fixture-verdicts:
+#
+#     COLD (2,364 real cl.exe captures — every lane's flag string is a new
+#     cache key):                                      6 s at `--jobs 4`
+#     WARM:                        4 s at `--jobs 1`,  1 s at `--jobs 4`
+#
+# Quote the cold number; it is what the gate costs the first time a tree runs it.
+# Either way this is nowhere near impractical, which is the whole reason there is
+# no excuse for the list to be implicit. Re-measure before adding an axis, and do
+# not add a lane whose cost you have not measured.
 
 # --- /O1 : the mode the dc3 workload is built at (docs/OPT_MODE.md) -------------
 O1              /O1
