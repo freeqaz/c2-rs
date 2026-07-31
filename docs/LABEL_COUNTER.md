@@ -3178,6 +3178,11 @@ found:
 | `static int c1(int a, ...)`, **leaf** body | **36**–108 | **0 at every rung** | **12** at 36–64 |
 | `int c1(int a, ...)`, leaf body | **36**–108 | **0 at every rung** | 12 at 36–64 |
 
+`/Ox` says the same, which is worth stating because almost nothing else in
+this document does: the leaf pair disagrees with its control on **16 of 16
+shared cells** at `/Ox` too, and the framed pair on 9 of 16. Varargs is the
+only class in §6.15–§6.18 that behaves identically in both modes.
+
 The framed spelling alone could not have settled it: a variadic framed callee
 cannot be built smaller than **76 bytes**, which is already past the
 `unbounded` band, so "refused at every size" and "refused because of its size"
@@ -3623,7 +3628,8 @@ changes:
 
 | | rows refuting | discriminating cells |
 |---|---:|---:|
-| `--axes --max 12` (`/O1`, 41 kinds) | **45, and all 45 are the annotated variadic rows** — every other kind is 0 | 289 |
+| `--axes --max 12` (`/O1`, 44 kinds) | **45, and all 45 are the annotated variadic rows** — every other kind is 0 | 289 |
+| `--axes --max 12 --mode '/Ox …'` | **64, and all 64 are the annotated variadic rows** | 144 |
 | `--axes --max 12 --kmax 60 sta-leaf-ctl ext-leaf-ctl` | **0** (was 43) | 21 |
 | `--lawd --max 12` | **0** of 44, 5 of them held out | — |
 | `--linkage --max 12` | **0**, and byte-identical to before the round | — |
