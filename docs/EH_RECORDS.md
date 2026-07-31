@@ -1312,3 +1312,311 @@ section and storage class. And `gt_label_stride.py`'s shipped §1 table is
 unmoved by this session's two edits to it: `plain` 5, `plain-3callees` 5,
 `gpr3` 7, `fpr4-led` 7, `both-led` 9, `const1-led` 7, `const2-led` 9,
 `leaf-int` 1, `leaf-float` 2, controls failed 0, `stride != minted` 0.
+
+---
+
+## 10. The axis re-derived on `maxState` — the split, measured (2026-07-31, EHMS)
+
+§9.4 refuted the predicate §6/§7 were built on and left the magnitude open:
+*"direction known, magnitude NOT MEASURED … re-scanning the workload is a
+harness change and was out of this lane's scope."* This is that re-scan, plus
+the probes that establish the IL-level predicate, plus the repair of a
+cross-tab defect that had a **control group** printing as the largest blocker
+row on the board.
+
+Census delta **0** — decode-only, an axis, not a rung. Nothing acceptance reads
+is touched.
+
+### 10.1 The predicate, at IL level
+
+The obj-level rule is §9.4's:
+
+> An EH record set exists iff **`maxState >= 1`**, i.e. iff at least one outbound
+> control transfer occurs while a destructible object is live.
+
+Rendered into the statement-layer scanner, three lines:
+
+* `5C` — an object goes live. **Raise** a running live count. (`5C` is the last
+  token of its statement, so a constructor call in the same statement is before
+  it and is correctly counted at the lower state, which is where c2 puts it.)
+* `5D` / `5E` `<n> <state>` — `n` objects stop being live. **Lower** it by `n`,
+  saturating at zero.
+* `4C` — a call's argument list closes. If the live count is **non-zero**, that
+  is a transfer at a non-empty live set: `maxState >= 1`, and the whole of §1–§5
+  exists.
+
+**The counting site is `4C`, not `BD`, and one probe settles it.** `BD` is the
+call *descriptor* and it is emitted **before** the arguments are evaluated, so a
+destructible temporary materialized by a nested call goes live *between* the
+two. `int t1(int a){ return gp(mkSE().m) + a; }` emits
+
+```
+BD(gp) … BD(mkSE) 4C … 5C … 4C(gp)
+```
+
+Counting at `BD` puts gp's transfer at the empty live set and calls the body
+cheap; its obj has an `__ehfuncinfo$?t1@@YAHH@Z`, `maxState = 1`, symbol
+`Value = 8`. A **destructible temporary** is one of the four shapes §9.10 lists
+as never probed, and it was the cell that broke the first reading.
+
+### 10.2 Graded against the obj — 46 functions, 46 right
+
+Three probe sources, `work/EHMS/probe/m1.cpp`, `m2.cpp`, `m3.cpp`, at the
+workload's own flags (`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`). Every
+function's obj was read for an `__ehfuncinfo$` and its symbol `Value`; that
+reading is the expected column, never a prediction.
+
+**The maxState rule: 46/46. The statement rule: 35/46, wrong in BOTH
+directions.** The eleven it misses:
+
+| probe | source | obj | statement rule | maxState rule |
+|---|---|---|---|---|
+| `mA` | `int P(int a){ SE s; int x=a*3; int y=x^7; return y+1; }` | **no record** | `eh-plus-stmt` ✗ | `eh-state0` ✓ |
+| `mI` | `int P(int a){ int x=gp(a); SE s; return x+1; }` | **no record** | `eh-plus-stmt` ✗ | `eh-state0` ✓ |
+| `mJ` | `int P(int a){ SE s; for(…) a+=i; return a; }` | **no record** | `eh-plus-stmt` ✗ | `eh-state0` ✓ |
+| `mF` | `int P(int a){ { SE s; } { SE t; } return a+1; }` | **no record** | `eh-multi` ✗ | `eh-state0` ✓ |
+| `n2` | `void P(){ { SE s; } gv(); }` | **no record** | `eh-plus-stmt` ✗ | `eh-state0` ✓ |
+| `n5` | `int P(int a){ {SE s;}{SE t;}{SE u;} return a+1; }` | **no record** | `eh-multi` ✗ | `eh-state0` ✓ |
+| `C2` | `struct C2{ int k; Mem a; }; C2::C2(int x):k(gp(x)){}` | **no record** | `eh-plus-stmt` ✗ | `eh-state0` ✓ |
+| `l2` | same shape as `mJ`, in a second TU (a repeat control) | **no record** | `eh-plus-stmt` ✗ | `eh-state0` ✓ |
+| `mC` | `int P(int a){ SE s; return gp(a); }` | **RECORD** | `eh-bare` ✗ | `eh-state1` ✓ |
+| `mK` | `int P(int a){ NC s; return gp(a); }` | **RECORD** | `eh-bare` ✗ | `eh-state1` ✓ |
+| `t1` | `int P(int a){ return gp(mkSE().m) + a; }` | **RECORD** | `eh-bare` ✗ | `eh-state1` ✓ |
+
+Read the two halves. **Eight false-EXPENSIVE**: a body with statements beside
+the object, none of which calls anything, gets no record at all — §9.4's `qNC`
+and `qB1` generalize, and the scope cases (`mF`, `n2`, `n5`) generalize further
+because two objects whose lifetimes do not overlap never produce a state.
+**Three false-CHEAP**: a `return` carries no `4B`
+(`docs/IL_STMT_GRAMMAR.md` §9), so `SE s; return gp(a);` has *zero* other
+statements and reads bare — while carrying the whole record set. **The cheap
+side was never a lower bound.** It was a bound in neither direction.
+
+Three cells are decisive and named as such:
+
+* **`C1` against `C2`** — the same source, the same two members, the *declaration
+  order swapped*. Members are constructed in declaration order, so `gp(x)` in the
+  initializer list is a transfer at `{a}` in one and at `{}` in the other. `C1`
+  gets `Value = 8` and `C2` gets `Value = 0`. Nothing but the transfer rule
+  separates them; every statement-shaped predicate calls them identical.
+* **`mF` / `n5`** — two and three destructible objects, no record. Kills "a second
+  object is the EH record" (§6's boundary as written) outright.
+* **`mH`** — `NC s; NC t;` where `NC` has a destructor and **no constructor**, so
+  there is no constructor call to raise anything. `maxState = 1` anyway, and the
+  ip2state entry sits on `bl ??1NC` — the *destructor* of `t`, at live `{s}`.
+  The raising transfer need not be a constructor.
+
+The five §7.2 cells are re-graded too and all five agree with both rules — which
+is why §7.2 passed its own grading. **Both predicates are right on every cell
+§7.2 contained.** The disagreement is entirely in shapes it did not have.
+
+### 10.3 The split, measured
+
+Scan `work/dc3-workload/scan-ehms.jsonl`, 878 TUs, corpus HEAD `f6074c8b`.
+Census **691,744 / 2,462,571 = 28.09 %**, mismatch **0**, census/gate
+disagreement **0** — every one identical to the baseline. The marker-carrying
+population is **354,646** before and after, to the function: this is a
+repartition of the same bodies, not a re-decode.
+
+| EH class | ALL | BLOCKED |
+|---|---:|---:|
+| `eh-none` | 2,044,067 | 1,388,294 |
+| **`eh-state1`** (`maxState >= 1`, the whole record set) | **237,180** | **237,180** |
+| **`eh-state0`** (`maxState = 0`, the cheap side) | **117,463** | **81,492** |
+| `eh-unknown` (stopped before any marker) | 63,858 | 63,858 |
+| `eh-partial` (marker, no proof either way, then stopped) | **3** | 3 |
+
+**Against the two prior bounds, both of which were loose:**
+
+| | statement rule (§7.3, this scan) | measured | delta |
+|---|---:|---:|---:|
+| EH side (§6q's "EH stock") | 276,810 — **UPPER** bound | **237,180** | **−39,630, −14.3 %** |
+| cheap side, all | 77,836 — called a *lower* bound | **117,463** | **+39,627, +50.9 %** |
+| cheap side, blocked | 41,865 | **81,492** | **+39,627, +94.7 %** |
+| undecided | 4,375 | **3** | −4,372 |
+
+The migration cross, which is the whole reconciliation:
+
+| | → `eh-state1` | → `eh-state0` | → `eh-partial` |
+|---|---:|---:|---:|
+| `eh-plus-stmt` 225,330 | 158,994 | **66,336** | — |
+| `eh-multi` 47,105 | 47,090 | 15 | — |
+| `eh-bare` 77,836 | **26,724** | 51,112 | — |
+| `eh-partial` 4,375 | 4,372 | — | 3 |
+
+**93,075 of the 354,646 marker-carrying bodies — 26.2 % — were on the wrong
+side.** The two errors are large and they partly cancel, which is why the
+headline moved only 14 %: 66,336 filed expensive that are cheap, 26,724 filed
+cheap that are expensive. A predicate that is wrong 26 % of the time and looks
+14 % wrong in aggregate is the worst kind, because the aggregate invites you to
+call the correction a refinement.
+
+**Two structural facts the numbers give for free:**
+
+* **Every one of the 237,180 EH-side functions is blocked, and every one of the
+  35,971 accepted marker-carrying functions is `eh-state0`.** The control group is
+  not merely "the `empty-dtor-*` shapes read cheap" — the port has **never**
+  accepted a function that needs an EH record, and the axis says so without being
+  told. `eh-state1|INCLASS|*` is empty.
+* **`eh-unknown` is unmoved to the function** (63,858 → 63,858). It must be: the
+  walk never reached a marker, so no predicate keyed on markers can move it. That
+  it came out exactly equal is the cheapest available check that the two axes ran
+  over the same population.
+
+### 10.4 What it costs the ranking — two rows INVERT
+
+§7.4's cross is the table the board ranks from, and re-derived it does not merely
+shift:
+
+| census key | total | §7.4 `%EH` | **measured `%EH`** | §7.4 `eh-bare` | **measured cheap** |
+|---|---:|---:|---:|---:|---:|
+| `expr-op-0x27` | 411,967 | 8.2 % | **6.4 %** | 778 | 14,308 |
+| `expr-intrinsic-this-adjust` | 135,938 | 25.7 % | **40.4 %** | 6,875 | 16,051 |
+| `expr-intrinsic-base-member-addr` | 113,981 | **62.5 %** | **26.0 %** | 2 | **41,678** |
+| `expr-bit-and` | 32,381 | 99.9 % | 99.9 % | 0 | 0 |
+| `…-recv-object-then-branch-brtrue` | 23,633 | 99.9 % | 99.9 % | 0 | 0 |
+| `body-0x9B` | 27,073 | **0.1 %** | **62.5 %** | **16,738** | **1** |
+| `body-cflow-label` | 48,102 | 9.0 % | 9.1 % | 0 | 26 |
+| `expr-intrinsic-base-upcast` | 19,468 | — | **42.5 %** | **8,277** | **0** |
+
+* **`body-0x9B` inverts, and it is the largest single claim §7.4 made about the
+  cheap side.** *"`body-0x9B` is 61.8 % `eh-bare` — 16,738 functions that need no
+  EH model at all"*: measured, **exactly one** of them is cheap and 16,914 need
+  the whole record. The 61.8 % was right about the fraction and wrong about which
+  side.
+* **`expr-intrinsic-base-upcast` inverts completely** — 8,277 "cheap" → **zero**
+  cheap, 8,282 on the EH side.
+* **`expr-intrinsic-base-member-addr` inverts the other way**: §7.4's *"62.5 %
+  behind EH, the board's #3 row"* is measured at 26.0 %, and the row is now the
+  **largest cheap population on the board** at 41,678.
+
+Every one of those is a row that was ranked, or de-ranked, on the wrong number.
+
+### 10.5 The cheap side is not a phase. It dissolves — RETIRED
+
+§7.5 said EH *"is not the cheapest next thing — 40,881 functions sit on the cheap
+side already measured"*, and §6o carried that forward. **That reading is
+retired.** Not because the cheap side is small — it grew to 81,492 blocked — but
+because **there is no cheap-side rung to schedule.** Its whole blocked stock:
+
+| census key | n | share of the 81,492 |
+|---|---:|---:|
+| `expr-intrinsic-base-member-addr` | 41,678 | 51.1 % |
+| `expr-intrinsic-this-adjust` | 16,051 | 19.7 % |
+| `expr-op-0x27` | 14,308 | 17.6 % |
+| `…-recv-intrinsic-this-adjust-then-plumbing-0x3A` | 2,058 | 2.5 % |
+| `…-recv-field-off0-then-plumbing-0x3A` | 1,655 | 2.0 % |
+| the tail (≈ 90 rows) | 5,742 | 7.0 % |
+
+**88.4 % of it is three rows, and all three are general expression rows already
+on the board** — the byte-offset add, the this-pointer adjust intrinsic, and the
+base-member-address intrinsic. None is an EH construct. More to the point, in
+each of them the EH-marked cheap bodies are a **minority slice**: 36.6 % of
+`base-member-addr`, 11.8 % of `this-adjust`, **3.5 %** of `op-0x27`. The other
+side of each row is ordinary non-EH code that the same widening retires anyway.
+
+So the cheap side is not a gated phase waiting to be opened, and it is not even a
+population that can be scheduled on its own: **every function on it is behind an
+expression row that is already ranked, and widening that row retires its cheap-EH
+slice for free.** The correct statement is that `/EHsc` costs those 81,492
+functions *nothing* — which is what `maxState = 0` means — so they should never
+have been counted as EH work in the first place.
+
+The rows §7.4 nominated for that job (`body-0x9B`, `expr-intrinsic-base-upcast`)
+are on the **other** side entirely.
+
+### 10.6 The instrument defect this lane also fixed
+
+The EH cross-tab built its rows as `format!("{}|{}", eh, verdict.key())`, and
+`FnVerdict::key` spells **accepted shapes** and **blocker keys** into one
+namespace. So the largest row of the entire EH cross was
+
+```
+eh-bare|empty-dtor-delegation    27,501
+```
+
+and `empty-dtor-delegation` is a shape the port **accepts**. It reads exactly
+like a blocker, it sorted above every real one, and it was within one step of
+being scheduled as a rung. The rows now name their population
+(`|BLOCKED|` / `|INCLASS|`), there is a per-class `|BLOCKED` subtotal so a stock
+can be sized without knowing the seventeen in-class label strings, and the
+in-class rows print under a heading that says they are accepted functions.
+
+The check §7 wanted from including them is kept and is now stronger, because it
+is stated as a population rather than inferred from a label: **`eh-state1|INCLASS|*`
+is empty and `eh-state0|INCLASS|*` holds all 35,971.**
+
+### 10.7 What stays NOT MODELLED, and the one number at risk
+
+* **`eh-unknown` = 63,858** — the walk stops before any marker, so the axis says
+  nothing, in either direction. Unchanged by this work and unchangeable by it.
+* **The 4,372 `eh-partial` bodies that became `eh-state1`.** A transfer already
+  seen at a non-empty live set proves `maxState >= 1` whatever stops the walk
+  later — but §6q's lesson stands: *landing off the tail is evidence something is
+  wrong and no evidence about which token it was*, so a walk that later desynced
+  may have mis-read the `5C`/`4C` that produced the proof. **Bound: if every one
+  of the 4,372 were wrong, the EH side is 232,808, −1.8 %.** The headline does not
+  depend on them.
+* **Arrays of destructible objects, a destructible object passed by value, and an
+  inlined destructor** — still unprobed (§9.10). The temporary is no longer on
+  that list; it is probed, and it moved the counting site.
+* **`/Ox`, `/O2`, packed.** Every number here is `/O1 /EHsc`, the workload's.
+* **The obj-level grading is at probe scale** (§7.6's standing caveat, unchanged):
+  46 functions were graded against their own objs; at workload scale the census
+  population is the IL's function list and the obj emits only the subset needed.
+
+### 10.8 The estimate, scored
+
+Written in `work/EHMS/ESTIMATE.md` **before** the scan, with the bias named in
+advance: *"I am primed to predict the cheap side grows… I expect to be too
+small on it."*
+
+| # | prediction | outcome | |
+|---|---|---|---|
+| P1 | cheap side, all = **110,000** (85k–150k), direction up | **117,463** | **HIT**, 6.4 % low |
+| P2 | EH side, all = **240,000** (200k–265k), direction down | **237,180** | **HIT**, 1.2 % high |
+| P3 | > 90 % of `eh-multi` stays EH | 99.97 % | **HIT** |
+| P4 | the `eh-bare` false-cheap hole is real; 3,000–12,000 move | real; **26,724** | direction **HIT**, magnitude **MISS**, 2.2× above interval |
+| P5 | `eh-unknown` delta exactly 0; 30–70 % of `eh-partial` decides | delta **0**; **99.93 %** decides | **HIT** / **MISS**, low |
+| P6 | the cheap side's head is `body-0x9B` + `base-upcast` + `this-adjust`, ≥ 60 % | those three hold **19.7 %**; two of them are **0 %** cheap | **MISS** |
+| P6′ | the cheap side dissolves into ordinary expression work | 88.4 % is three general expression rows | **HIT** |
+| P7 | census delta 0, mismatch 0, disagreement 0 | 0 / 0 / 0 | **HIT** |
+
+**Two headline numbers inside their intervals and within 7 %** — the first time
+in this series after eight consecutive misses, and the intervals were widened
+rather than recentred, which is what the named bias called for.
+
+**Every miss is in the same direction, and it is the direction I named.** P4, P5
+and P6 are all "I under-estimated how wrong the old axis was". The lesson is
+sharper than the bias: I estimated the *correction* as a perturbation of the
+published split, when the published split was produced by a predicate that is
+wrong on a quarter of the population. **When a predicate is refuted, the prior
+built on it carries no information about the magnitude of its own error** — P6 is
+the proof, because it is the one prediction that copied the old table's row
+identities forward, and it is the one that was wrong in kind rather than in size.
+
+### 10.9 Reproduction
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+cargo build --release                       # binary identity now prints in the
+                                            # provenance block; do this FIRST
+printf '/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc\n' > work/EHMS/flags.txt
+for p in m1 m2 m3; do
+  ./target/release/c2rs census work/EHMS/probe/$p.cpp --flags-file work/EHMS/flags.txt
+  scripts/gt_eh.py work/EHMS/probe/$p.cpp | sed -n '/item 1/,/item 2/p'
+done
+# the census line prints `<maxState key> (<statement-count key>)` per function;
+# `item 1` prints each symbol's Value — 0x8 iff the obj carries an EH record.
+
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+    --flags-file work/dc3-workload/flags.txt \
+    --cwd <the workload tree> --jsonl work/dc3-workload/scan-ehms.jsonl
+```
+
+The four decisive cells are pinned as unit tests in
+`crates/c2-il/src/func/body/shapes/control_flow.rs`
+(`the_maxstate_axis_agrees_with_whether_the_obj_carries_an_eh_record`,
+`the_boundary_is_one_transfer_wide`, `a_proven_state_survives_an_undecoded_tail`),
+each with the obj reading in its doc comment, so the axis cannot regress silently
+without the toolchain present.
