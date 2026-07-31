@@ -132,10 +132,13 @@ class Obj:
         return self.d[sec["rawptr"] : sec["rawptr"] + sec["rawsize"]]
 
 
-def disasm(words):
-    """Disassemble a list of BE u32 words via llvm-mc; fall back to hex."""
-    if not words:
-        return []
+def _mc(words):
+    """Raw llvm-mc call. Returns the mnemonic lines, or None if llvm-mc is absent.
+
+    NOTE: llvm-mc emits NOTHING for a word it cannot decode (the "invalid
+    instruction encoding" diagnostic goes to stderr), so the line count is
+    <= the word count and the two are NOT positionally aligned.
+    """
     hexs = " ".join("0x%02x" % b for w in words for b in struct.pack(">I", w))
     try:
         out = subprocess.run(
@@ -145,11 +148,40 @@ def disasm(words):
             text=True,
         ).stdout
     except FileNotFoundError:
+        return None
+    return [l.strip() for l in out.splitlines() if l.strip() and not l.startswith(".")]
+
+
+_MC1 = {}
+
+
+def disasm(words):
+    """Disassemble a list of BE u32 words via llvm-mc; fall back to hex.
+
+    An EH function's `.text` opens with two relocated ZERO words (the
+    `__CxxFrameHandler` / `__ehfuncinfo$` prefix, docs/EH_RECORDS.md §1) and
+    llvm-mc silently drops them.  The previous implementation padded the
+    shortfall with `?` at the END, which shifted EVERY mnemonic in the section
+    up by two rows while still printing correct-looking output -- the exact
+    "instrument lied" failure this lane exists to catch.  Alignment is now
+    established per word, never inferred from a count.
+    """
+    if not words:
+        return []
+    lines = _mc(words)
+    if lines is None:
         return ["%08x" % w for w in words]
-    lines = [l.strip() for l in out.splitlines() if l.strip() and not l.startswith(".")]
-    if len(lines) != len(words):
-        lines = lines + ["?"] * (len(words) - len(lines))
-    return lines[: len(words)]
+    if len(lines) == len(words):
+        return lines
+    # A word did not decode: re-run per word so position is exact by
+    # construction.  Memoised on the word value -- code sections repeat.
+    out = []
+    for w in words:
+        if w not in _MC1:
+            r = _mc([w])
+            _MC1[w] = r[0] if r else "<undecodable %08x>" % w
+        out.append(_MC1[w])
+    return out
 
 
 def main(argv):
