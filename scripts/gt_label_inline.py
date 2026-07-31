@@ -1116,6 +1116,71 @@ LAW = {
     "ptr-arrelem": None, "ref-member": None,
 }
 
+# ---------------------------------------------------------------------------
+# LAW_BOOK — the same law L', stated against the BOOKKEEPING slope (the inline
+# record alone) instead of the marginal (the inline record PLUS whatever §1.1
+# surcharge P owes for the code it ends up containing).
+#
+# Rounds 13-17 are recorded here rather than in LAW because their hand controls
+# are not zero, and for `switch` that difference is the whole story: a SECOND
+# written-out switch costs P 4 whether or not anything was inlined, which is
+# why §6.7 first read `switch-body` as "10 at N=1, 14 marginal, not even
+# uniform in N". The inline record is 10, flat, from N=1 to N=5. Where the hand
+# control is 0 the two dicts mean exactly the same thing.
+#
+# The three rules these entries encode, all fitted and then held out:
+#
+#   SWITCH.  An ordinary depth-scaled E feature, NOT an affine term of its own
+#            like the loop:  E(switch) = (statement groups) + 2, where a
+#            `default` counts as a group only when it is WRITTEN and case
+#            labels sharing one group count once. Measured 2..6 groups at
+#            depth 1 (7/8/9/10/11) and 2 and 5 groups at depth 2 (17/23).
+#
+#   IF/ELSE. An explicit `else` is its own E unit. `cf-if` (if + fallthrough)
+#            is 4 and `cf-else` (the same code with `else`) is 5.
+#
+#   SCOPE-EXIT. A function that owns any local with a non-trivial destructor
+#            pays E += 2 ONCE — not per object — and constructors and
+#            destructors are otherwise ordinary inline instances with E = 0,
+#            exactly like any other callee. P itself pays nothing because P is
+#            not an inline instance.
+#
+#   POINTER/REFERENCE. +1 once per callee that is handed the address of a
+#            SCALAR AUTOMATIC variable — the thing that has to leave a register
+#            to acquire an address. Not "an argument that needed a temp" (§6.7
+#            predicted from that and both predictions inverted) and not
+#            "automatic storage": a local array element, a local struct member
+#            and a whole local struct by `const&` are all already addressable
+#            and all cost 0, as do a global and a function-static.
+#
+# Two entries here are LIVE REFUTATIONS, kept as the law's prediction rather
+# than the measurement so that they re-run instead of being remembered:
+# `d2-dtor` (law 28, measured 27) and `d2-ptr-auto` (law 11, measured 9). Both
+# are the same shape of failure — a rule fitted at depth 1 and extended down.
+# ---------------------------------------------------------------------------
+LAW_BOOK = {
+    # --- switch: E = groups + 2, depth-scaled, multi-exit +1 as usual -------
+    "sw-arms2": 7, "sw-arms3": 8, "sw-arms4": 9, "switch-body": 10,
+    "sw-arms6": 11, "sw-dense": 10, "sw-void": 10, "sw-1exit": 11,
+    "sw-nodefault": 9, "sw-withdefault": 10, "sw-fall": 9, "sw-ctx-expr": 11,
+    "d2-switch": 23, "d2-sw2": 17,
+    # --- an explicit `else` is an E unit ------------------------------------
+    "cf-else": 5, "cf-else-assign": 6,
+    # --- ctors/dtors are ordinary instances; the OWNER pays +2 once ---------
+    "ctor": 9, "ctor-direct": 3, "ctor-loc": 11, "ctor-if": 13,
+    "ctor-init": 9, "ctor-2mem": 9,
+    "dtor": 16, "dtor-empty": 16, "dtor-only": 11, "dtor-2obj": 27,
+    "dtor-3obj": 38, "dtor-body-loc": 18, "dtor-direct": 6,
+    "dtor-direct-only": 3,
+    "d2-dtor": 28,          # <== REFUTED: measured 27. Kept as the law's word.
+    # --- the pointer/reference +1 is ADDRESSABILITY -------------------------
+    "ref-param": 4, "ptr-param": 4, "ptr-already": 4, "ref-const-read": 4,
+    "ptr-2args": 4, "ptr-mixed": 4,
+    "ptr-global": 3, "ref-global": 3, "ptr-static-local": 3, "ptr-2global": 3,
+    "ptr-arrelem": 3, "ref-member": 3, "struct-ref": 3, "struct-param": 3,
+    "d2-ptr-auto": 11,      # <== REFUTED: measured 9.  Kept as the law's word.
+}
+
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
 
 
@@ -1255,7 +1320,14 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
     # whether or not anything was inlined, and the 10 is flat from N=1 to N=5
     # while the 14 is not. Printed on every row so no family can hide it.
     book = None if kinc is None or khinc is None else kinc - khinc
-    want = LAW.get(name, "?")
+    # A family recorded in LAW_BOOK is graded on the inline record alone; one
+    # recorded in LAW is graded on the marginal, which is what every entry
+    # written before round 13 means. Both are the same number wherever the hand
+    # control is 0, i.e. on 72 of the original 100 families.
+    if name in LAW_BOOK:
+        want, got, tag = LAW_BOOK[name], book, "law(book)"
+    else:
+        want, got, tag = LAW.get(name, "?"), kinc, "law"
     # A LAW entry is a prediction about ONE expansion tree — the one the front
     # end builds for that source. When the front end declines an inline the tree
     # is a different tree, and the law is not being asked the question it
@@ -1264,16 +1336,16 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
     # row, and it is what turns 10 apparent /Ox refutations into 10 rows where
     # `while`/`do` loop bodies simply were not inlined at the inner level.
     if want is None:
-        verdict = "law: NOT MODELLED"
+        verdict = "%s: NOT MODELLED" % tag
     elif want == "?":
-        verdict = "law: no entry"
-    elif want == kinc:
-        verdict = "law %d OK" % want
+        verdict = "%s: no entry" % tag
+    elif want == got:
+        verdict = "%s %d OK" % (tag, want)
     elif refused:
-        verdict = "law %d n/a — the front end declined an inline, so this is a" \
-                  " DIFFERENT expansion tree" % want
+        verdict = "%s %d n/a — the front end declined an inline, so this is a" \
+                  " DIFFERENT expansion tree" % (tag, want)
     else:
-        verdict = "law %d  <== *** REFUTES LAW L' ***" % want
+        verdict = "%s %d vs %s  <== *** REFUTES LAW L' ***" % (tag, want, got)
     shape = ("LINEAR to N=%d" % nmax if lin
              else "one-off %+d at N=1, linear after" % oneoff if oneoff
              else "*** NON-LINEAR ***")
@@ -1282,7 +1354,7 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
           % (kinc, ki, shape, kh, khinc, book, verdict,
              "  (see INLINE-DECLINED? rows)" if refused else ""))
     print()
-    return bad, (want not in (None, "?") and want != kinc and not refused)
+    return bad, (want not in (None, "?") and want != got and not refused)
 
 
 def main(argv):
