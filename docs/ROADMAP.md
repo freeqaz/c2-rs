@@ -3518,6 +3518,139 @@ nothing enumerates them, and the four lanes recorded throughout these docs are
 `/Ox`, `/O1`, `/O2`, `/Ox /Gy`, none of which compiles `/EH`, on a workload that
 compiles `/EHsc` on every TU.
 
+## 6t. The gate was simulating the wrong machine — WAFF, 2026-07-31
+
+The second census over-claim (board #103) turned out to be **one variable read at
+three arms**, plus one producer that never called an emitter that already
+existed. Both halves are worth recording, because they are opposite defects that
+presented as a single row.
+
+### The refusal, named
+
+`c2rs census` already prints the port's own reason, and for the four filed cases
+it printed **two** different ones:
+
+```
+int f(int a,int b){int x=a+1;int y=x*b;return y;}     multiply by a constant strength-reduces
+int f(int a,int b){int x=a+1;x=(x)*b;return x;}       multiply by a constant strength-reduces
+int f(int a,int b){int x=a+1;{return x+b;}}           reg+reg add with a pending immediate offset
+int f(int a,int b){{int x=a+1;{int y=x+b;return y;}}} reg+reg add with a pending immediate offset
+```
+
+Two messages, one cause. `select_text` is **affine**, not a stack machine: an
+operand is a register plus one immediate it still *owes*
+(`Operand::RegOff { base, off }`), and there is no way to materialize that
+immediate before a reg-reg instruction fires. `combine` therefore has three
+`off != 0` refusal arms — `Add`, `Sub`, and the `Mul` **catch-all**, whose
+message says "multiply by a constant" and is simply wrong here: in `(a+1)*b`
+both operands are registers. The misattribution is why the row was never read as
+a gap.
+
+The gate, meanwhile, is `chain_form`, which simulates a generic **two-deep
+operand stack**. That class is strictly wider than the affine one, so the
+disagreement is not a bug in either — it is two different machines, and the
+census was reporting the wrong one's answer.
+
+### Which verdict — and it is BOTH, split by canonicalization
+
+The hand-written flat controls are what separate them. Neither has a local at
+all, so the locals production cannot be implicated:
+
+```
+int f(int a,int b){ return a+1+b; }    -> census in class, Port=Match
+int f(int a,int b){ return (a+1)*b; }  -> census in class, Port=NotImplemented
+```
+
+* **Additive-only streams: the port was UNDER-IMPLEMENTED.** `canonicalize_chain`
+  folds the literal to the end (`a+1+b` → `(a+b)+1`), which removes the pending
+  offset entirely, and the result is byte-exact — `return a+1+b;` has always been
+  `Match`. `body/mod.rs` called it; `shapes/assign.rs` did not, running only the
+  pre-canonicalizer fallback checks. So one and the same resolved stream
+  `[a, 1, Add, b, Add]` was byte-exact when written flat and refused when it
+  arrived through a local. **The emitter existed, so by the ceiling rule the
+  ceiling was the estimate** — this is not a rung, it is a producer that did not
+  call the locator. `canonical_chain_for_codegen` is now the single decision and
+  both producers call it.
+
+* **`*` mixed with `+`: the census was OVER-CLAIMING.** `canonicalize_chain`
+  declines these by design (`mul && addsub`), so the pending offset survives to
+  the `Mul` and nothing rewrites it. No emitter exists and none is implied.
+  `affine_serial_ok` now reproduces `combine`'s operand algebra in the parser, so
+  the census refuses exactly what codegen refuses.
+
+The ordering is load-bearing: the affine gate runs **after** canonicalization, on
+the stream codegen actually sees. Run before it, it refuses `return a+1+b;`,
+which is a shape the port emits byte-exactly.
+
+### Numbers
+
+Generated corpus at the `c2rs diff` profile (`/Ox /GS- /c`), **13,707 cases
+submitted, 13,618 graded** — the 89 ungraded are const-member stores the *front
+end* rejects, a constant of the corpus and unchanged on both sides:
+
+| | before | after |
+|---|---|---|
+| census/gate disagreement (cases) | 4 | **0** |
+| mismatches | 0 | **0** |
+| `Port=Match` | 9,577 | 9,583 |
+| in-class functions | 11,623 / 15,619 | 11,625 / 15,619 |
+
+Six cases moved `NotImplemented` → `Match` and **none lost `Match`**. The
+in-class net of +2 is +4 widened and −2 withdrawn, and the two directions are
+reported separately on purpose: a net figure would hide the withdrawal, which is
+the half that makes the number honest.
+
+Four of the six gains are not the pending-immediate axis at all — they are
+`int x=b+a; …`, which `assign.rs` used to refuse as `assign-noncanonical-order`
+and the shared canonicalizer now rewrites. Sharing the locator paid twice.
+
+At the profile the board tracks the number at — `scripts/sweep_mode.sh /EHsc`,
+i.e. `/EHsc /O1 /GS- /c`, 13,949 TUs, 9,666 match, **mismatch 0**, 13,860 graded
+— the disagreement is **7 → 3**. The residue of 3 is *not* this class and is
+already characterized: an FP leaf beside a framed int function
+(`81-fp-beside-framed.py`), the §WEC refusal frontier §6s named. Confirmed by
+reading `fn_gate_refusals` out of the scan rather than by subtracting counts.
+
+**On the real workload the change costs and gains nothing.** The 878-TU dc3 scan
+reads **691,744 / 2,462,571 in class (28.09 %), mismatch 0, census/gate
+disagreement 0** — byte-identical to the same scan run with the pre-change
+binary, which is how it was checked rather than by comparing against a number in
+an older log. The class is a generated-corpus phenomenon there, exactly as the
+`i == 1` off-by-one in §6s was. That is the argument for the generated sweep
+existing at all: it is the only instrument that reaches these shapes, and a
+workload histogram would have ranked this at 0 forever.
+
+### The sweep was under-counting a class it could not reach
+
+The flat form — a local defined by one statement and consumed by a **compound**
+expression in the next, with no brace between them —
+
+```
+int f(int a,int b){ int x=a+1; return x+b; }
+```
+
+is generated by **no fragment**. `43-locals-scopes.py` sweeps the neighbourhood
+densely, but its flat arm returns a *bare* local (`int x=a+1;return x;`) and
+every compound return it produces is wrapped in a scope
+(`int x=a+1;{return x+b;}`). The shape was reachable only by writing it out by
+hand, which is how it was found — so the class's disagreement count was
+**unknown, not zero**.
+
+`scripts/sweep.d/47-flat-locals.py` closes it: **242 cases**, 242 graded, 83 in
+class, 0 mismatches, **0 disagreements**. Both operand orders are enumerated for
+every operator, because a rule derived in one order and graded only in that order
+is the failure `10-int-chains.py`'s commutation pairs already record — and the
+same one that hid the `i == 1` off-by-one in §6s. Corpus **13,707 → 13,949**.
+
+### What is asserted now that was not
+
+`affine_serial_ok` is tested in the **under-claiming** direction as well as the
+over-claiming one — every stream `c2_core::codegen::straightline`'s own
+byte-graded tests prove it lowers is asserted to survive the gate. That direction
+had nothing testing it, and it is the invisible one: a gate that refuses too much
+reports a smaller numerator and every differential still passes, because a
+refused function is never graded.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp

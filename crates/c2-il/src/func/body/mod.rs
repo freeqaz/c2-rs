@@ -6,8 +6,7 @@ pub(crate) mod mcall;
 pub(crate) mod shapes;
 
 use self::chain::{
-    additive_chain_canonical, canonicalize_chain, has_repeated_leaf, leaves_ascending,
-    straight_line_out_of_class_ctx,
+    canonical_chain_for_codegen, has_repeated_leaf, straight_line_out_of_class_ctx, ChainReject,
 };
 use self::expr::{
     eat_fn_tail, eat_return_head, eat_return_plumbing, eat_scopes, intrinsic_name,
@@ -1094,16 +1093,19 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             if let Some(ctx) = straight_line_out_of_class_ctx(&ops, &params) {
                 return Err(Block::refuse(seg, p, ctx));
             }
-            let ops = match canonicalize_chain(&ops, &params) {
-                Some(c) => c,
-                None => {
-                    if !leaves_ascending(&ops, &params) {
-                        return Err(Block::refuse(seg, p, "expr-noncanonical-order"));
-                    }
-                    if !additive_chain_canonical(&ops) {
-                        return Err(Block::refuse(seg, p, "expr-noncanonical-additive"));
-                    }
-                    ops
+            // The shared canonicalize-or-refuse decision. Both producers of a
+            // `StraightLine` call it, so they cannot hand codegen different
+            // streams for the same expression — see `canonical_chain_for_codegen`.
+            let ops = match canonical_chain_for_codegen(&ops, &params) {
+                Ok(c) => c,
+                Err(ChainReject::Order) => {
+                    return Err(Block::refuse(seg, p, "expr-noncanonical-order"))
+                }
+                Err(ChainReject::Additive) => {
+                    return Err(Block::refuse(seg, p, "expr-noncanonical-additive"))
+                }
+                Err(ChainReject::Affine) => {
+                    return Err(Block::refuse(seg, p, "expr-affine-pending-imm"))
                 }
             };
             Ok(BodyShape::StraightLine { params, ops })
