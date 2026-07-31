@@ -951,13 +951,35 @@ fn parse_call_sequence(
         break;
     }
 
-    // A single call whose result is discarded and with nothing after it is a
-    // TAIL call, not a framed body — but the caller already checked that before
-    // entering, so reaching it here would mean the grammar drifted.
-    debug_assert!(
-        raw.len() > 1 || !matches!(tail, SeqTail::Void),
-        "a lone statement call with a void tail is the tail-call shape"
-    );
+    // **A single call whose result is discarded and with nothing after it is a
+    // TAIL call, not a framed body.** This used to be a `debug_assert` on the
+    // grounds that the caller had already checked it — and the caller had not.
+    //
+    // Its plumbing probe runs at `BODY_SCOPE_DEPTH` and takes the tail-call arm
+    // only if that probe succeeds; an **explicit `return;`** after the call does
+    // not parse there, because c2 records the fallthrough as a *second*
+    // `3A <label>` to the same label and only arm (1b) of the loop above knows
+    // that. So `void h1(){ g1(); return; }` fell through to this production,
+    // came back out with one call and a void tail, and emitted the 36-byte
+    // framed body — where c2 emits the bare 4-byte `b ?g1@@YAXXZ`.
+    //
+    // MEASURED: `Port=Mismatch @ offset 2` against the reference obj
+    // (`work/WCO/probe/ret.cpp`, `/Ox /GS- /c`; `.text` 12 B for the two
+    // functions, `48000000` and `4BFFFFF8`), and it was **live on mainline** —
+    // a wrong-bytes emit, not a gap. It was reachable from ordinary source and
+    // from the 878-TU workload, where the `debug_assert` fires on
+    // `src/system/hamobj/DancerSequence.cpp`; the release scan never saw it
+    // because a `debug_assert` compiles out and 98.5 % of the workload's TUs
+    // are `vocab-gap` and never byte-compared. `docs/GAPS.md` §6: an assertion
+    // is not a gate, and the false-*green* direction is the hazard.
+    //
+    // Routed to the same [`tail_call_shape`] the caller would have used, rather
+    // than refused: the body IS the tail call, and its arguments have been read
+    // by the same locator.
+    if raw.len() == 1 && matches!(tail, SeqTail::Void) {
+        let (callee_tok, args) = raw.pop().expect("length checked");
+        return tail_call_shape(args, params, callee_tok, *p);
+    }
 
     // Validate and normalize every call's arguments through the ONE locator every
     // other call shape uses, so the marshalling has a single implementation.
