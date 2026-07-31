@@ -62,6 +62,14 @@ limit="${1:-0}"
 [ $# -gt 0 ] && shift
 
 mkdir -p "$out"
+# ABSOLUTE, always. `cl.exe` runs under wibo and is handed `z:<path>`, so a
+# RELATIVE outdir produces `z:work\sweeps\x.cpp`, which it cannot open — and the
+# whole run comes back capture-fail 13707/13707 while every gate below reads
+# green. That happened on the first real use of this script: `work/sweeps/...`
+# instead of `/tmp/...`, 100 % capture-fail, and the disagreement ratchet printed
+# 0 and exited 0. See the vacuity guard at the end, which is the real fix; this
+# just removes the easiest way to trip it.
+out="$(cd "$out" && pwd)"
 
 # Same outdir lock as `expr_sweep.sh`, for the same reason: this driver `rm -f`s
 # the whole case set before regenerating it, so two concurrent runs against one
@@ -124,6 +132,39 @@ report="$out/report.txt"
 "$c2rs" gap --list "$out/list.txt" --flags-file "$flags" --jobs "${C2RS_JOBS:-8}" \
     --jsonl "$out/scan.jsonl" > "$report" 2>&1 || true
 sed -n '/GAP REPORT/,$p' "$report"
+
+# ---- vacuity guard -------------------------------------------------------------
+#
+# EVERY check below reads a number out of the report, and a number that is not
+# there parses as zero. So a run in which nothing was graded at all passes every
+# one of them: mismatch 0, disagreement 0, exit 0. That is not a hypothetical —
+# it is what this script did on its first real use, and the coordinator reported
+# the resulting "disagreement: 0" as a measurement before spotting it.
+#
+# The SKIP pre-check above does not cover it: SKIP means the toolchain is absent,
+# and this failure is the toolchain present and refusing every TU. A vacuous pass
+# is the worst failure mode this repo has, so it is checked positively — the run
+# must have GRADED something — rather than by enumerating the ways it can fail.
+graded=0
+for cls in match codegen-gap vocab-gap port-error; do
+    n=$(sed -n "s/^  $cls  *\([0-9]*\) .*/\1/p" "$report" | head -1)
+    graded=$((graded + ${n:-0}))
+done
+capfail=$(sed -n 's/^  capture-fail  *\([0-9]*\) .*/\1/p' "$report" | head -1)
+if [ "$graded" -eq 0 ]; then
+    echo
+    echo "VACUOUS RUN: $run cases submitted, NONE graded (capture-fail ${capfail:-?})."
+    echo "Every check below reads a number that is not in the report and parses it"
+    echo "as 0, so this would otherwise pass. Top reasons:"
+    sed -n '/top capture-fail reasons/,/^$/p' "$report" | head -8
+    exit 1
+fi
+if ! grep -q "FUNCTION CENSUS" "$report"; then
+    echo
+    echo "NO CENSUS LINE in $report — refusing to report a disagreement of 0 that"
+    echo "is really an absence. See the vacuity guard above."
+    exit 1
+fi
 
 mm=$(sed -n 's/^  mismatch  *\([0-9]*\) .*/\1/p' "$report" | head -1)
 [ "${mm:-0}" -eq 0 ] || {
