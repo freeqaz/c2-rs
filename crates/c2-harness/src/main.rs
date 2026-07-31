@@ -2064,6 +2064,23 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
             if hist.len() > 20 {
                 println!("    … and {} more distinct features", hist.len() - 20);
             }
+            // **The two axes do not share a vocabulary, and nothing else says so.**
+            // These keys come from `mcall`'s walk, which does not decode `0x64`
+            // (the by-value return's materialize) or `0x67` (virtual dispatch); the
+            // control-flow axis below does, and spells them by name. So an
+            // `op-0x64` row here and a `cf-…` row there are the *same construct
+            // under two vocabularies*, and a ranking that adds or compares them is
+            // comparing an unnamed byte with a named production. Renaming these
+            // from the statement layer would be a census key change with no
+            // production behind it — the rung that widens `mcall` renames them,
+            // with the 1:1 proof (`docs/IL_DECODE_REACH.md` §11.2).
+            if hist.iter().any(|(k, _)| k.contains("op-0x64") || k.contains("op-0x67")) {
+                println!(
+                    "    NOTE: `op-0x64`/`op-0x67` above spell hex because mcall's walk does \
+                     not decode them; the control-flow axis below does. Do not rank across \
+                     the two axes on those rows — different vocabularies."
+                );
+            }
         }
         // The D6 frame axis (`docs/IL_CALL_IN_EXPR.md` §18). The blocking-feature
         // histogram above ranks by *size*; this one says whether a row's lowering
