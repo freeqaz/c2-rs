@@ -919,12 +919,21 @@ pub(crate) fn mark_whole(seg: &[u8], lo: usize, b: Block) -> Block {
     // unrelated ones", which is the question the whole rung exists to answer.
     let first = fail.blocker(seg);
     let mut need = NEED_UNMEASURED;
+    // The coarse kind of the UNMEASURED construct the greedy chain stopped on, so
+    // that a `-more` row says what came *next* rather than only that something did.
+    // Rendered as the `-and-<kind>` half of the key, and only when at least one
+    // construct was actually granted first — at `adm.n == 0` the chain stops on the
+    // key's own second blocker and naming its kind would restate the key.
+    let mut broke_on: u64 = 0;
     while adm.n < MAX_ADMIT {
         let blk = fail.blocker(seg);
         // An unmodelable construct ends the chain: everything past it is unknowable,
         // and saying so is the whole point of `blocker_is_measured`.
         if !blocker_is_measured(blk) {
             need = if adm.n == 0 { NEED_UNMEASURED } else { NEED_MORE };
+            if adm.n >= 1 {
+                broke_on = blk.kind_code();
+            }
             break;
         }
         // A construct that repeats means its production did not consume the thing the
@@ -944,8 +953,11 @@ pub(crate) fn mark_whole(seg: &[u8], lo: usize, b: Block) -> Block {
     let (bd, bp) = first.code();
     // The third construct's coarse kind, when the chain needed one. Recorded even
     // when the chain ended in `-more`, because "what came after the second blocker"
-    // is the question that separates a reachable row from an unreachable one.
-    let third = if adm.n >= 2 { adm.also[1].kind_code() } else { 0 };
+    // is the question that separates a reachable row from an unreachable one — and
+    // that question has an answer whether the third construct was *granted* (the
+    // chain continued) or merely *reached* (the chain stopped on it, `broke_on`).
+    // Reporting only the granted case is what left the whole `bit-and` row mute.
+    let third = if adm.n >= 2 { adm.also[1].kind_code() } else { broke_on };
     // Only a body the matcher actually *finished* has a well-defined symbol count:
     // a `-more` body stopped partway, so its designators are however many the
     // abandoned prefix happened to hold, which is a property of the refusal and not
@@ -1496,9 +1508,61 @@ fn blocker_is_measured(blk: Blocker) -> bool {
         // desync signal — and admitting it would mean nothing.
         Blocker::Type(TypeClass::NotAType) => false,
         Blocker::Type(_) => true,
+        Blocker::Op(b) => BARE_BINARY_OPS.contains(&b),
         _ => false,
     }
 }
+
+/// The operator bytes that are **one byte and nothing else** — no TYPE, no
+/// varint, no trailing field — so that granting one widens the completeness
+/// matcher's grammar by exactly one token, the same way `Blocker::OffAdd` does.
+///
+/// **Before W37 this set was empty**, which made every `Blocker::Op` UNMEASURED
+/// and put a 102,382-function row (5.5 % of everything blocked, #4 on the board)
+/// at the top of a ranking with no completeness bit to rank it by — the hazard
+/// `GAPS.md` §6 records for `expr-op-0x99`, in the form where the row *is*
+/// reaching the classifier and the classifier has nothing to say about it. What
+/// that cost is measured in `docs/rungs/2026-07-31-bit-and-declined.md`: the row
+/// is worth **0**, and finding that out took a scratch build where it should have
+/// taken a warm scan.
+///
+/// Membership needs **two** pieces of evidence, not one, and both are in the
+/// tree:
+///
+/// 1. **A capture witness that the token is bare.** `c2rs census
+///    fixtures/cpp/w37_bit_and_neg.cpp` prints one per byte, and they are all the
+///    same shape — an `unsigned` load, a literal, the operator, and then whatever
+///    consumes the value with nothing in between:
+///
+///    ```text
+///      0B  b9 <x> 86 42 75 · 33 86 41 74 01 · 0b · 38 <label>
+///      09  b9 <x> 86 42 75 · 33 86 41 74 03 · 09 · 2c 86 41 74 00
+///      0A  b9 <x> 86 42 75 · 33 86 41 74 03 · 0a · 2c 86 41 74 00
+///      0C  b9 <x> 86 42 75 · 33 86 41 74 01 · 0c · 2c 86 41 74 00
+///      0D  b9 <x> 86 42 75 · 33 86 41 74 01 · 0d · 2c 86 41 74 00
+///    ```
+///
+///    `0B`'s is corroborated in the wild by [`Blocker::Branch`]'s own doc
+///    comment (`src/system/hamobj/Ham.cpp`) and by the `expr-bit-and` hexdump in
+///    `src/system/world/Dir.cpp`.
+/// 2. **A 1:1 redistribution over the whole 878-TU workload.** Granting the set
+///    moves `expr-call-in-expr-recv-load-then-bit-and`'s 102,382 into
+///    `…-then-bit-and-and-branch-more` (102,374) plus 8 named stragglers, and the
+///    deltas over *every* key sum to exactly 0 with the census numerator
+///    unchanged at 602,703 and census/gate disagreement still 0. A byte that were
+///    not bare would desync the matcher and scatter its row across the hex tail.
+///
+/// A byte with only the first is a guess about a field width; a byte with only
+/// the second is a coincidence.
+///
+/// **What is deliberately NOT here**, so the omissions are decisions rather than
+/// oversights: `1A` (`!`) is unary, not a binary operator over two stack values;
+/// `1B`/`1C` (`||`/`&&`) short-circuit to branches and no capture shows the byte
+/// at all (1 and 3 functions on the workload); and the relational family
+/// `1F`–`24` is excluded because a neighbouring opcode in the same numeric range
+/// is observed carrying a TYPE (`… 33 86 41 74 01 · 19 · 86 42 75 …`), so "one
+/// byte" would be an assumption there rather than a reading.
+const BARE_BINARY_OPS: &[u8] = &[0x09, 0x0A, 0x0B, 0x0C, 0x0D];
 
 /// **The whole-body-completeness measure.** True when the **entire segment**
 /// parses with `form` admitted as a value-producing operand and *no other* new
@@ -1851,6 +1915,11 @@ fn eat_one_blocker_value(
             seg.get(*p) == Some(&0xBD) && eat_call_and_args(seg, p, adm, fail)
         }
         Blocker::ChainBind => eat_chain_link(seg, p, adm, fail),
+        // A bare one-byte binary operator over two values already on the stack —
+        // the same production `eat_value_seq` gives `02`/`03`/`04` unconditionally,
+        // granted rather than free because the emitter has no lowering for it. See
+        // [`BARE_BINARY_OPS`] for why the set is one byte and what admits another.
+        Blocker::Op(b) if BARE_BINARY_OPS.contains(&b) => eat_byte(seg, p, b),
         // The `33 <int> <k>` literal that feeds it is already in the modeled
         // vocabulary; the add itself is the missing token.
         Blocker::OffAdd => match seg.get(*p) {
@@ -3293,6 +3362,105 @@ mod tests {
         for seg in [PROBE_CHAIN_IN_RETURN, WILD_CHAIN_AS_RECV_LOAD, WILD_DTOR_DELETES_A_MEMBER] {
             let f = parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
             assert!(f.ends_with("-more") || f.contains("-whole"), "{f}");
+        }
+    }
+
+    // ---- W37: the bare binary operator, and what a `-more` row broke on --------
+    //
+    // All three segments are transcribed verbatim from a live capture of
+    // `fixtures/cpp/w37_bit_and_neg.cpp` (`c2rs census … --keep-il`), whole from the
+    // `53 53 26 <fn>` statement start through the function tail — not truncated at
+    // the formals marker, because `GAPS.md` §6 records that a trimmed segment
+    // witnesses nothing about the region it omits.
+
+    /// `int n_if_call_mask(const S *p){ if (p->Flags() & 4) return gk(1); return 0; }`
+    /// — the workload row, at 102,374 of its 102,382 functions. The operand stream
+    /// reads `… 4C · 33 86 41 74 04 · 0B · 38 <label> …`: the member call closes,
+    /// the mask literal, the bare operator, and straight into a **conditional
+    /// branch**.
+    const PROBE_IF_CALL_MASK: &[u8] = &[
+        0x53, 0x53, 0x26, 0xF1, 0x09, 0x46, 0x2D, 0xF0, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01,
+        0x23, 0x53, 0x26, 0xE5, 0x09, 0xB9, 0xF0, 0x09, 0x86, 0x43, 0x82, 0x20, 0x99, 0x86, 0x43,
+        0x85, 0x20, 0x00, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x05, 0x10, 0x00, 0x00, 0x4C, 0x33,
+        0x86, 0x41, 0x74, 0x04, 0x0B, 0x38, 0xF3, 0x09, 0x53, 0x53, 0x4F, 0x01, 0x24, 0x26, 0xEF,
+        0x09, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x0A, 0x10, 0x00, 0x00, 0x33, 0x86, 0x41, 0x74,
+        0x01, 0x55, 0x86, 0x41, 0x74, 0x4C, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xF2, 0x09, 0x4F, 0x01,
+        0x25, 0x54, 0x05, 0x4F, 0x01, 0x26, 0x54, 0x04, 0x29, 0xF3, 0x09, 0x54, 0x03, 0x33, 0x86,
+        0x41, 0x74, 0x00, 0x41, 0x86, 0x41, 0x74, 0x3A, 0xF2, 0x09, 0x4F, 0x01, 0x27, 0x54, 0x02,
+        0x29, 0xF2, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int n_ret_call_mask(const S *p){ return p->Flags() & 7; }` — the same row's
+    /// **value** spelling, `… 4C · 33 86 41 74 07 · 0B · 41 86 41 74 …`. This is the
+    /// control group the whole W37 measurement rests on: the completeness measure
+    /// CAN report `-whole` for this row, and over 102,382 real workload functions it
+    /// reported it **zero** times. A measure that could never say `-whole` would
+    /// make that zero worthless.
+    const PROBE_RET_CALL_MASK: &[u8] = &[
+        0x53, 0x53, 0x26, 0x01, 0x0A, 0x46, 0x2D, 0x00, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01,
+        0x48, 0x26, 0xE5, 0x09, 0xB9, 0x00, 0x0A, 0x86, 0x43, 0x82, 0x20, 0x99, 0x86, 0x43, 0x85,
+        0x20, 0x00, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x05, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86,
+        0x41, 0x74, 0x07, 0x0B, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x02, 0x0A, 0x4F, 0x01, 0x49, 0x54,
+        0x02, 0x29, 0x02, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int n_or(unsigned x){ return int(x | 1); }` — one of the four bytes that
+    /// share `0B`'s encoding, kept so the "bare, one byte, nothing else" reading of
+    /// [`BARE_BINARY_OPS`] has a witness per member and not one per family.
+    const PROBE_BIT_OR: &[u8] = &[
+        0x53, 0x53, 0x26, 0x0D, 0x0A, 0x46, 0x2D, 0x0C, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x4F, 0x01,
+        0x60, 0xB9, 0x0C, 0x0A, 0x86, 0x42, 0x75, 0x33, 0x86, 0x41, 0x74, 0x01, 0x0C, 0x2C, 0x86,
+        0x41, 0x74, 0x00, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x0E, 0x0A, 0x4F, 0x01, 0x61, 0x54, 0x02,
+        0x29, 0x0E, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **The row that was #4 on the board says what it is.** Before W37 both
+    /// segments below censused the same bare `expr-call-in-expr-recv-load-then-bit-and`
+    /// — no `-whole`, no `-more`, nothing to rank by — because `Blocker::Op` had no
+    /// production and [`mark_whole`]'s greedy chain stopped dead at the operator.
+    /// They are two different bodies and the key has to separate them.
+    #[test]
+    fn a_bare_binary_operator_is_granted_and_the_pair_then_says_what_it_is() {
+        // The value spelling completes on the operator alone.
+        let f = parse_segment_detail(PROBE_RET_CALL_MASK, NO_LOCALS).unwrap_err().feature();
+        assert_eq!(f, "expr-call-in-expr-recv-load-then-bit-and-whole");
+        // The workload's actual spelling does not: it needs basic blocks, and the
+        // key now names the branch instead of stopping silently at the `&`.
+        let f = parse_segment_detail(PROBE_IF_CALL_MASK, NO_LOCALS).unwrap_err().feature();
+        assert_eq!(f, "expr-call-in-expr-recv-load-then-bit-and-and-branch-more");
+        // Granting a construct is never accepting one. Both still refuse.
+        for seg in [PROBE_RET_CALL_MASK, PROBE_IF_CALL_MASK, PROBE_BIT_OR] {
+            assert!(parse_segment(seg, NO_LOCALS).is_none());
+        }
+    }
+
+    /// Every member of [`BARE_BINARY_OPS`] must be *bare* — one byte, no TYPE, no
+    /// varint — or granting it desyncs the matcher and the row it was meant to
+    /// measure scatters instead. Checked against the capture rather than asserted:
+    /// in each witness the byte is immediately followed by the token that consumes
+    /// the value.
+    #[test]
+    fn every_grantable_operator_byte_is_one_byte_in_a_capture() {
+        assert_eq!(BARE_BINARY_OPS, &[0x09, 0x0A, 0x0B, 0x0C, 0x0D]);
+        for (seg, op, next) in [
+            (PROBE_IF_CALL_MASK, 0x0Bu8, 0x38u8),  // → conditional branch
+            (PROBE_RET_CALL_MASK, 0x0B, 0x41),     // → result-type annotation
+            (PROBE_BIT_OR, 0x0C, 0x2C),            // → class-preserving convert
+        ] {
+            // The literal that feeds it, then the operator, then the consumer — with
+            // nothing in between. `33 86 41 74 <k>` is the literal.
+            let at = seg
+                .windows(6)
+                .position(|w| w[0] == 0x33 && w[1] == 0x86 && w[2] == 0x41 && w[3] == 0x74 && w[5] == op)
+                .unwrap_or_else(|| panic!("no `33 <int> <k> {op:#04X}` in the capture"));
+            assert_eq!(seg[at + 5], op);
+            assert_eq!(seg[at + 6], next, "op {op:#04X} is not one byte wide");
+            assert!(BARE_BINARY_OPS.contains(&op));
+        }
+        // …and the relational family is deliberately NOT grantable: `19` is observed
+        // carrying a TYPE, so "one byte" would be an assumption in that range.
+        for b in [0x1Au8, 0x1B, 0x1C, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24] {
+            assert!(!blocker_is_measured(Blocker::Op(b)), "{b:#04X}");
         }
     }
 
