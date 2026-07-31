@@ -307,6 +307,13 @@ impl IlBundle {
                                     body::SeqTail::Void => "call-sequence",
                                     body::SeqTail::CallValue { .. } => "call-sequence-value",
                                     body::SeqTail::Lit(_) => "call-sequence-lit",
+                                    // WCO — the chain result read through, one
+                                    // `lwz`. Its own key rather than sharing
+                                    // `-value`'s: the address form IS
+                                    // `CallValue`, so a shared name would make
+                                    // the two indistinguishable in a census
+                                    // delta and this rung ships both.
+                                    body::SeqTail::CallLoad { .. } => "call-sequence-load",
                                     // Split by relation, not merged: the `==`
                                     // fold and the order spines are different
                                     // instruction counts and different label

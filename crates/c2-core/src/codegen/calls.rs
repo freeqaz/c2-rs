@@ -576,6 +576,28 @@ pub fn call_seq_parts(
         // `return <literal>;` — the same `li r3,k` a bare-literal leaf emits, so it
         // goes through the same selector rather than a second encoder.
         c2_il::SeqTail::Lit(k) => ops_setup_text(params, &[IlOp::Lit(k)], mode)?,
+        // **WCO — `return p->a()->b()->m;`**: the last call left a pointer in r3
+        // and the body reads through it. One `lwz r3,off(r3)`, in exactly the
+        // position the `CallValue` post-op's `addi` occupies.
+        //
+        // **It does NOT fold at offset 0**, and that is the one rule this tail
+        // does not share with its sibling: `CallValue { add_k: 0 }` above emits
+        // nothing because `r3 + 0` is already the answer, while `*(r3 + 0)` is a
+        // memory read that has to happen. MEASURED, two functions one line apart
+        // in `work/WCO/probe/p1.cpp` at `/O1 /GS- /c` — `c_off0` is a 40-byte
+        // body ending `lwz r3,0(r3)` and `c_addr0` is a 36-byte body with no
+        // instruction between the `bl` and the epilogue.
+        //
+        // The width is 4 by construction (the IL parser admits only a 4-byte
+        // integer or a 4-byte pointer here and names every other width); a
+        // narrow or 8-byte member is `lbz`/`lhz`/`ld` and a `float` one is
+        // `lfs` into f1, which is a different register file.
+        c2_il::SeqTail::CallLoad { off } => {
+            let d = i16::try_from(off).map_err(|_| {
+                out_of_class("call-sequence tail load offset exceeds a 16-bit displacement")
+            })?;
+            crate::codegen::encode::encode_lwz(RET_REG, RET_REG, d).to_vec()
+        }
         // **WCB/WCR — `return a->m() <rel> b->n();`**, the register-register
         // comparison spines (`docs/CMP_PRODUCES_A_VALUE.md` reading 4). All three
         // — `==`, signed order, unsigned order — live in
@@ -774,6 +796,42 @@ mod tests {
     use c2_il::{IlFunction, IlOp};
     #[allow(unused_imports)]
     use crate::codegen::testutil::*;
+
+    /// **WCO — the chain-result designator, and the one place its two forms
+    /// disagree.**
+    ///
+    /// `p->a()->b()->m` is `lwz r3,off(r3)` and `&p->a()->b()->m` is
+    /// `addi r3,r3,off`. At `off == 0` the add folds to nothing and the load
+    /// does NOT — measured, `c_off0` (40 B) against `c_addr0` (36 B) in
+    /// `work/WCO/probe/p1.cpp` at `/O1 /GS- /c`. Both directions are pinned,
+    /// because the tempting simplification is to give `CallLoad` the same
+    /// `add_k: 0` fold its sibling has.
+    #[test]
+    fn the_chain_tail_load_does_not_fold_at_offset_zero_but_the_add_does() {
+        let seq = |tail| c2_il::CallSeq {
+            calls: vec![
+                c2_il::SeqCall { callee: "?a@@YAPAUM@@XZ".into(), arg_ops: vec![IlOp::Load(9)], arg_sources: None, link_args: None },
+                c2_il::SeqCall { callee: "?b@@YAPAUM@@XZ".into(), arg_ops: Vec::new(), arg_sources: None, link_args: Some(Vec::new()) },
+            ],
+            tail,
+            saved: Vec::new(),
+        };
+        let tail_of = |t| {
+            call_seq_parts(&[9], &seq(t), OptMode::O1).expect("in class").1
+        };
+        // `lwz r3,4(r3)` / `lwz r3,0(r3)` — the load is emitted at both offsets.
+        assert_eq!(tail_of(c2_il::SeqTail::CallLoad { off: 4 }), vec![0x80, 0x63, 0x00, 0x04]);
+        assert_eq!(tail_of(c2_il::SeqTail::CallLoad { off: 0 }), vec![0x80, 0x63, 0x00, 0x00]);
+        // `addi r3,r3,4` — and NOTHING at 0.
+        assert_eq!(tail_of(c2_il::SeqTail::CallValue { add_k: 4 }), vec![0x38, 0x63, 0x00, 0x04]);
+        assert_eq!(tail_of(c2_il::SeqTail::CallValue { add_k: 0 }), Vec::<u8>::new());
+        // A negative displacement is representable and is not a fold either.
+        assert_eq!(tail_of(c2_il::SeqTail::CallLoad { off: -4 }), vec![0x80, 0x63, 0xFF, 0xFC]);
+        // Past the signed-16-bit displacement it refuses rather than truncating.
+        // The IL parser gates this; the second lock is here.
+        assert!(call_seq_parts(&[9], &seq(c2_il::SeqTail::CallLoad { off: 0x8000 }), OptMode::O1).is_err());
+    }
+
     #[test]
     fn encode_tail_branch_stores_negative_self_offset() {
         // Tail-call `b` displacement = −(own .text offset): offset 0 → 0x48000000,
