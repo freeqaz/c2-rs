@@ -1741,6 +1741,14 @@ is reproduced by five ladders**, `d1-fine`, `d1-if`, `d1-noloop-arith`,
 `d1-noloop-call` and `d2-noloop-arith`. The retired wording is in the
 script's `SUPERSEDED_D` and is re-derived from each run's own numbers.
 
+> **Amended by §6.18.9.** "There is no closed form" is too strong as written,
+> and so is §6.17.10's replacement. LAW D stays refuted, but its failure is
+> **three cells**: `s=68`, `s=72` and the `≥260` ceiling. Restated in
+> instructions rather than bytes its budget is exact — `(N−1)·(i−16) ≤ 19` —
+> and it *generates* the sequence, including the missing 8 and 6. Two clamps
+> and the whole measured table follows. Read §6.18.9 for what that is worth
+> and, more to the point, for what it is not.
+
 What the table refutes, computed rather than asserted:
 
 | rival | killed by |
@@ -2941,3 +2949,688 @@ instrument that could not say what it meant:
 whose verdict disagrees with `index <= 64`, and grades every internal row
 against SCHEDULE D on the index, so the `inline` shift is falsifiable in the
 same run rather than remembered from this section.
+
+## 6.18 Round 31 — a call inside the callee is worth 48 bytes
+
+§6.17.11 closed by naming the class of gap that had by then contained the
+actual mechanism twice, and ranked the untried variables: **return type**,
+then `extern "C"`, then storage duration, then **virtual**, then **template**.
+
+All five were run, in both modes. **Four of the five carry no term at all.**
+Ten return-type spellings, three `extern "C"` spellings, five storage-duration
+spellings and three template spellings reproduce their own linkage class's rule
+cell for cell. The main `/O1` sweep is **262 discriminating cells with twelve
+refuting rows, and every one of the twelve is the `virtual` rows** (§6.18.4) —
+which turn out not to be a size decision at all. Across every `/O1` probe in the
+round the count is **381 discriminating cells**; the `/Ox` sweep adds 128 more.
+The ranked list was very nearly a clean sweep of negatives, and its one positive
+(§6.18.7a, a four-byte `/Ox` correction) came from a control row.
+
+The round's two real findings came from somewhere else — one from a keyword
+nobody listed, and one from a **control written to support it**:
+
+> **Every callee in every ladder in §6.15, §6.16 and §6.17 is a `static int
+> f(int)` with one parameter, no keyword — and it either opens `int v=gs(a)+a`
+> or contains a loop that calls `gs`. Every one of them is a NON-LEAF.**
+> Remove the call and SCHEDULE D moves by **48 bytes** — six times the `inline`
+> term — with its whole shape intact, in **both** linkage classes.
+
+That is the third time the mechanism has been in the held-fixed set and the
+second time it was found by a control rather than by the probe it was written
+for. It was not on the ranked list and it was not predicted.
+
+### 6.18.0 The instrument lied twice more, and before a single verdict was read
+
+Both faults were found by the **size scout** — one capture per spelling,
+before any verdict sweep — and both are the recurring class:
+
+**(A) `declined()` counted any reloc whose target NAME contains the callee's
+name.** A callee with a `static` local mangles that local as
+`?t@?1??c1@@YAHH@Z@4HA`. The callee's own name is a substring of its local's
+name, so a **fully inlined** `c1` whose body loads and stores `t` leaves three
+REFHI/REFLO relocs in P, and the row read `Ndir = 0` at every size. The scout
+printed, in both linkage classes:
+
+```
+sta-sloc-const  0  64  64  0  STATIC  unbounded  unbounded vs 0  <== *** REFUTES THE SCHEDULE D RULE ***
+```
+
+which reads exactly like "a static local is a new categorical class". It is a
+substring match. **Seventh cry-wolf**, and the same fault line as §6.17.13's
+`size_of` collision — that fix was applied to `size_of` and *not* to
+`declined()`, which is the second time a fix has been made on one detector and
+not on its twin (§6.16.9 was the first). Fixed by measurement: `rel` is now
+restricted to **REL24**, because a surviving call site is a `bl` and nothing
+else is.
+
+**(B) An indirect call is invisible to a relocation-based detector.** A virtual
+call through a pointer is `lwz`/`lwz`/`mtctr`/`bctrl` with **no relocation
+against the callee at all**, so the detector read "no `bl` survived" — i.e.
+INLINED — on the one call kind that cannot be inlined. That is §6.15.0's fault
+exactly (*the instrument reports clean on the family whose entire purpose is to
+be declined*), arriving from a third direction. `read()` now counts `bcctrl`
+and every row prints `[n INDIRECT call(s): a `bctrl` the reloc table cannot
+see]`, so the abstention is a printed column rather than a silence.
+
+**Graded before either was kept**, per §6.15.0's precedent, on the full corpus
+in both modes:
+
+| | `/O1` | `/Ox` |
+|---|---|---|
+| 26 ladders, `--max 12` | **byte-identical**, 516 lines | **byte-identical**, 516 lines |
+| `--linkage --max 12` | **byte-identical**, 124 lines | **byte-identical**, 471 lines |
+| `--cases --max 6` | **byte-identical** | **byte-identical** |
+
+Zero rows moved anywhere, which is the control: no existing probe plants a
+static local and none makes an indirect call, so any movement would have meant
+a broken fix. Pre-registered at p=0.8 and p=0.9 and both landed. The
+consequence worth stating is the other one: **§6.15–§6.17's numbers are not
+polluted by either fault**, and that is now measured rather than assumed.
+
+### 6.18.1 The design, and what counts as a discriminating cell here
+
+One body, rungs of **one instruction** (4 bytes of `s`), `N` swept to 12, one
+feature changed per row against a **matched control**, and every row graded by
+the callee's **measured COFF storage class** — never by its spelling, because
+§6.17.3's anonymous-namespace row is the standing reason not to trust the
+spelling.
+
+The counter is defined before the run so it cannot be tuned afterwards:
+
+> A rung **discriminates** iff its class's own predictor gives a different
+> answer at `index` than at `index − 8` or `index + 8`. Eight bytes is not
+> arbitrary — it is the size of the only extra term this document had ever
+> found (`inline`, §6.17.5), and the size a new axis would most plausibly
+> carry. A rung outside that window can agree with the model without the model
+> ever having been at risk, and §6.16.2's lesson is that such a row **prints
+> the same thing** as one that was.
+
+Three abstentions are measured rather than asserted: `not graded: NO CALLEE`
+(the symbol is not in the obj), `not graded: UNKNOWN CLASS`, and
+`NO STEP LOCATED` — a sweep that never crosses the boundary **bounds** the step
+and does not measure it. And two rows are compared model-free as well: the
+summary intersects the two kinds' `index → Ndir` maps and prints
+`[n shared index cells, m disagree]`. A disagreeing shared index is a term with
+no schedule, no rule and no fitting in between.
+
+`NO CALLEE` fired for real, and it is a footnote worth keeping: an **in-class
+virtual member that is only ever called virtually is never referenced by name
+and is NOT EMITTED**. §6.5's *"the callee's COMDAT is emitted whether or not it
+was inlined"* has an exception, and this is it.
+
+### 6.18.2 The return type: ten spellings, zero terms
+
+`char`, `short`, `bool`, `unsigned`, `long long` (an r3:r4 **pair**), `double`
+(an FPR result and `_fltused`), `int*`, `int&`, `void`, and a **struct by
+value** (an sret hidden pointer). Each in the `static` class against
+`sta-base`, and the five most likely to carry something in the `external` class
+too:
+
+| axis | shared index cells | disagreeing | external step |
+|---|---:|---:|---|
+| `char` / `short` / `bool` / `unsigned` | 14/14/13/15 | **0** | 64/68, unchanged |
+| `long long` | 7 | **0** | bracket (60,68] — see below |
+| `double` | 11 | **0** | 64/68, unchanged |
+| `int*` / `int&` | 11 / 11 | **0** | — |
+| `void` (against its own matched control) | 15 | **0** | 64/68, unchanged |
+| struct by value (sret) | 12 | **0** | 64/68, unchanged |
+
+Every one moves `s` — a `char` return costs one extend, a `double` costs
+sixteen bytes and an FPR frame — and **not one moves the rule**. The `void` row
+has its own control (`sta-ret-void-ctl`, the same body with the same global
+store *and* a result) because dropping the result also drops the `return`
+statement, and the two agree on all 15 shared cells.
+
+**Two pre-registered predictions died here, both in the useful direction.**
+
+* **The sret hidden pointer is NOT a parameter.** §6.17.6's external index
+  subtracts 4 bytes per parameter beyond the first, and a struct return adds a
+  hidden pointer the source never spells. Registered at p=0.5 that the step
+  would move 64→68 in raw `s`. It does not: **the step is 64/68, identical to
+  the control.** So the parameter correction counts *declared* parameters plus
+  `this`, and not the ABI's.
+* **The `double` and struct rows were registered as likely to be inert**
+  (p=0.55, the §6.16.10a failure mode — a base body already past the step).
+  They are not: the double base is 64 bytes and the struct base 60, so both
+  **straddle the step** and contribute 3 and 4 discriminating cells. The
+  instrument was built to report that failure mode and did not have to.
+
+The `long long` ladder is the one coverage gap and the row says so rather than
+claiming a move: its rungs cost **8 bytes**, not 4, because the result must be
+materialised as a pair, so it never samples index 64 and brackets the step to
+`(60,68]`. That bracket **intersects** the control's `(64,68]`, so the summary
+prints `CONSISTENT with`, not `MOVED`. Calling an 8-byte ladder's looser
+bracket a moved step would have been the seventh cry-wolf's little brother, and
+the compatibility test exists so it cannot be.
+
+### 6.18.3 `extern "C"`, storage duration, templates — and the prior that died
+
+| axis | class measured | result |
+|---|---|---|
+| `extern "C" int c1(int)` | EXTERNAL | step 64/68, 15 shared cells, 0 disagree |
+| `extern "C" static int c1(int)` | **STATIC** | SCHEDULE D exact, 12 discriminating cells |
+| `extern "C" inline` | EXTERNAL | step 64/68 **on the index** — the 8-byte `inline` term survives C language linkage |
+| a const-initialised `static` **local** | STATIC / EXTERNAL | SCHEDULE D exact / step 64/68; 15 and 11 shared cells, 0 disagree |
+| a **dynamically** initialised `static` local (guard variable) | STATIC | SCHEDULE D exact — but only **4** discriminating cells, and the row says so |
+| `template<class T> T c1(T)` at `int` | EXTERNAL | step 64/68 — an **ordinary external callee** |
+| `template<class T> static T c1(T)` | **STATIC** | SCHEDULE D exact, 12 discriminating cells |
+| `template<class T> inline T c1(T)` | EXTERNAL | step 72/76 in raw `s`, i.e. 64/68 on the index |
+
+**`extern "C"` is a name-mangling change and nothing else** — registered at
+p=0.8 and banked on 15 discriminating cells, which is the only reason to
+believe it. A keyword that "obviously cannot change the code" is precisely what
+`static` looked like for two rounds, so the prior on this axis is worth
+nothing and the cells are worth everything.
+
+**A template instantiation does NOT get the `inline` bonus** — registered at
+p=0.6 that it would, on the grounds that an instantiation is a COMDAT like an
+inline function, and **refuted**: `tmpl-ext`'s step is at raw `s` 64/68, the
+plain-external row exactly. Spell `inline` on it and it moves to 72/76 like
+anything else. So COMDAT-ness is not what §6.17.5's 8 bytes are about.
+
+**The dynamically-initialised static local is the round's weakest row and is
+reported as such.** Its guard code puts the base callee at 112 bytes, so the
+sweep only ever reaches indices 112–140 — four discriminating cells, all in the
+`2` band. It agrees, and four cells in one band is thin evidence. The
+`ext-sloc-dyn` row is thinner still: **no shared index with its control at
+all**, and the summary prints `not comparable: NO SHARED INDEX`, which is the
+honest report and not a pass.
+
+### 6.18.4 Virtual: refused at every size, and it is not a size decision
+
+All twelve refuting rows in the main `/O1` sweep are virtual, and every one of
+them carries the new `[1 INDIRECT call]` column:
+
+| case | index range swept | `Ndir` | |
+|---|---|---:|---|
+| `mem-nonvirt` — an out-of-class member through a pointer (the CONTROL) | 44–100 | 12 → 0 at 68 | step 64/68, **identical to `ext-base`** |
+| `mem-virt` — *the same, plus the `virtual` keyword and nothing else* | 48–104 | **0 everywhere** | 5 rows refuted **below** the step |
+| `mem-virt-inclass` — …and implicitly `inline` too | 40–96 | **0 everywhere** | 7 rows refuted below the step |
+| `mem-virt-obj` — the same virtual member on a **local object** | 48–104 | 12 → 0 at 68 | step 64/68, **0 refutations** |
+
+The pre-registration committed to deciding categorical-vs-scheduled **from a
+rung below the step**, and that is what makes this readable: `mem-virt` is
+refused at index 48, deep inside the band where its byte-identical non-virtual
+twin takes 12 of 12. Five and seven cells, both below the step.
+
+But the `bctrl` column says what the refusal *is*, and it is not an inline
+decision at all: **there is no call to decline.** The site is an indirect
+branch through the vtable and the callee's identity is not known at the call.
+`mem-virt-obj` is the control for that reading and it lands: give the same
+virtual member a **local object** whose dynamic type is known, and the compiler
+devirtualises it and then obeys the external rule **exactly**, step 64/68, zero
+refutations — while disagreeing with `mem-virt` on 5 shared index cells
+(12 against 0). Registered at p=0.4 and it is the round's best-priced hit.
+
+> So `virtual` is not a new class of the size rule. It is a call the rule never
+> gets to see, and §6.17.4's "`≤64 B` inlined at every N" needs the qualifier
+> **"at a call site whose callee is known"** — which is a statement about the
+> *site*, where every other qualifier in §6.15–§6.17 is about the *callee*.
+
+### 6.18.5 Varargs: a categorical class, in BOTH linkage classes
+
+Not on the ranked list, and the only genuine categorical refusal the round
+found:
+
+| callee | index swept | `Ndir` | control at the same index |
+|---|---|---:|---|
+| `static int c1(int a, ...)`, framed body | 76–132 | **0 at every rung** | 7, 5, 4, 4, 3, 3, 3, 2 |
+| `static int c1(int a, ...)`, **leaf** body | **36**–108 | **0 at every rung** | **12** at 36–64 |
+| `int c1(int a, ...)`, leaf body | **36**–108 | **0 at every rung** | 12 at 36–64 |
+
+The framed spelling alone could not have settled it: a variadic framed callee
+cannot be built smaller than **76 bytes**, which is already past the
+`unbounded` band, so "refused at every size" and "refused because of its size"
+are indistinguishable at exactly the place the pre-registration says to look. A
+**leaf** body starts at 36 and walks the whole band. Twelve shared index cells
+with the leaf control, **twelve disagreeing**, the lowest at index 36 — an
+`unbounded`-band cell where the control takes 12 of 12 and the variadic takes
+none. Both linkage classes, so this is a third class and not a linkage effect.
+
+### 6.18.6 The one nobody listed: a call in the callee is worth 48 bytes
+
+Building that small variadic callee needed a leaf body, so a **leaf control**
+was written to sit beside it. The control refuted SCHEDULE D on its own row —
+12 sites at `s` = 68, 72, 76 and 80 where the table says 9, 9, 7 and 5.
+
+Swept to `s = 248`, the leaf schedule is **SCHEDULE D shifted by exactly 48
+bytes**, with the shape intact:
+
+| band | `Ndir` | framed `s` (§6.15.3) | leaf `s` | Δ |
+|---|---:|---:|---:|---:|
+| unbounded | ≥12 | ≤ 64 | ≤ **112** | **+48** |
+| 9 | 9 | 68 | **116** | +48 |
+| 7 | 7 | 76 | **124** | +48 |
+| 5 | 5 | 80 | **128** | +48 |
+| 4 | 4 | 84 | **132** | +48 |
+| 3 | 3 | 92 | **140** | +48 |
+| 2 | 2 | 104 | **152** | +48 |
+| 1 | 1 | 144 | **192** | +48 |
+
+**61 cells, zero misses**, graded against LAW Dc (§6.18.9) on `s − 48`,
+including the `2 → 1` boundary at 192 that no shift fitted to the low bands
+would have reached. And the external class moves with it: `ext-leaf-ctl`'s step
+is at **112/116**, which is 64/68 + 48 exactly. So this is a term on the index
+in **both** linkage classes, exactly as `inline`'s 8 bytes are, and **six times
+larger**.
+
+Every ladder in §6.15, §6.16 and §6.17 opens `int v=gs(a)+a;` or contains a
+loop calling `gs`. Not one of the 26 has a leaf callee. The term was constant
+across all 449 + 344 rungs and therefore invisible in every one of them — the
+same shape of miss as linkage, and this document's own controls would again not
+have noticed.
+
+### 6.18.7 …and the trigger is the CALL, not the frame
+
+48 bytes is **not** the callee's frame code: measured directly, the framed
+callee at `s=68` has a 16-byte prologue and a 20-byte epilogue — 36 bytes, not
+48 — with a 32-byte body. Nor is it per-call: `d1-noloop-call` adds `k` calls
+and agrees with SCHEDULE D on raw `s` across its whole ladder, which a per-call
+charge of anything like this size would have destroyed. So the term is **flat**
+and its trigger is one of three properties that this compiler makes coincide:
+has a stack frame, saves LR, contains a call.
+
+The first attempt to separate them **failed, and is reported as a failure**: a
+callee with a large indexed stack array was supposed to have a frame and no
+call, and it does not have a frame. This compiler writes a leaf's locals below
+`r1` with no `stwu` at all — verified by hand at `int ar[4]` *and* at
+`int ar[100]`, four hundred bytes below `r1` and still no frame — so that row
+is simply another leaf, and it duly measures the leaf offset on 41 cells. It is
+not evidence.
+
+One shape does separate them, and it is a **tail call**:
+
+```
+static int c1(int a){ int v=a*3; …rungs… return gs(v); }
+```
+
+which emits five instructions ending in `b gs` — a **call, with no frame, no
+`stwu` and no LR save anywhere in the callee**. Swept over 46 rungs, `s` = 8 to
+188:
+
+> **The tail-call callee is on the NON-LEAF schedule.** LAW Dc on raw `s`:
+> **46 cells, 0 misses, 17 of them discriminating**; the same form on `s − 48`
+> misses 31 of 46. Its band boundaries are 68 / 76 / 80 / 84 / 92 / 104 / 144 —
+> SCHEDULE D's own, to the byte.
+
+So the 48 bytes are charged for **containing a call**, not for having a frame
+and not for saving LR. Registered at p=0.5 against p=0.5 with the one asymmetry
+named in writing — *"a decider pricing what the CALLER ends up with would
+charge it, which is TC2"* — and TC2 is what happened.
+
+### 6.18.7a `/Ox`: the same negatives, and one positive §6.15.4 did not have
+
+The whole sweep was run at `/Ox` as well, graded against §6.15.4's loop-free
+threshold rather than against SCHEDULE D — which costs one extra reference
+capture per rung, because §6.15.4 states its threshold on the callee's size **as
+emitted at `/O1`** and the `/Ox`-emitted size demonstrably does not decide it.
+**128 discriminating cells, 32 refuting rows.**
+
+Thirty of the thirty-two are the virtual rows again — same finding, same
+`bctrl` column, and `mem-virt-obj` devirtualises at `/Ox` too. Every other axis
+reproduces the 108/112 threshold on 19–23 shared cells with **zero**
+disagreements: return type, `extern "C"`, storage duration and templates are
+inert at `/Ox` exactly as they are at `/O1`, and the `long long` row brackets
+to `(108,116]`, which is `CONSISTENT with`, not moved.
+
+The other two refuting rows were **one cell each**, and one cell is one cell —
+so they were pre-registered three ways and re-probed:
+
+| callee | /Ox step (on the `/O1`-emitted size) | |
+|---|---|---|
+| `int c1(int)` — the control | (108, 112] | §6.15.4 exactly |
+| `VB::c1(int)` — a member, so **2** parameters | (112, 116] | **+4** |
+| `int c1(int q, int a)` — a free 2-parameter fn | (112, 116] | **+4** |
+| `int c1(int q, int r, int a)` — **held out** | (116, 120] | **+8** |
+
+> **§6.15.4's `/Ox` loop-free threshold carries §6.17.6's parameter
+> correction.** `est = s@/O1 − 4·(nparams − 1)`, inlined at `est ≤ 108` and
+> declined at `est ≥ 112`. Fitted on the 2-parameter cell and **held out on the
+> 3-parameter one**, which moves it twice, as OX1 predicted at p=0.6.
+
+That is a second rescoping, smaller than §6.18.6's but of the same kind:
+§6.15.4 was fitted on one-parameter callees like everything else in this
+document, and its threshold is 4 bytes per parameter narrower than it reads.
+And it sharpens §6.17.11's open question rather than closing it — the parameter
+correction is now measured in the **`/O1` external** class and at **`/Ox`**, and
+measured *absent* in the **`/O1` static** class (§6.17.6, refuted on 10 cells).
+Two of three, with no reason for the third.
+
+**And `/Ox` carries a leaf term too — but not the same one.** The `/Ox` re-gate
+left four refuting rows that were neither virtual nor variadic: a leaf callee
+inlined at `/O1`-emitted sizes 112, 116, 120 and 124, where §6.15.4 says ≥112
+declines. Swept out to 60 rungs on the same 4-byte ladder, the leaf threshold
+is located:
+
+| callee | `/Ox` step, on the `/O1`-emitted size | Δ |
+|---|---|---:|
+| contains a call (every ladder in this document) | (108, 112] | — |
+| **leaf** | **(152, 156]** | **+44** |
+| tail call — a call, no frame | (104, 108] | −4, **one cell** |
+
+**Forty-four, not forty-eight.** The two modes agree that a call in the callee
+buys a flat term and **disagree on its size by one instruction**, which is one
+more instance of §6.15.6's standing finding that `/O1` and `/Ox` are not
+rescalings of one another. Registered at p=0.4 that it would be 48 and
+**refuted**; p=0.5 that it would differ, and that is what happened.
+
+The tail-call row is a **one-cell discrepancy** and is reported as one: at
+`/Ox` it declines at a `/O1`-emitted size of 108 where the framed control is
+inlined, four bytes low. It is firmly on the **non-leaf** side — 61 shared
+cells with the leaf ladder, **12 disagreeing** — so OL3 lands and the trigger
+is the call at `/Ox` as well. The four bytes are one cell, they are not
+modelled, and they are not called a term.
+
+### 6.18.8 What this rescopes
+
+* **SCHEDULE D (§6.15.3) and the external `≤64` step (§6.17.4) are claims about
+  a callee that CONTAINS A CALL.** Both tables are exact for that class and
+  wrong by 48 bytes outside it. A fixture built from either with a leaf callee
+  sits as much as **six bands** away from where its author put it — a 104-byte
+  leaf callee is `unbounded` where the table says 2 — in either linkage class.
+  This is the largest rescoping in the section, and larger than §6.17's, which
+  was 8 bytes and one class.
+* **The index now has three known terms and one known class boundary**:
+  `index = s − 8·[inline] − 4·(nparams−1)·[external] − 48·[leaf]`, with
+  `virtual`-through-a-pointer and `...` outside the rule entirely. All three
+  terms are additive as far as measured; the `inline`×leaf and
+  `inline`×template crossings are measured, the leaf×external one is measured,
+  and no other crossing is.
+* **§6.17.4's "`≤64 B` inlined at every N" needs a SITE qualifier**, not only a
+  callee one: an indirect call site has no callee to price.
+* **The `/O1` categorical refusals are not closed after all.** §6.17.7 resolved
+  all 22 of §6.15.5's cells and called the class finished. Varargs is a
+  twenty-third case of a different kind — refused at index 36, where no size
+  rule can reach — so the class is reopened with one member.
+* **§6.15.4's `/Ox` loop-free threshold is 4 bytes per parameter narrower than
+  it reads, and 44 bytes wider for a leaf callee** (§6.18.7a). The parameter
+  part is the same correction §6.17.6 measured for the `/O1` external class and
+  measured *absent* for the `/O1` static one; the leaf part is `/O1`'s term
+  minus one instruction, which no reading explains.
+
+### 6.18.9 Task 2 — where LAW D actually fails, and what that buys
+
+No seventh closed form is proposed. What is proposed is a **relocation of the
+existing refutation**, which is cheaper and checkable.
+
+§6.15.3 shipped `(N−1)·(s−64) < 80` as LAW D, and it died on its own hold-out.
+Restate its budget in **instructions** (`i = s/4`) rather than bytes and its
+constant comes out exact:
+
+```
+        (N − 1) · (i − 16)  ≤  19
+```
+
+*sixteen instructions are free, and you may duplicate at most nineteen more
+beyond the first copy.* Three things follow that were not visible in bytes:
+
+1. **It generates the schedule's first row rather than clamping it.** At
+   `i ≤ 16` the left-hand side is ≤ 0 and every `N` satisfies it. `≤64 B →
+   unbounded` falls out of the inequality.
+2. **It generates the two values the sequence SKIPS.** `1 + ⌊19/d⌋` can only
+   ever take **1, 2, 3, 4, 5, 7, 10, 20** — computed, in the run's own output
+   — so 8 and 6 are arithmetically unreachable. §6.15.7 asked for *"a mechanism
+   that produces exactly that"* sequence and this is it.
+3. **Its entire failure is three cells**: `i = 17, 18` (it allows 20 and 10
+   where 9 is measured) and `i ≥ 65` (it allows 1 where 0 is measured). Clamp
+   those two ends —
+
+```
+        N_max(i) = 0                             i ≥ 65
+                   min(9, 1 + ⌊19/(i − 16)⌋)     otherwise
+```
+
+— and the form reproduces **every 4-byte cell of the measured table**, computed
+at run time and printed, not asserted. And both constants are **forced**: a
+search over budget 1..59 × cap 1..39 returns exactly one pair, `(19, 9)`.
+
+**What this is not.** It is not a resurrection of LAW D and it is not a law.
+
+* §6.17.10's negative stands and extends: for `N = 1 + ⌊B/f(s)⌋` the rows pin
+  `f(68), f(72) ∈ (B/9, B/8]` and `f(76) ∈ (B/7, B/6]`, so the relative growth
+  must again **increase** and every affine, every power and every exponential
+  cost dies. The clamp is **not a cost**, which is precisely why it can absorb
+  a refutation no cost function can.
+* **The cap 9 is fitted on exactly the two cells that killed LAW D**, which is
+  the move this lane forbids, and pretending otherwise would be worse than not
+  proposing it. Its hold-out is *one* cell — fit on `i=17`, and `i=18` is then
+  held out, where the uncapped form says 10 and the capped one says 9; measured
+  9, by six ladders — plus a second *source shape* landing on the same two
+  indices through the `inline` shift, which tests that the cap is a function of
+  the **index** and not of `s`. That is thin and is labelled thin.
+* The `≥65` clamp **does** have a real hold-out and `--lawd` takes it. A
+  `static inline` callee of **268 emitted bytes** has index 260 — a cell no
+  version of this table has ever measured — and is **refused outright**, while
+  one of 264 bytes (index 256) is inlined once. Five held-out ceiling cells,
+  reached only through the `inline` shift, **0 refutations**; 44 cells graded
+  in total across the two spellings, **0 refutations**.
+* And the whole of it is now scoped to §6.18.6's class: LAW Dc is graded on the
+  **index**, so it holds for a leaf callee on `s − 48` — 61 cells, 0 misses —
+  and for a tail-call one on raw `s` — 46 cells, 0 misses.
+
+The honest summary is unchanged in kind and sharper in degree: **the rule
+generating the schedule is still `NOT MODELLED`; what is modelled is that its
+interior is a net-duplication budget of nineteen instructions with the first
+copy free, and that its two ends are clamps rather than costs.**
+
+### 6.18.10 What round 31 leaves `NOT MODELLED`
+
+* **The rule generating the `/O1` schedule**, now bounded as §6.18.9 states.
+  The cap of 9 has one held-out cell and no mechanism.
+* **What the 48 bytes ARE.** The trigger is measured (a call in the callee) and
+  the magnitude is measured (48 bytes at `/O1`, both linkage classes, whole
+  shape preserved; **44 at `/Ox`**). Twelve instructions is not the frame (36),
+  not the callee's own call sequence, and not anything else identified in the
+  emitted bytes — and nothing explains why `/Ox` charges eleven instead.
+* **Whether a `bl __savegprlr_N` counts as "a call".** `callee_is_leaf()`
+  counts it, because it is a REL24, and no probe has a callee whose only call
+  is the allocator's helper. That is one cheap ladder away and it was not run.
+* **The tail-call callee's four bytes at `/Ox`** (§6.18.7a) — one cell, not a
+  term, not modelled.
+* **Why the two linkage classes use different size measures** — unchanged from
+  §6.17.11, and now with a datum against the obvious guess: the external index
+  subtracts 4 per *declared* parameter and **not** for the ABI's sret pointer.
+* **The `/Ox` threshold for callees containing a loop**, untouched.
+* **`/Ox`'s own categorical refusals**, untouched.
+* **The `/O1` categorical refusals, REOPENED** with one member (varargs) after
+  §6.17.7 closed the class.
+
+> **The riskiest thing still unmeasured** is that the leaf term was found by
+> the same accident as linkage, and the lesson has not been learned so much as
+> repeated. Three rounds have now been named after a variable the ladders held
+> fixed, and each was found by a control rather than by the probe. What is
+> still held fixed: every callee in this section is called with **all its
+> arguments in registers** (the `...` row is the one that was not, and it is a
+> categorical refusal); every call *inside* a callee in this section is to an
+> **undefined external**, never to another local function that might itself be
+> inlined; and — across the whole of §6.15 to §6.18, without a single exception
+> — the caller is `int P(int a){ int s=gs(a)+a; …; return s; }`. **The caller
+> has never been a variable.** Every rescoping so far has been a property of
+> the callee, and the decision is a property of a *pair*; §6.15.3a measured
+> that P's size and P's existing expansion do not move the limit, but P's
+> linkage, its parameter count, its return type and its own leafness have never
+> been touched. That is the cheapest untried probe and it is the one this
+> section's own findings make most likely to pay: if a 48-byte term rides on
+> whether the *callee* contains a call, the caller is the obvious next place to
+> look for one.
+>
+> Second, and now sharper than in §6.17.11: `s` is measured on the emitted obj,
+> the external index subtracts parameter-setup the obj contains, and the leaf
+> term subtracts 48 bytes the obj does not contain anywhere. The index is
+> drifting further from "a size of the emitted callee" with each round, and
+> reading (A) of §6.16.5a is correspondingly harder to hold.
+
+### 6.18.11 The pre-registration, scored
+
+`work/gt-axes/ESTIMATE-round31.txt`, six tranches, each written before its own
+capture and each naming what the previous result had made questionable.
+**Fifty-one registered: forty landed, eight missed, two vacuous and one
+half.** The two vacuous ones are kept in the table rather than dropped:
+§6.16.12's rule is that a prediction whose antecedent never occurred is not a
+hit. And the ratio should be read down, not up: **three of the seven misses
+(TC1, OX2, OX3) are the losing branch of an explicitly two- or three-way
+registered choice**, where naming every branch guarantees a miss and costs
+nothing. The five that were real bets are R5, R6, S2, T2 and OL1.
+
+| prediction | p | outcome |
+|---|---:|---|
+| X1 the controls reproduce §6.17.4's step and profile exactly | 0.95 | ✓ 12/12/12/12/12/9/9/7/5/… and 64/68 |
+| X2 total discriminating cells ≥ 40 | 0.8 | ✓ **381** at `/O1`, 144 more at `/Ox` |
+| X3 at least one axis returns zero discriminating cells | 0.6 | ✓ `ext-sloc-dyn`, and it prints so |
+| I2 the REL24 fix moves zero verdict lines | 0.8 | ✓ byte-identical, 4 runs |
+| I3 the `bctrl` counter moves zero rows | 0.9 | ✓ |
+| R1 char/short/bool/unsigned carry no term | 0.7 | ✓ 0 disagreeing cells of 56 |
+| R2 `void` carries no term | 0.8 | ✓ against its own matched control |
+| R3 `long long` carries no term | 0.6 | ✓ (bracket, not a 4-byte step) |
+| R4 `double` carries no term | 0.65 | ✓ |
+| R5 the double/struct rows will be INERT | 0.55 | ✗ both straddle the step, 3 and 4 cells |
+| R6 an sret pointer counts as a parameter | 0.5 | ✗ **step unmoved at 64/68** |
+| R7 pointer and reference returns carry no term | 0.75 | ✓ |
+| R8 the `long long` ladder has 8-byte resolution | 0.7 | ✓ and the bracket says so |
+| C1 `extern "C"` changes nothing but the name | 0.8 | ✓ 15 cells |
+| C2 `extern "C" static` compiles and is STATIC | 0.6 | ✓ |
+| S1 a const static local carries no term | 0.6 | ✓ |
+| S2 a **dynamic** static local is CATEGORICAL in both classes | 0.55 | ✗ — and the "evidence" for it was instrument fault (A) |
+| S2′ (revised) a const static local carries no term | 0.7 | ✓ |
+| S3 the global control behaves like the baseline | 0.85 | ✓ |
+| S4 (revised) a dynamic static local carries no term | 0.55 | ✓ on 4 cells, and 4 is thin |
+| V1 a virtual through a pointer is refused below the step | 0.75 | ✓ 5 rows, and it is not a size decision |
+| V1′ `mem-virt` is INDIRECT at every k | 0.9 | ✓ |
+| V2 the local-object virtual IS inlined below the step | 0.4 | ✓ **and obeys the step exactly** |
+| V3 the non-virtual twin is the control and lands | 0.85 | ✓ SAME STEP |
+| V4 `this` is a parameter, index `s−4` | 0.7 | ✓ (reproduces §6.17) |
+| T1 a template instantiation is EXTERNAL | 0.9 | ✓ |
+| T2 …and gets the 8-byte `inline` bonus | 0.6 | ✗ **it is an ordinary external**; `inline` on it still buys 8 |
+| T3 `static` template is STATIC and gets SCHEDULE D | 0.45 | ✓ |
+| G1/G2 LAW Dc survives 48..272 on plain and on `inline` | 0.85 / 0.7 | ✓ 44 cells, 0 refutations |
+| G3 HELD OUT: a 268-byte `static inline` callee is refused | 0.75 | ✓ |
+| G4 …and a 264-byte one is inlined once | 0.8 | ✓ |
+| G5 the mixed rung generator covers every band | 0.6 | **half** — it misses 4-byte targets, but all 8 bands are covered across the two spellings |
+| L1 the leaf ladder does decline | 0.8 | ✓ |
+| L2 the leaf schedule is SCHEDULE D shifted by a constant | 0.5 | ✓ |
+| L3 the offset is ≥ +20 bytes | 0.5 | ✓ **+48** |
+| L4 the shape is preserved; LAW Dc holds on the shifted index | 0.6 | ✓ 61 cells, 0 misses |
+| L5 the external leaf step moves by the same offset | 0.55 | ✓ 112/116 |
+| L6 the vararg refusal holds at every index the leaf reaches | 0.9 | ✓ 36 through 108 |
+| F1 a framed, call-free callee gets the framed term | 0.5 | **vacuous** — the probe produced no frame |
+| F2 …or the leaf term | 0.5 | **vacuous**, same reason |
+| F3 the external leaf step is at 112 | 0.6 | ✓ |
+| TC1 the tail-call callee gets the LEAF term | 0.5 | ✗ |
+| TC2 …or the FRAMED term (the trigger is the call) | 0.5 | ✓ 46 cells, 0 misses |
+| TC3 it is one of the two, not a third value | 0.7 | ✓ |
+| OL1 the `/Ox` leaf term is +48 like `/O1`'s | 0.4 | ✗ **+44** |
+| OL2 …or a different magnitude | 0.5 | ✓ |
+| OL3 the tail-call callee is on the non-leaf `/Ox` threshold | 0.7 | ✓ 12 of 61 shared cells disagree with the leaf ladder |
+| OX1 the `/Ox` threshold carries the parameter correction | 0.6 | ✓ +4 at 2 params, **+8 at 3, held out** |
+| OX2 …or it is member-specific | 0.25 | ✗ the free 2-arg row moves too |
+| OX3 …or the single cell is resolution noise | 0.15 | ✗ |
+
+**The named bias, and what it did.** The estimate opened by naming both signs —
+the brief handing me a ranked list it wanted results from, and the cheaper
+opposite prime of *"they are all just `s`, ship it"* — and pre-committed to
+deciding categorical-vs-scheduled from a rung **below** the step. That
+commitment is what made §6.18.4 and §6.18.5 readable and it is why the
+`sta-vararg` framed row was not published on its own.
+
+But the bias that actually cost something is a third one nobody named: **I took
+the brief's ranking as the search space.** Five ranked axes produced five
+negatives; the two positives came from a keyword that was not on the list and
+from a **control written to support one of them**. §6.17.12 recorded that its
+four misses were "four different ways of asking *is it about `this`*"; this
+round's are narrower and worse — the entire ranked list was one hypothesis
+(*the callee's declared interface carries a term*) asked eight ways, and the
+answer was in its body. Whoever writes round 32's estimate should notice that
+**all three of the last three mechanisms were found by controls**, and price
+controls accordingly.
+
+The one honest abstention is F1/F2. Two predictions were registered, the probe
+did not create the condition either was about, and rather than reading the
+result as evidence for F2 the row is recorded **vacuous** and a second probe
+(the tail call) was built. §6.16.12's rule — *a prediction whose antecedent
+never occurred is not a hit* — applied to a case where the tempting reading
+happened to be the one that later turned out right.
+
+### 6.18.12 Reproduction
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+# THE ROUND: five ranked axes plus varargs, each against a matched control.
+# Read `discriminating cells` before `refuting rows` on every block.
+scripts/gt_inline_decline.py --axes --max 12
+scripts/gt_inline_decline.py --axes --max 12 --mode '/Ox /GS- /c'
+# the size scout — one capture per spelling. BOTH instrument faults were
+# found here, before a single verdict sweep was paid for.
+scripts/gt_inline_decline.py --axes --scout --max 3
+# THE FINDING: a leaf callee, swept far enough to see the whole shifted table
+scripts/gt_inline_decline.py --axes --max 12 --kmax 60 sta-leaf-ctl ext-leaf-ctl
+# …and the shape that separates "has a frame" from "contains a call"
+scripts/gt_inline_decline.py --axes --max 12 --kmax 45 sta-tailcall
+# the failed separation, kept because a failed probe is not evidence
+scripts/gt_inline_decline.py --axes --max 12 --kmax 40 sta-frameleaf
+# /Ox: does §6.15.4's threshold carry §6.17.6's parameter correction? (it does)
+scripts/gt_inline_decline.py --axes --max 12 --mode '/Ox /GS- /c' \
+    ext-base ext-2arg ext-3arg mem-nonvirt
+# …and a leaf term? (it does — +44, not +48)
+scripts/gt_inline_decline.py --axes --max 12 --kmax 60 --mode '/Ox /GS- /c' \
+    sta-leaf-ctl sta-tailcall
+# varargs: framed (bounded, uninformative) and leaf (below the band)
+scripts/gt_inline_decline.py --axes --max 12 sta-vararg ext-vararg
+scripts/gt_inline_decline.py --axes --max 12 --kmax 18 \
+    sta-leaf-ctl sta-vararg-leaf ext-vararg-leaf
+# TASK 2: the clamped form, its forced constants, and the ceiling hold-out
+scripts/gt_inline_decline.py --lawd --max 12
+```
+
+**The re-gate of the two instrument fixes**, before/after, all four runs
+byte-identical:
+
+```sh
+scripts/gt_inline_decline.py --max 12                       # 26 ladders, 516 lines
+scripts/gt_inline_decline.py --max 12 --mode '/Ox /GS- /c'  # 516 lines
+scripts/gt_inline_decline.py --linkage --max 12             # 124 lines
+scripts/gt_inline_decline.py --cases --max 6
+```
+
+`--axes` prints `<== *** REFUTES THE EXTERNAL RULE ***` /
+`*** REFUTES THE SCHEDULE D RULE ***` on any row whose measured verdict
+disagrees with its **measured** storage class's index rule, `<== discriminating`
+on every rung where an 8-byte term could have shown up, and
+`NO DISCRIMINATING CELL` in words where none could. `--lawd` prints the
+`(budget, cap)` search, so "the constants are forced" is a computation in the
+run's own output rather than a claim in this section.
+
+**The model in the script now contains this round's findings, so the counts
+above are the ones from the runs that FOUND them.** This is §6.17.5's precedent
+— `sta-inline` "refuted SCHEDULE D on its own row" and then `sched_index`
+gained the `inline` term — and it is the point of shipping a falsifier rather
+than a memory. Three changes, and what each does to a re-run:
+
+| change | effect on a re-run |
+|---|---|
+| `sched_index` subtracts **48** when `callee_is_leaf()` — measured out of the obj: no REL24 and no `bcctrl` anywhere in the callee | `sta-leaf-ctl`'s 31 refutations and `ext-leaf-ctl`'s 12 become **0**; `sta-tailcall` is unaffected, because a tail call IS a REL24 |
+| an **indirect call site** abstains: `not graded: INDIRECT CALL SITE — there is no callee to price` | the 12 `/O1` and 30 `/Ox` virtual refutations become abstentions. The model-free column keeps the finding: `mem-virt` still prints `5 disagree: 48(0 vs 12), …` against its byte-identical non-virtual twin |
+| `grade_ox` subtracts 4 per parameter beyond the first | `mem-nonvirt`, `ext-2arg` and `ext-3arg` stop refuting at `/Ox` |
+
+The variadic rows are **annotated and not suppressed** — a variadic signature
+leaves no signal in the obj, so the abstention would have to be read from the
+spelling, and this document's rule is that abstentions are measured. Those rows
+keep printing their refutation with `[VARIADIC — §6.18.5: outside the size
+rule]` beside it, so a compiler that one day inlined one would not be silently
+absorbed.
+
+**Current score of the shipped falsifier**, whole corpus, after the three
+changes:
+
+| | rows refuting | discriminating cells |
+|---|---:|---:|
+| `--axes --max 12` (`/O1`, 41 kinds) | **45, and all 45 are the annotated variadic rows** — every other kind is 0 | 289 |
+| `--axes --max 12 --kmax 60 sta-leaf-ctl ext-leaf-ctl` | **0** (was 43) | 21 |
+| `--lawd --max 12` | **0** of 44, 5 of them held out | — |
+| `--linkage --max 12` | **0**, and byte-identical to before the round | — |
+| `--cases --max 6`, the 26 ladders, both modes | **0**, byte-identical | — |
+
+The `mem-virt` row is the one to read alongside that table: it now grades as an
+abstention and **still reports `5 disagree: 48(0 vs 12), 52(0 vs 12), …`** in
+the model-free column. An abstention that erased the evidence would be a
+suppression; this one moves the evidence out of the model's column and into a
+column the model cannot reach.
