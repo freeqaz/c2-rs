@@ -3268,13 +3268,14 @@ mod tests {
             // name. The form claim it carried is now made directly against
             // [`classify`], which is the decode this test is about, in
             // `a_chain_is_a_chain_in_both_statement_positions` below.
-            // The wild one keeps its third construct — the `30 A6 45 F3 30` the
-            // hand-read of this segment predicted, an indirect load of a const float
-            // — and moves to the same form for the same reason.
-            (
-                WILD_CHAIN_AS_RECV_LOAD,
-                "expr-call-in-expr-chained-then-deref-load-more",
-            ),
+            // `WILD_CHAIN_AS_RECV_LOAD` was the third row here and is not any
+            // more: **WCO** gave the chain-plus-designator an acceptance
+            // production, and that segment parses to the end of the body under
+            // it (`30 A6 45 F3 30` is an indirect load of a `const float`), so
+            // it now refuses under `mcall-chain-tail-load-class` — a complete
+            // body stopped by a named gate, which is strictly more informative
+            // than a second-blocker name. Asserted at its new site, in
+            // `shapes::mcall_chain`.
             (PROBE_CHAIN_IN_ASSIGNMENT, "expr-call-in-expr-chained-whole"),
             (PROBE_IF_ON_NAMED_OBJECT, "expr-call-in-expr-recv-object-then-branch-brfalse"),
             // …and here too: off-add, then the `30 86 43 D5 30` indirect load of the
@@ -3403,7 +3404,10 @@ mod tests {
         // …while a modelable one always carries one or the other.
         // (`PROBE_CHAIN_IN_RETURN` was the third row here and is now in class —
         // WCH — so it raises no block to carry either suffix.)
-        for seg in [WILD_CHAIN_AS_RECV_LOAD, WILD_DTOR_DELETES_A_MEMBER] {
+        // (`WILD_CHAIN_AS_RECV_LOAD` was the first of these and is now claimed
+        // by WCO's acceptance gate — see the note in
+        // `every_second_blocker_names_its_own_construct`.)
+        for seg in [WILD_DTOR_DELETES_A_MEMBER] {
             let f = parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
             assert!(f.ends_with("-more") || f.contains("-whole"), "{f}");
         }
@@ -3652,7 +3656,9 @@ mod tests {
             PROBE_CHAIN_IN_RETURN,
             PROBE_CHAIN_IN_ASSIGNMENT,
             PROBE_IF_ON_NAMED_OBJECT,
-            WILD_CHAIN_AS_RECV_LOAD,
+            // (`WILD_CHAIN_AS_RECV_LOAD` is claimed by WCO's acceptance gate
+            // since it parses to the end of the body, so it no longer carries a
+            // `CALL_IN_EXPR` key at all.)
             WILD_DTOR_DELETES_A_MEMBER,
             WILD_DTOR_WIDE_DESCRIPTOR,
             DTOR_MEMBER_OFF0,
@@ -3782,7 +3788,9 @@ mod tests {
             // (`PROBE_CHAIN_IN_RETURN` is in class since WCH and raises no key.)
             PROBE_CHAIN_IN_ASSIGNMENT,
             PROBE_IF_ON_NAMED_OBJECT,
-            WILD_CHAIN_AS_RECV_LOAD,
+            // (`WILD_CHAIN_AS_RECV_LOAD` is claimed by WCO's acceptance gate
+            // since it parses to the end of the body, so it no longer carries a
+            // `CALL_IN_EXPR` key at all.)
             WILD_DTOR_DELETES_A_MEMBER,
         ] {
             let seg = free_fn(seg);

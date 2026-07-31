@@ -110,13 +110,14 @@
 
 use crate::func::body::expr::{eat_return_plumbing, eat_scopes};
 use crate::func::body::{Block, BodyShape, SeqCall, SeqTail};
-use crate::func::readers::eat_byte;
+use crate::func::readers::{eat_byte, is_ptr4_kind, read_type, value_class, ValueClass};
 use crate::func::IlOp;
 
 use super::calls::{
     eat_call_args, eat_call_token, eat_callee_push, link_arg_slots, plan_saved_gprs,
     tail_call_shape, MAX_REGISTER_FORMALS,
 };
+use super::designator::{eat_offset_adds, sized_ptee};
 use super::mcall_tail::{eat_receiver_this, eat_this_bind};
 use super::params::parse_params;
 
@@ -217,6 +218,17 @@ pub(crate) fn try_parse_member_chain_call(
         // The last call's value IS the result, with no post-op — the same tail
         // `int f(){ g1(); return g2(); }` produces, which is no instruction at all.
         SeqTail::CallValue { add_k: 0 }
+    } else if matches!(seg.get(p), Some(&0x33) | Some(&0x30)) {
+        // **WCO** — a designator step on the chain's pointer result. One
+        // instruction or none; see [`chain_result_designator`].
+        //
+        // Anchored on **either** byte. `*p->a()->b()` is a bare `30` with no
+        // offset add in front of it and emits the same `lwz r3,0(r3)` as
+        // `p->a()->b()->m` at offset 0 (measured, `e_deref` and `e_off0` in
+        // `work/WCO/probe/p6.cpp`); anchoring on `33` alone would have been a
+        // private limit inside a recognizer that already handles the general
+        // case, which is the defect §6n's item 1 records six times over.
+        chain_result_designator(seg, &mut p, depth)?
     } else {
         return Err(None);
     };
@@ -275,6 +287,198 @@ pub(crate) fn try_parse_member_chain_call(
     // of "this is Class A" is exactly the shape of drift `GAPS.md` §6 records.
     let saved = plan_saved_gprs(&params, &calls, 0, p).map_err(Some)?;
     Ok(BodyShape::CallSeq { params, calls, tail, saved })
+}
+
+/// **WCO — one designator step on the chain's pointer RESULT**:
+/// `return p->a()->b()->m;` and `return &p->a()->b()->m;`.
+///
+/// ```text
+///   … 4C                                the outermost call's apply
+///   ( 33 <int-like> k  27 <PTR>          a RUN of byte-offset adds, summed —
+///   | 33 <long>     k  28 00 00 )+       [`eat_offset_adds`], the shared walk
+///   [ 30 <TYPE> [ 2C <same class> 00 ] ] the indirect load, when there is one
+///   41 <TYPE>                            the result type
+///   <return plumbing>
+/// ```
+///
+/// **Two cells, one instruction each, and the second was already shipped.**
+/// Read off the reference obj (`work/WCO/probe/p1.cpp`, `/O1 /GS- /c`):
+///
+/// ```text
+///   int  c_off  (O* p) { return  p->Next()->gf()->m; }   bl ; bl ; lwz  r3,4(r3)
+///   int  c_off0 (O* p) { return  p->Next()->gf()->a; }   bl ; bl ; lwz  r3,0(r3)
+///   int* c_addr (O* p) { return &p->Next()->gf()->m; }   bl ; bl ; addi r3,r3,4
+///   int* c_addr0(O* p) { return &p->Next()->gf()->a; }   bl ; bl ;   (nothing)
+/// ```
+///
+/// The **address** cell is [`SeqTail::CallValue`], which has shipped since #35
+/// rung 1 and folds `+0` away by itself, so it is a recognizer and nothing else.
+/// The **load** cell is one new tail, [`SeqTail::CallLoad`], and it does *not*
+/// fold at offset 0 — the two middle rows above are the whole difference and
+/// they are 4 bytes of `.text` apart.
+///
+/// ## The locator, and the check in both directions
+///
+/// The offset run is [`eat_offset_adds`], shared, **not** a private single-add
+/// copy. That is not a style preference: the indirect-load *leaf* carried
+/// exactly such a private copy until W35, it refused **5,161** functions the
+/// address and store leaves beside it accepted, and this file would have
+/// reproduced the identical defect one production over. A run folds here for the
+/// same reason it folds there — `p->Next()->gf()->in.b` is `27 · 27` and emits
+/// one `lwz r3,48(r3)`, and `&p->Next()->gf()->arr[2]` is `27 · 28` and emits
+/// one `addi r3,r3,60` (both measured, `work/WCO/probe/p6.cpp`).
+///
+/// The other direction — is there a locator nobody asks? — the `30`/`41` type
+/// tail below **agrees rule for rule** with
+/// [`super::leaf_load::finish_indirect_load_of`], measured across the whole
+/// width table in one TU (`p6.cpp`), base already in r3:
+///
+/// ```text
+///   int / int* / nested / subscripted   lwz  r3,k(r3)      — ADMITTED here
+///   char, unsigned char                 lbz  r3,k(r3)
+///   short, unsigned short               lhz  r3,k(r3)
+///   long long                           ld   r3,k(r3)
+///   char widened to int                 lbz  r11,k(r3) ; extsb r3,r11
+///   float / double                      lfs / lfd  f1,k(r3)   — a different file
+/// ```
+///
+/// Everything but the first row is **refused by name** rather than admitted,
+/// because emitting them means moving `finish_indirect_load_of`'s width/sext
+/// dispatch out of the leaf and into a locator both can call — which is a rung
+/// and not a line, and the table above is its ceiling handed over intact.
+fn chain_result_designator(
+    seg: &[u8],
+    p: &mut usize,
+    depth: usize,
+) -> Result<SeqTail, Option<Block>> {
+    // The offset run — **zero or more**, because `*p->a()->b()` has none at all
+    // and is the same instruction at displacement 0.
+    let (off, _last_retype) = eat_offset_adds(seg, p).ok_or(None)?;
+    let mut q = *p;
+    let load = eat_byte(seg, &mut q, 0x30);
+    // The whole rest of the step, read **structurally** — the load's TYPE, an
+    // optional conversion, the result type, and the return plumbing — before a
+    // single class gate is asked.
+    //
+    // **The order matters and it is a contract, not a style.** `Err(Some(b))`
+    // means "this IS the production and it parsed to the end of the segment";
+    // raising a width refusal at the `30` would claim bodies that carry a whole
+    // further construct after the load and replace their measured
+    // `-then-…-more` key with an uninformative one. The wild capture
+    // `mcall::WILD_CHAIN_AS_RECV_LOAD` is exactly that body — a chain, an
+    // indirect load of a `const float`, and then *more* — and it must keep
+    // `expr-call-in-expr-chained-then-deref-load-more`.
+    let loaded_at = q;
+    let loaded = if load {
+        let (tag, kind, _, tw) = read_type(seg, q).ok_or(None)?;
+        q += tw;
+        // An optional conversion on the loaded value. Consumed generically here
+        // and *classified* below, for the same reason as above.
+        let conv = if seg.get(q) == Some(&0x2C) {
+            let (t2, k2, _, tw2) = read_type(seg, q + 1).ok_or(None)?;
+            let mut probe = q + 1 + tw2;
+            if !eat_byte(seg, &mut probe, 0x00) {
+                return Err(None);
+            }
+            q = probe;
+            Some((t2, k2))
+        } else {
+            None
+        };
+        Some((tag, kind, conv))
+    } else {
+        None
+    };
+    // The result type, stated again. Read generically; its class is checked
+    // against the load's below.
+    if !eat_byte(seg, &mut q, 0x41) {
+        return Err(None);
+    }
+    let (rt, rk, _, rtw) = read_type(seg, q).ok_or(None)?;
+    q += rtw;
+    // The plumbing, which must reach the segment end. Asked WITHOUT a result
+    // type (`false`) because the `41` is already consumed above — letting
+    // `eat_return_head` take it instead would widen the check to its
+    // `eat_int_like_or_ptr4` and lose the class agreement this step needs.
+    eat_return_plumbing(seg, &mut q, false, depth).map_err(|_| None)?;
+    *p = q;
+
+    // ---- from here the body parses to the end of the segment, so every refusal
+    // is a codegen-class one over a COMPLETE body and gets its own key. ----
+
+    // The `lwz`/`addi` displacement field is signed 16-bit. A wider one is
+    // `addis`+`addi` or an indexed load with a scratch register — a different
+    // instruction count, so it refuses rather than truncating. Gated on the SUM,
+    // the same boundary `finish_indirect_load_of` draws for the leaf.
+    if !(-0x8000..=0x7FFF).contains(&off) {
+        return Err(Some(Block { ctx: "mcall-chain-tail-off-wide", byte: None, off: *p, aux: 0 }));
+    }
+    let Some((tag, kind, conv)) = loaded else {
+        // **The address form.** No load: the value is the adjusted pointer, and
+        // the result type must say so. `SeqTail::CallValue` is the same `addi`
+        // the W41 post-op emits and folds `+0` to nothing all by itself.
+        if !is_ptr4_kind(rt, rk) {
+            return Err(Some(Block {
+                ctx: "mcall-chain-tail-addr-class",
+                byte: None,
+                off: *p,
+                aux: 0,
+            }));
+        }
+        return Ok(SeqTail::CallValue { add_k: off });
+    };
+    // **The load form.** The loaded value must be one of the two width-4 classes
+    // c2 lowers with the identical bare `lwz` — a 4-byte integer or a 4-byte
+    // pointer (`docs/IL_LOAD_TYPES.md` §3/§4) — asked through the SAME
+    // [`value_class`] predicate the leaf asks, so the two cannot drift about what
+    // "width 4" means.
+    let Some(cls) = value_class(tag, kind) else {
+        // Named, because what each costs is a number and not an argument. The
+        // narrow and 8-byte scalars are `lbz`/`lhz`/`ld` and a `float`/`double`
+        // member is `lfs`/`lfd` into **f1**, which is a different register file
+        // and a `_fltused` obligation besides.
+        let ctx = match sized_ptee(tag, kind) {
+            Some(_) => "mcall-chain-tail-load-width",
+            None => "mcall-chain-tail-load-class",
+        };
+        return Err(Some(Block { ctx, byte: None, off: loaded_at, aux: 0 }));
+    };
+    if !matches!(cls, ValueClass::Int4 | ValueClass::Ptr4) {
+        return Err(Some(Block {
+            ctx: "mcall-chain-tail-load-class",
+            byte: None,
+            off: loaded_at,
+            aux: 0,
+        }));
+    }
+    // The conversion, when there was one, must stay **inside** the loaded class:
+    // `2C int→int` and `2C ptr→ptr` are cv strips and emit nothing. A
+    // cross-class one is a reinterpret this port has never probed, and a
+    // widening out of a narrow class is the `extsb` the width gate above already
+    // refuses. This gate has no witness among the spellings a caller can write
+    // (the width gate fires first on every one of them) — which is exactly why
+    // it refuses rather than being skipped.
+    if let Some((t2, k2)) = conv {
+        if value_class(t2, k2) != Some(cls) {
+            return Err(Some(Block {
+                ctx: "mcall-chain-tail-load-convert",
+                byte: None,
+                off: loaded_at,
+                aux: 0,
+            }));
+        }
+    }
+    // …and the result type restates the loaded class. Required rather than
+    // skipped: every capture agrees byte for byte.
+    if value_class(rt, rk) != Some(cls) {
+        return Err(Some(Block {
+            ctx: "mcall-chain-tail-load-result",
+            byte: None,
+            off: loaded_at,
+            aux: 0,
+        }));
+    }
+    Ok(SeqTail::CallLoad { off })
 }
 
 #[cfg(test)]
@@ -575,6 +779,219 @@ mod tests {
         );
     }
 
+    /// `int t_off4(O* p) { return p->Next()->gf()->m; }` — **the row**, the load
+    /// cell at displacement 4. Its tail is
+    /// `4C · 33 <int> 04 27 <ptr> · 30 <int> · 41 <int>`, where WCH's is a bare
+    /// `41`. Transcribed verbatim from a live-toolchain capture
+    /// (`work/WCO/probe/t1.cpp`, `c2rs census --keep-il`), not hand-assembled.
+    const MC_TAIL_LOAD4: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x04, 0x53, 0x53, 0x26, 0x05, 0x0A,
+    0x46, 0x2D, 0x04, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xFC, 0x09, 0x26, 0xFB, 0x09, 0xB9,
+    0x04, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x04, 0x27, 0x86, 0x43, 0xF4, 0x08, 0x30, 0x86, 0x41, 0x74, 0x41, 0x86, 0x41, 0x74,
+    0x3A, 0x06, 0x0A, 0x54, 0x02, 0x29, 0x06, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int t_off0(O* p) { return p->Next()->gf()->a; }` — the same body at
+    /// displacement **0**, which still emits `lwz r3,0(r3)`. Verbatim, same TU.
+    const MC_TAIL_LOAD0: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x05, 0x53, 0x53, 0x26, 0x08, 0x0A,
+    0x46, 0x2D, 0x07, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xFC, 0x09, 0x26, 0xFB, 0x09, 0xB9,
+    0x07, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x00, 0x27, 0x86, 0x43, 0xF4, 0x08, 0x30, 0x86, 0x41, 0x74, 0x41, 0x86, 0x41, 0x74,
+    0x3A, 0x09, 0x0A, 0x54, 0x02, 0x29, 0x09, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int* t_addr4(O* p) { return &p->Next()->gf()->m; }` — the ADDRESS cell:
+    /// the identical designator with the `30` load absent, and its `41` states a
+    /// pointer. Verbatim, same TU.
+    const MC_TAIL_ADDR4: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x06, 0x53, 0x53, 0x26, 0x0B, 0x0A,
+    0x46, 0x2D, 0x0A, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xFC, 0x09, 0x26, 0xFB, 0x09, 0xB9,
+    0x0A, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x04, 0x27, 0x86, 0x43, 0x8F, 0x20, 0x41, 0x86, 0x43, 0xF4, 0x08, 0x3A, 0x0C, 0x0A,
+    0x54, 0x02, 0x29, 0x0C, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int* t_addr0(O* p) { return &p->Next()->gf()->a; }` — the address cell at
+    /// displacement 0, which emits **nothing at all**. Verbatim, same TU.
+    const MC_TAIL_ADDR0: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x07, 0x53, 0x53, 0x26, 0x0E, 0x0A,
+    0x46, 0x2D, 0x0D, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xFC, 0x09, 0x26, 0xFB, 0x09, 0xB9,
+    0x0D, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x00, 0x27, 0x86, 0x43, 0x8F, 0x20, 0x41, 0x86, 0x43, 0xF4, 0x08, 0x3A, 0x0F, 0x0A,
+    0x54, 0x02, 0x29, 0x0F, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int t_run(O* p) { return p->Next()->gf()->in.y; }` — TWO offset adds,
+    /// `27 · 27` at 16 and 4, folding into one `lwz r3,20(r3)`. The witness that
+    /// this production shares [`eat_offset_adds`] rather than carrying the
+    /// private single-add copy the load leaf had until W35. Verbatim, same TU.
+    const MC_TAIL_RUN: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x08, 0x53, 0x53, 0x26, 0x11, 0x0A,
+    0x46, 0x2D, 0x10, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xFC, 0x09, 0x26, 0xFB, 0x09, 0xB9,
+    0x10, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x10, 0x27, 0x86, 0x43, 0x91, 0x20, 0x33, 0x86, 0x41, 0x74, 0x04, 0x27, 0x86, 0x43,
+    0xF4, 0x08, 0x30, 0x86, 0x41, 0x74, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x12, 0x0A, 0x54, 0x02,
+    0x29, 0x12, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int t_deref(O* p) { return *p->Next()->gpi(); }` — a bare `30` with **no**
+    /// offset add in front of it, which is the same `lwz r3,0(r3)`. Verbatim,
+    /// same TU.
+    const MC_TAIL_DEREF: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x09, 0x53, 0x53, 0x26, 0x14, 0x0A,
+    0x46, 0x2D, 0x13, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xFD, 0x09, 0x26, 0xFB, 0x09, 0xB9,
+    0x13, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x88, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0xF4, 0x08, 0x00, 0x80, 0x08, 0x10, 0x00, 0x00, 0x4C, 0x30, 0x86, 0x41,
+    0x74, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x15, 0x0A, 0x54, 0x02, 0x29, 0x15, 0x0A, 0x4F, 0x12,
+    0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x0A, 0x4D,
+    ];
+
+    fn tail_of(seg: &[u8]) -> SeqTail {
+        let Some(BodyShape::CallSeq { tail, calls, saved, .. }) = parse_segment(seg, NO_LOCALS)
+        else {
+            panic!("the chained member call with a designator on its result");
+        };
+        assert_eq!(calls.len(), 2, "still two calls; the tail is not one");
+        assert_eq!(saved, Vec::<usize>::new(), "the tail costs no callee-saved GPR");
+        tail
+    }
+
+    #[test]
+    fn a_designator_on_the_chain_result_is_a_load_or_an_add_and_they_differ_at_zero() {
+        // **The pair the whole rung rests on.** The two forms are the same IL
+        // apart from the `30`, and at displacement 0 they emit a different
+        // NUMBER of instructions: `lwz r3,0(r3)` against nothing at all.
+        // Merging them — treating "offset 0 emits nothing" as a property of the
+        // designator rather than of the add — is four bytes of `.text` wrong on
+        // every `f_off0`-shaped body, and both captures are here so the two
+        // cannot be conflated by a later edit.
+        assert_eq!(tail_of(MC_TAIL_LOAD4), SeqTail::CallLoad { off: 4 });
+        assert_eq!(tail_of(MC_TAIL_LOAD0), SeqTail::CallLoad { off: 0 });
+        assert_eq!(tail_of(MC_TAIL_ADDR4), SeqTail::CallValue { add_k: 4 });
+        assert_eq!(tail_of(MC_TAIL_ADDR0), SeqTail::CallValue { add_k: 0 });
+        // A bare `30` with no add at all is the load at displacement 0 — the
+        // same instruction, reached by a different spelling.
+        assert_eq!(tail_of(MC_TAIL_DEREF), SeqTail::CallLoad { off: 0 });
+    }
+
+    #[test]
+    fn the_offset_run_folds_because_the_locator_is_shared() {
+        // `->in.y` is `27` at 16 then `27` at 4, and c2 emits one
+        // `lwz r3,20(r3)`. A private single-add copy — the exact defect the
+        // indirect-load leaf carried until W35, worth 5,161 functions there —
+        // would refuse this.
+        assert_eq!(tail_of(MC_TAIL_RUN), SeqTail::CallLoad { off: 20 });
+    }
+
+    #[test]
+    fn a_loaded_width_that_is_not_four_refuses_by_name() {
+        // The `30`'s TYPE retyped from `int` (`86 41 74`) to a 1-byte integer
+        // (`82 11 70`, captured in `wco_chain_tail_load_neg.cpp`'s `n_char`).
+        // That is `lbz`, a different instruction, and the body must refuse with
+        // a name rather than emit an `lwz` — the successor that widens the tail
+        // needs this number, not an argument.
+        let at = MC_TAIL_LOAD4
+            .windows(4)
+            .rposition(|w| w[0] == 0x30 && w[1] == 0x86 && w[2] == 0x41 && w[3] == 0x74)
+            .expect("the indirect load");
+        let mut seg = MC_TAIL_LOAD4.to_vec();
+        seg.splice(at + 1..at + 4, [0x82, 0x11, 0x70]);
+        // …and the `41` result type restates it, so both copies move together.
+        let at2 = seg
+            .windows(4)
+            .rposition(|w| w[0] == 0x41 && w[1] == 0x86 && w[2] == 0x41 && w[3] == 0x74)
+            .expect("the result type");
+        seg.splice(at2 + 1..at2 + 4, [0x82, 0x11, 0x70]);
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(&seg, NO_LOCALS).unwrap_err().ctx,
+            "mcall-chain-tail-load-width"
+        );
+    }
+
+    #[test]
+    fn a_displacement_past_sixteen_bits_refuses_by_name() {
+        // The `addi`/`lwz` immediate is signed 16-bit; 0x9C40 (40,000) needs
+        // `addis`+`addi` or an indexed load with a scratch register. The gate is
+        // on the SUM, the same boundary the indirect-load leaf draws.
+        let at = MC_TAIL_LOAD4
+            .windows(6)
+            .rposition(|w| w[0] == 0x33 && w[1] == 0x86 && w[2] == 0x41 && w[3] == 0x74 && w[5] == 0x27)
+            .expect("the offset add");
+        let mut seg = MC_TAIL_LOAD4.to_vec();
+        // `80 <LE32>` — the wide literal payload, exactly as captured for
+        // `n_far` in `wco_chain_tail_load_neg.cpp` (40,000 = 0x9C40).
+        seg.splice(at + 4..at + 5, [0x80, 0x40, 0x9C, 0x00, 0x00]);
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(&seg, NO_LOCALS).unwrap_err().ctx,
+            "mcall-chain-tail-off-wide"
+        );
+    }
+
+    /// **A WILD witness that this production must NOT accept**, from
+    /// `src/system/hamobj/Ham.cpp` at the workload's flags — the same segment
+    /// `mcall::WILD_CHAIN_AS_RECV_LOAD` carries, kept here because WCO is what
+    /// moved its census key. It is a two-link chain with an `int` argument on
+    /// the outer link, followed by `30 A6 45 F3 30` — an indirect load of a
+    /// `const float` member — and it parses to the end of the segment.
+    ///
+    /// So it IS this production, and it refuses under this rung's own name
+    /// rather than keeping `expr-call-in-expr-chained-then-deref-load-more`. A
+    /// `float` member is `lfs f1,k(r3)`, a different register file and a
+    /// `_fltused` obligation besides; emitting the `lwz` would be wrong bytes
+    /// inside an accepted class.
+    const WILD_CHAIN_FLOAT_MEMBER: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xF5, 0x42, 0x26, 0x6B, 0x43, 0xB9, 0x8F, 0x43, 0x86, 0x43,
+        0xFE, 0x31, 0x99, 0x86, 0x43, 0xF2, 0x31, 0x00, 0xBD, 0x86, 0x43, 0xCB, 0x31, 0x00, 0x80,
+        0xF2, 0x18, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0xC3, 0x31, 0x00, 0xBD, 0x86, 0x43, 0xF4,
+        0x30, 0x00, 0x80, 0xC3, 0x18, 0x00, 0x00, 0xB9, 0x75, 0x43, 0x86, 0x41, 0x74, 0x55, 0x86,
+        0x41, 0x74, 0x4C, 0x30, 0xA6, 0x45, 0xF3, 0x30, 0x2C, 0x86, 0x45, 0x40, 0x00, 0x41, 0x86,
+        0x45, 0x40, 0x3A, 0x90, 0x43, 0x54, 0x02, 0x29, 0x90, 0x43, 0x4F, 0x12, 0x47, 0x54, 0x01,
+        0x54, 0x00,
+    ];
+
+    #[test]
+    fn a_wild_float_member_on_the_chain_result_refuses_by_name() {
+        let seg = crate::func::test_fixtures::free_fn(WILD_CHAIN_FLOAT_MEMBER);
+        assert_eq!(parse_segment(&seg, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(&seg, NO_LOCALS).unwrap_err().ctx,
+            "mcall-chain-tail-load-class"
+        );
+    }
+
     #[test]
     fn a_chain_whose_receiver_is_not_a_load_declines_without_taking_the_key() {
         // `gO.a()->b()` — the innermost receiver is a named object, so the last
@@ -594,3 +1011,4 @@ mod tests {
         assert_ne!(ctx, "callseq-over-eight-formals");
     }
 }
+

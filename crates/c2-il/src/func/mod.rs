@@ -298,6 +298,16 @@ pub enum SeqTail {
     CallValue { add_k: i32 },
     /// `return <literal>;` — one `li r3,k`.
     Lit(i32),
+    /// **WCO** — the last call's pointer result is **read through**:
+    /// `return p->a()->b()->m;` is one `lwz r3,off(r3)` after the last `bl`.
+    ///
+    /// Deliberately a sibling of [`SeqTail::CallValue`] and not a flag on it.
+    /// `&p->a()->b()->m` is `addi r3,r3,off` — the identical designator with the
+    /// `30` load absent — and `CallValue { add_k: off }` already spells that,
+    /// including the offset-0 fold to no instruction. The load form does **not**
+    /// fold at offset 0: `lwz r3,0(r3)` is emitted (measured, `c_off0` in
+    /// `work/WCO/probe/p1.cpp`), which is the one place the two disagree.
+    CallLoad { off: i32 },
     /// **WCB/WCR — the two calls' results compared**, materialized to a 0/1 in
     /// r3: `return a->m() <rel> b->n();`.
     ///

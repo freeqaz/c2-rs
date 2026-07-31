@@ -189,6 +189,15 @@ pub(crate) enum SeqTail {
     CallValue { add_k: i32 },
     /// `return <literal>;` after the last statement call — one `li r3,k`.
     Lit(i32),
+    /// **WCO** — the last call's result is a pointer and the body **reads
+    /// through it**: `return p->a()->b()->m;` is one `lwz r3,off(r3)`.
+    ///
+    /// The sibling of [`Self::CallValue`], which is the same designator without
+    /// the `30` load — `return &p->a()->b()->m;` is `addi r3,r3,off` and is
+    /// already spelled by `CallValue { add_k: off }`. The two differ by one
+    /// instruction and by nothing else, which is why the address form needed no
+    /// variant and this one does. Measured, `work/WCO/probe/p1.cpp`.
+    CallLoad { off: i32 },
     /// **WCB/WCR** — `return <call> <rel> <call>;`: the two calls' results
     /// compared and materialized to a 0/1 in r3. `lhs_first` says whether the
     /// source's left operand is the call emitted *first*; c2 orders the pair by
