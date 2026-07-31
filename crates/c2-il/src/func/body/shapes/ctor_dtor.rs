@@ -569,7 +569,9 @@ fn eat_dtor_member_receiver(seg: &[u8], p: &mut usize) -> Option<(u32, i32)> {
 ///   <RECV-BASE>                    the 2113 frame, adjust 0, over `this`
 ///   99 <PTR4> 00                   member bind — DIRECT dispatch
 ///   BD <PTR4> 00 <fn-type-id>      the CALL, POINTER result, cdecl
-///   4C                             zero explicit arguments
+///   (B9 <formal> <T> 55 <T>)*      the forwarded arguments, REVERSE source
+///   4C                             order, each already in the register the
+///                                  callee wants — see the gate below
 ///   30 <OBJ>                       the constructed object, read through
 ///
 ///   ── /EHsc AND a base with a destructor only, the "unwind action" ──
@@ -610,15 +612,22 @@ fn eat_dtor_member_receiver(seg: &[u8], p: &mut usize) -> Option<(u32, i32)> {
 ///
 /// # Each gate, and the neighbour it separates
 ///
-/// * **Zero explicit arguments to the base constructor.** `Kd::Kd(int a) :
-///   B1(a) {}` pushes its formal into the argument region and emits the *same*
-///   48 bytes (identity permutation, slot 1 already in r4) — so this refusal
-///   costs real functions and is not free. It stands because a permuted or
-///   computed argument beside a callee-saved copy is the case
-///   `codegen::calls` records as uncharacterized (c2 breaks the cycle through
-///   the callee-saved register, not r11), and admitting the identity here would
-///   need the parser to prove the permutation is the identity over a formal list
-///   whose FP members occupy a different file entirely.
+/// * **The forwarded arguments must be the IDENTITY over the argument slots** —
+///   explicit argument `j` is a bare load of formal `j + 1` (slot 0 is `this`),
+///   with the load type and the push type byte-identical. Then every value is
+///   already in the register the callee wants and the call marshals nothing.
+///   **This gate is the rung**: required to be a bare `4C`, the whole shape
+///   admitted 5 workload functions; as the identity it admits 5,862, and the
+///   identity itself costs 0 against admitting the region unchecked. A
+///   permutation, a literal or a computed argument needs a move, and beside a
+///   callee-saved copy c2 breaks the cycle through the callee-saved register
+///   rather than r11 — the case `codegen::calls` records as uncharacterized.
+/// * **A forwarded FLOATING-POINT argument refuses.** The obj then carries
+///   `_fltused` and this body has no other FP tell; it was
+///   `Port=Mismatch @ offset 12` — one symbol short — in all five modes. An
+///   *unused* FP formal costs nothing, so it is passing the value that does it,
+///   and that is a fifth producer of a fact
+///   [`crate::IlFunction::touches_floating_point`] enumerates by shape.
 /// * **The adjust offset must be 0**, via the shared receiver. `Ke : B1` with a
 ///   virtual function puts the base at offset 4 and emits an `addi r3,r3,4` —
 ///   and it is `eh-plus-stmt` besides.
