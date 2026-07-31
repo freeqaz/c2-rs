@@ -206,6 +206,13 @@ nothing had stated. Measured, `work/WRD/probe/p6.cpp`, the workload's own flags
 > **Exactly one sub-object statement and nothing else is a bare branch. A second
 > sub-object, or any other statement beside it, is the whole of §1–§5.**
 
+**CORRECTED by §9.4.** That rule agrees with the transfer rule on all five rows
+here and on all fourteen of §7.2, and it is still false: the predicate is not the
+statement count but *whether an outbound control transfer occurs while a
+destructible object is live*. `int P(int a){ SE s; return a+1; }` has "another
+statement beside it" and gets **none** of §1–§5. The census axis built on the
+statement count therefore over-counts `eh-plus-stmt` by an unmeasured amount.
+
 That is not a frame-class step. Crossing it mints, per function: the two-word
 `__CxxFrameHandler` / `__ehfuncinfo$` prefix (§1), a **second** `.pdata` COMDAT
 (§2), a 64-byte `Selection = 5` `.rdata` with five relocations (§3), an unwind
@@ -817,6 +824,10 @@ two of those three were wrong because a layout was imported instead of measured.
 
 ### 8.6 What stays NOT MODELLED
 
+*(The first two bullets are **superseded for the no-try unwind shape** by §9,
+which derives both from source and holds `nIPMapEntries` exact on 27 EH
+functions. They stand as written for try/catch, where §9.7 refutes the rule.)*
+
 * **The IP-to-state map's contents.** `nIPMapEntries` took the values 1, 2, 3,
   4 and 6 over the probes with no rule I can state, and it does not track
   anything else in the record — `pI` has three catch clauses and **one** entry,
@@ -882,6 +893,12 @@ wrong about what the measurement would contain.
 
 ### 8.8 The riskiest thing still unmeasured
 
+*(**CLOSED for the no-try unwind shape by §9**, in the favourable direction: the
+map is derivable from source, and the label consequence named below is measured
+in §9.8 — `eh-dtor` costs 18 label slots where `LABEL_COUNTER.md` §1.1 alone
+predicts 5. It stands for try/catch, where §9.7 refutes the rule and the labels
+land on inserted `or r8,r8,r8` marker nops.)*
+
 **The IP-to-state map.** It is the only part of the EH `.rdata` whose value I
 cannot derive from the source; it puts `ADDR32` relocations onto `.text` labels
 the label planner does not currently allocate — so getting it wrong moves the
@@ -919,6 +936,373 @@ scripts/gt_label_stride.py --mode '/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc'
 every array length from the count field that points at it — the handler-array
 walk originally ran off the end of one array into the next (`pC`), which is why
 lengths are no longer inferred from where the relocations stop.
+
+---
+
+## 9. The state model — the ip-to-state and unwind maps, from bytes (2026-07-31, GT-IP2STATE)
+
+§8.6 lists *"the IP-to-state map's contents"* as the one field of the whole EH
+`.rdata` it cannot derive from source, and §8.8 names it the riskiest unmeasured
+thing in the document: `nIPMapEntries` took 1, 2, 3, 4 and 6 and *"tracks nothing
+else"* (three catch clauses gave **one** entry; two destructible locals gave
+**four**). §8.7 then concludes that this — the state model, item 3 — is the real
+cost of the EH phase, not the funclet bodies.
+
+This section measures it for the **no-try unwind shape**, which §8.7 identifies
+as the smallest rung that admits anything and which is §7.3's largest bucket
+(`eh-plus-stmt`, 160,944). **31 probe sources, 27 of them EH functions**, at the
+workload's own flags (`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`).
+Reproduction in §9.9. Nothing here is implemented and nothing here should be
+implemented from this document alone.
+
+The result is that **for the no-try shape the whole EH `.rdata` is now
+determined**, including the field §8 could not predict — and the same rule is
+**REFUTED for try/catch** (§9.7), which is a boundary worth as much as the rule.
+
+### 9.1 The rule
+
+> **Walk the function's outbound control transfers in ascending `.text` order.
+> Each has an EH state. Emit one `IpToStateEntry` every time that state differs
+> from the previous entry's, with an implicit −1 before the first, and put the
+> entry's `$M` label ON that instruction.**
+>
+> An *outbound control transfer* is `bl`, `bctrl`, or an unconditional `b`
+> carrying a relocation — all three measured, §9.5.
+
+The **state** at a transfer is an index into the list of *distinct sets of live
+destructible objects* observed at such a transfer, numbered in order of first
+occurrence; −1 is the empty set. An object is live from the instruction after
+its constructor call returns until its own destructor call begins — the
+destructor call itself sits at the state *below* the object it destroys.
+
+Everything else about the section follows. Writing `S` for the number of states
+and `E` for `nIPMapEntries`:
+
+```
+    maxState            = S
+    nIPMapEntries       = E
+    __unwindtable$F     = S x { i32 toState ; ADDR32 __unwind$NNNN }
+    __ehfuncinfo$F      @ 8*S          (nTryBlocks = 0, pTryBlockMap = 0)
+    $TNNNN              @ align8(8*S + 36)
+    EH .rdata RawSize   = 8*S + 36 + pad + 8*E        <- 27/27, exact
+    EH .rdata nrelocs   = S + 2 + E                   <- 27/27, exact
+    S funclets, emitted after the body in ASCENDING state order
+    S+1 .pdata records, emitted in DESCENDING .text offset (§8.2)
+```
+
+`toState` is the state of the live-set with this state's own object removed, and
+`action` is the funclet that destroys it.
+
+### 9.2 The count, on held-out cells
+
+§8's only two no-try cells were `eh2` (one object, 2 entries) and `pR` (two
+objects, 4 entries). A ladder of `int P(int a){ SE s; …; return gp(a)+s.m+…; }`
+was **predicted at `2n` before capture** and n = 3, 4 are held out of the fit:
+
+| probe | n | maxState | funclets | `nIPMapEntries` | the states, in order |
+|---|---:|---:|---:|---:|---|
+| `qN1` | 1 | 1 | 1 | **2** | 0, −1 |
+| `qN2` | 2 | 2 | 2 | **4** | 0, 1, 0, −1 |
+| `qN3` | 3 | 3 | 3 | **6** | 0, 1, 2, 1, 0, −1 |
+| `qN4` | 4 | 4 | 4 | **8** | 0, 1, 2, 3, 2, 1, 0, −1 |
+
+Every one of the 20 labels is on a `bl`: the ctors that raise the state, the
+body call at the top state, and the dtors that lower it.
+
+### 9.3 The state is per OBSERVED live-set, not per object
+
+`qB3` is the cell that separates them, and it moves five fields at once:
+
+```cpp
+int P(int a){ SE s; SE t; return a+1; }      // two objects, no other call
+```
+
+**`maxState = 1`, one unwind funclet, two ipmap entries** — not 2/2/4. The four
+transfers are ctor `s` (−1), ctor `t` (live `{s}`), dtor `t` (live `{s}`), dtor
+`s` (−1). The set `{s,t}` is *never observed at a transfer*, so it gets no state,
+no funclet and no unwind-map row. The funclet destroys `s` only.
+
+`qSC2` — `{ SE s; a=gp(a)+s.m; } { SE t; a=gp(a)+t.m; }` — is the other half:
+two **disjoint** scopes, both with one live object, and c2 allocates **two**
+states with `toState = −1` on **both** and two distinct funclets that destroy
+**the same stack slot**. So states are not reused across scopes and identical
+funclets are not merged.
+
+> **`toState = i − 1` is REFUTED.** It is right only for nested lifetimes.
+> `toState` is the state of the live-set with the top object removed.
+
+**Discriminating cells: `qB3` (1, decisive against per-object states) and
+`qSC2` (1, decisive against `toState = i − 1`).** The six nested probes
+(`qN2`–`qN4`, `qC2`, `qC3`, `qORD`) print `i − 1` and are the confirming half of
+the same discrimination; on their own they are inert.
+
+`qRE` (`if(a){SE s;…} a=gp(a); if(a){SE t;…}`) shows the map is a list of
+address *ranges*, not of states: state −1 occurs twice, at entries 1 and 3.
+
+### 9.4 What it retires — the cheap/EH boundary is NOT a statement count
+
+§6 states the boundary as *"Exactly one sub-object statement and nothing else is
+a bare branch. A second sub-object, or any other statement beside it, is the
+whole of §1–§5"*, and §7.2/§7.3 build the census axis on that. **Measured, it is
+false in the direction that inflates the EH side:**
+
+| probe | source | statements | `__ehfuncinfo$` | symbol `Value` |
+|---|---|---:|---|---:|
+| `qNC` | `int P(int a){ SE s; return a+1; }` | 2 | **no** | 0 |
+| `qB1` | `int P(int a){ SE s; int x=a*3; int y=x^7; return y+1; }` | 4 | **no** | 0 |
+| `qB2` | `int P(int a){ SE s; return gp(a); }` | 2 | yes | 8 |
+| `qB4` | `void P(){ SE s; }` | 1 | no | 0 |
+
+`qNC` and `qB1` have "another statement beside" the object and are the whole of
+the cheap side — no prefix, one `.pdata`, no `.rdata`, no funclet, no `r31`
+discipline, locals addressed off `r1`. The predicate is not the statement count:
+
+> **An EH record set exists iff `maxState >= 1`, i.e. iff at least one outbound
+> control transfer occurs while a destructible object is live.** `S = 0` and the
+> entire §1–§5 apparatus disappears with it.
+
+That also explains every row of §7.2 without the statement rule: `~Two(){}` is EH
+because member 1's *destructor call* is a transfer while member 2 is live;
+`Ct2::Ct2(){Init();}` because `Init()` is a transfer while the base is live;
+`Ct1::Ct1(){}` is bare because a constructor's normal path ends with nothing
+live. **The statement count and the transfer rule agree on all fourteen of §7.2's
+functions**, which is why the axis passed its own grading — `qNC` and `qB1` are
+the shapes that were not in it.
+
+**Consequence for §7.3, direction known, magnitude NOT MEASURED.** The
+`eh-bare`/`eh-plus-stmt` split is keyed on statement counts, so it **over-counts
+`eh-plus-stmt`** by however many bodies have a second statement that emits no
+call. Re-scanning the workload is a harness change and was out of this lane's
+scope; the 160,944 should be read as an upper bound on the no-try rung's stock
+until it is re-graded on "a transfer while an object is live".
+
+**Discriminating cells: 2** (`qNC`, `qB1`). `qB4` is §7.2's own shape and is
+*inert* — both rules call it bare. `qC0` (Class C, no destructible object) is
+inert for the same reason.
+
+### 9.5 The tail-branch entry, which nothing would have predicted
+
+A Class C function's epilogue ends `b __restgprlr_N` — a branch out of the
+function. **c2 treats it as an outbound transfer and gives it an ip2state entry
+with state 0**, after the last destructor has already returned the state to −1.
+So `E = 2n + 1` for those functions, and the extra entry is always last, always
+state 0, at every `n` measured.
+
+| probe | epilogue | extra entry | `E` |
+|---|---|---|---:|
+| `qN1`–`qN4`, `qB3`, `qGAP`, `qIF`, `qREV`, `qRE`, `qSW`, `qG1`, `qG2` | `blr` | no | 2n |
+| `qE1` | `bl __restfpr_28` then `blr` | **no** | 2 |
+| `qDUP`, `qBB`, `qC1`–`qC3`, `qMID`, `qORD`, `qIND`, `qLOOP`, `qG3`, `qG4` | `b __restgprlr_N` | **yes, state 0** | 2n+1 |
+| `qF1` | `bl __restfpr_28` then `b __restgprlr_27` | **yes, state 0** | 2n+1 |
+
+**`qE1` and `qF1` are the matched pair that isolates it.** Both use an FPR helper
+pair in the epilogue; `qE1`'s is a `bl` and gets no entry, `qF1`'s is followed by
+a tail `b` and gets one. So the trigger is the **tail branch**, not "a helper in
+the epilogue" and not the frame class. **Discriminating cells: 2** (that pair);
+11 further positives and 12 negatives confirm and cannot refute.
+
+Why the state is 0 rather than −1 is **NOT MODELLED**. It is 0 at `S = 1, 2, 3`,
+so it is not `maxState − 1` and not "the last state".
+
+`qIND` establishes that **`bctrl` is an outbound transfer**: a virtual call
+carries entry 0. **1 discriminating cell** — every other probe's transfers are
+`bl`/`b`, and is inert on it.
+
+### 9.6 Placement, and the two-call dedup
+
+`qGAP` puts four non-call instructions between the constructor's return and the
+next call. The rival rule "the label marks the point where the state changes"
+predicts `.text+0x2c`; **measured `.text+0x3c`, on the `bl`.** One cell,
+decisive, and it is the only cell in the corpus with a gap wide enough to
+separate them — `qN1`'s gap is one instruction.
+
+Two or more transfers at the same state produce **one** entry: `qDUP` (2 calls),
+`qC1` (3), `qE1` (4), `qF1` (8). **4 discriminating cells** against "one entry
+per call", which would have printed 4, 5, 5 and 12 entries respectively.
+
+### 9.7 REFUTED for try/catch — the rule is no-try only
+
+Re-read with the same instrument, §8's try-carrying probes put **four of six**
+labels on instructions that are not transfers at all:
+
+```
+  pA  [0] $M2579  state 1   .text+0x38  bl ?g            <- a call
+      [1] $M2580  state 0   .text+0x3c  7d084378  or r8,r8,r8    <- a NOP
+      [2] $M2581  state 1   .text+0x40  817f0050  lwz r11,80(r31)
+      [3] $M2582  state -1  .text+0x4c  bl ??1S           <- a call
+      [4] $M2583  state 0   .text+0x50  7d084378  or r8,r8,r8    <- a NOP
+      [5] $M2584  state -1  .text+0x54  7fc3f378  mr  r3,r30
+```
+
+`pN` prints the same shape. **`or r8,r8,r8` (`0x7d084378`) occurs in 4 of 4
+try-carrying probes (`eh1`, `pA`, `pI`, `pN`, 10 occurrences) and in 0 of the 27
+no-try EH functions** — it is a pure marker instruction c2 emits to carry a
+state boundary that does not fall on an instruction it can otherwise label. Not
+every occurrence carries an ip2state label (`pI` has three of them and one
+entry), so what it marks is **NOT MODELLED**.
+
+Two further try-side facts fall out and are consistent with §9.1's state model
+generalised: a `try` contributes states whose `action` is **0** (`eh1`, `pI`:
+`maxState = 2`, both unwind rows null, `tryLow = tryHigh = 0`, `catchHigh = 1`),
+and where a destructible object and a `try` coexist the object takes the lower
+state (`pA`, `pN`: `maxState = 3`, state 0 = the object with a real funclet,
+states 1–2 the try, `tryLow = tryHigh = 1`, `catchHigh = 2`). That explains
+§8.6's *"2 per nesting level of `try` plus 1 per destructible object"* — but the
+**ip placement** is a different mechanism and the try rung needs it measured
+separately.
+
+> **Range of §9.1: no-try only.** Every negative and every count law in §9 is
+> scoped to `nTryBlocks = 0`, `/O1 /EHsc`, one EH function per TU (except `pF`),
+> `S` 1–4, `E` 2–8, frame classes A/B/C/E/F, frames 96–288 B. **Not swept:
+> `/Ox`, `/O2`, packed (no `/Gy`), a `try` of any kind, `_set_se_translator`,
+> SEH, an object whose destructor is inlined away, arrays of destructible
+> objects, temporaries, and any state region laid out non-contiguously in
+> `.text` (§9.8).**
+
+### 9.8 The label counter — the surcharge, decomposed
+
+This is the consequence §8.8 flags: those `ADDR32` relocations point at `.text`
+labels the planner does not allocate, so a wrong entry count is a wrong label
+counter, and a wrong label number is six wrong bytes in an obj that still links.
+
+Measured seed-free and in-TU by `scripts/gt_label_stride.py`, `/EHsc` mode,
+**every row's in-TU control held (`base = 5` on all 19)**:
+
+| probe | S | E | Σ(§1.1) | stride | model |
+|---|---:|---:|---:|---:|---:|
+| `eh-dtor` | 1 | 2 | 0 | **18** | 18 |
+| `eh-dtor2` | 2 | 4 | 0 | **25** | 25 |
+| `eh-dtor3` | 3 | 6 | 0 | **32** | 32 |
+| `eh-dtor4` | 4 | 8 | 0 | **39** | 39 |
+| `eh-dtor-fp` | 1 | 2 | 1 (`_fltused`) | **19** | 19 |
+| `eh-dtor-const` | 1 | 2 | 3 (`_fltused` + 1 pooled) | **21** | 21 |
+| `eh-dtor-dup` | 1 | 3 | 2 (gprlr) | **21** | 21 |
+| `eh-dtor-cmpeq` | 1 | 3 | 2 (gprlr) | **21** | 21 |
+| `eh-dtor-cmprr` | 1 | 3 | 4 (gprlr + signed cmp rr) | **23** | 23 |
+| `eh-1state-2obj` | 1 | 2 | 0 | **19** | 18 ✗ |
+| `eh-dtor-scope2` | 2 | 4 | 0 | **24** | 25 ✗ |
+| `eh-dtor-loop` | 1 | 3 | 2 (gprlr) | **22** | 21 ✗ |
+
+> **stride = 11 + 5·S + E + Σ(`LABEL_COUNTER.md` §1.1 surcharges)** — 9 of 12,
+> **fitted, not established**, with the three misses named above and unexplained.
+> The `11` carries the once-per-TU `__CxxFrameHandler` `+1` of §8.5d: with an EH
+> function already led it is `10` (`eh-dtor-led` 17 = 10 + 5 + 2 ✓).
+
+Three things generalize past the formula.
+
+* **The ordinary §1.1 surcharge table survives EH unchanged, all four kinds
+  measured exactly.** `_fltused` +1, a newly pooled FP constant +2, a helper
+  pair +2, and a signed `<`/`>` over two call results +2 (`eh-dtor-cmprr` against
+  its matched `eh-dtor-cmpeq` control, +2 exactly). EH terms *add* to §1.1; they
+  do not replace it.
+* **The allocation order inside one EH function is exactly determined** — read
+  off the number spans of 27 objs, and this is what an emitter needs:
+
+  ```
+    1.  S x  __unwind$N          one per state, ASCENDING state
+    2.  G    reserved, unused    G = 4 + Σ(the §1.1 surcharges that MINT a symbol)
+    3.  E x  $M                  the ip2state labels, ASCENDING .text offset
+    4.  1 x  $T                  the ip2state array, in the EH .rdata
+    5.  1    reserved, unused
+    6.  per region, ASCENDING .text (body, then funclet 0..S-1):
+             $M end-of-prologue,  $M end-of-region,  $T its own .pdata
+  ```
+
+  `G` is the cell that keeps this from being closed. `G = 4 + Σmint` is exact on
+  25 of 27 (`qN*` 4, `qC*`/`qDUP`/`qIND`/`qMID`/`qORD`/`qBB` 6 = 4+2, `qG2` 5 =
+  4+1, `qG1` 7 = 4+1+2, `qE1` 7, `qF1` 9) and misses on `qB3` (5, expected 4)
+  and `qLOOP` (8, expected 6) — the same two shapes that miss in the stride
+  table. The base `4`, and those two cells, are **NOT MODELLED**.
+* **`stride == minted` is refuted on every EH row here**, extending §8.5d's
+  ninth family: 12 more rows, and the largest stride in this document is now
+  **39** (`eh-dtor4`), above §8.5d's measured 6–34 band.
+
+**What a planner that ignores all of this gets wrong, in numbers.** §1.1 alone
+predicts `eh-dtor` at **5**; the truth is **18**. Every subsequent function in
+that TU would be **13** label numbers low — and 34 low after an `eh-dtor4`.
+Six wrong bytes per `$M`/`$T` reference, in an obj that links.
+
+### 9.9 The estimate, scored
+
+Written into `work/GTIP/ESTIMATE.md` before any capture beyond one baseline dump
+of `eh2`.
+
+| predicted | actual |
+|---|---|
+| the rule: walk transfers, dedup consecutive equal states, implicit −1, label ON the transfer | **right**, and on the held-out cells |
+| `nIPMapEntries = 2n` for n straight-line locals | **right** at n = 3 and n = 4, held out of the fit |
+| two calls at one state ⇒ one entry | **right**, 4 cells |
+| a body with no call while the object is live ⇒ **1** entry (a floor) | **WRONG, and this one is the finding** — **zero**, and the whole EH record set disappears with it. I predicted a floor because §8 reports a minimum of 1 and `pIPtoStateMap` never null; both are true and neither implies a floor |
+| the `$M` sits on the `bl`, not at the state change | **right** (`qGAP`, 4 instructions of separation) |
+| `toState = i − 1` | **WRONG** — right for nested lifetimes, and `qSC2` prints −1 for both of two disjoint scopes. Bias: I fitted it on the straight-line ladder, which is exactly the shape that cannot separate the two readings |
+| each ip2state entry costs +1 label slot; `eh-dtor`→`eh-dtor2` decomposes 2 of its +7 that way | **right on both**: +6 per state = funclet + its `.pdata` `$T` + 2 region `$M` + **2 ipmap `$M`**, and the residual +1 is the extra object |
+| — (unpredicted) | the Class-C tail `b __restgprlr_N` gets its own entry at state 0 |
+| — (unpredicted) | the rule does not extend to try/catch, and c2 emits `or r8,r8,r8` as a bare label anchor there |
+
+**Named bias, stated in advance and it mattered.** The rule was imported from
+general MSVC x64 EH knowledge — from memory, the trap §8.5e records twice. It
+was written down with designed falsifiers (`qNC`, and n = 3, 4 held out) *before*
+capture precisely so a confirmation could not be claimed from the two cells that
+generated it. Two of the three things I got wrong were wrong in the same
+direction: I assumed structure that the straight-line ladder could not
+discriminate.
+
+### 9.10 What stays NOT MODELLED
+
+* **The try/catch ip placement** (§9.7) — the largest open piece, and it is the
+  try rung's, not the no-try rung's.
+* **Why the tail-branch entry's state is 0** (§9.5).
+* **`G`'s base of 4, and the `qB3`/`qLOOP` cells** (§9.8).
+* **A state region laid out non-contiguously in `.text`.** The map is a sorted
+  range list; on all 27 EH functions here — including `goto` (`qREV`), a
+  `switch` (`qSW`), a loop (`qLOOP`), an `if/else` (`qIF`) and a re-entered
+  state (`qRE`) — c2 laid every state's range out contiguously and in an order
+  the sorted map can express. **I could not construct a counterexample, which is
+  not the same as there being none**, and a non-contiguous state would need
+  entries this rule does not produce. This is the riskiest thing left for the
+  no-try rung.
+* **Arrays of destructible objects, temporaries with destructors, an inlined
+  destructor, and a destructible object passed by value** — none probed, and
+  each could add states without a visible constructor call.
+* **`/Ox`, `/O2`, packed.** Every number in §9 is `/O1 /EHsc`.
+
+### 9.11 Reproduction
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+scripts/gt_eh.py --write-probes work/GTIP/probe    # the §8 AND §9 corpora
+scripts/gt_eh.py work/GTIP/probe/qN3.cpp           # the count law, held-out n
+scripts/gt_eh.py work/GTIP/probe/qB3.cpp           # states are per LIVE-SET
+scripts/gt_eh.py work/GTIP/probe/qSC2.cpp          # toState = -1 for BOTH
+scripts/gt_eh.py work/GTIP/probe/qNC.cpp           # maxState 0 => NO EH records
+scripts/gt_eh.py work/GTIP/probe/qGAP.cpp          # the label is on the `bl`
+scripts/gt_eh.py work/GTIP/probe/qE1.cpp           # no tail `b` => no extra entry
+scripts/gt_eh.py work/GTIP/probe/qF1.cpp           # ...and its matched pair
+scripts/gt_eh.py work/GTIP/probe/pA.cpp            # REFUTED for try/catch
+# every run prints `-- ip2state against the call sites`: one row per outbound
+# transfer with the state the map assigns it, and `!!` for any map entry whose
+# label is NOT on a transfer. That line is the whole discrimination.
+scripts/gt_label_stride.py --mode '/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc' \
+    eh-dtor eh-dtor2 eh-dtor3 eh-dtor4 eh-nostate eh-nostate3 eh-1state-2obj \
+    eh-dtor-dup eh-dtor-scope2 eh-dtor-const eh-dtor-fp eh-dtor-cmprr \
+    eh-dtor-cmpeq eh-dtor-loop
+```
+
+**Re-gate.** All 51 embedded probes were written out fresh and recompiled into a
+second directory; the 36 with a prior capture in this session compare
+**structurally identical, 0 mismatched** on section names, sizes,
+characteristics and raw bytes and on every symbol's name, value, section and
+storage class, with `$M`/`$T`/`__unwind$` numbers normalised to each group's own
+base (six §9 sources carry an unused declaration in the working copy, which
+moves the seed and nothing else — the seed-free method of `LABEL_COUNTER.md` §0
+exists for exactly this). §8's own numbers are unmoved by the instrument edits:
+**21 EH functions, 21 `0x19930522` magics, 21 nine-dword `FuncInfo`s, 61 `.pdata`
+records over EH functions of which 9 are prefix-less.** `gt_label_stride.py`'s
+shipped §1 table is unmoved (`plain` 5, `gpr3` 7, `fpr4-led` 7, `both-led` 9,
+`const1-led` 7, `const2-led` 9, `leaf-int` 1, `leaf-float` 2) and so is §8.5d's
+(`eh-cheap` 6, `eh-cheap-led` 6, `eh-dtor` 18, `eh-dtor-led` 17, `eh-dtor2` 25,
+`eh-catch` 22, `eh-catch-led` 21, `eh-catch2` 31, `eh-both` 34, `eh-catchall`
+22), controls failed 0.
 
 **Re-gate.** All 20 embedded probes were recompiled into a second directory and
 compared against the originals on everything but `.drectve` / `.debug$S` (which
