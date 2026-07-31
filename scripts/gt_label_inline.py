@@ -1178,6 +1178,31 @@ FAMILIES = [
                 " it   PRED 9 if the trigger is a load/store through the"
                 " address AT DEPTH 1 (d2-ptr-p's 8 plus that +1) / 8 if the"
                 " trigger also requires the address not to escape deeper"),
+
+    # === ROUND 20: `ptr-use-d1` is 8 too, so USING the pointee at depth 1 is
+    #     not the trigger either. A two-deep tree with a pointer costs exactly
+    #     what a two-deep tree without one costs (d2-ptr-p 8, ptr-use-d1 8,
+    #     d2-ptr-glob 8, nest2 8) while a one-deep tree with a pointer costs
+    #     one more than a one-deep tree without (ptr-param 4, nest1 3). Two
+    #     readings survive all sixteen rows and they differ on ONE shape:
+    #
+    #       G  the +1 fires when the DEEPEST use of the address is at depth 1
+    #       I  the +1 fires when the using depth-1 instance is a LEAF of the
+    #          expansion tree — i.e. it has no inlined callee of its own,
+    #          whether or not that callee touches the address
+    #
+    #     `ptr-use-nest` is a depth-1 instance that uses the pointee and
+    #     inlines a callee that never sees it. G says the deepest use is still
+    #     depth 1, so +1; I says the instance is no longer a leaf, so 0.
+    Family("ptr-use-nest", GS,
+           "static int pf0(int a){ return gs(a)+a; }\n"
+           "static void pf1(int* o, int a){ *o = pf0(a); }",
+           "pf1(&t, s); s+=t;", "{t = gs(s)+s;} s+=t;",
+           head="int P(int a){ int t=a; int s=gs(a)+a;", tail="return s+t; }",
+           note="the depth-1 instance uses the pointee AND inlines a callee"
+                " that never sees it   PRED 9 by G (the deepest USE is still"
+                " at depth 1) / 8 by I (the instance is no longer a LEAF of"
+                " the expansion tree)"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1362,6 +1387,8 @@ LAW_BOOK = {
     "d2-ptr-p": 11, "d3-ptr-auto": 20, "d2-ptr-glob": 8,
     # --- ROUND 19: committed before its capture, same discipline -----------
     "ptr-use-d1": 9,
+    # --- ROUND 20 ----------------------------------------------------------
+    "ptr-use-nest": 9,
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
