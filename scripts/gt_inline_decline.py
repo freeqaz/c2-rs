@@ -599,6 +599,59 @@ def run_cases(mode, wd, nmax, want):
     return bad
 
 
+def sib_source(na, nb, ka, kb):
+    """Two DIFFERENT callees in one P — the subject `sba` and a sibling `sbb`.
+
+    Everything else in this file puts exactly one callee in P, so nothing
+    else here can say whether the front end's limit for one (caller, callee)
+    pair moves when the caller has already absorbed an unrelated expansion.
+    §6.12's `ptr-sibling` is the standing warning that a property of P's
+    WHOLE expansion can reach across call sites.
+    """
+    leads = ("static int sba(int a){ int v=gs(a)+a; %s return v; }\n"
+             "static int sbb(int a){ int v=gs(a)+a; %s return v; }"
+             % (stmts_fine(ka), stmts_fine(kb)))
+    body = " ".join(["s=sba(s);"] * na + ["s=sbb(s);"] * nb)
+    return (src_of(GS, [leads], "%s %s %s" % (INT_HEAD, body, INT_TAIL)),
+            ["sba", "sbb"])
+
+
+def run_sibling(mode, wd):
+    o1 = "/O1" in mode
+    print("=== sibling   does P's EXISTING expansion move the limit?")
+    print("    subject `sba` is sized to sit exactly at its schedule limit;")
+    print("    `sbb` is an unrelated callee at nB sites in the same P.")
+    print("    %-3s %-3s %-7s %-7s %-7s  %s"
+          % ("nA", "nB", "s(sba)", "s(sbb)", "P.text", "declined"))
+    bad = 0
+    for ka, kb, grid in ((8, 8, [(5, 0), (5, 1), (5, 2), (5, 3), (5, 5),
+                                 (6, 0), (6, 1)]),
+                         (8, 40, [(5, 0), (5, 1), (5, 2), (4, 2)])):
+        for na, nb in grid:
+            src, watch = sib_source(na, nb, ka, kb)
+            o = capture(src, mode, wd, "sib_%d_%d_%d_%d" % (ka, kb, na, nb))
+            if o is None:
+                print("    capture failed")
+                bad += 1
+                continue
+            r = read(o)
+            if "error" in r:
+                bad += 1
+                continue
+            d = declined(r["rel"], watch)
+            sa, sb = size_of(r["emit"], "sba"), size_of(r["emit"], "sbb")
+            print("    %-3d %-3d %-7s %-7s %-7s  %s"
+                  % (na, nb, sa, sb, r["tsize"],
+                     ", ".join("%s*%d" % (w, c) for w, c in sorted(d.items()))
+                     or "- (everything inlined)"))
+        print()
+    if o1:
+        print("    SCHEDULE D is a per-PAIR claim: sba at s=80 takes 5 sites,")
+        print("    sbb at s=80 takes 5 and at s=208 takes 1, INDEPENDENTLY.")
+        print("    A row where sba is declined at nA<=5 refutes that.")
+    return bad
+
+
 def ladder_source(tree, gen, k, n):
     leads, site, watch = tree(gen(k))
     body = " ".join([site] * n)
@@ -801,6 +854,10 @@ def main(argv):
     print()
     wd = tempfile.mkdtemp(prefix="gtdec")
     bad = 0
+    if "--sibling" in argv:
+        bad += run_sibling(mode, wd)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
     if "--cases" in argv:
         bad += run_cases(mode, wd, nmax, want)
         print("captures failed: %d" % bad)
