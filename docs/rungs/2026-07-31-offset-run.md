@@ -85,6 +85,16 @@ with no third key moving).
 
 `w34_offset_run_neg.cpp` carries one case per row and censuses **0/8**.
 
+**The displacement gate was checked in the under-claiming direction too**, which
+is the direction nothing in this project tests. Lifting it in the parser alone
+and rescanning gains 16 census functions **and produces a census/gate over-claim
+of exactly 16** — the port's own `select_text` still refuses, because a signed
+16-bit displacement field cannot encode 32768 at all. So the parser gate is not
+conservatism layered on top of a codegen rule; it is the same rule stated where
+census and `PortC2` cannot disagree about it, which is what keeps disagreement
+at 0. Verified on a one-function TU (`work/w34/probe/p8.cpp`): with the parser
+gate lifted, `c2rs census` reads **1/1 in class** against `Port=NotImplemented`.
+
 ## Estimate vs outcome
 
 The estimate was written to `work/w34/ESTIMATE.md` **before** any scan, together
@@ -157,8 +167,8 @@ reproducing master `6548a4e` to the function (549,148 / 2,462,571, 461,786 in
 | `c2rs bench` | 163 pass / 0 fail / 0 error | **165 pass / 0 fail / 0 error** |
 | `scripts/mode_lane.sh /Ox` | 76 match, 0 mismatch | **77 match, 0 mismatch, 0 codegen-gap** |
 | `/O1` · `/O2` · `/Ox /Gy` | 74 match, 0 mismatch | **75 match, 0 mismatch, 2 codegen-gap** each |
-| `scripts/expr_sweep.sh` | 7,673 cases, 0 mismatches | **7,881 cases, 0 mismatches** |
-| `scripts/cross_sweep.sh` | 7,545 × 4, 0 mismatches | **0 mismatches**, same family set |
+| `scripts/expr_sweep.sh` | 7,673 cases, 0 mismatches | **7,881 cases (+208), 0 mismatches** |
+| `scripts/cross_sweep.sh` | 7,545 × 4, 0 mismatches | **7,545 × 4, 0 mismatches**, family set and configuration count bit-identical |
 | 878-TU scan | 549,148 / 2,462,571 (22.30 %), mismatch 0, disagreement 0 | **555,655 / 2,462,571 (22.56 %)**, mismatch 0, **disagreement 0** |
 | `census fixtures/cpp/w34_offset_run.cpp` | — | **22/22 in class**, `Port=Match` |
 | `census fixtures/cpp/w34_offset_run_neg.cpp` | — | **0/8 in class**, `Port=NotImplemented` |
@@ -176,6 +186,17 @@ change the `27` tags the width cross-check reads); `27`/`28` interleaved in ever
 order; the displacement crossed by the SUM rather than by any one add; the
 DS-form `ld` reached by a sum; intrinsic 2117 at each position in the chain; and
 the chain behind `this` at every argument position. 0 mismatches.
+
+W34 adds **no new `census.rs` key and no new shape family** — it widens
+`indirect-load-leaf`, which already existed — so `cross_sweep.sh` has nothing
+new to discover and its configuration count is unchanged, which is the correct
+outcome rather than a missed one. It did pick the new fragment up: the lane's
+chosen representative for `indirect-load-leaf` in one slot is
+`45-offset-run-0171.cpp`.
+
+The final scan was taken on the **clean committed tree** (`36b99bb`) with
+`--validate-cache 50`: 17 entries re-captured through the real toolchain and
+agreed, **0 POISONED**.
 
 The port needed **no codegen change at all** — `IlOp::LoadInd { off }` already
 carries a folded displacement and `select_text` already emits it — which is why
