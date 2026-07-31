@@ -302,8 +302,12 @@ recalled.
 
 # 6. The label cost of inlining (2026-07-31)
 
-`scripts/gt_label_inline.py`, 74 probe families, `/O1 /GS- /c` and
-`/Ox /GS- /c`, every row's in-object control held.
+`scripts/gt_label_inline.py`, **100 probe families**, `/O1 /GS- /c` and
+`/Ox /GS- /c`, every row's in-object control held. 89 of them carry a predicted
+charge that the script checks and can print `REFUTES` against; the other 11 are
+recorded as `NOT MODELLED` on purpose — `lp-two`, where the *inliner* gives up
+(§6.6), and the ten C++ shapes of §6.7 where the fitted law simply does not
+reach.
 
 **This section retracts §4's inlining row.** The retracted claim was "+3 / +8 /
 +13 for 1 / 2 / 3 sites, +5 per site after the first". The truth is **+3 per
@@ -337,10 +341,13 @@ Net of all three, the *same callee* the old row used gives **3, 6, 9, 12, 15,
 ## 6.1 The charge buys no code at all
 
 Every family carries a **hand-inlined control**: the callee's body written out
-at the call site, no callee function anywhere in the TU. On 68 of 74 families
-the control's charge is **0 at every N** *and* P's `.text` bytes are byte-for-byte
-identical to the inlined variant's (`TEXT-IDENTICAL` in the run log). For
-`framed` at N=6: two objs, same 120 bytes of `.text` for P, strides **23 and 5**.
+at the call site, no callee function anywhere in the TU. On **72 of the 100**
+families the control's charge is **0 at every N** — and on the ones where it is
+not, it is P paying a §1.1 surcharge for code it now contains (a pooled
+constant, a materialised relational, a loop), never anything to do with
+inlining. Where the two objs' `.text` for P can be compared at all they are
+**byte-for-byte identical** (`TEXT-IDENTICAL` in the run log). For `framed` at
+N=6: two objs, the same 120 bytes of `.text` for P, strides **23 and 5**.
 
 > The inline charge is bookkeeping the IL carries about the expansion. It is
 > invisible in the code and it is worth 18 label slots.
@@ -372,7 +379,17 @@ where `E(I)` counts, **in that callee's body**:
 
 plus **+1 flat, at any depth**, once per multi-exit callee whose result has to
 be materialised — i.e. unless it is `void`, or its result is assigned straight
-to a variable at depth 1.
+to a variable at depth 1; plus, for each **loop** in that callee's body, a term
+that is *not* part of the `d * E` product (§6.6):
+
+| loop form | cost at depth `d` | d=1 | d=2 | d=3 |
+|---|---|---:|---:|---:|
+| `for` | `3d + 2` | 5 | 8 | 11 |
+| `while` | `d + 3` | 4 | 5 | 6 |
+| `do`/`while` | `2d + 2` | 4 | 6 | 8 |
+
+The loop row is **`/O1` only** — see §6.4. Everything above it holds at `/Ox`
+unchanged.
 
 And on top of that, P still pays its **own** §1.1 surcharges for the code it
 ends up containing. `cf-tern`'s 7 is 5 of bookkeeping plus the 2 that a
@@ -395,9 +412,11 @@ independently on the same row.
 
 ## 6.3 What the law predicted before it was measured
 
-Predictions were written down (`work/gt-inline/PREDICTIONS.md`, per this lane's
-standing rule) and then captured. Hold-outs — shapes the law was **not** fitted
-to:
+Predictions were written down and *then* captured, per this lane's standing
+rule. They are not recalled here: each hold-out family in
+`scripts/gt_label_inline.py` carries its `PRED n` in the family note, committed
+in the same change that added the probe and before the row that graded it.
+Hold-outs — shapes the law was **not** fitted to:
 
 | probe | predicted | measured |
 |---|---:|---:|
@@ -414,30 +433,54 @@ to:
 | `d2-inner-void-if` | 10 | **10** ✓ |
 | `d3-mid-if` / `d3-two-if` | 18 / 22 | **18 / 22** ✓ |
 | `method` / `method-loc` (C++ member fn) | 3 / 4 | **3 / 4** ✓ |
+| `lp-min` / `lp-min-outer` / `lp-inf` / `lp-nested` | 9 / 9 / 9 / 16 | **9 / 9 / 9 / 16** ✓ |
+| `d3-lp-for` (after fitting `for` = 3d+2 on d=1,2) | 32 | **32** ✓ |
+| `d3-lp-while` / `d3-lp-do` (after fitting on d=1,2) | 27 / 29 | **27 / 29** ✓ |
+| `d2-lp-for` | 22 scaled **or** 17 flat | **20** ✗ (both wrong) |
 | `blk2` (two nested blocks) | 5 | **4** ✗ |
 | `d2-inner-if` | 10 | **11** ✗ |
 | `d3-inner-if` | 20 or 21 or 18 | **19** ✗ (all three rivals wrong) |
 
-The three misses are why the law has the shape it does. `blk2` killed "a block
-costs 1" and pointed at the parameter assignment instead (`parammod` confirmed
-it, `blk-nomod` confirmed the negative). `d2-inner-if` and `d3-inner-if` are
-what added the multi-exit result temp *and* pinned it to **+1 flat rather than
-depth-scaled** — the depth-scaled readings predict 20 and 21 at depth 3 and the
-measurement is 19.
+**The four misses are why the law has the shape it does**, and they are the
+useful part of this table. `blk2` killed "a block costs 1" and pointed at the
+parameter assignment instead (`parammod` confirmed it, `blk-nomod` confirmed the
+negative). `d2-inner-if` and `d3-inner-if` added the multi-exit result temp *and*
+pinned it to **+1 flat rather than depth-scaled** — the depth-scaled readings
+predict 20 and 21 at depth 3 and the measurement is 19. `d2-lp-for` is the one
+that forced loops out of the `d * E` product entirely; see §6.6.
 
 `scripts/gt_label_inline.py` carries the whole law as a `LAW` dict, prints it
 beside each family's measured slope, and prints
-`<== *** REFUTES LAW L' ***` on any disagreement. **Current score: 74 families,
+`<== *** REFUTES LAW L' ***` on any disagreement. **Current score: 90 families,
 0 refutations at `/O1`, 0 at `/Ox`.**
 
-## 6.4 Packed is the same law
+## 6.4 Packed is the same law — but the *inliner* is not the same inliner
 
 Re-run at `/Ox /GS- /c` (`base = 4`, controls held on every row): **every charge
 is the same integer**, 0 families refuting. `/Gy` moves the framed base and
-nothing else, exactly as §1.2 says for the other surcharges.
+nothing else, exactly as §1.2 says for the other surcharges. That includes the
+whole `for` ladder (`lp-for` 10, `d2-lp-for` 20, `d3-lp-for` 32, identical to
+`/O1`).
 
-Two `/Ox`-only artefacts the instrument had to learn to separate, both of which
-would have read as a broken law:
+Three `/Ox` artefacts the instrument had to learn to separate, **all three of
+which read as a broken law first**:
+
+* **A partial inline refusal.** The first `/Ox` run reported *ten* refutations,
+  every one of them a loop family. They are not counter differences: at `/Ox`
+  the front end declines to inline a `while`/`do` loop body at an **inner**
+  level, so `d2-lp-while`'s expansion tree is one instance deep, not two, and
+  the charge is honestly 3 rather than 17. Nothing in the stride, the residual
+  or the linearity shows this — the charge stays exactly linear at the wrong
+  value. What shows it is P's `.text` growth: 8 bytes per site (a `bl` and a
+  `mr`) against the hand control's 32. The script now computes exactly that
+  comparison, tags the row `INLINE-DECLINED?`, and downgrades the verdict from
+  `REFUTES` to *"a different expansion tree"* — which is a claim about the
+  inliner, printed with the bytes that justify it, not an excuse.
+
+  > This is the failure mode worth carrying away from the whole section. A law
+  > about the expansion tree is only ever as good as your evidence that the tree
+  > is the one you think it is, and the *only* column that carries that evidence
+  > is code size.
 
 * **A one-off at N=1.** At `/Ox`, P pays +1 once for containing a branch at all —
   the *hand* control shows the same +1 and then goes flat. The N=1 slope
@@ -445,11 +488,29 @@ would have read as a broken law:
   The script now reports the **marginal** slope (the last two rows differenced)
   beside the N=1 one and checks the law against the marginal, printing
   `one-off +1 at N=1` when they differ.
-* **Inliner refusal.** At both `/O1` and `/Ox` the front end abandons inlining
-  once the accumulated body is big enough (`body-3call` at N=5, `lp-two`). The
-  charge then simply stops growing, which is indistinguishable from a
-  non-linearity in the counter. `dtext` (P's `.text` growth since N−1) collapses
-  on exactly that row and it is tagged `INLINE-REFUSED?`.
+* **Total inliner refusal.** At both `/O1` and `/Ox` the front end abandons
+  inlining outright once the accumulated body is big enough (`body-3call` at
+  N=5, `lp-two`, and at `/Ox` most of the loop families from the first site
+  onwards). The charge then simply stops growing, which is indistinguishable
+  from a non-linearity in the counter. `dtext` collapses to zero or negative on
+  exactly that row, and the same `INLINE-DECLINED?` check catches it.
+
+So §6.6's three affine loop terms are stated for **`/O1`**. What `/Ox` actually
+says about them, stated precisely rather than waved at:
+
+* the **`for` ladder is identical** at `/Ox` — 10 / 20 / 32 at depths 1 / 2 / 3,
+  and `lp-inf` 9. That is a real second-mode confirmation.
+* the **`while` and `do/while` ladders cannot be measured at `/Ox`**, because
+  the front end declines the inner inline on exactly those bodies. Not "they
+  differ" — they are unobservable there, and the rows that look like differences
+  are measuring a shallower tree.
+* the small `for` bodies (`lp-min`, `lp-min-outer`, `lp-for-leaf`, `lp-nested`)
+  are refused outright at `/Ox` from the first site.
+
+§4 already records that a loop *written out* costs `for` +8 / nested +10 at
+`/Ox` against +2 / +4 at `/O1` — "the only place in this document where the `/O`
+level moves the counter" — and the hand controls here reproduce that (3/site
+against 2/site). None of that reaches the inline charge itself.
 
 ## 6.5 Two structural findings that matter more than the arithmetic
 
@@ -471,35 +532,113 @@ none (measured: control 2560→2565→2570, with-dead-static 2565→2570→2575)
 `/Gy` upfront surcharge is **per emitted `.text` COMDAT, not per source
 function**.
 
-## 6.6 Still not modelled — loops, deliberately
+## 6.6 Loops (`/O1`) — a loop is not an `E` feature, and the three forms do not share a slope
 
-| callee body | charge/site | hand control |
+This was written up as "measured, not modelled" and then measured properly,
+because a loop in an inlined body is not an exotic shape — it is what a real
+workload TU is mostly made of. Everything in this subsection is `/O1`; §6.4 says
+why there is no `/Ox` counterpart.
+
+**At depth 1 a loop looks like an ordinary `E` feature.** Five probes, five
+exact predictions from "3 + locals + L":
+
+| probe | body | law | measured |
+|---|---|---:|---:|
+| `lp-min` | `for(int i=0;i<a;i++) gs(i);` — 1 local | 3+1+5 | **9** |
+| `lp-min-outer` | same, `i` declared outside the `for` | 3+1+5 | **9** |
+| `lp-inf` | `for(;;){ if (gs(a)) break; }` — 0 locals, 1 `if` | 3+0+1+5 | **9** |
+| `lp-for` | `int t=0; for(int i…) t+=gs(i);` — 2 locals | 3+2+5 | **10** |
+| `lp-nested` | two nested `for`s, 3 locals | 3+3+2·5 | **16** |
+
+`lp-inf` is the one that matters: a `for` with **no** induction variable and no
+accumulator still costs 5, so the 5 is the loop construct and not its locals.
+
+**At depth 2 it stops behaving like one.** `d2-lp-for` was predicted at 22 (loop
+scaled like every other feature) or 17 (loop flat like the result temp) and
+measured **20**. Neither rival survives. Solving the two depths gives `3d + 2`,
+and depth 3 was then held out: predicted **32**, measured **32**.
+
+`while` and `do/while` were read, not predicted, at depth 2 — 17 and 18 — which
+fixes them at `d + 3` and `2d + 2`. Both were then held out at depth 3:
+predicted 27 and 29, measured **27 and 29**.
+
+> **`while` and `do/while` both cost 4 at depth 1 and diverge at depth 2.** A
+> capture set that only ever inlines one level deep merges them, gets every row
+> right, and is wrong by 1 the first time a `while` appears two levels down.
+> That is the same failure this document records for the FP leaf stride and for
+> §4's own `do/while` +1 — the third instance of it, and it is why the loop term
+> is written as three separate affine functions rather than one "loop" row.
+
+Full ladder, all measured:
+
+| body | depth 1 | depth 2 | depth 3 |
+|---|---:|---:|---:|
+| `for` accumulator body (`lp-for`) | 10 | 20 | 32 |
+| `while` accumulator body | 9 | 17 | 27 |
+| `do/while` accumulator body | 9 | 18 | 29 |
+
+Only `lp-two` (two sequential `for`s) stays unmodelled, and not because of the
+counter: it is 16 at N=1 and then the front end **refuses to keep inlining**, so
+its marginal slope is 0 and there is nothing to check a law against. That row
+measures the inliner's budget, not the label allocator.
+
+## 6.7 Where law L′ stops: the C++ shapes a real TU is made of
+
+Law L′ was fitted entirely on `int` scalars. A DC3-shaped TU passes structs by
+value, returns them, takes references, and runs constructors, so those are all
+hold-outs. Predictions were written before the capture and **four of eight
+missed**:
+
+| probe | predicted | measured | |
+|---|---:|---:|---|
+| `struct-param` — callee takes a 2-int struct **by value** | 4 | **3** | ✗ (the by-value copy is free) |
+| `struct-ref` — callee takes `const S&` | 3 | **3** | ✓ |
+| `struct-ret` — callee **returns** a 2-int struct by value | 4 | **5** | ✗ |
+| `ref-param` — callee takes `int&`, writes through it | 3 | **4** | ✗ |
+| `ptr-param` — callee takes `int*`, writes through it | 3 | **4** | ✗ |
+| `switch-body` — 5-arm `switch` (§4: a `switch` written out costs **+0**) | 3 | **10 at N=1, 14 marginal** | ✗✗ |
+| `ctor` — the callee constructs an object | 4 | **9** | ✗✗ |
+| `dtor` — …and the class has a destructor | 4 | **16** | ✗✗ |
+
+Two of the misses are small and have an obvious reconciliation. **The
+reconciliation was tested and it is wrong.** `ref-param` and `ptr-param` are 4
+rather than 3, and the tidy story is "binding a reference or taking an address
+materialises the argument, so it is an argument that is not already a plain
+lvalue and L′ already charges +1". Predicting *from* that story:
+
+| probe | predicted by the story | measured |
 |---|---:|---:|
-| `for` with a call | 10 | 2 |
-| `for` with no call | 10 | 2 |
-| `while` | 9 | 2 |
-| `do/while` | 9 | 1 |
-| two sequential `for`s | 16 at N=1, then the inliner refuses | 4 |
+| `ptr-already` — the argument is already a pointer **variable** | 3 | **4** |
+| `ptr-global` — the argument is `&<a global>` | 4 | **3** |
 
-Law L′ predicts 5 for the `for` bodies (3 + two locals `t` and `i`) and 5 for
-the `while`/`do` bodies (3 + one local + one assigned parameter). Net of the
-hand control the residual is **3, 3, 2, 3** — small, consistent, and completely
-unexplained. §4 already refuses to model a loop's own +2/+2/+1, so a loop inside
-an inlined body inherits that plus a residual of its own; `LAW` records these as
-`None` and the script prints `law: NOT MODELLED` rather than a number.
+Both inverted. Whatever the +1 is, it is not "the argument needed a temp"; the
+only thing that separates the 4s from the 3s in these five rows is that the 4s
+point **into a local of P** and the 3 points at a global. That is a third story
+and it has not been tested, so it is written here as an observation and not as a
+rule.
 
-**This is the riskiest thing still unmeasured on this axis**, because a loop in
-an inlined body is not an exotic shape — it is what a real workload TU is mostly
-made of.
+`switch`, `ctor` and `dtor` are not near-misses at all — they are 3×, 2× and 4×
+the scalar prediction, and `switch-body` is not even uniform in N (10 at the
+first site, 14 marginal after). A `switch` that costs **+0** written out costs
+10 inlined.
 
-## 6.7 Reproduction
+> **This is the riskiest thing still unmeasured on this axis.** Law L′ is
+> exhaustively tested and, as far as it goes, exact — but "as far as it goes" is
+> `int` scalars, `if`s, locals and loops. Constructors and destructors are not a
+> corner of a C++ workload; they are most of one, and they are the shapes where
+> the fitted law is worst. `LAW` records all eight as `None` so the script prints
+> `law: NOT MODELLED` rather than a number a widening class gate could act on.
+
+## 6.8 Reproduction
 
 ```sh
 export C2RS_WIBO=<the repo's resolved wibo>          # NOT ../wibo/build/wibo
-scripts/gt_label_inline.py                            # /O1, all 74 families
+scripts/gt_label_inline.py                            # /O1, all 100 families
 scripts/gt_label_inline.py --mode '/Ox /GS- /c'       # packed
 scripts/gt_label_inline.py --max 6 framed leaf        # the retraction, in 6 s
 scripts/gt_label_inline.py nest1 nest2 nest3 nest4 nest5 nest6   # the depth law
+scripts/gt_label_inline.py lp-for d2-lp-for d3-lp-for            # the loop ladder
+scripts/gt_label_inline.py ctor dtor switch-body                 # where it stops
 scripts/gt_label_inline.py --list
 ```
 
