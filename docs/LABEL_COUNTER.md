@@ -421,7 +421,7 @@ Two rules that used to be listed in this table are **not `E` features** — see
 
 | charge | worth | measured by |
 |---|---|---|
-| owning a local with a **non-trivial destructor** | `d + 1` at the owner's own depth, once per function, **not per object** and **not** `2d` | `dtor-3obj` 38, `d2-dtor` 27, `d3-dtor` 40 (§6.9, §6.12) |
+| owning a local with a **non-trivial destructor** | `d + 1` at the owner's own depth, once per function, **not per object** and **not** `2d` | `dtor-3obj` 38, `d2-dtor` 27, `d3-dtor` 40 (§6.9, §6.12), `d4-dtor` 55 (§6.14) |
 | the address of a **scalar automatic** handed to the callee | **+1**, once per depth-1 instance, and **only when P's whole expansion is flat** | `ptr-param` 4 vs `ptr-global` 3 (§6.10); `d2-ptr-p` 8, `ptr-sibling` 11 (§6.12) |
 
 plus **+1 flat, at any depth**, once per multi-exit callee whose result has to
@@ -438,6 +438,13 @@ part of the `d * E` product (§6.6):
 
 The loop row is **`/O1` only** — see §6.4. Everything above it holds at `/Ox`
 unchanged.
+
+**The loop term and the scope-exit term ADD, and each keeps its own law**
+(§6.14). They are the only two charges outside the `d·E` product and they were
+fitted on disjoint bodies; measured together they are exact at depth 1
+(`dtor-loop` 23/21), depth 2 (`d2-dtor-loop` 39/**37**, against two controls
+carrying one term each) and depth 3 (`d3-dtor-loop` 57/**55**, a hold-out).
+Nothing is shared, absorbed or capped between them.
 
 And on top of that, P still pays its **own** §1.1 surcharges for the code it
 ends up containing. `cf-tern`'s 7 is 5 of bookkeeping plus the 2 that a
@@ -1323,6 +1330,12 @@ second unit that scaled. Both readings hold at `/Ox` unchanged.
 > A **virtual** call the front end devirtualises and inlines, and a **template**
 > instantiation, are both ordinary in a real TU and neither has a single row.
 
+> **Answered by §6.14 (round 27).** `d2-dtor-loop` was written and it **holds**:
+> the two terms add at depth 2 and again at depth 3, each keeping its own depth
+> law. `S(d) = d + 1` also survives at depth 4, which closes the first bullet
+> above. What did *not* survive is the assumption that the DC3 shape could be
+> measured at all — see §6.14.
+
 ## 6.13 Reproduction
 
 ```sh
@@ -1347,6 +1360,13 @@ scripts/gt_label_inline.py --max 3 d2-dtor d2-ctor d2-dtor-only \
 scripts/gt_label_inline.py --max 3 d2-ptr-p ptr-use-d1 ptr-use-nest \
     ptr-sibling ptr-sibling-rev d3-ptr-auto d2-ptr-glob   # the four rivals
 scripts/gt_label_inline.py --max 2 d3-switch d3-sw2 d2-sw-void d2-sw-1exit
+# --- §6.14, round 27: the two non-E terms meet AT DEPTH ------------------
+# --max 4, and NOT the default 6: at /O1 the inliner stops at N=5 on the
+# joint rows, and a marginal read across that boundary measures the budget.
+scripts/gt_label_inline.py --max 4 d2-loop-3loc d2-dtor-3loc d2-dtor-loop
+scripts/gt_label_inline.py --max 4 d3-dtor-loop d4-dtor
+scripts/gt_label_inline.py --max 4 ctor-loop d2-loop-asctor ctor-loop-leaf \
+    d2-ctor-loop                                  # the DC3 shape + its controls
 scripts/gt_label_inline.py --list
 ```
 
@@ -1358,7 +1378,7 @@ Reading a marginal across that row measures the inliner, not the counter. At
 unobservable rather than different — §6.12's budget table.
 
 The last line of a run is
-`controls failed: 0   families refuting LAW L': 0`, on 161 families in both
+`controls failed: 0   families refuting LAW L': 0`, on 170 families in both
 modes. The second number is the one to read: it is the law's own falsifier,
 computed rather than remembered. It reached 0 by the two rows §6.11 left
 printing being **explained** — see §6.12 — and the wordings they refuted are
@@ -1368,3 +1388,189 @@ the run's own measurement and prints it beside the verdict:
 ```
 d2-dtor  -> ... law(book) 27 OK   [retired 'scope-exit as E += 2' said 28, measured 27]
 ```
+
+## 6.14 Round 27 — the two non-`E` terms add at depth, and the shape that matters is the one the inliner refuses
+
+§6.12 closed by naming this as the riskiest thing left: the loop term
+(`for` = `3d + 2`, slope 3) and the scope-exit term (`S(d) = d + 1`, slope 1)
+sit outside the `d·E` product, have **different depth laws**, and had met in
+exactly one cell — `dtor-loop`, at depth 1, where they add. Nine families
+later, **they add at depth 2 and at depth 3 as well**, and the row that was
+supposed to carry the finding into a real TU turns out to be invisible to this
+instrument for a reason worth more than the number would have been.
+
+This is the first round in this lane in two days that **confirms rather than
+refutes**, and saying so is the point: my pre-registered expectation
+(`work/gt-relational/ESTIMATE-task2.txt`) was *"I expect 4 of the 7 to land…
+my honest prior on 'they simply add' is about 55 %, NOT the ~85 % the shipped
+law implies"*. **Every observable row landed — 7 of 7, on the integer, first
+try.** Expecting a refutation because the last six probes produced one is the
+same failure as expecting a confirmation because the last six did; the bias
+had simply changed sign, and it was written down in advance, which is the only
+reason it can be named now.
+
+### The design: two controls carrying one contested term each
+
+§6.12's own rule is that a correction must be derived from a **held-out** cell.
+The same rule applied to a *test* means the joint cell must be predictable from
+cells that are not it, so additivity is arithmetic rather than a fit:
+
+| probe | what it carries | pred (marginal / book) | rivals | measured |
+|---|---|---:|---|---:|
+| `d2-loop-3loc` — the joint body **minus the object** | loop term only, depth 2 | 22 / **20** | 19 if the loop term does not scale in a 3-local body | **22 / 20** ✓ |
+| `d2-dtor-3loc` — the joint body **minus the loop**, `E` held at 3 | scope-exit only, depth 2 | 31 / **31** | 32 if scope-exit were still `E += 2` | **31 / 31** ✓ |
+| **`d2-dtor-loop`** — the joint cell | **both**, depth 2 | 39 / **37** | 36/34 three ways · 31/29 | **39 / 37** ✓ |
+
+```
+    22  (loop only)  +  31  (scope-exit only)  −  14  (shared base)  =  39
+```
+
+The joint measurement is **39**. The two terms simply add, each retaining its
+own law: `L(2) = 8` and `S(2) = 3` inside one instance, with the `d·E` product
+and the depth-3 ctor/dtor instances unchanged around them.
+
+Three rivals shared the value 36 — scope-exit not paid beside a loop, the loop
+pinned at its depth-1 value, and the two collapsing into one term at the loop's
+law. None of them fired, so the controls were not needed to discriminate; they
+are still what makes the 39 a *prediction* rather than a reading.
+
+### It holds at depth 3, and `S(d)` holds at depth 4
+
+| probe | pred (book) | rivals | measured |
+|---|---:|---|---:|
+| `d3-dtor-loop` — the joint cell at **depth 3** — hold-out | **55** | 57 under the retired `E += 2` | **55** ✓ |
+| `d4-dtor` — the destructible object at **depth 4** — §6.12's first `NOT MODELLED` | **55** | 54 if `S` saturates at 4 · 58 under `E += 2` | **55** ✓ |
+
+`d3-dtor-loop` = `3 + 5 + [7 + 3·3 + L(3)=11 + S(3)=4] + 9 + 9` = 57 marginal.
+Both non-`E` terms scale independently, three levels down, in the same
+instance. **The additivity is not a depth-2 coincidence.**
+
+`d4-dtor` = `3 + 5 + 7 + [9 + 4·1 + S(4)=5] + 11 + 11` = 55, and the
+saturating rival misses by 1. That separation is **thin, and was called thin in
+the pre-registration rather than after the fact** — one row at a 1-wide
+separation should not by itself move a rule. What makes it usable is that it is
+the *fourth* point on a two-parameter affine form whose third point (`d3-dtor`)
+was already an extrapolation that landed: `S(d) = d + 1` now has two successive
+successful extrapolations, and the retired `E += 2` wording is re-refuted on
+this row by 3.
+
+### The DC3 shape: the front end refuses it, and law L′ predicts the refusal
+
+§6.12 named "no probe puts a `for` inside a constructor, and a DC3 container's
+constructor is mostly exactly that". Both probes that do come back
+**`INLINE-DECLINED?`, in both modes**:
+
+| probe | `/O1` | `/Ox` | charge |
+|---|---|---|---:|
+| `ctor-loop` — a `for` with a call, inside a ctor | declined **from the first site** | declined | **4**/site |
+| `d2-ctor-loop` — the same, one level down | declined from N=2 | declined from N=2 | **10**/site |
+
+A declined row is **unobservable, not refuted** — but these two are not silent.
+Their charges decompose *exactly* as law L′ for the tree the front end actually
+built, i.e. the tree with the constructor left as a `bl`:
+
+```
+    ctor-loop      4  =  3 + 1·1              the wrapper `lcl` alone, E = 1 (the object)
+    d2-ctor-loop  10  =  3 + [5 + 2·1]        both wrappers, CL::CL left out
+```
+
+So law L′ is not being dodged here; it is predicting the *observed* expansion
+tree to the integer while the *intended* one never got built. That is the
+useful form of a decline, and it is only visible because `INLINE-DECLINED?`
+identified which tree was measured.
+
+**Two controls say exactly what the budget is refusing**, because "a decline"
+is not a finding until you know which feature caused it:
+
+| control | differs from `ctor-loop` by | `/O1` | measured |
+|---|---|---|---:|
+| `d2-loop-asctor` — the identical tree with a plain `static` function where the ctor was | ctor → plain function | **inlines to N=6** | 21 / **19** ✓ |
+| `ctor-loop-leaf` — the same constructor, loop body makes **no call** | call in loop → arithmetic | **inlines to N=6** | 19 / **17** ✓ |
+
+Neither the constructor alone nor the call-in-a-loop alone is refused. **It is
+the conjunction.** And `ctor-loop-leaf` measures **17** — which is `ctor-loop`'s
+own pre-registered prediction, on the identical tree minus a call that §6.6
+already measured as free to the counter (`lp-for` = `lp-for-leaf` = 10). The
+law's answer for the DC3 shape is therefore *corroborated on its nearest
+observable neighbour* and **never measured on the shape itself**. Those are
+different claims and the difference is the whole content of the next bullet
+list.
+
+### The budget, again, and again not monotone
+
+| shape | `/O1` | `/Ox` |
+|---|---|---|
+| `d2-dtor-3loc` (3 locals + scope-exit, no loop) | inlines to **N=4**, declines at N=5 | inlines to **N=6** |
+| `d2-dtor-loop`, `d3-dtor-loop` | inline to **N=4** | declined from **N=2** |
+| `d2-loop-3loc` (3 locals + loop) | inlines to **N=5** | declined from **N=2** |
+| `d2-loop-asctor` (2 locals + loop) | inlines to N=6 | **inlines to N=6** |
+| `ctor-loop-leaf` (ctor + loop, no call) | inlines to N=6 | declined from N=2 |
+
+Two things to read off it. `d2-dtor-3loc` is a **fourth** instance of the
+non-monotonicity §6.12 recorded: `/O1` declines at N=5 what `/Ox` carries to
+N=6, on a shape with no loop in it at all. And `d2-loop-3loc` versus
+`d2-loop-asctor` at `/Ox` — declined from N=2 against inlined to N=6 — differ
+by **one declared local**. "Loops are declined at `/Ox`" is false as a general
+statement; the budget is counted per shape and one local is enough to cross it.
+
+**These are `--max 4` results at `/O1`, and that is not tuning.** At the default
+`--max 6` the joint rows read `0/site marginal, one-off +39 at N=1` — the
+marginal is taken across the boundary where the inliner stops, so it measures
+the budget rather than the counter, exactly as §6.13 records for the switch
+rows. Inside the window every row is **exactly linear** (`d2-dtor-loop`
+39 / 78 / 117 / 156 at N = 1…4), which is the check that the window is the right
+one.
+
+### One instrument fix, and it was under-reporting
+
+`INLINE-DECLINED?` fires when P's `.text` growth is much smaller than the hand
+control's, and the test was `dtext * 2 < hd`. `ctor-loop` at N=1 grows P by
+**12** where the control grows it by **24** — a `bl` instead of a body, and
+*exactly* on the boundary, so the strict `<` said nothing. Widened to `<=`.
+
+The change was graded before it was kept, on all 170 families in both modes:
+**not one verdict line moved**, and the flag count went 91 → 92 at `/O1`
+(`ctor-loop` N=1) and 137 → 139 at `/Ox` (`noinline` N=3 and N=5 — the family
+whose entire purpose is to be declined, and which was under-reported at two of
+its six rows). Both new flags are true positives; there are no new false ones.
+This matters beyond one row: trap #1 of this axis is that a wrong-depth
+expansion tree is invisible in stride, residual and linearity, and `.text`
+growth is the *only* column carrying that evidence. A detector that misses the
+exactly-2× case is a detector that misses the cheapest possible decline — a
+callee replaced by a single call.
+
+### What round 27 leaves `NOT MODELLED`
+
+* **The DC3 shape itself.** `ctor-loop` and `d2-ctor-loop` are unobservable in
+  both modes. `ctor-loop-leaf` = 17 is the law's number on the identical tree
+  minus a call known to be free, which is strong corroboration and **is not a
+  measurement of the row**. Do not write 17 into a table as if it were.
+* **`S(d)` above depth 4** — the bullet moved up one level rather than closing.
+  Two successive extrapolations have landed, so the affine form is now the
+  strongest-supported rule in §6.2; `d = 5` is still unmeasured.
+* **the addressability "flat P" clause** — unchanged, still two rows. Since it
+  can only ever *remove* a `+1`, a port should treat the `+1` as absent.
+* **`lp-two`, the `while`/`do` ladders at `/Ox`, the depth-2/3 `switch` at
+  `/Ox`** — unchanged, all budget rather than counter.
+* **the non-`E` terms above depth 3, and `while`/`do` versions of the joint
+  cell.** Only the `for` form has been carried to depth 3 beside a scope-exit.
+
+> **The riskiest thing still unmeasured on this axis** is no longer whether the
+> terms compose — they do, at three depths, on held-out cells. It is that
+> **the shape the roadmap needs the law for is the shape the front end
+> declines**. A DC3 container constructor loops over its members and calls
+> something inside the loop, and that exact conjunction comes back
+> `INLINE-DECLINED?` at `/O1` *and* `/Ox`, from the first site. The consequence
+> is not that the law is untested there — it is that **an emitter which assumes
+> the inline happened will build the wrong tree on the commonest shape in the
+> corpus.** Law L′ predicts the declined tree exactly (`ctor-loop` 4,
+> `d2-ctor-loop` 10), so the modelling job is real and tractable; what does not
+> exist yet is any rule for *predicting the decline itself*, and the budget has
+> now been shown non-monotone in the optimisation level four times and
+> sensitive to a single declared local once. Until such a rule exists, a port
+> that relaxes `bundle.rs`'s "a callee defined here may be inlined" gate has no
+> way to know which tree it is counting for.
+>
+> Second, unchanged and still cheap: the whole ladder is `int` and small
+> structs. A **virtual** call the front end devirtualises, and a **template**
+> instantiation, are both ordinary in a real TU and neither has a single row.
