@@ -728,3 +728,29 @@ Sized by what each rung needs that the previous one did not:
    right.
 6. Classes D/E/F (FPRs) last: they add a second save area, a second threshold,
    and an unmeasured label stride.
+
+> **Rungs 5 and 6 are DECLINED on measurement, 2026-07-31 —
+> `docs/rungs/2026-07-31-frame-class-c-declined.md` (W33). Read that before
+> scheduling either.** Both convert **0 functions** on the 878-TU workload, by
+> two independent counterfactuals: lifting `MAX_INLINE_SAVED_GPRS` from 2 to 8
+> leaves the census bit-identical at 549,148, and sinking the whole call-sequence
+> production with a key naming `saved.len()` shows the entire framed multi-call
+> lane is **7,782 functions distributed 7,780 / 2 / 0 / 0** over 0/1/2/3+ saved
+> GPRs. Not one workload function reaches this production needing even *two*
+> saved GPRs.
+>
+> **The list above is a correct ordering of difficulty and a wrong schedule.**
+> `scripts/gt_frame_class.py` reads the ceiling straight out of the reference
+> objs — no IL parser in the loop — and dc3 contains **25,060 Class C functions,
+> 14.0 % of everything emitted, the third-largest class and 3.4× the Class A
+> framed bodies the port already emits.** Class C is unreachable, not small, and
+> rung 4 (Class B) converted **2** against a ceiling of **30,497**. The binding
+> constraint on this ladder is the expression layer, not the frame: 7,782 of
+> 802,655 `calls-2plus` functions reach the call-sequence production at all. Take
+> rungs 5/6 when counterfactual B's `saved2` / `saved3plus` buckets stop being
+> empty — one edit and a 28 s scan to re-check.
+>
+> That same script re-derives §2.3's and §2.4's thresholds over **75,722 real
+> framed functions** (no inline save run reaches 3 GPRs or 4 FPRs) and puts a
+> number on §1.3's spill boundary: the saved-GPR histogram runs 3…18 and stops
+> dead at 18 = `|r14..r31|`, with **111** functions there.
