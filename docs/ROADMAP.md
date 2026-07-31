@@ -3138,6 +3138,26 @@ kind of function. Both were caught in one capture by the rule §6n now carries:
 stop decoding before any marker, so the axis says nothing about them. Establishing
 `0x64` (145,237) and `0x67` (45,631) is what shrinks that.
 
+> **Both numbers above are BOUNDS, not sizes — corrected 2026-07-31 the same day
+> they were written** (`docs/EH_RECORDS.md` §9.4). The split above was computed
+> from a **statement count**, and that predicate is refuted from bytes:
+> `int P(int a){ SE s; return a+1; }` has "another statement beside" the object
+> and gets **no prefix, one `.pdata`, no `.rdata`, no funclet, `Value = 0`** — it
+> is cheap. **The predicate is `maxState >= 1`**, where a state indexes the
+> distinct sets of *live destructible objects* observed at an outbound control
+> transfer. Statement count does not enter it.
+>
+> So **`eh-plus-stmt`'s 160,944 is an UPPER bound and the cheap side's 40,881 is
+> a LOWER bound.** The direction is known; the magnitude is not, because
+> re-scanning on `maxState` is a harness change. **Re-derive before scheduling
+> either side.** The phase conclusion — that EH holds the stock and no
+> first-blocker histogram sees it — is unaffected, since it rests on the marker
+> count rather than on the split.
+>
+> `eh-unknown` was separately measured down to **137,187** (−52.4 %) by
+> establishing `0x67`/`0x9A`/`0x64`, and **96.4 % of what left it carried no EH
+> marker at all** — so that risk closed in the favourable direction.
+
 ## 6p. The 288,072 were not hidden EH stock — WDR, 2026-07-31
 
 Measured in `docs/IL_DECODE_REACH.md`, census delta **0** — an axis, not a rung.
