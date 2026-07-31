@@ -110,7 +110,9 @@
 
 use crate::func::body::expr::{eat_return_plumbing, eat_scopes};
 use crate::func::body::{Block, BodyShape, SeqCall, SeqTail};
-use crate::func::readers::{eat_byte, is_ptr4_kind, read_type, value_class, ValueClass};
+use crate::func::readers::{
+    eat_byte, is_fp_type, is_ptr4_kind, read_type, value_class, ValueClass,
+};
 use crate::func::IlOp;
 
 use super::calls::{
@@ -433,10 +435,21 @@ fn chain_result_designator(
     // [`value_class`] predicate the leaf asks, so the two cannot drift about what
     // "width 4" means.
     let Some(cls) = value_class(tag, kind) else {
+        // **WFL — the floating-point member**, which is the whole of what
+        // `mcall-chain-tail-load-class` was worth: 717 functions, measured by
+        // counterfactual rather than named. `lfs`/`lfd` into **f1**, a different
+        // register file and a `_fltused` obligation besides. Asked through the
+        // shared [`is_fp_type`] — the volatile-refusing, two-channel one the FP
+        // tail call and the FP leaf ask — and NOT through a nibble test written
+        // here, which is `docs/GAPS.md` §6's "one rule, two implementations".
+        if let Some(double) = is_fp_type(tag, kind) {
+            return fp_chain_result_load(off, double, conv, rt, rk, loaded_at);
+        }
         // Named, because what each costs is a number and not an argument. The
-        // narrow and 8-byte scalars are `lbz`/`lhz`/`ld` and a `float`/`double`
-        // member is `lfs`/`lfd` into **f1**, which is a different register file
-        // and a `_fltused` obligation besides.
+        // narrow and 8-byte scalars are `lbz`/`lhz`/`ld`; what is left in this
+        // key after the FP class moved out is `volatile float`, and anything a
+        // member may be that neither [`value_class`], [`sized_ptee`] nor
+        // [`is_fp_type`] can spell.
         let ctx = match sized_ptee(tag, kind) {
             Some(_) => "mcall-chain-tail-load-width",
             None => "mcall-chain-tail-load-class",
@@ -479,6 +492,89 @@ fn chain_result_designator(
         }));
     }
     Ok(SeqTail::CallLoad { off })
+}
+
+/// **WFL** — the class tail of [`chain_result_designator`] when the loaded member
+/// is floating point: one `lfs`/`lfd` into `f1`.
+///
+/// Reached only after the whole body has parsed to the end of the segment and the
+/// displacement has been bounded, so every refusal here is a codegen-class one
+/// over a complete body and carries its own key — the same contract the integer
+/// tail's gates keep, and for the same reason (`Err(Some(b))` claims the
+/// production).
+///
+/// The cells, read off the reference obj (`work/WFL/probe/p1.cpp`, `/O1 /GS- /c`,
+/// base already in r3):
+///
+/// ```text
+///   float  m;   return …->m;              lfs f1,k(r3)      c0230004
+///   double m;   return …->m;              lfd f1,k(r3)      c8230010
+///   float* p;   return *…;                lfs f1,0(r3)      — no fold at 0
+///   float  m;   DOUBLE return             lfs f1,k(r3)      — byte-IDENTICAL
+///   double m;   FLOAT  return             lfd f0,k(r3) ; frsp f1,f0   — REFUSED
+/// ```
+///
+/// **The promotion is free and the narrowing is not, and neither is a guess.**
+/// `lfs` loads *and converts* — the FP register holds a double either way — so a
+/// `float` member returned as a `double` is the same single instruction, and the
+/// emitted opcode follows the **member's** width rather than the result's. The
+/// narrowing is two words *and its destination is `f0`*, which is the FP file's
+/// first scratch and not the result register; it is a second production
+/// (`float_leaf_text`'s pool would have to allocate it) and it refuses under its
+/// own name rather than being folded in.
+///
+/// `lfd` is **D-form** (primary 50), unlike the integer `ld` that
+/// [`super::leaf_load::finish_indirect_load_of`] guards with a 4-byte alignment
+/// test: there is no DS-form displacement bit here, so an 8-byte load at an odd
+/// displacement encodes fine and needs no gate. One instruction, two widths, one
+/// encoder ([`c2_core::codegen::encode::encode_lfs`], which takes the width).
+fn fp_chain_result_load(
+    off: i32,
+    double: bool,
+    conv: Option<(u8, u8)>,
+    rt: u8,
+    rk: u8,
+    loaded_at: usize,
+) -> Result<SeqTail, Option<Block>> {
+    // The conversion, when there is one. It must stay in the FP file, and within
+    // it only the WIDENING direction is free.
+    let value_double = match conv {
+        None => double,
+        Some((t2, k2)) => {
+            let Some(conv_double) = is_fp_type(t2, k2) else {
+                // FP → integer (`int f(){ return …->fltmember; }`) is a
+                // `fctiwz`, a spill through the frame and a reload; nothing in
+                // this tail's one instruction.
+                return Err(Some(Block {
+                    ctx: "mcall-chain-tail-load-fp-convert",
+                    byte: None,
+                    off: loaded_at,
+                    aux: 0,
+                }));
+            };
+            if double && !conv_double {
+                return Err(Some(Block {
+                    ctx: "mcall-chain-tail-load-fp-narrow",
+                    byte: None,
+                    off: loaded_at,
+                    aux: 0,
+                }));
+            }
+            conv_double
+        }
+    };
+    // …and the result type restates the value's width after the conversion.
+    // Required rather than skipped: every capture agrees byte for byte, and this
+    // is the one place a promotion could be mis-read as a same-width strip.
+    if is_fp_type(rt, rk) != Some(value_double) {
+        return Err(Some(Block {
+            ctx: "mcall-chain-tail-load-fp-result",
+            byte: None,
+            off: loaded_at,
+            aux: 0,
+        }));
+    }
+    Ok(SeqTail::CallLoadFp { off, double })
 }
 
 #[cfg(test)]
@@ -967,11 +1063,15 @@ mod tests {
     /// the outer link, followed by `30 A6 45 F3 30` — an indirect load of a
     /// `const float` member — and it parses to the end of the segment.
     ///
-    /// So it IS this production, and it refuses under this rung's own name
-    /// rather than keeping `expr-call-in-expr-chained-then-deref-load-more`. A
-    /// `float` member is `lfs f1,k(r3)`, a different register file and a
-    /// `_fltused` obligation besides; emitting the `lwz` would be wrong bytes
-    /// inside an accepted class.
+    /// So it IS this production. WCO refused it by name
+    /// (`mcall-chain-tail-load-class`) because a `float` member is
+    /// `lfs f1,k(r3)`, a different register file and a `_fltused` obligation
+    /// besides; **WFL emits that instruction**, and this wild segment is the
+    /// row's acceptance witness rather than its refusal one. It is kept under
+    /// its original name because what makes it valuable is unchanged: it is a
+    /// real body from the workload, and the `2C 86 45 40` cv strip off a
+    /// `const float` is a spelling no hand-written fixture in this repo
+    /// produced.
     const WILD_CHAIN_FLOAT_MEMBER: &[u8] = &[
         0x4C, 0x4F, 0x11, 0x53, 0x26, 0xF5, 0x42, 0x26, 0x6B, 0x43, 0xB9, 0x8F, 0x43, 0x86, 0x43,
         0xFE, 0x31, 0x99, 0x86, 0x43, 0xF2, 0x31, 0x00, 0xBD, 0x86, 0x43, 0xCB, 0x31, 0x00, 0x80,
@@ -982,13 +1082,246 @@ mod tests {
         0x54, 0x00,
     ];
 
+    /// `float t_lfs(O* p) { return p->Next()->gf()->f; }` — **the row**: the
+    /// designator step whose member is a `float`, which is one `lfs f1,4(r3)`
+    /// (`c0230004`). Its tail is `4C · 33 <int> 04 27 <ptr> · 30 <FLOAT> ·
+    /// 41 <FLOAT>`, where the integer form's two TYPEs are `86 41 74`.
+    /// Transcribed verbatim from a live-toolchain capture
+    /// (`work/WFL/probe/t1.cpp`, `c2rs census --keep-il`), not hand-assembled.
+    const MC_TAIL_LFS: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x06, 0x53, 0x53, 0x26, 0xF8, 0x09,
+    0x46, 0x2D, 0xF7, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xEF, 0x09, 0x26, 0xEE, 0x09, 0xB9,
+    0xF7, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x04, 0x27, 0x86, 0x43, 0xC0, 0x08, 0x30, 0x86, 0x45, 0x40, 0x41, 0x86, 0x45, 0x40,
+    0x3A, 0xF9, 0x09, 0x54, 0x02, 0x29, 0xF9, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `double t_lfd(O* p) { return p->Next()->gf()->d; }` — the same body with
+    /// a `double` member: one `lfd f1,8(r3)` (`c8230008`). One encoder, one
+    /// width bit, and NO alignment gate — `lfd` is D-form (primary 50), unlike
+    /// the integer `ld` the load leaf has to guard. Verbatim, same TU.
+    const MC_TAIL_LFD: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x07, 0x53, 0x53, 0x26, 0xFB, 0x09,
+    0x46, 0x2D, 0xFA, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xEF, 0x09, 0x26, 0xEE, 0x09, 0xB9,
+    0xFA, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x08, 0x27, 0x88, 0x43, 0xC1, 0x08, 0x30, 0x88, 0x85, 0x41, 0x41, 0x88, 0x85, 0x41,
+    0x3A, 0xFC, 0x09, 0x54, 0x02, 0x29, 0xFC, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `float t_deref(O* p) { return *p->Next()->gpf(); }` — a bare `30` with
+    /// no offset add at all, which is the same `lfs f1,0(r3)`. The load form
+    /// does **not** fold at displacement 0; the address form does, and that
+    /// pair is what makes `CallLoadFp` a variant rather than a flag.
+    /// Verbatim, same TU.
+    const MC_TAIL_FP_DEREF: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x08, 0x53, 0x53, 0x26, 0xFE, 0x09,
+    0x46, 0x2D, 0xFD, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xF0, 0x09, 0x26, 0xEE, 0x09, 0xB9,
+    0xFD, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x88, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0xC0, 0x08, 0x00, 0x80, 0x08, 0x10, 0x00, 0x00, 0x4C, 0x30, 0x86, 0x45,
+    0x40, 0x41, 0x86, 0x45, 0x40, 0x3A, 0xFF, 0x09, 0x54, 0x02, 0x29, 0xFF, 0x09, 0x4F, 0x12,
+    0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `double t_promote(O* p) { return p->Next()->gf()->f; }` — a `float`
+    /// member returned as a `double`. `2C 88 85 41 00` sits between the load
+    /// and the result, and the emitted instruction is **unchanged**:
+    /// `lfs f1,4(r3)`, byte-identical to [`MC_TAIL_LFS`], because `lfs` loads
+    /// and converts in one instruction. So the width bit follows the MEMBER
+    /// and not the result, and refusing "any conversion" would have been a
+    /// discount on a measured-free cell. Verbatim, same TU.
+    const MC_TAIL_FP_PROMOTE: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x09, 0x53, 0x53, 0x26, 0x01, 0x0A,
+    0x46, 0x2D, 0x00, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xEF, 0x09, 0x26, 0xEE, 0x09, 0xB9,
+    0x00, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x04, 0x27, 0x86, 0x43, 0xC0, 0x08, 0x30, 0x86, 0x45, 0x40, 0x2C, 0x88, 0x85, 0x41,
+    0x00, 0x41, 0x88, 0x85, 0x41, 0x3A, 0x02, 0x0A, 0x54, 0x02, 0x29, 0x02, 0x0A, 0x4F, 0x12,
+    0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `float t_narrow(O* p) { return (float)p->Next()->gf()->d; }` — the other
+    /// direction, and the one that is not free: `lfd f0,8(r3) ; frsp f1,f0`,
+    /// two words whose load destination is **f0**, the FP pool's first scratch.
+    /// Verbatim, same TU.
+    const MC_TAIL_FP_NARROW: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x0A, 0x53, 0x53, 0x26, 0x04, 0x0A,
+    0x46, 0x2D, 0x03, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xEF, 0x09, 0x26, 0xEE, 0x09, 0xB9,
+    0x03, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x08, 0x27, 0x88, 0x43, 0xC1, 0x08, 0x30, 0x88, 0x85, 0x41, 0x2C, 0x86, 0x45, 0x40,
+    0x00, 0x41, 0x86, 0x45, 0x40, 0x3A, 0x05, 0x0A, 0x54, 0x02, 0x29, 0x05, 0x0A, 0x4F, 0x12,
+    0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// `int t_toint(O* p) { return p->Next()->gf()->f; }` — out of the FP file
+    /// entirely: `lfs f0 ; fctiwz f0,f0 ; stfd f0,80(r1) ; lwz r3,84(r1)`, four
+    /// words and a frame slot. Verbatim, same TU.
+    const MC_TAIL_FP_TOINT: &[u8] = &[
+    0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+    0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+    0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+    0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x0B, 0x53, 0x53, 0x26, 0x08, 0x0A,
+    0x46, 0x2D, 0x07, 0x0A, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xEF, 0x09, 0x26, 0xEE, 0x09, 0xB9,
+    0x07, 0x0A, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x86, 0x43,
+    0x81, 0x20, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x87, 0x20, 0x00,
+    0xBD, 0x86, 0x43, 0x86, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, 0x4C, 0x33, 0x86, 0x41,
+    0x74, 0x04, 0x27, 0x86, 0x43, 0xC0, 0x08, 0x30, 0x86, 0x45, 0x40, 0x2C, 0x86, 0x41, 0x74,
+    0x00, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x09, 0x0A, 0x54, 0x02, 0x29, 0x09, 0x0A, 0x4F, 0x12,
+    0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x0C, 0x4D,
+    ];
+
     #[test]
-    fn a_wild_float_member_on_the_chain_result_refuses_by_name() {
-        let seg = crate::func::test_fixtures::free_fn(WILD_CHAIN_FLOAT_MEMBER);
+    fn a_floating_point_member_on_the_chain_result_is_an_lfs_or_an_lfd() {
+        // **The pair this rung rests on**, and the width bit is the only thing
+        // between them: `lfs f1,4(r3)` = c0230004 and `lfd f1,8(r3)` = c8230008.
+        assert_eq!(tail_of(MC_TAIL_LFS), SeqTail::CallLoadFp { off: 4, double: false });
+        assert_eq!(tail_of(MC_TAIL_LFD), SeqTail::CallLoadFp { off: 8, double: true });
+        // A bare `30` with no add is the same load at displacement 0 — it does
+        // NOT fold, exactly as the integer form does not.
+        assert_eq!(tail_of(MC_TAIL_FP_DEREF), SeqTail::CallLoadFp { off: 0, double: false });
+    }
+
+    #[test]
+    fn the_promotion_is_free_and_the_width_follows_the_member() {
+        // `double f(){ return …->floatmember; }` is byte-identical to the
+        // unpromoted body, so `double` here must stay **false**: it is the
+        // LOADED width. A rule that read the result type instead would emit
+        // `lfd` where c2 emits `lfs` — four bytes wrong inside an accepted
+        // class, which no census number would show.
+        assert_eq!(tail_of(MC_TAIL_FP_PROMOTE), SeqTail::CallLoadFp { off: 4, double: false });
+        assert_eq!(
+            tail_of(MC_TAIL_FP_PROMOTE),
+            tail_of(MC_TAIL_LFS),
+            "the promotion changes no instruction"
+        );
+    }
+
+    #[test]
+    fn the_narrowing_and_the_integer_conversion_refuse_by_name() {
+        // Two words and a scratch register (`lfd f0 ; frsp f1,f0`), against this
+        // tail's one instruction into f1.
+        assert_eq!(parse_segment(MC_TAIL_FP_NARROW, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(MC_TAIL_FP_NARROW, NO_LOCALS).unwrap_err().ctx,
+            "mcall-chain-tail-load-fp-narrow"
+        );
+        // …and leaving the FP file is `fctiwz` plus a spill through the frame.
+        assert_eq!(parse_segment(MC_TAIL_FP_TOINT, NO_LOCALS), None);
+        assert_eq!(
+            parse_segment_detail(MC_TAIL_FP_TOINT, NO_LOCALS).unwrap_err().ctx,
+            "mcall-chain-tail-load-fp-convert"
+        );
+    }
+
+    #[test]
+    fn a_volatile_floating_point_member_stays_refused_and_the_key_says_so() {
+        // The residue of `mcall-chain-tail-load-class` after the FP class moved
+        // out. c2 emits the IDENTICAL single `lfs f1,k(r3)` for a
+        // `volatile float` member (measured, `c_vol` in
+        // `work/WFL/probe/p4.cpp`), so this refusal costs coverage and not
+        // correctness — and it is kept because the predicate asked here is the
+        // SHARED [`is_fp_type`], whose volatile refusal is right at the position
+        // it was written for (a `volatile float` FORMAL is a spill). Splitting
+        // that locator by position is a rung in `readers.rs`, not a line here;
+        // this test is what makes the choice visible instead of implicit.
+        let at = MC_TAIL_LFS
+            .windows(3)
+            .rposition(|w| w[0] == 0x30 && w[1] == 0x86 && w[2] == 0x45)
+            .expect("the indirect load");
+        let mut seg = MC_TAIL_LFS.to_vec();
+        seg[at + 1] = 0x96; // `86` -> `96`, the volatile tag
         assert_eq!(parse_segment(&seg, NO_LOCALS), None);
         assert_eq!(
             parse_segment_detail(&seg, NO_LOCALS).unwrap_err().ctx,
             "mcall-chain-tail-load-class"
+        );
+    }
+
+    #[test]
+    fn the_fp_tail_is_what_puts_fltused_in_the_obj() {
+        // W36 lost a symbol by missing a shape in this producer, and a `CallSeq`
+        // is integer-shaped in every field but its tail — so the failure mode
+        // here is an obj one symbol short on every positive case at once, which
+        // is `Port=Mismatch @ offset 12` (the COFF header's `NumberOfSymbols`)
+        // and nothing a census number would show.
+        let fp = crate::func::IlFunction {
+            call_seq: Some(crate::func::CallSeq {
+                calls: Vec::new(),
+                tail: crate::func::SeqTail::CallLoadFp { off: 4, double: false },
+                saved: Vec::new(),
+            }),
+            ..crate::func::IlFunction::base("?f@@YAMPAUO@@@Z", &None)
+        };
+        assert!(fp.touches_floating_point(), "the FP tail is a `_fltused` producer");
+        // …and the integer sibling one line away is not.
+        let int_tail = crate::func::IlFunction {
+            call_seq: Some(crate::func::CallSeq {
+                calls: Vec::new(),
+                tail: crate::func::SeqTail::CallLoad { off: 4 },
+                saved: Vec::new(),
+            }),
+            ..crate::func::IlFunction::base("?g@@YAHPAUO@@@Z", &None)
+        };
+        assert!(!int_tail.touches_floating_point());
+    }
+
+    #[test]
+    fn a_wild_float_member_on_the_chain_result_is_the_fp_load() {
+        // The `const float` cv strip (`30 A6 45 F3 30 · 2C 86 45 40 00`) has to
+        // survive: `A6` is the const spelling and the whole reason this rung
+        // asks the nibble-reading [`is_fp_type`] rather than whitelisting the
+        // two bare triples — `docs/ROADMAP.md` §6d's lesson, which cost 15,924
+        // functions when it was learned on the integer file.
+        // **This fragment cannot be accepted whole, and WCO's version of this
+        // test did not say so.** The transcription starts at the `4C` and
+        // carries no `46 2D` formals marker, so `parse_params` refuses it — and
+        // `parse_params` runs *after* the tail designator. The old assertion
+        // passed because the tail gate short-circuited in front of it; the
+        // fragment was never proving that the whole body parsed.
+        //
+        // What it can prove, and does, is that the DESIGNATOR now takes this
+        // spelling: unmodified the refusal has moved past the tail entirely, and
+        // one byte changed — the `const` tag `A6` to the `volatile` `96` — puts
+        // it straight back on the tail's own key. Two runs of one fragment, and
+        // the difference between them is the gate under test.
+        let seg = crate::func::test_fixtures::free_fn(WILD_CHAIN_FLOAT_MEMBER);
+        assert_eq!(
+            parse_segment_detail(&seg, NO_LOCALS).unwrap_err().ctx,
+            "formals-marker",
+            "the tail is past; what stops this fragment is its own truncation"
+        );
+        let at = seg
+            .windows(3)
+            .rposition(|w| w[0] == 0x30 && w[1] == 0xA6 && w[2] == 0x45)
+            .expect("the indirect load of the `const float` member");
+        let mut vol = seg.clone();
+        vol[at + 1] = 0x96;
+        assert_eq!(
+            parse_segment_detail(&vol, NO_LOCALS).unwrap_err().ctx,
+            "mcall-chain-tail-load-class",
+            "and the tail gate is still there, one tag byte away"
         );
     }
 

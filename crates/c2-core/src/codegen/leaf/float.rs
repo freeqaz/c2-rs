@@ -370,6 +370,42 @@ pub fn fp_tail_call_text(
     })
 }
 
+/// **WFL — the chain result read through into the FP file**: the one instruction
+/// a `CallSeq` ending in [`c2_il::SeqTail::CallLoadFp`] emits after its last
+/// `bl`, in exactly the position the integer tail's `lwz` occupies.
+///
+/// ```text
+///   float  m    lfs f1,off(r3)     c0230004
+///   double m    lfd f1,off(r3)     c8230010
+/// ```
+///
+/// `double` is the **loaded** width, and that is the whole of the width rule:
+/// `lfs` loads *and converts*, so a `float` member returned as a `double` is
+/// byte-identical to the unpromoted body and the opcode still follows the member
+/// (measured, `work/WFL/probe/p1.cpp`; the IL parser is where the reverse
+/// direction is refused).
+///
+/// This lives here rather than in `codegen/calls.rs` for the reason
+/// [`fp_tail_call_text`] does: what it decides is the **FP register file** — that
+/// the destination is [`FP_RET`] and not r3 — and the one thing it shares with
+/// the call sequence is the frame, which it does not emit. The base register is
+/// the caller's, passed in, because the tail's whole premise is that the last
+/// call left the pointer in the integer return register.
+///
+/// **It does not fold at displacement 0**, exactly as the integer `CallLoad` does
+/// not: `*(r3 + 0)` is a memory read that has to happen. The address form of the
+/// same designator *is* `SeqTail::CallValue`, folds at 0, and never reaches here.
+pub fn chain_result_fp_load_text(base: u8, off: i32, double: bool) -> Result<Vec<u8>, BackendError> {
+    // D-form, both widths — `lfd` is primary 50 and NOT the DS-form the integer
+    // `ld` is, so there is no low-two-bits constraint on the displacement and no
+    // alignment gate to mirror from the load leaf. The 16-bit bound is the IL
+    // parser's (`mcall-chain-tail-off-wide`); this is the backstop.
+    let d = i16::try_from(off).map_err(|_| {
+        out_of_class("call-sequence FP tail load offset exceeds a 16-bit displacement")
+    })?;
+    Ok(encode_lfs(double, FP_RET, base, d).to_vec())
+}
+
 /// The FP file's **cycle scratch registers**, in allocation order.
 ///
 /// `docs/CODEGEN_FP_ARGS.md` §1.1 had only `f0`, from a 2-cycle and a 3-cycle —
