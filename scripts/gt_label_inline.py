@@ -1357,6 +1357,161 @@ FAMILIES = [
                 "   PRED 23 if the two non-E terms simply ADD"
                 " ([3 + 3 locals + for(1)=5 + S(1)=2] + 5 + 5); 21 if the"
                 " scope-exit term is not paid when a loop is present"),
+
+    # === ROUND 27: the two non-E terms MEET AT DEPTH. §6.12 closed by naming
+    #     this as the riskiest thing left on the axis, and the reason is
+    #     arithmetic: the loop term (`for` = 3d+2, slope 3) and the scope-exit
+    #     term (S(d) = d+1, slope 1) have DIFFERENT depth laws and have met in
+    #     exactly ONE cell — `dtor-loop`, at depth 1, where they add. "They
+    #     keep adding once both scale" is habit, not measurement, and it is the
+    #     same assumption §6.6 refuted for loops the first time it was made.
+    #
+    #     The design is a HELD-OUT TRIPLE, not one probe, because §6.12's own
+    #     rule is that a correction must come from a cell other than the one
+    #     failing. `d2-loop-3loc` pins L(2) and `d2-dtor-3loc` pins S(2) IN
+    #     THIS BODY SHAPE, each carrying only ONE of the two contested terms;
+    #     additivity is then arithmetic on those two rather than a fit:
+    #        22 (loop only) + 31 (dtor only) − 14 (shared base) = 39 (joint).
+    #
+    #     UNITS: every PRED below is stated marginal/book, because this is the
+    #     shape where §6.12's units trap bites — a loop family has a non-zero
+    #     hand control (P's own §1.1 +2 for containing a loop) and the two
+    #     dicts genuinely differ. LAW_BOOK entries are the BOOK figure.
+    Family("d2-loop-3loc", GS,
+           "static int lsa(int a){ int d=gs(a)+a; int t=0;"
+           " for(int i=0;i<a;i++) t+=gs(i); return t+d; }\n"
+           "static int lsb(int a){ return lsa(a)+1; }",
+           "s=lsb(s);",
+           "{int dv=gs(s)+s; int t=0; for(int i=0;i<s;i++) t+=gs(i);"
+           " s=t+dv+1;}",
+           always_lead=True,
+           note="CONTROL A for d2-dtor-loop: the joint body MINUS the"
+                " destructible object — a loop and 3 locals at DEPTH 2, no"
+                " scope-exit term at all.   PRED 22 marginal / 20 book"
+                " (3 + [5 + 2*3 + L(2)=8]) / 19 if the loop term does not"
+                " scale in a 3-local body"),
+    Family("d2-dtor-3loc", GS,
+           "struct DZ { int v; DZ(int a){ v = gs(a)+a; } ~DZ(){ gs(v); } };\n"
+           "static int lsc(int a){ DZ d(a); int t=gs(a); int u=t+1;"
+           " return u+d.v; }\n"
+           "static int lsd(int a){ return lsc(a)+1; }",
+           "s=lsd(s);",
+           "{int dv=gs(s)+s; int t=gs(s); int u=t+1; int rr=u+dv;"
+           " gs(dv); s=rr+1;}",
+           always_lead=True,
+           note="CONTROL B for d2-dtor-loop: the joint body MINUS the loop,"
+                " E held at 3 locals — a scope-exit term at DEPTH 2 and no"
+                " loop term.   PRED 31 marginal / 31 book (hand has no loop,"
+                " so the two agree): 3 + [5 + 2*3 + S(2)=3] + 7 + 7;"
+                " 32 if scope-exit were still E += 2 = 2d = 4 (the SUPERSEDED"
+                " wording,"
+                " re-refuted here on a body it was never fitted to)"),
+    Family("d2-dtor-loop", GS,
+           "struct DT { int v; DT(int a){ v = gs(a)+a; } ~DT(){ gs(v); } };\n"
+           "static int ldt(int a){ DT d(a); int t=0;"
+           " for(int i=0;i<a;i++) t+=gs(i); return t+d.v; }\n"
+           "static int ldu(int a){ return ldt(a)+1; }",
+           "s=ldu(s);",
+           "{int dv=gs(s)+s; int t=0; for(int i=0;i<s;i++) t+=gs(i);"
+           " int rr=t+dv; gs(dv); s=rr+1;}",
+           always_lead=True,
+           note="THE ROW: the loop term and the scope-exit term in ONE"
+                " instance at DEPTH 2, where their different depth laws can"
+                " finally disagree.   PRED 39 marginal / 37 book if they"
+                " simply ADD (3 + [5 + 2*3 + L(2)=8 + S(2)=3] + 7 + 7);"
+                " 36/34 three ways — scope-exit not paid beside a loop, or"
+                " the loop pinned at its depth-1 value 5, or the two"
+                " collapsing into one term at the loop's law; 31/29 if they"
+                " collapse at the scope-exit law. The two CONTROLS above"
+                " discriminate the three readings that share 36"),
+    #  THE DC3 SHAPE. No probe in this file has ever put a loop inside a
+    #  CONSTRUCTOR, and a DC3 container's constructor is mostly exactly that.
+    #  §6.9 says a ctor is its own inline instance, so the loop in `CL::CL`
+    #  is a DEPTH-2 loop even though the call site sits at depth 1 — which is
+    #  §6.9's own trap (a tree one instance deeper than the prediction
+    #  assumes) in the direction that made `ctor` read as 9.
+    Family("ctor-loop", GS,
+           "struct CL { int v; CL(int a){ v=0;"
+           " for(int i=0;i<a;i++) v+=gs(i); } };\n"
+           "static int lcl(int a){ CL c(a); return c.v; }",
+           "s=lcl(s);",
+           "{int v=0; for(int i=0;i<s;i++) v+=gs(i); s=v;}",
+           always_lead=True,
+           note="a `for` INSIDE A CONSTRUCTOR — the DC3 container shape."
+                "   PRED 19 marginal / 17 book if the ctor is an ordinary"
+                " instance at depth 2 and its loop is therefore a DEPTH-2"
+                " loop (4 + [5 + 2*1 + L(2)=8]); 10/8 if the ctor folds into"
+                " the wrapper and the loop is a depth-1 one. Separation 9"),
+    #  …and the two controls `ctor-loop` needs the moment it comes back
+    #  DECLINED, because a decline is only informative if you know WHICH
+    #  feature the budget refused. `d2-lp-for` (a loop at depth 2 in a plain
+    #  static function) inlines to N>=3, so the loop alone is not the cost;
+    #  these two vary the ctor-ness and the call-in-loop-ness one at a time.
+    Family("d2-loop-asctor", GS,
+           "static int cl2(int a){ int v=0;"
+           " for(int i=0;i<a;i++) v+=gs(i); return v; }\n"
+           "static int lcl2(int a){ int c=cl2(a); return c; }",
+           "s=lcl2(s);",
+           "{int v=0; for(int i=0;i<s;i++) v+=gs(i); int c=v; s=c;}",
+           always_lead=True,
+           note="CONTROL for ctor-loop: the IDENTICAL tree with an ordinary"
+                " static function where the CONSTRUCTOR was."
+                "   PRED 21 marginal / 19 book (3 + 1*1 + [5 + 2*2 + L(2)=8])."
+                " If this inlines and ctor-loop does not, the budget is"
+                " refusing the CTOR, not the loop"),
+    Family("ctor-loop-leaf", GS,
+           "struct CN { int v; CN(int a){ v=0;"
+           " for(int i=0;i<a;i++) v+=i*3; } };\n"
+           "static int lcn2(int a){ CN c(a); return c.v; }",
+           "s=lcn2(s);",
+           "{int v=0; for(int i=0;i<s;i++) v+=i*3; s=v;}",
+           always_lead=True,
+           note="CONTROL for ctor-loop: the same ctor whose loop makes NO"
+                " CALL (`lp-for-leaf` costs the same as `lp-for` at depth 1)."
+                "   PRED 19 marginal / 17 book, same as ctor-loop."
+                " If this inlines and ctor-loop does not, the budget is"
+                " refusing the CALL INSIDE THE LOOP"),
+    Family("d2-ctor-loop", GS,
+           "struct CM { int v; CM(int a){ v=0;"
+           " for(int i=0;i<a;i++) v+=gs(i); } };\n"
+           "static int lcm(int a){ CM c(a); return c.v; }\n"
+           "static int lcn(int a){ return lcm(a)+1; }",
+           "s=lcn(s);",
+           "{int v=0; for(int i=0;i<s;i++) v+=gs(i); s=v+1;}",
+           always_lead=True,
+           note="…the same one level down, so the ctor's loop sits at DEPTH 3."
+                "   HOLD-OUT.   PRED 31 marginal / 29 book"
+                " (3 + [5 + 2*1] + [7 + 3*1 + L(3)=11])"),
+    Family("d3-dtor-loop", GS,
+           "struct DU { int v; DU(int a){ v = gs(a)+a; } ~DU(){ gs(v); } };\n"
+           "static int ldv1(int a){ DU d(a); int t=0;"
+           " for(int i=0;i<a;i++) t+=gs(i); return t+d.v; }\n"
+           "static int ldv2(int a){ return ldv1(a)+1; }\n"
+           "static int ldv3(int a){ return ldv2(a)+2; }",
+           "s=ldv3(s);",
+           "{int dv=gs(s)+s; int t=0; for(int i=0;i<s;i++) t+=gs(i);"
+           " int rr=t+dv; gs(dv); s=rr+3;}",
+           always_lead=True,
+           note="the joint cell at DEPTH 3 — the extrapolation, and the row"
+                " most likely to be lost to the inliner's budget."
+                "   HOLD-OUT.   PRED 57 marginal / 55 book"
+                " (3 + 5 + [7 + 3*3 + L(3)=11 + S(3)=4] + 9 + 9)"),
+    #  S(d) ABOVE DEPTH 3 — §6.12 named it NOT MODELLED. Three points fix the
+    #  affine form and d3-dtor was the hold-out; d=4 is the first cell that
+    #  could show saturation. Separation is only 1, and that is said here
+    #  rather than discovered afterwards: a 1-wide separation is thin and a
+    #  miss on this row alone should not move the rule.
+    Family("d4-dtor", GS,
+           "struct DV { int v; DV(int a){ v = gs(a)+a; } ~DV(){ gs(v); } };\n"
+           "static int lw1(int a){ DV d(a); return d.v; }\n"
+           "static int lw2(int a){ return lw1(a)+1; }\n"
+           "static int lw3(int a){ return lw2(a)+2; }\n"
+           "static int lw4(int a){ return lw3(a)+3; }",
+           "s=lw4(s);", "{int dv=gs(s)+s; gs(dv); s=dv+6;}",
+           always_lead=True,
+           note="the destructible object at DEPTH 4   PRED 55 by S(d)=d+1"
+                " (3 + 5 + 7 + [9 + 4*1 + S(4)=5] + 11 + 11) / 54 if S"
+                " saturates at 4. Separation 1 — thin, and said so first"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1581,6 +1736,19 @@ LAW_BOOK = {
     # graded on the record, so 21. Both readings agree; the registered PRED
     # of 23 was in marginal units and the measured marginal is 23.
     "dtor-loop": 21,
+    # --- ROUND 27: the two non-E terms meet AT DEPTH ------------------------
+    # All BOOK figures; the marginals are in each family's note. The two
+    # controls carry one contested term each and are what the joint cell is
+    # graded against, so that additivity is arithmetic and not a fit.
+    "d2-loop-3loc": 20,     # 3 + [5 + 2*3 + L(2)=8]           − 2 hand
+    "d2-dtor-3loc": 31,     # 3 + [5 + 2*3 + S(2)=3] + 7 + 7   (hand is 0)
+    "d2-dtor-loop": 37,     # …both terms, if they simply add  − 2 hand
+    "ctor-loop": 17,        # 4 + [5 + 2*1 + L(2)=8]           − 2 hand
+    "d2-loop-asctor": 19,   # 3 + 1*1 + [5 + 2*2 + L(2)=8]      − 2 hand
+    "ctor-loop-leaf": 17,   # same tree as ctor-loop, no call in the loop
+    "d2-ctor-loop": 29,     # 3 + [5 + 2*1] + [7 + 3*1 + L(3)=11] − 2 hand
+    "d3-dtor-loop": 55,     # 3 + 5 + [7 + 9 + L(3)=11 + S(3)=4] + 9 + 9 − 2
+    "d4-dtor": 55,          # 3 + 5 + 7 + [9 + 4*1 + S(4)=5] + 11 + 11
 }
 
 # ---------------------------------------------------------------------------
@@ -1611,6 +1779,13 @@ SUPERSEDED = {
     "ptr-sibling": (12, "addressability scoped to the call site's own tree"),
     "d2-dtor-if": (34, "scope-exit as E += 2"),
     "d2-ctor-noloc": (19, "the unnamed temporary as TWO E units"),
+    # ROUND 27 re-refutes `E += 2` on two more bodies it was never fitted to —
+    # one with three locals and no loop, one with three locals AND a loop. A
+    # retired wording is only retired while it keeps losing on new shapes.
+    "d2-dtor-3loc": (32, "scope-exit as E += 2"),
+    "d2-dtor-loop": (38, "scope-exit as E += 2, beside the loop term"),
+    "d3-dtor-loop": (57, "scope-exit as E += 2, beside the loop term"),
+    "d4-dtor": (58, "scope-exit as E += 2"),
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
@@ -1713,7 +1888,7 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
             if variant == "inl" and n >= 1 and "hand" in both:
                 hprev = rows.get(("hand", n - 1))
                 hd = both["hand"]["tsize"] - hprev["tsize"] if hprev else None
-                if dtext <= 0 or (hd and hd > 0 and dtext * 2 < hd):
+                if dtext <= 0 or (hd and hd > 0 and dtext * 2 <= hd):
                     flags.append("INLINE-DECLINED?(dtext %d vs hand %s)"
                                  % (dtext, hd))
                     refused = True
