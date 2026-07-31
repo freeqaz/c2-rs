@@ -270,7 +270,16 @@ pub(crate) fn try_parse_fp_tail_call(
     // never silently means "absent" (`docs/GAPS.md` §6 instances #1/#2), and a
     // segment whose pre-body region cannot be read is one whose formals list is
     // not established either.
-    parse_this_token(seg, lo)?;
+    //
+    // It is also read for a second fact: the base of the caller's own **GPR**
+    // argument numbering — r3 for a free function and r4 for a member, because
+    // `this` takes r3 and shifts every explicit formal up one (`sy::gpr_reg_of`).
+    // One read, two consumers, and they are two consequences of the same binding
+    // rather than two facts sharing a name.
+    let gpr_base: u8 = match parse_this_token(seg, lo)? {
+        ThisBinding::Absent => 3,
+        ThisBinding::Bound(_) => 4,
+    };
     // The FP parameters, in FP-file order: entry `n` is `f(n+1)`.
     let params: Vec<u32> = formals
         .iter()
@@ -281,15 +290,6 @@ pub(crate) fn try_parse_fp_tail_call(
     if params.len() > MAX_FP_FORMALS {
         return None;
     }
-    // The base of the caller's own GPR argument numbering: r3 for a free function
-    // and r4 for a member, because `this` takes r3 and shifts every formal up one
-    // (`sy::gpr_reg_of`). An FP formal still **consumes a slot** in that
-    // numbering even though it fills no register, which is the half of
-    // `docs/CODEGEN_FP_ARGS.md` §0 the FP file's own rule is not.
-    let gpr_base: u8 = match parse_this_token(seg, lo)? {
-        ThisBinding::Absent => 3,
-        ThisBinding::Bound(_) => 4,
-    };
     // Walk the arguments in call order, sorting them into the two files.
     //
     // **A GPR argument is admitted only when it does not move.** Its destination
