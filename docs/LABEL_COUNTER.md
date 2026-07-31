@@ -302,7 +302,7 @@ recalled.
 
 # 6. The label cost of inlining (2026-07-31)
 
-`scripts/gt_label_inline.py`, **160 probe families**, `/O1 /GS- /c` and
+`scripts/gt_label_inline.py`, **161 probe families**, `/O1 /GS- /c` and
 `/Ox /GS- /c`, every row's in-object control held. Each family carries a
 predicted charge that the script checks and can print `REFUTES` against; the
 handful recorded as `NOT MODELLED` are listed with their reasons in §6.11
@@ -514,7 +514,7 @@ that forced loops out of the `d * E` product entirely; see §6.6.
 beside each family's measured slope, and prints
 `<== *** REFUTES LAW L' ***` on any disagreement. **Score at the time this
 subsection was written: 90 families, 0 refutations at `/O1`, 0 at `/Ox`.** The
-current score, over all 160, is in §6.13.
+current score, over all 161, is in §6.13.
 
 ## 6.4 Packed is the same law — but the *inliner* is not the same inliner
 
@@ -1030,13 +1030,13 @@ general across loop spellings. §6.6's table stays as the measured total.
 ## 6.12 The depth ladder — two of the three new rules did not survive it
 
 §6.11 closed by naming **depth** as the riskiest thing unmeasured on this axis.
-Twenty-two families later: the `switch` rule survives depth 3 unchanged, the
+Twenty-three families later: the `switch` rule survives depth 3 unchanged, the
 **scope-exit and addressability rules are both rewritten**, and the two rows
 §6.11 refused to model turn out to be separable by depth and nothing else.
 Nothing here was fitted away — every `PRED` below was committed to
 `scripts/gt_label_inline.py` *before* the capture that graded it (the file's git
 history is the record), and the corrections are derived from cells that were
-held out from them. **Nine of the twenty-two registered predictions missed** —
+held out from them. **Nine of the twenty-three registered predictions missed** —
 `d2-dtor-only`, `d2-dtor-2obj`, `d3-dtor`, `d2-ptr-p`, `d3-ptr-auto`,
 `ptr-use-d1`, `ptr-use-nest`, `ptr-sibling`, `d2-ctor-noloc` — and those are the
 useful rows. Two of the three rules this ladder was built to test did not
@@ -1202,6 +1202,39 @@ the evidence that the inline happened is `dtext` matching the control at every
 `N` rather than the hash. Worth naming rather than glossing, because `.text`
 growth is the *only* column that carries depth evidence.
 
+### The two terms outside the `d·E` product do add — and mind the units
+
+Law L′ now has two charges that are *not* `E` features: §6.6's affine loop term
+and §6.12's scope-exit `d + 1`. They were fitted on disjoint bodies and had
+never appeared in the same instance, which is a large hole given that a DC3
+constructor looping over its members is an ordinary sight.
+
+`dtor-loop` — a callee that owns a destructible object **and** runs a `for`
+loop — is the row, and it comes with a units trap worth recording:
+
+| reading | decomposition | value |
+|---|---|---:|
+| marginal (what §6.6's `for` = `3d + 2` is stated in) | `[3 + 3 locals + 5 + S(1)=2] + 5 + 5` | **23** ✓ predicted |
+| inline record (`bookkeeping`, what `LAW_BOOK` grades) | `[3 + 3 + 3d + 2] + 5 + 5` | **21** |
+| the difference | P's own §1.1 surcharge for containing a loop at all | **+2/site**, measured by the hand control on this very row |
+
+**The two terms simply add**, under either convention. Two things fall out for
+free. The hand control reproduces §4's "a `for` loop written out costs P +2 at
+`/O1`" **independently, on a body it was not fitted on**. And the inline record
+of 21 is §6.11's split of the `for` term into `3d` plus P's own `+2` holding on
+a new body — which §6.11 explicitly declined to call established, because
+`lp-inf` splits 2/3 rather than 3/2. One more confirming body does not settle
+that; it is **strengthened, still not general**.
+
+The trap itself is the transferable part: **the `LAW` dict is stated in
+marginals and `LAW_BOOK` in inline records, and the two only differ where the
+hand control is non-zero.** This is the first family with both a loop and a
+non-zero hand control, so it is the first place the choice of dict changes the
+number — and filing a marginal prediction under `LAW_BOOK` reads as a
+refutation when it is an arithmetic error. §6.2's warning to *"read `book`, not
+`marginal`, when you want the cost of inlining"* has a converse, and this row is
+it.
+
 ### The inliner's budget, per shape and per mode — checked, not inferred
 
 §6.11 warns that the budget "has to be checked per shape, per mode, on every
@@ -1213,6 +1246,7 @@ from P's `.text` growth against the hand control:
 | `d3-switch` (5 groups, depth 3) | inlines to **N=2**, declines at N=3 | **declined from the first site** — 3/site, `dtext` 8 against the hand's 88, i.e. a `bl` |
 | `d3-sw2` (2 groups, depth 3) | inlines to N≥3 | inlines to N≥3, **confirms 28** |
 | `d2-sw-void`, `d2-sw-1exit` | inline to **N=2** | **declined from the first site** (0/site) |
+| `dtor-loop` | N≥3 | **declined from the first site** — a small loop body, exactly §6.4's `/Ox` refusal |
 | every ctor / dtor / pointer / temporary row above, and `ctor-base` | N≥3 | N≥3, **every charge the same integer** |
 
 So the whole ctor/dtor/addressability ladder is a **two-mode** result, and
@@ -1270,11 +1304,28 @@ second unit that scaled. Both readings hold at `/Ox` unchanged.
   both the inliner's budget rather than the counter. **`struct-ret` and
   `ctor-noloc` have left this list**, see above.
 
+> **The riskiest thing still unmeasured on this axis** is no longer depth in
+> the abstract — it is **depth combined with the non-`E` terms**. `dtor-loop`
+> shows the loop term and the scope-exit term add *at depth 1*, and that is the
+> only cell where they have ever met. Neither the loop term nor the scope-exit
+> term has been measured against the other at depth 2, and the loop term has
+> never been measured inside a C++ shape at any depth — no probe here puts a
+> `for` in a constructor, which is what a DC3 container's constructor mostly
+> is. The two terms have different depth laws (`3d + 2` against `d + 1`), so
+> there is no reason beyond habit to expect them to keep adding when both are
+> scaled; that is exactly the assumption §6.6 refuted for loops the first time
+> it was made. **The probe to write next is `d2-dtor-loop`**, and its rivals
+> separate by 3 at depth 2.
+>
+> Second on the list, and cheap: the whole ladder is `int` and small structs.
+> A **virtual** call the front end devirtualises and inlines, and a **template**
+> instantiation, are both ordinary in a real TU and neither has a single row.
+
 ## 6.13 Reproduction
 
 ```sh
 export C2RS_WIBO=<the repo's resolved wibo>          # NOT ../wibo/build/wibo
-scripts/gt_label_inline.py                            # /O1, all 160 families
+scripts/gt_label_inline.py                            # /O1, all 161 families
 scripts/gt_label_inline.py --mode '/Ox /GS- /c'       # packed
 scripts/gt_label_inline.py --max 6 framed leaf        # the retraction, in 6 s
 scripts/gt_label_inline.py nest1 nest2 nest3 nest4 nest5 nest6   # the depth law
@@ -1305,7 +1356,7 @@ Reading a marginal across that row measures the inliner, not the counter. At
 unobservable rather than different — §6.12's budget table.
 
 The last line of a run is
-`controls failed: 0   families refuting LAW L': 0`, on 160 families in both
+`controls failed: 0   families refuting LAW L': 0`, on 161 families in both
 modes. The second number is the one to read: it is the law's own falsifier,
 computed rather than remembered. It reached 0 by the two rows §6.11 left
 printing being **explained** — see §6.12 — and the wordings they refuted are
