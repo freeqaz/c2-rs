@@ -110,6 +110,123 @@ fn permutation_cycles(sources: &[usize]) -> (usize, usize) {
 /// explain — so the boundary is drawn at the measured edge rather than fitted.
 pub(crate) const MAX_VERIFIED_PERM_CYCLE: usize = 3;
 
+/// The `li rD,k` immediate — `addi rD,0,k`'s signed 16-bit field. A literal
+/// argument outside it is `lis`+`ori`, measured one line apart in
+/// `work/WLA/probe/p1.cpp`: `g3(a,b,32767)` is `li 5,32767` and
+/// `g3(a,b,70000)` is `lis 5,1 ; ori 5,5,4464`.
+const LI_IMM_MIN: i32 = -0x8000;
+const LI_IMM_MAX: i32 = 0x7FFF;
+
+/// **WLA — the literal call argument**: `g3(a, b, 7)`, `p->gk(j, 7)`.
+///
+/// The whole lowering is **one `li r<slot>,k` per literal slot** and no move at
+/// all, because every other slot's formal is already in the argument register it
+/// is being passed in. Read off the reference obj
+/// (`work/WLA/probe/p1.cpp`, `/O1 /GS- /c`), and the member form is the free
+/// form — `this` is just the formal in slot 0:
+///
+/// ```text
+///   void f(int a)       { g2(a, 5); }        38800005 li 4,5    · b ?g2
+///   void f(int a,int b) { g3(a, b, 7); }     38a00007 li 5,7    · b ?g3
+///   int  f(O* p,int j)  { return p->gk(j,7); }38a00007 li 5,7   · b ?gk
+///   void f(int a,int b,int c){ g4(a,b,c,9); }38c00009 li 6,9    · b ?g4
+///   void f(int a)       { g3(a, 5, 6); }     li 5,6 · li 4,5    · b ?g3
+/// ```
+///
+/// **Three refusals, each measured on the same probe rather than assumed.**
+///
+/// 1. **The formals must already be in place.** A literal beside a formal that
+///    has to *move* is a different lowering: `g3(a,7,b)` is `mr r5,r4 ; li r4,7`
+///    and `g3(7,a,b)` is `mr r5,r4 ; mr r4,r3 ; li r3,7` — the moves come first,
+///    highest destination first, and the emission has to interleave with them.
+///    That much a descending walk would get right; what no capture covers is the
+///    same list over a real **cycle** (`g3(b,a,7)`), where the r11 break temp and
+///    the `li` both want a slot in the order. So the gate is the positive one:
+///    every non-literal slot must be `Formal(slot)`. `call-arg-lit-permuted`,
+///    **733 functions** on the 878-TU workload, is what that costs.
+/// 2. **The literal must fit `li`'s immediate** ([`LI_IMM_MIN`]) — the caller's
+///    check, so a wide one never reaches here.
+/// 3. **Every slot must be a register slot.** Past `r10` an argument is
+///    stack-homed and its setup is a store, not a `li`.
+///
+/// Emission order is `c2_core::codegen::permute_args_parts`'s, where the bytes
+/// are; this function decides only *what* is in class.
+/// The formal indices of a [`BodyShape::MultiArgTailCall`]'s slot list, for the
+/// two callers that build a **framed** [`SeqCall`] out of it — the statement-call
+/// sequence and a chain's innermost call.
+///
+/// A literal is refused there rather than carried, and the refusal is a
+/// **positive statement about what has been captured**: a framed call's
+/// marshalling interleaves with the callee-saved copies (`plan_saved_gprs`'s
+/// hoist/trail rule) and with the previous `bl`'s result save, and every witness
+/// of that interleaving is a `mr`. The tail-call form has no such neighbours,
+/// which is why WLA takes it and leaves this one.
+///
+/// It exists as a locator rather than as two `match` arms because both callers
+/// implement the same rule, and this file's header is about what happens when
+/// they each implement it privately.
+pub(crate) fn seq_call_arg_sources(
+    seg: &[u8],
+    off: usize,
+    slots: Vec<SlotArg>,
+) -> Result<Vec<usize>, Block> {
+    let mut sources = Vec::with_capacity(slots.len());
+    for a in slots {
+        match a {
+            SlotArg::Formal(ix) => sources.push(ix),
+            SlotArg::Lit(_) => {
+                return Err(Block::refuse(seg, off, "callseq-multiarg-lit"))
+            }
+        }
+    }
+    Ok(sources)
+}
+
+fn lit_arg_tail_call(
+    seg: &[u8],
+    off: usize,
+    params: Vec<u32>,
+    slots: Vec<SlotArg>,
+    callee_tok: u32,
+) -> Result<BodyShape, Block> {
+    let refuse = |ctx: &'static str| Block::refuse(seg, off, ctx);
+    if slots.len() > MAX_REGISTER_FORMALS {
+        return Err(refuse("call-arg-lit-over-eight-slots"));
+    }
+    // Stated positively: every non-literal slot names the formal that is ALREADY
+    // in that argument register.
+    let in_place = slots
+        .iter()
+        .enumerate()
+        .all(|(slot, a)| matches!(a, SlotArg::Lit(_)) || *a == SlotArg::Formal(slot));
+    // **WLB — the one moved formal, at exactly two slots.** `g2(b, 7)`: slot 0
+    // wants a formal that is not in r3, slot 1 is the literal. 699 of the 733
+    // `call-arg-lit-permuted` functions are this, it is the ONLY list shape two
+    // slots can take once a formal is out of place, and both of its cells are
+    // captured (`work/WLA/probe/p2.cpp`, `/O1 /GS- /c`):
+    //
+    // ```text
+    //   void f(int a,int b)      { g2(b, 7); }  mr r3,r4 · li r4,7   <- HOISTED
+    //   void f(int a,int b,int c){ g2(c, 7); }  li r4,7 · mr r3,r5   <- descending
+    // ```
+    //
+    // The deciding variable is a single boolean — does the `li`'s destination
+    // register hold the value the move needs — and both of its values are
+    // witnessed, which is what makes two slots a complete cell rather than a
+    // sample. **Three slots is not**, and the same probe says why: `g3(c,b,7)`
+    // and `g3(b,c,7)` follow the same hoist, and `g3(c,a,7)` — one formal moving
+    // up while another moves down — breaks with `mr r11,r5` and puts the `li`
+    // *inside* the walk. So the bound is the measured edge and not a fit; the
+    // 34 remaining functions are `call-arg-lit-permuted` still.
+    let one_moved_at_two = slots.len() == 2
+        && matches!(slots[1], SlotArg::Lit(_))
+        && matches!(slots[0], SlotArg::Formal(ix) if ix >= 1 && ix < MAX_REGISTER_FORMALS);
+    if !in_place && !one_moved_at_two {
+        return Err(refuse("call-arg-lit-permuted"));
+    }
+    Ok(BodyShape::MultiArgTailCall { params, arg_sources: slots, callee_tok })
+}
+
 /// **One locator for "are these call arguments a tail call this port can emit?"**
 /// — the validation and the shape construction for `return g(…)` in every
 /// position it appears: the direct form, the bound-to-a-local form
@@ -153,22 +270,47 @@ pub(crate) fn tail_call_shape(
         return Ok(BodyShape::VoidTailCall { callee_tok });
     }
     if args.len() > 1 {
-        // Two or more arguments: only the pure-permutation shape is modeled. Every
-        // argument must be a bare parameter LOAD — a computed argument would need
-        // its own register and interacts with the permutation temp in ways no
-        // capture covers yet.
-        let mut arg_sources = Vec::with_capacity(args.len());
+        // Two or more arguments: a **permutation of the formals**, or the formals
+        // already in place beside one or more **literals** (WLA). Anything else —
+        // an operand stream that has to be computed into an argument register —
+        // would need its own register and interacts with the permutation temp in
+        // ways no capture covers.
+        let mut slots: Vec<SlotArg> = Vec::with_capacity(args.len());
+        let mut lits = 0usize;
         for slot in 0..args.len() {
             let ops = &args[args.len() - 1 - slot];
-            let tok = match ops.as_slice() {
-                [IlOp::Load(t)] => *t,
+            match ops.as_slice() {
+                [IlOp::Load(t)] => match params.iter().position(|q| q == t) {
+                    Some(ix) => slots.push(SlotArg::Formal(ix)),
+                    // An argument that is not one of this function's formals (a
+                    // local, a global, a nested call result).
+                    None => return Err(refuse("call-arg-nonformal")),
+                },
+                // **WLA — `g3(a, b, 7)` is `li r5,7` and nothing else.** The
+                // signed-16-bit bound is `li`'s own: 70000 is `lis`+`ori`,
+                // measured beside 32767, which is not.
+                [IlOp::Lit(k)] => {
+                    if !(LI_IMM_MIN..=LI_IMM_MAX).contains(k) {
+                        return Err(refuse("call-arg-lit-wide"));
+                    }
+                    lits += 1;
+                    slots.push(SlotArg::Lit(*k));
+                }
                 _ => return Err(refuse("call-arg-computed")),
-            };
-            match params.iter().position(|&t| t == tok) {
-                Some(ix) => arg_sources.push(ix),
-                // An argument that is not one of this function's formals (a local,
-                // a global, a nested call result).
-                None => return Err(refuse("call-arg-nonformal")),
+            }
+        }
+        if lits > 0 {
+            return lit_arg_tail_call(seg, off, params, slots, callee_tok);
+        }
+        let mut arg_sources: Vec<usize> = Vec::with_capacity(slots.len());
+        for a in &slots {
+            match a {
+                SlotArg::Formal(ix) => arg_sources.push(*ix),
+                // Unreachable: `lits == 0` is exactly "no `SlotArg::Lit` was
+                // pushed", stated positively rather than as an `unreachable!`,
+                // because a panic in the CLI is the failure mode this file's
+                // header records.
+                SlotArg::Lit(_) => return Err(refuse("call-arg-lit-classified-twice")),
             }
         }
         // **An argument that is a formal beyond the argument count.** `arg_sources`
@@ -205,7 +347,11 @@ pub(crate) fn tail_call_shape(
         if longest > MAX_VERIFIED_PERM_CYCLE {
             return Err(refuse("call-arg-long-cycle"));
         }
-        return Ok(BodyShape::MultiArgTailCall { params, arg_sources, callee_tok });
+        return Ok(BodyShape::MultiArgTailCall {
+            params,
+            arg_sources: slots,
+            callee_tok,
+        });
     }
     let arg_ops = args.into_iter().next().expect("exactly one argument");
     // The single call argument is an ordinary operand stream, so it is subject to
@@ -992,7 +1138,9 @@ fn parse_call_sequence(
             match tail_call_shape(seg, args, params.clone(), callee_tok, *p)? {
                 BodyShape::VoidTailCall { .. } => (Vec::new(), None),
                 BodyShape::IntTailCall { arg_ops, .. } => (arg_ops, None),
-                BodyShape::MultiArgTailCall { arg_sources, .. } => (Vec::new(), Some(arg_sources)),
+                BodyShape::MultiArgTailCall { arg_sources, .. } => {
+                    (Vec::new(), Some(seq_call_arg_sources(seg, *p, arg_sources)?))
+                }
                 // `tail_call_shape` returns exactly those three.
                 _ => return Err(Block::refuse(seg, *p, "callseq-arg-shape")),
             };

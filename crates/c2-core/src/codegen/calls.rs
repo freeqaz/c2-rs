@@ -466,7 +466,10 @@ pub fn call_seq_parts(
                 // rather than r11 there, which is a different algorithm and not
                 // this interleaving at all. This is the backstop.
                 (Some(sources), _) => {
-                    let (t, w) = permute_args_parts(sources)?;
+                    // A framed sequence call's slots are all formals by
+                    // construction — `c2_il`'s `seq_call_arg_sources` is what
+                    // refuses a literal on the way in.
+                    let (t, w) = permute_args_parts(&formal_slots(sources))?;
                     if !seq.saved.is_empty() && !t.is_empty() {
                         return Err(out_of_class(
                             "a permuted first call beside a callee-saved copy: c2                              breaks the cycle through the callee-saved register                              instead of r11, which is not characterized",
@@ -702,8 +705,109 @@ pub fn int_tail_call_text(
 /// choose between, and the one capture available does not determine which — see
 /// `rev4` in that fixture. A repeated argument is also refused: `dup3` emits a
 /// *dead* `mr r11,r4`, which no live-value-driven solver would produce.
-pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
+pub fn permute_args_text(sources: &[c2_il::SlotArg]) -> Result<Vec<u8>, BackendError> {
     permute_args_parts(sources).map(|(text, _)| text)
+}
+
+/// The slot list of a call whose arguments are all formals, for the two callers
+/// that cannot spell a literal: a **framed** sequence call's `arg_sources`, whose
+/// interleaving with the callee-saved copies is measured only for formals.
+fn formal_slots(sources: &[usize]) -> Vec<c2_il::SlotArg> {
+    sources.iter().map(|&i| c2_il::SlotArg::Formal(i)).collect()
+}
+
+/// **WLA — the literal argument slots of a tail call**, `li r<3+i>,k` each.
+///
+/// Reached only when every non-literal slot is the formal already sitting in its
+/// own argument register (`c2_il`'s `lit_arg_tail_call` is the primary gate;
+/// the `in_place` check below is the backstop), so there is no move to schedule
+/// against and the whole setup is the constants.
+///
+/// **The order is DESCENDING destination**, the same rule
+/// [`moves_descending`] uses and the opposite of a chain link's. Captured,
+/// `work/WLA/probe/p1.cpp` at `/O1 /GS- /c`:
+///
+/// ```text
+///   void f(int a,int b) { g3(a, b, 7); }   38a00007  li 5,7
+///   void f(int a)       { g3(a, 5, 6); }   38a00006  li 5,6
+///                                          38800005  li 4,5     <- 6 before 5
+/// ```
+/// **WLB — `g2(b, 7)`**: two argument slots, the literal in slot 1 and slot 0
+/// wanting a formal that is **not** in r3.
+///
+/// The order is not a fixed one, and that is the whole content of this function.
+/// c2's default is [`moves_descending`]'s — highest destination first, which
+/// puts the `li` in front — and it **hoists** the move ahead of the `li` exactly
+/// when the `li`'s destination register is the one holding the value the move
+/// needs. Both cells, one probe TU apart (`work/WLA/probe/p2.cpp`, `/O1 /GS- /c`):
+///
+/// ```text
+///   void f(int a,int b)       { g2(b, 7); }   7c832378 mr r3,r4 · 38800007 li 4,7
+///   void f(int a,int b,int c) { g2(c, 7); }   38800007 li 4,7   · 7ca32b78 mr r3,r5
+/// ```
+///
+/// — the same hoist/trail rule [`call_seq_parts`] applies to the callee-saved
+/// copies, which is why it is *recognised* here rather than discovered.
+///
+/// **Two slots only, and the reason is measured.** At three the same probe has
+/// `g3(c,b,7)` (`mr r3,r5 ; li r5,7`) and `g3(b,c,7)`
+/// (`mr r3,r4 ; mr r4,r5 ; li r5,7`) following the hoist, and `g3(c,a,7)` —
+/// one formal moving up while another moves down — going
+/// `mr r11,r5 ; mr r4,r3 ; li r5,7 ; mr r3,r11`, with the `li` *inside* the
+/// break walk. Any rule fitted to the first two mis-emits the third. The IL
+/// parser is the gate (`call-arg-lit-permuted`); this is the backstop.
+fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+    let [c2_il::SlotArg::Formal(pi), c2_il::SlotArg::Lit(k)] = slots else {
+        return Err(out_of_class(
+            "a literal argument beside a formal that has to move, in a list that \
+             is not the captured two-slot one: at three slots c2 breaks through \
+             r11 and emits the `li` inside the walk, which is not characterized",
+        ));
+    };
+    let src = *ARG_REGS.get(*pi).ok_or_else(|| {
+        out_of_class("a call argument sources a stack-homed parameter")
+    })?;
+    let k = i16::try_from(*k)
+        .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
+    let mv = encode_mr(ARG_REGS[0], src);
+    let li = encode_addi(ARG_REGS[1], 0, k);
+    let mut w = Vec::with_capacity(8);
+    // The hoist, stated as the dependence it is: the `li` writes slot 1's
+    // register, and the move reads it.
+    if src == ARG_REGS[1] {
+        w.extend_from_slice(&mv);
+        w.extend_from_slice(&li);
+    } else {
+        w.extend_from_slice(&li);
+        w.extend_from_slice(&mv);
+    }
+    Ok((w, vec![ARG_REGS[0], ARG_REGS[1]]))
+}
+
+fn lit_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+    let in_place = slots.iter().enumerate().all(|(i, a)| match a {
+        c2_il::SlotArg::Lit(_) => true,
+        c2_il::SlotArg::Formal(pi) => *pi == i,
+    });
+    if !in_place {
+        return one_moved_formal_text(slots);
+    }
+    let mut w = Vec::new();
+    let mut writes = Vec::new();
+    // Descending destination: walk the slots from the top.
+    for (i, a) in slots.iter().enumerate().rev() {
+        let c2_il::SlotArg::Lit(k) = a else { continue };
+        let dst = *ARG_REGS.get(i).ok_or_else(|| {
+            out_of_class("a literal argument past the eight register slots")
+        })?;
+        let k = i16::try_from(*k)
+            .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
+        // `li rD,k` is `addi rD,0,k` — the same encoder the leaf selector's bare
+        // constant goes through, at a register it cannot name.
+        w.extend_from_slice(&encode_addi(dst, 0, k));
+        writes.push(dst);
+    }
+    Ok((w, writes))
 }
 
 /// [`permute_args_text`] plus **the registers its moves write**, which Class B
@@ -713,7 +817,27 @@ pub fn permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
 /// the same permutation: a write set derived independently would be the "two
 /// implementations of one rule" shape `docs/GAPS.md` §6 #9 records, and this one
 /// cannot drift from the bytes because it is computed beside them.
-fn permute_args_parts(sources: &[usize]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+    // **WLA** — a list carrying a literal is asked FIRST, because everything
+    // below reads a slot as a formal index and a `Lit` has none. The two forms
+    // do not mix in class (`c2_il`'s `lit_arg_tail_call` admits a literal only
+    // beside formals that are already in place), so this is a dispatch and not a
+    // precedence.
+    if slots.iter().any(|a| matches!(a, c2_il::SlotArg::Lit(_))) {
+        return lit_slots_text(slots);
+    }
+    let mut sources = Vec::with_capacity(slots.len());
+    for a in slots {
+        match a {
+            c2_il::SlotArg::Formal(i) => sources.push(*i),
+            // Unreachable by the dispatch above, stated as a refusal rather than
+            // an `unreachable!` because the CLI must degrade cleanly.
+            c2_il::SlotArg::Lit(_) => {
+                return Err(out_of_class("a literal argument reached the permutation walk"))
+            }
+        }
+    }
+    let sources = &sources[..];
     if sources.len() > ARG_REGS.len() {
         return Err(out_of_class(
             "more arguments than the eight register slots: the rest are \
@@ -1017,12 +1141,12 @@ mod tests {
         // Captured from `int g3(int,int,int)` call sites; `sources[i]` is the
         // parameter index that argument slot i wants.
         // Passthrough: the parameters are already placed, so no moves at all.
-        assert!(permute_args_text(&[0, 1]).unwrap().is_empty());
-        assert!(permute_args_text(&[0, 1, 2]).unwrap().is_empty());
+        assert!(permute_args_text(&formal_slots(&[0, 1])).unwrap().is_empty());
+        assert!(permute_args_text(&formal_slots(&[0, 1, 2])).unwrap().is_empty());
 
         // g3(b,a,c) — swap r3/r4, r5 untouched.
         assert_eq!(
-            permute_args_text(&[1, 0, 2]).unwrap(),
+            permute_args_text(&formal_slots(&[1, 0, 2])).unwrap(),
             vec![
                 0x7C, 0x8B, 0x23, 0x78, // mr r11,r4
                 0x7C, 0x64, 0x1B, 0x78, // mr r4,r3
@@ -1032,7 +1156,7 @@ mod tests {
         // g3(a,c,b) — swap r4/r5. The temp still takes the source of the cycle's
         // LOWEST destination (r4's), not r3's, which is not in the cycle at all.
         assert_eq!(
-            permute_args_text(&[0, 2, 1]).unwrap(),
+            permute_args_text(&formal_slots(&[0, 2, 1])).unwrap(),
             vec![
                 0x7C, 0xAB, 0x2B, 0x78, // mr r11,r5
                 0x7C, 0x85, 0x23, 0x78, // mr r5,r4
@@ -1041,7 +1165,7 @@ mod tests {
         );
         // g3(c,b,a) — swap r3/r5, r4 untouched.
         assert_eq!(
-            permute_args_text(&[2, 1, 0]).unwrap(),
+            permute_args_text(&formal_slots(&[2, 1, 0])).unwrap(),
             vec![
                 0x7C, 0xAB, 0x2B, 0x78, // mr r11,r5
                 0x7C, 0x65, 0x1B, 0x78, // mr r5,r3
@@ -1053,7 +1177,7 @@ mod tests {
         // other, which is why both are pinned.
         // g3(b,c,a): r3<-r4, r4<-r5, r5<-r3.
         assert_eq!(
-            permute_args_text(&[1, 2, 0]).unwrap(),
+            permute_args_text(&formal_slots(&[1, 2, 0])).unwrap(),
             vec![
                 0x7C, 0x8B, 0x23, 0x78, // mr r11,r4
                 0x7C, 0xA4, 0x2B, 0x78, // mr r4,r5
@@ -1063,7 +1187,7 @@ mod tests {
         );
         // g3(c,a,b): r3<-r5, r4<-r3, r5<-r4.
         assert_eq!(
-            permute_args_text(&[2, 0, 1]).unwrap(),
+            permute_args_text(&formal_slots(&[2, 0, 1])).unwrap(),
             vec![
                 0x7C, 0xAB, 0x2B, 0x78, // mr r11,r5
                 0x7C, 0x85, 0x23, 0x78, // mr r5,r4
@@ -1161,17 +1285,112 @@ mod tests {
         assert!(link_setup_text(&eight, saved).is_err());
     }
 
+    /// **WLA — a literal argument is one `li` and no move, and the order of two
+    /// of them is DESCENDING**, which is the opposite of a chain link's.
+    ///
+    /// Both halves are read off `work/WLA/probe/p1.cpp` at `/O1 /GS- /c`. The
+    /// single-literal rows agree with either order, so the two-literal one is
+    /// the whole assertion: emitting them ascending is byte-wrong on every call
+    /// that carries more than one constant.
+    #[test]
+    fn a_literal_call_argument_is_one_li_and_two_of_them_descend() {
+        use c2_il::SlotArg::{Formal, Lit};
+        // `void f(int a,int b){ g3(a, b, 7); }` -> `li 5,7` (38a00007).
+        assert_eq!(
+            permute_args_text(&[Formal(0), Formal(1), Lit(7)]).unwrap(),
+            vec![0x38, 0xA0, 0x00, 0x07]
+        );
+        // `void f(int a){ g2(a, 5); }` -> `li 4,5` (38800005).
+        assert_eq!(
+            permute_args_text(&[Formal(0), Lit(5)]).unwrap(),
+            vec![0x38, 0x80, 0x00, 0x05]
+        );
+        // `void f(int a){ g3(a, 5, 6); }` -> `li 5,6` THEN `li 4,5`.
+        assert_eq!(
+            permute_args_text(&[Formal(0), Lit(5), Lit(6)]).unwrap(),
+            vec![
+                0x38, 0xA0, 0x00, 0x06, // li 5,6
+                0x38, 0x80, 0x00, 0x05, // li 4,5
+            ]
+        );
+        // Negative and zero immediates are the same encoder.
+        assert_eq!(
+            permute_args_text(&[Formal(0), Formal(1), Lit(-1)]).unwrap(),
+            vec![0x38, 0xA0, 0xFF, 0xFF]
+        );
+        // A formal that has to MOVE beside the literal: refused here as well as
+        // in the IL parser, because `g3(a,7,b)` is `mr r5,r4 ; li r4,7` and the
+        // same list over a real cycle is not characterized at all.
+        assert!(permute_args_text(&[Formal(0), Lit(7), Formal(1)]).is_err());
+        assert!(permute_args_text(&[Formal(1), Formal(0), Lit(7)]).is_err());
+        // Past the eight register slots an argument is stack-homed.
+        let nine = [
+            Formal(0), Formal(1), Formal(2), Formal(3), Formal(4), Formal(5),
+            Formal(6), Formal(7), Lit(1),
+        ];
+        assert!(permute_args_text(&nine).is_err());
+        // …and a literal wider than the `addi` immediate. The IL parser draws
+        // the same bound (`call-arg-lit-wide`); this is the backstop.
+        assert!(permute_args_text(&[Formal(0), Lit(70000)]).is_err());
+    }
+
+    /// **WLB — the moved formal beside the literal, and the hoist that is not a
+    /// sort order.**
+    ///
+    /// The two cells differ only in whether the `li`'s destination register is
+    /// the one the move reads, and c2 emits them in opposite orders because of
+    /// it. Both read off `work/WLA/probe/p2.cpp` at `/O1 /GS- /c`. A single
+    /// fixed order — which is what "reuse `moves_descending`, it is the same
+    /// marshalling" would have produced — is byte-wrong on one of them.
+    #[test]
+    fn a_moved_formal_hoists_past_the_literal_only_when_the_li_clobbers_it() {
+        use c2_il::SlotArg::{Formal, Lit};
+        // `void f(int a,int b){ g2(b, 7); }` — b is in r4, which is where the
+        // `li` goes, so the move is HOISTED: mr r3,r4 ; li r4,7.
+        assert_eq!(
+            permute_args_text(&[Formal(1), Lit(7)]).unwrap(),
+            vec![
+                0x7C, 0x83, 0x23, 0x78, // mr r3,r4
+                0x38, 0x80, 0x00, 0x07, // li r4,7
+            ]
+        );
+        // `void f(int a,int b,int c){ g2(c, 7); }` — c is in r5, which the `li`
+        // does not touch, so the default descending order stands:
+        // li r4,7 ; mr r3,r5.
+        assert_eq!(
+            permute_args_text(&[Formal(2), Lit(7)]).unwrap(),
+            vec![
+                0x38, 0x80, 0x00, 0x07, // li r4,7
+                0x7C, 0xA3, 0x2B, 0x78, // mr r3,r5
+            ]
+        );
+        // The source walks to r10 and the order does not change again.
+        assert_eq!(
+            &permute_args_text(&[Formal(7), Lit(7)]).unwrap()[4..],
+            &[0x7D, 0x43, 0x53, 0x78] // mr r3,r10
+        );
+        // THREE slots is a different lowering — `g3(c,a,7)` breaks through r11
+        // and emits the `li` inside the walk — and all of it stays refused.
+        assert!(permute_args_text(&[Formal(2), Formal(1), Lit(7)]).is_err());
+        assert!(permute_args_text(&[Formal(2), Formal(0), Lit(7)]).is_err());
+        // A literal in slot 0 beside a moved formal is a different register
+        // pair and is not this cell.
+        assert!(permute_args_text(&[Lit(7), Formal(2)]).is_err());
+        // …and the immediate bound still applies.
+        assert!(permute_args_text(&[Formal(1), Lit(70000)]).is_err());
+    }
+
     #[test]
     fn argument_permutations_refuse_the_uncharacterized_shapes() {
         // Two disjoint cycles (`g4(d,c,b,a)`): c2 hoists both saves into r11 and
         // r10 and then picks one of several clobber-free orders. One capture does
         // not determine which.
-        assert!(permute_args_text(&[3, 2, 1, 0]).is_err());
+        assert!(permute_args_text(&formal_slots(&[3, 2, 1, 0])).is_err());
         // A repeated argument (`g3(b,a,b)`) emits a dead `mr r11,r4` that no
         // live-value-driven solver would produce.
-        assert!(permute_args_text(&[1, 0, 1]).is_err());
+        assert!(permute_args_text(&formal_slots(&[1, 0, 1])).is_err());
         // More arguments than register slots.
-        assert!(permute_args_text(&[0, 1, 2, 3, 4, 5, 6, 7, 8]).is_err());
+        assert!(permute_args_text(&formal_slots(&[0, 1, 2, 3, 4, 5, 6, 7, 8])).is_err());
     }
 
 }

@@ -117,7 +117,7 @@ use crate::func::IlOp;
 
 use super::calls::{
     eat_call_args, eat_call_token, eat_callee_push, link_arg_slots, plan_saved_gprs,
-    tail_call_shape, MAX_REGISTER_FORMALS,
+    seq_call_arg_sources, tail_call_shape, MAX_REGISTER_FORMALS,
 };
 use super::designator::{eat_offset_adds, sized_ptee};
 use super::mcall_tail::{eat_receiver_this, eat_this_bind};
@@ -257,7 +257,14 @@ pub(crate) fn try_parse_member_chain_call(
         {
             BodyShape::VoidTailCall { .. } => (Vec::new(), None),
             BodyShape::IntTailCall { arg_ops, .. } => (arg_ops, None),
-            BodyShape::MultiArgTailCall { arg_sources, .. } => (Vec::new(), Some(arg_sources)),
+            // WLA's literal slot goes through `seq_call_arg_sources`, which
+            // refuses it: a chain's innermost call is FRAMED, and the `li`'s
+            // interleaving with the callee-saved copies is uncaptured there.
+            // `callseq-multiarg-lit` is the shared key.
+            BodyShape::MultiArgTailCall { arg_sources, .. } => (
+                Vec::new(),
+                Some(seq_call_arg_sources(seg, p, arg_sources).map_err(Some)?),
+            ),
             // `tail_call_shape` returns exactly those three.
             _ => return Err(Some(Block::refuse(seg, p, "callseq-arg-shape"))),
         };
