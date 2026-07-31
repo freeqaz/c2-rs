@@ -235,7 +235,7 @@ ranks admitting it.
 
 | item | size | what stops it |
 |---|---:|---|
-| the FP **tail call** | **85,231** measured (§6) | the argument region's type gate + a second permutation solver |
+| the FP **tail call**, multi-argument | **26,136** measured, strictly (was "85,231" for the whole family; the single-argument half landed as W31, +58,135) | the two files' *interleaved* move schedule (§1.1) — so **split it**: an all-FP-argument call has no GPR moves to interleave with and is a strictly smaller claim |
 | `2C` float→double in any position | not separated | free at the call boundary (§2) and at a store; the *narrowing* twin is a real `frsp` through f0 and the IL spells both the same |
 | a pooled FP constant under `/Gy` | 1 on the workload | `.rdata` COMDAT association under function-level linking; W27 holds the pooled-constant population at exactly what it was to keep the census/gate disagreement at 0 |
 | a permutation in **both** register files | inside the 85,231 | the two files' moves interleave on a schedule (§1.1) that no per-file solver reproduces |
@@ -286,7 +286,16 @@ distinguish — §1.1's two-file interleaving is exactly that, and it is inside 
 number. It is also lax about conversions: with one gate for every position, a
 cross-width `2C` is admitted, and §2 shows one direction of that is a real
 `frsp`. **85,231 is an upper bound, and the strict rung is smaller by an
-unmeasured amount.** A separate run admitting FP *literal* types as well
+unmeasured amount.**
+
+> **Measured 2026-07-31, and the upper bound was nearly tight.** W31 shipped the
+> single-argument half: 59,095 lax → **58,135 strict, 98.4 %**, so the whole
+> laxness residue is **960 functions (1.6 %)**. Decomposed by counterfactual:
+> same-width move 55,924, free `float`→`double` widening 2,211, `frsp` narrowing
+> **0**. The multi-argument half re-measures strictly at **26,136**. So "smaller
+> by an unmeasured amount" resolved to 1.6 %, not to the large discount the
+> hedge implied — worth recording, because the *conservative* reading of a lax
+> counterfactual was itself wrong by more than the laxness was. A separate run admitting FP *literal* types as well
 (`expr-lit-type-864A`, 10,665 released) added **0** whole bodies, which is worth
 recording as its own refutation: the FP constant machinery buys nothing here.
 
@@ -304,6 +313,7 @@ was taken from a counterfactual rather than from a row size.
 | W27 the `fmr` | **+1,005** | **+1,004** | HIGH by 1, cause named in advance: the pooled-constant clause (§5) holds that population fixed to keep the census/gate disagreement at 0, and it cost exactly the 1 function that had exposed it |
 | W28 the FP store | **+7,984** | **+7,927** | HIGH by 57 (0.7 %), from the FP-literal and conversion refusals the counterfactual did not gate |
 | both | +8,989 | **+8,931** | |
+| **W31 the FP tail call** | **+34,000** | **+58,135** | **LOW by 24,135 (1.71×) — the first UNDER-estimate of the series, and it was recorded in advance as biased HIGH.** Every cause named in advance (computed FP arguments, cross-file conversions, result conversions, `arg_classes`) is real, and together they are the entire 960-function residue. The error was one level up: the bucket was treated as a sample of FP call sites, when it is a sample of FP call sites **that already pass `arg_loads_are_formals`** — and that filter had already removed the population being subtracted for. What survives such a filter is forwarding shims. Generalization worth keeping: **when estimating off a bucket, ask what the bucket was already filtered by, or every deduction gets taken twice.** |
 
 Census **473,611 → 482,542 (19.23 % → 19.60 %)**, mismatch 0, disagreement 0,
 **570 keys unchanged**, and the sum of the blocker-key deltas is exactly −8,931
