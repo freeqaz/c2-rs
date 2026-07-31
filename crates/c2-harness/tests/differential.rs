@@ -333,16 +333,25 @@ fn differential_mvp_framed_call_byte_exact() {
     }
     let w = work("mvpframed");
     let port = PortC2::default();
-    let report = differential(&fixture("mvp_framed.cpp"), &tc, &port, &w);
-    match report {
-        DiffReport::ReferenceReplayByteExact { port, .. } => {
-            assert_eq!(
-                port,
-                PortStatus::Match,
-                "expected the port to be byte-exact on mvp_framed, got {port:?}"
-            );
+    // W41: `mvp_call_submod.cpp` — `return g(a) - 1;` — sat in the
+    // *honest-rejection* list beside this test from W4b2 until W41, on the stated
+    // ground that "c2 does NOT canonicalize `-1` to `+(-1)`; subtraction is
+    // non-commutative and off the verified 0x24-byte ADD frame". That was an
+    // argument, not a capture, and it is false: `- k` and `+ k` are the SAME
+    // `addi` with a different immediate (`3863ffff` against `38630001`), so the
+    // fixture is graded HERE now. Nothing about it changed but the measurement.
+    for name in ["mvp_framed.cpp", "mvp_call_submod.cpp"] {
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => {
+                assert_eq!(
+                    port,
+                    PortStatus::Match,
+                    "expected the port to be byte-exact on {name}, got {port:?}"
+                );
+            }
+            other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
         }
-        other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
     }
     std::fs::remove_dir_all(&w).ok();
 }
@@ -465,7 +474,6 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         return;
     }
     for name in [
-        "mvp_call_submod.cpp",    // return g(a) - 1 — non-commutative post-op
         "mvp_call_mulmod.cpp",    // return g(a) * 5 — strength-reduced post-op
         "mvp_call_widemod.cpp",   // return g(a) + 70000 — wide post-op immediate
         // `mvp_call_twice.cpp` (`g(); g();`) used to be here — it is the Class A

@@ -1064,6 +1064,23 @@ mod tests {
                 arg_ops: vec![IlOp::Load(0xE509)],
             })
         );
+        // W41: `int f(int a){ return g(a) - 1; }` (mvp_call_submod) is the SAME
+        // shape with the immediate negated. It sat in the rejection list above
+        // from W4b2 to W41 on the stated ground that "c2 does not canonicalize
+        // `-1` to `+(-1)`" — an argument, not a capture, and false: the two objs
+        // differ in exactly the 16-bit immediate field of one word. The two
+        // segments are byte-identical apart from the post-op opcode, which is
+        // what makes this pair the pin.
+        assert_eq!(
+            parse_segment(&free_fn(GA_SUBMOD), NO_LOCALS),
+            Some(BodyShape::FramedCall {
+                add_k: -1,
+                callee_tok: 0xE409,
+                params: vec![0xE509],
+                arg_ops: vec![IlOp::Load(0xE509)],
+            }),
+            "g(a) - 1 is the framed call with a negative immediate"
+        );
     }
 
     #[test]
@@ -1130,7 +1147,11 @@ mod tests {
         // arg-setup tail calls `g(a)`/`g(a)+0`/`g(a+1)` are now ACCEPTED —
         // see `parse_segment_accepts_int_tail_call_family`.)
         let cases: &[(&str, &[u8])] = &[
-            ("g(a) - 1 (submod)", GA_SUBMOD),
+            // `g(a) - 1` used to be here. W41 measured it: `- k` is the SAME
+            // `addi` as `+ k` with a negated immediate (`3863ffff` against
+            // `38630001`), so it is ACCEPTED — see the framed acceptance test.
+            // `* 5` stays, and is the case it was wrongly grouped with: a
+            // constant multiply strength-reduces to a shift/add sequence.
             ("g(a) * 5 (mulmod)", GA_MULMOD),
             ("g(a) + 70000 (widemod)", GA_WIDEMOD),
             // `g(); g();` used to be here. It is the Class A many-call shape now
