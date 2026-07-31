@@ -237,6 +237,16 @@ pub const OPT_WORD_OX_NO_FP_CONTRACT: u32 = 0x00a0_0001;
 /// closed.
 pub const OPT_WORD_SPECIAL_MEMBER: u32 = 0x0000_0100;
 
+/// The parser's argument-slot enum, in the emitter's spelling. **One** converter
+/// for both carriers of it — a chain link's `link_args` and a multi-argument tail
+/// call's `arg_sources` — so the two cannot drift about what a `Lit` is.
+fn slot_arg(a: body::SlotArg) -> SlotArg {
+    match a {
+        body::SlotArg::Formal(i) => SlotArg::Formal(i),
+        body::SlotArg::Lit(k) => SlotArg::Lit(k),
+    }
+}
+
 /// Convert one parsed body shape into the emitter's function record.
 ///
 /// **One locator for the shape→function mapping.** [`IlBundle::functions`] (the
@@ -423,13 +433,14 @@ pub(crate) fn shape_to_function(
             }
             // A multi-argument tail call is still a tail call — same resolved
             // callee, same `b <callee>` — but its argument setup is a register
-            // permutation rather than an operand stream, so `ops` stays empty
-            // and `arg_sources` carries the mapping.
+            // permutation, or (WLA) the `li`s of its literal slots, rather than an
+            // operand stream, so `ops` stays empty and `arg_sources` carries the
+            // mapping.
             BodyShape::MultiArgTailCall { params, arg_sources, callee_tok } => {
                 Some(IlFunction {
                     params,
                     tail_call: Some(resolve(callee_tok)?),
-                    arg_sources: Some(arg_sources),
+                    arg_sources: Some(arg_sources.into_iter().map(slot_arg).collect()),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -483,14 +494,9 @@ pub(crate) fn shape_to_function(
                         callee: resolve(c.callee_tok)?,
                         arg_ops: c.arg_ops,
                         arg_sources: c.arg_sources,
-                        link_args: c.link_args.map(|v| {
-                            v.into_iter()
-                                .map(|a| match a {
-                                    body::SlotArg::Formal(i) => SlotArg::Formal(i),
-                                    body::SlotArg::Lit(k) => SlotArg::Lit(k),
-                                })
-                                .collect()
-                        }),
+                        link_args: c
+                            .link_args
+                            .map(|v| v.into_iter().map(slot_arg).collect()),
                     });
                 }
                 Some(IlFunction {

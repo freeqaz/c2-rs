@@ -4318,3 +4318,233 @@ measurements.
   + `expr-lit-type-8212` — 52,650 released, **+22,311** in class, no emitter
   change, mismatch 0, disagreement 0. Census after both rungs: **464,584 /
   2,462,571 = 18.87 %**, from 418,628. `IL_STORE_LEAF.md` §9.
+
+## 26. WLA, landed — the row whose name was wrong about its own contents
+
+This section's job is the one §24.1 did: it ranked two candidates by
+**measurement** before touching either, and the ranking is not the one the row
+sizes gave.
+
+* **`expr-call-in-expr-chained-whole`, 12,479 — refuted at ZERO cost, because it
+  is already taken.** The row was carried into this wave from a scan predating
+  WCH/WCL. On the current tree it is **0 functions**, and the in-class numerator
+  moved 491,013 → 691,744 across the same boundary. One query against two scans
+  already on disk settled it: `grep` the key in the newest `--jsonl` before
+  believing a row size quoted from a brief. **A row is a measurement with a
+  timestamp**, and this document's own §23.7/§24.8 tables have the same
+  half-life. The module header at `mcall_chain.rs:18` that made it look like a
+  ceiling-rule candidate is *describing the landed rung*, not proposing one.
+* **`call-arg-computed:eof`, 5,537 — taken, +4,807.** Below.
+
+### 26.1 The decomposition, and what the key was actually naming — MEASURED
+
+Baseline taken **in this worktree** per §18.8, its row count and denominator
+printed before any differencing: `work/dc3-workload/scan-wcalls-base.jsonl`,
+878 rows, `fn_total` 2,462,571, in class **691,744 (28.09 %)**, mismatch 0,
+6 `match` / 7 `capture-fail`, 726 keys, census/gate disagreement 0.
+
+The counterfactual is the cheapest one this document has run: the refusal site is
+**at the segment end already** (that is what `:eof` means), so re-keying it
+decomposes the row without changing where any parse stops. In-class stayed at
+691,744 under it — the check that nothing was claimed.
+
+| functions | bucket | what it is |
+|---:|---|---|
+| 4,399 | `id-n3-lit-last` | 3 slots, 2 formals **in place**, the literal last |
+| 393 | `id-n2-lit-last` | 2 slots, same |
+| 12 | `id-multilit` | two or more literals |
+| 733 | `lit-perm` | a formal **out of** its slot, beside a literal |
+| **0** | `stream` | an argument that is a computed operand stream |
+| **0** | `nonformal` · `lit-wide` · the literal anywhere but last | |
+
+**The row contains no computed argument at all.** `call-arg-computed` had been on
+the handoff list since `ROADMAP.md` §6l as "mixing a formal with a literal in a
+multi-argument call, still uncaptured", and it was ranked as a stand-in for the
+general "compute a value into an argument register" rung. It is not that rung and
+never was: that rung's population here is **zero**. This is the same lesson as
+§24's `expr-convert` in the other direction — there a row named a token near the
+leaves and was a *gate*; here a row named a **fallthrough** and was one
+concentrated shape wearing the fallthrough's name.
+
+### 26.2 The lowering, read off the reference obj — MEASURED
+
+`work/WLA/probe/p1.cpp`, `/O1 /GS- /c`. One `li` and no move, because every other
+slot's formal is already in the argument register it is being passed in:
+
+```text
+  void f(int a)       { g2(a, 5); }           38800005 li 4,5   · 4bfffffc b ?g2
+  void f(int a,int b) { g3(a, b, 7); }        38a00007 li 5,7   · b ?g3
+  int  f(O* p,int j)  { return p->gk(j, 7); } 38a00007 li 5,7   · b ?gk
+  void f(int a,int b,int c){ g4(a,b,c,9); }   38c00009 li 6,9   · b ?g4
+  void f(int a)       { g3(a, 5, 6); }        li 5,6 · li 4,5   · b ?g3
+```
+
+Four facts fall out of the same nineteen-function probe, and none follows from
+the others.
+
+1. **The member form IS the free form.** `p->gk(j,7)` and `g3(a,b,7)` are the
+   same two words. `this` is the formal in slot 0 and nothing about the rule
+   knows it is a receiver — which is *why* the row is big: §W36's member call
+   turns every one-argument member call into a two-argument list, so `o->v1(7)`
+   arrives here.
+2. **The multi-literal order is DESCENDING destination** — `g3(a,5,6)` is
+   `li 5,6` then `li 4,5`. That is the same rule `moves_descending` uses and the
+   **opposite** of a chain link's ascending one (§WCL). A single-literal grid
+   agrees with both and separates neither; only the 12-function multilit cell
+   does, which is why it is enumerated in the fixture and the sweep rather than
+   waved through with the majority.
+3. **A formal in the literal's register is dead.** `void f(int a,int b,int c){
+   g3(a,b,7); }` overwrites `c` with `li r5,7` and is byte-identical to the
+   two-formal row: the branch is a tail call.
+4. **The `li` immediate is the boundary and it is real.** `g3(a,b,32767)` is one
+   instruction; `g3(a,b,70000)` is `lis 5,1 ; ori 5,5,4464`. Zero functions on
+   the workload are wide, so this gate costs nothing measured — and it is in the
+   parser anyway, because a gate whose population is 0 today is exactly the one
+   the next corpus finds.
+
+The locality tell (§6, skipped once at the cost of a whole rung) ran: three
+byte-identical bodies at varied file positions with different neighbours between
+them, all `38a00007 4bfffffc`. The decision is local.
+
+### 26.3 The refusals, and the one that is invisible by construction
+
+The gate is stated **positively**: every non-literal slot must be
+`Formal(slot)` — the formal already in that argument register.
+
+`g3(a,7,b)` is `mr r5,r4 ; li r4,7` and `g3(7,a,b)` is
+`mr r5,r4 ; mr r4,r3 ; li r3,7`; both are captured and both would come out of a
+plain descending walk correctly. The cell that is **not** captured is the same
+list over a real permutation cycle (`g3(b,a,7)`), where `permute_args_text`'s
+r11 break temp wants a position in that order too. All three refuse together
+under `call-arg-lit-permuted`, **733 functions**, because "the formals are in
+place" is the property the emitted bytes actually depend on — drawing the line at
+the two captured sub-shapes would be fitting the boundary to the sample.
+
+The hazard this seam exists for (`docs/GAPS.md` §6 #9 — one fact, two
+implementations) was checked in **both** directions:
+
+* *under*-refusal: `tail_call_shape` remains the single producer of
+  `MultiArgTailCall`, `permute_args_parts` carries the identical `in_place`
+  predicate as a backstop, and the shape now carries **one** field
+  (`Vec<SlotArg>`) rather than a permutation plus a literal side-table, so no
+  consumer can read one and miss the other;
+* *over*-refusal — the direction nothing tests, because a copy that refuses more
+  emits nothing and no byte compare can see it. The framed paths (the statement
+  call sequence, and a chain's innermost call) cannot spell a literal: their
+  marshalling interleaves with the callee-saved copies and with the previous
+  `bl`'s result save, and every witness of that interleaving is a `mr`. Both go
+  through **one** locator, `seq_call_arg_sources`, and it refuses under a named
+  census key (`callseq-multiarg-lit`) rather than silently — and the negative
+  fixture carries two cases that **reach** it, because a refusal nothing can
+  reach is exactly the invisible kind.
+
+### 26.4 The estimate, and the outcome — MEASURED
+
+> **Estimate: +4,804, biased LOW.** The counterfactual measured this population
+> (4,399 + 393 + 12) and the implementation gates on exactly it. Biased low by
+> two named sources: the counterfactual counted only the `:eof` half, and the
+> callee `.gl` resolution behind this gate could refuse an unmeasured part.
+
+`scan-wla.jsonl` against `scan-wcalls-base.jsonl`, same list, flags and `--cwd`,
+both differenced through absolute paths.
+
+| | baseline | WLA | delta |
+|---|---:|---:|---:|
+| rows / `fn_total` | 878 / 2,462,571 | 878 / 2,462,571 | 0 |
+| in class | 691,744 (28.09 %) | **696,551 (28.29 %)** | **+4,807** |
+| mismatch | 0 | **0** | 0 |
+| census/gate disagreement | 0 | **0** | 0 |
+| `match` / `capture-fail` | 6 / 7 | 6 / 7 | 0 |
+| distinct keys | 726 | 726 | 0 |
+| TUs changing class | — | **0** | — |
+| functions LOST, any TU | — | **0** | — |
+| TUs gaining | — | 563 | max 32 |
+
+**Outcome +4,807 against the estimate's 4,804.** The stated low bias had a
+population of **3** and it is the first source: three `:mid` bodies — the same
+shapes in a value position, with plumbing still ahead — completed as well. The
+second source's population was **0**.
+
+The arithmetic closes with nothing absorbed: 5,544 released, **735** refused
+again under `call-arg-lit-permuted`, **4,807** in class, and the residue of
+**2** is `call-multiarg-postop-0x33` +1 and `result-type-0x41` +1 — two bodies
+that got past this gate and stopped at the next one, named rather than rounded.
+
+Byte-graded, and the grading is not only census movement:
+
+* `fixtures/cpp/wla_lit_call_arg.cpp` — **34/34 in class, whole obj byte-exact**
+  against real `c2`: arity 2 to 8 with the destination walking r4..r10; the `li`
+  immediate at 0, ±1, −32768 and 32767; two and three literals for the
+  descending order; five member forms including a `const` receiver; the
+  value-returning and pointer-returning positions; dead formals in the literal's
+  register; and three byte-identical bodies for the locality tell.
+* `fixtures/cpp/wla_lit_call_arg_neg.cpp` — **0/20 refused**, and the file must
+  never mismatch: the shift and the cycle beside a literal, four wide literals,
+  the computed and non-formal arguments, the FP and `long long` operand sides,
+  and the framed pair that reaches `callseq-multiarg-lit`.
+* `scripts/sweep.d/74-lit-call-arg.py` — **101 cases**, of which **72 grade
+  `Match`** and 29 `NotImplemented`, so the sweep is comparing emitted bytes
+  here and not only counting refusals. Full sweep **13,707 → 13,808 cases,
+  `mismatches=0`**.
+* `scripts/gate.sh --jobs 4` — **12/12 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**,
+  **2,388** fixture-verdicts (2,364 before), 0 mismatch in every lane, across
+  `/O1`, `/Ox`, `/O2`, `/Od` and the `/Gy` and `/EHsc` crosses.
+  `cargo test --workspace` **521 pass, 0 fail**; `c2rs bench` **199 pass, 0 fail,
+  0 error**.
+
+### 26.5 What is NOT established, labelled
+
+* **The counterfactual is a grammar measurement, not a differential.** No TU
+  flipped under it; its numbers are statements about which key a refusal carries.
+  It was reverted and every number above re-taken against the built tree.
+* **`mismatch 0` on the workload is still a TU-level statement.** 865 of the 878
+  TUs are `vocab-gap` and never reach the port. This rung's byte grading is the
+  two fixtures (54 functions), the 101 sweep cases and the twelve gate lanes.
+* **The 733 `call-arg-lit-permuted` are refused as one population on one shared
+  property, not decomposed.** How many of them are the two *captured* sub-shapes
+  and how many are the uncaptured cycle is **unmeasured** — so 733 is a ceiling
+  on the next rung there, not its yield. Sizing it is one more re-key of the same
+  refusal site.
+* **"A formal in the literal's register is dead" rests on the tail-call
+  structure plus two probe rows.** It is not a liveness proof; it is why the
+  admitted class is a *tail* call and why the framed paths are refused instead of
+  reasoned about.
+* **The census is `/O1`; the byte grading is twelve flag lanes.** The `li` is
+  mode-independent in every capture taken, and the twelve lanes are the evidence
+  rather than the argument.
+
+### 26.6 Reproduction
+
+```sh
+cargo build --release
+./target/release/c2rs census fixtures/cpp/wla_lit_call_arg.cpp      # 34/34 in class
+./target/release/c2rs diff   fixtures/cpp/wla_lit_call_arg.cpp      # Port=Match
+./target/release/c2rs census fixtures/cpp/wla_lit_call_arg_neg.cpp  # 0/20 in class
+./target/release/c2rs diff   fixtures/cpp/wla_lit_call_arg_neg.cpp  # Port=NotImplemented
+cargo test --workspace                                       # 521 pass 0 fail
+C2RS_JOBS=16 ./target/release/c2rs bench                     # 199 pass 0 fail 0 error
+scripts/gate.sh --jobs 4                                     # 12/12 PASS, 2388 verdicts
+C2RS_SWEEP_ONLY=lit-call-arg C2RS_JOBS=16 scripts/expr_sweep.sh /tmp/wla-sweep
+                                                             # 101 cases, mismatches=0
+C2RS_JOBS=16 scripts/expr_sweep.sh /tmp/wla-full             # checked=13808 mismatches=0
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd <dc3-decomp> --jobs 8 \
+  --cache <repo>/work/capture-cache \
+  --jsonl work/dc3-workload/scan-wla.jsonl        # 696551/2462571, disagreement 0
+# the chained-whole refutation — no build at all, two scans already on disk:
+python3 -c "import json,collections;b=collections.Counter();\
+[b.update(json.loads(l)['fn_blockers']) for l in open('work/dc3-workload/scan-final.jsonl')\
+ if json.loads(l).get('record')!='provenance'];\
+print(b.get('expr-call-in-expr-chained-whole',0))"                        # 0
+# the decomposition counterfactual (scratch, reverted): at the `call-arg-computed`
+# refusal site, classify the WHOLE argument list (formal-in-place / formal-moved /
+# literal / wide literal / stream) and return a per-bucket key instead of the one
+# name. Nothing changes where a parse stops, so in-class must stay at 691,744.
+# the lowering, read off the reference obj rather than inferred:
+scripts/gt_capture.sh work/WLA/probe/p1.cpp /O1 /GS- /c
+python3 scripts/gt_dump.py work/WLA/probe/p1.obj    # li 5,7 · b ?g3
+```
+
+Always difference the scans through **absolute** paths and print each one's row
+count and `fn_total` first — §18.8. And re-measure a row before ranking it: this
+section's first candidate was 12,479 functions in a brief and 0 on disk.

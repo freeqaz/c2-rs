@@ -574,7 +574,11 @@ mod tests {
             parse_segment(MC_SWAP, NO_LOCALS),
             Some(BodyShape::MultiArgTailCall {
                 params: vec![60937, 61193, 61449],
-                arg_sources: vec![0, 2, 1],
+                arg_sources: vec![
+                    crate::func::body::SlotArg::Formal(0),
+                    crate::func::body::SlotArg::Formal(2),
+                    crate::func::body::SlotArg::Formal(1),
+                ],
                 callee_tok: 59145,
             })
         );

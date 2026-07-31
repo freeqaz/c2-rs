@@ -274,10 +274,19 @@ pub(crate) enum BodyShape {
     /// moves in both, and their schedules **interleave**
     /// (`docs/CODEGEN_FP_ARGS.md` §1.1).
     FpMultiArgTailCall { params: Vec<u32>, arg_sources: Vec<usize>, callee_tok: u32 },
-    /// `return g(a1, …, an)` with `n >= 2`, every argument a bare parameter.
-    /// `arg_sources[i]` indexes `params` for the value argument slot `i` wants;
-    /// codegen turns that into a register permutation plus the tail branch.
-    MultiArgTailCall { params: Vec<u32>, arg_sources: Vec<usize>, callee_tok: u32 },
+    /// `return g(a1, …, an)` with `n >= 2` and every argument a bare parameter or
+    /// (WLA) a **literal**. `arg_sources[i]` is what argument slot `i` wants:
+    /// [`SlotArg::Formal`] indexes `params`, [`SlotArg::Lit`] is one `li r<3+i>,k`.
+    /// Codegen turns the list into a register permutation, or into the `li`s
+    /// alone, plus the tail branch.
+    ///
+    /// One list rather than a permutation *plus* a literal side-table, because
+    /// "what does argument slot `i` want" is **one** fact and this file's history
+    /// is what happens when one fact grows two carriers. The two forms do not mix
+    /// in class — [`super::shapes::calls::lit_arg_tail_call`] admits a literal
+    /// only beside formals that are already in place — but they share the field,
+    /// so no consumer can read one and miss the other.
+    MultiArgTailCall { params: Vec<u32>, arg_sources: Vec<SlotArg>, callee_tok: u32 },
     /// Framed non-leaf `return g(a) + k` (k ≠ 0): exactly one int-returning CALL
     /// whose argument region is exactly the single passthrough LOAD, a `55 <int>`
     /// call-end, then exactly one literal `+ k` (ADD, commutative), returned. A

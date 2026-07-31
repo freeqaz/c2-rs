@@ -681,16 +681,17 @@ pub struct IlFunction {
     /// files' interleaved schedule, which `docs/CODEGEN_FP_ARGS.md` §1.1 records
     /// as uncharacterized and the parser refuses.
     pub fp_arg_sources: Option<Vec<usize>>,
-    /// A **multi-argument** tail call's argument permutation. `Some(sources)`
-    /// means this is `return g(a1, …, an)` with `n >= 2` and every argument a bare
-    /// parameter: `sources[i]` is the index into [`Self::params`] of the value that
-    /// argument slot `i` (register `r(3+i)`) wants. Set together with
-    /// [`Self::tail_call`], and then [`Self::ops`] is empty — the permutation, not
+    /// A **multi-argument** tail call's argument slots. `Some(slots)` means this
+    /// is `return g(a1, …, an)` with `n >= 2` and every argument either a bare
+    /// parameter or (WLA) a literal: `slots[i]` is what argument slot `i`
+    /// (register `r(3+i)`) wants — [`SlotArg::Formal`] indexes [`Self::params`],
+    /// [`SlotArg::Lit`] is one `li r(3+i),k`. Set together with
+    /// [`Self::tail_call`], and then [`Self::ops`] is empty — the slot list, not
     /// an operand stream, is the whole argument setup.
     ///
     /// The one-argument case keeps using `ops` instead, because it can carry a
-    /// computed argument (`g(a + 1)`) that the permutation form cannot express.
-    pub arg_sources: Option<Vec<usize>>,
+    /// computed argument (`g(a + 1)`) that this form cannot express.
+    pub arg_sources: Option<Vec<SlotArg>>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
