@@ -221,6 +221,69 @@ pub(crate) fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
 /// read that paragraph before assuming it did.
 const AGGREGATE_CLASS: u8 = 0x6;
 
+/// **A type tag with this bit set carries one extra byte — the WIDE MARK —
+/// between the tag and the kind, displacing every field after it.**
+///
+/// This is the same rule [`super::sy`]'s `read_type_prefix` has enforced since
+/// the `.sy` layer first bound on a real translation unit, where getting it wrong
+/// was measured as the single largest cause of `.sy` never binding: 197 of 200
+/// workload TUs contain such a record. **The `.ex` inline reader did not have
+/// it**, and the consequence is a width, not an opinion:
+///
+/// ```text
+///   30 c6 81 46 9a 3a          load, kind 46, type id 0x1D1A — FIVE bytes
+///   30 c6 81 46 | 9a 3a        what this function used to read: tag c6,
+///                              "kind" 81, "id" 0x46 — THREE bytes, and the
+///                              walk resumes two bytes early, on `9a`
+/// ```
+///
+/// `9A` is the vtable-slot bind, so the desynchronized walk met a plausible
+/// opcode and refused at *its* operand. That is how 129 workload bodies came to
+/// be filed under `cf-vbind-type-cflow-jump` — a row named after virtual dispatch
+/// containing none of it — and how a further ~200 `cf-expr-0xNN` rows, including
+/// the 23,254-body `cf-expr-0x82` that ranked **second** on the control-flow
+/// axis, came to be named after bytes that are the *second byte of a type id*.
+/// See `docs/IL_TYPE_WIDE_TAG.md`.
+///
+/// **Bracketed by the grammar, not by this function's arithmetic.** The same type
+/// appears at a `5C` EH-live marker in the same bodies, where the production
+/// `5C <TYPE> <varint state>` is closed by a `4B`:
+///
+/// ```text
+///   5c c6 81 46 9a 3a 01 4b    TYPE, state 1, end of statement — exact
+///   5c c6 81 46 | 9a …         state = `9a`, which is not a legal varint
+/// ```
+///
+/// The wide reading lands on the `4B`; the narrow one cannot.
+const TYPE_TAG_WIDE_BIT: u8 = 0x40;
+
+/// **The wide mark's discriminator: bit 7, and it is a bit test rather than the
+/// literal `81` for a measured reason.**
+///
+/// `.sy`'s reader requires the literal `81` because all three of its witnesses
+/// have it. `.ex` has a second value: `C6 84 43 <id>` occurs 106 times on the
+/// 878-TU workload, bracketed exactly — `2C c6 84 43 bf 82 01 00  55 c6 84 43 bf
+/// 82 01` is a CONVERT and a push of the *same six-byte type*, and no other
+/// width closes both. Requiring `81` literally refuses 36 bodies that are really
+/// there; that was measured as `cf-load-type-0xC6` (18) + `cf-convert-type-0xC6`
+/// (18) before this constant existed, which is the same shape as `CA 81 0D`
+/// refuting the literal `C6 81` prefix one container over.
+///
+/// Bit 7 is the discriminator and not merely a convenience: this reader is also
+/// called speculatively at positions that are **not** types (a blocker's own
+/// naming, `mcall`'s lookahead), and a bit-6 tag met there is the middle of some
+/// other field's LEB. Instrumented over the whole workload, the byte here is
+/// `81` (213,140 calls, on three tags), `84` (106, on one), or one of `01`…`07`
+/// (60,819, spread thinly across some fifty tags) — and **the settling
+/// measurement is not that description but a scan**: stepping this byte
+/// unchecked decodes 2,394,338 bodies and the bit-7 test decodes 2,394,338, the
+/// same number to the function, so the low group never contributed a decode. Bit
+/// 7 is what a LEB continuation bit would do if "tag + mark + kind" is really
+/// "tag + two-byte kind". The value is otherwise NOT interpreted, and a third
+/// value with bit 7 clear would be refused rather than read — see
+/// `docs/IL_TYPE_WIDE_TAG.md` §8.2.
+const TYPE_WIDE_MARK_BIT: u8 = 0x80;
+
 /// Read a `.ex` inline **type**: `<tag> <kind> <LEB128 id>`, returning
 /// `(tag, kind, id, width)`.
 ///
@@ -258,8 +321,16 @@ pub(crate) fn read_type(seg: &[u8], p: usize) -> Option<(u8, u8, u32, usize)> {
     if tag & 0x80 == 0 {
         return None;
     }
-    let kind = *seg.get(p + 1)?;
-    let mut i = p + 2;
+    let mut i = p + 1;
+    // The WIDE prefix — see [`TYPE_TAG_WIDE_BIT`] and [`TYPE_WIDE_MARK_BIT`].
+    if tag & TYPE_TAG_WIDE_BIT != 0 {
+        if *seg.get(i)? & TYPE_WIDE_MARK_BIT == 0 {
+            return None;
+        }
+        i += 1;
+    }
+    let kind = *seg.get(i)?;
+    i += 1;
     if kind & 0x0F == AGGREGATE_CLASS {
         // The 5-bit inline size (see `AGGREGATE_CLASS`). Zero is not a legal
         // struct size — C++ has no zero-sized object — so it is free to mean
@@ -1071,6 +1142,91 @@ mod tests {
             // Stepping it correctly must not turn into admitting it.
             assert!(!is_int4_type(*tag, *kind), "{label} must not read as int4");
             assert!(!is_ptr_to_4(*tag, *kind), "{label} must not read as ptr-to-4");
+        }
+    }
+
+    // ---- the WIDE tag (WVB, docs/IL_TYPE_WIDE_TAG.md) -----------------------
+
+    /// **`work/WVB/probe/p3.cpp`, four lines, captured at the workload's own
+    /// flags — the whole separation in one function.**
+    ///
+    /// ```cpp
+    /// struct P { virtual void V(); int q; };   // 8 bytes, polymorphic
+    /// struct N { int a, b; N(); };             // 8 bytes, NOT polymorphic
+    /// struct D : P, N { D(); };
+    /// D::D() {}
+    /// ```
+    ///
+    /// `D`'s constructor builds both bases in two adjacent statements of the same
+    /// production — `26 <ctor> 33 int 2113 40 <T> 66 02 <pair> … BD … 4C  30 <T> 4B`
+    /// — so everything except `virtual` is held fixed, including the *kind byte*
+    /// `86` (aggregate, size 8) and the closing `4B`:
+    ///
+    /// ```text
+    ///   30 c6 81 86 82 20 4b        P — WIDE: tag C6, mark 81, kind 86, id 0x1002
+    ///   30 86    86 93 20 4b        N — narrow: tag 86,         kind 86, id 0x1013
+    /// ```
+    ///
+    /// **One `virtual` in the source; one byte in the type.** A class with a
+    /// vtable spells its type with tag bit 6 set and one extra byte, and nothing
+    /// else in this pair differs. The whole segment is scanned end to end in
+    /// [`super::super::body::shapes::control_flow`]'s `the_polymorphic_base_...`
+    /// test; these two are its discriminating bytes.
+    const P_LOAD: &[u8] = &[0x4C, 0x30, 0xC6, 0x81, 0x86, 0x82, 0x20, 0x4B];
+    const N_LOAD: &[u8] = &[0x4C, 0x30, 0x86, 0x86, 0x93, 0x20, 0x4B];
+
+    #[test]
+    fn the_polymorphic_base_takes_one_more_byte_than_its_plain_neighbour() {
+        assert_eq!(read_type(P_LOAD, 2), Some((0xC6, 0x86, 0x1002, 5)));
+        assert_eq!(read_type(N_LOAD, 2), Some((0x86, 0x86, 0x1013, 4)));
+        // The bracket is what pins the width: both statements are closed by `4B`,
+        // and only these readings land on it.
+        assert_eq!(P_LOAD[2 + 5], 0x4B);
+        assert_eq!(N_LOAD[2 + 4], 0x4B);
+        // The kind byte is the SAME in both, so the extra byte is not a wider
+        // kind value — it is a field the narrow form does not have at all.
+        assert_eq!(P_LOAD[4], N_LOAD[3]);
+        // …and the narrow reading of the wide one stops two bytes early, on `82`,
+        // which is what the workload reported as a 23,254-body `cf-expr-0x82`.
+        assert_eq!(P_LOAD[2 + 3], 0x82);
+    }
+
+    #[test]
+    fn the_wide_tag_is_a_bit_test_and_the_mark_is_not_the_literal_81() {
+        // `C6 84 43 bf 82 01` — the second mark value, from the wild
+        // `2C <TYPE> 00  55 <TYPE>` pair that brackets it twice over. A reader
+        // requiring the literal `81` (as `.sy`'s does) refuses this.
+        assert_eq!(
+            read_type(&[0xC6, 0x84, 0x43, 0xBF, 0x82, 0x01], 0),
+            Some((0xC6, 0x43, 16703, 6))
+        );
+        // …and the mark's bit 7 is the discriminator against a misaligned read:
+        // a bit-6 tag met in the middle of some other field's LEB has it clear.
+        for m in [0x00u8, 0x01, 0x02, 0x05, 0x07, 0x7F] {
+            assert_eq!(read_type(&[0xC6, m, 0x43, 0x74], 0), None, "mark {m:#04X}");
+        }
+        // A tag WITHOUT bit 6 keeps the three-byte reading, `81` or not — this is
+        // `long long`, and treating its `81` as a mark would swallow the id.
+        assert_eq!(read_type(&[0x88, 0x81, 0x13], 0), Some((0x88, 0x81, 19, 3)));
+        // Truncation is a refusal, never a short read.
+        assert_eq!(read_type(&[0xC6], 0), None);
+        assert_eq!(read_type(&[0xC6, 0x81], 0), None);
+    }
+
+    #[test]
+    fn a_wide_aggregate_is_still_never_accepted() {
+        // The width fix must not become an admission: the wide types on the
+        // workload are classes (class nibble 6) and pointers (3), and the gates
+        // have to keep refusing both under their NEW (tag, kind) pair.
+        for (bytes, tag, kind) in [
+            (&[0xC6u8, 0x81, 0x86, 0x82, 0x20][..], 0xC6u8, 0x86u8),
+            (&[0xC6, 0x81, 0x46, 0x9A, 0x3A][..], 0xC6, 0x46),
+            (&[0xC7, 0x81, 0x46, 0xB6, 0x3B][..], 0xC7, 0x46),
+        ] {
+            let (t, k, _, _) = read_type(bytes, 0).expect("wide type reads");
+            assert_eq!((t, k), (tag, kind));
+            assert!(!is_int4_type(t, k), "{bytes:02X?} must not read as int4");
+            assert!(!is_ptr_to_4(t, k), "{bytes:02X?} must not read as ptr-to-4");
         }
     }
 
