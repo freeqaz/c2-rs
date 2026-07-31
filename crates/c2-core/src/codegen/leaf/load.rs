@@ -120,6 +120,7 @@ mod tests {
             empty_body: false,
             float_leaf: None,
             fp_tail: None,
+        fp_arg_sources: None,
             arg_sources: None,
         };
         assert_eq!(
@@ -156,6 +157,7 @@ mod tests {
             empty_body: false,
             float_leaf: None,
             fp_tail: None,
+        fp_arg_sources: None,
             arg_sources: None,
         };
         let blr = [0x4E, 0x80, 0x00, 0x20];

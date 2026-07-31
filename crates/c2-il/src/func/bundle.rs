@@ -355,6 +355,21 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // The multi-argument FP tail call (W34). `params` is the FP formals
+            // alone, in FP-file order, and `fp_arg_sources` is the permutation
+            // over that file. Deliberately a *different* field from
+            // [`IlFunction::arg_sources`]: that one indexes the GPR argument
+            // registers `r(3+i)`, this one the FP ones `f(i+1)`, and the two
+            // sharing a field would be the "one name, two facts" shape that has
+            // produced most of this project's wrong-bytes emits.
+            BodyShape::FpMultiArgTailCall { params, arg_sources, callee_tok } => {
+                Some(IlFunction {
+                    params,
+                    tail_call: Some(resolve(callee_tok)?),
+                    fp_arg_sources: Some(arg_sources),
+                    ..IlFunction::base(name, src)
+                })
+            }
             // A multi-argument tail call is still a tail call — same resolved
             // callee, same `b <callee>` — but its argument setup is a register
             // permutation rather than an operand stream, so `ops` stays empty

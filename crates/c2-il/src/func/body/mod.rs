@@ -191,6 +191,18 @@ pub(crate) enum BodyShape {
     /// emits `frsp` instead of `fmr` — **fused**, not `fmr` then `frsp`. See
     /// [`super::shapes::try_parse_fp_tail_call`] for the captures.
     FpTailCall { params: Vec<u32>, arg_tok: u32, narrowing: bool, callee_tok: u32 },
+    /// `return g(x1, …, xn)` with `n >= 2` and **every argument a floating-point
+    /// formal** — the other half of the FP tail-call family, W34.
+    ///
+    /// `params` is the FP formals alone in FP-file order (entry `k` is `f(k+1)`,
+    /// exactly as [`BodyShape::FpTailCall`] carries it) and `arg_sources[i]`
+    /// indexes it for the value destination `f(i+1)` wants. Because every argument
+    /// is FP, the destination numbering is `1..=n` with nothing else consuming a
+    /// slot in that file — which is the whole reason this shape is separate from
+    /// [`BodyShape::MultiArgTailCall`]: a call that mixes the two files needs
+    /// moves in both, and their schedules **interleave**
+    /// (`docs/CODEGEN_FP_ARGS.md` §1.1).
+    FpMultiArgTailCall { params: Vec<u32>, arg_sources: Vec<usize>, callee_tok: u32 },
     /// `return g(a1, …, an)` with `n >= 2`, every argument a bare parameter.
     /// `arg_sources[i]` indexes `params` for the value argument slot `i` wants;
     /// codegen turns that into a register permutation plus the tail branch.

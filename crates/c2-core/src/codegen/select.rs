@@ -18,7 +18,9 @@ use crate::codegen::calls::{call_seq_parts, int_tail_call_text, permute_args_tex
 use crate::codegen::encode::encode_blr;
 use crate::codegen::leaf::addr::addr_leaf_text;
 use crate::codegen::leaf::compare::compare_leaf_text;
-use crate::codegen::leaf::float::{FpConstRef, float_leaf_text, fp_tail_call_text};
+use crate::codegen::leaf::float::{
+    FpConstRef, float_leaf_text, fp_permute_args_text, fp_tail_call_text,
+};
 use crate::codegen::leaf::load::indirect_load_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
@@ -148,6 +150,13 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // i.e. drop the move. See `fp_tail_call_text`.
         if let Some(fp) = &func.fp_tail {
             return Ok(Selected::Tail(fp_tail_call_text(&func.params, fp)?));
+        }
+        // A multi-argument **floating-point** tail call: a permutation of the FP
+        // argument file, then the branch. Asked beside `fp_tail` and before
+        // `arg_sources` for the same reason — the two `*_sources` fields index
+        // different register files and are never both set.
+        if let Some(sources) = &func.fp_arg_sources {
+            return Ok(Selected::Tail(fp_permute_args_text(sources)?));
         }
         // Multi-argument: a register permutation, then the branch.
         if let Some(sources) = &func.arg_sources {

@@ -463,6 +463,18 @@ pub struct IlFunction {
     /// (`docs/CODEGEN_FP_ARGS.md` §4, §4.1). This shape's stride is 1 like any
     /// other tail call's; only [`Self::touches_floating_point`] is true of it.
     pub fp_tail: Option<FpTail>,
+    /// A **multi-argument** floating-point tail call's argument permutation, W34.
+    /// `Some(sources)` means `return g(x1, …, xn)` with `n >= 2` and every
+    /// argument a bare FP formal: `sources[i]` is the index into [`Self::params`]
+    /// — which then holds the FP formals **alone**, in FP-file order — of the
+    /// value FP argument register `f(i+1)` wants. Set together with
+    /// [`Self::tail_call`], and then [`Self::ops`] is empty.
+    ///
+    /// Separate from [`Self::arg_sources`] because that one indexes the **GPR**
+    /// argument registers `r(3+i)`. A call that needed both would need the two
+    /// files' interleaved schedule, which `docs/CODEGEN_FP_ARGS.md` §1.1 records
+    /// as uncharacterized and the parser refuses.
+    pub fp_arg_sources: Option<Vec<usize>>,
     /// A **multi-argument** tail call's argument permutation. `Some(sources)`
     /// means this is `return g(a1, …, an)` with `n >= 2` and every argument a bare
     /// parameter: `sources[i]` is the index into [`Self::params`] of the value that
@@ -519,6 +531,7 @@ impl IlFunction {
             compare: None,
             float_leaf: None,
             fp_tail: None,
+            fp_arg_sources: None,
             arg_sources: None,
             empty_body: false,
         }
@@ -584,6 +597,7 @@ impl IlFunction {
     pub fn touches_floating_point(&self) -> bool {
         self.float_leaf.is_some()
             || self.fp_tail.is_some()
+            || self.fp_arg_sources.is_some()
             || self
                 .ops
                 .iter()

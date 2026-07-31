@@ -12,7 +12,9 @@
 //   float c1(float a, float b) { return g1f(a + b); }  fadds f1,f1,f2 ; b
 //   float c2(float a)  { return g1f(a * a); }          fmuls f1,f1,f1 ; b
 //   float l1()         { return g1f(1.5f); }  lis/lfs through an .rdata COMDAT ; b
-//   float p1(float a, float b) { return g2f(b, a); }   the two-file permutation
+//   int   p1(int a,int b,float c,float d) { return gif2(b,a,d,c); }
+//        the TWO-FILE permutation: fmr f0,f2 ; mr r11,r4 ; mr r4,r3 ;
+//        fmr f2,f1 ; mr r3,r11 ; fmr f1,f0 — the files' moves interleave
 //   float k1(float a)  { return g1f(a) + 1.0f; }       an FP post-op
 //
 // **`r1` is the interesting refusal**, and it is the one that is *not* a
@@ -41,6 +43,7 @@ float  g1f(float);
 double g1d(double);
 int    g1i(int);
 float  g2f(float, float);
+int    gif2(int, int, float, float);
 
 double r1(float a)                     { return g1f(a); }
 float  r2(double a)                    { return g1d(a); }
@@ -49,7 +52,7 @@ int    x2(float a)                     { return g1i(a); }
 float  c1(float a, float b)            { return g1f(a + b); }
 float  c2(float a)                     { return g1f(a * a); }
 float  l1()                            { return g1f(1.5f); }
-float  p1(float a, float b)            { return g2f(b, a); }
+int    p1(int a, int b, float c, float d) { return gif2(b, a, d, c); }
 float  k1(float a)                     { return g1f(a) + 1.0f; }
 float  gv;
 float  g1(float a)                     { return g1f(gv); }
