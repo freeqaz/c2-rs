@@ -344,12 +344,27 @@ def run_dest(sig, wd):
             break
     # A constant stored rather than left in a register is a homed argument: the
     # `li` names a register and the `stw` sends it to the frame, so report the
-    # slot as the stack offset it actually reached.
-    byreg = {v: k for k, v in got.items()}
-    for reg, off in stores:
-        slot = byreg.get("r%d" % reg)
-        if slot is not None:
-            got[slot] = "%s->%d(r1)" % (got[slot], off)
+    # slot as the stack offset it actually reached. The pairing is by POSITION,
+    # not by register: with three or more homed slots c2 reuses one scratch for
+    # all of them (`li r8,109; stw r8,84(r1); li r8,106`), so a register->slot
+    # map silently attributes the store to whichever slot wrote that register
+    # last. Walking the stream in order and consuming the most recent `li` into
+    # the register being stored is the only reading that survives reuse.
+    order = []
+    for w in words:
+        d = decode(w)
+        if d[0] == "addi" and d[2] == 0 and d[3] in want:
+            order.append(("li", d[1], want[d[3]]))
+        elif d[0] == "stw" and d[2] == 1:
+            order.append(("stw", d[1], d[3]))
+        elif d[0] in ("bl", "b"):
+            break
+    live = {}
+    for ev in order:
+        if ev[0] == "li":
+            live[ev[1]] = ev[2]
+        elif ev[1] in live:
+            got[live[ev[1]]] = "r%d->%d(r1)" % (ev[1], ev[2])
     return got, frame, words
 
 
@@ -370,10 +385,16 @@ def dest_grid(sigs, wd):
                 cells.append("%d:%s(f)" % (k, c))
             else:
                 # §0's rule, stated as a prediction on every row so the grid
-                # falsifies it rather than illustrating it.
-                pred = "r%d" % (2 + k) if 2 + k <= 10 else "STACK"
+                # falsifies it rather than illustrating it. Past r10 the rule
+                # has to stop, and the prediction is that the slot is HOMED —
+                # which register stages the store is not part of the claim, so
+                # any `...->off(r1)` satisfies it.
                 g = got.get(k, "MISSING")
-                cells.append("%d:%s%s" % (k, g, "" if g == pred
+                if 2 + k <= 10:
+                    ok, pred = g == "r%d" % (2 + k), "r%d" % (2 + k)
+                else:
+                    ok, pred = "->" in g, "homed"
+                cells.append("%d:%s%s" % (k, g, "" if ok
                                           else "[PRED %s]" % pred))
         print("  %-12s %-7s %s"
               % (sig, "-" if frame is None else "0x%x" % frame,

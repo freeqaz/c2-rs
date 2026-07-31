@@ -24,10 +24,92 @@ documentation; where a rule is not captured it says so.
   file.
 * The FP numbering is **width-agnostic**: a `double` takes one FP register, not
   two.
+* The files are finite: **r3–r10** for slots 1–8 and **f1–f13** for FP indices
+  1–13. Past either boundary the value is homed to the outgoing parameter area
+  at `8*k + 12` from r1, indexed by the **argument slot** `k` in both cases.
+  §0.1 measures all of that; it was extrapolated before.
 
 So for `int t6(int a, float b, float c)`: `a` → r3, `b` → f1, `c` → f2. The
 index rule says f2 and f3; a packed-GPR rule would say `a` → r3 and the next
 integer → r4. Both are refuted below by one instruction each.
+
+### 0.1 Where the rule stops — MEASURED to the boundary and past it (2026-07-31)
+
+§0's grid stopped at **five** arguments and the rule was extended to eight by
+arithmetic. Eight is where the argument GPRs run out, so that extension was
+unmeasured at exactly the point it mattered, and W34's gate consults
+`sy::gpr_reg_of` for every accepted call. `scripts/gt_argperm.py --dest` closes
+it. The instrument makes every non-FP argument a **distinct integer constant**,
+so c2 must materialise it with `li rD,imm` and the destination register is read
+off the instruction with no model in between; the FP arguments are the caller's
+own FP formals in order, so they are already in place and emit nothing.
+
+**Slots 1–8 take r3–r10, and the rule holds at every FP interleaving.** The
+prediction is printed on every cell and the grid falsifies it rather than
+illustrating it — 40 signatures, 0 cells wrong:
+
+```
+  iiiiiiii      1:r3 2:r4 3:r5 4:r6 5:r7 6:r8 7:r9 8:r10
+  idididid      1:r3 2:f  3:r5 4:f  5:r7 6:f  7:r9 8:f
+  ddiiiiii      1:f  2:f  3:r5 4:r6 5:r7 6:r8 7:r9 8:r10
+  fffffffi      1:f  2:f  3:f  4:f  5:f  6:f  7:f  8:r10   <== the discriminator
+```
+
+`fffffffi` is the row that carries it: seven FP parameters ahead of one `int`
+and the `int` still lands in **r10**, so a slot really is consumed and skipped
+seven times over rather than the GPRs being packed. A packed model puts it in
+r3 and emits the same one instruction with the wrong register.
+
+**Slot 9 is where it stops, and the answer is stack homing, not r11.**
+
+| slots | frame | slot 9 | 10 | 11 | 12 |
+|---|---|---|---|---|---|
+| 9 ints | 0x60 | `li r11,109; stw r11,84(r1)` | | | |
+| 10 ints | 0x70 | 84(r1) | 92(r1) | | |
+| 11 ints | 0x70 | 84(r1) | 92(r1) | 100(r1) | |
+| 12 ints | 0x80 | 84(r1) | 92(r1) | 100(r1) | 108(r1) |
+
+```
+    home(k) = 8*k + 12   from r1, for the outgoing parameter area
+```
+
+Fitted on slots 9–12 and then held out twice at a distance: `fffffffffffffi`
+(13 floats then an `int`) puts its `int` at slot **14** and predicts
+**124(r1)** — measured `stw r11,124(r1)`. `ddddddddddddddi` puts its `int` at
+slot **15** and predicts **132(r1)** — measured 132. The stride is **8 bytes
+per slot regardless of the value's width**, so an `int` occupies eight bytes of
+the parameter area, and r11 is the staging scratch (reused for every homed slot
+when there is more than one, which is why the pairing has to be read in
+instruction order and not through a register map).
+
+**The FP file runs out at f13, and past it homes by SLOT, not by FP index.**
+`ffffffffffffff` — fourteen floats — is one `lfs f0,268(r1)` and one
+`stfs f0,124(r1)`: the fourteenth arrives on the caller's own incoming home and
+is copied to the outgoing one, `8*14 + 12 = 124`. Since every parameter there is
+a float, that row cannot separate "by slot k" from "by FP index j". The
+discriminator is `iffffffffffffff` — one `int` then fourteen floats, so the last
+float is FP index 14 but argument slot 15: by-slot predicts 132, by-index 124.
+Measured **`stfs f0,132(r1)`**. Its control `iifffffffffffff` (two ints, thirteen
+floats, nothing past f13) emits no store at all.
+
+So the parameter area is indexed by the **argument slot**, one 8-byte cell each,
+and the GPR file, the FP file and the stack are three views of the same
+numbering. That is a stronger statement than §0 made and it is now measured on
+both sides of both boundaries.
+
+**Two things a caller-side emitter gets wrong if it reasons from the registers.**
+`iiiiiiiid` — eight ints and a `double` at slot 9 — allocates a **0x60 frame and
+writes nothing to it**: the double sits in f1, needs no home, and the frame is
+reserved by the slot *count* anyway. And `iiiiiiiiid` allocates 0x70 while homing
+only slot 9. Frame size is not a function of what is homed.
+
+**What is still not measured here**: the formula is fitted and held out only for
+`k >= 9`, because slots 1–8 are in registers and their home cells are never
+written — extrapolating `8k+12` down to slot 1 (which would put the area at
+20(r1)) is arithmetic, not measurement, and is exactly the mistake this
+subsection exists to correct. Nothing above covers a value wider than 8 bytes,
+a struct by value, or a `...` call, and the frame-size rule is left to
+`docs/CODEGEN_FRAMED_CALLS.md`.
 
 ## 1. The FP argument file — MEASURED
 
@@ -434,6 +516,12 @@ c2rs census /tmp/fpgt_sy.cpp --keep-il /tmp/fpil   # then hexdump the .sy
 #   tagged by the BodyShape.        -> 86,237, decomposed in §6
 #   the same with the FP LITERAL classes (kind class A) added   -> +0 bodies
 #   the FP store: the same tripwire in `store_value_width`      -> 7,984
+
+# the argument DESTINATION grid (§0.1) — slots 1..8, the r10 boundary, and the
+# stack homing past it. Every cell carries §0's own prediction and prints it
+# when it misses; 40 signatures, 0 misses.
+scripts/gt_argperm.py --dest
+scripts/gt_argperm.py --dest fffffffi iiiiiiiii fffffffffffffi iffffffffffffff
 ```
 
 ## 9. W34 — the multi-argument half, against its estimate
