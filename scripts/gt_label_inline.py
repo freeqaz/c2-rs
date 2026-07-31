@@ -1260,6 +1260,47 @@ FAMILIES = [
                 " (3 + [5 + 2*(2 locals + if + else) + S(2)=3] + 7 + 7) —"
                 " the corrected scope-exit term stacking on ordinary E"
                 " features; 34 if scope-exit were still E += 2"),
+
+    # === ROUND 23: §6.11's two `NOT MODELLED` rows, attacked with the ladder.
+    #     Both are single depth-1 readings where several decompositions reach
+    #     the measured number and nothing at depth 1 can separate them — which
+    #     is precisely what DEPTH separates, because an E unit is worth d and
+    #     a flat term is worth 1 however deep it sits. That is the same lever
+    #     §6.3 used to pin the multi-exit temp as flat rather than scaled.
+    #
+    #     `ctor-noloc` = 10 needs the wrapper to cost 5 at depth 1, and
+    #         A: E = 2                 B: E = 1 + a flat 1     C: E = 0 + flat 2
+    #     all give 3+2 / 3+1+1 / 3+0+2 = 5. At depth 2 they separate cleanly.
+    #
+    #     `struct-ret` = 5 needs the callee to cost 5 with one declared local,
+    #         A: E = 2 (the hidden return slot counts alongside the local)
+    #         B: E = 1 and a flat +1 for returning a struct by value
+    #     which are 4+1 either way at depth 1 and 9 against 8 at depth 2.
+    #
+    #     Registered prediction: A for both, because law L' has been additive
+    #     in E everywhere and each flat term it does have (the multi-exit
+    #     result temp) had a structural reason to be flat. Stated bias: I have
+    #     been wrong about exactly this kind of "surely it just adds" twice in
+    #     this file already (d2-lp-for, d2-ptr-p), so A is the reading to
+    #     doubt, not the one to assume.
+    Family("d2-ctor-noloc", GS,
+           "struct CO { int v; CO(int a){ v = gs(a)+a; } };\n"
+           "static int lco(int a){ return CO(a).v; }\n"
+           "static int lcp(int a){ return lco(a)+1; }",
+           "s=lcp(s);", "s=gs(s)+s+1;",
+           always_lead=True,
+           note="ctor-noloc's unnamed temporary at DEPTH 2   PRED 19 if the"
+                " wrapper's 2 are both E units / 18 if one is E and one flat"
+                " / 17 if both are flat"),
+    Family("d2-struct-ret", GS,
+           "struct SS { int x, y; };\n"
+           "static SS sr1(int a){ SS r; r.x=gs(a); r.y=a; return r; }\n"
+           "static int sr2(int a){ SS q = sr1(a); return q.x+q.y+1; }",
+           "s=sr2(s);", "{SS q; q.x=gs(s); q.y=s; s=q.x+q.y+1;}",
+           always_lead=True,
+           note="a by-value struct return at DEPTH 2   PRED 13 if the hidden"
+                " return slot is a second E unit (4 + [5+2*2]) / 12 if it is"
+                " a flat +1 (4 + [5+2*1] + 1)"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -1465,6 +1506,11 @@ LAW_BOOK = {
     "ptr-sibling": 11, "ptr-sibling-rev": 11,
     # --- ROUND 22: additivity at depth 2, committed before capture ----------
     "d2-mix": 18, "d2-dtor-if": 33,
+    # --- ROUND 23: the registered reading (A) for §6.11's two NOT MODELLED
+    # rows. A miss prints, which is the point — these are the two shapes the
+    # document has refused to put a number on, and a wrong guess here is
+    # worse than the blank they currently have.
+    "d2-ctor-noloc": 19, "d2-struct-ret": 13,
 }
 
 # ---------------------------------------------------------------------------
