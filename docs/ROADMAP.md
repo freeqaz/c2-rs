@@ -3183,6 +3183,54 @@ And the block IR is **still worth exactly 718 functions**: the `+expr-modeled`
 column is unchanged to the function in every shape row. 190k more decoded bodies
 moved it by nothing, by construction.
 
+## 6q. The width that was two bytes short — WVB, 2026-07-31
+
+Measured in `docs/IL_TYPE_WIDE_TAG.md`, census delta **0** — an axis, not a rung.
+
+§6p closed by ranking one open item: the 129 bodies filed `cf-vbind-type-cflow-jump`,
+*"the only row in this work that says a width might be incomplete rather than
+merely unimplemented"*. A width was incomplete. **It was not `9A`'s.**
+
+> **`read_type` read a five-byte `.ex` type as three.** A tag with **bit 6** set
+> carries one extra byte before the kind — `.sy`'s reader has required it since it
+> first bound on a real TU, and the `.ex` reader never had it. Decode reach
+> **94.2 % → 97.2 % (+75,733)**; the undecoded residue's distinct keys **384 → 8**;
+> census **685,882, +0**, `fn_blockers` **719 keys, every delta zero**.
+
+Five things generalize past the row.
+
+* **A first-blocker histogram cannot tell a construct from a resync**, and no
+  cross with the frame, control-flow or EH class can either — a resync passes
+  every axis, because every axis is computed after it. **376 of the 384 rows on
+  this axis were resync artifacts**, including `cf-expr-0x82` (23,254), which
+  §6p's own table ranked second and described as *"in §13's residue list"*.
+* **`9A` is single-form, and the row named after it contained none of it.** The
+  `9A` the walk stopped on is the fourth byte of the preceding type. The 69,246
+  do not re-split: with the bodies around them legible the separation *grows* to
+  **70,206**, and `9A <TYPE> <varint>` still decodes nothing `9A <TYPE>` does not.
+* **"Honest refusal, not desync" is a claim about where a walk started going
+  wrong, and the falsification test does not answer it.** Landing off the tail is
+  sound evidence that something is wrong and no evidence at all about which token
+  it was. §6p asserted the stronger reading for 183 bodies and all 183 were
+  desyncs.
+* **One rule, two locators, and only one of them had it.** Nothing compares
+  `.sy`'s type reader with `.ex`'s; they read different containers and agree by
+  construction on every type that is not wide. The `.sy` side had the rule
+  *documented, measured and load-bearing* for months.
+* **A constant that never varies at three witnesses can still be a field.**
+  `.sy` requires the wide mark to be the literal `81`; `.ex` has `84` too, 106
+  times, and requiring `81` refuses 36 real bodies. The same shape as `CA 81 0D`
+  refuting the literal `C6 81` prefix one container over — twice now, on the same
+  field.
+
+And the EH axis moves the *other* way from §6p's: these 75,733 newly legible
+bodies are **54 % on the EH side** (against WDR's ≥ 96.4 % `eh-none`), because a
+wide tag means a class with a vtable. **EH stock 238,723 → 276,809, +16.0 %** —
+§6o's phase conclusion is reinforced, and it was under-counted while this width
+was short. The block IR is **still worth exactly 718 functions**: the
+`+expr-modeled` column is unchanged to the function in every shape row, a fifth
+time.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp

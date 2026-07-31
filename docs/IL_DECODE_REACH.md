@@ -180,10 +180,16 @@ Two things in that table are worth more than their row.
 
 **The two new productions' own residue is 183 bodies.** `cf-vbind-type-*` 180
 (129 of them a `3A` where a TYPE was expected) and `cf-materialize-type-*` 3, out
-of 190,868 bodies newly walked through — **0.096 %**. They are honest refusals,
-not desyncs: a wrong width would show as a failure of the standing falsification
-(land exactly on the seven-byte function tail, every `54 <k>` depth agreeing),
-and that test is what the +188,794 is measured by.
+of 190,868 bodies newly walked through — **0.096 %**.
+
+> **REFUTED, 2026-07-31 (WVB, `docs/IL_TYPE_WIDE_TAG.md`).** This paragraph went
+> on to say *"they are honest refusals, not desyncs"*. **All 183 were desyncs** —
+> and not of `67`, `9A` or `64`: `read_type` was reading a five-byte type as
+> three, so the walk resumed two bytes early on whatever stood there. The
+> falsification test (land exactly on the seven-byte tail, every `54 <k>` depth
+> agreeing) is sound and those bodies really did fail it; what it cannot do is say
+> **where** a desync started, and this residue was read as though it could. All
+> 183 now decode.
 
 ## 6. What the newly-classified bodies are
 
@@ -242,6 +248,12 @@ Two results.
    and by-value temporaries are bodies with several conditionals — which is a fact
    about what a block IR would have to serve that no previous scan could see,
    because these bodies stopped decoding before their second branch.
+
+The largest remaining undecoded rows, and what establishing each would buy —
+**three of the six rows below do not exist.** `82`, `80` and most of the long tail
+were the second byte of a wide type's id, and go to **0** under
+`docs/IL_TYPE_WIDE_TAG.md`'s width; the residue is 384 keys → 8 and 143,966
+bodies → 68,233. `05`, `59`, `60` and `08` are real and survive to within 0.4 %.
 
 The largest remaining undecoded rows, and what establishing each would buy:
 
@@ -329,7 +341,10 @@ workload scan, naming what the bucket was already filtered by.
 4. **The `9A` residue's 129 `cf-vbind-type-cflow-jump`** — a `3A` standing where
    `9A`'s TYPE should be. Small, but it is the only row in this work that says a
    width might be incomplete rather than merely unimplemented, and it is the
-   cheapest thing here to look at next.
+   cheapest thing here to look at next. **TAKEN, and it was right for the wrong
+   reason** (`docs/IL_TYPE_WIDE_TAG.md`): a width *was* incomplete, but not `9A`'s
+   — `9A` has no second form and there is no virtual dispatch in those 129 bodies
+   at all. The `9A` byte is the fourth byte of the preceding type.
 5. **The by-value return's `9B`/`44`/`64` trio is decoded at the statement layer
    and still unnamed at the expression layer.** `IL_CALL_IN_EXPR.md` §14.6's
    "neither `9B`'s role nor `44`/`64` is decoded" is now two-thirds false; `44`'s
