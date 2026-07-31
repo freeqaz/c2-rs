@@ -668,13 +668,26 @@ pub(crate) fn feature(aux: u64) -> String {
     };
     // How many data symbols the finished body materializes — the number that
     // decides whether the row needs one relocation pair or a pool-relative
-    // selection (see [`SYMS_SHIFT`]). Rendered next to the form, because it is a
-    // property of the form's own operands and not of the second blocker.
-    let name = match (aux >> SYMS_SHIFT) & SYMS_MASK {
-        SYMS_UNSET => name,
-        3 => format!("{name}-3sym+"),
-        k => format!("{name}-{k}sym"),
+    // selection (see [`SYMS_SHIFT`]).
+    //
+    // **Rendered next to the construct that owns the operands**, which is the form
+    // when the form is a data designator and the *second blocker* when it is not
+    // (WDA). D5 rendered it only in the first position, on the stated ground that
+    // the count "is a property of the form's own operands and not of the second
+    // blocker" — true of where the count is *read*, false of where it is *produced*,
+    // because a granted `Blocker::Call(DataAddr)` runs the same designator
+    // production. Putting the suffix on the blocker keeps the key readable in both
+    // cases: `data-addr-2sym-then-plain-call…` and
+    // `recv-load-then-call-data-addr-2sym…` each name the construct that has to
+    // materialize two addresses.
+    let sym_suffix = match (aux >> SYMS_SHIFT) & SYMS_MASK {
+        SYMS_UNSET => String::new(),
+        3 => "-3sym+".to_string(),
+        k => format!("-{k}sym"),
     };
+    let form_owns_syms =
+        matches!(form, Some(CallForm::DataAddr) | Some(CallForm::DataRead));
+    let name = if form_owns_syms { format!("{name}{sym_suffix}") } else { name };
     if aux & WHOLE_BIT != 0 {
         return format!("{CALL_IN_EXPR}-{name}-whole");
     }
@@ -697,7 +710,11 @@ pub(crate) fn feature(aux: u64) -> String {
                 0 => String::new(),
                 k => format!("-and-{}", Blocker::kind_name(k)),
             };
-            format!("{CALL_IN_EXPR}-{name}-then-{}{third}{suffix}", b.name())
+            // When the form did not own the count, the second blocker did — and if
+            // neither does, `sym_suffix` is empty, because `mark_whole` only sets
+            // the bits for those two cases.
+            let blk = if form_owns_syms { b.name() } else { format!("{}{sym_suffix}", b.name()) };
+            format!("{CALL_IN_EXPR}-{name}-then-{blk}{third}{suffix}")
         }
     }
 }
@@ -902,15 +919,18 @@ pub(crate) fn mark_whole(seg: &[u8], lo: usize, b: Block) -> Block {
     if !form_is_measured(form) {
         return b;
     }
-    // The data-symbol count is only the operative number for the two designators
-    // that materialize one; elsewhere the form's own operands are not symbols and a
-    // count would be noise in the key.
-    let counts_syms = matches!(form, CallForm::DataAddr | CallForm::DataRead);
-    let sym_bits = |f: &Fail| if counts_syms { f.sym_class() << SYMS_SHIFT } else { 0 };
+    // The data-symbol count is only the operative number where a data designator is
+    // what materializes the address; elsewhere the operands are not symbols and a
+    // count would be noise in the key. On the **bare** pass that can only be the
+    // form itself: `eat_data_designator` has exactly two call sites, both in
+    // [`eat_form_value`], so `Admit::bare(form)` reaches it only for these two forms
+    // and `fail.syms` is 0 for every other form by construction.
+    let form_counts_syms = matches!(form, CallForm::DataAddr | CallForm::DataRead);
+    let sym_bits = |counts: bool, f: &Fail| if counts { f.sym_class() << SYMS_SHIFT } else { 0 };
     let mut adm = Admit::bare(form);
     let mut fail = Fail::new();
     if body_matches(seg, lo, adm, &mut fail) {
-        return Block { aux: b.aux | WHOLE_BIT | sym_bits(&fail), ..b };
+        return Block { aux: b.aux | WHOLE_BIT | sym_bits(form_counts_syms, &fail), ..b };
     }
     // **The greedy chain.** Grant the construct that blocks the body, retry, and
     // repeat — up to [`MAX_ADMIT`]. The *first* construct granted is the "second
@@ -918,6 +938,20 @@ pub(crate) fn mark_whole(seg: &[u8], lo: usize, b: Block) -> Block {
     // separates "these bodies share one further blocker" from "each carries three
     // unrelated ones", which is the question the whole rung exists to answer.
     let first = fail.blocker(seg);
+    // **WDA — the count is the operative number wherever the designator is, not only
+    // where the form is.** `eat_one_blocker_value` routes a granted
+    // `Blocker::Call(DataAddr|DataRead)` straight back into [`eat_form_value`], so
+    // `fail.syms` is accumulated for a body whose symbols arrive as the SECOND
+    // blocker exactly as it is for one whose form owns them — and then D5's predicate
+    // threw the number away, because it asked about the form alone. That silently
+    // un-measured every `-then-call-data-{addr,read}-…-whole…` row: 10,555 workload
+    // functions, of which 10,540 are one key (`recv-load-then-call-data-addr-whole`),
+    // and the count is precisely what separates §17.6 (3)'s takeable rung from
+    // §17.6 (6)'s phase. A refusal that emits nothing and agrees with census by
+    // construction is invisible to every gate this project has; the fix is one
+    // disjunct, and [`feature`] renders it next to the construct that owns it.
+    let counts_syms = form_counts_syms
+        || matches!(first, Blocker::Call(CallForm::DataAddr) | Blocker::Call(CallForm::DataRead));
     let mut need = NEED_UNMEASURED;
     // The coarse kind of the UNMEASURED construct the greedy chain stopped on, so
     // that a `-more` row says what came *next* rather than only that something did.
@@ -962,7 +996,7 @@ pub(crate) fn mark_whole(seg: &[u8], lo: usize, b: Block) -> Block {
     // a `-more` body stopped partway, so its designators are however many the
     // abandoned prefix happened to hold, which is a property of the refusal and not
     // of the program. Left unset there rather than reported.
-    let syms = if (1..=MAX_ADMIT as u64).contains(&need) { sym_bits(&fail) } else { 0 };
+    let syms = if (1..=MAX_ADMIT as u64).contains(&need) { sym_bits(counts_syms, &fail) } else { 0 };
     Block {
         aux: b.aux
             | syms
@@ -2756,6 +2790,40 @@ mod tests {
         0x20, 0xB9, 0xE7, 0x09, 0x86, 0x43, 0x81, 0x20, 0x55, 0x86, 0x43, 0x81, 0x20, 0x4C, 0x4B,
         0x3A, 0xE9, 0x09, 0x54, 0x02, 0x29, 0xE9, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
+    /// **WDA's discriminating pair, half one.**
+    /// `struct O { int M1(const char*); }; int m1(O* p) { int x; x = p->M1("hi"); return x; }`
+    /// — a member call on a pointer formal with **one** string-literal argument. The
+    /// form is [`CallForm::RecvLoad`] and the data symbol arrives as the *second*
+    /// blocker, so this is the population D5's `counts_syms` predicate measured and
+    /// then discarded: 10,540 workload functions in one key with no count on it.
+    const RECV_LOAD_ONE_SYM: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xF2, 0x09, 0x26, 0xE5, 0x09, 0xB9, 0xEF, 0x09, 0x86, 0x43,
+        0x81, 0x20, 0x99, 0x86, 0x43, 0x86, 0x20, 0x00, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x06,
+        0x10, 0x00, 0x00, 0x26, 0xF3, 0x09, 0x2C, 0x86, 0x43, 0x83, 0x20, 0x00, 0x55, 0x86, 0x43,
+        0x83, 0x20, 0x4C, 0x32, 0x86, 0x41, 0x74, 0x4B, 0xB9, 0xF2, 0x09, 0x86, 0x41, 0x74, 0x41,
+        0x86, 0x41, 0x74, 0x3A, 0xF1, 0x09, 0x54, 0x02, 0x29, 0xF1, 0x09, 0x4F, 0x12, 0x47, 0x54,
+        0x01, 0x54, 0x00,
+    ];
+    /// **WDA's discriminating pair, half two.**
+    /// `int M2(const char*, const char*); … x = p->M2("aa","bb");` — the same member
+    /// call with **two** string-literal arguments, so c2 must derive the second
+    /// address from the first by `.rdata` pool-offset difference
+    /// (`docs/IL_CALL_IN_EXPR.md` §17.3 (a)).
+    ///
+    /// The pair differs by exactly one `26 <tok> 2C <T> 00 55 <T>` argument group and
+    /// by **nothing else** — same receiver form, same second blocker, same grant
+    /// count, same `-whole` suffix. Before WDA both printed the identical key. That
+    /// is the whole finding: the census could not tell a takeable rung from a phase
+    /// inside its own largest `-whole` member-call row.
+    const RECV_LOAD_TWO_SYMS: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xF7, 0x09, 0x26, 0xE8, 0x09, 0xB9, 0xF4, 0x09, 0x86, 0x43,
+        0x81, 0x20, 0x99, 0x86, 0x43, 0x88, 0x20, 0x00, 0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x08,
+        0x10, 0x00, 0x00, 0x26, 0xF8, 0x09, 0x2C, 0x86, 0x43, 0x83, 0x20, 0x00, 0x55, 0x86, 0x43,
+        0x83, 0x20, 0x26, 0xF9, 0x09, 0x2C, 0x86, 0x43, 0x83, 0x20, 0x00, 0x55, 0x86, 0x43, 0x83,
+        0x20, 0x4C, 0x32, 0x86, 0x41, 0x74, 0x4B, 0xB9, 0xF7, 0x09, 0x86, 0x41, 0x74, 0x41, 0x86,
+        0x41, 0x74, 0x3A, 0xF6, 0x09, 0x54, 0x02, 0x29, 0xF6, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01,
+        0x54, 0x00,
+    ];
     /// `int d_read() { int x; x = gO.m; return x; }` — a global object's member
     /// read, §7.1's 2.5 %.
     const DATA_READ: &[u8] = &[
@@ -3620,6 +3688,120 @@ mod tests {
         retagged[32] = 0x77;
         retagged[33] = 0x21;
         assert_eq!(f(&retagged), "expr-call-in-expr-data-addr-2sym-then-plain-call-whole");
+    }
+
+    /// **WDA — the count belongs to the construct that materializes the address,
+    /// not to whichever construct happened to open the body.**
+    ///
+    /// D5 gated the count on the *form*, so a body whose data symbols arrive as the
+    /// **second blocker** had its count computed by the same production and then
+    /// thrown away. `p->M1("hi")` and `p->M2("aa","bb")` printed one identical key,
+    /// and that key — `expr-call-in-expr-recv-load-then-call-data-addr-whole`, 10,540
+    /// functions over 828 TUs — is the largest `-whole` member-call row on the board.
+    /// One relocation pair or a whole-TU `.rdata` pool layout is the difference
+    /// between §17.6 (3) and §17.6 (6), and the census could not see it.
+    ///
+    /// The suffix moves to the **blocker** here rather than to the form, because
+    /// `recv-load-2sym` would name the wrong construct: the receiver is a pointer
+    /// formal in a register and materializes no symbol at all.
+    #[test]
+    fn the_count_follows_the_designator_into_the_second_blocker() {
+        let f = |seg| parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
+        assert_eq!(
+            f(RECV_LOAD_ONE_SYM),
+            "expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole"
+        );
+        assert_eq!(
+            f(RECV_LOAD_TWO_SYMS),
+            "expr-call-in-expr-recv-load-then-call-data-addr-2sym-whole"
+        );
+        // Sharding gate, same as the form-owned case: the literals' tokens are
+        // per-TU and retagging them must not move the key.
+        let mut retagged = RECV_LOAD_TWO_SYMS.to_vec();
+        assert_eq!((retagged[34], retagged[35]), (0xF8, 0x09));
+        assert_eq!((retagged[48], retagged[49]), (0xF9, 0x09));
+        retagged[34] = 0x41;
+        retagged[35] = 0x33;
+        retagged[48] = 0x77;
+        retagged[49] = 0x21;
+        assert_eq!(
+            f(&retagged),
+            "expr-call-in-expr-recv-load-then-call-data-addr-2sym-whole"
+        );
+    }
+
+    /// **The under-claiming direction of the same predicate**, which is the half
+    /// nothing else tests: widening *where* the count is rendered must not start
+    /// printing a count on rows that materialize no symbol, and must not move a
+    /// single key that D5 already prints.
+    ///
+    /// The three bare-`-whole` forms below reach [`mark_whole`]'s first
+    /// `body_matches` and never grant anything, so `fail.syms` is 0 by construction
+    /// (`eat_data_designator` has exactly two call sites and both are in
+    /// [`eat_form_value`]). `RECV_LOAD_IN_ARG` is the one that would break first if
+    /// the widened predicate were keyed on "any grant" instead of "the *named*
+    /// second blocker is a designator": its second blocker is another plain call,
+    /// not a data symbol.
+    #[test]
+    fn widening_the_count_prints_none_where_there_is_no_designator() {
+        let f = |seg| parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
+        assert_eq!(f(RECV_LOAD), "expr-call-in-expr-recv-load-whole");
+        assert_eq!(f(RECV_OBJECT), "expr-call-in-expr-recv-object-whole");
+        assert_eq!(f(CHAINED), "expr-call-in-expr-chained-whole");
+        assert_eq!(
+            f(RECV_LOAD_IN_ARG),
+            "expr-call-in-expr-recv-load-then-call-nested-call-whole"
+        );
+        assert_eq!(
+            f(NESTED_CALL),
+            "expr-call-in-expr-nested-call-then-call-nested-call-whole"
+        );
+    }
+
+    /// **What the `-whole` / `-whole2` / `-whole3` / `-whole4` suffix counts** — the
+    /// question that decides whether a rung's unit of work is a key or a receiver
+    /// form, and one the key's own name does not answer.
+    ///
+    /// It is `need` = **the number of DISTINCT extra constructs `mark_whole` had to
+    /// grant past the form** before the body parsed to its end. Not statements, not
+    /// calls, not symbols. The controlled pair is one source token apart:
+    ///
+    /// ```text
+    ///   int  one_sym()         { int x; x = uc("hi");     return x; }
+    ///        -> data-addr-1sym-then-plain-call-whole                    need 1
+    ///   int  one_sym_ptr(T* p) { int x; x = u3(p, "cc");  return x; }
+    ///        -> data-addr-1sym-then-plain-call-and-type-ptr-whole2      need 2
+    /// ```
+    ///
+    /// Adding one **pointer formal** — no new statement, no new call, no new symbol —
+    /// takes the suffix from `-whole` to `-whole2` and the `-and-<kind>` half names
+    /// the construct that was added. And the *reverse* control matters just as much:
+    /// [`DATA_ADDR`] → [`DATA_ADDR_TWO_SYMS`] adds a whole extra string argument and
+    /// the suffix does **not** move, because two designators are one construct.
+    ///
+    /// So keys sharing a receiver form but differing in tail need **different
+    /// construct sets**, and the receiver form is therefore *not* the unit of work:
+    /// `recv-load-then-*` spans 46 `-whole…` keys precisely because it spans 46
+    /// different construct sets. The unit of work is `{form} ∪ granted`.
+    #[test]
+    fn the_whole_suffix_counts_granted_constructs_not_occurrences() {
+        let need = |seg: &[u8]| {
+            let seg = free_fn(seg);
+            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+            (b.aux >> NEED_SHIFT) & NEED_MASK
+        };
+        // one construct granted (`plain-call`), one or two symbols — same need.
+        assert_eq!(need(DATA_ADDR), 1);
+        assert_eq!(need(DATA_ADDR_TWO_SYMS), 1);
+        // one *pointer formal* more, one construct more.
+        assert_eq!(need(DATA_ADDR_PTR_ARG), 2);
+        // the bare `-whole` forms grant nothing and take the WHOLE_BIT path, which
+        // never writes `need` at all.
+        for seg in [RECV_LOAD, RECV_OBJECT, CHAINED] {
+            let s = free_fn(seg);
+            let b = parse_segment_detail(&s, NO_LOCALS).unwrap_err();
+            assert_ne!(b.aux & WHOLE_BIT, 0);
+        }
     }
 
     /// The count survives the matcher's own speculation. `mark_whole` re-runs
