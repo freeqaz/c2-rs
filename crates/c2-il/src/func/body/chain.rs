@@ -382,6 +382,165 @@ pub(crate) fn additive_chain_canonical(ops: &[IlOp]) -> bool {
     true
 }
 
+/// One operand of the **affine** selector, as `c2_core::codegen::straightline`
+/// models it: either a folded constant, or a register plus a *pending* immediate
+/// that has not been materialized into an instruction yet.
+///
+/// The register identity is deliberately absent. The only thing this reproduction
+/// has to decide is whether an operator meets an operand whose immediate is still
+/// pending, and that is a property of the offset alone.
+#[derive(Clone, Copy)]
+enum AffOperand {
+    Imm(i32),
+    /// A register with `off` still owed to it (`off == 0` means "a bare register").
+    RegOff(i32),
+}
+
+/// Can `select_text`'s **affine** selector lower this serial chain?
+///
+/// This is a faithful reproduction of `c2_core::codegen::straightline::combine`,
+/// and it exists because the depth test in [`chain_form`] is the WRONG predicate
+/// for the gate. `chain_form` simulates a generic two-deep operand *stack*, which
+/// is a strictly wider class than the affine accumulator codegen actually
+/// implements: the affine model carries a register plus one pending immediate and
+/// has no way to materialize that immediate before a reg-reg operator fires. So
+/// every stream that still owes a constant when it reaches an `add`/`subf`/`mullw`
+/// is inside `chain_form`'s class and outside codegen's — which is a census/gate
+/// disagreement by construction, and was one:
+///
+/// ```text
+///   int f(int a,int b){ return (a+1)*b; }        [a, 1, Add, b, Mul]
+/// ```
+///
+/// censused `straight-line` and `PortC2` returned `NotImplemented`, naming it
+/// "multiply by a constant strength-reduces" — which it is not; the multiplier is
+/// a register. The message was the catch-all arm speaking for a case it does not
+/// describe, and that misattribution is why the row was never read as a gap.
+///
+/// **Only the serial form.** A [`ChainForm::Depth2Tree`] goes to
+/// `try_select_depth2_tree`, a different emitter over four bare formals with no
+/// literal anywhere, so the affine model does not apply to it and this returns
+/// `true` without looking. A stream that is neither has already been refused
+/// upstream by the `expr-out-of-class-tree-depth` clause.
+///
+/// Refusing is the whole content: nothing here admits a shape codegen would
+/// decline, because every `false` below mirrors an `Err` arm of `combine`. The
+/// converse — a shape codegen accepts and this refuses — would be an in-class
+/// LOSS, so the two are kept as one reading of one rule rather than two rules
+/// that agree on the cases anyone thought to check.
+pub(crate) fn affine_serial_ok(ops: &[IlOp], params: &[u32]) -> bool {
+    if chain_form(ops, params) != Some(ChainForm::Serial) {
+        return true;
+    }
+    let mut stack: Vec<AffOperand> = Vec::with_capacity(4);
+    for op in ops {
+        match op {
+            IlOp::Load(_) => stack.push(AffOperand::RegOff(0)),
+            IlOp::Lit(k) => stack.push(AffOperand::Imm(*k)),
+            IlOp::Add | IlOp::Sub | IlOp::Mul => {
+                let (Some(rhs), Some(lhs)) = (stack.pop(), stack.pop()) else {
+                    return false;
+                };
+                use AffOperand::{Imm, RegOff};
+                let folded = match (op, lhs, rhs) {
+                    // Constant folding, and the immediate folds that emit nothing.
+                    (IlOp::Add, Imm(a), Imm(b)) => Imm(match a.checked_add(b) {
+                        Some(v) => v,
+                        None => return false,
+                    }),
+                    (IlOp::Add, RegOff(off), Imm(k)) | (IlOp::Add, Imm(k), RegOff(off)) => {
+                        RegOff(match off.checked_add(k) {
+                            Some(v) => v,
+                            None => return false,
+                        })
+                    }
+                    (IlOp::Sub, Imm(a), Imm(b)) => Imm(match a.checked_sub(b) {
+                        Some(v) => v,
+                        None => return false,
+                    }),
+                    (IlOp::Sub, RegOff(off), Imm(k)) => RegOff(match off.checked_sub(k) {
+                        Some(v) => v,
+                        None => return false,
+                    }),
+                    // The reg-reg instructions, which require BOTH operands to be
+                    // bare registers. This is the clause the whole function is for.
+                    (IlOp::Add | IlOp::Sub | IlOp::Mul, RegOff(0), RegOff(0)) => RegOff(0),
+                    // `const - reg` needs a `subfic`; `reg * const` strength-reduces;
+                    // and a reg-reg operator with a pending immediate on either side
+                    // has no lowering in this model at all.
+                    _ => return false,
+                };
+                stack.push(folded);
+            }
+            // Every other op has its own refusal upstream and no affine meaning.
+            _ => return false,
+        }
+    }
+    // The chain must reduce to exactly one value; a pending offset on it is fine,
+    // because finalize materializes it as the last `addi` into r3.
+    matches!(stack.as_slice(), [AffOperand::RegOff(_)] | [AffOperand::Imm(_)])
+}
+
+/// Why a chain cannot be handed to the selector — the three refusals
+/// [`canonical_chain_for_codegen`] can return.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ChainReject {
+    /// The operand LOADs are not in c2's canonical register order.
+    Order,
+    /// A register subtraction follows a register addition (c2 reassociates).
+    Additive,
+    /// The affine selector cannot lower it — see [`affine_serial_ok`].
+    Affine,
+}
+
+/// **The one canonicalize-or-refuse decision**, for both producers of a
+/// [`BodyShape::StraightLine`](crate::func::body::BodyShape).
+///
+/// There are two: the plain expression body (`crates/c2-il/src/func/body/mod.rs`)
+/// and the assignment/locals body (`shapes/assign.rs`), which resolves its
+/// statement list by substitution and hands over the resulting chain. They must
+/// hand codegen the *same* stream for the same expression, and they did not:
+/// `mod.rs` called [`canonicalize_chain`] and `assign.rs` only ran the
+/// pre-canonicalizer fallback checks, so
+///
+/// ```text
+///   int f(int a,int b){ return a+1+b; }             -> Match
+///   int f(int a,int b){ int x=a+1; return x+b; }    -> NotImplemented
+/// ```
+///
+/// for one and the same resolved stream `[a, 1, Add, b, Add]`. The first is
+/// canonicalized to `[a, b, Add, 1, Add]` — `add r11,r3,r4 ; addi r3,r11,1` — and
+/// is byte-exact; the second reached the selector in source order and hit the
+/// pending-immediate refusal. That is not a missing emitter, it is a producer that
+/// did not call the one that already exists.
+///
+/// So the decision moves here, both producers call it, and each maps the rejection
+/// onto its own census key (the keys differ by producer and are published).
+pub(crate) fn canonical_chain_for_codegen(
+    ops: &[IlOp],
+    params: &[u32],
+) -> Result<Vec<IlOp>, ChainReject> {
+    let out = match canonicalize_chain(ops, params) {
+        Some(c) => c,
+        None => {
+            if !leaves_ascending(ops, params) {
+                return Err(ChainReject::Order);
+            }
+            if !additive_chain_canonical(ops) {
+                return Err(ChainReject::Additive);
+            }
+            ops.to_vec()
+        }
+    };
+    // LAST, and on the CANONICALIZED stream — which is the stream codegen sees.
+    // Run before canonicalization it would refuse `return a+1+b;`, a shape the
+    // port emits byte-exactly, so the order here is load-bearing.
+    if !affine_serial_ok(&out, params) {
+        return Err(ChainReject::Affine);
+    }
+    Ok(out)
+}
+
 pub(crate) fn leaves_ascending(ops: &[IlOp], params: &[u32]) -> bool {
     let mut last: Option<usize> = None;
     for op in ops {
@@ -822,6 +981,153 @@ mod chain_form_tests {
         // emitted and the serial walk reaches depth 3.
         let q = vec![0x10, 0x11, 0x12];
         assert_eq!(chain_form(&tree(IlOp::Add, IlOp::Add, IlOp::Mul), &q), None);
+    }
+
+    /// **The pending-immediate refusal, and why the depth test could not see it.**
+    ///
+    /// `chain_form` calls `[a, 1, Add, b, Add]` a `Serial` chain, because a
+    /// two-deep operand *stack* expresses it fine. The affine selector does not
+    /// have a stack — it has a register plus one immediate it still owes — so it
+    /// cannot fire a reg-reg `add` while that immediate is pending. Every stream
+    /// below is inside `chain_form`'s class and outside codegen's, which is a
+    /// census/gate disagreement by construction, and all four were live:
+    ///
+    /// ```text
+    ///   int f(int a,int b){ return (a+1)*b; }        (a, b are registers!)
+    ///   int f(int a,int b){ int x=a+1; return x+b; }
+    /// ```
+    #[test]
+    fn a_pending_immediate_at_a_reg_reg_operator_is_not_affine() {
+        let p = vec![0x10, 0x11, 0x12];
+        let (a, b, c) = (ld(0x10), ld(0x11), ld(0x12));
+        let one = IlOp::Lit(1);
+
+        // `(a+1)+b` and `(a+1)*b` — the two the board filed, in source order.
+        assert!(!affine_serial_ok(&[a, one, IlOp::Add, b, IlOp::Add], &p));
+        assert!(!affine_serial_ok(&[a, one, IlOp::Add, b, IlOp::Mul], &p));
+        // …and the subtracting twin, which is the same variable at a third arm.
+        assert!(!affine_serial_ok(&[a, one, IlOp::Add, b, IlOp::Sub], &p));
+        // `(a-1)*b` — the pending offset can be negative and it is still pending.
+        assert!(!affine_serial_ok(&[a, one, IlOp::Sub, b, IlOp::Mul], &p));
+
+        // **The canonicalized form of the same expression is accepted**, which is
+        // the whole reason this gate runs after canonicalization rather than
+        // before: `a+1+b` becomes `(a+b)+1`, whose immediate is owed only at the
+        // very end, where finalize materializes it as one `addi` into r3.
+        assert!(affine_serial_ok(&[a, b, IlOp::Add, one, IlOp::Add], &p));
+        assert_eq!(
+            canonical_chain_for_codegen(&[a, one, IlOp::Add, b, IlOp::Add], &p),
+            Ok(vec![a, b, IlOp::Add, one, IlOp::Add])
+        );
+        // The multiplicative twin has no canonical form — `canonicalize_chain`
+        // declines a `*` mixed with a `+` — so the pending offset survives and
+        // this one is REFUSED rather than rewritten. Census over-claim, closed.
+        assert_eq!(
+            canonical_chain_for_codegen(&[a, one, IlOp::Add, b, IlOp::Mul], &p),
+            Err(ChainReject::Affine)
+        );
+
+        // A depth-2 tree is a DIFFERENT emitter (`try_select_depth2_tree`) over
+        // four bare formals, so the affine model does not apply to it and must not
+        // speak for it.
+        let q = vec![0x10, 0x11, 0x12, 0x13];
+        let tree = [a, b, IlOp::Add, c, ld(0x13), IlOp::Add, IlOp::Mul];
+        assert_eq!(chain_form(&tree, &q), Some(ChainForm::Depth2Tree));
+        assert!(affine_serial_ok(&tree, &q));
+    }
+
+    /// **The UNDER-claiming direction, which nothing else tests.**
+    ///
+    /// A gate that refuses too much is an in-class loss, and it is invisible: the
+    /// census simply reports a smaller numerator and every differential still
+    /// passes, because a refused function is never graded. So the streams codegen
+    /// is *known* to lower — each one taken from a byte-graded test in
+    /// `c2_core::codegen::straightline` — are asserted to survive this gate.
+    ///
+    /// The population-level version of this check is the generated sweep: every
+    /// case `canonical_chain_for_codegen` accepts is compiled and byte-compared
+    /// against the real c2, and a stream wrongly admitted shows up there as a
+    /// MISMATCH. This test is the fast half that names the shapes.
+    #[test]
+    fn every_stream_the_affine_selector_lowers_survives_the_gate() {
+        let p = vec![0x10, 0x11, 0x12];
+        let (a, b, c) = (ld(0x10), ld(0x11), ld(0x12));
+        for (what, ops) in [
+            ("return a;", vec![a]),
+            ("return b;  (one mr)", vec![b]),
+            ("return 42;  (li)", vec![IlOp::Lit(42)]),
+            ("return a+1;  (addi)", vec![a, IlOp::Lit(1), IlOp::Add]),
+            ("return a-1;  (addi neg)", vec![a, IlOp::Lit(1), IlOp::Sub]),
+            (
+                "return a+5+5;  (folds to one addi)",
+                vec![a, IlOp::Lit(5), IlOp::Add, IlOp::Lit(5), IlOp::Add],
+            ),
+            (
+                "return a+5-3;  (mixed immediates fold)",
+                vec![a, IlOp::Lit(5), IlOp::Add, IlOp::Lit(3), IlOp::Sub],
+            ),
+            ("return a+b;", vec![a, b, IlOp::Add]),
+            ("return a-b;", vec![a, b, IlOp::Sub]),
+            ("return a*b;", vec![a, b, IlOp::Mul]),
+            (
+                "return a+b+c;  (add3)",
+                vec![a, b, IlOp::Add, c, IlOp::Add],
+            ),
+            (
+                "return a*b+c;  (never deeper than two)",
+                vec![a, b, IlOp::Mul, c, IlOp::Add],
+            ),
+            (
+                "return a+b+1;  (the canonical form of a+1+b)",
+                vec![a, b, IlOp::Add, IlOp::Lit(1), IlOp::Add],
+            ),
+            (
+                "return a*b*c;",
+                vec![a, b, IlOp::Mul, c, IlOp::Mul],
+            ),
+            (
+                "return a-b-c;",
+                vec![a, b, IlOp::Sub, c, IlOp::Sub],
+            ),
+            (
+                "return a+65536;  (wide addis+addi)",
+                vec![a, IlOp::Lit(0x10000), IlOp::Add],
+            ),
+        ] {
+            assert!(
+                affine_serial_ok(&ops, &p),
+                "the affine gate refuses `{what}`, which codegen lowers — an \
+                 in-class LOSS, and one nothing else would report"
+            );
+            assert!(
+                canonical_chain_for_codegen(&ops, &p).is_ok(),
+                "the shared canonicalizer refuses `{what}`, which codegen lowers"
+            );
+        }
+    }
+
+    /// Both producers of a `StraightLine` must hand codegen the **same** stream
+    /// for the same expression. They did not: `mod.rs` canonicalized and
+    /// `assign.rs` did not, so `return a+1+b;` was byte-exact while
+    /// `int x=a+1; return x+b;` — the identical resolved stream — was refused.
+    #[test]
+    fn the_two_straight_line_producers_canonicalize_identically() {
+        let p = vec![0x10, 0x11];
+        let (a, b) = (ld(0x10), ld(0x11));
+        // Written flat, and reached by substituting `x -> [a, 1, Add]`.
+        let written = vec![a, IlOp::Lit(1), IlOp::Add, b, IlOp::Add];
+        let env = vec![(0x100, vec![a, IlOp::Lit(1), IlOp::Add])];
+        let substituted = substitute(&[ld(0x100), b, IlOp::Add], &env).unwrap();
+        assert_eq!(substituted, written);
+        // One decision, so one answer — whichever producer got there.
+        assert_eq!(
+            canonical_chain_for_codegen(&written, &p),
+            canonical_chain_for_codegen(&substituted, &p)
+        );
+        assert_eq!(
+            canonical_chain_for_codegen(&substituted, &p),
+            Ok(vec![a, b, IlOp::Add, IlOp::Lit(1), IlOp::Add])
+        );
     }
 
     /// A single leaf, and a bare literal, are both serial chains of depth 1 —

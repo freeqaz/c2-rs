@@ -2,7 +2,7 @@
 //! *statement* rather than an expression, before the leaf recognizers see it.
 
 use crate::func::body::chain::{
-    additive_chain_canonical, has_repeated_leaf, leaves_ascending,
+    canonical_chain_for_codegen, has_repeated_leaf, ChainReject,
     straight_line_out_of_class_ctx, substitute, MAX_SUBST_OPS,
 };
 use crate::func::body::expr::{eat_return_plumbing, eat_scopes, parse_expr, parse_formals};
@@ -205,10 +205,6 @@ pub(crate) fn try_parse_assign_body_detail(
     if has_repeated_leaf(&ret) {
         return Err(Block::refuse(seg, p, "assign-repeated-leaf"));
     }
-    // Substitution reorders too: `int x = b; return x + a;` resolves to `b + a`.
-    if !leaves_ascending(&ret, &params) || !additive_chain_canonical(&ret) {
-        return Err(Block::refuse(seg, p, "assign-noncanonical-order"));
-    }
     // The **same** gate the straight-line path applies, at the second site that
     // produces a `StraightLine`. It was missing here, and the census therefore
     // counted bodies `select_text` refuses: `int f(int a){ int x = a; return
@@ -220,6 +216,23 @@ pub(crate) fn try_parse_assign_body_detail(
     if let Some(ctx) = straight_line_out_of_class_ctx(&ret, &params) {
         return Err(Block::refuse(seg, p, ctx));
     }
+    // …and the **same canonicalization**, which this producer used to skip.
+    //
+    // Substitution reorders (`int x = b; return x + a;` resolves to `b + a`) and it
+    // also *creates* pending-immediate chains the written source does not show
+    // (`int x = a+1; return x+b;` resolves to `[a, 1, Add, b, Add]`). Only the
+    // pre-canonicalizer fallback checks ran here, so a stream the straight-line
+    // producer canonicalizes into `add r11,r3,r4 ; addi r3,r11,1` reached the
+    // selector in source order and was refused — the census counted it and the
+    // port declined it. One fact, one locator: the decision is shared, not copied.
+    let ret = match canonical_chain_for_codegen(&ret, &params) {
+        Ok(c) => c,
+        // Both pre-canonicalizer refusals keep this producer's published key.
+        Err(ChainReject::Order) | Err(ChainReject::Additive) => {
+            return Err(Block::refuse(seg, p, "assign-noncanonical-order"))
+        }
+        Err(ChainReject::Affine) => return Err(Block::refuse(seg, p, "assign-affine-pending-imm")),
+    };
     // …and LAST, the destination. Everything above reports first, so this key names
     // a function only when the destination really is the one thing left.
     if let Some(off) = deferred {
