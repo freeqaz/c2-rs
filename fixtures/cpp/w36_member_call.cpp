@@ -96,3 +96,30 @@ void Self::go_arg(int k) { t1(k); }
 // --- a braced body: the statement is at lexical depth 3 and the plumbing has to
 //     close the scope it opened, exactly as every other shape requires. -------
 void b_scope(Obj *o) { { o->v0(); } }
+
+// --- the MANGLED-NAME shapes the callee token has to resolve through `.gl`.
+//     A wrong callee name is a relocation against the wrong symbol — a mis-emit,
+//     not a gap — and `docs/GAPS.md` §6 records `gl_symbol_index` missing 12,505
+//     of 33,059 `?`-mangled names because its anchor was a byte value rather than
+//     a field. The sweep generates none of these, so they are pinned here: a
+//     namespaced class, a nested one, an overload set, an operator, and a member
+//     of a class template.
+namespace ns { namespace inner {
+struct NObj {
+    int i;
+    void v0();
+    void ov(int);
+    void ov(int, int);
+    int  operator[](int) const;
+};
+} }
+template <class T> struct Tpl { T t; void set(T); T get() const; };
+struct Nest { struct In { int n; void nv(); }; };
+
+void n_ns(ns::inner::NObj *o)               { o->v0(); }
+void n_ovl1(ns::inner::NObj *o, int k)      { o->ov(k); }
+void n_ovl2(ns::inner::NObj *o, int a, int b) { o->ov(a, b); }
+int  n_op(ns::inner::NObj *o, int k)        { return (*o)[k]; }
+void n_tpl_set(Tpl<int> *t, int k)          { t->set(k); }
+int  n_tpl_get(Tpl<int> *t)                 { return t->get(); }
+void n_nested(Nest::In *n)                  { n->nv(); }
