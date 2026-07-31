@@ -20,8 +20,17 @@ struct A {
 // else; c2 really does emit a permutation under a frame
 // (`int f(A* p,int a,int b){ return p->ga(b) - 20; }` is `mr r4,r5 ; bl ; addi`),
 // so this is a real limit and not a restatement of the tail form's.
-int n_arg (A* p, int a)          { return p->ga(a) - 20; }
-int n_arg2(A* p, int a, int b)   { return p->g2(a, b) - 20; }
+// `n_argperm` is the one that proves the gate rather than restating it: lifting
+// `mcall-framed-args` in the parser alone gains exactly **1** census function on
+// the 878-TU workload and produces **0** census/gate disagreement — the one body
+// there is an identity permutation the port happens to get right — while
+// `int f(S* p,int a,int b){ return p->ga(b) - 20; }`, one source token away,
+// becomes `Port=Mismatch @ offset 8`, because the port drops the `mr r4,r5` the
+// reference emits. The workload's disagreement counter cannot see this gate at
+// all; it took a probe.
+int n_arg    (A* p, int a)          { return p->ga(a) - 20; }
+int n_arg2   (A* p, int a, int b)   { return p->g2(a, b) - 20; }
+int n_argperm(A* p, int a, int b)   { return p->ga(b) - 20; }
 
 // n_wide — the literal does not fit a single signed-16-bit `addi`. MEASURED:
 // `± 40000` comes back as `addis r3,r3,±1` followed by `addi`, a second
