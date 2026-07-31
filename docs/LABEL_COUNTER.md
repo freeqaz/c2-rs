@@ -136,7 +136,7 @@ surcharge is byte-for-byte the same integer.** `gpr3` 6, `fpr4-led` 6,
 
 ## 2. What this REFUTES
 
-### 2.1 "one slot per TU-level external" — refuted, and it is live
+### 2.1 "one slot per TU-level external" — refuted (latent, not live)
 
 `docs/CODEGEN_FRAMED_CALLS.md` §6 and `docs/ROADMAP.md` §6m unified the strides
 as *"every function consumes 1 slot (framed: 4 packed / 5 `/Gy`), plus one extra
@@ -164,6 +164,20 @@ rule is **wrong in both directions**, and the counterexamples are not exotic:
 The rule is *not* merely incomplete: on any TU where a framed function follows a
 float function that pools a constant, it under-counts by 2 per constant, which
 is a wrong `$M` and a wrong `$T` in the obj.
+
+> **It is latent, not live — checked rather than argued.** The rule is stated in
+> `IlFunction::label_slots` and `coff::plan_labels` as the *reason* for the `+1`,
+> but the shipped numbers (`+1` for `_fltused`, `4`/`5` framed, `1` leaf, 1-or-3
+> comparison) are each measured independently and all still hold above. Every
+> counterexample shape is refused by the TU-level gate in `func/bundle.rs`, which
+> demands `label_slots(..) == 1` from every non-framed function in a TU that
+> contains a framed one and is three-valued so an unmeasured class refuses. Three
+> probes through `c2rs diff`, each a counterexample beside a framed function —
+> a float leaf pooling `2.5f`, an FP store of a pooled constant in the framed
+> body, and a materialised `a < 5` — return `Port=NotImplemented`, with the
+> reference replay byte-exact on all three. What is live is the **licence**: the
+> rule is the stated justification for widening the counter, and it would have
+> admitted a pooled constant at +0.
 
 ### 2.2 "the helper pair's +2 is allocated before its own `$M` pair" — true, and true of everything else too
 

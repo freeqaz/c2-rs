@@ -2907,14 +2907,25 @@ every row `+1` under `/Gy`:
 > `/Gy`), plus ONE extra slot for the translation unit if any function touches
 > floating point.**
 
-The extra slot is `_fltused` — the one TU-level external an FP-touching function
-introduces. That makes this the *same rule* `CODEGEN_FRAMED_CALLS.md` §4.4
-measured for the `__savegprlr_N`/`__restgprlr_N` pair, where **two** externals
-consume **two** extra slots: **one slot per TU-level external**. §4.4 called the
-underlying counter "invisible in the obj" and left it unexplained; it is the
-external count, and the two facts `Function::is_float` carries — where `_fltused`
-is emitted and where the extra slot goes — are now one fact rather than two
-readers of one field, which is the third time that shape has bitten this file.
+The extra slot is `_fltused`, and the two facts `Function::is_float` carries —
+where `_fltused` is emitted and where the extra slot goes — are now one fact
+rather than two readers of one field, which is the third time that shape has
+bitten this file.
+
+> **The generalization this section drew from it is REFUTED (2026-07-31,
+> `docs/LABEL_COUNTER.md` §2.1).** It read: *the extra slot is the one TU-level
+> external an FP-touching function introduces, so the rule is **one slot per
+> TU-level external**, the same rule `CODEGEN_FRAMED_CALLS.md` §4.4 measured as
+> **two** for the `__savegprlr_N`/`__restgprlr_N` pair.* The two measured
+> numbers above are unaffected — `_fltused` is +1 and the GPR helper pair is +2,
+> both still exact, and the FPR pair the rule predicted at +2 does measure +2.
+> What is wrong is the *reason*, in both directions: a newly pooled FP constant
+> costs **+2** and introduces no external at all, a string literal costs **0**
+> while introducing one, a materialised signed relational costs **+2** and mints
+> nothing, and a `do/while` costs 1 where a `while` costs 2. The surcharge table
+> that does fit is `LABEL_COUNTER.md` §1.1 — read it before extending the
+> counter to any class not already in that table, because this rule would have
+> licensed a widening that under-counts by 2 per pooled constant.
 
 The `/Gy` pre-pass is confirmed at exactly `3 × funcs.len()` on all eleven rows,
 unaffected by floating point.
