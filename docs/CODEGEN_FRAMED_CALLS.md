@@ -195,6 +195,47 @@ r29–r31:
 (6), `_25` (7), `_24` (8). The helper also saves/restores LR — `mflr r12` still
 runs first because the helper expects LR in r12.
 
+#### 2.3a The whole Class C obj, as one witness (2026-07-31)
+
+§7's rung 5 needs the helper externals, the tail-branch epilogue **and** the
+label stride at the same time; here they are in one capture. `work/gt/cc.cpp`,
+`/O1 /GS- /c`: `int g(int); f1(a,b,c)` and `f3(a,b,c)` (both `_29`), `f2` with
+four (`_28`).
+
+```
+ ?f1  .text 60 B, 5 relocs, chars 0x60401020
+   0000 7d8802a6 mflr r12
+   0004 4bfffffd bl  __savegprlr_29        REL24 -> [21]
+   0008 9421ff90 stwu r1,-112(r1)
+   000c 7c9f2378 mr  r31,r4
+   0010 7cbe2b78 mr  r30,r5
+   0014 4bffffed bl  ?g                    REL24 -> [15]
+   0018 7c7d1b78 mr  r29,r3
+   001c 7fe3fb78 mr  r3,r31
+   0020 4bffffe1 bl  ?g
+   0024 7ffd1a14 add r31,r29,r3
+   0028 7fc3f378 mr  r3,r30
+   002c 4bffffd5 bl  ?g
+   0030 7c63fa14 add r3,r3,r31
+   0034 38210070 addi r1,r1,112
+   0038 4bffffc8 b   __restgprlr_29        REL24 -> [20], LK=0, and NO blr
+ .pdata 00000000 40000f03                  15 words, 3-word prologue
+```
+
+Three things a rung has to get right at once, all visible here:
+
+* **the relocation count is 5**, not 3: the two helper references are ordinary
+  REL24s against ordinary undefined externals, and the epilogue's is an
+  **unlinked** branch (`4bffffc8`, bit 0 clear) while the prologue's is a `bl`;
+* **the symbol group is** `.text+aux, ?f1, $M(end)=0x3c, ?g, $M(prologue)=0x0c,
+  .pdata+aux (Number=5, Sel=5, CheckSum 0x85851548), $T, __restgprlr_29,
+  __savegprlr_29` — the helper pair after `$T`, reverse-first-reference (§4.3),
+  and the callee `?g` still in its §3.3 position inside the group;
+* **the stride is per distinct helper width, not per user.** f1 `$M2569` (+2),
+  f2 `$M2576` (its own `_28`, +2), f3 `$M2581` — f3 **reuses** `_29` and pays
+  the plain 5, with no helper symbols in its group at all. A model that charges
+  +2 per helper-using *function* puts f3's labels two too high.
+
 ### 2.4 Class D/E — saved FPRs
 
 **The FPR threshold is 4, not 3** — it is a different number from the GPR

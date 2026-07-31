@@ -215,15 +215,90 @@ reassembled with an explicit `sldi r3,r11,40` = shift left by `64 - 24`:
 * Whether a struct containing only `float`s ever reaches an FPR under some
   other flag combination. Under `/O1` it does not (`SF`, `SD`, `SM` above), and
   no `/fp:` variant was probed.
-* `__vector`/VMX128 types: not probed at all. The workload uses them
-  (`math/Mtx.h`), so this is a real hole in the sizing, not a corner case.
-  **Located, though, in the container**: `.sy` records such a formal with type
-  **class `D`** (`vSrc`, 16 bytes, `src/App.cpp`), which is neither the integer,
-  pointer, aggregate nor real class. `SyView::arg_classes` refuses it under
-  `param-kind-unknown` rather than defaulting it into the GPR file, because a
-  third register file would renumber **both** of the numberings above for every
-  argument after it.
+* `__vector`/VMX128 types: ~~not probed at all~~ — **probed 2026-07-31, enough
+  to size it; see §5.1.** The stated *reason* for refusing was wrong.
 * Sign/zero-extension duty for a `char`/`short` **argument** (returns are §1).
   Not isolated — every probe passed `int`.
 * Bitfields, unions, and structs with a non-trivial copy constructor (which
   should force a caller-side temporary and a constructor call, not a `memcpy`).
+
+---
+
+## 5.1 VMX128 — sized, 2026-07-31
+
+`__vector4` is not a compiler keyword; it is the XDK's
+`typedef struct __declspec(intrin_type) __declspec(align(16)) { union { float
+v[4]; unsigned u[4]; }; } __vector4;` (`src/xdk/LIBCMT/vectorintrinsics.h` in
+the workload tree). Reproduced verbatim in a scratch header, every row below is
+bytes from a real obj at `/O1 /GS- /c`.
+
+**The one fact that changes the sizing, and it is the opposite of what §5 said.**
+
+```c
+  int gmix(int,int,int);
+  int fmix(int k, __vector4 a, __vector4 b, int j, int m){ return gmix(m,j,k); }
+     7cab2b78  mr r11,r5        m
+     7c651b78  mr r5,r3         k
+     7d635b78  mr r3,r11        m
+     4bfffff4  b  ?gmix
+
+  float gf(float,float);
+  float ffm(__vector4 a, float x, __vector4 b, float y){ return gf(y,x); }
+     fc001090  fmr f0,f2   ·  fc400890  fmr f2,f1  ·  fc200090  fmr f1,f0
+```
+
+`j` is in **r4** and `m` in **r5**, not r6/r7; `x` is in **f1** and `y` in
+**f2**. So:
+
+> **A `__vector4` formal takes a vector register and consumes NEITHER a GPR
+> argument slot NOR an FPR one.** It is a genuinely independent third file.
+
+§5's refusal was correct; its stated reason — *"a third register file would
+renumber **both** of the numberings above for every argument after it"* — is
+**refuted**. It renumbers *neither*. This matters because it is the cheap case:
+`SyView::arg_classes` can classify a `.sy` class-`D` formal as "vector, one
+register, no slot" without touching the GPR or FPR numbering at all. It is
+strictly unlike the FP file, which does consume a GPR slot
+(`docs/CODEGEN_FP_ARGS.md` §0) — the two look alike and behave differently.
+
+Also measured:
+
+* **Numbering and return.** `__vector4 f(__vector4 a){ return g1(a); }` is a
+  bare `b ?g1` — the first vector formal is **v1** and the return value is
+  **v1**. Vector formals number v1, v2, v3, … over the vector parameters alone,
+  the same shape as the FP file.
+* **Permutations use the same cycle machinery.** A 2-swap is 3 instructions and
+  a 3-cycle is 4, matching the GPR file's r11 and the FP file's f0 shapes one
+  for one. A mixed int+vector permutation emits the two files' moves
+  **interleaved** (`v ; gpr ; v ; gpr ; gpr ; v` for
+  `gm(j,b,k,a)`), which is `docs/CODEGEN_FP_ARGS.md` §1.1's open scheduling
+  problem with a **third** file in it, not a new problem.
+* **Saved vector registers are 16 bytes and inline at 2.**
+  `__vector4 fs2(__vector4 a,__vector4 b){ __vector4 t=g1v(a); __vector4
+  u=g1v(b); return g1v(t); }` frames at **128** with a 7-word prologue:
+  `mflr r12 ; stw r12,-8(r1) ; li r12,-48 ; stvx v30 ; li r12,-32 ; stvx v31 ;
+  stwu r1,-128(r1)`, and `.pdata` `40001607`. `align16(80 + 2·16 + 8) = 128`, so
+  `CODEGEN_FRAMED_CALLS.md` §1.2's frame rule holds with the saved-vector term
+  at **16** bytes per register rather than 8, and the vector save area starts at
+  **-32** (the first 16-aligned slot below the LR word), not -24. The epilogue
+  restores through **r0**, not r12 — r12 is holding LR.
+* **The argument file is narrower than 14.** A call with 14 vector arguments
+  frames at 256 and homes two of them to the stack through
+  `addi r12,r1,480 / stvx` and `li r12,224 / stvx`; `.pdata` `40000c03`.
+
+Not determined, and each of these is a rung's worth on its own:
+
+* the exact width of the vector argument file (12 or 13) and the stack-homing
+  rule past it — two spills at 14 arguments is consistent with both a 12-wide
+  file and a 13-wide one plus a return-slot effect;
+* whether a `__save…vmx` helper pair exists above some saved-register threshold,
+  as the GPR (3) and FPR (4) files have. Two saved vector registers are inline;
+  nothing above that was probed, and the label-slot consequence would follow
+  `docs/LABEL_COUNTER.md`'s +2-per-helper-pair rule if one does;
+* which callee-saved vector registers are allocated in what order (v31, v30 …
+  descending is *consistent with* the one capture and is not established by it);
+* every VMX128 *instruction* encoding. `llvm-mc -triple=powerpc` mis-decodes
+  them — the 360's VMX128 splits the register number across non-standard bit
+  fields — so `scripts/gt_dump.py`'s disassembly column is unreliable for any
+  `.text` containing vector code and the raw words must be read instead. That
+  is a tooling gap to close before any VMX rung, not a compiler fact.
