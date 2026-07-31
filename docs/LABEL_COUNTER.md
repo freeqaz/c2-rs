@@ -3666,3 +3666,601 @@ abstention and **still reports `5 disagree: 48(0 vs 12), 52(0 vs 12), …`** in
 the model-free column. An abstention that erased the evidence would be a
 suppression; this one moves the evidence out of the model's column and into a
 column the model cannot reach.
+
+
+## 6.19 Round 32 — the caller is not priced, the call SITE is, and the leaf term does not count the allocator's own call
+
+§6.18.10 closed by naming the one structural hole in three rounds of
+measurement:
+
+> The decision is a property of a *pair*; §6.15.3a measured that P's size and
+> P's existing expansion do not move the limit, but P's linkage, its parameter
+> count, its return type and its own leafness have never been touched. **The
+> caller has never been a variable.**
+
+It also left three smaller things open, one of which was a *shipped rule*
+resting on an unmeasured answer: `callee_is_leaf()` counts `bl __savegprlr_N`
+as a call, and no probe had a callee whose only call is the allocator's helper.
+
+Both were run, and the round has **three** results:
+
+1. **The caller itself is inert.** Leafness, linkage, `inline`, parameter
+   count, return type, member-ness, varargs — twelve spellings, **identical to
+   their controls on all 57 shared index cells each**, over the whole of
+   SCHEDULE D from the `unbounded` band to the `1 → 0` ceiling (§6.19.2,
+   §6.19.3).
+2. **The call SITE is not.** The tranche written with *no hypothesis at all* —
+   what the result is used for, what the argument is, which basic block the
+   site sits in, whether it is in a loop — contains a term. A site inside an
+   `if` moves the `/O1` **ceiling** from 260 bytes to 164 and the `/Ox`
+   threshold from 112 to 96; a site inside a **loop** leaves `/O1` untouched
+   and moves the `/Ox` threshold past 368 (§6.19.9). This is the fourth
+   mechanism in four rounds found by a control rather than by the probe it was
+   written for.
+3. **The shipped `callee_is_leaf()` is wrong in both directions** — 21
+   discriminating cells one way (`bl __savegprlr_N` is *not* a call) and 10 the
+   other (an indirect *tail* call is one, and the predicate missed it)
+   (§6.19.6, §6.19.7).
+
+**412 discriminating cells at `/O1`** — 294 on the framed-callee caller sweep,
+24 on the leaf-callee 2×2, 94 on the helper probe — plus the `/Ox` lane, which
+is where two of the three findings are largest.
+
+And a methodological result that is worth more than any of them:
+
+> **The `/O1` site negative was written, formatted and one commit from
+> publication, and it was wrong for exactly the reason LAW D was.** Over the
+> sweep range this probe was designed with — indices 48–104, the whole
+> graduated middle of SCHEDULE D — `S-if` agrees with its control on all 15
+> cells and prints `IDENTICAL`. The 96-byte term is entirely **above** that
+> range, at the ceiling. It was found only because the *`/Ox`* row disagreed and
+> the sweep was widened in response. §6.16.10 lifted a cap for precisely this
+> reason, §6.18.9 records LAW D dying on the first capture above one, and the
+> lesson still did not generalise to the *rung range of a new probe*. Every
+> negative in §6.15–§6.19 is a negative over the range its own ladder walked.
+
+### 6.19.0 The instrument lied twice more, and both before a verdict was read
+
+**(A) A ladder that did not move.** The helper probe's first spelling opened
+`int v=a;` and then applied `stmts_fine`'s `v^=a; v+=a;` rungs — which fold
+against `a` completely. Twenty-one rungs took **two** values of `s`, 96 and
+100, alternating, and printed a full sweep of agreeing rows. Fixed by starting
+the chain from a `volatile` read (`int v=t0;`), which nothing can fold, and by
+printing a `distinct s reached` counter that says
+`*** THE LADDER IS NOT MOVING ***` when a sweep collapses. This is §6.16.2's
+lesson in a new place: **a ladder that does not move prints what a moving one
+prints.**
+
+**(A′) …and a condition the ladder moved out from under itself.** With that
+fixed, the *scout* — one capture per shape, before any sweep — showed the
+helper-only callee taking **no helper at all** at `k=0`: ten live values fit
+exactly in r3..r12, and `a` becomes live again only from `k=1`. A single scout
+capture is therefore not evidence about the sweep's rungs. The callee's REL24
+set and `bcctr` count are now read **per rung** and printed in an
+`in the callee` column, and a rung without the condition prints
+`not graded: NO HELPER IN THIS RUNG` and is counted separately. Exactly one
+rung did.
+
+**(B) The ninth cry-wolf, and it is §6.18.0(B)'s own fix biting from the other
+side.** §6.18.0 added `nind` — a count of P's `bcctrl`s — because a *virtual
+site* is an indirect branch with no relocation, so a reloc-only detector reads
+the one call kind that cannot be inlined as INLINED. That term is one-sided,
+and the other side bites the moment the **callee itself** contains an indirect
+call: inlining such a callee at `n` sites puts `n` `bcctrl`s into P, and the
+detector reads its own success as `n` declines. Measured, before the fix:
+
+```
+indirect  k=0  s=60  Ndir=0     ...and every rung to s=144, Ndir=0
+tailind   k=0  s=20  Ndir=0     — at TWENTY BYTES, five instructions
+```
+
+which reads exactly like a third categorical class, refused far below any band
+— the shape §6.18.5's variadic row has, and the reading a round has been named
+after. It is the detector counting the expansion.
+
+Fixed by **accounting**, not by dropping the term: only indirect calls P has
+that its own expansion cannot explain are declines
+(`nd = REL24(c1) + max(0, nind(P) − n·bcctr(c1))`). On every callee in
+§6.15–§6.18 the callee's own count is 0, so the expression is *identically* the
+old one there — the `mem-virt` rows still read `Ndir = 0` and still print their
+five disagreeing cells. After the fix `indirect` reads 12 of 12 at `s=60` and
+`tailind` 12 of 12 at `s=20`.
+
+> **This is the third time a fix has been applied to one detector and not to
+> its twin** (§6.16.9, §6.18.0). It is also the second time the *same* term has
+> been wrong in the *opposite* direction from the fault it was added for. The
+> generalisable form: a detector that gains a term for a shape it could not see
+> must be re-derived, not extended, when that shape turns up on the other side
+> of the pair.
+
+**(C) …and a printer that crashed instead of printing the finding.** The `/Ox`
+summary formatted its disagreement list from `byidx` while comparing on `byk`,
+so the first row that actually disagreed raised `KeyError` — after the row
+above it had printed `IDENTICAL`. The traceback *was* the alarm here, and it is
+the only reason the `/Ox` site finding was looked at at all; a printer that had
+silently formatted the wrong dict would have shown nothing. Not a cry-wolf, its
+opposite, and the fourth distinct way this instrument has been able to conceal
+a positive.
+
+### 6.19.1 The design — the caller varied, and graded model-free
+
+The shipped model has **no caller term at all**, so its `REFUTES` column would
+fire on any shift whatsoever and could not say which side moved. The
+load-bearing column is therefore the **index-matched comparison against a
+matched control**: at every index both rows reached, do they take the same
+number of sites? A disagreeing shared index is a caller-side term, full stop —
+no schedule, no rule, no fitting in between.
+
+Two confound controls run ahead of it, both measured rather than assumed:
+
+* **the callee's own `s` at every rung.** The callee's COMDAT does not depend
+  on the caller, so if `s` ever differed between a variant and its control at
+  the same rung the two rows would not be index-matched and the summary prints
+  `*** CONFOUND ***` instead of a verdict. It never fired: `s` is identical
+  rung for rung across all fourteen callers, in both modes.
+* **the caller's own COFF storage class and leafness, read out of the obj.**
+  §6.17.3's anonymous-namespace row is the standing reason never to grade a
+  linkage claim from a spelling. `static int P` measures **STATIC**;
+  `inline int P` measures **EXTERNAL**; `P-leaf` against the leaf callee
+  measures **EXTERNAL/leaf**, which is what makes that column a probe rather
+  than a wish.
+
+Rungs are one instruction of the callee (4 bytes of `s`), `N` swept to 12, and
+a rung **discriminates** by §6.18.1's definition, unchanged and not retuned.
+The `/O1` sweep runs `k = 0..56`, i.e. index 48 to 272 — **through the ceiling**,
+which is not where it started; see the note in the preamble.
+
+**Two callee columns, because the 2×2 is the point.** Against a non-leaf callee
+a "leaf" P stops being one the instant it inlines, so only the **leaf-callee**
+column can produce a genuinely call-free caller. A probe that varied P's
+leafness against the framed callee alone would have measured nothing and
+printed the same thing as one that did.
+
+**And the `/Ox` rung range is different on purpose.** `/Ox` has no schedule —
+one threshold, at 108/112 on the *`/O1`-emitted* size (§6.15.4), 152/156 for a
+leaf (§6.18.7a) — so the `/O1` range never reaches it and an `/Ox` run over it
+is twelve-of-twelve at every rung, which is exactly what a *passing* run prints.
+The first `/Ox` capture of this round was that, and was thrown away.
+
+### 6.19.2 The 2×2: P's leafness moves nothing
+
+| callee | caller | measured caller | shared index cells | disagreeing |
+|---|---|---|---:|---:|
+| `c-framed` (contains a call) | `P-base` (contains a call) | EXTERNAL | — | control |
+| `c-framed` | `P-leaf` (no call of its own) | EXTERNAL | 57 | **0** |
+| `c-leaf` (§6.18.6's) | `P-base` | EXTERNAL | — | control |
+| `c-leaf` | `P-leaf` | **EXTERNAL/leaf** | 15 | **0** |
+
+Twenty-one of the framed column's fifty-seven cells discriminate, and twelve of
+the leaf column's fifteen. The fourth row is the one that matters: P's emitted
+code contains **no call at all** — measured, in the `CALLER` column — and the
+callee's schedule is bit-identical to the row where P calls `gs`.
+
+> **The 48 bytes are charged for a call inside the CALLEE and not for what the
+> caller ends up being.** §6.18.7 registered the asymmetry in advance —
+> *"a decider pricing what the CALLER ends up with would charge it"* — and used
+> it to read the tail-call result. That reading survives the tail call and dies
+> here: a caller that ends up call-free pays exactly what one that does not
+> pays.
+
+The leaf column also **reproduces §6.18.6's shifted table independently**, from
+a different generator, on all fifteen rungs: unbounded to `s=112`, then 116→9,
+124→7, 128→5, 132/136→4, 140/144/148→3, 152→2.
+
+### 6.19.3 The caller's declared interface: nine spellings, zero terms
+
+One callee (`static int c1(int)`, the one every ladder in §6.15–§6.17 uses),
+`k = 0..56`, one feature of P changed per row against a matched control:
+
+| caller | measured class | shared index cells | disagreeing |
+|---|---|---:|---:|
+| `P-leaf` — no call in P's body | EXTERNAL | 57 | **0** |
+| `P-addr-ctl` — P's address taken (the keeper control) | EXTERNAL | 57 | **0** |
+| `P-static` — **the caller's linkage** | **STATIC** | 57 | **0** |
+| `P-inline` | EXTERNAL | 57 | **0** |
+| `P-2arg` — the caller's parameter count | EXTERNAL | 57 | **0** |
+| `P-void` — the caller's return type | EXTERNAL | 57 | **0** |
+| `P-ptrarg` — P reads through a pointer (control for the next row) | EXTERNAL | 57 | **0** |
+| `P-member` — **`this` live from entry** | EXTERNAL | 57 | **0** |
+| `P-vararg` — **a variadic caller** | EXTERNAL | 57 | **0** |
+
+Every row's own ceiling is measured at **(256, 260]**, §6.15.3's, to the byte.
+
+`P-static` is the row the round was most likely to turn on, since linkage on
+the *callee* was the largest rescoping this document has had (§6.17), and it is
+measured STATIC rather than spelled it. It moves nothing.
+
+`P-vararg` is the second: varargs is the only genuinely categorical class in
+§6.15–§6.18 and the only one that behaves identically in both modes (§6.18.5).
+On the caller's side of the pair it is **not a class at all** — a variadic P
+inlines exactly what a fixed-arity P inlines, cell for cell. That asymmetry is
+measured, in one row, and nothing here explains it.
+
+**Two rows needed a keeper and got a matched control.** A `static` or `inline`
+P with nothing referencing it is **not emitted at all** — the first spelling
+used `int (*const pk)(int)=&P;` and neither P *nor the callee* appeared in the
+obj, because a `const` global has internal linkage and was itself discarded.
+The keeper is `int (*pk)(int)=&P;`, and `P-addr-ctl` is `P-base` with the same
+keeper and nothing else, so the address-taking is held fixed rather than
+confounded with the keyword. Registered in advance that this would be needed
+and that comparing an address-taken P against a plain one would be a confound.
+
+### 6.19.4 The call site's form — the tranche with no hypothesis, and it pays
+
+§6.18.11's own closing lesson is that **all three of the last three mechanisms
+were found by controls**, so this tranche was written with no hypothesis at
+all. Every site in §6.15–§6.18 is `s=c1(s);` at the top level of P, in a
+straight line, with a live chained argument. Varied:
+
+| site | `/O1`: shared index cells | disagreeing |
+|---|---:|---:|
+| `c1(s);` — **the result is discarded**, the callee's return value dead | 57 | **0** |
+| `s+=c1(K);` — a **constant** argument, distinct per site so nothing CSEs | 57 | **0** |
+| `if(a&M){ s=c1(s); }` — each site in **its own basic block** | 57 | **24** |
+| `for(…){ s=c1(s); … }` — the sites **inside a loop in the caller** | 57 | **0** |
+
+What the result is used for and what the argument is are inert. **Where the
+site sits in the control-flow graph is not** — §6.19.9.
+
+### 6.19.5 What this closes, and what it does not
+
+**Closed, at the width of 294 + 24 discriminating cells over the full `/O1`
+schedule:** the caller's leafness, linkage, `inline`-ness, parameter count,
+return type, member-ness and variadicity carry **no term**, and neither does
+the site's result-use or argument form. Together with §6.15.3a (P's size, P's
+existing expansion, a sibling callee):
+
+> **No property of the CALLER — as opposed to the call SITE — measured in this
+> document enters the decision, in either mode.** What does is the callee's
+> index, whether the site names a callee (§6.18.4), and where the site sits in
+> the CFG (§6.19.9).
+
+**Not closed, and stated as the same shape of gap this round exists to
+answer:** a negative over twelve spellings is a negative over twelve spellings.
+What the caller design still holds fixed is that P is a *definition in the same
+TU*, calling the callee **directly by name** with matching arity, with the
+callee's body visible — and that **neither side is ever recursive**. Direct and
+mutual recursion is the one call-graph shape that has never appeared on either
+side of the pair in the whole of §6.15–§6.19.
+
+### 6.19.6 The one that pays: `bl __savegprlr_N` is NOT a call
+
+§6.18.10 named this precisely — *"`callee_is_leaf()` counts it, because it is a
+REL24, and no probe has a callee whose only call is the allocator's helper.
+That is one cheap ladder away and it was not run."*
+
+Liveness without a call needs an opaque barrier that is not a call, and
+`volatile` is one: `m` ordered volatile reads, then the same `m` values written
+back to a volatile global in **reverse** order, so nothing may be reordered,
+elided or sunk and every value is live across the whole write sequence. Past
+two nonvolatiles this compiler switches to the out-of-line helper pair
+(§6.16.3), so the callee's only REL24 is `bl __savegprlr_N` / `b __restgprlr_N`.
+
+| shape | what is in the callee | discriminating cells | verdict |
+|---|---|---:|---|
+| `helper` — **THE PROBE** | the `__savegprlr_N`/`__restgprlr_N` pair and nothing else | **21** | **LEAF schedule (`s−48`)**, 0 misses |
+| `helper-ctl` — **THE CONTROL** | the same shape, the same helper pair, **plus one `bl gs`** | **19** | non-leaf schedule (raw `s`), 0 misses |
+| `call-ctl` — §6.15's own callee | one `bl gs` | 17 | non-leaf, 0 misses |
+| `leaf-ctl` — §6.18.6's own leaf | nothing | 7 | leaf, 0 misses |
+
+The control is what makes it a measurement rather than a fact about volatile
+bodies: it holds the volatile reads, the volatile writes, the liveness, the
+frame **and the helper pair itself** fixed and adds a call. The two rows differ
+by one `bl` in the source and by 48 bytes of index. The two grading controls at
+the ends are there so the grader is known to be able to print either answer;
+each prints the one it should.
+
+> **The shipped rule is wrong, and it is wrong by 48 bytes — six bands.** A
+> perfectly ordinary callee — a leaf with eleven or more simultaneously live
+> values, which is a couple of dozen bytes of arithmetic — takes the helper
+> pair, and `callee_is_leaf()` calls it a non-leaf. §6.18.6's warning that *"a
+> fixture built from either table with a leaf callee sits as much as six bands
+> away from where its author put it"* applies to the instrument's own
+> classifier.
+
+**And it sharpens §6.16.5a.** Reading (A) — the decider measures a *compiled*
+callee, so `s` is not a proxy but the quantity itself — has been getting harder
+to hold each round. Here the two callees are both compiled, both contain REL24
+calls in their emitted bytes, and only the one the **source** wrote is charged.
+So the index is measured to be a **mixed** quantity: a post-allocation byte
+count, minus 48 for a predicate that is false in the emitted code and true only
+upstream of it. Neither (A) nor (B) alone accounts for that, and this document
+should stop presenting it as a choice between the two.
+
+### 6.19.7 …and an indirect call IS one, in tail position too
+
+The same predicate has a second untested branch: `callee_is_leaf()` also counts
+a `bcctrl`, and no probe had a callee whose only call is indirect.
+
+| shape | discriminating cells | verdict |
+|---|---:|---|
+| `indirect` — the callee's only call is `fp(a)`, a `bctrl`, **no REL24 at all** | **20** | non-leaf schedule, 0 misses |
+| `tailind` — the same in **tail** position: `bctr`, no frame, no LR save | **10** | non-leaf schedule, 0 misses |
+
+So an indirect call counts, which is what the shipped predicate assumed — but
+`tailind` is a second measured fault in it, in the **opposite direction** from
+the helper's: an indirect *tail* call is `bctr` with **LK clear**, and
+`callee_is_leaf()` tested `(w & 1)`, so it reported that callee a **leaf** and
+under-charged it by 48. Both faults were latent, in opposite directions, in one
+five-line predicate.
+
+`tailind` is also §6.18.7's separation repeated through a pointer: a call, no
+frame, no LR save, on the non-leaf schedule. The trigger is the call.
+
+### 6.19.8 What this rescopes, and the re-gate
+
+* **`callee_is_leaf()` is corrected in both directions**, and both corrections
+  are measurements: REL24s to `__savegprlr_`/`__restgprlr_`/`__savefpr_`/
+  `__restfpr_` are skipped, and indirect transfers are counted with the LK bit
+  ignored. `sched_index` is unchanged; what changed is which callees it is
+  told are leaves.
+* **The 48-byte term's trigger is a call the SOURCE contains.** §6.18.7 read it
+  as "the call, not the frame"; that is still right and is now narrower —
+  neither the frame, nor the LR save, nor a REL24 in the emitted callee. A
+  callee can hold two REL24s and still be charged as a leaf.
+* **§6.18.7's TC2 reading is refuted at its source.** TC2 was *"a decider
+  pricing what the CALLER ends up with would charge it"*, and it was the reason
+  the tail-call result was read the way it was. §6.19.2 varies what the caller
+  ends up with, directly, and the answer does not move. TC2's *prediction* was
+  right and its *stated mechanism* is wrong — §6.15.7a's "right for the wrong
+  reason", recorded the same way.
+* **The decline detector's indirect term is accounted rather than absolute**
+  (§6.19.0(B)).
+* **`/O1`'s ceiling is not one number.** §6.15.3's `≥260 → 0` is a claim about
+  a site in P's straight-line body; the same callee at a conditional site is
+  refused from **164** (§6.19.9). SCHEDULE D's other seven boundaries are
+  untouched.
+* **Every negative in §6.15–§6.19 is a negative over its own ladder's range**,
+  and this round has a worked example of the difference (the preamble).
+
+**Graded before either fix was kept**, per §6.15.0's precedent: the whole
+corpus, run end to end on the version at `HEAD` and on the fixed one.
+
+| run | `HEAD` vs the fixed script |
+|---|---|
+| `--axes --max 12` (44 kinds, `/O1`) — 289 discriminating cells, 45 refuting rows, all 45 the annotated variadic ones | **byte-identical** |
+| `--axes --max 12 --kmax 60 sta-leaf-ctl ext-leaf-ctl` — 21 cells, 0 refuting | **byte-identical** |
+| `--linkage --max 12` — 0 rows refuting the linkage model | **byte-identical** |
+| `--cases --max 6` — 0 `REFUTES` lines | **byte-identical** |
+| `--lawd --max 12` — 0 of 44, 5 held-out ceiling cells | **byte-identical** |
+| `--max 12`, the 32 ladders | **byte-identical**, and see below |
+
+Zero lines moved anywhere, which is the control: no existing probe plants a
+callee whose only REL24 is the allocator's helper, and none makes an indirect
+call, so any movement would have meant a broken fix. Pre-registered at p=0.8
+and it landed. The consequence worth stating is the same one §6.18.0 stated:
+**§6.15–§6.18's numbers are not polluted by either fault**, and that is now
+measured rather than assumed.
+
+> **The re-gate did surface something, and it is not this round's.** At `HEAD`,
+> unchanged by any of it, `--max 12` prints **three `*** REFUTES SCHEDULE D ***`
+> rows on `d1-this-hi`** — a `static`, TWO-parameter callee
+> (`static int pf1(MB*,int)`) on the high-liveness ladder, at `s` = 84, 104 and
+> 144. They are the ladder's only three cells where `law_d(s)` and
+> `law_d(s−4)` differ, and **all three measure `law_d(s−4)`** — i.e. that
+> ladder says a static two-parameter callee *does* carry §6.17.6's parameter
+> correction, which §6.17.6 records as **refuted on ten discriminating cells**.
+> Its matched low-liveness spelling `d1-this-lo` has **no** cell where the two
+> differ, so it neither confirms nor denies. §6.18.12's falsifier scoreboard
+> reports 0 refuting rows for "the 26 ladders"; the corpus is now 32 and these
+> three are in the six that round 30 added. Nothing in this round touches them
+> — before and after are byte-identical — and they are recorded here rather
+> than fixed because a three-cell contradiction with a ten-cell measurement is
+> a round of its own, and it is the first item on the next one's list.
+
+### 6.19.9 The call SITE's control flow — the round's second finding
+
+`S-if` puts each of the N sites in its own basic block (`if(a&M){ s=c1(s); }`,
+a distinct mask per site) and `S-loop` puts all N inside one `for`. Everything
+else — the callee, the argument, the result's use, P's body — is the control's.
+
+**At `/O1`, `S-if` moves the CEILING and nothing else:**
+
+| band | `/O1` boundary, straight-line site | …at a conditional site |
+|---|---:|---:|
+| unbounded / 9 / 7 / 5 / 4 / 3 / 2 / 1 | 64 / 72 / 76 / 80 / 88 / 100 / 140 / 256 | **identical, all seven** |
+| **1 → 0** | **(256, 260]** | **(160, 164]** |
+
+Fifty-seven rungs, twenty-four disagreeing cells, **every one of them at index
+≥ 164**, and the first thirty-three cells — the entire graduated middle — agree
+to the site. So this is not a shift of the schedule and not a new class: it is
+one boundary, moved by **96 bytes**, at the top.
+
+`S-loop` at `/O1` is **identical on all 57 cells**, ceiling included.
+
+**At `/Ox` both move, in opposite directions**, graded on §6.15.4's own axis
+(the callee's `/O1`-emitted size), swept `k = 4..80`, i.e. 64 to 368 bytes:
+
+| site | `/Ox` step on the `/O1`-emitted size | Δ |
+|---|---|---:|
+| straight-line (`P-base`, and `S-discard`, `S-const`) | **(108, 112]** | §6.15.4 exactly, reproduced three times |
+| each site in its own `if` | **(92, 96]** | **−16** |
+| all sites inside a `for` | **no step to 368** | **≥ +256, and NOT LOCATED** |
+
+Sixty-five of `S-loop`'s seventy-seven shared cells disagree with the control.
+The bound is reported as a bound: the sweep never crossed, so the row prints
+`NO STEP LOCATED` and the number 368 is where this ladder stopped, not where
+the compiler does. Worth stating plainly because it is past §6.15.3's own
+`≥260 → never`: **a callee `/O1` refuses outright is inlined twelve times at
+`/Ox` when the site is inside a loop.**
+
+> **The reading — and it is a reading.** `/Ox` is `/Ot`; a site in a loop is
+> statically hotter and a conditional site colder, and a speed-directed inliner
+> with no profile prices exactly that way. `/O1` is `/Os` and applies only the
+> *cold* half, and only at the ceiling. That accounts for all four cells and it
+> is a story; what is measured is the four thresholds above.
+>
+> It also means **§6.18.4's "site" qualifier was the first of a family, not an
+> exception.** That paragraph noted that an indirect site has no callee to
+> price and remarked that it is *"a statement about the site, where every other
+> qualifier in §6.15–§6.17 is about the callee"*. There are now three
+> site-side facts, and the two new ones are size thresholds, which is the same
+> currency the callee-side terms are in.
+
+**What this does not say.** The `if` and `for` rows differ from the control by
+more than the site's block: P's body is bigger, there is a branch, and at `/Ox`
+the loop may be unrolled or the sites hoisted. The measurement is that the
+threshold moves; **which property of the site moves it is `NOT MODELLED`**, and
+the obvious next controls are named in §6.19.10.
+
+### 6.19.10 What round 32 leaves `NOT MODELLED`
+
+* **The rule generating the `/O1` schedule**, unchanged and still bounded as
+  §6.18.9 states — and now with a boundary that is a function of the *site*.
+* **What moves the site-side thresholds** (§6.19.9). Four thresholds are
+  measured and no mechanism is. The controls that would separate "the site is
+  in a conditional block" from "P has a branch in it" and "the site is in a
+  loop" from "P has a loop in it" are one probe each — a site in a block that
+  is entered unconditionally (`{ ... }`, or `if(1)`), a branch in P that does
+  *not* contain the site, and a loop in P beside a straight-line site — and
+  **none was run**.
+* **Why `/O1` applies only the cold half.** The `if` row moves the ceiling and
+  not one of the other seven boundaries. Nothing explains why a penalty would
+  attach to exactly one band edge.
+* **What the 48 bytes ARE.** Narrower than it was and still unmodelled. Not the
+  frame (36), not the LR save, not the callee's own call sequence, not a REL24
+  in the emitted callee (§6.19.6), and not what the caller ends up being
+  (§6.19.2). It is keyed on a call the **source** contains, and nothing says
+  why that is worth twelve instructions — or why `/Ox` charges eleven.
+* **Whether `/Ox`'s 44-byte leaf term counts the helper.** §6.19.6 is an `/O1`
+  measurement; `--helper` abstains at `/Ox` rather than grading a threshold it
+  has no reference size for. One more probe, not run.
+* **Why the two linkage classes use different size measures** — unchanged from
+  §6.17.11.
+* **The `/Ox` threshold for callees containing a loop** — untouched, and now
+  with a sibling: the `/Ox` threshold for a *site* in a loop is not located
+  either.
+* **`/Ox`'s own categorical refusals** — untouched.
+* **The `/O1` categorical refusals**: varargs remains the one member on the
+  *callee* side, and is measured **not** to be a class on the caller's side.
+* **`d1-this-hi`'s three cells** (§6.19.8) — a static two-parameter callee that
+  measures `law_d(s−4)` where §6.17.6 measured `law_d(s)` on ten cells.
+  Pre-existing, unchanged by this round, and unexplained.
+
+> **The riskiest thing still unmeasured** is the one the preamble is about.
+> Three rounds have been named after a variable the ladders held fixed; this
+> one is named after a variable the ladders held fixed *and* a **range** they
+> did not walk. The two are the same failure and the second is cheaper to fix
+> and easier to miss: `S-if` printed `IDENTICAL to P-base on all 15 shared
+> index cells` on a row carrying a 96-byte term, and that line is
+> indistinguishable from a true negative. **Every `IDENTICAL` and every
+> `0 disagree` in §6.15–§6.19 is scoped to the indices its ladder reached, and
+> most of them reached 48–104.** The cheapest general remedy is not another
+> axis: it is re-running the existing negatives to the ceiling, and the
+> instrument now takes `--kmin`/`--kmax` so that costs one flag.
+>
+> Second: **recursion**, direct or mutual, has never appeared on either side of
+> the pair.
+>
+> Third, unchanged and now sharper again: `s` is measured on the emitted obj,
+> the external index subtracts parameter setup the obj contains, the leaf term
+> subtracts 48 bytes the obj does not contain, and the ceiling depends on
+> something in the *caller's* CFG. The index is no longer describable as a size
+> of anything.
+
+### 6.19.11 The pre-registration, scored
+
+`work/gt-caller/ESTIMATE-round32.txt`, written before any capture and
+reproduced here because `work/` is gitignored. **Twenty-four registered:
+fifteen landed, six missed, two vacuous and one half.** The vacuous ones are
+kept rather than dropped, per §6.16.12: a prediction whose antecedent never
+occurred is not a hit. Two of the six misses (H3, H5) are losing branches of an
+explicitly registered three-way choice, which costs nothing; the four that were
+real bets are I6, I7, S3 and H6.
+
+| prediction | p | outcome |
+|---|---:|---|
+| C1 the 2×2 has ≥ 6 discriminating cells | 0.85 | ✓ 24 |
+| C2 P's leafness moves NO cell | 0.55 | ✓ 0 of 72 shared cells, P measured `EXT/leaf` |
+| C3 if it moves something, only the leaf-callee column moves | 0.6 | **vacuous** — antecedent never occurred |
+| C4 …and the shift is not ±48 | 0.3 | **vacuous**, same reason |
+| I1 P's **linkage** carries no term | 0.7 | ✓ 57 cells, class measured STATIC |
+| I2 P's parameter count carries no term | 0.75 | ✓ |
+| I3 P's return type carries no term | 0.85 | ✓ |
+| I4 a MEMBER caller carries no term | 0.7 | ✓ against its own `P-ptrarg` control |
+| I5 a VARIADIC caller is not categorical | 0.6 | ✓ — and it is on the callee side |
+| I6 at least one P2 row has 0 discriminating cells | 0.5 | ✗ every `/O1` row has 21 |
+| I7 `static`/`inline` P are emitted without a reference | 0.4 | ✗ neither is — and the `const` keeper does not work either |
+| S1 the discarded-result site carries no term | 0.6 | ✓ 57 cells `/O1`, 77 `/Ox` |
+| S2 the constant-argument site carries no term | 0.55 | ✓ likewise |
+| S3 the per-block (`if`) site carries no term | 0.65 | ✗ **REFUTED: 96 bytes of `/O1` ceiling, 16 of `/Ox` threshold** |
+| S4 the sites-in-a-loop row DOES differ | 0.45 | **half** — ✗ at `/O1` (57 cells identical), ✓ at `/Ox` (65 of 77) |
+| S5 at least one of S1..S4 is refuted | 0.5 | ✓ — S3, and it is the round's second finding |
+| H1 the shape takes the helper at some m ≤ 18 | 0.75 | ✓ m=10 — and see §6.19.0(A′) |
+| H2 …with no other REL24 | 0.85 | ✓ |
+| H3 the helper IS a call (the shipped rule is right) | 0.45 | ✗ |
+| H4 …it is NOT (the shipped rule is wrong) | 0.55 | ✓ **21 cells, 0 misses** |
+| H5 …neither: a third offset | 0.10 | ✗ |
+| H6 the probe is VACUOUS | 0.25 | ✗ as finally run — ✓ of its **first two spellings**, and that is the entry worth reading |
+| X1 total discriminating cells ≥ 150 | 0.8 | ✓ 412 at `/O1` |
+| X2 at least one probe returns zero and prints so | 0.55 | ✓ `S-loop` at `/Ox` over the narrow range, in those words |
+
+**The named bias, and what it did.** The estimate opened by naming both signs —
+the brief handing me the caller as "the one this section's own findings make
+most likely to pay", and the cheaper opposite prime of *"§6.15.3a already
+settled it, the caller is inert, ship it"* — and priced C2 (inert) at **0.55**,
+above 0.5, explicitly to counteract the first. C2 landed. So the brief's
+headline axis produced a negative for the fourth round running, and the finding
+came from the tranche written with no hypothesis at all. §6.18.11 told the next
+estimate to *"price controls accordingly"*, and the entry that paid, S5, is the
+only one that was placed on that advice.
+
+**The bias that cost something is a new one: I priced my own instrument as more
+likely to be uninformative than my model was to be wrong.** I6 and X2 both bet
+that some probe would fail to discriminate — the §6.16.10a failure mode, which
+this document has been burned by twice — and at `/O1` **not one row failed to
+discriminate**. That is over-caution in the instrument, the opposite direction
+from round 28's under-caution in the model, and it is the same error underneath:
+pricing from the last round's scar rather than from the design in front of me.
+
+**S3 is the entry to read, and its miss is not the interesting part.** It was
+registered at 0.65 that a conditional site carries no term, and the *first*
+capture agreed — 15 of 15 cells, `IDENTICAL`, formatted into this section. What
+refuted it was not a better prior; it was the `/Ox` row disagreeing and the
+sweep being widened in response. A prediction can be wrong and its measurement
+can *also* be right within its own range, and this document's method has no
+guard for that beyond widening. §6.16.10 lifted a cap for this reason and
+§6.18.9 records LAW D dying above one; neither generalised into a rule about
+rung ranges, and now there is one.
+
+**H6 is the second.** As finally run the helper probe was not vacuous. Its
+**first two spellings were** — one with a folded ladder that took two values of
+`s` over twenty-one rungs, one whose scout measured the helper on a rung the
+sweep did not have — and both printed full pages of agreeing rows. The
+registered 0.25 was for "the probe produces no helper at all"; the failure mode
+that occurred twice was subtler and unregistered, and the only reason it was
+caught is that the estimate committed to reading the scout's own columns before
+any verdict.
+
+### 6.19.12 Reproduction
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+# THE ROUND: the caller varied, SWEPT THROUGH THE CEILING. Read the MODEL-FREE
+# column ("IDENTICAL to <ctl> on all N shared cells") — the model has no
+# caller term and its own column cannot say which side moved.
+scripts/gt_inline_decline.py --caller --max 12 --callee c-framed \
+    --kmin 0 --kmax 56
+scripts/gt_inline_decline.py --caller --max 12 --callee c-leaf
+# THE RANGE LESSON: the same probe over the range it was designed with. `S-if`
+# prints IDENTICAL on all 15 cells and carries a 96-byte term.
+scripts/gt_inline_decline.py --caller --max 12 --callee c-framed P-base S-if
+# THE SITE FINDING at /Ox, where the rung range is different ON PURPOSE:
+# the /O1 range never reaches the 108/112 threshold and a run over it is
+# VACUOUS — twelve of twelve at every rung, which is what a PASS looks like.
+scripts/gt_inline_decline.py --caller --max 12 --mode '/Ox /GS- /c' \
+    --callee c-framed --kmin 4 --kmax 80 P-base S-loop S-discard S-const
+scripts/gt_inline_decline.py --caller --max 12 --mode '/Ox /GS- /c' \
+    --callee c-framed --kmin 4 --kmax 50 P-base S-if
+# WHAT COUNTS AS "A CALL" for the 48-byte term. Read the scout block first —
+# it is where two of the three instrument faults were found, before a verdict.
+scripts/gt_inline_decline.py --helper --max 12
+```
+
+`--caller` prints `*** CONFOUND ***` if the callee's own `s` ever differs
+between a variant and its control at the same rung (it does not), `IDENTICAL to
+<ctl> on all N shared cells` where the two agree, and
+`*** THE CALLER MOVES IT: n of m shared cells disagree ***` with the cells
+listed where they do not. `--helper` prints the callee's REL24 set and `bcctr`
+count **per rung** and abstains with `NO HELPER IN THIS RUNG` where the ladder
+has moved the condition out from under itself.
