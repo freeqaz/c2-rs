@@ -36,7 +36,7 @@ mod gl;
 mod readers;
 mod sy;
 
-pub use self::body::{chain_form, Block, ChainForm};
+pub use self::body::{chain_form, Block, ChainForm, FP_SCRATCH};
 pub use self::bundle::{
     is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
     OPT_WORD_SPECIAL_MEMBER,
@@ -166,6 +166,24 @@ pub enum IlOp {
     /// `void s_mix(S* s, float u, int k, float v){ s->f = v; }` → the same
     /// `stfs f2`, because the `int` advances the slot and not the FP file.
     StoreIndFp { off: i32, double: bool, src: u8 },
+    /// **Indirect load of a floating-point value into the FP scratch register** —
+    /// the value half of `d->f = s->f;`.
+    ///
+    /// The same IL production as [`IlOp::LoadInd`] (`<designator> 30 <TYPE>`), only
+    /// with a `real`-class pointee, so it carries no register: the destination is
+    /// always **f0**, which is what makes it different from [`IlOp::StoreIndFp`]'s
+    /// `src`. MEASURED (`work/wsl/probe/p2.cpp`, read off the reference obj):
+    ///
+    /// ```text
+    ///   void w_f(W* d, W* s) { d->f = s->f; }   c0040010 d0030010  lfs f0,16(r4) ; stfs f0,16(r3)
+    ///   void w_g(W* d, W* s) { d->g = s->g; }   c8040018 d8030018  lfd f0,24(r4) ; stfd f0,24(r3)
+    /// ```
+    ///
+    /// Produced ONLY by the store family's value position, and only as the third
+    /// op of a four-op group `[Load(dbase), Load(sbase), LoadIndFp, StoreIndFp]`.
+    /// It never reaches a return: an FP value that is *returned* goes to f1 and is
+    /// [`super::body::shapes::leaf_float`]'s question, with its own captures.
+    LoadIndFp { off: i32, double: bool },
     /// Push an integer literal constant (IL opcode `0x33`, `<type> <varint>`).
     Lit(i32),
     /// Push a **floating-point literal** (W13b). The payload is always an

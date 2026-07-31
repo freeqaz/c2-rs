@@ -186,7 +186,7 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     if let Some(t) = addr_leaf_text(func) {
         return Ok(Selected::Plain(t?));
     }
-    if let Some(t) = store_leaf_text(func) {
+    if let Some(t) = store_leaf_text(func, mode) {
         return Ok(Selected::Plain(t?));
     }
     if let Some(cmp) = &func.compare {

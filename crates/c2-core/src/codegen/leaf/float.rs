@@ -263,6 +263,7 @@ pub fn float_leaf_text(
                     | IlOp::FpLit { .. }
                     | IlOp::LoadInd { .. }
                     | IlOp::LoadIndSized { .. }
+                    | IlOp::LoadIndFp { .. }
                     | IlOp::AddrOf { .. }
                     | IlOp::StoreInd { .. }
                     | IlOp::StoreIndFp { .. } => {
