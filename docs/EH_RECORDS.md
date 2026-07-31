@@ -1683,6 +1683,21 @@ recorded everywhere in `docs/` are `/Ox` · `/O1` · `/O2` · `/Ox /Gy`, none of
 which compiles `/EH` at all. The `/EHsc` lanes exist only as an invocation a rung
 author has to remember, on a workload that compiles `/EHsc` on **every** TU.
 
+> **CLOSED, 2026-07-31 — and the fix is not the one this paragraph implies.**
+> The finding above is correct and its obvious remedy ("remember to run the two
+> `/EHsc` lanes") is not a remedy at all: it leaves the lane set as something a
+> person recalls. What closed it is that the lane list became **data**
+> (`scripts/lanes.txt`), with one command to run all of it
+> (`scripts/gate.sh`) and a test that fails if the shipped registry stops
+> carrying an `/EH` lane (`crates/c2-harness/tests/lane_registry.rs`). The
+> standing set is now **12 lanes** — six code-shape configurations crossed with
+> the exception-handling axis — so `/EHsc` is compiled at every configuration
+> rather than at the two somebody thought to type. **A lane that exists but is
+> not enumerated is a lane that does not run**, and adding a lane never fixes
+> that; only enumerating them does (`docs/GAPS.md` §7,
+> `docs/ARCHITECTURE_SEAMS.md` §2.4a). Run `scripts/gate.sh --jobs 4`, not the
+> six invocations below.
+
 Run here, all six are green and the two `/EHsc` lanes reproduce the figures that
 rung recorded:
 

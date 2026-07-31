@@ -177,7 +177,13 @@ cat <<EOF
     cd $WORKTREE_PATH
     cargo test --workspace                 # unit + integration
     ./target/release/c2rs bench            # every fixture, the correctness gate
-    C2RS_JOBS=16 scripts/mode_lane.sh /O1  # 0 mismatch or the change is wrong
+    scripts/gate.sh --jobs 4               # EVERY mode lane; 0 mismatch or the
+                                           # change is wrong. Quote the counts it
+                                           # prints — a run that graded 0 is a
+                                           # failure, not a pass. This used to
+                                           # name one lane, and a lane nobody
+                                           # enumerates is a lane that does not
+                                           # run (docs/GAPS.md §7).
 
     A \`mismatch\` anywhere is an alarm, not a gap (CLAUDE.md, docs/GAPS.md §6).
 EOF

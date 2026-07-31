@@ -291,9 +291,14 @@ flag it as a mode problem rather than a codegen bug.
    modes. The comparison spines are reallocated at `/O1` and refuse, since that
    rule is not enumerated (below).
 
-   `scripts/mode_lane.sh <mode>` is the lane: it grades every fixture at a chosen
-   mode via `c2rs gap` (which takes `--flags-file`, where `c2rs diff` does not).
-   Current state:
+   `scripts/mode_lane.sh <mode>` grades every fixture at ONE chosen mode via
+   `c2rs gap` (which takes `--flags-file`, where `c2rs diff` does not). It is a
+   lane, not *the* lane — **run `scripts/gate.sh`**, which runs every lane in
+   `scripts/lanes.txt` (12 of them since 2026-07-31, `/EHsc` crossed over all
+   six code-shape configurations) and reports one result per lane. The table
+   below is the four modes somebody typed, and none of them compiles `/EH` on a
+   workload whose every TU is built `/EHsc`; see `docs/GAPS.md` §7. State when
+   this was written:
 
    | mode | match | mismatch | codegen-gap |
    |---|---|---|---|
