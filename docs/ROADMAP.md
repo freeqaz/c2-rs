@@ -3329,6 +3329,134 @@ Three things generalize past the rows.
   subtotal. Second instrument defect in three sessions where the *shape of the
   key* was the bug.
 
+## 6s. The wave that measured its own instruments — 2026-07-31
+
+Four lanes, **census delta 0**, and that is the finding rather than a
+disappointment: two rungs were declined on measurement and the third was an
+instrument repair. What the wave actually produced is a corrected board and
+**four more instruments in the "absence read as success" class**.
+
+### The ranking premise was false
+
+The wave was ranked by key *position*, not row size — the rule §6n earned. A key
+ending `:eof` is a refusal raised *after* the parse reached the end of the
+segment, so every function under it is grammar-complete by construction. That is
+real: it is how `expr-out-of-class-bare-nonfirst-formal:eof`'s 43,319 produced an
+estimate that landed inside ±700.
+
+**But `Block::feature` prints `<ctx>:eof` for ANY block with `byte: None`**, and
+at least one site hardcodes that at a mid-segment offset. The suffix is a
+*rendering*. No argument was needed to see it — **4,466 of
+`assign-dst-not-formal:eof`'s 13,887 bodies are `cflow-loop` bodies**, which
+cannot be at the end of anything. The row measured **+0 twice** (delete the gate;
+delete the gate *and* the check behind it), and it had already measured +0 once
+in the 2026-07-30 `.sy` review. It re-entered the ranking on size alone through a
+found-and-not-taken table.
+
+The defect is **general and named but not fixed**: `assign-subst-overflow`,
+`assign-ret-nonformal`, `expr-repeated-leaf`, `fn-varargs`, `lo-marker`,
+`param-width-undetermined`, the `callee-unresolved-*` family, `opt-mode` and
+everything `straight_line_out_of_class_ctx` returns all print `:eof` on the same
+terms. Some genuinely *are* at the segment end; the renderer cannot say which.
+Repairing it means giving `Block::feature` the segment length — one shared
+renderer touching every recorded key, so it is a **serial** merge, never a
+parallel seam. **Until then no `:eof` row may be scheduled on its position.**
+
+The `-whole` half of the signal survives and is now proven: WDA established by
+two controlled pairs (a pointer formal moves the suffix; a whole extra string
+does not) that `-whole{,2,3,4}` counts **distinct granted constructs**, not
+occurrences. So the unit of work is `{form} ∪ granted` — *not* the receiver form,
+which was the coordinator's hypothesis; `recv-load` alone spans 47 construct
+sets. `fn-tail-0xNN` survives too, for the original reason: `eat_fn_tail` is what
+every accepted shape reaches last.
+
+### Ranking off a refuted axis reproduces the refutation
+
+§6r re-derived the EH split on `maxState`. Two rows on the board **invert**:
+`body-0x9B`, sized at 16,738 cheap, has exactly **one** cheap function;
+`expr-intrinsic-base-upcast`, sized at 8,277, has **zero**. Both numbers came
+from the statement-count axis *after* it had been refuted, and were then written
+into a lane brief as "the cheap side's head rows, 76 % of it". Measured: 19.7 %.
+
+The general statement, which cost a wave: **a ranking derived from an axis whose
+predicate is known-refuted reproduces the refutation, and looks like ordinary
+data while doing it.** The conclusion drawn from those rows survived; every
+number under it did not.
+
+Related, from the same measurement: the predicate was wrong on **26.2 % of the
+population in both directions** and the errors partly cancel, moving the headline
+by only 14 %. **Agreement in aggregate is not evidence a classifier is right.**
+
+### Four more instruments in the absence-read-as-success class
+
+1. **The capture-cache key omitted its own root.** A cached reference obj embeds
+   the capture directory's path (c2 is invoked `-Fo` into it), so a relocated
+   cache served foreign bytes *as a `mismatch`* — an alarm pointing at the port
+   while the port was fine. Proof of the fix is the strong form: the change
+   invalidates every entry, so the verification scan ran **0 hit / 878 miss**,
+   re-capturing every TU cold, and reproduced the baseline exactly.
+2. **The EH cross-tab** (§6r) — a control group at the top of a ranking table.
+3. **The gap scan had no binary identity**, only tree identity, while every sweep
+   lane pins a run-private copy and prints a content sha. It is the command that
+   produces the census figure this project publishes. Now prints a digest.
+4. **`sweep_mode.sh` reported a green on a run that graded nothing** — and this
+   one was written *by the coordinator, after* the guards for the other three. A
+   relative outdir produces `z:work\…` paths cl.exe cannot open; capture-fail was
+   13707/13707; and every check `sed`s a number that is absent and parses it as
+   zero. The pre-flight `SKIP` check does not cover it, because SKIP means the
+   toolchain is *absent* and this was the toolchain *present and refusing
+   everything*.
+
+**The fix that generalizes is a POSITIVE check — "the run must have GRADED
+something" — never an enumeration of the ways a run can be empty**, because the
+next empty run will be empty in a way nobody enumerated.
+
+Two corollaries worth carrying. **A table test proves completeness only over the
+list it was written from**: the cache-key test builds `CaptureCache` with a
+hand-written context and never calls `new()`, so every *documented* component had
+a case and the undocumented one had nowhere to fail. And **tmpfs inode
+exhaustion presents as `ENOSPC` with tens of GB free** — the sweep lanes exhaust
+`/tmp`'s fixed inode count, and two independent agents misread it as disk space.
+
+### What the generated corpus was hiding
+
+`scripts/sweep_mode.sh` runs the generated cases through `c2rs gap --flags-file`
+at an arbitrary mode. The intersection *generated case × `/EHsc`* had been empty:
+`expr_sweep` drives `c2rs diff`, which hardcodes `/Ox /GS- /c`; `mode_lane` takes
+flags but grades fixtures. So the axes that have found **four live mis-emits the
+hand-written corpus never found** had only ever compiled with exceptions off.
+
+First run: **mismatch 0**, but **census/gate disagreement 155** — an invariant
+that reads 0 on the workload and 0 on fixtures and had never been evaluated here
+at all, because `expr_sweep` greps `c2rs diff`'s per-case verdict for `*Mismatch*`
+and the disagreement check lives only on the `gap` path.
+
+The first run varied **two things at once** (`/EHsc` *and* `/Ox`→`/O1`) and was
+nearly filed as an EH finding. Separated over identical cases: `/Ox` 155,
+`/Ox+/EHsc` 155, `/O1` 158, `/O1+/EHsc` 158. **`/EHsc` contributes zero.** The 155
+sat at the profile `expr_sweep` had been running all along.
+
+153 of them were one off-by-one: `chain.rs`'s `IlOp::Mul if rhs_lit || (i == 1 &&
+lhs_lit)` — ops are postfix and a two-leaf chain puts the operator at index **2**,
+which the `Sub` arm on the *adjacent line* already knew. `return 3 * a;` censused
+in class while the port refused it; `return a * 3;` was correctly refused by both.
+No test caught it because the table covers `[Load, Lit, Mul]`, the form the rule
+was derived from. Fixed; workload cost **verified** at 0 across all 722 keys.
+
+Disagreement is now **7**, fully characterized: **4** are a local variable
+spanning statements (its *flat* form is generated by no fragment and was found
+only by hand, so that class is under-counted by an unknown factor), and **3** are
+an FP leaf beside a framed int function under `/O1` — the refusal frontier of
+§WEC appearing as a census **over-claim** rather than a refusal, the first time
+that seam has been measurable instead of merely absent from coverage.
+
+### Also standing open
+
+The `/EHsc` mode lanes **work and are green, but are not standing lanes** —
+nothing enumerates them, and the four lanes recorded throughout these docs are
+`/Ox`, `/O1`, `/O2`, `/Ox /Gy`, none of which compiles `/EH`, on a workload that
+compiles `/EHsc` on every TU.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp
