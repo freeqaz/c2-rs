@@ -2340,7 +2340,20 @@ forward past this instance:
   verdict table and are not alike, and a registry pruned on the table alone would
   have deleted the `/EHsc` lanes as duplicates.
 
-Two findings fell out of building it, both of the same shape as the `/EH` gap:
+**The gate reproduced the bug class on itself within an hour of existing**, which
+is worth recording precisely because it shows how low in the stack this shape
+sits. `parse_registry` filtered rows with `awk 'NF >= 2'`, so a row carrying a
+slug and no flags was **silently dropped**: `--list` reported one lane fewer than
+the file contained, and the gate would then have run, and faithfully reported on,
+a list that was not the list in the file. Every honesty property above would have
+held — over the wrong registry. The fix is the same positive shape as everywhere
+else: count the non-comment rows *before* parsing and require the two counts to
+agree, so a row that does not parse is named rather than absent. **A component
+built to make absences visible will still have absences of its own; the rule has
+to be applied to the instrument, not just through it.**
+
+Two more findings fell out of building it, both of the same shape as the `/EH`
+gap:
 
 - **No lane had ever passed `/Oi`.** The dc3 workload compiles `/O1 /Oi /EHsc`;
   `/Oi` moves 6 of the 197 fixture verdicts and had never appeared on any lane.
@@ -2361,7 +2374,7 @@ Two findings fell out of building it, both of the same shape as the `/EH` gap:
 | a lane whose every capture fails (`/FIno_such_header.h`) | `GATE: FAIL`, names it `vacuous — 0 of 197 graded` |
 | sibling `wibo` not resolvable from a scratch tree | `GATE: SKIPPED … NOTHING WAS GRADED`, exit 0, explicitly not green |
 
-`gate.sh --selftest` keeps all of that as 14 automated cases. It drives the real
+`gate.sh --selftest` keeps all of that as 15 automated cases. It drives the real
 `collect`+`decide` path with fabricated lane logs — not a reimplementation, which
 would only prove the copy agrees — needs no toolchain, and asserts among other
 things that the shipped registry still carries an `/EH` lane, so deleting those
