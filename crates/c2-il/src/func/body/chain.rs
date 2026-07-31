@@ -69,7 +69,19 @@ pub(crate) fn straight_line_out_of_class_ctx(
         let rhs_lit = matches!(ops.get(i.wrapping_sub(1)), Some(IlOp::Lit(_)));
         let lhs_lit = matches!(ops.first(), Some(IlOp::Lit(_)));
         match op {
-            IlOp::Mul if rhs_lit || (i == 1 && lhs_lit) => {
+            // `i == 2`, not `i == 1`. The op stream is **postfix**, so the first
+            // operator of a two-leaf chain sits at index 2 (`[Lit, Load, Mul]`) —
+            // which is exactly what the `Sub` arm below has always tested. At
+            // `i == 1` the clause could never fire, so `return 3 * a;` censused
+            // IN CLASS while the port returned `NotImplemented`: a census/gate
+            // DISAGREEMENT, live, and the commuted form of the one case the rule
+            // was derived from. Nothing caught it because the test table below
+            // held `[Load, Lit, Mul]` and never the commutation, and because the
+            // disagreement invariant is only evaluated on the `gap` path — which
+            // reads 0 on the workload (no `3 * a` survives to this class there)
+            // and was never run over the generated sweep corpus, where 144 cases
+            // are this bug.
+            IlOp::Mul if rhs_lit || (i == 2 && lhs_lit) => {
                 return Some("expr-out-of-class-mul-by-lit")
             }
             IlOp::Sub if i == 2 && lhs_lit => return Some("expr-out-of-class-lit-minus-reg"),
@@ -528,10 +540,24 @@ mod tests {
             ctx(&[IlOp::Load(0x10), IlOp::Lit(3), IlOp::Mul]),
             Some("expr-out-of-class-mul-by-lit")
         );
+        // **The commutation, which is the case that was missing.** `3 * a` is the
+        // same lowering as `a * 3` and must refuse identically; it did not, because
+        // the clause tested `i == 1` against a postfix stream whose operator is at
+        // index 2. The pair is kept adjacent so a rule derived from one operand
+        // order can never again be graded only in that order.
+        assert_eq!(
+            ctx(&[IlOp::Lit(3), IlOp::Load(0x10), IlOp::Mul]),
+            Some("expr-out-of-class-mul-by-lit")
+        );
         assert_eq!(
             ctx(&[IlOp::Lit(3), IlOp::Load(0x10), IlOp::Sub]),
             Some("expr-out-of-class-lit-minus-reg")
         );
+        // `a - 3` is the *other* commutation and is IN class: it is one `addi`
+        // with a negated immediate, where `3 - a` needs a `subfic`. Asserting it
+        // here is what keeps the fix above from being widened into "any literal
+        // beside any operator", which would refuse a class the port emits.
+        assert_eq!(ctx(&[IlOp::Load(0x10), IlOp::Lit(3), IlOp::Sub]), None);
         // The predicate and the key must never disagree: one is `.is_some()` of
         // the other, and this is the test that keeps it that way.
         for ops in [
@@ -540,6 +566,7 @@ mod tests {
             vec![IlOp::Load(0x99)],
             vec![IlOp::Lit(-0x8001)],
             vec![IlOp::Load(0x10), IlOp::Lit(3), IlOp::Mul],
+            vec![IlOp::Lit(3), IlOp::Load(0x10), IlOp::Mul],
         ] {
             assert_eq!(
                 straight_line_is_out_of_class(&ops, &p),
