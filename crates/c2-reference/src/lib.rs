@@ -304,27 +304,7 @@ impl Toolchain {
             _ => true,                               // exe missing → build
         };
         if needs_build {
-            if let Some(parent) = self.c2host_exe.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            let output = Command::new(&mingw)
-                .arg("-static")
-                .arg("-static-libgcc")
-                .arg("-O2")
-                .arg("-o")
-                .arg(&self.c2host_exe)
-                .arg(&self.c2host_src)
-                .output()?;
-            if !output.status.success() || !self.c2host_exe.exists() {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!(
-                        "building c2host failed\n  status: {}\n  stderr:\n{}",
-                        output.status,
-                        indent(&String::from_utf8_lossy(&output.stderr)),
-                    ),
-                ));
-            }
+            build_host_stub(&mingw, &self.c2host_src, &self.c2host_exe, "c2host")?;
         }
         // c2 resolves `<host-exe-dir>/1033/clui.dll` for diagnostics; without
         // it, any TU that triggers a warning dies with `fatal error C1510`.
@@ -362,27 +342,7 @@ impl Toolchain {
             _ => true,
         };
         if needs_build {
-            if let Some(parent) = self.c1host_exe.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            let output = Command::new(&mingw)
-                .arg("-static")
-                .arg("-static-libgcc")
-                .arg("-O2")
-                .arg("-o")
-                .arg(&self.c1host_exe)
-                .arg(&self.c1host_src)
-                .output()?;
-            if !output.status.success() || !self.c1host_exe.exists() {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!(
-                        "building c1host failed\n  status: {}\n  stderr:\n{}",
-                        output.status,
-                        indent(&String::from_utf8_lossy(&output.stderr)),
-                    ),
-                ));
-            }
+            build_host_stub(&mingw, &self.c1host_src, &self.c1host_exe, "c1host")?;
         }
         self.ensure_c1_resources()?;
         Ok(self.c1host_exe.clone())
@@ -422,8 +382,29 @@ impl Toolchain {
             .map(|t| t == src_abs)
             .unwrap_or(false);
         if !ok {
-            let _ = std::fs::remove_file(&link);
-            symlink_dir(&src_abs, &link)?;
+            // `remove` + `symlink` is NOT safe with a concurrent reader: between
+            // the two calls there is no `1033` at all, and c2/c1xx answer a
+            // missing one with `fatal error C1510` — and a *second* process in
+            // the same window gets `EEXIST` from its own `symlink` and errors
+            // out. Build the link under a private name and `rename` it into
+            // place instead: rename over an existing path is atomic, so every
+            // concurrent reader sees either the old link or the new one.
+            let tmp = exe_dir.join(format!(
+                ".1033.{}.{}.tmp",
+                std::process::id(),
+                SCRATCH_COUNTER.fetch_add(1, Ordering::Relaxed)
+            ));
+            let _ = std::fs::remove_file(&tmp);
+            symlink_dir(&src_abs, &tmp)?;
+            if let Err(e) = std::fs::rename(&tmp, &link) {
+                let _ = std::fs::remove_file(&tmp);
+                // A real directory (rather than a symlink) at `link` refuses the
+                // rename; so does a racing peer on some filesystems. Either is
+                // fine as long as what is there now resolves to the resources.
+                if !link.join("clui.dll").exists() {
+                    return Err(e);
+                }
+            }
         }
         Ok(())
     }
@@ -1331,6 +1312,65 @@ impl<'a> Backend for ReferenceC2<'a> {
         // native port.
         "reference-c2-replay"
     }
+}
+
+/// Build one x86 host stub (`c2host`, `c1host`) from `src` to `exe`, **atomically**.
+///
+/// One implementation for both stubs, because they are the same recipe and this
+/// repo has twice paid for "one rule, two implementations" (`docs/GAPS.md` §6
+/// #9, #10).
+///
+/// The atomicity is the point, and it is a *fixed flake*, not a precaution.
+/// `cargo test --workspace --release` runs the integration tests
+/// multi-threaded, every one of them reaches `ensure_c2host`, and the stub is
+/// stale exactly once per fresh worktree — the `.c` gets a checkout mtime and
+/// the reflinked `target/` copy is older. Linking **in place** then means N
+/// concurrent `i686-w64-mingw32-gcc` processes writing one output file while
+/// other tests are launching it, and wibo answers a half-written file with
+/// `Failed to load PE image …/c2host.exe`. Reproduced by touching the source
+/// and running the differential binary at 32 test threads: **4–13 of 17 tests
+/// failed** per run, six runs out of six, and the same binary was green
+/// immediately afterwards because the stub was then fresh. That is the
+/// "intermittent in parallel, green serially and on re-run" flake exactly.
+///
+/// Linking to a private sibling and `rename`-ing it into place makes the
+/// publication atomic: a concurrent reader opens either the old inode or the
+/// new one, never a partial. It also sidesteps `ETXTBSY` from writing an
+/// executable that another process is running.
+fn build_host_stub(mingw: &Path, src: &Path, exe: &Path, what: &str) -> io::Result<()> {
+    let parent = exe
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "host exe has no parent"))?;
+    std::fs::create_dir_all(parent)?;
+    let tmp = parent.join(format!(
+        ".{what}.{}.{}.tmp",
+        std::process::id(),
+        SCRATCH_COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    let output = Command::new(mingw)
+        .arg("-static")
+        .arg("-static-libgcc")
+        .arg("-O2")
+        .arg("-o")
+        .arg(&tmp)
+        .arg(src)
+        .output()?;
+    if !output.status.success() || !tmp.exists() {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!(
+                "building {what} failed\n  status: {}\n  stderr:\n{}",
+                output.status,
+                indent(&String::from_utf8_lossy(&output.stderr)),
+            ),
+        ));
+    }
+    if let Err(e) = std::fs::rename(&tmp, exe) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    Ok(())
 }
 
 static SCRATCH_COUNTER: AtomicU64 = AtomicU64::new(0);
