@@ -56,6 +56,30 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 out="${1:-/tmp/c2rs-expr-sweep}"
 limit="${2:-0}"
 mkdir -p "$out"
+
+# Refuse to share an output directory with another live sweep. This driver
+# `rm -f`s the whole case set before regenerating it, so two concurrent runs
+# against the default `/tmp/c2rs-expr-sweep` delete each other's cases mid-grade
+# — one run's cleanup lands in the middle of the other's grading, and BOTH
+# results are then meaningless while looking perfectly ordinary. That happened:
+# an agent ran two sweeps at once, spotted it, killed both and re-ran with a
+# private outdir. Nothing in the output would have said so.
+#
+# `mkdir` is the lock because it is atomic on every filesystem this runs on.
+# The default stays shared on purpose — the generated cases are worth inspecting
+# after a run — so the collision is made IMPOSSIBLE rather than made unlikely by
+# a per-PID default that would leave litter nobody reads.
+_lock="$out/.sweep.lock"
+if ! mkdir "$_lock" 2>/dev/null; then
+    echo "REFUSING: another sweep holds $out (lock: $_lock)." >&2
+    echo "  Two sweeps in one outdir delete each other's cases and both results" >&2
+    echo "  are silently wrong. Pass a private outdir:" >&2
+    echo "      scripts/expr_sweep.sh /tmp/c2rs-sweep-\$\$" >&2
+    echo "  If no sweep is running, the previous one was killed: rmdir '$_lock'" >&2
+    exit 2
+fi
+trap 'rmdir "$_lock" 2>/dev/null || true' EXIT INT TERM
+
 rm -f "$out"/*.cpp "$out"/cases.txt 2>/dev/null || true
 
 # Build unconditionally and run a RUN-PRIVATE COPY of the binary — never
