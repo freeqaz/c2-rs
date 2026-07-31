@@ -74,6 +74,14 @@ Usage:
     scripts/gt_inline_decline.py --family NAME ...   # gt_label_inline families
     scripts/gt_inline_decline.py --cases             # the categorical refusals
     scripts/gt_inline_decline.py --linkage           # static vs extern vs inline
+    scripts/gt_inline_decline.py --axes [--scout] [kind ...]  # the held-fixed
+                                                     # variables: return type,
+                                                     # extern "C", storage
+                                                     # duration, virtual,
+                                                     # template
+    scripts/gt_inline_decline.py --lawd              # the clamped form, and
+                                                     # the ceiling clamp's
+                                                     # held-out cells
     scripts/gt_inline_decline.py --thisctl           # is `this` an ordinary p0?
     scripts/gt_inline_decline.py --pressure [--pair SUBSTR]  # same IL, diff `s`
     scripts/gt_inline_decline.py --ends              # the two round boundaries
@@ -130,8 +138,29 @@ def extent(o, g):
     return sec, me, (nxt[0] if nxt else sec["rawsize"])
 
 
+# A surviving call site is a `bl`, i.e. a REL24. Nothing else is.
+REL24 = 0x0006
+
+
 def read(o):
-    """P's OWN relocation targets and every emitted function's OWN size."""
+    """P's OWN surviving CALL SITES and every emitted function's OWN size.
+
+    TWO THINGS THIS HAS TO GET RIGHT, both of which it got wrong first (§6.18):
+
+    * **REL24 only.** The reloc table is not a call list. A callee with a
+      `static` local mangles that local as `?t@?1??c1@@YAHH@Z@4HA` — the
+      CALLEE'S OWN NAME IS A SUBSTRING OF IT — so a fully inlined `c1` whose
+      body loads and stores `t` leaves three REFHI/REFLO relocs in P that
+      `declined()`'s substring match counted as three surviving calls. The
+      row read `Ndir = 0` on a callee that was inlined at every site. This is
+      the same fault as §6.17.13's `size_of` collision, on the detector that
+      one was not applied to.
+    * **`bctrl` is a call the reloc table cannot see.** A virtual call through
+      a pointer is `mtctr`/`bctrl` with NO relocation against the callee at
+      all, so the reloc detector reads "no `bl` survived" — i.e. INLINED — on
+      the one call kind that cannot be inlined. `nind` counts them, and any
+      grader that is looking at an indirect-call shape must read it.
+    """
     gs_ = groups(o)
 
     def find(sfx):
@@ -148,17 +177,26 @@ def read(o):
     for va, symidx, ty in o.relocs(sec):
         if not (lo <= va < hi):
             continue                      # another function's call, at /Ox
+        if ty != REL24:
+            continue                      # a data reference, not a call site
         s = o.sym_by_index(symidx)
         if s is None:
             continue
         rel[s["name"]] = rel.get(s["name"], 0) + 1
+    d = o.raw(sec)[lo:hi]
+    nind = 0
+    for i in range(0, len(d) - 3, 4):
+        w = struct.unpack_from(">I", d, i)[0]
+        # bcctrl (`bctrl` is bcctrl 20,0): op 19, XO 528, LK set
+        if (w >> 26) == 19 and ((w >> 1) & 0x3FF) == 528 and (w & 1):
+            nind += 1
     emitted = {}
     for g in gs_:
         if g is P:
             continue
         _s, glo, ghi = extent(o, g)
         emitted[g["name"]] = ghi - glo
-    return {"rel": rel, "tsize": hi - lo, "emit": emitted}
+    return {"rel": rel, "nind": nind, "tsize": hi - lo, "emit": emitted}
 
 
 def name_matches(nm, want):
@@ -310,12 +348,121 @@ SUPERSEDED_D = [
     # counter-examples; dead at s=68 (says >=12, measures 9) and s=72 (says
     # 10, measures 9). Pre-registered in work/gt-inline-decline/ESTIMATE-
     # round28d.txt and killed by the first out-of-sample capture.
+    # STILL REFUTED, and §6.18.9 says exactly where: those two cells and the
+    # s>=260 ceiling are its ENTIRE failure, and clamping all three (`law_dc`)
+    # reproduces the measured table cell for cell. It stays in this list
+    # because a form that needs three hand-placed clamps, two of them fitted
+    # on the very cells that killed it, is not the law — it is a description
+    # with the failures moved into the constants.
     ("(N-1)*(s-64) < 80",
      lambda s: None if s is None or s <= 64 else 1 + 79 // (s - 64)),
     # The reading I would have written down first, killed at N <= 6.
     ("N*(s-64) < 80  ('the first copy is not free')",
      lambda s: None if s is None or s <= 64 else 79 // (s - 64)),
 ]
+
+
+# --------------------------------------------------------------------------
+# LAW Dc — SCHEDULE D's interior IS the retired LAW D; its two ends are clamps
+#
+# §6.15.7 asked for "a mechanism that produces exactly that" sequence —
+# 9, 7, 5, 4, 3, 2, 1, skipping 8 and 6 — and §6.17.10 bounded the search:
+# for a per-site cost model every affine, every power and every exponential is
+# refuted at once, because n(68)=n(72)=9 and n(76)=7 force the relative growth
+# per 4-byte step to INCREASE.
+#
+# Both statements survive. What is new (§6.18.9) is where the refutation is
+# LOCATED. Retired LAW D is a net-duplication budget, and in INSTRUCTIONS
+# (i = s/4) rather than bytes its constant comes out exact:
+#
+#       (N - 1) * (i - 16)  <=  19
+#
+# "sixteen instructions are free, and you may duplicate at most nineteen more
+# beyond the first copy". That is EXACT on every band from i = 19 to i = 64 —
+# six of the schedule's eight — and it GENERATES the two values the sequence
+# skips: `1 + 19//d` can only ever take 1, 2, 3, 4, 5, 7, 10, 20, so **8 and 6
+# are arithmetically unreachable**. §6.15.7 asked for "a mechanism that
+# produces exactly that" sequence and this is it.
+#
+# It also generates the schedule's FIRST row rather than clamping it: at
+# i <= 16 the left side is <= 0, so every N satisfies it — `<=64 B ->
+# unbounded` falls out. The whole of its failure is two cells at the bottom
+# (i = 17, 18, where it allows 20 and 10 against a measured 9) and the top
+# (i >= 65, where it allows 1 against a measured 0). Clamp those two and the
+# form reproduces EVERY 4-byte cell of LAW_D_TABLE:
+#
+#       N_max(i) = 0                              i >= 65
+#                  min(9, 1 + floor(19/(i-16)))   otherwise (unbounded at i<=16)
+#
+# And the two constants are FORCED, not chosen: a search over budget 1..59 x
+# cap 1..39 finds exactly one pair, (19, 9), that reproduces the table.
+# `law_dc_selfcheck()` returns that search, so it is a computation in the run's
+# own output and not a claim in a comment.
+#
+# HOW MUCH OF THIS IS FITTED, stated plainly because the answer is "most of
+# the new part": the cap 9 is fitted on EXACTLY THE TWO CELLS THAT KILLED
+# LAW D, which is the move this lane forbids. Its only hold-out is thin and
+# is named as such: fit the cap on s=68 alone and s=72 is then held out, where
+# the uncapped form says 10 and the capped one says 9 — measured 9, by six
+# ladders. The `inline` class (§6.17.5) shifts the index by 8 and so lands a
+# SECOND, differently-spelled source on the same two indices; that tests that
+# the cap is a function of the INDEX rather than of `s`, not the value 9.
+# The >= 260 clamp does have a real hold-out and `--lawd` takes it: a
+# `static inline` callee of 268 bytes has index 260 and no version of this
+# table has ever measured that cell.
+#
+# This is NOT a resurrection of LAW D. LAW D as written is refuted and stays
+# refuted — §6.17.10's log-convexity negative kills its affine cost, and it
+# kills the `1 + floor(B/f)` family too (the rows pin f(68), f(72) to
+# (B/9, B/8] and f(76) to (B/7, B/6], so the growth must again increase). The
+# clamp is not a cost, which is exactly why it can absorb a refutation that no
+# cost function can.
+LAW_DC_BUDGET, LAW_DC_CAP, LAW_DC_CEIL = 19, 9, 65     # instructions / sites
+
+
+def law_dc(idx):
+    """The clamped form, in INSTRUCTIONS, where its constant is exact.
+
+        (N - 1) * (i - 16)  <=  19        i = idx/4, the callee's instructions
+
+    `None` means unbounded, as `law_d` does. Note the `i <= 16 -> unbounded`
+    row is NOT a clamp: `i - 16 <= 0` satisfies the inequality for every N, so
+    the inequality GENERATES the schedule's first row. Only two clamps are
+    hand-placed, and both are named in the header.
+    """
+    if idx is None:
+        return None
+    i = idx // 4
+    if i >= LAW_DC_CEIL:
+        return 0
+    if i <= 16:
+        return None
+    return min(LAW_DC_CAP, 1 + LAW_DC_BUDGET // (i - 16))
+
+
+def law_dc_selfcheck(lo=4, hi=400):
+    """Cells the clamped form misses, and whether its constants are FORCED.
+
+    Printed by `--lawd` rather than asserted, so a future edit to LAW_D_TABLE
+    shows up as a printed disagreement instead of silently making the form
+    wrong — and the second return value is the honest one: the search over
+    (budget, cap) says whether the measured table pins them or merely admits
+    them.
+    """
+    miss = [(s, law_d(s), law_dc(s)) for s in range(lo, hi, 4)
+            if law_d(s) != law_dc(s)]
+    fits = []
+    for c in range(1, 60):
+        for cap in range(1, 40):
+            for s in range(lo, hi, 4):
+                i = s // 4
+                p = 0 if i >= LAW_DC_CEIL else \
+                    (None if i <= 16 else min(cap, 1 + c // (i - 16)))
+                if p != law_d(s):
+                    break
+            else:
+                fits.append((c, cap))
+    return miss, fits
 
 
 def demangle_ish(name):
@@ -1149,6 +1296,13 @@ def pcol(p):
 # loop-free, so this applies, and it was fitted entirely on ladders that grow
 # the body by adding statements — the pressure pair is held out from it.
 OX_LOOPFREE = (108, 112)
+# …and §6.18.7a measures a LEAF term at /Ox too — but FORTY-FOUR bytes, not the
+# /O1 class's forty-eight. Measured on the same ladder, same 4-byte rungs: a
+# leaf callee is inlined at 152 bytes of /O1-emitted size and declined at 156.
+# The two modes agree that a call in the callee costs a flat term and DISAGREE
+# on its size by 4 bytes, which is one more instance of §6.15.6's "two
+# mechanisms that are not a rescaling of each other".
+OX_LEAF_BONUS = 44
 
 
 def ref_size(tree, gen, k, wd, tag):
@@ -1161,10 +1315,20 @@ def ref_size(tree, gen, k, wd, tag):
     return None if "error" in r else size_of(r["emit"], watch[0])
 
 
-def grade_ox(s_o1, ndir, nmax):
-    """/Ox is all-or-nothing (§6.15.4), so `ndir` is 0 or `nmax`."""
+def grade_ox(s_o1, ndir, nmax, nparams=1, leaf=False):
+    """/Ox is all-or-nothing (§6.15.4), so `ndir` is 0 or `nmax`.
+
+    §6.18.7a: the threshold carries §6.17.6's parameter correction — 4 bytes
+    per parameter beyond the first, `this` included. Fitted on a 2-parameter
+    callee and HELD OUT on a 3-parameter one, which moves it twice. §6.15.4 was
+    fitted entirely on 1-parameter callees, so the correction is invisible
+    there and the constant 108/112 is unchanged for them.
+    """
     if s_o1 is None:
         return "?", "?"
+    s_o1 -= PARAM_BONUS * (nparams - 1)
+    if leaf:
+        s_o1 -= OX_LEAF_BONUS
     got = "inlined" if ndir >= nmax else ("declined" if ndir == 0 else "mixed")
     if s_o1 <= OX_LOOPFREE[0]:
         return "inlined", got
@@ -1434,22 +1598,58 @@ END_BODIES = [
 # `__forceinline` overrides all of it: 12 of 12 sites at every size measured,
 # up to 264 bytes, in both linkage classes.
 EXT_MAX = 64                  # == the top of SCHEDULE D's `unbounded` band
-INLINE_BONUS, PARAM_BONUS = 8, 4
+INLINE_BONUS, PARAM_BONUS, LEAF_BONUS = 8, 4, 48
 
 
-def sched_index(s, nparams=1, inline_kw=False, external=False):
-    """The size the /O1 decision is indexed on, per §6.17.
+def callee_is_leaf(o, want):
+    """Does the planted callee contain a CALL? Read out of the obj.
+
+    §6.18.6/§6.18.7: a callee with no call is indexed 48 bytes lower, in BOTH
+    linkage classes, with the schedule's whole shape preserved (61 cells, 0
+    misses). The trigger is the CALL and not the frame — a TAIL-call callee has
+    no frame, no `stwu` and no LR save and is on the NON-leaf schedule (46
+    cells, 0 misses), and this compiler never gives a leaf a frame at all, so
+    "has a frame" cannot be the reading.
+
+    A REL24 anywhere in the callee is a call, tail or otherwise. NOT MEASURED
+    and worth knowing: whether a `bl __savegprlr_N` — a helper the allocator
+    introduces, not the source — counts. It is a REL24, so this counts it.
+    """
+    for g in groups(o):
+        if name_matches(g["name"], want):
+            break
+    else:
+        return None
+    sec, lo, hi = extent(o, g)
+    for va, _sy, ty in o.relocs(sec):
+        if lo <= va < hi and ty == REL24:
+            return False
+    d = o.raw(sec)[lo:hi]
+    for i in range(0, len(d) - 3, 4):
+        w = struct.unpack_from(">I", d, i)[0]
+        if (w >> 26) == 19 and ((w >> 1) & 0x3FF) == 528 and (w & 1):
+            return False              # an indirect call is still a call
+    return True
+
+
+def sched_index(s, nparams=1, inline_kw=False, external=False, leaf=False):
+    """The size the /O1 decision is indexed on, per §6.17 and §6.18.
 
     Internal: `s`, less 8 if the callee is `inline`. The parameter count does
     NOT enter — pre-registered as the opposite and refuted on 10 cells.
     External: additionally less 4 per parameter beyond the first — fitted on 1
     and 2 parameters and held out on 3 and 4, 24/24.
+    BOTH classes: less 48 if the callee contains NO CALL (§6.18.6). That term
+    is six times the `inline` one and was invisible for three rounds because
+    every ladder callee in this document calls `gs`.
     """
     if s is None:
         return None
     idx = s - (INLINE_BONUS if inline_kw else 0)
     if external:
         idx -= PARAM_BONUS * (nparams - 1)
+    if leaf:
+        idx -= LEAF_BONUS
     return idx
 
 
@@ -1581,6 +1781,583 @@ def run_linkage(mode, wd, nmax):
             print()
     print("    rows refuting the linkage model (external) or SCHEDULE D on"
           " the index (internal): %d" % wrong)
+    return bad
+
+
+# --------------------------------------------------------------------------
+# AXES — what else did every ladder in this document hold fixed?
+#
+# §6.17 found linkage only because a probe aimed at something else tripped over
+# it, and its closing paragraph names why it could hide for two rounds: EVERY
+# callee in EVERY ladder of §6.15 and §6.16 is a one-parameter, keyword-free
+# `static int f(int)`. The instrument's own controls would not have noticed a
+# term carried by any of the variables that design never varied. This mode
+# varies them one at a time, each against a matched control:
+#
+#   return type   char/short/bool/unsigned/long long/double/void/ptr/ref/struct
+#   language      `extern "C"`, with and without `static` and `inline`
+#   storage       a static LOCAL, const-initialised and dynamically initialised
+#   virtual       through a pointer, on a local object, and the non-virtual twin
+#   template      an instantiation, plus its `static` and `inline` spellings
+#
+# GRADED BY MEASUREMENT, NEVER BY SPELLING. Every row reads the callee's own
+# COFF storage class out of the symbol table and grades against THAT class's
+# index rule — §6.17.3's anonymous-namespace row is the standing reason: it was
+# pre-registered as internal linkage and this compiler emits it EXTERNAL.
+#
+# DISCRIMINATING CELL, defined before the run so the count cannot be tuned
+# afterwards: a rung discriminates iff its class's predictor gives a DIFFERENT
+# answer at `index` than at `index-8` or `index+8`. Eight bytes is not
+# arbitrary — it is the size of the only extra term this document has ever
+# found (`inline`, §6.17.5) and the size a new axis would most plausibly carry.
+# A rung outside that window can agree with the model without the model ever
+# having been at risk, and §6.16.2's lesson is that such a row PRINTS THE SAME
+# THING as one that was.
+AXIS_KMAX = 14                 # `fine` rungs: s = 48..104 on the framed base
+AXIS_KMAX_OX = 22              # /Ox's threshold sits at 108/112, further out
+
+
+def axis_predict(idx, sc, nmax):
+    """(predicted Ndir, label) for one rung, from its MEASURED storage class."""
+    if idx is None or sc is None:
+        return None, "?"
+    if sc == 2:
+        ok = idx <= EXT_MAX
+        return (nmax if ok else 0), ("inlined" if ok else "declined")
+    p = law_d(idx)
+    return (nmax if p is None else min(p, nmax)),           \
+           ("unbounded" if p is None else "%d" % p)
+
+
+def axis_discriminates(idx, sc, nmax):
+    """Could an 8-byte term have shown up in this rung? See the header."""
+    if idx is None or sc is None:
+        return False
+    base = axis_predict(idx, sc, nmax)[0]
+    return any(axis_predict(idx + d, sc, nmax)[0] != base for d in (-8, 8))
+
+
+# (name, control, nparams, inline?, force?, decls template, site, note)
+# `nparams` is the count of parameters the MODEL says the external index
+# subtracts for — the declared ones plus `this` (§6.17.6). A hidden sret
+# pointer is deliberately NOT counted, so that if it is one the row refutes
+# rather than being fitted.
+AXIS_KINDS = [
+    # ---- the two controls, re-measured by this instrument --------------
+    ("sta-base", None, 1, False, False,
+     "static int c1(int a){ int v=gs(a)+a; %s return v; }", "s=c1(s);",
+     "CONTROL: §6.17.4's own static row (12/12/12/12/12/9/9/7/5/...)"),
+    ("ext-base", None, 1, False, False,
+     "int c1(int a){ int v=gs(a)+a; %s return v; }", "s=c1(s);",
+     "CONTROL: §6.17.4's own external row (step at index 64/68)"),
+
+    # ---- AXIS 1: the return type --------------------------------------
+    ("sta-ret-char", "sta-base", 1, False, False,
+     "static char c1(int a){ int v=gs(a)+a; %s return (char)v; }",
+     "s+=c1(s);", "a narrower integer return"),
+    ("ext-ret-char", "ext-base", 1, False, False,
+     "char c1(int a){ int v=gs(a)+a; %s return (char)v; }",
+     "s+=c1(s);", ""),
+    ("sta-ret-short", "sta-base", 1, False, False,
+     "static short c1(int a){ int v=gs(a)+a; %s return (short)v; }",
+     "s+=c1(s);", ""),
+    ("sta-ret-bool", "sta-base", 1, False, False,
+     "static bool c1(int a){ int v=gs(a)+a; %s return v!=0; }",
+     "s+=c1(s);", ""),
+    ("sta-ret-uint", "sta-base", 1, False, False,
+     "static unsigned c1(int a){ int v=gs(a)+a; %s return (unsigned)v; }",
+     "s+=(int)c1(s);", ""),
+    ("sta-ret-ll", "sta-base", 1, False, False,
+     "static long long c1(int a){ int v=gs(a)+a; %s return (long long)v; }",
+     "s+=(int)c1(s);", "the result is an r3:r4 PAIR, not a register"),
+    ("ext-ret-ll", "ext-base", 1, False, False,
+     "long long c1(int a){ int v=gs(a)+a; %s return (long long)v; }",
+     "s+=(int)c1(s);", ""),
+    ("sta-ret-dbl", "sta-base", 1, False, False,
+     "static double c1(int a){ int v=gs(a)+a; %s return (double)v; }",
+     "s+=(int)c1(s);", "an FPR result, `_fltused`, a different frame class"),
+    ("ext-ret-dbl", "ext-base", 1, False, False,
+     "double c1(int a){ int v=gs(a)+a; %s return (double)v; }",
+     "s+=(int)c1(s);", ""),
+    ("sta-ret-ptr", "sta-base", 1, False, False,
+     "extern int* gp;\n"
+     "static int* c1(int a){ int v=gs(a)+a; %s return gp+v; }",
+     "s+=(int)(c1(s)-gp);", ""),
+    ("sta-ret-ref", "sta-base", 1, False, False,
+     "extern int* gp;\n"
+     "static int& c1(int a){ int v=gs(a)+a; %s return gp[v]; }",
+     "s+=c1(s);", "a reference return — a pointer the source does not spell"),
+    # `void` needs its own control, because dropping the result also drops the
+    # `return` statement: `sta-ret-void-ctl` is the same body WITH a result.
+    ("sta-ret-void-ctl", "sta-base", 1, False, False,
+     "extern int gv;\n"
+     "static int c1(int a){ int v=gs(a)+a; %s gv=v; return v; }",
+     "s=c1(s);", "the matched control for the `void` row: same store, a result"),
+    ("sta-ret-void", "sta-ret-void-ctl", 1, False, False,
+     "extern int gv;\n"
+     "static void c1(int a){ int v=gs(a)+a; %s gv=v; }",
+     "c1(s);", "…and the same body with NO result"),
+    ("ext-ret-void", "ext-base", 1, False, False,
+     "extern int gv;\n"
+     "void c1(int a){ int v=gs(a)+a; %s gv=v; }",
+     "c1(s);", ""),
+    # A struct return is an sret HIDDEN POINTER PARAMETER. `nparams` stays 1
+    # here on purpose: if the hidden pointer is charged like a real one the
+    # external step moves 4 bytes and the row REFUTES rather than agreeing.
+    ("sta-ret-struct", "sta-base", 1, False, False,
+     "struct S2 { int x, y; };\n"
+     "static S2 c1(int a){ int v=gs(a)+a; %s S2 r; r.x=v; r.y=v; return r; }",
+     "s+=c1(s).x;", "sret: a hidden pointer parameter the source never spells"),
+    ("ext-ret-struct", "ext-base", 1, False, False,
+     "struct S2 { int x, y; };\n"
+     "S2 c1(int a){ int v=gs(a)+a; %s S2 r; r.x=v; r.y=v; return r; }",
+     "s+=c1(s).x;", ""),
+
+    # ---- AXIS 2: `extern "C"` -----------------------------------------
+    ("extc-ext", "ext-base", 1, False, False,
+     'extern "C" int c1(int a){ int v=gs(a)+a; %s return v; }', "s=c1(s);",
+     "C language linkage: an UNMANGLED external symbol"),
+    ("extc-sta", "sta-base", 1, False, False,
+     'extern "C" static int c1(int a){ int v=gs(a)+a; %s return v; }',
+     "s=c1(s);", "…with `static`: C linkage, internal COFF linkage"),
+    ("extc-inline", "ext-base", 1, True, False,
+     'extern "C" inline int c1(int a){ int v=gs(a)+a; %s return v; }',
+     "s=c1(s);", "…does the 8-byte `inline` term survive C linkage?"),
+
+    # ---- AXIS 3: storage duration inside the callee ---------------------
+    ("sta-glob-ctl", "sta-base", 1, False, False,
+     "extern int gt;\n"
+     "static int c1(int a){ int v=gs(a)+a; %s gt+=v; return v; }",
+     "s=c1(s);", "CONTROL for the static-local rows: the same store, to a "
+     "global"),
+    ("sta-sloc-const", "sta-glob-ctl", 1, False, False,
+     "static int c1(int a){ static int t=7; int v=gs(a)+a; %s t+=v;"
+     " return v; }", "s=c1(s);",
+     "a static LOCAL, constant-initialised — no guard"),
+    ("ext-sloc-const", "ext-base", 1, False, False,
+     "int c1(int a){ static int t=7; int v=gs(a)+a; %s t+=v; return v; }",
+     "s=c1(s);", ""),
+    ("sta-sloc-dyn", "sta-glob-ctl", 1, False, False,
+     "static int c1(int a){ static int t=gs(7); int v=gs(a)+a; %s t+=v;"
+     " return v; }", "s=c1(s);",
+     "…DYNAMICALLY initialised: a guard variable and a one-shot branch"),
+    ("ext-sloc-dyn", "ext-base", 1, False, False,
+     "int c1(int a){ static int t=gs(7); int v=gs(a)+a; %s t+=v; return v; }",
+     "s=c1(s);", ""),
+
+    # ---- AXIS 4: virtual ------------------------------------------------
+    # The control differs from the probe by exactly the `virtual` keyword: same
+    # class, same out-of-class definition, same `this`, same call expression.
+    ("mem-nonvirt", "ext-base", 2, False, False,
+     "struct VB { int m; int c1(int a); };\n"
+     "int VB::c1(int a){ int v=gs(a)+a; %s return v; }\n"
+     "extern VB* vp;", "s=vp->c1(s);",
+     "CONTROL: an out-of-class member through a pointer (== ext-plain, §6.17)"),
+    ("mem-virt", "mem-nonvirt", 2, False, False,
+     "struct VB { int m; virtual int c1(int a); };\n"
+     "int VB::c1(int a){ int v=gs(a)+a; %s return v; }\n"
+     "extern VB* vp;", "s=vp->c1(s);",
+     "…the same, plus the `virtual` keyword and nothing else"),
+    ("mem-virt-obj", "mem-virt", 2, False, False,
+     "struct VB { int m; virtual int c1(int a); };\n"
+     "int VB::c1(int a){ int v=gs(a)+a; %s return v; }",
+     "{ VB o; s=o.c1(s); }",
+     "…called on a LOCAL object: the static type is known, so it CAN be "
+     "devirtualised"),
+    # `VB gvb;` is not decoration: an in-class virtual that is only ever CALLED
+    # virtually is never referenced by name, so it is NOT EMITTED and the row
+    # has no `s` to grade — §6.5's "the callee's COMDAT is emitted whether or
+    # not it was inlined" has an exception and this is it. A global instance
+    # forces the vtable, and the vtable references the body.
+    ("mem-virt-inclass", "mem-virt", 2, True, False,
+     "struct VB { int m; virtual int c1(int a){ int v=gs(a)+a; %s"
+     " return v; } };\nextern VB* vp;\nVB gvb;", "s=vp->c1(s);",
+     "…defined in-class, hence implicitly `inline` as well"),
+
+    # ---- AXIS 4b: two more keywords the ladders never varied ------------
+    ("sta-vararg", "sta-base", 1, False, False,
+     "static int c1(int a, ...){ int v=gs(a)+a; %s return v; }", "s=c1(s);",
+     "a VARIADIC callee — the one shape a caller cannot simply substitute"),
+    ("ext-vararg", "ext-base", 1, False, False,
+     "int c1(int a, ...){ int v=gs(a)+a; %s return v; }", "s=c1(s);", ""),
+    # A framed variadic callee cannot be built smaller than 76 bytes, which is
+    # already past the `unbounded` band — so on the framed base "refused at
+    # every size" cannot be told apart from "refused because of its size" at
+    # the one place the pre-registration says to look. A LEAF body can: it
+    # starts around 12 bytes and the ladder walks the whole band. The control
+    # is the identical leaf body without the `...`.
+    ("sta-leaf-ctl", "sta-base", 1, False, False,
+     "static int c1(int a){ int v=a*3; %s return v; }", "s=c1(s);",
+     "CONTROL: a LEAF body, so the ladder starts below the unbounded band"),
+    ("sta-vararg-leaf", "sta-leaf-ctl", 1, False, False,
+     "static int c1(int a, ...){ int v=a*3; %s return v; }", "s=c1(s);",
+     "…the same leaf body, variadic: does it refuse BELOW the band too?"),
+    ("ext-leaf-ctl", "ext-base", 1, False, False,
+     "int c1(int a){ int v=a*3; %s return v; }", "s=c1(s);",
+     "CONTROL: the same leaf body, external linkage"),
+    ("ext-vararg-leaf", "ext-leaf-ctl", 1, False, False,
+     "int c1(int a, ...){ int v=a*3; %s return v; }", "s=c1(s);", ""),
+    # Separates "has a frame" from "contains a call": a stack array forces a
+    # frame (`stwu`) with no `bl` and no LR save anywhere in the callee.
+    ("sta-frameleaf", "sta-leaf-ctl", 1, False, False,
+     "static int c1(int a){ int ar[4]; ar[a&3]=a; int v=ar[(a>>1)&3]*3;"
+     " %s return v; }", "s=c1(s);",
+     "a STACK FRAME but no call: does the 48-byte term key on the frame?"),
+    # The one shape in this compiler that HAS a call and has NO frame and no
+    # LR save: a tail call (`b gs`). It is the only probe that can separate the
+    # 48-byte term's three coincident descriptions.
+    ("sta-tailcall", "sta-leaf-ctl", 1, False, False,
+     "static int c1(int a){ int v=a*3; %s return gs(v); }", "s=c1(s);",
+     "a TAIL CALL: a call with no frame and no LR save"),
+    ("sta-throw", "sta-base", 1, False, False,
+     "static int c1(int a) throw(){ int v=gs(a)+a; %s return v; }",
+     "s=c1(s);", "an empty exception specification"),
+    ("ext-throw", "ext-base", 1, False, False,
+     "int c1(int a) throw(){ int v=gs(a)+a; %s return v; }", "s=c1(s);", ""),
+
+    # §6.17.6's parameter correction is an /O1 EXTERNAL-class rule. The /Ox
+    # sweep found ONE cell suggesting the /Ox loop-free threshold carries it
+    # too — both `mem-*` rows are 2-parameter callees. These are the free
+    # functions that decide it without `this` in the way.
+    ("ext-2arg", "ext-base", 2, False, False,
+     "int c1(int q,int a){ int v=gs(a)+a; %s return v; }", "s=c1(1,s);",
+     "an unused SECOND parameter: does /Ox carry §6.17.6's correction?"),
+    ("ext-3arg", "ext-base", 3, False, False,
+     "int c1(int q,int r,int a){ int v=gs(a)+a; %s return v; }",
+     "s=c1(1,2,s);", "HELD OUT: a third parameter should move it twice"),
+
+    # ---- AXIS 5: templates ----------------------------------------------
+    ("tmpl-ext", "ext-base", 1, False, False,
+     "template<class T> T c1(T a){ T v=gs(a)+a; %s return v; }",
+     "s=c1<int>(s);", "an instantiation — a COMDAT, like an `inline` function"),
+    ("tmpl-sta", "sta-base", 1, False, False,
+     "template<class T> static T c1(T a){ T v=gs(a)+a; %s return v; }",
+     "s=c1<int>(s);", "…spelled `static`"),
+    ("tmpl-inline", "tmpl-ext", 1, True, False,
+     "template<class T> inline T c1(T a){ T v=gs(a)+a; %s return v; }",
+     "s=c1<int>(s);", "…spelled `inline`: does the term stack?"),
+]
+
+
+def axis_sweep(kind, mode, wd, nmax, kmax, scout=False):
+    """One axis row, swept over 4-byte rungs. Returns the measured profile.
+
+    The N sweep BREAKS at the first declined site: `/O1`'s decision is
+    all-or-nothing per (caller, callee) over 2 904 objects (§6.15.1) and every
+    row since has agreed, so the prefix is the whole answer. `nd` is still read
+    per N, so a genuinely mixed row would print `MIXED` rather than be
+    swallowed.
+    """
+    name, ctl, np_, inl, force, tmpl, site, note = kind
+    o1 = "/O1" in mode
+    rows, bad = [], 0
+    for k in range(0, (1 if scout else kmax) + 1):
+        leads = tmpl % stmts_fine(k)
+        s, sc, ndir, mixed, ind, sref = None, None, 0, False, 0, None
+        leaf = False
+        for n in range(1, nmax + 1):
+            src = src_of(GS, [leads],
+                         "%s %s %s" % (INT_HEAD, " ".join([site] * n),
+                                       INT_TAIL))
+            o = capture(src, mode, wd, "ax_%s_%d_%d" % (name, k, n))
+            r = None if o is None else read(o)
+            if r is None or "error" in r:
+                bad += 1
+                break
+            if n == 1:
+                s = size_of(r["emit"], "c1")
+                sc = (pressure_of(o, "c1") or {}).get("sc")
+                leaf = callee_is_leaf(o, "c1")
+            # A surviving `bl` and a surviving `bctrl` are both declines. The
+            # reloc table sees only the first, and the whole point of the
+            # `virtual` rows is that they take the second (§6.18).
+            nd = sum(declined(r["rel"], ["c1"]).values()) + r["nind"]
+            ind = max(ind, r["nind"])
+            if 0 < nd < n:
+                mixed = True
+            if nd:
+                break
+            ndir = n
+        idx = sched_index(s, np_, inl, sc == 2, bool(leaf))
+        if not o1 and s is not None:
+            # §6.15.4 states the /Ox loop-free threshold on the callee's size
+            # AS EMITTED AT /O1 — the /Ox-emitted size demonstrably does not
+            # decide it — so the /Ox lane costs one extra reference capture
+            # per rung. Without it this lane can only abstain.
+            src = src_of(GS, [leads],
+                         "%s %s %s" % (INT_HEAD, site, INT_TAIL))
+            o = capture(src, "/O1 /GS- /c", wd, "axref_%s_%d" % (name, k))
+            r = None if o is None else read(o)
+            if r is not None and "error" not in r:
+                sref = size_of(r["emit"], "c1")
+        rows.append({"k": k, "s": s, "sc": sc, "idx": idx, "ndir": ndir,
+                     "mixed": mixed, "ind": ind, "sref": sref,
+                     "leaf": bool(leaf), "np": np_})
+    return {"name": name, "ctl": ctl, "note": note, "force": force,
+            "rows": rows, "bad": bad}
+
+
+def axis_report(res, nmax, o1):
+    """Print one axis row and return its summary dict."""
+    name, rows = res["name"], res["rows"]
+    disc = ref = disc_ref = 0
+    lo = hi = None                # largest index inlined / smallest declined
+    classes, prof = set(), []
+    print("    %-18s %-3s %-6s %-6s %-6s %-9s %-10s %s"
+          % ("kind", "k", "s", "index", "Ndir", "class", "predicted", ""))
+    for r in rows:
+        if r["s"] is None or r["sc"] is None:
+            print("    %-18s %-3d %-6s %-6s %-6s %-9s %-10s %s"
+                  % (name, r["k"], "-", "-", "-", "-", "-",
+                     "not graded: NO CALLEE (did it compile?)"))
+            continue
+        cls = {2: "EXTERNAL", 3: "STATIC"}.get(r["sc"], "sc=%s" % r["sc"])
+        classes.add(cls)
+        prof.append(r["ndir"])
+        # at /Ox the axis is the /O1-EMITTED size (§6.15.4), not the /O1 index
+        key = r["idx"] if o1 else r["sref"]
+        if key is not None and not r["ind"]:
+            if r["ndir"]:
+                lo = key if lo is None else max(lo, key)
+            else:
+                hi = key if hi is None else min(hi, key)
+        if r["ind"]:
+            # §6.18.4: the site is a `bctrl` through a vtable, so the callee's
+            # identity is not known where the decision would be made. Grading
+            # it against a rule about a NAMED callee would print a refutation
+            # on every row of a class no rule here covers — the eighth
+            # cry-wolf, avoided the way the other seven were, by an abstention
+            # that is READ OUT OF THE OBJ.
+            mark = ("not graded: INDIRECT CALL SITE (%d x `bctrl`) — there is"
+                    " no callee to price (§6.18.4)" % r["ind"])
+        elif not o1:
+            if r["sref"] is None:
+                mark = "not graded: NO /O1 REFERENCE SIZE"
+            else:
+                want, got = grade_ox(r["sref"], r["ndir"], nmax, r["np"],
+                                     r["leaf"])
+                base = r["sref"] - (OX_LEAF_BONUS if r["leaf"] else 0)
+                d = not (OX_LOOPFREE[0] - 8 < base < OX_LOOPFREE[1] + 8)
+                disc += 0 if d else 1
+                if want == "?":
+                    mark = "not graded: inside §6.15.4's own 108/112 gap"
+                elif want == got:
+                    mark = "%s OK%s" % (want,
+                                        "   <== discriminating" if not d
+                                        else "")
+                else:
+                    ref += 1
+                    disc_ref += 0 if d else 1
+                    mark = ("%s vs %s   <== *** REFUTES THE /Ox LOOP-FREE"
+                            " THRESHOLD (s@/O1=%d) ***" % (want, got,
+                                                           r["sref"]))
+        elif cls.startswith("sc="):
+            mark = "not graded: UNKNOWN CLASS"
+        elif res["force"]:
+            mark = "not graded: __forceinline"
+        else:
+            want, lbl = axis_predict(r["idx"], r["sc"], nmax)
+            d = axis_discriminates(r["idx"], r["sc"], nmax)
+            disc += 1 if d else 0
+            if r["ndir"] == want:
+                mark = "%s OK%s" % (lbl, "   <== discriminating" if d else "")
+            else:
+                ref += 1
+                disc_ref += 1 if d else 0
+                mark = ("%s vs %d   <== *** REFUTES THE %s RULE ***"
+                        % (lbl, r["ndir"],
+                           "EXTERNAL" if r["sc"] == 2 else "SCHEDULE D"))
+        if r["mixed"]:
+            mark += "   <== *** MIXED SITES ***"
+        if "vararg" in name:
+            # ANNOTATED, NOT SUPPRESSED, and read from the SPELLING because a
+            # variadic signature leaves no signal in the obj. §6.18.5 measures
+            # this class outside the size rule in BOTH linkage classes; the row
+            # still prints its refutation so that a compiler which one day
+            # inlined one would not be silently absorbed.
+            mark += "   [VARIADIC — §6.18.5: outside the size rule]"
+        print("    %-18s %-3d %-6d %-6s %-6d %-9s %-10s %s"
+              % (name, r["k"], r["s"],
+                 r["idx"] if o1 else ("@O1 %s" % r["sref"]), r["ndir"], cls,
+                 axis_predict(r["idx"], r["sc"], nmax)[1] if o1 else "-",
+                 mark))
+    step = ("%s/%s" % (lo, hi)) if (lo is not None and hi is not None) \
+        else "NO STEP LOCATED"
+    if o1 and classes == {"STATIC"}:
+        step = "n/a (SCHEDULE D)"
+    print("    -> class %-9s step(%s) %-14s profile %s"
+          % ("/".join(sorted(classes)) or "?", "index" if o1 else "s@/O1",
+             step, "/".join(str(p) for p in prof)))
+    print("       discriminating cells %-3d  refuting rows %-3d  (of which"
+          " discriminating: %d)" % (disc, ref, disc_ref))
+    if not disc:
+        print("       NO DISCRIMINATING CELL — an 8-byte term could not have")
+        print("       shown up in this row, so its agreement says NOTHING.")
+    if res["note"]:
+        print("       %s" % res["note"])
+    print()
+    return {"name": name, "ctl": res["ctl"], "step": step, "lo": lo, "hi": hi,
+            "prof": prof, "disc": disc, "ref": ref, "disc_ref": disc_ref,
+            "cls": "/".join(sorted(classes)),
+            "byidx": {(r["idx"] if o1 else r["sref"]): r["ndir"]
+                      for r in rows
+                      if r["sc"] is not None
+                      and (r["idx"] if o1 else r["sref"]) is not None}}
+
+
+def run_axes(mode, wd, nmax, want=None, scout=False, kmax=None):
+    """The five axes §6.17.11 named, each against a matched control."""
+    o1 = "/O1" in mode
+    print("=== axes   what every ladder in §6.15/§6.16/§6.17 held fixed")
+    print("    Each rung is ONE instruction (4 bytes of `s`); N is swept to %d."
+          % nmax)
+    print("    `class` is READ FROM THE OBJ (COFF storage class), never from")
+    print("    the spelling — §6.17.3's anonymous-namespace row is why.")
+    print("    A rung is DISCRIMINATING iff its class's predictor differs at")
+    print("    index+-8, the size of the only extra term ever found here.")
+    print()
+    bad, out = 0, {}
+    for kind in AXIS_KINDS:
+        if want and kind[0] not in want:
+            continue
+        res = axis_sweep(kind, mode, wd, nmax,
+                         kmax or (AXIS_KMAX if o1 else AXIS_KMAX_OX), scout)
+        bad += res["bad"]
+        out[kind[0]] = axis_report(res, nmax, o1)
+    print("=== axes summary — each probe against its matched control")
+    print("    %-18s %-9s %-16s %-6s %-6s %s"
+          % ("kind", "class", "step(index)", "disc", "refut", "vs control"))
+    tot_d = tot_r = 0
+    for nm, r in out.items():
+        tot_d += r["disc"]
+        tot_r += r["ref"]
+        v = "-"
+        c = out.get(r["ctl"])
+        if c:
+            # The model-free comparison: at every INDEX both rows reached, do
+            # they take the same number of sites? Two kinds start at different
+            # `s`, so the profiles are offset and only an index-matched compare
+            # means anything. A disagreeing shared index is a term, full stop —
+            # no schedule, no rule, no fitting.
+            sh = sorted(set(r["byidx"]) & set(c["byidx"]))
+            dis = [i for i in sh if r["byidx"][i] != c["byidx"][i]]
+            if r["lo"] is not None and c["lo"] is not None \
+                    and r["hi"] is not None and c["hi"] is not None:
+                # Each row BRACKETS its step to (lo, hi]. A ladder whose rungs
+                # are not 4 bytes apart — `long long` moves 8 at a time —
+                # brackets it more loosely, and calling that a MOVE would be
+                # the seventh cry-wolf's little brother. Two brackets are
+                # compatible iff they intersect; only a disjoint pair is a
+                # moved step.
+                inter = max(r["lo"], c["lo"]) < min(r["hi"], c["hi"])
+                if (r["lo"], r["hi"]) == (c["lo"], c["hi"]):
+                    v = "SAME STEP as %s" % r["ctl"]
+                elif inter:
+                    v = ("step bracket (%d,%d] CONSISTENT with %s's (%d,%d]"
+                         % (r["lo"], r["hi"], r["ctl"], c["lo"], c["hi"]))
+                else:
+                    v = ("<== *** STEP MOVED: (%d,%d] vs %s's (%d,%d] ***"
+                         % (r["lo"], r["hi"], r["ctl"], c["lo"], c["hi"]))
+            elif not sh:
+                v = "not comparable: NO SHARED INDEX with %s" % r["ctl"]
+            else:
+                v = "-"
+            v += ("   [%d shared index cells, %d disagree%s]"
+                  % (len(sh), len(dis),
+                     "" if not dis else ": " + ",".join(
+                         "%d(%d vs %d)" % (i, r["byidx"][i], c["byidx"][i])
+                         for i in dis[:4])))
+        print("    %-18s %-9s %-16s %-6d %-6d %s"
+              % (nm, r["cls"], r["step"], r["disc"], r["ref"], v))
+    print()
+    print("    TOTAL discriminating cells: %d   refuting rows: %d" %
+          (tot_d, tot_r))
+    if not tot_d:
+        print("    NO DISCRIMINATING CELL ANYWHERE — this run says NOTHING")
+        print("    about whether these axes carry a term.")
+    return bad
+
+
+def run_lawd(mode, wd, nmax):
+    """Grade LAW Dc, and take its ONE real hold-out — the >=260 ceiling.
+
+    Rungs are `k` calls (12 bytes each) plus `j` one-instruction statements (4
+    bytes each), so any 4-byte target in 48..300 is reachable. `sta-inline`
+    carries the whole schedule 8 bytes lower (§6.17.5), which puts a callee of
+    268 EMITTED bytes at index 260 — the ceiling clamp's cell, and one no
+    version of this table has measured.
+    """
+    print("=== lawd   the clamped form against the measured table, and the")
+    print("    ceiling clamp against cells the table never reached.")
+    miss, fits = law_dc_selfcheck()
+    print("    self-check, 4-byte cells 4..396 where LAW Dc disagrees with")
+    print("    the MEASURED LAW_D_TABLE: %s"
+          % ("none" if not miss else miss))
+    print("    (budget, cap) pairs the measured table admits, searched over")
+    print("    1..59 x 1..39: %s" % (fits,))
+    print()
+    print("    %-12s %-6s %-6s %-6s %-6s %-8s %s"
+          % ("kind", "s", "index", "Ndir", "LAW Dc", "uncapped", "verdict"))
+    bad = wrong = held = 0
+    targets = list(range(48, 116, 4)) + [140, 144, 148,
+                                         248, 252, 256, 260, 264, 268, 272]
+    for kind, inl, tmpl in (
+            ("sta-plain", False, "static int c1(int a){ int v=gs(a)+a;"
+             " %s return v; }"),
+            ("sta-inline", True, "static inline int c1(int a){ int v=gs(a)+a;"
+             " %s return v; }")):
+        seen = set()
+        for t in targets:
+            d = max(0, t - 48)
+            body = stmts_call(d // 12) + " " + stmts_fine((d % 12) // 4)
+            leads = tmpl % body
+            s, sc, ndir = None, None, 0
+            for n in range(1, nmax + 1):
+                src = src_of(GS, [leads], "%s %s %s"
+                             % (INT_HEAD, " ".join(["s=c1(s);"] * n),
+                                INT_TAIL))
+                o = capture(src, mode, wd, "lawd_%s_%d_%d" % (kind, t, n))
+                r = None if o is None else read(o)
+                if r is None or "error" in r:
+                    bad += 1
+                    break
+                if n == 1:
+                    s = size_of(r["emit"], "c1")
+                    sc = (pressure_of(o, "c1") or {}).get("sc")
+                if sum(declined(r["rel"], ["c1"]).values()) + r["nind"]:
+                    break
+                ndir = n
+            if s is None or sc is None:
+                continue
+            idx = sched_index(s, 1, inl, sc == 2)
+            if (kind, idx) in seen:
+                continue
+            seen.add((kind, idx))
+            want = law_dc(idx)
+            unc = None if idx <= 64 else 1 + 79 // (idx - 64)
+            got = nmax if want is None else min(want, nmax)
+            v = "LAW Dc %s OK" % ("unbounded" if want is None else want)
+            if got != ndir:
+                v = ("LAW Dc %s vs %d   <== *** REFUTES LAW Dc ***"
+                     % (want, ndir))
+                wrong += 1
+            elif want is not None and unc is not None \
+                    and min(unc, nmax) != got:
+                v += "   [uncapped LAW D said %d — the clamp is what moved]" \
+                     % min(unc, nmax)
+            # the cells no earlier run reached: the ceiling clamp, seen
+            # through the `inline` shift
+            if inl and idx >= 248:
+                held += 1
+                v += "   <== HELD OUT (index %d reached only via `inline`)" \
+                     % idx
+            print("    %-12s %-6d %-6d %-6d %-6s %-8s %s"
+                  % (kind, s, idx, ndir,
+                     "unbnd" if want is None else want,
+                     "-" if unc is None else unc, v))
+        print()
+    print("    rows refuting LAW Dc: %d   held-out ceiling cells graded: %d"
+          % (wrong, held))
     return bad
 
 
@@ -1891,7 +2668,7 @@ def main(argv):
         for k, (_, _, kmax, note) in sorted(LADDERS.items()):
             print("%-20s k=0..%-3d %s" % (k, kmax, note))
         return 0
-    mode, nmax, kcap = "/O1 /GS- /c", 6, 14
+    mode, nmax, kcap, kset = "/O1 /GS- /c", 6, 14, False
     fams, pairs = [], []
     if "--mode" in argv:
         i = argv.index("--mode"); mode = argv[i + 1]; del argv[i:i + 2]
@@ -1899,6 +2676,7 @@ def main(argv):
         i = argv.index("--max"); nmax = int(argv[i + 1]); del argv[i:i + 2]
     if "--kmax" in argv:
         i = argv.index("--kmax"); kcap = int(argv[i + 1]); del argv[i:i + 2]
+        kset = True
         for nm in list(LADDERS):
             t, g, km, nt = LADDERS[nm]
             LADDERS[nm] = (t, g, min(km, kcap), nt)
@@ -1925,6 +2703,15 @@ def main(argv):
         return 1 if bad else 0
     if "--linkage" in argv:
         bad += run_linkage(mode, wd, nmax)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
+    if "--axes" in argv:
+        bad += run_axes(mode, wd, nmax, want, "--scout" in argv,
+                        kcap if kset else None)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
+    if "--lawd" in argv:
+        bad += run_lawd(mode, wd, nmax)
         print("captures failed: %d" % bad)
         return 1 if bad else 0
     if "--thisctl" in argv:
