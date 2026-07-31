@@ -2343,3 +2343,12 @@ The rules that keep the numbers honest:
   no production for them. This is the frame axis used to **refute**, never to
   rank; it is the identical move that caught `assign-dst-not-formal` through
   `cflow-loop`, and it cost one query against a scan that was already on disk.
+
+  **Reading older records.** Six key names in this repo's history no longer
+  exist: `param-width-undetermined:eof`, `call-args-none:eof`,
+  `this-undetermined:eof`, `param-multi-reg:eof`, `expr-ptr-arith:eof` and
+  `formals-marker:eof` are now the same rows spelled `:mid`, in full and with the
+  counts unchanged — `docs/IL_STORE_LEAF.md` §, `docs/IL_CALL_IN_EXPR.md` §21 and
+  its two tables quote them as they read at the time and are left alone. The two
+  mixed keys split rather than moved. Nothing merged, so every recorded
+  comparison remains valid; only the suffix that was never true was withdrawn.
