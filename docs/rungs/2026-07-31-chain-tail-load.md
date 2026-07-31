@@ -219,8 +219,8 @@ Two fragments, graded by reverting each rule individually over the whole
 | lane | result |
 |---|---|
 | `cargo test --workspace` | **490 pass / 0 fail** (was 484 / 0) |
-| `c2rs bench` | **186 pass / 0 fail / 0 error** (was 182 / 0 / 0) |
-| `scripts/mode_lane.sh` `/Ox` / `/O1` / `/O2` / `/Ox /Gy` | **88 / 86 / 86 / 86**, 0 mismatch in all four (was 86/84/84/84) |
+| `c2rs bench` | **187 pass / 0 fail / 0 error** (was 182 / 0 / 0; 187 fixtures, three of them this rung's) |
+| `scripts/mode_lane.sh` `/Ox` / `/O1` / `/O2` / `/Ox /Gy` | **89 / 87 / 87 / 87**, 0 mismatch in all four (was 86/84/84/84) |
 | `scripts/expr_sweep.sh` | **13,220 cases, 0 mismatches** (12,791 before) |
 | `scripts/cross_sweep.sh` | **20,194 × 4 configurations, 0 mismatches** (16,985 × 4 before) — the count grew because `call-sequence-load` is a new declared family and the lane crosses it against all 25 others |
 | 878-TU workload scan | mismatch **0**, census **685,165 / 2,462,571 = 27.82 %**, disagreement **0** |
