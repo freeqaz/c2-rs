@@ -1365,23 +1365,37 @@ LAW = {
 #            is 4 and `cf-else` (the same code with `else`) is 5.
 #
 #   SCOPE-EXIT. A function that owns any local with a non-trivial destructor
-#            pays E += 2 ONCE — not per object — and constructors and
-#            destructors are otherwise ordinary inline instances with E = 0,
-#            exactly like any other callee. P itself pays nothing because P is
-#            not an inline instance.
+#            pays, ONCE — not per object — a term worth **d + 1** at its own
+#            depth d. NOT an E unit: an E unit would be worth 2*d, which is
+#            the same 2 at depth 1 and one too many at depth 2. Constructors
+#            and destructors are otherwise ordinary inline instances with
+#            E = 0, exactly like any other callee, and P itself pays nothing
+#            because P is not an inline instance.  (ROUND 18 — see below.)
 #
-#   POINTER/REFERENCE. +1 once per callee that is handed the address of a
-#            SCALAR AUTOMATIC variable — the thing that has to leave a register
-#            to acquire an address. Not "an argument that needed a temp" (§6.7
-#            predicted from that and both predictions inverted) and not
-#            "automatic storage": a local array element, a local struct member
-#            and a whole local struct by `const&` are all already addressable
-#            and all cost 0, as do a global and a function-static.
+#   POINTER/REFERENCE. +1 once per depth-1 instance handed the address of a
+#            SCALAR AUTOMATIC variable — the thing that has to leave a
+#            register to acquire an address — **and only when P's ENTIRE
+#            expansion is flat**, i.e. P contains no inline instance below
+#            depth 1 at all. Not "an argument that needed a temp" (§6.7
+#            predicted from that and both predictions inverted), not
+#            "automatic storage" (a local array element, a local struct member
+#            and a whole local struct by `const&` are already addressable and
+#            all cost 0, as do a global and a function-static), and — ROUND
+#            19-21 — not "handed at depth 1", not "used at depth 1", not
+#            "the deepest use is at depth 1". One nested inline anywhere in P,
+#            even at an unrelated call site that never touches the address,
+#            removes the +1 entirely.
 #
-# Two entries here are LIVE REFUTATIONS, kept as the law's prediction rather
-# than the measurement so that they re-run instead of being remembered:
-# `d2-dtor` (law 28, measured 27) and `d2-ptr-auto` (law 11, measured 9). Both
-# are the same shape of failure — a rule fitted at depth 1 and extended down.
+# ROUND 18-21 REWROTE THE LAST TWO OF THOSE FOUR RULES. The two live
+# refutations this block used to carry — `d2-dtor` (law 28, measured 27) and
+# `d2-ptr-auto` (law 11, measured 9) — are now consequences of the corrected
+# rules rather than outstanding misses. They were NOT fitted away: the
+# corrections are derived from held-out cells (`d2-ctor` = 17 carries no
+# contested term and pins the scope-exit value at depth 2 by subtraction;
+# `d3-dtor` = 40 is the extrapolation; `ptr-use-d1`, `ptr-use-nest`,
+# `ptr-sibling` each refuted a pre-registered rival for the pointer rule), and
+# the retired wordings are kept in SUPERSEDED below so their refutations
+# re-run on every invocation instead of being remembered.
 # ---------------------------------------------------------------------------
 LAW_BOOK = {
     # --- switch: E = groups + 2, depth-scaled, multi-exit +1 as usual -------
@@ -1397,27 +1411,56 @@ LAW_BOOK = {
     "dtor": 16, "dtor-empty": 16, "dtor-only": 11, "dtor-2obj": 27,
     "dtor-3obj": 38, "dtor-body-loc": 18, "dtor-direct": 6,
     "dtor-direct-only": 3,
-    "d2-dtor": 28,          # <== REFUTED: measured 27. Kept as the law's word.
-    # --- the pointer/reference +1 is ADDRESSABILITY -------------------------
+    "d2-dtor": 27,          # 3 + [5 + 2*1 + S(2)=3] + 7 + 7   (S(d) = d+1)
+    # --- the pointer/reference +1 is ADDRESSABILITY, and only in a FLAT P ---
     "ref-param": 4, "ptr-param": 4, "ptr-already": 4, "ref-const-read": 4,
     "ptr-2args": 4, "ptr-mixed": 4,
     "ptr-global": 3, "ref-global": 3, "ptr-static-local": 3, "ptr-2global": 3,
     "ptr-arrelem": 3, "ref-member": 3, "struct-ref": 3, "struct-param": 3,
-    "d2-ptr-auto": 11,      # <== REFUTED: measured 9.  Kept as the law's word.
-    # --- ROUND 18, THE DEPTH LADDER: the law's word BEFORE the capture ------
-    # Committed ahead of the run so the grading is a prediction and not a fit.
-    # Each is law L' as stated above, evaluated on the tree the front end is
-    # expected to build; the rivals are in each family's note.
+    "d2-ptr-auto": 9,       # P is not flat, so the +1 does not fire: 4 + 5
+    # --- ROUND 18-21, THE DEPTH LADDER -------------------------------------
+    # Every one of these was committed with law L's word BEFORE its capture
+    # (see the git history of this file); the values below are the corrected
+    # law, and the pre-registered predictions each row was graded against are
+    # in its family note and in SUPERSEDED.
+    #   uncontested controls — exact as first written:
     "d2-ctor": 17, "d3-ctor": 27,
-    "d2-dtor-only": 21, "d2-dtor-2obj": 44, "d3-dtor": 42,
+    #   switch, exact as first written at depth 3 and at two group counts:
     "d3-switch": 37, "d3-sw2": 28, "d2-sw-void": 22, "d2-sw-1exit": 24,
-    "d2-ptr-p": 11, "d3-ptr-auto": 20, "d2-ptr-glob": 8,
-    # --- ROUND 19: committed before its capture, same discipline -----------
-    "ptr-use-d1": 9,
-    # --- ROUND 20 ----------------------------------------------------------
-    "ptr-use-nest": 9,
-    # --- ROUND 21 ----------------------------------------------------------
-    "ptr-sibling": 12, "ptr-sibling-rev": 11,
+    #   scope-exit S(d) = d+1, all three refuted the E+=2 wording:
+    "d2-dtor-only": 20, "d2-dtor-2obj": 43, "d3-dtor": 40,
+    #   addressability: fires only when P's whole expansion is flat:
+    "d2-ptr-p": 8, "d3-ptr-auto": 17, "d2-ptr-glob": 8,
+    "ptr-use-d1": 8, "ptr-use-nest": 8,
+    "ptr-sibling": 11, "ptr-sibling-rev": 11,
+}
+
+# ---------------------------------------------------------------------------
+# SUPERSEDED — the wordings rounds 18-21 retired, kept as data so that every
+# run RECOMPUTES their refutation instead of the reader recalling it. A row
+# whose measurement disagrees with the retired rule prints the disagreement
+# beside its verdict; a row that agreed with both is silent, because it never
+# discriminated. This is the same discipline as §3's `stride == minted` tag:
+# the point of a superseded model is that it is re-refuted on every run, not
+# that it is deleted and the reason written down in prose somewhere.
+# ---------------------------------------------------------------------------
+SUPERSEDED = {
+    # "the owner of a destructible local pays E += 2" — worth 2*d at depth d.
+    # Exact at depth 1 (eight rows), one too many at depth 2 and two too many
+    # at depth 3.
+    "d2-dtor": (28, "scope-exit as E += 2"),
+    "d2-dtor-only": (21, "scope-exit as E += 2"),
+    "d2-dtor-2obj": (44, "scope-exit as E += 2"),
+    "d3-dtor": (42, "scope-exit as E += 2"),
+    # "+1 once per callee HANDED the address of a scalar automatic", scaled by
+    # that callee's depth like any other E unit.
+    "d2-ptr-auto": (11, "addressability as a depth-scaled E unit"),
+    "d2-ptr-p": (11, "addressability as a depth-scaled E unit"),
+    "d3-ptr-auto": (20, "addressability as a depth-scaled E unit"),
+    # the three intermediate readings, each refuted by exactly one row
+    "ptr-use-d1": (9, "addressability keyed on USE at depth 1"),
+    "ptr-use-nest": (9, "addressability keyed on the DEEPEST use being depth 1"),
+    "ptr-sibling": (12, "addressability scoped to the call site's own tree"),
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
@@ -1585,6 +1628,12 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
                   " DIFFERENT expansion tree" % (tag, want)
     else:
         verdict = "%s %d vs %s  <== *** REFUTES LAW L' ***" % (tag, want, got)
+    # A retired wording is re-refuted here, from this run's own measurement,
+    # rather than remembered. Silence means the row never discriminated.
+    sup = SUPERSEDED.get(name)
+    if sup is not None and got is not None and not refused and sup[0] != got:
+        verdict += "   [retired '%s' said %d, measured %s]" % (sup[1], sup[0],
+                                                              got)
     shape = ("LINEAR to N=%d" % nmax if lin
              else "one-off %+d at N=1, linear after" % oneoff if oneoff
              else "*** NON-LINEAR ***")
