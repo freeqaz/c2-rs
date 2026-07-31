@@ -2,12 +2,10 @@ use super::body::{
     self, call_tokens, parse_segment_detail, BodyShape, DtorSubObject, CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL, OPT_MODE,
 };
-use super::bundle::mangled_is_varargs;
-use super::bundle::{opt_word_at, opt_word_mode};
+use super::bind::Bindings;
 use super::bundle::shape_to_function;
 use super::bundle::split_function_bodies;
-use super::gl::{mangled_names, source_path, GlIndex};
-use super::sy::SyLocals;
+use super::bundle::{opt_word_at, opt_word_mode};
 use super::Block;
 use super::IlFunction;
 use crate::IlBundle;
@@ -148,14 +146,13 @@ impl IlBundle {
     pub fn census_functions(&self) -> Option<Vec<(FnCensus, Result<IlFunction, &'static str>)>> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
-        let names = mangled_names(gl);
         let segs = split_function_bodies(ex);
-        // Names are paired positionally, which is only meaningful when `.gl`
-        // yields exactly one name per body. On a real TU `mangled_names` finds
-        // far fewer (it accepts only `?…@@…` forms, and `.gl` also lists
-        // externals), so pairing there would attach wrong names to functions —
-        // report none rather than a plausible-looking lie.
-        let paired = names.len() == segs.len();
+        // The whole correspondence seam comes from ONE place ([`super::bind`]).
+        // The census's names are paired POSITIONALLY, which is a different
+        // binding from the gate's per-record one — `bind.rs`'s module doc states
+        // that disagreement and pins it; closing it is roadmap #14's follow-up
+        // and moves the numerator, so it is not done silently here.
+        //
         // `.gl` is deliberately NOT threaded into the body parse. The assignment
         // class used to decide "is this destination a global?" by asking whether
         // `.gl` named it, and that was wrong (a file-scope `static` is `$sv`, which
@@ -164,22 +161,22 @@ impl IlBundle {
         // rather than left in place looking load-bearing. Do not restore the
         // absence test.
         //
-        // Same `.sy` binding as the gate, built from the same segment list, so the
-        // census cannot report a function in class that `IlBundle::functions` would
-        // refuse for want of a local — or the reverse.
-        let locals = SyLocals::new(self.get("sy"), &segs);
-        // For the gate side of the pair only. Built lazily by `GlIndex`, and the
-        // source path is provenance the emitter does not embed.
-        let symbols = GlIndex::new(gl);
-        let resolve = |tok: u32| -> Option<String> { symbols.map().get(&tok).cloned() };
-        let src = source_path(gl);
+        // The `.sy` locals and the `GlIndex` resolution are the SAME construction
+        // the gate makes — one `Bindings`, one `SyLocals::new`, one `GlIndex` —
+        // so the census cannot report a function in class that
+        // `IlBundle::functions` would refuse for want of a local, or the reverse.
+        // Over the census's own segment list, which is NOT the gate's: see
+        // `bind.rs`'s table.
+        let bind = Bindings::positional(gl, self.get("sy"), &segs);
+        let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
+        let src = bind.src.clone();
         Some(
             segs.iter()
                 .enumerate()
                 .map(|(i, seg)| {
                     // A variadic function is refused on its NAME, because its body
                     // IL is byte-identical to a non-variadic twin's — see
-                    // [`super::bundle::mangled_is_varargs`], which is the same
+                    // [`super::bind::mangled_is_varargs`], which is the same
                     // predicate `functions` applies, so the census and the gate
                     // cannot disagree.
                     //
@@ -188,8 +185,7 @@ impl IlBundle {
                     // blocker is better than inventing a reason: `functions`
                     // refuses that whole TU for want of names anyway, so nothing
                     // here can be emitted either way.
-                    let varargs = paired
-                        && names.get(i).is_some_and(|n| mangled_is_varargs(n));
+                    let varargs = bind.is_varargs(i);
                     // Held across the verdict so the gate side can convert the
                     // very same parse — two readings of one parse, never two parses.
                     let mut shape: Result<BodyShape, Block> = Err(Block {
@@ -206,7 +202,7 @@ impl IlBundle {
                             aux: 0,
                         })
                     } else {
-                        shape = parse_segment_detail(seg, locals.view(i));
+                        shape = parse_segment_detail(seg, bind.locals(i));
                         match &shape {
                             Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                             Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
@@ -289,7 +285,7 @@ impl IlBundle {
                             // symbol — a mis-emit, not a gap. `shape_to_function` is
                             // the same conversion `IlBundle::functions` runs, so the
                             // two cannot disagree about this.
-                            let name = names.get(i).cloned().unwrap_or_default();
+                            let name = bind.name_for_shape(i);
                             match shape_to_function(sh, &name, &src, &resolve) {
                                 None => FnVerdict::Blocked(Block {
                                     ctx: match label {
@@ -344,7 +340,7 @@ impl IlBundle {
                     (
                         FnCensus {
                             index: i,
-                            name: if paired { names.get(i).cloned() } else { None },
+                            name: bind.reported_name(i),
                             seg_len: seg.len(),
                             verdict,
                             hex,
