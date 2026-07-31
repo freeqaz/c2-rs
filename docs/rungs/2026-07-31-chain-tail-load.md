@@ -103,7 +103,10 @@ Three things kept it invisible, and each is a recorded shape:
   are counted, not compiled.
 * **no fragment in `sweep.d` had ever written an explicit `return;`.** It
   changes no operator, no shape and no type — two bytes of IL and nothing else
-  — which is precisely the class that has now found seven live mis-emits.
+  — which is exactly §6n's class, the one that found six live mis-emits the
+  hand-written fixtures could not. This one it did **not** find, because the
+  axis did not exist; it is the seventh member of the class and the first to
+  be caught by something other than a sweep.
 
 It surfaced by accident: a debug `c2rs census` on a real workload TU, run to
 find a witness for something else, tripped the assertion. `scripts/sweep.d/
