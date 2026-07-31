@@ -153,6 +153,15 @@ pub(crate) fn try_parse_member_tail_call(
         eat_return_plumbing(seg, &mut p, false, depth).map_err(|_| None)?;
     } else if seg.get(p) == Some(&0x41) {
         eat_return_plumbing(seg, &mut p, true, depth).map_err(|_| None)?;
+    } else if seg.get(p) == Some(&0x26) {
+        // …or a **second member call** stands where the result would be consumed,
+        // and the two results are compared: `return a->m() == b->n();`. The first
+        // call's result is then live across the second `bl`, which makes the body
+        // **Class B** — see [`super::mcall_cmp`]. Tried before the literal post-op
+        // because a `26` cannot open one.
+        return super::mcall_cmp::try_parse_member_cmp_calls(
+            seg, p, lo, depth, &args, callee_tok, recv_tok,
+        );
     } else {
         // …or the call's result is consumed by a literal `± k` and *then* returned,
         // which makes the body a **framed non-leaf call** rather than a tail one.
@@ -273,7 +282,7 @@ fn framed_member_call(
 /// `GAPS.md` §6's thirteenth live mis-emit was a `volatile` formal read that c2
 /// homes in the frame, and it was pre-existing across seven shapes because each had
 /// asked the question itself. One locator.
-fn eat_receiver_this(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
+pub(crate) fn eat_receiver_this(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
     if !eat_byte(seg, p, 0xB9) {
         return Err(blk(seg, *p, "mcall-recv"));
     }

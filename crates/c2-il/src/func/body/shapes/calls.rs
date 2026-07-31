@@ -904,7 +904,7 @@ fn parse_call_sequence(
     }
     // Class A saves nothing; Class B saves one or two GPRs. Which formals, and in
     // which register, is [`plan_saved_gprs`].
-    let saved = plan_saved_gprs(&params, &calls, *p)?;
+    let saved = plan_saved_gprs(&params, &calls, 0, *p)?;
     Ok(BodyShape::CallSeq { params, calls, tail, saved })
 }
 
@@ -971,7 +971,20 @@ const MAX_INLINE_SAVED_GPRS: usize = 2;
 /// `docs/GAPS.md` §6 #9, so this rung refuses a first call that needs any
 /// marshalling at all while anything is saved. Cost on the 878-TU workload:
 /// **0 functions** (measured by counterfactual).
-fn plan_saved_gprs(params: &[u32], calls: &[SeqCall], p: usize) -> Result<Vec<usize>, Block> {
+///
+/// `extra_saved` is the number of callee-saved GPRs the **tail** needs on top of
+/// the formals — 0 for every Class A/B statement sequence, 1 for a tail that
+/// keeps an earlier call's *result* live across a later `bl`
+/// ([`super::mcall_cmp`]). It exists so the [`MAX_INLINE_SAVED_GPRS`] gate is
+/// applied to the TOTAL: a body needing three registers is the `__savegprlr_29`
+/// helper class whatever the third one holds, and a gate that counted only the
+/// formals would let it through with a Class B prologue and a Class C body.
+pub(crate) fn plan_saved_gprs(
+    params: &[u32],
+    calls: &[SeqCall],
+    extra_saved: usize,
+    p: usize,
+) -> Result<Vec<usize>, Block> {
     let index_of = |t: u32| params.iter().position(|&q| q == t);
     let mut live = vec![false; params.len()];
     for c in calls.iter().skip(1) {
@@ -993,10 +1006,10 @@ fn plan_saved_gprs(params: &[u32], calls: &[SeqCall], p: usize) -> Result<Vec<us
         }
     }
     let saved: Vec<usize> = (0..params.len()).filter(|&i| live[i]).collect();
-    if saved.is_empty() {
+    if saved.is_empty() && extra_saved == 0 {
         return Ok(saved); // Class A — nothing survives a call.
     }
-    if saved.len() > MAX_INLINE_SAVED_GPRS {
+    if saved.len() + extra_saved > MAX_INLINE_SAVED_GPRS {
         return Err(Block { ctx: "callseq-three-plus-saved", byte: None, off: p, aux: 0 });
     }
 
@@ -1288,7 +1301,7 @@ mod tests {
             arg_sources: None,
         };
         let nullary = || SeqCall { callee_tok: 1, arg_ops: Vec::new(), arg_sources: None };
-        let plan = |calls: &[SeqCall]| plan_saved_gprs(&params, calls, 0);
+        let plan = |calls: &[SeqCall]| plan_saved_gprs(&params, calls, 0, 0);
 
         // Nothing read after the first call: Class A, nothing saved.
         assert_eq!(plan(&[call(&[0xA0]), nullary()]).unwrap(), Vec::<usize>::new());

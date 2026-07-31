@@ -265,6 +265,24 @@ pub enum SeqTail {
     CallValue { add_k: i32 },
     /// `return <literal>;` — one `li r3,k`.
     Lit(i32),
+    /// **WCB — the two calls' results compared for `==`**, materialized to a
+    /// 0/1 in r3: `return a->m() == b->n();`.
+    ///
+    /// The **first** call's result is itself live across the second `bl`, so it
+    /// takes a callee-saved register of its own — the one *after* the saved
+    /// formals ([`CallSeq::saved`]), exactly as
+    /// `docs/CODEGEN_FRAMED_CALLS.md` §3.1 records ("call results take the next
+    /// descending register after the parameters"). That is the whole reason this
+    /// tail exists as a variant rather than as a post-op: it changes the frame
+    /// class, and [`CallSeq::saved_gprs`] is where that is spelled.
+    ///
+    /// `lhs_first` says whether the source's **left** operand is the call emitted
+    /// first. It is not always true: c2 orders the two calls by the order c1xx
+    /// NUMBERED their receivers — `this` last, although it is `params[0]` — and
+    /// the spine is `subf r11, <lhs reg>, <rhs reg>` over
+    /// (r30 = first result, r3 = second), so the operand roles and the call order
+    /// are two independent facts. See `docs/rungs/2026-07-31-cmp-two-calls.md`.
+    CmpEq { lhs_first: bool },
 }
 
 /// **A framed many-call body** (#35 step 2): a sequence of statement-position
@@ -290,6 +308,31 @@ pub struct CallSeq {
     /// two entries — three or more is the `__savegprlr_N` helper class and the
     /// IL parser refuses it (`callseq-three-plus-saved`).
     pub saved: Vec<usize>,
+}
+
+impl CallSeq {
+    /// **How many callee-saved GPRs the prologue must `std`** — which is not
+    /// `saved.len()`.
+    ///
+    /// [`Self::saved`] counts the *formals* that have to survive a `bl`. A tail
+    /// that consumes a call's result across a later call needs one more register,
+    /// and c2 takes it from the same descending file immediately after the saved
+    /// formals (`docs/CODEGEN_FRAMED_CALLS.md` §3.1). Keeping the two apart in
+    /// the IL and summing them **here, once** is deliberate: `FrameLayout`,
+    /// `call_seq_parts` and the `MAX_INLINE_SAVED_GPRS` gate all need the total,
+    /// and three copies of `saved.len() + 1` is exactly the one-fact-two-
+    /// implementations drift `docs/GAPS.md` §6 records.
+    pub fn saved_gprs(&self) -> usize {
+        self.saved.len() + usize::from(self.tail.saves_a_call_result())
+    }
+}
+
+impl SeqTail {
+    /// Whether this tail keeps an **earlier call's result** live across a later
+    /// `bl`, which costs one callee-saved GPR beyond the saved formals.
+    pub fn saves_a_call_result(self) -> bool {
+        matches!(self, SeqTail::CmpEq { .. })
+    }
 }
 
 /// A relational operator, as encoded by a single `.ex` operand-stream opcode.

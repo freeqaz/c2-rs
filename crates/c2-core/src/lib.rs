@@ -309,7 +309,7 @@ impl PortC2 {
                             &tail,
                             0,
                             codegen::FrameLayout {
-                                saved_gprs: seq.saved.len() as u8,
+                                saved_gprs: seq.saved_gprs() as u8,
                                 ..Default::default()
                             },
                         )?;
@@ -422,7 +422,7 @@ impl PortC2 {
                         &tail,
                         off,
                         codegen::FrameLayout {
-                            saved_gprs: seq.saved.len() as u8,
+                            saved_gprs: seq.saved_gprs() as u8,
                             ..Default::default()
                         },
                     )?;
