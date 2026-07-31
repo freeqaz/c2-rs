@@ -43,6 +43,9 @@ use super::params::parse_params;
 ///
 /// The destination must be a **formal** (positively, from the `2D` list) or an
 /// automatic `int` **local** (positively, from `.sy` — see [`crate::func::sy`]).
+/// Both sites that bind one ask, and the refusal is raised LAST, at the `26`
+/// that pushed it — see [`dst_not_formal`], which carries what deferring it
+/// measured (WAE, `docs/rungs/2026-07-31-assign-eof.md`).
 ///
 /// An earlier version asked whether `.gl` named the destination and refused if so.
 /// That looked sound and was not: a file-scope `static int sv` appears there as
