@@ -230,7 +230,18 @@ Ranked, frame axis applied by reading the obj rather than the call count.
    this rung landed**, and the largest single key the chain family now carries.
    The literal cell beside it is **2** functions: do not build the `li r4,k`
    path for its own sake.
-2. **The innermost receiver's designator — 5,188 together**, all `-whole`, all
+2. **RETRACTED 2026-07-31 (WRD) — this item is wrong in every particular.**
+   The three keys are **not** chains and their receivers are not designators of
+   one: they are compiler-generated **destructors with one sub-object and one
+   body statement** (`~T(){ Fini(); }`), and the `chain-bind` is that body
+   statement's own `99`. At the workload's `/EHsc` the whole family mints a
+   `__CxxFrameHandler` / `__ehfuncinfo$` prefix, a second `.pdata` and an unwind
+   funclet — **0 of the 5,188 is reachable without the EH model**. Measured, with
+   the exact reproduction and the boundary it sits on, in `docs/EH_RECORDS.md`
+   §6. The original text follows, retained because it is what a first-blocker key
+   name reads like when it is wrong:
+
+   **The innermost receiver's designator — 5,188 together**, all `-whole`, all
    one production each:
    `expr-call-in-expr-recv-field-off0-then-chain-bind-whole` **2,666**,
    `expr-call-in-expr-recv-intrinsic-this-adjust-then-chain-bind-whole` **1,686**,
