@@ -3138,6 +3138,51 @@ kind of function. Both were caught in one capture by the rule §6n now carries:
 stop decoding before any marker, so the axis says nothing about them. Establishing
 `0x64` (145,237) and `0x67` (45,631) is what shrinks that.
 
+## 6p. The 288,072 were not hidden EH stock — WDR, 2026-07-31
+
+Measured in `docs/IL_DECODE_REACH.md`, census delta **0** — an axis, not a rung.
+
+§6o closed by naming its own largest open risk: **`eh-unknown` = 288,072**, bodies
+that stop decoding before any marker, *"larger than either side"*, and it named
+the lever — establishing `0x64` (145,237) and `0x67` (45,631). Both are now
+decoded, from probes that reproduce their census keys from hand-written source
+first.
+
+> **Decode reach 86.5 % → 94.2 % (+188,794 bodies). `eh-unknown` 288,072 →
+> 137,187, −52.4 %. And of the 150,885 bodies that left it, at least 96.4 % carry
+> no EH marker at all** — the EH side grew by **5,197, 2.2 %**, on a population of
+> 188,794 newly legible bodies.
+
+So §6o's phase conclusion stands and its risk is closed in the *favourable*
+direction: the unmeasured stock was ordinary expression work — virtual dispatch
+and returning a class by value — not more EH.
+
+Four things generalize past the rows.
+
+* **`67` alone is worth ZERO, and that was predicted before the scan.** The
+  45,631-body row becomes a 45,631-body `cf-expr-0x9A` row two tokens later; the
+  decode reach comes back at the baseline **to the function**. `cf-expr-0x9A`'s
+  own first-blocker row was 222. §6n's *"a large blocking row is one of five
+  things"* now has a case where the estimate said so **in advance**, in
+  `work/WDR/ESTIMATE.md`, and the scan confirmed it rather than discovering it.
+* **Two opcodes measured separately under-price the pair by 17 %.** `67`+`9A`
+  alone is +37,639, `64` alone is +119,547, together **+188,794** — 31,608 bodies
+  carry both and neither opcode alone moves one of them. Rows are not additive
+  even when the productions are independent.
+* **The ceiling taken neat was right to 1.1 %; both discounts were wrong.**
+  190,868 predicted, 188,794 realized. Fourth recorded instance.
+* **A width below its escape boundary is not a measured width.** `67`'s vtable
+  offset was `00 04 08 0C 34 38` at every witness anyone had — all below `0x80`,
+  where a plain byte and a signed varint are *the same bytes*. It took a
+  hand-written class with forty virtuals to separate them, and the plain-byte
+  reading costs 926 bodies on this corpus. Any field whose witnesses all sit on
+  one side of an encoding boundary is undetermined, however many witnesses there
+  are.
+
+And the block IR is **still worth exactly 718 functions**: the `+expr-modeled`
+column is unchanged to the function in every shape row. 190k more decoded bodies
+moved it by nothing, by construction.
+
 ## 7. Invariants (do not break)
 
 - **Real c2 is the sole judge** — `port(IL) == c2(IL)` byte-exact, timestamp

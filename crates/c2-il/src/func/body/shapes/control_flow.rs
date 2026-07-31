@@ -676,19 +676,18 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             s.eh.any = true;
             s.off_class();
         }
-        // `31`, `64` and `67` are NOT here, and that is a result rather than an
-        // omission. `IL_CALL_GRAMMAR.md` §7 lists them as unidentified, and a
-        // first cut of this file gave `67` a TYPE on the strength of the shape of
-        // its neighbours. Measured over the workload, that read failed at a
-        // non-tag byte in 29,687 bodies (`cf-virtual-type-0x04` / `-0x08`) — which
-        // is the *visible* half. The invisible half is the bodies where a wrong
-        // width happens to land on a legal type and the walk carries on
-        // desynchronized, and there is no counter for those. So an opcode whose
+        // `31` is NOT here, and that is a result rather than an omission —
+        // `IL_CALL_GRAMMAR.md` §7 lists it as unidentified. An opcode whose
         // payload no capture has established refuses here, at itself, as
-        // `cf-expr-0xNN`. The row is then an honest measurement of what
-        // establishing it would buy: `64` is 145,237 bodies and `67` is 45,631
-        // — the two largest rows on this axis now that the EH trailers decode —
-        // and both are expression-layer work, not this rung's.
+        // `cf-expr-0xNN`, and the row is then an honest measurement of what
+        // establishing it would buy. (`64` and `67` used to be in this sentence.
+        // A first cut of this file had given `67` a TYPE on the strength of the
+        // shape of its neighbours, and that read failed at a non-tag byte in
+        // 29,687 bodies — the *visible* half of a wrong width; the invisible half
+        // is the bodies where the guess lands on a legal type and the walk
+        // carries on desynchronized, for which there is no counter. Both are
+        // decoded below now, each from a capture that separates its reading from
+        // the plausible alternative.)
         // `44` — PAYLOAD-FREE. Witnessed twice (`44 30 …` and `44 55 …`), and the
         // byte after it has bit 7 clear at both sites, so it cannot be carrying a
         // TYPE. Its meaning is UNKNOWN ("materialize / bind" is the obvious guess
@@ -756,6 +755,71 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             if eat_class_descriptor(s.seg, &mut s.p).is_none() {
                 return Err(blk(s.seg, s.p, "cf-class-descriptor"));
             }
+            s.off_class();
+        }
+        // ---- virtual dispatch, and the by-value return (WDR) ----------------
+        //
+        // `67 <varint vtable-byte-offset> <token>` — VIRTUAL DISPATCH. The whole
+        // production is `67 <slot> <method-tok>  B9 <recv>  30 <TYPE>  30 <TYPE>
+        // 9A <TYPE>  BD … 4C`: load the receiver, load its vtable pointer, load
+        // the slot, bind, call. It is why a `99`-bind site is direct dispatch by
+        // construction (`docs/IL_CALL_IN_EXPR.md` §3).
+        //
+        // **The first field is a signed varint, and that is MEASURED, not
+        // assumed.** Every witness anyone had was `00`, `04`, `08`, `0C`, `34`,
+        // `38` — all below `0x80`, where a plain byte and a varint agree, so the
+        // two readings were indistinguishable. `work/WDR/probe/p3.cpp` separates
+        // them with a class carrying forty virtuals: calling the 33rd emits
+        // `67 80 80 00 00 00 04 0A` — the varint escape, at byte offset 128. A
+        // plain-byte reading desynchronizes on every class with more than 32
+        // virtual functions, which in this corpus is 315 bodies per 838k.
+        0x67 => {
+            s.p += 1;
+            s.vint("cf-virtual-slot")?;
+            s.tok("cf-virtual-tok")?;
+            s.off_class();
+        }
+        // `9A <TYPE>` — the vtable-slot bind, the virtual sibling of `99`. Its
+        // width is separated from `99`'s `<TYPE> <varint>` by the corpus and not
+        // by analogy: a trailing varint swallows the `BD` that follows at every
+        // site, and the byte after `BD` is a TYPE tag, which is not an operand
+        // opcode. Measured over 837,830 bodies, `9A <TYPE>` decodes **13,024**
+        // that `9A <TYPE> <varint>` does not, and the latter decodes none that
+        // the former does not.
+        //
+        // It is listed here rather than with `99` because it is what makes `67`
+        // worth anything: alone, decoding `67` moves the 45,631-body row to a
+        // 45,631-body `cf-expr-0x9A` row two tokens later and the decode reach by
+        // **zero** — the §6n rule that a first-blocker row is not a population,
+        // arriving as a measured prediction rather than a surprise.
+        0x9A => {
+            s.p += 1;
+            s.ty("cf-vbind-type")?;
+            s.off_class();
+        }
+        // `64 <TYPE>` — the by-value return's temporary MATERIALIZE, in the same
+        // syntactic slot a `BD` call occupies and closed by the same `4C`.
+        // Reproduced from hand-written source (`work/WDR/probe/p2.cpp`, a
+        // 27-function battery of which exactly one emits it):
+        //
+        //     void c_val(B* b) { b->Val(); }        // Val() returns a class BY VALUE
+        //     26 <Val>  B9 <b> <B*>  99 <TYPE> 00  BD <A*> 00 <id>
+        //     9B <aggregate TYPE> <tok>             bind the temporary
+        //     2C <A*> 00                            its address
+        //     64 <A*>  4C                           materialize into it
+        //     30 <aggregate TYPE>  4B               and read it back
+        //
+        // No trailing field, on the model of `40 <TYPE result>`: `4C` is an
+        // opcode of this grammar in its own right (it closes a call's operand
+        // region) and is therefore not `64`'s payload. That distinction is very
+        // nearly unobservable — a `<TYPE> <varint>` reading swallows the `4C` and
+        // reaches the same tail — and the corpus separates the two by exactly
+        // **one body in 837,830**. Recorded as such rather than dressed up: this
+        // is the same standing as `99`'s trailing `00`, which is
+        // INDISTINGUISHABLE from a constant and is documented that way.
+        0x64 => {
+            s.p += 1;
+            s.ty("cf-materialize-type")?;
             s.off_class();
         }
         // `99 <TYPE> <varint>` member bind and `9B <TYPE> <token>` temporary bind.
@@ -1209,19 +1273,22 @@ mod tests {
     /// residue of `cf-expr-0x5C` rankable at all rather than a hole in the census.
     #[test]
     fn a_marker_then_a_stop_is_not_bare() {
-        // Splice an opcode this scanner refuses (`64`, still unestablished) after
-        // the sub-object statement's `4B`.
+        // Splice an opcode this scanner refuses (`05`, still unestablished —
+        // `IL_STMT_GRAMMAR.md` §5's operator table stops at `%` = `06` and does
+        // not say what `05` is) after the sub-object statement's `4B`. This was
+        // `64` until WDR established it; the substitution is 1:1 in what the test
+        // asserts, which is that SOME refusal after a marker reads `eh-partial`.
         let mut seg = EH_ONE.to_vec();
         let at = seg
             .windows(6)
             .position(|w| w == [0x5C, 0x86, 0x41, 0x74, 0x01, 0x4B])
             .expect("the statement trailer")
             + 6;
-        seg.splice(at..at, [0x64]);
+        seg.splice(at..at, [0x05]);
         assert_eq!(eh(&seg).0, "eh-partial");
         // …and a body that stops BEFORE any marker claims nothing.
         let mut early = EH_ONE.to_vec();
-        early.splice(4..4, [0x64]);
+        early.splice(4..4, [0x05]);
         assert_eq!(eh(&early).0, "eh-unknown");
     }
 
@@ -1249,6 +1316,158 @@ mod tests {
             .expect("the 5D trailer");
         bad.remove(at + 2); // the escape marker
         assert!(scan(&bad).is_err(), "a mis-read state field must not reach the tail");
+    }
+
+    // ---- WDR: virtual dispatch (`67`, `9A`) and the by-value return (`64`) ---
+    //
+    // Every constant below is transcribed byte for byte from a capture at the
+    // 878-TU workload's own flags (`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi
+    // /EHsc`), `work/WDR/probe/p1.cpp` and `p3.cpp`.
+
+    /// **[WDR p1] `struct W { virtual int A(); … }; int w_a(W* p){ return p->A(); }`**
+    /// — virtual slot 0. The whole production: dispatch token, receiver, two
+    /// indirect loads (vtable pointer, then the slot), the `9A` bind, the call.
+    const VIRT_SLOT0: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x67, 0x00, 0x01, 0x0A, // virtual dispatch, vtable byte offset 0
+        0xB9, 0x0E, 0x0A, 0x86, 0x43, 0x9B, 0x20, // load p
+        0x30, 0xA6, 0x43, 0x9E, 0x20, // -> the vtable pointer
+        0x30, 0x86, 0x43, 0x99, 0x20, // -> the slot
+        0x9A, 0x86, 0x43, 0x9F, 0x20, // bind it
+        0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x1F, 0x10, 0x00, 0x00, 0x4C, //
+        0x41, 0x86, 0x41, 0x74, //
+        0x3A, 0x10, 0x0A, 0x54, 0x02, 0x29, 0x10, 0x0A, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[WDR p3] `int w31(Wide* p){ return p->v31(); }`** — the 32nd virtual, at
+    /// byte offset `0x7C`. The last slot whose offset fits the varint short form.
+    const VIRT_SLOT31: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x67, 0x7C, 0x03, 0x0A, //
+        0xB9, 0x16, 0x0A, 0x86, 0x43, 0x81, 0x20, //
+        0x30, 0xA6, 0x43, 0x85, 0x20, 0x30, 0x86, 0x43, 0x94, 0x20, //
+        0x9A, 0x86, 0x43, 0x86, 0x20, //
+        0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00, 0x4C, //
+        0x41, 0x86, 0x41, 0x74, //
+        0x3A, 0x18, 0x0A, 0x54, 0x02, 0x29, 0x18, 0x0A, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[WDR p3] `int w32(Wide* p){ return p->v32(); }`** — the 33rd virtual, at
+    /// byte offset `0x80`, and **the separator this whole reading rests on**:
+    /// `67 80 80 00 00 00`. Every witness before this file existed was below
+    /// `0x80`, where a plain byte and a signed varint are indistinguishable.
+    const VIRT_SLOT32: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x67, 0x80, 0x80, 0x00, 0x00, 0x00, 0x04, 0x0A, // slot offset 128, escaped
+        0xB9, 0x19, 0x0A, 0x86, 0x43, 0x81, 0x20, //
+        0x30, 0xA6, 0x43, 0x85, 0x20, 0x30, 0x86, 0x43, 0x94, 0x20, //
+        0x9A, 0x86, 0x43, 0x86, 0x20, //
+        0xBD, 0x86, 0x41, 0x74, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00, 0x4C, //
+        0x41, 0x86, 0x41, 0x74, //
+        0x3A, 0x1B, 0x0A, 0x54, 0x02, 0x29, 0x1B, 0x0A, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[WDR p3] `void b_discard(Src* s){ s->Make(); }`**, `Src::Make()` returning
+    /// a three-int class **by value**. The `64` production, whole: the call, the
+    /// `9B` temporary, its address, `64 <TYPE>`, the `4C`, and the read-back.
+    const BYVAL: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x26, 0x34, 0x0A, // push Make
+        0xB9, 0x44, 0x0A, 0x86, 0x43, 0x96, 0x20, // load s
+        0x99, 0x86, 0x43, 0x9B, 0x20, 0x00, // member bind
+        0xBD, 0x86, 0x43, 0xA9, 0x20, 0x00, 0x80, 0x1B, 0x10, 0x00, 0x00, //
+        0x9B, 0x86, 0xC6, 0x99, 0x20, 0x47, 0x0A, // bind the temporary
+        0x2C, 0x86, 0x43, 0xA9, 0x20, 0x00, // its address
+        0x64, 0x86, 0x43, 0xA9, 0x20, // MATERIALIZE
+        0x4C, //
+        0x30, 0x86, 0xC6, 0x99, 0x20, 0x4B, // read it back, end of statement
+        0x3A, 0x46, 0x0A, 0x54, 0x02, 0x29, 0x46, 0x0A, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[WDR p3] `void b_virt(Src* s){ s->VMake(); }`** — a **virtual** call
+    /// returning by value, so `67`, `9A` and `64` all appear in one body. The
+    /// composition is the check: three independently established widths that have
+    /// to agree on one cursor to reach the tail.
+    const BYVAL_VIRT: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, //
+        0x67, 0x00, 0x35, 0x0A, //
+        0xB9, 0x5A, 0x0A, 0x86, 0x43, 0x96, 0x20, //
+        0x30, 0xA6, 0x43, 0x9A, 0x20, 0x30, 0x86, 0x43, 0x94, 0x20, //
+        0x9A, 0x86, 0x43, 0x9B, 0x20, //
+        0xBD, 0x86, 0x43, 0xA9, 0x20, 0x00, 0x80, 0x1B, 0x10, 0x00, 0x00, //
+        0x9B, 0x86, 0xC6, 0x99, 0x20, 0x5D, 0x0A, //
+        0x2C, 0x86, 0x43, 0xA9, 0x20, 0x00, //
+        0x64, 0x86, 0x43, 0xA9, 0x20, 0x4C, //
+        0x30, 0x86, 0xC6, 0x99, 0x20, 0x4B, //
+        0x3A, 0x5C, 0x0A, 0x54, 0x02, 0x29, 0x5C, 0x0A, //
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// All five decode end to end, and every one is a single basic block — a
+    /// virtual call is not control flow at this layer, which is the fact that
+    /// keeps `cflow-straight` honest when 45,631 bodies join it.
+    #[test]
+    fn virtual_dispatch_and_byvalue_return_decode() {
+        for seg in [VIRT_SLOT0, VIRT_SLOT31, VIRT_SLOT32, BYVAL, BYVAL_VIRT] {
+            assert_eq!(
+                scan(seg),
+                Ok(CfBody { shape: CfShape::Straight, residue: CfResidue::Expression })
+            );
+        }
+    }
+
+    /// **The vtable slot is a signed varint, and only `w32` can say so.** `w31`
+    /// (offset `0x7C`) and `w32` (offset `0x80`) are the same function with one
+    /// digit changed in the source, and their encodings differ by four bytes.
+    /// Truncating the escape payload by one byte must not reach the tail — a
+    /// width that fails is visible, a width that succeeds by luck is not.
+    #[test]
+    fn the_vtable_slot_is_a_varint_not_a_byte() {
+        assert!(VIRT_SLOT31.windows(2).any(|w| w == [0x67, 0x7C]));
+        assert!(VIRT_SLOT32.windows(6).any(|w| w == [0x67, 0x80, 0x80, 0x00, 0x00, 0x00]));
+        assert!(scan(VIRT_SLOT31).is_ok() && scan(VIRT_SLOT32).is_ok());
+        let mut short = VIRT_SLOT32.to_vec();
+        short.remove(5); // one byte out of the escape payload
+        assert!(scan(&short).is_err(), "a mis-read slot field must not reach the tail");
+    }
+
+    /// **`9A` carries no trailing field, and `99`'s spelling proves it can.**
+    /// Splicing `99`'s `<varint>` in after `9A <TYPE>` — the one plausible
+    /// alternative reading, since the two opcodes are adjacent and both bind —
+    /// swallows the `BD` and lands the walk on a TYPE tag, which is not an
+    /// operand opcode. Over 837,830 real bodies the same separation is worth
+    /// **13,024** decoded bodies to the reading without the field, and **0** to
+    /// the reading with it.
+    #[test]
+    fn the_vtable_bind_has_no_trailing_field() {
+        let at = VIRT_SLOT0
+            .windows(5)
+            .position(|w| w == [0x9A, 0x86, 0x43, 0x9F, 0x20])
+            .expect("the 9A bind")
+            + 5;
+        let mut spliced = VIRT_SLOT0.to_vec();
+        spliced.splice(at..at, [0x00]);
+        assert!(scan(VIRT_SLOT0).is_ok());
+        assert!(scan(&spliced).is_err(), "9A <TYPE> <varint> must not also decode");
+    }
+
+    /// **`64` takes a TYPE, and a byte that cannot be a tag refuses at the type
+    /// rather than being stepped over.** The positive claim this pairs with is
+    /// the composition test above; this one pins the failure direction, which is
+    /// the half a decode-only scanner can get wrong silently.
+    #[test]
+    fn the_materialize_takes_a_type() {
+        let at = BYVAL.windows(5).position(|w| w == [0x64, 0x86, 0x43, 0xA9, 0x20]).unwrap();
+        let mut bad = BYVAL.to_vec();
+        bad[at + 1] = 0x04; // bit 7 clear — cannot be a TYPE tag
+        match scan(&bad) {
+            Err(b) => assert_eq!(b.ctx, "cf-materialize-type"),
+            Ok(_) => panic!("a non-tag byte after 64 must refuse"),
+        }
     }
 
     /// The scanner is decode-only, and this is the test that says so: a body it
