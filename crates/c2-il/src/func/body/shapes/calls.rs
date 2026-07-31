@@ -141,12 +141,13 @@ pub(crate) const MAX_VERIFIED_PERM_CYCLE: usize = 3;
 /// `i` is `args[len-1-i]`); `params` is the formals list with a member function's
 /// `this` at index 0; `off` is the segment offset a refusal reports.
 pub(crate) fn tail_call_shape(
+    seg: &[u8],
     args: Vec<Vec<IlOp>>,
     params: Vec<u32>,
     callee_tok: u32,
     off: usize,
 ) -> Result<BodyShape, Block> {
-    let refuse = |ctx: &'static str| Block { ctx, byte: None, off, aux: 0 };
+    let refuse = |ctx: &'static str| Block::refuse(seg, off, ctx);
     // No arguments at all: the bare `b <callee>`.
     if args.is_empty() {
         return Ok(BodyShape::VoidTailCall { callee_tok });
@@ -238,7 +239,7 @@ pub(crate) fn tail_call_shape(
     // Zero functions on the 878-TU workload, which is why the scan's disagreement
     // counter never saw it: it took a generated probe of the class's neighbours.
     if let Some(ctx) = straight_line_out_of_class_ctx(&arg_ops, &params) {
-        return Err(Block { ctx, byte: None, off, aux: 0 });
+        return Err(Block::refuse(seg, off, ctx));
     }
     Ok(BodyShape::IntTailCall { params, arg_ops, callee_tok })
 }
@@ -274,11 +275,12 @@ pub(crate) fn tail_call_shape(
 /// 4C` — the same reversal every other argument position in this file uses, and
 /// the one a private copy would have had to restate.
 pub(crate) fn link_arg_slots(
+    seg: &[u8],
     args: Vec<Vec<IlOp>>,
     params: &[u32],
     off: usize,
 ) -> Result<Vec<SlotArg>, Block> {
-    let refuse = |ctx: &'static str| Block { ctx, byte: None, off, aux: 0 };
+    let refuse = |ctx: &'static str| Block::refuse(seg, off, ctx);
     // Slot 0 is the receiver, so `n` explicit arguments occupy slots `1..=n` and
     // the last of them must still be a register. Past that a parameter is
     // stack-homed and its setup is a store, not a move — the same boundary
@@ -370,9 +372,9 @@ impl CallRet {
     /// value is thrown away (`4C 4B`), which is exactly where nothing downstream
     /// can notice the FP-ness — the value-consuming sites are gated by their own
     /// `41` result annotation, and the FP tail call marks the function itself.
-    pub(crate) fn discarded(self, off: usize) -> Result<(), Block> {
+    pub(crate) fn discarded(self, seg: &[u8], off: usize) -> Result<(), Block> {
         match self {
-            CallRet::Real => Err(Block { ctx: "call-ret-fp", byte: None, off, aux: 0 }),
+            CallRet::Real => Err(Block::refuse(seg, off, "call-ret-fp")),
             CallRet::Other => Ok(()),
         }
     }
@@ -426,6 +428,7 @@ pub(crate) fn eat_call_token(seg: &[u8], p: &mut usize) -> Result<CallRet, Block
                 ctx: "call-intrinsic",
                 byte: Some(0x40),
                 off: *p,
+                seg_len: seg.len(),
                 aux: id as u64,
             });
         }
@@ -476,7 +479,7 @@ pub(crate) fn eat_call_args(seg: &[u8], p: &mut usize) -> Result<Vec<Vec<IlOp>>,
         args.push(ops);
         if args.len() > 8 {
             // Past the eighth the arguments are stack-homed, which needs a frame.
-            return Err(Block { ctx: "call-args-overflow", byte: None, off: *p, aux: 0 });
+            return Err(Block::refuse(seg, *p, "call-args-overflow"));
         }
     }
     Ok(args)
@@ -529,7 +532,7 @@ pub(crate) fn eat_call_postop(seg: &[u8], p: &mut usize) -> Result<i32, Block> {
         // the thing that overflows.
         Some(0x03) => match k.checked_neg() {
             Some(n) => n,
-            None => return Err(Block { ctx: "call-postop-wide", byte: None, off: *p, aux: 0 }),
+            None => return Err(Block::refuse(seg, *p, "call-postop-wide")),
         },
         // MUL and everything else: strength-reduced or non-commutative, and
         // neither is one `addi`.
@@ -540,7 +543,7 @@ pub(crate) fn eat_call_postop(seg: &[u8], p: &mut usize) -> Result<i32, Block> {
     // Past it c2 emits `addis` + `addi`, which is a second instruction and a
     // different body length — measured on `± 40000` in `work/w41/probe/p5.cpp`.
     if !(-0x8000..=0x7FFF).contains(&k) {
-        return Err(Block { ctx: "call-postop-wide", byte: None, off: *p, aux: 0 });
+        return Err(Block::refuse(seg, *p, "call-postop-wide"));
     }
     Ok(k as i32)
 }
@@ -579,7 +582,7 @@ pub(crate) fn parse_call_shape(
     if eat(seg, p, &[0x4C, 0x4B]) {
         // The result is thrown away — including, if it is a `float`/`double`, the
         // `_fltused` the discarded FP result still obliges the TU to declare.
-        ret.discarded(*p)?;
+        ret.discarded(seg, *p)?;
         let mut q = *p;
         if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
             *p = q;
@@ -614,20 +617,20 @@ pub(crate) fn parse_call_shape(
     // calls exactly like the zero-argument form above — or the first statement of
     // a Class A sequence.
     if seg.get(*p) == Some(&0x4B) && bound_to.is_none() {
-        ret.discarded(*p)?;
+        ret.discarded(seg, *p)?;
         *p += 1;
         let mut q = *p;
         if eat_return_plumbing(seg, &mut q, false, BODY_SCOPE_DEPTH).is_ok() {
             *p = q;
             let params = parse_params(seg, lo)?;
-            return tail_call_shape(args, params, callee_tok, *p);
+            return tail_call_shape(seg, args, params, callee_tok, *p);
         }
         return parse_call_sequence(seg, p, lo, callee_tok, args);
     }
     if args.is_empty() {
         // A zero-argument int call (`return g();`). The value-consuming shapes
         // below all assume an argument region, so refuse rather than guess.
-        return Err(Block { ctx: "call-args-none", byte: None, off: *p, aux: 0 });
+        return Err(Block::refuse(seg, *p, "call-args-none"));
     }
     // A call whose result is bound to a local that is then returned immediately —
     // `int z = g(a); return z;` — is byte-identical to `return g(a);`. c2
@@ -663,7 +666,7 @@ pub(crate) fn parse_call_shape(
         // Anything other than reading back the very token just written is a
         // different program.
         if back != dst {
-            return Err(Block { ctx: "call-bound-other-token", byte: None, off: *p, aux: 0 });
+            return Err(Block::refuse(seg, *p, "call-bound-other-token"));
         }
         if !eat_int_like(seg, p) {
             return Err(blk(seg, *p, "call-bound-reload-type"));
@@ -673,7 +676,7 @@ pub(crate) fn parse_call_shape(
         // The SAME validator the direct `return g(…)` form uses. This branch used
         // to carry its own copy, which was missing two of its gates — one wrong
         // byte and one panic; see [`tail_call_shape`].
-        return tail_call_shape(args, params, callee_tok, *p);
+        return tail_call_shape(seg, args, params, callee_tok, *p);
     }
     if args.len() > 1 {
         // Two or more arguments: only the pure-permutation shape is modeled, and
@@ -681,7 +684,7 @@ pub(crate) fn parse_call_shape(
         // ([`tail_call_shape`]) the bound-to-a-local form and the statement-call
         // form also use.
         let params = parse_params(seg, lo)?;
-        let shape = tail_call_shape(args, params, callee_tok, *p)?;
+        let shape = tail_call_shape(seg, args, params, callee_tok, *p)?;
         // Only a terminal tail call: a post-op would consume the result and need
         // the framed path, which does not model multi-argument setup.
         if seg.get(*p) != Some(&0x41) {
@@ -702,7 +705,7 @@ pub(crate) fn parse_call_shape(
     // The single call argument is an ordinary operand stream, so it is subject to
     // the same rewriter: `g(a + a)` is not `add` + branch.
     if has_repeated_leaf(&arg_ops) {
-        return Err(Block { ctx: "call-arg-repeated-leaf", byte: None, off: *p, aux: 0 });
+        return Err(Block::refuse(seg, *p, "call-arg-repeated-leaf"));
     }
     // And to the same reassociation: `g(b + a)` is not the source order either.
     //
@@ -720,11 +723,11 @@ pub(crate) fn parse_call_shape(
     if n_loads > 1 {
         let formals = parse_params(seg, lo)?;
         if !leaves_ascending(&arg_ops, &formals) {
-            return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
+            return Err(Block::refuse(seg, *p, "call-arg-noncanonical-order"));
         }
     }
     if !additive_chain_canonical(&arg_ops) {
-        return Err(Block { ctx: "call-arg-noncanonical-order", byte: None, off: *p, aux: 0 });
+        return Err(Block::refuse(seg, *p, "call-arg-noncanonical-order"));
     }
 
     // Post-op region. EITHER the return plumbing begins directly at its `41`
@@ -736,7 +739,7 @@ pub(crate) fn parse_call_shape(
         // `g(a)` is a bare `b g`, `g(a+1)` prepends `addi r3,r3,1`.
         eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
         let params = parse_params(seg, lo)?;
-        return tail_call_shape(vec![arg_ops], params, callee_tok, *p);
+        return tail_call_shape(seg, vec![arg_ops], params, callee_tok, *p);
     }
     let k = eat_call_postop(seg, p)?;
     eat_return_plumbing(seg, p, true, BODY_SCOPE_DEPTH)?;
@@ -748,7 +751,7 @@ pub(crate) fn parse_call_shape(
     // 6-section framed obj (which would mis-emit a frame the reference elides).
     if k == 0 {
         let params = parse_params(seg, lo)?;
-        return tail_call_shape(vec![arg_ops], params, callee_tok, *p);
+        return tail_call_shape(seg, vec![arg_ops], params, callee_tok, *p);
     }
     // A genuine `+ k` (k ≠ 0) is a framed non-leaf call — but the 6-section
     // framed path models only a **bare passthrough argument** (`g(a) + k`), not
@@ -759,7 +762,7 @@ pub(crate) fn parse_call_shape(
     if matches!(arg_ops.as_slice(), [IlOp::Load(_)]) {
         let params = parse_params(seg, lo)?;
         if !arg_loads_are_formals(&arg_ops, &params) {
-            return Err(Block { ctx: "call-arg-nonformal", byte: None, off: *p, aux: 0 });
+            return Err(Block::refuse(seg, *p, "call-arg-nonformal"));
         }
         // Past the eighth formal the value is stack-homed and its argument setup
         // is `lwz r3,<slot>(r1)`, not a register move — measured:
@@ -776,7 +779,7 @@ pub(crate) fn parse_call_shape(
         // the 878-TU workload: **zero** functions, numerator unchanged either
         // way.
         if params.len() > MAX_REGISTER_FORMALS {
-            return Err(Block { ctx: "framed-arg-over-eight-formals", byte: None, off: *p, aux: 0 });
+            return Err(Block::refuse(seg, *p, "framed-arg-over-eight-formals"));
         }
         // The formals list is carried, not dropped: the argument is *a* formal
         // but not necessarily the one already in r3, and c2 emits `or r3,rN,rN`
@@ -784,7 +787,7 @@ pub(crate) fn parse_call_shape(
         // — see `c2_core::codegen::framed_call_text`.
         return Ok(BodyShape::FramedCall { add_k: k, callee_tok, params, arg_ops });
     }
-    Err(Block { ctx: "framed-computed-arg", byte: None, off: *p, aux: 0 })
+    Err(Block::refuse(seg, *p, "framed-computed-arg"))
 }
 
 /// Parse the **Class A statement-call sequence** (`docs/GAPS.md` #35 step 2,
@@ -829,7 +832,7 @@ fn parse_call_sequence(
     // the census cannot claim a body the gate declines (`docs/GAPS.md` §6, the
     // under-claiming direction).
     if params.len() > MAX_REGISTER_FORMALS {
-        return Err(Block { ctx: "callseq-over-eight-formals", byte: None, off: *p, aux: 0 });
+        return Err(Block::refuse(seg, *p, "callseq-over-eight-formals"));
     }
     let mut raw: Vec<(u32, Vec<Vec<IlOp>>)> = vec![(first_callee, first_args)];
     let tail;
@@ -896,13 +899,13 @@ fn parse_call_sequence(
             let k = (eat_byte(seg, &mut q, 0x33) && eat_int_like(seg, &mut q))
                 .then(|| read_varint(seg, &mut q))
                 .flatten()
-                .ok_or(Block { ctx: "callseq-tail-lit", byte: None, off: *p, aux: 0 })?;
+                .ok_or(Block::refuse(seg, *p, "callseq-tail-lit"))?;
             eat_return_plumbing(seg, &mut q, true, BODY_SCOPE_DEPTH)
-                .map_err(|_| Block { ctx: "callseq-tail-lit", byte: None, off: *p, aux: 0 })?;
+                .map_err(|_| Block::refuse(seg, *p, "callseq-tail-lit"))?;
             // `li rD,k` carries a signed-16-bit immediate; a wider one is
             // `lis`+`ori` and is not modeled here.
             if !(-0x8000..=0x7FFF).contains(&k) {
-                return Err(Block { ctx: "callseq-tail-lit-wide", byte: None, off: *p, aux: 0 });
+                return Err(Block::refuse(seg, *p, "callseq-tail-lit-wide"));
             }
             *p = q;
             tail = SeqTail::Lit(k);
@@ -913,10 +916,10 @@ fn parse_call_sequence(
         let (tok, ret) = eat_call_head(seg, p)?;
         let args = eat_call_args(seg, p)?;
         if eat_byte(seg, p, 0x4B) {
-            ret.discarded(*p)?;
+            ret.discarded(seg, *p)?;
             raw.push((tok, args));
             if raw.len() > MAX_SEQ_CALLS {
-                return Err(Block { ctx: "callseq-too-long", byte: None, off: *p, aux: 0 });
+                return Err(Block::refuse(seg, *p, "callseq-too-long"));
             }
             continue;
         }
@@ -941,7 +944,7 @@ fn parse_call_sequence(
                 return Err(blk(seg, *p, "callseq-postop-op"));
             }
             if !(-0x8000..=0x7FFF).contains(&k) {
-                return Err(Block { ctx: "callseq-postop-wide", byte: None, off: *p, aux: 0 });
+                return Err(Block::refuse(seg, *p, "callseq-postop-wide"));
             }
             k
         };
@@ -978,7 +981,7 @@ fn parse_call_sequence(
     // by the same locator.
     if raw.len() == 1 && matches!(tail, SeqTail::Void) {
         let (callee_tok, args) = raw.pop().expect("length checked");
-        return tail_call_shape(args, params, callee_tok, *p);
+        return tail_call_shape(seg, args, params, callee_tok, *p);
     }
 
     // Validate and normalize every call's arguments through the ONE locator every
@@ -986,12 +989,12 @@ fn parse_call_sequence(
     let mut calls: Vec<SeqCall> = Vec::with_capacity(raw.len());
     for (i, (callee_tok, args)) in raw.into_iter().enumerate() {
         let (arg_ops, arg_sources) =
-            match tail_call_shape(args, params.clone(), callee_tok, *p)? {
+            match tail_call_shape(seg, args, params.clone(), callee_tok, *p)? {
                 BodyShape::VoidTailCall { .. } => (Vec::new(), None),
                 BodyShape::IntTailCall { arg_ops, .. } => (arg_ops, None),
                 BodyShape::MultiArgTailCall { arg_sources, .. } => (Vec::new(), Some(arg_sources)),
                 // `tail_call_shape` returns exactly those three.
-                _ => return Err(Block { ctx: "callseq-arg-shape", byte: None, off: *p, aux: 0 }),
+                _ => return Err(Block::refuse(seg, *p, "callseq-arg-shape")),
             };
         let _ = i;
         // Never a chain link: this production's calls are STATEMENTS, each
@@ -1000,7 +1003,7 @@ fn parse_call_sequence(
     }
     // Class A saves nothing; Class B saves one or two GPRs. Which formals, and in
     // which register, is [`plan_saved_gprs`].
-    let saved = plan_saved_gprs(&params, &calls, 0, *p)?;
+    let saved = plan_saved_gprs(seg, &params, &calls, 0, *p)?;
     Ok(BodyShape::CallSeq { params, calls, tail, saved })
 }
 
@@ -1076,6 +1079,7 @@ const MAX_INLINE_SAVED_GPRS: usize = 2;
 /// helper class whatever the third one holds, and a gate that counted only the
 /// formals would let it through with a Class B prologue and a Class C body.
 pub(crate) fn plan_saved_gprs(
+    seg: &[u8],
     params: &[u32],
     calls: &[SeqCall],
     extra_saved: usize,
@@ -1120,7 +1124,7 @@ pub(crate) fn plan_saved_gprs(
         return Ok(saved); // Class A — nothing survives a call.
     }
     if saved.len() + extra_saved > MAX_INLINE_SAVED_GPRS {
-        return Err(Block { ctx: "callseq-three-plus-saved", byte: None, off: p, aux: 0 });
+        return Err(Block::refuse(seg, p, "callseq-three-plus-saved"));
     }
 
     // The first call may marshal its own arguments beside the saves — the
@@ -1161,7 +1165,7 @@ pub(crate) fn plan_saved_gprs(
         (None, _) => true,
     };
     if unmodelled_first {
-        return Err(Block { ctx: "callseq-saved-with-first-call-setup", byte: None, off: p, aux: 0 });
+        return Err(Block::refuse(seg, p, "callseq-saved-with-first-call-setup"));
     }
 
     // Every later call's arguments must come **straight out of** a saved
@@ -1184,7 +1188,7 @@ pub(crate) fn plan_saved_gprs(
             (None, _) => false,
         };
         if !ok {
-            return Err(Block { ctx: "callseq-saved-computed-arg", byte: None, off: p, aux: 0 });
+            return Err(Block::refuse(seg, p, "callseq-saved-computed-arg"));
         }
     }
     Ok(saved)
@@ -1258,7 +1262,13 @@ mod tests {
     fn a_call_argument_from_a_formal_beyond_the_argument_count_refuses_and_does_not_panic() {
         let b = parse_segment_detail(ARG2_OUTER_FORMAL, NO_LOCALS).unwrap_err();
         assert_eq!(b.ctx, "call-arg-outer-formal");
-        assert_eq!(b.feature(), "call-arg-outer-formal:eof");
+        // `:mid`, and it has to be. The refusal is raised inside the call's
+        // argument region, so the return plumbing after it is still unparsed and
+        // a second unmodeled construct could be sitting in it. The key says so:
+        // `:eof` is reserved for a refusal the parse reached the segment end
+        // before raising. Positively: this block has segment left after it.
+        assert!(b.off < b.seg_len, "the refusal is inside the segment, with bytes left after it");
+        assert_eq!(b.feature(), "call-arg-outer-formal:mid");
         assert_eq!(parse_segment(ARG2_OUTER_FORMAL, NO_LOCALS), None);
     }
 
@@ -1432,7 +1442,11 @@ mod tests {
             arg_sources: None,
             link_args: Some(slots.to_vec()),
         };
-        let plan = |calls: &[SeqCall]| plan_saved_gprs(&params, calls, 0, 0);
+        // The planner reads the decoded call list, not the byte stream — the
+        // segment reaches it only so a refusal it raises can record the frame its
+        // offset indexes. A one-byte stand-in is enough here and keeps the block
+        // well-formed (offset 0 of a segment that has a byte 0).
+        let plan = |calls: &[SeqCall]| plan_saved_gprs(&[0], &params, calls, 0, 0);
 
         // Nothing read after the first call: Class A, nothing saved.
         assert_eq!(plan(&[call(&[0xA0]), nullary()]).unwrap(), Vec::<usize>::new());

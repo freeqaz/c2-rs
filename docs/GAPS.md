@@ -2265,6 +2265,93 @@ The rules that keep the numbers honest:
   computed and says nothing about what consumes it. The `-then-` key's second
   half is what says that, which is the whole argument for the instrument fix
   above.
+- **`:eof` was a rendering of one field, and 63 % of what it claimed was false.**
+  `Block::feature` printed `<ctx>:eof` for **any** block with `byte: None`, and
+  ~73 producers raise a byte-less refusal at a *mid-parse* cursor — a post-parse
+  predicate over the decoded operand list, a parameter width `.sy` withheld, a
+  name-level refusal. The suffix is not decoration: it is read as "the refusal
+  was raised *after* the parse reached the segment end", which makes every
+  function under the row grammar-complete by construction and its count directly
+  a widening estimate. `assign-dst-not-formal:eof` was ranked at 13,887 on
+  exactly that reading and measured **+0 twice**.
+
+  The repair is one field. `Block` now carries `seg_len` beside `off` — an offset
+  is meaningless without the frame it indexes, so the two travel together — and
+  the renderer earns `:eof` from `off == seg_len` and prints `:mid` otherwise.
+  Both routes to that offset are **exact, not approximate**: `blk` reads
+  `seg.get(p)` at the live cursor, which is `None` only past the last byte, and
+  the two post-parse gates use `Block::at_end`, which is sound because
+  `eat_fn_tail` returns `Ok` *only* at `p == seg.len()` — so an accepted body's
+  cursor **is** the segment end. `Block::refuse(seg, off, ctx)` derives `seg_len`
+  from the segment rather than taking it, so no producer can record an offset
+  against the wrong frame; adding the field made all 98 construction sites a
+  compile error, which is how the enumeration was got rather than remembered.
+
+  Measured over the 878-TU workload, census numerator **unchanged at 691,744 /
+  2,462,571 (28.09 %)**, blocked total unchanged at 1,770,827, every row summing
+  exactly. Of **26,935** functions under a `:eof` key, **9,848 were genuine and
+  17,087 (63.4 %) were not**:
+
+  | ctx | claimed `:eof` | genuine `:eof` | actually `:mid` |
+  |---|---|---|---|
+  | `param-width-undetermined` | 6,974 | 0 | 6,974 |
+  | `call-arg-computed` | 5,544 | 5,537 | 7 |
+  | `expr-out-of-class-bare-nonformal` | 4,127 | 4,127 | 0 |
+  | `call-args-none` | 3,299 | 0 | 3,299 |
+  | `this-undetermined` | 2,568 | 0 | 2,568 |
+  | `param-multi-reg` | 1,851 | 0 | 1,851 |
+  | `expr-ptr-arith` | 1,678 | 0 | 1,678 |
+  | `call-arg-outer-formal` | 695 | 1 | 694 |
+  | `expr-out-of-class-formals9` | 125 | 125 | 0 |
+  | `module-end` | 48 | 48 | 0 |
+  | `formals-marker` | 16 | 0 | 16 |
+  | `call-arg-nonformal` | 8 | 8 | 0 |
+  | `mcall-framed-args` | 1 | 1 | 0 |
+  | `callee-unresolved-tail-call` | 1 | 1 | 0 |
+
+  Three things generalize. **One `ctx` can legitimately be both**, and the two
+  mixed rows are the proof the split is a real property and not a relabelling:
+  `call-arg-computed` and `call-arg-outer-formal` both reach `tail_call_shape`
+  from a *statement* call (`void f(int a,int b){ h(a+1,b); }`), whose return
+  plumbing is already consumed, and from a *value* call (`return h(a+1,b);`),
+  whose plumbing is not — the same predicate, the same key, opposite ends of the
+  segment. Reproduced from hand-written source through the live toolchain before
+  the table was believed, four keys at once (`work/eof/probe/p3.cpp`).
+  **The complement had to be its own bucket**, not a merge into `<ctx>-0xNN`:
+  merging is the one failure a census instrument cannot survive (the type-id
+  shattering above), and here it would have hidden the split entirely.
+  And **the six rows that were 100 % spurious are all pre-parse refusals** —
+  widths withheld at the `LO` marker, a formals marker that never bound, a
+  receiver whose class is undetermined — which is the shape of the error to
+  expect next time: a gate that runs *before* the body is read cannot possibly be
+  at the end of it, and was claiming to be.
+
+  **The free corroboration, and it is the same tell that found the defect.** The
+  D6 frame measure walks the whole segment counting CALL tokens and does not stop
+  where the parse stops, so it is independent of the key. Stated positively: a
+  row that is genuinely `:eof` has had its whole body consumed by the modeled
+  grammar, so **every function under it must carry a call count that grammar can
+  produce** — and it does. `expr-out-of-class-bare-nonformal:eof` reads
+  `calls-0` on **4,127 of 4,127** (a straight-line arithmetic body admits no CALL
+  token at all); `call-arg-computed:eof` reads `calls-1` on **5,537 of 5,537** (a
+  single statement call); `expr-out-of-class-formals9:eof` 125/125 and
+  `module-end:eof` 48/48 are `calls-0`. Across all eight `:eof` rows, 9,846 of
+  9,848 agree, and the 2 that do not sit well inside `call_tokens`' own measured
+  1.3 % error. The `:mid` rows are the opposite picture — every one of them is a
+  *mixture*, and **2,883 of `param-width-undetermined:mid`'s 6,974 are
+  `calls-2plus`**, multi-call bodies that cannot be at the end of a grammar with
+  no production for them. This is the frame axis used to **refute**, never to
+  rank; it is the identical move that caught `assign-dst-not-formal` through
+  `cflow-loop`, and it cost one query against a scan that was already on disk.
+
+  **Reading older records.** Six key names in this repo's history no longer
+  exist: `param-width-undetermined:eof`, `call-args-none:eof`,
+  `this-undetermined:eof`, `param-multi-reg:eof`, `expr-ptr-arith:eof` and
+  `formals-marker:eof` are now the same rows spelled `:mid`, in full and with the
+  counts unchanged — `docs/IL_STORE_LEAF.md` §, `docs/IL_CALL_IN_EXPR.md` §21 and
+  its two tables quote them as they read at the time and are left alone. The two
+  mixed keys split rather than moved. Nothing merged, so every recorded
+  comparison remains valid; only the suffix that was never true was withdrawn.
 
 ---
 

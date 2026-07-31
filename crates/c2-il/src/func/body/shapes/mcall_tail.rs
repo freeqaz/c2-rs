@@ -156,7 +156,7 @@ pub(crate) fn try_parse_member_tail_call(
         // The result is discarded, so a `float`/`double` one still obliges the TU
         // to carry `_fltused` and the port has no model of that — see
         // [`super::calls::CallRet`] and `docs/GAPS.md` §6 instance #14.
-        ret.discarded(p).map_err(Some)?;
+        ret.discarded(seg, p).map_err(Some)?;
         // A brace scope closes **between** the statement end and the return
         // branch, not after it: `void f(A* p){ { p->m(); } }` captures
         // `… 4C 4B · 54 03 · 3A <lbl> · 54 02 · 29 <lbl> …`, so the inner close
@@ -189,10 +189,10 @@ pub(crate) fn try_parse_member_tail_call(
     // every remaining refusal is a **codegen-class** one over a complete body and is
     // reported under its own key.
     if args.len() > MAX_REGISTER_FORMALS {
-        return Err(Some(Block { ctx: "mcall-args-overflow", byte: None, off: p, aux: 0 }));
+        return Err(Some(Block::refuse(seg, p, "mcall-args-overflow")));
     }
     let params = parse_params(seg, lo).map_err(Some)?;
-    tail_call_shape(args, params, callee_tok, p).map_err(Some)
+    tail_call_shape(seg, args, params, callee_tok, p).map_err(Some)
 }
 
 /// **W41 — `return p->m() ± k;`**: the member call whose result is consumed by a
@@ -256,7 +256,7 @@ fn framed_member_call(
     // (`int f(S* p,int a,int b){ return p->ga(b) - 20; }` is `mr r4,r5 ; bl ;
     // addi`), so this is a real limit and not a restatement of one.
     if args.len() != 1 {
-        return Err(Some(Block { ctx: "mcall-framed-args", byte: None, off: p, aux: 0 }));
+        return Err(Some(Block::refuse(seg, p, "mcall-framed-args")));
     }
     let params = parse_params(seg, lo).map_err(Some)?;
     // A net post-op of **0** is not a framed call at all: `p->m() + 0` == `p->m()`
@@ -266,13 +266,13 @@ fn framed_member_call(
     // a gap. Routed to the tail production, which is the same decision
     // [`super::calls::parse_call_shape`] makes for the free-function form.
     if k == 0 {
-        return tail_call_shape(args, params, callee_tok, p).map_err(Some);
+        return tail_call_shape(seg, args, params, callee_tok, p).map_err(Some);
     }
     let arg_ops = vec![IlOp::Load(recv_tok)];
     // The receiver has to be one of this function's own formals: the framed path
     // emits a register *move*, and a global or a local would be a load.
     if !arg_loads_are_formals(&arg_ops, &params) {
-        return Err(Some(Block { ctx: "call-arg-nonformal", byte: None, off: p, aux: 0 }));
+        return Err(Some(Block::refuse(seg, p, "call-arg-nonformal")));
     }
     // Past the eighth formal a parameter is stack-homed and its setup is
     // `lwz r3,<slot>(r1)`, not a register move. The refusal is on the whole formals
@@ -280,12 +280,7 @@ fn framed_member_call(
     // `select_text` actually raises — the same reasoning, and the same key, as the
     // free-function framed call beside it.
     if params.len() > MAX_REGISTER_FORMALS {
-        return Err(Some(Block {
-            ctx: "framed-arg-over-eight-formals",
-            byte: None,
-            off: p,
-            aux: 0,
-        }));
+        return Err(Some(Block::refuse(seg, p, "framed-arg-over-eight-formals")));
     }
     Ok(BodyShape::FramedCall { add_k: k, callee_tok, params, arg_ops })
 }
@@ -377,7 +372,7 @@ pub(crate) fn eat_this_bind(seg: &[u8], p: &mut usize) -> Result<(), Block> {
         Some(0) => {}
         Some(_) => {
             *p = save;
-            return Err(Block { ctx: "mcall-bind-offset", byte: None, off: save, aux: 0 });
+            return Err(Block::refuse(seg, save, "mcall-bind-offset"));
         }
         None => return Err(blk(seg, *p, "mcall-bind-tail")),
     }

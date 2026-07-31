@@ -3362,6 +3362,67 @@ Repairing it means giving `Block::feature` the segment length — one shared
 renderer touching every recorded key, so it is a **serial** merge, never a
 parallel seam. **Until then no `:eof` row may be scheduled on its position.**
 
+#### …and the repair, with the board it corrects — 2026-07-31
+
+Done, census delta **0**, and the `:eof` rows may be scheduled again — the ones
+that are still `:eof`. `Block` now carries `seg_len` beside `off`; the renderer
+earns `:eof` from `off == seg_len` and prints `:mid` otherwise. Both routes to
+that offset are exact rather than approximate: `blk` reads `seg.get(p)` at the
+live cursor, and the two post-parse gates (`callee-unresolved-*`, `opt-mode`)
+state their fact positively with `Block::at_end`, which is sound because
+`eat_fn_tail` returns `Ok` *only* at `p == seg.len()`. `Block::refuse(seg, off,
+ctx)` derives the length from the segment, so it cannot be typed wrong, and
+adding the field turned all 98 construction sites into compile errors — the
+enumeration was obtained from the compiler, not remembered. Full write-up and
+the per-key table: `docs/GAPS.md` §6.
+
+**63.4 % of the signal was false.** Of 26,935 functions under a `:eof` key,
+9,848 are genuine and **17,087 are not**. The rows this section put on the board
+as "sitting on an unverified `:eof`" resolve as:
+
+| ctx | claimed | genuine `:eof` | now `:mid` |
+|---|---|---|---|
+| `param-width-undetermined` | 6,974 | **0** | 6,974 |
+| `call-arg-computed` | 5,544 | **5,537** | 7 |
+| `expr-out-of-class-bare-nonformal` | 4,127 | **4,127** | 0 |
+| `call-args-none` | 3,299 | **0** | 3,299 |
+| `this-undetermined` | 2,568 | **0** | 2,568 |
+| `param-multi-reg` | 1,851 | **0** | 1,851 |
+| `expr-ptr-arith` | 1,678 | **0** | 1,678 |
+| `call-arg-outer-formal` | 695 | **1** | 694 |
+| `expr-out-of-class-formals9` | 125 | **125** | 0 |
+| `module-end` | 48 | **48** | 0 |
+| `formals-marker` | 16 | **0** | 16 |
+| `call-arg-nonformal` | 8 | **8** | 0 |
+| `mcall-framed-args` · `callee-unresolved-tail-call` | 1 · 1 | **1 · 1** | 0 |
+
+So the largest `:eof` row on the board is now `call-arg-computed:eof` at 5,537 —
+a *statement-position* call with a computed argument, whole body parsed — and
+`expr-out-of-class-bare-nonformal:eof` at 4,127 is confirmed genuine, which is
+what the §6n premise was originally earned on. Six of the seven rows this
+section listed as unranked are **pre-parse** refusals and were never eof at all:
+a gate that runs before the body is read cannot be at the end of it.
+
+Two keys are **both** — `call-arg-computed` and `call-arg-outer-formal` reach
+one predicate from a statement call (plumbing already consumed → `:eof`) and
+from a value call (plumbing still ahead → `:mid`). That is the split being a
+real property of the parse rather than a relabelling, and it is why the
+complement had to be its own bucket instead of a merge into `<ctx>-0xNN`.
+Reproduced from hand-written source through the live toolchain before the table
+was believed. Pinned in-tree by
+`body::tests::the_eof_suffix_is_earned_by_reaching_the_segment_end`, which
+asserts the positive and the negative — a renderer that printed `:eof` for
+everything passes the positive alone.
+
+The D6 frame axis corroborates for free, used to **refute** rather than to rank:
+a genuine `:eof` row has had its whole body consumed, so every function under it
+must carry a call count the grammar can produce. `expr-out-of-class-bare-nonformal:eof`
+is `calls-0` on 4,127 of 4,127 and `call-arg-computed:eof` is `calls-1` on 5,537
+of 5,537; 9,846 of the 9,848 agree overall. Every `:mid` row is a mixture
+instead, and 2,883 of `param-width-undetermined:mid`'s 6,974 are `calls-2plus` —
+the same tell that caught `assign-dst-not-formal` through `cflow-loop`, one
+query against a scan already on disk.
+
 The `-whole` half of the signal survives and is now proven: WDA established by
 two controlled pairs (a pointer formal moves the suffix; a whole extra string
 does not) that `-whole{,2,3,4}` counts **distinct granted constructs**, not

@@ -729,6 +729,7 @@ pub(crate) fn classify(seg: &[u8], at: usize) -> Block {
         ctx: CALL_IN_EXPR,
         byte: Some(0x26),
         off: at,
+        seg_len: seg.len(),
         aux: disc | (payload << FORM_BITS),
     }
 }
@@ -864,6 +865,7 @@ fn reanchor_stmt_member_call(seg: &[u8], stmt_head: usize, probe: usize, b: Bloc
         ctx: CALL_IN_EXPR,
         byte: Some(0x26),
         off: stmt_head,
+        seg_len: seg.len(),
         aux: disc | (payload << FORM_BITS),
     }
 }

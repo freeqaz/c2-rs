@@ -37,6 +37,6 @@ pub(crate) fn parse_params(seg: &[u8], lo: usize) -> Result<Vec<u32>, Block> {
             v.extend_from_slice(&formals);
             Ok(v)
         }
-        None => Err(Block { ctx: "this-undetermined", byte: None, off: lo, aux: 0 }),
+        None => Err(Block::refuse(seg, lo, "this-undetermined")),
     }
 }

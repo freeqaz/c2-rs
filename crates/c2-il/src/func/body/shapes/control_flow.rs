@@ -528,7 +528,9 @@ fn step(s: &mut Scan) -> Result<bool, Block> {
             // decode is §12.1: whether `k` is a plain byte or a varint is UNKNOWN,
             // and both readings agree on every value ever observed (max `0x2A`).
             if u32::from(k) != d {
-                return Err(Block { ctx: "cf-scope-depth", byte: Some(k), off: s.p, aux: 0 });
+                let seg_len = s.seg.len();
+                let ctx = "cf-scope-depth";
+                return Err(Block { ctx, byte: Some(k), off: s.p, seg_len, aux: 0 });
             }
             s.p += 2;
             s.depth = d;
@@ -832,7 +834,11 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             match sub {
                 0x42 => s.p += 4,
                 0x37 => s.p += 2,
-                _ => return Err(Block { ctx: "cf-escape-43", byte: Some(sub), off: s.p, aux: 0 }),
+                _ => {
+                    let seg_len = s.seg.len();
+                    let ctx = "cf-escape-43";
+                    return Err(Block { ctx, byte: Some(sub), off: s.p, seg_len, aux: 0 });
+                }
             }
             if s.p > s.seg.len() {
                 return Err(blk(s.seg, s.seg.len(), "cf-escape-43"));
@@ -1234,7 +1240,11 @@ mod tests {
     /// `return-scope-close-cflow-label` is one met in the return plumbing.
     #[test]
     fn the_same_byte_in_two_productions_stays_two_buckets() {
-        let label = |ctx| Block { ctx, byte: Some(0x29), off: 0, aux: 0 }.feature();
+        // `seg_len: 1` — a block that HAS a blocking byte at offset 0 came from a
+        // segment with at least that byte in it. The rendering below does not
+        // consult it (the byte path never can), but the block still has to be one
+        // the parser could have produced.
+        let label = |ctx| Block { ctx, byte: Some(0x29), off: 0, seg_len: 1, aux: 0 }.feature();
         assert_eq!(label("body"), "body-cflow-label");
         assert_eq!(label("return-scope-close"), "return-scope-close-cflow-label");
         assert_ne!(label("body"), label("return-scope-close"));
@@ -1243,11 +1253,11 @@ mod tests {
         // rather than `expr-cflow-brfalse` — one prefix per production, as every
         // other `expr-*` key has.
         assert_eq!(
-            Block { ctx: "expr", byte: Some(0x38), off: 0, aux: 0 }.feature(),
+            Block { ctx: "expr", byte: Some(0x38), off: 0, seg_len: 1, aux: 0 }.feature(),
             "expr-brfalse"
         );
         assert_eq!(
-            Block { ctx: "call-ref", byte: Some(0x3A), off: 0, aux: 0 }.feature(),
+            Block { ctx: "call-ref", byte: Some(0x3A), off: 0, seg_len: 1, aux: 0 }.feature(),
             "call-ref-cflow-jump"
         );
     }
