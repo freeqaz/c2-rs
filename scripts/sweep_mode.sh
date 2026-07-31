@@ -135,3 +135,32 @@ mm=$(sed -n 's/^  mismatch  *\([0-9]*\) .*/\1/p' "$report" | head -1)
     grep -F "mismatch" "$report" | grep -v "^  mismatch" || true
     exit 1
 }
+
+# The census/gate disagreement is a RATCHET, not a pass/fail, because it is
+# currently non-zero and pretending otherwise would just mean nobody runs the
+# lane. Measured 2026-07-31 at first run: 155 at `/Ox /GS- /c` and 158 at `/O1`,
+# the census OVER-CLAIMING — 153 of them one off-by-one in chain.rs's mul-by-lit
+# arm, 2 a two-statement local body, 3 uncharacterized under `/O1`.
+#
+# It reads 0 on the workload and 0 on fixtures, which is exactly why it went
+# unnoticed: the invariant was only ever evaluated where it happened to hold.
+# `expr_sweep.sh` cannot see it at all — it greps `c2rs diff`'s per-case verdict
+# for `*Mismatch*`, and the disagreement check exists only on the `gap` path.
+#
+# Set C2RS_SWEEP_MODE_MAX_DISAGREE to the number you are prepared to carry. Drive
+# it to 0 as the two known defects land, and it becomes an ordinary gate. Raising
+# it needs a reason written down next to the number, not just a passing run.
+max_dis="${C2RS_SWEEP_MODE_MAX_DISAGREE:-0}"
+dis=$(sed -n 's/^  census\/gate DISAGREEMENT: *\([0-9]*\) .*/\1/p' "$report" | head -1)
+dis="${dis:-0}"
+if [ "$dis" -gt "$max_dis" ]; then
+    echo
+    echo "CENSUS/GATE DISAGREEMENT $dis exceeds the carried baseline $max_dis."
+    echo "The census claims functions the port refuses. This is NOT a mis-emit —"
+    echo "no wrong bytes were produced — but the census is the public claim, so an"
+    echo "over-claim inflates it wherever such a function appears in a corpus."
+    echo "Re-run with C2RS_SWEEP_MODE_MAX_DISAGREE=$dis only after establishing"
+    echo "what the new ones are; the count alone says nothing about which."
+    exit 1
+fi
+echo "census/gate disagreement: $dis (carried baseline $max_dis)"
