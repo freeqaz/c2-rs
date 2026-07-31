@@ -1265,9 +1265,31 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
             assoc: 0,
         });
     }
-    // `.pdata` last. A TU with BOTH a constant pool and a framed function would
-    // settle the `.rdata`/`.pdata` order, and none has been captured — the
-    // combination is refused upstream rather than guessed at here.
+    // `.pdata` last — which is right only because the combination that would test
+    // it is refused upstream, and **the rule it would need is now measured**.
+    //
+    // The comment here used to read "a TU with BOTH a constant pool and a framed
+    // function would settle the `.rdata`/`.pdata` order, and none has been
+    // captured". 240 such TUs were then captured (`/Ox /GS- /c`, every order of
+    // one or two constant-pooling FP leaves against one or two framed functions),
+    // and the answer is **not a fixed order at all**:
+    //
+    // > The packed section table lists `.rdata` and `.pdata` **interleaved, in
+    // > `.text` order** — each section at the position of the FIRST function that
+    // > needs it. `.pdata` stays a single section for the whole TU and sits where
+    // > the first framed function does.
+    //
+    // Six distinct orders occur in those 240 objs — `(.pdata,.rdata)` 78,
+    // `(.rdata,.pdata)` 64, `(.pdata,.rdata,.rdata)` 30, `(.pdata,)` 22,
+    // `(.rdata,.rdata,.pdata)` 20, `(.rdata,.pdata,.rdata)` 20 — and this
+    // function can express exactly one of those shapes. `L1(2.5f); seq2();
+    // L2(3.5f);` is `.rdata .pdata .rdata`, which no amount of reordering the two
+    // groups below produces.
+    //
+    // **One capture would have said the opposite.** A single leaf-then-framed TU
+    // reads `.rdata .pdata`, i.e. exactly what this code already emits, and would
+    // have licensed deleting the refusal. Widening here needs the interleave, not
+    // a second constant in a list.
     let pdata_idx = if framed.is_empty() {
         None
     } else {

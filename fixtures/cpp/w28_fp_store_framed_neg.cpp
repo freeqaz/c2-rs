@@ -28,11 +28,21 @@
 // rule and the per-TU rule are indistinguishable, which is exactly how the
 // `_fltused` repair came out wrong the first time.
 //
-// A **second** and independent reason this stays refused: `c2_core::coff::emit_obj`
-// does not know the `.rdata`/`.pdata` section order, because no captured TU has
-// both a constant pool and a framed function. Its `debug_assert!(pool.is_empty(), …)`
-// says so. Landing the counter rule alone would trade an honest refusal for a
-// guessed section order.
+// A **second** and independent reason this stays refused, and it is the one that
+// actually costs bytes: `c2_core::coff::emit_obj` emits the pooled constants'
+// `.rdata` COMDATs and then `.pdata` last. The reference **interleaves** them in
+// `.text` order, each section at the position of the first function that needs it,
+// so `L1(2.5f); seq2(); L2(3.5f);` is `.rdata .pdata .rdata` — a shape this
+// emitter cannot produce. Measured on 240 TUs at `/Ox /GS- /c` covering every
+// order of one or two constant-pooling leaves against one or two framed
+// functions: six distinct section orders, one expressible.
+//
+// The counter rule above was implemented as a probe and graded against that grid.
+// 234 of 240 graded, **106 Match / 128 Mismatch, and the section order accounts
+// for all 234 with zero residual** — this file's own two-leaf same-constant TU is
+// among the Matches. So the dedup rule is right; it is the section table that is
+// not ready, and landing the counter alone would trade an honest refusal for a
+// wrong-bytes obj on the other 128.
 //
 // Every function here censuses **in class** — that is the per-function verdict and
 // it is correct — while the TU as a whole is `Port=NotImplemented`. The refusal

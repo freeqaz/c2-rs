@@ -23,11 +23,23 @@
 //     `+1` had to move to `plan_labels`. This is that same shape one remove
 //     further out, and it is a real missing rule, not a private limit.
 //
-//  2. The obj layout is uncaptured. `c2_core::coff::emit_obj` places the pooled
-//     constants' `.rdata` COMDATs and then `.pdata` last, with a
-//     `debug_assert!(pool.is_empty(), …)` guarding the combination, because **no
-//     captured TU has both** a constant pool and a framed function. Admitting (1)
-//     alone would replace an honest refusal with a guessed section order.
+//  2. The obj layout is wrong, and this is MEASURED rather than unknown.
+//     `c2_core::coff::emit_obj` places the pooled constants' `.rdata` COMDATs and
+//     then `.pdata` last. The reference does not: it lists `.rdata` and `.pdata`
+//     **interleaved, in `.text` order**, each at the position of the first
+//     function that needs it. `float L1(float a){return a*2.5f;} void S1(){q1();
+//     q2();} float L2(float a){return a*3.5f;}` is `.rdata .pdata .rdata`, a
+//     shape `emit_obj` cannot produce at all. Across 240 captured TUs at
+//     `/Ox /GS- /c` — every order of one or two constant-pooling FP leaves against
+//     one or two framed functions — **six** distinct orders occur and this
+//     emitter can express one.
+//
+//     Rule (1) was implemented as a probe and graded against that grid: 234 of the
+//     240 graded (6 capture failures), **106 Match and 128 Mismatch, and every one
+//     of the 234 is accounted for by the section order alone** — Match exactly
+//     where the emitter's fixed order coincides with the reference's, Mismatch
+//     exactly where it does not, 0 cases contradicting. So the label rule in (1)
+//     is right and is not what blocks this; the section table is.
 //
 // Both functions census **in class** — that is the per-function verdict and it is
 // correct — while the TU as a whole is `Port=NotImplemented`. The refusal lives at
