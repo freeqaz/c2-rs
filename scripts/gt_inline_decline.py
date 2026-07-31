@@ -618,6 +618,44 @@ def sib_source(na, nb, ka, kb):
             ["sba", "sbb"])
 
 
+def run_padp(mode, wd):
+    """Does the CALLER's own source size move the callee's limit?
+
+    §6.15.3a grew P by *inlining* and the limit did not move. That does not
+    rule out the front end pricing the caller from its ORIGINAL body, which
+    is what this pads.
+    """
+    print("=== padded-P   does the CALLER's OWN size move the limit?")
+    print("    callee held at s=80 (schedule: 5 sites). P padded with K of")
+    print("    its own statements ahead of the sites.")
+    print("    %-3s %-3s %-7s %-7s  %s" % ("K", "N", "s", "P.text", "declined"))
+    bad = 0
+    for k in (0, 10, 20, 40):
+        for n in (5, 6):
+            leads = ("static int sba(int a){ int v=gs(a)+a; %s return v; }"
+                     % stmts_fine(8))
+            pad = stmts_fine(k, "s")
+            probe = ("int P(int a){ int s=gs(a)+a; %s %s %s"
+                     % (pad, " ".join(["s=sba(s);"] * n), INT_TAIL))
+            o = capture(src_of(GS, [leads], probe), mode, wd,
+                        "pad_%d_%d" % (k, n))
+            if o is None:
+                print("    capture failed")
+                bad += 1
+                continue
+            r = read(o)
+            if "error" in r:
+                bad += 1
+                continue
+            d = declined(r["rel"], ["sba"])
+            print("    %-3d %-3d %-7s %-7s  %s"
+                  % (k, n, size_of(r["emit"], "sba"), r["tsize"],
+                     ", ".join("%s*%d" % (w, c) for w, c in sorted(d.items()))
+                     or "- (everything inlined)"))
+        print()
+    return bad
+
+
 def run_sibling(mode, wd):
     o1 = "/O1" in mode
     print("=== sibling   does P's EXISTING expansion move the limit?")
@@ -856,6 +894,10 @@ def main(argv):
     print()
     wd = tempfile.mkdtemp(prefix="gtdec")
     bad = 0
+    if "--padp" in argv:
+        bad += run_padp(mode, wd)
+        print("captures failed: %d" % bad)
+        return 1 if bad else 0
     if "--sibling" in argv:
         bad += run_sibling(mode, wd)
         print("captures failed: %d" % bad)
