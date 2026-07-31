@@ -23,6 +23,7 @@ the header block this table is read from.
 | 2026-07-31 | WCR | [cmp-order](2026-07-31-cmp-order.md) | 2 | 673006 → 673073 (27.33 % → 27.33 %), +67 |
 | 2026-07-31 | WCB | [cmp-two-calls](2026-07-31-cmp-two-calls.md) | 2 | 655245 → 661245 (26.61 % → 26.85 %), +6,000 |
 | 2026-07-31 | WEC | [ctor-base-delegation](2026-07-31-ctor-base-delegation.md) | 2 | 685,882 → 691,744 (27.85 % → 28.09 %), +5,862 |
+| 2026-07-31 | WDA | [dataaddr-2sym](2026-07-31-dataaddr-2sym.md) | 2 | 691,744 unchanged (28.09 %) — the rung is DECLINED; it lowers nothing |
 | 2026-07-31 | W34 | [fp-multiarg](2026-07-31-fp-multiarg.md) | 2 | 549,148 → 575,284 (22.30 % → 23.36 %), +26,136 |
 | 2026-07-31 | W31 | [fp-tail](2026-07-31-fp-tail.md) | 2 | 491,013 → 549,148 (19.94 % → 22.30 %), +58,135 |
 | 2026-07-31 | W33 | [frame-class-c-declined](2026-07-31-frame-class-c-declined.md) | 1 | 549,148 unchanged — the rung is DECLINED; its measured worth is 0 |
