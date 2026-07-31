@@ -1572,7 +1572,15 @@ LAW_BOOK = {
     # --- ROUND 25 ----------------------------------------------------------
     "ctor-base": 16,
     # --- ROUND 26 ----------------------------------------------------------
-    "dtor-loop": 23,
+    # NB the UNITS. This family is the first with BOTH a loop and a non-zero
+    # hand control, so the two dicts genuinely differ on it: the marginal is
+    # 23 (§6.6's `for` term is 3d+2 = 5, a marginal figure) and the inline
+    # record is 21 (§6.11's split of that term into 3d = 3 plus a +2 that is
+    # P's own §1.1 surcharge for containing a loop at all — which the hand
+    # control measures here, independently, at exactly +2/site). LAW_BOOK is
+    # graded on the record, so 21. Both readings agree; the registered PRED
+    # of 23 was in marginal units and the measured marginal is 23.
+    "dtor-loop": 21,
 }
 
 # ---------------------------------------------------------------------------
