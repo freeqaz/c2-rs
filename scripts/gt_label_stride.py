@@ -63,6 +63,13 @@ ANCHORS = [
 # `_fltused`) is charged to them and not to the probe.
 FLOAT_LEAD = ["float ld(float a, float b){ return a*b; }"]
 
+# The EH probes below need a destructible type and a callee; the lead is an EH
+# function placed ahead of a0 so that anything charged once per TU
+# (`__CxxFrameHandler`, `??_7type_info@@6B@`, `??_R0H@8`) is charged to it.
+EH_DECL = "int gp(int); struct SE { SE(); ~SE(); int m; };"
+EH_LEAD = ["int ehld(int a){ try { return gp(a); }"
+           " catch(int e){ return e+1; } }"]
+
 PROBES = [
     # --- controls: the classes whose stride is already measured -------------
     ("plain", "int gp(int);", [],
@@ -204,6 +211,45 @@ PROBES = [
     ("static-leaf", "int gs(int);", ["static int lst(int a){ return gs(a)+a; }"],
      "int P(int a){ return lst(a)+lst(a+1); }",
      "P is framed; the LEAD is a static (internal-linkage) function"),
+    # --- EH (docs/EH_RECORDS.md §8). Run these with an /EHsc mode:
+    #     --mode '/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc'.
+    #     Without /EHsc every one of them collapses onto its non-EH control,
+    #     which is a VACUOUS run and not a zero surcharge.
+    ("eh-void-ctl", EH_DECL, [],
+     "void P(int a){ gp(a); gp(a+1); }",
+     "CONTROL for eh-cheap: void, framed, two callees, NO destructible object"),
+    ("eh-cheap", EH_DECL, [],
+     "void P(){ SE s; }",
+     "EH-BARE control: one destructible local, one statement, NO EH records"),
+    ("eh-cheap-led", EH_DECL, ["void ehbld(){ SE s; }"],
+     "void P(){ SE s; }",
+     "eh-cheap with an eh-BARE function already leading: is the +1 per"
+     " function or once per TU?"),
+    ("eh-dtor", EH_DECL, [],
+     "int P(int a){ SE s; return gp(a)+s.m; }",
+     "unwind funclet only (no try): 2 .pdata + EH .rdata, no .data"),
+    ("eh-dtor-led", EH_DECL, EH_LEAD,
+     "int P(int a){ SE s; return gp(a)+s.m; }",
+     "same, with an EH function already leading the TU"),
+    ("eh-dtor2", EH_DECL, [],
+     "int P(int a){ SE s; SE t; return gp(a)+s.m+t.m; }",
+     "TWO destructible locals: does a second unwind state cost slots?"),
+    ("eh-catch", EH_DECL, [],
+     "int P(int a){ try { return gp(a); } catch(int e){ return e+1; } }",
+     "catch funclet: 2 .pdata + EH .rdata + a .data type descriptor"),
+    ("eh-catch-led", EH_DECL, EH_LEAD,
+     "int P(int a){ try { return gp(a); } catch(int e){ return e+1; } }",
+     "same, with an EH function (and ??_R0H@8) already led"),
+    ("eh-catch2", EH_DECL, [],
+     "int P(int a){ try { return gp(a); } catch(int e){ return e+1; }"
+     " catch(char* q){ return q?2:3; } }",
+     "TWO catch clauses: two funclets, two type descriptors"),
+    ("eh-both", EH_DECL, [],
+     "int P(int a){ SE s; try { return gp(a)+s.m; } catch(int e){ return e+1; } }",
+     "catch AND destructor: THREE .pdata records"),
+    ("eh-catchall", EH_DECL, [],
+     "int P(int a){ try { return gp(a); } catch(...){ return 7; } }",
+     "catch(...): a funclet with NO type descriptor"),
 ]
 
 
@@ -238,7 +284,10 @@ def capture(src, mode, workdir, tag):
 # function's own name and its callees). Everything else in a function's group —
 # section symbols, `$M`/`$T` labels, `__real@` pool entries — is minted too.
 SYNTH_EXTERNALS = ("_fltused", "__savegprlr_", "__restgprlr_",
-                   "__savefpr_", "__restfpr_", "__real@", "__xmm@")
+                   "__savefpr_", "__restfpr_", "__real@", "__xmm@",
+                   # EH: the personality routine and the RTTI vftable are
+                   # undefined externals c2 mints, exactly like `_fltused`.
+                   "__CxxFrameHandler", "??_7type_info@@6B@")
 
 
 def minted(group):
@@ -273,6 +322,14 @@ def groups(o):
         # internal-linkage function, which is why the storage class is not the
         # discriminator here.
         defined_fn = s["sc"] in (2, 3) and s["type"] == 0x0020 and s["sec"] > 0
+        # An EH funclet entry (`__catch$NNNN` / `__unwind$NNNN`) is a defined
+        # STATIC symbol of function type inside its parent's own `.text`
+        # COMDAT.  It is NOT a function for grouping purposes: letting it open
+        # a group silently truncated the parent's label set and made `extra`
+        # and `minted` wrong for every EH probe while `stride` still looked
+        # sane -- an inert-looking instrument fault, so it is named here.
+        if defined_fn and s["name"].startswith(("__catch$", "__unwind$")):
+            defined_fn = False
         if defined_fn:
             cur = {"name": s["name"], "sec": s["sec"], "labels": [], "syms": [],
                    "sections": [], "entries": [("fn", s["name"])]}

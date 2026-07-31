@@ -485,3 +485,446 @@ that touches EH — and the population that would move it most is the one the
 statement-layer decoder still cannot read. Establishing `0x64` (145,237 bodies
 after this change) and `0x67` (45,631) — now the two largest rows on the
 control-flow axis — is what would shrink it.
+
+---
+
+## 8. The obj structure from bytes — items 1–4, at the workload profile (2026-07-31, GT-EH)
+
+§5 sizes the EH rung from two probes and says items 1–4 "are obj structure and
+are mechanical once measured". This section measures them, on **20 probe objs carrying 21 EH functions, at
+the workload's own flags** (`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`), and
+one of §5's own claims does not survive: **item 3 is not mechanical.** Its
+contents are a per-function state assignment over the control-flow graph, and
+that is the same problem as item 5.
+
+Everything below is `scripts/gt_eh.py` output over `work/GTEH/probe/*.cpp`;
+reproduction in §8.9. Nothing here is implemented and nothing here should be
+implemented from this document alone.
+
+### 8.0 First, the instrument lied — by shifting every mnemonic in the section
+
+`scripts/gt_dump.py` disassembled a whole `.text` in one `llvm-mc` call and, on
+a length mismatch, padded the shortfall with `?` **at the end**. llvm-mc emits
+*nothing* for a word it cannot decode (the diagnostic goes to stderr), and an EH
+function's `.text` opens with **two relocated zero words** — the
+`__CxxFrameHandler` / `__ehfuncinfo$` prefix of §1. So every EH dump this
+project has ever produced had its whole mnemonic column shifted up by two rows,
+against correct byte and relocation columns. The first eh1 dump read
+`0008 7d8802a6 li 0,0` — the bytes of `mflr r12` with the mnemonic of an
+instruction two words later.
+
+`disasm()` now establishes alignment per word (memoised, so the fallback costs
+one process per *distinct* word) instead of inferring it from a count. §4's
+listing of eh2 is unaffected — that body has no undecodable word after the
+prefix, so the shift was constant and the excerpt happened to start below it —
+but nothing else in this document was safe until the fix landed.
+
+### 8.1 Item 1 — the prefix, and `Value = 8` (roadmap task #53)
+
+**Reproduced at the workload profile**, and the profile changes nothing: eh1 and
+eh2 recompiled at `/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc` are
+**byte-identical** to §1–§3's `/O1 /GS- /c /EHsc` in section table, `.pdata`
+words, `.rdata` contents and every symbol `Value`. §6.1's warning applies to
+`shapes/ctor_dtor.rs`'s `/Ox`-with-no-`/EH` capture, not to `/GS-` vs `/GR /Oi`.
+
+> **Every region the personality routine can be entered at gets its own 8-byte
+> prefix, and the function symbol is `Value = 8`.** The prefix is two words,
+> each `ADDR32`, `{__CxxFrameHandler, __ehfuncinfo$<mangled>}` — always the
+> *same* two targets, including inside a funclet. 20 objs, 21 EH functions,
+> `Value = 0x8` on every one.
+
+A **catch** funclet carries its own prefix (`__catch$NNNN` is 8 bytes past two
+more relocated zero words); an **unwind** funclet does not (`__unwind$NNNN` is
+real code). That asymmetry is the whole of §8.2a.
+
+### 8.2 Item 2 — the `.pdata` set
+
+> **One `.pdata` COMDAT per covered region: the body plus one per funclet, all
+> `Selection = 5` associative to the function's own `.text`, emitted in
+> DESCENDING `.text` offset — funclets first, body last.**
+
+§2 saw this as "funclet-first" with one funclet. With four it is an ordering,
+and it is exact on **61 records over 21 EH functions** (max 5 in one function —
+`pJ`, four catch funclets and the body; and `pR`, whose two *same-kind* unwind
+funclets are also in descending order, which one funclet could not have shown).
+
+`BeginAddress` always relocates `ADDR32` against the **function symbol**
+(`Value = 8`), with the stored u32 as the addend, so
+
+```
+    addend       = <region's .text offset> - 8
+    unwind word  = bit31 | bit30 | (len_words << 8) | prolog_words
+    len_words    = the region's code only; the 8-byte prefix is NEVER counted
+```
+
+The `$T` label of a funclet's `.pdata` is higher than the body's — §2's reading,
+still exact at four funclets, and it follows from the descending emission order
+rather than being a separate fact.
+
+Bit 30 (`ThirtyTwoBit`) is **1 on all 61 records** and never discriminated
+anything here.
+
+#### 8.2a Bit 31 — §2's reading, tested where it can fail
+
+§2 offered *"bit 31 is set iff the covered region is preceded by the prefix"* as
+"the reading that fits, not as established", on four records, and named the
+capture that would test it: **a function with a catch *and* a destructor**. That
+is probe `pA`, and it prints all three in one obj:
+
+| record | `.text` | prefix | bit31 |
+|---|---|---|---|
+| `__unwind$2570` | 0xac | **no** | **0** |
+| `__catch$2569` | 0x88 | yes | 1 |
+| body | 0x08 | yes | 1 |
+
+Both funclets, one function, opposite bits. The rival hypothesis "bit 31 is
+clear on a funclet" is dead in one cell.
+
+**Discriminating cells: 9** — the nine prefix-less unwind-funclet records
+(`eh2`, `pA`, `pD`, `pG`, `pH`, `pL`'s `c3`, `pN`, and both of `pR`). The other
+**52** records all have the prefix and bit 31 set; they confirm and cannot
+refute. Range: 1–3
+nested try blocks, 0–4 catch clauses, 0–2 destructible locals, frames 96–288 B,
+`/O1 /EHsc` only. **Not swept: `/Ox`, `/O2`, packed (no `/Gy`), a function whose
+frame needs `__savegprlr_N`, `_set_se_translator`/SEH.**
+
+### 8.3 Item 3 — the EH `.rdata`, decoded
+
+The section is `Selection = 5`, associative to the function's `.text` (so
+"`.rdata` is always Selection 2" stays false, §3). Its layout is fixed and its
+sub-objects are anchored by c2's own `STATIC` symbols, never by a guessed
+offset:
+
+```
+    __unwindtable$F     maxState x UnwindMapEntry (8 B)
+    __catchsym$F$n      one array per try block, nCatches x HandlerType (16 B)
+    __tryblocktable$F   nTryBlocks x TryBlockMapEntry (20 B)
+    __ehfuncinfo$F      FuncInfo, 36 B
+    $TNNNN              nIPMapEntries x IpToStateEntry (8 B), 8-BYTE ALIGNED
+```
+
+**`FuncInfo` is NINE dwords, 36 bytes** — measured, and the x86 layout imported
+from memory was **wrong**: there is no `dispUnwindHelp` field.
+
+| off | field | measured range |
+|---|---|---|
+| +0x00 | `magic` | `0x19930522` on all 21 |
+| +0x04 | `maxState` | 1..6 |
+| +0x08 | `pUnwindMap` | `ADDR32 __unwindtable$F`, never null |
+| +0x0c | `nTryBlocks` | 0..3 |
+| +0x10 | `pTryBlockMap` | `ADDR32`, or **0** when `nTryBlocks == 0` |
+| +0x14 | `nIPMapEntries` | 1..6 |
+| +0x18 | `pIPtoStateMap` | `ADDR32 $TNNNN`, never null |
+| +0x1c | `pESTypeList` | 0 on all 21 |
+| +0x20 | `EHFlags` | **1** on all 21 (`/EHsc`) |
+
+The ip-to-state map is 8-byte aligned after `FuncInfo`: pad 0 when the array
+lands at an odd multiple of 4 and pad 4 otherwise, both observed (`eh1` pad 0 at
+0x58, `eh2` pad 4 at 0x30). That is how the 9-dword size was *proved* rather
+than fitted — a 10-dword `FuncInfo` predicts `$T` at 0x2c in `eh2`, and the
+symbol says 0x30 while `eh1`'s says 0x58, which no single constant size can
+satisfy without the alignment.
+
+`UnwindMapEntry = { i32 toState; ADDR32 action }`; `action` is the
+`__unwind$NNNN` funclet or **0** for a state whose exit runs no destructor.
+`TryBlockMapEntry = { i32 tryLow, tryHigh, catchHigh, nCatches; ADDR32
+pHandlerArray }`. `IpToStateEntry = { ADDR32 $MNNNN; i32 state }`, `state` from
+−1 up.
+
+**`HandlerType` is 16 bytes — and that survived its designed falsifier.**
+`pQ` catches a class **by value** whose type has a user copy constructor and a
+destructor; on several MSVC targets that adds a `copyFunction` field. It does
+not here: the array is exactly `4 x 16` and `adjectives` is **0**, so the copy
+is the funclet's job. Had the record been 20 bytes the four `pType`
+relocations would not have landed on the four 16-byte boundaries they do.
+
+`adjectives`, measured (`pE`, `pQ`), 6 cells:
+
+| catch clause | adjectives | `pType` | `.data` |
+|---|---|---|---|
+| `int e`, `char c`, `short s`, `long l` | `0x00` | `??_R0H@8` etc | yes |
+| `E e2` — class by value, user copy ctor + dtor | `0x00` | `??_R0?AUE@@@8` | yes |
+| `const F2& e` | `0x09` | `??_R0?AUF2@@@8` | yes |
+| `int& r` | `0x08` | `??_R0H@8` | yes |
+| `const char* volatile p` | `0x01` | **`??_R0PAD@8`** | yes |
+| `...` | `0x40` | **NULL, no relocation** | **no** |
+
+Reading: `0x01` const, `0x08` reference, `0x40` ellipsis. **`0x02` (volatile) was
+not isolated and is `NOT MEASURED`.** The `const char*` row is worth its own
+line: the descriptor is `??_R0PAD@8`, *not* `??_R0PBD@8` — the pointee's
+`const` moved out of the mangled type and into `adjectives`.
+
+`dispCatchObj` is the **signed displacement of the catch object from the entry
+SP** — see §8.5c, where it is the discriminating measurement.
+
+### 8.4 Item 4 — the type-descriptor `.data`
+
+```
+    TypeDescriptor = { ADDR32 ??_7type_info@@6B@ ; u32 0 ; char name[] }
+    RawSize = 8 + strlen(name) + 1,  NOT padded
+```
+Exact on 6 distinct descriptors (`.H` 11, `.D` 11, `.F` 11, `.J` 11, `.PAD` 13,
+`.?AUE@@` 16, `.?AUF2@@` 17). `Selection = 2` (`ANY`), `Number = 0`, one
+`ADDR32` to the single external `??_7type_info@@6B@`.
+
+> **One `.data` COMDAT per distinct caught type per TU, not per function.** `pF`
+> is two EH functions each catching `int`: one `??_R0H@8`, emitted inside the
+> *first* function's group, and the second function's group has no `.data` at
+> all. `catch(...)` emits none.
+
+### 8.5 The compositions
+
+#### 8.5a Section order — `CODEGEN_FRAMED_CALLS.md` §5's rule does not extend
+
+§5 there establishes *"`.text`, then every `.rdata` it introduces, then its
+`.pdata`"*. Naively extended to EH that is **false**, and the correction needs
+both kinds of `.rdata` in one function to see. `pD` and `pP` are that probe —
+an EH function that also pools an FP constant:
+
+| # | `pP` | Sel | Number |
+|---|---|---|---|
+| 5 | `.text` | 1 | — |
+| 6 | `.rdata` (4 B, the pooled `2.5f`) | **2** | 0 |
+| 7 | `.pdata` (catch funclet) | 5 | 5 |
+| 8 | `.pdata` (body) | 5 | 5 |
+| 9 | `.rdata` (96 B, EH) | **5** | 5 |
+| 10 | `.data` (`??_R0H@8`) | **2** | 0 |
+
+> **Order inside one EH function's group: `.text`, then every pooled-constant
+> `.rdata` (Sel 2), then every `.pdata` (descending `.text` offset), then the EH
+> `.rdata` (Sel 5), then each newly introduced type-descriptor `.data`
+> (Sel 2).** The `.pdata` and EH `.rdata` aux `Number` still name the
+> function's own `.text`, counted through everything between — `Number = 5` here
+> with a `.rdata` in the way, and `Number = 10` for the second function of `pF`.
+
+**Discriminating cells: 2** (`pD`, `pP`). Every other probe has only one kind of
+`.rdata` and is *inert* on this question — it prints a consistent order and
+proves nothing. **Range: `/O1 /EHsc`, one pooled constant, 1–2 functions per TU.
+Not swept: two or more pooled constants, `__real@` reuse across an EH and a
+non-EH function, `/Ox`, packed.**
+
+#### 8.5b The frame formula is UNCHANGED
+
+`align16(80 + locals + 8 + 8*nSaved)` (roadmap §6g) holds on every EH body
+measured, with `r31` counted as a saved register like any other:
+
+| probe | nSaved | locals | predicted | actual |
+|---|---|---|---|---|
+| `pG` | 2 | 0 | 112 | 112 |
+| `pH` | 2 | 160 | 272 | 272 |
+| `eh1` | 1 | 4 | 112 | 112 |
+| `pK` | 2 | 176 | 288 | 288 |
+
+and **every funclet in every probe has `F = 96`** — the same formula at
+`nSaved = 0, locals = 0`, `align16(88) = 96`, including `eh1`'s catch funclet,
+which makes no call and saves nothing yet still allocates 96. What EH changes is
+not the formula but its inputs: `r31` is always saved, and the funclet-visible
+objects are always in `locals`.
+
+#### 8.5c Every EH displacement is measured from the ENTRY SP
+
+`r31 = entry_SP - F`, established *before* the `stwu`, and the funclet
+re-derives it as `addi r31,r12,-F`. So **`r12` on funclet entry is the parent's
+entry SP** — that is the establisher frame the personality routine passes, and
+the funclet has to know the parent's `F` to use it.
+
+Three quantities are pinned to that base, each by a probe that varied `F` and
+held everything else:
+
+| quantity | `F = 112` | `F = 272/288` | fixed at |
+|---|---|---|---|
+| the stack home of a funclet-visible value (`pG`→`pH`) | `stw r3,132(r31)` | `stw r3,292(r31)` | **entry SP + 20** |
+| `dispCatchObj` (`eh1`→`pK`) | −28, obj at `84(r31)` | −204, obj at `84(r31)` | **entry SP − k** |
+| the unwind-help word (`eh1`→`pK`) | `stw r0,4(r1)` | `stw r0,4(r1)` | **entry SP + 4** |
+
+**Discriminating cells: 2 matched pairs.** Both are decisive: an `r31`-relative
+model predicts 132 unchanged in the first row and −28 unchanged in the second,
+and both moved by exactly the frame delta.
+
+The unwind-help word (`li r0,0 ; stw r0,4(r1)`, in the prologue *before* the
+register saves) is emitted **iff `nTryBlocks >= 1`**: present in `eh1`, `pK`,
+`pA`, `pB`, `pC`, `pE`; absent in `eh2`, `pD`, `pG`, `pH`. This corrects §4,
+which reads it as the function's own `SP+4`: it is at the **entry** SP + 4,
+i.e. in the *caller's* reserved 8 bytes, which is what
+`CODEGEN_FRAMED_CALLS.md` §1.1's "reserved and unwritten" pair is reserved for —
+reserved by the caller, written by the callee.
+
+#### 8.5d The label counter — the surcharge table, `LABEL_COUNTER.md` §1.1
+
+`scripts/gt_label_stride.py` now carries EH probes. Every row's in-TU control
+held (`base = 5` on all 13). **The instrument had to be fixed first**: a funclet
+entry `__catch$NNNN` / `__unwind$NNNN` is a *defined STATIC symbol of function
+type inside its parent's `.text`*, so the group walker opened a new group on it
+and silently truncated the parent's label set — `extra` and `minted` were wrong
+for every EH row while `stride` still looked sane.
+
+| probe | what P is | extra | **stride** | minted |
+|---|---|---:|---:|---:|
+| `plain` / `gpr2` | non-EH controls | 0 | **5** | 5 |
+| `eh-void-ctl` | void, framed, two callees, no destructible object | 0 | **5** | 5 |
+| `eh-cheap` | `void P(){ SE s; }` — **eh-bare, NO EH records** | 1 | **6** | 5 |
+| `eh-cheap-led` | same, with an eh-bare function already led | 1 | **6** | 5 |
+| `eh-dtor` | one destructible local, no try | 4 | **18** | 17 |
+| `eh-dtor-led` | same, an EH function already led | 4 | **17** | 16 |
+| `eh-dtor2` | **two** destructible locals | 5 | **25** | 24 |
+| `eh-catch` | one `catch(int)` | 8 | **22** | 22 |
+| `eh-catch-led` | same, led | 8 | **21** | 18 |
+| `eh-catch2` | **two** catch clauses | 13 | **31** | 30 |
+| `eh-catchall` | `catch(...)` | 8 | **22** | 19 |
+| `eh-both` | catch **and** destructor | 11 | **34** | 32 |
+
+Four things are established out of that table, and the decomposition is not one
+of them:
+
+* **`__CxxFrameHandler` is a once-per-TU `+1`, exactly like `_fltused`** —
+  `eh-dtor` 18 → `eh-dtor-led` 17 and `eh-catch` 22 → `eh-catch-led` 21.
+* **The type-descriptor `.data` group is worth ZERO slots.** `eh-catch` (a
+  `.data`, `??_R0H@8` and `??_7type_info@@6B@` in its group) and `eh-catchall`
+  (none of them) are both **22**. One discriminating cell, and it separates the
+  `.data` from the `+1` that the `-led` rows would otherwise have conflated with
+  it.
+* **The cheap side is not free: an `eh-bare` body costs `+1`.** Two
+  discriminating cells — `eh-void-ctl` is the matched non-destructible control
+  at the same frame class and prints 5, and `eh-cheap-led` shows the charge is
+  **per function, not per TU**. §7.3's 40,881 "reachable without any EH model at
+  all" functions each pay one label slot that a plain framed emitter would miss.
+* **`stride == minted` is refuted on 9 of 12 EH rows** — `LABEL_COUNTER.md` §3's
+  standing refutation, now with a ninth and largest family. `eh-catch` agrees at
+  22 = 22 and that agreement is a coincidence: its neighbour `eh-catchall`
+  agrees on stride and disagrees on minted.
+
+The decomposition into per-feature surcharges is **NOT MODELLED**. It is not
+additive: `eh-catch` 22 + `eh-dtor` 18 − 5 = 35, and `eh-both` is **34**.
+
+#### 8.5e The estimate, scored
+
+Written before each capture. Bias named where it was operating.
+
+| predicted | actual |
+|---|---|
+| workload profile changes items 1–4 | **no change**, byte-identical to §1–§3 |
+| catch + dtor ⇒ bit31 1 / 0 / 1 | exactly that |
+| `catch(...)` ⇒ `pType` NULL, no `.data` | yes, **and** `adjectives = 0x40`, unpredicted |
+| two catch clauses ⇒ **two** `__catchsym$` arrays | **WRONG** — one array of two entries. I assumed one array per handler |
+| a class caught by value with a copy ctor ⇒ a **5th** `HandlerType` field | **WRONG, and this one is a win** — 16 bytes, `adjectives = 0` |
+| `FuncInfo` = 10 dwords (x86's 9 + `dispUnwindHelp`) | **WRONG** — 9 dwords, no `dispUnwindHelp`. Bias: importing an x86 layout from memory, the exact trap §5 of `CLAUDE.md` names, and it failed |
+| EH `.rdata` after the `.pdata` | right, **but not independent** — read off §3's own section numbering. The genuinely new half (the pooled-constant `.rdata` keeps its slot *before* the `.pdata`) was a coin-flip and landed |
+| label surcharge ≈ **+4** for an `eh2`-shaped function | **+13**. Off by 3.25x. Bias: I counted minted symbols, which §3 of `LABEL_COUNTER.md` already records as refuted, and did it anyway |
+| `eh-bare` costs **0** slots | **+1** |
+
+Two of nine predictions were right for the right reason; three were wrong and
+two of those three were wrong because a layout was imported instead of measured.
+
+### 8.6 What stays NOT MODELLED
+
+* **The IP-to-state map's contents.** `nIPMapEntries` took the values 1, 2, 3,
+  4 and 6 over the probes with no rule I can state, and it does not track
+  anything else in the record — `pI` has three catch clauses and **one** entry,
+  `pR` has two destructible locals and **four**. Each entry relocates against a
+  `$M` label at a statement boundary and carries a state that only a CFG-wide
+  assignment produces. This is the single field of the whole EH `.rdata` I
+  cannot predict from source.
+* **`tryLow` / `tryHigh` / `catchHigh` / `maxState`.** Observed: `maxState` is
+  **2 per nesting level of `try`** (1 try 2, two nested 4, three nested 6) plus
+  **1 per destructible object** (`pR` two objects, no try, `maxState = 2`;
+  `pN` one try plus one object, 3), with `tryLow`/`tryHigh` descending with
+  depth. That is a fit to seven shapes, not a model, and the number of catch
+  clauses does not enter it at all.
+* **The `__catchsym$F$n` index.** A **name**, so a wrong one is wrong bytes.
+  Fitted on **10 cells** by
+  `n(array j) = maxState + sum_i(nCatches_i) - nTryBlocks + j`
+  — equivalently, the catch clauses take numbers `maxState .. maxState+total-1`
+  and the arrays take the **top `nTryBlocks`** of them, in order. Three designed
+  falsifiers were run against it and all three passed (`pJ` two trys x two
+  catches, which killed two earlier fits; `pM` three nested trys; `pO` two trys
+  with **unequal** catch counts, 1 and 3). **Fitted, not established.**
+* **`adjectives` bit `0x02`** (volatile), and every `adjectives` combination
+  involving a class hierarchy.
+* **The label-counter surcharge decomposition** (§8.5d), and every EH stride
+  outside the twelve shapes in that table.
+* **`/Ox`, `/O2` and packed mode for all of the above.** Every negative in §8 is
+  scoped to `/O1 /EHsc`.
+* **`pESTypeList`** — 0 on all 21 EH functions, so a `throw()` specification is
+  entirely unmeasured.
+
+### 8.7 Sizing item 5, and a correction to §5
+
+§5 says items 1–4 are "mechanical once measured" and item 5 is "a codegen
+problem the size of the whole framed-call rung". After measuring 1–4:
+
+**Item 5 is not one rung, and the expensive half is not the funclet body.**
+
+1. **Items 1–4 do not compose into a shippable rung on their own.** There is no
+   EH obj without a funclet — the `.rdata` relocates against `__unwind$`/
+   `__catch$` and the `.pdata` set counts them. Like W-UNW-1, this is groundwork
+   with a census delta of exactly 0.
+2. **The smallest rung that admits anything is the no-try unwind shape** —
+   `eh2`/`pG`/`pH`: prefix + `Value = 8`, two `.pdata`, a 64-byte `.rdata` with
+   `nTryBlocks = 0` and a two-entry ipmap, the `r31` discipline, entry-SP-relative
+   homing, the `+13` label surcharge, and one funclet body. It is the whole of
+   §7.3's largest bucket (`eh-plus-stmt`, 160,944) and it needs **no** try-block
+   table, **no** handler array, **no** type descriptor and **no** `.data`.
+3. **Try/catch is a separate, larger rung**: the try-block table, handler arrays
+   with their `adjectives`, the type-descriptor `.data` and its two externals,
+   the state numbering, the unwind-help word, the `$LN` continuation label the
+   catch funclet returns in `r3`, and the `__catchsym$` name.
+4. **The state model is the real cost, and it is item 3, not item 5.** The
+   unwind map, the ip-to-state map and `tryLow`/`tryHigh`/`catchHigh` are one
+   assignment of EH states to program points. That is whole-function dataflow;
+   the port has no such pass, and no shape matcher produces it. The funclet
+   *body* — `addi r31,r12,-F`, a 96-byte frame, calls, `blr` — is small and
+   regular by comparison; every funclet measured here is 5 to 11 instructions.
+
+So the honest ordering is: **groundwork (1–4 + one funclet emitter) → the no-try
+unwind rung → the state model → try/catch.** §5's "obj-structure half could be
+measured to completion cheaply" was right about the cost of *measuring* it and
+wrong about what the measurement would contain.
+
+### 8.8 The riskiest thing still unmeasured
+
+**The IP-to-state map.** It is the only part of the EH `.rdata` whose value I
+cannot derive from the source; it puts `ADDR32` relocations onto `.text` labels
+the label planner does not currently allocate — so getting it wrong moves the
+label counter as well as the `.rdata` — and no instrument in this project can
+see it. It is also the field most likely to differ on the `eh-unknown` bodies
+(§7.6, 288,072 of them), which is where the population that would move §7.3's
+split lives.
+
+### 8.9 Reproduction
+
+`work/` is gitignored and objs are never committed, so the twenty probe sources
+are **embedded in the script**:
+
+```sh
+export C2RS_WIBO=<the repo's resolved wibo>
+scripts/gt_eh.py --write-probes work/GTEH/probe    # the whole §8 corpus
+# every probe, decoded: prefix, .pdata set, FuncInfo, maps, section order.
+# The DEFAULT mode is the WORKLOAD profile, not the fixture profile.
+scripts/gt_eh.py work/GTEH/probe/pA.cpp            # bit 31: both funclets, one obj
+scripts/gt_eh.py work/GTEH/probe/pP.cpp            # section order: both .rdata kinds
+scripts/gt_eh.py work/GTEH/probe/pQ.cpp            # adjectives + the HandlerType width
+scripts/gt_eh.py work/GTEH/probe/pH.cpp --text     # the entry-SP base, F = 272
+scripts/gt_eh.py work/GTEH/probe/pK.cpp --text     # dispCatchObj at F = 288
+scripts/gt_eh.py work/GTEH/probe/pR.cpp            # TWO unwind funclets, one function
+scripts/gt_eh.py work/GTEH/probe/pL.cpp            # the eh-bare / eh-plus-stmt boundary
+scripts/gt_eh.py --obj <any.obj>                   # decode without recompiling
+# the label surcharge -- the /EHsc mode is NOT optional: without it every EH
+# row collapses onto its non-EH control, which is a VACUOUS run, not a zero.
+scripts/gt_label_stride.py --mode '/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc' \
+    plain gpr2 eh-void-ctl eh-cheap eh-cheap-led eh-dtor eh-dtor-led eh-dtor2 \
+    eh-catch eh-catch-led eh-catch2 eh-both eh-catchall
+```
+
+`gt_eh.py` reads every sub-object boundary from c2's own `STATIC` symbols and
+every array length from the count field that points at it — the handler-array
+walk originally ran off the end of one array into the next (`pC`), which is why
+lengths are no longer inferred from where the relocations stop.
+
+**Re-gate.** All 20 embedded probes were recompiled into a second directory and
+compared against the originals on everything but `.drectve` / `.debug$S` (which
+carry the source path): **20 structurally identical, 0 mismatched** — section
+names, sizes, characteristics and raw bytes, and every symbol's name, value,
+section and storage class. And `gt_label_stride.py`'s shipped §1 table is
+unmoved by this session's two edits to it: `plain` 5, `plain-3callees` 5,
+`gpr3` 7, `fpr4-led` 7, `both-led` 9, `const1-led` 7, `const2-led` 9,
+`leaf-int` 1, `leaf-float` 2, controls failed 0, `stride != minted` 0.
