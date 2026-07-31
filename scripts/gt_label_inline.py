@@ -674,6 +674,192 @@ FAMILIES = [
            "static void lpg(int* o, int a){ *o = gs(a)+a; }",
            BAR + "lpg(&gv, s);", BAR + "gv = gs(s)+s;",
            note="the pointer argument is &<a global>                  PRED 4"),
+
+    # === ROUND 13: the SWITCH, decomposed. `switch-body` is recorded in §6.7
+    #     as "10 at N=1, 14 marginal — not even uniform in N". It is uniform:
+    #     `dhand` is +10 per site flat to N=5 and the 4 that separates 14 from
+    #     10 is what a SECOND written-out switch costs P, measured on the same
+    #     row by the hand control. So the inline record for a 5-arm switch is
+    #     10, and law L' at depth 1 needs E = 7 to reach it. Two readings of 7:
+    #     one E unit per case ARM plus one for the switch construct plus the
+    #     +1 flat multi-exit temp (5+1, +1 = 7), or a slope that is not 1. The
+    #     arm ladder separates them: slope-1 predicts 7/8/9/(10)/11, slope-2
+    #     predicts 4/6/8/(10)/12. Bias: I expect slope 1 and expect to be wrong
+    #     about the intercept, because §6.6 already caught a construct (the
+    #     loop) whose charge is affine in something other than its features.
+    Family("sw-arms2", GS,
+           "static int sw2(int a){ switch(a){ case 1: return gs(a);"
+           " default: return 0; } }",
+           "s=sw2(s);",
+           "switch(s){ case 1: s=gs(s); break; default: s=0; }",
+           note="a 2-arm switch              PRED 7 slope-1 / 4 slope-2"),
+    Family("sw-arms3", GS,
+           "static int sw3(int a){ switch(a){ case 1: return gs(a);"
+           " case 2: return a+2; default: return 0; } }",
+           "s=sw3(s);",
+           "switch(s){ case 1: s=gs(s); break; case 2: s=s+2; break;"
+           " default: s=0; }",
+           note="a 3-arm switch              PRED 8 slope-1 / 6 slope-2"),
+    Family("sw-arms4", GS,
+           "static int sw4(int a){ switch(a){ case 1: return gs(a);"
+           " case 2: return a+2; case 7: return a+7; default: return 0; } }",
+           "s=sw4(s);",
+           "switch(s){ case 1: s=gs(s); break; case 2: s=s+2; break;"
+           " case 7: s=s+7; break; default: s=0; }",
+           note="a 4-arm switch              PRED 9 slope-1 / 8 slope-2"),
+    Family("sw-arms6", GS,
+           "static int sw6(int a){ switch(a){ case 1: return gs(a);"
+           " case 2: return a+2; case 7: return a+7; case 8: return a+8;"
+           " case 9: return a+9; default: return 0; } }",
+           "s=sw6(s);",
+           "switch(s){ case 1: s=gs(s); break; case 2: s=s+2; break;"
+           " case 7: s=s+7; break; case 8: s=s+8; break; case 9: s=s+9; break;"
+           " default: s=0; }",
+           note="a 6-arm switch              PRED 11 slope-1 / 12 slope-2"),
+    Family("sw-dense", GS,
+           "static int swd(int a){ switch(a){ case 0: return gs(a);"
+           " case 1: return a+1; case 2: return a+2; case 3: return a+3;"
+           " default: return 0; } }",
+           "s=swd(s);",
+           "switch(s){ case 0: s=gs(s); break; case 1: s=s+1; break;"
+           " case 2: s=s+2; break; case 3: s=s+3; break; default: s=0; }",
+           note="5 arms, CONTIGUOUS values (jump table)  PRED 10 (= sparse)"),
+    Family("sw-void", GS,
+           "static void swv(int a){ switch(a){ case 1: gs(a); break;"
+           " case 2: gs(a+2); break; case 7: gs(a+7); break;"
+           " case 8: gs(a+8); break; default: gs(0); } }",
+           BAR + "swv(s);",
+           BAR + "switch(s){ case 1: gs(s); break; case 2: gs(s+2); break;"
+           " case 7: gs(s+7); break; case 8: gs(s+8); break;"
+           " default: gs(0); }",
+           note="the same 5 arms, VOID — no result temp   PRED 9 (10 less the"
+                " flat multi-exit +1)"),
+    Family("sw-1exit", GS,
+           "static int sw1(int a){ int r; switch(a){ case 1: r=gs(a); break;"
+           " case 2: r=a+2; break; case 7: r=a+7; break; case 8: r=a+8; break;"
+           " default: r=0; } return r; }",
+           "s=sw1(s);",
+           "{int r; switch(s){ case 1: r=gs(s); break; case 2: r=s+2; break;"
+           " case 7: r=s+7; break; case 8: r=s+8; break; default: r=0; }"
+           " s=r;}",
+           note="5 arms, ONE exit through a local  PRED 10 (10 +1 local -1"
+                " multi-exit)"),
+    Family("d2-switch", GS,
+           "static int sq1(int a){ switch(a){ case 1: return gs(a);"
+           " case 2: return a+2; case 7: return a+7; case 8: return a+8;"
+           " default: return 0; } }\n"
+           "static int sq2(int a){ return sq1(a)+1; }",
+           "s=sq2(s);",
+           "{switch(s){ case 1: s=gs(s); break; case 2: s=s+2; break;"
+           " case 7: s=s+7; break; case 8: s=s+8; break; default: s=0; }"
+           " s=s+1;}",
+           note="the 5-arm switch at DEPTH 2  PRED 21 if the switch is an E"
+                " feature (3 + [5+2*6] + 1); LOWER if it is affine like a loop"),
+
+    # === ROUND 14: the CONSTRUCTOR is itself an inlined function, so `ctor`'s
+    #     expansion tree is TWO instances deep and §6.7 graded it against a
+    #     depth-1 prediction. Law L' on the tree the front end actually builds:
+    #     lct at depth 1 with one declared local (`CT c`) = 3 + 1*1 = 4, plus
+    #     CT::CT at depth 2 with E=0 = 2*2+1 = 5. Total 9 — which is what §6.7
+    #     measured. `dtor` needs 16 and the same reading gives 4 + 5 + 5 = 14,
+    #     so the destructor instance costs 7, i.e. E(~DT) = 1. These probes
+    #     test the reading instead of asserting it; `ctor-direct` is the one
+    #     that decides it, because it puts the constructor at depth 1 where the
+    #     law's own depth term is directly readable.
+    Family("ctor-direct", GS,
+           "struct CD { int v; CD(int a){ v = gs(a)+a; } };",
+           "{CD c(s); s=c.v;}", "{int cv = gs(s)+s; s=cv;}",
+           note="P constructs the object ITSELF: ctor at DEPTH 1     PRED 3"),
+    Family("ctor-noloc", GS,
+           "struct CN { int v; CN(int a){ v = gs(a)+a; } };\n"
+           "static int lcn(int a){ return CN(a).v; }",
+           "s=lcn(s);", "s=gs(s)+s;",
+           always_lead=True,
+           note="the wrapper declares NO named local  PRED 8 (3 + 5); 9 if a"
+                " temporary counts as a local"),
+    Family("ctor-loc", GS,
+           "struct CL { int v; CL(int a){ int t=gs(a); v=t+a; } };\n"
+           "static int lcl(int a){ CL c(a); return c.v; }",
+           "s=lcl(s);", "{int t=gs(s); s=t+s;}",
+           always_lead=True,
+           note="the CTOR BODY declares one local     PRED 11 (4 + [5+2*1])"),
+    Family("ctor-if", GS,
+           "struct CI { int v; CI(int a){ if (a>0) v=gs(a); else v=a+1; } };\n"
+           "static int lci(int a){ CI c(a); return c.v; }",
+           "s=lci(s);", "{int cv; if (s>0) cv=gs(s); else cv=s+1; s=cv;}",
+           always_lead=True,
+           note="the CTOR BODY has one if             PRED 11 (4 + [5+2*1])"),
+    Family("ctor-init", GS,
+           "struct CJ { int v; CJ(int a) : v(gs(a)+a) {} };\n"
+           "static int lcj(int a){ CJ c(a); return c.v; }",
+           "s=lcj(s);", "s=gs(s)+s;",
+           always_lead=True,
+           note="member-init list, not an assignment  PRED 9 (= ctor)"),
+    Family("ctor-2mem", GS,
+           "struct CM { int v, w; CM(int a){ v=gs(a); w=a+1; } };\n"
+           "static int lcm(int a){ CM c(a); return c.v+c.w; }",
+           "s=lcm(s);", "{int cv=gs(s); int cw=s+1; s=cv+cw;}",
+           always_lead=True,
+           note="the ctor assigns TWO members         PRED 9 (members are not"
+                " locals)"),
+    Family("dtor-direct", GS,
+           "struct DD { int v; DD(int a){ v = gs(a)+a; } ~DD(){ gs(v); } };",
+           "{DD d(s); s=d.v;}", "{int dv = gs(s)+s; s=dv; gs(dv);}",
+           note="P declares the object ITSELF: ctor AND dtor at DEPTH 1"
+                "   PRED 7 (3 + [3+1]) if E(~)=1, 6 if E(~)=0"),
+    Family("dtor-only", GS,
+           "struct DZ { int v; ~DZ(){ gs(v); } };\n"
+           "static int ldz(int a){ DZ d; d.v=gs(a)+a; return d.v; }",
+           "s=ldz(s);", "{int dv=gs(s)+s; s=dv; gs(dv);}",
+           always_lead=True,
+           note="a dtor and NO user ctor   PRED 11 (4 + [5+2*1]) if E(~)=1,"
+                " 9 if E(~)=0"),
+    Family("dtor-empty", GS,
+           "struct DE { int v; DE(int a){ v = gs(a)+a; } ~DE(){} };\n"
+           "static int lde(int a){ DE d(a); return d.v; }",
+           "s=lde(s);", "s=gs(s)+s;",
+           always_lead=True,
+           note="the destructor body is EMPTY   PRED 16 (§6.1: the charge is"
+                " about the expansion, not the code); 14 if the +2 was the"
+                " body; 9 if a trivial dtor is not an instance at all"),
+    Family("dtor-2obj", GS,
+           "struct D2 { int v; D2(int a){ v = gs(a)+a; } ~D2(){ gs(v); } };\n"
+           "static int ld2(int a){ D2 p(a); D2 q(a); return p.v+q.v; }",
+           "s=ld2(s);",
+           "{int pv=gs(s)+s; int qv=gs(s)+s; s=pv+qv; gs(qv); gs(pv);}",
+           always_lead=True,
+           note="TWO objects: 2 ctor + 2 dtor instances   PRED 29"
+                " ([3+2] + 5 + 5 + 7 + 7)"),
+
+    # === ROUND 15: §6.7 turned the `int&`/`int*` reconciliation into two
+    #     predictions and both inverted; the only thing separating the 4s from
+    #     the 3s was that the 4s point INTO A LOCAL OF P and the 3 points at a
+    #     global. That is a story about storage class OR about lexical
+    #     locality, and the two are separable. A function-static has a global's
+    #     storage and a local's scope: storage-class predicts 3, locality
+    #     predicts 4. `ref-2args` / `ptr-2args` separately decide whether the
+    #     +1 is per ARGUMENT or once per callee.
+    Family("ref-global", "int gs(int); extern int gv;",
+           "static void lrg(int& o, int a){ o = gs(a)+a; }",
+           BAR + "lrg(gv, s);", BAR + "gv = gs(s)+s;",
+           note="int& bound to a GLOBAL       PRED 3 (mirrors ptr-global)"),
+    Family("ref-const-read", GS,
+           "static int lrr(const int& o, int a){ return gs(a)+o; }",
+           "s=lrr(s, s);", "s=gs(s)+s;",
+           note="const int& only READ, never written   PRED 4 if the +1 is the"
+                " binding, 3 if it is the write-through"),
+    Family("ptr-static-local", GS,
+           "static void lps(int* o, int a){ *o = gs(a)+a; }",
+           BAR + "lps(&sv, s); s+=sv;", BAR + "sv = gs(s)+s; s+=sv;",
+           head="int P(int a){ static int sv; int s=gs(a)+a;",
+           note="&<a function-static>: a global's storage, a local's scope"
+                "   PRED 3 storage-class / 4 locality"),
+    Family("ptr-2args", GS,
+           "static void lq2(int* o, int* p, int a){ *o = gs(a); *p = a+1; }",
+           "lq2(&s, &t, s);", "{int q=s; s=gs(q); t=q+1;}",
+           head="int P(int a){ int t=a; int s=gs(a)+a;", tail="return s+t; }",
+           note="TWO int* args, both &<local of P>   PRED 5 per-argument / 4"
+                " once per callee"),
 ]
 
 # Two-and-more DISTINCT callees, one site each — the per-site vs per-callee
@@ -765,6 +951,15 @@ LAW = {
     "ref-param": None, "ptr-param": None, "switch-body": None,
     "ctor": None, "dtor": None,
     "ptr-already": None, "ptr-global": None,
+    # rounds 13-15 — hold-outs, graded by the run; see docs §6.9-§6.11
+    "sw-arms2": None, "sw-arms3": None, "sw-arms4": None, "sw-arms6": None,
+    "sw-dense": None, "sw-void": None, "sw-1exit": None, "d2-switch": None,
+    "ctor-direct": None, "ctor-noloc": None, "ctor-loc": None,
+    "ctor-if": None, "ctor-init": None, "ctor-2mem": None,
+    "dtor-direct": None, "dtor-only": None, "dtor-empty": None,
+    "dtor-2obj": None,
+    "ref-global": None, "ref-const-read": None, "ptr-static-local": None,
+    "ptr-2args": None,
 }
 
 HELPER_PFX = ("__savegprlr_", "__restgprlr_", "__savefpr_", "__restfpr_")
@@ -896,6 +1091,16 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
     ah = adjs.get("hand", {})
     khinc = (ah[nmax] - ah[nmax - 1]) if nmax >= 2 and nmax in ah else kh
     oneoff = None if ki is None or kinc is None else ki - kinc
+    # THE BOOKKEEPING SLOPE. `kinc` is everything the inlined row pays: the
+    # inline record PLUS whatever §1.1 surcharge P owes for the code it now
+    # contains. The hand control pays only the second, so `kinc - khinc` is the
+    # inline record alone. On 72 of the 100 families khinc is 0 and the two are
+    # the same number; where it is not, reading `kinc` as "the cost of inlining"
+    # is a category error. `switch-body` is the case that matters: its marginal
+    # 14 is 10 of bookkeeping plus 4 that a SECOND written-out switch costs P
+    # whether or not anything was inlined, and the 10 is flat from N=1 to N=5
+    # while the 14 is not. Printed on every row so no family can hide it.
+    book = None if kinc is None or khinc is None else kinc - khinc
     want = LAW.get(name, "?")
     # A LAW entry is a prediction about ONE expansion tree — the one the front
     # end builds for that source. When the front end declines an inline the tree
@@ -918,8 +1123,9 @@ def sweep(name, source_fn, note, mode, workdir, nmax):
     shape = ("LINEAR to N=%d" % nmax if lin
              else "one-off %+d at N=1, linear after" % oneoff if oneoff
              else "*** NON-LINEAR ***")
-    print("    -> %s/site marginal (%s at N=1), %s;  hand control %s/%s;  %s%s"
-          % (kinc, ki, shape, kh, khinc, verdict,
+    print("    -> %s/site marginal (%s at N=1), %s;  hand control %s/%s;"
+          "  bookkeeping %s/site;  %s%s"
+          % (kinc, ki, shape, kh, khinc, book, verdict,
              "  (see INLINE-DECLINED? rows)" if refused else ""))
     print()
     return bad, (want not in (None, "?") and want != kinc and not refused)
@@ -951,6 +1157,9 @@ def main(argv):
     print("           a family that disagrees prints *** REFUTES LAW L\' ***")
     print("  dhand  = stride(inlined) - stride(hand-written-out); TEXT-IDENTICAL means")
     print("           P's .text bytes are equal in the two objs, so dhand bought no code")
+    print("  book   = marginal(inl) - marginal(hand): the INLINE RECORD alone, with P's")
+    print("           own §1.1 surcharge for the code differenced out. Read this, not")
+    print("           the marginal, when asking what an inlined site costs.")
     print()
     wd = tempfile.mkdtemp(prefix="gtinl")
     bad = refuted = 0
