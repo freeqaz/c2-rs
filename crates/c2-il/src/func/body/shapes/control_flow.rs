@@ -193,6 +193,16 @@ pub(crate) struct EhMarkers {
     pub(crate) stmt_ends: usize,
     /// Any `5C` / `5D` / `5E` at all.
     pub(crate) any: bool,
+    /// **CALL tokens issued while at least one destructible object is live** —
+    /// the thing `docs/EH_RECORDS.md` §9.4's predicate actually asks for.
+    ///
+    /// A `4C` argument-list close seen while the running live count (raised by
+    /// `5C`, lowered by a `5D`/`5E` count trailer) is non-zero is an **outbound
+    /// control transfer at a non-empty live set**, i.e. a state. One is enough:
+    /// `maxState >= 1` and the whole `§1`–`§5` EH record set exists. Zero of them
+    /// and `maxState = 0` and none of it is emitted, however many statements the
+    /// body has.
+    pub(crate) calls_live: usize,
 }
 
 impl EhMarkers {
@@ -209,12 +219,18 @@ impl EhMarkers {
             .saturating_sub(self.trailer_stmts)
     }
 
-    /// **The EH census axis.** Which side of `docs/EH_RECORDS.md` §6's boundary
-    /// this body falls on:
+    /// **The EH census axis, on the REFUTED statement-count predicate.** Which
+    /// side of `docs/EH_RECORDS.md` §6's boundary this body falls on:
     ///
     /// > Exactly one sub-object statement and nothing else is a bare branch. A
     /// > second sub-object, or any other statement beside it, is the WHOLE EH
     /// > RECORD.
+    ///
+    /// **That predicate is false in BOTH directions** — `docs/EH_RECORDS.md` §9.4
+    /// and §10. It is kept, and still reported beside [`EhMarkers::state_key`],
+    /// for exactly one reason: §7.3's published split is keyed on it, so the two
+    /// axes crossed are what reconciles the old numbers with the new ones. It is
+    /// **not** the axis to rank from. See [`EhMarkers::state_key`].
     ///
     /// Nothing in the blocking-feature key says which side a body is on — the
     /// probe `work/WEH/probe/p1.cpp` has a cheap constructor and an EH
@@ -244,6 +260,56 @@ impl EhMarkers {
             return "eh-plus-stmt";
         }
         "eh-bare"
+    }
+
+    /// **The EH census axis, on the MEASURED predicate.** `docs/EH_RECORDS.md`
+    /// §9.4, from bytes:
+    ///
+    /// > An EH record set exists iff **`maxState >= 1`**, i.e. iff at least one
+    /// > outbound control transfer occurs while a destructible object is live.
+    /// > `S = 0` and the entire §1–§5 apparatus disappears with it.
+    ///
+    /// The statement count does not enter it, and reading it as one is wrong in
+    /// **both** directions — §10 grades 31 hand-written functions against their
+    /// own objs and the statement rule misses 6 of them, 4 the expensive way
+    /// (`int P(int a){ SE s; int x=a*3; return x; }` has "another statement
+    /// beside" the object and gets no record at all) and 2 the cheap way
+    /// (`int P(int a){ SE s; return gp(a); }` has NO other statement — a `return`
+    /// carries no `4B` — and gets the whole record set).
+    ///
+    /// Four values:
+    ///
+    /// * `eh-none` — decoded, no `5C`/`5D`/`5E`. No destructible object is ever
+    ///   live, so `/EHsc` costs it nothing.
+    /// * `eh-state0` — decoded, a marker, and **no** call while an object was
+    ///   live. `maxState = 0`: no `__CxxFrameHandler` prefix, one `.pdata`, no EH
+    ///   `.rdata`, no funclet, function symbol `Value = 0`. **The cheap side.**
+    /// * `eh-state1` — at least one call while an object was live. `maxState >= 1`
+    ///   and the whole record set exists. Claimed **whether or not the walk
+    ///   finished**: a transfer already seen at a non-empty live set cannot be
+    ///   un-seen by whatever stopped the walk later.
+    /// * `eh-partial` — a marker was seen, no such call was, and then the walk
+    ///   stopped. Undecided: the calls that would have decided it may be in the
+    ///   part that was never read. **Not on either side.**
+    /// * `eh-unknown` — the walk stopped before any marker; nothing is claimed.
+    ///
+    /// Note `eh-partial` is weaker here than on the statement axis, where it was
+    /// argued onto the EH side structurally. That argument does not survive the
+    /// change of predicate — the cheap side is no longer "the shape that always
+    /// decodes" — so the bucket goes back to claiming nothing.
+    pub(crate) fn state_key(self, decoded: bool) -> &'static str {
+        // Proof beats completeness: one transfer at a non-empty live set settles
+        // it, and a walk that stopped afterwards cannot unsettle it.
+        if self.calls_live > 0 {
+            return "eh-state1";
+        }
+        if !decoded {
+            return if self.any { "eh-partial" } else { "eh-unknown" };
+        }
+        if !self.any {
+            return "eh-none";
+        }
+        "eh-state0"
     }
 }
 
@@ -280,6 +346,16 @@ struct Scan<'a> {
     off_class: bool,
     /// The EH-state trailer counts — see [`EhMarkers`].
     eh: EhMarkers,
+    /// **How many destructible objects are live right here**, in stream order:
+    /// `5C` raises it by one, a `5D`/`5E` count trailer lowers it by that
+    /// trailer's own `<n>`. Scratch for [`EhMarkers::calls_live`], which is the
+    /// only thing that reads it.
+    ///
+    /// Saturating, deliberately: a trailer whose `<n>` exceeds the count raised
+    /// so far means this walk did not see every `5C` (an inlined constructor, a
+    /// marker inside a production this scanner steps over by width), and
+    /// clamping to zero is the direction that under-claims the EH side.
+    eh_live: u32,
 }
 
 impl<'a> Scan<'a> {
@@ -362,6 +438,7 @@ pub(crate) fn scan_full(seg: &[u8], lo: usize) -> CfScan {
         switches: 0,
         off_class: false,
         eh: EhMarkers::default(),
+        eh_live: 0,
     };
     let body = walk(&mut s);
     CfScan { decoded: body.is_ok(), body, eh: s.eh }
@@ -656,6 +733,13 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             s.ty("cf-eh-live-type")?;
             s.vint("cf-eh-live-state")?;
             s.eh.live_stmts += 1;
+            // …and one more object is live from here on. MEASURED: the `5C` is the
+            // last token of its statement (it stands immediately before the `4B`),
+            // so a constructor call in the same statement is BEFORE it and is
+            // correctly counted at the lower state — which is where c2 puts it
+            // (`docs/EH_RECORDS.md` §9.1, "live from the instruction after its
+            // constructor call returns").
+            s.eh_live += 1;
             s.eh.any = true;
             s.off_class();
         }
@@ -664,6 +748,14 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
             let n = s.vint("cf-eh-count")?;
             s.vint("cf-eh-count-state")?;
             s.eh.count = s.eh.count.max(n.max(0) as u32);
+            // …and this trailer's `<n>` objects stop being live. This is what
+            // separates `{ SE s; } { SE t; }` (two objects, never live together,
+            // NO EH record) from `{ SE s; SE t; }` (one is live across the
+            // other's transfer, record) — probe `mF` against `mE`,
+            // `docs/EH_RECORDS.md` §10. Without it the second scope's
+            // constructor call reads as a transfer at a live set and the body is
+            // filed on the expensive side, which is measurably wrong.
+            s.eh_live = s.eh_live.saturating_sub(n.max(0) as u32);
             // A trailer standing immediately before a `4B` is a statement of its
             // own; one standing before anything else is an operand of the
             // statement it sits inside. Both spellings occur in one probe
@@ -855,7 +947,25 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
                 s.off_class();
             }
         }
-        0x4C => s.p += 1,
+        // **The EH predicate lives HERE, on `4C`, not on the `BD` above.** `4C`
+        // closes a call's argument list, and `BD … 4C` brackets the call: the
+        // descriptor is emitted BEFORE the arguments are evaluated. So a
+        // destructible temporary materialized by a nested call goes live *between*
+        // the two, and only `4C` is on the right side of it.
+        //
+        // MEASURED, and it cost a wrong answer to find: `int t1(int a){ return
+        // gp(mkSE().m) + a; }` emits `BD`(gp) … `BD`(mkSE) `4C` … `5C` …
+        // `4C`(gp). Counting at `BD` puts gp's transfer at the empty live set and
+        // calls the body cheap; its obj has an `__ehfuncinfo$` and `Value = 8`.
+        // Counting at `4C` gets it right and gets all 46 probe functions right.
+        // A destructible temporary is one of the four things `docs/EH_RECORDS.md`
+        // §9.10 lists as never probed, which is why it was the cell that broke it.
+        0x4C => {
+            s.p += 1;
+            if s.eh_live > 0 {
+                s.eh.calls_live += 1;
+            }
+        }
         _ => return Err(blk(s.seg, s.p, "cf-expr")),
     }
     Ok(())
@@ -908,11 +1018,19 @@ mod tests {
         scan_full(seg, lo).body
     }
 
-    /// The EH axis's reading of the same body: `(key, markers)`.
+    /// The **superseded** statement-count EH axis's reading of the same body:
+    /// `(key, markers)`. Kept because §7.3's published split is keyed on it.
     fn eh(seg: &[u8]) -> (&'static str, EhMarkers) {
         let lo = find_subslice(seg, &LO_MARKER).expect("a body marker");
         let s = scan_full(seg, lo);
         (s.eh.key(s.decoded), s.eh)
+    }
+
+    /// The **measured** `maxState` EH axis's reading: `(key, markers)`.
+    fn eh_state(seg: &[u8]) -> (&'static str, EhMarkers) {
+        let lo = find_subslice(seg, &LO_MARKER).expect("a body marker");
+        let s = scan_full(seg, lo);
+        (s.eh.state_key(s.decoded), s.eh)
     }
 
     /// **[CF] `il_stmt_seq.cpp` `void stmt_seq0() {}`** — the smallest body there
@@ -1290,6 +1408,180 @@ mod tests {
         let mut early = EH_ONE.to_vec();
         early.splice(4..4, [0x05]);
         assert_eq!(eh(&early).0, "eh-unknown");
+    }
+
+    // ---- the maxState axis (EHMS) -------------------------------------------
+    //
+    // `docs/EH_RECORDS.md` §9.4 refuted the statement-count predicate the five
+    // bodies above are graded on, and §10 re-derived the axis on the measured one
+    // (`maxState >= 1` iff a transfer occurs while a destructible object is live).
+    // These four are the cells where the two predicates DISAGREE — the ones §7.2
+    // did not contain, which is why it passed its own grading. All four were
+    // compiled at the workload's own flags and their objs read for an
+    // `__ehfuncinfo$` and the function symbol's `Value`; the expected column is
+    // that reading, never a prediction. `work/EHMS/probe/m1.cpp`, `m3.cpp`.
+
+    /// **[P] `m1.cpp` `int mA(int a){ SE s; int x=a*3; int y=x^7; return y+1; }`**
+    /// — one object and THREE more statements, none of which calls anything.
+    /// `maxState = 0`: no prefix, one `.pdata`, no `.rdata`, no funclet, symbol
+    /// `Value = 0`. The statement rule calls this `eh-plus-stmt` and files a
+    /// **cheap** body on the expensive side.
+    const EH_ST_PLAINSTMTS: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE5, 0x09, 0x26, 0x01, 0x0A, 0x2C, 0xA6, 0x43, 0x81,
+        0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0xA6, 0x43, 0x81, 0x20, 0x00,
+        0x80, 0x03, 0x10, 0x00, 0x00, 0x4C, 0x26, 0xE6, 0x09, 0x26, 0x01, 0x0A, 0x2C, 0xA6,
+        0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03,
+        0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0xA6, 0x43, 0x81, 0x20, 0x01, 0x4B,
+        0x26, 0x02, 0x0A, 0xB9, 0xFE, 0x09, 0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x03,
+        0x04, 0x32, 0x86, 0x41, 0x74, 0x4B, 0x26, 0x03, 0x0A, 0xB9, 0x02, 0x0A, 0x86, 0x41,
+        0x74, 0x33, 0x86, 0x41, 0x74, 0x07, 0x0D, 0x32, 0x86, 0x41, 0x74, 0x4B, 0x9B, 0x86,
+        0x41, 0x74, 0x04, 0x0A, 0xB9, 0x03, 0x0A, 0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74,
+        0x01, 0x02, 0x32, 0x86, 0x41, 0x74, 0x5E, 0x01, 0x01, 0x44, 0x9B, 0x86, 0x41, 0x74,
+        0x04, 0x0A, 0x30, 0x86, 0x41, 0x74, 0x44, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x00, 0x0A,
+        0x5D, 0x01, 0x80, 0xA1, 0x00, 0x00, 0x00, 0x4B, 0x54, 0x02, 0x29, 0x00, 0x0A, 0x4F,
+        0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[P] `m1.cpp` `int mC(int a){ SE s; return gp(a); }`** — one object and NO
+    /// other `4B` statement, because a `return` carries none
+    /// (`docs/IL_STMT_GRAMMAR.md` §9). The statement rule calls it `eh-bare` and
+    /// files an **EH** body on the cheap side: its obj has an
+    /// `__ehfuncinfo$?mC@@YAHH@Z`, `maxState = 1`, two ip2state entries, symbol
+    /// `Value = 8`. This is §9.4's `qB2`, and it is the hole in the "cheap side is
+    /// a lower bound" reading.
+    const EH_ST_RETCALL: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE5, 0x09, 0x26, 0x08, 0x0A, 0x2C, 0xA6, 0x43, 0x81,
+        0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0xA6, 0x43, 0x81, 0x20, 0x00,
+        0x80, 0x03, 0x10, 0x00, 0x00, 0x4C, 0x26, 0xE6, 0x09, 0x26, 0x08, 0x0A, 0x2C, 0xA6,
+        0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03,
+        0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0xA6, 0x43, 0x81, 0x20, 0x01, 0x4B,
+        0x9B, 0x86, 0x41, 0x74, 0x09, 0x0A, 0x26, 0xFC, 0x09, 0xBD, 0x86, 0x41, 0x74, 0x00,
+        0x80, 0x0A, 0x10, 0x00, 0x00, 0xB9, 0x05, 0x0A, 0x86, 0x41, 0x74, 0x55, 0x86, 0x41,
+        0x74, 0x4C, 0x32, 0x86, 0x41, 0x74, 0x5E, 0x01, 0x01, 0x44, 0x9B, 0x86, 0x41, 0x74,
+        0x09, 0x0A, 0x30, 0x86, 0x41, 0x74, 0x44, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x07, 0x0A,
+        0x5D, 0x01, 0x80, 0xA1, 0x00, 0x00, 0x00, 0x4B, 0x54, 0x02, 0x29, 0x07, 0x0A, 0x4F,
+        0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[P] `m1.cpp` `int mF(int a){ { SE s; } { SE t; } return a+1; }`** — TWO
+    /// objects, and no EH record at all, because their lifetimes do not overlap:
+    /// the second scope's constructor is a transfer at the EMPTY live set. The
+    /// statement rule calls it `eh-multi`. This is the cell that makes the
+    /// `5D`/`5E` decrement load-bearing — without it the second `4C` reads as a
+    /// transfer at a live object and the body lands on the expensive side.
+    const EH_ST_SCOPES: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x53, 0x26, 0xE5, 0x09, 0x26, 0x13, 0x0A, 0x2C, 0xA6, 0x43,
+        0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0xA6, 0x43, 0x81, 0x20,
+        0x00, 0x80, 0x03, 0x10, 0x00, 0x00, 0x4C, 0x26, 0xE6, 0x09, 0x26, 0x13, 0x0A, 0x2C,
+        0xA6, 0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0x82, 0x07,
+        0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0xA6, 0x43, 0x81, 0x20, 0x01,
+        0x4B, 0x5E, 0x01, 0x21, 0x4B, 0x54, 0x03, 0x53, 0x26, 0xE5, 0x09, 0x26, 0x14, 0x0A,
+        0x2C, 0xA6, 0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00, 0xBD, 0xA6,
+        0x43, 0x81, 0x20, 0x00, 0x80, 0x03, 0x10, 0x00, 0x00, 0x4C, 0x26, 0xE6, 0x09, 0x26,
+        0x14, 0x0A, 0x2C, 0xA6, 0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0xA6, 0x43,
+        0x81, 0x20, 0x01, 0x4B, 0x5E, 0x01, 0x21, 0x4B, 0x54, 0x03, 0xB9, 0x10, 0x0A, 0x86,
+        0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x01, 0x02, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x12,
+        0x0A, 0x54, 0x02, 0x29, 0x12, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **[P] `m3.cpp` `int t1(int a){ return gp(mkSE().m) + a; }`** — a
+    /// destructible **temporary**, one of the four shapes `docs/EH_RECORDS.md`
+    /// §9.10 lists as never probed. Its obj has an `__ehfuncinfo$?t1@@YAHH@Z`.
+    ///
+    /// It is here because it is the cell that moved the counting site. The stream
+    /// is `BD`(gp) … `BD`(mkSE) `4C` … `5C` … `4C`(gp): the call descriptor is
+    /// emitted before the arguments are evaluated, so the temporary goes live
+    /// *between* gp's `BD` and gp's `4C`. Counting transfers at `BD` calls this
+    /// body cheap and is wrong; counting at `4C` is right.
+    const EH_ST_TEMP: &[u8] = &[
+        0x4C, 0x4F, 0x11, 0x53, 0x9B, 0x86, 0x41, 0x74, 0x3D, 0x0A, 0x26, 0xFC, 0x09, 0xBD,
+        0x86, 0x41, 0x74, 0x00, 0x80, 0x0B, 0x10, 0x00, 0x00, 0x26, 0xFE, 0x09, 0xBD, 0x86,
+        0x43, 0xA5, 0x20, 0x00, 0x80, 0x26, 0x10, 0x00, 0x00, 0x9B, 0x86, 0x46, 0x80, 0x20,
+        0x3C, 0x0A, 0x2C, 0x86, 0x43, 0xA5, 0x20, 0x00, 0x64, 0x86, 0x43, 0xA5, 0x20, 0x4C,
+        0x26, 0xE6, 0x09, 0x9B, 0x86, 0x46, 0x80, 0x20, 0x3C, 0x0A, 0x2C, 0x86, 0x43, 0xA5,
+        0x20, 0x00, 0x2C, 0xA6, 0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00, 0x4C, 0x5C, 0x86, 0x43,
+        0xA5, 0x20, 0x03, 0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0x86, 0x43, 0xF4, 0x08, 0x30,
+        0x86, 0x41, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C, 0xB9, 0x39, 0x0A, 0x86, 0x41, 0x74,
+        0x02, 0x32, 0x86, 0x41, 0x74, 0x5E, 0x01, 0x23, 0x44, 0x9B, 0x86, 0x41, 0x74, 0x3D,
+        0x0A, 0x30, 0x86, 0x41, 0x74, 0x44, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x3B, 0x0A, 0x54,
+        0x02, 0x29, 0x3B, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+    ];
+
+    /// **The maxState axis, graded against the obj — including the five bodies the
+    /// statement axis was graded on.** The `ehfuncinfo` column is what the obj
+    /// carries, read with `scripts/gt_eh.py`, not a prediction.
+    ///
+    /// The last column is the OTHER axis's answer, and four of the ten rows have
+    /// the two disagreeing. That is the measurement: the statement rule is wrong
+    /// in **both** directions, and the confirming cells of §7.2 could not have
+    /// shown it because both rules agree on every one of them.
+    #[test]
+    fn the_maxstate_axis_agrees_with_whether_the_obj_carries_an_eh_record() {
+        for (seg, want, ehfuncinfo, stmt_says, what) in [
+            // the five §7.2 cells — both rules agree, so these confirm only
+            (EH_ONE, "eh-state0", false, "eh-bare", "one sub-object, nothing else"),
+            (EH_ONLYLOCAL, "eh-state0", false, "eh-bare", "one local, nothing else"),
+            (EH_TWO, "eh-state1", true, "eh-multi", "two sub-objects"),
+            (EH_ONEB, "eh-state1", true, "eh-plus-stmt", "sub-object plus a body call"),
+            (EH_USERFN, "eh-state1", true, "eh-plus-stmt", "a local plus a call"),
+            (EMPTY, "eh-none", false, "eh-none", "no destructible object at all"),
+            // …and the four where they disagree, which is the whole point
+            (EH_ST_PLAINSTMTS, "eh-state0", false, "eh-plus-stmt", "object + call-free statements"),
+            (EH_ST_RETCALL, "eh-state1", true, "eh-bare", "object + a call in the return"),
+            (EH_ST_SCOPES, "eh-state0", false, "eh-multi", "two objects, disjoint scopes"),
+            (EH_ST_TEMP, "eh-state1", true, "eh-bare", "a destructible temporary"),
+        ] {
+            let (key, _) = eh_state(seg);
+            assert_eq!(key, want, "{what}");
+            assert_eq!(
+                key == "eh-state1",
+                ehfuncinfo,
+                "{what}: the axis and the obj must agree about the EH record"
+            );
+            assert_eq!(eh(seg).0, stmt_says, "{what}: the superseded axis is unmoved");
+        }
+    }
+
+    /// …and the counts behind it, so a change that keeps the key by luck still has
+    /// to keep the arithmetic. The old axis orders `EH_ST_PLAINSTMTS` and
+    /// `EH_ST_RETCALL` the wrong way round — 2 other statements against 0, and it
+    /// is the one with **0** that carries the whole EH record set — while the new
+    /// one separates them by exactly one transfer at a live object.
+    #[test]
+    fn the_boundary_is_one_transfer_wide() {
+        assert_eq!(eh_state(EH_ST_PLAINSTMTS).1.calls_live, 0);
+        assert_eq!(eh_state(EH_ST_RETCALL).1.calls_live, 1);
+        assert_eq!(eh_state(EH_ST_SCOPES).1.calls_live, 0);
+        assert_eq!(eh_state(EH_ST_TEMP).1.calls_live, 1);
+        // The old axis reads them the other way round, which is the refutation in
+        // two numbers.
+        assert_eq!(eh(EH_ST_PLAINSTMTS).1.other_stmts(), 2);
+        assert_eq!(eh(EH_ST_RETCALL).1.other_stmts(), 0);
+    }
+
+    /// **A transfer already seen at a live object is not un-seen by a later
+    /// stop.** Splice a refused opcode after the call in `EH_ST_RETCALL` and the
+    /// body stops decoding — but `maxState >= 1` was already proven, so it stays
+    /// `eh-state1` rather than falling back to `eh-partial`. The converse holds
+    /// too: stopping before the proof leaves `eh-partial`, which claims nothing.
+    #[test]
+    fn a_proven_state_survives_an_undecoded_tail() {
+        let mut seg = EH_ST_RETCALL.to_vec();
+        let at = seg.windows(4).position(|w| w == [0x5E, 0x01, 0x01, 0x44]).expect("the trailer");
+        seg.splice(at..at, [0x05]);
+        assert!(scan(&seg).is_err(), "the splice must stop the walk");
+        assert_eq!(eh_state(&seg).0, "eh-state1");
+        // …and a stop between the marker and any call claims nothing.
+        let mut early = EH_ST_RETCALL.to_vec();
+        let at = early
+            .windows(6)
+            .position(|w| w == [0x5C, 0xA6, 0x43, 0x81, 0x20, 0x01])
+            .expect("the 5C")
+            + 7;
+        early.splice(at..at, [0x05]);
+        assert_eq!(eh_state(&early).0, "eh-partial");
     }
 
     /// **The widths are decoded, not guessed, and the corpus rules out both

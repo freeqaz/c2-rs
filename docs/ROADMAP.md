@@ -3157,6 +3157,9 @@ stop decoding before any marker, so the axis says nothing about them. Establishi
 > `eh-unknown` was separately measured down to **137,187** (−52.4 %) by
 > establishing `0x67`/`0x9A`/`0x64`, and **96.4 % of what left it carried no EH
 > marker at all** — so that risk closed in the favourable direction.
+>
+> **The re-derivation is done — see §6r.** Every split figure in this section is
+> superseded; the phase conclusion is not.
 
 ## 6p. The 288,072 were not hidden EH stock — WDR, 2026-07-31
 
@@ -3250,6 +3253,81 @@ wide tag means a class with a vtable. **EH stock 238,723 → 276,809, +16.0 %** 
 was short. The block IR is **still worth exactly 718 functions**: the
 `+expr-modeled` column is unchanged to the function in every shape row, a fifth
 time.
+
+## 6r. The EH split, measured — and the cheap side is not a phase (EHMS, 2026-07-31)
+
+Measured in `docs/EH_RECORDS.md` §10, census **691,744 / 2,462,571 = 28.09 %**,
+delta **0**, mismatch **0**, disagreement **0** — an instrument, not a rung.
+
+§6o's split was computed from a **statement count**, refuted from bytes the same
+day (§9.4), and left as *"`eh-plus-stmt`'s figure is an UPPER bound and the cheap
+side's is a LOWER bound; the direction is known, the magnitude is not."* Both
+bounds are now measured, and **the cheap side was never a lower bound at all.**
+
+> **EH stock 276,810 → 237,180 (−14.3 %). Cheap side 77,836 → 117,463 (+50.9 %),
+> and 41,865 → 81,492 blocked (+94.7 %). `eh-partial` 4,375 → 3.** The predicate
+> is `maxState >= 1` — a call while a destructible object is live — read at the
+> `4C` that closes an argument list, not at the `BD` that opens the call.
+> Graded against 46 hand-written functions' own objs: **46/46**, against the
+> statement rule's **35/46**.
+
+**The aggregate hides the error.** `93,075 of 354,646` marker-carrying bodies —
+**26.2 %** — were on the wrong side: 66,336 filed expensive that are cheap,
+26,724 filed cheap that carry the whole record set. The two errors partly cancel,
+so a predicate wrong on a quarter of the population moved the headline by 14 %.
+That is the worst shape an error can take, because the small aggregate invites
+you to call the correction a refinement and keep the row-level table.
+
+**Do not keep the row-level table — two of its rows INVERT.**
+
+| census key | §6o `%EH` | measured | what §6o said |
+|---|---:|---:|---|
+| `body-0x9B` | 0.1 % | **62.5 %** | *"61.8 % `eh-bare` — 16,738 functions that need no EH model at all"*. Measured: **one** is cheap. |
+| `expr-intrinsic-base-upcast` | (cheap, 8,277) | **42.5 % EH** | **zero** cheap. |
+| `expr-intrinsic-base-member-addr` | **62.5 %** | **26.0 %** | *"the board's #3 row is behind EH too"*. It is the **largest cheap row**, 41,678. |
+| `expr-intrinsic-this-adjust` | 25.7 % | **40.4 %** | under-stated by half |
+| `expr-op-0x27`, `expr-bit-and`, `…-brtrue`, `body-cflow-label` | | unchanged to ±2 pts | these four stand |
+
+**RETIRED: "the cheap side is the cheapest next thing."** §6o and §7.5 both said
+EH is not the cheapest next thing because *"the cheap side's 40,881 blocked
+functions are"*. There is **no cheap-side rung to schedule**: 88.4 % of its 81,492
+is three general expression rows already on the board
+(`expr-intrinsic-base-member-addr` 41,678, `expr-intrinsic-this-adjust` 16,051,
+`expr-op-0x27` 14,308), and in each the EH-marked bodies are a minority slice —
+36.6 %, 11.8 %, **3.5 %**. Widening any of those rows retires its cheap-EH slice
+**for free**, because `maxState = 0` means `/EHsc` costs those functions nothing.
+They should never have been counted as EH work. The two rows §6o nominated for
+the job are on the other side entirely.
+
+**§6o's phase conclusion stands, on a better number.** 237,180 functions —
+**13.4 % of everything blocked** — need the whole of §1–§5, spread across rows
+that each look like ordinary expression work. And the control group is now exact
+rather than argued: **every one of the 237,180 is blocked, and every one of the
+35,971 accepted marker-carrying functions has `maxState = 0`.** The port has
+never accepted a function that needs an EH record, and the axis says so without
+being told.
+
+Three things generalize past the rows.
+
+* **A predicate that is refuted carries no information about the size of its own
+  error.** The estimate written before this scan
+  (`work/EHMS/ESTIMATE.md`) put both headline numbers inside their intervals and
+  within 7 % — but every miss was the same miss, *"I under-estimated how wrong the
+  old axis was"*, and the single worst one was the prediction that copied the old
+  table's **row identities** forward. Correcting a magnitude off a refuted prior
+  is fine; correcting a *ranking* off one is not.
+* **`return` carries no `4B`, and that hole was documented and still cost 26,724
+  functions.** `EhMarkers::other_stmts` says in as many words that a body whose
+  only extra statement is a `return` reads as bare. `SE s; return gp(a);` is that
+  body, it carries the whole record set, and the caveat sat one scroll above the
+  number it invalidated. A named limitation in a doc comment is not a measurement.
+* **The instrument printed a control group as the top blocker.** The EH cross-tab
+  spelled accepted shapes and blockers into one namespace, so
+  `eh-bare|empty-dtor-delegation` — **27,501 functions the port already emits** —
+  sorted above every real blocker on the board and was within a step of being
+  scheduled. Fixed: rows name their population and there is a `|BLOCKED`
+  subtotal. Second instrument defect in three sessions where the *shape of the
+  key* was the bug.
 
 ## 7. Invariants (do not break)
 

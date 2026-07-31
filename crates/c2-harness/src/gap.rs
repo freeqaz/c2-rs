@@ -144,9 +144,22 @@ pub struct TuResult {
     /// stopped — crossing "we could not read this body's control flow" with a
     /// blocker would be a product of two ignorances.
     pub fn_cflow: BTreeMap<String, usize>,
-    /// **The exception-handling axis** (WEH, `docs/EH_RECORDS.md` §7): which side
-    /// of the sub-object boundary each body falls on, bare and crossed with the
-    /// census key as `"<eh class>|<census key>"`.
+    /// **The exception-handling axis** (`docs/EH_RECORDS.md` §9.4, §10): which
+    /// side of the `maxState` boundary each body falls on. Four row shapes, and
+    /// the shape is in the key so no two populations can share a row:
+    ///
+    /// * `"<eh class>"` — the total, over every function, in class or not.
+    /// * `"<eh class>|BLOCKED"` — the blocked subtotal. **This is the row to
+    ///   size a rung off.**
+    /// * `"<eh class>|BLOCKED|<blocker key>"` / `"<eh class>|INCLASS|<shape>"` —
+    ///   the cross, with the population named. It used to be `"<eh>|<key>"` for
+    ///   both, and since `FnVerdict::key` spells accepted shapes and blockers
+    ///   into one namespace, the largest row of the whole cross was an
+    ///   **accepted** shape (`eh-bare|empty-dtor-delegation`, 27,501) that read
+    ///   exactly like a blocker.
+    /// * `"eh-migrate|<maxState key>|<statement-count key>"` — the measured axis
+    ///   against the refuted one it replaces, so §7.3's published split can be
+    ///   reconciled rather than silently overwritten.
     ///
     /// A third axis for the same reason there is a second: **nothing in the
     /// blocking-feature key says which side a body is on.** The cheap side is a
@@ -158,10 +171,11 @@ pub struct TuResult {
     /// is ranking the sum of two different rungs.
     ///
     /// The cross is emitted for **every** function, decoded or not, unlike
-    /// [`TuResult::fn_cflow`]'s. The difference is that an undecoded body's EH key
-    /// is not an ignorance: `eh-partial` is the positive statement *"this body
-    /// carries EH state and is not the bare shape"*, which is exactly what the
-    /// ranking needs.
+    /// [`TuResult::fn_cflow`]'s. An undecoded body is not always an ignorance
+    /// here: a call already seen at a non-empty live set proves `maxState >= 1`
+    /// whatever stopped the walk afterwards, so those rows read `eh-state1`.
+    /// `eh-partial` is what is left — a marker, no such call yet, and the walk
+    /// stopped — and it claims **nothing**, in either direction.
     pub fn_eh: BTreeMap<String, usize>,
     /// **The census/gate cross-check** (roadmap #44): of the functions this TU's
     /// census calls in class, how many does `PortC2`'s own per-function selector
@@ -588,12 +602,34 @@ fn scan_one(
                     .or_insert(0) += 1;
             }
             // The EH axis, likewise over every function — and here the in-class
-            // shapes are more than a control group: the three `empty-dtor-*`
-            // buckets ARE the cheap side of the boundary, so any of them reading
-            // anything but `eh-bare` would say the axis is wrong.
+            // shapes are more than a control group: the `empty-dtor-*` buckets
+            // ARE the cheap side of the boundary, so any of them reading
+            // anything but the cheap key would say the axis is wrong.
+            //
+            // **The cross says which population a row is in, and it must.**
+            // `FnVerdict::key` spells IN-CLASS labels and BLOCKER keys into one
+            // namespace, and this cross used to be `"<eh>|<key>"` for both. On
+            // one scan that made `eh-bare|empty-dtor-delegation` — 27,501 —
+            // the largest row of the whole EH cross, and `empty-dtor-delegation`
+            // is an ACCEPTED shape. Anyone ranking off the table ranked a control
+            // group, and one nearly got scheduled as a rung. The population is
+            // now in the key, and there is a per-class `|BLOCKED` subtotal so a
+            // blocked stock can be sized without knowing the in-class label
+            // strings by heart.
             *res.fn_eh.entry(f.eh.clone()).or_insert(0) += 1;
+            let pop = if f.verdict.in_class() { "INCLASS" } else { "BLOCKED" };
+            if !f.verdict.in_class() {
+                *res.fn_eh.entry(format!("{}|BLOCKED", f.eh)).or_insert(0) += 1;
+            }
             *res.fn_eh
-                .entry(format!("{}|{}", f.eh, f.verdict.key()))
+                .entry(format!("{}|{pop}|{}", f.eh, f.verdict.key()))
+                .or_insert(0) += 1;
+            // …and the migration cross: the measured `maxState` axis against the
+            // refuted statement-count one it replaces (`docs/EH_RECORDS.md` §9.4,
+            // §10). This is what reconciles §7.3's published split with the real
+            // one instead of silently replacing it.
+            *res.fn_eh
+                .entry(format!("eh-migrate|{}|{}", f.eh, f.eh_stmt))
                 .or_insert(0) += 1;
             // 1d. The binding invariant (D14): what did the `.gl` symbol index
             //     say a generated destructor delegates to? A destructor, always —

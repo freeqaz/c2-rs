@@ -126,6 +126,16 @@ fn run_git(dir: &Path, args: &[&str]) -> Option<String> {
     Some(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
+/// The running executable's path and content digest — see [`Provenance::binary`].
+///
+/// Reads the whole binary (a few MB) once per invocation, which is noise beside a
+/// scan that spawns `cl.exe` under wibo hundreds of times.
+fn binary_identity() -> Option<(PathBuf, String)> {
+    let p = std::env::current_exe().ok()?;
+    let bytes = std::fs::read(&p).ok()?;
+    Some((tidy(&p), crate::capture_cache::digest128(&bytes)))
+}
+
 /// Everything a scan must name about its own inputs.
 #[derive(Clone, Debug)]
 pub struct Provenance {
@@ -145,6 +155,20 @@ pub struct Provenance {
     pub c1xx_dll: PathBuf,
     pub strace: Option<PathBuf>,
     pub mingw: Option<PathBuf>,
+    /// **The running binary's own content digest**, and its path.
+    ///
+    /// The git fields above are TREE identity, and tree identity does not answer
+    /// *"did these two runs grade the same code"* — the same question
+    /// `scripts/harness_bin.sh` exists to answer for the sweep lanes, which pin a
+    /// run-private copy and print its sha. `c2rs gap` had no such answer: it is
+    /// the command that produces the census figure this project publishes, and it
+    /// was the one instrument with no binary identity at all. A five-hour-stale
+    /// binary once produced 47 phantom mismatches from exactly this shape, and
+    /// the dangerous direction is the other one — a false GREEN.
+    ///
+    /// `None` when `current_exe()` or the read fails; fail-soft like every other
+    /// field here.
+    pub binary: Option<(PathBuf, String)>,
 }
 
 impl Provenance {
@@ -173,6 +197,7 @@ impl Provenance {
             c1xx_dll: tidy(&tc.c1xx_dll),
             strace: tc.strace.as_deref().map(tidy),
             mingw: tc.mingw.as_deref().map(tidy),
+            binary: binary_identity(),
         }
     }
 
@@ -215,6 +240,12 @@ impl Provenance {
             self.c2rs.dirty_label(),
             self.c2rs_dir.display()
         ));
+        // Binary identity, immediately under tree identity, because the two are
+        // different claims and the tree one is the weaker.
+        s.push_str(&match &self.binary {
+            Some((p, d)) => format!("  binary     {}  {}\n", &d[..16], p.display()),
+            None => "  binary     (unreadable — this run has NO binary identity)\n".to_string(),
+        });
         match &self.workload_dir {
             Some(d) => s.push_str(&format!(
                 "  workload   {} ({})  {}\n",
@@ -267,6 +298,20 @@ impl Provenance {
         put("c2rs_dir", jstr(&self.c2rs_dir.display().to_string()));
         put("c2rs_head", jstr(&self.c2rs.head));
         put("c2rs_dirty", opt_bool(self.c2rs.dirty));
+        put(
+            "binary_sha",
+            match &self.binary {
+                Some((_, d)) => jstr(d),
+                None => "null".to_string(),
+            },
+        );
+        put(
+            "binary_path",
+            match &self.binary {
+                Some((p, _)) => jstr(&p.display().to_string()),
+                None => "null".to_string(),
+            },
+        );
         put(
             "workload_dir",
             match &self.workload_dir {
