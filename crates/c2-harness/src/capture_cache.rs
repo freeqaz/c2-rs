@@ -213,6 +213,27 @@ impl CaptureCache {
         if let Some(dir) = workload_dir {
             context.push_str(&format!("tree-dirty {}\n", dirty_digest(dir)));
         }
+        // WHERE the cache lives is part of its key, because a cached reference
+        // obj EMBEDS this directory's absolute path — `c2` is invoked with `-Fo`
+        // into the cache dir, so the path length lands in the obj bytes. Every
+        // other component above describes the *inputs*; this one describes the
+        // capture, and leaving it out is what let a copied cache serve bytes
+        // captured under a different path. It presented as `mismatch` on six
+        // unrelated TUs — an ALARM, the highest-priority signal in this project,
+        // pointing at the port while the port was fine (ref 740 B vs port 768 B,
+        // diverging at offset 8: exactly the path-length delta).
+        //
+        // With the root in the key a relocated cache MISSES and re-captures,
+        // which is slow and correct, instead of hitting and lying. `--validate-cache`
+        // does name this exact case ("c2 argv differs") but is off by default, so
+        // the default path was the one that lied.
+        //
+        // Canonicalized so that two spellings of one directory are one key rather
+        // than two; `create_dir_all` above guarantees it resolves.
+        context.push_str(&format!(
+            "cache-root {}\n",
+            root.canonicalize().unwrap_or_else(|_| root.clone()).display()
+        ));
         Ok(CaptureCache {
             root,
             context,
@@ -705,6 +726,47 @@ mod tests {
         // Unreadable source → not cacheable (rather than a key over nothing).
         assert!(c.key_material("missing.cpp", &flags, Some(&dir)).is_none());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Relocating the cache must MISS, not hit.
+    ///
+    /// The table test above builds `CaptureCache` with a hand-written `context`,
+    /// so it cannot see this component at all — the root enters the key through
+    /// `new()`. That is exactly how the gap survived: every documented component
+    /// had a case, and the one that was undocumented had nowhere to fail.
+    ///
+    /// Toolchain-absent is a clean SKIP, never a failure (CLAUDE.md).
+    #[test]
+    fn the_cache_root_is_part_of_the_key() {
+        let Some(tc) = Toolchain::locate() else {
+            eprintln!("SKIP: toolchain absent");
+            return;
+        };
+        let base = std::env::temp_dir().join(format!("c2rs-cacheroot-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let (a, b) = (base.join("A"), base.join("B"));
+        let src = base.join("a.cpp");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(&src, b"int f(){return 1;}").unwrap();
+
+        // Same toolchain, same workload tree, same source, same flags — the only
+        // thing that moved is where the capture would be written.
+        let ca = CaptureCache::new(a.clone(), &tc, Some(&base), 0).unwrap();
+        let cb = CaptureCache::new(b.clone(), &tc, Some(&base), 0).unwrap();
+        let flags: Vec<String> = vec!["/O1".into(), "/c".into()];
+        let ka = ca.key_material("a.cpp", &flags, Some(&base)).unwrap();
+        let kb = cb.key_material("a.cpp", &flags, Some(&base)).unwrap();
+        assert_ne!(
+            ka, kb,
+            "a cache at a different root must miss: the reference obj embeds the \
+             capture directory's absolute path, so bytes captured under one root \
+             are not the bytes c2 would emit under another"
+        );
+
+        // …and a cache re-opened at the same root still hits.
+        let ca2 = CaptureCache::new(a, &tc, Some(&base), 0).unwrap();
+        assert_eq!(ka, ca2.key_material("a.cpp", &flags, Some(&base)).unwrap());
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
