@@ -1555,14 +1555,39 @@ fn blocker_is_measured(blk: Blocker) -> bool {
 /// A byte with only the first is a guess about a field width; a byte with only
 /// the second is a coincidence.
 ///
-/// **What is deliberately NOT here**, so the omissions are decisions rather than
-/// oversights: `1A` (`!`) is unary, not a binary operator over two stack values;
-/// `1B`/`1C` (`||`/`&&`) short-circuit to branches and no capture shows the byte
-/// at all (1 and 3 functions on the workload); and the relational family
-/// `1F`–`24` is excluded because a neighbouring opcode in the same numeric range
-/// is observed carrying a TYPE (`… 33 86 41 74 01 · 19 · 86 42 75 …`), so "one
-/// byte" would be an assumption there rather than a reading.
-const BARE_BINARY_OPS: &[u8] = &[0x09, 0x0A, 0x0B, 0x0C, 0x0D];
+/// **The relational family `1F`–`24` is here as of W42**, and it was excluded
+/// before on neither piece of evidence. The exclusion read a *different* byte —
+/// `… 33 86 41 74 01 · 19 · 86 42 75 …` — and generalised across a numeric
+/// neighbourhood; `19` belongs to the **compound-assign** family, which does
+/// carry a TYPE, and the numeric order hides the boundary. Both pieces of
+/// evidence are now in the tree (`docs/OPERATOR_GRANTS.md`):
+///
+/// 1. A capture with the compound-assign control **in the same TU**, so the two
+///    families are read beside each other rather than from memory. In value
+///    position the operator is followed immediately by `2C`, in branch position
+///    by `38`, with nothing in between in twelve leaves and two branch bodies:
+///
+///    ```text
+///      22  b9 ee 09 86 42 75 · 33 86 42 75 03 · 22 · 2c 86 41 74 00 · 41 …
+///      23  b9 16 0a 86 41 74 · 33 86 41 74 03 · 23 · 38 19 0a …
+///      0F  26 1a 0a · 33 86 41 74 03 · 0f · 86 41 74 · 4b …   THE CONTROL (`+=`)
+///    ```
+///
+/// 2. A 1:1 redistribution over the 878-TU workload: every `…-then-cmp-*` row
+///    empties into its own `-and-<second>-<whole|more>` children, the deltas over
+///    every key sum to exactly 0, and the census numerator and census/gate
+///    disagreement are unchanged.
+///
+/// **Signedness is not in the opcode** — unsigned `<` and signed `<` are both
+/// `22`, and only the operand TYPE separates them. That matters to the *parser*
+/// (`super::shapes::framed_compare`), not here: this set is about width.
+///
+/// What is still deliberately NOT here, so the omissions are decisions rather
+/// than oversights: `1A` (`!`) is unary, not a binary operator over two stack
+/// values; and `1B`/`1C` (`||`/`&&`) short-circuit to branches and no capture
+/// shows the byte at all (1 and 3 functions on the workload).
+const BARE_BINARY_OPS: &[u8] =
+    &[0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24];
 
 /// **The whole-body-completeness measure.** True when the **entire segment**
 /// parses with `form` admitted as a value-producing operand and *no other* new
@@ -3414,6 +3439,24 @@ mod tests {
         0x29, 0x0E, 0x0A, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
 
+    /// W42's relational witnesses. `int f(unsigned x, int y){ return x < 3; }`
+    /// and the branch spelling, transcribed from the capture in
+    /// `docs/OPERATOR_GRANTS.md` — the operator byte and the token that consumes
+    /// it, with nothing in between.
+    const PROBE_REL_VALUE: &[u8] = &[
+        0x33, 0x86, 0x42, 0x75, 0x03, 0x22, 0x2C, 0x86, 0x41, 0x74, 0x00, 0x41, 0x86, 0x41, 0x74,
+    ];
+    const PROBE_REL_BRANCH: &[u8] = &[
+        0x33, 0x86, 0x41, 0x74, 0x03, 0x23, 0x38, 0x19, 0x0A,
+    ];
+    /// …and the **control** from the same capture: a compound assign, which is
+    /// the family `19` belongs to and which *does* carry a TYPE. The old
+    /// exclusion of `1F`-`24` was this byte, read across a family boundary the
+    /// numeric order hides.
+    const PROBE_COMPOUND_ASSIGN: &[u8] = &[
+        0x26, 0x1D, 0x0A, 0x33, 0x86, 0x41, 0x74, 0x03, 0x19, 0x86, 0x42, 0x75, 0x4B,
+    ];
+
     /// **The row that was #4 on the board says what it is.** Before W37 both
     /// segments below censused the same bare `expr-call-in-expr-recv-load-then-bit-and`
     /// — no `-whole`, no `-more`, nothing to rank by — because `Blocker::Op` had no
@@ -3441,27 +3484,59 @@ mod tests {
     /// the value.
     #[test]
     fn every_grantable_operator_byte_is_one_byte_in_a_capture() {
-        assert_eq!(BARE_BINARY_OPS, &[0x09, 0x0A, 0x0B, 0x0C, 0x0D]);
+        assert_eq!(
+            BARE_BINARY_OPS,
+            &[0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24]
+        );
         for (seg, op, next) in [
             (PROBE_IF_CALL_MASK, 0x0Bu8, 0x38u8),  // → conditional branch
             (PROBE_RET_CALL_MASK, 0x0B, 0x41),     // → result-type annotation
             (PROBE_BIT_OR, 0x0C, 0x2C),            // → class-preserving convert
+            // W42's relational witnesses, from the same capture as the
+            // compound-assign CONTROL below — value position and branch position,
+            // signed and unsigned.
+            (PROBE_REL_VALUE, 0x22, 0x2C),         // → class-preserving convert
+            (PROBE_REL_BRANCH, 0x23, 0x38),        // → conditional branch
         ] {
             // The literal that feeds it, then the operator, then the consumer — with
-            // nothing in between. `33 86 41 74 <k>` is the literal.
+            // nothing in between. `33 <86 41 74 | 86 42 75> <k>` is the literal;
+            // BOTH signednesses are searched, because W42 measured that the
+            // relational opcode does not carry one — unsigned `<` and signed `<`
+            // are the same `22` and only the operand TYPE separates them.
             let at = seg
                 .windows(6)
-                .position(|w| w[0] == 0x33 && w[1] == 0x86 && w[2] == 0x41 && w[3] == 0x74 && w[5] == op)
-                .unwrap_or_else(|| panic!("no `33 <int> <k> {op:#04X}` in the capture"));
+                .position(|w| {
+                    w[0] == 0x33
+                        && w[1] == 0x86
+                        && (w[2..4] == [0x41, 0x74] || w[2..4] == [0x42, 0x75])
+                        && w[5] == op
+                })
+                .unwrap_or_else(|| panic!("no `33 <int-like> <k> {op:#04X}` in the capture"));
             assert_eq!(seg[at + 5], op);
             assert_eq!(seg[at + 6], next, "op {op:#04X} is not one byte wide");
             assert!(BARE_BINARY_OPS.contains(&op));
         }
-        // …and the relational family is deliberately NOT grantable: `19` is observed
-        // carrying a TYPE, so "one byte" would be an assumption in that range.
-        for b in [0x1Au8, 0x1B, 0x1C, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24] {
+        // …and the bytes that are still NOT grantable. `1A` is unary and
+        // `1B`/`1C` short-circuit; the relational family left this list in W42,
+        // on the capture above plus a redistribution that summed to zero.
+        for b in [0x1Au8, 0x1B, 0x1C] {
             assert!(!blocker_is_measured(Blocker::Op(b)), "{b:#04X}");
         }
+        // **The CONTROL, and it is the whole reason the old exclusion was wrong.**
+        // `19` is a *compound-assign*, and that family DOES carry a TYPE — read
+        // beside the relations rather than from memory, which is what the
+        // neighbourhood inference never did. If this ever came back bare the
+        // capture, not the reading, would have changed.
+        let at = PROBE_COMPOUND_ASSIGN
+            .windows(2)
+            .position(|w| w[0] == 0x19)
+            .expect("no `19` in the compound-assign capture");
+        assert_eq!(
+            &PROBE_COMPOUND_ASSIGN[at + 1..at + 4],
+            &[0x86, 0x42, 0x75],
+            "`19` is a compound assign and carries a TYPE"
+        );
+        assert!(!BARE_BINARY_OPS.contains(&0x19));
     }
 
     /// The second blocker is a **construct**, not the byte the matcher stopped on —
