@@ -437,11 +437,13 @@ in every gate lane that this lane did not earn.
 * **#151 — the three receiver arms worth ranking**, with no rate borrowed between
   them: `no-b9-this-adjust` 3,063 clean (this is #140's row, sized at **472**
   emitted end to end — the clean figure is 6.5× its measured worth),
-  `then-off-add` 2,856 clean (the receiver-side twin of #143, and #143's
-  argument-side arm converted 6), `then-dynamic-cast` 542 clean over 115 names.
-  §9.13 measured two arms of one family converting **19×** apart and this lane
-  measured a third at 6 against a clean ceiling of 851 — **a `clean` figure has
-  now been wrong by 6.5×, 19× and 142× on three different rows of one site.**
+  `then-off-add` 2,856 clean (the receiver-side twin of #143, whose
+  argument-side arm converted 6 — **the twin is unmeasured and no rate may be
+  borrowed from it**), `then-dynamic-cast` 542 clean over 115 names.
+  Two `clean` ceilings in this family have now been measured against a realized
+  number: **3,063 against #140's 472 (6.5×)** and **851 against #143's 6
+  (142×)**. §8.7 says `clean` is an optimistic ceiling and not an estimate; the
+  spread between those two is why it cannot be scaled either.
 * **#152 — `Block::completeness` returns `NoSignal` for every refusal minted
   outside `CALL_IN_EXPR`**, which is 98.7 % of #142's clean stock. That is not a
   defect — it is honest — but it means the largest site on the emitted board can
