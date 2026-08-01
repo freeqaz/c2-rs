@@ -4516,8 +4516,6 @@ field. Board **#110** already tracks a `-whole{k}` over-count on ~27,600
 functions; these are two different corruptions of the same ranking input and
 should be repaired together.
 
-# DRAFT for `docs/ROADMAP.md` §9.12 — paste verbatim, then delete this file.
-
 Kept out of `ROADMAP.md` on purpose: that file is the recorded add/add conflict
 site for concurrent lanes (`docs/rungs/README.md`), the coordinator lands §9.12
 serially, and this lane was told not to touch §1–§9.11. Everything below is the
@@ -4842,8 +4840,7 @@ runner agree at 579.
 * No port behaviour changed: this lane added tests, one tooling script and this
   section, and wrote no emitter code.
 
-DRAFT for `docs/ROADMAP.md` §9.13 — written by lane w-adjust, to be landed by
-the coordinator. Nothing in §1–§9.12 is touched. Full record:
+Lane `w-adjust`. Full record:
 `docs/rungs/2026-08-01-w-adjust.md`.
 
 ---
@@ -5076,8 +5073,7 @@ At `be797bf`, worktree configured against the shared toolchain:
   its own counterfactual; the two run here differ by 19×, so **no rate may be
   borrowed between arms**.
 
-DRAFT for `docs/ROADMAP.md` §9.15 — written by lane `w-eh`, to be landed by the
-coordinator. Nothing in §1–§9.14 is touched. Pre-registration:
+Lane `w-eh`. Pre-registration:
 `docs/rungs/_2026-08-01-w-eh-prereg.md`, committed at `689ba57` before the first
 capture. Full record: `docs/EH_RECORDS.md` §11.
 
@@ -5408,8 +5404,6 @@ claim it as evidence for anything above.
   varied), and `Σmint` should range over **all** §1.1-style surcharges, not the
   minting ones — which is what its `qLOOP` miss already was. Instrument
   correction, not a rung.
-
-# DRAFT for `docs/ROADMAP.md` §9.14 — paste verbatim, then delete this file.
 
 Kept out of `ROADMAP.md` on purpose: that file is the recorded add/add conflict
 site for concurrent lanes (`docs/rungs/README.md`), the coordinator lands §9.14
@@ -6253,8 +6247,7 @@ must upgrade first.
    purely a function count and the ceiling of §9.16.3 may be slightly
    conservative in TUs of this shape.
 
-DRAFT for `docs/ROADMAP.md` §9.17 — written by lane `w-arms`, to be landed by the
-coordinator. Nothing in §1–§9.16 is touched. Pre-registration:
+Lane `w-arms`. Pre-registration:
 `docs/rungs/_2026-08-01-w-arms-prereg.md`, committed at `2db819c` before the
 first scan.
 
@@ -6768,8 +6761,7 @@ in every gate lane that this lane did not earn.
 
 # 9.18 W-EMITSET — the emit set is not predictable, the ceiling is 111, and the inliner is not the reason (2026-08-01)
 
-DRAFT for `docs/ROADMAP.md` §9.18 — written by lane `w-emitset`, to be landed by
-the coordinator. Nothing in §1–§9.17 is touched. Pre-registration:
+Lane `w-emitset`. Pre-registration:
 `docs/rungs/_2026-08-01-w-emitset-prereg.md`, committed at `3b9a4ae` before the
 first measurement. Base and tip `74d0744` + this lane's commits.
 
@@ -7226,8 +7218,7 @@ under both loaders, which is what the scan's own warning says.
    population, so quoting the larger number understates the very constraint it is
    quoted to describe.
 
-DRAFT for `docs/ROADMAP.md` §9.19 — written by lane `w-slotarg`, to be landed by
-the coordinator. Nothing in §1–§9.18 is touched. Pre-registration:
+Lane `w-slotarg`. Pre-registration:
 `docs/rungs/_2026-08-01-w-slotarg-prereg.md`, committed at `dbd104b` before the
 first capture; the out-of-sample registration is
 `docs/rungs/_2026-08-01-w-slotarg-grid3-prereg.md`, committed at `6caeddc`
