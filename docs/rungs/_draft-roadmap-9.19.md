@@ -55,10 +55,23 @@ the argument where c2 emits `addi r4,r4,8`. `.text` is one word short.
 `PointerToSymbolTable` — and that field lives at **file offset 8..12**, ahead of
 every byte of section payload (COFF header 0..20, five section headers 20..220).
 **Offset 8 is simply the earliest byte in the file that can show that a function
-got shorter.** Every symbol, section and relocation is identical. The branch word
-also differs (`4bfffffc` vs `48000000`), but only because it now sits at `.text`
-offset 0 instead of 4 — a consequence of the same missing word, not a second
-defect.
+got shorter.** The branch word also differs (`4bfffffc` vs `48000000`), but only
+because it now sits at `.text` offset 0 instead of 4 — a consequence of the same
+missing word, not a second defect.
+
+Taken to the byte rather than asserted: `0..4` and `12..20` are identical, the
+**316 bytes of the four sections that precede `.text` are identical**, and inside
+the five section headers exactly **three** bytes differ —
+
+| byte | field | ref → port | |
+|---:|---|---|---|
+| 196 | `.text SizeOfRawData` | 8 → 4 | the missing word |
+| 204 | `.text PointerToRelocations` | 544 → 540 | the same 4 bytes, downstream |
+| 217 | `.text Characteristics` | `0x60400020` → `0x60401020` | **not the sink** — see below |
+
+— and the third is the `prefilter` `/Gy` confound of the note below, absent from
+the differential's own emission, which is why `c2rs diff` reports offset 8 and
+not 217.
 
 The control that says the probe can also pass: the same probe with the member at
 offset 0 (`pz.cpp`) reads **`Port=Match`** under the `zero` sink at this base.
