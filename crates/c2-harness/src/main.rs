@@ -2459,6 +2459,35 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 .map(|b| format!("≤{b}: {}", report.near_match_tus(*b).len()))
                 .collect();
             println!("    TU distance to matching (blocked functions) — {}", dist.join(", "));
+            // The same distribution over the population the goal is written in.
+            // Published beside the body one because they are different numbers
+            // AND a different order: `Rand2.cpp` is 8 blocked bodies / 2 blocked
+            // emitted, `vec.cpp` is 565 blocked bodies / 0 blocked emitted.
+            let dist_e: Vec<String> = buckets
+                .iter()
+                .map(|b| format!("≤{b}: {}", report.near_match_tus_emitted(*b).len()))
+                .collect();
+            println!(
+                "    TU distance to matching (blocked EMITTED functions) — {}",
+                dist_e.join(", ")
+            );
+            // The ceiling neither distance can see: the port emits one `.text`
+            // COMDAT per `.ex` function segment and has no emit-set model, so a
+            // TU whose segment count differs from its obj's COMDAT-leader count
+            // cannot match however good the codegen gets.
+            let reach = report.emit_set_reachable_tus();
+            let graded = report
+                .results
+                .iter()
+                .filter(|r| r.class != c2_harness::gap::TuClass::CaptureFail)
+                .count();
+            let viol = report.emit_set_violations();
+            println!(
+                "    emit-set ceiling: {} of {graded} graded TUs have `.ex` segments == obj `.text` \
+                 COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 \
+                 (violations among matching TUs, must be 0: {viol})",
+                reach.len()
+            );
 
             let eh = report.emit_blocker_histogram();
             if !eh.is_empty() {
