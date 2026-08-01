@@ -441,7 +441,12 @@ canonical main-repo path.
   `--selftest` PASS, 15 cases.
 * `c2rs selftest` — **210 PASS, 0 FAIL, 0 skip**.
 * `scripts/expr_sweep.sh` — 47 fragments, **14,484 cases, mismatches=0**.
-* `scripts/cross_sweep.sh` — see §9.17.10.
+* `scripts/cross_sweep.sh` — 42,719 configurations × 12 lanes =
+  **512,628 gradings, 512,628 graded, 0 mismatches**; 406 of 406 declared family
+  pairs reached *and* emitted; refusal-frontier residue **0**. Identical to
+  §9.14's run on every one of those numbers. Run because this lane touched
+  `parse_expr` and `eat_call_args`, even though both additions are inert with
+  the sink unset.
 * 878-TU workload scan — **6 match, 0 mismatch**, 865 vocab-gap, 7 capture-fail;
   bodies **706,402 / 2,462,571 (28.69 %)**; emitted **36,059 / 178,968
   (20.15 %)**; census/gate disagreement **0**. Identical to base on all of them,
