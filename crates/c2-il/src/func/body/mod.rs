@@ -2148,19 +2148,33 @@ mod tests {
             "all four pinned bodies must have been graded — a loop that ran zero \
              times reports no failures either"
         );
-        // …and the other named default: a body that DID enter a production,
-        // declined non-committally, and hit no tagged bail. This is the residue
-        // that measures how much of `mcall_*.rs` is still untagged, and it must
-        // be a positive reading rather than an absence.
+        // …and the other end of the same discipline: a body that DID enter a
+        // production and declined non-committally. It must read a **named
+        // per-site tag** — not the `prod-not-entered` default (it did enter) and
+        // not `prod-entered-untagged` (the residue, which the 37 tag sites in
+        // `shapes::mcall_{tail,chain,cmp}` drove to 0 on the 878-TU workload).
+        //
+        // The residue constant is NOT retired, and this is why: it is still the
+        // value the ladder arms the axis to, so a tag site removed or a bail
+        // added without one lands back here and prints as its own row. The test
+        // that grades the sites themselves under mutation is
+        // `mcall_tail::assert_no_decline_lands_in_the_residue`; this one grades
+        // the carrier's contract that no state renders as an absence.
         let seg = free_fn(BOUND_ARG_CANON);
         let _ = parse_segment_detail(&seg, NO_LOCALS);
-        assert_eq!(
+        assert_ne!(
+            prod_site(),
+            PROD_NOT_ENTERED,
+            "this body DOES enter a member-call production, so reading the \
+             not-entered default would be the axis losing a body it saw"
+        );
+        assert_ne!(
             prod_site(),
             PROD_ENTERED_UNTAGGED,
-            "a body that entered a member-call production and declined without \
-             hitting a tagged bail must read `prod-entered-untagged` — that count \
-             IS the tag-coverage residue, and rendering it as nothing is the exact \
-             failure this axis was built to stop"
+            "a body that entered a member-call production and declined must reach \
+             a NAMED tag site: `prod-entered-untagged` is the tag-coverage \
+             residue, and a body still sitting in it is a refusal the report can \
+             only render as an absence"
         );
     }
 
@@ -2172,11 +2186,12 @@ mod tests {
     fn the_dispatch_axes_are_reset_per_body() {
         let seg = free_fn(BOUND_ARG_CANON);
         let _ = parse_segment_detail(&seg, NO_LOCALS);
-        assert_eq!(
+        assert_ne!(
             prod_site(),
-            PROD_ENTERED_UNTAGGED,
-            "precondition: this body must leave a NON-default production reading, \
-             or the staleness check below has nothing to detect"
+            PROD_NOT_ENTERED,
+            "precondition: this body must leave a NON-default production reading \
+             (it enters the chain production and declines at a named site), or the \
+             staleness check below has nothing to detect"
         );
         assert_eq!(
             dispatch_site(),

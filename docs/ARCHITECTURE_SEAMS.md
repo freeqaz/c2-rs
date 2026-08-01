@@ -899,3 +899,76 @@ The production axis, with no per-site tag placed yet, reads `prod-not-entered`
 1,673,096 / `prod-entered-untagged` 731,921 / `prod-accepted` 55,547 /
 `prod-committed-refusal` 2,007. The 731,921 is what the tag sites have left to
 explain.
+
+### 10.5 The 37 tag sites, placed — the residue is 0 and every row is named
+
+The call sites landed in `body/shapes/mcall_{tail,chain,cmp}.rs`: **37 named
+tags**, one per non-committal bail, matching the count the carrier's own doc
+comments had reserved. No carrier rework was needed — every site is
+`.map_err(|_| prod_tag("…"))?`, `ok_or_else(|| prod_tag("…"))?` or
+`return Err(prod_tag("…"))`, which is what those lines already evaluated to.
+
+**Measured, same 878-TU workload, same scan command.** Census **703,047 /
+2,462,571 (28.55 %)**, emitted census **34,169 / 178,968 (19.09 %)**, mismatch
+**0**, census/gate disagreement **0** — all four identical to the pre-tag scan,
+which is the property instrumentation owes. Both axes still account for
+2,462,571 of 2,462,571.
+
+`prod-entered-untagged`: **731,921 → 0**. The 17 tags below sum to exactly
+731,921 — the residue redistributed with nothing lost and nothing invented.
+
+| production first blocker | functions | share of the old residue |
+|---|---:|---:|
+| `tail-recv-not-a-plain-b9-load` | 359,385 | 49.1 % |
+| `tail-void-body-does-not-end-at-the-call` | 120,102 | 16.4 % |
+| `tail-argument-not-in-the-operand-vocabulary` | 97,066 | 13.3 % |
+| `chain-recv-not-a-plain-b9-load` | 94,948 | 13.0 % |
+| `framed-result-not-consumed-by-a-literal-post-op` | 28,663 | 3.9 % |
+| `chain-innermost-argument-not-in-the-operand-vocabulary` | 19,223 | 2.6 % |
+| `chain-link-does-not-bind-the-previous-result` | 6,636 | 0.9 % |
+| `chain-link-argument-not-in-the-operand-vocabulary` | 2,226 | 0.3 % |
+| `chain-returned-body-does-not-end-at-the-call` | 1,472 | 0.2 % |
+| `tail-returned-body-does-not-end-at-the-call` | 1,236 | 0.2 % |
+| `chain-void-body-does-not-end-at-the-call` | 727 | 0.1 % |
+| `cmp-two-results-not-consumed-by-a-relation` | 219 | 0.0 % |
+| `chain-body-does-not-end-at-the-call` | 6 | 0.0 % |
+| `cmp-second-recv-not-a-plain-b9-load` | 6 | 0.0 % |
+| `chain-more-methods-than-the-link-bound` | 3 | 0.0 % |
+| `chain-tail-designator-has-no-result-type` | 2 | 0.0 % |
+| `cmp-relation-result-not-annotated-bool` | 1 | 0.0 % |
+
+**The finding the instrument was built to produce.** 49.1 % of everything that
+reaches a member-call production and declines does so at **one** site, and it is
+not the call — it is the **receiver designator**. `eat_receiver_this` requires a
+plain `B9 <tok> <ptr4>`, and the top cells under it are
+`expr-intrinsic-this-adjust` (135,926), `expr-op-0x27` (101,163),
+`expr-intrinsic-dynamic-cast` (16,174), `expr-brfalse` (14,943) and
+`expr-intrinsic-base-downcast` (14,829). Two more sites take the next 217,168
+between them. A widening scheduled anywhere else inside these three files can
+reach at most a fifth of the family, and nothing before this said so.
+
+The 6,463-function `framed-…-post-op|BLOCKED|expr-call-in-expr-recv-load-whole`
+cell reproduces `mcall_tail`'s own W41 measurement of that row's Class B
+remainder exactly, from the other direction — the site rather than the key.
+
+**20 of the 37 sites read 0 on this workload, and that is stated rather than
+inferred.** A site with no workload witness is a different thing from an
+unattributed population: the residue counted bodies nobody could name, whereas
+these are named bails the corpus does not happen to reach. They are graded
+instead by `mcall_tail::assert_no_decline_lands_in_the_residue`, a byte-mutation
+sweep over the 18 captured member-call bodies (10 vocabulary bytes at every
+offset). It asserts, **inside the loop**, that no decline out of a production
+ever leaves the axis reading `prod-entered-untagged`, and checks the
+"did the sweep reach a production at all" floor only **afterwards** — 4,730 /
+11,403 / 8,464 entries for tail / chain / cmp. That ordering is the point:
+reverting a tag site to a bare `None` leaves those three counts completely
+unchanged, so only the residue assertion can fire, and a failure is therefore
+evidence about the tag and not about the corpus. Verified in that direction —
+three sites reverted, three distinct in-loop failures naming their witness
+(`MC_NULLARY[70] := 0x99`, `MC_CHAIN_RET[70] := 0x99`, `MC_CMP_PLAIN[73] :=
+0x99`), floor never reached.
+
+`PROD_ENTERED_UNTAGGED` is **not retired**. It remains the value the ladder arms
+the axis to, so a tag deleted or a bail added without one lands back in it and
+prints as its own row on the next scan. What changed is that no body sits there
+today.

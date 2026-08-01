@@ -109,7 +109,7 @@
 //!   INNERMOST call beside a save (`callseq-saved-with-first-call-setup`).
 
 use crate::func::body::expr::{eat_return_plumbing, eat_scopes};
-use crate::func::body::{Block, BodyShape, SeqCall, SeqTail};
+use crate::func::body::{prod_tag, Block, BodyShape, SeqCall, SeqTail};
 use crate::func::readers::{
     eat_byte, is_fp_type, is_ptr4_kind, read_type, value_class, ValueClass,
 };
@@ -164,9 +164,14 @@ pub(crate) fn try_parse_member_chain_call(
     // own census key rather than being claimed and refused under this one.
     let mut methods = vec![outer_callee];
     while seg.get(p) == Some(&0x26) {
-        methods.push(eat_callee_push(seg, &mut p).map_err(|_| None)?);
+        // The loop condition already matched the `26`, so the only decline here is
+        // a method-symbol token the varint reader cannot spell.
+        methods.push(
+            eat_callee_push(seg, &mut p)
+                .map_err(|_| prod_tag("chain-method-symbol-token-unreadable"))?,
+        );
         if methods.len() > MAX_CHAIN_LINKS {
-            return Err(None);
+            return Err(prod_tag("chain-more-methods-than-the-link-bound"));
         }
     }
     // The caller only enters here on a second `26`, so this holds by construction.
@@ -175,9 +180,12 @@ pub(crate) fn try_parse_member_chain_call(
     // The innermost receiver and its `99` bind, through the SAME locator the
     // one-link member call uses — which is where the `volatile` gate and the
     // optional pointer conversion live, and nowhere else.
-    let recv_tok = eat_receiver_this(seg, &mut p).map_err(|_| None)?;
-    let mut ret = eat_call_token(seg, &mut p).map_err(|_| None)?;
-    let mut inner_args = eat_call_args(seg, &mut p).map_err(|_| None)?;
+    let recv_tok = eat_receiver_this(seg, &mut p)
+        .map_err(|_| prod_tag("chain-recv-not-a-plain-b9-load"))?;
+    let mut ret = eat_call_token(seg, &mut p)
+        .map_err(|_| prod_tag("chain-no-cdecl-call-token-after-the-receiver"))?;
+    let mut inner_args = eat_call_args(seg, &mut p)
+        .map_err(|_| prod_tag("chain-innermost-argument-not-in-the-operand-vocabulary"))?;
     // `this` is argument slot 0 and the argument list is in **stream** order —
     // rightmost source argument first — so the receiver goes on the END of it.
     // The same fact, and the same one-line consequence, as
@@ -195,9 +203,19 @@ pub(crate) fn try_parse_member_chain_call(
     // slot 1 of the fourth are different registers at different `bl`s.
     let mut raw_links: Vec<Vec<Vec<IlOp>>> = Vec::with_capacity(methods.len() - 1);
     for _ in 0..methods.len() - 1 {
-        eat_this_bind(seg, &mut p).map_err(|_| None)?;
-        ret = eat_call_token(seg, &mut p).map_err(|_| None)?;
-        raw_links.push(eat_call_args(seg, &mut p).map_err(|_| None)?);
+        // The link that is NOT a link: `x = p->m();` opens with the same two-symbol
+        // head run and reaches here with a `32` store where the `99` bind must be.
+        // That population is the whole reason this entry point has to stay
+        // non-committal, so it is the one tag site whose name has to say which
+        // byte disagreed rather than "the chain declined".
+        eat_this_bind(seg, &mut p)
+            .map_err(|_| prod_tag("chain-link-does-not-bind-the-previous-result"))?;
+        ret = eat_call_token(seg, &mut p)
+            .map_err(|_| prod_tag("chain-link-has-no-cdecl-call-token"))?;
+        raw_links.push(
+            eat_call_args(seg, &mut p)
+                .map_err(|_| prod_tag("chain-link-argument-not-in-the-operand-vocabulary"))?,
+        );
     }
 
     // The body must END here, exactly as the one-link form requires: the result is
@@ -212,11 +230,14 @@ pub(crate) fn try_parse_member_chain_call(
         ret.discarded(seg, p).map_err(Some)?;
         // A brace scope closes **between** the statement end and the return branch
         // — same reasoning, and same call site, as the one-link form's.
-        eat_scopes(seg, &mut p, &mut depth).map_err(|_| None)?;
-        eat_return_plumbing(seg, &mut p, false, depth).map_err(|_| None)?;
+        eat_scopes(seg, &mut p, &mut depth)
+            .map_err(|_| prod_tag("chain-void-brace-scopes-do-not-close"))?;
+        eat_return_plumbing(seg, &mut p, false, depth)
+            .map_err(|_| prod_tag("chain-void-body-does-not-end-at-the-call"))?;
         SeqTail::Void
     } else if seg.get(p) == Some(&0x41) {
-        eat_return_plumbing(seg, &mut p, true, depth).map_err(|_| None)?;
+        eat_return_plumbing(seg, &mut p, true, depth)
+            .map_err(|_| prod_tag("chain-returned-body-does-not-end-at-the-call"))?;
         // The last call's value IS the result, with no post-op — the same tail
         // `int f(){ g1(); return g2(); }` produces, which is no instruction at all.
         SeqTail::CallValue { add_k: 0 }
@@ -232,7 +253,7 @@ pub(crate) fn try_parse_member_chain_call(
         // case, which is the defect §6n's item 1 records six times over.
         chain_result_designator(seg, &mut p, depth)?
     } else {
-        return Err(None);
+        return Err(prod_tag("chain-body-does-not-end-at-the-call"));
     };
 
     // ---- from here the body parses to the end of the segment, so every refusal
@@ -362,7 +383,8 @@ fn chain_result_designator(
 ) -> Result<SeqTail, Option<Block>> {
     // The offset run — **zero or more**, because `*p->a()->b()` has none at all
     // and is the same instruction at displacement 0.
-    let (off, _last_retype) = eat_offset_adds(seg, p).ok_or(None)?;
+    let (off, _last_retype) = eat_offset_adds(seg, p)
+        .ok_or_else(|| prod_tag("chain-tail-designator-not-an-offset-run"))?;
     let mut q = *p;
     let load = eat_byte(seg, &mut q, 0x30);
     // The whole rest of the step, read **structurally** — the load's TYPE, an
@@ -379,15 +401,17 @@ fn chain_result_designator(
     // `expr-call-in-expr-chained-then-deref-load-more`.
     let loaded_at = q;
     let loaded = if load {
-        let (tag, kind, _, tw) = read_type(seg, q).ok_or(None)?;
+        let (tag, kind, _, tw) =
+            read_type(seg, q).ok_or_else(|| prod_tag("chain-tail-load-has-no-type"))?;
         q += tw;
         // An optional conversion on the loaded value. Consumed generically here
         // and *classified* below, for the same reason as above.
         let conv = if seg.get(q) == Some(&0x2C) {
-            let (t2, k2, _, tw2) = read_type(seg, q + 1).ok_or(None)?;
+            let (t2, k2, _, tw2) = read_type(seg, q + 1)
+                .ok_or_else(|| prod_tag("chain-tail-load-convert-has-no-type"))?;
             let mut probe = q + 1 + tw2;
             if !eat_byte(seg, &mut probe, 0x00) {
-                return Err(None);
+                return Err(prod_tag("chain-tail-load-convert-not-terminated"));
             }
             q = probe;
             Some((t2, k2))
@@ -401,15 +425,17 @@ fn chain_result_designator(
     // The result type, stated again. Read generically; its class is checked
     // against the load's below.
     if !eat_byte(seg, &mut q, 0x41) {
-        return Err(None);
+        return Err(prod_tag("chain-tail-designator-has-no-result-type"));
     }
-    let (rt, rk, _, rtw) = read_type(seg, q).ok_or(None)?;
+    let (rt, rk, _, rtw) =
+        read_type(seg, q).ok_or_else(|| prod_tag("chain-tail-result-type-unreadable"))?;
     q += rtw;
     // The plumbing, which must reach the segment end. Asked WITHOUT a result
     // type (`false`) because the `41` is already consumed above — letting
     // `eat_return_head` take it instead would widen the check to its
     // `eat_int_like_or_ptr4` and lose the class agreement this step needs.
-    eat_return_plumbing(seg, &mut q, false, depth).map_err(|_| None)?;
+    eat_return_plumbing(seg, &mut q, false, depth)
+        .map_err(|_| prod_tag("chain-tail-designator-body-does-not-end-here"))?;
     *p = q;
 
     // ---- from here the body parses to the end of the segment, so every refusal
@@ -593,6 +619,29 @@ mod tests {
         0x00, 0x4C, 0x41, 0x86, 0x41, 0x74, 0x3A, 0x0C, 0x0A, 0x54, 0x02, 0x29, 0x0C, 0x0A, 0x4F,
         0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
+
+    /// **Every non-committal decline out of the chain production — including the
+    /// WCO designator tail — is attributed to a named site.** The corpus spans
+    /// the two-link chain, the three-link one, a link with an argument, and the
+    /// designator tails (offset run, deref, `lfs`/`lfd`), so a bail reachable
+    /// only from inside `chain_result_designator` is swept too.
+    #[test]
+    fn no_decline_out_of_the_chain_production_lands_in_the_residue() {
+        crate::func::body::shapes::mcall_tail::assert_no_decline_lands_in_the_residue(
+            &[
+                ("MC_CHAIN_RET", MC_CHAIN_RET),
+                ("MC_CHAIN_THREE", MC_CHAIN_THREE),
+                ("MC_LINK_ARG", MC_LINK_ARG),
+                ("MC_LINK_LIT", MC_LINK_LIT),
+                ("MC_TAIL_RUN", MC_TAIL_RUN),
+                ("MC_TAIL_DEREF", MC_TAIL_DEREF),
+                ("MC_TAIL_LFS", MC_TAIL_LFS),
+                ("MC_TAIL_FP_NARROW", MC_TAIL_FP_NARROW),
+            ],
+            // MEASURED: 11,403 of the mutations reach the production.
+            11_000,
+        );
+    }
 
     #[test]
     fn a_two_link_chain_is_a_class_a_call_sequence_innermost_first() {
