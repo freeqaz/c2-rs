@@ -184,7 +184,10 @@ Three consequences, each larger than the fix:
 
 At `be797bf`, worktree configured against the shared toolchain:
 
-* `cargo test --workspace` — **576 passed, 0 failed, 1 ignored** (pre-existing).
+* `cargo test --workspace` — base `33d0049` **571 passed, 0 failed, 1 ignored**
+  → tip **576 passed, 0 failed, 1 ignored** (the ignored one is pre-existing).
+  Both totals measured, not inferred: the base was rebuilt from
+  `git checkout 33d0049 -- crates fixtures` and re-run.
   **`#[test]` count over `crates/` 571 at the merge-base `33d0049` → 577 at tip**.
   Five of the six new grep lines are real tests and the sixth is the literal
   `#[test]` inside a doc comment — `git grep -c` counts lines, and a whole-tree
@@ -195,7 +198,9 @@ At `be797bf`, worktree configured against the shared toolchain:
   0 NO-RESULT, **2,496 fixture-verdicts, 0 mismatch in every lane**.
   `--selftest` PASS, 15 cases.
 * `scripts/expr_sweep.sh` — 47 fragments, **14,484 cases, mismatches=0**.
-* `scripts/cross_sweep.sh` — GATE_CROSS.
+* `scripts/cross_sweep.sh` — 42,719 configurations × 12 lanes =
+  **512,628 gradings, 512,628 graded, 0 mismatches**; 406 of 406 declared family
+  pairs reached and emitted, refusal-frontier residue 0.
 * 878-TU workload scan — 6 match, **0 mismatch**, 865 vocab-gap, 7 capture-fail;
   bodies 706,402/2,462,571 (28.69 %); **emitted 36,059/178,968 (20.15 %)**;
   census/gate disagreement **0**.
