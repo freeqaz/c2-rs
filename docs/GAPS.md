@@ -3208,3 +3208,37 @@ So the refusals are three, independent, and each sufficient on its own:
 
 Re-offering a body only helps if the production it reaches can then accept it.
 Here it cannot, and the ceiling was 8 before that question was even asked.
+
+### 10.6 The frame refusal is structural, and the rung is one key wide
+
+Splitting the population's eight keys on whether the **key name itself** says
+more than one call (`-then-chain-bind-` / `-then-call-`) makes the refusal
+mechanical rather than statistical:
+
+| key | bodies | `calls-1` | emitted |
+|---|---:|---:|---:|
+| `-recv-field-off0-then-chain-bind-whole` | 2,666 | **0** | 349 |
+| `-recv-intrinsic-this-adjust-then-chain-bind-whole` | 1,686 | **0** | 143 |
+| `-recv-field-then-chain-bind-whole` | 836 | **0** | 76 |
+| `-recv-intrinsic-this-adjust-then-call-recv-field-whole` | 705 | **0** | 1 |
+| `-recv-field-off0-then-call-recv-field-whole` | 574 | **0** | 7 |
+| **subtotal — multi-call by construction** | **6,467** | **0** | 576 |
+| `-recv-intrinsic-this-adjust-whole` | 832 | 2 | 67 |
+| **`-recv-field-whole`** | **587** | **360** | **19** |
+| `-recv-field-then-off-add-and-type-int1-whole3` | 1 | 0 | 1 |
+| **subtotal — the routable residue** | **1,420** | **362** | 87 |
+
+**6,467 of the 7,887 have `calls-1` = 0 — not "few", zero, in every one of the
+five keys.** A key spelled `-then-chain-bind-` or `-then-call-` *is* a second
+call; the frame is not a property these bodies happen to have, it is what the
+census key says they are. No measurement could have come out otherwise, and the
+2,666-function row the brief named as the headline is the largest of them.
+
+The routable residue is **1,420 bodies, and 360 of the 362 `calls-1` sit in a
+single key** — `expr-call-in-expr-recv-field-whole`, 587 bodies, **19 emitted**,
+intersection **≤ 8**. So the rung is not a 7,887-function rung with a frame
+problem. **It is a one-key, 587-body rung worth at most 8 emitted functions**,
+and it still has to get past `tail-recv-not-a-plain-b9-load` (§10.5) afterwards.
+
+That is the whole result: the merged `0xB9|0x33` row read "8,588 disp-expr", the
+split read 7,887, and the split-and-priced read **8**.
