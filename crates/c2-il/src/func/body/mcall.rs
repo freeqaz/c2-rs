@@ -72,7 +72,7 @@ use super::expr::{
 use super::{Block, BODY_SCOPE_DEPTH};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker,
-    read_token_var, read_type, read_varint,
+    eat_value_type, read_token_var, read_type, read_varint,
 };
 use crate::func::readers::ValueClass;
 
@@ -2337,16 +2337,23 @@ enum Vocab {
     /// | the `02`/`03`/`04` operators | the same three | `parse_expr` |
     /// | pointer / one-byte-unsigned stream rules | [`Stream::emitter_would_refuse`] | `parse_expr` |
     /// | the `55` call-end annotation | [`eat_int_like_or_ptr4`] | `eat_call_args` |
+    /// | the `2C` class-preserving conversion | `eat_value_type` | `parse_expr` |
     ///
-    /// **What this correspondence does NOT cover, stated rather than implied.**
-    /// `parse_expr` also admits a `2C` conversion whose target is the value's
-    /// own class, and the measure has no arm for it — a measure narrower than
-    /// its emitter, i.e. #139's own shape. It is left open deliberately and
-    /// with a number: **0 emitted rows and 0 bodies** on the 878-TU workload
-    /// carry a `…-then-op-0x2C` key, so repairing it would move nothing and
-    /// would widen a hot path for a row that does not exist. The 468 emitted
-    /// `call-multiarg-postop-0x2C` are a different key from a different
-    /// production and are untouched by this.
+    /// **The `2C` row was very nearly left out on a number measured one scan
+    /// too early**, and that is worth recording. Sized on the BASE tree the
+    /// conversion looked worth nothing — 0 bodies carried a `…-then-op-0x2C`
+    /// key — so it was documented as a deliberate, bounded omission. Both
+    /// halves of that were wrong. The key is spelled `…-then-convert`
+    /// ([`super::expr_opcode_name`] names the byte, which is the whole point of
+    /// that table), and, more to the point, the number was a number about a
+    /// tree that no longer existed: repairing the operand TYPE let the walk
+    /// reach *past* the pointer it used to stop at, and the conversion behind it
+    /// went **829 → 13,325 bodies and 26 → 1,144 emitted in one scan**.
+    ///
+    /// A residue sized before the repair that exposes it is not sized. The rule
+    /// this whole section exists to state — a census key must not name a
+    /// construct its emitter does not refuse — applies to the construct the
+    /// repair *reveals* exactly as it applies to the one the repair removes.
     CallArg,
     /// An **intrinsic-call receiver**. Nothing in the intrinsic family is
     /// lowered at all (`docs/IL_INTRINSIC_CALL.md`), so there is no emitter for
@@ -2373,6 +2380,11 @@ struct Stream {
     int1u: bool,
     wide: bool,
     arith: bool,
+    /// The [`ValueClass`] on top of the operand stack, or `None` before the
+    /// first operand — `parse_expr`'s own `class` variable, tracked here for
+    /// the same one reason it tracks it: the `2C` arm admits a conversion only
+    /// when the target is the value's *own* class.
+    last: Option<ValueClass>,
 }
 
 impl Stream {
@@ -2433,6 +2445,36 @@ fn eat_int_operands(seg: &[u8], p: &mut usize, v: Vocab, adm: Admit, fail: &mut 
                 st.arith = true;
                 *p += 1;
             }
+            // **A `2C` CLASS-PRESERVING CONVERSION**, exactly as `parse_expr`
+            // admits it: the target must be the class the value already has, a
+            // register-to-register identity c2 emits nothing for, and the
+            // trailing varint must literally be `0`.
+            //
+            // This arm did not exist until the enumerated guard's own output
+            // demanded it. #139's repair let the walk reach *past* the pointer
+            // TYPE it used to stop at, and what it then stopped on was this —
+            // `…-then-convert` went 829 -> 13,325 bodies and 26 -> 1,144
+            // emitted in a single scan. Left unrepaired that is #139 all over
+            // again one token later: a census key naming `convert` as the
+            // second construct for bodies whose emitter does not refuse a
+            // conversion at all.
+            Some(&0x2C) if v == Vocab::CallArg => {
+                let start = *p;
+                let mut probe = *p + 1;
+                let Some(cls) = st.last else {
+                    fail.note(start, FailKind::Value);
+                    return finish!();
+                };
+                if !eat_value_type(seg, &mut probe, cls) {
+                    fail.note(*p + 1, FailKind::Type);
+                    return finish!();
+                }
+                if !eat_byte(seg, &mut probe, 0x00) {
+                    fail.note(probe, FailKind::Value);
+                    return finish!();
+                }
+                *p = probe;
+            }
             _ => {
                 fail.note(*p, FailKind::Value);
                 return finish!();
@@ -2459,6 +2501,7 @@ fn eat_operand_or_admitted(
                 st.ptr |= c == ValueClass::Ptr4;
                 st.int1u |= c == ValueClass::Int1u;
                 st.wide |= c != ValueClass::Int1u;
+                st.last = Some(c);
                 return true;
             }
             *p = save;
@@ -2933,17 +2976,30 @@ mod tests {
         }
         let mut disagreements: Vec<String> = Vec::new();
         let mut cases = 0usize;
+        // `None` is "one operand and nothing else"; `02`/`03`/`04` append a
+        // second operand and the arithmetic that reaches the stream guards;
+        // `2C` appends a CONVERSION whose target is the second class, which
+        // reaches the class-preserving rule and nothing else does.
         for (n1, t1) in CLASS_WITNESSES {
-            for op in [None, Some(0x02u8), Some(0x03), Some(0x04)] {
+            for op in [None, Some(0x02u8), Some(0x03), Some(0x04), Some(0x2C)] {
                 for (n2, t2) in CLASS_WITNESSES {
                     for (n5, t5) in CLASS_WITNESSES {
                         cases += 1;
                         let mut seg = vec![0xB9, 0x01, 0x02];
                         seg.extend_from_slice(t1);
-                        if let Some(o) = op {
-                            seg.extend_from_slice(&[0xB9, 0x01, 0x03]);
-                            seg.extend_from_slice(t2);
-                            seg.push(o);
+                        match op {
+                            Some(0x2C) => {
+                                // `2C <target TYPE> 00`
+                                seg.push(0x2C);
+                                seg.extend_from_slice(t2);
+                                seg.push(0x00);
+                            }
+                            Some(o) => {
+                                seg.extend_from_slice(&[0xB9, 0x01, 0x03]);
+                                seg.extend_from_slice(t2);
+                                seg.push(o);
+                            }
+                            None => {}
                         }
                         seg.push(0x55);
                         seg.extend_from_slice(t5);
@@ -2959,7 +3015,8 @@ mod tests {
                                     None => "·",
                                     Some(0x02) => "+",
                                     Some(0x03) => "-",
-                                    _ => "*",
+                                    Some(0x04) => "*",
+                                    _ => "convert-to",
                                 }
                             ));
                         }
