@@ -114,6 +114,42 @@ impl ObjImage {
     /// emitted set, and a short denominator inflates every ratio computed
     /// against it — so there is no partial answer here.
     pub fn text_comdat_functions(&self) -> Option<Vec<String>> {
+        Some(
+            self.text_comdat_entries()?
+                .into_iter()
+                .map(|(n, _)| n)
+                .collect(),
+        )
+    }
+
+    /// [`ObjImage::text_comdat_functions`] with each function's **emitted
+    /// bytes** — the section's raw data, in section order.
+    ///
+    /// Added for the listing seam (board #132): comparing c2's `.cod` rows
+    /// against what it actually wrote needs the bytes *per COMDAT*, because the
+    /// listing's offsets restart at `00000` for every function and are not
+    /// `.text`-wide. Same fail-closed contract as the names-only form.
+    pub fn text_comdat_functions_with_bytes(&self) -> Option<Vec<(String, Vec<u8>)>> {
+        let b = &self.0;
+        let mut out = Vec::new();
+        for (name, s) in self.text_comdat_entries()? {
+            let o = COFF_HEADER_LEN + s * SECTION_HEADER_LEN;
+            let size = u32::from_le_bytes([b[o + 16], b[o + 17], b[o + 18], b[o + 19]]) as usize;
+            let ptr = u32::from_le_bytes([b[o + 20], b[o + 21], b[o + 22], b[o + 23]]) as usize;
+            // A section whose raw data runs off the end is a decode failure, not
+            // a short answer — the same reason the names walk is fail-closed.
+            let end = ptr.checked_add(size)?;
+            if end > b.len() {
+                return None;
+            }
+            out.push((name, b[ptr..end].to_vec()));
+        }
+        Some(out)
+    }
+
+    /// The shared walk: `(leader symbol, section index)` for every COMDAT
+    /// `.text*` section, in section order.
+    fn text_comdat_entries(&self) -> Option<Vec<(String, usize)>> {
         let b = &self.0;
         if b.len() < COFF_HEADER_LEN {
             return None;
@@ -171,7 +207,7 @@ impl ObjImage {
                             .to_owned()
                     };
                     claimed[s] = true;
-                    out.push(name);
+                    out.push((name, s));
                 }
             }
             // An aux record count that walks past the table is a decode failure,

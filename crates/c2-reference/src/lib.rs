@@ -63,6 +63,8 @@
 //!
 //! [wibo]: https://github.com/decompals/wibo
 
+pub mod cod;
+
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -102,6 +104,7 @@ pub const WIBO_KNOWN_GOOD: &str = "1.0.1-23";
 /// compilers archive (`https://files.decomp.dev/compilers_<tag>.zip`), which
 /// unzips to `X360/16.00.11886.00/{cl.exe, c1xx.dll, c2.dll, ...}`.
 const X360_TOOLCHAIN_REL: &str = "X360/16.00.11886.00";
+
 
 /// Resolve the compilers root directory. Precedence:
 ///
@@ -692,6 +695,103 @@ impl Toolchain {
             ref_obj,
             ref_obj_path: out_obj,
         })
+    }
+
+    /// **The listing seam** (board #132, roadmap §9): the same capture, with
+    /// `/FAsc` — and optionally `/QXSTALLS` — appended, returning the capture
+    /// **and** c2's own assembly listing.
+    ///
+    /// `cl /FAsc … /c` appends exactly `-FAasc -Fa <file>` to the c2 command
+    /// line it echoes under `/Bd`, so this is c2 writing its own account of its
+    /// own output. See [`crate::cod`] for the reader and for the one place the
+    /// listing must not be trusted as raw bytes.
+    ///
+    /// # Three properties this rests on, each with a standing test
+    ///
+    /// 1. **`/FAsc` does not perturb the obj.** With and without it, at the same
+    ///    `/Fo` path, the obj is byte-identical (`TimeDateStamp` zeroed). That is
+    ///    what lets a `.cod` be captured beside the very obj the differential
+    ///    grades. `reference::the_listing_does_not_perturb_the_obj`.
+    /// 2. **Nor does `/QXSTALLS`** — it is an annotation pass, so its numbers
+    ///    describe the code the differential actually grades.
+    ///    `reference::qxstalls_annotates_the_listing_and_only_with_the_flag`.
+    /// 3. **The `.cod` is NOT raw-byte truth at relocated branches**, and the
+    ///    exception is exactly `{b, bl}`.
+    ///    `reference::the_cod_is_byte_truth_except_at_relocated_branches`.
+    ///
+    /// The oracle is **unchanged**: the obj byte-compare remains the sole judge
+    /// and the listing is a decode aid, never a gate.
+    ///
+    /// # Why this drives `cl` and not the standalone replay
+    ///
+    /// The obvious cheaper design — append `-FAasc -Fa` to a
+    /// [`Toolchain::replay`] argv and get a listing for an already-cached IL
+    /// bundle — **does not work under wibo, and was measured, not assumed.**
+    /// `-FAasc` is the only thing that makes c2 load `msdisXXX.dll` (it
+    /// disassembles its own output to print the listing). Under `cl.exe` that
+    /// DLL and its `msvcp100.dll` dependency resolve from the driver's
+    /// directory; under `c2host.exe` they do not. Making both resolvable removes
+    /// the `SIGABRT` on the stubbed `?PdisNew@DIS@@SGPAV1@W4DIST@1@@Z`, but c2
+    /// then still `SIGSEGV`s inside the disassembler after reading the source
+    /// for line correlation — with `msobjXX.dll`, `pgodb100.dll` and
+    /// `tlbref.dll` all resolvable too, and with no missing import left in the
+    /// wibo trace. The remaining fault is inside `msdisXXX.dll` under wibo and
+    /// is not this project's to fix.
+    ///
+    /// The cost is therefore a `cl` run per listing rather than a c2 run over a
+    /// cache hit. That is real but affordable, and it keeps the seam on the one
+    /// path that is proven.
+    pub fn capture_listing_with(
+        &self,
+        src_arg: &str,
+        work_dir: &Path,
+        flags: &[String],
+        cwd: Option<&Path>,
+        qxstalls: bool,
+    ) -> io::Result<(CapturedReference, String)> {
+        std::fs::create_dir_all(work_dir)?;
+        let cod_path = absolute(work_dir)?.join("listing.cod");
+        // A stale listing from a previous call in a reused work dir would be
+        // read as this call's product — the exact shape of absence read as
+        // success this seam is meant to instrument, not commit.
+        let _ = std::fs::remove_file(&cod_path);
+
+        let mut flags = flags.to_vec();
+        flags.push("/FAsc".to_string());
+        if qxstalls {
+            flags.push("/QXSTALLS".to_string());
+        }
+        flags.push(format!("/Fa{}", to_wibo_path(&cod_path)));
+        let captured = self.capture_reference_with(src_arg, work_dir, &flags, cwd)?;
+
+        let cod = std::fs::read(&cod_path).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "cl produced an obj but no listing at {} ({e}) — /FAsc was \
+                     accepted and then wrote nothing, which must be an error and \
+                     not an empty result",
+                    cod_path.display()
+                ),
+            )
+        })?;
+        Ok((captured, String::from_utf8_lossy(&cod).into_owned()))
+    }
+
+    /// [`Toolchain::capture_listing_with`] at the fixture profile
+    /// (`/O1 /Oi /EHsc /GS- /c`, the workload's own optimization flags).
+    pub fn capture_listing(
+        &self,
+        cpp: &Path,
+        work_dir: &Path,
+        qxstalls: bool,
+    ) -> io::Result<(CapturedReference, String)> {
+        let z_src = to_wibo_path(&absolute(cpp)?);
+        let flags: Vec<String> = ["/O1", "/Oi", "/EHsc", "/GS-", "/c"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        self.capture_listing_with(&z_src, work_dir, &flags, None, qxstalls)
     }
 
     /// **P0.1 replay.** Write `captured.bundle` back out into `bundle_dir` and
