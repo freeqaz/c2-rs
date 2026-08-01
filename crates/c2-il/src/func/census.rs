@@ -1,5 +1,6 @@
 use super::body::{
-    self, call_tokens, parse_segment_detail, BodyShape, DtorSubObject, CALLEE_UNRESOLVED_DTOR,
+    self, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
+    CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
     DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE,
 };
@@ -36,6 +37,29 @@ impl FnVerdict {
     }
     pub fn in_class(&self) -> bool {
         matches!(self, FnVerdict::InClass(_))
+    }
+
+    /// **The grammar-completeness axis** — see [`Complete`], `docs/ROADMAP.md`
+    /// §9.11 and §9.14.
+    ///
+    /// A *fifth* census axis, and a separate field for exactly the reason
+    /// [`FnCensus::cflow`], [`FnCensus::eh`], [`FnCensus::dispatch`] and
+    /// [`FnCensus::prod`] are separate: **the blocking-feature key is not a
+    /// reliable carrier of it.** Two producers encode the same fact in two
+    /// different halves of the key — `-whole`/`-more` from the completeness
+    /// walker, `:eof`/`:mid` from the byte-less refusals — and WR1 moved 39,967
+    /// functions from the first encoding to the second without moving one
+    /// function between classes. Every table built by grepping the key for
+    /// `-whole` has under-counted that family by **18,931** since.
+    ///
+    /// The point is not that the grep was written badly. It is that a fact
+    /// carried only in a *name* has no stable home, so every consumer re-derives
+    /// it and the derivations drift. This is the fact's home.
+    pub fn completeness(&self) -> Complete {
+        match self {
+            FnVerdict::InClass(_) => Complete::InClass,
+            FnVerdict::Blocked(b) => b.completeness(),
+        }
     }
 }
 
@@ -895,5 +919,74 @@ mod tests {
              previous segment's arm would attribute it to a recognizer that never \
              saw a byte of it"
         );
+    }
+
+    /// **The §9.11 half of the completeness correspondence** — the `:eof`/`:mid`
+    /// producer, which is the family the WR1 re-key moved 39,967 functions into.
+    ///
+    /// Graded the same three ways as the grammar half
+    /// (`body::mcall::tests::the_completeness_axis_agrees_with_the_rendered_key`),
+    /// and the assertions are stated in **both directions** on purpose: a
+    /// classifier that answered `WholeSegmentEnd` for every byte-less refusal
+    /// passes the positive alone, which is the shape
+    /// `the_eof_suffix_is_earned_by_reaching_the_segment_end` was written to
+    /// catch for the suffix itself.
+    ///
+    /// The bridging claim this axis makes — that `:eof` and `-whole` are the
+    /// same *claim* reached by two producers — is the one §9.13 had to make by
+    /// hand to re-check its 1,399-row figure. Here it is a named method
+    /// ([`Complete::is_whole`]) instead of a grep, and the two provenances stay
+    /// separable because the variants stay separate.
+    #[test]
+    fn the_completeness_axis_reads_the_segment_end_producer_both_ways() {
+        let seg = [0u8; 8];
+
+        // Raised AT the end: the parse consumed the whole segment first, which
+        // is exactly what `:eof` promises and what `-whole` claims.
+        let at_end = Block::at_end(&seg, "call-arg-multi-sym");
+        assert_eq!(at_end.feature(), "call-arg-multi-sym:eof");
+        assert_eq!(at_end.completeness(), Complete::WholeSegmentEnd);
+        assert!(at_end.completeness().is_whole());
+
+        // Raised MID-segment. Must NOT read as whole — this is the negative the
+        // positive alone cannot establish.
+        let mid = Block::refuse(&seg, 3, "call-arg-multi-sym");
+        assert_eq!(mid.feature(), "call-arg-multi-sym:mid");
+        assert_eq!(mid.completeness(), Complete::PartialSegmentEnd);
+        assert!(!mid.completeness().is_whole());
+
+        // A keyed BYTE refusal carries neither signal, and says so rather than
+        // defaulting into either camp. `expr-op-0x27` is the largest row on the
+        // emitted board and it is genuinely silent about completeness.
+        let byte = super::super::Block {
+            ctx: "expr",
+            byte: Some(0x27),
+            off: 2,
+            seg_len: seg.len(),
+            aux: 0,
+        };
+        assert_eq!(byte.completeness(), Complete::NoSignal);
+        assert!(!byte.completeness().is_whole());
+
+        // The residue is NAMED and therefore printable. A totality claim whose
+        // residue has no name cannot be audited.
+        assert_eq!(Complete::NoSignal.name(), "complete-none");
+
+        // Injectivity across the whole closed vocabulary: seven readings, seven
+        // distinct names. Summing two of them can never double-count one row.
+        let all = [
+            Complete::WholeGrammar,
+            Complete::MoreGrammar,
+            Complete::UnmeasuredGrammar,
+            Complete::WholeSegmentEnd,
+            Complete::PartialSegmentEnd,
+            Complete::NoSignal,
+            Complete::InClass,
+        ];
+        let names: std::collections::BTreeSet<&str> = all.iter().map(|c| c.name()).collect();
+        assert_eq!(names.len(), all.len(), "the completeness vocabulary is not injective");
+        // …and every name is prefixed so it can never collide with a blocking
+        // feature key, which is what would silently merge two histograms.
+        assert!(names.iter().all(|n| n.starts_with("complete-")), "{names:?}");
     }
 }

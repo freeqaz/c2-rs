@@ -198,6 +198,22 @@ pub struct TuResult {
     /// family and leave 30,475 in a single row reading "none of the three
     /// productions was entered".
     pub fn_dispatch: BTreeMap<String, usize>,
+    /// **The grammar-completeness axis** (`c2_il::Complete`, roadmap §9.11 /
+    /// §9.14): is anything hiding behind this row, or is its count directly a
+    /// widening estimate?
+    ///
+    /// Rows are `"<complete>"` totals, `"<complete>|BLOCKED"` subtotals, and
+    /// `"<complete>|<census key>"` crosses.
+    ///
+    /// **A field, because the key is not a reliable carrier.** Two producers
+    /// encode this fact in two different halves of the rendered key —
+    /// `-whole`/`-more` and `:eof`/`:mid` — and WR1 moved 39,967 functions from
+    /// the first encoding to the second. A ranking table built by grepping
+    /// `-whole` has under-counted that family by **18,931** ever since, and
+    /// §9.13 had to re-derive the join by hand to re-check a 1,399-row figure.
+    /// Every consumer re-deriving a fact from a *name* is how the derivations
+    /// drift; this is the fact's home.
+    pub fn_complete: BTreeMap<String, usize>,
     /// **The member-call production first-blocker axis**: for the bodies that
     /// reached `try_parse_member_tail_call`, which non-committal bail inside it (or
     /// inside the chain / comparison productions it delegates to) fired.
@@ -437,6 +453,10 @@ impl GapReport {
 
     /// **The body-dispatch axis**, aggregated, most frequent first. See
     /// [`TuResult::fn_dispatch`] for the row shapes.
+    pub fn fn_complete_histogram(&self) -> Vec<(String, usize)> {
+        merge_counts(self.results.iter().map(|r| &r.fn_complete))
+    }
+
     pub fn fn_dispatch_histogram(&self) -> Vec<(String, usize)> {
         merge_counts(self.results.iter().map(|r| &r.fn_dispatch))
     }
@@ -717,7 +737,7 @@ fn clip(s: &str, n: usize) -> String {
 ///
 /// ```text
 /// src · index · key · EMITTED|not-emitted · mangled name · frame · cflow · eh
-///     · dispatch · production · hex_mark · the blocking-byte window
+///     · dispatch · production · completeness · hex_mark · the blocking-byte window
 /// ```
 ///
 /// **Every axis this scan prints is a histogram, and a histogram cannot answer a
@@ -782,7 +802,7 @@ fn row_dump(
         }
         let hex: String = f.hex.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ");
         buf.push_str(&format!(
-            "{src}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            "{src}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
             f.index,
             key,
             if is_emitted { "EMITTED" } else { "not-emitted" },
@@ -792,6 +812,7 @@ fn row_dump(
             f.eh,
             f.dispatch,
             f.prod,
+            f.verdict.completeness().name(),
             f.hex_mark,
             hex,
         ));
@@ -828,6 +849,7 @@ fn scan_one(
         fn_cflow: BTreeMap::new(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
+        fn_complete: BTreeMap::new(),
         fn_prod: BTreeMap::new(),
         fn_gate_refusals: BTreeMap::new(),
         bind_checks: BTreeMap::new(),
@@ -946,6 +968,16 @@ fn scan_one(
             // and an absence cannot be ranked.
             *res.fn_dispatch.entry(f.dispatch.to_string()).or_insert(0) += 1;
             *res.fn_prod.entry(f.prod.to_string()).or_insert(0) += 1;
+            let complete = f.verdict.completeness().name();
+            *res.fn_complete.entry(complete.to_string()).or_insert(0) += 1;
+            if !f.verdict.in_class() {
+                *res.fn_complete
+                    .entry(format!("{complete}|BLOCKED"))
+                    .or_insert(0) += 1;
+                *res.fn_complete
+                    .entry(format!("{complete}|{}", f.verdict.key()))
+                    .or_insert(0) += 1;
+            }
             if !f.verdict.in_class() {
                 *res.fn_dispatch
                     .entry(format!("{}|BLOCKED", f.dispatch))
@@ -1301,6 +1333,12 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let complete = r
+                .fn_complete
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             let prod = r
                 .fn_prod
                 .iter()
@@ -1333,7 +1371,7 @@ pub fn gap_scan(
                 .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_complete\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -1351,6 +1389,7 @@ pub fn gap_scan(
                 cflow,
                 eh,
                 dispatch,
+                complete,
                 prod,
                 gate,
                 binds,
@@ -1409,6 +1448,7 @@ mod tests {
             fn_cflow: BTreeMap::new(),
             fn_eh: BTreeMap::new(),
             fn_dispatch: BTreeMap::new(),
+            fn_complete: BTreeMap::new(),
             fn_prod: BTreeMap::new(),
             fn_gate_refusals: BTreeMap::new(),
             bind_checks: BTreeMap::new(),

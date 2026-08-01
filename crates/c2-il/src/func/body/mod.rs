@@ -657,7 +657,95 @@ pub(crate) const DATA_SYM_UNRESOLVED: &str = "data-sym-unresolved";
 /// this one needs a section emitter, that one needs a name.
 pub(crate) const DATA_SYM_LINKAGE: &str = "data-sym-not-extern";
 
+/// **The grammar-completeness axis** — `docs/ROADMAP.md` §9.11 / §9.14.
+///
+/// One closed vocabulary for the one question the roadmap ranks by: *is
+/// anything hiding behind this row, or is its count directly a widening
+/// estimate?* Two independent producers answer it and they answer it in
+/// different fields of the rendered key:
+///
+/// * `mcall`'s completeness walker writes `-whole` / `-whole{k}` / `-more`, and
+///   leaves the suffix off when the second construct has no production at all;
+/// * the byte-less refusals write `:eof` / `:mid` — whether the parse had
+///   reached the end of the segment when the refusal was raised.
+///
+/// **That is the corruption §9.11 records.** WR1 moved 39,967 functions out of
+/// `expr-call-in-expr-data-addr-*` — where they carried the first encoding —
+/// into `call-arg-multi-sym` and next-blocker keys, where they carry the
+/// second. Nothing was lost and every new name is truthful, but a table built
+/// by grepping the key for `-whole` **under-counts that family by 18,931**, and
+/// a ranking is exactly such a table. §9.13 had to re-derive the join by hand
+/// to check a 1,399-row figure.
+///
+/// So the reading is a **field with a name**, computed from the block's own
+/// state, and never a substring of the rendered key. Grepping the key was the
+/// defect; a second, better-informed grep would be the same defect. The variant
+/// carries its **provenance** rather than merging the two producers, for the
+/// reason [`Block::feature`] refuses to merge `:eof` into the byte-named
+/// buckets: the two signals are not the same claim, and a reader that wants
+/// them summed can sum them, while a reader given a sum can never take it back
+/// apart.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Complete {
+    /// The body's grammar is finished by the named construct(s) — `-whole`,
+    /// `-whole{k}`. Its count is directly a widening estimate.
+    WholeGrammar,
+    /// Measured, and the named constructs together are still not enough
+    /// (`-more`). Something is hiding behind the row.
+    MoreGrammar,
+    /// A `-then-` pair whose second half has **no production**, so no
+    /// both-handled figure exists. UNMEASURED is a result, not a zero.
+    UnmeasuredGrammar,
+    /// The parse had reached the end of the segment (`:eof`) — the same claim
+    /// [`Complete::WholeGrammar`] makes, reached by the other producer.
+    WholeSegmentEnd,
+    /// A byte-less refusal raised with segment still ahead of it (`:mid`).
+    PartialSegmentEnd,
+    /// **The residue, named and printed.** A keyed byte refusal carries neither
+    /// signal: `expr-op-0x27` says nothing about whether anything is behind it.
+    /// Reported rather than folded into any of the above, because a totality
+    /// claim whose residue is invisible is the failure mode this axis exists to
+    /// close.
+    NoSignal,
+    /// The body is in class. Not a completeness question.
+    InClass,
+}
+
+impl Complete {
+    /// The census-key spelling. Closed set, `complete-` prefixed so it can never
+    /// collide with a blocking-feature key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Complete::WholeGrammar => "complete-whole:grammar",
+            Complete::MoreGrammar => "complete-more:grammar",
+            Complete::UnmeasuredGrammar => "complete-unmeasured:grammar",
+            Complete::WholeSegmentEnd => "complete-whole:segment-end",
+            Complete::PartialSegmentEnd => "complete-partial:segment-end",
+            Complete::NoSignal => "complete-none",
+            Complete::InClass => "complete-in-class",
+        }
+    }
+
+    /// Whether this reading says the body's grammar is finished — the join
+    /// §9.13 had to compute by hand across the two encodings.
+    pub fn is_whole(self) -> bool {
+        matches!(self, Complete::WholeGrammar | Complete::WholeSegmentEnd)
+    }
+}
+
 impl Block {
+    /// This refusal's [`Complete`] reading, from the block's own state.
+    pub(crate) fn completeness(self) -> Complete {
+        if self.ctx == mcall::CALL_IN_EXPR {
+            return mcall::completeness(self.aux);
+        }
+        match self.byte {
+            Some(_) => Complete::NoSignal,
+            None if self.off >= self.seg_len => Complete::WholeSegmentEnd,
+            None => Complete::PartialSegmentEnd,
+        }
+    }
+
     /// A refusal that is **not about a single byte**, raised at `off` in `seg`.
     ///
     /// The constructor for every predicate the byte stream cannot express: a

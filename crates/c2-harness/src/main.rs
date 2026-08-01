@@ -2662,6 +2662,54 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
         // say whether a row is a missing construct or a **private limit inside a
         // recognizer that already ships** — which has been the answer six rungs
         // running.
+        // **THE GRAMMAR-COMPLETENESS AXIS** (roadmap §9.11 / §9.14) — is anything
+        // hiding behind a row, or is its count directly a widening estimate?
+        //
+        // Printed as its own axis, and printed WHOLE, because the fact has two
+        // producers that write it into two different halves of the census key
+        // (`-whole`/`-more` and `:eof`/`:mid`). WR1 moved 39,967 functions from
+        // one encoding to the other; every ranking table built by grepping the
+        // key for `-whole` has under-counted that family by 18,931 since. The
+        // residue row `complete-none` is printed rather than suppressed for the
+        // same reason `prod-entered-untagged` is: an axis whose residue is
+        // invisible cannot be audited, and "reported as nothing" and "measured
+        // at zero" must never share a rendering.
+        let comph = report.fn_complete_histogram();
+        let comp_bare: Vec<_> = comph.iter().filter(|(k, _)| !k.contains('|')).collect();
+        let comp_seen: usize = comp_bare.iter().map(|(_, n)| *n).sum();
+        if comp_seen > 0 {
+            println!(
+                "  grammar completeness (decode-only): {comp_seen} of {fn_total} bodies read"
+            );
+            if comp_seen != fn_total {
+                println!(
+                    "    AXIS UNDER-REPORTS: {} bodies have no completeness reading",
+                    fn_total - comp_seen.min(fn_total)
+                );
+            }
+            let whole: usize = comph
+                .iter()
+                .filter(|(k, _)| k.ends_with("|BLOCKED") && k.starts_with("complete-whole"))
+                .map(|(_, n)| *n)
+                .sum();
+            for (key, count) in &comp_bare {
+                let blocked = comph
+                    .iter()
+                    .find(|(a, _)| *a == format!("{key}|BLOCKED"))
+                    .map(|(_, n)| *n)
+                    .unwrap_or(0);
+                println!(
+                    "    {count:>7} ({:>5.1}%)  {key:<30}  blocked {blocked:>7}",
+                    100.0 * *count as f64 / comp_seen as f64
+                );
+            }
+            // The join the roadmap actually ranks by, across BOTH producers —
+            // the number §9.13 had to re-derive by hand.
+            println!(
+                "    grammar-COMPLETE and blocked, both producers summed: {whole}"
+            );
+        }
+
         let disph = report.fn_dispatch_histogram();
         let prodh = report.fn_prod_histogram();
         let (disp_seen, prod_seen) = report.dispatch_axis_totals();
