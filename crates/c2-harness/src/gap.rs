@@ -346,6 +346,35 @@ fn is_compiler_generated(name: &str) -> bool {
         .any(|p| name.starts_with(p))
 }
 
+/// **W-EMITSET scratch read-out** — one TSV line per emitted symbol the census
+/// did not bind, appended to `C2RS_WALL_DUMP`. Off, and free, when unset.
+///
+/// `src · has-record|no-record · mangled name`
+///
+/// It exists because `mangling_class` is a *prefix* rule and prefix rules have
+/// lied four times this week: `special-generated` is every `??_…`, which is
+/// `??_G`/`??_E`/`??_D` (real synthesized functions) **and** `??_7` (vftable),
+/// `??_R0`…`??_R4` (RTTI) and `??_C` (string literals), which are data. A
+/// decomposition that reports 47.7 % `special-generated` and never prints a name
+/// cannot tell those apart, and the whole reading of the wall rests on which it
+/// is. Read-only: it changes no count.
+fn wall_dump(src: &str, name: &str, kind: &str) {
+    static OUT: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
+    let out = OUT.get_or_init(|| {
+        let p = std::env::var("C2RS_WALL_DUMP").ok()?;
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(p)
+            .ok()
+            .map(Mutex::new)
+    });
+    let Some(out) = out else { return };
+    if let Ok(mut g) = out.lock() {
+        let _ = g.write_all(format!("{src}\t{kind}\t{name}\n").as_bytes());
+    }
+}
+
 /// Aggregated scan report.
 pub struct GapReport {
     pub results: Vec<TuResult>,
@@ -1152,17 +1181,24 @@ fn scan_one(
                 let mut unbound_no_body = 0usize;
                 for name in &emitted {
                     if matches!(claim.get(name.as_str()).map(Vec::as_slice), Some([_])) {
+                        // The CONTROL population. Whatever story the residue's
+                        // names suggest has to be false of the symbols that DO
+                        // bind, or it is a story about mangled names in general
+                        // and not about the residue.
+                        wall_dump(src, name, "bound");
                         continue;
                     }
                     if body_records.contains(name) {
                         unbound_with_body += 1;
                         *res.emit.entry("emit-unbound-has-record".into()).or_insert(0) += 1;
+                        wall_dump(src, name, "has-record");
                     } else {
                         unbound_no_body += 1;
                         *res.emit.entry("emit-unbound-no-record".into()).or_insert(0) += 1;
                         *res.emit
                             .entry(format!("emit-unbound-no-record|{}", mangling_class(name)))
                             .or_insert(0) += 1;
+                        wall_dump(src, name, "no-record");
                     }
                 }
                 // The three per-TU ceilings, as counts of TUs (0 or 1 each here;
