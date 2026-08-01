@@ -434,6 +434,56 @@ for _k in range(0, 5):
 int f(int n) { T a; return mk(n) + a.v + (%s); }
 """ % (_defs, _calls)
 
+# ---------------------------------------------------------------------------
+# #138 ROUND 2 — the decomposition, graded on COMBINATIONS it was not fitted on.
+# Fitted on the single-axis ladders above:
+#
+#   G = 2  +  2 x [f is the FIRST emitted function in the TU]
+#          +  Sum( f's own LABEL_COUNTER.md §1.1-style surcharges )
+#
+#   measured terms:  string literal +0 · discarded static +0 · signed relational
+#   over two call results +2 · _fltused + a newly pooled FP constant +3 ·
+#   a loop +4 · one-or-more extra calls to functions declared elsewhere +2
+#   (FLAT in the count) · try/catch +3 · EACH BODY INLINED INTO f +3
+#
+# A single-axis ladder cannot say whether the terms ADD. These five do, and
+# their predictions are registered here before capture.
+# ---------------------------------------------------------------------------
+Y_SRC = {
+    # not first (1 leading fn) + a loop + 2 inlined  ->  2 + 0 + 4 + 6 = 12
+    "y_loop_fi2_led": ("""
+int lead0(int x) { return x + 1; }
+__forceinline int fa(int x) { return x + 2; }
+__forceinline int fb(int x) { return x + 3; }
+int f(int n) { T a; int s = 0; for (int i = 0; i < n; ++i) s += use(i);
+               return s + a.v + fa(n) + fb(n); }
+""", 12),
+    # not first (2 inlined lead) + signed relational  ->  2 + 0 + 6 + 2 = 10
+    "y_cmprr_fi2": ("""
+__forceinline int fa(int x) { return x + 2; }
+__forceinline int fb(int x) { return x + 3; }
+int f(int n) { T a; int s = (mk(n) < use(n)) ? 1 : 0;
+               return s + a.v + fa(n) + fb(n); }
+""", 10),
+    # FIRST + a string literal (+0) + a loop (+4)     ->  2 + 2 + 0 + 4 = 8
+    "y_str_loop": ("""
+const char* gp;
+int f(int n) { T a; int s = 0; gp = "hello";
+               for (int i = 0; i < n; ++i) s += use(i); return s + a.v; }
+""", 8),
+    # not first + 2 extra calls to functions declared elsewhere -> 2 + 0 + 2 = 4
+    "y_lead_call2": ("""
+int e0(int); int e1(int);
+int lead0(int x) { return x + 1; }
+int f(int n) { T a; return mk(n) + a.v + e0(n) + e1(n); }
+""", 4),
+    # not first + _fltused + a pooled FP constant     ->  2 + 0 + 3 = 5
+    "y_pool_led": ("""
+int lead0(int x) { return x + 1; }
+int f(int n) { T a; float x = (float)n * 2.5f; return mk((int)x) + a.v; }
+""", 5),
+}
+
 # LADDER C — k preceding DISCARDED statics. Nothing of theirs reaches the obj.
 for _k in (0, 1, 2, 4, 8):
     _defs = "\n".join("static int dead%d(int x) { return x * %d + 1; }"
@@ -456,6 +506,10 @@ def gen():
             fh.write(GAP_COMMON.lstrip() + src.lstrip())
         n += 1
     for name, src in Z_SRC.items():
+        with open(os.path.join(PROBES, name + ".cpp"), "w") as fh:
+            fh.write(COMMON.lstrip() + src.lstrip())
+        n += 1
+    for name, (src, _g) in Y_SRC.items():
         with open(os.path.join(PROBES, name + ".cpp"), "w") as fh:
             fh.write(COMMON.lstrip() + src.lstrip())
         n += 1
@@ -802,7 +856,7 @@ def one(args):
         return dict(probe=name, mode=mode, ok=False,
                     err=(r.stderr or r.stdout).strip()[:300])
     p = parse_cod(out)
-    grp = EH_SRC[name][0] if name in EH_SRC else ("held2" if name in Z_SRC else "gap")
+    grp = EH_SRC[name][0] if name in EH_SRC else ("held2" if name in Z_SRC else ("gapheld" if name in Y_SRC else "gap"))
     return dict(probe=name, mode=mode, ok=True, group=grp, flags=flags,
                 records=p["records"], labels=p["labels"], locals=p["locals"],
                 funcs=p["funcs"], gaps=gap_analysis(p))
@@ -818,6 +872,8 @@ def scan(jobs=6):
         for mode in ("EHsc-O1",):
             work.append((name, mode, MODES[mode]))
     for name in Z_SRC:
+        work.append((name, "EHsc-O1", MODES["EHsc-O1"]))
+    for name in Y_SRC:
         work.append((name, "EHsc-O1", MODES["EHsc-O1"]))
     with ThreadPoolExecutor(max_workers=jobs) as ex:
         rows = list(ex.map(one, work))
@@ -1084,6 +1140,27 @@ def cmd_gaps(argv):
             print("  %-12s %s" % (r["probe"], g["locals"]))
 
 
+def cmd_gapmodel(argv):
+    """#138 round 2 — the decomposition on combinations it was not fitted on."""
+    hits = cells = 0
+    print("#138 round 2 — G predicted from the decomposition, HELD OUT")
+    print("  %-18s %6s %6s  %s" % ("probe", "pred", "obs", ""))
+    for r in load():
+        if not r["ok"] or r["probe"] not in Y_SRC:
+            continue
+        want = Y_SRC[r["probe"]][1]
+        g = r["gaps"]
+        cand = [e for _f, e in sorted((g or {}).get("per_fn", {}).items())
+                if "G_funclet_to_ipM" in e]
+        got = cand[0]["G_funclet_to_ipM"] if cand else None
+        cells += 1
+        good = (got == want)
+        hits += good
+        print("  %-18s %6s %6s  %s"
+              % (r["probe"], want, got, "hit" if good else "MISS"))
+    print("  %d/%d = %.1f %%" % (hits, cells, 100.0 * hits / cells if cells else 0))
+
+
 def cmd_grade(argv):
     cmd_totality([])
     print()
@@ -1116,6 +1193,8 @@ def main():
         cmd_predict(argv)
     elif cmd == "predict2":
         cmd_predict2(argv)
+    elif cmd == "gapmodel":
+        cmd_gapmodel(argv)
     elif cmd == "gaps":
         cmd_gaps(argv)
     elif cmd == "grade":
