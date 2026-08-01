@@ -204,9 +204,11 @@ At `be797bf`, worktree configured against the shared toolchain:
 #### 9.13.4 New board items
 
 * **#138 — repair `eat_int_operands`'s type gate to match the emitter's.**
-  Re-prices 7,983 emitted functions whose keys name a `-then-type-ptr` second
-  construct that is not a blocker. Instrument, not a rung; goes ahead of any
-  ranking taken off those rows. Sits with #110 and §9.11.
+  **Re-attributes** 7,983 emitted functions whose keys name a `-then-type-ptr`
+  second construct the emitter does not refuse. Most of them carry `-more` and so
+  would not convert on that widening alone — the claim is about where the ranking
+  says the work is, not about free functions. Instrument, not a rung; goes ahead
+  of any ranking taken off those rows. Sits with #110 and §9.11.
 * **#139 — `expr-intrinsic-this-adjust` at adjust offset 0, 434 emitted.**
   Measured end to end here; the sink is 30 lines and is in `db812f7`. Needs the
   receiver designator to return an operand form richer than a token, which is the
