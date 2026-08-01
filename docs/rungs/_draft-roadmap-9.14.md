@@ -391,6 +391,11 @@ by its canonical path.
 * `c2rs selftest` — **210 PASS, 0 FAIL, 0 skip** (208 at §9.13 plus this lane's
   two fixtures).
 * `scripts/expr_sweep.sh` — 47 fragments, **14,484 cases, mismatches=0**.
+* `scripts/cross_sweep.sh` — 42,719 configurations × 12 lanes =
+  **512,628 gradings, 512,628 graded, 0 mismatches**; 406 of 406 declared family
+  pairs reached *and* emitted; refusal-frontier residue **0**. Run because this
+  lane touched decode, even though every line of it is on the census's
+  diagnostic path.
 * 878-TU workload scan — **6 match, 0 mismatch**, 865 vocab-gap, 7 capture-fail;
   bodies **706,402 / 2,462,571 (28.69 %)**; emitted **36,059 / 178,968
   (20.15 %)**; census/gate disagreement **0**. Identical to base on all of them.
