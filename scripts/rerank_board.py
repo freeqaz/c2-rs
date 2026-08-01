@@ -154,6 +154,18 @@ def cmd_diff(base_p, base_j, tip_p, tip_j, top=25):
         if m == 0 or m < 0.1 * n:
             print(f"  {m:>8} -> {n:<8}  (rank {ra.get(k, '-')} -> {rz[k]})  {k}")
 
+    # §8.7 ranks the emitted board a second way — by `clean` ceiling, "a hard
+    # ceiling on what widening a key alone is worth". The two orders disagree,
+    # and the disagreement is the point: a row can be large and entirely
+    # phase-gated, or small and entirely takeable.
+    print(f"\n## tip top {top} BY CLEAN CEILING")
+    rca = {k: i for i, (k, _) in enumerate(a["per_clean"].most_common(), 1)}
+    print(f"{'rank':>4} {'(was)':>6}  {'clean':>7} {'(was)':>7}  {'emitted':>8}  key")
+    for i, (k, n) in enumerate(z["per_clean"].most_common(top), 1):
+        was = rca.get(k)
+        print(f"{i:>4} {str(was) if was else 'NEW':>6}  {n:>7} {a['per_clean'].get(k, 0):>7}  "
+              f"{z['per'][k]:>8}  {k}")
+
     print("\n## biggest movers by |delta emitted| (all keys)")
     keys = set(a["per"]) | set(z["per"])
     deltas = sorted(keys, key=lambda k: abs(z["per"].get(k, 0) - a["per"].get(k, 0)), reverse=True)
