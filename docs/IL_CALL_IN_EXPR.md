@@ -4832,7 +4832,28 @@ published wrong number a week later.
   little-endian) was re-confirmed here at n = 2551 and 2560 and is still not
   implemented — it is the `/Ox` half of the string-literal emitter.
 
-### 27.7 Reproduction
+### 27.7 Gate evidence, stated positively
+
+| lane | result |
+|---|---|
+| `cargo test --workspace` | **557 passed**, 0 failed (unchanged) |
+| `c2rs bench` | **206 pass**, 0 fail, 0 error (204 before; +2 fixtures) |
+| `scripts/gate.sh --jobs 4` | **12/12 PASS**, 0 FAIL, 0 SKIP, 0 NO-RESULT, **2,472** fixture-verdicts (2,448 before), **0 mismatch** in every lane |
+| `scripts/expr_sweep.sh` | **14,399 submitted / 14,399 checked**, mismatches **0** (14,354 before; +45 cases) |
+| `scripts/sweep.d/53-data-symbol-addr.py` | 115 cases, **38 grading `Match`** — the new class is positively exercised, not merely un-mismatched |
+| `scripts/cross_sweep.sh` | 42,719 configurations × 12 lanes = **512,628 gradings, 512,628 graded, 0 mismatches**, **406/406** family pairs reached and emitted, refusal-frontier residue **0** |
+| 878-TU scan | 878 TUs, 871 cache hits + 7 capture-fail; match **6**, mismatch **0**, codegen-gap **0**, port-error **0**, census/gate disagreement **0** |
+| `census fixtures/cpp/wr1_sym_addr.cpp` | **21/21 in class**, `Port=Match` (whole obj byte-exact) |
+| `census fixtures/cpp/wr1_sym_addr_neg.cpp` | **0/13 in class**, `Port=NotImplemented` |
+
+**The cross-product lane picked up the new shape.** Its representatives are keyed
+on *measured emitted shape*, and fragment 53 contributed **two** where it had
+contributed none — `gx(&gI)` and `s->m2(&gI, 0)` — which are crossed in tiers A,
+S and W and appear in **588** of the 42,719 configurations. That is the check
+that the widening is visible to the lane whose whole job is finding mis-emits the
+hand-written corpus cannot.
+
+### 27.8 Reproduction
 
 ```sh
 cargo build --release
@@ -4844,6 +4865,9 @@ cargo test --workspace                                   # 557 passed, 0 failed
 C2RS_JOBS=8 scripts/gate.sh --jobs 4                     # 12/12 PASS, 2472 verdicts
 C2RS_JOBS=8 scripts/expr_sweep.sh                        # checked=14399 mismatches=0
 C2RS_JOBS=8 C2RS_SWEEP_ONLY=53 scripts/expr_sweep.sh     # 115 cases, 38 Match
+C2RS_JOBS=8 scripts/cross_sweep.sh                       # 42719 x 12 = 512628
+                                                         # graded, 0 mismatches,
+                                                         # 406/406 family pairs
 ./target/release/c2rs gap --list work/dc3-workload/files.txt \
   --flags-file work/dc3-workload/flags.txt --cwd ../../../dc3-decomp --jobs 16 \
   --cache work/capture-cache --jsonl work/dc3-workload/scan-wr1b.jsonl
