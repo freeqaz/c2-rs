@@ -1868,7 +1868,7 @@ emits none.
 
 ### 11.5 Totality, and the check that has teeth
 
-**A1 — every datum claimed by a named field: 598/598 fitted, 2,436/2,436 held
+**A1 — every datum claimed by a named field: 598/598 fitted, 2,920/2,920 held
 out, residue 0.**
 
 That number on its own is worth nothing, and this document has said so before.
@@ -1888,15 +1888,15 @@ every field claimed** — with `pIPtoStateMap` decoded onto `nIPMapEntries`. So
 totality is graded beside an **arity** check that predicts each record's length
 from a count field in a *different* record (`__unwindtable$` from `maxState`,
 each `__catchsym$` from its own try-block entry's `nCatches`, `$T` from
-`nIPMapEntries`, `FuncInfo` from the constant 9): **332/332 consistent.**
+`nIPMapEntries`, `FuncInfo` from the constant 9): **377/377 consistent.**
 
 Three falsifications, each red with a distinct signature:
 
 | mutation | totality | arity |
 |---|---|---|
-| the `DUP` expansion removed (the bug that really happened) | **residue 0 — SILENT** | **16 red**, `FuncInfo got 8 want 9` |
-| `FuncInfo` truncated to 8 named fields | residue 8 fitted / 60 held | — |
-| `HandlerType` read as 5 dwords, x86's `copyFunction` | residue 36 / 240 | — |
+| the `DUP` expansion removed (the bug that really happened) | **residue 0 — SILENT** | **22 red**, `FuncInfo got 8 want 9` |
+| `FuncInfo` truncated to 8 named fields | residue 8 fitted / 70 held | — |
+| `HandlerType` read as 5 dwords, x86's `copyFunction` | residue 36 / 281 | — |
 
 **Read the first row.** The mutation that actually occurred in practice is
 invisible to the totality metric and caught only by arity. A residue-only grade

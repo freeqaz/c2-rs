@@ -980,12 +980,14 @@ def cmd_arity(argv):
 
 def cmd_totality(argv):
     """A1 — every datum claimed by a named field, residue PRINTED."""
-    tot = {"fit": [0, 0], "held": [0, 0]}
+    tot = {}
     residue = []
     for r in load():
         if not r["ok"] or r["probe"] in GAP_SRC:
             continue
-        grp = r["group"]
+        # `held2` (the maxState hold-out) counts as held out, like `held`.
+        grp = "fit" if r["group"] == "fit" else "held"
+        tot.setdefault(grp, [0, 0])
         for rec in eh_records(r):
             kind, fields = decode(rec)
             if kind is None:
@@ -1001,7 +1003,7 @@ def cmd_totality(argv):
                     tot[grp][0] += 1
     print("A1 TOTALITY — data claimed by a named field")
     for g in ("fit", "held"):
-        c, t = tot[g]
+        c, t = tot.get(g, [0, 0])
         print("  %-6s %6d / %6d claimed   residue %d"
               % (g, c, t, t - c))
     print("\nRESIDUE, printed (never summarised):")

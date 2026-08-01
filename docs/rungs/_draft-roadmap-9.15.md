@@ -76,7 +76,7 @@ refuted the no-try rule there, and this lane **declined** those nine cells rathe
 than guessing, scoring them zero), and `adjectives` `0x02`.
 
 **Totality, and why the headline number is not the evidence.** Every datum
-claimed by a named field: **598/598 fitted, 2,436/2,436 held out, residue 0.**
+claimed by a named field: **598/598 fitted, 2,920/2,920 held out, residue 0.**
 That is exactly the shape this project reads as success when it is absence — and
 here the failure mode is concrete. c2 **run-length-encodes**: `DD 2 DUP(00H)`
 carries `nTryBlocks` *and* `pTryBlockMap` in one operand. The first version of
@@ -84,14 +84,14 @@ this instrument read `__ehfuncinfo$` as **8 dwords, residue 0, every field
 claimed**, with `pIPtoStateMap` decoded onto `nIPMapEntries`.
 
 So totality is graded beside an **arity** check that predicts each record's
-length from a count field in a *different* record: **332/332 consistent.** Three
+length from a count field in a *different* record: **377/377 consistent.** Three
 falsifications:
 
 | mutation | totality | arity |
 |---|---|---|
-| the `DUP` expansion removed — the bug that really happened | **residue 0, SILENT** | **16 red**, `FuncInfo got 8 want 9` |
-| `FuncInfo` truncated to 8 named fields | residue 8 / 60 | — |
-| `HandlerType` read as 5 dwords (x86's `copyFunction`) | residue 36 / 240 | — |
+| the `DUP` expansion removed — the bug that really happened | **residue 0, SILENT** | **22 red**, `FuncInfo got 8 want 9` |
+| `FuncInfo` truncated to 8 named fields | residue 8 / 70 | — |
+| `HandlerType` read as 5 dwords (x86's `copyFunction`) | residue 36 / 281 | — |
 
 **The first row is the finding.** The mutation that actually occurred is
 invisible to the residue metric. *A totality count cannot see a short read* —
