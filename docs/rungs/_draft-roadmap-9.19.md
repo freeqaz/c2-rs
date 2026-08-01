@@ -348,6 +348,9 @@ void a2(S* s, T* t) { s->one(&t->s.k); }
   3's arity-8 cells lower it as `lwz r11,t$(r1)` and then compute from r11. Out
   of the modeled domain, 8 witnesses captured, named here so a later grid does
   not rediscover it as an anomaly.
-* **#150 is closed at 6.** `expr-op-0x27`'s named-token grant converts 6 emitted
-  functions (§9.17.6), re-measured unchanged at this base. The board should carry
-  **6**, not 22,759.
+* **#150 is closed at 6.** `expr-op-0x27` reproduces at this base to the
+  function — **22,759 emitted, 407,016 bodies**, identical to §9.17.6 — and
+  granting its named token converts **6 emitted functions**. The board should
+  carry **6**, not 22,759. The row is the #1 blocking feature on the emitted
+  board and the least valuable thing on it, which is §8.7's rule about
+  blocking-feature counts being queue positions.

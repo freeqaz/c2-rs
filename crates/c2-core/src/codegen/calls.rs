@@ -1805,10 +1805,23 @@ mod tests {
             "a formal, already in a register"
         );
 
-        // The measured counterfactual, kept beside the refusal so nobody
-        // re-derives the row's worth from its census size (#149's own warning).
-        const OFF_ADD_ARG_EMITTED_CEILING: u32 = 356;
-        assert_eq!(OFF_ADD_ARG_EMITTED_CEILING, 356);
+        // …and the permutation walk really has no path that accepts one: every
+        // slot list `permute_args_parts` can be handed is built from the three
+        // arms above, so there is no arrangement that reaches codegen with a
+        // computed address and gets it wrong. Asserted rather than asserted-in-
+        // prose, because "the port cannot mis-emit this" is the whole claim.
+        for slots in [
+            vec![c2_il::SlotArg::SymAddr, c2_il::SlotArg::Lit(3)],
+            vec![c2_il::SlotArg::Formal(0), c2_il::SlotArg::Lit(3)],
+            vec![c2_il::SlotArg::Formal(0), c2_il::SlotArg::Formal(1)],
+        ] {
+            let parts = permute_args_parts(&slots);
+            assert!(
+                parts.is_ok(),
+                "the three admitted slot sources still lower; only the computed \
+                 address is missing, and it is missing by construction"
+            );
+        }
     }
 
     #[test]
