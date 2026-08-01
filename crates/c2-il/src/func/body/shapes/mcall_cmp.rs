@@ -135,8 +135,9 @@ pub(crate) fn try_parse_member_cmp_calls(
     // method-symbol token the varint reader cannot spell.
     let callee2 = eat_callee_push(seg, &mut p)
         .map_err(|_| prod_tag("cmp-second-method-symbol-token-unreadable"))?;
-    let recv2 = eat_receiver_this(seg, &mut p)
-        .map_err(|_| prod_tag("cmp-second-recv-not-a-plain-b9-load"))?;
+    let recv2 = eat_receiver_this(seg, &mut p).map_err(|b| {
+        super::mcall_tail::recv_prod_tag(super::mcall_tail::RecvArm::CmpSecond, seg, &b)
+    })?;
     // The result TYPE of each call, **peeked** (the byte position is `BD`, which
     // `eat_call_token` consumes next). Only the order relations read it; see
     // [`operand_signedness`].

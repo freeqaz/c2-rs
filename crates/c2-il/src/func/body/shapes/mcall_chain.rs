@@ -180,8 +180,9 @@ pub(crate) fn try_parse_member_chain_call(
     // The innermost receiver and its `99` bind, through the SAME locator the
     // one-link member call uses — which is where the `volatile` gate and the
     // optional pointer conversion live, and nowhere else.
-    let recv_tok = eat_receiver_this(seg, &mut p)
-        .map_err(|_| prod_tag("chain-recv-not-a-plain-b9-load"))?;
+    let recv_tok = eat_receiver_this(seg, &mut p).map_err(|b| {
+        super::mcall_tail::recv_prod_tag(super::mcall_tail::RecvArm::Chain, seg, &b)
+    })?;
     let mut ret = eat_call_token(seg, &mut p)
         .map_err(|_| prod_tag("chain-no-cdecl-call-token-after-the-receiver"))?;
     let mut inner_args = eat_call_args(seg, &mut p)

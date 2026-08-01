@@ -1,7 +1,7 @@
 use super::{blk, blk_type, Block};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker, eat_value_type,
-    read_token_var, read_varint, ValueClass, INT_TYPE,
+    read_token_var, read_type, read_varint, ValueClass, INT_TYPE,
 };
 use crate::func::IlOp;
 
@@ -358,6 +358,14 @@ pub(crate) fn eat_fn_tail(seg: &[u8], p: &mut usize) -> Result<(), Block> {
 /// int4 value — so an accepted sub-expression has exactly ONE class throughout.
 /// Where the two could differ (`(void *)(s + 1)`, whose last operand is the
 /// literal) the guard refuses the body anyway; only the census key changes.
+/// `C2RS_SINK_OFF_ADD_ARG=expr` — W-ARMS's board #143 counterfactual over the
+/// WHOLE of [`parse_expr`] rather than the call-argument position alone. OFF and
+/// free on every gate lane and every default scan.
+pub(crate) fn off_add_sink_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("C2RS_SINK_OFF_ADD_ARG").as_deref() == Ok("expr"))
+}
+
 pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     parse_expr_classed(seg, p, stop).map(|(ops, _)| ops)
 }
@@ -391,6 +399,10 @@ pub(crate) fn parse_expr_classed(
     // a chain that did not is a shape with no witness behind it.
     let mut saw_int1u = false;
     let mut saw_wide = false;
+    // Set by `02`/`03`/`04` — arithmetic whose pointer form c2 SCALES by the
+    // pointee width, which is what the pointer guard below exists to refuse.
+    // The `27` byte-offset add is not that and does not set it.
+    let mut scaled_arith = false;
     // The [`ValueClass`] of the value on top of the operand stack, or `None`
     // before the first operand. Only the `2C` arm reads it, and only to require
     // that a conversion stays inside the class it started in — which is what makes
@@ -465,15 +477,45 @@ pub(crate) fn parse_expr_classed(
             }
             0x02 => {
                 *p += 1;
+                scaled_arith = true;
                 ops.push(IlOp::Add);
             }
             0x03 => {
                 *p += 1;
+                scaled_arith = true;
                 ops.push(IlOp::Sub);
             }
             0x04 => {
                 *p += 1;
+                scaled_arith = true;
                 ops.push(IlOp::Mul);
+            }
+            // **W-ARMS scratch sink — `C2RS_SINK_OFF_ADD_ARG=expr` and nothing
+            // else.** `27 <TYPE>` is the BYTE-offset add: `&t->s.k` is
+            // `B9 t · 33 <int> 0 · 27 · 33 <int> 8 · 27`, one step per designator,
+            // and c2 lowers the whole run as a single `addi rD,rBase,<sum>`.
+            //
+            // It is a different construct from `02` and that is the whole reason
+            // it has its own opcode: `p + 1` on an `int*` is `02` and emits
+            // `addi r3,r3,4` — SCALED by the pointee — which is why the
+            // pointer-arithmetic guard below refuses `02` over a pointer. `27`
+            // carries the scaling already, so `[Load, Lit(k), Add]` is the
+            // correct lowering and the guard must not see it. `scaled_arith`
+            // separates the two facts the old single `saw_ptr && any-arith` test
+            // conflated.
+            //
+            // MEASURED, not shipped: widening `parse_expr` here also obliges
+            // `mcall::eat_int_operands`'s `Vocab::CallArg` to widen in lockstep,
+            // or §9.14.6's correspondence guard goes red — a measure narrower
+            // than its emitter manufactures phantom rungs. See
+            // `docs/rungs/_draft-roadmap-9.17.md`.
+            0x27 if off_add_sink_enabled() => {
+                *p += 1;
+                match read_type(seg, *p) {
+                    Some((_, _, _, w)) => *p += w,
+                    None => return Err(blk(seg, *p, "expr-off-add-type")),
+                }
+                ops.push(IlOp::Add);
             }
             // A `26` SYMBOL PUSH — the single largest blocking feature on the real
             // workload (286,240 functions, 12.9 %). It used to fall through to the
@@ -541,11 +583,16 @@ pub(crate) fn parse_expr_classed(
     // any modeled arithmetic anywhere in it refuses the whole function — see the
     // header. `expr-ptr-arith` is its own census key so the cost of the guard is
     // a number rather than an argument.
-    if saw_ptr
-        && ops
-            .iter()
-            .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
-    {
+    let ptr_arith = if off_add_sink_enabled() {
+        // Only the SCALED forms indict a pointer value; see the `0x27` arm.
+        saw_ptr && scaled_arith
+    } else {
+        saw_ptr
+            && ops
+                .iter()
+                .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
+    };
+    if ptr_arith {
         return Err(Block::refuse(seg, *p, "expr-ptr-arith"));
     }
     // The one-byte-unsigned guard, and it is the pointer guard's twin: the class

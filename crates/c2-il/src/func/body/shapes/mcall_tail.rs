@@ -84,6 +84,279 @@ use super::calls::{
 };
 use super::params::parse_params;
 
+// ---------------------------------------------------------------------------
+// W-ARMS — the receiver-designator site, decomposed (board #142)
+// ---------------------------------------------------------------------------
+
+/// **The construct standing where the receiver designator should be.**
+///
+/// §9.13 measured the three receiver-designator sites at 37,060 blocked emitted
+/// functions — the largest single site on the emitted board, larger than any
+/// census key — and could say nothing about what is *in* them, because all three
+/// productions map [`eat_receiver_this`]'s `Err(Block)` onto one flat tag and
+/// **throw the `Block` away**. The site was one undifferentiated bucket by
+/// construction, so #142 ("the other clean-not-whole receiver arms") had no
+/// instrument at all: the census key those rows carry is minted by whichever
+/// reader stopped *last*, which §9.13 showed is a different reader.
+///
+/// This refines the tag in place and keeps the old name as a **prefix**
+/// (`<old site>/<construct>`), so every published figure keyed on the old string
+/// is recovered by a prefix test and nothing that ranked on it silently changes
+/// meaning.
+///
+/// Three properties make it a measurement rather than a relabelling:
+///
+/// 1. **It names the CONSTRUCT, never the position** — the rule
+///    [`crate::func::body::mcall::Fail::blocker`] states for the completeness
+///    walker, and the same vocabulary (`off-add`, `deref-load`, `plain-call`,
+///    `virtual`, `temp-bind`, `convert`, `ternary`, `call-in-expr`), so the two
+///    axes can be crossed without a translation table. A byte with no construct
+///    behind it gets an **honest hex bucket**, which is a result; "other" would
+///    be an absence, and an absence cannot be ranked.
+/// 2. **It is total.** Every `(ctx, byte)` [`eat_receiver_this`] can produce has
+///    a name, including EOF and every one of the 256 byte values, and
+///    `every_receiver_refusal_has_a_name` enumerates the domain rather than
+///    sampling it. §9.14.6's finding is the precedent: a witness list misses the
+///    class that has no witnesses.
+/// 3. **It is read-only over the census.** It changes no verdict, no acceptance
+///    and no count; only the `prod` axis's string. Asserted by re-running the
+///    whole 878-TU scan and comparing every published number, because an
+///    instrument whose inertness is argued rather than run is this project's
+///    dominant failure mode.
+///
+/// The intrinsic arm is split by **selector**, not lumped: 2113 `this-adjust` is
+/// board #127/#140 and was measured at 472 emitted, while 2117
+/// `base-member-addr` is a designator with an entirely different lowering. One
+/// bucket over both would have re-created exactly the conflation §9.13 spent a
+/// lane undoing.
+struct RecvVocab {
+    /// No `B9` at all — the designator opens on something else.
+    no_b9: RecvSlot,
+    /// A `B9` receiver was read and the `99` bind is not where it must be.
+    then: RecvSlot,
+    b9_token_unreadable: &'static str,
+    b9_not_a_ptr4: &'static str,
+    b9_convert_not_class_preserving: &'static str,
+    bind_type_not_ptr4: &'static str,
+    bind_offset_nonzero: &'static str,
+    bind_tail_unreadable: &'static str,
+    /// A refusal context this table does not know. Unreachable by construction
+    /// and **printed** rather than folded into a neighbour, so that a future
+    /// context added to [`eat_receiver_this`] shows up as its own row instead of
+    /// silently joining one that is already being ranked.
+    ctx_unknown: &'static str,
+}
+
+/// One byte position's names: the seven class-layout intrinsics by selector, the
+/// named constructs, EOF, and the 256-entry honest hex table.
+struct RecvSlot {
+    this_adjust: &'static str,
+    base_upcast: &'static str,
+    base_downcast: &'static str,
+    vbase_upcast: &'static str,
+    base_member_addr: &'static str,
+    vbase_member_addr: &'static str,
+    dynamic_cast: &'static str,
+    intrinsic_other: &'static str,
+    off_add: &'static str,
+    literal: &'static str,
+    deref_load: &'static str,
+    store: &'static str,
+    operand_load: &'static str,
+    chain_bind: &'static str,
+    stmt_end: &'static str,
+    branch: &'static str,
+    plain_call: &'static str,
+    call_in_expr: &'static str,
+    virtual_dispatch: &'static str,
+    temp_bind: &'static str,
+    convert: &'static str,
+    ternary: &'static str,
+    class_descriptor: &'static str,
+    eof: &'static str,
+    op: [[&'static str; 16]; 16],
+}
+
+/// `<prefix>op-0x<hi><lo>` for one high nibble.
+macro_rules! recv_ops_row {
+    ($s:literal, $q:literal, $hi:literal) => {
+        [
+            concat!($s, $q, "op-0x", $hi, "0"), concat!($s, $q, "op-0x", $hi, "1"),
+            concat!($s, $q, "op-0x", $hi, "2"), concat!($s, $q, "op-0x", $hi, "3"),
+            concat!($s, $q, "op-0x", $hi, "4"), concat!($s, $q, "op-0x", $hi, "5"),
+            concat!($s, $q, "op-0x", $hi, "6"), concat!($s, $q, "op-0x", $hi, "7"),
+            concat!($s, $q, "op-0x", $hi, "8"), concat!($s, $q, "op-0x", $hi, "9"),
+            concat!($s, $q, "op-0x", $hi, "a"), concat!($s, $q, "op-0x", $hi, "b"),
+            concat!($s, $q, "op-0x", $hi, "c"), concat!($s, $q, "op-0x", $hi, "d"),
+            concat!($s, $q, "op-0x", $hi, "e"), concat!($s, $q, "op-0x", $hi, "f"),
+        ]
+    };
+}
+
+/// One byte position's whole vocabulary under `<site>/<position->`.
+macro_rules! recv_slot {
+    ($s:literal, $q:literal) => {
+        RecvSlot {
+            this_adjust: concat!($s, $q, "this-adjust"),
+            base_upcast: concat!($s, $q, "base-upcast"),
+            base_downcast: concat!($s, $q, "base-downcast"),
+            vbase_upcast: concat!($s, $q, "vbase-upcast"),
+            base_member_addr: concat!($s, $q, "base-member-addr"),
+            vbase_member_addr: concat!($s, $q, "vbase-member-addr"),
+            dynamic_cast: concat!($s, $q, "dynamic-cast"),
+            intrinsic_other: concat!($s, $q, "intrinsic-other"),
+            off_add: concat!($s, $q, "off-add"),
+            literal: concat!($s, $q, "literal"),
+            deref_load: concat!($s, $q, "deref-load"),
+            store: concat!($s, $q, "store"),
+            operand_load: concat!($s, $q, "operand-load"),
+            chain_bind: concat!($s, $q, "chain-bind"),
+            stmt_end: concat!($s, $q, "stmt-end"),
+            branch: concat!($s, $q, "branch"),
+            plain_call: concat!($s, $q, "plain-call"),
+            call_in_expr: concat!($s, $q, "call-in-expr"),
+            virtual_dispatch: concat!($s, $q, "virtual"),
+            temp_bind: concat!($s, $q, "temp-bind"),
+            convert: concat!($s, $q, "convert"),
+            ternary: concat!($s, $q, "ternary"),
+            class_descriptor: concat!($s, $q, "class-descriptor"),
+            eof: concat!($s, $q, "eof"),
+            op: [
+                recv_ops_row!($s, $q, "0"), recv_ops_row!($s, $q, "1"), recv_ops_row!($s, $q, "2"),
+                recv_ops_row!($s, $q, "3"), recv_ops_row!($s, $q, "4"), recv_ops_row!($s, $q, "5"),
+                recv_ops_row!($s, $q, "6"), recv_ops_row!($s, $q, "7"), recv_ops_row!($s, $q, "8"),
+                recv_ops_row!($s, $q, "9"), recv_ops_row!($s, $q, "a"), recv_ops_row!($s, $q, "b"),
+                recv_ops_row!($s, $q, "c"), recv_ops_row!($s, $q, "d"), recv_ops_row!($s, $q, "e"),
+                recv_ops_row!($s, $q, "f"),
+            ],
+        }
+    };
+}
+
+/// The whole vocabulary for one production arm, under its own site prefix.
+macro_rules! recv_vocab {
+    ($s:literal) => {
+        RecvVocab {
+            no_b9: recv_slot!($s, "/no-b9-"),
+            then: recv_slot!($s, "/then-"),
+            b9_token_unreadable: concat!($s, "/b9-token-unreadable"),
+            b9_not_a_ptr4: concat!($s, "/b9-not-a-ptr4"),
+            b9_convert_not_class_preserving: concat!($s, "/b9-convert-not-class-preserving"),
+            bind_type_not_ptr4: concat!($s, "/bind-type-not-ptr4"),
+            bind_offset_nonzero: concat!($s, "/bind-offset-nonzero"),
+            bind_tail_unreadable: concat!($s, "/bind-tail-unreadable"),
+            ctx_unknown: concat!($s, "/ctx-unknown"),
+        }
+    };
+}
+
+static RECV_TAIL: RecvVocab = recv_vocab!("tail-recv-not-a-plain-b9-load");
+static RECV_CHAIN: RecvVocab = recv_vocab!("chain-recv-not-a-plain-b9-load");
+static RECV_CMP: RecvVocab = recv_vocab!("cmp-second-recv-not-a-plain-b9-load");
+
+impl RecvSlot {
+    /// Name the construct at `at`. `seg` is needed twice over, and both are
+    /// measurements this axis got wrong on its first run:
+    ///
+    /// * the **intrinsic selector** — the `33` byte alone says "a literal opens
+    ///   here", and lumping 2113 with 2117 would re-create the conflation §9.13
+    ///   undid;
+    /// * the **offset add** — `33 <int-like> <k>` followed by `27`/`28` is a
+    ///   *byte-offset add on the designator* (`p->f.m()`), and the literal is
+    ///   only the operand that feeds it. The first version of this table filed
+    ///   5,806 emitted functions under `op-0x33`, the byte the run stopped in
+    ///   front of, which is precisely the defect §9.14.7 records for `op-0x55`
+    ///   and which #139 exists to cure. It is named for the construct now, and
+    ///   the two-token lookahead is what makes that possible.
+    fn at(&self, seg: &[u8], at: usize) -> &'static str {
+        let Some(&b) = seg.get(at) else { return self.eof };
+        match b {
+            0x33 => match crate::func::body::expr::intrinsic_selector(seg, at) {
+                Some(2113) => self.this_adjust,
+                Some(2114) => self.base_upcast,
+                Some(2115) => self.base_downcast,
+                Some(2116) => self.vbase_upcast,
+                Some(2117) => self.base_member_addr,
+                Some(2118) => self.vbase_member_addr,
+                Some(2119) => self.dynamic_cast,
+                Some(_) => self.intrinsic_other,
+                // Not an intrinsic head: a plain literal push. Look one token on
+                // — an `27`/`28` behind it makes the whole run an offset add.
+                None => {
+                    let mut q = at + 1;
+                    let is_off_add = crate::func::readers::eat_int_like(seg, &mut q)
+                        && crate::func::readers::read_varint(seg, &mut q).is_some()
+                        && matches!(seg.get(q), Some(&0x27) | Some(&0x28));
+                    if is_off_add {
+                        self.off_add
+                    } else {
+                        self.literal
+                    }
+                }
+            },
+            0x27 | 0x28 => self.off_add,
+            0x30 => self.deref_load,
+            // The indirect STORE — `mcall`'s own walk stops on this byte with
+            // `Stop::Store`. A statement that ends in one is an ASSIGNMENT, not
+            // a call: the body dispatch offers every statement-head `26` to this
+            // production, so a store landing here says the production was
+            // entered speculatively and there is no receiver at all.
+            0x32 => self.store,
+            0xB9 => self.operand_load,
+            0x99 => self.chain_bind,
+            0x41 | 0x4B => self.stmt_end,
+            0x38 | 0x39 => self.branch,
+            0xBD => self.plain_call,
+            0x26 => self.call_in_expr,
+            0x67 | 0x9A => self.virtual_dispatch,
+            0x9B => self.temp_bind,
+            0x2C => self.convert,
+            0x43 => self.ternary,
+            0x66 => self.class_descriptor,
+            _ => self.op[(b >> 4) as usize][(b & 0x0F) as usize],
+        }
+    }
+}
+
+impl RecvVocab {
+    /// Render one [`eat_receiver_this`] refusal as a census-ready `prod` value.
+    fn tag(&self, seg: &[u8], b: &Block) -> &'static str {
+        match b.ctx {
+            "mcall-recv" => self.no_b9.at(seg, b.off),
+            "mcall-recv-tok" => self.b9_token_unreadable,
+            "mcall-recv-type" => self.b9_not_a_ptr4,
+            "mcall-recv-convert" => self.b9_convert_not_class_preserving,
+            "mcall-bind" => self.then.at(seg, b.off),
+            "mcall-bind-type" => self.bind_type_not_ptr4,
+            "mcall-bind-offset" => self.bind_offset_nonzero,
+            "mcall-bind-tail" => self.bind_tail_unreadable,
+            _ => self.ctx_unknown,
+        }
+    }
+}
+
+/// Which production arm asked. Three arms, three site prefixes — kept apart
+/// because §9.13's own table is per arm and #128 moved 11,406 emitted functions
+/// *between* them, which a merged bucket could not have shown.
+#[derive(Clone, Copy)]
+pub(crate) enum RecvArm {
+    Tail,
+    Chain,
+    CmpSecond,
+}
+
+/// The refined `prod` tag for a receiver-designator refusal. Always returns
+/// `None`, exactly as [`prod_tag`] does, so it drops into the existing
+/// non-committal bail idiom without changing what any production returns.
+pub(crate) fn recv_prod_tag(arm: RecvArm, seg: &[u8], b: &Block) -> Option<Block> {
+    let v = match arm {
+        RecvArm::Tail => &RECV_TAIL,
+        RecvArm::Chain => &RECV_CHAIN,
+        RecvArm::CmpSecond => &RECV_CMP,
+    };
+    prod_tag(v.tag(seg, b))
+}
+
 /// **W-ADJUST — a NAMED DATA OBJECT standing as the receiver**: `gObj.m(a)`,
 /// where the receiver designator is a data symbol's *address* rather than a
 /// pointer already in a register.
@@ -171,7 +444,7 @@ pub(crate) fn try_parse_member_tail_call(
     let recv_tok = match recv_sym {
         Some(tok) => tok,
         None => eat_receiver_this(seg, &mut p)
-            .map_err(|_| prod_tag("tail-recv-not-a-plain-b9-load"))?,
+            .map_err(|b| recv_prod_tag(RecvArm::Tail, seg, &b))?,
     };
     // The `BD` this call's result TYPE hangs off, kept because
     // [`super::mcall_cmp`] needs the type's **signedness** and `eat_call_token`
@@ -544,6 +817,230 @@ mod tests {
     use super::*;
     use crate::func::body::{parse_segment, parse_segment_detail, BodyShape};
     use crate::func::test_fixtures::*;
+
+    /// Every refusal context [`eat_receiver_this`] can raise, verbatim. A test
+    /// that transcribed a *subset* would pass while a whole context fell into
+    /// `ctx-unknown`, which is the shape of failure §9.14.6 records for a
+    /// witness list: the class that is wrong is the one with no witness.
+    const RECV_CTXS: [&str; 8] = [
+        "mcall-recv",
+        "mcall-recv-tok",
+        "mcall-recv-type",
+        "mcall-recv-convert",
+        "mcall-bind",
+        "mcall-bind-type",
+        "mcall-bind-offset",
+        "mcall-bind-tail",
+    ];
+
+    fn recv_block(ctx: &'static str, off: usize, seg_len: usize) -> Block {
+        Block { ctx, byte: None, off, seg_len, aux: 0 }
+    }
+
+    /// **Totality, enumerated over the whole domain** — every context × every one
+    /// of the 256 byte values × EOF gets a name, and the name is never the
+    /// `ctx-unknown` residue.
+    ///
+    /// The domain is enumerated rather than sampled for §9.14.6's reason, and
+    /// the residue is asserted *inside* the loop so a failure names its witness
+    /// instead of reporting a count.
+    #[test]
+    fn every_receiver_refusal_has_a_name() {
+        for arm in [RecvArm::Tail, RecvArm::Chain, RecvArm::CmpSecond] {
+            let v = match arm {
+                RecvArm::Tail => &RECV_TAIL,
+                RecvArm::Chain => &RECV_CHAIN,
+                RecvArm::CmpSecond => &RECV_CMP,
+            };
+            for ctx in RECV_CTXS {
+                // EOF: the refusal offset is past the end of the segment.
+                let name = v.tag(&[], &recv_block(ctx, 0, 0));
+                assert!(
+                    !name.ends_with("/ctx-unknown"),
+                    "{ctx} at EOF fell into the unnamed residue"
+                );
+                for b in 0u8..=0xFF {
+                    let seg = [b];
+                    let name = v.tag(&seg, &recv_block(ctx, 0, 1));
+                    assert!(
+                        !name.ends_with("/ctx-unknown"),
+                        "{ctx} with byte {b:#04x} fell into the unnamed residue — a \
+                         population rendered as an absence is the one failure this \
+                         axis exists to close"
+                    );
+                    assert!(
+                        name.starts_with(match arm {
+                            RecvArm::Tail => "tail-recv-not-a-plain-b9-load/",
+                            RecvArm::Chain => "chain-recv-not-a-plain-b9-load/",
+                            RecvArm::CmpSecond => "cmp-second-recv-not-a-plain-b9-load/",
+                        }),
+                        "{name} must keep the published site name as its prefix, so a \
+                         figure keyed on the old string is recovered by a prefix test"
+                    );
+                }
+            }
+        }
+    }
+
+    /// **Injectivity** — two constructs never share a name, so no two rows of the
+    /// decomposition can be summed into a double count. §9.14.4 checks the
+    /// completeness vocabulary the same way and for the same reason.
+    ///
+    /// Checked *within* a position and *across* the two positions: `no-b9-off-add`
+    /// and `then-off-add` are different facts about different bytes, and a
+    /// vocabulary that collapsed them would report a receiver that is an offset
+    /// add and one that is followed by an offset add as one arm.
+    #[test]
+    fn the_receiver_vocabulary_is_injective() {
+        let mut seen: std::collections::BTreeMap<&'static str, (usize, u8)> = Default::default();
+        for (i, ctx) in RECV_CTXS.iter().enumerate() {
+            for b in 0u8..=0xFF {
+                let seg = [b];
+                let name = RECV_TAIL.tag(&seg, &recv_block(ctx, 0, 1));
+                // Two different bytes MAY share a construct name (`27`/`28` are
+                // both `off-add`, `67`/`9A` are both `virtual`) — that is the
+                // vocabulary naming a construct rather than a byte. What may not
+                // collide is two different *positions*.
+                if let Some(&(j, ob)) = seen.get(name) {
+                    let same_position = matches!(
+                        (RECV_CTXS[j], *ctx),
+                        ("mcall-recv", "mcall-recv") | ("mcall-bind", "mcall-bind")
+                    ) || j == i;
+                    assert!(
+                        same_position,
+                        "{name} is produced by two different positions \
+                         ({} byte {ob:#04x} and {ctx} byte {b:#04x})",
+                        RECV_CTXS[j]
+                    );
+                } else {
+                    seen.insert(name, (i, b));
+                }
+            }
+        }
+        // The two byte positions must not share a single name.
+        let designator: std::collections::BTreeSet<&str> = (0u8..=0xFF)
+            .map(|b| RECV_TAIL.tag(&[b], &recv_block("mcall-recv", 0, 1)))
+            .collect();
+        let bind: std::collections::BTreeSet<&str> = (0u8..=0xFF)
+            .map(|b| RECV_TAIL.tag(&[b], &recv_block("mcall-bind", 0, 1)))
+            .collect();
+        assert!(
+            designator.is_disjoint(&bind),
+            "the designator and bind positions share a name; the decomposition \
+             would sum two different facts"
+        );
+    }
+
+    /// **The arity check.** Totality residue 0 is not a control (#144): a table
+    /// that named every byte identically would pass it. This varies the thing the
+    /// classifier actually *branches* on beyond the opcode — the intrinsic
+    /// SELECTOR — and asserts the seven class-layout ids separate.
+    ///
+    /// 2113 `this-adjust` is board #127/#140, measured at 472 emitted functions,
+    /// and 2117 `base-member-addr` is a designator with a different lowering
+    /// entirely. One bucket over both re-creates exactly the conflation §9.13
+    /// spent a lane undoing, and the opcode byte alone cannot tell them apart.
+    #[test]
+    fn the_intrinsic_receiver_arm_separates_by_selector() {
+        // `33 86 41 74 <varint id> 40` — the intrinsic head `intrinsic_selector`
+        // reads. Every id in this family needs the varint ESCAPE (`80` + LE32),
+        // which is the encoding the two captured selectors in the tree carry
+        // verbatim: `80 41 08 00 00` is 2113 (`ctor_dtor::SELECTOR_2113`) and
+        // `80 45 08 00 00` is 2117 (`designator::SELECTOR_2117`).
+        let head = |id: i32| -> Vec<u8> {
+            let mut v = vec![0x33, 0x86, 0x41, 0x74, 0x80];
+            v.extend_from_slice(&id.to_le_bytes());
+            v.push(0x40);
+            v
+        };
+        assert_eq!(
+            &head(2113)[4..9],
+            &[0x80, 0x41, 0x08, 0x00, 0x00],
+            "the test's own encoder must reproduce the captured selector bytes"
+        );
+        let names: Vec<&str> = (2113..=2119)
+            .map(|id| RECV_TAIL.tag(&head(id), &recv_block("mcall-recv", 0, 16)))
+            .collect();
+        let uniq: std::collections::BTreeSet<&&str> = names.iter().collect();
+        assert_eq!(
+            uniq.len(),
+            7,
+            "the seven class-layout selectors must separate, got {names:?}"
+        );
+        assert!(names[0].ends_with("/no-b9-this-adjust"), "2113 is `this-adjust`: {}", names[0]);
+        assert!(
+            names[4].ends_with("/no-b9-base-member-addr"),
+            "2117 is `base-member-addr`: {}",
+            names[4]
+        );
+        // An id outside the family is named as such, not folded into one of the
+        // seven — and a `33` that is NOT an intrinsic head keeps the hex bucket
+        // rather than a name it has not earned.
+        assert!(RECV_TAIL
+            .tag(&head(173), &recv_block("mcall-recv", 0, 16))
+            .ends_with("/no-b9-intrinsic-other"));
+    }
+
+    /// **The second arity axis: the same opcode, two constructs, decided by what
+    /// stands one token later.**
+    ///
+    /// `33 <int-like> <k>` is a literal push. Behind a `27`/`28` the run is a
+    /// *byte-offset add on the receiver designator* (`p->f.m()`); with anything
+    /// else behind it, it is a bare literal. The first version of this table saw
+    /// only the opcode and filed **5,806 emitted functions** under `op-0x33` —
+    /// the byte the run stopped in front of, which is §9.14.7's defect and the
+    /// one #139 exists to cure. An opcode-only test would have passed on it.
+    ///
+    /// The witness is transcribed from the workload dump
+    /// (`src/lazer/game/HamUser.cpp#723`), so the encoding is a capture and not
+    /// an assumption: `b9 <tok> a6 43 d5 37 · 33 86 41 74 00 · 27 a6 43 d0 34 ·
+    /// 99 …`.
+    #[test]
+    fn a_literal_behind_an_offset_add_is_named_for_the_add_not_the_byte() {
+        // The captured run, from the `33` on.
+        let off_add: &[u8] = &[0x33, 0x86, 0x41, 0x74, 0x00, 0x27, 0xA6, 0x43, 0xD0, 0x34];
+        assert!(
+            RECV_TAIL.tag(off_add, &recv_block("mcall-bind", 0, off_add.len()))
+                .ends_with("/then-off-add"),
+            "got {}",
+            RECV_TAIL.tag(off_add, &recv_block("mcall-bind", 0, off_add.len()))
+        );
+        // The `28` form of the same construct.
+        let off_add28: &[u8] = &[0x33, 0x86, 0x41, 0x74, 0x08, 0x28, 0x00, 0x00];
+        assert!(RECV_TAIL
+            .tag(off_add28, &recv_block("mcall-bind", 0, off_add28.len()))
+            .ends_with("/then-off-add"));
+        // …and the same opcode with something else behind it stays a literal.
+        let bare: &[u8] = &[0x33, 0x86, 0x41, 0x74, 0x13, 0x0F, 0x86, 0x41, 0x74, 0x4B];
+        assert!(
+            RECV_TAIL.tag(bare, &recv_block("mcall-recv", 0, bare.len()))
+                .ends_with("/no-b9-literal"),
+            "got {}",
+            RECV_TAIL.tag(bare, &recv_block("mcall-recv", 0, bare.len()))
+        );
+        // The literal's own width is an axis too: a `80`-escaped offset must not
+        // fall out of the construct because its varint is five bytes, not one.
+        let wide: &[u8] =
+            &[0x33, 0x86, 0x41, 0x74, 0x80, 0x40, 0x01, 0x00, 0x00, 0x27, 0xA6, 0x43, 0xD0, 0x34];
+        assert!(
+            RECV_TAIL.tag(wide, &recv_block("mcall-bind", 0, wide.len()))
+                .ends_with("/then-off-add"),
+            "got {}",
+            RECV_TAIL.tag(wide, &recv_block("mcall-bind", 0, wide.len()))
+        );
+    }
+
+    /// The indirect **store** is a construct and must be named as one: the body
+    /// dispatch offers every statement-head `26` to this production, so a `32`
+    /// standing where the `this` bind belongs says the statement is an
+    /// ASSIGNMENT and there is no receiver in it at all. Filed as `op-0x32` that
+    /// fact is invisible, and it is 1,100 emitted functions of the site.
+    #[test]
+    fn an_indirect_store_at_the_bind_position_is_named_a_store() {
+        // `?mash@@YAXPAE0@Z`, src/keygen_xbox.cpp#4, from the workload dump.
+        let st: &[u8] = &[0x32, 0x86, 0x43, 0xF5, 0x08, 0x4B];
+        assert!(RECV_TAIL.tag(st, &recv_block("mcall-bind", 0, st.len())).ends_with("/then-store"));
+    }
 
     /// `void mv_one(Obj *o) { o->set1(); }` — the minimal member call: the receiver
     /// is the only formal, so it is already in r3 and the whole body is `b <set1>`.
