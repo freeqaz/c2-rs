@@ -4201,3 +4201,51 @@ already blesses — so the clean-room claim survives and can be *sharpened*:
 If a disassembly-derived constant is ever adopted, that blanket claim must weaken
 to per-finding disclosure, naming the site in the relevant `docs/` file. On the
 recommendation of §9.4 we take on none, so the sharpened sentence stands.
+
+### 9.9 WLISTING — pre-registration (written before any of the three was run)
+
+Lane `w-listing`, 2026-08-01, board items #132 / #134 / #136. Registered here
+**before** the seam existed and before either scan ran, so the scores below can
+be graded rather than retrofitted.
+
+**#132 — the seam.**
+
+* **E1** c2 accepts `-FAasc -Fa <Z:path>` appended to a *standalone* replay argv
+  (not just to a `cl` driver line) and writes the `.cod`. *Refuted by* `C1007
+  unrecognized flag … in 'p2'` or no file.
+* **E2** The listing does not perturb the obj: replay-with-listing and
+  replay-plain are byte-identical with `TimeDateStamp` zeroed, **at the same
+  `/Fo` path**. *Refuted by* any differing byte.
+* **E3** `.cod` instruction rows equal the obj `.text` word at the same
+  COMDAT-relative offset EXCEPT at relocated `b`/`bl`, where the `.cod` prints
+  `48000000` / `48000001`. *Refuted by* any differing row whose mnemonic is not
+  `b`/`bl`.
+* **E4** (the residual §9.1 could not see) A data-address relocation
+  (`lwz r3,?g@@3HA(r11)`) does **not** differ, because c2 leaves the
+  displacement 0 in both artifacts. *Refuted by* a differing non-branch row.
+* **E5** The `.cod` `PROC` set equals the obj `.text` COMDAT set exactly on the
+  fixture corpus. *Refuted by* a non-empty residue either way.
+
+**#134 — `/QXSTALLS` demand.** Predicted **85 %** (interval [75 %, 95 %]) of
+*blocked emitted* functions carry a stall annotation. *Refuted by* < 50 %.
+
+* **The control that decides whether the number means anything:** the same
+  fraction over **in-class emitted** functions — the ones the port already
+  reproduces byte-exact with no scheduler at all. Predicted **≤ 35 %**, i.e. the
+  annotation discriminates. **If in-class ≈ blocked, the instrument is
+  uninformative and #134 must report that, not the headline number.** This is
+  the positive question §9.1's twelfth instance demands: a scan that reports only
+  the blocked fraction would go green on a signal that is present everywhere.
+* Second honest bound registered up front: an annotation says the *emitted
+  schedule stalls*, not that c2 *reordered* anything. The number is an **upper**
+  bound on scheduling demand.
+
+**#136 — the second, name-carrying census source.**
+
+* **Injectivity** — no mangled name appears twice in one TU's `PROC` set.
+  Predicted residue **0**.
+* **Totality** — `PROC` set == obj `.text` COMDAT set per TU. Predicted **small
+  but non-zero on the real workload** (0 on fixtures), concentrated in
+  compiler-generated names.
+* **Agreement on the 6 byte-exact TUs** — predicted **exact**.
+* **The error term on 19.09 %** predicted **< 1 percentage point**.
