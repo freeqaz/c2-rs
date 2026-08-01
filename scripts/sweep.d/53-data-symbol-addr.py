@@ -172,3 +172,64 @@ def cases(emit):
         + "extern void gz(int*);\n"
         + "void f(){ gz(&gI); }\nvoid g(){ gz(&gI); }\nvoid h(){ gz(&gI); }\n"
     )
+
+    # ---- W-ADJUST: MORE THAN ONE setup word beside the address -----------------------
+    #
+    # **The axis WR1's sweep did not have, and the one its ordering rule was wrong on.**
+    # Every literal case above carries exactly ONE literal, and at one setup word "the
+    # address `addi` goes last" and "the address `addi` goes second" are the same
+    # sequence. The port shipped the first reading; c2 does the second, and the
+    # differential found it on the first three-word body it ever saw — which arrived
+    # from a *different* rung's fixture, not from here. That is the generated-axis
+    # lesson in its own file: the cross product varied the slot, the register, the
+    # value, the object type and the name length, and never the COUNT.
+    #
+    # Measured, c2's own `.cod` at `/O1 /Oi /EHsc` (`work/wadjust/probe/q1.cpp`):
+    #
+    #   gs3(&gI,3,4)     lis r11 · li r5,4 · addi r3 · li r4,3
+    #   gs4b(3,&gI,4,5)  lis r11 · li r6,5 · addi r4 · li r5,4 · li r3,3
+    #
+    # so the walk below sweeps the address across every slot of a call carrying two,
+    # three and four literals, which is the cell where the two readings differ.
+    for n_lits in (2, 3, 4, 5):
+        for sym_slot in range(0, n_lits + 1):
+            lits = [str(3 + i) for i in range(n_lits)]
+            args = lits[:sym_slot] + ["&gI"] + lits[sym_slot:]
+            sig = ", ".join(
+                ["int"] * sym_slot + ["int*"] + ["int"] * (n_lits - sym_slot)
+            )
+            emit(
+                WR1_DECLS
+                + f"extern void gw(%s);\n" % sig
+                + f"void f(){{ gw({', '.join(args)}); }}\n"
+            )
+    # …the same, with in-place formals mixed into the walk (a formal already in its
+    # slot emits nothing and must NOT count as the one word the address follows), and
+    # with a member call, where `this` takes slot 0 and the address moves along.
+    for n_lits in (2, 3):
+        for n_formals in (1, 2):
+            names = [chr(ord("a") + i) for i in range(n_formals)]
+            params = ", ".join("int " + x for x in names)
+            lits = [str(3 + i) for i in range(n_lits)]
+            args = names + ["&gI"] + lits
+            sig = ", ".join(["int"] * n_formals + ["int*"] + ["int"] * n_lits)
+            emit(
+                WR1_DECLS
+                + f"extern void gv(%s);\n" % sig
+                + f"void f({params}){{ gv({', '.join(args)}); }}\n"
+            )
+            args = names + lits + ["&gI"]
+            sig = ", ".join(["int"] * n_formals + ["int"] * n_lits + ["int*"])
+            emit(
+                WR1_DECLS
+                + f"extern void gu(%s);\n" % sig
+                + f"void f({params}){{ gu({', '.join(args)}); }}\n"
+            )
+    for n_lits in (2, 3):
+        lits = ", ".join(str(3 + i) for i in range(n_lits))
+        sig = ", ".join(["int*"] + ["int"] * n_lits)
+        emit(
+            WR1_DECLS
+            + f"struct Q {{ void q(%s); }};\n" % sig
+            + f"void f(Q* q){{ q->q(&gI, {lits}); }}\n"
+        )

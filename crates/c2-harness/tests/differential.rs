@@ -532,6 +532,11 @@ fn differential_out_of_class_call_shapes_not_implemented() {
         // The FP leaf's remaining boundary: a repeated leaf, which licenses c2's
         // algebraic rewriter and lands in `.rdata`.
         "w13_fparam_neg.cpp",
+        // W-ADJUST's boundary: a named data object as a member call's receiver
+        // beside a formal that has to move, a DEFINED or static object, an offset
+        // off the object, a second symbol in the same call, a chain through it,
+        // a literal post-op on its result, and a second statement after the call.
+        "wadjust_obj_recv_neg.cpp",
     ] {
         let w = work("oocreject");
         let port = PortC2::default();
@@ -578,6 +583,44 @@ fn differential_mvp_lit_immediates_byte_exact() {
         other => panic!("expected ReferenceReplayByteExact, got {other:?}"),
     }
     std::fs::remove_dir_all(&w).ok();
+}
+
+/// **W-ADJUST (board #128): a named data object standing as a member call's
+/// receiver.** `gObj.m(a);` composes W36's member call with WR1's relocation
+/// quad — 21 functions, every one of them in class, the whole obj byte-exact.
+///
+/// Graded as its own test rather than left to the mode lanes because the rung it
+/// exposed is not its own: the first three-word address setup this fixture
+/// produced showed that WR1's shipped ordering rule ("the address `addi` goes
+/// last") was wrong from two setup words up, and the refutation is reachable from
+/// `wr1_sym_addr.cpp` with no receiver anywhere. Both files must stay green
+/// together or the pair says nothing.
+#[test]
+fn differential_wadjust_object_receiver_byte_exact() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        eprintln!("SKIP: strace/mingw absent");
+        return;
+    }
+    let port = PortC2::default();
+    for name in ["wadjust_obj_recv.cpp", "wr1_sym_addr.cpp"] {
+        let w = work("wadjustrecv");
+        let report = differential(&fixture(name), &tc, &port, &w);
+        match report {
+            DiffReport::ReferenceReplayByteExact { port, .. } => {
+                assert_eq!(
+                    port,
+                    PortStatus::Match,
+                    "expected the port to be byte-exact on {name}, got {port:?}"
+                );
+            }
+            other => panic!("expected ReferenceReplayByteExact for {name}, got {other:?}"),
+        }
+        std::fs::remove_dir_all(&w).ok();
+    }
 }
 
 /// W2: non-commutative int ops. `mvp_sub.cpp` is a 3-function TU mixing `-`

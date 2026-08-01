@@ -620,8 +620,110 @@ mod tests {
         0x54, 0x02, 0x29, 0xF1, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
 
+    /// **W-ADJUST**: `void n0() { gDbg.nul(); }` — the receiver is a NAMED DATA
+    /// OBJECT, so its designator is `26 <sym> · 2C A6 43 81 20 00 · 99 …` where
+    /// every other member call has `B9 <tok> <TYPE ptr4> …`. The `2C` is c2's own
+    /// cv-strip on the object's address and is not optional in this spelling.
+    ///
+    /// Transcribed verbatim from a live-toolchain capture
+    /// (`c2rs census work/wadjust/probe/p1.cpp --keep-il`), same TU discipline as
+    /// the four above: the whole question is which token stands where the
+    /// receiver goes, and only a capture settles that.
+    const MC_RECV_OBJECT: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x53, 0x53, 0x26, 0xEC, 0x09,
+        0x46, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0x26, 0xEB, 0x09, 0x2C, 0xA6, 0x43, 0x81,
+        0x20, 0x00, 0x99, 0x86, 0x43, 0x83, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x03,
+        0x10, 0x00, 0x00, 0x4C, 0x4B, 0x3A, 0xED, 0x09, 0x54, 0x02, 0x29, 0xED, 0x09, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x04, 0x4D,
+    ];
+
+    /// **The body the object receiver must NOT steal**: `void ch(B* b)
+    /// { b->a()->m(); }` — a two-link chain, whose head is `26 <m> 26 <a> B9 <b>`
+    /// and therefore byte-identical to an object receiver for two whole tokens.
+    /// Verbatim capture (`work/wadjust/probe/p7.cpp`).
+    const MC_CHAIN: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x53, 0x53, 0x26, 0xF4, 0x09,
+        0x46, 0x2D, 0xF3, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0x26, 0xEC, 0x09, 0xB9,
+        0xF3, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x86, 0x20, 0x00, 0xBD, 0x86, 0x43,
+        0x83, 0x20, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x8A, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x0A, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x3A, 0xF5, 0x09,
+        0x54, 0x02, 0x29, 0xF5, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20,
+        0x00, 0x4F, 0x01, 0x04, 0x4D,
+    ];
+
+    /// **W-ADJUST — the named object's address reaches codegen as `SymAddr`, not
+    /// as a `Load`.**
+    ///
+    /// The distinction is the whole rung. A `Load` of this token would be a `mr`
+    /// out of a register that holds nothing — wrong bytes rather than a refusal —
+    /// and the slot list is the only place the two can still be told apart, since
+    /// downstream every argument is "the thing in slot i".
+    #[test]
+    fn a_named_object_receiver_enters_slot_zero_as_an_address() {
+        assert_eq!(
+            parse_segment(MC_RECV_OBJECT, NO_LOCALS),
+            Some(BodyShape::MultiArgTailCall {
+                params: vec![],
+                arg_sources: vec![crate::func::body::SlotArg::SymAddr(60169)],
+                callee_tok: 58377,
+            })
+        );
+    }
+
+    /// **…and the same two leading bytes on a CHAIN still reach the chain
+    /// production.** `26 <m> 26 <x>` opens both, and the discriminator is the
+    /// token *after* the second symbol — `B9` for a chain's innermost receiver,
+    /// `2C`/`99` for an object's address. Stated in both directions, because a
+    /// discriminator that only ever saw one side is the shape `GAPS.md` §6
+    /// records: the accept is above, and this is the decline.
+    #[test]
+    fn the_object_receiver_declines_a_chain_without_consuming_it() {
+        // The chain body still parses as the chain production's own shape.
+        assert!(matches!(
+            parse_segment(MC_CHAIN, NO_LOCALS),
+            Some(BodyShape::CallSeq { .. })
+        ));
+        // And the locator itself declines with the cursor exactly where it was —
+        // the non-committal contract the caller depends on to hand the same `26`
+        // on. The offsets are found by search so a capture edit cannot silently
+        // point them at the wrong byte.
+        let at = |seg: &[u8]| {
+            seg.windows(3)
+                .position(|w| w[0] == 0x4C && w[1] == 0x4F && w[2] == 0x11)
+                .expect("the LO marker")
+                + 3
+        };
+        // …past `53` and the callee push, to the second `26`.
+        let second_26 = |seg: &[u8]| {
+            let mut p = at(seg) + 1;
+            assert_eq!(seg[p], 0x26);
+            p += 1;
+            p += crate::func::readers::read_token_var(seg, p).expect("callee token").1;
+            p
+        };
+        let p0 = second_26(MC_CHAIN);
+        let mut p = p0;
+        assert_eq!(
+            eat_receiver_object(MC_CHAIN, &mut p),
+            None,
+            "a chain's second method push is not a named object's address"
+        );
+        assert_eq!(p, p0, "a declining locator must not move the cursor");
+        // The positive side, at the same position in the object-receiver body.
+        let q0 = second_26(MC_RECV_OBJECT);
+        let mut q = q0;
+        assert_eq!(eat_receiver_object(MC_RECV_OBJECT, &mut q), Some(60169));
+        assert!(q > q0, "the accepting locator must consume the designator");
+    }
+
     /// **Every non-committal decline out of the tail production is attributed to
-    /// a named site**, under adversarial mutation of the four captured bodies —
+    /// a named site**, under adversarial mutation of the captured bodies —
     /// so no row of the gap report can read `prod-entered-untagged`, which is the
     /// residue rendered as an absence.
     #[test]
@@ -632,6 +734,8 @@ mod tests {
                 ("MC_SWAP", MC_SWAP),
                 ("MC_FRAMED_SUB", MC_FRAMED_SUB),
                 ("MC_RECV_CAST", MC_RECV_CAST),
+                ("MC_RECV_OBJECT", MC_RECV_OBJECT),
+                ("MC_CHAIN", MC_CHAIN),
             ],
             // MEASURED: 4,730 of the mutations reach the production. The floor is
             // set just under it so a corpus edit that guts the sweep is caught,

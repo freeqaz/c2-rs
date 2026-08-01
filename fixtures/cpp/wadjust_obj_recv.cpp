@@ -5,9 +5,10 @@
 // The IL is the W36 member call with one token changed — the receiver is
 // `26 <sym> [2C …] 99 …` instead of `B9 <tok> <TYPE ptr4> [2C …] 99 …` — so the
 // production is the existing tail call and the address is WR1's: `lis r11,0` +
-// `addi rN,r11,0` carrying a REFHI/REFLO PAIR quad, the `addi` emitted LAST.
-// Nothing new is emitted; what is new is that the two are composed, and the
-// composition is what this file grades.
+// `addi rN,r11,0` carrying a REFHI/REFLO PAIR quad, the `addi` emitted after
+// exactly one word of the descending walk. Nothing new is emitted; what is new
+// is that the two are composed, and the composition is what this file grades —
+// and it is what exposed the ordering rule WR1 had wrong (see below).
 //
 // Board #128, measured before it was written: the census row
 // `expr-call-in-expr-recv-object-then-type-ptr-whole` is **1,380 emitted
@@ -43,9 +44,13 @@
 //  * **the argument's type**, `int` and `const char*`: the `55 <TYPE>` formal
 //    annotation and the `B9` operand type widen in step, and a pointer argument
 //    is what the census key names (`-then-type-ptr`);
-//  * **a literal argument beside the symbol**, whose `li` lands between the
-//    `lis` and the address `addi` (WR1's `c1`/`c4` rule, here with the symbol
-//    pinned at slot 0 — see the note below);
+//  * **literal arguments beside the receiver**, one and MORE than one: at one
+//    the `li` simply lands between the `lis` and the address `addi`, and at two
+//    the address goes between the two `li`s. `l3` below is the body that caught
+//    the shipped rule ("the address `addi` goes LAST") being wrong, and the
+//    refutation is not this rung's shape at all — the same arity reached through
+//    WR1's own row (`gs3(&gI,3,4)`, no receiver anywhere) was in class and
+//    mis-emitting on mainline. `wr1_sym_addr.cpp`'s `e1`..`e6` now carry it;
 //  * **the result**: discarded (`4B`) and returned (`41 <T>`), the two plumbing
 //    arms;
 //  * **the symbol NAME across the 8-byte COFF inline-name boundary**, the second
@@ -56,14 +61,16 @@
 //    over a body of this shape.
 //
 // **What this fixture structurally CANNOT reach, and why that is written down.**
-// WR1's own ALARM was that its hand-written fixture put the symbol at slot 0 in
-// all three literal cases, so a descending-destination walk and the true
-// address-last rule agreed everywhere it looked. Here the symbol is **always** at
-// slot 0 — it is the receiver, and the receiver is argument zero on this ABI —
-// so this file cannot discriminate the two rules at all. It does not have to:
-// `wr1_sym_addr.cpp`'s `c4` does, and this rung changes no emitter. The
-// generated axis that varies what rides beside the receiver is
-// `scripts/sweep.d/61-object-receiver.py`.
+// The symbol is **always** at slot 0 here — it is the receiver, and the receiver
+// is argument zero on this ABI — so nothing in this file can discriminate a rule
+// that depends on the address's own slot. `wr1_sym_addr.cpp`'s `c4` and `e5` are
+// where that axis lives. This is WR1's own ALARM restated one rung later: its
+// hand-written fixture put the symbol at slot 0 in all three literal cases and
+// therefore could not tell a descending walk from address-last; this file cannot
+// either, by construction, and says so rather than being read as coverage. The
+// generated axes are `scripts/sweep.d/76-object-receiver.py` (this shape) and
+// the arity block appended to `53-data-symbol-addr.py` (the address's position
+// in a walk of two or more words).
 
 struct Dbg {
     void put(const char* s);
@@ -121,6 +128,17 @@ int Fwd::fwd_r() { return gDbg.get(); }
 int Fwd::fwd_rk(int k) { return gDbg.getk(k); }
 void Fwd::fwd_long(const char* s) { gObjectWithALongName.put(s); }
 void Fwd::fwd_lit(int) { gDbg.puti(9); }
+
+// ---- a FREE caller whose formal index already equals its slot ---------------
+//
+// It is the slot that decides, not the caller's kind. `b` is formal 1 and wants
+// slot 1, so nothing moves and the address takes r3 — the same emission the
+// member forms above get. The one-parameter twin of this body IS a permutation
+// and is in `wadjust_obj_recv_neg.cpp` (`m1`); the pair is what separates
+// "member callers" from "in-place formals" as the reason.
+
+void p1(const char*, int b) { gDbg.puti(b); }
+void p2(int, int b, int c) { gDbg.two(b, c); }
 
 // ---- the same object from several functions: ONE undefined external ---------
 

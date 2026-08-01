@@ -1555,6 +1555,125 @@ mod tests {
         assert!(permute_args_text(&[Formal(1), Lit(70000)]).is_err());
     }
 
+    /// **W-ADJUST — the address `addi` is SECOND, and this is the portable pin
+    /// for it.**
+    ///
+    /// §9.10's standing rule, applied to the rule rather than to the file: WR1
+    /// established an ordering rule for this emitter, added **no** `#[test]` for
+    /// it, and the differential could only catch it where some fixture happened
+    /// to arrange the discriminating case. It did not — WR1's fixture and its
+    /// generated sweep both had at most ONE setup word beside the address, which
+    /// is exactly the arity at which "address last" and "address second" are the
+    /// same sequence. The first three-word case mis-emitted.
+    ///
+    /// Every expectation below is a word read off c2's own `.cod` listing
+    /// (`work/wadjust/probe/q1.cpp`, `q3.cpp`, `/O1 /Oi /EHsc`), and the file
+    /// that grades them against a real obj is `fixtures/cpp/wr1_sym_addr.cpp`.
+    /// This test is what holds when the toolchain is absent.
+    #[test]
+    fn the_data_address_addi_is_emitted_second_not_last() {
+        use c2_il::SlotArg::{Formal, Lit, SymAddr};
+        let lis = [0x3Du8, 0x60, 0x00, 0x00]; // lis r11,0
+        let words = |slots: &[c2_il::SlotArg]| -> Vec<[u8; 4]> {
+            sym_slots_text(slots)
+                .unwrap()
+                .0
+                .chunks_exact(4)
+                .map(|c| [c[0], c[1], c[2], c[3]])
+                .collect()
+        };
+        // An EMPTY walk: the `addi` follows the `lis` directly. `gso(&gI)`.
+        assert_eq!(words(&[SymAddr]), vec![lis, [0x38, 0x6B, 0x00, 0x00]]);
+        // `s->so(&gI)` — one in-place formal emits nothing, so the walk is still
+        // empty and the address takes r4.
+        assert_eq!(
+            words(&[Formal(0), SymAddr]),
+            vec![lis, [0x38, 0x8B, 0x00, 0x00]]
+        );
+        // ONE word: `gs2(&gI,7)` — the arity at which last and second agree, and
+        // the only arity WR1 ever saw.
+        assert_eq!(
+            words(&[SymAddr, Lit(7)]),
+            vec![lis, [0x38, 0x80, 0x00, 0x07], [0x38, 0x6B, 0x00, 0x00]]
+        );
+        // TWO words — **the discriminating arity**. `gs3(&gI,3,4)`:
+        //   li r5,4 · addi r3 · li r4,3      (measured)
+        //   li r5,4 · li r4,3 · addi r3      (the rule this replaces)
+        assert_eq!(
+            words(&[SymAddr, Lit(3), Lit(4)]),
+            vec![
+                lis,
+                [0x38, 0xA0, 0x00, 0x04], // li r5,4
+                [0x38, 0x6B, 0x00, 0x00], // addi r3,r11,0   <- SECOND
+                [0x38, 0x80, 0x00, 0x03], // li r4,3
+            ]
+        );
+        // THREE words, `gs4(&gI,3,4,5)` — the rest of the walk keeps descending.
+        assert_eq!(
+            words(&[SymAddr, Lit(3), Lit(4), Lit(5)]),
+            vec![
+                lis,
+                [0x38, 0xC0, 0x00, 0x05], // li r6,5
+                [0x38, 0x6B, 0x00, 0x00], // addi r3,r11,0
+                [0x38, 0xA0, 0x00, 0x04], // li r5,4
+                [0x38, 0x80, 0x00, 0x03], // li r4,3
+            ]
+        );
+        // The address at a MIDDLE slot, `gs4b(3,&gI,4,5)`: it is still second,
+        // which is what separates this rule from the descending walk WR1 refuted.
+        assert_eq!(
+            words(&[Lit(3), SymAddr, Lit(4), Lit(5)]),
+            vec![
+                lis,
+                [0x38, 0xC0, 0x00, 0x05], // li r6,5
+                [0x38, 0x8B, 0x00, 0x00], // addi r4,r11,0
+                [0x38, 0xA0, 0x00, 0x04], // li r5,4
+                [0x38, 0x60, 0x00, 0x03], // li r3,3
+            ]
+        );
+        // …and WR1's own `c4`, `s->m3(7,&gI)`: one word, address at slot 2.
+        assert_eq!(
+            words(&[Formal(0), Lit(7), SymAddr]),
+            vec![lis, [0x38, 0x80, 0x00, 0x07], [0x38, 0xAB, 0x00, 0x00]]
+        );
+        // An in-place formal inside the walk emits nothing and does not count as
+        // the one word the address follows: `gs3(&gI,b,7)` is
+        // `li r5,7 · addi r3`, not `addi r3 · li r5,7`.
+        assert_eq!(
+            words(&[SymAddr, Formal(1), Lit(7)]),
+            vec![lis, [0x38, 0xA0, 0x00, 0x07], [0x38, 0x6B, 0x00, 0x00]]
+        );
+    }
+
+    /// The refusals `sym_slots_text` owns, stated positively so a widening cannot
+    /// delete one by accident. Each is a shape whose emission is measured to be
+    /// something else entirely (`docs/IL_CALL_IN_EXPR.md` §17.2/§17.3).
+    #[test]
+    fn the_data_address_setup_refuses_the_shapes_it_has_no_capture_for() {
+        use c2_il::SlotArg::{Formal, Lit, SymAddr};
+        // Two symbols in one call: c2 derives the second by pool-offset
+        // difference off the first's `addi`.
+        assert!(sym_slots_text(&[SymAddr, SymAddr]).is_err());
+        // A formal that has to move beside the address.
+        assert!(sym_slots_text(&[SymAddr, Formal(0)]).is_err());
+        assert!(sym_slots_text(&[Formal(1), SymAddr]).is_err());
+        // Past the eight register slots.
+        assert!(sym_slots_text(&[
+            SymAddr,
+            Formal(1),
+            Formal(2),
+            Formal(3),
+            Formal(4),
+            Formal(5),
+            Formal(6),
+            Formal(7),
+            Formal(8)
+        ])
+        .is_err());
+        // A literal wider than the `li` immediate.
+        assert!(sym_slots_text(&[SymAddr, Lit(70000)]).is_err());
+    }
+
     #[test]
     fn argument_permutations_refuse_the_uncharacterized_shapes() {
         // Two disjoint cycles (`g4(d,c,b,a)`): c2 hoists both saves into r11 and
