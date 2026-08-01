@@ -69,7 +69,7 @@
 use super::expr::{
     eat_fn_tail, eat_return_plumbing, eat_scopes, intrinsic_name, intrinsic_selector,
 };
-use super::{Block, BODY_SCOPE_DEPTH};
+use super::{Block, Complete, BODY_SCOPE_DEPTH};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker,
     eat_value_type, read_token_var, read_type, read_varint,
@@ -658,6 +658,37 @@ impl Blocker {
 /// The three `-then-` families and `-whole` partition each D2 sub-bucket exactly,
 /// so §14.1's counts are recoverable by summing — which is the acceptance check
 /// this rung is graded on.
+/// The [`Complete`] reading this module's `aux` encodes — the **same** bits
+/// [`feature`] renders as `-whole` / `-whole{k}` / `-more` / no suffix, read
+/// once here so a consumer never has to recover them from the string.
+///
+/// Held to `feature` by `tests::the_completeness_axis_agrees_with_the_rendered_key`
+/// over the whole enumerated key space, so the two cannot drift.
+pub(crate) fn completeness(aux: u64) -> Complete {
+    let disc = aux & FORM_MASK;
+    let payload = (aux >> FORM_BITS) & PAYLOAD_MASK;
+    if CallForm::from_code(disc, payload).is_none() {
+        return Complete::NoSignal;
+    }
+    if aux & WHOLE_BIT != 0 {
+        return Complete::WholeGrammar;
+    }
+    let blk = Blocker::from_code(
+        (aux >> BLK_SHIFT) & BLK_MASK,
+        (aux >> BLK_PAYLOAD_SHIFT) & BLK_PAYLOAD_MASK,
+    );
+    match blk {
+        // No second blocker recorded at all: the form itself has no production
+        // ([`form_is_measured`]), so nothing about completeness was measured.
+        None | Some(Blocker::None) => Complete::UnmeasuredGrammar,
+        Some(_) => match (aux >> NEED_SHIFT) & NEED_MASK {
+            NEED_UNMEASURED => Complete::UnmeasuredGrammar,
+            NEED_MORE => Complete::MoreGrammar,
+            _ => Complete::WholeGrammar,
+        },
+    }
+}
+
 pub(crate) fn feature(aux: u64) -> String {
     let disc = aux & FORM_MASK;
     let payload = (aux >> FORM_BITS) & PAYLOAD_MASK;
@@ -4326,48 +4357,56 @@ mod tests {
         }
     }
 
+    /// The `(form, blocker)` enumeration both key-space tests walk. Hoisted to
+    /// one place so the completeness axis is graded over **exactly** the space
+    /// the uniqueness test grades — a correspondence checked on a subset of the
+    /// keys it claims to cover is not checked.
+    const ALL_FORMS: [CallForm; 9] = [
+        CallForm::RecvLoad,
+        CallForm::RecvField,
+        CallForm::RecvFieldZero,
+        CallForm::RecvObject,
+        CallForm::RecvIntrinsic(2113),
+        CallForm::RecvIntrinsic(2119),
+        CallForm::Chained,
+        CallForm::DataAddr,
+        CallForm::Op(0x9B),
+    ];
+
+    const ALL_BLOCKERS: [Blocker; 23] = [
+        Blocker::Call(CallForm::RecvLoad),
+        Blocker::Call(CallForm::RecvIntrinsic(2113)),
+        Blocker::Call(CallForm::RecvIntrinsic(2119)),
+        Blocker::Call(CallForm::Op(0x9B)),
+        Blocker::DerefLoad,
+        Blocker::TempBind,
+        Blocker::Virtual,
+        Blocker::Type(TypeClass::Ptr),
+        Blocker::Type(TypeClass::CodePtr),
+        Blocker::Type(TypeClass::IntWidth(1)),
+        Blocker::Type(TypeClass::IntWidth(8)),
+        Blocker::Type(TypeClass::Real),
+        Blocker::Type(TypeClass::Aggregate),
+        Blocker::Type(TypeClass::NotAType),
+        Blocker::Plumbing(0x3A),
+        Blocker::Structure(Structural::StmtLimit),
+        Blocker::Op(0x5C),
+        Blocker::Branch(0x38),
+        Blocker::Branch(0x39),
+        Blocker::ChainBind,
+        Blocker::OffAdd,
+        Blocker::PlainCall,
+        Blocker::Eof,
+    ];
+
     /// Every `(form, blocker, grant count)` triple must round-trip and every rendered
     /// key must be unique. A silent collision here would merge two census buckets,
     /// which is the one failure a census instrument cannot survive — and this rung
     /// widened `Block::aux` to `u64` precisely so the pair need not be squeezed.
     #[test]
     fn the_aux_packing_round_trips_every_pair() {
-        let forms = [
-            CallForm::RecvLoad,
-            CallForm::RecvField,
-            CallForm::RecvFieldZero,
-            CallForm::RecvObject,
-            CallForm::RecvIntrinsic(2113),
-            CallForm::RecvIntrinsic(2119),
-            CallForm::Chained,
-            CallForm::DataAddr,
-            CallForm::Op(0x9B),
-        ];
-        let blockers = [
-            Blocker::Call(CallForm::RecvLoad),
-            Blocker::Call(CallForm::RecvIntrinsic(2113)),
-            Blocker::Call(CallForm::RecvIntrinsic(2119)),
-            Blocker::Call(CallForm::Op(0x9B)),
-            Blocker::DerefLoad,
-            Blocker::TempBind,
-            Blocker::Virtual,
-            Blocker::Type(TypeClass::Ptr),
-            Blocker::Type(TypeClass::CodePtr),
-            Blocker::Type(TypeClass::IntWidth(1)),
-            Blocker::Type(TypeClass::IntWidth(8)),
-            Blocker::Type(TypeClass::Real),
-            Blocker::Type(TypeClass::Aggregate),
-            Blocker::Type(TypeClass::NotAType),
-            Blocker::Plumbing(0x3A),
-            Blocker::Structure(Structural::StmtLimit),
-            Blocker::Op(0x5C),
-            Blocker::Branch(0x38),
-            Blocker::Branch(0x39),
-            Blocker::ChainBind,
-            Blocker::OffAdd,
-            Blocker::PlainCall,
-            Blocker::Eof,
-        ];
+        let forms = ALL_FORMS;
+        let blockers = ALL_BLOCKERS;
         let mut seen = std::collections::BTreeSet::new();
         for f in forms {
             let (fd, fp) = f.code();
@@ -4403,6 +4442,81 @@ mod tests {
             kinds.insert(Blocker::kind_name(k));
         }
         assert!(!kinds.contains("none"));
+    }
+
+    /// **The completeness axis is graded as a CORRESPONDENCE** — roadmap §9.11 /
+    /// §9.14. It maps a census key to a construct-level claim, and the oracle
+    /// cannot grade that: a byte-exact obj compare says nothing about whether a
+    /// *name* is true. So it is graded the three ways a correspondence can be:
+    ///
+    /// 1. **Agreement where the answer is independently known.** [`feature`]
+    ///    already encodes the same fact in the rendered suffix, by a completely
+    ///    separate code path. Over the whole enumerated key space the two must
+    ///    say the same thing — and this is the check that could fail, because
+    ///    [`completeness`] re-reads the bit layout rather than the string.
+    /// 2. **Totality.** Every reachable `aux` gets a reading; there is no
+    ///    silent hole.
+    /// 3. **Injectivity of the vocabulary.** The four grammar readings are
+    ///    distinct strings, so summing them cannot double-count.
+    ///
+    /// A renderer that returned `WholeGrammar` for everything passes none of
+    /// them: assertion 1 fails on every `-more` and every suffix-less key.
+    #[test]
+    fn the_completeness_axis_agrees_with_the_rendered_key() {
+        let forms = ALL_FORMS;
+        let blockers = ALL_BLOCKERS;
+        let mut readings = std::collections::BTreeSet::new();
+        let mut n = 0usize;
+        let mut check = |aux: u64| {
+            let key = feature(aux);
+            let got = completeness(aux);
+            // The rendered suffix, read the way a ranking table reads it — which
+            // is the thing this axis exists to stop anyone doing.
+            let want = if !key.contains("-then-") {
+                if key.ends_with("-whole") {
+                    Complete::WholeGrammar
+                } else {
+                    Complete::UnmeasuredGrammar
+                }
+            } else if key.ends_with("-more") {
+                Complete::MoreGrammar
+            } else if key.ends_with("-whole")
+                || key.ends_with("-whole2")
+                || key.ends_with("-whole3")
+                || key.ends_with("-whole4")
+            {
+                Complete::WholeGrammar
+            } else {
+                Complete::UnmeasuredGrammar
+            };
+            assert_eq!(got, want, "key {key} reads {got:?} but renders as {want:?}");
+            readings.insert(got.name());
+            n += 1;
+        };
+        for f in forms {
+            let (fd, fp) = f.code();
+            let base = fd | (fp << FORM_BITS);
+            check(base);
+            check(base | WHOLE_BIT);
+            for blk in blockers {
+                let (bd, bp) = blk.code();
+                let pair = base | (bd << BLK_SHIFT) | (bp << BLK_PAYLOAD_SHIFT);
+                for need in [NEED_UNMEASURED, 1, 2, 3, 4, NEED_MORE] {
+                    check(pair | (need << NEED_SHIFT));
+                }
+            }
+        }
+        // Totality: the walk above covered the whole key space and every one of
+        // its keys got a reading.
+        assert_eq!(n, forms.len() * (2 + blockers.len() * 6));
+        // Injectivity of the vocabulary actually reached.
+        assert_eq!(
+            readings,
+            ["complete-more:grammar", "complete-unmeasured:grammar", "complete-whole:grammar"]
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>(),
+            "the grammar readings reached must be exactly these three"
+        );
     }
 
     /// D4 must not have changed what the census counts, only how it names it. The
