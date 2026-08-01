@@ -2436,6 +2436,20 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 report.emit_total("emit-row-conflict"),
                 report.emit_total("emit-name-conflict"),
             );
+            // ARITY, beside totality and never instead of it (#144). The counts
+            // answer different questions: `records` is how many records the
+            // FRAMING found, `record-offsets` is their contents. A change to the
+            // NAME scan must move `nameless` above and leave both of these fixed
+            // — which is how W-VGL's `26`-separator repair was held to being a
+            // naming repair (records 1,515,160 before and after, nameless
+            // 152,941 -> 420).
+            println!(
+                "    binding arity (#144 — residue 0 is not a control): {} record offsets \
+                 against {} records, {} arity breaks (known answer 0)",
+                report.emit_total("emit-record-offsets"),
+                report.emit_total("emit-records"),
+                report.emit_total("emit-arity-broken"),
+            );
             // What the unexplained residue IS. A residue reported only as a
             // number cannot be attacked and cannot be checked; these rows say
             // whether it is a population c2 synthesizes (concentrated in the

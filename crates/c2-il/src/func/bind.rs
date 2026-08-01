@@ -50,7 +50,10 @@
 //! guessed`), and splitting a reader across two files is the defect this whole
 //! restructure exists to avoid.
 
-use super::gl::{gl_defined_names, gl_extern_data_names, gl_symbol_runs, mangled_names, source_path, GlIndex};
+use super::gl::{
+    gl_defined_names, gl_extern_data_names, gl_symbol_runs_all_separators, mangled_names,
+    source_path, GlIndex,
+};
 use super::sy::{SyLocals, SyView};
 
 /// How far a `.gl` function record's name may end before its body-offset field.
@@ -60,6 +63,19 @@ use super::sy::{SyLocals, SyView};
 /// rather than whatever happened to be last in the file. It is also the single
 /// most load-bearing constant in [`EmitBinding`] — see that type's docs for what
 /// dropping it costs, measured.
+///
+/// **W-VGL: 32 is correct and must NOT be widened.** `ROADMAP.md` §9.18.3 read
+/// the unbindable records as virtual members whose record "carries extra material
+/// that breaks the framing *and* the 32-byte name-distance bound", which invites
+/// raising this number. It was measured instead, once
+/// [`gl_symbol_runs_all_separators`] let the reader see `26`-introduced names at
+/// all: the name→offset distance then takes the values **15, 17, 19, 21, 23, 25,
+/// 27** and nothing else, over 676 records on `TextFile.cpp` and 127 across the
+/// held-out structural grid — **maximum 27**. The 85–194 byte distances that
+/// motivated widening it were never a record's own name; they were the distance
+/// to some *other* symbol, because this record's name was invisible. Widening
+/// this constant would not have recovered one of them and would have started
+/// borrowing names, which is a mis-emit.
 const EMIT_MAX_NAME_TO_OFFSET: usize = 32;
 
 /// **The emitted-function binding** (`docs/GAPS.md` §8): census row ↔ the
@@ -81,12 +97,29 @@ const EMIT_MAX_NAME_TO_OFFSET: usize = 32;
 /// of the *preceding* `80 <LE32>` field, so pinning it demands that field's value
 /// lie in `0x1000..=0x10FF`. Every fixture happens to satisfy that. `src/App.cpp`
 /// does not: its records carry `0x19A1`, `0x19AB`, `0xA4F6`, … and the gate's
-/// framing therefore finds **34 records in a translation unit with 9,033 function
-/// bodies and 158 emitted functions**. Requiring only the two high bytes to be
-/// zero finds **6,069**, of which 5,908 land on a segment start and **0** bind two
-/// names to one offset. That is why this type exists rather than a call to the
-/// gate's reader; the gate's own predicate is deliberately left alone, because
-/// loosening it would move the accepted class and this instrument must not.
+/// framing therefore finds **38 framed records in a translation unit with 9,033
+/// function bodies and 158 emitted functions** — of which the 32-byte name bound
+/// then drops 4, leaving the **34** an earlier revision of this comment reported
+/// as the framing's own count. The two numbers are different measurements of
+/// different things and board #121 is the difference: **38 is the framing, 34 is
+/// the reader.** (The 4 it drops are `?_Copy_str@exception@std@@AAAXPBD@Z`,
+/// `?what@bad_exception@std@@UBAPBDXZ`, `??1bad_alloc@std@@UAA@XZ` and
+/// `?_Ret@?$_BothPtrType@…@@SA?AU__true_type@2@XZ`, at distances 85/96/97/81 —
+/// every one of them a `26`-separated-name case, see
+/// [`gl_symbol_runs_all_separators`].)
+///
+/// Requiring only the two high bytes to be zero finds **6,069**, of which 5,908
+/// land on a segment start and **0** bind two names to one offset. That is why
+/// this type exists rather than a call to the gate's reader; the gate's own
+/// predicate is deliberately left alone, because loosening it would move the
+/// accepted class and this instrument must not.
+///
+/// **What the gate's 34 costs, measured rather than inferred (#121).**
+/// `Bindings::per_record` refuses `src/App.cpp` outright: `gl_defined_names`
+/// returns empty the moment one framed record's nearest preceding run is further
+/// than 32 bytes away, and 4 of the 38 are. So the gate binds **0 of 9,033
+/// bodies** there — not 34. A comment that reported 34 as "what the gate finds"
+/// made an all-or-nothing refusal look like a partial read.
 ///
 /// # The invariants it is graded on, since the oracle cannot grade it
 ///
@@ -104,6 +137,15 @@ const EMIT_MAX_NAME_TO_OFFSET: usize = 32;
 ///   a conflict bucket, and `records` equals their sum plus the bound count.
 ///   The residue that vanishes silently is the failure mode this project keeps
 ///   hitting; `c2rs gap` prints these on every scan.
+/// * **ARITY, because a residue of 0 is not a control (board #144).** Totality is
+///   stated over records *as entities*; it cannot see a change that keeps every
+///   record and loses something **inside** one. Moving a record from `bound` to
+///   `records_nameless` satisfies the identity exactly. So
+///   [`EmitBinding::record_offsets`] publishes the framed records' body-start
+///   offsets — the record *contents*, which are a property of the framing alone
+///   and must be **invariant under every change to the naming step**. #144 was
+///   earned the hard way: dropping a `DUP` expansion left totality silent at
+///   residue 0 while an arity check went 22 red.
 /// * **Checkable where the answer is known exactly.** On a translation unit the
 ///   port compiles byte-exact, c2's emitted symbol set is the port's, which came
 ///   from [`Bindings::per_record`] — so on those TUs this binding must agree with
@@ -129,6 +171,15 @@ pub struct EmitBinding {
     pub dropped_row_conflict: usize,
     /// Names two or more rows claimed; every one of those rows binds nothing.
     pub dropped_name_conflict: usize,
+    /// **The arity axis (#144)** — every framed record's body-start offset, in
+    /// `.gl` file order, whether or not the record went on to bind a name.
+    ///
+    /// This is the record's *contents*, and it is a property of the **framing**
+    /// only. Nothing downstream of the framing — the name scan, the distance
+    /// bound, the conflict rules — may change it, so a diff here and a diff in
+    /// [`EmitBinding::bound`] mean two different things and a report that prints
+    /// only the second cannot tell them apart.
+    offsets: Vec<u32>,
 }
 
 impl EmitBinding {
@@ -148,7 +199,7 @@ impl EmitBinding {
             row: vec![None; seg_starts.len()],
             ..EmitBinding::default()
         };
-        let runs = gl_symbol_runs(gl);
+        let runs = gl_symbol_runs_all_separators(gl);
         let ends: Vec<usize> = runs.iter().map(|&(_, end, _)| end).collect();
         // Record offset → candidate name, one pass over `.gl`.
         let mut claims: Vec<(usize, String)> = Vec::new();
@@ -160,6 +211,10 @@ impl EmitBinding {
             }
             out.records += 1;
             let off = u32::from_le_bytes([gl[p + 1], gl[p + 2], gl[p + 3], gl[p + 4]]) as usize;
+            // ARITY (#144): recorded HERE, before anything about naming is asked,
+            // because that is what makes it a control on the naming step rather
+            // than a restatement of it.
+            out.offsets.push(off as u32);
             // The record's own name: the last run to END at or before the field,
             // and near enough to be part of the same record. A record whose name
             // is further away is one whose shape this reader does not know — it
@@ -233,6 +288,26 @@ impl EmitBinding {
         self.row.iter().filter(|n| n.is_some()).count()
     }
 
+    /// **The arity read-out (#144)** — every framed record's body-start offset,
+    /// in `.gl` file order.
+    ///
+    /// Stated separately from [`EmitBinding::accounting`] because they can only
+    /// go red for different reasons, and a report carrying one of them cannot
+    /// substitute for the other:
+    ///
+    /// | change | totality residue | arity |
+    /// |---|---|---|
+    /// | a record stops being **framed** | moves | **moves** |
+    /// | a record stops being **named** | 0 (it just changes bucket) | unchanged |
+    ///
+    /// So *arity moved and residue did not* means the framing changed, and
+    /// *residue moved and arity did not* means only the naming changed — which is
+    /// exactly the distinction W-VGL's `26`-separator repair had to be held to,
+    /// and the one #144 records this project losing once already.
+    pub fn record_offsets(&self) -> &[u32] {
+        &self.offsets
+    }
+
     /// **The totality identity**, over RECORDS: every framed record found became
     /// exactly one of a binding or one named residue, so
     /// `records == bound + outside + nameless + row-conflicts + name-conflicts`.
@@ -251,6 +326,14 @@ impl EmitBinding {
                 + self.dropped_row_conflict
                 + self.dropped_name_conflict,
         )
+    }
+
+    /// The arity identity, as a pair a caller asserts: one recorded offset per
+    /// framed record. Breaks only if the framing loop and the arity axis have
+    /// drifted apart, which is the one way [`EmitBinding::record_offsets`] could
+    /// silently stop being a control.
+    pub fn arity(&self) -> (usize, usize) {
+        (self.records, self.offsets.len())
     }
 }
 
@@ -296,7 +379,7 @@ fn emit_offset_framed(gl: &[u8], o: usize) -> bool {
 /// name-distance bound as [`EmitBinding::new`] — deliberately, so a difference
 /// in the two answers is a difference in the *binding*, never in the reader.
 pub fn gl_body_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
-    let runs = gl_symbol_runs(gl);
+    let runs = gl_symbol_runs_all_separators(gl);
     let ends: Vec<usize> = runs.iter().map(|&(_, end, _)| end).collect();
     let mut out = std::collections::BTreeSet::new();
     let mut p = 0usize;
@@ -686,8 +769,15 @@ mod tests {
     /// subtracted here so
     /// the tests can name the quantity the bound is stated in.
     fn emit_record(name: &str, tid: u16, body_off: u32, gap: usize) -> Vec<u8> {
+        emit_record_sep(0x00, name, tid, body_off, gap)
+    }
+
+    /// [`emit_record`] with the byte that **introduces** the name spelled out.
+    /// `.gl` uses `00` or `26` (`gl::NAME_SEPARATORS`), and which one it is is the
+    /// single mutation W-VGL's controls turn.
+    fn emit_record_sep(sep: u8, name: &str, tid: u16, body_off: u32, gap: usize) -> Vec<u8> {
         let pad = gap.saturating_sub(8);
-        let mut v = vec![0u8];
+        let mut v = vec![sep];
         v.extend_from_slice(name.as_bytes());
         v.push(0);
         v.extend(std::iter::repeat(0x11u8).take(pad));
@@ -961,6 +1051,122 @@ mod tests {
              whatever the following four bytes read as"
         );
         assert_eq!(b.name(0), None, "and therefore no binding");
+    }
+
+    /// **W-VGL / board #151 — the `26` name separator, and the ARITY control that
+    /// says which half of the reader moved.**
+    ///
+    /// The guard's quantity is held fixed in the strongest available sense: the
+    /// two inputs differ in **exactly one byte**, the one that introduces the
+    /// second record's name. Everything the framing reads is identical, so:
+    ///
+    /// * `records` and [`EmitBinding::record_offsets`] must be **unchanged** —
+    ///   this is the #144 arity axis, and it is what says the repair moved the
+    ///   *naming* step and not the framing;
+    /// * the binding must be unchanged too, which is the point: a `26`-introduced
+    ///   name is a name, and before this repair it was not merely mis-framed, it
+    ///   was invisible, so the record went to `records_nameless` and its symbol
+    ///   was counted as a body this bundle does not have.
+    ///
+    /// `??_G…` is the real population: on `src/system/obj/TextFile.cpp` this is 70
+    /// of 674 framed records, and `??_GDataArray@@AAAPAXI@Z` — an emitted symbol
+    /// the wall dump reported as `no-record` — appears **zero** times as a
+    /// NUL-delimited run and once as a `26`-introduced one.
+    #[test]
+    fn a_26_separated_name_binds_and_the_framing_arity_does_not_move() {
+        let build = |sep: u8| {
+            let mut gl = emit_record("?a@@YAHXZ", 0x19AB, 10, 0);
+            gl.extend_from_slice(&emit_record_sep(sep, "??_Gb@@UAAPAXI@Z", 0x19AB, 50, 0));
+            gl
+        };
+        let nul = EmitBinding::new(&build(0x00), &[0, 40]);
+        let com = EmitBinding::new(&build(0x26), &[0, 40]);
+
+        // ARITY (#144) — the framing's own contents, invariant under the mutation.
+        assert_eq!(
+            nul.records, com.records,
+            "the mutation must not change how many records are FRAMED — otherwise \
+             this control tests the framing, not the name scan"
+        );
+        assert_eq!(
+            nul.record_offsets(),
+            com.record_offsets(),
+            "ARITY: a change to the NAMING step must leave every framed record's \
+             body offset exactly where it was"
+        );
+        assert_eq!(com.arity(), (2, 2), "one recorded offset per framed record");
+
+        // …and the naming step, which is the half that was broken.
+        assert_eq!(
+            com.name(1),
+            Some("??_Gb@@UAAPAXI@Z"),
+            "a name introduced by `26` is a name; it must bind, not go nameless"
+        );
+        assert_eq!(
+            (com.bound(), com.records_nameless),
+            (nul.bound(), nul.records_nameless),
+            "the two separators must produce the SAME binding — that is the whole \
+             claim, and the residue must be empty under both"
+        );
+        assert_eq!(com.accounting(), (2, 2), "the totality identity still holds");
+    }
+
+    /// **W-VGL — the corrupted names this repair also fixes, and why a run has to
+    /// TERMINATE at `26` and not merely open there.**
+    ///
+    /// Record bytes that happen to be printable ASCII sit immediately before the
+    /// separator, and a scan that only splits on NUL glues them onto the front of
+    /// the next name. Measured on `TextFile.cpp`, which was emitting fourteen of
+    /// these, `"H=&??_7FixedSizeAlloc@@6B@"` among them — `H=` is `0x48 0x3D`.
+    ///
+    /// A name that is wrong in its first two bytes is worse than a missing one:
+    /// it is a plausible-looking symbol that no obj carries, and `docs/GAPS.md` §6
+    /// is the rule it breaks.
+    #[test]
+    fn record_bytes_before_a_26_are_not_glued_onto_the_next_name() {
+        let mut gl = vec![0x00, b'H', b'='];
+        gl.extend_from_slice(&emit_record_sep(
+            0x26,
+            "??_7FixedSizeAlloc@@6B@",
+            0x19AB,
+            10,
+            0,
+        ));
+        let b = EmitBinding::new(&gl, &[0]);
+        assert_eq!(b.records, 1, "one record, whatever the name scan decides");
+        assert_eq!(
+            b.name(0),
+            Some("??_7FixedSizeAlloc@@6B@"),
+            "the name must be the name, not `H=&` plus the name"
+        );
+        assert!(
+            !b.name(0).is_some_and(|n| n.contains('&')),
+            "a `26` inside a bound name means the run swallowed its own separator"
+        );
+    }
+
+    /// …and the fail-closed direction, so the repair cannot be the
+    /// absence-read-as-success shape in reverse: `26` introduces a name only when
+    /// what follows it *is* one. The record count is held fixed by the mutation.
+    #[test]
+    fn a_26_that_introduces_no_plausible_name_yields_no_binding() {
+        let mut gl = emit_record_sep(0x26, "?ok@@YAHXZ", 0x19AB, 10, 0);
+        let good = EmitBinding::new(&gl, &[0]);
+        assert_eq!(good.name(0), Some("?ok@@YAHXZ"), "control: a real name binds");
+
+        // Same bytes, same record, but the name now starts with a digit — not an
+        // identifier, so there is no run and nothing may be borrowed.
+        gl[1] = b'9';
+        let b = EmitBinding::new(&gl, &[0]);
+        assert_eq!(
+            b.records, good.records,
+            "the mutation must not change the record count"
+        );
+        assert_eq!(b.name(0), None, "no plausible name means no binding");
+        assert_eq!(
+            b.records_nameless, 1,
+            "and the record must appear in the named residue, not vanish"
+        );
     }
 
     /// The varargs gate is name-derived, and both callers ask the SAME predicate
