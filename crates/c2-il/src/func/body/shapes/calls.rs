@@ -732,6 +732,133 @@ fn eat_sym_addr_arg(seg: &[u8], p: &mut usize) -> Option<u32> {
     eat_sym_addr_value(seg, p, 0x55)
 }
 
+/// **W-ARMS scratch sink — board #143's counterfactual, and NOTHING else.**
+///
+/// OFF unless `C2RS_SINK_OFF_ADD_ARG` is set, and therefore inert on every gate
+/// lane, every fixture and every default scan. It exists to price
+/// `expr-call-in-expr-recv-load-then-off-add-more` (1,038 emitted / 851 clean /
+/// 267 names) the way §9.13 priced #127: one sink at the row's own refusal site,
+/// one warm scan, Δ `emit-in-class` against a base measured on the same binary
+/// with the sink disabled.
+///
+/// The construct is a **byte-offset add in a call argument** — `p->m(&t->s.k)`,
+/// which c2 lowers as `addi rN,rBase,k` inside the argument permutation
+/// (probe `work/warms/probe_offadd.cpp`, listing captured with `c2rs listing`):
+///
+/// ```text
+///   ?a1@@YAXPAUS@@PAUT@@@Z:   38840008  addi r4,r4,8
+///                             48000000  b    ?one@S@@QAAXPAH@Z
+///   ?a3@@YAXPAUS@@PAUT@@H@Z:  7c8b2378  mr   r11,r4
+///                             7ca42b78  mr   r4,r5
+///                             38ab0008  addi r5,r11,8
+///                             48000000  b    ?three@S@@QAAXHPAH@Z
+/// ```
+///
+/// Two modes, because the two answer different questions and §9.13's E4 is the
+/// record of registering only the one that cannot fail:
+///
+/// * `=honest` pushes `[Load, Lit, Add]`, which `tail_call_shape`'s slot path
+///   refuses **by name**. It cannot mis-emit, and what it measures is *which
+///   gate is next*.
+/// * `=ceiling` pushes `[Load]` alone, dropping the offset. The census then
+///   calls the body in class and the port emits `mr` where c2 emits `addi` —
+///   **wrong bytes, deliberately**, which is exactly the over-claim
+///   `census/gate disagreement` is structurally blind to. Its number is the
+///   ceiling if the codegen existed; its *mismatches* are the demonstration.
+///
+/// Never a rung. The rung needs a new `SlotArg` variant and its ordering rule in
+/// `crates/c2-core`, which this lane may not touch.
+fn off_add_arg_sink(seg: &[u8], p: &mut usize) -> Option<Vec<IlOp>> {
+    use crate::func::readers::{eat_operand_type, ValueClass};
+    #[derive(Clone, Copy, PartialEq)]
+    enum Mode {
+        Off,
+        Honest,
+        Ceiling,
+        Zero,
+    }
+    static MODE: std::sync::OnceLock<Mode> = std::sync::OnceLock::new();
+    let mode = *MODE.get_or_init(|| match std::env::var("C2RS_SINK_OFF_ADD_ARG").as_deref() {
+        Ok("honest") => Mode::Honest,
+        Ok("ceiling") => Mode::Ceiling,
+        Ok("zero") => Mode::Zero,
+        _ => Mode::Off,
+    });
+    if mode == Mode::Off {
+        return None;
+    }
+    // `B9 <tok> <TYPE ptr4> · ( 33 <int-like TYPE> <k> · 27 <TYPE ptr4> )+`,
+    // cursor left on the `55` the caller consumes — the same contract
+    // `eat_sym_addr_arg` has, and restored untouched on any refusal.
+    //
+    // **A RUN, and the arity is the finding.** `&t->s.k` is TWO off-adds, one
+    // per designator step (`work/warms/il-p1/*.ex`: `33 …00 · 27 … · 33 …08 ·
+    // 27 …`). The completeness walker's `Admit` set holds construct *classes*,
+    // so granting `off-add` once and needing it twice takes the `adm.holds(blk)`
+    // arm and renders `-more` with no third construct — which reads as "a
+    // further construct is hiding behind this row" when what is actually behind
+    // it is the SAME construct at a higher arity. A one-step recognizer measures
+    // the row at a small fraction of itself; this one varies the count.
+    let save = *p;
+    let mut q = *p;
+    let bail = |p: &mut usize| {
+        *p = save;
+        None::<Vec<IlOp>>
+    };
+    if !eat_byte(seg, &mut q, 0xB9) {
+        return bail(p);
+    }
+    let Some((tok, w)) = read_token_var(seg, q) else { return bail(p) };
+    q += w;
+    if eat_operand_type(seg, &mut q) != Some(ValueClass::Ptr4) {
+        return bail(p);
+    }
+    let mut sum: i32 = 0;
+    let mut steps = 0usize;
+    // Eight is past any designator chain the workload spells; a longer run is
+    // refused rather than assumed to keep repeating.
+    while steps < 8 {
+        let mut r = q;
+        if !eat_byte(seg, &mut r, 0x33) || eat_operand_type(seg, &mut r).is_none() {
+            break;
+        }
+        let Some(k) = read_varint(seg, &mut r) else { break };
+        match seg.get(r) {
+            Some(&0x27) => {
+                r += 1;
+                if eat_operand_type(seg, &mut r) != Some(ValueClass::Ptr4) {
+                    break;
+                }
+            }
+            Some(&0x28) => r += 3,
+            _ => break,
+        }
+        sum = match sum.checked_add(k) {
+            Some(v) => v,
+            None => break,
+        };
+        steps += 1;
+        q = r;
+    }
+    if steps == 0 || seg.get(q) != Some(&0x55) {
+        return bail(p);
+    }
+    // **The zero arm needs no codegen at all, and that is a byte fact.** A
+    // designator chain summing to 0 addresses the base itself — `&q->m` where
+    // `m` is at offset 0 is `q` — and c2 emits nothing for it: `?a2@@YAXPAUS@@0@Z`
+    // and `?a6@@YAXPAUT@@PAH@Z` in `work/warms/probe_offadd.cod` are a bare
+    // `b <callee>`, against `addi r4,r4,8` at offset 8. Same structure as #127's
+    // 434-of-472 at adjust offset 0.
+    if mode == Mode::Zero && sum != 0 {
+        return bail(p);
+    }
+    *p = q;
+    Some(match mode {
+        Mode::Ceiling | Mode::Zero => vec![IlOp::Load(tok)],
+        _ => vec![IlOp::Load(tok), IlOp::Lit(sum), IlOp::Add],
+    })
+}
+
 /// [`eat_sym_addr_arg`], with the token that must terminate the address named by
 /// the caller: `55` when it stands as a call **argument**, `99` when it stands as
 /// a member call's **receiver** (`gObj.m(a)` — W-ADJUST,
@@ -788,9 +915,12 @@ pub(crate) fn eat_call_args(seg: &[u8], p: &mut usize) -> Result<Vec<Vec<IlOp>>,
         // is not an operand stream `parse_expr` can produce — the value is a
         // relocation, not a computation. Tried first; it consumes nothing unless
         // it matches the two captured spellings end to end.
-        let ops = match eat_sym_addr_arg(seg, p) {
-            Some(tok) => vec![IlOp::SymAddr(tok)],
-            None => parse_expr(seg, p, 0x55)?,
+        let ops = match off_add_arg_sink(seg, p) {
+            Some(v) => v,
+            None => match eat_sym_addr_arg(seg, p) {
+                Some(tok) => vec![IlOp::SymAddr(tok)],
+                None => parse_expr(seg, p, 0x55)?,
+            },
         };
         // `55 <TYPE>` carries the **formal's declared type**, and it is widened in
         // step with the operand positions: a call whose argument is a pointer
