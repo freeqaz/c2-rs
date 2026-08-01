@@ -710,15 +710,42 @@ fn clip(s: &str, n: usize) -> String {
     }
 }
 
-/// **SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128).** Append one TSV row per
-/// census row whose key is named in `C2RS_ROW_DUMP` to the file named by
-/// `C2RS_ROW_DUMP_OUT`. Off — and free — when the variable is unset.
+/// **The per-row read-out (W-ADJUST, boards #127/#128/#131).** One TSV line per
+/// census row whose key is named in `C2RS_ROW_DUMP` (or `*` for all), appended to
+/// `C2RS_ROW_DUMP_OUT`; `C2RS_ROW_DUMP_EMITTED` restricts it to rows that bind to
+/// a symbol c2 actually emitted. Off — and free — when the variable is unset.
 ///
-/// Read-only over the census: it changes no count and no verdict. It exists
-/// because the two questions a completion counterfactual has to answer *before*
-/// it is run — "which production site actually refused" and "is this row one
-/// source function replicated across TUs or N distinct ones" — are not answerable
-/// from any aggregated histogram the scan already prints.
+/// ```text
+/// src · index · key · EMITTED|not-emitted · mangled name · frame · cflow · eh
+///     · dispatch · production · hex_mark · the blocking-byte window
+/// ```
+///
+/// **Every axis this scan prints is a histogram, and a histogram cannot answer a
+/// question about a JOINT.** `docs/ROADMAP.md` §8.6's standing rule — never
+/// multiply marginals for an intersection, measure the joint per TU — has no tool
+/// behind it without this: the EH, frame and control-flow crosses are each a
+/// separate `BTreeMap`, so "how many emitted rows of THIS key are straight *and*
+/// EH-free *and* single-call" is unanswerable from the report. It is answerable
+/// from one pass over this file, and that is where the 3,062-clean figure for
+/// `expr-intrinsic-this-adjust` and the 9,111-clean figure for the whole
+/// receiver-designator site came from.
+///
+/// Two further questions it exists for, both of which changed a ranking:
+///
+/// * **which production site actually refused** — `expr-intrinsic-this-adjust`
+///   names the byte the *assignment* parser stopped on, while 99.99 % of the row
+///   declines one reader earlier at the receiver designator;
+/// * **is a row N distinct source functions or one replicated across TUs** —
+///   `…recv-object-then-type-ptr-whole` is 1,380 emitted functions and **four**
+///   mangled names, which is a fact about the differential coverage a rung can
+///   claim, and no aggregate can see it.
+///
+/// **Read-only over the census: it changes no count and no verdict.** Asserted by
+/// running the whole 878-TU scan with the dump armed and comparing all five
+/// published numbers against the un-armed scan — 703,875 / 2,462,571 bodies,
+/// 34,674 / 178,968 emitted, 6 match, 0 mismatch, disagreement 0, identical. An
+/// instrument whose inertness is argued rather than run is this project's
+/// dominant failure mode (`docs/GAPS.md` §6).
 fn row_dump(
     src: &str,
     census: &[(c2_il::FnCensus, Result<c2_il::IlFunction, &'static str>)],
