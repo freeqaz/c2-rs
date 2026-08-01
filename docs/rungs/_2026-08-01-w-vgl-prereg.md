@@ -112,9 +112,9 @@ is **6** and E10 registers that it stays 6.
 
 ## Instrument hygiene registered in advance
 
-* `C2RS_GAP_CACHE=/home/free/code/milohax/c2-rs/work/capture-cache` **verbatim**
-  (#145: the cache is non-portable by *path length* and `--validate-cache` cannot
-  detect it).
+* `C2RS_GAP_CACHE=<main-repo>/work/capture-cache` **verbatim** — the main
+  checkout's path, never the worktree's (#145: the cache is non-portable by
+  *path length* and `--validate-cache` cannot detect it).
 * #156: `prefilter` is not a valid byte-forensics instrument against an obj
   captured by another path. Both sides of any comparison are captured the same
   way, through the same `c2rs capture`.
