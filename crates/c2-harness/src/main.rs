@@ -1378,6 +1378,19 @@ fn cmd_listing_scan(rest: &[String]) -> ExitCode {
         "  discrimination: blocked − in-class = {:+.2} pp",
         pct(bs, bt) - pct(ics, ict)
     );
+    // The size confound, measured. A blocked function is typically far longer
+    // than an in-class one, and a longer body has more chances to stall — so the
+    // headline gap has to survive being read inside a size bucket or it is a
+    // statement about length.
+    println!("  size-stratified (the confound: blocked bodies are longer):");
+    println!("    bucket        blocked stalled/total          in-class stalled/total");
+    for (b, bstall, btot, istall, itot) in report.size_strata() {
+        println!(
+            "    {b:<12}  {bstall:>7}/{btot:<7} ({:>6.2}%)   {istall:>7}/{itot:<7} ({:>6.2}%)",
+            pct(bstall, btot),
+            pct(istall, itot),
+        );
+    }
     if !qxstalls {
         println!(
             "  (run WITHOUT --qxstalls: both rows must read 0 — that is the \

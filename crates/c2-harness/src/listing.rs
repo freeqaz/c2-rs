@@ -116,6 +116,33 @@ pub struct ListingTu {
     /// annotation that names a *scheduling* remedy rather than a latency.
     pub blocked_lhs: usize,
     pub in_class_lhs: usize,
+
+    /// **The size confound, measured rather than argued away.** A blocked
+    /// function is typically much longer than an in-class one (leaves and tail
+    /// calls are 2–4 instructions), and a longer body has more chances to stall
+    /// — so a raw blocked-vs-in-class gap could be entirely a length effect and
+    /// say nothing about scheduling.
+    ///
+    /// Key: `"<row-count bucket>|<INCLASS|BLOCKED>|<total|stalled>"`. Comparing
+    /// the two populations *inside one bucket* is what the #134 number has to
+    /// survive.
+    pub size_strata: BTreeMap<String, usize>,
+}
+
+/// Row-count bucket label for the size-stratified #134 reading.
+///
+/// **Exact** up to 16 instructions and coarse above, deliberately. A first pass
+/// bucketed 1–4 together and reported blocked 63.22 % against in-class 9.10 %
+/// there — the only bucket left with a gap, and one wide enough that "the
+/// annotation discriminates" could still have been read out of it. At one
+/// instruction of resolution the two populations can be compared at the same
+/// length, which is the only comparison that settles it.
+pub fn size_bucket(rows: usize) -> String {
+    match rows {
+        0..=16 => format!("rows-{rows:02}"),
+        17..=32 => "rows-17-32".to_string(),
+        _ => "rows-33+".to_string(),
+    }
 }
 
 /// Aggregated report.
@@ -174,6 +201,37 @@ impl ListingReport {
                 a.2 + t.emitted_unbound,
             )
         })
+    }
+
+    /// The size-stratified #134 reading: one row per bucket,
+    /// `(bucket, blocked stalled, blocked total, in-class stalled, in-class total)`.
+    ///
+    /// This is where the #134 headline either survives or turns into a
+    /// statement about function length. Read the buckets both populations
+    /// actually occupy; a bucket where one side has a handful of members says
+    /// nothing.
+    pub fn size_strata(&self) -> Vec<(String, usize, usize, usize, usize)> {
+        let mut m: BTreeMap<String, [usize; 4]> = BTreeMap::new();
+        for t in &self.tus {
+            for (k, n) in &t.size_strata {
+                let mut it = k.split('|');
+                let (Some(bucket), Some(pop), Some(what)) = (it.next(), it.next(), it.next())
+                else {
+                    continue;
+                };
+                let e = m.entry(bucket.to_string()).or_insert([0; 4]);
+                let i = match (pop, what) {
+                    ("BLOCKED", "stalled") => 0,
+                    ("BLOCKED", "total") => 1,
+                    ("INCLASS", "stalled") => 2,
+                    _ => 3,
+                };
+                e[i] += n;
+            }
+        }
+        m.into_iter()
+            .map(|(k, v)| (k, v[0], v[1], v[2], v[3]))
+            .collect()
     }
 
     /// The residue's shape, by mangling class — a residue reported only as a
@@ -424,9 +482,9 @@ fn scan_one(tc: &Toolchain, cfg: &ListingScanConfig, src: &str, work: &std::path
             }
         }
         // Listing block per emitted name, for the annotation read.
-        let mut blocks: BTreeMap<&str, &Vec<String>> = BTreeMap::new();
+        let mut blocks: BTreeMap<&str, (&Vec<String>, usize)> = BTreeMap::new();
         for f in &listing.functions {
-            blocks.insert(f.name.as_str(), &f.lines);
+            blocks.insert(f.name.as_str(), (&f.lines, f.rows.len()));
         }
         for name in &emitted {
             match claim.get(name.as_str()).map(Vec::as_slice) {
@@ -441,8 +499,14 @@ fn scan_one(tc: &Toolchain, cfg: &ListingScanConfig, src: &str, work: &std::path
                     // #134 — only over functions that (a) c2 emitted and (b) the
                     // census bound, so blocked and in-class are the same kind of
                     // population and the two fractions are comparable.
-                    if let Some(lines) = blocks.get(name.as_str()) {
+                    if let Some((lines, nrows)) = blocks.get(name.as_str()) {
                         let (stalled, lhs) = stall_flags(lines);
+                        let pop = if in_class { "INCLASS" } else { "BLOCKED" };
+                        let b = size_bucket(*nrows);
+                        *r.size_strata.entry(format!("{b}|{pop}|total")).or_insert(0) += 1;
+                        if stalled {
+                            *r.size_strata.entry(format!("{b}|{pop}|stalled")).or_insert(0) += 1;
+                        }
                         if in_class {
                             r.in_class_total += 1;
                             r.in_class_stalled += usize::from(stalled);
