@@ -249,7 +249,7 @@ held-out round that graded them.
 | | registered | measured | |
 |---|---|---|---|
 | A1 totality | residue 0 fitted and held out | 0 and 0 | HIT, and **near-vacuous alone** — see A1b |
-| A1b arity | *(not registered — added when `DUP` was found)* | 332/332; catches what A1 cannot | — |
+| A1b arity | *(not registered — added when `DUP` was found)* | 377/377; catches what A1 cannot | — |
 | A2 structural counts | ≥ 85 % exact, refuted < 60 % | **79.5 %** (62/78) | **MISS**, not refuted |
 | A2′ the corrected `maxState` law | held out ≥ 85 % | **100 %** (10/10), **`/EHsc` only** | HIT, scoped |
 | A3 `.cod` vs §8.3 `FuncInfo` | 9/9 agreement | 9/9 | HIT |
