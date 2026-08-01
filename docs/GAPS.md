@@ -2846,3 +2846,176 @@ That is not a soft obstacle. `c2-il::func::census`'s
 reads `cflow-straight`, and it holds on the workload over all 455,049 readable
 in-class bodies. Converting any of the seven means Phase 6, the whole
 control-flow phase, not a widening.
+
+### 9.3 The comparison-spine ranking is an artifact — the fourth recorded case
+
+`ROADMAP.md` §8.3 Phase 1 names the comparison spine as *"small by census but
+**8 of the 17 TUs within 3 functions of matching block on a `cmp` row**, the
+highest match-bucket leverage anywhere on the board."* The brief that opened this
+lane said to **measure it, not assume it**. Measured, on all 17 (a census run per
+TU, the nine of §9.2 plus the eight at distance 2–3):
+
+**The count roughly reproduces and the conclusion does not.** Seven of the 17 TUs
+carry a `cmp` first-blocker — `osfinfo`, `undname`, `vswprnc`, `Biquad`,
+`vsnprnc`, `wordwrap`, `mmio` — nine blocked functions between them. And:
+
+| function | key | cflow class |
+|---|---|---|
+| `osfinfo` [0] | `expr-cmp-ge` | `cflow-if-n` |
+| `undname` [0] | `expr-cmp-ne` | `cflow-if-n` |
+| `vswprnc` [0] | `expr-cmp-eq` | `cflow-if-n` |
+| `vsnprnc` [0] | `expr-cmp-eq` | `cflow-if-n` |
+| `mmio` [0] | `expr-cmp-eq` | `cflow-if-2` |
+| `mmio` [1] | `expr-cmp-eq` | `cflow-if-n` |
+| `mmio` [7] | `expr-cmp-eq` | `cflow-if-n` |
+| `Biquad` [0] | `expr-cmp-eq` | `cf-expr-0x05` (`eh-unknown`) |
+| `wordwrap` [2] | `expr-cmp-eq` | `cf-expr-0x05` (`eh-unknown`) |
+
+**Nine of nine are inside a branch or an undecoded body. Zero are
+`cflow-straight`.** The comparison spine (W6, `docs/CODEGEN_W6_COMPARE.md`)
+lowers `return a <rel> k` **branchlessly**, to a boolean, in a single basic
+block; not one of these nine sites is a boolean materialization. Every one is a
+branch *condition*, and the body it sits in is refused by the control-flow
+invariant regardless of what happens to the `cmp` — `c2-il::func::census`'s
+`every_in_class_row_is_a_single_basic_block`, which holds on the workload over
+all 455,049 readable in-class bodies.
+
+**So widening the comparison spine converts 0 of the 17 TUs, and would have
+converted 0 no matter how far it was widened.** The signal was real as a count
+and empty as leverage, because the instrument that produced it — a first-blocker
+histogram — cannot see the control-flow axis, which is precisely §6n's
+*"a large blocking row is one of five things and a first-blocker histogram
+distinguishes none of them"* applied to a **match-bucket** claim rather than a
+census one. The cross that refutes it is free and was already in every scan.
+
+### 9.4 What the nine actually need, and the one that is close
+
+Crossing §9.2's table with the port's two hard axes:
+
+| need | TUs | phase |
+|---|---:|---|
+| control flow (`cflow-if-n` / `cflow-loop`) | **7** | Phase 6 |
+| the whole EH record (`eh-state1`) | 1 (`src/Main.cpp`) | Phase 5 |
+| neither — reachable by widening | **1** (`xboxheap.cpp`) | — |
+
+`src/Main.cpp`'s `App::Run` is `cflow-straight`, and it is still not reachable:
+it is the only body in the nine with `maxState >= 1`, so at the workload's
+`/EHsc` it mints a `__CxxFrameHandler` prefix, a second `.pdata` and an unwind
+funclet (`docs/EH_RECORDS.md`). Its first blocker,
+`param-width-undetermined:mid`, is a distraction.
+
+**`src/xdk/nuispeech/xboxheap.cpp` is exactly three independent refusals away,
+and they were counted by construction rather than estimated.** The TU is one
+constructor; every line of it was decoded from the `.ex` and checked against the
+header's member offsets. A probe ladder (`work/oneaway/p*.cpp`, `s*.cpp`) rebuilt
+the body one statement at a time and censused each rung:
+
+```text
+  H::H(a,b){ mSize=size; }                                  1/1 in class  store-run
+  H::H(a,b){ mSize=size; mCount=0; }                        0/1  expr-op-0x27
+  H::H(a,b){ mSize=size; mFreeHead=this; mUsedHead=this; }  1/1 in class  store-run
+  H::H(a,b){ …; B& listHead = mListHead; }                  0/1  expr-op-0x27
+  H::H(a,b){ …; AllocatePageBlock(initSize); }              0/1  expr-call-in-expr-
+                                                                 recv-load-then-plumbing-0x3A
+```
+
+so the three are **independent** — each refuses on its own, with the other two
+absent — and they are:
+
+1. **a literal value in a store run of more than one** (`mCount = 0;` among
+   seven formal/`this` stores). Category (1), a private limit inside a
+   recognizer that already exists (`leaf_store.rs`'s
+   `if stmts.len() > 1 && any(value_is_lit)`). **Taken — see §9.5.**
+2. **a local reference bound to an interior sub-object address**
+   (`B& listHead = mListHead;`), which stores a *computed address* into a local
+   and then uses that local as a base. Not taken.
+3. **a framed member call on `this` with an argument, inside a statement list**
+   (`AllocatePageBlock(initSize);`). Not taken — this is `ROADMAP.md` §8.3's
+   Phase 4, whose governing rules are recorded there as fitted hypotheses with
+   no mechanism.
+
+Two of the three are real work at their stated size; none of the three is
+category (3) or (4). **The nine are not "one function away" in any sense that
+predicts cost** — the §8.7 column counts *functions*, and one function can be
+three rungs or a phase.
+
+The distance-2 TU immediately behind them, `src/ChecksumData_xbox.cpp`, is two
+rungs away and one of them is `expr-call-in-expr-data-addr-1sym-then-plain-call-whole`
+— the `-whole` family (`ROADMAP.md` §6u), not a leaf.
+
+### 9.5 What was taken: WLR, the one-value literal store run
+
+`docs/rungs/2026-08-01-lit-run.md`. Refusal (1) above, carved at the point where
+c2's allocator stops mattering: a store run every statement of which stores the
+**same** literal is one materialization hoisted to the top of the body plus the
+stores in source order, at every length, width, base and mode probed. The
+multi-value case stays refused, and the negative fixture carries the grid that
+refutes all four allocation rules fitted to it.
+
+* fixtures: `wlr_lit_run.cpp` census **21/21**, `c2rs diff` **`Port=Match`**;
+  `wlr_lit_run_neg.cpp` census **0/11**, **`Port=NotImplemented`**.
+* workload: census 697,251 → **703,047** (28.31 % → 28.55 %), **+5,796**;
+  emitted census 34,083 → **34,169** (19.04 % → **19.09 %**), **+86**;
+  mismatch **0**, census/gate disagreement **0**, TU match **6 → 6**.
+
+**The +5,796 / +86 ratio is the useful output.** 1.5 % of the bodies this rung
+admits are bodies c2 emits — the sharpest per-rung confirmation yet of
+`ROADMAP.md` §8.1's finding, and a caution to anyone reading a body-census delta
+as progress.
+
+### 9.6 Two instrument defects found on the way, neither fixed here
+
+* **The census names the wrong symbol when a body contains a call.**
+  `xboxheap.cpp`'s single body is `CXboxHeap::CXboxHeap` — every line matches the
+  source and the header's member offsets — and the census row reads
+  `?AllocatePageBlock@CXboxHeap@NUISPEECH@@AAAPAU_BLOCK_ENTRY@12@I@Z`, the
+  symbol the body *calls*. Reproduced from hand-written source: in the probe
+  ladder only `p6`/`s6`/`s7` — exactly the probes containing a call — carry a
+  name at all, and it is the callee's. So the §8.7 table's function names are
+  unreliable for any row whose body makes a call, and `src/Main.cpp`'s
+  `?Run@App@@QAAXXZ` should be read with that in mind. The blocker keys, the
+  counts and both class axes are unaffected.
+* **`scripts/gen_rung_index.sh` writes `INDEX.md` itself and prints a progress
+  line.** `gen_rung_index.sh > docs/rungs/INDEX.md` therefore produces a file
+  whose first line is `wrote /…/INDEX.md` and which is missing its own header —
+  a shell idiom that is right for every other generator in this tree and wrong
+  for this one. Caught by `rung_registry.rs`, which is the point of it.
+
+### 9.7 The seventh live wrong-bytes emit, and it was not in the new code
+
+Adding a sweep fragment for §9.5's rung (`scripts/sweep.d/84-lit-run.py`) turned
+up **7 mismatches on its first run** — an ALARM, and the finding outranks the
+rung.
+
+**`emit_load_imm` emitted a redundant `ori dest,dest,0` for every wide literal
+whose low 16 bits are zero.** c2 emits `lis` alone:
+
+```text
+  s->a = 65536;      3d600001            lis r11,1   — port emitted 3d600001 616b0000
+  s->a = 131072;     3d600002            lis r11,2
+  s->a = 65535;      3d600000 616bffff   the HIGH half is emitted even when zero,
+                                         so the elision is one-sided
+```
+
+**It is not the new rung's defect, and that was proven rather than argued.** The
+smallest failing case is `void f(S* s){ s->a = 65536; }` — a store run of
+*one*, the path WLR explicitly does not touch. Stashing the two crate changes
+and re-grading gives `Port=Mismatch @ offset 8` on the pre-WLR tree. The defect
+is as old as `emit_load_imm`, and `emit_load_imm` is the single locator for
+every materialized constant in the port, so it was reachable from the chain
+layer, the call-argument layer and the store layer alike.
+
+**Nothing that existed before caught it.** 91 fixtures, 12 mode lanes, 14,122
+generated cases and 878 real TUs were green over it, and the reason is exactly
+`ROADMAP.md` §6n's: no axis anywhere varied a *literal's low half*. That makes
+this the **seventh** live wrong-bytes emit found by a generated sweep against
+zero found by hand-written fixtures, and it has the same shape as the other six
+— it changes no operator and no shape, so no review would see it.
+
+The fix is one `if`. Pinned by `wlr_lit_run.cpp`'s `kz1`/`kz2`/`kz3`/`kn2` — the
+run of **one** included beside the runs, because that is the case that reproduces
+— and by the fragment's value axis, which crosses
+`{0, ±1, 7, ±32767/32768, 65535, 65536, 100000, 2147483647}` with run lengths
+1..7. The negative wide load (`s->a = -65536;`, a bare `lis r11,-1` in the
+reference) stays **refused**: it could be served by the same branch, `-70000` is
+unwitnessed, and a fail-closed refusal is not a bug.
