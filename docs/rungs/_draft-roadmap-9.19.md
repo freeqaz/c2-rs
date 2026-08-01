@@ -195,8 +195,8 @@ Two further constraints are recorded rather than worked around:
 | | registered | measured | |
 |---|---|---|---|
 | G1 | c2 emits ≥ 200 of 240 grid-1 cells | **240** | HIT |
-| G2 | ≥ 2 schedule shapes; 4, [2, 8] | **36** raw / 5 structural arms | **MISS**, above the ceiling |
-| G3 | ≥ 1 r11 pre-save; 30, [10, 150] | **8** in grid 1, **98** in grid 3 | HIT on the phenomenon, **MISS** on grid 1's interval |
+| G2 | ≥ 2 schedule shapes; 4, [2, 8] | **36** raw sequences in grid 1 alone | **MISS**, above the ceiling |
+| G3 | ≥ 1 r11 pre-save; 30, [10, 150] | grid 1 **8**, grid 2 **0**, grid 3 **99** | HIT on the phenomenon, **MISS** on grid 1's interval |
 | G4 | `k ≥ 0x8000` is not one `addi` | `addis`(+`addi`), zero low half collapses | HIT |
 | G5 | `k = 0`, base in place, emits nothing | **YES** | HIT |
 | G6 | the address's position differs slot-0 vs last | **YES** | HIT |
@@ -219,8 +219,10 @@ Two further constraints are recorded rather than worked around:
   had grid 3 been captured first, the fifth refinement would have been
   irresistible and the rule would have looked finished again.
 * **G2's miss is the same error as §9.17's C1**: a shape count registered as a
-  small integer when the quantity was a cross-product. 36 raw shapes decompose to
-  5 structural arms, which is what the interval should have been about.
+  small integer when the quantity was a cross-product. The 36 raw sequences are
+  reproduced by a rule with **4 ordering arms**, and 4 was the point estimate —
+  the registration named the wrong noun, not the wrong number, and an interval
+  on "shapes" could not have been right about either.
 * **S3 under-delivered on purpose.** Five assertions were registered for a rule
   that would ship; two is what a refuted rule can honestly support, and inventing
   three more would be pinning a rule this section says is wrong.
