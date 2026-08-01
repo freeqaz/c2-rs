@@ -2535,3 +2535,40 @@ Quote the cold number: it is what the gate costs the first time a tree runs it,
 and the warm ones only hold once the flag strings are in the cache. Either way
 this is nowhere near impractical, which is exactly why there was never an excuse
 for the list to be implicit. Re-measure before adding an axis.
+
+## 8. The emitted-function census — the binding, and a pre-registered estimate
+
+`docs/ROADMAP.md` §8.2 ranks this instrument first on the board, and §8.4 names
+the hole it fills: the published census numerator (**697,251 / 2,462,571 =
+28.31 %**) counts **IL bodies**, and c2 emits **178,097** functions from those
+2,462,571 bodies — **7.23 %**. The overlap between the numerator and the emitted
+set was bounded only at **[22, 173,149] of 178,097**, which is to say unmeasured.
+A body c2 never emits has never been graded by a byte compare and never can be:
+the differential grades whole objs, and those objs do not contain it.
+
+### 8.1 The estimate, registered before the instrument was run
+
+Written down **before** the workload read-out, per the estimate discipline in
+`docs/ROADMAP.md` §8.5. What was known at the time of writing:
+
+* one TU by hand (`src/App.cpp`): 25 of 158 emitted functions in class = **15.8 %**;
+* a 371-TU prototype over the largest cached objs — 142,205 emitted, 131,041
+  bound 1:1, **27,307 in class = 19.20 % of emitted**, residue 7.85 %.
+
+The remaining ~500 workload TUs are the *small* ones, ~36k emitted functions.
+Counting refusals rather than applying a discount:
+
+1. Their emitted sets are the same population — header-inline instantiations,
+   destructors, small accessors — so the prototype rate transfers unchanged.
+   Predicts ~19 %.
+2. Small TUs skew simpler, and a simpler emitted function is likelier in class.
+   Pushes **up**.
+3. Every residue row is excluded from the numerator by construction, so any
+   measured figure is a **floor**, not a point.
+
+**Registered estimate: 34,000 in-class ∩ emitted of 178,097 — 19.1 %; interval
+[30,000, 40,000]; fail-closed floor = the measured bound-and-in-class count,
+ceiling = that plus the whole unbound residue.**
+
+The direction of error this instrument is *built* to have is downward: an
+emitted symbol nothing binds is counted as residue, never as in class.
