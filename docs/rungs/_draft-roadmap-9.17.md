@@ -170,12 +170,26 @@ and stops at the `27`, and the key says `expr-op-0x27`. Two independent readers
 also agree to the unit on the biggest arm — 3,062 clean rows keyed
 `expr-intrinsic-this-adjust` against §9.13's independently derived **3,062**.
 
-**§9.14's repair could not have touched any of this, and the control says so by
-number.** The repair is entirely inside `mcall`'s completeness walker.
-**1,978 of 25,654 (7.7 %)** of these rows were ever seen by that walker, and
-**7,741 of the 7,842 clean rows (98.7 %) read `complete-none`** — which is by
-definition a refusal the walker never produced. The 13,321 emitted functions
-§9.14 moved off `type-ptr` keys include **0** from this site.
+**§9.14's repair is almost entirely out of reach of this site, and the control
+that says so could have said the opposite.** The repair is inside `mcall`'s
+completeness walker, and only that walker mints `expr-call-in-expr-*` keys. So
+the question "how much of the site was in the repair's blast radius" is a
+countable one:
+
+| at the three sites | emitted rows | |
+|---|---:|---|
+| key minted by the **completeness walker** | 1,978 | 7.7 % — the population §9.14 *could* have moved |
+| key minted by another reader | 23,676 | 92.3 % |
+| keys still naming `type-ptr` | **0** | the repair's own success criterion, reproduced here |
+| `complete-whole:grammar` over the whole site | **72** | of 25,654 |
+
+and **7,741 of the 7,842 clean rows (98.7 %) read `complete-none`**, which is by
+definition a refusal the walker never produced.
+
+The pre-registration said the repair moved **0** of these, which was too strong:
+1,978 were reachable. What is measured is the substance — 92.3 % of the site's
+keys come from a reader §9.14 did not touch, and the site has 72 completeness
+readings across 25,654 emitted functions.
 
 So what #142 is missing is **not truth, it is a completeness bit**. Every arm's
 name is right and no arm has a widening estimate attached, which is exactly why
@@ -310,7 +324,7 @@ Registering "0 mismatch on the workload" as this rung's control would have been
 | A8 | the axis is read-only, to the unit | report identical, 161,262/161,262 | HIT |
 | C1 | key/construct agreement 55 %, [25 % , 85 %] | **94.7 %** | **MISS**, above the ceiling |
 | C2 | ≥ 30 % name something else | **5.3 %** | **MISS** |
-| C3 | §9.14's repair moved 0 of these | 7.7 % ever reached the walker | HIT |
+| C3 | §9.14's repair moved **0** of these | **1,978 (7.7 %) were reachable**; 0 still name `type-ptr` | HIT on the substance, the **0** was too strong |
 | B1 | the row ages by ≤ ±15 % | 1,038 / 851 / 267, **exact** | HIT |
 | B2 | Δ emitted 60, [0 , 400] | **0 / 5 / 6 / 356** | HIT on the interval |
 | B3 | ≥ 3 independent further refusals | **1** | **MISS** |
