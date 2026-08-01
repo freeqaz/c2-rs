@@ -51,11 +51,19 @@ the byte-derived §8.3:
 * **The 8-byte pad is printed, not inferred.** §8.3 *proved* the 9-dword
   `FuncInfo` from two symbol offsets; the listing emits a literal `ORG $+4`.
   Both pad values occur (0 on 13 probes, 4 on 50).
-* **`/EHa` is accepted, and it scopes two of §8.3's constants to `/EHsc`.**
-  `EHFlags` is `01H` under `/EHsc` and **`00H`** under `/EHa`; the `catch(...)`
-  `adjectives` is `040H` under `/EHsc` and **`00H`** under `/EHa`. Every other
-  record, field and count is identical between the modes on all 21 probes. §8.3
-  measured "1 on all 21" and "`0x40` ellipsis" in the only mode it ran.
+* **`/EHa` is accepted, and it is a different state model — not a two-dword
+  variation.** `EHFlags` `01H` → **`00H`** on 15 of 15, and the `catch(...)`
+  `adjectives` `040H` → **`00H`**, so §8.3's "1 on all 21" and "`0x40` ellipsis"
+  are `/EHsc`-scoped. **This lane's first draft then said "everything else is
+  byte-identical", and that was wrong** — measured across all 15 EH shapes with
+  label numbers normalised, `/EHa` differs in **44 of 546 data slots on 15 of
+  15 probes**: it *grows* `nIPMapEntries` and the ip-to-state array on **10 of
+  15** (`h_try1` 1 → 3, `h_try3seq` 7 → 13, `h_nest3` 3 → 9), and on `h_catch4`
+  moves `maxState` 2 → 3 and `catchHigh` 1 → 2. Only the no-try
+  destructor shapes differ in `EHFlags` alone. **The layout is mode-independent;
+  every count in it is not.** The wrong sentence survived until the comparison
+  was actually run rather than asserted from the two fields the lane went
+  looking for — §9.1's shape, caught before landing.
 
 **The residue, named, because a correspondence graded on totality needs one.**
 `__catchsym$F$k` — the `$k` suffix is **NOT MODELLED**. It is a `STATIC` symbol
@@ -243,9 +251,9 @@ held-out round that graded them.
 | A1 totality | residue 0 fitted and held out | 0 and 0 | HIT, and **near-vacuous alone** — see A1b |
 | A1b arity | *(not registered — added when `DUP` was found)* | 332/332; catches what A1 cannot | — |
 | A2 structural counts | ≥ 85 % exact, refuted < 60 % | **79.5 %** (62/78) | **MISS**, not refuted |
-| A2′ the corrected `maxState` law | held out ≥ 85 % | **100 %** (10/10) | HIT |
+| A2′ the corrected `maxState` law | held out ≥ 85 % | **100 %** (10/10), **`/EHsc` only** | HIT, scoped |
 | A3 `.cod` vs §8.3 `FuncInfo` | 9/9 agreement | 9/9 | HIT |
-| A4 `/EHa` accepted, `EHFlags` ≠ 1 | accepted, flag moves | accepted, `01H`→`00H` | HIT, **and a second constant moved** |
+| A4 `/EHa` accepted, `EHFlags` ≠ 1 | accepted, flag moves | accepted, `01H`→`00H` on 15/15 | HIT — **and the axis was far bigger than registered**, see §9.15.1 |
 | A5 `adjectives` by clause | `00`/`09`/`08` | exactly that | HIT |
 | A6 structural-count law | counts are a function of the axis; `maxState` rises with (dtors + try) | `nTryBlocks` and the arrays exact; **`maxState` weighs a try DOUBLE** | **MISS** on the stated form |
 | B1 #121 settled? | NOT settled, in principle | not settled | HIT |

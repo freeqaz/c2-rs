@@ -1795,7 +1795,11 @@ would be wrong on every nested function.
 
 Every one of A2's misses was `maxState`, all in one direction. Corrected:
 
-> **`maxState` = (destructible objects in scope) + 2 × (lexical `try` blocks).**
+> **`maxState` = (destructible objects in scope) + 2 × (lexical `try` blocks)**,
+> **at `/EHsc`**, which is the workload's mode.
+
+The mode scope is not decoration: `/EHa` breaks it on `h_catch4` (2 → 3), so the
+law is graded and stated at `/EHsc` only — see §11.4.
 
 A **try block is worth two states, not one.** Fitted on the 13 round-1 cells,
 then registered and graded on **five shapes it was never fitted on**
@@ -1814,16 +1818,35 @@ not counted as passes.
 
 §8.3 measured `EHFlags = 1` and ellipsis `adjectives = 0x40` "on all 21" — under
 `/EHsc`, which was the only mode it ran. c2 **accepts `/EHa`**, and both claims
-are mode-scoped:
+are mode-scoped.
 
-| | `/EHsc` (O1, O2, Ox) | `/EHa` |
-|---|---|---|
-| `EHFlags` (+0x20) | **`01H`** | **`00H`** |
-| `catch(...)` `adjectives` | **`040H`** | **`00H`** |
+> **This paragraph originally said `/EHa` "moves exactly two dwords, everything
+> else byte-identical". That was written from the two fields the lane went
+> looking for, and it is WRONG.** Measured properly — all 15 EH shapes at both
+> modes, label *numbers* normalised so the two are comparable by structure —
+> `/EHa` differs in **44 of 546 data slots on 15 of 15 probes**. The claim was
+> corrected before landing only because the comparison was actually run instead
+> of asserted. It is the §9.1 shape once more: the check was nearly performed on
+> the two fields where the answer was already known.
 
-Everything else — every record, every field, every count — is byte-identical
-between the two modes on all 21 probes. So `/EHa` moves exactly two dwords, and
-a port that hard-codes either would be wrong on an `/EHa` TU.
+| what | `/EHsc` (O1, O2, Ox) | `/EHa` | probes affected |
+|---|---|---|---|
+| `EHFlags` (+0x20) | **`01H`** | **`00H`** | **15 of 15** — the one universal difference |
+| `catch(...)` `adjectives` | `040H` | **`00H`** | every shape with an ellipsis handler |
+| `nIPMapEntries` + the ip-to-state array | — | **larger** | **10 of 15**, every try shape but one |
+| `maxState`, `catchHigh`, `__unwindtable$` length | — | **larger** | **1** (`h_catch4`) |
+| `magic`, `nTryBlocks`, `pESTypeList`, `__catchsym$` lengths | — | unchanged | 15 of 15 |
+
+**Only the pure-destructor, no-try shapes (`h_dtor1/2/3`) differ in `EHFlags`
+alone.** As soon as there is a `try`, `/EHa` adds ip-to-state entries — `h_try1`
+1 → 3, `h_try2seq` 4 → 8, `h_try3seq` 7 → 13, `h_nest3` 3 → 9 — because under
+async EH far more instruction ranges can transfer. On `h_catch4` it also moves
+`maxState` 2 → 3 and `catchHigh` 1 → 2.
+
+So `/EHa` is **not** a two-dword variation of `/EHsc`; it is a different state
+model that happens to share a record layout. The **layout** (§11.1, §11.2) is
+identical across both modes and all four flag sets — that much is confirmed —
+but every *count* in it is mode-dependent.
 
 `adjectives`, re-measured by name at `/EHsc` and consistent with §8.3:
 
@@ -1922,7 +1945,7 @@ funclet, `0c000XXXX` on bodies) is §2's business, not re-derived here.
 
 ```sh
 scripts/gt_eh_cod.py gen
-scripts/gt_eh_cod.py scan --jobs 6      # 105 listings, 21 probes x 4 modes
+scripts/gt_eh_cod.py scan --jobs 6      # 110 listings (15 EH shapes x 4 modes + 50)
 scripts/gt_eh_cod.py records h_catch4   # one probe, decoded field by field
 scripts/gt_eh_cod.py totality           # A1  + the residue, printed
 scripts/gt_eh_cod.py arity              # A1b — the check with teeth
