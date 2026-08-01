@@ -3019,3 +3019,234 @@ run of **one** included beside the runs, because that is the case that reproduce
 1..7. The negative wide load (`s->a = -65536;`, a bare `lis r11,-1` in the
 reference) stays **refused**: it could be served by the same branch, `-70000` is
 unwitnessed, and a fail-closed refusal is not a bug.
+
+## 10. The declined-destructor routing rung, pre-registered (W-DTOR, 2026-08-01)
+
+`docs/ARCHITECTURE_SEAMS.md` §10.4 named a **routing** defect rather than a
+grammar one: the `0x33` dispatch arm anchors "LIT int 0 then a `26` method push"
+for `try_parse_empty_dtor_delegation`, and when that recognizer declines the body
+falls out of the ladder without ever being offered to
+`mcall_{tail,chain,cmp}`. **7,887 `-whole` member-call bodies sit behind exactly
+that** — 89.6 % of the 8,807 that reach no member-call production — including all
+2,666 of `expr-call-in-expr-recv-field-off0-then-chain-bind-whole`, whose witness
+byte stream is `4c 4f 11 53 | 33 86 41 74 00 | 26 …`.
+
+`docs/ROADMAP.md` §8.1 retired "census → 100 %" as the target, so this rung is
+sized on **both** columns before a line is written, and the emitted column is the
+one that pays. §8's first rung measured on both moved census +5,796 and emitted
+**+86** — 1.5 %. Generated destructors are the shape most likely to be
+header-inline and never emitted, so the emitted count of this population may
+settle the rung on its own.
+
+### 10.1 The estimate, registered before the scan
+
+Written before any jsonl was read at this HEAD. Baselines: census
+**703,047 / 2,462,571**, emitted **34,169 / 178,968 = 19.09 %**, TU match **6**.
+The blocked-emitted rate over the whole corpus is **127,179 / 1,765,320 =
+7.20 %**, and that is the only rate available to transfer.
+
+**Q1 — emitted ∩ the 8,807.** How many of these bodies bind to a symbol c2
+actually emitted. Transferring the corpus rate unadjusted gives 634.
+**Registered: 600, interval [150, 1,800]. Bias: downward** — the binding fails
+closed, and 3,372 of its 10,827 unexplained residue symbols are `dtor` (31.1 %),
+which is this exact population; an emitted destructor the binding cannot claim
+never appears in `emit_blockers` at all.
+
+**Q2 — of those, the subset that does not need the missing frame class.**
+2,124 of 8,807 (24.1 %) are not `calls-2plus`. Emitted functions are larger than
+header-inline trivia, so the emitted subset should be *more* call-bearing, not
+less — that pushes down. **Registered: 100, interval [10, 400].**
+
+**Q3 — the emitted-census delta a routing fix alone could buy.** Refusals
+counted, not discounted, and independent:
+
+1. **6,683 of 8,807 are `calls-2plus`** — a frame is required whatever the
+   ladder does, and the port does not have that frame class. Caps the bodies at
+   **2,124** before any production is consulted.
+2. **The leading `33 86 41 74 00` is not decoration.** The member-call
+   productions are anchored on a `26` method push at the head of the body; the
+   literal ahead of it is an operand no production models, so routing must either
+   consume it (a grammar change inside a seam this lane does not own) or drop it
+   (wrong bytes, not a gap).
+3. **The emitted share**, Q1 — roughly 7 % of whatever bodies convert.
+
+**Registered: emitted-census delta 0, interval [0, 60].** §8's precedent (1.5 %
+of a census delta reaching the emitted column) applied to a 2,124 ceiling gives
+~32.
+
+**Q4 — the per-function census delta.** Ceiling 2,124 by refusal #1.
+**Registered: 400, interval [0, 2,124].**
+
+**The decision rule, fixed in advance: if Q1 lands below ~200, the rung is
+declined on measurement and nothing is routed** — a routing fix whose entire
+reachable population is invisible to the payoff metric is not worth the risk to a
+ladder that currently disagrees with the gate 0 times.
+
+### 10.2 The read-out — the rung is DECLINED on measurement
+
+Workload scan at `b0adae4`, 878 TUs, `/O1 /Oi /EHsc`, 871 cache hits, 2.2 s.
+Census **703,047 / 2,462,571 (28.55 %)**, emitted **34,169 / 178,968 (19.09 %)**,
+TU match **6**, mismatch **0**, census/gate disagreement **0** — i.e. the
+baseline exactly, since nothing was changed.
+
+The dispatch decomposition reproduces §10.4 of `ARCHITECTURE_SEAMS.md`
+independently, to the function: `disp-expr-lit` **7,887**, `disp-expr-load`
+**701**, `disp-plain-call` **219** = **8,807**, and all eight `disp-expr-lit`
+keys are **100 % arm-pure**, so the emitted read below is exact for the arm
+rather than apportioned.
+
+| arm | bodies | **emitted** | `calls-1` | **emitted ∩ `calls-1`** |
+|---|---:|---:|---:|---:|
+| `disp-expr-lit` — the `0x33` arm | 7,887 | **663** | 362 | **[0, 8]** |
+| `disp-expr-load` | 701 | 16 | — | [16, 16] |
+| `disp-plain-call` | 219 | 4 | 0 | [0, 0] |
+| **total** | **8,807** | **683** | — | **≤ 24** |
+
+The `calls-1` column is left blank for the last two rows and the total on
+purpose. `fn_frames` is keyed `<calls-class>|<census key>` **globally**, not per
+arm, so it can only be read as the arm's own count for an **arm-pure** key. All
+eight `disp-expr-lit` keys are 100 % arm-pure and **362 is exact**; one of
+`disp-expr-load`'s two keys is shared with `disp-assign`, which is why a naive
+sum there reads 767 against 701 bodies. Publishing that total would be quoting a
+number known to be inflated, and the decisive arm does not need it.
+
+The intersection is a **per-TU** bound, not a product of marginals: for each TU
+and key, `[max(0, emitted − calls-2plus), min(emitted, calls-1)]`. The two
+variables are strongly **anti-correlated** — multiplying the marginals would have
+said 663 × 4.6 % = 30, and the joint is 8.
+
+**The two numbers that decide it:**
+
+* **The whole 8,807, fully lowered, is worth 683 emitted functions — 0.382 % of
+  178,968.** That is the ceiling on the entire population *granting* the port a
+  frame class it does not have.
+* **The part a routing fix alone can reach is ≤ 8 emitted functions in the
+  `0x33` arm (0.0045 %), ≤ 24 across all three arms (0.013 %).**
+
+**7,525 of the 7,887 in the `0x33` arm are `calls-2plus` — 95.4 %, not the
+75.9 % the whole-family figure implies.** The family-level "6,683 of 8,807" is
+diluted by the other two arms; in the arm that carries 89.6 % of the population
+the frame block is near-total. And `calls-2plus` is not merely a lower
+acceptance rate — corpus-wide it runs **30,649 / 802,655 = 3.8 % accepted**
+against 22.4 % for `calls-1` — but for a *member-call* body it is the framed
+member-call receiver, which `ROADMAP.md` §8.3 places in **Phase 4**. Routing
+cannot reach it, and Phase 4 landing whole would still only expose 663.
+
+**The decline does not rest on the binding.** §8.6's residue holds 3,372
+unbound `dtor` symbols, and this is the population they would most plausibly
+belong to, so 663 is a floor. Granting the arm **every one of them** still leaves
+the reachable set capped by the frame at **362 bodies = 0.20 %** of the emitted
+denominator. There is no reading of the residue under which this rung pays.
+
+### 10.3 The estimate, scored
+
+| quantity | registered | measured | |
+|---|---|---|---|
+| **Q1** emitted ∩ the population | 600, `[150, 1,800]` | **663** | **10.5 % out, inside the interval** |
+| **Q2** of those, not needing the frame | 100, `[10, 400]` | **≤ 8** (arm), ≤ 24 (all arms) | **MISS — the point estimate was 12× the hard ceiling and outside its own interval** |
+| **Q3** emitted-census delta | **0**, `[0, 60]` | **0** (ceiling 8, not 60) | correct |
+| **Q4** census delta | 400, `[0, 2,124]` | **0** (arm ceiling 362) | **MISS — the point estimate exceeded the arm's ceiling** |
+
+Q1 was good and its registered bias direction (downward, because the binding
+fails closed) is confirmed: 663 is a floor.
+
+**Q2 and Q4 were the same error made twice, and it is worth naming.** Both
+applied a rate measured over the **whole `-recv-*-whole` family** to a **single
+dispatch arm** — the very merge that §10.4 says hid the finding in the first
+place. `calls-2plus` is 75.9 % of the family and **95.4 % of the arm**, so the
+routable population was 5.9× smaller than registered before the emitted
+constraint was applied at all. Then the joint was estimated by multiplying two
+marginals that turn out to be anti-correlated, costing another 4×.
+
+The general form, and the one to carry forward: **when a finding is only visible
+because a row was split, every rate used to size it must be re-measured on the
+split, not inherited from the merge.**
+
+### 10.4 What was declined, with its number
+
+1. **The `0x33` routing fix itself** — offering the declined destructor
+   delegation to `mcall_{tail,chain,cmp}`. Ceiling **8 emitted functions**
+   (0.0045 % of 178,968) and **362 bodies** (0.015 % of 2,462,571). Not written.
+2. **The `disp-expr-load` arm**, 701 bodies — **16 emitted** (0.0089 %).
+3. **The `disp-plain-call` arm**, 219 bodies — **4 emitted**, and **0** of them
+   `calls-1`, so its reachable set is empty by two independent constraints.
+4. **The whole 8,807 with an arbitrary frame class granted** — **683 emitted**,
+   0.382 %. Recorded so the population is not re-ranked later off its body count:
+   at 8,807 bodies it reads as a mid-size rung and by the metric that pays it is
+   a third of one percent.
+
+The defect `ARCHITECTURE_SEAMS.md` §10.4 names is **real and reproduced here
+exactly** — these bodies genuinely never reach a member-call production. It is
+simply not worth the change: `body/mod.rs`'s ladder currently disagrees with the
+gate **0** times over 2,462,571 functions, and restructuring its dispatch to
+expose at most 8 emitted functions is not a trade this project should take.
+
+### 10.5 Confirmed at the merged HEAD, and the third refusal is now measurable
+
+Re-measured after merging `master` (`f0ba3ff`, the WTAG production first-blocker
+instrument). **Every number in §10.2 reproduces to the function**: `disp-expr-lit`
+7,887 / emitted 663 / `calls-1` 362 / emitted ∩ `calls-1` **[0, 8]**; all three
+arms 8,807 / 683 / ceiling **24**. Census 703,047 / 2,462,571, emitted
+34,169 / 178,968, TU match 6, mismatch 0, disagreement 0 — a merge that changed
+`body/mod.rs` and all three `mcall_*` productions moved none of it, which is what
+an instrument-only change should do.
+
+The merge also makes the rung's **third** refusal measurable rather than
+predicted. `prod-entered-untagged` is now **0** and the site histogram is exact:
+the single largest bail in the whole member-call family is
+**`tail-recv-not-a-plain-b9-load` — 359,385 of 731,921 (49.1 %)**, i.e. the
+receiver designator, not the call.
+
+That matters here because **this population's receiver is precisely what that
+site rejects.** All 7,887 carry a census key spelling the receiver as
+`-recv-field-off0-`, `-recv-field-` or `-recv-intrinsic-this-adjust-` — a field
+designator or a this-adjust intrinsic, never a plain `B9` load, which is what
+`eat_receiver_this` requires as the entry condition to all three productions.
+The corroboration is direct and large: **135,926 bodies keyed
+`expr-intrinsic-this-adjust` — the same receiver construct — reach a production
+today and bail at exactly that site.**
+
+So the refusals are three, independent, and each sufficient on its own:
+
+1. **the frame** — 95.4 % of the arm is `calls-2plus`, leaving 362 bodies;
+2. **the emitted share** — 663 of 7,887, and jointly with (1) at most **8**;
+3. **the receiver designator** — the site a re-offered body would land on is the
+   one already refusing 359,385 bodies, and widening it is `mcall_tail.rs`,
+   a seam this lane does not own.
+
+Re-offering a body only helps if the production it reaches can then accept it.
+Here it cannot, and the ceiling was 8 before that question was even asked.
+
+### 10.6 The frame refusal is structural, and the rung is one key wide
+
+Splitting the population's eight keys on whether the **key name itself** says
+more than one call (`-then-chain-bind-` / `-then-call-`) makes the refusal
+mechanical rather than statistical:
+
+| key | bodies | `calls-1` | emitted |
+|---|---:|---:|---:|
+| `-recv-field-off0-then-chain-bind-whole` | 2,666 | **0** | 349 |
+| `-recv-intrinsic-this-adjust-then-chain-bind-whole` | 1,686 | **0** | 143 |
+| `-recv-field-then-chain-bind-whole` | 836 | **0** | 76 |
+| `-recv-intrinsic-this-adjust-then-call-recv-field-whole` | 705 | **0** | 1 |
+| `-recv-field-off0-then-call-recv-field-whole` | 574 | **0** | 7 |
+| **subtotal — multi-call by construction** | **6,467** | **0** | 576 |
+| `-recv-intrinsic-this-adjust-whole` | 832 | 2 | 67 |
+| **`-recv-field-whole`** | **587** | **360** | **19** |
+| `-recv-field-then-off-add-and-type-int1-whole3` | 1 | 0 | 1 |
+| **subtotal — the routable residue** | **1,420** | **362** | 87 |
+
+**6,467 of the 7,887 have `calls-1` = 0 — not "few", zero, in every one of the
+five keys.** A key spelled `-then-chain-bind-` or `-then-call-` *is* a second
+call; the frame is not a property these bodies happen to have, it is what the
+census key says they are. No measurement could have come out otherwise, and the
+2,666-function row the brief named as the headline is the largest of them.
+
+The routable residue is **1,420 bodies, and 360 of the 362 `calls-1` sit in a
+single key** — `expr-call-in-expr-recv-field-whole`, 587 bodies, **19 emitted**,
+intersection **≤ 8**. So the rung is not a 7,887-function rung with a frame
+problem. **It is a one-key, 587-body rung worth at most 8 emitted functions**,
+and it still has to get past `tail-recv-not-a-plain-b9-load` (§10.5) afterwards.
+
+That is the whole result: the merged `0xB9|0x33` row read "8,588 disp-expr", the
+split read 7,887, and the split-and-priced read **8**.
