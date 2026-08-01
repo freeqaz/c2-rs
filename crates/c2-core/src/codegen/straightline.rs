@@ -46,6 +46,27 @@ fn emit_add_imm(text: &mut Vec<u8>, dest: u8, reg: u8, k: i32) {
 /// Emit a constant load `dest = k`: `li` (`addi dest,r0,k`) for a 16-bit value,
 /// else the `lis`+`ori` idiom (`addis dest,r0,hi ; ori dest,dest,lo`, unsigned
 /// halves). Verified: `return 70000` → `addis r3,r0,1 ; ori r3,r3,4464`.
+///
+/// **…and `lis` ALONE when the low half is zero, which was a live wrong-bytes
+/// emit for as long as this function has existed** (found 2026-08-01 by the WLR
+/// sweep fragment's value axis, and reproduced on the pre-WLR tree — case
+/// `s->a = 65536;` is a run of ONE and therefore nothing to do with that rung).
+/// c2 does not emit an `ori` by `0`. MEASURED, `/O1` and `/Ox` identical:
+///
+/// ```text
+///   s->a = 65536;      3d600001                    lis r11,1
+///   s->a = 131072;     3d600002                    lis r11,2
+///   s->a = 65535;      3d600000 616bffff           lis r11,0 ; ori r11,r11,65535
+///   s->a = 100000;     3d600001 616b86a0           lis r11,1 ; ori r11,r11,34464
+///   s->a = 2147483647; 3d607fff 616bffff           lis r11,32767 ; ori …
+///   s->a = -65536;     3d60ffff                    lis r11,-1   <- still REFUSED below
+/// ```
+///
+/// The high half is emitted even when it is zero (`65535` is `lis r11,0` and an
+/// `ori`), so the elision is one-sided and keyed on the LOW half alone. The
+/// negative wide case stays refused rather than being widened alongside: c2
+/// emits a bare `lis r11,-1` for `-65536`, which this could serve, but `-70000`
+/// is unwitnessed here and a fail-closed refusal is not a bug.
 pub(crate) fn emit_load_imm(text: &mut Vec<u8>, dest: u8, k: i32) -> Result<(), BackendError> {
     if fits_i16(k) {
         text.extend_from_slice(&encode_addi(dest, 0, k as i16));
@@ -53,7 +74,9 @@ pub(crate) fn emit_load_imm(text: &mut Vec<u8>, dest: u8, k: i32) -> Result<(), 
         let hi = ((k >> 16) & 0xFFFF) as i16;
         let lo = (k & 0xFFFF) as u16;
         text.extend_from_slice(&encode_addis(dest, 0, hi));
-        text.extend_from_slice(&encode_ori(dest, dest, lo));
+        if lo != 0 {
+            text.extend_from_slice(&encode_ori(dest, dest, lo));
+        }
     } else {
         return Err(out_of_class("negative wide constant load not yet modeled"));
     }

@@ -887,7 +887,56 @@ pub(crate) fn try_parse_store_run(
         return None;
     }
     if stmts.len() > 1 && stmts.iter().any(|s| s.value_is_lit) {
-        return None;
+        // **The ONE-VALUE all-literal run, and nothing else.** See the doc
+        // comment's literal bullet: with two or more *distinct* literal values c2
+        // hoists the `li`s, allocates r11/r10/r9 by a rule these captures do not
+        // determine, and reorders the stores. With exactly one distinct value the
+        // whole question disappears — there is one materialization and one
+        // register, so there is nothing to allocate and nothing to schedule, and
+        // the stores come back in **source order** at every length probed.
+        // MEASURED (`work/oneaway` grids 4–6, `/O1` and `/Ox` byte-identical):
+        //
+        // ```text
+        //   { a=9; b=9; c=9; }              li r11,9 ; stw ; stw ; stw
+        //   { a=9; …5 stores… }             li r11,9 ; stw x5
+        //   { a=7; …6 stores… }             li r11,7 ; stw x6
+        //   { a=0; b=0; }                   li r11,0 ; stw ; stw
+        //   { c=1; h=1; i=1; }              li r11,1 ; stb ; sth ; stw   MIXED widths
+        //   { c=0; h=0; i=0; q=0; }         li r11,0 ; stb ; sth ; stw ; std
+        //   { s->a=3; t->b=3; s->c=3; }     li r11,3 ; stw 0(3) ; stw 4(4) ; stw 8(3)
+        //   { a=100000; b=100000; }         lis+ori  ; stw ; stw          WIDE literal
+        //   { t->r.a=4; t->r.b=4; t->z=4; } li r11,4 ; stw x3             nested offsets
+        // ```
+        //
+        // and the neighbours that fix the boundary, every one of them a *reorder*
+        // or a *permuted allocation* this shape would emit wrong:
+        //
+        // ```text
+        //   { a=1; b=2; }                   li r11,1 ; li r10,2 ; stw ; stw
+        //   { a=1; b=u; }                   li r11,1 ; stw r4,4 ; stw r11,0   REORDERED
+        //   { a=1; b=2; c=3; d=1; }         1->r11 2->r10 3->r9   first-use order
+        //   { a=1; b=2; c=3; d=2; e=1; }    1->r10 2->r11 3->r9   PERMUTED
+        //   { a=1; b=2; c=1; d=2; }         1->r10 2->r11         PERMUTED
+        //   { a=1; b=1; c=2; d=2; e=2; }    2->r11 1->r10, and the stores come
+        //                                   back 2,0,1,3,4 — NOT source order
+        // ```
+        //
+        // Four allocation rules were fitted to those and each is refuted by one
+        // of the others (use count by `A1`, live-range length by `A2`, last-use
+        // by `B6`, first-use by `B4`/`B7`). `GAPS.md` §6 instance #10 — measure
+        // at the edge, do not fit the scheduler — so the multi-value run stays
+        // refused and only the degenerate one is admitted.
+        if stmts.iter().any(|s| !s.value_is_lit || s.value_is_fp) {
+            return None;
+        }
+        let lit = |s: &StoreStmt| match s.ops.get(1) {
+            Some(IlOp::Lit(k)) => Some(*k),
+            _ => None,
+        };
+        let k0 = lit(&stmts[0])?;
+        if stmts.iter().any(|s| lit(s) != Some(k0)) {
+            return None;
+        }
     }
     // **A run may not MIX loaded values with formal/literal ones.** A run whose
     // values are *all* indirect loads is emitted in source order at every length

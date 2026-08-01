@@ -98,6 +98,49 @@ pub fn store_leaf_text(
     let mut rest = func.ops.as_slice();
     let mut text = Vec::with_capacity(16);
     let mut written: Vec<(u32, i32, u8)> = Vec::new();
+    // **The one-value all-literal run: ONE materialization, hoisted, then the
+    // stores in source order.** The parser
+    // ([`c2_il::try_parse_store_run`]) admits a multi-store literal run only when
+    // every statement stores the *same* value, and this is the matching emitter
+    // half: the `li` (or `lis`+`ori`) is emitted once, before any store, and the
+    // per-group arm below then finds `SCRATCH_REG` already loaded. Detected off
+    // the whole `ops` stream rather than statement by statement, because "every
+    // statement in the run" is not a property any one group can see.
+    //
+    // MEASURED — `{ a=9; b=9; c=9; }` is `li r11,9 ; stw ; stw ; stw` at both
+    // `/O1` and `/Ox`, and `{ a=100000; b=100000; }` is `lis ; ori ; stw ; stw`
+    // with the pair *whole* at the top. Neither mode descends the scratch
+    // register here: there is one value, so there is one live range.
+    let hoisted_lit: Option<i32> = {
+        let mut k0: Option<i32> = None;
+        let mut ok = !func.ops.is_empty();
+        let mut walk = func.ops.as_slice();
+        while ok {
+            match walk {
+                [] => break,
+                [IlOp::Load(_), IlOp::Lit(k), IlOp::StoreInd { .. }, tail @ ..] => {
+                    if *k0.get_or_insert(*k) != *k {
+                        ok = false;
+                    }
+                    walk = tail;
+                }
+                _ => ok = false,
+            }
+        }
+        // A run of ONE keeps the old in-group emission: it is the shape
+        // `try_parse_store_leaf` has always produced and its bytes are already
+        // graded. Only the multi-store case needs the hoist.
+        if ok && func.ops.len() > 3 {
+            k0
+        } else {
+            None
+        }
+    };
+    if let Some(k) = hoisted_lit {
+        if let Err(e) = emit_load_imm(&mut text, SCRATCH_REG, k) {
+            return Some(Err(e));
+        }
+    }
     // How many store GROUPS have been emitted. **Not `written.len()`**: a
     // load-valued group deliberately records nothing there (see below), so using
     // the overlap list as the "did we match anything" flag would send a run of
@@ -350,6 +393,9 @@ pub fn store_leaf_text(
                     // Restated here rather than trusted, because a census/gate
                     // disagreement in either direction is what `GAPS.md` §6's
                     // "one fact, two locators" bullet exists to prevent.
+                    // The one-value run: the materialization already happened
+                    // above, so the group emits the store alone.
+                    IlOp::Lit(k) if hoisted_lit == Some(*k) => SCRATCH_REG,
                     IlOp::Lit(_) if !(rest.len() == 3 && text.is_empty()) => {
                         return Some(Err(out_of_class(
                             "literal value inside a multi-store run",
