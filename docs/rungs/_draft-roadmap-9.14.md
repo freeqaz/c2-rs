@@ -27,7 +27,7 @@ Committed at `f96c2d0`, the lane's first commit, before the base scan was run.
 | **P4** | 0–8,000 `-more` bodies become measurable | > 30,000 | wrong **direction** | **MISS** |
 | **P5** | the completeness repair is total, residue named, agreement 100 % | any hole or disagreement | 2,462,571/2,462,571; 466,553 agree / **0** disagree | **HIT** |
 | **P6** | the guard goes **red on the base measure** at the ptr class | it passes at base | **9 of 16,352 TYPEs**, ptr among them | **HIT** |
-| **P7** | 2–6 rows move in the top 25; ≥ 1 dies; ≥ 1 appears | nothing moves | 4 die, 3 appear, 5 move rank | **HIT** |
+| **P7** | 2–6 rows move in the top 25; ≥ 1 dies; ≥ 1 appears | nothing moves | 4 die, 3 appear, **8** change rank | **HIT** |
 | **P8** | the guard finds ≥ 1 **further** disagreement | it finds none | **four** further classes | **HIT** |
 | **P9** | `gate.sh` PASS, 0 mismatch | any mismatch | 12/12, 2,520 verdicts, 0 | **HIT** |
 | **P10** | a fixture in the refused shape is `Port=Match` | refusal or mismatch | 8/8 in class, byte-exact | **HIT** |
@@ -220,9 +220,11 @@ is 200 rows of one production, and it says so.
 | `…recv-object-then-deref-load-more` | 1,465 | 316 → **18** | 1 | likewise phase-gated |
 | `…recv-load-then-off-add-more` | 1,038 | **NEW at 24** | **851** | 1,008 of 1,038 bail at `tail-argument-not-in-the-operand-vocabulary` — §6n **category (1)**, a private limit inside a production that already ships. 267 distinct names |
 
-**Rows that MOVE:** `recv-load-then-intrinsic-call` 11 → 8 (+805);
-`recv-load-whole` **32 → 17** (+777); `…call-recv-load-and-deref-load-more`
-13 → 11; `expr-op-0x9B` 17 → 16; `expr-load-type-8645` 8 → 9.
+**Rows that MOVE:** eight of the top 25 change rank.
+`recv-load-then-intrinsic-call` 11 → 8 (+805); `recv-load-whole` **32 → 17**
+(+777); `…call-recv-load-and-deref-load-more` 13 → 11; `expr-op-0x9B` 17 → 16;
+and four displaced downward by the risers (`expr-load-type-8645` 8 → 9,
+`body-0x9B` 9 → 10, `expr-cmp-eq` 10 → 12, `expr-intrinsic-0xDF` 12 → 13).
 
 Ranked by **clean ceiling** instead, two rows are new in the top 25 and one
 jumps ten places:
