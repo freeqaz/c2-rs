@@ -312,6 +312,66 @@ fn shipped_registry_varies_every_flag_the_workload_depends_on() {
     );
 }
 
+/// **The cross-product lane must take its modes from the registry too.**
+///
+/// `scripts/cross_sweep.sh` is the lane whose whole purpose is finding mis-emits
+/// the hand-written corpus cannot — its record is real: mis-emit #12 was found in
+/// the cross product of two individually-green branches. Until 2026-08-01 it
+/// carried **its own hardcoded four modes** (packed, `/Gy`, `/O1`, `/O2`) and
+/// compiled **no `/EH`, ever**, on a workload that compiles `/EHsc` on every TU
+/// and has 35,964 in-class `eh-bare` functions whose markers appear only under it.
+/// That was the last surviving instance of the un-enumerated-lane defect, in the
+/// worst possible place, and its green read exactly like a green that had verified
+/// those flags.
+///
+/// Converting it to `scripts/lanes.txt` is what makes it inherit every assertion
+/// above for free. This test is what keeps it converted: nothing else in
+/// `cargo test` would notice a "tidy up the sweep driver" commit that pasted a
+/// mode tuple back into the file, and the symptom of that regression is silence —
+/// the lane keeps passing, at four modes, having said nothing about `/EH`.
+///
+/// The two assertions are independent on purpose (a file can read the registry
+/// *and* keep a private list, and a file can drop the private list without ever
+/// reading the registry), and neither is guarded by a quantity that could make the
+/// other unreachable.
+#[test]
+fn cross_product_lane_takes_its_modes_from_the_registry() {
+    let path = repo_root().join("scripts/cross_sweep.py");
+    let src = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+        panic!(
+            "cannot read the cross-product driver at {}: {e}. It is the lane that \
+             grades shape families beside each other; if it is gone, so is the only \
+             instrument that finds cross-shape mis-emits.",
+            path.display()
+        )
+    });
+
+    assert!(
+        src.contains("lanes.txt"),
+        "scripts/cross_sweep.py never mentions scripts/lanes.txt, so it is not \
+         taking its mode lanes from the registry. It then grades at whatever set \
+         somebody typed into it — which for its whole existence was four modes \
+         containing no /EH at all, on a 100%-/EHsc workload."
+    );
+
+    // A private mode table is the actual regression, and it is checked separately
+    // from "reads the registry" because a file can do both.
+    for forbidden in ["MODES = (", "MODES = [", "MODES=(", "MODES=["] {
+        assert!(
+            !src.contains(forbidden),
+            "scripts/cross_sweep.py defines its own mode table (`{forbidden}`). The \
+             lane list is data in scripts/lanes.txt and a second copy in the sweep \
+             driver is the same one-rule-two-implementations shape docs/GAPS.md §6 \
+             keeps recording — with the extra property that this copy is the one \
+             that historically had no /EH lane."
+        );
+    }
+
+    println!(
+        "scripts/cross_sweep.py: reads scripts/lanes.txt, defines no private mode table"
+    );
+}
+
 /// The parser this test uses is the one thing between the file on disk and every
 /// assertion above, so it is exercised directly on rows shaped like the failures
 /// it has to catch. A table test proves completeness only over the list it was
