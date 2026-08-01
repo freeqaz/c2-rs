@@ -4618,3 +4618,63 @@ full sweep **13,880 cases, `mismatches=0`**; `scripts/gate.sh` **12/12 PASS,
 5,544 two rungs ago.** Whatever ranks next in the call seam, it is not an
 argument-list question — which is the more useful handoff than any of the three
 row sizes this section started from.
+
+---
+
+## 27. WR1 — the single-symbol data address
+
+The lane brief ranks three grammar-complete rows, all `calls-0/1`, behind one
+unbuilt emitter:
+
+| key | functions |
+|---:|---|
+| `expr-call-in-expr-recv-load-then-call-data-addr-1sym-whole` | 10,540 |
+| `expr-call-in-expr-data-addr-1sym-then-plain-call-whole` | 2,718 |
+| a bare global read, split out of `expr-out-of-class-bare-nonformal:eof` | 2,325 |
+| **total** | **15,583** |
+
+### 27.1 The estimate, registered before anything was measured
+
+**This subsection is committed on its own, before the baseline scan and before
+any probe**, per the lane's evidence discipline.
+
+**Point estimate: census +2,200. Range [400, 6,500]. Bias: OVER — the realized
+figure is expected to come in BELOW 2,200.**
+**Emitted-function census: +120, range [0, 900].**
+
+The unit is *functions moving into class on the 878-TU workload at its own flags*,
+and the paired emitted-census figure is *in-class ∩ emitted* against the 178,968
+denominator.
+
+Why the estimate is far below the 15,583 ceiling — the refusals counted are
+**independent**, which is the test the ceiling rule actually asks:
+
+1. **`eat_call_args` refuses a data designator in an argument region.** This is
+   the one the brief names, and it is one variable in one place.
+2. **A string literal's `.gl` record is not in the symbol index, and that is a
+   separate refusal in a separate file.** `gl.rs`'s `NAME_SEPARATORS` admits `00`
+   and `26` and deliberately excludes **`25`, which is exactly the separator that
+   introduces a `??_C@…` string-literal record** — "nothing calls a string
+   literal and admitting a record class is a licence to bind tokens from it".
+   So a literal's `26 <tok>` push resolves to no name today, at any profile.
+3. **The two profiles need two different `.rdata` emitters** (§17.2 items 2–4),
+   and neither exists: `/Ox` wants a packed `.rdata` pool with `$SG<n>` STATIC
+   symbols placed *before* `.text` (the fixed symbol prefix grows from 13 to
+   13 + 2 + one per literal, and `.text` becomes section 6); `/O1` — the
+   workload's own profile — wants one `??_C@…` COMDAT `.rdata` per literal, whose
+   raw bytes are in `.in`, a file this port does not decode at all.
+4. **The `.gl` linkage gate must survive** (§17.2 item 7): a defined or static
+   global puts a `.data`/`.bss` section in the middle of the section table, and
+   `gl_defined_names`' unclaimed-name rule refuses those TUs today.
+
+(1) and (4) are the brief's framing. (2) and (3) are not on its list and are
+what pull the estimate down: the **smallest** increment that is both buildable
+and gradeable is §17.2 item 5's — an **undefined-external named object**, which
+adds one DATA symbol and four relocation records and **no `.rdata` at all** —
+and the size of that sub-population is unmeasured. `MILO_ASSERT`/`MILO_LOG` are
+what §17.1 found behind the two-symbol row; if the single-symbol rows are
+literal-dominated in the same way, the buildable share is the tail.
+
+The discount being applied is therefore "**the rows are mostly string
+literals**", and this project's record on discounts is five wrong in six. The
+range's upper end is set so that being wrong about it is inside the range.
