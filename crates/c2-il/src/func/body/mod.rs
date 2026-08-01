@@ -283,6 +283,13 @@ pub(crate) enum SlotArg {
     /// A literal — `li r<slot>,k`. It costs no callee-saved register, so a chain
     /// whose only link arguments are literals stays **Class A**.
     Lit(i32),
+    /// **WR1 — the address of a named data symbol**, by its `.gl` operand token.
+    /// Produced only by a *tail call*'s argument list
+    /// (`super::shapes::calls::tail_call_shape`); a **chain link** never carries
+    /// one, because the address would have to survive the previous `bl` and
+    /// nothing captures where c2 keeps it. `bundle::slot_arg` resolves the token
+    /// to a mangled name; an unresolvable one refuses.
+    SymAddr(u32),
 }
 
 /// What a [`BodyShape::CallSeq`] does after its last call.
@@ -626,6 +633,29 @@ pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
 pub(crate) const CALLEE_UNRESOLVED_DTOR: &str = "callee-unresolved-dtor-delegation";
 pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call";
 pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence";
+
+/// **WR1** — census `ctx` for a body that parses as a tail call materializing a
+/// data symbol's address whose token has no `.gl` symbol name at all. The
+/// dominant member is a **string literal**: its record carries the `25`
+/// separator `gl::gl_symbol_index` excludes, and admitting it needs a `.rdata`
+/// emitter this port does not have, in two different forms
+/// (`docs/IL_CALL_IN_EXPR.md` §17.2 items 2–4).
+///
+/// Its own key, and not `CALLEE_UNRESOLVED_TAIL`, because the callee resolves
+/// perfectly well in every one of these bodies — filing them under the callee's
+/// name would be the mis-attribution `docs/GAPS.md` §6 keeps recording, and it
+/// would hide the one number a follow-on rung has to be sized from.
+pub(crate) const DATA_SYM_UNRESOLVED: &str = "data-sym-unresolved";
+
+/// **WR1** — census `ctx` for a data symbol that DOES resolve to a `.gl` name
+/// but whose linkage byte does not say *undefined external*: a global defined in
+/// this TU, or a static one. Refused because it puts a `.data`/`.bss` section
+/// into the middle of the section table and the port emits a fixed shell
+/// (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7).
+///
+/// Kept apart from [`DATA_SYM_UNRESOLVED`] because the two are different jobs:
+/// this one needs a section emitter, that one needs a name.
+pub(crate) const DATA_SYM_LINKAGE: &str = "data-sym-not-extern";
 
 impl Block {
     /// A refusal that is **not about a single byte**, raised at `off` in `seg`.

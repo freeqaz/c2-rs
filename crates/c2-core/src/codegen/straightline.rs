@@ -287,6 +287,15 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
             // divisor strength-reduces to a multiply-high). FP division reaches
             // `float_leaf_text` instead and never gets here.
             IlOp::Div => return Err(out_of_class("integer division; out of class")),
+            // WR1: a named data symbol's address only ever appears as a whole
+            // CALL ARGUMENT, where it is `lis`+`addi` and a relocation quad that
+            // `permute_args_parts` owns. Reaching the affine selector would mean
+            // lowering it as an ordinary register operand, which it is not.
+            IlOp::SymAddr(_) => {
+                return Err(out_of_class(
+                    "a data symbol's address feeding arithmetic; out of class",
+                ))
+            }
             // An indirect load only ever appears as the whole body of an
             // indirect-load leaf, which `indirect_load_text` owns. Reaching the
             // affine selector would mean lowering `*p` as if it were a register
@@ -479,6 +488,7 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     // `combine` never records a Div plan entry (it rejects
                     // first), so reaching here would be an internal error.
                     IlOp::Div
+                    | IlOp::SymAddr(_)
                     | IlOp::Load(_)
                     | IlOp::Lit(_)
                     | IlOp::FpLit { .. }
@@ -577,6 +587,7 @@ fn combine(
         (
             IlOp::Load(_)
             | IlOp::Lit(_)
+            | IlOp::SymAddr(_)
             | IlOp::FpLit { .. }
             | IlOp::LoadInd { .. }
             | IlOp::LoadIndSized { .. }
@@ -622,6 +633,7 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -983,6 +995,7 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),
@@ -1018,6 +1031,7 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
             params: vec![0xE309, 0xE409, 0xE509],
             ops: vec![
                 IlOp::Load(0xE309),

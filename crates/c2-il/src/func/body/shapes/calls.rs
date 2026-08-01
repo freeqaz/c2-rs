@@ -177,9 +177,87 @@ pub(crate) fn seq_call_arg_sources(
             SlotArg::Lit(_) => {
                 return Err(Block::refuse(seg, off, "callseq-multiarg-lit"))
             }
+            // WR1: a data symbol's address inside a **framed** sequence call.
+            // The `lis`/`addi` pair would have to be scheduled against the
+            // callee-saved copies of a frame, and every capture behind
+            // [`sym_addr_tail_call`] is a leaf tail call. Refused by name.
+            SlotArg::SymAddr(_) => {
+                return Err(Block::refuse(seg, off, "callseq-multiarg-sym"))
+            }
         }
     }
     Ok(sources)
+}
+
+/// **WR1 — the tail call one of whose argument slots is a named data symbol's
+/// address**: `void f(S* s){ s->so(&gI); }`, `void f(){ gso(&gI); }`.
+///
+/// Every word below is read off a reference obj at the fixture profile
+/// (`work/wr1/probes/p2.cpp`, `/Ox /GS- /c`), and the class is drawn at the edge
+/// of what those captures cover, not at the edge of what looks plausible.
+///
+/// **What IS admitted — one symbol, every other slot already in place:**
+///
+/// ```text
+///   void a1(S* s)              { s->m1("aa"); }        lis r11 · addi r4,r11,0 · b
+///   void a3(S* s,int k)        { s->m3(k, "cc"); }     lis r11 · addi r5,r11,0 · b
+///   void a5()                  { g1("ee"); }           lis r11 · addi r3,r11,0 · b
+///   void a8(int j,int k)       { g4(j, k, "hh"); }     lis r11 · addi r5,r11,0 · b
+///   void a9(a..g)              { g8(a..g, "ii"); }     lis r11 · addi r10,r11,0 · b
+///   void c1()                  { g2("jj", 7); }        lis r11 · li r4,7 · addi r3,r11,0 · b
+/// ```
+///
+/// so the `lis` is **hoisted to the top of the function** and the address `addi`
+/// takes its own place in the ordinary descending-destination walk beside the
+/// literals — which is `c2_core::codegen::permute_args_parts`' existing rule, met
+/// again rather than discovered (`docs/IL_CALL_IN_EXPR.md` §26.7 found it a third
+/// time).
+///
+/// **Three refusals, each with a capture behind it and not one of them a guess:**
+///
+/// 1. **Two or more symbols** — `docs/IL_CALL_IN_EXPR.md` §17.3 (a)/(b), and it
+///    is the reason 18,933 functions are a *phase* and not a rung: c2 emits one
+///    `lis`/`addi` pair per function and derives the second address by
+///    `.rdata` pool-offset difference (`addi r4,r3,-4`), which needs a whole-TU
+///    pool layout before instruction selection, and *which* symbol anchors is a
+///    hypothesis fitted to 14 witnesses with no mechanism behind it.
+/// 2. **A formal that has to MOVE.** The probe has this cell and it is *not* the
+///    reason for the refusal — `a2`/`c2`/`c3` each emit one `mr` and follow the
+///    same hoist/trail rule — but the cell **beside** it breaks: `a4`
+///    (`s->m4("dd", j, k)`, two formals shifting) emits `mr r11,r4 ; lis r10,0 ;
+///    mr r6,r5 ; addi r4,r10,0 ; mr r5,r11`, i.e. c2 pre-saves into r11 and the
+///    `lis` **moves to r10**, where the obvious descending walk needs no save at
+///    all (§17.3 (d)). One moved formal and two are two different schedules and
+///    the boundary between them is one probe wide, so the gate is the positive
+///    one: every non-symbol, non-literal slot is the formal already sitting in
+///    its own argument register. `call-arg-sym-permuted` is what that costs, and
+///    it is a **measured ceiling** for a follow-on rung rather than an unknown.
+/// 3. **A slot past `r10`.** Argument nine onwards is stack-homed and its setup
+///    is a store.
+fn sym_addr_tail_call(
+    seg: &[u8],
+    off: usize,
+    params: Vec<u32>,
+    slots: Vec<SlotArg>,
+    callee_tok: u32,
+    syms: usize,
+) -> Result<BodyShape, Block> {
+    let refuse = |ctx: &'static str| Block::refuse(seg, off, ctx);
+    if syms > 1 {
+        return Err(refuse("call-arg-multi-sym"));
+    }
+    if slots.len() > MAX_REGISTER_FORMALS {
+        return Err(refuse("call-arg-sym-overflow"));
+    }
+    let in_place = slots.iter().enumerate().all(|(slot, a)| match a {
+        SlotArg::SymAddr(_) => true,
+        SlotArg::Lit(k) => (LI_IMM_MIN..=LI_IMM_MAX).contains(k),
+        SlotArg::Formal(ix) => *ix == slot,
+    });
+    if !in_place {
+        return Err(refuse("call-arg-sym-permuted"));
+    }
+    Ok(BodyShape::MultiArgTailCall { params, arg_sources: slots, callee_tok })
 }
 
 fn lit_arg_tail_call(
@@ -269,7 +347,11 @@ pub(crate) fn tail_call_shape(
     if args.is_empty() {
         return Ok(BodyShape::VoidTailCall { callee_tok });
     }
-    if args.len() > 1 {
+    // WR1: a lone data-symbol address takes the SLOT path rather than the operand
+    // path, because it is not a computation `select_text` can produce — it is two
+    // instructions and a relocation quad. Everything else at one argument keeps
+    // the operand stream, which can carry `g(a + 1)` and the slot list cannot.
+    if args.len() > 1 || matches!(args[0].as_slice(), [IlOp::SymAddr(_)]) {
         // Two or more arguments: a **permutation of the formals**, or the formals
         // already in place beside one or more **literals** (WLA). Anything else —
         // an operand stream that has to be computed into an argument register —
@@ -277,6 +359,7 @@ pub(crate) fn tail_call_shape(
         // ways no capture covers.
         let mut slots: Vec<SlotArg> = Vec::with_capacity(args.len());
         let mut lits = 0usize;
+        let mut syms = 0usize;
         for slot in 0..args.len() {
             let ops = &args[args.len() - 1 - slot];
             match ops.as_slice() {
@@ -296,8 +379,21 @@ pub(crate) fn tail_call_shape(
                     lits += 1;
                     slots.push(SlotArg::Lit(*k));
                 }
+                // **WR1 — a named data symbol's address.**
+                [IlOp::SymAddr(tok)] => {
+                    syms += 1;
+                    slots.push(SlotArg::SymAddr(*tok));
+                }
                 _ => return Err(refuse("call-arg-computed")),
             }
+        }
+        // Asked BEFORE the literal path, because the symbol's `lis` is hoisted
+        // ahead of the whole argument setup and a list carrying both is a
+        // different schedule from either alone (`sym_addr_tail_call` admits the
+        // literals it has captured beside a symbol; `lit_arg_tail_call` has never
+        // seen one).
+        if syms > 0 {
+            return sym_addr_tail_call(seg, off, params, slots, callee_tok, syms);
         }
         if lits > 0 {
             return lit_arg_tail_call(seg, off, params, slots, callee_tok);
@@ -311,6 +407,10 @@ pub(crate) fn tail_call_shape(
                 // because a panic in the CLI is the failure mode this file's
                 // header records.
                 SlotArg::Lit(_) => return Err(refuse("call-arg-lit-classified-twice")),
+                // Unreachable for the same reason: `syms == 0` is exactly "no
+                // `SlotArg::SymAddr` was pushed", and the symbol path returned
+                // above.
+                SlotArg::SymAddr(_) => return Err(refuse("call-arg-sym-classified-twice")),
             }
         }
         // **An argument that is a formal beyond the argument count.** `arg_sources`
@@ -603,13 +703,77 @@ pub(crate) fn eat_call_token(seg: &[u8], p: &mut usize) -> Result<CallRet, Block
 ///
 /// Split out of [`parse_call_shape`] byte for byte, for the same reason
 /// [`eat_call_head`] is. Every refusal key is unchanged.
+/// **WR1 — a NAMED DATA SYMBOL's address standing as a whole call argument.**
+///
+/// ```text
+///   26 <tok>              55 <TYPE>     f(&gI)     — the address, as it is
+///   26 <tok> 2C <TYPE> b  55 <TYPE>     f(gArr)    — an array-to-pointer decay
+/// ```
+///
+/// Returns the token, cursor left on the `55`. `None` — cursor untouched — for
+/// anything else, so [`eat_call_args`] falls through to `parse_expr` and every
+/// pre-existing refusal key is unchanged.
+///
+/// **Three things it deliberately does not consume, each a different lowering:**
+///
+/// * a **byte-offset run** (`33 <k> 27|28 …`). The addend is *not* folded into
+///   the relocation — MEASURED (`work/wr1/probes/p2.cpp`): `g1(&gT.b)` is
+///   `lis r11 ; addi r11,r11,0 ; addi r3,r11,4`, a **third** instruction and a
+///   second `addi` whose base is the scratch, not the destination.
+/// * a **`30` load** (`f(gI)` reading an `int` global). That is `lwz`, not
+///   `addi`, and it is a different production with different bytes.
+/// * a `26 <tok>` followed by `BD`, which is the **callee push** of the call
+///   itself and never an argument — the same test `eat_data_designator` uses to
+///   tell the two apart (`docs/IL_CALL_IN_EXPR.md` §17.5). It cannot arrive here
+///   in practice (the callee is consumed before the argument region opens) and is
+///   checked anyway, because reading a callee as a data address would relocate
+///   `.text` against a function symbol as if it were data.
+fn eat_sym_addr_arg(seg: &[u8], p: &mut usize) -> Option<u32> {
+    let save = *p;
+    if seg.get(*p) != Some(&0x26) {
+        return None;
+    }
+    let mut q = *p + 1;
+    let (tok, w) = read_token_var(seg, q)?;
+    q += w;
+    // The callee push. Never an argument.
+    if seg.get(q) == Some(&0xBD) {
+        return None;
+    }
+    // At most ONE array-to-pointer / cv-strip convert, which emits nothing.
+    if seg.get(q) == Some(&0x2C) {
+        let mut r = q + 1;
+        let (_, _, _, tw) = read_type(seg, r)?;
+        r += tw;
+        // The convert's trailing byte, whatever it is; a truncated one is not a
+        // convert.
+        seg.get(r)?;
+        q = r + 1;
+    }
+    // The argument must end HERE. An offset run, a load, or a second convert
+    // means a construct with more instructions in it than the two this models.
+    if seg.get(q) != Some(&0x55) {
+        *p = save;
+        return None;
+    }
+    *p = q;
+    Some(tok)
+}
+
 pub(crate) fn eat_call_args(seg: &[u8], p: &mut usize) -> Result<Vec<Vec<IlOp>>, Block> {
     let mut args: Vec<Vec<IlOp>> = Vec::new();
     loop {
         if eat_byte(seg, p, 0x4C) {
             break;
         }
-        let ops = parse_expr(seg, p, 0x55)?;
+        // WR1: a named data symbol's address is a whole argument on its own and
+        // is not an operand stream `parse_expr` can produce — the value is a
+        // relocation, not a computation. Tried first; it consumes nothing unless
+        // it matches the two captured spellings end to end.
+        let ops = match eat_sym_addr_arg(seg, p) {
+            Some(tok) => vec![IlOp::SymAddr(tok)],
+            None => parse_expr(seg, p, 0x55)?,
+        };
         // `55 <TYPE>` carries the **formal's declared type**, and it is widened in
         // step with the operand positions: a call whose argument is a pointer
         // spells it here as well as at the `B9` (`… B9 p 86 43 f4 08 · 55 86 43

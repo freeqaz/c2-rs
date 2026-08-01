@@ -101,6 +101,7 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
         };

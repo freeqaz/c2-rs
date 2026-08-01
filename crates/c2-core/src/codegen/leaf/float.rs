@@ -258,7 +258,8 @@ pub fn float_leaf_text(
                     IlOp::Sub => text.extend_from_slice(&encode_fsub(double, dest, lhs, rhs)),
                     IlOp::Mul => text.extend_from_slice(&encode_fmul(double, dest, lhs, rhs)),
                     IlOp::Div => text.extend_from_slice(&encode_fdiv(double, dest, lhs, rhs)),
-                    IlOp::Load(_)
+                    IlOp::SymAddr(_)
+                    | IlOp::Load(_)
                     | IlOp::Lit(_)
                     | IlOp::FpLit { .. }
                     | IlOp::LoadInd { .. }

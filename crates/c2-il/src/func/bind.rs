@@ -50,7 +50,7 @@
 //! guessed`), and splitting a reader across two files is the defect this whole
 //! restructure exists to avoid.
 
-use super::gl::{gl_defined_names, gl_symbol_runs, mangled_names, source_path, GlIndex};
+use super::gl::{gl_defined_names, gl_extern_data_names, gl_symbol_runs, mangled_names, source_path, GlIndex};
 use super::sy::{SyLocals, SyView};
 
 /// How far a `.gl` function record's name may end before its body-offset field.
@@ -287,6 +287,12 @@ pub(crate) struct Bindings<'a> {
     /// Token → symbol name. Built lazily on first use, so a TU of straight-line
     /// leaves never constructs the index at all.
     symbols: GlIndex<'a>,
+    /// The `.gl` bytes, for the record-level reads the token index does not
+    /// carry — today just [`Bindings::resolve_data`]'s linkage gate.
+    gl: &'a [u8],
+    /// **WR1** — the undefined-external DATA names, built on first use, so a TU
+    /// that references no global never walks `.gl` for them.
+    extern_data: std::cell::OnceCell<std::collections::BTreeSet<String>>,
     /// Per-segment automatic locals, keyed on the segment's exit label. Yields
     /// nothing at all unless `.sy` parses whole, so a TU without one is exactly
     /// as restricted as it was before locals were modeled.
@@ -324,6 +330,8 @@ impl<'a> Bindings<'a> {
             unclaimed,
             src: source_path(gl),
             symbols: GlIndex::new(gl),
+            gl,
+            extern_data: std::cell::OnceCell::new(),
             locals: SyLocals::new(sy, segs),
         })
     }
@@ -347,6 +355,8 @@ impl<'a> Bindings<'a> {
             unclaimed: Vec::new(),
             src: source_path(gl),
             symbols: GlIndex::new(gl),
+            gl,
+            extern_data: std::cell::OnceCell::new(),
             locals: SyLocals::new(sy, segs),
         }
     }
@@ -395,6 +405,28 @@ impl<'a> Bindings<'a> {
     /// against the wrong symbol — a mis-emit, not a gap.
     pub(crate) fn resolve(&self, tok: u32) -> Option<String> {
         self.symbols.map().get(&tok).cloned()
+    }
+
+    /// **WR1 — token → the name of an UNDEFINED-EXTERNAL DATA symbol.**
+    ///
+    /// [`Bindings::resolve`] plus the `.gl` linkage gate, as one predicate,
+    /// because the two facts are asked at exactly one place and separating them
+    /// is how a caller ends up applying one and not the other. Three populations
+    /// it refuses, each for its own measured reason:
+    ///
+    /// * **a string literal** — its `.gl` record carries the `25` separator
+    ///   `gl_symbol_index` excludes, so it resolves to nothing at all;
+    /// * **a defined or static global** — [`gl_extern_data_names`], and the cost
+    ///   of admitting one is a whole extra section (`docs/IL_CALL_IN_EXPR.md`
+    ///   §17.2 item 7);
+    /// * **a function** — its record fails the same frame check, so a callee's
+    ///   token can never be read as an object's address.
+    pub(crate) fn resolve_data(&self, tok: u32) -> Option<String> {
+        let name = self.resolve(tok)?;
+        self.extern_data
+            .get_or_init(|| gl_extern_data_names(self.gl))
+            .contains(&name)
+            .then_some(name)
     }
 
     /// The automatic locals of segment `i`.

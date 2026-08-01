@@ -252,7 +252,50 @@ fn slot_arg(a: body::SlotArg) -> SlotArg {
     match a {
         body::SlotArg::Formal(i) => SlotArg::Formal(i),
         body::SlotArg::Lit(k) => SlotArg::Lit(k),
+        // The token→name resolution happens in [`sym_addr_of`], which is the only
+        // thing entitled to look at a `.gl` index, so this converter cannot be
+        // reached with one: a slot list carrying a symbol goes through
+        // [`slot_args_resolved`] instead. Stated as a refusal-shaped mapping
+        // rather than an `unreachable!` — the CLI must degrade cleanly.
+        body::SlotArg::SymAddr(_) => SlotArg::SymAddr,
     }
+}
+
+/// **WR1 — resolve a tail call's slot list**, turning its one
+/// [`body::SlotArg::SymAddr`] token into a mangled `.gl` name.
+///
+/// Returns `(slots, data_sym)`. `None` when the token resolves to nothing, which
+/// is the same refusal a callee's does and for the same reason: a relocation
+/// against a guessed symbol is a mis-emit, not a gap. **A string literal lands
+/// here** — its `.gl` record carries the `25` separator `gl_symbol_index`
+/// excludes — so `f("hi")` is refused positively rather than emitted against a
+/// name this port cannot even spell.
+///
+/// The linkage gate is the *caller's* (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7):
+/// a defined or static global is a whole extra section in the middle of the
+/// section table, and that is a TU-level fact, not a per-slot one.
+fn slot_args_resolved(
+    slots: Vec<body::SlotArg>,
+    resolve_data: &dyn Fn(u32) -> Option<String>,
+) -> Option<(Vec<SlotArg>, Option<String>)> {
+    let mut data_sym: Option<String> = None;
+    let mut out = Vec::with_capacity(slots.len());
+    for a in slots {
+        match a {
+            body::SlotArg::SymAddr(tok) => {
+                let n = resolve_data(tok)?;
+                // The parser admits exactly one; a second would silently take the
+                // first one's relocation, so it refuses here too.
+                if data_sym.is_some() {
+                    return None;
+                }
+                data_sym = Some(n);
+                out.push(SlotArg::SymAddr);
+            }
+            other => out.push(slot_arg(other)),
+        }
+    }
+    Some((out, data_sym))
 }
 
 /// Convert one parsed body shape into the emitter's function record.
@@ -272,6 +315,7 @@ pub(crate) fn shape_to_function(
     name: &str,
     src: &Option<String>,
     resolve: &dyn Fn(u32) -> Option<String>,
+    resolve_data: &dyn Fn(u32) -> Option<String>,
 ) -> Option<IlFunction> {
     match shape {
             // An indirect-load leaf reaches the ordinary integer selector,
@@ -445,10 +489,12 @@ pub(crate) fn shape_to_function(
             // operand stream, so `ops` stays empty and `arg_sources` carries the
             // mapping.
             BodyShape::MultiArgTailCall { params, arg_sources, callee_tok } => {
+                let (arg_sources, data_sym) = slot_args_resolved(arg_sources, resolve_data)?;
                 Some(IlFunction {
                     params,
                     tail_call: Some(resolve(callee_tok)?),
-                    arg_sources: Some(arg_sources.into_iter().map(slot_arg).collect()),
+                    arg_sources: Some(arg_sources),
+                    data_sym,
                     ..IlFunction::base(name, src)
                 })
             }
@@ -702,6 +748,7 @@ impl IlBundle {
         let names = bind.names();
         let src = bind.src.clone();
         let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
+        let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
         let n_defined = segs.len();
 
         let mut funcs = Vec::with_capacity(n_defined);
@@ -719,6 +766,7 @@ impl IlBundle {
                 name,
                 &src,
                 &resolve,
+                &resolve_data,
             )?;
             funcs.push(f);
         }
@@ -806,6 +854,17 @@ impl IlBundle {
             // file offset 2 to learn.
             for c in &f.eh_unwind_callees {
                 accounted.push(c.as_str());
+            }
+            // **WR1 — a named data symbol whose address this body materializes.**
+            // The obj carries it as an undefined external, exactly as it carries a
+            // callee, so it is accounted rather than left to refuse the TU. Safe
+            // only because `Bindings::resolve_data` has already proved the `.gl`
+            // record says *undefined extern*: a DEFINED global would also be
+            // accounted by this line, and it is a whole extra section
+            // (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7) — which is why the gate is
+            // there and not here.
+            if let Some(d) = &f.data_sym {
+                accounted.push(d.as_str());
             }
         }
         if bind
