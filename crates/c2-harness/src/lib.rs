@@ -23,6 +23,7 @@ use c2_reference::Toolchain;
 pub mod capture_cache;
 pub mod corpus;
 pub mod gap;
+pub mod listing;
 pub mod perf;
 pub mod prefilter;
 pub mod provenance;

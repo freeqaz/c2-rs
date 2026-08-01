@@ -63,6 +63,8 @@ fn main() -> ExitCode {
         "perf-scale" => cmd_perf_scale(rest),
         "corpus" => cmd_corpus(rest),
         "gap" => cmd_gap(rest),
+        "listing" => cmd_listing(rest),
+        "listing-scan" => cmd_listing_scan(rest),
         "prefilter" => cmd_prefilter(rest),
         "retrieve" => cmd_retrieve(rest),
         "search" => cmd_search(rest),
@@ -97,6 +99,8 @@ fn print_usage() {
          \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
          \x20 c2rs gap [opts]           real-workload gap scan: classify every TU, rank the blockers\n\
+         \x20 c2rs listing <cpp> [opts] board #132: capture c2's own .cod assembly listing beside the obj\n\
+         \x20 c2rs listing-scan [opts]  boards #134/#136: /QXSTALLS demand + the .cod census reconcile\n\
          \x20 c2rs prefilter [opts]     reject-only pre-filter seam: one JSON verdict for one candidate TU\n\
          \x20 c2rs retrieve index <dir> P1.3: obj-retrieval structure of a corpus\n\
          \x20 c2rs retrieve eval <dir>  P1.3: obj->IL retrieval baseline, recall@k\n\
@@ -115,6 +119,9 @@ fn print_usage() {
          \x20            toolchain + workload git identity, never mtimes) under\n\
          \x20            work/capture-cache or C2RS_GAP_CACHE; --validate-cache N\n\
          \x20            re-captures every Nth hit and byte-compares it.\n\
+         listing options: [--qxstalls] [--out PATH] [--flag F ...]  (default flags /O1 /Oi /EHsc /GS- /c)\n\
+         listing-scan options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
+         \x20                    [--qxstalls] [--jsonl PATH] [--work DIR]\n\
          prefilter options: --source ARG (--flag F ... | --flags-file FILE) [--cwd DIR]\n\
          \x20                 [--emit-obj PATH] [--compare-obj PATH] [--obj-name Z:\\\\...] [--work DIR]\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
@@ -1071,6 +1078,328 @@ fn cmd_perf_scale(rest: &[String]) -> ExitCode {
                 return ExitCode::FAILURE;
             }
         }
+    }
+    ExitCode::SUCCESS
+}
+
+/// **Board #132 — the listing seam.** Capture one TU and print (or write) c2's
+/// own `.cod` assembly listing beside the obj the differential grades.
+///
+/// The listing is a **decode aid, never a gate**: the obj byte-compare remains
+/// the sole judge of the port.
+fn cmd_listing(rest: &[String]) -> ExitCode {
+    let mut cpp: Option<PathBuf> = None;
+    let mut out: Option<PathBuf> = None;
+    let mut qxstalls = false;
+    let mut flags: Vec<String> = Vec::new();
+    let mut it = rest.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--qxstalls" => qxstalls = true,
+            "--out" => match it.next() {
+                Some(v) => out = Some(PathBuf::from(v)),
+                None => {
+                    eprintln!("--out needs a value");
+                    return ExitCode::from(2);
+                }
+            },
+            "--flag" => match it.next() {
+                Some(v) => flags.push(v.clone()),
+                None => {
+                    eprintln!("--flag needs a value");
+                    return ExitCode::from(2);
+                }
+            },
+            other if cpp.is_none() && !other.starts_with("--") => cpp = Some(PathBuf::from(other)),
+            other => {
+                eprintln!("unknown listing option: {other}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    let Some(cpp) = cpp else {
+        eprintln!(
+            "usage: c2rs listing <cpp> [--qxstalls] [--out PATH] [--flag F ...]\n\
+             default flags: /O1 /Oi /EHsc /GS- /c"
+        );
+        return ExitCode::from(2);
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() {
+        println!("SKIP: strace absent (needed to keep the IL bundle)");
+        return ExitCode::SUCCESS;
+    }
+    if flags.is_empty() {
+        flags = ["/O1", "/Oi", "/EHsc", "/GS-", "/c"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+    }
+    let w = scratch("listing");
+    let src = c2_reference::to_wibo_path(&cpp);
+    let code = match tc.capture_listing_with(&src, &w, &flags, None, qxstalls) {
+        Ok((captured, cod)) => {
+            let listing = c2_reference::cod::CodListing::parse(&cod);
+            let emitted = captured
+                .ref_obj
+                .text_comdat_functions()
+                .map(|v| v.len())
+                .unwrap_or(0);
+            println!(
+                "{} -> obj={}B  cod={}B  {} PROC / {} .text COMDAT / {} PUBLIC{}",
+                cpp.display(),
+                captured.ref_obj.len(),
+                cod.len(),
+                listing.functions.len(),
+                emitted,
+                listing.publics.len(),
+                if qxstalls { "  [/QXSTALLS]" } else { "" },
+            );
+            match &out {
+                Some(p) => match std::fs::write(p, cod.as_bytes()) {
+                    Ok(()) => {
+                        println!("  listing written to {}", p.display());
+                        ExitCode::SUCCESS
+                    }
+                    Err(e) => {
+                        eprintln!("cannot write {}: {e}", p.display());
+                        ExitCode::FAILURE
+                    }
+                },
+                None => {
+                    print!("{cod}");
+                    ExitCode::SUCCESS
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("listing capture failed: {e}");
+            ExitCode::FAILURE
+        }
+    };
+    let _ = std::fs::remove_dir_all(&w);
+    code
+}
+
+/// **Boards #134 and #136** — the population scan over the listing seam.
+fn cmd_listing_scan(rest: &[String]) -> ExitCode {
+    let mut list_file: Option<PathBuf> = None;
+    let mut flags_file: Option<PathBuf> = None;
+    let mut cwd: Option<PathBuf> = None;
+    let mut limit: Option<usize> = None;
+    let mut jobs: usize = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+    let mut jsonl: Option<PathBuf> = None;
+    let mut work: Option<PathBuf> = None;
+    let mut qxstalls = false;
+
+    let mut it = rest.iter();
+    while let Some(a) = it.next() {
+        let mut val = |name: &str| -> Option<String> {
+            match it.next() {
+                Some(v) => Some(v.clone()),
+                None => {
+                    eprintln!("{name} needs a value");
+                    None
+                }
+            }
+        };
+        match a.as_str() {
+            "--qxstalls" => qxstalls = true,
+            "--list" => match val("--list") {
+                Some(v) => list_file = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--flags-file" => match val("--flags-file") {
+                Some(v) => flags_file = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--cwd" => match val("--cwd") {
+                Some(v) => cwd = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--limit" => match val("--limit").and_then(|v| v.parse().ok()) {
+                Some(v) => limit = Some(v),
+                None => return ExitCode::from(2),
+            },
+            "--jobs" => match val("--jobs").and_then(|v| v.parse().ok()) {
+                Some(v) => jobs = v,
+                None => return ExitCode::from(2),
+            },
+            "--jsonl" => match val("--jsonl") {
+                Some(v) => jsonl = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            "--work" => match val("--work") {
+                Some(v) => work = Some(PathBuf::from(v)),
+                None => return ExitCode::from(2),
+            },
+            other => {
+                eprintln!("unknown listing-scan option: {other}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    let (Some(list_file), Some(flags_file)) = (list_file, flags_file) else {
+        eprintln!(
+            "usage: c2rs listing-scan --list FILE --flags-file FILE [--cwd DIR] \
+             [--limit N] [--jobs N] [--qxstalls] [--jsonl PATH] [--work DIR]"
+        );
+        return ExitCode::from(2);
+    };
+    let read_tokens = |p: &PathBuf, split: bool| -> std::io::Result<Vec<String>> {
+        let text = std::fs::read_to_string(p)?;
+        let mut out = Vec::new();
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if split {
+                out.extend(line.split_whitespace().map(String::from));
+            } else {
+                out.push(line.to_string());
+            }
+        }
+        Ok(out)
+    };
+    let sources = match read_tokens(&list_file, false) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("cannot read --list {}: {e}", list_file.display());
+            return ExitCode::FAILURE;
+        }
+    };
+    let flags = match read_tokens(&flags_file, true) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("cannot read --flags-file {}: {e}", flags_file.display());
+            return ExitCode::FAILURE;
+        }
+    };
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() {
+        println!("SKIP: strace absent (needed to keep the IL bundle)");
+        return ExitCode::SUCCESS;
+    }
+
+    let cfg = c2_harness::listing::ListingScanConfig {
+        sources,
+        flags,
+        cwd,
+        limit,
+        jobs,
+        work: work.unwrap_or_else(|| scratch("listing-scan")),
+        qxstalls,
+        jsonl,
+    };
+    let total_hint = cfg.limit.unwrap_or(cfg.sources.len());
+    eprintln!(
+        "listing-scan: {} TUs, {} jobs, /QXSTALLS {}",
+        total_hint,
+        cfg.jobs,
+        if cfg.qxstalls { "ON" } else { "OFF (control)" }
+    );
+    let report = match c2_harness::listing::listing_scan(&tc, &cfg, &|n, total, r| {
+        if n % 25 == 0 || n == total {
+            eprintln!("  [{n}/{total}] {}{}", r.src, if r.error.is_empty() { "" } else { "  CAPTURE-FAIL" });
+        }
+    }) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("listing scan failed: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let pct = |a: usize, b: usize| if b == 0 { 0.0 } else { 100.0 * a as f64 / b as f64 };
+
+    println!("\nLISTING SCAN — {} TUs captured, {} failed", report.captured, report.failed);
+
+    // ---- #136 -------------------------------------------------------------
+    let (procs, comdats, dupes, cod_only, obj_only) = report.reconcile_totals();
+    let (agree, be_total) = report.byte_exact_agreement();
+    let (in_class, emitted, unbound) = report.emitted_census();
+    println!("\n#136  THE TWO SOURCES, RECONCILED");
+    println!("  .cod PROC set          {procs}");
+    println!("  obj .text COMDAT set   {comdats}");
+    println!(
+        "  invariant 1 injectivity     duplicate PROC names: {dupes}  ({})",
+        if dupes == 0 { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "  invariant 2 totality        cod-only {cod_only}, obj-only {obj_only}  ({})",
+        if cod_only == 0 && obj_only == 0 { "PASS" } else { "residue printed below" }
+    );
+    println!(
+        "  invariant 3 byte-exact TUs  {agree}/{be_total} reconcile exactly  ({})",
+        if agree == be_total { "PASS" } else { "FAIL" }
+    );
+    let err_terms = cod_only + obj_only + dupes;
+    println!(
+        "  ERROR TERM on the emitted census: {err_terms} of {comdats} emitted \
+         functions = {:.4} pp",
+        pct(err_terms, comdats)
+    );
+    println!(
+        "  this scan's emitted census: {in_class}/{emitted} in class ({:.2}%), \
+         {unbound} unbound residue",
+        pct(in_class, emitted)
+    );
+    let residue = report.residue_classes();
+    if !residue.is_empty() {
+        println!("  residue by mangling class:");
+        for (k, n) in residue.iter().take(15) {
+            println!("    {n:8}  {k}");
+        }
+    }
+
+    // ---- #134 -------------------------------------------------------------
+    let (bs, bt, ics, ict) = report.stall_totals();
+    let blhs: usize = report.tus.iter().map(|t| t.blocked_lhs).sum();
+    let ilhs: usize = report.tus.iter().map(|t| t.in_class_lhs).sum();
+    println!("\n#134  /QXSTALLS SCHEDULING DEMAND (emitted-function units)");
+    println!(
+        "  BLOCKED  emitted: {bs}/{bt} carry a stall annotation  ({:.2}%)   \
+         load-hit-store: {blhs} ({:.2}%)",
+        pct(bs, bt),
+        pct(blhs, bt)
+    );
+    println!(
+        "  IN-CLASS emitted: {ics}/{ict} carry a stall annotation  ({:.2}%)   \
+         load-hit-store: {ilhs} ({:.2}%)   <- THE CONTROL",
+        pct(ics, ict),
+        pct(ilhs, ict)
+    );
+    println!(
+        "  discrimination: blocked − in-class = {:+.2} pp",
+        pct(bs, bt) - pct(ics, ict)
+    );
+    // The size confound, measured. A blocked function is typically far longer
+    // than an in-class one, and a longer body has more chances to stall — so the
+    // headline gap has to survive being read inside a size bucket or it is a
+    // statement about length.
+    println!("  size-stratified (the confound: blocked bodies are longer):");
+    println!(
+        "    bucket        blocked stalled/total          in-class stalled/total                blocked LHS   in-class LHS"
+    );
+    for (b, bstall, btot, istall, itot, blhs_b, ilhs_b) in report.size_strata() {
+        println!(
+            "    {b:<12}  {bstall:>7}/{btot:<7} ({:>6.2}%)   {istall:>7}/{itot:<7} ({:>6.2}%)                {blhs_b:>6} ({:>5.2}%)  {ilhs_b:>6} ({:>5.2}%)",
+            pct(bstall, btot),
+            pct(istall, itot),
+            pct(blhs_b, btot),
+            pct(ilhs_b, itot),
+        );
+    }
+    if !qxstalls {
+        println!(
+            "  (run WITHOUT --qxstalls: both rows must read 0 — that is the \
+             negative control for the annotation reader)"
+        );
     }
     ExitCode::SUCCESS
 }

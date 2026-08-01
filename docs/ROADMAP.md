@@ -4201,3 +4201,249 @@ already blesses — so the clean-room claim survives and can be *sharpened*:
 If a disassembly-derived constant is ever adopted, that blanket claim must weaken
 to per-finding disclosure, naming the site in the relevant `docs/` file. On the
 recommendation of §9.4 we take on none, so the sharpened sentence stands.
+
+### 9.9 WLISTING — pre-registration (written before any of the three was run)
+
+Lane `w-listing`, 2026-08-01, board items #132 / #134 / #136. Registered here
+**before** the seam existed and before either scan ran, so the scores below can
+be graded rather than retrofitted.
+
+**#132 — the seam.**
+
+* **E1** c2 accepts `-FAasc -Fa <Z:path>` appended to a *standalone* replay argv
+  (not just to a `cl` driver line) and writes the `.cod`. *Refuted by* `C1007
+  unrecognized flag … in 'p2'` or no file.
+* **E2** The listing does not perturb the obj: replay-with-listing and
+  replay-plain are byte-identical with `TimeDateStamp` zeroed, **at the same
+  `/Fo` path**. *Refuted by* any differing byte.
+* **E3** `.cod` instruction rows equal the obj `.text` word at the same
+  COMDAT-relative offset EXCEPT at relocated `b`/`bl`, where the `.cod` prints
+  `48000000` / `48000001`. *Refuted by* any differing row whose mnemonic is not
+  `b`/`bl`.
+* **E4** (the residual §9.1 could not see) A data-address relocation
+  (`lwz r3,?g@@3HA(r11)`) does **not** differ, because c2 leaves the
+  displacement 0 in both artifacts. *Refuted by* a differing non-branch row.
+* **E5** The `.cod` `PROC` set equals the obj `.text` COMDAT set exactly on the
+  fixture corpus. *Refuted by* a non-empty residue either way.
+
+**#134 — `/QXSTALLS` demand.** Predicted **85 %** (interval [75 %, 95 %]) of
+*blocked emitted* functions carry a stall annotation. *Refuted by* < 50 %.
+
+* **The control that decides whether the number means anything:** the same
+  fraction over **in-class emitted** functions — the ones the port already
+  reproduces byte-exact with no scheduler at all. Predicted **≤ 35 %**, i.e. the
+  annotation discriminates. **If in-class ≈ blocked, the instrument is
+  uninformative and #134 must report that, not the headline number.** This is
+  the positive question §9.1's twelfth instance demands: a scan that reports only
+  the blocked fraction would go green on a signal that is present everywhere.
+* Second honest bound registered up front: an annotation says the *emitted
+  schedule stalls*, not that c2 *reordered* anything. The number is an **upper**
+  bound on scheduling demand.
+
+**#136 — the second, name-carrying census source.**
+
+* **Injectivity** — no mangled name appears twice in one TU's `PROC` set.
+  Predicted residue **0**.
+* **Totality** — `PROC` set == obj `.text` COMDAT set per TU. Predicted **small
+  but non-zero on the real workload** (0 on fixtures), concentrated in
+  compiler-generated names.
+* **Agreement on the 6 byte-exact TUs** — predicted **exact**.
+* **The error term on 19.09 %** predicted **< 1 percentage point**.
+
+### 9.9.1 #132 — the seam, and the design that was measured to death first
+
+`Toolchain::capture_listing[_with]` is the existing capture with `/FAsc` (and
+optionally `/QXSTALLS`) appended, returning `(CapturedReference, cod)`;
+`c2-reference::cod` reads the listing; `c2rs listing <cpp>` exposes it. The
+oracle is unchanged — the obj byte-compare is still the sole judge and the
+listing is a decode aid, never a gate.
+
+**The cheaper design does not work, and it was measured rather than assumed.**
+Appending `-FAasc -Fa` to a *standalone* c2 replay would have bought a listing
+per **cache hit** instead of per capture, which over 878 TUs is the whole cost.
+It fails under wibo: `-FAasc` is the only thing that makes c2 load
+`msdisXXX.dll`, which under `cl.exe` resolves from the driver's own directory
+and under `c2host.exe` does not. Resolving it removes the `SIGABRT` on the
+stubbed `?PdisNew@DIS@@SGPAV1@W4DIST@1@@Z`; c2 then `SIGSEGV`s inside the
+disassembler after reading the source for line correlation, and it still does so
+with `msvcp100.dll`, `msobjXX.dll`, `pgodb100.dll` and `tlbref.dll` **all**
+resolvable and **no missing import left in the wibo trace**. The fault is inside
+`msdisXXX.dll` under wibo and is not ours. Recorded so nobody re-attempts it;
+`msobjXX.dll` in particular was deliberately *not* left beside the host, because
+making it resolvable changes the oracle's environment for every replay to buy
+nothing.
+
+**The two standing tests** (`crates/c2-reference/tests/listing.rs`) run on
+`il_call_return.cpp`, which contains **10 relocated branches (3 `b`, 7 `bl`)**,
+and that quantity is pinned by its own assertion phrased over the *mnemonic* —
+a fixture property, not a classifier property, so a broken classifier goes red
+instead of making the later assertions unreachable. Seven assertions, each with
+a distinct message; four were verified red by mutation:
+
+| mutation | assertion that fired |
+|---|---|
+| byte compare offset by one | (d) 52 non-branch rows differ |
+| `is_relocated_branch` mnemonic broken | (e) classifier missed 10 branches |
+| `PROC NEAR` matched with a space only | (a) 0 of 10 relocated branches |
+| listing word XOR 0x10 | (c) neither 48000000 nor 48000001 |
+
+§9.1's byte claim is **confirmed and its class is now bounded from the other
+side**, on 204 fixtures rather than one: **9,430 rows identical, 1,024
+differing, every one a `b` or a `bl`.** The half §9.1 could not see is that
+**non-branch relocations do not differ** — a data-address row
+(`lwz r31,?g_i@@3HA(r11)` = `83eb0000`) carries a relocation and matches
+exactly, because c2 leaves the displacement 0 in both artifacts. So the class is
+`{b, bl}`, not "anything relocated", and a lane may trust every other row.
+
+One instrument defect worth recording because it is the §9.1 shape again: the
+first `PROC` pattern required a **space**, and c2 tab-aligns some definitions.
+It silently dropped 5 of 7 functions on `il_call_perm.cpp` and then reported
+"all differing rows are branches" over the rows it had not read. Caught by
+comparing the `PROC` count against the obj COMDAT count, which is now assertion
+(g) and board #136's invariant 2.
+
+### 9.9.2 #134 — `/QXSTALLS` is NOT a scheduling-demand axis, and #119 still has no instrument
+
+Full workload, 871 TUs captured of 878 (7 capture-fails, the known
+workload-manifest issues), in **emitted-function units**:
+
+```
+BLOCKED  emitted: 115,877/127,093 carry a stall annotation   91.17 %
+IN-CLASS emitted:   5,100/ 34,169 carry a stall annotation   14.93 %   <- control
+discrimination: +76.25 pp
+```
+
+Taken at face value this is the headline #134 asked for. **It does not survive
+its own control.** A blocked emitted function is far longer than an in-class one
+— the port's class is leaves and tail calls — and a longer body has more chances
+to stall. Stratified by exact instruction count:
+
+| rows | blocked stalled/total | in-class stalled/total |
+|---:|---|---|
+| 1 | 0/5,700 (0.00 %) | 0/12,475 (0.00 %) |
+| 2 | 865/5,613 (15.41 %) | 0/16,562 (0.00 %) |
+| 3 | 10,186/10,276 (99.12 %) | 2,012/2,012 (100.00 %) |
+| 4 | 7,172/7,234 (99.14 %) | 895/895 (100.00 %) |
+| 5 | 6,247/6,411 (97.44 %) | 237/237 (100.00 %) |
+| 6 | 4,764/4,766 (99.96 %) | 548/548 (100.00 %) |
+| 7 | 3,014/3,171 (95.05 %) | 297/329 (90.27 %) |
+| 8 | 2,869/2,869 (100.00 %) | 77/77 (100.00 %) |
+| 9-16 | 16,480/16,861 (97.74 %) | 821/821 (100.00 %) |
+| 17-32 | 32,872/32,873 (100.00 %) | 212/212 (100.00 %) |
+| 33+ | 29,408/29,408 (100.00 %) | 1/1 (100.00 %) |
+
+**At every length of 3 instructions or more the two populations are
+indistinguishable — 95-100 % on both sides.** The annotation is very nearly a
+function of body length: any body of 3 or more instructions carries one, whether
+or not the port already reproduces that body **byte-exact with no scheduler at
+all**. The +76.25 pp is a length effect: **84.98 % of in-class emitted functions
+(29,037/34,169) are 1-2 instructions**, against **8.90 % of blocked
+(11,313/127,093)**.
+
+The one genuine within-length signal is at 2 instructions — blocked 15.41 %
+against in-class 0.00 %, 865 functions. It is real, it is small, and it is not a
+basis for sizing a scheduler.
+
+**The load-hit-store sub-signal cannot be evaluated at all.** It fires on 616
+blocked emitted functions (0.48 %) and 0 in-class — but **582 of the 616 are in
+`rows-33+`, where the in-class population is exactly one function.** There is no
+size-matched comparison to make. What can be said is a ceiling: at most 616 of
+127,093 blocked emitted functions carry the one annotation that names a
+*scheduling* remedy rather than a latency.
+
+**So the answer to #119 is a refusal, not a number.** `/QXSTALLS` measures the
+emitted schedule's stalls; it does not distinguish code that needs scheduling
+from code the port already emits correctly without any. The general
+allocator/scheduler remains the largest unbounded unknown **and remains without
+an instrument**. Do not schedule scheduler work off the 91.17 %.
+
+The negative control is intact and was run: the same scan **without**
+`--qxstalls` reads 0/127,093 and 0/34,169. The reader is also unit-tested to
+refuse a bare `; [I 11A]` issue-cycle marker, which every annotated function
+carries and which alone would have made the fraction 100 % by construction.
+
+### 9.9.3 #136 — the second source is *exactly* the first source, and that is the result
+
+Per TU, `.cod` `PROC` set against obj `.text` COMDAT set, over the same 871 TUs:
+
+```
+.cod PROC set                       178,968
+obj .text COMDAT set                178,968
+invariant 1  injectivity            0 duplicate PROC names          PASS
+invariant 2  totality               0 cod-only, 0 obj-only          PASS
+invariant 3  the 6 byte-exact TUs   6/6 reconcile exactly           PASS
+ERROR TERM on the emitted census    0 of 178,968  =  0.0000 pp
+```
+
+178,968 is §8.1's denominator, now **independently confirmed by a second
+artifact c2 writes, in mangled names**. And the census read out through this
+scan's own fresh `/FAsc /QXSTALLS` captures is **34,169/178,968 = 19.09 %**,
+byte-for-byte the figure a `c2rs gap` run over the *cached, un-listed* captures
+prints — two capture paths, two code paths, the same number, which is also a
+population-scale confirmation that `/FAsc` and `/QXSTALLS` do not perturb.
+
+**Scope this honestly.** #136's 0.0000 pp is an error term on the emitted
+census's **denominator**, not on its numerator. The `.cod` gives names, and the
+obj already gave names; the `PROC` set therefore cannot say anything about the
+`.gl` record → census row binding, whose residue — **17,706 emitted symbols
+(9.89 % of the denominator) that no census row claimed** — is untouched by this
+instrument and still needs a different one. The one-line answer to board #118:
+*the denominator is now watched and is exact; the numerator's binding residue is
+not, and #136 was never able to reach it.*
+
+**The instrument can go red, and that was checked rather than assumed** — a
+0-residue result over 178,968 items is exactly the shape this project reads as
+success when it is really absence. Two falsification runs:
+
+* break the `PROC` parser outright → `obj-only 1,125 of 1,125`, error term
+  **100.0000 pp**;
+* corrupt **one** `PROC` name per TU → `cod-only 5, obj-only 5` out of 1,125,
+  error term 0.8889 pp — while the two **counts stayed equal at 1,125 = 1,125**.
+  That last part is the point: a reconciliation that compared totals would have
+  passed this. The comparison is over sets.
+
+### 9.9.4 Pre-registration scores
+
+Registered in §9.9 before any of it ran, in its own commit.
+
+| | registered | measured | |
+|---|---|---|---|
+| #132 E1 | standalone replay takes `-FAasc` | **crashes in `msdisXXX.dll`** | **MISS** |
+| #132 E2 | listing does not perturb the obj | identical, `/FAsc` and `/QXSTALLS` | HIT |
+| #132 E3 | differing class = `b`/`bl` | 1,024 of 1,024 are `b`/`bl` | HIT |
+| #132 E4 | data-address rows do not differ | 0 of them differ | HIT |
+| #132 E5 | fixture `PROC` set == obj COMDAT set | 204/204 equal | HIT |
+| #134 | 85 % blocked, interval [75, 95] | **91.17 %** | HIT (6.2 pp out) |
+| #134 control | in-class at most 35 % | **14.93 %** | HIT |
+| #136 injectivity | residue 0 | 0 | HIT |
+| #136 totality | small but non-zero on the real workload | **exactly 0** | **MISS** |
+| #136 byte-exact | exact agreement | 6/6 | HIT |
+| #136 error term | under 1 pp | 0.0000 pp | HIT (vacuously — totality was 0) |
+
+**9 of 11.** Both misses are worth more than the hits: E1 killed the cheap design
+and is now documented so nobody re-attempts it, and the totality miss is the one
+that makes the #136 result *stronger* than registered.
+
+And the score flatters the #134 line. The registered control asked the right
+question — "if in-class is close to blocked, the instrument is uninformative and
+#134 must report that" — and the **raw** comparison passed it (14.93 % against
+91.17 %). The size stratification was **not** pre-registered; it was added
+because a blocked-vs-in-class comparison is a comparison of long bodies against
+short ones, and it overturned the reading. Registering a control is not the same
+as registering the *right* control.
+
+### 9.9.5 Gate evidence
+
+At `dc1bd9b`, worktree configured against the shared toolchain
+(`scripts/configure_existing_worktree.sh`):
+
+* `cargo test --workspace` — **571 passed, 0 failed, 1 ignored** across 24 test
+  binaries (the ignored one is pre-existing). Includes 6 new `cod` unit tests,
+  3 new `listing.rs` integration tests, 3 new `c2-harness::listing` unit tests.
+* `c2rs selftest` — **204/204 PASS**, 0 fail, 0 skip.
+* `scripts/gate.sh --jobs 6` — **GATE: PASS, 12/12 lanes ran**, 2,448
+  fixture-verdicts, **0 mismatch** in every lane. `scripts/gate.sh --selftest` —
+  PASS, 15 cases.
+* `c2rs gap` full workload — 6 match, 0 mismatch, 865 vocab-gap, 7 capture-fail;
+  emitted census 34,169/178,968 (19.09 %), unchanged by this lane, which wrote
+  no port code and did not touch `crates/c2-core`.
