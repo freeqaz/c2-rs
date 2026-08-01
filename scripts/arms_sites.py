@@ -99,6 +99,8 @@ def cmd_arms(path):
     tot = collections.Counter()
     cln = collections.Counter()
     cc = collections.Counter()
+    zero = collections.Counter()
+    walker = collections.Counter()
     names = collections.defaultdict(set)
     for r in rows(path):
         s = site_of(r["prod"])
@@ -106,6 +108,17 @@ def cmd_arms(path):
             continue
         arm = r["prod"].split("/", 1)[1] if "/" in r["prod"] else "(unrefined)"
         tot[arm] += 1
+        # `calls-0` is a body with NO CALL token anywhere in it, so it cannot
+        # contain a member call: the production was offered a statement-head
+        # `26` that is an assignment DESTINATION and declined. An exact lower
+        # bound on how much of this "receiver-designator site" has no receiver.
+        if r["frame"] == "calls-0":
+            zero[arm] += 1
+        # Did `mcall`'s completeness walker reach this row at all? Only it mints
+        # `expr-call-in-expr-*`, and only its refusals carry a completeness
+        # reading other than `complete-none`.
+        if r["key"].startswith("expr-call-in-expr-"):
+            walker[arm] += 1
         if clean(r["frame"], r["cflow"], r["eh"]):
             cln[arm] += 1
             names[arm].add(r["name"])
@@ -113,11 +126,13 @@ def cmd_arms(path):
                 cc[arm] += 1
     te, tc, tk = sum(tot.values()), sum(cln.values()), sum(cc.values())
     print(f"{'receiver construct':<34}{'emitted':>9}{'clean':>8}{'cln&cmp':>9}"
-          f"{'%clean':>8}{'names':>8}")
+          f"{'%clean':>8}{'names':>8}{'calls-0':>9}{'walker':>8}")
     for arm, e in tot.most_common():
         print(f"  {arm:<32}{e:>9}{cln[arm]:>8}{cc[arm]:>9}"
-              f"{100.0 * cln[arm] / max(tc, 1):>7.1f}%{len(names[arm]):>8}")
-    print(f"  {'TOTAL':<32}{te:>9}{tc:>8}{tk:>9}")
+              f"{100.0 * cln[arm] / max(tc, 1):>7.1f}%{len(names[arm]):>8}"
+              f"{zero[arm]:>9}{walker[arm]:>8}")
+    print(f"  {'TOTAL':<32}{te:>9}{tc:>8}{tk:>9}{'':>8}{'':>8}"
+          f"{sum(zero.values()):>9}{sum(walker.values()):>8}")
 
 
 def cmd_keys(path, prefix):
@@ -160,27 +175,57 @@ def cmd_row(path, key, n=6):
 # control has to be able to come out both ways, and stacking the definition
 # against the hypothesis you expect to win is how absence gets read as success.
 NOUN = {
-    "intrinsic-this-adjust": ("this-adjust", "intrinsic"),
-    "intrinsic-base-member": ("base-member", "intrinsic"),
+    # the seven class-layout intrinsics, by their own census spelling
+    "this-adjust": ("this-adjust",),
+    "base-upcast": ("base-upcast",),
+    "base-downcast": ("base-downcast",),
+    "vbase-upcast": ("vbase-upcast",),
+    "base-member-addr": ("base-member-addr", "base-member"),
+    "vbase-member-addr": ("vbase-member-addr", "vbase-member"),
+    "dynamic-cast": ("dynamic-cast",),
     "intrinsic-other": ("intrinsic",),
-    "off-add": ("op-0x27", "op-0x28", "off-add"),
+    # the ordinary constructs; both the census's hex spelling and its noun
+    "off-add": ("op-0x27", "op-0x28", "off-add", "ptr-arith"),
+    "literal": ("op-0x33", "lit"),
     "deref-load": ("op-0x30", "deref-load"),
+    "store": ("op-0x32", "store"),
+    "operand-load": ("op-0xb9", "load"),
+    "chain-bind": ("op-0x99", "chain-bind"),
+    "stmt-end": ("op-0x41", "op-0x4b", "stmt-end", "return"),
+    "branch": ("op-0x38", "op-0x39", "branch", "brfalse", "brtrue"),
     "plain-call": ("op-0xbd", "plain-call", "call"),
     "call-in-expr": ("op-0x26", "call-in-expr", "call"),
     "virtual": ("op-0x67", "op-0x9a", "virtual"),
-    "convert": ("op-0x2c", "convert"),
     "temp-bind": ("op-0x9b", "temp-bind"),
+    "convert": ("op-0x2c", "convert"),
     "ternary": ("op-0x43", "ternary"),
     "class-descriptor": ("op-0x66", "class-descriptor"),
+    # the non-byte refusals: the construct IS a type or a token, so the only
+    # thing a key could say about them is that
+    "b9-not-a-ptr4": ("type", "8645", "8643"),
+    "b9-token-unreadable": ("token",),
+    "b9-convert-not-class-preserving": ("convert", "op-0x2c"),
+    "bind-type-not-ptr4": ("type",),
+    "bind-offset-nonzero": ("bind", "offset"),
+    "bind-tail-unreadable": ("bind",),
 }
 
 
 def nouns_for(arm):
-    """The words a census key could use for this receiver construct."""
+    """The words a census key could use for this receiver construct.
+
+    Longest suffix wins, so `base-member-addr` is not swallowed by a shorter
+    entry. An arm with no entry is reported as *undecidable* and counted — never
+    folded into either side, because a control whose denominator quietly absorbs
+    the cases it cannot judge is not a control.
+    """
     base = arm.split("-op-0x")[0]
+    best = None
     for k, v in NOUN.items():
-        if base.endswith(k):
-            return v
+        if base.endswith(k) and (best is None or len(k) > len(best[0])):
+            best = (k, v)
+    if best:
+        return best[1]
     if "-op-0x" in arm:
         return ("op-0x" + arm.split("-op-0x")[1],)
     return ()
