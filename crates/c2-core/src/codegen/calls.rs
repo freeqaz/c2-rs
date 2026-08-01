@@ -818,12 +818,22 @@ fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>),
 ///                                                    · 386b0000        · b
 /// ```
 ///
-/// **The `lis` is hoisted, the `addi` is not**, and `c1` is what separates the
-/// two readings: the address's *own* instruction sits at slot 0, after the
-/// higher slot's `li`, exactly where [`lit_slots_text`]'s descending walk would
-/// put it — while the `lis` it depends on has already been emitted at the top.
-/// A single-instruction reading ("the address is two adjacent words") fits every
-/// row but that one.
+/// **The `lis` is hoisted to the top and the `addi` is emitted LAST**, after every
+/// other slot's setup, whatever slot it belongs to. The two rules are separate
+/// and the second one is not a descending walk — that fit every witness the
+/// fixture had and mis-emitted the first case that put a literal at a *lower*
+/// slot than the symbol. Found by `scripts/sweep.d/53-data-symbol-addr.py`
+/// before it left the worktree; the discriminating pair is
+///
+/// ```text
+///   void f()     { gsp(&gI, 7);   }   lis r11 · 38800007 li r4,7 · 386b0000 addi r3
+///   void f(S* s) { s->m3(7, &gI); }   lis r11 · 38800007 li r4,7 · 38ab0000 addi r5
+/// ```
+///
+/// — the same instruction order with the symbol at slot 0 and at slot 2, i.e.
+/// **descending and address-last agree on the first and disagree on the second**,
+/// and c2 takes address-last. Six sweep cases mismatched at obj offset 541 on the
+/// descending reading.
 ///
 /// The scratch is **r11** in every witness. It becomes r10 only in the shape
 /// this class refuses — two formals shifting, where c2 pre-saves into r11 first
@@ -865,8 +875,9 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
     let mut w = Vec::with_capacity(4 * (slots.len() + 1));
     w.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
     let mut writes = vec![SCRATCH_REG];
-    // Descending destination, the same walk [`lit_slots_text`] makes, with the
-    // address's `addi` taking its slot's turn in it.
+    // The literal slots first, descending destination — the same walk
+    // [`lit_slots_text`] makes, and the address is not part of it.
+    let mut sym_dst: Option<u8> = None;
     for (i, a) in slots.iter().enumerate().rev() {
         let dst = *ARG_REGS.get(i).ok_or_else(|| {
             out_of_class("a call argument past the eight register slots")
@@ -878,12 +889,18 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
                     .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
                 w.extend_from_slice(&encode_addi(dst, 0, k));
             }
-            // The low half. `sym@l` is 0 before the linker patches it, exactly as
-            // the pooled-FP-constant `lfs`'s displacement is.
-            c2_il::SlotArg::SymAddr => w.extend_from_slice(&encode_addi(dst, SCRATCH_REG, 0)),
+            c2_il::SlotArg::SymAddr => {
+                sym_dst = Some(dst);
+                continue;
+            }
         }
         writes.push(dst);
     }
+    // …then the low half, LAST. `sym@l` is 0 before the linker patches it, exactly
+    // as the pooled-FP-constant `lfs`'s displacement is.
+    let dst = sym_dst.ok_or_else(|| out_of_class("no data-symbol slot after the count said one"))?;
+    w.extend_from_slice(&encode_addi(dst, SCRATCH_REG, 0));
+    writes.push(dst);
     Ok((w, writes))
 }
 

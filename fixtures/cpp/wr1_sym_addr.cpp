@@ -14,12 +14,13 @@
 // emits for a pooled FP constant, which is the question `IL_CALL_IN_EXPR.md`
 // §17.2 asked and this fixture answers.
 //
-// **`a7` is the one that separates two readings of the schedule.** The `lis` is
-// hoisted to the top of the function; the `addi` is NOT beside it — it takes its
-// own argument slot's turn in the ordinary descending-destination walk, so a
-// higher slot's `li` lands between the two halves and REFLO is at +8, not +4.
-// Emitting the quad as an adjacent pair (the pooled-constant arrangement) was a
-// live wrong-bytes emit on exactly this body.
+// **Two rules, and each of them cost a wrong-bytes emit to learn.** The `lis` is
+// hoisted to the top of the function and the `addi` is NOT beside it, so REFHI
+// and REFLO are at two independent offsets — `c1` below is `lis · li r4,7 ·
+// addi r3`, REFLO at +8, and emitting the quad as an adjacent pair (the
+// pooled-constant arrangement) mismatched exactly that body. And the `addi` is
+// emitted **LAST**, after every other slot's setup, rather than taking its slot's
+// turn in the descending walk — see `c1`/`c4`, the discriminating pair, below.
 //
 // Every function here must be in class: `c2rs census` N/N and `c2rs diff`
 // Match. The refusals — a string literal, a defined or static global, two
@@ -54,6 +55,7 @@ struct S {
     void so(int*);
     void sq(int, int*);
     void sr(int, int, int*);
+    void m3(int, int*);
 };
 
 class Big {
@@ -74,6 +76,7 @@ void gso(int*);
 void gsp(int*, int);
 void gsq(int, int*);
 void gs8(int, int, int, int, int, int, int, int*);
+void gsq2(int, int*, int);
 void gvo(void*);
 void gdo(double*);
 void gco(char*);
@@ -99,10 +102,25 @@ void b5() { gvo(&gBig); }
 void b6() { gso(&gLongerNameThanEightBytes); }
 
 // ---- a literal beside the symbol: the `li` lands BETWEEN the two halves ------
+//
+// **And the address `addi` comes LAST, at whichever slot it belongs to.** `c1`
+// and `c4` are the discriminating pair and they must be read together: with the
+// symbol at slot 0 a descending-destination walk and an address-last rule agree,
+// and with the symbol at slot 2 they disagree —
+//
+//   void c1()     { gsp(&gI, 7);   }   lis r11 · 38800007 li r4,7 · 386b0000 addi r3
+//   void c4(S* s) { s->m3(7, &gI); }   lis r11 · 38800007 li r4,7 · 38ab0000 addi r5
+//
+// — and c2 takes address-last. The descending reading fit every case in this file
+// before `c4` existed and mismatched six sweep cases at obj offset 541
+// (`scripts/sweep.d/53-data-symbol-addr.py`, which is where it was found).
 
 void c1() { gsp(&gI, 7); }
 void c2() { gsp(&gI, -1); }
 void c3() { gsp(&gI, 32767); }
+void c4(S* s) { s->m3(7, &gI); }
+void c5(S* s) { s->m3(-32768, &gI); }
+void c6(int k) { gsq2(k, &gI, 5); }
 
 // ---- the same symbol from several functions: ONE undefined external ---------
 
