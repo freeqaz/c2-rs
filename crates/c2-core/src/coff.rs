@@ -460,11 +460,18 @@ pub const LABEL_SEED_GAP: u32 = 9;
 ///   (function end) and `$T(n+2)` (its `.pdata` record).
 ///
 /// The "1 per leaf" holds for every function class this port emits and **not**
-/// for every function class: a comparison leaf (`a < b`) consumes 3, a
-/// floating-point leaf 2, and each pooled FP constant a further 2. Those are
+/// for every function class: a signed-relational comparison leaf (`a < b`)
+/// consumes 3, and each **newly pooled** FP constant a further 2. Those are
 /// refused upstream ([`crate::PortC2::build`]) rather than modeled, because a
 /// wrong stride is a wrong `$M` number and a wrong `$M` number is a wrong-bytes
 /// obj — the whole point of the counter.
+///
+/// **A constant-free floating-point leaf is 1, not 2**, and this comment used to
+/// say 2. The 2 is a whole-TU reading of a leaf that is itself the TU's first FP
+/// function — `_fltused`'s slot, which the `+1` below already charges once per
+/// TU. `docs/LABEL_COUNTER.md` §1: `leaf-float` = 2, `leaf-float-led` = 1,
+/// `leaf-double-led` = 1. Charging it twice was what kept every (FP leaf, framed
+/// function) pair out of class.
 pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option<[u32; 3]>> {
     let mut cur = counter + LABEL_SEED_GAP;
     if comdat {
@@ -1258,9 +1265,31 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
             assoc: 0,
         });
     }
-    // `.pdata` last. A TU with BOTH a constant pool and a framed function would
-    // settle the `.rdata`/`.pdata` order, and none has been captured — the
-    // combination is refused upstream rather than guessed at here.
+    // `.pdata` last — which is right only because the combination that would test
+    // it is refused upstream, and **the rule it would need is now measured**.
+    //
+    // The comment here used to read "a TU with BOTH a constant pool and a framed
+    // function would settle the `.rdata`/`.pdata` order, and none has been
+    // captured". 240 such TUs were then captured (`/Ox /GS- /c`, every order of
+    // one or two constant-pooling FP leaves against one or two framed functions),
+    // and the answer is **not a fixed order at all**:
+    //
+    // > The packed section table lists `.rdata` and `.pdata` **interleaved, in
+    // > `.text` order** — each section at the position of the FIRST function that
+    // > needs it. `.pdata` stays a single section for the whole TU and sits where
+    // > the first framed function does.
+    //
+    // Six distinct orders occur in those 240 objs — `(.pdata,.rdata)` 78,
+    // `(.rdata,.pdata)` 64, `(.pdata,.rdata,.rdata)` 30, `(.pdata,)` 22,
+    // `(.rdata,.rdata,.pdata)` 20, `(.rdata,.pdata,.rdata)` 20 — and this
+    // function can express exactly one of those shapes. `L1(2.5f); seq2();
+    // L2(3.5f);` is `.rdata .pdata .rdata`, which no amount of reordering the two
+    // groups below produces.
+    //
+    // **One capture would have said the opposite.** A single leaf-then-framed TU
+    // reads `.rdata .pdata`, i.e. exactly what this code already emits, and would
+    // have licensed deleting the refusal. Widening here needs the interleave, not
+    // a second constant in a list.
     let pdata_idx = if framed.is_empty() {
         None
     } else {

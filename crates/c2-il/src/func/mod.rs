@@ -848,11 +848,26 @@ impl IlFunction {
     /// that still links, which is why this is three-valued: an unmeasured class
     /// beside a framed function is refused, never guessed.
     ///
-    /// Measured strides (`docs/OBJ_GY_SHAPES.md` §3.6):
-    /// every integer leaf, tail call, empty body, indirect load and address leaf
-    /// consume **1**; a framed call **4** packed / **5** under `/Gy`; a
-    /// floating-point leaf **2**, or 4 with one pooled constant and 6 with two;
-    /// a comparison leaf 1 or 3 by relation ([`CompareLeaf::label_slots`]).
+    /// **This is the PER-FUNCTION part of the stride only.** The TU-level
+    /// surcharges — `_fltused`'s `+1` for the TU's first FP-touching function —
+    /// are `c2_core::coff::plan_labels`'s, because they are questions about the
+    /// whole function list and no per-function method can answer them.
+    ///
+    /// Measured strides (`docs/LABEL_COUNTER.md` §1, `docs/OBJ_GY_SHAPES.md`
+    /// §3.6): every integer leaf, tail call, empty body, indirect load, address
+    /// leaf **and constant-free floating-point leaf** consume **1**; a framed
+    /// call **4** packed / **5** under `/Gy`; a comparison leaf 1 or 3 by
+    /// relation ([`CompareLeaf::label_slots`]).
+    ///
+    /// **A floating-point leaf is NOT 2 here, and the older "2, or 4 with one
+    /// pooled constant and 6 with two" reading of this list is retracted.** Those
+    /// three numbers are whole-TU readings of a leaf that is itself the TU's
+    /// first FP function: `leaf-float` measures 2 but `leaf-float-led` — the same
+    /// leaf with `_fltused` already charged to a function ahead of it — measures
+    /// **1**. What a pooled constant adds is **+2 per newly pooled
+    /// `(bits,width)`**, which is again a per-TU question (`const1-dup-led`
+    /// measures **0** for a constant an earlier function pooled), so a leaf that
+    /// pools one is `None` here.
     ///
     /// **A Class A many-call body is the same 5 / 4.** Measured with a two-function
     /// TU of two-call bodies (`void f1(){g1();g2();} void f2(){g3();g1();}`): under
@@ -987,12 +1002,47 @@ impl IlFunction {
         if let Some(c) = &self.compare {
             return Some(self.label_lead() + c.label_slots());
         }
-        // A float leaf is 2 without pooled constants and 4/6 with them; this
-        // record does not carry the constant count, and every value is ≠ 1, so
-        // "at least 2" is all any caller needs — but it is not an exact stride,
-        // so it is reported as undetermined rather than as a number that would
-        // be wrong for a leaf with a constant.
-        if self.float_leaf.is_some() {
+        // **A CONSTANT-FREE FP leaf consumes 1, like any other leaf.** This
+        // used to return `None` for every float leaf, on the reading "a float
+        // leaf is 2, or 4/6 with pooled constants". The 2 is `1 + the TU's
+        // `_fltused` slot`, and that slot has belonged to the TU rather than to
+        // the function since the eleven-row table below — `plan_labels` charges
+        // it once per TU. So the `None` was refusing a class whose stride the
+        // counter was *already* getting right, and it refused the whole TU:
+        // `docs/CROSS_PRODUCT.md`'s 18-pair residue is every (FP leaf, framed
+        // family) pair, all 18 through this one predicate.
+        //
+        // MEASURED seed-free and in-TU (`docs/LABEL_COUNTER.md` §1,
+        // `scripts/gt_label_stride.py`, the in-TU anchor control holding on
+        // every row):
+        //
+        // ```text
+        //   leaf-float          float leaf, first FP function      stride 2
+        //   leaf-float-led      float leaf, `_fltused` led         stride 1
+        //   leaf-double-led     double leaf, `_fltused` led        stride 1
+        //   leaf-float-c1-led   float leaf, ONE pooled constant    stride 3
+        //   leaf-float-c2-led   float leaf, TWO pooled constants   stride 5
+        // ```
+        //
+        // A leaf that POOLS a constant still refuses, and for **two**
+        // independent reasons, either of which is sufficient on its own:
+        //
+        //  1. the surcharge is +2 per **newly** pooled `(bits,width)`
+        //     (`LABEL_COUNTER.md` §1.1), and *newly* is a per-TU question no
+        //     per-function method can answer — `const1-dup-led` measures **0**
+        //     for a constant an earlier function in the TU already pooled. That
+        //     is the same shape as the `_fltused` `+1` and belongs in
+        //     `plan_labels`, not here;
+        //  2. `c2_core::coff::emit_obj` does not know the `.rdata`/`.pdata`
+        //     section order, because **no captured TU has both** — see its own
+        //     `debug_assert!(pool.is_empty(), …)`. Admitting (1) alone would
+        //     turn a refusal into a guessed section order.
+        //
+        // Widen this from §1.1's measured surcharge table and from nothing else:
+        // the "one slot per TU-level external" story that once explained the
+        // `+1` is REFUTED in both directions (§2.1), and it would have licensed
+        // a pooled constant at +0.
+        if self.float_leaf.is_some() && self.ops.iter().any(|o| matches!(o, IlOp::FpLit { .. })) {
             return None;
         }
         // **An FP-touching function consumes 1, like any other — the extra slot
