@@ -572,3 +572,128 @@ impl Backend for PortC2 {
         "port-c2"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------------
+    // #137 — the PORTABLE pin for the OTHER half of WR1's second ordering rule.
+    //
+    // `coff.rs` writes the REFLO record at `DataRef::lo_off`; this file is what
+    // *computes* `lo_off`, and computing it as `hi_off + 4` is the wrong-bytes
+    // emit WR1 recorded. Both halves need a pin: with the derivation forced to
+    // `base + 4`, `cargo test --workspace` read **571 passed / 0 failed** in
+    // BOTH lanes and only `scripts/gate.sh` went red (10 of 12 lanes).
+    // `docs/ROADMAP.md` §9.12.
+    // -----------------------------------------------------------------------
+
+    /// The `p4` body, in bytes: `lis r11,0 · li r4,7 · addi r3,r11,0 · b`.
+    /// Built through the real encoders, so a change to any of them moves the
+    /// input with the code rather than leaving a stale literal behind.
+    fn p4_text() -> Vec<u8> {
+        let mut t = codegen::encode_addis(codegen::SCRATCH_REG, 0, 0).to_vec();
+        t.extend_from_slice(&codegen::encode_addi(codegen::ARG_REGS[1], 0, 7));
+        t.extend_from_slice(&codegen::encode_addi(codegen::ARG_REGS[0], codegen::SCRATCH_REG, 0));
+        t.extend_from_slice(&codegen::encode_tail_branch(12));
+        t
+    }
+
+    fn sym_func(name: &str) -> c2_il::IlFunction {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = name.into();
+        f.data_sym = Some("?gI@@3HA".into());
+        f
+    }
+
+    /// **#137 rule 2, derivation half — `lo_off` is SEARCHED, not `hi_off + 4`.**
+    ///
+    /// MEASURED (`work/wr1/probes/p4.cpp`): `void a7(){ gsp(&gI, 7); }` is
+    /// `lis r11 · li r4,7 · addi r3,r11,0 · b`, so the low half is at **+8** and
+    /// the literal's `li` occupies +4. Every relocation still resolves if the
+    /// quad is emitted adjacent, which is why this was a silent wrong-bytes emit
+    /// and not a link error.
+    #[test]
+    fn the_low_half_offset_is_found_in_the_body_not_assumed_four_past_the_lis() {
+        let text = p4_text();
+        let f = sym_func("?a7@@YAXXZ");
+
+        // (a) The fixture property, over the INPUT: the body must be long enough
+        // for +4 and +8 to be different words, and the word at +4 must NOT be
+        // the low-half `addi` — otherwise `hi_off + 4` would be right here and
+        // the assertion below could not fail.
+        let lo_half = codegen::encode_addi(codegen::ARG_REGS[0], codegen::SCRATCH_REG, 0);
+        assert_eq!(text.len(), 16, "(a) the discriminating body is 4 words");
+        assert_ne!(
+            &text[4..8],
+            &lo_half[..],
+            "(a2) the word at hi_off+4 must be the literal's `li`, not the \
+             low-half `addi` — otherwise this body does not discriminate"
+        );
+
+        // (b) Exactly one `DataRef`, pinned before it is indexed.
+        let refs = data_refs_of(&f, &text, 0).expect("in class");
+        assert_eq!(refs.len(), 1, "(b) expected one DataRef, got {}", refs.len());
+
+        // (c) REFHI at the hoisted `lis`.
+        assert_eq!(refs[0].hi_off, 0, "(c) hi_off is not the body's first word");
+
+        // (d) **The rule.** REFLO at the `addi`'s own offset, 8 — not at 4.
+        assert_eq!(
+            refs[0].lo_off, 8,
+            "(d) lo_off must be the low-half `addi`'s own offset 8, not \
+             hi_off+4 = 4 — the quad's halves are NOT adjacent"
+        );
+
+        // (e) And it tracks a non-zero base, so a packed TU's second function
+        // does not get the first one's offsets.
+        let rebased = data_refs_of(&f, &text, 0x40).expect("in class");
+        assert_eq!(
+            (rebased[0].hi_off, rebased[0].lo_off),
+            (0x40, 0x48),
+            "(e) both halves must be rebased by the function's .text offset"
+        );
+    }
+
+    /// The derivation **refuses** rather than guessing when the body is not the
+    /// shape it reads. Registered here because a search that silently returns
+    /// the first plausible word is the same silent-wrong-bytes shape the `+4`
+    /// was: `docs/GAPS.md` §6.
+    #[test]
+    fn the_low_half_search_refuses_a_body_it_cannot_read() {
+        let f = sym_func("?a7@@YAXXZ");
+        // No `lis` first: the REFHI site would be a different instruction.
+        let mut no_lis = vec![0u8; 4];
+        no_lis.extend_from_slice(&p4_text()[4..]);
+        assert!(
+            data_refs_of(&f, &no_lis, 0).is_err(),
+            "(h) a body whose first word is not the `lis` must be refused"
+        );
+        // A `lis` and no low half at all.
+        let mut no_lo = codegen::encode_addis(codegen::SCRATCH_REG, 0, 0).to_vec();
+        no_lo.extend_from_slice(&codegen::encode_tail_branch(4));
+        assert!(
+            data_refs_of(&f, &no_lo, 0).is_err(),
+            "(i) a body with no `addi rD,r11,0` low half must be refused"
+        );
+        // Two low halves: ambiguous, and the search must say so rather than
+        // taking the first.
+        let mut two = codegen::encode_addis(codegen::SCRATCH_REG, 0, 0).to_vec();
+        two.extend_from_slice(&codegen::encode_addi(codegen::ARG_REGS[0], codegen::SCRATCH_REG, 0));
+        two.extend_from_slice(&codegen::encode_addi(codegen::ARG_REGS[1], codegen::SCRATCH_REG, 0));
+        two.extend_from_slice(&codegen::encode_tail_branch(12));
+        assert!(
+            data_refs_of(&f, &two, 0).is_err(),
+            "(j) two low-half `addi`s in one body must be refused, not resolved \
+             to the first"
+        );
+        // …and a function with no data symbol yields no DataRef at all.
+        let mut plain = codegen::testutil::func_with(Vec::new(), Vec::new());
+        plain.data_sym = None;
+        assert_eq!(
+            data_refs_of(&plain, &p4_text(), 0).expect("no data symbol is fine").len(),
+            0,
+            "(k) a body with no data symbol must yield no DataRef"
+        );
+    }
+}

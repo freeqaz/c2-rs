@@ -1932,4 +1932,196 @@ mod tests {
         let d = build_debug_s(r"Z:\tmp\anat\mvp.obj");
         assert_eq!(d.len(), 100);
     }
+
+    // -----------------------------------------------------------------------
+    // #137 — the PORTABLE pins for WR1's two ordering rules.
+    //
+    // WR1 landed 150 lines in this file and moved the workspace `#[test]` total
+    // by **zero** (`docs/ROADMAP.md` §9.10). Its two ordering rules were pinned
+    // only by `fixtures/cpp/wr1_sym_addr.cpp`, and the mutation table in §9.12
+    // shows what that was worth: with the address rule inverted, or with the
+    // REFLO offset forced back to `hi_off + 4`, `cargo test --workspace` is
+    // **571 passed / 0 failed in BOTH lanes** — the portable one *and* the one
+    // with the toolchain resolving, because `differential.rs` names three
+    // fixtures and `wr1_sym_addr.cpp` is not among them. Only `scripts/gate.sh`
+    // went red (10 of 12 lanes). These tests move that pin into `cargo test`.
+    // -----------------------------------------------------------------------
+
+    /// A COFF section header field reader, used only by the tests below.
+    /// Deliberately a *separate* walk of the container from the emitter's — the
+    /// point of a pin is that it fails when the emitter changes, so it must not
+    /// share the emitter's arithmetic.
+    fn text_relocations(obj: &[u8]) -> Vec<(u32, u32, u16)> {
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]]);
+        let n_sections = u16at(2) as usize;
+        let mut out = Vec::new();
+        for s in 0..n_sections {
+            let h = COFF_HEADER_LEN + s * SECTION_HEADER_LEN;
+            if &obj[h..h + 5] != b".text" {
+                continue;
+            }
+            let ptr = u32at(h + 24) as usize;
+            let n = u16at(h + 32) as usize;
+            for r in 0..n {
+                let o = ptr + r * 10;
+                out.push((u32at(o), u32at(o + 4), u16at(o + 8)));
+            }
+        }
+        out
+    }
+
+    /// **#137 rule 2 — the REFHI/REFLO quad's halves are NOT adjacent.**
+    ///
+    /// The `lis rS,sym@ha` is hoisted to the top of the body while the
+    /// `addi rD,rS,sym@l` is emitted after the rest of the argument setup, so a
+    /// literal slot lands *between* them and REFLO is **not** at `hi_off + 4`.
+    /// MEASURED, `work/wr1/probes/p4.cpp`: `void a7(){ gsp(&gI, 7); }` is
+    /// `lis r11 · li r4,7 · addi r3,r11,0 · b`, REFLO **eight** bytes past
+    /// REFHI. Emitting the quad as the adjacent pair a pooled FP constant uses
+    /// was a live wrong-bytes emit on exactly that body.
+    ///
+    /// The input here is that body's shape and nothing else: `hi_off` 0 and
+    /// `lo_off` 8, four words of `.text`. Every assertion carries its own
+    /// message and the two quantities the later ones rest on — how many
+    /// relocation records the section has, and that `hi_off + 4` is a real
+    /// offset inside the body rather than past its end — are pinned first, so a
+    /// broken reader goes red on its own line instead of making the offset
+    /// assertions unreachable.
+    #[test]
+    fn the_data_address_quad_puts_reflo_at_its_own_offset_not_beside_refhi() {
+        let text = vec![0u8; 16]; // lis · li · addi · b
+        let f = Function {
+            calls: vec![Call { reloc_offset: 12, callee: "?gsp@@YAXPAHH@Z" }],
+            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
+            ..Function::plain("?a7@@YAXXZ", 0)
+        };
+        let obj = emit_obj(r"Z:\t\a7.obj", &[f], &text, 2536);
+        let recs = text_relocations(&obj);
+
+        // (a) The fixture property, pinned over the INPUT and not over the rule
+        // under test: the two halves are 8 bytes apart, so `hi_off + 4` is a
+        // different word of a body that actually has one there. Without this the
+        // test could be satisfied by a body too short to tell the two apart.
+        assert_eq!(
+            (0u32, 8u32, text.len()),
+            (0, 8, 16),
+            "(a) the discriminating body is `lis · li · addi · b` with the halves \
+             8 bytes apart and a real word at +4"
+        );
+        // (b) One REL24 for the branch plus the quad — and nothing else. Pinned
+        // before any record is inspected by index.
+        assert_eq!(
+            recs.len(),
+            5,
+            "(b) expected 5 .text relocation records (1 REL24 + a REFHI/PAIR/\
+             REFLO/PAIR quad), got {}",
+            recs.len()
+        );
+        // (c) REFHI sits at the hoisted `lis`, offset 0.
+        let refhi: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFHI).map(|r| r.0).collect();
+        assert_eq!(refhi, vec![0], "(c) REFHI is not at the hoisted `lis` (offset 0): {refhi:?}");
+        // (d) **The rule.** REFLO is at the `addi`'s own offset, 8 — NOT at
+        // `hi_off + 4` = 4, which is where the literal's `li` is.
+        let reflo: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFLO).map(|r| r.0).collect();
+        assert_eq!(
+            reflo,
+            vec![8],
+            "(d) REFLO must be at the `addi`'s own offset 8, not at hi_off+4 = 4 \
+             — the two halves of the quad are NOT adjacent: {reflo:?}"
+        );
+        // (e) Both PAIRs shadow their own half, and against symbol index 0.
+        let pairs: Vec<(u32, u32)> =
+            recs.iter().filter(|r| r.2 == REL_PPC_PAIR).map(|r| (r.0, r.1)).collect();
+        assert_eq!(
+            pairs,
+            vec![(0, 0), (8, 0)],
+            "(e) each PAIR shadows its own half's offset against symbol 0: {pairs:?}"
+        );
+        // (f) Records are ascending by VirtualAddress and REFHI precedes its
+        // PAIR at the equal VA — the order c2 writes them in.
+        let order: Vec<(u32, u16)> = recs.iter().map(|r| (r.0, r.2)).collect();
+        assert_eq!(
+            order,
+            vec![
+                (0, REL_PPC_REFHI),
+                (0, REL_PPC_PAIR),
+                (8, REL_PPC_REFLO),
+                (8, REL_PPC_PAIR),
+                (12, REL_PPC_REL24),
+            ],
+            "(f) the .text relocation records are not in ascending-VA order with \
+             REFHI ahead of its PAIR: {order:?}"
+        );
+    }
+
+    /// The same rule in the **`/Gy` COMDAT** emitter, which is a second copy of
+    /// the quad code — and a second copy of one fact is this file's recorded
+    /// defect shape (see the `emit_framed_obj` note above). One emitter fixed
+    /// and one not is exactly how the `.pdata`-ordering bug survived.
+    #[test]
+    fn the_comdat_emitter_places_reflo_at_its_own_offset_too() {
+        let text = vec![0u8; 16];
+        let f = Function {
+            calls: vec![Call { reloc_offset: 12, callee: "?gsp@@YAXPAHH@Z" }],
+            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
+            ..Function::plain("?a7@@YAXXZ", 0)
+        };
+        let obj = emit_comdat_obj(r"Z:\t\a7.obj", &[f], &[text], 2536);
+        let recs = text_relocations(&obj);
+        assert_eq!(
+            recs.len(),
+            5,
+            "(g) the COMDAT emitter wrote {} .text relocation records, expected 5",
+            recs.len()
+        );
+        let reflo: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFLO).map(|r| r.0).collect();
+        assert_eq!(
+            reflo,
+            vec![8],
+            "(h) COMDAT emitter: REFLO must be at the `addi`'s own offset 8, not \
+             at hi_off+4 = 4: {reflo:?}"
+        );
+    }
+
+    /// The **negative half of the same rule**: a pooled FP constant's halves
+    /// *are* adjacent (`addis` then `lfs`, four bytes apart), and that is why
+    /// `hi_off + 4` looked right. Pinning it here is what stops a future
+    /// "unify the two quad emitters" refactor from fixing one by breaking the
+    /// other — the two quads are genuinely different and this says so portably.
+    ///
+    /// Packed, not `/Gy`: [`emit_comdat_obj`] carries no constant-pool code at
+    /// all, because `PortC2::build` refuses a pooled constant under `/Gy`
+    /// (`docs/OBJ_GY_SHAPES.md` §2, the reverse-append ordering) and hardcodes
+    /// `fp_refs: Vec::new()` on that path. Writing this test against the COMDAT
+    /// emitter read **0 relocation records** and would have been the vacuous
+    /// shape — a control run where the effect cannot appear.
+    #[test]
+    fn the_pooled_fp_constant_quad_is_adjacent_which_is_why_the_data_one_looked_it() {
+        let text = vec![0u8; 12];
+        let f = Function {
+            is_float: true,
+            fp_refs: vec![crate::codegen::FpConstRef {
+                hi_off: 0,
+                bits: 0x3FF0_0000_0000_0000,
+                double: false,
+            }],
+            ..Function::plain("?fc@@YAMXZ", 0)
+        };
+        let obj = emit_obj(r"Z:\t\fc.obj", &[f], &text, 2536);
+        let recs = text_relocations(&obj);
+        assert_eq!(
+            recs.len(),
+            4,
+            "(i) a single pooled FP constant is one quad = 4 records, got {}",
+            recs.len()
+        );
+        let reflo: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFLO).map(|r| r.0).collect();
+        assert_eq!(
+            reflo,
+            vec![4],
+            "(j) the FP quad's halves ARE adjacent — REFLO belongs at hi_off+4 = \
+             4 here, and the data-symbol quad's does NOT: {reflo:?}"
+        );
+    }
 }
