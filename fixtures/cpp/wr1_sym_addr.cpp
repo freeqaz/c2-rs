@@ -77,6 +77,11 @@ void gsp(int*, int);
 void gsq(int, int*);
 void gs8(int, int, int, int, int, int, int, int*);
 void gsq2(int, int*, int);
+void gsp3(int*, int, int);
+void gsp4(int*, int, int, int);
+void gsp5(int*, int, int, int, int);
+void gsp3b(int*, int, int);
+void gs4b(int, int*, int, int);
 void gvo(void*);
 void gdo(double*);
 void gco(char*);
@@ -121,6 +126,37 @@ void c3() { gsp(&gI, 32767); }
 void c4(S* s) { s->m3(7, &gI); }
 void c5(S* s) { s->m3(-32768, &gI); }
 void c6(int k) { gsq2(k, &gI, 5); }
+
+// ---- TWO OR MORE words beside the address: where "addi last" was wrong ------
+//
+// **W-ADJUST, and this is the hole the paragraph above could not see.** Every
+// case in this file had at most ONE setup word beside the address, and at one
+// word "the addi goes last" and "the addi goes second" are the *same sequence*.
+// The rule was stated as the first, the generated sweep varied everything except
+// the arity, and the port mis-emitted the first three-word case it ever met —
+// which was reached from a *different* rung's fixture, not from here.
+//
+// c2's own `.cod` listing, `/O1 /Oi /EHsc` (`work/wadjust/probe/q1.cpp`):
+//
+//   void e2() { gsp3(&gI, 3, 4); }     lis r11 · li r5,4 · addi r3 · li r4,3
+//   void e3() { gsp4(&gI, 3, 4, 5); }  lis r11 · li r6,5 · addi r3 · li r5,4
+//                                              · li r4,3
+//   void e5() { gs4b(3, &gI, 4, 5); }  lis r11 · li r6,5 · addi r4 · li r5,4
+//                                              · li r3,3
+//
+// — the address `addi` is emitted after **exactly one** word of the descending
+// walk, wherever its own slot is, and the rest of the walk follows it. `e5` is
+// the cell that also refutes a plain descending walk, so the two rules are
+// separated here at an arity where they differ rather than at one where they
+// agree. Portable pin: `the_data_address_addi_is_emitted_second_not_last` in
+// `crates/c2-core/src/codegen/calls.rs`.
+
+void e1() { gsp(&gI, 3); }
+void e2() { gsp3(&gI, 3, 4); }
+void e3() { gsp4(&gI, 3, 4, 5); }
+void e4() { gsp5(&gI, 3, 4, 5, 6); }
+void e5() { gs4b(3, &gI, 4, 5); }
+void e6(int a, int b) { gsp3b(&gI, b, 7); }
 
 // ---- the same symbol from several functions: ONE undefined external ---------
 

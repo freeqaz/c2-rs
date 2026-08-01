@@ -710,6 +710,100 @@ fn clip(s: &str, n: usize) -> String {
     }
 }
 
+/// **The per-row read-out (W-ADJUST, boards #127/#128/#131).** One TSV line per
+/// census row whose key is named in `C2RS_ROW_DUMP` (or `*` for all), appended to
+/// `C2RS_ROW_DUMP_OUT`; `C2RS_ROW_DUMP_EMITTED` restricts it to rows that bind to
+/// a symbol c2 actually emitted. Off — and free — when the variable is unset.
+///
+/// ```text
+/// src · index · key · EMITTED|not-emitted · mangled name · frame · cflow · eh
+///     · dispatch · production · hex_mark · the blocking-byte window
+/// ```
+///
+/// **Every axis this scan prints is a histogram, and a histogram cannot answer a
+/// question about a JOINT.** `docs/ROADMAP.md` §8.6's standing rule — never
+/// multiply marginals for an intersection, measure the joint per TU — has no tool
+/// behind it without this: the EH, frame and control-flow crosses are each a
+/// separate `BTreeMap`, so "how many emitted rows of THIS key are straight *and*
+/// EH-free *and* single-call" is unanswerable from the report. It is answerable
+/// from one pass over this file, and that is where the 3,062-clean figure for
+/// `expr-intrinsic-this-adjust` and the 9,111-clean figure for the whole
+/// receiver-designator site came from.
+///
+/// Two further questions it exists for, both of which changed a ranking:
+///
+/// * **which production site actually refused** — `expr-intrinsic-this-adjust`
+///   names the byte the *assignment* parser stopped on, while 99.99 % of the row
+///   declines one reader earlier at the receiver designator;
+/// * **is a row N distinct source functions or one replicated across TUs** —
+///   `…recv-object-then-type-ptr-whole` is 1,380 emitted functions and **four**
+///   mangled names, which is a fact about the differential coverage a rung can
+///   claim, and no aggregate can see it.
+///
+/// **Read-only over the census: it changes no count and no verdict.** Asserted by
+/// running the whole 878-TU scan with the dump armed and comparing all five
+/// published numbers against the un-armed scan — 703,875 / 2,462,571 bodies,
+/// 34,674 / 178,968 emitted, 6 match, 0 mismatch, disagreement 0, identical. An
+/// instrument whose inertness is argued rather than run is this project's
+/// dominant failure mode (`docs/GAPS.md` §6).
+fn row_dump(
+    src: &str,
+    census: &[(c2_il::FnCensus, Result<c2_il::IlFunction, &'static str>)],
+    emitted: Option<&[String]>,
+) {
+    static OUT: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
+    let Ok(want) = std::env::var("C2RS_ROW_DUMP") else {
+        return;
+    };
+    let wanted: Vec<&str> = want.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    let out = OUT.get_or_init(|| {
+        let p = std::env::var("C2RS_ROW_DUMP_OUT").ok()?;
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(p)
+            .ok()
+            .map(Mutex::new)
+    });
+    let Some(out) = out else { return };
+    let emitted_set: std::collections::BTreeSet<&str> =
+        emitted.unwrap_or(&[]).iter().map(String::as_str).collect();
+    let emitted_only = std::env::var_os("C2RS_ROW_DUMP_EMITTED").is_some();
+    let mut buf = String::new();
+    for (f, _) in census {
+        let key = f.verdict.key();
+        if !wanted.iter().any(|w| key == *w || *w == "*") {
+            continue;
+        }
+        let name = f.emit_name.as_deref().unwrap_or("-");
+        let is_emitted = f.emit_name.as_deref().is_some_and(|n| emitted_set.contains(n));
+        if emitted_only && !is_emitted {
+            continue;
+        }
+        let hex: String = f.hex.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ");
+        buf.push_str(&format!(
+            "{src}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            f.index,
+            key,
+            if is_emitted { "EMITTED" } else { "not-emitted" },
+            name,
+            f.frame_class(),
+            f.cflow,
+            f.eh,
+            f.dispatch,
+            f.prod,
+            f.hex_mark,
+            hex,
+        ));
+    }
+    if buf.is_empty() {
+        return;
+    }
+    if let Ok(mut g) = out.lock() {
+        let _ = g.write_all(buf.as_bytes());
+    }
+}
+
 /// Scan one TU. `work` must be a private (per-TU) directory.
 fn scan_one(
     tc: &Toolchain,
@@ -960,6 +1054,13 @@ fn scan_one(
                 }
             }
         }
+        // 1e'. SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128) — see [`row_dump`].
+        //      Off unless `C2RS_ROW_DUMP` is set; changes no count either way.
+        row_dump(
+            src,
+            &census,
+            captured.ref_obj.text_comdat_functions().as_deref(),
+        );
     }
 
     // 1f. The emit binding's own self-report. Printed on every scan, whether or

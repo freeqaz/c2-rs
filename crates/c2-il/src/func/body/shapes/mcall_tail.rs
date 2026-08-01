@@ -80,9 +80,39 @@ use crate::func::IlOp;
 
 use super::calls::{
     arg_loads_are_formals, eat_call_args, eat_call_postop, eat_call_token, eat_callee_push,
-    tail_call_shape, MAX_REGISTER_FORMALS,
+    eat_sym_addr_value, tail_call_shape, MAX_REGISTER_FORMALS,
 };
 use super::params::parse_params;
+
+/// **W-ADJUST — a NAMED DATA OBJECT standing as the receiver**: `gObj.m(a)`,
+/// where the receiver designator is a data symbol's *address* rather than a
+/// pointer already in a register.
+///
+/// ```text
+///   26 <sym>                 the object symbol
+///   [ 2C <TYPE ptr4> <b> ]   at most one cv-strip / decay convert
+///   99 <TYPE ptr4> 00        bind it as argument zero
+/// ```
+///
+/// Returns the symbol token with the cursor past the bind, or `None` with the
+/// cursor **untouched** — the caller then hands the same `26` to the chain
+/// production, which is what it used to get unconditionally.
+///
+/// The address itself comes from the one locator WR1 wrote for it
+/// ([`super::calls::eat_sym_addr_value`]), asked for a `99` terminator instead of
+/// a `55` one. A second copy of that walk is exactly the drift `docs/GAPS.md` §6
+/// instance #9 records, and here it would decide independently whether an offset
+/// run or a `30` load may ride along — the two spellings whose emission is a
+/// third instruction WR1 measured and refused.
+fn eat_receiver_object(seg: &[u8], p: &mut usize) -> Option<u32> {
+    let save = *p;
+    let tok = eat_sym_addr_value(seg, p, 0x99)?;
+    if eat_this_bind(seg, p).is_err() {
+        *p = save;
+        return None;
+    }
+    Some(tok)
+}
 
 /// Try the member-call body at `start` (the statement-head `26`).
 ///
@@ -121,11 +151,28 @@ pub(crate) fn try_parse_member_tail_call(
     // reason the split is here rather than one locator deeper: `eat_receiver_this`
     // must keep meaning "the receiver designator", not "the receiver or some
     // number of further methods".
+    // **W-ADJUST — …or a NAMED DATA OBJECT standing where the receiver goes.**
+    // `gObj.m(a)` pushes the object's *symbol*, so its designator opens on the
+    // same `26` a stacked method does and the chain production used to get every
+    // one of them ([`eat_receiver_object`] is the discriminator, and it declines
+    // with the cursor untouched so a real chain reaches the chain production
+    // exactly as before).
+    let mut recv_sym: Option<u32> = None;
     if seg.get(p) == Some(&0x26) {
-        return super::mcall_chain::try_parse_member_chain_call(seg, p, lo, depth, callee_tok);
+        match eat_receiver_object(seg, &mut p) {
+            Some(tok) => recv_sym = Some(tok),
+            None => {
+                return super::mcall_chain::try_parse_member_chain_call(
+                    seg, p, lo, depth, callee_tok,
+                )
+            }
+        }
     }
-    let recv_tok = eat_receiver_this(seg, &mut p)
-        .map_err(|_| prod_tag("tail-recv-not-a-plain-b9-load"))?;
+    let recv_tok = match recv_sym {
+        Some(tok) => tok,
+        None => eat_receiver_this(seg, &mut p)
+            .map_err(|_| prod_tag("tail-recv-not-a-plain-b9-load"))?,
+    };
     // The `BD` this call's result TYPE hangs off, kept because
     // [`super::mcall_cmp`] needs the type's **signedness** and `eat_call_token`
     // resolves it only to real / not-real. Recorded rather than re-found: going
@@ -144,7 +191,18 @@ pub(crate) fn try_parse_member_tail_call(
     // symmetric, which is exactly the shape of defect `GAPS.md` §6 keeps recording,
     // so `member_tail_call_puts_this_in_slot_zero` pins it against a capture where
     // the two readings differ.
-    args.push(vec![IlOp::Load(recv_tok)]);
+    //
+    // **W-ADJUST**: a named object's address is a *relocation*, not a load, so it
+    // enters the slot list as [`IlOp::SymAddr`] and takes WR1's
+    // `sym_addr_tail_call` path — the `lis`/`addi` quad plus whatever the other
+    // slots need, with the address `addi` last. Handing it `Load` instead would
+    // be a `mr` from a register that holds a *token id*, i.e. wrong bytes rather
+    // than a refusal, which is why the discrimination is made here at the point
+    // the slot is built and not left to codegen.
+    args.push(match recv_sym {
+        Some(tok) => vec![IlOp::SymAddr(tok)],
+        None => vec![IlOp::Load(recv_tok)],
+    });
 
     // The body must END here. Either the result is discarded (`4B`) and the return
     // is void, or it is the returned value (`41 <TYPE>`, consumed by the plumbing).
@@ -178,6 +236,15 @@ pub(crate) fn try_parse_member_tail_call(
     } else if seg.get(p) == Some(&0x41) {
         eat_return_plumbing(seg, &mut p, true, depth)
             .map_err(|_| prod_tag("tail-returned-body-does-not-end-at-the-call"))?;
+    } else if recv_sym.is_some() {
+        // **W-ADJUST's boundary, stated as its own key.** The two productions
+        // below both re-spell the receiver as `IlOp::Load(recv_tok)` from their
+        // own copy of the token — `mcall_cmp` to build the second call's slot
+        // list, `framed_member_call` to rebuild the first — and a data symbol's
+        // *address* is not that. Rather than thread a second operand form through
+        // two shapes this rung has no captures for, the object receiver refuses
+        // there by name, so what it costs is a census row instead of an argument.
+        return Err(prod_tag("tail-object-receiver-is-not-a-tail-call"));
     } else if seg.get(p) == Some(&0x26) {
         // …or a **second member call** stands where the result would be consumed,
         // and the two results are compared: `return a->m() == b->n();`. The first
@@ -305,6 +372,12 @@ fn framed_member_call(
 /// homes in the frame, and it was pre-existing across seven shapes because each had
 /// asked the question itself. One locator.
 pub(crate) fn eat_receiver_this(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
+    // **The base-adjusted receiver (`p->Base::m()`, intrinsic 2113) is NOT here,
+    // and that is a measurement rather than an omission** — board #127, W-ADJUST.
+    // Its completion counterfactual was run at this exact site and is **472
+    // emitted functions of the 8,790 the row carries (5.4 %)**, 434 of them at
+    // adjust offset 0. See `docs/rungs/2026-08-01-w-adjust.md`; do not re-derive
+    // the row's worth from its census size.
     if !eat_byte(seg, p, 0xB9) {
         return Err(blk(seg, *p, "mcall-recv"));
     }
@@ -547,8 +620,110 @@ mod tests {
         0x54, 0x02, 0x29, 0xF1, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
 
+    /// **W-ADJUST**: `void n0() { gDbg.nul(); }` — the receiver is a NAMED DATA
+    /// OBJECT, so its designator is `26 <sym> · 2C A6 43 81 20 00 · 99 …` where
+    /// every other member call has `B9 <tok> <TYPE ptr4> …`. The `2C` is c2's own
+    /// cv-strip on the object's address and is not optional in this spelling.
+    ///
+    /// Transcribed verbatim from a live-toolchain capture
+    /// (`c2rs census work/wadjust/probe/p1.cpp --keep-il`), same TU discipline as
+    /// the four above: the whole question is which token stands where the
+    /// receiver goes, and only a capture settles that.
+    const MC_RECV_OBJECT: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x53, 0x53, 0x26, 0xEC, 0x09,
+        0x46, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0x26, 0xEB, 0x09, 0x2C, 0xA6, 0x43, 0x81,
+        0x20, 0x00, 0x99, 0x86, 0x43, 0x83, 0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x03,
+        0x10, 0x00, 0x00, 0x4C, 0x4B, 0x3A, 0xED, 0x09, 0x54, 0x02, 0x29, 0xED, 0x09, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x04, 0x4D,
+    ];
+
+    /// **The body the object receiver must NOT steal**: `void ch(B* b)
+    /// { b->a()->m(); }` — a two-link chain, whose head is `26 <m> 26 <a> B9 <b>`
+    /// and therefore byte-identical to an object receiver for two whole tokens.
+    /// Verbatim capture (`work/wadjust/probe/p7.cpp`).
+    const MC_CHAIN: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D,
+        0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18,
+        0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38, 0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D,
+        0x08, 0x00, 0x0F, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, 0x53, 0x53, 0x26, 0xF4, 0x09,
+        0x46, 0x2D, 0xF3, 0x09, 0x4C, 0x4F, 0x11, 0x53, 0x26, 0xE4, 0x09, 0x26, 0xEC, 0x09, 0xB9,
+        0xF3, 0x09, 0x86, 0x43, 0x81, 0x20, 0x99, 0x86, 0x43, 0x86, 0x20, 0x00, 0xBD, 0x86, 0x43,
+        0x83, 0x20, 0x00, 0x80, 0x06, 0x10, 0x00, 0x00, 0x4C, 0x99, 0x86, 0x43, 0x8A, 0x20, 0x00,
+        0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x0A, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x3A, 0xF5, 0x09,
+        0x54, 0x02, 0x29, 0xF5, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20,
+        0x00, 0x4F, 0x01, 0x04, 0x4D,
+    ];
+
+    /// **W-ADJUST — the named object's address reaches codegen as `SymAddr`, not
+    /// as a `Load`.**
+    ///
+    /// The distinction is the whole rung. A `Load` of this token would be a `mr`
+    /// out of a register that holds nothing — wrong bytes rather than a refusal —
+    /// and the slot list is the only place the two can still be told apart, since
+    /// downstream every argument is "the thing in slot i".
+    #[test]
+    fn a_named_object_receiver_enters_slot_zero_as_an_address() {
+        assert_eq!(
+            parse_segment(MC_RECV_OBJECT, NO_LOCALS),
+            Some(BodyShape::MultiArgTailCall {
+                params: vec![],
+                arg_sources: vec![crate::func::body::SlotArg::SymAddr(60169)],
+                callee_tok: 58377,
+            })
+        );
+    }
+
+    /// **…and the same two leading bytes on a CHAIN still reach the chain
+    /// production.** `26 <m> 26 <x>` opens both, and the discriminator is the
+    /// token *after* the second symbol — `B9` for a chain's innermost receiver,
+    /// `2C`/`99` for an object's address. Stated in both directions, because a
+    /// discriminator that only ever saw one side is the shape `GAPS.md` §6
+    /// records: the accept is above, and this is the decline.
+    #[test]
+    fn the_object_receiver_declines_a_chain_without_consuming_it() {
+        // The chain body still parses as the chain production's own shape.
+        assert!(matches!(
+            parse_segment(MC_CHAIN, NO_LOCALS),
+            Some(BodyShape::CallSeq { .. })
+        ));
+        // And the locator itself declines with the cursor exactly where it was —
+        // the non-committal contract the caller depends on to hand the same `26`
+        // on. The offsets are found by search so a capture edit cannot silently
+        // point them at the wrong byte.
+        let at = |seg: &[u8]| {
+            seg.windows(3)
+                .position(|w| w[0] == 0x4C && w[1] == 0x4F && w[2] == 0x11)
+                .expect("the LO marker")
+                + 3
+        };
+        // …past `53` and the callee push, to the second `26`.
+        let second_26 = |seg: &[u8]| {
+            let mut p = at(seg) + 1;
+            assert_eq!(seg[p], 0x26);
+            p += 1;
+            p += crate::func::readers::read_token_var(seg, p).expect("callee token").1;
+            p
+        };
+        let p0 = second_26(MC_CHAIN);
+        let mut p = p0;
+        assert_eq!(
+            eat_receiver_object(MC_CHAIN, &mut p),
+            None,
+            "a chain's second method push is not a named object's address"
+        );
+        assert_eq!(p, p0, "a declining locator must not move the cursor");
+        // The positive side, at the same position in the object-receiver body.
+        let q0 = second_26(MC_RECV_OBJECT);
+        let mut q = q0;
+        assert_eq!(eat_receiver_object(MC_RECV_OBJECT, &mut q), Some(60169));
+        assert!(q > q0, "the accepting locator must consume the designator");
+    }
+
     /// **Every non-committal decline out of the tail production is attributed to
-    /// a named site**, under adversarial mutation of the four captured bodies —
+    /// a named site**, under adversarial mutation of the captured bodies —
     /// so no row of the gap report can read `prod-entered-untagged`, which is the
     /// residue rendered as an absence.
     #[test]
@@ -559,6 +734,8 @@ mod tests {
                 ("MC_SWAP", MC_SWAP),
                 ("MC_FRAMED_SUB", MC_FRAMED_SUB),
                 ("MC_RECV_CAST", MC_RECV_CAST),
+                ("MC_RECV_OBJECT", MC_RECV_OBJECT),
+                ("MC_CHAIN", MC_CHAIN),
             ],
             // MEASURED: 4,730 of the mutations reach the production. The floor is
             // set just under it so a corpus edit that guts the sweep is caught,
