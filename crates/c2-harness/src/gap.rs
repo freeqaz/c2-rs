@@ -604,6 +604,85 @@ impl GapReport {
         v
     }
 
+    /// The same distribution measured on the population the **goal** is written
+    /// in: blocked *emitted* functions, not blocked IL bodies.
+    ///
+    /// [`Self::near_match_tus`] counts `.ex` bodies, and the workload carries
+    /// 2,462,571 of those against 178,968 emitted functions (`ROADMAP.md` §8.1).
+    /// The two distances are not the same number and not even the same order:
+    /// `src/system/math/Rand2.cpp` is 8 blocked bodies but **2** blocked emitted
+    /// functions, and `src/system/math/vec.cpp` is 565 blocked bodies with
+    /// **zero** blocked emitted functions. Published side by side because
+    /// neither one alone is "distance to a byte-exact TU" — see
+    /// [`Self::emit_set_reachable_tus`] for the third constraint that binds
+    /// both.
+    pub fn near_match_tus_emitted(&self, max_blocked: usize) -> Vec<&TuResult> {
+        let blocked = |r: &TuResult| {
+            let e = r.emit.get("emit-emitted").copied().unwrap_or(0);
+            let i = r.emit.get("emit-in-class").copied().unwrap_or(0);
+            e.saturating_sub(i)
+        };
+        let mut v: Vec<&TuResult> = self
+            .results
+            .iter()
+            .filter(|r| {
+                r.class != TuClass::CaptureFail
+                    && r.emit.get("emit-emitted").copied().unwrap_or(0) > 0
+            })
+            .filter(|r| blocked(r) <= max_blocked)
+            .collect();
+        v.sort_by_key(|r| (blocked(r), r.src.clone()));
+        v
+    }
+
+    /// TUs for which the port could emit the **right set of `.text` COMDATs at
+    /// all**, however good its codegen becomes — a hard ceiling on TU match that
+    /// no widening can lift.
+    ///
+    /// `PortC2::build` takes `il.functions()`, one entry per `.ex` function
+    /// segment, and under `/Gy` pushes exactly one `.text` COMDAT per entry.
+    /// **There is no emit-set model anywhere in the port** (`ROADMAP.md` §8.3
+    /// Phase 7 is where one would go). So when a TU's `.ex` segment count
+    /// differs from its reference obj's `.text` COMDAT-leader count, the port
+    /// emits the wrong number of sections and the obj diverges regardless of
+    /// what any function lowers to. `emit-emitted` is exactly that leader count
+    /// and `fn_total` is exactly that segment count, so the predicate is a
+    /// comparison of two numbers the scan already has.
+    ///
+    /// This is a **necessary** condition, not a sufficient one — the bodies
+    /// still have to lower byte-exact. Its value is as a ceiling: on the dc3
+    /// workload it holds for 25 of 871 graded TUs, which bounds TU match at
+    /// 25/878 until Phase 7 exists, against a terminal target of 871.
+    pub fn emit_set_reachable_tus(&self) -> Vec<&TuResult> {
+        let mut v: Vec<&TuResult> = self
+            .results
+            .iter()
+            .filter(|r| r.class != TuClass::CaptureFail)
+            .filter(|r| r.fn_total == r.emit.get("emit-emitted").copied().unwrap_or(0))
+            .collect();
+        v.sort_by_key(|r| (r.fn_total - r.fn_in_class, r.src.clone()));
+        v
+    }
+
+    /// The invariant behind [`Self::emit_set_reachable_tus`], as a count that
+    /// must be **zero**: a TU that the differential graded `match` and whose
+    /// `.ex` segment count nevertheless disagrees with its obj's `.text`
+    /// COMDAT-leader count.
+    ///
+    /// A byte-exact obj cannot have a different number of `.text` COMDATs than
+    /// the port emitted, so a nonzero here means `fn_total` and `emit-emitted`
+    /// are not counting the things this reading says they count, and the
+    /// ceiling above is void. It is the control that makes the ceiling a
+    /// measurement rather than an argument: on this workload the agreement rate
+    /// is 25/871 = 2.9 %, so six matching TUs agreeing by accident is ~10⁻⁹.
+    pub fn emit_set_violations(&self) -> usize {
+        self.results
+            .iter()
+            .filter(|r| r.class == TuClass::Match)
+            .filter(|r| r.fn_total != r.emit.get("emit-emitted").copied().unwrap_or(0))
+            .count()
+    }
+
     /// The binding invariant that must be **zero**: a generated destructor bound to
     /// a callee that is not a destructor. Nonzero means the `.gl` reader is naming
     /// the wrong symbol in a way no obj comparison over this corpus could have
@@ -1578,6 +1657,114 @@ mod tests {
             got,
             vec!["near.cpp"],
             "only the measured TU within 100 blocked functions may appear"
+        );
+    }
+
+    /// The two distances measure different populations and must be allowed to
+    /// disagree — the whole reason for publishing both. Modelled on the real
+    /// `src/system/math/Rand2.cpp`: 13 `.ex` bodies, 5 in class (8 blocked
+    /// bodies), but only 2 emitted functions of which 1 is in class, so **2**
+    /// by the measure the goal is written in. A leading indicator that ranked
+    /// this TU at 8 while another at 8-blocked-bodies-and-8-blocked-emitted also
+    /// read 8 is ranking two very different amounts of work the same.
+    #[test]
+    fn the_two_distances_are_different_populations_and_may_disagree() {
+        let mut rand2 = mk_emit(TuClass::VocabGap, 2, 2, 1, 0, 0);
+        rand2.src = "Rand2.cpp".into();
+        rand2.fn_total = 13;
+        rand2.fn_in_class = 5;
+        let mut even = mk_emit(TuClass::VocabGap, 9, 9, 1, 0, 0);
+        even.src = "even.cpp".into();
+        even.fn_total = 9;
+        even.fn_in_class = 1;
+        let rep = mk_report(vec![rand2, even]);
+
+        let by_body: Vec<&str> = rep.near_match_tus(8).iter().map(|r| r.src.as_str()).collect();
+        assert_eq!(
+            by_body,
+            vec!["Rand2.cpp", "even.cpp"],
+            "by blocked BODIES both TUs are 8 away and the measure cannot tell them apart"
+        );
+        let by_emit: Vec<&str> = rep
+            .near_match_tus_emitted(2)
+            .iter()
+            .map(|r| r.src.as_str())
+            .collect();
+        assert_eq!(
+            by_emit,
+            vec!["Rand2.cpp"],
+            "by blocked EMITTED functions Rand2 is 2 away and the other is 8 — if this \
+             ever equals the body measure, one of the two is not reading what it says"
+        );
+    }
+
+    /// The emit-set ceiling, and the control that makes it a measurement.
+    ///
+    /// `PortC2` emits one `.text` COMDAT per `.ex` function segment and has no
+    /// emit-set model, so a TU whose segment count differs from its obj's
+    /// COMDAT-leader count cannot be byte-exact however good its codegen is.
+    /// The invariant that keeps that reading honest is that **no matching TU may
+    /// violate it** — a byte-exact obj cannot carry a different number of
+    /// `.text` COMDATs than the port wrote. The mutation below is exactly that
+    /// violation and it must be counted, otherwise the ceiling is an argument
+    /// rather than a control.
+    #[test]
+    fn the_emit_set_ceiling_is_bounded_by_an_invariant_that_can_go_red() {
+        // A matching TU: 2 bodies, 2 emitted COMDATs, both in class.
+        let mut ok = mk_emit(TuClass::Match, 2, 2, 2, 0, 0);
+        ok.src = "Spew.cpp".into();
+        ok.fn_total = 2;
+        ok.fn_in_class = 2;
+        // Reachable but not there yet: counts agree, one body still blocked.
+        let mut near = mk_emit(TuClass::VocabGap, 1, 1, 0, 0, 0);
+        near.src = "xboxheap.cpp".into();
+        near.fn_total = 1;
+        near.fn_in_class = 0;
+        // UNREACHABLE: 802 `.ex` bodies against 2 emitted COMDATs. Every emitted
+        // function is already in class, so BOTH distance measures call it near;
+        // the port would still write 802 sections against c2's 2.
+        let mut vec_cpp = mk_emit(TuClass::VocabGap, 2, 2, 2, 0, 0);
+        vec_cpp.src = "vec.cpp".into();
+        vec_cpp.fn_total = 802;
+        vec_cpp.fn_in_class = 237;
+        let rep = mk_report(vec![ok, near, vec_cpp]);
+
+        let reach: Vec<&str> = rep
+            .emit_set_reachable_tus()
+            .iter()
+            .map(|r| r.src.as_str())
+            .collect();
+        assert_eq!(
+            reach,
+            vec!["Spew.cpp", "xboxheap.cpp"],
+            "vec.cpp has zero blocked EMITTED functions and is still unreachable — \
+             that is the point of the ceiling"
+        );
+        assert_eq!(
+            rep.emit_set_violations(),
+            0,
+            "a matching TU whose counts disagree would mean fn_total and emit-emitted \
+             are not counting what the ceiling says they count"
+        );
+
+        // The control: make a MATCHING TU violate it. If this does not go red the
+        // invariant cannot see the defect it exists for (#145).
+        let mut bad = mk_emit(TuClass::Match, 2, 2, 2, 0, 0);
+        bad.src = "Spew.cpp".into();
+        bad.fn_total = 5;
+        bad.fn_in_class = 2;
+        let rep = mk_report(vec![bad]);
+        assert_eq!(
+            rep.count(TuClass::Match),
+            1,
+            "the mutation must not change the number of byte-exact TUs — otherwise this \
+             control tests the class filter, not the emit-set reading"
+        );
+        assert_eq!(
+            rep.emit_set_violations(),
+            1,
+            "a byte-exact obj with 5 `.ex` segments and 2 `.text` COMDATs is impossible; \
+             the invariant must say so"
         );
     }
 
