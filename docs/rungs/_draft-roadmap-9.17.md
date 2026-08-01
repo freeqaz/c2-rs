@@ -43,18 +43,26 @@ axis and already a row-dump column.
 **It names the construct, never the position** — [`mcall::Fail::blocker`]'s own
 rule, and the same vocabulary (`off-add`, `deref-load`, `store`, `plain-call`,
 `virtual`, `temp-bind`, `convert`, `ternary`, `call-in-expr`), so the two axes
-cross without a translation table. Three enumerated portable tests, no toolchain:
+cross without a translation table. **Five** portable tests, no toolchain — the
+five that take `#[test]` over `crates/` from 590 to 595:
 
-* `every_receiver_refusal_has_a_name` — 8 contexts × 256 bytes × EOF × 3 arms,
-  the residue asserted **inside** the loop so a failure names its witness;
+* `every_receiver_refusal_has_a_name` — the domain **enumerated**, 8 contexts ×
+  256 bytes × EOF × 3 arms, with the residue asserted **inside** the loop so a
+  failure names its witness rather than reporting a count;
 * `the_receiver_vocabulary_is_injective` — the designator and bind positions are
-  disjoint, so no two rows of the decomposition can be summed into a double
-  count;
-* two **arity** axes the opcode alone cannot see —
-  `the_intrinsic_receiver_arm_separates_by_selector` (2113…2119 must give seven
-  distinct names, and the test's own encoder is checked against the captured
-  `80 41 08 00 00`) and
-  `a_literal_behind_an_offset_add_is_named_for_the_add_not_the_byte`.
+  disjoint sets of names, so no two rows of the decomposition can be summed into
+  a double count;
+* `the_intrinsic_receiver_arm_separates_by_selector` — the first **arity** axis:
+  2113…2119 must give seven distinct names, and the test's own encoder is checked
+  against the captured `80 41 08 00 00` so the test cannot be right about an
+  encoding the tree is wrong about;
+* `a_literal_behind_an_offset_add_is_named_for_the_add_not_the_byte` — the second,
+  varying the token *behind* the opcode and the literal's own varint width;
+* `an_indirect_store_at_the_bind_position_is_named_a_store`.
+
+The last three exist because **totality residue 0 is not a control** (#144): a
+table that gave every byte the same name would pass the first two. §9.17.2 is
+what happens when only the first two exist.
 
 **Read-only over the census, run rather than argued.** The 878-TU scan with the
 refined tag reproduces the aggregate report **line for line** (the only
