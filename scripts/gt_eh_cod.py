@@ -238,6 +238,72 @@ PREDICT = {
 # `.text` order (`h_2fn`'s `f`, `h_3fn_mixed`'s `f`).
 
 # ---------------------------------------------------------------------------
+# ROUND 2. Every A2 miss above was `maxState`, and all of them in one direction:
+# a try block is worth **2** states, not 1. Corrected law, FITTED on round 1:
+#
+#     maxState = (destructible objects) + 2 x (lexical try blocks)
+#
+# It is exact on all 13 round-1 cells — which is worth nothing on its own,
+# because it was derived from them. These five shapes are NEW, their predictions
+# are registered here before capture, and they are the only cells the law is
+# graded on. `z_deep4` is the one designed to break it: four levels of nesting,
+# where "2 per try" and "2 per nesting level" stop agreeing with anything the
+# round-1 corpus could separate.
+# ---------------------------------------------------------------------------
+Z_SRC = {
+    "z_nest2_dtor2": """
+int f(int n) {
+  T a; T b; int s = 0;
+  try { try { s = mk(n); } catch (E1& e) { s = e.a; } }
+  catch (int e) { s = e; }
+  return s + a.v + b.v;
+}
+""",                                   # 2 dtors + 2 try  -> 2 + 4 = 6
+    "z_try4seq": """
+int f(int n) {
+  int s = 0;
+  try { s = mk(n); } catch (int e) { s = e; }
+  try { s += mk(n+1); } catch (int e) { s -= e; }
+  try { s += mk(n+2); } catch (int e) { s ^= e; }
+  try { s += mk(n+3); } catch (int e) { s |= e; }
+  return s;
+}
+""",                                   # 0 dtors + 4 try  -> 0 + 8 = 8
+    "z_try1catch4_dtor3": """
+int f(int n) {
+  T a; T b; T c; int s = 0;
+  try { s = mk(n); }
+  catch (V v) { s = v.c; } catch (const E1& e) { s = e.a; }
+  catch (E2& e) { s = e.b; } catch (...) { s = -1; }
+  return s + a.v + b.v + c.v;
+}
+""",                                   # 3 dtors + 1 try  -> 3 + 2 = 5
+    "z_dtor5": """
+int f(int n) {
+  T a; T b; T c; T d; T e;
+  return mk(n) + a.v + b.v + c.v + d.v + e.v;
+}
+""",                                   # 5 dtors + 0 try  -> 5 + 0 = 5
+    "z_deep4": """
+int f(int n) {
+  int s = 0;
+  try { try { try { try { s = mk(n); }
+    catch (E1& e) { s = e.a; } } catch (E2& e) { s = e.b; } }
+    catch (int e) { s = e; } } catch (...) { s = -1; }
+  return s;
+}
+""",                                   # 0 dtors + 4 try  -> 0 + 8 = 8
+}
+
+PREDICT2 = {
+    "z_nest2_dtor2":      dict(maxState=6, nTryBlocks=2),
+    "z_try4seq":          dict(maxState=8, nTryBlocks=4),
+    "z_try1catch4_dtor3": dict(maxState=5, nTryBlocks=1),
+    "z_dtor5":            dict(maxState=5, nTryBlocks=0),
+    "z_deep4":            dict(maxState=8, nTryBlocks=4),
+}
+
+# ---------------------------------------------------------------------------
 # #138 corpus. ONE axis moves per probe against `g_base`. The EH shape is held
 # fixed at "one destructible local, no try" — `EH_RECORDS.md` §9.8's own shape,
 # where its model `G = 4 + Sum(minting surcharges)` is claimed exact on 25/27.
@@ -306,7 +372,11 @@ int f(int n) { T a; int s = 0; try { s = mk(n); } catch (int e) { s = e; } retur
 """,
 }
 
-# bodies inlined away: k identical always-inlinable callees, EH shape fixed.
+# k in-TU callees, EH shape fixed. NOTE (measured, not assumed): these are NOT
+# inlined away — c2 emits every one as its own COMDAT. So this ladder moves TWO
+# things at once: the number of preceding emitted functions AND the number of
+# calls inside `f`. It is kept because it is what was run first, and the two
+# ladders below are the separation it needed. ROADMAP §9.13.1 consequence 2.
 for _k in range(0, 5):
     _calls = " + ".join("inl%d(n)" % _i for _i in range(_k)) or "0"
     _defs = "\n".join("static int inl%d(int x) { return x + %d; }" % (_i, _i)
@@ -315,6 +385,63 @@ for _k in range(0, 5):
 %s
 int f(int n) { T a; return mk(n) + a.v + (%s); }
 """ % (_defs, _calls)
+
+# LADDER A — k preceding emitted LEAF functions that `f` does NOT call. `f` is
+# byte-identical to `g_base`'s. Isolates "another emitted function in the TU".
+for _k in range(0, 5):
+    _defs = "\n".join("int lead%d(int x) { return x + %d; }" % (_i, _i)
+                      for _i in range(_k))
+    GAP_SRC["x_lead%d" % _k] = """
+%s
+int f(int n) { T a; return mk(n) + a.v; }
+""" % _defs
+
+# LADDER B — k extra calls inside `f` to functions DECLARED ELSEWHERE, so the TU
+# gains no function. Isolates "another call in the EH body".
+for _k in range(0, 5):
+    _decls = "\n".join("int ext%d(int);" % _i for _i in range(_k))
+    _calls = " + ".join("ext%d(n)" % _i for _i in range(_k)) or "0"
+    GAP_SRC["x_call%d" % _k] = """
+%s
+int f(int n) { T a; return mk(n) + a.v + (%s); }
+""" % (_decls, _calls)
+
+# LADDER A' — THE DISCRIMINATOR for ladder A's -2. The same leaf functions, but
+# AFTER `f` in .text order. If G stays 4 the charge is "the FIRST emitted
+# function in the TU pays it"; if G drops to 2 the charge is "the TU has more
+# than one function". Ladder A alone cannot tell these apart — it is the control
+# run where the discrepancy cannot appear (ROADMAP §9.1, twelfth instance).
+for _k in range(1, 5):
+    _defs = "\n".join("int trail%d(int x) { return x + %d; }" % (_i, _i)
+                      for _i in range(_k))
+    GAP_SRC["x_trail%d" % _k] = """
+int f(int n) { T a; return mk(n) + a.v; }
+%s
+""" % _defs
+
+# LADDER D — the brief's "labels consumed by bodies INLINED AWAY". `g_inl*`
+# above does NOT test this: c2 emitted every one of its callees as its own
+# COMDAT, which was measured rather than assumed. `__forceinline` is the axis
+# that actually removes the body, and the `PROC` count is asserted in the report
+# so a ladder that silently emits its callees again cannot be read as a result.
+for _k in range(0, 5):
+    _calls = " + ".join("fi%d(n)" % _i for _i in range(_k)) or "0"
+    _defs = "\n".join(
+        "__forceinline int fi%d(int x) { return x + %d; }" % (_i, _i)
+        for _i in range(_k))
+    GAP_SRC["x_fi%d" % _k] = """
+%s
+int f(int n) { T a; return mk(n) + a.v + (%s); }
+""" % (_defs, _calls)
+
+# LADDER C — k preceding DISCARDED statics. Nothing of theirs reaches the obj.
+for _k in (0, 1, 2, 4, 8):
+    _defs = "\n".join("static int dead%d(int x) { return x * %d + 1; }"
+                      % (_i, _i + 3) for _i in range(_k))
+    GAP_SRC["x_dead%d" % _k] = """
+%s
+int f(int n) { T a; return mk(n) + a.v; }
+""" % _defs
 
 
 def gen():
@@ -327,6 +454,10 @@ def gen():
     for name, src in GAP_SRC.items():
         with open(os.path.join(PROBES, name + ".cpp"), "w") as fh:
             fh.write(GAP_COMMON.lstrip() + src.lstrip())
+        n += 1
+    for name, src in Z_SRC.items():
+        with open(os.path.join(PROBES, name + ".cpp"), "w") as fh:
+            fh.write(COMMON.lstrip() + src.lstrip())
         n += 1
     print("wrote %d probes to %s" % (n, PROBES))
 
@@ -344,6 +475,21 @@ RE_NAMED_DATUM = re.compile(r"^(\S+)\s+(DD|DW|DB|DQ)\s+(.*)$")
 # a continuation datum:  `\tDD\tvalue`
 RE_CONT_DATUM = re.compile(r"^\s+(DD|DW|DB|DQ)\s+(.*)$")
 RE_ORG = re.compile(r"^\s+ORG\s+\$\+(\d+)\s*$")
+# `DD 2 DUP(00H)` — c2 RUN-LENGTH ENCODES a run of equal data. Missing this
+# silently SHORTENS a record: `__ehfuncinfo$` prints 8 tokens for its 9 dwords
+# whenever `nTryBlocks` and `pTryBlockMap` are both 0, which is every function
+# with a destructor and no try. Every field after it then reads one slot early —
+# a plausible decode, with `pIPtoStateMap` landing on `nIPMapEntries`.
+RE_DUP = re.compile(r"^(\d+)\s+DUP\s*\((.*)\)\s*$")
+
+
+def expand(tok):
+    """One listing operand -> the list of data it actually stands for."""
+    t = tok.strip().rstrip(",")
+    m = RE_DUP.match(t)
+    if m:
+        return [m.group(2).strip()] * int(m.group(1))
+    return [t]
 # every label DEFINITION that carries a number from c2's TU-wide counter
 RE_NUMBERED_LABEL = re.compile(r"^(\$M|\$T)(\d+):")
 RE_FUNCLET = re.compile(r"^(__catch\$|__unwind\$|__tryend\$)(\d+):")
@@ -360,9 +506,10 @@ def parse_cod(path):
     with open(path, "r", errors="replace") as fh:
         lines = fh.read().splitlines()
 
-    records = []      # {name, seg, data:[str], org:[int]}
+    records = []      # {name, seg, data:[str], pad_before:[int]}
     cur = None
     seg = None
+    pad_next = []
     labels = []       # TU-counter labels
     locals_ = []      # $LN/$LL
     funcs = []
@@ -446,9 +593,13 @@ def parse_cod(path):
             flush(last_off)
             continue
         m = RE_ORG.match(line)
-        if m and cur is not None:
-            cur["org"].append(int(m.group(1)))
-            cur["data"].append("ORG+%s" % m.group(1))
+        if m:
+            # `ORG $+4` is ALIGNMENT PADDING between two records, not a datum of
+            # the record it follows. EH_RECORDS.md §8.3 derived this pad by
+            # inference from symbol offsets ("pad 0 ... and pad 4, both
+            # observed"); the listing states it outright. Carried as `pad_next`
+            # so it is neither counted as data nor silently dropped.
+            pad_next.append(int(m.group(1)))
             continue
         m = RE_DATA_LABEL.match(line)
         if m:
@@ -462,17 +613,19 @@ def parse_cod(path):
                                text_off=None))
             close()
             cur = dict(name=m.group(1) + m.group(2), seg=seg,
-                       data=[m.group(3).strip()], org=[])
+                       data=expand(m.group(3)), pad_before=list(pad_next))
+            del pad_next[:]
             continue
         m = RE_NAMED_DATUM.match(line)
         if m and fn is None:
             close()
-            cur = dict(name=m.group(1), seg=seg, data=[m.group(3).strip()],
-                       org=[])
+            cur = dict(name=m.group(1), seg=seg, data=expand(m.group(3)),
+                       pad_before=list(pad_next))
+            del pad_next[:]
             continue
         m = RE_CONT_DATUM.match(line)
         if m and cur is not None:
-            cur["data"].append(m.group(2).strip())
+            cur["data"] += expand(m.group(2))
             continue
     close()
     return dict(records=records, labels=labels, locals=locals_, funcs=funcs)
@@ -578,45 +731,60 @@ def eh_records(p):
 # #138 — the allocation spans and the gaps between them.
 # ---------------------------------------------------------------------------
 def gap_analysis(p):
-    """Per function: the funclet block, the EH-state $M block, the state-table
-    $T, the triples — and the UNNAMED slots between them."""
-    labels = sorted([l for l in p["labels"]], key=lambda l: l["num"])
+    """PER FUNCTION: the funclet block, the EH-state `$M` block, the state-table
+    `$T`, the triples — and the UNNAMED slots between them.
+
+    INSTRUMENT DEFECT, found and fixed here rather than reported as a result:
+    the first version aggregated over the whole TU with `min`/`max`, so a TU with
+    two EH functions interleaved their blocks and printed a NEGATIVE gap
+    (`g_led`: -16, -17). A negative gap is at least loud; the same aggregation on
+    a TU whose second function happened to sit above the first would have printed
+    a plausible positive integer. Bind every block to its function by name."""
+    labels = sorted(p["labels"], key=lambda l: l["num"])
     if not labels:
         return None
     named = set(l["num"] for l in labels)
     lo, hi = labels[0]["num"], labels[-1]["num"]
-    unnamed = [n for n in range(lo, hi + 1) if n not in named]
 
-    funclets = [l["num"] for l in labels if l["kind"] == "funclet"]
-    # the ip2state $M block = the $M labels referenced by the .rdata $T record
-    ip_ms = []
+    # fn -> its ip2state $T, via `__ehfuncinfo$<fn>`'s pIPtoStateMap operand.
+    fn_state_t, fn_ip_ms = {}, {}
+    t_records = {}
     for r in p["records"]:
         if re.fullmatch(r"\$T\d+", r["name"]) and r["seg"] == ".rdata":
-            for tok in r["data"]:
-                m = re.fullmatch(r"\$M(\d+)", tok.strip().rstrip(","))
-                if m:
-                    ip_ms.append(int(m.group(1)))
-    state_t = [int(r["name"][2:]) for r in p["records"]
-               if re.fullmatch(r"\$T\d+", r["name"]) and r["seg"] == ".rdata"]
-    pdata_t = sorted(int(r["name"][2:]) for r in p["records"]
-                     if re.fullmatch(r"\$T\d+", r["name"]) and r["seg"] == ".pdata")
+            t_records[r["name"]] = r
+    for r in p["records"]:
+        if not r["name"].startswith("__ehfuncinfo$"):
+            continue
+        fn = r["name"][len("__ehfuncinfo$"):]
+        if len(r["data"]) > 6:
+            tname = r["data"][6].strip().rstrip(",")
+            if tname in t_records:
+                fn_state_t[fn] = int(tname[2:])
+                fn_ip_ms[fn] = sorted(
+                    int(m.group(1)) for m in
+                    (re.fullmatch(r"\$M(\d+)", t.strip().rstrip(","))
+                     for t in t_records[tname]["data"]) if m)
 
-    triple_ms = sorted(n for n in named
-                       if n not in funclets and n not in ip_ms
-                       and n not in state_t and n not in pdata_t)
+    per_fn = {}
+    for fn in set(list(fn_state_t) + [l["fn"] for l in labels if l["fn"]]):
+        fl = sorted(l["num"] for l in labels
+                    if l["kind"] == "funclet" and l["fn"] == fn)
+        ip = fn_ip_ms.get(fn, [])
+        st = fn_state_t.get(fn)
+        own = sorted(l["num"] for l in labels if l["fn"] == fn)
+        tri = sorted(n for n in own
+                     if n not in fl and n not in ip and n != st)
+        e = dict(funclets=fl, ip_ms=ip, state_t=st, triple_ms=tri)
+        if fl and ip:
+            e["G_funclet_to_ipM"] = min(ip) - max(fl) - 1
+        if st is not None and tri:
+            e["G_stateT_to_triple"] = min(tri) - st - 1
+        per_fn[fn] = e
 
-    out = dict(lo=lo, hi=hi, span=hi - lo + 1, n_named=len(named),
-               n_unnamed=len(unnamed), unnamed=unnamed,
-               funclets=sorted(funclets), ip_ms=sorted(ip_ms),
-               state_t=sorted(state_t), pdata_t=pdata_t,
-               triple_ms=triple_ms,
-               locals=sorted(set((l["prefix"], l["num"]) for l in p["locals"])))
-    # the two gaps §9.12 measured
-    if funclets and ip_ms:
-        out["G_funclet_to_ipM"] = min(ip_ms) - max(funclets) - 1
-    if state_t and triple_ms:
-        out["G_stateT_to_triple"] = min(triple_ms) - max(state_t) - 1
-    return out
+    return dict(lo=lo, hi=hi, span=hi - lo + 1, n_named=len(named),
+                unnamed=[n for n in range(lo, hi + 1) if n not in named],
+                per_fn=per_fn, funcs=p["funcs"],
+                locals=sorted(set((l["prefix"], l["num"]) for l in p["locals"])))
 
 
 # ---------------------------------------------------------------------------
@@ -634,7 +802,7 @@ def one(args):
         return dict(probe=name, mode=mode, ok=False,
                     err=(r.stderr or r.stdout).strip()[:300])
     p = parse_cod(out)
-    grp = EH_SRC[name][0] if name in EH_SRC else "gap"
+    grp = EH_SRC[name][0] if name in EH_SRC else ("held2" if name in Z_SRC else "gap")
     return dict(probe=name, mode=mode, ok=True, group=grp, flags=flags,
                 records=p["records"], labels=p["labels"], locals=p["locals"],
                 funcs=p["funcs"], gaps=gap_analysis(p))
@@ -649,6 +817,8 @@ def scan(jobs=6):
     for name in GAP_SRC:
         for mode in ("EHsc-O1",):
             work.append((name, mode, MODES[mode]))
+    for name in Z_SRC:
+        work.append((name, "EHsc-O1", MODES["EHsc-O1"]))
     with ThreadPoolExecutor(max_workers=jobs) as ex:
         rows = list(ex.map(one, work))
     with open(ROWS, "w") as fh:
@@ -684,6 +854,72 @@ def cmd_records(argv):
             for f, v in fields:
                 print("      %-22s %s" % (f, v))
         print()
+
+
+def cmd_arity(argv):
+    """A1b — THE CHECK WITH TEETH.
+
+    Residue alone cannot see a SHORT read: if the parser loses data, the record
+    simply has fewer fields and every one of them is still claimed, so the
+    residue stays 0 and the run prints success. That is not hypothetical — c2
+    run-length-encodes with `DD 2 DUP(00H)` and the first version of this parser
+    read `__ehfuncinfo$` as 8 dwords instead of 9, residue 0, every field
+    "claimed", and `pIPtoStateMap` decoded onto `nIPMapEntries`.
+
+    So each record's LENGTH is predicted from a count field in a DIFFERENT
+    record and checked. A short or long read fails this even when residue is 0.
+    """
+    ok = bad = 0
+    fails = []
+    for r in load():
+        if not r["ok"] or r["probe"] in GAP_SRC:
+            continue
+        by_name = {rec["name"]: rec for rec in eh_records(r)}
+        for nm, rec in sorted(by_name.items()):
+            if not nm.startswith("__ehfuncinfo$"):
+                continue
+            fn = nm[len("__ehfuncinfo$"):]
+            d = rec["data"]
+            checks = [("FuncInfo dwords", len(d), 9)]
+            maxState = n_of(d[1]) if len(d) > 1 else None
+            nTry = n_of(d[3]) if len(d) > 3 else None
+            nIP = n_of(d[5]) if len(d) > 5 else None
+            uw = by_name.get("__unwindtable$" + fn)
+            if uw is not None and maxState is not None:
+                checks.append(("UnwindMap dwords", len(uw["data"]), 2 * maxState))
+            tb = by_name.get("__tryblocktable$" + fn)
+            if nTry:
+                checks.append(("TryBlockMap dwords",
+                               len(tb["data"]) if tb else 0, 5 * nTry))
+            elif tb is not None:
+                checks.append(("TryBlockMap present with nTryBlocks=0",
+                               len(tb["data"]), 0))
+            if len(d) > 6 and nIP is not None:
+                tname = d[6].strip().rstrip(",")
+                t = by_name.get(tname)
+                checks.append(("IpToStateMap dwords",
+                               len(t["data"]) if t else -1, 2 * nIP))
+            # nCatches in each try-block entry vs its HandlerType array length
+            if tb is not None and nTry:
+                for i in range(nTry):
+                    base = 5 * i
+                    if base + 4 < len(tb["data"]):
+                        nC = n_of(tb["data"][base + 3])
+                        arr = by_name.get(tb["data"][base + 4].strip().rstrip(","))
+                        checks.append(("HandlerType[%d] dwords" % i,
+                                       len(arr["data"]) if arr else -1,
+                                       4 * nC if nC is not None else -1))
+            for what, got, want in checks:
+                if got == want:
+                    ok += 1
+                else:
+                    bad += 1
+                    fails.append((r["probe"], r["mode"], fn, what, got, want))
+    print("A1b ARITY — each record's length predicted from a count field elsewhere")
+    print("  %d/%d consistent, %d inconsistent" % (ok, ok + bad, bad))
+    for f in fails:
+        print("  FAIL %-22s %-9s %-16s %-28s got %s want %s" % f)
+    return bad
 
 
 def cmd_totality(argv):
@@ -785,23 +1021,63 @@ def cmd_predict(argv):
           % (hits, cells, 100.0 * hits / cells if cells else 0.0, declined))
 
 
+def cmd_predict2(argv):
+    """The corrected maxState law, graded ONLY on shapes it was not fitted on."""
+    hits = cells = 0
+    print("A2 round 2 — maxState = (dtors) + 2 x (try blocks), HELD OUT")
+    for r in load():
+        if not r["ok"] or r["probe"] not in PREDICT2 or r["mode"] != "EHsc-O1":
+            continue
+        obs = observed(r)
+        for k, pv in sorted(PREDICT2[r["probe"]].items()):
+            ov = obs.get(k) if obs else None
+            cells += 1
+            good = (pv == ov)
+            hits += good
+            print("  %-22s %-12s pred %-4s obs %-4s %s"
+                  % (r["probe"], k, pv, ov, "hit" if good else "MISS"))
+    print("  %d/%d = %.1f %% on held-out shapes"
+          % (hits, cells, 100.0 * hits / cells if cells else 0.0))
+
+
 def cmd_gaps(argv):
     rows = [r for r in load() if r["ok"] and r["probe"] in GAP_SRC]
     rows.sort(key=lambda r: r["probe"])
-    print("#138 — the label-number gaps, one axis moved per probe")
-    print("  %-12s %6s %6s %6s %6s %8s %8s  %s"
-          % ("probe", "lo", "hi", "span", "named", "G_fn>M", "G_T>tri", "unnamed"))
+    print("#138 — the label-number gaps, PER FUNCTION, one axis moved per probe")
+    print("  %-12s %-24s %5s %8s %8s   %s"
+          % ("probe", "function", "nfn", "G_fn>M", "G_T>tri", "TU unnamed"))
+    base = None
     for r in rows:
         g = r["gaps"]
         if not g:
             print("  %-12s (no labels)" % r["probe"])
             continue
-        print("  %-12s %6d %6d %6d %6d %8s %8s  %s"
-              % (r["probe"], g["lo"], g["hi"], g["span"], g["n_named"],
-                 g.get("G_funclet_to_ipM", "-"), g.get("G_stateT_to_triple", "-"),
-                 g["unnamed"]))
+        first = True
+        for fn, e in sorted(g["per_fn"].items()):
+            if "G_funclet_to_ipM" not in e:
+                continue
+            if r["probe"] == "g_base":
+                base = e["G_funclet_to_ipM"]
+            print("  %-12s %-24s %5d %8s %8s   %s"
+                  % (r["probe"] if first else "", fn[:24], len(g["funcs"]),
+                     e.get("G_funclet_to_ipM", "-"),
+                     e.get("G_stateT_to_triple", "-"),
+                     g["unnamed"] if first else ""))
+            first = False
     print()
-    print("  the SEPARATE local-label space (`$LN`/`$LL`), which is NOT the TU counter:")
+    print("  DELTA of G_funclet_to_ipM against g_base (G = %s), first EH fn:" % base)
+    for r in rows:
+        g = r["gaps"]
+        if not g:
+            continue
+        cand = [e for _f, e in sorted(g["per_fn"].items())
+                if "G_funclet_to_ipM" in e]
+        if not cand:
+            continue
+        v = cand[0]["G_funclet_to_ipM"]
+        print("  %-12s G=%-4d delta %+d" % (r["probe"], v, v - base))
+    print()
+    print("  the SEPARATE local-label space (`$LN`/`$LL`), NOT the TU counter:")
     for r in rows:
         g = r["gaps"]
         if g and g["locals"]:
@@ -810,6 +1086,8 @@ def cmd_gaps(argv):
 
 def cmd_grade(argv):
     cmd_totality([])
+    print()
+    cmd_arity([])
     print()
     cmd_predict([])
     print()
@@ -832,8 +1110,12 @@ def main():
         cmd_records(argv)
     elif cmd == "totality":
         cmd_totality(argv)
+    elif cmd == "arity":
+        cmd_arity(argv)
     elif cmd == "predict":
         cmd_predict(argv)
+    elif cmd == "predict2":
+        cmd_predict2(argv)
     elif cmd == "gaps":
         cmd_gaps(argv)
     elif cmd == "grade":
