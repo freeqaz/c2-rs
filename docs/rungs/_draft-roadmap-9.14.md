@@ -68,6 +68,17 @@ one grant produces **both** published symptoms at once:
 
 They were tracked as two board items and repaired by one locator.
 
+**#139 also under-sized itself by 1.69×, and the four rows it named reconcile
+exactly.** The board item says "re-attributes 7,983 emitted functions" and lists
+four `recv-object` keys. Three of the four reproduce to the function here
+(5,663 / 1,462 / 449) and the fourth reads 402 against 409 — a 7-function drift
+between §9.13's lane tip `be797bf` and this HEAD. But the four are one family
+out of **70 keys naming `type-ptr`, totalling 13,521 emitted**. The item was
+sized by listing the rows someone had already looked at, which is selection on
+the outcome — the same shape §8.6 records for the three control-flow keys.
+Measured over the key space instead of over the shortlist, the re-attribution is
+**13,321** functions.
+
 **And the measure was not merely narrow.** The guard was run against the base
 measure by mutating the four repaired positions back one at a time — the operand
 gate to `eat_int_like`, the stream rules off, the `2C` arm off, the `55`
