@@ -86,7 +86,7 @@
 //! * more than eight formals (`framed-arg-over-eight-formals`, the shared key).
 
 use crate::func::body::expr::eat_return_plumbing;
-use crate::func::body::{Block, BodyShape, SeqCall, SeqTail};
+use crate::func::body::{prod_tag, Block, BodyShape, SeqCall, SeqTail};
 use crate::func::readers::{
     eat_byte, eat_int_like, eat_value_type, is_int4_type, is_ptr4_kind, read_type,
     ValueClass,
@@ -131,20 +131,26 @@ pub(crate) fn try_parse_member_cmp_calls(
     // A second copy of the receiver decode is the drift `docs/GAPS.md` §6
     // instance #9 records — in particular the `volatile` gate, which lives in
     // `eat_receiver_this`'s operand-type read and nowhere else.
-    let callee2 = eat_callee_push(seg, &mut p).map_err(|_| None)?;
-    let recv2 = eat_receiver_this(seg, &mut p).map_err(|_| None)?;
+    // The caller only enters here on a `26`, so this half can decline only on a
+    // method-symbol token the varint reader cannot spell.
+    let callee2 = eat_callee_push(seg, &mut p)
+        .map_err(|_| prod_tag("cmp-second-method-symbol-token-unreadable"))?;
+    let recv2 = eat_receiver_this(seg, &mut p)
+        .map_err(|_| prod_tag("cmp-second-recv-not-a-plain-b9-load"))?;
     // The result TYPE of each call, **peeked** (the byte position is `BD`, which
     // `eat_call_token` consumes next). Only the order relations read it; see
     // [`operand_signedness`].
     let signedness = operand_signedness(seg, ret1_at, p);
-    let ret2 = eat_call_token(seg, &mut p).map_err(|_| None)?;
-    let args2 = eat_call_args(seg, &mut p).map_err(|_| None)?;
+    let ret2 = eat_call_token(seg, &mut p)
+        .map_err(|_| prod_tag("cmp-second-call-has-no-cdecl-call-token"))?;
+    let args2 = eat_call_args(seg, &mut p)
+        .map_err(|_| prod_tag("cmp-second-call-argument-not-in-the-operand-vocabulary"))?;
 
     // The relation. Not this production unless a relational byte stands here —
     // an arithmetic post-op (`02`/`03`) over two calls is a *different* spine
     // (`add r3,r30,r3`, one word) and belongs to whichever rung takes it.
     let Some(rel) = eat_relation(seg, &mut p) else {
-        return Err(None);
+        return Err(prod_tag("cmp-two-results-not-consumed-by-a-relation"));
     };
     // **The result's class, and the annotation that has to restate it.** The
     // comparison produces a `bool`; an `int`/`unsigned`-typed result converts it
@@ -164,7 +170,7 @@ pub(crate) fn try_parse_member_cmp_calls(
     if converted {
         let mut q = p + 1;
         if !(eat_int_like(seg, &mut q) && eat_byte(seg, &mut q, 0x00)) {
-            return Err(None);
+            return Err(prod_tag("cmp-result-convert-not-a-plain-int"));
         }
         p = q;
     }
@@ -172,12 +178,14 @@ pub(crate) fn try_parse_member_cmp_calls(
     // returns. Anything else (a branch on it — `-and-branch-more`, 9,490
     // functions of this family) needs basic blocks.
     if converted {
-        eat_return_plumbing(seg, &mut p, true, depth).map_err(|_| None)?;
+        eat_return_plumbing(seg, &mut p, true, depth)
+            .map_err(|_| prod_tag("cmp-converted-body-does-not-end-at-the-relation"))?;
     } else {
         if !(eat_byte(seg, &mut p, 0x41) && eat_value_type(seg, &mut p, ValueClass::Int1u)) {
-            return Err(None);
+            return Err(prod_tag("cmp-relation-result-not-annotated-bool"));
         }
-        eat_return_plumbing(seg, &mut p, false, depth).map_err(|_| None)?;
+        eat_return_plumbing(seg, &mut p, false, depth)
+            .map_err(|_| prod_tag("cmp-bool-body-does-not-end-at-the-relation"))?;
     }
 
     // ---- from here the body parses to the end of the segment, so every refusal
@@ -540,6 +548,27 @@ mod tests {
     /// emission order, one saved formal (the second call's receiver), and the
     /// `Cmp` tail whose `saved_gprs()` is therefore 2 — the saved formal plus
     /// the first call's result.
+    /// **Every non-committal decline out of the comparison production is
+    /// attributed to a named site.** The corpus spans the `==` form (which takes
+    /// the un-converted `bool` arm), the reordered one, the `this` receiver, and
+    /// the three order spines — so both halves of the result-annotation split are
+    /// swept, not just the one the base capture happens to spell.
+    #[test]
+    fn no_decline_out_of_the_cmp_production_lands_in_the_residue() {
+        crate::func::body::shapes::mcall_tail::assert_no_decline_lands_in_the_residue(
+            &[
+                ("MC_CMP_PLAIN", MC_CMP_PLAIN),
+                ("MC_CMP_REORDERED", MC_CMP_REORDERED),
+                ("MC_CMP_THIS", MC_CMP_THIS),
+                ("MC_SGT", MC_SGT),
+                ("MC_ULT", MC_ULT),
+                ("MC_UGT_I", MC_UGT_I),
+            ],
+            // MEASURED: 8,464 of the mutations reach the production.
+            8_200,
+        );
+    }
+
     #[test]
     fn two_member_calls_compared_for_equality_are_a_class_b_sequence() {
         let Some(BodyShape::CallSeq { params, calls, tail, saved }) =
