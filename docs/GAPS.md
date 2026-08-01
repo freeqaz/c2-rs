@@ -2802,3 +2802,47 @@ which is the cheapest thing on the board that moves the payoff metric.
   stating exactly: the numerator now has a denominator made of code that appears
   in an obj, so it is at least the kind of claim a byte compare *could* grade.
 * **Cost**: one extra `.gl` pass per TU. Warm-cache scan 3.7 s for 878 TUs.
+
+## 9. The nine one-away TUs, measured (W-ONEAWAY, 2026-08-01)
+
+### 9.1 The estimate, registered before any conversion was attempted
+
+Written after step 1 (running `c2rs census` on all nine) and **before** any code
+was touched, per the ceiling rule.
+
+> **Estimate: 0 of the 9 TUs converted to byte-exact. Interval [0, 1].**
+> Unit is **TUs**, matching the unit of the change.
+>
+> **Bias: optimistic.** My prior on reading the brief was 2–3. The two axes that
+> collapse it — control-flow class and EH class — are already printed by the
+> census and cost nothing; I had simply not crossed the near-match list with
+> them. The single live candidate is `src/xdk/nuispeech/xboxheap.cpp`, and its
+> blocker sits on a row the roadmap has three times measured as a **reservoir,
+> not a rung** (`expr-op-0x27`, 0.14–2.5 % completion). I expect the actual to be
+> 0 and the failure mode to be that 404 B of straight-line body contains far more
+> refusals than the one the first-blocker histogram shows.
+
+### 9.2 The nine, by name, key, and the two axes that decide them
+
+`c2rs census <tu> --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp`,
+one capture each, at the workload's own `/O1 /Oi /EHsc`. Every TU below reports
+`0/1 functions in class` — one body, and it is the one c2 emits.
+
+| TU | function | blocker key | cflow | EH | body |
+|---|---|---|---|---|---:|
+| `src/Main.cpp` | `?Run@App@@QAAXXZ` | `param-width-undetermined:mid` | straight | **eh-state1** | 222 B |
+| `src/system/math/Primes.cpp` | (unnamed) | `expr-jump` | **loop** | none | 294 B |
+| `src/system/math/Sort.cpp` | `?HashString@@YAHPBDH@Z` | `assign-store-type-0x86` | **loop** | none | 261 B |
+| `src/xdk/LIBCMT/osfinfo.cpp` | (unnamed) | `expr-cmp-ge` | **if-n** | none | 445 B |
+| `src/xdk/LIBCMT/undname.cpp` | (unnamed) | `expr-cmp-ne` | **if-n** | none | 532 B |
+| `src/xdk/LIBCMT/vswprnc.cpp` | (unnamed) | `expr-cmp-eq` | **if-n** | none | 508 B |
+| `src/xdk/nuispeech/xboxheap.cpp` | `?AllocatePageBlock@CXboxHeap@NUISPEECH@@AAAPAU_BLOCK_ENTRY@12@I@Z` | `expr-op-0x27` | straight | none | 404 B |
+| `src/xdk/xjson/jsonwriter.cpp` | `?GetBuffer@JsonWriter@@QAAJPAGPAK@Z` | `expr-brfalse` | **loop** | none | 1349 B |
+| `src/xdk/xlrc/xlrcimpl.cpp` | `?CreateClient@CXLrcImpl@@YAPAVCXLrcClient@@PAI@Z` | `assign-rhs-call-0x26` | **if-n** | none | 519 B |
+
+**7 of the 9 are not single basic blocks** — 4 `cflow-if-n`, 3 `cflow-loop`.
+That is not a soft obstacle. `c2-il::func::census`'s
+`every_in_class_row_is_a_single_basic_block` asserts that **every** in-class row
+reads `cflow-straight`, and it holds on the workload over all 455,049 readable
+in-class bodies. Converting any of the seven means Phase 6, the whole
+control-flow phase, not a widening.
