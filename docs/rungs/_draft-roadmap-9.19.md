@@ -178,6 +178,31 @@ formals c2 pre-saves into r11 … which one probe does not separate". Here it fi
 at **one** shifting formal, so the existing refusal's stated reason understates
 its own scope.
 
+**And it is not one refinement away — which is the part worth handing over.**
+Over grid 3's 394 in-domain cells the pre-save fires 99 times, always inside the
+298 cells whose base is clobbered, and one further axis nearly separates it:
+
+| clobbered cells | pre-save | no pre-save |
+|---|---:|---:|
+| address destination **below** the base | **90** | 0 |
+| address destination **above** the base | 9 | **199** |
+
+Nine exceptions, not zero — and they are a coherent family: **wide offset with a
+non-zero low half, destination exactly one register above the base, and the
+base's own literal is the first word of the walk.**
+
+```text
+  w_32768_3a_2_m1     base r4, dest r5
+    fitted rule   mr r11,r4 · li r4,11 · li r3,10 · addis r5,r11,1 · addi r5,r5,-32768
+    c2 emits      mr r11,r4 · li r4,11 · addis r5,r11,1 · li r3,10 · addi r5,r5,-32768
+```
+
+So the pre-save arm is wrong twice over: about *when* it fires, and about *where
+the computation goes once it does* — c2 interleaves the address into the walk
+rather than appending it. **The last time this lane had a residue of 0 it was
+wrong on the next grid**, and a residue of 9 on an axis discovered by the grid
+that broke the rule is not a basis for a fifth attempt.
+
 #### 9.19.5 DECLINE, under the rule registered in advance
 
 `_2026-08-01-w-slotarg-prereg.md` registered: *if the measured rule cannot be
