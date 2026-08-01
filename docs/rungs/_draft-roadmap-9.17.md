@@ -460,7 +460,8 @@ in every gate lane that this lane did not earn.
   past the `addi` immediate) × (free and member callers). The measured
   counterfactual, the probes and the four sinks are in `39ae1e2` behind
   `C2RS_SINK_OFF_ADD_ARG`; **do not re-derive the row's worth from its census
-  size**, which overstates it by 3.6×.
+  size or its clean figure** — 1,038 emitted overstates the ceiling by 2.9× and
+  851 clean by 2.4×, and the *realizable-without-codegen* number is 6.
 * **#148 — `expr-op-0x27` is worth 6 emitted functions.** The #1 row on the
   emitted board. Behind it is `expr-op-0x30` and the rest of the member-access
   chain (201,618 bodies re-file there). The board should carry the number so
