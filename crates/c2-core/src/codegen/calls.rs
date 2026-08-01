@@ -1674,6 +1674,156 @@ mod tests {
         assert!(sym_slots_text(&[SymAddr, Lit(70000)]).is_err());
     }
 
+    // -----------------------------------------------------------------------
+    // W-SLOTARG / board #149 — the COMPUTED address (`base + k`, `f(&t->s.k)`).
+    //
+    // §9.17.5 priced the construct at **+356 emitted functions** and named the
+    // single blocker: `tail_call_shape` has no `SlotArg` for a computed address.
+    // The variant is trivial; its **position in the permutation walk** is not,
+    // and §9.13.1's ALARM is that a wrong position ships GREEN — the 878-TU
+    // differential reads 6 match / 0 mismatch under a sink that provably
+    // mis-emits, because no byte-exact TU carries the shape.
+    //
+    // Three capture grids (`scripts/slotarg_grid{1,2,3}.py`, **754 cells** of
+    // c2's own `.cod` listing) were taken. Two facts came out, and they are what
+    // these two tests exist to keep:
+    //
+    //   1. the computed address is NOT scheduled like a data-symbol address, so
+    //      `sym_slots_text` must never be reused for it;
+    //   2. the schedule is **not established** — a rule fitted to 360 in-sample
+    //      cells mispredicted 98 of 394 out-of-sample cells, every one of them
+    //      an r11 pre-save it did not expect. So the port must REFUSE the shape,
+    //      which today it does by having no variant to refuse.
+    // -----------------------------------------------------------------------
+
+    /// **The two address constructs take different positions, and one capture
+    /// grid cannot tell them apart.**
+    ///
+    /// For the same arrangement — the address at slot 0 with two literals above
+    /// it — c2 places a *data-symbol* address at walk index **1** and a
+    /// *computed* address at walk index **2** (last). Wiring the off-add through
+    /// [`sym_slots_text`] would therefore emit the right instructions in the
+    /// wrong order, which is §9.13.1 verbatim.
+    ///
+    /// Captured, `/O1 /Oi /EHsc /GS- /c`, `scripts/slotarg_grid1.py`:
+    ///
+    /// ```text
+    ///   f3_0(&t->k, 11, 12)   li r5,12 · li r4,11 · addi r3,r3,8   <- LAST
+    ///   gs3(&gI, 3, 4)        li r5,4  · addi r3,r11,0 · li r4,3   <- SECOND
+    /// ```
+    #[test]
+    fn a_computed_address_is_not_scheduled_like_a_data_symbol_address() {
+        use c2_il::SlotArg::{Lit, SymAddr};
+        // Where `sym_slots_text` puts the address, among the words that follow
+        // the hoisted `lis`. The address is the one `addi` sourced from r11.
+        let sym_index = |slots: &[c2_il::SlotArg]| -> usize {
+            let w = sym_slots_text(slots).unwrap().0;
+            let words: Vec<[u8; 4]> =
+                w.chunks_exact(4).map(|c| [c[0], c[1], c[2], c[3]]).collect();
+            words[1..]
+                .iter()
+                .position(|w| w[1] & 0x1F == SCRATCH_REG)
+                .expect("the address addi is sourced from the scratch")
+        };
+
+        // The address at slot 0 with a two-word walk above it.
+        assert_eq!(sym_index(&[SymAddr, Lit(3), Lit(4)]), 1);
+        // c2's CAPTURED computed-address schedule for the same arrangement puts
+        // it at 2 — `li r5,12 · li r4,11 · addi r3,r3,8`. The grids are the
+        // evidence; this constant is what makes the divergence portable.
+        const COMPUTED_ADDRESS_INDEX_AT_SLOT_0_WALK_2: usize = 2;
+        assert_ne!(
+            sym_index(&[SymAddr, Lit(3), Lit(4)]),
+            COMPUTED_ADDRESS_INDEX_AT_SLOT_0_WALK_2,
+            "the data-symbol schedule must not be reused for a computed address"
+        );
+
+        // …and it is not an artefact of one arity. Three literals above the
+        // address: the symbol stays at 1, the computed address goes to 3.
+        assert_eq!(sym_index(&[SymAddr, Lit(3), Lit(4), Lit(5)]), 1);
+        const COMPUTED_ADDRESS_INDEX_AT_SLOT_0_WALK_3: usize = 3;
+        assert_ne!(
+            sym_index(&[SymAddr, Lit(3), Lit(4), Lit(5)]),
+            COMPUTED_ADDRESS_INDEX_AT_SLOT_0_WALK_3,
+        );
+
+        // The GREEN CONTROL (§9.12's pin): the symbol schedule itself is
+        // untouched by this lane and still reads SECOND at the discriminating
+        // arity. A mutation that reddened every cell would identify nothing.
+        assert_eq!(sym_index(&[SymAddr, Lit(7)]), 1);
+        assert_eq!(sym_index(&[Lit(3), SymAddr, Lit(4), Lit(5)]), 1);
+    }
+
+    /// **The computed-address schedule is NOT established, so there is no slot
+    /// variant to mis-order.**
+    ///
+    /// The `match` below is exhaustive on purpose: adding a `SlotArg` variant
+    /// for `base + k` (board #149) stops it compiling, and whoever adds it has
+    /// to read this. What they need to know before choosing an ordering:
+    ///
+    /// * **WR1's address-last rule mis-emits 654 of the 728 captured cells that
+    ///   have a walk (89.8 %)** — it is not a safe default.
+    /// * A rule fitted to grids 1–2 (360 cells, agreeing on all 360) mispredicts
+    ///   **98 of 394** grid-3 cells. Every single miss is an **r11 pre-save**
+    ///   that the fitted rule did not expect, and the axis that produces them is
+    ///   the base formal's own register position — which grids 1–2 could not
+    ///   vary, because they always parked the base at the lowest slot.
+    /// * That is the same shape [`sym_slots_text`] already refuses by name
+    ///   ("at two shifting formals c2 pre-saves into r11 … which one probe does
+    ///   not separate"). Here it fires at **one** shifting formal.
+    ///
+    /// Witness (`scripts/slotarg_grid3.py`, `w_32764_3a_0_m1`), where the base
+    /// formal sits in r4 rather than r3:
+    ///
+    /// ```text
+    ///   predicted   addi r3,r4,32764 · li r5,12 · li r4,11
+    ///   c2 emits    mr r11,r4 · li r5,12 · li r4,11 · addi r3,r11,32764
+    /// ```
+    #[test]
+    fn the_computed_address_schedule_is_not_established_and_has_no_slot_variant() {
+        fn every_slot_source_is_accounted_for(a: c2_il::SlotArg) -> &'static str {
+            match a {
+                c2_il::SlotArg::Formal(_) => "a formal, already in a register",
+                c2_il::SlotArg::Lit(_) => "a literal, one `li`",
+                c2_il::SlotArg::SymAddr => "a data symbol's address, `lis`+`addi`",
+                // No arm for a COMPUTED address: the port refuses the shape by
+                // being unable to represent it, which is honest, and is why
+                // `c2rs gap` reports these 356 emitted functions as blocked
+                // rather than emitting them wrongly.
+            }
+        }
+        assert_eq!(
+            every_slot_source_is_accounted_for(c2_il::SlotArg::SymAddr),
+            "a data symbol's address, `lis`+`addi`"
+        );
+        assert_eq!(
+            every_slot_source_is_accounted_for(c2_il::SlotArg::Lit(1)),
+            "a literal, one `li`"
+        );
+        assert_eq!(
+            every_slot_source_is_accounted_for(c2_il::SlotArg::Formal(0)),
+            "a formal, already in a register"
+        );
+
+        // …and the permutation walk really has no path that accepts one: every
+        // slot list `permute_args_parts` can be handed is built from the three
+        // arms above, so there is no arrangement that reaches codegen with a
+        // computed address and gets it wrong. Asserted rather than asserted-in-
+        // prose, because "the port cannot mis-emit this" is the whole claim.
+        for slots in [
+            vec![c2_il::SlotArg::SymAddr, c2_il::SlotArg::Lit(3)],
+            vec![c2_il::SlotArg::Formal(0), c2_il::SlotArg::Lit(3)],
+            vec![c2_il::SlotArg::Formal(0), c2_il::SlotArg::Formal(1)],
+        ] {
+            let parts = permute_args_parts(&slots);
+            assert!(
+                parts.is_ok(),
+                "the three admitted slot sources still lower; only the computed \
+                 address is missing, and it is missing by construction"
+            );
+        }
+    }
+
     #[test]
     fn argument_permutations_refuse_the_uncharacterized_shapes() {
         // Two disjoint cycles (`g4(d,c,b,a)`): c2 hoists both saves into r11 and
