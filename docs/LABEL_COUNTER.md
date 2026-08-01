@@ -100,6 +100,19 @@ mechanical count of the symbol-table entries in P's group that c2 minted itself
 Reproduce: `scripts/gt_label_stride.py` (whole table),
 `scripts/gt_label_stride.py --mode '/Ox /GS- /c'` (packed).
 
+> **Do not read `leaf-float` = 2 as "an FP leaf costs 2."** It is
+> `1 + the TU's _fltused slot`, which is why the two `-led` rows — the same
+> leaves in a TU where `_fltused` has already been minted — are **1**. A
+> constant-free FP leaf's own stride is **1**, identical to `leaf-int`.
+>
+> This row was read as licence and cost a TU-level gate: `label_slots()`
+> returned `None` for *every* float leaf, refusing 18 of 406 cross-product
+> family pairs on a number `plan_labels` had stopped using when it began
+> charging `_fltused` per-TU. Closed 2026-08-01 (WUNW, `ROADMAP` §6u-adjacent);
+> pairs 388/406 → **406/406**. The `-c1-`/`-c2-` rows are a *different* fact —
+> a newly pooled constant does cost +2, and that rule is proven on a 240-TU grid
+> with zero contradicting cases; what blocks it is section order, not labels.
+
 ## 1.1 The rule that fits it
 
 > **stride = base + Σ surcharges**, where `base` is **1** for a leaf and **5**
