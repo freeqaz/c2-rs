@@ -710,6 +710,73 @@ fn clip(s: &str, n: usize) -> String {
     }
 }
 
+/// **SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128).** Append one TSV row per
+/// census row whose key is named in `C2RS_ROW_DUMP` to the file named by
+/// `C2RS_ROW_DUMP_OUT`. Off — and free — when the variable is unset.
+///
+/// Read-only over the census: it changes no count and no verdict. It exists
+/// because the two questions a completion counterfactual has to answer *before*
+/// it is run — "which production site actually refused" and "is this row one
+/// source function replicated across TUs or N distinct ones" — are not answerable
+/// from any aggregated histogram the scan already prints.
+fn row_dump(
+    src: &str,
+    census: &[(c2_il::FnCensus, Result<c2_il::IlFunction, &'static str>)],
+    emitted: Option<&[String]>,
+) {
+    static OUT: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
+    let Ok(want) = std::env::var("C2RS_ROW_DUMP") else {
+        return;
+    };
+    let wanted: Vec<&str> = want.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    let out = OUT.get_or_init(|| {
+        let p = std::env::var("C2RS_ROW_DUMP_OUT").ok()?;
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(p)
+            .ok()
+            .map(Mutex::new)
+    });
+    let Some(out) = out else { return };
+    let emitted_set: std::collections::BTreeSet<&str> =
+        emitted.unwrap_or(&[]).iter().map(String::as_str).collect();
+    let emitted_only = std::env::var_os("C2RS_ROW_DUMP_EMITTED").is_some();
+    let mut buf = String::new();
+    for (f, _) in census {
+        let key = f.verdict.key();
+        if !wanted.iter().any(|w| key == *w || *w == "*") {
+            continue;
+        }
+        let name = f.emit_name.as_deref().unwrap_or("-");
+        let is_emitted = f.emit_name.as_deref().is_some_and(|n| emitted_set.contains(n));
+        if emitted_only && !is_emitted {
+            continue;
+        }
+        let hex: String = f.hex.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ");
+        buf.push_str(&format!(
+            "{src}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            f.index,
+            key,
+            if is_emitted { "EMITTED" } else { "not-emitted" },
+            name,
+            f.frame_class(),
+            f.cflow,
+            f.eh,
+            f.dispatch,
+            f.prod,
+            f.hex_mark,
+            hex,
+        ));
+    }
+    if buf.is_empty() {
+        return;
+    }
+    if let Ok(mut g) = out.lock() {
+        let _ = g.write_all(buf.as_bytes());
+    }
+}
+
 /// Scan one TU. `work` must be a private (per-TU) directory.
 fn scan_one(
     tc: &Toolchain,
@@ -960,6 +1027,13 @@ fn scan_one(
                 }
             }
         }
+        // 1e'. SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128) — see [`row_dump`].
+        //      Off unless `C2RS_ROW_DUMP` is set; changes no count either way.
+        row_dump(
+            src,
+            &census,
+            captured.ref_obj.text_comdat_functions().as_deref(),
+        );
     }
 
     // 1f. The emit binding's own self-report. Printed on every scan, whether or

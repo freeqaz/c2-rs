@@ -84,6 +84,128 @@ use super::calls::{
 };
 use super::params::parse_params;
 
+// ============================================================================
+// SCRATCH — W-ADJUST completion counterfactuals (boards #127, #128).
+//
+// NOT A RUNG. Every sink below is inert unless `C2RS_CF` is set, and the whole
+// block is deleted before anything is proposed for merge. It exists to answer
+// one question per row — *if this row's blocker were removed and nothing else
+// changed, how many emitted functions convert?* — by removing exactly that
+// blocker at exactly its refusal site and re-running one warm `c2rs gap` scan.
+//
+//   C2RS_CF bit 1 (`1`) — admit the `this`-adjust intrinsic (2113) as a receiver
+//                         designator, at ANY adjust offset.            (#127)
+//   C2RS_CF bit 2 (`2`) — the same, but only at adjust offset k == 0, which is
+//                         the half that needs NO new codegen: the address is
+//                         unchanged, so `[Load(this)]` is the true stream.
+//   C2RS_CF bit 4 (`4`) — admit a named data object (`26 <sym>`) as a receiver
+//                         designator, lowered through WR1's `IlOp::SymAddr`
+//                         slot path.                                    (#128)
+//
+// The sinks make the PARSE succeed. Where the operand stream they hand codegen
+// is not the true one (bit 1 at k != 0), the scan's own `census/gate
+// disagreement` line and the differential are the separator, and the split
+// between bits 1 and 2 is the measurement of how much of the row is which.
+// ============================================================================
+
+/// The `C2RS_CF` mask, read once. Zero — the shipped behaviour — unless the
+/// variable is set, so no scan, gate, sweep or test is affected by this block's
+/// presence.
+fn cf_mask() -> u32 {
+    static M: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *M.get_or_init(|| {
+        std::env::var("C2RS_CF")
+            .ok()
+            .and_then(|v| v.trim().parse().ok())
+            .unwrap_or(0)
+    })
+}
+
+/// SCRATCH (#127). Consume a `this`-adjust intrinsic receiver
+/// `33 <int> 2113 · 40 <TYPE> · 66 <n> <refs> · (<arg> 55 <T>)* · 4C` and return
+/// `(the object pointer's token, the adjust offset)`.
+///
+/// Deliberately a *separate* consumer from [`super::super::mcall`]'s
+/// `eat_intrinsic_receiver`, which is private to the census classifier and
+/// returns neither of the two facts a lowering would need.
+fn cf_eat_this_adjust_receiver(seg: &[u8], p: &mut usize) -> Option<(u32, i32)> {
+    use crate::func::body::expr::intrinsic_selector;
+    use crate::func::body::mcall::eat_class_descriptor;
+    if intrinsic_selector(seg, *p)? != 2113 {
+        return None;
+    }
+    let mut q = *p + 1;
+    // `33 <int-type> <sel>` — the selector literal, already validated by
+    // `intrinsic_selector`, so only the widths are re-walked here.
+    let (_, _, _, tw) = read_type(seg, q)?;
+    q += tw;
+    read_varint(seg, &mut q)?;
+    // `40 <TYPE>` — the intrinsic call token; no trailing field.
+    if !eat_byte(seg, &mut q, 0x40) {
+        return None;
+    }
+    let (_, _, _, tw) = read_type(seg, q)?;
+    q += tw;
+    eat_class_descriptor(seg, &mut q)?;
+    // The argument region: a selector terminator, the adjust offset literal, and
+    // the object pointer, in that order, each `55 <TYPE>`-terminated.
+    let mut obj: Option<u32> = None;
+    let mut off: i32 = 0;
+    let mut lit: Option<i32> = None;
+    loop {
+        match seg.get(q) {
+            Some(&0x4C) => {
+                q += 1;
+                *p = q;
+                return obj.map(|t| (t, off));
+            }
+            Some(&0x55) => {
+                q += 1;
+                let (_, _, _, tw) = read_type(seg, q)?;
+                q += tw;
+                // The literal that was terminated HERE is the adjust offset when
+                // it is the last one before the object pointer.
+                if let Some(k) = lit.take() {
+                    off = k;
+                }
+            }
+            Some(&0xB9) => {
+                q += 1;
+                let (tok, w) = read_token_var(seg, q)?;
+                q += w;
+                let (tag, kind, _, tw) = read_type(seg, q)?;
+                if !is_ptr4_kind(tag, kind) {
+                    return None;
+                }
+                q += tw;
+                obj = Some(tok);
+            }
+            Some(&0x33) => {
+                q += 1;
+                let (_, _, _, tw) = read_type(seg, q)?;
+                q += tw;
+                lit = Some(read_varint(seg, &mut q)?);
+            }
+            _ => return None,
+        }
+    }
+}
+
+/// SCRATCH (#128). Peek whether the `26` at `p` opens a **named data object**
+/// used as a receiver rather than a second stacked method: a chain's next token
+/// is `26` or `B9`, an object receiver's is the `2C`/`33`/`99` that follows an
+/// address.
+fn cf_object_receiver_at(seg: &[u8], p: usize) -> Option<u32> {
+    if seg.get(p) != Some(&0x26) {
+        return None;
+    }
+    let (tok, w) = read_token_var(seg, p + 1)?;
+    match seg.get(p + 1 + w) {
+        Some(&0x2C) | Some(&0x33) | Some(&0x99) => Some(tok),
+        _ => None,
+    }
+}
+
 /// Try the member-call body at `start` (the statement-head `26`).
 ///
 /// `Err(None)` means **not this production** — the cursor is untouched, no census
@@ -121,11 +243,46 @@ pub(crate) fn try_parse_member_tail_call(
     // reason the split is here rather than one locator deeper: `eat_receiver_this`
     // must keep meaning "the receiver designator", not "the receiver or some
     // number of further methods".
+    // SCRATCH (#128): a second `26` is a stacked method OR a named data object
+    // standing as the receiver, and the chain production owns only the first.
+    let mut recv_sym: Option<u32> = None;
     if seg.get(p) == Some(&0x26) {
-        return super::mcall_chain::try_parse_member_chain_call(seg, p, lo, depth, callee_tok);
+        match if cf_mask() & 4 != 0 {
+            cf_object_receiver_at(seg, p)
+        } else {
+            None
+        } {
+            Some(tok) => {
+                let w = match read_token_var(seg, p + 1) {
+                    Some((_, w)) => w,
+                    None => return Err(prod_tag("tail-recv-not-a-plain-b9-load")),
+                };
+                p += 1 + w;
+                if seg.get(p) == Some(&0x2C) {
+                    let mut q = p + 1;
+                    if eat_value_type(seg, &mut q, ValueClass::Ptr4) && eat_byte(seg, &mut q, 0x00)
+                    {
+                        p = q;
+                    } else {
+                        return Err(prod_tag("tail-recv-not-a-plain-b9-load"));
+                    }
+                }
+                eat_this_bind(seg, &mut p)
+                    .map_err(|_| prod_tag("tail-recv-not-a-plain-b9-load"))?;
+                recv_sym = Some(tok);
+            }
+            None => {
+                return super::mcall_chain::try_parse_member_chain_call(
+                    seg, p, lo, depth, callee_tok,
+                )
+            }
+        }
     }
-    let recv_tok = eat_receiver_this(seg, &mut p)
-        .map_err(|_| prod_tag("tail-recv-not-a-plain-b9-load"))?;
+    let recv_tok = match recv_sym {
+        Some(tok) => tok,
+        None => eat_receiver_this(seg, &mut p)
+            .map_err(|_| prod_tag("tail-recv-not-a-plain-b9-load"))?,
+    };
     // The `BD` this call's result TYPE hangs off, kept because
     // [`super::mcall_cmp`] needs the type's **signedness** and `eat_call_token`
     // resolves it only to real / not-real. Recorded rather than re-found: going
@@ -144,7 +301,13 @@ pub(crate) fn try_parse_member_tail_call(
     // symmetric, which is exactly the shape of defect `GAPS.md` §6 keeps recording,
     // so `member_tail_call_puts_this_in_slot_zero` pins it against a capture where
     // the two readings differ.
-    args.push(vec![IlOp::Load(recv_tok)]);
+    args.push(match recv_sym {
+        // SCRATCH (#128): a named object's address is a relocation, not a load —
+        // it takes WR1's `SymAddr` slot path, which is the emitter that already
+        // exists for it.
+        Some(tok) => vec![IlOp::SymAddr(tok)],
+        None => vec![IlOp::Load(recv_tok)],
+    });
 
     // The body must END here. Either the result is discarded (`4B`) and the return
     // is void, or it is the returned value (`41 <TYPE>`, consumed by the plumbing).
@@ -305,6 +468,28 @@ fn framed_member_call(
 /// homes in the frame, and it was pre-existing across seven shapes because each had
 /// asked the question itself. One locator.
 pub(crate) fn eat_receiver_this(seg: &[u8], p: &mut usize) -> Result<u32, Block> {
+    // SCRATCH (#127): the base-adjusted receiver `p->Base::m()`, whose designator
+    // is intrinsic 2113 rather than a plain load. Bit 2 admits only adjust
+    // offset 0 — the half whose operand stream `[Load(this)]` is exactly right,
+    // so the counterfactual there is a claim about the shipped emitter.
+    if cf_mask() & 3 != 0 {
+        if let Some((tok, off)) = cf_eat_this_adjust_receiver(seg, p) {
+            if off == 0 || cf_mask() & 1 != 0 {
+                if seg.get(*p) == Some(&0x2C) {
+                    let mut q = *p + 1;
+                    if eat_value_type(seg, &mut q, ValueClass::Ptr4) && eat_byte(seg, &mut q, 0x00)
+                    {
+                        *p = q;
+                    } else {
+                        return Err(blk(seg, *p, "mcall-recv-convert"));
+                    }
+                }
+                eat_this_bind(seg, p)?;
+                return Ok(tok);
+            }
+            return Err(blk(seg, *p, "mcall-recv"));
+        }
+    }
     if !eat_byte(seg, p, 0xB9) {
         return Err(blk(seg, *p, "mcall-recv"));
     }
