@@ -2488,6 +2488,37 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                  (violations among matching TUs, must be 0: {viol})",
                 reach.len()
             );
+            // **W-EMITSET — the ceiling on a MODEL, which is a different and
+            // lower number than the ceiling on today's model-free port.**
+            //
+            // The line above compares two counts. A model has to reproduce the
+            // reference `.text` COMDAT *set*, and it can only ever emit a COMDAT
+            // for a body this bundle carries, under the name the binding gives
+            // it. So the bound is per TU: does every emitted symbol bind (today),
+            // and failing that does every emitted symbol at least HAVE a `.gl`
+            // body record (repaired)? The gap between the two is `bind.rs` work;
+            // what remains after it is a wall that needs COMDAT synthesis.
+            let (c_today, c_repaired, c_wall) = (
+                report.emit_total("emit-set-ceiling-today"),
+                report.emit_total("emit-set-ceiling-repaired"),
+                report.emit_total("emit-set-ceiling-wall"),
+            );
+            let (u_body, u_none) = (
+                report.emit_total("emit-unbound-has-record"),
+                report.emit_total("emit-unbound-no-record"),
+            );
+            println!(
+                "    emit-set MODEL ceiling: {c_today} of {graded} TUs bind every emitted symbol \
+                 today; {c_repaired} would if `bind.rs` lost none; {c_wall} carry an emitted \
+                 symbol with NO `.gl` body record and are a wall for any segment-driven model"
+            );
+            println!(
+                "      unbound emitted symbols: {u_body} have a body record (instrument defect), \
+                 {u_none} have none (wall) — nesting invariant, must hold: \
+                 today <= repaired ({}), repaired + wall == graded ({})",
+                c_today <= c_repaired,
+                c_repaired + c_wall == graded
+            );
 
             let eh = report.emit_blocker_histogram();
             if !eh.is_empty() {
