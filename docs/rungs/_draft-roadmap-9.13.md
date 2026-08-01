@@ -185,8 +185,10 @@ Three consequences, each larger than the fix:
 At `be797bf`, worktree configured against the shared toolchain:
 
 * `cargo test --workspace` — **576 passed, 0 failed, 1 ignored** (pre-existing).
-  **`#[test]` count 573 at the merge-base `33d0049` → 578 at tip**: five new
-  portable tests, two pinning the ordering rule and its refusals, two pinning
+  **`#[test]` count over `crates/` 571 at the merge-base `33d0049` → 577 at tip**.
+  Five of the six new grep lines are real tests and the sixth is the literal
+  `#[test]` inside a doc comment — `git grep -c` counts lines, and a whole-tree
+  grep is additionally polluted by prose in `docs/`. Five new portable tests: two pinning the ordering rule and its refusals, two pinning
   both directions of the `26`/`26` receiver-vs-chain discriminator.
 * `c2rs selftest` — **208/208 PASS**, 0 fail, 0 skip.
 * `scripts/gate.sh --jobs 6` — **GATE: PASS**, 12/12 lanes ran, 0 FAIL / 0 SKIP /
