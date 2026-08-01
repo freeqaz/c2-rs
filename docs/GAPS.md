@@ -3172,3 +3172,39 @@ exactly** — these bodies genuinely never reach a member-call production. It is
 simply not worth the change: `body/mod.rs`'s ladder currently disagrees with the
 gate **0** times over 2,462,571 functions, and restructuring its dispatch to
 expose at most 8 emitted functions is not a trade this project should take.
+
+### 10.5 Confirmed at the merged HEAD, and the third refusal is now measurable
+
+Re-measured after merging `master` (`f0ba3ff`, the WTAG production first-blocker
+instrument). **Every number in §10.2 reproduces to the function**: `disp-expr-lit`
+7,887 / emitted 663 / `calls-1` 362 / emitted ∩ `calls-1` **[0, 8]**; all three
+arms 8,807 / 683 / ceiling **24**. Census 703,047 / 2,462,571, emitted
+34,169 / 178,968, TU match 6, mismatch 0, disagreement 0 — a merge that changed
+`body/mod.rs` and all three `mcall_*` productions moved none of it, which is what
+an instrument-only change should do.
+
+The merge also makes the rung's **third** refusal measurable rather than
+predicted. `prod-entered-untagged` is now **0** and the site histogram is exact:
+the single largest bail in the whole member-call family is
+**`tail-recv-not-a-plain-b9-load` — 359,385 of 731,921 (49.1 %)**, i.e. the
+receiver designator, not the call.
+
+That matters here because **this population's receiver is precisely what that
+site rejects.** All 7,887 carry a census key spelling the receiver as
+`-recv-field-off0-`, `-recv-field-` or `-recv-intrinsic-this-adjust-` — a field
+designator or a this-adjust intrinsic, never a plain `B9` load, which is what
+`eat_receiver_this` requires as the entry condition to all three productions.
+The corroboration is direct and large: **135,926 bodies keyed
+`expr-intrinsic-this-adjust` — the same receiver construct — reach a production
+today and bail at exactly that site.**
+
+So the refusals are three, independent, and each sufficient on its own:
+
+1. **the frame** — 95.4 % of the arm is `calls-2plus`, leaving 362 bodies;
+2. **the emitted share** — 663 of 7,887, and jointly with (1) at most **8**;
+3. **the receiver designator** — the site a re-offered body would land on is the
+   one already refusing 359,385 bodies, and widening it is `mcall_tail.rs`,
+   a seam this lane does not own.
+
+Re-offering a body only helps if the production it reaches can then accept it.
+Here it cannot, and the ceiling was 8 before that question was even asked.
