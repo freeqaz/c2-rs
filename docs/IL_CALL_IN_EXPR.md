@@ -4678,3 +4678,184 @@ literal-dominated in the same way, the buildable share is the tail.
 The discount being applied is therefore "**the rows are mostly string
 literals**", and this project's record on discounts is five wrong in six. The
 range's upper end is set so that being wrong about it is inside the range.
+
+### 27.2 What shipped, and the class boundary
+
+**One undefined-external named data symbol's address, in a tail call.**
+
+```text
+   void f(S* s){ s->so(&gI); }   3d600000 lis r11,0 · 388b0000 addi r4,r11,0 · b ?so
+   void f()    { gso(&gI);   }   3d600000 lis r11,0 · 386b0000 addi r3,r11,0 · b ?gso
+   void f()    { gsp(&gI,7); }   3d600000 · 38800007 li r4,7 · 386b0000 addi r3 · b
+```
+
+REFHI+PAIR at the `lis`, REFLO+PAIR at the `addi`, both PAIRs against symbol
+index 0, and one **undefined-external DATA** symbol (`Type` 0x0000, where a
+callee carries 0x0020) emitted in the referencing function's group after its
+callees. Both obj layouts: packed (`/Ox`) and COMDAT-per-function (`/O1`, `/Gy`).
+
+**Two rules that cost a wrong-bytes emit each, both caught inside the worktree:**
+
+1. **The two halves are NOT adjacent.** The `lis` is hoisted to the function's
+   first word; the `addi` is not beside it. Carrying one offset and adding 4 —
+   the pooled-FP-constant arrangement §17.2 item 1 pointed at — mismatched
+   `gsp(&gI, 7)` on the first differential run.
+2. **The `addi` is emitted LAST**, after every other slot's setup, and *not* at
+   its own slot's turn in the descending walk. Those two readings agree on every
+   body where the symbol is at slot 0 and disagree the moment a literal sits at a
+   *lower* slot. Six sweep cases mismatched at obj offset 541:
+
+   ```text
+     void f()     { gsp(&gI, 7);   }   lis · li r4,7 · addi r3     both readings
+     void f(S* s) { s->m3(7, &gI); }   lis · li r4,7 · addi r5     address-last only
+   ```
+
+   Found by extending `scripts/sweep.d/53-data-symbol-addr.py` over the axes the
+   emitter branches on — the destination register, a literal at each other slot,
+   the literal's value, the object's type, the mangled name's length across the
+   COFF 8-byte inline-name boundary — **not** by any fixture written from the
+   probes. The fixture had three literal cases and all three put the symbol at
+   slot 0. `fixtures/cpp/wr1_sym_addr.cpp` now carries the discriminating pair.
+
+**Five refusals, each with its own key and a capture behind it:**
+
+| key | what it is |
+|---|---|
+| `data-sym-unresolved` | the token has no `.gl` name — **a string literal**, whose record carries the `25` separator `gl_symbol_index` excludes |
+| `data-sym-not-extern` | the `.gl` linkage byte says defined-here or static: a whole extra section in the middle of the section table (§17.2 item 7) |
+| `call-arg-multi-sym` | two or more symbols in one call — §17.3 (a)/(b), a phase and not a rung |
+| `call-arg-sym-permuted` | a formal that has to move. One moved formal *is* captured and follows the hoist rule; **two** makes c2 pre-save into r11 and move the `lis` to r10 (§17.3 (d)), and one probe does not separate the two schedules |
+| `callseq-multiarg-sym` | the symbol inside a **framed** call sequence, where every capture behind this class is a leaf |
+
+An offset run on the designator (`&gT.b`, `&gArr[2]`) is refused inside the
+parser: the addend is a third instruction and is never folded into the
+relocation.
+
+**The `.gl` linkage gate needed a byte the existing reader did not have.** A data
+record is `<name> 00 <TYPE> 00 02 <linkage> <size>` and the TYPE is **not** a
+fixed two bytes — `?gBig@@3VBig@@A` spells it `c6 81 06` where
+`?TheDebug@@3VDebug@@A`, also a polymorphic class, spells it `88 06`.
+`linkage_needs_a_directive`'s fixed `name_nul + 3` is right for the function
+records it reads and wrong here; `gl_extern_data_names` steps the wide-tag prefix
+instead and requires the `00 02` frame literally, which is also what keeps a
+*function* record (`82 07 <05|04|03>`) from being read as an extern object.
+
+**The label stride is 1, measured and not assumed.** `work/wr1/probes/p3a.cpp`
+(an ordinary tail-call leaf) and `p3b.cpp` (the same TU with a data address)
+share `.gl` seed 2544 and produce the identical `$M2554`/`$M2555`/`$T2556` on the
+framed function after them. A string literal moves the *seed* (2545) rather than
+the stride, which is a third independent reason it is not in this rung.
+
+### 27.3 The outcome — MEASURED, on both columns
+
+| | baseline | WR1 | delta |
+|---|---:|---:|---:|
+| TU match | 6 / 878 | **6 / 878** | **0** |
+| function census | 703,047 (28.55 %) | **703,875 (28.58 %)** | **+828** |
+| **emitted-function census** | 34,169 / 178,968 (19.09 %) | **34,674 (19.37 %)** | **+505** |
+| mismatch | 0 | 0 | 0 |
+| census/gate disagreement | 0 | 0 | 0 |
+| codegen-gap / port-error | 0 / 0 | 0 / 0 | 0 |
+| TU distance ≤1 / ≤10 / ≤100 | 10 / 25 / 32 | 10 / 25 / 32 | 0 |
+
+**The estimate (§27.1) was census +2,200, range [400, 6,500], biased OVER.**
+Realized **+828** — inside the range, in the predicted direction, and 2.7× high.
+The emitted estimate was +120, range [0, 900]; realized **+505**, inside the
+range and 4.2× *low*. Both misses have the same cause and it is worth stating,
+because it is the opposite of the mistake this project usually makes: the
+discount ("the rows are mostly string literals") was **right about the bodies and
+wrong about the code**. Literals are 2,712 of the 3,549 bodies that moved key —
+76 % — but only 532 of the 1,037 emitted functions among them, 51 %. **The
+named-object shape is 1.9× enriched in emitted code relative to the literal
+one**, so a rung sized off body counts undersizes it by exactly that factor.
+
+The ratio is the headline. **505 emitted out of 828 bodies is 61 %**, against
+5 % for the in-class population as a whole and 1.5 % for the first rung measured
+on both columns. Against the coordinator's independent ceiling for this row —
+**1,548 emitted, 1,541 of them "clean"** — this rung took **33 %**, and it took
+it out of 5 % of the 15,583 bodies the row is named for.
+
+### 27.4 Where the rest of the row went — named, with its number
+
+| | bodies | emitted | what it needs |
+|---|---:|---:|---|
+| `data-sym-unresolved` (string literals) | 2,712 | 532 | a `.rdata` emitter, in **two** forms: `/Ox`'s packed `$SG<n>` pool placed before `.text`, and `/O1`'s `??_C@…` COMDAT per literal whose bytes are in `.in` |
+| `recv-load-then-call-data-addr-1sym-whole`, residue | 9,708 | 496 | **not an argument question.** Read off the workload: the body is `s->m(4, &sym); return s;` — a statement call followed by a return, i.e. a **framed** Class A sequence, and every capture behind this class is a leaf |
+| `call-arg-multi-sym` | 39,967 | 1,307 | §17.3 (a)/(b), unchanged: a whole-TU `.rdata` pool visible to instruction selection, plus an anchor rule that is a fitted hypothesis |
+| the bare global read | 2,325 | ≤189 | `lis r11,g@ha ; lwz r3,g@l(r11) ; blr` — a new **leaf** shape, measured and declined here on its emitted ceiling |
+| `call-arg-sym-permuted` | 5 | 5 | the two-moved-formal schedule (§17.3 (d)) |
+| `callseq-multiarg-sym` | 5 | 5 | the symbol inside a frame |
+
+**The residue of the largest row is the surprise and it corrects the brief.** The
+lane brief and §17.6 both read `recv-load-then-call-data-addr-1sym` as one
+refusal at `eat_call_args`. It is not: 830 of its 10,538 were, and the other
+9,708 block on the *statement layer* — the call's result is discarded and the
+body carries on. They are a frame rung, not an argument rung, and they should be
+ranked with the serial spine rather than here. The emitted column says the same
+thing more sharply: this row's emitted population split almost exactly in half
+(1,003 → 496), so the half that moved was the half that was a tail call.
+
+### 27.5 A key re-attribution the ranking has to know about
+
+39,967 functions moved out of `expr-call-in-expr-data-addr-*` keys into
+`call-arg-multi-sym`, and a further 12,327 into keys naming their *next* blocker
+(`expr-call-in-expr-op-0x9B` +6,670, `call-ref-cflow-jump` +5,657). Nothing was
+lost — the totals reconcile — and the new names are truthful: the two-symbol
+schedule really is what those bodies hit first now that the designator itself
+parses.
+
+**What is lost is the `-whole` / `-more` suffix on those rows**, i.e. the
+grammar-completeness signal the roadmap ranks by. `call-arg-multi-sym:eof` (18,931)
+and `:mid` (21,036) preserve the distinction in the `:eof`/`:mid` suffix, so the
+information survives in a different field — but a table built by grepping for
+`-whole` will now under-count this family by 18,931. Stated here rather than
+silently, because §20.4's precedent is that a re-key nobody announced is a
+published wrong number a week later.
+
+### 27.6 What is NOT established, labelled
+
+* **Two moved formals beside a symbol.** Refused on one probe (`a4` in
+  `work/wr1/probes/p2.cpp`). *One* moved formal is captured, follows the hoist
+  rule, and is admitted by nothing — it is a follow-on cell worth 5 functions on
+  this workload and possibly more once the frame rungs land.
+* **A symbol at a slot past r10.** Refused; no capture.
+* **The literals' order beside a symbol when there are two or more of them.**
+  Every witness has at most one literal. The emitter walks them descending, which
+  is `lit_slots_text`'s rule met again, but the cross is not captured.
+* **A defined or static global.** Two independent gates refuse it and neither has
+  ever been graded against an obj that contains one, because the TU-level
+  unclaimed-name rule refuses the whole TU first. The `.gl` linkage byte's value
+  set is `{02 extern, 01 defined}` over 8 witnesses; `04` (static) is §17.2's
+  reading and this rung did not reproduce it — a static global did not appear in
+  `.gl` as a `?`-mangled record at all in `work/wr1/probes/p5.cpp`.
+* **The token → `$SG<n>` rule** (§17.2 item 3, the literal's operand token read
+  little-endian) was re-confirmed here at n = 2551 and 2560 and is still not
+  implemented — it is the `/Ox` half of the string-literal emitter.
+
+### 27.7 Reproduction
+
+```sh
+cargo build --release
+cargo test --workspace                                   # 557 passed, 0 failed
+./target/release/c2rs census fixtures/cpp/wr1_sym_addr.cpp        # 21/21
+./target/release/c2rs diff   fixtures/cpp/wr1_sym_addr.cpp        # Port=Match
+./target/release/c2rs census fixtures/cpp/wr1_sym_addr_neg.cpp    # 0/13
+./target/release/c2rs diff   fixtures/cpp/wr1_sym_addr_neg.cpp    # NotImplemented
+C2RS_JOBS=8 scripts/gate.sh --jobs 4                     # 12/12 PASS, 2472 verdicts
+C2RS_JOBS=8 scripts/expr_sweep.sh                        # checked=14399 mismatches=0
+C2RS_JOBS=8 C2RS_SWEEP_ONLY=53 scripts/expr_sweep.sh     # 115 cases, 38 Match
+./target/release/c2rs gap --list work/dc3-workload/files.txt \
+  --flags-file work/dc3-workload/flags.txt --cwd ../../../dc3-decomp --jobs 16 \
+  --cache work/capture-cache --jsonl work/dc3-workload/scan-wr1b.jsonl
+# the probes (gitignored scratch; every witness above comes from one):
+#   work/wr1/probes/p1.cpp  the three rows, at /Ox and at the workload's /O1
+#   work/wr1/probes/p2.cpp  the slot x literal x moved-formal grid — a4 is the
+#                           two-shifting-formals cell that moves the `lis` to r10
+#   work/wr1/probes/p3a/b/c.cpp  the label-stride triple (extern = 1 slot; a
+#                           literal moves the .gl SEED, not the stride)
+#   work/wr1/probes/p4.cpp  the first byte-exact TU
+#   work/wr1/probes/p5.cpp  extern / defined / static linkage bytes
+#   work/wr1/probes/p6.cpp  six object types, for the `.gl` TYPE width
+#   work/wr1/probes/p7.cpp  ?gBig@@3VBig@@A — the THREE-byte TYPE
+python3 work/wr1/tools/coff.py work/wr1/p2.obj   # sections, symbols, relocations
+```
