@@ -36,3 +36,4 @@ the header block this table is read from.
 | 2026-07-31 | WSL | [store-load](2026-07-31-store-load.md) | 2 | 639,387 → 651,247 (25.96 % → 26.45 %), +11,860 |
 | 2026-07-31 | W38 | [store-run](2026-07-31-store-run.md) | 2 | 602,703 → 639,387 (24.47 % → 25.96 %), +36,684 |
 | 2026-07-31 | W32 | [volatile-formal](2026-07-31-volatile-formal.md) | 2 | 549,148 unchanged — the refusal costs exactly 0 (measured) |
+| 2026-08-01 | WLR | [lit-run](2026-08-01-lit-run.md) | 2 | 697,251 → 703,047 (28.31 % → 28.55 %), +5,796 |
