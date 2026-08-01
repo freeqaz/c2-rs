@@ -71,7 +71,7 @@
 //!   production that has never been graded with a receiver argument.
 
 use crate::func::body::expr::{eat_return_plumbing, eat_scopes};
-use crate::func::body::{blk, Block, BodyShape};
+use crate::func::body::{blk, prod_tag, Block, BodyShape};
 use crate::func::readers::{
     eat_byte, eat_operand_type, eat_value_type, is_ptr4_kind, read_token_var, read_type,
     read_varint, ValueClass,
@@ -110,7 +110,10 @@ pub(crate) fn try_parse_member_tail_call(
     depth: usize,
 ) -> Result<BodyShape, Option<Block>> {
     let mut p = start;
-    let callee_tok = eat_callee_push(seg, &mut p).map_err(|_| None)?;
+    // The dispatch arm already matched the `26`, so the only way this half can
+    // decline is a method-symbol token the varint reader cannot spell.
+    let callee_tok =
+        eat_callee_push(seg, &mut p).map_err(|_| prod_tag("tail-method-symbol-token-unreadable"))?;
     // **A second method symbol where the receiver must be**: the method pushes
     // stack LIFO, so `p->a()->b()` is `26 <b> 26 <a> B9 <p> …` and the `26` this
     // production just read as its callee is the *outermost* method of a chain.
@@ -121,15 +124,18 @@ pub(crate) fn try_parse_member_tail_call(
     if seg.get(p) == Some(&0x26) {
         return super::mcall_chain::try_parse_member_chain_call(seg, p, lo, depth, callee_tok);
     }
-    let recv_tok = eat_receiver_this(seg, &mut p).map_err(|_| None)?;
+    let recv_tok = eat_receiver_this(seg, &mut p)
+        .map_err(|_| prod_tag("tail-recv-not-a-plain-b9-load"))?;
     // The `BD` this call's result TYPE hangs off, kept because
     // [`super::mcall_cmp`] needs the type's **signedness** and `eat_call_token`
     // resolves it only to real / not-real. Recorded rather than re-found: going
     // back to it from a later cursor is the kind of reverse scan that reads a
     // different byte when the receiver's encoding changes width.
     let ret_at = p;
-    let ret = eat_call_token(seg, &mut p).map_err(|_| None)?;
-    let mut args = eat_call_args(seg, &mut p).map_err(|_| None)?;
+    let ret = eat_call_token(seg, &mut p)
+        .map_err(|_| prod_tag("tail-no-cdecl-call-token-after-the-receiver"))?;
+    let mut args = eat_call_args(seg, &mut p)
+        .map_err(|_| prod_tag("tail-argument-not-in-the-operand-vocabulary"))?;
 
     // `this` is argument slot 0, and the argument list is in **stream** order —
     // rightmost source argument first, so slot `i` is `args[len-1-i]`. The receiver
@@ -165,10 +171,13 @@ pub(crate) fn try_parse_member_tail_call(
         // reach it. Consumed here at the statement boundary, exactly as
         // `try_parse_assign_body_detail` consumes it between two statements, and
         // the plumbing is then asked for the depth that is actually left.
-        eat_scopes(seg, &mut p, &mut depth).map_err(|_| None)?;
-        eat_return_plumbing(seg, &mut p, false, depth).map_err(|_| None)?;
+        eat_scopes(seg, &mut p, &mut depth)
+            .map_err(|_| prod_tag("tail-void-brace-scopes-do-not-close"))?;
+        eat_return_plumbing(seg, &mut p, false, depth)
+            .map_err(|_| prod_tag("tail-void-body-does-not-end-at-the-call"))?;
     } else if seg.get(p) == Some(&0x41) {
-        eat_return_plumbing(seg, &mut p, true, depth).map_err(|_| None)?;
+        eat_return_plumbing(seg, &mut p, true, depth)
+            .map_err(|_| prod_tag("tail-returned-body-does-not-end-at-the-call"))?;
     } else if seg.get(p) == Some(&0x26) {
         // …or a **second member call** stands where the result would be consumed,
         // and the two results are compared: `return a->m() == b->n();`. The first
@@ -243,8 +252,10 @@ fn framed_member_call(
     let mut p = at;
     // Not this production: the cursor is untouched and the body keeps its own
     // census key, exactly as the non-committal contract requires.
-    let k = eat_call_postop(seg, &mut p).map_err(|_| None)?;
-    eat_return_plumbing(seg, &mut p, true, depth).map_err(|_| None)?;
+    let k = eat_call_postop(seg, &mut p)
+        .map_err(|_| prod_tag("framed-result-not-consumed-by-a-literal-post-op"))?;
+    eat_return_plumbing(seg, &mut p, true, depth)
+        .map_err(|_| prod_tag("framed-post-op-body-does-not-end-at-the-return"))?;
 
     // From here the body parses to the end of the segment, so every refusal is a
     // codegen-class one over a complete body and is reported under its own key.
@@ -379,6 +390,82 @@ pub(crate) fn eat_this_bind(seg: &[u8], p: &mut usize) -> Result<(), Block> {
     Ok(())
 }
 
+/// **The tag-coverage property of this family, as an executable check.**
+///
+/// `prod-entered-untagged` is the residue the production axis prints on every
+/// scan: a body that entered a member-call production, declined
+/// non-committally, and reached **no** tagged bail. The workload measures it
+/// over real IL; this measures it over *adversarial* IL, which is the half a
+/// scan cannot reach — a byte the captures happen never to spell is exactly the
+/// site a future edit re-opens, and an untagged site does not fail anything, it
+/// simply makes one report row read as an absence.
+///
+/// The sweep mutates one byte at a time to each of the vocabulary bytes this
+/// family dispatches on, plus one (`FF`) that no production spells, and asserts
+/// the residue is never observed. Two properties are separated deliberately:
+///
+/// * the residue assertion is **inside** the loop, so it fires on the first
+///   witness and names it; and
+/// * the "did the sweep reach the productions at all" floor is checked
+///   **after**, so it can never pre-empt the assertion that matters. Reverting
+///   a tag site to a bare `None` leaves `entered` completely unchanged — the
+///   same bodies enter the same production — so only the in-loop assertion can
+///   fire, which is what makes a failure evidence about the tag and not about
+///   the corpus.
+#[cfg(test)]
+pub(super) fn assert_no_decline_lands_in_the_residue(
+    corpus: &[(&str, &[u8])],
+    min_entered: usize,
+) {
+    use crate::func::body::{
+        parse_segment_detail, prod_site, PROD_ENTERED_UNTAGGED, PROD_NOT_ENTERED,
+    };
+    use crate::func::test_fixtures::NO_LOCALS;
+
+    // The bytes this family branches on — the method push, the receiver load, the
+    // `this` bind, the designator openers, the statement end, the result
+    // annotation — plus `00` and `FF`, which stand for "a field went unreadable".
+    const ALPHABET: [u8; 10] =
+        [0x00, 0x26, 0x2C, 0x30, 0x33, 0x41, 0x4B, 0x4C, 0x99, 0xFF];
+    assert!(!corpus.is_empty(), "the sweep needs at least one captured body");
+    let mut entered = 0usize;
+    for (name, body) in corpus {
+        for i in 0..body.len() {
+            for v in ALPHABET {
+                if body[i] == v {
+                    continue;
+                }
+                let mut seg = body.to_vec();
+                seg[i] = v;
+                let accepted = parse_segment_detail(&seg, NO_LOCALS).is_ok();
+                let site = prod_site();
+                // A mutation that breaks the dispatch never offers the body to a
+                // production, and `prod-not-entered` is that fact stated — not a
+                // hole, and not this check's business.
+                if site == PROD_NOT_ENTERED {
+                    continue;
+                }
+                entered += 1;
+                assert_ne!(
+                    site, PROD_ENTERED_UNTAGGED,
+                    "{name}[{i}] := {v:#04x} (accepted={accepted}) entered a \
+                     member-call production, declined, and reached NO tagged bail. \
+                     The gap report would print it as `prod-entered-untagged` — a \
+                     population rendered as an absence, which is the one failure \
+                     this axis exists to close"
+                );
+            }
+        }
+    }
+    assert!(
+        entered >= min_entered,
+        "the sweep must actually REACH the productions: only {entered} mutations \
+         entered one, under the floor of {min_entered}. A loop that never enters \
+         a production observes no residue either, and would report success by \
+         doing nothing"
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -459,6 +546,27 @@ mod tests {
         0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x05, 0x10, 0x00, 0x00, 0x4C, 0x4B, 0x3A, 0xF1, 0x09,
         0x54, 0x02, 0x29, 0xF1, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
     ];
+
+    /// **Every non-committal decline out of the tail production is attributed to
+    /// a named site**, under adversarial mutation of the four captured bodies —
+    /// so no row of the gap report can read `prod-entered-untagged`, which is the
+    /// residue rendered as an absence.
+    #[test]
+    fn no_decline_out_of_the_tail_production_lands_in_the_residue() {
+        super::assert_no_decline_lands_in_the_residue(
+            &[
+                ("MC_NULLARY", MC_NULLARY),
+                ("MC_SWAP", MC_SWAP),
+                ("MC_FRAMED_SUB", MC_FRAMED_SUB),
+                ("MC_RECV_CAST", MC_RECV_CAST),
+            ],
+            // MEASURED: 4,730 of the mutations reach the production. The floor is
+            // set just under it so a corpus edit that guts the sweep is caught,
+            // while a tag edit — which cannot move this number at all — is graded
+            // only by the in-loop assertion.
+            4_500,
+        );
+    }
 
     #[test]
     fn a_member_call_with_a_literal_postop_is_a_framed_call() {

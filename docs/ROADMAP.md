@@ -3956,21 +3956,102 @@ emitted functions do.
 | `return-scope-close-cflow-label` | — | — | 1,817 · 1.4 % | 15 |
 
 **`body-cflow-label` is 4.4× enriched in emitted code** — rank 6 becomes rank 2.
-Taken with `expr-brfalse` and `return-scope-close-cflow-label`, control-flow
-keys are **19,866 of 127,179 = 15.6 %** of blocked emitted functions. The
-body-ranked view put the same three at 4.2 %.
 
-**This does not overturn the 718 measurement — it re-scopes it.** §6's control-flow
-decline came from a *lowering counterfactual* over the **body** population:
-how many bodies complete if control flow is lowered, which is a different
-question from how many are *blocked at* a control-flow key, and it stayed small
-because branchy bodies are also framed, call-bearing and EH-bearing. What is new
-is that the counterfactual can now be run **over the emitted subset**, where the
-denominator is 127,179 rather than 1,765,320 and the enrichment is 4.4×. Until
-that is run, control flow's position is **unknown**, not settled — the old number
-answers a question about a population we have just stopped steering by.
+> **CORRECTION, same day (WCFLOW).** The sentence that stood here — "taken with
+> `expr-brfalse` and `return-scope-close-cflow-label`, control-flow keys are
+> 19,866 of 127,179 = 15.6 % of blocked emitted against 4.2 % of bodies" —
+> **counted 3 of the ~69 control-flow census keys.** The full family is
+> **22,471 emitted (17.68 % of blocked emitted) against 238,001 bodies (13.53 %
+> of blocked bodies)**: family-level enrichment **1.31×, not 3.7×**. The 4.4× on
+> `body-cflow-label` is real, but it is a fact about **where a first blocker
+> lands**, not about control flow's share. Picking the three keys that moved and
+> summing them is selection on the outcome — the same shape as the four ranking
+> artifacts §6n records.
+
+**And the counterfactual has now been run on the emitted column: it is 10.**
+Five `cflow-if-1`, five `cflow-switch`, against 718 on bodies. **The picture
+does not invert — it gets worse.** A random IL body is emitted at 7.27 %; a
+control-flow-only-blocked body is emitted at 10/718 = **1.39 %**, i.e. **5.2×
+*less* likely than average**, in the opposite direction from the key enrichment.
+
+The mechanism is measurable and it is not subtle. The counterfactual's residue
+predicate fires on **14.18 %** of *straight* emitted bodies and on **0.031 %** of
+*branchy* ones — a **457× gap** that swamps the 4.4×. Branchy bodies are not
+merely also-framed and also-EH-bearing; their **expressions are harder**, so a
+body blocked only on control flow is a rare accident rather than a population.
+§8.3's demand-gated placement for Phase 6 is confirmed on the very population it
+was said to be unknown for, and `ARCHITECTURE_SEAMS.md` §7 — the oldest recorded
+reading, "the codegen half forces the block IR, lowering waits" — was right all
+along.
 
 Symmetrically, the row that was #4 by bodies — 102,374 functions, already known
 to be 100 % `cflow-if-1` ∧ `calls-2plus` — **does not appear in the emitted top
 20 at all**. Ranking it was always going to be wasted work; now that is visible
 rather than inferable.
+
+### 8.7 Control flow is a PHASE worth 10, and the emitted board's ceiling is enumerable
+
+Three positive statements, each independently checkable:
+
+1. **34,169 of 34,169** in-class bound emitted rows read `cflow-straight`
+   (21,205 + 12,964, summing exactly). **Zero branching bodies accepted**, on
+   emitted code, at this HEAD.
+2. `codegen/encode.rs` has **46 encoders and exactly one is a branch** (`blr`),
+   plus one raw unconditional `b` word in the tail-call path. No `bc`, no label,
+   no fixup, no block IR. **There is no emitter to widen** — this is new
+   machinery, not a private limit, so §6n category (1) does not apply.
+3. The control-flow stock decomposes as **1,591 (7.1 %) standalone**, 9,034
+   (40.2 %) gated on the frame phase, **11,846 (52.7 %) gated on the EH phase** —
+   where the port's measured acceptance is **0 of 30,254**.
+
+Bracket for "lower control flow, change nothing else, on emitted code":
+
+| reading | value |
+|---|---:|
+| direct counterfactual | **10** |
+| cell-weighted model, cells the port already serves | ≤ 480 |
+| raw first-blocker stock in those cells | 1,591 |
+| raw stock, all cells (needs Phase 2 **and** Phase 5 first) | 22,471 |
+
+The cell-weighted 480 assumes a branchy body's expressions are as acceptable as
+a straight body's in the same cell — **measurably false by 457×** — so it is an
+optimistic ceiling, not an estimate.
+
+**Three archaeology corrections, each worth more than a new number.**
+
+* **`expr-op-0x27`'s "0.14–2.5 % completion" band is a mis-attribution** (quoted
+  at `ROADMAP.md` §6-era and `GAPS.md` §…): 1.4 % is the *pointer-type* row and
+  2.47 % is `expr-convert`. The three real `0x27` measurements are 0.14 %, a
+  production rung that took 22,095, and **1.48 % (6,816/461,786)**. At 1.48 % the
+  row is worth **~337 emitted**.
+* **`base-member-addr`'s "41,678, the largest cheap row"** is a `maxState = 0`
+  *slice*, not a completion count. Its completion counterfactual is **740
+  bodies**, measured and **already realized as −740**. No document that ranks the
+  row mentions the 740.
+* **`expr-intrinsic-this-adjust` has never had a completion counterfactual.** The
+  10,469 `-whole` figure belongs to a *different key* and is itself labelled an
+  unverified claim. At 8,790 emitted it is the **largest never-measured row on
+  the board**, and one scratch build plus one warm scan settles it.
+
+**Rows that die on the emitted column**, with the body count they were ranked on:
+
+| row | bodies | emitted | clean |
+|---|---:|---:|---:|
+| `…recv-load-then-bit-and-and-branch-more` | 102,374 | **9** | 0 |
+| `…recv-object-then-branch-brtrue` | 23,633 | 431 | **0** |
+| `expr-bit-and` (already declined at 0) | 32,382 | 1,824 | **1** (99 % EH) |
+| `fn-tail-0x26` (already refuted) | 4,663 | **0** | 0 |
+
+**The concentration is the good news.** `clean` = `cflow-straight` ∧ `eh-none` ∧
+`calls<2`, a hard ceiling on what widening a key alone is worth. The top 28 rows
+by clean ceiling total **39,946 of 44,932** clean emitted — the emitted board's
+ceiling is concentrated and enumerable, unlike the 726-key body tail. But **only
+35.35 % of blocked emitted is clean at all**: the other **82,161 need the frame
+phase, the EH phase, or both**, which is the honest shape of the remaining work.
+
+Best-founded next rungs on this column: `expr-intrinsic-this-adjust` (8,790,
+**measure it, do not build it**); `expr-call-in-expr-recv-object-then-type-ptr-whole`
+— 1,380 emitted, **clean 1,380 = 100 %**, zero `calls-2plus`, zero EH, **7.93×
+enriched** and the only large row that is entirely clean; `expr-intrinsic-memset`
+(3,752 / 2,042); and the single-symbol data address at **1,548 emitted against
+15,583 bodies — a 10× discount** on the figure it was scheduled with.
