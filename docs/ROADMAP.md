@@ -4447,3 +4447,48 @@ At `dc1bd9b`, worktree configured against the shared toolchain
 * `c2rs gap` full workload — 6 match, 0 mismatch, 865 vocab-gap, 7 capture-fail;
   emitted census 34,169/178,968 (19.09 %), unchanged by this lane, which wrote
   no port code and did not touch `crates/c2-core`.
+
+### 9.10 WR1's ordering rules are pinned only where the toolchain is — board #137
+
+Not a correctness alarm. The rung is verified by the strongest judge the project
+has: `cross_sweep` **512,628 gradings**, gate **2,472 fixture verdicts**,
+`expr_sweep` **14,399**, all **0 mismatch**. This is a **durability** gap, and it
+is recorded because the file it sits in has produced the same defect class twice.
+
+WR1 landed ~1,500 lines including **150 in `crates/c2-core/src/coff.rs`**, and
+the `#[test]` block count **did not move**: 557 at its base `6b07500`, 557 at
+`wt-w-r1`. Its own gate evidence states this plainly — it reported
+`cargo test --workspace 557 passed`, which *is* the base count. The number was
+reported honestly and read by nobody, including the coordinator on first pass.
+**A test total that does not move across a 1,500-line rung is a finding; compare
+it to the base rather than to zero failures.**
+
+The rule at risk is the one WR1 itself found as an ALARM: **the address `addi` is
+emitted LAST**, not at its slot's turn in the descending walk. Descending and
+address-last **agree on every body with the symbol at slot 0** and disagree only
+when a literal sits at a *lower* slot. That discriminating arrangement now exists
+in `fixtures/cpp/wr1_sym_addr.cpp` — but fixtures are toolchain-gated
+(`Toolchain::locate()` → `SKIP: toolchain absent`), so on the portable lane
+`cargo test --workspace` **nothing pins it**, and a refactor of emit order would
+go green there. The same holds for the other rule WR1 got wrong on its first
+differential: the REFHI/REFLO quad's halves are **not adjacent**, because the
+`lis` is hoisted, so REFLO is not at `hi_off+4`.
+
+**Standing rule:** a rung that touches `coff.rs` must add a **portable**
+assertion for each ordering rule it establishes. The differential catches an
+ordering bug only where some fixture happens to arrange the discriminating case —
+which is precisely the coverage argument WR1's own ALARM refuted, since its
+hand-written fixture had three literal cases and **all three put the symbol at
+slot 0**.
+
+### 9.11 A re-key that corrupts `-whole` tables — feeds #110
+
+WR1 moved **39,967** functions out of `expr-call-in-expr-data-addr-*` into
+`call-arg-multi-sym`, plus **12,327** into keys naming their next blocker
+(`expr-op-0x9B` +6,670, `call-ref-cflow-jump` +5,657). Totals reconcile and the
+new names are truthful, but **the `-whole`/`-more` grammar-completeness suffix is
+lost on that family**: a table built by grepping `-whole` now **under-counts by
+18,931**. The `:eof`/`:mid` suffix preserves the distinction in a different
+field. Board **#110** already tracks a `-whole{k}` over-count on ~27,600
+functions; these are two different corruptions of the same ranking input and
+should be repaired together.
