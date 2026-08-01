@@ -1709,3 +1709,247 @@ rung recorded:
 | `/Ox /Gy` | 89 | **0** |
 | **`/O1 /EHsc`** | **89** | **0** |
 | **`/Ox /EHsc`** | **91** | **0** |
+
+---
+
+## 11. The records by NAME — c2's own `.cod`, across shapes (2026-08-01, W-EH, board #133)
+
+§8.3 decoded the EH `.rdata` from **obj bytes**. This section re-derives the
+same layout from c2's **assembly listing** (board #132's `c2rs listing`), where
+every record is a named symbol and every field a separate `DD`. That makes this
+a *second, name-carrying source* for a model already fitted — the #136
+relationship (ROADMAP §9.9.3) — so **§8.3 is a control that could have gone
+red**, which is the only reason a transcription is worth grading at all.
+
+**Price, stated first: this moves the census by 0 by construction.** It is
+Phase-5 groundwork. No rung is claimed.
+
+Instrument: `scripts/gt_eh_cod.py`, **110 listings, 110 captured**:
+**15 EH shapes × 4 flag sets** (`/O1 /Oi /EHsc`, `/O1 /Oi /EHa`, `/O2 /EHsc`,
+`/Ox /EHsc`) = 60, plus **5 held-out `maxState` shapes**, **5 held-out gap
+combinations** and **40 single-axis gap probes** at `/O1 /Oi /EHsc`. Of the 15 EH
+shapes, **2 are the fitted set and 13 were held out**. The axes are **structural
+counts**, per §9.13.1's consequence 2
+— try blocks 0–4, nesting depth 0–4, catch clauses per try 1–4, destructible
+objects 0–5, functions per TU 1–3, catch by value / by `&` / by `const&` / by
+pointer / ellipsis — *not* the contents of one try. Every held-out probe's counts
+were predicted from source and committed before capture.
+
+### 11.1 The record set, and the order they are emitted in
+
+Per EH function, in `.cod` emission order, all of it inside the function's own
+COMDAT group:
+
+```
+.pdata   $T<a>   DD  <body or funclet symbol>      one per emitted body
+                 DD  <unwind word>
+.data    ??_R0<mangled>                            one per DISTINCT caught type per TU
+.rdata   __unwindtable$F      maxState  x UnwindMapEntry    (8 B)
+         __catchsym$F$k       nCatches  x HandlerType       (16 B), one array per try block
+         __tryblocktable$F    nTryBlocks x TryBlockMapEntry (20 B)   -- absent iff nTryBlocks == 0
+         __ehfuncinfo$F       FuncInfo, 9 dwords            (36 B)
+         ORG $+4                                            -- alignment pad, PRINTED
+         $T<b>                nIPMapEntries x IpToStateEntry (8 B)
+```
+
+Two things the listing states that §8.3 had to infer:
+
+* **The 8-byte alignment of the ip-to-state array is printed outright**, as a
+  literal `ORG $+4` directive between `__ehfuncinfo$` and its `$T`. §8.3 proved
+  the 9-dword `FuncInfo` *by* that alignment, from two symbol offsets; here it is
+  a directive. Both pad values occur — **pad 0 on 13 probes, pad 4 on 50** — so
+  neither is a constant that could be mistaken for the other.
+* **`__tryblocktable$F` is absent entirely when `nTryBlocks == 0`**, and
+  `pTryBlockMap` is then 0 — §8.3 recorded the null pointer but not the missing
+  record.
+
+### 11.2 `FuncInfo` — §8.3's byte-derived table, confirmed field for field
+
+The listing names all nine dwords, and **agrees with §8.3 on 9 of 9** (A3 HIT).
+No field moved, none was added, and there is still no `dispUnwindHelp`.
+
+| off | field | `.cod` operand | measured here |
+|---|---|---|---|
+| +0x00 | `magic` | `019930522H` | identical on all 105 |
+| +0x04 | `maxState` | literal | 1..8 (§8.3 saw 1..6) |
+| +0x08 | `pUnwindMap` | `__unwindtable$F` | never null |
+| +0x0c | `nTryBlocks` | literal | 0..4 (§8.3 saw 0..3) |
+| +0x10 | `pTryBlockMap` | `__tryblocktable$F` or `00H` | 0 iff `nTryBlocks == 0` |
+| +0x14 | `nIPMapEntries` | literal | 1..10 |
+| +0x18 | `pIPtoStateMap` | `$T<b>` | never null |
+| +0x1c | `pESTypeList` | `00H` | **0 on all 105**, every mode |
+| +0x20 | `EHFlags` | `01H` / `00H` | **see §11.4** |
+
+`UnwindMapEntry = { i32 toState; ADDR32 action }`, `TryBlockMapEntry = { i32
+tryLow, tryHigh, catchHigh, nCatches; ADDR32 pHandlerArray }`, `HandlerType =
+{ u32 adjectives; ADDR32 pType; i32 dispCatchObj; ADDR32 addressOfHandler }`,
+`IpToStateEntry = { ADDR32 $M; i32 state }` — all four confirmed by name.
+
+**Try blocks are emitted INNERMOST FIRST.** `fit_nested2`'s table is
+`(tryLow 3, tryHigh 3, catchHigh 4, nCatches 2)` then `(1, 4, 5, 2)`: the inner
+block precedes the enclosing one, and the enclosing one's `tryLow..tryHigh`
+spans it. Nothing in §8.3 fixed that order, and a table built in source order
+would be wrong on every nested function.
+
+### 11.3 `maxState` — a law, held out
+
+Every one of A2's misses was `maxState`, all in one direction. Corrected:
+
+> **`maxState` = (destructible objects in scope) + 2 × (lexical `try` blocks)**,
+> **at `/EHsc`**, which is the workload's mode.
+
+The mode scope is not decoration: `/EHa` breaks it on `h_catch4` (2 → 3), so the
+law is graded and stated at `/EHsc` only — see §11.4.
+
+A **try block is worth two states, not one.** Fitted on the 13 round-1 cells,
+then registered and graded on **five shapes it was never fitted on**
+(`z_nest2_dtor2` 6, `z_try4seq` 8, `z_try1catch4_dtor3` 5, `z_dtor5` 5,
+`z_deep4` 8): **10 of 10 exact**, including a four-deep nest and a four-block
+sequence, which are the two arrangements that separate "per try block" from
+"per nesting level".
+
+**`nIPMapEntries` is NOT MODELLED for try shapes and this lane declined to guess
+it** — §9.7 already refuted the no-try rule there, and the observed values
+(`h_try1` 1, `h_try2seq` 4, `h_try3seq` 7, `h_nest3` 3) are not a function of
+any count in this table. Declining scored those nine cells **zero**; they are
+not counted as passes.
+
+### 11.4 `/EHa` — a second mode, and §8.3's `0x40` is `/EHsc`-only
+
+§8.3 measured `EHFlags = 1` and ellipsis `adjectives = 0x40` "on all 21" — under
+`/EHsc`, which was the only mode it ran. c2 **accepts `/EHa`**, and both claims
+are mode-scoped.
+
+> **This paragraph originally said `/EHa` "moves exactly two dwords, everything
+> else byte-identical". That was written from the two fields the lane went
+> looking for, and it is WRONG.** Measured properly — all 15 EH shapes at both
+> modes, label *numbers* normalised so the two are comparable by structure —
+> `/EHa` differs in **44 of 546 data slots on 15 of 15 probes**. The claim was
+> corrected before landing only because the comparison was actually run instead
+> of asserted. It is the §9.1 shape once more: the check was nearly performed on
+> the two fields where the answer was already known.
+
+| what | `/EHsc` (O1, O2, Ox) | `/EHa` | probes affected |
+|---|---|---|---|
+| `EHFlags` (+0x20) | **`01H`** | **`00H`** | **15 of 15** — the one universal difference |
+| `catch(...)` `adjectives` | `040H` | **`00H`** | every shape with an ellipsis handler |
+| `nIPMapEntries` + the ip-to-state array | — | **larger** | **10 of 15**, every try shape but one |
+| `maxState`, `catchHigh`, `__unwindtable$` length | — | **larger** | **1** (`h_catch4`) |
+| `magic`, `nTryBlocks`, `pESTypeList`, `__catchsym$` lengths | — | unchanged | 15 of 15 |
+
+**Only the pure-destructor, no-try shapes (`h_dtor1/2/3`) differ in `EHFlags`
+alone.** As soon as there is a `try`, `/EHa` adds ip-to-state entries — `h_try1`
+1 → 3, `h_try2seq` 4 → 8, `h_try3seq` 7 → 13, `h_nest3` 3 → 9 — because under
+async EH far more instruction ranges can transfer. On `h_catch4` it also moves
+`maxState` 2 → 3 and `catchHigh` 1 → 2.
+
+So `/EHa` is **not** a two-dword variation of `/EHsc`; it is a different state
+model that happens to share a record layout. The **layout** (§11.1, §11.2) is
+identical across both modes and all four flag sets — that much is confirmed —
+but every *count* in it is mode-dependent.
+
+`adjectives`, re-measured by name at `/EHsc` and consistent with §8.3:
+
+| catch clause | `adjectives` | `pType` |
+|---|---|---|
+| `int e`, `V v` (by value, user copy ctor + dtor) | `00H` | `??_R0H@8`, `??_R0?AUV@@@8` |
+| `const char* volatile p` | `01H` | `??_R0PAD@8` |
+| `E1& e`, `E2& e` | `08H` | `??_R0?AUE1@@@8`, `??_R0?AUE2@@@8` |
+| `const E1& e`, `const E2& e` | `09H` | as above |
+| `...` | `040H` (`/EHsc`) · `00H` (`/EHa`) | **NULL** |
+
+`0x01` const, `0x08` reference, `0x40` ellipsis-under-`/EHsc`. **`0x02`
+(volatile) is still not isolated and stays `NOT MEASURED`** — the `volatile` in
+the pointer row qualifies the pointer, not the pointee, and prints `01H`.
+
+`TypeDescriptor` is unchanged from §8.4: `{ ADDR32 ??_7type_info@@6B@; u32 0;
+char name[] }`, one COMDAT per distinct caught type per TU, and `catch(...)`
+emits none.
+
+### 11.5 Totality, and the check that has teeth
+
+**A1 — every datum claimed by a named field: 598/598 fitted, 2,920/2,920 held
+out, residue 0.**
+
+That number on its own is worth nothing, and this document has said so before.
+**Residue cannot see a SHORT read**: if the parser loses data the record simply
+has fewer fields, every one is still claimed, and the run prints success. That is
+not hypothetical — c2 **run-length-encodes** its data:
+
+```
+__ehfuncinfo$?f@@YAHH@Z DD 019930522H
+        DD  01H
+        DD  __unwindtable$?f@@YAHH@Z
+        DD  2 DUP(00H)          <-- nTryBlocks AND pTryBlockMap, in one operand
+```
+
+The first version of this instrument read that record as **8 dwords, residue 0,
+every field claimed** — with `pIPtoStateMap` decoded onto `nIPMapEntries`. So
+totality is graded beside an **arity** check that predicts each record's length
+from a count field in a *different* record (`__unwindtable$` from `maxState`,
+each `__catchsym$` from its own try-block entry's `nCatches`, `$T` from
+`nIPMapEntries`, `FuncInfo` from the constant 9): **377/377 consistent.**
+
+Three falsifications, each red with a distinct signature:
+
+| mutation | totality | arity |
+|---|---|---|
+| the `DUP` expansion removed (the bug that really happened) | **residue 0 — SILENT** | **22 red**, `FuncInfo got 8 want 9` |
+| `FuncInfo` truncated to 8 named fields | residue 8 fitted / 70 held | — |
+| `HandlerType` read as 5 dwords, x86's `copyFunction` | residue 36 / 281 | — |
+
+**Read the first row.** The mutation that actually occurred in practice is
+invisible to the totality metric and caught only by arity. A residue-only grade
+would have shipped it.
+
+### 11.6 The residue, named
+
+**`__catchsym$F$k` — the `$k` suffix is NOT MODELLED**, and it is not cosmetic:
+the array is anchored by a `STATIC` symbol whose *name* goes in the obj string
+table, so a wrong `$k` is a wrong-bytes obj. Measured, `/O1 /Oi /EHsc`:
+
+| probe | try blocks | `maxState` | `$k` |
+|---|---:|---:|---|
+| `h_try1` | 1 | 2 | `2` |
+| `h_try2seq` | 2 | 4 | `4, 5` |
+| `h_try3seq` | 3 | 6 | `6, 7, 8` |
+| `z_try4seq` | 4 | 8 | `8, 9, 10, 11` |
+| `h_catch4` | 1 | 2 | **`6`** |
+| `h_dtor2_try2catch` | 1 | 4 | **`5`** |
+| `z_try1catch4_dtor3` | 1 | 5 | **`9`** |
+| `h_2fn` | 1 (each of 2 fns) | 2 | **`2`, `2`** |
+
+On the sequential-try ladder the first `$k` equals `maxState` and the rest
+ascend — and **`h_catch4` refutes that as a law** (`maxState` 2, `$k` 6). `h_2fn`
+shows the counter is **per function**, not per TU: two functions both get `$2`.
+It behaves like the per-function local-symbol ordinal that also numbers
+`$LN`/`$LL` and the catch object's `e$NNNN`, and this lane did not model it.
+**Anyone building the Phase-5 emitter needs this and does not have it.**
+
+Also unmodelled, and smaller: the `.pdata` unwind word (`040000a04H` on every
+funclet, `0c000XXXX` on bodies) is §2's business, not re-derived here.
+
+### 11.7 What this does NOT give
+
+* **Nothing about c2's *input*.** The listing is an output artifact. It says
+  nothing about the `.gl`/`.ex` IL containers — see the `#121` verdict in
+  ROADMAP §9.15.2.
+* **No emitter.** A layout is a correspondence, and §9.9 already records that
+  the oracle cannot grade a correspondence. Everything above is graded on
+  totality-plus-arity and on predicting held-out shapes; the byte compare has
+  graded none of it, because nothing was built.
+* **`nIPMapEntries` for try shapes**, the `$k` suffix, and `0x02`
+  (volatile) remain open, and they are named above rather than fitted.
+
+### 11.8 Reproduction
+
+```sh
+scripts/gt_eh_cod.py gen
+scripts/gt_eh_cod.py scan --jobs 6      # 110 listings (15 EH shapes x 4 modes + 50)
+scripts/gt_eh_cod.py records h_catch4   # one probe, decoded field by field
+scripts/gt_eh_cod.py totality           # A1  + the residue, printed
+scripts/gt_eh_cod.py arity              # A1b — the check with teeth
+scripts/gt_eh_cod.py predict            # A2  round 1, registered pre-capture
+scripts/gt_eh_cod.py predict2           # A2  round 2, the maxState law held out
+scripts/gt_eh_cod.py gaps               # board #138, ROADMAP §9.15.3
+```
