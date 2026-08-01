@@ -56,8 +56,8 @@ Measured in emitted units for the first time (per-row dump joined to the obj's
 
 37,060 is **29.3 % of all blocked emitted** — #131 is the largest single site on
 the emitted board, larger than any census key — and its honest worth is
-**≈ 2,600 emitted (1.4 pp)**: 1,385 taken here, 472 from #127, and ~720 if the
-remaining clean-not-whole stock converts at #127's own 15.4 %-of-clean rate.
+**≈ 2,600 emitted (1.4 pp)**: 1,385 taken here, 472 from #127, and ~710 if the
+remaining clean-not-whole stock converts at #127's own 15.3 %-of-clean rate.
 **The raw stock overstates the site by about 14×.** The optimistic ceiling, every
 clean row converting, is 9,111.
 
