@@ -1936,7 +1936,10 @@ mod tests {
     // -----------------------------------------------------------------------
     // #137 — the PORTABLE pins for WR1's two ordering rules.
     //
-    // WR1 landed 150 lines in this file and moved the workspace `#[test]` total
+    // WR1 landed 150 lines in this file and moved the workspace test-block total
+    // (the attribute is spelled out in prose on purpose: `git grep -c` for it is
+    // how §9.10 counts, and a literal in a comment inflates that count by one —
+    // this lane's own first tally read 580 blocks against 579 running tests)
     // by **zero** (`docs/ROADMAP.md` §9.10). Its two ordering rules were pinned
     // only by `fixtures/cpp/wr1_sym_addr.cpp`, and the mutation table in §9.12
     // shows what that was worth: with the address rule inverted, or with the
