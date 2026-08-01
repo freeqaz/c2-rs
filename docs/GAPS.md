@@ -3019,3 +3019,65 @@ run of **one** included beside the runs, because that is the case that reproduce
 1..7. The negative wide load (`s->a = -65536;`, a bare `lis r11,-1` in the
 reference) stays **refused**: it could be served by the same branch, `-70000` is
 unwitnessed, and a fail-closed refusal is not a bug.
+
+## 10. The declined-destructor routing rung, pre-registered (W-DTOR, 2026-08-01)
+
+`docs/ARCHITECTURE_SEAMS.md` §10.4 named a **routing** defect rather than a
+grammar one: the `0x33` dispatch arm anchors "LIT int 0 then a `26` method push"
+for `try_parse_empty_dtor_delegation`, and when that recognizer declines the body
+falls out of the ladder without ever being offered to
+`mcall_{tail,chain,cmp}`. **7,887 `-whole` member-call bodies sit behind exactly
+that** — 89.6 % of the 8,807 that reach no member-call production — including all
+2,666 of `expr-call-in-expr-recv-field-off0-then-chain-bind-whole`, whose witness
+byte stream is `4c 4f 11 53 | 33 86 41 74 00 | 26 …`.
+
+`docs/ROADMAP.md` §8.1 retired "census → 100 %" as the target, so this rung is
+sized on **both** columns before a line is written, and the emitted column is the
+one that pays. §8's first rung measured on both moved census +5,796 and emitted
+**+86** — 1.5 %. Generated destructors are the shape most likely to be
+header-inline and never emitted, so the emitted count of this population may
+settle the rung on its own.
+
+### 10.1 The estimate, registered before the scan
+
+Written before any jsonl was read at this HEAD. Baselines: census
+**703,047 / 2,462,571**, emitted **34,169 / 178,968 = 19.09 %**, TU match **6**.
+The blocked-emitted rate over the whole corpus is **127,179 / 1,765,320 =
+7.20 %**, and that is the only rate available to transfer.
+
+**Q1 — emitted ∩ the 8,807.** How many of these bodies bind to a symbol c2
+actually emitted. Transferring the corpus rate unadjusted gives 634.
+**Registered: 600, interval [150, 1,800]. Bias: downward** — the binding fails
+closed, and 3,372 of its 10,827 unexplained residue symbols are `dtor` (31.1 %),
+which is this exact population; an emitted destructor the binding cannot claim
+never appears in `emit_blockers` at all.
+
+**Q2 — of those, the subset that does not need the missing frame class.**
+2,124 of 8,807 (24.1 %) are not `calls-2plus`. Emitted functions are larger than
+header-inline trivia, so the emitted subset should be *more* call-bearing, not
+less — that pushes down. **Registered: 100, interval [10, 400].**
+
+**Q3 — the emitted-census delta a routing fix alone could buy.** Refusals
+counted, not discounted, and independent:
+
+1. **6,683 of 8,807 are `calls-2plus`** — a frame is required whatever the
+   ladder does, and the port does not have that frame class. Caps the bodies at
+   **2,124** before any production is consulted.
+2. **The leading `33 86 41 74 00` is not decoration.** The member-call
+   productions are anchored on a `26` method push at the head of the body; the
+   literal ahead of it is an operand no production models, so routing must either
+   consume it (a grammar change inside a seam this lane does not own) or drop it
+   (wrong bytes, not a gap).
+3. **The emitted share**, Q1 — roughly 7 % of whatever bodies convert.
+
+**Registered: emitted-census delta 0, interval [0, 60].** §8's precedent (1.5 %
+of a census delta reaching the emitted column) applied to a 2,124 ceiling gives
+~32.
+
+**Q4 — the per-function census delta.** Ceiling 2,124 by refusal #1.
+**Registered: 400, interval [0, 2,124].**
+
+**The decision rule, fixed in advance: if Q1 lands below ~200, the rung is
+declined on measurement and nothing is routed** — a routing fix whose entire
+reachable population is invisible to the payoff metric is not worth the risk to a
+ladder that currently disagrees with the gate 0 times.
