@@ -1932,4 +1932,334 @@ mod tests {
         let d = build_debug_s(r"Z:\tmp\anat\mvp.obj");
         assert_eq!(d.len(), 100);
     }
+
+    // -----------------------------------------------------------------------
+    // #137 — the PORTABLE pins for WR1's two ordering rules.
+    //
+    // WR1 landed 150 lines in this file and moved the workspace test-block total
+    // (the attribute is spelled out in prose on purpose: `git grep -c` for it is
+    // how §9.10 counts, and a literal in a comment inflates that count by one —
+    // this lane's own first tally read 580 blocks against 579 running tests)
+    // by **zero** (`docs/ROADMAP.md` §9.10). Its two ordering rules were pinned
+    // only by `fixtures/cpp/wr1_sym_addr.cpp`, and the mutation table in §9.12
+    // shows what that was worth: with the address rule inverted, or with the
+    // REFLO offset forced back to `hi_off + 4`, `cargo test --workspace` is
+    // **571 passed / 0 failed in BOTH lanes** — the portable one *and* the one
+    // with the toolchain resolving, because `differential.rs` names three
+    // fixtures and `wr1_sym_addr.cpp` is not among them. Only `scripts/gate.sh`
+    // went red (10 of 12 lanes). These tests move that pin into `cargo test`.
+    // -----------------------------------------------------------------------
+
+    /// A COFF section header field reader, used only by the tests below.
+    /// Deliberately a *separate* walk of the container from the emitter's — the
+    /// point of a pin is that it fails when the emitter changes, so it must not
+    /// share the emitter's arithmetic.
+    fn text_relocations(obj: &[u8]) -> Vec<(u32, u32, u16)> {
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]]);
+        let n_sections = u16at(2) as usize;
+        let mut out = Vec::new();
+        for s in 0..n_sections {
+            let h = COFF_HEADER_LEN + s * SECTION_HEADER_LEN;
+            if &obj[h..h + 5] != b".text" {
+                continue;
+            }
+            let ptr = u32at(h + 24) as usize;
+            let n = u16at(h + 32) as usize;
+            for r in 0..n {
+                let o = ptr + r * 10;
+                out.push((u32at(o), u32at(o + 4), u16at(o + 8)));
+            }
+        }
+        out
+    }
+
+    /// **#137 rule 2 — the REFHI/REFLO quad's halves are NOT adjacent.**
+    ///
+    /// The `lis rS,sym@ha` is hoisted to the top of the body while the
+    /// `addi rD,rS,sym@l` is emitted after the rest of the argument setup, so a
+    /// literal slot lands *between* them and REFLO is **not** at `hi_off + 4`.
+    /// MEASURED, `work/wr1/probes/p4.cpp`: `void a7(){ gsp(&gI, 7); }` is
+    /// `lis r11 · li r4,7 · addi r3,r11,0 · b`, REFLO **eight** bytes past
+    /// REFHI. Emitting the quad as the adjacent pair a pooled FP constant uses
+    /// was a live wrong-bytes emit on exactly that body.
+    ///
+    /// The input here is that body's shape and nothing else: `hi_off` 0 and
+    /// `lo_off` 8, four words of `.text`. Every assertion carries its own
+    /// message and the two quantities the later ones rest on — how many
+    /// relocation records the section has, and that `hi_off + 4` is a real
+    /// offset inside the body rather than past its end — are pinned first, so a
+    /// broken reader goes red on its own line instead of making the offset
+    /// assertions unreachable.
+    #[test]
+    fn the_data_address_quad_puts_reflo_at_its_own_offset_not_beside_refhi() {
+        let text = vec![0u8; 16]; // lis · li · addi · b
+        let f = Function {
+            calls: vec![Call { reloc_offset: 12, callee: "?gsp@@YAXPAHH@Z" }],
+            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
+            ..Function::plain("?a7@@YAXXZ", 0)
+        };
+        let obj = emit_obj(r"Z:\t\a7.obj", &[f], &text, 2536);
+        let recs = text_relocations(&obj);
+
+        // (a) The fixture property, pinned over the INPUT and not over the rule
+        // under test: the two halves are 8 bytes apart, so `hi_off + 4` is a
+        // different word of a body that actually has one there. Without this the
+        // test could be satisfied by a body too short to tell the two apart.
+        assert_eq!(
+            (0u32, 8u32, text.len()),
+            (0, 8, 16),
+            "(a) the discriminating body is `lis · li · addi · b` with the halves \
+             8 bytes apart and a real word at +4"
+        );
+        // (b) One REL24 for the branch plus the quad — and nothing else. Pinned
+        // before any record is inspected by index.
+        assert_eq!(
+            recs.len(),
+            5,
+            "(b) expected 5 .text relocation records (1 REL24 + a REFHI/PAIR/\
+             REFLO/PAIR quad), got {}",
+            recs.len()
+        );
+        // (c) REFHI sits at the hoisted `lis`, offset 0.
+        let refhi: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFHI).map(|r| r.0).collect();
+        assert_eq!(refhi, vec![0], "(c) REFHI is not at the hoisted `lis` (offset 0): {refhi:?}");
+        // (d) **The rule.** REFLO is at the `addi`'s own offset, 8 — NOT at
+        // `hi_off + 4` = 4, which is where the literal's `li` is.
+        let reflo: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFLO).map(|r| r.0).collect();
+        assert_eq!(
+            reflo,
+            vec![8],
+            "(d) REFLO must be at the `addi`'s own offset 8, not at hi_off+4 = 4 \
+             — the two halves of the quad are NOT adjacent: {reflo:?}"
+        );
+        // (e) Both PAIRs shadow their own half, and against symbol index 0.
+        let pairs: Vec<(u32, u32)> =
+            recs.iter().filter(|r| r.2 == REL_PPC_PAIR).map(|r| (r.0, r.1)).collect();
+        assert_eq!(
+            pairs,
+            vec![(0, 0), (8, 0)],
+            "(e) each PAIR shadows its own half's offset against symbol 0: {pairs:?}"
+        );
+        // (f) Records are ascending by VirtualAddress and REFHI precedes its
+        // PAIR at the equal VA — the order c2 writes them in.
+        let order: Vec<(u32, u16)> = recs.iter().map(|r| (r.0, r.2)).collect();
+        assert_eq!(
+            order,
+            vec![
+                (0, REL_PPC_REFHI),
+                (0, REL_PPC_PAIR),
+                (8, REL_PPC_REFLO),
+                (8, REL_PPC_PAIR),
+                (12, REL_PPC_REL24),
+            ],
+            "(f) the .text relocation records are not in ascending-VA order with \
+             REFHI ahead of its PAIR: {order:?}"
+        );
+    }
+
+    /// The same rule in the **`/Gy` COMDAT** emitter, which is a second copy of
+    /// the quad code — and a second copy of one fact is this file's recorded
+    /// defect shape (see the `emit_framed_obj` note above). One emitter fixed
+    /// and one not is exactly how the `.pdata`-ordering bug survived.
+    #[test]
+    fn the_comdat_emitter_places_reflo_at_its_own_offset_too() {
+        let text = vec![0u8; 16];
+        let f = Function {
+            calls: vec![Call { reloc_offset: 12, callee: "?gsp@@YAXPAHH@Z" }],
+            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
+            ..Function::plain("?a7@@YAXXZ", 0)
+        };
+        let obj = emit_comdat_obj(r"Z:\t\a7.obj", &[f], &[text], 2536);
+        let recs = text_relocations(&obj);
+        assert_eq!(
+            recs.len(),
+            5,
+            "(g) the COMDAT emitter wrote {} .text relocation records, expected 5",
+            recs.len()
+        );
+        let reflo: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFLO).map(|r| r.0).collect();
+        assert_eq!(
+            reflo,
+            vec![8],
+            "(h) COMDAT emitter: REFLO must be at the `addi`'s own offset 8, not \
+             at hi_off+4 = 4: {reflo:?}"
+        );
+    }
+
+    /// Every COFF symbol record's `(name, Value, SectionNumber)`, in table
+    /// order. A second walk of the container, like [`text_relocations`].
+    fn symbols(obj: &[u8]) -> Vec<(String, u32, i16)> {
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]]);
+        let ptr = u32at(8) as usize;
+        let n = u32at(12) as usize;
+        let strtab = ptr + n * 18;
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < n {
+            let r = ptr + i * 18;
+            let name = if u32at(r) == 0 {
+                let off = strtab + u32at(r + 4) as usize;
+                let end = obj[off..].iter().position(|&c| c == 0).unwrap_or(0) + off;
+                String::from_utf8_lossy(&obj[off..end]).into_owned()
+            } else {
+                let raw = &obj[r..r + 8];
+                let end = raw.iter().position(|&c| c == 0).unwrap_or(8);
+                String::from_utf8_lossy(&raw[..end]).into_owned()
+            };
+            out.push((name, u32at(r + 8), u16at(r + 12) as i16));
+            i += 1 + obj[r + 17] as usize;
+        }
+        out
+    }
+
+    /// **#135/#137 — the compiler-label triple's three slots are not
+    /// interchangeable, and the symbol table emits the two `$M` out of numeric
+    /// order.** Asserted in BOTH emitters.
+    ///
+    /// `plan_labels` hands back `[n, n+1, n+2]` and the emitter binds them:
+    /// `$M(n)` carries the **prologue** length, `$M(n+1)` the **function**
+    /// length, `$T(n+2)` the `.pdata` record — and the two `$M` records are
+    /// written `$M(n+1)` **first**, `$M(n)` second, with the callee external
+    /// between them. Nothing pinned either fact portably; swapping the two
+    /// `Value`s is six wrong bytes in an obj that still links, which is this
+    /// file's recorded defect class (#5).
+    ///
+    /// **Both emitters, because there are two copies of this binding** — and
+    /// the first draft of this test called only [`emit_comdat_obj`], under which
+    /// swapping the two `$M` in [`emit_obj`] left `cargo test` **85 passed / 0
+    /// failed**. One rule in two emitters, pinned in one, is how the `.pdata`
+    /// ordering bug survived (see the `emit_framed_obj` note above).
+    ///
+    /// The number→meaning half is **independently confirmed by `.cod`**
+    /// (`scripts/gt_label_cod.py`, `docs/ROADMAP.md` §9.12): on 56 of 56 graded
+    /// bodies across 20 shapes and 4 flag sets the listing prints `$M(n)` at a
+    /// **lower** text offset than `$M(n+1)` in the same body — the prologue end
+    /// really is the lower number. Measured on both sides of the seam.
+    #[test]
+    fn the_label_triple_binds_prolog_to_n_and_function_length_to_n_plus_one() {
+        let mk = || Function {
+            calls: vec![Call { reloc_offset: 0x0C, callee: "?g@@YAHH@Z" }],
+            frame: Some(Frame { prolog_len: 0x0C, func_len: 0x24 }),
+            ..Function::plain("?f@@YAHH@Z", 0)
+        };
+        let text = vec![0u8; 0x24];
+
+        // (l) The triples this obj is supposed to carry, pinned against
+        // `plan_labels` itself so the assertions below name real symbols. If
+        // the planner moves, this line goes red rather than the later ones
+        // silently comparing `None` to `None`. Packed is 4 lower than `/Gy`:
+        // 2536 + LABEL_SEED_GAP = 2545, plus the flat 3-per-function pre-pass.
+        let planned = |comdat| {
+            plan_labels(2536, &[mk()], comdat)[0].expect("a framed function gets a triple")
+        };
+        assert_eq!(
+            (planned(false), planned(true)),
+            ([2545, 2546, 2547], [2548, 2549, 2550]),
+            "(l) the planned triple moved: packed {:?}, /Gy {:?}",
+            planned(false),
+            planned(true)
+        );
+
+        for (tag, obj, m) in [
+            ("packed", emit_obj(r"Z:\t\f.obj", &[mk()], &text, 2536), planned(false)),
+            (
+                "/Gy",
+                emit_comdat_obj(r"Z:\t\f.obj", &[mk()], &[text.clone()], 2536),
+                planned(true),
+            ),
+        ] {
+            let syms = symbols(&obj);
+            let n0 = label_name('M', m[0]);
+            let n1 = label_name('M', m[1]);
+            let n2 = label_name('T', m[2]);
+            let ix = |n: &str| syms.iter().position(|s| s.0 == n);
+            let val = |n: &str| syms.iter().find(|s| s.0 == n).map(|s| s.1);
+
+            // (m) All three symbols are present, under `label_name`'s spelling.
+            for n in [&n0, &n1, &n2] {
+                assert!(ix(n).is_some(), "(m) {tag}: the obj has no symbol named {n}");
+            }
+
+            // (n) **The binding.** `$M(n)` is the PROLOGUE length and `$M(n+1)`
+            // the FUNCTION length — not the other way round.
+            assert_eq!(
+                (val(&n0), val(&n1)),
+                (Some(0x0C), Some(0x24)),
+                "(n) {tag}: $M(n)={n0} must carry the prologue length 0x0C and \
+                 $M(n+1)={n1} the function length 0x24 — swapping them is six \
+                 wrong bytes in an obj that still links"
+            );
+
+            // (o) **The emission order**, the opposite of the numeric order:
+            // `$M(n+1)` is written BEFORE `$M(n)`, and `$T(n+2)` after both.
+            let (a, b, c) = (ix(&n1).unwrap(), ix(&n0).unwrap(), ix(&n2).unwrap());
+            assert!(
+                a < b && b < c,
+                "(o) {tag}: the symbol table must carry $M(n+1) before $M(n) \
+                 before $T(n+2); got {n1} at {a}, {n0} at {b}, {n2} at {c}"
+            );
+
+            // (o2) …with the callee external BETWEEN the two `$M`.
+            let callee = ix("?g@@YAHH@Z")
+                .unwrap_or_else(|| panic!("(o2) {tag}: the callee symbol is missing"));
+            assert!(
+                a < callee && callee < b,
+                "(o2) {tag}: the callee external sits between $M(n+1) and $M(n): \
+                 {n1} at {a}, callee at {callee}, {n0} at {b}"
+            );
+
+            // (p) `$T(n+2)` is the `.pdata` record's own label and is the only
+            // member of the triple that leaves the code section.
+            let t_sec = syms.iter().find(|s| s.0 == n2).map(|s| s.2).unwrap();
+            let m_sec = syms.iter().find(|s| s.0 == n0).map(|s| s.2).unwrap();
+            assert_ne!(
+                t_sec, m_sec,
+                "(p) {tag}: $T(n+2) must live in `.pdata`, not beside the two $M \
+                 in `.text` (both read section {t_sec})"
+            );
+        }
+    }
+
+    /// The **negative half of the same rule**: a pooled FP constant's halves
+    /// *are* adjacent (`addis` then `lfs`, four bytes apart), and that is why
+    /// `hi_off + 4` looked right. Pinning it here is what stops a future
+    /// "unify the two quad emitters" refactor from fixing one by breaking the
+    /// other — the two quads are genuinely different and this says so portably.
+    ///
+    /// Packed, not `/Gy`: [`emit_comdat_obj`] carries no constant-pool code at
+    /// all, because `PortC2::build` refuses a pooled constant under `/Gy`
+    /// (`docs/OBJ_GY_SHAPES.md` §2, the reverse-append ordering) and hardcodes
+    /// `fp_refs: Vec::new()` on that path. Writing this test against the COMDAT
+    /// emitter read **0 relocation records** and would have been the vacuous
+    /// shape — a control run where the effect cannot appear.
+    #[test]
+    fn the_pooled_fp_constant_quad_is_adjacent_which_is_why_the_data_one_looked_it() {
+        let text = vec![0u8; 12];
+        let f = Function {
+            is_float: true,
+            fp_refs: vec![crate::codegen::FpConstRef {
+                hi_off: 0,
+                bits: 0x3FF0_0000_0000_0000,
+                double: false,
+            }],
+            ..Function::plain("?fc@@YAMXZ", 0)
+        };
+        let obj = emit_obj(r"Z:\t\fc.obj", &[f], &text, 2536);
+        let recs = text_relocations(&obj);
+        assert_eq!(
+            recs.len(),
+            4,
+            "(i) a single pooled FP constant is one quad = 4 records, got {}",
+            recs.len()
+        );
+        let reflo: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFLO).map(|r| r.0).collect();
+        assert_eq!(
+            reflo,
+            vec![4],
+            "(j) the FP quad's halves ARE adjacent — REFLO belongs at hi_off+4 = \
+             4 here, and the data-symbol quad's does NOT: {reflo:?}"
+        );
+    }
 }

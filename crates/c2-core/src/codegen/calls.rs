@@ -1526,4 +1526,144 @@ mod tests {
         assert!(permute_args_text(&formal_slots(&[0, 1, 2, 3, 4, 5, 6, 7, 8])).is_err());
     }
 
+    // -----------------------------------------------------------------------
+    // #137 — the PORTABLE pin for WR1's address-last rule.
+    //
+    // [`sym_slots_text`]'s doc comment states the rule and names the
+    // discriminating pair. Until now nothing in `cargo test` asserted it: with
+    // the `addi` moved back into the descending walk, `cargo test --workspace`
+    // read **571 passed / 0 failed** with the toolchain resolving *and* on the
+    // portable lane, and only `scripts/gate.sh` went red (10 of 12 lanes,
+    // `c2rs diff fixtures/cpp/wr1_sym_addr.cpp` → Mismatch @ obj offset 821).
+    // `docs/ROADMAP.md` §9.12.
+    // -----------------------------------------------------------------------
+
+    /// The words the two rules argue about, named once so the two tests below
+    /// cannot drift: `lis r11,0`, `li rD,k` (`addi rD,0,k`) and the low half
+    /// `addi rD,r11,0`. Three distinct encodings — in particular the `li` and
+    /// the low-half `addi` differ in their RA field (0 against 11), which is
+    /// what makes an order assertion over them meaningful.
+    fn sym_words(lit_slot: usize, lit: i16, sym_slot: usize) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+        (
+            encode_addis(SCRATCH_REG, 0, 0).to_vec(),
+            encode_addi(ARG_REGS[lit_slot], 0, lit).to_vec(),
+            encode_addi(ARG_REGS[sym_slot], SCRATCH_REG, 0).to_vec(),
+        )
+    }
+
+    /// **#137 rule 1 — the address `addi` is emitted LAST**, after every other
+    /// slot's setup, whatever slot it belongs to.
+    ///
+    /// This is the arrangement that says so, and the only one that can:
+    /// `void c4(S* s){ s->m3(7, &gI); }` puts the literal at slot **1** and the
+    /// symbol at slot **2**, so the literal's slot is strictly *lower*. A
+    /// descending-destination walk emits the higher slot first and would produce
+    /// `lis · addi r5 · li r4`; c2 produces `lis · li r4,7 · addi r5,r11,0`
+    /// (MEASURED, `work/wr1/probes/p2.cpp` at `/Ox /GS- /c`).
+    ///
+    /// **The arrangement is the whole test.** WR1's own hand fixture had three
+    /// literal cases and all three put the symbol at slot 0, where the two rules
+    /// agree — see the companion test below, which is that agreeing case and is
+    /// the control saying which of the two arrangements does the work.
+    #[test]
+    fn the_address_addi_is_emitted_last_even_when_a_literal_sits_at_a_lower_slot() {
+        use c2_il::SlotArg::{Formal, Lit, SymAddr};
+        let slots = vec![Formal(0), Lit(7), SymAddr];
+
+        // (a) The fixture property, pinned FIRST and phrased over the INPUT
+        // rather than over the rule under test: without a literal at a strictly
+        // lower slot than the symbol this body cannot tell the two rules apart,
+        // and every assertion below would pass under either.
+        let lit_slot = slots.iter().position(|a| matches!(a, Lit(_))).expect("a literal slot");
+        let sym_slot = slots.iter().position(|a| matches!(a, SymAddr)).expect("a symbol slot");
+        assert!(
+            lit_slot < sym_slot,
+            "(a) this arrangement does not discriminate: the literal must sit at \
+             a strictly LOWER slot than the symbol, got literal at {lit_slot} and \
+             symbol at {sym_slot}"
+        );
+
+        let (lis, li, addi) = sym_words(lit_slot, 7, sym_slot);
+        let (w, _writes) = sym_slots_text(&slots).expect("in class");
+
+        // (b) Three words and no more — pinned before anything is read by index.
+        assert_eq!(
+            w.len(),
+            12,
+            "(b) `s->m3(7, &gI)` setup is 3 words (lis, li, addi), got {} bytes",
+            w.len()
+        );
+
+        // (c) The rule, positionally: the LOWER slot's `li` precedes the HIGHER
+        // slot's address `addi`. Stated over positions rather than over the whole
+        // byte string so that a future re-encoding still leaves a red on the
+        // ORDER rather than on an unrelated field.
+        let words: Vec<&[u8]> = w.chunks_exact(4).collect();
+        let li_at = words.iter().position(|x| *x == li.as_slice());
+        let addi_at = words.iter().position(|x| *x == addi.as_slice());
+        assert_eq!(
+            (li_at, addi_at),
+            (Some(1), Some(2)),
+            "(c) the address `addi` must come LAST: expected `li` at word 1 and \
+             the low-half `addi` at word 2, got li_at={li_at:?} addi_at={addi_at:?} \
+             in {words:02x?} — a descending walk would put the symbol's slot 2 \
+             ahead of the literal's slot 1"
+        );
+
+        // (d) The `lis` is hoisted to the body's first word — the other half of
+        // the pair, and what `PortC2::data_refs_of` derives `hi_off` from.
+        assert_eq!(
+            words[0],
+            lis.as_slice(),
+            "(d) the `lis rS,sym@ha` must be the body's FIRST word: {words:02x?}"
+        );
+
+        // (e) …and the whole string, so a reordering that somehow satisfies (c)
+        // and (d) separately still goes red.
+        let mut want = lis.clone();
+        want.extend_from_slice(&li);
+        want.extend_from_slice(&addi);
+        assert_eq!(
+            w, want,
+            "(e) `s->m3(7, &gI)` must be `lis r11 · li r4,7 · addi r5,r11,0`"
+        );
+    }
+
+    /// **The control for the test above — this one AGREES under both rules.**
+    ///
+    /// `void c1(){ gsp(&gI, 7); }` puts the symbol at slot **0** and the literal
+    /// at slot 1, and a descending walk reaches slot 0 last anyway. So this test
+    /// must stay **green** under the descending mutation while its neighbour
+    /// goes red; if it went red too, the neighbour's red would not identify
+    /// *which* arrangement discriminates and the pair would be worth nothing.
+    ///
+    /// This is the shape WR1's fixture had three copies of (`c1`, `c2`, `c3`) —
+    /// a fixture that grew by three cases without gaining one bit of evidence.
+    #[test]
+    fn the_symbol_at_slot_zero_does_not_discriminate_the_two_rules() {
+        use c2_il::SlotArg::{Lit, SymAddr};
+        let slots = vec![SymAddr, Lit(7)];
+
+        // (a) The fixture property again, and the opposite one: the symbol is at
+        // the LOWEST slot, which is exactly where the two rules agree.
+        let lit_slot = slots.iter().position(|a| matches!(a, Lit(_))).expect("a literal slot");
+        let sym_slot = slots.iter().position(|a| matches!(a, SymAddr)).expect("a symbol slot");
+        assert_eq!(
+            (sym_slot, lit_slot),
+            (0, 1),
+            "(f) the control needs the symbol at slot 0 and a literal above it, \
+             got symbol at {sym_slot} and literal at {lit_slot}"
+        );
+
+        let (lis, li, addi) = sym_words(lit_slot, 7, sym_slot);
+        let (w, _writes) = sym_slots_text(&slots).expect("in class");
+        let mut want = lis;
+        want.extend_from_slice(&li);
+        want.extend_from_slice(&addi);
+        assert_eq!(
+            w, want,
+            "(g) `gsp(&gI, 7)` must be `lis r11 · li r4,7 · addi r3,r11,0` — the \
+             arrangement on which descending and address-last AGREE"
+        );
+    }
 }
