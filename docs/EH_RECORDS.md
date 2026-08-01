@@ -1724,13 +1724,16 @@ red**, which is the only reason a transcription is worth grading at all.
 **Price, stated first: this moves the census by 0 by construction.** It is
 Phase-5 groundwork. No rung is claimed.
 
-Instrument: `scripts/gt_eh_cod.py`. **21 probes × 4 flag sets = 105 listings**,
-100 % captured. The axes are **structural counts**, per §9.13.1's consequence 2
+Instrument: `scripts/gt_eh_cod.py`, **110 listings, 110 captured**:
+**15 EH shapes × 4 flag sets** (`/O1 /Oi /EHsc`, `/O1 /Oi /EHa`, `/O2 /EHsc`,
+`/Ox /EHsc`) = 60, plus **5 held-out `maxState` shapes**, **5 held-out gap
+combinations** and **40 single-axis gap probes** at `/O1 /Oi /EHsc`. Of the 15 EH
+shapes, **2 are the fitted set and 13 were held out**. The axes are **structural
+counts**, per §9.13.1's consequence 2
 — try blocks 0–4, nesting depth 0–4, catch clauses per try 1–4, destructible
 objects 0–5, functions per TU 1–3, catch by value / by `&` / by `const&` / by
-pointer / ellipsis — *not* the contents of one try. Two probes are the fitted
-set; everything else was held out and its counts predicted from source before
-capture.
+pointer / ellipsis — *not* the contents of one try. Every held-out probe's counts
+were predicted from source and committed before capture.
 
 ### 11.1 The record set, and the order they are emitted in
 
