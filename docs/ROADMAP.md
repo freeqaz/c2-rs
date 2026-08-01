@@ -3793,11 +3793,24 @@ figure (0.5 % apart, consistent with corpus-HEAD drift). The median TU carries
 things from the port — to be *skipped*, and for the skip decision to be *right*.
 It does not need a byte-exact lowering.
 
-**The numerator's overlap with emitted code is unmeasured, and that is the
+**The numerator's overlap with emitted code was unmeasured, and that was the
 softest number in the project.** Bounded from the scan plus per-TU emitted
-counts, the in-class ∩ emitted overlap lies in **[22, 173,149] of 178,097**.
-Nothing measures whether 28.31 % covers 0.01 % or 97 % of the code c2 actually
-emits. Given what the in-class classes are — 102,056 empty bodies, 35,964
+counts, the in-class ∩ emitted overlap lay in **[22, 173,149] of 178,097** —
+nothing measured whether 28.31 % covered 0.01 % or 97 % of the code c2 actually
+emits.
+
+> **MEASURED 2026-08-01 (WEMIT): 34,083 of 178,968 emitted functions in class =
+> 19.04 %**, true value in **[19.04 %, 28.94 %]** — an interval 3.4 % of the
+> denominator wide instead of 97 %. The fear is refuted in **both** directions:
+> not 0.01 %, and not 97 %. Pre-registered before measuring, in its own commit,
+> at 34,000 ± [30,000, 40,000] — **0.24 % out**.
+>
+> It explains the flat TU-match count with nothing else: at 19 % per emitted
+> function, a TU with the median 141 emitted has no chance of being byte-exact.
+> And **the widening order over emitted code is not the order over bodies** —
+> `expr-op-0x27` falls 23.4 % → 18.0 %, while `body-cflow-label` and
+> `expr-intrinsic-this-adjust` rise to #2 and #3. `c2rs gap` now prints both.
+> Per-TU table and the binding's invariants: `docs/GAPS.md` §8.7. Given what the in-class classes are — 102,056 empty bodies, 35,964
 generated destructor delegations, 177,262 indirect-load leaves, largely
 header-inline shapes — the true emitted share is plausibly far below 28 %.
 
@@ -3820,8 +3833,10 @@ bindings.
    honest terminal target is **871/878 byte-exact at the workload's own flags**
    (`/O1 /Oi /EHsc`); the 7 capture-fails are workload-manifest issues, not port
    gaps.
-2. **Emitted-function census** — in-class ∩ emitted / 178,097. **Not measurable
-   today**, and building it is the highest-priority instrument on the board.
+2. **Emitted-function census** — in-class ∩ emitted / 178,968. **Built
+   2026-08-01 and printing on every scan: 19.04 %**, with a named residue.
+   Narrowing the interval further is a `.gl` record-shape job (152,941
+   `nameless` records), not a census one.
 3. **The per-function census, explicitly demoted to *driver*.** It ranks rungs
    superbly and its gate discipline is the best thing in this project. It is not
    the target, and "census 100 %" is retired as a stated goal.
