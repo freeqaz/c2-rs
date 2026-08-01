@@ -3081,3 +3081,94 @@ of a census delta reaching the emitted column) applied to a 2,124 ceiling gives
 declined on measurement and nothing is routed** — a routing fix whose entire
 reachable population is invisible to the payoff metric is not worth the risk to a
 ladder that currently disagrees with the gate 0 times.
+
+### 10.2 The read-out — the rung is DECLINED on measurement
+
+Workload scan at `b0adae4`, 878 TUs, `/O1 /Oi /EHsc`, 871 cache hits, 2.2 s.
+Census **703,047 / 2,462,571 (28.55 %)**, emitted **34,169 / 178,968 (19.09 %)**,
+TU match **6**, mismatch **0**, census/gate disagreement **0** — i.e. the
+baseline exactly, since nothing was changed.
+
+The dispatch decomposition reproduces §10.4 of `ARCHITECTURE_SEAMS.md`
+independently, to the function: `disp-expr-lit` **7,887**, `disp-expr-load`
+**701**, `disp-plain-call` **219** = **8,807**, and all eight `disp-expr-lit`
+keys are **100 % arm-pure**, so the emitted read below is exact for the arm
+rather than apportioned.
+
+| arm | bodies | **emitted** | `calls-1` | **emitted ∩ `calls-1`** |
+|---|---:|---:|---:|---:|
+| `disp-expr-lit` — the `0x33` arm | 7,887 | **663** | 362 | **[0, 8]** |
+| `disp-expr-load` | 701 | 16 | — | [16, 16] |
+| `disp-plain-call` | 219 | 4 | 0 | [0, 0] |
+| **total** | **8,807** | **683** | 1,129 | **≤ 24** |
+
+The intersection is a **per-TU** bound, not a product of marginals: for each TU
+and key, `[max(0, emitted − calls-2plus), min(emitted, calls-1)]`. The two
+variables are strongly **anti-correlated** — multiplying the marginals would have
+said 663 × 4.6 % = 30, and the joint is 8.
+
+**The two numbers that decide it:**
+
+* **The whole 8,807, fully lowered, is worth 683 emitted functions — 0.382 % of
+  178,968.** That is the ceiling on the entire population *granting* the port a
+  frame class it does not have.
+* **The part a routing fix alone can reach is ≤ 8 emitted functions in the
+  `0x33` arm (0.0045 %), ≤ 24 across all three arms (0.013 %).**
+
+**7,525 of the 7,887 in the `0x33` arm are `calls-2plus` — 95.4 %, not the
+75.9 % the whole-family figure implies.** The family-level "6,683 of 8,807" is
+diluted by the other two arms; in the arm that carries 89.6 % of the population
+the frame block is near-total. And `calls-2plus` is not merely a lower
+acceptance rate — corpus-wide it runs **30,649 / 802,655 = 3.8 % accepted**
+against 22.4 % for `calls-1` — but for a *member-call* body it is the framed
+member-call receiver, which `ROADMAP.md` §8.3 places in **Phase 4**. Routing
+cannot reach it, and Phase 4 landing whole would still only expose 663.
+
+**The decline does not rest on the binding.** §8.6's residue holds 3,372
+unbound `dtor` symbols, and this is the population they would most plausibly
+belong to, so 663 is a floor. Granting the arm **every one of them** still leaves
+the reachable set capped by the frame at **362 bodies = 0.20 %** of the emitted
+denominator. There is no reading of the residue under which this rung pays.
+
+### 10.3 The estimate, scored
+
+| quantity | registered | measured | |
+|---|---|---|---|
+| **Q1** emitted ∩ the population | 600, `[150, 1,800]` | **663** | **10.5 % out, inside the interval** |
+| **Q2** of those, not needing the frame | 100, `[10, 400]` | **≤ 8** (arm), ≤ 24 (all arms) | **MISS — the point estimate was 12× the hard ceiling and outside its own interval** |
+| **Q3** emitted-census delta | **0**, `[0, 60]` | **0** (ceiling 8, not 60) | correct |
+| **Q4** census delta | 400, `[0, 2,124]` | **0** (arm ceiling 362) | **MISS — the point estimate exceeded the arm's ceiling** |
+
+Q1 was good and its registered bias direction (downward, because the binding
+fails closed) is confirmed: 663 is a floor.
+
+**Q2 and Q4 were the same error made twice, and it is worth naming.** Both
+applied a rate measured over the **whole `-recv-*-whole` family** to a **single
+dispatch arm** — the very merge that §10.4 says hid the finding in the first
+place. `calls-2plus` is 75.9 % of the family and **95.4 % of the arm**, so the
+routable population was 5.9× smaller than registered before the emitted
+constraint was applied at all. Then the joint was estimated by multiplying two
+marginals that turn out to be anti-correlated, costing another 4×.
+
+The general form, and the one to carry forward: **when a finding is only visible
+because a row was split, every rate used to size it must be re-measured on the
+split, not inherited from the merge.**
+
+### 10.4 What was declined, with its number
+
+1. **The `0x33` routing fix itself** — offering the declined destructor
+   delegation to `mcall_{tail,chain,cmp}`. Ceiling **8 emitted functions**
+   (0.0045 % of 178,968) and **362 bodies** (0.015 % of 2,462,571). Not written.
+2. **The `disp-expr-load` arm**, 701 bodies — **16 emitted** (0.0089 %).
+3. **The `disp-plain-call` arm**, 219 bodies — **4 emitted**, and **0** of them
+   `calls-1`, so its reachable set is empty by two independent constraints.
+4. **The whole 8,807 with an arbitrary frame class granted** — **683 emitted**,
+   0.382 %. Recorded so the population is not re-ranked later off its body count:
+   at 8,807 bodies it reads as a mid-size rung and by the metric that pays it is
+   a third of one percent.
+
+The defect `ARCHITECTURE_SEAMS.md` §10.4 names is **real and reproduced here
+exactly** — these bodies genuinely never reach a member-call production. It is
+simply not worth the change: `body/mod.rs`'s ladder currently disagrees with the
+gate **0** times over 2,462,571 functions, and restructuring its dispatch to
+expose at most 8 emitted functions is not a trade this project should take.
