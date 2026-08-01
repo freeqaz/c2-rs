@@ -71,8 +71,10 @@ use super::expr::{
 };
 use super::{Block, BODY_SCOPE_DEPTH};
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like, eat_opt_stmt_marker, read_token_var, read_type, read_varint,
+    eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker,
+    read_token_var, read_type, read_varint,
 };
+use crate::func::readers::ValueClass;
 
 /// The `ctx` every block from this module carries. [`Block::feature`] keys on it
 /// and formats the sub-bucket name out of [`Block::aux`]; nothing else uses it.
@@ -2278,7 +2280,7 @@ fn eat_call_args_region(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) 
                 if !nested {
                     *p = save;
                     fail.rewind(msave);
-                    if !eat_int_operands(seg, p, adm, fail) {
+                    if !eat_int_operands(seg, p, Vocab::CallArg, adm, fail) {
                         return false;
                     }
                 }
@@ -2286,7 +2288,19 @@ fn eat_call_args_region(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) 
                     fail.note(*p, FailKind::Value);
                     return false;
                 }
-                if !eat_type(seg, p) {
+                // **The `55` call-end annotation is the FORMAL's declared type,
+                // and the emitter gates it** — `shapes::calls::eat_call_args`
+                // requires `eat_int_like_or_ptr4` here and refuses the call
+                // otherwise, on the measured ground that widening one of the two
+                // positions without the other admits no real call site at all.
+                // This read `eat_type` — *any* TYPE — until #139, which made the
+                // measure WIDER than its emitter at this position and so
+                // manufactured completeness: a body whose argument is annotated
+                // `float`, `short`, `long long` or `char *` was counted `-whole`
+                // when the shipping path refuses it outright. That is the
+                // direction §9.13's E4 records as invisible to every gate, and
+                // it is 2,925 of 13,500 enumerated operand streams.
+                if eat_int_like_or_ptr4(seg, p).is_none() {
                     fail.note(*p, FailKind::Type);
                     return false;
                 }
@@ -2299,10 +2313,93 @@ fn eat_call_args_region(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) 
     }
 }
 
-/// One or more `B9 <tok> <int-like>` / `33 <int-like> <k>` / `02|03|04` tokens —
-/// the operand vocabulary `parse_expr` already accepts, and nothing else.
-fn eat_int_operands(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> bool {
+/// **Which shipping position this operand stream is the measure OF.**
+///
+/// The rule board **#139** establishes: *when a census key names a construct,
+/// the measure's acceptance vocabulary must match the emitter's.* A measure
+/// narrower than its emitter does not merely under-count — the greedy walker
+/// charges the difference as a granted construct, so the key prints a second
+/// construct that was never a blocker and `-whole{k}` is one too high.
+///
+/// So the vocabulary is no longer implicit. Each variant **names the shipping
+/// locator it mirrors**, and
+/// `tests::a_measure_and_its_emitter_admit_the_same_types` holds the pair to it
+/// over the whole enumerated TYPE space rather than over a witness list.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Vocab {
+    /// A **call argument**. Mirrors `shapes::calls::eat_call_args` — which all
+    /// three shipping member-call productions (`mcall_tail`, `mcall_chain`,
+    /// `mcall_cmp`) route arguments through — position by position:
+    ///
+    /// | position | the emitter's gate | reached via |
+    /// |---|---|---|
+    /// | LOAD / LIT operand TYPE | [`eat_operand_type`] | `parse_expr` |
+    /// | the `02`/`03`/`04` operators | the same three | `parse_expr` |
+    /// | pointer / one-byte-unsigned stream rules | [`Stream::emitter_would_refuse`] | `parse_expr` |
+    /// | the `55` call-end annotation | [`eat_int_like_or_ptr4`] | `eat_call_args` |
+    ///
+    /// **What this correspondence does NOT cover, stated rather than implied.**
+    /// `parse_expr` also admits a `2C` conversion whose target is the value's
+    /// own class, and the measure has no arm for it — a measure narrower than
+    /// its emitter, i.e. #139's own shape. It is left open deliberately and
+    /// with a number: **0 emitted rows and 0 bodies** on the 878-TU workload
+    /// carry a `…-then-op-0x2C` key, so repairing it would move nothing and
+    /// would widen a hot path for a row that does not exist. The 468 emitted
+    /// `call-multiarg-postop-0x2C` are a different key from a different
+    /// production and are untouched by this.
+    CallArg,
+    /// An **intrinsic-call receiver**. Nothing in the intrinsic family is
+    /// lowered at all (`docs/IL_INTRINSIC_CALL.md`), so there is no emitter for
+    /// this position and no correspondence to hold it to. It keeps D2's
+    /// original int-only vocabulary — left UNMEASURED rather than widened to
+    /// match a production that does not exist, which is the same honesty gate
+    /// [`form_is_measured`] applies.
+    IntrinsicRecv,
+}
+
+/// What the operand run has seen so far, for the **stream-level** refusals that
+/// no single operand can reach.
+///
+/// `parse_expr` carries three of them — a pointer may be moved but not computed
+/// on, a one-byte-unsigned value may be moved but neither computed on nor mixed
+/// with a width-4 one — and each is a place the measure was WIDER than its
+/// emitter. That direction manufactures phantom *completeness*: a row reads
+/// `-whole` and the shipping path refuses it outright. It is invisible to
+/// `census/gate disagreement` for the reason §9.13's E4 gives, and it was 1,053
+/// of 13,500 enumerated operand streams.
+#[derive(Default)]
+struct Stream {
+    ptr: bool,
+    int1u: bool,
+    wide: bool,
+    arith: bool,
+}
+
+impl Stream {
+    /// Exactly `parse_expr`'s two guards, in the same order and on the same
+    /// conditions. Only meaningful where the position HAS an emitter.
+    fn emitter_would_refuse(&self) -> bool {
+        (self.ptr && self.arith) || (self.int1u && (self.arith || self.wide))
+    }
+}
+
+/// One or more `B9 <tok> <TYPE>` / `33 <TYPE> <k>` / `02|03|04` tokens — the
+/// operand vocabulary the position's own emitter accepts (see [`Vocab`]), and
+/// nothing else.
+fn eat_int_operands(seg: &[u8], p: &mut usize, v: Vocab, adm: Admit, fail: &mut Fail) -> bool {
     let mut n = 0;
+    let mut st = Stream::default();
+    // The run is over; report it the way the position's own emitter would.
+    macro_rules! finish {
+        () => {
+            if n > 0 && v == Vocab::CallArg && st.emitter_would_refuse() {
+                fail.note(*p, FailKind::Value);
+                false
+            } else {
+                n > 0
+            }
+        };
+    }
     loop {
         match seg.get(*p) {
             Some(&0xB9) => {
@@ -2313,46 +2410,74 @@ fn eat_int_operands(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> b
                     return false;
                 };
                 *p += w;
-                if !eat_int_like_or_admitted(seg, p, adm) {
+                if !eat_operand_or_admitted(seg, p, v, adm, &mut st) {
                     fail.note(*p, FailKind::Type);
                     *p = save;
-                    return n > 0;
+                    return finish!();
                 }
             }
             Some(&0x33) => {
                 let save = *p;
                 *p += 1;
-                if !eat_int_like_or_admitted(seg, p, adm) {
+                if !eat_operand_or_admitted(seg, p, v, adm, &mut st) {
                     fail.note(*p, FailKind::Type);
                     *p = save;
-                    return n > 0;
+                    return finish!();
                 }
                 if read_varint(seg, p).is_none() {
                     fail.note(*p, FailKind::Value);
                     return false;
                 }
             }
-            Some(&0x02) | Some(&0x03) | Some(&0x04) => *p += 1,
+            Some(&0x02) | Some(&0x03) | Some(&0x04) => {
+                st.arith = true;
+                *p += 1;
+            }
             _ => {
                 fail.note(*p, FailKind::Value);
-                return n > 0;
+                return finish!();
             }
         }
         n += 1;
     }
 }
 
-/// `eat_int_like`, widened by the one type class a `Blocker::Type` second blocker
-/// admits. Inert in the first pass (the grant set is empty), so D2's
-/// argument grammar — and every `-whole` count stated in §14.1 and §15.4 — is
-/// unchanged.
-fn eat_int_like_or_admitted(seg: &[u8], p: &mut usize, adm: Admit) -> bool {
-    if eat_int_like(seg, p) {
-        return true;
+/// The position's own operand TYPE vocabulary, widened by the one type class a
+/// `Blocker::Type` second blocker admits, recording the class on `st`. The
+/// widening is inert in the first pass (the grant set is empty).
+fn eat_operand_or_admitted(
+    seg: &[u8],
+    p: &mut usize,
+    v: Vocab,
+    adm: Admit,
+    st: &mut Stream,
+) -> bool {
+    match v {
+        Vocab::CallArg => {
+            let save = *p;
+            if let Some(c) = eat_operand_type(seg, p) {
+                st.ptr |= c == ValueClass::Ptr4;
+                st.int1u |= c == ValueClass::Int1u;
+                st.wide |= c != ValueClass::Int1u;
+                return true;
+            }
+            *p = save;
+        }
+        Vocab::IntrinsicRecv => {
+            if eat_int_like(seg, p) {
+                st.wide = true;
+                return true;
+            }
+        }
     }
     if adm.admits_type(seg, *p) {
         if let Some((_, _, _, w)) = read_type(seg, *p) {
             *p += w;
+            // A granted class is a HYPOTHETICAL production, so no emitter rule
+            // can be derived for it. Counted as a width-4-shaped value, which is
+            // what leaves the stream guards inert for it rather than inventing a
+            // refusal the shipping path has never been asked about.
+            st.wide = true;
             return true;
         }
     }
@@ -2602,7 +2727,7 @@ fn eat_intrinsic_receiver(seg: &[u8], p: &mut usize, sel: i32, adm: Admit, fail:
                 }
             }
             Some(_) => {
-                if !eat_int_operands(seg, p, adm, fail) {
+                if !eat_int_operands(seg, p, Vocab::IntrinsicRecv, adm, fail) {
                     return false;
                 }
             }
@@ -2649,11 +2774,244 @@ fn eat_data_designator(seg: &[u8], p: &mut usize, want_load: bool, fail: &mut Fa
     true
 }
 
+/// **Test hook: run the completeness measure's own argument region.**
+///
+/// Exists so `tests::a_measure_and_its_emitter_admit_the_same_types` can drive
+/// the measure through the *same bytes* it drives the emitter through, instead
+/// of asserting a property of a shared helper — a guard that reads both sides
+/// through one locator cannot see the two sides drifting apart, which is the
+/// only failure it is there to catch.
+#[cfg(test)]
+pub(crate) fn measure_admits_call_args(seg: &[u8]) -> bool {
+    let mut p = 0usize;
+    let mut fail = Fail::new();
+    let adm = Admit::bare(CallForm::RecvLoad);
+    eat_call_args_region(seg, &mut p, adm, &mut fail) && p == seg.len()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::func::body::{parse_segment, parse_segment_detail};
     use crate::func::test_fixtures::{free_fn, NO_LOCALS};
+
+    /// **THE MEASURE-vs-EMITTER GUARD** — `docs/ROADMAP.md` §9.14, board #139.
+    ///
+    /// > When a census key names a construct, the measure's acceptance
+    /// > vocabulary must match the emitter's. A measure narrower than the
+    /// > emitter manufactures phantom rungs; a measure wider than the emitter
+    /// > manufactures phantom *completeness*.
+    ///
+    /// Neither direction is visible to any gate this project has.
+    /// `census/gate disagreement` compares *the census* with *the port* on
+    /// acceptance, and this measure decides neither: [`mark_whole`] is
+    /// diagnostic, its `Err` stays an `Err`. So a mismatched vocabulary emits
+    /// no wrong byte, disagrees with nothing, and shows up only as a ranking
+    /// that sends a lane after a construct that was never a blocker — which is
+    /// what #139 cost, a 14× estimate miss.
+    ///
+    /// **What makes this a control rather than a restatement.** Both sides are
+    /// driven end to end through their own public entry points over the same
+    /// bytes:
+    ///
+    /// * the emitter — `shapes::calls::eat_call_args`, which is what all three
+    ///   shipping member-call productions (`mcall_tail`, `mcall_chain`,
+    ///   `mcall_cmp`) route arguments through;
+    /// * the measure — [`measure_admits_call_args`], the completeness walker's
+    ///   own argument region.
+    ///
+    /// A test that instead asserted a property of the shared locator would pass
+    /// no matter how far `parse_expr` drifted from it.
+    ///
+    /// **The domain is enumerated, not sampled.** Every `(tag, kind)` in
+    /// `0x80..=0xFF × 0x00..=0xFF` that [`read_type`] parses at all — a witness
+    /// list would have missed exactly the class that was wrong, because the
+    /// class that was wrong (`Ptr4`) had witnesses on the emitter side and none
+    /// on the measure side.
+    ///
+    /// **This test FAILS on the tree before #139** (measured: 5,312 TYPEs
+    /// disagree, every one of them a pointer class the emitter admits and the
+    /// measure refused), and passes after.
+    #[test]
+    fn a_measure_and_its_emitter_admit_the_same_types() {
+        use crate::func::body::shapes::calls::eat_call_args;
+        // A fixed, known-good formal type at the `55` call-end, so the ONLY
+        // thing varying between cases is the operand's own TYPE. `86 41 74` is
+        // plain `int`, transcribed from a live capture.
+        const INT: [u8; 3] = [0x86, 0x41, 0x74];
+        let mut disagreements: Vec<(u8, u8, bool, bool)> = Vec::new();
+        let mut enumerated = 0usize;
+        for tag in 0x80u8..=0xFF {
+            for kind in 0x00u8..=0xFF {
+                // Build the TYPE, then ask `read_type` how wide it really is;
+                // the wide-prefix and aggregate forms are longer than three
+                // bytes and are skipped rather than guessed at.
+                let buf = [tag, kind, 0x74, 0x00, 0x00, 0x00];
+                let Some((_, _, _, w)) = read_type(&buf, 0) else {
+                    continue;
+                };
+                if w != 3 {
+                    continue;
+                }
+                enumerated += 1;
+                let ty = &buf[..3];
+                // `B9 <tok:2> <TYPE>` · `55 <int>` · `4C` — one argument,
+                // one LOAD, nothing else in the stream.
+                let mut seg = vec![0xB9, 0x01, 0x02];
+                seg.extend_from_slice(ty);
+                seg.push(0x55);
+                seg.extend_from_slice(&INT);
+                seg.push(0x4C);
+
+                let mut p = 0usize;
+                let emitter = eat_call_args(&seg, &mut p).is_ok() && p == seg.len();
+                let measure = super::measure_admits_call_args(&seg);
+                if emitter != measure {
+                    disagreements.push((tag, kind, emitter, measure));
+                }
+            }
+        }
+        assert!(
+            enumerated > 1000,
+            "the domain collapsed to {enumerated} TYPEs — the guard would pass vacuously"
+        );
+        assert!(
+            disagreements.is_empty(),
+            "{} of {enumerated} enumerated TYPEs are accepted by one side and refused by the \
+             other. A census key that names a construct is only true if the measure and the \
+             emitter admit the same operands (roadmap #139). First 12: {:02X?}",
+            disagreements.len(),
+            &disagreements[..disagreements.len().min(12)]
+        );
+    }
+
+    /// One captured TYPE per class the argument grammar can meet. Transcribed
+    /// from live captures (the spellings are quoted in [`super::super::readers`]
+    /// and `docs/IL_TYPE_TAGS.md` §2), and every entry is checked to parse
+    /// before it is used, so a mistyped triple fails loudly instead of silently
+    /// shrinking the domain.
+    const CLASS_WITNESSES: &[(&str, &[u8])] = &[
+        ("int", &[0x86, 0x41, 0x74]),
+        ("unsigned", &[0x86, 0x42, 0x75]),
+        ("long", &[0x86, 0x41, 0x12]),
+        ("unsigned long", &[0x86, 0x42, 0x22]),
+        ("const int", &[0xA6, 0x41, 0x84, 0x20]),
+        ("volatile int", &[0x96, 0x41, 0x80, 0x20]),
+        ("int *", &[0x86, 0x43, 0x74]),
+        ("int * const", &[0xA6, 0x43, 0x8F, 0x20]),
+        ("int * volatile", &[0x96, 0x43, 0x80, 0x20]),
+        ("char *", &[0x82, 0x43, 0xF0, 0x08]),
+        ("bool / unsigned char", &[0x82, 0x12, 0x74]),
+        ("short", &[0x84, 0x41, 0x74]),
+        ("long long", &[0x88, 0x41, 0x74]),
+        ("float", &[0x86, 0x45, 0x40]),
+        ("double", &[0x88, 0x85, 0x41]),
+    ];
+
+    /// **The guard, over operand STREAMS rather than single operands.**
+    ///
+    /// `parse_expr` carries three refusals that no single-operand case can
+    /// reach — the pointer-arithmetic guard, the one-byte-unsigned arithmetic
+    /// guard, and the one-byte-unsigned mixing guard — and each of them is a
+    /// place the measure could be *wider* than the emitter, which manufactures
+    /// phantom completeness: a row that reads takeable and is not. That
+    /// direction is the one §9.13's E4 records as invisible to
+    /// `census/gate disagreement`, because the port would emit wrong bytes
+    /// rather than refuse.
+    ///
+    /// The domain is the full cross of two operand classes × the four operator
+    /// shapes the grammar admits (none, `02` add, `03` sub, `04` mul) × the
+    /// formal type at the `55`. Small enough to enumerate exhaustively, wide
+    /// enough that every stream-level guard is reached by construction.
+    #[test]
+    fn a_measure_and_its_emitter_admit_the_same_operand_streams() {
+        use crate::func::body::shapes::calls::eat_call_args;
+        for (name, ty) in CLASS_WITNESSES {
+            let (_, _, _, w) = read_type(ty, 0)
+                .unwrap_or_else(|| panic!("witness TYPE for {name} does not parse: {ty:02X?}"));
+            assert_eq!(w, ty.len(), "witness TYPE for {name} has trailing bytes");
+        }
+        let mut disagreements: Vec<String> = Vec::new();
+        let mut cases = 0usize;
+        for (n1, t1) in CLASS_WITNESSES {
+            for op in [None, Some(0x02u8), Some(0x03), Some(0x04)] {
+                for (n2, t2) in CLASS_WITNESSES {
+                    for (n5, t5) in CLASS_WITNESSES {
+                        cases += 1;
+                        let mut seg = vec![0xB9, 0x01, 0x02];
+                        seg.extend_from_slice(t1);
+                        if let Some(o) = op {
+                            seg.extend_from_slice(&[0xB9, 0x01, 0x03]);
+                            seg.extend_from_slice(t2);
+                            seg.push(o);
+                        }
+                        seg.push(0x55);
+                        seg.extend_from_slice(t5);
+                        seg.push(0x4C);
+
+                        let mut p = 0usize;
+                        let emitter = eat_call_args(&seg, &mut p).is_ok() && p == seg.len();
+                        let measure = super::measure_admits_call_args(&seg);
+                        if emitter != measure {
+                            disagreements.push(format!(
+                                "[{n1}] {} [{n2}] :: 55 [{n5}] -> emitter={emitter} measure={measure}",
+                                match op {
+                                    None => "·",
+                                    Some(0x02) => "+",
+                                    Some(0x03) => "-",
+                                    _ => "*",
+                                }
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(cases > 3000, "domain collapsed to {cases} streams");
+        assert!(
+            disagreements.is_empty(),
+            "{} of {cases} enumerated operand streams are accepted by one side and refused by \
+             the other (roadmap #139). First 12:\n  {}",
+            disagreements.len(),
+            disagreements[..disagreements.len().min(12)].join("\n  ")
+        );
+    }
+
+    /// The guard above is only worth its runtime if it can go red, so this
+    /// states the failure it was built from **positively**: a width-4 pointer
+    /// TYPE at a call-argument operand is admitted by the emitter, and before
+    /// #139 the measure refused it and charged a `Blocker::Type(Ptr)` grant for
+    /// the difference.
+    ///
+    /// Captured spelling, from `int h1(int*); int f(int* p){return h1(p);}`:
+    /// `… B9 p 86 43 f4 08 · 55 86 43 f4 08 · 4C`.
+    #[test]
+    fn a_pointer_call_argument_was_never_a_second_construct() {
+        // `86 43 74` — a 4-byte pointer, the class W22 admitted at this
+        // position and the measure did not.
+        let seg = vec![
+            0xB9, 0x01, 0x02, 0x86, 0x43, 0x74, 0x55, 0x86, 0x43, 0x74, 0x4C,
+        ];
+        let mut p = 0usize;
+        assert!(
+            crate::func::body::shapes::calls::eat_call_args(&seg, &mut p).is_ok(),
+            "the EMITTER has admitted a pointer argument since W22"
+        );
+        assert!(
+            super::measure_admits_call_args(&seg),
+            "…and so must the measure, or the census key prints `-then-type-ptr` \
+             for a construct that was never a blocker"
+        );
+        // The negative half: a class NEITHER side admits stays refused on both,
+        // so the repair widened the measure to the emitter and not past it.
+        // `86 45 74` is `float`, which no argument production lowers.
+        let seg = vec![
+            0xB9, 0x01, 0x02, 0x86, 0x45, 0x74, 0x55, 0x86, 0x41, 0x74, 0x4C,
+        ];
+        let mut p = 0usize;
+        assert!(crate::func::body::shapes::calls::eat_call_args(&seg, &mut p).is_err());
+        assert!(!super::measure_admits_call_args(&seg));
+    }
 
     /// One pinned body's census [`Block`].
     ///
