@@ -3100,7 +3100,15 @@ rather than apportioned.
 | `disp-expr-lit` — the `0x33` arm | 7,887 | **663** | 362 | **[0, 8]** |
 | `disp-expr-load` | 701 | 16 | — | [16, 16] |
 | `disp-plain-call` | 219 | 4 | 0 | [0, 0] |
-| **total** | **8,807** | **683** | 1,129 | **≤ 24** |
+| **total** | **8,807** | **683** | — | **≤ 24** |
+
+The `calls-1` column is left blank for the last two rows and the total on
+purpose. `fn_frames` is keyed `<calls-class>|<census key>` **globally**, not per
+arm, so it can only be read as the arm's own count for an **arm-pure** key. All
+eight `disp-expr-lit` keys are 100 % arm-pure and **362 is exact**; one of
+`disp-expr-load`'s two keys is shared with `disp-assign`, which is why a naive
+sum there reads 767 against 701 bodies. Publishing that total would be quoting a
+number known to be inflated, and the decisive arm does not need it.
 
 The intersection is a **per-TU** bound, not a product of marginals: for each TU
 and key, `[max(0, emitted − calls-2plus), min(emitted, calls-1)]`. The two
