@@ -68,9 +68,13 @@ one grant produces **both** published symptoms at once:
 
 They were tracked as two board items and repaired by one locator.
 
-**And the measure was not merely narrow.** Run against the reproduced base gate,
-the enumerated guard reports **9 of 16,352 TYPEs** disagreeing, in two
-directions:
+**And the measure was not merely narrow.** The guard was run against the base
+measure by mutating the four repaired positions back one at a time — the operand
+gate to `eat_int_like`, the stream rules off, the `2C` arm off, the `55`
+annotation back to `eat_type` — rather than against the base *source*, because
+the test hook does not exist there. That is a reproduction and is labelled one;
+what it reproduces is the acceptance behaviour, which is all the guard reads. It
+reports **9 of 16,352 TYPEs** disagreeing, in two directions at once:
 
 | `(tag, kind)` | class | emitter | base measure | |
 |---|---|---|---|---|
@@ -188,8 +192,14 @@ Totals identical on both scans: bound-emitted 161,262 = 36,059 in class +
 `recv-field-off0-then-call-nested-call-and-type-ptr-more` (419),
 `recv-load-then-type-ptr-and-deref-load-more` (351),
 `…-and-branch-more` (316), `chained-…-and-off-add-more` (231). **13,321 emitted
-functions in total leave `type-ptr` keys; 200 remain, and those 200 are real** —
-a `Blocker::Type(Ptr)` reached at a position with no emitter.
+functions in total leave `type-ptr` keys.**
+
+**200 remain, and they were checked rather than waved through.** All 200 bail at
+`tail-void-body-does-not-end-at-the-call`, i.e. the pointer TYPE they name is
+reached at a *statement-layer* position and not at a call argument — outside the
+region this repair's correspondence covers, where a `Blocker::Type(Ptr)` is a
+truthful name. A residue that is merely small is not thereby explained; this one
+is 200 rows of one production, and it says so.
 
 **Rows that APPEAR:**
 
