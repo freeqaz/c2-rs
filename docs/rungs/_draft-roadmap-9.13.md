@@ -89,6 +89,17 @@ per TU across 803 TUs. The emitted census counts COMDATs and 1,385 is 1,385, but
 the *differential coverage* behind the rung is one source shape, which is why the
 generated axis carries more weight here than the fixture.
 
+The rung **reconciles to the unit**, which is the control that matters for a
+change that re-routes bodies between productions. `chain-recv-not-a-plain-b9-load`
+falls 94,948 → 30,183 and the 64,765 re-routed bodies account for themselves
+exactly (2,537 accepted + 24,874 `tail-object-receiver-is-not-a-tail-call` +
+28,300 "does not end at the call" + 9,046 argument-vocabulary + 8); the 2,539 that
+changed dispatch arm resolve as 2,527 in class + 10 refused one layer later by the
+`.gl` linkage gate + 2 committed refusals. **One in-class shape label moved and
+nothing shrank** — `multiarg-tail-call` 27,868 → 30,395 — so no previously
+accepted body changed production, changed shape, or fell out of class. Stated
+positively over 2.46 M bodies rather than as the absence of a complaint.
+
 #### 9.13.1 ALARM — WR1's ordering rule was wrong from two setup words up, and it was live on mainline
 
 The new fixture mismatched at first build. Bisected to a body with **no receiver
