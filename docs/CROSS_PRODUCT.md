@@ -1,6 +1,8 @@
 # CROSS_PRODUCT — grading the combinations, not the axes
 
-`scripts/cross_sweep.sh` (driver: `scripts/cross_sweep.py`). Written 2026-07-31.
+`scripts/cross_sweep.sh` (driver: `scripts/cross_sweep.py`). Written 2026-07-31;
+converted to the `scripts/lanes.txt` registry and re-keyed on measured emitted
+shape 2026-08-01.
 
 ## Why
 
@@ -36,14 +38,31 @@ failure `GAPS.md` §6 keeps recording. So:
 
 1. **The families come from the port.** They are the `FnVerdict::InClass("…")`
    labels in `crates/c2-il/src/func/census.rs`, extracted by a paren-matched
-   scan of each call's whole argument. Not a line-wise `grep`: three of the
-   eighteen (`call-sequence*`, and `float-leaf`/`double-leaf`) live inside a
+   scan of each call's whole argument. Not a line-wise `grep`: several of the
+   twenty-eight (`call-sequence*`, and `float-leaf`/`double-leaf`) live inside a
    nested `match`/`if` and a line pattern misses them.
-2. **The representatives come from compiling.** The whole `scripts/sweep.d/`
-   corpus is generated and graded, and a family's representative is a *matched*
-   TU whose in-class functions are all of that one family — smallest first,
-   one per fragment before a second from the same fragment, `k` of them
-   (`C2RS_CROSS_REPS`, default 3).
+2. **The representatives come from compiling, and they are keyed on SHAPE, not
+   on the family's name.** The whole `scripts/sweep.d/` corpus is generated and
+   graded; a *candidate* is a matched TU whose in-class functions are all of one
+   family; every candidate's obj is then emitted and its **shape** read out of
+   it. A family's representatives are one per *distinct shape*, most-populated
+   bucket first, smallest source within a bucket, capped at `C2RS_CROSS_REPS`
+   (default 8).
+
+   **Shape here is measured, and it is the masked opcode sequence of the emitted
+   `.text`** — primary opcode plus the extended field where the extended field
+   is the instruction's identity, with registers and immediates removed. Two
+   cases are the same shape iff the same instructions come out in the same
+   order. That is the only sense of "same shape" this project judges by
+   (`CLAUDE.md`: the obj is the sole judge), it needs no agreement from the port
+   about how it labels anything, and it moves the moment a rung emits an
+   instruction it did not emit before. Masking the operands is the deliberate
+   cut and not an approximation: offsets, widths and operand order are swept
+   *within* a shape by the per-axis fragments and are explicitly not crossed
+   here, and keying on raw bytes would make every immediate its own "shape".
+
+   See §"Why the key is the shape and not the label" for the measurement that
+   forced this.
 3. **A family with no representative fails the lane, by name.** That check found
    a real hole on its first run: `call-sequence`, `call-sequence-value` and
    `call-sequence-lit` — the newest accepted class, and *the* class that made
@@ -73,30 +92,144 @@ failure `GAPS.md` §6 keeps recording. So:
    the framed base). What it **misses** is stated under "what it deliberately
    does not grade": the surcharges that mint nothing.
 
+## Why the key is the shape and not the label (2026-08-01)
+
+The lane keyed on the census **label** until this date, and a label is a *name*.
+The cost of that was measured rather than argued.
+
+On 2026-07-31 a rung landed **+5,507 functions of genuinely new accepted shape**
+— a trailing literal call argument, and the formal that moves beside it. Every
+number this lane prints came back **byte-identical to the pre-merge run**: 28
+families, 84 representatives, 406 pairs, 388 emitted. The new shapes had been
+absorbed into the existing `multiarg-tail-call` label, so they added no family
+and no pair; and with three representatives sampled per label, all three drawn
+from older fragments, they added no representative either. The contrast is the
+tell: when an earlier rung genuinely added *labels*, this counter moved 18 → 20
+families and 171 → 210 pairs with no human input. It did not move here.
+
+That is correct behaviour for a label-keyed instrument and a real hole in what it
+proves — the new shape was graded *alone* by `expr_sweep`, and never once beside
+another family, which is precisely the configuration that produced §6 #12.
+
+Measured on the merged tree, at `/Ox /GS- /c`, over the 8,863 single-family
+candidate TUs the sweep corpus produces:
+
+* **433 distinct emitted shapes** across the 28 families.
+* The label-keyed selection's **84 representatives covered 41 of them** — one
+  shape for 17 of the 28 families, because "smallest first, one per fragment"
+  systematically picks the same small emission three times.
+* `multiarg-tail-call` alone holds **8** distinct shapes. Four of them are
+  contributed *only* by the two fragments the rung added
+  (`74-lit-call-arg`, `75-moved-lit-call-arg`), and **none of those four was a
+  representative**. The rung's shapes were never crossed against anything.
+
+Shape-keyed, with the cap at 8, the same corpus yields **147 representatives
+covering 147 shapes**, and `multiarg-tail-call` is **completely** represented —
+its slots now include `74-lit-call-arg-0055`, `74-lit-call-arg-0069`,
+`75-moved-lit-call-arg-0001` and `75-moved-lit-call-arg-0003`, i.e. the rung's
+own emissions, crossed against every other family in both orders at all twelve
+lanes. The cap is 8 for that reason and not by taste: **it is the smallest cap
+that fully covers the family the hole was reported against.**
+
+The cap is a **residue, and the run names it**. 433 − 147 = 286 measured shapes
+are not crossed, and the output lists them per family with counts:
+
+```
+    store-run              165 of 173     compare-leaf            8 of  16
+    call-sequence-value     49 of  57     call-sequence-load-fp   6 of  14
+    call-sequence           16 of  24     float-leaf              4 of  12
+    straight-line           12 of  20     double-leaf             4 of  12
+    call-sequence-lit       12 of  20     indirect-load-leaf      1 of   9
+    store-leaf               9 of  17
+```
+
+That number is the thing that was silent before: a rung that emits an
+instruction it did not emit before now moves it whether or not it adds a label.
+
+**What this does not do.** It does not make "family" mean shape in the pair
+matrix — pairs, the refusal frontier and the residue are still reported per
+census label, so every earlier run's numbers stay comparable. Making the pair
+axis itself shape-keyed would put tier A at 433² ≈ 187k configurations per lane
+(≈ 2.2 M gradings over the registry), which is roughly **5×** this lane's whole
+current cost for a matrix that is 96 % single-family diagonal. What it buys —
+crossing the 286 uncrossed shapes against everything — is bounded above by that
+286, and that is the number to weigh when the question comes back.
+
+## The mode lanes are `scripts/lanes.txt` (2026-08-01)
+
+This file used to say "four mode lanes throughout: `/Ox` packed, `/Ox /Gy`,
+`/O1`, `/O2`", and those four were **hardcoded in `scripts/cross_sweep.py`**.
+They compile **no `/EH` at any invocation**.
+
+That was the last surviving instance of the un-enumerated-lane defect, and it was
+in the worst possible place. Every TU of the dc3 workload is compiled `/EHsc`;
+**35,964 `eh-bare` functions are in class with markers that appear only under
+`/EHsc`**; and this is the lane whose entire purpose is finding mis-emits the
+hand-written corpus cannot — its record is real, §6 #12 was found in the cross
+product of two individually-green branches. Its `/EHsc` intersection was empty
+and its green read exactly like a green that had verified those flags.
+
+The lane now reads `scripts/lanes.txt` and grades **every** lane in it, splicing
+each row's flags exactly the way `scripts/mode_lane.sh` does
+(`<mode> /GS- /c <rest>`), so "the same lane" means the same characters in the
+same order as the fixture gate's. Concretely the mode set went **4 → 12**:
+
+| | before | after |
+|---|---|---|
+| kept | `/Ox`, `/Ox /Gy`, `/O1`, `/O2` | same four, identical flag strings |
+| gained | — | `/EHsc` over all six base configurations, `/O1 /Oi`, `/Od` |
+| lost | — | **nothing** |
+
+Two consequences worth stating:
+
+* **It inherits the registry's assertions for free.**
+  `crates/c2-harness/tests/lane_registry.rs` already requires the shipped list to
+  carry an `/EH` lane, to *vary* `/Oi` where `/Ox` does not already imply it, and
+  to name `/O1 /EHsc` by flags even though its verdict rows are identical to
+  `/O1`'s — verdict-identical is not redundant, the reference obj is a different
+  obj. None of that had to be restated in the driver.
+* **A new test keeps it converted.** `cross_product_lane_takes_its_modes_from_the_registry`
+  asserts, over `scripts/cross_sweep.py` itself, that it mentions `lanes.txt` and
+  that it defines no private mode table. Nothing in `cargo test` would otherwise
+  notice a "tidy up the sweep driver" commit pasting the four back, and the
+  symptom of that regression is silence.
+
+`/Od` in the registry is what forced tier S below: it refuses essentially
+everything on purpose, so a wrapping check asserted unconditionally would have
+blamed the instrument for the mode.
+
 ## What it grades
 
-Four mode lanes throughout: `/Ox` packed, `/Ox /Gy`, `/O1`, `/O2`.
+Twelve mode lanes throughout — `scripts/lanes.txt`.
 
-| tier | what | count at k = 3 |
+| tier | what | count at k = 8 |
 |---|---|---:|
-| W | each representative **alone inside a namespace** — the wrapping check | 54 |
-| A | every **ordered pair** of representatives, both orders, diagonal included | 2,916 |
-| B | **arity**: n = 1…4 copies of a family, alone and with a framed observer before and after | 216 |
-| C | **ordered triples over the TU-external families**, with and without a stride-1 separator at each position | 1,715 |
+| S | each representative **alone** — tier W's control | 147 |
+| W | each representative **alone inside a namespace** — the wrapping check | 147 |
+| A | every **ordered pair** of representatives, both orders, diagonal included | 21,609 |
+| B | **arity**: n = 1…4 copies of a family, alone and with a framed observer before and after | 336 |
+| C | **ordered triples over the TU-external families**, with and without a stride-1 separator at each position | 20,480 |
 
-4,901 configurations × 4 lanes = **19,604 gradings**, ~70 s cold and ~25 s warm
-at `--jobs 16`.
+42,719 configurations × 12 lanes = **512,628 gradings**, ~19 min cold at
+`C2RS_JOBS=24` on a 32-core host. (Against 27,956 × 4 = 111,824 before: ×1.53 in
+configurations, from the shape key, and ×3 in lanes, from the registry.)
 
-Two of those tiers need their reason stated, because neither is obvious:
+Three of those tiers need their reason stated, because none is obvious:
 
 * **Tier W exists so the lane cannot lie.** Every half after the first sits in a
   `namespace`, and if a namespace by itself pushed a shape out of class then
-  every pair would grade a refusal and the green would mean nothing. All 54
-  representatives still match wrapped. (Namespaces rather than identifier
-  renaming: they cannot collide, they need no tokenizer, and the port reads
-  names out of the IL so the extra mangling is not a variable. The **first**
-  half is left unwrapped, so it is byte-identical to the standalone case that
-  was graded.)
+  every pair would grade a refusal and the green would mean nothing.
+  (Namespaces rather than identifier renaming: they cannot collide, they need no
+  tokenizer, and the port reads names out of the IL so the extra mangling is not
+  a variable. The **first** half is left unwrapped, so it is byte-identical to
+  the standalone case that was graded.)
+* **Tier S is tier W's control, and without it the registry conversion would
+  have been unsafe.** The old check was "every W must match", which is only a
+  statement about the *wrapping* at a lane where the representative matches
+  unwrapped. `/Od` is in the registry and refuses on purpose. Asserted
+  unconditionally it would have reported "the wrapping is not coverage-neutral"
+  for all 147, which is false. So each representative is compiled both ways at
+  every lane and the alarm is the **difference**: W refuses where S matched.
 * **Tier C is where a per-function and a per-TU counter rule come apart.** #13's
   candidate pair — "one slot per function plus one for the TU if anything
   touches floating point" versus "two slots per FP function" — agree at n = 1
@@ -113,14 +246,16 @@ Two of those tiers need their reason stated, because neither is obvious:
 Stated because a silent cap reads as "covered everything", which §6 forbids.
 
 * **Triples of three *distinct non-external* families.** Tier C is restricted to
-  the TU-external families (7 of 18); the full `R³` is not run. A three-way
+  the TU-external families (16 of 28); the full `R³` is not run. A three-way
   interaction among plain leaves would not be caught.
-* **The intra-family parameter space, crossed.** A family is represented by 3
-  TUs out of the hundreds the sweep generates. Operand order, widths, offsets,
-  argument positions and source lines are swept *within* a family by the
-  per-axis fragments and are **not** crossed against another family here.
-  Concretely: the lane grades "an addr-leaf beside a framed call", not "every
-  addr-leaf beside every framed call".
+* **The measured shapes beyond the cap — 286 of 433, named per family in the
+  run's own output.** A family gets up to 8 of its distinct emitted shapes;
+  `store-run` has 173 and gets 8, `call-sequence-value` has 57 and gets 8. **17
+  of the 28 families are completely represented; 11 are not**, and the run prints
+  which and by how much. Operand order, widths, offsets and source lines *within*
+  one shape are swept by the per-axis fragments and are still not crossed here.
+  Concretely: the lane now grades "each of `multiarg-tail-call`'s 8 emissions
+  beside every other family", not "every addr-leaf beside every framed call".
 * **The label surcharges that mint no symbol.** Tier C selects its triples on an
   *external-bearing* predicate, and `docs/LABEL_COUNTER.md` §1.1 measures three
   surcharges that predicate cannot see: a **newly pooled FP constant** (+2), a
@@ -132,63 +267,78 @@ Stated because a silent cap reads as "covered everything", which §6 forbids.
   overlaps the refusal frontier rather than adding to it, but the overlap is
   incidental and will stop holding the moment that gate moves. When it does, the
   predicate should be re-grounded on the surcharge table rather than on symbols.
-* **Flags beyond this lane's own four modes** — `/Od`, `/EHsc`, `/GS`, `/GR`,
-  `/Zi`, `/Oi`, and every combination of them.
-
-  > **This is now the last place the un-enumerated four survive, and it is worth
-  > naming as such (2026-07-31).** `cross_sweep.sh` carries its own hardcoded
-  > mode list — packed, `/Gy`, `/O1`, `/O2` — which is the same four that ran
-  > everywhere else and compiles **no `/EH` at any invocation**. The fixture gate
-  > no longer works that way: the lane list is data (`scripts/lanes.txt`), one
-  > command runs all 12 (`scripts/gate.sh`), and a test fails if the registry
-  > stops carrying an `/EH` lane
-  > (`crates/c2-harness/tests/lane_registry.rs`). The cross-product lane has not
-  > been converted, so **its `/EHsc` intersection is empty and reads exactly like
-  > a lane that verified those flags** — `docs/GAPS.md` §7's defect, still open
-  > here. Note the specific shape of the hazard before assuming it is small: this
-  > lane's whole reason for existing is that it finds mis-emits the hand-written
-  > corpus does not, and 35,964 `eh-bare` functions are in class on the workload
-  > with markers that only appear under `/EHsc`.
+* **Flags beyond the registry** — `/GS`, `/GR`, `/Zi`, and every combination of
+  what `scripts/lanes.txt` already holds. The four-hardcoded-modes hole that used
+  to be recorded here was closed on 2026-08-01; see "The mode lanes are
+  `scripts/lanes.txt`" above. Adding an axis is now a line in the registry and it
+  is inherited by both this lane and `scripts/gate.sh` — but the cost is not
+  free here, because this lane multiplies by ~43k configurations rather than by
+  197 fixtures. Measure before adding one.
 * **Everything on the refusal frontier below.** Those are compiled and counted
   and named, but the port refuses the TU, so no bytes were compared. They are
   **unmeasured**, not green.
 
-## Result, 2026-07-31 (master `ded71a4` merged into this branch)
+## Result, 2026-08-01 (master `97a60bc`)
 
-**0 mismatches**, all four of *this lane's* modes (packed / `/Gy` / `/O1` /
-`/O2` — not the 12-lane fixture registry, which did not exist yet and which this
-lane still does not use), 19,604 gradings.
+**0 mismatches over 512,628 gradings, every one of which was graded** — 42,719
+configurations × the 12 registry lanes, `C2RS_JOBS=24`, ~24 min end to end.
+Stated positively, because `mismatch 0` over `graded 0` is the shape that has
+fooled this repo's instruments nine times:
 
-* **86 of the 171 unordered family pairs occur in no matched TU of the fixture
-  corpus or the whole 6,365-case sweep corpus** — nothing had ever graded them.
-* **163 of the 171 emit somewhere in this lane** and are now graded.
-* **8 pairs are the TU-level refusal frontier** — they never emitted in *any*
-  configuration, at any arity or mode:
+| | before (same tree, label-keyed, 4 hardcoded modes) | after |
+|---|---:|---:|
+| configurations | 27,956 | **42,719** |
+| mode lanes | 4 | **12** |
+| gradings submitted | 111,824 | **512,628** |
+| gradings graded | 111,824 | **512,628** |
+| capture-fail | 0 | **0** |
+| families | 28 | 28 |
+| representatives | 84 | **147** |
+| distinct emitted shapes crossed | 41 of 433 | **147 of 433** |
+| families completely represented | — | **17 of 28** |
+| pairs reached | 406 | 406 |
+| pairs emitted | 406 | **406** |
+| refusal-frontier residue | 0 | **0** |
+| mismatches | 0 | **0** |
 
-  ```
-    call-sequence       + float-leaf / double-leaf
-    call-sequence-lit   + float-leaf / double-leaf
-    call-sequence-value + float-leaf / double-leaf
-    framed-call         + float-leaf / double-leaf
-  ```
-
-  That is **exactly the configuration of §6 #12**, and it is #13's outstanding
-  debt in one line: *the gate that kept the wrong label rule latent is still
-  there, so the lane can prove the port does not mis-emit these — only because
-  it emits nothing at all.* Verified not to be an artifact of the namespace
-  wrapping: `float f(float,float){…}` beside `int F(int a){return g(a)+1;}` in a
-  plain flat TU is `Port=NotImplemented` too. The day that gate comes off, this
-  lane is what grades what comes out.
+* **No pair regressed.** 406 of 406 before and after; the frontier is empty in
+  both. (The 18-pair FP-leaf frontier that stood here until 2026-08-01 was closed
+  by the WUNW rung, not by this change.)
+* **The `/EHsc` intersection is no longer empty.** Six of the twelve lanes
+  compile `/EH`, and each grades all 42,719 configurations. Their verdict rows
+  are identical to their plain partners' — which is not the same as redundant:
+  the reference obj is a different obj, and the port reproduced it byte-exactly
+  512,628 / 12 × 6 times over.
+* **`/Od` and `/Od-EHsc` refuse everything, on purpose**: 42,393 `codegen-gap` +
+  326 `vocab-gap` each, 0 mismatch. That is the fail-closed boundary lane's whole
+  content, and it is why tier S exists — without its own control at each lane,
+  those two would have reported "the wrapping is not coverage-neutral" for all
+  147 representatives.
+* **The residue that is left is named twice**: 286 measured shapes not crossed
+  (table above), and 18 ordered tier-A pairs (9 unordered, all `compare-leaf`)
+  refused at every lane — the port refuses those TUs, so no bytes were compared
+  and they are unmeasured, not green.
 
 ## Running it
 
 ```sh
-scripts/cross_sweep.sh                       # full, ~70 s cold
-C2RS_CROSS_REPS=1 scripts/cross_sweep.sh     # 1 rep/family, ~15 s
-C2RS_JOBS=32 scripts/cross_sweep.sh /tmp/x   # more parallelism, chosen workdir
+scripts/cross_sweep.sh                       # full, 42,719 x 12, ~24 min cold
+C2RS_CROSS_REPS=1 scripts/cross_sweep.sh     # 1 shape/family — smoke, not a gate
+C2RS_LANES=/path/to/lanes.txt \
+  scripts/cross_sweep.sh /abs/work           # a cut-down registry, for iteration
+C2RS_JOBS=32 scripts/cross_sweep.sh /abs/x   # more parallelism, chosen workdir
 ```
+
+**The workdir is made absolute at entry, in both the shell wrapper and the
+driver.** A relative one used to die with a bare `KeyError` (the paths written
+and the paths graded disagreed), and it is the same shape as the failure that
+yields `z:work\…` — which `cl.exe` cannot open, so every case capture-fails and
+every count parsed out of a report reads 0 and passes.
 
 Exit codes: `0` clean · `1` **MISMATCH** (an alarm — the port emitted bytes for
 a combination and they were wrong) · `2` a declared family has no representative
 (a hole in `scripts/sweep.d/`) · `3` the namespace wrapping is not
-coverage-neutral (the instrument is lying). Toolchain absent → `SKIP`, exit 0.
+coverage-neutral at some lane, measured against that lane's own standalone
+control (the instrument is lying) · `4` a lane reported `capture-fail`
+(configurations submitted and never graded) · `5` a lane graded nothing, or no
+pair emitted anywhere. Toolchain absent → `SKIP`, exit 0.

@@ -31,8 +31,13 @@
 set -eu
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+# ABSOLUTE. A relative workdir used to reach the driver as-is and die with a bare
+# `KeyError`; it is also the shape that yields `z:work\…` paths `cl.exe` cannot
+# open, so every case capture-fails and every count parsed out of the report reads
+# zero and passes. Resolved here as well as in the driver — both entry points.
 work="${1:-/tmp/c2rs-cross-sweep}"
 mkdir -p "$work"
+work="$(cd "$work" && pwd)"
 
 # Build unconditionally and hand the driver a RUN-PRIVATE COPY of the binary.
 # `scripts/harness_bin.sh` has the reasoning; the short version is that this lane
