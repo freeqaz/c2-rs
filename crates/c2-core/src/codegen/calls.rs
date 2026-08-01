@@ -800,8 +800,9 @@ fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>),
 ///
 /// ```text
 ///   lis  r11,sym@ha          <- ALWAYS the function's first word (REFHI + PAIR)
-///   …descending-slot setup…  <- `li` for a literal slot, and
-///   addi rD,r11,sym@l        <- the address at its own slot (REFLO + PAIR)
+///   <the FIRST word of the descending non-address walk, if there is one>
+///   addi rD,r11,sym@l        <- the address (REFLO + PAIR), in SECOND place
+///   <the REST of the descending walk>
 ///   b    <callee>
 /// ```
 ///
@@ -818,22 +819,53 @@ fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>),
 ///                                                    · 386b0000        · b
 /// ```
 ///
-/// **The `lis` is hoisted to the top and the `addi` is emitted LAST**, after every
-/// other slot's setup, whatever slot it belongs to. The two rules are separate
-/// and the second one is not a descending walk — that fit every witness the
-/// fixture had and mis-emitted the first case that put a literal at a *lower*
-/// slot than the symbol. Found by `scripts/sweep.d/53-data-symbol-addr.py`
-/// before it left the worktree; the discriminating pair is
+/// **The `lis` is hoisted to the top, and the `addi` is emitted after EXACTLY ONE
+/// word of the descending non-address walk** — second place, whatever slot the
+/// address belongs to, and first when the walk is empty. WR1's discriminating
+/// pair is still the reason the position is not the descending walk's own:
 ///
 /// ```text
 ///   void f()     { gsp(&gI, 7);   }   lis r11 · 38800007 li r4,7 · 386b0000 addi r3
 ///   void f(S* s) { s->m3(7, &gI); }   lis r11 · 38800007 li r4,7 · 38ab0000 addi r5
 /// ```
 ///
-/// — the same instruction order with the symbol at slot 0 and at slot 2, i.e.
-/// **descending and address-last agree on the first and disagree on the second**,
-/// and c2 takes address-last. Six sweep cases mismatched at obj offset 541 on the
-/// descending reading.
+/// — the same instruction order with the symbol at slot 0 and at slot 2, so
+/// **descending and address-second agree on the first and disagree on the
+/// second**. Six sweep cases mismatched at obj offset 541 on the descending
+/// reading (`scripts/sweep.d/53-data-symbol-addr.py`).
+///
+/// **W-ADJUST — the rule this replaces was "the `addi` goes LAST", and that was
+/// wrong from two setup words up.** At one word the two readings are the same
+/// sequence, and WR1's whole corpus — fixture and sweep — had at most one word
+/// beside the address, so nothing could tell them apart. The differential found
+/// it on the first three-word case:
+///
+/// ```text
+///   void b3() { gs3(&gI, 3, 4); }     lis r11 · li r5,4 · addi r3 · li r4,3
+///                       address-last:  lis r11 · li r5,4 · li r4,3 · addi r3   WRONG
+/// ```
+///
+/// `b3` is a **pure WR1 shape** — a data symbol as a call argument, no receiver
+/// anywhere — and it was in class and mis-emitting on mainline before this rung
+/// existed; the rung only supplied the arity that reaches it. Eleven cells now
+/// pin the rule, every word read off c2's own `.cod` listing at `/O1 /Oi /EHsc`
+/// (`work/wadjust/probe/q1.cpp`, `q3.cpp`), and they cover the address at slot 0
+/// and at a middle slot, walks of length 0 through 4, literals and in-place
+/// formals in the walk, and both a free and a member caller:
+///
+/// ```text
+///   gs2(&gI,7)          li r4,7          · addi r3
+///   gs3(&gI,b,7)        li r5,7          · addi r3
+///   gs3(&gI,3,4)        li r5,4          · addi r3 · li r4,3
+///   gs4(&gI,3,4,5)      li r6,5          · addi r3 · li r5,4 · li r4,3
+///   gDbg.four(3,4,5,6)  li r7,6          · addi r3 · li r6,5 · li r5,4 · li r4,3
+///   gs3b(3,&gI,4)       li r5,4          · addi r4 · li r3,3
+///   gs4b(3,&gI,4,5)     li r6,5          · addi r4 · li r5,4 · li r3,3
+///   Fwd::m2(k)          li r6,8          · addi r3 · li r5,7
+///   s->m3(7,&gI)        li r4,7          · addi r5                     (WR1 c4)
+///   s->so(&gI)          (empty walk)     · addi r4                     (WR1 a1)
+///   gso(&gI)            (empty walk)     · addi r3                     (WR1 a3)
+/// ```
 ///
 /// The scratch is **r11** in every witness. It becomes r10 only in the shape
 /// this class refuses — two formals shifting, where c2 pre-saves into r11 first
@@ -875,9 +907,10 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
     let mut w = Vec::with_capacity(4 * (slots.len() + 1));
     w.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
     let mut writes = vec![SCRATCH_REG];
-    // The literal slots first, descending destination — the same walk
+    // The non-address slots, descending destination — the same walk
     // [`lit_slots_text`] makes, and the address is not part of it.
     let mut sym_dst: Option<u8> = None;
+    let mut walk: Vec<(u8, [u8; 4])> = Vec::with_capacity(slots.len());
     for (i, a) in slots.iter().enumerate().rev() {
         let dst = *ARG_REGS.get(i).ok_or_else(|| {
             out_of_class("a call argument past the eight register slots")
@@ -887,20 +920,29 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
             c2_il::SlotArg::Lit(k) => {
                 let k = i16::try_from(*k)
                     .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
-                w.extend_from_slice(&encode_addi(dst, 0, k));
+                walk.push((dst, encode_addi(dst, 0, k)));
             }
             c2_il::SlotArg::SymAddr => {
                 sym_dst = Some(dst);
-                continue;
             }
         }
-        writes.push(dst);
     }
-    // …then the low half, LAST. `sym@l` is 0 before the linker patches it, exactly
-    // as the pooled-FP-constant `lfs`'s displacement is.
     let dst = sym_dst.ok_or_else(|| out_of_class("no data-symbol slot after the count said one"))?;
-    w.extend_from_slice(&encode_addi(dst, SCRATCH_REG, 0));
-    writes.push(dst);
+    // …and the low half **immediately after the FIRST word of that walk** — see
+    // the rule stated above. `sym@l` is 0 before the linker patches it, exactly
+    // as the pooled-FP-constant `lfs`'s displacement is.
+    let emit = |reg: u8, word: [u8; 4], w: &mut Vec<u8>, writes: &mut Vec<u8>| {
+        w.extend_from_slice(&word);
+        writes.push(reg);
+    };
+    let mut it = walk.into_iter();
+    if let Some((r, word)) = it.next() {
+        emit(r, word, &mut w, &mut writes);
+    }
+    emit(dst, encode_addi(dst, SCRATCH_REG, 0), &mut w, &mut writes);
+    for (r, word) in it {
+        emit(r, word, &mut w, &mut writes);
+    }
     Ok((w, writes))
 }
 

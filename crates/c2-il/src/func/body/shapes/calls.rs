@@ -729,6 +729,24 @@ pub(crate) fn eat_call_token(seg: &[u8], p: &mut usize) -> Result<CallRet, Block
 ///   checked anyway, because reading a callee as a data address would relocate
 ///   `.text` against a function symbol as if it were data.
 fn eat_sym_addr_arg(seg: &[u8], p: &mut usize) -> Option<u32> {
+    eat_sym_addr_value(seg, p, 0x55)
+}
+
+/// [`eat_sym_addr_arg`], with the token that must terminate the address named by
+/// the caller: `55` when it stands as a call **argument**, `99` when it stands as
+/// a member call's **receiver** (`gObj.m(a)` — W-ADJUST,
+/// [`super::mcall_tail::try_parse_member_tail_call`]).
+///
+/// One locator for one fact. The address is the same two instructions and the
+/// same relocation quad in both positions, and every refusal above — the offset
+/// run, the `30` load, the second convert, the callee push — is a fact about the
+/// *address*, not about what consumes it. A private copy at the receiver position
+/// would re-decide all four, which is `docs/GAPS.md` §6 instance #9 exactly.
+///
+/// Leaves the cursor **on** the terminator, so the caller consumes it with its
+/// own reader (`55 <TYPE>` for an argument, [`super::mcall_tail::eat_this_bind`]
+/// for a receiver), and restores it untouched on any refusal.
+pub(crate) fn eat_sym_addr_value(seg: &[u8], p: &mut usize, terminator: u8) -> Option<u32> {
     let save = *p;
     if seg.get(*p) != Some(&0x26) {
         return None;
@@ -750,9 +768,9 @@ fn eat_sym_addr_arg(seg: &[u8], p: &mut usize) -> Option<u32> {
         seg.get(r)?;
         q = r + 1;
     }
-    // The argument must end HERE. An offset run, a load, or a second convert
+    // The address must end HERE. An offset run, a load, or a second convert
     // means a construct with more instructions in it than the two this models.
-    if seg.get(q) != Some(&0x55) {
+    if seg.get(q) != Some(&terminator) {
         *p = save;
         return None;
     }
