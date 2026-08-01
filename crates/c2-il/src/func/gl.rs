@@ -82,16 +82,80 @@ pub fn mangled_names(gl: &[u8]) -> Vec<String> {
 /// unclaimed-symbol accounting filters with [`looks_mangled`] rather than relying
 /// on this scan to be selective.
 pub(crate) fn gl_symbol_runs(gl: &[u8]) -> Vec<(usize, usize, String)> {
+    symbol_runs(gl, false)
+}
+
+/// [`gl_symbol_runs`] **plus the `26` separator** — every name in `.gl`, not only
+/// the NUL-introduced ones (W-VGL, board #151).
+///
+/// # The defect this exists for, measured
+///
+/// [`NAME_SEPARATORS`] records that a `.gl` record's name is introduced by `00`
+/// **or** `26`, and lists what carries `26`: `??_G`/`??_E` deleting destructors,
+/// `??_7` vftables, the `??_R*` RTTI records, `_CT`/`_TI` EH descriptors — and
+/// **header-inline member functions**. [`gl_symbol_index`] already reads that
+/// constant. [`gl_symbol_runs`] never did: it opens a run only after a `00`, so a
+/// `26`-introduced name is not merely mis-framed, it is **never seen**.
+///
+/// The cost is not a missing name. It is a *wrong distance*: the record's
+/// "nearest preceding run" becomes some unrelated symbol 85–194 bytes back, which
+/// `bind::EMIT_MAX_NAME_TO_OFFSET` then correctly refuses — so the record lands
+/// in `records_nameless` and its symbol is counted as *having no body at all*.
+/// On `src/system/obj/TextFile.cpp`, 70 of 674 framed records:
+///
+/// ```text
+/// ?_Copy_str@exception@std@@AAAXPBD@Z 00 <its own record> 0e ae 15
+///   26 ??_Gexception@std@@UAAPAXI@Z 00 <the record the reader could not name>
+/// ```
+///
+/// `ROADMAP.md` §9.18.3 read the same population as *virtual* and blamed the
+/// framing and the 32-byte bound. Virtualness is a **correlate**: an out-of-line
+/// virtual (`??1String@@UAA@XZ`) is `00`-separated and binds today, an *inline*
+/// one is `26`-separated and vanishes. Measured under this scanner the maximum
+/// name→offset distance is **27** across 676 records, so the 32-byte bound was
+/// never the defect and must not be widened.
+///
+/// # Why a run also TERMINATES at `26`, and what that repairs
+///
+/// Terminating only at NUL is not enough: the run opened at the *previous* NUL
+/// swallows the `26` and the scan resumes past it, so the name is still lost.
+/// Terminating at `26` also fixes 14 names on `TextFile.cpp` that this scanner
+/// was already emitting **corrupted** — two record bytes that happened to be
+/// printable, glued to the front:
+///
+/// ```text
+/// before   "H=&??_7FixedSizeAlloc@@6B@"      (`H=` is 0x48 0x3D, record bytes)
+/// after    "??_7FixedSizeAlloc@@6B@"
+/// ```
+///
+/// [`gl_symbol_index`] hit exactly this and solved it by taking the *rightmost*
+/// separator inside a run; this solves it by not gluing them together at all.
+///
+/// # Scope — the gate does NOT use this
+///
+/// [`gl_defined_names`] and therefore `Bindings::per_record` keep
+/// [`gl_symbol_runs`], deliberately, exactly as `bind::emit_offset_framed` is
+/// kept separate from [`crate::codec::gl_offset_framed`]. This scanner widens
+/// what the *instrument* can see; widening what the **gate** accepts moves the
+/// emitted class and is a separately-gated decision (§9.20).
+pub(crate) fn gl_symbol_runs_all_separators(gl: &[u8]) -> Vec<(usize, usize, String)> {
+    symbol_runs(gl, true)
+}
+
+/// The shared scan. `sep26` adds `0x26` to both the opening and the terminating
+/// separator set; see [`gl_symbol_runs_all_separators`] for why it must be both.
+fn symbol_runs(gl: &[u8], sep26: bool) -> Vec<(usize, usize, String)> {
+    let is_sep = |b: u8| b == 0 || (sep26 && b == NAME_SEPARATORS[1]);
     let mut out = Vec::new();
     let mut i = 0usize;
     while i < gl.len() {
-        if gl[i] != 0 {
+        if !is_sep(gl[i]) {
             i += 1;
             continue;
         }
         let start = i + 1;
         let mut end = start;
-        while end < gl.len() && gl[end] != 0 {
+        while end < gl.len() && !is_sep(gl[end]) {
             end += 1;
         }
         if end >= gl.len() || end == start {
@@ -870,6 +934,60 @@ mod tests {
         let (bound, unclaimed) = gl_defined_names(&gl);
         assert_eq!(bound, vec![(2644, "?w_add@@YAHH@Z".to_string())]);
         assert!(unclaimed.is_empty(), "got {unclaimed:?}");
+    }
+
+    /// **W-VGL / board #151 — the reader's own fact: `.gl` introduces a name with
+    /// `00` *or* `26`, and the two scanners must differ exactly there.**
+    ///
+    /// The layout is the one every real TU carries, transcribed from
+    /// `src/system/obj/TextFile.cpp`: an out-of-line function's record, then its
+    /// trailing binary, then a `26` introducing the deleting destructor's name.
+    ///
+    /// ```text
+    /// ?_Copy_str@exception@std@@AAAXPBD@Z 00 <record> 0e ae 15
+    ///   26 ??_Gexception@std@@UAAPAXI@Z 00 <record>
+    /// ```
+    ///
+    /// Three claims, each of which can fail on its own:
+    /// * the NUL-only scanner does **not** see the `26` name — if it did, the
+    ///   whole repair would be measuring nothing;
+    /// * the all-separator scanner **does**;
+    /// * and it does not glue `0e ae 15`'s printable tail onto the front of it,
+    ///   which is what terminating at `26` (and not only opening there) buys.
+    #[test]
+    fn a_26_introduced_name_is_invisible_to_the_nul_scanner_and_visible_to_the_other() {
+        let mut gl = vec![0u8];
+        gl.extend_from_slice(b"?out@@AAAXXZ");
+        gl.push(0);
+        // Record bytes, ending in two that happen to be printable ASCII.
+        gl.extend_from_slice(&[0x86, 0x03, 0x05, 0x04, 0x0e, b'H', b'=']);
+        gl.push(0x26);
+        gl.extend_from_slice(b"??_Gexception@std@@UAAPAXI@Z");
+        gl.push(0);
+
+        let nul: Vec<String> = gl_symbol_runs(&gl).into_iter().map(|(_, _, n)| n).collect();
+        let all: Vec<String> = gl_symbol_runs_all_separators(&gl)
+            .into_iter()
+            .map(|(_, _, n)| n)
+            .collect();
+
+        assert!(
+            nul.iter().all(|n| n != "??_Gexception@std@@UAAPAXI@Z"),
+            "control: the NUL-only scanner must NOT see a `26`-introduced name, or \
+             this pair is not testing the separator: {nul:?}"
+        );
+        assert!(
+            all.iter().any(|n| n == "??_Gexception@std@@UAAPAXI@Z"),
+            "the all-separator scanner must see it: {all:?}"
+        );
+        assert!(
+            all.iter().all(|n| !n.contains('&')),
+            "and must not glue the record's printable tail onto it: {all:?}"
+        );
+        assert!(
+            all.iter().any(|n| n == "?out@@AAAXXZ"),
+            "the NUL-introduced name must still be found unchanged: {all:?}"
+        );
     }
 
     #[test]

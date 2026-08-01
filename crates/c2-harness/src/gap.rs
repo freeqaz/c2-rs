@@ -1285,6 +1285,19 @@ fn scan_one(
         if found != accounted {
             *res.emit.entry("emit-accounting-broken".into()).or_insert(0) += 1;
         }
+        // **ARITY (#144, W-VGL).** `emit-records` counts records as entities and
+        // the totality identity above balances them against a residue; neither
+        // can see a change that keeps every record and loses something *inside*
+        // one. `record_offsets` is the contents — a property of the FRAMING only
+        // — so it is reported as its own row and its own broken-invariant count.
+        // A naming change (W-VGL's `26` separator) must move `emit-record-nameless`
+        // and leave `emit-record-offsets` alone; a framing change moves both, and
+        // a report carrying only the first cannot tell them apart.
+        let (records, offsets) = b.arity();
+        *res.emit.entry("emit-record-offsets".into()).or_insert(0) += offsets;
+        if records != offsets {
+            *res.emit.entry("emit-arity-broken".into()).or_insert(0) += 1;
+        }
     }
 
     if let Some(gl) = captured.bundle.get("gl") {
