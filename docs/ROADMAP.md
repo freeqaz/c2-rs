@@ -3937,3 +3937,40 @@ The throughput bound is no longer file contention. It is the serial spine, the
 serial merge funnel, and the estimate discipline — which is an asset worth
 protecting: eight consecutive estimate misses were cured by the ceiling rule, and
 every discount ever applied has been wrong five times in six.
+
+### 8.6 The two orders side by side — and control flow is not where the body count put it
+
+Both columns now print on every scan. They do not agree, and the disagreement is
+structural rather than noise: header-inline trivia has no branches, and real
+emitted functions do.
+
+| key | bodies (1,765,320) | rank | **emitted (127,179)** | **rank** |
+|---|---:|---:|---:|---:|
+| `expr-op-0x27` | 412,797 · 23.4 % | 1 | 22,831 · 18.0 % | 1 |
+| **`body-cflow-label`** | 48,102 · 2.7 % | **6** | **14,947 · 11.8 %** | **2** |
+| `expr-intrinsic-this-adjust` | 135,941 · 7.7 % | 2 | 8,790 · 6.9 % | 3 |
+| `expr-intrinsic-base-member-addr` | 113,981 · 6.5 % | 3 | 6,472 · 5.1 % | 4 |
+| `expr-call-in-expr-recv-load-then-bit-and-and-branch-more` | 102,374 · 5.8 % | 4 | — | **out of the top 20** |
+| `expr-load-type-8645` | 55,679 · 3.2 % | 5 | 2,267 · 1.8 % | 8 |
+| `expr-brfalse` | 26,507 · 1.5 % | 12 | 3,102 · 2.4 % | 7 |
+| `return-scope-close-cflow-label` | — | — | 1,817 · 1.4 % | 15 |
+
+**`body-cflow-label` is 4.4× enriched in emitted code** — rank 6 becomes rank 2.
+Taken with `expr-brfalse` and `return-scope-close-cflow-label`, control-flow
+keys are **19,866 of 127,179 = 15.6 %** of blocked emitted functions. The
+body-ranked view put the same three at 4.2 %.
+
+**This does not overturn the 718 measurement — it re-scopes it.** §6's control-flow
+decline came from a *lowering counterfactual* over the **body** population:
+how many bodies complete if control flow is lowered, which is a different
+question from how many are *blocked at* a control-flow key, and it stayed small
+because branchy bodies are also framed, call-bearing and EH-bearing. What is new
+is that the counterfactual can now be run **over the emitted subset**, where the
+denominator is 127,179 rather than 1,765,320 and the enrichment is 4.4×. Until
+that is run, control flow's position is **unknown**, not settled — the old number
+answers a question about a population we have just stopped steering by.
+
+Symmetrically, the row that was #4 by bodies — 102,374 functions, already known
+to be 100 % `cflow-if-1` ∧ `calls-2plus` — **does not appear in the emitted top
+20 at all**. Ranking it was always going to be wasted work; now that is visible
+rather than inferable.
