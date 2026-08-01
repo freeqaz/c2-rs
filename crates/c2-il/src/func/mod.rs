@@ -118,6 +118,36 @@ pub enum IlOp {
     /// *pointee's* width is irrelevant: `char*`, `short*`, `int*`, `long long*`,
     /// `float*` and `double*` members all emit the same one `addi`.
     AddrOf { off: i32 },
+    /// **WR1 — the address of a NAMED DATA SYMBOL**, by its `.gl` operand token
+    /// (`26 <tok>`, optionally followed by one array-to-pointer `2C`).
+    ///
+    /// Two instructions and a relocation quad, and nothing else:
+    /// `lis r11,sym@ha` + `addi rD,r11,sym@l`, carrying `REFHI+PAIR` at the `lis`
+    /// and `REFLO+PAIR` at the `addi` — byte-for-byte the shape
+    /// [`c2_core::coff`] already emits for a pooled FP constant. MEASURED, every
+    /// word read off the reference obj (`work/wr1/probes/p1.cpp`, `p2.cpp`):
+    ///
+    /// ```text
+    ///   void f(S* s){ s->so(&gI); }   3d600000 lis r11,0 · 388b0000 addi r4,r11,0 · b ?so
+    ///   void f(){ gso(&gI); }         3d600000 lis r11,0 · 386b0000 addi r3,r11,0 · b ?gso
+    /// ```
+    ///
+    /// **The addend is never folded into the relocation** (`docs/IL_CALL_IN_EXPR.md`
+    /// §17.2 item 1): `&gT.b` is `lis ; addi r11,r11,0 ; addi r3,r11,4`, a third
+    /// instruction, so an offset run on the designator is refused rather than
+    /// added to the `addi`'s displacement.
+    ///
+    /// The token is resolved to a mangled name through the same `.gl` symbol index
+    /// a callee goes through, and the same way: an unresolvable token refuses.
+    /// **A string literal's token is not in that index** — `gl.rs`'s
+    /// `NAME_SEPARATORS` excludes the `25` separator that introduces a `??_C@…`
+    /// record — so `f("hi")` refuses here, which is deliberate: a literal needs a
+    /// `.rdata` pool ( `/Ox` ) or a `??_C@…` COMDAT ( `/O1` ) that this port does
+    /// not emit.
+    ///
+    /// Produced ONLY by [`super::body::shapes::calls::eat_call_args`], and only as
+    /// the whole of one call argument's operand stream.
+    SymAddr(u32),
     /// **Indirect store**: pop the value, pop the destination pointer, write
     /// `width` bytes `off` bytes in — `s->m = v;`, `p->Base::m = v;`,
     /// `s->arr[2] = v;`, `*p = v;`. IL production `32 <TYPE>` closed by the
@@ -286,6 +316,17 @@ pub enum SlotArg {
     Formal(usize),
     /// A literal — `li r<slot>,k`, which costs no callee-saved register.
     Lit(i32),
+    /// **WR1 — the address of the body's one named data symbol**, materialized
+    /// into this slot by `lis r11,sym@ha ; addi r<slot>,r11,sym@l`.
+    ///
+    /// A unit variant with the name carried on [`IlFunction::data_sym`] rather
+    /// than here, because the class admits **exactly one** such symbol per body
+    /// and [`SlotArg`] is `Copy`. Two or more is `docs/IL_CALL_IN_EXPR.md` §17.3
+    /// (a)/(b) — c2 materializes only the first through a relocation pair and
+    /// derives the rest by `.rdata` pool-offset difference, which needs a
+    /// whole-TU layout decision, and which symbol anchors is a fitted hypothesis
+    /// with no mechanism. Refused, not modeled.
+    SymAddr,
 }
 
 /// What a [`CallSeq`] body does after its last call. See
@@ -693,6 +734,23 @@ pub struct IlFunction {
     /// The one-argument case keeps using `ops` instead, because it can carry a
     /// computed argument (`g(a + 1)`) that this form cannot express.
     pub arg_sources: Option<Vec<SlotArg>>,
+    /// **WR1 — the one named data symbol whose address this body materializes**,
+    /// already resolved through `.gl` to its mangled name (`?gI@@3HA`).
+    ///
+    /// `Some` exactly when [`Self::arg_sources`] contains a [`SlotArg::SymAddr`].
+    /// The emitter turns it into an **undefined-external DATA** symbol
+    /// (`Type` 0x0000, not the 0x0020 a callee carries) plus a REFHI/PAIR/REFLO/PAIR
+    /// quad; the TU-level accounting in [`IlBundle::functions`] counts it as
+    /// referenced so the unclaimed-`.gl`-name gate does not refuse the TU for a
+    /// symbol the obj legitimately carries.
+    ///
+    /// **A defined or static global never reaches here.** It puts a `.data`/`.bss`
+    /// section in the middle of the section table, so the `.gl` linkage byte
+    /// refuses it (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7,
+    /// `gl::gl_extern_data_names`) and the name stays unaccounted, which refuses
+    /// the TU as well. Two gates, because the failure is a wrong section count and
+    /// not a wrong instruction.
+    pub data_sym: Option<String>,
     /// True iff this function's body is **empty** (`void f() {}`): no expression at
     /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
     /// kinds.
@@ -833,6 +891,7 @@ impl IlFunction {
             fp_tail: None,
             fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
             empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),

@@ -10,7 +10,7 @@
 
 use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
-use crate::codegen::encode::{encode_addi, encode_blr, encode_mr};
+use crate::codegen::encode::{encode_addi, encode_addis, encode_blr, encode_mr};
 use crate::codegen::frame::FrameLayout;
 use c2_il::LINK_FIRST_SLOT;
 use crate::codegen::select::{ARG_REGS, OptMode, RET_REG, SCRATCH_REG, out_of_class};
@@ -244,6 +244,7 @@ fn ops_setup_text(
         fp_tail: None,
         fp_arg_sources: None,
         arg_sources: None,
+        data_sym: None,
         empty_body: false,
         // A synthetic operand-stream carrier, never a function: `select_text`
         // reads `params` and `ops` and nothing else, and the label counter never
@@ -355,6 +356,16 @@ fn link_setup_text(
                 let k = i16::try_from(*k)
                     .map_err(|_| out_of_class("a chain link's literal wider than an addi immediate"))?;
                 w.extend_from_slice(&encode_addi(dst, 0, k));
+            }
+            // WR1: never produced for a chain link — `c2_il`'s parser puts a
+            // symbol address only in a *tail* call's slot list, because the
+            // address would have to survive the previous `bl` and nothing
+            // captures where c2 keeps it. The backstop, not the gate.
+            c2_il::SlotArg::SymAddr => {
+                return Err(out_of_class(
+                    "a data symbol's address in a chain link's argument list; \
+                     out of class",
+                ))
             }
         }
     }
@@ -784,10 +795,122 @@ fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>),
     Ok((w, vec![ARG_REGS[0], ARG_REGS[1]]))
 }
 
+/// **WR1 — the argument setup of a tail call one of whose slots is a NAMED DATA
+/// SYMBOL's address.**
+///
+/// ```text
+///   lis  r11,sym@ha          <- ALWAYS the function's first word (REFHI + PAIR)
+///   …descending-slot setup…  <- `li` for a literal slot, and
+///   addi rD,r11,sym@l        <- the address at its own slot (REFLO + PAIR)
+///   b    <callee>
+/// ```
+///
+/// Byte evidence, read off the reference obj (`work/wr1/probes/p2.cpp`, `/Ox
+/// /GS- /c`); the relocation quad is `c2_core::coff`'s and the offsets are
+/// the `lis`'s own and the `lis`'s + 4:
+///
+/// ```text
+///   void a5()            { g1("ee"); }      3d600000 · 386b0000        · b
+///   void a1(S* s)        { s->m1("aa"); }   3d600000 · 388b0000        · b
+///   void a8(int j,int k) { g4(j,k,"hh"); }  3d600000 · 38ab0000        · b
+///   void a9(a..g)        { g8(a..g,"ii"); } 3d600000 · 394b0000        · b
+///   void c1()            { g2("jj", 7); }   3d600000 · 38800007 li r4,7
+///                                                    · 386b0000        · b
+/// ```
+///
+/// **The `lis` is hoisted to the top and the `addi` is emitted LAST**, after every
+/// other slot's setup, whatever slot it belongs to. The two rules are separate
+/// and the second one is not a descending walk — that fit every witness the
+/// fixture had and mis-emitted the first case that put a literal at a *lower*
+/// slot than the symbol. Found by `scripts/sweep.d/53-data-symbol-addr.py`
+/// before it left the worktree; the discriminating pair is
+///
+/// ```text
+///   void f()     { gsp(&gI, 7);   }   lis r11 · 38800007 li r4,7 · 386b0000 addi r3
+///   void f(S* s) { s->m3(7, &gI); }   lis r11 · 38800007 li r4,7 · 38ab0000 addi r5
+/// ```
+///
+/// — the same instruction order with the symbol at slot 0 and at slot 2, i.e.
+/// **descending and address-last agree on the first and disagree on the second**,
+/// and c2 takes address-last. Six sweep cases mismatched at obj offset 541 on the
+/// descending reading.
+///
+/// The scratch is **r11** in every witness. It becomes r10 only in the shape
+/// this class refuses — two formals shifting, where c2 pre-saves into r11 first
+/// (`a4`, `docs/IL_CALL_IN_EXPR.md` §17.3 (d)) — so the register is not a free
+/// variable here, it is the one the captured cells use.
+///
+/// The gate is `c2_il`'s `sym_addr_tail_call`; the checks below are the backstop
+/// (`docs/GAPS.md` §6 #9 — one fact, and the second copy is the one that drifts,
+/// so this one only ever *refuses*).
+fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+    if slots.iter().filter(|a| matches!(a, c2_il::SlotArg::SymAddr)).count() != 1 {
+        return Err(out_of_class(
+            "two or more data-symbol addresses in one call: c2 materializes only \
+             the first through a relocation pair and derives the rest by .rdata \
+             pool-offset difference; out of class",
+        ));
+    }
+    let in_place = slots.iter().enumerate().all(|(i, a)| match a {
+        c2_il::SlotArg::SymAddr | c2_il::SlotArg::Lit(_) => true,
+        c2_il::SlotArg::Formal(pi) => *pi == i,
+    });
+    if !in_place {
+        return Err(out_of_class(
+            "a data symbol's address beside a formal that has to move: at two \
+             shifting formals c2 pre-saves into r11 and moves the `lis` to r10, \
+             which one probe does not separate from the one-move schedule; out \
+             of class",
+        ));
+    }
+    if slots.len() > ARG_REGS.len() {
+        return Err(out_of_class(
+            "a data symbol's address past the eight register slots; out of class",
+        ));
+    }
+    // The hoisted high half. Its `.text` offset is 0 within this body, which is
+    // what lets the caller register REFHI/REFLO at the function's own start
+    // without codegen threading an offset back — and `crate::PortC2` checks the
+    // first word against this encoding rather than assuming it.
+    let mut w = Vec::with_capacity(4 * (slots.len() + 1));
+    w.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
+    let mut writes = vec![SCRATCH_REG];
+    // The literal slots first, descending destination — the same walk
+    // [`lit_slots_text`] makes, and the address is not part of it.
+    let mut sym_dst: Option<u8> = None;
+    for (i, a) in slots.iter().enumerate().rev() {
+        let dst = *ARG_REGS.get(i).ok_or_else(|| {
+            out_of_class("a call argument past the eight register slots")
+        })?;
+        match a {
+            c2_il::SlotArg::Formal(_) => continue,
+            c2_il::SlotArg::Lit(k) => {
+                let k = i16::try_from(*k)
+                    .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
+                w.extend_from_slice(&encode_addi(dst, 0, k));
+            }
+            c2_il::SlotArg::SymAddr => {
+                sym_dst = Some(dst);
+                continue;
+            }
+        }
+        writes.push(dst);
+    }
+    // …then the low half, LAST. `sym@l` is 0 before the linker patches it, exactly
+    // as the pooled-FP-constant `lfs`'s displacement is.
+    let dst = sym_dst.ok_or_else(|| out_of_class("no data-symbol slot after the count said one"))?;
+    w.extend_from_slice(&encode_addi(dst, SCRATCH_REG, 0));
+    writes.push(dst);
+    Ok((w, writes))
+}
+
 fn lit_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
     let in_place = slots.iter().enumerate().all(|(i, a)| match a {
         c2_il::SlotArg::Lit(_) => true,
         c2_il::SlotArg::Formal(pi) => *pi == i,
+        // Unreachable: `permute_args_parts` dispatches a symbol-bearing list to
+        // [`sym_slots_text`] before this one is reached.
+        c2_il::SlotArg::SymAddr => false,
     });
     if !in_place {
         return one_moved_formal_text(slots);
@@ -823,6 +946,13 @@ fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Ba
     // do not mix in class (`c2_il`'s `lit_arg_tail_call` admits a literal only
     // beside formals that are already in place), so this is a dispatch and not a
     // precedence.
+    // **WR1** — a list carrying a data symbol's address is asked FIRST, ahead of
+    // the literal path, because the symbol's `lis` is hoisted in front of the
+    // whole setup and the literals then take their ordinary descending place
+    // beside it. `lit_slots_text` has never seen one and must not be handed it.
+    if slots.iter().any(|a| matches!(a, c2_il::SlotArg::SymAddr)) {
+        return sym_slots_text(slots);
+    }
     if slots.iter().any(|a| matches!(a, c2_il::SlotArg::Lit(_))) {
         return lit_slots_text(slots);
     }
@@ -834,6 +964,9 @@ fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Ba
             // an `unreachable!` because the CLI must degrade cleanly.
             c2_il::SlotArg::Lit(_) => {
                 return Err(out_of_class("a literal argument reached the permutation walk"))
+            }
+            c2_il::SlotArg::SymAddr => {
+                return Err(out_of_class("a data symbol's address reached the permutation walk"))
             }
         }
     }

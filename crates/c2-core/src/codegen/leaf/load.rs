@@ -124,6 +124,7 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
         };
         assert_eq!(
             indirect_load_text(&f).unwrap().unwrap(),
@@ -163,6 +164,7 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
         };
         let blr = [0x4E, 0x80, 0x00, 0x20];
         let body = |ops: Vec<IlOp>, params: Vec<u32>| {

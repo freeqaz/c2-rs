@@ -1,6 +1,7 @@
 use super::body::{
     self, call_tokens, parse_segment_detail, BodyShape, DtorSubObject, CALLEE_UNRESOLVED_DTOR,
-    CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL, OPT_MODE,
+    CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
+    DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE,
 };
 use super::bind::{Bindings, EmitBinding};
 use super::bundle::shape_to_function;
@@ -359,6 +360,7 @@ impl IlBundle {
         // `bind.rs`'s table.
         let bind = Bindings::positional(gl, self.get("sy"), &segs);
         let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
+        let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
         let src = bind.src.clone();
         Some(
             segs.iter()
@@ -573,7 +575,34 @@ impl IlBundle {
                             // `len - 1`, the last byte, which is a *different*
                             // claim and one the renderer now tells apart.)
                             let name = bind.name_for_shape(i);
-                            match shape_to_function(sh, &name, &src, &resolve) {
+                            // **WR1** — which resolution failed, asked BEFORE the
+                            // shape is consumed. A body carrying a data symbol
+                            // whose token has no name, or whose `.gl` linkage is
+                            // not undefined-external, is filed under its own key:
+                            // the callee resolves in every one of those bodies and
+                            // reporting them as `callee-unresolved` would name the
+                            // wrong construct and hide the population a follow-on
+                            // rung is sized from.
+                            let sym_fail = match &sh {
+                                BodyShape::MultiArgTailCall { arg_sources, .. } => arg_sources
+                                    .iter()
+                                    .find_map(|a| match a {
+                                        body::SlotArg::SymAddr(t) if resolve_data(*t).is_none() => {
+                                            Some(if resolve(*t).is_none() {
+                                                DATA_SYM_UNRESOLVED
+                                            } else {
+                                                DATA_SYM_LINKAGE
+                                            })
+                                        }
+                                        _ => None,
+                                    }),
+                                _ => None,
+                            };
+                            match shape_to_function(sh, &name, &src, &resolve, &resolve_data) {
+                                None if sym_fail.is_some() => FnVerdict::Blocked(Block::at_end(
+                                    seg,
+                                    sym_fail.expect("just checked"),
+                                )),
                                 None => FnVerdict::Blocked(Block::at_end(
                                     seg,
                                     match label {

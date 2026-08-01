@@ -488,6 +488,7 @@ mod tests {
             fp_tail: None,
         fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -592,6 +593,7 @@ mod tests {
             fp_tail: None,
             fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
@@ -709,6 +711,7 @@ mod tests {
             fp_tail: None,
             fp_arg_sources: None,
             arg_sources: None,
+            data_sym: None,
         };
         assert_eq!(
             store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),

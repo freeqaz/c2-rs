@@ -359,7 +359,9 @@ impl PortC2 {
                     codegen::Selected::Float { text, .. } => (text, Vec::new()),
                     codegen::Selected::Plain(t) => (t, Vec::new()),
                 };
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, calls, is_float: f.touches_floating_point(), fp_refs: Vec::new(), frame, label_lead: f.label_lead() });
+                // Under `/Gy` each function starts at offset 0 of its own COMDAT.
+                let data_refs = data_refs_of(f, &text, 0)?;
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, calls, is_float: f.touches_floating_point(), fp_refs: Vec::new(), data_refs, frame, label_lead: f.label_lead() });
                 texts.push(text);
             }
             return Ok(ObjImage::new(coff::emit_comdat_obj(
@@ -481,12 +483,14 @@ impl PortC2 {
                     (Vec::new(), Vec::new())
                 }
             };
+            let data_refs = data_refs_of(f, &text[off as usize..], off)?;
             placed.push(coff::Function {
                 name: &f.mangled_name,
                 text_offset: off,
                 calls,
                 is_float: f.touches_floating_point(),
                 fp_refs,
+                data_refs,
                 frame,
                 label_lead: f.label_lead(),
             });
@@ -495,6 +499,64 @@ impl PortC2 {
         let bytes = coff::emit_obj(obj_name, &placed, &text, label_counter);
         Ok(ObjImage::new(bytes))
     }
+}
+
+
+/// **WR1 — the `.text` offset of a body's data-symbol address reference, checked
+/// rather than assumed.**
+///
+/// `codegen::sym_slots_text` hoists `lis r11,sym@ha` to the **first word** of the
+/// body, so the REFHI site is the function's own start and the REFLO site is four
+/// bytes later. This re-derives that from the bytes instead of trusting it: a
+/// future schedule that puts anything ahead of the `lis` would otherwise relocate
+/// the wrong instruction, and every relocation would still resolve — the silent
+/// wrong-bytes shape `docs/GAPS.md` §6 keeps recording.
+///
+/// `None` when the body carries no data symbol. `Err` when it carries one and the
+/// first word is not the expected `lis`.
+fn data_refs_of<'a>(
+    f: &'a c2_il::IlFunction,
+    text: &[u8],
+    base: u32,
+) -> Result<Vec<coff::DataRef<'a>>, BackendError> {
+    let Some(name) = f.data_sym.as_deref() else {
+        return Ok(Vec::new());
+    };
+    let lis = codegen::encode_addis(codegen::SCRATCH_REG, 0, 0);
+    if text.len() < 8 || text[..4] != lis {
+        return Err(BackendError::NotImplemented(
+            "a data-symbol address whose `lis` is not this body's first word: the \
+             relocation site is derived from that position"
+                .to_string(),
+        ));
+    }
+    // The low half: the unique `addi rD,r11,0` among the setup words. Derived by
+    // search rather than by `hi_off + 4`, because the two halves are **not**
+    // adjacent when a higher argument slot carries a literal — `gsp(&gI, 7)` puts
+    // the `li r4,7` between them (`coff::DataRef`). It is unambiguous: the only
+    // other instructions this class emits are the `lis` (an `addis`), `li rD,k`
+    // (an `addi` whose RA is **0**, not 11) and the tail branch.
+    let mut lo: Option<u32> = None;
+    for (i, w) in text.chunks_exact(4).enumerate().skip(1) {
+        if codegen::ARG_REGS
+            .iter()
+            .any(|&d| w == codegen::encode_addi(d, codegen::SCRATCH_REG, 0))
+        {
+            if lo.is_some() {
+                return Err(BackendError::NotImplemented(
+                    "two low-half `addi`s against the address scratch in one body"
+                        .to_string(),
+                ));
+            }
+            lo = Some(base + 4 * i as u32);
+        }
+    }
+    let Some(lo_off) = lo else {
+        return Err(BackendError::NotImplemented(
+            "a data-symbol address with no `addi rD,r11,0` low half".to_string(),
+        ));
+    };
+    Ok(vec![coff::DataRef { hi_off: base, lo_off, name }])
 }
 
 impl Backend for PortC2 {

@@ -2655,6 +2655,28 @@ mod tests {
     use crate::func::body::{parse_segment, parse_segment_detail};
     use crate::func::test_fixtures::{free_fn, NO_LOCALS};
 
+    /// One pinned body's census [`Block`].
+    ///
+    /// **`formals-marker:mid` here is a property of the EXCERPT, not a refusal.**
+    /// Three of the constants below — [`DATA_ADDR`], [`DATA_ADDR_INDEX`] and
+    /// [`DATA_ADDR_PTR_ARG`] — now parse past their argument region, because WR1
+    /// admitted a named data symbol's address as a call argument, and they then
+    /// reach `parse_params`, which these excerpts have no `46` for. Nothing had
+    /// ever parsed far enough to want one. The construct they used to be the
+    /// witnesses for is graded end to end instead, against a real obj, by
+    /// `fixtures/cpp/wr1_sym_addr.cpp` (18/18 in class, whole obj byte-exact) and
+    /// `wr1_sym_addr_neg.cpp` (0/13, `Port=NotImplemented`) — which is a stronger
+    /// grading than a pinned key, not a weaker one.
+    fn probe_block(seg: &[u8]) -> Block {
+        let s = free_fn(seg);
+        parse_segment_detail(&s, NO_LOCALS).unwrap_err()
+    }
+
+    /// The census key a body that now parses past its arguments reports in an
+    /// excerpt with no formals region. Named once so the three sites that expect
+    /// it read as one statement rather than three copies of a magic string.
+    const PARSED_PAST_THE_ARGUMENTS: &str = "formals-marker:mid";
+
     // Every byte array below is transcribed verbatim from a live-toolchain
     // capture of a controlled probe (`c2rs census <probe> --keep-il <dir>`), one
     // function per constant, at the fixture profile `/Ox /GS- /c`. The probe
@@ -3080,15 +3102,25 @@ mod tests {
             // argument region — and admitting both finishes the body, which is what
             // the `-whole` suffix on a `-then-` key means.
             (NESTED_CALL, "expr-call-in-expr-nested-call-then-call-nested-call-whole"),
-            // `uc("hi")`: the greedy `data-addr` designator takes the callee push
-            // too, so what is left missing is the bare CALL token. `then-plain-call`
-            // names that construct; `then-op-0xBD` would have named the byte.
-            // …and the `1sym`/`2sym` class says how many data symbols the finished
-            // body has to materialize, which is what decides whether the row needs
-            // one relocation pair or a `.rdata`-pool-relative selection (§17).
-            (DATA_ADDR, "expr-call-in-expr-data-addr-1sym-then-plain-call-whole"),
+            // `uc("hi")` and `ui(&gA[2])` used to report
+            // `data-addr-1sym-then-plain-call-whole` here. **WR1 built that
+            // production**, so the single-symbol form is no longer a second
+            // blocker at all: the parse walks the argument region and reaches the
+            // formals, which this excerpt does not carry. See [`probe_block`].
+            (DATA_ADDR, PARSED_PAST_THE_ARGUMENTS),
+            // `ui(&gA[2])` is UNCHANGED, and the pair is the discriminator: the
+            // subscript's byte-offset run is refused, because the addend is not
+            // folded into the relocation — `lis ; addi r11,r11,0 ; addi r3,r11,8`
+            // is a THIRD instruction (§17.2 item 1) — so this one is still a
+            // second blocker where the bare designator beside it is not.
             (DATA_ADDR_INDEX, "expr-call-in-expr-data-addr-1sym-then-plain-call-whole"),
-            (DATA_ADDR_TWO_SYMS, "expr-call-in-expr-data-addr-2sym-then-plain-call-whole"),
+            // TWO symbols is still a refusal and still the `2sym` class — c2
+            // materializes only the first through a relocation pair and derives
+            // the second by `.rdata` pool-offset difference (§17.3 (a)) — but the
+            // designators themselves now parse, so in this excerpt the formals run
+            // out first. On a whole function it is `call-arg-multi-sym`, which
+            // `fixtures/cpp/wr1_sym_addr_neg.cpp` grades (`t1`, `t2`).
+            (DATA_ADDR_TWO_SYMS, PARSED_PAST_THE_ARGUMENTS),
             // …and `x = gO.m;` carries no suffix at all: its data symbol is read at
             // statement level, never materialized into an argument register, so the
             // count is 0 and the key says nothing rather than saying "one".
@@ -3096,10 +3128,15 @@ mod tests {
             (RECV_LOAD_IN_ARG, "expr-call-in-expr-recv-load-then-call-nested-call-whole"),
         ];
         for (seg, want) in cases {
-            let seg = free_fn(seg);
-            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+            let s = free_fn(seg);
+            let b = probe_block(seg);
             assert_eq!(b.feature(), *want);
-            assert_eq!(seg[b.off], 0x26, "{want}: reported at the `26`");
+            // …and a CALL_IN_EXPR key is still reported at the `26` it names.
+            // The two WR1 admitted are reported past their arguments instead, and
+            // that is the whole difference.
+            if b.ctx == CALL_IN_EXPR {
+                assert_eq!(s[b.off], 0x26, "{want}: reported at the `26`");
+            }
         }
     }
 
@@ -3637,21 +3674,22 @@ mod tests {
     /// the failure `GAPS.md` §6 records, checked at the two places it would show.
     #[test]
     fn the_second_blocker_is_not_the_byte_the_matcher_stopped_on() {
-        // `uc("hi")`: the greedy `data-addr` designator eats the callee push, so the
-        // matcher stops on a bare `BD`. The key must say `plain-call`.
-        let f = parse_segment_detail(&free_fn(DATA_ADDR), NO_LOCALS).unwrap_err().feature();
+        // `ui(&gA[2])`: the greedy `data-addr` designator eats the callee push, so
+        // the matcher stops on a bare `BD`. The key must say `plain-call`.
+        // (`DATA_ADDR` used to be this witness; WR1 admitted its bare designator,
+        // and the subscript form is the one that still refuses — see
+        // [`probe_block`] and §17.2 item 1.)
+        let f = probe_block(DATA_ADDR_INDEX).feature();
         assert_eq!(f, "expr-call-in-expr-data-addr-1sym-then-plain-call-whole");
         assert!(!f.contains("0xBD"), "{f}");
         // The destructor-with-delete stops on a `27`, which is a byte-offset add and
         // is named as one.
-        let f = parse_segment_detail(&free_fn(WILD_DTOR_DELETES_A_MEMBER), NO_LOCALS)
-            .unwrap_err()
-            .feature();
+        let f = probe_block(WILD_DTOR_DELETES_A_MEMBER).feature();
         assert!(f.contains("-then-off-add"), "{f}");
         assert!(!f.contains("0x27"), "{f}");
         // A member call reached through a call-argument region is a *call*, named by
         // its own form, not `op-0x26`.
-        let f = parse_segment_detail(&free_fn(RECV_LOAD_IN_ARG), NO_LOCALS).unwrap_err().feature();
+        let f = probe_block(RECV_LOAD_IN_ARG).feature();
         assert!(f.contains("-then-call-nested-call"), "{f}");
     }
 
@@ -3675,10 +3713,17 @@ mod tests {
     /// contains (`docs/IL_CALL_IN_EXPR.md` §17).
     #[test]
     fn the_symbol_count_is_the_addresses_the_call_materializes() {
-        let f = |seg| parse_segment_detail(&free_fn(seg), NO_LOCALS).unwrap_err().feature();
-        assert_eq!(f(DATA_ADDR), "expr-call-in-expr-data-addr-1sym-then-plain-call-whole");
+        let f = |seg: &[u8]| probe_block(seg).feature();
+        // `x = uc("hi")` is no longer a second blocker at all — WR1 built the
+        // production, and the excerpt then runs out of formals ([`probe_block`]).
+        assert_eq!(f(DATA_ADDR), PARSED_PAST_THE_ARGUMENTS);
+        // `x = ui(&gA[2])` still is: the subscript's offset run is a third
+        // instruction and is refused (§17.2 item 1). **One symbol**, still.
         assert_eq!(f(DATA_ADDR_INDEX), "expr-call-in-expr-data-addr-1sym-then-plain-call-whole");
-        assert_eq!(f(DATA_ADDR_TWO_SYMS), "expr-call-in-expr-data-addr-2sym-then-plain-call-whole");
+        // `d1("aa","bb")`'s designators now parse too, so this excerpt runs out
+        // of formals. Its refusal on a whole function is `call-arg-multi-sym` —
+        // graded by `fixtures/cpp/wr1_sym_addr_neg.cpp` (`t1`, `t2`).
+        assert_eq!(f(DATA_ADDR_TWO_SYMS), PARSED_PAST_THE_ARGUMENTS);
         assert_eq!(f(DATA_READ), "expr-call-in-expr-data-read-whole");
         // Nothing per-TU rides along: the two literal tokens can be retagged and the
         // key does not move. Same sharding gate as every other payload here.
@@ -3689,7 +3734,7 @@ mod tests {
         retagged[19] = 0x33;
         retagged[32] = 0x77;
         retagged[33] = 0x21;
-        assert_eq!(f(&retagged), "expr-call-in-expr-data-addr-2sym-then-plain-call-whole");
+        assert_eq!(f(&retagged), PARSED_PAST_THE_ARGUMENTS);
     }
 
     /// **WDA — the count belongs to the construct that materializes the address,
@@ -3787,22 +3832,16 @@ mod tests {
     /// different construct sets. The unit of work is `{form} ∪ granted`.
     #[test]
     fn the_whole_suffix_counts_granted_constructs_not_occurrences() {
-        let need = |seg: &[u8]| {
-            let seg = free_fn(seg);
-            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
-            (b.aux >> NEED_SHIFT) & NEED_MASK
-        };
-        // one construct granted (`plain-call`), one or two symbols — same need.
-        assert_eq!(need(DATA_ADDR), 1);
-        assert_eq!(need(DATA_ADDR_TWO_SYMS), 1);
-        // one *pointer formal* more, one construct more.
-        assert_eq!(need(DATA_ADDR_PTR_ARG), 2);
+        let need = |seg: &[u8]| (probe_block(seg).aux >> NEED_SHIFT) & NEED_MASK;
+        // one construct granted (`plain-call`), one symbol. `DATA_ADDR` and
+        // `DATA_ADDR_PTR_ARG` were the other two witnesses and WR1 admitted both,
+        // so they no longer raise a CALL_IN_EXPR key at all ([`probe_block`]);
+        // `DATA_ADDR_INDEX` is the one whose offset run still refuses.
+        assert_eq!(need(DATA_ADDR_INDEX), 1);
         // the bare `-whole` forms grant nothing and take the WHOLE_BIT path, which
         // never writes `need` at all.
         for seg in [RECV_LOAD, RECV_OBJECT, CHAINED] {
-            let s = free_fn(seg);
-            let b = parse_segment_detail(&s, NO_LOCALS).unwrap_err();
-            assert_ne!(b.aux & WHOLE_BIT, 0);
+            assert_ne!(probe_block(seg).aux & WHOLE_BIT, 0);
         }
     }
 
@@ -3816,12 +3855,15 @@ mod tests {
     fn a_rewound_designator_is_not_counted() {
         // `u3(p, "cc")` — one string, one pointer formal, so the chain is
         // `plain-call` then `type-ptr` and `body_matches` runs three times.
-        let f = parse_segment_detail(&free_fn(DATA_ADDR_PTR_ARG), NO_LOCALS)
-            .unwrap_err()
-            .feature();
+        // WR1 admitted this body's bare designator, so it now walks the whole
+        // argument region and stops at the formals this excerpt does not carry
+        // ([`probe_block`]). The rewind rule it was the witness for is still
+        // exercised — by `DATA_ADDR_INDEX`, whose offset run keeps the greedy
+        // path taken twice and refused.
+        assert_eq!(probe_block(DATA_ADDR_PTR_ARG).feature(), PARSED_PAST_THE_ARGUMENTS);
         assert_eq!(
-            f,
-            "expr-call-in-expr-data-addr-1sym-then-plain-call-and-type-ptr-whole2"
+            probe_block(DATA_ADDR_INDEX).feature(),
+            "expr-call-in-expr-data-addr-1sym-then-plain-call-whole"
         );
     }
 
@@ -3962,7 +4004,11 @@ mod tests {
             RECV_INTRINSIC,
             CHAINED,
             NESTED_CALL,
-            DATA_ADDR,
+            // (`DATA_ADDR` is claimed by WR1's acceptance gate — its designator
+            // is a production now — so it no longer carries a `CALL_IN_EXPR` key
+            // at all. `DATA_ADDR_INDEX`, whose offset run still refuses, stands
+            // in for the family here.)
+            DATA_ADDR_INDEX,
             DATA_READ,
             RECV_LOAD_IN_ARG,
             RECV_FIELD_OFF0,
@@ -3978,8 +4024,7 @@ mod tests {
             // `CALL_IN_EXPR` key at all.)
             WILD_DTOR_DELETES_A_MEMBER,
         ] {
-            let seg = free_fn(seg);
-            let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
+            let b = probe_block(seg);
             let f = b.feature();
             assert!(f.starts_with(CALL_IN_EXPR), "{f}");
             // Exactly one of the three shapes, every time:

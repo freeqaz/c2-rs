@@ -8,11 +8,18 @@
 
 
 def cases(emit):
-    # ---- D5: DATA-SYMBOL ADDRESSES ---------------------------------------------------
-    # `docs/IL_CALL_IN_EXPR.md` §17. The port emits NOTHING for this class — a data
-    # symbol's address needs a REFHI/REFLO pair, and two of them in one call need a
-    # `.rdata`-pool-relative selection that is not modeled — so every case below must be
-    # `NotImplemented`. That is exactly what makes the sweep worth having here: a
+    # ---- D5 / WR1: DATA-SYMBOL ADDRESSES ---------------------------------------------
+    # `docs/IL_CALL_IN_EXPR.md` §17, §27.
+    #
+    # **WR1 built one cell of this and the header used to say the port emits nothing.**
+    # The cell is: ONE undefined-external NAMED object's address, at offset 0, in a tail
+    # call whose every other slot is an in-place formal or a literal. Those cases now
+    # grade `Match` (5 of the 70 below, and the whole `wr1_*` block at the end); every
+    # other case here is still `NotImplemented` and MUST stay that way — a string
+    # literal needs a `.rdata` pool this port does not emit, a defined or static global
+    # puts a section in the middle of the section table, and two symbols in one call
+    # need a pool-relative selection that is not modeled. That is exactly what makes the
+    # sweep worth having here: a
     # relocation is the place where a wrong byte is invisible in a probe and fatal in a
     # real TU, and the failure mode this guards is the port emitting a 5-section obj for
     # a TU whose reference obj carries a `.rdata` string pool, a `.data`/`.bss` for a
@@ -103,3 +110,65 @@ def cases(emit):
         "extern void uc(const char*);\nvoid f(){ uc(\"abcd\"); }\n",
     ):
         emit(src)
+
+    # ---- WR1: the cell that IS emitted, swept over its value axes --------------------
+    #
+    # Every case below must grade **Match**, and the axes are the ones the emitter
+    # branches on — nothing here varies a shape the parser distinguishes and the
+    # emitter does not, which is the class of case that grades its own control group.
+    #
+    #   * the destination REGISTER: the symbol at each of the eight argument slots,
+    #     which is the `addi`'s RD field;
+    #   * a LITERAL at a higher slot, which lands BETWEEN the `lis` and the `addi` and
+    #     is the reason the relocation quad carries two independent offsets;
+    #   * the literal's VALUE across the `li` immediate's sign and range;
+    #   * the receiver: a free function and a member call, since `this` occupies slot 0;
+    #   * the object's TYPE and its mangled name's length across the COFF 8-byte inline
+    #     name boundary, which are two different code paths in the symbol emitter.
+    WR1_DECLS = (
+        "extern int gI;\n"
+        "extern int gLongerNameThanEightBytesWide;\n"
+        "extern double gD;\n"
+        "extern char gC;\n"
+        "extern int gArr[4];\n"
+        "struct S { void m1(int*); void m2(int*, int); void m3(int, int*);\n"
+        "           void m4(int, int, int*); };\n"
+    )
+    for n_before in range(0, 4):
+        for n_after in range(0, 4):
+            if n_before + n_after > 6:
+                continue
+            names = [chr(ord("a") + i) for i in range(n_before + n_after)]
+            params = ", ".join("int " + x for x in names)
+            args = names[:n_before] + ["&gI"] + names[n_before:]
+            sig = ", ".join(["int"] * n_before + ["int*"] + ["int"] * n_after)
+            emit(
+                WR1_DECLS
+                + f"extern void gx(%s);\n" % sig
+                + f"void f({params}){{ gx({', '.join(args)}); }}\n"
+            )
+    for k in ("0", "1", "-1", "7", "32767", "-32768"):
+        emit(WR1_DECLS + f"void f(S* s){{ s->m2(&gI, {k}); }}\n")
+        emit(WR1_DECLS + f"void f(S* s){{ s->m3({k}, &gI); }}\n")
+        emit(
+            WR1_DECLS
+            + "extern void gy(int*, int);\n"
+            + f"void f(){{ gy(&gI, {k}); }}\n"
+        )
+    for sym, decl in (
+        ("&gI", "extern void gz(int*);"),
+        ("gArr", "extern void gz(int*);"),
+        ("&gD", "extern void gz(double*);"),
+        ("&gC", "extern void gz(char*);"),
+        ("&gLongerNameThanEightBytesWide", "extern void gz(int*);"),
+    ):
+        emit(WR1_DECLS + decl + f"\nvoid f(){{ gz({sym}); }}\n")
+        emit(WR1_DECLS + decl + f"\nvoid f(int a){{ gz({sym}); }}\n")
+    # …and the SAME symbol from two functions in one TU: one undefined external, and
+    # the second function's relocations name it. A per-reference emitter passes every
+    # single-function case above and gets the symbol table one entry too long here.
+    emit(
+        WR1_DECLS
+        + "extern void gz(int*);\n"
+        + "void f(){ gz(&gI); }\nvoid g(){ gz(&gI); }\nvoid h(){ gz(&gI); }\n"
+    )

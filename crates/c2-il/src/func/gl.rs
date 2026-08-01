@@ -625,6 +625,111 @@ pub fn label_counter(gl: &[u8]) -> Option<u32> {
     Some(u32::from_le_bytes([gl[7], gl[8], gl[9], gl[10]]))
 }
 
+/// **WR1 — every `.gl` name that is an UNDEFINED-EXTERNAL DATA symbol**, i.e.
+/// the only class of data symbol whose address this port may emit.
+///
+/// The distinction is invisible in the mangling — `extern int g;` and `int g;`
+/// are both `?g@@3HA` — and it is the difference between an obj with five
+/// sections and one with six: a **defined** global puts a `.data` section into
+/// the middle of the section table (before the second `.XBLD$W`), and a
+/// **static** one puts it after `.text`. Emitting the port's fixed shell against
+/// either mismatches at file offset 2, the section count
+/// (`docs/IL_CALL_IN_EXPR.md` §17.2 item 7).
+///
+/// MEASURED. A data record continues, immediately after its name's NUL, with the
+/// object's TYPE, then the fixed pair `00 02`, then a linkage byte, then the
+/// object's size:
+///
+/// ```text
+///   ?gExt@@3HA\0             86 01    · 00 02 · 02 · 04 00   extern int      02
+///   ?gExt2@@3PAHA\0          86 06    · 00 02 · 02 · 10 00   extern int[4]   02
+///   ?gD@@3NA\0               88 05    · 00 02 · 02 · 08 00   extern double   02
+///   ?gC@@3DA\0               82 01    · 00 02 · 02 · 01 00   extern char     02
+///   ?TheDebug@@3VDebug@@A\0  88 06    · 00 02 · 02 · 18 00   extern class    02
+///   ?gBig@@3VBig@@A\0        c6 81 06 · 00 02 · 02 · 2c 00   extern class    02
+///   ?gDef@@3HA\0             86 01    · 00 02 · 01 · 04 80   int gDef = 3;   01
+///   ?sm@C@@2HA\0             86 01    · 00 02 · 01 · 04 80   int C::sm = 9;  01
+/// ```
+///
+/// **The TYPE is NOT a fixed two bytes** and `?gBig@@3VBig@@A` is the witness:
+/// a class whose tag carries the WIDE bit (`0x40`) spells it `c6 81 06`, three
+/// bytes, where `?TheDebug@@3VDebug@@A` — also a class, also polymorphic —
+/// spells it `88 06`. `linkage_needs_a_directive`'s fixed `name_nul + 3` is
+/// right for the *function* records it reads (fourteen return types, all two
+/// bytes) and would be wrong here, so this one steps `<tag> [wide byte] <kind>`
+/// with the same rule [`super::readers::read_type`] uses for that prefix.
+/// Reading the linkage at a fixed offset refused `void b5(){ gvo(&gBig); }` — an
+/// over-refusal, which is the direction that costs a rung rather than an obj, and
+/// it is why the witness exists at all.
+///
+/// The *rest* of `read_type` is deliberately not reused: a data record ends its
+/// TYPE at the kind byte, where an `.ex` TYPE continues with an aggregate size
+/// and a per-TU id, and running the whole reader here consumes the `00` of the
+/// frame below and then refuses every aggregate outright.
+///
+/// **The `00 02` frame is checked, not skipped**, and it is what makes this a
+/// structural read rather than an offset guess: a *function* record has
+/// `82 07 <05|04|03>` there and fails it, so a callee can never be mistaken for
+/// an extern object. A record class this reader has not seen fails it too and is
+/// therefore refused.
+///
+/// The set is returned rather than a per-name predicate because a name may occur
+/// in `.gl` more than once, and a name that is a defined data symbol *anywhere*
+/// in the file must not be admitted on the strength of some other record.
+/// The linkage byte of the `.gl` **data** record whose name's NUL is at
+/// `name_nul`, or `None` when the record is not one — the frame check.
+///
+/// `<tag> [wide byte] <kind> 00 02 <linkage>`. The wide prefix is the same rule
+/// [`super::readers::read_type`] applies (tag bit `0x40`, and the byte after it
+/// must carry `0x80`); the `00 02` pair is required literally, which is what
+/// makes a *function* record — `82 07 <05|04|03>` — fail rather than yield its
+/// third byte as a linkage.
+fn data_linkage(gl: &[u8], name_nul: usize) -> Option<u8> {
+    /// Tag bit that inserts one extra byte before the kind.
+    const TAG_WIDE: u8 = 0x40;
+    /// …and that byte must carry this.
+    const WIDE_MARK: u8 = 0x80;
+    let tag = *gl.get(name_nul + 1)?;
+    if tag & 0x80 == 0 {
+        return None;
+    }
+    let mut i = name_nul + 2;
+    if tag & TAG_WIDE != 0 {
+        if *gl.get(i)? & WIDE_MARK == 0 {
+            return None;
+        }
+        i += 1;
+    }
+    i += 1; // the kind byte
+    if gl.get(i) != Some(&0x00) || gl.get(i + 1) != Some(&0x02) {
+        return None;
+    }
+    gl.get(i + 2).copied()
+}
+
+pub(crate) fn gl_extern_data_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    /// Undefined external. `01` (defined here) and `04` (static) are exactly the
+    /// two this must refuse, and everything unseen refuses with them.
+    const LINKAGE_UNDEF_EXTERN: u8 = 0x02;
+    let mut out = std::collections::BTreeSet::new();
+    let mut bad = std::collections::BTreeSet::new();
+    for (_, end, name) in gl_symbol_runs(gl) {
+        // `end` is the index of the run's terminating NUL; the TYPE begins at the
+        // byte after it and its width is read, not assumed.
+        let ok = data_linkage(gl, end) == Some(LINKAGE_UNDEF_EXTERN);
+        if ok {
+            out.insert(name);
+        } else {
+            bad.insert(name);
+        }
+    }
+    // A name any record disagrees about is refused, not resolved to the record
+    // that happened to be favourable — the same third value `gl_symbol_index`
+    // gives an ambiguous token.
+    out.retain(|n| !bad.contains(n));
+    out
+}
+
 /// Lazily-built `.gl` symbol index (see [`gl_symbol_index`]) — same contents,
 /// built on first use. Only the call productions consult it (callee-by-token
 /// resolution), so a TU of straight-line leaves never pays for building it;

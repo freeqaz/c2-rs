@@ -191,6 +191,34 @@ pub struct Call<'a> {
     pub callee: &'a str,
 }
 
+/// **WR1 — one reference to a NAMED DATA SYMBOL's address**: the `.text` byte
+/// offset of the `lis rS,sym@ha` that opens it, plus the symbol's mangled name.
+///
+/// **The two halves are NOT adjacent, and that is the one place this differs from
+/// [`crate::codegen::FpConstRef`].** The `lis` is hoisted to the top of the body
+/// while the `addi rD,rS,sym@l` takes its own argument slot's turn in the
+/// descending setup walk, so a literal slot above it lands *between* them —
+/// MEASURED (`work/wr1/probes/p4.cpp`, `void a7(){ gsp(&gI, 7); }`):
+/// `lis r11 · li r4,7 · addi r3,r11,0 · b`, with REFHI at the function's start
+/// and REFLO **eight** bytes later, not four. Carrying one offset and adding 4
+/// was a live wrong-bytes emit on exactly that body, caught by the differential
+/// before it left this worktree.
+///
+/// Four relocation records: REFHI + PAIR at `hi_off`, REFLO + PAIR at `lo_off`,
+/// both PAIRs against symbol index 0.
+///
+/// The symbol itself is an **undefined external DATA** symbol — `Type` 0x0000,
+/// where a callee carries 0x0020 — emitted in this function's group after its
+/// callee externals. MEASURED (`work/wr1/probes/p1.cpp`): `void f(){ gso(&gI); }`
+/// gives `?f5@@YAXXZ`, `?gso@@YAXPAH@Z`, `?gI@@3HA`, in that order, with the
+/// callee ahead of the data symbol because its `26` push precedes the argument's
+/// (`docs/IL_CALL_IN_EXPR.md` §17.2 item 6).
+pub struct DataRef<'a> {
+    pub hi_off: u32,
+    pub lo_off: u32,
+    pub name: &'a str,
+}
+
 /// One function placed in `.text`: its mangled name (from `.gl`), byte offset
 /// within the concatenated `.text`, and one relocation per call it makes.
 pub struct Function<'a> {
@@ -225,6 +253,12 @@ pub struct Function<'a> {
     /// W13b: this function's floating-point constant reference sites, in
     /// emission order, with `hi_off` already rebased to the whole `.text`.
     pub fp_refs: Vec<crate::codegen::FpConstRef>,
+    /// **WR1**: this function's named-data-symbol address references, in emission
+    /// order, with `hi_off` already rebased to the whole `.text`. At most one in
+    /// the class the parser admits; a `Vec` because the relocation and symbol code
+    /// below is written over a list either way and a "the" here would be the same
+    /// constant [`Function::calls`]' own comment records having been.
+    pub data_refs: Vec<DataRef<'a>>,
     /// `Some` iff this function establishes a stack frame, carrying the two
     /// lengths its `.pdata` record and its two `$M` labels need. `None` for a
     /// leaf — c2 emits no unwind record for one, so this field alone decides
@@ -257,6 +291,7 @@ impl<'a> Function<'a> {
             calls: Vec::new(),
             is_float: false,
             fp_refs: Vec::new(),
+            data_refs: Vec::new(),
             frame: None,
             label_lead: 0,
         }
@@ -712,6 +747,7 @@ mod comdat_tests {
             calls: vec![Call { reloc_offset: off, callee }],
             is_float: false,
             fp_refs: Vec::new(),
+            data_refs: Vec::new(),
             frame: None,
             label_lead: 0,
         };
@@ -752,6 +788,7 @@ mod comdat_tests {
             calls: vec![Call { reloc_offset: 0, callee }],
             is_float: false,
             fp_refs: Vec::new(),
+            data_refs: Vec::new(),
             frame: None,
             label_lead: 0,
         };
@@ -995,7 +1032,10 @@ pub fn emit_comdat_obj(
     let n_reloc_of: Vec<u16> = owner
         .iter()
         .map(|o| match o {
-            SectionOwner::Text(k) => funcs[*k].calls.len() as u16,
+            // WR1: each data-symbol reference adds a REFHI/PAIR/REFLO/PAIR quad.
+            SectionOwner::Text(k) => {
+                (funcs[*k].calls.len() + 4 * funcs[*k].data_refs.len()) as u16
+            }
             SectionOwner::Pdata(_) => 1,
             SectionOwner::Fixed => 0,
         })
@@ -1047,6 +1087,8 @@ pub fn emit_comdat_obj(
     let mut introduced: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
     let mut fn_idx: Vec<u32> = Vec::with_capacity(funcs.len());
     let mut callee_syms: Vec<(&str, u32)> = Vec::new();
+    let mut data_syms: Vec<(&str, u32)> = Vec::new();
+    let mut introduced_data: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
     for (i, f) in funcs.iter().enumerate() {
         next_idx += 2; // section symbol + aux
         fn_idx.push(next_idx);
@@ -1066,6 +1108,18 @@ pub fn emit_comdat_obj(
             next_idx += 1;
         }
         introduced.push(here);
+        // WR1: this function's new data symbols, after its callees, exactly as
+        // the packed layout places them.
+        let mut here_data: Vec<(&str, u32)> = Vec::new();
+        for r in &f.data_refs {
+            if data_syms.iter().any(|(n, _)| *n == r.name) {
+                continue;
+            }
+            data_syms.push((r.name, next_idx));
+            here_data.push((r.name, next_idx));
+            next_idx += 1;
+        }
+        introduced_data.push(here_data);
         if labels[i].is_some() {
             next_idx += 1; // $M(n), the prologue-end label
             next_idx += 2; // .pdata section symbol + aux
@@ -1107,19 +1161,41 @@ pub fn emit_comdat_obj(
         match owner[i] {
             SectionOwner::Text(k) => {
                 debug_assert!(
-                    funcs[k].calls.is_empty() || b.0.len() == reloc_ptr[i].unwrap()
+                    n_reloc_of[i] == 0 || b.0.len() == reloc_ptr[i].unwrap()
                 );
-                // One REL24 per call site, in ascending `.text` offset. Several
-                // sites may share one symbol index (the same callee called twice).
+                // One REL24 per call site (several sites may share one symbol
+                // index — the same callee called twice) and, WR1, one
+                // REFHI/PAIR/REFLO/PAIR quad per data-symbol address. Emitted
+                // **ascending by VirtualAddress**, which is what the records in a
+                // section are ordered by: the `lis` is at offset 0 and the tail
+                // branch is last. The sort is stable, so each quad keeps its
+                // REFHI-before-PAIR order at equal VA.
+                let mut recs: Vec<(u32, u32, u16)> = Vec::new();
                 for call in &funcs[k].calls {
                     let ci = callee_syms
                         .iter()
                         .find(|(n, _)| *n == call.callee)
                         .map(|(_, ix)| *ix)
                         .expect("every callee got a symbol");
-                    b.u32(call.reloc_offset);
-                    b.u32(ci);
-                    b.u16(REL_PPC_REL24);
+                    recs.push((call.reloc_offset, ci, REL_PPC_REL24));
+                }
+                for r in &funcs[k].data_refs {
+                    let di = data_syms
+                        .iter()
+                        .find(|(n, _)| *n == r.name)
+                        .map(|(_, ix)| *ix)
+                        .expect("every data symbol got a slot");
+                    recs.push((r.hi_off, di, REL_PPC_REFHI));
+                    recs.push((r.hi_off, 0, REL_PPC_PAIR));
+                    recs.push((r.lo_off, di, REL_PPC_REFLO));
+                    recs.push((r.lo_off, 0, REL_PPC_PAIR));
+                }
+                recs.sort_by_key(|&(va, _, _)| va);
+                debug_assert_eq!(recs.len(), n_reloc_of[i] as usize);
+                for (va, sym, ty) in recs {
+                    b.u32(va);
+                    b.u32(sym);
+                    b.u16(ty);
                 }
             }
             SectionOwner::Pdata(k) => {
@@ -1151,7 +1227,12 @@ pub fn emit_comdat_obj(
 
     for (i, f) in funcs.iter().enumerate() {
         let sec_num = (sec_text[i] + 1) as i16;
-        emit_section_symbol(&mut b, &sections[sec_text[i]], sec_num, f.calls.len() as u16);
+        emit_section_symbol(
+            &mut b,
+            &sections[sec_text[i]],
+            sec_num,
+            (f.calls.len() + 4 * f.data_refs.len()) as u16,
+        );
         // The function is at offset 0 of its own section.
         emit_function_symbol(&mut b, &mut strtab, f.name, sec_num, 0);
         if let (Some(m), Some(frame)) = (labels[i], f.frame.as_ref()) {
@@ -1161,6 +1242,10 @@ pub fn emit_comdat_obj(
         // reverse first-reference order.
         for (name, _) in &introduced[i] {
             emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
+        }
+        // WR1: undefined external DATA symbols (`Type` 0x0000), after the callees.
+        for (name, _) in &introduced_data[i] {
+            emit_external_symbol(&mut b, &mut strtab, name, 0, 0x0000);
         }
         if let (Some(m), Some(frame), Some(ps)) = (labels[i], f.frame.as_ref(), sec_pdata[i]) {
             emit_label_symbol(&mut b, &label_name('M', m[0]), frame.prolog_len, sec_num);
@@ -1320,7 +1405,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     let mut next_idx: u32 = 13;
     // (function index, its defined symbol, the callee symbols it introduces —
     // reverse first-reference order, with their indices — constants introduced)
-    let mut plan: Vec<(usize, u32, Vec<(&str, u32)>, Vec<usize>)> =
+    let mut plan: Vec<(usize, u32, Vec<(&str, u32)>, Vec<usize>, Vec<(&str, u32)>)> =
         Vec::with_capacity(funcs.len());
     let mut real_idx: Vec<Option<u32>> = vec![None; pool.len()];
     // An undefined external callee is emitted **once per distinct name**, after the
@@ -1330,6 +1415,12 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // `il_call_perm.cpp`; the reference puts `?g3` after `pass3` and nothing after
     // the four later functions that also call it.
     let mut callee_syms: Vec<(&str, u32)> = Vec::new();
+    // **WR1** — the same rule for a named data symbol: one undefined external per
+    // distinct name, emitted in the group of the function that first references
+    // it, with every later site relocating against that index. MEASURED
+    // (`work/wr1/probes/p1.cpp`): `?gI@@3HA` is referenced by three functions and
+    // appears once, at index 21, which all three relocations name.
+    let mut data_syms: Vec<(&str, u32)> = Vec::new();
     // Packed, the whole TU shares ONE `.pdata`, so its section symbol + aux are
     // emitted once — inside the group of the FIRST framed function, after that
     // function's prologue label and before its `$T`. Every later framed function
@@ -1352,6 +1443,19 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
             new_callees.push((name, next_idx));
             next_idx += 1;
         }
+        // …then this function's new data symbols, immediately after its callees
+        // and before any label. The order inside the group is the reference's
+        // (`docs/IL_CALL_IN_EXPR.md` §17.2 item 6): the callee's `26` push
+        // precedes the argument's, and the emitted symbols follow the pushes.
+        let mut new_data: Vec<(&str, u32)> = Vec::new();
+        for r in &f.data_refs {
+            if data_syms.iter().any(|(n, _)| *n == r.name) {
+                continue;
+            }
+            data_syms.push((r.name, next_idx));
+            new_data.push((r.name, next_idx));
+            next_idx += 1;
+        }
         if labels[i].is_some() {
             next_idx += 1; // $M(n), the prologue-end label
             if first_framed == Some(i) {
@@ -1370,7 +1474,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
                 introduced.push(k);
             }
         }
-        plan.push((i, def_idx, new_callees, introduced));
+        plan.push((i, def_idx, new_callees, introduced, new_data));
         if fltused_after == Some(i) {
             next_idx += 1;
         }
@@ -1381,7 +1485,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // offset, against the framed function's defined symbol. In `.text` order,
     // which is also ascending VirtualAddress.
     let mut pdata_relocs: Vec<(u32, u32, u16)> = Vec::new();
-    for (i, def, _new, _intro) in &plan {
+    for (i, def, _new, _intro, _data) in &plan {
         if funcs[*i].frame.is_some() {
             pdata_relocs.push((pdata_relocs.len() as u32 * 8, *def, REL_PPC_ADDR32));
         }
@@ -1394,7 +1498,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // carry the partner half's displacement in the symbol-index field, which is
     // always 0 because every constant owns its whole COMDAT section.
     let mut text_relocs: Vec<(u32, u32, u16)> = Vec::new();
-    for (i, _def, _new, _intro) in &plan {
+    for (i, _def, _new, _intro, _data) in &plan {
         let f = &funcs[*i];
         // One REL24 per call site; several sites may share one symbol index.
         for call in &f.calls {
@@ -1411,6 +1515,19 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
             text_relocs.push((r.hi_off, 0, REL_PPC_PAIR));
             text_relocs.push((r.hi_off + 4, sym, REL_PPC_REFLO));
             text_relocs.push((r.hi_off + 4, 0, REL_PPC_PAIR));
+        }
+        // WR1: byte-for-byte the same quad, against an undefined external instead
+        // of a pooled constant's `.rdata` symbol.
+        for r in &f.data_refs {
+            let sym = data_syms
+                .iter()
+                .find(|(n, _)| *n == r.name)
+                .map(|(_, ix)| *ix)
+                .expect("every data symbol got a slot");
+            text_relocs.push((r.hi_off, sym, REL_PPC_REFHI));
+            text_relocs.push((r.hi_off, 0, REL_PPC_PAIR));
+            text_relocs.push((r.lo_off, sym, REL_PPC_REFLO));
+            text_relocs.push((r.lo_off, 0, REL_PPC_PAIR));
         }
     }
     text_relocs.sort_by_key(|&(va, _, _)| va);
@@ -1522,7 +1639,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // Per function: the defined FUNCTION symbol, then (if a tail call) the
     // undefined external callee symbol, then the constant pools this function
     // introduces (`.rdata` section symbol + aux, then the `__real@…` external).
-    for (i, _def, new_callees, introduced) in &plan {
+    for (i, _def, new_callees, introduced, new_data) in &plan {
         let f = &funcs[*i];
         emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
         // A framed function's `$M` labels are its prologue end and its function
@@ -1537,6 +1654,13 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
         // function introduces go out in reverse first-reference order.
         for (name, _) in new_callees {
             emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
+        }
+        // WR1: undefined external DATA symbols — section 0, `Type` 0x0000. The
+        // type byte is the whole difference from the callee above, and it is the
+        // difference between "a data address" and "a function pointer" in the
+        // linker's eyes.
+        for (name, _) in new_data {
+            emit_external_symbol(&mut b, &mut strtab, name, 0, 0x0000);
         }
         if let (Some(m), Some(frame), Some(pi)) = (labels[*i], f.frame.as_ref(), pdata_idx) {
             emit_label_symbol(&mut b, &label_name('M', m[0]), f.text_offset + frame.prolog_len, 5);
