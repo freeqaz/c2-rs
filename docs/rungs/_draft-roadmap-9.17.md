@@ -121,7 +121,7 @@ The clean stock is intact: 7,842 against §9.13's 7,712 residue. **7,741 of it
 | `then-dynamic-cast` (2119) | 543 | **542** | 115 | 0 | 0 |
 | `no-b9-dynamic-cast` | 460 | 1 | 1 | 1 | 0 |
 | `no-b9-convert` | 335 | 200 | 95 | 96 | 111 |
-| …16 further named arms | 573 | 208 | — | 176 | 292 |
+| …15 further named arms | 937 | 198 | — | 183 | 292 |
 | **total** | **25,654** | **7,842** | — | **2,060** | **1,978** |
 
 **Three arms are 82.4 % of the clean stock** and they are three different orders
