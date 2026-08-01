@@ -294,6 +294,9 @@ Cache addressed by its canonical main-repo path.
 * 878-TU workload scan at tip — **identical to base on every headline number**:
   6 match, 0 mismatch, 865 vocab-gap, 7 capture-fail; bodies 706,402 / 2,462,571
   (28.69 %); emitted **36,059 / 178,968 (20.15 %)**; census/gate disagreement 0.
+* The two sink scans on the same binary, for the counterfactuals quoted above:
+  `ceiling` emitted **36,415** (**+356**, and it mis-emits), `expr` emitted
+  **36,065** (**+6**). Four 878-TU scans in total — base, tip, `ceiling`, `expr`.
 * Probes — `work/pn.cpp` `Port=Mismatch @ offset 8` under `ceiling` and
   `Port=NotImplemented` under `zero`; `work/pz.cpp` `Port=Match` under `zero`.
 * Grids — 240 + 120 + 402 cells, all emitted by c2; 8 arity-8 cells spill the
@@ -350,7 +353,9 @@ void a2(S* s, T* t) { s->one(&t->s.k); }
   not rediscover it as an anomaly.
 * **#150 is closed at 6.** `expr-op-0x27` reproduces at this base to the
   function — **22,759 emitted, 407,016 bodies**, identical to §9.17.6 — and
-  granting its named token converts **6 emitted functions**. The board should
-  carry **6**, not 22,759. The row is the #1 blocking feature on the emitted
-  board and the least valuable thing on it, which is §8.7's rule about
-  blocking-feature counts being queue positions.
+  granting its named token converts **6 emitted functions**, re-measured here on
+  the same binary (`C2RS_SINK_OFF_ADD_ARG=expr`: emitted **36,065** against the
+  base's **36,059**). The board should carry **6**, not 22,759. The #1 blocking
+  feature on the emitted board is also the least valuable thing on it, which is
+  §8.7's rule about blocking-feature counts being queue positions rather than
+  quantities of work.
