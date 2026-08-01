@@ -1383,12 +1383,16 @@ fn cmd_listing_scan(rest: &[String]) -> ExitCode {
     // headline gap has to survive being read inside a size bucket or it is a
     // statement about length.
     println!("  size-stratified (the confound: blocked bodies are longer):");
-    println!("    bucket        blocked stalled/total          in-class stalled/total");
-    for (b, bstall, btot, istall, itot) in report.size_strata() {
+    println!(
+        "    bucket        blocked stalled/total          in-class stalled/total                blocked LHS   in-class LHS"
+    );
+    for (b, bstall, btot, istall, itot, blhs_b, ilhs_b) in report.size_strata() {
         println!(
-            "    {b:<12}  {bstall:>7}/{btot:<7} ({:>6.2}%)   {istall:>7}/{itot:<7} ({:>6.2}%)",
+            "    {b:<12}  {bstall:>7}/{btot:<7} ({:>6.2}%)   {istall:>7}/{itot:<7} ({:>6.2}%)                {blhs_b:>6} ({:>5.2}%)  {ilhs_b:>6} ({:>5.2}%)",
             pct(bstall, btot),
             pct(istall, itot),
+            pct(blhs_b, btot),
+            pct(ilhs_b, itot),
         );
     }
     if !qxstalls {

@@ -206,12 +206,15 @@ impl ListingReport {
     /// The size-stratified #134 reading: one row per bucket,
     /// `(bucket, blocked stalled, blocked total, in-class stalled, in-class total)`.
     ///
+    /// Tuple: `(bucket, blocked stalled, blocked total, in-class stalled,
+    /// in-class total, blocked LHS, in-class LHS)`.
+    ///
     /// This is where the #134 headline either survives or turns into a
     /// statement about function length. Read the buckets both populations
     /// actually occupy; a bucket where one side has a handful of members says
     /// nothing.
-    pub fn size_strata(&self) -> Vec<(String, usize, usize, usize, usize)> {
-        let mut m: BTreeMap<String, [usize; 4]> = BTreeMap::new();
+    pub fn size_strata(&self) -> Vec<(String, usize, usize, usize, usize, usize, usize)> {
+        let mut m: BTreeMap<String, [usize; 6]> = BTreeMap::new();
         for t in &self.tus {
             for (k, n) in &t.size_strata {
                 let mut it = k.split('|');
@@ -219,18 +222,20 @@ impl ListingReport {
                 else {
                     continue;
                 };
-                let e = m.entry(bucket.to_string()).or_insert([0; 4]);
+                let e = m.entry(bucket.to_string()).or_insert([0; 6]);
                 let i = match (pop, what) {
                     ("BLOCKED", "stalled") => 0,
                     ("BLOCKED", "total") => 1,
                     ("INCLASS", "stalled") => 2,
-                    _ => 3,
+                    ("INCLASS", "total") => 3,
+                    ("BLOCKED", "lhs") => 4,
+                    _ => 5,
                 };
                 e[i] += n;
             }
         }
         m.into_iter()
-            .map(|(k, v)| (k, v[0], v[1], v[2], v[3]))
+            .map(|(k, v)| (k, v[0], v[1], v[2], v[3], v[4], v[5]))
             .collect()
     }
 
@@ -506,6 +511,9 @@ fn scan_one(tc: &Toolchain, cfg: &ListingScanConfig, src: &str, work: &std::path
                         *r.size_strata.entry(format!("{b}|{pop}|total")).or_insert(0) += 1;
                         if stalled {
                             *r.size_strata.entry(format!("{b}|{pop}|stalled")).or_insert(0) += 1;
+                        }
+                        if lhs {
+                            *r.size_strata.entry(format!("{b}|{pop}|lhs")).or_insert(0) += 1;
                         }
                         if in_class {
                             r.in_class_total += 1;
