@@ -81,7 +81,7 @@ pub fn mangled_names(gl: &[u8]) -> Vec<String> {
 /// identifier. That admits the source path and `__C1_11886` too, which is why the
 /// unclaimed-symbol accounting filters with [`looks_mangled`] rather than relying
 /// on this scan to be selective.
-fn gl_symbol_runs(gl: &[u8]) -> Vec<(usize, usize, String)> {
+pub(crate) fn gl_symbol_runs(gl: &[u8]) -> Vec<(usize, usize, String)> {
     let mut out = Vec::new();
     let mut i = 0usize;
     while i < gl.len() {

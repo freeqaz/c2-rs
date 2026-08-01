@@ -31,6 +31,18 @@ pub enum ObjDiff {
 const TIMESTAMP_OFFSET: usize = 4;
 const TIMESTAMP_END: usize = 8;
 
+/// COFF file header width, section-header width, symbol-record width.
+const COFF_HEADER_LEN: usize = 20;
+const SECTION_HEADER_LEN: usize = 40;
+const SYMBOL_LEN: usize = 18;
+/// `IMAGE_SCN_LNK_COMDAT`.
+const IMAGE_SCN_LNK_COMDAT: u32 = 0x0000_1000;
+/// `IMAGE_SYM_CLASS_STATIC`.
+const IMAGE_SYM_CLASS_STATIC: u8 = 3;
+/// Emitted code lands in `.text` and its `$`-suffixed variants (`.text$yd`
+/// carries the dynamic-initializer thunks).
+const TEXT_SECTION_PREFIX: &str = ".text";
+
 impl ObjImage {
     pub fn new(bytes: Vec<u8>) -> Self {
         ObjImage(bytes)
@@ -70,6 +82,115 @@ impl ObjImage {
             }
         }
         v
+    }
+
+    /// **The emitted-function set**: the leader symbol of every `.text*` COMDAT
+    /// section, in section order.
+    ///
+    /// This is the denominator of `docs/GAPS.md` §8 — *what c2 actually
+    /// compiled*, as opposed to what its input IL contained. Under `/Gy` (which
+    /// `/O1` implies, and the workload compiles with) c2 puts each emitted
+    /// function in its own COMDAT `.text` section, so the count of those
+    /// sections is the count of emitted functions and each one's leader symbol
+    /// is that function's mangled name.
+    ///
+    /// **Section-led, not symbol-led, and that is the whole reason it is
+    /// correct.** A COMDAT `.text` section carries more than one symbol: on
+    /// `src/App.cpp` its 158 sections hold 372 symbols, the surplus being
+    /// `__unwind$NNNNNN` labels that are `IMAGE_SYM_CLASS_EXTERNAL` and
+    /// `DT_FUNCTION` exactly like the real ones. Counting symbols there reads
+    /// **372 emitted functions** where c2 emitted 158 — a 2.35× over-count that
+    /// no invariant downstream would have caught, because both numbers are
+    /// plausible. Walking sections and taking each one's *first non-definition*
+    /// symbol cannot make that mistake: a section has exactly one leader.
+    ///
+    /// The section-definition symbol itself (`IMAGE_SYM_CLASS_STATIC` carrying
+    /// one aux record — the COMDAT selection record) is skipped; it repeats the
+    /// section name, not the function's.
+    ///
+    /// **Fail-closed.** `None` whenever the headers do not decode: a short
+    /// image, a symbol table or string table off the end, or a section header
+    /// running past EOF. A partially-read symbol table would return a *shorter*
+    /// emitted set, and a short denominator inflates every ratio computed
+    /// against it — so there is no partial answer here.
+    pub fn text_comdat_functions(&self) -> Option<Vec<String>> {
+        let b = &self.0;
+        if b.len() < COFF_HEADER_LEN {
+            return None;
+        }
+        let nsec = u16::from_le_bytes([b[2], b[3]]) as usize;
+        let psym = u32::from_le_bytes([b[8], b[9], b[10], b[11]]) as usize;
+        let nsym = u32::from_le_bytes([b[12], b[13], b[14], b[15]]) as usize;
+        // Section headers, the symbol table and the string-table size word must
+        // all be inside the image before anything is decoded.
+        let sec_end = COFF_HEADER_LEN.checked_add(nsec.checked_mul(SECTION_HEADER_LEN)?)?;
+        let sym_end = psym.checked_add(nsym.checked_mul(SYMBOL_LEN)?)?;
+        if sec_end > b.len() || psym < sec_end || sym_end.checked_add(4)? > b.len() {
+            return None;
+        }
+        let strtab = &b[sym_end..];
+        let str_at = |i: usize| -> Option<String> {
+            let s = strtab.get(i..)?;
+            let e = s.iter().position(|&c| c == 0)?;
+            Some(String::from_utf8_lossy(&s[..e]).into_owned())
+        };
+        // Which sections are COMDAT `.text`?
+        let mut is_text = vec![false; nsec];
+        for (i, flag) in is_text.iter_mut().enumerate() {
+            let o = COFF_HEADER_LEN + i * SECTION_HEADER_LEN;
+            let raw = &b[o..o + 8];
+            let name = if raw[0] == b'/' {
+                // A long section name is `/<decimal string-table offset>`.
+                let digits = String::from_utf8_lossy(&raw[1..]);
+                str_at(digits.trim_end_matches('\0').trim().parse::<usize>().ok()?)?
+            } else {
+                String::from_utf8_lossy(raw).trim_end_matches('\0').to_owned()
+            };
+            let chars = u32::from_le_bytes([b[o + 36], b[o + 37], b[o + 38], b[o + 39]]);
+            *flag = name.starts_with(TEXT_SECTION_PREFIX) && chars & IMAGE_SCN_LNK_COMDAT != 0;
+        }
+        let mut claimed = vec![false; nsec];
+        let mut out = Vec::new();
+        let mut i = 0usize;
+        while i < nsym {
+            let o = psym + i * SYMBOL_LEN;
+            let naux = b[o + 17] as usize;
+            let secnum = i16::from_le_bytes([b[o + 12], b[o + 13]]);
+            let sclass = b[o + 16];
+            if secnum >= 1 && (secnum as usize) <= nsec {
+                let s = secnum as usize - 1;
+                let is_section_definition = sclass == IMAGE_SYM_CLASS_STATIC && naux == 1;
+                if is_text[s] && !claimed[s] && !is_section_definition {
+                    let name = if b[o..o + 4] == [0, 0, 0, 0] {
+                        let at =
+                            u32::from_le_bytes([b[o + 4], b[o + 5], b[o + 6], b[o + 7]]) as usize;
+                        str_at(at)?
+                    } else {
+                        String::from_utf8_lossy(&b[o..o + 8])
+                            .trim_end_matches('\0')
+                            .to_owned()
+                    };
+                    claimed[s] = true;
+                    out.push(name);
+                }
+            }
+            // An aux record count that walks past the table is a decode failure,
+            // not something to clamp: clamping would silently shorten the answer.
+            i = i.checked_add(1)?.checked_add(naux)?;
+            if i > nsym {
+                return None;
+            }
+        }
+        // **One leader per COMDAT `.text` section, or no answer.** Under `/Gy`
+        // every emitted function gets its own section and every such section
+        // gets a leader, so a section that produced none means the symbol walk
+        // went wrong — and a short emitted set is worse than none, because it is
+        // a denominator that silently inflates every ratio computed against it.
+        // Measured across the 871 capturable workload objs: 0 refusals.
+        if claimed.iter().zip(&is_text).any(|(&c, &t)| t && !c) {
+            return None;
+        }
+        Some(out)
     }
 
     /// Compare two images on their normalized (timestamp-zeroed) bytes.
@@ -150,6 +271,225 @@ mod tests {
             ObjDiff::Differs { first_offset, .. } => assert_eq!(first_offset, 9),
             ObjDiff::Identical => panic!("expected a difference at offset 9"),
         }
+    }
+
+    /// A synthetic COFF with `sections = [(name, comdat)]` and
+    /// `symbols = [(name, section-1-based, class, naux)]`, names longer than 8
+    /// bytes going to the string table exactly as a real obj does.
+    fn coff(sections: &[(&str, bool)], symbols: &[(&str, i16, u8, u8)]) -> Vec<u8> {
+        let nsec = sections.len();
+        let nsym: usize = symbols.iter().map(|s| 1 + s.3 as usize).sum();
+        let psym = COFF_HEADER_LEN + nsec * SECTION_HEADER_LEN;
+        let mut head = vec![0u8; psym];
+        head[0..2].copy_from_slice(&0x01F2u16.to_le_bytes()); // POWERPCBE
+        head[2..4].copy_from_slice(&(nsec as u16).to_le_bytes());
+        head[8..12].copy_from_slice(&(psym as u32).to_le_bytes());
+        head[12..16].copy_from_slice(&(nsym as u32).to_le_bytes());
+        // The string table starts with its own 4-byte size, so offset 4 is the
+        // first name slot.
+        let mut strtab: Vec<u8> = vec![0, 0, 0, 0];
+        let intern = |s: &str, strtab: &mut Vec<u8>| -> u32 {
+            let at = strtab.len() as u32;
+            strtab.extend_from_slice(s.as_bytes());
+            strtab.push(0);
+            at
+        };
+        for (i, (name, comdat)) in sections.iter().enumerate() {
+            let o = COFF_HEADER_LEN + i * SECTION_HEADER_LEN;
+            if name.len() <= 8 {
+                head[o..o + name.len()].copy_from_slice(name.as_bytes());
+            } else {
+                let at = intern(name, &mut strtab);
+                let s = format!("/{at}");
+                head[o..o + s.len()].copy_from_slice(s.as_bytes());
+            }
+            let chars = if *comdat { IMAGE_SCN_LNK_COMDAT } else { 0 };
+            head[o + 36..o + 40].copy_from_slice(&chars.to_le_bytes());
+        }
+        let mut syms = Vec::new();
+        for (name, secnum, sclass, naux) in symbols {
+            let mut rec = [0u8; SYMBOL_LEN];
+            if name.len() <= 8 {
+                rec[..name.len()].copy_from_slice(name.as_bytes());
+            } else {
+                let at = intern(name, &mut strtab);
+                rec[4..8].copy_from_slice(&at.to_le_bytes());
+            }
+            rec[12..14].copy_from_slice(&secnum.to_le_bytes());
+            rec[16] = *sclass;
+            rec[17] = *naux;
+            syms.extend_from_slice(&rec);
+            syms.extend(std::iter::repeat(0u8).take(*naux as usize * SYMBOL_LEN));
+        }
+        let n = strtab.len() as u32;
+        strtab[0..4].copy_from_slice(&n.to_le_bytes());
+        let mut out = head;
+        out.extend_from_slice(&syms);
+        out.extend_from_slice(&strtab);
+        out
+    }
+
+    /// The realistic shape: two COMDAT `.text` sections, each carrying its
+    /// section-definition symbol, its function leader, and an `__unwind$` label
+    /// that looks exactly like a function to a symbol-led count.
+    fn workload_shaped_obj() -> Vec<u8> {
+        coff(
+            &[(".text", true), (".text$yd", true), (".data", false)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+                ("__unwind$1", 1, 2, 0),
+                (".text$yd", 2, IMAGE_SYM_CLASS_STATIC, 1),
+                ("??__Egs@@YAXXZ", 2, 2, 0),
+                (".data", 3, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?gv@@3HA", 3, 2, 0),
+            ],
+        )
+    }
+
+    #[test]
+    fn the_emitted_set_is_one_leader_per_text_comdat_section() {
+        let obj = ObjImage::new(workload_shaped_obj());
+        assert_eq!(
+            obj.text_comdat_functions(),
+            Some(vec!["?f@@YAHH@Z".to_string(), "??__Egs@@YAXXZ".to_string()]),
+            "expected exactly the two COMDAT .text leaders"
+        );
+    }
+
+    /// The over-count this reader exists to avoid: `__unwind$1` is external and
+    /// sits in a COMDAT `.text`, so a symbol-led count would report three.
+    #[test]
+    fn an_unwind_label_in_a_text_comdat_is_not_an_emitted_function() {
+        let obj = ObjImage::new(workload_shaped_obj());
+        let got = obj.text_comdat_functions().expect("headers decode");
+        assert!(
+            !got.iter().any(|n| n.starts_with("__unwind$")),
+            "an __unwind$ label was counted as an emitted function: {got:?}"
+        );
+    }
+
+    #[test]
+    fn a_non_comdat_text_section_is_not_counted() {
+        let obj = ObjImage::new(coff(
+            &[(".text", false)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+            ],
+        ));
+        assert_eq!(
+            obj.text_comdat_functions(),
+            Some(vec![]),
+            "a non-COMDAT .text has no per-function leader to take"
+        );
+    }
+
+    #[test]
+    fn a_long_section_name_resolves_through_the_string_table() {
+        let obj = ObjImage::new(coff(
+            &[(".text$averylongsectionname", true)],
+            &[
+                ("x", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+            ],
+        ));
+        assert_eq!(
+            obj.text_comdat_functions(),
+            Some(vec!["?f@@YAHH@Z".to_string()]),
+            "a `/NNN` section name must be looked up, not compared literally"
+        );
+    }
+
+    /// NEGATIVE CONTROL — a truncated image has no partial answer. The guard's
+    /// quantity (one COMDAT `.text` with one leader) is held fixed; only the
+    /// image length moves.
+    #[test]
+    fn a_truncated_symbol_table_refuses_rather_than_shortening_the_set() {
+        let full = coff(
+            &[(".text", true)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+            ],
+        );
+        assert_eq!(
+            ObjImage::new(full.clone()).text_comdat_functions(),
+            Some(vec!["?f@@YAHH@Z".to_string()]),
+            "control: the intact image must bind its one leader"
+        );
+        let cut = full[..full.len() - 12].to_vec();
+        assert_eq!(
+            ObjImage::new(cut).text_comdat_functions(),
+            None,
+            "a truncated string table must refuse, not return a short emitted set"
+        );
+    }
+
+    /// NEGATIVE CONTROL — an aux count that runs off the end of the symbol table
+    /// is a decode failure, not something to clamp.
+    #[test]
+    fn an_aux_count_past_the_table_end_refuses() {
+        let mut obj = coff(
+            &[(".text", true)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+            ],
+        );
+        let psym = u32::from_le_bytes([obj[8], obj[9], obj[10], obj[11]]) as usize;
+        // Second symbol claims 200 aux records; the leader is still there.
+        obj[psym + 2 * SYMBOL_LEN + 17] = 200;
+        assert_eq!(
+            ObjImage::new(obj).text_comdat_functions(),
+            None,
+            "an aux run past the table end must refuse"
+        );
+    }
+
+    /// NEGATIVE CONTROL — a COMDAT `.text` section with no leader symbol. The
+    /// guard's quantity (two COMDAT `.text` sections) is held FIXED; only the
+    /// second section's leader is removed, so the assertion under test is the
+    /// one-leader-per-section rule and not the section count.
+    #[test]
+    fn a_text_comdat_section_with_no_leader_refuses_the_whole_obj() {
+        let full = coff(
+            &[(".text", true), (".text", true)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+                (".text", 2, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?g@@YAHH@Z", 2, 2, 0),
+            ],
+        );
+        assert_eq!(
+            ObjImage::new(full).text_comdat_functions(),
+            Some(vec!["?f@@YAHH@Z".to_string(), "?g@@YAHH@Z".to_string()]),
+            "control: two sections, two leaders"
+        );
+        let leaderless = coff(
+            &[(".text", true), (".text", true)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+                (".text", 2, IMAGE_SYM_CLASS_STATIC, 1),
+            ],
+        );
+        assert_eq!(
+            ObjImage::new(leaderless).text_comdat_functions(),
+            None,
+            "a COMDAT .text with no leader must refuse, not return a set of one — \
+             a short denominator inflates every ratio computed against it"
+        );
+    }
+
+    #[test]
+    fn a_short_image_refuses() {
+        assert_eq!(
+            ObjImage::new(vec![0xF2, 0x01, 0x00]).text_comdat_functions(),
+            None,
+            "an image shorter than a COFF header has no emitted set"
+        );
     }
 
     #[test]

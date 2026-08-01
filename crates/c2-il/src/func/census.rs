@@ -2,9 +2,9 @@ use super::body::{
     self, call_tokens, parse_segment_detail, BodyShape, DtorSubObject, CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL, OPT_MODE,
 };
-use super::bind::Bindings;
+use super::bind::{Bindings, EmitBinding};
 use super::bundle::shape_to_function;
-use super::bundle::split_function_bodies;
+use super::bundle::split_function_bodies_at;
 use super::bundle::{opt_word_at, opt_word_mode};
 use super::Block;
 use super::IlFunction;
@@ -172,6 +172,30 @@ pub struct FnCensus {
     /// which walks a different segmentation). The census/gate cross-check needs
     /// it to pick the mode the port would emit under.
     pub opt_word: Option<u32>,
+    /// **The emitted-function binding** (`docs/GAPS.md` §8): the mangled name of
+    /// the `.gl` function record whose body-start offset lands in this segment.
+    ///
+    /// A *different* field from [`FnCensus::name`], and deliberately so. `name`
+    /// is [`Bindings::positional`]'s answer, which on a real translation unit is
+    /// `None` for every row (`src/App.cpp`: 3,752 names against 9,033 segments,
+    /// so the pairing is refused whole). This one is per record, so it answers on
+    /// real input — 131,041 of 142,205 emitted symbols across 371 workload TUs.
+    ///
+    /// It exists to be joined against the obj's `.text` COMDAT leaders
+    /// ([`c2_obj::ObjImage::text_comdat_functions`], from the harness, which is
+    /// the only layer that has an obj) and so answer the one question the
+    /// per-body census cannot: **of the functions c2 actually emits, how many are
+    /// in class?** For a body c2 never emits, "in class" is a parser-only claim
+    /// that no byte compare has ever graded or ever can.
+    ///
+    /// `None` is a refusal, never a guess: no record claimed this segment, or two
+    /// did, or the name it would have taken is claimed by another row. Reported
+    /// as residue by `c2rs gap` rather than dropped.
+    ///
+    /// **Decode-only, structurally**: nothing reads this field except the report.
+    /// It is not consulted by acceptance, by `shape_to_function`, or by the
+    /// emitter.
+    pub emit_name: Option<String>,
 }
 
 impl FnCensus {
@@ -252,6 +276,21 @@ impl IlBundle {
     /// feature, so the histogram of [`FnVerdict::key`] over a corpus is the
     /// widening order (docs/ROADMAP.md §G5).
     ///
+    /// **The emitted-function binding's own accounting** (`docs/GAPS.md` §8) —
+    /// how many `.gl` body-offset records were found, how many bound, and every
+    /// way a record failed to.
+    ///
+    /// A separate entry point from [`IlBundle::function_census`] because it is
+    /// the *instrument's* self-report rather than a per-function fact: the scan
+    /// prints these counts on every run so that the residue cannot disappear
+    /// quietly, which is the failure mode `docs/ROADMAP.md` §8.4 names.
+    /// [`FnCensus::emit_name`] carries the same binding's per-row answer.
+    pub fn emit_binding(&self) -> Option<EmitBinding> {
+        let gl = self.get("gl")?;
+        let (seg_starts, _) = split_function_bodies_at(self.ex()?);
+        Some(EmitBinding::new(gl, &seg_starts))
+    }
+
     /// Diagnostic only — never a gate, and never consulted by the emitter.
     /// Returns `None` only when the bundle lacks the required files.
     pub fn function_census(&self) -> Option<Vec<FnCensus>> {
@@ -291,7 +330,13 @@ impl IlBundle {
     pub fn census_functions(&self) -> Option<Vec<(FnCensus, Result<IlFunction, &'static str>)>> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
-        let segs = split_function_bodies(ex);
+        let (seg_starts, segs) = split_function_bodies_at(ex);
+        // The emitted-function binding (`docs/GAPS.md` §8), built once per
+        // bundle over this same segmentation. Diagnostic only — it feeds
+        // `FnCensus::emit_name` and nothing else, and it is a THIRD binding
+        // beside the two `bind.rs` tabulates, because it answers a question
+        // neither does: which obj symbol, if any, is this row.
+        let emit = EmitBinding::new(gl, &seg_starts);
         // The whole correspondence seam comes from ONE place ([`super::bind`]).
         // The census's names are paired POSITIONALLY, which is a different
         // binding from the gate's per-record one — `bind.rs`'s module doc states
@@ -591,6 +636,7 @@ impl IlBundle {
                             dispatch,
                             prod,
                             opt_word,
+                            emit_name: emit.name(i).map(str::to_string),
                         },
                         func,
                     )

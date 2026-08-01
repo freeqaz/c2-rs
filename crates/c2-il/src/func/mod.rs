@@ -36,6 +36,7 @@ mod gl;
 mod readers;
 mod sy;
 
+pub use self::bind::EmitBinding;
 pub use self::body::{chain_form, Block, ChainForm, FP_SCRATCH};
 pub use self::bundle::{
     is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,

@@ -2535,3 +2535,270 @@ Quote the cold number: it is what the gate costs the first time a tree runs it,
 and the warm ones only hold once the flag strings are in the cache. Either way
 this is nowhere near impractical, which is exactly why there was never an excuse
 for the list to be implicit. Re-measure before adding an axis.
+
+## 8. The emitted-function census — the binding, and a pre-registered estimate
+
+`docs/ROADMAP.md` §8.2 ranks this instrument first on the board, and §8.4 names
+the hole it fills: the published census numerator (**697,251 / 2,462,571 =
+28.31 %**) counts **IL bodies**, and c2 emits **178,097** functions from those
+2,462,571 bodies — **7.23 %**. The overlap between the numerator and the emitted
+set was bounded only at **[22, 173,149] of 178,097**, which is to say unmeasured.
+A body c2 never emits has never been graded by a byte compare and never can be:
+the differential grades whole objs, and those objs do not contain it.
+
+### 8.1 The estimate, registered before the instrument was run
+
+Written down **before** the workload read-out, per the estimate discipline in
+`docs/ROADMAP.md` §8.5. What was known at the time of writing:
+
+* one TU by hand (`src/App.cpp`): 25 of 158 emitted functions in class = **15.8 %**;
+* a 371-TU prototype over the largest cached objs — 142,205 emitted, 131,041
+  bound 1:1, **27,307 in class = 19.20 % of emitted**, residue 7.85 %.
+
+The remaining ~500 workload TUs are the *small* ones, ~36k emitted functions.
+Counting refusals rather than applying a discount:
+
+1. Their emitted sets are the same population — header-inline instantiations,
+   destructors, small accessors — so the prototype rate transfers unchanged.
+   Predicts ~19 %.
+2. Small TUs skew simpler, and a simpler emitted function is likelier in class.
+   Pushes **up**.
+3. Every residue row is excluded from the numerator by construction, so any
+   measured figure is a **floor**, not a point.
+
+**Registered estimate: 34,000 in-class ∩ emitted of 178,097 — 19.1 %; interval
+[30,000, 40,000]; fail-closed floor = the measured bound-and-in-class count,
+ceiling = that plus the whole unbound residue.**
+
+The direction of error this instrument is *built* to have is downward: an
+emitted symbol nothing binds is counted as residue, never as in class.
+
+### 8.2 The route, and why the other one was not needed
+
+Two routes were on the table: the `.gl`/`.sy` record binding plus obj symbol
+names, or a **masked body hash** (the body bytes with the per-TU token fields
+zeroed). **The record route was taken**, on evidence rather than preference:
+
+* The obj half is not in doubt. Under `/Gy` (implied by the workload's `/O1`)
+  c2 gives every emitted function its own COMDAT `.text` section, so *counting
+  sections* is counting emitted functions and each section's leader symbol is
+  that function's name. Two independent implementations agree on `src/App.cpp`:
+  156 `.text` + 2 `.text$yd` COMDAT sections, 158 leaders.
+* The IL half turned out to be **one over-fitted byte away from working**. The
+  gate's framing predicate (`codec::gl_offset_framed`) pins `gl[o-5] == 0x10` —
+  which is not a tag but the third byte of the *preceding* `80 <LE32>` field, so
+  it demands that field's value lie in `0x1000..=0x10FF`. The fixtures all do.
+  `src/App.cpp` does not (`0x19AB`, `0xA4F6`, …), which is why the gate's reader
+  finds **34 records in a TU with 9,033 bodies and 158 emitted functions**.
+  Requiring only the two high bytes to be zero finds **6,069**, of which 6,068
+  land on a `4F 1F` function start.
+* The masked hash was therefore never needed. It solves a *different* problem —
+  recognizing the same inline body across TUs — and it could not have answered
+  this one, because the question is which *symbol* a row is, and a body hash
+  carries no symbol.
+
+The known obstacle was real and is unrelated to either route:
+`Bindings::positional` reports names for ~0 real functions, and it still does.
+`FnCensus::emit_name` is a **third** binding beside the gate's and the census's,
+per record and diagnostic-only.
+
+Two rules make it work on real input where the gate's does not:
+
+1. **Containment, not equality.** A record binds to the segment *containing* its
+   body-start offset. 6,068 of App.cpp's 6,069 record offsets are `4F 1F`
+   markers but only 5,908 are *census* segment starts, because the census anchors
+   on the `LO` body marker; equality would drop the other 160 into a residue
+   bucket that meant nothing.
+2. **The 32-byte name bound, which is load-bearing.** Without it a record whose
+   shape this reader cannot frame borrows its predecessor's name. Measured over
+   371 workload TUs: **3,799 emitted symbols claimed by two rows each without the
+   bound, 0 with it**, and +706 in-class.
+
+### 8.3 The read-out
+
+Workload scan, 878 TUs, `/O1 /Oi /EHsc`, shared capture cache:
+
+```
+FUNCTION CENSUS (P2b): 697251/2462571 functions in class (28.31%)   ← unchanged
+census/gate disagreement: 0        mismatch: 0
+
+EMITTED CENSUS (§8): 34083/178968 emitted functions in class (19.04%)
+  bound 161262 | residue 17706: 6879 compiler-generated (no IL body),
+                                10827 unexplained  (9.89% of the denominator)
+  ceiling if every residue symbol were in class: 51789 (28.94%)
+```
+
+**The answer is 34,083 of 178,968 — 19.04 %, with the true value in
+[19.04 %, 28.94 %].** The interval is the residue, stated as a floor and a
+ceiling rather than as a point with an error bar: the binding fails closed, so an
+emitted symbol it cannot claim is residue and never numerator. §8.1's published
+bound was `[22, 173,149]`; it is now 3.4 % wide of the denominator instead of
+97 %.
+
+The denominator reads **178,968** against the audit's 178,097 (+0.49 %, and the
+median TU is 141 emitted against the audit's 139) — corpus-HEAD drift, the same
+0.5 % the audit itself recorded against §6's independent 7.3 %.
+
+**The pre-registered estimate (§8.1) was 34,000; the measurement is 34,083 —
+0.24 % out, inside the [30,000, 40,000] interval.** The rate transferred from
+the 371-TU prototype (19.20 %) to the whole workload (19.04 %) essentially
+unchanged, so refusal #2 ("small TUs skew simpler, pushes up") was **wrong** and
+refusal #1 was right. Recording that: the sample was already representative and
+the adjustment was not needed.
+
+### 8.4 What the number says, and what it does not
+
+**28.31 % of bodies is 19.04 % of emitted code.** The two numbers are close, and
+that is itself the finding: the fear in §8.1 — that the numerator might be
+almost entirely header-inline bodies c2 never compiles, covering "0.01 % of the
+code c2 actually emits" — is **refuted**. It is not 97 % either. The accepted
+class covers about a fifth of the compiler's real output.
+
+It also explains the flat TU-match count without appeal to anything else. A TU
+matches only when **every** function in it is emitted byte-exact; at 19 % per
+emitted function, a TU with the median 141 of them has no realistic chance, and
+the six that match are the ones with almost nothing in them.
+
+**The widening order over emitted code is not the widening order over bodies.**
+Same scan, two rankings of the top rows:
+
+| row | all bodies | emitted only |
+|---|---:|---:|
+| `expr-op-0x27` | 412,797 (23.4 %) | 22,831 (18.0 %) |
+| `body-cflow-label` | — | 14,947 (11.8 %) |
+| `expr-intrinsic-this-adjust` | — | 8,790 (6.9 %) |
+| `expr-intrinsic-base-member-addr` | 41,678 | 6,472 (5.1 %) |
+
+`c2rs gap` now prints both. Rank rungs off the second when the goal is TU match.
+
+### 8.5 How the binding is graded, since the oracle cannot grade it
+
+A byte compare grades emitted bytes; it cannot say whether row *R* is symbol *S*
+(§6, and the `.sy` positional relaxation that was census +2,981, mismatch 0, and
+wrong on 62 % of its bindings). So the binding is held to invariants stated
+positively, all of them printed on every scan:
+
+| check | reads |
+|---|---|
+| **Injectivity** — a name two rows claim binds to neither; a row two records claim binds nothing | 233 name-conflicts, 33,552 records lost to row-conflicts, **0 emitted symbols claimed twice** |
+| **Totality over records** — `records == bound + outside + nameless + row-conflicts + name-conflicts` | 1,515,160 records, **0 accounting breaks** |
+| **Totality over symbols** — `emitted == bound + generated + unexplained` | 178,968 = 161,262 + 6,879 + 10,827, exact |
+| **Ground truth** — on a byte-exact TU the oracle *has* graded the whole symbol table, so `in-class == emitted` there | **6 TUs, residue 0** |
+| **Denominator self-check** — a COMDAT `.text` with no leader symbol refuses the whole obj | **0 refusals in 871** |
+
+The totality identity earned its keep immediately: it read **607 breaks** on the
+first workload run, because `dropped_row_conflict` was counting *rows* while the
+identity is stated over *records*. A row conflict consumes two or more records
+and cost one. Fixed, and pinned by
+`a_three_record_collision_accounts_for_all_three_records`.
+
+**Negative controls**, each holding the guard's quantity fixed while mutating one
+thing, each with its own failure message:
+
+* the name-distance bound — same two records, only the padding moves: at exactly
+  32 both bind, at 33 the second binds **nothing** and above all does not borrow
+  its predecessor's name;
+* a record pointing before the first row — same two records, only the offset
+  moves: counted as `outside`, never clamped onto row 0;
+* a broken framing — same name and offset value, only the two separator bytes
+  move: **no record at all**, rather than a record bound to whatever the next
+  four bytes read as;
+* a `match` TU whose symbols do not all bind — same one byte-exact TU, only the
+  bound count moves: the ground-truth check reads 3, not 0;
+* a truncated obj and an aux count past the symbol table — same one COMDAT
+  `.text` with one leader: `None`, never a short emitted set;
+* a COMDAT `.text` with no leader — same two sections: `None`, never a set of one.
+
+### 8.6 The residue is a reader limit, not a population — and that is the next job
+
+**10,827 unexplained, and 57.4 % of it is ordinary `?…` functions:**
+
+| class | count | share |
+|---|---:|---:|
+| ordinary | 6,214 | 57.4 % |
+| dtor | 3,372 | 31.1 % |
+| ctor | 807 | 7.5 % |
+| operator / template-operator / special-generated / undecorated | 434 | 4.0 % |
+
+If the residue were "c2 synthesized it, there was never a body", it would sit in
+the special-member classes. It does not. The binding is **losing ordinary
+functions**, and the loss channel is named: **152,941 records are `nameless`** —
+framed, but with no symbol run ending within 32 bytes. Recovering them is what
+would narrow the interval, and it is a `.gl` record-shape question, not a census
+one. The `dtor` and `ctor` rows are *not* laundered into the generated bucket
+without evidence; an implicitly-declared destructor plausibly has no IL body, but
+plausibly is not measured.
+
+### 8.7 The near-match TUs, and 14 of the published 46 have no functions at all
+
+`docs/ROADMAP.md` §8.2's leading indicator reconciles **exactly**, and the
+reconciliation matters:
+
+| distance | measured TUs | + TUs with no functions | published |
+|---|---:|---:|---:|
+| ≤ 0 | 1 | 14 | 15 |
+| ≤ 1 | 10 | 14 | **24** |
+| ≤ 100 | 32 | 14 | **46** |
+| ≤ 1000 | 207 | 14 | 221 |
+
+The 14 are 7 `capture-fail` (never measured), 5 `match` empty modules and 2
+deliberately-refused empty ones. **So the actionable near-match set is 32, not
+46** — and 24-within-1 is really 10.
+
+| blocked | emitted | in class | src |
+|---:|---:|---:|---|
+| 0 | 2 | 2 | `src/system/utl/Spew.cpp` (match) |
+| 1 | 1 | 0 | `src/Main.cpp` |
+| 1 | 1 | 0 | `src/system/math/Primes.cpp` |
+| 1 | 1 | 0 | `src/system/math/Sort.cpp` |
+| 1 | 1 | 0 | `src/xdk/LIBCMT/osfinfo.cpp` |
+| 1 | 1 | 0 | `src/xdk/LIBCMT/undname.cpp` |
+| 1 | 1 | 0 | `src/xdk/LIBCMT/vswprnc.cpp` |
+| 1 | 1 | 0 | `src/xdk/nuispeech/xboxheap.cpp` |
+| 1 | 1 | 0 | `src/xdk/xjson/jsonwriter.cpp` |
+| 1 | 1 | 0 | `src/xdk/xlrc/xlrcimpl.cpp` |
+| 2 | 1 | 0 | `src/ChecksumData_xbox.cpp` |
+| 2 | 2 | 0 | `src/system/negate_test.cpp` |
+| 2 | 2 | 0 | `src/system/synth_xbox/Biquad.cpp` |
+| 2 | 2 | 0 | `src/xdk/LIBCMT/vsnprnc.cpp` |
+| 3 | 3 | 0 | `src/system/rndobj/wordwrap.cpp` |
+| 3 | 3 | 0 | `src/system/utl/Pool.cpp` |
+| 3 | 1 | 0 | `src/xdk/nuiapi/nuidetroit.cpp` |
+| 3 | 11 | 8 | `src/xdk/nuispeech/mmio.cpp` |
+| 4 | 4 | 0 | `src/system/synth_xbox/IPP_basicmath_xbox.cpp` |
+| 4 | 4 | 0 | `src/xdk/nuispeech/xboxmem.cpp` |
+| 5 | 5 | 0 | `src/system/utl/EncryptXTEA.cpp` |
+| 7 | 3 | 0 | `src/system/net/JsonMemory.cpp` |
+| 8 | 2 | 0 | `src/system/math/Rand2.cpp` |
+| 8 | 7 | 1 | `src/system/oggvorbis/VorbisMem.cpp` |
+| 8 | 13 | 1 | `src/system/synth_xbox/MeterEffect.cpp` |
+| 12 | 14 | 1 | `src/system/synth_xbox/HeadsetXferEffect.cpp` |
+| 14 | 6 | 0 | `src/system/os/CritSec.cpp` |
+| 18 | 20 | 2 | `src/keygen_xbox.cpp` |
+| 19 | 24 | 8 | `src/system/utl/TempoMap.cpp` |
+| 23 | 14 | 0 | `src/xdk/LIBCMT/rtti.cpp` |
+| 27 | 9 | 2 | `src/xdk/nuiapi/headtracker.cpp` |
+| 91 | 45 | 9 | `src/system/synth/Pollable.cpp` |
+
+**Read the `blocked` and `emitted` columns together.** In 22 of the 32, `blocked`
+and `emitted` are within one or two of each other — every remaining blocked body
+in those TUs is a body c2 emits, so the distance is real work, not bookkeeping.
+Nine of them are one blocked *emitted* function away from a whole byte-exact TU,
+which is the cheapest thing on the board that moves the payoff metric.
+
+### 8.8 What this does not do, and what it costs
+
+* **It changes nothing.** Census 697,251 / 2,462,571, disagreement 0, mismatch 0,
+  gate 12/12 with 2,412 fixture-verdicts — all identical to the pre-change
+  baseline. `EmitBinding` is read by the report and by nothing else; the emitter,
+  `shape_to_function` and acceptance never see it.
+* **The gate's own framing predicate is untouched.** Loosening
+  `codec::gl_offset_framed` would move the accepted class, and this is
+  instrumentation. That the instrument's framing is the better reading of the
+  format is now recorded (`the_gates_framing_sees_one_record_where_the_instrument
+  _sees_three`); acting on it is a separate, gated decision.
+* **`emit-in-class` is still not oracle-graded per function.** It is graded per
+  function *only* on the 6 byte-exact TUs. What it fixes is narrower and worth
+  stating exactly: the numerator now has a denominator made of code that appears
+  in an obj, so it is at least the kind of claim a byte compare *could* grade.
+* **Cost**: one extra `.gl` pass per TU. Warm-cache scan 3.7 s for 878 TUs.

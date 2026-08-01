@@ -29,7 +29,14 @@ pub(crate) const LO_MARKER: [u8; 3] = [0x4C, 0x4F, 0x11];
 /// `4F 1F` would collide; the later one then starts at its own `LO`, which
 /// simply blocks it at `formals-marker` — an honest miss, never a merge that
 /// would silently drop a function from the denominator.
-pub(crate) fn split_function_bodies(ex: &[u8]) -> Vec<&[u8]> {
+/// Each segment's `.ex` offset is returned alongside it, because the offsets are
+/// the join key of the emitted-function binding
+/// ([`super::bind::EmitBinding`]): a `.gl` record's body-start offset is bound to
+/// the segment that CONTAINS it, so the census row and the obj symbol are two
+/// readings of one function. Returned rather than recovered by pointer arithmetic
+/// on the slices (`seg.as_ptr() - ex.as_ptr()`), which would be an unchecked
+/// invariant exactly where a wrong answer is invisible.
+pub(crate) fn split_function_bodies_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
     // Body markers, in file order. Same walk as the old byte loop (a match
     // consumes 3 bytes, a miss 1); candidates are found word-at-a-time.
     let mut los: Vec<usize> = Vec::new();
@@ -47,7 +54,7 @@ pub(crate) fn split_function_bodies(ex: &[u8]) -> Vec<&[u8]> {
         }
     }
     if los.is_empty() {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
     // Function-start markers, in file order, for the "nearest preceding" lookup.
     let mut starts: Vec<usize> = Vec::new();
@@ -76,13 +83,14 @@ pub(crate) fn split_function_bodies(ex: &[u8]) -> Vec<&[u8]> {
         let cand = if segs_start.last() == Some(&cand) { lo } else { cand };
         segs_start.push(cand);
     }
-    (0..segs_start.len())
+    let segs = (0..segs_start.len())
         .map(|k| {
             let start = segs_start[k];
             let end = segs_start.get(k + 1).copied().unwrap_or(ex.len());
             &ex[start..end.max(start)]
         })
-        .collect()
+        .collect();
+    (segs_start, segs)
 }
 
 /// True iff `.ex` positively declares a module with **no function bodies**

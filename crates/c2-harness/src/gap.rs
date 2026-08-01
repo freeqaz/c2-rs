@@ -249,6 +249,85 @@ pub struct TuResult {
     ///   `dtor-callee-other` is the count that says the binding names something
     ///   the shape cannot delegate to, and its known answer is 0.
     pub bind_checks: BTreeMap<String, usize>,
+    /// **The emitted-function census** (`docs/GAPS.md` §8, `docs/ROADMAP.md`
+    /// §8.2) — the per-TU join between the census's rows and the *reference
+    /// obj's* `.text` COMDAT leaders.
+    ///
+    /// The per-body census counts **IL bodies**, and c2 emits 7.23 % of them. A
+    /// body it never emits needs the port to *skip* it, not to lower it, and no
+    /// byte compare has ever graded such a body or ever can — the differential
+    /// grades whole objs and those objs do not contain it. So the numerator's
+    /// overlap with emitted code is the softest number in the project, and this
+    /// map is the measurement of it.
+    ///
+    /// Rows, all of which print on every scan:
+    ///
+    /// * `emit-emitted` — `.text*` COMDAT leaders in the reference obj. **The
+    ///   denominator.**
+    /// * `emit-bound` — of those, symbols exactly one census row claims.
+    /// * `emit-in-class` — of *those*, rows the census calls in class. **The
+    ///   read-out.**
+    /// * `emit-residue-generated` — unbound, and the name is a compiler-generated
+    ///   form (`??_G` scalar-deleting destructor, `??_E` vector-deleting, `??_D`
+    ///   vector destructor iterator, `??__E`/`??__F` dynamic init/atexit thunks).
+    ///   c2 synthesizes these; **they have no `.ex` body at all**, so nothing
+    ///   could bind them, and they are separated from the unexplained residue for
+    ///   that reason and not to make the number look better.
+    /// * `emit-residue-unbound` — unbound and *not* explained. The honest residue.
+    /// * `emit-obj-unreadable` — the obj's COFF headers did not decode, so this
+    ///   TU contributes **no** denominator rather than a short one.
+    /// * `emit-record-*`, `emit-row-conflict`, `emit-name-conflict` — the
+    ///   binding's own self-report ([`c2_il::EmitBinding`]).
+    /// * `emit-accounting-broken` — the totality identity failed. Known answer 0.
+    /// * `emit-match-tu-residue` — on a TU the port compiles **byte-exact**, an
+    ///   emitted symbol the binding did not bind to an in-class row. The port's
+    ///   obj *is* c2's there, so the answer is known exactly and the known answer
+    ///   is 0. This is the one place the binding can be graded against ground
+    ///   truth rather than against its own invariants.
+    pub emit: BTreeMap<String, usize>,
+    /// **The emitted-only blocking histogram**: the census key of every
+    /// out-of-class row that binds to a symbol c2 actually emitted.
+    ///
+    /// Separate from [`TuResult::fn_blockers`] and never merged into it. That
+    /// histogram is the widening order over all 2.46 M IL bodies; this one is the
+    /// widening order over the 178 k the compiler emits, and the two rank
+    /// differently by construction — a row made of header-inline bodies is large
+    /// in the first and can be empty in the second.
+    pub emit_blockers: BTreeMap<String, usize>,
+}
+
+///
+/// These appear as emitted `.text` COMDATs and can never bind to a census row,
+/// because there is no row: the front end did not hand c2 a body for them.
+/// Counted in their own residue bucket so the unexplained residue stays
+/// unexplained instead of being diluted by a population that is explained.
+///
+/// The prefixes are MSVC's documented generated-symbol forms: `??_G` scalar
+/// deleting destructor, `??_E` vector deleting destructor, `??_D` vector
+/// destructor iterator, `??__E` dynamic initializer, `??__F` dynamic atexit
+/// destructor.
+/// The MSVC mangling class of `name`, for naming the unbound residue.
+///
+/// Coarse on purpose — it separates the populations that would be explained by
+/// different stories, and nothing finer is measured.
+fn mangling_class(name: &str) -> &'static str {
+    match name {
+        n if n.starts_with("??1") => "dtor",
+        n if n.starts_with("??0") => "ctor",
+        n if n.starts_with("??_") => "special-generated",
+        n if n.starts_with("??$") => "template-operator",
+        n if n.starts_with("??") => "operator",
+        n if n.starts_with("?$") => "template",
+        n if n.starts_with('?') => "ordinary",
+        _ => "undecorated",
+    }
+}
+
+/// Whether `name` is a function **c2 synthesizes**, with no `.ex` body behind it.
+fn is_compiler_generated(name: &str) -> bool {
+    ["??_G", "??_E", "??_D", "??__E", "??__F"]
+        .iter()
+        .any(|p| name.starts_with(p))
 }
 
 /// Aggregated scan report.
@@ -428,6 +507,83 @@ impl GapReport {
         merge_counts(self.results.iter().map(|r| &r.bind_checks))
     }
 
+    /// **The emitted-function census**, aggregated (see [`TuResult::emit`]).
+    pub fn emit_histogram(&self) -> Vec<(String, usize)> {
+        merge_counts(self.results.iter().map(|r| &r.emit))
+    }
+
+    /// One aggregated emitted-census row.
+    pub fn emit_total(&self, key: &str) -> usize {
+        self.results
+            .iter()
+            .map(|r| r.emit.get(key).copied().unwrap_or(0))
+            .sum()
+    }
+
+    /// **The read-out**: (in class ∩ emitted, emitted). The ratio is what
+    /// `docs/ROADMAP.md` §8.2 ranks the plan by, and it is a **floor** — every
+    /// emitted symbol the binding could not claim is residue, never a numerator.
+    pub fn emit_coverage(&self) -> (usize, usize) {
+        (self.emit_total("emit-in-class"), self.emit_total("emit-emitted"))
+    }
+
+    /// The unbound residue, split: (compiler-generated with no IL body,
+    /// unexplained). The second number is the one that has to shrink; the first
+    /// is a population no binding could ever claim.
+    pub fn emit_residue(&self) -> (usize, usize) {
+        (
+            self.emit_total("emit-residue-generated"),
+            self.emit_total("emit-residue-unbound") + self.emit_total("emit-name-two-rows"),
+        )
+    }
+
+    /// **The emitted-only widening order**: blocking features restricted to rows
+    /// that bind to a symbol c2 emitted, most frequent first.
+    pub fn emit_blocker_histogram(&self) -> Vec<(String, usize)> {
+        merge_counts(self.results.iter().map(|r| &r.emit_blockers))
+    }
+
+    /// **Ground truth.** On a TU the port compiles byte-exact, c2's emitted set
+    /// *is* the port's, which came from the gate's own per-record binding — so
+    /// the emitted census must read `in-class == emitted` with an empty residue.
+    /// Returns how many emitted symbols on `match` TUs the binding failed to
+    /// bind to an in-class row. **Known answer: 0.**
+    ///
+    /// This is the only check on the binding that is not a self-invariant. The
+    /// oracle cannot grade a correspondence in general — but on a byte-exact TU
+    /// it has already graded the whole symbol table, so the answer is known and
+    /// the binding can be held to it.
+    pub fn emit_match_tu_residue(&self) -> usize {
+        self.results
+            .iter()
+            .filter(|r| r.class == TuClass::Match)
+            .map(|r| {
+                let e = r.emit.get("emit-emitted").copied().unwrap_or(0);
+                let i = r.emit.get("emit-in-class").copied().unwrap_or(0);
+                e.saturating_sub(i)
+            })
+            .sum()
+    }
+
+    /// TUs ordered by **distance to matching** — how many of their functions are
+    /// blocked — keeping only those at or below `max_blocked`, nearest first.
+    ///
+    /// `docs/ROADMAP.md` §8.2 makes TU match the payoff metric and this
+    /// distribution its leading indicator; the emitted census is what says
+    /// whether a given TU's remaining distance is real work or bookkeeping.
+    /// `capture-fail` TUs are excluded: they have no census at all, so a
+    /// distance of 0 there means "never measured", not "nearly done".
+    pub fn near_match_tus(&self, max_blocked: usize) -> Vec<&TuResult> {
+        let mut v: Vec<&TuResult> = self
+            .results
+            .iter()
+            .filter(|r| r.class != TuClass::CaptureFail && r.fn_total > 0)
+            .filter(|r| r.fn_total - r.fn_in_class <= max_blocked)
+            .collect();
+        v.sort_by_key(|r| (r.fn_total - r.fn_in_class, r.src.clone()));
+        v
+    }
+
     /// The binding invariant that must be **zero**: a generated destructor bound to
     /// a callee that is not a destructor. Nonzero means the `.gl` reader is naming
     /// the wrong symbol in a way no obj comparison over this corpus could have
@@ -581,6 +737,8 @@ fn scan_one(
         fn_prod: BTreeMap::new(),
         fn_gate_refusals: BTreeMap::new(),
         bind_checks: BTreeMap::new(),
+        emit: BTreeMap::new(),
+        emit_blockers: BTreeMap::new(),
     };
 
     // 1. Capture: real flags, real cwd, strace keeps bundle + obj. Served from
@@ -737,7 +895,94 @@ fn scan_one(
                 }
             }
         }
+        // 1e. **The emitted-function census** (`docs/GAPS.md` §8). The census
+        //     above counts IL bodies; this counts the functions c2 *emitted*, and
+        //     says how many of those the port's accepted class covers. It is the
+        //     only reading of the numerator that a byte compare could ever have
+        //     graded, because it is the only one restricted to code that appears
+        //     in an obj.
+        //
+        //     The join is: census row --(`.gl` body-offset record)--> mangled name
+        //     --(`.text` COMDAT leader)--> emitted. Both halves fail closed, and
+        //     every failure lands in a printed residue row rather than adjusting
+        //     a denominator downwards, which would inflate the ratio.
+        match captured.ref_obj.text_comdat_functions() {
+            None => {
+                *res.emit.entry("emit-obj-unreadable".into()).or_insert(0) += 1;
+            }
+            Some(emitted) => {
+                // Which rows claim which emitted symbol. A symbol two rows claim
+                // is not bound to either — `EmitBinding` already drops those, so
+                // this can only see a repeat when two DISTINCT sections carry one
+                // name, which is itself a thing to count rather than to average.
+                let mut claim: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+                for (i, (f, _)) in census.iter().enumerate() {
+                    if let Some(n) = f.emit_name.as_deref() {
+                        claim.entry(n).or_default().push(i);
+                    }
+                }
+                *res.emit.entry("emit-emitted".into()).or_insert(0) += emitted.len();
+                for name in &emitted {
+                    match claim.get(name.as_str()).map(Vec::as_slice) {
+                        Some([row]) => {
+                            *res.emit.entry("emit-bound".into()).or_insert(0) += 1;
+                            let f = &census[*row].0;
+                            if f.verdict.in_class() {
+                                *res.emit.entry("emit-in-class".into()).or_insert(0) += 1;
+                            } else {
+                                *res.emit_blockers.entry(f.verdict.key()).or_insert(0) += 1;
+                            }
+                        }
+                        Some(_) => {
+                            *res.emit.entry("emit-name-two-rows".into()).or_insert(0) += 1;
+                        }
+                        None if is_compiler_generated(name) => {
+                            *res.emit
+                                .entry("emit-residue-generated".into())
+                                .or_insert(0) += 1;
+                        }
+                        None => {
+                            *res.emit.entry("emit-residue-unbound".into()).or_insert(0) += 1;
+                            // …and WHAT it is, by mangling class. A residue
+                            // reported only as a number is a rumour; these rows
+                            // are what a follow-up lane would attack, and they
+                            // are also the check on the story: if the residue
+                            // were really "c2 synthesized it", it would be
+                            // concentrated in the special-member classes, and if
+                            // it is spread across ordinary `?…` functions then
+                            // the BINDING is losing them and the reader is what
+                            // needs work.
+                            *res.emit
+                                .entry(format!("emit-residue-unbound|{}", mangling_class(name)))
+                                .or_insert(0) += 1;
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    // 1f. The emit binding's own self-report. Printed on every scan, whether or
+    //     not the obj was readable, so a residue cannot disappear by the route
+    //     `prod-entered-untagged` had to be dragged out of: an absence.
+    if let Some(b) = captured.bundle.emit_binding() {
+        for (key, n) in [
+            ("emit-records", b.records),
+            ("emit-record-outside", b.records_outside),
+            ("emit-record-nameless", b.records_nameless),
+            ("emit-row-conflict", b.dropped_row_conflict),
+            ("emit-name-conflict", b.dropped_name_conflict),
+        ] {
+            if n > 0 {
+                *res.emit.entry(key.into()).or_insert(0) += n;
+            }
+        }
+        let (found, accounted) = b.accounting();
+        if found != accounted {
+            *res.emit.entry("emit-accounting-broken".into()).or_insert(0) += 1;
+        }
+    }
+
     if let Some(gl) = captured.bundle.get("gl") {
         let (dropped, mangled) = c2_il::gl_symbol_conflicts(gl);
         if dropped > 0 {
@@ -973,9 +1218,21 @@ pub fn gap_scan(
                 .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
                 .collect::<Vec<_>>()
                 .join(",");
+            let emit = r
+                .emit
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
+            let emit_blockers = r
+                .emit_blockers
+                .iter()
+                .map(|(k, n)| format!("{}:{}", crate::jstr(k), n))
+                .collect::<Vec<_>>()
+                .join(",");
             writeln!(
                 f,
-                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}}}}",
+                "{{\"src\":{},\"class\":{},\"reason\":{},\"detail\":{},\"ex_len\":{},\"fn_names\":{},\"replay_ok\":{},\"fn_total\":{},\"fn_in_class\":{},\"fn_blockers\":{{{}}},\"fn_frames\":{{{}}},\"fn_cflow\":{{{}}},\"fn_eh\":{{{}}},\"fn_dispatch\":{{{}}},\"fn_prod\":{{{}}},\"fn_gate_refusals\":{{{}}},\"bind_checks\":{{{}}},\"emit\":{{{}}},\"emit_blockers\":{{{}}}}}",
                 crate::jstr(&r.src),
                 crate::jstr(r.class.label()),
                 crate::jstr(&r.reason),
@@ -996,6 +1253,8 @@ pub fn gap_scan(
                 prod,
                 gate,
                 binds,
+                emit,
+                emit_blockers,
             )?;
         }
     }
@@ -1052,6 +1311,8 @@ mod tests {
             fn_prod: BTreeMap::new(),
             fn_gate_refusals: BTreeMap::new(),
             bind_checks: BTreeMap::new(),
+            emit: BTreeMap::new(),
+            emit_blockers: BTreeMap::new(),
         }
     }
 
@@ -1063,6 +1324,120 @@ mod tests {
             vec![("b".to_string(), 2), ("a".to_string(), 1)]
         );
         assert_eq!(rep.count(TuClass::Match), 0);
+    }
+
+    /// A TU whose emitted census is spelled out: `emitted` symbols, of which
+    /// `bound` bound, `in_class` in class, and `gen`/`other` in the two residue
+    /// buckets.
+    fn mk_emit(
+        class: TuClass,
+        emitted: usize,
+        bound: usize,
+        in_class: usize,
+        gen: usize,
+        other: usize,
+    ) -> TuResult {
+        let mut r = mk("x");
+        r.class = class;
+        r.fn_total = emitted;
+        r.fn_in_class = in_class;
+        for (k, n) in [
+            ("emit-emitted", emitted),
+            ("emit-bound", bound),
+            ("emit-in-class", in_class),
+            ("emit-residue-generated", gen),
+            ("emit-residue-unbound", other),
+        ] {
+            if n > 0 {
+                r.emit.insert(k.into(), n);
+            }
+        }
+        r
+    }
+
+    /// The read-out and its residue aggregate across TUs, and the denominator is
+    /// the emitted count — never reduced by what failed to bind, which would
+    /// inflate the ratio.
+    #[test]
+    fn the_emitted_census_aggregates_and_keeps_its_denominator_whole() {
+        let a = mk_emit(TuClass::VocabGap, 100, 90, 20, 4, 6);
+        let b = mk_emit(TuClass::VocabGap, 50, 45, 5, 1, 4);
+        let rep = mk_report(vec![a, b]);
+        assert_eq!(
+            rep.emit_coverage(),
+            (25, 150),
+            "the read-out is in-class over EMITTED, not over bound"
+        );
+        assert_eq!(
+            rep.emit_residue(),
+            (5, 10),
+            "the residue splits into generated-with-no-body and unexplained"
+        );
+        assert_eq!(
+            rep.emit_total("emit-bound") + rep.emit_residue().0 + rep.emit_residue().1,
+            150,
+            "bound + residue must account for every emitted symbol"
+        );
+    }
+
+    /// GROUND TRUTH, and its NEGATIVE CONTROL. On a byte-exact TU the oracle has
+    /// already graded the whole symbol table, so the binding's answer there is
+    /// checkable: every emitted symbol must bind to an in-class row.
+    ///
+    /// The guard's quantity — one `match` TU with 40 emitted functions — is held
+    /// FIXED across the two halves; only how many of them the binding claimed
+    /// moves. Without that, the second half could pass by the TU no longer being
+    /// a `match` at all, and the assertion under test would never run.
+    #[test]
+    fn a_match_tu_whose_emitted_symbols_do_not_all_bind_is_a_binding_defect() {
+        let good = mk_emit(TuClass::Match, 40, 40, 40, 0, 0);
+        let rep = mk_report(vec![good, mk_emit(TuClass::VocabGap, 100, 50, 10, 20, 30)]);
+        assert_eq!(rep.count(TuClass::Match), 1, "control: one byte-exact TU");
+        assert_eq!(
+            rep.emit_match_tu_residue(),
+            0,
+            "control: a byte-exact TU with every symbol bound and in class reads 0"
+        );
+
+        let bad = mk_emit(TuClass::Match, 40, 37, 37, 0, 3);
+        let rep = mk_report(vec![bad, mk_emit(TuClass::VocabGap, 100, 50, 10, 20, 30)]);
+        assert_eq!(
+            rep.count(TuClass::Match),
+            1,
+            "the mutation must not change the number of byte-exact TUs — otherwise \
+             this control tests the class filter, not the binding"
+        );
+        assert_eq!(
+            rep.emit_match_tu_residue(),
+            3,
+            "three emitted symbols the port provably emitted correctly did not bind \
+             to an in-class row: the binding is wrong there, and it must say so"
+        );
+    }
+
+    /// The near-match table is the payoff metric's leading indicator, and a
+    /// `capture-fail` TU must not appear in it: it has no census, so its distance
+    /// of 0 means "never measured", not "nearly done".
+    #[test]
+    fn the_near_match_table_excludes_the_tus_that_were_never_measured() {
+        let mut near = mk_emit(TuClass::VocabGap, 10, 10, 9, 0, 0);
+        near.src = "near.cpp".into();
+        near.fn_total = 10;
+        near.fn_in_class = 9;
+        let mut far = mk_emit(TuClass::VocabGap, 500, 400, 10, 0, 0);
+        far.src = "far.cpp".into();
+        far.fn_total = 500;
+        far.fn_in_class = 10;
+        let mut unmeasured = mk("c1083");
+        unmeasured.class = TuClass::CaptureFail;
+        unmeasured.src = "never-captured.cpp".into();
+        let rep = mk_report(vec![near, far, unmeasured]);
+        let got: Vec<&str> = rep.near_match_tus(100).iter().map(|r| r.src.as_str()).collect();
+        assert_eq!(
+            got,
+            vec!["near.cpp"],
+            "only the measured TU within 100 blocked functions may appear"
+        );
     }
 
     #[test]
