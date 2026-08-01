@@ -475,6 +475,21 @@ pub(crate) enum Structural {
     Scopes,
     /// More than [`MAX_STMTS`] statements. A body this long is not a rung.
     StmtLimit,
+    /// **Arithmetic on a pointer value inside a call argument.** `parse_expr`
+    /// refuses it (`p + 1` on an `int*` is `addi r3,r3,4`, so a modeled chain
+    /// that added 1 would be wrong bytes rather than a gap) and #139 gave the
+    /// measure the same rule.
+    ///
+    /// It is a NAMED construct rather than the byte the run stopped in front
+    /// of, and that is not cosmetic: the first cut of #139's repair filed this
+    /// refusal as `…-then-op-0x55`, i.e. the `55` call-end marker, which names
+    /// the position instead of the construct — the precise disease #139 exists
+    /// to cure, reintroduced by its own fix. `fixtures/cpp/wrr_arg_vocab_neg.cpp`
+    /// caught it.
+    PtrArith,
+    /// The one-byte-unsigned twin of [`Structural::PtrArith`]: the class is free
+    /// to be *moved*, and neither computed on nor mixed with a width-4 value.
+    Int1uMisuse,
 }
 
 impl Structural {
@@ -483,6 +498,8 @@ impl Structural {
             Structural::BodyMarker => 1,
             Structural::Scopes => 2,
             Structural::StmtLimit => 3,
+            Structural::PtrArith => 4,
+            Structural::Int1uMisuse => 5,
         }
     }
     fn from_code(c: u64) -> Option<Structural> {
@@ -490,6 +507,8 @@ impl Structural {
             1 => Structural::BodyMarker,
             2 => Structural::Scopes,
             3 => Structural::StmtLimit,
+            4 => Structural::PtrArith,
+            5 => Structural::Int1uMisuse,
             _ => return None,
         })
     }
@@ -498,6 +517,8 @@ impl Structural {
             Structural::BodyMarker => "struct-body-marker",
             Structural::Scopes => "struct-scopes",
             Structural::StmtLimit => "struct-stmt-limit",
+            Structural::PtrArith => "ptr-arith",
+            Structural::Int1uMisuse => "int1u-misuse",
         }
     }
 }
@@ -1527,6 +1548,16 @@ impl Fail {
         }
     }
 
+    /// Record a refusal that must WIN a tie — for a refusal that is a property
+    /// of a whole run rather than of one byte, and so is strictly more specific
+    /// than any single-token note already sitting at the same offset.
+    fn note_forcing(&mut self, at: usize, kind: FailKind) {
+        if at >= self.at {
+            self.at = at;
+            self.kind = kind;
+        }
+    }
+
     /// Name the **construct** at the refusal. Every arm is a construct or an
     /// honest hex bucket; none of them is a position.
     fn blocker(&self, seg: &[u8]) -> Blocker {
@@ -2422,7 +2453,21 @@ impl Stream {
     /// Exactly `parse_expr`'s two guards, in the same order and on the same
     /// conditions. Only meaningful where the position HAS an emitter.
     fn emitter_would_refuse(&self) -> bool {
-        (self.ptr && self.arith) || (self.int1u && (self.arith || self.wide))
+        self.which_refusal_opt().is_some()
+    }
+
+    fn which_refusal_opt(&self) -> Option<Structural> {
+        if self.ptr && self.arith {
+            Some(Structural::PtrArith)
+        } else if self.int1u && (self.arith || self.wide) {
+            Some(Structural::Int1uMisuse)
+        } else {
+            None
+        }
+    }
+
+    fn which_refusal(&self) -> Structural {
+        self.which_refusal_opt().expect("only called when a refusal was found")
     }
 }
 
@@ -2436,7 +2481,17 @@ fn eat_int_operands(seg: &[u8], p: &mut usize, v: Vocab, adm: Admit, fail: &mut 
     macro_rules! finish {
         () => {
             if n > 0 && v == Vocab::CallArg && st.emitter_would_refuse() {
-                fail.note(*p, FailKind::Value);
+                // Name the CONSTRUCT, never the byte the run stopped in front
+                // of — see [`Structural::PtrArith`] for what filing this as
+                // `op-0x55` cost and how it was caught.
+                //
+                // Forced, and at the furthest position the run reached: a
+                // stream refusal is a property of the WHOLE operand run, not of
+                // one offset, and [`Fail::note`] gives ties to the first note —
+                // which is the `FailKind::Value` this very loop records one line
+                // before returning. That tie is exactly how `op-0x55` survived
+                // the first attempt at naming this.
+                fail.note_forcing(fail.at.max(*p), FailKind::Struct(st.which_refusal()));
                 false
             } else {
                 n > 0
