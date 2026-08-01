@@ -59,7 +59,17 @@ cross without a translation table. Three enumerated portable tests, no toolchain
 **Read-only over the census, run rather than argued.** The 878-TU scan with the
 refined tag reproduces the aggregate report **line for line** (the only
 difference is the wall clock) and **161,262 of 161,262** dump rows are identical
-outside the tag column. `c2rs perf` geomean 540× at base, 541×/547× at tip.
+outside the tag column. The tag-coverage residue stays **0** — no body enters a
+production, declines, and reaches an untagged bail. `c2rs perf` geomean 540× at
+base, 541×/547× at tip.
+
+**And it lands on two published figures it was not fitted to.** §9.13 derived,
+by hand and from a different join, that 3,062 emitted rows of
+`expr-intrinsic-this-adjust` are clean, and that **135,926** of that row's
+135,941 bodies decline at `eat_receiver_this`. The new axis reads **3,062** and
+**135,923** — the second differing by 3 bodies across the two HEADs. A
+decomposition agreeing to the unit with a number computed a different way is what
+separates this from a relabelling.
 
 #### 9.17.2 The first version of the axis repeated §9.14.7's disease, and the workload caught it
 
