@@ -215,6 +215,15 @@ undecidable bucket.
 | the key names something else | 419 | 5.3 % |
 | undecidable | **0** | — |
 
+**The undecidable row is 0 because the first version of it was 4,651**, and that
+is a dead end worth naming. The noun map was written from the arm names this
+lane *expected* rather than the ones it *measured*, so no intrinsic arm matched
+and 59 % of the population fell into a bucket the control could not judge. It
+printed 40.6 % agreement, which is a number, looks like a result, and is an
+artefact of the map. **A control whose denominator quietly absorbs the cases it
+cannot judge is not a control** — the undecidable count is printed on every run
+for exactly that reason, and it is what caught this.
+
 **Registered 55 %, interval [25 %, 85 %]. Measured 94.7 % — a MISS above the
 ceiling, and it corrects a published sentence.** §9.13 wrote that these rows'
 census key "names the second reader's stop, not the first reader's refusal",
