@@ -155,6 +155,43 @@ offered and declined. Any ranking that reads 25,654 as "receiver work" is over b
 at least 2,060 and by more than that on the arms whose `calls-0` share is
 partial.
 
+#### 9.17.3a #142's own four keys reconcile — and three of them are not the stock they were listed as
+
+The board item names four keys and their sizes. Three reproduce **to the
+function** at this HEAD and the fourth ages by 80:
+
+| key | #142 said | at the site | **clean ∧ ¬complete** | anywhere |
+|---|---:|---:|---:|---:|
+| `expr-op-0x27` | 5,629 | **5,709** | **2,864** | 22,759 |
+| `expr-brfalse` | 1,484 | **1,484** | **0** | 3,102 |
+| `assign-store-type-0x86` | 1,138 | **1,138** | **25** | 1,138 |
+| `expr-intrinsic-dynamic-cast` | 1,003 | **1,003** | **543** | 1,235 |
+| total | 9,254 | 9,334 | **3,432** | 28,234 |
+
+That resolves an arithmetic oddity in the item itself: it describes a **7,712**
+population and then lists four keys totalling **9,254**. The lists are of
+different things — the four keys' site totals include rows that are not clean —
+and in the units the item is actually about they come to **3,432, i.e. 44 % of
+the 7,840**.
+
+The per-key decomposition says where each really is:
+
+* **`expr-brfalse` contributes 0.** All 1,475 of its site rows are
+  `b9-not-a-ptr4`, and a `brfalse` body is not `cflow-straight`, so none of it
+  was ever in the clean stock it was listed under.
+* **`assign-store-type-0x86` contributes 25**, and 1,100 of its 1,138 are
+  `then-store` — the assignment population of §9.17.3, not member calls.
+* **`expr-op-0x27` contributes 2,864**, 5,545 of it the `then-off-add` receiver.
+* **`expr-intrinsic-dynamic-cast` splits 543 / 460** between the two positions
+  (`then-` and `no-b9-`) and the split sums to the board's 1,003 exactly.
+
+The largest single arm of the clean stock — `no-b9-this-adjust`, 3,062 —
+**appears in none of the four**, because it files under `expr-intrinsic-this-adjust`
+and that row is already boards #127/#140. So the board's own shortlist covered
+44 % of the population and omitted its largest member. Selecting the rows someone
+had already looked at is the same shape §9.14.2 records for #139's 1.69×
+under-sizing and §8.6 records for the three control-flow keys.
+
 #### 9.17.4 The blocker names ARE trustworthy — and §9.14's repair is not why
 
 The brief asked whether the repaired completeness walker made the names
