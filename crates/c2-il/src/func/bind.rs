@@ -270,6 +270,51 @@ fn emit_offset_framed(gl: &[u8], o: usize) -> bool {
         && gl[o - 1] == 0x00
 }
 
+/// **Every name that owns a framed `.gl` body-start record**, whether or not
+/// [`EmitBinding`] managed to bind it to a census row (W-EMITSET).
+///
+/// A record with a body-start offset is c1xx saying *this translation unit has
+/// a body for this symbol*. [`EmitBinding`] then answers the harder question —
+/// *which `.ex` segment is that body* — and loses 9.89 % of c2's emitted
+/// symbols to `records_nameless`, `dropped_row_conflict` and
+/// `dropped_name_conflict`. The two failures look identical downstream and they
+/// are not the same thing at all:
+///
+/// * an emitted symbol with **no** record here has no body in this bundle, so a
+///   port that emits one COMDAT per `.ex` segment can never produce it — a
+///   **wall**, closable only by synthesizing the COMDAT;
+/// * an emitted symbol **with** a record here does have a body and the row
+///   binding merely failed to find it — an **instrument defect**, closable by
+///   fixing this file.
+///
+/// The emit-set ceiling of `docs/ROADMAP.md` §9.16.3 is stated over the first
+/// and measured over the second, so it cannot be read until they are separated.
+/// That separation is this function's whole job.
+///
+/// **Diagnostic only.** Nothing in the gate, the census verdict or the emitter
+/// consults it; `c2rs gap` reports the counts. Same framing and same
+/// name-distance bound as [`EmitBinding::new`] — deliberately, so a difference
+/// in the two answers is a difference in the *binding*, never in the reader.
+pub fn gl_body_record_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    let runs = gl_symbol_runs(gl);
+    let ends: Vec<usize> = runs.iter().map(|&(_, end, _)| end).collect();
+    let mut out = std::collections::BTreeSet::new();
+    let mut p = 0usize;
+    while p + 5 <= gl.len() {
+        if !emit_offset_framed(gl, p) {
+            p += 1;
+            continue;
+        }
+        if let k @ 1.. = ends.partition_point(|&e| e <= p) {
+            if p - ends[k - 1] <= EMIT_MAX_NAME_TO_OFFSET {
+                out.insert(runs[k - 1].2.clone());
+            }
+        }
+        p += 5;
+    }
+    out
+}
+
 /// Everything a `.ex` segment list needs bound to it, built once per bundle.
 ///
 /// There is no "which binding" discriminant field: the two constructors —
@@ -739,6 +784,62 @@ mod tests {
             "BOTH records are lost, and the identity is stated over records"
         );
         assert_eq!(b.accounting(), (2, 2), "the totality identity must hold");
+    }
+
+    /// **W-EMITSET — the wall/defect split, on the case that discriminates it.**
+    ///
+    /// The two records collide on one row, so [`EmitBinding`] binds neither and
+    /// both names are lost. If `gl_body_record_names` were derived from the
+    /// binding it would lose them too, and the emit-set ceiling would read the
+    /// collision as "c2 emitted a symbol with no body" — a wall — when the body
+    /// is right there and it is this file that cannot find it. So the assertion
+    /// is that the two readers **disagree here**, in this direction: the binding
+    /// says nothing, the record scan says both.
+    ///
+    /// `?c@@YAHXZ` is the control that could fail the other way: it binds
+    /// normally, and a record scan that reported only *unbound* names would drop
+    /// it and make the two sets disjoint instead of nested.
+    #[test]
+    fn a_body_record_is_reported_even_when_its_row_binding_collides() {
+        let mut gl = Vec::new();
+        gl.extend_from_slice(&emit_record("?a@@YAHXZ", 0x19AB, 10, 0));
+        gl.extend_from_slice(&emit_record("?b@@YAHXZ", 0x19AB, 20, 0));
+        gl.extend_from_slice(&emit_record("?c@@YAHXZ", 0x1001, 50, 0));
+        let b = EmitBinding::new(&gl, &[0, 40]);
+        assert_eq!(b.name(0), None, "the collided row binds nothing");
+        assert_eq!(b.name(1).as_deref(), Some("?c@@YAHXZ"));
+        let recs = gl_body_record_names(&gl);
+        assert!(
+            recs.contains("?a@@YAHXZ") && recs.contains("?b@@YAHXZ"),
+            "a body the BINDING lost is still a body this bundle has: {recs:?}"
+        );
+        assert!(recs.contains("?c@@YAHXZ"), "and the bound one is not dropped");
+        assert_eq!(recs.len(), 3);
+    }
+
+    /// …and the wall direction, which is the one the ceiling is stated over: a
+    /// symbol with no record at all must NOT be reported. Without this the split
+    /// is vacuous — every name would look like an instrument defect and
+    /// `emit-unbound-no-record` would be 0 by construction, which is exactly the
+    /// absence-read-as-success shape (#144).
+    #[test]
+    fn a_symbol_with_no_body_record_is_not_reported() {
+        let gl = emit_record("?a@@YAHXZ", 0x19AB, 10, 0);
+        let recs = gl_body_record_names(&gl);
+        assert!(recs.contains("?a@@YAHXZ"));
+        assert!(
+            !recs.contains("??_EFoo@@UAAPAXI@Z"),
+            "a vector deleting destructor c2 synthesizes has no record and must \
+             not be invented: {recs:?}"
+        );
+        // …and the name-distance bound applies here exactly as it does in the
+        // binding: a record whose name is 40 bytes away is a record shape this
+        // reader does not know, and guessing is what it exists not to do.
+        let far = emit_record("?far@@YAHXZ", 0x19AB, 10, 40);
+        assert!(
+            !gl_body_record_names(&far).contains("?far@@YAHXZ"),
+            "the name-distance bound must refuse, not borrow"
+        );
     }
 
     /// The identity is stated over records, so a THREE-record collision has to

@@ -1127,6 +1127,62 @@ fn scan_one(
                     }
                 }
                 *res.emit.entry("emit-emitted".into()).or_insert(0) += emitted.len();
+                // **W-EMITSET — the residue split that decides the ceiling.**
+                // §9.16.3 ceilings TU match at 25/871 because the port emits one
+                // COMDAT per `.ex` segment with no emit-set model. The ceiling on
+                // any *model* over `.ex` segments is different and harder: the
+                // port can only ever emit a COMDAT for a body it HAS, under the
+                // name the binding gives it. So an emitted symbol no row claims
+                // is one of two completely different things, and they had been
+                // reported as one number:
+                //
+                // * it has a framed `.gl` body record — the body IS in this
+                //   bundle and `EmitBinding` merely lost the row. **Instrument
+                //   defect**, closable in `bind.rs`.
+                // * it has none — no body, so a segment-driven port must
+                //   SYNTHESIZE the COMDAT. **A wall**, and a different phase.
+                //
+                // `emit-set-ceiling-*` below turns that into a per-TU predicate.
+                let body_records = captured
+                    .bundle
+                    .get("gl")
+                    .map(c2_il::gl_body_record_names)
+                    .unwrap_or_default();
+                let mut unbound_with_body = 0usize;
+                let mut unbound_no_body = 0usize;
+                for name in &emitted {
+                    if matches!(claim.get(name.as_str()).map(Vec::as_slice), Some([_])) {
+                        continue;
+                    }
+                    if body_records.contains(name) {
+                        unbound_with_body += 1;
+                        *res.emit.entry("emit-unbound-has-record".into()).or_insert(0) += 1;
+                    } else {
+                        unbound_no_body += 1;
+                        *res.emit.entry("emit-unbound-no-record".into()).or_insert(0) += 1;
+                        *res.emit
+                            .entry(format!("emit-unbound-no-record|{}", mangling_class(name)))
+                            .or_insert(0) += 1;
+                    }
+                }
+                // The three per-TU ceilings, as counts of TUs (0 or 1 each here;
+                // summed over the scan by the report). Stated as *nested* bounds
+                // so the order of attack is legible:
+                //
+                //  * `today`     — every emitted symbol already binds to a row.
+                //                  The ceiling on a model built on today's binding.
+                //  * `repaired`  — every emitted symbol at least HAS a body record.
+                //                  The ceiling if `bind.rs` were perfect.
+                //  * `wall`      — this TU has an emitted symbol with no body at
+                //                  all, so no binding repair can reach it.
+                if unbound_with_body == 0 && unbound_no_body == 0 {
+                    *res.emit.entry("emit-set-ceiling-today".into()).or_insert(0) += 1;
+                }
+                if unbound_no_body == 0 {
+                    *res.emit.entry("emit-set-ceiling-repaired".into()).or_insert(0) += 1;
+                } else {
+                    *res.emit.entry("emit-set-ceiling-wall".into()).or_insert(0) += 1;
+                }
                 for name in &emitted {
                     match claim.get(name.as_str()).map(Vec::as_slice) {
                         Some([row]) => {
