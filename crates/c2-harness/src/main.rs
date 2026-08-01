@@ -2052,6 +2052,125 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
                 println!("    {count:>7}  {key}");
             }
         }
+        // ---- The EMITTED-function census (`docs/GAPS.md` §8) ----------------
+        //
+        // The headline above counts IL bodies. c2 emits about 7 % of them, and
+        // for a body it never emits "in class" is a parser-only claim no byte
+        // compare has ever graded or ever can. This block is the same numerator
+        // restricted to functions that actually appear in an obj, and it is a
+        // FLOOR: every emitted symbol the binding could not claim is printed as
+        // residue, never folded into the numerator or out of the denominator.
+        let (emit_in_class, emitted) = report.emit_coverage();
+        if emitted > 0 {
+            println!(
+                "\n  EMITTED CENSUS (§8): {emit_in_class}/{emitted} emitted functions in class \
+                 ({:.2}%)",
+                100.0 * emit_in_class as f64 / emitted as f64
+            );
+            let (gen, unexplained) = report.emit_residue();
+            let bound = report.emit_total("emit-bound");
+            println!(
+                "    bound {bound}  |  residue {}: {gen} compiler-generated (no IL body), \
+                 {unexplained} unexplained  ({:.2}% of the denominator)",
+                gen + unexplained,
+                100.0 * (gen + unexplained) as f64 / emitted as f64
+            );
+            println!(
+                "    ceiling if every residue symbol were in class: {} ({:.2}%)",
+                emit_in_class + gen + unexplained,
+                100.0 * (emit_in_class + gen + unexplained) as f64 / emitted as f64
+            );
+            // Ground truth. On a byte-exact TU the oracle has already graded the
+            // whole symbol table, so this binding's answer there is checkable
+            // rather than merely self-consistent. Known answer 0.
+            let mtu = report.count(TuClass::Match);
+            let mres = report.emit_match_tu_residue();
+            if mres == 0 {
+                println!(
+                    "    ground truth: {mtu} byte-exact TUs, every emitted symbol bound to an \
+                     in-class row (residue 0)"
+                );
+            } else {
+                println!(
+                    "    ground truth VIOLATED: {mres} emitted symbols on the {mtu} byte-exact \
+                     TUs did not bind to an in-class row — the BINDING is wrong, not the port"
+                );
+            }
+            let broken = report.emit_total("emit-accounting-broken");
+            let unreadable = report.emit_total("emit-obj-unreadable");
+            println!(
+                "    binding: {} records, {} nameless, {} before the first row, {} row-conflicts, \
+                 {} name-conflicts, {broken} accounting breaks, {unreadable} unreadable objs",
+                report.emit_total("emit-records"),
+                report.emit_total("emit-record-nameless"),
+                report.emit_total("emit-record-outside"),
+                report.emit_total("emit-row-conflict"),
+                report.emit_total("emit-name-conflict"),
+            );
+            // What the unexplained residue IS. A residue reported only as a
+            // number cannot be attacked and cannot be checked; these rows say
+            // whether it is a population c2 synthesizes (concentrated in the
+            // special-member classes) or the binding losing ordinary functions.
+            let by_class: Vec<(String, usize)> = report
+                .emit_histogram()
+                .into_iter()
+                .filter(|(k, _)| k.starts_with("emit-residue-unbound|"))
+                .collect();
+            for (key, n) in by_class.iter().take(10) {
+                println!(
+                    "      residue {:<20} {n:>7} ({:>5.1}% of the unexplained)",
+                    key.trim_start_matches("emit-residue-unbound|"),
+                    100.0 * *n as f64 / unexplained.max(1) as f64
+                );
+            }
+            // The payoff metric's leading indicator, as a distribution.
+            let buckets = [0usize, 1, 10, 100, 1000];
+            let dist: Vec<String> = buckets
+                .iter()
+                .map(|b| format!("≤{b}: {}", report.near_match_tus(*b).len()))
+                .collect();
+            println!("    TU distance to matching (blocked functions) — {}", dist.join(", "));
+
+            let eh = report.emit_blocker_histogram();
+            if !eh.is_empty() {
+                let blocked: usize = eh.iter().map(|(_, n)| *n).sum();
+                println!("    the widening order OVER EMITTED CODE ({blocked} blocked):");
+                for (feature, count) in eh.iter().take(20) {
+                    println!(
+                        "      {count:>7} ({:>5.1}%)  {feature}",
+                        100.0 * *count as f64 / blocked as f64
+                    );
+                }
+                if eh.len() > 20 {
+                    println!("      … and {} more distinct features", eh.len() - 20);
+                }
+            }
+            // The payoff metric's leading indicator, with the emitted census
+            // beside it: these are the TUs whose remaining distance is small
+            // enough to be worked directly.
+            let near = report.near_match_tus(100);
+            if !near.is_empty() {
+                println!(
+                    "    TUs within 100 blocked functions of matching: {} \
+                     (blocked | emitted in-class/emitted | src)",
+                    near.len()
+                );
+                for r in near.iter().take(60) {
+                    let e = r.emit.get("emit-emitted").copied().unwrap_or(0);
+                    let i = r.emit.get("emit-in-class").copied().unwrap_or(0);
+                    println!(
+                        "      {:>5} | {i:>4}/{e:<4} | {} [{}]",
+                        r.fn_total - r.fn_in_class,
+                        r.src,
+                        r.class.label()
+                    );
+                }
+                if near.len() > 60 {
+                    println!("      … and {} more", near.len() - 60);
+                }
+            }
+        }
+
         let hist = report.fn_blocker_histogram();
         if !hist.is_empty() {
             println!("  blocking features (the widening order):");

@@ -182,7 +182,7 @@ use super::readers::{eat_opt_stmt_marker, find_subslice, read_token_var};
 /// `.sy` block count equals the number of `.ex` **function tails**
 /// (`4F 12 47 54 01 54 00`) — 9,629 = 9,629 on the file whose block/segment counts
 /// were 9,629/9,602, and 0 files disagree. The shortfall is in
-/// [`super::bundle::split_function_bodies`], which anchors on the `4C 4F 11` body
+/// [`super::bundle::split_function_bodies_at`], which anchors on the `4C 4F 11` body
 /// marker and finds 2,462,571 where there are 2,464,543 tails: it misses 1,972 real
 /// bodies, 0.08%, exactly the discrepancy that function already documents. So `.sy`
 /// and `.ex` agree about the function list, the *splitter* is what does not, and the
