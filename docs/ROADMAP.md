@@ -4055,3 +4055,149 @@ Best-founded next rungs on this column: `expr-intrinsic-this-adjust` (8,790,
 enriched** and the only large row that is entirely clean; `expr-intrinsic-memset`
 (3,752 / 2,042); and the single-symbol data address at **1,548 emitted against
 15,583 bodies — a 10× discount** on the figure it was scheduled with.
+
+## 9. The listing seam — c2's own account of its output (WTRACE, 2026-08-01)
+
+A white-box recon pass (Ghidra / rizin / live tracing) returned its highest-value
+finding from the **black box**: `c2.dll` in this XDK is **not a stripped build**,
+and `cl /FAsc … /c` appends **`-FAasc -Fa <file>`** to c2's own argv, driving it
+to write a complete **assembly listing** (`.cod`). Confirmed on the c2 command
+line printed by `/Bd`:
+
+```
+c2.dll -il …_CL_f6979fdd -typedil -Fowt_add3.obj … -Bd -Og -Ob2 -FAasc -Fa wt_add3.cod
+```
+
+This is an **output of the black box, not its disassembly** — §9.5.
+
+### 9.1 The two validity results (measured here, not by the lane)
+
+Neither was in the lane's report; both decide whether the instrument is usable.
+
+1. **The listing does not perturb the obj.** Same TU compiled with and without
+   `/FAsc` at `/O1 /Oi /EHsc /GS-`: **1,956 bytes each, byte-identical** with
+   `TimeDateStamp` zeroed. The instrument is non-perturbing, so a `.cod` may be
+   captured beside the very obj the differential grades.
+2. **"Byte-faithful" is overstated, and the overstatement is exactly one class.**
+   Row-by-row against the obj `.text`: **37 of 44 identical, 7 differ, and all 7
+   are relocated branches** — the listing prints the canonical unrelocated word
+   (`bl` → `48000001`, `b` → `48000000`) and names the target symbol, where the
+   obj carries a real displacement (`4bfffff5`, …). For our purposes the name is
+   *more* useful than the displacement, but **a lane that treats `.cod` as raw-byte
+   ground truth will be wrong at every call site.**
+
+   The lane's positive control was `add3` — a tail-call chain of `7d632214 /
+   7c6b2a14 / 4e800020` with **no relocated branch in it**. This is the
+   absence-read-as-success shape again in its subtlest form: the control was run
+   where the discrepancy *cannot appear*. Twelfth instance.
+
+### 9.2 What the listing carries
+
+Verified on a framed + EH + loop + division body at the workload's `/O1 /Oi /EHsc`:
+
+* exact bytes, offsets, and PPC mnemonics, with **source-line correlation**;
+* **section/COMDAT emission order** — `.XBLD$W`, `.pdata`, `.pdata`, `.rdata`,
+  `.code`, each with its `SEGMENT` directive (board #120, #62);
+* every relocation **target by name** (`bl ?make@@YAHH@Z`, `DCD |__ehfuncinfo$…|`);
+* the per-function optimization word, spelled — `; Function compile flags: /Ogsu`
+  (the `4F 1F 80 <LE32>` word of board #19/#52);
+* frame slot assignments (`s$ = 80 ; size = 4`);
+* EH records with field boundaries — `__unwindtable$`, `__ehfuncinfo$ DD
+  019930522H`, the `$T` state table, the `__unwind$` funclet (board #121, Phase 5);
+* **c2's internal label counter in allocation order.**
+
+### 9.3 The label counter is allocated in a phase order that is NOT text order
+
+Read directly off the verified listing, ascending:
+
+| label | where it lands | text offset |
+|---|---|---:|
+| `__unwind$2568` | funclet body | 0x88 |
+| `$M2577` / `$M2578` / `$M2579` | EH state transitions | 0x38 / 0x78 / 0x84 |
+| `$T2580` | `.rdata` state table | — |
+| `$M2582` / `$M2583` | prolog end / body end | 0x18 / 0x88 |
+| `$T2584` | `.pdata` #1 | — |
+| `$M2585` / `$M2586` | funclet markers | 0x98 / end |
+| `$T2587` | `.pdata` #2 | — |
+
+The funclet is allocated **first** and emitted **last**; the `$M` block is split
+around the `$T` tables. This is precisely the semantics whose mis-modelling
+produced *both* historical six-wrong-byte defects in `coff.rs` (#5), and it has
+never been observable before. It is now a transcription, not a fit.
+
+### 9.4 Standing instrument, and what stays one-shot
+
+**Adopt (small, durable):** a `c2rs listing <cpp> [flags]` seam in `c2-reference`
+— the existing replay with `-FAasc -Fa <tmp>` appended, returning `(obj, cod)`.
+The oracle is **unchanged**: the obj byte-compare remains sole judge and the
+listing is a **decode aid, never a gate**. A `--qxstalls` variant appends
+`/QXSTALLS`, which annotates the listing with `Possible load-hit-store penalty`,
+`Dependency stall`, `PX Dispatch Groups`, `Estimated block IPC` — the first
+scheduling-demand instrument the project has ever had (#119, §8.4 item 6).
+
+**Keep one-shot:** true disassembly. Only one item needed it (the inliner's
+"too big" threshold, referenced at `0x10ba23b3`) and that has a black-box route
+too — a size-graded family compiled against the emitted set. Recommendation:
+**take on no white-box debt.** Note for any future static lane: Ghidra headless
+**refuses any path containing a dot**, so it cannot run from `.claude/worktrees/…`.
+
+### 9.5 What it does NOT give — the honest boundary
+
+**There is no switch that dumps c2's parsed IL.** The hoped-for jackpot is
+refuted with a positive control: `-d2il<base>` is an *input* override (it tries to
+**read** `<base>gl` and dies `C1083 … 'ZZZgl': No such file` with nothing created),
+the same role as `-il`. ~25 candidate flags returned `C1007 unrecognized flag …
+in 'p2'`. **The IL decoder stays hand-fit**; the listing accelerates the *codegen*
+decoders only.
+
+The **emit-set predicate (§8.1) is named but not formula-ised.** c2's strings
+enumerate its disjuncts — `globally unreferenced`, `has linear flow`, `is a
+redirector function`, `won't be inlined (too big)`, `inlining prohibited`,
+`InlBadCandidate` — and the listing shows the decision per TU, but the `/O1`
+inline-decline schedule that `LABEL_COUNTER.md §6.15.3` calls "generated by no
+formula" is unmoved. One genuine null result bounds it: an `strace` diff of an
+in-class against an out-of-class TU shows the opened-file sets differing **only**
+in bundle hash and filenames — same five `_CL_*` bundles, **identical mmap count
+(124)**. c2 consults **no external table** for the shapes the port refuses; the
+predicate is entirely in code plus bundle.
+
+Also inert, recorded so nobody re-schedules it: the MS build provenance
+(`…\vctools\compiler\be\p2\c2\obj\i386\c2.pdb`, MS calls this component **"p2"**),
+and the incidental fact that c2 loads `msdisXXX.dll` to disassemble and
+`msobjXX.dll` to serialize COFF — which is why the container is so standard.
+
+### 9.6 Price, in the honest units
+
+**The listing moves neither the census nor TU match by itself.** It is an
+instrument that lowers the RE cost of the remaining phases, and it is worth
+ranking only because of *which* phases: EH (Phase 5, ~237k bodies; 11,846 emitted
+control-flow bodies gated behind it), frames (Phase 2), the label counter, and
+section order. §8.7 measured that **82,161 of blocked emitted need the frame
+phase, the EH phase, or both** — and those two phases are exactly the ones whose
+structure the listing prints symbolically. It is the "cheapest high-value lane"
+§8.5 already called for, now with a concrete tool.
+
+### 9.7 New board items
+
+* **#132** — the `c2rs listing` seam (Phase 0 instrument).
+* **#133** — transcribe the EH record layout from `.cod` into `EH_RECORDS.md`
+  (Phase-5 groundwork; census 0 by construction).
+* **#134** — `/QXSTALLS` scheduling-demand axis; answers #119.
+* **#135** — model the label counter from `.cod` allocation order (§9.3); retires
+  the bug class behind #5.
+* **#136** — reconcile the per-TU `.cod` `PUBLIC`/`PROC` set against the obj
+  COMDAT scan as a second, **name-carrying** source for the emitted census (§8.2).
+
+### 9.8 README wording
+
+The listing, the diagnostic strings, `/QXSTALLS`, the emitted set, and the trace
+diff are all **observable outputs of the black box** — the category the README
+already blesses — so the clean-room claim survives and can be *sharpened*:
+
+> The original binary is treated as a black box and its observable output — the
+> obj, and c2's optional `/FAsc` assembly listing and diagnostic output — is the
+> spec. No decompiled c2 source informs the port.
+
+If a disassembly-derived constant is ever adopted, that blanket claim must weaken
+to per-finding disclosure, naming the site in the relevant `docs/` file. On the
+recommendation of §9.4 we take on none, so the sharpened sentence stands.
