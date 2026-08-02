@@ -1505,11 +1505,21 @@ fn scan_one(
     //     from the old one being right, and which of the two is the ceiling is
     //     not something this instrument gets to decide.
     //
-    //     `functions()` is the only public reader of the `4F 1F` split, and it
-    //     returns `None` for a bundle it refuses rather than a count — so
-    //     `emit-gate-segments-unknown` is a printed count, not an assumption of
-    //     zero. Every key here is NEW; none of the existing ones is touched.
-    let gate_segments = captured.bundle.functions().map(|f| f.len());
+    //     **This used to read `functions().map(|f| f.len())`, and that made the
+    //     whole block near-vacuous**: `functions()` is an *acceptance* decision,
+    //     so it returns `None` for every `vocab-gap` TU — 865 of 871 — and the
+    //     gate-anchored ceiling was knowable for exactly the 6 that already
+    //     match, five of which define zero functions. The lane that added this
+    //     block measured that and declined to report a number, correctly.
+    //     `IlBundle::ex_segment_count` is the pure reader that closes it: the
+    //     `4F 1F` split with no acceptance decision attached, available on a
+    //     bundle `functions()` refuses.
+    //
+    //     Its `None` means **no `.ex` at all**, which is not "zero functions" —
+    //     so it keeps feeding `emit-gate-segments-unknown` rather than being
+    //     unwrapped to 0. Every key here is NEW; none of the existing ones is
+    //     touched.
+    let gate_segments = captured.bundle.ex_segment_count();
     {
         let comdats = res.emit.get("emit-emitted").copied().unwrap_or(0);
         match gate_segments {
@@ -1581,9 +1591,42 @@ fn scan_one(
     }
 
     // 3. Vocabulary: can the IL model even decode this bundle's functions?
-    //    Reuses 1g's call — `functions()` is pure, so this is the same predicate
-    //    it always was, evaluated once instead of twice.
-    if gate_segments.is_none() {
+    //
+    //    **This calls `functions()` itself, and must never be folded back into
+    //    1g's `gate_segments`.** It was, briefly, on the true observation that
+    //    `functions()` is pure and was being evaluated twice. Then 1g's reader
+    //    changed from `functions()` to `ex_segment_count()` — correctly, because
+    //    the ceiling needs the `4F 1F` split on TUs the gate refuses — and the
+    //    shared variable silently carried that change into the class decision.
+    //    `ex_segment_count` is `None` only when there is no `.ex` at all, so the
+    //    vocab-gap test stopped firing: **`vocab-gap 865 -> 0` and
+    //    `codegen-gap 0 -> 865` in one run**, with `mismatch` still 0 and
+    //    `match` still 6.
+    //
+    //    That is the FALSE-GREEN direction and it is why this comment is here:
+    //    a report reading "the port now decodes 865 TUs and merely declines to
+    //    lower them" is a headline, and nothing in the run was red. The two
+    //    predicates answer different questions —
+    //
+    //      | question | reader |
+    //      |---|---|
+    //      | how many `.ex` segments are there | `ex_segment_count` — pure, always answers |
+    //      | will the gate ACCEPT this bundle  | `functions()` — an acceptance decision |
+    //
+    //    — and sharing one call between them makes the second silently inherit
+    //    whatever the first is changed to.
+    //
+    //    `the_class_predicate_is_not_the_segment_counter` pins the *premise*
+    //    (the two readers really do disagree on a bundle the gate refuses), so
+    //    the paragraph above is executable rather than folklore. **It does not
+    //    catch a re-fold** — that shows up only as the class counts moving, and
+    //    `classify_one` needs a toolchain, so no portable test reaches it. The
+    //    evidence on record is a 3-TU scan run both ways: folded gives
+    //    `codegen-gap 2 / vocab-gap 0`, unfolded `codegen-gap 0 / vocab-gap 2`.
+    //    Stated plainly so the next reader does not take the test for a guard it
+    //    is not.
+    let decoded = captured.bundle.functions();
+    if decoded.is_none() {
         res.class = TuClass::VocabGap;
         res.reason = "il function decode failed".to_string();
         res.detail = format!(
@@ -1851,16 +1894,15 @@ pub fn gap_scan(
     println!(
         "\nSPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, \
          the port on `4F 1F`\n\
-         \x20 gate-side segment count KNOWN for {known} of {} captured TUs; UNKNOWN for {unknown}. \
-         `IlBundle::functions()` is the only public reader of the `4F 1F` split and it returns \
-         None for a bundle it cannot parse, which is every vocab-gap TU — so this instrument \
-         cannot see the population the ceiling is about.\n\
+         \x20 gate-side segment count KNOWN for {known} of {} captured TUs; UNKNOWN for {unknown} \
+         (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the \
+         `4F 1F` split — not `functions()`, which is an acceptance decision and returns None \
+         for every vocab-gap TU, leaving this knowable for only the 6 that already match.\n\
          \x20 of the {known} known: {agree} agree with `fn_total`, {disagree} disagree \
          ({gate_more} where the gate sees MORE segments, {census_more} where the census does)\n\
          \x20 emit-set ceiling, LO-anchored, over ALL graded TUs: {}\n\
-         \x20 gate-anchored ceiling over the {known} TUs it is known for: {gate_ceil} \
-         (+{enter} entering, -{leave} leaving) — NOT comparable to the line above, different \
-         denominators\n\
+         \x20 emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the \
+         {known} known: {gate_ceil} (+{enter} entering, -{leave} leaving vs the LO-anchored set)\n\
          \x20 gate-anchored control on matching TUs: {viol} violations over {viol_pop} matching \
          TUs whose gate count is known",
         known + unknown,
@@ -2465,6 +2507,68 @@ mod tests {
             rep.dispatch_axis_totals(),
             (7, 7),
             "and the axes still account for every function"
+        );
+    }
+}
+
+#[cfg(test)]
+mod splitter_predicate_guard {
+    use c2_il::IlBundle;
+
+    /// **The two `.ex` readers must disagree on a bundle the gate refuses**, or
+    /// `gap.rs` step 3 can be fed by step 1g's variable without anything going
+    /// red.
+    ///
+    /// That substitution actually happened, and the run it produced was green in
+    /// every field a reviewer scans: `mismatch 0`, `match 6`, `0 failed`. What it
+    /// did was move **865 TUs from `vocab-gap` to `codegen-gap`** — a report
+    /// claiming the port decodes the whole workload. The failure direction is
+    /// flattering, which is exactly the shape ROADMAP §9.18.8 records twelve
+    /// times.
+    ///
+    /// So this pins the *difference*, not either reader: a bundle whose `.ex`
+    /// carries function-start markers the gate cannot accept must give
+    /// `ex_segment_count() = Some(n > 0)` and `functions() = None`. A test that
+    /// only asserted each reader's own value would pass with the two wired
+    /// together.
+    ///
+    /// **What it does NOT do**, said here so it is not mistaken for a guard:
+    /// re-folding `gap.rs` step 3 onto step 1g's variable still passes this
+    /// test. The re-fold is only visible in the class counts, and `classify_one`
+    /// needs a toolchain. This makes the invariant executable; the 3-TU
+    /// both-ways scan in the rung doc is the evidence for the consequence.
+    #[test]
+    fn the_class_predicate_is_not_the_segment_counter() {
+        // `.ex` with two `4F 1F` starts and nothing the body parser can read;
+        // no `.gl` records, so the binding refuses. The point is only that the
+        // gate says NO while segments exist.
+        let mut ex = vec![0x11u8; 8];
+        ex.extend_from_slice(&[0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00]);
+        ex.extend_from_slice(&[0x22; 16]);
+        ex.extend_from_slice(&[0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00]);
+        ex.extend_from_slice(&[0x33; 16]);
+
+        let mut b = IlBundle::default();
+        b.base_name = "_CL_guard".to_string();
+        b.files.insert("ex".to_string(), ex);
+        b.files.insert("gl".to_string(), vec![0u8; 32]);
+
+        let segs = b.ex_segment_count();
+        assert_eq!(
+            segs,
+            Some(2),
+            "the pure reader must count both `4F 1F` starts, whatever the gate thinks"
+        );
+        assert!(
+            b.functions().is_none(),
+            "control: the gate must REFUSE this bundle, or the pair below proves nothing"
+        );
+        assert_ne!(
+            segs.is_none(),
+            b.functions().is_none(),
+            "the segment counter and the acceptance decision must not agree here — \
+             if they do, gap.rs step 3 can be fed by step 1g's variable and \
+             `vocab-gap` silently becomes `codegen-gap`"
         );
     }
 }
