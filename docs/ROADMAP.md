@@ -8306,3 +8306,107 @@ That distinction is the one §9.20 got wrong in the other direction — there, a
 instrument reported "no body" when the body was there. Here it reports "no body"
 and there is none. **The two cases are indistinguishable without checking the
 marker the split actually uses**, which is why the check belongs in the record.
+
+---
+
+## 10.11 §10.10's near-miss was the correct reading, and the correction was the error (2026-08-02)
+
+**§10.10 concluded that the `4F 1F` at `.ex` offset 2694 on the two license TUs
+is a payload collision and those TUs have no function at all. That is wrong, and
+the evidence against it is not subtle.** Recorded here rather than by editing
+§10.10, because the reasoning that produced the wrong answer is the useful part:
+a correctly-cited rule was applied to a case it does not decide.
+
+The rule §10.10 leaned on is real — `bundle.rs:100`, *"`4F 1F` alone is two bytes
+and collides inside payloads, so its **absence** is meaningful but its presence
+is not"*. It says presence is **not sufficient**. §10.10 read it as saying
+presence is **evidence against**, and stopped looking. Four measurements settle
+it the other way:
+
+| | TomCryptLicense | ZlibLicense |
+|---|---|---|
+| `.ex` length | 2,839 B | 2,839 B |
+| `4F 1F` at | 2694 | 2694 |
+| the four bytes after `4F 1F 80` | `05 00 20 00` = **`0x00200005`** | same |
+| `LO` (`4C 4F 11`) anywhere | **none** | **none** |
+| framed `.gl` records (`codec::gl_offset_framed`) | 1, at `.gl` 937 | 1, at `.gl` 912 |
+| its body-start offset value | **2694** | **2694** |
+| the name it binds (both scanners, distance 19) | `??__EsLicense@@YAXXZ` | `??__EsLicense@@YAXXZ` |
+| c2's `.text` COMDATs | 1 — `??__EsLicense@@YAXXZ` | 1 — `??__EsLicense@@YAXXZ` |
+
+`0x00200005` is `OPT_WORD_O1` (`bundle.rs:166`) — the exact per-function
+optimization word this workload compiles with, not a plausible-looking byte
+sequence. And **a `.gl` record's framed body-start offset points at 2694**: a
+payload collision is not the target of a record. The name it binds is the symbol
+c2 actually emits. Three independent structures agree on one offset.
+
+The two `.ex` files are, in fact, **byte-identical** — 2,839 B, every byte. Two
+TUs from different subsystems, differing only in `.gl` (1,200 B vs 1,191 B: the
+source path, the string, and Zlib's extra `?sLicense@@3VLicenses@@A` data run).
+Whatever the emit-set model is here, its entire input difference is `.gl`.
+
+### What is really going on: two splitters, keyed on different markers
+
+    split_function_bodies_at (census)   anchors on LO  (4C 4F 11)  ->  0 segments
+    split_functions_at       (the gate) anchors on 4F 1F           ->  1 segment
+
+This TU has a **function start with no body marker**, so the two disagree, and
+every downstream number inherits whichever one produced it:
+
+* `fn_total = 0` and the "0 → 1" row in §10.10's `segments < COMDATs` table are
+  the **census** count. Correct for what they measure.
+* `IlBundle::functions()` takes the **gate** splitter, gets a non-empty `segs`,
+  and therefore **never reaches** the empty-module return. It calls
+  `Bindings::per_record`, whose 1:1 offsets-are-the-split-points gate **passes**
+  (one record, value 2694; one split point, 2694), binds
+  `??__EsLicense@@YAXXZ`, and then fails in `parse_segment` on a segment with no
+  body IL. Hence `functions() = None`, hence `vocab-gap`.
+
+That last chain is checkable without reading any code: if these TUs really had no
+function, `functions()` would return `Some(vec![])`, the port would emit its
+four-section shell, and against an obj carrying one `.text` COMDAT the scan would
+report **`mismatch`**. It reports `vocab-gap`. The observed class is only
+consistent with the gate seeing a segment.
+
+### What this changes about Phase 7
+
+§10.10 called these two TUs "**pure** synthesis (0 → 1)" — invent a COMDAT with
+nothing to derive it from. **They are not.** The symbol's *name* and its
+*body-start offset* are both in `.gl` and both already bind, today, with no model
+at all. What is absent is the body decode for a marker-less segment. So the
+smallest instance of the emit-set problem is not a synthesis problem; it is
+**145 bytes of `.ex` in a dialect the body parser does not read**, ending in what
+already looks like a `Return`:
+
+```text
+2694  4f 1f 80 05 00 20 00 4f 20 80 fe 00 4f 33 0d 66
+…
+2806  55 86 43 85 20 4c 4b 3a fb 09 54 02 29 fb 09 4f
+2822  12 47 54 01 54 00 4f 02 20 00 4f 01 04 53 54 00
+2838  4d
+```
+
+`54 02 29 <tok16>` at 2816 is `ExToken::Return` under `codec.rs`'s own decoder.
+The target is six instructions (§10.10 lists them): two `lis`/`addi` pairs, a
+`li r5,0`, and a tail `b` to `??0Licenses@@QAA@PBDW4Requirement@0@@Z`.
+
+**Ranked next, and unblocked:** decode the bodyless dynamic-initializer segment.
+It is 145 bytes, identical across two TUs, the binding is already correct, the
+target assembly is already transcribed, and it converts two TUs in the 4-TU
+`segments < COMDATs` bucket. Whether it generalizes past `??__E` thunks is
+unknown and must not be assumed — but as a Phase-7 entry point it needs no model
+of *which* symbols to emit, which is the part §10 says is hard.
+
+### The instrument lesson, which is the same one twice
+
+§10.10's own closing paragraph reads: *"the two cases are indistinguishable
+without checking the marker the split actually uses."* It then did not check
+which splitter fed `fn_total`, and drew a conclusion about the **gate** from a
+number produced by the **census**. Both halves of that sentence were right and
+the paragraph still landed wrong.
+
+The generalization worth keeping: **a count is only evidence about the predicate
+that produced it.** `fn_total = 0` is a true statement about `LO`-anchored
+splitting and says nothing whatever about `4F 1F`-anchored splitting. This is
+`#144`'s shape once more (a measure taken for the thing it proxies), reached
+this time by two instruments that both work.
