@@ -24,7 +24,7 @@ the *item* stayed open at 356. A board with one column gets that wrong. So:
 | **DONE** | shipped, with the differential behind it. |
 | **DECLINED** | measured, deliberately **not** built, with a number attached. The measurement is the deliverable. A declined item is not a failed one. |
 | **REFUTED** | the claim was tested and is **false**. The most valuable rows here. |
-| **PARTIAL** | some of it shipped; the rest is named. |
+| **PARTIAL** | some of it shipped; the rest is named. A PARTIAL row lives in the section its dominant half earns — #35 sits under Open (the unshipped rest is the live work), #135 under Done (the measurement is finished; what it failed to ship is named in the row). |
 | **UNCLEAR** | the prose does not support a status. Not a guess — a flag that someone must read the bytes. |
 
 **Numbers are never reused and never renumbered.** Every `#N` in `ROADMAP.md` is
