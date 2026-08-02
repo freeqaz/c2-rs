@@ -28,10 +28,19 @@ reader validated 871/871 against the harness's own `emit-emitted`):
 
 | factor | predicate (over 871 graded TUs) | TUs |
 |---|---|---:|
-| **A** | emit-set cardinality equal (`fn_total == emit-emitted`, `LO`-anchored) | 25 |
+| **A** | emit-set cardinality equal (`fn_total == emit-emitted`, `LO`-anchored, pre-W-LO — see note) | 25 |
 | **B** | `emit-set-ceiling-today` — every emitted symbol binds | 324 |
 | **C** | obj section set ⊆ the port's widest current writer (`.drectve/.debug$S/.XBLD$W/.text/.pdata/.rdata`) | **84** |
 | **D** | every emitted COMDAT inside the port's codegen class | **8** |
+
+> **Anchor note (landed after lane D's census, same day):** §10.18 closed
+> the splitter question — the cardinality-equal count is **27 LO-anchored /
+> 28 gate-anchored** at current HEAD (W-LO's decode moved 25 → 27; the
+> port's own `4F 1F` anchor adds 1), measured on all 871 TUs with 0
+> violations on matching TUs. The pre-Phase-7 headline is now **at most 22
+> more TUs, ever**. Lane D's A = 25 above is the pre-W-LO reading of the
+> same predicate; the factorization result below is unaffected (the 6
+> matches satisfy all anchors).
 
 **A∧B∧C∧D = 6 — exactly the observed match set**, from four
 independently-derived predicates. This factorization is the planning model, and
@@ -180,14 +189,13 @@ plan's ceilings as a schedule is repeating §9.16.1.
 **What:** convert `TomCryptLicense.cpp` and `ZlibLicense.cpp` from
 `vocab-gap` to `match`. Both halves are specified:
 
-* **Decode** (`crates/c2-il`): split `ExToken::Lo` (`4C 4F 11`) into `4C` +
-  optional `4F 11` record (§10.12's grammar), so the bare-`4C` `??__E` body
-  parses; decode the 145-byte thunk segment (its tail already reads as
-  `Return` under `codec.rs`'s own decoder; target assembly transcribed in
-  §10.10). **Coordination**: `codec.rs` and `bundle.rs` are held by live
-  lanes this session — this rung starts when they free, or lands via the
-  owning lane; the K1 round-trip gate (byte-for-byte over 212 fixtures) is
-  the non-negotiable control on the re-tokenization.
+* **Decode** (`crates/c2-il`): the token split **already landed** — W-LO
+  (`rungs/2026-08-02-w-lo.md`) separated `ExToken::Lo` into `4C` +
+  optional `4F 11` with the K1 round-trip held byte-exact, so the bare-`4C`
+  `??__E` segment now splits and censuses (+746 bodies). What remains is
+  **lowering the 145-byte thunk body** to its six instructions (target
+  assembly transcribed in §10.10; the tail already reads as `Return` under
+  `codec.rs`'s own decoder).
 * **Obj shape** (`crates/c2-core` COFF writer): the 8-section obj
   (`OBJ_DYNINIT_SHAPE.md` — section set/order, all 24 symbol records,
   9+1 relocations incl. REFHI/REFLO/PAIR blocks, Selection 2 + associative
@@ -229,10 +237,12 @@ boundary without new measurement is refuted-in-advance.
   §10.17's named probe — `?CanSelect@UIListProvider@@UBA_NH@Z` binds in 50
   TUs and is no-record in 3; byte-diff its `.gl` neighborhood across the
   boundary. One afternoon, and it re-prices R4 before R4 is scheduled.
-* **D4 — the gate-anchored ceiling.** §10.15's recompute was taken and
-  **declined** (§10.17): known on 6 TUs only, near-vacuously agreeing; the
-  segment-count accessor on `IlBundle` (bundle.rs, owned elsewhere) is still
-  owed. Until it lands, "25" and "at most 19" stay labelled `LO`-anchored.
+* **D4 — the gate-anchored ceiling. RESOLVED mid-session** (§10.18):
+  `IlBundle::ex_segment_count()` landed, the count is known on 871/871, the
+  634 splitter disagreements are unanimously gate-sees-more (the predicted
+  direction), and the ceiling is **28 gate-anchored / 27 LO** — at most 22
+  more TUs before Phase 7. Carried here only as the closed form of what
+  this plan registered as open.
 * **D5 — how do explicit instantiations and dllexport reach the IL?** Roots
   the model cannot see are TUs it must refuse. Resolver: same minimal-pair
   IL-diff method as D2, cells already designed (lane A "not run" list).
@@ -300,7 +310,7 @@ site, in the relevant docs file.
    separator-aware extractor (one exists at `work/wB/glnames.py`;
    known-answer-gated readers at `work/lane-c/readers.py`).
 
-## 9. Pre-registration, scored — 4 hits, 2 misses, 1 refuted, 1 ungradeable
+## 9. Pre-registration, scored — 5 hits, 2 misses, 1 refuted
 
 | # | registered | outcome | score |
 |---|---|---|---|
@@ -311,7 +321,7 @@ site, in the relevant docs file.
 | E5 | strong-only TUs 150 [40, 400], floor 20 | **35 TUs / 0.06 % of functions** | MISS below interval; floor met on a technicality and declined in §6 |
 | E6 | a skip-naming channel exists | C4505/C4514, precision 1.00 / recall 0.928, exact with closure | **HIT** |
 | E7 | no single `.gl` field separates emitted from not | confirmed (collision test) | **HIT** |
-| E8 | gate-anchored recount lands 27 [20, 40] | measurement **declined** by the owning lane (§10.17): known on 6 TUs, near-vacuous | **UNGRADEABLE** — carried as D4 |
+| E8 | gate-anchored recount lands 27 [20, 40] | first declined (§10.17), then **measured mid-session** (§10.18): 27 LO-anchored / **28 gate-anchored**, both in interval, point off by 1 | **HIT** |
 
 The refutation is the lane's most useful output: it killed the cheap version
 of Phase 7 (read linkage off the separator) before anyone built it, and the
