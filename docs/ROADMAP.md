@@ -8169,3 +8169,73 @@ invariant rather than as a repeated observation:
 4. **Fix the board-numbering collision process.** Six numbers carry two meanings
    each because lanes minted them inside worktrees. `docs/BOARD.md` now exists and
    a number is minted by adding its row there first.
+
+## 10.10 The Phase-7 probe, run — the smallest instance, measured (2026-08-02)
+
+§10.9 item 2 named `TomCryptLicense` / `ZlibLicense` as the smallest possible
+instance of the emit-set problem. **Run, and it is.**
+
+```
+src/system/synth/tomcrypt/TomCryptLicense.cpp   3 lines of source
+  .ex        2,839 B — 179 nonzero bytes, no `LO` body marker
+  .ex bodies 0
+  c2 emits   1 PROC / 1 .text COMDAT / 3 PUBLIC
+```
+
+The whole source is one static object:
+
+```cpp
+static Licenses sLicense("system/src/synth/tomcrypt", Licenses::kRequirementNotification);
+```
+
+and the COMDAT c2 emits for it is **`??__EsLicense@@YAXXZ` — `dynamic initializer
+for 'sLicense'`** — six instructions, two symbol addresses, a literal and a tail
+call into the constructor:
+
+```
+  lis   r11,??_C@_0BK@…   lis   r10,sLicense
+  addi  r4,r11,…          addi  r3,r10,sLicense
+  li    r5,0              b     ??0Licenses@@QAA@PBDW4Requirement@0@@Z
+```
+
+**Every operand of that body comes from `.gl`/`.sy`; none of it comes from `.ex`,
+because there is no `.ex` body.** The shape itself is close to classes the port
+already emits — two data addresses, a literal, a bare tail call. This is the
+cleanest available statement that Phase 7 is **not** a codegen problem: no amount
+of widening reaches a function whose body the IL never carried.
+
+### The four `segments < COMDATs` TUs, by name
+
+The 4-TU bucket of §10.2 had never been enumerated. It is:
+
+| TU | `.ex` bodies | emitted COMDATs | shortfall |
+|---|---:|---:|---:|
+| `synth/tomcrypt/TomCryptLicense.cpp` | **0** | 1 | 1 |
+| `zlib/ZlibLicense.cpp` | **0** | 1 | 1 |
+| `synth_xbox/MeterEffect.cpp` | 10 | 13 | 3 |
+| `synth_xbox/HeadsetXferEffect.cpp` | 13 | 14 | 1 |
+
+The two license TUs are **pure** synthesis (0 → 1). The other two are **partial**:
+they carry bodies *and* need extra COMDATs, which is the harder shape and the one
+a model must handle to be worth building. All four are `vocab-gap` today, so the
+port never reaches the emit-set question on any of them.
+
+### A near-miss, recorded so it is not repeated
+
+`.ex` carries exactly one `4F 1F` byte pair, at offset 2694, followed by
+`80 05 00` — which reads exactly like the `4F 1F 80 <LE32>` per-function
+optimization word of board #19/#52, and was briefly taken for a function body
+that would have made this a *decode* case rather than a synthesis one.
+
+**It is a payload collision, and `bundle.rs:100` says so in advance:** *"`4F 1F`
+alone is two bytes and collides inside payloads, so its **absence** is meaningful
+but its presence is not"* — the authoritative signal is the `LO` (`4C 4F 11`) body
+marker, and this `.ex` has none. `is_empty_module` requires **both** to be absent
+and is right to.
+
+The lesson generalizes past this probe: **`fn_total = 0` on these TUs is the
+census reporting the `LO`-anchored split honestly, not an instrument failing.**
+That distinction is the one §9.20 got wrong in the other direction — there, an
+instrument reported "no body" when the body was there. Here it reports "no body"
+and there is none. **The two cases are indistinguishable without checking the
+marker the split actually uses**, which is why the check belongs in the record.
