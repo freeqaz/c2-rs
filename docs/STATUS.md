@@ -61,7 +61,7 @@ bound how far widening alone can ever take it.
 | emit-set MODEL ceiling (324/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
 | mismatch count | an **alarm**, and it has never fired | evidence of correctness (see the coverage bound) |
 | fixture gate | the port's accepted class, graded per fixture | representative of the workload's shape |
-| perf geomean | the project's actual thesis — verifier throughput | a stable figure — it is a wall-clock benchmark and moves ±10 % run to run (623×, 653×, 689× on three consecutive runs of the same binary). Quote the order of magnitude, not the digits. |
+| perf geomean | the project's actual thesis — verifier throughput | comparable across versions. **Always quote it with its fixture count** (GAPS §1): the geomean is taken over the *matched* set, which grows as the port widens, so two geomeans are a change of population, not a regression. It is *also* wall-clock — 623×/653×/689× on three consecutive runs of one binary over the same 100 fixtures. Quote the order of magnitude with the count, never the digits alone. |
 
 ### The two ceilings are different things, and only one bounds TU match
 
@@ -95,7 +95,9 @@ misleading without them.
    in them. Zero mismatches means "nothing the scan could grade came out wrong",
    over a population the scan mostly cannot grade. Verification here is
    coverage-bounded differential testing, and a green run is sound only on the IL
-   it ran against. (ROADMAP §9.19 / board #149.)
+   it ran against. (ROADMAP **§7 / §10.8** — the bound has been restated
+   independently fourteen times and is now an invariant. Do **not** cite this as
+   "#149"; that number denotes the off-add argument slot.)
 
 2. **A per-function census claim for a never-emitted body can never be graded.**
    The differential compares whole objs, and an unemitted body is not in the obj.
@@ -109,7 +111,9 @@ misleading without them.
    monotonically from 70 → 4 while **not one additional emitted symbol was
    covered**, and past a point it started handing one name to two records. A lane
    grading itself on the residue would have reported steady progress while
-   covering nothing and corrupting the binding. (Board #144.)
+   covering nothing and corrupting the binding. (ROADMAP §9.20.3, §9.16.5. The
+   prose calls this "#144's shape" as an **echo**; neither registered #144 is
+   this rule — see [`BOARD.md`](BOARD.md) on bare-`#N` ambiguity.)
 
 4. **Totality residue 0 is not a control.** `records == bound + residue` is
    satisfied exactly by moving a record from one bucket to another, so it cannot
@@ -118,17 +122,22 @@ misleading without them.
    compared, and they were byte-identical (1,515,160) across a change that moved
    152,521 records between buckets.
 
-5. **Absence reads as success unless something forbids it.** Eight instruments on
-   this project have reported green from an absence — including one that `sed`-ed
-   a number out of a report and read the missing number as `0`, passing a run that
-   graded literally nothing, and a lane registry whose four recorded lanes
-   contained **no `/EH` at all** on a workload that is 100 % `/EHsc`. This is why
+5. **Absence reads as success unless something forbids it.** ROADMAP §9.18.8
+   records this failure mode **twelve times**, and the newest instance was the
+   *test runner itself* — a run reporting `ok` for every target with **169 tests
+   silently not run**. Two others: a sweep that `sed`-ed a number out of a report
+   and read the missing number as `0`, passing a run that graded literally
+   nothing (§6s); and a lane registry whose four recorded lanes contained **no
+   `/EH` at all** on a workload that is 100 % `/EHsc` (GAPS §7). This is why
    `gate.sh` renders from a registry, why `lanes.txt` is data, and why
-   `status.sh` prints `NO-RESULT`.
+   `status.sh` prints `NO-RESULT`. **The mitigation generalizes: compare a count,
+   never a status.**
 
 6. **The census names the callee, not the function, for any call-bearing body.**
-   Every function name in a near-match table for a body containing a call is
-   wrong. Known, unfixed. (GAPS §9.6.)
+   In the near-match tables, any row whose body makes a call is labelled with the
+   *callee's* name. Known, unfixed. (GAPS §9.6.) **The blocker keys, the counts
+   and both class axes are unaffected** — it is a labelling defect, so the
+   rankings built on it stand.
 
 7. **The mode caveat is resolved, but know that it existed.** Fixture numbers are
    captured at `/Ox`; the 878-TU workload compiles `/O1`. The port now reads the
