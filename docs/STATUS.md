@@ -15,23 +15,23 @@ cost this project real work more than once.
 ## The numbers
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-02 · tree `2eb1f71-dirty` · binary `426ab357a885`
+Collected 2026-08-02 · tree `e342b08-dirty` · binary `cfe2e2b2952f`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 604 passed, 0 failed, 24 targets |
-| Oracle self-test (c2rs selftest) | 210 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 110 not-implemented (of 210) |
-| Port speedup, geomean over matched fixtures | 689x geomean over matched fixtures |
+| Workspace tests (cargo test --workspace --release) | 606 passed, 0 failed, 24 targets |
+| Oracle self-test (c2rs selftest) | 211 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 111 not-implemented (of 211) |
+| Port speedup, geomean over matched fixtures | 668x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 6, mismatch 0, codegen-gap 0, vocab-gap 865, capture-fail 7 |
-| Per-function census (driver, not target) | 706402/2462571 functions in class (28.69%) |
-| Emitted-function census | 38456/178968 emitted functions in class (21.49%) |
+| Per-function census (driver, not target) | 706402/2462572 functions in class (28.69%) |
+| Emitted-function census | 38456/178969 emitted functions in class (21.49%) |
 | Emitted-census residue | residue 9275: 2004 compiler-generated (no IL body), 7271 unexplained  (5.18% of the denominator) |
 | TU distance to match, blocked functions | ≤0: 1, ≤1: 10, ≤10: 25, ≤100: 32, ≤1000: 210 |
 | TU distance to match, blocked emitted functions | ≤0: 2, ≤1: 19, ≤10: 82, ≤100: 403, ≤1000: 858 |
 | Emit-set ceiling (segments == COMDATs) | 25 of 871 graded TUs |
 | Emit-set MODEL ceiling (today / repaired / wall) | 324 today / 420 repaired / 451 wall |
-| .gl binding invariants (records / arity / conflicts) | 1515160 records, 420 nameless, 2 before the first row, 39371 row-conflicts, 712 name-conflicts, 0 accounting breaks, 0 unreadable objs |
+| .gl binding invariants (records / arity / conflicts) | 1515161 records, 420 nameless, 2 before the first row, 39371 row-conflicts, 712 name-conflicts, 0 accounting breaks, 0 unreadable objs |
 
 <!-- END GENERATED -->
 
@@ -76,9 +76,12 @@ bound how far widening alone can ever take it.
   correctly it lowers each body (842 spurious, 4 missing).
 * **Emit-set MODEL ceiling, 324 today / 420 repaired / 451 wall** — TUs where the
   `.gl` binding can account for every emitted symbol. This bounds *a model*, not
-  today's port. It went 111 → 324 in §9.20 from a one-byte reader repair, and
-  **that gain is unrealisable until the gate learns the same rule** — the widening
-  is prereg'd as W-ADOPT and is the top item on the board.
+  today's port. It went 111 → 324 in §9.20 from a one-byte reader repair.
+  §9.20 then claimed that gain was "unrealisable until the gate learns the same
+  rule"; **W-ADOPT taught the gate that rule and the ceiling did not move**
+  (§9.21). It is computed on `EmitBinding`, which already had the widened
+  reader, so the gate was never the dependency. Realising it needs Phase 7 — an
+  emit-set model — and nothing short of that.
 
 Quoting 324 as "where we are" is the most likely misreading of this page.
 
