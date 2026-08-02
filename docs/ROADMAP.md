@@ -8955,3 +8955,100 @@ switch that already prints it**.
 Cheapest next probe, named by the lane:
 `?CanSelect@UIListProvider@@UBA_NH@Z` **binds in 50 TUs and is no-record in 3** —
 one symbol on both sides of the framing rule.
+
+---
+
+## 10.18 The emit-set ceiling, on the anchor the port actually uses — and a green run that was wrong (2026-08-02)
+
+Two things happened closing §10.15's open item. The measurement is the smaller
+of them.
+
+### The measurement
+
+`gap.rs`'s gate-anchored ceiling was reading the `4F 1F` split through
+`IlBundle::functions()` — an **acceptance** decision, `None` for every
+`vocab-gap` TU — so it was knowable for **6 of 871**, five of which define zero
+functions. W-LO's `IlBundle::ex_segment_count()` is the pure reader that closes
+it. Over all 871:
+
+```text
+gate-side segment count KNOWN for 871 of 871   (was 6)
+  237 agree with `fn_total`; 634 disagree
+  634 where the GATE sees more segments; 0 where the census does
+  emit-set ceiling, LO-anchored   : 27
+  emit-set ceiling, GATE-anchored : 28   (+1 entering, −0 leaving)
+  gate-anchored control on matching TUs: 0 violations
+```
+
+**The direction is unanimous and it is the predicted one.** §10.12 said the
+census loses the `??__E`/`??__F` bare-`4C` bodies, so the gate should see *more*
+segments and never fewer. 634 to 0. A count that could not tell that from the
+opposite would not have been evidence; the signed split is why this is.
+
+**So the ceiling is 28, not 25** — six taken, so **at most 22 more TUs before
+Phase 7**, not 19. §10.2's headline is corrected upward twice today (25 → 27 by
+W-LO's decode, 27 → 28 by the anchor) and is now measured on the splitter
+`PortC2::build` consumes.
+
+**The modesty of that is the interesting part.** 634 of 871 TUs disagree between
+the two splitters and the ceiling moved by **one**, because the ceiling wants
+`segments == COMDATs` *exactly* and seeing more segments mostly moves a TU
+further from equality, not toward it. A reader told "the splitters disagree on
+73 % of the workload" would predict a large correction. The bound is robust to
+the defect that produced it, and that is a fact about the bound, not a reason the
+defect did not matter.
+
+### The green run that was wrong
+
+Wiring that one reader broke the classification, and **nothing went red.**
+
+W-WITNESS had folded step 3's vocabulary predicate onto step 1g's variable, on a
+true observation: *"`functions()` is pure, so this is the same predicate it
+always was, evaluated once instead of twice."* `ex_segment_count` returns `None`
+only when there is **no `.ex` at all**, so the moment 1g's reader changed, the
+vocab-gap test stopped firing:
+
+| | before | after |
+|---|---:|---:|
+| `vocab-gap` | 865 | **0** |
+| `codegen-gap` | 0 | **865** |
+| `mismatch` | 0 | 0 |
+| `match` | 6 | 6 |
+
+The resulting report says **the port decodes the entire 878-TU workload and
+merely declines to lower it** — the largest result in the project's history, if
+it were true. Every field a reviewer scans was green. It was caught because the
+class line looked *too good*, which is not a control.
+
+This is the coordinator's defect, not the lane's: a variable with two consumers
+was changed for one of them. The repair is that step 3 calls `functions()`
+itself, with both questions written out — *how many `.ex` segments are there*
+(pure, always answers) against *will the gate accept this bundle* (a decision).
+
+**What the new test does and does not do**, stated because a test mistaken for a
+guard is how this recurs: `the_class_predicate_is_not_the_segment_counter` pins
+the **premise** — the two readers really do disagree on a bundle the gate
+refuses — so the comment is executable rather than folklore. It does **not**
+catch a re-fold; `classify_one` needs a toolchain and no portable test reaches
+the classification. The evidence for the consequence is a 3-TU scan run both
+ways: folded gives `codegen-gap 2 / vocab-gap 0`, unfolded `codegen-gap 0 /
+vocab-gap 2`.
+
+**The generalization, and it is not the one already on record.** §9.18.8's twelve
+instances are all *absence* read as success. This one is a **substitution**: the
+predicate was present, ran, and answered a different question than the one its
+caller was asking. No count was missing, nothing was skipped, and the run graded
+all 878 TUs. The mitigation that catches absence — "compare a count, never a
+status" — does not reach it, because the counts were all there and all moved
+together. What catches it is asking, of every shared variable, **which questions
+its consumers are actually asking** — and a single-consumer rule for anything
+whose meaning could change.
+
+### Workload provenance moved mid-session
+
+`dc3-decomp` advanced `173eb73b → 13b583df` between this session's base scan and
+its merge scans. Base-vs-tip pairs taken *within* one tree state are unaffected —
+and the pairs in §9.21, §10.16 and §10.17 all were — but a number from
+`tip_gap.log` is not directly comparable to one from a merge scan. It is why the
+class flip was checked against provenance before being blamed on the edit, and
+it is the reason the provenance line exists.
