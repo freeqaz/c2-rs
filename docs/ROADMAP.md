@@ -8580,9 +8580,9 @@ unblocked by fixing dtors alone.
 
 The second-ranked item, `ordinary` (65 TUs), is **not** a synthesis problem at
 all — these are plain mangled functions the obj emits with no `.gl` body record —
-and it is not currently a board item. It should be, before #152 is built: they
-are within 4 TUs of each other and #152 is the one with a number attached, which
-is the only reason it looks bigger.
+and it had no board number, which is the only reason #152 looked bigger — they
+are 4 TUs apart. **Minted as #159.** Nobody has read what an `ordinary`
+no-record symbol *is*; that is step one, and it comes before building #152.
 
 ### Standing caveat
 
