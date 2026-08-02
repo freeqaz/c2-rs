@@ -8416,3 +8416,100 @@ that produced it.** `fn_total = 0` is a true statement about `LO`-anchored
 splitting and says nothing whatever about `4F 1F`-anchored splitting. This is
 `#144`'s shape once more (a measure taken for the thing it proxies), reached
 this time by two instruments that both work.
+
+---
+
+## 10.12 `LO_MARKER` is two tokens glued together, and the second one is optional (2026-08-02)
+
+Board **#158**, characterized. `fixtures/cpp/il_dyninit_static.cpp` is the
+two-line standalone reproduction — `struct L { L(const char*, int); }; static L
+sL("abc", 0);` — and its `.ex` has the same shape as the two license TUs' 2,839-byte
+capture.
+
+### The measurement
+
+Nine functions across five captures, classified by the **first `4C` inside each
+`4F 1F` segment**:
+
+| capture | function | first `4C` |
+|---|---|---|
+| `static L sL("abc", 0)` | `??__EsL@@YAXXZ` | **`4C 53`** |
+| `static int x = f()` | `??__Ex@@YAXXZ` | **`4C 53`** |
+| `static L sL;` (ctor **and** dtor) | `??__EsL@@YAXXZ` | **`4C 53`** |
+| ″ | `??__FsL@@YAXXZ` (the atexit thunk) | **`4C 53`** |
+| inline ctor + `static L sL(3)` | `??0L@@QAA@H@Z` | `4C 4F 11` |
+| ″ | `??__EsL@@YAXXZ` | **`4C 53`** |
+| `virtual ~R() {}` + a caller | `??1R@@UAA@XZ` | `4C 4F 11` |
+| ″ | `??_GR@@UAAPAXI@Z` | `4C 4F 11` |
+| ″ | `?w_use@@YAHPAUR@@@Z` | `4C 4F 11` |
+
+### What it is not
+
+**Not "compiler-generated".** `??_GR@@UAAPAXI@Z` is a deleting destructor c2
+synthesizes — no source declares it — and it carries `4C 4F 11` like any hand-written
+function. The two categories are not the same category, and the obvious reading
+of §10.11's finding ("generated bodies are different") is refuted by one row of
+the table above.
+
+**Not "no locals" and not "no formals".** `w_add(int a)` has a formal and no
+locals and carries `4C 4F 11`.
+
+The rule the data supports, stated no wider than the data: **the `??__E` and
+`??__F` thunks a namespace-scope object with a non-trivial constructor or
+destructor causes c2 to emit carry a bare `4C`.** Everything else observed
+carries `4C 4F 11`. Whether that generalizes to the rest of the `??_` family is
+**unknown and must not be assumed** — the one member tested outside `??__E`/`??__F`
+(`??_G`) came out the other way.
+
+### The structural reading
+
+Both forms are the same grammar with one record present or absent:
+
+```text
+source body        …  46 <formals>   4C  4F 11  53  <stmts> …
+??__E / ??__F      …  46             4C         53  <stmts> …
+```
+
+So `4C` is the token, and `4F 11` is a **separable record between it and the
+first `53`** — consistent with every other `4F xx` in the stream being a record
+tag (`4F 1F` function start, `4F 01` statement, `4F 02`, `4F 12`, `4F 20`,
+`4F 33`). `c2-il` models the three bytes as one atomic `ExToken::Lo`
+(`codec.rs:85`, `bundle.rs:14`), and that is the defect behind every symptom
+§10.11 catalogued:
+
+| site | keys on | consequence for a `??__E` body |
+|---|---|---|
+| `is_empty_module` (`bundle.rs:111`) | `4C 4F 11` **and** `4F 1F` | correctly says "not empty" — `4F 1F` is present |
+| `split_function_bodies_at` (`bundle.rs:39`) | `4C 4F 11` only | **0 segments** → `fn_total = 0`, the census cannot see it |
+| `IlModel`'s body split (`codec.rs:962`) | `4C 4F 11` only | **0 tokens** → the round-trip's token assertion had to be re-scoped |
+| `try_ex_token` (`codec.rs:1094`) | `4C 4F 11`, `4C 4B`, else `None` | **decode dies here** → `functions() = None` → `vocab-gap` |
+
+### Why the fix is not a two-line change
+
+`4C` is **overloaded in the existing model**: it is the last byte of
+`ExToken::IntCallEnd` (`55 86 41 74 4C`) and the first of `ExToken::VoidCallEnd`
+(`4C 4B`). Re-tokenizing `4C 4F 11` into `4C` + `4F 11` therefore touches the
+encode path for every function the port already handles, and the K1 round-trip
+gate is byte-for-byte over 212 fixtures. That is a full rung with a
+pre-registration and a merge gate, not an edit.
+
+### State, and what is owed
+
+Landed here: the fixture, the characterization above, and a **re-scoped**
+round-trip assertion. The test's precondition was `is_empty_module` — a
+predicate about `4F 1F` — used to predict the behaviour of an `LO`-anchored
+split. §10.11's lesson, reached a second time by a test rather than by prose.
+The `#158` branch is now named and closed on both sides (`0` tokens **and**
+`>= 1` function), so it is an exception with a shape rather than a hole.
+
+`cargo test --workspace --release`: **24 targets, 606 passed, 0 failed.**
+`il_dyninit_static.cpp`: `ReferenceReplay=ByteExact`, `Port=NotImplemented`.
+
+Still owed, in order:
+
+1. **The decode.** Split `ExToken::Lo`; keep the K1 round-trip byte-exact.
+2. **The obj shape**, which is the larger half and is *not* implied by the
+   decode. This TU's obj carries `.rdata` (the string COMDAT), `.bss` (the
+   object) and `.CRT$XCU` (the initializer pointer) beside `.text`; the port
+   emits a fixed four-section shell. Two TUs' worth of TU match is behind both
+   halves, not either one.

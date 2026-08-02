@@ -114,12 +114,39 @@ fn roundtrip_all_fixtures_byte_identical() {
                 model.ex_tokens().is_empty(),
                 "{name}: empty module must decode to 0 body tokens"
             );
-        } else {
+        } else if has_lo_anchored_body(bundle.ex().unwrap_or(&[])) {
             assert!(
                 !model.ex_tokens().is_empty(),
                 "{name}: expected decoded .ex tokens"
             );
             assert!(nfns >= 1, "{name}: expected >=1 function, got {nfns}");
+        } else {
+            // **The #158 class, named rather than left as a hole.** A dynamic
+            // initializer (`il_dyninit_static.cpp`) is not an empty module — it
+            // has a `4F 1F` function start, and a `.gl` record binds a name to
+            // it — but its body opens `4C 53` where a source function opens
+            // `4C 4F 11`, and the codec's model splits bodies on the three-byte
+            // `4C 4F 11`. So it decodes to zero tokens while carrying a
+            // function.
+            //
+            // The precondition above used to be `is_empty_module`, which asks a
+            // question about the `4F 1F` marker and was being used to predict
+            // the behaviour of an `LO`-anchored split. That is ROADMAP §10.11's
+            // defect exactly — a count is only evidence about the predicate that
+            // produced it — reached here by a test rather than by prose.
+            //
+            // Scoped, not relaxed: the byte-for-byte round-trip above still
+            // gates this fixture, and the exception is closed on both sides.
+            assert!(
+                model.ex_tokens().is_empty(),
+                "{name}: a body with no `4C 4F 11` must decode to 0 tokens, or the \
+                 split found something this branch does not describe"
+            );
+            assert!(
+                nfns >= 1,
+                "{name}: has no LO-anchored body and is not an empty module, so it \
+                 must still carry a `4F 1F` function start; got {nfns}"
+            );
         }
 
         checked += 1;
@@ -128,4 +155,16 @@ fn roundtrip_all_fixtures_byte_identical() {
 
     assert!(checked >= 15, "expected the full fixture spread, ran {checked}");
     eprintln!("K1 round-trip: {checked} fixture bundles byte-identical");
+}
+
+/// True iff `.ex` carries at least one `4C 4F 11` — the marker the codec's
+/// model and `c2_il`'s census splitter both anchor bodies on.
+///
+/// Deliberately **not** `is_empty_module`, which asks about `4F 1F` as well and
+/// therefore answers a different question (ROADMAP §10.11). Duplicated as three
+/// bytes here rather than exported: this test asserts a fact about the split,
+/// and reading the constant from the crate under test would let a change to it
+/// move the assertion silently.
+fn has_lo_anchored_body(ex: &[u8]) -> bool {
+    ex.windows(3).any(|w| w == [0x4C, 0x4F, 0x11])
 }
