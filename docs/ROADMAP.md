@@ -8592,3 +8592,51 @@ built. That is an **instrument estimate**, and this project's recorded precedent
 not move at all. Nothing above should be quoted as realized until a rung builds
 it. What *is* solid is the ranking's shape — the 305 is a count of TUs with two
 or more live categories and does not depend on any category being priced right.
+
+---
+
+## 10.14 #159, step one: attempted, and the reader failed its own known-answer check (2026-08-02)
+
+§10.13 minted **#159** — `emit-unbound-no-record|ordinary`, 6,271 symbols across
+341 TUs, 65 of which it alone unblocks — with "nobody has read what an `ordinary`
+no-record symbol *is*" as step one. This is that attempt, and it did not
+produce witnesses. Recorded because a reader that disagrees with the instrument
+is a result, and the tempting alternative was to publish its output anyway.
+
+**What was built.** A standalone COFF symbol-table reader over three cached objs
+from the single-category list, pairing each defined function symbol against the
+`.gl` runs, on the theory that "no `.gl` body record" would show up as "no `.gl`
+name".
+
+**What it produced.** On `src/system/meta/Profile.cpp` and
+`src/lazer/game/PartyModeMgr.cpp` it returned `__unwind$47686`-style symbols —
+EH unwind data, not the bucket. On `src/system/hamobj/DetectFrame.cpp`, where
+the harness records **1** `ordinary` no-record symbol, it returned **0**.
+
+**Why, stated so the next attempt does not repeat it.** The two predicates are
+not the same predicate:
+
+| | keys on |
+|---|---|
+| `EmitBinding` (the instrument) | an emitted symbol with no framed **`.gl` body record**, then classified by mangling |
+| this reader | a defined COFF function symbol with no **`.gl` run** of any kind |
+
+A name can have a run and no record, and a record can exist that the binding
+still loses (`emit-unbound-has-record`, 4,684 symbols). Pairing on runs answers a
+third question. The disagreement is the reader's error, not the harness's — and
+that is the point: **the reader is a second implementation of a rule the harness
+already owns**, which is the defect `scripts/harness_bin.sh` documents and
+`status.sh` was rewritten to avoid. It failed its known-answer test (`DetectFrame`
+1 vs 0) on the first TU that had one, which is the only reason its output is not
+in this section as a finding.
+
+**What #159 actually needs**: the instrument that computes the classification to
+emit the *names* it classified — a witness list on `emit-unbound-no-record|<cat>`,
+in `crates/c2-harness/src/gap.rs`. That file was declared out of scope for the
+W-ADOPT lane (`w-reach` is live in it) and is not touched here. It is the first
+concrete step on #159 and it is cheap.
+
+**Standing rule this is an instance of**: when a diagnostic needs a
+classification the harness already computes, extend the harness. A private
+re-derivation of the same rule is not a shortcut — it is a second rule that will
+agree until the moment it matters.
