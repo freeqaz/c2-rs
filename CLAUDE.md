@@ -62,6 +62,18 @@ compiler is the sole judge.
   either side: outside the ported class the port must honestly return
   `NotImplemented`, and the oracle is always real c2, never a mock.
 
+## Orient before you measure
+
+- **`docs/STATUS.md` is the one-page answer to "where is this project".** Its
+  metric block is generated — regenerate with `scripts/status.sh --write`, never
+  hand-edit. It also carries the *traps*: which numbers are targets, which are
+  drivers, and why `mismatch 0` is not evidence of correctness. Read it before
+  quoting a number out of `ROADMAP.md`, which is 8k lines of session history and
+  contains many superseded snapshots.
+- **`docs/BOARD.md` enumerates the numbered items** (`#1`…) that `ROADMAP.md`
+  references everywhere but never lists. New items take the next free number and
+  are added there in the same commit.
+
 ## Layout / entry points
 
 - `crates/c2-il` container model, `crates/c2-obj` COFF compare, `crates/c2-core`

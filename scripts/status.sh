@@ -361,8 +361,11 @@ from a binary this run cannot name" >&2
     exit 1
 }
 c2rs="$C2RS_PINNED"
-identity=$(sed -n 's/^  sha \(.*\)$/\1/p' "$work_dir/pin.log" | head -1)
-identity=$(val_or_missing "$identity")
+# Just the content hash. `pin_harness` also stamps a tree HEAD, but printing both
+# it and the renderer's HEAD invites the reader to compare two hashes taken at
+# different instants — they legitimately differ when the tree moves mid-run, and
+# a status block is the wrong place to explain that. One hash, one tree line.
+identity=$(val_or_missing "$(sed -n 's/^  sha \([0-9a-f][0-9a-f]*\).*/\1/p' "$work_dir/pin.log" | head -1)")
 
 collect_tests
 collect_selftest
@@ -381,10 +384,10 @@ fi
 block="$work_dir/block.md"
 {
     printf '<!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->\n'
-    printf 'Collected %s · tree `%s` · binary %s\n\n' \
-        "$(date '+%Y-%m-%d')" \
-        "$(cd "$repo_root" && git rev-parse --short HEAD 2>/dev/null || echo '?')" \
-        "$identity"
+    _head=$(cd "$repo_root" && git rev-parse --short HEAD 2>/dev/null || echo '?')
+    (cd "$repo_root" && git diff --quiet HEAD 2>/dev/null) || _head="$_head-dirty"
+    printf 'Collected %s · tree `%s` · binary `%s`\n\n' \
+        "$(date '+%Y-%m-%d')" "$_head" "$identity"
     printf '| metric | value |\n|---|---|\n'
     printf '%s\n' "$METRICS" | grep '[^[:space:]]' | while read -r k t l; do
         printf '| %s | %s |\n' "$l" "$(lookup "$k")"
