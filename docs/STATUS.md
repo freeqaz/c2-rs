@@ -168,6 +168,7 @@ scripts/status.sh --check         # prove the collector, no toolchain needed
 | **the merge gate** (12 lanes) | `scripts/gate.sh --jobs 6` |
 | generated expression sweep | `scripts/expr_sweep.sh` |
 | cross-product lane | `scripts/cross_sweep.sh` |
+| **board coverage** (no toolchain) | `scripts/board_audit.sh` — every `#N` `ROADMAP.md` cites that [`BOARD.md`](BOARD.md) has no row for |
 | throughput vs concurrency | `c2rs perf-scale --csv docs/perf/perf_scale.csv` |
 
 `status.sh` deliberately does **not** run the merge gate, the sweep, or the
