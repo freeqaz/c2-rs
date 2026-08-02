@@ -9052,3 +9052,140 @@ and the pairs in §9.21, §10.16 and §10.17 all were — but a number from
 `tip_gap.log` is not directly comparable to one from a merge scan. It is why the
 class flip was checked against provenance before being blamed on the edit, and
 it is the reason the provenance line exists.
+
+---
+
+## 10.19 W-PHASE7PLAN — Phase 7 factors into four, and the tightest one is finite (2026-08-02)
+
+**Full plan: [`PHASE7_PLAN.md`](PHASE7_PLAN.md). Pre-registration
+`rungs/_2026-08-02-w-phase7plan-prereg.md`, committed before measurement with an
+**inflationary** bias declared.** A fable-driven lane with Opus subagents under
+it. Planning only; no code.
+
+### The result
+
+Four predicates, independently derived, over the 871 graded TUs:
+
+| factor | predicate | TUs |
+|---|---|---:|
+| **A** | emit-set cardinality equal (`.ex` segments == `.text` COMDATs) | 27 / **28** gate-anchored |
+| **B** | every emitted symbol binds (`emit-set-ceiling-today`) | 324 |
+| **C** | **obj section set ⊆ what the port's COFF writer can emit** | **84** |
+| **D** | every emitted COMDAT inside the port's codegen class | **8** |
+
+**A∧B∧C∧D = 6 — exactly the observed match set.** Four predicates nobody fitted
+to that answer reproduce it on the nose.
+
+**Coordinator's independent verification.** I re-read all 871 cached reference
+objs with my own COFF section-name reader — a different implementation from the
+lane's — and reproduce **C = 84**, **13 distinct section names** across the whole
+workload, `.rdata$r` in **676** objs, and **all 6 matching TUs inside C (6/6)**.
+Exact agreement.
+
+### What this kills, and it is a load-bearing assumption
+
+**The emit-set model is not the binding constraint. Section shape is.**
+C = 84 is **4× tighter** than B = 324. A perfect emit-set model *and* a perfect
+binding lift TU match to at most **B∧C = 82** while the port can only write
+`.drectve / .debug$S / .XBLD$W / .text / .pdata / .rdata`. The project has spent
+this entire session's measurement effort on A and B — the ceilings, the
+splitters, the `.gl` framing — and they are not what is in front.
+
+And the walls are **anti-correlated**: 82 of the 84 section-reachable TUs are
+already `emit-set-ceiling-today`, only 1 is on the wall. Shell generalization and
+emit-set modelling attack nearly disjoint populations, so they parallelize.
+
+### The section vocabulary is finite, enumerable, and closes in seven steps
+
+The whole workload uses **13** section names. Greedy ladder, computed by the
+coordinator over the same 871 objs — each row is the next name to teach the
+writer and the resulting C:
+
+| teach | C |
+|---|---:|
+| *(today)* | 84 |
+| `.data` | 109 |
+| `.rdata$r` | 172 |
+| **`.bss`** | **574** |
+| `.text$yd` | 698 |
+| `.xdata$x` | 745 |
+| `.CRT$XCU` | 745 |
+| `.text$yc` | **871** |
+
+**Seven names take C from 84 to the entire workload**, and `.bss` alone is worth
+**+402**. `.CRT$XCU` adds nothing at its position because it never appears
+without `.text$yc` (both in exactly 126 objs) — they are one step, not two.
+
+**C is necessary, not sufficient.** Reaching C = 871 converts *nothing* on its
+own; A∧B∧C∧D all have to close over a TU. What the ladder establishes is that the
+factor the plan identifies as tightest is **bounded and short** — which is the
+opposite of the emit-set problem's shape, and the reason this is a route rather
+than a hope.
+
+### The rest of the route
+
+R0 instruments → **R1 = #158's two halves (+2 TUs, the only step in the plan that
+converts anything)** → R2 sections ∥ R3 fail-closed emit model → R4 binding
+(+9 today) → R5 synthesis (+4 today) → R6 emission order → **R7 codegen breadth,
+where conversions actually land** → R8 the 305-TU multi-category wall.
+
+The plan says its own arithmetic plainly, and it is right to: *"no step in this
+plan converts a TU except R1's +2"*, and *"anyone quoting this plan's ceilings as
+a schedule is repeating §9.16.1."*
+
+Two shape facts that reorder things:
+
+* **The spurious bucket is a cliff, not a gradient.** Over the 842
+  `segments > COMDATs` TUs the delta median is **1,982**, p10 = 490, and delta
+  ≤ 5 on **3** TUs. There is no "shave a few spurious COMDATs" tail. The emit set
+  must be modelled, not patched.
+* **EH is on the TU-assembly critical path, not a late phase.** `.rdata$r` is in
+  **676 of 871** objs. Phase 5 feeds C directly — it is the third rung of the
+  ladder above, not an endgame.
+
+### The emit predicate, fitted black-box
+
+Least-fixpoint reachability from roots (strong linkage, explicit instantiations,
+`dllexport`, dyninit thunks, kept data), ODR-use over *kept* definitions
+pre-optimization, vtable-forced virtuals, **no transitivity through dead code**.
+**Zero violations on 172 designed cells.**
+
+Its status is a *fitted* rule, and the plan treats it as one: it does not ship
+until an out-of-sample gate with predictions committed before the held-out set is
+compiled — the protocol that has now caught four rules that were perfect
+in-sample.
+
+### The refutation is the lane's most valuable output
+
+Its own registered hypothesis — that `.gl`'s `00`/`26` separator encodes linkage,
+and so ≥ 95 % of `00`-names are emitted (decline floor 60 %) — measured **12.1 %**.
+Dead. That was the *cheap* version of Phase 7, and it was killed before anyone
+built it. Both of the lane's other misses moved **deflationary against a declared
+inflationary bias**, which is the protocol working rather than failing.
+
+Also refuted by its subagents, each worth not re-deriving: closure over all
+bodies; size-gating (again); **any c2 dump flag** (checked against the binary's
+own 128-entry flag-table text, not guessed); "c1xx strips unemitted bodies";
+"a `.gl` record field decides emission"; and "a small-delta tail exists".
+
+### Clean-room ledger — unweakened
+
+**Disassembly-derived constants adopted: none.** Everything is black-box under
+§9.8's existing blessing: the 172-cell probe grid, the `/Wall` C4505/C4514
+warning channel (precision 1.00, recall 0.928 on probes), `/FAsc` PROC sets,
+`strings` over `c2.dll`/`clui.dll` — the diagnostic-string category §9.8 already
+names, including the flag-table harvest, which is string-table text plus
+black-box flag probing with **no instruction ever read** — our own captures'
+bytes, and the JamCRC fit. The blanket claim stands.
+
+### Three instrument escalations, taken
+
+1. **Worktree binaries go stale silently** — a lane reading a `target/release/c2rs`
+   older than HEAD gets *silence, not zero* on keys that did not exist yet.
+   §9.18.8's trap, inside the instrument.
+2. **The capture cache misses when `../dc3-decomp` moves.** Its HEAD went
+   `173eb73b → 13b583df` mid-session, forcing two cold 878-TU scans. Pin the dc3
+   rev per session or cross-lane byte-comparability is luck. (Control that
+   passed: 0 of 871 TUs differed across the two scans.)
+3. **`strings` over `.gl` manufactures false negatives** — the `00|26` separator
+   concatenates adjacent names. Any `.gl` grep needs a separator-aware extractor.
