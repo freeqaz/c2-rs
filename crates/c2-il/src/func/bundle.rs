@@ -823,6 +823,32 @@ impl IlBundle {
     /// `None` if `.ex` is absent. A segment whose prefix is not `4F 1F 80` yields
     /// `None` **for that entry**, so a caller that requires a known mode refuses
     /// rather than assuming one.
+    /// How many `4F 1F` function segments this bundle's `.ex` splits into — the
+    /// count [`split_functions_at`] produces, which is the segmentation
+    /// `PortC2::build` consumes.
+    ///
+    /// **A pure reader, and that is the entire point.** It makes no acceptance
+    /// decision and never refuses: it is available on a bundle whose
+    /// [`IlBundle::functions`] returns `None`, which is 865 of the 878 workload
+    /// TUs. Until this existed, `functions()` was the only public reader of the
+    /// `4F 1F` split, so any instrument wanting that count could only have it
+    /// for a TU that already passed the gate — and `gap.rs`'s emit-set ceiling
+    /// consequently filtered on `fn_total`, which is the **other** splitter's
+    /// count ([`split_function_bodies_at`], `LO`-anchored). ROADMAP §10.15.
+    ///
+    /// `None` when `.ex` is absent, rather than `0`: "this bundle has no `.ex`"
+    /// and "this bundle's `.ex` has no functions" are different facts, and a
+    /// ceiling that compares a segment count against an obj's COMDAT count would
+    /// read the first as the second (`docs/STATUS.md` trap 5 — absence reads as
+    /// success unless something forbids it).
+    ///
+    /// This lane did **not** change [`split_functions_at`]: the `??__E`
+    /// re-tokenization is in `body_start` / [`split_function_bodies_at`] and in
+    /// the codec, so this count is byte-for-byte what it was before it.
+    pub fn ex_segment_count(&self) -> Option<usize> {
+        Some(split_functions_at(self.ex()?).0.len())
+    }
+
     pub fn opt_words(&self) -> Option<Vec<Option<u32>>> {
         let ex = self.ex()?;
         Some(
@@ -1346,6 +1372,26 @@ mod tests {
         assert_eq!(starts, vec![a, b]);
         assert_eq!(segs[0], comp.as_slice());
         assert_eq!(segs[1], DYNINIT_SEGMENT);
+    }
+
+    #[test]
+    fn ex_segment_count_is_a_pure_reader_that_never_refuses() {
+        // The `4F 1F` count, on a bundle that has no `.gl` at all — so
+        // `functions()` returns None and the count is still available. That is
+        // the property `gap.rs` needs (ROADMAP §10.15); a count only obtainable
+        // through the gate is a count known for 6 of 871 TUs.
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 8]);
+        ex.extend_from_slice(&composed_segment(&[0xE309]));
+        ex.extend_from_slice(DYNINIT_SEGMENT);
+        let b = ex_bundle(ex);
+        assert!(b.functions().is_none(), "no .gl — the gate must refuse");
+        assert_eq!(b.ex_segment_count(), Some(2));
+
+        // Absent `.ex` is None, not 0: the two are different facts.
+        assert_eq!(IlBundle::default().ex_segment_count(), None);
+        // An empty module has an `.ex` and no segments.
+        assert_eq!(ex_bundle(vec![0u8; 64]).ex_segment_count(), Some(0));
     }
 
     #[test]
