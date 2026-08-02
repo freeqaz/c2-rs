@@ -61,7 +61,6 @@ allocate at once.
 
 | # | item | worth (measured, not estimated) | defined | notes |
 |---|---|---|---|---|
-| **151**<sub>w-vgl</sub> **→ realise it** | Teach the **gate** the `26` name separator (`gl_defined_names`) | the whole of §9.20's **+213 TU ceiling** is unrealisable without it | R:7957 | **Top of the board.** §9.20's own first recommendation, not taken by that lane. Prereg'd as **W-ADOPT**. Moves the accepted class → needs the full differential. |
 | 152<sub>w-emitset</sub> | Synthesize the `??_` COMDAT family (no `.ex` body exists) | priced +27 TUs — **must be re-measured against 4,591, not 13,646** | R:7734 | Two thirds of the "synthesis wall" was #151's reader defect. `special-generated` residue fell 90 → 6. First probe named: `TomCryptLicense`/`ZlibLicense` (zero `.ex` bodies, one COMDAT each). |
 | 131 | The receiver designator — the whole site | 37,060 emitted blocked / 9,111 clean / **honest worth ≈2,600 (1.4 pp)** | rungs/w-adjust:52 | Largest single site on the emitted board (29.3 % of blocked emitted). Raw stock **overstates by ~14×**. Arms convert 19× apart, so **no rate transfers between them**. Needs a refactor returning an operand form richer than a token. |
 | 142 | The other clean-not-whole receiver arms | site 25,654 emitted / 7,842 clean; decomposed into **27 named constructs** | R:5070 | Registered 35,700 → **MISS below the floor**. Ranking blocked by **#154**. Sizing off 25,654 is over by ≥8.0 % per #152<sub>w-arms</sub>. |
@@ -101,6 +100,7 @@ allocate at once.
 
 | # | item | number | where settled |
 |---|---|---|---|
+| **151**<sub>w-vgl</sub> **→ realise it** | Teach the **gate** the `26` name separator (`gl_defined_names`) | **DONE — and the "unrealisable ceiling" framing was WRONG.** The gate now names records on **270 of 871** TUs it previously refused to name at all (**8,583 records**), and **0** bound names changed. But **TU match 6 → 6**, and the MODEL ceiling did not move (324 / 420 / 451 at both ends) — it never was a gate number. What this bought is a *precondition*, not a payoff: the binding is no longer the blocker on 270 TUs, and it was silently the blocker on all of them. | rungs/w-adopt |
 | 15 | The capture cache | **36.5 s → 0.9 s**; capture was 98.7 % of a scan; the 1.5–3 s estimate was wrong by ~2× | R:2034 |
 | 43 | `eat_int_like`'s four-triple whitelist (W22) | estimate 5,684, realized **+15,924** — **wrong by 2.8×** | R:1581 |
 | 44 | The census/gate disagreement | closed at disagreement **0**; never sized before | R:1459 |

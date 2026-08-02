@@ -7989,6 +7989,69 @@ lanes this week. Caught by `git log -1` as the first command of the session.
 
 ---
 
+# 9.21 W-ADOPT — the gate adopts the `26` separator, and the ceiling does not move (2026-08-02)
+
+**Full write-up: [`rungs/2026-08-02-w-adopt.md`](rungs/2026-08-02-w-adopt.md).
+Pre-registration: `rungs/_2026-08-01-w-adopt-prereg.md`, committed before the
+first measurement.** This section records only what §9.20 got wrong about its own
+recommendation, because that is the part the next lane needs.
+
+§9.20 ended with a first recommendation: teach the **gate** the reader it had
+just repaired instrument-side, because "the whole of the +213 TU ceiling is
+unrealisable without it". W-ADOPT took it. The change is one line of scanner
+selection plus one new refusal, behind the full differential.
+
+**It realised none of the ceiling, and the framing was wrong.** The MODEL
+ceiling is 324 / 420 / 451 at base and at tip. It is computed on `EmitBinding`,
+which has had the widened reader since §9.20 — so the gate was never what stood
+between the ceiling and its realisation, and "unrealisable without it" described
+a dependency that does not exist. Prediction E3b said the ceiling would not move
+and scored correct for exactly this reason; the board row saying it would be
+realised was written by a different lane and never reconciled with it.
+
+**What did move is invisible to every headline number.** Measured by running
+both readers over the 871 graded TUs' cached `.gl`:
+
+| | |
+|---|---|
+| TUs the incumbent **refused to name** and the widened reader binds | **270 of 871** |
+| `.gl` records named as a result | **8,583** |
+| TUs where a bound name **changed** | **0** |
+
+All 270 are `vocab-gap` at both ends. TU match 6 → 6; census 706,402 → 706,402;
+emitted census 38,456 → 38,456; `EmitBinding` arity byte-identical; `gate.sh`
+12/12 with 0 mismatch on 2,532 fixture-verdicts. **The 878-TU report is
+identical to base, field for field, across a change that re-bound 8,583
+records.** That is #149's coverage bound in its plainest form: 865 of 878 TUs
+refuse before the emitter is consulted, so a repair to *why* a TU refuses cannot
+be graded by a metric that records only *that* it refused.
+
+**The defect was not a missing name, it was a distance bound doing another
+rule's job.** A `26`-introduced name is not mis-framed by the NUL-only scanner —
+it is absent from the run list, so the record's "nearest preceding run" becomes
+the *previous record's* name, 70 bytes back on the new fixture. Every one of
+those 270 TUs refused because `MAX_NAME_TO_OFFSET` rejected 70 > 32, not because
+anything knew a name was missing. On a TU where an unrelated run happened to
+land inside 32 bytes, the same reader binds a body to another symbol's name —
+`il_gl_record_order` and `il_extern_c_name` for the third time, by a route
+neither fixture covers.
+
+**Two predictions refuted, both in the safe direction.** E5 predicted 30 TUs
+would *lose* acceptance to the unclaimed-name accounting rule and drove the
+lane's declared pessimism; the realised number is 0, because 5 of the 6 matching
+TUs are empty modules that return before `Bindings::per_record` is reached. The
+lane had one TU of exposure, not 878. E7/E16 predicted that shortening runs at
+`26` would re-point at least one binding or misalign the `name_nul + 3` linkage
+read; **zero** occurrences across 871 TUs. The guard that forbids the shape is
+retained and recorded as **unfired, not validated** — the only workload for it is
+a hand-built test.
+
+**Board effect.** #151<sub>w-vgl</sub> → *realise it* moves to Done with its
+worth restated: a precondition on 270 TUs, not a ceiling gain. #152 is unchanged
+and still needs re-measuring against 4,591 (see §10.9).
+
+---
+
 # 10. The plan re-ordered — Phase 7 is not last, it is the gate (2026-08-02)
 
 **§8's engine is confirmed and does not change. Its phase ORDER is refuted.**
@@ -8153,12 +8216,16 @@ invariant rather than as a repeated observation:
 
 ## 10.9 Immediate next steps, in order
 
-1. **Teach the GATE the `26` name separator** (§9.20.13 rank 1, prereg'd as
-   W-ADOPT). The whole of §9.20's ceiling is unrealisable until `gl_defined_names`
-   sees `26`-separated names — it refuses `App.cpp` and every TU like it *whole*
-   for want of four names. **Moves the accepted class, so it needs the full
-   differential behind it**, and it is the one item here that could cost the six
-   matches.
+1. ~~**Teach the GATE the `26` name separator**~~ — **DONE, §9.21.** It did not
+   cost the six matches (0 TUs lost, against a registered estimate of 30), and it
+   did not realise any ceiling: 324 / 420 / 451 at both ends, because the ceiling
+   is computed on `EmitBinding`, which had the widened reader already. The
+   sentence this item used to carry — "the whole of §9.20's ceiling is
+   unrealisable until `gl_defined_names` sees `26`-separated names" — was **false
+   and is struck**. What it bought is real but invisible to the scan: the gate
+   now names 8,583 records on **270 of 871** TUs it previously refused *whole*,
+   with 0 bound names changed. Realising the ceiling needs Phase 7, and this item
+   was never on that path.
 2. **Probe Phase 7 on `TomCryptLicense` / `ZlibLicense`** — zero `.ex` bodies, one
    emitted COMDAT each: the smallest possible instance of the emit-set problem,
    and in the 4-TU *missing*-COMDAT bucket rather than the 842-TU spurious one.
