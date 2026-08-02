@@ -47,11 +47,6 @@ pub(crate) const LO_RECORD: [u8; 2] = [0x4F, 0x11];
 /// Reading its absence as "no function" is the defect ROADMAP §10.11 catalogued.
 pub(crate) const LO_MARKER: [u8; 3] = [LO, LO_RECORD[0], LO_RECORD[1]];
 
-/// The `4F 02 20 00` block-start record that opens a function's metadata prefix.
-/// Mirrors `codec`'s `BLOCK_START`; used here as the anchor the bare-`4C` walk
-/// starts from, so the walk never begins inside the FnHeader interior.
-const BLOCK_START: [u8; 4] = [0x4F, 0x02, 0x20, 0x00];
-
 /// The `46` formals-list marker, and the `2D` per-formal entry tag.
 const FORMALS: u8 = 0x46;
 const FORMAL: u8 = 0x2D;
@@ -69,30 +64,55 @@ pub(crate) fn body_start(seg: &[u8]) -> Option<usize> {
 }
 
 /// The bare-`4C` body start (`??__E`/`??__F`), located by **walking the prefix
-/// grammar** from the block-start record rather than by scanning for the byte.
+/// grammar** to the token rather than by scanning for the byte.
 ///
-/// The walk is the same token set `codec::try_prefix_token` recognizes:
+/// The grammar is the token set `codec::try_prefix_token` recognizes, from the
+/// `53 53` that opens every function's statement region:
 ///
 /// ```text
-///   4F 02 20 00  4F 01 NN   (53 | 26 <tok16>)*   46 (2D <tok16>)*   4C 53
+///   53 53   (53 | 26 <tok16>)*   46 (2D <tok16>)*   4C 53
 /// ```
 ///
 /// Every step is required, and the terminating `4C` must be followed by `53`.
 /// That tightness is the whole point: `4C` occurs constantly inside bodies (an
 /// `IntCallEnd` ends with one, a `VoidCallEnd` starts with one), and a `4F 1F`
 /// that is really a payload collision — measured at ~2 % of `4F 1F` hits on a
-/// 1.5 MB `.ex` — must NOT be turned into a function by this. A payload
-/// collision has no block-start record followed by this grammar, so it returns
-/// `None` and the segmentation is unchanged from today.
+/// 1.5 MB `.ex` — must NOT be turned into a function by this. A collision does
+/// not carry this grammar, so it returns `None` and the segmentation is
+/// unchanged from today.
+///
+/// **Candidate-and-verify, not a single anchor.** Every `53 53` in the segment
+/// is tried in file order and the first that completes the grammar wins, so a
+/// `53 53` that is really payload inside the `4F 33 <len>` metadata record
+/// costs a failed walk rather than a wrong answer.
+///
+/// **Why the anchor is not [`BLOCK_START`], which is where this started.** The
+/// `4F 02 20 00 4F 01 NN` record is *not* per function: on
+/// `fixtures/cpp/wlo_dyninit_pair.cpp` — one object with both a constructor and
+/// a destructor, so c2 emits `??__EsL` **and** `??__FsL` — the first segment
+/// carries it and the second goes straight from its FnHeader to `53 53`.
+/// Anchoring there found one of the two bodies and reported `fn_total = 1` for a
+/// TU with two functions, which is the same defect (§10.11) one level down: a
+/// count that is only evidence about the predicate that produced it. The
+/// fixture exists because that was invisible on the single-thunk one.
 fn bare_body_start(seg: &[u8]) -> Option<usize> {
-    let bs = find_subslice(seg, &BLOCK_START)?;
-    // `4F 02 20 00 4F 01 NN` — the block-start record, 7 bytes.
-    if !(seg.len() > bs + 6 && seg[bs + 4] == 0x4F && seg[bs + 5] == 0x01) {
-        return None;
+    let mut i = 0;
+    while i + 1 < seg.len() {
+        if seg[i] == 0x53 && seg[i + 1] == 0x53 {
+            if let Some(p) = bare_lo_after_prefix(seg, i + 2) {
+                return Some(p);
+            }
+        }
+        i += 1;
     }
-    let mut p = bs + 7;
-    // `53` statement bytes and `26 <tok16>` result-refs, in any order, then the
-    // formals marker. Anything else is not this grammar.
+    None
+}
+
+/// Walk the statement/result-ref/formals tail of a function prefix from `p`,
+/// returning the offset of the bare `4C` it ends at. `None` the moment a byte is
+/// not one of the prefix tokens — this is the check that keeps
+/// [`bare_body_start`] from being a byte scan.
+fn bare_lo_after_prefix(seg: &[u8], mut p: usize) -> Option<usize> {
     loop {
         match *seg.get(p)? {
             0x53 => p += 1,
@@ -1166,6 +1186,10 @@ mod tests {
         0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x35, 0x53, 0x54, 0x00, 0x4D,
     ];
 
+    /// The `4F 02 20 00` block-start record. NOT per function — see
+    /// [`bare_body_start`] — so it is a test-side literal only.
+    const BLOCK_START: [u8; 4] = [0x4F, 0x02, 0x20, 0x00];
+
     /// A minimal composed-marker segment: `4F 1F 80 <word>` + block-start +
     /// `53 53` + result-ref + `46 (2D <tok>)*` + `4C 4F 11 53`.
     fn composed_segment(formals: &[u16]) -> Vec<u8> {
@@ -1190,6 +1214,48 @@ mod tests {
         assert_eq!(DYNINIT_SEGMENT[61], LO);
         assert_eq!(DYNINIT_SEGMENT[62], 0x53);
         assert_eq!(body_start(DYNINIT_SEGMENT), Some(61));
+    }
+
+    /// The **second** `.ex` segment of `fixtures/cpp/wlo_dyninit_pair.cpp` —
+    /// `??__FsL@@YAXXZ`, the atexit thunk — captured live at `/Ox`. 109 bytes.
+    ///
+    /// Its FnHeader is byte-identical to [`DYNINIT_SEGMENT`]'s and it then goes
+    /// **straight to `53 53`**: there is no `4F 02 20 00 4F 01 NN` block-start
+    /// record, because that record is per module, not per function (the module
+    /// opens block `18` at the first segment and closes `19` at the end of this
+    /// one). An anchor on the block start finds `??__E` and misses this, and
+    /// reports a TU with two functions as having one.
+    const ATEXIT_SEGMENT: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00,
+        0x4F, 0x33, 0x0D, 0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01,
+        0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18, 0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38,
+        0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D, 0x08, 0x00, 0x0F,
+        0x53, 0x53, 0x26, 0xF1, 0x09, 0x46, 0x4C, 0x53, 0x26, 0xE5, 0x09, 0x26,
+        0xEE, 0x09, 0x2C, 0xA6, 0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84,
+        0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00,
+        0x4C, 0x4B, 0x3A, 0x0C, 0x0A, 0x54, 0x02, 0x29, 0x0C, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x19,
+        0x4D,
+    ];
+
+    #[test]
+    fn the_atexit_thunk_has_no_block_start_and_is_still_found() {
+        // The regression this fixture bought: the block-start record is per
+        // MODULE. Anchoring the walk there found 1 of these 2 bodies.
+        assert_eq!(find_subslice(ATEXIT_SEGMENT, &BLOCK_START), Some(101));
+        assert!(101 > 54, "the only block start in this segment is the module END");
+        assert_eq!(body_start(ATEXIT_SEGMENT), Some(54));
+
+        // Both bodies of the pair, in one stream, in file order.
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 8]);
+        let a = ex.len();
+        ex.extend_from_slice(DYNINIT_SEGMENT);
+        let b = ex.len();
+        ex.extend_from_slice(ATEXIT_SEGMENT);
+        let (starts, segs) = split_function_bodies_at(&ex);
+        assert_eq!(starts, vec![a, b], "two thunks, two segments");
+        assert_eq!(segs.len(), 2);
     }
 
     #[test]
