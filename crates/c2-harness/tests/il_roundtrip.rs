@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use c2_harness::all_fixtures;
-use c2_il::IlModel;
+use c2_il::{ExToken, IlModel};
 use c2_reference::Toolchain;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -115,32 +115,52 @@ fn roundtrip_all_fixtures_byte_identical() {
                 "{name}: empty module must decode to 0 body tokens"
             );
         } else if has_lo_anchored_body(bundle.ex().unwrap_or(&[])) {
-            assert!(
-                !model.ex_tokens().is_empty(),
-                "{name}: expected decoded .ex tokens"
-            );
+            let toks = model.ex_tokens();
+            assert!(!toks.is_empty(), "{name}: expected decoded .ex tokens");
             assert!(nfns >= 1, "{name}: expected >=1 function, got {nfns}");
+            // The composed form, decoded as the two tokens it is: the one-byte
+            // `4C` body start and the optional `4F 11` record beside it. A file
+            // that carries `4C 4F 11` must decode BOTH, or the split is not
+            // sitting where the marker is.
+            assert!(
+                toks.contains(&ExToken::Lo) && toks.contains(&ExToken::LoRecord),
+                "{name}: a `4C 4F 11` body must decode to Lo + LoRecord"
+            );
         } else {
-            // **The #158 class, named rather than left as a hole.** A dynamic
+            // **The #158 class, and the claim is now positive.** A dynamic
             // initializer (`il_dyninit_static.cpp`) is not an empty module — it
             // has a `4F 1F` function start, and a `.gl` record binds a name to
-            // it — but its body opens `4C 53` where a source function opens
-            // `4C 4F 11`, and the codec's model splits bodies on the three-byte
-            // `4C 4F 11`. So it decodes to zero tokens while carrying a
-            // function.
+            // it — and its body opens `4C 53` where a source function opens
+            // `4C 4F 11`.
             //
-            // The precondition above used to be `is_empty_module`, which asks a
-            // question about the `4F 1F` marker and was being used to predict
-            // the behaviour of an `LO`-anchored split. That is ROADMAP §10.11's
-            // defect exactly — a count is only evidence about the predicate that
-            // produced it — reached here by a test rather than by prose.
+            // This branch used to assert the *symptom*: "decodes to 0 tokens",
+            // because the model treated `4C 4F 11` as one atom and
+            // `try_ex_token` returned `None` for `4C 53`. `4C` is the token and
+            // `4F 11` is a separable optional record (ROADMAP §10.12), so the
+            // symptom is gone and the assertion is inverted into the rule that
+            // replaced it: such a body decodes, it carries the one-byte `Lo`,
+            // and it carries **no** `LoRecord` — which is precisely what
+            // distinguishes this class from every other measured function.
             //
-            // Scoped, not relaxed: the byte-for-byte round-trip above still
-            // gates this fixture, and the exception is closed on both sides.
+            // (The precondition is `has_lo_anchored_body`, not
+            // `is_empty_module`: the latter asks about `4F 1F` as well and was
+            // once used to predict the behaviour of an `LO`-anchored split —
+            // ROADMAP §10.11's defect, a count taken as evidence about a
+            // predicate that did not produce it.)
+            let toks = model.ex_tokens();
             assert!(
-                model.ex_tokens().is_empty(),
-                "{name}: a body with no `4C 4F 11` must decode to 0 tokens, or the \
-                 split found something this branch does not describe"
+                !toks.is_empty(),
+                "{name}: a body with no `4C 4F 11` must still decode — the bare \
+                 `4C` body start is a token, not an absence"
+            );
+            assert!(
+                toks.contains(&ExToken::Lo),
+                "{name}: expected the one-byte `4C` body-start token"
+            );
+            assert!(
+                !toks.contains(&ExToken::LoRecord),
+                "{name}: this file carries no `4C 4F 11`, so no `4F 11` record \
+                 may decode after a body start"
             );
             assert!(
                 nfns >= 1,
