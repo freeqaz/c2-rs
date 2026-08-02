@@ -8226,10 +8226,16 @@ invariant rather than as a repeated observation:
    now names 8,583 records on **270 of 871** TUs it previously refused *whole*,
    with 0 bound names changed. Realising the ceiling needs Phase 7, and this item
    was never on that path.
-2. **Probe Phase 7 on `TomCryptLicense` / `ZlibLicense`** — zero `.ex` bodies, one
-   emitted COMDAT each: the smallest possible instance of the emit-set problem,
-   and in the 4-TU *missing*-COMDAT bucket rather than the 842-TU spurious one.
-   Doubles as the dedicated emit-set probe §10.3 makes a prerequisite.
+2. ~~**Probe Phase 7 on `TomCryptLicense` / `ZlibLicense`**~~ — **DONE (§10.10),
+   and re-read (§10.11).** The probe's conclusion was wrong: these are not
+   bodyless. Each has a `4F 1F` function start at `.ex` 2694 carrying
+   `OPT_WORD_O1`, and a framed `.gl` record binding `??__EsLicense@@YAXXZ` to
+   that same offset. **They are a decode, not a synthesis** — now board **#158**,
+   145 bytes of `.ex` byte-identical across the two, and the ranked Phase-7 entry
+   point precisely because it needs no emit-set model. The *dedicated emit-set
+   probe* §10.3 makes a prerequisite is therefore still owed, and must be found
+   among the 842-TU spurious bucket or the two remaining `segments < COMDATs`
+   TUs (`MeterEffect` 10 → 13, `HeadsetXferEffect` 13 → 14).
 3. **Re-measure #152 against 4,591, not 13,646.** Two thirds of the synthesis wall
    was #151's reader defect; `special-generated` is already down from 90 to 6. One
    warm scan; prevents scoping a phase 3× wrong.

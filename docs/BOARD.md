@@ -30,7 +30,7 @@ the *item* stayed open at 356. A board with one column gets that wrong. So:
 **Numbers are never reused and never renumbered.** Every `#N` in `ROADMAP.md` is
 a permanent reference into 8,000 lines of prose that will not be rewritten.
 
-**Next free number: `#158`.** The sequence is sparse — 1–4, 6–13, 16–18, 20–34,
+**Next free number: `#159`.** The sequence is sparse — 1–4, 6–13, 16–18, 20–34,
 36–42, 45, 49–51, 54–61, 63–91, 93–102, 104–109, 111–117, 123–126, 129–130, 147
 and 148 were never used. **Gaps are not lost items.**
 
@@ -61,7 +61,8 @@ allocate at once.
 
 | # | item | worth (measured, not estimated) | defined | notes |
 |---|---|---|---|---|
-| 152<sub>w-emitset</sub> | Synthesize the `??_` COMDAT family (no `.ex` body exists) | priced +27 TUs — **must be re-measured against 4,591, not 13,646** | R:7734 | Two thirds of the "synthesis wall" was #151's reader defect. `special-generated` residue fell 90 → 6. First probe named: `TomCryptLicense`/`ZlibLicense` (zero `.ex` bodies, one COMDAT each). |
+| **158** | Decode the **bodyless dynamic-initializer segment** — a `4F 1F` function start with no `LO` body marker | **2 TUs** in the 4-TU `segments < COMDATs` bucket; 145 bytes of `.ex`, **byte-identical** across both | R:§10.11 | **The Phase-7 entry point that needs no emit-set model.** The symbol's name and body offset already bind (`??__EsLicense@@YAXXZ` @ 2694, distance 19). Target assembly transcribed in §10.10. Generalization past `??__E` thunks is **unknown — do not assume**. |
+| 152<sub>w-emitset</sub> | Synthesize the `??_` COMDAT family (no `.ex` body exists) | priced +27 TUs — **must be re-measured against 4,591, not 13,646** | R:7734 | Two thirds of the "synthesis wall" was #151's reader defect. `special-generated` residue fell 90 → 6. First probe named: `TomCryptLicense`/`ZlibLicense` — **and §10.11 removed them from this item**: they have a `4F 1F` start and a bound `.gl` record, so they are #158 (a decode), not a synthesis. Whatever remains of #152 must be re-scoped without them. |
 | 131 | The receiver designator — the whole site | 37,060 emitted blocked / 9,111 clean / **honest worth ≈2,600 (1.4 pp)** | rungs/w-adjust:52 | Largest single site on the emitted board (29.3 % of blocked emitted). Raw stock **overstates by ~14×**. Arms convert 19× apart, so **no rate transfers between them**. Needs a refactor returning an operand form richer than a token. |
 | 142 | The other clean-not-whole receiver arms | site 25,654 emitted / 7,842 clean; decomposed into **27 named constructs** | R:5070 | Registered 35,700 → **MISS below the floor**. Ranking blocked by **#154**. Sizing off 25,654 is over by ≥8.0 % per #152<sub>w-arms</sub>. |
 | 154 | `Block::completeness` returns `NoSignal` for every refusal minted outside `CALL_IN_EXPR` | **98.7 % of #142's clean stock** | R:6755 | Blocks ranking-by-completeness on the largest site on the board. Either the walker reaches these positions or the board needs a second completeness producer. |
