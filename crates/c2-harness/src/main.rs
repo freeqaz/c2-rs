@@ -85,7 +85,7 @@ fn print_usage() {
         "c2rs — differential harness for the c2.dll native port\n\
          \n\
          USAGE:\n\
-         \x20 c2rs capture <cpp>        capture IL, print the 5 file sizes\n\
+         \x20 c2rs capture <cpp> [--keep-il DIR]  capture IL, print the 5 file sizes\n\
          \x20 c2rs compile <cpp>        reference obj, print size + timestamp\n\
          \x20 c2rs selftest [<cpp>...]  oracle self-test (determinism + capture stability)\n\
          \x20 c2rs replay <cpp>         P0.1: capture + standalone-c2 replay, byte-match verdict\n\
@@ -458,6 +458,16 @@ fn cmd_capture(rest: &[String]) -> ExitCode {
     let Some(tc) = located() else {
         return ExitCode::SUCCESS;
     };
+    // `--keep-il DIR` retains the captured bundle for byte inspection — the same
+    // affordance `compile --keep-obj` gives for the reference obj, and the only
+    // way to design a fixture around a *record-level* `.gl` shape (which name
+    // separator introduces a run, where a record's framing starts) without
+    // guessing. Gitignored scratch only — captured IL is never committed.
+    let keep_il: Option<PathBuf> = rest
+        .iter()
+        .position(|a| a == "--keep-il")
+        .and_then(|i| rest.get(i + 1))
+        .map(PathBuf::from);
     let w = scratch("capture");
     match tc.capture_il(&cpp, &w) {
         Ok(bundle) => {
@@ -466,6 +476,18 @@ fn cmd_capture(rest: &[String]) -> ExitCode {
                 let size = bundle.get(suffix).map(|b| b.len()).unwrap_or(0);
                 let present = if bundle.get(suffix).is_some() { "ok" } else { "MISSING" };
                 println!("  .{suffix:<2}  {size:>7} B  {present}");
+            }
+            if let Some(dir) = &keep_il {
+                let _ = std::fs::create_dir_all(dir);
+                for suffix in IL_SUFFIXES {
+                    if let Some(bytes) = bundle.get(suffix) {
+                        let p = dir.join(format!("{}.{suffix}", bundle.base_name));
+                        match std::fs::write(&p, bytes) {
+                            Ok(()) => println!("  kept {}", p.display()),
+                            Err(e) => eprintln!("  keep-il {} failed: {e}", p.display()),
+                        }
+                    }
+                }
             }
             let _ = std::fs::remove_dir_all(&w);
             ExitCode::SUCCESS
