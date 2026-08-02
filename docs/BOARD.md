@@ -46,9 +46,15 @@ and 148 were never used. **Gaps are not lost items.**
 
 **Checked, not asserted**: `scripts/board_audit.sh` lists every `#N` in
 `ROADMAP.md` with no row here, suppressing the two known non-item series by an
-explicit printed list rather than silently. `--check` self-tests it without a
-toolchain, and it is mutation-tested (delete a row, it reports it). Coverage at
-`a091e37`: **50 board numbers, 55 cited, 0 uncovered.**
+explicit printed list rather than silently. It also resolves every section
+anchor in this file (`R:§x` etc.) against a real heading in its target document,
+lists any raw line-number anchor as drift waiting to happen, and lists every
+board number that a `ROADMAP.md` **heading** names in a section no row of that
+number cites — the mechanized form of the 2026-08-02 staleness defect, where
+§10.11/§10.13 re-measured #152 and nothing forced the row to notice. `--check`
+self-tests all of it without a toolchain, and every check is mutation-tested
+(see the script header). Coverage at `a091e37`: **50 board numbers, 55 cited,
+0 uncovered.**
 
 ### The 2026-08-01 collision — six numbers carry two meanings each
 
@@ -95,7 +101,7 @@ is for reading prose that did not use them.
 | **159** | `emit-unbound-no-record\|ordinary` — plain mangled functions the obj emits with **no `.gl` body record** | **65 TUs** unblocked alone — second-ranked, 4 behind #152 | R:§10.13 | **Minted 2026-08-02 by §10.13, which found it while re-pricing #152.** Not a synthesis problem. It had no number, and #152 did, which is the only reason #152 looked bigger — they are 4 TUs apart. Nobody has read what an `ordinary` no-record symbol *is*; that is step one, **attempted and failed** (§10.14 — a standalone COFF reader disagreed with the instrument on the first witness TU). It needs `gap.rs` to emit the names it classifies. |
 | — | **The wall does not decompose into items** | **305 of 451** wall TUs carry ≥2 live categories; every single-item price summed is 146 | R:§10.13 | Not an item — a **property of the board** for this phase. `dtor` is the sharpest case: 261 wall TUs carry one, **2** are unblocked by fixing dtors alone. |
 | 131 | The receiver designator — the whole site | 37,060 emitted blocked / 9,111 clean / **honest worth ≈2,600 (1.4 pp)** | rungs/w-adjust:52 | Largest single site on the emitted board (29.3 % of blocked emitted). Raw stock **overstates by ~14×**. Arms convert 19× apart, so **no rate transfers between them**. Needs a refactor returning an operand form richer than a token. |
-| 142 | The other clean-not-whole receiver arms | site 25,654 emitted / 7,842 clean; decomposed into **27 named constructs** | R:§9.13.4 | Registered 35,700 → **MISS below the floor**. Ranking blocked by **#154**. Sizing off 25,654 is over by ≥8.0 % per #152<sub>w-arms</sub>. |
+| 142 | The other clean-not-whole receiver arms | site 25,654 emitted / 7,842 clean; decomposed into **27 named constructs** | R:§9.13.4; decomposed R:§9.17.3 | Registered 35,700 → **MISS below the floor**. Ranking blocked by **#154**. Sizing off 25,654 is over by ≥8.0 % per #152<sub>w-arms</sub>. |
 | 154 | `Block::completeness` returns `NoSignal` for every refusal minted outside `CALL_IN_EXPR` | **98.7 % of #142's clean stock** | R:§9.17.10 | Blocks ranking-by-completeness on the largest site on the board. Either the walker reaches these positions or the board needs a second completeness producer. |
 | 149 | The off-add ARGUMENT slot — a `SlotArg` variant and its permutation position | **356 emitted** (conversion DECLINED; item open) | R:§9.17.10 | The fitted ordering rule **agreed on 360 of 360 cells and died on the 361st**; 98 witnesses refuted it. **"Do not re-derive the rule from grids 1–2 alone."** Entangled with #155, #157. |
 | 153 | The three receiver arms worth ranking | `no-b9-this-adjust` 3,063 clean; `then-off-add` 2,856 clean (**unmeasured**); `then-dynamic-cast` 542 over 115 names | R:§9.17.10 | Two clean→realized ratios measured: **6.5×** and **142×**. `clean` is an optimistic ceiling, and the spread is why it cannot be scaled. |
@@ -108,14 +114,14 @@ is for reading prose that did not use them.
 | 144<sub>w-eh</sub> | `nIPMapEntries` for try/catch shapes | `h_try1` 1, `h_try2seq` 4, `h_try3seq` 7, `h_nest3` 3 | R:§9.15.6 | **"Not a function of any count in `FuncInfo`."** §9.7 refuted the no-try rule; this lane declined to guess rather than fit. |
 | 146<sub>w-eh</sub> | Repair `EH_RECORDS.md` §9.8's `G = 4 + Σmint` | base is **`2 + 2`**; `Σmint` should range over **all** §1.1-style surcharges | R:§9.15.6 | Instrument correction, not a rung. Its `qLOOP` miss was already this defect. |
 | 118 | The numerator's binding residue — census row ↔ obj symbol | **9,275 emitted symbols (5.18 %)** no census row claims *(was 17,706 / 9.89 %)* | R:§9.9.3 | The denominator is exact and watched; the numerator's residue is not. **#136 was never able to reach it** — needs a different instrument. |
-| 119 | An instrument for general allocator/scheduler demand | **none — "the answer to #119 is a refusal, not a number"** | R:§9.4 | "The largest unbounded unknown, and it has no instrument." #134 was meant to answer it and was itself refuted. |
+| 119 | An instrument for general allocator/scheduler demand | **none — "the answer to #119 is a refusal, not a number"** | R:§9.4 | "The largest unbounded unknown, and it has no instrument." #134 was meant to answer it and was itself refuted (R:§9.9.2 — "#119 still has no instrument"). |
 | 14 | The symbol-binding seam — positional vs per-record 1:1; a wrong resolution is **silent** | "moves the census numerator by ~2 %" | SEAMS:§0 | Pinned apart by a standing test. `gl_defined_names` is the correct locator. |
 | 151<sub>w-arms</sub> | The completeness walker cannot COUNT, and reads its own inability as a bug | every `-then-<x>-more` key with no `-and-` is a candidate | R:§9.17.10 | **Same family as #110/#139: one measure, wrong about what it is measuring.** An `Admit` carrying multiplicity would name these `-whole2`. |
 | 152<sub>w-arms</sub> | The receiver-designator site is at least 8.0 % assignments | **2,060 of 25,654** emitted rows are `calls-0` — no CALL token at all | R:§9.17.10 | Any sizing of #131/#142 off 25,654 is over by at least that. |
 | 146<sub>w-rerank</sub> | Extend the correspondence guard beyond the call-argument region | "each new pair costs one enumerated test and, on this evidence, finds something" | R:§9.14.10 | Generalizes the #139 repair to every place a census measure shadows a shipping production. |
 | 145<sub>w-rerank</sub> | `configure_existing_worktree.sh` should say why it does not link the capture cache; `--validate-cache` should report a path-length mismatch, not self-heal it | — | R:§9.14.10 | Source of the standing rule: **"a validator that cannot see its own defect is worse than none."** |
 | 156 | `prefilter` and `differential` disagree about function-level linking | `.text` characteristics **`0x60401020`** vs **`0x60400020`** on the same source | vgl-prereg:118 | A body the differential grades `Port=Match` reads `bytes-diverge at 217` through `prefilter`. Nothing shipped depends on it, but `prefilter` is the reject-only seam callers are meant to trust — **one of the two is wrong about the workload's real flags.** |
-| 35 | General non-leaf lowering | frame model **DONE**; Class A many-calls rung 1 **byte-exact** | R:§6e | **PARTIAL.** Still blocked on >1 call per body (call sequencing, r3–r10 + spill, live ranges across calls) and the label stride of every class it will admit (`__savegprlr_N` stride is **7, not 5**). |
+| 35 | General non-leaf lowering | frame model **DONE**; Class A many-calls rung 1 **byte-exact** | R:§6e; frame model R:§6g, rung 1 R:§6j, merged R:§6k | **PARTIAL.** Still blocked on >1 call per body (call sequencing, r3–r10 + spill, live ranges across calls) and the label stride of every class it will admit (`__savegprlr_N` stride is **7, not 5**). |
 
 ## Declined and refuted — the rows that saved work
 
@@ -141,7 +147,7 @@ is for reading prose that did not use them.
 | 52 | `opt_word_at` — the word is a **varint** and the reader was not | **0 functions**; `opt-mode` keys 570 → 568 | R:§6k |
 | 92 | The range audit — every negative re-run to the ceiling | census unchanged; **"two negatives turned out not to have been measured"**; range control existed for only 2 of 8 probe modes | LC:§6.20 |
 | 103 | The second census over-claim | disagreement **4 → 0**; verdict was **BOTH** — port under-implemented *and* census over-claiming | R:§6t |
-| 110 | The `-whole{k}` over-count | closed with #139 — **but its own registered claim scored MISS at −3,761** (see Contradictions) | R:§9.14.10 |
+| 110 | The `-whole{k}` over-count | closed with #139 — **but its own registered claim scored MISS at −3,761** (see Contradictions) | R:§9.14.2, R:§9.14.10 |
 | 121 | `codec::gl_offset_framed`'s over-fit | **38** framed records on `App.cpp`, not the 34 the doc claimed; the gate binds **0 of 9,033 bodies** there | R:§9.20.4 |
 | 128 | The named data object as a member call's receiver | **+1,385 emitted**, converts **100.4 %**, only 4 distinct mangled names | R:§9.13 |
 | 132 | The `c2rs listing` seam | listing does **not** perturb the obj; "byte-faithful" overstated by exactly one class (7 relocated branches of 44 rows). **A decode aid, never a gate.** | R:§9.9 |
@@ -150,7 +156,7 @@ is for reading prose that did not use them.
 | 136 | Reconcile `.cod` `PUBLIC`/`PROC` against the obj COMDAT scan | error term **0.0000 pp** over 178,968 — **on the denominator only** | R:§9.9.3 |
 | 137 | Portable pins for WR1's ordering rules | tests 571 → 579; WR1 had landed ~1,500 lines with the test count **unmoved** | R:§9.12.1 |
 | 138 | What governs the label-number gaps | `G = 2 + 2×[first emitted in TU] + Σ(own surcharges)`; hypothesis C1 refuted — **0 %** of gap slots are named in the listing | R:§9.15.3 |
-| 139 | Repair `eat_int_operands`'s type gate | claimed 7,983, measured **13,321** — **under-sized 1.69×** | R:§9.14.10 |
+| 139 | Repair `eat_int_operands`'s type gate | claimed 7,983, measured **13,321** — **under-sized 1.69×** | R:§9.14.2, R:§9.14.10 |
 | 144<sub>w-rerank</sub> | The `volatile` operand class — admitted by the measure, refused by the emitter | had no board item at all until this found it | R:§9.14.10 |
 | 145<sub>w-eh</sub> | Fix `bind.rs:84`'s doc comment | **38, not 34** | R:§9.20.4 |
 
