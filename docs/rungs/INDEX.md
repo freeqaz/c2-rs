@@ -39,3 +39,4 @@ the header block this table is read from.
 | 2026-08-01 | WLR | [lit-run](2026-08-01-lit-run.md) | 2 | 697,251 → 703,047 (28.31 % → 28.55 %), +5,796 |
 | 2026-08-01 | W-ADJUST | [w-adjust](2026-08-01-w-adjust.md) | 2 | 703,875 → 706,402 (28.58 % → 28.69 %), +2,527 bodies; EMITTED 34,674 → 36,059 (19.37 % → 20.15 %), +1,385 |
 | 2026-08-02 | W-ADOPT | [w-adopt](2026-08-02-w-adopt.md) | 1 | 706,402 unchanged (28.69 %), +0 — a binding repair, not a widening |
+| 2026-08-02 | W-WITNESS | [w-witness](2026-08-02-w-witness.md) | 11 | 706402/2462572 → 706402/2462572 (28.69% → 28.69%), +0 |

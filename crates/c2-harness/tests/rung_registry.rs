@@ -166,6 +166,44 @@ fn rung_docs_claim_their_tag_slug_and_fixtures_exactly_once() {
             panic!("slug {slug} claimed twice: {other} and {file}");
         }
 
+        // **The instrument-rung exception, kept narrow on purpose.** The rule
+        // below exists because a widening rung with no fixture cannot be shown
+        // to admit what it claims. An *instrument* rung admits nothing — it
+        // ships a measurement, not an accepted class — so the rule's own reason
+        // does not reach it, and demanding a fixture would produce a fake one:
+        // a fixture proves nothing unless the census says N/N, and there is no
+        // N to say.
+        //
+        // Two conditions, both textual so this stays portable, and both of
+        // which a real widening rung would have to LIE about to satisfy:
+        //   * `Fixtures: none — <reason>`, the reason mandatory; and
+        //   * a `Census:` line carrying `+0`.
+        // A rung that widened the class and still wrote `+0` is caught by the
+        // gate, which is the check that owns that claim. Each condition has its
+        // own failure message, because a shared one would let an early guard
+        // make the later assertion unreachable — the lane-registry defect
+        // (ROADMAP §9.18.8), where seven mutations all tripped one count and
+        // the assertions behind it never ran.
+        if let Some(reason) = fixtures.strip_prefix("none") {
+            let reason = reason.trim_start_matches([' ', '\u{2014}', '-']).trim();
+            assert!(
+                !reason.is_empty(),
+                "{file}: `Fixtures: none` needs a reason on the same line, e.g. \
+                 `none — this rung ships an instrument, not an accepted class`. \
+                 Bare `none` is indistinguishable from a widening rung that \
+                 forgot its fixtures, which is what this rule exists to catch."
+            );
+            let census = rung.field("Census").unwrap_or("");
+            assert!(
+                census.contains("+0"),
+                "{file}: `Fixtures: none` is only for a rung that admits nothing, \
+                 so its `Census:` must record `+0`; got `{census}`. A rung that \
+                 moved the census admitted a class, and a class with no fixture \
+                 cannot be shown to be what it claims."
+            );
+            continue;
+        }
+
         let named: Vec<&str> = fixtures.split_whitespace().collect();
         assert!(
             !named.is_empty(),
