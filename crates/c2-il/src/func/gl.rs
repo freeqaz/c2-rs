@@ -225,8 +225,38 @@ pub(crate) fn looks_mangled(name: &str) -> bool {
 /// `?gv@@3HA` unclaimed and c2's obj has an extra section for it — the port used
 /// to emit its fixed four-section shell and mismatch at file offset 2, the
 /// section count. The caller must account for every unclaimed run or refuse.
+///
+/// # The separator (W-ADOPT, board #151)
+///
+/// This reads [`gl_symbol_runs_all_separators`], so a `26`-introduced name is
+/// visible here. It was not, until W-ADOPT: `.gl` introduces a record's name
+/// with `00` **or** `26` ([`NAME_SEPARATORS`]), the instrument-side scanner was
+/// taught both in §9.20, and the gate kept the NUL-only one deliberately —
+/// widening what a gate *accepts* is a differential decision, not a reader
+/// repair, and it was gated separately.
+///
+/// What that cost, measured on `fixtures/cpp/il_gl_sep26.cpp`: the `26`-
+/// introduced name was not mis-framed, it was **never seen**, so its record's
+/// "nearest preceding run" was the previous record's name 63 bytes back. The
+/// only thing standing between that and a body emitted under another symbol's
+/// name was [`MAX_NAME_TO_OFFSET`] — a distance bound, refusing a record it
+/// could not name. Right outcome, wrong reason, and on a TU where some
+/// unrelated run happened to fall inside 32 bytes it would not have held.
 pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
-    let runs = gl_symbol_runs(gl);
+    gl_defined_names_with(gl, true)
+}
+
+/// [`gl_defined_names`] with the separator set named, so the **incumbent stays
+/// executable**.
+///
+/// `sep26 = true` is the only production path; `false` is the NUL-only reader
+/// W-ADOPT replaced, kept callable so a test can state what the change did as a
+/// pair of assertions on one input rather than as a claim about history. A
+/// residue or a ceiling can move while the thing it proxies does not (§9.20.3),
+/// and "this used to refuse" is exactly the sort of claim that rots into
+/// folklore once the code it describes is gone.
+fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<String>) {
+    let runs = symbol_runs(gl, sep26);
     let mut claimed = vec![false; runs.len()];
     let mut bound: Vec<(u32, String)> = Vec::new();
     let mut p = 0usize;
@@ -248,6 +278,25 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
             // Named positively, then judged: a record name the port cannot emit
             // refuses the TU. `extern "C"` lands here.
             if !looks_mangled(&runs[k].2) {
+                return (Vec::new(), Vec::new());
+            }
+            // **A run the widened scanner ended at `26` is not a record name this
+            // reader understands.** Everything downstream of here reads the
+            // record's fields at a fixed displacement from the name's terminator
+            // — [`linkage_needs_a_directive`] takes the linkage byte at
+            // `name_nul + 3` — and that arithmetic is measured against a NUL
+            // terminator, which is what a *defined record's* name has: the TYPE
+            // field follows it. A run that ends at `26` ends because the next
+            // name began, so the three bytes after it are the next record's, and
+            // reading them would be reading a field that is not there.
+            //
+            // Refuse rather than read. This is the only place the widened
+            // separator set can change what a *bound* name is (it can shorten a
+            // run that previously swallowed a `26`), so it is the one place the
+            // widening could turn a refusal into wrong bytes, and it is closed
+            // positively instead of being left to the distance bound — which is
+            // the mistake this whole rung exists to correct.
+            if gl.get(runs[k].1) != Some(&0) {
                 return (Vec::new(), Vec::new());
             }
             // …and a record whose *linkage* the port cannot emit refuses it too.
@@ -987,6 +1036,123 @@ mod tests {
         assert!(
             all.iter().any(|n| n == "?out@@AAAXXZ"),
             "the NUL-introduced name must still be found unchanged: {all:?}"
+        );
+    }
+
+    /// The first two records of `fixtures/cpp/il_gl_sep26.cpp`, transcribed byte
+    /// for byte from `.gl` offsets 125..213 of its capture, with **both** readers
+    /// run over them.
+    ///
+    /// ```text
+    /// 125  00 '??1R@@UAA@XZ' 00              name ends 138
+    /// 139  82 07 05 00 20 20 03 00 00 03 00  TYPE
+    /// 150  80 05 10 00 00 00 00              framing
+    /// 157  80 54 0a 00 00                    body @ 2644     (distance 19)
+    /// 162  00 15 c8 18 01 01 ec 09 01 0e ef 09   record tail
+    /// 174  26                                the separator
+    /// 175  '??_GR@@UAAPAXI@Z' 00             name ends 191
+    /// 192  86 03 05 04 20 20 01 00 00        TYPE
+    /// 201  80 0f 10 00 00 00 00              framing
+    /// 208  80 d1 0a 00 00                    body @ 2769     (distance 17)
+    /// ```
+    ///
+    /// The incumbent could not see the second name, so the second record's
+    /// nearest preceding run was `??1R@@UAA@XZ` at **70** bytes —
+    /// past [`MAX_NAME_TO_OFFSET`], hence a refusal. Both halves are asserted:
+    /// a test that only showed the widened reader binding correctly would pass
+    /// just as happily if the incumbent had bound it correctly too, and then it
+    /// would be evidence of nothing.
+    #[test]
+    fn the_gate_binds_a_26_introduced_record_to_its_own_name() {
+        let mut gl = vec![0u8];
+        gl.extend_from_slice(b"??1R@@UAA@XZ");
+        gl.push(0);
+        gl.extend_from_slice(&[0x82, 0x07, 0x05, 0x00, 0x20, 0x20, 0x03, 0x00, 0x00, 0x03, 0x00]);
+        gl.extend_from_slice(&[0x80, 0x05, 0x10, 0x00, 0x00, 0x00, 0x00]);
+        gl.push(0x80);
+        gl.extend_from_slice(&2644u32.to_le_bytes());
+        gl.extend_from_slice(&[0x00, 0x15, 0xc8, 0x18, 0x01, 0x01, 0xec, 0x09, 0x01, 0x0e, 0xef, 0x09]);
+        gl.push(0x26);
+        gl.extend_from_slice(b"??_GR@@UAAPAXI@Z");
+        gl.push(0);
+        gl.extend_from_slice(&[0x86, 0x03, 0x05, 0x04, 0x20, 0x20, 0x01, 0x00, 0x00]);
+        gl.extend_from_slice(&[0x80, 0x0f, 0x10, 0x00, 0x00, 0x00, 0x00]);
+        gl.push(0x80);
+        gl.extend_from_slice(&2769u32.to_le_bytes());
+
+        // The control, still executable: the NUL-only reader cannot name the
+        // second record and refuses the whole TU.
+        assert_eq!(
+            gl_defined_names_with(&gl, false),
+            (Vec::new(), Vec::new()),
+            "control: the incumbent must REFUSE this shape — if it binds, this \
+             test is not measuring the separator"
+        );
+
+        // …and the distance, not the name, is why. Stated separately so a future
+        // change to `MAX_NAME_TO_OFFSET` cannot quietly turn the control green.
+        let nul = gl_symbol_runs(&gl);
+        assert!(
+            nul.iter().all(|(_, _, n)| n != "??_GR@@UAAPAXI@Z"),
+            "control: the name must be invisible to the NUL scanner: {nul:?}"
+        );
+
+        assert_eq!(
+            gl_defined_names_with(&gl, true),
+            (
+                vec![
+                    (2644, "??1R@@UAA@XZ".to_string()),
+                    (2769, "??_GR@@UAAPAXI@Z".to_string()),
+                ],
+                Vec::new()
+            ),
+            "each record binds to its OWN name"
+        );
+
+        // The production path is the widened one.
+        assert_eq!(gl_defined_names(&gl), gl_defined_names_with(&gl, true));
+    }
+
+    /// A bound name whose run ends at `26` refuses, because every field this
+    /// reader takes after a name is at a fixed displacement from a **NUL**
+    /// terminator — `linkage_needs_a_directive` reads `name_nul + 3`.
+    ///
+    /// This is the one shape the widening could have turned into wrong bytes
+    /// rather than a refusal: terminating runs at `26` (which
+    /// `gl_symbol_runs_all_separators` must do, or the name is still lost)
+    /// *shortens* a run that previously swallowed the separator, so a record's
+    /// bound name can change without any record moving.
+    #[test]
+    fn a_record_name_terminated_by_26_refuses_rather_than_reading_past_it() {
+        let mut gl = vec![0u8];
+        gl.extend_from_slice(b"?w_add@@YAHH@Z");
+        gl.push(0x26); // …not the NUL the field arithmetic is measured against.
+        gl.extend_from_slice(&[0x86, 0x01, 0x05, 0x04, 0x00, 0x00, 0x00]);
+        gl.extend_from_slice(&[0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00]);
+        gl.push(0x80);
+        gl.extend_from_slice(&2644u32.to_le_bytes());
+
+        // Seen — the run is found, and at a distance the bound accepts. So the
+        // refusal below is the terminator check doing it, not the distance.
+        let runs = gl_symbol_runs_all_separators(&gl);
+        assert!(
+            runs.iter().any(|(_, _, n)| n == "?w_add@@YAHH@Z"),
+            "the widened scan must see the run: {runs:?}"
+        );
+        assert_eq!(gl_defined_names(&gl), (Vec::new(), Vec::new()));
+
+        // Mirror: the identical record with a NUL terminator binds. Without this
+        // the test above would pass on a reader that refused everything.
+        let mut ok = vec![0u8];
+        ok.extend_from_slice(b"?w_add@@YAHH@Z");
+        ok.push(0x00);
+        ok.extend_from_slice(&[0x86, 0x01, 0x05, 0x04, 0x00, 0x00, 0x00]);
+        ok.extend_from_slice(&[0x80, 0x01, 0x10, 0x00, 0x00, 0x00, 0x00]);
+        ok.push(0x80);
+        ok.extend_from_slice(&2644u32.to_le_bytes());
+        assert_eq!(
+            gl_defined_names(&ok),
+            (vec![(2644, "?w_add@@YAHH@Z".to_string())], Vec::new())
         );
     }
 
