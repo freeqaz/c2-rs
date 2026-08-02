@@ -39,6 +39,17 @@ and 148 were never used. **Gaps are not lost items.**
 > #5, #14 and #15. "§6 #15" (a `volatile` stored value) and "board #15" (the
 > capture cache) are different things. **Never absorb one series into the other.**
 
+> **A bare `#1`–`#4` in `ROADMAP.md` is almost always a RANKING, not an item** —
+> "the #1 census blocker", "#2 blocker at 141,800", "the row that was #4 by
+> bodies". `#1` alone occurs 15 times that way and not once as a work item. Those
+> numbers are effectively unusable for new items in that document.
+
+**Checked, not asserted**: `scripts/board_audit.sh` lists every `#N` in
+`ROADMAP.md` with no row here, suppressing the two known non-item series by an
+explicit printed list rather than silently. `--check` self-tests it without a
+toolchain, and it is mutation-tested (delete a row, it reports it). Coverage at
+`a091e37`: **50 board numbers, 55 cited, 0 uncovered.**
+
 ### The 2026-08-01 collision — six numbers carry two meanings each
 
 Two lanes running concurrently (`w-eh` and `w-rerank`) both allocated **143, 144,
