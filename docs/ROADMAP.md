@@ -8604,8 +8604,9 @@ or more live categories and does not depend on any category being priced right.
 
 ## 10.14 #159, step one: attempted, and the reader failed its own known-answer check (2026-08-02)
 
-§10.13 minted **#159** — `emit-unbound-no-record|ordinary`, 6,271 symbols across
-341 TUs, 65 of which it alone unblocks — with "nobody has read what an `ordinary`
+§10.13 minted **#159** — `emit-unbound-no-record|ordinary`, ~~6,271~~ **2,809**
+symbols across 341 TUs (see §10.17: the 6,271 was spliced from a different key),
+65 TUs of which it alone unblocks — with "nobody has read what an `ordinary`
 no-record symbol *is*" as step one. This is that attempt, and it did not
 produce witnesses. Recorded because a reader that disagrees with the instrument
 is a result, and the tempting alternative was to publish its output anyway.
@@ -8766,3 +8767,191 @@ That miss is the section's own result, arrived at twice.
 `GAPS.md` §9.3's *"zero are `cflow-straight`"* is no longer exact:
 `xboxmem.cpp [0]` (`?GetXAllocAttributes@…`, 131 B) is a straight-line `cmp`
 site. It converts nothing, so the conclusion stands and the quantifier does not.
+
+---
+
+## 10.16 W-OBJSHAPE — the `??__E` obj, byte by byte, and the string hash is JamCRC (2026-08-02)
+
+**Full write-up: [`OBJ_DYNINIT_SHAPE.md`](OBJ_DYNINIT_SHAPE.md), 612 lines,
+byte-derived. Pre-registration `rungs/_2026-08-02-w-objshape-prereg.md`
+committed before the first capture; 13 rules and 9 held-out predictions frozen
+as a git object in `rungs/_2026-08-02-w-objshape-rules-frozen.md` before the
+held-out cells existed.** Board **#158**'s obj half — the half §10.12 called the
+larger one.
+
+### The fixture is exact
+
+`fixtures/cpp/il_dyninit_static.cpp` at the workload's flags produces a
+`.text$yc` payload **byte-identical to both** `TomCryptLicense.cpp` and
+`ZlibLicense.cpp`:
+
+```text
+3d60 0000  3d40 0000  388b 0000  386a 0000  38a0 0000  4bff ffec
+```
+
+Same 8 sections, same 24 symbol records, same 9+1 relocations. The only
+difference between the two workload TUs is Zlib's `sLicense` being EXTERNAL,
+reproduced exactly by a probe. Two lines of C++ stand in for a 2,839-byte
+capture.
+
+### The string-literal COMDAT name is computable
+
+`??_C@_03FIKCJHKP@abc?$AA@`'s `FIKCJHKP` is **JamCRC** — poly `0xEDB88320`,
+init `0xFFFFFFFF`, **no final XOR** — over the literal **including its NUL**,
+rendered base-16 with digits `A`..`P`, MSB first, **leading zeros suppressed**.
+The COMDAT aux `CheckSum` is the same polynomial with **init 0**, and is zero for
+`.text` and for FP-constant `.rdata`.
+
+Verified independently by the coordinator on a symbol the lane did not use:
+`jamcrc("system/src/synth/tomcrypt\0")` = `0xf4bc3e1c` → `PELMDOBM`, matching
+`??_C@_0BK@PELMDOBM@system?1src?1synth?1tomcrypt?$AA@` in `TomCryptLicense.cpp`'s
+own listing. **The port can name string COMDATs itself.** The lane's registered
+decline floor was "if the hash does not yield, the emit half is not derivable" —
+that floor is not met.
+
+### What was wrong in the obvious reading
+
+| assumed | measured |
+|---|---|
+| 5 relocations on `.text` | **9** — a `PAIR` follows every REFHI **and** every REFLO |
+| COMDAT Selection 1 (NODUPLICATES) | **Selection 2, ANY**; `.pdata` is Selection 5, ASSOCIATIVE |
+| `??__EsL@@YAXXZ` is EXTERNAL | **STATIC**, even for an external-linkage object |
+| two objects ⇒ two `.CRT$XCU` sections | **one** section with two entries |
+| section order follows source order | **two-phase** — all ordinary functions, then all thunks; the object's source position is invisible |
+| a non-zero addend rides in the relocation | it never does; c2 emits an **extra unrelocated `addi`** |
+
+REFHI/REFLO halves are confirmed **not adjacent** (HI,HI at 0,4; LO,LO at 8,12),
+and the refinement matters: with a float argument the **symbol order differs
+between the HI and LO blocks**.
+
+### Two findings the coordinator must act on
+
+1. **`/Ox` does not imply `/GF`; `/O1` does — and the workload is `/O1`.** For
+   this class the two produce *structurally different* objs: at `/Ox` the literal
+   is a `$SG` static in a **non-COMDAT** `.rdata` placed **before** `.text`, with
+   **no `??_C@` symbol at all**. `c2rs perf` — the default fixture gate, and the
+   number `STATUS.md` publishes — runs `/Ox`. Grade emit-set work at `/O1`.
+   `scripts/gate.sh` already crosses both, so the merge gate is unaffected; the
+   headline fixture number is the one that speaks a different mode.
+2. **The `/FAsc` listing is not byte-faithful here, and this lane's fixture *did*
+   contain the relocated branch that proves it.** The obj stores `4bffffec`; the
+   listing prints `48000000` plus the target name. The obj's rule is
+   `0x48000000 | ((-k) & 0x03FFFFFC) | LK`, confirmed on ordinary functions too.
+   **The listing's section order also disagrees with the `/O1` obj's.** The
+   listing remains excellent for *which functions c2 emitted, by name* — which is
+   what §10's Phase-7 route needs — but instruction bytes, displacements and
+   section ordering must be confirmed against the obj. This is the third
+   recorded instance of the listing seam being trusted one step past what it
+   supports; the first was `add3`, a control structurally incapable of showing it.
+
+### Declined, explicitly
+
+With **≥3** namespace-scope objects the `.bss` **address assignment** is a
+name-keyed permutation (N=6 gives `s6 s4 s3 s5 s1 s2`) — a hash-table walk order
+the lane did not crack. **It does not block #158**: both target TUs and the
+fixture carry one object each. Recorded so a later lane meets it as a known hole
+rather than as a mismatch.
+
+### Controls scored
+
+Prereg **5 of 10** right, 4 wrong, 1 half. Held-out **6 of 9**. Two of the three
+held-out refutations corrected a rule that would otherwise have shipped wrong —
+a fixed-width hash guess (killed by a 101-byte literal whose top nibble is zero,
+i.e. the leading-zero suppression) and the checksum's scope (FP `.rdata` carries
+0). **In-sample, both rules were perfect.** This is the fourth time the
+commit-predictions-before-compiling-the-held-out-grid protocol has caught a rule
+that in-sample agreement had blessed.
+
+---
+
+## 10.17 W-WITNESS — the residue has names, and #159 is a framing question (2026-08-02)
+
+**Full write-up: [`rungs/2026-08-02-w-witness.md`](rungs/2026-08-02-w-witness.md).
+Pre-registration committed before the first measurement.** An **instrument**
+rung: `gap.rs` now prints the symbol *names* behind each residue category, which
+is what §10.14 failed to obtain by re-deriving the classification outside the
+harness.
+
+### The control first
+
+**33 pre-existing `emit-*` keys byte-identical base → tip**, and identical again
+with the new knob off. TU classes identical — match **6**, mismatch **0**,
+vocab-gap 865, capture-fail 7. `emit-records` / `emit-record-offsets` 1,515,161
+each; no-record 4,591; has-record 4,684; ceilings 324 / 420 / 451. Five new keys,
+all pure additions. `cargo test --workspace --release` **24 targets / 607 passed
+/ 0 failed** (+1 = the new witness test); `scripts/gate.sh --jobs 6` **12/12
+PASS, 2,544 fixture-verdicts, 0 mismatch**.
+
+### What the buckets are
+
+* **`ordinary`** — **98.2 %** virtual member functions (95.8 % public virtual):
+  header-declared **base-class virtuals** that c2 emits into every TU that
+  includes the header. `?ClassName@RndPollable@@UBA…` appears in 69 TUs.
+* **`has-record`** — **adjustor thunks**; 76.6 % carry `@@$4` / `@@$R4` / `@@W`.
+  The same virtual-dispatch family, seen with a framed record instead of without.
+* **`special-generated`** — **947 of 947 = 100 %** genuinely synthesized:
+  `??_G` 556, `??__F` 379, `??__E` 11, `??_D` 1. **Zero** `??_7` / `??_R` /
+  `??_C`, which refutes a worry the lane had registered in advance.
+
+The lane's own **E1 was refuted by its own measurement**: it named EH funclets as
+the likely family, and there are **zero** funclet-shaped names in all 9,275 rows.
+
+### The result that outranks the description
+
+**`.gl` names 9,274 of the 9,275 residue symbols** — 2,809 of 2,809 for
+`ordinary` — through `gl_symbol_index`. What is missing is the **framed
+body-start record**, not the name.
+
+So **#159 is a `.gl` framing question, adjacent to #121 and #151 — not
+synthesis**, and **#152 needs a body but not a name**. Both items were scoped on
+the assumption that the symbol was unknown to the IL. It is not.
+
+Stated caveat, the lane's own: `gl_symbol_index` includes callee references, so
+"named" is not "defined here". And the lane had to add a *second* `.gl`-presence
+column because `mangled_names` drops every `??`-prefixed name **by
+construction** — publishing its `0 of 947` alone would have been §10.14 again, in
+the same session that recorded §10.14.
+
+### Two corrections to the board, one of them mine
+
+1. **§10.13's symbol count for #159 was spliced from the wrong key, and it is
+   this section's own correction to make.** `emit-residue-unbound|ordinary` is
+   **6,271 symbols over 452 TUs**; `emit-unbound-no-record|ordinary` is **2,809
+   over 341**. §10.13 published "6,271 symbols across 341 TUs" — the symbol count
+   from one key, the TU count from the other. **The TU price stands** (341, and
+   65 single-category); the symbol count was **2.2× too large**. Struck above.
+2. **#159 re-priced §10.13-style: +65 wall, +9 today, 0 match** (190 symbols; 56
+   of the 65 still carry has-record residue). Against #152's **+69 / +4 / +0**,
+   **#159 is worth more where it counts** — more than twice as much at the
+   `today` ceiling, which is the one a model can reach. The lane's rows reproduce
+   §10.13's ranking table exactly (69 / 65 / 5 / 4 / 2 / 1 / 305) from an
+   independent pass over the same population.
+
+### The splitter recompute — taken, then DECLINED with its number
+
+§10.15 handed this lane the recompute of the emit-set ceiling on the port's own
+`4F 1F` anchor. It added both-anchor counting without touching an existing
+number, measured, and declined:
+
+**The gate-side count is KNOWN for 6 of 871 TUs and UNKNOWN for 865.**
+`IlBundle::functions()` is the only public reader of the `4F 1F` split and it
+**refuses every `vocab-gap` TU** — and both license TUs §10.11 names are inside
+the unknown 865. On the 6 known, both anchors agree.
+
+That agreement is near-vacuous and the lane said so: **five of the six matching
+TUs define zero functions**, so both counts are 0 by construction and exactly one
+TU (`Spew.cpp`, 2/2/2) could ever go red. **§10.2's "at most 19 TUs, ever"
+therefore remains unverified on the anchor the port actually uses.** Closing it
+needs a segment-count accessor on `IlBundle` that does not require the TU to pass
+the gate — `bundle.rs`, another lane's seam, handed on.
+
+### The sharper form of §10.14's lesson
+
+`C2RS_WALL_DUMP` **already dumped these names** at `a091e37`. §10.14 needed an
+environment variable, not a COFF reader. The rule stands and gets sharper:
+before re-deriving a classification the harness owns, **grep the harness for the
+switch that already prints it**.
+
+Cheapest next probe, named by the lane:
+`?CanSelect@UIListProvider@@UBA_NH@Z` **binds in 50 TUs and is no-record in 3** —
+one symbol on both sides of the framing rule.
