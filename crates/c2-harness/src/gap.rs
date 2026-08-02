@@ -310,6 +310,15 @@ pub struct TuResult {
     /// differently by construction — a row made of header-inline bodies is large
     /// in the first and can be empty in the second.
     pub emit_blockers: BTreeMap<String, usize>,
+    /// **The witness list for this TU's emitted-symbol residue** (board #159) —
+    /// empty unless `C2RS_WITNESS` is set. See [`witness_path`] for why the
+    /// names are emitted from here and not read back out of the obj by a second
+    /// reader.
+    ///
+    /// One row per symbol counted into `emit-unbound-no-record|<class>` or
+    /// `emit-unbound-has-record`, pushed from the same loop iteration that
+    /// increments the counter, so the rows and the counts cannot disagree.
+    pub emit_witness: Vec<WitnessRow>,
 }
 
 ///
@@ -373,6 +382,91 @@ fn wall_dump(src: &str, name: &str, kind: &str) {
     if let Ok(mut g) = out.lock() {
         let _ = g.write_all(format!("{src}\t{kind}\t{name}\n").as_bytes());
     }
+}
+
+/// **The witness list** (board #159) — the mangled names behind the
+/// emitted-symbol residue, emitted by the code that *classifies* them.
+///
+/// `C2RS_WITNESS=<path>` turns it on and writes two artifacts at the end of the
+/// scan:
+///
+/// * `<path>` — the ranked summary: per bucket, the symbol total, the distinct
+///   name count, the TU count, and the top [`WITNESS_CAP`] names by frequency
+///   with an example TU for each.
+/// * `<path>.rows.tsv` — every row, `src · bucket · in-gl · name`, for slicing
+///   per TU.
+///
+/// **Why this exists rather than a private reader.** `ROADMAP.md` §10.14 is the
+/// record of the alternative: a standalone COFF reader was written to answer
+/// "what is an `emit-unbound-no-record|ordinary` symbol", it keyed on *no `.gl`
+/// run* where the instrument keys on *no framed `.gl` body record*, and it
+/// missed the harness's known answer on the first witness TU. A diagnostic that
+/// needs a classification the harness already computes must be **emitted by the
+/// harness**; a second implementation is a second rule that agrees until the
+/// moment it matters.
+///
+/// **Why an environment variable and not a CLI flag.** The classification lives
+/// here, and so does the precedent: [`wall_dump`] and [`row_dump`] are already
+/// env-gated scratch instruments in this file. Off by default, and when off the
+/// rows are never built — [`witness_path`] is consulted once per process.
+///
+/// The two `in-gl` columns are **third and fourth** predicates and are labelled
+/// as such wherever they are read. Neither is "binds to a census row" and
+/// neither is "has a framed body record": they ask whether the symbol's name is
+/// in `.gl` **at all**, which separates "c2 invented this symbol" from "the name
+/// is right there and only the framed body record is missing".
+///
+/// **There are two because one of them cannot see half the residue.**
+/// [`c2_il::mangled_names`] requires the run's second byte to be alphabetic and
+/// therefore **silently drops every `??`-prefixed name** — its own doc comment
+/// says so — which is every `dtor` and every `special-generated` row in this
+/// list. Read alone it reports `0 of 947` for `??_G…` and that zero is an
+/// artifact of the predicate, not a fact about `.gl`. So the second column is
+/// [`c2_il::gl_symbol_index`], the binding's own token→name index, which does
+/// carry `??`-names. Reporting both, and naming which is which, is the whole
+/// discipline `ROADMAP.md` §10.11/§10.14 was written about.
+fn witness_path() -> Option<&'static std::path::Path> {
+    static P: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+    P.get_or_init(|| std::env::var_os("C2RS_WITNESS").map(PathBuf::from))
+        .as_deref()
+}
+
+/// How many names each bucket prints in the ranked summary. The remainder is
+/// printed as a count of names *and* a count of symbols, never elided — a tail
+/// that renders as nothing is the failure mode `docs/GAPS.md` §7 is about.
+const WITNESS_CAP: usize = 40;
+
+/// One witness row: which residue bucket, the mangled name, and whether that
+/// name appears as a mangled run in `.gl` at all.
+#[derive(Clone, Debug)]
+pub struct WitnessRow {
+    /// The residue bucket, spelled exactly as the counter key it accompanies:
+    /// `emit-unbound-no-record|<mangling class>` or `emit-unbound-has-record`.
+    pub bucket: String,
+    pub name: String,
+    /// `c2_il::mangled_names` contains this name — a **different predicate**
+    /// from the one that put the row in its bucket, and one that cannot see a
+    /// `??`-prefixed name at all.
+    pub in_gl_runs: bool,
+    /// `c2_il::gl_symbol_index` binds this name to some operand token — the
+    /// predicate that *can* see `??`-names. Also not the bucketing predicate.
+    pub in_gl_index: bool,
+}
+
+/// Aggregated witness numbers for one bucket. Every field is a count, so a
+/// bucket that collected nothing prints zeros beside a nonzero grand total
+/// rather than vanishing.
+pub struct WitnessBucket {
+    pub bucket: String,
+    pub symbols: usize,
+    pub tus: usize,
+    /// Rows whose name `c2_il::mangled_names` finds (blind to `??`-names).
+    pub in_gl_runs: usize,
+    /// Rows whose name `c2_il::gl_symbol_index` binds to a token.
+    pub in_gl_index: usize,
+    /// `(name, occurrences, TUs it appears in, an example TU)`, ranked by
+    /// occurrences descending then name ascending.
+    pub names: Vec<(String, usize, usize, String)>,
 }
 
 /// Aggregated scan report.
@@ -712,6 +806,51 @@ impl GapReport {
             .count()
     }
 
+    /// [`Self::emit_set_violations`] against the **gate-anchored** segment count
+    /// (`4F 1F`) instead of the census's (`4C 4F 11`) — see step 1g in
+    /// [`scan_one`].
+    ///
+    /// Returns `(violations, matching TUs the gate count is KNOWN for)`. The
+    /// second number is not decoration: this control can only go red on a TU
+    /// where `functions()` returned a count, and reporting the violation total
+    /// without the population it was taken over is the shape that lets a green
+    /// control mean "nothing was checked".
+    pub fn emit_set_violations_gate(&self) -> (usize, usize) {
+        let m: Vec<&TuResult> = self
+            .results
+            .iter()
+            .filter(|r| r.class == TuClass::Match)
+            .filter(|r| r.emit.contains_key("emit-gate-segments-known"))
+            .collect();
+        let bad = m
+            .iter()
+            .filter(|r| {
+                r.emit.get("emit-gate-segments").copied().unwrap_or(0)
+                    != r.emit.get("emit-emitted").copied().unwrap_or(0)
+            })
+            .count();
+        (bad, m.len())
+    }
+
+    /// The splitter disagreement as counts (step 1g): `(TUs the gate count is
+    /// known for, unknown, agree, disagree, gate sees more, census sees more,
+    /// gate-anchored ceiling, entering the ceiling, leaving it)`.
+    #[allow(clippy::type_complexity)]
+    pub fn splitter_disagreement(&self) -> (usize, usize, usize, usize, usize, usize, usize, usize, usize) {
+        let t = |k: &str| self.emit_total(k);
+        (
+            t("emit-gate-segments-known"),
+            t("emit-gate-segments-unknown"),
+            t("emit-splitter-agree"),
+            t("emit-splitter-disagree"),
+            t("emit-splitter-gate-sees-more"),
+            t("emit-splitter-census-sees-more"),
+            t("emit-set-ceiling-gate"),
+            t("emit-set-ceiling-gate-enter"),
+            t("emit-set-ceiling-gate-leave"),
+        )
+    }
+
     /// The binding invariant that must be **zero**: a generated destructor bound to
     /// a callee that is not a destructor. Nonzero means the `.gl` reader is naming
     /// the wrong symbol in a way no obj comparison over this corpus could have
@@ -963,6 +1102,7 @@ fn scan_one(
         bind_checks: BTreeMap::new(),
         emit: BTreeMap::new(),
         emit_blockers: BTreeMap::new(),
+        emit_witness: Vec::new(),
     };
 
     // 1. Capture: real flags, real cwd, strace keeps bundle + obj. Served from
@@ -1179,6 +1319,32 @@ fn scan_one(
                     .unwrap_or_default();
                 let mut unbound_with_body = 0usize;
                 let mut unbound_no_body = 0usize;
+                // The witness list's third predicate (board #159, `witness_path`):
+                // is the name in `.gl` AT ALL? Built only when witnesses are on,
+                // and deliberately NOT used by any counter above — a name present
+                // as a run with no framed body record is a different fact from
+                // both "binds to a row" and "has a body record", and §10.14 is the
+                // record of what conflating two of the three costs.
+                let (gl_runs, gl_index): (
+                    std::collections::BTreeSet<String>,
+                    std::collections::BTreeSet<String>,
+                ) = match (witness_path(), captured.bundle.get("gl")) {
+                    (Some(_), Some(gl)) => (
+                        c2_il::mangled_names(gl).into_iter().collect(),
+                        c2_il::gl_symbol_index(gl).into_values().collect(),
+                    ),
+                    _ => Default::default(),
+                };
+                let witness = |res: &mut TuResult, bucket: String, name: &str| {
+                    if witness_path().is_some() {
+                        res.emit_witness.push(WitnessRow {
+                            bucket,
+                            name: name.to_string(),
+                            in_gl_runs: gl_runs.contains(name),
+                            in_gl_index: gl_index.contains(name),
+                        });
+                    }
+                };
                 for name in &emitted {
                     if matches!(claim.get(name.as_str()).map(Vec::as_slice), Some([_])) {
                         // The CONTROL population. Whatever story the residue's
@@ -1192,13 +1358,14 @@ fn scan_one(
                         unbound_with_body += 1;
                         *res.emit.entry("emit-unbound-has-record".into()).or_insert(0) += 1;
                         wall_dump(src, name, "has-record");
+                        witness(&mut res, "emit-unbound-has-record".into(), name);
                     } else {
                         unbound_no_body += 1;
                         *res.emit.entry("emit-unbound-no-record".into()).or_insert(0) += 1;
-                        *res.emit
-                            .entry(format!("emit-unbound-no-record|{}", mangling_class(name)))
-                            .or_insert(0) += 1;
+                        let key = format!("emit-unbound-no-record|{}", mangling_class(name));
+                        *res.emit.entry(key.clone()).or_insert(0) += 1;
                         wall_dump(src, name, "no-record");
+                        witness(&mut res, key, name);
                     }
                 }
                 // The three per-TU ceilings, as counts of TUs (0 or 1 each here;
@@ -1314,6 +1481,82 @@ fn scan_one(
         }
     }
 
+    // 1g. **THE TWO SPLITTERS DISAGREE, AND THE CEILING IS COMPUTED WITH THE
+    //     WRONG ONE** (ROADMAP §10.11 / §10.12, W-PHASE6).
+    //
+    //     `emit_set_reachable_tus` — the "25 of 871" emit-set ceiling, and the
+    //     `at most 19 TUs, ever` claim §10 builds its re-plan on — filters on
+    //     `fn_total == emit-emitted`, and its doc comment asserts that
+    //     `fn_total` "is exactly that segment count", meaning the count
+    //     `PortC2::build` consumes. **It is not.**
+    //
+    //     | count | comes from | anchored on |
+    //     |---|---|---|
+    //     | `fn_total` | `census_functions()` / `split_function_bodies_at` | `LO_MARKER` = `4C 4F 11` |
+    //     | what the port consumes | `IlBundle::functions()` / `split_functions_at` | `FN_START` = `4F 1F` |
+    //
+    //     §10.12 named the population that separates them: a `??__E`/`??__F`
+    //     dynamic-initializer thunk carries a **bare `4C`** with no `4F 11`, so
+    //     the census sees 0 segments where the gate sees 1.
+    //
+    //     So this counts the ceiling BOTH ways and publishes the disagreement.
+    //     It does **not** replace `fn_total` or `emit-emitted` — a ceiling
+    //     silently recomputed under the same name would be indistinguishable
+    //     from the old one being right, and which of the two is the ceiling is
+    //     not something this instrument gets to decide.
+    //
+    //     `functions()` is the only public reader of the `4F 1F` split, and it
+    //     returns `None` for a bundle it refuses rather than a count — so
+    //     `emit-gate-segments-unknown` is a printed count, not an assumption of
+    //     zero. Every key here is NEW; none of the existing ones is touched.
+    let gate_segments = captured.bundle.functions().map(|f| f.len());
+    {
+        let comdats = res.emit.get("emit-emitted").copied().unwrap_or(0);
+        match gate_segments {
+            None => {
+                *res.emit
+                    .entry("emit-gate-segments-unknown".into())
+                    .or_insert(0) += 1;
+            }
+            Some(n) => {
+                *res.emit.entry("emit-gate-segments-known".into()).or_insert(0) += 1;
+                *res.emit.entry("emit-gate-segments".into()).or_insert(0) += n;
+                if n == res.fn_total {
+                    *res.emit.entry("emit-splitter-agree".into()).or_insert(0) += 1;
+                } else {
+                    *res.emit.entry("emit-splitter-disagree".into()).or_insert(0) += 1;
+                    // Signed, in two keys rather than one absolute value: §10.12
+                    // predicts the gate seeing MORE segments than the census
+                    // (`??__E` with a bare `4C`), and a count that cannot tell
+                    // that from the opposite is not evidence for it.
+                    let key = if n > res.fn_total {
+                        "emit-splitter-gate-sees-more"
+                    } else {
+                        "emit-splitter-census-sees-more"
+                    };
+                    *res.emit.entry(key.into()).or_insert(0) += 1;
+                }
+                // The ceiling, gate-anchored, and how it moves against the
+                // `LO`-anchored one. `enter`/`leave` are the deliverable: the
+                // net is not enough, because two TUs swapping sides is a
+                // different fact from nothing happening.
+                let (lo_reach, gate_reach) = (res.fn_total == comdats, n == comdats);
+                if gate_reach {
+                    *res.emit.entry("emit-set-ceiling-gate".into()).or_insert(0) += 1;
+                }
+                match (gate_reach, lo_reach) {
+                    (true, false) => {
+                        *res.emit.entry("emit-set-ceiling-gate-enter".into()).or_insert(0) += 1
+                    }
+                    (false, true) => {
+                        *res.emit.entry("emit-set-ceiling-gate-leave".into()).or_insert(0) += 1
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
     // 2. Optional soundness lane: standalone-c2 replay must reproduce the
     //    pipeline obj on this real bundle.
     if do_replay {
@@ -1338,7 +1581,9 @@ fn scan_one(
     }
 
     // 3. Vocabulary: can the IL model even decode this bundle's functions?
-    if captured.bundle.functions().is_none() {
+    //    Reuses 1g's call — `functions()` is pure, so this is the same predicate
+    //    it always was, evaluated once instead of twice.
+    if gate_segments.is_none() {
         res.class = TuClass::VocabGap;
         res.reason = "il function decode failed".to_string();
         res.detail = format!(
@@ -1583,11 +1828,170 @@ pub fn gap_scan(
         }
     }
 
-    Ok(GapReport {
+    let report = GapReport {
         results,
         provenance: Some(provenance),
         cache: cache_stats,
-    })
+    };
+    // Board #159's step one: print the names the scan just classified. Written
+    // last, from the collected results, so the ranking is over the whole scan
+    // and not over whatever one worker happened to see.
+    if let Some(p) = witness_path() {
+        write_witness(&report, p)?;
+    }
+    // **The two segment counts, side by side** (step 1g). Printed here rather
+    // than in the caller's report because the classification lives in this file;
+    // printed ALWAYS, as counts, because a disagreement nobody prints is the
+    // absence-reads-as-success shape this project has paid for repeatedly.
+    // Neither number is presented as "the" ceiling: which anchor the ceiling
+    // should use is a decision, and this is the measurement it needs.
+    let (known, unknown, agree, disagree, gate_more, census_more, gate_ceil, enter, leave) =
+        report.splitter_disagreement();
+    let (viol, viol_pop) = report.emit_set_violations_gate();
+    println!(
+        "\nSPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, \
+         the port on `4F 1F`\n\
+         \x20 gate-side segment count KNOWN for {known} of {} captured TUs; UNKNOWN for {unknown}. \
+         `IlBundle::functions()` is the only public reader of the `4F 1F` split and it returns \
+         None for a bundle it cannot parse, which is every vocab-gap TU — so this instrument \
+         cannot see the population the ceiling is about.\n\
+         \x20 of the {known} known: {agree} agree with `fn_total`, {disagree} disagree \
+         ({gate_more} where the gate sees MORE segments, {census_more} where the census does)\n\
+         \x20 emit-set ceiling, LO-anchored, over ALL graded TUs: {}\n\
+         \x20 gate-anchored ceiling over the {known} TUs it is known for: {gate_ceil} \
+         (+{enter} entering, -{leave} leaving) — NOT comparable to the line above, different \
+         denominators\n\
+         \x20 gate-anchored control on matching TUs: {viol} violations over {viol_pop} matching \
+         TUs whose gate count is known",
+        known + unknown,
+        report.emit_set_reachable_tus().len(),
+    );
+    Ok(report)
+}
+
+/// Rank one scan's [`WitnessRow`]s per bucket. Pure over `results`, so the unit
+/// test below grades it without a toolchain.
+pub fn witness_buckets(results: &[TuResult]) -> Vec<WitnessBucket> {
+    // bucket -> (symbols, TUs, in-gl, name -> (occurrences, TUs, example TU))
+    type PerName = BTreeMap<String, (usize, std::collections::BTreeSet<String>, String)>;
+    #[allow(clippy::type_complexity)]
+    let mut agg: BTreeMap<
+        String,
+        (usize, std::collections::BTreeSet<String>, usize, usize, PerName),
+    > = BTreeMap::new();
+    for r in results {
+        for w in &r.emit_witness {
+            let e = agg.entry(w.bucket.clone()).or_insert_with(|| {
+                (0, std::collections::BTreeSet::new(), 0, 0, BTreeMap::new())
+            });
+            e.0 += 1;
+            e.1.insert(r.src.clone());
+            e.2 += usize::from(w.in_gl_runs);
+            e.3 += usize::from(w.in_gl_index);
+            let n = e
+                .4
+                .entry(w.name.clone())
+                .or_insert_with(|| (0, std::collections::BTreeSet::new(), r.src.clone()));
+            n.0 += 1;
+            n.1.insert(r.src.clone());
+        }
+    }
+    let mut out: Vec<WitnessBucket> = agg
+        .into_iter()
+        .map(|(bucket, (symbols, tus, in_gl_runs, in_gl_index, names))| {
+            let mut ranked: Vec<(String, usize, usize, String)> = names
+                .into_iter()
+                .map(|(name, (count, tus, example))| (name, count, tus.len(), example))
+                .collect();
+            // Frequency descending, then name ascending — a total order, so two
+            // runs of the same scan print the same table.
+            ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+            WitnessBucket {
+                bucket,
+                symbols,
+                tus: tus.len(),
+                in_gl_runs,
+                in_gl_index,
+                names: ranked,
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| b.symbols.cmp(&a.symbols).then_with(|| a.bucket.cmp(&b.bucket)));
+    out
+}
+
+/// Write the ranked summary to `path` and every row to `<path>.rows.tsv`.
+///
+/// Every line is a **count**. There is no "no witnesses" status: a scan that
+/// collected nothing prints `0 rows` against the scan's own residue totals, and
+/// those totals disagreeing with the row count is the check that the list is
+/// complete (`docs/GAPS.md` §7 — absence must not read as success).
+fn write_witness(report: &GapReport, path: &std::path::Path) -> std::io::Result<()> {
+    let buckets = witness_buckets(&report.results);
+    let rows: usize = report.results.iter().map(|r| r.emit_witness.len()).sum();
+
+    let mut raw = std::io::BufWriter::new(std::fs::File::create(path.with_extension("rows.tsv"))?);
+    writeln!(raw, "src\tbucket\tin_gl_runs\tin_gl_index\tname")?;
+    for r in &report.results {
+        for w in &r.emit_witness {
+            writeln!(
+                raw,
+                "{}\t{}\t{}\t{}\t{}",
+                r.src,
+                w.bucket,
+                u8::from(w.in_gl_runs),
+                u8::from(w.in_gl_index),
+                w.name
+            )?;
+        }
+    }
+    raw.flush()?;
+
+    let mut f = std::io::BufWriter::new(std::fs::File::create(path)?);
+    writeln!(
+        f,
+        "WITNESS LIST — the emitted-symbol residue, named (board #159)\n\
+         scan: {} TUs, {rows} witness rows over {} buckets\n",
+        report.results.len(),
+        buckets.len()
+    )?;
+    // The cross-check that makes the list evidence rather than a plausible
+    // sample: the rows must sum, per bucket, to the counter the same loop
+    // incremented. Printed per bucket, as counts, both sides.
+    for b in &buckets {
+        let counted = report.emit_total(&b.bucket);
+        writeln!(
+            f,
+            "== {} — {} symbols / {} TUs / {} distinct names\n\
+             \x20  name present in `.gl`: {} by `mangled_names` (BLIND to `??`-names), \
+             {} by `gl_symbol_index` — two predicates, neither is this bucket's\n\
+             \x20  cross-check vs the scan's own counter: rows {} vs counter {} — agree: {}",
+            b.bucket,
+            b.symbols,
+            b.tus,
+            b.names.len(),
+            b.in_gl_runs,
+            b.in_gl_index,
+            b.symbols,
+            counted,
+            b.symbols == counted
+        )?;
+        for (i, (name, count, tus, example)) in b.names.iter().take(WITNESS_CAP).enumerate() {
+            writeln!(f, "  {:>4}. {count:>6} sym {tus:>4} TU  {name}  [{example}]", i + 1)?;
+        }
+        if b.names.len() > WITNESS_CAP {
+            let shown: usize = b.names.iter().take(WITNESS_CAP).map(|(_, c, _, _)| *c).sum();
+            writeln!(
+                f,
+                "  … and {} more distinct names covering {} symbols (top {WITNESS_CAP} cover {shown})",
+                b.names.len() - WITNESS_CAP,
+                b.symbols - shown
+            )?;
+        }
+        writeln!(f)?;
+    }
+    f.flush()?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1638,6 +2042,7 @@ mod tests {
             bind_checks: BTreeMap::new(),
             emit: BTreeMap::new(),
             emit_blockers: BTreeMap::new(),
+            emit_witness: Vec::new(),
         }
     }
 
@@ -1649,6 +2054,61 @@ mod tests {
             vec![("b".to_string(), 2), ("a".to_string(), 1)]
         );
         assert_eq!(rep.count(TuClass::Match), 0);
+    }
+
+    /// **The witness list ranks by frequency across TUs, and its per-bucket
+    /// symbol total is the number the scan's own counter must equal** (board
+    /// #159). Both halves matter: a list ranked per TU would name the largest
+    /// TU's symbols rather than the workload's, and a list whose total does not
+    /// reconcile with `emit-unbound-*` is a second measurement of the residue —
+    /// which is exactly the defect `ROADMAP.md` §10.14 records.
+    #[test]
+    fn the_witness_list_ranks_across_tus_and_reconciles_with_its_counter() {
+        let row = |bucket: &str, name: &str, in_gl: bool| WitnessRow {
+            bucket: bucket.into(),
+            name: name.into(),
+            in_gl_runs: in_gl,
+            in_gl_index: in_gl,
+        };
+        let ord = "emit-unbound-no-record|ordinary";
+        let spc = "emit-unbound-no-record|special-generated";
+        let mut a = mk("x");
+        a.src = "a.cpp".into();
+        a.emit_witness = vec![row(ord, "?rare@@YAXXZ", false), row(ord, "?common@@YAXXZ", true)];
+        a.emit.insert(ord.into(), 2);
+        let mut b = mk("x");
+        b.src = "b.cpp".into();
+        b.emit_witness = vec![row(ord, "?common@@YAXXZ", true), row(spc, "??_7C@6B@", false)];
+        b.emit.insert(ord.into(), 1);
+        b.emit.insert(spc.into(), 1);
+
+        let rep = mk_report(vec![a, b]);
+        let buckets = witness_buckets(&rep.results);
+        assert_eq!(buckets.len(), 2, "one entry per bucket that collected a row");
+        let o = &buckets[0];
+        assert_eq!(o.bucket, ord, "buckets rank by symbol count, largest first");
+        assert_eq!((o.symbols, o.tus, o.names.len(), o.in_gl_runs, o.in_gl_index), (3, 2, 2, 2, 2));
+        assert_eq!(
+            o.names[0],
+            ("?common@@YAXXZ".to_string(), 2, 2, "a.cpp".to_string()),
+            "the name seen in two TUs outranks the name seen once, and carries an example TU"
+        );
+        assert_eq!(o.names[1].1, 1);
+        assert_eq!(buckets[1].symbols, 1);
+
+        // The reconciliation the report prints: rows summed per bucket equal the
+        // counter the same loop incremented. This is the check §10.14's reader
+        // could not have passed, because it had no counter to reconcile against.
+        for b in &buckets {
+            assert_eq!(
+                b.symbols,
+                rep.emit_total(&b.bucket),
+                "{}: witness rows must equal the scan's own counter",
+                b.bucket
+            );
+        }
+        let rows: usize = buckets.iter().map(|b| b.symbols).sum();
+        assert_eq!(rows, 4, "every row lands in exactly one bucket");
     }
 
     /// A TU whose emitted census is spelled out: `emitted` symbols, of which
