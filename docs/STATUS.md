@@ -15,23 +15,23 @@ cost this project real work more than once.
 ## The numbers
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-02 · tree `953180f` · binary `cfe2e2b2952f`
+Collected 2026-08-02 · tree `89e5dd5` · binary `d2a5a60b3d0a`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 606 passed, 0 failed, 24 targets |
-| Oracle self-test (c2rs selftest) | 212 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 112 not-implemented (of 212) |
-| Port speedup, geomean over matched fixtures | 628x geomean over matched fixtures |
+| Workspace tests (cargo test --workspace --release) | 616 passed, 0 failed, 24 targets |
+| Oracle self-test (c2rs selftest) | 214 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 114 not-implemented (of 214) |
+| Port speedup, geomean over matched fixtures | 651x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 6, mismatch 0, codegen-gap 0, vocab-gap 865, capture-fail 7 |
-| Per-function census (driver, not target) | 706402/2462572 functions in class (28.69%) |
-| Emitted-function census | 38456/178969 emitted functions in class (21.49%) |
-| Emitted-census residue | residue 9275: 2004 compiler-generated (no IL body), 7271 unexplained  (5.18% of the denominator) |
-| TU distance to match, blocked functions | ≤0: 1, ≤1: 10, ≤10: 25, ≤100: 32, ≤1000: 210 |
+| Per-function census (driver, not target) | 706403/2463318 functions in class (28.68%) |
+| Emitted-function census | 38457/178969 emitted functions in class (21.49%) |
+| Emitted-census residue | residue 9225: 1961 compiler-generated (no IL body), 7264 unexplained  (5.15% of the denominator) |
+| TU distance to match, blocked functions | ≤0: 1, ≤1: 12, ≤10: 27, ≤100: 34, ≤1000: 212 |
 | TU distance to match, blocked emitted functions | ≤0: 2, ≤1: 19, ≤10: 82, ≤100: 403, ≤1000: 858 |
-| Emit-set ceiling (segments == COMDATs) | 25 of 871 graded TUs |
-| Emit-set MODEL ceiling (today / repaired / wall) | 324 today / 420 repaired / 451 wall |
-| .gl binding invariants (records / arity / conflicts) | 1515161 records, 420 nameless, 2 before the first row, 39371 row-conflicts, 712 name-conflicts, 0 accounting breaks, 0 unreadable objs |
+| Emit-set ceiling (segments == COMDATs) | 27 of 871 graded TUs |
+| Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 420 repaired / 451 wall |
+| .gl binding invariants (records / arity / conflicts) | 1515161 records, 420 nameless, 0 before the first row, 39291 row-conflicts, 731 name-conflicts, 0 accounting breaks, 0 unreadable objs |
 
 <!-- END GENERATED -->
 
@@ -65,15 +65,26 @@ bound how far widening alone can ever take it.
 
 ### The two ceilings are different things, and only one bounds TU match
 
-* **Emit-set ceiling, 25 of 871** — TUs where the number of `.ex` function
-  segments already equals the number of `.text` COMDATs in the real obj. For
-  these, a port that lowered every body correctly would emit the right *set* of
-  functions without modelling anything. **This is the hard bound on TU match
-  until Phase 7 (the emit-set model) exists** — and **6 of the 25 are already
-  taken**, so every widening rung in the plan, summed, can move the payoff metric
-  by at most **19 TUs, ever**. On the other 846, the port emits one `.text`
-  COMDAT per `.ex` segment and is wrong about the *set* regardless of how
-  correctly it lowers each body (842 spurious, 4 missing).
+* **Emit-set ceiling — 27 `LO`-anchored, 28 GATE-anchored** — TUs where the
+  number of `.ex` function segments already equals the number of `.text` COMDATs
+  in the real obj. For these, a port that lowered every body correctly would emit
+  the right *set* of functions without modelling anything. **This is the hard
+  bound on TU match until Phase 7 (the emit-set model) exists** — and **6 are
+  already taken**, so every widening rung in the plan, summed, can move the
+  payoff metric by at most **22 TUs, ever**. On the rest, the port emits one
+  `.text` COMDAT per `.ex` segment and is wrong about the *set* regardless of how
+  correctly it lowers each body.
+
+  **Two numbers, because there are two splitters and only one is the port's**
+  (§10.11, §10.15, §10.18). `LO`-anchored counts `.ex` segments on the `4C 4F 11`
+  marker, which is what the *census* uses; the port consumes the `4F 1F` split.
+  They disagree on **634 of 871 TUs**, unanimously in one direction — the gate
+  sees more segments, never fewer, exactly the `??__E`/`??__F` population §10.12
+  named. The ceiling still moved by only **1**, because it wants `segments ==
+  COMDATs` *exactly* and extra segments mostly move a TU further from equality.
+  **Quote the gate-anchored number**: it is the one `PortC2::build` has to
+  satisfy. This bound was `25` and `"at most 19, ever"` for most of the project's
+  life; both were an `LO`-anchored count of a `4F 1F`-anchored property.
 * **Emit-set MODEL ceiling, 324 today / 420 repaired / 451 wall** — TUs where the
   `.gl` binding can account for every emitted symbol. This bounds *a model*, not
   today's port. It went 111 → 324 in §9.20 from a one-byte reader repair.

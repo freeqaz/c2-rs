@@ -101,7 +101,8 @@ emitted-census   yes  Emitted-function census
 residue          yes  Emitted-census residue
 distance-bodies  yes  TU distance to match, blocked functions
 distance-emitted yes  TU distance to match, blocked emitted functions
-emit-ceiling     yes  Emit-set ceiling (segments == COMDATs)
+emit-ceiling     yes  Emit-set ceiling, LO-anchored (segments == COMDATs)
+emit-ceiling-gate yes Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes)
 emit-model       yes  Emit-set MODEL ceiling (today / repaired / wall)
 binding          yes  .gl binding invariants (records / arity / conflicts)
 '
@@ -153,6 +154,7 @@ p_residue()    { sed -n 's/^ *bound .*|  *residue \(.*\)$/residue \1/p' "$1" | h
 p_dist_body()  { sed -n 's/.*TU distance to matching (blocked functions) — \(.*\)$/\1/p' "$1" | head -1; }
 p_dist_emit()  { sed -n 's/.*TU distance to matching (blocked EMITTED functions) — \(.*\)$/\1/p' "$1" | head -1; }
 p_ceiling()    { sed -n 's/.*emit-set ceiling: \([0-9]* of [0-9]*\) graded TUs.*/\1 graded TUs/p' "$1" | head -1; }
+p_ceilgate()   { sed -n 's/^ *emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the \([0-9]*\) known: \([0-9]*\) .*/\2 of \1 graded TUs/p' "$1" | head -1; }
 p_model()      { sed -n 's/.*emit-set MODEL ceiling: \([0-9]*\) of [0-9]* TUs bind every emitted symbol today; \([0-9]*\) would.*; \([0-9]*\) carry.*/\1 today \/ \2 repaired \/ \3 wall/p' "$1" | head -1; }
 p_binding()    { sed -n 's/^ *binding: \(.*\)$/\1/p'               "$1" | head -1; }
 p_fixgate()    { sed -n 's/^summary: \(.*\)$/\1/p'                 "$1" | head -1; }
@@ -214,14 +216,14 @@ collect_gap() {
     _flags="$workload/flags.txt"
 
     for _k in workload census emitted-census residue distance-bodies \
-              distance-emitted emit-ceiling emit-model binding; do
+              distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
         : # keys declared here so the loop below can overwrite them
     done
 
     if [ ! -f "$_list" ] || [ ! -f "$_flags" ]; then
         _why="NO-RESULT (no $workload/{files.txt,flags.txt} — run scripts/gen_dc3_workload.sh)"
         for _k in workload census emitted-census residue distance-bodies \
-                  distance-emitted emit-ceiling emit-model binding; do
+                  distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
             emit "$_k" "$_why"
         done
         return 0
@@ -229,7 +231,7 @@ collect_gap() {
     if [ ! -d "$dc3" ]; then
         _why="NO-RESULT (dc3 tree absent at $dc3 — set C2RS_DC3)"
         for _k in workload census emitted-census residue distance-bodies \
-                  distance-emitted emit-ceiling emit-model binding; do
+                  distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
             emit "$_k" "$_why"
         done
         return 0
@@ -238,7 +240,7 @@ collect_gap() {
     if ! "$c2rs" gap --list "$_list" --flags-file "$_flags" --cwd "$dc3" \
                      --jobs "$jobs" > "$_log" 2>&1; then
         for _k in workload census emitted-census residue distance-bodies \
-                  distance-emitted emit-ceiling emit-model binding; do
+                  distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
             emit "$_k" "NO-RESULT (gap scan exited non-zero; see $_log)"
         done
         return 0
@@ -246,7 +248,7 @@ collect_gap() {
 
     if log_says_skip "$_log"; then
         for _k in workload census emitted-census residue distance-bodies \
-                  distance-emitted emit-ceiling emit-model binding; do
+                  distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
             emit "$_k" "SKIP: toolchain absent"
         done
         return 0
@@ -265,6 +267,7 @@ collect_gap() {
     emit distance-bodies "$(val_or_missing "$(p_dist_body "$_log")")"
     emit distance-emitted "$(val_or_missing "$(p_dist_emit "$_log")")"
     emit emit-ceiling    "$(val_or_missing "$(p_ceiling   "$_log")")"
+    emit emit-ceiling-gate "$(val_or_missing "$(p_ceilgate "$_log")")"
     emit emit-model      "$(val_or_missing "$(p_model     "$_log")")"
     emit binding         "$(val_or_missing "$(p_binding   "$_log")")"
 }
@@ -313,6 +316,8 @@ if [ "$do_check" -eq 1 ]; then
     TU distance to matching (blocked functions) — ≤0: 1, ≤1: 10, ≤10: 25
     emit-set ceiling: 25 of 871 graded TUs have `.ex` segments == obj `.text` COMDATs
     emit-set MODEL ceiling: 324 of 871 TUs bind every emitted symbol today; 420 would if `bind.rs` lost none; 451 carry an emitted symbol with NO `.gl` body record and are a wall
+  emit-set ceiling, LO-anchored, over ALL graded TUs: 27
+  emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 871 known: 28 (+1 entering, -0 leaving vs the LO-anchored set)
     binding: 1515160 records, 420 nameless, 2 before the first row
 summary: 100 port Match, 0 mismatch, 110 not-implemented (of 210)
   geomean speedup over the 100 matched fixture(s): 653x faster than standalone c2
@@ -336,6 +341,10 @@ EOF
     check_parse p_geomean    '653x'                                               || fails=$((fails+1))
     check_parse p_model      '324 today / 420 repaired / 451 wall'                || fails=$((fails+1))
     check_parse p_ceiling    '25 of 871 graded TUs'                               || fails=$((fails+1))
+    # The two ceilings are DIFFERENT metrics on the same page, and the probe log
+    # deliberately carries both with different values (25 vs 28): a parser that
+    # picked up the wrong line would read 25 here and the check would go red.
+    check_parse p_ceilgate   '28 of 871 graded TUs'                               || fails=$((fails+1))
     check_parse p_binding    '1515160 records, 420 nameless, 2 before the first row' || fails=$((fails+1))
 
     rm -rf "$work_dir"
