@@ -8513,3 +8513,82 @@ Still owed, in order:
    object) and `.CRT$XCU` (the initializer pointer) beside `.text`; the port
    emits a fixed four-section shell. Two TUs' worth of TU match is behind both
    halves, not either one.
+
+---
+
+## 10.13 #152 re-priced against 4,591 — worth 2.6× more, and the wall does not decompose (2026-08-02)
+
+§10.9 item 3: *"Re-measure #152 against 4,591, not 13,646. One warm scan;
+prevents scoping a phase 3× wrong."* Done, off the tip scan's own emit keys.
+
+#152 is "synthesize the `??_` COMDAT family (no `.ex` body exists)" — the
+`emit-unbound-no-record|special-generated` bucket. Its registered price was
+**+27 TUs**, taken against a 13,646-symbol denominator that §9.20 corrected to
+4,591.
+
+### The re-price
+
+| | |
+|---|---|
+| wall TUs (`emit-set-ceiling-wall`) | **451** of 871 |
+| …carrying **any** `??_` special-generated no-record symbol | **365** |
+| …whose **entire** no-record residue is `??_` — the TUs #152 **alone** unblocks | **69** (147 symbols) |
+| the other 296 | carry `??_` **and** something else, so #152 does not move them |
+
+**+69, not +27.** The correction that shrank the symbol count 13,646 → 4,591
+made the *TU* payoff go **up** by 2.6×, because the symbols that left were spread
+across TUs that had other blockers anyway. A symbol-count denominator and a
+TU-count payoff are different quantities and moved in opposite directions —
+which is the whole reason §10.9 asked for this re-measurement rather than a
+rescale.
+
+### Where the 69 would actually land, which is the part that deflates it
+
+Of the 69, **65 still carry `emit-unbound-has-record` residue** — symbols with a
+`.gl` record the binding loses — so synthesizing `??_` moves them to the
+*repaired* ceiling only. **Four** reach the *today* ceiling.
+
+    wall      451 -> 382
+    repaired  420 -> 489
+    today     324 -> 328
+
+So the honest single number for "TUs a segment-driven model could bind after
+#152" is **+4**, and even that is a ceiling: all 69 are `vocab-gap` today, so
+**none of them is a TU match under any reading.** Quoting +69 without the split
+would repeat exactly the error §9.20 made with +213.
+
+### The result that outranks the re-price: the wall is not a sum of items
+
+Ranking the 451 wall TUs by *what a single item would unblock*:
+
+| item | TUs it **alone** unblocks |
+|---|---|
+| `special-generated` (**#152**) | **69** |
+| `ordinary` | **65** |
+| `template-operator` | 5 |
+| `ctor` | 4 |
+| `dtor` | 2 |
+| `undecorated` | 1 |
+| **multi-category — no single item unblocks** | **305** |
+
+**Two thirds of the wall (305 of 451) needs more than one item at once.** The
+board is written as a list of separable items with individual prices, and for
+this phase that model does not hold: the sum of every single-item price is 146
+TUs, leaving 305 that no item on the list reaches on its own. `dtor` is the
+sharpest case — 261 wall TUs carry a `dtor` no-record symbol and exactly **2** are
+unblocked by fixing dtors alone.
+
+The second-ranked item, `ordinary` (65 TUs), is **not** a synthesis problem at
+all — these are plain mangled functions the obj emits with no `.gl` body record —
+and it is not currently a board item. It should be, before #152 is built: they
+are within 4 TUs of each other and #152 is the one with a number attached, which
+is the only reason it looks bigger.
+
+### Standing caveat
+
+Every number here is read off `emit-*` keys the scan computes, not off anything
+built. That is an **instrument estimate**, and this project's recorded precedent
+(§9.20.3) is an instrument moving monotonically while the thing it proxied did
+not move at all. Nothing above should be quoted as realized until a rung builds
+it. What *is* solid is the ranking's shape — the 305 is a count of TUs with two
+or more live categories and does not depend on any category being priced right.
