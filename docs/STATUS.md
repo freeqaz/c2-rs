@@ -96,6 +96,29 @@ bound how far widening alone can ever take it.
 
 Quoting 324 as "where we are" is the most likely misreading of this page.
 
+### And neither ceiling is the tightest constraint — the SECTION SHAPE is
+
+§10.19 factored Phase 7 into four predicates over the 871 graded TUs, and
+**A∧B∧C∧D = 6, exactly the observed match set**:
+
+| factor | predicate | TUs |
+|---|---|---:|
+| A | `.ex` segments == `.text` COMDATs | 28 |
+| B | every emitted symbol binds | 324 |
+| **C** | **obj section set ⊆ what the port's COFF writer can emit** | **84** |
+| D | every emitted COMDAT in the port's codegen class | 8 |
+
+**C = 84 is 4× tighter than B = 324.** A perfect emit-set model *and* a perfect
+binding reach at most 82 while the port can write only
+`.drectve/.debug$S/.XBLD$W/.text/.pdata/.rdata`. The good news is that C is the
+one factor that is **finite**: the whole workload uses **13** section names, and
+seven additions close it — `.data` 109, `.rdata$r` 172, **`.bss` 574**,
+`.text$yd` 698, `.xdata$x` 745, `.text$yc` **871**. `.rdata$r` is EH, in 676 of
+871 objs, so Phase 5 is the third rung of that ladder rather than an endgame.
+
+**C is necessary, not sufficient** — reaching C = 871 converts nothing on its
+own. Board **#160**.
+
 ---
 
 ## The traps
