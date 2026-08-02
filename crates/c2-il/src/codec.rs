@@ -80,9 +80,21 @@ const CALL_CALLEE_ANCHOR: [u8; 6] = [0x00, 0x80, 0x01, 0x10, 0x00, 0x00];
 /// The `.ex` per-function start marker (`4F 1F`). Mirrors `func::FN_START`.
 const FN_START: [u8; 2] = [0x4F, 0x1F];
 
-/// The `4C 4F 11` 'LO' body-start marker — the point from which the `.ex`
+/// The one-byte `4C` 'LO' body-start token — the point from which the `.ex`
 /// operand stream of a function is a typed token sequence.
-const LO_MARKER: [u8; 3] = [0x4C, 0x4F, 0x11];
+///
+/// **`4F 11` is a separate, optional record beside it** ([`LO_RECORD`]), not part
+/// of the token: a `??__E`/`??__F` dynamic-initializer thunk opens `4C 53` where
+/// a source function opens `4C 4F 11 53` (ROADMAP §10.12). The composed form is
+/// `func::bundle::LO_MARKER`; the locator that handles both is
+/// `func::bundle::body_start`, and this module calls THAT rather than keeping a
+/// second copy of the rule — a private re-derivation of a rule the crate already
+/// owns is not a shortcut, it is a second rule that agrees until it matters
+/// (§10.14).
+const LO: u8 = 0x4C;
+
+/// The optional `4F 11` record between [`LO`] and the body's first `53`.
+const LO_RECORD: [u8; 2] = [0x4F, 0x11];
 
 /// The `4F 02 20 00` per-function block-start marker prefix. In the metadata
 /// prefix it is followed by `4F 01 NN` (block index) then `53 53`; at the end of
@@ -99,8 +111,15 @@ const BLOCK_START: [u8; 4] = [0x4F, 0x02, 0x20, 0x00];
 /// captured bundle); a stream at another width is left fully opaque.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExToken {
-    /// `4C 4F 11` — 'LO' load-operands body-start marker.
+    /// `4C` — 'LO' load-operands body-start token.
+    ///
+    /// One byte. The `4F 11` that follows it in a source function's body is
+    /// [`ExToken::LoRecord`], a separate optional record — see [`LO`].
     Lo,
+    /// `4F 11` — the optional record between [`ExToken::Lo`] and the body's first
+    /// `53`. Present in every source function measured, absent in every
+    /// `??__E`/`??__F` thunk measured (ROADMAP §10.12).
+    LoRecord,
     /// `53` — 'SS' statement-start.
     Ss,
     /// `4F 01 NN` — per-statement sequence/label marker (multi-fn TUs).
@@ -204,7 +223,8 @@ impl ExToken {
             out.push((t & 0xFF) as u8);
         };
         match *self {
-            ExToken::Lo => out.extend_from_slice(&LO_MARKER),
+            ExToken::Lo => out.push(LO),
+            ExToken::LoRecord => out.extend_from_slice(&LO_RECORD),
             ExToken::Ss => out.push(0x53),
             ExToken::Stmt(nn) => out.extend_from_slice(&[0x4F, 0x01, nn]),
             ExToken::ResultRef(t) => {
@@ -959,7 +979,9 @@ fn parse_ex(ex: &[u8]) -> Vec<Span> {
     for (k, &s) in starts.iter().enumerate() {
         let e = starts.get(k + 1).copied().unwrap_or(ex.len());
         let seg = &ex[s..e];
-        match find_subslice(seg, &LO_MARKER) {
+        // ONE locator for both forms of the body start, and it lives in
+        // `func::bundle` — the crate's own rule, called rather than re-derived.
+        match crate::func::body_start(seg) {
             Some(lo) => {
                 // The metadata prefix `seg[..lo]` (`4F 1F` … 'LO') decodes into
                 // the FnHeader preamble, the `4F 02 20 00 4F 01 NN` block-start,
@@ -1092,17 +1114,21 @@ fn try_ex_token(body: &[u8], p: usize) -> Option<(ExToken, usize)> {
     let b0 = *body.get(p)?;
     match b0 {
         0x4C => {
-            if starts_with(body, p, &LO_MARKER) {
-                Some((ExToken::Lo, 3))
-            } else if starts_with(body, p, &[0x4C, 0x4B]) {
+            // `4C 4B` is VoidCallEnd and is checked FIRST, unchanged: the
+            // body-start `4C` is followed by `4F 11` or by `53`, never by `4B`,
+            // so no stream that decoded as VoidCallEnd before decodes as `Lo`
+            // now. Everything else beginning `4C` is the one-byte token.
+            if starts_with(body, p, &[0x4C, 0x4B]) {
                 Some((ExToken::VoidCallEnd, 2))
             } else {
-                None
+                Some((ExToken::Lo, 1))
             }
         }
         0x53 => Some((ExToken::Ss, 1)),
         0x4F => {
-            if starts_with(body, p, &[0x4F, 0x01]) {
+            if starts_with(body, p, &LO_RECORD) {
+                Some((ExToken::LoRecord, 2))
+            } else if starts_with(body, p, &[0x4F, 0x01]) {
                 let nn = *body.get(p + 2)?;
                 Some((ExToken::Stmt(nn), 3))
             } else if starts_with(body, p, &[0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00]) {
@@ -1330,7 +1356,11 @@ mod tests {
     #[test]
     fn ex_token_encodings_are_exact() {
         let cases: &[(ExToken, &[u8])] = &[
-            (ExToken::Lo, &[0x4C, 0x4F, 0x11]),
+            // `Lo` is ONE byte and `LoRecord` is the optional record beside it
+            // (§10.12) — the two together re-encode to the old three-byte atom,
+            // which is what every source function's body still opens with.
+            (ExToken::Lo, &[0x4C]),
+            (ExToken::LoRecord, &[0x4F, 0x11]),
             (ExToken::Ss, &[0x53]),
             (ExToken::Stmt(0x0E), &[0x4F, 0x01, 0x0E]),
             (ExToken::ResultRef(0xE609), &[0x26, 0xE6, 0x09]),
@@ -1455,6 +1485,7 @@ mod tests {
                 ExToken::Formal(0xE409),
                 ExToken::Formal(0xE309),
                 ExToken::Lo,
+                ExToken::LoRecord,
                 ExToken::Ss,
                 ExToken::Load(0xE309),
                 ExToken::Load(0xE409),
@@ -1637,7 +1668,7 @@ mod tests {
 
     #[test]
     fn prefix_decodes_header_blockstart_ss_resultref_formals() {
-        let lo = find_subslice(ADD3_SEGMENT, &LO_MARKER).unwrap();
+        let lo = crate::func::body_start(ADD3_SEGMENT).unwrap();
         let mut spans = Vec::new();
         walk_ex_prefix(&ADD3_SEGMENT[..lo], 2, &mut spans);
         let toks: Vec<ExToken> = spans

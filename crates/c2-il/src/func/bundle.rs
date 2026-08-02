@@ -10,8 +10,123 @@ use crate::IlBundle;
 /// index region before the first one is opaque zero-fill for this class.
 pub(crate) const FN_START: [u8; 2] = [0x4F, 0x1F];
 
-/// The `.ex` body marker `4C 4F 11` (`LO`) that opens every function body.
-pub(crate) const LO_MARKER: [u8; 3] = [0x4C, 0x4F, 0x11];
+/// The one-byte `.ex` body-start token `4C` (`LO`).
+///
+/// **This is the token; `4F 11` beside it is a separate, OPTIONAL record**
+/// (ROADMAP §10.12). Measured over nine functions in five captures, the grammar
+/// after the formals list is
+///
+/// ```text
+///   source body        …  46 <formals>   4C  4F 11  53  <stmts> …
+///   ??__E / ??__F      …  46             4C         53  <stmts> …
+/// ```
+///
+/// Every `??__E`/`??__F` thunk — the dynamic-initializer and atexit functions a
+/// namespace-scope object with a non-trivial constructor or destructor causes c2
+/// to emit — carries the bare `4C`. Everything else measured carries `4C 4F 11`,
+/// **including `??_G`**, a deleting destructor c2 synthesizes with no source
+/// behind it, which is why "compiler-generated bodies are different" is *not* the
+/// rule (it was tested and refuted).
+///
+/// Use [`body_start`] rather than either constant to locate a body: `4C` alone is
+/// one byte and is overloaded — it is the last byte of `IntCallEnd`
+/// (`55 86 41 74 4C`) and the first of `VoidCallEnd` (`4C 4B`) — so scanning for
+/// it bare invents bodies out of payload.
+pub(crate) const LO: u8 = 0x4C;
+
+/// The OPTIONAL two-byte record `4F 11` between the [`LO`] body-start token and
+/// the body's first `53`. One more `4F xx` record tag, like `4F 1F` (function
+/// start), `4F 01` (statement), `4F 02`, `4F 12`, `4F 20`, `4F 33`.
+pub(crate) const LO_RECORD: [u8; 2] = [0x4F, 0x11];
+
+/// The composed `4C 4F 11` form — [`LO`] **with** its optional [`LO_RECORD`].
+///
+/// Kept as a constant because it is what every source function's body opens with
+/// and what most readers here still anchor on, but it is a *composition*, not an
+/// atom: its absence from a segment means "no `4F 11` record", **not** "no body".
+/// Reading its absence as "no function" is the defect ROADMAP §10.11 catalogued.
+pub(crate) const LO_MARKER: [u8; 3] = [LO, LO_RECORD[0], LO_RECORD[1]];
+
+/// The `46` formals-list marker, and the `2D` per-formal entry tag.
+const FORMALS: u8 = 0x46;
+const FORMAL: u8 = 0x2D;
+
+/// Byte offset of the **body-start `4C`** in one `.ex` function segment, in both
+/// forms of the grammar — `Some(p)` with `seg[p] == 4C`.
+///
+/// **Strictly additive** and deliberately so: the composed `4C 4F 11` is tried
+/// first and, when present, is returned exactly as the old three-byte scan
+/// returned it, so every function that decodes today keeps byte-identical
+/// treatment. Only a segment with no `4C 4F 11` anywhere falls through to
+/// [`bare_body_start`], and that walk is grammar-driven rather than a byte scan.
+pub(crate) fn body_start(seg: &[u8]) -> Option<usize> {
+    find_subslice(seg, &LO_MARKER).or_else(|| bare_body_start(seg))
+}
+
+/// The bare-`4C` body start (`??__E`/`??__F`), located by **walking the prefix
+/// grammar** to the token rather than by scanning for the byte.
+///
+/// The grammar is the token set `codec::try_prefix_token` recognizes, from the
+/// `53 53` that opens every function's statement region:
+///
+/// ```text
+///   53 53   (53 | 26 <tok16>)*   46 (2D <tok16>)*   4C 53
+/// ```
+///
+/// Every step is required, and the terminating `4C` must be followed by `53`.
+/// That tightness is the whole point: `4C` occurs constantly inside bodies (an
+/// `IntCallEnd` ends with one, a `VoidCallEnd` starts with one), and a `4F 1F`
+/// that is really a payload collision — measured at ~2 % of `4F 1F` hits on a
+/// 1.5 MB `.ex` — must NOT be turned into a function by this. A collision does
+/// not carry this grammar, so it returns `None` and the segmentation is
+/// unchanged from today.
+///
+/// **Candidate-and-verify, not a single anchor.** Every `53 53` in the segment
+/// is tried in file order and the first that completes the grammar wins, so a
+/// `53 53` that is really payload inside the `4F 33 <len>` metadata record
+/// costs a failed walk rather than a wrong answer.
+///
+/// **Why the anchor is not [`BLOCK_START`], which is where this started.** The
+/// `4F 02 20 00 4F 01 NN` record is *not* per function: on
+/// `fixtures/cpp/wlo_dyninit_pair.cpp` — one object with both a constructor and
+/// a destructor, so c2 emits `??__EsL` **and** `??__FsL` — the first segment
+/// carries it and the second goes straight from its FnHeader to `53 53`.
+/// Anchoring there found one of the two bodies and reported `fn_total = 1` for a
+/// TU with two functions, which is the same defect (§10.11) one level down: a
+/// count that is only evidence about the predicate that produced it. The
+/// fixture exists because that was invisible on the single-thunk one.
+fn bare_body_start(seg: &[u8]) -> Option<usize> {
+    let mut i = 0;
+    while i + 1 < seg.len() {
+        if seg[i] == 0x53 && seg[i + 1] == 0x53 {
+            if let Some(p) = bare_lo_after_prefix(seg, i + 2) {
+                return Some(p);
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Walk the statement/result-ref/formals tail of a function prefix from `p`,
+/// returning the offset of the bare `4C` it ends at. `None` the moment a byte is
+/// not one of the prefix tokens — this is the check that keeps
+/// [`bare_body_start`] from being a byte scan.
+fn bare_lo_after_prefix(seg: &[u8], mut p: usize) -> Option<usize> {
+    loop {
+        match *seg.get(p)? {
+            0x53 => p += 1,
+            0x26 => p += 3,
+            FORMALS => break,
+            _ => return None,
+        }
+    }
+    p += 1;
+    while seg.get(p) == Some(&FORMAL) {
+        p += 3;
+    }
+    (seg.get(p) == Some(&LO) && seg.get(p + 1) == Some(&0x53)).then_some(p)
+}
 
 /// Split `.ex` into one segment per **function body**, anchored on the `LO`
 /// marker rather than the `4F 1F` function-start marker (P2b).
@@ -22,6 +137,12 @@ pub(crate) const LO_MARKER: [u8; 3] = [0x4C, 0x4F, 0x11];
 /// markers and 5243 function tails (`4F 12 47 54 01 54 00`) — the latter two
 /// agree to 0.08%, the first is ~2% high. Anchoring on `LO` keeps the count
 /// honest without inventing a denominator.
+///
+/// The anchor is [`body_start`], not the raw three-byte scan: `4C 4F 11` where a
+/// segment has one, and the grammar-gated bare `4C` where it does not (§10.12).
+/// The second form is found by a second, strictly-additive pass over the `4F 1F`
+/// regions that hold no `4C 4F 11`, so the segmentation of every function that
+/// split here before is byte-identical.
 ///
 /// Each segment starts at the `4F 1F` immediately preceding its `LO` (so the
 /// formals region stays inside the segment, where [`parse_formals`] looks for
@@ -53,9 +174,6 @@ pub(crate) fn split_function_bodies_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
             i = j + 1;
         }
     }
-    if los.is_empty() {
-        return (Vec::new(), Vec::new());
-    }
     // Function-start markers, in file order, for the "nearest preceding" lookup.
     let mut starts: Vec<usize> = Vec::new();
     let mut i = 0;
@@ -70,6 +188,39 @@ pub(crate) fn split_function_bodies_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
         } else {
             i = j + 1;
         }
+    }
+
+    // **Second pass, strictly additive: the bare-`4C` body (ROADMAP §10.12).**
+    // A `4F 1F` region that contains no `4C 4F 11` at all may still be a real
+    // function whose body opens with the bare token — every `??__E`/`??__F`
+    // thunk is one. Anchored per region and gated on the full prefix grammar
+    // ([`bare_body_start`]), so a region that already has a composed marker is
+    // untouched and a payload collision contributes nothing.
+    //
+    // Without this the census cannot SEE the class: the two license TUs of the
+    // dc3 workload have one function each and reported `fn_total = 0`, and a
+    // count is only evidence about the predicate that produced it (§10.11).
+    let mut extra: Vec<usize> = Vec::new();
+    for (k, &s) in starts.iter().enumerate() {
+        let e = starts.get(k + 1).copied().unwrap_or(ex.len());
+        // Both lists are ascending, so "does this region already hold a body
+        // marker" is a binary search, not a scan — this runs per `4F 1F` on
+        // 1.5 MB streams with ~5,000 of each.
+        let idx = los.partition_point(|&l| l < s);
+        if los.get(idx).is_some_and(|&l| l < e) {
+            continue;
+        }
+        if let Some(p) = bare_body_start(&ex[s..e]) {
+            extra.push(s + p);
+        }
+    }
+    if !extra.is_empty() {
+        los.extend(extra);
+        los.sort_unstable();
+    }
+
+    if los.is_empty() {
+        return (Vec::new(), Vec::new());
     }
 
     let mut segs_start: Vec<usize> = Vec::with_capacity(los.len());
@@ -672,6 +823,32 @@ impl IlBundle {
     /// `None` if `.ex` is absent. A segment whose prefix is not `4F 1F 80` yields
     /// `None` **for that entry**, so a caller that requires a known mode refuses
     /// rather than assuming one.
+    /// How many `4F 1F` function segments this bundle's `.ex` splits into — the
+    /// count [`split_functions_at`] produces, which is the segmentation
+    /// `PortC2::build` consumes.
+    ///
+    /// **A pure reader, and that is the entire point.** It makes no acceptance
+    /// decision and never refuses: it is available on a bundle whose
+    /// [`IlBundle::functions`] returns `None`, which is 865 of the 878 workload
+    /// TUs. Until this existed, `functions()` was the only public reader of the
+    /// `4F 1F` split, so any instrument wanting that count could only have it
+    /// for a TU that already passed the gate — and `gap.rs`'s emit-set ceiling
+    /// consequently filtered on `fn_total`, which is the **other** splitter's
+    /// count ([`split_function_bodies_at`], `LO`-anchored). ROADMAP §10.15.
+    ///
+    /// `None` when `.ex` is absent, rather than `0`: "this bundle has no `.ex`"
+    /// and "this bundle's `.ex` has no functions" are different facts, and a
+    /// ceiling that compares a segment count against an obj's COMDAT count would
+    /// read the first as the second (`docs/STATUS.md` trap 5 — absence reads as
+    /// success unless something forbids it).
+    ///
+    /// This lane did **not** change [`split_functions_at`]: the `??__E`
+    /// re-tokenization is in `body_start` / [`split_function_bodies_at`] and in
+    /// the codec, so this count is byte-for-byte what it was before it.
+    pub fn ex_segment_count(&self) -> Option<usize> {
+        Some(split_functions_at(self.ex()?).0.len())
+    }
+
     pub fn opt_words(&self) -> Option<Vec<Option<u32>>> {
         let ex = self.ex()?;
         Some(
@@ -1007,6 +1184,214 @@ mod tests {
         let ex = vec![FN_START[0], FN_START[1], 0x11, 0x22, 0x33, 0x44, 0x55];
         assert_eq!(ex_bundle(ex).opt_words(), Some(vec![Some(0x11)]));
         assert!(opt_word_mode(Some(0x11)).is_none());
+    }
+
+    // ---- the bare-`4C` body start (#158 / ROADMAP §10.12) -------------------
+
+    /// The **whole `.ex` function segment** of `??__EsL@@YAXXZ`, the dynamic
+    /// initializer of `fixtures/cpp/il_dyninit_static.cpp`
+    /// (`struct L { L(const char*, int); }; static L sL("abc", 0);`), captured
+    /// live from 16.00.11886.00 at `/Ox`. 143 bytes, `.ex` offset 2644 to EOF.
+    ///
+    /// Its prefix is `… 46` and its body opens **`4C 53`** at index 61 — there
+    /// is no `4C 4F 11` anywhere in it. The two workload TUs
+    /// `system/synth/tomcrypt/TomCryptLicense.cpp` and `system/zlib/ZlibLicense.cpp`
+    /// carry the same shape at `/O1` (byte-identical 2,839 B `.ex` files).
+    const DYNINIT_SEGMENT: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00,
+        0x4F, 0x33, 0x0D, 0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01,
+        0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18, 0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38,
+        0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D, 0x08, 0x00, 0x0F,
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x34, 0x53, 0x53, 0x26, 0xED, 0x09,
+        0x46, 0x4C, 0x53, 0x26, 0xE6, 0x09, 0x26, 0xEC, 0x09, 0x2C, 0xA6, 0x43,
+        0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x88, 0x20, 0x00, 0xBD, 0xA6, 0x43,
+        0x81, 0x20, 0x00, 0x80, 0x05, 0x10, 0x00, 0x00, 0x33, 0x86, 0x41, 0x74,
+        0x00, 0x55, 0x86, 0x41, 0x74, 0x26, 0xEF, 0x09, 0x2C, 0x86, 0x43, 0x83,
+        0x20, 0x00, 0x55, 0x86, 0x43, 0x83, 0x20, 0x4C, 0x4B, 0x3A, 0xEE, 0x09,
+        0x54, 0x02, 0x29, 0xEE, 0x09, 0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00,
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x35, 0x53, 0x54, 0x00, 0x4D,
+    ];
+
+    /// The `4F 02 20 00` block-start record. NOT per function — see
+    /// [`bare_body_start`] — so it is a test-side literal only.
+    const BLOCK_START: [u8; 4] = [0x4F, 0x02, 0x20, 0x00];
+
+    /// A minimal composed-marker segment: `4F 1F 80 <word>` + block-start +
+    /// `53 53` + result-ref + `46 (2D <tok>)*` + `4C 4F 11 53`.
+    fn composed_segment(formals: &[u16]) -> Vec<u8> {
+        let mut v = vec![FN_START[0], FN_START[1], 0x80];
+        v.extend_from_slice(&OPT_WORD_OX.to_le_bytes());
+        v.extend_from_slice(&BLOCK_START);
+        v.extend_from_slice(&[0x4F, 0x01, 0x07, 0x53, 0x53, 0x26, 0xE4, 0x09, FORMALS]);
+        for t in formals {
+            v.extend_from_slice(&[FORMAL, (t >> 8) as u8, *t as u8]);
+        }
+        v.extend_from_slice(&LO_MARKER);
+        v.push(0x53);
+        v
+    }
+
+    #[test]
+    fn the_dynamic_initializer_thunk_opens_with_a_bare_lo() {
+        // The byte claim, on the capture: no composed marker, and the body-start
+        // token sits immediately after the (empty) formals list.
+        assert_eq!(find_subslice(DYNINIT_SEGMENT, &LO_MARKER), None);
+        assert_eq!(DYNINIT_SEGMENT[60], FORMALS);
+        assert_eq!(DYNINIT_SEGMENT[61], LO);
+        assert_eq!(DYNINIT_SEGMENT[62], 0x53);
+        assert_eq!(body_start(DYNINIT_SEGMENT), Some(61));
+    }
+
+    /// The **second** `.ex` segment of `fixtures/cpp/wlo_dyninit_pair.cpp` —
+    /// `??__FsL@@YAXXZ`, the atexit thunk — captured live at `/Ox`. 109 bytes.
+    ///
+    /// Its FnHeader is byte-identical to [`DYNINIT_SEGMENT`]'s and it then goes
+    /// **straight to `53 53`**: there is no `4F 02 20 00 4F 01 NN` block-start
+    /// record, because that record is per module, not per function (the module
+    /// opens block `18` at the first segment and closes `19` at the end of this
+    /// one). An anchor on the block start finds `??__E` and misses this, and
+    /// reports a TU with two functions as having one.
+    const ATEXIT_SEGMENT: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00,
+        0x4F, 0x33, 0x0D, 0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01,
+        0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18, 0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38,
+        0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D, 0x08, 0x00, 0x0F,
+        0x53, 0x53, 0x26, 0xF1, 0x09, 0x46, 0x4C, 0x53, 0x26, 0xE5, 0x09, 0x26,
+        0xEE, 0x09, 0x2C, 0xA6, 0x43, 0x81, 0x20, 0x00, 0x99, 0x86, 0x43, 0x84,
+        0x20, 0x00, 0xBD, 0x82, 0x07, 0x03, 0x00, 0x80, 0x04, 0x10, 0x00, 0x00,
+        0x4C, 0x4B, 0x3A, 0x0C, 0x0A, 0x54, 0x02, 0x29, 0x0C, 0x0A, 0x4F, 0x12,
+        0x47, 0x54, 0x01, 0x54, 0x00, 0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x19,
+        0x4D,
+    ];
+
+    #[test]
+    fn the_atexit_thunk_has_no_block_start_and_is_still_found() {
+        // The regression this fixture bought: the block-start record is per
+        // MODULE. Anchoring the walk there found 1 of these 2 bodies.
+        assert_eq!(find_subslice(ATEXIT_SEGMENT, &BLOCK_START), Some(101));
+        assert!(101 > 54, "the only block start in this segment is the module END");
+        assert_eq!(body_start(ATEXIT_SEGMENT), Some(54));
+
+        // Both bodies of the pair, in one stream, in file order.
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 8]);
+        let a = ex.len();
+        ex.extend_from_slice(DYNINIT_SEGMENT);
+        let b = ex.len();
+        ex.extend_from_slice(ATEXIT_SEGMENT);
+        let (starts, segs) = split_function_bodies_at(&ex);
+        assert_eq!(starts, vec![a, b], "two thunks, two segments");
+        assert_eq!(segs.len(), 2);
+    }
+
+    #[test]
+    fn the_composed_marker_still_wins_and_wins_first() {
+        // Strictly additive: where `4C 4F 11` exists, `body_start` returns
+        // exactly what the old three-byte scan returned — including when a bare
+        // `4C 53` appears EARLIER in the segment, because branch order decides.
+        let seg = composed_segment(&[0xE309]);
+        let lo = find_subslice(&seg, &LO_MARKER).unwrap();
+        assert_eq!(body_start(&seg), Some(lo));
+        assert_eq!(LO_MARKER, [LO, LO_RECORD[0], LO_RECORD[1]]);
+    }
+
+    #[test]
+    fn a_bare_lo_with_formals_is_read_through_the_formal_list() {
+        // Stated no wider than the data, but the walk does not assume the empty
+        // formals list every measured `??__E` happens to have: `2D <tok16>`
+        // entries are stepped over, not scanned past.
+        let mut seg = composed_segment(&[0xE309, 0xE409]);
+        let lo = find_subslice(&seg, &LO_MARKER).unwrap();
+        seg.splice(lo..lo + 3, [LO]); // drop the optional `4F 11` record
+        assert_eq!(find_subslice(&seg, &LO_MARKER), None);
+        assert_eq!(body_start(&seg), Some(lo));
+    }
+
+    #[test]
+    fn the_bare_walk_refuses_everything_that_is_not_this_grammar() {
+        // **The load-bearing negative.** `4C` is one byte and overloaded — the
+        // last byte of `IntCallEnd` (`55 86 41 74 4C`) and the first of
+        // `VoidCallEnd` (`4C 4B`) — and ~2 % of `4F 1F` hits on a real 1.5 MB
+        // `.ex` are payload collisions. A byte scan would mint functions out of
+        // both. None of these may produce a body start.
+
+        // (a) An `IntCallEnd` tail followed by a statement — `4C 53` verbatim,
+        //     but with no block-start/formals grammar in front of it.
+        let mid: &[u8] = &[0x55, 0x86, 0x41, 0x74, LO, 0x53, 0xB9, 0x00, 0x0A];
+        assert_eq!(body_start(mid), None);
+
+        // (b) A payload collision: `4F 1F` bytes with no block-start record.
+        let collision: &[u8] = &[0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, LO, 0x53];
+        assert_eq!(body_start(collision), None);
+
+        // (c) The grammar right up to the end, but the byte after the formals
+        //     list is a `VoidCallEnd`, not a body start.
+        let mut void_end = composed_segment(&[]);
+        let lo = find_subslice(&void_end, &LO_MARKER).unwrap();
+        void_end.splice(lo..lo + 4, [LO, 0x4B]);
+        assert_eq!(body_start(&void_end), None);
+
+        // (d) An unmodelled record between the block start and the formals
+        //     marker — refuse rather than skip to the next `4C`.
+        let mut odd = composed_segment(&[]);
+        let lo = find_subslice(&odd, &LO_MARKER).unwrap();
+        odd.splice(lo..lo + 3, [LO]);
+        let f = odd.iter().position(|&b| b == FORMALS).unwrap();
+        odd.splice(f..f, [0x77, 0x77]);
+        assert_eq!(body_start(&odd), None);
+    }
+
+    #[test]
+    fn the_body_split_sees_the_thunk_the_census_could_not() {
+        // §10.11's symptom, at the byte: this segment split to ZERO segments, so
+        // `fn_total` was 0 for a TU with one function and one `.text` COMDAT.
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 8]);
+        let at = ex.len();
+        ex.extend_from_slice(DYNINIT_SEGMENT);
+        let (starts, segs) = split_function_bodies_at(&ex);
+        assert_eq!(starts, vec![at]);
+        assert_eq!(segs.len(), 1);
+        assert_eq!(segs[0], DYNINIT_SEGMENT);
+    }
+
+    #[test]
+    fn a_mixed_tu_splits_both_forms_and_the_composed_one_identically() {
+        // The realistic shape (an inline constructor plus a namespace-scope
+        // object): one composed body and one bare one in the same `.ex`. Both
+        // are found, in file order, and the composed segment is byte-identical
+        // to what it was before the second pass existed.
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 8]);
+        let a = ex.len();
+        let comp = composed_segment(&[0xE309]);
+        ex.extend_from_slice(&comp);
+        let b = ex.len();
+        ex.extend_from_slice(DYNINIT_SEGMENT);
+        let (starts, segs) = split_function_bodies_at(&ex);
+        assert_eq!(starts, vec![a, b]);
+        assert_eq!(segs[0], comp.as_slice());
+        assert_eq!(segs[1], DYNINIT_SEGMENT);
+    }
+
+    #[test]
+    fn ex_segment_count_is_a_pure_reader_that_never_refuses() {
+        // The `4F 1F` count, on a bundle that has no `.gl` at all — so
+        // `functions()` returns None and the count is still available. That is
+        // the property `gap.rs` needs (ROADMAP §10.15); a count only obtainable
+        // through the gate is a count known for 6 of 871 TUs.
+        let mut ex = crate::EX_MAGIC.to_vec();
+        ex.extend_from_slice(&[0x00; 8]);
+        ex.extend_from_slice(&composed_segment(&[0xE309]));
+        ex.extend_from_slice(DYNINIT_SEGMENT);
+        let b = ex_bundle(ex);
+        assert!(b.functions().is_none(), "no .gl — the gate must refuse");
+        assert_eq!(b.ex_segment_count(), Some(2));
+
+        // Absent `.ex` is None, not 0: the two are different facts.
+        assert_eq!(IlBundle::default().ex_segment_count(), None);
+        // An empty module has an `.ex` and no segments.
+        assert_eq!(ex_bundle(vec![0u8; 64]).ex_segment_count(), Some(0));
     }
 
     #[test]
