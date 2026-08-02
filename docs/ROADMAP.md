@@ -8150,8 +8150,15 @@ reachable-but-unmatched TUs (§9.16.6, a complete partition):
 **Both readings are correct and they rank Phase 6 at opposite ends**, because one
 counts body mass and the other counts payoff — and §8.2 declares the payoff metric
 to be TU match. It is not "nineteen TUs each needing a different thing"; it is
-**one thing needed by seventeen of them**. The distance metric was hiding a
+~~**one thing needed by seventeen of them**~~. The distance metric was hiding a
 *concentration*, which is the opposite error from the one we assumed.
+
+> **STRUCK 2026-08-02 (§10.15).** The `17` is exact and reproduces on the same
+> two exceptions — and it is a **presence** count. Measured jointly per TU,
+> Phase 6 entire, every construct at any width, converts **0 of the 19**, and
+> **all 19 need at least two constructs at once**. There is no one thing. The
+> table above still ranks Phase 6 correctly; the sentence drawn from it does not
+> follow, and it was the sentence the schedule was built on.
 
 The honest cost side is unchanged from §8.7: `codegen/encode.rs` has 46 encoders,
 exactly one branch (`blr`) and one raw `b` word — **no `bc`, no label, no fixup,
@@ -8640,3 +8647,122 @@ concrete step on #159 and it is cheap.
 classification the harness already computes, extend the harness. A private
 re-derivation of the same rule is not a shortcut — it is a second rule that will
 agree until the moment it matters.
+
+---
+
+## 10.15 W-PHASE6 — the 17 is real, and it converts nothing (2026-08-02)
+
+**Full write-up: [`PHASE6_RANKING.md`](PHASE6_RANKING.md). Pre-registration:
+`rungs/_2026-08-02-w-phase6-prereg.md`, committed before the first measurement.**
+Measurement lane; no code was written. This section records what it changes about
+§10's own plan.
+
+### The claim, and what survives it
+
+§9.16.6 measured that **17 of the 19** reachable-but-unmatched TUs block on
+control flow, and §10.4 drew from it: *"it is not nineteen TUs each needing a
+different thing; it is one thing needed by seventeen of them."* That sentence is
+the reason Phase 6 was promoted to second.
+
+The 17 **reproduces exactly**, on the same two named exceptions (`Main.cpp`,
+`xboxheap.cpp`). It is a **presence** count. Asked as a conversion question —
+measured jointly per TU from `c2rs census` at the workload's own flags, set-union
+over each TU's blocked rows, never a product of marginals — **Phase 6 entire,
+every construct at any width, converts 0 of the 19.** The whole expression and
+statement layer *without* control flow converts 2, and neither of those two
+survives its other axes. Of the 54 blocked bodies at the near edge, **one** is
+blocked on control flow alone.
+
+**All 19 need at least two constructs at once** — 17 on the control-flow axis,
+plus `Main.cpp` (the EH record) and `xboxheap.cpp` (three independent refusals).
+The near edge does not decompose, which is §10.13's finding about the emit-set
+wall (305 of 451) arriving independently at the other end of the plan.
+
+What survives: §10.5's **ordering** stands. Phase 6 is a necessary half of a
+two-half rung for 17 TUs, and 46 encoders with one branch and no block IR is
+still real machinery that has to exist. What does not survive is scheduling it as
+a phase that **pays on completion**. Its marginal is zero until the expression
+layer lands beside it, and the plan said otherwise.
+
+### The ranking, which inverts by unit by 6×
+
+Given the entire expression and statement layer as an optimistic ceiling — the
+only setting in which the constructs separate at all:
+
+| construct | blocked bodies, whole workload | rank | **+TUs at the near edge** | rank |
+|---|---:|:--:|---:|:--:|
+| `if-1` (the diamond) | **238,766** | **1** | **+1** | 3 |
+| `loop` | 91,344 | 2 | +5 | 2 |
+| `if-n` | 43,658 | 3 | **+6** | **1** |
+| `if-2` | 29,187 | 4 | +0 | 4 |
+| `switch` | 304 | 5 | +0 | 5 |
+
+The four together are **+14**; the marginals sum to 12, because `mmio.cpp` and
+`keygen_xbox.cpp` need several at once. **A Phase-6 plan sized off the census
+histogram builds the diamond first and buys one TU.** `if-n` is 5.5× smaller and
+buys six.
+
+### Why it does not decompose — two keys, one rung
+
+17 of the 54 blocked bodies carry an `expr-cmp-*` first blocker, over 8 TUs, and
+**16 of the 17 sit inside a branch, loop or undecoded body**. §10.6 struck
+Phase 1 on exactly that ground; §10.4 promoted Phase 6 on its mirror image. Each
+is worth **0 alone and 6 together**. `OPERATOR_GRANTS.md` had already granted the
+relational tokens and rescanned: numerator **+0**, and the population lands on
+`expr-brfalse` **+19,409** — the cmp row's successor blocker *is* a Phase-6
+construct. The comparison spine and the branch are one rung reported under two
+keys, and the board carries them as two items.
+
+### The correction that reaches §10's headline
+
+**`emit_set_reachable_tus()` is splitter-dependent, and so is "19 TUs, ever".**
+It filters on `fn_total == emit-emitted`, and its own doc comment asserts
+"`fn_total` is exactly that segment count" — the `.ex` segment count
+`PortC2::build` consumes. **That identity is false.** `fn_total` comes from
+`census_functions()`, split on `split_function_bodies_at` (**`LO`-anchored**,
+`4C 4F 11`); `PortC2::build` consumes `IlBundle::functions()`, split on
+`split_functions_at` (**`4F 1F`-anchored**). §10.11 and §10.12 proved they
+disagree and named the population.
+
+| TU | `fn_total` (census, `LO`) | segments (gate, `4F 1F`) | emitted COMDATs | in the 25? |
+|---|---:|---:|---:|:--:|
+| `synth/tomcrypt/TomCryptLicense.cpp` | **0** | 1 | 1 | **no** |
+| `zlib/ZlibLicense.cpp` | **0** | 1 | 1 | **no** |
+
+Both are filed in §10.2's `segments < COMDATs` bucket by a count that is not the
+one the port uses; on the port's own splitter they satisfy the predicate.
+
+**This does not license "the ceiling is 27."** The disagreement is unsigned — a
+TU inside the 25 today could have its gate splitter find *more* segments and drop
+out — and the gate-side count has never been computed across the workload. The
+supported statement is bounded: **the "25 of 871", and therefore §10.2's "at most
+19 TUs, ever", are an `LO`-anchored count of a `4F 1F`-anchored property, and at
+least two TUs are known to be on the wrong side of it.** `emit_set_violations()`
+is the control that makes the ceiling a measurement rather than an argument, and
+it is weak exactly here: **five of the six matching TUs define zero functions**,
+so both counts are 0 and it agrees trivially. Recomputing the ceiling on the
+gate's splitter is a one-line `gap.rs` change and is the cheapest open correction
+to the plan's headline bound. It is **dispatched to the lane that owns that
+file**, to be added as a *second* reported count beside the existing one, never
+as a silent swap — both must be printed, labelled by anchor, with the
+disagreement as a count.
+
+Not minted as a board item here: `BOARD.md` is held by another lane this session
+and its own rule is that a number is minted by adding the row in the same commit.
+It is owed.
+
+### Prereg scored
+
+5 clean hits (the 17; Phase 6 alone converts 0; the expression layer alone
+converts 0 *as delivered today*; the splitter disagreement; `emit_set_violations`
+0). One hit at the interval edge above its point estimate — the lane's
+deflationary bias made it **under**-count the requirement, not over-count it.
+One would have **missed**: it registered `if-1`/`if-2` as the first construct to
+rank, on §8.6's cheap-diamond framing; on TUs `if-1` is third and `if-2` is zero.
+That miss is the section's own result, arrived at twice.
+
+### One smaller correction
+
+`GAPS.md` §9.3's *"zero are `cflow-straight`"* is no longer exact:
+`xboxmem.cpp [0]` (`?GetXAllocAttributes@…`, 131 B) is a straight-line `cmp`
+site. It converts nothing, so the conclusion stands and the quantifier does not.
