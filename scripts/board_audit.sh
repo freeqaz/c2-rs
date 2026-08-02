@@ -67,9 +67,9 @@
 #   - Rewriting `R:§9.20.5` as `R:§9.99.9` in a copy of BOARD.md makes check 4
 #     print `R:§9.99.9 — no heading '9.99.9' in ROADMAP.md` (verified
 #     2026-08-02).
-#   - Stripping the `§` from that same anchor (leaving `R:9.20.5`… i.e. a raw
-#     `R:` + digits form such as the old `R:7734`) moves check 5 from 0 to 1
-#     with the offending line listed (verified 2026-08-02).
+#   - Rewriting that same anchor as `R:9205` (the old raw `R:` + digits form,
+#     like the pre-conversion `R:7734`) moves check 5 from 0 to 1 with the
+#     offending BOARD.md line listed (verified 2026-08-02).
 #   - Deleting `R:§9.20.5, R:§10.13` from the #152<sub>w-emitset</sub> row's
 #     defined-cell makes check 6 print `#152 — heading-named in §10.13, no row
 #     cites it` (verified 2026-08-02).
