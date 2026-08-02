@@ -806,6 +806,51 @@ impl GapReport {
             .count()
     }
 
+    /// [`Self::emit_set_violations`] against the **gate-anchored** segment count
+    /// (`4F 1F`) instead of the census's (`4C 4F 11`) — see step 1g in
+    /// [`scan_one`].
+    ///
+    /// Returns `(violations, matching TUs the gate count is KNOWN for)`. The
+    /// second number is not decoration: this control can only go red on a TU
+    /// where `functions()` returned a count, and reporting the violation total
+    /// without the population it was taken over is the shape that lets a green
+    /// control mean "nothing was checked".
+    pub fn emit_set_violations_gate(&self) -> (usize, usize) {
+        let m: Vec<&TuResult> = self
+            .results
+            .iter()
+            .filter(|r| r.class == TuClass::Match)
+            .filter(|r| r.emit.contains_key("emit-gate-segments-known"))
+            .collect();
+        let bad = m
+            .iter()
+            .filter(|r| {
+                r.emit.get("emit-gate-segments").copied().unwrap_or(0)
+                    != r.emit.get("emit-emitted").copied().unwrap_or(0)
+            })
+            .count();
+        (bad, m.len())
+    }
+
+    /// The splitter disagreement as counts (step 1g): `(TUs the gate count is
+    /// known for, unknown, agree, disagree, gate sees more, census sees more,
+    /// gate-anchored ceiling, entering the ceiling, leaving it)`.
+    #[allow(clippy::type_complexity)]
+    pub fn splitter_disagreement(&self) -> (usize, usize, usize, usize, usize, usize, usize, usize, usize) {
+        let t = |k: &str| self.emit_total(k);
+        (
+            t("emit-gate-segments-known"),
+            t("emit-gate-segments-unknown"),
+            t("emit-splitter-agree"),
+            t("emit-splitter-disagree"),
+            t("emit-splitter-gate-sees-more"),
+            t("emit-splitter-census-sees-more"),
+            t("emit-set-ceiling-gate"),
+            t("emit-set-ceiling-gate-enter"),
+            t("emit-set-ceiling-gate-leave"),
+        )
+    }
+
     /// The binding invariant that must be **zero**: a generated destructor bound to
     /// a callee that is not a destructor. Nonzero means the `.gl` reader is naming
     /// the wrong symbol in a way no obj comparison over this corpus could have
@@ -1436,6 +1481,82 @@ fn scan_one(
         }
     }
 
+    // 1g. **THE TWO SPLITTERS DISAGREE, AND THE CEILING IS COMPUTED WITH THE
+    //     WRONG ONE** (ROADMAP §10.11 / §10.12, W-PHASE6).
+    //
+    //     `emit_set_reachable_tus` — the "25 of 871" emit-set ceiling, and the
+    //     `at most 19 TUs, ever` claim §10 builds its re-plan on — filters on
+    //     `fn_total == emit-emitted`, and its doc comment asserts that
+    //     `fn_total` "is exactly that segment count", meaning the count
+    //     `PortC2::build` consumes. **It is not.**
+    //
+    //     | count | comes from | anchored on |
+    //     |---|---|---|
+    //     | `fn_total` | `census_functions()` / `split_function_bodies_at` | `LO_MARKER` = `4C 4F 11` |
+    //     | what the port consumes | `IlBundle::functions()` / `split_functions_at` | `FN_START` = `4F 1F` |
+    //
+    //     §10.12 named the population that separates them: a `??__E`/`??__F`
+    //     dynamic-initializer thunk carries a **bare `4C`** with no `4F 11`, so
+    //     the census sees 0 segments where the gate sees 1.
+    //
+    //     So this counts the ceiling BOTH ways and publishes the disagreement.
+    //     It does **not** replace `fn_total` or `emit-emitted` — a ceiling
+    //     silently recomputed under the same name would be indistinguishable
+    //     from the old one being right, and which of the two is the ceiling is
+    //     not something this instrument gets to decide.
+    //
+    //     `functions()` is the only public reader of the `4F 1F` split, and it
+    //     returns `None` for a bundle it refuses rather than a count — so
+    //     `emit-gate-segments-unknown` is a printed count, not an assumption of
+    //     zero. Every key here is NEW; none of the existing ones is touched.
+    let gate_segments = captured.bundle.functions().map(|f| f.len());
+    {
+        let comdats = res.emit.get("emit-emitted").copied().unwrap_or(0);
+        match gate_segments {
+            None => {
+                *res.emit
+                    .entry("emit-gate-segments-unknown".into())
+                    .or_insert(0) += 1;
+            }
+            Some(n) => {
+                *res.emit.entry("emit-gate-segments-known".into()).or_insert(0) += 1;
+                *res.emit.entry("emit-gate-segments".into()).or_insert(0) += n;
+                if n == res.fn_total {
+                    *res.emit.entry("emit-splitter-agree".into()).or_insert(0) += 1;
+                } else {
+                    *res.emit.entry("emit-splitter-disagree".into()).or_insert(0) += 1;
+                    // Signed, in two keys rather than one absolute value: §10.12
+                    // predicts the gate seeing MORE segments than the census
+                    // (`??__E` with a bare `4C`), and a count that cannot tell
+                    // that from the opposite is not evidence for it.
+                    let key = if n > res.fn_total {
+                        "emit-splitter-gate-sees-more"
+                    } else {
+                        "emit-splitter-census-sees-more"
+                    };
+                    *res.emit.entry(key.into()).or_insert(0) += 1;
+                }
+                // The ceiling, gate-anchored, and how it moves against the
+                // `LO`-anchored one. `enter`/`leave` are the deliverable: the
+                // net is not enough, because two TUs swapping sides is a
+                // different fact from nothing happening.
+                let (lo_reach, gate_reach) = (res.fn_total == comdats, n == comdats);
+                if gate_reach {
+                    *res.emit.entry("emit-set-ceiling-gate".into()).or_insert(0) += 1;
+                }
+                match (gate_reach, lo_reach) {
+                    (true, false) => {
+                        *res.emit.entry("emit-set-ceiling-gate-enter".into()).or_insert(0) += 1
+                    }
+                    (false, true) => {
+                        *res.emit.entry("emit-set-ceiling-gate-leave".into()).or_insert(0) += 1
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
     // 2. Optional soundness lane: standalone-c2 replay must reproduce the
     //    pipeline obj on this real bundle.
     if do_replay {
@@ -1460,7 +1581,9 @@ fn scan_one(
     }
 
     // 3. Vocabulary: can the IL model even decode this bundle's functions?
-    if captured.bundle.functions().is_none() {
+    //    Reuses 1g's call — `functions()` is pure, so this is the same predicate
+    //    it always was, evaluated once instead of twice.
+    if gate_segments.is_none() {
         res.class = TuClass::VocabGap;
         res.reason = "il function decode failed".to_string();
         res.detail = format!(
@@ -1716,6 +1839,33 @@ pub fn gap_scan(
     if let Some(p) = witness_path() {
         write_witness(&report, p)?;
     }
+    // **The two segment counts, side by side** (step 1g). Printed here rather
+    // than in the caller's report because the classification lives in this file;
+    // printed ALWAYS, as counts, because a disagreement nobody prints is the
+    // absence-reads-as-success shape this project has paid for repeatedly.
+    // Neither number is presented as "the" ceiling: which anchor the ceiling
+    // should use is a decision, and this is the measurement it needs.
+    let (known, unknown, agree, disagree, gate_more, census_more, gate_ceil, enter, leave) =
+        report.splitter_disagreement();
+    let (viol, viol_pop) = report.emit_set_violations_gate();
+    println!(
+        "\nSPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, \
+         the port on `4F 1F`\n\
+         \x20 gate-side segment count KNOWN for {known} of {} captured TUs; UNKNOWN for {unknown}. \
+         `IlBundle::functions()` is the only public reader of the `4F 1F` split and it returns \
+         None for a bundle it cannot parse, which is every vocab-gap TU — so this instrument \
+         cannot see the population the ceiling is about.\n\
+         \x20 of the {known} known: {agree} agree with `fn_total`, {disagree} disagree \
+         ({gate_more} where the gate sees MORE segments, {census_more} where the census does)\n\
+         \x20 emit-set ceiling, LO-anchored, over ALL graded TUs: {}\n\
+         \x20 gate-anchored ceiling over the {known} TUs it is known for: {gate_ceil} \
+         (+{enter} entering, -{leave} leaving) — NOT comparable to the line above, different \
+         denominators\n\
+         \x20 gate-anchored control on matching TUs: {viol} violations over {viol_pop} matching \
+         TUs whose gate count is known",
+        known + unknown,
+        report.emit_set_reachable_tus().len(),
+    );
     Ok(report)
 }
 
