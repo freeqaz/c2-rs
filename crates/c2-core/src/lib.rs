@@ -189,6 +189,30 @@ impl PortC2 {
     /// selected + placed in a shared `.text`; see [`codegen::select_text`] and
     /// [`coff::emit_obj`]).
     pub fn build(&self, il: &IlBundle, obj_name: &str) -> Result<ObjImage, BackendError> {
+        // **W-R1c — the `??__E` dynamic-initializer TU (board #158).**
+        //
+        // Tried before `functions()` because it is a *whole-TU* shape, not a
+        // function class: the TU's only function is a compiler-emitted thunk
+        // whose three arguments are two relocated addresses and a literal, and
+        // `functions()` correctly refuses it (its data symbol is defined here,
+        // which `Bindings::resolve_data` will not resolve and must not start
+        // resolving — see `IlBundle::dyninit_tu`).
+        //
+        // Every gate lives in the recognizer, and this arm adds exactly one more
+        // that cannot live there because `string_comdat_name` is in this crate:
+        // **the computed `??_C@…` name must be one `.gl` actually spells.**
+        if let Some(tu) = il.dyninit_tu() {
+            if let Some(obj) = Self::build_dyninit(&tu, obj_name) {
+                return Ok(ObjImage::new(obj));
+            }
+            return Err(BackendError::NotImplemented(
+                "a `??__E` dynamic-initializer TU outside the measured class: \
+                 the literal's COMDAT name, the object's alignment, or the \
+                 thunk's schedule is one this port has not been graded on"
+                    .to_string(),
+            ));
+        }
+
         let funcs = il.functions().ok_or_else(|| {
             BackendError::NotImplemented(
                 "PortC2 only handles straight-line int add-chain functions \
@@ -498,6 +522,66 @@ impl PortC2 {
 
         let bytes = coff::emit_obj(obj_name, &placed, &text, label_counter);
         Ok(ObjImage::new(bytes))
+    }
+
+    /// **W-R1c — the join between the decode and the obj shape.**
+    ///
+    /// `emit_dyninit_obj` and the `??__E` decode were both built by lane w-r1 and
+    /// neither had a caller; this is it. Everything here is a translation of
+    /// values the recognizer already read out of the IL, plus **one gate that
+    /// has to live in this crate**: the `/GF` fence.
+    ///
+    /// `None` => the caller reports `NotImplemented`, which is the honest answer
+    /// for a TU whose obj this port has not been graded on.
+    fn build_dyninit(tu: &c2_il::DynInitTu, obj_name: &str) -> Option<Vec<u8>> {
+        let literal = coff::StringLiteral { bytes: &tu.literal };
+        // **The `/GF` fence** — the single most likely way this class ships wrong
+        // bytes, and the reason it is a check and not a comment.
+        //
+        // `/GF` is implied by `/O1` and `/O2` but NOT by `/Ox`
+        // (`docs/OBJ_DYNINIT_SHAPE.md` §4.3). Without it the literal is a
+        // **non-COMDAT `$SG<n>` `.rdata` placed BEFORE `.text`**, with 5
+        // relocations instead of 9 — a different obj that this emitter does not
+        // build. MEASURED: `fixtures/cpp/il_dyninit_static.cpp` at `/Ox` still
+        // carries `abc\0` in `.in` but carries **no `??_C@` record in `.gl`**, so
+        // trusting `.in` alone would convert that fixture to the wrong shape.
+        //
+        // Requiring the computed name to be one `.gl` spells refuses it on
+        // structure rather than on a flag test, which is what keeps the gate
+        // honest when a future lane changes how flags reach the port.
+        let name = coff::string_comdat_name(&tu.literal)?;
+        if !tu.literal_comdat_names.contains(&name) {
+            return None;
+        }
+        let body = codegen::dyninit_thunk_text(tu.trailing_literal_arg)?;
+        let thunk = coff::DynInitThunk {
+            name: &tu.thunk_name,
+            text: &body.text,
+            calls: vec![coff::Call {
+                reloc_offset: body.branch,
+                callee: &tu.ctor,
+            }],
+            data_refs: vec![
+                coff::DataRef {
+                    hi_off: body.literal_hi,
+                    lo_off: body.literal_lo,
+                    name: &name,
+                },
+                coff::DataRef {
+                    hi_off: body.object_hi,
+                    lo_off: body.object_lo,
+                    name: &tu.object_symbol,
+                },
+            ],
+        };
+        let object = coff::BssObject {
+            symbol: &tu.object_symbol,
+            size: tu.object_size,
+            natural_align: tu.object_align,
+            external: tu.object_external,
+            initializer_symbol: &tu.initializer_symbol,
+        };
+        coff::emit_dyninit_obj(obj_name, &thunk, Some(&literal), &object)
     }
 }
 

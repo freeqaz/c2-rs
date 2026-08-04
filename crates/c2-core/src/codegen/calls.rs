@@ -30,6 +30,101 @@ pub fn encode_tail_branch(text_offset: u32) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// **W-R1c — the `??__E` dynamic-initializer thunk's `.text$yc` body**, built
+/// from the decoded slots rather than transcribed.
+///
+/// The reference payload, byte-identical across `fixtures/cpp/il_dyninit_static.cpp`,
+/// `TomCryptLicense.cpp` and `ZlibLicense.cpp` (`docs/OBJ_DYNINIT_SHAPE.md`
+/// §3.3, §7.2):
+///
+/// ```text
+///   3d 60 00 00   lis   r11, 0      <- REFHI(string)   slot 1
+///   3d 40 00 00   lis   r10, 0      <- REFHI(object)   slot 0
+///   38 8b 00 00   addi  r4, r11, 0  <- REFLO(string)   slot 1 -> r4
+///   38 6a 00 00   addi  r3, r10, 0  <- REFLO(object)   slot 0 -> r3
+///   38 a0 00 00   li    r5, k                          slot 2 -> r5
+///   4b ff ff ec   b     -0x14       <- REL24(ctor)
+/// ```
+///
+/// **The schedule is three blocks, not one descending walk**, and that is the
+/// part worth stating because it is *not* what `permute_args_parts` does: every
+/// `lis` first (scratch registers descending from r11, symbols in **reverse
+/// slot** order), then every address `addi` (destinations descending), then
+/// every `li`. `docs/IL_CALL_IN_EXPR.md` §17.3's `g(&gA, 7, "cc")` is the
+/// witness that the `li` really does come last — it emits
+/// `lis r11,cc · lis r10,gA · addi r5,r11 · addi r3,r10 · li r4,7 · b`, where a
+/// merged descending walk would have put `li r4,7` between the two `addi`s.
+///
+/// Fenced to exactly the two-symbol/one-literal shape this lane measured. The
+/// general two-symbol tail call stays declined (w-r1 rung, "found and not
+/// taken" item 2) precisely because that emission order is not the one this port
+/// ships elsewhere.
+///
+/// Returns the text plus the offsets the caller relocates: `(text, hi/lo per
+/// slot, branch offset)`.
+pub struct DynInitBody {
+    pub text: Vec<u8>,
+    /// REFHI/REFLO site pair for the **object** (slot 0).
+    pub object_hi: u32,
+    pub object_lo: u32,
+    /// REFHI/REFLO site pair for the **literal** (slot 1).
+    pub literal_hi: u32,
+    pub literal_lo: u32,
+    /// REL24 site of the tail branch to the constructor.
+    pub branch: u32,
+}
+
+/// Build [`DynInitBody`] for `??__E<obj>` calling `ctor(&obj, literal, k)`.
+///
+/// `None` when `k` does not fit the `li` immediate — the only input that can
+/// vary in the measured class, and a value that does not fit is a different
+/// instruction, not a wider one.
+pub fn dyninit_thunk_text(k: i32) -> Option<DynInitBody> {
+    /// `li`'s signed 16-bit immediate, the same bound `c2-il`'s slot parser
+    /// applies before it will call a literal a slot at all.
+    const LI_IMM: std::ops::RangeInclusive<i32> = -0x8000..=0x7FFF;
+    if !LI_IMM.contains(&k) {
+        return None;
+    }
+    /// `lis rD, 0` — `addis rD, r0, 0`, primary opcode 15.
+    fn lis(d: u32) -> [u8; 4] {
+        (0x3C00_0000u32 | (d << 21)).to_be_bytes()
+    }
+    /// `addi rD, rA, 0` — primary opcode 14, the low half of an address.
+    fn addi(d: u32, a: u32) -> [u8; 4] {
+        (0x3800_0000u32 | (d << 21) | (a << 16)).to_be_bytes()
+    }
+    /// `li rD, k` — `addi rD, r0, k`.
+    fn li(d: u32, k: i32) -> [u8; 4] {
+        (0x3800_0000u32 | (d << 21) | (k as u32 & 0xFFFF)).to_be_bytes()
+    }
+    let mut text: Vec<u8> = Vec::with_capacity(0x18);
+    // The `lis` block: scratch registers descending from r11, taken in REVERSE
+    // slot order, so the literal (slot 1) gets r11 and the object (slot 0) r10.
+    let literal_hi = text.len() as u32;
+    text.extend_from_slice(&lis(11));
+    let object_hi = text.len() as u32;
+    text.extend_from_slice(&lis(10));
+    // The address `addi` block: destinations descending (r4 then r3), each
+    // reading the scratch its own `lis` wrote.
+    let literal_lo = text.len() as u32;
+    text.extend_from_slice(&addi(4, 11));
+    let object_lo = text.len() as u32;
+    text.extend_from_slice(&addi(3, 10));
+    // The `li` block, last.
+    text.extend_from_slice(&li(5, k));
+    let branch = text.len() as u32;
+    text.extend_from_slice(&encode_tail_branch(branch));
+    Some(DynInitBody {
+        text,
+        object_hi,
+        object_lo,
+        literal_hi,
+        literal_lo,
+        branch,
+    })
+}
+
 /// Encode a **linking** relative branch `bl` (primary opcode 18, AA=0, **LK=1**)
 /// used for a non-leaf `bl <callee>` inside a framed function, paired with a
 /// REL24 relocation. Same MSVC displacement convention as [`encode_tail_branch`]

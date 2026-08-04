@@ -1006,6 +1006,55 @@ pub(crate) fn gl_data_objects(gl: &[u8]) -> std::collections::BTreeMap<u32, GlDa
     out.into_iter().filter_map(|(t, o)| o.map(|o| (t, o))).collect()
 }
 
+/// The name separator that introduces a **string-literal** record. Named in
+/// [`NAME_SEPARATORS`]'s doc as the value it deliberately excludes.
+const NAME_SEPARATOR_STRING_LITERAL: u8 = 0x25;
+
+/// Every `??_C@…` string-literal COMDAT name `.gl` carries, as a set.
+///
+/// **This is a fence, not a lookup.** `c2_core::coff::string_comdat_name`
+/// computes the same name from the literal's bytes, and the two must agree
+/// before anything is emitted. The reason is `/GF`, and it is the single most
+/// likely way this class ships wrong bytes:
+///
+/// > `/GF` is implied by `/O1` and `/O2` but **not** by `/Ox`
+/// > (`docs/OBJ_DYNINIT_SHAPE.md` §4.3). Without it the literal is a
+/// > **non-COMDAT `$SG<n>` `.rdata` placed BEFORE `.text`**, with 5 relocations
+/// > instead of 9 — a different obj entirely.
+///
+/// MEASURED: `fixtures/cpp/il_dyninit_static.cpp` captured at `/Ox` still
+/// carries `abc\0` in `.in` (`ef 09 00 03 04 61 62 63 00 07`) and carries **no
+/// `??_C@` record anywhere in `.gl`**. A reader that trusted `.in` alone would
+/// compute `??_C@_03FIKCJHKP@abc?$AA@` and emit the `/O1` shape for a `/Ox`
+/// TU. Requiring the computed name to be one `.gl` actually spells is what makes
+/// that TU refuse, and it refuses on *structure* rather than on a flag test.
+pub(crate) fn gl_string_comdat_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
+    let mut out = std::collections::BTreeSet::new();
+    let mut i = 0usize;
+    while i < gl.len() {
+        if gl[i] != NAME_SEPARATOR_STRING_LITERAL {
+            i += 1;
+            continue;
+        }
+        let start = i + 1;
+        let mut end = start;
+        while end < gl.len() && gl[end].is_ascii_graphic() {
+            end += 1;
+        }
+        // NUL-terminated, and spelled in the symbol alphabet. `??_C@` is required
+        // literally: `25` is a common byte and only the mangled prefix makes a run
+        // after one a string COMDAT rather than a coincidence.
+        if end < gl.len() && gl[end] == 0 && gl[start..end].starts_with(b"??_C@") {
+            let name = &gl[start..end];
+            if name.iter().all(|&c| is_symbol_char(c)) {
+                out.insert(ascii_string(name));
+            }
+        }
+        i = end.max(start);
+    }
+    out
+}
+
 /// Whether a `.gl` run is an object name this reader may bind a token to.
 ///
 /// Looser than [`is_indexable_name`] in exactly one way — **length 1 is

@@ -1953,8 +1953,15 @@ fn scan_one(
     //    `codegen-gap 2 / vocab-gap 0`, unfolded `codegen-gap 0 / vocab-gap 2`.
     //    Stated plainly so the next reader does not take the test for a guard it
     //    is not.
+    //    **W-R1c: the acceptance question now has TWO paths and must be asked
+    //    through one predicate.** `IlBundle::decodes()` is
+    //    `functions().is_some() || dyninit_tu().is_some()`. Calling `functions()`
+    //    alone here would file every converted `??__E` dynamic-initializer TU as
+    //    `vocab-gap` — "the port could not decode it" — while the port emitted a
+    //    byte-exact obj for it, which is the same mis-attribution this comment
+    //    block already warns about in the other direction.
     let decoded = captured.bundle.functions();
-    if decoded.is_none() {
+    if !captured.bundle.decodes() {
         res.class = TuClass::VocabGap;
         res.reason = "il function decode failed".to_string();
         res.detail = format!(
