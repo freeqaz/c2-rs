@@ -343,7 +343,7 @@ collect() {
 }
 
 decide() {
-    _d_reg="$1"; _d_res="$2"; _d_run="${3:-}"; _d_sw="${4:-}"
+    _d_reg="$1"; _d_res="$2"; _d_run="${3:-}"; _d_sw="${4:-}"; _d_filt="${5:-}"
     _d_n=$(wc -l < "$_d_reg")
     _d_rows=$(wc -l < "$_d_res")
 
@@ -483,6 +483,19 @@ decide() {
     fi
 
     echo
+    # `--lane` filters the registry, and every check above then treats the filtered
+    # list AS the registry — which is right, and which also means a one-lane run
+    # can print `12/12 lanes ran` shaped exactly like a full gate. Same hole as an
+    # unqualified PASS over a sampled sweep, on the half that already existed.
+    if [ -n "$_d_filt" ]; then
+        echo "GATE: PASS (LANES FILTERED) — $_d_pass/$_d_n SELECTED lanes ran, out of"
+        echo "  $_d_filt in the registry. --lane is for iterating; this run says nothing"
+        echo "  about the lanes it did not run. Re-run without --lane before reporting."
+        if [ "$_d_swv" = "SAMPLED" ]; then
+            echo "  The sweep was also SAMPLED — $_d_swc of $_d_swtot generated cases."
+        fi
+        return 0
+    fi
     if [ "$_d_swv" = "SAMPLED" ]; then
         # A sample is a legitimate way to iterate and an illegitimate way to
         # report. It exits 0 and it does NOT get to print an unqualified PASS —
@@ -509,7 +522,9 @@ parse_registry "$registry" "$reg"
 # `--lane` filters the registry, and the filtered list then IS the registry for
 # every check above — so `--lane` naming nothing is an empty registry and a hard
 # error, never a run of zero lanes that exits 0.
+filtered=""
 if [ -n "$want" ]; then
+    filtered=$(wc -l < "$reg")
     sel="$work/selected.tsv"; : > "$sel"
     for w in $want; do
         if ! awk -F"$TAB" -v w="$w" '$1==w{found=1} END{exit !found}' "$reg"; then
@@ -724,6 +739,27 @@ checked=400 mismatches=0'
         printf '  ok    %-32s %s\n' sweep-absent "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt")"
     fi
 
+    # A --lane-filtered run is a legitimate way to iterate and an illegitimate way
+    # to report, exactly like a sampled sweep.
+    CASE_DIR="$st/lanes-filtered"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+    printf '%s\n' "$P" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+    printf '%s\n' "$P" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+    collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+    cases=$((cases + 1))
+    if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" 12 \
+            > "$CASE_DIR/out.txt" 2>&1; then
+        if grep -q 'LANES FILTERED' "$CASE_DIR/out.txt" \
+           && ! grep -q '^GATE: PASS —' "$CASE_DIR/out.txt"; then
+            printf '  ok    %-32s %s\n' lanes-filtered "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt")"
+        else
+            printf '  FAIL  %-32s a --lane run printed an unqualified PASS\n' lanes-filtered
+            fails=$((fails + 1))
+        fi
+    else
+        printf '  FAIL  %-32s a --lane run over green lanes did not exit 0\n' lanes-filtered
+        fails=$((fails + 1))
+    fi
+
     # The completeness assertion itself: a table short a row must fail even when
     # every row it does contain is a PASS.
     CASE_DIR="$st/short-table"; mkdir -p "$CASE_DIR"
@@ -793,7 +829,7 @@ checked=400 mismatches=0'
     # The floor was 15 when the gate covered lanes only; the sweep row adds 12.
     # It is a floor on the COUNT, per the standing mitigation — compare a count,
     # never a status — and it must be raised whenever cases are added.
-    if [ "$cases" -lt 26 ]; then
+    if [ "$cases" -lt 27 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -874,4 +910,4 @@ sh "$repo_root/scripts/expr_sweep.sh" "$sweep_out" "$sweep_cases" \
 tail -n 4 "$work/sweep.log" | sed 's/^/  /'
 sweep_res=$(sweep_verdict "$work/sweep.log" "$sw_status")
 
-decide "$reg" "$work/results.tsv" "$work" "$sweep_res"
+decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered"
