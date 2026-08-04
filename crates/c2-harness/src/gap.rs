@@ -1825,6 +1825,59 @@ fn scan_one(
                         }
                     }
                 }
+                // 1e''. **W-AFAIL — the ROW side of factor A**
+                //       (`docs/rungs/_2026-08-04-w-afail-findings.md`; the board
+                //       row is PROPOSED, not minted — 196–205 was contended by
+                //       four concurrent lanes on 2026-08-04 and BOARD.md's
+                //       "#143–#146 minted twice" contradiction is what a number
+                //       minted inside a worktree costs).
+                //
+                //       Every key above walks `emitted` — the obj's `.text`
+                //       COMDAT leaders — and asks which census row claims each.
+                //       That is one half of factor A. A is a count *equality*
+                //       (`.ex` segments == COMDATs, step 1g), so its failure is
+                //       a signed integer, and the surplus direction — an IL body
+                //       with no COMDAT — is invisible to every key above,
+                //       because it is not a member of `emitted`.
+                //
+                //       This partitions the census rows the same way, so that
+                //       `n − c` decomposes into named populations rather than
+                //       staying one unexplained number:
+                //
+                //       | key | means |
+                //       |---|---|
+                //       | `afail-row-emitted` | the row's `emit_name` IS a `.text` leader — the CONTROL population |
+                //       | `afail-row-not-emitted` | named, and c2 **discarded** the body: a compiler fact, and Phase 7's actual subject |
+                //       | `afail-row-unnamed` | the `.gl` binding gave the row no name: an **instrument limit**, not a compiler fact |
+                //
+                //       **The third bucket is the point of splitting it out.**
+                //       Folding it into the second would report "c2 discarded
+                //       this body" about rows whose names we never had, which is
+                //       the shape ROADMAP §10.14 charges for. The three sum to
+                //       `fn_total` by construction, and that identity is checked
+                //       as a control rather than asserted here: it is an
+                //       *absence* detector (§9.18.8), because a block that never
+                //       runs also produces no broken identity.
+                //
+                //       Additive only. No existing count is read or written.
+                let emitted_set: std::collections::BTreeSet<&str> =
+                    emitted.iter().map(String::as_str).collect();
+                for (f, _) in census.iter() {
+                    match f.emit_name.as_deref() {
+                        None => {
+                            *res.emit.entry("afail-row-unnamed".into()).or_insert(0) += 1;
+                        }
+                        Some(n) if emitted_set.contains(n) => {
+                            *res.emit.entry("afail-row-emitted".into()).or_insert(0) += 1;
+                        }
+                        Some(n) => {
+                            *res.emit.entry("afail-row-not-emitted".into()).or_insert(0) += 1;
+                            *res.emit
+                                .entry(format!("afail-row-not-emitted|{}", mangling_class(n)))
+                                .or_insert(0) += 1;
+                        }
+                    }
+                }
             }
         }
         // 1e'. SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128) — see [`row_dump`].
