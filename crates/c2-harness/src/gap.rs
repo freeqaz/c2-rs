@@ -978,6 +978,37 @@ impl GapReport {
         (bad, n)
     }
 
+    /// **The frontier**: TUs inside `A∧B∧C` that are not yet a `match` — i.e.
+    /// the emit set is reachable, every emitted symbol binds, the obj's sections
+    /// are all writable, and the *only* factor left is **D**, codegen breadth.
+    ///
+    /// This is the one actionable list the factorization produces. Everything
+    /// else it prints is a bound; these are TUs where no model, no section work
+    /// and no binding repair is needed — widening the accepted function class is
+    /// the whole remaining distance. Sorted by that distance (emitted functions
+    /// not in class), nearest first.
+    ///
+    /// **It is not a schedule** (`ROADMAP.md` §9.16.1): a TU one blocked
+    /// function away can be one blocked function away from a construct nobody
+    /// has modelled.
+    pub fn factor_frontier(&self) -> Vec<(&TuResult, usize)> {
+        let mut v: Vec<(&TuResult, usize)> = self
+            .graded()
+            .filter(|r| r.class != TuClass::Match)
+            .filter(|r| {
+                let f = Self::factors(r);
+                f[0] && f[1] && f[2] && !f[3]
+            })
+            .map(|r| {
+                let e = r.emit.get("emit-emitted").copied().unwrap_or(0);
+                let i = r.emit.get("emit-in-class").copied().unwrap_or(0);
+                (r, e.saturating_sub(i))
+            })
+            .collect();
+        v.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.src.cmp(&b.0.src)));
+        v
+    }
+
     /// **The section vocabulary census**: every distinct section name in the
     /// workload with the number of objs carrying it, most common first.
     ///
@@ -2293,6 +2324,25 @@ fn print_factorization(report: &GapReport) {
         };
         println!("\x20   {objs:>5} objs  [{mine}]  {name}");
     }
+    // The one ACTIONABLE row of the whole block: TUs whose only remaining
+    // factor is D. Printed as a list with each one's distance, because a
+    // count would say "16" and name nothing to work on.
+    let frontier = report.factor_frontier();
+    println!(
+        "\x20 FRONTIER — {} graded TUs satisfy A and B and C and are NOT a match, so codegen \
+         breadth (D) is the whole remaining distance (blocked emitted | emitted | src):",
+        frontier.len()
+    );
+    for (r, blocked) in frontier.iter().take(40) {
+        println!(
+            "\x20   {blocked:>4} | {:>4} | {}",
+            r.emit.get("emit-emitted").copied().unwrap_or(0),
+            r.src
+        );
+    }
+    if frontier.len() > 40 {
+        println!("\x20   … and {} more", frontier.len() - 40);
+    }
     // …and the route: which name to teach next, by TUs brought into reach.
     let ladder = report.section_ladder();
     println!(
@@ -2855,6 +2905,39 @@ mod tests {
             ([0, 0, 1, 0], 1),
             "a byte-exact obj outside the port writer's section vocabulary is \
              impossible; C must say so, and name itself"
+        );
+    }
+
+    /// **The frontier is `A∧B∧C ∧ ¬D ∧ ¬match`**, and each of those four clauses
+    /// is load-bearing: a byte-exact TU in the list would be work already done,
+    /// and a TU missing A, B or C is not one widening away from anything.
+    #[test]
+    fn the_frontier_is_the_tus_whose_only_remaining_factor_is_codegen() {
+        let mut near = mk_factors(TuClass::VocabGap, "near.cpp", true, true, true, false);
+        near.emit.insert("emit-emitted".into(), 5);
+        near.emit.insert("emit-in-class".into(), 4);
+        let mut far = mk_factors(TuClass::VocabGap, "far.cpp", true, true, true, false);
+        far.emit.insert("emit-emitted".into(), 11);
+        far.emit.insert("emit-in-class".into(), 8);
+        let rep = mk_report(vec![
+            far,
+            near,
+            // Already done — must not appear.
+            mk_factors(TuClass::Match, "done.cpp", true, true, true, true),
+            // Blocked on a factor codegen cannot move — must not appear.
+            mk_factors(TuClass::VocabGap, "sections.cpp", true, true, false, false),
+            mk_factors(TuClass::VocabGap, "emitset.cpp", false, true, true, false),
+        ]);
+        let got: Vec<(&str, usize)> = rep
+            .factor_frontier()
+            .into_iter()
+            .map(|(r, n)| (r.src.as_str(), n))
+            .collect();
+        assert_eq!(
+            got,
+            vec![("near.cpp", 1), ("far.cpp", 3)],
+            "nearest first by blocked EMITTED functions, and only the TUs where D is \
+             the whole remaining distance"
         );
     }
 
