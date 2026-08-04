@@ -82,7 +82,57 @@ Reference objs for the same fixture, differing only in the `/O` flag:
 | `il_call_perm` | 108 B | 96 B | differs |
 | `il_deep_chain` | 76 B | 72 B | differs |
 
-Three mechanisms are visible so far.
+Three mechanisms are visible so far — and a **fourth** that is not a mechanism of
+the same kind, added 2026-08-04 and stated first because it bounds everything
+below it.
+
+### 3.0 REFUTED — the modes differ in BLOCK STRUCTURE, not only in a register field
+
+**Board #258 (measured by `w-cross`), #272 (implemented by `w-conv`). Recorded
+here by `w-book4`; `crates/` was corrected first and this document was not, which
+is the defect this section closes.**
+
+Every claim in §3.1–§3.3 and §4.2 is measured on **straight-line integer chains
+and depth-2 trees** — bodies with **one block**. This document then stated the
+conclusion without the qualifier, and the un-qualified form is false:
+
+```
+void e(int a){ if(a) v0(); else v1(); v2(); }
+
+  /O1         52 B, and it contains an intra-section `48000008`
+  /Ox, /O2    68 B, and it contains NO `b` at all
+```
+
+`/Ox` and `/O2` **tail-duplicate** the join block and its epilogue into every
+arm — the join's `bl` and all four epilogue words appear **twice**; `/O1`
+**shares** them behind a branch. That is a different **opcode set** and a
+different **block count**, not a different register field.
+
+Three consequences, in decreasing order of how likely they are to be
+re-discovered the hard way:
+
+1. **Anyone quoting §3.1's rule outside a straight-line chain is quoting a
+   refuted claim.** The rule holds where it was measured. It was never measured
+   on a body with more than one block.
+2. **The threshold is a c2 COST MODEL and is still open.** It is bracketed by one
+   cell either side — a **one**-call join duplicates, a **two**-call join does
+   not — which is the same class as `CFG_SHAPE.md` §3.5's declined fold bands
+   (board #187). Do not fit it from the two bracketing cells.
+3. **The guarded early return is the case where there is no threshold to fit**,
+   and it is therefore the only one implemented: the duplicated block is the
+   epilogue, whose length is a constant of the frame class, and `/Ox` copies it
+   in **every measured cell**. `crate::codegen::calls::call_seq_text` is the one
+   place that reads `OptMode` for anything other than a register field. The
+   `void` early return is the control — it is **byte-identical at `/O1` and
+   `/Ox`**, so the split is a property of the duplicated epilogue and not of the
+   branch (board #273).
+
+**This is also what blocks #191's other half.** The `else` arm's `b` is out of
+reach for three independent reasons and only one of them is the branch: the tail
+duplication here, `CFG_SHAPE.md` §3.6's dead epilogue, and board #261 — c2
+propagates the branch condition's **value range** into the arm (`if(a!=0) a1(b);
+else a1(a);` emits `li r3,0` for `a` on the else path), so an `else` arm cannot
+be lowered from the IL's operands alone.
 
 ### 3.1 `/O1` allocates by liveness; `/Ox` descends regardless
 
@@ -159,14 +209,25 @@ The difference appears only where the previous intermediate is **dead**:
 
 So:
 
-> **`/O1` is `/Ox` with exactly one change: an intermediate whose predecessor is
-> already dead is written to r11 rather than to a fresh descending register.
-> Simultaneously-live values are allocated identically in both modes.**
+> **Inside a straight-line chain, `/O1` is `/Ox` with exactly one change: an
+> intermediate whose predecessor is already dead is written to r11 rather than to
+> a fresh descending register. Simultaneously-live values are allocated
+> identically in both modes.**
 
 That is a local change to the allocator — the dead-intermediate case of the
-descending path becomes "reuse r11" — and nothing else in the lowering moves. It
-also means the `/Ox` operand-order and canonicalization decisions, which is where
-the reverse-engineering effort actually went, are shared by both targets.
+descending path becomes "reuse r11" — and nothing else *in a straight-line chain*
+moves. It also means the `/Ox` operand-order and canonicalization decisions,
+which is where the reverse-engineering effort actually went, are shared by both
+targets.
+
+> **⚠ THE QUALIFIER IS LOAD-BEARING, and this blockquote did not carry it until
+> 2026-08-04.** It read *"`/O1` is `/Ox` with exactly one change"* flat, and as a
+> general claim about the two modes that is **REFUTED**. See §3.0 below, board
+> **#258**. `OptMode`'s own doc comment carried the same un-qualified sentence
+> and was corrected in place by lane `w-conv` (board **#272**, `65ee0c5`); this
+> document is the other half of that correction and was made by lane `w-book4`.
+> **The two documents were out of step with each other for a day and with the
+> bytes for longer** — the shape #194's audit exists for.
 
 ### 3.2 Strength reduction is `/Ox`-only
 
@@ -204,6 +265,9 @@ against `/O1` — same layout, differing only in the mode:
   the word is sound.
 * `/O2` vs `/O1` differs **only in register fields**, never an opcode, and only in
   the chain class — trees, calls, reassociation and float are identical.
+  **Over this corpus, every body of which has ONE BLOCK.** §3.0 is the
+  counterexample and it is a different opcode set *and* a different block count;
+  read this bullet as a statement about the eight fixtures, not about the modes.
 
 The practical consequence: `/Gy` is an *argv* fact the IL does not record, so the
 port has to be told (`PortC2::with_function_level_linking`), while the mode is an
@@ -349,6 +413,14 @@ accepted class was compiled both ways and each difference classified as
 | `w5_tree_neg` | 4 | 6 | 1 |
 
 So of roughly ninety functions, **one** differs by more than register assignment.
+
+> **Read that with its population, 2026-08-04.** The eleven fixtures span the
+> port's accepted class **as it stood**, and that class was straight-line: not one
+> of these ninety functions has a second block. The count is *"one of ninety
+> single-block functions"*, and §3.0 shows a two-block body differing in opcode
+> set and block count. **`1/90` is not a base rate for "how often the modes
+> differ" — it is a base rate inside the one shape where they mostly do not.**
+
 Three consequences worth stating plainly:
 
 * **The reassociation and canonicalization work is mode-independent.** All 16 of
