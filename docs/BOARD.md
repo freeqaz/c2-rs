@@ -30,7 +30,7 @@ the *item* stayed open at 356. A board with one column gets that wrong. So:
 **Numbers are never reused and never renumbered.** Every `#N` in `ROADMAP.md` is
 a permanent reference into 8,000 lines of prose that will not be rewritten.
 
-**Next free number: `#231`.** The sequence is sparse — 1–4, 6–13, 16–18, 20–34,
+**Next free number: `#232`.** The sequence is sparse — 1–4, 6–13, 16–18, 20–34,
 36–42, 45, 49–51, 54–61, 63–91, 93–102, 104–109, 111–117, 123–126, 129–130, 147
 and 148 were never used. **Gaps are not lost items.**
 
@@ -294,6 +294,59 @@ comparison above, and it was run.
 
 ---
 
+### #231's sweep — every subcommand's option parse, before the seam
+
+Derived from `main.rs`'s dispatch `match` (26 arms), not from memory. **17 of 26
+carried at least one defect of the class**; the three that boards #194/#195
+named were the three that happened to surface.
+
+Columns: **parse** = how options were found · **order** = where
+`located()` sat relative to validation · **drop** = an argument accepted and then
+not consumed · **num** = a bad number silently becoming the default.
+
+| subcommand | parse | order | drop | num | the specific defect |
+|---|---|---|---|---|---|
+| `capture` | loop | ok | **yes** | — | `--cwd` consumed only on the `--flags-file` path |
+| `compile` | **scan** | **locate-first** | **yes** | — | board #195; `--flag` accepted and dropped |
+| `census` | loop | **locate-first** | **yes** | — | `--flags-file` read *after* `located()`; no empty-profile refusal; no profile echo; `--cwd` dropped |
+| `selftest` | none | **locate-first** | **yes** | — | `rest` mapped wholesale to fixture paths, so `--flags-file f` became two "fixtures" |
+| `replay` | none | ok | **yes** | — | `rest[1..]` discarded without a word |
+| `replay-c1` | none | ok | **yes** | — | as `replay` |
+| `diff` | none | ok | **yes** | — | as `replay`; *"`diff` does not take `--flags-file`"* meant "accepts and ignores it" |
+| `bench` | none | **locate-first** | **yes** | — | dispatched as `cmd_bench()` — arguments dropped **by the dispatcher**, above any handler that could refuse them |
+| `perf` | **scan** | **locate-first** | — | **yes** | `located()` was the first statement |
+| `perf-scale` | **scan** | **locate-first** | — | **yes** | `--conc 1,x,4` silently ran `[1,4]` |
+| `listing` | loop | ok | — | — | **clean** |
+| `listing-scan` | loop | ok | — | silent exit 2 | a bad `--jobs` exited 2 with **no message at all** |
+| `corpus` | dispatch | — | — | — | **clean** (rejects an unknown subcommand) |
+| `corpus gen` | **scan** | ok | — | **yes** | `--seed abc` ran at the DEFAULT seed — a reproducibility claim on a discarded value |
+| `corpus sample` | none | — | **yes** | — | `--out /tmp/x` wrote into a directory literally named `--out` |
+| `corpus stats` | none | — | **yes** | — | `--dir foo` read a manifest from `--dir` |
+| `retrieve` | dispatch | — | — | — | **clean** |
+| `retrieve index` | none | — | **yes** | — | reads no options; any flag scanned past |
+| `retrieve eval` | **scan** | — | **yes** | **yes** | `--query-div` unread under `--split loo`; `--split` never validated, so `heldout` ran leave-one-out's **opposite** and reported `held-out`; `--k 1,x,10` silently evaluated two cutoffs |
+| `search` | dispatch | — | — | — | **clean** |
+| `search solve` | **scan** | **locate-first** | **yes** | **yes** | `--d` advertised by the usage and **never read** — it hardcodes `AddTerm, 1` |
+| `search eval` | **scan** | **locate-first** | — | **yes** | `--moves lenght` ran the full moveset while the header **echoed `moves=lenght`** |
+| `search from-retrieval` | **scan** | **locate-first** | — | **yes** | seven numeric options, all silent-default |
+| `search from-lifter` | **scan** | **locate-first** | — | **yes** | `--compiles abc` left `Budget::default()`'s **400** instead of the bounded **200** — a typo doubled the compile budget |
+| `gap` | loop | ok | **yes** | silent exit 2 | `--cache X --no-cache` was **order-dependent**; `--no-cache --validate-cache N` printed *"validating every Nth hit"* under a `DISABLED` cache line |
+| `prefilter` | loop | ok | **yes** | — | `--schema` returned from **inside** the option loop, so anything after it — including an unknown option — was never examined |
+
+Two cross-cutting ones with no column of their own: `require_cpp` returned
+`rest.first()` verbatim, so a flag-shaped first token became the source path
+(`c2rs diff --help` looked for a file called `--help`); and `opt()`'s doc comment
+claimed it handled *"a leading positional"*, which it never did — each caller
+re-derived positionals ad hoc, and four had a `!starts_with("--")` guard that
+three did not.
+
+**Every one of these is now expressed as data** — a `Spec` per subcommand, with
+`Arity`, `requires` edges for dangling options, `num` for numbers and `one_of`
+for enumerated values — so the next subcommand inherits the refusals instead of
+re-earning them.
+
+---
+
 ## Declined and refuted — the rows that saved work
 
 | # | item | verdict | number | where |
@@ -317,7 +370,8 @@ comparison above, and it was run.
 
 | # | item | number | where settled |
 |---|---|---|---|
-| **195** | **`cmd_compile` parsed its options by `position()` scan** — the same class as #194, third instance | **DONE.** Four defects of one shape, all fixed and all pinned: unknown options were scanned past (now refused **by name**); an empty `--flags-file` degraded to `cl.exe`'s own defaults (now refused); `--cwd` was parsed into a variable consumed *only* on the `--flags-file` path, so `compile <cpp> --cwd DIR` compiled somewhere else in silence (now refused without a profile); and every check ran **after** `Toolchain::locate()`, so a malformed invocation exited **0** on a machine with no compilers — i.e. exactly where the toolchain-free half of the test suite runs. Validation now precedes `located()` and the command prints the profile it used on both paths. `tests/cli_flags.rs` grows from 4 tests to **6**: the unknown-option table gains `("compile", "--flag")` and `("compile", "--keep-il")`, the empty-profile test covers `compile`, `a_cwd_without_a_profile_is_refused` is new, and `two_profiles_must_not_produce_one_obj` is the obj-side twin of the bundle-side test. **That last one compares `.text` COMDAT bytes and not whole objs, deliberately**: `cmd_compile` writes through a per-invocation scratch dir and `cl.exe` bakes that `/Fo` path into `.debug$S`, so any two runs differ by ~14 path bytes plus the `TimeDateStamp` whatever the flags — `assert!(a != b)` on raw bytes would pass just as happily with the profile dropped. **Must-fail control run in three mutations, each producing a DISTINCT message**: reverting the parse (4 tests red, exit-code assertions), anonymizing the two refusal messages while **holding the exit code at 2** (the two *name-the-option* assertions fire, and only those), and accepting `--flags-file` then dropping it at the call site while **holding the decoded COMDAT count at 4** (the byte comparison fires, and only that). Seeing the file go red is not evidence the inner assertion works; those two guarded assertions are why. **NOT fixed, recorded instead** (different functions, same class): `cmd_census` reads its `--flags-file` after `located()` and does not refuse an empty one, and `capture`/`census` both parse `--cwd` and drop it when no `--flags-file` is given. | `crates/c2-harness/src/main.rs` `cmd_compile`, `crates/c2-harness/tests/cli_flags.rs`, R:§10.23 |
+| **195** | **`cmd_compile` parsed its options by `position()` scan** — the same class as #194, third instance | **DONE.** Four defects of one shape, all fixed and all pinned: unknown options were scanned past (now refused **by name**); an empty `--flags-file` degraded to `cl.exe`'s own defaults (now refused); `--cwd` was parsed into a variable consumed *only* on the `--flags-file` path, so `compile <cpp> --cwd DIR` compiled somewhere else in silence (now refused without a profile); and every check ran **after** `Toolchain::locate()`, so a malformed invocation exited **0** on a machine with no compilers — i.e. exactly where the toolchain-free half of the test suite runs. Validation now precedes `located()` and the command prints the profile it used on both paths. `tests/cli_flags.rs` grows from 4 tests to **6**: the unknown-option table gains `("compile", "--flag")` and `("compile", "--keep-il")`, the empty-profile test covers `compile`, `a_cwd_without_a_profile_is_refused` is new, and `two_profiles_must_not_produce_one_obj` is the obj-side twin of the bundle-side test. **That last one compares `.text` COMDAT bytes and not whole objs, deliberately**: `cmd_compile` writes through a per-invocation scratch dir and `cl.exe` bakes that `/Fo` path into `.debug$S`, so any two runs differ by ~14 path bytes plus the `TimeDateStamp` whatever the flags — `assert!(a != b)` on raw bytes would pass just as happily with the profile dropped. **Must-fail control run in three mutations, each producing a DISTINCT message**: reverting the parse (4 tests red, exit-code assertions), anonymizing the two refusal messages while **holding the exit code at 2** (the two *name-the-option* assertions fire, and only those), and accepting `--flags-file` then dropping it at the call site while **holding the decoded COMDAT count at 4** (the byte comparison fires, and only that). Seeing the file go red is not evidence the inner assertion works; those two guarded assertions are why. **The three this row recorded as NOT fixed are now fixed, and they were not the last three** — a sweep of all 26 dispatch arms found the same shape at fourteen more. See **#231**, which closes the class rather than the sites. | `crates/c2-harness/src/main.rs` `cmd_compile`, `crates/c2-harness/tests/cli_flags.rs`, R:§10.23 |
+| **231** | **The CLI argument class, closed structurally** — `mod argv` is the one parser, and `Toolchain::locate` becomes unreachable before it | **DONE. The sweep is the deliverable: #194 and #195 were 2 of 17 sites across all 26 dispatch arms**, derived from the dispatch `match` rather than from memory. Nine handlers used the `opt()` helper — `iter().position(|a| a == key)`, the same scan under a nicer name — and **nothing in the file ever iterated `rest` to reject an unrecognised flag**; eight called `located()` *before* looking at their arguments, so a bogus command line exited **0** with `SKIP: toolchain absent` exactly where the portable test lane runs. `tests/cli_flags.rs` 6 → **14** tests, all but three toolchain-free | `crates/c2-harness/src/main.rs` `mod argv`, `crates/c2-harness/tests/cli_flags.rs`, the table below | **The structural claim, stated precisely: `Args::toolchain()` is the only producer of a `Toolchain` in the binary and takes `&self`, and an `Args` can only come from `Args::parse` — so "parse and validate, THEN locate" is the only order the binary can express.** Deleting the free `located()` turned every unconverted handler into a compile error, which is how the conversion was driven; the compiler enumerated the sites. `locate_is_reachable_only_through_the_arg_seam` is the backstop, because a convention nobody checks is how this class reached seventeen sites. **Seven must-fail mutations were run**; the two worth recording are **M2** — anonymise every refusal while **holding the exit code at 2** — under which seven tests fire on their *name-the-option* assertions and nothing else moves, and **M1** — restore a `position()` scan — where the exit codes stayed 2 **for the wrong reason** (the option's value became a surplus positional and tripped *that* guard), so only the distinct-message assertions revealed the mutation at all. M1 is the count-floor trap reproduced exactly, and it is the argument for requiring a distinct message per assertion rather than a red run. |
 | **207** | **Census provenance, enforced** — every census records the corpus it was graded against | **DONE.** Every census writes a `.prov` sidecar; `grade.py` exits **2** on any of seven mismatch classes and **3** on a population change; `prov.py selfcheck` proves every one of them fails when it should — **21 PASS / 0 FAIL, no toolchain needed**. Closes the **fix** half of **#202**; #202's *audit* of pre-stamp documents stays open, and the two halves are deliberately not one field. The stamp found two defects on its own first run. | rungs/_2026-08-04-w-prov-findings.md §4, §4.1; merged `88e5ff6` |
 | **210** | **`sections.jsonl` carried an unrecorded corpus and was stale** | **DONE.** Stale by **18 of 871** TU records (dc3 `86357b58` → `940d07dc`) — registered as "1–100 TUs differ", **held**. Regenerated, stamped, with a **byte-identical two-run determinism control**. The graded population moved `.data` **68 → 69**; `.bss` did not move, so the registered P4 (*"still 110/117 and 68/68"*) is **half held** and reported as such. | rungs/_2026-08-04-w-prov-findings.md §3, §3.1, §1; merged `88e5ff6`, `e184c64` |
 | **179** | **The factorization's FIFTH TERM, `E`** — whole-TU acceptance, disjoined onto D | **DONE.** `E` = *"at least one **registered** whole-TU recognizer accepts this bundle"*. The model is **`A ∧ B ∧ C ∧ (D ∨ E)` = 8, exactly the match set by name**; the control is green on its necessary terms (`A 0 B 0 C 0 D-or-E 0`) with `D 2` and `E 6` still **printed as diagnostics**, and §10.19's refuted `A∧B∧C∧D: 6` is still measured beside it — *a refutation whose quantity stops being measured is a claim nobody can re-check*. **0 of 878 TUs changed class**, census `706402/2463318` and `census/gate disagreement: 0` on both sides, **FRONTIER 17 → 17 with 0 in and 0 out** (both E-true TUs were already matches). **D was not widened** — its definition is byte-for-byte what it was, and nothing in `census.rs` was touched. **The registry is closed, explicit and named** (`WHOLE_TU_RECOGNIZERS` in `gap.rs`, one entry): a new acceptance arm in `PortC2::build` does not enter it, so an unregistered path makes `D∨E` go **red** and names itself. **The rejected one-liner is written into the code's doc comment so it cannot be quietly adopted**: `E := decodes() && functions().is_none()` needs no registry and is the anti-pattern — `decodes()`'s own doc says *"adding a third path means adding it here"*, so it would **silently absorb** a third recognizer and be green by construction. That is the whole difference between an instrument and a rubber stamp. | R:§10.21, R:§10.23, rungs/2026-08-04-w-fifth.md |
