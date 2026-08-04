@@ -29,6 +29,65 @@ use super::*;
 /// (a name here that no writer emits, which would inflate C), which is why this
 /// stays a transcription of the `Section { name: … }` tables below rather than a
 /// generalization of them.
+///
+/// # The opposite error is caught HERE, in two halves, and only one is closed
+///
+/// **Closed:** `coff::tests`'s
+/// `the_writer_vocabulary_is_every_section_name_this_file_emits` reconciles this
+/// constant against the `Section { name: … }` literals of every `coff/*.rs` that
+/// can build one. A name added here with no `Section` behind it turns that test
+/// red. **Measured, not asserted** (`docs/rungs/2026-08-04-w-rdata.md` §5):
+/// adding `".rdata$r"` to this list and nothing else makes the test fail *and*
+/// makes `c2rs gap` read **`factor-c 590`, `b-and-c 315`, `mismatch 0`** — the
+/// scan happily reports the whole `+421` over a writer that emits nothing.
+/// **The scan is not the control. This test is.**
+///
+/// **Open:** a `Section { name: … }` literal inside an emitter that **nothing
+/// calls** satisfies that test and still inflates C. That is precisely what
+/// `container::bss_deferred_layout` was — a `.bss` layout the differential had
+/// never graded one byte of, which disagreed with reality on the walk *and* on
+/// the free list once a real caller was written — and board **#278** deleted it.
+/// `emit_mvp_obj` below is the live instance of the class today: its only caller
+/// is a test. It inflates nothing, because every name it emits is also emitted
+/// by a called emitter, and that is luck rather than a guarantee.
+///
+/// # What is NOT here, and what it would cost
+///
+/// The workload uses **13** names; these are 10. The three missing ones are the
+/// factor-C ladder, and `c2rs gap` prints it every run:
+///
+/// | name | C if added | TUs it blocks |
+/// |---|---:|---:|
+/// | **`.rdata$r`** | **590** | 676 |
+/// | `.text$yd` | 804 | 243 |
+/// | `.xdata$x` | 871 | 67 |
+///
+/// **`.rdata$r` is MSVC RTTI and is specified in
+/// [`docs/OBJ_RDATA_R_SHAPE.md`](../../../../docs/OBJ_RDATA_R_SHAPE.md)** —
+/// measured on a 22-source hierarchy grid and 38 real workload objs, down to
+/// the byte. Three things a lane picking it up should not re-derive:
+///
+/// * the trigger is a **vftable**, i.e. a constructor or destructor body of a
+///   polymorphic class defined in this TU. `dynamic_cast` and `typeid` mint
+///   **zero** `.rdata$r`; `__declspec(novtable)` takes an otherwise-complete
+///   TU to five sections. So **every `.rdata$r` obj has at least one `.text`
+///   COMDAT**, which puts the section out of `emit_data_obj`'s reach forever —
+///   that emitter's whole class is "defines no functions";
+/// * the record bytes are **derivable**: 3,337 of 3,570 real records rebuild
+///   exactly from their own mangled symbol names, and all 3,570 do once three
+///   class-layout integers (`??_R4.offset`, `??_R4.cdOffset`,
+///   `??_R3.attributes`) are supplied. Their aux `CheckSum` is already
+///   `coff_checksum` (`coff/checksum.rs`), 3,570 of 3,570;
+/// * one rule — a DFS pre-order over the relocation graph — fixes both the
+///   section order and the undefined-external order, exact on 25 of 25 grid
+///   objs and 38 of 38 workload objs.
+///
+/// **The blocker is not in this crate.** The minimal case needs seven
+/// independent facts and the first two are `c2-il`'s: the vfptr-store leaf body
+/// (`expr-op-0x27`, which the parse refuses) and a reader for the `??_R*` record
+/// graph. Lane `w-rdata` measured all of that and **declined to add the name**,
+/// because a vocabulary entry with no caller behind it is +421 of reachability
+/// the port does not have.
 pub const PORT_WRITER_SECTIONS: [&str; 10] = [
     ".drectve",
     ".debug$S",
