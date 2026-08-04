@@ -378,8 +378,11 @@ block — two copies of the enumeration is the "one rule, two implementations"
 shape `GAPS.md` §6 keeps recording:
 
 ```
-scripts/expr_sweep.sh          c2rs diff, one case at a time.  FIXED PROFILE:
-                               /Ox /GS- /c, hardcoded in c2-reference.
+scripts/expr_sweep.sh          c2rs diff, C2RS_SWEEP_JOBS cases at a time
+                               (default 4; was serial until 2026-08-04, which
+                               is what kept it out of the merge gate).  FIXED
+                               PROFILE: /Ox /GS- /c, hardcoded in c2-reference.
+                               RUN BY scripts/gate.sh as a row of its table.
 scripts/cross_sweep.py/.sh     the CROSS PRODUCT of the shape families these
                                cases exercise, 4 mode lanes.
 scripts/sweep_mode.sh          the same cases at an ARBITRARY mode, via
