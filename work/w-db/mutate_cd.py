@@ -170,7 +170,9 @@ def main():
                 if tgt is None or tgt in U or tgt not in D0:
                     continue
             (plus if nm in L0 else minus).append((nm, tok, tp, t[1], tgt))
-            break
+            break_after = not datatok
+            if break_after:
+                break
     plus.sort(key=lambda x: x[0])
     minus.sort(key=lambda x: x[0])
     print("referrers with a usable list token: EMITTED %d ; NOT emitted %d"
