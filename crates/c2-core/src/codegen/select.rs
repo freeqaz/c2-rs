@@ -47,11 +47,32 @@ pub(crate) const SCRATCH_REG: u8 = 11;
 /// Which optimization mode's codegen to emit. Read from `.ex`'s per-function
 /// optimization word (`c2_il::IlBundle::opt_words`), never guessed from argv.
 ///
-/// The two differ in **exactly one rule**, established over all 108 three- and
-/// four-operator integer chains and all 27 depth-2 trees: a chain intermediate
-/// whose predecessor is already dead goes to a fresh descending register under
-/// [`OptMode::Ox`] and to r11 under [`OptMode::O1`]. Never a different opcode,
-/// never a different operand order — only a register field.
+/// Inside a **straight-line chain** the two differ in exactly one rule,
+/// established over all 108 three- and four-operator integer chains and all 27
+/// depth-2 trees: a chain intermediate whose predecessor is already dead goes to
+/// a fresh descending register under [`OptMode::Ox`] and to r11 under
+/// [`OptMode::O1`]. No different opcode, no different operand order — only a
+/// register field.
+///
+/// **That statement used to be made without the qualifier, and as a general
+/// claim it is REFUTED.** `docs/OPT_MODE.md` says the modes *"differ in exactly
+/// one rule … never a different opcode, never a different operand order — only a
+/// register field"*, and this doc said the same. Once a body has more than one
+/// block they differ in **block structure**:
+///
+/// * W10 measured it on an `else` arm — `void e(int a){ if(a) v0(); else v1();
+///   v2(); }` is **52 B with an intra-section `48000008`** at `/O1` and **68 B
+///   with no `b` at all** at `/Ox` and `/O2`, the join's `bl` and all four
+///   epilogue words appearing twice. It declined the shape, because the
+///   duplication has a size threshold that is a c2 cost model.
+/// * W11 **implements** the same split for a guarded early return, where there
+///   is no threshold to fit: the duplicated block is the epilogue, whose length
+///   is a constant of the frame class, and `/Ox` copies it in every measured
+///   cell. [`crate::codegen::calls::call_seq_text`] is the one place that reads
+///   this enum for anything other than a register field.
+///
+/// Board row **X-b**. Anyone quoting the register-field rule outside a
+/// straight-line chain is quoting a refuted claim.
 ///
 /// `/Ox` and `/O2` share a word *and* emit identical bytes (verified per function
 /// across eight fixtures once the tail branch's displacement, which is section

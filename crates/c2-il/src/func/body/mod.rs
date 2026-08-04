@@ -15,7 +15,8 @@ use self::expr::{
 use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
-    try_parse_compare, try_parse_cond_tail_pair, try_parse_empty_ctor_base_delegation,
+    try_parse_compare, try_parse_cond_tail_pair, try_parse_early_return_seq,
+    try_parse_empty_ctor_base_delegation,
     try_parse_guarded_seq,
     try_parse_empty_dtor_delegation,
     try_parse_float_leaf,
@@ -365,6 +366,62 @@ pub(crate) struct SeqGuardShape {
     pub(crate) k: i32,
 }
 
+/// **W11 — one guarded EARLY RETURN ahead of a [`BodyShape::CallSeq`].**
+///
+/// `if (formal <rel> k) return <literal>;` (or `return;`) written before the
+/// sequence. A body carries a `Vec` of these because the guards chain, and the
+/// chain is the point: `work/w-conv/PREREG.md` §2 counts a real label→offset map
+/// as the missing mechanism **14 of the 17 FRONTIER TUs** want, and the
+/// intra-section `b` it forces as the one **10** of them want.
+///
+/// Distinct from [`SeqGuardShape`], which guards a *call* that falls through
+/// into the sequence. These guards leave the function. The two are refused in
+/// combination — one production per body — although c2 composes them happily
+/// (`work/w-conv/p/probe3.cpp::x6`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SeqEarlyReturnShape {
+    /// Index into the sequence's `params` of the compared formal. The scrutinee
+    /// is read **in its home argument register**: this class admits no
+    /// entry-block move, exactly as [`SeqGuardShape`] does and for the same
+    /// measured reason.
+    pub(crate) cmp_param: usize,
+    /// The **source** relation.
+    ///
+    /// The emitted sense depends on whether the arm is empty, and that is a
+    /// measurement rather than a convenience:
+    ///
+    /// * a **value-returning** arm (`value` is `Some`) is a real block, so the
+    ///   branch is the edge *past* it and carries the **negation** of `rel`
+    ///   — `docs/CFG_SHAPE.md` §1 A3, ten cells;
+    /// * a **void** arm (`value` is `None`) is empty, so c2 deletes the block
+    ///   and points the branch straight at the epilogue with `rel` itself.
+    ///   `void w1(int a){ if(a!=0) return; v0(); v1(); }` emits
+    ///   `cmpwi cr6,r3,0 ; bf 26,+12 -> epilogue`, where the value form of the
+    ///   same guard emits `bt 26`. Measured at `/O1` and `/Ox`, 1 and 2 guards
+    ///   (`work/w-conv/p/probe3.cpp::w1`/`w2`).
+    ///
+    /// It is the **empty-arm inversion** `work/w-cross/PREREG.md` §1 found in
+    /// `src/system/negate_test.cpp`, in the smallest body that has it.
+    pub(crate) rel: Rel,
+    /// `cmpwi` when true, `cmplwi` when false — from the operand's TYPE triple
+    /// alone; the relational opcodes are sign-agnostic.
+    pub(crate) signed: bool,
+    /// The comparison literal, inside the 16-bit immediate field.
+    pub(crate) k: i32,
+    /// The returned literal, or `None` for `return;`.
+    ///
+    /// **Every exit value in the body must be distinct**, including the
+    /// sequence's own [`SeqTail::Lit`], and the parser enforces it. Where two
+    /// exits share a value c2 **merges the arms**: with two guards both
+    /// returning 5 it emits one arm and branches *backwards* into it with the
+    /// sense inverted (`409afff4  bf 26,-12`), and a guard returning the
+    /// sequence's own literal loses its arm entirely. The merge also costs a
+    /// **sixth** compiler-label slot where every cell in this class costs five,
+    /// so admitting it without noticing is six wrong bytes in the symbol table
+    /// as well as a wrong block. `work/w-conv/PREREG.md` §3.1 has both measurements.
+    pub(crate) value: Option<i32>,
+}
+
 /// What a [`BodyShape::CallSeq`] does after its last call.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SeqTail {
@@ -528,6 +585,15 @@ pub(crate) enum BodyShape {
         /// sequence the Class A/B rungs already shipped, so this field is the
         /// whole of the framed × branching widening on the IL side.
         guard: Option<SeqGuardShape>,
+        /// **W11** — the guarded early returns written ahead of the sequence,
+        /// in source order. Empty for every sequence the earlier rungs shipped.
+        ///
+        /// A sibling of `guard` and not a variant of it: these guards *leave*
+        /// the function where `guard`'s falls through, so they emit a different
+        /// block, a different branch target and — for a value arm — an
+        /// intra-section `b` that `guard` never needs. Both non-empty at once is
+        /// refused, so the two block plans cannot interleave.
+        early: Vec<SeqEarlyReturnShape>,
     },
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
@@ -1417,6 +1483,20 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // refusal. Non-committal: a cursor copy and an `Option`.
             if let Some(shape) = try_parse_guarded_seq(seg, p, lo, depth) {
                 disp("disp-guarded-seq");
+                return Ok(shape);
+            }
+            // **W11 — guarded EARLY RETURNS ahead of a framed sequence.**
+            //
+            // After `guarded_seq`, and the adjacency is load-bearing in the same
+            // way `guarded_seq`'s is: the two share the whole
+            // `B9 <formal> <T> · 33 <T> <k> · <rel> · 38 <L>` prefix and diverge
+            // at the arm's FIRST byte — `guarded_seq`'s arm opens on a `26`
+            // callee push, this one's on a `33` literal or a bare `3A`. Neither
+            // can take a body from the other, and ordering the older class first
+            // keeps its refusal keys stable. Non-committal: a cursor copy and an
+            // `Option`.
+            if let Some(shape) = try_parse_early_return_seq(seg, p, lo, depth) {
+                disp("disp-early-return-seq");
                 return Ok(shape);
             }
             if let Some(shape) = try_parse_compare(seg, p, lo) {

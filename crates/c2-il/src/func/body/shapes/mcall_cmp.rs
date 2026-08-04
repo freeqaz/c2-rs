@@ -300,6 +300,7 @@ pub(crate) fn try_parse_member_cmp_calls(
     let saved = plan_saved_gprs(seg, &params, &calls, 1, p).map_err(Some)?;
     // No guard: this production reads no `38` either.
     Ok(BodyShape::CallSeq {
+        early: Vec::new(),
         params,
         calls,
         tail: SeqTail::Cmp { cmp, lhs_first },
@@ -579,7 +580,7 @@ mod tests {
 
     #[test]
     fn two_member_calls_compared_for_equality_are_a_class_b_sequence() {
-        let Some(BodyShape::CallSeq { params, calls, tail, saved, guard: None }) =
+        let Some(BodyShape::CallSeq { params, calls, tail, saved, guard: None, .. }) =
             parse_segment(MC_CMP_PLAIN, NO_LOCALS)
         else {
             panic!("`return p->m() == q->n();` is the two-call comparator");
@@ -623,7 +624,7 @@ mod tests {
     /// bl ?m`.
     #[test]
     fn this_has_parameter_index_zero_and_the_highest_token_so_its_call_goes_last() {
-        let Some(BodyShape::CallSeq { params, calls, tail, saved, guard: None }) =
+        let Some(BodyShape::CallSeq { params, calls, tail, saved, guard: None, .. }) =
             parse_segment(MC_CMP_THIS, NO_LOCALS)
         else {
             panic!("a member function comparing `m()` against `a->m()`");
@@ -816,6 +817,7 @@ mod tests {
         // the one place the two are summed.
         use crate::func::SeqTail as PubTail;
         let seq = crate::func::CallSeq {
+            early: Vec::new(),
             guard: None,
             calls: Vec::new(),
             tail: PubTail::Cmp { cmp: SeqCmp::Eq, lhs_first: true },

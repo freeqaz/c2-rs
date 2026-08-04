@@ -547,6 +547,46 @@ pub fn encode_bc(bo: u8, bi: u8, disp: i32) -> Option<[u8; 4]> {
     Some(word.to_be_bytes())
 }
 
+/// The largest displacement an unconditional `b` reaches: `LI` is a signed
+/// 24-bit field scaled by 4.
+pub const B_MAX_DISP: i32 = 0x01FF_FFFC;
+
+/// Encode an **intra-section** unconditional branch `b` — primary opcode 18,
+/// `AA=0`, `LK=0` — carrying its **true self-relative displacement** and taking
+/// **no relocation**.
+///
+/// **This is board #191, and it is the same opcode as [`encode_tail_branch`].**
+/// The two are different encodings of one instruction and the discriminator is
+/// *where the target lives*, not what the branch is:
+///
+/// ```text
+///   48000008   intra-section: LI is the real displacement, nrel = 0
+///   4bffffec   external:      LI is −(own .text offset), plus a REL24
+/// ```
+///
+/// A fixup pass that treats every `b` alike corrupts one of the two
+/// (`docs/CFG_SHAPE.md` §3.3), which is why they are two functions here rather
+/// than one with a flag.
+///
+/// **It has been written once before and deleted.** W10 built it for the `else`
+/// arm's join branch, found that arm's block layout to be mode-dependent on a
+/// threshold that is a c2 cost model, and removed the encoder rather than ship a
+/// code path the oracle had never graded (w-frame row **F-c**). It comes back
+/// with W11's guarded early return, whose `b` targets the **epilogue** — a block
+/// that exists in both modes and whose length is a constant of the frame class,
+/// so there is no threshold to fit.
+///
+/// `disp` is `target_offset − branch_offset`. Returns `None` for a misaligned or
+/// out-of-range displacement rather than truncating: a truncated `LI` is a
+/// legal-looking branch to the wrong place.
+pub fn encode_b_intra(disp: i32) -> Option<[u8; 4]> {
+    if disp % 4 != 0 || !(-B_MAX_DISP - 4..=B_MAX_DISP).contains(&disp) {
+        return None;
+    }
+    let word: u32 = 0x4800_0000 | (disp as u32 & 0x03FF_FFFC);
+    Some(word.to_be_bytes())
+}
+
 /// Encode `cmpwi crf,rA,SIMM` — the **signed** immediate compare, opcode 11.
 pub fn encode_cmpwi(crf: u8, ra: u8, simm: i16) -> [u8; 4] {
     let word: u32 = (11 << 26)

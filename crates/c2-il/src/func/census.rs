@@ -505,6 +505,19 @@ impl IlBundle {
                             Ok(BodyShape::CallSeq { guard: Some(_), .. }) => {
                                 FnVerdict::InClass("call-sequence-guarded")
                             }
+                            // **W11 — a sequence with guarded EARLY RETURNS gets
+                            // its own key**, for the same reason and beside it:
+                            // it is the first class whose lowering emits an
+                            // **intra-section `b`** and the first with a real
+                            // label→offset map, so a rung that widens it has to
+                            // be able to read its population without it being
+                            // summed into `call-sequence-lit`'s. Not split by
+                            // guard count either — the count varies the
+                            // displacement and nothing else, and a key per count
+                            // would cross two axes.
+                            Ok(BodyShape::CallSeq { early, .. }) if !early.is_empty() => {
+                                FnVerdict::InClass("call-sequence-early-return")
+                            }
                             Ok(BodyShape::CallSeq { tail, .. }) => {
                                 FnVerdict::InClass(match tail {
                                     body::SeqTail::Void => "call-sequence",

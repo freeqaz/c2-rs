@@ -806,6 +806,36 @@ pub struct SeqGuard {
     pub k: i32,
 }
 
+/// **W11 — one guarded EARLY RETURN ahead of a [`CallSeq`].**
+///
+/// The backend's view of [`crate::func::body::SeqEarlyReturnShape`]. A `CallSeq`
+/// carries a `Vec` of these, in source order, all ahead of `calls[0]`.
+///
+/// This is the field that gives the port an **intra-section unconditional `b`**
+/// (board #191) and its first real label→offset map — the two mechanisms
+/// `work/w-conv/PREREG.md` §2 measures as wanted by 10 and 14 of the 17 FRONTIER
+/// TUs respectively, and which nothing in the port had ever emitted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SeqEarlyReturn {
+    /// Index into the owning function's `params` of the compared formal, read in
+    /// its home argument register.
+    pub cmp_param: usize,
+    /// The **source** relation. Whether the emitted branch negates it depends on
+    /// `value`: a value arm is a real block so the branch steps past it and
+    /// carries the negation; a void arm is empty, so c2 deletes the block and
+    /// points the branch at the epilogue with the relation itself. See
+    /// [`crate::func::body::SeqEarlyReturnShape`] for the measurement.
+    pub rel: Rel,
+    /// `cmpwi` when true, `cmplwi` when false.
+    pub signed: bool,
+    /// The comparison literal, inside the 16-bit immediate field.
+    pub k: i32,
+    /// The returned literal, or `None` for `return;`. Every exit value in one
+    /// body is distinct, including [`SeqTail::Lit`]'s — the IL parser refuses
+    /// the rest, because c2 merges arms that produce the same value.
+    pub value: Option<i32>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CallSeq {
     /// Every call in `.text` order; at least two, or one with a non-void tail
@@ -822,6 +852,12 @@ pub struct CallSeq {
     /// second) is guarded by a conditional branch. `None` for every sequence
     /// the Class A/B rungs shipped.
     pub guard: Option<SeqGuard>,
+    /// **W11** — the guarded early returns written ahead of the sequence, in
+    /// source order. Empty for every sequence the earlier rungs shipped, and
+    /// never non-empty at the same time as `guard`: the two emit different
+    /// blocks and the IL parser refuses the combination rather than
+    /// interleaving two block plans.
+    pub early: Vec<SeqEarlyReturn>,
 }
 
 impl CallSeq {

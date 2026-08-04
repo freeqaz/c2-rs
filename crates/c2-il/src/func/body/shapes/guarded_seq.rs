@@ -285,7 +285,7 @@ pub(crate) fn try_parse_guarded_seq(
     // one-call-and-void-tail tail-call escape are all that function's, so the
     // guard cannot drift from the sequence it guards.
     let guard = SeqGuardShape { cmp_param, rel, signed, k };
-    match parse_call_sequence_from(seg, &mut p, lo, raw, Some(guard)) {
+    match parse_call_sequence_from(seg, &mut p, lo, raw, Some(guard), Vec::new()) {
         Ok(shape) => Some(shape),
         Err(_) => None,
     }
