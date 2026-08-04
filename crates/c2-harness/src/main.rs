@@ -16,7 +16,7 @@
 //!   corpus <sub>        P1.2 corpus generator (gen / sample / stats)
 //!
 //! The subcommand **handlers** live in [`cli`], one module per command group
-//! (board #13, size only). What stays here is the dispatch `match`, the usage
+//! (lane `w-mod`, size only). What stays here is the dispatch `match`, the usage
 //! text, and — load-bearing — `mod argv`: the binary's one argument parser and,
 //! through `Args::toolchain`, its one producer of a `Toolchain`.
 

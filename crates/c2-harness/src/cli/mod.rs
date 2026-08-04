@@ -1,6 +1,6 @@
 //! `c2rs` subcommand handlers, one module per command group.
 //!
-//! Split out of `main.rs` (board #13) purely to bound the file size; the
+//! Split out of `main.rs` (lane `w-mod`) purely to bound the file size; the
 //! dispatch `match`, `print_usage` and — load-bearing — `mod argv` all stay in
 //! the crate root. `mod argv` is the binary's ONLY argument parser and
 //! `Args::toolchain` its ONLY producer of a `Toolchain`, so every handler here

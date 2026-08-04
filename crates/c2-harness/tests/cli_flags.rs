@@ -481,7 +481,7 @@ fn main_rs() -> String {
 /// `src/main.rs` plus every `.rs` under `src/cli/`.
 ///
 /// The handlers used to live in `main.rs`, so a lint that read one file read the
-/// whole binary. Board #13 moved them into `src/cli/`, and a lint still pointed
+/// whole binary. Lane `w-mod` moved them into `src/cli/`, and a lint still pointed
 /// at `main.rs` alone would have kept passing while covering almost none of the
 /// code it exists to constrain — absence reading as success. Every source lint
 /// over the binary takes its file set from here instead.
@@ -646,7 +646,7 @@ fn every_subcommand_refuses_an_unknown_option() {
 /// `Args::toolchain(&self)` the only producer, a handler cannot reach a
 /// toolchain until it holds a parsed argument set.
 ///
-/// **Widened for board #13.** The handlers moved from `main.rs` into
+/// **Widened by lane `w-mod`.** The handlers moved from `main.rs` into
 /// `src/cli/*.rs`. Scanning `main.rs` alone would then have covered the parser
 /// and almost nothing else — every handler, i.e. every site the eight defects
 /// were actually found at, would have become free to call `Toolchain::locate`
@@ -723,7 +723,7 @@ fn locate_is_reachable_only_through_the_arg_seam() {
 /// helper's name, and nine handlers used it. Deleting it is what made the class
 /// unreachable; re-adding one is how it would come back.
 ///
-/// **Widened for board #13** for the same reason as the lint above: the nine
+/// **Widened by lane `w-mod`** for the same reason as the lint above: the nine
 /// callers now live in `src/cli/*.rs`, so a `main.rs`-only scan would have left
 /// every one of their sites unwatched. The file set is the whole binary
 /// ([`bin_sources`]) — same rule, more files.
