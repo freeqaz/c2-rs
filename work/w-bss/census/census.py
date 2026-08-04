@@ -107,7 +107,11 @@ print("wrote", n, "records")
 # committed too, and `committed=True` strips every absolute path and refuses to
 # write one -- CLAUDE.md forbids machine paths in the history.  The corpus is
 # still pinned, by `path_sha256` over the resolved path.
-_p = prov.stamp("census.py", SECTIONS_PATH, BEGIN, W,
+# `path_rel` is taken against the MAIN repo, not the lane root: from a worktree
+# (`<main>/.claude/worktrees/<lane>`) the corpus is four levels up, which
+# `prov.path_rel` correctly refuses to encode, and the sidecar would then carry
+# no readable path at all. Against MAIN it is the documented `../dc3-decomp`.
+_p = prov.stamp("census.py", SECTIONS_PATH, BEGIN, paths.MAIN,
                 inputs=dict(flags_sha256=prov.sha256_file(
                                 W + "/work/dc3-workload/flags.txt"),
                             files_sha256=prov.sha256_file(FILES)),

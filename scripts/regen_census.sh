@@ -82,7 +82,20 @@ FILES="$ROOT/work/dc3-workload/files.txt"
 
 # ---------------------------------------------------------------- prerequisites
 
-: "${C2RS_DC3_SRC:=$ROOT/../dc3-decomp}"
+# The sibling default has to be taken from the MAIN repo, not from $ROOT: in a
+# worktree ($MAIN/.claude/worktrees/<lane>) the naive `$ROOT/..` points at
+# `.claude/worktrees/dc3-decomp`, which does not exist — and the script then
+# printed `SKIP: toolchain absent` and exited 0, so a caller saw success and a
+# census that never ran. That is exactly docs/STATUS.md trap 5, in the tool
+# built to close trap 5. work/w-bss2/paths.py already resolves this correctly;
+# this mirrors it.
+if [ -z "${C2RS_DC3_SRC:-}" ]; then
+  _base=$ROOT
+  case "$ROOT" in
+    */.claude/worktrees/*) _base=$(cd "$ROOT/../../.." && pwd) ;;
+  esac
+  C2RS_DC3_SRC=$_base/../dc3-decomp
+fi
 export C2RS_DC3_SRC
 
 if [ ! -d "$C2RS_DC3_SRC" ]; then

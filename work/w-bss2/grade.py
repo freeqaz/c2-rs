@@ -25,10 +25,17 @@ GLC = os.path.join(HERE, "glcensus.jsonl")
 # it.  This is the thing that forbids it.
 INCUMBENT = {
     "bss": dict(cells=117, skipped=4),
-    "data": dict(cells=68, skipped=2),
+    "data": dict(cells=69, skipped=1),
 }
-INCUMBENT_AT = ("dc3 dd9a4bdc..940d07dc at ../dc3-decomp; "
-                "docs/OBJ_DATA_BSS_SHAPE.md, rungs/2026-08-04-w-bss2.md")
+INCUMBENT_AT = "dc3 940d07dc at ../dc3-decomp (lane w-prov, 2026-08-04)"
+# The PRIOR incumbent and the corpus it was taken at, kept rather than
+# overwritten: `docs/OBJ_DATA_BSS_SHAPE.md` publishes `.bss` 110/117 and `.data`
+# 68/68, measured against a `sections.jsonl` built at dc3 `86357b58`.
+# Regenerating that census at `940d07dc` changed 18 of 871 TU records and moved
+# the `.data` population 68 -> 69; the RATE stayed 100 %, which is precisely why
+# the population is what gets checked. `.bss` did not move at all.
+PRIOR = ("dc3 86357b58: .bss 117 (110/117 pure bump), .data 68 (68/68) — "
+         "docs/OBJ_DATA_BSS_SHAPE.md, rungs/2026-08-04-w-bss2.md")
 # The same two numbers measured at a DIFFERENT directory, so the failure this
 # check exists to catch is named with its own magnitude and cannot be mistaken
 # for noise.
@@ -181,9 +188,10 @@ def population_check(kind, cells, skipped):
                   "(vs %d), absent %d (vs %d)."
                   % (kind, mp_cells, inc["cells"], mp_absent, inc["skipped"]))
     if not ok:
-        print("           The RATES below are computed on this smaller "
-              "population and will look fine.")
+        print("           The RATES below are computed on a DIFFERENT "
+              "population and will look fine either way.")
         print("           Incumbent measured at: %s" % INCUMBENT_AT)
+        print("           Prior:                 %s" % PRIOR)
     return ok
 
 

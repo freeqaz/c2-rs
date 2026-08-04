@@ -40,7 +40,30 @@ DC3 = os.environ.get("C2RS_DC3_SRC") or os.path.join(
     os.path.dirname(MAIN), "dc3-decomp")
 C2RS = os.path.join(MAIN, "target", "release", "c2rs")
 WORKLOAD = os.path.join(MAIN, "work", "dc3-workload")
-SECTIONS = os.path.join(MAIN, "work", "w-bss", "census", "sections.jsonl")
+
+
+def _sections():
+    """Prefer the LANE's own sections.jsonl over the main repo's.
+
+    `census.py` writes to `<lane>/work/w-bss/census/sections.jsonl`, but this
+    resolved unconditionally to `<main>/...`, so a worktree that regenerated the
+    census then built its `.gl` census against the MAIN repo's older copy — a
+    cross-corpus join, silently, which is the exact defect this lane exists to
+    close. Caught by the provenance stamp on its first real run: glcensus
+    printed `NO PROVENANCE` for a file the worktree had just stamped.
+
+    sections.jsonl is force-added, so a worktree always has one; the MAIN
+    fallback only matters for a checkout that somehow lacks it.
+    """
+    if os.environ.get("C2RS_SECTIONS"):
+        return os.environ["C2RS_SECTIONS"]
+    lane = os.path.join(LANE, "work", "w-bss", "census", "sections.jsonl")
+    if os.path.exists(lane):
+        return lane
+    return os.path.join(MAIN, "work", "w-bss", "census", "sections.jsonl")
+
+
+SECTIONS = _sections()
 
 
 def flags():

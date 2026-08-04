@@ -1,0 +1,22 @@
+{
+ "begin_scope": "run",
+ "committed_safe": true,
+ "corpus": {
+  "dirty": false,
+  "head": "940d07dcb0960964ad61aa5f025658f993eb46b2",
+  "head_after": "940d07dcb0960964ad61aa5f025658f993eb46b2",
+  "moved_during_run": false,
+  "path_rel": "../dc3-decomp",
+  "path_sha256": "f4bca20a934415e2c6dee1efeceef43ba83ba837abd03d0e5ab338dc5df1fc82"
+ },
+ "data_file": "sections.jsonl",
+ "data_records": 871,
+ "data_sha256": "fb2f5865df1d35fc28acf19979c0f43306fd4658fb7fb6703d27b2b525ce7e79",
+ "generated_utc": "2026-08-04T10:06:18Z",
+ "inputs": {
+  "files_sha256": "4996839bf89780a2dea9ed005450d8953961355a9eb2292cc1bc22572a6853b6",
+  "flags_sha256": "fa8ba48aa21229773116bf0decff3b7e9e5e7f7ee356c3e347c506038ffbcb48"
+ },
+ "schema": "c2rs-census-prov/1",
+ "tool": "census.py"
+}
