@@ -650,6 +650,66 @@ throughout.
 
 ---
 
+## 10a. HANDOFF — the `.ex` relocation channel, and one trap removed from it
+
+**Written after §7 was scored and the gate was green. It grades nothing, reads no
+truth (`E`, `D` and the obj are all untouched) and no number in it is
+registered.** Its only purpose is to stop the next lane repeating an experiment
+that cannot work. `work/w-db/exrecon.py`.
+
+§8 item 1 names the next experiment: **retarget a data-symbol operand inside an
+emitted function's `.ex` body** and ask the sole judge whether that data symbol
+becomes defined. That is the channel §3 showed the `.gl` reference list is only a
+*record* of. The obvious way to build it — the byte-length-preserving `varU`
+retarget that w-mark, w-skip, w-joint and w-db all used — **does not work, and
+here is the control that says so.**
+
+Searching each gate-clean function's own `.ex` body span (`il.segments`, the
+`4F 1F` anchor) for the `enc_var_u` bytes of the tokens its `.gl` reference list
+names:
+
+| TU | FUNC targets located | DATA targets located | other |
+|---|---|---|---|
+| `PoolAlloc.cpp` | 3 / 312 = **0.0096** | 2 / 100 = 0.0200 | 3 / 232 = 0.0129 |
+| `EventTrigger.cpp` | 10 / 3 282 = **0.0030** | 2 / 668 = **0.0030** | 17 / 836 = 0.0203 |
+
+> ### **The control FAILS, and that is the finding.** A call site must name its callee, so FUNC targets are certainly referenced by the body — and they are located at **0.0030**, the same rate as DATA and the same rate as coincidence. **`.ex` does not carry `.gl`'s `varU` token encoding**, so a byte-pattern search over `.ex` measures the searcher's encoding assumption and nothing else.
+
+Had I published the DATA row alone it would have read as "the `.ex` channel does
+not name data symbols either", which would have been a **wrong negative** of
+exactly the shape `STATUS.md` trap 5 describes. The FUNC row is why it is not
+published that way.
+
+**What the next lane therefore needs, stated concretely:**
+
+1. **A real `.ex` operand decoder, not a byte search.** The project already has
+   one — `crates/c2-il` (35.5k lines, `Block::feature()` at
+   `crates/c2-il/src/func/body/mod.rs:784`) — and the Python side in
+   `work/emitpred/pipeline/il.py` knows only `split_ex` / `segments`, i.e. where
+   bodies start and stop, **not** how their operands name symbols. That gap is
+   the cost of the experiment and it should be budgeted as the whole lane.
+2. **The mechanism to aim at is `0x10b3389b`** (`dag.c`, reached from
+   compile-one-function via `0x10b3421b` ← `0x10b7e032` ← `0x10b7e6af`), which
+   w-mark decoded as walking the tuple/DAG operand chain and which **marks only
+   when `[edi+0x30] == 4`** — a *function*. So the naive prediction is that the
+   body channel is **also** function-only and the data half is emitted somewhere
+   else again; the obvious third candidate is the COFF writer's own recursion,
+   **`0x10b28a9b`** (§8 item 2, whose four kind-1 storage-class arms are decoded
+   nowhere).
+3. **The control structure to reuse** is this lane's: a no-op rewrite that
+   reproduces the obj byte-for-byte, a positive control on a stream c2 provably
+   reads, and — the one that mattered most here — **an arm whose target is of a
+   kind that is certainly referenced**, so an inert result can be told apart from
+   a mislocated write.
+4. **Zero the COFF `TimeDateStamp` and hold the `-Fo` path fixed** before any obj
+   compare. Both cost this lane a red control (§1c).
+
+**I am not running it.** It needs a fresh pre-registration and an `.ex` decoder,
+and reaching for it inside a prereg that has already been scored is the move
+clause 1 exists to forbid.
+
+---
+
 ## 11. Proposed board rows — **numbers NOT minted**
 
 Same discipline as w-roots, w-emit, w-refs, w-mark, w-skip and w-joint: **no
@@ -668,6 +728,7 @@ number minted, no `#N` pinned in code, `BOARD.md` / `ROADMAP.md` /
 | **V-g** | **`#152` is 17.01 % of THIS model's code residual, not 58.95 %** — the free/file-scope class returns and is **63.58 %** of it. The two residuals are not comparable, because the model's recall (0.86391) is 9.5 pp below the oracle's | registered at 0.55 with a floor of 0.20 and **missed below the interval**; reported as a miss rather than reframed | §4.2 |
 | **V-h** | **The one parameter fitted against data is MEASURABLY INERT.** The owner-entry gate was chosen on three disclosed TUs before the prereg; corpus-wide `JFP_UNGATED` equals `JFP` to the digit on both axes, because a `.gl` data name with no `in` record is a leaf and cannot relay | left in the frozen definition rather than removed, and reported as inert — the disclosure and the measurement in one row | §4.4 |
 | **V-i** | **More than a third of every function's reference-list targets are outside `U`: 950 824 of 2 573 569 = 0.36946**, of which **192 919** are `in` owners. w-refs' `∩ U` discards all of it. (`outside U` also contains gate-skipped tag-`0x0E` records, so 192 919 and not 950 824 is the data population) | the fact the model exploits — and, per V-d, **not** a fact c2 acts on | §4.3 |
+| **V-k** | **THE `.ex` HANDOFF, with one trap already removed: `.ex` does NOT carry `.gl`'s `varU` token encoding**, so the byte-length-preserving retarget every previous lane used cannot be pointed at a function body. The control is FUNC-vs-DATA parity — FUNC targets, which a call site must name, are located at **0.0030**, the same rate as DATA and the same rate as coincidence | published *with* its control precisely so the DATA row is not mistaken for "the body channel does not name data either", which would be a wrong negative of `STATUS.md` trap 5's shape. The next lane needs a real `.ex` operand decoder and should aim at `0x10b3389b` and `0x10b28a9b` | this file §10a |
 | **V-j** | **`0x10b28a9b`, the COFF symbol writer, refuses kind-1 symbols with `(+0x37 >> 0x15) & 7 ∈ {1,3}`** (`0x10b28bb1`/`0x10b28bbd`) and then dispatches by the storage-class nibble into four undecoded arms | read from the binary, modelled **nowhere**; named so the absence cannot read as success | §8 item 2 |
 
 ---
