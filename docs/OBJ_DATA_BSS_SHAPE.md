@@ -806,6 +806,37 @@ because the order is wrong. Nine alternative walks were scored and none beats
 A1: externals-first (82), statics-first (80), alignment-descending (63),
 size-descending (58), reverse `.gl` (29), rotations, deferred-first (39).
 
+#### 5.7.1 What the 25 failing `.bss` sections look like
+
+This is the most useful thing this lane can hand the next one, because it says
+where *not* to look.
+
+* **The deferred clause of A1 is not the problem.** In **24 of the 25** failures
+  the deferred block is placed exactly right — reversed, after every eager
+  object — and the whole error is inside the **eager** block.
+* **The eager order is a near-`.gl` order, not a different principle.** Kendall
+  inversion count between the true order and A1's, as a fraction of the maximum:
+  median **0.17**, minimum 0.02. **9 of the 25 are a single adjacent
+  transposition.** A rule with a different sort key would not look like this.
+* **The transposed pairs share nothing.** Across those 9: same storage class in
+  9/9; equal size in 5, `x` larger in 3, smaller in 1; equal alignment in 6;
+  and in 7 of 9 the two records are **not adjacent** in the `.gl` (other
+  sections' objects sit between them). So it is not keyed on size, alignment or
+  linkage, and it is not a local rule over consecutive records.
+* **Failures are not concentrated by section size** — they occur at n = 2, 3, 4,
+  5, 6, 7, 9, 10, 11, 13, 18, 19 — but the *rate* is: 1 failure in 48 two-object
+  sections against 24 in 62 larger ones.
+* **Refuted, and recorded so it is not retried.** §7.4 reports lane `w-map`'s
+  reading that c2's own symbol table is keyed `bucket = id & 0x3ff` with a
+  sequential id. If c2 assigned that id while consuming the `.gl` and then walked
+  its table bucket-ascending, the walk would be `.gl` file order for the first
+  1024 records and would **interleave** after that — which would explain both why
+  the small probe grid sees pure file order and why large real TUs deviate. It
+  does not hold: sorting the eager block by `(record index mod 1024)` reproduces
+  **1 of 12** tested failures, against 0 for the plain index — no better than
+  chance. The idea is refuted on both the all-name index and the data-record
+  index.
+
 ### 5.8 `.tls$` — the walk order, measured
 
 §8.4 recorded `.tls$` as characterised only to "one section, `0xC0300040`".
@@ -1106,8 +1137,13 @@ previous revision of this list said it was.**
     are worth as much as the open question, so they are listed: it is not
     declaration order (53 vs 89 on `.bss`), not linkage-blocked
     (externals-first 82, statics-first 80), not alignment- or size-sorted (63,
-    58), not a reversal or a rotation, not deferred-first (39), and not any of
-    four hole policies or three pass-over policies.
+    58), not a reversal or a rotation, not deferred-first (39), not any of four
+    hole policies or three pass-over policies, and **not `bucket = id & 0x3ff`
+    wraparound** (§5.7.1 — 1 of 12, chance). What it *does* look like is in
+    §5.7.1: the deferred clause is right in 24 of 25 failures, the eager block is
+    a near-`.gl` order (median 0.17 inversions, 9 of 25 a single adjacent
+    transposition), and the transposed pairs share no size, alignment or linkage
+    property and are usually not adjacent in the `.gl`.
 
 ---
 
