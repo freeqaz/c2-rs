@@ -1,0 +1,4 @@
+TUs ok=850  |E|=174417  |Seed|=14662
+Rfloor over 26-token PROXY (w-emit / w-roots)  =   36228 = 20.771% of |E|   covered by Seed:   6797 = 0.18762
+Rfloor over REAL .gl reference list            =   36141 = 20.721% of |E|   covered by Seed:   6793 = 0.18796
+Rfloor over union of both                      =   36140 = 20.720% of |E|   covered by Seed:   6792 = 0.18794
