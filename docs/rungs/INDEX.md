@@ -44,6 +44,7 @@ the header block this table is read from.
 | 2026-08-02 | W-WITNESS | [w-witness](2026-08-02-w-witness.md) | 11 | 706402/2462572 → 706402/2462572 (28.69% → 28.69%), +0 |
 | 2026-08-04 | W-BSS2 | [w-bss2](2026-08-04-w-bss2.md) | 11 | unchanged, +0 — a specification rung, not a decode or codegen one |
 | 2026-08-04 | W8 | [w-cfgimpl](2026-08-04-w-cfgimpl.md) | 3 | 706,552 → 706,555 / 2,463,393 (28.68 % → 28.68 %), **+3** |
+| 2026-08-04 | W11 | [w-conv](2026-08-04-w-conv.md) | 2 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | W10 | [w-cross](2026-08-04-w-cross.md) | 2 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | #232 | [w-cross-sep26](2026-08-04-w-cross-sep26.md) | 1 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | W-FIFTH | [w-fifth](2026-08-04-w-fifth.md) | 11 | 706,402 / 2,463,318 unchanged (28.68 %), +0 — TU match 8 at both ends |
