@@ -364,6 +364,110 @@ in the `.gl` it is handed. `docs/OBJ_DYNINIT_SHAPE.md` §7.1 declined this
 permutation on the grounds that it "would need the front end's hash reproduced";
 that premise is false and #158's owner should revisit it.
 
+### 4D. The emit predicate — found by file name, and it is `main.c`
+
+The project's most valuable unknown is *"should this function body be written
+out at all?"*. The lane was told a file name might find it faster than any
+call-graph work. It did — but the answer was not in any of the files anyone
+expected, and the mechanism inverts the question.
+
+**It is `p2/main.c`.** The walk loop is at `0x10b7f15f`, inside `FUN_10b7f1ff`,
+reached from the export `_InvokeCompilerPass@12` (`10bebffd`, `dll.cpp`) via
+`10b7f3e7` → `10b7f3b6`. It iterates the global function list at
+`.data 0x10c4630c` (next `+0x78`, prev-link `+0x7c`):
+
+```
+10b7f16b: mov  edx, DWORD PTR [eax+0x4c]  ; the flag word
+10b7f16e: test dl, 0x20                   ; the EMIT bit
+10b7f171: je   0x10b7f178                 ; not marked -> skip
+10b7f173: test dl, 0x2                    ; "already dequeued"
+10b7f176: je   0x10b7f199                 ; marked & not done -> COMPILE IT
+```
+
+> **`emit(sym) == (sym->flags4c & 0x20) && !(sym->flags4c & 0x02)`**
+
+Bit `0x02` is set by the loop itself, so the load-bearing bit is **`0x20` at
+symbol offset `0x4c`**. Confidence **high** — instruction-level. `coffemit.c`
+only *consumes* the same bit later (`10b28548`, deciding which `.debug$S`
+records to write), which is why looking for the decision in the writer would
+have failed.
+
+### The finding that changes the question: c2 does not compute it
+
+In `FUN_10b9b8e9` (`p2symtab.c`), the `.gl` reader, at the function-with-body
+record:
+
+```
+10b9bf70: call 0x10c1f91b                 ; varU
+10b9bf75: and  eax, 0xfffffffb            ; force-clear bit 0x4
+10b9bf78: mov  DWORD PTR [esi+0x4c], eax  ; <<<< THE FLAG WORD, VERBATIM FROM THE IL
+```
+
+**The base emit decision is transmitted by `c1xx` in the `.gl` stream and read
+wholesale.** Emission order is an IL field too: insertion into `10c4630c` is
+sorted ascending by `sym+0x54`, the first `i32c` of the record, then
+topologically sorted callee-before-caller by `FUN_10b2778e`.
+
+### What c2 adds — and that outside `-optref` it never subtracts
+
+`FUN_10b27f3c` selects between two closures on `DAT_10c45f9c`:
+
+- **`== 0` → `FUN_10b2773f`, purely ADDITIVE.** A fixpoint propagating `|= 0x20`
+  to callees. **Never clears.**
+- **`!= 0` → `FUN_10b27b7f`, PRUNES.** A reachability fixpoint; unreached records
+  get `flags4c &= ~0x20` and log `"INF:\t%s not allowed to be inlined (globally
+  unreferenced)"`.
+
+The **only two** sites in the whole image that clear the bit are `10b27cde`
+(inside that pruner) and `10b8a6c6` (per-TU teardown).
+
+**Correction, and it is a case of the map paying for itself.** The child that
+found this could not determine what sets `DAT_10c45f9c` — there is **no WRITE
+xref to it anywhere in the export** — and inferred "it is LTCG" at *medium*
+confidence, flagging that everything above hung off the guess. A *different*
+child, working a different seam, reconstructed c2's complete 147-entry flag
+table (built at run time by a 4250-byte store sequence at
+`0x10c2932e..0x10c2a3b5`, which is why a `.data` scan cannot see it). Joining
+the two tables answers it outright:
+
+> **`DAT_10c45f9c` is the target of the `-optref` flag** (`kind` set-1, 7
+> readers). Not LTCG.
+
+That is what a map is for: two seams that could not each close a question closed
+it by intersection. The pruner is gated on `-optref`.
+
+### Black-box confirmation, and what it refutes
+
+With `/O1 /Oi /Ob2`, an `inline` and a `static` function each called once and
+provably folded into the caller are **still emitted out-of-line** — exactly what
+the additive path predicts, and it **refutes** the intuition that c2 drops
+inlined-away or internal-linkage bodies. It does not, outside `-optref`.
+
+Separately: unreferenced `static`s, unreferenced `inline`s, uninstantiated
+templates, unused member functions and unused member templates are **absent from
+the `.gl` entirely**. On small TUs **c1xx does the filtering and c2 emits 100% of
+what it is handed.**
+
+### The open edge, and how this bears on lane w-emitpred
+
+That constrains any story about the workload's 7.23% emit rate: if c2 never
+prunes outside `-optref`, the unemitted bodies must arrive with `0x20` already
+clear, or be counted from a stream other than the `.gl` function records.
+`p2/main.c` reads the bundle by suffix — `gl`, `in`, `ex`, `sy` — and **`.in` is
+the inline-body stream**, whose members reach the candidate list `0x10c3cf68`
+via the `0x1000` bit at `10b9bf99`. That is a **hypothesis, confidence low, not
+measured**, handed to `w-emitpred` rather than guessed at.
+
+Lane w-emitpred's own intelligence sharpens the target from the other side: its
+fitted predicate has a demonstrated **false-positive** class — a virtual call
+through a pointer where no constructor of the class is kept in the TU. c2 emits
+nothing; the fitted rule says it should. The corrected mechanism is that a
+virtual call **ODR-uses the vtable slot, not the definition**. The white-box
+reading says that decision cannot be c2's at all: if the emit bit arrives from
+the front end and c2's only subtractive path is `-optref`-gated, then **the
+ODR-use decision is made in `c1xx.dll`, and no amount of probing `c2` will find
+it.** That is a falsifiable claim and it redirects the search.
+
 ---
 
 ## 4. How to look something up
