@@ -33,6 +33,7 @@ mod body;
 mod bundle;
 mod census;
 mod gl;
+mod inlit;
 mod readers;
 mod sy;
 

@@ -820,6 +820,305 @@ fn data_linkage(gl: &[u8], name_nul: usize) -> Option<u8> {
     gl.get(i + 2).copied()
 }
 
+/// **W-R1c — a namespace-scope object THIS TU defines**, read off its `.gl` data
+/// record: the COFF symbol name, `sizeof`, natural alignment, and linkage.
+///
+/// The three fields `c2_core::coff::BssObject` needs and nothing else. It exists
+/// because [`gl_extern_data_names`] answers the opposite question — *is this an
+/// UNDEFINED external whose address the port may reference without emitting a
+/// section?* — and the dynamic-initializer class needs the records that one
+/// refuses.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct GlDataObject {
+    /// The COFF symbol name, already in final form: undecorated for internal
+    /// linkage, decorated for external (`docs/OBJ_DYNINIT_SHAPE.md` §3.1).
+    pub(crate) coff_name: String,
+    /// `sizeof` the object.
+    pub(crate) size: u32,
+    /// Natural alignment in bytes, from the TYPE tag — **not** the size.
+    pub(crate) natural_align: u32,
+    /// `true` => defined with external linkage (StorageClass 2 EXTERNAL);
+    /// `false` => `static` (StorageClass 3 STATIC).
+    pub(crate) external: bool,
+    /// `true` => the object has a **static** initializer and goes to `.data`;
+    /// `false` => it is uninitialized and goes to `.bss`.
+    ///
+    /// **This field is a gate, not a convenience** — see
+    /// [`DATA_ATTR_INITIALIZED`]. `docs/OBJ_DATA_BSS_SHAPE.md` §2.2 (lane w-bss,
+    /// 871 workload objs) refutes `OBJ_DYNINIT_SHAPE.md` §4.1's "`.bss` and
+    /// `.CRT$XCU` are always exactly one each, always last": a dyninit TU that
+    /// also declares one plain `char b1;` moves the single shared `.bss` out from
+    /// behind `.text$yc` and **between the two `.XBLD$W` watermarks**, which is a
+    /// different section order and a different obj. Counting the uninitialized
+    /// objects is how a caller refuses that TU instead of emitting the
+    /// dyninit-only layout for it.
+    pub(crate) initialized: bool,
+}
+
+/// The name separator that introduces an **internal-linkage** data symbol, whose
+/// COFF name is the run that follows it **undecorated**.
+///
+/// [`NAME_SEPARATORS`] lists `00` and `26` and deliberately excludes `25`
+/// (string literals). It never listed `24`, and that omission is precisely why
+/// `TomCryptLicense.cpp` reported `data-sym-unresolved` while `ZlibLicense.cpp`
+/// reported `data-sym-not-extern` from **byte-identical `.ex` files**: the only
+/// difference between the two TUs is that one object is `static`.
+///
+/// MEASURED, four captures, `$`-introduced on the left and the COFF symbol
+/// `docs/OBJ_DYNINIT_SHAPE.md` §3.1 records on the right:
+///
+/// ```text
+///   $sL                 -> sL                    (fixture, static)
+///   $sLicense           -> sLicense              (TomCryptLicense.cpp, static)
+///   $sL$initializer$    -> sL$initializer$       (always static, either linkage)
+///   ?sLicense@@3VLicenses@@A  (00-introduced) -> itself   (ZlibLicense.cpp, extern)
+/// ```
+///
+/// The `$` is a *separator*, not part of the name — which is why
+/// `$sL$initializer$` yields `sL$initializer$` and not `sL` — and it sits in
+/// exactly the byte position `00` and `26` sit in, with the operand token
+/// immediately before it.
+///
+/// **It is deliberately NOT added to [`NAME_SEPARATORS`].** That constant feeds
+/// [`gl_symbol_index`], which binds every callee in the corpus; admitting a
+/// fourth separator there would re-bind tokens globally, and this lane's whole
+/// point is that the global data-symbol path must not move. This reader is
+/// separate and its consumers are whole-TU-shaped.
+const NAME_SEPARATOR_UNDECORATED: u8 = 0x24;
+
+/// Linkage bytes a `.gl` data record can carry, at the fixed offset
+/// [`data_linkage`] reads.
+///
+/// `02` (undefined external) is [`gl_extern_data_names`]'s whole population and
+/// is **not** here: an object this TU does not define has no `.bss` to emit.
+/// Anything unseen fails closed with it.
+const LINKAGE_DEFINED_EXTERN: u8 = 0x01;
+const LINKAGE_STATIC: u8 = 0x04;
+
+/// The attribute byte immediately after the size varint: `00` uninitialized
+/// (`.bss`), `80` statically initialized (`.data`, or the `.CRT$XCU` slot).
+///
+/// MEASURED across every capture this lane took, and the two values separate
+/// exactly the two section kinds:
+///
+/// ```text
+///   $sL                       … 04 01 00   uninitialized -> .bss
+///   $sLicense                 … 04 0c 00   uninitialized -> .bss
+///   ?sLicense@@3VLicenses@@A  … 01 0c 00   uninitialized -> .bss
+///   ?gExt@@3HA (extern int g) … 02 04 00   (refused earlier: linkage 02)
+///   $sL$initializer$          … 04 04 80   initialized   -> .CRT$XCU slot
+///   ?gDef@@3HA (int gDef = 3) … 01 04 80   initialized   -> .data
+/// ```
+///
+/// A value that is neither fails closed: guessing which section an object lands
+/// in is guessing the section *count*, which mismatches at file offset 2.
+const DATA_ATTR_UNINITIALIZED: u8 = 0x00;
+const DATA_ATTR_INITIALIZED: u8 = 0x80;
+
+/// Every data object this TU defines, keyed by the operand token an `.ex` body
+/// references it with.
+///
+/// A token two records disagree about is **dropped**, not resolved to the first
+/// — the same third value [`gl_symbol_index`] gives an ambiguous token, and for
+/// the same reason: a relocation against the wrong symbol is a mis-emit.
+pub(crate) fn gl_data_objects(gl: &[u8]) -> std::collections::BTreeMap<u32, GlDataObject> {
+    let mut out: std::collections::BTreeMap<u32, Option<GlDataObject>> =
+        std::collections::BTreeMap::new();
+    let mut i = 0usize;
+    while i < gl.len() {
+        if !gl[i].is_ascii_graphic() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < gl.len() && gl[i].is_ascii_graphic() {
+            i += 1;
+        }
+        if i >= gl.len() {
+            break;
+        }
+        // The run must be NUL-terminated; `end` indexes that NUL, which is where
+        // the record's TYPE begins.
+        let end = i;
+        // Candidate name starts: every separator-preceded position in the run,
+        // tried **rightmost first**, exactly the preference
+        // `gl_symbol_index_checked` states — a record's own token bytes are often
+        // printable and run together with the name, and the leftmost start binds
+        // junk onto the front.
+        //
+        // Unlike that scanner this one cannot stop at the rightmost candidate,
+        // because `24` is *both* a separator and a legal name character:
+        // `$sL$initializer$` has three of them, and the rightmost two yield an
+        // empty name and `initializer$`. So each candidate is validated whole —
+        // token width, record-kind byte, and the data frame — and the first that
+        // survives all three wins. Every rejected candidate is rejected on
+        // structure, never on a guess about which `$` was meant.
+        let mut q = end;
+        while q > start {
+            q -= 1;
+            if q == 0 {
+                break;
+            }
+            let sep = gl[q - 1];
+            if !(NAME_SEPARATORS.contains(&sep) || sep == NAME_SEPARATOR_UNDECORATED) {
+                continue;
+            }
+            if !is_object_name(&gl[q..end]) {
+                continue;
+            }
+            // The operand token sits immediately before the separator, 4-byte form
+            // first, and its own decoded width must land exactly on that separator.
+            let mut bound = false;
+            for w in [4usize, 2] {
+                if q < w + 2 {
+                    continue;
+                }
+                let p = q - 1 - w;
+                let Some((tok, got)) = read_token_var(gl, p) else {
+                    continue;
+                };
+                if got != w {
+                    continue;
+                }
+                if !SYMBOL_RECORD_KINDS.contains(&gl[p - 1]) {
+                    continue;
+                }
+                let Some(obj) = data_object_at(gl, end, &gl[q..end]) else {
+                    continue;
+                };
+                match out.get(&tok) {
+                    None => {
+                        out.insert(tok, Some(obj));
+                    }
+                    Some(Some(prev)) if *prev != obj => {
+                        out.insert(tok, None);
+                    }
+                    _ => {}
+                }
+                bound = true;
+                break;
+            }
+            if bound {
+                break;
+            }
+        }
+    }
+    out.into_iter().filter_map(|(t, o)| o.map(|o| (t, o))).collect()
+}
+
+/// Whether a `.gl` run is an object name this reader may bind a token to.
+///
+/// Looser than [`is_indexable_name`] in exactly one way — **length 1 is
+/// admitted** — because the reference cell's object is literally `sL`, and a
+/// two-character name is not a weaker binding than a twenty-character one. The
+/// structural work is done by [`data_object_at`]'s frame check, not by the shape
+/// of the name.
+fn is_object_name(b: &[u8]) -> bool {
+    !b.is_empty()
+        && (b[0] == b'?' || b[0].is_ascii_alphabetic() || b[0] == b'_')
+        && b.iter().all(|&c| is_symbol_char(c))
+}
+
+/// Parse the DATA record whose name's terminating NUL is at `name_nul`, or
+/// `None` when it is not one this port models.
+///
+/// The frame, MEASURED across the fixture, both workload TUs and three probes:
+///
+/// ```text
+///   <tag> [wide] <kind> 00 <02|04> <linkage> <size varint> <attr>
+///
+///   $sL\0                       82 06 00 02 04 01 00     align 1  size 1    static
+///   $sLicense\0                 86 06 00 02 04 0c 00     align 4  size 12   static
+///   ?sLicense@@3VLicenses@@A\0  86 06 00 02 01 0c 00     align 4  size 12   extern
+///   ?gL@@3UL@@A\0               86 06 00 02 01 04 00     align 4  size 4    extern
+///   $sL\0  (char pad[200])      82 06 00 02 04 80c8000000  align 1 size 200 static
+///   ??_C@_0BK@…\0  (a literal)  82 06 00 04 01 1a a0     REFUSED — `00 04`
+/// ```
+///
+/// **The tag is the object's ALIGNMENT, not its size**, and the aggregate grid
+/// is what separates the two readings — `docs/IL_TYPE_TAGS.md` §1 tabulates
+/// 1→`82`, 2→`84`, 4→`86`, 8→`88` under the heading `size`, which is true only
+/// because a scalar's size *is* its alignment. Three ints (`sizeof` 12) and one
+/// int (`sizeof` 4) share tag `86`; two doubles (16) and one double (8) share
+/// `88`. So the tag is read as alignment and the size is read from its own
+/// field.
+///
+/// The `00 <02|04>` pair is required literally and is what makes this structural
+/// rather than an offset guess: a *function* record spells `82 07 <05|04|03>`
+/// there and fails, and a **string literal** spells `00 04` and fails — the
+/// latter on purpose, since a literal is not a `.bss` object and is read from
+/// `.in` instead.
+fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObject> {
+    /// Tag bit that inserts one extra byte before the kind.
+    const TAG_WIDE: u8 = 0x40;
+    /// …and that byte must carry this.
+    const WIDE_MARK: u8 = 0x80;
+    let tag = *gl.get(name_nul + 1)?;
+    if tag & 0x80 == 0 {
+        return None;
+    }
+    let mut i = name_nul + 2;
+    if tag & TAG_WIDE != 0 {
+        if *gl.get(i)? & WIDE_MARK == 0 {
+            return None;
+        }
+        i += 1;
+    }
+    i += 1; // the kind byte
+    // The ORDINARY-DATA frame. `00 04` is a read-only (string-literal) record and
+    // is refused here rather than admitted with a different meaning.
+    if gl.get(i) != Some(&0x00) || gl.get(i + 1) != Some(&0x02) {
+        return None;
+    }
+    let external = match *gl.get(i + 2)? {
+        LINKAGE_DEFINED_EXTERN => true,
+        LINKAGE_STATIC => false,
+        // `02` (undefined external) and everything unseen: not an object this TU
+        // defines, so there is no `.bss` for it and no size to believe.
+        _ => return None,
+    };
+    // The size varint, in the SAME encoding `read_varint` reads — confirmed by
+    // the `char pad[200]` probe, which spells `80 c8 00 00 00`. A negative or
+    // zero size is not an object.
+    let mut p = i + 3;
+    let size = super::readers::read_varint(gl, &mut p)?;
+    if size <= 0 {
+        return None;
+    }
+    let initialized = match *gl.get(p)? {
+        DATA_ATTR_UNINITIALIZED => false,
+        DATA_ATTR_INITIALIZED => true,
+        _ => return None,
+    };
+    let natural_align = align_of_type_tag(tag)?;
+    // A name introduced by `24` is spelled undecorated; one introduced by `00`
+    // carries its own decoration. The separator has already selected the run, so
+    // the name is used exactly as found.
+    Some(GlDataObject {
+        coff_name: ascii_string(name),
+        size: size as u32,
+        natural_align,
+        external,
+        initialized,
+    })
+}
+
+/// The natural alignment a `.gl` TYPE tag encodes, in bytes.
+///
+/// `docs/IL_TYPE_TAGS.md` §1's positional rule, read as **alignment** — see
+/// [`data_object_at`] for the aggregate grid that separates that reading from
+/// the size reading its heading implies. Fails closed on an unmodeled tag: a
+/// wrong alignment nibble is a wrong `.bss` Characteristics word.
+fn align_of_type_tag(tag: u8) -> Option<u32> {
+    match tag {
+        0x82 => Some(1),
+        0x84 => Some(2),
+        0x86 => Some(4),
+        0x88 => Some(8),
+        _ => None,
+    }
+}
+
 pub(crate) fn gl_extern_data_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
     /// Undefined external. `01` (defined here) and `04` (static) are exactly the
     /// two this must refuse, and everything unseen refuses with them.
@@ -863,6 +1162,245 @@ impl<'a> GlIndex<'a> {
     /// The token → name map, built on first use.
     pub(crate) fn map(&self) -> &std::collections::BTreeMap<u32, String> {
         self.cell.get_or_init(|| gl_symbol_index(self.gl))
+    }
+}
+
+#[cfg(test)]
+mod data_object_tests {
+    use super::{gl_data_objects, GlDataObject};
+
+    /// Build the `<kind byte> <token> <sep> <name> 00 <type…>` core of one `.gl`
+    /// data record, the way every measured capture spells it.
+    fn record(tok: [u8; 2], sep: u8, name: &str, ty: &[u8]) -> Vec<u8> {
+        let mut v = vec![0x00]; // a SYMBOL_RECORD_KINDS byte
+        v.extend_from_slice(&tok);
+        v.push(sep);
+        v.extend_from_slice(name.as_bytes());
+        v.push(0x00);
+        v.extend_from_slice(ty);
+        v
+    }
+
+    /// **The six measured rows**, from the fixture, both workload TUs and three
+    /// probes. Every byte here was read off a real capture — see
+    /// `docs/rungs/_2026-08-04-w-r1c-prereg.md` §6.
+    #[test]
+    fn the_measured_gl_data_records_decode() {
+        // `static L sL("abc",0);` — the reference cell. sizeof 1, align 1.
+        let gl = record([0xec, 0x09], 0x24, "sL", &[0x82, 0x06, 0x00, 0x02, 0x04, 0x01, 0x00]);
+        assert_eq!(
+            gl_data_objects(&gl).get(&0xec09),
+            Some(&GlDataObject {
+                coff_name: "sL".to_string(),
+                size: 1,
+                natural_align: 1,
+                external: false,
+                initialized: false,
+            }),
+            "the `$`-introduced name yields the UNDECORATED COFF symbol"
+        );
+
+        // TomCryptLicense.cpp — static, sizeof 12, align 4.
+        let gl = record(
+            [0xf9, 0x09],
+            0x24,
+            "sLicense",
+            &[0x86, 0x06, 0x00, 0x02, 0x04, 0x0c, 0x00],
+        );
+        assert_eq!(
+            gl_data_objects(&gl).get(&0xf909),
+            Some(&GlDataObject {
+                coff_name: "sLicense".to_string(),
+                size: 12,
+                natural_align: 4,
+                external: false,
+                initialized: false,
+            })
+        );
+
+        // ZlibLicense.cpp — the SAME object, external, and therefore decorated.
+        // Its `.ex` is byte-identical to TomCrypt's; this record is the only
+        // structural difference between the two TUs.
+        let gl = record(
+            [0xf9, 0x09],
+            0x00,
+            "?sLicense@@3VLicenses@@A",
+            &[0x86, 0x06, 0x00, 0x02, 0x01, 0x0c, 0x00],
+        );
+        assert_eq!(
+            gl_data_objects(&gl).get(&0xf909),
+            Some(&GlDataObject {
+                coff_name: "?sLicense@@3VLicenses@@A".to_string(),
+                size: 12,
+                natural_align: 4,
+                external: true,
+                initialized: false,
+            })
+        );
+
+        // `$sL$initializer$` — the `$` is a SEPARATOR, so the inner `$`s survive
+        // and the name is `sL$initializer$`, not `sL`.
+        let gl = record(
+            [0x08, 0x0a],
+            0x24,
+            "sL$initializer$",
+            &[0x86, 0x04, 0x00, 0x02, 0x04, 0x04, 0x80],
+        );
+        assert_eq!(
+            gl_data_objects(&gl).get(&0x080a).map(|o| o.coff_name.as_str()),
+            Some("sL$initializer$")
+        );
+    }
+
+    /// **The `size > 127` probe** — `char pad[200]` spells its size with
+    /// `read_varint`'s escape. Reading one byte would have yielded 0x80 read as
+    /// a signed byte, i.e. −128, and a size that is not a size.
+    #[test]
+    fn a_size_past_127_uses_the_varint_escape() {
+        let gl = record(
+            [0xec, 0x09],
+            0x24,
+            "sL",
+            &[0x82, 0x06, 0x00, 0x02, 0x04, 0x80, 0xc8, 0x00, 0x00, 0x00, 0x00],
+        );
+        assert_eq!(
+            gl_data_objects(&gl).get(&0xec09),
+            Some(&GlDataObject {
+                coff_name: "sL".to_string(),
+                size: 200,
+                natural_align: 1,
+                external: false,
+                initialized: false,
+            })
+        );
+    }
+
+    /// **The tag is ALIGNMENT, not size** — the reading `docs/IL_TYPE_TAGS.md`
+    /// §1's `| size | tag |` heading implies is false for an aggregate, and only
+    /// an aggregate can show it. Three ints (`sizeof` 12) hold tag `86` where one
+    /// int (`sizeof` 4) also holds `86`; two doubles (16) and one double (8)
+    /// share `88`. A scalar-only matrix cannot separate the two readings because
+    /// a scalar's size IS its alignment.
+    #[test]
+    fn the_type_tag_encodes_alignment_and_not_size() {
+        let cases: [(u8, u8, u32, u32); 6] = [
+            // tag,  size byte, expect size, expect align
+            (0x82, 0x01, 1, 1),   // char c;
+            (0x84, 0x02, 2, 2),   // short c;
+            (0x86, 0x04, 4, 4),   // int c;
+            (0x88, 0x08, 8, 8),   // double c;
+            (0x86, 0x0c, 12, 4),  // int a,b,c;   <- tag held, size moved
+            (0x88, 0x10, 16, 8),  // double a,b;  <- tag held, size moved
+        ];
+        for (tag, sz, want_size, want_align) in cases {
+            let gl = record(
+                [0xec, 0x09],
+                0x24,
+                "sL",
+                &[tag, 0x06, 0x00, 0x02, 0x04, sz, 0x00],
+            );
+            let got = gl_data_objects(&gl);
+            let o = got.get(&0xec09).expect("in class");
+            assert_eq!(
+                (o.size, o.natural_align),
+                (want_size, want_align),
+                "tag {tag:#04x} size byte {sz:#04x}"
+            );
+        }
+    }
+
+    /// Four record classes that must refuse, each for its own structural reason.
+    #[test]
+    fn the_frame_check_refuses_everything_it_has_not_measured() {
+        // A STRING LITERAL: `00 04`, not `00 02`. It is not a `.bss` object, and
+        // its bytes come from `.in` instead.
+        let gl = record(
+            [0xfc, 0x09],
+            0x25,
+            "??_C@_0BK@PELMDOBM@x",
+            &[0x82, 0x06, 0x00, 0x04, 0x01, 0x1a, 0xa0],
+        );
+        assert!(gl_data_objects(&gl).is_empty(), "a `00 04` record is not an object");
+
+        // An UNDEFINED external (`extern int g;`): linkage 02. This TU defines no
+        // storage for it, so there is no `.bss` and no size to believe.
+        let gl = record([0xec, 0x09], 0x00, "?gExt@@3HA", &[0x86, 0x01, 0x00, 0x02, 0x02, 0x04, 0x00]);
+        assert!(gl_data_objects(&gl).is_empty(), "linkage 02 is not defined here");
+
+        // A FUNCTION record: `82 07 03` where the frame wants `00 02`.
+        let gl = record([0xfa, 0x09], 0x00, "??__EsL@@YAXXZ", &[0x82, 0x07, 0x03, 0x00, 0x20, 0xa2]);
+        assert!(gl_data_objects(&gl).is_empty(), "a function is not an object");
+
+        // An UNMODELED alignment tag fails closed: a wrong alignment nibble is a
+        // wrong `.bss` Characteristics word.
+        let gl = record([0xec, 0x09], 0x24, "sL", &[0x8a, 0x06, 0x00, 0x02, 0x04, 0x04, 0x00]);
+        assert!(gl_data_objects(&gl).is_empty(), "tag 0x8a is not a modeled alignment");
+    }
+
+    /// **The `.bss` / `.data` discriminator, which lane w-bss made load-bearing.**
+    ///
+    /// `docs/OBJ_DATA_BSS_SHAPE.md` §2.2 refutes `OBJ_DYNINIT_SHAPE.md` §4.1's
+    /// "`.bss` and `.CRT$XCU` are always exactly one each, always last". A
+    /// dyninit TU that also declares one plain `char b1;` moves the shared `.bss`
+    /// **between the two `.XBLD$W` watermarks** — a different section order and a
+    /// different obj from the one `emit_dyninit_obj` builds.
+    ///
+    /// So a caller has to be able to count the *uninitialized* objects, and this
+    /// is the field that lets it. The `$initializer$` slot parses as a data
+    /// record too and must not be counted as a second `.bss` object.
+    #[test]
+    fn the_attr_byte_separates_bss_objects_from_data_objects() {
+        // The object itself: uninitialized -> `.bss`.
+        let gl = record([0xf9, 0x09], 0x24, "sLicense", &[0x86, 0x06, 0x00, 0x02, 0x04, 0x0c, 0x00]);
+        assert_eq!(gl_data_objects(&gl).get(&0xf909).map(|o| o.initialized), Some(false));
+
+        // Its `.CRT$XCU` slot: initialized -> NOT a `.bss` object.
+        let gl = record(
+            [0x15, 0x0a],
+            0x24,
+            "sLicense$initializer$",
+            &[0x86, 0x04, 0x00, 0x02, 0x04, 0x04, 0x80],
+        );
+        assert_eq!(gl_data_objects(&gl).get(&0x150a).map(|o| o.initialized), Some(true));
+
+        // `int gDef = 3;` — a real `.data` object, and the thing that would add a
+        // ninth section if a caller mistook it for `.bss`.
+        let gl = record([0xec, 0x09], 0x00, "?gDef@@3HA", &[0x86, 0x01, 0x00, 0x02, 0x01, 0x04, 0x80]);
+        assert_eq!(gl_data_objects(&gl).get(&0xec09).map(|o| o.initialized), Some(true));
+
+        // An unmodeled attribute fails closed — guessing which section an object
+        // lands in is guessing the section COUNT.
+        let gl = record([0xec, 0x09], 0x00, "?gX@@3HA", &[0x86, 0x01, 0x00, 0x02, 0x01, 0x04, 0x40]);
+        assert!(gl_data_objects(&gl).is_empty());
+    }
+
+    /// A token two records disagree about is dropped, not resolved to the first.
+    #[test]
+    fn an_ambiguous_token_is_dropped() {
+        let mut gl = record([0xec, 0x09], 0x24, "sL", &[0x82, 0x06, 0x00, 0x02, 0x04, 0x01, 0x00]);
+        gl.extend_from_slice(&record(
+            [0xec, 0x09],
+            0x24,
+            "sOther",
+            &[0x86, 0x06, 0x00, 0x02, 0x04, 0x04, 0x00],
+        ));
+        assert_eq!(gl_data_objects(&gl).get(&0xec09), None);
+    }
+
+    /// **The global path must not move.** `gl_extern_data_names` is what
+    /// `Bindings::resolve_data` gates on, and this lane's prereg clause 6
+    /// declines if its acceptance changes. The two linkage classes this new
+    /// reader admits are exactly the two that one refuses, and vice versa.
+    #[test]
+    fn the_new_reader_and_the_extern_gate_admit_disjoint_linkages() {
+        let defined = record([0xec, 0x09], 0x00, "?gL@@3UL@@A", &[0x86, 0x06, 0x00, 0x02, 0x01, 0x04, 0x00]);
+        let undefined = record([0xec, 0x09], 0x00, "?gExt@@3HA", &[0x86, 0x01, 0x00, 0x02, 0x02, 0x04, 0x00]);
+
+        assert!(super::gl_extern_data_names(&defined).is_empty());
+        assert!(!gl_data_objects(&defined).is_empty());
+
+        assert!(!super::gl_extern_data_names(&undefined).is_empty());
+        assert!(gl_data_objects(&undefined).is_empty());
     }
 }
 
