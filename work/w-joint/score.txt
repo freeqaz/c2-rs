@@ -1,0 +1,85 @@
+== POPULATION
+   TUs graded 850 ; not ok 0 []
+   |U| 1506586  |E| 174417  |E n U| 173907  |Seed| 14662
+   |D_all| 685848  |D_data| 232156
+   base rate |E|/|U| = 0.11577
+
+== KA-IL  cache `gl` == w-emit `gl`, byte for byte: 849/850 (absent 0)
+== KA-B   `in` stream consumed exactly: 850/850
+
+== KA-A  the incumbents, recomputed in this pass
+   model         |P|      prec    recall        F1   exact   vs recorded
+   RGL        129604   1.00000   0.74307   0.85260     132   EXACT
+   INIT       613532   0.27289   0.95991   0.42496      34   EXACT
+   SKIP       400998   0.36420   0.83732   0.50761      34   EXACT
+   |U| EXACT  |E| EXACT  |Seed| EXACT
+
+== THE JOINT FIXPOINT — every Rd variant, micro-averaged
+   Rd                   |Rd|        |P|      prec    recall        F1   exact
+   ORACLE              40947     167213   0.99997   0.95867   0.97888     151
+   ORACLE_LOOSE        41797     167436   0.99987   0.95985   0.97946     160
+   ORACLE_DATA         40947     167213   0.99997   0.95867   0.97888     151
+   ALL                702262     613309   0.27265   0.95873   0.42456      34
+   NONE                    0     129604   1.00000   0.74307   0.85260     132
+   F20_400            432137     400775   0.36388   0.83613   0.50709      34
+   F20_80                  0     129604   1.00000   0.74307   0.85260     132
+   F20_480            432137     400775   0.36388   0.83613   0.50709      34
+   F20_4000           684343     534035   0.29597   0.90620   0.44620      34
+   F20_60_20          702262     613309   0.27265   0.95873   0.42456      34
+   F20_1000           553300     447773   0.32876   0.84400   0.47319      35
+   F20_2000            84311     167364   0.81639   0.78338   0.79955     124
+   TAG_02             115063     595762   0.27966   0.95525   0.43266      34
+   TAG_01             587199     147151   0.88488   0.74655   0.80985      35
+   SC_STATIC               0     129604   1.00000   0.74307   0.85260     132
+
+   BEST STATIC Rd: NONE  F1 0.85260   (incumbent w-refs 0.85260, wash bar 0.87260)
+   ORACLE (CEILING, NOT A MODEL): F1 0.97888
+
+== KA-NONE  Rd = {} must reproduce P_RGL exactly
+   850/850 TUs ; |P_NONE| 129604 vs |P_RGL| 129604
+
+== OWNER ACCOUNTING
+   distinct owners 702262 ; owners n E (CIRCULARITY CHECK) 0 ; owners n U 0 ; owners n D 40947
+   owner-emitted fraction |Rd_ORACLE|/|owners| = 0.05831
+   `in` records 879377 ; owner token unnameable 177115 (0.20141) ; `02` nodes 1885700 ; node token unnameable 617 (0.00033)
+
+== COINCIDENCE CALIBRATION  (w-mark's shape, so it is comparable)
+   uniform expectation over the part of U the incumbent misses: 0.03254
+   base rate |E|/|U| = 0.11577
+   Rd              new marks of which E  measured     ratio soundness
+   ORACLE              31457      31456   0.99997    30.73x   0.99997 (8.64x base)
+   ORACLE_LOOSE        31519      31502   0.99946    30.71x   0.99951 (8.63x base)
+   ALL                242056      31456   0.12995     3.99x   0.14071 (1.22x base)
+   F20_2000            28507       5728   0.20093     6.17x   0.23005 (1.99x base)
+   NONE                    0          0   0.00000     0.00x   0.00000 (0.00x base)
+   w-mark measured 4.00x ; w-skip 2.69x and 0.82x base (BELOW chance) ; w-emit's disqualified loose scan 1.07x
+
+== STRATIFIED — `#152` (??_G/??_E deleting dtors) removed from BOTH E and P
+   |E152| 5344 = 0.03064 of |E|
+   RGL                128781   1.00000   0.76169   0.86473
+   ORACLE             165818   0.99997   0.98072   0.99025
+   ORACLE_LOOSE       166040   0.99987   0.98194   0.99082
+   ORACLE_DATA        165818   0.99997   0.98072   0.99025
+   ALL                611914   0.27099   0.98078   0.42465
+   NONE               128781   1.00000   0.76169   0.86473
+
+== THE CEILING'S RESIDUAL — E n U names ORACLE still misses
+   ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)     3949   58.95%
+   `$` in qualified name (template instantiation OR adjustor      971   14.49%
+   non-virtual member                                             825   12.32%
+   VIRTUAL member  (reached only via a vtable slot)               452    6.75%
+   static member                                                  368    5.49%
+   free / file-scope function                                     109    1.63%
+   other (0)                                                       14    0.21%
+   other (2)                                                        6    0.09%
+   other (1)                                                        4    0.06%
+   undecorated (extern "C" / CRT)                                   1    0.01%
+   total residual 6699
+
+== ROOT FLOOR (comparability only — prereg clause 8 forbids it as a decline key)
+   |Rfloor| 36141 ; covered by Seed 0.18796 ; by Seed u ORACLE marks 0.86799
+   w-refs measured |Rfloor| 36141, Seed coverage 0.18796 ; w-mark 0.86926 ; w-skip 0.53626
+
+== KA-POS  this run GRADED something — discriminating names
+   P_ORACLE symmetric-difference P_RGL  : 37609
+   P_ORACLE symmetric-difference P_INIT : 446319

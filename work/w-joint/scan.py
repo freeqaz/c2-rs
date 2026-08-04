@@ -173,10 +173,14 @@ def one(row, dtruth, wetruth, weil):
         "SC_STATIC": joint.rd_sc(own, syms_by_name, (3,)),
     }
     for k, Rd in Rds.items():
-        _live, code = joint.data_fixpoint(own, Rd, U)
-        P = joint.closure(seed | (code & U), egl, U, xskip)
+        live, code = joint.data_fixpoint(own, Rd, U)
+        mark = code & U
+        P = joint.closure(seed | mark, egl, U, xskip)
         variants[k] = {
-            "n_Rd": len(Rd), "n_mark": len(code & U),
+            "n_Rd": len(Rd), "n_live": len(live), "n_mark": len(mark),
+            "n_mark_in_E": len(mark & E),
+            "n_mark_new": len(mark - P_RGL),
+            "n_mark_new_in_E": len((mark - P_RGL) & E),
             "n_P": len(P), "n_E_in_P": len(E & P),
             "exact": 1 if P == E else 0,
             "n_P_no152": 0, "n_E_no152_in_P": 0,
@@ -229,6 +233,16 @@ def one(row, dtruth, wetruth, weil):
         boundary2.kind(n) for n in (E & U) - P))
     out["dis_oracle_rgl"] = len(P ^ P_RGL)
     out["dis_oracle_init"] = len(P ^ P_INIT)
+    # Rfloor, for comparability only -- prereg clause 8 forbids it as a key
+    hit = set()
+    for a in E:
+        for f in egl.get(a, ()):
+            hit.add(f)
+    fl = E - hit
+    _lo, co = joint.data_fixpoint(own, Rds["ORACLE"], U)
+    out["n_rfloor"] = len(fl)
+    out["n_rfloor_seed"] = len(fl & seed)
+    out["n_rfloor_seed_own"] = len(fl & (seed | (co & U)))
     return out
 
 
