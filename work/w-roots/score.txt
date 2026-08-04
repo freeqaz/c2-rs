@@ -1,0 +1,33 @@
+TUs ok=850  other={'MISSING': 7}
+|U|=1506586  |E|=174417  |E n U|=173907 (99.7076% of E)
+
+S1 seed containment |Seed n E|/|Seed| = 14662/14662 = 1.00000   [reg 0.97, 0.90-1.00]
+S2 seed share       |Seed|/|E|        = 14662/174417 = 0.08406   [reg 0.25, 0.10-0.60]
+S3 ROOT COVERAGE    |Rfloor n Seed|/|Rfloor| = 6797/36228 = 0.18762   [reg 0.85, 0.55-1.00]
+S4 closure          |P|=129430  precision=0.99991  recall=0.74200  F1=0.85186   [reg 0.90, 0.70-0.98]
+   incumbent emit-everything: precision=0.11577 recall=1.0 F1=0.20752  -> delta +64.4348 pp
+S5 per-TU exact     P==E on 132/850 = 0.15529 ; P==(E n U) on 138/850 = 0.16235   [reg 0.10, 0.01-0.45]
+S6 seed density     mean |Seed|/|U| per TU = 0.04778   [reg 0.03, 0.005-0.15]
+S7 0x20 share of U  = 14664/1506586 = 0.00973 ; 0x02-mask removes 2 (0.0136%)   [reg 0.03, 0.005-0.15]
+
+Rfloor = 36228 = 20.7709% of |E|  (w-emit: 35608 = 20.4%)
+Seed per TU: mean 17.2  median 12  max 170
+closure adds over Seed: 114768 (8.83x)
+
+Seed-not-in-E: 0 instances over 850 TUs; top names:
+
+Rfloor-not-in-Seed sample (capped 12/TU); top names:
+     229  ?EaseBackInOut@@YAMMMM@Z
+     207  ??_GObjRef@@UAAPAXI@Z
+     202  ?EaseBackOutIn@@YAMMMM@Z
+     185  ?EaseBounceInOut@@YAMMMM@Z
+     168  ?EaseBounceOutIn@@YAMMMM@Z
+     159  ?ClassName@Object@Hmx@@UBA?AVSymbol@@XZ
+     150  ?EaseCircInOut@@YAMMMM@Z
+     143  ??_GMessage@@UAAPAXI@Z
+     135  ?EaseCircOutIn@@YAMMMM@Z
+     118  ?EaseElasticInOut@@YAMMMM@Z
+     103  ?EaseElasticOutIn@@YAMMMM@Z
+      86  ?EaseExpoInOut@@YAMMMM@Z
+
+KA-D instrument: recs=1506595  bound=1506586  dup_ex=4  rt_bad=0  named_bodies=1516228  ex_segments=2438781
