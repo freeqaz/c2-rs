@@ -1226,9 +1226,16 @@ python3 r56.py                          # §6.2 Rule Y2 held out, and §5.8 .tls
 ```
 
 `cap.py` is the front-end-only capture (`/Bd /d2nop`, TMP/TEMP redirected) at
-**arbitrary flags and cwd**, which `c2rs capture` cannot do — it hard-codes
-`/Ox /GS- /c` and takes neither `--flags-file` nor `--cwd`, so it cannot capture
-a real workload TU. `glparse.py` reads the `.gl` data records of §5.6.
+**arbitrary flags and cwd**. When this lane ran, `c2rs capture` could not do
+that — it hard-coded `/Ox /GS- /c` and took neither `--flags-file` nor `--cwd`,
+so it could not capture a real workload TU. **That was fixed at `6a33b4d`**
+(`cmd_capture` now honours both and prints the profile it used), so `cap.py` is
+no longer the only route; it is kept because these results were produced with
+it. The captures behind §5.6–§5.8 therefore predate the fix — see board **#194**
+for the audit, and note the failure was invisible by inspection: `.gl` and `.sy`
+come back byte-identical either way, and only the 7 per-function opt words
+differ (`0x00a00005` → `0x00200005`). `glparse.py` reads the `.gl` data records
+of §5.6.
 `glcensus.jsonl` is committed (with `git add -f`) beside `w-bss`'s
 `sections.jsonl`; no obj and no IL is committed, and the captures are front-end
 only, so nothing large is ever written.
