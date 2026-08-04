@@ -184,6 +184,130 @@ impl PortC2 {
         })
     }
 
+    /// The order the TU's functions are emitted in — **not** the `.ex` order.
+    ///
+    /// The rule and its measurements live on [`coff::plan_text_order`]; this
+    /// assembles the reference set it consumes, which is the half that needs the
+    /// IL:
+    ///
+    /// * [`c2_il::IlFunction::callees`] — every name the body branches to;
+    /// * [`c2_il::IlFunction::eh_unwind_callees`] — the `26` unwind action's
+    ///   base destructor, which **emits nothing**: no `bl`, no relocation, no
+    ///   symbol. Its own doc comment says it "contributes nothing to `callees`,
+    ///   which is what the emitter reads", and that was true of the *emitter*
+    ///   and false of the *scheduler*. `struct B{B();~B();int x;}; struct D:B
+    ///   {D();}; D::D(){} B::~B(){}` is byte-exact only if this half is included
+    ///   — with `callees()` alone the port emits `??0D` first and the obj has
+    ///   `??1B` first.
+    ///
+    /// A data symbol ([`c2_il::IlFunction::data_sym`]) is deliberately **not** a
+    /// reference here: it names a `.data`/`.bss` object, never a function, and
+    /// the TU-level gate already refuses a bundle that defines one.
+    fn plan_emit_order(funcs: &[c2_il::IlFunction]) -> Result<Vec<usize>, BackendError> {
+        let names: Vec<&str> = funcs.iter().map(|f| f.mangled_name.as_str()).collect();
+        let refs: Vec<Vec<&str>> = funcs
+            .iter()
+            .map(|f| {
+                f.callees()
+                    .chain(f.eh_unwind_callees.iter().map(|s| s.as_str()))
+                    .collect()
+            })
+            .collect();
+        coff::plan_text_order(&names, &refs).ok_or_else(|| {
+            BackendError::NotImplemented(
+                "the TU's functions reference each other in a CYCLE (mutual \
+                 recursion): c2 folds the recursion and its emission order is \
+                 not the dependency order — three probes in `work/w-order/p/g*.cpp` \
+                 disagree with every single tie-break rule, so this refuses \
+                 rather than picks one"
+                    .to_string(),
+            )
+        })
+    }
+
+    /// This function's leading label-counter surcharge — [`c2_il::IlFunction::label_lead`]
+    /// **less the `/EHsc` eh-bare slot when the unwind target is defined here
+    /// AND its body is empty**.
+    ///
+    /// `IlFunction::eh_bare`'s table charges an empty base-delegating constructor
+    /// `+1` at `/EHsc`. Every probe behind that table was a single-purpose TU in
+    /// which the base destructor was an *undefined* external, so the table holds
+    /// the axis this corrects fixed. When the `26` unwind action's target is
+    /// **defined in this TU with a bare `blr` body**, c2 has nothing to run on
+    /// the unwind path and the slot is not charged.
+    ///
+    /// Measured seed-free and in-TU against `int a0(int a){return ga(a)+1;}` as
+    /// the leading anchor (stride 4 packed), reading `first(P) - first(a0)`.
+    /// `work/w-order/p/h*.cpp`; `D` derives from `B`, so `??0D`'s unwind action
+    /// names `??1B`:
+    ///
+    /// ```text
+    ///   probe                                no /EH  /EHsc  lead   ??1B is
+    ///   h0  a0 ; D::D                            4      5     1    not defined here
+    ///   h1  a0 ; C::~C{} ; D::D                  5      6     1    "  (C is unrelated)
+    ///   h2  a0 ; C::~C{} ; E::~E{} ; D::D        6      7     1    "
+    ///   h3  a0 ; z(int) ; D::D                   5      6     1    "
+    ///   h5  a0 ; B::~B{} ; D::D                  5      5     0    defined, EMPTY
+    ///   h6  a0 ; C::~C{} ; B::~B{} ; D::D        6      6     0    defined, EMPTY
+    ///   h8  a0 ; B::~B{} ; D::D ; F::F         5,4    5,4   0,0    defined, EMPTY
+    ///   hf  a0 ; B::~B{gh();} ; D::D             5      6     1    defined, NOT empty
+    ///   hg  a0 ; M::~M{} ; D::D  (D:M:Bd)        5      7     1    defined, DELEGATES
+    /// ```
+    ///
+    /// **`hf` and `hg` are why the predicate is not just "defined here".** Both
+    /// define the target and both still pay: `hf`'s body is a tail call, `hg`'s
+    /// is the delegating `b ??1Bd`. Only a body that emits a bare `blr`
+    /// suppresses it. Reading the first table alone gives a rule that fits
+    /// `h5`/`h6`/`h8`/`h9` and turns five byte-exact objs into mismatches — it
+    /// was written that way first and the `/EHsc` gate lanes caught it.
+    ///
+    /// **It is per FUNCTION, and `h9` separates that inside one obj**: with
+    /// `??1B` defined-empty and `??1G` not defined, `D::D` (base `B`) takes lead
+    /// **0** and `H::H` (base `G`) takes lead **1**, five slots apart in the same
+    /// symbol table. `ha` swaps their source order and both leads follow their
+    /// own class, not their position. A per-TU reading fits `h5`/`h6`/`h8`
+    /// exactly as well and is wrong.
+    ///
+    /// **A destructor's own delegation target does not do this.** `hd`: `M::~M`
+    /// (eh-bare, delegating to an undefined `??1Bd`) beside an unrelated
+    /// locally-defined `Q::~Q` keeps its stride of 2. Only the constructor's
+    /// unwind action is involved, which is why this reads `eh_unwind_callees`
+    /// and not [`c2_il::IlFunction::callees`]. (`hc` — a destructor whose
+    /// delegation target is itself defined here — is a different shape entirely:
+    /// c2 inlines it, and the port already refuses.)
+    ///
+    /// A **mixed** unwind list — some targets defined-and-empty and some not —
+    /// refuses: every witness has exactly one, and splitting the slot between
+    /// them is not a measurement anyone has.
+    fn label_lead_of(
+        f: &c2_il::IlFunction,
+        funcs: &[c2_il::IlFunction],
+    ) -> Result<u32, BackendError> {
+        let lead = f.label_lead();
+        if !f.eh_bare || f.eh_unwind_callees.is_empty() {
+            return Ok(lead);
+        }
+        let local_empty = |n: &String| {
+            funcs
+                .iter()
+                .any(|g| &g.mangled_name == n && g.empty_body)
+        };
+        let here = f.eh_unwind_callees.iter().filter(|n| local_empty(n)).count();
+        if here == 0 {
+            return Ok(lead);
+        }
+        if here < f.eh_unwind_callees.len() {
+            return Err(BackendError::NotImplemented(
+                "an eh-bare constructor whose unwind actions name BOTH a \
+                 locally-defined empty destructor and one that is not: the \
+                 `/EHsc` label slot is charged for the second kind and not for \
+                 the first, and no probe measures a body that is both"
+                    .to_string(),
+            ));
+        }
+        Ok(lead - 1)
+    }
+
     /// Build the obj for `il`, embedding `obj_name` as S_OBJNAME. Handles one
     /// or more straight-line int add-chain functions in a single TU (each is
     /// selected + placed in a shared `.text`; see [`codegen::select_text`] and
@@ -288,12 +412,38 @@ impl PortC2 {
             Err(e) => return Err(e),
         };
 
+        // **The emission ORDER is not the `.ex` order** (board row X-d). c2
+        // emits a function only once every function it references *and defines*
+        // has been emitted; the port used to emit `.ex` order flat, which is a
+        // silent wrong-bytes obj whenever the source defines a callee after its
+        // caller. `coff::plan_text_order` carries the rule, the measurements and
+        // the refusal; this is where the reference set is assembled, because it
+        // is the only place that sees the IL.
+        //
+        // The set is `callees()` **plus `eh_unwind_callees`**, and the second
+        // half is the one that cannot be recovered from the obj: a constructor's
+        // `26` unwind action names the base destructor and emits no `bl`, no
+        // relocation and no symbol for it, yet it orders the two functions.
+        let order = Self::plan_emit_order(&funcs)?;
+
+        // **The `/EHsc` eh-bare surcharge is not paid when the unwind target is
+        // DEFINED here** — the second wrong-bytes emit this lane found, and it is
+        // independent of the order above (it fires on `c7_dtor_first_src.cpp`,
+        // whose emission order is already right). See [`Self::label_lead_of`].
+        let leads = funcs
+            .iter()
+            .map(|f| Self::label_lead_of(f, &funcs))
+            .collect::<Result<Vec<u32>, BackendError>>()?;
+
         // Under function-level linking every function gets its own COMDAT
         // `.text` section, so the texts are kept separate rather than packed.
+        // The order rule is the same one — measured at `/O1` too, where it
+        // decides the section table itself and not just offsets within `.text`.
         if self.fn_level_linking {
             let mut texts: Vec<Vec<u8>> = Vec::with_capacity(funcs.len());
             let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
-            for f in &funcs {
+            for &fi in &order {
+                let f = &funcs[fi];
                 let mut frame: Option<coff::Frame> = None;
                 let (text, calls) = match codegen::select_function(f, mode)? {
                     // A framed non-leaf call gets its own `.text` COMDAT like
@@ -415,7 +565,7 @@ impl PortC2 {
                 };
                 // Under `/Gy` each function starts at offset 0 of its own COMDAT.
                 let data_refs = data_refs_of(f, &text, 0)?;
-                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, calls, is_float: f.touches_floating_point(), fp_refs: Vec::new(), data_refs, frame, label_lead: f.label_lead() });
+                placed.push(coff::Function { name: &f.mangled_name, text_offset: 0, calls, is_float: f.touches_floating_point(), fp_refs: Vec::new(), data_refs, frame, label_lead: leads[fi] });
                 texts.push(text);
             }
             return Ok(ObjImage::new(coff::emit_comdat_obj(
@@ -434,7 +584,8 @@ impl PortC2 {
         // functions land at 0x0 / 0x10 / 0x20 with 4 zero bytes between.
         let mut text: Vec<u8> = Vec::new();
         let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
-        for f in &funcs {
+        for &fi in &order {
+            let f = &funcs[fi];
             while text.len() % 8 != 0 {
                 text.push(0);
             }
@@ -579,7 +730,7 @@ impl PortC2 {
                 fp_refs,
                 data_refs,
                 frame,
-                label_lead: f.label_lead(),
+                label_lead: leads[fi],
             });
         }
 
@@ -841,6 +992,87 @@ mod tests {
             data_refs_of(&plain, &p4_text(), 0).expect("no data symbol is fine").len(),
             0,
             "(k) a body with no data symbol must yield no DataRef"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // The `/EHsc` eh-bare label slot. `PortC2::label_lead_of` carries the
+    // measurement table; these pin the PREDICATE, because the rule that fits
+    // half the table ("the target is defined here") turned five byte-exact objs
+    // into mismatches before the `/EHsc` gate lanes rejected it.
+    // -----------------------------------------------------------------------
+
+    /// An eh-bare constructor whose unwind target is `??1B`.
+    fn eh_ctor(target: &str) -> c2_il::IlFunction {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = "??0D@@QAA@XZ".into();
+        f.data_sym = None;
+        f.eh_bare = true;
+        f.eh_unwind_callees = vec![target.to_string()];
+        f
+    }
+
+    /// A destructor body, empty or not.
+    fn dtor(name: &str, empty: bool) -> c2_il::IlFunction {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = name.into();
+        f.data_sym = None;
+        f.empty_body = empty;
+        if !empty {
+            f.tail_call = Some("?gh@@YAXXZ".into());
+        }
+        f
+    }
+
+    #[test]
+    fn eh_bare_lead_is_charged_when_the_unwind_target_is_external() {
+        // h0/h1/h3: `??1B` is not defined in this TU at all.
+        let ctor = eh_ctor("??1B@@QAA@XZ");
+        let funcs = vec![dtor("??1C@@QAA@XZ", true), ctor];
+        assert_eq!(
+            PortC2::label_lead_of(&funcs[1], &funcs).unwrap(),
+            1,
+            "an unrelated empty destructor must not suppress the slot"
+        );
+    }
+
+    #[test]
+    fn eh_bare_lead_is_suppressed_by_a_local_empty_unwind_target() {
+        // h5/h6/h8/h9.
+        let funcs = vec![dtor("??1B@@QAA@XZ", true), eh_ctor("??1B@@QAA@XZ")];
+        assert_eq!(PortC2::label_lead_of(&funcs[1], &funcs).unwrap(), 0);
+    }
+
+    #[test]
+    fn a_local_but_non_empty_unwind_target_still_pays() {
+        // hf and hg — the two probes that separate "defined here" from
+        // "defined here and empty". Without them the predicate above is wrong
+        // and every `M::~M(){}`-style TU regresses.
+        let funcs = vec![dtor("??1B@@QAA@XZ", false), eh_ctor("??1B@@QAA@XZ")];
+        assert_eq!(
+            PortC2::label_lead_of(&funcs[1], &funcs).unwrap(),
+            1,
+            "hf/hg: a defined target with a real body still charges the slot"
+        );
+    }
+
+    #[test]
+    fn a_function_that_is_not_eh_bare_is_untouched() {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = "??0D@@QAA@XZ".into();
+        f.data_sym = None;
+        let funcs = vec![dtor("??1B@@QAA@XZ", true), f];
+        assert_eq!(PortC2::label_lead_of(&funcs[1], &funcs).unwrap(), 0);
+    }
+
+    #[test]
+    fn a_mixed_unwind_list_refuses() {
+        let mut ctor = eh_ctor("??1B@@QAA@XZ");
+        ctor.eh_unwind_callees.push("??1G@@QAA@XZ".into());
+        let funcs = vec![dtor("??1B@@QAA@XZ", true), ctor];
+        assert!(
+            PortC2::label_lead_of(&funcs[1], &funcs).is_err(),
+            "one local-empty target and one external is unmeasured and must refuse"
         );
     }
 }
