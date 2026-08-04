@@ -701,9 +701,24 @@ The honest boundary. Read this before building on anything above.
   computed outside c2's bytes through the callback table at
   `DAT_10c44bf4…0x10c44c0c`. Pattern-matching "hash-shaped code near an emit
   site" would have produced a confident wrong address. See §6 P1.
-* **`Characteristics = 0x0180`** is read from the immediate at `0x10b2b270` and
-  was **not** cross-checked against a real corpus obj. One `xxd -l 20` settles
-  it; do that before anything depends on it.
+* ~~**`Characteristics = 0x0180`** was read from the immediate at `0x10b2b270`
+  and never cross-checked.~~ **Now checked — and it holds.** Two real objs
+  produced by the live toolchain:
+
+  ```
+  probe.obj  f201 0b00 8f5c 716a c003 0000 2200 0000  0000 8001
+  n6.obj     f201 0d00 945c 716a 7c06 0000 3600 0000  0000 8001
+             ^^^^                                     ^^^^ ^^^^
+             Machine 0x01F2                           SizeOfOptionalHeader 0
+             = POWERPCFP                                   Characteristics 0x0180
+  ```
+
+  All three static reads confirmed against real output: `Machine = 0x01F2`
+  (`IMAGE_FILE_MACHINE_POWERPCFP`, so the non-LTCG branch of `FUN_10b28586` is
+  the one taken), `SizeOfOptionalHeader = 0`, and
+  `Characteristics = 0x0180` = `IMAGE_FILE_32BIT_MACHINE | 0x0080`. A
+  disassembly hypothesis promoted to an observation of the compiler's actual
+  I/O, which is the only kind of evidence this project accepts.
 * **`color.c` is the register allocator** and is deliberately **not mapped**.
   There is Ghidra+LLM first-draft Rust of a COLOR allocator under
   `crates/c2-core/src/paint/` — scaffolding, gitignored, explicitly **not
