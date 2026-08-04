@@ -368,11 +368,57 @@ lengths:
 > dyninit one.
 
 Mechanism: no initializer → **eager**, allocated as the record streams past
-(`10b9b161`/`10b9b6a4` → `10c27b56` → bump allocator `10c2757d`, align 8 with a
-`+(8−size)` fixup for sizes 1/2/4). Has one → **deferred**, head-inserted onto
-`DAT_10c2f064` and drained head-first by `10b99093`. Head insert + head-first
-drain = reversal. The first-touch flag `0x800` in `10c27b56` is why the two
-groups never interleave.
+(`10b9b161`/`10b9b6a4` → `10c27b56` → the bump allocator at `10c2757d`). Has one
+→ **deferred**, head-inserted onto `DAT_10c2f064` and drained head-first by
+`10b99093`. Head insert + head-first drain = reversal. The first-touch flag
+`0x800` in `10c27b56` is why the two groups never interleave.
+
+> **Independently confirmed by lane w-bss, black-box, from the IL alone.**
+> Reaching the same mechanism by a route that never opened a disassembler —
+> across 6 cells, 4 declaration-order permutations, and N = 1…10 in three
+> families — makes the reversal rule the best-supported claim in this document.
+> w-bss adds that the ordering keys on the **source identifier** (static and
+> extern give identical orders), not on declaration order, linkage, type or
+> position; and that `.data` is declaration order and does not permute. Its own
+> 7 452-configuration hash search also returned nothing (best score 0.08 against
+> a 0.03 baseline), with the right diagnosis: it was fitting a **c2** hash to a
+> **c1xx** artefact. **Two independent routes to the same mechanism is the
+> strongest evidence this project produces.**
+
+### 3D-bis. The bump rule — **RETRACTED**, and it is the lane's best calibration datum
+
+An earlier revision of this file stated the `.bss` offset rule as *"align 8,
+then `+(8−size)` for sizes 1/2/4"*, read straight out of `FUN_10c2757d`:
+
+```
+cur = (cur + 7) & ~7;
+if (size - 1 < 7 && (size & (size - 1)) == 0) cur += 8 - size;
+cur += size;
+```
+
+**That rule does not reproduce the real objs.** Lane w-bss §5.5 records the
+counterexample. The resolution on this project is not negotiable and is applied
+here without argument: **the obj is the sole judge.** A rule read off the
+disassembly that disagrees with what c2 actually emitted is wrong, however clean
+the code looked — and this one looked very clean, which is exactly the problem.
+
+The claim is withdrawn. What replaces it is **`unknown`**, pending an obj-checked
+derivation.
+
+**Why it failed is itself worth determining**, and there are three candidate
+explanations, none yet distinguished:
+
+1. **The path is not the one these inputs take.** `10c27b56` has seven callers;
+   the read assumed the streaming one.
+2. **A guard was not modelled.** The `0x800` first-touch flag and `sym[0xC]`
+   short-circuit both gate entry, and neither was varied.
+3. **A later pass rewrites the result.** Section-relative offsets are assigned
+   before `FUN_10b287b8` assigns section indices; something downstream may
+   re-lay-out.
+
+Determining which would be genuinely valuable, because it says how much of this
+binary's *apparent* logic is actually reachable on real inputs — and that
+generalises well beyond `.bss`.
 
 **The residual permutation is the front end's.** The `.gl` order for N=6 is
 `s2 s1 | s5 s3 | s4 | s6` — stable groups `{s1,s2}`, `{s3,s5}` each emitted
@@ -549,6 +595,41 @@ method used here was first run against facts already known from the black box �
 the controls in §6 — and its hit rate reported before any label it produced was
 published. A map with 4000 confidently-wrong labels is strictly worse than no
 map, because every agent downstream builds on it.
+
+### 5.1 Calibration — what `high` is actually worth
+
+The confidence column is only meaningful if we know its error rate. We now have
+one hard measurement of it, and it is sobering.
+
+**The `.bss` bump rule (§3D-bis) was marked `high`, was read at instruction
+level from a clean and complete-looking function, and is WRONG** — it fails
+against real objs. It was not a guess, not a pattern match, and not a shaky
+inference. It was the *good* kind of white-box finding, and it still did not
+survive contact with the compiler's actual output.
+
+That gives the following calibration, which readers should apply to every row in
+this document:
+
+| claim class | track record | how far to trust it |
+|---|---|---|
+| **white-box read, obj-checked** | COFF header immediates (§7.3) — 3/3 held | as good as a fact |
+| **white-box read, oracle-checked another way** | emit predicate, `.bss` reversal (two independent routes) | strong |
+| **white-box read, NOT obj-checked** | `.bss` bump rule — **1 known failure** | **hypothesis only, regardless of the `high` label** |
+| **absence claims with a controlled search** | JamCRC (§6 P1) — method verified against known-present constants | strong |
+| **range attribution, in-anchor** | controls 3/4, two landing on anchor addresses | strong |
+| **range attribution, in-gap** | c2's string hash mis-attributable to `misc.c` | hypothesis only |
+
+**The operative lesson: `high` in this table means "high confidence in the
+reading of the instructions", NOT "high confidence that this is what c2 does."**
+Those are different propositions and the `.bss` rule is the proof that they come
+apart. A function can be present, correct-looking, fully decompiled, and simply
+**not on the path your inputs take** — or guarded by a condition you did not
+vary, or overwritten downstream.
+
+Anything from this directory that is about to influence code should be
+obj-checked first. That is cheap — the oracle is `wibo cl.exe` and a byte
+compare — and this document now contains a worked example of what it costs to
+skip it.
 
 <!-- CONTROLS-START -->
 ---

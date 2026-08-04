@@ -164,3 +164,72 @@ interpretive.
 
 See the table in [`C2_MAP.md`](C2_MAP.md) §Controls for the scored results and
 the hit rate. Misses are reported as misses.
+
+## 7. A worked example: a white-box finding failing a black-box check
+
+This is the most useful page in this document. Read it before trusting anything
+in `docs/whitebox/`.
+
+### What happened
+
+A child needed the rule that assigns `.bss` offsets. It found `FUN_10c2757d`, a
+short, complete, unambiguous bump allocator, and read it at instruction level:
+
+```
+cur = (cur + 7) & ~7;                                   /* align 8            */
+if (size - 1 < 7 && (size & (size - 1)) == 0)
+        cur += 8 - size;                                /* right-justify 1/2/4 */
+cur += size;
+```
+
+There is nothing wrong with the reading. The function does that. It was
+published as `high` confidence, and it was **wrong about c2**: lane w-bss, which
+was attacking the same question from the outside, found real objs that the rule
+does not reproduce (its §5.5).
+
+### The resolution, which is not negotiable
+
+**The obj is the sole judge.** A rule read off the disassembly that disagrees
+with what c2 actually emitted is wrong, however clean the code looked. The claim
+was retracted to `unknown` ([`C2_MAP.md`](C2_MAP.md) §3D-bis) rather than
+defended or hedged.
+
+### Why this is the important case
+
+It would be comfortable if the failure had been a sloppy inference — a pattern
+match, a guessed name, a "looks like a hash". It was not. It was the *best* kind
+of static finding: a small function, fully decompiled, read correctly. **And it
+still did not survive.** The three live candidate explanations are all mundane
+and all invisible from the disassembly alone:
+
+1. the code path read is **not the one real inputs take** (`10c27b56` has seven
+   callers);
+2. a **guard was not modelled** (the `0x800` first-touch flag, the `sym[0xC]`
+   short-circuit);
+3. a **later pass rewrites** the result.
+
+### The rule this establishes for the directory
+
+> **`high` confidence means "I read the instructions correctly". It does not
+> mean "this is what c2 does."**
+
+Those two propositions come apart, and a static analysis cannot tell you when.
+Only the oracle can. So:
+
+* **Anything from `docs/whitebox/` that is about to influence code must be
+  obj-checked first.** The check is cheap — `wibo cl.exe` plus a byte compare —
+  and this directory now contains a priced example of skipping it.
+* A white-box finding that has been **confirmed by an independent route** (the
+  `.bss` *reversal* rule, reached separately by w-bss from the IL alone; the
+  COFF header immediates, checked against two real objs) is in a different and
+  much stronger category. Prefer those.
+* When a white-box reading and an obj disagree, **do not look for a way to keep
+  the reading.** Retract it, then treat *why it failed* as the interesting
+  question — it tells you how much of the binary's apparent logic is actually
+  reachable, which generalises far beyond the original question.
+
+This episode is also why [`DISCLOSURE.md`](DISCLOSURE.md) requires the
+alternative to be tried first: if a fact can be established by a black-box
+experiment, run that and adopt *it*, because the oracle is cheap and the
+clean-room claim is not — and, as it turns out, the oracle is also **more
+likely to be right**.
