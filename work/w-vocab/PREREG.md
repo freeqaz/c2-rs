@@ -101,3 +101,26 @@ capturing N ≥ 20:
 * **P4c** a burner with a different type cost changes the stride and moves the
   flip to `N = floor(0xFE / stride) + 1`, checked on a second and third burner
   kind.
+
+## 6. P7 — registered after burn/burn2/burn3, before the next two sweeps
+
+`burn` (a struct **and** a `static int w(T*)` using it) gives stride **4** and a
+flip at exactly N = 64. `burn2` (`struct S{int x;}; S g;`) and `burn3` (an enum
+and a global) give stride **0** over 91 cells each: 90 distinct declared user
+types move the field by **nothing**.
+
+So *"the field is a CodeView type index, and it leaves the window after ~64
+distinct types"* is **too strong as stated**. The counter is advanced by
+something a **function declaration** mints, not by a type declaration. Before
+running the next two sweeps:
+
+* **P7a** `fnsame` — `static int q<i>(int a){return a+<i>;}` × N, all with the
+  identical signature `int(int)` — has stride **0**: the second and later
+  functions reuse the arglist and procedure the first minted.
+* **P7b** `fnargs` — `static int r<i>(int a0, …, int a<i>)`, a *distinct arity*
+  per burner and no new struct — has stride **2** (one arglist, one procedure)
+  and therefore flips at `N = floor(0xFE/2) + 1 = 128`.
+* **P7c** the `/Z7` cross-check: `?f@@YAHH@Z`'s `.gl` field equals the
+  `S_GPROC32` type index the obj carries for the same name, and `.debug$T` at
+  that index is an `LF_PROCEDURE`. If it does not, the field is a c1xx-internal
+  number that behaves like a type index without being one, and the rung says so.
