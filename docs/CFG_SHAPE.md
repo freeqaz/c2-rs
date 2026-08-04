@@ -1197,15 +1197,27 @@ would close it**, and **whether it blocks the step-1 rung** of §5.2.
 
 ### 8.4 Stated limitations of the instrument
 
-* **Flag exposure, bounded but not eliminated.** `c2rs capture` hardcodes
-  `/Ox /GS- /c` and ignores flags (`crates/c2-reference/src/lib.rs:465`); only
-  `capture_il_with` takes them and no CLI path reaches it. Every `.ex` quoted
-  here was captured through `c2rs census --flags-file`, and §10.1's control
-  shows the on-disk bundle reproduces byte-for-byte from that path while the
-  `/Ox` capture differs. **That bounds the exposure for this lane's measurements.
-  It clears no other lane's captures**, and any earlier document that captured IL
-  via `c2rs capture` and compared it against `/O1` objs is cross-flag and should
-  be re-checked by whoever owns it.
+* **Flag exposure, bounded by measurement rather than by the fix.** At the time
+  this lane's captures were taken, `c2rs capture` hardcoded `/Ox /GS- /c` and
+  scanned its arguments with a `position(|a| a == "--keep-il")` that ignored
+  every other one by construction — so `--flags-file` was accepted and silently
+  dropped. **This lane ran against that binary.** Every `.ex` quoted here was
+  therefore captured through `c2rs census --flags-file`, which did honour flags,
+  and §10.1's control confirms it: the on-disk bundle reproduces byte-for-byte
+  from the `census` path while the `capture` bundle differs.
+
+  The instrument has since been repaired on `master` (`6a33b4d`, *"c2rs capture:
+  honour `--flags-file`, and pin the dropped-flag failure mode"* — `capture` now
+  takes `--flags-file`/`--cwd`, refuses unknown options instead of scanning past
+  them, prints the profile it used, and the hardcoded list is the published
+  `CAPTURE_IL_DEFAULT_FLAGS`). That commit landed **after** these measurements,
+  so it neither validates nor invalidates them; the control does, and the control
+  is why this document did not need to wait for the fix.
+
+  **The control bounds this lane's measurements only. It clears no other lane's
+  captures.** Any earlier document that captured IL via `c2rs capture` and read
+  it against `/O1` objs is cross-flag, and — per that commit's own finding, that
+  `/Ox` does not imply `/GF` — should be re-checked by whoever owns it.
 * **All objs were built at the probe flags, not the workload flags, for the
   probes.** The probe flags (§10.1) are the workload's minus its `/I` include
   paths, which no probe needs. The two frontier TUs *were* built at the full
@@ -1235,7 +1247,7 @@ Not written to `docs/BOARD.md` — this lane does not own it. w-front proposed
 | 191 | Intra-section and external branches use **the same opcode with different encodings** | **OPEN** | §3.3. `48000008` (true displacement, no relocation) vs `4bffffec` (section-start placeholder + `REL24`). A fixup pass that treats every `b` alike corrupts one of the two. |
 | 192 | The epilogue block is emitted **even when unreachable** | **OPEN** | §3.6. `b_if`, `b_and`, `b_or` each end in a dead `4e800020` because every edge into it folded to a `bclr`. It is four real bytes and it is in the section size. |
 | 193 | Block order is IL statement order — with one measured refutation | **OPEN** | §3.4 / §3.4.1. Holds in 10 of 11 cells; `d_join` tail-merges two identical `bl` sites, empties the then-block and inverts the layout. Block order is downstream of code motion, so **a body whose arms end in the same call is out of any class specified here**. |
-| 194 | `c2rs capture` hardcodes `/Ox` and silently ignores flags | **OPEN** (lane w-land) | `crates/c2-reference/src/lib.rs:465`; only `capture_il_with` takes flags and no CLI path reaches it. The `.ex` differs between `/Ox` and `/O1` in exactly the per-function opt words (§2.4), so a cross-flag capture looks correct on the IL side and is wrong only on the obj side. This lane's exposure is closed by the §10.1 control; **other lanes' captures are not**. |
+| 194 | `c2rs capture` silently dropped `--flags-file` and captured at `/Ox` | **FIXED** on `master` at `6a33b4d`; the **audit is OPEN** | The instrument is repaired (`capture` takes `--flags-file`/`--cwd` and refuses unknown options). What is *not* done is the back-audit: the `.ex` differs between `/Ox` and `/O1` in exactly the per-function opt words (§2.4) and `.gl`/`.sy` not at all, so a cross-flag capture **looks correct on the IL side and is wrong only on the obj side**. Every document that captured IL via `c2rs capture` before `6a33b4d` and read it against `/O1` objs needs re-checking by its owner. This lane is clear by the §10.1 control, which was run against the *pre-fix* binary. |
 
 ## 10. Reproducing this
 
