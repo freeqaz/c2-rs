@@ -106,7 +106,8 @@ def main(argv):
         mode = argv[i + 1]
         del argv[i:i + 2]
     want = [a for a in argv[1:] if not a.startswith("--")]
-    probes = [p for p in cflabels.PROBES if not want or p[0] in want]
+    pool = cflabels.PROBES + cflabels.HELDOUT if "--heldout" in argv else cflabels.PROBES
+    probes = [p for p in pool if not want or p[0] in want]
 
     print("mode: %s" % mode)
     print("`sur` = stride - base_stride - (minted - 5), i.e. the surcharge with")

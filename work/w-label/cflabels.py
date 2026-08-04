@@ -148,10 +148,55 @@ PROBES = [
      "3 SPARSE arms -- a compare chain, not a table"),
 ]
 
+# ---------------------------------------------------------------------------
+# HELD OUT. These were named in `work/w-label/PREREG.md` §3.3 prediction **L6**
+# and committed before they were run. L6 registers that §1.4's boundary --
+# "forward-only is necessary, and inside it the only charging shapes are
+# §3.4.1's code-motion ones" -- survives cells chosen to break it, and that the
+# refuted "interior join" rule is not rescued by any of them.
+#
+# The last two are not about L6: they price the shape `calls.rs:415` refuses by
+# name (a guarded call and a guarded early return in one body, which w-conv
+# measured c2 as composing) so the next lane has its counter cost before it
+# starts rather than after.
+HELDOUT = [
+    ("ho-if4", DECL, [],
+     "int P(int a,int b,int c,int d){ if (a) return 5; if (b) return 11;"
+     " if (c) return 22; if (d) return 33; gp(a); return 0; }",
+     "FOUR forward guards, four distinct literals -- L6 says +0"),
+    ("ho-if-nested", DECL, [],
+     "int P(int a,int b){ if (a) { if (b) return 5; return 11; } gp(a); return 0; }",
+     "NESTED forward guards -- L6 says +0"),
+    ("ho-ternary", DECL, [],
+     "int P(int a,int b){ return gp(a ? b : b + 1) + 1; }",
+     "a ternary in an argument -- forward only, L6 says +0"),
+    ("ho-and", DECL, [],
+     "int P(int a,int b){ if (a && b) return 5; gp(a); return 0; }",
+     "short-circuit && -- two compares, one arm, forward only, L6 says +0"),
+    ("ho-or", DECL, [],
+     "int P(int a,int b){ if (a || b) return 5; gp(a); return 0; }",
+     "short-circuit || -- the second test is the JOIN case; L6 is at risk here"),
+    ("ho-void-2guard", DECL, [],
+     "void P(int a,int b){ if (a) return; if (b) return; gp(a); gp(b); }",
+     "two VOID guards over two calls -- W11's in-class void shape, L6 says +0"),
+    ("ho-arm-call", DECL, [],
+     "int P(int a,int b){ if (a) { gp(b); return 5; } gp(a); return 0; }",
+     "a guard whose ARM contains a call -- forward only, L6 says +0"),
+    # --- not L6: pricing the composition `calls.rs:415` refuses --------------
+    ("ho-compose", DECL, [],
+     "int P(int a,int b,int c){ if (a) return 5; if (b) gp(b); gp(c); return 0; }",
+     "a guarded EARLY RETURN and a guarded CALL in one body -- `calls.rs:415`"
+     " refuses this and w-conv measured c2 composing it"),
+    ("ho-compose2", DECL, [],
+     "int P(int a,int b,int c){ if (a) return 5; if (b) return 11;"
+     " if (c) gp(c); gp(a); return 0; }",
+     "the same with TWO early returns ahead of the guarded call"),
+]
+
 
 def main(argv):
     if "--list" in argv:
-        for p in PROBES:
+        for p in PROBES + HELDOUT:
             print("%-20s %s" % (p[0], p[4]))
         return 0
     mode = "/O1 /GS- /c"
@@ -160,7 +205,8 @@ def main(argv):
         mode = argv[i + 1]
         del argv[i:i + 2]
     want = [a for a in argv[1:] if not a.startswith("--")]
-    probes = [p for p in PROBES if not want or p[0] in want]
+    pool = PROBES + HELDOUT if "--heldout" in argv else PROBES
+    probes = [p for p in pool if not want or p[0] in want]
 
     print("mode: %s" % mode)
     print("anchors: 3x plain Class-A framed; `control` is the anchor base "

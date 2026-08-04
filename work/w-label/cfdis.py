@@ -30,7 +30,7 @@ def main(argv):
         del argv[i:i + 2]
     want = [a for a in argv[1:] if not a.startswith("--")]
     wd = tempfile.mkdtemp(prefix="cfdis")
-    for p in cflabels.PROBES:
+    for p in cflabels.PROBES + cflabels.HELDOUT:
         if want and p[0] not in want:
             continue
         o = G.capture(G.build_src(p[1], p[2], p[3]), mode, wd,
