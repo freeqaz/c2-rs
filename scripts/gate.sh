@@ -77,18 +77,27 @@
 #     sampled run **cannot print an unqualified PASS** — the verdict reads
 #     `GATE: PASS (SWEEP SAMPLED)` and says what it did not establish, exactly as
 #     `GATE: SKIPPED` does. The sample is a STRIDE across the sorted case list, not
-#     a prefix: `head -n` would have taken the alphabetically first fragments only,
-#     and #232 lives at case ~8,000 of 14,484.
+#     a prefix. Measured: a 400-case budget reaches **1 of 47 fragments** as a
+#     prefix and **46 of 47** as a stride, and #232's case is **line 9,538 of
+#     14,484** — a prefix cheap enough to want was blind to it by construction.
 #   * The sweep grades the SAME PINNED BINARY as the lanes (`C2RS_BIN`), so the
 #     table is one run of one binary rather than two runs that might not be.
 #   * `C2RS_SWEEP_ONLY` is unset for the gate's run. It filters fragments and makes
 #     the total meaningless by design; a gate over a filtered corpus is not a gate.
 #
-# COST, measured on this box (32 cores, warm capture cache): the 12 lanes are ~6 s
-# cold; the sweep is ~17 min serial and **~2 min at `--jobs 8`**, because every
-# case is an independent `c2rs diff` and the sweep's loop was serial for no reason.
-# Parallelising it is what makes "unconditional" affordable — the trade-off was
-# resolved by removing the cost, not by making the check optional.
+# COST, measured on this box 2026-08-04 (32 cores, warm capture cache), and it is
+# the whole basis of the "unconditional" decision:
+#
+#     12 lanes alone, --jobs 8                      7 s
+#     sweep alone, serial (as it was written)   9 min 51 s
+#     sweep alone, --jobs 8                     1 min 26 s
+#     THIS GATE, --jobs 8                       1 min 34 s
+#
+# Both sweep runs printed `checked=14484 mismatches=0` — the parallel split is an
+# equivalence, not an approximation. Every case is an independent `c2rs diff` and
+# the loop was serial for no reason. **Parallelising it is what makes
+# "unconditional" affordable: the trade-off was resolved by removing the cost, not
+# by making the check optional.**
 #
 # ---- usage ---------------------------------------------------------------------
 #

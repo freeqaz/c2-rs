@@ -52,16 +52,19 @@
 # ---- `max-cases` is a STRIDE, not a prefix (changed 2026-08-04) ----------------
 #
 # It used to be `head -n N` over `cases.txt`, which is sorted by fragment name — so
-# a "quick subset" was **the alphabetically first fragments and nothing else**. On
-# today's corpus `62-ctor-base-delegation` is case ~8,000 of 14,484, so **every
-# subset small enough to be quick was structurally blind to board #232**, the live
-# `Port=Mismatch` this sweep found. A biased sample of an enumeration defeats the
+# a "quick subset" was **the alphabetically first fragments and nothing else**.
+# Measured on today's corpus: `head -400` covers **1 of the 47 fragments**, and the
+# case that carried board #232 — the live `Port=Mismatch` this sweep found — is
+# **line 9,538 of 14,484**. So every prefix under 66 % of the corpus, i.e. every
+# subset small enough to be worth taking, was STRUCTURALLY BLIND to it. A biased sample of an enumeration defeats the
 # only property the enumeration has (`docs/GAPS.md`: a hand-picked corpus is
 # biased toward the shapes whoever picked it was thinking about — and a prefix of
 # a sorted list is hand-picked by the sort).
 #
 # So `N` now selects every `ceil(total/N)`-th case, which keeps every fragment
-# represented in proportion. It is still a sample and still cannot establish what
+# represented in proportion: the same budget of 400 reaches **46 of 47** fragments
+# (the missing one, `52-callee-name`, is smaller than the stride — a sample is
+# still a sample, and this is the honest count, not "all of them"). It is still a sample and still cannot establish what
 # a full run establishes; `scripts/gate.sh` therefore refuses to print an
 # unqualified PASS over one.
 #
@@ -69,13 +72,16 @@
 #
 # Each case is an independent `c2rs diff`; nothing is shared but the capture cache,
 # which has been cross-process safe since board #181 (an `O_EXCL` lockfile per key,
-# fail-open). Serial, 14,484 cases cost ~17 min on a warm cache here — which is the
-# whole reason the biased `max-cases` knob existed, and the whole reason this sweep
-# was not in the merge gate while #232 survived 241 commits. At `C2RS_SWEEP_JOBS=8`
-# it is ~2 min, which is affordable unconditionally, so the cost argument for
-# leaving it out is spent. Workers write per-worker count and mismatch files and the
-# driver SUMS THE COUNTS: a worker that dies contributes a short count and the
-# reconciliation below fails, rather than contributing silence that reads as zero.
+# fail-open). MEASURED here 2026-08-04, 14,484 cases, warm cache, 32-core host —
+# **9 min 51 s serial, 1 min 26 s at `C2RS_SWEEP_JOBS=8`**, with `checked=14484
+# mismatches=0` from both. That cost is the whole reason the biased `max-cases`
+# knob existed and the whole reason this sweep was not in the merge gate while
+# #232 survived 241 commits; at 8 jobs it is affordable unconditionally, so the
+# argument for leaving it out is spent.
+#
+# Workers write per-worker count and mismatch files and the driver SUMS THE COUNTS:
+# a worker that dies contributes a short count and the reconciliation below fails,
+# rather than contributing a silence that reads as zero.
 #
 # Needs the toolchain (see CLAUDE.md); without it every case reports SKIP and the
 # sweep is vacuous, so it checks for that up front.
