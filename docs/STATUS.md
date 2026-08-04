@@ -272,7 +272,13 @@ misleading without them.
    and both class axes are unaffected** — it is a labelling defect, so the
    rankings built on it stand.
 
-7. **micro-F1 and per-TU exact are DECOUPLED — the leading indicator does not
+7. **The mode caveat is resolved, but know that it existed.** Fixture numbers are
+   captured at `/Ox`; the 878-TU workload compiles `/O1`. The port now reads the
+   per-function optimization word and refuses anything unmodeled, `/O1` is a
+   supported target, and `scripts/gate.sh` runs 12 enumerated lanes crossing the
+   optimization and `/EHsc` axes. Numerator and denominator now speak the same
+   modes.
+8. **micro-F1 and per-TU exact are DECOUPLED — the leading indicator does not
    lead.** Six lanes in one day optimized the emit-set model's micro-F1. `w-db`
    moved code micro-F1 **0.85260 → 0.92655** — **+7.395 pp**, closing 47.4 % of
    the gap to the oracle ceiling — and **per-TU exact stayed at 132 of 850, name
@@ -286,12 +292,6 @@ misleading without them.
    model of the wrong quantity, which is harder to notice and was noticed only
    because the lane printed the per-TU set by name instead of by count.
 
-8. **The mode caveat is resolved, but know that it existed.** Fixture numbers are
-   captured at `/Ox`; the 878-TU workload compiles `/O1`. The port now reads the
-   per-function optimization word and refuses anything unmodeled, `/O1` is a
-   supported target, and `scripts/gate.sh` runs 12 enumerated lanes crossing the
-   optimization and `/EHsc` axes. Numerator and denominator now speak the same
-   modes.
 
 ---
 
