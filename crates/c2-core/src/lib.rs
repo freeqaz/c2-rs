@@ -994,4 +994,85 @@ mod tests {
             "(k) a body with no data symbol must yield no DataRef"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // The `/EHsc` eh-bare label slot. `PortC2::label_lead_of` carries the
+    // measurement table; these pin the PREDICATE, because the rule that fits
+    // half the table ("the target is defined here") turned five byte-exact objs
+    // into mismatches before the `/EHsc` gate lanes rejected it.
+    // -----------------------------------------------------------------------
+
+    /// An eh-bare constructor whose unwind target is `??1B`.
+    fn eh_ctor(target: &str) -> c2_il::IlFunction {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = "??0D@@QAA@XZ".into();
+        f.data_sym = None;
+        f.eh_bare = true;
+        f.eh_unwind_callees = vec![target.to_string()];
+        f
+    }
+
+    /// A destructor body, empty or not.
+    fn dtor(name: &str, empty: bool) -> c2_il::IlFunction {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = name.into();
+        f.data_sym = None;
+        f.empty_body = empty;
+        if !empty {
+            f.tail_call = Some("?gh@@YAXXZ".into());
+        }
+        f
+    }
+
+    #[test]
+    fn eh_bare_lead_is_charged_when_the_unwind_target_is_external() {
+        // h0/h1/h3: `??1B` is not defined in this TU at all.
+        let ctor = eh_ctor("??1B@@QAA@XZ");
+        let funcs = vec![dtor("??1C@@QAA@XZ", true), ctor];
+        assert_eq!(
+            PortC2::label_lead_of(&funcs[1], &funcs).unwrap(),
+            1,
+            "an unrelated empty destructor must not suppress the slot"
+        );
+    }
+
+    #[test]
+    fn eh_bare_lead_is_suppressed_by_a_local_empty_unwind_target() {
+        // h5/h6/h8/h9.
+        let funcs = vec![dtor("??1B@@QAA@XZ", true), eh_ctor("??1B@@QAA@XZ")];
+        assert_eq!(PortC2::label_lead_of(&funcs[1], &funcs).unwrap(), 0);
+    }
+
+    #[test]
+    fn a_local_but_non_empty_unwind_target_still_pays() {
+        // hf and hg — the two probes that separate "defined here" from
+        // "defined here and empty". Without them the predicate above is wrong
+        // and every `M::~M(){}`-style TU regresses.
+        let funcs = vec![dtor("??1B@@QAA@XZ", false), eh_ctor("??1B@@QAA@XZ")];
+        assert_eq!(
+            PortC2::label_lead_of(&funcs[1], &funcs).unwrap(),
+            1,
+            "hf/hg: a defined target with a real body still charges the slot"
+        );
+    }
+
+    #[test]
+    fn a_function_that_is_not_eh_bare_is_untouched() {
+        let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
+        f.mangled_name = "??0D@@QAA@XZ".into();
+        f.data_sym = None;
+        let funcs = vec![dtor("??1B@@QAA@XZ", true), f];
+        assert_eq!(PortC2::label_lead_of(&funcs[1], &funcs).unwrap(), 0);
+    }
+
+    #[test]
+    fn a_mixed_unwind_list_refuses() {
+        let mut ctor = eh_ctor("??1B@@QAA@XZ");
+        ctor.eh_unwind_callees.push("??1G@@QAA@XZ".into());
+        let funcs = vec![dtor("??1B@@QAA@XZ", true), ctor];
+        assert!(
+            PortC2::label_lead_of(&funcs[1], &funcs).is_err(),
+            "one local-empty target and one external is unmeasured and must refuse"
+        );
+    }
 }
