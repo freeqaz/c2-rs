@@ -56,6 +56,7 @@ THE BODY-DECODE BOUND (independent of every binding question)
   TUs with at least one `4F 1F` segment and ZERO out-of-class bodies: 3
   TUs with no `4F 1F` segment at all (the empty-module shape):        5
   => no reader repair can take `functions()` past 8 TUs, ever.
+  SET IDENTITY (not just the count): ceiling 8 · decoding 8 · in ceiling only [] · decoding only []
 
 FRAMING ARITY over the captured TUs
   `.gl` records the gate's framing sees: 28996

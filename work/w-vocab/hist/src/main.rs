@@ -292,6 +292,29 @@ fn report(rows: &[Row]) {
         "  => no reader repair can take `functions()` past {} TUs, ever.",
         all_bodies_ok + empty_ex
     );
+    // …and that bound is only interesting if it is the SAME SET as the TUs that
+    // already decode. Two counts that happen to be equal are not one fact
+    // (`docs/STATUS.md` trap 4), so this compares the sets by name.
+    let ceiling_set: Vec<&str> = captured
+        .iter()
+        .filter(|r| r.d.bodies_out_of_class == 0)
+        .map(|r| r.src.as_str())
+        .collect();
+    let decode_set: Vec<&str> = captured
+        .iter()
+        .filter(|r| r.d.decodes)
+        .map(|r| r.src.as_str())
+        .collect();
+    let only_ceiling: Vec<&&str> = ceiling_set.iter().filter(|s| !decode_set.contains(s)).collect();
+    let only_decode: Vec<&&str> = decode_set.iter().filter(|s| !ceiling_set.contains(s)).collect();
+    println!(
+        "  SET IDENTITY (not just the count): ceiling {} · decoding {} · \
+         in ceiling only {:?} · decoding only {:?}",
+        ceiling_set.len(),
+        decode_set.len(),
+        only_ceiling,
+        only_decode
+    );
 
     // ── record-count spread, the arity axis of the two framings ───────────
     let (mut g, mut w) = (0usize, 0usize);
