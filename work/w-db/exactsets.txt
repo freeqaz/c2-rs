@@ -1,0 +1,9 @@
+RGL 132  ORACLE 151  JFP 132  JFP_C1 132
+JFP superset of RGL? True ; gained 0 ; LOST 0
+ORACLE superset of RGL? True
+JFP subset of ORACLE? True ; JFP-only 0
+lost by JFP: []
+gained by JFP: []
+DATA exact: JFP 0  JFP_C1 42 ; superset True
+JFP code false positives: 152 of 150833 predictions
+JFP_C1 data false positives: 734 of 40046

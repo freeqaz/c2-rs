@@ -1,0 +1,35 @@
+     src/system/synth/SynthSample.cpp  ['$LN12']
+     src/system/synth_xbox/FxSendMeterEffect.cpp  ['$LN12']
+     src/system/synth_xbox/soundtouch/source/SoundStretch/WavFile.cpp  ['$LN36', '$LN67', '$LN35', '$LN48']
+     src/system/ui/CheatProvider.cpp  ['$LN12']
+     src/system/ui/InlineHelp.cpp  ['$LN12', '$LN12']
+     src/system/ui/UILabel.cpp  ['$LN14']
+     src/system/utl/Cache_Xbox.cpp  ['$LN12']
+     src/system/utl/Cheats.cpp  ['$LN89', '$LN14']
+     src/system/utl/MemMgr.cpp  ['$LN16']
+     src/system/utl/MemTracker.cpp  ['$LN8']
+     src/system/utl/SongInfoCopy.cpp  ['$LN16', '$LN8']
+     src/system/utl/Str.cpp  ['$LN16']
+     src/system/utl/WaveFile.cpp  ['$LN12', '$LN12', '$LN12', '$LN23']
+     src/system/world/CameraManager.cpp  ['$LN12', '$LN12', '$LN8']
+     src/system/world/CameraShot.cpp  ['$LN8', '$LN12', '$LN12', '$LN12', '$LN12', '$LN23']
+     src/system/world/ColorPalette.cpp  ['$LN89']
+     src/system/world/Crowd.cpp  ['$LN8', '$LN8', '$LN8', '$LN36', '$LN89', '$LN69']
+     src/system/world/Dir.cpp  ['$LN16']
+     src/system/world/LightPreset.cpp  ['$LN8', '$LN8', '$LN8', '$LN8', '$LN8', '$LN8']
+     src/system/world/Spotlight.cpp  ['$LN12']
+     src/system/world/SpotlightDrawer.cpp  ['$LN89']
+     src/system/world/SpotlightDrawer_NG.cpp  ['$LN89']
+-- TOT  totality: residue 0 entities over 850 TUs ; unclaimed COMDAT sections 0
+-- AR   arity: A1 records!=nsym on 0 TUs ; A2 aux mismatch on 0 ; A3 unresolved long name on 0
+        totals: records 1534428 = entities 1147426 + aux 387002 ; long-name bytes 22035337
+-- AGREE code COMDAT leaders vs w-emit truth: 850/850 agree, 0 disagree, 0 without truth
+        (.text-prefix rule agrees with the characteristic rule on 850/850)
+
+-- KA-DUP is run separately by dupcheck.py (it needs every entry, not the chosen one)
+
+-- KA-POS  TUs carrying at least one defined DATA symbol: 850/850
+           defined symbols  |D_all| 685848   |D_data| 232156   |D_lead| 205808   |E| 174417
+           section names over the corpus: [('.XBLD$W', 850), ('.debug$S', 850), ('.drectve', 850), ('.text', 842), ('.pdata', 828), ('.rdata', 826), ('.data', 736), ('.bss', 675), ('.rdata$r', 662), ('.text$yd', 238), ('.CRT$XCU', 124), ('.text$yc', 124), ('.xdata$x', 66)]
+
+DONE
