@@ -345,6 +345,49 @@ pub struct TuResult {
 /// copy.
 use c2_core::coff::PORT_WRITER_SECTIONS;
 
+/// **The registry of WHOLE-TU RECOGNIZERS** — the fifth term's whole population,
+/// by name (board #179, `docs/ROADMAP.md` §10.21/§10.22).
+///
+/// A *whole-TU recognizer* is an acceptance predicate over an entire
+/// [`c2_il::IlBundle`] that no per-function predicate can express, and which
+/// `PortC2::build` consults as its own arm before the per-function path. There
+/// is exactly one today: `IlBundle::dyninit_tu`, the `??__E` dynamic-initializer
+/// shape lane w-r1c landed.
+///
+/// # Why a closed list and not `IlBundle::decodes()`
+///
+/// This is the whole degradation argument for **factor E**, so it is written
+/// here rather than in a rung nobody re-reads.
+///
+/// The one-line alternative is `E := bundle.decodes() && functions().is_none()`.
+/// It needs no registry and it is **wrong on purpose-built grounds**:
+/// `decodes()` is defined as `functions().is_some() || dyninit_tu().is_some()`
+/// and its own doc comment says *"adding a third path means adding it here"*. So
+/// a third acceptance path would enter `decodes()` in `c2-il` and E would
+/// **silently absorb it** — the factorization would stay green through an emit
+/// path it does not model, which is exactly the false-green this term exists to
+/// prevent. That is the open-world definition.
+///
+/// This is the closed-world one. A new arm in `PortC2::build` does **not** enter
+/// this table; adding it is a separate, deliberate edit in this file. Until that
+/// edit happens, a TU converted by the new path is a `match` with **D false and
+/// E false**, so [`GapReport::factor_control_on_match_tus`]'s `D∨E` column goes
+/// red and names it — which is precisely the event of 2026-08-04, when
+/// `dyninit_tu` landed and the `D` column went to 2.
+///
+/// **There is no static guard that this list is complete, and none is claimed.**
+/// `gap.rs` cannot enumerate `c2-core`'s match arms, and a test asserting
+/// `decodes() == functions().is_some() || <this table>` would pass vacuously on
+/// every bundle that exercises no new path. The guard is **empirical and is the
+/// scan's own known-answer control**; `the_control_goes_red_for_an_unregistered_whole_tu_path`
+/// is the executable demonstration that it can fire.
+///
+/// Each entry carries its own key (`emit-whole-tu|<name>`) so the marginal of
+/// each recognizer is separately visible: a registry that grew an entry which
+/// never fires would otherwise be indistinguishable from one that did not.
+pub const WHOLE_TU_RECOGNIZERS: &[(&str, fn(&c2_il::IlBundle) -> bool)] =
+    &[("dyninit-??__E", |b| b.dyninit_tu().is_some())];
+
 /// The MSVC mangling class of `name`, for naming the unbound residue.
 ///
 /// Coarse on purpose — it separates the populations that would be explained by
@@ -865,49 +908,95 @@ impl GapReport {
         )
     }
 
-    /// **The four Phase 7 factors for one TU** (`docs/ROADMAP.md` §10.19,
-    /// board #160), in `[A, B, C, D]` order:
+    /// **The five Phase 7 factors for one TU** (`docs/ROADMAP.md` §10.19 and
+    /// §10.21, boards #160 and #179), in `[A, B, C, D, E]` order:
     ///
     /// | | predicate | key |
     /// |---|---|---|
     /// | **A** | `.ex` segments == obj `.text` COMDATs, on the anchor the port consumes | `emit-set-ceiling-gate` |
     /// | **B** | every emitted symbol binds | `emit-set-ceiling-today` |
     /// | **C** | obj section set ⊆ [`PORT_WRITER_SECTIONS`] | `emit-sec-reachable` |
-    /// | **D** | every emitted COMDAT is in the port's codegen class | `emit-class-complete` |
+    /// | **D** | every emitted COMDAT is in the port's **per-function** codegen class | `emit-class-complete` |
+    /// | **E** | a registered **whole-TU** recognizer accepts this bundle | `emit-whole-tu-any` |
     ///
-    /// §10.19 measured that each factor is **necessary** for a byte-exact obj,
-    /// that none is sufficient, and that their conjunction is exactly the
-    /// observed match set. Every one reads a key some *other* code path wrote,
-    /// so this function re-derives no rule — it is a join, and that is the whole
-    /// point (§10.14).
+    /// Every one reads a key some *other* code path wrote, so this function
+    /// re-derives no rule — it is a join, and that is the whole point (§10.14).
     ///
-    /// **W-R1c: D is no longer necessary, measured.** That factorization was
-    /// taken when `PortC2` had exactly one acceptance path, and D's proxy for
-    /// "the port can emit this" is the *per-function* census verdict. A `??__E`
-    /// dynamic-initializer TU is emitted through a **whole-TU** path
-    /// (`c2_il::IlBundle::dyninit_tu`), so its thunk is byte-exact in the obj and
-    /// out of class in the census simultaneously — two true answers to two
-    /// different questions. On the 878-TU workload the conjunction is 6 while the
-    /// differential grades 8, and the known-answer control reports `D 2`.
+    /// # What the factorization is a factorization OF, and where D went wrong
     ///
-    /// Left as it is, deliberately. Teaching the per-function census a whole-TU
-    /// fact would break the census/gate symmetry `c2-il`'s `census.rs` maintains
-    /// on purpose and that the scan's `census/gate disagreement` line tracks; the
-    /// honest reading is that **the factorization needs a fifth term for whole-TU
-    /// emitters**, not that D should be widened until it stops complaining.
+    /// §10.19's four predicates are four questions the port must answer yes to
+    /// before its output can be the reference's bytes: **A** do the port and the
+    /// reference agree on *what set of things is emitted*; **B** can the port
+    /// *name* everything in that set; **C** can the writer *write the containers*
+    /// the obj needs; **D** does the port have an *accepted route to the
+    /// contents*.
+    ///
+    /// A/B/C are properties of the obj and the binding. **D is the odd one out**:
+    /// it is not a property of the obj at all but of the port's acceptance
+    /// machinery — `emit-class-complete` is the *per-function* census's verdict,
+    /// i.e. "`PortC2`'s per-function path takes every COMDAT here". §10.19 was
+    /// measured when `PortC2::build` had exactly **one** acceptance path, so
+    /// "the port has a route to the contents" and "the per-function path accepts
+    /// every COMDAT" were the same sentence. They are not any more:
+    /// `PortC2::build` tries `IlBundle::dyninit_tu()` *before* `functions()`.
+    ///
+    /// So D was never the general form of question 4 — it was the only reading of
+    /// it that existed. **E is the whole-TU reading**, and the general form is the
+    /// disjunction [`Self::emit_path`]:
+    ///
+    /// > A byte-exact obj requires **A ∧ B ∧ C ∧ (D ∨ E)**.
+    ///
+    /// Measured (2026-08-04, 871 graded TUs): the conjunction `A∧B∧C∧D` is 6
+    /// while the differential grades 8, so **D alone is not necessary** and the
+    /// old known-answer control was right to print `D 2`. E alone is not
+    /// necessary either — it is false on all six per-function matches. The
+    /// *disjunction* is what is claimed necessary, and it is what the control is
+    /// taken over.
+    ///
+    /// # This is a disjunct on D, not a widening of D
+    ///
+    /// D's definition is byte-for-byte what it was: `emit-emitted ==
+    /// emit-in-class`, from the per-function census. Nothing in `c2-il`'s
+    /// `census.rs` is touched, so the scan's `census/gate disagreement: 0` line
+    /// still tracks the symmetry w-r1c declined to break — teaching the
+    /// per-function census a whole-TU fact is what a widening would have meant,
+    /// and it is not what happened. D's own violation count is still printed, as
+    /// a number, so §10.19's refutation stays a visible finding rather than an
+    /// absorbed one.
+    ///
+    /// E is also deliberately **not** "the port emitted it" and **not** the class
+    /// field: either would be circular and would make the model unfalsifiable. E
+    /// is a class-membership predicate of the same *kind* as D — evaluated
+    /// without running the emitter — just at whole-TU granularity. The accepted
+    /// consequence is that, exactly like D, **E is not sufficient**:
+    /// `PortC2::build_dyninit` carries the `/GF` fence, which lives in `c2-core`
+    /// and not in the recognizer, so an E-true TU can still fail to emit. That
+    /// would show as an over-prediction in the printed set-identity line, which
+    /// is where it belongs.
     ///
     /// **A is gate-anchored** (`4F 1F`, what `PortC2::build` consumes) rather
     /// than `LO`-anchored: §10.18 settled that the two splitters disagree on 634
     /// of 871 TUs and that the port's anchor is the one its emitter has to
     /// satisfy. [`Self::factor_a_lo`] is the other reading, published beside it.
-    pub fn factors(r: &TuResult) -> [bool; 4] {
+    pub fn factors(r: &TuResult) -> [bool; 5] {
         let has = |k: &str| r.emit.contains_key(k);
         [
             has("emit-set-ceiling-gate"),
             has("emit-set-ceiling-today"),
             has("emit-sec-reachable"),
             has("emit-class-complete"),
+            has("emit-whole-tu-any"),
         ]
+    }
+
+    /// **Question 4 in its general form: `D ∨ E`** — the port has an accepted
+    /// route to this TU's contents, by *some* acceptance path.
+    ///
+    /// The term the model claims is necessary. Neither disjunct is necessary
+    /// alone and both are measured not to be, which is the entire content of
+    /// board #179: see [`Self::factors`].
+    pub fn emit_path(f: &[bool; 5]) -> bool {
+        f[3] || f[4]
     }
 
     /// Factor A on the **`LO`** anchor (`4C 4F 11`, the census's splitter) —
@@ -926,69 +1015,138 @@ impl GapReport {
         self.results.iter().filter(|r| r.class != TuClass::CaptureFail)
     }
 
-    /// `(|A|, |B|, |C|, |D|, |A_lo|, |B∧C|, |A∧B∧C∧D|)` over the graded TUs.
+    /// `(|A|, |B|, |C|, |D|, |E|, |A_lo|, |B∧C|, |A∧B∧C|, |A∧B∧C∧D|,
+    /// |A∧B∧C∧(D∨E)|)` over the graded TUs.
     ///
     /// `B∧C` is the plan's **near-term joint ceiling** — what a perfect emit-set
     /// model plus a perfect binding reaches while the writer's vocabulary is
     /// what it is (`PHASE7_PLAN.md` §1). It is a *joint*, measured per TU, and
     /// not a product of marginals: §8.6's standing rule, and the reason this
     /// function exists rather than a note telling readers to multiply.
-    pub fn factor_counts(&self) -> [usize; 7] {
-        let mut c = [0usize; 7];
+    ///
+    /// **`A∧B∧C∧D` is kept and reported** even though the model's joint is now
+    /// `A∧B∧C∧(D∨E)`. §10.19's original conjunction is the thing board #179
+    /// refutes; a refutation whose refuted quantity stops being measured is a
+    /// claim nobody can re-check.
+    pub fn factor_counts(&self) -> [usize; 10] {
+        let mut c = [0usize; 10];
         for r in self.graded() {
             let f = Self::factors(r);
-            for i in 0..4 {
+            for i in 0..5 {
                 c[i] += usize::from(f[i]);
             }
-            c[4] += usize::from(Self::factor_a_lo(r));
-            c[5] += usize::from(f[1] && f[2]);
-            c[6] += usize::from(f.iter().all(|&b| b));
+            c[5] += usize::from(Self::factor_a_lo(r));
+            c[6] += usize::from(f[1] && f[2]);
+            let abc = f[0] && f[1] && f[2];
+            c[7] += usize::from(abc);
+            c[8] += usize::from(abc && f[3]);
+            c[9] += usize::from(abc && Self::emit_path(&f));
         }
         c
     }
 
-    /// The TUs satisfying all four factors, by source path. §10.19's claim is
-    /// that this set **is** the match set, so it is returned as a list of names
-    /// rather than a count: a count could agree by coincidence, and two sets
-    /// that differ by a swap would read as equal.
+    /// **The model's joint, `A∧B∧C∧(D∨E)`**, by source path. The claim is that
+    /// this set **is** the match set, so it is returned as a list of names rather
+    /// than a count: a count could agree by coincidence, and two sets that differ
+    /// by a swap would read as equal.
     pub fn factor_all_tus(&self) -> Vec<&str> {
         self.graded()
-            .filter(|r| Self::factors(r).iter().all(|&b| b))
+            .filter(|r| {
+                let f = Self::factors(r);
+                f[0] && f[1] && f[2] && Self::emit_path(&f)
+            })
             .map(|r| r.src.as_str())
             .collect()
     }
 
-    /// **The known-answer control on the factorization**: how many byte-exact
-    /// TUs fail each factor, and how many `match` TUs there were to check.
-    /// Returns `([A, B, C, D] violations, matching TUs)`.
+    /// §10.19's **original** conjunction `A∧B∧C∧D`, by source path — the set
+    /// board #179 refutes. Kept beside [`Self::factor_all_tus`] so the
+    /// refutation stays checkable rather than becoming folklore: the difference
+    /// between the two lists is exactly the TUs the fifth term accounts for.
+    pub fn factor_abcd_tus(&self) -> Vec<&str> {
+        self.graded()
+            .filter(|r| {
+                let f = Self::factors(r);
+                f[0] && f[1] && f[2] && f[3]
+            })
+            .map(|r| r.src.as_str())
+            .collect()
+    }
+
+    /// Per-recognizer marginals for [`WHOLE_TU_RECOGNIZERS`]: `(name, TUs it
+    /// accepts)`, in registry order.
     ///
-    /// Every factor is a *necessary* condition for a byte-exact obj, which is
-    /// the only thing that makes it a ceiling — so on a `match` TU all four must
-    /// hold. Nonzero anywhere means the factor is not necessary and any bound
-    /// drawn from it is void. For **C** this is also the control on
-    /// [`PORT_WRITER_SECTIONS`] itself: a matching obj is the port's own output,
-    /// so a name missing from that list shows up here rather than in an argument
-    /// about whether the list is complete.
-    pub fn factor_control_on_match_tus(&self) -> ([usize; 4], usize) {
-        let mut bad = [0usize; 4];
+    /// Printed per entry rather than only as the union, because a registry entry
+    /// that never fires and one that was never added are the same number in
+    /// `|E|` and very different facts about the model.
+    pub fn whole_tu_marginals(&self) -> Vec<(&'static str, usize)> {
+        WHOLE_TU_RECOGNIZERS
+            .iter()
+            .map(|(name, _)| (*name, self.emit_total(&format!("emit-whole-tu|{name}"))))
+            .collect()
+    }
+
+    /// **The known-answer control on the factorization**: how many byte-exact
+    /// TUs fail each term, and how many `match` TUs there were to check.
+    /// Returns `([A, B, C, D, E, D∨E] violations, matching TUs)`.
+    ///
+    /// # Which of these must be zero, and why that is not a relaxation
+    ///
+    /// **A, B, C and `D∨E` must be 0.** Those are the model's *necessary*
+    /// conditions, which is the only thing that makes them a ceiling; nonzero
+    /// anywhere means the term is not necessary and any bound drawn from it is
+    /// void.
+    ///
+    /// **D and E individually must not be**, and it would be wrong to require it.
+    /// Both are measured non-necessary on the 878-TU workload: D fails on the two
+    /// `??__E` TUs (whole-TU emit path), E fails on all six per-function matches.
+    /// They are the two readings of one question (see [`Self::factors`]), so
+    /// their columns are **diagnostics**, printed with the label that says so.
+    ///
+    /// The distinction matters because moving a column from "must be 0" to
+    /// "diagnostic" is exactly the move that a fitted control would make to go
+    /// green. What makes it legitimate here is that the *replacement* column is
+    /// strictly narrower than "anything the port emits": `D∨E` is D plus a
+    /// **closed, named registry** ([`WHOLE_TU_RECOGNIZERS`]) of one entry, so an
+    /// emit path nobody registered still turns it red. `E := decodes()` would
+    /// have been the relaxation; this is not it.
+    ///
+    /// For **C** this is also the control on [`PORT_WRITER_SECTIONS`] itself: a
+    /// matching obj is the port's own output, so a name missing from that list
+    /// shows up here rather than in an argument about whether the list is
+    /// complete.
+    pub fn factor_control_on_match_tus(&self) -> ([usize; 6], usize) {
+        let mut bad = [0usize; 6];
         let mut n = 0;
         for r in self.results.iter().filter(|r| r.class == TuClass::Match) {
             n += 1;
-            for (i, ok) in Self::factors(r).iter().enumerate() {
+            let f = Self::factors(r);
+            for (i, ok) in f.iter().enumerate() {
                 bad[i] += usize::from(!ok);
             }
+            bad[5] += usize::from(!Self::emit_path(&f));
         }
         (bad, n)
     }
 
-    /// **The frontier**: TUs inside `A∧B∧C` that are not yet a `match` — i.e.
-    /// the emit set is reachable, every emitted symbol binds, the obj's sections
-    /// are all writable, and the *only* factor left is **D**, codegen breadth.
+    /// **The frontier**: TUs inside `A∧B∧C` that are not yet a `match` and that
+    /// **no acceptance path the port has covers** — the emit set is reachable,
+    /// every emitted symbol binds, the obj's sections are all writable, neither
+    /// the per-function class (D) nor any registered whole-TU recognizer (E)
+    /// takes the TU, and widening the accepted *function* class is the whole
+    /// remaining distance.
+    ///
+    /// **Board #179 narrowed this from `¬D` to `¬(D∨E)`.** A TU some whole-TU
+    /// recognizer already accepts but that is not a match is *not* on the
+    /// codegen-breadth frontier: its blocker is that whole-TU emitter's own fence
+    /// (for `dyninit`, the `/GF` fence in `c2-core`), which is different work
+    /// from widening the function class. Leaving it in would have advertised
+    /// per-function codegen as the route to a TU per-function codegen cannot
+    /// reach.
     ///
     /// This is the one actionable list the factorization produces. Everything
     /// else it prints is a bound; these are TUs where no model, no section work
-    /// and no binding repair is needed — widening the accepted function class is
-    /// the whole remaining distance. Sorted by that distance (emitted functions
+    /// and no binding repair is needed. Sorted by distance (emitted functions
     /// not in class), nearest first.
     ///
     /// **It is not a schedule** (`ROADMAP.md` §9.16.1): a TU one blocked
@@ -1000,7 +1158,7 @@ impl GapReport {
             .filter(|r| r.class != TuClass::Match)
             .filter(|r| {
                 let f = Self::factors(r);
-                f[0] && f[1] && f[2] && !f[3]
+                f[0] && f[1] && f[2] && !Self::emit_path(&f)
             })
             .map(|r| {
                 let e = r.emit.get("emit-emitted").copied().unwrap_or(0);
@@ -1896,6 +2054,50 @@ fn scan_one(
                 *res.emit.entry("emit-class-empty".into()).or_insert(0) += 1;
             }
         }
+        // **FACTOR E — whole-TU acceptance** (board #179, §10.21/§10.22).
+        //
+        // The fifth term. D above asks "does the port's PER-FUNCTION acceptance
+        // path take every COMDAT here", which was the only reading of "the port
+        // has a route to the contents" when §10.19 was measured. `PortC2::build`
+        // now tries a WHOLE-TU arm first, and this is the predicate for it.
+        //
+        // **Its population is the graded TUs, which is where it must be**: this
+        // block runs after capture and before every early return that a `match`
+        // TU could take, so E is written for every TU C and D are written for.
+        // A capture-fail TU has no bundle and is outside all five, exactly as
+        // `graded()` says.
+        //
+        // **It shares no variable with 1e, 1g or step 3.** §10.18 is this file's
+        // own record of what a shared reader with two consumers costs — 865 TUs
+        // moved class with nothing red — and this reads `captured.bundle`
+        // directly through the registry's own function pointers. In particular it
+        // does NOT call `bundle.decodes()`, whose whole job is a different
+        // question (*did anything decode*, the `vocab-gap` bucket's predicate),
+        // and which would silently absorb a future third acceptance path. See
+        // [`WHOLE_TU_RECOGNIZERS`] for that argument in full.
+        //
+        // Cost note: each recognizer is a real decode. `dyninit_tu` early-outs on
+        // one substring scan for `??__E` and only the ~126 TUs carrying one pay
+        // for the rest, which is why this is affordable per TU in a scan that
+        // grades 878 of them in under three seconds.
+        {
+            let mut any = false;
+            for (name, accepts) in WHOLE_TU_RECOGNIZERS {
+                if accepts(&captured.bundle) {
+                    any = true;
+                    *res.emit.entry(format!("emit-whole-tu|{name}")).or_insert(0) += 1;
+                }
+            }
+            if any {
+                *res.emit.entry("emit-whole-tu-any".into()).or_insert(0) += 1;
+            }
+            // `D ∨ E`, materialized as its own key so the disjunction is a thing
+            // the JSONL carries per TU rather than a join two readers could
+            // re-derive differently.
+            if any || res.emit.contains_key("emit-class-complete") {
+                *res.emit.entry("emit-emit-path".into()).or_insert(0) += 1;
+            }
+        }
     }
 
     // 2. Optional soundness lane: standalone-c2 replay must reproduce the
@@ -2250,7 +2452,7 @@ pub fn gap_scan(
 }
 
 /// **The Phase 7 factorization, printed on every scan** (`docs/ROADMAP.md`
-/// §10.19, board #160).
+/// §10.19 and §10.21, boards #160 and #179).
 ///
 /// Printed from here rather than from `main.rs` for the same reason the splitter
 /// block above is: the predicates live in this file, and a report assembled
@@ -2261,7 +2463,7 @@ pub fn gap_scan(
 /// which is visible, where a status would not be (`docs/GAPS.md` §7).
 fn print_factorization(report: &GapReport) {
     let graded = report.graded().count();
-    let [a, b, c, d, a_lo, bc, abcd] = report.factor_counts();
+    let [a, b, c, d, e, a_lo, bc, abc, abcd, joint] = report.factor_counts();
     let (bad, match_tus) = report.factor_control_on_match_tus();
     let matched: Vec<&str> = report
         .results
@@ -2270,28 +2472,54 @@ fn print_factorization(report: &GapReport) {
         .map(|r| r.src.as_str())
         .collect();
     let all = report.factor_all_tus();
+    let abcd_tus = report.factor_abcd_tus();
     let vocab = report.section_vocabulary();
     let unreadable = report.emit_total("emit-sec-unreadable");
     let readable = report.emit_total("emit-sec-readable");
 
     println!(
-        "\nPHASE 7 FACTORS (ROADMAP §10.19, board #160) — four NECESSARY conditions on a \
-         byte-exact obj, over {graded} graded TUs\n\
+        "\nPHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is \
+         A and B and C and (D or E), over {graded} graded TUs\n\
          \x20 A  emit set reachable   `.ex` segments == obj `.text` COMDATs   {a:>5}  \
          (gate-anchored `4F 1F`; {a_lo} on the census's `4C 4F 11` anchor)\n\
          \x20 B  binding complete     every emitted symbol binds              {b:>5}\n\
          \x20 C  section shape        obj sections subset of the writer's {}   {c:>5}\n\
-         \x20 D  codegen breadth      every emitted COMDAT in class           {d:>5}  \
+         \x20 D  per-fn acceptance    every emitted COMDAT in class           {d:>5}  \
          ({} of them emit nothing at all)\n\
+         \x20 E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it {e:>3}  \
+         ({} in the registry)\n\
+         \x20   D and E are the two readings of ONE question — does the port have an accepted \
+         route to this TU's contents. Neither is necessary alone (measured: D fails on the \
+         whole-TU matches, E on the per-function ones); the DISJUNCTION is the term.\n\
          \x20 B and C jointly (the near-term ceiling, measured per TU — NOT a product of \
          marginals, §8.6): {bc}\n\
-         \x20 A and B and C and D: {abcd}   |   TUs the differential graded `match`: {}\n\
+         \x20 A and B and C: {abc}   |   A and B and C and D (§10.19's original, refuted): \
+         {abcd}   |   A and B and C and (D or E): {joint}   |   TUs the differential graded \
+         `match`: {}\n\
          \x20 section headers: {readable} objs read, {unreadable} did not decode (outside C, \
          fail-closed)",
         PORT_WRITER_SECTIONS.len(),
         report.emit_total("emit-class-empty"),
+        WHOLE_TU_RECOGNIZERS.len(),
         matched.len(),
     );
+    // Per-recognizer marginals. A registry entry that never fires and one that
+    // was never added are the same `|E|` and very different facts.
+    for (name, n) in report.whole_tu_marginals() {
+        println!("\x20   whole-TU recognizer `{name}` accepts {n} graded TU(s)");
+    }
+    // The refuted conjunction's own set, printed only when it differs from the
+    // model's. This is the DELTA the fifth term accounts for, by name — §10.19's
+    // claim is refuted by exactly these TUs and a reader should not have to
+    // reconstruct which.
+    if abcd_tus != all {
+        let only_new: Vec<&&str> = all.iter().filter(|s| !abcd_tus.contains(s)).collect();
+        println!(
+            "\x20 the fifth term accounts for {} TU(s) that A and B and C and D misses: {:?}",
+            only_new.len(),
+            only_new
+        );
+    }
     // The set identity, by name. §10.19's claim is that the joint IS the match
     // set; two sets of the same size that differ by a swap would read as equal
     // if this printed only counts.
@@ -2314,33 +2542,47 @@ fn print_factorization(report: &GapReport) {
             only_match,
         );
     }
+    // **The known-answer control.** Split into the terms that must be zero and
+    // the two diagnostics that must not be required to be — see
+    // `factor_control_on_match_tus` for why moving D out of the first group is a
+    // repair of the model and not a relaxation of the control.
     println!(
-        "\x20 known-answer control — matching TUs failing each factor (all must be 0, over \
-         {match_tus} matching TUs): A {} B {} C {} D {}",
-        bad[0], bad[1], bad[2], bad[3]
+        "\x20 known-answer control — matching TUs failing each NECESSARY term (all must be 0, \
+         over {match_tus} matching TUs): A {} B {} C {} D-or-E {}\n\
+         \x20   diagnostics, NOT required to be 0 (neither disjunct is necessary alone): \
+         D {} E {}",
+        bad[0], bad[1], bad[2], bad[5], bad[3], bad[4]
     );
-    // **W-R1c — D is no longer necessary for a match, and the control is right
-    // to say so.** §10.19's claim is that the conjunction A∧B∧C∧D is exactly the
-    // observed match set; that was measured when `PortC2` had exactly ONE
-    // acceptance path, the per-function one, and factor D's proxy for "the port
-    // can emit this" is the per-function census verdict. A `??__E`
-    // dynamic-initializer TU is emitted by a **whole-TU** path
-    // (`IlBundle::dyninit_tu`), so its thunk is byte-exact in the obj and out of
-    // class in the census at the same time — both statements true, about
-    // different questions.
+    // **W-R1c measured that D alone is not necessary; board #179 says what the
+    // necessary term is instead.** §10.19's claim was that A∧B∧C∧D is exactly the
+    // observed match set. That was measured when `PortC2` had exactly ONE
+    // acceptance path, the per-function one, and D's proxy for "the port can emit
+    // this" is the per-function census verdict. A `??__E` dynamic-initializer TU
+    // is emitted by a **whole-TU** path (`IlBundle::dyninit_tu`), so its thunk is
+    // byte-exact in the obj and out of class in the census at the same time —
+    // both statements true, about different questions.
     //
-    // Printed rather than fixed, and printed rather than silenced. Fixing it
-    // means teaching the per-function census a whole-TU fact, which would break
-    // the census/gate symmetry `census.rs` maintains on purpose (and which the
-    // `census/gate disagreement: 0` line above tracks). Silencing it would hide
-    // a genuine refutation. So the instrument keeps telling the truth and says
-    // what the truth is.
+    // The fix is a fifth term, E, disjoined onto D. It is NOT a widening of D:
+    // D still reads exactly the per-function census, so the census/gate symmetry
+    // `census.rs` maintains on purpose (tracked by the `census/gate disagreement`
+    // line above) is untouched. And D's own violation count is still printed,
+    // above, because a refutation whose evidence stops being reported is a claim
+    // nobody can re-check.
     if bad[3] > 0 {
         println!(
-            "\x20   NOTE: D counts the per-function census, which does not model the \
-             whole-TU `??__E` emit path — so D is NOT necessary for a match any more \
-             (§10.19's conjunction claim is refuted by {} TU(s) here). A/B/C are unaffected.",
+            "\x20   D {} — the per-function census does not model the whole-TU emit path, so \
+             §10.19's A∧B∧C∧D conjunction stays refuted by these TU(s). That is the finding \
+             board #179 repairs with E, not a defect E hides.",
             bad[3]
+        );
+    }
+    if bad[5] > 0 {
+        println!(
+            "\x20   ALARM: {} matching TU(s) are outside BOTH D and E. The port emitted \
+             byte-exact bytes through a path no entry in WHOLE_TU_RECOGNIZERS models — \
+             register it there, or the factorization's bound is void. This is the control \
+             doing its job, not a number to tune away.",
+            bad[5]
         );
     }
     // The vocabulary, in full. It is finite, and its size is the headline: it is
@@ -2357,13 +2599,18 @@ fn print_factorization(report: &GapReport) {
         };
         println!("\x20   {objs:>5} objs  [{mine}]  {name}");
     }
-    // The one ACTIONABLE row of the whole block: TUs whose only remaining
-    // factor is D. Printed as a list with each one's distance, because a
-    // count would say "16" and name nothing to work on.
+    // The one ACTIONABLE row of the whole block: TUs no acceptance path covers.
+    // Printed as a list with each one's distance, because a count would say "17"
+    // and name nothing to work on.
+    //
+    // **Board #179 narrowed the membership from `¬D` to `¬(D∨E)`.** A TU a
+    // whole-TU recognizer already accepts is not reachable by widening the
+    // per-function class, so listing it here would advertise the wrong work.
     let frontier = report.factor_frontier();
     println!(
-        "\x20 FRONTIER — {} graded TUs satisfy A and B and C and are NOT a match, so codegen \
-         breadth (D) is the whole remaining distance (blocked emitted | emitted | src):",
+        "\x20 FRONTIER — {} graded TUs satisfy A and B and C, are NOT a match, and are outside \
+         BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole \
+         remaining distance (blocked emitted | emitted | src):",
         frontier.len()
     );
     for (r, blocked) in frontier.iter().take(40) {
@@ -2854,9 +3101,17 @@ mod tests {
         );
     }
 
-    /// A TU with the four Phase 7 factors set explicitly, through the same keys
-    /// `scan_one` writes.
-    fn mk_factors(class: TuClass, src: &str, a: bool, b: bool, c: bool, d: bool) -> TuResult {
+    /// A TU with the five Phase 7 factors set explicitly, through the same keys
+    /// `scan_one` writes. `e` is factor E, whole-TU acceptance (board #179).
+    fn mk_factors(
+        class: TuClass,
+        src: &str,
+        a: bool,
+        b: bool,
+        c: bool,
+        d: bool,
+        e: bool,
+    ) -> TuResult {
         let mut r = mk("x");
         r.class = class;
         r.src = src.into();
@@ -2870,6 +3125,7 @@ mod tests {
             ("emit-set-ceiling-today", b),
             ("emit-sec-reachable", c),
             ("emit-class-complete", d),
+            ("emit-whole-tu-any", e),
         ] {
             if on {
                 r.emit.insert(k.into(), 1);
@@ -2890,25 +3146,74 @@ mod tests {
     #[test]
     fn the_factorization_is_a_joint_and_not_a_product_of_marginals() {
         let rep = mk_report(vec![
-            mk_factors(TuClass::VocabGap, "a.cpp", false, true, true, true),
-            mk_factors(TuClass::VocabGap, "b.cpp", true, false, true, true),
-            mk_factors(TuClass::VocabGap, "c.cpp", true, true, false, true),
-            mk_factors(TuClass::VocabGap, "d.cpp", true, true, true, false),
+            mk_factors(TuClass::VocabGap, "a.cpp", false, true, true, true, false),
+            mk_factors(TuClass::VocabGap, "b.cpp", true, false, true, true, false),
+            mk_factors(TuClass::VocabGap, "c.cpp", true, true, false, true, false),
+            mk_factors(TuClass::VocabGap, "d.cpp", true, true, true, false, false),
         ]);
-        let [a, b, c, d, _a_lo, bc, abcd] = rep.factor_counts();
+        let [a, b, c, d, e, _a_lo, bc, _abc, abcd, joint] = rep.factor_counts();
         assert_eq!([a, b, c, d], [3, 3, 3, 3], "each marginal is 3 of 4");
+        assert_eq!(e, 0, "no whole-TU recognizer fires on any of these");
         assert_eq!(bc, 2, "B and C jointly is measured per TU, not B*C/n");
         assert_eq!(
             abcd, 0,
             "no TU satisfies all four — the joint can be 0 while every marginal \
              is 3/4, which is the whole reason this is measured and not multiplied"
         );
+        assert_eq!(joint, 0, "and E adds nothing when no recognizer fires");
         assert!(rep.factor_all_tus().is_empty());
     }
 
-    /// **The known-answer control**, and it must be able to go red. Each factor
-    /// is a *necessary* condition for a byte-exact obj, so a `match` TU outside
-    /// one means the factor is not necessary and every bound drawn from it is
+    /// **The fifth term is a DISJUNCT on D, and both directions of that are
+    /// checked here** (board #179).
+    ///
+    /// `d.cpp` fails D and passes E; `e.cpp` passes D and fails E. Both are in
+    /// the model's joint `A∧B∧C∧(D∨E)` and only one is in §10.19's original
+    /// `A∧B∧C∧D`. If E were ever re-implemented as a *widening of D* the two
+    /// numbers would collapse into one and this test would say so.
+    #[test]
+    fn the_fifth_term_is_a_disjunct_on_d_and_the_old_conjunction_is_still_measured() {
+        let rep = mk_report(vec![
+            mk_factors(TuClass::Match, "whole-tu.cpp", true, true, true, false, true),
+            mk_factors(TuClass::Match, "per-fn.cpp", true, true, true, true, false),
+            // A/B/C hold, neither acceptance path takes it: in neither joint.
+            mk_factors(TuClass::VocabGap, "neither.cpp", true, true, true, false, false),
+        ]);
+        let [_a, _b, _c, d, e, _a_lo, _bc, abc, abcd, joint] = rep.factor_counts();
+        assert_eq!((d, e), (1, 1), "one TU per acceptance path");
+        assert_eq!(abc, 3, "A∧B∧C is unaffected by the fifth term");
+        assert_eq!(abcd, 1, "§10.19's conjunction still misses the whole-TU TU");
+        assert_eq!(joint, 2, "the disjunction picks up both acceptance paths");
+        assert_eq!(rep.factor_abcd_tus(), vec!["per-fn.cpp"]);
+        assert_eq!(rep.factor_all_tus(), vec!["whole-tu.cpp", "per-fn.cpp"]);
+    }
+
+    /// **The registry is the fifth term's whole population, and it must be
+    /// well-formed**: non-empty (an empty one makes E identically false and the
+    /// control green for the wrong reason) and with distinct names (two entries
+    /// sharing a name would collide on the `emit-whole-tu|<name>` key and report
+    /// one marginal for two recognizers).
+    #[test]
+    fn the_whole_tu_registry_is_non_empty_and_its_names_are_distinct() {
+        assert!(
+            !WHOLE_TU_RECOGNIZERS.is_empty(),
+            "an empty registry makes E identically false, which would make the D-or-E \
+             control pass by measuring nothing"
+        );
+        let names: std::collections::BTreeSet<&str> =
+            WHOLE_TU_RECOGNIZERS.iter().map(|(n, _)| *n).collect();
+        assert_eq!(
+            names.len(),
+            WHOLE_TU_RECOGNIZERS.len(),
+            "two entries with one name share a key and report one marginal for two \
+             recognizers"
+        );
+        assert!(names.iter().all(|n| !n.is_empty()));
+    }
+
+    /// **The known-answer control**, and it must be able to go red. A/B/C/`D∨E`
+    /// are *necessary* conditions for a byte-exact obj, so a `match` TU outside
+    /// one means the term is not necessary and every bound drawn from it is
     /// void. For **C** this is also the only executable check on
     /// [`PORT_WRITER_SECTIONS`]: a matching obj is the port's own output, so a
     /// name missing from that list surfaces here.
@@ -2917,15 +3222,18 @@ mod tests {
     /// so the second half cannot pass by the TU ceasing to be a `match`.
     #[test]
     fn a_matching_tu_outside_any_factor_is_a_red_control() {
-        let ok = mk_factors(TuClass::Match, "Spew.cpp", true, true, true, true);
-        let rep = mk_report(vec![ok, mk_factors(TuClass::VocabGap, "z.cpp", false, false, false, false)]);
-        assert_eq!(rep.factor_control_on_match_tus(), ([0, 0, 0, 0], 1));
+        let ok = mk_factors(TuClass::Match, "Spew.cpp", true, true, true, true, false);
+        let rep = mk_report(vec![
+            ok,
+            mk_factors(TuClass::VocabGap, "z.cpp", false, false, false, false, false),
+        ]);
+        assert_eq!(rep.factor_control_on_match_tus(), ([0, 0, 0, 0, 1, 0], 1));
         assert_eq!(rep.factor_all_tus(), vec!["Spew.cpp"]);
 
         // The mutation: the same matching TU, now carrying a section the writer
         // cannot emit. That is impossible — the port wrote that obj — so it must
         // be counted, and against factor C specifically.
-        let bad = mk_factors(TuClass::Match, "Spew.cpp", true, true, false, true);
+        let bad = mk_factors(TuClass::Match, "Spew.cpp", true, true, false, true, false);
         let rep = mk_report(vec![bad]);
         assert_eq!(
             rep.count(TuClass::Match),
@@ -2935,31 +3243,109 @@ mod tests {
         );
         assert_eq!(
             rep.factor_control_on_match_tus(),
-            ([0, 0, 1, 0], 1),
+            ([0, 0, 1, 0, 1, 0], 1),
             "a byte-exact obj outside the port writer's section vocabulary is \
              impossible; C must say so, and name itself"
         );
     }
 
-    /// **The frontier is `A∧B∧C ∧ ¬D ∧ ¬match`**, and each of those four clauses
-    /// is load-bearing: a byte-exact TU in the list would be work already done,
-    /// and a TU missing A, B or C is not one widening away from anything.
+    /// **The fifth term's degradation guard, executable** (board #179, prereg
+    /// clause 6: *a green control is not evidence unless the red case is
+    /// demonstrable*).
+    ///
+    /// The scenario is exactly the one that happened on 2026-08-04 and the one
+    /// that will happen again: a **new whole-TU emit path lands in `PortC2`, the
+    /// differential grades its TU byte-exact, and nobody adds it to
+    /// [`WHOLE_TU_RECOGNIZERS`]**. Such a TU is a `match` with D false and E
+    /// false, and the `D∨E` column must go red and stay red until the registry
+    /// is taught the path.
+    ///
+    /// This is the *only* guard that E is complete, and it is empirical rather
+    /// than static — `gap.rs` cannot enumerate `c2-core`'s match arms, and a test
+    /// asserting `decodes() == functions().is_some() || <registry>` would pass
+    /// vacuously on every bundle that exercises no new path. Nothing here claims
+    /// otherwise.
+    ///
+    /// The three-way contrast is the content: a per-function match (D), a
+    /// registered whole-TU match (E) and an unregistered one (neither) sit in the
+    /// same report, and only the third is counted.
+    #[test]
+    fn the_control_goes_red_for_an_unregistered_whole_tu_path() {
+        // Green: both acceptance paths accounted for.
+        let rep = mk_report(vec![
+            mk_factors(TuClass::Match, "per-fn.cpp", true, true, true, true, false),
+            mk_factors(TuClass::Match, "dyninit.cpp", true, true, true, false, true),
+        ]);
+        let (bad, n) = rep.factor_control_on_match_tus();
+        assert_eq!(n, 2);
+        assert_eq!(
+            bad[5], 0,
+            "with both paths modelled the necessary term holds on every match"
+        );
+        assert_eq!(
+            (bad[3], bad[4]),
+            (1, 1),
+            "and each disjunct is individually violated — which is why neither is \
+             the necessary term"
+        );
+        assert_eq!(rep.factor_all_tus(), vec!["per-fn.cpp", "dyninit.cpp"]);
+
+        // RED: a third TU the port emitted byte-exact through a path no registry
+        // entry models. The population of matches is deliberately grown rather
+        // than mutated, so the two green TUs stay green and the red column
+        // cannot be an artefact of the class filter.
+        let rep = mk_report(vec![
+            mk_factors(TuClass::Match, "per-fn.cpp", true, true, true, true, false),
+            mk_factors(TuClass::Match, "dyninit.cpp", true, true, true, false, true),
+            mk_factors(TuClass::Match, "unregistered.cpp", true, true, true, false, false),
+        ]);
+        let (bad, n) = rep.factor_control_on_match_tus();
+        assert_eq!(n, 3, "the mutation adds a match, it does not reclassify one");
+        assert_eq!(
+            bad[5], 1,
+            "an emit path outside the registry must void the bound — this is the \
+             only thing keeping E from being a rubber stamp"
+        );
+        assert_eq!(
+            [bad[0], bad[1], bad[2]],
+            [0, 0, 0],
+            "A/B/C are unaffected, so the red names the term that is actually wrong"
+        );
+        assert!(
+            !rep.factor_all_tus().contains(&"unregistered.cpp"),
+            "and the joint stops being the match set, which is the printed alarm"
+        );
+    }
+
+    /// **The frontier is `A∧B∧C ∧ ¬(D∨E) ∧ ¬match`**, and each of those clauses
+    /// is load-bearing: a byte-exact TU in the list would be work already done, a
+    /// TU missing A, B or C is not one widening away from anything, and — board
+    /// #179 — a TU some whole-TU recognizer already accepts is **not** reachable
+    /// by widening the per-function class, so advertising it as codegen work
+    /// would point the next lane at the wrong file.
     #[test]
     fn the_frontier_is_the_tus_whose_only_remaining_factor_is_codegen() {
-        let mut near = mk_factors(TuClass::VocabGap, "near.cpp", true, true, true, false);
+        let mut near = mk_factors(TuClass::VocabGap, "near.cpp", true, true, true, false, false);
         near.emit.insert("emit-emitted".into(), 5);
         near.emit.insert("emit-in-class".into(), 4);
-        let mut far = mk_factors(TuClass::VocabGap, "far.cpp", true, true, true, false);
+        let mut far = mk_factors(TuClass::VocabGap, "far.cpp", true, true, true, false, false);
         far.emit.insert("emit-emitted".into(), 11);
         far.emit.insert("emit-in-class".into(), 8);
+        // E-true and not a match: the whole-TU recognizer takes it and the
+        // emitter's own fence refuses it. Blocked on work that is not codegen
+        // breadth, so it must NOT appear — this is the board #179 narrowing.
+        let mut fenced = mk_factors(TuClass::CodegenGap, "fenced.cpp", true, true, true, false, true);
+        fenced.emit.insert("emit-emitted".into(), 1);
+        fenced.emit.insert("emit-in-class".into(), 0);
         let rep = mk_report(vec![
             far,
             near,
+            fenced,
             // Already done — must not appear.
-            mk_factors(TuClass::Match, "done.cpp", true, true, true, true),
+            mk_factors(TuClass::Match, "done.cpp", true, true, true, true, false),
             // Blocked on a factor codegen cannot move — must not appear.
-            mk_factors(TuClass::VocabGap, "sections.cpp", true, true, false, false),
-            mk_factors(TuClass::VocabGap, "emitset.cpp", false, true, true, false),
+            mk_factors(TuClass::VocabGap, "sections.cpp", true, true, false, false, false),
+            mk_factors(TuClass::VocabGap, "emitset.cpp", false, true, true, false, false),
         ]);
         let got: Vec<(&str, usize)> = rep
             .factor_frontier()
@@ -2969,8 +3355,10 @@ mod tests {
         assert_eq!(
             got,
             vec![("near.cpp", 1), ("far.cpp", 3)],
-            "nearest first by blocked EMITTED functions, and only the TUs where D is \
-             the whole remaining distance"
+            "nearest first by blocked EMITTED functions, and only the TUs where \
+             per-function codegen breadth is the whole remaining distance — \
+             `fenced.cpp` is one blocked function away and still excluded, because \
+             widening the function class cannot reach a TU a whole-TU emitter owns"
         );
     }
 
