@@ -1,0 +1,2062 @@
+[
+ {
+  "axis": "A2",
+  "cell": "a2_01_extern_template_member_called",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_01_extern_template_member_called/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?a@?$H@H@@QAAHH@Z": 12,
+   "?anchor@@YAHH@Z": 12
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A2",
+  "cell": "a2_02_extern_template_virtual_object",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_02_extern_template_virtual_object/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0?$V@H@@QAA@XZ",
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0?$V@H@@QAA@XZ",
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??0?$V@H@@QAA@XZ": 16,
+   "?f@?$V@H@@UAAHH@Z": 12,
+   "?g@?$V@H@@UAAHH@Z": 8,
+   "??1?$V@H@@UAA@XZ": 16,
+   "?anchor@@YAHH@Z": 128,
+   "??_G?$V@H@@UAAPAXI@Z": 68
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2628",
+   "$T2631",
+   "$T2641",
+   "??_7?$V@H@@6B@",
+   "__C1_11886",
+   "__C2_11886",
+   "__unwindtable$?anchor@@YAHH@Z"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0?$V@H@@QAA@XZ",
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A2",
+  "cell": "a2_03_explicit_fn_specialization_unref",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_03_explicit_fn_specialization_unref/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??$cand@H@@YAHH@Z",
+   "?anchor@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "??$cand@H@@YAHH@Z",
+   "?anchor@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??$cand@H@@YAHH@Z": 8,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2561",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??$cand@H@@YAHH@Z",
+   "?anchor@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A2",
+  "cell": "a2_04_explicit_member_specialization_unref",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_04_explicit_member_specialization_unref/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?a@?$H@H@@QAAHH@Z": 12,
+   "?anchor@@YAHH@Z": 12
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A2",
+  "cell": "a2_05_class_tmpl_virtuals_object",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_05_class_tmpl_virtuals_object/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0?$V@H@@QAA@XZ",
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0?$V@H@@QAA@XZ",
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??0?$V@H@@QAA@XZ": 16,
+   "?f@?$V@H@@UAAHH@Z": 12,
+   "?g@?$V@H@@UAAHH@Z": 8,
+   "??1?$V@H@@UAA@XZ": 16,
+   "?anchor@@YAHH@Z": 128,
+   "??_G?$V@H@@UAAPAXI@Z": 68
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2627",
+   "$T2630",
+   "$T2640",
+   "??_7?$V@H@@6B@",
+   "__C1_11886",
+   "__C2_11886",
+   "__unwindtable$?anchor@@YAHH@Z"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0?$V@H@@QAA@XZ",
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A2",
+  "cell": "a2_06_template_over_template",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_06_template_over_template/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "?call@?$Out@H@@QAAHH@Z",
+   "?get@?$In@H@@QAAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "?call@?$Out@H@@QAAHH@Z",
+   "?get@?$In@H@@QAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?get@?$In@H@@QAAHH@Z": 12,
+   "?call@?$Out@H@@QAAHH@Z": 12,
+   "?anchor@@YAHH@Z": 12
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "?call@?$Out@H@@QAAHH@Z",
+   "?get@?$In@H@@QAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A2",
+  "cell": "a2_07_explicit_inst_outer_forces_inner",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_07_explicit_inst_outer_forces_inner/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "?call@?$Out@H@@QAAHH@Z",
+   "?get@?$In@H@@QAAHH@Z",
+   "?never@?$Out@H@@QAAHH@Z",
+   "?unused@?$In@H@@QAAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "?call@?$Out@H@@QAAHH@Z",
+   "?get@?$In@H@@QAAHH@Z",
+   "?never@?$Out@H@@QAAHH@Z",
+   "?unused@?$In@H@@QAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHH@Z": 36,
+   "?get@?$In@H@@QAAHH@Z": 12,
+   "?unused@?$In@H@@QAAHH@Z": 8,
+   "?call@?$Out@H@@QAAHH@Z": 12,
+   "?never@?$Out@H@@QAAHH@Z": 8
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2611",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "?call@?$Out@H@@QAAHH@Z",
+   "?get@?$In@H@@QAAHH@Z",
+   "?never@?$Out@H@@QAAHH@Z",
+   "?unused@?$In@H@@QAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A2",
+  "cell": "a2_08_explicit_inst_virtuals_no_object",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_08_explicit_inst_virtuals_no_object/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHH@Z": 36,
+   "?f@?$V@H@@UAAHH@Z": 12,
+   "?g@?$V@H@@UAAHH@Z": 8,
+   "??1?$V@H@@UAA@XZ": 16,
+   "??_G?$V@H@@UAAPAXI@Z": 68
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2601",
+   "$T2612",
+   "??_7?$V@H@@6B@",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??1?$V@H@@UAA@XZ",
+   "??_G?$V@H@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@?$V@H@@UAAHH@Z",
+   "?g@?$V@H@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A2",
+  "cell": "a2_09_extern_template_plus_member_inst",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A2/a2_09_extern_template_plus_member_inst/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z",
+   "?b@?$H@H@@QAAHH@Z"
+  ],
+  "textname_leaders": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z",
+   "?b@?$H@H@@QAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?a@?$H@H@@QAAHH@Z": 12,
+   "?b@?$H@H@@QAAHH@Z": 8,
+   "?anchor@@YAHH@Z": 12
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?a@?$H@H@@QAAHH@Z",
+   "?anchor@@YAHH@Z",
+   "?b@?$H@H@@QAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A3",
+  "cell": "a3_01_mi_override_second_base",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A3/a3_01_mi_override_second_base/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??0A@@QAA@XZ": 16,
+   "?f@A@@UAAHH@Z": 12,
+   "??0B@@QAA@XZ": 16,
+   "?g@B@@UAAHH@Z": 8,
+   "??0D@@QAA@XZ": 40,
+   "?g@D@@UAAHH@Z": 8,
+   "?anchor@@YAHH@Z": 80
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2651",
+   "??_7A@@6B@",
+   "??_7B@@6B@",
+   "??_7D@@6BA@@@",
+   "??_7D@@6BB@@@",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A3",
+  "cell": "a3_02_mi_no_override_second_base",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A3/a3_02_mi_no_override_second_base/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?h@D@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?h@D@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??0A@@QAA@XZ": 16,
+   "?f@A@@UAAHH@Z": 12,
+   "??0B@@QAA@XZ": 16,
+   "?g@B@@UAAHH@Z": 8,
+   "??0D@@QAA@XZ": 40,
+   "?h@D@@UAAHH@Z": 8,
+   "?anchor@@YAHH@Z": 80
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2651",
+   "??_7A@@6B@",
+   "??_7B@@6B@",
+   "??_7D@@6BA@@@",
+   "??_7D@@6BB@@@",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?h@D@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A3",
+  "cell": "a3_03_mi_virtual_dtors",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A3/a3_03_mi_virtual_dtors/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1B@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_ED@@W3AAPAXI@Z",
+   "??_GA@@UAAPAXI@Z",
+   "??_GB@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1B@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_ED@@W3AAPAXI@Z",
+   "??_GA@@UAAPAXI@Z",
+   "??_GB@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??1A@@UAA@XZ": 16,
+   "?f@A@@UAAHH@Z": 12,
+   "??_GA@@UAAPAXI@Z": 68,
+   "??1B@@UAA@XZ": 16,
+   "?g@B@@UAAHH@Z": 8,
+   "??_GB@@UAAPAXI@Z": 68,
+   "??1D@@UAA@XZ": 28,
+   "??0A@@QAA@XZ": 16,
+   "??0B@@QAA@XZ": 16,
+   "??0D@@QAA@XZ": 40,
+   "?g@D@@UAAHH@Z": 8,
+   "??_GD@@UAAPAXI@Z": 80,
+   "??_ED@@W3AAPAXI@Z": 8,
+   "?anchor@@YAHH@Z": 140
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2685",
+   "$T2695",
+   "$T2733",
+   "$T2773",
+   "$T2776",
+   "??_7A@@6B@",
+   "??_7B@@6B@",
+   "??_7D@@6BA@@@",
+   "??_7D@@6BB@@@",
+   "__C1_11886",
+   "__C2_11886",
+   "__unwindtable$?anchor@@YAHH@Z"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1B@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_ED@@W3AAPAXI@Z",
+   "??_GA@@UAAPAXI@Z",
+   "??_GB@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@B@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A3",
+  "cell": "a3_04_virtual_base_simple",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A3/a3_04_virtual_base_simple/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??1A@@UAA@XZ": 16,
+   "?f@A@@UAAHH@Z": 12,
+   "??_GA@@UAAPAXI@Z": 68,
+   "??0A@@QAA@XZ": 16,
+   "??1D@@UAA@XZ": 4,
+   "??0D@@QAA@XZ": 72,
+   "?g@D@@UAAHH@Z": 8,
+   "??_DD@@QAAXXZ": 16,
+   "??_GD@@UAAPAXI@Z": 72,
+   "?anchor@@YAHH@Z": 160
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2654",
+   "$T2688",
+   "$T2724",
+   "$T2727",
+   "??_7A@@6B@",
+   "??_7D@@6B0@@",
+   "??_7D@@6BA@@@",
+   "??_8D@@7B@",
+   "__C1_11886",
+   "__C2_11886",
+   "__unwindtable$?anchor@@YAHH@Z"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A3",
+  "cell": "a3_05_vbase_virtual_overridden",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A3/a3_05_vbase_virtual_overridden/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?f@D@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?f@D@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??1A@@UAA@XZ": 16,
+   "?f@A@@UAAHH@Z": 12,
+   "??_GA@@UAAPAXI@Z": 68,
+   "??0A@@QAA@XZ": 16,
+   "??1D@@UAA@XZ": 4,
+   "??0D@@QAA@XZ": 56,
+   "?f@D@@UAAHH@Z": 8,
+   "??_DD@@QAAXXZ": 16,
+   "??_GD@@UAAPAXI@Z": 72,
+   "?anchor@@YAHH@Z": 148
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2650",
+   "$T2684",
+   "$T2720",
+   "$T2723",
+   "??_7A@@6B@",
+   "??_7D@@6B@",
+   "??_8D@@7B@",
+   "__C1_11886",
+   "__C2_11886",
+   "__unwindtable$?anchor@@YAHH@Z"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?f@D@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A3",
+  "cell": "a3_06_diamond",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A3/a3_06_diamond/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0C@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1B@@UAA@XZ",
+   "??1C@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DB@@QAAXXZ",
+   "??_DC@@QAAXXZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GB@@UAAPAXI@Z",
+   "??_GC@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?f@C@@UAAHH@Z",
+   "?g@B@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0C@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1B@@UAA@XZ",
+   "??1C@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DB@@QAAXXZ",
+   "??_DC@@QAAXXZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GB@@UAAPAXI@Z",
+   "??_GC@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?f@C@@UAAHH@Z",
+   "?g@B@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??1A@@UAA@XZ": 16,
+   "?f@A@@UAAHH@Z": 12,
+   "??_GA@@UAAPAXI@Z": 68,
+   "??0A@@QAA@XZ": 16,
+   "??0B@@QAA@XZ": 72,
+   "?g@B@@UAAHH@Z": 8,
+   "??1B@@UAA@XZ": 4,
+   "??0C@@QAA@XZ": 56,
+   "?f@C@@UAAHH@Z": 8,
+   "??1C@@UAA@XZ": 4,
+   "??1D@@UAA@XZ": 4,
+   "??_DB@@QAAXXZ": 16,
+   "??_DC@@QAAXXZ": 16,
+   "??0D@@QAA@XZ": 144,
+   "??_DD@@QAAXXZ": 16,
+   "??_GD@@UAAPAXI@Z": 72,
+   "??_GB@@UAAPAXI@Z": 72,
+   "??_GC@@UAAPAXI@Z": 72,
+   "?anchor@@YAHH@Z": 128
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2754",
+   "$T2868",
+   "$T2886",
+   "$T2904",
+   "$T2943",
+   "$T2946",
+   "??_7A@@6B@",
+   "??_7B@@6B0@@",
+   "??_7B@@6BA@@@",
+   "??_7C@@6B@",
+   "??_7D@@6BA@@@",
+   "??_7D@@6BB@@@",
+   "??_8B@@7B@",
+   "??_8C@@7B@",
+   "??_8D@@7BB@@@",
+   "??_8D@@7BC@@@",
+   "__C1_11886",
+   "__C2_11886",
+   "__unwindtable$?anchor@@YAHH@Z"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0A@@QAA@XZ",
+   "??0B@@QAA@XZ",
+   "??0C@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "??1A@@UAA@XZ",
+   "??1B@@UAA@XZ",
+   "??1C@@UAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_DB@@QAAXXZ",
+   "??_DC@@QAAXXZ",
+   "??_DD@@QAAXXZ",
+   "??_GA@@UAAPAXI@Z",
+   "??_GB@@UAAPAXI@Z",
+   "??_GC@@UAAPAXI@Z",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?f@C@@UAAHH@Z",
+   "?g@B@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A3",
+  "cell": "a3_07_mi_outofline_virtuals_no_object",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A3/a3_07_mi_outofline_virtuals_no_object/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?f@A@@UAAHH@Z": 12,
+   "?g@D@@UAAHH@Z": 8,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2607",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A3",
+  "cell": "a3_08_si_inherited_inline_virtual",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A3/a3_08_si_inherited_inline_virtual/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z",
+   "?only_a@A@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z",
+   "?only_a@A@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??0A@@QAA@XZ": 16,
+   "?f@A@@UAAHH@Z": 12,
+   "?only_a@A@@UAAHH@Z": 8,
+   "??0D@@QAA@XZ": 16,
+   "?g@D@@UAAHH@Z": 8,
+   "?anchor@@YAHH@Z": 68
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2621",
+   "??_7A@@6B@",
+   "??_7D@@6B@",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0A@@QAA@XZ",
+   "??0D@@QAA@XZ",
+   "?anchor@@YAHH@Z",
+   "?f@A@@UAAHH@Z",
+   "?g@D@@UAAHH@Z",
+   "?only_a@A@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_01_nested_anon_ns",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_01_nested_anon_ns/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "?cand@?A0x5873b9ed@1@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "?cand@?A0x5873b9ed@1@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?cand@?A0x5873b9ed@1@YAHH@Z": 12,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2557",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "?cand@?A0xa64b2536@1@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_02_named_ns_inside_anon_ns",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_02_named_ns_inside_anon_ns/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "?cand@N@?A0x3ced86bc@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "?cand@N@?A0x3ced86bc@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?cand@N@?A0x3ced86bc@@YAHH@Z": 12,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2557",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "?cand@N@?A0x5fd0ed89@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_03_anon_ns_inside_named_ns",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_03_anon_ns_inside_named_ns/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "?cand@?A0xa2f023ad@N@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "?cand@?A0xa2f023ad@N@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?cand@?A0xa2f023ad@N@@YAHH@Z": 12,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2557",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "?cand@?A0x801d90a7@N@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_04_anon_ns_class_virtuals_object",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_04_anon_ns_class_virtuals_object/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0V@?A0xb399d64d@@QAA@XZ",
+   "??1V@?A0xb399d64d@@UAA@XZ",
+   "??_GV@?A0xb399d64d@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@V@?A0xb399d64d@@UAAHH@Z",
+   "?g@V@?A0xb399d64d@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0V@?A0xb399d64d@@QAA@XZ",
+   "??1V@?A0xb399d64d@@UAA@XZ",
+   "??_GV@?A0xb399d64d@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@V@?A0xb399d64d@@UAAHH@Z",
+   "?g@V@?A0xb399d64d@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??1V@?A0xb399d64d@@UAA@XZ": 16,
+   "?f@V@?A0xb399d64d@@UAAHH@Z": 12,
+   "?g@V@?A0xb399d64d@@UAAHH@Z": 8,
+   "??_GV@?A0xb399d64d@@UAAPAXI@Z": 68,
+   "??0V@?A0xb399d64d@@QAA@XZ": 16,
+   "?anchor@@YAHH@Z": 128
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2607",
+   "$T2626",
+   "$T2629",
+   "??_7V@?A0xb399d64d@@6B@",
+   "__C1_11886",
+   "__C2_11886",
+   "__unwindtable$?anchor@@YAHH@Z"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0V@?A0x3be290b8@@QAA@XZ",
+   "??1V@?A0x3be290b8@@UAA@XZ",
+   "??_GV@?A0x3be290b8@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@V@?A0x3be290b8@@UAAHH@Z",
+   "?g@V@?A0x3be290b8@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_05_anon_ns_class_virtuals_no_object",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_05_anon_ns_class_virtuals_no_object/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2592",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_06_anon_ns_outofline_member_unref",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_06_anon_ns_outofline_member_unref/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "?m@S@?A0xe6264bf0@@QAAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "?m@S@?A0xe6264bf0@@QAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?m@S@?A0xe6264bf0@@QAAHH@Z": 12,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2571",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "?m@S@?A0x596d3a50@@QAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_07_anon_ns_extern_c",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_07_anon_ns_extern_c/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "cand"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "cand"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "cand": 12,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2557",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "cand"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_08_anon_ns_static_decl_nonstatic_def",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_08_anon_ns_static_decl_nonstatic_def/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2555",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A4",
+  "cell": "a4_09_anon_ns_dyninit_calls_anon_ns_static",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A4/a4_09_anon_ns_dyninit_calls_anon_ns_static/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z",
+   "?helper@?A0xb197bb12@@YAHH@Z",
+   "?seed@?A0xb197bb12@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z",
+   "?helper@?A0xb197bb12@@YAHH@Z",
+   "?seed@?A0xb197bb12@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?helper@?A0xb197bb12@@YAHH@Z": 12,
+   "?seed@?A0xb197bb12@@YAHH@Z": 8,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".data",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2597",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z",
+   "?helper@?A0x980e9b9d@@YAHH@Z",
+   "?seed@?A0x980e9b9d@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_01_dynamic_cast_to_derived_no_ctor",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_01_dynamic_cast_to_derived_no_ctor/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\ncell.cpp(6) : warning C4541: 'dynamic_cast' used on polymorphic type 'B' with /GR-; unpredictable behavior may result\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHPAUB@@H@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHPAUB@@H@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHPAUB@@H@Z": 92
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".data",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2600",
+   "??_R0?AUB@@@8",
+   "??_R0?AUD@@@8",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHPAUB@@H@Z"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_02_dynamic_cast_virtual_base_no_ctor",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_02_dynamic_cast_virtual_base_no_ctor/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\ncell.cpp(5) : warning C4541: 'dynamic_cast' used on polymorphic type 'A' with /GR-; unpredictable behavior may result\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHPAUA@@H@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHPAUA@@H@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHPAUA@@H@Z": 92
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".data",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2607",
+   "??_R0?AUA@@@8",
+   "??_R0?AUD@@@8",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHPAUA@@H@Z"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_03_dynamic_cast_to_void",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_03_dynamic_cast_to_void/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\ncell.cpp(4) : warning C4541: 'dynamic_cast' used on polymorphic type 'B' with /GR-; unpredictable behavior may result\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHPAUB@@H@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHPAUB@@H@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHPAUB@@H@Z": 68
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2572",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHPAUB@@H@Z"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_04_dynamic_cast_reference_form",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_04_dynamic_cast_reference_form/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\ncell.cpp(5) : warning C4541: 'dynamic_cast' used on polymorphic type 'B' with /GR-; unpredictable behavior may result\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHAAUB@@H@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHAAUB@@H@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHAAUB@@H@Z": 92
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".data",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2601",
+   "??_R0?AUB@@@8",
+   "??_R0?AUD@@@8",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHAAUB@@H@Z"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_05_outofline_virtual_dtor_no_ctor",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_05_outofline_virtual_dtor_no_ctor/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??1D@@UAA@XZ",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@D@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??1D@@UAA@XZ",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@D@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??1D@@UAA@XZ": 16,
+   "?f@D@@UAAHH@Z": 12,
+   "?g@D@@UAAHH@Z": 8,
+   "??_GD@@UAAPAXI@Z": 68,
+   "?anchor@@YAHH@Z": 36
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2599",
+   "$T2604",
+   "??_7D@@6B@",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??1D@@UAA@XZ",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@D@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_06_delete_through_pointer_no_ctor",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_06_delete_through_pointer_no_ctor/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHPAUD@@H@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHPAUD@@H@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHPAUD@@H@Z": 80
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2599",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHPAUD@@H@Z"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_07_address_of_virtual_no_ctor",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_07_address_of_virtual_no_ctor/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??_9D@@$BA@AA",
+   "?anchor@@YAP8D@@AAHH@ZXZ"
+  ],
+  "textname_leaders": [
+   "??_9D@@$BA@AA",
+   "?anchor@@YAP8D@@AAHH@ZXZ"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??_9D@@$BA@AA": 16,
+   "?anchor@@YAP8D@@AAHH@ZXZ": 12
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??_9D@@$BA@AA",
+   "?anchor@@YAP8D@@AAHH@ZXZ"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_08_typeid_no_ctor",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_08_typeid_no_ctor/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "?anchor@@YAHH@Z"
+  ],
+  "textname_leaders": [
+   "?anchor@@YAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "?anchor@@YAHH@Z": 76
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".data",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2603",
+   "??_R0?AUD@@@8",
+   "__C1_11886",
+   "__C2_11886"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "?anchor@@YAHH@Z"
+  ]
+ },
+ {
+  "axis": "A9",
+  "cell": "a9_09_ctor_control",
+  "src": "/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/cells/A9/a9_09_ctor_control/cell.cpp",
+  "cl_rc": 0,
+  "cl_out": "cell.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+  "code_leaders": [
+   "??0D@@QAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@D@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "textname_leaders": [
+   "??0D@@QAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@D@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ],
+  "readings_agree": true,
+  "code_sizes": {
+   "??1D@@UAA@XZ": 16,
+   "?f@D@@UAAHH@Z": 12,
+   "?g@D@@UAAHH@Z": 8,
+   "??_GD@@UAAPAXI@Z": 68,
+   "??0D@@QAA@XZ": 16,
+   "?anchor@@YAHH@Z": 128
+  },
+  "code_secnames": [
+   ".text"
+  ],
+  "sections": [
+   ".XBLD$W",
+   ".debug$S",
+   ".drectve",
+   ".pdata",
+   ".rdata",
+   ".text"
+  ],
+  "code_sections_all": [
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text",
+   ".text"
+  ],
+  "code_noncomdat": [],
+  "other_comdat_leaders": [
+   "$T2607",
+   "$T2626",
+   "$T2629",
+   "??_7D@@6B@",
+   "__C1_11886",
+   "__C2_11886",
+   "__unwindtable$?anchor@@YAHH@Z"
+  ],
+  "cod_rc": 0,
+  "cod_procs": [
+   "??0D@@QAA@XZ",
+   "??1D@@UAA@XZ",
+   "??_GD@@UAAPAXI@Z",
+   "?anchor@@YAHH@Z",
+   "?f@D@@UAAHH@Z",
+   "?g@D@@UAAHH@Z"
+  ]
+ }
+]

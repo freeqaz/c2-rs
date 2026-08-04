@@ -14,6 +14,11 @@ BUILD = os.path.join(ROOT, 'build')
 WIBO = '/home/free/code/milohax/wibo/build/wibo'
 CL = '/home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe'
 BASE = ['/O1', '/Oi', '/EHsc', '/GS-', '/c']
+# /I. added uniformly to every cell: this toolchain's /Yu needs an explicit
+# include path (C1034) even for a quoted include that /Yc resolved fine.
+# Applied to ALL axes, not just A8, so the flag line stays identical across
+# cells; results_noI.json is the paired run without it (control: inert).
+INCPATH = ['/I.']
 TIMEOUT = 120
 
 sys.path.insert(0, ROOT)
@@ -34,7 +39,7 @@ def run_cell(axis, name, listing=False):
     rec = dict(axis=axis, cell=name, listing=listing, invocations=[], objs={}, cods={})
     env = dict(os.environ, WIBO_FS_CACHE='1', TMP=wd, TEMP=wd)
     for inv in spec['invocations']:
-        args = list(BASE) + (['/FAsc'] if listing else []) + list(inv['args'])
+        args = list(BASE) + INCPATH + (['/FAsc'] if listing else []) + list(inv['args'])
         t0 = time.time()
         try:
             r = subprocess.run([WIBO, CL] + args, capture_output=True, text=True,

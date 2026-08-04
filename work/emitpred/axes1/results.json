@@ -1,0 +1,4614 @@
+[
+ {
+  "axis": "A1",
+  "cell": "a1c1_depth1_inline_ref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c1_depth1_inline_ref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?cand@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c2_depth5_inline_ref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c2_depth5_inline_ref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?cand@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c3_depth5_inline_unref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c3_depth5_inline_unref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c4_depth3_static_one_ref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c4_depth3_static_one_ref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?cand@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c5_depth4_extern_def_unref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c5_depth4_extern_def_unref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?cand@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c6_diamond_two_depths",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c6_diamond_two_depths",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?cand@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c7_use_before_def_depth5",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c7_use_before_def_depth5",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?cand@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c8_chain_across_depths",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?leafcand@@YAHH@Z",
+     "?midcand@@YAHH@Z",
+     "?topcand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?leafcand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?midcand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?topcand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?leafcand@@YAHH@Z",
+     "?midcand@@YAHH@Z",
+     "?topcand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A1",
+  "cell": "a1c8_chain_across_depths",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?leafcand@@YAHH@Z",
+    "?midcand@@YAHH@Z",
+    "?topcand@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c1_externC_inline_unref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c1_externC_inline_unref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c2_externC_inline_ref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "cand",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "cand"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "cand",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c2_externC_inline_ref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "cand",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c3_static_inline_ref_and_unref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?candR@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?candR@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?candR@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c3_static_inline_ref_and_unref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?candR@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c4_extern_then_inline_unref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cand@@YAHH@Z",
+     "?cand2@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?cand2@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cand@@YAHH@Z",
+     "?cand2@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c4_extern_then_inline_unref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?cand@@YAHH@Z",
+    "?cand2@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c5_header_static_one_ref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?hcandR@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?hcandR@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?hcandR@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c5_header_static_one_ref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?hcandR@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c6_header_linkage_matrix",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?hiR@@YAHH@Z",
+     "?hsiR@@YAHH@Z",
+     "hciR",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?hiR@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?hsiR@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "hciR"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?hiR@@YAHH@Z",
+     "?hsiR@@YAHH@Z",
+     "hciR",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c6_header_linkage_matrix",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?hiR@@YAHH@Z",
+    "?hsiR@@YAHH@Z",
+    "hciR",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c7_header_externC_def_unref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "hc",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "hc"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "hc",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c7_header_externC_def_unref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "hc",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c8_header_static_inline_addr_in_data",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".data",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?hsi@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?hsi@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?hsi@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c8_header_static_inline_addr_in_data",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?hsi@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c9_externC_static_inline",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "candR",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "candR"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "candR",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A5",
+  "cell": "a5c9_externC_static_inline",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "candR",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c1_shared_inline_separate_invocations",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu1.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "tu1.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "tu2.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "tu1.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?ca@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?ca@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor1@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?ca@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu2.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cb@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cb@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor2@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cb@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c1_shared_inline_separate_invocations",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu1.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "tu1.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "tu2.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "tu1.obj": [
+    "?ca@@YAHH@Z",
+    "?anchor1@@YAHH@Z"
+   ],
+   "tu2.obj": [
+    "?cb@@YAHH@Z",
+    "?anchor2@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c2_shared_inline_one_invocation",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "tu1.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?ca@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?ca@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor1@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?ca@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu2.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cb@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cb@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor2@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cb@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c2_shared_inline_one_invocation",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "tu1.obj": [
+    "?ca@@YAHH@Z",
+    "?anchor1@@YAHH@Z"
+   ],
+   "tu2.obj": [
+    "?cb@@YAHH@Z",
+    "?anchor2@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c3_shared_inline_one_invocation_reversed",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu2.cpp",
+     "tu1.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu2.cpp\ntu1.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "tu1.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?ca@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?ca@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor1@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?ca@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu2.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cb@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cb@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor2@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cb@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c3_shared_inline_one_invocation_reversed",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu2.cpp",
+     "tu1.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu2.cpp\ntu1.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "tu1.obj": [
+    "?ca@@YAHH@Z",
+    "?anchor1@@YAHH@Z"
+   ],
+   "tu2.obj": [
+    "?cb@@YAHH@Z",
+    "?anchor2@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c4_shared_static_one_tu_refs",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "tu1.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?sa@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?sa@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor1@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?sa@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu2.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor2@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor2@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor2@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c4_shared_static_one_tu_refs",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "tu1.obj": [
+    "?sa@@YAHH@Z",
+    "?anchor1@@YAHH@Z"
+   ],
+   "tu2.obj": [
+    "?anchor2@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c5_shared_vtable_one_tu_constructs",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "tu1.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".rdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "??0C@@QAA@XZ",
+     "??1C@@UAA@XZ",
+     "?v@C@@UAAHH@Z",
+     "?w@C@@UAAHH@Z",
+     "??_GC@@UAAPAXI@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "??0C@@QAA@XZ"
+     ],
+     [
+      ".text",
+      "??1C@@UAA@XZ"
+     ],
+     [
+      ".text",
+      "?v@C@@UAAHH@Z"
+     ],
+     [
+      ".text",
+      "?w@C@@UAAHH@Z"
+     ],
+     [
+      ".text",
+      "??_GC@@UAAPAXI@Z"
+     ],
+     [
+      ".text",
+      "?anchor1@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "??0C@@QAA@XZ",
+     "??1C@@UAA@XZ",
+     "?v@C@@UAAHH@Z",
+     "?w@C@@UAAHH@Z",
+     "??_GC@@UAAPAXI@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "rdata_leaders": [
+     "??_7C@@6B@",
+     "__unwindtable$?anchor1@@YAHH@Z"
+    ],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu2.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor2@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor2@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor2@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c5_shared_vtable_one_tu_constructs",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "tu1.obj": [
+    "??0C@@QAA@XZ",
+    "??1C@@UAA@XZ",
+    "?v@C@@UAAHH@Z",
+    "?w@C@@UAAHH@Z",
+    "??_GC@@UAAPAXI@Z",
+    "?anchor1@@YAHH@Z"
+   ],
+   "tu2.obj": [
+    "?anchor2@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c6_shared_extern_def_neither_refs",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "tu1.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?hc@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?hc@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor1@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?hc@@YAHH@Z",
+     "?anchor1@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu2.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?hc@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?hc@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor2@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?hc@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c6_shared_extern_def_neither_refs",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "tu1.obj": [
+    "?hc@@YAHH@Z",
+    "?anchor1@@YAHH@Z"
+   ],
+   "tu2.obj": [
+    "?hc@@YAHH@Z",
+    "?anchor2@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c7_three_tus_middle_refs",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu1.cpp",
+     "tu2.cpp",
+     "tu3.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.05,
+    "out": "tu1.cpp\ntu2.cpp\ntu3.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "tu1.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor1@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor1@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor1@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu2.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cb@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cb@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor2@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cb@@YAHH@Z",
+     "?anchor2@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu3.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor3@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor3@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor3@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c7_three_tus_middle_refs",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu1.cpp",
+     "tu2.cpp",
+     "tu3.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.05,
+    "out": "tu1.cpp\ntu2.cpp\ntu3.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "tu1.obj": [
+    "?anchor1@@YAHH@Z"
+   ],
+   "tu2.obj": [
+    "?cb@@YAHH@Z",
+    "?anchor2@@YAHH@Z"
+   ],
+   "tu3.obj": [
+    "?anchor3@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c8_shared_dyninit_per_tu",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "tu1.obj": {
+    "machine": 498,
+    "sections": [
+     ".CRT$XCU",
+     ".XBLD$W",
+     ".bss",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text",
+     ".text$yc"
+    ],
+    "code_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor1@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?mk@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor1@@YAHH@Z"
+     ],
+     [
+      ".text$yc",
+      "??__Eg_v@@YAXXZ"
+     ]
+    ],
+    "text_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor1@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "tu2.obj": {
+    "machine": 498,
+    "sections": [
+     ".CRT$XCU",
+     ".XBLD$W",
+     ".bss",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text",
+     ".text$yc"
+    ],
+    "code_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor2@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?mk@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor2@@YAHH@Z"
+     ],
+     [
+      ".text$yc",
+      "??__Eg_v@@YAXXZ"
+     ]
+    ],
+    "text_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor2@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A6",
+  "cell": "a6c8_shared_dyninit_per_tu",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "tu1.cpp",
+     "tu2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "tu1.cpp\ntu2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "tu1.obj": [
+    "?mk@@YAHH@Z",
+    "?anchor1@@YAHH@Z",
+    "??__Eg_v@@YAXXZ"
+   ],
+   "tu2.obj": [
+    "?mk@@YAHH@Z",
+    "?anchor2@@YAHH@Z",
+    "??__Eg_v@@YAXXZ"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c10_initseg_internal_datum",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nmain.cpp(1) : warning C4074: initializers put in compiler reserved initialization area\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".CRT$XCC",
+     ".XBLD$W",
+     ".bss",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text",
+     ".text$yc"
+    ],
+    "code_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?mk@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ],
+     [
+      ".text$yc",
+      "??__Eg_v@@YAXXZ"
+     ]
+    ],
+    "text_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c10_initseg_internal_datum",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nmain.cpp(1) : warning C4074: initializers put in compiler reserved initialization area\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?mk@@YAHH@Z",
+    "?anchor@@YAHH@Z",
+    "??__Eg_v@@YAXXZ"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c1_linker_include_static",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c1_linker_include_static",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c2_linker_include_inline",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c2_linker_include_inline",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c3_comment_lib_inert",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c3_comment_lib_inert",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c4_initseg_compiler",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nmain.cpp(1) : warning C4074: initializers put in compiler reserved initialization area\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".CRT$XCC",
+     ".XBLD$W",
+     ".bss",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text",
+     ".text$yc"
+    ],
+    "code_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?mk@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ],
+     [
+      ".text$yc",
+      "??__Eg_v@@YAXXZ"
+     ]
+    ],
+    "text_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c4_initseg_compiler",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nmain.cpp(1) : warning C4074: initializers put in compiler reserved initialization area\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?mk@@YAHH@Z",
+    "?anchor@@YAHH@Z",
+    "??__Eg_v@@YAXXZ"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c5_initseg_baseline_nopragma",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".CRT$XCU",
+     ".XBLD$W",
+     ".bss",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text",
+     ".text$yc"
+    ],
+    "code_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?mk@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ],
+     [
+      ".text$yc",
+      "??__Eg_v@@YAXXZ"
+     ]
+    ],
+    "text_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c5_initseg_baseline_nopragma",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?mk@@YAHH@Z",
+    "?anchor@@YAHH@Z",
+    "??__Eg_v@@YAXXZ"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c6_initseg_lib",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".CRT$XCL",
+     ".XBLD$W",
+     ".bss",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text",
+     ".text$yc"
+    ],
+    "code_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?mk@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ],
+     [
+      ".text$yc",
+      "??__Eg_v@@YAXXZ"
+     ]
+    ],
+    "text_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c6_initseg_lib",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?mk@@YAHH@Z",
+    "?anchor@@YAHH@Z",
+    "??__Eg_v@@YAXXZ"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c7_initseg_named_section",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nmain.cpp(1) : warning C4075: initializers put in unrecognized initialization area\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".bss",
+     ".debug$S",
+     ".drectve",
+     ".mycrt$a",
+     ".pdata",
+     ".text",
+     ".text$yc"
+    ],
+    "code_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?mk@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ],
+     [
+      ".text$yc",
+      "??__Eg_v@@YAXXZ"
+     ]
+    ],
+    "text_leaders": [
+     "?mk@@YAHH@Z",
+     "?anchor@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c7_initseg_named_section",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nmain.cpp(1) : warning C4075: initializers put in unrecognized initialization area\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?mk@@YAHH@Z",
+    "?anchor@@YAHH@Z",
+    "??__Eg_v@@YAXXZ"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c8_codeseg_static_unref",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".mytext",
+     ".pdata"
+    ],
+    "code_leaders": [
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".mytext",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c8_codeseg_static_unref",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c9_section_allocate_addrtake",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "main.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".mysec",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?cand@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchor@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?cand@@YAHH@Z",
+     "?anchor@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A7",
+  "cell": "a7c9_section_allocate_addrtake",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "main.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "main.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "main.obj": [
+    "?cand@@YAHH@Z",
+    "?anchor@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c1_yc_no_refs",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Ycpcha.h",
+     "/Fpa8c1.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "pchgen.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchorg@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c1_yc_no_refs",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Ycpcha.h",
+     "/Fpa8c1.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "pchgen.obj": [
+    "?anchorg@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c2_yu_refs_ia_sa",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Ycpcha.h",
+     "/Fpa8c2.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Yupcha.h",
+     "/Fpa8c2.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "pchgen.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchorg@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "user.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?ia@@YAHH@Z",
+     "?sa@@YAHH@Z",
+     "?anchoru@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?ia@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?sa@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchoru@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?ia@@YAHH@Z",
+     "?sa@@YAHH@Z",
+     "?anchoru@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c2_yu_refs_ia_sa",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Ycpcha.h",
+     "/Fpa8c2.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Yupcha.h",
+     "/Fpa8c2.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "pchgen.obj": [
+    "?anchorg@@YAHH@Z"
+   ],
+   "user.obj": [
+    "?ia@@YAHH@Z",
+    "?sa@@YAHH@Z",
+    "?anchoru@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c3_yu_no_refs",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Ycpcha.h",
+     "/Fpa8c3.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Yupcha.h",
+     "/Fpa8c3.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "pchgen.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchorg@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "user.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchoru@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchoru@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchoru@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c3_yu_no_refs",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Ycpcha.h",
+     "/Fpa8c3.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Yupcha.h",
+     "/Fpa8c3.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "pchgen.obj": [
+    "?anchorg@@YAHH@Z"
+   ],
+   "user.obj": [
+    "?anchoru@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c4_nopch_control",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "user.cpp",
+     "user2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "user.cpp\nuser2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "user.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?ia@@YAHH@Z",
+     "?sa@@YAHH@Z",
+     "?anchoru@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?ia@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?sa@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchoru@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?ia@@YAHH@Z",
+     "?sa@@YAHH@Z",
+     "?anchoru@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "user2.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchoru2@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchoru2@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchoru2@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c4_nopch_control",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "user.cpp",
+     "user2.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.04,
+    "out": "user.cpp\nuser2.cpp\nGenerating Code...\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "user.obj": [
+    "?ia@@YAHH@Z",
+    "?sa@@YAHH@Z",
+    "?anchoru@@YAHH@Z"
+   ],
+   "user2.obj": [
+    "?anchoru2@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c5_extern_def_in_pch",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Ycpchb.h",
+     "/Fpa8c5.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Yupchb.h",
+     "/Fpa8c5.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "pchgen.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchorg@@YAHH@Z",
+     "?ea@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchorg@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?ea@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchorg@@YAHH@Z",
+     "?ea@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "user.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchoru@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchoru@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchoru@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c5_extern_def_in_pch",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Ycpchb.h",
+     "/Fpa8c5.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Yupchb.h",
+     "/Fpa8c5.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "pchgen.obj": [
+    "?anchorg@@YAHH@Z",
+    "?ea@@YAHH@Z"
+   ],
+   "user.obj": [
+    "?anchoru@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c6_yc_refs_yu_does_not",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Ycpcha.h",
+     "/Fpa8c6.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Yupcha.h",
+     "/Fpa8c6.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "pchgen.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?ia@@YAHH@Z",
+     "?sa@@YAHH@Z",
+     "?anchorg@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?ia@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?sa@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?anchorg@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?ia@@YAHH@Z",
+     "?sa@@YAHH@Z",
+     "?anchorg@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "user.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchoru@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchoru@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchoru@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c6_yc_refs_yu_does_not",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Ycpcha.h",
+     "/Fpa8c6.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Yupcha.h",
+     "/Fpa8c6.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "pchgen.obj": [
+    "?ia@@YAHH@Z",
+    "?sa@@YAHH@Z",
+    "?anchorg@@YAHH@Z"
+   ],
+   "user.obj": [
+    "?anchoru@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c7_pch_vtable",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Ycpchc.h",
+     "/Fpa8c7.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Yupchc.h",
+     "/Fpa8c7.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "pchgen.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchorg@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "user.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".rdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "??0C@@QAA@XZ",
+     "??1C@@UAA@XZ",
+     "?v@C@@UAAHH@Z",
+     "?w@C@@UAAHH@Z",
+     "??_GC@@UAAPAXI@Z",
+     "?anchoru@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "??0C@@QAA@XZ"
+     ],
+     [
+      ".text",
+      "??1C@@UAA@XZ"
+     ],
+     [
+      ".text",
+      "?v@C@@UAAHH@Z"
+     ],
+     [
+      ".text",
+      "?w@C@@UAAHH@Z"
+     ],
+     [
+      ".text",
+      "??_GC@@UAAPAXI@Z"
+     ],
+     [
+      ".text",
+      "?anchoru@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "??0C@@QAA@XZ",
+     "??1C@@UAA@XZ",
+     "?v@C@@UAAHH@Z",
+     "?w@C@@UAAHH@Z",
+     "??_GC@@UAAPAXI@Z",
+     "?anchoru@@YAHH@Z"
+    ],
+    "rdata_leaders": [
+     "??_7C@@6B@",
+     "__unwindtable$?anchoru@@YAHH@Z"
+    ],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c7_pch_vtable",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Ycpchc.h",
+     "/Fpa8c7.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Yupchc.h",
+     "/Fpa8c7.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.02,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "pchgen.obj": [
+    "?anchorg@@YAHH@Z"
+   ],
+   "user.obj": [
+    "??0C@@QAA@XZ",
+    "??1C@@UAA@XZ",
+    "?v@C@@UAAHH@Z",
+    "?w@C@@UAAHH@Z",
+    "??_GC@@UAAPAXI@Z",
+    "?anchoru@@YAHH@Z"
+   ]
+  }
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c8_pch_dyninit",
+  "listing": false,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Ycpchd.h",
+     "/Fpa8c8.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/Yupchd.h",
+     "/Fpa8c8.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {
+   "pchgen.obj": {
+    "machine": 498,
+    "sections": [
+     ".XBLD$W",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text"
+    ],
+    "code_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchorg@@YAHH@Z"
+     ]
+    ],
+    "text_leaders": [
+     "?anchorg@@YAHH@Z"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   },
+   "user.obj": {
+    "machine": 498,
+    "sections": [
+     ".CRT$XCU",
+     ".XBLD$W",
+     ".bss",
+     ".debug$S",
+     ".drectve",
+     ".pdata",
+     ".text",
+     ".text$yc"
+    ],
+    "code_leaders": [
+     "?anchoru@@YAHH@Z",
+     "?mk@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "code_leader_secs": [
+     [
+      ".text",
+      "?anchoru@@YAHH@Z"
+     ],
+     [
+      ".text",
+      "?mk@@YAHH@Z"
+     ],
+     [
+      ".text$yc",
+      "??__Eg_v@@YAXXZ"
+     ]
+    ],
+    "text_leaders": [
+     "?anchoru@@YAHH@Z",
+     "?mk@@YAHH@Z",
+     "??__Eg_v@@YAXXZ"
+    ],
+    "rdata_leaders": [],
+    "data_leaders": [],
+    "noncomdat_code": []
+   }
+  },
+  "cods": {}
+ },
+ {
+  "axis": "A8",
+  "cell": "a8c8_pch_dyninit",
+  "listing": true,
+  "invocations": [
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Ycpchd.h",
+     "/Fpa8c8.pch",
+     "pchgen.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.03,
+    "out": "pchgen.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   },
+   {
+    "args": [
+     "/O1",
+     "/Oi",
+     "/EHsc",
+     "/GS-",
+     "/c",
+     "/I.",
+     "/FAsc",
+     "/Yupchd.h",
+     "/Fpa8c8.pch",
+     "user.cpp"
+    ],
+    "rc": 0,
+    "timeout": false,
+    "secs": 0.01,
+    "out": "user.cpp\nMicrosoft (R) 32-bit C/C++ Optimizing Compiler Version 16.00.11886.00 for PowerPC\nCopyright (C) Microsoft Corporation.  All rights reserved."
+   }
+  ],
+  "objs": {},
+  "cods": {
+   "pchgen.obj": [
+    "?anchorg@@YAHH@Z"
+   ],
+   "user.obj": [
+    "?anchoru@@YAHH@Z",
+    "?mk@@YAHH@Z",
+    "??__Eg_v@@YAXXZ"
+   ]
+  }
+ }
+]
