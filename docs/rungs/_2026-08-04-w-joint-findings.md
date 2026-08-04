@@ -528,6 +528,14 @@ widest available reading, and after M3 came in at 0.979 I changed nothing.
 | **`census/gate disagreement`** | **0** | **0** |
 | capture cache | 871 hit, 7 miss, 0 POISONED | **871 hit, 7 miss, 0 POISONED** |
 
+**Master moved under this lane while it ran** — it is at **`92fb6bb`** (the
+merge of `wt-w-cross`, which closed board #232 *inside* `crates/`) as this is
+written, and `78d29e6` is an ancestor of it.  Every gate number in this table is
+against **`78d29e6`**; the branch needs a rebase before it lands and the
+coordinator re-gates the merged tree.  Because w-cross changed `crates/`, the
+post-merge fixture counts may differ from the 698 / 222 / 2 664 measured here —
+**compare the FAILED count, not the passed count.**
+
 **`git diff 78d29e6 -- crates/ scripts/` is EMPTY**, so the incumbent column and
 this column are the same tree measured once; both were run here rather than
 copied from a rung doc. Several rung docs still quote **687 / 219 / 2 628** and
