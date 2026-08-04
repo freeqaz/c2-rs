@@ -1,0 +1,24 @@
+===== src/system/net/HttpReq.cpp =====
+bundle _CL_6b103e24
+in: 4613 bytes, terminus clean=True, 286 `02` nodes; walks agree: True
+BASELINE replay == pipeline obj (TimeDateStamp zeroed): False  leaders: 63
+candidates: F_old 10   F_new(2-byte) 95  F_new(4-byte) 0
+  ?IsSafeToDelete@HttpReq@@UBA_NXZ                           -> ?_M_throw_length_error@?$_String_base@DV?$allocator@D@stlp  lost=1 gained=60  necessity=True sufficiency=True
+  ?SetContent@HttpReq@@UAAXPBD@Z                             -> ?max_size@?$allocator@D@stlpmtx_std@@QBAIXZ                 lost=1 gained=1  necessity=True sufficiency=True
+  ?SetContentLength@HttpReq@@UAAXI@Z                         -> ?max_size@?$_String_base@DV?$allocator@D@stlpmtx_std@@@stl  lost=1 gained=1  necessity=True sufficiency=True
+  ?SetCookies@HttpReq@@UAAXABV?$map@VString@@V1@U?$less@VStr -> ?allocate@?$allocator@D@stlpmtx_std@@QAAPADIPBX@Z           lost=18 gained=13  necessity=True sufficiency=True
+  ?SetSSLCertName@HttpReq@@UAAXPBD@Z                         -> ?_M_allocate_block@?$_String_base@DV?$allocator@D@stlpmtx_  lost=1 gained=60  necessity=True sufficiency=True
+M12 necessity  5/5
+M11 sufficiency 5/5
+===== src/system/rndobj/EventTrigger.cpp =====
+bundle _CL_f7420791
+in: 37748 bytes, terminus clean=True, 2164 `02` nodes; walks agree: True
+BASELINE replay == pipeline obj (TimeDateStamp zeroed): False  leaders: 977
+candidates: F_old 94   F_new(2-byte) 433  F_new(4-byte) 592
+  ??_EEventTrigger@@$4PPPPPPPM@A@AAPAXI@Z                    -> ??$__copy_backward_ptrs@PAPAUObjEntry@@PAPAU1@@stlpmtx_std  lost=4 gained=2  necessity=True sufficiency=True
+  ??_ERndAnimatable@@$4PPPPPPPM@A@AAPAXI@Z                   -> ??$_IsOKToMemCpy@PAUObjEntry@@PAU1@@stlpmtx_std@@YA?AU?$_O  lost=4 gained=1  necessity=True sufficiency=True
+  ?CheckAnims@EventTrigger@@MAAXXZ                           -> ??$__pop_heap_aux@PAPAUObjEntry@@PAU1@UObjSort@@@stlpmtx_s  lost=1 gained=5  necessity=True sufficiency=True
+  ?ClassName@EventTrigger@@$4PPPPPPPM@A@BA?AVSymbol@@XZ      -> ??$__push_heap@PAPAUObjEntry@@HPAU1@UObjSort@@@stlpmtx_std  lost=2 gained=2  necessity=True sufficiency=True
+  ?ClassName@RndAnimatable@@$4PPPPPPPM@A@BA?AVSymbol@@XZ     -> ?_Answer@?$_OKToMemCpy@PAUObjEntry@@PAU1@@stlpmtx_std@@SA?  lost=2 gained=1  necessity=True sufficiency=True
+M12 necessity  5/5
+M11 sufficiency 5/5

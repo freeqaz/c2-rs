@@ -1,0 +1,29 @@
+TUs graded 850   MISSING 7   ERROR 0
+
+KA-B terminus gate:      850 / 850 clean = 1.00000   (1885700 `02` tokens)
+KA-A incumbent population: |U| 1506586  |E| 174417  |E n U| 173907  |Seed| 14662  Seed n E 14662
+
+RGL    |P|   129604   precision 1.00000   recall 0.74307   F1 0.85260   per-TU exact 132/850
+INIT   |P|   613532   precision 0.27289   recall 0.95991   F1 0.42496   per-TU exact 34/850
+       delta:  precision -0.72711   recall +0.21684   F1 -0.42763 (-42.763 pp)
+
+M5  |I|                    245148
+M7  |I n E| / |I|          0.14086   (34532)
+M6  |I \ P_RGL|            242118   of which emitted 31502 (0.13011)
+M8  Rfloor                 36141   Seed 6793 = 0.18796   Seed u I 31416 = 0.86926
+
+KA-POS discriminating names (P_INIT ^ P_RGL): 483928
+
+M10 residual E \ P_INIT = 6482
+    ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)         3948  0.60907
+    `$` in qualified name (template instantiation OR adjustor thunk)     837  0.12913
+    non-virtual member                                                 806  0.12434
+    VIRTUAL member  (reached only via a vtable slot)                   449  0.06927
+    static member                                                      367  0.05662
+    free / file-scope function                                          60  0.00926
+    other (0)                                                            9  0.00139
+    other (2)                                                            3  0.00046
+    other (1)                                                            2  0.00031
+    undecorated (extern "C" / CRT)                                       1  0.00015
+    base rate |E|/|U| (emit-everything precision) = 0.11577
+    |P_INIT|/|U| = 0.40723
