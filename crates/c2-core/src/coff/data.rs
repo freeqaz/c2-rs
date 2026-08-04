@@ -20,10 +20,11 @@
 //! coincides by construction — **10 are still wrong**. So [`emit_data_obj`]
 //! gates on the count and returns `None` above it.
 //!
-//! # The allocator is A3′, and it is NOT [`bss_deferred_layout`]
+//! # The allocator is A3′, and the free-list rival is GONE
 //!
-//! `container.rs` carries `bss_deferred_layout`, which implements §5.4's Rule A3
-//! — a bump **with hole reuse**. §5.7 supersedes that clause with **Rule A3′**:
+//! `container.rs` used to carry `bss_deferred_layout`, which implemented §5.4's
+//! Rule A3 — a bump **with hole reuse**, walking the reverse of `.gl` order.
+//! §5.7 superseded that clause with **Rule A3′**:
 //!
 //! > one cursor per section starting at 0, each object placed at the cursor
 //! > rounded up to `align(obj) = max(t, 1 if n<2 else 4 if n<64 else 8)`, the
@@ -34,10 +35,18 @@
 //! `.data` and **38 of 38** probe cells. "Hole reuse", "pass-over" and
 //! "best-fit" are not three rival allocators — each is a different story about
 //! the *order* the objects were visited in, and every one of them emits a layout
-//! that is a bump in *some* order. So this file walks and bumps, and does not
-//! call `bss_deferred_layout`: that helper has **never had a caller**, has
-//! therefore never been graded by the differential, and its unit tests assert
-//! the clause A3′ replaced.
+//! that is a bump in *some* order. So this file walks and bumps.
+//!
+//! **`bss_deferred_layout` was DELETED (board #278), and its own doc authorized
+//! it**: *"delete the allow, do not keep it, when the writer grows a `.bss`
+//! path"* — and this file is that path, landed at `ee214a0`. It had never had a
+//! caller, so the differential had never graded one byte of it, and its four
+//! unit tests asserted the clause A3′ replaced. It also disagreed with this file
+//! on the WALK as well as on the free list: it went back-to-front over `.gl`
+//! order where [`emit_data_obj`]'s `.bss` walk goes forwards, which is Rule A1
+//! as §5.7 re-measured it (89 real sections against declaration order's 53).
+//! The promotion table they shared, [`super::container::placement_align`],
+//! stays — it is live here — and so does the test that pins it.
 //!
 //! # The two walks are different, and that is the load-bearing fact
 //!

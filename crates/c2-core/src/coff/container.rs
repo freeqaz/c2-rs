@@ -190,9 +190,11 @@ pub(crate) fn align_nibble(n: u32, natural: u32) -> Option<u32> {
 /// as the alignment the `.bss` **allocator** rounds each object up to. Prereg P9
 /// of that lane predicted the allocator used the plain *natural* alignment and
 /// was refuted — a natural-alignment allocator scores 7/18 against this one's
-/// 14/18 (§5.5). Keeping [`align_nibble`] and [`bss_deferred_layout`] on one body
-/// means a later correction to the thresholds cannot land in one and not the
-/// other.
+/// 14/18 (§5.5). Keeping [`align_nibble`] and the allocator
+/// (`super::data::bump_layout`, Rule A3′) on one body means a later correction to
+/// the thresholds cannot land in one and not the other. The §5.4 figures above
+/// are the *promotion*'s provenance and survive §5.7's revision of the allocator
+/// they were first measured through.
 ///
 /// `None` outside `{1,2,4,8}`: the section nibble has no encoding above ALIGN_8
 /// here, so a `__declspec(align(16))` object is refused rather than rounded to
@@ -211,161 +213,13 @@ pub(crate) fn placement_align(n: u32, natural: u32) -> Option<u32> {
     }
 }
 
-/// The `.bss` address walk for a run of **deferred** (dynamic-initializer)
-/// objects: one offset per object plus the section's total size, or `None` for a
-/// case this was not measured on.
-///
-/// `objects` is `(size, natural_align)` **in `.gl` record order**, and the
-/// returned offsets are parallel to it — `.gl` order, not walk order, because
-/// that is the order the symbol table wants (Rule Y2, §6.2).
-///
-/// Two independent rules from `docs/OBJ_DATA_BSS_SHAPE.md`, applied in order:
-///
-/// * **Rule A1 (§5.2)** — walk the deferred objects in the **reverse** of their
-///   `.gl` record order, so this loop runs back to front. (Eager objects walk
-///   forwards; this port has no eager-object path and must not grow one here by
-///   accident.)
-/// * **Rule A3 (§5.4)** — one cursor from 0. Round it up to the object's
-///   [`placement_align`]; the skipped bytes become a **hole**. Before taking from
-///   the cursor, try the **lowest-addressed hole that fits at the object's
-///   alignment**, splitting the hole around it. `SizeOfRawData` is the final
-///   cursor.
-///
-/// The hole reuse is not decoration: §5.4's worked example places an object at
-/// `0x0c` while the cursor stands at `0x18`, and §5.5 scores a no-reuse
-/// allocator at 12/18 against this one's 14/18.
-///
-/// **MEASURED, this lane**, on a three-object mixed-size probe (`sizeof` 1 / 8 /
-/// 4, `.gl` order `sB sA sC`): the reversed walk `sC sA sB` gives `sC@0`, `sA@4`,
-/// a hole `[5,8)` from `sB`'s round-up, `sB@8`, final cursor `0x10` — every
-/// offset and the section size exactly what the real obj carries. Mixed sizes are
-/// the class §5.5 flags as *not* exact (14/18), so this is graded by the
-/// differential on every run rather than assumed.
-///
-/// # No caller, on purpose
-///
-/// `w-r2` landed this reader and **deliberately did not wire it**: the allocator
-/// is exact on the classes §5.5 scores 14/18, not 18/18, so giving it a caller
-/// would put an unmeasured mixed-size case in front of the differential with
-/// nothing asking for it. The `dead_code` allow records that state rather than
-/// leaving a standing warning — a build that always prints one warning is a
-/// build in which the *next* warning is invisible. **Delete the allow, do not
-/// keep it, when the writer grows a `.bss` path.**
-#[allow(dead_code)]
-pub(crate) fn bss_deferred_layout(objects: &[(u32, u32)]) -> Option<(Vec<u32>, u32)> {
-    let mut offsets = vec![0u32; objects.len()];
-    let mut cursor: u32 = 0;
-    // Half-open `[lo, hi)` ranges skipped by an earlier round-up, kept sorted by
-    // `lo`, so "the lowest-addressed hole that fits" is the first one that does.
-    let mut holes: Vec<(u32, u32)> = Vec::new();
-    for idx in (0..objects.len()).rev() {
-        let (size, natural) = objects[idx];
-        if size == 0 {
-            return None; // a zero-length object has no measured placement
-        }
-        let align = placement_align(size, natural)?;
-        let mut placed = None;
-        for h in 0..holes.len() {
-            let (lo, hi) = holes[h];
-            let at = lo.checked_next_multiple_of(align)?;
-            if at.checked_add(size)? <= hi {
-                holes.remove(h);
-                // Split around the object. A zero-width remnant is NOT a hole:
-                // keeping `[x, x)` would leave a range that "fits" every future
-                // request of size 0 and reorders nothing visibly until it does.
-                let mut at_h = h;
-                if at > lo {
-                    holes.insert(at_h, (lo, at));
-                    at_h += 1;
-                }
-                if at + size < hi {
-                    holes.insert(at_h, (at + size, hi));
-                }
-                placed = Some(at);
-                break;
-            }
-        }
-        let at = match placed {
-            Some(at) => at,
-            None => {
-                let at = cursor.checked_next_multiple_of(align)?;
-                if at > cursor {
-                    holes.push((cursor, at));
-                    holes.sort_unstable();
-                }
-                cursor = at.checked_add(size)?;
-                at
-            }
-        };
-        offsets[idx] = at;
-    }
-    Some((offsets, cursor))
-}
-
 #[cfg(test)]
 mod alloc_tests {
     use super::*;
 
-    /// **The mixed-size cell, measured against a real obj this lane compiled.**
-    ///
-    /// `psize.cpp` — three dynamic-initializer objects of `sizeof` 1, 8 and 4 —
-    /// captures `.gl` order `sB sA sC`, and the real obj carries
-    /// `sB@8 sA@4 sC@0` with `SizeOfRawData = 0x10`.
-    ///
-    /// Rule A1 walks deferred objects in the REVERSE of `.gl` order, so the walk
-    /// is `sC sA sB`: `sC` (4 B, align 4) at 0, `sA` (1 B, align 1) at 4, then
-    /// `sB` (8 B, align 8) rounds the cursor 5 → 8 and leaves the hole `[5,8)`.
-    ///
-    /// This is one of the mixed-size cells `docs/OBJ_DATA_BSS_SHAPE.md` §5.5
-    /// scores the model at only 14/18 on, which is exactly why it is pinned here
-    /// rather than assumed.
-    #[test]
-    fn the_measured_mixed_size_cell() {
-        // (size, natural_align), in `.gl` record order.
-        let objs = [(1u32, 1u32), (8, 8), (4, 4)];
-        let (offsets, size) = bss_deferred_layout(&objs).expect("all three are in class");
-        assert_eq!(offsets, vec![4, 8, 0], "sA@4 sB@8 sC@0, parallel to `.gl` order");
-        assert_eq!(size, 0x10);
-    }
-
-    /// The uniform case, where the walk is the only thing that shows: six 1-byte
-    /// objects land at consecutive addresses in reverse `.gl` order. Measured on
-    /// `p6.cpp`, whose `.gl` spells `s2 s1 s5 s3 s4 s6` and whose obj carries
-    /// `s6@0 s4@1 s3@2 s5@3 s1@4 s2@5` — `docs/OBJ_DATA_BSS_SHAPE.md` §7.1's
-    /// family-A row for N = 6, reproduced.
-    #[test]
-    fn six_one_byte_objects_run_backwards() {
-        let objs = [(1u32, 1u32); 6];
-        let (offsets, size) = bss_deferred_layout(&objs).unwrap();
-        assert_eq!(offsets, vec![5, 4, 3, 2, 1, 0]);
-        assert_eq!(size, 6);
-    }
-
-    /// **The hole is reused, and this is the assertion that says so.** Without
-    /// reuse the last object would take the cursor and the section would be
-    /// larger; §5.5 scores no-reuse at 12/18 against 14/18.
-    #[test]
-    fn a_later_object_lands_in_an_earlier_holes_gap() {
-        // `.gl` order chosen so the reversed walk is (8 B align 8), (1 B), (1 B):
-        // cursor 0 → 8 B at 0, 1 B at 8, 1 B at 9. No hole. Now front-load a
-        // 1-byte object so the 8-aligned one must skip: walk = 1 B, 8 B, 1 B.
-        let objs = [(1u32, 1u32), (8, 8), (1, 1)];
-        let (offsets, size) = bss_deferred_layout(&objs).unwrap();
-        // walk: [2]=1 B @0; [1]=8 B rounds 1 → 8, hole [1,8); [0]=1 B fills it @1.
-        assert_eq!(offsets, vec![1, 8, 0]);
-        assert_eq!(size, 0x10);
-    }
-
-    /// A zero-length object and an over-aligned one are **refused**, not
-    /// approximated — the section nibble has no encoding above ALIGN_8.
-    #[test]
-    fn out_of_class_inputs_refuse() {
-        assert!(bss_deferred_layout(&[(0, 1)]).is_none(), "zero-length");
-        assert!(bss_deferred_layout(&[(4, 16)]).is_none(), "ALIGN_16");
-    }
-
-    /// [`align_nibble`] and [`bss_deferred_layout`] share one promotion table, so
-    /// the size thresholds cannot drift apart. Pin both sides of each boundary.
+    /// [`align_nibble`] and the `.data`/`.bss` allocator (`super::data::bump_layout`,
+    /// Rule A3′) share one promotion table, so the size thresholds cannot drift
+    /// apart. Pin both sides of each boundary.
     #[test]
     fn the_promotion_table_is_shared() {
         for (n, want) in [(1u32, 1u32), (2, 4), (63, 4), (64, 8), (256, 8)] {
