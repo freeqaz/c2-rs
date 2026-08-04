@@ -119,17 +119,28 @@ cases="$(cd "$cases" && pwd)"
 # runs delete each other's cases mid-grade and BOTH results are meaningless while
 # looking perfectly ordinary (`expr_sweep.sh` records that happening). `mkdir` is
 # the lock because it is atomic on every filesystem this runs on.
+#
+# On contention this FALLS BACK to a private case set rather than refusing.
+# Refusing would be the safe-looking choice and it is the wrong one here: this is
+# a gate row, two gate runs in one worktree is an ordinary thing to do, and a row
+# that reports NO-RESULT because a sibling was running is a RED GATE FROM AN
+# ABSENCE — the exact failure this file's rules exist to forbid, arriving from the
+# other direction. The fallback is correct (a private set is genuinely private),
+# it is loud, and its only cost is a cold cache.
 _lock="$cases/../.cross.lock"
+_lock_held=1
 if ! mkdir "$_lock" 2>/dev/null; then
-    echo "REFUSING: another cross holds $cases (lock: $_lock)." >&2
-    echo "  Two runs over one case set delete each other's cases and both results" >&2
-    echo "  are silently wrong. Give this run a private case set:" >&2
-    echo "      C2RS_CROSS_CASES=/tmp/c2rs-cross-\$\$/cases scripts/mode_cross.sh ..." >&2
-    echo "  (a private set starts COLD — see the cost note above)." >&2
-    echo "  If none is running, the previous one was killed: rmdir '$_lock'" >&2
-    exit 2
+    echo "NOTE: another cross holds $cases (lock: $_lock)."
+    echo "  Falling back to a PRIVATE case set for this run, which starts COLD"
+    echo "  (~5-6 min instead of ~15 s). The result is exactly as valid; only the"
+    echo "  capture cache misses. If no cross is running, the previous one was"
+    echo "  killed and the lock is stale: rmdir '$_lock'"
+    cases="$out/cases"
+    mkdir -p "$cases"
+    cases="$(cd "$cases" && pwd)"
+    _lock_held=0
 fi
-trap 'rmdir "$_lock" 2>/dev/null || true' EXIT INT TERM
+[ "$_lock_held" -eq 1 ] && trap 'rmdir "$_lock" 2>/dev/null || true' EXIT INT TERM
 
 rm -f "$cases"/*.cpp 2>/dev/null || true
 
