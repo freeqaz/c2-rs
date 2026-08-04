@@ -105,6 +105,20 @@ pub const WIBO_KNOWN_GOOD: &str = "1.0.1-23";
 /// unzips to `X360/16.00.11886.00/{cl.exe, c1xx.dll, c2.dll, ...}`.
 const X360_TOOLCHAIN_REL: &str = "X360/16.00.11886.00";
 
+/// The compile profile [`Toolchain::capture_il`] uses when the caller names
+/// none — the fixture profile, **not** the workload's.
+///
+/// Published as a constant so a caller that wants "the default, explicitly" and
+/// a test that wants to prove `--flags-file <the default>` is byte-identical to
+/// no `--flags-file` are reading the same three strings the function does.
+///
+/// **`/Ox` is not the workload's mode and does not imply `/GF`.** The 878-TU
+/// dc3 workload compiles `/O1 /Oi /EHsc /GR …`; anything captured through this
+/// default and then read against a workload obj is comparing two different
+/// compilations. Use [`Toolchain::capture_il_flags`] with the workload's
+/// `flags.txt` for that.
+pub const CAPTURE_IL_DEFAULT_FLAGS: [&str; 3] = ["/Ox", "/GS-", "/c"];
+
 
 /// Resolve the compilers root directory. Precedence:
 ///
@@ -461,9 +475,47 @@ impl Toolchain {
     /// exit code. The bundle base is scraped from the `-il <...>_CL_<hash>`
     /// token in the compiler's stdout/stderr.
     pub fn capture_il(&self, cpp: &Path, work_dir: &Path) -> io::Result<IlBundle> {
-        let z_src = to_wibo_path(&absolute(cpp)?);
-        let flags: Vec<String> = ["/Ox", "/GS-", "/c"].iter().map(|s| s.to_string()).collect();
-        self.capture_il_with(&z_src, work_dir, &flags, None)
+        let flags: Vec<String> =
+            CAPTURE_IL_DEFAULT_FLAGS.iter().map(|s| s.to_string()).collect();
+        self.capture_il_flags(cpp, work_dir, &flags, None)
+    }
+
+    /// [`Toolchain::capture_il`] with the compile profile **chosen by the
+    /// caller**, keeping `capture_il`'s path handling.
+    ///
+    /// This exists because `capture_il`'s flags were a *literal*
+    /// ([`CAPTURE_IL_DEFAULT_FLAGS`]) and every caller that wanted the workload's
+    /// own profile had to drop down to [`Toolchain::capture_il_with`] and
+    /// re-derive the `Z:\…` source argument itself. `c2rs capture` did not, so it
+    /// captured **every** `.gl` at `/Ox` while the objs those `.gl`s were read
+    /// against were compiled at the workload's `/O1 /Oi /EHsc /GR …` — and `/Ox`
+    /// does **not** imply `/GF`, which is precisely the skew
+    /// `gl_string_comdat_names` exists to catch. Two commands that differ only in
+    /// a dropped flag produce identical output, and identical output reads as a
+    /// *finding* rather than as a bug.
+    ///
+    /// The source-argument rule is the one difference from
+    /// [`Toolchain::capture_il_with`], and it is deliberate:
+    ///
+    /// * **no `cwd`** — the path is made absolute and translated to `Z:\…`,
+    ///   exactly as `capture_il` has always done. Passing the default flags here
+    ///   is therefore **byte-identical** to calling `capture_il`, which is what
+    ///   makes this a widening rather than a change.
+    /// * **`cwd` given** — the path is passed to `cl.exe` **verbatim**, because a
+    ///   project TU's relative path is build-faithful: it is what gets baked into
+    ///   the `.gl` and `.debug$S`, and it is what `c2rs gap` passes.
+    pub fn capture_il_flags(
+        &self,
+        cpp: &Path,
+        work_dir: &Path,
+        flags: &[String],
+        cwd: Option<&Path>,
+    ) -> io::Result<IlBundle> {
+        let src_arg = match cwd {
+            Some(_) => cpp.to_string_lossy().into_owned(),
+            None => to_wibo_path(&absolute(cpp)?),
+        };
+        self.capture_il_with(&src_arg, work_dir, flags, cwd)
     }
 
     /// [`Toolchain::capture_il`] generalized to an arbitrary compile profile —
