@@ -59,7 +59,7 @@ fn main() -> ExitCode {
         "replay-c1" => cmd_replay_c1(rest),
         "diff" => cmd_diff(rest),
         "census" => cmd_census(rest),
-        "bench" => cmd_bench(),
+        "bench" => cmd_bench(rest),
         "perf" => cmd_perf(rest),
         "perf-scale" => cmd_perf_scale(rest),
         "corpus" => cmd_corpus(rest),
@@ -136,7 +136,10 @@ fn print_usage() {
          prefilter options: --source ARG (--flag F ... | --flags-file FILE) [--cwd DIR]\n\
          \x20                 [--emit-obj PATH] [--compare-obj PATH] [--obj-name Z:\\\\...] [--work DIR]\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
-         search options: --d 1|2|3 --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
+         search options: --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
+         \x20              --d 1|2|3 (eval only — solve hardcodes d=1 and never read it)\n\
+         \x20              from-retrieval: --sample N --multi N --select-seed N\n\
+         \x20              from-lifter: --gens FILE --k K --limit N\n\
          \n\
          Toolchain: compilers/ via scripts/fetch_compilers.sh (or C2RS_COMPILERS /\n\
          C2RS_CL_EXE / C2RS_C2_DLL / C2RS_C1XX_DLL), wibo via C2RS_WIBO, sibling\n\
@@ -144,23 +147,301 @@ fn print_usage() {
     );
 }
 
-/// Locate the toolchain or print the standard skip line. Returns `None` (and the
-/// caller should exit SUCCESS) when absent.
-fn located() -> Option<Toolchain> {
-    match Toolchain::locate() {
-        Some(tc) => Some(tc),
-        None => {
-            println!("SKIP: toolchain absent");
-            None
+/// **The argument seam.** One parser for every subcommand — and the only place
+/// in this binary that can produce a [`Toolchain`].
+///
+/// # Why this is a module and not a helper function
+///
+/// Boards #194 and #195 were two instances of one class, and a sweep across all
+/// **26** dispatch arms found it at fourteen more. The class has two halves and
+/// they are separate defects with one cure:
+///
+/// 1. **Scan instead of parse.** `iter().position(|a| a == "--x")` — and the
+///    `opt()` helper, which was the same scan under a nicer name — only ever
+///    *looks for* keys it is asked about, so **every other argument is invisible
+///    by construction**. `c2rs compile <cpp> --flag /GR-` dropped `--flag` and
+///    ran two identical command lines, and the identical objs were read as a
+///    finding about RTTI. Two different commands producing one output is
+///    indistinguishable, at the terminal, from a real negative result.
+/// 2. **Locate before validate.** Eight handlers called `located()` *before*
+///    looking at their arguments. `located()` returns `None` and the handler
+///    exits **0** with `SKIP: toolchain absent` — so on a machine with no
+///    compilers, which is exactly where the portable test lane runs, a
+///    completely bogus command line **passed**. A test cannot catch a usage
+///    error that the binary never reports.
+///
+/// The cure for (2) is structural rather than conventional: [`Args::toolchain`]
+/// is the only producer of a `Toolchain` in this file, and an [`Args`] can only
+/// be obtained from [`Args::parse`]. **"Parse and validate, then locate" is
+/// therefore the only order this binary can express** — a handler that wants a
+/// toolchain must already hold a fully-validated argument set. The free
+/// `located()` this replaces was callable from anywhere, which is precisely why
+/// eight handlers called it first.
+///
+/// `tests/cli_flags.rs::locate_is_reachable_only_through_the_arg_seam` is the
+/// backstop: `Toolchain::locate` may appear in this file **only** inside this
+/// module. Convention plus a check, because a convention nobody checks is how
+/// this class got to fourteen sites.
+mod argv {
+    use super::Toolchain;
+    use std::path::PathBuf;
+    use std::process::ExitCode;
+    use std::str::FromStr;
+
+    /// How many values an option takes, and whether it may repeat.
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    pub enum Arity {
+        /// `--qxstalls` — presence only.
+        Flag,
+        /// `--jobs 8` — one value, and **repeating it is an error**. A silent
+        /// first-wins (what `position()` did) means `--k 1 --k 20` runs at 1
+        /// while the terminal shows 20.
+        Value,
+        /// `--flag /GR-` given any number of times; every occurrence is kept.
+        Repeated,
+    }
+
+    /// A subcommand's grammar. `const`, so the grammar and the usage text are
+    /// two renderings of one list rather than two lists that drift.
+    pub struct Spec {
+        pub cmd: &'static str,
+        pub opts: &'static [(&'static str, Arity)],
+        /// `(dependent, required)` — `dependent` is *meaningless* without
+        /// `required`, so giving it alone is a usage error rather than a
+        /// silently dropped argument. `("--cwd", "--flags-file")` is the live
+        /// instance: `--cwd` is consumed only on the profile path, so accepting
+        /// it alone compiled at a different directory than the one named.
+        pub requires: &'static [(&'static str, &'static str)],
+        /// Maximum bare positionals. `usize::MAX` for "any number" (`selftest`).
+        pub max_positionals: usize,
+    }
+
+    impl Spec {
+        pub const fn new(cmd: &'static str, opts: &'static [(&'static str, Arity)]) -> Spec {
+            Spec { cmd, opts, requires: &[], max_positionals: 1 }
+        }
+        pub const fn requires(mut self, r: &'static [(&'static str, &'static str)]) -> Spec {
+            self.requires = r;
+            self
+        }
+        pub const fn positionals(mut self, n: usize) -> Spec {
+            self.max_positionals = n;
+            self
+        }
+    }
+
+    /// A **validated** argument set. The only way to build one is [`Args::parse`],
+    /// and the only way to get a [`Toolchain`] is [`Args::toolchain`].
+    pub struct Args {
+        cmd: &'static str,
+        positionals: Vec<String>,
+        values: Vec<(&'static str, String)>,
+        flags: Vec<&'static str>,
+    }
+
+    impl Args {
+        /// Parse `rest` against `spec`. **Refuses** an unknown option, a missing
+        /// value, a repeated single-valued option, a surplus positional, and a
+        /// dependent option whose requirement is absent — each with a message
+        /// that **names the argument**, because a refusal that does not say
+        /// which argument was rejected leaves the user guessing among several.
+        ///
+        /// Returns `Err(ExitCode::from(2))` so a handler propagates with `?`-ish
+        /// brevity and cannot forget to.
+        pub fn parse(spec: &'static Spec, rest: &[String]) -> Result<Args, ExitCode> {
+            let cmd = spec.cmd;
+            let mut positionals: Vec<String> = Vec::new();
+            let mut values: Vec<(&'static str, String)> = Vec::new();
+            let mut flags: Vec<&'static str> = Vec::new();
+
+            let mut i = 0usize;
+            while i < rest.len() {
+                let a = rest[i].as_str();
+                if let Some(&(name, arity)) = spec.opts.iter().find(|(n, _)| *n == a) {
+                    match arity {
+                        Arity::Flag => {
+                            if flags.contains(&name) {
+                                eprintln!("{cmd}: {name} given more than once");
+                                return Err(ExitCode::from(2));
+                            }
+                            flags.push(name);
+                            i += 1;
+                        }
+                        Arity::Value | Arity::Repeated => {
+                            let Some(v) = rest.get(i + 1) else {
+                                eprintln!("{cmd}: {name} needs a value");
+                                return Err(ExitCode::from(2));
+                            };
+                            // A value that is itself a known option is almost
+                            // always a forgotten argument (`--seed --count 5`
+                            // silently made the seed the string "--count"), and
+                            // there is no legitimate use of one here.
+                            if spec.opts.iter().any(|(n, _)| n == v) {
+                                eprintln!(
+                                    "{cmd}: {name} needs a value, but the next argument is the \
+                                     option {v}"
+                                );
+                                return Err(ExitCode::from(2));
+                            }
+                            if arity == Arity::Value && values.iter().any(|(n, _)| *n == name) {
+                                eprintln!(
+                                    "{cmd}: {name} given more than once; it takes a single value"
+                                );
+                                return Err(ExitCode::from(2));
+                            }
+                            values.push((name, v.clone()));
+                            i += 2;
+                        }
+                    }
+                } else if a.starts_with("--") {
+                    eprintln!("{cmd}: unknown option: {a}");
+                    return Err(ExitCode::from(2));
+                } else {
+                    // A bare token. Counted, so `corpus sample --out /tmp/x` can
+                    // no longer write into a directory literally named `--out`.
+                    if positionals.len() == spec.max_positionals {
+                        eprintln!(
+                            "{cmd}: unexpected argument: {a} (this command takes {} positional \
+                             argument(s))",
+                            spec.max_positionals
+                        );
+                        return Err(ExitCode::from(2));
+                    }
+                    positionals.push(a.to_string());
+                    i += 1;
+                }
+            }
+
+            for &(dependent, required) in spec.requires {
+                let have_dep = values.iter().any(|(n, _)| *n == dependent)
+                    || flags.contains(&dependent);
+                let have_req = values.iter().any(|(n, _)| *n == required)
+                    || flags.contains(&required);
+                if have_dep && !have_req {
+                    eprintln!(
+                        "{cmd}: {dependent} has no effect without {required}; refusing rather \
+                         than dropping it silently"
+                    );
+                    return Err(ExitCode::from(2));
+                }
+            }
+
+            Ok(Args { cmd, positionals, values, flags })
+        }
+
+        pub fn cmd(&self) -> &'static str {
+            self.cmd
+        }
+        pub fn positionals(&self) -> &[String] {
+            &self.positionals
+        }
+        pub fn first(&self) -> Option<&str> {
+            self.positionals.first().map(String::as_str)
+        }
+        pub fn has(&self, name: &str) -> bool {
+            self.flags.contains(&name)
+        }
+        pub fn get(&self, name: &str) -> Option<&str> {
+            self.values.iter().find(|(n, _)| *n == name).map(|(_, v)| v.as_str())
+        }
+        pub fn all(&self, name: &str) -> Vec<&str> {
+            self.values
+                .iter()
+                .filter(|(n, _)| *n == name)
+                .map(|(_, v)| v.as_str())
+                .collect()
+        }
+        pub fn path(&self, name: &str) -> Option<PathBuf> {
+            self.get(name).map(PathBuf::from)
+        }
+        /// The single positional, as a path. Callers used to write
+        /// `rest.first().filter(|s| !s.starts_with("--"))` — a hand-rolled guard
+        /// that four handlers had and three did not.
+        pub fn path_positional(&self) -> Option<PathBuf> {
+            self.first().map(PathBuf::from)
+        }
+
+        /// A numeric option, where **a value that does not parse is an error**.
+        ///
+        /// The scan-era spelling was `opt(rest, "--compiles").and_then(|s|
+        /// s.parse().ok())`, which turns a typo into the default *silently* —
+        /// `--compiles abc` doubled a search budget from 200 to 400 and said
+        /// nothing. Refusing costs nothing a correct invocation notices.
+        pub fn num<T: FromStr>(&self, name: &str) -> Result<Option<T>, ExitCode> {
+            match self.get(name) {
+                None => Ok(None),
+                Some(v) => match v.parse::<T>() {
+                    Ok(n) => Ok(Some(n)),
+                    Err(_) => {
+                        eprintln!("{}: {name} expects a number, got {v:?}", self.cmd);
+                        Err(ExitCode::from(2))
+                    }
+                },
+            }
+        }
+
+        /// An option whose value must be one of a fixed set. A `_ =>` arm that
+        /// swallows every unrecognised spelling is the dropped-flag failure in
+        /// another costume: `retrieve eval --split heldout` ran leave-one-out's
+        /// *opposite* and reported nothing.
+        pub fn one_of<'a>(
+            &'a self,
+            name: &str,
+            allowed: &[&'static str],
+        ) -> Result<Option<&'a str>, ExitCode> {
+            match self.get(name) {
+                None => Ok(None),
+                Some(v) if allowed.contains(&v) => Ok(Some(v)),
+                Some(v) => {
+                    eprintln!(
+                        "{}: {name} expects one of {}, got {v:?}",
+                        self.cmd,
+                        allowed.join(" | ")
+                    );
+                    Err(ExitCode::from(2))
+                }
+            }
+        }
+
+        /// Locate the toolchain, or print the standard skip line and return
+        /// `None` (the caller then exits SUCCESS).
+        ///
+        /// **This is the only producer of a `Toolchain` in this binary**, and it
+        /// takes `&self` — so it is unreachable until the arguments have been
+        /// parsed and validated. That is the whole point of the module; see the
+        /// type-level docs.
+        pub fn toolchain(&self) -> Option<Toolchain> {
+            match Toolchain::locate() {
+                Some(tc) => Some(tc),
+                None => {
+                    println!("SKIP: toolchain absent");
+                    None
+                }
+            }
+        }
+
+        /// [`Args::toolchain`] without the `SKIP` line, for the one caller that
+        /// reports absence *inside its own output* (`prefilter` emits a JSON
+        /// verdict and must not interleave a bare line into it).
+        pub fn toolchain_quiet(&self) -> Option<Toolchain> {
+            Toolchain::locate()
         }
     }
 }
 
-fn require_cpp(rest: &[String]) -> Option<PathBuf> {
-    match rest.first() {
+use argv::{Args, Arity, Spec};
+
+/// The `<cpp>` positional, from a **parsed** argument set.
+///
+/// It used to take `rest` and return `rest.first()` verbatim, which meant a
+/// flag-shaped first token became the source path: `c2rs diff --help` looked for
+/// a file called `--help`. `Args` has already separated options from
+/// positionals, so that spelling is not expressible here any more.
+fn require_cpp(args: &Args) -> Option<PathBuf> {
+    match args.first() {
         Some(p) => Some(PathBuf::from(p)),
         None => {
-            eprintln!("error: expected a <cpp> path");
+            eprintln!("{}: expected a <cpp> path", args.cmd());
             None
         }
     }
@@ -192,47 +473,64 @@ fn hexdump_marked(bytes: &[u8], mark: usize) -> String {
     s
 }
 
+/// The profile plumbing `capture`, `compile` and `census` share, plus the
+/// `--cwd` dependency that all three used to drop in silence.
+const CPP_PROFILE_REQUIRES: &[(&str, &str)] = &[("--cwd", "--flags-file")];
+
+static CENSUS_SPEC: Spec = Spec::new(
+    "census",
+    &[
+        ("--keep-il", Arity::Value),
+        ("--flags-file", Arity::Value),
+        ("--cwd", Arity::Value),
+    ],
+)
+.requires(CPP_PROFILE_REQUIRES);
+
 fn cmd_census(rest: &[String]) -> ExitCode {
-    let Some(cpp) = require_cpp(rest) else {
+    let args = match Args::parse(&CENSUS_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(cpp) = require_cpp(&args) else {
         return ExitCode::from(2);
     };
     // Optional real-project capture (same inputs as `c2rs gap`), so a census can
     // be taken of an actual workload TU and not just an include-free fixture.
-    let mut flags_file: Option<PathBuf> = None;
-    let mut cwd: Option<PathBuf> = None;
-    let mut keep_il: Option<PathBuf> = None;
-    let mut it = rest[1..].iter();
-    while let Some(a) = it.next() {
-        match a.as_str() {
-            // Keep the captured bundle for grammar work (gitignored scratch).
-            "--keep-il" => match it.next() {
-                Some(v) => keep_il = Some(PathBuf::from(v)),
-                None => {
-                    eprintln!("--keep-il needs a value");
-                    return ExitCode::from(2);
-                }
-            },
-            "--flags-file" => match it.next() {
-                Some(v) => flags_file = Some(PathBuf::from(v)),
-                None => {
-                    eprintln!("--flags-file needs a value");
-                    return ExitCode::from(2);
-                }
-            },
-            "--cwd" => match it.next() {
-                Some(v) => cwd = Some(PathBuf::from(v)),
-                None => {
-                    eprintln!("--cwd needs a value");
-                    return ExitCode::from(2);
-                }
-            },
-            other => {
-                eprintln!("unknown census option: {other}");
-                return ExitCode::from(2);
+    // Keep the captured bundle for grammar work (gitignored scratch).
+    let keep_il = args.path("--keep-il");
+    let flags_file = args.path("--flags-file");
+    let cwd = args.path("--cwd");
+    // The profile is read and validated BEFORE the toolchain is located — the
+    // ordering `capture` and `compile` already had and this command did not.
+    // `census` read its `--flags-file` *inside* the post-`located()` capture
+    // block, so `census x.cpp --flags-file /nonexistent` exited **0** with
+    // `SKIP: toolchain absent` on a machine with no compilers, which is exactly
+    // where the portable test lane runs. A usage error the binary never reports
+    // is a usage error no test can pin.
+    let flags: Vec<String> = match &flags_file {
+        None => Vec::new(),
+        Some(ff) => match std::fs::read_to_string(ff) {
+            Ok(t) => t
+                .lines()
+                .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
+                .flat_map(|l| l.split_whitespace().map(String::from))
+                .collect(),
+            Err(e) => {
+                eprintln!("cannot read --flags-file {}: {e}", ff.display());
+                return ExitCode::FAILURE;
             }
-        }
+        },
+    };
+    if flags_file.is_some() && flags.is_empty() {
+        // `capture` and `compile` both refuse this; `census` did not, so an
+        // all-comment flags file silently fell back to `cl.exe`'s own defaults
+        // and the `/Gy`-dependent cross-check below was reported against a
+        // profile nobody named.
+        eprintln!("--flags-file names no flags; refusing to census at an unknown profile");
+        return ExitCode::from(2);
     }
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     let w = scratch("census");
@@ -240,21 +538,22 @@ fn cmd_census(rest: &[String]) -> ExitCode {
     // below has to see the same flag the emitter would. The default capture is
     // `/Ox`, which does not imply it; a `--flags-file` may.
     let mut gy = false;
+    // Print the profile that was actually used, always — the affordance
+    // `capture` and `compile` have and this command lacked, which is why its
+    // dropped `--cwd` had no terminal signal at all.
+    match &flags_file {
+        None => println!(
+            "  profile: {} (default — NOT the workload's; /Ox does not imply /GF)",
+            c2_reference::CAPTURE_IL_DEFAULT_FLAGS.join(" ")
+        ),
+        Some(ff) => println!("  profile: {} (from {})", flags.join(" "), ff.display()),
+    }
+    if let Some(d) = &cwd {
+        println!("  cwd:     {}", d.display());
+    }
     let captured = match &flags_file {
         None => tc.capture_il(&cpp, &w),
-        Some(ff) => {
-            let flags: Vec<String> = match std::fs::read_to_string(ff) {
-                Ok(t) => t
-                    .lines()
-                    .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
-                    .flat_map(|l| l.split_whitespace().map(String::from))
-                    .collect(),
-                Err(e) => {
-                    eprintln!("cannot read --flags-file {}: {e}", ff.display());
-                    let _ = std::fs::remove_dir_all(&w);
-                    return ExitCode::FAILURE;
-                }
-            };
+        Some(_) => {
             gy = c2_core::PortC2::flags_imply_function_level_linking(&flags);
             tc.capture_reference_with(&cpp.to_string_lossy(), &w, &flags, cwd.as_deref())
                 .map(|c| c.bundle)
@@ -462,59 +761,41 @@ fn cmd_census(rest: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+static CAPTURE_SPEC: Spec = Spec::new(
+    "capture",
+    &[
+        // `--keep-il DIR` retains the captured bundle for byte inspection — the
+        // same affordance `compile --keep-obj` gives for the reference obj, and
+        // the only way to design a fixture around a *record-level* `.gl` shape
+        // (which name separator introduces a run, where a record's framing
+        // starts) without guessing. Gitignored scratch only.
+        ("--keep-il", Arity::Value),
+        // `--flags-file` / `--cwd`: without them every `.gl` captured for
+        // analysis was taken at the `/Ox /GS- /c` default while the obj it was
+        // read against had been compiled at the workload's `/O1 /Oi /EHsc /GR …`
+        // — and `/Ox` does not imply `/GF`, which is exactly the skew
+        // `gl_string_comdat_names` exists to catch.
+        ("--flags-file", Arity::Value),
+        ("--cwd", Arity::Value),
+    ],
+)
+.requires(CPP_PROFILE_REQUIRES);
+
 fn cmd_capture(rest: &[String]) -> ExitCode {
-    let Some(cpp) = require_cpp(rest) else {
+    let args = match Args::parse(&CAPTURE_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(cpp) = require_cpp(&args) else {
         return ExitCode::from(2);
     };
-    // `--keep-il DIR` retains the captured bundle for byte inspection — the same
-    // affordance `compile --keep-obj` gives for the reference obj, and the only
-    // way to design a fixture around a *record-level* `.gl` shape (which name
-    // separator introduces a run, where a record's framing starts) without
-    // guessing. Gitignored scratch only — captured IL is never committed.
-    let mut keep_il: Option<PathBuf> = None;
-    // `--flags-file` / `--cwd`: the same real-project plumbing `compile` and
-    // `census` already have, and this command DID NOT. Without it every `.gl`
-    // captured for analysis was taken at the `/Ox /GS- /c` default while the obj
-    // it was read against had been compiled at the workload's `/O1 /Oi /EHsc
-    // /GR …` — and `/Ox` does not imply `/GF`, which is exactly the skew
-    // `gl_string_comdat_names` exists to catch. The flags were not rejected, they
-    // were *accepted and dropped*, so two different probes produced identical
-    // output and the identity read as a finding. See `tests/cli_flags.rs`.
-    let mut flags_file: Option<PathBuf> = None;
-    let mut cwd: Option<PathBuf> = None;
-    // Parsed by a loop that REFUSES an option it does not know, rather than by
-    // `position()` scans that ignore one silently. `c2rs compile` ignoring
-    // `--flag` (which belongs to `listing`) is the first bug of this class: it
-    // made a `/GR` vs `/GR-` probe run two literally identical command lines.
-    let mut it = rest[1..].iter();
-    while let Some(a) = it.next() {
-        let mut take = |slot: &mut Option<PathBuf>| match it.next() {
-            Some(v) => {
-                *slot = Some(PathBuf::from(v));
-                true
-            }
-            None => {
-                eprintln!("{a} needs a value");
-                false
-            }
-        };
-        let ok = match a.as_str() {
-            "--keep-il" => take(&mut keep_il),
-            "--flags-file" => take(&mut flags_file),
-            "--cwd" => take(&mut cwd),
-            other => {
-                eprintln!("unknown capture option: {other}");
-                false
-            }
-        };
-        if !ok {
-            return ExitCode::from(2);
-        }
-    }
-    // The profile is read and validated BEFORE `located()`, so a malformed
-    // invocation is reported as one on a machine with no compilers at all. Only
-    // the capture itself needs the toolchain, and that still degrades to a clean
-    // exit 0.
+    let keep_il = args.path("--keep-il");
+    let flags_file = args.path("--flags-file");
+    let cwd = args.path("--cwd");
+    // The profile is read and validated BEFORE the toolchain is located, so a
+    // malformed invocation is reported as one on a machine with no compilers at
+    // all. Only the capture itself needs the toolchain, and that still degrades
+    // to a clean exit 0.
     //
     // No `--flags-file` keeps the default byte-for-byte: `capture_il` is still
     // the call, with `CAPTURE_IL_DEFAULT_FLAGS`. This is a widening.
@@ -538,7 +819,7 @@ fn cmd_capture(rest: &[String]) -> ExitCode {
         eprintln!("--flags-file names no flags; refusing to capture at an unknown profile");
         return ExitCode::from(2);
     }
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     let w = scratch("capture");
@@ -590,54 +871,32 @@ fn cmd_capture(rest: &[String]) -> ExitCode {
     }
 }
 
+static COMPILE_SPEC: Spec = Spec::new(
+    "compile",
+    &[
+        // `--keep-obj PATH` retains the reference obj for byte classification
+        // (the CONST/DERIVED analysis every widening step starts from).
+        ("--keep-obj", Arity::Value),
+        // Optional real-project compile (same inputs as `c2rs gap`), so the
+        // reference obj for a workload TU can be classified, not just a
+        // fixture's.
+        ("--flags-file", Arity::Value),
+        ("--cwd", Arity::Value),
+    ],
+)
+.requires(CPP_PROFILE_REQUIRES);
+
 fn cmd_compile(rest: &[String]) -> ExitCode {
-    let Some(cpp) = require_cpp(rest) else {
+    let args = match Args::parse(&COMPILE_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(cpp) = require_cpp(&args) else {
         return ExitCode::from(2);
     };
-    // `--keep-obj PATH` retains the reference obj for byte classification (the
-    // CONST/DERIVED analysis every widening step starts from). Gitignored
-    // scratch only — objs are never committed.
-    let mut keep_obj: Option<PathBuf> = None;
-    // Optional real-project compile (same inputs as `c2rs gap`), so the
-    // reference obj for a workload TU can be classified, not just a fixture's.
-    let mut flags_file: Option<PathBuf> = None;
-    let mut cwd: Option<PathBuf> = None;
-    // Board #195. These three used to be `iter().position(|a| a == "--x")`
-    // scans, which is the SAME latent bug `cmd_capture` carried until `6a33b4d`:
-    // a scan looks only for the options it knows and IGNORES every other
-    // argument by construction, so an option this command does not define is
-    // accepted and dropped. That is not hypothetical here — it is bug 1 of the
-    // class, and it was on *this* command: `c2rs compile <cpp> --flag /GR-`
-    // silently discarded `--flag` (which belongs to `listing`), so a `/GR` vs
-    // `/GR-` probe ran two literally identical command lines and the identical
-    // objs were read as a *finding about RTTI*. Two different commands producing
-    // one output is indistinguishable, at the terminal, from a real negative
-    // result. Parsed by a loop that REFUSES what it does not know.
-    let mut it = rest[1..].iter();
-    while let Some(a) = it.next() {
-        let mut take = |slot: &mut Option<PathBuf>| match it.next() {
-            Some(v) => {
-                *slot = Some(PathBuf::from(v));
-                true
-            }
-            None => {
-                eprintln!("{a} needs a value");
-                false
-            }
-        };
-        let ok = match a.as_str() {
-            "--keep-obj" => take(&mut keep_obj),
-            "--flags-file" => take(&mut flags_file),
-            "--cwd" => take(&mut cwd),
-            other => {
-                eprintln!("unknown compile option: {other}");
-                false
-            }
-        };
-        if !ok {
-            return ExitCode::from(2);
-        }
-    }
+    let keep_obj = args.path("--keep-obj");
+    let flags_file = args.path("--flags-file");
+    let cwd = args.path("--cwd");
     // The profile is read and validated BEFORE `located()`, so a malformed
     // invocation is reported as one on a machine with no compilers at all —
     // which is what lets `tests/cli_flags.rs` catch this class without a
@@ -664,17 +923,12 @@ fn cmd_compile(rest: &[String]) -> ExitCode {
         eprintln!("--flags-file names no flags; refusing to compile at an unknown profile");
         return ExitCode::from(2);
     }
-    // `--cwd` is consumed only on the `--flags-file` path (`compile_obj` makes
-    // the source absolute and translates it itself). Accepting it alone would
-    // drop it in silence — the same class again, one option along — so refuse
-    // rather than compile something other than what was asked for.
-    if cwd.is_some() && flags_file.is_none() {
-        eprintln!(
-            "--cwd has no effect without --flags-file; refusing rather than dropping it silently"
-        );
-        return ExitCode::from(2);
-    }
-    let Some(tc) = located() else {
+    // The `--cwd`-without-`--flags-file` refusal is no longer written here: it
+    // is a `requires` edge on the spec, shared by `capture`, `census` and
+    // `compile`. Three commands had the same dangling option and only one
+    // refused it, which is what a rule expressed in prose rather than in one
+    // place gets you.
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     let w = scratch("compile");
@@ -779,14 +1033,24 @@ fn first_line(s: &str) -> &str {
     s.lines().next().unwrap_or(s)
 }
 
+/// `selftest` takes any number of `<cpp>` positionals and no options. It used to
+/// map `rest` wholesale to fixture paths, so `c2rs selftest --flags-file f.txt`
+/// looked for two "fixtures" named `--flags-file` and `f.txt` and failed as a
+/// missing file — exit 1, not a usage error.
+static SELFTEST_SPEC: Spec = Spec::new("selftest", &[]).positionals(usize::MAX);
+
 fn cmd_selftest(rest: &[String]) -> ExitCode {
-    let Some(tc) = located() else {
+    let args = match Args::parse(&SELFTEST_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
-    let targets: Vec<PathBuf> = if rest.is_empty() {
+    let targets: Vec<PathBuf> = if args.positionals().is_empty() {
         all_fixtures()
     } else {
-        rest.iter().map(PathBuf::from).collect()
+        args.positionals().iter().map(PathBuf::from).collect()
     };
     if targets.is_empty() {
         eprintln!("no fixtures found");
@@ -812,11 +1076,21 @@ fn cmd_selftest(rest: &[String]) -> ExitCode {
     }
 }
 
+/// One `<cpp>` and no options. `rest[1..]` used to be discarded without a word,
+/// so `c2rs replay <cpp> --flags-file work/dc3-workload/flags.txt` compiled at the
+/// `/Ox` default and said nothing — the documented *"`replay` does not take
+/// `--flags-file`"* meant "accepts and ignores it", which is the class.
+static REPLAY_SPEC: Spec = Spec::new("replay", &[]);
+
 fn cmd_replay(rest: &[String]) -> ExitCode {
-    let Some(cpp) = require_cpp(rest) else {
+    let args = match Args::parse(&REPLAY_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(cpp) = require_cpp(&args) else {
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() {
@@ -867,11 +1141,21 @@ fn cmd_replay(rest: &[String]) -> ExitCode {
 /// (the front-end analogue of `replay`). Prints a per-file byte verdict; exits
 /// non-zero only when a present file failed to reproduce byte-for-byte (a real
 /// failure of the front-end replay oracle) or the capture/replay errored.
+/// One `<cpp>` and no options. `rest[1..]` used to be discarded without a word,
+/// so `c2rs replay-c1 <cpp> --flags-file work/dc3-workload/flags.txt` compiled at the
+/// `/Ox` default and said nothing — the documented *"`replay-c1` does not take
+/// `--flags-file`"* meant "accepts and ignores it", which is the class.
+static REPLAY_C1_SPEC: Spec = Spec::new("replay-c1", &[]);
+
 fn cmd_replay_c1(rest: &[String]) -> ExitCode {
-    let Some(cpp) = require_cpp(rest) else {
+    let args = match Args::parse(&REPLAY_C1_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(cpp) = require_cpp(&args) else {
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_mingw() {
@@ -928,11 +1212,21 @@ fn cmd_replay_c1(rest: &[String]) -> ExitCode {
     code
 }
 
+/// One `<cpp>` and no options. `rest[1..]` used to be discarded without a word,
+/// so `c2rs diff <cpp> --flags-file work/dc3-workload/flags.txt` compiled at the
+/// `/Ox` default and said nothing — the documented *"`diff` does not take
+/// `--flags-file`"* meant "accepts and ignores it", which is the class.
+static DIFF_SPEC: Spec = Spec::new("diff", &[]);
+
 fn cmd_diff(rest: &[String]) -> ExitCode {
-    let Some(cpp) = require_cpp(rest) else {
+    let args = match Args::parse(&DIFF_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(cpp) = require_cpp(&args) else {
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     let w = scratch("diff");
@@ -987,8 +1281,18 @@ fn cmd_diff(rest: &[String]) -> ExitCode {
     }
 }
 
-fn cmd_bench() -> ExitCode {
-    let Some(tc) = located() else {
+/// `bench` takes nothing. The dispatcher used to call it as `cmd_bench()`, so
+/// every argument after `bench` was discarded **by the dispatcher**, one level
+/// above any handler that could have refused it — the same class, at the only
+/// site where the handler never even saw the arguments.
+static BENCH_SPEC: Spec = Spec::new("bench", &[]).positionals(0);
+
+fn cmd_bench(rest: &[String]) -> ExitCode {
+    let args = match Args::parse(&BENCH_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     let targets = all_fixtures();
@@ -1023,23 +1327,46 @@ fn cmd_bench() -> ExitCode {
 
 use c2_harness::perf::{self, fmt_dur, PerfConfig, PortPerf};
 
+static PERF_SPEC: Spec = Spec::new(
+    "perf",
+    &[
+        ("--port-iters", Arity::Value),
+        ("--ref-iters", Arity::Value),
+        ("--fixtures", Arity::Value),
+    ],
+)
+.positionals(0);
+
 fn cmd_perf(rest: &[String]) -> ExitCode {
-    let Some(tc) = located() else {
+    // Parse and validate FIRST. This handler used to call `located()` as its
+    // opening statement, so on a machine with no compilers `c2rs perf --typo`
+    // exited **0** with `SKIP: toolchain absent` and the typo was never
+    // reported. That is the ordering half of the class, and it is now
+    // inexpressible: `args.toolchain()` needs an `args`.
+    let args = match Args::parse(&PERF_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let mut cfg = PerfConfig::default();
+    // `.parse().ok()` turned a typo into the default in silence. `num` refuses.
+    match args.num::<usize>("--port-iters") {
+        Ok(Some(v)) => cfg.port_iters = v,
+        Ok(None) => {}
+        Err(c) => return c,
+    }
+    match args.num::<usize>("--ref-iters") {
+        Ok(Some(v)) => cfg.ref_iters = v,
+        Ok(None) => {}
+        Err(c) => return c,
+    }
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() || !tc.has_mingw() {
         println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for standalone-c2 replay)");
         return ExitCode::SUCCESS;
     }
-
-    let mut cfg = PerfConfig::default();
-    if let Some(v) = opt(rest, "--port-iters").and_then(|s| s.parse().ok()) {
-        cfg.port_iters = v;
-    }
-    if let Some(v) = opt(rest, "--ref-iters").and_then(|s| s.parse().ok()) {
-        cfg.ref_iters = v;
-    }
-    let targets: Vec<PathBuf> = match opt(rest, "--fixtures") {
+    let targets: Vec<PathBuf> = match args.get("--fixtures") {
         Some(list) => list
             .split(',')
             .map(str::trim)
@@ -1165,16 +1492,24 @@ fn default_concurrencies() -> Vec<usize> {
     v
 }
 
-fn cmd_perf_scale(rest: &[String]) -> ExitCode {
-    let Some(tc) = located() else {
-        return ExitCode::SUCCESS;
-    };
-    if !tc.has_strace() || !tc.has_mingw() {
-        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for standalone-c2 replay)");
-        return ExitCode::SUCCESS;
-    }
+static PERF_SCALE_SPEC: Spec = Spec::new(
+    "perf-scale",
+    &[
+        ("--fixture", Arity::Value),
+        ("--conc", Arity::Value),
+        ("--port-secs", Arity::Value),
+        ("--ref-secs", Arity::Value),
+        ("--csv", Arity::Value),
+    ],
+)
+.positionals(0);
 
-    let fixture = opt(rest, "--fixture")
+fn cmd_perf_scale(rest: &[String]) -> ExitCode {
+    let args = match Args::parse(&PERF_SCALE_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let fixture = args.get("--fixture")
         .map(|s| {
             let p = PathBuf::from(s);
             if p.exists() {
@@ -1186,23 +1521,46 @@ fn cmd_perf_scale(rest: &[String]) -> ExitCode {
         .unwrap_or_else(|| c2_harness::fixtures_dir().join("mvp_add3.cpp"));
 
     let mut cfg = perf::ScaleConfig::default();
-    cfg.concurrencies = match opt(rest, "--conc") {
-        Some(list) => list
-            .split(',')
-            .filter_map(|s| s.trim().parse().ok())
-            .filter(|&c: &usize| c >= 1)
-            .collect(),
+    // `filter_map(parse().ok())` SILENTLY DROPPED a bad element: `--conc 1,x,4`
+    // ran `[1, 4]` and printed `concurrencies=[1, 4]` as if that were what was
+    // asked for. Only an all-bad list reached the refusal below, so the failure
+    // was invisible exactly when it was partial.
+    cfg.concurrencies = match args.get("--conc") {
+        Some(list) => {
+            let mut v: Vec<usize> = Vec::new();
+            for tok in list.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                match tok.parse::<usize>() {
+                    Ok(c) if c >= 1 => v.push(c),
+                    _ => {
+                        eprintln!("perf-scale: --conc expects positive integers, got {tok:?}");
+                        return ExitCode::from(2);
+                    }
+                }
+            }
+            v
+        }
         None => default_concurrencies(),
     };
     if cfg.concurrencies.is_empty() {
         eprintln!("no valid --conc values");
         return ExitCode::from(2);
     }
-    if let Some(v) = opt(rest, "--port-secs").and_then(|s| s.parse().ok()) {
-        cfg.port_secs = v;
+    match args.num::<f64>("--port-secs") {
+        Ok(Some(v)) => cfg.port_secs = v,
+        Ok(None) => {}
+        Err(c) => return c,
     }
-    if let Some(v) = opt(rest, "--ref-secs").and_then(|s| s.parse().ok()) {
-        cfg.ref_secs = v;
+    match args.num::<f64>("--ref-secs") {
+        Ok(Some(v)) => cfg.ref_secs = v,
+        Ok(None) => {}
+        Err(c) => return c,
+    }
+    let Some(tc) = args.toolchain() else {
+        return ExitCode::SUCCESS;
+    };
+    if !tc.has_strace() || !tc.has_mingw() {
+        println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for standalone-c2 replay)");
+        return ExitCode::SUCCESS;
     }
 
     let name = fixture
@@ -1242,7 +1600,7 @@ fn cmd_perf_scale(rest: &[String]) -> ExitCode {
     }
 
     // Emit CSV for the README plot when asked.
-    if let Some(path) = opt(rest, "--csv") {
+    if let Some(path) = args.get("--csv") {
         let mut csv = String::from("concurrency,port_ops_per_sec,ref_ops_per_sec\n");
         for p in &points {
             csv.push_str(&format!("{},{:.3},{:.3}\n", p.concurrency, p.port_ops, p.ref_ops));
@@ -1263,44 +1621,32 @@ fn cmd_perf_scale(rest: &[String]) -> ExitCode {
 ///
 /// The listing is a **decode aid, never a gate**: the obj byte-compare remains
 /// the sole judge of the port.
+static LISTING_SPEC: Spec = Spec::new(
+    "listing",
+    &[
+        ("--qxstalls", Arity::Flag),
+        ("--out", Arity::Value),
+        // Repeatable: `--flag /GR- --flag /Ox` builds the profile.
+        ("--flag", Arity::Repeated),
+    ],
+);
+
 fn cmd_listing(rest: &[String]) -> ExitCode {
-    let mut cpp: Option<PathBuf> = None;
-    let mut out: Option<PathBuf> = None;
-    let mut qxstalls = false;
-    let mut flags: Vec<String> = Vec::new();
-    let mut it = rest.iter();
-    while let Some(a) = it.next() {
-        match a.as_str() {
-            "--qxstalls" => qxstalls = true,
-            "--out" => match it.next() {
-                Some(v) => out = Some(PathBuf::from(v)),
-                None => {
-                    eprintln!("--out needs a value");
-                    return ExitCode::from(2);
-                }
-            },
-            "--flag" => match it.next() {
-                Some(v) => flags.push(v.clone()),
-                None => {
-                    eprintln!("--flag needs a value");
-                    return ExitCode::from(2);
-                }
-            },
-            other if cpp.is_none() && !other.starts_with("--") => cpp = Some(PathBuf::from(other)),
-            other => {
-                eprintln!("unknown listing option: {other}");
-                return ExitCode::from(2);
-            }
-        }
-    }
-    let Some(cpp) = cpp else {
+    let args = match Args::parse(&LISTING_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let out = args.path("--out");
+    let qxstalls = args.has("--qxstalls");
+    let mut flags: Vec<String> = args.all("--flag").into_iter().map(String::from).collect();
+    let Some(cpp) = args.first().map(PathBuf::from) else {
         eprintln!(
             "usage: c2rs listing <cpp> [--qxstalls] [--out PATH] [--flag F ...]\n\
              default flags: /O1 /Oi /EHsc /GS- /c"
         );
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() {
@@ -1360,63 +1706,44 @@ fn cmd_listing(rest: &[String]) -> ExitCode {
 }
 
 /// **Boards #134 and #136** — the population scan over the listing seam.
-fn cmd_listing_scan(rest: &[String]) -> ExitCode {
-    let mut list_file: Option<PathBuf> = None;
-    let mut flags_file: Option<PathBuf> = None;
-    let mut cwd: Option<PathBuf> = None;
-    let mut limit: Option<usize> = None;
-    let mut jobs: usize = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-    let mut jsonl: Option<PathBuf> = None;
-    let mut work: Option<PathBuf> = None;
-    let mut qxstalls = false;
+static LISTING_SCAN_SPEC: Spec = Spec::new(
+    "listing-scan",
+    &[
+        ("--qxstalls", Arity::Flag),
+        ("--list", Arity::Value),
+        ("--flags-file", Arity::Value),
+        ("--cwd", Arity::Value),
+        ("--limit", Arity::Value),
+        ("--jobs", Arity::Value),
+        ("--jsonl", Arity::Value),
+        ("--work", Arity::Value),
+    ],
+)
+.positionals(0);
 
-    let mut it = rest.iter();
-    while let Some(a) = it.next() {
-        let mut val = |name: &str| -> Option<String> {
-            match it.next() {
-                Some(v) => Some(v.clone()),
-                None => {
-                    eprintln!("{name} needs a value");
-                    None
-                }
-            }
-        };
-        match a.as_str() {
-            "--qxstalls" => qxstalls = true,
-            "--list" => match val("--list") {
-                Some(v) => list_file = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--flags-file" => match val("--flags-file") {
-                Some(v) => flags_file = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--cwd" => match val("--cwd") {
-                Some(v) => cwd = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--limit" => match val("--limit").and_then(|v| v.parse().ok()) {
-                Some(v) => limit = Some(v),
-                None => return ExitCode::from(2),
-            },
-            "--jobs" => match val("--jobs").and_then(|v| v.parse().ok()) {
-                Some(v) => jobs = v,
-                None => return ExitCode::from(2),
-            },
-            "--jsonl" => match val("--jsonl") {
-                Some(v) => jsonl = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--work" => match val("--work") {
-                Some(v) => work = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            other => {
-                eprintln!("unknown listing-scan option: {other}");
-                return ExitCode::from(2);
-            }
-        }
-    }
+fn cmd_listing_scan(rest: &[String]) -> ExitCode {
+    let args = match Args::parse(&LISTING_SCAN_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let cwd = args.path("--cwd");
+    let jsonl = args.path("--jsonl");
+    let work = args.path("--work");
+    let qxstalls = args.has("--qxstalls");
+    // `--limit`/`--jobs` used to `return ExitCode::from(2)` on an unparseable
+    // value with NO message at all — the `{name} needs a value` line only fired
+    // when the token was missing entirely, so `--jobs eight` exited 2 in
+    // silence. `num` names the option and the value.
+    let limit: Option<usize> = match args.num("--limit") {
+        Ok(v) => v,
+        Err(c) => return c,
+    };
+    let jobs: usize = match args.num("--jobs") {
+        Ok(Some(v)) => v,
+        Ok(None) => std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4),
+        Err(c) => return c,
+    };
+    let (list_file, flags_file) = (args.path("--list"), args.path("--flags-file"));
     let (Some(list_file), Some(flags_file)) = (list_file, flags_file) else {
         eprintln!(
             "usage: c2rs listing-scan --list FILE --flags-file FILE [--cwd DIR] \
@@ -1454,7 +1781,7 @@ fn cmd_listing_scan(rest: &[String]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() {
@@ -1594,32 +1921,52 @@ fn cmd_corpus(rest: &[String]) -> ExitCode {
     }
 }
 
-/// Parse `--key value` pairs (and a leading positional) from `rest`.
-fn opt<'a>(rest: &'a [String], key: &str) -> Option<&'a str> {
-    rest.iter()
-        .position(|a| a == key)
-        .and_then(|i| rest.get(i + 1))
-        .map(String::as_str)
-}
+// `fn opt(rest, key)` used to live here. It was `iter().position(|a| a == key)`
+// — the SAME scan boards #194/#195 are about, wearing a helper's name, and nine
+// handlers used it. Deleted rather than fixed: a scan cannot refuse what it does
+// not look for, so there is no repair short of the parser above. Its doc comment
+// also claimed it handled "a leading positional", which it never did; each
+// caller re-derived positionals ad hoc, and two of them (`corpus sample`,
+// `corpus stats`) ate a flag as the directory name.
+
+static CORPUS_GEN_SPEC: Spec = Spec::new(
+    "corpus gen",
+    &[
+        ("--seed", Arity::Value),
+        ("--count", Arity::Value),
+        ("--timeout", Arity::Value),
+        ("--out", Arity::Value),
+    ],
+)
+.positionals(0);
 
 fn cmd_corpus_gen(rest: &[String]) -> ExitCode {
+    let args = match Args::parse(&CORPUS_GEN_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
     let mut cfg = CorpusConfig::default();
-    if let Some(v) = opt(rest, "--seed") {
-        cfg.seed = v.parse().unwrap_or(cfg.seed);
+    // `parse().unwrap_or(cfg.seed)` made `--seed abc` run at the DEFAULT seed
+    // while the operator believed a seed had been set — a reproducibility claim
+    // resting on a value the CLI discarded.
+    match args.num("--seed") {
+        Ok(Some(v)) => cfg.seed = v,
+        Ok(None) => {}
+        Err(c) => return c,
     }
-    if let Some(v) = opt(rest, "--count") {
-        cfg.count = v.parse().unwrap_or(cfg.count);
+    match args.num("--count") {
+        Ok(Some(v)) => cfg.count = v,
+        Ok(None) => {}
+        Err(c) => return c,
     }
-    if let Some(v) = opt(rest, "--timeout") {
-        if let Ok(s) = v.parse::<u64>() {
-            cfg.timeout = Duration::from_secs(s);
-        }
+    match args.num::<u64>("--timeout") {
+        Ok(Some(v)) => cfg.timeout = Duration::from_secs(v),
+        Ok(None) => {}
+        Err(c) => return c,
     }
-    let out = opt(rest, "--out")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("corpus"));
+    let out = args.path("--out").unwrap_or_else(|| PathBuf::from("corpus"));
 
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() {
@@ -1657,10 +2004,18 @@ fn cmd_corpus_gen(rest: &[String]) -> ExitCode {
     }
 }
 
+/// One optional output directory, no options. `rest.first()` was taken verbatim,
+/// so `c2rs corpus sample --out /tmp/x` wrote the sample into a directory
+/// literally named `--out`.
+static CORPUS_SAMPLE_SPEC: Spec = Spec::new("corpus sample", &[]);
+
 fn cmd_corpus_sample(rest: &[String]) -> ExitCode {
-    let out = rest
-        .first()
-        .map(PathBuf::from)
+    let args = match Args::parse(&CORPUS_SAMPLE_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let out = args
+        .path_positional()
         .unwrap_or_else(|| PathBuf::from("crates/c2-harness/tests/corpus_sample"));
     match corpus::write_synthetic_sample(&out) {
         Ok(s) => {
@@ -1691,15 +2046,38 @@ fn cmd_retrieve(rest: &[String]) -> ExitCode {
     }
 }
 
-fn parse_ks(rest: &[String]) -> Vec<usize> {
-    opt(rest, "--k")
-        .map(|s| s.split(',').filter_map(|t| t.trim().parse().ok()).collect::<Vec<usize>>())
-        .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| vec![1, 5, 10])
+/// `--k 1,5,10`. A bad element used to vanish through `filter_map(parse().ok())`
+/// and, if every element was bad, the whole option fell back to the default —
+/// so `--k 1,x,10` silently evaluated recall at two cutoffs, not three.
+fn parse_ks(args: &Args) -> Result<Vec<usize>, ExitCode> {
+    let Some(s) = args.get("--k") else {
+        return Ok(vec![1, 5, 10]);
+    };
+    let mut v = Vec::new();
+    for tok in s.split(',').map(str::trim).filter(|t| !t.is_empty()) {
+        match tok.parse::<usize>() {
+            Ok(k) => v.push(k),
+            Err(_) => {
+                eprintln!("{}: --k expects integers, got {tok:?}", args.cmd());
+                return Err(ExitCode::from(2));
+            }
+        }
+    }
+    if v.is_empty() {
+        eprintln!("{}: --k names no cutoffs", args.cmd());
+        return Err(ExitCode::from(2));
+    }
+    Ok(v)
 }
 
+static RETRIEVE_INDEX_SPEC: Spec = Spec::new("retrieve index", &[]);
+
 fn cmd_retrieve_index(rest: &[String]) -> ExitCode {
-    let Some(dir) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+    let args = match Args::parse(&RETRIEVE_INDEX_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(dir) = args.path_positional() else {
         eprintln!("usage: c2rs retrieve index <corpus-dir>");
         return ExitCode::from(2);
     };
@@ -1755,14 +2133,42 @@ fn class_sizes<I: Iterator<Item = String>>(keys: I) -> std::collections::BTreeMa
     m
 }
 
+static RETRIEVE_EVAL_SPEC: Spec = Spec::new(
+    "retrieve eval",
+    &[
+        ("--k", Arity::Value),
+        ("--split", Arity::Value),
+        ("--query-div", Arity::Value),
+    ],
+);
+
 fn cmd_retrieve_eval(rest: &[String]) -> ExitCode {
-    let Some(dir) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+    let args = match Args::parse(&RETRIEVE_EVAL_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(dir) = args.path_positional() else {
         eprintln!("usage: c2rs retrieve eval <corpus-dir> [--split held-out|loo] [--query-div N] [--k 1,5,10]");
         return ExitCode::from(2);
     };
-    let ks = parse_ks(rest);
-    let split = opt(rest, "--split").unwrap_or("held-out");
-    let query_div: u64 = opt(rest, "--query-div").and_then(|s| s.parse().ok()).unwrap_or(5);
+    let ks = match parse_ks(&args) {
+        Ok(v) => v,
+        Err(c) => return c,
+    };
+    // `_ =>` used to swallow every unrecognised spelling, so `--split heldout`
+    // ran leave-one-out's OPPOSITE and reported "held-out" as if asked.
+    let split = match args.one_of("--split", &["held-out", "loo"]) {
+        Ok(v) => v.unwrap_or("held-out"),
+        Err(c) => return c,
+    };
+    if split == "loo" && args.get("--query-div").is_some() {
+        eprintln!("retrieve eval: --query-div has no effect under --split loo; refusing rather than dropping it silently");
+        return ExitCode::from(2);
+    }
+    let query_div: u64 = match args.num("--query-div") {
+        Ok(v) => v.unwrap_or(5),
+        Err(c) => return c,
+    };
 
     let items = match retrieval::load_items(&dir) {
         Ok(v) => v,
@@ -1834,14 +2240,19 @@ fn cmd_search(rest: &[String]) -> ExitCode {
         "from-retrieval" => cmd_search_from_retrieval(rest),
         "from-lifter" => cmd_search_from_lifter(rest),
         _ => {
-            eprintln!("usage: c2rs search <solve <cpp>|eval|from-retrieval <corpus-dir>|from-lifter <corpus-dir> --gens <jsonl>> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]");
+            eprintln!("usage: c2rs search <solve <cpp>|eval|from-retrieval <corpus-dir>|from-lifter <corpus-dir> --gens <jsonl>> [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]  (--d 1|2|3 is `search eval` only)");
             ExitCode::from(2)
         }
     }
 }
 
-fn search_moveset(rest: &[String]) -> MoveSet {
-    let mut m = match opt(rest, "--moves") {
+/// The move set. The `_ =>` arm used to map every unrecognised spelling to the
+/// full set — and `search eval` then ECHOED the raw string, so `--moves lenght`
+/// printed `moves=lenght` in its header while running the full moveset. A report
+/// that names a configuration it did not run is worse than one that names none.
+/// `one_of` is checked at parse time, so the echo and the behaviour cannot part.
+fn search_moveset(args: &Args) -> Result<MoveSet, ExitCode> {
+    let mut m = match args.one_of("--moves", &["full", "length"])? {
         Some("length") => MoveSet::length_only(),
         _ => MoveSet::default(),
     };
@@ -1851,31 +2262,31 @@ fn search_moveset(rest: &[String]) -> MoveSet {
     // models that crowd out productive (structure-changing) moves. Drop it from
     // the search moveset unless explicitly re-enabled. (The mock-scorer unit tests
     // keep it via `MoveSet::default()`, where it IS `.ex`-visible.)
-    if opt(rest, "--keep-widen").is_none() {
+    if !args.has("--keep-widen") {
         m.widen_narrow = false;
     }
-    m
+    Ok(m)
 }
 
-fn search_budget(rest: &[String]) -> Budget {
+fn search_budget(args: &Args) -> Result<Budget, ExitCode> {
     let mut b = Budget::default();
-    if let Some(v) = opt(rest, "--steps").and_then(|s| s.parse().ok()) {
+    if let Some(v) = args.num("--steps")? {
         b.max_steps = v;
     }
-    if let Some(v) = opt(rest, "--compiles").and_then(|s| s.parse().ok()) {
+    if let Some(v) = args.num("--compiles")? {
         b.max_compiles = v;
     }
-    if let Some(v) = opt(rest, "--beam").and_then(|s| s.parse().ok()) {
+    if let Some(v) = args.num("--beam")? {
         b.beam_width = v;
     }
-    b
+    Ok(b)
 }
 
-fn search_perturbs(rest: &[String]) -> Vec<(Perturb, usize)> {
+fn search_perturbs(args: &Args) -> Result<Vec<(Perturb, usize)>, ExitCode> {
     // The obj-changing families at d=1, plus AddTerm at d=2 (a gradient-guided
     // two-move recovery) when --d 2 is requested. WidenLit is obj-invisible on
     // the real path (P0.6a A), so it is not in the roster.
-    let d: usize = opt(rest, "--d").and_then(|s| s.parse().ok()).unwrap_or(1);
+    let d: usize = args.num("--d")?.unwrap_or(1);
     let mut v = vec![
         (Perturb::AddTerm, 1),
         (Perturb::LitNudge, 1),
@@ -1887,28 +2298,57 @@ fn search_perturbs(rest: &[String]) -> Vec<(Perturb, usize)> {
     if d >= 3 {
         v.push((Perturb::AddTerm, 3));
     }
-    v
+    Ok(v)
 }
 
-fn search_timeout(rest: &[String]) -> Duration {
-    Duration::from_secs(opt(rest, "--timeout").and_then(|s| s.parse().ok()).unwrap_or(60))
+fn search_timeout(args: &Args) -> Result<Duration, ExitCode> {
+    Ok(Duration::from_secs(args.num("--timeout")?.unwrap_or(60)))
 }
+
+/// The options every `search` subcommand shares.
+const SEARCH_COMMON: &[(&str, Arity)] = &[
+    ("--moves", Arity::Value),
+    ("--keep-widen", Arity::Flag),
+    ("--steps", Arity::Value),
+    ("--compiles", Arity::Value),
+    ("--beam", Arity::Value),
+    ("--timeout", Arity::Value),
+];
+
+/// `SEARCH_COMMON` plus the subcommand's own, as one `const` list.
+const fn search_spec(cmd: &'static str, opts: &'static [(&'static str, Arity)]) -> Spec {
+    Spec { cmd, opts, requires: &[], max_positionals: 1 }
+}
+
+/// **`--d` is not here on purpose.** The top-level `search` usage advertised it
+/// for every subcommand, but `solve` hardcodes `Perturb::AddTerm, 1` and never
+/// calls `search_perturbs`, so `search solve <cpp> --d 3` accepted the option and
+/// ran d=1. Refusing it is the honest reading of "this subcommand does not take
+/// it"; the ladder lives on `search eval`.
+static SEARCH_SOLVE_SPEC: Spec = search_spec("search solve", SEARCH_COMMON);
 
 fn cmd_search_solve(rest: &[String]) -> ExitCode {
-    let Some(cpp) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+    let args = match Args::parse(&SEARCH_SOLVE_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(cpp) = args.path_positional() else {
         eprintln!("usage: c2rs search solve <cpp> [--moves full|length]");
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
+    let (moves, budget, timeout) = match (|| {
+        Ok((search_moveset(&args)?, search_budget(&args)?, search_timeout(&args)?))
+    })() {
+        Ok(v) => v,
+        Err(c) => return c,
+    };
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() || !tc.has_mingw() {
         println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
         return ExitCode::SUCCESS;
     }
-    let moves = search_moveset(rest);
-    let budget = search_budget(rest);
-    let timeout = search_timeout(rest);
     let w = scratch("search-solve");
     // An inserted redundant term is the cleanest obj-changing single demo.
     let r = search::solve_instance(&tc, &cpp, Perturb::AddTerm, 1, &moves, &budget, &w, timeout);
@@ -1946,18 +2386,44 @@ fn cmd_search_solve(rest: &[String]) -> ExitCode {
     code
 }
 
+static SEARCH_EVAL_SPEC: Spec = Spec {
+    cmd: "search eval",
+    opts: &[
+        ("--moves", Arity::Value),
+        ("--keep-widen", Arity::Flag),
+        ("--steps", Arity::Value),
+        ("--compiles", Arity::Value),
+        ("--beam", Arity::Value),
+        ("--timeout", Arity::Value),
+        ("--d", Arity::Value),
+    ],
+    requires: &[],
+    max_positionals: 0,
+};
+
 fn cmd_search_eval(rest: &[String]) -> ExitCode {
-    let Some(tc) = located() else {
+    let args = match Args::parse(&SEARCH_EVAL_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let (moves, budget, perturbs, timeout) = match (|| {
+        Ok((
+            search_moveset(&args)?,
+            search_budget(&args)?,
+            search_perturbs(&args)?,
+            search_timeout(&args)?,
+        ))
+    })() {
+        Ok(v) => v,
+        Err(c) => return c,
+    };
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() || !tc.has_mingw() {
         println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
         return ExitCode::SUCCESS;
     }
-    let moves = search_moveset(rest);
-    let budget = search_budget(rest);
-    let perturbs = search_perturbs(rest);
-    let timeout = search_timeout(rest);
     let fixtures: Vec<PathBuf> = SEARCH_FIXTURES
         .iter()
         .map(|n| c2_harness::fixtures_dir().join(n))
@@ -1968,7 +2434,7 @@ fn cmd_search_eval(rest: &[String]) -> ExitCode {
         "T-A IL-space solve-rate: {} fixtures x {} perturbation families, moves={}, budget steps={} compiles={}",
         fixtures.len(),
         perturbs.len(),
-        opt(rest, "--moves").unwrap_or("full"),
+        args.get("--moves").unwrap_or("full"),
         budget.max_steps,
         budget.max_compiles,
     );
@@ -2023,45 +2489,71 @@ fn cmd_search_eval(rest: &[String]) -> ExitCode {
     }
 }
 
+static SEARCH_FROM_RETRIEVAL_SPEC: Spec = Spec {
+    cmd: "search from-retrieval",
+    opts: &[
+        ("--moves", Arity::Value),
+        ("--keep-widen", Arity::Flag),
+        ("--steps", Arity::Value),
+        ("--compiles", Arity::Value),
+        ("--beam", Arity::Value),
+        ("--timeout", Arity::Value),
+        ("--sample", Arity::Value),
+        ("--multi", Arity::Value),
+        ("--select-seed", Arity::Value),
+    ],
+    requires: &[],
+    max_positionals: 1,
+};
+
 fn cmd_search_from_retrieval(rest: &[String]) -> ExitCode {
-    let Some(dir) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+    let args = match Args::parse(&SEARCH_FROM_RETRIEVAL_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(dir) = args.path_positional() else {
         eprintln!(
             "usage: c2rs search from-retrieval <corpus-dir> [--sample N] [--multi N] [--select-seed N] [--steps N] [--compiles N] [--beam K] [--timeout SECS]"
         );
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
+    // Real-path moveset: drop the obj-invisible widen/narrow (P0.6a A) unless
+    // explicitly kept — same rule as `search eval`.
+    let (moves, cfg) = match (|| {
+        let moves = search_moveset(&args)?;
+        let mut cfg = search::FromSeedConfig::default();
+        if let Some(v) = args.num("--sample")? {
+            cfg.sample = v;
+        }
+        if let Some(v) = args.num("--multi")? {
+            cfg.multi = v;
+        }
+        if let Some(v) = args.num("--select-seed")? {
+            cfg.select_seed = v;
+        }
+        if let Some(v) = args.num("--steps")? {
+            cfg.budget.max_steps = v;
+        }
+        if let Some(v) = args.num("--compiles")? {
+            cfg.budget.max_compiles = v;
+        }
+        if let Some(v) = args.num("--beam")? {
+            cfg.budget.beam_width = v;
+        }
+        if let Some(v) = args.num::<u64>("--timeout")? {
+            cfg.timeout = Duration::from_secs(v);
+        }
+        Ok((moves, cfg))
+    })() {
+        Ok(v) => v,
+        Err(c) => return c,
+    };
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() || !tc.has_mingw() {
         println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
         return ExitCode::SUCCESS;
-    }
-
-    // Real-path moveset: drop the obj-invisible widen/narrow (P0.6a A) unless
-    // explicitly kept — same rule as `search eval`.
-    let moves = search_moveset(rest);
-    let mut cfg = search::FromSeedConfig::default();
-    if let Some(v) = opt(rest, "--sample").and_then(|s| s.parse().ok()) {
-        cfg.sample = v;
-    }
-    if let Some(v) = opt(rest, "--multi").and_then(|s| s.parse().ok()) {
-        cfg.multi = v;
-    }
-    if let Some(v) = opt(rest, "--select-seed").and_then(|s| s.parse().ok()) {
-        cfg.select_seed = v;
-    }
-    if let Some(v) = opt(rest, "--steps").and_then(|s| s.parse().ok()) {
-        cfg.budget.max_steps = v;
-    }
-    if let Some(v) = opt(rest, "--compiles").and_then(|s| s.parse().ok()) {
-        cfg.budget.max_compiles = v;
-    }
-    if let Some(v) = opt(rest, "--beam").and_then(|s| s.parse().ok()) {
-        cfg.budget.beam_width = v;
-    }
-    if let Some(v) = opt(rest, "--timeout").and_then(|s| s.parse().ok()) {
-        cfg.timeout = Duration::from_secs(v);
     }
 
     let w = scratch("search-from-retrieval");
@@ -2137,42 +2629,71 @@ fn cmd_search_from_retrieval(rest: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+static SEARCH_FROM_LIFTER_SPEC: Spec = Spec {
+    cmd: "search from-lifter",
+    opts: &[
+        ("--moves", Arity::Value),
+        ("--keep-widen", Arity::Flag),
+        ("--steps", Arity::Value),
+        ("--compiles", Arity::Value),
+        ("--beam", Arity::Value),
+        ("--timeout", Arity::Value),
+        ("--gens", Arity::Value),
+        ("--k", Arity::Value),
+        ("--limit", Arity::Value),
+    ],
+    requires: &[],
+    max_positionals: 1,
+};
+
 fn cmd_search_from_lifter(rest: &[String]) -> ExitCode {
-    let Some(dir) = rest.first().filter(|s| !s.starts_with("--")).map(PathBuf::from) else {
+    let args = match Args::parse(&SEARCH_FROM_LIFTER_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(dir) = args.path_positional() else {
         eprintln!(
             "usage: c2rs search from-lifter <corpus-dir> --gens <jsonl> [--k K] [--limit N] [--steps N] [--compiles N] [--beam K] [--timeout SECS]"
         );
         return ExitCode::from(2);
     };
-    let Some(gens_path) = opt(rest, "--gens").map(PathBuf::from) else {
+    let Some(gens_path) = args.path("--gens") else {
         eprintln!("from-lifter: --gens <jsonl> required (rows {{\"id\",\"generations\":[...]}})");
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
+    let (k, limit, moves, budget, timeout) = match (|| {
+        let k: usize = args.num("--k")?.unwrap_or(5);
+        let limit: usize = args.num("--limit")?.unwrap_or(0);
+        let moves = search_moveset(&args)?;
+        let mut budget = search_budget(&args)?;
+        // Bounded per-generation defaults (many generations x targets share one
+        // CPU). The guard is PRESENCE, and that used to matter: with
+        // `.parse().ok()` swallowing a bad value, `--compiles abc` left
+        // `Budget::default()`'s 400 instead of this bounded 200 — a typo doubled
+        // the compile budget in silence. `num` refuses first, so presence and
+        // parse-success now coincide.
+        if args.get("--steps").is_none() {
+            budget.max_steps = 8;
+        }
+        if args.get("--compiles").is_none() {
+            budget.max_compiles = 200;
+        }
+        if args.get("--beam").is_none() {
+            budget.beam_width = 4;
+        }
+        let timeout = Duration::from_secs(args.num::<u64>("--timeout")?.unwrap_or(25));
+        Ok((k, limit, moves, budget, timeout))
+    })() {
+        Ok(v) => v,
+        Err(c) => return c,
+    };
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() || !tc.has_mingw() {
         println!("SKIP: strace / i686-w64-mingw32-gcc absent (needed for replay)");
         return ExitCode::SUCCESS;
     }
-
-    let k: usize = opt(rest, "--k").and_then(|s| s.parse().ok()).unwrap_or(5);
-    let limit: usize = opt(rest, "--limit").and_then(|s| s.parse().ok()).unwrap_or(0);
-    let moves = search_moveset(rest);
-    let mut budget = search_budget(rest);
-    // Bounded per-generation defaults (many generations x targets share one CPU).
-    if opt(rest, "--steps").is_none() {
-        budget.max_steps = 8;
-    }
-    if opt(rest, "--compiles").is_none() {
-        budget.max_compiles = 200;
-    }
-    if opt(rest, "--beam").is_none() {
-        budget.beam_width = 4;
-    }
-    let timeout = Duration::from_secs(
-        opt(rest, "--timeout").and_then(|s| s.parse().ok()).unwrap_or(25),
-    );
 
     let gens = match search::load_lifter_gens(&gens_path) {
         Ok(g) => g,
@@ -2248,8 +2769,14 @@ fn cmd_search_from_lifter(rest: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+static CORPUS_STATS_SPEC: Spec = Spec::new("corpus stats", &[]);
+
 fn cmd_corpus_stats(rest: &[String]) -> ExitCode {
-    let Some(dir) = rest.first().map(PathBuf::from) else {
+    let args = match Args::parse(&CORPUS_STATS_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let Some(dir) = args.path_positional() else {
         eprintln!("usage: c2rs corpus stats <dir>");
         return ExitCode::from(2);
     };
@@ -2289,92 +2816,94 @@ use c2_harness::gap::{gap_scan, GapConfig, TuClass};
 /// and rank the blockers. Exit is non-zero only on a *correctness* signal
 /// (`mismatch` TUs or a replay-soundness divergence) or a harness error —
 /// gaps themselves are the expected measurement, not a failure.
+static GAP_SPEC: Spec = Spec {
+    cmd: "gap",
+    opts: &[
+        ("--list", Arity::Value),
+        ("--flags-file", Arity::Value),
+        ("--cwd", Arity::Value),
+        ("--limit", Arity::Value),
+        ("--jobs", Arity::Value),
+        ("--replay-every", Arity::Value),
+        ("--jsonl", Arity::Value),
+        ("--work", Arity::Value),
+        ("--cache", Arity::Value),
+        ("--no-cache", Arity::Flag),
+        ("--validate-cache", Arity::Value),
+    ],
+    requires: &[],
+    max_positionals: 0,
+};
+
 fn cmd_gap(rest: &[String]) -> ExitCode {
-    let mut list_file: Option<PathBuf> = None;
-    let mut flags_file: Option<PathBuf> = None;
-    let mut cwd: Option<PathBuf> = None;
-    let mut limit: Option<usize> = None;
-    let mut jobs: usize = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-    let mut replay_every: usize = 0;
-    let mut jsonl: Option<PathBuf> = None;
-    let mut work: Option<PathBuf> = None;
+    let args = match Args::parse(&GAP_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    let (list_file, flags_file) = (args.path("--list"), args.path("--flags-file"));
+    let cwd = args.path("--cwd");
+    let jsonl = args.path("--jsonl");
+    let work = args.path("--work");
+    // `--limit`/`--jobs`/`--replay-every`/`--validate-cache` used to exit 2 with
+    // NO message when the value did not parse. `num` names the option and echoes
+    // the value it choked on.
+    let limit: Option<usize> = match args.num("--limit") {
+        Ok(v) => v,
+        Err(c) => return c,
+    };
+    let jobs: usize = match args.num("--jobs") {
+        Ok(Some(v)) => v,
+        Ok(None) => std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4),
+        Err(c) => return c,
+    };
+    let replay_every: usize = match args.num("--replay-every") {
+        Ok(v) => v.unwrap_or(0),
+        Err(c) => return c,
+    };
+    let validate_cache: usize = match args.num("--validate-cache") {
+        Ok(v) => v.unwrap_or(0),
+        Err(c) => return c,
+    };
     // Capture cache: ON by default (roadmap #15). The key is content-addressed
     // (source bytes + flags + toolchain + workload-tree identity), never mtimes;
     // `--no-cache` bypasses it and `--validate-cache N` re-captures every Nth
     // hit and byte-compares. Default root is under the gitignored `work/`.
-    let mut cache: Option<PathBuf> = Some(
-        std::env::var_os("C2RS_GAP_CACHE")
-            .map(PathBuf::from)
-            // `main_repo_root`, not `repo_root`: the latter is CARGO_MANIFEST_DIR
-            // and so resolves to the *worktree* a lane's binary was built in,
-            // which is how 50 separate caches came to exist. See its doc comment
-            // for why this is resolved in code rather than exported as an env var.
-            .unwrap_or_else(|| {
-                c2_harness::provenance::main_repo_root().join("work/capture-cache")
-            }),
-    );
-    let mut validate_cache: usize = 0;
-
-    let mut it = rest.iter();
-    while let Some(a) = it.next() {
-        let mut val = |name: &str| -> Option<String> {
-            match it.next() {
-                Some(v) => Some(v.clone()),
-                None => {
-                    eprintln!("{name} needs a value");
-                    None
-                }
-            }
-        };
-        match a.as_str() {
-            "--list" => match val("--list") {
-                Some(v) => list_file = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--flags-file" => match val("--flags-file") {
-                Some(v) => flags_file = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--cwd" => match val("--cwd") {
-                Some(v) => cwd = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--limit" => match val("--limit").and_then(|v| v.parse().ok()) {
-                Some(v) => limit = Some(v),
-                None => return ExitCode::from(2),
-            },
-            "--jobs" => match val("--jobs").and_then(|v| v.parse().ok()) {
-                Some(v) => jobs = v,
-                None => return ExitCode::from(2),
-            },
-            "--replay-every" => match val("--replay-every").and_then(|v| v.parse().ok()) {
-                Some(v) => replay_every = v,
-                None => return ExitCode::from(2),
-            },
-            "--jsonl" => match val("--jsonl") {
-                Some(v) => jsonl = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--work" => match val("--work") {
-                Some(v) => work = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--cache" => match val("--cache") {
-                Some(v) => cache = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--no-cache" => cache = None,
-            "--validate-cache" => match val("--validate-cache").and_then(|v| v.parse().ok()) {
-                Some(v) => validate_cache = v,
-                None => return ExitCode::from(2),
-            },
-            other => {
-                eprintln!("unknown gap option: {other}");
-                return ExitCode::from(2);
-            }
-        }
+    //
+    // `--cache` and `--no-cache` used to be ORDER-DEPENDENT, because each simply
+    // assigned as the scan walked: `--cache X --no-cache` disabled the cache and
+    // dropped X, while `--no-cache --cache X` used X. One of those two spellings
+    // did something other than what it says, and which one depended on argument
+    // order. They are contradictory, so refuse both spellings.
+    if args.has("--no-cache") && args.get("--cache").is_some() {
+        eprintln!("gap: --cache and --no-cache contradict each other; give one");
+        return ExitCode::from(2);
     }
-
+    // `--validate-cache N` re-captures every Nth *hit*, so with no cache there
+    // are no hits and nothing is validated — but the report still printed
+    // "validating every Nth hit" under a `DISABLED (--no-cache)` cache line.
+    if args.has("--no-cache") && validate_cache > 0 {
+        eprintln!(
+            "gap: --validate-cache has nothing to validate with --no-cache; refusing rather \
+             than reporting a validation that cannot run"
+        );
+        return ExitCode::from(2);
+    }
+    let cache: Option<PathBuf> = if args.has("--no-cache") {
+        None
+    } else {
+        Some(args.path("--cache").unwrap_or_else(|| {
+            std::env::var_os("C2RS_GAP_CACHE")
+                .map(PathBuf::from)
+                // `main_repo_root`, not `repo_root`: the latter is
+                // CARGO_MANIFEST_DIR and so resolves to the *worktree* a lane's
+                // binary was built in, which is how 50 separate caches came to
+                // exist. See its doc comment for why this is resolved in code
+                // rather than exported as an env var.
+                .unwrap_or_else(|| {
+                    c2_harness::provenance::main_repo_root().join("work/capture-cache")
+                })
+        }))
+    };
     let (Some(list_file), Some(flags_file)) = (list_file, flags_file) else {
         eprintln!(
             "usage: c2rs gap --list FILE --flags-file FILE [--cwd DIR] [--limit N] \
@@ -2415,7 +2944,7 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
         }
     };
 
-    let Some(tc) = located() else {
+    let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
     if !tc.has_strace() {
@@ -3093,70 +3622,44 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
 /// Prints exactly one line of JSON on stdout and exits 0 for every well-formed
 /// verdict, including `not_implemented`. Exit 2 means "you called me wrong" —
 /// a caller must treat that as a hard error, never as a verdict.
-fn cmd_prefilter(rest: &[String]) -> ExitCode {
-    let mut source: Option<String> = None;
-    let mut flags: Vec<String> = Vec::new();
-    let mut flags_file: Option<PathBuf> = None;
-    let mut cwd: Option<PathBuf> = None;
-    let mut emit_obj: Option<PathBuf> = None;
-    let mut compare_obj: Option<PathBuf> = None;
-    let mut obj_name: Option<String> = None;
-    let mut work: Option<PathBuf> = None;
+static PREFILTER_SPEC: Spec = Spec {
+    cmd: "prefilter",
+    opts: &[
+        ("--source", Arity::Value),
+        ("--flag", Arity::Repeated),
+        ("--flags-file", Arity::Value),
+        ("--cwd", Arity::Value),
+        ("--emit-obj", Arity::Value),
+        ("--compare-obj", Arity::Value),
+        ("--obj-name", Arity::Value),
+        ("--work", Arity::Value),
+        ("--schema", Arity::Flag),
+    ],
+    requires: &[],
+    max_positionals: 0,
+};
 
-    let mut it = rest.iter();
-    while let Some(a) = it.next() {
-        let mut val = |name: &str| -> Option<String> {
-            match it.next() {
-                Some(v) => Some(v.clone()),
-                None => {
-                    eprintln!("{name} needs a value");
-                    None
-                }
-            }
-        };
-        match a.as_str() {
-            "--source" => match val("--source") {
-                Some(v) => source = Some(v),
-                None => return ExitCode::from(2),
-            },
-            "--flag" => match val("--flag") {
-                Some(v) => flags.push(v),
-                None => return ExitCode::from(2),
-            },
-            "--flags-file" => match val("--flags-file") {
-                Some(v) => flags_file = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--cwd" => match val("--cwd") {
-                Some(v) => cwd = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--emit-obj" => match val("--emit-obj") {
-                Some(v) => emit_obj = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--compare-obj" => match val("--compare-obj") {
-                Some(v) => compare_obj = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--obj-name" => match val("--obj-name") {
-                Some(v) => obj_name = Some(v),
-                None => return ExitCode::from(2),
-            },
-            "--work" => match val("--work") {
-                Some(v) => work = Some(PathBuf::from(v)),
-                None => return ExitCode::from(2),
-            },
-            "--schema" => {
-                println!("{}", prefilter::SCHEMA);
-                return ExitCode::SUCCESS;
-            }
-            other => {
-                eprintln!("unknown prefilter option: {other}");
-                return ExitCode::from(2);
-            }
-        }
+fn cmd_prefilter(rest: &[String]) -> ExitCode {
+    let args = match Args::parse(&PREFILTER_SPEC, rest) {
+        Ok(a) => a,
+        Err(c) => return c,
+    };
+    // `--schema` used to SHORT-CIRCUIT mid-parse: it printed and returned from
+    // inside the option loop, so every argument after it — including an unknown
+    // one — was never examined. `prefilter --schema --typo` exited 0. The whole
+    // command line is parsed first now, and only then does `--schema` win.
+    if args.has("--schema") {
+        println!("{}", prefilter::SCHEMA);
+        return ExitCode::SUCCESS;
     }
+    let source = args.get("--source").map(String::from);
+    let mut flags: Vec<String> = args.all("--flag").into_iter().map(String::from).collect();
+    let flags_file = args.path("--flags-file");
+    let cwd = args.path("--cwd");
+    let emit_obj = args.path("--emit-obj");
+    let compare_obj = args.path("--compare-obj");
+    let obj_name = args.get("--obj-name").map(String::from);
+    let work = args.path("--work");
 
     let Some(source) = source else {
         eprintln!(
@@ -3202,7 +3705,10 @@ fn cmd_prefilter(rest: &[String]) -> ExitCode {
         obj_name,
         work,
     };
-    let out = prefilter::run(Toolchain::locate().as_ref(), &req);
+    // `toolchain_quiet`, not `toolchain`: this command emits one line of JSON
+    // and reports toolchain absence *inside* it, so a bare `SKIP:` line would
+    // corrupt the output it is contracted to produce.
+    let out = prefilter::run(args.toolchain_quiet().as_ref(), &req);
     println!("{}", out.to_json());
     // Captured IL bundles are large and this runs per candidate; the JSON (and
     // the emitted obj, which lives wherever the caller asked) is the record.
