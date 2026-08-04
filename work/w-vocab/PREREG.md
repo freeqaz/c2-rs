@@ -83,3 +83,21 @@ all their bodies in class. Both bounds are far below 863.
   that instrument must not be read as coverage.
 * "N TUs now decode" is never "N TUs now match". A TU leaving `vocab-gap`
   enters `codegen-gap`, where the port refuses it for a codegen reason.
+
+---
+
+## 5. P4 refined, registered mid-lane on the first 20 cells (N = 0..19 only)
+
+Measured on `struct1_000..019`: the trailing `?f@@YAHH@Z` record's field is
+**`0x1001 + 4N`** exactly, stride **4**, no exceptions. Registered *before*
+capturing N ≥ 20:
+
+* **P4a** the affine law holds to N = 90: `field(N) = 0x1001 + 4N`.
+* **P4b** the gate framing (`0x1000..=0x10FF`) loses the record at **exactly
+  N = 64**: `field(63) = 0x10FD` is framed, `field(64) = 0x1101` is not, and
+  there is no N with a value in `0x10FE..=0x1100`. So w-small's 62/63/64
+  boundary is **derivable**, not incidental — and it moves to a different N
+  under a different burner stride.
+* **P4c** a burner with a different type cost changes the stride and moves the
+  flip to `N = floor(0xFE / stride) + 1`, checked on a second and third burner
+  kind.
