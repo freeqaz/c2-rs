@@ -56,6 +56,7 @@ the header block this table is read from.
 | 2026-08-04 | AB | [w-gr](2026-08-04-w-gr.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |
 | 2026-08-04 | W12 | [w-label](2026-08-04-w-label.md) | 12 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | Y-g | [w-modes](2026-08-04-w-modes.md) | 10 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no `crates/` edit |
+| 2026-08-04 | W-MOD | [w-mod](2026-08-04-w-mod.md) | 13 | 706,555 / 2,463,393 unchanged (28.68 %), **+0** — and +0 on every |
 | 2026-08-04 | X-d | [w-order](2026-08-04-w-order.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | W-R1c | [w-r1c](2026-08-04-w-r1c.md) | 2 | 706,403 / 2,463,317 → 706,403 / 2,463,317, +0 |
 | 2026-08-04 | W-R1 | [w-r1](2026-08-04-w-r1.md) | 13 | 706,403 / 2,463,317 → 706,403 / 2,463,317, +0 |
