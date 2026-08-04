@@ -21,10 +21,28 @@ GRAMMAR.  Transcribed shape, gated by exact consumption (see `parse`):
     record  := <tag=0x07> <byte> <varU owner> <i32c 0> node*
              | <tag=0x00> <varU owner> <i32c 0> node*        (the leading
                                                               __C1_<build> record)
-    node    := 0x01 <i32c count> <i32c width> <i32c|i16c value>   scalar run
+    node    := 0x01 <i32c type> <i32c width> <value>              scalar
              | 0x02 <varU token> <i32c addend> <i32c width>       SYMBOL REFERENCE
              | 0x03 <i16c len> <len bytes>                        byte blob
              | 0x08 <i32c len>                                    zero fill
+
+    value   := i16c                 when type != 5 and width == 2
+             | i32c                 when type != 5 and width in (1, 4)
+             | i64c                 when type != 5 and width == 8
+             | <width raw bytes>    when type == 5   (float / double)
+
+`type` 5 is floating point and is the one flavour stored raw — an FP constant
+has no small-value bias for `i32c`'s one-byte form to exploit.  This clause was
+added AFTER the first terminus-gate run (823/876 = 0.93950 clean) and BEFORE any
+truth was read; the gate consults no c2 output, so it is not tuning.  With it the
+gate closes (see the rung doc §1f).
+
+The record grammar is confirmed independently by the C++ ABI structures it has
+to reproduce: `_TypeDescriptor` decodes as `ptr(??_7type_info@@6B@)`, one int 0,
+one blob — three fields; `_CatchableType` decodes as int 0, `ptr(??_R0…)`,
+int 0, int -1, zero-fill 4, int 268, `ptr(copy ctor)` — the seven fields of
+`_s__CatchableType`, with the `268` in the symbol's own decorated name landing in
+`sizeOrOffset`.
 
 `varU`, `i16c`, `i32c` are c2's own primitives at 0x10c1f91b / 0x10c1f9a6 /
 0x10c1f9e9, re-used from `work/w-roots/glflags.py` unchanged.  Token spelling is
@@ -45,6 +63,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "emitpred", "pipeline"))
 sys.path.insert(0, os.path.join(HERE, "..", "w-roots"))
 import il  # noqa: E402
 from glflags import i16c, i32c  # noqa: E402
+from chain import i64c  # noqa: E402
 
 SYM_NODE = 0x02
 REC_TAGS = (0x00, 0x07)
@@ -62,15 +81,18 @@ def node(b, p, out):
     k = b[p]
     p += 1
     if k == 0x01:
-        n, p = i32c(b, p)
+        t, p = i32c(b, p)
         w, p = i32c(b, p)
+        if t == 5:
+            if w not in (4, 8) or p + w > len(b):
+                raise ValueError("fp width %d" % w)
+            return p + w
         if w == 2:
             _, p = i16c(b, p)
         elif w in (1, 4):
             _, p = i32c(b, p)
         elif w == 8:
-            _, p = i32c(b, p)
-            _, p = i32c(b, p)
+            _, p = i64c(b, p)
         else:
             raise ValueError("scalar width %d" % w)
         return p
