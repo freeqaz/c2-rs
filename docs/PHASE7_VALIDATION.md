@@ -358,12 +358,31 @@ a9_05 emits 5 functions.      a9_06 emits 1.
 
 **Identical front-end name tables, emitted sets differing by four functions.**
 So for the destructor/virtual-call families the discriminator is *not* in the
-`.gl` names, and R3 must get it from IL body structure or from source. The
-demonstrated detectors for families 2 and 3 are **source-side greps** — an
-existence proof that the breaking condition is visible at all, **not** a
-production detector, and **not** the IL-side version R3 will actually need.
-That gap is stated plainly here because it is the difference between "guardable
-in principle" and "guarded".
+`.gl` names.
+
+#### RETIRED — the discriminator IS in the IL, and it is a single byte
+
+The conclusion this section originally drew — *"R3 must get it from source; the
+demonstrated detectors are source-side greps, not the IL-side version R3 will
+need"* — **is superseded by §5's measurement.** The `.ex` operand stream
+distinguishes the two edge kinds directly:
+
+    direct call / reference     26 <token>
+    VIRTUAL DISPATCH            67 <vtable-byte-offset> <token>
+
+**Known-answer gated 12/12** against real objs — including axes1's four
+mechanism probes, **the actual graded violation obj `a6c5/tu2`**, and a
+`p_ctor` control in which the *only* change from `f1` is a kept constructor and
+the entire class disappears.
+
+So the honest statement is now: **`.gl` names are insufficient; the `.ex` is
+sufficient.** Family 3 is guardable — and better than guardable, *predictable* —
+from the exact channel R3 consumes, and **R3 needs no fail-closed source-side
+guard for it**. axes1's "the detector that works is syntactic and source-side"
+was correct as far as its evidence went and is superseded.
+
+Family 2 (the vtable **trigger**) is not addressed by this byte and remains
+demonstrated only from source. **That gap stands.**
 
 Union refusal rule over axes2's 35 cells: refuses **10 of 35**, and every one
 refused is a violating cell — **0 false negatives, 0 over-flags** on that
@@ -385,33 +404,89 @@ holds captured `/Wall` stderr for all 8 DEV TUs, unanalysed.
 
 ## 5. Magnitude of the virtual-slot false-positive class over the workload
 
-**PENDING — in progress.** This is the number that converts §3b from a bug
-report into a decision. Registered questions, so the answer cannot drift:
+**MEASURED.** Full record: `work/emitpred/MAGNITUDE.md` (`1ac16bc`).
 
-* **N TUs** and **M function names** where §2 predicts Emit under this class
-  and c2 emits nothing.
-* **M as a fraction of §2's total predicted-Emit set** over the same
-  population — only the fraction bears on **V3**.
-* **Distribution** — concentrated in a few TUs or spread across most? A class
-  in 3 TUs and a class in 600 TUs demand different repairs.
-* **Detector error rate**, hand-checked. A detector that cannot be bounded is
-  an INSTRUMENT-FAIL, not a number.
+Measured over **850 TUs** at dc3 **`9ad5c4c8`** — 878 − **21** quarantined − 7
+that produce no obj. (The quarantine is **21, not the prereg's 20**: the frozen
+draw named *basenames*, and `FxSendEQ.cpp` resolves to two workload paths;
+both were quarantined conservatively.)
 
-**Population:** detector over all 878 TUs (source, headers, `.gl`, `.ex` are
-c1xx-side inputs and are allowed for the held-out 20); **truth over the 858
-non-held-out TUs only** — the quarantine is still in force and spending it for
-a magnitude estimate would burn the Part-1 population for 2.3 % more coverage.
-Every truth-derived denominator in the result must read "858 of 878, 20
-quarantined".
+| | count | denominator |
+|---|---:|---|
+| **TUs with ≥ 1 false positive of this class** | **289** | 850 — **34.0 %** |
+| **false-positive name-instances** | **649** | — |
+| **distinct decorated names** | **331** | — |
+| total emitted code COMDATs, same 850 TUs | 174 410 | — |
 
-**Decision rule, registered now, before the number exists:** a class confined
-to a small minority of TUs and a small fraction of the predicted set is **a
-missing clause** — §2 is repairable and #161 is *wounded*. A class reaching a
-large fraction of the predicted set is **a replacement** — §2 models the wrong
-thing about the dominant construct in this codebase and #161 is *killed*.
-The boundary is not a threshold this lane gets to pick after seeing the number:
-it is V3. If the class alone pushes micro-precision below **0.95**, #161 cannot
-ship into fail-closed R3 as stated, and that is the whole point of the gate.
+Composition: **481** ordinary virtual members, **166** `??_G` scalar-deleting
+destructors (the `delete p`-through-a-base-pointer form axes2 pinned on
+`a9_06`), **2** provable detector artifacts — left in the count rather than
+quietly deducted.
+
+### 5a. The V3-relevant fraction — and why V3 still cannot be quoted
+
+| | |
+|---|---|
+| this class as a share of the smallest possible predicted set | **0.371 %** |
+| ⇒ ceiling on V3 micro-precision from this class alone | **≤ 0.99629** |
+| size this class would need to drag V3 to 0.95 | **9 179 instances — 14.1×** the measured figure |
+
+The bound **needs no root model**: every flagged name has an *emitted* referrer,
+so it is definitely a kept definition and §2's Propagation clause definitely
+predicts it, and it is definitely not emitted; `TP` is bounded by truth at
+`|E|`. A bound that holds under *every* root model beats a point estimate under
+a guessed one.
+
+**But V3 itself remains UNMEASURED**, and no V3 number may be quoted from this
+work. §2's full predicted set is not computable — Part 1's root model was never
+finished (§2) — so `TP` and the non-virtual-slot part of `FP` are both unknown.
+**This class does not break V3, and it is not the thing that will.**
+
+### 5b. Verdict — A CLAUSE, not a replacement
+
+**§2's Vtable rule is already right. Its Propagation clause is wrong about
+exactly one edge kind.** The repair:
+
+> *"a call anywhere in the pre-optimization body"* → *…**except that a virtual
+> dispatch ODR-uses the vtable SLOT, not the definition**.*
+
+The **distribution supports this reading**: broad but thin — 34.0 % of TUs
+touched, **median 2** instances per affected TU, max 17; 331 names produce 649
+instances with the **top 10 names producing 28.5 %**, headed by shared
+header-inline virtuals and container-node deleting destructors that everything
+includes. That is the shape of a **systematic construct one clause fixes
+everywhere at once**, not of an accident.
+
+### 5c. Detector error rate — four independent checks
+
+1. **Provable artifacts: 2 / 649 = 0.31 %.** A vtable slot can hold only a
+   virtual, a `??_G`/`??_E`, or a `??_9`; exactly two flagged names demangle to
+   something else.
+2. **Slot-offset hygiene, and neither property is used by the detector:** of 623
+   flagged cells carrying a slot byte, **0** have `off % 4 ≠ 0`, and **0 of 319
+   distinct names** disagree about their offset across TUs. Under a coincidence
+   model, ≈ `4⁻⁶²³`.
+3. **Raw `67`-edge artifact rate is 10.7 %** workload-wide — reported so the
+   class rule's filtering down to 0.31 % is *visible* rather than assumed.
+4. **Hand check, seeded n = 20: 20/20 confirmed**, with the dispatching call
+   site located by hand in the dc3 sources for 10 of them. Stated plainly by its
+   author: n = 20 buys only a **13.9 %** one-sided upper bound — checks 1–3 are
+   what make the number tight.
+
+### 5d. A defect found in the recovered pipeline, and routed around
+
+`pipeline/model.py`'s `named_bodies` binds a name to only **66.3 %** of `.ex`
+body segments, and the recovered rule that folds each unnamed segment onto the
+nearest *preceding named* one is **wrong — graded correct on 1 of 14 842**
+gradeable segments. The headline uses the **strict** rule instead; soundness is
+argued from **`E ⊆ U` holding on 174 404 of 174 410** emitted names.
+
+**This is why the earlier partial figure of 1 049 instances / 312 TUs is
+superseded and must not be re-quoted** — it was the folded variant.
+
+**Residual, unmeasured:** 33.7 % of segments have no recoverable owner, so the
+headline is a **lower bound**. Five of the eight items the measurement names as
+unmeasured (§6 of that file) can only make the true figure **larger**.
 
 ## 6. Guard 1 — independent re-derivation
 
