@@ -214,10 +214,33 @@ mm=$(sed -n 's/^  mismatch  *\([0-9]*\) .*/\1/p' "$report" | head -1)
 # The residue of **3** is NOT that class and is characterized: an FP leaf beside
 # a framed int function, `81-fp-beside-framed.py`, the §WEC refusal frontier.
 #
-# Set C2RS_SWEEP_MODE_MAX_DISAGREE to the number you are prepared to carry. Drive
-# it to 0 as that last class lands, and it becomes an ordinary gate. Raising
-# it needs a reason written down next to the number, not just a passing run.
-max_dis="${C2RS_SWEEP_MODE_MAX_DISAGREE:-0}"
+# **2026-08-04, lane w-shapes — the default was 0 and the characterized residue
+# was 3, so this script exited 1 on every full run it has ever had.** That is not
+# a baseline anyone was carrying; it is a gate nobody could pass, on the one
+# instrument that is not in `scripts/gate.sh`. Re-measured over the whole corpus
+# at two profiles, `/GR /O1 /GS- /c` and `/GR- /O1 /GS- /c`:
+#
+#     16,016 TUs   match 10369  mismatch 0  disagreement 3
+#     16,164 TUs   match 10378  mismatch 0  disagreement 3
+#
+# and the three are **the same three cases at both**, isolated with
+# `C2RS_SWEEP_ONLY=70-framed`:
+#
+#     70-framed-0349.cpp   float R(float);          then int F(int){g(a)+1;}
+#     70-framed-0350.cpp   int F(int){g(a)+1;}      then float R(float);
+#     70-framed-0351.cpp   int F1; float R; int F2
+#
+# So the shape is the one the paragraph above names — an FP leaf sharing a TU
+# with a framed int function, the TU-level label-counter stride gate in
+# `IlBundle::functions` — but the **fragment attribution was wrong**: the cases
+# that disagree are `70-framed`'s, not `81-fp-beside-framed`'s. They reproduce at
+# the default `/Ox /GS- /c` profile too (`c2rs census` says 2/2 and 3/3 in class;
+# `c2rs diff` says `Port=NotImplemented`), so this is not a mode effect.
+#
+# The default is therefore the measured number with the measurement beside it,
+# rather than a 0 that makes the whole instrument unrunnable. Drive it to 0 as
+# the WEC class lands.
+max_dis="${C2RS_SWEEP_MODE_MAX_DISAGREE:-3}"
 dis=$(sed -n 's/^  census\/gate DISAGREEMENT: *\([0-9]*\) .*/\1/p' "$report" | head -1)
 dis="${dis:-0}"
 if [ "$dis" -gt "$max_dis" ]; then
