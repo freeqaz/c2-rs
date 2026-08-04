@@ -184,6 +184,47 @@ impl PortC2 {
         })
     }
 
+    /// The order the TU's functions are emitted in — **not** the `.ex` order.
+    ///
+    /// The rule and its measurements live on [`coff::plan_text_order`]; this
+    /// assembles the reference set it consumes, which is the half that needs the
+    /// IL:
+    ///
+    /// * [`c2_il::IlFunction::callees`] — every name the body branches to;
+    /// * [`c2_il::IlFunction::eh_unwind_callees`] — the `26` unwind action's
+    ///   base destructor, which **emits nothing**: no `bl`, no relocation, no
+    ///   symbol. Its own doc comment says it "contributes nothing to `callees`,
+    ///   which is what the emitter reads", and that was true of the *emitter*
+    ///   and false of the *scheduler*. `struct B{B();~B();int x;}; struct D:B
+    ///   {D();}; D::D(){} B::~B(){}` is byte-exact only if this half is included
+    ///   — with `callees()` alone the port emits `??0D` first and the obj has
+    ///   `??1B` first.
+    ///
+    /// A data symbol ([`c2_il::IlFunction::data_sym`]) is deliberately **not** a
+    /// reference here: it names a `.data`/`.bss` object, never a function, and
+    /// the TU-level gate already refuses a bundle that defines one.
+    fn plan_emit_order(funcs: &[c2_il::IlFunction]) -> Result<Vec<usize>, BackendError> {
+        let names: Vec<&str> = funcs.iter().map(|f| f.mangled_name.as_str()).collect();
+        let refs: Vec<Vec<&str>> = funcs
+            .iter()
+            .map(|f| {
+                f.callees()
+                    .chain(f.eh_unwind_callees.iter().map(|s| s.as_str()))
+                    .collect()
+            })
+            .collect();
+        coff::plan_text_order(&names, &refs).ok_or_else(|| {
+            BackendError::NotImplemented(
+                "the TU's functions reference each other in a CYCLE (mutual \
+                 recursion): c2 folds the recursion and its emission order is \
+                 not the dependency order — three probes in `work/w-order/p/g*.cpp` \
+                 disagree with every single tie-break rule, so this refuses \
+                 rather than picks one"
+                    .to_string(),
+            )
+        })
+    }
+
     /// Build the obj for `il`, embedding `obj_name` as S_OBJNAME. Handles one
     /// or more straight-line int add-chain functions in a single TU (each is
     /// selected + placed in a shared `.text`; see [`codegen::select_text`] and
@@ -288,12 +329,28 @@ impl PortC2 {
             Err(e) => return Err(e),
         };
 
+        // **The emission ORDER is not the `.ex` order** (board row X-d). c2
+        // emits a function only once every function it references *and defines*
+        // has been emitted; the port used to emit `.ex` order flat, which is a
+        // silent wrong-bytes obj whenever the source defines a callee after its
+        // caller. `coff::plan_text_order` carries the rule, the measurements and
+        // the refusal; this is where the reference set is assembled, because it
+        // is the only place that sees the IL.
+        //
+        // The set is `callees()` **plus `eh_unwind_callees`**, and the second
+        // half is the one that cannot be recovered from the obj: a constructor's
+        // `26` unwind action names the base destructor and emits no `bl`, no
+        // relocation and no symbol for it, yet it orders the two functions.
+        let order = Self::plan_emit_order(&funcs)?;
+
         // Under function-level linking every function gets its own COMDAT
         // `.text` section, so the texts are kept separate rather than packed.
+        // The order rule is the same one — measured at `/O1` too, where it
+        // decides the section table itself and not just offsets within `.text`.
         if self.fn_level_linking {
             let mut texts: Vec<Vec<u8>> = Vec::with_capacity(funcs.len());
             let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
-            for f in &funcs {
+            for f in order.iter().map(|&i| &funcs[i]) {
                 let mut frame: Option<coff::Frame> = None;
                 let (text, calls) = match codegen::select_function(f, mode)? {
                     // A framed non-leaf call gets its own `.text` COMDAT like
@@ -434,7 +491,7 @@ impl PortC2 {
         // functions land at 0x0 / 0x10 / 0x20 with 4 zero bytes between.
         let mut text: Vec<u8> = Vec::new();
         let mut placed: Vec<coff::Function> = Vec::with_capacity(funcs.len());
-        for f in &funcs {
+        for f in order.iter().map(|&i| &funcs[i]) {
             while text.len() % 8 != 0 {
                 text.push(0);
             }
