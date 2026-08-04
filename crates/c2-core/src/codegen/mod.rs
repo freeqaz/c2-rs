@@ -16,6 +16,7 @@
 //! | module | what lives there | who edits it |
 //! |---|---|---|
 //! | [`encode`] | ~50 word encoders, no dependencies | anyone, additively |
+//! | [`labels`] | the label→offset map (`CFG_SHAPE.md` §6.2 item B) | any rung that emits a branch |
 //! | [`select`] | the ordered dispatch + `fits_i16`/`out_of_class`/`ARG_REGS` | every rung, one line |
 //! | [`straightline`] | `select_text`/`combine`/the depth-2 tree — one unit | the integer lane |
 //! | [`leaf`] | one file per leaf shape, each self-contained | the leaf lane, one file per rung |
@@ -29,6 +30,7 @@ pub mod calls;
 pub mod cond_tail;
 pub mod encode;
 pub mod frame;
+pub mod labels;
 pub mod leaf;
 pub mod select;
 pub mod straightline;
@@ -41,6 +43,7 @@ pub use calls::*;
 pub use cond_tail::*;
 pub use encode::*;
 pub use frame::*;
+pub use labels::*;
 pub use leaf::*;
 pub use select::*;
 pub use straightline::*;
