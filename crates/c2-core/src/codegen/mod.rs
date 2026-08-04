@@ -26,6 +26,7 @@
 //! [`select`], one `pub mod` line — and nothing else in `c2-core`.
 
 pub mod calls;
+pub mod cond_tail;
 pub mod encode;
 pub mod frame;
 pub mod leaf;
@@ -37,6 +38,7 @@ pub(crate) mod testutil;
 // Re-exports: every path that worked against the single-file
 // `codegen.rs` still works. The split is a pure move.
 pub use calls::*;
+pub use cond_tail::*;
 pub use encode::*;
 pub use frame::*;
 pub use leaf::*;

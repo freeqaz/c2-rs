@@ -43,6 +43,10 @@ pub use func::{
     FnVerdict,
     CallSeq, CompareLeaf, DynInitTu, FpTail, FramedCall, IlFunction, IlOp, Rel, SeqCall, SeqCmp, SeqTail,
     SlotArg, LINK_FIRST_SLOT,
+    // W8 — the two-arm conditional tail call and its register schedule. The
+    // schedule is exported because the emitter must run the *same* planner the
+    // parser gated on, never a copy (`docs/GAPS.md` §6 instance #9).
+    plan_cond_pair, CondArm, CondPlan, CondStep, CondTailPair, COND_PARK_REG,
 };
 
 /// The five IL suffixes (no leading dot), in canonical order. `.ex` first

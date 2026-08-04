@@ -529,6 +529,14 @@ impl IlBundle {
                                 })
                             }
                             Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
+                            // **W8 — the two-arm conditional tail call**, its own
+                            // bucket because it is the first class whose lowering
+                            // emits a branch: a rung that widens it must be able
+                            // to read its population without it being summed into
+                            // the tail-call family it is otherwise built from.
+                            Ok(BodyShape::CondTailPair(_)) => {
+                                FnVerdict::InClass("cond-tail-pair")
+                            }
                             Ok(BodyShape::EmptyBody) => FnVerdict::InClass("empty-body"),
                             Ok(BodyShape::IndirectLoad { .. }) => {
                                 FnVerdict::InClass("indirect-load-leaf")

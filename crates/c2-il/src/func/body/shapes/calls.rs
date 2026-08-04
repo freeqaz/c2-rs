@@ -114,8 +114,8 @@ pub(crate) const MAX_VERIFIED_PERM_CYCLE: usize = 3;
 /// argument outside it is `lis`+`ori`, measured one line apart in
 /// `work/WLA/probe/p1.cpp`: `g3(a,b,32767)` is `li 5,32767` and
 /// `g3(a,b,70000)` is `lis 5,1 ; ori 5,5,4464`.
-const LI_IMM_MIN: i32 = -0x8000;
-const LI_IMM_MAX: i32 = 0x7FFF;
+pub(crate) const LI_IMM_MIN: i32 = -0x8000;
+pub(crate) const LI_IMM_MAX: i32 = 0x7FFF;
 
 /// **WLA — the literal call argument**: `g3(a, b, 7)`, `p->gk(j, 7)`.
 ///

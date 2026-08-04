@@ -334,6 +334,7 @@ fn ops_setup_text(
         tail_call: None,
         framed_call: None,
         call_seq: None,
+        cond_pair: None,
         compare: None,
         float_leaf: None,
         fp_tail: None,

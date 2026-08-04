@@ -476,6 +476,101 @@ pub fn encode_mr(ra: u8, rs: u8) -> [u8; 4] {
     xo31(rs, ra, rs, 444)
 }
 
+// ---- W8: the conditional-branch family ------------------------------------
+//
+// `docs/CFG_SHAPE.md` §3.1 tabulates four forms; three of them are here and the
+// fourth (the external `b`/`bl`) is [`super::calls::encode_tail_branch`]'s,
+// because it encodes a section offset rather than a displacement and takes a
+// relocation. **They are the same opcode.** An emitter that treats every `b`
+// alike corrupts one of the two (§3.3, board #191), which is why the two
+// encoders are deliberately not merged.
+
+/// The condition-register field an explicit compare feeding a branch writes.
+///
+/// **cr6, and it is REUSED rather than allocated** — `?b_ifn` writes cr6 three
+/// times in one body, each branch consuming its own before the next is issued
+/// (`docs/CFG_SHAPE.md` §3.2). It is a named constant and not a literal `6`
+/// because the *other* producer is different: a record-form instruction such as
+/// `addic.` writes **cr0**, and c2 branches on cr0 there without an intervening
+/// compare. A lowering that hard-codes `BI = 4*6 + bit` emits `409a…` where the
+/// obj has `4082…` for every decrement-and-test loop — board #188, and the
+/// reason this constant exists to be *passed in* the day a record-form producer
+/// is admitted.
+pub const CR_COMPARE: u8 = 6;
+
+/// `BO` for "branch if the CR bit is SET".
+pub const BO_TRUE: u8 = 12;
+/// `BO` for "branch if the CR bit is CLEAR".
+pub const BO_FALSE: u8 = 4;
+/// `BO` for "branch always" — what makes `bclr` a plain `blr`.
+pub const BO_ALWAYS: u8 = 20;
+
+/// The bit within a CR field, by relation: LT=0, GT=1, EQ=2, SO=3.
+pub const CR_BIT_LT: u8 = 0;
+pub const CR_BIT_GT: u8 = 1;
+pub const CR_BIT_EQ: u8 = 2;
+
+/// `BI` = `4*crf + bit`.
+pub fn cr_bi(crf: u8, bit: u8) -> u8 {
+    4 * (crf & 7) + (bit & 3)
+}
+
+/// **The architectural reach of a `bc`**: `BD` is a signed 14-bit field scaled
+/// by 4, so ±32764 bytes.
+///
+/// Measured, not assumed. `docs/CFG_SHAPE.md` §3.3.1 swept the displacement and
+/// found c2 emitting a direct `bne` at **+32628** and the two-instruction
+/// expansion — invert the condition, branch over an unconditional `b` — at
+/// **+34148**. The switch is at the limit with **no slack**: c2 uses the full
+/// field before expanding.
+pub const BC_MAX_DISP: i32 = 32764;
+
+/// Encode `bc BO,BI,<target>` — primary opcode 16, `AA=0`, `LK=0`.
+///
+/// `disp` is **self-relative**: `target_offset − branch_offset`, not relative
+/// to the section start (`docs/CFG_SHAPE.md` §3.3). It carries **no
+/// relocation**; `pa.cpp`'s seven code sections all report `nrel = 0` despite
+/// six of them containing a branch.
+///
+/// Returns `None` past [`BC_MAX_DISP`], where the expansion is required. The
+/// caller must not truncate: a truncated `BD` is a legal-looking branch to the
+/// wrong place, which is the fuzzy-invisible failure class
+/// `docs/CODEGEN_PPC_MVP.md` warns about.
+pub fn encode_bc(bo: u8, bi: u8, disp: i32) -> Option<[u8; 4]> {
+    if disp % 4 != 0 || !(-BC_MAX_DISP - 4..=BC_MAX_DISP).contains(&disp) {
+        return None;
+    }
+    let word: u32 = 0x4000_0000
+        | ((bo as u32 & 0x1F) << 21)
+        | ((bi as u32 & 0x1F) << 16)
+        | (disp as u32 & 0xFFFC);
+    Some(word.to_be_bytes())
+}
+
+/// Encode `cmpwi crf,rA,SIMM` — the **signed** immediate compare, opcode 11.
+pub fn encode_cmpwi(crf: u8, ra: u8, simm: i16) -> [u8; 4] {
+    let word: u32 = (11 << 26)
+        | ((crf as u32 & 7) << 23)
+        | ((ra as u32 & 0x1F) << 16)
+        | (simm as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// Encode `cmplwi crf,rA,UIMM` — the **unsigned** immediate compare, opcode 10.
+///
+/// Which of the two a body gets comes from the shared operand TYPE triple at the
+/// comparison and from nothing else: the relational opcodes are sign-agnostic,
+/// and a pointer null-check is therefore an *unsigned* compare
+/// (`docs/CFG_SHAPE.md` §3.2 — `?MemFree` and both `Pool.cpp` functions emit
+/// `cmplwi`).
+pub fn encode_cmplwi(crf: u8, ra: u8, uimm: u16) -> [u8; 4] {
+    let word: u32 = (10 << 26)
+        | ((crf as u32 & 7) << 23)
+        | ((ra as u32 & 0x1F) << 16)
+        | (uimm as u32);
+    word.to_be_bytes()
+}
+
 #[cfg(test)]
 mod tests {
     // The single `mod tests` this was split out of opened with
@@ -578,6 +673,46 @@ mod tests {
         assert_eq!(encode_addi(3, 3, 5), [0x38, 0x63, 0x00, 0x05]); // a+5
         assert_eq!(encode_addi(3, 3, -5), [0x38, 0x63, 0xFF, 0xFB]); // a-5
         assert_eq!(encode_addi(3, 0, 42), [0x38, 0x60, 0x00, 0x2A]); // li r3,42
+    }
+
+
+    #[test]
+    fn w8_branch_words_match_the_reference_obj() {
+        // `?MemFree@NUISPEECH@@YAXPAX0K@Z`, docs/CFG_SHAPE.md §4.1/§3.1's worked
+        // example: BO=4 (branch-if-clear), BI=4*6+2=26 (cr6's EQ bit), BD=+16.
+        assert_eq!(cr_bi(CR_COMPARE, CR_BIT_EQ), 26);
+        assert_eq!(encode_bc(BO_FALSE, 26, 16), Some([0x40, 0x9A, 0x00, 0x10]));
+        // `?MemAlloc`, same body one word shorter.
+        assert_eq!(encode_bc(BO_FALSE, 26, 12), Some([0x40, 0x9A, 0x00, 0x0C]));
+        // §3.4's `?b_ifelse`/`?d_early` rows, the other sense.
+        assert_eq!(encode_bc(BO_TRUE, 26, 8), Some([0x41, 0x9A, 0x00, 0x08]));
+        assert_eq!(encode_bc(BO_TRUE, 26, 12), Some([0x41, 0x9A, 0x00, 0x0C]));
+        // §3.7a's `?c_forcall` back edge: BO=12, BI=24 (LT), BD=-20.
+        assert_eq!(encode_bc(BO_TRUE, 24, -20), Some([0x41, 0x98, 0xFF, 0xEC]));
+    }
+
+    #[test]
+    fn a_branch_past_the_field_refuses_rather_than_truncating() {
+        // §3.3.1 bracketed the switch between +32628 (direct) and +34148
+        // (expanded), i.e. at the architectural limit with no slack. A
+        // truncated `BD` is a legal-looking branch to the wrong place, so the
+        // encoder returns None and the caller refuses.
+        assert!(encode_bc(BO_FALSE, 26, 32628).is_some());
+        assert!(encode_bc(BO_FALSE, 26, BC_MAX_DISP).is_some());
+        assert!(encode_bc(BO_FALSE, 26, BC_MAX_DISP + 4).is_none());
+        assert!(encode_bc(BO_FALSE, 26, 34148).is_none());
+        // Not word-aligned: not a branch target at all.
+        assert!(encode_bc(BO_FALSE, 26, 6).is_none());
+    }
+
+    #[test]
+    fn w8_compare_words_match_the_reference_obj() {
+        // §3.2's witness rows.
+        assert_eq!(encode_cmplwi(CR_COMPARE, 3, 0), [0x2B, 0x03, 0x00, 0x00]); // ?MemFree
+        assert_eq!(encode_cmplwi(CR_COMPARE, 11, 0), [0x2B, 0x0B, 0x00, 0x00]); // ?mmioGetInfo
+        assert_eq!(encode_cmpwi(CR_COMPARE, 3, 0), [0x2F, 0x03, 0x00, 0x00]); // ?b_ifn
+        assert_eq!(encode_cmpwi(CR_COMPARE, 3, 7), [0x2F, 0x03, 0x00, 0x07]); // ?d_switch
+        assert_eq!(encode_cmpwi(CR_COMPARE, 31, 0), [0x2F, 0x1F, 0x00, 0x00]); // ?d_cont
     }
 
 }

@@ -627,6 +627,28 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // **W8 — the two-arm conditional tail call.** Both callees resolve
+            // through the same `.gl` symbol index every other call shape uses;
+            // an unresolvable token rejects the whole TU rather than falling
+            // back to a positional guess, because a wrong callee name is a
+            // relocation against the wrong symbol — a mis-emit, not a gap.
+            BodyShape::CondTailPair(pair) => {
+                let arm = |a: crate::func::body::CondArmShape| {
+                    Some(crate::func::CondArm { callee: resolve(a.callee_tok)?, slots: a.slots })
+                };
+                Some(IlFunction {
+                    params: pair.params,
+                    cond_pair: Some(crate::func::CondTailPair {
+                        cmp_param: pair.cmp_param,
+                        rel: pair.rel,
+                        signed: pair.signed,
+                        k: pair.k,
+                        then_arm: arm(pair.then_arm)?,
+                        else_arm: arm(pair.else_arm)?,
+                    }),
+                    ..IlFunction::base(name, src)
+                })
+            }
             // Tail calls: the callee is resolved BY TOKEN through the `.gl`
             // symbol index. An unresolvable token rejects the whole TU
             // rather than falling back to a positional guess — a wrong
