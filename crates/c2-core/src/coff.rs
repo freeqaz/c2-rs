@@ -170,7 +170,185 @@ struct Section<'a> {
     /// function's `.pdata` COMDAT to its `.text` COMDAT so the linker discards
     /// both together.
     assoc: u16,
+    /// `Some(n)` for an **uninitialized** section (`.bss`): the section is `n`
+    /// bytes long as far as `SizeOfRawData` and the aux `Length` are concerned,
+    /// but it contributes **zero bytes to the file** and its
+    /// `PointerToRawData` is 0.
+    ///
+    /// This inversion is the doc's refuted prediction P8
+    /// (`docs/OBJ_DYNINIT_SHAPE.md` §1) — the natural guess is
+    /// `SizeOfRawData = 0` with the size in `VirtualSize`, and c2 does the exact
+    /// opposite: `VirtualSize` is 0 in **every** section including `.bss`.
+    /// Everything else in this file conflates "how many bytes the section is"
+    /// with `raw.len()`, in four places (the header, the layout cursor, the raw
+    /// write and the aux `Length`), which is why this is a field on `Section`
+    /// and not a special case at the one call site — three of those four would
+    /// still have been wrong.
+    uninit_size: Option<u32>,
 }
+
+impl Section<'_> {
+    /// The section's length as the container reports it — `SizeOfRawData` and
+    /// the aux section-def `Length`. Equal to `raw.len()` except for `.bss`.
+    fn size(&self) -> u32 {
+        self.uninit_size.unwrap_or(self.raw.len() as u32)
+    }
+    /// How many bytes this section contributes to the obj **file**. Zero for an
+    /// uninitialized section, whatever its [`Section::size`].
+    fn file_len(&self) -> usize {
+        if self.uninit_size.is_some() { 0 } else { self.raw.len() }
+    }
+}
+
+/// The four fixed sections **every** obj this file emits begins with, in order:
+/// `.drectve`, `.debug$S`, `.XBLD$W` (C2), `.XBLD$W` (C1). Only `.debug$S`
+/// varies, and only with the `-Fo` path.
+///
+/// Checked mechanically over 61 reference objs (`docs/OBJ_DYNINIT_SHAPE.md`
+/// §4.1): the `.drectve` raw bytes, both `.XBLD$W` raw bytes and the first four
+/// `Characteristics` words are identical in all 61, across `/Ox` and `/O1`
+/// alike. It is one shell, so it is written once — the four emitters below had
+/// four byte-identical copies of this literal.
+fn shell_sections<'a>(obj_name: &str) -> Vec<Section<'a>> {
+    vec![
+        Section {
+            name: ".drectve",
+            characteristics: CH_DRECTVE,
+            raw: std::borrow::Cow::Borrowed(DRECTVE),
+            checksum: 0,
+            selection: 0,
+            assoc: 0,
+            uninit_size: None,
+        },
+        Section {
+            name: ".debug$S",
+            characteristics: CH_DEBUGS,
+            raw: std::borrow::Cow::Owned(build_debug_s(obj_name)),
+            checksum: 0,
+            selection: 0,
+            assoc: 0,
+            uninit_size: None,
+        },
+        Section {
+            name: ".XBLD$W",
+            characteristics: CH_XBLD_C2,
+            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
+            checksum: XBLD_C2_CHECKSUM,
+            selection: 2,
+            assoc: 0,
+            uninit_size: None,
+        },
+        Section {
+            name: ".XBLD$W",
+            characteristics: CH_XBLD_C1,
+            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
+            checksum: XBLD_C1_CHECKSUM,
+            selection: 2,
+            assoc: 0,
+            uninit_size: None,
+        },
+    ]
+}
+
+/// Lay the obj out after the section headers and return
+/// `(PointerToRawData per section, PointerToRelocations per section, the
+/// symbol-table offset)`.
+///
+/// Two rules, both of which this file has already been wrong about once:
+///
+/// * **a section's relocations immediately follow its OWN raw data**, before the
+///   next section's — not all raw data then all relocations. That was invisible
+///   while at most one section had relocations, and wrong from the fifth section
+///   header on once two did (`docs/ROADMAP.md`; the note on
+///   [`emit_comdat_obj`]).
+/// * **an uninitialized section advances the cursor by nothing and gets
+///   `PointerToRawData = 0`**, however large its [`Section::size`] — `.bss` sits
+///   between `.rdata` and `.CRT$XCU` in the dynamic-initializer obj and those
+///   two are contiguous in the file.
+fn layout_sections(
+    sections: &[Section],
+    n_reloc_of: &[u16],
+) -> (Vec<usize>, Vec<Option<usize>>, usize) {
+    debug_assert_eq!(sections.len(), n_reloc_of.len());
+    let mut ptrs = Vec::with_capacity(sections.len());
+    let mut reloc_ptr: Vec<Option<usize>> = vec![None; sections.len()];
+    let mut cursor = COFF_HEADER_LEN + sections.len() * SECTION_HEADER_LEN;
+    for (i, s) in sections.iter().enumerate() {
+        if s.uninit_size.is_some() {
+            ptrs.push(0);
+        } else {
+            ptrs.push(cursor);
+            cursor += s.raw.len();
+        }
+        if n_reloc_of[i] > 0 {
+            reloc_ptr[i] = Some(cursor);
+            cursor += n_reloc_of[i] as usize * RELOC_LEN;
+        }
+    }
+    (ptrs, reloc_ptr, cursor)
+}
+
+/// The 20-byte COFF header. `TimeDateStamp` is 0 — the differential normalizes
+/// it away; every other byte must genuinely match.
+fn write_coff_header(b: &mut Buf, n_sections: usize, ptr_symtab: usize, n_symbols: u32) {
+    b.u16(MACHINE_POWERPCBE);
+    b.u16(n_sections as u16);
+    b.u32(0); // TimeDateStamp
+    b.u32(ptr_symtab as u32);
+    b.u32(n_symbols);
+    b.u16(0); // SizeOfOptionalHeader
+    b.u16(CHARACTERISTICS);
+}
+
+/// The section headers, 40 bytes each. `VirtualSize`, `VirtualAddress`,
+/// `PointerToLinenumbers` and `NumberOfLinenumbers` are 0 in every section of
+/// every reference obj measured — **including `.bss`**, whose size lives in
+/// `SizeOfRawData` beside a null `PointerToRawData`.
+fn write_section_headers(
+    b: &mut Buf,
+    sections: &[Section],
+    ptrs: &[usize],
+    reloc_ptr: &[Option<usize>],
+    n_reloc_of: &[u16],
+) {
+    for (i, s) in sections.iter().enumerate() {
+        b.name8(s.name);
+        b.u32(0); // VirtualSize
+        b.u32(0); // VirtualAddress
+        b.u32(s.size()); // SizeOfRawData
+        b.u32(ptrs[i] as u32); // PointerToRawData
+        b.u32(reloc_ptr[i].unwrap_or(0) as u32);
+        b.u32(0); // PointerToLinenumbers
+        b.u16(n_reloc_of[i]);
+        b.u16(0); // NumberOfLinenumbers
+        b.u32(s.characteristics);
+    }
+}
+
+/// Symbol records 0..=10 — the fixed prefix every obj carries, identical in all
+/// 61 reference objs measured (`docs/OBJ_DYNINIT_SHAPE.md` §4.1):
+/// `@comp.id`, then the four shell sections' STATIC section symbols with their
+/// aux records, with the two watermark externals after their own `.XBLD$W`.
+///
+/// `sections` must begin with [`shell_sections`]' four.
+fn emit_shell_symbols(b: &mut Buf, strtab: &mut StringTable, sections: &[Section]) {
+    // slot 0: @comp.id (ABS, STATIC, no aux)
+    b.name8("@comp.id");
+    b.u32(COMP_ID_VALUE);
+    b.i16(-1); // IMAGE_SYM_ABSOLUTE
+    b.u16(0x0000);
+    b.u8(3); // STATIC
+    b.u8(0);
+    emit_section_symbol(b, &sections[0], 1, 0); // slot 1/2  .drectve
+    emit_section_symbol(b, &sections[1], 2, 0); // slot 3/4  .debug$S
+    emit_section_symbol(b, &sections[2], 3, 0); // slot 5/6  .XBLD$W C2
+    emit_external_symbol(b, strtab, NAME_C2, 3, 0x0000); // slot 7
+    emit_section_symbol(b, &sections[3], 4, 0); // slot 8/9  .XBLD$W C1
+    emit_external_symbol(b, strtab, NAME_C1, 4, 0x0000); // slot 10
+}
+
+/// How many symbol records [`emit_shell_symbols`] writes.
+const N_SHELL_SYMBOLS: u32 = 11;
 
 /// Build the complete MVP `.obj` image bytes.
 ///
@@ -631,97 +809,22 @@ fn emit_label_symbol(b: &mut Buf, name: &str, value: u32, sec_num: i16) {
 /// Verified against the live toolchain: a 720-byte obj for a TU containing only
 /// a typedef.
 pub fn emit_empty_obj(obj_name: &str) -> Vec<u8> {
-    let sections = [
-        Section {
-            name: ".drectve",
-            characteristics: CH_DRECTVE,
-            raw: std::borrow::Cow::Borrowed(DRECTVE),
-            checksum: 0,
-            selection: 0,
-            assoc: 0,
-        },
-        Section {
-            name: ".debug$S",
-            characteristics: CH_DEBUGS,
-            raw: std::borrow::Cow::Owned(build_debug_s(obj_name)),
-            checksum: 0,
-            selection: 0,
-            assoc: 0,
-        },
-        Section {
-            name: ".XBLD$W",
-            characteristics: CH_XBLD_C2,
-            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
-            checksum: XBLD_C2_CHECKSUM,
-            selection: 2,
-            assoc: 0,
-        },
-        Section {
-            name: ".XBLD$W",
-            characteristics: CH_XBLD_C1,
-            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
-            checksum: XBLD_C1_CHECKSUM,
-            selection: 2,
-            assoc: 0,
-        },
-    ];
-    let n_sections = sections.len();
-
-    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
-    let mut ptrs = Vec::with_capacity(n_sections);
-    let mut cursor = raw_base;
-    for s in &sections {
-        ptrs.push(cursor);
-        cursor += s.raw.len();
-    }
-    // No relocations, so the symbol table follows the raw data directly.
-    let ptr_symtab = cursor;
+    let sections = shell_sections(obj_name);
+    let n_reloc_of = vec![0u16; sections.len()];
+    let (ptrs, reloc_ptr, ptr_symtab) = layout_sections(&sections, &n_reloc_of);
     // 1 (@comp.id) + 4 section symbols x 2 (symbol + aux) + 2 watermark externs.
-    const N_SYMBOLS: u32 = 11;
+    let n_symbols = N_SHELL_SYMBOLS;
 
-    let mut b = Buf::with_capacity(ptr_symtab + N_SYMBOLS as usize * SYMBOL_LEN + 512);
-    b.u16(MACHINE_POWERPCBE);
-    b.u16(n_sections as u16);
-    b.u32(0); // TimeDateStamp — normalized away by the compare
-    b.u32(ptr_symtab as u32);
-    b.u32(N_SYMBOLS);
-    b.u16(0); // SizeOfOptionalHeader
-    b.u16(CHARACTERISTICS);
-
-    for (i, s) in sections.iter().enumerate() {
-        b.name8(s.name);
-        b.u32(0); // VirtualSize
-        b.u32(0); // VirtualAddress
-        b.u32(s.raw.len() as u32);
-        b.u32(ptrs[i] as u32);
-        b.u32(0); // PointerToRelocations — none
-        b.u32(0); // PointerToLinenumbers
-        b.u16(0); // NumberOfRelocations
-        b.u16(0); // NumberOfLinenumbers
-        b.u32(s.characteristics);
-    }
-
+    let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
+    write_coff_header(&mut b, sections.len(), ptr_symtab, n_symbols);
+    write_section_headers(&mut b, &sections, &ptrs, &reloc_ptr, &n_reloc_of);
     for s in &sections {
         b.bytes(&s.raw);
     }
     debug_assert_eq!(b.0.len(), ptr_symtab);
 
     let mut strtab = StringTable::new();
-    // slot 0: @comp.id (ABS, STATIC, no aux)
-    b.name8("@comp.id");
-    b.u32(COMP_ID_VALUE);
-    b.i16(-1); // IMAGE_SYM_ABSOLUTE
-    b.u16(0x0000);
-    b.u8(3); // STATIC
-    b.u8(0);
-
-    emit_section_symbol(&mut b, &sections[0], 1, 0); // slot 1/2  .drectve
-    emit_section_symbol(&mut b, &sections[1], 2, 0); // slot 3/4  .debug$S
-    emit_section_symbol(&mut b, &sections[2], 3, 0); // slot 5/6  .XBLD$W C2
-    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000); // slot 7
-    emit_section_symbol(&mut b, &sections[3], 4, 0); // slot 8/9  .XBLD$W C1
-    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000); // slot 10
-
+    emit_shell_symbols(&mut b, &mut strtab, &sections);
     b.bytes(&strtab.finish());
     b.0
 }
@@ -933,40 +1036,7 @@ pub fn emit_comdat_obj(
     let pdata_raw: Vec<Option<[u8; 8]>> =
         funcs.iter().map(|f| f.frame.as_ref().map(|fr| pdata_record(0, fr))).collect();
 
-    let mut sections: Vec<Section> = vec![
-        Section {
-            name: ".drectve",
-            characteristics: CH_DRECTVE,
-            raw: std::borrow::Cow::Borrowed(DRECTVE),
-            checksum: 0,
-            selection: 0,
-            assoc: 0,
-        },
-        Section {
-            name: ".debug$S",
-            characteristics: CH_DEBUGS,
-            raw: std::borrow::Cow::Owned(build_debug_s(obj_name)),
-            checksum: 0,
-            selection: 0,
-            assoc: 0,
-        },
-        Section {
-            name: ".XBLD$W",
-            characteristics: CH_XBLD_C2,
-            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
-            checksum: XBLD_C2_CHECKSUM,
-            selection: 2,
-            assoc: 0,
-        },
-        Section {
-            name: ".XBLD$W",
-            characteristics: CH_XBLD_C1,
-            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
-            checksum: XBLD_C1_CHECKSUM,
-            selection: 2,
-            assoc: 0,
-        },
-    ];
+    let mut sections: Vec<Section> = shell_sections(obj_name);
     // Per function: its `.text` COMDAT, then — if it is framed — its `.pdata`
     // COMDAT immediately after, tied back with SELECT_ASSOCIATIVE. `sec_text[i]`
     // / `sec_pdata[i]` are 0-based indices into `sections`.
@@ -986,6 +1056,7 @@ pub fn emit_comdat_obj(
             checksum: 0,
             selection: COMDAT_SELECT_NODUPLICATES,
             assoc: 0,
+            uninit_size: None,
         });
         match &pdata_raw[i] {
             None => sec_pdata.push(None),
@@ -1002,6 +1073,7 @@ pub fn emit_comdat_obj(
                     checksum: coff_checksum(&rec[..]),
                     selection: COMDAT_SELECT_ASSOCIATIVE,
                     assoc: text_sec_num,
+                    uninit_size: None,
                 });
             }
         }
@@ -1040,19 +1112,7 @@ pub fn emit_comdat_obj(
             SectionOwner::Fixed => 0,
         })
         .collect();
-    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
-    let mut ptrs = Vec::with_capacity(n_sections);
-    let mut reloc_ptr: Vec<Option<usize>> = vec![None; n_sections];
-    let mut cursor = raw_base;
-    for (i, s) in sections.iter().enumerate() {
-        ptrs.push(cursor);
-        cursor += s.raw.len();
-        if n_reloc_of[i] > 0 {
-            reloc_ptr[i] = Some(cursor);
-            cursor += n_reloc_of[i] as usize * RELOC_LEN;
-        }
-    }
-    let ptr_symtab = cursor;
+    let (ptrs, reloc_ptr, ptr_symtab) = layout_sections(&sections, &n_reloc_of);
 
     // Symbols: the fixed 11-slot prefix, then per function a `.text` section
     // symbol (+aux), the defined FUNCTION symbol, and its callee if any.
@@ -1081,7 +1141,7 @@ pub fn emit_comdat_obj(
     // Omitting it entirely is what left `mvp_fmul3.cpp` one symbol short of the
     // reference under `/Gy`.
     let fltused_after = funcs.iter().position(|f| f.is_float);
-    let mut next_idx: u32 = 11;
+    let mut next_idx: u32 = N_SHELL_SYMBOLS;
     // The callee symbols this function emits, in emission order (reverse
     // first-reference), each with the index it lands at.
     let mut introduced: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
@@ -1132,26 +1192,8 @@ pub fn emit_comdat_obj(
     let n_symbols = next_idx;
 
     let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
-    b.u16(MACHINE_POWERPCBE);
-    b.u16(n_sections as u16);
-    b.u32(0); // TimeDateStamp — normalized away
-    b.u32(ptr_symtab as u32);
-    b.u32(n_symbols);
-    b.u16(0);
-    b.u16(CHARACTERISTICS);
-
-    for (i, s) in sections.iter().enumerate() {
-        b.name8(s.name);
-        b.u32(0); // VirtualSize
-        b.u32(0); // VirtualAddress
-        b.u32(s.raw.len() as u32);
-        b.u32(ptrs[i] as u32);
-        b.u32(reloc_ptr[i].unwrap_or(0) as u32);
-        b.u32(0); // PointerToLinenumbers
-        b.u16(n_reloc_of[i]);
-        b.u16(0);
-        b.u32(s.characteristics);
-    }
+    write_coff_header(&mut b, n_sections, ptr_symtab, n_symbols);
+    write_section_headers(&mut b, &sections, &ptrs, &reloc_ptr, &n_reloc_of);
 
     // Interleaved to match the layout computed above: each section's raw data,
     // then its own relocations.
@@ -1212,18 +1254,7 @@ pub fn emit_comdat_obj(
     debug_assert_eq!(b.0.len(), ptr_symtab);
 
     let mut strtab = StringTable::new();
-    b.name8("@comp.id");
-    b.u32(COMP_ID_VALUE);
-    b.i16(-1);
-    b.u16(0x0000);
-    b.u8(3);
-    b.u8(0);
-    emit_section_symbol(&mut b, &sections[0], 1, 0);
-    emit_section_symbol(&mut b, &sections[1], 2, 0);
-    emit_section_symbol(&mut b, &sections[2], 3, 0);
-    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000);
-    emit_section_symbol(&mut b, &sections[3], 4, 0);
-    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000);
+    emit_shell_symbols(&mut b, &mut strtab, &sections);
 
     for (i, f) in funcs.iter().enumerate() {
         let sec_num = (sec_text[i] + 1) as i16;
@@ -1273,7 +1304,6 @@ pub fn emit_comdat_obj(
 ///   `text_offset` is its start within `text`.
 /// * `text` — the full concatenated `.text` bytes from codegen.
 pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: u32) -> Vec<u8> {
-    let debug_s = build_debug_s(obj_name);
     let labels = plan_labels(label_counter, funcs, false);
     // One `.pdata` section for the whole TU, records in `.text` order — packed,
     // unlike `/Gy`, which gives each framed function its own COMDAT.
@@ -1297,48 +1327,16 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     };
 
     // Section table, in the fixed emit order.
-    let mut sections = vec![
-        Section {
-            name: ".drectve",
-            characteristics: CH_DRECTVE,
-            raw: std::borrow::Cow::Borrowed(DRECTVE),
-            checksum: 0,
-            selection: 0,
-            assoc: 0,
-        },
-        Section {
-            name: ".debug$S",
-            characteristics: CH_DEBUGS,
-            raw: std::borrow::Cow::Owned(debug_s),
-            checksum: 0,
-            selection: 0,
-            assoc: 0,
-        },
-        Section {
-            name: ".XBLD$W",
-            characteristics: CH_XBLD_C2,
-            raw: std::borrow::Cow::Borrowed(&XBLD_C2),
-            checksum: XBLD_C2_CHECKSUM,
-            selection: 2,
-            assoc: 0,
-        },
-        Section {
-            name: ".XBLD$W",
-            characteristics: CH_XBLD_C1,
-            raw: std::borrow::Cow::Borrowed(&XBLD_C1),
-            checksum: XBLD_C1_CHECKSUM,
-            selection: 2,
-            assoc: 0,
-        },
-        Section {
-            name: ".text",
-            characteristics: CH_TEXT,
-            raw: std::borrow::Cow::Borrowed(text),
-            checksum: 0,
-            selection: 0,
-            assoc: 0,
-        },
-    ];
+    let mut sections = shell_sections(obj_name);
+    sections.push(Section {
+        name: ".text",
+        characteristics: CH_TEXT,
+        raw: std::borrow::Cow::Borrowed(text),
+        checksum: 0,
+        selection: 0,
+        assoc: 0,
+        uninit_size: None,
+    });
     let text_idx = sections.len() - 1;
     for &(bits, double) in &pool {
         sections.push(Section {
@@ -1348,6 +1346,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
             checksum: 0,
             selection: 2,
             assoc: 0,
+            uninit_size: None,
         });
     }
     // `.pdata` last — which is right only because the combination that would test
@@ -1387,6 +1386,7 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
             checksum: coff_checksum(&pdata),
             selection: 0,
             assoc: 0,
+            uninit_size: None,
         });
         Some(sections.len() - 1)
     };
@@ -1539,57 +1539,20 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     // layouts coincide, which is why this only surfaced once `.rdata` followed
     // `.text`: c2 put the four REFHI/REFLO records between `.text` and the
     // constant pool, the port put them after both.
-    let raw_base = COFF_HEADER_LEN + n_sections * SECTION_HEADER_LEN;
-    let mut ptrs = Vec::with_capacity(n_sections);
-    let mut cursor = raw_base;
-    let mut ptr_text_reloc = 0usize;
-    let mut ptr_pdata_reloc = 0usize;
-    for (i, s) in sections.iter().enumerate() {
-        ptrs.push(cursor);
-        cursor += s.raw.len();
-        if i == text_idx && n_text_reloc > 0 {
-            ptr_text_reloc = cursor;
-            cursor += n_text_reloc * RELOC_LEN;
-        }
-        if Some(i) == pdata_idx {
-            ptr_pdata_reloc = cursor;
-            cursor += pdata_relocs.len() * RELOC_LEN;
-        }
+    // Only `.text` and (when present) `.pdata` carry relocations in this class —
+    // the `.rdata` constant pools are pure data.
+    let mut n_reloc_of = vec![0u16; n_sections];
+    n_reloc_of[text_idx] = n_text_reloc as u16;
+    if let Some(pi) = pdata_idx {
+        n_reloc_of[pi] = pdata_relocs.len() as u16;
     }
-    let ptr_symtab = cursor; // symbol table right after the last section's data
+    let (ptrs, reloc_ptr, ptr_symtab) = layout_sections(&sections, &n_reloc_of);
+    let ptr_text_reloc = reloc_ptr[text_idx].unwrap_or(0);
+    let ptr_pdata_reloc = pdata_idx.and_then(|pi| reloc_ptr[pi]).unwrap_or(0);
 
-    // ---- COFF header (20 bytes) ----
     let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
-    b.u16(MACHINE_POWERPCBE);
-    b.u16(n_sections as u16);
-    b.u32(0); // TimeDateStamp — normalized away
-    b.u32(ptr_symtab as u32);
-    b.u32(n_symbols);
-    b.u16(0); // SizeOfOptionalHeader
-    b.u16(CHARACTERISTICS);
-
-    // ---- section headers (40 bytes each) ----
-    // Only `.text` carries relocations in this class (the `.rdata` constant
-    // pools are pure data).
-    for (i, s) in sections.iter().enumerate() {
-        let (prel, nrel) = if i == text_idx && n_text_reloc > 0 {
-            (ptr_text_reloc as u32, n_text_reloc as u16)
-        } else if Some(i) == pdata_idx {
-            (ptr_pdata_reloc as u32, pdata_relocs.len() as u16)
-        } else {
-            (0, 0)
-        };
-        b.name8(s.name);
-        b.u32(0); // VirtualSize
-        b.u32(0); // VirtualAddress
-        b.u32(s.raw.len() as u32); // SizeOfRawData
-        b.u32(ptrs[i] as u32); // PointerToRawData
-        b.u32(prel); // PointerToRelocations
-        b.u32(0); // PointerToLinenumbers
-        b.u16(nrel); // NumberOfRelocations
-        b.u16(0); // NumberOfLinenumbers
-        b.u32(s.characteristics);
-    }
+    write_coff_header(&mut b, n_sections, ptr_symtab, n_symbols);
+    write_section_headers(&mut b, &sections, &ptrs, &reloc_ptr, &n_reloc_of);
 
     // ---- raw section data, each section followed by its own relocations ----
     // (10 bytes each: VA u32, SymIdx u32, Type u16)
@@ -1617,23 +1580,9 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
 
     // ---- symbol table + string table ----
     let mut strtab = StringTable::new();
-
-    // slot 0: @comp.id (ABS, STATIC, no aux)
-    b.name8("@comp.id");
-    b.u32(COMP_ID_VALUE);
-    b.i16(-1); // IMAGE_SYM_ABSOLUTE
-    b.u16(0x0000);
-    b.u8(3); // STATIC
-    b.u8(0);
-
+    emit_shell_symbols(&mut b, &mut strtab, &sections); // slots 0..=10
     // Section STATIC symbols each carry one aux section-def record. `.text`
     // (sec 5) carries the relocation count in its aux.
-    emit_section_symbol(&mut b, &sections[0], 1, 0); // slot 1/2 .drectve
-    emit_section_symbol(&mut b, &sections[1], 2, 0); // slot 3/4 .debug$S
-    emit_section_symbol(&mut b, &sections[2], 3, 0); // slot 5/6 .XBLD$W C2
-    emit_external_symbol(&mut b, &mut strtab, NAME_C2, 3, 0x0000); // slot 7
-    emit_section_symbol(&mut b, &sections[3], 4, 0); // slot 8/9 .XBLD$W C1
-    emit_external_symbol(&mut b, &mut strtab, NAME_C1, 4, 0x0000); // slot 10
     emit_section_symbol(&mut b, &sections[4], 5, n_text_reloc as u16); // slot 11/12 .text
 
     // Per function: the defined FUNCTION symbol, then (if a tail call) the
@@ -1715,7 +1664,9 @@ fn emit_section_symbol(b: &mut Buf, s: &Section, sec_num: i16, n_reloc: u16) {
 
     // Aux section-def: Length | nReloc(u16) | nLineno(u16) | CheckSum(u32) |
     //                  Number(u16) | Selection(u8) | Unused[3].
-    b.u32(s.raw.len() as u32);
+    // `Length` is the section's declared size, which for `.bss` is NOT the raw
+    // byte count (there is none) — see [`Section::uninit_size`].
+    b.u32(s.size());
     b.u16(n_reloc); // NumberOfRelocations
     b.u16(0); // NumberOfLinenumbers
     b.u32(s.checksum);
@@ -1724,8 +1675,22 @@ fn emit_section_symbol(b: &mut Buf, s: &Section, sec_num: i16, n_reloc: u16) {
     b.bytes(&[0, 0, 0]); // Unused
 }
 
-/// Emit an EXTERNAL symbol whose (long) name lives in the string table.
-fn emit_external_symbol(b: &mut Buf, strtab: &mut StringTable, name: &str, sec_num: i16, typ: u16) {
+/// Emit one aux-less symbol record with an inline (≤ 8 byte) or string-table
+/// name. The three axes that actually vary between the callers — `Type`
+/// (0x0020 FUNCTION vs 0x0000 DATA), `StorageClass` (2 EXTERNAL vs 3 STATIC)
+/// and `Value` — are arguments rather than three near-copies of this body,
+/// because the dynamic-initializer obj needs the one combination none of the
+/// older helpers spelled: a **STATIC symbol of FUNCTION type** (the
+/// `??__E<name>@@YAXXZ` thunk, `docs/OBJ_DYNINIT_SHAPE.md` §3.1).
+fn emit_symbol(
+    b: &mut Buf,
+    strtab: &mut StringTable,
+    name: &str,
+    value: u32,
+    sec_num: i16,
+    typ: u16,
+    storage_class: u8,
+) {
     if name.len() <= 8 {
         b.name8(name);
     } else {
@@ -1733,28 +1698,22 @@ fn emit_external_symbol(b: &mut Buf, strtab: &mut StringTable, name: &str, sec_n
         b.u32(0); // long-name marker
         b.u32(off);
     }
-    b.u32(0); // Value (fn offset in .text = 0 for the single MVP fn)
+    b.u32(value);
     b.i16(sec_num);
     b.u16(typ);
-    b.u8(2); // EXTERNAL
+    b.u8(storage_class);
     b.u8(0); // no aux
+}
+
+/// Emit an EXTERNAL symbol whose (long) name lives in the string table.
+fn emit_external_symbol(b: &mut Buf, strtab: &mut StringTable, name: &str, sec_num: i16, typ: u16) {
+    emit_symbol(b, strtab, name, 0, sec_num, typ, 2);
 }
 
 /// Emit an EXTERNAL FUNCTION symbol (type 0x20) whose (long) name lives in the
 /// string table, with `Value` = its byte offset within `.text`.
 fn emit_function_symbol(b: &mut Buf, strtab: &mut StringTable, name: &str, sec_num: i16, value: u32) {
-    if name.len() <= 8 {
-        b.name8(name);
-    } else {
-        let off = strtab.intern(name);
-        b.u32(0); // long-name marker
-        b.u32(off);
-    }
-    b.u32(value); // Value = fn offset within .text
-    b.i16(sec_num);
-    b.u16(0x0020); // DTYPE_FUNCTION
-    b.u8(2); // EXTERNAL
-    b.u8(0); // no aux
+    emit_symbol(b, strtab, name, value, sec_num, 0x0020, 2);
 }
 
 /// COFF string table: `Size:u32(incl self)` + NUL-terminated names in
