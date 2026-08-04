@@ -384,6 +384,84 @@ Three questions put to it, each of which changes a number in this doc:
 3. **V6 weighting** — A6 and A9 as two axes broken, or one mechanism found
    twice (§3b)?
 
+### 6a. The lead leaked truth into the guard's brief — recorded as a lane defect
+
+**This is the lane's own methodology failing, and it is recorded here because
+this doc is where the gate's integrity is accounted for.**
+
+The tasking brief the lead wrote for guard 1 stated that the measured Selection
+bytes make `a5c4`'s `cand`/`cand2` both **Selection = 2**. *A COMDAT Selection
+byte exists only for a COMDAT present in the obj.* That sentence therefore told
+the guard that `cand` and `cand2` **are emitted** — which is exactly the truth
+its independent re-derivation existed to reach unaided — in a brief whose only
+purpose was to keep truth out.
+
+**Attribution: the lead's leak, not the guard's contamination.**
+
+The guard caught it, and its handling is the reason the exercise survives:
+
+* disclosed it loudly and unprompted, at the top of its own frozen file;
+* marked `a5c4` **CONTAMINATED-GUARD**;
+* identified **`a5c1` as the load-bearing clean cell _before_ looking** at
+  anything;
+* **pre-committed both contested rulings inside the frozen file**, so the leak
+  could not steer the outcome after the fact;
+* left `cells/*/spec.json` unread — not on the quarantine list, but plausibly
+  carrying expected sets, and treating an unlisted file conservatively is the
+  right default when the list was written by someone who had already leaked.
+
+**Consequence for scoring:** `a5c4`'s agreement with truth is now **weak
+evidence** and is graded as such. `a5c1` is unaffected and carries R1's case.
+
+**Why this does not sink the guard:** its strongest finding is immune to the
+leak — see §6b, which is reached without compiling anything and without
+reference to either contaminated cell.
+
+### 6b. R1 is internally inconsistent on its face — no experiment required
+
+The guard's most valuable result, and it outranks everything the 94 objects
+produced on this clause:
+
+> An **out-of-line member definition marked `inline`** is simultaneously
+> *"any out-of-line definition"* — a root, by R1's list — and **COMDAT** — not
+> a root, by R1's head.
+
+No reordering of the clause fixes it. It is reached through R1's *non-member*
+items, so it is **independent of `a5c1`/`a5c4` entirely**, and therefore
+independent of the lead's leak.
+
+This reframes the whole R1 question. `a5c1`/`a5c4` stop being a puzzle about
+*which of two readings is right* and become **two more instances of an
+intersection §2 cannot resolve under either reading**. A defect provable from
+the text alone is stronger evidence than one that needed 59 objects to expose,
+and it cannot be answered by re-running anything.
+
+### 6c. Rulings the guard fixed in advance, and why each is right
+
+* **The Selection byte is corroboration, not interpretation.** §2's authority
+  over its own words is not delegated to c2's output — otherwise **§2 could
+  never be violated at all**, since every disagreement would be re-read as "§2
+  meant whatever c2 did", dissolving this lane's own refutations along with
+  everything else. It therefore **cannot convert AMBIGUOUS into VIOLATION**.
+  Its legitimate use is the *textual* argument that Reading B makes §2
+  self-inconsistent.
+* **V6 counts axes, not mechanisms.** Redefining a registered unit after
+  discovering that two axes share a cause is a goalpost-move that happens to
+  **lower** the score — and it is still an error when the direction is
+  unflattering. **A6 and A9 each count.** The interpretation must then state
+  both facts together: `a6c5` and `a9_04`/`a9_06`/`a9_07` are **one defect with
+  one repair**, *and* independent cross-agent replication **raises** confidence
+  the mechanism is real while **lowering** the number of distinct repairs §2
+  needs.
+* **[REACH] vs [GAP].** Carried into the final scoring. *"§2 produces a definite
+  prediction and it is wrong"* (REACH) and *"§2 has no clause that could produce
+  this symbol at all"* (GAP) are different failures and **must not score the
+  same**. Falsifiable advance call, recorded before the guard looked: **all four
+  A3 cells, if they break, break only by GAPs.**
+* **`a9_05` is split from `a9_04`/`06`/`07`.** Under-inclusive vtable forcing
+  and over-inclusive propagation are **opposite** defects; a merged report
+  would hide one.
+
 **V6 (axes of 9 with ≥1 confirmed violation): registered point 1, interval
 [0, 3]. Candidate value before guard 1: 6** (A2, A3, A4, A6, A8, A9) — outside
 the registered interval on the high side. If it survives the guard, the
