@@ -879,6 +879,14 @@ Stated plainly, because the value of the document is bounded by this list.
 
 Next free number is **#162**.
 
+> **MINTED 2026-08-04 as #174–#178, not #162–#166** (ROADMAP §10.21). Lane
+> `w-map` was written against the same next-free number and its own documents
+> cross-reference its rows internally, so it kept 162–173 and these five were
+> renumbered in the order below. The bullets are left as written, as a dated
+> record; read `BOARD.md` for the live numbers.
+>
+> `#162 → #174`, `#163 → #175`, `#164 → #176`, `#165 → #177`, `#166 → #178`.
+
 * **#162 — `.data`/`.bss` writer.** Build the COFF writer for the two sections from
   §2–§6. Gate: byte-exact on the probe grid, then on the workload TUs whose only
   missing sections are `.data`/`.bss`. Blocked-by: §8.1 for mixed-size TUs.

@@ -9063,6 +9063,14 @@ it is the reason the provenance line exists.
 > this workload as measured, not by the language**; and two numbers are stale —
 > **B is 338, not 324**, and the pre-Phase-7 frontier is **16, not 22**. This
 > section stays as written, as a dated record. Read §10.20 before quoting it.
+>
+> **AND SUPERSEDED BY §10.21 (2026-08-04) ON THE FACTORIZATION ITSELF.** The
+> claim below that `A∧B∧C∧D` **is** the match set — "the same six files by name,
+> not six by count" — is **REFUTED**. The conjunction is **6**; the differential
+> grades **8**. Factor **D is no longer necessary for a match**, because its
+> proxy is the *per-function* census and the two new TUs are converted by a
+> *whole-TU* emitter. **The factorization needs a fifth term.** Read §10.21
+> before quoting any factor as a bound.
 
 **Full plan: [`PHASE7_PLAN.md`](PHASE7_PLAN.md). Pre-registration
 `rungs/_2026-08-02-w-phase7plan-prereg.md`, committed before measurement with an
@@ -9376,3 +9384,154 @@ first scan bracketed `../dc3-decomp` at `cb5e1bb4` → `9ad5c4c8` and was
 wrong, they did not, but because a scan split across two tree states is not one
 measurement — then retaken inside one tree state at `9ad5c4c8`, sha identical
 before and after. That is the fourth session in a row to record a mid-lane move.
+
+---
+
+## 10.21 W-LAND2 — the payoff metric moves for the first time, §10.19's conjunction is refuted, and the emit decision is not c2's (2026-08-04)
+
+Landing lane for five branches merged onto `master` in this order: `wt-w-bss`
+(`eae1d2f`), `wt-w-r1b` (`68bdbf8`), `wt-w-r1c` (`3b00093`), `wt-w-map`
+(`6c4f8da`), `wt-w-emitpred` (`18948a1`). Re-gated on the merged tree, which is a
+configuration no branch's own green run covered. Full evidence:
+[`rungs/2026-08-04-w-r1.md`](rungs/2026-08-04-w-r1.md),
+[`rungs/2026-08-04-w-r1c.md`](rungs/2026-08-04-w-r1c.md),
+[`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md),
+[`whitebox/C2_MAP.md`](whitebox/C2_MAP.md),
+[`PHASE7_VALIDATION.md`](PHASE7_VALIDATION.md).
+
+### TU match is 8, and that has never happened before
+
+**`match 6 → 8`, `vocab-gap 865 → 863`, `mismatch 0`, `codegen-gap 0`.** This is
+the **first movement in the payoff metric in the project's history of the
+number**. It was 6 while the per-function census ran from 4.45 % to 28.69 %; §8.1
+measured why, and the number stayed 6 through every widening rung since.
+
+The two TUs that converted are
+`src/system/synth/tomcrypt/TomCryptLicense.cpp` and
+`src/system/zlib/ZlibLicense.cpp`, both byte-exact against real `c2` at the
+workload's own flags. The mechanism is a **whole-TU `??__E` dynamic-initializer
+recognizer** — `IlBundle::dyninit_tu`, which requires the TU to hold exactly one
+function and that function to be the thunk. `Bindings::resolve_data` was **not**
+widened; that was the whole design, because the obvious three-line widening sits
+on the ordinary function path where 39,967 functions file under `data-sym-*`, in
+a port whose ordinary shell has no `.bss` and no `.data`. The census is **+0**
+across the change and `codegen-gap` is still **0**, which is the evidence that
+nothing outside the two TUs moved in either direction.
+
+Note what that implies about the metric: **the number that had been flat moved by
+a path the per-function census cannot see.** Which is the next result.
+
+### The refutation: `A∧B∧C∧D` is NOT the match set, and the factorization needs a FIFTH TERM
+
+§10.19 asserted that the four factors' conjunction is *exactly* the match set —
+"the same six files by name, not six by count" — and §10.20's re-gate table
+repeated it verbatim (`A∧B∧C∧D 6`, "equal to the match set by name"). **This is
+now false, and the lane that refuted it is the lane that made it false.**
+
+| quantity | value |
+|---|---:|
+| `A` emit set reachable | 28 |
+| `B` binding complete | 338 |
+| `C` section shape | **114** (was 84 — the writer gained `.bss`, `.CRT$XCU`, `.text$yc`) |
+| `D` codegen breadth | 8 |
+| `B∧C` (the near-term ceiling) | **107** (was 82) |
+| **`A∧B∧C∧D`** | **6** |
+| **TUs the differential graded `match`** | **8** |
+
+The scan's own known-answer control is the alarm, and it reads
+
+```
+known-answer control — matching TUs failing each factor
+(all must be 0, over 8 matching TUs): A 0 B 0 C 0 D 2
+```
+
+**It is not a port defect.** Factor D's proxy for "the port can emit this" is the
+**per-function** census verdict, and that factorization was measured when
+`PortC2` had exactly one acceptance path. A `??__E` TU is emitted by a
+**whole-TU** path, so its thunk is byte-exact in the obj and out of class in the
+census *simultaneously* — two true answers to two different questions. Every
+factor in §10.19 is meant to be **necessary**; a matching TU outside one voids
+the bound that factor carries, so D can no longer be quoted as a bound on the
+match set at all. A, B and C are unaffected and were all satisfied by both new
+TUs.
+
+**The control is LEFT RED ON PURPOSE, and `gap.rs` prints the reason next to the
+number.** Fixing it means teaching the per-function census a whole-TU fact, which
+would break the census/gate symmetry `census.rs` maintains deliberately and that
+the scan's `census/gate disagreement: 0` line tracks. **A red control that is
+understood and documented is worth more than a green one that was adjusted to go
+green** — silencing it would hide a real refutation of this project's own
+published factorization. The honest reading is that the factorization **needs a
+fifth term for whole-TU emitters**, not that D should be widened until it stops
+complaining. That is board **#179**, and its brief has to say what the term
+*means*, because "D, or the port emitted it anyway" is circular and must not be
+what gets written.
+
+Downstream, on the front page: `A∧B∧C` went 22 → **25** (C grew, A did not move),
+8 of A's 28 are taken rather than 6, so the standing headroom is **20 more TUs,
+ever**, and the **FRONTIER is 17, not 16**. The greedy ladder is now four steps,
+not seven: `.data` 169, `.rdata$r` 590, `.text$yd` 804, `.xdata$x` 871.
+
+### The emit decision is NOT c2's — it is transmitted by `c1xx`
+
+Lane `w-map`'s headline, recorded here because it **redirects another lane**.
+From static analysis of `c2.dll`, confirmed by obj-level mutation:
+
+* The walk loop is at `0x10b7f15f` in **`p2/main.c`**, *not* `coffemit.c`.
+* The flag word is stored to `sym+0x4c` **verbatim from the IL** at `0x10b9bf78`
+  — so **`c1xx` transmits it**. c2 does not compute the base decision.
+* Bit **`0x20` seeds c2's work queue**, and the emitted set is that seed **closed
+  under reference**. Outside the pruner c2's closure is purely *additive*.
+* Verified rather than merely read: clearing `0x20` in a real `.gl` removes the
+  function on a bundle of six independent leaves (`.text` shrinks by exactly its
+  16 bytes, rest byte-identical), but on a bundle with a real call graph **17 of
+  20 single clears change nothing**, and a 6-step cascade shows each function
+  falls only once its caller is also cleared.
+
+**Consequence for #161 and for `PHASE7_VALIDATION.md`: the ODR-use decision
+behind the emit predicate's false-positive class is made in `c1xx`, and probing
+`c2` will never find it.** A port of the seed test alone will over-delete on real
+TUs. This is the reason to read §10.21 before designing another c2-side emit
+probe.
+
+### Re-gate of the merged tree
+
+Five branches, individually green; that is not evidence about their merge. Run
+once, at the end, with all five in.
+
+| gate | result |
+|---|---|
+| `scripts/gen_rung_index.sh` | regenerated, **no diff** |
+| `cargo test --workspace --release` | **660 passed, 0 failed, 24 targets** |
+| `scripts/gate.sh --jobs 6` | **12/12 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 2,592 fixture-verdicts, 0 mismatch** |
+| 878-TU workload scan | **match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7** |
+| the factorization | **A 28 · B 338 · C 114 · D 8 · B∧C 107 · A∧B∧C∧D 6** — and the match set is **8**, so the conjunction is no longer it |
+
+**Scan provenance, bracketed.** `../dc3-decomp` HEAD `86357b58` **before and
+after**, sha identical; the JSONL header self-records `workload_head
+86357b58…`, `workload_dirty false`, `c2rs_head 18948a1`, `c2rs_dirty false`,
+cache **0 hit / 878 miss** (dc3's identity had moved again, so every capture in
+this scan is fresh), `capture-fail 7` — the good-tree reading, so the scan is
+admissible. That is the **fifth consecutive session** in which the workload
+checkout moved between lanes: `9ad5c4c8` → `9065a8f6` → `ea9a1cba` → `3a67ce65`
+→ `86357b58`.
+
+**One number moved for a reason that is not this lane's**, and it is called out
+so nobody attributes it: the per-function census reads **706,402 / 2,463,318**
+here against w-r1c's **706,403 / 2,463,317**. Both were `+0` deltas measured
+inside their own tree state; the difference is `../dc3-decomp` advancing four
+commits between them, not anything in `crates/`. A census figure quoted across
+two workload revisions is not a comparison.
+
+### Board rows minted here
+
+`w-bss` and `w-map` each proposed rows starting at **#162** because each was
+written when that was the next free number. Reconciled: **`w-map` keeps 162–173**
+(its own documents cross-reference those numbers internally — `#166` is
+"superseded in practice by #167", `#173` is the retraction of a rule `#169`
+cites), and **`w-bss`'s five are renumbered 174–178**. `w-r1c`'s two new
+proposals take **#179** (the factorization's fifth term) and **#180** (`??__F`,
+the atexit destructor thunk, priced at +2 sections / +10 symbol records). **#158
+is now DONE.** The next free board number is **181** (quoted without a `#` on
+purpose — `scripts/board_audit.sh` reads `#N` in this file as a citation, and a
+number that has not been minted yet is not one).

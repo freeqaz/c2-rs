@@ -15,24 +15,24 @@ cost this project real work more than once.
 ## The numbers
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-04 · tree `cfd972c-dirty` · binary `653a4980328f`
+Collected 2026-08-04 · tree `18948a1` · binary `b15466372e92`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 625 passed, 0 failed, 24 targets |
-| Oracle self-test (c2rs selftest) | 214 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 114 not-implemented (of 214) |
-| Port speedup, geomean over matched fixtures | 616x geomean over matched fixtures |
-| 878-TU dc3 workload scan (c2rs gap) | match 6, mismatch 0, codegen-gap 0, vocab-gap 865, capture-fail 7 |
-| Per-function census (driver, not target) | 706403/2463317 functions in class (28.68%) |
-| Emitted-function census | 38458/178968 emitted functions in class (21.49%) |
+| Workspace tests (cargo test --workspace --release) | 660 passed, 0 failed, 24 targets |
+| Oracle self-test (c2rs selftest) | 216 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 116 not-implemented (of 216) |
+| Port speedup, geomean over matched fixtures | 666x geomean over matched fixtures |
+| 878-TU dc3 workload scan (c2rs gap) | match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7 |
+| Per-function census (driver, not target) | 706402/2463318 functions in class (28.68%) |
+| Emitted-function census | 38457/178972 emitted functions in class (21.49%) |
 | Emitted-census residue | residue 9224: 1961 compiler-generated (no IL body), 7263 unexplained  (5.15% of the denominator) |
 | TU distance to match, blocked functions | ≤0: 1, ≤1: 12, ≤10: 27, ≤100: 34, ≤1000: 212 |
 | TU distance to match, blocked emitted functions | ≤0: 2, ≤1: 19, ≤10: 82, ≤100: 403, ≤1000: 858 |
 | Emit-set ceiling, LO-anchored (segments == COMDATs) | 27 of 871 graded TUs |
 | Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 871 graded TUs |
 | Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 420 repaired / 451 wall |
-| .gl binding invariants (records / arity / conflicts) | 1515160 records, 420 nameless, 0 before the first row, 39291 row-conflicts, 733 name-conflicts, 0 accounting breaks, 0 unreadable objs |
+| .gl binding invariants (records / arity / conflicts) | 1515163 records, 420 nameless, 0 before the first row, 39294 row-conflicts, 732 name-conflicts, 0 accounting breaks, 0 unreadable objs |
 
 <!-- END GENERATED -->
 
@@ -43,10 +43,18 @@ Collected 2026-08-04 · tree `cfd972c-dirty` · binary `653a4980328f`
 The **foundation is proven and fast**: standalone replay of the real `c2.dll` is
 byte-exact on all 871 capturable TUs of a real Xbox 360 game, the port is
 byte-exact everywhere it accepts, it refuses everywhere else, and **no run has
-ever recorded a mismatch**. The **payoff metric is stuck**: TU match has been
-6/878 across a per-function census run from 4.45 % to 28.69 %. That is not a
-mystery and not a regression — §8.1 measured why, and the emit-set ceilings below
-bound how far widening alone can ever take it.
+ever recorded a mismatch**. The **payoff metric has moved for the first time**:
+TU match is **8/878**, up from a 6 that had held across a per-function census run
+from 4.45 % to 28.69 %. The two new TUs are
+`src/system/synth/tomcrypt/TomCryptLicense.cpp` and
+`src/system/zlib/ZlibLicense.cpp`, converted by a **whole-TU `??__E`
+dynamic-initializer recognizer** (`IlBundle::dyninit_tu`), not by widening the
+per-function class — the census is **+0** across that change and `vocab-gap` fell
+865 → **863**. That is worth reading precisely: the number that had been flat for
+the project's entire history moved by a path the census cannot see, which is also
+why §10.21 has to add a fifth term to §10.19's factorization. §8.1 still measures
+why the *ordinary* path is stuck, and the emit-set ceilings below still bound how
+far widening alone can ever take it.
 
 ---
 
@@ -70,13 +78,18 @@ bound how far widening alone can ever take it.
   number of `.ex` function segments already equals the number of `.text` COMDATs
   in the real obj. For these, a port that lowered every body correctly would emit
   the right *set* of functions without modelling anything. **This is the hard
-  bound on TU match until Phase 7 (the emit-set model) exists** — and **6 are
+  bound on TU match until Phase 7 (the emit-set model) exists** — and **8 are
   already taken**, so every widening rung in the plan, summed, can move the
-  payoff metric by at most **22 TUs, ever** — and **only 16 of those 22 are
-  reachable by codegen breadth alone** (ROADMAP §10.20: `A∧B∧C` = 22 less the 6
-  matched; the other 6 of A's 28 fail B or C and need section or binding work
-  first). On the rest, the port emits one `.text` COMDAT per `.ex` segment and is
-  wrong about the *set* regardless of how correctly it lowers each body.
+  payoff metric by at most **20 more TUs, ever** — and **17 of those 20 are
+  reachable by codegen breadth alone** (`A∧B∧C` = 25 less the 8 matched; the
+  other 3 of A's 28 fail B or C and need section or binding work first). On the
+  rest, the port emits one `.text` COMDAT per `.ex` segment and is wrong about
+  the *set* regardless of how correctly it lowers each body.
+
+  These were `6 / 22 / 16` until 2026-08-04. Two of A's 28 converted (§10.21)
+  and the writer's section vocabulary grew, which moved three more TUs inside C
+  — so `A∧B∧C` went 22 → **25** and the frontier 16 → **17** while A itself did
+  not move at all. The bound's *structure* is unchanged; only its counts are.
 
   **Two numbers, because there are two splitters and only one is the port's**
   (§10.11, §10.15, §10.18). `LO`-anchored counts `.ex` segments on the `4C 4F 11`
@@ -104,23 +117,36 @@ block above has read 338 throughout, and the hand-written copies were stale.)
 
 ### And neither ceiling is the tightest constraint — the SECTION SHAPE is
 
-§10.19 factored Phase 7 into four predicates over the 871 graded TUs, and
-**A∧B∧C∧D = 6, exactly the observed match set** — the same six files by name,
-not six by count. All four are printed by every `c2rs gap` run:
+§10.19 factored Phase 7 into four predicates over the 871 graded TUs and claimed
+**A∧B∧C∧D was exactly the observed match set**, the same six files by name. **That
+claim is REFUTED (§10.21): the conjunction is 6 and the differential grades 8.**
+All four are printed by every `c2rs gap` run:
 
 | factor | predicate | TUs |
 |---|---|---:|
 | A | `.ex` segments == `.text` COMDATs | 28 |
 | B | every emitted symbol binds | **338** |
-| **C** | **obj section set ⊆ what the port's COFF writer can emit** | **84** |
+| **C** | **obj section set ⊆ what the port's COFF writer can emit** | **114** |
 | D | every emitted COMDAT in the port's codegen class | 8 |
 
-**C = 84 is 4.02× tighter than B = 338.** A perfect emit-set model *and* a
-perfect binding reach at most **B∧C = 82** while the port can write only
-`.drectve/.debug$S/.XBLD$W/.text/.pdata/.rdata`. The good news is that C is the
-one factor that is **bounded**: this workload uses **13** section names, and
-seven additions close it — `.data` 109, `.rdata$r` 172, **`.bss` 574**,
-`.text$yd` 698, `.xdata$x` 745, `.text$yc` **871**.
+**D is no longer necessary for a match.** Factor D's proxy is the *per-function*
+census verdict, which structurally cannot model a *whole-TU* emitter — so the two
+`??__E` TUs are byte-exact in the obj and out of class in the census at the same
+time, and the scan's known-answer control prints `A 0 B 0 C 0 **D 2**` with that
+explanation next to the number. **It is left red on purpose**: the factorization
+needs a **fifth term** for whole-TU emitters (board #179), and teaching the
+per-function census a whole-TU fact would break the census/gate symmetry the
+`census/gate disagreement: 0` line tracks. A red control that is understood and
+documented is worth more than a green one that was adjusted to go green.
+
+**C = 114 is still 2.96× tighter than B = 338.** A perfect emit-set model *and* a
+perfect binding reach at most **B∧C = 107** on the writer's present 9 section
+names. The good news is that C is the one factor that is **bounded**: this
+workload uses **13** section names, and after w-r1c added `.bss`, `.CRT$XCU` and
+`.text$yc` to the writer, **four** additions close it — `.data` 169,
+**`.rdata$r` 590**, `.text$yd` 804, `.xdata$x` **871**. (C was 84 with a
+six-name writer and a seven-step ladder; the step sizes below the top are not
+comparable across that change, because the ladder is greedy and re-ranks.)
 
 **Two corrections you must not re-derive from §10.19** (ROADMAP **§10.20**):
 
@@ -135,10 +161,10 @@ seven additions close it — `.data` 109, `.rdata$r` 172, **`.bss` 574**,
   13 holds empirically; re-run that grep before any new corpus inherits it.
 
 **C is necessary, not sufficient** — reaching C = 871 converts nothing on its
-own; only D converts. And **the pre-Phase-7 frontier is 16, not 22**: `A∧B∧C`
-= 22 with 6 already matched, so 16 graded TUs are reachable by codegen breadth
-alone and the other 6 of A's 28 need section or binding work first. `gap.rs`
-prints those 16 by name each scan as the **FRONTIER**. Board **#160**.
+own; only codegen converts. And **the pre-Phase-7 frontier is 17**: `A∧B∧C` = 25
+with 8 already matched, so 17 graded TUs are reachable by codegen breadth alone
+and the other 3 of A's 28 need section or binding work first. `gap.rs` prints
+those 17 by name each scan as the **FRONTIER**. Board **#160**.
 
 ---
 
@@ -148,7 +174,7 @@ Each of these is a mistake the project has already made and paid for. They are
 recorded here because the numbers above are individually true and jointly
 misleading without them.
 
-1. **`mismatch 0` is not evidence of correctness.** 865 of 878 TUs refuse before
+1. **`mismatch 0` is not evidence of correctness.** 863 of 878 TUs refuse before
    the emitter is consulted, so the scan *cannot see* a codegen or binding defect
    in them. Zero mismatches means "nothing the scan could grade came out wrong",
    over a population the scan mostly cannot grade. Verification here is
@@ -250,7 +276,7 @@ from diverging:
 | TU-level classes | `crates/c2-harness/src/gap.rs:74` — `TuClass` (`vocab-gap` = IL decode, `codegen-gap` = port refusal) |
 
 Decode is **3.4× the emitter** by line count (`c2-il` 35.5k vs `c2-core` 10.4k)
-and holds ~4× the tests. That is the physical signature of `vocab-gap 865`: the
+and holds ~4× the tests. That is the physical signature of `vocab-gap 863`: the
 port is not blocked on generating PowerPC, it is blocked on reading IL. The
 largest single file in the project is the member-call decode
 (`crates/c2-il/src/func/body/mcall.rs`, 4,643 lines), which is exactly the

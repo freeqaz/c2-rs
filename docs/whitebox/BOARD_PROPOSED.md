@@ -6,7 +6,13 @@
 
 `docs/BOARD.md` is the coordinator's file and this lane does not edit it. Next
 free number at the time of writing was **#162**; the coordinator assigns the
-actual numbers. Rows follow `BOARD.md`'s format:
+actual numbers.
+
+> **MINTED 2026-08-04 with these numbers unchanged** (ROADMAP §10.21). The
+> coordinator kept 162–173 here because this file and `C2_MAP.md` cross-reference
+> them internally, and renumbered lane `w-bss`'s five competing proposals to
+> #174–#178 instead. `BOARD.md` is still the live list; the status column below
+> was mapped onto its four sections (Open / Declined-and-refuted / Done). Rows follow `BOARD.md`'s format:
 `| N | title | payoff | anchors | notes |`.
 
 Statuses used below follow `BOARD.md`'s conventions — in particular **DECLINED is
