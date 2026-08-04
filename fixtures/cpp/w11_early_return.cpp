@@ -78,6 +78,17 @@ int g3(int a, int b, int c) {
 void w1(int a) { if (a != 0) return; v0(); v1(); }
 void w2(int a, int b) { if (a != 0) return; if (b != 0) return; v0(); v1(); }
 
+// The two rows above are both `!= 0`, whose negation is `BO_TRUE`, so they only
+// ever exercise ONE arm of the inversion. `work/w-frame/sweep.py` said so on
+// this rung's own first draft — `calls.rs:387 BO_TRUE` executed in no lane by
+// any fixture, which is `branch_sense`'s shape exactly (written, unit-tested
+// against itself, never seen by the oracle) reproduced inside the rung that
+// cites it. These two close it: `Eq` and `Lt` both negate to `BO_FALSE`, so the
+// void form inverts them to `BO_TRUE` and emits `bt` where `w1` emits `bf`. The
+// second also grades the inversion on the **LT** bit rather than only on EQ.
+void wq(void *p) { if (p == 0) return; v0(); v1(); }
+void wl(int a) { if (a < 3) return; v0(); v1(); }
+
 // ---- trailing-call COUNT ---------------------------------------------------
 int t2(int a) { if (a != 0) return 5; v0(); v1(); return 0; }
 int t4(int a) { if (a != 0) return 5; v0(); v1(); v2(); v3(); return 0; }
