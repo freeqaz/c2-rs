@@ -1,0 +1,8 @@
+65-linkage-comdat-0012.cpp
+65-linkage-comdat-0022.cpp
+65-linkage-comdat-0032.cpp
+65-linkage-comdat-0042.cpp
+65-linkage-comdat-0052.cpp
+65-linkage-comdat-0100.cpp
+65-linkage-comdat-0108.cpp
+65-linkage-comdat-0116.cpp

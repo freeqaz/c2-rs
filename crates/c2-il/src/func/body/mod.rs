@@ -378,8 +378,32 @@ pub(crate) struct SeqGuardShape {
 /// into the sequence. These guards leave the function. The two are refused in
 /// combination — one production per body — although c2 composes them happily
 /// (`work/w-conv/p/probe3.cpp::x6`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct SeqEarlyReturnShape {
+    /// **W-SMALL — the short-circuit `&&`'s extra conditions**, in source order,
+    /// after the one this struct's own `cmp_param`/`rel`/`signed`/`k` carry.
+    /// Empty for a plain single-test guard, which is every shape before this.
+    ///
+    /// `if (a != 0 && b != 0) return 5;` is not a second statement — it is ONE
+    /// guard whose IL repeats the condition-and-branch group with the **same**
+    /// skip label:
+    ///
+    /// ```text
+    ///   b9 e4 09 … 20  38 e8 09          <- test a, brFALSE -> e8
+    ///   b9 e5 09 … 20  38 e8 09          <- test b, brFALSE -> e8   (SAME label)
+    ///   53 33 … 05 41 …                  <- the one arm
+    ///   29 e8 09                         <- e8 defined once, after the arm
+    /// ```
+    ///
+    /// which is byte-for-byte the single-guard IL with 15 bytes inserted. Two
+    /// separate `if`s are a different production and already parse: they mint
+    /// **two** labels (`e8`, `e9`) and **two** arms.
+    ///
+    /// `||` is NOT this shape and is deliberately not admitted here — it emits
+    /// the other branch sense (`39` in the IL, `409a` in the text) and moves the
+    /// arm block to the **end**, after the fall-through path's epilogue. That is
+    /// a block layout nothing has graded.
+    pub(crate) and_conds: Vec<(usize, Rel, bool, i32)>,
     /// Index into the sequence's `params` of the compared formal. The scrutinee
     /// is read **in its home argument register**: this class admits no
     /// entry-block move, exactly as [`SeqGuardShape`] does and for the same

@@ -1,0 +1,149 @@
+==============================================================================
+PER-FUNCTION: never called anywhere (B), and called-but-never-graded (B\A)
+==============================================================================
+
+--- NEVER EXECUTED, in any lane, by any fixture (4) ---
+  container.rs             _RNvMNtNtCsdy4uCvr2r8k_7c2_core4coff9containerNtB2_7Section8file_len
+  data.rs                  _RNCNvNtNtCsdy4uCvr2r8k_7c2_core4coff4data13emit_data_objs4_0B7_
+  function.rs              _RNvMNtNtCsdy4uCvr2r8k_7c2_core4coff8functionNtB2_8Function5plain
+  function.rs              _RNvNtNtCsdy4uCvr2r8k_7c2_core4coff8function12emit_mvp_obj
+
+--- EXECUTED but NEVER under a graded (Port=Match) build (0) ---
+
+==============================================================================
+PER-REGION, per file: uncovered branch/arm counts
+==============================================================================
+file                   regions  0 in A  0 in B   meaning
+buf.rs                      77       2       2   0 in the SUSPECT BAND
+checksum.rs                 20       0       0   0 in the SUSPECT BAND
+container.rs               124      15      15   0 in the SUSPECT BAND
+data.rs                    334      29      28   1 in the SUSPECT BAND
+dyninit.rs                 297      27      27   0 in the SUSPECT BAND
+function.rs                 45      13      13   0 in the SUSPECT BAND
+label.rs                    68       0       0   0 in the SUSPECT BAND
+mangle.rs                  109      26      35   -9 in the SUSPECT BAND
+order.rs                    68       6       6   0 in the SUSPECT BAND
+pdata.rs                    28       2       2   0 in the SUSPECT BAND
+shell.rs                   132       2       2   0 in the SUSPECT BAND
+symbol.rs                   80       0       0   0 in the SUSPECT BAND
+writer.rs                  829      28      28   0 in the SUSPECT BAND
+TOTAL                     2211     150     158   -8 in the SUSPECT BAND
+
+==============================================================================
+THE SUSPECT BAND, by source line — regions reached but never graded
+==============================================================================
+
+-- data.rs (1 regions)
+     195  return None;
+
+==============================================================================
+NEVER EXECUTED AT ALL (not in B) — by source line, first line of each region
+==============================================================================
+
+-- buf.rs: 2 regions on 2 lines
+   60-61  if let Some((_, off)) = self.names.iter().find(|(n, _)| n == name) {
+
+-- container.rs: 15 regions on 9 lines
+   77-79  pub(crate) fn file_len(&self) -> usize {
+     102  debug_assert_eq!(sections.len(), n_reloc_of.len());
+   173-178  match placement_align(n, natural)? {
+     212  _ => None,
+
+-- data.rs: 28 regions on 23 lines
+   119-123  return None; // a zero-length object has no measured placement
+     135  best = best.max(placement_align(o.size, o.natural_align)?);
+   138-139  1 => Some(1),
+     142  _ => None,
+     188  return None; // `emit_empty_obj` is the right obj for a TU with nothing
+     199  return None;
+     203  placement_align(o.size, o.natural_align)?;
+     206  return None; // a short or over-long initializer is not an object
+     214  return None;
+   227-228  let (bss_offsets, bss_size) = bump_layout(&bss, &bss_walk)?;
+     236  data_raw[at..at + o.size as usize].copy_from_slice(o.bytes?);
+     245  let nibble = section_nibble(&bss)?;
+     266  let nibble = section_nibble(&data)?;
+     304  debug_assert_eq!(b.0.len(), ptrs[i]);
+     307  debug_assert_eq!(s.file_len(), s.raw.len());
+     310  debug_assert_eq!(b.0.len(), ptr_symtab);
+     352  statics.sort_by_key(|&i| bss[i].decl_index);
+     363  if o.external { 2 } else { 3 },
+
+-- dyninit.rs: 27 regions on 19 lines
+     116  return None; // one constructor call; 0 or 2+ is a different body
+     119  return None;
+   122-127  return None;
+     135  }
+     138  return None;
+     142  return None;
+   161-163  None => None,
+     248  None
+     253  let s = sym_of(r.name)?;
+     286  debug_assert_eq!(b.0.len(), ptrs[i]);
+     290  debug_assert_eq!(s.file_len(), s.raw.len());
+     293  debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+     301  debug_assert_eq!(b.0.len(), ptr_symtab);
+     321  }
+     343  debug_assert_eq!(idx_initializer + 1, n_symbols);
+
+-- function.rs: 13 regions on 10 lines
+   48-51  pub fn emit_mvp_obj(obj_name: &str, mangled_name: &str, text: &[u8]) -> Vec<u8> {
+   153-159  pub fn plain(name: &'a str, text_offset: u32) -> Function<'a> {
+     164  }
+
+-- mangle.rs: 35 regions on 20 lines
+   27-28  if d == 0 && !started {
+      58  format!("{}@", base16_ap(n))
+      86  b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'$' => {
+   91-92  out.push_str("?0");
+   95-96  out.push_str("?1");
+   99-100  out.push_str("?3");
+   103-104  out.push_str("?4");
+   107-108  out.push_str("?5");
+   111-112  out.push_str("?9");
+     121  _ => false,
+     161  return None;
+     168  return None;
+     173  return None;
+
+-- order.rs: 6 regions on 3 lines
+      85  debug_assert_eq!(names.len(), refs.len());
+      97  }
+     119  return None;
+
+-- pdata.rs: 2 regions on 2 lines
+   72-73  debug_assert_eq!(frame.func_len % 4, 0, "function length is a word multiple");
+
+-- shell.rs: 2 regions on 1 lines
+     198  debug_assert_eq!(b.0.len(), ptr_symtab);
+
+-- writer.rs: 28 regions on 10 lines
+     219  debug_assert_eq!(b.0.len(), ptrs[i]);
+     224  n_reloc_of[i] == 0 || b.0.len() == reloc_ptr[i].unwrap()
+     254  debug_assert_eq!(recs.len(), n_reloc_of[i] as usize);
+     264  debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+     272  debug_assert_eq!(b.0.len(), ptr_symtab);
+     398  debug_assert!(pool.is_empty(), "framed + pooled FP constant is refused upstream");
+     578  debug_assert_eq!(b.0.len(), ptrs[i]);
+     581  debug_assert!(n_text_reloc == 0 || b.0.len() == ptr_text_reloc);
+     589  debug_assert_eq!(b.0.len(), ptr_pdata_reloc);
+     597  debug_assert_eq!(b.0.len(), ptr_symtab);
+
+==============================================================================
+TRIAGE — a refusal emits NO BYTES, so it has nothing for the oracle to
+compare. Only an EMISSION region that never ran is the `branch_sense` shape.
+==============================================================================
+file                      never     EMIT  refusal    other
+buf.rs                        2        0        0        2
+container.rs                  9        0        2        7
+data.rs                      23        0       14        9
+dyninit.rs                   19        0       10        9
+function.rs                  10        0        0       10
+mangle.rs                    20        0        3       17
+order.rs                      3        0        1        2
+pdata.rs                      2        0        0        2
+shell.rs                      1        0        0        1
+writer.rs                    10        0        0       10
+TOTAL                        99        0       30       69
+
+--- the never-executed EMISSION lines, the only ones of `branch_sense`'s shape ---

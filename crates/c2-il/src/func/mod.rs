@@ -817,8 +817,17 @@ pub struct SeqGuard {
 /// (board #191) and its first real label→offset map — the two mechanisms
 /// `work/w-conv/PREREG.md` §2 measures as wanted by 10 and 14 of the 17 FRONTIER
 /// TUs respectively, and which nothing in the port had ever emitted.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SeqEarlyReturn {
+    /// **W-SMALL — the short-circuit `&&`'s further conditions**, in source
+    /// order, each `(cmp_param, rel, signed, k)` read exactly as the four fields
+    /// below are. Empty for a plain single-test guard.
+    ///
+    /// Every one emits one more `cmp ; bc` at the **same** target with the
+    /// **same** sense as the first — `419a` in both words, measured — so the
+    /// consumer loops rather than branching on the count. `||` is a different
+    /// shape and is refused in the parser, not here.
+    pub and_conds: Vec<(usize, Rel, bool, i32)>,
     /// Index into the owning function's `params` of the compared formal, read in
     /// its home argument register.
     pub cmp_param: usize,

@@ -292,6 +292,38 @@ pub(crate) fn try_parse_early_return_seq(
         let (skip_label, w) = read_token_var(seg, p)?;
         p += w;
 
+        // **W-SMALL — short-circuit `&&`.** A further condition-and-branch group
+        // right here, naming the SAME skip label, is one more conjunct of *this*
+        // guard rather than a new statement: `if (a != 0 && b != 0) return 5;`
+        // is the single-guard IL with `b9 … 20 38 <same label>` inserted, and it
+        // emits one more `cmp ; bc` at the same target with the same sense
+        // (`419a` in both words, measured on `work/w-small/l2/v_and.cpp`).
+        //
+        // Three things make this safe to admit and each is checked, not assumed:
+        // the label must be the SAME one (a different label is `||`'s shape or a
+        // `goto`); there is no scope marker between the groups, so a second
+        // `if` — which opens its own `53` — cannot be mistaken for a conjunct;
+        // and the compiler-label counter charges **+0** for this shape
+        // (`ho-and`/`ho-or`, `stride 5 / extra 0`, `docs/rungs/2026-08-04-w-label.md`
+        // §2.3), so `coff::plan_labels` needs no change and the branches are all
+        // FORWARD — `labels.rs` invariant 4 would refuse them otherwise.
+        let mut and_conds: Vec<(usize, Rel, bool, i32)> = Vec::new();
+        while seg.get(p) == Some(&0xB9) {
+            let c = eat_condition(seg, &mut p, &params)?;
+            if !eat_byte(seg, &mut p, 0x38) {
+                return None;
+            }
+            let (l, w) = read_token_var(seg, p)?;
+            p += w;
+            if l != skip_label {
+                // A conjunct that skips somewhere else is not a conjunct. `||`
+                // lands here (its first branch names the ARM, not the skip), and
+                // so would any `goto` out of the condition.
+                return None;
+            }
+            and_conds.push(c);
+        }
+
         // The then-clause opens its own scope.
         let mut d = guard_depth;
         eat_scopes(seg, &mut p, &mut d).ok()?;
@@ -299,6 +331,41 @@ pub(crate) fn try_parse_early_return_seq(
             return None;
         }
         let (value, epi) = eat_return_arm(seg, &mut p)?;
+        // **W-SMALL — a VOID arm with `&&` conjuncts is a DIFFERENT block plan,
+        // and this refusal is a measurement rather than caution.**
+        //
+        // The value form is uniform: every conjunct emits `cmp ; bc` at the one
+        // skip label with the one sense. The void form is not, and assuming it
+        // was produced **12 live `Port=Mismatch` cells** on this lane's own grid
+        // before the oracle caught it — every void cell in it and no other.
+        //
+        // `void P(int a,int b){ if (a!=0 && b!=0) return; v0(); v1(); }` at
+        // `/Ox /GS- /c` (`work/w-small/grid/pos_c2_void.cpp`, 52 B):
+        //
+        // ```text
+        //   000c  2f030000  cmpwi cr6,r3,0
+        //   0010  419a000c  bf 26 -> 0x001c   <- the SEQUENCE, negated sense
+        //   0014  2f040000  cmpwi cr6,r4,0
+        //   0018  409a000c  bt 26 -> 0x0024   <- the EPILOGUE, relation itself
+        //   001c  bl ?v0 ; bl ?v1
+        //   0024  epilogue
+        // ```
+        //
+        // Two targets and two senses: every conjunct but the LAST steps to the
+        // sequence start carrying the negation, and only the last carries the
+        // empty-arm inversion to the epilogue. The sequence start is a **third**
+        // label that no production in this port mints, and what the
+        // compiler-label counter charges for minting it is unmeasured — which
+        // `docs/rungs/2026-08-04-w-label.md` AA-b/AA-c say cannot be recovered
+        // from either the emitted obj or the `.gl` seed. So it is refused with
+        // the measurement attached rather than fitted from one cell.
+        //
+        // This also narrows w-label's `ho-and` reading. That probe was an
+        // `int gp(int)` body, so its "two branches naming one interior target"
+        // is a fact about the VALUE arm; the void arm does not have it.
+        if value.is_none() && !and_conds.is_empty() {
+            return None;
+        }
         if epi != body_epi {
             // A `goto`, a nested join, or a `return` out of an inner scope. Not
             // this class, and admitting it drops an edge.
@@ -334,7 +401,7 @@ pub(crate) fn try_parse_early_return_seq(
             return None;
         }
 
-        early.push(SeqEarlyReturnShape { cmp_param, rel, signed, k, value });
+        early.push(SeqEarlyReturnShape { and_conds, cmp_param, rel, signed, k, value });
 
         // The `if` statement's own scope closes, back to the body's.
         let mut d = guard_depth;
@@ -465,6 +532,100 @@ mod tests {
         assert!(early[0].signed, "`int` operand -> cmpwi, not cmplwi");
         assert_eq!(early[0].k, 0);
         assert_eq!(early[0].value, Some(5));
+        assert!(
+            early[0].and_conds.is_empty(),
+            "a single-test guard has no conjuncts — the `&&` field must not \
+             acquire a phantom entry from the plain shape"
+        );
+    }
+
+    /// **W-SMALL — `int P(int a,int b){ if (a!=0 && b!=0) return 5; v0();
+    /// return 0; }`**, transcribed from the `.ex` for
+    /// `work/w-small/grid/pos_c2_int.cpp`.
+    ///
+    /// The whole content of the shape is visible in the bytes: the conjuncts are
+    /// two copies of one group naming **one** label (`38 eb 09` twice), and the
+    /// arm and the `29 eb 09` that defines it occur once. Two separate `if`s
+    /// would mint two labels and two arms — that production already parsed and
+    /// is unchanged.
+    const CELL_AND2: &[u8] = &[
+        0x4f, 0x1f, 0x80, 0x05, 0x00, 0xa0, 0x00, 0x4f, 0x20, 0x80, 0xfe, 0x00, 0x4f, 0x33, 0x0d,
+        0x66, 0x12, 0x1c, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0b, 0x0b, 0x03, 0x0f, 0x10, 0x18,
+        0x01, 0x00, 0x0e, 0x6c, 0x12, 0x38, 0x1d, 0x42, 0x45, 0x0e, 0x06, 0x01, 0x01, 0x01, 0x0d,
+        0x08, 0x00, 0x0f, 0x4f, 0x02, 0x20, 0x00, 0x4f, 0x01, 0x04, 0x53, 0x53, 0x26, 0xe9, 0x09,
+        0x46, 0x2d, 0xe8, 0x09, 0x2d, 0xe7, 0x09, 0x4c, 0x4f, 0x11, 0x53, 0x53, 0xb9, 0xe7, 0x09,
+        0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x00, 0x20, 0x38, 0xeb, 0x09, 0xb9, 0xe8, 0x09,
+        0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x00, 0x20, 0x38, 0xeb, 0x09, 0x53, 0x33, 0x86,
+        0x41, 0x74, 0x05, 0x41, 0x86, 0x41, 0x74, 0x3a, 0xea, 0x09, 0x54, 0x04, 0x29, 0xeb, 0x09,
+        0x54, 0x03, 0x26, 0xe3, 0x09, 0xbd, 0x82, 0x07, 0x03, 0x00, 0x80, 0x01, 0x10, 0x00, 0x00,
+        0x4c, 0x4b, 0x33, 0x86, 0x41, 0x74, 0x00, 0x41, 0x86, 0x41, 0x74, 0x3a, 0xea, 0x09, 0x54,
+        0x02, 0x29, 0xea, 0x09, 0x4f, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4f, 0x02, 0x20, 0x00,
+        0x4f, 0x01, 0x05, 0x4d,
+    ];
+
+    /// The same source with a **void** arm — `void P(int a,int b){ if (a!=0 &&
+    /// b!=0) return; v0(); v1(); }`, from `work/w-small/grid/neg_c2_void.cpp`.
+    /// The two conjunct groups are byte-identical to `CELL_AND2`'s; only the arm
+    /// differs (`53 3a ea 09 54 04` — an empty arm that is just the exit goto).
+    const CELL_VOID2: &[u8] = &[
+        0x4f, 0x1f, 0x80, 0x05, 0x00, 0xa0, 0x00, 0x4f, 0x20, 0x80, 0xfe, 0x00, 0x4f, 0x33, 0x0d,
+        0x66, 0x12, 0x1c, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0b, 0x0b, 0x03, 0x0f, 0x10, 0x18,
+        0x01, 0x00, 0x0e, 0x6c, 0x12, 0x38, 0x1d, 0x42, 0x45, 0x0e, 0x06, 0x01, 0x01, 0x01, 0x0d,
+        0x08, 0x00, 0x0f, 0x4f, 0x02, 0x20, 0x00, 0x4f, 0x01, 0x04, 0x53, 0x53, 0x26, 0xe9, 0x09,
+        0x46, 0x2d, 0xe8, 0x09, 0x2d, 0xe7, 0x09, 0x4c, 0x4f, 0x11, 0x53, 0x53, 0xb9, 0xe7, 0x09,
+        0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x00, 0x20, 0x38, 0xeb, 0x09, 0xb9, 0xe8, 0x09,
+        0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x00, 0x20, 0x38, 0xeb, 0x09, 0x53, 0x3a, 0xea,
+        0x09, 0x54, 0x04, 0x29, 0xeb, 0x09, 0x54, 0x03, 0x26, 0xe3, 0x09, 0xbd, 0x82, 0x07, 0x03,
+        0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0x4c, 0x4b, 0x26, 0xe4, 0x09, 0xbd, 0x82, 0x07, 0x03,
+        0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0x4c, 0x4b, 0x3a, 0xea, 0x09, 0x54, 0x02, 0x29, 0xea,
+        0x09, 0x4f, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4f, 0x02, 0x20, 0x00, 0x4f, 0x01, 0x05,
+        0x4d,
+    ];
+
+    /// A short-circuit `&&` is ONE guard with two conditions, not two guards.
+    #[test]
+    fn a_short_circuit_and_is_one_early_return_carrying_both_conditions() {
+        let Some(BodyShape::CallSeq { early, calls, tail, guard, .. }) = parse(CELL_AND2) else {
+            panic!("in class")
+        };
+        assert_eq!(calls.len(), 1);
+        assert_eq!(tail, SeqTail::Lit(0));
+        assert!(guard.is_none());
+        // ONE early return — two would be the `if(a) …; if(b) …;` production and
+        // would emit two arms and two labels.
+        assert_eq!(early.len(), 1, "`a && b` is one guard, not two");
+        assert_eq!(early[0].cmp_param, 0);
+        assert_eq!(early[0].rel, Rel::Ne);
+        assert_eq!(early[0].value, Some(5));
+        // …and the second condition rides along, on the SECOND formal.
+        assert_eq!(early[0].and_conds.len(), 1);
+        assert_eq!(early[0].and_conds[0], (1, Rel::Ne, true, 0));
+    }
+
+    /// **The VOID arm with conjuncts is refused, and the refusal is a byte
+    /// measurement.** c2 sends every conjunct but the last to the SEQUENCE with
+    /// the negated sense and only the last to the epilogue with the relation
+    /// itself (`work/w-small/grid/pos_c2_void.cpp` disassembly, in the parser's
+    /// own comment) — two targets, two senses, and a third label whose counter
+    /// cost is unmeasured. Emitting the value form's uniform loop here computes
+    /// `||` where the source says `&&`; it was 12 live mismatching cells on this
+    /// lane's grid before the oracle caught it.
+    #[test]
+    fn a_void_arm_with_and_conjuncts_is_refused() {
+        assert!(
+            parse(CELL_VOID2).is_none(),
+            "the void `&&` is a different block plan and must not reach the emitter"
+        );
+        // …and the control: the same cell's conjunct groups are byte-identical to
+        // the value form's, so what refuses is the ARM and nothing else.
+        let a = CELL_AND2.windows(15).position(|w| w[0] == 0xb9 && w[1] == 0xe7);
+        let v = CELL_VOID2.windows(15).position(|w| w[0] == 0xb9 && w[1] == 0xe7);
+        let (a, v) = (a.expect("and cell"), v.expect("void cell"));
+        assert_eq!(
+            CELL_AND2[a..a + 30],
+            CELL_VOID2[v..v + 30],
+            "both cells carry the SAME two conjunct groups; only the arm differs"
+        );
     }
 
     /// **The exit-value merge is refused, and the byte that refuses it is the

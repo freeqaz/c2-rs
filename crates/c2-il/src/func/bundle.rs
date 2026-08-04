@@ -946,6 +946,7 @@ pub(crate) fn shape_to_function(
                         early: early
                             .into_iter()
                             .map(|e| SeqEarlyReturn {
+                                and_conds: e.and_conds,
                                 cmp_param: e.cmp_param,
                                 rel: e.rel,
                                 signed: e.signed,
