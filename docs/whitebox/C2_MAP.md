@@ -452,13 +452,103 @@ reached from the export `_InvokeCompilerPass@12` (`10bebffd`, `dll.cpp`) via
 10b7f176: je   0x10b7f199                 ; marked & not done -> COMPILE IT
 ```
 
-> **`emit(sym) == (sym->flags4c & 0x20) && !(sym->flags4c & 0x02)`**
+> **`(sym->flags4c & 0x20) && !(sym->flags4c & 0x02)`** — but this selects the
+> **seed set of c2's work queue, not the emitted set.** See the correction
+> immediately below; an earlier revision of this file stated it as the emit
+> predicate outright and that was an over-claim.
 
 Bit `0x02` is set by the loop itself, so the load-bearing bit is **`0x20` at
-symbol offset `0x4c`**. Confidence **high** — instruction-level. `coffemit.c`
-only *consumes* the same bit later (`10b28548`, deciding which `.debug$S`
-records to write), which is why looking for the decision in the writer would
-have failed.
+symbol offset `0x4c`**. `coffemit.c` only *consumes* the same bit later
+(`10b28548`, deciding which `.debug$S` records to write), which is why looking
+for the decision in the writer would have failed.
+
+#### The correction: seed set, then closure
+
+The predicate was verified by clearing bit `0x20` in a real `.gl` and replaying.
+On a bundle of **six mutually independent leaf functions** it was a clean hit —
+the function's COFF symbol vanished, `.text` shrank by exactly its 16 bytes, and
+the remaining bytes were identical (`base.text[16:] == mut.text[0:]`). Both
+halves confirmed separately: setting `0x02` yields a **bit-identical obj** to
+clearing `0x20`.
+
+**On a bundle with a real call graph, clearing `0x20` on 17 of 20 functions
+changed nothing at all.** Only the three functions nothing else calls vanished
+singly. A cascade test pins the actual rule:
+
+```
+cleared 3 -> lost 3   (the roots)          cleared 6 -> lost 6  + supershuffle
+cleared 4 -> lost 4   + getKeyImpl         cleared 7 -> lost 7  + shuffle3
+cleared 5 -> lost 5   + revealKey          cleared 8 -> lost 8  + parseHex16
+```
+
+Each function falls only once its **caller** has also been cleared. Clearing all
+20 deletes `.text`, `.pdata` *and* `.data` entirely.
+
+> **The emitted set is the `0x20`-seeded set closed under "referenced by an
+> already-emitted function."**
+
+**This reconciles the two halves of the lane's own work rather than upsetting
+them.** The static read had already found the closure — `FUN_10b2773f`, the
+non-`-optref` path, described as *"a fixpoint propagating `|= 0x20` to callees;
+never clears"*. The black-box cascade is that fixpoint, measured. **The
+disassembly predicted the mechanism and the oracle confirmed it**, which is the
+strongest form this document has.
+
+**The practical warning:** the six-leaf fixture read as a clean per-function
+predicate *only because its fixtures were mutually independent leaves*. Anyone
+porting the emit rule from the seed test alone **will over-delete on real TUs**.
+
+#### The tag-`0x0e` record, decoded — and where the flag word actually sits
+
+Handler `0x10b9bdcf`, on `?zero_test@@YAII@Z` in a real `.gl`, offsets
+`0x0a9..0x0d8`:
+
+```
+0x0a9  0e                 GetByte   tag = 0x0e
+0x0aa  e4 09              varU      -> +0x28  symbol id 2532
+0x0ac  00                 GetByte   -> +0x31
+0x0ad  "?zero_test@@YAII@Z\0"  GetCStr   name
+0x0c0  86                 GetByte   -> +0x37  storage class
+0x0c1  02                 i32c      -> +0x40
+0x0c2  05 04              varU      -> +0x20  flags 0x0405
+0x0c4  00 00              varU      -> +0x0c  owner idx   [gate unresolved]
+0x0c6  00                 i32c      -> optword
+0x0c7  80 01 10 00 00     i32c      -> +0x2c  type index 0x1001
+0x0cc  00 / 0x0cd  00     i32c x2   -> debug fields
+--- tag==0x0e payload ---
+0x0ce  80 54 0a 00 00     i32c      -> +0x54 = 2644   (.ex offset)
+0x0d3  00                 i32c      -> +0x58 = 0      (.sy offset)
+0x0d4  12                 i16c      -> +0x50 = 18
+0x0d5  68 10              varU      -> +0x4c = 0x1068   <<<< THE FLAG WORD
+0x0d7  01                 i16c      -> +0x52 = 1
+0x0d8  00                 i32c      inline count   [only if +0x4c & 0x1000]
+```
+
+**The flag word is at file offset `0x0d5..0x0d6` for this record and is at no
+fixed offset in general** — the name is variable-length and three preceding
+scalars use the `0x80` escape. Exactly the trap §3F warns about.
+
+The decode is confirmed by an independent check that could not have come out
+right by accident: across six records `+0x58` = 0, 30, 60, 90, 120, 150 over a
+`.sy` of **exactly 180 = 6 × 30** bytes, and `+0x54` steps by 110 over a
+3312-byte `.ex`. Every record ends precisely where the next tag begins — 6/6,
+then 20/20 and 24/24 on two further bundles.
+
+**Two corrections to this document's own earlier description of the dispatcher.**
+Tags `0x04`, `0x0E` and `0x10` **share one handler** (`0x10b9bdcf`); and
+`0x10b9c5ca` is **not a no-op arm** — it is `mov edx,0x7ba; jmp 0x10b9bd1a`, the
+**fatal-error path**, confirmed live by a deliberate one-byte desync producing
+`C1001 … p2symtab.c, line 1978` (= `0x7ba`). Tag `0x0E` is not in that set at
+all. The "shared no-op arm" reading was wrong.
+
+Bit semantics settled by single-bit mutation: `0x04` is force-cleared on read
+and is **dead in the IL** (setting it gives a byte-identical obj); `0x1000`
+marks *presence of the trailing inline list* — clearing it alone desyncs into
+C1001, clearing it *and* dropping the count byte gives a byte-identical obj.
+`0x08`, `0x40`, `0x80`, `0x2000`, `0x2080` and the high bits were codegen-inert
+on these fixtures, which is a **coverage-bounded negative, not a proof** — the
+fixtures are simple leaves. `0x0001` makes c2 SIGSEGV; real coupling, cause
+unidentified.
 
 ### The finding that changes the question: c2 does not compute it
 
@@ -695,9 +785,11 @@ this document:
 
 | claim class | track record | how far to trust it |
 |---|---|---|
-| **white-box read, obj-checked** | COFF header immediates (§7.3) — 3/3 held | as good as a fact |
-| **white-box read, oracle-checked another way** | emit predicate, `.bss` reversal (two independent routes) | strong |
+| **white-box read, obj-checked by mutating the input** | tag-`0x09` section record (§3F), emit flag word (§3E) — every field's effect observed | as good as a fact |
+| **white-box read, obj-checked as a value** | COFF header immediates (§7.3) — 3/3 held | as good as a fact |
+| **white-box read, oracle-checked another way** | `.bss` reversal — two independent routes | strong |
 | **white-box read, NOT obj-checked** | `.bss` bump rule — **1 known failure** | **hypothesis only, regardless of the `high` label** |
+| **obj-checked, but on an unrepresentative fixture** | emit predicate — right on 6 independent leaves, wrong on 17/20 of a real call graph | **the fixture is part of the claim** |
 | **absence claims with a controlled search** | JamCRC (§6 P1) — method verified against known-present constants | strong |
 | **range attribution, in-anchor** | controls 3/4, two landing on anchor addresses | strong |
 | **range attribution, in-gap** | c2's string hash mis-attributable to `misc.c` | hypothesis only |
@@ -708,6 +800,15 @@ Those are different propositions and the `.bss` rule is the proof that they come
 apart. A function can be present, correct-looking, fully decompiled, and simply
 **not on the path your inputs take** — or guarded by a condition you did not
 vary, or overwritten downstream.
+
+**And a second, different failure mode, from the emit predicate:** a claim can
+be obj-checked, reproduce perfectly, and still be **wrong as stated**, because
+the fixture lacked the structure that would have exposed the gap. Six
+mutually-independent leaf functions cannot distinguish "this bit decides
+emission" from "this bit seeds a queue that is then closed under reachability".
+Only a fixture with a call graph can. So: **an obj check is only as good as the
+fixture's structural coverage, and the fixture belongs in the claim.** State
+what you tested on, not just that you tested.
 
 Anything from this directory that is about to influence code should be
 obj-checked first. That is cheap — the oracle is `wibo cl.exe` and a byte
