@@ -673,6 +673,64 @@ mod tests {
         assert!(Bindings::per_record(&gl, None, &segs[..1], &[0]).is_none());
     }
 
+    /// **FEWER records than segments is a refusal, and relaxing the `!=` above to
+    /// `>` is a wrong emit** — the direction that check exists for. It had no
+    /// test, and it was measured as a live mis-emit rather than argued about.
+    ///
+    /// The relaxation reads plausibly, which is why it was proposed. `.gl` omits
+    /// a function c2 dropped (an unreferenced internal-linkage one — its symbol
+    /// is absent from `.gl` **entirely**, verified on
+    /// `65-linkage-comdat-0012.cpp`, whose only mangled run is `?f@@YAHH@Z`);
+    /// the emit loop in [`IlBundle::functions`] is
+    /// `names.iter().take(n).zip(&segs)` and so is bounded by the *name* count;
+    /// so the port emits the bound prefix and drops the tail, which is what c2
+    /// did. It gains **8** cases in `scripts/sweep.d/65-linkage-comdat.py`
+    /// (37 → 45 `Port=Match`, measured in both directions) at **0** mismatches
+    /// over the whole generated corpus.
+    ///
+    /// It is still wrong, because "no record for this segment" has a second
+    /// cause the generated corpus never writes: a record
+    /// [`crate::codec::gl_offset_framed`] cannot **see**. That framing pins the
+    /// record's preceding `80 <LE32>` field — the signature's CodeView type
+    /// index — into `0x1000..=0x10FF`, and a TU with enough distinct types walks
+    /// a *later* record's index out of the window while the earlier ones stay
+    /// inside it. The tail record is then invisible rather than absent, and the
+    /// port drops a function c2 emitted.
+    ///
+    /// Two guards catch most of that and neither catches this. `gl_defined_names`
+    /// has five total-refusal paths that make `bound` **empty**, and
+    /// `PortC2::build` then refuses because [`IlBundle::shell_only_tu`] asks
+    /// `is_empty_module(.ex)`, which a TU with code fails. And a mangled name no
+    /// record claimed lands in `unclaimed`, which `functions()` refuses. An
+    /// `extern "C"` name contains no `@@`, so [`super::gl::looks_mangled`] is
+    /// false and it is **not** accounted — the one shape that slips both.
+    ///
+    /// MEASURED, `work/w-small/probe/l1_counterexample.cpp`, `/Ox /GS- /c`:
+    /// `int f(int)` and `int h(int,int)`, then 63 dropped-static burners, then
+    /// `extern "C" int g(char*)`. The three records' type indices are `0x10FD`,
+    /// `0x10FF` and `0x1101` — the first two framed, the third not.
+    /// `Port=NotImplemented` today; **`Port=Mismatch @ offset 8`** under `>`,
+    /// with `g` present as symbol 15 of the reference obj's `.text` and absent
+    /// from the port's. The burner count is a **boundary**: 62 and 64 both still
+    /// refuse under the relaxation and only 63 mis-emits, so the counterfactual
+    /// is specific to this hole rather than a blanket breaker.
+    #[test]
+    fn per_record_refuses_a_short_prefix_because_an_unseen_record_looks_like_a_dropped_one() {
+        // Three segments, two records, and the records' offsets ARE the first
+        // two split points — the prefix is aligned and it is still a refusal.
+        let gl = two_records();
+        let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4], &[0u8; 4]];
+        assert!(
+            Bindings::per_record(&gl, None, &segs, &[0, 40, 80]).is_none(),
+            "an aligned PREFIX of records must not bind: the unbound tail may be \
+             a record the framing cannot see, not a function c2 dropped"
+        );
+        // …and one record against two segments is the same refusal, which is the
+        // exact shape `65-linkage-comdat`'s eight flipping cases present.
+        let one = gl_record("?a@@YAHXZ", 0);
+        assert!(Bindings::per_record(&one, None, &segs[..2], &[0, 40]).is_none());
+    }
+
     /// Positional pairing is meaningful only when the counts agree, and when it
     /// is not, the census reports **no** name rather than a plausible lie — but
     /// still hands the shape conversion whatever is at that index, and holds the

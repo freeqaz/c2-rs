@@ -1,0 +1,70 @@
+// w-small Lead 1 counterexample.  See docs/rungs/2026-08-04-w-small.md.
+// 63 dropped-static burners tune the .gl record type index so that f and h
+// are FRAMED (0x10FD, 0x10FF) and g is NOT (0x1101).  g is extern "C", so its
+// name carries no `@@` and `gl_defined_names` leaves it out of `unclaimed`.
+int f(int a){return a+1;}
+int h(int a,int b){return a+b;}
+struct T0{int x;}; static int w0(T0* p){return p->x+0;}
+struct T1{int x;}; static int w1(T1* p){return p->x+1;}
+struct T2{int x;}; static int w2(T2* p){return p->x+2;}
+struct T3{int x;}; static int w3(T3* p){return p->x+3;}
+struct T4{int x;}; static int w4(T4* p){return p->x+4;}
+struct T5{int x;}; static int w5(T5* p){return p->x+5;}
+struct T6{int x;}; static int w6(T6* p){return p->x+6;}
+struct T7{int x;}; static int w7(T7* p){return p->x+7;}
+struct T8{int x;}; static int w8(T8* p){return p->x+8;}
+struct T9{int x;}; static int w9(T9* p){return p->x+9;}
+struct T10{int x;}; static int w10(T10* p){return p->x+10;}
+struct T11{int x;}; static int w11(T11* p){return p->x+11;}
+struct T12{int x;}; static int w12(T12* p){return p->x+12;}
+struct T13{int x;}; static int w13(T13* p){return p->x+13;}
+struct T14{int x;}; static int w14(T14* p){return p->x+14;}
+struct T15{int x;}; static int w15(T15* p){return p->x+15;}
+struct T16{int x;}; static int w16(T16* p){return p->x+16;}
+struct T17{int x;}; static int w17(T17* p){return p->x+17;}
+struct T18{int x;}; static int w18(T18* p){return p->x+18;}
+struct T19{int x;}; static int w19(T19* p){return p->x+19;}
+struct T20{int x;}; static int w20(T20* p){return p->x+20;}
+struct T21{int x;}; static int w21(T21* p){return p->x+21;}
+struct T22{int x;}; static int w22(T22* p){return p->x+22;}
+struct T23{int x;}; static int w23(T23* p){return p->x+23;}
+struct T24{int x;}; static int w24(T24* p){return p->x+24;}
+struct T25{int x;}; static int w25(T25* p){return p->x+25;}
+struct T26{int x;}; static int w26(T26* p){return p->x+26;}
+struct T27{int x;}; static int w27(T27* p){return p->x+27;}
+struct T28{int x;}; static int w28(T28* p){return p->x+28;}
+struct T29{int x;}; static int w29(T29* p){return p->x+29;}
+struct T30{int x;}; static int w30(T30* p){return p->x+30;}
+struct T31{int x;}; static int w31(T31* p){return p->x+31;}
+struct T32{int x;}; static int w32(T32* p){return p->x+32;}
+struct T33{int x;}; static int w33(T33* p){return p->x+33;}
+struct T34{int x;}; static int w34(T34* p){return p->x+34;}
+struct T35{int x;}; static int w35(T35* p){return p->x+35;}
+struct T36{int x;}; static int w36(T36* p){return p->x+36;}
+struct T37{int x;}; static int w37(T37* p){return p->x+37;}
+struct T38{int x;}; static int w38(T38* p){return p->x+38;}
+struct T39{int x;}; static int w39(T39* p){return p->x+39;}
+struct T40{int x;}; static int w40(T40* p){return p->x+40;}
+struct T41{int x;}; static int w41(T41* p){return p->x+41;}
+struct T42{int x;}; static int w42(T42* p){return p->x+42;}
+struct T43{int x;}; static int w43(T43* p){return p->x+43;}
+struct T44{int x;}; static int w44(T44* p){return p->x+44;}
+struct T45{int x;}; static int w45(T45* p){return p->x+45;}
+struct T46{int x;}; static int w46(T46* p){return p->x+46;}
+struct T47{int x;}; static int w47(T47* p){return p->x+47;}
+struct T48{int x;}; static int w48(T48* p){return p->x+48;}
+struct T49{int x;}; static int w49(T49* p){return p->x+49;}
+struct T50{int x;}; static int w50(T50* p){return p->x+50;}
+struct T51{int x;}; static int w51(T51* p){return p->x+51;}
+struct T52{int x;}; static int w52(T52* p){return p->x+52;}
+struct T53{int x;}; static int w53(T53* p){return p->x+53;}
+struct T54{int x;}; static int w54(T54* p){return p->x+54;}
+struct T55{int x;}; static int w55(T55* p){return p->x+55;}
+struct T56{int x;}; static int w56(T56* p){return p->x+56;}
+struct T57{int x;}; static int w57(T57* p){return p->x+57;}
+struct T58{int x;}; static int w58(T58* p){return p->x+58;}
+struct T59{int x;}; static int w59(T59* p){return p->x+59;}
+struct T60{int x;}; static int w60(T60* p){return p->x+60;}
+struct T61{int x;}; static int w61(T61* p){return p->x+61;}
+struct T62{int x;}; static int w62(T62* p){return p->x+62;}
+extern "C" int g(char* p){return (int)*p + 7;}
