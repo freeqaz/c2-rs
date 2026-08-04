@@ -1770,6 +1770,34 @@ const COMDAT_SELECT_ANY: u8 = 2;
 /// alignment that is not a power of two in 1..=8, rather than emitting a nibble
 /// for a case nothing measured.
 fn align_nibble(n: u32, natural: u32) -> Option<u32> {
+    match placement_align(n, natural)? {
+        1 => Some(1),
+        2 => Some(2),
+        4 => Some(3),
+        8 => Some(4),
+        _ => None,
+    }
+}
+
+/// The **size-promoted** alignment of a blob of `n` bytes with natural alignment
+/// `t`, in bytes:
+///
+/// > `align = max(t, 1 if n < 2 else 4 if n < 64 else 8)`
+///
+/// This is the *same* promotion in two places, which is why it is one function.
+/// `docs/OBJ_DYNINIT_SHAPE.md` §4.2 measures it as the rule for a section's
+/// alignment **nibble**; `docs/OBJ_DATA_BSS_SHAPE.md` §5.4 (Rule A3) measures it
+/// as the alignment the `.bss` **allocator** rounds each object up to. Prereg P9
+/// of that lane predicted the allocator used the plain *natural* alignment and
+/// was refuted — a natural-alignment allocator scores 7/18 against this one's
+/// 14/18 (§5.5). Keeping [`align_nibble`] and [`bss_deferred_layout`] on one body
+/// means a later correction to the thresholds cannot land in one and not the
+/// other.
+///
+/// `None` outside `{1,2,4,8}`: the section nibble has no encoding above ALIGN_8
+/// here, so a `__declspec(align(16))` object is refused rather than rounded to
+/// something plausible.
+fn placement_align(n: u32, natural: u32) -> Option<u32> {
     let implied: u32 = if n < 2 {
         1
     } else if n < 64 {
@@ -1778,12 +1806,89 @@ fn align_nibble(n: u32, natural: u32) -> Option<u32> {
         8
     };
     match natural.max(implied) {
-        1 => Some(1),
-        2 => Some(2),
-        4 => Some(3),
-        8 => Some(4),
+        a @ (1 | 2 | 4 | 8) => Some(a),
         _ => None,
     }
+}
+
+/// The `.bss` address walk for a run of **deferred** (dynamic-initializer)
+/// objects: one offset per object plus the section's total size, or `None` for a
+/// case this was not measured on.
+///
+/// `objects` is `(size, natural_align)` **in `.gl` record order**, and the
+/// returned offsets are parallel to it — `.gl` order, not walk order, because
+/// that is the order the symbol table wants (Rule Y2, §6.2).
+///
+/// Two independent rules from `docs/OBJ_DATA_BSS_SHAPE.md`, applied in order:
+///
+/// * **Rule A1 (§5.2)** — walk the deferred objects in the **reverse** of their
+///   `.gl` record order, so this loop runs back to front. (Eager objects walk
+///   forwards; this port has no eager-object path and must not grow one here by
+///   accident.)
+/// * **Rule A3 (§5.4)** — one cursor from 0. Round it up to the object's
+///   [`placement_align`]; the skipped bytes become a **hole**. Before taking from
+///   the cursor, try the **lowest-addressed hole that fits at the object's
+///   alignment**, splitting the hole around it. `SizeOfRawData` is the final
+///   cursor.
+///
+/// The hole reuse is not decoration: §5.4's worked example places an object at
+/// `0x0c` while the cursor stands at `0x18`, and §5.5 scores a no-reuse
+/// allocator at 12/18 against this one's 14/18.
+///
+/// **MEASURED, this lane**, on a three-object mixed-size probe (`sizeof` 1 / 8 /
+/// 4, `.gl` order `sB sA sC`): the reversed walk `sC sA sB` gives `sC@0`, `sA@4`,
+/// a hole `[5,8)` from `sB`'s round-up, `sB@8`, final cursor `0x10` — every
+/// offset and the section size exactly what the real obj carries. Mixed sizes are
+/// the class §5.5 flags as *not* exact (14/18), so this is graded by the
+/// differential on every run rather than assumed.
+fn bss_deferred_layout(objects: &[(u32, u32)]) -> Option<(Vec<u32>, u32)> {
+    let mut offsets = vec![0u32; objects.len()];
+    let mut cursor: u32 = 0;
+    // Half-open `[lo, hi)` ranges skipped by an earlier round-up, kept sorted by
+    // `lo`, so "the lowest-addressed hole that fits" is the first one that does.
+    let mut holes: Vec<(u32, u32)> = Vec::new();
+    for idx in (0..objects.len()).rev() {
+        let (size, natural) = objects[idx];
+        if size == 0 {
+            return None; // a zero-length object has no measured placement
+        }
+        let align = placement_align(size, natural)?;
+        let mut placed = None;
+        for h in 0..holes.len() {
+            let (lo, hi) = holes[h];
+            let at = lo.checked_next_multiple_of(align)?;
+            if at.checked_add(size)? <= hi {
+                holes.remove(h);
+                // Split around the object. A zero-width remnant is NOT a hole:
+                // keeping `[x, x)` would leave a range that "fits" every future
+                // request of size 0 and reorders nothing visibly until it does.
+                let mut at_h = h;
+                if at > lo {
+                    holes.insert(at_h, (lo, at));
+                    at_h += 1;
+                }
+                if at + size < hi {
+                    holes.insert(at_h, (at + size, hi));
+                }
+                placed = Some(at);
+                break;
+            }
+        }
+        let at = match placed {
+            Some(at) => at,
+            None => {
+                let at = cursor.checked_next_multiple_of(align)?;
+                if at > cursor {
+                    holes.push((cursor, at));
+                    holes.sort_unstable();
+                }
+                cursor = at.checked_add(size)?;
+                at
+            }
+        };
+        offsets[idx] = at;
+    }
+    Some((offsets, cursor))
 }
 
 /// One base-16 digit in MSVC's `A`..`P` alphabet (`A` = 0 … `P` = 15).
