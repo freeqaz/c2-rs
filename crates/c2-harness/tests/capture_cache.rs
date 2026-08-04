@@ -13,7 +13,9 @@
 
 use std::path::{Path, PathBuf};
 
-use c2_harness::capture_cache::{compare_captures, CacheOutcome, CaptureCache, CaptureDiff};
+use c2_harness::capture_cache::{
+    compare_captures, CacheOutcome, CaptureCache, CaptureDiff, LOCK_DIR,
+};
 use c2_reference::Toolchain;
 
 fn fixture() -> PathBuf {
@@ -35,11 +37,17 @@ fn work(tag: &str) -> PathBuf {
 }
 
 /// The single cache entry directory under `root` (there is exactly one).
+///
+/// `LOCK_DIR` is the one non-entry child the root is allowed to have — it holds
+/// the `O_EXCL` per-key lockfiles. Excluded by name rather than by "skip
+/// anything dotted", so that a *new* stray directory still fails this assert
+/// instead of being quietly tolerated.
 fn only_entry(root: &Path) -> PathBuf {
     let mut dirs: Vec<PathBuf> = std::fs::read_dir(root)
         .unwrap()
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.is_dir())
+        .filter(|p| p.file_name().map(|n| n != LOCK_DIR).unwrap_or(true))
         .collect();
     assert_eq!(dirs.len(), 1, "expected exactly one cache entry in {root:?}");
     dirs.pop().unwrap()
