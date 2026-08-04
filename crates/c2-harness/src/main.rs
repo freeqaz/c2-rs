@@ -136,7 +136,10 @@ fn print_usage() {
          prefilter options: --source ARG (--flag F ... | --flags-file FILE) [--cwd DIR]\n\
          \x20                 [--emit-obj PATH] [--compare-obj PATH] [--obj-name Z:\\\\...] [--work DIR]\n\
          retrieve eval options: --split held-out|loo --query-div N --k 1,5,10\n\
-         search options: --d 1|2|3 --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
+         search options: --moves full|length --steps N --compiles N --beam K --timeout SECS\n\
+         \x20              --d 1|2|3 (eval only — solve hardcodes d=1 and never read it)\n\
+         \x20              from-retrieval: --sample N --multi N --select-seed N\n\
+         \x20              from-lifter: --gens FILE --k K --limit N\n\
          \n\
          Toolchain: compilers/ via scripts/fetch_compilers.sh (or C2RS_COMPILERS /\n\
          C2RS_CL_EXE / C2RS_C2_DLL / C2RS_C1XX_DLL), wibo via C2RS_WIBO, sibling\n\
@@ -2237,7 +2240,7 @@ fn cmd_search(rest: &[String]) -> ExitCode {
         "from-retrieval" => cmd_search_from_retrieval(rest),
         "from-lifter" => cmd_search_from_lifter(rest),
         _ => {
-            eprintln!("usage: c2rs search <solve <cpp>|eval|from-retrieval <corpus-dir>|from-lifter <corpus-dir> --gens <jsonl>> [--d 1] [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]");
+            eprintln!("usage: c2rs search <solve <cpp>|eval|from-retrieval <corpus-dir>|from-lifter <corpus-dir> --gens <jsonl>> [--moves full|length] [--steps N] [--compiles N] [--beam K] [--timeout SECS]  (--d 1|2|3 is `search eval` only)");
             ExitCode::from(2)
         }
     }
