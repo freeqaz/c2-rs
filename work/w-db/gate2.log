@@ -1,0 +1,72 @@
+=== cargo test FULL ===
+warning: unused imports: `ChainForm` and `chain_form`
+warning: unused variable: `link`
+running 123 tests
+test result: ok. 123 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 96 tests
+test result: ok. 96 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.75s
+running 14 tests
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.15s
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+running 18 tests
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+running 4 tests
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.90s
+running 4 tests
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+running 4 tests
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.12s
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.46s
+running 389 tests
+test result: ok. 389 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+running 16 tests
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 15 tests
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+running 6 tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 1 test
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+=== selftest summary ===
+     Running `target/release/c2rs selftest`
+provenance:
+  c2-rs      0ab28ff1bc0d (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/w-db
+  binary     142d9d83615e1f6f  /home/free/code/milohax/c2-rs/.claude/worktrees/w-db/target/release/c2rs
+  workload   (none — fixtures)
+  wibo       wibo 1.0.1-23-g4a9dd6f (Linux x86_64)  /home/free/code/milohax/wibo/build/wibo
+  cl.exe     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   /home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+oracle self-test (determinism + capture stability):
+  wunw_float_beside_framed.cpp       PASS   obj=1411B ex=3184B
+  wunw_float_neg.cpp                 PASS   obj=1269B ex=2877B
+  wunw_framed_pair.cpp               PASS   obj=1201B ex=2886B
+  wunw_leaf_then_framed.cpp          PASS   obj=1086B ex=2868B
+  wunw_mixed_order.cpp               PASS   obj=1306B ex=3078B
+  wunw_two_leaves_framed.cpp         PASS   obj=1124B ex=2967B

@@ -1,0 +1,8 @@
+CODE false positives: 152
+   `$` in qualified name (template instantiation OR adjustor    125
+   VIRTUAL member  (reached only via a vtable slot)              24
+   ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)      3
+   examples: ['?ElapsedMs@DancerSkeleton@@UBAHXZ', '?IsTracked@DancerSkeleton@@UBA_NXZ', '?JointConf@DancerSkeleton@@UBA?AW4JointConfidence@@W4SkeletonJoint@@@Z', '?UpdateOverlay@FitnessFilter@@UAAMPAVRndOverlay@@M@Z', '??_EMQSongSortByCharacter@@W3AAPAXI@Z', '?GetToken@MQSongSortNode@@UBA?AVSymbol@@XZ']
+DATA false positives: 734
+   vftable / RTTI                                               734
+   examples: ['??_7DancerSkeleton@@6B@', '??_R0?AVDancerSkeleton@@@8', '??_R1A@?0A@EA@DancerSkeleton@@8', '??_7FitnessFilter@@6B@', '??_R0?AVFitnessFilter@@@8', '??_R1A@?0A@EA@FitnessFilter@@8']

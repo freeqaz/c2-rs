@@ -1,0 +1,28 @@
+#### HttpReq (H- population)
+quarantine check: 21 held-out TUs, src/system/net/HttpReq.cpp is not among them
+bundle _CL_dc2936e8 ; baseline defined 229 ; leaders 63 ; leader set == pipeline obj True
+payload pool: 129 2-byte, 0 4-byte undefined DATA symbols
+referrers with a usable list token: EMITTED 5 ; NOT emitted 0
+  [H+] referrer ??0HttpReq@@QAA@W4ReqType@@IGPBD@Z  old ??_7HttpReq@@6B@               -> new DATA ??_R4underflow_error@stlpmtx_std@@  gained=0   lost=0    old LOST: False  new APPEARS: False
+  [H+] referrer ??0HttpReq@@QAA@W4ReqType@@PBDG1@Z  old ??_7HttpReq@@6B@               -> new DATA ??_R4runtime_error@stlpmtx_std@@6B  gained=0   lost=0    old LOST: False  new APPEARS: False
+  [H+] referrer ??1HttpReq@@UAA@XZ                  old ??_7HttpReq@@6B@               -> new DATA ??_R4range_error@stlpmtx_std@@6B@   gained=0   lost=0    old LOST: False  new APPEARS: False
+  [H+] referrer ?allocate@?$StlNodeAlloc@U?$_Rb_tr  old ??_R0PAU?$_Rb_tree_node@U?$pai -> new DATA ??_R4overflow_error@stlpmtx_std@@6  gained=0   lost=0    old LOST: False  new APPEARS: False
+  [H+] referrer ?deallocate@?$StlNodeAlloc@U?$_Rb_  old ??_R0PAU?$_Rb_tree_node@U?$pai -> new DATA ??_R4out_of_range@stlpmtx_std@@6B@  gained=0   lost=0    old LOST: False  new APPEARS: False
+
+---- src/system/net/HttpReq.cpp
+  H+ referrer IS emitted      expect APPEARS     0/5
+  H- referrer is NOT emitted  expect suppressed  0/0 appeared
+#### PoolAlloc
+quarantine check: 21 held-out TUs, src/system/utl/PoolAlloc.cpp is not among them
+bundle _CL_cbb2d532 ; baseline defined 303 ; leaders 77 ; leader set == pipeline obj True
+payload pool: 151 2-byte, 0 4-byte undefined DATA symbols
+referrers with a usable list token: EMITTED 14 ; NOT emitted 0
+  [H+] referrer ??0FixedSizeAlloc@@QAA@HH@Z         old ??_7FixedSizeAlloc@@6B@        -> new DATA ??_R4underflow_error@stlpmtx_std@@  gained=0   lost=0    old LOST: False  new APPEARS: False
+  [H+] referrer ??0ReclaimableAlloc@@QAA@HPBD@Z     old ??_7ReclaimableAlloc@@6B@      -> new DATA ??_R4runtime_error@stlpmtx_std@@6B  gained=0   lost=0    old LOST: False  new APPEARS: False
+  [H+] referrer ??1FixedSizeAlloc@@UAA@XZ           old ??_7FixedSizeAlloc@@6B@        -> new DATA ??_R4range_error@stlpmtx_std@@6B@   gained=0   lost=0    old LOST: False  new APPEARS: False
+  [H+] referrer ?PoolAlloc@@YAPAXHHPBDH0@Z          old ?gChunkAlloc@@3PAVChunkAllocat -> new DATA ??_R4overflow_error@stlpmtx_std@@6  gained=0   lost=0    old LOST: False  new APPEARS: False
+  [H+] referrer ?PoolAllocInit@@YAXPAVDataArray@@@  old ?gBigHunk@@3HA                 -> new DATA ??_R4out_of_range@stlpmtx_std@@6B@  gained=0   lost=0    old LOST: False  new APPEARS: False
+
+---- src/system/utl/PoolAlloc.cpp
+  H+ referrer IS emitted      expect APPEARS     0/5
+  H- referrer is NOT emitted  expect suppressed  0/0 appeared

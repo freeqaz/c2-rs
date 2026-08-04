@@ -1,0 +1,87 @@
+TUs scanned 850 ; ok 850 ; `in` terminus clean 850
+
+== KA-A  the incumbents, recomputed from the same bytes ==
+  |U| 1506586   |E| 174417   |E n U| 173907   |Seed| 14662   |D_all| 685848   |D_data| 232156
+  RGL            |P|=129604   prec=1.00000  rec=0.74307  F1=0.85260  exact=132/850
+  INIT           |P|=613532   prec=0.27289  rec=0.95991  F1=0.42496  exact= 34/850
+  SKIP           |P|=400998   prec=0.36420  rec=0.83732  F1=0.50761  exact= 34/850
+  ORACLE*        |P|=167213   prec=0.99997  rec=0.95867  F1=0.97888  exact=151/850
+  * ORACLE is a CEILING, never a model (prereg clause 8)
+
+== CODE half, graded against E ==
+  JFP            |P|=150833   prec=0.99899  rec=0.86391  F1=0.92655  exact=132/850
+  JFP_UNGATED    |P|=150833   prec=0.99899  rec=0.86391  F1=0.92655  exact=132/850
+  JFP_URESTRICT  |P|=129604   prec=1.00000  rec=0.74307  F1=0.85260  exact=132/850
+  JFP_KEEPZERO   |P|=155134   prec=0.97354  rec=0.86591  F1=0.91657  exact=129/850
+  JFP_C1         |P|=150833   prec=0.99899  rec=0.86391  F1=0.92655  exact=132/850
+  JFP_CODEONLY   |P|=129604   prec=1.00000  rec=0.74307  F1=0.85260  exact=132/850
+  incumbent RGL F1 0.85260 ; wash bar 0.87260 ; ceiling ORACLE 0.97888
+
+== DATA half, graded DIRECTLY against D over the owner population ==
+  population |W| = 702263 ; positives |D n W| = 40947 ; base rate 0.05831
+  JFP            |P|=39196    prec=0.98127  rec=0.93931  F1=0.95983  exact=  0/850
+  JFP_UNGATED    |P|=39196    prec=0.98127  rec=0.93931  F1=0.95983  exact=  0/850
+  JFP_URESTRICT  |P|=0        prec=0.00000  rec=0.00000  F1=0.00000  exact=  0/850
+  JFP_KEEPZERO   |P|=41098    prec=0.93586  rec=0.93931  F1=0.93758  exact=  0/850
+  JFP_C1         |P|=40046    prec=0.98167  rec=0.96007  F1=0.97075  exact= 42/850
+  JFP_CODEONLY   |P|=9567     prec=0.98693  rec=0.23059  F1=0.37384  exact=  0/850
+
+== M11  w-joint's twelve static Rd rules, graded AGAINST D ==
+  ALL          |Rd n W|=702262   prec=0.05831 rec=1.00000 F1=0.11019
+  NONE         |Rd n W|=0        prec=0.00000 rec=0.00000 F1=0.00000
+  F20_400      |Rd n W|=432137   prec=0.05554 rec=0.58610 F1=0.10146
+  F20_80       |Rd n W|=0        prec=0.00000 rec=0.00000 F1=0.00000
+  F20_480      |Rd n W|=432137   prec=0.05554 rec=0.58610 F1=0.10146
+  F20_4000     |Rd n W|=684343   prec=0.05773 rec=0.96483 F1=0.10894
+  F20_60_20    |Rd n W|=702262   prec=0.05831 rec=1.00000 F1=0.11019
+  F20_1000     |Rd n W|=553300   prec=0.05731 rec=0.77446 F1=0.10673
+  F20_2000     |Rd n W|=84311    prec=0.04175 rec=0.08596 F1=0.05620
+  TAG_02       |Rd n W|=115063   prec=0.06284 rec=0.17659 F1=0.09270
+  TAG_01       |Rd n W|=587199   prec=0.05742 rec=0.82341 F1=0.10735
+  SC_STATIC    |Rd n W|=0        prec=0.00000 rec=0.00000 F1=0.00000
+  BEST static rule against D: ALL at 0.11019
+
+== stratified on #152 ==
+  |#152| 5344 = 0.03064 of E
+  RGL/no152      |P|=128781   prec=1.00000  rec=0.76169  F1=0.86473  exact=  0/850
+  JFP/no152      |P|=149439   prec=0.99898  rec=0.88297  F1=0.93740  exact=  0/850
+  JFP_C1/no152   |P|=149439   prec=0.99898  rec=0.88297  F1=0.93740  exact=  0/850
+
+== coincidence calibration ==
+  uniform expectation over what RGL does not predict: 0.03254
+  base rate |E|/|U| = 0.11577
+  JFP            new marks over P_RGL 21229   of which emitted 21077   = 0.99284  -> 30.51x uniform, 8.58x base
+  JFP_C1         new marks over P_RGL 21229   of which emitted 21077   = 0.99284  -> 30.51x uniform, 8.58x base
+  JFP_URESTRICT  new marks over P_RGL 0       of which emitted 0       = 0.00000  -> 0.00x uniform, 0.00x base
+
+== the code->data edge, counted ==
+  reference-list targets (refcount!=0)      2573569
+  ...of which NOT in U (i.e. code->data)    950824 = 0.36946
+  ...of those, in W (an `in` owner)         192919
+  owners 702262 ; owners in E 0 ; owners in D 40947 ; __C1_ roots 850
+  `in` nodes 1885284 ; unbound node tokens 454 = 0.00024 ; unbound owners 177114
+
+== M18 KA-POS  the run GRADED something ==
+  |P_JFP  ^  P_RGL| = 21229 discriminating names
+
+== JFP's residual, class by class ==
+  free / file-scope function                                  14766  0.6358
+  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)    3950  0.1701
+  `$` in qualified name (template instantiation OR adjustor    1855  0.0799
+  non-virtual member                                            856  0.0369
+  undecorated (extern "C" / CRT)                                851  0.0366
+  VIRTUAL member  (reached only via a vtable slot)              552  0.0238
+  static member                                                 372  0.0160
+  other (0)                                                      14  0.0006
+  other (2)                                                       6  0.0003
+  total code residual 23226
+
+== JFP's DATA residual, class by class ==
+  undecorated (extern "C" / CRT)                                852  0.3429
+  `$` in qualified name (template instantiation OR adjustor     807  0.3247
+  other (3)                                                     447  0.1799
+  vftable / RTTI                                                365  0.1469
+  other (2)                                                       7  0.0028
+  other (0)                                                       6  0.0024
+  other (1)                                                       1  0.0004
+  total data residual 2485

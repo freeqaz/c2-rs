@@ -1,0 +1,24 @@
+T1  db present and non-empty: 850/850  (empty: 0)
+T2  db bytes: median 651564  min 32  max 4954662  total 923951999
+T3  D_all names occurring as a string in db: 4/685848 = 0.00001
+    D_data names occurring as a string in db: 4/232156 = 0.00002
+T4  E names occurring as a string in db: 0/174417 = 0.00000
+T5  CV record walk: exact-consumption on 0/850 TUs ; records 892 ; KNOWN leaves 0 = 0.00000
+    leaf histogram (top 16):
+      0x403    ?                        850
+      0x0      ?                        24
+      0x12     ?                        3
+      0xbf1    ?                        1
+      0x20a    ?                        1
+      0x2c10   ?                        1
+      0x5a40   ?                        1
+      0x5f00   ?                        1
+      0x6265   ?                        1
+      0x7410   ?                        1
+      0x243f   ?                        1
+      0x6469   ?                        1
+      0x3      ?                        1
+      0x72a    ?                        1
+      0x735f   ?                        1
+      0x2015   ?                        1
+    distinct strings in db, total 5533922
