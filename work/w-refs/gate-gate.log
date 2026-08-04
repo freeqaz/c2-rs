@@ -1,0 +1,30 @@
+lane gate: 12 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-refs/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-3983068   (per-lane run dirs under /tmp/c2rs-gate-3983068/lanes/)
+building the harness (no-op if current)
+    Finished `release` profile [optimized] target(s) in 0.00s
+harness: /tmp/c2rs-gate-3983068/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-refs/target/release/c2rs  built 2026-08-04 11:29:19
+  sha ee362dc18e06  tree e44f3ee
+
+wall clock: 7s for 12 lanes at --jobs 6 (C2RS_JOBS=8)
+
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          219/219       102         0  /O1
+O1-EHsc              PASS          219/219       102         0  /O1 /EHsc
+O1-Oi                PASS          219/219       102         0  /O1 /Oi
+O1-Oi-EHsc           PASS          219/219       102         0  /O1 /Oi /EHsc
+Ox                   PASS          219/219       102         0  /Ox
+Ox-EHsc              PASS          219/219       102         0  /Ox /EHsc
+Ox-Gy                PASS          219/219       100         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          219/219       100         0  /Ox /Gy /EHsc
+O2                   PASS          219/219       102         0  /O2
+O2-EHsc              PASS          219/219       102         0  /O2 /EHsc
+Od                   PASS          219/219         1         0  /Od
+Od-EHsc              PASS          219/219         1         0  /Od /EHsc
+
+lanes:  12 in the registry — 12 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 2628 fixture-verdicts across all lanes
+logs:   /tmp/c2rs-gate-3983068/<lane>.log
+
+GATE: PASS — 12/12 lanes ran and every one of them graded a corpus.
