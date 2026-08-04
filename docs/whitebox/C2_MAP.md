@@ -648,11 +648,38 @@ The honest boundary. Read this before building on anything above.
 * **Line numbers order sites within a file only 66.9% of the time**, and very
   unevenly (`coffemit.c` 91%, `reader.c` and `dbg.cpp` 50%). We did **not**
   separate optimizer reordering from mis-recovered line immediates.
-* **The call-graph cross-validation was not run.** An independent test — do
-  intra-range call edges exceed a null? — was planned and lost to a box-wide
-  OOM. The link-order model is supported by the ordering statistics in §3.2 and
-  by the control hits in §6, but **not** by call-graph locality, and that check
-  remains outstanding.
+* **The call-graph cross-validation was run and it did NOT confirm the
+  partition.** This is reported as a negative result rather than dropped.
+
+  | formulation | observed intra-file edge fraction | null | verdict |
+  |---|---|---|---|
+  | tiled model (file *i* owns `[start_i, start_{i+1})`), 16 094 edges | **0.3184** | 0.2945 ± 0.0092, size-matched shuffle | +2.6 sd, ratio 1.08× — but **the null's max (0.3240) exceeded the observed value** |
+  | anchor ranges only (certain attribution), 2 911 edges | **0.5060** | 0.6041 ± 0.1216, same lengths at random positions | **−0.8 sd — observed is *below* the null mean** |
+
+  Neither formulation separates the real partition from a random one. **The
+  honest reading is that the test lacks discriminating power, not that the
+  partition fails**, and three reasons are visible in the numbers:
+
+  1. Anchors are ICE-site *brackets*, not module boundaries — they cover only the
+     ICE-bearing middle of a file, so intra-anchor edges are a biased subsample.
+  2. A compiler's call graph is heavily cross-module **by design** — everything
+     calls the symbol table, the allocator and the error reporter — so the true
+     intra-module fraction is genuinely low, and there is little signal to find.
+  3. The positional null is a *bad* null: randomly placed short intervals land in
+     dense code and capture tightly-coupled local neighbourhoods, which is why it
+     scores 0.60.
+
+  Per-file locality varies enormously under the tiled model (`tuple.c` 0.71,
+  `p2symtab.c` 0.45, `cgintrin.c` 0.13), which is itself consistent with the
+  tiled regions being well-aligned for some files and badly for others.
+
+  **What this does *not* do is weaken §3.2 or §6.** The partition's evidence is
+  the ordering statistics (7 runs vs 26.5 expected, P = 1.5 × 10⁻²⁵; every run
+  directory-pure) and the control hits (3 of 4, two landing *exactly on* anchor
+  addresses). Call locality was an additional axis that turned out to be
+  uninformative here. Anyone repeating it should not read the numbers above as
+  contradicting the partition — they should read them as a test that cannot tell
+  the two hypotheses apart.
 
 ### 7.2 Named open questions, with where to start
 
