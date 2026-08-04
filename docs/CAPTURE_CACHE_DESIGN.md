@@ -14,6 +14,91 @@ asserted.
 
 ---
 
+## CORRECTION NOTE (added 2026-08-04 by lane **w-land4**, at merge)
+
+This document was written on 2026-08-04 and **merged later the same day**, after
+the cleanup it recommended had already been carried out. That cleanup **refuted
+three of its claims**. Per this project's convention a dated record is corrected
+visibly, never silently rewritten: **the original text below is unchanged**, and
+every affected passage carries an inline marker — **[C1]**, **[C2]**, **[C3]** —
+pointing back here. Read both. What was believed and what turned out to be true
+are each part of the record.
+
+Authority for all three: **ROADMAP §10.22** ("W-GC — the concurrent-capture bug
+was LIVE, and the cache was never a disk problem") and **BOARD #182** (REFUTED).
+
+### [C1] The `~266 GB` is WRONG by more than an order of magnitude — do not requote it
+
+Deleting **98.7 % of the 4.94 M entries returned ~17 GiB to `df`**, not ~266 GB.
+Three compounding reasons, each of which will recur:
+
+1. **`du -s` reports blocks × 512**, so every file rounds up to the 4 KB block.
+   These files average **~850 B**. On a corpus of millions of sub-block files
+   `du` is not a noisy estimate of bytes — it is measuring a different quantity.
+   §2.3 below *sees* this ("4.8× block-rounding amplification") and then still
+   propagates the block figure as the byte total.
+2. **btrfs inlines files under `max_inline` directly into metadata.** Files that
+   small never occupy a data extent at all, so the data-space saving from
+   deleting them is near zero by construction.
+3. Therefore **the caches were an inode/metadata problem, not a data problem.**
+   The cost was millions of metadata records and the walk time over them — which
+   is why the standing constraint is "never recursively walk
+   `work/capture-cache`" and not "watch the disk".
+
+The verification the cleanup brief suggested could not have caught it either:
+**`df -i` reports nothing useful on btrfs**, which has no fixed inode table.
+§10.22 records this as a *recurrence* of §6s's `/tmp` misreading in the opposite
+direction — there a metadata limit was read as a space limit, here a metadata
+cost was priced as a space cost. **A space-shaped number is not evidence of a
+space-shaped problem.**
+
+Every GB figure in this document is `du`-derived and carries the same error.
+The **entry**, **file** and **inode** counts are unaffected and stood up.
+
+### [C2] "47 of 50 sibling caches ≥ 2 days old" was **44** when measured strictly
+
+Against a hard 48-hour cutoff the count is **44**, not 47. The cleanup lane
+deliberately **declined to round the gate** to make its own precondition true.
+
+### [C3] The age-based GC is **NOT safe as stated** — age was replaced, not tuned
+
+§4.1(a) argues age is a sound proxy because "hits do not update mtime … age is a
+proxy for *write* recency only". That is the correct mechanism and the wrong
+conclusion. A directory's mtime is its **creation** time; a cache **hit never
+rewrites it** and `/home` is `noatime` — so an entry that has served a hit on
+**every gate run since 07-31 still reads as three days old**. The population this
+hits hardest is exactly the one that matters: gate lanes scan repo `fixtures/`
+with no `--cwd` and key as `unknown+dirty-unknown`, so a 48 h age GC would have
+evicted the live gate working set while it was still being used.
+
+The cleanup lane therefore replaced age with a **provably-unreachable**
+predicate — the source file is gone, so `key_material` returns `None` and the key
+**cannot be formed**; or a stale workload-tree token, verified absent in a
+2,321-entry sample — and deliberately **kept 27,451 entries older than 48 h**.
+
+### What this document got RIGHT, and what the correction does not touch
+
+The three corrections above are about **magnitudes and one retention predicate**.
+They do not reach the document's conclusions, which stood up in full:
+
+- **"Just a delete."** No new storage structure was warranted and none was built.
+- **The pack-file rejection (§4.2).** It rests on the `-Fo` / `S_OBJNAME`
+  constraint — the cache directory *is* the capture directory — not on the byte
+  arithmetic, so [C1] leaves it untouched. A pack is a second copy of the
+  directory it was meant to replace, and still needs the GC.
+- **The SQLite rejection (§4.3).** The payload cannot live in the engine;
+  atomicity and integrity are already handled; the one gap it appeared to close
+  it does not close.
+- **Both one-line follow-ups were real and both landed** in `wt-w-gc`
+  (`c72a2a6`): canonicalise `cwd` in `key_material`, and the `O_EXCL` per-entry
+  lockfile. The race §4.3 called "rare but real" was **live** under
+  `gate.sh --jobs N`, which runs N processes against one root.
+
+A lane that reaches the right decision through one bad estimate is worth
+recording accurately in both directions.
+
+---
+
 ## 0. The headline numbers
 
 | | main cache | the 50 sibling caches | total |
@@ -21,10 +106,15 @@ asserted.
 | entries | 944,936 | 3,996,458 | **4,941,394** |
 | files (8/entry) | 7.56 M | 32.0 M | **39.5 M** |
 | inodes (files + dirs) | 8.50 M | 36.0 M | **44.5 M** |
-| on-disk bytes | ~112 GB | ~154 GB | **~266 GB** |
+| on-disk bytes **[C1]** | ~112 GB | ~154 GB | **~266 GB** |
+
+**[C1] — the whole bytes row is WRONG.** Deleting 98.7 % of these entries
+returned **~17 GiB**, not ~266 GB. See the correction note above. The entry,
+file and inode rows are unaffected.
 
 The volume holding all of it is 3.7 TB, 93 % full, with **262 GB free**. The
-capture caches are approximately equal to every remaining free byte on the disk.
+capture caches are approximately equal to every remaining free byte on the
+disk. **[C1] — this inference falls with the number: they were ~6 % of it.**
 
 Of the main cache:
 
@@ -103,6 +193,13 @@ gives **290 / 4,725 = 6.1 % live sources, 93.9 % orphaned**.
 are dc3 TUs holding **81 GB, 72 % of all the bytes**. Any policy that optimises
 only for entry count will leave almost all the storage in place, and vice versa.
 
+**[C1] — the split is real, the framing is not.** There was no byte problem to
+be a second population of: the entire cache was ~17 GiB of reclaimable space,
+and the cost was the metadata records and the walk time over 44.5 M inodes. The
+correct reading is that the *entry-count* problem was the only problem, which
+makes the entry-count-optimising policy the right one after all — for a reason
+this section argues against.
+
 ### 2.2 Generations
 
 29 distinct full key-contexts appear in sample A. Decomposed:
@@ -151,6 +248,13 @@ are ~87 GB against ~112 GB occupied.
 
 Extrapolated totals from the two disjoint samples: **111.0 ± 9.0 GB** and
 **112.5 ± 8.9 GB** (1σ; heavy tail).
+
+**[C1] — the two samples agree with each other and both are wrong.** Every
+figure in this section is `du`-derived, i.e. blocks × 512 over ~850 B files, on
+a filesystem that also *inlines* files that small into metadata. The reported
+"4.8× block-rounding amplification" is the error being observed and then carried
+into the total anyway. Reproducibility across disjoint samples measures sampling
+noise, not the systematic error in what the tool counts.
 
 ### 2.4 Age
 
@@ -209,6 +313,10 @@ Last-write times say almost all of it is abandoned:
 in ≥ 2 days.** Their lanes are finished. When their worktrees are removed the
 caches go with them; until then they are pure carry.
 
+**[C2] — 44, not 47**, measured against a hard 48-hour cutoff; the cleanup lane
+declined to round the gate. **[C1] — the ≈ 150 GB is `du` blocks**, not
+reclaimable bytes.
+
 ---
 
 ## 3. The hit rate
@@ -250,7 +358,9 @@ So the cache is genuinely useful in exactly one situation — *re-running the sa
 scan back-to-back within a session, to compare an instrument change* — and it is
 worth roughly 36 s of wall time (~450 s CPU at `--jobs 16`) each time that
 happens. That is a real benefit and the cache should be kept. It is not worth
-266 GB and 44 M inodes of permanent retention.
+266 GB and 44 M inodes of permanent retention. **[C1] — it was never worth
+266 GB because it never occupied 266 GB; the 44 M inodes is the half of this
+sentence that was true, and is the whole of why the cleanup was still right.**
 
 ### 3.1 How much of it could ever hit again
 
@@ -281,6 +391,15 @@ have their original bytes.
 
 A retention policy is the whole fix. Three predicates, in increasing order of
 sophistication and *decreasing* order of value:
+
+**(a) Age. [C3] — REFUTED as a safe primary predicate; do not implement this
+one.** The mechanism stated in its own "Risk" bullet is right and the conclusion
+drawn from it is wrong: because a hit never rewrites mtime, an entry that has
+served a hit on every gate run since 07-31 still reads as three days old, so
+this predicate evicts the **live** gate working set (repo `fixtures/`, keyed
+`unknown+dirty-unknown`). The cleanup lane replaced it with a
+provably-unreachable predicate and kept 27,451 entries older than 48 h. See the
+correction note.
 
 **(a) Age.** `mtime(meta.txt) < now − 48 h` → delete the entry.
 - Reclaims ≈ 938,500 entries (99.3 %) and ≈ 97 GB (87 %) from the main cache,
@@ -314,6 +433,14 @@ sophistication and *decreasing* order of value:
 not current`, run at the start of every scan, bounded to the scan's own cache
 root.** On today's data that reclaims ~97 % of entries and ~99 % of bytes in the
 main cache and leaves the instrument exactly as fast.
+
+**[C3] — what was actually done: the disjunction was cut down to (b) and (c).**
+Age was dropped entirely rather than widened, because widening the window does
+not fix the mechanism (§4.1(a) [C3]) — an entry can be arbitrarily old and still
+be hit every run. (b) and (c) are *provably-unreachable* predicates: the source
+is gone so `key_material` returns `None` and the key cannot be formed, or the
+workload-tree token is stale (verified absent in a 2,321-entry sample).
+**[C1] — "~99 % of bytes" is `du` bytes**; the delete returned ~17 GiB.
 
 **And one change that costs nothing at all:** point every lane at a single shared
 cache root. `C2RS_GAP_CACHE` already exists and already overrides the default.
@@ -377,7 +504,12 @@ in the project routes through. Against that:
 | does **not** reclaim the orphaned generations | the 81 GB of dead dc3 entries stays |
 
 **A GC reclaims ~97 GB; the pack reclaims ~22 GB.** The GC wins by more than 4×,
-at a tenth of the effort, with no risk to the differential. Packing is the right
+at a tenth of the effort, with no risk to the differential. **[C1] — both
+figures are `du` blocks and neither survives; the ratio between two wrong
+numbers is not an argument.** The verdict does survive, on the two grounds this
+section actually rests on: the pack cannot be the target of `-Fo`, and the entry
+and inode counts — the quantity that was really costing — fall to the GC and not
+to the pack. Packing is the right
 answer for a cache that is *legitimately* millions of live entries; this one is
 6,400 live entries wearing a 945,000-entry coat. **Recommend: do not build it.**
 
@@ -475,10 +607,15 @@ globbed all day.
 
 ## 5. Costed summary
 
+Every figure in the **reclaims** column is `du`-derived and therefore wrong by
+~5–15× on bytes — **[C1]**; the entry counts in that column are sound, and they
+are what mattered. The whole-table reading after the fact: **the right actions,
+priced in the wrong unit.**
+
 | option | effort | risk to the differential | reclaims (main + siblings) |
 |---|---|---|---|
-| **`rm -rf` the 47 abandoned sibling caches** | minutes | none — those lanes are finished | **~3.99 M entries, ~150 GB** |
-| **age-based GC, 48 h–7 d window** | ~30 lines or one `find` | negligible; worst case a re-capture | **~938 k entries, ~97 GB** |
+| **`rm -rf` the 47 **[C2]** abandoned sibling caches** | minutes | none — those lanes are finished | **~3.99 M entries, ~150 GB [C1]** |
+| **age-based GC, 48 h–7 d window** | ~30 lines or one `find` | negligible; worst case a re-capture **[C3] — no: it evicts the live gate working set, which age cannot distinguish from abandoned residue** | **~938 k entries, ~97 GB [C1]** |
 | **share one cache root via `C2RS_GAP_CACHE`** | one env var, no diff | none | prevents recurrence of ~150 GB |
 | canonicalise `cwd` in `key_material` | 1 line | none | folds 4 generations into 1 |
 | `O_EXCL` per-entry lockfile | ~20 lines | closes a real cross-process race | — |
@@ -490,6 +627,17 @@ globbed all day.
 **Recommended, in order:** delete the abandoned sibling caches; add an age-based
 GC to the scan; export one shared `C2RS_GAP_CACHE`; canonicalise `cwd`; add the
 `O_EXCL` lock. Build no new storage structure. Take no dependency.
+
+**What actually happened, in the same order:** the abandoned sibling caches were
+deleted (**44** of them by the strict cutoff, **[C2]**, returning ~17 GiB and not
+~150 GB, **[C1]**); the age GC was **not** implemented and was replaced by
+unreachability predicates (**[C3]**); the shared root was resolved **in code**
+via `provenance::main_repo_root()` rather than exported as an environment
+variable, because an env var would have pointed already-built lane binaries at a
+shared root before they had the lock (§10.22); `cwd` canonicalisation and the
+`O_EXCL` lock both landed in `c72a2a6`. **No new storage structure was built and
+no dependency was taken** — the last two sentences of this recommendation are
+the ones that held.
 
 Deletion is the user's call and was not performed by this lane. Five lanes were
 running during this investigation and their entries — everything written on

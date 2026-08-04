@@ -9659,6 +9659,24 @@ in-place edit to make, so it is recorded here instead. Noted rather than silentl
 skipped, because "corrected in place" and "recorded in the section that refutes
 it" are different states and a later reader should not go looking for the former.
 
+> **Addendum (lane w-land4, later the same day — the paragraph above stands as
+> written and was correct when written).** The file existed; it was an *unmerged
+> lane branch*, `wt-w-cache`, which is exactly why `git grep` over the tracked
+> tree could not see it. It has now been landed as **`5e278f0`** (`--no-ff`,
+> history preserved) and **does** carry the in-place correction this section
+> directed: a marked block at its head, with inline markers **[C1]** (the bytes),
+> **[C2]** ("47 of 50 sibling caches ≥ 2 days" was **44** against a hard 48 h
+> cutoff — the gate was deliberately not rounded), and **[C3]** (the age-based GC
+> is **not** safe as stated: a hit never rewrites mtime, so the live gate working
+> set — repo `fixtures/`, keyed `unknown+dirty-unknown` — reads as days old; age
+> was replaced by provably-unreachable predicates and **27,451 entries older than
+> 48 h were kept**). The original estimate is left visible in the body, marked.
+> Both states now exist rather than only the second. The document's conclusions —
+> "just a delete", the pack-file rejection on the `-Fo`/`S_OBJNAME` constraint,
+> and the SQLite rejection — were **right** and are not disturbed by the
+> correction; the two one-line follow-ups it named are the ones this section
+> landed.
+
 ### Re-gate of the merged tree
 
 Run against the merge, not against the branch — the gate log's harness banner
