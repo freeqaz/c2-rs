@@ -477,6 +477,45 @@ fn main_rs() -> String {
     std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("cannot read {}: {e}", p.display()))
 }
 
+/// **Every source file of the `c2rs` binary**, as `(display-name, contents)`:
+/// `src/main.rs` plus every `.rs` under `src/cli/`.
+///
+/// The handlers used to live in `main.rs`, so a lint that read one file read the
+/// whole binary. Lane `w-mod` moved them into `src/cli/`, and a lint still pointed
+/// at `main.rs` alone would have kept passing while covering almost none of the
+/// code it exists to constrain — absence reading as success. Every source lint
+/// over the binary takes its file set from here instead.
+fn bin_sources() -> Vec<(String, String)> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut out = vec![("src/main.rs".to_string(), main_rs())];
+    let cli = root.join("cli");
+    let entries = std::fs::read_dir(&cli)
+        .unwrap_or_else(|e| panic!("cannot list {}: {e}", cli.display()));
+    let mut files: Vec<std::path::PathBuf> = entries
+        .map(|e| e.expect("cannot read a src/cli entry").path())
+        .filter(|p| p.extension().map(|x| x == "rs").unwrap_or(false))
+        .collect();
+    files.sort();
+    for p in files {
+        let text = std::fs::read_to_string(&p)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", p.display()));
+        out.push((format!("src/cli/{}", p.file_name().unwrap().to_string_lossy()), text));
+    }
+    // A directory listing that comes back empty would make every lint below
+    // vacuously green while measuring one file — the exact failure mode the
+    // widening exists to prevent. `mod.rs` plus the ten handler modules is the
+    // floor; the count only ever grows.
+    assert!(
+        out.len() >= 11,
+        "bin_sources() found only {} file(s) ({:?}). The `c2rs` binary is main.rs plus \
+         the src/cli/ modules; a short listing makes every source lint in this file \
+         measure a fraction of the binary and still pass.",
+        out.len(),
+        out.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>()
+    );
+    out
+}
+
 /// Strip `//` line comments so a source lint reads code, not prose about code.
 /// (`://` is left alone so a URL survives.)
 fn code_only(src: &str) -> String {
@@ -597,7 +636,8 @@ fn every_subcommand_refuses_an_unknown_option() {
     );
 }
 
-/// **`Toolchain::locate` may appear in `main.rs` only inside `mod argv`.**
+/// **`Toolchain::locate` may appear in the whole `c2rs` binary only inside
+/// `mod argv`, which lives in `main.rs`.**
 ///
 /// This is the structural half of the fix, checked rather than trusted. Eight
 /// handlers used to call the free `located()` as their *first* statement, so a
@@ -606,34 +646,70 @@ fn every_subcommand_refuses_an_unknown_option() {
 /// `Args::toolchain(&self)` the only producer, a handler cannot reach a
 /// toolchain until it holds a parsed argument set.
 ///
+/// **Widened by lane `w-mod`.** The handlers moved from `main.rs` into
+/// `src/cli/*.rs`. Scanning `main.rs` alone would then have covered the parser
+/// and almost nothing else — every handler, i.e. every site the eight defects
+/// were actually found at, would have become free to call `Toolchain::locate`
+/// directly with this lint still green. That is precisely the "a second producer
+/// becomes expressible" failure the seam forbids, so the file set is now the
+/// whole binary ([`bin_sources`]) and only the byte range of `mod argv` inside
+/// `main.rs` is exempt. Strictly stronger: same rule, more files.
+///
 /// A convention nobody checks is how this class reached fourteen sites.
 #[test]
 fn locate_is_reachable_only_through_the_arg_seam() {
-    let src = code_only(&main_rs());
-    let start = src.find("mod argv {").expect("mod argv is gone — the seam has been removed");
-    let end = src
-        .find("use argv::{")
-        .expect("the `use argv::{...}` that closes the module is gone");
-    assert!(start < end, "module bounds inverted; this lint is not measuring what it thinks");
+    let mut total_hits = 0usize;
+    let mut offenders: Vec<String> = Vec::new();
+    let mut seam_hits = 0usize;
 
-    let hits: Vec<usize> = src
-        .match_indices("Toolchain::locate")
-        .map(|(i, _)| i)
-        .collect();
+    for (name, text) in bin_sources() {
+        let src = code_only(&text);
+        // `mod argv` is in main.rs and nowhere else; every other file of the
+        // binary is exempt from nothing.
+        let seam = if name == "src/main.rs" {
+            let start = src
+                .find("mod argv {")
+                .expect("mod argv is gone from main.rs — the seam has been removed");
+            let end = src
+                .find("use argv::{")
+                .expect("the `use argv::{...}` that closes the module is gone");
+            assert!(
+                start < end,
+                "module bounds inverted; this lint is not measuring what it thinks"
+            );
+            Some(start..end)
+        } else {
+            assert!(
+                !src.contains("mod argv {"),
+                "{name} declares a second `mod argv`. There is exactly one argument parser \
+                 in this binary and it lives in main.rs; a second one re-opens the class."
+            );
+            None
+        };
+
+        for (i, _) in src.match_indices("Toolchain::locate") {
+            total_hits += 1;
+            match &seam {
+                Some(r) if r.contains(&i) => seam_hits += 1,
+                _ => offenders.push(format!("{name}:{}", src[..i].matches('\n').count() + 1)),
+            }
+        }
+    }
+
     // If the extractor finds nothing, the lint is vacuous — pin the floor.
     assert!(
-        !hits.is_empty(),
-        "no `Toolchain::locate` in main.rs at all: this lint is measuring nothing"
+        total_hits > 0,
+        "no `Toolchain::locate` anywhere in the c2rs binary: this lint is measuring nothing"
     );
-    let outside: Vec<usize> = hits
-        .iter()
-        .copied()
-        .filter(|&i| !(start..end).contains(&i))
-        .map(|i| src[..i].matches('\n').count() + 1)
-        .collect();
     assert!(
-        outside.is_empty(),
-        "`Toolchain::locate` is called outside `mod argv` at main.rs line(s) {outside:?}. \
+        seam_hits > 0,
+        "`Toolchain::locate` exists in the binary but not once inside `mod argv`: the \
+         producer has moved out of the seam and this lint's exemption range is measuring \
+         nothing"
+    );
+    assert!(
+        offenders.is_empty(),
+        "`Toolchain::locate` is called outside `mod argv` at {offenders:?}. \
          The seam exists so that \"parse and validate, THEN locate\" is the only \
          expressible order; a direct call re-opens the ordering defect, where a bogus \
          command line exits 0 with `SKIP: toolchain absent` exactly where the portable \
@@ -646,15 +722,22 @@ fn locate_is_reachable_only_through_the_arg_seam() {
 /// It was `iter().position(|a| a == key)`, i.e. boards #194/#195's bug wearing a
 /// helper's name, and nine handlers used it. Deleting it is what made the class
 /// unreachable; re-adding one is how it would come back.
+///
+/// **Widened by lane `w-mod`** for the same reason as the lint above: the nine
+/// callers now live in `src/cli/*.rs`, so a `main.rs`-only scan would have left
+/// every one of their sites unwatched. The file set is the whole binary
+/// ([`bin_sources`]) — same rule, more files.
 #[test]
 fn the_position_scan_helper_is_not_reintroduced() {
-    let src = code_only(&main_rs());
-    assert!(
-        !src.contains("position(|a| a =="),
-        "main.rs contains a `position(|a| a == ...)` argument scan again. A scan cannot \
-         refuse what it does not look for, so every other argument is invisible by \
-         construction. Add the option to the subcommand's `Spec` instead."
-    );
+    for (name, text) in bin_sources() {
+        let src = code_only(&text);
+        assert!(
+            !src.contains("position(|a| a =="),
+            "{name} contains a `position(|a| a == ...)` argument scan again. A scan cannot \
+             refuse what it does not look for, so every other argument is invisible by \
+             construction. Add the option to the subcommand's `Spec` instead."
+        );
+    }
 }
 
 /// **An argument that is accepted and then never consumed must be refused.**
