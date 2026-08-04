@@ -1,0 +1,198 @@
+Teach LLVM to read Xbox 360 PPC COFF (IMAGE_FILE_MACHINE_POWERPCBE = 0x01F2)
+
+Applies to: llvm/llvm-project tag llvmorg-22.1.8
+            commit ca7933e47d3a3451d81e72ac174dcb5aa28b59d1
+
+    git clone --depth 1 --branch llvmorg-22.1.8 https://github.com/llvm/llvm-project
+    cd llvm-project && git apply /path/to/ppcbe.patch
+
+Five changes, all additive; nothing existing is modified.
+
+  1. COFF.h            IMAGE_FILE_MACHINE_POWERPCBE = 0x1F2, and enum
+                       RelocationTypesPPC (LLVM has never had one).
+  2. Magic.cpp         identify_magic() gains `case 0xF2`, falling through to
+                       the same `Magic[1] == 0x01` test 0xF0 already uses. This
+                       is the ONLY change needed to make the file parse at all.
+  3. WindowsMachineFlag.h  map the machine to Triple::ppc, so llvm-objdump
+                       picks a BIG-endian PowerPC disassembler without -triple
+                       and COFFObjectFile::getRelocationTypeName() reaches the
+                       new arm. COFF structure fields stay little-endian --
+                       LLVM reads every one through a hardcoded ulittle*_t, so
+                       nothing byte-swaps as a consequence of this.
+  4. COFFObjectFile.cpp  reloc type names for Triple::ppc, and "COFF-PowerPC-BE"
+                       as the format name.
+  5. COFFDumper.cpp    print the machine's name rather than a bare 0x1F2.
+
+WHERE THE RELOCATION NAMES COME FROM, and what they are not.  LLVM has no PPC
+COFF relocation table of its own, so the enum added in (1) is transcribed from
+the MS PE/COFF specification revision 6.0 (Feb 1999) sec. 5.2.6, cross-checked
+against gimli-rs/object src/pe.rs. They are therefore NOT independent evidence:
+a cross-check that relies on these names is checking two written sources against
+each other. What IS independent is everything above the name -- the record
+decode, the offsets, the symbol indices -- because that code is LLVM's and
+predates this patch.
+
+Not attempted: writing PPC COFF (LLVM has no PPCWinCOFFObjectWriter and no
+.pdata/.xdata support for this ABI), VMX128 decoding, and CodeView register
+names, which come out as x86 register names for a PPC compilation unit because
+the CodeView register enum is machine-dependent and LLVM only carries the x86,
+ARM and ARM64 tables.
+
+diff --git a/llvm/include/llvm/BinaryFormat/COFF.h b/llvm/include/llvm/BinaryFormat/COFF.h
+index 64fe2160f..74765752c 100644
+--- a/llvm/include/llvm/BinaryFormat/COFF.h
++++ b/llvm/include/llvm/BinaryFormat/COFF.h
+@@ -110,6 +110,12 @@ enum MachineTypes : unsigned {
+   IMAGE_FILE_MACHINE_MIPSFPU16 = 0x466,
+   IMAGE_FILE_MACHINE_POWERPC = 0x1F0,
+   IMAGE_FILE_MACHINE_POWERPCFP = 0x1F1,
++  // Big-endian PowerPC Windows COFF, as emitted by the Xbox 360 XDK toolchain
++  // (MSVC 16.00.11886.00). Defined by Microsoft in exactly one published
++  // artifact -- microsoft-pdb/cvdump/cvdump.cpp -- and in no PE/COFF spec
++  // revision and no winnt.h. Structure fields stay LITTLE-endian; only section
++  // *contents* are big-endian.
++  IMAGE_FILE_MACHINE_POWERPCBE = 0x1F2,
+   IMAGE_FILE_MACHINE_R4000 = 0x166,
+   IMAGE_FILE_MACHINE_RISCV32 = 0x5032,
+   IMAGE_FILE_MACHINE_RISCV64 = 0x5064,
+@@ -418,6 +424,48 @@ enum RelocationTypesARM64 : unsigned {
+   IMAGE_REL_ARM64_REL32 = 0x0011,
+ };
+ 
++/// Relocation types for IMAGE_FILE_MACHINE_POWERPC{,FP,BE}.
++///
++/// Source: MS PE/COFF specification revision 6.0 (February 1999) section 5.2.6,
++/// which is the last revision to list the full set. The current MS Learn page
++/// drops IMAGE_REL_PPC_SECRELHI while still cross-referencing it under PAIR.
++/// The four values Microsoft never documented (TOCREL16, TOCREL14, IFGLUE,
++/// IMGLUE) and the modifier flags are as in gimli-rs/object src/pe.rs.
++///
++/// The `Type` field is a PACKED WORD, not an enum: the low byte is the type and
++/// the high bits are modifiers, so a decoder must mask with TYPEMASK first.
++enum RelocationTypesPPC : unsigned {
++  IMAGE_REL_PPC_ABSOLUTE = 0x0000,
++  IMAGE_REL_PPC_ADDR64 = 0x0001,
++  IMAGE_REL_PPC_ADDR32 = 0x0002,
++  IMAGE_REL_PPC_ADDR24 = 0x0003,
++  IMAGE_REL_PPC_ADDR16 = 0x0004,
++  IMAGE_REL_PPC_ADDR14 = 0x0005,
++  IMAGE_REL_PPC_REL24 = 0x0006,
++  IMAGE_REL_PPC_REL14 = 0x0007,
++  IMAGE_REL_PPC_TOCREL16 = 0x0008,
++  IMAGE_REL_PPC_TOCREL14 = 0x0009,
++  IMAGE_REL_PPC_ADDR32NB = 0x000A,
++  IMAGE_REL_PPC_SECREL = 0x000B,
++  IMAGE_REL_PPC_SECTION = 0x000C,
++  IMAGE_REL_PPC_IFGLUE = 0x000D,
++  IMAGE_REL_PPC_IMGLUE = 0x000E,
++  IMAGE_REL_PPC_SECREL16 = 0x000F,
++  IMAGE_REL_PPC_REFHI = 0x0010,
++  IMAGE_REL_PPC_REFLO = 0x0011,
++  IMAGE_REL_PPC_PAIR = 0x0012,
++  IMAGE_REL_PPC_SECRELLO = 0x0013,
++  IMAGE_REL_PPC_SECRELHI = 0x0014,
++  IMAGE_REL_PPC_GPREL = 0x0015,
++  IMAGE_REL_PPC_TOKEN = 0x0024,
++  // Modifier bits ORed into the type word.
++  IMAGE_REL_PPC_TYPEMASK = 0x00FF,
++  IMAGE_REL_PPC_NEG = 0x0100,
++  IMAGE_REL_PPC_BRTAKEN = 0x0200,
++  IMAGE_REL_PPC_BRNTAKEN = 0x0400,
++  IMAGE_REL_PPC_TOCDEFN = 0x0800,
++};
++
+ enum RelocationTypesMips : unsigned {
+   IMAGE_REL_MIPS_ABSOLUTE = 0x0000,
+   IMAGE_REL_MIPS_REFHALF = 0x0001,
+diff --git a/llvm/include/llvm/Object/WindowsMachineFlag.h b/llvm/include/llvm/Object/WindowsMachineFlag.h
+index 7655819ef..e5245c168 100644
+--- a/llvm/include/llvm/Object/WindowsMachineFlag.h
++++ b/llvm/include/llvm/Object/WindowsMachineFlag.h
+@@ -46,6 +46,10 @@ template <typename T> Triple::ArchType getMachineArchType(T machine) {
+     return llvm::Triple::ArchType::aarch64;
+   case COFF::IMAGE_FILE_MACHINE_R4000:
+     return llvm::Triple::ArchType::mipsel;
++  // 32-bit BIG-endian PowerPC: the COFF header and every structure field are
++  // little-endian, but the code and data a tool disassembles or dumps are not.
++  case COFF::IMAGE_FILE_MACHINE_POWERPCBE:
++    return llvm::Triple::ArchType::ppc;
+   default:
+     return llvm::Triple::ArchType::UnknownArch;
+   }
+diff --git a/llvm/lib/BinaryFormat/Magic.cpp b/llvm/lib/BinaryFormat/Magic.cpp
+index bd378337e..655449cae 100644
+--- a/llvm/lib/BinaryFormat/Magic.cpp
++++ b/llvm/lib/BinaryFormat/Magic.cpp
+@@ -210,6 +210,7 @@ file_magic llvm::identify_magic(StringRef Magic) {
+       return file_magic::cuda_fatbinary;
+     [[fallthrough]];
+ 
++  case 0xF2: // PowerPC big-endian Windows (Xbox 360)
+   case 0x4c: // 80386 Windows
+   case 0xc4: // ARMNT Windows
+     if (Magic[1] == 0x01)
+diff --git a/llvm/lib/Object/COFFObjectFile.cpp b/llvm/lib/Object/COFFObjectFile.cpp
+index 242c12366..5a1c06c52 100644
+--- a/llvm/lib/Object/COFFObjectFile.cpp
++++ b/llvm/lib/Object/COFFObjectFile.cpp
+@@ -1134,6 +1134,8 @@ StringRef COFFObjectFile::getFileFormatName() const {
+     return "COFF-ARM64X";
+   case COFF::IMAGE_FILE_MACHINE_R4000:
+     return "COFF-MIPS";
++  case COFF::IMAGE_FILE_MACHINE_POWERPCBE:
++    return "COFF-PowerPC-BE";
+   default:
+     return "COFF-<unknown arch>";
+   }
+@@ -1467,6 +1469,39 @@ StringRef COFFObjectFile::getRelocationTypeName(uint16_t Type) const {
+       return "Unknown";
+     }
+     break;
++  case Triple::ppc:
++    // The PPC relocation Type field is a packed word: low byte = type, high
++    // bits = NEG/BRTAKEN/BRNTAKEN/TOCDEFN modifiers (MS PE/COFF rev 6.0
++    // §5.2.6). Name the base type; the modifier bits stay visible in the raw
++    // value that callers print alongside this name.
++    switch (Type & COFF::IMAGE_REL_PPC_TYPEMASK) {
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_ABSOLUTE);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_ADDR64);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_ADDR32);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_ADDR24);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_ADDR16);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_ADDR14);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_REL24);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_REL14);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_TOCREL16);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_TOCREL14);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_ADDR32NB);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_SECREL);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_SECTION);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_IFGLUE);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_IMGLUE);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_SECREL16);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_REFHI);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_REFLO);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_PAIR);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_SECRELLO);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_SECRELHI);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_GPREL);
++      LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_PPC_TOKEN);
++    default:
++      return "Unknown";
++    }
++    break;
+   case Triple::mipsel:
+     switch (Type) {
+       LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_MIPS_ABSOLUTE);
+diff --git a/llvm/tools/llvm-readobj/COFFDumper.cpp b/llvm/tools/llvm-readobj/COFFDumper.cpp
+index 55e106d8e..a93085ad1 100644
+--- a/llvm/tools/llvm-readobj/COFFDumper.cpp
++++ b/llvm/tools/llvm-readobj/COFFDumper.cpp
+@@ -358,6 +358,7 @@ const EnumEntry<COFF::MachineTypes> ImageFileMachineType[] = {
+   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_FILE_MACHINE_MIPSFPU16),
+   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_FILE_MACHINE_POWERPC  ),
+   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_FILE_MACHINE_POWERPCFP),
++  LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_FILE_MACHINE_POWERPCBE),
+   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_FILE_MACHINE_R4000    ),
+   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_FILE_MACHINE_SH3      ),
+   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_FILE_MACHINE_SH3DSP   ),
