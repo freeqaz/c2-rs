@@ -1,0 +1,2 @@
+(eval):1: command not found: wibo
+wibo 1.0.1-23-g4a9dd6f (Linux x86_64)
