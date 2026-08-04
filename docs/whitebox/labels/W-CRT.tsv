@@ -1,0 +1,20 @@
+10b9b8e9	il-reader	high	.gl record dispatcher; GetByte tag, dec+cmp 0x1a guard at 10b9b92e, byte-index tbl 10b9c615 (27), jump tbl 10b9c5d5 (16)
+10b9c212	il-section-record	high	case 9 = SECTION DEFINITION record; reads varU id, cstr name, u8 kind, cstr class, u32 chars-override; verified by .gl mutation replay
+10b9c615	il-reader	high	byte index table, 27 entries, tag-1 -> jump-table slot; tag 0x09 -> slot 7
+10b9c5d5	il-reader	high	jump table, 16 targets; slot 7 = 0x10b9c212 (section record)
+10b984c3	il-reader	high	node alloc for a .gl record: FUN_10b9814c(tag) size (tag 9 -> 0x68), free-list at DAT_10c6d090+tag*4, node+0x30 = tag
+10b9814c	il-reader	high	record-node size by tag: 1/2/0x1a=0x5a, 3=0x48, 4=0x4c, 5=0x43, 7=0x5a, 8=0x5c, 9=0x68, 0xb/0x1a=0x52, 0xe=0xa0, 0x10=0x50, 0x21=0x37
+10b982d6	section-chars	high	kind -> (name, Characteristics); FUN_10be7727 remap first; IL override at sect+0x53 wins when nonzero (LAB_10b98435)
+10be7727	section-chars	high	returns sect[0x4d]; only kinds 1 and 0x1d are re-mapped, by $-aware name prefix (.rdata/.xdata/.const->4, .text->0, .drectve->10)
+10be76d4	section-chars	high	base-section resolver: COMDAT (sect[0x4c]==7) with selection != 5 -> sect+0x5f, else identity
+10b287b8	section-emit	high	per-section finalize: kind=FUN_10be7727, align=FUN_10be77a3(kind,sect)->sect+0x43, then FUN_10b982d6; ORs IMAGE_SCN_LNK_COMDAT
+10be77a3	section-align	high	alignment chooser: kind 0 / 0x1b / 0x20 (and 0x12 when DAT_10c2e310) -> global DAT_10c2e9b4; kind 0xa -> drectve sect; else sect+0x43
+10b289fd	section-align	high	ORs FUN_10b28261(sect+0x43) into chars ONLY when (sect[0x53] & 0xF00000)==0; proven by an IL override carrying align nibble 5
+10b28261	section-align	high	align -> nibble: (log2(a)+1)<<20, 1->0x100000 ... 0x1000->0xD00000
+10b283b0	section-comdat	high	COMDAT spin-off: FUN_10be74cf(base->name+4, base->class+0x3b, newidx, base->kind+0x4d, selection, sym); copies +0x43 and +0x53 from base; stores ".data" into child+4 when base kind==1 (consumer of that store NOT identified - emit-time naming goes through FUN_10b982d6/FUN_10be76d4 instead)
+10c1f91b	il-primitive	high	varU: 2 bytes LE; bit15 set -> clear and OR (next u16)<<15; carries the tag-9 section id
+10c1fc5b	il-primitive	high	GetCStr bounded (0x1020 for section name and class strings)
+10c1fb8b	il-primitive	high	GetU32 raw 4 LE; carries the tag-9 Characteristics override
+10c1f8fc	il-primitive	high	GetByte raw 1; carries the tag-9 kind
+10c2edcc	il-flag	high	set to 1 in FUN_10b97a22; gates the tag-9 trailing u32 chars-override read; observed 1 in every real capture (the u32 is always present)
+10b200d8	section-name-literal	high	".XBLD$W" IS a literal inside c2.dll (raw 0x1f4d8), xref from 0x10c12530 in FUN_10c1252c - explains the 2nd .XBLD$W section in every obj; ".CRT" / ".text$yc" / ".rdata$r" remain ABSENT

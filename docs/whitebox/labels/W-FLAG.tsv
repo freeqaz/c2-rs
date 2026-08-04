@@ -1,0 +1,31 @@
+# W-FLAG — entry points, flag table, diagnostics, IL bundle I/O.
+# addr <TAB> cluster <TAB> confidence <TAB> evidence
+10bebffd	entry	high	export _InvokeCompilerPass@12; ANSI->wide argv widening, calls 0x10b7f3e7
+10bec133	entry	high	export _InvokeCompilerPassW@16; latches *param_4 as in/out status, calls 0x10b7f3e7
+10bec2ac	entry	high	export _AbortCompilerPass@4; semaphore 0x10c37d30, "Compiler terminating.", ExitProcess(0x8000)
+10bec40a	entry	high	export DllGetObjHandler; two 16-byte ID compares, COM HRESULTs, operator new(0x20)
+10bebf3e	entry	medium	guard called first by both Invoke entries; nonzero return skips the pass
+10b7f3e7	entry	high	p2 main trampoline -> 0x10b7f3b6
+10b7f3b6	entry	high	p2 main: argv latch, phase sequence; returns *0x10c2ea8c
+10b7e4f0	argv-parse	high	stores argv/argc into 0x10c46320/0x10c46324, reads %MSC_CMD_FLAGS%, calls 0x10b848dc
+10c1f469	argv-parse	medium	tokenises MSC_CMD_FLAGS through the same matcher
+10b848dc	argv-parse	high	option driver: memset(0x10c40220,0,0xce0), match loop, C1007 at 0x10b84a95, options fold
+10b7e238	argv-parse	high	next-argv callback; decrements 0x10c46324, advances 0x10c46320
+10c2932e	flag-table	high	4250-byte store sequence building the 148-record array at 0x10c46bd8; ret at 0x10c2a3b5
+10c1f746	flag-table	high	matcher: 12-byte stride, terminator on byte +9, '-'/'#'/'*' rules, returns byte +8
+10c1f572	flag-table	high	applier: switch on byte +9 (0x01/0x05/0x08/0x22/0x23/0x24/0x26/0x27)
+10c1f3c9	flag-table	medium	wildcard compare, reached only from the '*' pattern branch
+10c1f34c	flag-table	high	wide string -> long, used by kind 0x24 and the 0x23 sub-table
+10c1eeb6	diagnostics	high	Fatal(code): 0x10c1ee7d(code,...) then noreturn 0x10b7e257
+10c1ee7d	diagnostics	high	diagnostic number = code + 1000 (lea ecx,[esi+0x3e8]); selects severity
+10c1ec65	diagnostics	high	message formatter/emitter
+10c1f0dc	diagnostics	high	Fatal with path + __wcserror_s text; both C1083 sites call it
+10c1f2bb	diagnostics	medium	message-text lookup by number
+10c1eee8	diagnostics	high	path-length guard; raises 0x51 (C1081)
+10c1fd0c	il-open	high	CreateFileW failure -> C1083 (push 0x53 at 0x10c1fd40)
+10c1fd6b	il-open	high	fopen(base+suffix, mode); C1083 at 0x10c1fe11
+10c20038	il-open	high	map(base+suffix); the L"gl" call site
+10c1ff0f	il-open	high	CreateFileW/CreateFileMappingW/MapViewOfFile; sole mapper
+10b7f1ff	il-open	high	non-LTCG bundle reader: gl (mapped), then in, ex, sy; hosts the emit walk loop
+10b73923	il-open	high	LTCG bundle reader: gl, in, ex, sy, then db when -Zi or -typedil
+10b71d8f	listing	medium	only reader of the -QXSTALLS global 0x10c2e988

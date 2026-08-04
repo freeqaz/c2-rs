@@ -1,0 +1,28 @@
+addr	cluster	confidence	evidence
+10b9b922	gl/dispatch	high	GetByte -> [ebp-0x78] is THE record tag; dec+cmp 0x1a bounds it to 0x01..0x1b
+10b9c5d5	gl/dispatch	high	16-entry jump table; byte index table at 10b9c615 (27 entries, tag-1)
+10b9c615	gl/dispatch	high	byteidx[0x04]=byteidx[0x0e]=byteidx[0x10]=2 -> tags 04/0E/10 SHARE handler 10b9bdcf
+10b9c5ca	gl/dispatch	high	NOT a no-op arm: mov edx,0x7ba; jmp 10b9bd1a = fatal C1001 p2symtab.c:1978 (confirmed live by desync experiment)
+10b9bdcf	gl/symrec	high	shared symbol-record handler for tags 04/0E/10; varU id, GetByte, GetCStr name
+10b9bf46	gl/symrec	high	cmp [ebp-0x78],0x0e IS the tag compare, discriminating inside the shared handler
+10b9bf50	gl/symrec	high	tag 0x0e -> +0x37 |= 0x200000 (has body)
+10b9bf57	gl/symrec	high	i32c -> +0x54 = .ex stream offset; decoded 2644..3194 step 110 over a 3312-byte .ex
+10b9bf5f	gl/symrec	high	i32c -> +0x58 = .sy stream offset; decoded 0,30,...,150 over a 180-byte .sy (6*30 exact)
+10b9bf67	gl/symrec	high	i16c -> +0x50; 0x80-escape probe at that byte desyncs to C1001:1978
+10b9bf70	gl/emit	high	varU -> +0x4c THE FLAG WORD; file offset 0xd5 in _CL_5a0312b9.gl; escape probe on the hi byte desyncs
+10b9bf75	gl/emit	high	and eax,0xfffffffb force-clears bit 0x4; setting 0x4 in the IL yields a byte-identical obj
+10b9bf99	gl/emit	high	test +0x4c,0x1000 gates a trailing inline list; clearing 0x1000 without dropping the count byte -> C1001:1978
+10b7f16e	gl/emit	high	test dl,0x20 = EMIT bit; clearing it in the IL removes exactly that function from the obj
+10b7f173	gl/emit	high	test dl,0x02 = suppress bit; setting it in the IL is equivalent to clearing 0x20
+10b9bdd6	gl/symrec	medium	GetByte -> +0x31 (unnamed); value 0x00 in every observed record
+10b9be0e	gl/symrec	high	GetByte -> storage class nibble into +0x37 bits 0x1e0; 0x86/0x82 observed (sc=6/2)
+10b9be5b	gl/symrec	high	i32c -> +0x40; value 1/2/3/7 observed
+10b9be63	gl/symrec	high	varU -> +0x20 flags; 0x005/0x105/0x405 observed, bit 0x200 NEVER seen set
+10b9be72	gl/symrec	low	varU -> owner index for +0x0c; Ghidra gates it on +0x20 & 0x200 but the 2 bytes are consumed with that bit clear -- GATE UNRESOLVED
+10b9bea6	gl/symrec	medium	i32c optword gated on DAT_10c472e8+0xcac; byte IS present (0x7f there triggers its sub-reads and desyncs)
+10b9beed	gl/symrec	medium	i32c/i16c -> +0x2c = type index (0x1001 unsigned / 0x1003 int for the same-shape fixtures)
+10b9befe	gl/symrec	medium	cac-gated dbg pair (2 x i32c) immediately before the tag-0x0e payload; both 0 in every observed record
+10b9c024	gl/symrec	medium	tag 0x10 -> +0x37 |= 0x400000 and varU -> +0x4c WITHOUT the 0x4 force-clear
+10c1f9a6	il/ioin	high	i16c: 1 byte, 0x80 -> 2 more LE; verified against the 150-valued +0x58 that needed the escape
+10c1f9e9	il/ioin	high	i32c: 1 byte, 0x80 -> 4 more LE; de-escape probe (0x80 -> 0x01) desyncs by exactly 4
+10c1f91b	il/ioin	high	varU: 2 bytes LE, bit15 -> clear and read 2 more, v = lo15 | hi16<<15; probe at 0xc3/0xd6 confirms
