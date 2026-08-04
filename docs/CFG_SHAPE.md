@@ -498,6 +498,221 @@ recorded for exactly that reason: an emitter that never checks the range
 produces a truncated `BD` on the first function that exceeds it, and a truncated
 `BD` is a legal-looking branch to the wrong place.
 
+### 3.4 Block order
+
+**Rule.** Blocks land in `.text` in the order their statements appear in the
+`.ex` stream. For an `if`/`else` that is: the condition, the `bc` to the *else
+entry*, the then-block, a `b` to the join, the else-block, the join. The branch
+sense is the negation of the IL relation (because `38` is brFALSE), so the `bc`
+is the edge to the **else**, and the **then** block is the fall-through.
+
+Ten cells, every one consistent:
+
+| body | layout, by ascending offset | branch |
+|---|---|---|
+| `?b_ifelse` | `cmpwi` · `bc`→else · `b g` · `b h` | `419a0008` beq→0x0c |
+| `?b_ifval` | `cmpwi` · `bc`→else · `li r3,1 ; b gi` · `li r3,2 ; b gi` | `419a000c` beq→0x10 |
+| `?b_if2` | prologue · if₁ · `bl g` · if₂ · `bl h` · epilogue | two `419a0008` |
+| `?b_ifn` | prologue · if₁ · `bl g` · if₂ · `bl h` · if₃ · `bl g` · epilogue | three `419a0008` |
+| `?d_early` | if₁ · `li 1 ; blr` · if₂ · `li 2 ; blr` · tail | two `419a000c` |
+| `?d_goto` | `cmpwi` · `bc`→over · `bl g` · `bl h` · epilogue | `409a0008` bne→0x18 |
+| `?d_cold` | `cmpwi` · `bc`→else · **6×`bl h`** · `addi r3,r31,1` · `b` join · `addi r3,r31,2` · epilogue | `409a0024` bne→0x3c |
+| `?f_eqcall` | `cmpw` · `bc`→else · `li 5 ; b gi` · `li 9 ; blr` | `409a000c` bne→0x10 |
+| `?MemAlloc` | setup · `cmplwi` · `bc`→else · then(2) · `b XMemAlloc` · else(2) · `b RtlAllocateHeap` | `409a000c` |
+| `?MemFree` | setup · `cmplwi` · `bc`→else · then(3) · `b XMemFree` · else(2) · `b RtlFreeHeap` | `409a0010` |
+
+`?d_cold` is the cell that matters most for the rule's strength: its then-block
+is six calls long and c2 still leaves it **in line**, as the fall-through, and
+branches *over* it to the else. There is no out-of-lining of a cold arm and no
+"shorter arm falls through" heuristic at `/O1` — registered rival **R-C1**
+predicted one and it does not happen.
+
+The join `b` is present only when it is needed. `?d_cold` emits `48000008` to
+skip the else block; `?b_ifelse`, `?b_ifval`, `?MemFree` emit nothing at the end
+of their then-block because it ends in a tail call, and `?d_early` emits nothing
+because its then-block ends in `blr`.
+
+#### 3.4.1 The refutation — `?d_join`, and what it costs
+
+`int d_join(int a,int b){ int r; if(a) r=gi(1); else r=gi(2); return r+b; }`
+
+```text
+0010  2f030000  cmpwi cr6,r3,0
+0014  7c9f2378  mr    r31,r4          ; b, live across the call
+0018  38600001  li    r3,1            ; the THEN block's argument, HOISTED above the branch
+001c  409a0008  bne   cr6,0x24        ; a != 0 -> take the THEN edge
+0020  38600002  li    r3,2            ; the ELSE block, at the fall-through
+0024  4bffffdd  bl    ?gi@@YAHH@Z     ; ONE call, shared by both arms
+0028  7c63fa14  add   r3,r3,r31
+```
+
+Two things happened that §3.4's rule does not describe. c2 **tail-merged** the
+two identical `bl gi` sites into one, which emptied the then-block down to a
+single `li r3,1`; and it then **hoisted that `li` above the compare**, leaving
+the then-block genuinely empty. With an empty then-block the natural layout
+inverts: the fall-through becomes the *else*, and the `bc` carries the *then*
+edge — note the sense is `bne` (branch-if-`a`-true) where every other cell in
+§3.4 emits the negation.
+
+**This is one cell out of eleven and it is stated rather than rounded away.**
+What it establishes is not a competing layout rule; it is that **block order is
+downstream of code motion**, and code motion is a c2 pass this document does not
+and will not characterize. §8 carries it as an explicit limit on the accepted
+class: a body whose arms end in the *same* call is outside anything specified
+here.
+
+### 3.5 The fold table — when a `cflow-if-1` emits no branch at all
+
+This is the section that changes the implementation order, and it is the one
+whose *rule* this lane did not crack. What follows is the measured table, then
+an honest statement of what decides it.
+
+| body | condition | arms | emitted | branch? |
+|---|---|---|---|---|
+| `?a_eq` | `a==b` | `return 1 : 2` | `subf r11,r3,r4 ; cntlzw r11,r11 ; rlwinm r11,r11,27,31,31 ; xori r11,r11,1 ; addi r3,r11,1 ; blr` | **none** |
+| `?a_ne` | `a!=b` | `1 : 2` | as above minus the `xori` | **none** |
+| `?a_eqk` | `a==7` | `1 : 2` | `addi r11,r3,-7` then the same tail | **none** |
+| `?a_else` | `a==b`, explicit `else` | `1 : 2` | **byte-identical to `?a_eq`** | **none** |
+| `?d_early` (3rd if) | `c!=0` | `3 : 4` | `cntlzw ; rlwinm ; addi r3,r11,3` | **none** |
+| `?f_eqzk` | `a==0` | `5 : 9` | `subfic r11,r3,0 ; subfe r11,r11,r11 ; rlwinm r11,r11,0,29,29 ; addi r3,r11,5` | **none** |
+| `?d_switch` (last case) | `a==7` | `70 : 0` | `addi ; li ; addic ; subfe ; and r3,r11,r10` | **none** |
+| `?a_lt` | `a<b` | `1 : 2` | `cmpw cr6,r3,r4 ; li r3,1 ; bltlr cr6 ; li r3,2 ; blr` | **`bclr`** |
+| `?f_eq59` | `a==b` | `5 : 9` | `cmpw ; li r3,5 ; beqlr cr6 ; li r3,9 ; blr` | **`bclr`** |
+| `?f_gt59` | `a>b` | `5 : 9` | `cmpw ; li r3,5 ; bgtlr cr6 ; li r3,9 ; blr` | **`bclr`** |
+| `?f_eq3` | `a==b` | `return c : 9` | `cmpw ; mr r3,r5 ; beqlr cr6 ; li r3,9 ; blr` | **`bclr`** |
+| `?a_store` | `a==0` | `*p=1` / nothing | `cmpwi ; bnelr cr6 ; li r11,1 ; stw r11,0(r4) ; blr` | **`bclr`** |
+| `?f_eqvoid` | `a==b` | two stores / nothing | `cmpw ; bnelr cr6 ; li ; li ; stw ; stw ; blr` | **`bclr`** |
+| `?Pool::Alloc` | `p==0` | early return | `cmplwi ; beqlr cr6 ; lwz ; stw ; blr` | **`bclr`** |
+| `?Pool::Free` | `p==0` | early return | `cmplwi ; beqlr cr6 ; lwz ; stw ; stw ; blr` | **`bclr`** |
+| `?a_var` | `a==b` | `r=1` / `r=2`, joined | `li r11,2 ; cmpw ; bne cr6,+8 ; li r11,1 ; mr r3,r11 ; blr` | **`bc`** |
+| `?f_eqcall` | `a==b` | `return gi(5) : 9` | `cmpw ; bne cr6,+12 ; li r3,5 ; b gi ; li r3,9 ; blr` | **`bc`** |
+| `?MemFree` | `v1==0` | two different calls | §4 | **`bc`** |
+
+Three bands, and the boundaries between them are what an implementer needs:
+
+1. **No branch — a branchless arithmetic select.** Reached only when the
+   relation is `==`/`!=` (or reducible to it: `a==b` → `a−b==0`, `a==7` →
+   `a−7==0`) **and** both arms are constants **and** the constant pair is cheap
+   to build from a 0/1 or 0/−1 mask. `{1,2}` is one `addi`; `{5,9}` from a mask
+   is one `rlwinm`+`addi`; `{70,0}` is one `and`. Ordered relations (`<`, `>`)
+   never fold — their branchless bool spine is 4–6 instructions before the select
+   (`docs/CODEGEN_W6_COMPARE.md` §4.4/§4.5), so the branch is cheaper.
+2. **A conditional return (`bclr`), no label, no displacement.** Reached when one
+   successor **is** the function's epilogue and the other is short enough to fall
+   through. This is the majority band and it covers **both** real `cflow-if-1`
+   functions in `Pool.cpp`.
+3. **A real forward `bc` with a displacement.** Reached when neither arm can be
+   the fall-through-plus-conditional-return: because an arm ends in a transfer
+   that is not the epilogue (`MemFree`'s two tail calls, `f_eqcall`'s tail call),
+   or because both arms have content that joins (`a_var`).
+
+> **The decision between bands 1 and 2 is a c2 cost model and this lane declines
+> it.** `?a_eq` (`a==b → 1:2`) folds; `?f_eq59` (`a==b → 5:9`) does not; `?f_eqzk`
+> (`a==0 → 5:9`) does. Every fitted rule I could state is consistent with the
+> eighteen rows above and none of them is *tested* by them, which per this
+> project's own standard makes it a hypothesis, not a measurement. What the port
+> needs is not the rule but the **boundary of an accepted class**, and §5.1
+> chooses that boundary to sit entirely inside band 3.
+
+**The consequence for the frontier, stated plainly.** Band 2 is why
+`?Pool::Alloc` and `?Pool::Free` — two of the five `cflow-if-1` functions on the
+entire frontier — need **no branch lowering at all**. An implementer who builds
+band 3 and grades on `Pool.cpp` will see no movement and will not know whether
+the branch code is right or the fold code is. Grade on `xboxmem.cpp` (§4).
+
+### 3.6 What control flow does *not* change
+
+Measured, and worth stating because each one is a place work could be wasted:
+
+* **Labels mint no symbols.** `?d_early` and `?d_switch` are leaves with three
+  branch targets each and carry **zero** storage-class-6 records. The only
+  `LABEL` symbols in any obj here are the `$M<n>` pair a **framed** function
+  gets, one at the body offset and one at the section end — exactly
+  `docs/LABEL_COUNTER.md`'s model, with **no** dependence on block count:
+  `?d_goto` (2 blocks) gets `$M2651`/`$M2652`, `?d_cold` (4 blocks) gets
+  `$M2656`/`$M2657`. Registered rival **R-B4** (a `$L` family keyed on blocks) is
+  refuted.
+* **Branches do not force a frame.** `?d_nest`, `?d_early`, `?d_switch`,
+  `?a_var`, `?MemFree`, `?Pool::Free` all branch and are all leaves with **no
+  `.pdata`**. Frame class is decided by calls and saved registers, not by control
+  flow.
+* **No alignment padding is inserted at a branch target.** No loop head in any
+  probe is aligned and no `nop` appears inside a function. Function *starts* are
+  padded to 8 bytes as `docs/CODEGEN_W6_COMPARE.md` §3 records; under `/O1`'s
+  per-function COMDATs the question is mostly moot.
+* **The epilogue block is emitted even when unreachable** (§1 C6). `?b_if`,
+  `?b_and` and `?b_or` each end with a `4e800020` that no path reaches, because
+  every edge into it became a `bclr`. It is a real four bytes of `.text` and it
+  is in the section size.
+
+### 3.7 Loops
+
+Three findings, in decreasing order of how much they change a lowering.
+
+**(a) The back edge is never an unconditional branch.** The IL's back edge is an
+unconditional `3A TOP` (§2.3). In the obj it is always a **conditional** branch —
+`bc` or `bdnz` — and the loop is bottom-tested:
+
+| body | guard | back edge |
+|---|---|---|
+| `?c_callloop` | `cmpwi cr6,r3,0 ; beq cr6,+16` | `addic. r31,r31,-1 ; 4082fff8 bne cr0,-8` |
+| `?d_break` | `cmpwi cr6,r3,0 ; beq cr6,+24` | `addic. r31,r31,-1 ; 4082fff0 bne cr0,-16` |
+| `?c_forcall` | `cmpwi cr6,r3,0 ; ble cr6,+28` | `cmpw cr6,r31,r29 ; 4198ffec blt cr6,-20` |
+| `?d_cont` | `48000014 b +20` — **an unconditional jump *into* the test** | `cmpwi cr6,r31,0 ; 409affec bne cr6,-20` |
+
+`?d_cont` is why prediction C3 scores half: the loop *entry* is not always a
+guard compare. Its source has a `continue`, which makes the test a real join
+target, and c2 enters the loop by jumping to it.
+
+**(b) `for` is straightened; the IL's rotation does not survive.** `?c_forcall`'s
+IL is the §8.2 form — `init · 3a COND · 29 INCR · incr · 29 COND · cond ·
+38 EXIT · body · 3a INCR · 29 EXIT`, i.e. **two** labels and **two** jumps with
+the increment textually above the condition. The obj is a single back edge with
+the increment below the body:
+
+```text
+0018  2f030000  cmpwi cr6,r3,0
+001c  4099001c  ble   cr6,0x38        ; guard
+0020  7fe3fb78  mr    r3,r31          ; <- loop top
+0024  4bffffdd  bl    ?gi@@YAHH@Z
+0028  3bff0001  addi  r31,r31,1       ; the INCREMENT, now below the body
+002c  7fc3f214  add   r30,r3,r30
+0030  7f1fe800  cmpw  cr6,r31,r29     ; the CONDITION, now at the bottom
+0034  4198ffec  blt   cr6,0x20        ; back edge
+0038  7fc3f378  mr    r3,r30
+```
+
+**A lowering that emits the IL's block order literally emits wrong bytes here.**
+Prediction C4, registered with the rival that the rotation survives verbatim;
+the rival is refuted.
+
+**(c) Leaf counted loops become CTR loops — entirely unpredicted.** When the loop
+body contains **no call**, c2 computes the trip count, loads it into the count
+register, and uses `bdnz`:
+
+```text
+?c_while   (int n){ int s=0; while(n){ s=s+n; n=n-1; } return s; }
+    0008  2f0b0000  cmpwi cr6,r11,0
+    000c  4d9a0020  beqlr cr6
+    0010  7d6903a6  mtctr r11
+    0014  7c635a14  add   r3,r3,r11        <- loop top
+    0018  396bffff  addi  r11,r11,-1
+    001c  4200fff8  bdnz  -8               <- BO=16, BI=0
+    0020  4e800020  blr
+```
+
+`?c_for` is the same shape, and `??0Pool@@QAA@HPAXH@Z` — a **real** frontier
+function — is too (`mtctr r10 ; … ; 4200fff4 bdnz -12`). `?c_callloop` and
+`?c_forcall`, whose bodies call, get the compare form instead: CTR is not usable
+across a call.
+
+`bdnz` is `0x42000000 | (BD & 0xFFFC)` — op 16 with `BO = 16` (decrement CTR,
+branch if the result is non-zero) and `BI = 0`. `mtctr rS` is
+`0x7C0903A6 | (rS<<21)`. **Neither instruction exists in the port today**, and
+neither appears anywhere in `docs/`. Any loop rung must decide up front whether
+its accepted class includes leaf counted loops — and if it does, it inherits
+trip-count computation, which is not a CFG problem at all.
+
 ## 4. The minimal instance — `cflow-if-1`, in full
 
 ## 5. The widening order, ranked by TUs
