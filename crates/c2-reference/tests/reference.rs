@@ -164,6 +164,95 @@ fn p0_1_replay_byte_exact() {
     }
 }
 
+/// **The `/Bk` capture path is equivalent to the strace path** (lane w-bk).
+///
+/// `capture_reference_bk_with` keeps the IL bundle because `cl.exe` is told to
+/// (`/Bk<base>`, the vendor's own switch) rather than because strace no-ops the
+/// process's unlinks. This test pins the equivalence for as long as both paths
+/// exist:
+///
+/// 1. every one of the five IL streams is **byte-identical** between the two
+///    captures (the bundle is a pure function of source + flags, not of the
+///    `-il` path — measured first in the w-bk rung, three fixtures);
+/// 2. the c2 argv is token-identical except the `-il` value and the `-Fo`
+///    token — the exact two tokens `replay` swaps;
+/// 3. a replay from the `/Bk`-captured bundle reproduces the `/Bk` leg's own
+///    reference obj **byte-exact** — the P0.1 property holds unchanged on the
+///    strace-free path.
+#[test]
+fn bk_capture_matches_strace_capture_and_replay() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() {
+        eprintln!("SKIP: strace absent (needed for the comparison leg)");
+        return;
+    }
+    if !tc.has_mingw() {
+        eprintln!("SKIP: i686-w64-mingw32-gcc absent (needed to build c2host)");
+        return;
+    }
+    let flags: Vec<String> = ["/Ox", "/GS-", "/c"].iter().map(|s| s.to_string()).collect();
+    for name in ["add3.cpp", "il_call_return.cpp"] {
+        let w = work("bk");
+        let src = fixture(name);
+        let z_src = c2_reference::to_wibo_path(&src.canonicalize().unwrap());
+        let st = tc
+            .capture_reference_with(&z_src, &w.join("st"), &flags, None)
+            .unwrap_or_else(|e| panic!("strace capture failed for {name}: {e}"));
+        let bk = tc
+            .capture_reference_bk_with(&z_src, &w.join("bk"), &flags, None)
+            .unwrap_or_else(|e| panic!("/Bk capture failed for {name}: {e}"));
+
+        // (1) all five streams byte-identical.
+        for suffix in ["ex", "gl", "sy", "in", "db"] {
+            assert_eq!(
+                st.bundle.get(suffix),
+                bk.bundle.get(suffix),
+                "{name}: stream `{suffix}` differs between strace and /Bk capture"
+            );
+        }
+
+        // (2) argv token-identical except the -il value and the -Fo token.
+        assert_eq!(
+            st.c2_argv.len(),
+            bk.c2_argv.len(),
+            "{name}: c2 argv token count differs: {:?} vs {:?}",
+            st.c2_argv,
+            bk.c2_argv
+        );
+        let mut skip_next = false;
+        for (i, (a, b)) in st.c2_argv.iter().zip(bk.c2_argv.iter()).enumerate() {
+            if skip_next {
+                skip_next = false; // the -il value differs by construction
+                continue;
+            }
+            if a == "-il" && b == "-il" {
+                skip_next = true;
+                continue;
+            }
+            if a.starts_with("-Fo") && b.starts_with("-Fo") {
+                continue; // differs by work dir, by construction
+            }
+            assert_eq!(a, b, "{name}: c2 argv token {i} differs");
+        }
+
+        // (3) the P0.1 property on the strace-free leg: replay the /Bk-captured
+        // bundle to the /Bk leg's own /Fo path; must be byte-exact.
+        let ref_path = bk.ref_obj_path.clone();
+        let replay = tc
+            .replay(&bk, &w.join("replay_il"), &ref_path)
+            .unwrap_or_else(|e| panic!("replay of /Bk capture failed for {name}: {e}"));
+        assert_eq!(
+            ObjImage::diff(&bk.ref_obj, &replay),
+            ObjDiff::Identical,
+            "{name}: replay from the /Bk-captured bundle is not byte-exact"
+        );
+        std::fs::remove_dir_all(&w).ok();
+    }
+}
+
 /// **The concurrent-stub-build race** (roadmap #55). Pins the fix for a flake
 /// that made `cargo test --workspace --release` fail several `differential`
 /// tests at once, always green serially and on re-run.
