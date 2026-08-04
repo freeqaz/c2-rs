@@ -12,7 +12,13 @@
 //!    analysis was taken at `/Ox` while the obj it was read against had been
 //!    compiled at the workload's `/O1 /Oi /EHsc /GR …`. `/Ox` does **not** imply
 //!    `/GF`, which is exactly the skew `gl_string_comdat_names` exists to catch.
-//! 3. **Board #195.** The fix for 2 was `cmd_capture`-only. `cmd_compile` kept
+//! 3. **Board #195, and then the whole class.** The fix for 2 was
+//!    `cmd_capture`-only, and a sweep of all **26** dispatch arms afterwards
+//!    found the same shape at **fourteen** more. `mod argv` in `main.rs` is the
+//!    structural answer; the tests at the end of this file check the class
+//!    rather than its instances, and one of them derives its table **from the
+//!    dispatch `match` in the source** so a subcommand added later is covered
+//!    the moment it is dispatched. `cmd_compile` kept
 //!    three `iter().position(|a| a == "--x")` scans — the *original* site of bug
 //!    1 — so `c2rs compile <cpp> --flag /GR-` still accepted and dropped
 //!    `--flag`, an empty `--flags-file` still degraded to `cl.exe`'s own
@@ -228,11 +234,12 @@ fn an_empty_flags_file_is_refused() {
     let w = work("emptyflags");
     let ff = write_flags(&w, "empty.txt", &["# only a comment"]);
     let cpp = s(&fixture());
-    // `census` is deliberately NOT in this list: it reads its `--flags-file`
-    // AFTER `Toolchain::locate()` and does not refuse an empty one, so it still
-    // carries this half of the class. Recorded rather than asserted, because
-    // fixing it is a different function than board #195's.
-    for sub in ["capture", "compile"] {
+    // `census` IS in this list now. It used to read its `--flags-file` *after*
+    // `Toolchain::locate()` and refuse nothing, so an all-comment profile fell
+    // back to `cl.exe`'s own defaults and the `/Gy`-dependent census/gate
+    // cross-check was reported against a profile nobody named — and none of it
+    // was reachable without a toolchain, so no test here could have seen it.
+    for sub in ["capture", "compile", "census"] {
         let out = run(&[sub, cpp.as_str(), "--flags-file", ff.as_str()]);
         assert_eq!(
             out.status.code(),
@@ -457,5 +464,423 @@ fn two_profiles_must_not_produce_one_obj() {
         a.len(),
         digest(&a.iter().flat_map(|(_, v)| v.iter().copied()).collect::<Vec<u8>>()),
     );
+    let _ = std::fs::remove_dir_all(&w);
+}
+
+// ===========================================================================
+// The CLASS, not the instances — `mod argv` and the sweep behind it
+// ===========================================================================
+
+/// `crates/c2-harness/src/main.rs`, for the tests that read the source itself.
+fn main_rs() -> String {
+    let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs");
+    std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("cannot read {}: {e}", p.display()))
+}
+
+/// Strip `//` line comments so a source lint reads code, not prose about code.
+/// (`://` is left alone so a URL survives.)
+fn code_only(src: &str) -> String {
+    src.lines()
+        .map(|l| match l.find("//") {
+            Some(i) if i > 0 && l.as_bytes()[i - 1] == b':' => l,
+            Some(i) => &l[..i],
+            None => l,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// **Every subcommand the dispatcher knows must refuse an unknown option.**
+///
+/// The table is **derived from `main.rs`'s dispatch `match`**, not written out
+/// here. That is the difference between "I fixed the ones I found" and "these
+/// are the last ones": a hand-written list proves completeness only over itself,
+/// and a subcommand added next week would not be in it. This one covers a new
+/// arm the moment it is dispatched.
+///
+/// Needs no toolchain — the refusal is required to happen *before*
+/// `Args::toolchain`, which is the whole point of the seam.
+#[test]
+fn every_subcommand_refuses_an_unknown_option() {
+    let src = code_only(&main_rs());
+    // `"name" => cmd_handler(` — the dispatch arms, top level and sub-dispatch.
+    let mut cmds: Vec<(String, String)> = Vec::new();
+    for line in src.lines() {
+        let l = line.trim();
+        let Some(q0) = l.strip_prefix('"') else { continue };
+        let Some(qe) = q0.find('"') else { continue };
+        let name = &q0[..qe];
+        let after = &q0[qe + 1..];
+        let Some(arrow) = after.find("=> cmd_") else { continue };
+        let handler: String = after[arrow + 3..]
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        if name.is_empty() || name.starts_with('-') {
+            continue;
+        }
+        cmds.push((name.to_string(), handler));
+    }
+    // A parser that matched nothing and a CLI with no subcommands look identical
+    // from the outside — ROADMAP §9.18.8's shape. Pin the count's floor.
+    assert!(
+        cmds.len() >= 26,
+        "the dispatch extractor found only {} arms; it is broken, and a broken \
+         extractor makes this whole test vacuously green. Found: {cmds:?}",
+        cmds.len()
+    );
+
+    // Sub-dispatched arms need their group prefix (`corpus` + `gen`).
+    let group_of = |handler: &str| -> Option<&'static str> {
+        for g in ["corpus", "retrieve", "search"] {
+            if handler.starts_with(&format!("cmd_{g}_")) {
+                return Some(match g {
+                    "corpus" => "corpus",
+                    "retrieve" => "retrieve",
+                    _ => "search",
+                });
+            }
+        }
+        None
+    };
+
+    let mut checked = 0usize;
+    for (name, handler) in &cmds {
+        // The three group dispatchers reject an unknown SUBCOMMAND, which is a
+        // different message; their leaves are covered individually below.
+        if matches!(handler.as_str(), "cmd_corpus" | "cmd_retrieve" | "cmd_search") {
+            continue;
+        }
+        let mut argv: Vec<&str> = Vec::new();
+        if let Some(g) = group_of(handler) {
+            argv.push(g);
+        }
+        argv.push(name);
+        // The unknown option goes FIRST, with no positional at all. Two reasons,
+        // both learned from this test failing on its own first run: `Args::parse`
+        // runs to completion before any handler checks its positionals, so a
+        // missing `<cpp>` cannot mask the refusal; and a trailing positional is
+        // itself refused by the commands that take none (`bench`, `perf`, `gap`),
+        // which made the *surplus-positional* guard fire first and left the
+        // assertion this test exists for unreached. A probe that trips an earlier
+        // guard measures the earlier guard.
+        argv.push("--definitely-not-an-option");
+        let out = run(&argv);
+        checked += 1;
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "`c2rs {}` must exit 2, got {:?}. An option a subcommand does not define \
+             must be REFUSED, never scanned past: an accepted-and-dropped flag makes two \
+             different commands produce one output, which is indistinguishable at the \
+             terminal from a real negative result.\nstdout:\n{}\nstderr:\n{}",
+            argv.join(" "),
+            out.status.code(),
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr),
+        );
+        // A DISTINCT assertion: exiting 2 and saying which argument caused it are
+        // two different properties. Guarded by the one above — see the must-fail
+        // note in this module's header.
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            err.contains("--definitely-not-an-option"),
+            "`c2rs {}` refused correctly but ANONYMOUSLY: the message must NAME the \
+             option it refused, or a user with several arguments cannot tell which one \
+             was rejected; got: {err}",
+            argv.join(" "),
+        );
+    }
+    assert!(
+        checked >= 23,
+        "only {checked} subcommands were actually exercised; the skip list is eating the test"
+    );
+}
+
+/// **`Toolchain::locate` may appear in `main.rs` only inside `mod argv`.**
+///
+/// This is the structural half of the fix, checked rather than trusted. Eight
+/// handlers used to call the free `located()` as their *first* statement, so a
+/// malformed command line exited **0** on a machine with no compilers — a usage
+/// error the binary never reported, and therefore one no test could pin. With
+/// `Args::toolchain(&self)` the only producer, a handler cannot reach a
+/// toolchain until it holds a parsed argument set.
+///
+/// A convention nobody checks is how this class reached fourteen sites.
+#[test]
+fn locate_is_reachable_only_through_the_arg_seam() {
+    let src = code_only(&main_rs());
+    let start = src.find("mod argv {").expect("mod argv is gone — the seam has been removed");
+    let end = src
+        .find("use argv::{")
+        .expect("the `use argv::{...}` that closes the module is gone");
+    assert!(start < end, "module bounds inverted; this lint is not measuring what it thinks");
+
+    let hits: Vec<usize> = src
+        .match_indices("Toolchain::locate")
+        .map(|(i, _)| i)
+        .collect();
+    // If the extractor finds nothing, the lint is vacuous — pin the floor.
+    assert!(
+        !hits.is_empty(),
+        "no `Toolchain::locate` in main.rs at all: this lint is measuring nothing"
+    );
+    let outside: Vec<usize> = hits
+        .iter()
+        .copied()
+        .filter(|&i| !(start..end).contains(&i))
+        .map(|i| src[..i].matches('\n').count() + 1)
+        .collect();
+    assert!(
+        outside.is_empty(),
+        "`Toolchain::locate` is called outside `mod argv` at main.rs line(s) {outside:?}. \
+         The seam exists so that \"parse and validate, THEN locate\" is the only \
+         expressible order; a direct call re-opens the ordering defect, where a bogus \
+         command line exits 0 with `SKIP: toolchain absent` exactly where the portable \
+         test lane runs. Use `Args::toolchain()` / `Args::toolchain_quiet()`."
+    );
+}
+
+/// **`opt()` — the scan helper — must stay dead.**
+///
+/// It was `iter().position(|a| a == key)`, i.e. boards #194/#195's bug wearing a
+/// helper's name, and nine handlers used it. Deleting it is what made the class
+/// unreachable; re-adding one is how it would come back.
+#[test]
+fn the_position_scan_helper_is_not_reintroduced() {
+    let src = code_only(&main_rs());
+    assert!(
+        !src.contains("position(|a| a =="),
+        "main.rs contains a `position(|a| a == ...)` argument scan again. A scan cannot \
+         refuse what it does not look for, so every other argument is invisible by \
+         construction. Add the option to the subcommand's `Spec` instead."
+    );
+}
+
+/// **An argument that is accepted and then never consumed must be refused.**
+///
+/// Every row is a real dangling option found by the sweep: parsed into a
+/// variable that some code path simply ignores. They are one class with the
+/// `--cwd` case boards #194/#195 named, and they are checked together because
+/// fixing them one at a time is what produced three commands with the identical
+/// dangling `--cwd` and only one refusal.
+///
+/// Needs no toolchain.
+#[test]
+fn an_accepted_but_unconsumed_argument_is_refused() {
+    // (argv, the substring the message must contain)
+    let cases: &[(&[&str], &str)] = &[
+        // `--cwd` is consumed only on the `--flags-file` path. THREE commands had
+        // it and only `compile` refused it.
+        (&["capture", "x.cpp", "--cwd", "/tmp"], "--cwd"),
+        (&["census", "x.cpp", "--cwd", "/tmp"], "--cwd"),
+        (&["compile", "x.cpp", "--cwd", "/tmp"], "--cwd"),
+        // `--query-div` is read only on the held-out path.
+        (&["retrieve", "eval", "d", "--split", "loo", "--query-div", "3"], "--query-div"),
+        // Order-dependent contradiction: `--cache X --no-cache` dropped X, while
+        // `--no-cache --cache X` used X.
+        (&["gap", "--list", "a", "--flags-file", "b", "--cache", "X", "--no-cache"], "--no-cache"),
+        (&["gap", "--list", "a", "--flags-file", "b", "--no-cache", "--cache", "X"], "--no-cache"),
+        // Nothing to validate with no cache — it printed the validation line anyway.
+        (
+            &["gap", "--list", "a", "--flags-file", "b", "--no-cache", "--validate-cache", "5"],
+            "--validate-cache",
+        ),
+        // An empty profile falls back to cl.exe's own defaults.
+        // (covered for capture/compile above; census had no such refusal at all)
+    ];
+    for (argv, needle) in cases {
+        let out = run(argv);
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "`c2rs {}` must exit 2, got {:?}. This argument is parsed and then never \
+             consumed on the path it selects, so accepting it runs something other than \
+             what was asked for — in silence.\nstdout:\n{}\nstderr:\n{}",
+            argv.join(" "),
+            out.status.code(),
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr),
+        );
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            err.contains(needle),
+            "`c2rs {}` refused correctly but did not NAME {needle}; a refusal that does \
+             not identify the argument leaves the user guessing. got: {err}",
+            argv.join(" "),
+        );
+    }
+}
+
+/// **A numeric option must refuse a value that is not a number.**
+///
+/// `opt(...).and_then(|s| s.parse().ok())` turned a typo into the default in
+/// silence. The sharpest instance: `search from-lifter --compiles abc` left
+/// `Budget::default()`'s 400 instead of the bounded 200 the handler intends —
+/// a typo doubled the compile budget and nothing said so.
+///
+/// Needs no toolchain.
+#[test]
+fn a_numeric_option_refuses_a_non_number() {
+    let cases: &[(&[&str], &str)] = &[
+        (&["perf", "--port-iters", "abc"], "--port-iters"),
+        (&["perf", "--ref-iters", "abc"], "--ref-iters"),
+        (&["perf-scale", "--port-secs", "abc"], "--port-secs"),
+        // A partly-bad list silently dropped the bad element and ran the rest.
+        (&["perf-scale", "--conc", "1,x,4"], "--conc"),
+        (&["gap", "--list", "a", "--flags-file", "b", "--jobs", "eight"], "--jobs"),
+        (&["gap", "--list", "a", "--flags-file", "b", "--limit", "lots"], "--limit"),
+        (&["listing-scan", "--list", "a", "--flags-file", "b", "--jobs", "eight"], "--jobs"),
+        (&["corpus", "gen", "--seed", "abc"], "--seed"),
+        (&["search", "eval", "--compiles", "abc"], "--compiles"),
+        (&["retrieve", "eval", "d", "--k", "1,x,10"], "--k"),
+    ];
+    for (argv, needle) in cases {
+        let out = run(argv);
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "`c2rs {}` must exit 2, got {:?}. A numeric option whose value does not parse \
+             used to become the DEFAULT in silence, so the run used a number nobody \
+             chose.\nstdout:\n{}\nstderr:\n{}",
+            argv.join(" "),
+            out.status.code(),
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr),
+        );
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            err.contains(needle),
+            "`c2rs {}` refused a bad number but did not NAME {needle}; got: {err}",
+            argv.join(" "),
+        );
+    }
+}
+
+/// **An option with a fixed value set must refuse anything outside it.**
+///
+/// A `_ =>` arm that swallows every unrecognised spelling is the dropped-flag
+/// failure in another costume. `retrieve eval --split heldout` ran leave-one-out's
+/// *opposite* and reported `held-out`; `search eval --moves lenght` ran the full
+/// moveset while **echoing `moves=lenght`** in its own header — a report naming a
+/// configuration it did not run.
+///
+/// Needs no toolchain.
+#[test]
+fn an_enumerated_option_refuses_a_value_outside_its_set() {
+    let cases: &[(&[&str], &str)] = &[
+        (&["retrieve", "eval", "d", "--split", "heldout"], "--split"),
+        (&["search", "eval", "--moves", "lenght"], "--moves"),
+        (&["search", "solve", "x.cpp", "--moves", "short"], "--moves"),
+    ];
+    for (argv, needle) in cases {
+        let out = run(argv);
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "`c2rs {}` must exit 2, got {:?}. An unrecognised value fell through a `_ =>` \
+             arm to the default, and the header then reported the string the user \
+             typed.\nstdout:\n{}\nstderr:\n{}",
+            argv.join(" "),
+            out.status.code(),
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr),
+        );
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            err.contains(needle),
+            "`c2rs {}` refused but did not NAME {needle}; got: {err}",
+            argv.join(" "),
+        );
+    }
+}
+
+/// **Structural refusals the scans could not express**, and one the dispatcher
+/// never even saw. Needs no toolchain.
+#[test]
+fn the_parser_refuses_what_a_scan_could_not_see() {
+    let cases: &[(&[&str], &str)] = &[
+        // `bench` was dispatched as `cmd_bench()`, so its arguments were dropped
+        // by the DISPATCHER — one level above any handler that could refuse them.
+        (&["bench", "--jobs", "4"], "--jobs"),
+        // A repeated single-valued option: first-wins meant `--list a --list c`
+        // ran against `a` while the terminal showed `c`.
+        (&["gap", "--list", "a", "--flags-file", "b", "--list", "c"], "--list"),
+        // A missing value at end of line silently became "option absent".
+        (&["capture", "x.cpp", "--keep-il"], "--keep-il"),
+        // A value that is itself an option: `--seed --count 5` made the seed the
+        // literal string "--count".
+        (&["corpus", "gen", "--seed", "--count"], "--seed"),
+        // A surplus positional: `corpus sample --out /tmp/x` wrote the sample
+        // into a directory literally named `--out`.
+        (&["corpus", "sample", "--out", "/tmp/x"], "--out"),
+        // `prefilter --schema` returned from INSIDE the option loop, so anything
+        // after it was never examined.
+        (&["prefilter", "--schema", "--typo"], "--typo"),
+        // `search solve --d` was advertised by the top-level usage and never read.
+        (&["search", "solve", "x.cpp", "--d", "3"], "--d"),
+        // `census` had no empty-profile refusal at all.
+        (&["diff", "x.cpp", "--flags-file", "f.txt"], "--flags-file"),
+    ];
+    for (argv, needle) in cases {
+        let out = run(argv);
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "`c2rs {}` must exit 2, got {:?}.\nstdout:\n{}\nstderr:\n{}",
+            argv.join(" "),
+            out.status.code(),
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr),
+        );
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            err.contains(needle),
+            "`c2rs {}` refused but did not NAME {needle}; got: {err}",
+            argv.join(" "),
+        );
+    }
+}
+
+/// **The widening control.** Every invocation `scripts/` actually makes must
+/// still be accepted — a parser that refuses everything would pass every test
+/// above and break the gate.
+///
+/// These are toolchain-gated only in the sense that they may print
+/// `SKIP: toolchain absent`; what is asserted is that they do **not** exit 2,
+/// i.e. the parse accepted them. Needs no toolchain.
+#[test]
+fn every_invocation_the_scripts_make_is_still_accepted() {
+    let cpp = s(&fixture());
+    let w = work("accepted");
+    let ff = write_flags(&w, "flags.txt", &["/Ox", "/GS-", "/c"]);
+    let list = w.join("list.txt");
+    std::fs::write(&list, "fixtures/cpp/add3.cpp\n").unwrap();
+    let l = s(&list);
+    let cases: Vec<Vec<&str>> = vec![
+        vec!["selftest"],
+        vec!["selftest", cpp.as_str()],
+        vec!["bench"],
+        vec!["perf"],
+        vec!["diff", cpp.as_str()],
+        vec!["census", cpp.as_str()],
+        vec!["census", cpp.as_str(), "--flags-file", ff.as_str(), "--cwd", "."],
+        vec!["capture", cpp.as_str()],
+        vec!["compile", cpp.as_str()],
+        vec!["gap", "--list", l.as_str(), "--flags-file", ff.as_str(), "--limit", "1", "--jobs", "1"],
+        vec!["prefilter", "--schema"],
+    ];
+    for argv in &cases {
+        let out = run(argv);
+        assert_ne!(
+            out.status.code(),
+            Some(2),
+            "`c2rs {}` is an invocation `scripts/` makes and the parser REFUSED it. \
+             The seam is a widening plus a set of refusals for arguments that were being \
+             dropped; it must not narrow a working command line.\nstderr:\n{}",
+            argv.join(" "),
+            String::from_utf8_lossy(&out.stderr),
+        );
+    }
     let _ = std::fs::remove_dir_all(&w);
 }
