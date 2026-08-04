@@ -1113,13 +1113,41 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
     _shd3="$st/frag-none"; rm -rf "$_shd3"; mkdir -p "$_shd3"
     _sh_run corpus-degenerate-fails 1 "$_shd3"
 
+    # ---- THE GROUND-TRUTH OBJ READER (lanes w-llvm / w-gr) --------------------
+    #
+    # `scripts/gt_dump.py` is the reader every hand-measurement on this project
+    # goes through, and it carried two silent defects for its whole existence:
+    # `/NNN` long section names were returned literally (`crates/c2-obj`,
+    # `tools/coffdump.py` and `llvm-readobj` all resolve them), and three
+    # entries of its relocation table were the **i386** table's — `0x000A` named
+    # SECTION where PPC means ADDR32NB, `0x0013` named SECREL where PPC means
+    # SECRELLO, and `0x000C` absent altogether.
+    #
+    # Neither was reachable by any sweep. `/NNN` appears in **0 of 65,401** real
+    # sections, and `0x000C` needs `/Z7`, which the workload's flag string does
+    # not carry. So they were found by an outside reader (w-llvm) and pinned
+    # here, because a defect no corpus can reach is a defect only an assertion
+    # can hold closed.
+    #
+    # No toolchain, no LLVM: the obj is synthesised in-process.
+    cases=$((cases + 1))
+    if [ -z "$_sh_py" ]; then
+        printf '  FAIL  %-32s no python3\n' gt-dump-selftest
+        fails=$((fails + 1))
+    elif "$_sh_py" "$repo_root/scripts/gt_dump.py" --selftest > "$st/gt_dump.out" 2>&1; then
+        printf '  ok    %-32s %s\n' gt-dump-selftest "$(cat "$st/gt_dump.out")"
+    else
+        printf '  FAIL  %-32s %s\n' gt-dump-selftest "$(tail -1 "$st/gt_dump.out")"
+        fails=$((fails + 1))
+    fi
+
     echo
     # The floor was 15 when the gate covered lanes only; the sweep row took it to
     # 27, w-modes added 3 sweep-classifier cases plus 10 mode-cross cases, and
-    # w-shapes adds 4 corpus-shape cases.
+    # w-shapes adds 4 corpus-shape cases, and w-gr adds the gt_dump reader case.
     # It is a floor on the COUNT, per the standing mitigation — compare a count,
     # never a status — and it must be raised whenever cases are added.
-    if [ "$cases" -lt 44 ]; then
+    if [ "$cases" -lt 45 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1

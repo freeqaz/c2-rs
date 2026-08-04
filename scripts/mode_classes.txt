@@ -10,7 +10,7 @@
 # `scripts/mode_invariance.py` for why those three together are a proof and why
 # no two of them are.
 #
-# A fragment with NO ROW HERE is graded at ALL 12 lanes. That is the fail-safe
+# A fragment with NO ROW HERE is graded at ALL 18 lanes. That is the fail-safe
 # direction and it is deliberate: adding a `sweep.d/` fragment then costs more
 # than it needs to and never less, and nothing is silently excluded by being
 # forgotten. Run this script to buy the reduction back.
@@ -24,56 +24,78 @@
 # construction rather than by re-sampling and hoping the sample hits it.
 # (`--check` still re-derives against a live measurement when you want one.)
 #
-# Measured: 24 cases per fragment (strided), 1068 cases, 12816 cells, registry scripts/lanes.txt.
-#   full cross           175620 gradings
-#   class-reduced cross   61539 gradings  (2.85x smaller)
+# THE `measured-over-lanes` DIRECTIVE below is the same guard on the OTHER axis.
+# The digest closes drift in the fragments; that line closes drift in the
+# REGISTRY. Every row is an exclusion of the lanes it does not name, and it can
+# only exclude lanes that existed when it was measured — so a lane added to
+# `scripts/lanes.txt` afterwards is graded on every case until this table is
+# regenerated, and `--assign` says so out loud. Without it, adding a lane leaves
+# every fragment that has a row silently ungraded at the new lane while the cell
+# count goes UP and the gate stays green. (Lane w-gr, 2026-08-04, found while
+# adding the six `/GR` lanes.) It is not derivable from the rows: a lane can
+# legitimately be named by none of them because it merged everywhere.
+#
+# Measured: 24 cases per fragment (strided), 1294 cases, 23292 cells, registry scripts/lanes.txt.
+#   full cross           295092 gradings
+#   class-reduced cross   76217 gradings  (3.87x smaller)
 #
 # format:  <fragment>  <lane>[,<lane>...]  <case-set digest>  # <equivalence classes>
-10-int-chains               O1,O2,Od,Ox                                  b75c91f072999207  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-20-compare                  O1,O2,Od,Ox                                  af3313b3a8bea520  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-30-fp-leaves                O1,O2,Od,Ox                                  cb4ae45ba5a27731  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-31-fp-params                O1,O2,Od,Ox                                  cc4ad11328a9f9af  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-32-fp-argreg                O1,O2,Od,Ox                                  76c74df7b6cdaf0c  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-33-fp-tail                  O1,O2,Od,Ox                                  7a8d5e25ec9726ad  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-34-volatile-formal          O1,O2,Od,Ox                                  8323f30842232954  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-35-fp-multiarg              O1,O2,Od,Ox                                  6ed77c4d1de6133e  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-40-indirect-load            O1,O2,Od,Ox                                  90a84ac8ba54de1a  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-41-ptr-value-leaves         O1,O2,Od,Ox                                  0815d98c7b2a6d1b  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-42-register-move            O1,O2,Od,Ox                                  534ba32e04bcf237  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-43-locals-scopes            O1,O2,Od,Ox                                  8d72c8b5672c45cc  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-44-member-source-lines      O1,O2,Od,Ox                                  92abd57b6fefba84  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-45-offset-run               O1,O2,Od,Ox                                  431a2e72af6e719b  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-46-source-line-collisions   O1,O2,Od,Ox                                  47a91fc3eab5bf30  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-47-flat-locals              O1,O2,Od,Ox                                  07d886cee90bbe75  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-50-dtor-base                O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  20432b14cb49d01a  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Ox Ox-EHsc
-51-dtor-member              O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  9f2ec10b4de8c454  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Ox Ox-EHsc
-52-callee-name              O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  5d1ad0b84ee438be  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Ox Ox-EHsc
-53-data-symbol-addr         O1,O2,Od,Ox,Ox-Gy                            d794930e90e48ce4  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc Od+Od-EHsc Ox+Ox-EHsc Ox-Gy+Ox-Gy-EHsc
-54-addr-leaves              O1,O2,Od,Ox                                  87b76b344c06a274  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-55-ptr-operands             O1,O2,Od,Ox                                  a34e3e1c436d5a40  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-60-ctor-epilogue            O1,O2,Od,Ox                                  041eb526f60ec6fb  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-61-conversion-2c            O1,O2,Od,Ox                                  c21c5f6ff21b868b  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-62-ctor-base-delegation     O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  be50a7aebdd97603  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Ox Ox-EHsc
-63-emit-order               O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  0dc25c9e21f6d81b  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Ox Ox-EHsc
-70-framed                   O1,O2,Od,Ox                                  281199da02760364  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-71-call-sequence            O1,O2,Od,Ox                                  5f079fac5b4032fb  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-72-member-call              O1,O2,Od,Ox                                  a2dcedd604172fef  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-73-framed-member-call       O1,O2,Od,Ox                                  c1fb3482e4444989  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-74-lit-call-arg             O1,O2,Od,Ox                                  3878cc2b367dbd88  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-75-moved-lit-call-arg       O1,O2,Od,Ox                                  4edb666a22fd8278  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-76-object-receiver          O1,O2,Od,Ox                                  3b09795edd2addf9  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-80-store-leaf               O1,O2,Od,Ox                                  ef7ef4d492b8f1d3  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-81-fp-beside-framed         O1,O2,Od,Ox                                  d974afd33ce34e6b  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-82-store-run                O1,O2,Od,Ox                                  32f2092795b2fba1  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-83-store-load               O1,O2,Od,Ox                                  ce5dc529c6f1c8ba  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-84-lit-run                  O1,O2,Od,Ox                                  f36d9e021c4a6d92  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-90-bool-byte                O1,O2,Od,Ox                                  f236bf3583c130fe  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-93-virtual-byval            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  a0b28c66902dc943  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Ox Ox-EHsc
-95-control-flow             O1,O2,Od,Ox                                  0e6201f4e9467008  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-96-cmp-two-calls            O1,O2,Od,Ox                                  54498160e4f0d7f0  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-97-chained-call             O1,O2,Od,Ox                                  0da73c267d8a6275  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-98-chain-link-arg           O1,O2,Od,Ox                                  d1793a7245305b10  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-98-cmp-order                O1,O2,Od,Ox                                  00d2e2bea4a151dd  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-99-chain-tail-fp-load       O1,O2,Od,Ox                                  b9a2351db8e339c0  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-99-chain-tail-load          O1,O2,Od,Ox                                  4174da2da9a7bd61  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
-99-explicit-return          O1,O2,Od,Ox                                  940948e296c87ca9  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc Ox+Ox-EHsc
+# measured-over-lanes: O1,O1-EHsc,O1-Oi,O1-Oi-EHsc,Ox,Ox-EHsc,Ox-Gy,Ox-Gy-EHsc,O2,O2-EHsc,Od,Od-EHsc,O1-Oi-GR,O1-Oi-EHsc-GR,Ox-GR,Ox-EHsc-GR,Od-GR,Od-EHsc-GR
+10-int-chains               O1,O2,Od,Ox                                  b75c91f072999207  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+20-compare                  O1,O2,Od,Ox                                  af3313b3a8bea520  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+30-fp-leaves                O1,O2,Od,Ox                                  cb4ae45ba5a27731  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+31-fp-params                O1,O2,Od,Ox                                  cc4ad11328a9f9af  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+32-fp-argreg                O1,O2,Od,Ox                                  76c74df7b6cdaf0c  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+33-fp-tail                  O1,O2,Od,Ox                                  7a8d5e25ec9726ad  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+34-volatile-formal          O1,O2,Od,Ox                                  8323f30842232954  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+35-fp-multiarg              O1,O2,Od,Ox                                  6ed77c4d1de6133e  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+40-indirect-load            O1,O2,Od,Ox                                  90a84ac8ba54de1a  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+41-ptr-value-leaves         O1,O2,Od,Ox                                  0815d98c7b2a6d1b  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+42-register-move            O1,O2,Od,Ox                                  534ba32e04bcf237  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+43-locals-scopes            O1,O2,Od,Ox                                  8d72c8b5672c45cc  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+44-member-source-lines      O1,O2,Od,Ox                                  92abd57b6fefba84  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+45-offset-run               O1,O2,Od,Ox                                  431a2e72af6e719b  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+46-source-line-collisions   O1,O2,Od,Ox                                  47a91fc3eab5bf30  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+47-flat-locals              O1,O2,Od,Ox                                  07d886cee90bbe75  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+50-dtor-base                O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  20432b14cb49d01a  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+51-dtor-member              O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  9f2ec10b4de8c454  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+52-callee-name              O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  5d1ad0b84ee438be  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+53-data-symbol-addr         O1,O2,Od,Ox,Ox-Gy                            d794930e90e48ce4  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR Ox-Gy+Ox-Gy-EHsc
+54-addr-leaves              O1,O2,Od,Ox                                  87b76b344c06a274  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+55-ptr-operands             O1,O2,Od,Ox                                  a34e3e1c436d5a40  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+60-ctor-epilogue            O1,O2,Od,Ox                                  041eb526f60ec6fb  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+61-conversion-2c            O1,O2,Od,Ox                                  c21c5f6ff21b868b  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+62-ctor-base-delegation     O1,O1-EHsc,O1-Oi-EHsc-GR,O1-Oi-GR,O2,O2-EHsc,Od,Od-EHsc,Od-EHsc-GR,Od-GR,Ox,Ox-EHsc,Ox-EHsc-GR,Ox-GR be50a7aebdd97603  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O1-Oi-EHsc-GR O1-Oi-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Od-EHsc-GR Od-GR Ox Ox-EHsc Ox-EHsc-GR Ox-GR
+63-emit-order               O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  0dc25c9e21f6d81b  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+64-data-only-tu             O1,O2,Od,Ox,Ox-Gy                            2283018d689b88ce  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR Ox-Gy+Ox-Gy-EHsc
+65-linkage-comdat           O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  06fa8a9c1a52c707  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+66-static-local             O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  3d9ac4d00591c4d0  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+67-eh-try-throw             O1,O1-EHsc,O1-Oi-EHsc-GR,O1-Oi-GR,O2,O2-EHsc,Od,Od-EHsc,Od-EHsc-GR,Od-GR,Ox,Ox-EHsc,Ox-EHsc-GR,Ox-GR fa4bc9557cf7b346  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O1-Oi-EHsc-GR O1-Oi-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Od-EHsc-GR Od-GR Ox Ox-EHsc Ox-EHsc-GR Ox-GR
+68-shift-ops                O1,O2,Od,Ox                                  52c84b8181255d5a  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+69-new-delete               O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  548c8c4e722fa472  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+70-framed                   O1,O2,Od,Ox                                  281199da02760364  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+71-call-sequence            O1,O2,Od,Ox                                  5f079fac5b4032fb  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+72-member-call              O1,O2,Od,Ox                                  a2dcedd604172fef  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+73-framed-member-call       O1,O2,Od,Ox                                  c1fb3482e4444989  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+74-lit-call-arg             O1,O2,Od,Ox                                  3878cc2b367dbd88  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+75-moved-lit-call-arg       O1,O2,Od,Ox                                  4edb666a22fd8278  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+76-object-receiver          O1,O2,Od,Ox                                  3b09795edd2addf9  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+80-store-leaf               O1,O2,Od,Ox                                  ef7ef4d492b8f1d3  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+81-fp-beside-framed         O1,O2,Od,Ox                                  d974afd33ce34e6b  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+82-store-run                O1,O2,Od,Ox                                  32f2092795b2fba1  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+83-store-load               O1,O2,Od,Ox                                  ce5dc529c6f1c8ba  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+84-lit-run                  O1,O2,Od,Ox                                  f36d9e021c4a6d92  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+85-source-file              O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  23ed35772e32c036  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+86-union                    O1,O2,Od,Ox                                  5e7129854f2647ae  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+87-dyninit                  O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc,Ox-Gy,Ox-Gy-EHsc 08b92f93a34be2f1  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2 O2-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR Ox-Gy Ox-Gy-EHsc
+90-bool-byte                O1,O2,Od,Ox                                  f236bf3583c130fe  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+91-rtti-vftable             O1,O1-EHsc,O1-Oi-EHsc-GR,O1-Oi-GR,O2,O2-EHsc,Od,Od-EHsc,Od-EHsc-GR,Od-GR,Ox,Ox-EHsc,Ox-EHsc-GR,Ox-GR 4cb222269f3a3247  # O1+O1-Oi O1-EHsc+O1-Oi-EHsc O1-Oi-EHsc-GR O1-Oi-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od Od-EHsc Od-EHsc-GR Od-GR Ox Ox-EHsc Ox-EHsc-GR Ox-GR
+93-virtual-byval            O1,O1-EHsc,O2,O2-EHsc,Od,Od-EHsc,Ox,Ox-EHsc  a0b28c66902dc943  # O1+O1-Oi+O1-Oi-GR O1-EHsc+O1-Oi-EHsc+O1-Oi-EHsc-GR O2+Ox-Gy O2-EHsc+Ox-Gy-EHsc Od+Od-GR Od-EHsc+Od-EHsc-GR Ox+Ox-GR Ox-EHsc+Ox-EHsc-GR
+95-control-flow             O1,O2,Od,Ox                                  0e6201f4e9467008  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+96-cmp-two-calls            O1,O2,Od,Ox                                  54498160e4f0d7f0  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+97-chained-call             O1,O2,Od,Ox                                  0da73c267d8a6275  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+98-chain-link-arg           O1,O2,Od,Ox                                  d1793a7245305b10  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+98-cmp-order                O1,O2,Od,Ox                                  00d2e2bea4a151dd  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+99-chain-tail-fp-load       O1,O2,Od,Ox                                  b9a2351db8e339c0  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+99-chain-tail-load          O1,O2,Od,Ox                                  4174da2da9a7bd61  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR
+99-explicit-return          O1,O2,Od,Ox                                  940948e296c87ca9  # O1+O1-EHsc+O1-Oi+O1-Oi-EHsc+O1-Oi-EHsc-GR+O1-Oi-GR O2+O2-EHsc+Ox-Gy+Ox-Gy-EHsc Od+Od-EHsc+Od-EHsc-GR+Od-GR Ox+Ox-EHsc+Ox-EHsc-GR+Ox-GR

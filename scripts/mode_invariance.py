@@ -136,16 +136,54 @@ def fragment_digest(srcs):
     return hh.hexdigest()[:16]
 
 
+MEASURED_OVER = "# measured-over-lanes:"
+
+
 def read_classes(path):
-    """`{fragment: ([lane, ...], digest)}` from `scripts/mode_classes.txt`.
+    """`({fragment: ([lane, ...], digest)}, measured_over)` from the class table.
 
     One reader for the table — `scripts/mode_cross.sh` reaches it through
     `--assign`, never with a second parse. Two parses of one file is the "one
     rule, two implementations" shape `docs/GAPS.md` §6 keeps recording.
+
+    `measured_over` is the set of lane slugs the registry held **when the table
+    was measured**, from the `# measured-over-lanes:` directive, or `None` if the
+    table predates it.
+
+    ### Why that second return value exists (lane w-gr, 2026-08-04)
+
+    The per-fragment digest closes drift in the *fragments*: edit a generator and
+    its row stops applying. Nothing closed drift in the *registry*. A row reading
+
+        10-int-chains   O1,O2,Od,Ox   b75c…
+
+    is an exclusion of every lane it does not name — and it was measured against
+    a 12-lane registry. Add a lane and that row silently excludes it, **for every
+    fragment that has a row**, which is all of them. The table's own header warns
+    that "a fragment excluded as invariant is a fragment nothing will ever grade
+    again at the excluded lanes"; the registry axis is the same sentence with the
+    quantifiers swapped, and it was open.
+
+    That is not hypothetical: adding the six `/GR` lanes would have left 57 of 58
+    fragments graded at zero of them while `mode_cross.sh` printed a larger cell
+    count and a green PASS — the new lanes would have appeared in the result
+    table with rows of their own, each grading only the one fragment that happens
+    to have no row yet.
+
+    Note the directive is NOT derivable from the rows: a lane can legitimately
+    appear in no row's lane list because it merged into another everywhere
+    (`O1-EHsc` does today). "Not named by any row" and "not measured" are
+    different facts and only the second is a hole.
     """
     out = {}
+    measured_over = None
     with open(path) as fh:
         for line in fh:
+            if line.startswith(MEASURED_OVER):
+                measured_over = set(
+                    s for s in line[len(MEASURED_OVER):].strip().split(",") if s
+                )
+                continue
             line = line.split("#", 1)[0].strip()
             if not line:
                 continue
@@ -160,7 +198,7 @@ def read_classes(path):
             out[parts[0]] = (sl, parts[2])
     if not out:
         raise SystemExit("%s records no fragments" % path)
-    return out
+    return out, measured_over
 
 
 def h(data):
@@ -220,11 +258,23 @@ CLASSES_HEADER = """\
 # construction rather than by re-sampling and hoping the sample hits it.
 # (`--check` still re-derives against a live measurement when you want one.)
 #
+# THE `measured-over-lanes` DIRECTIVE below is the same guard on the OTHER axis.
+# The digest closes drift in the fragments; that line closes drift in the
+# REGISTRY. Every row is an exclusion of the lanes it does not name, and it can
+# only exclude lanes that existed when it was measured — so a lane added to
+# `scripts/lanes.txt` afterwards is graded on every case until this table is
+# regenerated, and `--assign` says so out loud. Without it, adding a lane leaves
+# every fragment that has a row silently ungraded at the new lane while the cell
+# count goes UP and the gate stays green. (Lane w-gr, 2026-08-04, found while
+# adding the six `/GR` lanes.) It is not derivable from the rows: a lane can
+# legitimately be named by none of them because it merged everywhere.
+#
 # Measured: %d cases per fragment (strided), %d cases, %d cells, registry %s.
 #   full cross          %7d gradings
 #   class-reduced cross %7d gradings  (%.2fx smaller)
 #
 # format:  <fragment>  <lane>[,<lane>...]  <case-set digest>  # <equivalence classes>
+%s%s
 """
 
 
@@ -293,7 +343,17 @@ def assign(args):
     """
     lanes = read_registry(args.registry)
     all_slugs = [s for s, _ in lanes]
-    table = read_classes(args.classes)
+    table, measured_over = read_classes(args.classes)
+
+    # Lanes the table was never measured over. Every row is an EXCLUSION of the
+    # lanes it does not name, and a row can only exclude a lane that existed when
+    # it was measured — so these are added back to every fragment. Fail-safe, and
+    # it self-clears the moment the table is regenerated. See `read_classes`.
+    if measured_over is None:
+        unmeasured = list(all_slugs)
+    else:
+        unmeasured = [s for s in all_slugs if s not in measured_over]
+
     for frag, (sl, _dg) in table.items():
         bad = [s for s in sl if s not in all_slugs]
         if bad:
@@ -332,6 +392,9 @@ def assign(args):
             sl = row[0]
         for s in sl:
             per[s].append(os.path.join(cases_dir, n))
+        for s in unmeasured:
+            if s not in sl:
+                per[s].append(os.path.join(cases_dir, n))
 
     cells = 0
     for s in all_slugs:
@@ -343,6 +406,15 @@ def assign(args):
     print("assigned %d cases over %d lanes = %d cells (full cross would be %d)"
           % (len(cases), len(all_slugs), cells, len(cases) * len(all_slugs)))
     rel = os.path.relpath(args.classes, REPO)
+    if unmeasured:
+        print("  %d lane(s) in %s POSTDATE %s and are graded on EVERY case:"
+              % (len(unmeasured), os.path.relpath(args.registry, REPO), rel))
+        print("      %s" % " ".join(unmeasured))
+        print("    Every row is an exclusion of the lanes it does not name, and a")
+        print("    row cannot exclude a lane that did not exist when it was")
+        print("    measured. Regenerate to buy the reduction back:")
+        print("      scripts/mode_invariance.py --out DIR --per-fragment 24 \\")
+        print("          --write-classes %s" % rel)
     if no_row:
         print("  %d fragment(s) have NO ROW in %s and are graded at ALL %d lanes:"
               % (len(no_row), rel, len(all_slugs)))
@@ -612,7 +684,14 @@ def main():
     # So a partition FINER than the record is fatal; a coarser one is only a note
     # (the table is over-grading, which costs time and never coverage).
     if args.check:
-        rec = read_classes(args.check)
+        rec, rec_over = read_classes(args.check)
+        # A lane the table never measured is treated as un-excluded here too, so
+        # this check reads the table exactly as `assign` does.
+        if rec_over is not None:
+            for frag in rec:
+                extra = [s for s, _ in lanes if s not in rec_over and s not in rec[frag][0]]
+                if extra:
+                    rec[frag] = (rec[frag][0] + extra, rec[frag][1])
         finer = []
         coarser = []
         for frag, reps in sorted(reps_of.items()):
@@ -652,7 +731,9 @@ def main():
                 len(lanes), args.per_fragment, len(picked), len(rows),
                 args.registry.replace(REPO + "/", ""),
                 tot_cases_corpus * nlanes, tot_reps,
-                (tot_cases_corpus * nlanes) / float(max(1, tot_reps))))
+                (tot_cases_corpus * nlanes) / float(max(1, tot_reps)),
+                MEASURED_OVER + " ",
+                ",".join(s for s, _ in lanes)))
             for frag in sorted(reps_of):
                 groups = " ".join(
                     "+".join(g) for g in sorted(frag_refine[frag], key=lambda g: g[0]))

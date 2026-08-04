@@ -31,7 +31,8 @@
 //!    overwrites the other's while the table still shows the expected row count;
 //! 4. at least one lane compiles **`/EH`**, and the `/EHsc` axis is crossed over
 //!    *every* base configuration, which is what the registry claims to be;
-//! 5. at least one lane passes **`/Oi`**;
+//! 5. at least one lane passes **`/Oi`**, and at least one passes **`/GR`** —
+//!    and the *workload's own literal flag string* is a lane;
 //! 6. `/O1` and `/O2` both appear as their own lanes — `/O2` does not exercise
 //!    `OptMode::O1`, so one is not cover for the other;
 //! 7. the registry has at least [`EXPECTED_LANES`] lanes. This is a **floor**:
@@ -64,10 +65,13 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// The lane count as of 2026-07-31: six code-shape configurations crossed with
-/// the exception-handling axis. Asserted as a **floor**, not an equality — see
-/// the module doc.
-const EXPECTED_LANES: usize = 12;
+/// The lane count as of 2026-08-04: six code-shape configurations crossed with
+/// the exception-handling axis (12), plus three *distinguishable* configurations
+/// crossed with `/GR`, themselves crossed with `/EHsc` (6). Asserted as a
+/// **floor**, not an equality — see the module doc.
+///
+/// It read `12` from 2026-07-31 until lane `w-gr` closed the `/GR` hole.
+const EXPECTED_LANES: usize = 18;
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -305,11 +309,188 @@ fn shipped_registry_varies_every_flag_the_workload_depends_on() {
         lanes.iter().map(|l| l.flag_string()).collect::<Vec<_>>().join(" | ")
     );
 
-    println!(
-        "lane registry: {} lanes; /Oi varied by {}",
+    // `/GR` — run-time type information, and the second instance of the exact
+    // hole the registry was built to close. Every TU of the dc3 workload is
+    // compiled `/GR`; for four days after the registry shipped, no lane passed
+    // it. `/GR` is what mints `.rdata$r` — 24,163 sections across 676 of the
+    // workload's 871 objs, and factor C's largest single step (169 -> 590).
+    //
+    // And it is NOT this compiler's default, which is the part worth asserting
+    // rather than remembering: MSVC documents `/GR` as on by default and this
+    // `cl.exe` behaves as `/GR-` without it (measured — `.rdata$r` is present
+    // with `/GR` and absent both without it and with an explicit `/GR-`). So no
+    // amount of new corpus *source* can reach the section; only a lane can.
+    let gr: Vec<&Lane> = lanes
+        .iter()
+        .filter(|l| l.flags.iter().any(|f| f == "/GR"))
+        .collect();
+    assert!(
+        !gr.is_empty(),
+        "NO lane in scripts/lanes.txt passes /GR, over {} lane(s). Every TU of \
+         the dc3 workload is compiled /GR and /GR is NOT this compiler's \
+         default, so nothing any lane grades can contain a single `.rdata$r` \
+         section — the workload has 24,163 of them across 676 objs. This is the \
+         /EHsc hole one flag over, and the /EHsc one produced a live wrong emit \
+         (board #263) at the workload's own flags. Lanes present: {}",
         lanes.len(),
-        oi.iter().map(|l| l.slug.as_str()).collect::<Vec<_>>().join(" ")
+        lanes.iter().map(|l| l.flag_string()).collect::<Vec<_>>().join(" | ")
     );
+    // …and crossed, in both directions, like `/EH`. One bolted-on `/GR` row
+    // beside twelve un-crossed ones is the shape the four historical lanes had.
+    assert!(
+        gr.iter().any(|l| l.has_eh()) && gr.iter().any(|l| !l.has_eh()),
+        "the /GR lanes do not cross the /EH axis. Measured on 230 RTTI cases, \
+         /EHsc moves the RTTI block's position in the section table in 43 of \
+         them at every base configuration, so the cross is a real axis and not \
+         symmetry for its own sake. /GR lanes: {}",
+        gr.iter().map(|l| l.slug.as_str()).collect::<Vec<_>>().join(" ")
+    );
+
+    println!(
+        "lane registry: {} lanes; /Oi varied by {}; /GR varied by {}",
+        lanes.len(),
+        oi.iter().map(|l| l.slug.as_str()).collect::<Vec<_>>().join(" "),
+        gr.iter().map(|l| l.slug.as_str()).collect::<Vec<_>>().join(" ")
+    );
+}
+
+/// The compile-shaping flags the dc3 workload is actually built with, taken from
+/// `work/dc3-workload/flags.txt`:
+///
+/// ```text
+/// /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I …
+/// ```
+///
+/// `/work` is gitignored, so the file cannot be a test dependency — but when it
+/// *is* present it is compared against this constant, so the two cannot drift
+/// apart silently in either direction.
+const WORKLOAD_PROFILE: &[&str] = &["/EHsc", "/GR", "/O1", "/Oi"];
+
+/// The shaping flags of a `cl` command line: everything that is not `/nologo`,
+/// not a `/wd####` warning suppression, not `/c`, and not an `/I <path>` pair.
+/// Returned sorted, because flag order does not change what `cl` emits.
+fn shaping_flags(cmdline: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut skip_next = false;
+    for tok in cmdline.split_whitespace() {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+        match tok {
+            "/I" | "-I" => {
+                skip_next = true;
+            }
+            "/nologo" | "/c" => {}
+            _ if tok.starts_with("/wd") || tok.starts_with("/I") || tok.starts_with("-I") => {}
+            _ => out.push(tok.to_string()),
+        }
+    }
+    out.sort();
+    out
+}
+
+/// **The registry must contain the workload's own literal profile.**
+///
+/// Every hole this registry has had was the same one: a flag the *workload*
+/// compiles with that no *lane* varies. `/EH` was the first (and the `/EHsc`
+/// `eh-bare` slot, board #263, was a live wrong emit found at `/O1 /EHsc`);
+/// `/Oi` was the second, found while measuring the registry; `/GR` was the
+/// third, found four days later by reading `flags.txt` next to the lane list.
+///
+/// Asserting "some lane passes `/GR`" would not have caught `/Oi`, and
+/// asserting "some lane passes `/Oi`" would not have caught `/GR`. Asserting
+/// that the *whole* profile appears as one lane catches the next one too,
+/// whatever it turns out to be — which is the only version of this test that is
+/// not a list of yesterday's mistakes.
+#[test]
+fn the_workloads_own_profile_is_a_lane() {
+    let lanes = load_registry();
+
+    // When the workload manifest is on disk, it is the source of truth and the
+    // constant is checked against it. `/work` is gitignored, so this half is
+    // skipped on a clean checkout — and it says so with a count, never silently.
+    let flags_path = repo_root().join("work/dc3-workload/flags.txt");
+    match std::fs::read_to_string(&flags_path) {
+        Ok(text) => {
+            let measured = shaping_flags(&text);
+            assert_eq!(
+                measured,
+                WORKLOAD_PROFILE,
+                "the dc3 workload's shaping flags in {} are {:?}, but this test's \
+                 WORKLOAD_PROFILE constant says {:?}. The workload moved and the \
+                 registry does not know: update the constant AND add the lane in \
+                 the same commit.",
+                flags_path.display(),
+                measured,
+                WORKLOAD_PROFILE
+            );
+            println!(
+                "workload profile: {:?} (read from {}, {} lanes in the registry)",
+                measured,
+                flags_path.display(),
+                lanes.len()
+            );
+        }
+        Err(_) => println!(
+            "workload profile: {:?} (constant; work/dc3-workload/flags.txt absent \
+             — gitignored, so this is expected on a clean checkout, and the \
+             assertion below still runs against {} lanes)",
+            WORKLOAD_PROFILE,
+            lanes.len()
+        ),
+    }
+
+    let matching: Vec<&Lane> = lanes
+        .iter()
+        .filter(|l| {
+            let mut f: Vec<String> = l.flags.clone();
+            f.sort();
+            f == WORKLOAD_PROFILE
+        })
+        .collect();
+    assert!(
+        !matching.is_empty(),
+        "NO lane in scripts/lanes.txt compiles the dc3 workload's own profile \
+         {:?}, over {} lane(s). Every lane is then grading a configuration the \
+         workload is not built at, and the one it IS built at is graded by \
+         nothing. Both live wrong-emit families found at a workload flag in this \
+         project's history — #263 at /O1 /EHsc, and the /GR gap this assertion \
+         was added for — were exactly this. Lanes present: {}",
+        WORKLOAD_PROFILE,
+        lanes.len(),
+        lanes.iter().map(|l| l.flag_string()).collect::<Vec<_>>().join(" | ")
+    );
+
+    println!(
+        "the workload's own profile is graded by: {}",
+        matching.iter().map(|l| l.slug.as_str()).collect::<Vec<_>>().join(" ")
+    );
+}
+
+/// The `shaping_flags` parser, on the row shapes it has to survive. It is the
+/// one thing between `flags.txt` and the assertion above, and a parser that
+/// silently dropped `/GR` would make that assertion pass on a registry with no
+/// `/GR` lane — absence reading as success, one level in.
+#[test]
+fn shaping_flags_drops_only_what_does_not_shape_the_obj() {
+    // The real line, verbatim.
+    assert_eq!(
+        shaping_flags(
+            "/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport \
+             /I src/xdk/LIBCMT /I src"
+        ),
+        ["/EHsc", "/GR", "/O1", "/Oi"]
+    );
+    // `/I` with the path attached, and the `-` spelling.
+    assert_eq!(shaping_flags("/Ox /Isrc /I foo -Ibar -I baz"), ["/Ox"]);
+    // A flag that shapes the obj must survive even if nobody thought of it.
+    assert_eq!(shaping_flags("/O2 /Gy /GS- /Zi"), ["/GS-", "/Gy", "/O2", "/Zi"]);
+    // Order does not matter; the result is sorted.
+    assert_eq!(shaping_flags("/Oi /GR /O1"), shaping_flags("/O1 /GR /Oi"));
+    // …and an empty command line yields nothing, which is why the caller
+    // compares it against a non-empty constant rather than merely checking it.
+    assert!(shaping_flags("").is_empty());
 }
 
 /// **The cross-product lane must take its modes from the registry too.**

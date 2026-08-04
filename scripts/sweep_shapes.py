@@ -129,6 +129,19 @@ MARKERS = [
     ("string literal",             r'"'),
     ("wide char / L\"\"",          r'\bwchar_t\b|L"'),
     ("new / delete",               r"\bnew\b|\bdelete\b"),
+    # ---- RTTI (lane w-gr, task #40) -----------------------------------------
+    # `.rdata$r` is 24,163 sections over 676 of the workload's 871 objs and was
+    # the last section name the corpus could not produce. The four rows are NOT
+    # interchangeable and the order they are read in matters: `dynamic_cast` and
+    # `typeid` are the shapes one *expects* to mint RTTI and measurably do not
+    # (their `??_R0` descriptors land in `.data`), while the record block hangs
+    # off the **vftable**, which is emitted by whichever TU generates a
+    # constructor or destructor body. A corpus with the first two and not the
+    # last would report three green rows and produce zero `.rdata$r`.
+    ("dynamic_cast",               r"\bdynamic_cast\s*<"),
+    ("typeid",                     r"\btypeid\s*\("),
+    ("virtual inheritance",        r"[:,]\s*(?:public\s+|private\s+|protected\s+)?virtual\b"),
+    ("polymorphic ctor/dtor def",  None),           # special: see markers_of
     ("cast",                       r"static_cast|reinterpret_cast|const_cast|\(\s*(?:int|char|float|double|void|unsigned|long|short)\s*\*?\s*\)\s*\w"),
     ("sizeof",                     r"\bsizeof\b"),
     ("typedef",                    r"\btypedef\b"),
@@ -151,6 +164,14 @@ DATA_DEF = re.compile(
     re.M,
 )
 BYVAL_PARAM = re.compile(r"\(\s*(?!void\b)(?:const\s+)?[A-Z]\w*\s+\w+\s*[,)]")
+# An out-of-line constructor or destructor DEFINITION: `S::S(…){` / `S::~S(…){`,
+# the same class name on both sides. Crossed with `virtual` appearing anywhere in
+# the TU, this is the marker for "a vftable is emitted here" — measured (lane
+# w-gr) to be the one thing that mints `.rdata$r`, and not implied by any of
+# `dynamic_cast`, `typeid`, `virtual`, multiple inheritance or virtual
+# inheritance, each of which produces none on its own.
+CTOR_DTOR_DEF = re.compile(r"\b(\w+)\s*::\s*~?\1\s*\([^)]*\)\s*(?::[^{;]*)?\{")
+VIRTUAL = re.compile(r"\bvirtual\b")
 
 
 def markers_of(src):
@@ -168,6 +189,8 @@ def markers_of(src):
         out.add("namespace-scope data def")
     if BYVAL_PARAM.search(src):
         out.add("struct/class by value param")
+    if VIRTUAL.search(src) and CTOR_DTOR_DEF.search(src):
+        out.add("polymorphic ctor/dtor def")
     return out
 
 
@@ -244,8 +267,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--frag-dir", default=os.path.join(REPO, "scripts/sweep.d"))
     ap.add_argument("--objs", default="", help="capture objs into DIR (needs the toolchain)")
-    ap.add_argument("--flags", default="/O1 /Oi /EHsc",
-                    help="profile for pass B (default: the dc3 workload's own)")
+    # CORRECTED 2026-08-04 (lane w-gr): this default read `/O1 /Oi /EHsc` and
+    # called itself "the dc3 workload's own". `work/dc3-workload/flags.txt` is
+    #   `/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I …`
+    # — short by `/GR`, which is the ONE flag that mints `.rdata$r`, which is
+    # the ONE section this report existed to name as unproducible. So the
+    # instrument was measuring at a profile that could not produce the thing it
+    # was reporting missing, and would have gone on reporting it missing after a
+    # fragment closed it. `/GR` is not this compiler's default: measured, the
+    # section is absent both without the flag and with an explicit `/GR-`.
+    ap.add_argument("--flags", default="/GR /O1 /Oi /EHsc",
+                    help="profile for pass B (default: the dc3 workload's own, "
+                         "verbatim from work/dc3-workload/flags.txt)")
     ap.add_argument("--sample", type=int, default=0, help="cases per fragment for pass B (0 = all)")
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--workload", default=os.path.join(REPO, "work/w-bss/census/sections.jsonl"))
@@ -384,8 +417,31 @@ def main():
               % (os.path.relpath(args.workload, REPO), n_wl, len(wl_names)))
         only_wl = sorted(wl_names - corpus_names)
         print("  section names the WORKLOAD has and the corpus CANNOT produce (%d):" % len(only_wl))
+        # Two of these have never been a shape gap. The census records the two
+        # XDK build-info sections as `.XBLD$W:C1` / `.XBLD$W:C2` (after the
+        # `__C1_*` / `__C2_*` symbols they hold); the COFF section header field
+        # spells both `.XBLD$W`, which is what this reader sees and what every
+        # generated case already produces. They are a NAMING difference between
+        # two readers, not a section the corpus lacks — so they are labelled and
+        # subtracted, and the remainder is printed as its own number. A list
+        # whose every row is a known artefact reads exactly like a list of real
+        # gaps, and this one did for two lanes.
+        artefact = [n for n in only_wl
+                    if any(n.startswith(c) or c.startswith(n) for c in corpus_names)]
+        honest = [n for n in only_wl if n not in artefact]
         for n in only_wl:
-            print("      %s" % n)
+            note = ""
+            if n in artefact:
+                note = "   <-- READER ARTEFACT: the corpus produces %s" % (
+                    " ".join(sorted(c for c in corpus_names
+                                    if n.startswith(c) or c.startswith(n))))
+            print("      %s%s" % (n, note))
+        print("  HONEST REMAINDER — workload names with no corpus spelling at all: %d%s"
+              % (len(honest), ("   " + " ".join(honest)) if honest else ""))
+        if honest:
+            print("    Each is a section no lane and no fragment can reach. Closing one")
+            print("    needs BOTH halves: a scripts/sweep.d/ fragment for the shape and a")
+            print("    scripts/lanes.txt row for the flag. `.rdata$r` needed both.")
         only_corpus = sorted(corpus_names - wl_names)
         if only_corpus:
             print("  and the corpus has that the workload does not (%d): %s"
