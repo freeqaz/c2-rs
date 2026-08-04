@@ -56,17 +56,17 @@
 # Measured on today's corpus: `head -400` covers **1 of the 47 fragments**, and the
 # case that carried board #232 — the live `Port=Mismatch` this sweep found — is
 # **line 9,538 of 14,484**. So every prefix under 66 % of the corpus, i.e. every
-# subset small enough to be worth taking, was STRUCTURALLY BLIND to it. A biased sample of an enumeration defeats the
-# only property the enumeration has (`docs/GAPS.md`: a hand-picked corpus is
-# biased toward the shapes whoever picked it was thinking about — and a prefix of
-# a sorted list is hand-picked by the sort).
+# subset small enough to be worth taking, was STRUCTURALLY BLIND to it. A biased
+# sample of an enumeration defeats the only property the enumeration has
+# (`docs/GAPS.md`: a hand-picked corpus is biased toward the shapes whoever picked
+# it was thinking about — and a prefix of a sorted list is hand-picked by the sort).
 #
 # So `N` now selects every `ceil(total/N)`-th case, which keeps every fragment
 # represented in proportion: the same budget of 400 reaches **46 of 47** fragments
 # (the missing one, `52-callee-name`, is smaller than the stride — a sample is
-# still a sample, and this is the honest count, not "all of them"). It is still a sample and still cannot establish what
-# a full run establishes; `scripts/gate.sh` therefore refuses to print an
-# unqualified PASS over one.
+# still a sample, and this is the honest count, not "all of them"). It cannot
+# establish what a full run establishes; `scripts/gate.sh` therefore refuses to
+# print an unqualified PASS over one.
 #
 # ---- grading is PARALLEL --------------------------------------------------------
 #
