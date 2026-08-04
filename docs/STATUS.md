@@ -14,6 +14,40 @@ cost this project real work more than once.
 
 ## The numbers
 
+> ### ⚠ THE BLOCK BELOW IS STALE — **7 merges and 38 commits** behind master
+>
+> Collected at tree `26306ba`; master is `33cbdbe`. Flagged 2026-08-04 by lane
+> `w-book4`, which **cannot regenerate it** — `status.sh` needs `../dc3-decomp`,
+> which does not resolve from a worktree, and ten of fifteen metrics come back
+> `NO-RESULT` (see *Reproducing any of it* below). **Run
+> `scripts/status.sh --write` from the main repo.** Nothing here is hand-edited
+> into the block; this banner is outside it on purpose.
+>
+> **What moved, and where each figure was measured** — every one is from a landed
+> rung's §1 result table, not from this lane:
+>
+> | metric | block reads | measured at `33cbdbe` | source |
+> |---|---|---|---|
+> | Workspace tests | 706 | **763 passed, 0 failed, 25 targets** | `rungs/2026-08-04-w-label.md` §1 |
+> | Oracle self-test | 225 PASS | **245 PASS / 0 FAIL** | same |
+> | Fixture port gate | 106 Match / 119 n-i of 225 | **118 Match / 0 mismatch / 127 n-i of 245** | same |
+> | Perf geomean | 568× over 106 | **565× over 118** — a change of *population*, not a regression (GAPS §1) | same |
+> | **878-TU scan** | match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7 | **every digit unchanged** | same |
+> | Per-function / emitted census | 706555/2463393 · 38458/178975 | **both unchanged** | same |
+> | Factor **C** | — (prose said 114) | **169** | `rungs/2026-08-04-w-sect.md` §10, re-read at w-label §1 |
+> | `A∧B∧C` · FRONTIER | — (prose said 25 · 17) | **27 · 19** | same |
+>
+> **Seven merges moved TU match by zero, and that is the expected result rather
+> than a bad day** — the same reading the paragraph below already gives for the
+> twelve before them. What they moved instead is the *warranty*: **three
+> independent live wrong-bytes families were found and closed** — board **#259**
+> (six mismatching cases, not the one that was filed), **#263** (the `/EHsc`
+> `eh-bare` slot, at the workload's own `/O1 /EHsc`) and **#276** (a TU that
+> defines data and no functions, older than #232) — and the sweep grew from
+> 14,484 cases to **14,817 reached / 14,721 graded**, with
+> `scripts/mode_cross.sh` added as a second gate row at **63,723 selected /
+> 63,335 graded**.
+
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
 Collected 2026-08-04 · tree `26306ba` · binary `25605666f6b3` · workload `940d07dc`
 
@@ -69,24 +103,48 @@ ever recorded a mismatch**"*. Both halves are false.
   255 commits came back green over a defect none of them could see. Closed at
   `be86f9d` by restoring the refusal — **not** by teaching the writer the shape,
   which is Phase 7 work.
-* Board **#259** is **live on this tip right now**. `struct Bd{Bd();~Bd();int
-  b0;}; struct M:Bd{M();~M();}; struct D:M{D();}; D::D(){} M::~M(){}` reproduces
+* Board **#259** was **live when this paragraph was written and is CLOSED now**
+  — corrected 2026-08-04, and *this page said "live on this tip right now" for
+  two merges after the fix landed*, which is the same class of error as the two
+  sentences retracted above, pointing the other way. `struct Bd{Bd();~Bd();int
+  b0;}; struct M:Bd{M();~M();}; struct D:M{D();}; D::D(){} M::~M(){}` reproduced
   `Port=Mismatch @ offset 8`: the packed `.text` function order is not the `.ex`
-  segment order and the port assumes it is. That TU's `.gl` contains no `0x26`
-  byte, so it is older than #232 and unrelated to it. **No standing instrument
-  enumerates the axis** — the sweep's generator never writes an out-of-line
-  implicitly-sibling destructor.
+  segment order and the port assumed it was. That TU's `.gl` contains no `0x26`
+  byte, so it was older than #232 and unrelated to it. Lane `w-order` closed it
+  at `bbef4bb` — **and found the filed row understated it by 6×**: a 47-TU grid
+  gave **six** live mismatches, the smallest of them *strictly smaller* than the
+  filed reproducer (`struct B{B();~B();int x;}; struct D:B{D();}; D::D(){}
+  B::~B(){}` — four lines, no `0x26`, no implicit anything). The rule is a
+  **dependency order** — a function is emitted only once every function it
+  references *and defines* has been — established against three rivals each
+  killed by its own probe, and it holds at `/O1` too, where it orders the COMDAT
+  sections and therefore the section table, the section indices, the symbol
+  indices and the `.pdata` association numbers.
+* **Two more live wrong emits were found and closed the same day**, by lanes
+  looking for something else: board **#263**, the `/EHsc` `eh-bare` label slot,
+  **at the workload's own `/O1 /EHsc`**; and board **#276**, a TU that defines
+  data and no functions emitted as the bare four-section shell — **older than
+  both #232 and #263**, with *three* standing instruments green on it because
+  none could represent the class.
 
 `scripts/expr_sweep.sh` is now a **row of `scripts/gate.sh`**, re-derived and
-counted like a lane, so the *class* cannot go unwatched again — but #259 says
-plainly what that does and does not buy. **The honest statement is that the port
-is byte-exact on every shape a standing instrument grades, and the set of
-standing instruments is the whole warranty.** Widening the instruments is the
-work; a green gate is a statement about them, not about the port.
+counted like a lane, so the *class* cannot go unwatched again — but #259 said
+plainly what that does and does not buy, and **it did not find #259, #263 or
+#276**. Each of those three was found by a lane that built a probe grid for its
+own rung. **The honest statement is that the port is byte-exact on every shape a
+standing instrument grades, and the set of standing instruments is the whole
+warranty.** Widening the instruments is the work; a green gate is a statement
+about them, not about the port. **Board #283 is the standing measurement of how
+wide they are not: 16 of 56 enumerated shape markers have ZERO cases in the
+generated corpus**, `try`/`throw` among them — so the `/EHsc` axis is graded
+entirely through implicit destructor unwind and never through a written `throw`.
 
 **And read the generated block against the previous one before believing the day
-was productive.** **Twelve merges** landed between tree `88e5ff6` and this one
-(counted: `git rev-list --merges --count 88e5ff6..HEAD`). `c2rs gap` reads
+was productive.** **Twelve merges** landed between tree `88e5ff6` and `26306ba`,
+the tree the block below was collected at
+(counted: `git rev-list --merges --count 88e5ff6..HEAD`). **Seven more have
+landed since, and the same reading holds for them** — see the staleness banner
+above the block, which gives their deltas and their sources. `c2rs gap` reads
 **match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7** — every
 digit unchanged. Per-function census `706555/2463393`, emitted census
 `38458/178975`, the emit-set ceilings `27` / `28` and `338 / 420 / 451`, the
@@ -112,8 +170,8 @@ block's.
 | per-function census | **a driver** — it ranks rungs, and does that superbly | the target. "census → 100 %" is **retired** (§8.1) |
 | emit-set ceiling (28/871 gate-anchored) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
 | emit-set MODEL ceiling (338/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
-| mismatch count | an **alarm** — and on **2026-08-04 it FIRED**, twice over: board #232 (closed) and board #259 (live). Before that it had never fired, and that record was doing more reassuring than it had earned | ~~"it has never fired"~~; and never evidence of correctness, before or after (see the coverage bound) |
-| **generated sweep** (`checked=N mismatches=M`) | 14,484 enumerated small TUs graded against real `c2`, **part of the merge gate since 2026-08-04**. The instrument that found #232 and the only one that grades shapes nobody chose | a substitute for the workload — it enumerates axes somebody thought of, at one fixed profile (`/Ox /GS- /c`), and #259 is a live defect it does not generate |
+| mismatch count | an **alarm** — and on **2026-08-04 it FIRED, four times over**: board **#232**, **#259** (a family of six), **#263** and **#276**. **All four are closed on `33cbdbe`.** Before that day it had never fired, and that record was doing more reassuring than it had earned | ~~"it has never fired"~~; and never evidence of correctness, before or after (see the coverage bound). **Nor is "four found and closed" a completeness claim** — three of the four were found by lanes building probe grids for unrelated rungs, so the rate says more about how many grids were built that day than about how many defects remain |
+| **generated sweep** (`reached=N graded=G mismatches=M`) | enumerated small TUs graded against real `c2`, **part of the merge gate since 2026-08-04**. It read **14,484** when it found #232 and **14,817 reached / 14,721 graded** at `33cbdbe`; **quote it from the run, never from this page**. The instrument that found #232 and the only one that grades shapes nobody chose | a substitute for the workload — it enumerates axes somebody thought of, at one fixed profile (`/Ox /GS- /c`), and it generated **none of #259, #263 or #276**. **`reached` and `graded` differ by 96** — cases the *reference* rejects (board #281), which the driver counted as passes until board #280 separated the two counters |
 | fixture gate | the port's accepted class, graded per fixture | representative of the workload's shape |
 | perf geomean | the project's actual thesis — verifier throughput | comparable across versions. **Always quote it with its fixture count** (GAPS §1): the geomean is taken over the *matched* set, which grows as the port widens, so two geomeans are a change of population, not a regression. It is *also* wall-clock — 623×/653×/689× on three consecutive runs of one binary over the same 100 fixtures. Quote the order of magnitude with the count, never the digits alone. |
 
@@ -125,16 +183,19 @@ block's.
   the right *set* of functions without modelling anything. **This is the hard
   bound on TU match until Phase 7 (the emit-set model) exists** — and **8 are
   already taken**, so every widening rung in the plan, summed, can move the
-  payoff metric by at most **20 more TUs, ever** — and **17 of those 20 are
-  reachable by codegen breadth alone** (`A∧B∧C` = 25 less the 8 matched; the
-  other 3 of A's 28 fail B or C and need section or binding work first). On the
+  payoff metric by at most **20 more TUs, ever** — and **19 of those 20 are
+  reachable by codegen breadth alone** (`A∧B∧C` = **27** less the 8 matched; the
+  other 1 of A's 28 fails B or C and needs section or binding work first). On the
   rest, the port emits one `.text` COMDAT per `.ex` segment and is wrong about
   the *set* regardless of how correctly it lowers each body.
 
-  These were `6 / 22 / 16` until 2026-08-04. Two of A's 28 converted (§10.21)
-  and the writer's section vocabulary grew, which moved three more TUs inside C
-  — so `A∧B∧C` went 22 → **25** and the frontier 16 → **17** while A itself did
-  not move at all. The bound's *structure* is unchanged; only its counts are.
+  These were `6 / 22 / 16` until 2026-08-04, then `8 / 25 / 17`, and read
+  **`8 / 27 / 19`** at `33cbdbe`. Two of A's 28 converted (§10.21) and the
+  writer's section vocabulary grew twice — first w-r1c's three names, then
+  w-sect's `.data`/`.bss` writer — which moved five more TUs inside C in total
+  **while A itself never moved at all**. The bound's *structure* is unchanged;
+  only its counts are, and they have now changed three times in one day, which is
+  the argument for reading them off a scan rather than off this page.
 
   **Two numbers, because there are two splitters and only one is the port's**
   (§10.11, §10.15, §10.18). `LO`-anchored counts `.ex` segments on the `4C 4F 11`
@@ -171,8 +232,9 @@ All four are printed by every `c2rs gap` run:
 |---|---|---:|
 | A | `.ex` segments == `.text` COMDATs | 28 |
 | B | every emitted symbol binds | **338** |
-| **C** | **obj section set ⊆ what the port's COFF writer can emit** | **114** |
+| **C** | **obj section set ⊆ what the port's COFF writer can emit** | **169** |
 | D | every emitted COMDAT in the port's codegen class | 8 |
+| E | at least one **registered** whole-TU recognizer accepts this bundle | 2 |
 
 **D is no longer necessary for a match.** Factor D's proxy is the *per-function*
 census verdict, which structurally cannot model a *whole-TU* emitter — so the two
@@ -184,14 +246,23 @@ per-function census a whole-TU fact would break the census/gate symmetry the
 `census/gate disagreement: 0` line tracks. A red control that is understood and
 documented is worth more than a green one that was adjusted to go green.
 
-**C = 114 is still 2.96× tighter than B = 338.** A perfect emit-set model *and* a
-perfect binding reach at most **B∧C = 107** on the writer's present 9 section
-names. The good news is that C is the one factor that is **bounded**: this
-workload uses **13** section names, and after w-r1c added `.bss`, `.CRT$XCU` and
-`.text$yc` to the writer, **four** additions close it — `.data` 169,
-**`.rdata$r` 590**, `.text$yd` 804, `.xdata$x` **871**. (C was 84 with a
-six-name writer and a seven-step ladder; the step sizes below the top are not
-comparable across that change, because the ladder is greedy and re-ranks.)
+**C = 169 is still 2.00× tighter than B = 338.** The good news is that C is the
+one factor that is **bounded**: this workload uses **13** section names, the
+writer now emits **10** (`PORT_WRITER_SECTIONS`,
+`crates/c2-core/src/coff/function.rs:32`), and **three** additions close it —
+**`.rdata$r` 590**, `.text$yd` 804, `.xdata$x` **871**.
+
+> **⚠ `B∧C` is UNVERIFIED and the figure below used to be quoted here.** *"A
+> perfect emit-set model and a perfect binding reach at most `B∧C` = 107"* was
+> measured at **C = 114** and no scan has published it at 169. **The ladder is
+> greedy, so every addition re-ranks the steps below it** and 107 cannot be
+> extrapolated. Re-quote it from `c2rs gap`, which prints it. Corrected 2026-08-04
+> by lane `w-book4` — this page carried `C = 114` / *"9 section names"* / a
+> four-step ladder for two merges after w-sect's writer landed.
+
+(C was 84 with a six-name writer and a seven-step ladder, 114 with nine names and
+four steps; the step sizes below the top are not comparable across those changes,
+because the ladder is greedy and re-ranks.)
 
 **Two corrections you must not re-derive from §10.19** (ROADMAP **§10.20**):
 
@@ -206,10 +277,24 @@ comparable across that change, because the ladder is greedy and re-ranks.)
   13 holds empirically; re-run that grep before any new corpus inherits it.
 
 **C is necessary, not sufficient** — reaching C = 871 converts nothing on its
-own; only codegen converts. And **the pre-Phase-7 frontier is 17**: `A∧B∧C` = 25
-with 8 already matched, so 17 graded TUs are reachable by codegen breadth alone
-and the other 3 of A's 28 need section or binding work first. `gap.rs` prints
-those 17 by name each scan as the **FRONTIER**. Board **#160**.
+own; only codegen converts. And **the pre-Phase-7 frontier is 19**: `A∧B∧C` = 27
+with 8 already matched, so 19 graded TUs are reachable by codegen breadth alone
+and the other 1 of A's 28 needs section or binding work first. `gap.rs` prints
+those 19 by name each scan as the **FRONTIER**. Board **#160**.
+
+**And the frontier is PRICED, which is the number to read next to it.** Lane
+`w-conv` compiled all 17 (as it then stood) at the workload's own flags,
+disassembled every code section and hand-counted the independent refusals per TU:
+**the minimum over the seventeen is 6**, the cheapest *framed-and-branching* one
+is **9**, and the standing decline clause — *a frontier TU at ≥ 4 independent
+refusals is not a target* — **fires on all seventeen**. `negate_test.cpp`
+re-derives at 9 by a different partition than w-cross's, which is the cross-check.
+So `8 → 27` is real headroom **and there is no cheap TU left in it**: every step
+costs ≥ 6 facts, and the counts are *lower bounds* because w-conv stopped counting
+each row once the clause had fired. Board **#269**. (The dump that row cites,
+`work/w-conv/frontier_dis.txt`, **was never committed** — the hand-count is in
+`work/w-conv/PREREG.md` §1.1–§1.2 prose and reproduces via `work/w-frame/refobj.sh`
+plus `scripts/gt_dump.py` per TU.)
 
 ---
 
@@ -309,18 +394,26 @@ scripts/status.sh --check         # prove the collector, no toolchain needed
 | fixture gate + speedup | `cargo run --release -p c2-harness --bin c2rs -- perf` |
 | the 878-TU workload scan | `c2rs gap --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16` |
 | regenerate the workload inputs | `scripts/gen_dc3_workload.sh <dc3-tree>` |
-| **the merge gate** (12 lanes **+ the 14,484-case sweep**) | `scripts/gate.sh --jobs 8` — ~1 min 34 s |
-| the sweep alone | `scripts/expr_sweep.sh` (`C2RS_SWEEP_JOBS=8`; ~1 min 26 s, or 9 min 51 s serial) |
+| **the merge gate** (12 mode lanes **+ the generated sweep + the mode cross**) | `scripts/gate.sh --jobs 8` — `12/12 PASS, 2,940 verdicts` at `33cbdbe` |
+| the sweep alone | `scripts/expr_sweep.sh` (`C2RS_SWEEP_JOBS=8`; ~1 min 26 s, or 9 min 51 s serial). Reads `14817/14817 reached, 14721 graded, 0 mismatch` at `33cbdbe` — **`reached` and `graded` are different numbers and the gap is board #281** |
+| the mode cross alone | `scripts/mode_cross.sh` — the generated corpus × the lane registry, `63,723 selected, 63,335 graded, 0 mismatch`; ~5 m 45 s cold, **13.8 s warm** on the capture cache (board #279) |
 | cross-product lane | `scripts/cross_sweep.sh` |
 | **board coverage** (no toolchain) | `scripts/board_audit.sh` — every `#N` `ROADMAP.md` cites that [`BOARD.md`](BOARD.md) has no row for |
 | throughput vs concurrency | `c2rs perf-scale --csv docs/perf/perf_scale.csv` |
 
 `status.sh` deliberately does **not** run the merge gate or the cross-product:
 those answer *"is this tree safe to land"*, which is a different question from
-*"where is this project"*. **The sweep is no longer a separate thing to remember
-— it is inside `gate.sh`** (board #232), which is why the gate went from ~7 s to
-~1 min 34 s and why that is the right price. Run the gate before landing; run
-`status.sh` to report.
+*"where is this project"*. **Neither the sweep nor the mode cross is a separate
+thing to remember any more — both are rows of `gate.sh`** (board #232, #279),
+which is why the gate went from ~7 s to minutes and why that is the right price.
+Run the gate before landing; run `status.sh` to report.
+
+**Two open items about the gate's own cost and coverage, so they are not
+rediscovered:** it grades the same `/Ox` case corpus **twice**, once uncached
+through `c2rs diff` and once cached through `c2rs gap` — not the same check, since
+only `diff` asserts the reference *replay* is byte-exact (board **#282**) — and
+**16 of 56 enumerated shape markers have zero cases in the generated corpus at
+all** (board **#283**, closure in flight).
 
 **Run `status.sh` from the main repo, or set `C2RS_DC3`.** A worktree sits three
 directories down, so the default `<repo>/../dc3-decomp` does not resolve from
@@ -366,5 +459,7 @@ largest single file in the project is the member-call decode
 | what each blocker holds hostage, per rung | [`GAPS.md`](GAPS.md) |
 | what landed, when, and for how much census | [`rungs/INDEX.md`](rungs/INDEX.md) |
 | the correctness rule and the invariants | [`ROADMAP.md`](ROADMAP.md) §7, `../CLAUDE.md` |
-| **what the CFG step must emit** — and why 15 of the 17 FRONTIER TUs need it | [`CFG_SHAPE.md`](CFG_SHAPE.md) |
+| **what the CFG step must emit** — and why **15 of the 17** FRONTIER TUs need it (measured by `w-front` when the frontier was 17; it is **19** now and the two new members are ungraded on this axis) | [`CFG_SHAPE.md`](CFG_SHAPE.md) |
+| **what the label counter charges, and the two channels it is NOT in** — `#286`/`#287` close "derive it from the blocks" | [`LABEL_COUNTER.md`](LABEL_COUNTER.md) §4.1 |
+| **why `/Ox` and `/O1` differ in more than a register field** — the refutation, and the three reasons the `else` arm is out of reach | [`OPT_MODE.md`](OPT_MODE.md) §3.0 |
 | the `.data`/`.bss` layout spec — allocator settled, walk order open | [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) |
