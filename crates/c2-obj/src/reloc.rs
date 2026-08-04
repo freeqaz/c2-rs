@@ -267,9 +267,11 @@ impl ObjImage {
             let mut n = u16::from_le_bytes([b[o + 32], b[o + 33]]) as usize;
             let chars = u32::from_le_bytes([b[o + 36], b[o + 37], b[o + 38], b[o + 39]]);
             if n == 0 || ptr == 0 {
-                // A section with no relocations must also have no pointer to
-                // them; a pointer with a zero count is a malformed header, not
-                // an empty table to skip past quietly.
+                // A nonzero count with a null `PointerToRelocations` is a
+                // malformed header, not an empty table to step past quietly —
+                // stepping past it is how a short list gets returned. The
+                // reverse (a stale pointer with a zero count) is harmless and is
+                // skipped.
                 if n != 0 {
                     return None;
                 }
