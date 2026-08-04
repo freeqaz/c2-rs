@@ -1796,6 +1796,89 @@ impl StringTable {
 mod tests {
     use super::*;
 
+    /// Five representative objs from the three pre-existing emitters, reduced to
+    /// `(length, CRC)` — a byte-level pin taken **before** the shared-primitive
+    /// refactor that `emit_dyninit_obj` needed, so that refactor could be proved
+    /// output-preserving rather than asserted to be.
+    ///
+    /// `emit_obj`, `emit_comdat_obj` and `emit_empty_obj` had their section
+    /// layout, section-header writing and 11-symbol shell open-coded three times
+    /// over; the dynamic-initializer obj needs a `.bss` section whose
+    /// `SizeOfRawData` is non-zero while it contributes **no** file bytes, which
+    /// touches all three of those. A fourth open-coded copy is this file's
+    /// recorded defect shape (see the `emit_framed_obj` note above), so the
+    /// copies were merged instead — and this test is what said the merge changed
+    /// nothing. It is not a spec: if a *deliberate* change to one of those three
+    /// emitters lands, re-derive these numbers from the reference obj, never from
+    /// the port.
+    fn obj_fingerprints() -> Vec<(&'static str, usize, u32)> {
+        let mk_call = || Function {
+            calls: vec![Call { reloc_offset: 0x0C, callee: "?g@@YAHH@Z" }],
+            frame: Some(Frame { prolog_len: 0x0C, func_len: 0x24 }),
+            ..Function::plain("?f@@YAHH@Z", 0)
+        };
+        let mk_data = || Function {
+            calls: vec![Call { reloc_offset: 12, callee: "?gsp@@YAXPAHH@Z" }],
+            data_refs: vec![DataRef { hi_off: 0, lo_off: 8, name: "?gI@@3HA" }],
+            ..Function::plain("?a7@@YAXXZ", 0)
+        };
+        let mk_fp = || Function {
+            is_float: true,
+            fp_refs: vec![crate::codegen::FpConstRef {
+                hi_off: 0,
+                bits: 0x3FF0_0000_0000_0000,
+                double: false,
+            }],
+            ..Function::plain("?fc@@YAMXZ", 0)
+        };
+        let blr = crate::codegen::encode_blr().to_vec();
+        let objs: Vec<(&'static str, Vec<u8>)> = vec![
+            ("empty", emit_empty_obj(r"Z:\tmp\anat\mvp.obj")),
+            ("mvp", emit_mvp_obj(r"Z:\tmp\anat\mvp.obj", "?add3@@YAHHHH@Z", &[0u8; 12])),
+            ("framed", emit_obj(r"Z:\t\f.obj", &[mk_call()], &[0u8; 0x24], 2536)),
+            ("dataref", emit_obj(r"Z:\t\a7.obj", &[mk_data()], &[0u8; 16], 2536)),
+            ("fppool", emit_obj(r"Z:\t\fc.obj", &[mk_fp()], &[0u8; 12], 2536)),
+            (
+                "comdat",
+                emit_comdat_obj(
+                    r"Z:\t\s.obj",
+                    &[mk_call(), mk_data()],
+                    &[vec![0u8; 0x24], vec![0u8; 16]],
+                    2536,
+                ),
+            ),
+            (
+                "comdat_plain",
+                emit_comdat_obj(
+                    r"Z:\x.obj",
+                    &[
+                        Function::plain("?SpewInit@@YAXXZ", 0),
+                        Function::plain("?SpewTerminate@@YAXXZ", 0),
+                    ],
+                    &[blr.clone(), blr],
+                    0,
+                ),
+            ),
+        ];
+        objs.into_iter().map(|(k, o)| (k, o.len(), coff_checksum(&o))).collect()
+    }
+
+    #[test]
+    fn the_three_pre_existing_emitters_are_byte_stable() {
+        assert_eq!(
+            obj_fingerprints(),
+            vec![
+                ("empty", 668, 0x7E17_6256u32),
+                ("mvp", 790, 0x8036_8217),
+                ("framed", 984, 0x529B_5631),
+                ("dataref", 883, 0x187A_138D),
+                ("fppool", 949, 0x1EEB_0597),
+                ("comdat", 1207, 0xB4F7_683C),
+                ("comdat_plain", 891, 0xC7A4_226B),
+            ]
+        );
+    }
+
     #[test]
     fn drectve_is_132_bytes() {
         assert_eq!(DRECTVE.len(), 132, "drectve must be exactly 132 bytes");
