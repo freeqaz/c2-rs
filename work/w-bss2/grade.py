@@ -11,10 +11,62 @@ import json, os, sys, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import models, glparse, paths
+import models, glparse, paths, prov
 
 SEC = paths.SECTIONS
 GLC = os.path.join(HERE, "glcensus.jsonl")
+
+# ---------------------------------------------------------------- incumbents
+# The graded POPULATION, not a rate.  w-repro measured that moving the corpus to
+# another directory leaves every printed rate healthy (94.0 % -> 93.5 %, 100 % ->
+# 100 %) while the denominator quietly loses 20 %: MSVC's `?A0x<hash>`
+# anonymous-namespace mangling is path-derived, so 48 TUs' symbols stop joining.
+# `docs/STATUS.md` trap 5 -- absence reads as success unless something forbids
+# it.  This is the thing that forbids it.
+INCUMBENT = {
+    "bss": dict(cells=117, skipped=4),
+    "data": dict(cells=69, skipped=1),
+}
+INCUMBENT_AT = "dc3 940d07dc at ../dc3-decomp (lane w-prov, 2026-08-04)"
+# The PRIOR incumbent and the corpus it was taken at, kept rather than
+# overwritten: `docs/OBJ_DATA_BSS_SHAPE.md` publishes `.bss` 110/117 and `.data`
+# 68/68, measured against a `sections.jsonl` built at dc3 `86357b58`.
+# Regenerating that census at `940d07dc` changed 18 of 871 TU records and moved
+# the `.data` population 68 -> 69; the RATE stayed 100 %, which is precisely why
+# the population is what gets checked. `.bss` did not move at all.
+PRIOR = ("dc3 86357b58: .bss 117 (110/117 pure bump), .data 68 (68/68) — "
+         "docs/OBJ_DATA_BSS_SHAPE.md, rungs/2026-08-04-w-bss2.md")
+# The same two numbers measured at a DIFFERENT directory, so the failure this
+# check exists to catch is named with its own magnitude and cannot be mistaken
+# for noise.
+MOVED_PATH = dict(bss=(93, 28), data=(53, 17))
+
+
+def check_provenance(strict=True):
+    """Refuse to join two censuses that were not taken against the same corpus,
+    at the same directory, with the same flags.
+
+    Returns the two stamps.  Raises SystemExit(2) rather than returning a
+    boolean: a checker that returns False is one forgotten `if` away from being
+    a no-op, which is how this project got here.
+    """
+    try:
+        a = prov.read(SEC)
+        b = prov.read(GLC)
+        prov.require_join(SEC, a, GLC, b)
+        prov.require_input(b, "sections_sha256", SEC)
+    except prov.ProvError as e:
+        if strict:
+            print(prov.banner(e), file=sys.stderr)
+            print("\nRe-run with --no-prov-check to grade anyway. The scores\n"
+                  "will be tagged UNVERIFIED, because they are.", file=sys.stderr)
+            sys.exit(2)
+        print(prov.banner(e), file=sys.stderr)
+        return None, None
+    print("provenance OK")
+    print("  sections.jsonl  %s" % prov.describe(a))
+    print("  glcensus.jsonl  %s" % prov.describe(b))
+    return a, b
 
 
 def load():
@@ -104,8 +156,58 @@ def walks(c):
             "ascending id, no split": gid}
 
 
+def population_check(kind, cells, skipped):
+    """Compare a COUNT, never a status (`docs/STATUS.md` trap 5's mitigation).
+
+    Returns True when the graded population is the incumbent one.  The rates are
+    NOT consulted: the whole point is that they stay healthy while this moves.
+    """
+    inc = INCUMBENT[kind]
+    n = len(cells)
+    absent = skipped.get("symbol absent from .gl", 0)
+    total = n + sum(skipped.values())
+    share = 100.0 * absent / max(1, total)
+    inc_share = (100.0 * inc["skipped"]
+                 / max(1, inc["cells"] + inc["skipped"]))
+    ok = (n == inc["cells"])
+    print("  POPULATION %-4s graded %3d  incumbent %3d  %s"
+          % (kind, n, inc["cells"],
+             "OK" if ok else "*** CHANGED by %+d (%+.1f %%) ***"
+             % (n - inc["cells"],
+                100.0 * (n - inc["cells"]) / inc["cells"])))
+    if absent:
+        flag = "WARNING" if share > inc_share + 1e-9 else "note"
+        print("  %s  'symbol absent from .gl': %d of %d candidate sections "
+              "(%.1f %%; incumbent %.1f %%)"
+              % (flag, absent, total, share, inc_share))
+        if flag == "WARNING":
+            mp_cells, mp_absent = MOVED_PATH[kind]
+            print("           A rising share here is the path-bound join "
+                  "failing symbol by symbol.")
+            print("           Measured at a moved corpus path: %s graded %d "
+                  "(vs %d), absent %d (vs %d)."
+                  % (kind, mp_cells, inc["cells"], mp_absent, inc["skipped"]))
+    if not ok:
+        print("           The RATES below are computed on a DIFFERENT "
+              "population and will look fine either way.")
+        print("           Incumbent measured at: %s" % INCUMBENT_AT)
+        print("           Prior:                 %s" % PRIOR)
+    return ok
+
+
 def main():
+    strict = "--no-prov-check" not in sys.argv
+    if not strict:
+        bar = "=" * 72
+        print(bar)
+        print("UNVERIFIED — provenance checking was disabled with "
+              "--no-prov-check.")
+        print("Every score below is a claim about a corpus nobody wrote down.")
+        print(bar)
+    check_provenance(strict)
     secs, gls = load()
+    global POP_OK
+    POP_OK = True
 
     r0_ok = r0_n = 0
     for src, rec in secs.items():
@@ -127,6 +229,7 @@ def main():
         pure = [c for c in cells if c["bump"]]
         print("\n=== %s: %d non-COMDAT sections with >=2 symbols   skipped %s"
               % (kind, len(cells), dict(skipped)))
+        POP_OK &= population_check(kind, cells, skipped)
         print("  pure bump allocation in ascending-address order: %d/%d"
               % (len(pure), len(cells)))
         rows = []
@@ -186,4 +289,16 @@ def r3(cells):
 
 
 if __name__ == "__main__":
+    POP_OK = True
     main()
+    if not POP_OK and "--allow-population-change" not in sys.argv:
+        print("\n" + "=" * 72, file=sys.stderr)
+        print("GRADED POPULATION CHANGED — exiting 3.", file=sys.stderr)
+        print("The rates above are real, and they are about a different set of\n"
+              "sections than the incumbent. A percentage that stays healthy\n"
+              "while its denominator shrinks is docs/STATUS.md trap 5; this is\n"
+              "the thing that forbids it. If the change is intended (a genuinely\n"
+              "new corpus), re-run with --allow-population-change and RECORD the\n"
+              "new population as the incumbent.", file=sys.stderr)
+        print("=" * 72, file=sys.stderr)
+        sys.exit(3)

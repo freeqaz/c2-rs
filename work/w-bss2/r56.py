@@ -121,6 +121,16 @@ for label, src, names in cells:
     if r:
         g = [n for n in r["gl"] if n in names]
         ad = [n for n in r["addr"] if n in names]
-        gid = [n for n in sorted(names, key=lambda x: r["glrec"][x]["gid"])]
+        # `names` is a SET, and Python's sort is stable, so sorting it by `gid`
+        # alone resolves a tie in set-iteration order — which depends on
+        # PYTHONHASHSEED and therefore varies between processes. w-repro found
+        # this and measured it LATENT, not live: five runs at seeds 0–4 were
+        # byte-identical, because these probe cells are small enough that no
+        # `gid` tie occurs. Tie-break on `.gl` file order so that stops being
+        # true by luck before anyone enlarges the grid. (grade.py:96 already
+        # sorts by `(gid, i)`; this makes r56 agree with it.)
+        _glidx = {n: i for i, n in enumerate(r["gl"])}
+        gid = sorted(names, key=lambda x: (r["glrec"][x]["gid"],
+                                           _glidx.get(x, 1 << 30)))
         print("      R6 addr==.gl:%-5s   R6' addr==declaration(id):%-5s"
               % (ad == g, ad == gid))

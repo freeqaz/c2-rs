@@ -395,8 +395,22 @@ block="$work_dir/block.md"
     printf '<!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->\n'
     _head=$(cd "$repo_root" && git rev-parse --short HEAD 2>/dev/null || echo '?')
     (cd "$repo_root" && git diff --quiet HEAD 2>/dev/null) || _head="$_head-dirty"
-    printf 'Collected %s · tree `%s` · binary `%s`\n\n' \
-        "$(date '+%Y-%m-%d')" "$_head" "$identity"
+    # The WORKLOAD commit belongs in the stamp too. Half the numbers below are
+    # measured against `../dc3-decomp`, which is a LIVE repo other agents merge
+    # into: the census moved 706402/2463318 -> 706552/2463393 across one
+    # morning's dc3 commits with `crates/` untouched, and nothing on this page
+    # said which corpus either figure described. A workload-versioned number
+    # whose corpus is unrecorded is not reproducible, and two of them are not
+    # comparable. (Lane w-repro; lane w-prov measured the attribution.)
+    _wl='?'
+    if [ -d "$dc3" ]; then
+        _wl=$(cd "$dc3" && git rev-parse --short HEAD 2>/dev/null || echo 'UNVERSIONED')
+        if [ "$_wl" != 'UNVERSIONED' ]; then
+            (cd "$dc3" && git diff --quiet HEAD 2>/dev/null) || _wl="$_wl-dirty"
+        fi
+    fi
+    printf 'Collected %s · tree `%s` · binary `%s` · workload `%s`\n\n' \
+        "$(date '+%Y-%m-%d')" "$_head" "$identity" "$_wl"
     printf '| metric | value |\n|---|---|\n'
     printf '%s\n' "$METRICS" | grep '[^[:space:]]' | while read -r k t l; do
         printf '| %s | %s |\n' "$l" "$(lookup "$k")"
