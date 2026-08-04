@@ -1035,7 +1035,6 @@ pub(crate) fn gl_data_objects_ordered(gl: &[u8]) -> Vec<(u32, GlDataObject)> {
     out.into_iter().filter_map(|(t, o)| o.map(|o| (t, o))).collect()
 }
 
-
 /// The name separator that introduces a **string-literal** record. Named in
 /// [`NAME_SEPARATORS`]'s doc as the value it deliberately excludes.
 const NAME_SEPARATOR_STRING_LITERAL: u8 = 0x25;

@@ -241,6 +241,17 @@ pub(crate) fn placement_align(n: u32, natural: u32) -> Option<u32> {
 /// offset and the section size exactly what the real obj carries. Mixed sizes are
 /// the class §5.5 flags as *not* exact (14/18), so this is graded by the
 /// differential on every run rather than assumed.
+///
+/// # No caller, on purpose
+///
+/// `w-r2` landed this reader and **deliberately did not wire it**: the allocator
+/// is exact on the classes §5.5 scores 14/18, not 18/18, so giving it a caller
+/// would put an unmeasured mixed-size case in front of the differential with
+/// nothing asking for it. The `dead_code` allow records that state rather than
+/// leaving a standing warning — a build that always prints one warning is a
+/// build in which the *next* warning is invisible. **Delete the allow, do not
+/// keep it, when the writer grows a `.bss` path.**
+#[allow(dead_code)]
 pub(crate) fn bss_deferred_layout(objects: &[(u32, u32)]) -> Option<(Vec<u32>, u32)> {
     let mut offsets = vec![0u32; objects.len()];
     let mut cursor: u32 = 0;
