@@ -1,0 +1,11 @@
+TUs with at least one emitted name OUTSIDE U: 162 of 850 ; names 510
+ALIAS_IN: zero in-U residual on 515 TUs ; fully exact on 472 ; difference 43 = TUs blocked ONLY by names outside U
+kinds of E-outside-U over the 40 worst TUs (308 names):
+      154  non-virtual member
+      104  free / file-scope function
+       22  VIRTUAL member  (reached only via a vtable slot)
+       10  other (1)
+       10  other (0)
+        4  other (2)
+        2  `$` in qualified name (template instantiation OR adjustor thunk)
+        1  static member
