@@ -15,6 +15,7 @@
 use c2_il::IlFunction;
 use crate::BackendError;
 use crate::codegen::calls::{call_seq_parts, int_tail_call_text, permute_args_text};
+use crate::codegen::cond_tail::{cond_pair_parts, CondPairParts};
 use crate::codegen::encode::encode_blr;
 use crate::codegen::leaf::addr::addr_leaf_text;
 use crate::codegen::leaf::compare::compare_leaf_text;
@@ -102,6 +103,13 @@ pub enum Selected {
     /// the caller — which knows where the function lands — finishes the body
     /// through [`call_seq_text`].
     Seq { setups: Vec<Vec<u8>>, tail: Vec<u8> },
+    /// **W8 — a two-arm conditional tail call.** The body with a zero word at
+    /// each of its two tail branches, which the caller fills for the same reason
+    /// [`Selected::Tail`] carries an incomplete text: a `b` to an external
+    /// encodes its own `.text` offset. The **conditional** branch is already
+    /// finished — its displacement is self-relative and offset-independent, and
+    /// it takes no relocation at all (`docs/CFG_SHAPE.md` §3.3, board #191).
+    CondPair(CondPairParts),
 }
 
 /// **The port's per-function instruction selection**, in one place.
@@ -141,6 +149,16 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     if let Some(seq) = &func.call_seq {
         let (setups, tail) = call_seq_parts(&func.params, seq, mode)?;
         return Ok(Selected::Seq { setups, tail });
+    }
+    // **W8 — the two-arm conditional tail call.** Asked here, beside the other
+    // shapes that own their whole branch layout and ahead of every leaf: its
+    // body ends in two `b`s to two externals, so it is a *tail-call* shape in
+    // every respect the obj can see, and the leaf recognizers below all
+    // pattern-match operand streams this shape does not have. It cannot take a
+    // body from any of them — `func.cond_pair` is set by exactly one parser
+    // production and by nothing else.
+    if let Some(pair) = &func.cond_pair {
+        return Ok(Selected::CondPair(cond_pair_parts(func, pair)?));
     }
     if func.tail_call.is_some() {
         // A single-argument **floating-point** tail call: the argument is in the

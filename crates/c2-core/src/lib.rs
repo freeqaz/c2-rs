@@ -372,6 +372,26 @@ impl PortC2 {
                                 .to_string(),
                         ))
                     }
+                    // **W8 — a two-arm conditional tail call.** Two REL24 sites,
+                    // one per arm, in block order; the conditional branch
+                    // between them carries its own displacement and NO
+                    // relocation (`docs/CFG_SHAPE.md` §3.3). Under `/Gy` the
+                    // function starts at offset 0 of its own COMDAT, so each
+                    // tail branch's word is `-(its offset within this text)`.
+                    codegen::Selected::CondPair(parts) => {
+                        let cp = f.cond_pair.as_ref().expect("CondPair implies cond_pair");
+                        let mut t = parts.text;
+                        let mut calls = Vec::with_capacity(2);
+                        for (off, callee) in parts.branch_offsets.iter().zip([
+                            cp.then_arm.callee.as_str(),
+                            cp.else_arm.callee.as_str(),
+                        ]) {
+                            let w = codegen::encode_tail_branch(*off);
+                            t[*off as usize..*off as usize + 4].copy_from_slice(&w);
+                            calls.push(coff::Call { reloc_offset: *off, callee });
+                        }
+                        (t, calls)
+                    }
                     // Each function's text starts at offset 0 of its own COMDAT
                     // section, so the branch offset is just the setup's length.
                     codegen::Selected::Tail(mut t) => {
@@ -468,6 +488,29 @@ impl PortC2 {
                             .collect(),
                         Vec::new(),
                     )
+                }
+                // **W8 — a two-arm conditional tail call**, packed: each `b`
+                // encodes its own whole-`.text` offset, so the two words are
+                // rebased onto `off` exactly as the single tail call's is. The
+                // `bc` between them is untouched — its displacement is
+                // self-relative and therefore independent of where the function
+                // lands, which is the whole of `docs/CFG_SHAPE.md` §3.3's
+                // "two encodings, one opcode".
+                codegen::Selected::CondPair(parts) => {
+                    let cp = f.cond_pair.as_ref().expect("CondPair implies cond_pair");
+                    let mut body = parts.text;
+                    let mut calls = Vec::with_capacity(2);
+                    for (rel_off, callee) in parts.branch_offsets.iter().zip([
+                        cp.then_arm.callee.as_str(),
+                        cp.else_arm.callee.as_str(),
+                    ]) {
+                        let abs = off + rel_off;
+                        let w = codegen::encode_tail_branch(abs);
+                        body[*rel_off as usize..*rel_off as usize + 4].copy_from_slice(&w);
+                        calls.push(coff::Call { reloc_offset: abs, callee });
+                    }
+                    text.extend_from_slice(&body);
+                    (calls, Vec::new())
                 }
                 // Tail call. A void bare call (an empty setup) is a single
                 // `b <callee>` (REL24) at this offset; an integer or multi-argument
