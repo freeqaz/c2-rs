@@ -29,6 +29,30 @@ Leaving the blanket sentence in place would be the bad outcome: a reader would
 find `docs/whitebox/` and conclude the README is stale or untrustworthy, when in
 fact the substantive claim is intact.
 
+## The concession is smaller than it first looked — two tiers, not one
+
+The lane's central artifact is **not uniformly white-box**, and it would be a
+mistake to concede as though it were. [`DISCLOSURE.md`](DISCLOSURE.md) now
+separates:
+
+* **Tier 1 — the list of 53 original source file names.** c2's C1001 path prints
+  `compiler file '%s', line %d`, so these are **plain `strings` output**:
+  an observable of the black box, in the same category as a `C1007` message.
+  `docs/ROADMAP.md` §9.8 **already blesses that class explicitly**, naming the
+  diagnostic strings alongside the obj and the `/FAsc` listing. Extracting them
+  needs no disassembler. **This tier costs the clean-room claim nothing.**
+* **Tier 2 — every address**: the ICE-site cross-references, the derived
+  per-file ranges, and all function labels. This is genuine white-box work and
+  is not minimised.
+
+So the README's concession need only cover *tier 2*. A reader can be told
+truthfully that the back end's own diagnostic strings name its 52 source files —
+`p2\`, `p2\ppc\`, `p2\smd\`, `common\` — **without that being a white-box claim
+at all**. What the disassembly bought on top is *where each file lives*.
+
+If the coordinator wants the narrowest honest wording, that is the seam to cut
+along.
+
 ## Proposed replacement
 
 > There is no attempt to reproduce c2.dll's own code, and **no decompiled source
