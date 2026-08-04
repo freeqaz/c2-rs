@@ -875,11 +875,26 @@ impl GapReport {
     /// | **C** | obj section set ⊆ [`PORT_WRITER_SECTIONS`] | `emit-sec-reachable` |
     /// | **D** | every emitted COMDAT is in the port's codegen class | `emit-class-complete` |
     ///
-    /// Each factor is **necessary** for a byte-exact obj and none is sufficient;
-    /// what §10.19 measured is that their conjunction is exactly the observed
-    /// match set. Every one reads a key some *other* code path wrote, so this
-    /// function re-derives no rule — it is a join, and that is the whole point
-    /// (§10.14).
+    /// §10.19 measured that each factor is **necessary** for a byte-exact obj,
+    /// that none is sufficient, and that their conjunction is exactly the
+    /// observed match set. Every one reads a key some *other* code path wrote,
+    /// so this function re-derives no rule — it is a join, and that is the whole
+    /// point (§10.14).
+    ///
+    /// **W-R1c: D is no longer necessary, measured.** That factorization was
+    /// taken when `PortC2` had exactly one acceptance path, and D's proxy for
+    /// "the port can emit this" is the *per-function* census verdict. A `??__E`
+    /// dynamic-initializer TU is emitted through a **whole-TU** path
+    /// (`c2_il::IlBundle::dyninit_tu`), so its thunk is byte-exact in the obj and
+    /// out of class in the census simultaneously — two true answers to two
+    /// different questions. On the 878-TU workload the conjunction is 6 while the
+    /// differential grades 8, and the known-answer control reports `D 2`.
+    ///
+    /// Left as it is, deliberately. Teaching the per-function census a whole-TU
+    /// fact would break the census/gate symmetry `c2-il`'s `census.rs` maintains
+    /// on purpose and that the scan's `census/gate disagreement` line tracks; the
+    /// honest reading is that **the factorization needs a fifth term for whole-TU
+    /// emitters**, not that D should be widened until it stops complaining.
     ///
     /// **A is gate-anchored** (`4F 1F`, what `PortC2::build` consumes) rather
     /// than `LO`-anchored: §10.18 settled that the two splitters disagree on 634
@@ -2304,6 +2319,30 @@ fn print_factorization(report: &GapReport) {
          {match_tus} matching TUs): A {} B {} C {} D {}",
         bad[0], bad[1], bad[2], bad[3]
     );
+    // **W-R1c — D is no longer necessary for a match, and the control is right
+    // to say so.** §10.19's claim is that the conjunction A∧B∧C∧D is exactly the
+    // observed match set; that was measured when `PortC2` had exactly ONE
+    // acceptance path, the per-function one, and factor D's proxy for "the port
+    // can emit this" is the per-function census verdict. A `??__E`
+    // dynamic-initializer TU is emitted by a **whole-TU** path
+    // (`IlBundle::dyninit_tu`), so its thunk is byte-exact in the obj and out of
+    // class in the census at the same time — both statements true, about
+    // different questions.
+    //
+    // Printed rather than fixed, and printed rather than silenced. Fixing it
+    // means teaching the per-function census a whole-TU fact, which would break
+    // the census/gate symmetry `census.rs` maintains on purpose (and which the
+    // `census/gate disagreement: 0` line above tracks). Silencing it would hide
+    // a genuine refutation. So the instrument keeps telling the truth and says
+    // what the truth is.
+    if bad[3] > 0 {
+        println!(
+            "\x20   NOTE: D counts the per-function census, which does not model the \
+             whole-TU `??__E` emit path — so D is NOT necessary for a match any more \
+             (§10.19's conjunction claim is refuted by {} TU(s) here). A/B/C are unaffected.",
+            bad[3]
+        );
+    }
     // The vocabulary, in full. It is finite, and its size is the headline: it is
     // what makes C the one factor with a short route to closure.
     println!(
