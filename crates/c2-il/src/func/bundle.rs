@@ -63,6 +63,60 @@ pub(crate) fn body_start(seg: &[u8]) -> Option<usize> {
     find_subslice(seg, &LO_MARKER).or_else(|| bare_body_start(seg))
 }
 
+/// Offset of the **first operand byte** of a body whose start token
+/// ([`body_start`]) is at `lo` — `lo + 3` for the composed `4C 4F 11`, `lo + 1`
+/// for the bare `4C`.
+///
+/// **This is the whole of what W-LO deferred.** Every reader of a body took the
+/// `LO` offset and added a hard-coded 3, which is only the operand start when the
+/// optional [`LO_RECORD`] is present. Handing any of them a bare `4C` does not
+/// make them refuse — it makes them read **two bytes into the body** and
+/// mis-parse, and a mis-parse in a body that reaches the emitter is a wrong-bytes
+/// emit rather than a gap (`docs/rungs/2026-08-02-w-lo.md`, *Found and not taken*
+/// item 1). So the derivation is ONE function, called by all three forward
+/// readers ([`super::body::parse_segment_shape`],
+/// [`super::body::mcall::body_matches`],
+/// [`super::body::shapes::control_flow::scan_full`]) rather than re-derived —
+/// §10.14's rule, a private re-derivation is a second rule that agrees until it
+/// matters.
+///
+/// The BACKWARD readers of `lo` are deliberately untouched and need no analogue:
+/// `formals_marker`/`parse_formals`/`parse_this_token` walk the region *before*
+/// the token, which the optional record does not sit in.
+///
+/// Byte-identical for every composed body: when `seg[lo+1..lo+3]` is `4F 11` this
+/// returns exactly the `lo + 3` the call sites had inline.
+pub(crate) fn ops_start(seg: &[u8], lo: usize) -> usize {
+    if seg.get(lo + 1) == Some(&LO_RECORD[0]) && seg.get(lo + 2) == Some(&LO_RECORD[1]) {
+        lo + 3
+    } else {
+        lo + 1
+    }
+}
+
+/// True iff this segment's body opens on the **bare** [`LO`] — the `??__E`/`??__F`
+/// form — rather than the composed `4C 4F 11`.
+///
+/// The same two locators asked a *question* instead of for an offset, so there is
+/// no second copy of the rule. It exists because one codegen-class gate is drawn
+/// at this boundary deliberately and needs to say so
+/// ([`super::body::shapes::calls::sym_addr_tail_call`]'s two-symbol admission):
+/// W-LO measured that every bare-`LO` body in the corpus is a `??__E`/`??__F`
+/// thunk and that `??_G` — the one other compiler-synthesized `??_` member
+/// tested — is composed, so this is the tightest byte-level fence available
+/// around the dynamic-initializer class without going to `.gl` for the name.
+///
+/// **It is a scope fence, not a claim about c2.** Nothing measured says a
+/// composed body may not do what a bare one does; the boundary exists so a
+/// widening this lane did not grade cannot ride along. See the gate for the
+/// captures on both sides.
+pub(crate) fn body_start_is_bare(seg: &[u8]) -> bool {
+    match body_start(seg) {
+        Some(lo) => ops_start(seg, lo) == lo + 1,
+        None => false,
+    }
+}
+
 /// The bare-`4C` body start (`??__E`/`??__F`), located by **walking the prefix
 /// grammar** to the token rather than by scanning for the byte.
 ///

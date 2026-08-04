@@ -243,7 +243,50 @@ fn sym_addr_tail_call(
     syms: usize,
 ) -> Result<BodyShape, Block> {
     let refuse = |ctx: &'static str| Block::refuse(seg, off, ctx);
-    if syms > 1 {
+    // **Two symbols, admitted for the `??__E`/`??__F` thunk only (W-R1).**
+    //
+    // The refusal above it stands on `docs/IL_CALL_IN_EXPR.md` §17.3 (a)/(b),
+    // whose stated mechanism is "c2 materializes only the first through a
+    // relocation pair and derives the rest by `.rdata` pool-offset difference".
+    // That mechanism does **not** hold for the tail-call form at the workload's
+    // own flags. MEASURED here, one TU per row, `/nologo /c /GR /O1 /Oi /EHsc`,
+    // every word read off c2's own listing (`c2rs listing`):
+    //
+    // ```text
+    //   void f(){ g("aa","bb"); }              lis r11,bb · lis r10,aa
+    //                                          addi r4,r11,bb · addi r3,r10,aa · b
+    //   void f(){ g(&gA,&gB); }                lis r11,gB · lis r10,gA
+    //                                          addi r4,r11,gB · addi r3,r10,gA · b
+    //   void f(){ g("aa",&gA); }               lis r11,gA · lis r10,aa · … · b
+    //   void f(){ g("aa","bb",0); }            … addi r4 · addi r3 · li r5,0 · b
+    //   void f(){ g(&gA,7,"cc"); }             lis r11,cc · lis r10,gA
+    //                                          addi r5,r11,cc · addi r3,r10,gA
+    //                                          li r4,7 · b
+    //   static L sL("abc",0);  (??__EsL)       lis r11,`string' · lis r10,sL
+    //                                          addi r4,r11 · addi r3,r10
+    //                                          li r5,0 · b ??0L@@QAA@PBDH@Z
+    // ```
+    //
+    // Six captures, two `.rdata` strings / two `.bss` externs / one of each /
+    // with a literal on either side: **one independent `lis`/`addi` pair per
+    // symbol, no pool difference anywhere**, and the two thunks the lane is about
+    // are the same schedule as the rest.
+    //
+    // **So why is this still fenced to the bare `LO`?** Because opening it
+    // generally is a different rung: §17.3's population is 18,933 functions the
+    // pre-registration for this lane recorded as unchanged, the emission order it
+    // implies is *not* the one this port already ships (the last row above puts
+    // `li r4,7` AFTER both `addi`s, where `permute_args_parts`' descending walk
+    // and WR1's own one-symbol capture `g2("jj",7)` put it before), and grading
+    // that is an emit-side lane with its own captures. The refusal that remains
+    // is therefore a **scope decline with a measured ceiling**, not an unknown.
+    //
+    // Nothing here can mis-emit either way: `c2_core::codegen::calls`'
+    // `sym_slots_text` carries its own independent `count != 1` backstop, so a
+    // body admitted here reaches the port and comes back `NotImplemented` — a
+    // `codegen-gap`, which is the honest bucket for "decoded, not yet emittable".
+    let two_sym_thunk = syms == 2 && crate::func::body_start_is_bare(seg);
+    if syms > 1 && !two_sym_thunk {
         return Err(refuse("call-arg-multi-sym"));
     }
     if slots.len() > MAX_REGISTER_FORMALS {

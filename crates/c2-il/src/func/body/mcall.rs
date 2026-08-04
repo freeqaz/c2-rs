@@ -1721,7 +1721,7 @@ const BARE_BINARY_OPS: &[u8] =
 /// Diagnostic only. Nothing here can accept a function; the caller's `Err` stays
 /// an `Err`.
 fn body_matches(seg: &[u8], lo: usize, adm: Admit, fail: &mut Fail) -> bool {
-    let mut p = lo + 3;
+    let mut p = crate::func::ops_start(seg, lo);
     if !eat_byte(seg, &mut p, 0x53) {
         fail.note(p, FailKind::Struct(Structural::BodyMarker));
         return false;
