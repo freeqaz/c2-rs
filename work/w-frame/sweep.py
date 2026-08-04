@@ -36,7 +36,16 @@ path looks graded).
 import json, os, sys, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-KEEP = "/crates/c2-core/src/codegen/"
+
+# Which module the instrument reports on. The default is the codegen emitters,
+# which is what this sweep was written for — but F-c is a rule about *any* code
+# path a rung adds, and a rung whose new path lives elsewhere (`coff/order.rs`,
+# lane w-order) could otherwise run this, see a clean report, and read the
+# instrument's SCOPE as coverage. Overridable so a lane can point it at the
+# module it touched instead of answering F-c by hand:
+#
+#     C2RS_SWEEP_KEEP=/crates/c2-core/src/coff/ work/w-frame/sweep.py
+KEEP = os.environ.get("C2RS_SWEEP_KEEP", "/crates/c2-core/src/codegen/")
 
 
 def load(path):
@@ -112,7 +121,7 @@ print("=" * 78)
 src = {}
 for fname in sorted(set(A_reg) | set(B_reg)):
     short = fname.split(KEEP)[-1]
-    path = os.path.join(HERE, "..", "..", "crates", "c2-core", "src", "codegen", short)
+    path = os.path.join(HERE, "..", "..", KEEP.strip("/"), short)
     try:
         src[short] = open(path).read().splitlines()
     except OSError:

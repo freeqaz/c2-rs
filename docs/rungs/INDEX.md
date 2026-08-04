@@ -49,5 +49,6 @@ the header block this table is read from.
 | 2026-08-04 | W-FIFTH | [w-fifth](2026-08-04-w-fifth.md) | 11 | 706,402 / 2,463,318 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | W9 | [w-frame](2026-08-04-w-frame.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | W-FRONT | [w-front](2026-08-04-w-front.md) | 12 | 706,402 / 2,463,318 unchanged (28.68 %), +0 — TU match 8 at both ends; DECLINED ON SEAM |
+| 2026-08-04 | X-d | [w-order](2026-08-04-w-order.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | W-R1c | [w-r1c](2026-08-04-w-r1c.md) | 2 | 706,403 / 2,463,317 → 706,403 / 2,463,317, +0 |
 | 2026-08-04 | W-R1 | [w-r1](2026-08-04-w-r1.md) | 13 | 706,403 / 2,463,317 → 706,403 / 2,463,317, +0 |
