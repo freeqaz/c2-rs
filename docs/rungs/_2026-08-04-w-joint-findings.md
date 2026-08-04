@@ -367,7 +367,7 @@ figure to the digit; `Seed ∪ ORACLE` marks **0.86799**.
 
 ---
 
-## 7. Scoring the pre-registration — 15 hits, 3 misses, 1 pass, 1 undecidable
+## 7. Scoring the pre-registration — 18 hits, 2 misses, 1 pass, 1 undecidable
 
 | # | registered **point** | interval | **measured** | |
 |---|---|---|---|---|
@@ -407,10 +407,13 @@ Second declared: **M7**, that every static `Rd` would fail. It did — best
 is in the direction that costs me nothing to admit and the conclusion stands
 either way.
 
-**Three misses, and none is in the direction of the model working better than I
-said.** T4 is an instrument invariant going red and being reported red. M9 is
-the effect being **five times stronger** than I registered. T6 is off by one TU
-and measured inert.
+**Two misses, and neither is in the direction of the model working better than
+I said.** T4 is an instrument invariant going **red** and being reported red —
+the only red on the page. M9 is the effect being **five times stronger** than I
+registered, which is a miss because the interval was too narrow, not because the
+result is weaker. (T6 is a *hit* inside its interval whose **point** is off by
+one TU; that TU was measured inert, §1e, and it is counted as a hit, not talked
+up as a near-miss.)
 
 ### 7.1 The decline clauses — one fired, one triggered as a correction, all honoured
 
