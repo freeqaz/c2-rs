@@ -1,0 +1,875 @@
+{
+ "vocab_fixture_objs": 102,
+ "vocab_fixture_tokens": 68,
+ "vocab_workload_tokens": 16,
+ "vocab_tokens": 73,
+ "witness_functions": 105,
+ "vocab": [
+  "frame:leaf",
+  "frame:mflr",
+  "frame:stwu",
+  "insn:add",
+  "insn:adde",
+  "insn:addi",
+  "insn:addic",
+  "insn:addis",
+  "insn:addze",
+  "insn:andc",
+  "insn:b",
+  "insn:bf",
+  "insn:bl",
+  "insn:blr",
+  "insn:clrlwi",
+  "insn:cmplwi",
+  "insn:cntlzw",
+  "insn:eqv",
+  "insn:extsb",
+  "insn:fadd",
+  "insn:fadds",
+  "insn:fdiv",
+  "insn:fmr",
+  "insn:fmul",
+  "insn:fmuls",
+  "insn:frsp",
+  "insn:fsub",
+  "insn:fsubs",
+  "insn:lbz",
+  "insn:ld",
+  "insn:lfd",
+  "insn:lfs",
+  "insn:lhz",
+  "insn:li",
+  "insn:lis",
+  "insn:lwz",
+  "insn:mflr",
+  "insn:mr",
+  "insn:mtlr",
+  "insn:mullw",
+  "insn:neg",
+  "insn:ori",
+  "insn:rlwinm",
+  "insn:srawi",
+  "insn:srwi",
+  "insn:stb",
+  "insn:std",
+  "insn:stfd",
+  "insn:stfs",
+  "insn:sth",
+  "insn:stw",
+  "insn:stwu",
+  "insn:sub",
+  "insn:subc",
+  "insn:subfe",
+  "insn:subfic",
+  "insn:subfze",
+  "insn:undecodable",
+  "insn:xori",
+  "reloc:PAIR",
+  "reloc:REFHI",
+  "reloc:REFLO",
+  "reloc:REL24",
+  "sect:.CRT$XCU",
+  "sect:.bss",
+  "sect:.pdata",
+  "sect:.rdata",
+  "sect:.text$yc",
+  "sym:dyninit-ctor",
+  "sym:helper-fltused",
+  "sym:label-M",
+  "sym:label-T",
+  "sym:string-literal"
+ ],
+ "loo_control": {
+  "src/system/synth/tomcrypt/TomCryptLicense.cpp": {
+   "lex": [],
+   "wit": 0
+  },
+  "src/system/synth_xbox/GainEffect.cpp": {
+   "lex": [],
+   "wit": -1
+  },
+  "src/system/synth_xbox/HeadsetPlaybackEffect.cpp": {
+   "lex": [],
+   "wit": -1
+  },
+  "src/system/synth_xbox/PeakDetector.cpp": {
+   "lex": [],
+   "wit": -1
+  },
+  "src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp": {
+   "lex": [],
+   "wit": -1
+  },
+  "src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp": {
+   "lex": [],
+   "wit": -1
+  },
+  "src/system/utl/Spew.cpp": {
+   "lex": [],
+   "wit": 0
+  },
+  "src/system/zlib/ZlibLicense.cpp": {
+   "lex": [],
+   "wit": 0
+  }
+ },
+ "rows": [
+  {
+   "src": "src/xdk/nuispeech/xboxheap.cpp",
+   "blocked": 1,
+   "emitted": 1,
+   "nfunc": 1,
+   "union": 18,
+   "gap": 0,
+   "missing": [],
+   "wit_sum": 0,
+   "wit_max": 0,
+   "funcs": [
+    {
+     "name": "??0CXboxHeap@NUISPEECH@@QAA@II@Z",
+     "size": 80,
+     "lex": [],
+     "wit": 0,
+     "nearest": "mvp_call_seq_b.cpp:?one_saved@@YAXHH@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/Main.cpp",
+   "blocked": 1,
+   "emitted": 1,
+   "nfunc": 1,
+   "union": 25,
+   "gap": 5,
+   "missing": [
+    "reloc:ADDR32",
+    "sym:eh-funcinfo",
+    "sym:eh-funclet",
+    "sym:eh-personality",
+    "sym:eh-unwindtable"
+   ],
+   "wit_sum": 3,
+   "wit_max": 3,
+   "funcs": [
+    {
+     "name": "main",
+     "size": 124,
+     "lex": [
+      "reloc:ADDR32",
+      "sym:eh-funcinfo",
+      "sym:eh-personality"
+     ],
+     "wit": 3,
+     "nearest": "mvp_call_seq_b.cpp:?one_saved@@YAXHH@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/xdk/nuispeech/xboxmem.cpp",
+   "blocked": 2,
+   "emitted": 4,
+   "nfunc": 4,
+   "union": 13,
+   "gap": 1,
+   "missing": [
+    "insn:rlwimi"
+   ],
+   "wit_sum": 4,
+   "wit_max": 3,
+   "funcs": [
+    {
+     "name": "?GetXAllocAttributes@NUISPEECH@@YAKH@Z",
+     "size": 24,
+     "lex": [
+      "insn:rlwimi"
+     ],
+     "wit": 3,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "?MemAlloc@NUISPEECH@@YAPAXPAXKK@Z",
+     "size": 36,
+     "lex": [],
+     "wit": 1,
+     "nearest": "w8_cond_tail.cpp:?f@@YAXPAX0K@Z"
+    },
+    {
+     "name": "?MemFree@NUISPEECH@@YAXPAX0K@Z",
+     "size": 36,
+     "lex": [],
+     "wit": 0,
+     "nearest": "w8_cond_tail.cpp:?f@@YAXPAX0K@Z"
+    },
+    {
+     "name": "?MemSize@NUISPEECH@@YAKPAX0K@Z",
+     "size": 36,
+     "lex": [],
+     "wit": 0,
+     "nearest": "w8_cond_tail.cpp:?f@@YAXPAX0K@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/system/negate_test.cpp",
+   "blocked": 2,
+   "emitted": 2,
+   "nfunc": 2,
+   "union": 20,
+   "gap": 2,
+   "missing": [
+    "insn:bt",
+    "insn:cmpwi"
+   ],
+   "wit_sum": 4,
+   "wit_max": 2,
+   "funcs": [
+    {
+     "name": "?FindNodeA@@YAPBUCharGraphNode@@W4PlayBlend@@PAXM@Z",
+     "size": 80,
+     "lex": [
+      "insn:bt",
+      "insn:cmpwi"
+     ],
+     "wit": 2,
+     "nearest": "wco_explicit_return.cpp:?h_none@@YAXXZ"
+    },
+    {
+     "name": "?FindNodeB@@YAPBUCharGraphNode@@W4PlayBlend@@PAXM@Z",
+     "size": 80,
+     "lex": [
+      "insn:bt",
+      "insn:cmpwi"
+     ],
+     "wit": 2,
+     "nearest": "wco_explicit_return.cpp:?h_none@@YAXXZ"
+    }
+   ]
+  },
+  {
+   "src": "src/system/synth_xbox/Biquad.cpp",
+   "blocked": 2,
+   "emitted": 2,
+   "nfunc": 2,
+   "union": 28,
+   "gap": 1,
+   "missing": [
+    "insn:fdivs"
+   ],
+   "wit_sum": 5,
+   "wit_max": 5,
+   "funcs": [
+    {
+     "name": "?SetCoefficients@Biquad@DSP@@QAAXPAM@Z",
+     "size": 140,
+     "lex": [
+      "insn:fdivs"
+     ],
+     "wit": 5,
+     "nearest": "w13b_fconst.cpp:?k_add@@YAMM@Z"
+    },
+    {
+     "name": "??0Biquad@DSP@@QAA@PAM@Z",
+     "size": 36,
+     "lex": [],
+     "wit": 0,
+     "nearest": "mvp_call_seq.cpp:?two@@YAXXZ"
+    }
+   ]
+  },
+  {
+   "src": "src/xdk/LIBCMT/undname.cpp",
+   "blocked": 1,
+   "emitted": 1,
+   "nfunc": 1,
+   "union": 26,
+   "gap": 1,
+   "missing": [
+    "insn:bt"
+   ],
+   "wit_sum": 7,
+   "wit_max": 7,
+   "funcs": [
+    {
+     "name": "?append@DName@@QAAXPAVDNameNode@@@Z",
+     "size": 140,
+     "lex": [
+      "insn:bt"
+     ],
+     "wit": 7,
+     "nearest": "wadjust_obj_recv.cpp:?n0@@YAXXZ"
+    }
+   ]
+  },
+  {
+   "src": "src/xdk/LIBCMT/vsnprnc.cpp",
+   "blocked": 2,
+   "emitted": 2,
+   "nfunc": 2,
+   "union": 29,
+   "gap": 2,
+   "missing": [
+    "insn:bt",
+    "insn:cmpwi"
+   ],
+   "wit_sum": 8,
+   "wit_max": 8,
+   "funcs": [
+    {
+     "name": "_vsprintf_s_l",
+     "size": 152,
+     "lex": [
+      "insn:bt",
+      "insn:cmpwi"
+     ],
+     "wit": 8,
+     "nearest": "wadjust_obj_recv.cpp:?n0@@YAXXZ"
+    },
+    {
+     "name": "vsprintf_s",
+     "size": 12,
+     "lex": [],
+     "wit": 0,
+     "nearest": "w20_convert.cpp:?c_u_of_i@@YAIH@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/xdk/LIBCMT/vswprnc.cpp",
+   "blocked": 1,
+   "emitted": 1,
+   "nfunc": 1,
+   "union": 28,
+   "gap": 2,
+   "missing": [
+    "insn:bt",
+    "insn:cmpwi"
+   ],
+   "wit_sum": 8,
+   "wit_max": 8,
+   "funcs": [
+    {
+     "name": "_vswprintf_s_l",
+     "size": 156,
+     "lex": [
+      "insn:bt",
+      "insn:cmpwi"
+     ],
+     "wit": 8,
+     "nearest": "wadjust_obj_recv.cpp:?n0@@YAXXZ"
+    }
+   ]
+  },
+  {
+   "src": "src/xdk/xlrc/xlrcimpl.cpp",
+   "blocked": 1,
+   "emitted": 1,
+   "nfunc": 1,
+   "union": 23,
+   "gap": 4,
+   "missing": [
+    "frame:savegprlr",
+    "insn:mr.",
+    "sym:helper-restgprlr",
+    "sym:helper-savegprlr"
+   ],
+   "wit_sum": 8,
+   "wit_max": 8,
+   "funcs": [
+    {
+     "name": "CXLrcImpl_CreateClientWithTransport",
+     "size": 152,
+     "lex": [
+      "frame:savegprlr",
+      "insn:mr.",
+      "sym:helper-restgprlr",
+      "sym:helper-savegprlr"
+     ],
+     "wit": 8,
+     "nearest": "wadjust_obj_recv.cpp:?n0@@YAXXZ"
+    }
+   ]
+  },
+  {
+   "src": "src/system/math/Sort.cpp",
+   "blocked": 1,
+   "emitted": 1,
+   "nfunc": 1,
+   "union": 19,
+   "gap": 7,
+   "missing": [
+    "insn:bt",
+    "insn:divw",
+    "insn:lbzu",
+    "insn:mr.",
+    "insn:mulli",
+    "insn:rotlwi",
+    "insn:twi"
+   ],
+   "wit_sum": 11,
+   "wit_max": 11,
+   "funcs": [
+    {
+     "name": "?HashString@@YAHPBDH@Z",
+     "size": 80,
+     "lex": [
+      "insn:bt",
+      "insn:divw",
+      "insn:lbzu",
+      "insn:mr.",
+      "insn:mulli",
+      "insn:rotlwi",
+      "insn:twi"
+     ],
+     "wit": 11,
+     "nearest": "w20_convert.cpp:?c_u_of_i@@YAIH@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/xdk/nuispeech/mmio.cpp",
+   "blocked": 3,
+   "emitted": 11,
+   "nfunc": 11,
+   "union": 26,
+   "gap": 4,
+   "missing": [
+    "insn:bctrl",
+    "insn:cmplw",
+    "insn:mtctr",
+    "sym:helper-memcpy"
+   ],
+   "wit_sum": 13,
+   "wit_max": 5,
+   "funcs": [
+    {
+     "name": "mmioGetInfo",
+     "size": 84,
+     "lex": [
+      "sym:helper-memcpy"
+     ],
+     "wit": 3,
+     "nearest": "wco_explicit_return.cpp:?h_none@@YAXXZ"
+    },
+    {
+     "name": "mmioSetInfo",
+     "size": 108,
+     "lex": [
+      "insn:cmplw",
+      "sym:helper-memcpy"
+     ],
+     "wit": 5,
+     "nearest": "mvp_call_seq_b.cpp:?one_saved@@YAXHH@Z"
+    },
+    {
+     "name": "mmioStringToFOURCCW",
+     "size": 8,
+     "lex": [],
+     "wit": 0,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "mmioFlush",
+     "size": 8,
+     "lex": [],
+     "wit": 0,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "mmioSeek",
+     "size": 8,
+     "lex": [],
+     "wit": 0,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "mmioSetBuffer",
+     "size": 8,
+     "lex": [],
+     "wit": 0,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "mmioOpenW",
+     "size": 8,
+     "lex": [],
+     "wit": 0,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "mmioClose",
+     "size": 124,
+     "lex": [
+      "insn:bctrl",
+      "insn:mtctr"
+     ],
+     "wit": 5,
+     "nearest": "mvp_call_seq_b.cpp:?one_saved@@YAXHH@Z"
+    },
+    {
+     "name": "mmioAdvance",
+     "size": 8,
+     "lex": [],
+     "wit": 0,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "mmioRead",
+     "size": 8,
+     "lex": [],
+     "wit": 0,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "mmioWrite",
+     "size": 8,
+     "lex": [],
+     "wit": 0,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/system/utl/Pool.cpp",
+   "blocked": 3,
+   "emitted": 3,
+   "nfunc": 3,
+   "union": 19,
+   "gap": 7,
+   "missing": [
+    "insn:bclr",
+    "insn:bdnz",
+    "insn:cmpwi",
+    "insn:divw",
+    "insn:mtctr",
+    "insn:rotlwi",
+    "insn:twi"
+   ],
+   "wit_sum": 13,
+   "wit_max": 9,
+   "funcs": [
+    {
+     "name": "??0Pool@@QAA@HPAXH@Z",
+     "size": 80,
+     "lex": [
+      "insn:bdnz",
+      "insn:cmpwi",
+      "insn:divw",
+      "insn:mtctr",
+      "insn:rotlwi",
+      "insn:twi"
+     ],
+     "wit": 9,
+     "nearest": "w29_fp_contract.cpp:?c_add@@YAHHH@Z"
+    },
+    {
+     "name": "?Alloc@Pool@@QAAPAXXZ",
+     "size": 28,
+     "lex": [
+      "insn:bclr"
+     ],
+     "wit": 2,
+     "nearest": "w29_fp_contract.cpp:?c_add@@YAHHH@Z"
+    },
+    {
+     "name": "?Free@Pool@@QAAXPAX@Z",
+     "size": 24,
+     "lex": [
+      "insn:bclr"
+     ],
+     "wit": 2,
+     "nearest": "w25_store_leaf.cpp:?s_a@@YAXPAUS@@H@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/xdk/LIBCMT/osfinfo.cpp",
+   "blocked": 1,
+   "emitted": 1,
+   "nfunc": 1,
+   "union": 33,
+   "gap": 7,
+   "missing": [
+    "insn:bt",
+    "insn:clrlwi.",
+    "insn:cmplw",
+    "insn:cmpwi",
+    "insn:lwzx",
+    "insn:mulli",
+    "insn:slwi"
+   ],
+   "wit_sum": 13,
+   "wit_max": 13,
+   "funcs": [
+    {
+     "name": "_free_osfhnd",
+     "size": 152,
+     "lex": [
+      "insn:bt",
+      "insn:clrlwi.",
+      "insn:cmplw",
+      "insn:cmpwi",
+      "insn:lwzx",
+      "insn:mulli",
+      "insn:slwi"
+     ],
+     "wit": 13,
+     "nearest": "wadjust_obj_recv.cpp:?n0@@YAXXZ"
+    }
+   ]
+  },
+  {
+   "src": "src/xdk/xjson/jsonwriter.cpp",
+   "blocked": 1,
+   "emitted": 1,
+   "nfunc": 1,
+   "union": 27,
+   "gap": 8,
+   "missing": [
+    "frame:savegprlr",
+    "insn:bt",
+    "insn:cmplw",
+    "insn:lhzx",
+    "insn:rlwimi",
+    "insn:sthu",
+    "sym:helper-restgprlr",
+    "sym:helper-savegprlr"
+   ],
+   "wit_sum": 14,
+   "wit_max": 14,
+   "funcs": [
+    {
+     "name": "?GetBuffer@JsonWriter@@QAAJPAGPAK@Z",
+     "size": 304,
+     "lex": [
+      "frame:savegprlr",
+      "insn:bt",
+      "insn:cmplw",
+      "insn:lhzx",
+      "insn:rlwimi",
+      "insn:sthu",
+      "sym:helper-restgprlr",
+      "sym:helper-savegprlr"
+     ],
+     "wit": 14,
+     "nearest": "wadjust_obj_recv.cpp:?n0@@YAXXZ"
+    }
+   ]
+  },
+  {
+   "src": "src/system/utl/EncryptXTEA.cpp",
+   "blocked": 4,
+   "emitted": 5,
+   "nfunc": 5,
+   "union": 38,
+   "gap": 15,
+   "missing": [
+    "frame:savegprlr",
+    "insn:addic.",
+    "insn:bdnz",
+    "insn:clrldi",
+    "insn:lwzx",
+    "insn:mtctr",
+    "insn:rldicl",
+    "insn:rldimi",
+    "insn:slwi",
+    "insn:stdu",
+    "insn:stdx",
+    "insn:xor",
+    "sym:helper-memcpy",
+    "sym:helper-restgprlr",
+    "sym:helper-savegprlr"
+   ],
+   "wit_sum": 23,
+   "wit_max": 10,
+   "funcs": [
+    {
+     "name": "??0XTEABlockEncrypter@@QAA@XZ",
+     "size": 16,
+     "lex": [],
+     "wit": 0,
+     "nearest": "w25_store_leaf.cpp:?s_a@@YAXPAUS@@H@Z"
+    },
+    {
+     "name": "?SetKey@XTEABlockEncrypter@@QAAXPBE@Z",
+     "size": 12,
+     "lex": [
+      "sym:helper-memcpy"
+     ],
+     "wit": 1,
+     "nearest": "w20_convert.cpp:?c_u_of_i@@YAIH@Z"
+    },
+    {
+     "name": "?SetNonce@XTEABlockEncrypter@@QAAXPB_KI@Z",
+     "size": 32,
+     "lex": [
+      "insn:clrldi"
+     ],
+     "wit": 2,
+     "nearest": "wsl_store_load.cpp:?c1@@YAXPAUS@@PAUQ@@@Z"
+    },
+    {
+     "name": "?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z",
+     "size": 116,
+     "lex": [
+      "insn:bdnz",
+      "insn:clrldi",
+      "insn:lwzx",
+      "insn:mtctr",
+      "insn:rldicl",
+      "insn:rldimi",
+      "insn:slwi",
+      "insn:xor"
+     ],
+     "wit": 10,
+     "nearest": "il_bool_materialization.cpp:?zero_test@@YAII@Z"
+    },
+    {
+     "name": "?Encrypt@XTEABlockEncrypter@@QAAXPBUXTEABlock@@PAU2@@Z",
+     "size": 96,
+     "lex": [
+      "frame:savegprlr",
+      "insn:addic.",
+      "insn:stdu",
+      "insn:stdx",
+      "insn:xor",
+      "sym:helper-restgprlr",
+      "sym:helper-savegprlr"
+     ],
+     "wit": 10,
+     "nearest": "mvp_call_seq_b.cpp:?one_saved@@YAXHH@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/system/synth_xbox/IPP_basicmath_xbox.cpp",
+   "blocked": 4,
+   "emitted": 4,
+   "nfunc": 4,
+   "union": 17,
+   "gap": 6,
+   "missing": [
+    "insn:bclr",
+    "insn:bdnz",
+    "insn:lfsx",
+    "insn:mtctr",
+    "insn:stfsu",
+    "insn:stfsx"
+   ],
+   "wit_sum": 28,
+   "wit_max": 8,
+   "funcs": [
+    {
+     "name": "?Add_InPlace@IPP@@YAXIPBMPAM@Z",
+     "size": 48,
+     "lex": [
+      "insn:bclr",
+      "insn:bdnz",
+      "insn:lfsx",
+      "insn:mtctr"
+     ],
+     "wit": 7,
+     "nearest": "w29_fp_contract.cpp:?c_add@@YAHHH@Z"
+    },
+    {
+     "name": "?MulConstant_InPlace@IPP@@YAXIPAMM@Z",
+     "size": 36,
+     "lex": [
+      "insn:bclr",
+      "insn:bdnz",
+      "insn:mtctr",
+      "insn:stfsu"
+     ],
+     "wit": 6,
+     "nearest": "w28_fltused_order.cpp:?a_int@@YAHH@Z"
+    },
+    {
+     "name": "?Mul_InPlace@IPP@@YAXIPBMPAM@Z",
+     "size": 48,
+     "lex": [
+      "insn:bclr",
+      "insn:bdnz",
+      "insn:lfsx",
+      "insn:mtctr"
+     ],
+     "wit": 7,
+     "nearest": "w29_fp_contract.cpp:?c_add@@YAHHH@Z"
+    },
+    {
+     "name": "?Mul@IPP@@YAXIPBM0PAM@Z",
+     "size": 52,
+     "lex": [
+      "insn:bclr",
+      "insn:bdnz",
+      "insn:lfsx",
+      "insn:mtctr",
+      "insn:stfsx"
+     ],
+     "wit": 8,
+     "nearest": "w20_convert.cpp:?c_u_of_i@@YAIH@Z"
+    }
+   ]
+  },
+  {
+   "src": "src/system/rndobj/wordwrap.cpp",
+   "blocked": 3,
+   "emitted": 3,
+   "nfunc": 3,
+   "union": 43,
+   "gap": 12,
+   "missing": [
+    "frame:savegprlr",
+    "insn:bt",
+    "insn:clrlwi.",
+    "insn:cmplw",
+    "insn:cmpw",
+    "insn:cmpwi",
+    "insn:lbzx",
+    "insn:lhzx",
+    "insn:rlwinm.",
+    "insn:slwi",
+    "sym:helper-restgprlr",
+    "sym:helper-savegprlr"
+   ],
+   "wit_sum": 28,
+   "wit_max": 21,
+   "funcs": [
+    {
+     "name": "?WordWrap_SetOption@@YAXI@Z",
+     "size": 12,
+     "lex": [],
+     "wit": 1,
+     "nearest": "w13b_fconst.cpp:?k_add@@YAMM@Z"
+    },
+    {
+     "name": "?IsEastAsianChar@@YA_N_W@Z",
+     "size": 164,
+     "lex": [
+      "insn:bt",
+      "insn:rlwinm."
+     ],
+     "wit": 6,
+     "nearest": "wadjust_obj_recv.cpp:?n0@@YAXXZ"
+    },
+    {
+     "name": "?WordWrap_CanBreakLineAt@@YA_NPB_W0@Z",
+     "size": 640,
+     "lex": [
+      "frame:savegprlr",
+      "insn:bt",
+      "insn:clrlwi.",
+      "insn:cmplw",
+      "insn:cmpw",
+      "insn:cmpwi",
+      "insn:lbzx",
+      "insn:lhzx",
+      "insn:slwi",
+      "sym:helper-restgprlr",
+      "sym:helper-savegprlr"
+     ],
+     "wit": 21,
+     "nearest": "wadjust_obj_recv.cpp:?n0@@YAXXZ"
+    }
+   ]
+  }
+ ]
+}

@@ -69,3 +69,7 @@ gens_*.jsonl
 # worktree isolation). Each is a real checkout with a reflinked target/ and a
 # symlinked compilers/ — never committed.
 /.claude/worktrees/
+
+# Coverage-instrumented build tree (work/w-frame/sweep.py). Same status as
+# /target: a machine-specific build artifact, never committed.
+/target-cov
