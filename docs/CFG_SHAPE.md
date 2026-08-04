@@ -162,6 +162,187 @@ exactly the ones whose registered alternative was still inside the wrong family.
 
 ## 2. How the IL encodes control flow
 
+Almost all of this is **confirmation**, not discovery: `docs/IL_STMT_GRAMMAR.md`
+§7–§9 characterized it and
+`crates/c2-il/src/func/body/shapes/control_flow.rs` implements it as a
+decode-only scanner. It is restated here because the emission half in §3 is
+unreadable without it, and because a spec that sends an implementer to two
+documents for one production is a spec that will be half-read. Each claim is
+tagged **[C]** confirmed-this-lane or **[N]** new-this-lane.
+
+### 2.1 The four opcodes, and that is the whole vocabulary
+
+```text
+29 <tok>     define label <tok>                                       [C]
+38 <tok>     pop a value; branch to <tok> if it is FALSE              [C]
+39 <tok>     pop a value; branch to <tok> if it is TRUE               [C]
+3A <tok>     unconditional branch to <tok>                            [C]
+```
+
+`<tok>` is a `read_token_var` LEB-ish token, 2 bytes normally and 4 when bit 7 of
+the second byte is set. **All of `if`, `if/else`, `&&`, `||`, `!`, `while`,
+`for`, `do`/`while`, `break`, `continue`, `goto` and early `return` are built
+from these four and nothing else** — `IL_STMT_GRAMMAR.md` §8.4's result, and it
+holds on every probe and every frontier function this lane read. `switch` adds
+`3B`/`3C`/`3D` and is a different problem (§5.4).
+
+Three properties that decide the shape of a decoder, all **[C]**:
+
+* **`3A` carries no direction.** Forward and backward are decided by where
+  `29 <tok>` happens to sit, so a back edge is only visible after a position
+  scan. This is why `control_flow.rs`'s `Site` records an offset and not a count.
+* **A label may be defined at a shallower scope depth than the branches that
+  target it** (`do`/`while`, `IL_STMT_GRAMMAR.md` §8.3), so the label table must
+  not be scoped.
+* **The branch condition is not a separate materialization step.** The
+  comparison feeds the branch directly, with no `2C` convert — contrast the W6
+  comparison *leaf*, which converts bool→int because it returns the value.
+
+### 2.2 The blocker vocabulary, decoded
+
+The census keys the brief names, resolved against the bytes that produce them.
+`cflow-*` come from `CfShape::name`; `expr-*` and `cf-expr-*` are the *first
+refused byte* in the operand walk.
+
+| key | what it is in the byte stream |
+|---|---|
+| `cflow-if-1` | body decoded end to end; **one** `38`/`39` site; no back edge; no `3B`/`3C`/`3D` |
+| `cflow-if-2` | as above with **two** `38`/`39` sites |
+| `cflow-if-n` | as above with **three or more** |
+| `cflow-loop` | some `38`/`39`/`3A` names a label whose `29` **already went past** — a back edge. Ranked above `if-n` however few conditionals it has, because the back edge is the expensive fact |
+| `cflow-straight` | ≤1 `3A` and ≤1 `29`, i.e. the epilogue's own pair, and no conditional — a single basic block |
+| `cflow-multi-exit` | no conditional but >1 jump or label — several `return`s converging on the epilogue |
+| `expr-brfalse` / `expr-brtrue` | the **accepting** parser (not the scanner) stopped at a `38` / `39` it cannot lower |
+| `expr-jump` / `expr-label` / `body-cflow-label` | likewise at `3A` / `29`, the last at a `29` in body-leading position |
+| `cf-expr-0x05` | **not control flow at all.** The decode-only *scanner* stopped at operand byte `0x05`, which `docs/CODEGEN_W6_COMPARE.md` §1.2 pins as **DIV**. A body filed here has an unknown-width token before its control flow was ever read, so its `cflow-*` class is unmeasured |
+
+**`cf-expr-0x05` is the trap in this table.** Three of the seventeen frontier
+TUs (`Biquad.cpp`, `wordwrap.cpp`, `Pool.cpp`) contain a function filed there,
+and it is *not* a control-flow blocker — it is an integer divide whose operand
+width the scanner declines to guess. Those three TUs are unreachable by the CFG
+step no matter how complete it is (§5.5).
+
+### 2.3 The shapes, from the probes' own bytes
+
+Captured at the workload flags (§10.1), body shown from the `4C 4F 11` marker.
+
+**`cflow-if-1`, the whole of it** — `?a_lt@@YAHHH@Z`,
+`int a_lt(int a,int b){ if(a<b) return 1; return 2; }`:
+
+```text
+4c 4f 11              body marker
+53                    open body scope            (depth 3)
+53                    open the if-statement's own scope   (depth 4)   [see below]
+b9 ed 09 86 41 74     LOAD  a   int
+b9 ee 09 86 41 74     LOAD  b   int
+22                    CMP LT                     -> bool
+38 f1 09              brFALSE -> L_09F1   (the else entry)
+53                      open the then-clause scope (depth 5)
+33 86 41 74 01          LIT int 1
+41 86 41 74             RESULT int
+3a f0 09                JUMP -> L_09F0  (the epilogue label) = `return 1;`
+54 04                   close the then-clause      (4 remaining)
+29 f1 09              L_09F1:
+54 03                 close the if scope           (3 remaining)
+33 86 41 74 02        LIT int 2
+41 86 41 74           RESULT int
+3a f0 09              JUMP epilogue   = `return 2;`
+54 02                 close the body               (2 remaining)
+29 f0 09              L_09F0:   the epilogue label
+4f 12 47 54 01 54 00  function tail
+```
+
+Everything an `if` needs is in those twelve lines: **one conditional branch, one
+label definition, and the epilogue label that every `return` jumps to.** **[C]**
+
+**`if/else` adds one jump and one label** — `?a_else@@YAHHH@Z`, the delta against
+the above being `54 04 · 3a fb 09 · 29 fa 09` where `a_lt` has `54 04 · 29 f1
+09`: the then-clause's close is followed by a `3A` **over** the else arm, and the
+join label `29 fb 09` is defined after the else arm closes. Note the jump is
+emitted *after* the then-clause's `54`, in the `if` statement's own scope. **[C]**
+
+**`cflow-if-2` is two independent `38` sites and nothing else** —
+`?b_if2@@YAXHH@Z`, `void b_if2(int a,int b){ if(a) g(); if(b) h(); }`:
+
+```text
+53 53  b9 ff 09 86 41 74  38 03 0a   53 26 e3 09 bd … 4c 4b  54 04  29 03 0a  54 03
+       53  b9 00 0a 86 41 74  38 04 0a   53 26 e4 09 bd … 4c 4b  54 04  29 04 0a  54 03
+       3a 02 0a  54 02  29 02 0a  4f 12 47 54 01 54 00
+```
+
+The second `if` is a byte-for-byte repetition of the first with different tokens.
+`cflow-if-n` (`?b_ifn@@YAXHHH@Z`) is the same production a third time.
+**Structurally, `if-2` and `if-n` add nothing over `if-1`** — no new opcode, no
+new nesting rule, no new join discipline. **[N]** — the *implication* is new even
+though the bytes confirm §7; see §5.2, where it is what makes the widening order
+`if-1 → if-n` rather than `if-1 → if-2 → if-n`.
+
+**A short-circuit `&&` is already two branches in the IL** —
+`?b_and@@YAXHH@Z`, `if(a && b) g();`:
+
+```text
+b9 f4 09 86 41 74  38 f8 09        brFALSE(a) -> SKIP
+b9 f5 09 86 41 74  38 f8 09        brFALSE(b) -> the SAME label
+53 26 e3 09 bd … 4c 4b  54 04
+29 f8 09                           SKIP:
+```
+
+and `||` (`?b_or@@YAXHH@Z`) is `39` to the *entry* then `38` to the skip:
+
+```text
+b9 f9 09 86 41 74  39 fe 09        brTRUE(a)  -> L_09FE (the call)
+b9 fa 09 86 41 74  38 fd 09        brFALSE(b) -> L_09FD (skip)
+29 fe 09                           L_09FE:
+53 26 e3 09 bd … 4c 4b  54 04
+29 fd 09                           L_09FD:
+```
+
+The `0x1A`/`0x1B`/`0x1C` operator bytes for `!`/`||`/`&&` **do not appear in a
+condition** — c1xx lowered them to branches already. **[C]** Note the census
+files these as `cflow-if-2`, not as a distinct shape, which is correct: they are
+two branches. **[C]**
+
+**A loop is one `29` whose position precedes a branch that names it** —
+`?c_callloop@@YAXH@Z`, `void c_callloop(int n){ while(n){ g(); n=n-1; } }`:
+
+```text
+53 53
+29 00 0a                        TOP:
+b9 fc 09 86 41 74  38 01 0a     brFALSE -> EXIT
+53  26 e3 09 bd … 4c 4b         g();
+    26 fc 09 b9 fc 09 86 41 74 33 86 41 74 01 03 32 86 41 74 4b    n = n - 1;
+54 04
+3a 00 0a                        JUMP TOP   <- the back edge, an UNCONDITIONAL 3A
+29 01 0a                        EXIT:
+54 03  3a fe 09  54 02  29 fe 09  4f 12 47 54 01 54 00
+```
+
+The back edge in the **IL** is an unconditional `3A`. §3.7 shows it is *never* an
+unconditional branch in the obj — which is the single largest gap between the IL's
+block structure and the emitted one. **[N]**
+
+**`for` arrives pre-rotated, and not in source order** — `?c_for@@YAHH@Z`
+reproduces `IL_STMT_GRAMMAR.md` §8.2 exactly: `init · 3a COND · 29 INCR · incr ·
+29 COND · cond · 38 EXIT · body · 3a INCR · 29 EXIT`. The increment sits
+**before** the condition in the byte stream and runs after it. **[C]** §3.7 shows
+c2 straightens this away entirely, so a lowering that preserves IL block order
+emits wrong bytes here specifically.
+
+### 2.4 The IL is flag-invariant for this class — measured
+
+The `.ex` for `pa.cpp` at `/Ox /GS- /c` and at the workload's
+`/O1 /Oi /EHsc /GR …` are **the same length and differ in exactly 7 bytes**, one
+per function, at the per-function optimization word `4F 1F 80 05 00 <b> 00`:
+`b = a0` at `/Ox` (`OPT_WORD_OX = 0x00a00005`), `b = 20` at `/O1`
+(`OPT_WORD_O1 = 0x00200005`). **Every statement and expression byte quoted in
+this section is identical under both.**
+
+That is a useful and a dangerous fact at once. Useful: the control-flow *decode*
+is flag-independent for this class, so a decoder graded at one setting is graded
+at both. Dangerous: it means a cross-flag capture **looks fine** on the IL side
+and is wrong only on the obj side — which is exactly the exposure §10.1 exists to
+close, and precisely why the control was run rather than assumed.
+
 ## 3. What c2 emits
 
 ## 4. The minimal instance — `cflow-if-1`, in full
