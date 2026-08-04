@@ -1222,4 +1222,111 @@ would close it**, and **whether it blocks the step-1 rung** of §5.2.
 
 ## 9. Proposed board rows
 
+Not written to `docs/BOARD.md` — this lane does not own it. w-front proposed
+183–185, so the next free number is **186**.
+
+| # | title | state | note |
+|---|---|---|---|
+| 186 | A `cflow-if-1` body often emits **no branch at all** | **OPEN** | Three fold bands (§3.5). 6 of 7 `pa.cpp` leaves and **both** real `if-1` functions in `Pool.cpp` fold to a branchless select or a `bclr` conditional return. Grade a branch lowering on `xboxmem.cpp`, never on `Pool.cpp`. |
+| 187 | The band-1 ↔ band-2 fold decision is a c2 cost model | **OPEN, DECLINED here** | §3.5. Eighteen rows fit; none tests. A ~30-cell probe varying only the constant pair over a fixed relation would settle it — §8.1 B1, the highest-value follow-up in `docs/CFG_SHAPE.md`. |
+| 188 | Condition registers are two-valued: cr6 for an explicit compare, **cr0** for a record-form | **OPEN** | §3.2. Hard-coding `BI = 4*6+bit` emits `409a…` where the obj has `4082…` on every decrement-and-test loop — a plausible-looking wrong branch. CR fields are **reused**, never allocated (three live compares in one body all write cr6). |
+| 189 | `if-2` and `if-n` add **no production** over `if-1` | **OPEN** | §4.4. `if-1` alone unblocks **1** frontier TU; `if-1`+`if-2`+`if-n` unblocks **8**. Splitting them across rungs costs seven TUs and buys nothing. Admit all three in one rung. |
+| 190 | Leaf counted loops become **CTR loops** (`mtctr`/`bdnz`) | **OPEN** | §3.7c. An instruction family absent from the port and from `docs/` entirely, and it drags in trip-count computation, which is not a CFG problem. A loop rung must decide up front whether its class includes them. |
+| 191 | Intra-section and external branches use **the same opcode with different encodings** | **OPEN** | §3.3. `48000008` (true displacement, no relocation) vs `4bffffec` (section-start placeholder + `REL24`). A fixup pass that treats every `b` alike corrupts one of the two. |
+| 192 | The epilogue block is emitted **even when unreachable** | **OPEN** | §3.6. `b_if`, `b_and`, `b_or` each end in a dead `4e800020` because every edge into it folded to a `bclr`. It is four real bytes and it is in the section size. |
+| 193 | Block order is IL statement order — with one measured refutation | **OPEN** | §3.4 / §3.4.1. Holds in 10 of 11 cells; `d_join` tail-merges two identical `bl` sites, empties the then-block and inverts the layout. Block order is downstream of code motion, so **a body whose arms end in the same call is out of any class specified here**. |
+| 194 | `c2rs capture` hardcodes `/Ox` and silently ignores flags | **OPEN** (lane w-land) | `crates/c2-reference/src/lib.rs:465`; only `capture_il_with` takes flags and no CLI path reaches it. The `.ex` differs between `/Ox` and `/O1` in exactly the per-function opt words (§2.4), so a cross-flag capture looks correct on the IL side and is wrong only on the obj side. This lane's exposure is closed by the §10.1 control; **other lanes' captures are not**. |
+
 ## 10. Reproducing this
+
+### 10.1 Flags, and the provenance control
+
+Two flag sets, used deliberately and never mixed in one table.
+
+```sh
+# probes — the workload's flags minus its /I paths, which no probe needs
+printf '/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc\n' > work/w-cfg/flags.txt
+
+# frontier TUs — the workload's own flags, with the workload as cwd
+#   work/dc3-workload/flags.txt   --cwd <dc3-decomp>
+```
+
+`/O1` implies `/Gy`, hence one `.text` COMDAT per function; `/GR` is in the
+workload set and **not** in `c2rs`'s CLI defaults.
+
+**The control that closes the `c2rs capture` exposure.** `capture` hardcodes
+`/Ox /GS- /c`; `census --flags-file` does not. Run both against the same source
+and compare:
+
+```sh
+c2rs census work/w-cfg/p/pa.cpp --flags-file work/w-cfg/flags.txt --keep-il work/w-cfg/ctl-o1
+c2rs capture work/w-cfg/p/pa.cpp                                  --keep-il work/w-cfg/ctl-ox
+cmp <ctl-o1>/*.ex <il-pa>/*.ex     # IDENTICAL — the on-disk bundle is the /O1 one
+cmp <ctl-ox>/*.ex <il-pa>/*.ex     # DIFFERS
+```
+
+Measured result: `ctl-o1` reproduces the on-disk bundle **byte-for-byte in all
+five files**; `ctl-ox`'s `.ex` differs in **exactly 7 bytes**, one per function,
+at the per-function optimization word `4F 1F 80 05 00 <b> 00` —
+`b = a0` (`OPT_WORD_OX = 0x00a00005`) against `b = 20`
+(`OPT_WORD_O1 = 0x00200005`). `.gl` and `.sy` are identical either way, which is
+why the failure is invisible without this comparison.
+
+**Scope: this bounds this lane's measurements only.** It does not clear any other
+lane's captures.
+
+### 10.2 Commands
+
+```sh
+cargo build --release -p c2-harness
+
+# probe TUs: obj at the probe flags, IL at the SAME flags (census, not capture)
+for f in pa pb pc pd pe pf; do
+  c2rs compile work/w-cfg/p/$f.cpp --flags-file work/w-cfg/flags.txt \
+       --keep-obj work/w-cfg/$f.obj
+  c2rs census  work/w-cfg/p/$f.cpp --flags-file work/w-cfg/flags.txt \
+       --keep-il  work/w-cfg/il-$f
+done
+
+# the two frontier TUs, at the workload's own flags
+D=<dc3-decomp>
+for t in src/xdk/nuispeech/xboxmem.cpp src/system/utl/Pool.cpp; do
+  c2rs compile "$t" --cwd $D --flags-file work/dc3-workload/flags.txt \
+       --keep-obj work/w-cfg/$(basename $t .cpp).obj
+  c2rs census  "$t" --cwd $D --flags-file work/dc3-workload/flags.txt \
+       --keep-il  work/w-cfg/il-$(basename $t .cpp)
+done
+
+# read the objs
+python3 work/w-cfg/objdis.py work/w-cfg/xboxmem.obj
+
+# c2's own narration (a decode aid; see §7 before trusting it).
+# `listing` takes neither --cwd nor --flags-file, so includes go in as --flag.
+c2rs listing work/w-cfg/p/pb.cpp --out work/w-cfg/pb.cod \
+     --flag /nologo --flag /c --flag /GR --flag /O1 --flag /Oi --flag /EHsc
+```
+
+### 10.3 The probe grid
+
+`work/w-cfg/p/` — gitignored scratch, per the project rule; every byte quoted
+above is transcribed here so the document stands without it.
+
+| TU | functions | what it separates |
+|---|---|---|
+| `pa.cpp` | `a_eq a_ne a_lt a_eqk a_else a_var a_store` | whether a `cflow-if-1` leaf folds — 7 × `cflow-if-1` |
+| `pb.cpp` | `b_if b_ifelse b_ifval b_and b_or b_if2 b_ifn` | control flow **around calls**, which cannot fold — 3/3/1 `if-1`/`if-2`/`if-n` |
+| `pc.cpp` | `c_while c_for c_do c_callloop c_forcall` | loop rotation, back-edge form, CTR — 5 × `cflow-loop` |
+| `pd.cpp` | `d_nest d_join d_break d_cont d_switch d_early d_goto d_cold` | block order, joins, `break`/`continue`/`goto`, `switch`, a cold arm |
+| `pe.cpp` | `e_long`, generated with N stores | the long-branch threshold; N swept 4000/4200/4400/6000 |
+| `pf.cpp` | `f_eq59 f_gt59 f_ne59 f_eqcall f_eq3 f_eqvoid f_eqzk` | the fold boundary — constant pair and relation varied against `pa.cpp` |
+
+`work/w-cfg/objdis.py` is this lane's scratch COFF reader and PPC disassembler
+(sections, symbols by record index, relocations, `BO`/`BI` decoded to extended
+mnemonics). It is scratch, not tooling: the disassembly was cross-checked against
+c2's own `.cod` listing on `pb.cpp` and `xboxmem.cpp`, which is the only reason
+its output is quoted.
+
+**Held-out cells**, compiled after §3's rules were written: `pe.cpp`'s sweep
+(answered §3.3.1, which no other probe reaches) and `pf.cpp` (refuted the fold
+rule that `pa.cpp` alone would have supported — `a_eq` folds, `f_eq59` with the
+same relation does not).
