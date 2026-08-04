@@ -15,14 +15,14 @@ cost this project real work more than once.
 ## The numbers
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-04 · tree `a8c2263` · binary `a1d343441d40`
+Collected 2026-08-04 · tree `84ec23e` · binary `a1d343441d40`
 
 | metric | value |
 |---|---|
 | Workspace tests (cargo test --workspace --release) | 677 passed, 0 failed, 25 targets |
 | Oracle self-test (c2rs selftest) | 216 PASS, 0 FAIL |
 | Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 116 not-implemented (of 216) |
-| Port speedup, geomean over matched fixtures | 600x geomean over matched fixtures |
+| Port speedup, geomean over matched fixtures | 586x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7 |
 | Per-function census (driver, not target) | 706402/2463318 functions in class (28.68%) |
 | Emitted-function census | 38457/178972 emitted functions in class (21.49%) |
@@ -293,3 +293,5 @@ largest single file in the project is the member-call decode
 | what each blocker holds hostage, per rung | [`GAPS.md`](GAPS.md) |
 | what landed, when, and for how much census | [`rungs/INDEX.md`](rungs/INDEX.md) |
 | the correctness rule and the invariants | [`ROADMAP.md`](ROADMAP.md) §7, `../CLAUDE.md` |
+| **what the CFG step must emit** — and why 15 of the 17 FRONTIER TUs need it | [`CFG_SHAPE.md`](CFG_SHAPE.md) |
+| the `.data`/`.bss` layout spec — allocator settled, walk order open | [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) |
