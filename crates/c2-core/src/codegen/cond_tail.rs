@@ -266,7 +266,105 @@ mod tests {
         assert_eq!(&parts.text[16..20], &[0x7d, 0x63, 0x5b, 0x78]);
     }
 
+    /// `w9_rel_signed.cpp` / `w9_rel_unsigned.cpp` — the relation grid, against
+    /// bytes read off the **real obj**.
+    ///
+    /// The test below this one (`the_branch_sense_negates_every_relation`)
+    /// compares the port's table to *itself*, so it cannot fail for the right
+    /// reason. Until lane w-frame added the W9 fixtures, that self-comparison
+    /// plus `signedness_selects_the_compare_instruction` were the ONLY things
+    /// holding five of `branch_sense`'s six rows and the whole `cmpwi` path:
+    /// every W8 fixture tests `v1 == 0` on a **pointer**, which is `Rel::Eq`
+    /// (→ `BO_FALSE` only) on an unsigned operand (→ `cmplwi` only) against the
+    /// literal 0. `docs/STATUS.md` trap 5 — absence reads as success.
+    ///
+    /// These twelve words are transcribed from the obj `cl.exe` 16.00.11886.00
+    /// emits for the two fixtures, one COMDAT of six 24-byte bodies each. They
+    /// are the port's first oracle witness for `bt` (`BO=12`), for the `LT`/`GT`
+    /// CR bits, for `cmpwi`, and for a **non-zero** comparison immediate.
+    #[test]
+    fn the_relation_grid_matches_the_real_obj_bytes() {
+        // `void s_xx(void *v1, unsigned long ul, int a)`:
+        //     if (a <rel> k) { g2(v1, ul); return; }
+        //     h3(v1, 0, 0);
+        // The scrutinee is the THIRD formal, so neither arm wants its register
+        // and no entry-block park is involved — the fixture is w8's shape with
+        // only the relation and the operand type moved.
+        fn grid(rel: Rel, signed: bool, k: i32) -> Vec<u8> {
+            let mut f =
+                crate::codegen::testutil::func_with(vec![0x0F6C, 0x0F6D, 0x0F6E], Vec::new());
+            f.mangled_name = "?s_eq@@YAXPAXKH@Z".to_string();
+            f.cond_pair = Some(CondTailPair {
+                cmp_param: 2,
+                rel,
+                signed,
+                k,
+                then_arm: CondArm {
+                    callee: "?g2@@YAXPAXK@Z".to_string(),
+                    slots: vec![SlotArg::Formal(0), SlotArg::Formal(1)],
+                },
+                else_arm: CondArm {
+                    callee: "?h3@@YAXPAXK0@Z".to_string(),
+                    slots: vec![SlotArg::Formal(0), SlotArg::Lit(0), SlotArg::Lit(0)],
+                },
+            });
+            let parts = cond_pair_parts(&f, f.cond_pair.as_ref().unwrap()).expect("in class");
+            // The layout is fixed for the whole grid: compare, branch, the
+            // then-arm's bare tail call, the else-arm's two literals (in
+            // DESCENDING destination order, r5 before r4), its tail call.
+            assert_eq!(parts.text.len(), 0x18, "{rel:?}");
+            assert_eq!(parts.branch_offsets, [0x08, 0x14], "{rel:?}");
+            assert_eq!(&parts.text[8..12], &[0, 0, 0, 0], "{rel:?}");
+            #[rustfmt::skip]
+            let tail: &[u8] = &[
+                0x38, 0xa0, 0x00, 0x00, // li r5,0
+                0x38, 0x80, 0x00, 0x00, // li r4,0
+                0x00, 0x00, 0x00, 0x00, // b  ?h3  <- the caller's
+            ];
+            assert_eq!(&parts.text[12..], tail, "{rel:?}");
+            parts.text[..8].to_vec()
+        }
+
+        // --- signed, `cmpwi cr6,r5,0` (w9_rel_signed.cpp) --------------------
+        const CMPWI: [u8; 4] = [0x2f, 0x05, 0x00, 0x00];
+        for (rel, branch) in [
+            (Rel::Eq, [0x40, 0x9a, 0x00, 0x08]), // bne cr6,+8   BO=4  bit EQ
+            (Rel::Ne, [0x41, 0x9a, 0x00, 0x08]), // beq cr6,+8   BO=12 bit EQ  <- first `bt`
+            (Rel::Lt, [0x40, 0x98, 0x00, 0x08]), // bge cr6,+8   BO=4  bit LT
+            (Rel::Ge, [0x41, 0x98, 0x00, 0x08]), // blt cr6,+8   BO=12 bit LT
+            (Rel::Gt, [0x40, 0x99, 0x00, 0x08]), // ble cr6,+8   BO=4  bit GT
+            (Rel::Le, [0x41, 0x99, 0x00, 0x08]), // bgt cr6,+8   BO=12 bit GT
+        ] {
+            let mut want = CMPWI.to_vec();
+            want.extend_from_slice(&branch);
+            assert_eq!(grid(rel, true, 0), want, "signed {rel:?}");
+        }
+
+        // --- unsigned, `cmplwi cr6,r5,7` (w9_rel_unsigned.cpp) --------------
+        // Same six branch words: the CR bit and the BO come from the relation
+        // alone, and the compare's signedness moves only the compare word. The
+        // immediate is 7, the first non-zero one the port has ever been graded
+        // on.
+        const CMPLWI: [u8; 4] = [0x2b, 0x05, 0x00, 0x07];
+        for (rel, branch) in [
+            (Rel::Eq, [0x40, 0x9a, 0x00, 0x08]),
+            (Rel::Ne, [0x41, 0x9a, 0x00, 0x08]),
+            (Rel::Lt, [0x40, 0x98, 0x00, 0x08]),
+            (Rel::Ge, [0x41, 0x98, 0x00, 0x08]),
+            (Rel::Gt, [0x40, 0x99, 0x00, 0x08]),
+            (Rel::Le, [0x41, 0x99, 0x00, 0x08]),
+        ] {
+            let mut want = CMPLWI.to_vec();
+            want.extend_from_slice(&branch);
+            assert_eq!(grid(rel, false, 7), want, "unsigned {rel:?}");
+        }
+    }
+
     /// The branch sense is the **negation** of the IL relation, per relation.
+    ///
+    /// This compares the port's table to itself and is kept only as a locator:
+    /// the assertion with a byte behind it is
+    /// `the_relation_grid_matches_the_real_obj_bytes`, above.
     #[test]
     fn the_branch_sense_negates_every_relation() {
         assert_eq!(branch_sense(Rel::Eq), (BO_FALSE, CR_BIT_EQ)); // bne
