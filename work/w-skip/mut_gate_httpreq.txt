@@ -1,0 +1,31 @@
+bundle _CL_ab574063   baseline leaders 63   leader set == pipeline obj True
+w-mark-style retarget candidates on writable kind-1 owners: 10 (distinct owners 1), F_new pool 2-byte 95
+  owner f20 histogram over those candidates: [('0x5801', 10)]
+
+owner ??_7HttpReq@@6B@                           f20=0x5801
+   F_old ?IsSafeToDelete@HttpReq@@UBA_NXZ               -> F_new ?uninitialized_copy@stlpmtx_std@@YAPADPBD0PAD@
+  [G0] f20 0x5801  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+  [G1] f20 0x5821  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+  [G2] f20 0x5861  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+  [G3] f20 0x5801  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+  [G4] f20 0x5801  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+  [G5] f20 0x5c01  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+  [G6] f20 0x1801  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+  [S-min] f20 0x0001  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+  [S-max] REPLAY FAIL: t] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs/.claude/worktrees/w-skip/compilers/X360/16.00.11886.00/c2.dll
+
+wibo: caught SIGSEGV
+
+  [S-walk] f20 0x0481  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
+
+---- src/system/net/HttpReq.cpp   (n = per-arm replays)
+  G0  expect APPEARS      F_new appeared in 1/1
+  G1  expect suppressed   F_new appeared in 1/1
+  G2  expect APPEARS      F_new appeared in 1/1
+  G3  expect suppressed   F_new appeared in 1/1
+  G4  expect suppressed   F_new appeared in 1/1
+  G5  expect APPEARS      F_new appeared in 1/1
+  G6  expect APPEARS      F_new appeared in 1/1
+  S-min expect ?            F_new appeared in 1/1
+  S-max expect ?            F_new appeared in 0/0
+  S-walk expect ?            F_new appeared in 1/1

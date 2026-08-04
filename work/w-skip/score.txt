@@ -1,0 +1,57 @@
+TUs graded 850   MISSING 7   ERROR 0
+
+KA-A incumbent population: |U| 1506586  |E| 174417  |E n U| 173907  |Seed| 14662
+KA-B in stream clean 850/850   `02` tokens 1885700
+KA-C owner-header round-trip 2744921/2744921 = 1.00000   +0x20 concentration (top-8 share of kind-1) 0.81225
+KA-D `in` owner tokens bound to a decoded `.gl` record 702262/879377 = 0.79859
+KA-POS discriminating names: P_SKIP ^ P_INIT = 212534 ; P_SKIP ^ P_RGL = 271394
+
+model          |P|  precision    recall        F1     exact
+RGL         129604    1.00000   0.74307   0.85260   132/850
+INIT        613532    0.27289   0.95991   0.42496    34/850
+SKIP        400998    0.36420   0.83732   0.50761    34/850
+STRICT      400775    0.36388   0.83613   0.50709         -
+
+roots: |I| 245148 (in E 34532, soundness 0.14086) ; |I_skip| 147599 (in E 14039, soundness 0.09512) ; |I_skip|/|I| 0.60208 ; |I_skip \ I| 0
+COINCIDENCE w-mark I       |X \ P_RGL|  242118  emitted  31502  measured 0.13011  expected 0.03254  ratio 4.00x
+COINCIDENCE w-skip I_skip  |X \ P_RGL|  146349  emitted  12789  measured 0.08739  expected 0.03254  ratio 2.69x
+            base rate |E|/|U| = 0.11577 ; soundness(I) 0.14086 = 1.22x ; soundness(I_skip) 0.09512 = 0.82x
+Rfloor 36141   Seed 0.18796   Seed u I_skip 0.53626   Seed u I 0.86926
+
+replay gates, corpus-wide:
+   rec                879377
+   owner_unbound      177115
+   loose_fallback     177115
+   s1                 0
+   s2                 0
+   s3                 17919
+   walk_enabled       432137
+   abort_1d           0
+   type_known         0
+   type_unknown       702263
+   flagbyte_nonzero   0
+   syms_bound         2744921
+   syms_k1            846087
+   syms_k4            1899000
+   syms_hdrfail       0
+
+STRATIFIED — `??_G`/`??_E` (#152) EXCLUDED from E and from P:
+   |E| 174417 -> |E without #152| 169073  (#152 is 5344 = 0.03064 of E)
+model          |P|  precision    recall        F1
+RGL         128781    1.00000   0.76169   0.86473
+INIT        612136    0.27123   0.98200   0.42506
+SKIP        399710    0.36215   0.85617   0.50900
+
+residual E \ P_SKIP = 27864
+   free / file-scope function                                        14885  0.53420
+   VIRTUAL member  (reached only via a vtable slot)                   4187  0.15027
+   ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)          4056  0.14556
+   `$` in qualified name (template instantiation OR adjustor thunk)   2374  0.08520
+   non-virtual member                                                  875  0.03140
+   undecorated (extern "C" / CRT)                                      865  0.03104
+   static member                                                       448  0.01608
+   other ($)                                                           119  0.00427
+   adjustor thunk (access code)                                         41  0.00147
+   other (0)                                                             9  0.00032
+   other (2)                                                             3  0.00011
+   other (1)                                                             2  0.00007
