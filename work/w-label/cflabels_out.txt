@@ -1,0 +1,40 @@
+mode: /O1 /GS- /c
+anchors: 3x plain Class-A framed; `control` is the anchor base MEASURED in this obj (5 /Gy, 4 packed)
+`extra` = slots taken before P's own $M; `stride` = slots P consumes in total; base is `control`
+
+probe               extra stride  minted  control  surcharge
+cf-none                 0      5       5        5      +0   BASE: framed Class A, no control flow at all
+cf-if                   -      1       1        5     +-4   one guarded early return, value arm (W11's in-class shape, n=1)
+cf-if2                  0      5       5        5      +0   TWO guards, DISTINCT literals -- W11 in-class, two `b` to the epilogue
+cf-if3                  0      5       5        5      +0   THREE guards, distinct literals -- three `b` naming ONE target
+cf-ifelse               1      6       5        5      +1   if/else with a join block
+cf-ifelse-val           0      5       5        5      +0   if/else, both arms return a literal
+cf-void-guard           -      1       1        5     +-4   the EMPTY arm -- W11's branch-sense inversion, `bf` straight to the epilogue
+cf-merge2               1      6       5        5      +1   TWO guards, SAME literal -- c2 merges the arms and branches BACKWARD  <== THE PROBE
+cf-merge3               1      6       5        5      +1   THREE guards, one literal: is the merge charge per merge or per arm?
+cf-merge-tail           1      6       5        5      +1   a guard returning the SEQUENCE's own literal -- the arm disappears entirely
+cf-merge-mixed          1      6       5        5      +1   three guards, literals 5/11/5: one merged PAIR among three arms
+cf-goto-fwd             0      5       5        5      +0   an explicit FORWARD goto
+cf-goto-back            1      6       5        5      +1   an explicit BACKWARD goto -- a loop written without a loop keyword
+cf-dowhile              1      6       5        5      +1   do/while -- LABEL_COUNTER.md §4 says +1
+cf-while                2      7       5        5      +2   while -- §4 says +2
+cf-for                  4      9       7        5      +4   for -- §4 says +2
+cf-for-break            5     10       7        5      +5   for + break: does an extra exit edge cost a slot?
+cf-for-continue         4      9       7        5      +4   for + continue: does an extra back edge cost a slot?
+cf-forever              3      8       5        5      +3   for(;;) + break -- one back edge, one exit, NO entry test
+cf-for2                 6     11       7        5      +6   TWO sequential for loops -- is the charge per loop?
+cf-fornest              6     11       7        5      +6   nested for -- §4 says +4
+cf-dowhile2             3      8       5        5      +3   TWO sequential do/whiles
+cf-switch-dense         -      1       1        5     +-4   8 DENSE arms -- does a jump table appear, and does it cost slots?
+cf-switch-sparse        -      1       1        5     +-4   3 SPARSE arms -- a compare chain, not a table
+ho-if4                  0      5       5        5      +0   FOUR forward guards, four distinct literals -- L6 says +0
+ho-if-nested            0      5       5        5      +0   NESTED forward guards -- L6 says +0
+ho-ternary              2      7       5        5      +2   a ternary in an argument -- forward only, L6 says +0
+ho-and                  0      5       5        5      +0   short-circuit && -- two compares, one arm, forward only, L6 says +0
+ho-or                   0      5       5        5      +0   short-circuit || -- the second test is the JOIN case; L6 is at risk here
+ho-void-2guard          0      5       5        5      +0   two VOID guards over two calls -- W11's in-class void shape, L6 says +0
+ho-arm-call             0      5       5        5      +0   a guard whose ARM contains a call -- forward only, L6 says +0
+ho-compose              0      5       5        5      +0   a guarded EARLY RETURN and a guarded CALL in one body -- `calls.rs:415` refuses this and w-conv measured c2 composing it
+ho-compose2             0      5       5        5      +0   the same with TWO early returns ahead of the guarded call
+
+controls failed: 0
