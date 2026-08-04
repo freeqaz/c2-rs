@@ -1236,9 +1236,18 @@ for the audit, and note the failure was invisible by inspection: `.gl` and `.sy`
 come back byte-identical either way, and only the 7 per-function opt words
 differ (`0x00a00005` → `0x00200005`). `glparse.py` reads the `.gl` data records
 of §5.6.
-`glcensus.jsonl` is committed (with `git add -f`) beside `w-bss`'s
-`sections.jsonl`; no obj and no IL is committed, and the captures are front-end
-only, so nothing large is ever written.
+`glcensus.jsonl` is **not committed** — `work/` is gitignored and it is not
+force-added. It is derived, and cheaply: a front-end-only capture of all 871 TUs,
+about two minutes, no obj and no IL written. Regenerate it with
+
+```sh
+cd work/w-bss2 && python3 glcensus.py glcensus.jsonl 16
+```
+
+Note the dependency: `glcensus.py` reads `work/w-bss/census/sections.jsonl` for
+the obj side, so that file must exist first (§11). The two are not independent —
+`sections.jsonl` is the allocator's *output* and `glcensus.jsonl` its *input*,
+and §5.7's grading is the join.
 
 `probe.py` compiles one source with the real toolchain and reads the obj back;
 `glorder.py` additionally captures the IL and reads the `.gl` record order.
@@ -1262,6 +1271,23 @@ No absolute machine paths, in the data or in the scripts.
 Regenerate with `census/one.sh` + `census/census.py`; the aggregates quoted above
 come from `census/agg*.py`. The reference objs themselves (102 MB) are **not**
 committed and were deleted after extraction, per the project rule.
+
+```sh
+export C2RS_DC3_SRC="$PWD/../dc3-decomp"      # one.sh requires it; it has no default
+cargo build --release -p c2-harness           # one.sh runs target/release/c2rs
+mkdir -p work/w-bss/census/objs
+while read -r f; do work/w-bss/census/one.sh "$f"; done < work/dc3-workload/files.txt
+python3 work/w-bss/census/census.py           # → sections.jsonl
+```
+
+**This is why the file is committed rather than derived on demand.** Regeneration
+is not a script away: it needs the real toolchain *and* the sibling `dc3-decomp`
+source tree, and it re-materializes ~102 MB of objs (verified: one TU, `src/App.cpp`,
+yields a 143 KB obj) to produce 12.5 MB of census. The objs are then deleted again,
+so the inputs to this file do not exist on any checkout — including this one. It is
+also a live input to committed tooling: `tools/census.py` names it as
+`DEFAULT_CENSUS`, and `work/w-bss2/glcensus.py` reads it. Deleting it would break
+both and cost an 878-TU compile to undo.
 
 **Why 871 and not 878.** Seven TUs never produce an obj, and they fail in `c1xx`
 before c2 is ever reached: C2084/C2512 (duplicate function bodies), C1189
