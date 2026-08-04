@@ -749,6 +749,137 @@ impl Toolchain {
         })
     }
 
+    /// **`/Bk` capture — the vendor's own keep-the-IL switch** (lane w-bk,
+    /// `docs/rungs/2026-08-04-w-bk.md`; sourced from `docs/PRIOR_ART.md` §3.3 /
+    /// Chappell). Same contract as [`Toolchain::capture_reference_with`] — one
+    /// real pipeline compile that yields the reference obj, the surviving IL
+    /// bundle, and the verbatim c2 argv — but the bundle survives because
+    /// `cl.exe` itself is told to keep it, **not** because strace no-ops the
+    /// process's `unlink`s. **Needs no strace.**
+    ///
+    /// Measured ground truth this rests on (all on XDK `16.00.11886.00`,
+    /// commands in the rung doc):
+    ///
+    /// * `/Bk<base>` (argument **attached**, case-sensitive — `/bk` is D9002,
+    ///   `/BK <sep-arg>` is read as a source file) sets the IL base verbatim:
+    ///   it becomes the `-il` value in the `/Bd` echo, and the bundle lands at
+    ///   `<base>{db,ex,gl,in,sy}`.
+    /// * `/Bk` does **not** perturb the obj: plain vs `/Bk` at the same `/Fo`
+    ///   and cwd is byte-identical including the timestamp field's context
+    ///   (only bytes 4..8 differ across seconds, as always).
+    /// * The bundle is byte-identical, stream for stream, to what the strace
+    ///   unlink-inject path keeps — verified on three fixtures here and pinned
+    ///   by `reference::bk_capture_matches_strace_capture_and_replay` for as
+    ///   long as both paths exist.
+    /// * `WIBO_KEEP_TEMP=1` is still REQUIRED: cl opens the `/Bk` files with
+    ///   `FILE_ATTRIBUTE_TEMPORARY` even when given an explicit base, and
+    ///   wibo's reaper (>= 1.0.1-23) deletes temp-attributed guest files at
+    ///   exit. Without it the bundle silently vanishes and absence would read
+    ///   as failure — measured, not assumed.
+    ///
+    /// The related `/BK<base>` (capital K) is cl's **resume-from-IL** switch:
+    /// it skips the front end (its option-table action disables passes `1` and
+    /// `P`) and hands c2 an argv token-identical to the pipeline's except
+    /// `-il`/`-Fo` — exactly the two tokens [`Toolchain::replay`] swaps, which
+    /// independently sanctions that reconstruction. It is deliberately NOT
+    /// used here: the c2host replay drives `c2.dll` with the *captured* argv
+    /// verbatim and needs no second derivation (see the rung doc's decline).
+    pub fn capture_reference_bk_with(
+        &self,
+        src_arg: &str,
+        work_dir: &Path,
+        flags: &[String],
+        cwd: Option<&Path>,
+    ) -> io::Result<CapturedReference> {
+        std::fs::create_dir_all(work_dir)?;
+        let work_abs = absolute(work_dir)?;
+        let out_obj = work_abs.join("out.obj");
+        let _ = std::fs::remove_file(&out_obj);
+        // Clear stale bundles (same rule as the strace path: a reused work dir
+        // must not let a previous capture masquerade as this one's product).
+        for entry in std::fs::read_dir(&work_abs)? {
+            let entry = entry?;
+            if entry.file_name().to_string_lossy().starts_with("_CL_") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+
+        // A fixed, caller-owned base: no scrape, no directory scan.
+        let base_name = "_CL_bk".to_string();
+        let z_il = to_wibo_path(&work_abs.join(&base_name));
+        let z_obj = to_wibo_path(&out_obj);
+
+        let mut cmd = Command::new(&self.wibo);
+        cmd.arg(&self.cl_exe)
+            .arg("/Bd")
+            .arg(format!("/Bk{z_il}"))
+            .args(flags)
+            .arg(format!("/Fo{z_obj}"))
+            .arg(src_arg)
+            .env("TMP", &work_abs)
+            .env("TEMP", &work_abs)
+            .env("WIBO_FS_CACHE", "1")
+            // cl marks the /Bk files FILE_ATTRIBUTE_TEMPORARY even with an
+            // explicit base; without this the wibo reaper deletes the product.
+            .env("WIBO_KEEP_TEMP", "1");
+        if let Some(dir) = cwd {
+            cmd.current_dir(dir);
+        }
+        let output = cmd.output()?;
+
+        if !out_obj.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "capture_reference_bk produced no obj at {}\n  status: {}\n  stdout:\n{}\n  stderr:\n{}",
+                    out_obj.display(),
+                    output.status,
+                    indent(&String::from_utf8_lossy(&output.stdout)),
+                    indent(&String::from_utf8_lossy(&output.stderr)),
+                ),
+            ));
+        }
+        let ref_obj = ObjImage::new(std::fs::read(&out_obj)?);
+
+        let mut combined = String::from_utf8_lossy(&output.stdout).into_owned();
+        combined.push('\n');
+        combined.push_str(&String::from_utf8_lossy(&output.stderr));
+
+        let c2_argv = parse_c2_argv(&combined).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "could not find the `…c2.dll -il …` argv echo in compiler output\n  stdout:\n{}\n  stderr:\n{}",
+                    indent(&String::from_utf8_lossy(&output.stdout)),
+                    indent(&String::from_utf8_lossy(&output.stderr)),
+                ),
+            )
+        })?;
+
+        let bundle = IlBundle::load_from_dir(&work_abs, &base_name)?;
+        match bundle.ex() {
+            Some(ex) if !ex.is_empty() => {}
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!(
+                        "/Bk capture left no `{base_name}ex` in {} — if WIBO_KEEP_TEMP \
+                         was honored this is a real failure, not an empty result",
+                        work_abs.display()
+                    ),
+                ))
+            }
+        }
+
+        Ok(CapturedReference {
+            bundle,
+            base_name,
+            c2_argv,
+            ref_obj,
+            ref_obj_path: out_obj,
+        })
+    }
+
     /// **The listing seam** (board #132, roadmap §9): the same capture, with
     /// `/FAsc` — and optionally `/QXSTALLS` — appended, returning the capture
     /// **and** c2's own assembly listing.
