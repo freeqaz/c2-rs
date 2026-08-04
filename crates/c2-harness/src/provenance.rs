@@ -44,6 +44,68 @@ pub fn repo_root() -> PathBuf {
     tidy(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
 
+/// The **main** repository root — the same directory from every linked worktree.
+///
+/// # Why this exists
+///
+/// `repo_root()` is `CARGO_MANIFEST_DIR`, which is resolved **at compile time**,
+/// so a binary built inside `.claude/worktrees/<lane>` reports *that worktree*
+/// as the repo root. For provenance that is exactly right — the reader wants to
+/// know which tree was measured. For anything meant to be **shared** between
+/// lanes it is exactly wrong, and one thing is: the capture cache. Every lane
+/// that built its own binary minted its own `work/capture-cache`, and on
+/// 2026-08-04 there were 50 of them holding 3,996,458 entries — three of which
+/// were independent, byte-for-byte-equivalent copies of the same 530k-entry
+/// sweep, stored separately only because `cache-root` is part of the cache key
+/// and their roots differed.
+///
+/// The documented workaround was to pass `C2RS_GAP_CACHE=<main-repo>/…`
+/// verbatim from a worktree (docs/ROADMAP.md, docs/rungs/…w-vgl-prereg). That
+/// works and still overrides this; it just has to be remembered once per lane,
+/// which is why 50 caches exist.
+///
+/// # Why it is resolved here and not exported from a shell profile
+///
+/// A shared cache root makes two lanes compute the *same* key for the same
+/// work, which is the point — and which also makes concurrent same-key captures
+/// possible for the first time. Those are guarded by the `O_EXCL` lockfile in
+/// `capture_cache`, and a lockfile only guards binaries that **have** it. An
+/// environment variable would have pointed every already-built lane binary,
+/// lock or no lock, at the shared root on its next run. Resolving it in code
+/// ties the sharing and the guard to the same build: a lane on an old binary
+/// keeps its own root and its old behaviour, and picks up both together when it
+/// rebuilds. The rollout is monotone rather than a flag day.
+///
+/// # How
+///
+/// In a linked worktree `.git` is a *file* holding `gitdir: <main>/.git/worktrees/<name>`.
+/// Three parents up from that is the main repo. Every failure — `.git` is a
+/// directory (we are already in the main repo), no git at all, an unexpected
+/// layout — falls back to `repo_root()`, so this can only ever collapse
+/// worktrees onto their parent and never point somewhere unrelated.
+pub fn main_repo_root() -> PathBuf {
+    let root = repo_root();
+    // `read_to_string` on a directory fails, which is the main-repo case.
+    let Ok(s) = std::fs::read_to_string(root.join(".git")) else {
+        return root;
+    };
+    let Some(rest) = s.trim().strip_prefix("gitdir:") else {
+        return root;
+    };
+    let gitdir = Path::new(rest.trim());
+    let gitdir = if gitdir.is_absolute() {
+        gitdir.to_path_buf()
+    } else {
+        root.join(gitdir)
+    };
+    // <main>/.git/worktrees/<name> -> <main>
+    match gitdir.parent().and_then(Path::parent).and_then(Path::parent) {
+        // Confirm the destination really is a repo before redirecting to it.
+        Some(main) if main.join(".git").is_dir() => tidy(main),
+        _ => root,
+    }
+}
+
 /// Collapse `a/b/../..` for display. A provenance line whose whole job is to
 /// let a reader recognize which tree they measured is worth resolving; falls
 /// back to the raw path when the target does not exist.
@@ -380,6 +442,48 @@ mod tests {
     fn git_probe_on_a_non_repo_degrades_to_unknown() {
         // /proc is never a checkout; the probe must not panic or fail.
         assert_eq!(GitInfo::probe(Path::new("/proc")), GitInfo::unknown());
+    }
+
+    /// Every worktree of one repo must resolve to ONE cache root.
+    ///
+    /// The assert that matters is the second: this test is compiled inside
+    /// whichever tree it is run from, so when that tree is a linked worktree
+    /// `main_repo_root()` must differ from `repo_root()` — and when it is the
+    /// main repo they must agree. Both directions are checked here rather than
+    /// only the one the current checkout happens to exercise, because the whole
+    /// defect was that the worktree case silently did something reasonable.
+    #[test]
+    fn every_worktree_resolves_to_one_main_repo_root() {
+        let root = repo_root();
+        let main = main_repo_root();
+
+        // Whatever the answer, it must be a real repository — never a path
+        // invented by a mis-parse.
+        assert!(
+            main.join(".git").exists(),
+            "main_repo_root() must name a repository, got {}",
+            main.display()
+        );
+
+        let dotgit = root.join(".git");
+        if dotgit.is_dir() {
+            // Main repo: unchanged behaviour, which is the compatibility claim.
+            assert_eq!(root, main, "in the main repo the two must agree");
+        } else if dotgit.is_file() {
+            // Linked worktree: it must collapse, and it must collapse UPWARD —
+            // the worktree has to live under the main repo it points at.
+            assert_ne!(
+                root, main,
+                "a linked worktree must not resolve to itself, or every lane \
+                 mints its own capture cache again"
+            );
+            assert!(
+                root.starts_with(&main),
+                "{} is not under {}",
+                root.display(),
+                main.display()
+            );
+        }
     }
 
     #[test]

@@ -117,7 +117,8 @@ fn print_usage() {
          \x20            [--cache DIR | --no-cache] [--validate-cache N]\n\
          \x20            captures are cached content-addressed (source bytes + flags +\n\
          \x20            toolchain + workload git identity, never mtimes) under\n\
-         \x20            work/capture-cache or C2RS_GAP_CACHE; --validate-cache N\n\
+         \x20            <main-repo>/work/capture-cache (shared by every worktree)\n\
+         \x20            or C2RS_GAP_CACHE; --validate-cache N\n\
          \x20            re-captures every Nth hit and byte-compares it.\n\
          listing options: [--qxstalls] [--out PATH] [--flag F ...]  (default flags /O1 /Oi /EHsc /GS- /c)\n\
          listing-scan options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
@@ -2151,7 +2152,13 @@ fn cmd_gap(rest: &[String]) -> ExitCode {
     let mut cache: Option<PathBuf> = Some(
         std::env::var_os("C2RS_GAP_CACHE")
             .map(PathBuf::from)
-            .unwrap_or_else(|| c2_harness::provenance::repo_root().join("work/capture-cache")),
+            // `main_repo_root`, not `repo_root`: the latter is CARGO_MANIFEST_DIR
+            // and so resolves to the *worktree* a lane's binary was built in,
+            // which is how 50 separate caches came to exist. See its doc comment
+            // for why this is resolved in code rather than exported as an env var.
+            .unwrap_or_else(|| {
+                c2_harness::provenance::main_repo_root().join("work/capture-cache")
+            }),
     );
     let mut validate_cache: usize = 0;
 
