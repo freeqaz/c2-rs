@@ -41,3 +41,4 @@ the header block this table is read from.
 | 2026-08-02 | W-ADOPT | [w-adopt](2026-08-02-w-adopt.md) | 1 | 706,402 unchanged (28.69 %), +0 — a binding repair, not a widening |
 | 2026-08-02 | W-LO | [w-lo](2026-08-02-w-lo.md) | 2 | 706402/2462572 (28.69 %) → 706403/2463318 (28.68 %), +1 numerator / +746 denominator |
 | 2026-08-02 | W-WITNESS | [w-witness](2026-08-02-w-witness.md) | 11 | 706402/2462572 → 706402/2462572 (28.69% → 28.69%), +0 |
+| 2026-08-02 | W-FACTORS | [w-factors](2026-08-02-w-factors.md) | 0 | 706403/2463318 unchanged (28.68 %), +0 — an instrument rung: Phase 7's factors C and D become gap.rs keys |
