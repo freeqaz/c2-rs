@@ -1,0 +1,20 @@
+# Cross-check helper for tools/llvm/xcheck.py. DELIBERATELY OUTSIDE the main
+# workspace (`[workspace]` below detaches it) so that `cargo test --workspace`,
+# `scripts/gate.sh` and the std-only rule are untouched: this is tooling, in the
+# same category as scripts/plot_perf.py, and nothing in crates/ depends on it.
+# It has no dependencies but `c2-obj` itself, by path — the point is to ask the
+# *judge's own reader* what it sees, not a reimplementation of it.
+[package]
+name = "c2objdump"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+c2-obj = { path = "../../../crates/c2-obj" }
+
+[[bin]]
+name = "c2objdump"
+path = "main.rs"
