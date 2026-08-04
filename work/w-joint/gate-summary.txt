@@ -1,0 +1,34 @@
+== cargo test --workspace --release
+  passed 698  FAILED 0  ignored 1
+  targets: 25
+
+== c2rs selftest
+  222 PASS, 0 FAIL
+
+== c2rs gap (878-TU workload)
+  match             8    0.9%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap       863   98.3%
+  port-error        0    0.0%
+  capture-fail      7    0.8%
+  capture cache: 871 hit, 7 miss, 0 uncacheable  |  validator: 0 re-captured and agreed (0 of them only after zeroing the COFF TimeDateStamp), 0 POISONED
+
+
+PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A and B and C and (D or E), over 871 graded TUs
+  A  emit set reachable   `.ex` segments == obj `.text` COMDATs      28  (gate-anchored `4F 1F`; 27 on the census's `4C 4F 11` anchor)
+  B  binding complete     every emitted symbol binds                338
+  C  section shape        obj sections subset of the writer's 9     114
+  D  per-fn acceptance    every emitted COMDAT in class               8  (6 of them emit nothing at all)
+  E  whole-TU acceptance  a REGISTERED whole-TU recognizer takes it   2  (1 in the registry)
+    D and E are the two readings of ONE question — does the port have an accepted route to this TU's contents. Neither is necessary alone (measured: D fails on the whole-TU matches, E on the per-function ones); the DISJUNCTION is the term.
+  B and C jointly (the near-term ceiling, measured per TU — NOT a product of marginals, §8.6): 107
+  A and B and C: 25   |   A and B and C and D (§10.19's original, refuted): 6   |   A and B and C and (D or E): 8   |   TUs the differential graded `match`: 8
+  section headers: 871 objs read, 0 did not decode (outside C, fail-closed)
+    whole-TU recognizer `dyninit-??__E` accepts 2 graded TU(s)
+  the fifth term accounts for 2 TU(s) that A and B and C and D misses: ["src/system/synth/tomcrypt/TomCryptLicense.cpp", "src/system/zlib/ZlibLicense.cpp"]
+  the joint is EXACTLY the match set (8 TUs, by name): src/system/synth/tomcrypt/TomCryptLicense.cpp, src/system/synth_xbox/GainEffect.cpp, src/system/synth_xbox/HeadsetPlaybackEffect.cpp, src/system/synth_xbox/PeakDetector.cpp, src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp, src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp, src/system/utl/Spew.cpp, src/system/zlib/ZlibLicense.cpp
+  known-answer control — matching TUs failing each NECESSARY term (all must be 0, over 8 matching TUs): A 0 B 0 C 0 D-or-E 0
+
+  FRONTIER — 17 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
+  census/gate disagreement: 0  (the port accepts every function above)
