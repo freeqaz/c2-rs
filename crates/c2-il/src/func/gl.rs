@@ -1756,7 +1756,8 @@ mod tests {
     /// vftable, so its whole TU is out of class for four other reasons and the
     /// verdict it asserts — `NotImplemented` — is right for the wrong cause. The
     /// axis it holds fixed is *implicit vs explicit*, and the defect is on that
-    /// axis. `il_gl_sep26_implicit.cpp` varies it.
+    /// axis. `w232_gl_sep26_implicit.cpp` varies it (the prefix is the rung
+    /// registry's doing, not a claim that it is a different family).
     #[test]
     fn a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_the_gate() {
         let mut gl = vec![0u8];

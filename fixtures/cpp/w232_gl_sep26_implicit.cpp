@@ -2,6 +2,11 @@
 // `.text` COMDAT, even in packed mode.** The shape that turned a refusal into a
 // wrong emit, and the axis `il_gl_sep26.cpp` holds fixed.
 //
+// **Read this beside `il_gl_sep26.cpp`.** It is that fixture's missing cell and
+// it carries a `w232_` prefix only because `docs/rungs/`'s registry makes a
+// fixture prefix part of a rung's identity and the `il_` family is W-ADOPT's.
+// The two belong to one story and the file names cannot say so.
+//
 // Found by `scripts/expr_sweep.sh` at `checked=14484 mismatches=1`
 // (`62-ctor-base-delegation-0032`), bisected to `d0d8a98` — *"c2-il: the gate
 // reads the 26 name separator (W-ADOPT, #151)"* — whose own message named this
