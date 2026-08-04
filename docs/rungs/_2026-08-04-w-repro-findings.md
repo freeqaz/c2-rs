@@ -4,9 +4,10 @@ Pre-registration: [`_2026-08-04-w-repro-prereg.md`](_2026-08-04-w-repro-prereg.m
 committed before any measurement.
 
 **One line:** the front end is byte-deterministic — 0 variation in 72 repeated
-captures of the TU that supposedly drifted and 0 across two whole-871-TU censuses
-— and the two disagreeing census files were taken **against two different
-versions of the dc3 source tree**, 40+ commits apart. w-bss2's landed
+captures of the TU that supposedly drifted, and 6 whole-871-TU censuses that
+collapse to exactly **2 distinct sha256, one per corpus**, across a 32× spread in
+concurrency — and the two disagreeing census files were taken **against two
+different versions of the dc3 source tree**, 40+ commits apart. w-bss2's landed
 **110/117** and **68/68 survive unchanged on every capture file taken at the same
 path**. A second, previously unrecorded variable turned up on the way: the census
 is **bound to the corpus's directory path**, and moving it silently deletes 20 %
@@ -208,6 +209,8 @@ directory, everything else held:
 | | same path (run 3) | different path (head-copy) |
 |---|---:|---:|
 | TUs whose record differs | — | **49** |
+| — of those, carrying an anonymous-namespace record | — | **48** |
+| — of those, with no anonymous namespace at all | — | **1** (`src/system/utl/JobMgr.cpp`) |
 | `gid` / size / align / linkage differences | — | **0 TUs** |
 | `ngl` differences | — | **0 TUs** |
 | relative `.gl` order of non-anon records changed | — | **1 TU** (`MoveDir.cpp`) |
@@ -225,6 +228,29 @@ match `sections.jsonl`, and they silently drop out. Re-grading:
 | A1 `.gl` walk, `.bss` | 85/110 = 77.3 % | 68/87 = 78.2 % |
 | A1 id walk, `.data` | 45/68 = 66.2 % | — |
 
+### 5.1 The path also moves `.gl` file order, with no anonymous namespace in sight
+
+`src/system/utl/JobMgr.cpp` has one anonymous namespace: none. Its one kept
+record is `$gJobIDCounter`, identical in `gid` (18425), size, alignment and
+linkage in both trees — and it sits at **`i = 1` in `../dc3-decomp` and `i = 7`
+in `work/w-repro/dc3-head`**, jumping past six other records whose own relative
+order is unchanged. Recaptured live from both trees in one process, so the only
+difference is `cwd`.
+
+`i` — the `.gl` file order — is `grade.py`'s **winning `.bss` walk model**
+(85/110). It is not invariant under a corpus path change. The effect is rare
+(1 TU outside the anonymous-namespace population) and this lane has **no
+explanation for it**.
+
+Related, and visible in the same dump: `glparse.globals_in_order()` admits
+obvious non-symbols. `JobMgr.cpp`'s 19 records include `r(&_TI4?AV…`,
+`c&??_B?7??…`, `u(&??_R0…`, `t(&_CTA4…` — junk-prefixed, all `gid = 1`. Over a
+40-TU sample, **569 of 8,789 records (6.5 %)** have one of `(&'"{}#!` in their
+first four characters, i.e. cannot be a mangled symbol. Those records are
+harmless to `grade.py`'s *scores* (its cells are filtered against real obj
+symbols) but they inflate `ngl` and they shift every `i` after them, so the
+`.gl`-order key is an index into a list that is 6.5 % noise.
+
 **The rates barely move; the denominator loses 20 %.** A percentage that stays
 healthy while its population quietly shrinks is `STATUS.md` trap 5 — *absence
 reads as success unless something forbids it* — with a new instance. Nothing in
@@ -236,9 +262,21 @@ different checkout would have looked fine.
 ## 6. Concurrency control
 
 Registered arm: is the harness racing? Same frozen tree
-(`work/w-repro/dc3-head`), same path, three job counts.
+(`work/w-repro/dc3-head`, a `git archive` of `940d07dc` that cannot move under
+the run), same path, four censuses:
 
-<!-- CONTROL RESULT -->
+| run | jobs | wall | sha256 |
+|---|---:|---|---|
+| head-copy | 14 | 24 s | `1bd3a467ca7e9d2924128cf5b7c0f487179c3978ff4dbec77acde972b64355fd` |
+| j1 | **1** | 3 m 38 s | `1bd3a467…` |
+| j14b | 14 | 24 s | `1bd3a467…` |
+| j32 | **32** | 22 s | `1bd3a467…` |
+
+**All four byte-identical, 871/871 TUs, across a 32× spread in concurrency.**
+`glcensus.py`'s `ThreadPoolExecutor`, `cap.py`'s per-call `mkdtemp`, and wibo's
+`_CL_*` bundle naming are not racing. Together with the 72 repeated single-TU
+captures in §2 this closes the harness-race hypothesis: **the only measured
+variables are the corpus's content and its path.**
 
 ---
 
@@ -270,9 +308,14 @@ Named so it is not mistaken for settled:
 
 * **Why `gid`'s digit histogram is bimodal.** §4.1 measures it; nothing here
   explains it. `_gid_before`'s framing may be reading two different fields.
-* **Why an anonymous-namespace hash change perturbs `.gl` record *positions*** in
-  33 TUs (uniformly, order-preserving in 32 of them, genuinely reordered in
-  `MoveDir.cpp`). Measured, unexplained.
+* **Why a corpus-path change perturbs `.gl` record *positions*** — in 33 TUs via
+  the anonymous-namespace hash (uniformly, order-preserving in 32 of them,
+  genuinely reordered in `MoveDir.cpp`), and in `JobMgr.cpp` with no anonymous
+  namespace involved at all (§5.1). Measured, unexplained. This is the loose end
+  most worth pulling, because `i` is the winning `.bss` walk model.
+* **Whether the 6.5 % of `globals_in_order()` records that are not symbols
+  (§5.1) shift any *cell's* walk order.** They cannot change a cell's *score*
+  directly, but they sit between real records and every `i` past them moves.
 * **Whether `sections.jsonl` itself is corpus-pinned.** It was built at 07:21
   from a tree that had already moved past whatever the earlier lanes used. This
   lane did not regenerate it (it costs the real toolchain and ~102 MB of objs),
@@ -315,3 +358,28 @@ collision. Renumber down if w-pair's rows never land.
 | **#202** | **OPEN** | **Census provenance.** No artefact records which dc3 commit, which path or which `sections.jsonl` it was built from. Cost of not having it: this lane. Fix in §9.1–9.2. |
 | **#203** | **OPEN** | **The census join is path-bound.** `?A0x<hash>` anonymous-namespace mangling is path-derived; moving the corpus drops 48 TUs' anon symbols and **20 % of the graded `.bss`/`.data` population** while the printed rates hold (110/117 → 87/93, 68/68 → 53/53). New instance of trap 5. |
 | **#204** | **OPEN** | **`gid` framing is not established.** 46.04 % of kept records share a `gid` in-TU, 44.63 % of adjacent `.gl` pairs decrease, digit histogram bimodal at 3 and 5. Deterministic, so the landed numbers stand — but "ascending id" is the winning `.data` walk model (52/68) and is fitted on this field. |
+| **#205** | **OPEN** | **`globals_in_order()` admits non-symbols.** 569/8,789 = **6.5 %** of records over a 40-TU sample have `(&'"{}#!` in their first four characters. They inflate `ngl` and shift every `i` past them; `.gl` file order is the winning `.bss` walk model (85/110). Scores are unaffected — cells are filtered against real obj symbols — but the *key* is 6.5 % noise. |
+
+---
+
+## 11. Reproducing this
+
+Everything is in `work/w-repro/` (gitignored — derived data and captured IL are
+never committed). All of it is stdlib-only Python and touches no `crates/`.
+
+| what | command, from `work/w-repro/` |
+|---|---|
+| compare two census files, gid masked | `python3 cmp.py A.jsonl B.jsonl` |
+| the same, ignoring anonymous-namespace records | `python3 cmp2.py A.jsonl B.jsonl` |
+| which TUs differ, and gid's intrinsic properties | `python3 whichtus.py A.jsonl B.jsonl` |
+| gid collision / monotonicity / digit histogram | `python3 gidsanity.py A.jsonl` |
+| N repeated captures of one TU | `python3 probe.py src/system/rndobj/Anim.cpp 24 serial` |
+| the causal test | `python3 causal.py <old-blob.cpp> <census-src> run1.jsonl run2.jsonl` |
+| re-grade an arbitrary census with w-bss2's unmodified `grade.py` | `python3 regrade.py <census.jsonl>` |
+| include closure, real `/showIncludes` | `python3 includes.py <tu-list> <header…>` |
+| a census against a frozen corpus | `C2RS_DC3_SRC=<tree> python3 ../w-bss2/glcensus.py out.jsonl <jobs>` |
+
+Census files kept: `glcensus.20260804-0850.jsonl` (dc3 `dd9a4bdc`),
+`…-0920.jsonl` and `run3.jsonl` (dc3 `940d07dc`), `base.jsonl` (`dd9a4bdc` at
+another path), `head-copy/j1/j14b/j32.jsonl` (`940d07dc` at another path).
+Frozen source trees: `dc3-base/`, `dc3-head/` (28 MB each, `git archive`).
