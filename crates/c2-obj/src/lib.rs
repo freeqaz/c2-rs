@@ -43,6 +43,32 @@ const IMAGE_SYM_CLASS_STATIC: u8 = 3;
 /// carries the dynamic-initializer thunks).
 const TEXT_SECTION_PREFIX: &str = ".text";
 
+/// A NUL-terminated string at byte offset `i` of the COFF string table.
+fn str_at(strtab: &[u8], i: usize) -> Option<String> {
+    let s = strtab.get(i..)?;
+    let e = s.iter().position(|&c| c == 0)?;
+    Some(String::from_utf8_lossy(&s[..e]).into_owned())
+}
+
+/// **The one section-name decoder.** `o` is the section header's offset.
+///
+/// Two forms, and the second is the one a re-implementation forgets: an 8-byte
+/// field holding the name directly (NUL-padded, and *not* NUL-terminated when it
+/// fills all eight), or `/<decimal offset>` pointing into the string table for a
+/// name longer than eight bytes. `.debug$S`, `.text$yd` and `.CRT$XCU` are all
+/// exactly eight or fewer bytes, so the workload happens not to exercise the
+/// second form — which is precisely why a second reader that dropped it would
+/// look right (`ROADMAP.md` §10.14).
+fn section_name_at(b: &[u8], o: usize, strtab: &[u8]) -> Option<String> {
+    let raw = b.get(o..o + 8)?;
+    if raw[0] == b'/' {
+        let digits = String::from_utf8_lossy(&raw[1..]);
+        str_at(strtab, digits.trim_end_matches('\0').trim().parse::<usize>().ok()?)
+    } else {
+        Some(String::from_utf8_lossy(raw).trim_end_matches('\0').to_owned())
+    }
+}
+
 impl ObjImage {
     pub fn new(bytes: Vec<u8>) -> Self {
         ObjImage(bytes)
@@ -147,9 +173,37 @@ impl ObjImage {
         Some(out)
     }
 
-    /// The shared walk: `(leader symbol, section index)` for every COMDAT
-    /// `.text*` section, in section order.
-    fn text_comdat_entries(&self) -> Option<Vec<(String, usize)>> {
+    /// **The obj's section-name list**, in section order, decoded by the same
+    /// code path [`ObjImage::text_comdat_functions`] uses.
+    ///
+    /// This is **factor C**'s input (`docs/ROADMAP.md` §10.19): the port's COFF
+    /// writer can emit six section names, so a TU whose obj carries a seventh is
+    /// out of reach of the writer however good the codegen becomes. `gap.rs`
+    /// turns this list into the `emit-sec-*` keys.
+    ///
+    /// **It lives here rather than in the harness because the name decode is
+    /// already here.** `/NNN` is a string-table indirection, `$`-suffixed names
+    /// are ordinary names, and a section name is *not* NUL-terminated when it
+    /// fills all 8 bytes — three chances for a second reader to disagree with
+    /// this one, and `ROADMAP.md` §10.14 is the record of exactly that costing a
+    /// session. [`section_name_at`] is the single decoder; both walks call it.
+    ///
+    /// Duplicates are kept: an obj carries one `.text` COMDAT per emitted
+    /// function under `/Gy`, and the caller wanting a *set* is the caller that
+    /// says so. Same fail-closed contract as the names-only COMDAT walk — `None`
+    /// whenever the headers do not decode, never a short list.
+    pub fn section_names(&self) -> Option<Vec<String>> {
+        let b = &self.0;
+        let (nsec, sym_end) = self.coff_layout()?;
+        let strtab = &b[sym_end..];
+        (0..nsec)
+            .map(|i| section_name_at(b, COFF_HEADER_LEN + i * SECTION_HEADER_LEN, strtab))
+            .collect()
+    }
+
+    /// The header-bounds check both walks need: `(section count, symbol-table
+    /// end == string-table start)`, or `None` when anything is off the end.
+    fn coff_layout(&self) -> Option<(usize, usize)> {
         let b = &self.0;
         if b.len() < COFF_HEADER_LEN {
             return None;
@@ -164,24 +218,23 @@ impl ObjImage {
         if sec_end > b.len() || psym < sec_end || sym_end.checked_add(4)? > b.len() {
             return None;
         }
+        Some((nsec, sym_end))
+    }
+
+    /// The shared walk: `(leader symbol, section index)` for every COMDAT
+    /// `.text*` section, in section order.
+    fn text_comdat_entries(&self) -> Option<Vec<(String, usize)>> {
+        let b = &self.0;
+        let (nsec, sym_end) = self.coff_layout()?;
+        let psym = u32::from_le_bytes([b[8], b[9], b[10], b[11]]) as usize;
+        let nsym = u32::from_le_bytes([b[12], b[13], b[14], b[15]]) as usize;
         let strtab = &b[sym_end..];
-        let str_at = |i: usize| -> Option<String> {
-            let s = strtab.get(i..)?;
-            let e = s.iter().position(|&c| c == 0)?;
-            Some(String::from_utf8_lossy(&s[..e]).into_owned())
-        };
+        let str_at = |i: usize| -> Option<String> { str_at(strtab, i) };
         // Which sections are COMDAT `.text`?
         let mut is_text = vec![false; nsec];
         for (i, flag) in is_text.iter_mut().enumerate() {
             let o = COFF_HEADER_LEN + i * SECTION_HEADER_LEN;
-            let raw = &b[o..o + 8];
-            let name = if raw[0] == b'/' {
-                // A long section name is `/<decimal string-table offset>`.
-                let digits = String::from_utf8_lossy(&raw[1..]);
-                str_at(digits.trim_end_matches('\0').trim().parse::<usize>().ok()?)?
-            } else {
-                String::from_utf8_lossy(raw).trim_end_matches('\0').to_owned()
-            };
+            let name = section_name_at(b, o, strtab)?;
             let chars = u32::from_le_bytes([b[o + 36], b[o + 37], b[o + 38], b[o + 39]]);
             *flag = name.starts_with(TEXT_SECTION_PREFIX) && chars & IMAGE_SCN_LNK_COMDAT != 0;
         }
@@ -402,6 +455,78 @@ mod tests {
         assert!(
             !got.iter().any(|n| n.starts_with("__unwind$")),
             "an __unwind$ label was counted as an emitted function: {got:?}"
+        );
+    }
+
+    /// **Factor C's input** (`ROADMAP.md` §10.19): the section-name list, in
+    /// order, with duplicates kept and non-COMDAT sections included. It is a
+    /// *different* question from the emitted set — that walk takes COMDAT
+    /// `.text` only, and a TU is out of the port writer's reach because of its
+    /// `.data` or `.bss`, which the emitted set cannot see at all.
+    #[test]
+    fn the_section_name_list_is_every_section_in_order() {
+        let obj = ObjImage::new(workload_shaped_obj());
+        assert_eq!(
+            obj.section_names(),
+            Some(vec![".text".to_string(), ".text$yd".to_string(), ".data".to_string()]),
+            "every section, in section order — including the non-COMDAT .data that \
+             the emitted-set walk deliberately drops"
+        );
+    }
+
+    /// The two decoders must agree about what a section is *called*, or factor C
+    /// and the emitted set are computed over different objs. Held to a `/NNN`
+    /// long name, which is the form a re-implementation forgets (`§10.14`).
+    #[test]
+    fn both_walks_share_one_section_name_decoder() {
+        let long = ".text$averyverylongsectionname";
+        let obj = ObjImage::new(coff(
+            &[(long, true), (".rdata$r", false)],
+            &[
+                ("x", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+            ],
+        ));
+        assert_eq!(
+            obj.section_names(),
+            Some(vec![long.to_string(), ".rdata$r".to_string()]),
+            "a `/NNN` name must be looked up by the name walk too, not returned as `/4`"
+        );
+        assert_eq!(
+            obj.text_comdat_functions(),
+            Some(vec!["?f@@YAHH@Z".to_string()]),
+            "control: the emitted-set walk resolves the same name to the same `.text*` \
+             prefix — if these two ever disagree, C is measured on a different obj \
+             than the emitted census"
+        );
+    }
+
+    /// NEGATIVE CONTROL — an obj whose headers do not decode gives **no** section
+    /// list, not an empty one. An empty list would read as "carries no section
+    /// outside the writer's set", i.e. as *inside* factor C: absence reading as
+    /// success, on the flattering side.
+    #[test]
+    fn a_short_image_has_no_section_list_rather_than_an_empty_one() {
+        assert_eq!(ObjImage::new(vec![0u8; 12]).section_names(), None);
+        let full = coff(
+            &[(".text", true)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+            ],
+        );
+        assert_eq!(
+            ObjImage::new(full.clone()).section_names(),
+            Some(vec![".text".to_string()]),
+            "control: the intact image lists its one section — the truncation below \
+             must be what changes the answer, not the obj's shape"
+        );
+        let truncated = ObjImage::new(full[..full.len() - 12].to_vec());
+        assert_eq!(
+            truncated.section_names(),
+            None,
+            "a string table running off the end must refuse, exactly as the emitted \
+             walk does — same layout check, one implementation"
         );
     }
 
