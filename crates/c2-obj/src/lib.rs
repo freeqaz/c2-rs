@@ -9,6 +9,9 @@
 //! determinism note, offset 4-7. Verified empirically: identical source →
 //! byte-identical `.obj` apart from those four bytes.)
 
+mod reloc;
+pub use reloc::*;
+
 /// A COFF `.obj` image: just its raw bytes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObjImage(pub Vec<u8>);
