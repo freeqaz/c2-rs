@@ -16,7 +16,9 @@ use crate::func::body::chain::{
 use crate::func::body::expr::{
     eat_return_plumbing, intrinsic_selector, parse_expr, BODY_SCOPE_DEPTH,
 };
-use crate::func::body::{blk, Block, BodyShape, SeqCall, SeqGuardShape, SeqTail, SlotArg};
+use crate::func::body::{
+    blk, Block, BodyShape, SeqCall, SeqEarlyReturnShape, SeqGuardShape, SeqTail, SlotArg,
+};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, read_token_var,
     read_type, read_varint, TYPE_KIND_REAL_CLASS,
@@ -1327,7 +1329,7 @@ fn parse_call_sequence(
     first_callee: u32,
     first_args: Vec<Vec<IlOp>>,
 ) -> Result<BodyShape, Block> {
-    parse_call_sequence_from(seg, p, lo, vec![(first_callee, first_args)], None)
+    parse_call_sequence_from(seg, p, lo, vec![(first_callee, first_args)], None, Vec::new())
 }
 
 /// The call-sequence loop, entered with a **prefix** of calls already read and
@@ -1346,6 +1348,16 @@ pub(crate) fn parse_call_sequence_from(
     lo: usize,
     prefix: Vec<(u32, Vec<Vec<IlOp>>)>,
     guard: Option<SeqGuardShape>,
+    // **W11** — `early` is the guarded early returns read ahead of this
+    // sequence, in source order; empty for every other caller. Third caller of
+    // this loop, and like W10's it hands the rest of the body here rather than
+    // to a copy: the tail forms, the `MAX_SEQ_CALLS` bound, `plan_saved_gprs`
+    // and the one-call-and-a-void-tail tail-call escape are all shared. The
+    // last of those is load-bearing rather than tidy — three void early returns
+    // over ONE trailing call is not a framed body at all
+    // (`work/w-conv/p/probe3.cpp::w3`: three `bclr` folds and a tail `b`, 32 B,
+    // no `.pdata`), and only this loop knows it.
+    early: Vec<SeqEarlyReturnShape>,
 ) -> Result<BodyShape, Block> {
     let params = parse_params(seg, lo)?;
     // Past the eighth formal a parameter is stack-homed and `select_text` — which
@@ -1501,6 +1513,16 @@ pub(crate) fn parse_call_sequence_from(
     // than refused: the body IS the tail call, and its arguments have been read
     // by the same locator.
     if raw.len() == 1 && matches!(tail, SeqTail::Void) {
+        if !early.is_empty() {
+            // **W11 — the same trap one production over.** `void w3(int a,int
+            // b,int c){ if(a) return; if(b) return; if(c) return; v0(); }` is
+            // NOT framed: c2 folds every guard to a `bclr` and tail-calls
+            // `v0()` — 32 B, no `.pdata`, measured at `/O1` and `/Ox`. Falling
+            // through to `tail_call_shape` below would emit a framed body and
+            // silently drop three branches, which is a wrong-bytes obj that
+            // still links. Named, not left to the escape.
+            return Err(Block::refuse(seg, *p, "callseq-early-return-no-trailing-call"));
+        }
         if guard.is_some() {
             // **W10 — a guard with nothing after it is NOT a framed body.**
             // `void f(int a){ if(a) g(); }` is fold band 2 plus a tail call
@@ -1548,7 +1570,15 @@ pub(crate) fn parse_call_sequence_from(
     if guard.is_some() && (!saved.is_empty() || matches!(tail, SeqTail::Cmp { .. })) {
         return Err(Block::refuse(seg, *p, "callseq-guard-callee-saved"));
     }
-    Ok(BodyShape::CallSeq { params, calls, tail, saved, guard })
+    // **W11 — the same Class A restriction, at the same one place that knows the
+    // saved set.** A guarded early return whose body also parks a formal in r31
+    // has the compare reading r31 in some cells and r3 in others depending on
+    // whether the entry block clobbers r3 (W10's `probe3 P2`/`S0`/`S1`), and
+    // this class admits no entry-block move at all.
+    if !early.is_empty() && (!saved.is_empty() || guard.is_some()) {
+        return Err(Block::refuse(seg, *p, "callseq-early-return-callee-saved"));
+    }
+    Ok(BodyShape::CallSeq { params, calls, tail, saved, guard, early })
 }
 
 /// The largest number of callee-saved GPRs c2 open-codes with `std`/`ld`. At
@@ -1897,7 +1927,7 @@ mod tests {
     #[test]
     fn class_a_many_calls_decode_and_the_lone_statement_call_stays_a_tail_call() {
         // Two statement calls: framed, Class A, nothing saved.
-        let Some(BodyShape::CallSeq { calls, tail, params, saved, guard: None }) =
+        let Some(BodyShape::CallSeq { calls, tail, params, saved, guard: None, .. }) =
             parse_segment(SEQ_TWO_VOID, NO_LOCALS)
         else {
             panic!("`g1(a); g2();` is the Class A many-call shape");

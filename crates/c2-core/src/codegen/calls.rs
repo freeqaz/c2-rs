@@ -12,8 +12,8 @@ use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
 use crate::codegen::cond_tail::branch_sense;
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_addis, encode_bc, encode_blr, encode_cmplwi, encode_cmpwi,
-    encode_mr, CR_COMPARE,
+    cr_bi, encode_addi, encode_addis, encode_b_intra, encode_bc, encode_blr, encode_cmplwi,
+    encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_COMPARE,
 };
 use crate::codegen::frame::FrameLayout;
 use c2_il::LINK_FIRST_SLOT;
@@ -323,12 +323,80 @@ pub fn seq_guard_emit(guard: &c2_il::SeqGuard) -> Result<SeqGuardEmit, BackendEr
     Ok(SeqGuardEmit { cmp, bo, bi: cr_bi(CR_COMPARE, bit) })
 }
 
+/// **W11 — the emission plan for one [`c2_il::SeqEarlyReturn`]**: the compare
+/// word, the branch's `(BO, BI)`, and the literal the arm materializes.
+///
+/// Built by [`seq_early_emit`], which is the only place the compare register and
+/// the branch sense are chosen for this class.
+pub struct SeqEarlyEmit {
+    /// `cmpwi cr6,rA,k` or `cmplwi cr6,rA,k`, already encoded.
+    cmp: [u8; 4],
+    bo: u8,
+    bi: u8,
+    /// The returned literal, or `None` for `return;` — which is what decides
+    /// both the branch's sense and its target.
+    value: Option<i32>,
+}
+
+/// Resolve a [`c2_il::SeqEarlyReturn`] into the words its emission needs.
+///
+/// The compare instruction comes from the operand's signedness alone, and the
+/// branch sense from [`crate::codegen::cond_tail::branch_sense`] — the same
+/// table W9 graded against the real `c2` across all six relations and both
+/// signednesses, shared rather than copied for the reason W10's guard shares it.
+///
+/// **Then one rule on top of that table, and it is measured, not tidy.**
+/// `branch_sense` returns the *negation* of the source relation, because the
+/// branch is normally the edge that steps **past** the arm. A **void** arm is
+/// empty — there is no block to step past — so c2 deletes it and points the
+/// branch straight at the epilogue with the relation **itself**:
+///
+/// ```text
+///   int  f(int a){ if(a!=0) return 5; v0(); return 0; }  ->  bt 26  (negated)
+///   void g(int a){ if(a!=0) return;   v0(); v1();      }  ->  bf 26  (NOT negated)
+/// ```
+///
+/// `work/w-conv/p/probe1.cpp::e4`, `probe2.cpp::rv`, `probe3.cpp::w1`/`w2`, at
+/// `/O1` and `/Ox` — and the void form is byte-identical between the two modes,
+/// which is its own control on the mode split [`call_seq_text`] implements. It
+/// is `work/w-cross/PREREG.md` §1's **empty-arm inversion**, in the smallest
+/// body that has it.
+pub fn seq_early_emit(e: &c2_il::SeqEarlyReturn) -> Result<SeqEarlyEmit, BackendError> {
+    let ra = *ARG_REGS.get(e.cmp_param).ok_or_else(|| {
+        out_of_class("a guarded early return comparing a stack-homed formal")
+    })?;
+    let cmp = if e.signed {
+        let k = i16::try_from(e.k).map_err(|_| {
+            out_of_class("a signed early-return guard literal wider than `cmpwi`'s immediate")
+        })?;
+        encode_cmpwi(CR_COMPARE, ra, k)
+    } else {
+        let k = u16::try_from(e.k).map_err(|_| {
+            out_of_class("an unsigned early-return guard literal wider than `cmplwi`'s immediate")
+        })?;
+        encode_cmplwi(CR_COMPARE, ra, k)
+    };
+    let (bo, bit) = branch_sense(e.rel);
+    // The empty-arm inversion: flip the BO and keep the CR bit, which is exactly
+    // "use the relation rather than its negation" over `branch_sense`'s table.
+    let bo = if e.value.is_some() {
+        bo
+    } else if bo == BO_TRUE {
+        BO_FALSE
+    } else {
+        BO_TRUE
+    };
+    Ok(SeqEarlyEmit { cmp, bo, bi: cr_bi(CR_COMPARE, bit), value: e.value })
+}
+
 pub fn call_seq_text(
     setups: &[Vec<u8>],
     tail: &[u8],
     base_off: u32,
     frame: FrameLayout,
     guard: Option<&SeqGuardEmit>,
+    early: &[SeqEarlyEmit],
+    mode: OptMode,
 ) -> Result<SeqBody, BackendError> {
     if setups.is_empty() {
         return Err(out_of_class("a call sequence with no calls"));
@@ -344,10 +412,86 @@ pub fn call_seq_text(
             ));
         }
     }
+    if !early.is_empty() && guard.is_some() {
+        // Two block plans in one body. c2 composes them
+        // (`work/w-conv/p/probe3.cpp::x6`) and so could this emitter, but the IL
+        // parser refuses the combination and this is the backstop: an emitter
+        // that silently interleaved them would be laying out blocks nothing has
+        // graded.
+        return Err(out_of_class(
+            "a guarded call and a guarded early return in one body: two block \
+             plans, one production each, and the combination is ungraded",
+        ));
+    }
     let prologue = frame.prologue()?;
     let epilogue = frame.epilogue()?;
     let prolog_len = prologue.len() as u32;
     let mut text = prologue;
+    // ---- W11: the guarded early returns, ahead of everything ----------------
+    //
+    // Each is `cmp ; bc ; <arm>`, and the arm is where the two optimization
+    // modes part company:
+    //
+    //   /O1        li r3,K ; b -> EPILOGUE      the epilogue is SHARED
+    //   /Ox, /O2   li r3,K ; <the whole epilogue>   it is DUPLICATED
+    //
+    // That is board row X-b's mode split, and it **refutes** `docs/OPT_MODE.md`
+    // and this crate's own `OptMode` doc as they stood: the modes differ in
+    // block structure, not only in a register field. It is not W10's declined
+    // cost model, though — the duplicated block here is the epilogue, whose
+    // length is a constant of the frame class, and `/Ox` copies it in every
+    // measured cell (guard counts 1–3, six relations, both signednesses,
+    // trailing-call counts 1–4, scrutinee at formals 0–3). Two layouts, one per
+    // mode, ≥ 8 witnesses each.
+    //
+    // A **void** arm is empty in both modes, so it emits no `li`, no `b` and no
+    // duplicate — and its branch goes straight to the epilogue with the sense
+    // `seq_early_emit` already inverted.
+    let mut early_fixups: Vec<(usize, Option<usize>, u8, u8)> = Vec::with_capacity(early.len());
+    for e in early {
+        text.extend_from_slice(&e.cmp);
+        let bc_at = text.len();
+        text.extend_from_slice(&[0; 4]);
+        let b_at = match e.value {
+            Some(k) => {
+                let k = i16::try_from(k).map_err(|_| {
+                    out_of_class("an early return's literal is wider than `li`")
+                })?;
+                text.extend_from_slice(&encode_addi(RET_REG, 0, k));
+                match mode {
+                    OptMode::O1 => {
+                        let at = text.len();
+                        text.extend_from_slice(&[0; 4]);
+                        Some(at)
+                    }
+                    OptMode::Ox => {
+                        text.extend_from_slice(&epilogue);
+                        None
+                    }
+                }
+            }
+            None => None,
+        };
+        // A value arm's branch steps PAST the arm, to whatever comes next — the
+        // following guard's compare, or the sequence. A void arm's branch is
+        // patched to the epilogue instead, which is not known until the whole
+        // body is laid out, so both go on the fixup list.
+        early_fixups.push((bc_at, b_at, e.bo, e.bi));
+        if e.value.is_some() {
+            let target = text.len();
+            let (at, b, bo, bi) = early_fixups.pop().expect("just pushed");
+            let bc = encode_bc(bo, bi, (target - at) as i32).ok_or_else(|| {
+                out_of_class(
+                    "a guarded early return's conditional branch past the 14-bit \
+                     BD field: the expansion (invert, branch over an \
+                     unconditional `b`) is measured but not built",
+                )
+            })?;
+            text[at..at + 4].copy_from_slice(&bc);
+            // Only the arm's `b` is still open, and only under /O1.
+            early_fixups.push((at, b, bo, bi));
+        }
+    }
     // **The guard sits between the prologue and the sequence** — measured, with
     // the guarded call's own setup staying INSIDE the guarded block:
     // `work/w-cross/p/probe2.cpp::s1` (`if(a!=0) a1(b); v1();`) emits
@@ -391,6 +535,34 @@ pub fn call_seq_text(
         text[bc_at..bc_at + 4].copy_from_slice(&bc);
     }
     text.extend_from_slice(tail);
+    // ---- W11: the label map, resolved -------------------------------------
+    //
+    // The epilogue's offset is only knowable here, after every guard, every
+    // arm, every call and the tail. Two branch kinds land on it and they are
+    // **the same opcode with different encodings** (board #191): the arms'
+    // intra-section `b`, which carries its true displacement and takes no
+    // relocation, and — for a void arm — the guard's own `bc`. Neither is the
+    // `encode_tail_branch` beside them, which stores −(own offset) and takes a
+    // REL24. That is the discriminator `docs/CFG_SHAPE.md` §3.3 warns a single
+    // "patch the branch" path corrupts, and it is why these are two encoders.
+    let epi_start = text.len();
+    for (bc_at, b_at, bo, bi) in early_fixups {
+        if let Some(b_at) = b_at {
+            let b = encode_b_intra((epi_start - b_at) as i32).ok_or_else(|| {
+                out_of_class("an early return's branch to the epilogue is out of `b` range")
+            })?;
+            text[b_at..b_at + 4].copy_from_slice(&b);
+        } else if text[bc_at..bc_at + 4] == [0; 4] {
+            // A void arm: nothing was emitted for it, so its `bc` is still open
+            // and its target is the epilogue itself.
+            let bc = encode_bc(bo, bi, (epi_start - bc_at) as i32).ok_or_else(|| {
+                out_of_class(
+                    "a void early return's conditional branch past the 14-bit BD field",
+                )
+            })?;
+            text[bc_at..bc_at + 4].copy_from_slice(&bc);
+        }
+    }
     text.extend_from_slice(&epilogue);
     Ok(SeqBody { text, bl_offsets, prolog_len })
 }
@@ -1391,6 +1563,7 @@ mod tests {
     #[test]
     fn the_chain_tail_load_does_not_fold_at_offset_zero_but_the_add_does() {
         let seq = |tail| c2_il::CallSeq {
+            early: Vec::new(),
             calls: vec![
                 c2_il::SeqCall { callee: "?a@@YAPAUM@@XZ".into(), arg_ops: vec![IlOp::Load(9)], arg_sources: None, link_args: None },
                 c2_il::SeqCall { callee: "?b@@YAPAUM@@XZ".into(), arg_ops: Vec::new(), arg_sources: None, link_args: Some(Vec::new()) },
@@ -1424,6 +1597,7 @@ mod tests {
     #[test]
     fn the_chain_tail_fp_load_is_an_lfs_or_an_lfd_into_f1() {
         let seq = |tail| c2_il::CallSeq {
+            early: Vec::new(),
             calls: vec![
                 c2_il::SeqCall { callee: "?a@@YAPAUM@@XZ".into(), arg_ops: vec![IlOp::Load(9)], arg_sources: None, link_args: None },
                 c2_il::SeqCall { callee: "?b@@YAPAUM@@XZ".into(), arg_ops: Vec::new(), arg_sources: None, link_args: Some(Vec::new()) },
@@ -1497,6 +1671,8 @@ mod tests {
             0,
             FrameLayout::default(),
             Some(&guard),
+            &[],
+            OptMode::Ox,
         )
         .expect("in class");
         #[rustfmt::skip]
@@ -1543,7 +1719,15 @@ mod tests {
         // `mr r3,r4` — the guarded call's whole setup.
         let setup = encode_mr(3, 4).to_vec();
         let body =
-            call_seq_text(&[setup, Vec::new()], &[], 0, FrameLayout::default(), Some(&guard))
+            call_seq_text(
+                &[setup, Vec::new()],
+                &[],
+                0,
+                FrameLayout::default(),
+                Some(&guard),
+                &[],
+                OptMode::Ox,
+            )
                 .expect("in class");
         assert_eq!(&body.text[12..16], &[0x2f, 0x03, 0x00, 0x00], "cmpwi cr6,r3,0");
         assert_eq!(&body.text[16..20], &[0x41, 0x9a, 0x00, 0x0c], "bt 26,+12");
@@ -1567,6 +1751,8 @@ mod tests {
                         0,
                         FrameLayout::default(),
                         Some(&g),
+                        &[],
+                        OptMode::Ox,
                     )
                     .unwrap()
                     .text[12..16]
@@ -1596,11 +1782,29 @@ mod tests {
         })
         .unwrap();
         assert!(
-            call_seq_text(&[Vec::new()], &[], 0, FrameLayout::default(), Some(&guard)).is_err()
+            call_seq_text(
+                &[Vec::new()],
+                &[],
+                0,
+                FrameLayout::default(),
+                Some(&guard),
+                &[],
+                OptMode::Ox,
+            )
+            .is_err()
         );
         // …and the same sequence with no guard is the shipped Class A body.
         assert!(
-            call_seq_text(&[Vec::new(), Vec::new()], &[], 0, FrameLayout::default(), None).is_ok()
+            call_seq_text(
+                &[Vec::new(), Vec::new()],
+                &[],
+                0,
+                FrameLayout::default(),
+                None,
+                &[],
+                OptMode::Ox,
+            )
+            .is_ok()
         );
     }
 

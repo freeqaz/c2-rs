@@ -487,6 +487,15 @@ impl PortC2 {
                             .as_ref()
                             .map(codegen::seq_guard_emit)
                             .transpose()?;
+                        // **W11** — the guarded early returns, resolved through
+                        // the same `seq_early_emit` on both emission paths for
+                        // the same reason: the packed and COMDAT writers must
+                        // not disagree about a branch sense or a block layout.
+                        let early = seq
+                            .early
+                            .iter()
+                            .map(codegen::seq_early_emit)
+                            .collect::<Result<Vec<_>, _>>()?;
                         let body = codegen::call_seq_text(
                             &setups,
                             &tail,
@@ -496,6 +505,8 @@ impl PortC2 {
                                 ..Default::default()
                             },
                             guard.as_ref(),
+                            &early,
+                            mode,
                         )?;
                         frame = Some(coff::Frame {
                             prolog_len: body.prolog_len,
@@ -633,6 +644,15 @@ impl PortC2 {
                         .as_ref()
                         .map(codegen::seq_guard_emit)
                         .transpose()?;
+                    // **W11** — same resolver as the `/Gy` path above. The
+                    // guards' `bc` and the arms' intra-section `b` are both
+                    // self-relative, so unlike every `bl` beside them they are
+                    // independent of where the function lands.
+                    let early = seq
+                        .early
+                        .iter()
+                        .map(codegen::seq_early_emit)
+                        .collect::<Result<Vec<_>, _>>()?;
                     let body = codegen::call_seq_text(
                         &setups,
                         &tail,
@@ -642,6 +662,8 @@ impl PortC2 {
                             ..Default::default()
                         },
                         guard.as_ref(),
+                        &early,
+                        mode,
                     )?;
                     frame = Some(coff::Frame {
                         prolog_len: body.prolog_len,

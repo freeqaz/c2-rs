@@ -2,7 +2,10 @@ use super::body::{self, parse_segment, BodyShape};
 use super::bind::Bindings;
 use super::gl::drectve_is_boilerplate;
 use super::readers::{contains_subslice, find_subslice, memchr_byte};
-use super::{CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqGuard, SeqTail, SlotArg};
+use super::{
+    CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqEarlyReturn, SeqGuard, SeqTail,
+    SlotArg,
+};
 use crate::IlBundle;
 
 /// The suffix a `<name>$initializer$` `.CRT$XCU` slot symbol carries
@@ -720,6 +723,7 @@ pub(crate) fn shape_to_function(
                         tail: SeqTail::SavedFormal { param: this_index },
                         // A generated base-delegating constructor has no `38`.
                         guard: None,
+                        early: Vec::new(),
                         saved: vec![this_index],
                     }),
                     eh_bare: eh,
@@ -826,7 +830,7 @@ pub(crate) fn shape_to_function(
             // `.gl` symbol index, exactly as the tail and framed calls are, and a
             // single unresolvable one refuses the whole function — a relocation
             // against a guessed symbol is a mis-emit, not a gap.
-            BodyShape::CallSeq { params, calls, tail, saved, guard } => {
+            BodyShape::CallSeq { params, calls, tail, saved, guard, early } => {
                 let mut resolved = Vec::with_capacity(calls.len());
                 for c in calls {
                     resolved.push(SeqCall {
@@ -853,6 +857,20 @@ pub(crate) fn shape_to_function(
                             signed: g.signed,
                             k: g.k,
                         }),
+                        // W11 — the same: every field is already resolved (a
+                        // parameter index, a relation, a signedness and two
+                        // literals), so there is nothing here that can fail to
+                        // resolve the way a callee token can.
+                        early: early
+                            .into_iter()
+                            .map(|e| SeqEarlyReturn {
+                                cmp_param: e.cmp_param,
+                                rel: e.rel,
+                                signed: e.signed,
+                                k: e.k,
+                                value: e.value,
+                            })
+                            .collect(),
                         tail: match tail {
                             body::SeqTail::Void => SeqTail::Void,
                             body::SeqTail::CallValue { add_k } => SeqTail::CallValue { add_k },
