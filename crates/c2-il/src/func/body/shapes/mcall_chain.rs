@@ -317,7 +317,8 @@ pub(crate) fn try_parse_member_chain_call(
     // rule is the same one the statement sequence runs, and a private restatement
     // of "this is Class A" is exactly the shape of drift `GAPS.md` §6 records.
     let saved = plan_saved_gprs(seg, &params, &calls, 0, p).map_err(Some)?;
-    Ok(BodyShape::CallSeq { params, calls, tail, saved })
+    // No guard: the member-call chain production reads no `38`.
+    Ok(BodyShape::CallSeq { params, calls, tail, saved, guard: None })
 }
 
 /// **WCO — one designator step on the chain's pointer RESULT**:
@@ -646,7 +647,7 @@ mod tests {
 
     #[test]
     fn a_two_link_chain_is_a_class_a_call_sequence_innermost_first() {
-        let Some(BodyShape::CallSeq { params, calls, tail, saved }) =
+        let Some(BodyShape::CallSeq { params, calls, tail, saved, guard: None }) =
             parse_segment(MC_CHAIN_RET, NO_LOCALS)
         else {
             panic!("`return p->Next()->gi();` is the chained member call");
@@ -796,7 +797,7 @@ mod tests {
 
     #[test]
     fn a_formal_argument_on_a_later_link_is_class_b_at_slot_one() {
-        let Some(BodyShape::CallSeq { params, calls, saved, tail }) =
+        let Some(BodyShape::CallSeq { params, calls, saved, tail, guard: None }) =
             parse_segment(MC_LINK_ARG, NO_LOCALS)
         else {
             panic!("`return p->Next()->gia(k);` is the chained member call");
@@ -1291,6 +1292,7 @@ mod tests {
         // and nothing a census number would show.
         let fp = crate::func::IlFunction {
             call_seq: Some(crate::func::CallSeq {
+                guard: None,
                 calls: Vec::new(),
                 tail: crate::func::SeqTail::CallLoadFp { off: 4, double: false },
                 saved: Vec::new(),
@@ -1301,6 +1303,7 @@ mod tests {
         // …and the integer sibling one line away is not.
         let int_tail = crate::func::IlFunction {
             call_seq: Some(crate::func::CallSeq {
+                guard: None,
                 calls: Vec::new(),
                 tail: crate::func::SeqTail::CallLoad { off: 4 },
                 saved: Vec::new(),

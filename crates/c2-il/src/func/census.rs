@@ -495,6 +495,16 @@ impl IlBundle {
                             // Class A many-calls. Split by tail so the rung's gain
                             // can be attributed to the production that earned it
                             // rather than to their sum.
+                            // **W10 — a GUARDED sequence gets its own key**,
+                            // ahead of the tail split. The tail says what the
+                            // body does after its last call and is orthogonal
+                            // to whether one of them is branched over; keying
+                            // the guard into the tail names would cross two
+                            // axes and make a census delta unattributable,
+                            // which is `docs/BOARD.md` #150's shape.
+                            Ok(BodyShape::CallSeq { guard: Some(_), .. }) => {
+                                FnVerdict::InClass("call-sequence-guarded")
+                            }
                             Ok(BodyShape::CallSeq { tail, .. }) => {
                                 FnVerdict::InClass(match tail {
                                     body::SeqTail::Void => "call-sequence",

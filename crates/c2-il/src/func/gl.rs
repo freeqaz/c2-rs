@@ -309,6 +309,60 @@ fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<Str
             if linkage_needs_a_directive(gl, runs[k].1) {
                 return (Vec::new(), Vec::new());
             }
+            // **…and a DEFINED record whose name is `26`-INTRODUCED refuses it
+            // too, because `26` marks COMDAT-style linkage and the port's packed
+            // writer has one `.text` for the whole TU** (board **#232**).
+            //
+            // This is the clause W-ADOPT was one step short of. That rung's own
+            // message named the risk exactly — *"the one place the widening could
+            // have produced wrong bytes instead of a refusal"* — and closed the
+            // case where a run **ends** at `26` (above). The case where a run
+            // **begins** at one was left open, and it is a different shape: an
+            // `26`-introduced name is NUL-terminated like any other, so every
+            // field arithmetic downstream is fine and the record binds happily.
+            // Nothing was wrong with the *name*. What is wrong is the **obj
+            // shape** it implies.
+            //
+            // Measured, `work/w-cross/alarm/`, at `/Ox /GS- /c`:
+            //
+            // ```cpp
+            //   struct Bd { Bd(); ~Bd(); int b0; };
+            //   struct M : Bd { M();  };
+            //   struct D : M { D();  };
+            //   D::D() {}
+            // ```
+            //
+            // `.gl` introduces `??0D@@QAA@XZ` with `00` and `??1M@@QAA@XZ` — the
+            // **implicitly generated** destructor of `M` — with `26`. And the
+            // reference obj has **seven** sections with **two** `.text`s:
+            // `??1M` in its own COMDAT (`chars 0x60401020`, `SELECT_ANY`) placed
+            // **first**, then `??0D` in the ordinary packed `.text`
+            // (`0x60400020`). The port emitted six sections, both symbols packed
+            // into one `.text`, in the opposite order — `Port=Mismatch @ offset
+            // 2`, `NumberOfSections`. **A refusal had become a wrong emit**,
+            // which is the one direction `CLAUDE.md`'s correctness rule exists to
+            // prevent.
+            //
+            // The correspondence is the whole content of the clause and it was
+            // checked in both directions rather than assumed. Across the
+            // generated sweep, **twelve** cases have more than one `.text` in
+            // packed mode; the COMDAT is **not always first** (`51-dtor-member`
+            // 0250 and 0255 put it second), so the section-ORDER rule is
+            // unmeasured on top of the section-KIND one. Eleven of the twelve
+            // already refused for unrelated reasons and exactly one — the case
+            // above — reached the emitter.
+            //
+            // **Refused rather than emitted, deliberately.** Teaching the packed
+            // writer to mint a per-function COMDAT is an emit-set / section-layout
+            // model, which `docs/STATUS.md` puts in Phase 7 and says plainly is
+            // not reachable by widening; and its ordering half has one witness
+            // either way. `docs/GAPS.md` §6's rule applies to the separator too:
+            // [`NAME_SEPARATORS`] declines to say what `26` *means*, and this
+            // clause does not claim to know either — it keys on the byte, and the
+            // byte is what the obj disagreed about.
+            if runs[k].0 > 0 && gl[runs[k].0 - 1] == NAME_SEPARATORS[1] {
+                return (Vec::new(), Vec::new());
+            }
             claimed[k] = true;
             bound.push((off, runs[k].2.clone()));
             p += 5;
@@ -1678,8 +1732,34 @@ mod tests {
     /// a test that only showed the widened reader binding correctly would pass
     /// just as happily if the incumbent had bound it correctly too, and then it
     /// would be evidence of nothing.
+    ///
+    /// # REVISED by board #232 — and this revision is the finding
+    ///
+    /// This test used to assert that both records **bind**. That assertion was
+    /// the wrong-bytes emit: a `26`-introduced *defined* record is a symbol c2
+    /// gives its **own `.text` COMDAT** even in packed mode, and the port's
+    /// packed writer has one `.text` for the whole TU. `scripts/expr_sweep.sh`
+    /// found it at `checked=14484 mismatches=1`, on
+    /// `struct Bd{Bd();~Bd();int b0;}; struct M:Bd{M();}; struct D:M{D();};
+    /// D::D(){}` — where `??1M@@QAA@XZ`, the *implicitly generated* destructor,
+    /// is the `26`-introduced name and the one c2 puts in its own COMDAT.
+    ///
+    /// So the reader half of W-ADOPT stands and the gate half did not: **seeing
+    /// a name and being able to emit a body under it are different claims**, and
+    /// this test conflated them. It now asserts the split directly — the widened
+    /// *scanner* sees the name (which is what W-ADOPT bought, and it is what
+    /// makes the record accountable rather than invisible) and the *gate*
+    /// refuses the record.
+    ///
+    /// `il_gl_sep26.cpp` could not have caught this and the reason is the
+    /// transferable part: its `??_GR` is a **deleting** destructor beside a
+    /// vftable, so its whole TU is out of class for four other reasons and the
+    /// verdict it asserts — `NotImplemented` — is right for the wrong cause. The
+    /// axis it holds fixed is *implicit vs explicit*, and the defect is on that
+    /// axis. `w232_gl_sep26_implicit.cpp` varies it (the prefix is the rung
+    /// registry's doing, not a claim that it is a different family).
     #[test]
-    fn the_gate_binds_a_26_introduced_record_to_its_own_name() {
+    fn a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_the_gate() {
         let mut gl = vec![0u8];
         gl.extend_from_slice(b"??1R@@UAA@XZ");
         gl.push(0);
@@ -1713,8 +1793,44 @@ mod tests {
             "control: the name must be invisible to the NUL scanner: {nul:?}"
         );
 
+        // **What W-ADOPT bought, and it still holds: the SCANNER sees the name.**
+        // That is the half that made the record accountable instead of invisible
+        // — before it, the second record's nearest run was 70 bytes back and the
+        // only thing between that and a body emitted under `??1R`'s name was a
+        // distance bound.
+        let all = gl_symbol_runs_all_separators(&gl);
+        assert!(
+            all.iter().any(|(_, _, n)| n == "??_GR@@UAAPAXI@Z"),
+            "the widened scanner must see the `26`-introduced name: {all:?}"
+        );
+        assert!(
+            all.iter().any(|(_, _, n)| n == "??1R@@UAA@XZ"),
+            "…and must not lose the NUL-introduced one: {all:?}"
+        );
+
+        // **What board #232 took back: the GATE refuses it.** A `26`-introduced
+        // DEFINED record is a symbol c2 gives its own `.text` COMDAT even in
+        // packed mode, and the port's packed writer has one `.text`. Binding it
+        // is what produced `Port=Mismatch @ offset 2` — `NumberOfSections`.
         assert_eq!(
             gl_defined_names_with(&gl, true),
+            (Vec::new(), Vec::new()),
+            "a `26`-introduced DEFINED record must refuse the TU (board #232)"
+        );
+
+        // …and the refusal keys on the SEPARATOR and on nothing else about the
+        // record: the same bytes with a `00` in that one position bind normally.
+        // Without this the assertion above would pass just as well if the reader
+        // had started refusing everything, which is how a refusal test goes
+        // green while measuring nothing.
+        let mut nul_sep = gl.clone();
+        let at = nul_sep
+            .iter()
+            .position(|&b| b == 0x26)
+            .expect("the separator under test");
+        nul_sep[at] = 0x00;
+        assert_eq!(
+            gl_defined_names_with(&nul_sep, true),
             (
                 vec![
                     (2644, "??1R@@UAA@XZ".to_string()),
@@ -1722,7 +1838,8 @@ mod tests {
                 ],
                 Vec::new()
             ),
-            "each record binds to its OWN name"
+            "with a `00` separator each record binds to its OWN name — so the \
+             refusal above is the separator's doing and not the record's"
         );
 
         // The production path is the widened one.

@@ -16,7 +16,7 @@ use crate::func::body::chain::{
 use crate::func::body::expr::{
     eat_return_plumbing, intrinsic_selector, parse_expr, BODY_SCOPE_DEPTH,
 };
-use crate::func::body::{blk, Block, BodyShape, SeqCall, SeqTail, SlotArg};
+use crate::func::body::{blk, Block, BodyShape, SeqCall, SeqGuardShape, SeqTail, SlotArg};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_opt_stmt_marker, read_token_var,
     read_type, read_varint, TYPE_KIND_REAL_CLASS,
@@ -1327,6 +1327,26 @@ fn parse_call_sequence(
     first_callee: u32,
     first_args: Vec<Vec<IlOp>>,
 ) -> Result<BodyShape, Block> {
+    parse_call_sequence_from(seg, p, lo, vec![(first_callee, first_args)], None)
+}
+
+/// The call-sequence loop, entered with a **prefix** of calls already read and
+/// an optional guard over them.
+///
+/// **W10** added the second caller: [`super::guarded_seq::try_parse_guarded_seq`]
+/// reads `if (x rel k) g(); [else h();]` itself and then hands the rest of the
+/// body to *this* loop rather than to a copy of it. The tail forms, the
+/// [`MAX_SEQ_CALLS`] bound, [`plan_saved_gprs`] and the
+/// one-call-and-a-void-tail tail-call escape are therefore shared, which is the
+/// `docs/GAPS.md` §6 #9 discipline: a guarded sequence cannot drift from the
+/// sequence it guards, because there is one loop and not two.
+pub(crate) fn parse_call_sequence_from(
+    seg: &[u8],
+    p: &mut usize,
+    lo: usize,
+    prefix: Vec<(u32, Vec<Vec<IlOp>>)>,
+    guard: Option<SeqGuardShape>,
+) -> Result<BodyShape, Block> {
     let params = parse_params(seg, lo)?;
     // Past the eighth formal a parameter is stack-homed and `select_text` — which
     // computes every one of these calls' argument setups — refuses. Raised here so
@@ -1335,7 +1355,7 @@ fn parse_call_sequence(
     if params.len() > MAX_REGISTER_FORMALS {
         return Err(Block::refuse(seg, *p, "callseq-over-eight-formals"));
     }
-    let mut raw: Vec<(u32, Vec<Vec<IlOp>>)> = vec![(first_callee, first_args)];
+    let mut raw: Vec<(u32, Vec<Vec<IlOp>>)> = prefix;
     let tail;
     loop {
         eat_opt_stmt_marker(seg, p);
@@ -1481,9 +1501,27 @@ fn parse_call_sequence(
     // than refused: the body IS the tail call, and its arguments have been read
     // by the same locator.
     if raw.len() == 1 && matches!(tail, SeqTail::Void) {
+        if guard.is_some() {
+            // **W10 — a guard with nothing after it is NOT a framed body.**
+            // `void f(int a){ if(a) g(); }` is fold band 2 plus a tail call
+            // (`work/w-cross/p/probe2.cpp::e0`: `cmpwi cr6,r3,0 ; bnelr cr6 ;
+            // b ?v0 ; blr`, 16 B, **no `.pdata`**). Emitting the 44-byte framed
+            // body there would be a wrong-bytes obj that still links, so the
+            // refusal is named rather than left to the escape below — which
+            // would otherwise hand the guarded call to `tail_call_shape` and
+            // silently drop the branch.
+            return Err(Block::refuse(seg, *p, "callseq-guard-no-trailing-call"));
+        }
         let (callee_tok, args) = raw.pop().expect("length checked");
         return tail_call_shape(seg, args, params, callee_tok, *p);
     }
+    // **W10 — the guarded sequence is Class A only.** `probe3 P2`/`S0`/`S1` put
+    // a formal in r31 beside a branch and the compare then reads r31 in one and
+    // r3 in the others, depending on whether the entry block also clobbers r3.
+    // That composes with the entry-block hoisting rule `guarded_seq`'s module
+    // doc refuses, so it is refused here too — at the ONE place that knows the
+    // saved set, after `plan_saved_gprs` has run.
+    
 
     // Validate and normalize every call's arguments through the ONE locator every
     // other call shape uses, so the marshalling has a single implementation.
@@ -1507,7 +1545,10 @@ fn parse_call_sequence(
     // Class A saves nothing; Class B saves one or two GPRs. Which formals, and in
     // which register, is [`plan_saved_gprs`].
     let saved = plan_saved_gprs(seg, &params, &calls, 0, *p)?;
-    Ok(BodyShape::CallSeq { params, calls, tail, saved })
+    if guard.is_some() && (!saved.is_empty() || matches!(tail, SeqTail::Cmp { .. })) {
+        return Err(Block::refuse(seg, *p, "callseq-guard-callee-saved"));
+    }
+    Ok(BodyShape::CallSeq { params, calls, tail, saved, guard })
 }
 
 /// The largest number of callee-saved GPRs c2 open-codes with `std`/`ld`. At
@@ -1856,7 +1897,7 @@ mod tests {
     #[test]
     fn class_a_many_calls_decode_and_the_lone_statement_call_stays_a_tail_call() {
         // Two statement calls: framed, Class A, nothing saved.
-        let Some(BodyShape::CallSeq { calls, tail, params, saved }) =
+        let Some(BodyShape::CallSeq { calls, tail, params, saved, guard: None }) =
             parse_segment(SEQ_TWO_VOID, NO_LOCALS)
         else {
             panic!("`g1(a); g2();` is the Class A many-call shape");

@@ -81,7 +81,7 @@ pub struct CondPairParts {
 /// item 2).
 ///
 /// Returns `(BO, bit)`; the caller adds the CR field.
-fn branch_sense(rel: Rel) -> (u8, u8) {
+pub(crate) fn branch_sense(rel: Rel) -> (u8, u8) {
     match rel {
         // `==` -> branch when EQ is CLEAR, i.e. `bne`.
         Rel::Eq => (BO_FALSE, CR_BIT_EQ),

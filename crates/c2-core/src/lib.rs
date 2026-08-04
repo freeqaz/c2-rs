@@ -328,6 +328,15 @@ impl PortC2 {
                     // one REL24 site per call instead of one per function.
                     codegen::Selected::Seq { setups, tail } => {
                         let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
+                        // **W10** — the guard, when there is one. Resolved
+                        // through `seq_guard_emit` on both emission paths, so
+                        // the packed and COMDAT writers cannot disagree about a
+                        // branch sense.
+                        let guard = seq
+                            .guard
+                            .as_ref()
+                            .map(codegen::seq_guard_emit)
+                            .transpose()?;
                         let body = codegen::call_seq_text(
                             &setups,
                             &tail,
@@ -336,6 +345,7 @@ impl PortC2 {
                                 saved_gprs: seq.saved_gprs() as u8,
                                 ..Default::default()
                             },
+                            guard.as_ref(),
                         )?;
                         frame = Some(coff::Frame {
                             prolog_len: body.prolog_len,
@@ -463,6 +473,15 @@ impl PortC2 {
                 // every `bl` word encodes its own `.text` offset.
                 codegen::Selected::Seq { setups, tail } => {
                     let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
+                    // **W10** — same resolver as the `/Gy` path above. The
+                    // conditional branch and the intra-section `b` are both
+                    // self-relative, so unlike every `bl` beside them they are
+                    // independent of where the function lands.
+                    let guard = seq
+                        .guard
+                        .as_ref()
+                        .map(codegen::seq_guard_emit)
+                        .transpose()?;
                     let body = codegen::call_seq_text(
                         &setups,
                         &tail,
@@ -471,6 +490,7 @@ impl PortC2 {
                             saved_gprs: seq.saved_gprs() as u8,
                             ..Default::default()
                         },
+                        guard.as_ref(),
                     )?;
                     frame = Some(coff::Frame {
                         prolog_len: body.prolog_len,

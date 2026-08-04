@@ -41,7 +41,8 @@ pub use func::{
     mangled_name, mangled_names, opt_word_mode, source_path, Block, FnCensus, OptWordMode,
     OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,
-    CallSeq, CompareLeaf, DynInitTu, FpTail, FramedCall, IlFunction, IlOp, Rel, SeqCall, SeqCmp, SeqTail,
+    CallSeq, CompareLeaf, DynInitTu, FpTail, FramedCall, IlFunction, IlOp, Rel, SeqCall, SeqCmp,
+    SeqGuard, SeqTail,
     SlotArg, LINK_FIRST_SLOT,
     // W8 — the two-arm conditional tail call and its register schedule. The
     // schedule is exported because the emitter must run the *same* planner the

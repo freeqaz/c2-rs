@@ -10,7 +10,11 @@
 
 use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
-use crate::codegen::encode::{encode_addi, encode_addis, encode_blr, encode_mr};
+use crate::codegen::cond_tail::branch_sense;
+use crate::codegen::encode::{
+    cr_bi, encode_addi, encode_addis, encode_bc, encode_blr, encode_cmplwi, encode_cmpwi,
+    encode_mr, CR_COMPARE,
+};
 use crate::codegen::frame::FrameLayout;
 use c2_il::LINK_FIRST_SLOT;
 use crate::codegen::select::{ARG_REGS, OptMode, RET_REG, SCRATCH_REG, out_of_class};
@@ -273,25 +277,118 @@ pub struct SeqBody {
 /// `base_off` is the function's start within its `.text` section — 0 under `/Gy`,
 /// its packed offset otherwise — because the `bl` displacement follows MSVC's
 /// `disp = −(own .text offset)` convention.
+/// **W10 — the emission plan for a [`c2_il::SeqGuard`]**: the compare word and
+/// the branch's `(BO, BI)`, resolved once so [`call_seq_text`] only has to place
+/// them.
+///
+/// Built by [`seq_guard_emit`], which is the *only* place the compare register
+/// is chosen — and it chooses the formal's **home** argument register, because
+/// this class admits no entry-block move and therefore has no post-hoist
+/// location to resolve. (`cond_tail`'s `plan_cond_pair` does have one, and the
+/// separating cell is `?mmioGetInfo`: `mr r11,r3 ; cmplwi cr6,r11,0`. A guarded
+/// sequence with a park is refused in the IL parser, so the two rules cannot be
+/// confused here.)
+pub struct SeqGuardEmit {
+    /// `cmpwi cr6,rA,k` or `cmplwi cr6,rA,k`, already encoded.
+    cmp: [u8; 4],
+    /// The conditional branch's `BO` and `BI`, the **negation** of the IL
+    /// relation because the IL's `38` is brFALSE.
+    bo: u8,
+    bi: u8,
+}
+
+/// Resolve a [`c2_il::SeqGuard`] into the two words its emission needs.
+///
+/// The compare instruction comes from the operand's signedness and from nothing
+/// else — the relational opcodes are sign-agnostic (`docs/CFG_SHAPE.md` §3.2) —
+/// and the branch sense from [`crate::codegen::cond_tail::branch_sense`], the
+/// **same** table W9 graded against the real `c2` across all six relations and
+/// both signednesses. Sharing it is the point: a second copy would be a second
+/// place for the `bt`/`bf` split to be wrong, and that split had no oracle
+/// witness at all until W9.
+pub fn seq_guard_emit(guard: &c2_il::SeqGuard) -> Result<SeqGuardEmit, BackendError> {
+    let ra = *ARG_REGS.get(guard.cmp_param).ok_or_else(|| {
+        out_of_class("a guarded sequence comparing a stack-homed formal")
+    })?;
+    let cmp = if guard.signed {
+        let k = i16::try_from(guard.k)
+            .map_err(|_| out_of_class("a signed guard literal wider than `cmpwi`'s immediate"))?;
+        encode_cmpwi(CR_COMPARE, ra, k)
+    } else {
+        let k = u16::try_from(guard.k)
+            .map_err(|_| out_of_class("an unsigned guard literal wider than `cmplwi`'s immediate"))?;
+        encode_cmplwi(CR_COMPARE, ra, k)
+    };
+    let (bo, bit) = branch_sense(guard.rel);
+    Ok(SeqGuardEmit { cmp, bo, bi: cr_bi(CR_COMPARE, bit) })
+}
+
 pub fn call_seq_text(
     setups: &[Vec<u8>],
     tail: &[u8],
     base_off: u32,
     frame: FrameLayout,
+    guard: Option<&SeqGuardEmit>,
 ) -> Result<SeqBody, BackendError> {
     if setups.is_empty() {
         return Err(out_of_class("a call sequence with no calls"));
+    }
+    if guard.is_some() {
+        // The guarded call is `setups[0]` and the join's first call is
+        // `setups[1]`. The IL parser guarantees the second, and this is the
+        // backstop — an out-of-range index below would be a silent
+        // wrong-displacement emit rather than a panic.
+        if setups.len() < 2 {
+            return Err(out_of_class(
+                "a guarded call sequence with no unguarded call after the guard:                  that shape is fold band 2 (`bclr`) plus a tail call, not a frame",
+            ));
+        }
     }
     let prologue = frame.prologue()?;
     let epilogue = frame.epilogue()?;
     let prolog_len = prologue.len() as u32;
     let mut text = prologue;
+    // **The guard sits between the prologue and the sequence** — measured, with
+    // the guarded call's own setup staying INSIDE the guarded block:
+    // `work/w-cross/p/probe2.cpp::s1` (`if(a!=0) a1(b); v1();`) emits
+    // `cmpwi cr6,r3,0 ; bt 26,+12 ; mr r3,r4 ; bl ?a1 ; bl ?v1`. An emitter that
+    // hoisted the `mr` above the branch would be four bytes right and one
+    // instruction wrong.
+    let bc_at = guard.map(|g| {
+        text.extend_from_slice(&g.cmp);
+        let at = text.len();
+        text.extend_from_slice(&[0; 4]);
+        at
+    });
+    let mut after_call: Vec<usize> = Vec::with_capacity(setups.len());
     let mut bl_offsets = Vec::with_capacity(setups.len());
     for setup in setups {
         text.extend_from_slice(setup);
         let off = base_off + text.len() as u32;
         text.extend_from_slice(&encode_call_branch(off));
         bl_offsets.push(off);
+        after_call.push(text.len());
+    }
+    // ---- patch the conditional branch --------------------------------------
+    //
+    // Its displacement is a function of a length this emitter already has — the
+    // guarded call's own setup — so there is no fixup list and no label map.
+    // `docs/CFG_SHAPE.md` §6.2 item B asks for one for the general case, and it
+    // is genuinely needed the moment two branches name the same label, which is
+    // `src/system/negate_test.cpp` — declined at nine independent refusals in
+    // `work/w-cross/PREREG.md` §1.
+    if let (Some(g), Some(bc_at)) = (guard, bc_at) {
+        // The branch skips the then-block and lands on the join's first
+        // instruction.
+        let disp = (after_call[0] - bc_at) as i32;
+        let bc = encode_bc(g.bo, g.bi, disp).ok_or_else(|| {
+            out_of_class(
+                "a guarded call's conditional branch past the 14-bit BD field: \
+                 the expansion (invert, branch over an unconditional `b`) is \
+                 measured in docs/CFG_SHAPE.md §3.3.1 but not built",
+            )
+        })?;
+        text[bc_at..bc_at + 4].copy_from_slice(&bc);
     }
     text.extend_from_slice(tail);
     text.extend_from_slice(&epilogue);
@@ -1300,6 +1397,7 @@ mod tests {
             ],
             tail,
             saved: Vec::new(),
+            guard: None,
         };
         let tail_of = |t| {
             call_seq_parts(&[9], &seq(t), OptMode::O1).expect("in class").1
@@ -1332,6 +1430,7 @@ mod tests {
             ],
             tail,
             saved: Vec::new(),
+            guard: None,
         };
         let tail_of = |t| call_seq_parts(&[9], &seq(t), OptMode::O1).expect("in class").1;
         // `lfs f1,4(r3)` = c0230004 and `lfd f1,16(r3)` = c8230010 — the two
@@ -1369,6 +1468,140 @@ mod tests {
         // offset 8 → 0x4BFFFFF8 (the REL24 reloc patches the target).
         assert_eq!(encode_tail_branch(0), [0x48, 0x00, 0x00, 0x00]);
         assert_eq!(encode_tail_branch(8), [0x4B, 0xFF, 0xFF, 0xF8]);
+    }
+
+    /// **W10 — the framed × branching cell, against the reference obj's own
+    /// bytes.**
+    ///
+    /// `void g1(int a){ if (a != 0) v0(); v1(); }`, 44 B, transcribed from the
+    /// obj `cl.exe` 16.00.11886.00 emits for `fixtures/cpp/w10_guarded_seq.cpp`
+    /// — **identical at `/O1` and at `/Ox`**, which is the property the `else`
+    /// form turned out not to have.
+    ///
+    /// This is the assertion with a byte behind it. The two below it check the
+    /// displacement's *dependence* on the setup, which this one cannot: `g1`'s
+    /// guarded arm has an empty setup, so a `bc` computed from the wrong length
+    /// would still come out `+8` here.
+    #[test]
+    fn a_guarded_call_sequence_matches_the_reference_bytes() {
+        let guard = seq_guard_emit(&c2_il::SeqGuard {
+            cmp_param: 0,
+            rel: c2_il::Rel::Ne,
+            signed: true,
+            k: 0,
+        })
+        .expect("in class");
+        let body = call_seq_text(
+            &[Vec::new(), Vec::new()],
+            &[],
+            0,
+            FrameLayout::default(),
+            Some(&guard),
+        )
+        .expect("in class");
+        #[rustfmt::skip]
+        let want: Vec<u8> = vec![
+            0x7d, 0x88, 0x02, 0xa6, // mflr  r12
+            0x91, 0x81, 0xff, 0xf8, // stw   r12,-8(r1)
+            0x94, 0x21, 0xff, 0xa0, // stwu  r1,-96(r1)
+            0x2f, 0x03, 0x00, 0x00, // cmpwi cr6,r3,0    <- signed: `a` is an int
+            0x41, 0x9a, 0x00, 0x08, // bt    26,+8       <- NEGATION of `!=`
+            0x4b, 0xff, 0xff, 0xed, // bl    ?v0         REL24 @0x14
+            0x4b, 0xff, 0xff, 0xe9, // bl    ?v1         REL24 @0x18
+            0x38, 0x21, 0x00, 0x60, // addi  r1,r1,96
+            0x81, 0x81, 0xff, 0xf8, // lwz   r12,-8(r1)
+            0x7d, 0x88, 0x03, 0xa6, // mtlr  r12
+            0x4e, 0x80, 0x00, 0x20, // blr
+        ];
+        assert_eq!(body.text, want);
+        assert_eq!(body.text.len(), 44);
+        assert_eq!(body.bl_offsets, vec![0x14, 0x18]);
+        assert_eq!(body.prolog_len, 12);
+    }
+
+    /// **The `bc`'s displacement is measured over the guarded call's SETUP, and
+    /// the setup stays INSIDE the guarded block.**
+    ///
+    /// `void g2(int a,int b){ if (a != 0) a1(b); v1(); }` is 48 B and the
+    /// reference emits `cmpwi cr6,r3,0 ; bt 26,+12 ; mr r3,r4 ; bl ?a1 ; bl ?v1`
+    /// — the `mr` **after** the branch, and the branch four bytes longer than
+    /// `g1`'s to step over it. An emitter that hoisted the setup above the
+    /// compare would produce the same 48 bytes in a different order and the
+    /// same `+8` displacement `g1` has, so this cell is what separates the two
+    /// readings. (Hoisting is what c2 does the moment the arm needs a scratch
+    /// park — `work/w-cross/p/probe2.cpp::s4` — which is why an arm here takes
+    /// at most one argument.)
+    #[test]
+    fn the_guarded_branch_steps_over_the_arms_setup() {
+        let guard = seq_guard_emit(&c2_il::SeqGuard {
+            cmp_param: 0,
+            rel: c2_il::Rel::Ne,
+            signed: true,
+            k: 0,
+        })
+        .unwrap();
+        // `mr r3,r4` — the guarded call's whole setup.
+        let setup = encode_mr(3, 4).to_vec();
+        let body =
+            call_seq_text(&[setup, Vec::new()], &[], 0, FrameLayout::default(), Some(&guard))
+                .expect("in class");
+        assert_eq!(&body.text[12..16], &[0x2f, 0x03, 0x00, 0x00], "cmpwi cr6,r3,0");
+        assert_eq!(&body.text[16..20], &[0x41, 0x9a, 0x00, 0x0c], "bt 26,+12");
+        assert_eq!(&body.text[20..24], &encode_mr(3, 4), "the setup, AFTER the branch");
+        assert_eq!(body.bl_offsets, vec![0x18, 0x1c]);
+        assert_eq!(body.text.len(), 48);
+    }
+
+    /// The compare reads the scrutinee's **home** argument register, and its
+    /// signedness picks the instruction. `w10_guarded_seq.cpp::g5` compares the
+    /// SECOND formal, so the word is `2f04……` and not `2f03……` — the cell that
+    /// separates "the compare reads the scrutinee" from "the compare reads r3".
+    #[test]
+    fn the_guard_compares_the_scrutinees_home_register() {
+        let mk = |cmp_param, signed, k| {
+            seq_guard_emit(&c2_il::SeqGuard { cmp_param, rel: c2_il::Rel::Ne, signed, k })
+                .map(|g| {
+                    call_seq_text(
+                        &[Vec::new(), Vec::new()],
+                        &[],
+                        0,
+                        FrameLayout::default(),
+                        Some(&g),
+                    )
+                    .unwrap()
+                    .text[12..16]
+                        .to_vec()
+                })
+        };
+        assert_eq!(mk(0, true, 0).unwrap(), vec![0x2f, 0x03, 0x00, 0x00]); // cmpwi  cr6,r3,0
+        assert_eq!(mk(1, true, 0).unwrap(), vec![0x2f, 0x04, 0x00, 0x00]); // cmpwi  cr6,r4,0
+        assert_eq!(mk(2, false, 7).unwrap(), vec![0x2b, 0x05, 0x00, 0x07]); // cmplwi cr6,r5,7
+        // Past the immediate field it refuses rather than truncating.
+        assert!(mk(0, true, 0x8000).is_err());
+        assert!(mk(0, false, 0x1_0000).is_err());
+    }
+
+    /// **A guard with nothing after it must not reach the emitter.** The IL
+    /// parser refuses it (`callseq-guard-no-trailing-call`) because that shape
+    /// is fold band 2 plus a tail call, not a frame — 16 B and no `.pdata`. This
+    /// is the backstop, and it is a refusal rather than a panic because an
+    /// out-of-range index would otherwise be a silent wrong-displacement emit.
+    #[test]
+    fn a_guard_with_no_call_after_it_refuses_in_the_emitter_too() {
+        let guard = seq_guard_emit(&c2_il::SeqGuard {
+            cmp_param: 0,
+            rel: c2_il::Rel::Ne,
+            signed: true,
+            k: 0,
+        })
+        .unwrap();
+        assert!(
+            call_seq_text(&[Vec::new()], &[], 0, FrameLayout::default(), Some(&guard)).is_err()
+        );
+        // …and the same sequence with no guard is the shipped Class A body.
+        assert!(
+            call_seq_text(&[Vec::new(), Vec::new()], &[], 0, FrameLayout::default(), None).is_ok()
+        );
     }
 
     #[test]

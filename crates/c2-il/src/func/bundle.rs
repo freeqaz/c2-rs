@@ -2,7 +2,7 @@ use super::body::{self, parse_segment, BodyShape};
 use super::bind::Bindings;
 use super::gl::drectve_is_boilerplate;
 use super::readers::{contains_subslice, find_subslice, memchr_byte};
-use super::{CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqTail, SlotArg};
+use super::{CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqGuard, SeqTail, SlotArg};
 use crate::IlBundle;
 
 /// The suffix a `<name>$initializer$` `.CRT$XCU` slot symbol carries
@@ -718,6 +718,8 @@ pub(crate) fn shape_to_function(
                             link_args: None,
                         }],
                         tail: SeqTail::SavedFormal { param: this_index },
+                        // A generated base-delegating constructor has no `38`.
+                        guard: None,
                         saved: vec![this_index],
                     }),
                     eh_bare: eh,
@@ -824,7 +826,7 @@ pub(crate) fn shape_to_function(
             // `.gl` symbol index, exactly as the tail and framed calls are, and a
             // single unresolvable one refuses the whole function — a relocation
             // against a guessed symbol is a mis-emit, not a gap.
-            BodyShape::CallSeq { params, calls, tail, saved } => {
+            BodyShape::CallSeq { params, calls, tail, saved, guard } => {
                 let mut resolved = Vec::with_capacity(calls.len());
                 for c in calls {
                     resolved.push(SeqCall {
@@ -841,6 +843,16 @@ pub(crate) fn shape_to_function(
                     call_seq: Some(CallSeq {
                         calls: resolved,
                         saved,
+                        // W10 — the guard is a pure copy: every field is
+                        // already resolved (a parameter index, a relation, a
+                        // signedness and a literal), so unlike the callees
+                        // there is nothing here that can fail to resolve.
+                        guard: guard.map(|g| SeqGuard {
+                            cmp_param: g.cmp_param,
+                            rel: g.rel,
+                            signed: g.signed,
+                            k: g.k,
+                        }),
                         tail: match tail {
                             body::SeqTail::Void => SeqTail::Void,
                             body::SeqTail::CallValue { add_k } => SeqTail::CallValue { add_k },
