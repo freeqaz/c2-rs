@@ -1,0 +1,4 @@
+alias NAMES that are emitted (dom(alias) in E): 0
+alias TARGETS that are emitted:                 3945
+emitted names starting ??_E (all TUs):          573
+tag-0x10 records 96220 ; bound 95820

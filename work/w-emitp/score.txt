@@ -1,0 +1,100 @@
+TUs 850   |E| 174417   |E in U| 173907   |E152| 5344 (0.03064)   |U| 1506586   Seed 14662
+
+== THE ALIAS DECODE ==
+  tag-0x10 records 96220 ; bound 95820 (0.99584) ; head_fail 352 ; rt_fail 0
+  unbound_target 48 ; self 0 ; dup 0
+  shape ??_E<X> -> ??_G<X> : 95818 of 95820 bound = 0.99998
+  target in U 95818 = 0.99998 ; dom(alias) in U 0 ; target in E 3945
+  SHIFT NULL  -1: bound 1795 (0.01873 of shift0) shape 0
+  SHIFT NULL  +1: bound 2449 (0.02556 of shift0) shape 0
+
+== THE MODELS — per-TU exact AND micro-F1, side by side ==
+  variant              |P|      prec    recall        F1   res#152 |  EXACT EXACT/850
+  ORACLE            167213   0.99997   0.95867   0.97888    0.5895 |    151  0.17765
+  ALIAS_IN          171805   0.99997   0.98500   0.99243    0.1609 |    472  0.55529
+  ALIAS_BOTH        171805   0.99997   0.98500   0.99243    0.1609 |    472  0.55529
+  JFP_ALIAS         156479   0.99825   0.89558   0.94413    0.0030 |    308  0.36235
+  JFP               150833   0.99899   0.86391   0.92655    0.1701 |    132  0.15529
+  RGL_ALIAS_IN      898489   0.19127   0.98531   0.32035    0.1651 |     35  0.04118
+  ALIAS_REF         129604   1.00000   0.74307   0.85260    0.1020 |    132  0.15529
+  RGL               129604   1.00000   0.74307   0.85260    0.1020 |    132  0.15529
+  INIT              613532   0.27289   0.95991   0.42496    0.6091 |     34  0.04000
+  SKIP              400998   0.36420   0.83732   0.50761    0.1456 |     34  0.04000
+  ALIAS_SHIFT1      167213   0.99997   0.95867   0.97888    0.5895 |    151  0.17765
+
+== THE SAME MODELS with #152 removed from BOTH E and P ==
+  variant              |P|      prec    recall        F1 |  EXACT
+  ORACLE            165818   0.99997   0.98072   0.99025 |    287
+  ALIAS_IN          166800   0.99997   0.98653   0.99320 |    472
+  ALIAS_BOTH        166800   0.99997   0.98653   0.99320 |    472
+  JFP_ALIAS         151188   0.99819   0.89260   0.94244 |    308
+  JFP               149439   0.99898   0.88297   0.93740 |    186
+  RGL_ALIAS_IN      893484   0.18674   0.98685   0.31405 |     35
+  ALIAS_REF         128781   1.00000   0.76169   0.86473 |    148
+  RGL               128781   1.00000   0.76169   0.86473 |    148
+  INIT              612136   0.27123   0.98200   0.42506 |     34
+  SKIP              399710   0.36215   0.85617   0.50900 |     34
+  ALIAS_SHIFT1      165818   0.99997   0.98072   0.99025 |    287
+
+== THE PER-TU RESIDUAL DECOMPOSITION (trap 8's missing number) ==
+  RGL         exact 132 ; residual is ONLY #152 on  17 TUs ; residual has NO #152 on  51 TUs ; exact-if-#152-free 148 (+16)
+        FN  15128  34.15%  free / file-scope function
+        FN  11987  27.06%  VIRTUAL member  (reached only via a vtable slot)
+        FN   5659  12.77%  `$` in qualified name (template instantiation OR adjustor thunk)
+        FN   4521  10.20%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+        FN   2926   6.60%  other ($)
+        FN   2007   4.53%  non-virtual member
+        FN   1097   2.48%  static member
+  ORACLE      exact 151 ; residual is ONLY #152 on 142 TUs ; residual has NO #152 on  30 TUs ; exact-if-#152-free 287 (+136)
+        FN   3949  58.95%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+        FN    971  14.49%  `$` in qualified name (template instantiation OR adjustor thunk)
+        FN    825  12.32%  non-virtual member
+        FN    452   6.75%  VIRTUAL member  (reached only via a vtable slot)
+        FN    368   5.49%  static member
+        FN    109   1.63%  free / file-scope function
+        FN     14   0.21%  other (0)
+        FP      4  non-virtual member
+        FP      1  other (3)
+  ALIAS_IN    exact 472 ; residual is ONLY #152 on   0 TUs ; residual has NO #152 on  90 TUs ; exact-if-#152-free 472 (+0)
+        FN    798  37.87%  `$` in qualified name (template instantiation OR adjustor thunk)
+        FN    532  25.25%  non-virtual member
+        FN    339  16.09%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+        FN    213  10.11%  static member
+        FN    109   5.17%  free / file-scope function
+        FN     91   4.32%  VIRTUAL member  (reached only via a vtable slot)
+        FN     14   0.66%  other (0)
+        FP      4  non-virtual member
+        FP      1  other (3)
+  ALIAS_BOTH  exact 472 ; residual is ONLY #152 on   0 TUs ; residual has NO #152 on  90 TUs ; exact-if-#152-free 472 (+0)
+        FN    798  37.87%  `$` in qualified name (template instantiation OR adjustor thunk)
+        FN    532  25.25%  non-virtual member
+        FN    339  16.09%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+        FN    213  10.11%  static member
+        FN    109   5.17%  free / file-scope function
+        FN     91   4.32%  VIRTUAL member  (reached only via a vtable slot)
+        FN     14   0.66%  other (0)
+        FP      4  non-virtual member
+        FP      1  other (3)
+  JFP_ALIAS   exact 308 ; residual is ONLY #152 on   4 TUs ; residual has NO #152 on 413 TUs ; exact-if-#152-free 308 (+0)
+        FN  14766  83.41%  free / file-scope function
+        FN   1728   9.76%  `$` in qualified name (template instantiation OR adjustor thunk)
+        FN    851   4.81%  undecorated (extern "C" / CRT)
+        FN    137   0.77%  VIRTUAL member  (reached only via a vtable slot)
+        FN    136   0.77%  non-virtual member
+        FN     53   0.30%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+        FN     14   0.08%  other (0)
+        FP    125  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+        FP    125  `$` in qualified name (template instantiation OR adjustor thunk)
+        FP     24  VIRTUAL member  (reached only via a vtable slot)
+
+== PER-TU EXACT SET MOVEMENT, name for name ==
+  ORACLE       -> ALIAS_IN      gained 321  lost   0  (151 -> 472)
+  ORACLE       -> ALIAS_BOTH    gained 321  lost   0  (151 -> 472)
+  JFP          -> JFP_ALIAS     gained 176  lost   0  (132 -> 308)
+  RGL          -> RGL_ALIAS_IN  gained   1  lost  98  (132 -> 35)
+        LOST src/lazer/game/Shuttle.cpp
+        LOST src/lazer/game/SongDB.cpp
+        LOST src/lazer/meta_ham/Instarank.cpp
+        LOST src/lazer/meta_ham/MoveRatingHistory.cpp
+        LOST src/lazer/meta_ham/Utl.cpp
+        LOST src/system/char/CharTaskMgr.cpp

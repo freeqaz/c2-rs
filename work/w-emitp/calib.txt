@@ -1,0 +1,12 @@
+|E| 174417  |U| 1506586  base rate |E|/|U| 0.11577
+ORACLE    -> ALIAS_IN    |P| 167213 -> 171805 (+4592) ; tp 167208 -> 171800 (+4592) ; FP 5 -> 5
+            soundness of the addition 1.00000 ; uniform expectation 0.00538 ; ratio 185.79x ; vs base rate 8.64x
+JFP       -> JFP_ALIAS   |P| 150833 -> 156479 (+5646) ; tp 150681 -> 156205 (+5524) ; FP 152 -> 274
+            soundness of the addition 0.97839 ; uniform expectation 0.01751 ; ratio 55.88x ; vs base rate 8.45x
+RGL       -> ALIAS_REF   |P| 129604 -> 129604 (+0) ; tp 129604 -> 129604 (+0) ; FP 0 -> 0
+ORACLE     exact 151 ; TUs with residual 691 ; FN   6699 ; FP     5 ; median residual/TU 5
+ALIAS_IN   exact 472 ; TUs with residual 335 ; FN   2107 ; FP     5 ; median residual/TU 0
+JFP        exact 132 ; TUs with residual 712 ; FN  23226 ; FP   152 ; median residual/TU 38
+JFP_ALIAS  exact 308 ; TUs with residual 520 ; FN  17702 ; FP   274 ; median residual/TU 38
+RGL        exact 132 ; TUs with residual 712 ; FN  44303 ; FP     0 ; median residual/TU 45
+ALIAS_IN residual size histogram (11 = >=11): [(0, 515), (1, 29), (2, 32), (3, 52), (4, 76), (5, 48), (6, 14), (7, 10), (8, 17), (9, 11), (11, 46)]
