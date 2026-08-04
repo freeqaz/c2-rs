@@ -74,6 +74,9 @@ w5_tree2.cpp
 w6_rel_k.cpp
 w8_cond_tail.cpp
 w8_cond_tail_value.cpp
+w9_cmp_zero_le.cpp
+w9_rel_signed.cpp
+w9_rel_unsigned.cpp
 wadjust_obj_recv.cpp
 wae_assign_dst.cpp
 wcb_cmp_two_calls.cpp

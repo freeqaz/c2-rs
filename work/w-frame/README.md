@@ -29,3 +29,31 @@ work/w-frame/featmap.py rank work/w-frame/gap_base.txt > work/w-frame/rank.json
 work/w-frame/analyse.py
 work/w-frame/modectl.py
 ```
+
+## The sweep — which of the port's productions has the oracle never seen?
+
+Added at the funnel's request after the `bt`/`cmpwi` finding. `sweep.py` builds
+two coverage profiles and subtracts them; see its module docstring for the
+method and `docs/rungs/2026-08-04-w-frame.md` §4.5 for the result.
+
+| file | what |
+|---|---|
+| `sweep.py` | the two-profile coverage differ over `crates/c2-core/src/codegen/` |
+| `SWEEP.txt` | its output at the branch tip |
+| `cov/`, `cov2/` | the GRADED and REACHED profiles (`.profraw`/`.profdata`/`export.json`, all gitignored — regenerate) |
+
+```sh
+RUSTFLAGS="-C instrument-coverage" cargo build --release -p c2-harness --bin c2rs \
+    --target-dir target-cov
+# GRADED: only 100%-match runs — perf over the Port=Match fixtures, each gate
+# lane restricted to ITS OWN match list, and the 8 matching workload TUs
+# REACHED: c2rs gap over every fixture at every lane
+work/w-frame/sweep.py
+```
+
+**The profiles must not be built by hand from a remembered list of runs.** Both
+of this instrument's own errors were exactly that: the first GRADED profile
+omitted the workload TUs and falsely accused `dyninit_thunk_text`; the second
+omitted the gate's per-lane runs and falsely accused 24 `/O1` register-allocation
+regions. Each correction shrank the band, and each is a measurement of the
+instrument rather than of the port.
