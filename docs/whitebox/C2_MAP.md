@@ -89,8 +89,29 @@ outright.
 
 **Diagnostic text is not in `c2.dll`.** c2 holds only error *numbers*; the
 strings live in `1033/clui.dll`'s message table (`unrecognized flag '%s' in
-'%s'` is there, not here). So hunt diagnostics by the **immediate** — `C1007` is
-`0x3EF`, `C1083` is `0x43B` — never by the string.
+'%s'` is there, not here). So hunt diagnostics by the **immediate**, never by
+the string.
+
+**But not by the immediate you would expect — an earlier revision of this file
+was wrong here, and it cost a child time.** The numbers are **not** stored as
+`0x3EF`/`0x43B`. `FUN_10c1ee7d` @ `0x10c1ee7d` adds a **base of 1000**
+(`lea ecx,[esi+0x3e8]` at `0x10c1ee84`), so every raise site pushes
+`number − 1000`:
+
+| diagnostic | immediate to grep | site |
+|---|---|---|
+| C1001 (the ICE that yields §3) | `0x001` | — |
+| C1007 unrecognized flag | **`0x007`** | `0x10b84a93` |
+| C1047 | `0x02F` | — |
+| C1081 file name too long | `0x051` | `0x10c1eee8` |
+| C1083 cannot open file | **`0x053`** | `0x10c1fd40` |
+| C1310 | `0x136` | — |
+| C1900 / C1905 (IL magic / format) | `0x384` / `0x389` | `0x10b97a22` |
+
+Grepping for `0x43b` finds nothing, which reads as "the diagnostic is not in
+this binary" when in fact it is. Verified live: `cl /c /Bd /d2nop add3.cpp` →
+`fatal error C1007: unrecognized flag '-nop' in 'p2'`, and `/d2ilzz` →
+`C1083 … 'zzgl'`.
 
 ---
 
@@ -254,7 +275,7 @@ files**, which is §4A.
 
 ---
 
-## 4A. `coffemit.c` — the densest file, and the one on the critical path
+## 3B. `coffemit.c` — the densest file, and the one on the critical path
 
 27 ICE xrefs, the most of any file, and 91% line-monotone — the best-behaved
 region in the binary. The name points at the project's tightest constraint, and
@@ -305,7 +326,7 @@ predicted a model/reader layer distinct from the writer, and the split is clean:
 3. **The `.bss` object-address permutation** — **settled, and it was never
    c2's.** See §4C.
 
-### 4B. The `.bss`/`.data` decision — factor C's +402-TU item
+### 3C. The `.bss`/`.data` decision — factor C's +402-TU item
 
 `FUN_10b9a143` (`p2symtab.c`) assigns the section, after `FUN_10b98457`
 normalises the storage class. The decisive instruction is:
@@ -326,7 +347,7 @@ and c2 simply never received bytes. High confidence on the c2-side predicate;
 An explicit IL section (`#pragma data_seg`, `__declspec(allocate)`) sets
 `sym[0xC]` and **short-circuits all of the above**.
 
-### 4C. The `.bss` permutation — REFUTED as a hash, and it is c1xx's
+### 3D. The `.bss` permutation — REFUTED as a hash, and it is c1xx's
 
 Lane w-bss is bounding this from the outside; this lane was told it might be the
 faster route, and it was, but **not by finding a hash — by proving there isn't
@@ -364,7 +385,7 @@ in the `.gl` it is handed. `docs/OBJ_DYNINIT_SHAPE.md` §7.1 declined this
 permutation on the grounds that it "would need the front end's hash reproduced";
 that premise is false and #158's owner should revisit it.
 
-### 4D. The emit predicate — found by file name, and it is `main.c`
+### 3E. The emit predicate — found by file name, and it is `main.c`
 
 The project's most valuable unknown is *"should this function body be written
 out at all?"*. The lane was told a file name might find it faster than any

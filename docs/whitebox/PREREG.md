@@ -31,10 +31,10 @@ are used here and they are **not** equivalent:
 
 | # | routine (behaviour already fully known from black-box work) | predicted file | tier | outcome |
 |---|---|---|---|---|
-| P1 | **JamCRC** — the string-COMDAT name hash: poly `0xEDB88320`, init `0xFFFFFFFF`, no final XOR, over the literal *including* its NUL, rendered base-16 with digits `A`..`P`, MSB first, leading zeros suppressed. Plus the aux-record `CheckSum` variant with init `0`. | **`hash.c`** (`0x10b5a1fc .. 0x10b5b1a0`), alternate **`coffemit.c`** (`0x10b290dc .. 0x10b2b0dd`) | **PREREG** | *pending* |
-| P2 | **The flag/argv parser** — the table of flags c2 accepts; an unrecognized flag yields `C1007 unrecognized flag '%s' in 'p2'`. | **`getflags.c`** (`0x10c1f415 .. 0x10c1f572`) | **PREREG** | *pending* |
-| P3 | **The `/FAsc` listing writer** — emits the complete `.cod` MASM listing under `-FAasc -Fa <file>`. | **`list.c`** (`0x10b709b8 .. 0x10b71933`) for the target-independent half; a separate PPC instruction printer late in the image for the machine-dependent half | **IN-FLIGHT** | *pending* |
-| P4 | **The COFF writer** — file header, 40-byte section headers, 18-byte auxiliary section-definition records. Output format fully known from 878 reference `.obj` files. | **`coffemit.c`** (`0x10b290dc .. 0x10b2b0dd`), with a model/reader layer in **`coff.c`** | **IN-FLIGHT** | *pending* |
+| P1 | **JamCRC** — the string-COMDAT name hash: poly `0xEDB88320`, init `0xFFFFFFFF`, no final XOR, over the literal *including* its NUL, rendered base-16 with digits `A`..`P`, MSB first, leading zeros suppressed. Plus the aux-record `CheckSum` variant with init `0`. | **`hash.c`** (`0x10b5a1fc .. 0x10b5b1a0`), alternate **`coffemit.c`** (`0x10b290dc .. 0x10b2b0dd`) | **PREREG** | **MISS** |
+| P2 | **The flag/argv parser** — the table of flags c2 accepts; an unrecognized flag yields `C1007 unrecognized flag '%s' in 'p2'`. | **`getflags.c`** (`0x10c1f415 .. 0x10c1f572`) | **PREREG** | **HIT** |
+| P3 | **The `/FAsc` listing writer** — emits the complete `.cod` MASM listing under `-FAasc -Fa <file>`. | **`list.c`** (`0x10b709b8 .. 0x10b71933`) for the target-independent half; a separate PPC instruction printer late in the image for the machine-dependent half | **IN-FLIGHT** | **HIT** (graded half; PPC half ungraded) |
+| P4 | **The COFF writer** — file header, 40-byte section headers, 18-byte auxiliary section-definition records. Output format fully known from 878 reference `.obj` files. | **`coffemit.c`** (`0x10b290dc .. 0x10b2b0dd`), with a model/reader layer in **`coff.c`** | **IN-FLIGHT** | **HIT** (both halves) |
 
 ### Notes on the two IN-FLIGHT rows
 
