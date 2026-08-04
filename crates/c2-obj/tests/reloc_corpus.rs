@@ -98,6 +98,14 @@ fn the_workload_relocation_histogram() {
     let mut n_hi_lo_paired = 0usize;
     let mut n_other_paired = 0usize;
     let mut max_sec_relocs = 0usize;
+    // Is `SymbolTableIndex` actually an index? A misaligned decode produces wild
+    // values here, so this doubles as a check that the 10-byte stride is right.
+    let mut n_indexable = 0usize;
+    let mut n_sym_out_of_range = 0usize;
+    // REFHI/REFLO balance per section — c2 is free to emit a REFLO off an
+    // already-materialized high half, and the corpus says whether it does.
+    let mut n_lone_lo = 0usize;
+    let mut n_lone_hi = 0usize;
 
     for f in &files {
         let Ok(bytes) = std::fs::read(f) else { continue };
@@ -109,8 +117,15 @@ fn the_workload_relocation_histogram() {
             continue;
         };
         let names = img.section_names().unwrap_or_default();
+        let nsym = u32::from_le_bytes([
+            img.as_bytes()[12],
+            img.as_bytes()[13],
+            img.as_bytes()[14],
+            img.as_bytes()[15],
+        ]);
         n_reloc += recs.len();
         let mut per_sec: BTreeMap<usize, usize> = BTreeMap::new();
+        let mut hi_lo: BTreeMap<usize, (usize, usize)> = BTreeMap::new();
         for (i, r) in recs.iter().enumerate() {
             *per_sec.entry(r.section).or_default() += 1;
             let bucket = names
@@ -151,6 +166,18 @@ fn the_workload_relocation_histogram() {
                     }
                 }
             }
+            if r.sym_is_an_index() {
+                n_indexable += 1;
+                if r.sym >= nsym {
+                    n_sym_out_of_range += 1;
+                }
+            }
+            if r.base() == IMAGE_REL_PPC_REFHI {
+                hi_lo.entry(r.section).or_default().0 += 1;
+            }
+            if r.base() == IMAGE_REL_PPC_REFLO {
+                hi_lo.entry(r.section).or_default().1 += 1;
+            }
             if r.base() == IMAGE_REL_PPC_REFHI || r.base() == IMAGE_REL_PPC_REFLO {
                 n_hi_lo += 1;
                 if let Some(next) = recs.get(i + 1) {
@@ -164,6 +191,10 @@ fn the_workload_relocation_histogram() {
             }
         }
         max_sec_relocs = max_sec_relocs.max(per_sec.values().copied().max().unwrap_or(0));
+        for (hi, lo) in hi_lo.values() {
+            n_lone_lo += lo.saturating_sub(*hi);
+            n_lone_hi += hi.saturating_sub(*lo);
+        }
     }
 
     println!("\n=== w-reloc corpus histogram ===");
@@ -200,6 +231,11 @@ fn the_workload_relocation_histogram() {
     println!("  PAIR not following a HI/LO: {n_other_paired}");
     println!("  REFHI+REFLO records     : {n_hi_lo}");
     println!("  ...of which PAIR-followed at the same VA: {n_hi_lo_paired}");
+    println!("  sections with surplus REFLO (lone lo): {n_lone_lo}");
+    println!("  sections with surplus REFHI (lone hi): {n_lone_hi}");
+    println!("\n-- SymbolTableIndex as an index (PAIR excluded) --");
+    println!("  records whose sym field IS an index : {n_indexable}");
+    println!("  ...with sym >= NumberOfSymbols      : {n_sym_out_of_range}");
     println!("\n-- base types with no row in the ported table --");
     if unknown_type.is_empty() {
         println!("  (none — every base type in the corpus is in the table)");
@@ -221,6 +257,15 @@ fn the_workload_relocation_histogram() {
         by_type.len() >= 4,
         "only {} distinct base types across {n_reloc} records",
         by_type.len()
+    );
+    // A misaligned 10-byte stride would scatter `sym` across the whole u32
+    // range, so this is simultaneously a claim about the format and a control on
+    // the reader itself.
+    assert!(n_indexable > 1000, "only {n_indexable} index-bearing records");
+    assert_eq!(
+        n_sym_out_of_range, 0,
+        "{n_sym_out_of_range} of {n_indexable} non-PAIR records carry a \
+         SymbolTableIndex past the end of the symbol table"
     );
     assert!(
         unknown_type.is_empty(),
