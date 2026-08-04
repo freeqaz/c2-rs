@@ -52,5 +52,60 @@ running** and have returned nothing. Those two are the real test.
 <!-- OUTCOMES-START -->
 ## Outcomes
 
-*(graded once every child has reported; hits and misses tallied separately)*
+All four hunts reported. Graded mechanically against
+[`c2_tus.tsv`](c2_tus.tsv) — the scoring script locates each address and
+classifies it `in-range` / `in-gap-after <file>`, so no judgement enters the
+grade. Full write-up in [`C2_MAP.md`](C2_MAP.md) §6.
+
+**The tiers are reported separately and are not pooled.**
+
+| tier | hits | misses | rate |
+|---|---:|---:|---|
+| **PREREG** (committed before the answer existed) | **1** | **1** | 1/2 |
+| **IN-FLIGHT** (contemporaneous, not cryptographically ordered) | **2** | **0** | 2/2 |
+
+| # | routine | predicted | landed | grade |
+|---|---|---|---|---|
+| P1 | JamCRC | `hash.c` / alt `coffemit.c` | **nowhere — absent from `c2.dll`** | **MISS** |
+| P2 | flag/argv parser | `getflags.c` | applier `10c1f572` **in range**; matcher `10c1f746` in the gap immediately after | **HIT** |
+| P3 | `/FAsc` listing writer | `list.c` (+ unnamed PPC printer) | `10b70e57`, `10b71324` **in range**; `10b71d8f` in the gap after | **HIT** on the graded half |
+| P4 | COFF writer | `coffemit.c` + model layer in `coff.c` | 5/5 **in range**; `10b28586` **in range** in `coff.c` | **HIT**, both halves |
+
+### The two results worth carrying away
+
+**P1 is the most valuable of the four, and it is the miss.** The predicted
+routine does not exist in this binary at any address: no `0xEDB88320` table at
+any 4-aligned offset, the polynomial immediate absent in every byte order, and
+the `A..P` renderer absent (the only `ABCDEFGHIJKLMNOP` run is the base64
+alphabet). The table lives in `mspdbXX.dll`. The search method was itself
+controlled — two constants the port hardcodes and a fresh obj demonstrably
+carries are *also* absent as immediates — so the absence is informative rather
+than a failed search. The hunting child's own summary: *"I would have shipped a
+wrong address had I pattern-matched hash-looking code near an emit site."* **No
+`crc` label was published.** A control that changes what you publish is a
+control that was worth running.
+
+`hash.c` was doubly wrong: that region is the CSE/value-number hash (`% 0x65`,
+101 buckets), and c2's *actual* string hash `0x10b8a01b` lies in an **unanchored
+gap** — a file with no ICE site, and therefore invisible to this method. That is
+the partition's known blind spot, caught by its own control.
+
+**P4 is the strongest hit.** Two predicted routines did not merely land in the
+right file — **they are the anchor addresses themselves**: `FUN_10b2b0dd`, the
+COFF/BIGOBJ file-header writer, *is* `coffemit.c`'s `anchor_end`; `FUN_10b28586`,
+the obj opener, *is* `coff.c`'s anchor. The reader/model-versus-writer split was
+predicted from the two file names alone, before any disassembly, and it holds.
+
+### Honest deductions
+
+- P2: two of the parser's four sub-components (`FUN_10c1f3c9` wildcard compare,
+  `FUN_10c1f34c` wide `atol`) land **one file early**, in the gap after
+  `get_err.c`. The named routine landed; the helpers straddle the boundary.
+- P3's machine-dependent half named **no file** ("a separate PPC instruction
+  printer late in the image"). It is therefore **ungraded** — it can be neither
+  hit nor miss. The observed `.cod` printer cluster straddles `mdlist.c`'s
+  anchor and `mdlist.c` is indeed late in the image, but that is recorded as
+  corroboration, not scored. A prediction vague enough to be unfalsifiable earns
+  nothing, and inflating the denominator with it would be the exact failure this
+  scheme exists to prevent.
 <!-- OUTCOMES-END -->
