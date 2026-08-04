@@ -343,7 +343,7 @@ impl EmitBinding {
 /// This is [`crate::codec::gl_offset_framed`] with its `gl[o-5] == 0x10` clause
 /// dropped — see [`EmitBinding`] for the measurement that says that clause pins
 /// a *value* byte, not a tag. The gate's version is deliberately unchanged.
-fn emit_offset_framed(gl: &[u8], o: usize) -> bool {
+pub(crate) fn emit_offset_framed(gl: &[u8], o: usize) -> bool {
     o >= 7
         && gl[o] == 0x80
         && gl[o - 7] == 0x80
