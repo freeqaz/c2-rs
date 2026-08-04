@@ -1344,6 +1344,64 @@ impl IlBundle {
 }
 
 #[cfg(test)]
+mod dyninit_tests {
+    use super::is_dynamic_initializer_name;
+    use crate::IlBundle;
+
+    /// `??__E` is the dynamic initializer and is admitted; `??__F` is the
+    /// matching **atexit destructor** thunk and is not.
+    ///
+    /// The decode handles both (w-r1 widened the parser for the bare `4C` they
+    /// share), so this refusal is a deliberate *emit*-side scope decline, not a
+    /// parser limit. `docs/OBJ_DYNINIT_SHAPE.md` §4.4 measures the destructor
+    /// shape as **+2 sections** (`.pdata`, `.text$yd`), **+10 symbol records**,
+    /// and a `??__E` that becomes framed — 0x40 bytes with 14 relocations and a
+    /// `bl atexit`. Emitting the 8-section shape for one would be wrong bytes.
+    #[test]
+    fn only_the_dynamic_initializer_thunk_is_admitted() {
+        assert!(is_dynamic_initializer_name("??__EsL@@YAXXZ"));
+        assert!(is_dynamic_initializer_name("??__EsLicense@@YAXXZ"));
+
+        assert!(!is_dynamic_initializer_name("??__FsL@@YAXXZ"), "atexit dtor: +2 sections");
+        assert!(!is_dynamic_initializer_name("??_GString@@UAAPAXI@Z"), "deleting dtor");
+        assert!(!is_dynamic_initializer_name("?f@@YAHH@Z"), "an ordinary function");
+        assert!(!is_dynamic_initializer_name("??__E@@YAXXZ"), "no identifier at all");
+        assert!(!is_dynamic_initializer_name("??__EsL@@YAXXZjunk"), "must end at the suffix");
+    }
+
+    /// **A bundle missing any of the three streams refuses rather than
+    /// panicking.** The CLI must degrade cleanly (CLAUDE.md), and `.in` in
+    /// particular had no reader at all before this lane, so a bundle without one
+    /// is a shape nothing previously had to survive.
+    #[test]
+    fn a_bundle_without_the_three_streams_refuses() {
+        assert!(IlBundle::new("empty").dyninit_tu().is_none());
+
+        let mut b = IlBundle::new("no_in");
+        b.set("ex", vec![0u8; 32]);
+        b.set("gl", vec![0u8; 32]);
+        assert!(b.dyninit_tu().is_none(), "no `.in` stream");
+
+        let mut b = IlBundle::new("junk");
+        b.set("ex", vec![0xAAu8; 64]);
+        b.set("gl", vec![0xBBu8; 64]);
+        b.set("in", vec![0xCCu8; 64]);
+        assert!(b.dyninit_tu().is_none());
+        // …and the acceptance predicate the scan classifies on agrees, so a
+        // bundle can never be "decoded" by one path and not the other.
+        assert!(!b.decodes());
+    }
+
+    /// `decodes()` is the ONE acceptance question, and it must be the union of
+    /// both paths — a TU either path accepts is decoded.
+    #[test]
+    fn decodes_is_the_union_of_both_acceptance_paths() {
+        let b = IlBundle::new("empty");
+        assert_eq!(b.decodes(), b.functions().is_some() || b.dyninit_tu().is_some());
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

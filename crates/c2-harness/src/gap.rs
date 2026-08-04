@@ -331,31 +331,19 @@ pub struct TuResult {
 /// deleting destructor, `??_E` vector deleting destructor, `??_D` vector
 /// destructor iterator, `??__E` dynamic initializer, `??__F` dynamic atexit
 /// destructor.
-/// **The port's COFF writer vocabulary** — every section name
-/// `c2_core::coff` is able to put in an obj, and therefore the whole of what
-/// **factor C** (`docs/ROADMAP.md` §10.19) admits.
+/// **The port's COFF writer vocabulary**, imported from its published home.
 ///
-/// Read off the three `Section { name: … }` tables in
-/// `crates/c2-core/src/coff.rs` (the empty-TU, per-function-COMDAT and packed
-/// writers) as **source text**, not fitted to any target count. Every name any
-/// of them can emit is here; `.XBLD$W` appears twice there (the C1 and C2
-/// watermarks) and once here, because this is a vocabulary and not a section
-/// list.
+/// This used to be a six-name hand-written mirror whose own doc comment said the
+/// list "should be `c2-core`" and was duplicated only because that crate
+/// belonged to another lane. **The mirror was accurate exactly as long as
+/// `emit_dyninit_obj` had no caller** — w-r1's rung filed that as "left in place,
+/// with the trigger named". W-R1c is that trigger: the port emits `.text$yc`,
+/// `.bss` and `.CRT$XCU` now, and a stale six-name list would put the two
+/// converted license TUs *outside* factor C while they are byte-exact matches.
 ///
-/// **This list's home should be `c2-core`, and this is a mirror.** Minting a
-/// published constant next to the writers is a cross-crate change and
-/// `crates/c2-core` belongs to another lane today, so the list is duplicated
-/// here with its provenance named — and with a control that can go red rather
-/// than an argument that it is right: **every byte-exact TU's obj must be
-/// inside factor C** (`factor_control_on_match_tus`). A `match` obj *is* the
-/// port's own output, so if this list were too small, a matching TU would fall
-/// outside C and the scan would say so. That control cannot catch the opposite
-/// error — a name here the writer never emits would inflate C — which is
-/// exactly why the list is a transcription of six source lines and not a
-/// generalization of them.
-const PORT_WRITER_SECTIONS: [&str; 6] = [
-    ".drectve", ".debug$S", ".XBLD$W", ".text", ".pdata", ".rdata",
-];
+/// So there is one list, next to the writers, and this is a `use` rather than a
+/// copy.
+use c2_core::coff::PORT_WRITER_SECTIONS;
 
 /// The MSVC mangling class of `name`, for naming the unbound residue.
 ///
@@ -1960,12 +1948,11 @@ fn scan_one(
     //    `vocab-gap` — "the port could not decode it" — while the port emitted a
     //    byte-exact obj for it, which is the same mis-attribution this comment
     //    block already warns about in the other direction.
-    let decoded = captured.bundle.functions();
     if !captured.bundle.decodes() {
         res.class = TuClass::VocabGap;
         res.reason = "il function decode failed".to_string();
         res.detail = format!(
-            ".ex {} B, {} .gl names — c2_il::functions() = None",
+            ".ex {} B, {} .gl names — c2_il::functions() and dyninit_tu() both None",
             res.ex_len, res.fn_names
         );
         return res;

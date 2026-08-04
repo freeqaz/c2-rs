@@ -1218,6 +1218,62 @@ mod tests {
     // `use super::*;`; the glob keeps that reach.
     #[allow(unused_imports)]
     use super::*;
+
+    /// **The generated thunk body must be the reference payload, byte for
+    /// byte.** `docs/OBJ_DYNINIT_SHAPE.md` §3.3/§7.2: this exact 0x18 is what
+    /// `fixtures/cpp/il_dyninit_static.cpp`, `TomCryptLicense.cpp` and
+    /// `ZlibLicense.cpp` all carry.
+    ///
+    /// The point of *generating* it rather than transcribing it is that the
+    /// generator can be wrong in a way a constant cannot; this is the assertion
+    /// that makes that trade safe.
+    #[test]
+    fn the_dyninit_thunk_body_is_the_measured_payload() {
+        let b = dyninit_thunk_text(0).expect("k = 0 is the measured cell");
+        assert_eq!(
+            b.text,
+            vec![
+                0x3d, 0x60, 0x00, 0x00, // lis  r11, 0      REFHI(string)
+                0x3d, 0x40, 0x00, 0x00, // lis  r10, 0      REFHI(object)
+                0x38, 0x8b, 0x00, 0x00, // addi r4, r11, 0  REFLO(string)
+                0x38, 0x6a, 0x00, 0x00, // addi r3, r10, 0  REFLO(object)
+                0x38, 0xa0, 0x00, 0x00, // li   r5, 0
+                0x4b, 0xff, 0xff, 0xec, // b    -0x14       REL24(ctor)
+            ]
+        );
+        // The relocation sites §3.2 lists, and the ordering fact behind them:
+        // the HI block comes first as a block, then the LO block — the two are
+        // NOT adjacent per symbol.
+        assert_eq!((b.literal_hi, b.object_hi), (0x00, 0x04));
+        assert_eq!((b.literal_lo, b.object_lo), (0x08, 0x0c));
+        assert_eq!(b.branch, 0x14);
+        assert!(b.literal_hi < b.object_hi && b.object_hi < b.literal_lo);
+    }
+
+    /// The branch word is `4b ff ff ec` and **not** the listing's `48 00 00 00`
+    /// (`docs/OBJ_DYNINIT_SHAPE.md` §6): MSVC encodes the displacement as
+    /// −(the branch's own section offset).
+    #[test]
+    fn the_tail_branch_displacement_is_negative_its_own_offset() {
+        let b = dyninit_thunk_text(0).unwrap();
+        assert_eq!(&b.text[0x14..], &encode_tail_branch(0x14));
+        assert_eq!(&b.text[0x14..], &[0x4b, 0xff, 0xff, 0xec]);
+    }
+
+    /// The literal slot is emitted from the value that was decoded, not from a
+    /// constant — and a value outside `li`'s immediate refuses rather than being
+    /// truncated into a plausible-looking wrong instruction.
+    #[test]
+    fn the_literal_slot_tracks_the_decoded_value_and_refuses_outside_li() {
+        assert_eq!(&dyninit_thunk_text(7).unwrap().text[0x10..0x14], &[0x38, 0xa0, 0x00, 0x07]);
+        assert_eq!(
+            &dyninit_thunk_text(-1).unwrap().text[0x10..0x14],
+            &[0x38, 0xa0, 0xff, 0xff]
+        );
+        assert_eq!(&dyninit_thunk_text(0x7fff).unwrap().text[0x10..0x14], &[0x38, 0xa0, 0x7f, 0xff]);
+        assert!(dyninit_thunk_text(0x8000).is_none());
+        assert!(dyninit_thunk_text(-0x8001).is_none());
+    }
     #[allow(unused_imports)]
     use crate::codegen::*;
     #[allow(unused_imports)]
