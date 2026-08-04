@@ -1,0 +1,14 @@
+{
+ "axis": "A5",
+ "cell": "a5c7_header_externC_def_unref",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

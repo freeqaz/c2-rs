@@ -1,0 +1,26 @@
+{
+ "axis": "A8",
+ "cell": "a8c7_pch_vtable",
+ "invocations": [
+  {
+   "args": [
+    "/Ycpchc.h",
+    "/Fpa8c7.pch",
+    "pchgen.cpp"
+   ],
+   "objs": [
+    "pchgen.obj"
+   ]
+  },
+  {
+   "args": [
+    "/Yupchc.h",
+    "/Fpa8c7.pch",
+    "user.cpp"
+   ],
+   "objs": [
+    "user.obj"
+   ]
+  }
+ ]
+}

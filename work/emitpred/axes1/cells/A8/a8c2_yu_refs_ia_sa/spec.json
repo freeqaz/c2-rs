@@ -1,0 +1,26 @@
+{
+ "axis": "A8",
+ "cell": "a8c2_yu_refs_ia_sa",
+ "invocations": [
+  {
+   "args": [
+    "/Ycpcha.h",
+    "/Fpa8c2.pch",
+    "pchgen.cpp"
+   ],
+   "objs": [
+    "pchgen.obj"
+   ]
+  },
+  {
+   "args": [
+    "/Yupcha.h",
+    "/Fpa8c2.pch",
+    "user.cpp"
+   ],
+   "objs": [
+    "user.obj"
+   ]
+  }
+ ]
+}

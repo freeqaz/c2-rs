@@ -1,0 +1,22 @@
+{
+ "axis": "A6",
+ "cell": "a6c1_shared_inline_separate_invocations",
+ "invocations": [
+  {
+   "args": [
+    "tu1.cpp"
+   ],
+   "objs": [
+    "tu1.obj"
+   ]
+  },
+  {
+   "args": [
+    "tu2.cpp"
+   ],
+   "objs": [
+    "tu2.obj"
+   ]
+  }
+ ]
+}

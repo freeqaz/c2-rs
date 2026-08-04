@@ -1,0 +1,16 @@
+{
+ "axis": "A8",
+ "cell": "a8c4_nopch_control",
+ "invocations": [
+  {
+   "args": [
+    "user.cpp",
+    "user2.cpp"
+   ],
+   "objs": [
+    "user.obj",
+    "user2.obj"
+   ]
+  }
+ ]
+}

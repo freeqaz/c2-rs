@@ -1,0 +1,16 @@
+{
+ "axis": "A6",
+ "cell": "a6c5_shared_vtable_one_tu_constructs",
+ "invocations": [
+  {
+   "args": [
+    "tu1.cpp",
+    "tu2.cpp"
+   ],
+   "objs": [
+    "tu1.obj",
+    "tu2.obj"
+   ]
+  }
+ ]
+}

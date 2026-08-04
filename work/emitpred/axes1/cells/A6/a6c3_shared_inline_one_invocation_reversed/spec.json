@@ -1,0 +1,16 @@
+{
+ "axis": "A6",
+ "cell": "a6c3_shared_inline_one_invocation_reversed",
+ "invocations": [
+  {
+   "args": [
+    "tu2.cpp",
+    "tu1.cpp"
+   ],
+   "objs": [
+    "tu1.obj",
+    "tu2.obj"
+   ]
+  }
+ ]
+}

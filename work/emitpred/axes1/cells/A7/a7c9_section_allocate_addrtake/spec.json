@@ -1,0 +1,14 @@
+{
+ "axis": "A7",
+ "cell": "a7c9_section_allocate_addrtake",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

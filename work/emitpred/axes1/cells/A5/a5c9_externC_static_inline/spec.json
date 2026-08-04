@@ -1,0 +1,14 @@
+{
+ "axis": "A5",
+ "cell": "a5c9_externC_static_inline",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

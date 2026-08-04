@@ -1,0 +1,16 @@
+{
+ "axis": "A6",
+ "cell": "a6c8_shared_dyninit_per_tu",
+ "invocations": [
+  {
+   "args": [
+    "tu1.cpp",
+    "tu2.cpp"
+   ],
+   "objs": [
+    "tu1.obj",
+    "tu2.obj"
+   ]
+  }
+ ]
+}

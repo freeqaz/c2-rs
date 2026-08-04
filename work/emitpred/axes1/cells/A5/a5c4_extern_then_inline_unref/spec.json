@@ -1,0 +1,14 @@
+{
+ "axis": "A5",
+ "cell": "a5c4_extern_then_inline_unref",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

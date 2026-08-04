@@ -1,0 +1,26 @@
+{
+ "axis": "A8",
+ "cell": "a8c8_pch_dyninit",
+ "invocations": [
+  {
+   "args": [
+    "/Ycpchd.h",
+    "/Fpa8c8.pch",
+    "pchgen.cpp"
+   ],
+   "objs": [
+    "pchgen.obj"
+   ]
+  },
+  {
+   "args": [
+    "/Yupchd.h",
+    "/Fpa8c8.pch",
+    "user.cpp"
+   ],
+   "objs": [
+    "user.obj"
+   ]
+  }
+ ]
+}

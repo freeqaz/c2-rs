@@ -1,0 +1,14 @@
+{
+ "axis": "A1",
+ "cell": "a1c8_chain_across_depths",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}
