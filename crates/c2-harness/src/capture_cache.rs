@@ -67,11 +67,12 @@
 //! Captured IL is **never** committed: the default root is `<repo>/work/`, which
 //! `.gitignore` covers, and the entries are `_CL_*` / `*.obj` besides.
 
-use std::collections::HashMap;
 use std::io;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use c2_il::{IlBundle, IL_SUFFIXES};
 use c2_obj::{ObjDiff, ObjImage};
@@ -171,9 +172,101 @@ pub struct CaptureCache {
     validate_every: usize,
     seq: AtomicUsize,
     stats: Mutex<CacheStats>,
-    /// One lock per in-flight key: two TUs with identical inputs must not
-    /// capture into the same directory at once.
-    locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+}
+
+/// Where per-key lockfiles live, relative to the cache root. A subdirectory
+/// rather than `<root>/<key>.lock`, so that the root keeps holding nothing but
+/// 32-hex entry directories (the GC and every `ls | wc -l` census depend on
+/// that) and so that the *entry* directory keeps holding nothing but the
+/// capture — `capture_reference_with` sweeps `_CL_*` out of its work dir and
+/// points `TMP`/`TEMP` at it, and this seam is not the place to find out
+/// which stray file some future revision decides to read.
+/// It is `pub` so that the one invariant it breaks — "every child of the cache
+/// root is a 32-hex entry" — has a single name that consumers can test against
+/// instead of each hard-coding a string. Any GC over the root must skip it: the
+/// files inside are live cross-process locks, and deleting one on age grounds
+/// silently un-guards a key.
+pub const LOCK_DIR: &str = ".locks";
+
+/// Give up waiting and proceed unguarded. Nothing downstream blocks on the
+/// lock, so the failure mode is today's behaviour, not a wedged scan.
+const LOCK_WAIT_MAX: Duration = Duration::from_secs(600);
+
+/// Break a lock whose holder is gone. A capture is one `cl.exe` invocation
+/// (~1–2 s); 30 minutes is ~1000× headroom, and without it a single SIGKILL
+/// would poison one key of the cache permanently.
+const LOCK_STALE_AFTER: Duration = Duration::from_secs(1800);
+
+/// A cross-**process** mutex for one cache key, held for the length of one
+/// `capture()`.
+///
+/// The lock this replaces was `Mutex<HashMap<String, Arc<Mutex<()>>>>` — an
+/// in-process structure guarding a *filesystem* resource. That was sound only
+/// while no two processes could compute the same key, which was true only by
+/// accident: every lane's cache root differed, and `cache-root` is in the key.
+/// It is not true of `scripts/gate.sh --jobs N`, which runs N `c2rs gap`
+/// processes against one root, and it stops being true everywhere the moment
+/// lanes share a root via `C2RS_GAP_CACHE`. Two processes on one key both
+/// capture into `<root>/<key>/`, interleaving two `cl.exe` invocations' output
+/// files — a torn `out.obj` read back as a hit is a *false* mismatch, which is
+/// an ALARM pointing at the port while the port is fine.
+///
+/// `create_new` is `O_CREAT|O_EXCL`, atomic on every filesystem this runs on,
+/// and it guards threads and processes alike — so the `HashMap` is not merely
+/// replaced, it is subsumed.
+struct KeyLock {
+    path: PathBuf,
+}
+
+impl KeyLock {
+    /// Acquire, or return `None` to proceed unguarded (fail-open).
+    ///
+    /// Caching is an optimisation and correctness is not: every error path here
+    /// degrades to exactly what the code did before this type existed.
+    fn acquire(root: &Path, key: &str) -> Option<KeyLock> {
+        let dir = root.join(LOCK_DIR);
+        std::fs::create_dir_all(&dir).ok()?;
+        let path = dir.join(key);
+        let deadline = Instant::now() + LOCK_WAIT_MAX;
+        loop {
+            match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+            {
+                Ok(mut f) => {
+                    // Owner's pid, so a wedged lock names its holder.
+                    let _ = writeln!(f, "{}", std::process::id());
+                    return Some(KeyLock { path });
+                }
+                Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                    if Self::is_stale(&path) {
+                        let _ = std::fs::remove_file(&path);
+                        continue;
+                    }
+                    if Instant::now() >= deadline {
+                        return None;
+                    }
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                Err(_) => return None,
+            }
+        }
+    }
+
+    fn is_stale(path: &Path) -> bool {
+        std::fs::metadata(path)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.elapsed().ok())
+            .is_some_and(|age| age > LOCK_STALE_AFTER)
+    }
+}
+
+impl Drop for KeyLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
 }
 
 impl CaptureCache {
@@ -241,7 +334,6 @@ impl CaptureCache {
             validate_every,
             seq: AtomicUsize::new(0),
             stats: Mutex::new(CacheStats::default()),
-            locks: Mutex::new(HashMap::new()),
         })
     }
 
@@ -293,11 +385,35 @@ impl CaptureCache {
         m.extend_from_slice(src_arg.as_bytes());
         m.extend_from_slice(b"\x00src-bytes\x00");
         m.extend_from_slice(src_digest.as_bytes());
+        // Canonicalized, for the same reason `cache-root` is (see `new`), and it
+        // is the *stronger* of the two cases: a relative `--cwd` resolves against
+        // the c2rs process's own working directory, so the identical string
+        // `../dc3-decomp` names a different directory in every worktree. Keying
+        // over the raw spelling therefore aliases two different inputs onto one
+        // key — harmless only for as long as every lane has its own cache root,
+        // which is exactly the arrangement `C2RS_GAP_CACHE` removes. Canonicalizing
+        // also folds the four observed spellings of one directory
+        // (`/…/dc3-decomp`, `../dc3-decomp`, `/…/c2-rs/../dc3-decomp`,
+        // `../../../../dc3-decomp`) into one generation instead of four.
+        //
+        // Sound only because the cwd's *spelling* does not reach the obj: wibo
+        // hands cl.exe the resolved directory, the source argument is keyed
+        // verbatim on its own line above, and `-Fo` is the (already canonical)
+        // cache root. `two_spellings_of_one_cwd_capture_identical_bytes` holds
+        // that claim to the real toolchain rather than to this comment.
+        //
+        // Falls back to the raw spelling when the path does not resolve, so an
+        // unreadable cwd is a cache miss and never a panic.
         m.extend_from_slice(b"\x00cwd\x00");
         m.extend_from_slice(
-            cwd.map(|d| d.display().to_string())
-                .unwrap_or_default()
-                .as_bytes(),
+            cwd.map(|d| {
+                d.canonicalize()
+                    .unwrap_or_else(|_| d.to_path_buf())
+                    .display()
+                    .to_string()
+            })
+            .unwrap_or_default()
+            .as_bytes(),
         );
         m.extend_from_slice(b"\x00flags\x00");
         for f in flags {
@@ -334,12 +450,10 @@ impl CaptureCache {
         let key = digest128(&material);
         let dir = self.root.join(&key);
 
-        // Serialize same-key work (duplicate entries in a source list).
-        let lock = {
-            let mut locks = self.locks.lock().unwrap();
-            locks.entry(key.clone()).or_default().clone()
-        };
-        let _guard = lock.lock().unwrap();
+        // Serialize same-key work — duplicate entries in one source list, and
+        // (the case the in-process lock could not see) two `c2rs` processes
+        // sharing a cache root. Fail-open: `None` means proceed unguarded.
+        let _guard = KeyLock::acquire(&self.root, &key);
 
         match read_entry(&dir, &material) {
             Some(hit) => {
@@ -688,7 +802,6 @@ mod tests {
             validate_every: 0,
             seq: AtomicUsize::new(0),
             stats: Mutex::new(CacheStats::default()),
-            locks: Mutex::new(HashMap::new()),
         };
         let c = mk("ctx-A");
         let flags: Vec<String> = vec!["/O1".into(), "/c".into()];
@@ -726,6 +839,153 @@ mod tests {
         // Unreadable source → not cacheable (rather than a key over nothing).
         assert!(c.key_material("missing.cpp", &flags, Some(&dir)).is_none());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Canonicalizing `cwd` must fold *spellings* without folding *directories*.
+    ///
+    /// The second half is the one that matters: before canonicalization a
+    /// relative `--cwd` was keyed by its raw string, so two lanes passing
+    /// `../dc3-decomp` from different worktrees produced the same key material
+    /// for two genuinely different directories. That aliasing was invisible only
+    /// because `cache-root` differed per lane and separated them downstream —
+    /// which is precisely the separation a shared `C2RS_GAP_CACHE` removes.
+    #[test]
+    fn canonicalizing_the_cwd_folds_spellings_but_not_directories() {
+        let base = std::env::temp_dir().join(format!("c2rs-cachecwd-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let (a, b) = (base.join("a"), base.join("b"));
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        for d in [&a, &b] {
+            std::fs::write(d.join("t.cpp"), b"int f(){return 1;}").unwrap();
+        }
+        let c = CaptureCache {
+            root: base.clone(),
+            context: "ctx".to_string(),
+            header_closure: true,
+            validate_every: 0,
+            seq: AtomicUsize::new(0),
+            stats: Mutex::new(CacheStats::default()),
+        };
+        let flags: Vec<String> = vec!["/O1".into()];
+        let k = |d: PathBuf| c.key_material("t.cpp", &flags, Some(&d)).unwrap();
+
+        // Three spellings of directory `a`, including the `..`-hop form that
+        // minted its own generation in the field. One key.
+        let direct = k(a.clone());
+        assert_eq!(direct, k(base.join("./a")));
+        assert_eq!(direct, k(base.join("b/../a")));
+
+        // A different directory with byte-identical contents is still a
+        // different key — canonicalization must not reach that far.
+        assert_ne!(direct, k(b.clone()));
+
+        // A cwd that does not resolve is not cacheable at all when the source
+        // is relative — it cannot be read, so the cache fails open (unchanged
+        // by canonicalization; `host_source_path` still joins the raw spelling).
+        assert!(c
+            .key_material("t.cpp", &flags, Some(&base.join("nonexistent")))
+            .is_none());
+
+        // …and with an absolute source the canonicalization itself falls back
+        // to the raw spelling rather than panicking, so an unresolvable cwd
+        // still produces a key — just never the same one as a real directory.
+        let abs = a.join("t.cpp");
+        let abs = abs.to_str().unwrap();
+        assert_ne!(
+            c.key_material(abs, &flags, Some(&a)).unwrap(),
+            c.key_material(abs, &flags, Some(&base.join("nonexistent"))).unwrap()
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// The lockfile is exclusive, self-releasing, and fail-open.
+    #[test]
+    fn the_key_lock_excludes_a_second_holder_and_releases_on_drop() {
+        let root = std::env::temp_dir().join(format!("c2rs-cachelock-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let key = "0123456789abcdef0123456789abcdef";
+
+        let held = KeyLock::acquire(&root, key).expect("first acquire");
+        assert!(root.join(LOCK_DIR).join(key).exists());
+
+        // A second holder must not get in while the first is live. Proven
+        // against the primitive rather than against a timeout: the O_EXCL open
+        // itself has to fail.
+        assert!(std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(root.join(LOCK_DIR).join(key))
+            .is_err());
+
+        drop(held);
+        assert!(!root.join(LOCK_DIR).join(key).exists());
+        // …and the key is acquirable again afterwards.
+        assert!(KeyLock::acquire(&root, key).is_some());
+
+        // Fail-open: an unusable root yields None (proceed unguarded) rather
+        // than an error the scan would have to handle.
+        let not_a_dir = root.join("file");
+        std::fs::write(&not_a_dir, b"x").unwrap();
+        assert!(KeyLock::acquire(&not_a_dir, key).is_none());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The lock directory must not be mistaken for a cache entry.
+    #[test]
+    fn the_lock_directory_is_not_a_readable_entry() {
+        let dir = std::env::temp_dir().join(format!("c2rs-cachelockdir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(read_entry(&dir, b"anything").is_none());
+        // 32-hex is what an entry name looks like; `.locks` is not that, which
+        // is what keeps the age GC's `-name '[0-9a-f]*'` filter honest.
+        assert!(!LOCK_DIR.chars().all(|c| c.is_ascii_hexdigit()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The soundness precondition for canonicalizing `cwd`, held to the real
+    /// toolchain: the *spelling* of the working directory must not reach the
+    /// captured bytes. If it did, folding two spellings onto one key would
+    /// serve bytes captured under the other spelling — the same class of silent
+    /// wrong answer that leaving `cache-root` out of the key once produced.
+    ///
+    /// Both captures go into the *same* directory so `-Fo` is identical and the
+    /// only variable is the cwd spelling. Toolchain-absent is a clean SKIP.
+    #[test]
+    fn two_spellings_of_one_cwd_capture_identical_bytes() {
+        let Some(tc) = Toolchain::locate() else {
+            eprintln!("SKIP: toolchain absent");
+            return;
+        };
+        let base = std::env::temp_dir().join(format!("c2rs-cwdspell-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let src_dir = base.join("src");
+        let work = base.join("work");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(src_dir.join("t.cpp"), b"int f(int a,int b){return a+b;}\n").unwrap();
+
+        let flags: Vec<String> = vec!["/c".into(), "/O1".into()];
+        let Ok(direct) = tc.capture_reference_with("t.cpp", &work, &flags, Some(&src_dir)) else {
+            eprintln!("SKIP: reference capture unavailable");
+            return;
+        };
+        let hop = base.join("work/../src");
+        let via_hop = tc
+            .capture_reference_with("t.cpp", &work, &flags, Some(&hop))
+            .expect("capture via the `..`-hop spelling of the same directory");
+
+        match compare_captures(&direct, &via_hop) {
+            CaptureDiff::Identical | CaptureDiff::TimestampOnly => {}
+            CaptureDiff::Differs(what) => panic!(
+                "the cwd SPELLING reached the captured bytes ({what}) — canonicalizing \
+                 `cwd` in key_material would then fold two different outputs onto one \
+                 key. Revert that canonicalization; do not relax this test."
+            ),
+        }
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     /// Relocating the cache must MISS, not hit.
