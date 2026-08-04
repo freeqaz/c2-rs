@@ -1,0 +1,14 @@
+  [P1] db=2         obj identical=True   non-debug sections identical=True   .debug changed=False  defined(non-debug) gained=0 lost=0
+  [P2] db=151166    obj identical=True   non-debug sections identical=True   .debug changed=False  defined(non-debug) gained=0 lost=0
+  [P3] db=REMOVED   obj identical=True   non-debug sections identical=True   .debug changed=False  defined(non-debug) gained=0 lost=0
+  [P4] REPLAY FAIL: [c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs/.claude/worktrees/w-db/compilers/X360/16.00.11886.00/c2.dll
+
+wibo: caught SIGSEGV
+
+
+---- src/system/net/HttpReq.cpp
+  P0 no-op rewrite -> obj byte-identical: True   (instrument control)
+  P1 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P2 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P3 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P4 REPLAY FAIL / c2 refused -- for P4 that IS the positive control: the substitution reached c2

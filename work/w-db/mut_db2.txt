@@ -1,0 +1,30 @@
+#### src/system/rndobj/EventTrigger.cpp
+  [P2] db=151166    obj identical=True   non-debug sections identical=True   .debug changed=False  defined(non-debug) gained=0 lost=0
+  [P3] db=REMOVED   obj identical=True   non-debug sections identical=True   .debug changed=False  defined(non-debug) gained=0 lost=0
+  [P4] REPLAY FAIL: cations listed above.
+Please choose the Technical Support command on the Visual C++ 
+ Help menu, or open the Technical Support help file for more information
+[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs/.claude/worktrees/w-db/compilers/X360/16.00.11886.00/c2.dll
+
+
+---- src/system/rndobj/EventTrigger.cpp
+  P0 no-op rewrite -> obj byte-identical: True   (instrument control)
+  P1 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P2 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P3 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P4 REPLAY FAIL / c2 refused -- for P4 that IS the positive control: the substitution reached c2
+#### src/system/synth/StreamNull.cpp
+  [P2] db=151166    obj identical=True   non-debug sections identical=True   .debug changed=False  defined(non-debug) gained=0 lost=0
+  [P3] db=REMOVED   obj identical=True   non-debug sections identical=True   .debug changed=False  defined(non-debug) gained=0 lost=0
+  [P4] REPLAY FAIL: cations listed above.
+Please choose the Technical Support command on the Visual C++ 
+ Help menu, or open the Technical Support help file for more information
+[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs/.claude/worktrees/w-db/compilers/X360/16.00.11886.00/c2.dll
+
+
+---- src/system/synth/StreamNull.cpp
+  P0 no-op rewrite -> obj byte-identical: True   (instrument control)
+  P1 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P2 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P3 M19 obj changed at all: False | M20 non-debug identical: True  AND defined set unchanged: True
+  P4 REPLAY FAIL / c2 refused -- for P4 that IS the positive control: the substitution reached c2

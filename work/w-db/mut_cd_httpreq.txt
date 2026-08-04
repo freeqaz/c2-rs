@@ -1,0 +1,18 @@
+quarantine check: 21 held-out TUs, src/system/net/HttpReq.cpp is not among them
+bundle _CL_c7960e75 ; baseline defined 229 ; leaders 63 ; leader set == pipeline obj True
+payload pool: 129 2-byte, 0 4-byte undefined DATA symbols
+referrers with a usable list token: EMITTED 32 ; NOT emitted 88
+  [H+] referrer ??$_Copy_Construct@U?$pair@$$CBVString@@V1 -> DATA _TI4?AVrange_error@stlpmtx_std@@            defined gained=56  lost=57   APPEARS: False
+  [H+] referrer ??$_Destroy@U?$pair@$$CBVString@@V1@@stlpm -> DATA _TI4?AVoverflow_error@stlpmtx_std@@         defined gained=108 lost=114  APPEARS: False
+  [H+] referrer ??$__destroy_aux@U?$pair@$$CBVString@@V1@@ -> DATA _TI4?AVout_of_range@stlpmtx_std@@           defined gained=118 lost=120  APPEARS: False
+  [H+] referrer ??0?$_Rb_tree@VString@@U?$less@VString@@@s -> DATA _TI4?AVlength_error@stlpmtx_std@@           defined gained=103 lost=100  APPEARS: False
+  [H+] referrer ??0?$_Rb_tree_base@U?$pair@$$CBVString@@V1 -> DATA _TI4?AVinvalid_argument@stlpmtx_std@@       defined gained=82  lost=83   APPEARS: False
+  [H-] referrer ??0?$_STLP_alloc_proxy@PADDV?$allocator@D@ -> DATA _TI2?AVbad_alloc@std@@                      defined gained=0   lost=0    APPEARS: False
+  [H-] referrer ??0?$_String_base@DV?$allocator@D@stlpmtx_ -> DATA _CTA4?AVrange_error@stlpmtx_std@@           defined gained=0   lost=0    APPEARS: False
+  [H-] referrer ??0?$basic_string@DV?$char_traits@D@stlpmt -> DATA _CTA4?AVoverflow_error@stlpmtx_std@@        defined gained=0   lost=0    APPEARS: False
+  [H-] referrer ??0_STLP_mutex@stlpmtx_std@@QAA@XZ         -> DATA _CTA4?AVout_of_range@stlpmtx_std@@          defined gained=0   lost=0    APPEARS: False
+  [H-] referrer ??0__Named_exception@stlpmtx_std@@QAA@ABV0 -> DATA _CTA4?AVlength_error@stlpmtx_std@@          defined gained=0   lost=0    APPEARS: False
+
+---- src/system/net/HttpReq.cpp
+  H+ referrer IS emitted      expect APPEARS     0/5
+  H- referrer is NOT emitted  expect suppressed  0/5 appeared
