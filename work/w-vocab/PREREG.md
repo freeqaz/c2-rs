@@ -124,3 +124,38 @@ running the next two sweeps:
   `S_GPROC32` type index the obj carries for the same name, and `.debug$T` at
   that index is an `LF_PROCEDURE`. If it does not, the field is a c1xx-internal
   number that behaves like a type index without being one, and the rung says so.
+
+## 7. P8 — registered after burn4/burn5
+
+**P7a RIGHT** (`fnsame`, stride 0 over 91 cells). **P7b REFUTED**: `fnargs` —
+131 cells, each with a *distinct arity* and therefore a distinct arglist and a
+distinct procedure type — has stride **0**, not 2. The `static` burners are
+unreferenced, c2 drops them, and their signature types cost nothing.
+
+But `work/w-vocab/probe/multi.cpp`'s thirteen **external** free functions step
+`0x1013 → 0x1015 → 0x1017 → 0x1019 → …`, i.e. **+2** per new signature. So:
+
+* **P8** `extargs` — the same distinct-arity burner with **external** linkage —
+  has stride **2** and flips at `N = floor(0xFE/2) + 1 = 128`.
+
+If P8 holds, the window's size in the unit that matters is **~128 externally
+linked functions with distinct signatures**, not "~64 types", and that is the
+number to quote.
+
+## 8. P9 — registered after P8 was REFUTED, and why the refutation is the model
+
+**P8 REFUTED**: `extargs`, 136 external functions of distinct arity, stride
+**0**. So is `fnargs` (131 cells) and so is `fnsame` (91).
+
+The probe was ill-posed and the refutation says exactly how. The trailing
+`int f(int a)` **shares its signature** with `s0`/`r0`/`q0`, so it reuses the
+already-minted index. A type index is minted **per distinct signature**, not
+per function and not per position — which is what `multi.cpp` showed with `a1`
+and `a2` sharing `0x1013`, and it is why `burn`'s stride was 4: there each
+burner's `int(T<i>*)` is a signature nothing else has.
+
+* **P9** With the burners unchanged (`int s<i>(int a0…a<i>)`, external) and the
+  trailing function given a signature **nothing else in the TU can share** —
+  `double f9(char*, double, short)` — the stride is **2** (one `LF_ARGLIST`,
+  one `LF_PROCEDURE` per burner) and the record leaves the gate's window at the
+  N where the value first exceeds `0x10FF`.

@@ -1,0 +1,31 @@
+== INCUMBENT ==
+== MUTATED: gl[o-5]==0x10 removed ==
+ crates/c2-il/src/codec.rs | 1 -
+ 1 file changed, 1 deletion(-)
+-- workload scan under the mutation --
+  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+  match             8    0.9%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap       863   98.3%
+  port-error        0    0.0%
+  capture-fail      7    0.8%
+  capture cache: 871 hit, 7 miss, 0 uncacheable  |  validator: 0 re-captured and agreed (0 of them only after zeroing the COFF TimeDateStamp), 0 POISONED
+-- generated expression sweep under the mutation (the #232 instrument) --
+  fragment 95-control-flow              140 cases
+  fragment 96-cmp-two-calls             562 cases
+  fragment 97-chained-call              231 cases
+  fragment 98-chain-link-arg            183 cases
+  fragment 98-cmp-order                 362 cases
+  fragment 99-chain-tail-fp-load        265 cases
+  fragment 99-chain-tail-load           165 cases
+  fragment 99-explicit-return            81 cases
+  58 fragments, 16394 cases total (16394 .cpp on disk)
+sweeping 16394 of 16394 generated cases
+  grading at 6 job(s)
+checked=16394 mismatches=0 graded=16298 ungraded=96 unknown=0
+-- c2-il unit tests under the mutation --
+test result: FAILED. 411 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+== REVERTED ==
+git status --porcelain crates/  ->
+(empty above == the tree is back to the committed state)
