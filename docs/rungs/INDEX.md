@@ -53,6 +53,7 @@ the header block this table is read from.
 | 2026-08-04 | W-FORK | [w-fork](2026-08-04-w-fork.md) | 13 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no `crates/` change |
 | 2026-08-04 | W9 | [w-frame](2026-08-04-w-frame.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | W-FRONT | [w-front](2026-08-04-w-front.md) | 12 | 706,402 / 2,463,318 unchanged (28.68 %), +0 — TU match 8 at both ends; DECLINED ON SEAM |
+| 2026-08-04 | AB | [w-gr](2026-08-04-w-gr.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |
 | 2026-08-04 | W12 | [w-label](2026-08-04-w-label.md) | 12 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
 | 2026-08-04 | Y-g | [w-modes](2026-08-04-w-modes.md) | 10 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no `crates/` edit |
 | 2026-08-04 | X-d | [w-order](2026-08-04-w-order.md) | 3 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — TU match 8 at both ends |
