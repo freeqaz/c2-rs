@@ -334,6 +334,20 @@ pub struct SeqEarlyEmit {
     cmp: [u8; 4],
     bo: u8,
     bi: u8,
+    /// **W-SMALL — the short-circuit `&&`'s further `(cmp, bo, bi)` triples**, in
+    /// source order after the one above. Empty for a single-test guard.
+    ///
+    /// Each emits `cmp ; bc` at the **same** label with the **same** sense, so
+    /// this is one `extend` per conjunct and no new block. That is the measured
+    /// shape and not a simplification: `int P(int a,int b){ if (a != 0 && b != 0)
+    /// return 5; v0(); return 0; }` at `/Ox` emits `2f030000 419a0020 2f040000
+    /// 419a0018` — the two `bc` words differ only in displacement, both forward,
+    /// both naming the arm's skip target, whose predecessor count is therefore 2.
+    /// That is exactly the multi-reference case [`LabelMap`] was built for, and
+    /// the compiler-label counter charges **+0** for it
+    /// (`docs/rungs/2026-08-04-w-label.md` §2.3, `ho-and`/`ho-or` at
+    /// `stride 5 / extra 0`), so `coff::plan_labels` is untouched.
+    and_conds: Vec<([u8; 4], u8, u8)>,
     /// The returned literal, or `None` for `return;` — which is what decides
     /// both the branch's sense and its target.
     value: Option<i32>,
@@ -387,7 +401,38 @@ pub fn seq_early_emit(e: &c2_il::SeqEarlyReturn) -> Result<SeqEarlyEmit, Backend
     } else {
         BO_TRUE
     };
-    Ok(SeqEarlyEmit { cmp, bo, bi: cr_bi(CR_COMPARE, bit), value: e.value })
+    // **W-SMALL — the `&&` conjuncts, resolved through the SAME rules.** Sharing
+    // the compare encoding and `branch_sense` rather than restating them is what
+    // keeps a conjunct from acquiring a different signedness or sense rule than
+    // the conjunct in the fields above; the empty-arm inversion is applied to
+    // every one of them, because the arm they all skip is the same arm.
+    let mut and_conds = Vec::with_capacity(e.and_conds.len());
+    for &(cmp_param, rel, signed, k) in &e.and_conds {
+        let ra = *ARG_REGS.get(cmp_param).ok_or_else(|| {
+            out_of_class("a short-circuit `&&` conjunct comparing a stack-homed formal")
+        })?;
+        let c = if signed {
+            let k = i16::try_from(k).map_err(|_| {
+                out_of_class("a signed `&&` conjunct literal wider than `cmpwi`'s immediate")
+            })?;
+            encode_cmpwi(CR_COMPARE, ra, k)
+        } else {
+            let k = u16::try_from(k).map_err(|_| {
+                out_of_class("an unsigned `&&` conjunct literal wider than `cmplwi`'s immediate")
+            })?;
+            encode_cmplwi(CR_COMPARE, ra, k)
+        };
+        let (cbo, cbit) = branch_sense(rel);
+        let cbo = if e.value.is_some() {
+            cbo
+        } else if cbo == BO_TRUE {
+            BO_FALSE
+        } else {
+            BO_TRUE
+        };
+        and_conds.push((c, cbo, cr_bi(CR_COMPARE, cbit)));
+    }
+    Ok(SeqEarlyEmit { cmp, bo, bi: cr_bi(CR_COMPARE, bit), and_conds, value: e.value })
 }
 
 pub fn call_seq_text(
@@ -468,6 +513,14 @@ pub fn call_seq_text(
                 // next — the following guard's compare, or the sequence.
                 let after_arm = labels.mint("after-early-arm");
                 labels.reference(&mut text, after_arm, Form::Bc { bo: e.bo, bi: e.bi });
+                // **W-SMALL — `&&`: one more `cmp ; bc` per conjunct, at the SAME
+                // label.** This is the ≥ 2-reference case `LabelMap` exists for
+                // and the first shape in the port that actually uses it; every
+                // reference is forward, so `labels.rs` invariant 4 holds.
+                for (c, cbo, cbi) in &e.and_conds {
+                    text.extend_from_slice(c);
+                    labels.reference(&mut text, after_arm, Form::Bc { bo: *cbo, bi: *cbi });
+                }
                 let k = i16::try_from(k).map_err(|_| {
                     out_of_class("an early return's literal is wider than `li`")
                 })?;
@@ -484,6 +537,22 @@ pub fn call_seq_text(
                 // the relation itself where the value form emits its negation
                 // (`seq_early_emit` has already done the inversion). There is no
                 // arm to step past, so there is no second label.
+                //
+                // **W-SMALL — and a void arm with `&&` conjuncts is NOT this
+                // shape.** The IL parser refuses it
+                // (`c2_il::…::try_parse_early_return_seq`, with the disassembly);
+                // this is the backstop, because emitting one `bc` per conjunct at
+                // the epilogue computes `||` where the source says `&&` and would
+                // be a wrong-bytes obj that still links. It was exactly that for
+                // 12 cells of this lane's grid before the oracle caught it.
+                if !e.and_conds.is_empty() {
+                    return Err(out_of_class(
+                        "a VOID early-return arm guarded by a short-circuit `&&`: \
+                         c2 sends every conjunct but the last to the SEQUENCE with \
+                         the negated sense and only the last to the epilogue, which \
+                         mints a third label whose counter cost is unmeasured",
+                    ));
+                }
                 labels.reference(&mut text, epi, Form::Bc { bo: e.bo, bi: e.bi });
             }
         }
