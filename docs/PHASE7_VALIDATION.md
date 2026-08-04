@@ -21,6 +21,36 @@ decides is the one that cannot be revised.
 
 ---
 
+## THE ANSWER, IN ONE SENTENCE
+
+**#161 is not cleared.** A fitted predicate that misses its own pre-registered
+violation interval **on the high side** — V6 = **5**, or **4** under the most
+hostile defensible reading, against a registered point of 1 and an interval of
+**[0, 3]**, and a **lower bound** either way — while carrying a demonstrated
+false-positive class that touches **36.7 % of the workload's TUs**, is not a
+model anything should ship on.
+
+**The robustness is the point:** the headline survives its own author's most
+hostile reading (§6d). That is a stronger claim than any single number.
+
+**Wounded, not killed** — and the distinction is load-bearing, so it is stated
+with what backs it rather than as a hedge:
+
+* *Why not killed.* 75 of 94 graded objects matched. Both attacks that could
+  have made §2 categorically the wrong **kind** of model failed to land (§3a).
+  Two independent readers derived **9 of 10** of the contested cells
+  symbol-for-symbol identically (§6d) — §2's text is reproducibly applicable.
+  And **c2 is consistent**; every inconsistency found is in §2's *prose* (§6c).
+* *Why not cleared.* §2 is wrong about what a virtual call uses and about what
+  triggers the vtable; **R1 is internally inconsistent on its face**, provable
+  without compiling anything (§6b); and the two families that matter most are
+  guardable only from **source**, which is not the channel R3 consumes (§3f).
+
+The repair is bounded and identified. The predicate as **written** is not
+shippable, and no number in this document should be quoted as if it were.
+
+---
+
 ## 0. Provenance, and two warnings that invalidate naive comparison
 
 ### 0a. Four dc3 revs are in play. No cross-rev comparison is valid.
@@ -253,15 +283,28 @@ root clause R1:
 * **Reading B** (the dash-clause is an independent enumeration of root
   spellings): gets `a5c4` right, `a5c1` wrong.
 
-And §2's **own nominated observable** sides with Reading A: the measured COMDAT
-Selection bytes make `a5c4`'s `cand` and `cand2` both **Selection = 2 (ANY)**,
-i.e. c2 itself calls them COMDAT-linkage, putting them outside R1 entirely —
-under Reading A that makes `a5c4` a straight **VIOLATION**, not an AMBIGUOUS.
-
-**axes1 kept its registered grade and reported the stronger evidence
+**axes1 kept its registered grade and reported its stronger evidence
 separately, rather than moving its own goalpost. That was the correct call and
-it is the guard working as designed from the biased agent's own side.** Whether
-the count is 2 or 3 is guard 1's to settle (§6).
+it is the guard working as designed from the biased agent's own side.**
+
+#### The Selection-byte argument, corrected — guard 1's version supersedes axes1's
+
+axes1 argued that Selection = 2 puts `cand`/`cand2` **outside** R1. That
+argument **presumes R1's biconditional** — that COMDAT-ness settles rootness —
+which is the very thing in dispute.
+
+Guard 1's reading is sharper and replaces it. The byte does not confirm that
+premise, **it refutes it**: those symbols are simultaneously **COMDATs** *and*
+**unreferenced-yet-emitted**, i.e. roots. Therefore:
+
+> **R1's head is FALSE as a rootness criterion. c2 has roots that are COMDATs.**
+
+That is a stronger and more useful finding than the one it replaces, and it is
+the form that should be quoted.
+
+The byte remains admissible only as **corroboration, never as an interpretation
+of §2** (§6c) — it observes what c2 did, and letting c2's output define §2's
+meaning would make §2 unfalsifiable.
 
 Independently of the count: **a clause that cannot be read consistently is a
 defect in §2 regardless of which cell breaks.**
@@ -462,13 +505,138 @@ and it cannot be answered by re-running anything.
   and over-inclusive propagation are **opposite** defects; a merged report
   would hide one.
 
-**V6 (axes of 9 with ≥1 confirmed violation): registered point 1, interval
-[0, 3]. Candidate value before guard 1: 6** (A2, A3, A4, A6, A8, A9) — outside
-the registered interval on the high side. If it survives the guard, the
-registered estimate was **badly wrong in the deflationary direction**: this
-lane expected the predicate to break on about one axis and it broke on six.
-That is worth saying whichever way the guard rules, because the prereg's own
-point estimate is part of what is being tested.
+### 6d. V6 = 5 — RULED. Above the registered interval, and a lower bound twice over
+
+Guard 1 demoted **five of the twelve** candidate violations and the result still
+lands outside its own pre-registration.
+
+**V6 is reported BOTH ways, because guard 1 exposed the single interpretive
+call that moved its own headline number _up_** — which is exactly what a guard
+is for, and it is published rather than resolved silently:
+
+| reading | V6 | basis |
+|---|---:|---|
+| **guard 1's** | **5** | the prereg's AMBIGUOUS clause triggers on **inter-agent** disagreement, and axes1's registered *primary* prediction was identical to guard 1's — so **A5 is broken** |
+| **the hostile alternative** | **4** | a pre-registered **rival** reading counts as a derivation disagreement, so **A5 is unbroken**; A6, A8, A2, A9 remain |
+
+| | value |
+|---|---|
+| V6 registered point estimate | **1** |
+| V6 registered interval | **[0, 3]** |
+| **V6 ruled** | **5**, or **4** under the most hostile defensible reading |
+
+### The robustness is the finding — lead with it, not with either number
+
+**Both readings exceed the registered interval [0, 3].** So the headline — *the
+pre-registration missed on the high side* — is **robust to the one interpretive
+call that inflates it.**
+
+That robustness is worth more than the extra point. **A result that survives its
+own author's most hostile reading is the strongest thing this lane can
+publish**, and it is a stronger claim than V6 = 5 asserted flatly.
+
+**Missed on the high side, after the most deflationary accounting the guard
+could defend.** The five demotions make the result **more** credible, not less.
+It is not to be softened, not to be averaged against the raw 12, and the
+demotions are not the headline.
+
+**5 is a lower bound twice over, and this travels with the number wherever it
+is quoted:**
+
+1. **Six cells remain unpromoted** for want of a frozen independent derivation
+   (`a2_04`, `a3_01`, `a3_02`, `a3_08`, `a4_05`, `a4_06`) — see §6e. Their
+   resolution decides whether V6 is **5 or 7**, and whether **A3 and A4** break.
+2. **The guard's construction is asymmetric.** It re-derived only *claimed*
+   violations. **A cell graded MATCH in error is structurally invisible to it.**
+   Nothing in this exercise could have caught a false negative, so the true
+   count cannot be lower than 5 and could be higher for a reason no one looked
+   for.
+
+**Reported in the same breath, because it is a real result in §2's favour and
+suppressing it would be the mirror of the error this lane is guarding against:**
+on **9 of 10** axes2 cells the guard's quarantined derivation is
+**symbol-for-symbol identical** to axes2's, and **AMBIGUOUS fires nowhere in
+that set**. Two readers, working independently from the same prose, reached the
+same predictions. **§2's text is reproducibly applicable** — its defects are
+specific, not a general looseness.
+
+### 6e. The guard flagged six cells that would RAISE its own number
+
+Guard 1 identified six cells whose promotion would push V6 from 5 to 7, and
+**declined to promote them** because it had no frozen derivation for them. That
+is the behaviour that makes a guard worth having, and it is credited here
+explicitly.
+
+It also **disqualifies guard 1 for those six**: its mechanical predicted-vs-
+observed cross-check ran over all ten cells, so it has now seen their truth and
+cannot produce an independent derivation. **`guard2` was spawned** to derive
+them under the same freeze-before-look discipline, carrying guard 1's
+*procedural* rules (one committed primary per cell, REACH/GAP tagging,
+falsifiable advance calls) and **none of its findings**. Its brief was scrubbed
+of everything entailing symbol presence — Selection bytes, sizes, counts,
+section assignments — and it was asked to flag any leak it finds in the
+tasking, since the lead has already made that mistake once (§6a).
+
+**Status: IN PROGRESS.** V6 is **5 pending guard 2**, and may become 7.
+
+### 6f. c2 is consistent — the inconsistency is purely textual
+
+**This reframing changes what the repair is, which is why it is here and not
+buried in a cell result.**
+
+Nothing found in 94 objects plus guard 1's probes shows c2 behaving
+inconsistently. Every inconsistency established by this lane is in **§2's
+prose**. c2 is applying *some* rule uniformly; §2 describes that rule with words
+that cannot all be true at once.
+
+**The evidence that isolates it — the strongest single item in this lane.**
+Guard 1's post-hoc probes `p1` vs `p3` are a minimal pair: **both `extern "C"`,
+both `inline`, both unreferenced, differing by exactly one declaration**, and
+the symbol flips. That isolates the variable instead of sampling around it,
+which is what the 172 fitted cells and the 78 axis cells could not do for this
+clause.
+
+**The rule that emerges:** only the **storage-class `extern`** confers rootness
+— **never the language-linkage `extern "C"`**. This explains **all 9 A5 cells,
+guard 1's 3 probes, and `a4_07`** with one statement.
+
+**Caveat, kept exactly as the guard stated it and not to be dropped when this is
+quoted:** that is a **repair, not a reading**. Any rule separating storage-class
+`extern` from language-linkage `extern "C"` **still contradicts R1's list**,
+which enumerates `extern "C"` as a root spelling. So the finding gives §2 a
+*correct* rule to adopt; it does **not** rescue §2-as-written, which remains
+without a consistent reading (§6b).
+
+### 6g. Five cells graded `MATCH on §2's domain + GAP` — two groups, and BOTH halves travel
+
+**The lead first instructed that these be refiled as plain confirmations. That
+instruction was wrong** and, followed literally, would have produced **the
+mirror image of the error guard 1 had just caught** — deleting a real finding in
+the direction that flatters §2, immediately after correcting a filing that
+flattered the lane's thesis. Corrected in
+`work/emitpred/guard1/RULING_ADDENDUM.md` (`9aa5d76`).
+
+**The grade is two-part, and the halves have different owners:**
+
+| group | the CONFIRMATION half — owner **#161** | the GAP half — owner **#152** |
+|---|---|---|
+| `a3_03`, `a3_04`, `a3_05`, `a3_06` | §2's vtable closure **held**: the **wide** reading of "every virtual of C" (inherited included), applied **per base subobject**, with the `??_G` rider — across MI, virtual bases and a diamond | c2 emits `??_DB@@QAAXXZ`, `??_DC@@QAAXXZ`, `??_DD@@QAAXXZ` and `??_ED@@W3AAPAXI@Z` — **code COMDATs §2's text has no clause capable of producing** |
+| `a4_09` | §2's **pre-optimization** clause confirmed on the hardest case available: the dyninit thunk's **propagation survives the thunk's own elimination** — a `static` reachable only through a `??__E` c2 does not emit is emitted anyway | c1xx **names** that `??__E` thunk in the `.gl` and c2 then does **not** emit it; §2's root 4 gives no rule for which initializers produce one |
+
+**Dropping the gap half would delete a coverage finding. R3 must emit those
+symbols or refuse, and that is outstanding work** — it does not become
+unnecessary because §2's vtable rule was vindicated on the same cells.
+
+`a4_09` also sharpens §2's wording: *"removed" must mean **never kept by the
+fixpoint**, not **absent from the output**.*
+
+**Guard 1's line, to be carried verbatim wherever these five are quoted:**
+
+> **The demotions do not rescue §2; they relocate half of axes2's findings from
+> "§2 is wrong" to "§2 is silent."**
+
+"Wrong" and "silent" are different defects with different repairs. **Neither is
+"fine".**
 
 ## 7. Recovered instrument: the `.gl` records carry the reference graph
 
@@ -510,17 +678,36 @@ What is already settled and cannot be revised by anything still outstanding:
 
 * **#161 does not ship into R3 as stated.** Part 2 alone establishes that §2's
   text is wrong about the vtable trigger and about what a virtual call uses,
-  and that R1 cannot be read consistently. SHIP-CANDIDATE requires "Part-2 axes
-  all clean-or-guardable"; two families are guardable only from *source*, which
-  is not the channel R3 consumes.
+  and that **R1 is internally inconsistent on its face** (§6b) — provable from
+  the text, needing no experiment and no cell. SHIP-CANDIDATE requires "Part-2
+  axes all clean-or-guardable"; two families are guardable only from *source*,
+  which is not the channel R3 consumes.
+* **V6 = 5, above the registered interval of [0, 3], and a lower bound twice
+  over** (§6d). The pre-registration expected the predicate to break on about
+  one axis. It broke on at least five, after deliberate deflation.
 * **The predicate is not thereby refuted as a model.** 75 of 94 graded objects
-  matched, both categorical-shape attacks failed to land, and every AMBIGUOUS
+  matched; both categorical-shape attacks failed to land; **9 of 10** contested
+  cells were derived identically by two independent readers; and **c2 itself is
+  consistent** — the inconsistency is in §2's prose (§6f). Every AMBIGUOUS
   cluster is a one-line wording repair with an unambiguous direction.
+* **The false-positive class is cheap for precision and expensive for
+  coverage** (§5): ≤ 0.598 pp of V3 micro-precision — it **cannot alone** take
+  V3 below 0.95 — but present in **36.7 %** of TUs, so a fail-closed R3 that
+  refuses on the construct refuses better than one TU in three. **Neither
+  framing may be quoted without the other.**
 
-What is outstanding, and what each would change: guard 1 (§6) settles the
-violation count and V6; the magnitude measurement (§5) settles clause-vs-
-replacement and bears directly on V3; Part 1 (§2) is unrun and its population
-is unspent.
+What is outstanding, and what each would change: **guard 2** (§6e) decides
+whether V6 is **5 or 7** and whether **A3 and A4** break — the highest-value
+remaining work; the magnitude write-up's detector error rate and distribution
+(§5) complete the clause-vs-replacement case; Part 1 (§2) is unrun and its
+population is **unspent**.
+
+**On the prereg's five words:** the evidence already excludes SHIP-CANDIDATE.
+It does not support REFUTED-ON-REAL either — that verdict is defined by V1/V2
+on the held-out TUs, which were never run, and it must not be reached by
+substituting Part-2 evidence for a Part-1 measurement. **DECLINE** ("not
+validated; #161 does not ship; no patching") is where the evidence points, and
+the final word waits on guard 2.
 
 ## 9. Clean-room ledger
 
