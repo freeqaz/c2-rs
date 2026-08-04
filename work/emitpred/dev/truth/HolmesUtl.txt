@@ -1,0 +1,3 @@
+??$MakeString@PBDVString@@@@YAPBDPBDABQBDABVString@@@Z
+?HolmesXboxPath@@YA?AVString@@PBD0@Z
+?c_str@FixedString@@QBAPBDXZ
