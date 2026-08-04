@@ -92,7 +92,11 @@ fn print_usage() {
          \x20                           NOT the workload's (/O1 /Oi /EHsc /GR ...) and does not\n\
          \x20                           imply /GF — pass the workload's flags.txt to compare a\n\
          \x20                           captured .gl against a workload obj.\n\
-         \x20 c2rs compile <cpp>        reference obj, print size + timestamp\n\
+         \x20 c2rs compile <cpp> [--keep-obj PATH] [--flags-file F] [--cwd DIR]\n\
+         \x20                           reference obj, print size + timestamp and the profile used.\n\
+         \x20                           WITHOUT --flags-file the profile is /Ox /GS- /c, the same\n\
+         \x20                           default `capture` has and NOT the workload's; --cwd is\n\
+         \x20                           meaningful only together with --flags-file.\n\
          \x20 c2rs selftest [<cpp>...]  oracle self-test (determinism + capture stability)\n\
          \x20 c2rs replay <cpp>         P0.1: capture + standalone-c2 replay, byte-match verdict\n\
          \x20 c2rs replay-c1 <cpp>      P-F0.1: capture + standalone-c1 (front-end) replay, per-file byte verdict\n\
@@ -590,33 +594,58 @@ fn cmd_compile(rest: &[String]) -> ExitCode {
     let Some(cpp) = require_cpp(rest) else {
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
-        return ExitCode::SUCCESS;
-    };
     // `--keep-obj PATH` retains the reference obj for byte classification (the
     // CONST/DERIVED analysis every widening step starts from). Gitignored
     // scratch only — objs are never committed.
-    let keep_obj: Option<PathBuf> = rest
-        .iter()
-        .position(|a| a == "--keep-obj")
-        .and_then(|i| rest.get(i + 1))
-        .map(PathBuf::from);
+    let mut keep_obj: Option<PathBuf> = None;
     // Optional real-project compile (same inputs as `c2rs gap`), so the
     // reference obj for a workload TU can be classified, not just a fixture's.
-    let flags_file: Option<PathBuf> = rest
-        .iter()
-        .position(|a| a == "--flags-file")
-        .and_then(|i| rest.get(i + 1))
-        .map(PathBuf::from);
-    let cwd: Option<PathBuf> = rest
-        .iter()
-        .position(|a| a == "--cwd")
-        .and_then(|i| rest.get(i + 1))
-        .map(PathBuf::from);
-    let w = scratch("compile");
-    let out = w.join("out.obj");
-    if let Some(ff) = &flags_file {
-        let flags: Vec<String> = match std::fs::read_to_string(ff) {
+    let mut flags_file: Option<PathBuf> = None;
+    let mut cwd: Option<PathBuf> = None;
+    // Board #195. These three used to be `iter().position(|a| a == "--x")`
+    // scans, which is the SAME latent bug `cmd_capture` carried until `6a33b4d`:
+    // a scan looks only for the options it knows and IGNORES every other
+    // argument by construction, so an option this command does not define is
+    // accepted and dropped. That is not hypothetical here — it is bug 1 of the
+    // class, and it was on *this* command: `c2rs compile <cpp> --flag /GR-`
+    // silently discarded `--flag` (which belongs to `listing`), so a `/GR` vs
+    // `/GR-` probe ran two literally identical command lines and the identical
+    // objs were read as a *finding about RTTI*. Two different commands producing
+    // one output is indistinguishable, at the terminal, from a real negative
+    // result. Parsed by a loop that REFUSES what it does not know.
+    let mut it = rest[1..].iter();
+    while let Some(a) = it.next() {
+        let mut take = |slot: &mut Option<PathBuf>| match it.next() {
+            Some(v) => {
+                *slot = Some(PathBuf::from(v));
+                true
+            }
+            None => {
+                eprintln!("{a} needs a value");
+                false
+            }
+        };
+        let ok = match a.as_str() {
+            "--keep-obj" => take(&mut keep_obj),
+            "--flags-file" => take(&mut flags_file),
+            "--cwd" => take(&mut cwd),
+            other => {
+                eprintln!("unknown compile option: {other}");
+                false
+            }
+        };
+        if !ok {
+            return ExitCode::from(2);
+        }
+    }
+    // The profile is read and validated BEFORE `located()`, so a malformed
+    // invocation is reported as one on a machine with no compilers at all —
+    // which is what lets `tests/cli_flags.rs` catch this class without a
+    // toolchain. A *valid* invocation still exits 0 with `SKIP: toolchain
+    // absent`.
+    let flags: Vec<String> = match &flags_file {
+        None => Vec::new(),
+        Some(ff) => match std::fs::read_to_string(ff) {
             Ok(t) => t
                 .lines()
                 .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
@@ -626,7 +655,31 @@ fn cmd_compile(rest: &[String]) -> ExitCode {
                 eprintln!("cannot read --flags-file {}: {e}", ff.display());
                 return ExitCode::FAILURE;
             }
-        };
+        },
+    };
+    if flags_file.is_some() && flags.is_empty() {
+        // An empty profile would silently fall back to `cl.exe`'s own defaults —
+        // the dropped-profile failure mode one layer down, and the reason
+        // `cmd_capture` refuses it too.
+        eprintln!("--flags-file names no flags; refusing to compile at an unknown profile");
+        return ExitCode::from(2);
+    }
+    // `--cwd` is consumed only on the `--flags-file` path (`compile_obj` makes
+    // the source absolute and translates it itself). Accepting it alone would
+    // drop it in silence — the same class again, one option along — so refuse
+    // rather than compile something other than what was asked for.
+    if cwd.is_some() && flags_file.is_none() {
+        eprintln!(
+            "--cwd has no effect without --flags-file; refusing rather than dropping it silently"
+        );
+        return ExitCode::from(2);
+    }
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
+    let w = scratch("compile");
+    let out = w.join("out.obj");
+    if let Some(ff) = &flags_file {
         let res = tc.capture_reference_with(&cpp.to_string_lossy(), &w, &flags, cwd.as_deref());
         return match res {
             Ok(c) => {
@@ -635,6 +688,14 @@ fn cmd_compile(rest: &[String]) -> ExitCode {
                     cpp.display(),
                     c.ref_obj.len()
                 );
+                // Print the profile that was actually used, always. A flag
+                // dropped in silence is indistinguishable at the terminal from a
+                // flag that had no effect, and this line is what tells them
+                // apart.
+                println!("  profile: {} (from {})", flags.join(" "), ff.display());
+                if let Some(d) = &cwd {
+                    println!("  cwd:     {}", d.display());
+                }
                 if let Some(dest) = &keep_obj {
                     if let Some(p) = dest.parent() {
                         let _ = std::fs::create_dir_all(p);
@@ -663,6 +724,13 @@ fn cmd_compile(rest: &[String]) -> ExitCode {
                 cpp.display(),
                 obj.len(),
                 ts
+            );
+            // `Toolchain::compile_obj` hard-codes the same three flags
+            // `capture_il` does, which is why the published constant is what is
+            // printed here rather than a second literal — one place names them.
+            println!(
+                "  profile: {} (default — NOT the workload's; /Ox does not imply /GF)",
+                c2_reference::CAPTURE_IL_DEFAULT_FLAGS.join(" ")
             );
             if let Some(dest) = &keep_obj {
                 if let Some(parent) = dest.parent() {
