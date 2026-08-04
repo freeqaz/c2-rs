@@ -62,3 +62,4 @@ the header block this table is read from.
 | 2026-08-04 | W-RELOC | [w-reloc](2026-08-04-w-reloc.md) | 10 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — no function is emitted by this rung |
 | 2026-08-04 | W-a | [w-sect](2026-08-04-w-sect.md) | 15 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this rung emits no functions |
 | 2026-08-04 | AA | [w-shapes](2026-08-04-w-shapes.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |
+| 2026-08-04 | W-SMALL | [w-small](2026-08-04-w-small.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), **+0** — and for a rung |
