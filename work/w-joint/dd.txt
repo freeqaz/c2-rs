@@ -1,0 +1,7 @@
+TUs 850 ; errors 0
+owner->target pairs                       1835682
+owners                                    702262
+owners DEFINED in the obj                 40947
+dd pairs (target is itself an owner)      965118
+dd pairs FROM a defined owner             50897  <-- if 0, the edge never fires and the closure claim is vacuous
+  ...of which the TARGET is also defined  50897  (1.00000)
