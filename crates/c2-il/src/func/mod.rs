@@ -33,12 +33,14 @@ mod body;
 mod bundle;
 mod census;
 mod gl;
+mod inlit;
 mod readers;
 mod sy;
 
 pub use self::bind::{gl_body_record_names, EmitBinding};
 pub use self::body::{chain_form, Block, ChainForm, FP_SCRATCH};
 pub use self::bundle::{
+    DynInitTu,
     is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
     OPT_WORD_SPECIAL_MEMBER,
 };

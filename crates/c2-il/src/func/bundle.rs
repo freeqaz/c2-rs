@@ -1,9 +1,65 @@
 use super::body::{self, parse_segment, BodyShape};
 use super::bind::Bindings;
 use super::gl::drectve_is_boilerplate;
-use super::readers::{find_subslice, memchr_byte};
+use super::readers::{contains_subslice, find_subslice, memchr_byte};
 use super::{CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqTail, SlotArg};
 use crate::IlBundle;
+
+/// The suffix a `<name>$initializer$` `.CRT$XCU` slot symbol carries
+/// (`docs/OBJ_DYNINIT_SHAPE.md` §3.1). Built from the object's **source**
+/// identifier, never from its decorated name — `?gL@@3UL@@A` still yields
+/// `gL$initializer$` — which is why it is *read* out of `.gl` rather than
+/// synthesized from [`DynInitTu::object_symbol`].
+const INITIALIZER_SUFFIX: &str = "$initializer$";
+
+/// Whether a `.gl` name is a **dynamic-initializer** thunk, `??__E<ident>@@YAXXZ`.
+///
+/// `??__F` — the matching atexit destructor thunk — is deliberately **not**
+/// admitted here even though the decode handles both. `OBJ_DYNINIT_SHAPE.md`
+/// §4.4 measures the destructor shape as **+2 sections** (`.pdata`,
+/// `.text$yd`), **+10 symbol records**, and a `??__E` that becomes *framed*
+/// (0x40 bytes, 14 relocations, a `bl atexit`). That is a different obj and this
+/// lane did not model it.
+fn is_dynamic_initializer_name(name: &str) -> bool {
+    name.starts_with("??__E") && name.ends_with("@@YAXXZ") && name.len() > "??__E@@YAXXZ".len()
+}
+
+/// **W-R1c — a whole TU that is exactly one `??__E` dynamic initializer.**
+///
+/// The five inputs `c2_core::coff::emit_dyninit_obj` takes, every one of them
+/// **read** out of the IL rather than synthesized. See [`IlBundle::dyninit_tu`]
+/// for the gates.
+#[derive(Clone, Debug)]
+pub struct DynInitTu {
+    /// `??__EsLicense@@YAXXZ` — the thunk's own symbol, STATIC in the obj.
+    pub thunk_name: String,
+    /// The constructor it tail-calls; an undefined external.
+    pub ctor: String,
+    /// The `.bss` object's COFF symbol: undecorated for internal linkage,
+    /// decorated for external.
+    pub object_symbol: String,
+    /// `sizeof` the object.
+    pub object_size: u32,
+    /// The object's natural alignment, from the `.gl` TYPE tag.
+    pub object_align: u32,
+    /// `true` => EXTERNAL, `false` => STATIC.
+    pub object_external: bool,
+    /// `<identifier>$initializer$`, read from `.gl`.
+    pub initializer_symbol: String,
+    /// The literal's bytes INCLUDING the trailing NUL, from `.in`.
+    pub literal: Vec<u8>,
+    /// Every `??_C@…` name `.gl` spells. The caller **must** require its own
+    /// computed name to be in this set — see
+    /// [`super::gl::gl_string_comdat_names`] for why (`/GF`, and the `/Ox`
+    /// fixture that would otherwise convert to the wrong shape).
+    pub literal_comdat_names: std::collections::BTreeSet<String>,
+    /// The constructor's third argument, the literal `0` in both target TUs.
+    /// Carried so the caller emits the `li` it actually decoded rather than a
+    /// constant.
+    pub trailing_literal_arg: i32,
+    /// The source path from `.gl`, for `.debug$S`.
+    pub src: Option<String>,
+}
 
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
 /// sequence of function bodies, each introduced by this marker; the header /
@@ -1125,6 +1181,167 @@ impl IlBundle {
         Some(funcs)
     }
 
+    /// **W-R1c — recognize a whole TU as ONE `??__E` dynamic initializer**, and
+    /// hand back the five inputs `c2_core::coff::emit_dyninit_obj` needs.
+    ///
+    /// # Why this is not a `resolve_data` widening
+    ///
+    /// The obvious way to make these TUs decode is to let
+    /// [`super::bind::Bindings::resolve_data`] admit a symbol this TU *defines*.
+    /// That is three lines and it is the wrong three lines. `resolve_data` is on
+    /// the ordinary-function path, **39,967** functions currently file under
+    /// `data-sym-*`, and the port's ordinary shell has no `.bss` and no `.data`
+    /// — so a widening there sends some part of that population into an emitter
+    /// that will relocate against a symbol whose section it never wrote. That is
+    /// a wrong-bytes emit, which `docs/OBJ_DYNINIT_SHAPE.md` §3.2 and w-r1's
+    /// prereg both register as **strictly worse than the honest refusal standing
+    /// today**.
+    ///
+    /// So this is a **separate, whole-TU** question that an ordinary function
+    /// cannot reach: it requires the TU to contain exactly one function, and for
+    /// that function to be the thunk. `resolve_data` is untouched, and the
+    /// `data-sym-unresolved` / `data-sym-not-extern` census keys keep reporting
+    /// exactly what they reported before.
+    ///
+    /// # Every gate, and the byte behind it
+    ///
+    /// Each `None` below is a TU whose obj differs from the one
+    /// `emit_dyninit_obj` builds, and each is stated positively:
+    ///
+    /// * **exactly one `.ex` function segment**, and its `.gl` name is
+    ///   `??__E<ident>@@YAXXZ`. `??__F` (the atexit destructor thunk) is *not*
+    ///   admitted: §4.4 makes it +2 sections, +10 symbols and a framed body.
+    /// * **exactly one uninitialized (`.bss`) object in the whole TU.** This is
+    ///   the gate lane w-bss forced. `docs/OBJ_DATA_BSS_SHAPE.md` §2.2 refutes
+    ///   `OBJ_DYNINIT_SHAPE.md` §4.1's "always last": add one plain `char b1;`
+    ///   and the shared `.bss` moves out from behind `.text$yc` to **between the
+    ///   two `.XBLD$W` watermarks**, a different section order entirely.
+    /// * **exactly one initialized object**, the `$initializer$` slot. A second
+    ///   is a real `.data` section (`int gDef = 3;`), which is a ninth section.
+    /// * **the body is `MultiArgTailCall` with slots `[SymAddr, SymAddr, Lit]`**,
+    ///   slot 0's token being the object and slot 1's the literal. If the two
+    ///   resolve the other way round the TU refuses rather than being reordered:
+    ///   guessing which operand is the receiver is guessing two relocations.
+    /// * **the literal's `.gl` name exists.** See
+    ///   [`super::gl::gl_string_comdat_names`] — this is the `/GF` fence, and it
+    ///   is what keeps `fixtures/cpp/il_dyninit_static.cpp` refusing at `/Ox`.
+    ///
+    /// Outside all of that the port refuses, and that refusal is a deliverable.
+    pub fn dyninit_tu(&self) -> Option<DynInitTu> {
+        let gl = self.get("gl")?;
+        let ex = self.ex()?;
+        let inb = self.get("in")?;
+
+        // **The cheap early-out, and it is a performance gate as much as a
+        // correctness one.** `PortC2::build` calls this before `functions()` on
+        // EVERY TU, and the port's whole thesis is throughput (~922k obj/s on one
+        // thread). Everything below — the segment split, `Bindings::per_record`,
+        // a body parse — is work `functions()` is about to do again, so a TU that
+        // cannot possibly be a dynamic initializer must not pay for any of it.
+        //
+        // A `??__E` thunk's name is in `.gl` by construction: that is where the
+        // per-record binding reads it from. One substring scan settles it.
+        if !contains_subslice(gl, b"??__E") {
+            return None;
+        }
+        // Same first gate as `functions`: the port emits `.drectve` as a
+        // constant, so a TU that adds a linker directive diverges at offset 8
+        // however good the rest is.
+        if !drectve_is_boilerplate(gl) {
+            return None;
+        }
+
+        // Exactly one function, bound per record. `per_record` is the EMIT
+        // binding — it is gated fail-closed on the `.gl` records' framed
+        // body-start offsets being exactly the `.ex` split points — and nothing
+        // that emits may use the positional one.
+        let (starts, segs) = split_functions_at(ex);
+        if segs.len() != 1 {
+            return None;
+        }
+        let bind = Bindings::per_record(gl, self.get("sy"), &segs, &starts)?;
+        let thunk_name = bind.names().first()?.clone();
+        if !is_dynamic_initializer_name(&thunk_name) {
+            return None;
+        }
+
+        // The body. Three slots, in the one order this class was measured in:
+        // the object (the constructor's `this`), the literal, then the literal
+        // `0`.
+        let BodyShape::MultiArgTailCall { arg_sources, callee_tok, params } =
+            parse_segment(&segs[0], bind.locals(0))?
+        else {
+            return None;
+        };
+        if !params.is_empty() {
+            return None; // `??__E…@@YAXXZ` takes no arguments
+        }
+        let [body::SlotArg::SymAddr(obj_tok), body::SlotArg::SymAddr(lit_tok), body::SlotArg::Lit(k)] =
+            arg_sources.as_slice()
+        else {
+            return None;
+        };
+        let ctor = bind.resolve(callee_tok)?;
+
+        // The object, and the whole-TU count that lane w-bss made binding.
+        let objects = super::gl::gl_data_objects(gl);
+        let mut uninit = objects.iter().filter(|(_, o)| !o.initialized);
+        let (obj_tok_found, object) = uninit.next()?;
+        if uninit.next().is_some() {
+            return None; // a second `.bss` object moves the section (w-bss §2.2)
+        }
+        if obj_tok_found != obj_tok {
+            return None; // slot 0 is not the object this TU defines
+        }
+        let mut init = objects.iter().filter(|(_, o)| o.initialized);
+        let (_, initializer) = init.next()?;
+        if init.next().is_some() {
+            return None; // a real `.data` object is a ninth section
+        }
+        if !initializer.coff_name.ends_with(INITIALIZER_SUFFIX) {
+            return None;
+        }
+
+        // The literal, from `.in`, with its `.gl` COMDAT name carried alongside
+        // so the caller can require the two to agree.
+        let literal = super::inlit::in_string_literals(inb).get(lit_tok)?.clone();
+
+        Some(DynInitTu {
+            thunk_name,
+            ctor,
+            object_symbol: object.coff_name.clone(),
+            object_size: object.size,
+            object_align: object.natural_align,
+            object_external: object.external,
+            initializer_symbol: initializer.coff_name.clone(),
+            literal,
+            literal_comdat_names: super::gl::gl_string_comdat_names(gl),
+            trailing_literal_arg: *k,
+            src: bind.src.clone(),
+        })
+    }
+
+    /// **Does ANY of this crate's acceptance paths decode this bundle?**
+    ///
+    /// One predicate for the one question `c2-harness`'s `vocab-gap` bucket asks
+    /// — *could `c2-il` read this TU at all* — as distinct from *how many `.ex`
+    /// segments are there* (`ex_segment_count`, a pure reader) and *did the port
+    /// emit* (`PortC2::build`).
+    ///
+    /// It exists because there are now **two** acceptance paths and the
+    /// classifier used to call one of them directly. [`Self::functions`] is the
+    /// per-function gate; [`Self::dyninit_tu`] is a whole-TU shape that
+    /// `functions` correctly refuses. A scanner that asked only the first would
+    /// file every converted `??__E` TU as `vocab-gap` — "the port could not
+    /// decode it" — while the port was emitting a byte-exact obj for it, which
+    /// is exactly the mis-attribution `docs/GAPS.md` §6 keeps recording.
+    ///
+    /// Adding a third path means adding it here, in one place, rather than
+    /// discovering that two crates disagree about what decoded.
+    pub fn decodes(&self) -> bool {
+        self.functions().is_some() || self.dyninit_tu().is_some()
+    }
+
     /// Parse this bundle as a SINGLE MVP function. Convenience wrapper over
     /// [`IlBundle::functions`]; returns `None` unless the TU has exactly one
     /// in-class function.
@@ -1135,6 +1352,64 @@ impl IlBundle {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod dyninit_tests {
+    use super::is_dynamic_initializer_name;
+    use crate::IlBundle;
+
+    /// `??__E` is the dynamic initializer and is admitted; `??__F` is the
+    /// matching **atexit destructor** thunk and is not.
+    ///
+    /// The decode handles both (w-r1 widened the parser for the bare `4C` they
+    /// share), so this refusal is a deliberate *emit*-side scope decline, not a
+    /// parser limit. `docs/OBJ_DYNINIT_SHAPE.md` §4.4 measures the destructor
+    /// shape as **+2 sections** (`.pdata`, `.text$yd`), **+10 symbol records**,
+    /// and a `??__E` that becomes framed — 0x40 bytes with 14 relocations and a
+    /// `bl atexit`. Emitting the 8-section shape for one would be wrong bytes.
+    #[test]
+    fn only_the_dynamic_initializer_thunk_is_admitted() {
+        assert!(is_dynamic_initializer_name("??__EsL@@YAXXZ"));
+        assert!(is_dynamic_initializer_name("??__EsLicense@@YAXXZ"));
+
+        assert!(!is_dynamic_initializer_name("??__FsL@@YAXXZ"), "atexit dtor: +2 sections");
+        assert!(!is_dynamic_initializer_name("??_GString@@UAAPAXI@Z"), "deleting dtor");
+        assert!(!is_dynamic_initializer_name("?f@@YAHH@Z"), "an ordinary function");
+        assert!(!is_dynamic_initializer_name("??__E@@YAXXZ"), "no identifier at all");
+        assert!(!is_dynamic_initializer_name("??__EsL@@YAXXZjunk"), "must end at the suffix");
+    }
+
+    /// **A bundle missing any of the three streams refuses rather than
+    /// panicking.** The CLI must degrade cleanly (CLAUDE.md), and `.in` in
+    /// particular had no reader at all before this lane, so a bundle without one
+    /// is a shape nothing previously had to survive.
+    #[test]
+    fn a_bundle_without_the_three_streams_refuses() {
+        assert!(IlBundle::new("empty").dyninit_tu().is_none());
+
+        let mut b = IlBundle::new("no_in");
+        b.set("ex", vec![0u8; 32]);
+        b.set("gl", vec![0u8; 32]);
+        assert!(b.dyninit_tu().is_none(), "no `.in` stream");
+
+        let mut b = IlBundle::new("junk");
+        b.set("ex", vec![0xAAu8; 64]);
+        b.set("gl", vec![0xBBu8; 64]);
+        b.set("in", vec![0xCCu8; 64]);
+        assert!(b.dyninit_tu().is_none());
+        // …and the acceptance predicate the scan classifies on agrees, so a
+        // bundle can never be "decoded" by one path and not the other.
+        assert!(!b.decodes());
+    }
+
+    /// `decodes()` is the ONE acceptance question, and it must be the union of
+    /// both paths — a TU either path accepts is decoded.
+    #[test]
+    fn decodes_is_the_union_of_both_acceptance_paths() {
+        let b = IlBundle::new("empty");
+        assert_eq!(b.decodes(), b.functions().is_some() || b.dyninit_tu().is_some());
     }
 }
 

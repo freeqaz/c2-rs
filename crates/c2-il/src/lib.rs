@@ -41,7 +41,7 @@ pub use func::{
     mangled_name, mangled_names, opt_word_mode, source_path, Block, FnCensus, OptWordMode,
     OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,
-    CallSeq, CompareLeaf, FpTail, FramedCall, IlFunction, IlOp, Rel, SeqCall, SeqCmp, SeqTail,
+    CallSeq, CompareLeaf, DynInitTu, FpTail, FramedCall, IlFunction, IlOp, Rel, SeqCall, SeqCmp, SeqTail,
     SlotArg, LINK_FIRST_SLOT,
 };
 

@@ -354,6 +354,40 @@ const N_SHELL_SYMBOLS: u32 = 11;
 ///
 /// * `obj_name` — the `-Fo` output-path string exactly as the reference saw it
 ///   (e.g. `Z:\tmp\anat\mvp.obj`); embedded verbatim in `.debug$S` S_OBJNAME.
+/// **The port's COFF writer vocabulary** — every section name any emitter in
+/// this module can put in an obj, and therefore the whole of what **factor C**
+/// (`docs/ROADMAP.md` §10.19) admits.
+///
+/// **This is the published home of the list.** `c2-harness`'s `gap.rs` used to
+/// carry a hand-written mirror of it, with its own doc comment stating that the
+/// list "should be `c2-core`" and was duplicated only because this crate
+/// belonged to another lane. W-R1c owns this crate, and the mirror stopped being
+/// accurate the moment `emit_dyninit_obj` acquired a caller: the port can now
+/// emit `.text$yc`, `.bss` and `.CRT$XCU`, none of which the six-name mirror
+/// listed.
+///
+/// It is a **vocabulary, not a section list** — `.XBLD$W` is emitted twice (the
+/// C1 and C2 watermarks) and appears once here.
+///
+/// The control that can turn this red is in the scan, not here: every
+/// byte-exact TU's obj must fall inside factor C, and a `match` obj *is* the
+/// port's own output — so a list that is too small makes a matching TU fall
+/// outside C and the scan says so. That control cannot catch the opposite error
+/// (a name here that no writer emits, which would inflate C), which is why this
+/// stays a transcription of the `Section { name: … }` tables below rather than a
+/// generalization of them.
+pub const PORT_WRITER_SECTIONS: [&str; 9] = [
+    ".drectve",
+    ".debug$S",
+    ".XBLD$W",
+    ".text",
+    ".pdata",
+    ".rdata",
+    ".text$yc",
+    ".bss",
+    ".CRT$XCU",
+];
+
 /// * `mangled_name` — the function's mangled symbol (from `.gl`), e.g.
 ///   `?add3@@YAHHHH@Z`.
 /// * `text` — the `.text` bytes from codegen (12 for `add3`).
@@ -2345,6 +2379,42 @@ impl StringTable {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// **[`PORT_WRITER_SECTIONS`] is a transcription, so a test reads the source
+    /// and checks it.**
+    ///
+    /// The constant is the whole of what the scan's **factor C** admits, and its
+    /// failure mode is silent in both directions: too small and a byte-exact TU
+    /// falls outside C, too large and C is inflated. It went stale exactly once
+    /// already — it listed six names while `emit_dyninit_obj` sat uncalled, and
+    /// wiring that emitter to a caller made three of the port's real section
+    /// names missing from it.
+    ///
+    /// Scanning this file's own `Section { name: "…" }` literals is what makes
+    /// the constant checkable rather than merely asserted. Portable: no
+    /// toolchain, no obj, just the source text.
+    #[test]
+    fn the_writer_vocabulary_is_every_section_name_this_file_emits() {
+        let src = include_str!("coff.rs");
+        let mut found: Vec<&str> = Vec::new();
+        for (at, pat) in src.match_indices("name: \"") {
+            let s = &src[at + pat.len()..];
+            let Some(end) = s.find('"') else { continue };
+            let name = &s[..end];
+            if name.starts_with('.') && !found.contains(&name) {
+                found.push(name);
+            }
+        }
+        found.sort_unstable();
+        let mut declared: Vec<&str> = PORT_WRITER_SECTIONS.to_vec();
+        declared.sort_unstable();
+        assert_eq!(
+            declared, found,
+            "PORT_WRITER_SECTIONS must be exactly the section names this file's \
+             `Section {{ name: … }}` tables can emit — it is a vocabulary, so \
+             `.XBLD$W` appears once even though it is emitted twice"
+        );
+    }
 
     /// Five representative objs from the three pre-existing emitters, reduced to
     /// `(length, CRC)` — a byte-level pin taken **before** the shared-primitive

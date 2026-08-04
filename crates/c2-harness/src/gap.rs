@@ -331,31 +331,19 @@ pub struct TuResult {
 /// deleting destructor, `??_E` vector deleting destructor, `??_D` vector
 /// destructor iterator, `??__E` dynamic initializer, `??__F` dynamic atexit
 /// destructor.
-/// **The port's COFF writer vocabulary** — every section name
-/// `c2_core::coff` is able to put in an obj, and therefore the whole of what
-/// **factor C** (`docs/ROADMAP.md` §10.19) admits.
+/// **The port's COFF writer vocabulary**, imported from its published home.
 ///
-/// Read off the three `Section { name: … }` tables in
-/// `crates/c2-core/src/coff.rs` (the empty-TU, per-function-COMDAT and packed
-/// writers) as **source text**, not fitted to any target count. Every name any
-/// of them can emit is here; `.XBLD$W` appears twice there (the C1 and C2
-/// watermarks) and once here, because this is a vocabulary and not a section
-/// list.
+/// This used to be a six-name hand-written mirror whose own doc comment said the
+/// list "should be `c2-core`" and was duplicated only because that crate
+/// belonged to another lane. **The mirror was accurate exactly as long as
+/// `emit_dyninit_obj` had no caller** — w-r1's rung filed that as "left in place,
+/// with the trigger named". W-R1c is that trigger: the port emits `.text$yc`,
+/// `.bss` and `.CRT$XCU` now, and a stale six-name list would put the two
+/// converted license TUs *outside* factor C while they are byte-exact matches.
 ///
-/// **This list's home should be `c2-core`, and this is a mirror.** Minting a
-/// published constant next to the writers is a cross-crate change and
-/// `crates/c2-core` belongs to another lane today, so the list is duplicated
-/// here with its provenance named — and with a control that can go red rather
-/// than an argument that it is right: **every byte-exact TU's obj must be
-/// inside factor C** (`factor_control_on_match_tus`). A `match` obj *is* the
-/// port's own output, so if this list were too small, a matching TU would fall
-/// outside C and the scan would say so. That control cannot catch the opposite
-/// error — a name here the writer never emits would inflate C — which is
-/// exactly why the list is a transcription of six source lines and not a
-/// generalization of them.
-const PORT_WRITER_SECTIONS: [&str; 6] = [
-    ".drectve", ".debug$S", ".XBLD$W", ".text", ".pdata", ".rdata",
-];
+/// So there is one list, next to the writers, and this is a `use` rather than a
+/// copy.
+use c2_core::coff::PORT_WRITER_SECTIONS;
 
 /// The MSVC mangling class of `name`, for naming the unbound residue.
 ///
@@ -887,11 +875,26 @@ impl GapReport {
     /// | **C** | obj section set ⊆ [`PORT_WRITER_SECTIONS`] | `emit-sec-reachable` |
     /// | **D** | every emitted COMDAT is in the port's codegen class | `emit-class-complete` |
     ///
-    /// Each factor is **necessary** for a byte-exact obj and none is sufficient;
-    /// what §10.19 measured is that their conjunction is exactly the observed
-    /// match set. Every one reads a key some *other* code path wrote, so this
-    /// function re-derives no rule — it is a join, and that is the whole point
-    /// (§10.14).
+    /// §10.19 measured that each factor is **necessary** for a byte-exact obj,
+    /// that none is sufficient, and that their conjunction is exactly the
+    /// observed match set. Every one reads a key some *other* code path wrote,
+    /// so this function re-derives no rule — it is a join, and that is the whole
+    /// point (§10.14).
+    ///
+    /// **W-R1c: D is no longer necessary, measured.** That factorization was
+    /// taken when `PortC2` had exactly one acceptance path, and D's proxy for
+    /// "the port can emit this" is the *per-function* census verdict. A `??__E`
+    /// dynamic-initializer TU is emitted through a **whole-TU** path
+    /// (`c2_il::IlBundle::dyninit_tu`), so its thunk is byte-exact in the obj and
+    /// out of class in the census simultaneously — two true answers to two
+    /// different questions. On the 878-TU workload the conjunction is 6 while the
+    /// differential grades 8, and the known-answer control reports `D 2`.
+    ///
+    /// Left as it is, deliberately. Teaching the per-function census a whole-TU
+    /// fact would break the census/gate symmetry `c2-il`'s `census.rs` maintains
+    /// on purpose and that the scan's `census/gate disagreement` line tracks; the
+    /// honest reading is that **the factorization needs a fifth term for whole-TU
+    /// emitters**, not that D should be widened until it stops complaining.
     ///
     /// **A is gate-anchored** (`4F 1F`, what `PortC2::build` consumes) rather
     /// than `LO`-anchored: §10.18 settled that the two splitters disagree on 634
@@ -1953,12 +1956,18 @@ fn scan_one(
     //    `codegen-gap 2 / vocab-gap 0`, unfolded `codegen-gap 0 / vocab-gap 2`.
     //    Stated plainly so the next reader does not take the test for a guard it
     //    is not.
-    let decoded = captured.bundle.functions();
-    if decoded.is_none() {
+    //    **W-R1c: the acceptance question now has TWO paths and must be asked
+    //    through one predicate.** `IlBundle::decodes()` is
+    //    `functions().is_some() || dyninit_tu().is_some()`. Calling `functions()`
+    //    alone here would file every converted `??__E` dynamic-initializer TU as
+    //    `vocab-gap` — "the port could not decode it" — while the port emitted a
+    //    byte-exact obj for it, which is the same mis-attribution this comment
+    //    block already warns about in the other direction.
+    if !captured.bundle.decodes() {
         res.class = TuClass::VocabGap;
         res.reason = "il function decode failed".to_string();
         res.detail = format!(
-            ".ex {} B, {} .gl names — c2_il::functions() = None",
+            ".ex {} B, {} .gl names — c2_il::functions() and dyninit_tu() both None",
             res.ex_len, res.fn_names
         );
         return res;
@@ -2310,6 +2319,30 @@ fn print_factorization(report: &GapReport) {
          {match_tus} matching TUs): A {} B {} C {} D {}",
         bad[0], bad[1], bad[2], bad[3]
     );
+    // **W-R1c — D is no longer necessary for a match, and the control is right
+    // to say so.** §10.19's claim is that the conjunction A∧B∧C∧D is exactly the
+    // observed match set; that was measured when `PortC2` had exactly ONE
+    // acceptance path, the per-function one, and factor D's proxy for "the port
+    // can emit this" is the per-function census verdict. A `??__E`
+    // dynamic-initializer TU is emitted by a **whole-TU** path
+    // (`IlBundle::dyninit_tu`), so its thunk is byte-exact in the obj and out of
+    // class in the census at the same time — both statements true, about
+    // different questions.
+    //
+    // Printed rather than fixed, and printed rather than silenced. Fixing it
+    // means teaching the per-function census a whole-TU fact, which would break
+    // the census/gate symmetry `census.rs` maintains on purpose (and which the
+    // `census/gate disagreement: 0` line above tracks). Silencing it would hide
+    // a genuine refutation. So the instrument keeps telling the truth and says
+    // what the truth is.
+    if bad[3] > 0 {
+        println!(
+            "\x20   NOTE: D counts the per-function census, which does not model the \
+             whole-TU `??__E` emit path — so D is NOT necessary for a match any more \
+             (§10.19's conjunction claim is refuted by {} TU(s) here). A/B/C are unaffected.",
+            bad[3]
+        );
+    }
     // The vocabulary, in full. It is finite, and its size is the headline: it is
     // what makes C the one factor with a short route to closure.
     println!(
