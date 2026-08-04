@@ -878,6 +878,9 @@ Next free number is **#162**.
   for `.data` by §4.2; §4.1's "`.bss` and `.CRT$XCU` always last" is refuted by §2.2.
 * **#165 — `c1xx` name-hash lane.** §7.3 is its data: 1024 buckets, an 11,000-name
   partition, and a refuted-family list.
+* **#166 — re-census with raw section bytes retained**, so §5's allocator can be
+  graded on all 24,055 real `.data`/`.bss` sections instead of on probes (§8.8).
+  The existing `census.py` needs one field added; budget is disk, not time.
 
 ---
 
@@ -892,6 +895,7 @@ WBSS_FLAGS=flags-w.txt python3 glorder.py   # §5.2,§5.3 — .gl order vs .bss/
 python3 alloc.py  20260804 18               # §5.5 — .bss allocator fit
 python3 allocd.py 7 14                      # §5.5 — .data allocator fit
 python3 bucket.py                           # §7.3 — the 1024-bucket partition (slow)
+python3 fpcrc.py                            # §4.2.1 — the registered CheckSum grid
 ```
 
 `probe.py` compiles one source with the real toolchain and reads the obj back;
