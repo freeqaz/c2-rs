@@ -9535,3 +9535,164 @@ the atexit destructor thunk, priced at +2 sections / +10 symbol records). **#158
 is now DONE.** The next free board number is **181** (quoted without a `#` on
 purpose — `scripts/board_audit.sh` reads `#N` in this file as a citation, and a
 number that has not been minted yet is not one).
+
+## 10.22 W-GC — the concurrent-capture bug was LIVE, and the cache was never a disk problem (2026-08-04)
+
+Landing lane for one branch, `wt-w-gc`, merged onto `master` as **`c72a2a6`**
+(2 commits, +398/−19 across 4 files, all in `crates/c2-harness`). Re-gated on the
+merged tree. Two of its findings are of general interest beyond the cache, which
+is why they get a section rather than only a merge message.
+
+### The race was not theoretical — it was destroying IL bundles under the gate we run most
+
+The per-key lock was `Mutex<HashMap<String, Arc<Mutex<()>>>>`: an **in-process**
+structure guarding a **filesystem** resource. That is sound only while no two
+*processes* can compute the same key, and the usual reading — "every lane has its
+own cache root, and `cache-root` is in the key, so collisions are impossible" —
+was already false in-tree. **`scripts/gate.sh --jobs N` runs N separate `c2rs`
+processes against one cache root.** The `HashMap` cannot see across them.
+
+The blast radius is worse than a torn read, because
+`capture_reference_with` **deletes every `_CL_*` file in its work dir on entry**.
+A colliding second process therefore does not merely interleave output with the
+first — it *destroys the first's live IL bundle* mid-capture. Downstream that
+surfaces as a truncated `out.obj` read back as a hit, i.e. a **false `mismatch`:
+an alarm pointing at the port while the port is fine.** This is the failure mode
+the whole differential apparatus is built to make trustworthy, arriving through
+the one seam nobody was grading.
+
+Replaced with an `O_EXCL` lockfile at `<root>/.locks/<key>` (`File::create_new`,
+RAII `Drop`, stale-break at 30 min so one `SIGKILL` cannot poison a key forever).
+It guards threads and processes alike, so the `HashMap` is **subsumed**, not
+merely replaced — and that map also grew unboundedly, one `Arc` per key, ~945k of
+them on the main cache. **Fail-open on every error path**: `acquire()` returning
+`None` proceeds unguarded, which is *exactly* the pre-existing behaviour, so the
+worst case is a scan that degrades rather than one that wedges.
+
+`LOCK_DIR` is `pub` because it breaks the one invariant consumers encode — "every
+child of the cache root is a 32-hex entry". The integration test now excludes it
+**by name** rather than by "skip anything dotted", so a *new* stray directory
+still fails that assert instead of being quietly tolerated. **Any age GC over the
+root must skip it too**: those files are live cross-process locks, and deleting
+one on age grounds silently un-guards a key.
+
+### The `cwd` spelling was aliasing two different directories onto one key
+
+`key_material` stringified `cwd` without canonicalizing it, while `cache-root`
+right next to it **is** canonicalized. That asymmetry is not just a
+duplication-of-entries problem. A relative `--cwd` resolves against the **`c2rs`
+process's own working directory**, so the identical string `../dc3-decomp` names
+a *different directory in every worktree* — keying over the raw spelling aliased
+two genuinely different inputs onto one key. It was invisible only because
+`cache-root` differed per lane and separated them downstream, which is precisely
+the separation the shared root below removes.
+
+The soundness precondition — that the cwd's *spelling* never reaches the captured
+bytes — is **not asserted in a comment**; it is held to the real toolchain.
+`two_spellings_of_one_cwd_capture_identical_bytes` captures one TU under two
+spellings of one directory into the **same** output dir, so `-Fo` is constant and
+the spelling is the only variable, and requires `compare_captures` to agree. It
+passes. The unit test checks the other direction too: two different directories
+with byte-identical contents must still key **differently** — canonicalization
+must fold spellings without folding directories.
+
+### One cache root per repo, resolved in code and deliberately not as an env var
+
+`repo_root()` is `CARGO_MANIFEST_DIR`, resolved at **compile time**, so a binary
+built inside `.claude/worktrees/<lane>` reports *that worktree* as the repo root.
+For provenance that is right — the reader wants to know which tree was measured.
+For the capture-cache default it is how **50 caches** came to exist holding
+**3,996,458 entries**, three of them independent copies of one 530k-entry sweep,
+stored separately only because `cache-root` is in the key and their roots
+differed. `provenance::main_repo_root()` reads a linked worktree's `.git` *file*
+(`gitdir: <main>/.git/worktrees/<name>`, three parents up) and falls back to
+`repo_root()` on **every** failure, so it can only ever collapse a worktree onto
+its parent and never point somewhere unrelated. `C2RS_GAP_CACHE` still overrides;
+the main-repo case is byte-identical to before.
+
+**Why in code rather than exported from a shell profile**, which is the obvious
+alternative and is wrong: sharing a root is what first makes concurrent same-key
+captures *possible*, and a lockfile only guards binaries that **have** it. An
+environment variable would have pointed every already-built lane binary at the
+shared root on its next run, lock or no lock, with no way to sequence the two.
+Resolving it in code ties the sharing and the guard to the same build — a lane on
+an old binary keeps its own root and its old behaviour, and picks up both
+together when it rebuilds. Monotone rollout instead of a flag day.
+
+### The `~266 GB` estimate is WRONG, and the correction generalizes
+
+**Do not repeat the figure.** Deleting **98.7 % of 4,940,000 entries** returned
+only **~17 GiB** to `df` — not the ~266 GB the cleanup brief projected, a miss of
+more than an order of magnitude.
+
+Three compounding reasons, each of which will recur:
+
+1. **The estimate came from `du -s`, which reports blocks × 512** and so rounds
+   every file up to the 4 KB block. The cache's files are **~850 B each**. On a
+   corpus of millions of sub-block files, `du` is not a noisy estimate of bytes —
+   it is measuring a different quantity, and it overstates by ~5×.
+2. **btrfs *inlines* files under `max_inline`** directly into metadata. Files
+   that small never occupy a data extent at all, so the data-space saving from
+   deleting them is close to zero by construction.
+3. Therefore **the caches were an inode/metadata problem, not a data problem.**
+   The cost was never the bytes; it was millions of metadata records and the
+   directory-walk time over them — which is also why the constraint that matters
+   is "never recursively walk `work/capture-cache`", not "watch the disk".
+
+And the check that would have caught it **also could not have**: `df -i` reports
+nothing useful on btrfs, which has **no fixed inode table**. So the brief's
+suggested verification was unavailable on the filesystem it was written for.
+This is a **recurrence, not a first** — §6s already records that "tmpfs inode
+exhaustion presents as `ENOSPC` with tens of GB free — the sweep lanes exhaust
+`/tmp`'s fixed inode count, and **two independent agents misread it as disk
+space**." Same confusion, opposite direction: there a metadata limit was read as
+a space limit, here a metadata cost was priced as a space cost. **A
+space-shaped number is not evidence of a space-shaped problem** — check what the
+tool actually counts (`du`: blocks; `df`: extents; `df -i`: an inode table that
+btrfs does not have) before believing any of them.
+
+**Where this correction lives.** The brief directed it to
+`docs/CAPTURE_CACHE_DESIGN.md`, "corrected in place with a note". **That file does
+not exist**, and `git grep` finds `266 GB` nowhere in the tracked tree — the
+estimate lived only in the cleanup lane's own working notes. There was no
+in-place edit to make, so it is recorded here instead. Noted rather than silently
+skipped, because "corrected in place" and "recorded in the section that refutes
+it" are different states and a later reader should not go looking for the former.
+
+### Re-gate of the merged tree
+
+Run against the merge, not against the branch — the gate log's harness banner
+reads `tree c72a2a6`, which is the merge commit.
+
+| gate | result |
+|---|---|
+| `cargo test --workspace --release` | **665 passed, 0 failed**, 24 targets |
+| `scripts/gate.sh --jobs 6` | **12/12 PASS**, 0 FAIL/SKIP/NO-RESULT, **2,592** fixture-verdicts, **mismatch 0** |
+| 878-TU workload scan | **match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7** |
+| warm `--validate-cache 1` | **216 hit, 0 miss**, **216 re-captured and AGREED**, **0 POISONED**, mismatch 0 |
+
+The fourth row is the one this lane owes. A cache change that silently served
+*wrong bytes* would leave the other three green — a poisoned hit is
+indistinguishable from a real capture until something re-captures and compares —
+and it would invalidate every other number in the project. All 216 agreed only
+after zeroing the COFF `TimeDateStamp`, which is the documented and expected
+reading, not a weakening.
+
+**The workload checkout did not move this time.** `../dc3-decomp` was
+`86357b58` **before and after** the scan — the same commit as at w-land2's
+landing, ending a run of five consecutive sessions in which it moved between
+lanes. `capture-fail 7` is the good-tree reading, so the scan is admissible. The
+capture cache read **871 hit / 7 miss**: the shared root resolved to
+`<main-repo>/work/capture-cache` and the run was warm, which is itself the first
+confirmation that `main_repo_root()` does what it claims from the main repo. The
+`.locks` directory was created during the run and held **0 files** afterwards,
+so the RAII drop released every lock it took.
+
+No tracked metric moved, so `docs/STATUS.md` is unchanged — this lane hardened
+the seam every one of those numbers is measured *through* without moving any of
+them, which is the intended outcome.
+
+### Board rows minted here
+
+**#181** (the capture-seam hardening, DONE) and **#182** (the disk-accounting
+refutation, REFUTED). The next free board number is **183**.
