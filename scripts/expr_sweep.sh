@@ -42,11 +42,46 @@
 # "one rule, two implementations" shape `docs/GAPS.md` §6 keeps recording.
 #
 # Usage:  scripts/expr_sweep.sh [outdir] [max-cases]
-#         scripts/expr_sweep.sh /tmp/sweep 400     # a quick subset
+#         scripts/expr_sweep.sh /tmp/sweep 400     # a STRIDED subset, see below
 #         C2RS_SWEEP_ONLY=fp scripts/expr_sweep.sh # only fragments matching "fp"
+#         C2RS_SWEEP_JOBS=8 scripts/expr_sweep.sh  # grade 8 cases at a time
 #
 # `C2RS_SWEEP_ONLY` is for iterating on one axis; it makes the total meaningless
 # by design, so the driver says so out loud and any gate run must be unfiltered.
+#
+# ---- `max-cases` is a STRIDE, not a prefix (changed 2026-08-04) ----------------
+#
+# It used to be `head -n N` over `cases.txt`, which is sorted by fragment name — so
+# a "quick subset" was **the alphabetically first fragments and nothing else**.
+# Measured on today's corpus: `head -400` covers **1 of the 47 fragments**, and the
+# case that carried board #232 — the live `Port=Mismatch` this sweep found — is
+# **line 9,538 of 14,484**. So every prefix under 66 % of the corpus, i.e. every
+# subset small enough to be worth taking, was STRUCTURALLY BLIND to it. A biased
+# sample of an enumeration defeats the only property the enumeration has
+# (`docs/GAPS.md`: a hand-picked corpus is biased toward the shapes whoever picked
+# it was thinking about — and a prefix of a sorted list is hand-picked by the sort).
+#
+# So `N` now selects every `ceil(total/N)`-th case, which keeps every fragment
+# represented in proportion: the same budget of 400 reaches **46 of 47** fragments
+# (the missing one, `52-callee-name`, is smaller than the stride — a sample is
+# still a sample, and this is the honest count, not "all of them"). It cannot
+# establish what a full run establishes; `scripts/gate.sh` therefore refuses to
+# print an unqualified PASS over one.
+#
+# ---- grading is PARALLEL --------------------------------------------------------
+#
+# Each case is an independent `c2rs diff`; nothing is shared but the capture cache,
+# which has been cross-process safe since board #181 (an `O_EXCL` lockfile per key,
+# fail-open). MEASURED here 2026-08-04, 14,484 cases, warm cache, 32-core host —
+# **9 min 51 s serial, 1 min 26 s at `C2RS_SWEEP_JOBS=8`**, with `checked=14484
+# mismatches=0` from both. That cost is the whole reason the biased `max-cases`
+# knob existed and the whole reason this sweep was not in the merge gate while
+# #232 survived 241 commits; at 8 jobs it is affordable unconditionally, so the
+# argument for leaving it out is spent.
+#
+# Workers write per-worker count and mismatch files and the driver SUMS THE COUNTS:
+# a worker that dies contributes a short count and the reconciliation below fails,
+# rather than contributing a silence that reads as zero.
 #
 # Needs the toolchain (see CLAUDE.md); without it every case reports SKIP and the
 # sweep is vacuous, so it checks for that up front.
@@ -100,8 +135,10 @@ python3 "$repo_root/scripts/sweep_gen.py" "$out" "$repo_root/scripts/sweep.d"
 
 ls "$out"/*.cpp | sort > "$out/cases.txt"
 total=$(wc -l < "$out/cases.txt")
-if [ "$limit" -gt 0 ] 2>/dev/null; then
-    head -n "$limit" "$out/cases.txt" > "$out/cases.run"
+stride=1
+if [ "$limit" -gt 0 ] 2>/dev/null && [ "$limit" -lt "$total" ]; then
+    stride=$(( (total + limit - 1) / limit ))
+    awk -v k="$stride" 'NR % k == 1 || k == 1' "$out/cases.txt" > "$out/cases.run"
 else
     cp "$out/cases.txt" "$out/cases.run"
 fi
@@ -114,19 +151,73 @@ if "$c2rs" diff "$first" 2>&1 | grep -q "SKIP"; then
     exit 0
 fi
 
-echo "sweeping $run of $total generated cases"
-mismatch=0
-checked=0
-while read -r f; do
-    checked=$((checked + 1))
-    verdict=$("$c2rs" diff "$f" 2>&1 | tail -1)
-    case "$verdict" in
-        *Mismatch*)
-            mismatch=$((mismatch + 1))
-            echo "MISMATCH  $(head -1 "$f")"
-            ;;
-    esac
-done < "$out/cases.run"
+jobs="${C2RS_SWEEP_JOBS:-4}"
+case "$jobs" in ''|*[!0-9]*) jobs=4 ;; esac
+[ "$jobs" -ge 1 ] || jobs=1
+
+if [ "$stride" -eq 1 ]; then
+    echo "sweeping $run of $total generated cases"
+else
+    echo "sweeping $run of $total generated cases (STRIDE $stride — a SAMPLE, not the corpus)"
+fi
+echo "  grading at $jobs job(s)"
+
+# Split into `jobs` chunks by line number, so every case lands in exactly one
+# worker and the chunk sizes are derivable from the case count alone.
+part="$out/parts"
+rm -rf "$part"; mkdir -p "$part"
+awk -v j="$jobs" -v d="$part" '{ print > (d "/chunk." ((NR - 1) % j)) }' "$out/cases.run"
+
+w=0
+while [ "$w" -lt "$jobs" ]; do
+    (
+        _n=0; _m=0
+        if [ -f "$part/chunk.$w" ]; then
+            while read -r f; do
+                _n=$((_n + 1))
+                verdict=$("$c2rs" diff "$f" 2>&1 | tail -1)
+                case "$verdict" in
+                    *Mismatch*)
+                        _m=$((_m + 1))
+                        # The FILE NAME first, then the source line. #232 took an
+                        # extra investigation because only the source line was
+                        # printed and ten cases share it — a mismatch you cannot
+                        # re-run is a mismatch somebody calls unreproducible.
+                        echo "MISMATCH  $f  |  $(head -1 "$f")" >> "$part/mismatch.$w"
+                        ;;
+                esac
+            done < "$part/chunk.$w"
+        fi
+        echo "$_n" > "$part/checked.$w"
+        echo "$_m" > "$part/mism.$w"
+    ) &
+    w=$((w + 1))
+done
+wait
+
+# Sum the workers' own counts. A worker killed mid-chunk writes no `checked.N` at
+# all, so the sum comes up short and the reconciliation below fails — the count
+# is the evidence the work happened, never the exit status (STATUS.md trap 5).
+checked=0; mismatch=0; reported=0
+w=0
+while [ "$w" -lt "$jobs" ]; do
+    if [ -f "$part/checked.$w" ]; then
+        checked=$((checked + $(cat "$part/checked.$w")))
+        reported=$((reported + 1))
+    fi
+    [ -f "$part/mism.$w" ] && mismatch=$((mismatch + $(cat "$part/mism.$w")))
+    w=$((w + 1))
+done
+cat "$part"/mismatch.* 2>/dev/null || true
+
+if [ "$checked" -ne "$run" ]; then
+    echo "checked=$checked mismatches=$mismatch"
+    echo "FATAL: selected $run cases and only $checked were graded" >&2
+    echo "  $reported of $jobs workers reported a count. A short count is a worker" >&2
+    echo "  that died; the cases it held were never graded and this run establishes" >&2
+    echo "  nothing about them." >&2
+    exit 3
+fi
 
 echo "checked=$checked mismatches=$mismatch"
 [ "$mismatch" -eq 0 ] || exit 1

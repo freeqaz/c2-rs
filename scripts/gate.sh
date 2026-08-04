@@ -49,11 +49,66 @@
 # `--selftest` proves all of the above against fabricated lane logs, needs no
 # toolchain, and is the answer to "has anyone ever seen this gate fail?".
 #
+# ---- the GENERATED SWEEP is part of this gate (2026-08-04) ----------------------
+#
+# `scripts/expr_sweep.sh` enumerates ~14.5k small TUs and grades every one against
+# the real `c2.dll`. Until today this file had **zero** references to it, and that
+# blindness is not theoretical: board **#232** was a live `Port=Mismatch` — a
+# refusal that had become a wrong emit, the one direction the correctness rule
+# exists to forbid — and it survived **255 commits** (`d0d8a98..be86f9d`, two
+# days) while every lane's gate run and every coordinator re-gate came back
+# green. Count it yourself before requoting it: the `376` on #232's row is the
+# BISECT RANGE from the last recorded green sweep, which starts before the defect
+# existed, and it is a different quantity from how long the defect survived. The 12 mode lanes grade hand-built
+# fixtures and `c2rs gap` grades workload TUs; **neither generates that shape.** A
+# check that runs when somebody remembers it is a check that does not run — the
+# same defect `lanes.txt` was written for, one level out.
+#
+# So the sweep is now a ROW in the table above, produced by the same
+# walk-and-count discipline as a lane and subject to the same rules:
+#
+#   * It runs UNCONDITIONALLY. There is no `--no-sweep`; an omittable check is an
+#     omitted check, and this project has twelve recorded instances of an absence
+#     reading as a success.
+#   * Its POSITIVE check is re-derived here, not believed. The sweep prints
+#     `sweeping R of T generated cases` (and `sweep_gen.py` has already reconciled
+#     T against the `.cpp` on disk) and then `checked=C mismatches=M`. **This gate
+#     fails unless `C == R`** — a run that graded fewer cases than it selected is a
+#     dead worker, not a pass, and `M == 0` over `C == 0` is the vacuous green the
+#     whole file exists to forbid.
+#   * `--sweep-cases N` is the only way to grade less than the whole corpus, and a
+#     sampled run **cannot print an unqualified PASS** — the verdict reads
+#     `GATE: PASS (SWEEP SAMPLED)` and says what it did not establish, exactly as
+#     `GATE: SKIPPED` does. The sample is a STRIDE across the sorted case list, not
+#     a prefix. Measured: a 400-case budget reaches **1 of 47 fragments** as a
+#     prefix and **46 of 47** as a stride, and #232's case is **line 9,538 of
+#     14,484** — a prefix cheap enough to want was blind to it by construction.
+#   * The sweep grades the SAME PINNED BINARY as the lanes (`C2RS_BIN`), so the
+#     table is one run of one binary rather than two runs that might not be.
+#   * `C2RS_SWEEP_ONLY` is unset for the gate's run. It filters fragments and makes
+#     the total meaningless by design; a gate over a filtered corpus is not a gate.
+#
+# COST, measured on this box 2026-08-04 (32 cores, warm capture cache), and it is
+# the whole basis of the "unconditional" decision:
+#
+#     12 lanes alone, --jobs 8                      7 s
+#     sweep alone, serial (as it was written)   9 min 51 s
+#     sweep alone, --jobs 8                     1 min 26 s
+#     THIS GATE, --jobs 8                       1 min 34 s
+#
+# Both sweep runs printed `checked=14484 mismatches=0` — the parallel split is an
+# equivalence, not an approximation. Every case is an independent `c2rs diff` and
+# the loop was serial for no reason. **Parallelising it is what makes
+# "unconditional" affordable: the trade-off was resolved by removing the cost, not
+# by making the check optional.**
+#
 # ---- usage ---------------------------------------------------------------------
 #
-#   scripts/gate.sh                       run every lane in the registry
+#   scripts/gate.sh                       run every lane in the registry + the sweep
 #   scripts/gate.sh --lane O1-Oi-EHsc     run named lanes only (repeatable)
-#   scripts/gate.sh --jobs 4              lanes in parallel (default 4)
+#   scripts/gate.sh --jobs 4              lanes in parallel (default 4); also the
+#                                         sweep's grading concurrency
+#   scripts/gate.sh --sweep-cases 400     STRIDED subset — never an unqualified PASS
 #   scripts/gate.sh --list                print the registry and exit
 #   scripts/gate.sh --check               validate the registry only; no toolchain
 #   scripts/gate.sh --selftest            prove the gate fails when it should
@@ -72,6 +127,7 @@ jobs=4
 work=""
 want=""
 mode=run
+sweep_cases=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -80,6 +136,7 @@ while [ $# -gt 0 ]; do
         --selftest) mode=selftest ;;
         --lane)     shift; want="$want $1" ;;
         --jobs)     shift; jobs="$1" ;;
+        --sweep-cases) shift; sweep_cases="$1" ;;
         --work)     shift; work="$1" ;;
         --registry) shift; registry="$1" ;;
         -h|--help)  sed -n '2,/^set -eu$/p' "$0" | sed '$d'; exit 0 ;;
@@ -199,6 +256,78 @@ lane_verdict() {
 }
 
 # --------------------------------------------------------------------------------
+# Verdict for the GENERATED SWEEP, derived from its log. Same contract as
+# `lane_verdict`: a pure function of the log text, so `--selftest` drives it with
+# fabricated logs and no toolchain.
+#
+# The sweep's own positive check is RE-DERIVED here rather than believed. It prints
+#
+#     sweeping 14484 of 14484 generated cases      <- selected R of generated T
+#     checked=14484 mismatches=0                   <- graded C, found M
+#
+# and `sweep_gen.py` has already failed the run if T disagreed with the `.cpp` on
+# disk. This function's job is the next link: **C must equal R.** A sweep whose
+# workers died grades fewer cases than it selected and still prints
+# `mismatches=0`, which is the exact shape of a green from an absence.
+#
+# Emits: <verdict>|<checked>|<selected>|<total>|<mismatch>|<detail>
+# --------------------------------------------------------------------------------
+sweep_verdict() {
+    _sv_log="$1"; _sv_status="${2:-}"
+
+    if [ ! -f "$_sv_log" ]; then
+        echo "NO-RESULT|0|0|0|0|the sweep produced no log at all"
+        return 0
+    fi
+    # SKIP is the toolchain-absent path and is the ONLY path allowed to have no
+    # counts. It is checked first so a skipped run is never read as malformed.
+    if grep -q '^SKIP: toolchain absent' "$_sv_log" 2>/dev/null; then
+        echo "SKIP|0|0|0|0|toolchain absent"
+        return 0
+    fi
+
+    _sv_sel=$(sed -n 's/^sweeping \([0-9][0-9]*\) of \([0-9][0-9]*\) generated cases.*/\1/p' "$_sv_log" | head -1)
+    _sv_tot=$(sed -n 's/^sweeping \([0-9][0-9]*\) of \([0-9][0-9]*\) generated cases.*/\2/p' "$_sv_log" | head -1)
+    _sv_c=$(sed -n 's/^checked=\([0-9][0-9]*\) mismatches=\([0-9][0-9]*\).*/\1/p' "$_sv_log" | head -1)
+    _sv_m=$(sed -n 's/^checked=\([0-9][0-9]*\) mismatches=\([0-9][0-9]*\).*/\2/p' "$_sv_log" | head -1)
+
+    # Both lines must be PRESENT. A missing `sweeping` line is a run whose corpus
+    # never got enumerated; a missing `checked=` line is a run that died. Neither
+    # is a run that found nothing.
+    if [ -z "$_sv_sel" ] || [ -z "$_sv_tot" ]; then
+        echo "NO-RESULT|0|0|0|0|log has no 'sweeping R of T' line (exit ${_sv_status:-?})"
+        return 0
+    fi
+    if [ -z "$_sv_c" ] || [ -z "$_sv_m" ]; then
+        echo "NO-RESULT|0|$_sv_sel|$_sv_tot|0|log has no 'checked=' line (exit ${_sv_status:-?})"
+        return 0
+    fi
+
+    if [ "$_sv_c" -ne "$_sv_sel" ]; then
+        echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|SHORT — selected $_sv_sel cases, graded $_sv_c"
+        return 0
+    fi
+    if [ "$_sv_c" -eq 0 ]; then
+        echo "FAIL|0|$_sv_sel|$_sv_tot|$_sv_m|vacuous — 0 cases graded"
+        return 0
+    fi
+    if [ "$_sv_m" -ne 0 ]; then
+        echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|MISMATCH — the port emitted wrong bytes on $_sv_m case(s)"
+        return 0
+    fi
+    if [ "$_sv_sel" -lt "$_sv_tot" ]; then
+        echo "SAMPLED|$_sv_c|$_sv_sel|$_sv_tot|0|a STRIDED sample, not the corpus"
+        return 0
+    fi
+    if [ "${_sv_status:-0}" != "0" ]; then
+        echo "FAIL|$_sv_c|$_sv_sel|$_sv_tot|$_sv_m|graded every case cleanly but exited $_sv_status"
+        return 0
+    fi
+    echo "PASS|$_sv_c|$_sv_sel|$_sv_tot|0|"
+    return 0
+}
+
+# --------------------------------------------------------------------------------
 # Walk the REGISTRY (never the directory listing) and produce one row per lane.
 # --------------------------------------------------------------------------------
 collect() {
@@ -214,7 +343,7 @@ collect() {
 }
 
 decide() {
-    _d_reg="$1"; _d_res="$2"; _d_run="${3:-}"
+    _d_reg="$1"; _d_res="$2"; _d_run="${3:-}"; _d_sw="${4:-}"; _d_filt="${5:-}"
     _d_n=$(wc -l < "$_d_reg")
     _d_rows=$(wc -l < "$_d_res")
 
@@ -226,6 +355,29 @@ decide() {
         printf "%-20s %-10s %6s/%-6s %6s %9s  %s%s\n", $1, f[1], f[2], f[3], f[4], f[5],
                $2, (f[6] == "" ? "" : "   <- " f[6])
     }' "$_d_res"
+
+    # The sweep is a row of this table, not a note beside it. **An ABSENT verdict
+    # is a failure**, and it is checked before anything else about the lanes: a
+    # gate that forgot to run the sweep is the state this whole addition exists to
+    # make impossible, and it must not be able to reach a PASS line below.
+    if [ -z "$_d_sw" ]; then
+        echo
+        echo "GATE: FAIL — no sweep verdict was produced at all."
+        echo "  \`scripts/expr_sweep.sh\` is part of this gate (board #232). A run that"
+        echo "  cannot say what the sweep did establishes nothing the sweep covers,"
+        echo "  and the 12 mode lanes do not generate the shapes it grades."
+        return 1
+    fi
+    _d_swv=$(printf '%s\n' "$_d_sw" | cut -d'|' -f1)
+    _d_swc=$(printf '%s\n' "$_d_sw" | cut -d'|' -f2)
+    _d_swsel=$(printf '%s\n' "$_d_sw" | cut -d'|' -f3)
+    _d_swtot=$(printf '%s\n' "$_d_sw" | cut -d'|' -f4)
+    _d_swm=$(printf '%s\n' "$_d_sw" | cut -d'|' -f5)
+    _d_swd=$(printf '%s\n' "$_d_sw" | cut -d'|' -f6)
+    printf "%-20s %-10s %6s/%-6s %6s %9s  %s%s\n" \
+        "expr-sweep" "$_d_swv" "$_d_swc" "$_d_swsel" "-" "$_d_swm" \
+        "generated cases (of $_d_swtot)" \
+        "$([ -z "$_d_swd" ] && echo "" || echo "   <- $_d_swd")"
     echo
 
     # COMPLETENESS FIRST, and as its own statement. If the table has fewer rows
@@ -247,7 +399,33 @@ decide() {
 
     echo "lanes:  $_d_n in the registry — $_d_pass PASS, $_d_fail FAIL, $_d_skip SKIP, $_d_none NO-RESULT"
     echo "graded: $_d_graded fixture-verdicts across all lanes"
-    if [ -n "$_d_run" ] && [ -d "$_d_run" ]; then echo "logs:   $_d_run/<lane>.log"; fi
+    echo "sweep:  $_d_swv — $_d_swc of $_d_swsel selected cases graded, $_d_swm mismatch (corpus $_d_swtot)"
+    if [ -n "$_d_run" ] && [ -d "$_d_run" ]; then echo "logs:   $_d_run/<lane>.log, $_d_run/sweep.log"; fi
+
+    # The sweep's failures are ruled on FIRST when they carry a mismatch, because a
+    # mismatch outranks every other piece of work (CLAUDE.md) and burying it under
+    # a lane table is how it goes unread.
+    if [ "$_d_swv" = "FAIL" ]; then
+        echo
+        echo "GATE: FAIL — the generated sweep failed: $_d_swd"
+        if [ "$_d_swm" -gt 0 ]; then
+            echo
+            echo "  *** A MISMATCH IS AN ALARM AND OUTRANKS EVERY OTHER PIECE OF WORK. ***"
+            echo "  The real c2.dll under wibo plus a byte-exact obj compare is the sole"
+            echo "  judge; outside its class the port must REFUSE, not mis-emit."
+            if [ -n "$_d_run" ] && [ -f "$_d_run/sweep.log" ]; then
+                grep '^MISMATCH ' "$_d_run/sweep.log" | sed 's/^/    /'
+            fi
+        fi
+        return 1
+    fi
+    if [ "$_d_swv" = "NO-RESULT" ]; then
+        echo
+        echo "GATE: FAIL — the generated sweep produced NO RESULT: $_d_swd"
+        echo "  A sweep that did not run is a failure, not a pass. Nothing in this run"
+        echo "  establishes anything about the ~$_d_swtot generated shapes it covers."
+        return 1
+    fi
 
     if [ "$_d_none" -gt 0 ]; then
         echo
@@ -272,8 +450,19 @@ decide() {
     fi
 
     if [ "$_d_skip" -eq "$_d_n" ]; then
+        # Toolchain absence must skip the sweep too. If it did not, one of the two
+        # resolved a toolchain the other could not, which is a fault in the
+        # resolution, not a degradation — and it is exactly the partial-skip rule
+        # applied across the two halves of the gate instead of across the lanes.
+        if [ "$_d_swv" != "SKIP" ]; then
+            echo
+            echo "GATE: FAIL — all $_d_n lanes skipped but the sweep reported $_d_swv."
+            echo "  Toolchain absence skips EVERYTHING. One half resolving a toolchain the"
+            echo "  other half could not is a fault in the resolution."
+            return 1
+        fi
         echo
-        echo "GATE: SKIPPED — all $_d_n lanes skipped, NOTHING WAS GRADED."
+        echo "GATE: SKIPPED — all $_d_n lanes and the sweep skipped, NOTHING WAS GRADED."
         echo "  The toolchain is absent (see CLAUDE.md); this exits 0 by design and is"
         echo "  NOT a green gate. This run establishes nothing about the port."
         return 0
@@ -286,9 +475,40 @@ decide() {
         awk -F"$TAB" '{split($3,f,"|"); if (f[1]=="SKIP") printf "    %-20s %s\n", $1, $2}' "$_d_res"
         return 1
     fi
+    if [ "$_d_swv" = "SKIP" ]; then
+        echo
+        echo "GATE: FAIL — $_d_pass lanes graded a corpus and the sweep skipped."
+        echo "  The lanes found a toolchain, so the sweep's absence is not a degradation."
+        return 1
+    fi
 
     echo
-    echo "GATE: PASS — $_d_pass/$_d_n lanes ran and every one of them graded a corpus."
+    # `--lane` filters the registry, and every check above then treats the filtered
+    # list AS the registry — which is right, and which also means a one-lane run
+    # can print `12/12 lanes ran` shaped exactly like a full gate. Same hole as an
+    # unqualified PASS over a sampled sweep, on the half that already existed.
+    if [ -n "$_d_filt" ]; then
+        echo "GATE: PASS (LANES FILTERED) — $_d_pass/$_d_n SELECTED lanes ran, out of"
+        echo "  $_d_filt in the registry. --lane is for iterating; this run says nothing"
+        echo "  about the lanes it did not run. Re-run without --lane before reporting."
+        if [ "$_d_swv" = "SAMPLED" ]; then
+            echo "  The sweep was also SAMPLED — $_d_swc of $_d_swtot generated cases."
+        fi
+        return 0
+    fi
+    if [ "$_d_swv" = "SAMPLED" ]; then
+        # A sample is a legitimate way to iterate and an illegitimate way to
+        # report. It exits 0 and it does NOT get to print an unqualified PASS —
+        # same treatment as GATE: SKIPPED, for the same reason.
+        echo "GATE: PASS (SWEEP SAMPLED) — $_d_pass/$_d_n lanes ran and every one of them"
+        echo "  graded a corpus, but the sweep graded only $_d_swc of $_d_swtot generated cases."
+        echo "  A strided sample is unbiased across fragments and is still a sample: this"
+        echo "  run does NOT establish what a full sweep establishes. Re-run without"
+        echo "  --sweep-cases before reporting or landing."
+        return 0
+    fi
+    echo "GATE: PASS — $_d_pass/$_d_n lanes ran and every one of them graded a corpus,"
+    echo "  and the sweep graded $_d_swc of $_d_swtot generated cases with 0 mismatches."
     return 0
 }
 
@@ -302,7 +522,9 @@ parse_registry "$registry" "$reg"
 # `--lane` filters the registry, and the filtered list then IS the registry for
 # every check above — so `--lane` naming nothing is an empty registry and a hard
 # error, never a run of zero lanes that exits 0.
+filtered=""
 if [ -n "$want" ]; then
+    filtered=$(wc -l < "$reg")
     sel="$work/selected.tsv"; : > "$sel"
     for w in $want; do
         if ! awk -F"$TAB" -v w="$w" '$1==w{found=1} END{exit !found}' "$reg"; then
@@ -343,6 +565,10 @@ if [ "$mode" = selftest ]; then
     fails=0
     cases=0
     CASE_DIR=""
+    # The sweep verdict every lane case is driven with, so those cases keep testing
+    # exactly what they tested before. Sweep-specific cases override it.
+    SWEEP_OK='PASS|14484|14484|14484|0|'
+    SWEEP_FOR_CASE="$SWEEP_OK"
 
     check_that() {  # <label> <ok?0/1>
         if [ "$2" -eq 0 ]; then
@@ -372,9 +598,10 @@ if [ "$mode" = selftest ]; then
         done
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         _rc_got=PASS
-        if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" > "$CASE_DIR/out.txt" 2>&1; then
+        if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_FOR_CASE" > "$CASE_DIR/out.txt" 2>&1; then
             _rc_got=FAIL
         fi
+        SWEEP_FOR_CASE="$SWEEP_OK"
         _rc_hdl=$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo 'GATE: <none printed>')
         cases=$((cases + 1))
         if [ "$_rc_got" = "$_rc_want" ]; then
@@ -415,18 +642,130 @@ if [ "$mode" = selftest ]; then
     run_case lane-B-lies-with-mismatch   FAIL "A=$P" "B=$L2"
     run_case both-absent-is-not-a-skip   FAIL "A=MISSING" "B=MISSING"
 
+    SWEEP_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
     run_case all-skip PASS "A=$S" "B=$S"
     saw    'GATE: SKIPPED' 'all-skip says SKIPPED and that nothing was graded'
     saw_no 'GATE: PASS'    'all-skip never says PASS'
 
     run_case partial-skip FAIL "A=$P" "B=$S"
 
+    # ---- the SWEEP row (board #232) --------------------------------------------
+    # Every one of these drives the real `sweep_verdict` + `decide` path. The gate
+    # had ZERO references to the sweep until 2026-08-04, and a check nobody has
+    # seen fail is not evidence of anything.
+
+    sweep_case() {  # <name> <PASS|FAIL> <log-body-or-MISSING> [exit-status]
+        _sc_name="$1"; _sc_want="$2"; _sc_body="$3"; _sc_st="${4:-0}"
+        CASE_DIR="$st/$_sc_name"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+        printf '%s\n' "$P" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+        printf '%s\n' "$P" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+        if [ "$_sc_body" = MISSING ]; then
+            rm -f "$CASE_DIR/sweep.log"
+        else
+            printf '%s\n' "$_sc_body" > "$CASE_DIR/sweep.log"
+        fi
+        _sc_v=$(sweep_verdict "$CASE_DIR/sweep.log" "$_sc_st")
+        collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+        _sc_got=PASS
+        if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$_sc_v" \
+                > "$CASE_DIR/out.txt" 2>&1; then
+            _sc_got=FAIL
+        fi
+        _sc_hdl=$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo 'GATE: <none printed>')
+        cases=$((cases + 1))
+        if [ "$_sc_got" = "$_sc_want" ]; then
+            printf '  ok    %-32s %s\n' "$_sc_name" "$_sc_hdl"
+        else
+            printf '  FAIL  %-32s wanted %s, got %s — %s\n' \
+                "$_sc_name" "$_sc_want" "$_sc_got" "$_sc_hdl"
+            fails=$((fails + 1))
+        fi
+    }
+
+    SW_FULL='sweeping 14484 of 14484 generated cases
+checked=14484 mismatches=0'
+    SW_MISM='sweeping 14484 of 14484 generated cases
+MISMATCH  /t/62-ctor-base-delegation-0032.cpp  |  struct Bd { Bd(); ~Bd(); int b0; };
+checked=14484 mismatches=1'
+    SW_SHORT='sweeping 14484 of 14484 generated cases
+checked=9107 mismatches=0'
+    SW_VAC='sweeping 0 of 14484 generated cases
+checked=0 mismatches=0'
+    SW_SAMP='sweeping 400 of 14484 generated cases (STRIDE 37 — a SAMPLE, not the corpus)
+checked=400 mismatches=0'
+    SW_NOCOUNT='sweeping 14484 of 14484 generated cases'
+    SW_NOSWEEP='checked=14484 mismatches=0'
+    SW_SKIP='SKIP: toolchain absent — the sweep would be vacuous'
+
+    sweep_case sweep-clean            PASS "$SW_FULL"
+    saw 'GATE: PASS' 'a full clean sweep does say PASS'
+    saw '14484 of 14484' 'the PASS line carries the sweep COUNT, not just a status'
+
+    sweep_case sweep-mismatch         FAIL "$SW_MISM" 1
+    saw 'ALARM' 'a sweep mismatch raises the alarm banner'
+    saw '62-ctor-base-delegation-0032' 'the failing CASE is named, by file'
+
+    sweep_case sweep-short-count      FAIL "$SW_SHORT"
+    saw 'SHORT' 'grading fewer cases than were selected is a FAIL, not a pass'
+
+    sweep_case sweep-vacuous          FAIL "$SW_VAC"
+    sweep_case sweep-no-checked-line  FAIL "$SW_NOCOUNT" 137
+    saw 'NO RESULT' 'a sweep that died mid-run is NO RESULT, not 0 mismatches'
+
+    sweep_case sweep-no-sweeping-line FAIL "$SW_NOSWEEP"
+    saw 'NO RESULT' 'a checked= line with no corpus count is not a result'
+
+    sweep_case sweep-log-missing      FAIL MISSING
+    sweep_case sweep-clean-but-exit-1 FAIL "$SW_FULL" 1
+
+    sweep_case sweep-sampled          PASS "$SW_SAMP"
+    saw    'SWEEP SAMPLED' 'a sampled sweep says so in the headline'
+    saw_no '^GATE: PASS —' 'a sampled sweep never prints an unqualified PASS'
+
+    # Lanes green, sweep skipped: the partial-skip rule across the gate's halves.
+    sweep_case sweep-skip-while-lanes-ran FAIL "$SW_SKIP"
+
+    # And the one this whole addition exists for: no sweep verdict AT ALL must
+    # fail, even with every lane green. This is the pre-2026-08-04 gate.
+    CASE_DIR="$st/sweep-absent"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+    printf '%s\n' "$P" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+    printf '%s\n' "$P" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+    collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+    cases=$((cases + 1))
+    if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "" > "$CASE_DIR/out.txt" 2>&1; then
+        printf '  FAIL  %-32s a run with NO sweep verdict PASSED\n' sweep-absent
+        fails=$((fails + 1))
+    else
+        printf '  ok    %-32s %s\n' sweep-absent "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt")"
+    fi
+
+    # A --lane-filtered run is a legitimate way to iterate and an illegitimate way
+    # to report, exactly like a sampled sweep.
+    CASE_DIR="$st/lanes-filtered"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+    printf '%s\n' "$P" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+    printf '%s\n' "$P" > "$CASE_DIR/B.log"; echo 0 > "$CASE_DIR/B.status"
+    collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+    cases=$((cases + 1))
+    if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" 12 \
+            > "$CASE_DIR/out.txt" 2>&1; then
+        if grep -q 'LANES FILTERED' "$CASE_DIR/out.txt" \
+           && ! grep -q '^GATE: PASS —' "$CASE_DIR/out.txt"; then
+            printf '  ok    %-32s %s\n' lanes-filtered "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt")"
+        else
+            printf '  FAIL  %-32s a --lane run printed an unqualified PASS\n' lanes-filtered
+            fails=$((fails + 1))
+        fi
+    else
+        printf '  FAIL  %-32s a --lane run over green lanes did not exit 0\n' lanes-filtered
+        fails=$((fails + 1))
+    fi
+
     # The completeness assertion itself: a table short a row must fail even when
     # every row it does contain is a PASS.
     CASE_DIR="$st/short-table"; mkdir -p "$CASE_DIR"
     printf 'A\t/O1\tPASS|197|197|91|0|\n' > "$CASE_DIR/results.tsv"
     cases=$((cases + 1))
-    if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" > "$CASE_DIR/out.txt" 2>&1; then
+    if decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_OK" > "$CASE_DIR/out.txt" 2>&1; then
         printf '  FAIL  %-32s a 1-row table for a 2-lane registry PASSED\n' short-table
         fails=$((fails + 1))
     else
@@ -487,7 +826,10 @@ if [ "$mode" = selftest ]; then
     fi
 
     echo
-    if [ "$cases" -lt 15 ]; then
+    # The floor was 15 when the gate covered lanes only; the sweep row adds 12.
+    # It is a floor on the COUNT, per the standing mitigation — compare a count,
+    # never a status — and it must be raised whenever cases are added.
+    if [ "$cases" -lt 27 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -548,4 +890,24 @@ elapsed=$(( $(date +%s) - started ))
 collect "$reg" "$work" "$work/results.tsv"
 echo
 echo "wall clock: ${elapsed}s for $nlanes lanes at --jobs $jobs (C2RS_JOBS=$C2RS_JOBS)"
-decide "$reg" "$work/results.tsv" "$work"
+
+# --------------------------------------------------------------------------------
+# The generated sweep — the other half of this gate (board #232).
+#
+# Run AFTER the lanes so a fast lane failure is on screen first, and always: there
+# is no path through this file that reaches `decide` without a sweep verdict.
+# `C2RS_BIN` is already exported, so `pin_harness` inside the sweep takes the
+# gate's pinned copy and the two halves provably grade one binary.
+# --------------------------------------------------------------------------------
+unset C2RS_SWEEP_ONLY          # a filtered corpus is not a gate; see the header
+export C2RS_SWEEP_JOBS="$jobs"
+sweep_out="$work/sweep"
+echo
+echo "generated sweep: scripts/expr_sweep.sh $sweep_out ${sweep_cases}  (jobs $jobs)"
+sw_status=0
+sh "$repo_root/scripts/expr_sweep.sh" "$sweep_out" "$sweep_cases" \
+    > "$work/sweep.log" 2>&1 || sw_status=$?
+tail -n 4 "$work/sweep.log" | sed 's/^/  /'
+sweep_res=$(sweep_verdict "$work/sweep.log" "$sw_status")
+
+decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered"

@@ -15,14 +15,14 @@ cost this project real work more than once.
 ## The numbers
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-04 · tree `88e5ff6` · binary `168f498ee11f` · workload `940d07dc`
+Collected 2026-08-04 · tree `26306ba` · binary `25605666f6b3` · workload `940d07dc`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 687 passed, 0 failed, 25 targets |
-| Oracle self-test (c2rs selftest) | 219 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 102 port Match, 0 mismatch, 117 not-implemented (of 219) |
-| Port speedup, geomean over matched fixtures | 567x geomean over matched fixtures |
+| Workspace tests (cargo test --workspace --release) | 706 passed, 0 failed, 25 targets |
+| Oracle self-test (c2rs selftest) | 225 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 106 port Match, 0 mismatch, 119 not-implemented (of 225) |
+| Port speedup, geomean over matched fixtures | 568x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7 |
 | Per-function census (driver, not target) | 706555/2463393 functions in class (28.68%) |
 | Emitted-function census | 38458/178975 emitted functions in class (21.49%) |
@@ -41,9 +41,9 @@ Collected 2026-08-04 · tree `88e5ff6` · binary `168f498ee11f` · workload `940
 ## The one-paragraph answer
 
 The **foundation is proven and fast**: standalone replay of the real `c2.dll` is
-byte-exact on all 871 capturable TUs of a real Xbox 360 game, the port is
-byte-exact everywhere it accepts, it refuses everywhere else, and **no run has
-ever recorded a mismatch**. The **payoff metric has moved for the first time**:
+byte-exact on all 871 capturable TUs of a real Xbox 360 game, and the port is
+byte-exact on every shape a standing instrument grades. The **payoff metric has
+moved for the first time**:
 TU match is **8/878**, up from a 6 that had held across a per-function census run
 from 4.45 % to 28.69 %. The two new TUs are
 `src/system/synth/tomcrypt/TomCryptLicense.cpp` and
@@ -55,6 +55,50 @@ the project's entire history moved by a path the census cannot see, which is als
 why §10.21 has to add a fifth term to §10.19's factorization. §8.1 still measures
 why the *ordinary* path is stuck, and the emit-set ceilings below still bound how
 far widening alone can ever take it.
+
+**Two sentences that stood in this paragraph until 2026-08-04 are RETRACTED, and
+the retraction is the most important thing on this page.** It read *"the port is
+byte-exact everywhere it accepts, it refuses everywhere else, and **no run has
+ever recorded a mismatch**"*. Both halves are false.
+
+* Board **#232** was a **live `Port=Mismatch` on master for 255 commits**
+  (`d0d8a98..be86f9d`, two days) — the `26`-separator widening turned a clean
+  refusal into a wrong emit, which is the one direction the correctness rule
+  exists to forbid. It was found by `scripts/expr_sweep.sh`, which **the merge
+  gate did not run**, so every lane gate and every coordinator re-gate in those
+  255 commits came back green over a defect none of them could see. Closed at
+  `be86f9d` by restoring the refusal — **not** by teaching the writer the shape,
+  which is Phase 7 work.
+* Board **#259** is **live on this tip right now**. `struct Bd{Bd();~Bd();int
+  b0;}; struct M:Bd{M();~M();}; struct D:M{D();}; D::D(){} M::~M(){}` reproduces
+  `Port=Mismatch @ offset 8`: the packed `.text` function order is not the `.ex`
+  segment order and the port assumes it is. That TU's `.gl` contains no `0x26`
+  byte, so it is older than #232 and unrelated to it. **No standing instrument
+  enumerates the axis** — the sweep's generator never writes an out-of-line
+  implicitly-sibling destructor.
+
+`scripts/expr_sweep.sh` is now a **row of `scripts/gate.sh`**, re-derived and
+counted like a lane, so the *class* cannot go unwatched again — but #259 says
+plainly what that does and does not buy. **The honest statement is that the port
+is byte-exact on every shape a standing instrument grades, and the set of
+standing instruments is the whole warranty.** Widening the instruments is the
+work; a green gate is a statement about them, not about the port.
+
+**And read the generated block against the previous one before believing the day
+was productive.** **Twelve merges** landed between tree `88e5ff6` and this one
+(counted: `git rev-list --merges --count 88e5ff6..HEAD`). `c2rs gap` reads
+**match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7** — every
+digit unchanged. Per-function census `706555/2463393`, emitted census
+`38458/178975`, the emit-set ceilings `27` / `28` and `338 / 420 / 451`, the
+`.gl` invariants — all unchanged. What moved: workspace tests 687 → **706**,
+self-test 219 → **225**, the fixture gate 102/219 → **106/225**, geomean 567× →
+568×. **Twelve merges moved the payoff metric by exactly zero, and that is the
+expected result rather than a bad day** — eight of the twelve were commissioned
+to *measure* (`w-emit`, `w-roots`, `w-refs`, `w-mark`, `w-skip`, `w-joint` and
+`w-db` twice) and shipped no `crates/` behaviour at all. **#250 is the day's
+sharpest finding precisely because it says a large move in a *leading* indicator
+bought nothing**: the numbers to watch for over-reading are theirs, not this
+block's.
 
 ---
 
@@ -68,7 +112,8 @@ far widening alone can ever take it.
 | per-function census | **a driver** — it ranks rungs, and does that superbly | the target. "census → 100 %" is **retired** (§8.1) |
 | emit-set ceiling (28/871 gate-anchored) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
 | emit-set MODEL ceiling (338/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
-| mismatch count | an **alarm**, and it has never fired | evidence of correctness (see the coverage bound) |
+| mismatch count | an **alarm** — and on **2026-08-04 it FIRED**, twice over: board #232 (closed) and board #259 (live). Before that it had never fired, and that record was doing more reassuring than it had earned | ~~"it has never fired"~~; and never evidence of correctness, before or after (see the coverage bound) |
+| **generated sweep** (`checked=N mismatches=M`) | 14,484 enumerated small TUs graded against real `c2`, **part of the merge gate since 2026-08-04**. The instrument that found #232 and the only one that grades shapes nobody chose | a substitute for the workload — it enumerates axes somebody thought of, at one fixed profile (`/Ox /GS- /c`), and #259 is a live defect it does not generate |
 | fixture gate | the port's accepted class, graded per fixture | representative of the workload's shape |
 | perf geomean | the project's actual thesis — verifier throughput | comparable across versions. **Always quote it with its fixture count** (GAPS §1): the geomean is taken over the *matched* set, which grows as the port widens, so two geomeans are a change of population, not a regression. It is *also* wall-clock — 623×/653×/689× on three consecutive runs of one binary over the same 100 fixtures. Quote the order of magnitude with the count, never the digits alone. |
 
@@ -181,7 +226,11 @@ misleading without them.
    coverage-bounded differential testing, and a green run is sound only on the IL
    it ran against. (ROADMAP **§7 / §10.8** — the bound has been restated
    independently fourteen times and is now an invariant. Do **not** cite this as
-   "#149"; that number denotes the off-add argument slot.)
+   "#149"; that number denotes the off-add argument slot.) **2026-08-04 supplied
+   the demonstration this trap had only ever had in the abstract**: the workload
+   scan read `mismatch 0` on every run for 255 commits while board #232 was a
+   live wrong emit, because the scan cannot generate that shape. The number was
+   true and the reassurance it carried was not.
 
 2. **A per-function census claim for a never-emitted body can never be graded.**
    The differential compares whole objs, and an unemitted body is not in the obj.
@@ -229,6 +278,20 @@ misleading without them.
    supported target, and `scripts/gate.sh` runs 12 enumerated lanes crossing the
    optimization and `/EHsc` axes. Numerator and denominator now speak the same
    modes.
+8. **micro-F1 and per-TU exact are DECOUPLED — the leading indicator does not
+   lead.** Six lanes in one day optimized the emit-set model's micro-F1. `w-db`
+   moved code micro-F1 **0.85260 → 0.92655** — **+7.395 pp**, closing 47.4 % of
+   the gap to the oracle ceiling — and **per-TU exact stayed at 132 of 850, name
+   for name: zero gained and zero lost**, with TU match **8 → 8**. The mechanism
+   is not subtle and is worth stating so it is not rediscovered: a whole-obj
+   verdict is a **conjunction** over every symbol in that obj, and a micro-average
+   is not, so a model can get much better on average without closing any single
+   TU's *last* error. **Board #250.** Any rung sized off micro-F1 owes an argument
+   for why it is not this case. It is trap 3's shape one level up — there a
+   residue was not the thing it proxied for; here the proxy is a genuinely better
+   model of the wrong quantity, which is harder to notice and was noticed only
+   because the lane printed the per-TU set by name instead of by count.
+
 
 ---
 
@@ -246,16 +309,26 @@ scripts/status.sh --check         # prove the collector, no toolchain needed
 | fixture gate + speedup | `cargo run --release -p c2-harness --bin c2rs -- perf` |
 | the 878-TU workload scan | `c2rs gap --list work/dc3-workload/files.txt --flags-file work/dc3-workload/flags.txt --cwd ../dc3-decomp --jobs 16` |
 | regenerate the workload inputs | `scripts/gen_dc3_workload.sh <dc3-tree>` |
-| **the merge gate** (12 lanes) | `scripts/gate.sh --jobs 6` |
-| generated expression sweep | `scripts/expr_sweep.sh` |
+| **the merge gate** (12 lanes **+ the 14,484-case sweep**) | `scripts/gate.sh --jobs 8` — ~1 min 34 s |
+| the sweep alone | `scripts/expr_sweep.sh` (`C2RS_SWEEP_JOBS=8`; ~1 min 26 s, or 9 min 51 s serial) |
 | cross-product lane | `scripts/cross_sweep.sh` |
 | **board coverage** (no toolchain) | `scripts/board_audit.sh` — every `#N` `ROADMAP.md` cites that [`BOARD.md`](BOARD.md) has no row for |
 | throughput vs concurrency | `c2rs perf-scale --csv docs/perf/perf_scale.csv` |
 
-`status.sh` deliberately does **not** run the merge gate, the sweep, or the
-cross-product: those answer *"is this tree safe to land"*, which is a different
-question from *"where is this project"*, and they cost minutes rather than
-seconds. Run the gate before landing; run `status.sh` to report.
+`status.sh` deliberately does **not** run the merge gate or the cross-product:
+those answer *"is this tree safe to land"*, which is a different question from
+*"where is this project"*. **The sweep is no longer a separate thing to remember
+— it is inside `gate.sh`** (board #232), which is why the gate went from ~7 s to
+~1 min 34 s and why that is the right price. Run the gate before landing; run
+`status.sh` to report.
+
+**Run `status.sh` from the main repo, or set `C2RS_DC3`.** A worktree sits three
+directories down, so the default `<repo>/../dc3-decomp` does not resolve from
+one and **ten of the fifteen metrics come back `NO-RESULT`** — including TU
+match, both censuses and every ceiling. The script says `STATUS: INCOMPLETE` and
+refuses to call it a measurement, which is the mitigation working; but a block
+regenerated that way and committed would look like a page whose numbers had
+collapsed. It has never been committed in that state — checked, not assumed.
 
 Everything except `cargo test` needs the toolchain (wibo + `compilers/`); all of
 it degrades to `SKIP: toolchain absent` rather than failing.
