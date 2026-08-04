@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# c2sym — query the pre-exported Ghidra flat files for c2.dll.
+#
+# The Ghidra project itself must NEVER be opened by an agent (concurrent access
+# corrupts it). Everything below reads the flat TSV/text exports only.
+#
+# Export dir is resolved from $C2RS_GHIDRA_EXPORT, else $HOME/ghidra-projects/export/c2.
+# Expected files: functions.tsv strings.tsv data.tsv xrefs.tsv calls.tsv
+#                 symbols.tsv decomp_all.c objdump_intel.asm
+#
+# Addresses are bare lowercase hex VAs without 0x, e.g. 10b7f1ff.
+#
+# Usage:
+#   c2sym decomp   <addr>            decompiled C for one function
+#   c2sym asm      <addr> [n]        objdump Intel disassembly from addr (n lines, default 60)
+#   c2sym fn       <addr>            functions.tsv row (size, nparams, ncallers, ...)
+#   c2sym callers  <addr>            direct callers
+#   c2sym callees  <addr>            direct callees
+#   c2sym xrefs    <addr>            every xref TO addr (code or data)
+#   c2sym str      <regex>           strings whose value matches, with referencing funcs
+#   c2sym straddr  <addr>            the string at addr, and who references it
+#   c2sym data     <addr>            data.tsv row for a global, with referencing funcs
+#   c2sym grep     <regex>           grep decomp_all.c, prefixing each hit with its function
+#   c2sym range    <lo> <hi>         functions with lo <= addr <= hi
+#   c2sym modmap                     source-file -> address-range map (from assert strings)
+#   c2sym whichmod <addr>            which .c/.cpp translation unit addr most likely came from
+#
+# `modmap` / `whichmod` exploit the fact that this build is a stripped release
+# with __FILE__ strings surviving in the assert paths, and the linker laid the
+# objects out in alphabetical order. The boundary between two adjacent modules is
+# only known to lie *somewhere* between the last asserting function of one and
+# the first of the next -- treat `whichmod` as a strong hint, never a proof.
+
+set -euo pipefail
+
+EXPORT="${C2RS_GHIDRA_EXPORT:-$HOME/ghidra-projects/export/c2}"
+
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
+[ -d "$EXPORT" ] || die "c2sym: export dir not found: $EXPORT
+      set C2RS_GHIDRA_EXPORT to the directory holding functions.tsv etc."
+
+need() { [ -f "$EXPORT/$1" ] || die "c2sym: missing $EXPORT/$1"; }
+
+norm() { printf '%s' "${1#0x}" | tr 'A-Z' 'a-z'; }
+
+usage() { sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//; $d'; exit "${1:-1}"; }
+
+cmd="${1:-}"; [ -n "$cmd" ] || usage 1
+shift || true
+
+case "$cmd" in
+
+decomp)
+  need decomp_all.c
+  a=$(norm "${1:?addr required}")
+  awk -v a="$a" '
+    /^\/\/ ===== FUNC /{ if ($0 ~ ("FUNC " a " ")) { p=1 } else if (p) { exit } }
+    p' "$EXPORT/decomp_all.c"
+  ;;
+
+asm)
+  need objdump_intel.asm
+  a=$(norm "${1:?addr required}"); n="${2:-60}"
+  grep -n -m1 -E "^[[:space:]]*$a[:[:space:]]" "$EXPORT/objdump_intel.asm" \
+    | cut -d: -f1 \
+    | { read -r ln || die "c2sym: address $a not found in objdump_intel.asm"
+        tail -n "+$ln" "$EXPORT/objdump_intel.asm" | head -n "$n"; }
+  ;;
+
+fn)
+  need functions.tsv
+  a=$(norm "${1:?addr required}")
+  head -1 "$EXPORT/functions.tsv"
+  awk -F'\t' -v a="$a" '$1==a' "$EXPORT/functions.tsv"
+  ;;
+
+callers)
+  need calls.tsv
+  a=$(norm "${1:?addr required}")
+  awk -F'\t' -v a="$a" '$3==a{print $1"\t"$2}' "$EXPORT/calls.tsv" | sort -u
+  ;;
+
+callees)
+  need calls.tsv
+  a=$(norm "${1:?addr required}")
+  awk -F'\t' -v a="$a" '$1==a{print $3"\t"$4}' "$EXPORT/calls.tsv" | sort -u
+  ;;
+
+xrefs)
+  need xrefs.tsv
+  a=$(norm "${1:?addr required}")
+  printf 'from\tto\ttype\tfrom_func\n'
+  awk -F'\t' -v a="$a" '$2==a' "$EXPORT/xrefs.tsv"
+  ;;
+
+str)
+  need strings.tsv
+  re="${1:?regex required}"
+  head -1 "$EXPORT/strings.tsv"
+  awk -F'\t' -v re="$re" 'NR>1 && $6 ~ re' "$EXPORT/strings.tsv"
+  ;;
+
+straddr)
+  need strings.tsv
+  a=$(norm "${1:?addr required}")
+  head -1 "$EXPORT/strings.tsv"
+  awk -F'\t' -v a="$a" '$1==a' "$EXPORT/strings.tsv"
+  ;;
+
+data)
+  need data.tsv
+  a=$(norm "${1:?addr required}")
+  head -1 "$EXPORT/data.tsv"
+  awk -F'\t' -v a="$a" '$1==a' "$EXPORT/data.tsv"
+  ;;
+
+grep)
+  need decomp_all.c
+  re="${1:?regex required}"
+  awk -v re="$re" '
+    /^\/\/ ===== FUNC /{ split($0,t," "); f=t[4]" "t[5] }
+    $0 ~ re { printf "%-40s %6d  %s\n", f, NR, $0 }' "$EXPORT/decomp_all.c"
+  ;;
+
+range)
+  need functions.tsv
+  lo=$(norm "${1:?lo required}"); hi=$(norm "${2:?hi required}")
+  head -1 "$EXPORT/functions.tsv"
+  awk -F'\t' -v lo="$lo" -v hi="$hi" 'NR>1 && $1>=lo && $1<=hi' "$EXPORT/functions.tsv"
+  ;;
+
+modmap)
+  need strings.tsv
+  # Assert __FILE__ strings: every function that references one lives in that TU.
+  awk -F'\t' 'NR>1 && $6 ~ /vctools/ {
+      n=split($5,a,",")
+      for (i=1;i<=n;i++) if (a[i]!="") print a[i]"\t"$6
+    }' "$EXPORT/strings.tsv" \
+  | awk -F'\t' '{ gsub(/\\\\/,"/",$2); sub(/.*compiler\/be\//,"",$2); print $1"\t"$2 }' \
+  | sort -u \
+  | awk -F'\t' '
+      { if ($2!=cur) { if (cur!="") printf "%-46s %s .. %s\n", cur, first, prev
+                       cur=$2; first=$1 }
+        prev=$1 }
+      END { if (cur!="") printf "%-46s %s .. %s\n", cur, first, prev }'
+  ;;
+
+whichmod)
+  need strings.tsv
+  a=$(norm "${1:?addr required}")
+  awk -F'\t' 'NR>1 && $6 ~ /vctools/ {
+      n=split($5,x,",")
+      for (i=1;i<=n;i++) if (x[i]!="") print x[i]"\t"$6
+    }' "$EXPORT/strings.tsv" \
+  | awk -F'\t' '{ gsub(/\\\\/,"/",$2); sub(/.*compiler\/be\//,"",$2); print $1"\t"$2 }' \
+  | sort -u \
+  | awk -F'\t' -v a="$a" '
+      $1<=a { lastf=$2; lasta=$1 }
+      $1> a && !done { printf "addr %s lies between:\n  %s (last asserting fn %s)\n  %s (first asserting fn %s)\n", a, lastf, lasta, $2, $1; done=1 }
+      END { if (!done) printf "addr %s is at or after the last mapped module: %s (%s)\n", a, lastf, lasta }'
+  ;;
+
+-h|--help|help) usage 0 ;;
+*) die "c2sym: unknown subcommand '$cmd' (try: c2sym --help)" ;;
+esac
