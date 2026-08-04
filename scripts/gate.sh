@@ -55,8 +55,11 @@
 # the real `c2.dll`. Until today this file had **zero** references to it, and that
 # blindness is not theoretical: board **#232** was a live `Port=Mismatch` — a
 # refusal that had become a wrong emit, the one direction the correctness rule
-# exists to forbid — and it survived **241 commits** while every lane's gate run
-# and every coordinator re-gate came back green. The 12 mode lanes grade hand-built
+# exists to forbid — and it survived **255 commits** (`d0d8a98..be86f9d`, two
+# days) while every lane's gate run and every coordinator re-gate came back
+# green. Count it yourself before requoting it: the `376` on #232's row is the
+# BISECT RANGE from the last recorded green sweep, which starts before the defect
+# existed, and it is a different quantity from how long the defect survived. The 12 mode lanes grade hand-built
 # fixtures and `c2rs gap` grades workload TUs; **neither generates that shape.** A
 # check that runs when somebody remembers it is a check that does not run — the
 # same defect `lanes.txt` was written for, one level out.
