@@ -38,7 +38,27 @@ def xbld_tag(o, s):
     return d[:2].decode("latin1", "replace") if len(d) >= 2 else "??"
 
 
-out = open(W + "/work/w-bss/census/sections.jsonl", "w")
+# ---------------------------------------------------------------- provenance
+# ONE copy of the stamper, in work/w-bss2/, imported by path.  A second copy
+# would be a checker that can disagree with itself, which is worse than none.
+sys.path.insert(0, os.path.join(W, "work", "w-bss2"))
+import prov, paths  # noqa: E402
+
+CORPUS = paths.DC3
+# The objs this aggregates were compiled EARLIER, by one.sh.  If the caller
+# (scripts/regen_census.sh) snapshotted the corpus before that phase, use its
+# snapshot -- only then does the stamp cover the compiles.  Taking one here
+# instead is recorded as begin_scope="aggregate", which states in the artefact
+# that drift during the compile phase was invisible to it.  A stamp that
+# silently narrows its own scope would be worse than no stamp.
+_bp = os.environ.get("C2RS_PROV_BEGIN")
+if _bp and os.path.exists(_bp):
+    BEGIN, SCOPE = prov.begin_read(_bp), "run"
+else:
+    BEGIN, SCOPE = prov.begin(CORPUS), "aggregate"
+
+SECTIONS_PATH = W + "/work/w-bss/census/sections.jsonl"
+out = open(SECTIONS_PATH, "w")
 n = 0
 for src in open(FILES).read().split():
     p = os.path.join(OBJS, src.replace("/", "_") + ".obj")
@@ -81,3 +101,18 @@ for src in open(FILES).read().split():
     n += 1
 out.close()
 print("wrote", n, "records")
+
+# `sections.jsonl` is COMMITTED (force-added: regenerating it needs the real
+# toolchain, the dc3 tree, and ~102 MB of intermediate objs).  So its sidecar is
+# committed too, and `committed=True` strips every absolute path and refuses to
+# write one -- CLAUDE.md forbids machine paths in the history.  The corpus is
+# still pinned, by `path_sha256` over the resolved path.
+_p = prov.stamp("census.py", SECTIONS_PATH, BEGIN, W,
+                inputs=dict(flags_sha256=prov.sha256_file(
+                                W + "/work/dc3-workload/flags.txt"),
+                            files_sha256=prov.sha256_file(FILES)),
+                allow_dirty=os.environ.get("C2RS_PROV_ALLOW_DIRTY") == "1",
+                allow_move=os.environ.get("C2RS_PROV_ALLOW_MOVE") == "1",
+                begin_scope=SCOPE, records=n)
+print("provenance ->", prov.write(SECTIONS_PATH, _p, committed=True))
+print(" ", prov.describe(_p), "scope=" + SCOPE)

@@ -19,6 +19,21 @@
 #   scripts/regen_census.sh --keep-objs     leave work/w-bss/census/objs in place
 #   scripts/regen_census.sh --jobs N        parallel compiles (default: nproc-2, max 16)
 #   scripts/regen_census.sh --timeout SECS  overall deadline (default 7200)
+#   scripts/regen_census.sh --allow-dirty   record a census against a DIRTY corpus
+#   scripts/regen_census.sh --allow-move    record one against a corpus that MOVED
+#
+# Provenance
+# ----------
+# Both censuses write a `<file>.prov` sidecar naming the dc3 commit, the dirty
+# flag, the corpus directory, the flags hash and (for glcensus) the
+# sections.jsonl hash they joined against.  `work/w-bss2/grade.py` REFUSES to
+# grade a pair whose stamps disagree.
+#
+# The corpus HEAD is snapshotted BEFORE the compiles and re-checked AFTER them:
+# `../dc3-decomp` is a live repo that other agents merge into, and lane w-repro
+# spent an entire lane finding out that it took 40+ commits during a 30-minute
+# measurement window.  A sections census takes tens of minutes; being straddled
+# by a merge is the normal case, not the unlucky one, and it is an ERROR here.
 #
 # Env:
 #   C2RS_DC3_SRC   dc3-decomp source tree. Defaults to ../dc3-decomp if present.
@@ -35,12 +50,16 @@ DO_GL=1
 KEEP_OBJS=0
 JOBS=""
 TIMEOUT=7200
+ALLOW_DIRTY=0
+ALLOW_MOVE=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --sections)  DO_GL=0 ;;
     --gl)        DO_SECTIONS=0 ;;
     --keep-objs) KEEP_OBJS=1 ;;
+    --allow-dirty) ALLOW_DIRTY=1 ;;
+    --allow-move)  ALLOW_MOVE=1 ;;
     --jobs)      shift; JOBS="${1:?--jobs needs a number}" ;;
     --timeout)   shift; TIMEOUT="${1:?--timeout needs seconds}" ;;
     -h|--help)   sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -80,6 +99,27 @@ echo "regen_census: root      $ROOT"
 echo "regen_census: dc3 src   $C2RS_DC3_SRC"
 echo "regen_census: jobs      $JOBS"
 echo "regen_census: deadline  ${TIMEOUT}s"
+
+# ------------------------------------------------------------------ provenance
+# Snapshot the corpus BEFORE anything compiles. census.py re-checks it after and
+# refuses to stamp a census whose corpus moved underneath it; passing the
+# snapshot down is what makes the stamp cover the compile phase rather than only
+# the aggregation (census.py records which, as `begin_scope`).
+PROV_BEGIN="$CENSUS_DIR/.prov-begin.json"
+mkdir -p "$CENSUS_DIR"
+python3 - "$C2RS_DC3_SRC" "$PROV_BEGIN" <<'PY'
+import json, sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(sys.argv[2])),
+                                "..", "..", "w-bss2"))
+import prov
+b = prov.begin(sys.argv[1])
+prov.begin_write(sys.argv[2], b)
+print("regen_census: corpus    %s%s"
+      % (b["head"] or "UNVERSIONED", "  *** DIRTY ***" if b["dirty"] else ""))
+PY
+export C2RS_PROV_BEGIN="$PROV_BEGIN"
+[ "$ALLOW_DIRTY" = 1 ] && export C2RS_PROV_ALLOW_DIRTY=1
+[ "$ALLOW_MOVE" = 1 ] && export C2RS_PROV_ALLOW_MOVE=1
 
 START=$(date +%s)
 deadline_hit() {
@@ -163,6 +203,18 @@ if [ "$DO_GL" = 1 ]; then
   [ -s "$GLCENSUS" ] || { echo "regen_census: glcensus.py produced no output" >&2; exit 1; }
   echo "regen_census: glcensus.jsonl  $(wc -l < "$GLCENSUS" | tr -d ' ') records, $(du -h "$GLCENSUS" | cut -f1)"
 fi
+
+rm -f "$PROV_BEGIN"
+
+# ---------------------------------------------------------------- the stamps
+# Print what every downstream number is now pinned to. A census whose sidecar
+# cannot be read is a census nothing may be graded against, so this is a check,
+# not decoration.
+for f in "$SECTIONS" "$GLCENSUS"; do
+  [ -s "$f" ] || continue
+  printf 'regen_census: %-14s ' "$(basename "$f")"
+  python3 "$ROOT/work/w-bss2/prov.py" "$f" || exit 1
+done
 
 ELAPSED=$(( $(date +%s) - START ))
 echo "regen_census: done in ${ELAPSED}s"

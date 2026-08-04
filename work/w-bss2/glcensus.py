@@ -20,7 +20,7 @@ import json, os, sys, concurrent.futures as cf
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import cap, glparse, paths
+import cap, glparse, paths, prov
 
 DC3 = paths.DC3
 FLAGS = paths.flags()
@@ -66,10 +66,45 @@ def one(rec):
     return dict(src=src, ngl=len(g), keep=keep, init=sorted(init))
 
 
+def _check_upstream():
+    """`sections.jsonl` is this census's INPUT.  If it was built against another
+    corpus or at another directory, everything joined downstream is cross-corpus
+    and the join loses ~20 % of its population silently (w-repro section 5).
+    Catch it here, before spending the capture, not in `grade.py` afterwards."""
+    try:
+        up = prov.read(CENSUS)
+    except prov.ProvError as e:
+        print(prov.banner(e), file=sys.stderr)
+        print("WARNING: continuing against an UNSTAMPED sections.jsonl. The\n"
+              "         resulting glcensus records `sections_prov: null` and\n"
+              "         grade.py will refuse to join it.", file=sys.stderr)
+        return None
+    head, dirty = prov.corpus_state(DC3)
+    skew = (up["corpus"]["head"] != head
+            or up["corpus"]["path_sha256"] != prov.path_sha256(DC3))
+    if skew and os.environ.get("C2RS_PROV_ALLOW_SKEW") != "1":
+        print(prov.banner(prov.ProvError(
+            "sections.jsonl WAS BUILT AGAINST A DIFFERENT CORPUS\n"
+            "  sections.jsonl : head %s  path_sha256 %s\n"
+            "  this run       : head %s  path_sha256 %s\n"
+            "Capturing .gl here would produce a census that cannot be joined\n"
+            "against it. Regenerate sections.jsonl (scripts/regen_census.sh\n"
+            "--sections), or set C2RS_PROV_ALLOW_SKEW=1 to record the skew and\n"
+            "let grade.py refuse it later."
+            % (up["corpus"]["head"], up["corpus"]["path_sha256"][:16],
+               head, prov.path_sha256(DC3)[:16]))), file=sys.stderr)
+        sys.exit(2)
+    return up
+
+
 if __name__ == "__main__":
     out_path = sys.argv[1]
     jobs = int(sys.argv[2]) if len(sys.argv) > 2 else 12
     limit = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+    # BEFORE the captures: this census does its own compiling, so its snapshot
+    # covers the whole run.
+    begin = prov.begin(DC3)
+    up = _check_upstream()
     recs = [json.loads(l) for l in open(CENSUS)]
     if limit:
         recs = recs[:limit]
@@ -81,3 +116,20 @@ if __name__ == "__main__":
             if done % 50 == 0:
                 print("  %d/%d" % (done, len(recs)), flush=True)
     print("wrote", done, "records to", out_path)
+
+    # glcensus.jsonl is NOT committed, so its sidecar is not either, and it may
+    # carry the absolute corpus path in cleartext -- nothing about an untracked
+    # file beside an untracked file reaches the history, and a human debugging a
+    # provenance mismatch wants the real path.
+    p = prov.stamp("glcensus.py", out_path, begin, paths.MAIN,
+                   inputs=dict(flags_sha256=prov.sha256_file(
+                                   os.path.join(paths.WORKLOAD, "flags.txt")),
+                               files_sha256=prov.sha256_file(
+                                   os.path.join(paths.WORKLOAD, "files.txt")),
+                               sections_sha256=prov.sha256_file(CENSUS),
+                               sections_head=(up or {}).get("corpus", {}).get("head")),
+                   allow_dirty=os.environ.get("C2RS_PROV_ALLOW_DIRTY") == "1",
+                   allow_move=os.environ.get("C2RS_PROV_ALLOW_MOVE") == "1",
+                   begin_scope="run", records=done)
+    print("provenance ->", prov.write(out_path, p, committed=False))
+    print(" ", prov.describe(p))
