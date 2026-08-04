@@ -19,7 +19,7 @@ of the graded population.
 
 | | registered | outcome |
 |---|---|---|
-| **C0** control | `one()` over a stored `.gl` reproduces its record exactly | **held** (below) |
+| **C0** control | `one()` over a stored `.gl` reproduces its record exactly | **held, 30/30** |
 | **P1** | `Anim.cpp` × 24 serial → **exactly 2** distinct `.gl` hashes | **REFUTED** — 1 hash |
 | **P1′** rival | 1 hash serially; ≥ 2 under load | **partly** — 1 serially **and** 1 under 14-way load, so even P1′ overstates it |
 | **P1″** rival | > 2 hashes, drift | refuted |
@@ -58,8 +58,18 @@ glcensus 09:20 (run 2)  sha256 4c6c704cd62a522ed44859cc4c8654411526c706fbb1f3046
 glcensus 09:25 (run 3)  sha256 4c6c704cd62a522ed44859cc4c8654411526c706fbb1f3046dad8c3092c492d1
 ```
 
-**Byte-identical, 871/871 TUs.** So `C0` holds and the parse side is not the
-source of anything.
+**Byte-identical, 871/871 TUs.**
+
+`C0` was run as registered rather than inferred: for 30 TUs, the `.gl` bytes were
+captured once and `one()`'s computation re-derived from **that stored blob** three
+times with today's `sections.jsonl`.
+
+```
+30/30  three re-derivations from the same stored .gl agree
+30/30  and equal the record run 3 wrote
+```
+
+So the parse side is not the source of anything.
 
 Three candidate mechanisms are dead on inspection or on measurement:
 
