@@ -15,23 +15,24 @@ cost this project real work more than once.
 ## The numbers
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-02 · tree `89e5dd5` · binary `d2a5a60b3d0a`
+Collected 2026-08-04 · tree `cfd972c-dirty` · binary `653a4980328f`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 616 passed, 0 failed, 24 targets |
+| Workspace tests (cargo test --workspace --release) | 625 passed, 0 failed, 24 targets |
 | Oracle self-test (c2rs selftest) | 214 PASS, 0 FAIL |
 | Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 114 not-implemented (of 214) |
-| Port speedup, geomean over matched fixtures | 651x geomean over matched fixtures |
+| Port speedup, geomean over matched fixtures | 616x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 6, mismatch 0, codegen-gap 0, vocab-gap 865, capture-fail 7 |
-| Per-function census (driver, not target) | 706403/2463318 functions in class (28.68%) |
-| Emitted-function census | 38457/178969 emitted functions in class (21.49%) |
-| Emitted-census residue | residue 9225: 1961 compiler-generated (no IL body), 7264 unexplained  (5.15% of the denominator) |
+| Per-function census (driver, not target) | 706403/2463317 functions in class (28.68%) |
+| Emitted-function census | 38458/178968 emitted functions in class (21.49%) |
+| Emitted-census residue | residue 9224: 1961 compiler-generated (no IL body), 7263 unexplained  (5.15% of the denominator) |
 | TU distance to match, blocked functions | ≤0: 1, ≤1: 12, ≤10: 27, ≤100: 34, ≤1000: 212 |
 | TU distance to match, blocked emitted functions | ≤0: 2, ≤1: 19, ≤10: 82, ≤100: 403, ≤1000: 858 |
-| Emit-set ceiling (segments == COMDATs) | 27 of 871 graded TUs |
+| Emit-set ceiling, LO-anchored (segments == COMDATs) | 27 of 871 graded TUs |
+| Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 871 graded TUs |
 | Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 420 repaired / 451 wall |
-| .gl binding invariants (records / arity / conflicts) | 1515161 records, 420 nameless, 0 before the first row, 39291 row-conflicts, 731 name-conflicts, 0 accounting breaks, 0 unreadable objs |
+| .gl binding invariants (records / arity / conflicts) | 1515160 records, 420 nameless, 0 before the first row, 39291 row-conflicts, 733 name-conflicts, 0 accounting breaks, 0 unreadable objs |
 
 <!-- END GENERATED -->
 
@@ -57,8 +58,8 @@ bound how far widening alone can ever take it.
 | TU distance ≤1 / ≤10 / ≤100 | the leading indicator for TU match | a promise that the near ones are cheap |
 | **emitted-function census** | in-class ∩ *code c2 actually emits* | gradeable by the differential on its own |
 | per-function census | **a driver** — it ranks rungs, and does that superbly | the target. "census → 100 %" is **retired** (§8.1) |
-| emit-set ceiling (25/871) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
-| emit-set MODEL ceiling (324/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
+| emit-set ceiling (28/871 gate-anchored) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
+| emit-set MODEL ceiling (338/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
 | mismatch count | an **alarm**, and it has never fired | evidence of correctness (see the coverage bound) |
 | fixture gate | the port's accepted class, graded per fixture | representative of the workload's shape |
 | perf geomean | the project's actual thesis — verifier throughput | comparable across versions. **Always quote it with its fixture count** (GAPS §1): the geomean is taken over the *matched* set, which grows as the port widens, so two geomeans are a change of population, not a regression. It is *also* wall-clock — 623×/653×/689× on three consecutive runs of one binary over the same 100 fixtures. Quote the order of magnitude with the count, never the digits alone. |
@@ -71,9 +72,11 @@ bound how far widening alone can ever take it.
   the right *set* of functions without modelling anything. **This is the hard
   bound on TU match until Phase 7 (the emit-set model) exists** — and **6 are
   already taken**, so every widening rung in the plan, summed, can move the
-  payoff metric by at most **22 TUs, ever**. On the rest, the port emits one
-  `.text` COMDAT per `.ex` segment and is wrong about the *set* regardless of how
-  correctly it lowers each body.
+  payoff metric by at most **22 TUs, ever** — and **only 16 of those 22 are
+  reachable by codegen breadth alone** (ROADMAP §10.20: `A∧B∧C` = 22 less the 6
+  matched; the other 6 of A's 28 fail B or C and need section or binding work
+  first). On the rest, the port emits one `.text` COMDAT per `.ex` segment and is
+  wrong about the *set* regardless of how correctly it lowers each body.
 
   **Two numbers, because there are two splitters and only one is the port's**
   (§10.11, §10.15, §10.18). `LO`-anchored counts `.ex` segments on the `4C 4F 11`
@@ -85,39 +88,57 @@ bound how far widening alone can ever take it.
   **Quote the gate-anchored number**: it is the one `PortC2::build` has to
   satisfy. This bound was `25` and `"at most 19, ever"` for most of the project's
   life; both were an `LO`-anchored count of a `4F 1F`-anchored property.
-* **Emit-set MODEL ceiling, 324 today / 420 repaired / 451 wall** — TUs where the
+* **Emit-set MODEL ceiling, 338 today / 420 repaired / 451 wall** — TUs where the
   `.gl` binding can account for every emitted symbol. This bounds *a model*, not
-  today's port. It went 111 → 324 in §9.20 from a one-byte reader repair.
+  today's port. It went 111 → 324 in §9.20 from a one-byte reader repair (both
+  figures as recorded there; the key reads **338** today).
   §9.20 then claimed that gain was "unrealisable until the gate learns the same
   rule"; **W-ADOPT taught the gate that rule and the ceiling did not move**
   (§9.21). It is computed on `EmitBinding`, which already had the widened
   reader, so the gate was never the dependency. Realising it needs Phase 7 — an
   emit-set model — and nothing short of that.
 
-Quoting 324 as "where we are" is the most likely misreading of this page.
+Quoting 338 as "where we are" is the most likely misreading of this page. (It
+was quoted as **324** across the front page until ROADMAP §10.20; the generated
+block above has read 338 throughout, and the hand-written copies were stale.)
 
 ### And neither ceiling is the tightest constraint — the SECTION SHAPE is
 
 §10.19 factored Phase 7 into four predicates over the 871 graded TUs, and
-**A∧B∧C∧D = 6, exactly the observed match set**:
+**A∧B∧C∧D = 6, exactly the observed match set** — the same six files by name,
+not six by count. All four are printed by every `c2rs gap` run:
 
 | factor | predicate | TUs |
 |---|---|---:|
 | A | `.ex` segments == `.text` COMDATs | 28 |
-| B | every emitted symbol binds | 324 |
+| B | every emitted symbol binds | **338** |
 | **C** | **obj section set ⊆ what the port's COFF writer can emit** | **84** |
 | D | every emitted COMDAT in the port's codegen class | 8 |
 
-**C = 84 is 4× tighter than B = 324.** A perfect emit-set model *and* a perfect
-binding reach at most 82 while the port can write only
+**C = 84 is 4.02× tighter than B = 338.** A perfect emit-set model *and* a
+perfect binding reach at most **B∧C = 82** while the port can write only
 `.drectve/.debug$S/.XBLD$W/.text/.pdata/.rdata`. The good news is that C is the
-one factor that is **finite**: the whole workload uses **13** section names, and
+one factor that is **bounded**: this workload uses **13** section names, and
 seven additions close it — `.data` 109, `.rdata$r` 172, **`.bss` 574**,
-`.text$yd` 698, `.xdata$x` 745, `.text$yc` **871**. `.rdata$r` is EH, in 676 of
-871 objs, so Phase 5 is the third rung of that ladder rather than an endgame.
+`.text$yd` 698, `.xdata$x` 745, `.text$yc` **871**.
+
+**Two corrections you must not re-derive from §10.19** (ROADMAP **§10.20**):
+
+* **`.rdata$r` is RTTI, not EH** — 24,163 content symbols, every one
+  `??_R1..R4`, zero `__ehfuncinfo$`; it dies at `/GR-` and survives dropping
+  `/EHsc`. EH's records land in **plain `.rdata`**, which the writer already
+  has, so **Phase 5 moves C by zero**; rung three is an **RTTI** rung. EH blocks
+  by factor **D**, over **740** objs, not 676.
+* **13 is closed over this workload as measured, not closed by the language** —
+  `#pragma init_seg("name")` mints a user-chosen name. Measured **0**
+  occurrences in the workload's 78,746 source files (grep calibrated first), so
+  13 holds empirically; re-run that grep before any new corpus inherits it.
 
 **C is necessary, not sufficient** — reaching C = 871 converts nothing on its
-own. Board **#160**.
+own; only D converts. And **the pre-Phase-7 frontier is 16, not 22**: `A∧B∧C`
+= 22 with 6 already matched, so 16 graded TUs are reachable by codegen breadth
+alone and the other 6 of A's 28 need section or binding work first. `gap.rs`
+prints those 16 by name each scan as the **FRONTIER**. Board **#160**.
 
 ---
 

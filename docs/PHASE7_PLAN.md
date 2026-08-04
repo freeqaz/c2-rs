@@ -29,9 +29,17 @@ reader validated 871/871 against the harness's own `emit-emitted`):
 | factor | predicate (over 871 graded TUs) | TUs |
 |---|---|---:|
 | **A** | emit-set cardinality equal (`fn_total == emit-emitted`, `LO`-anchored, pre-W-LO — see note) | 25 |
-| **B** | `emit-set-ceiling-today` — every emitted symbol binds | 324 |
+| **B** | `emit-set-ceiling-today` — every emitted symbol binds | ~~324~~ **338** |
 | **C** | obj section set ⊆ the port's widest current writer (`.drectve/.debug$S/.XBLD$W/.text/.pdata/.rdata`) | **84** |
 | **D** | every emitted COMDAT inside the port's codegen class | **8** |
+
+> **Correction note (ROADMAP §10.20, 2026-08-04):** **B is 338, not 324** — the
+> key this row names (`emit-set-ceiling-today`) has read 338 in `STATUS.md`'s
+> generated block since before this plan was written. Nothing downstream moves:
+> **B∧C is unmoved at 82** (the 14 extra B-TUs are all outside C), and C = 84 is
+> **4.02×** tighter than B rather than 4×. Two further corrections to §1 are
+> marked in place below: `.rdata$r` is **RTTI, not EH**, and the 13-name
+> vocabulary is closed over this workload **as measured**, not by the language.
 
 > **Anchor note (landed after lane D's census, same day):** §10.18 closed
 > the splitter question — the cardinality-equal count is **27 LO-anchored /
@@ -47,11 +55,22 @@ independently-derived predicates. This factorization is the planning model, and
 it kills two assumptions the project was carrying:
 
 1. **The emit-set model is not the binding constraint. Section shape is.**
-   C = 84 is 4× tighter than B = 324. A perfect emit-set model plus a perfect
-   binding lifts TU match to at most **B∧C = 82** (83 repaired) until the port
-   can write `.data`, `.bss`, `.rdata$r`, `.text$yc/$yd`, `.CRT$XCU`,
-   `.xdata$x` — the **entire workload section vocabulary is 13 names**
-   (measured, full census), so C is finite and enumerable.
+   C = 84 is **4.02×** tighter than B = **338**. A perfect emit-set model plus a
+   perfect binding lifts TU match to at most **B∧C = 82** (83 repaired) until the
+   port can write `.data`, `.bss`, `.rdata$r`, `.text$yc/$yd`, `.CRT$XCU`,
+   `.xdata$x` — the **workload section vocabulary is 13 names** (measured, full
+   census), so C is **bounded and short on this workload**.
+
+   > **Corrected (§10.20): "finite and enumerable" was too strong.** The
+   > vocabulary is **closed over the workload as measured, not closed by the
+   > language** — `#pragma init_seg("name")` mints a user-chosen section name
+   > (w-emitpred cell `a7c7` emitted `.mycrt$a`), and `#pragma code_seg` renames
+   > a code section. Measured before relying on it: **0** occurrences of
+   > `init_seg`/`code_seg` across the **78,746** files under
+   > `../dc3-decomp/src` (all eight workload `/I` dirs), grep calibrated against
+   > `#pragma once` 1,009 / `warning` 208 / `pack` 47. **13 therefore stands as
+   > an empirical fact and R2 below is unaffected** — but re-run that grep
+   > before any new corpus inherits the number.
 2. **The walls are anti-correlated, which sets the order.** 82 of the 84
    section-reachable TUs are already `emit-set-ceiling-today`; only 1 is on
    the wall. Shell generalization and emit-set modelling attack nearly
@@ -67,10 +86,24 @@ Two supporting shape facts (lane D, both labelled `LO`-anchored):
   `segments > COMDATs` TUs, delta median **1,982**, p10 = 490; delta ≤ 5 on
   **3** TUs. There is no "shave a few spurious COMDATs" tail to farm; the
   emit set must be modelled, not patched.
-* **EH is on the TU-assembly critical path, not a late phase**: `.rdata$r`
+* ~~**EH is on the TU-assembly critical path, not a late phase**: `.rdata$r`
   (per-function EH records) appears in **676 of 871** objs, `.xdata$x` in 67.
   The commonest beyond-reach extra-set is `{.bss,.data,.rdata$r}` (352 TUs).
-  Phase 5 groundwork feeds C directly.
+  Phase 5 groundwork feeds C directly.~~
+
+  > **REFUTED (§10.20 / [`EH_CRITICAL_PATH.md`](EH_CRITICAL_PATH.md)).**
+  > **`.rdata$r` is RTTI, not EH.** All **24,163** content symbols in it across
+  > the 871 objs are `??_R1`/`??_R2`/`??_R3`/`??_R4`; **zero** are
+  > `__ehfuncinfo$` or `__unwindtable$`. It dies at `/GR-` and survives dropping
+  > `/EHsc`. The EH record set lands in **plain `.rdata`** — a name the port's
+  > writer **already has** — so **Phase 5 moves factor C by zero**, and rung
+  > three of R2's ladder is an **RTTI** rung (+63; four fixed-layout COMDATs and
+  > a `??_R1` mangling, no funclets/state model/label surcharge/frame
+  > discipline). EH's only C-relevant name is `.xdata$x`, and **no TU has it as
+  > its only beyond-reach section**. EH blocks by factor **D**, over **740**
+  > objs carrying `__ehfuncinfo$` — more than the 676, and **86 of them have no
+  > `.rdata$r` at all**. The `{.bss,.data,.rdata$r}` extra-set count (352 TUs)
+  > is unaffected; only its attribution to EH was wrong.
 
 ## 2. The emit predicate — fitted, black-box, zero violations
 
@@ -158,12 +191,12 @@ conversions happen only when all four factors close over a TU.
 |---|---|---|---|
 | **R0** | instruments + probes (parallel, cheap) | 0 TUs; de-risks everything | measured needs, §5 |
 | **R1** | **#158 both halves** — bare-`4C` thunk decode + the 8-section `??__E` obj | **+2 TUs** (TomCrypt/Zlib licenses) | obj shape byte-determined (§10.16); decode characterized (§10.12) |
-| **R2** | **section vocabulary** — `.data`, `.bss`, `.text$yd/$yc`, `.CRT$XCU`, then `.rdata$r`/`.xdata$x` with Phase 5 | lifts C from 84 toward 871; joint ceiling B∧C 82→83 first, then tracks EH progress | 13-name census (lane D); exact per-section joint counts are one query on `work/phase7plan-d/sections.pkl` |
+| **R2** | **section vocabulary** — `.data`, `.bss`, `.text$yd/$yc`, `.CRT$XCU`, and **`.rdata$r` (RTTI, independent of Phase 5)**; only `.xdata$x` waits on EH — **re-ordered per §10.20** | lifts C from 84 toward 871; joint ceiling B∧C 82→83 first. **Does not track EH progress**: Phase 5 contributes **0** to C, and `.xdata$x` is worth +47 at its ladder position with **0** TUs blocked on it alone | 13-name census (lane D); §10.20 for the RTTI/EH split; exact per-section joint counts are one query on `work/phase7plan-d/sections.pkl` |
 | **R3** | **the emit-set model, fail-closed** (§9.18.8 shape) — the fitted reachability predicate as `Emit(name)/Skip/Unknown` per segment, `Unknown` ⇒ refuse TU | makes the 842 reachable in principle; near-term joint ceiling **82** with R2's first slice | predicate §2; out-of-sample gate §5-D1 before it ships |
 | **R4** | **binding/framing repairs** — #159 family (`ordinary` no-record = header virtuals; `?CanSelect@…` 50-bind/3-no-record probe first) | **+9 today / +65 wall** (measured §10.17), 0 conversions alone | ceilings, not payoffs |
 | **R5** | **synthesis** — #152 `??_G/??__F/??_E/??_D` bodies (in neither `.gl` nor source; must be generated like c1xx+c2 do) | **+4 today / +69 wall**, 0 conversions alone | §10.13; blocked less than believed — the *names* are computable/known, the bodies are new codegen |
 | **R6** | **emission order + label counter** — callees-before-callers, siblings in source order, vtable virtuals in slot order after ctor (lane A, probe-scale); `.cod` allocation order for labels (§9.3) | 0 TUs alone; a set right + order wrong is still a mismatch | probe-measured; must be re-verified on workload objs before trust |
-| **R7** | **the second half: codegen breadth** — Phase 6 + expression layer *jointly* (§10.15: constructs pay only together; `if-n` first at +6), EH (which also feeds R2's `.rdata$r`), frames, member calls | this is where conversions actually land | the 14 named first targets below |
+| **R7** | **the second half: codegen breadth** — Phase 6 + expression layer *jointly* (§10.15: constructs pay only together; `if-n` first at +6), EH (**which feeds R2 not at all — §10.20**; it is a factor-**D** blocker over **740** objs), frames, member calls | this is where conversions actually land | the 14 named first targets below |
 | R8 | wall multi-category residue (305 TUs need ≥2 of R4/R5/…), `.bss` ≥3-object permutation, long tail | the last 400-odd TUs | known holes, §5 |
 
 **First conversion targets after R1** (lane D Q4, measured: delta ≤ 10 ∧
@@ -175,10 +208,22 @@ non-degenerate TU to a match in the workload), `EncryptXTEA`,
 These overlap §9.16.4's near band almost exactly, and §10.15 stands: each
 needs ≥2 constructs at once; none falls to a single rung.
 
+> **This list survives §10.20 and needs no re-choosing — verified on contents,
+> not inherited.** The `no EH sections` filter that selected it is exactly the
+> name-based reasoning §10.20 refutes, so it was re-checked directly: **0 of 70
+> objs** (these 14 TUs × 5 cached flag variants each) contain `__ehfuncinfo$`,
+> and 0 contain `.rdata$r`. Known-answer control on the same grep: **30 of 30**
+> objs from six unrelated real game TUs (`ChallengeSort`, `SongSort`,
+> `PlaylistSort`, `NavListSort`, `MQSongSort`, `FitnessCalorieSort`) **do**
+> carry `__ehfuncinfo$`. The filter picked the right TUs for the wrong reason.
+> **R1 and R7's targets stand.**
+
 **The terminal arithmetic, honestly:** 871 requires all four factors at ~1.0 —
-full section vocabulary (C: 13 names, EH-gated for 676 TUs), the emit model +
-binding + synthesis (A·B: 324 → 420 repaired → the 451-TU wall, of which 305
-need ≥2 items at once), order (R6), and the whole codegen program (D). Phase 7
+full section vocabulary (C: 13 names on this workload, of which only `.xdata$x`
+is EH-owned; the 740 EH-carrying TUs are gated on **D**, not C — §10.20), the
+emit model + binding + synthesis (A·B: **338** → 420 repaired → the 451-TU wall,
+of which 305 need ≥2 items at once), order (R6), and the whole codegen program
+(D). Phase 7
 as scoped here (A, B, C, order) is the *reachability* half; no step in this
 plan converts a TU except R1's +2, and every widening estimate downstream
 inherits the 6.5×–142× clean-to-realized spread (§10.6). Anyone quoting this
