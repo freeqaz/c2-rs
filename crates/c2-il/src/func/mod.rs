@@ -781,6 +781,31 @@ pub enum SeqCmp {
 /// The whole body is `prologue · (setup_i · bl callee_i)* · tail · epilogue`, and
 /// every `bl` is its own REL24 site — which is why `c2_core::coff::Function`
 /// carries a *list* of calls rather than an `Option`.
+/// **W10 — the guard on a [`CallSeq`]: the FRAMED × BRANCHING cell.**
+///
+/// The backend's view of [`crate::func::body::SeqGuardShape`]. The guarded call
+/// is `calls[0]` and the join's first call is `calls[1]`.
+///
+/// This is the field that made the port's frame class and its branch class
+/// intersect. Before it, `work/w-frame/RANKING.md` §4 measured 28 framed
+/// functions and 2 branching ones emitted byte-exact, with **zero** in both
+/// sets, and 10 of the 17 FRONTIER TUs needing the product.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SeqGuard {
+    /// Index into [`CallSeq`]'s owning function's `params` of the compared
+    /// formal. Its home argument register is what the compare reads: this
+    /// production admits no entry-block move, so there is no post-hoist
+    /// location to resolve.
+    pub cmp_param: usize,
+    /// The **source** relation; the emitted branch is its negation, because the
+    /// IL's `38` is brFALSE (`docs/CFG_SHAPE.md` §1 prediction A3).
+    pub rel: Rel,
+    /// `cmpwi` when true, `cmplwi` when false.
+    pub signed: bool,
+    /// The comparison literal, inside the 16-bit immediate field.
+    pub k: i32,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CallSeq {
     /// Every call in `.text` order; at least two, or one with a non-void tail
@@ -793,6 +818,10 @@ pub struct CallSeq {
     /// two entries — three or more is the `__savegprlr_N` helper class and the
     /// IL parser refuses it (`callseq-three-plus-saved`).
     pub saved: Vec<usize>,
+    /// **W10** — `Some` when the first call (and, with an `else` arm, the
+    /// second) is guarded by a conditional branch. `None` for every sequence
+    /// the Class A/B rungs shipped.
+    pub guard: Option<SeqGuard>,
 }
 
 impl CallSeq {

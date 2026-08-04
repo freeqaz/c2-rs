@@ -87,7 +87,7 @@ use crate::func::{Rel, SlotArg};
 /// underlying type is signed, which here is the difference between `2f……` and
 /// `2b……` in the emitted word. `docs/CFG_SHAPE.md` §3.2: "the signedness comes
 /// from the shared operand type triple at the comparison".
-fn eat_cmp_operand_type(seg: &[u8], p: &mut usize) -> Option<bool> {
+pub(crate) fn eat_cmp_operand_type(seg: &[u8], p: &mut usize) -> Option<bool> {
     if eat(seg, p, &INT_TYPE) || eat(seg, p, &LONG_TYPE) {
         return Some(true);
     }

@@ -16,6 +16,7 @@ use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
     try_parse_compare, try_parse_cond_tail_pair, try_parse_empty_ctor_base_delegation,
+    try_parse_guarded_seq,
     try_parse_empty_dtor_delegation,
     try_parse_float_leaf,
     try_parse_fp_tail_call,
@@ -26,7 +27,7 @@ use super::readers::{
     eat_byte, eat_value_type, read_token_var, read_type, read_varint, ValueClass,
 };
 use super::sy::SyView;
-use super::{CompareLeaf, IlOp};
+use super::{CompareLeaf, IlOp, Rel};
 
 // ---- the two DISPATCH axes ------------------------------------------------
 //
@@ -336,6 +337,34 @@ impl CondTailPairShape {
     }
 }
 
+/// **W10 — the guard on a [`BodyShape::CallSeq`]: the FRAMED × BRANCHING cell.**
+///
+/// `work/w-frame/RANKING.md` §4: over the 105 functions the port emits
+/// byte-exact, 28 are framed, 2 branch, and **zero are both**, while 10 of the
+/// 17 FRONTIER TUs need the product. This is the field that makes the product
+/// expressible.
+///
+/// The guarded call is always `calls[0]`. There is no index, because the
+/// production admits the guard only as the body's **first** statement: every
+/// witness for a guard later in a sequence needs a callee-saved formal, which
+/// [`super::shapes::guarded_seq`] refuses for reasons its module doc gives.
+/// There is no `else` arm either, and that refusal is a **measurement** — see
+/// the same module doc: `/Ox` and `/O2` tail-duplicate the join block and the
+/// epilogue where `/O1` shares them behind an intra-section `b`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SeqGuardShape {
+    /// Index into the sequence's `params` of the compared formal.
+    pub(crate) cmp_param: usize,
+    /// The **source** relation. The emitted branch is its negation, because the
+    /// IL's `38` is brFALSE (`docs/CFG_SHAPE.md` §1 prediction A3).
+    pub(crate) rel: Rel,
+    /// `cmpwi` when true, `cmplwi` when false — from the operand's TYPE triple
+    /// alone; the relational opcodes are sign-agnostic (§3.2).
+    pub(crate) signed: bool,
+    /// The comparison literal, inside the 16-bit immediate field.
+    pub(crate) k: i32,
+}
+
 /// What a [`BodyShape::CallSeq`] does after its last call.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SeqTail {
@@ -494,6 +523,11 @@ pub(crate) enum BodyShape {
         /// survives a call). See [`super::shapes::plan_saved_gprs`] for the rule
         /// and the refutation ladder behind it.
         saved: Vec<usize>,
+        /// **W10** — `Some` when the first call (and, with an `else` arm, the
+        /// second) is guarded by a conditional branch. `None` for every
+        /// sequence the Class A/B rungs already shipped, so this field is the
+        /// whole of the framed × branching widening on the IL side.
+        guard: Option<SeqGuardShape>,
     },
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
@@ -1362,6 +1396,27 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // the population this shape is drawn out of).
             if let Some(shape) = try_parse_cond_tail_pair(seg, p, lo, depth) {
                 disp("disp-cond-tail-pair");
+                return Ok(shape);
+            }
+            // **W10 — a guarded call in a framed call SEQUENCE**, the framed ×
+            // branching cell. Tried immediately after `cond_tail` and for the
+            // same reason: it is the only other production in this ladder that
+            // consumes a `38`, and every recognizer below reads the same
+            // `B9 <formal> <T> · 33 <T> <k> · <rel>` prefix and then requires a
+            // `2C`/`41`/`4C` where this shape has a conditional branch.
+            //
+            // **After `cond_tail`, not before**, and the adjacency is
+            // load-bearing: the two shapes share that whole prefix and diverge
+            // only at the arm's terminator — `cond_tail`'s arms end in a
+            // `3A <epilogue>` (a tail call, fold band 3, no frame), this one's
+            // fall through into a further call (a framed sequence). Neither can
+            // take a body from the other, because `try_parse_guarded_seq`
+            // requires an unguarded call after the `if` and `cond_tail`
+            // requires the else arm to be the body's last statement. Ordered
+            // this way anyway, so the narrower and older class keeps first
+            // refusal. Non-committal: a cursor copy and an `Option`.
+            if let Some(shape) = try_parse_guarded_seq(seg, p, lo, depth) {
+                disp("disp-guarded-seq");
                 return Ok(shape);
             }
             if let Some(shape) = try_parse_compare(seg, p, lo) {
