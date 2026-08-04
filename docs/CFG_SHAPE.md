@@ -997,6 +997,125 @@ question that only the byte compare answers.*
 
 ## 6. What the block/instruction IR must carry
 
+`docs/ROADMAP.md` §G4 defers the restructure "until the CFG step (W8) and frames
+(W10) force a block/instruction IR". This section says what that IR must support,
+derived from §3–§4 and from what the current representation demonstrably cannot
+express.
+
+### 6.1 What the current representation is, and why it cannot be extended
+
+`c2_il::IlFunction` is a struct of roughly a dozen **mutually-exclusive
+`Option` fields**, one per whole-body shape: `ops` (a flat `Vec<IlOp>`),
+`tail_call`, `framed_call`, `call_seq`, `compare`, `float_leaf`, `fp_tail`,
+`fp_arg_sources`, `arg_sources`, … . `c2_core::codegen::select_function` is an
+ordered `match` over them whose "dispatch order is load-bearing and documented
+per adjacency".
+
+That design is exactly right for what it does and it has three properties that
+make it unable to carry a CFG:
+
+1. **The unit of recognition is the whole function.** `BodyShape::StraightLine`,
+   `IntTailCall`, `FramedCall`, `CallSeq` each describe an entire body. There is
+   no sub-function unit at all, so there is nothing for a second basic block to
+   *be*.
+2. **`ops: Vec<IlOp>` is a single flat postfix stream with no terminator
+   concept.** `IlOp` has `Load`, `LoadInd`, `AddrOf`, arithmetic — and no
+   variant that transfers control. A branch cannot be added to it without the
+   stream ceasing to mean "evaluate these in order", which is the one assumption
+   every existing lowering rests on.
+3. **Emission is position-free.** `select_text` returns a `Vec<u8>` and the
+   callers that need an offset (`Selected::Tail`, `Framed`, `Seq`) get it by the
+   caller knowing where the function lands. Nothing in the pipeline can express
+   "this word's value depends on the address of a thing not yet emitted", which
+   is precisely what a branch displacement is.
+
+Adding an `IlOp::Branch` would break (2) and would still leave (1) and (3). The
+restructure is not avoidable by widening the enum.
+
+### 6.2 The minimum the new IR must carry
+
+Derived item by item from the measurements, with the section that forces each.
+
+**A. Basic blocks with an explicit emission order, and terminators.**
+A block is a straight-line instruction run ending in exactly one terminator:
+fall-through, `bc(cond, target)`, `b(target)`, `bclr(cond)`, `blr`, or a tail
+`b(symbol)`. The *order of blocks in the output* must be an explicit property,
+not implied by traversal, because §3.4 shows it is the IL's statement order and
+§3.4.1 shows one measured case where it is not — a lowering must be able to state
+the order it chose, so the two can be told apart.
+
+**B. Labels as first-class, resolved by a fixup pass.**
+`3A`/`38`/`39` carry no direction (§2.1), so the target's offset is unknown when
+the branch is emitted. The IR needs a label identity (the IL token will do), a
+map from label to block, and a **fixup list** of (word offset, label, form).
+Even §4's single-branch minimal instance needs this — it is not an optimization
+for the many-block case.
+
+**C. Two encodings for a branch, chosen by target kind.**
+`bc`/intra-section `b` patch a true self-relative displacement and emit **no**
+relocation; external `b`/`bl` patch a section-start-relative placeholder and emit
+a `REL24` (§3.3). The fixup entry must record which, and a single "patch the
+branch" path that assumes one of them corrupts the other.
+
+**D. A displacement range check with a defined expansion.**
+`bc` reaches ±32764. Past that, invert the condition and branch over an
+unconditional `b` (§3.3.1). This must be in the fixup pass, because the overflow
+is only visible after layout.
+
+**E. A condition-code model with two producers.**
+The IR must distinguish *"compare X against Y into cr6"* from *"this arithmetic
+instruction's record form sets cr0"*, because §3.2 shows c2 branches on both and
+the `BI` field differs (26 vs 2). A model with a single implicit condition
+register emits wrong bytes for every decrement-and-test loop.
+
+**F. Values live across block boundaries — the real cost.**
+§4.2 item 8: `MemFree` copies `v2` from r4 to **r11** in the entry block because
+both successors need it after clobbering r4. §3.4.1's `d_join` holds `b` in
+**r31** across a call. `?b_if2` and `?b_ifn` hold their formals in r31/r30 across
+calls and are **framed** for that reason alone.
+
+This is the item that makes the restructure a restructure. Today's register
+model is positional and local: formals occupy `ARG_REGS` by declaration order,
+the result is r3, temps descend from r11 in emission order
+(`docs/CODEGEN_W6_COMPARE.md` §6). That model has no notion of a value being
+live at a program point, and every one of the cells above needs one. Note also
+that `docs/CODEGEN_W6_COMPARE.md` §6 already records the allocator as
+"demonstrably richer than a descending counter and **not** characterized" — so
+this item depends on work nobody has done, not merely on work nobody has
+scheduled.
+
+**G. A place to record the folds, per accepted shape.**
+§3.5's three bands are not passes to reproduce; they are the reason the accepted
+class must be *stated as a shape*, and the shape must be checkable before
+emission. Concretely: the port must be able to say "this `cflow-if-1` is band 3"
+and refuse otherwise, rather than emitting a branch and being wrong on 6 of 7
+leaf bodies.
+
+### 6.3 What it must NOT carry
+
+The port is **I/O-behavioral** and does not reimplement c2's 35 passes. This
+document specifies no optimizer and the IR should not host one:
+
+* **No code motion.** §3.4.1's hoist and tail-merge are recorded as a *limit on
+  the accepted class* (a body whose arms end in the same call is out of class),
+  not as a pass to build.
+* **No cost model.** §3.5's band 1/band 2 boundary is declined. The class is
+  drawn to sit inside band 3.
+* **No loop rotation as a general transform.** §3.7's rotation is an *emission
+  shape* for the accepted loop class, established per shape from bytes — not a
+  transform applied to arbitrary IL.
+* **No CTR-loop discovery.** §3.7c's trip-count computation is a separate
+  problem; a loop rung should either admit the shape from measurement or refuse
+  bodies that would need it.
+* **No neutrality or behavior-preservation classifier.** Per `CLAUDE.md`: the
+  compiler plus the byte compare is the sole judge.
+
+The discipline that keeps this honest is the existing one: **decoding a
+production is not licence to emit it** (`IL_STMT_GRAMMAR.md` §14.2). The
+decode-only scanner in `control_flow.rs` already reads every shape in this
+document; the emission gate stays a whitelist of *shapes* and never becomes "the
+branches decoded".
+
 ## 7. The `/FAsc` listing as a decode aid
 
 ## 8. What an implementer still cannot build from this document
