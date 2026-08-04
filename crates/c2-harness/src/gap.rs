@@ -331,6 +331,32 @@ pub struct TuResult {
 /// deleting destructor, `??_E` vector deleting destructor, `??_D` vector
 /// destructor iterator, `??__E` dynamic initializer, `??__F` dynamic atexit
 /// destructor.
+/// **The port's COFF writer vocabulary** — every section name
+/// `c2_core::coff` is able to put in an obj, and therefore the whole of what
+/// **factor C** (`docs/ROADMAP.md` §10.19) admits.
+///
+/// Read off the three `Section { name: … }` tables in
+/// `crates/c2-core/src/coff.rs` (the empty-TU, per-function-COMDAT and packed
+/// writers) as **source text**, not fitted to any target count. Every name any
+/// of them can emit is here; `.XBLD$W` appears twice there (the C1 and C2
+/// watermarks) and once here, because this is a vocabulary and not a section
+/// list.
+///
+/// **This list's home should be `c2-core`, and this is a mirror.** Minting a
+/// published constant next to the writers is a cross-crate change and
+/// `crates/c2-core` belongs to another lane today, so the list is duplicated
+/// here with its provenance named — and with a control that can go red rather
+/// than an argument that it is right: **every byte-exact TU's obj must be
+/// inside factor C** (`factor_control_on_match_tus`). A `match` obj *is* the
+/// port's own output, so if this list were too small, a matching TU would fall
+/// outside C and the scan would say so. That control cannot catch the opposite
+/// error — a name here the writer never emits would inflate C — which is
+/// exactly why the list is a transcription of six source lines and not a
+/// generalization of them.
+const PORT_WRITER_SECTIONS: [&str; 6] = [
+    ".drectve", ".debug$S", ".XBLD$W", ".text", ".pdata", ".rdata",
+];
+
 /// The MSVC mangling class of `name`, for naming the unbound residue.
 ///
 /// Coarse on purpose — it separates the populations that would be explained by
@@ -849,6 +875,222 @@ impl GapReport {
             t("emit-set-ceiling-gate-enter"),
             t("emit-set-ceiling-gate-leave"),
         )
+    }
+
+    /// **The four Phase 7 factors for one TU** (`docs/ROADMAP.md` §10.19,
+    /// board #160), in `[A, B, C, D]` order:
+    ///
+    /// | | predicate | key |
+    /// |---|---|---|
+    /// | **A** | `.ex` segments == obj `.text` COMDATs, on the anchor the port consumes | `emit-set-ceiling-gate` |
+    /// | **B** | every emitted symbol binds | `emit-set-ceiling-today` |
+    /// | **C** | obj section set ⊆ [`PORT_WRITER_SECTIONS`] | `emit-sec-reachable` |
+    /// | **D** | every emitted COMDAT is in the port's codegen class | `emit-class-complete` |
+    ///
+    /// Each factor is **necessary** for a byte-exact obj and none is sufficient;
+    /// what §10.19 measured is that their conjunction is exactly the observed
+    /// match set. Every one reads a key some *other* code path wrote, so this
+    /// function re-derives no rule — it is a join, and that is the whole point
+    /// (§10.14).
+    ///
+    /// **A is gate-anchored** (`4F 1F`, what `PortC2::build` consumes) rather
+    /// than `LO`-anchored: §10.18 settled that the two splitters disagree on 634
+    /// of 871 TUs and that the port's anchor is the one its emitter has to
+    /// satisfy. [`Self::factor_a_lo`] is the other reading, published beside it.
+    pub fn factors(r: &TuResult) -> [bool; 4] {
+        let has = |k: &str| r.emit.contains_key(k);
+        [
+            has("emit-set-ceiling-gate"),
+            has("emit-set-ceiling-today"),
+            has("emit-sec-reachable"),
+            has("emit-class-complete"),
+        ]
+    }
+
+    /// Factor A on the **`LO`** anchor (`4C 4F 11`, the census's splitter) —
+    /// the reading `emit_set_reachable_tus` filters on. Published beside the
+    /// gate-anchored one because §10.18's whole finding is that they are two
+    /// different numbers and only one is the port's.
+    pub fn factor_a_lo(r: &TuResult) -> bool {
+        r.fn_total == r.emit.get("emit-emitted").copied().unwrap_or(0)
+    }
+
+    /// The TUs the factorization is computed over: everything the harness
+    /// graded, i.e. every TU that captured. `capture-fail` TUs have no obj and
+    /// no census, so they are not "outside the factors" — they were never
+    /// measured, and folding them in would make every factor look tighter.
+    pub fn graded(&self) -> impl Iterator<Item = &TuResult> {
+        self.results.iter().filter(|r| r.class != TuClass::CaptureFail)
+    }
+
+    /// `(|A|, |B|, |C|, |D|, |A_lo|, |B∧C|, |A∧B∧C∧D|)` over the graded TUs.
+    ///
+    /// `B∧C` is the plan's **near-term joint ceiling** — what a perfect emit-set
+    /// model plus a perfect binding reaches while the writer's vocabulary is
+    /// what it is (`PHASE7_PLAN.md` §1). It is a *joint*, measured per TU, and
+    /// not a product of marginals: §8.6's standing rule, and the reason this
+    /// function exists rather than a note telling readers to multiply.
+    pub fn factor_counts(&self) -> [usize; 7] {
+        let mut c = [0usize; 7];
+        for r in self.graded() {
+            let f = Self::factors(r);
+            for i in 0..4 {
+                c[i] += usize::from(f[i]);
+            }
+            c[4] += usize::from(Self::factor_a_lo(r));
+            c[5] += usize::from(f[1] && f[2]);
+            c[6] += usize::from(f.iter().all(|&b| b));
+        }
+        c
+    }
+
+    /// The TUs satisfying all four factors, by source path. §10.19's claim is
+    /// that this set **is** the match set, so it is returned as a list of names
+    /// rather than a count: a count could agree by coincidence, and two sets
+    /// that differ by a swap would read as equal.
+    pub fn factor_all_tus(&self) -> Vec<&str> {
+        self.graded()
+            .filter(|r| Self::factors(r).iter().all(|&b| b))
+            .map(|r| r.src.as_str())
+            .collect()
+    }
+
+    /// **The known-answer control on the factorization**: how many byte-exact
+    /// TUs fail each factor, and how many `match` TUs there were to check.
+    /// Returns `([A, B, C, D] violations, matching TUs)`.
+    ///
+    /// Every factor is a *necessary* condition for a byte-exact obj, which is
+    /// the only thing that makes it a ceiling — so on a `match` TU all four must
+    /// hold. Nonzero anywhere means the factor is not necessary and any bound
+    /// drawn from it is void. For **C** this is also the control on
+    /// [`PORT_WRITER_SECTIONS`] itself: a matching obj is the port's own output,
+    /// so a name missing from that list shows up here rather than in an argument
+    /// about whether the list is complete.
+    pub fn factor_control_on_match_tus(&self) -> ([usize; 4], usize) {
+        let mut bad = [0usize; 4];
+        let mut n = 0;
+        for r in self.results.iter().filter(|r| r.class == TuClass::Match) {
+            n += 1;
+            for (i, ok) in Self::factors(r).iter().enumerate() {
+                bad[i] += usize::from(!ok);
+            }
+        }
+        (bad, n)
+    }
+
+    /// **The frontier**: TUs inside `A∧B∧C` that are not yet a `match` — i.e.
+    /// the emit set is reachable, every emitted symbol binds, the obj's sections
+    /// are all writable, and the *only* factor left is **D**, codegen breadth.
+    ///
+    /// This is the one actionable list the factorization produces. Everything
+    /// else it prints is a bound; these are TUs where no model, no section work
+    /// and no binding repair is needed — widening the accepted function class is
+    /// the whole remaining distance. Sorted by that distance (emitted functions
+    /// not in class), nearest first.
+    ///
+    /// **It is not a schedule** (`ROADMAP.md` §9.16.1): a TU one blocked
+    /// function away can be one blocked function away from a construct nobody
+    /// has modelled.
+    pub fn factor_frontier(&self) -> Vec<(&TuResult, usize)> {
+        let mut v: Vec<(&TuResult, usize)> = self
+            .graded()
+            .filter(|r| r.class != TuClass::Match)
+            .filter(|r| {
+                let f = Self::factors(r);
+                f[0] && f[1] && f[2] && !f[3]
+            })
+            .map(|r| {
+                let e = r.emit.get("emit-emitted").copied().unwrap_or(0);
+                let i = r.emit.get("emit-in-class").copied().unwrap_or(0);
+                (r, e.saturating_sub(i))
+            })
+            .collect();
+        v.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.src.cmp(&b.0.src)));
+        v
+    }
+
+    /// **The section vocabulary census**: every distinct section name in the
+    /// workload with the number of objs carrying it, most common first.
+    ///
+    /// The whole of factor C's problem, enumerated. It is a *finite* list —
+    /// which is what makes C the one factor in §10.19 with a short route to
+    /// closure — so the count of rows is itself the headline and is printed.
+    pub fn section_vocabulary(&self) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix("emit-sec-name|")?.to_string(), n)))
+            .collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// Per-TU set of section names **outside** the port's writer vocabulary, for
+    /// the graded TUs whose obj decoded. The ladder's input.
+    fn extra_section_sets(&self) -> Vec<Vec<&str>> {
+        self.graded()
+            .filter(|r| r.emit.contains_key("emit-sec-readable"))
+            .map(|r| {
+                r.emit
+                    .keys()
+                    .filter_map(|k| k.strip_prefix("emit-sec-extra|"))
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// **The greedy section ladder**: which name to teach the writer next, by
+    /// the TUs it brings into reach. Each row is `(name, resulting |C|)`.
+    ///
+    /// Greedy by immediate gain, ties broken by name ascending, and it **does
+    /// not stop at a zero-gain step** — it runs until every readable obj is
+    /// reachable. That matters: two names that only ever co-occur each score 0
+    /// alone, so a ladder that halted on no-progress would report the vocabulary
+    /// as unclosable when it is one step from closed. A zero-gain row printed
+    /// beside a gain is also the honest way to say "these two are one step".
+    ///
+    /// Greedy is not proven optimal, and the row order is a *route*, not a
+    /// schedule (`ROADMAP.md` §9.16.1). What it establishes is an upper bound on
+    /// the length of the route, which is the claim §10.19 makes.
+    pub fn section_ladder(&self) -> Vec<(String, usize)> {
+        let sets = self.extra_section_sets();
+        let mut taught: std::collections::BTreeSet<&str> = Default::default();
+        let reach = |taught: &std::collections::BTreeSet<&str>| -> usize {
+            sets.iter()
+                .filter(|s| s.iter().all(|n| taught.contains(n)))
+                .count()
+        };
+        let mut out = Vec::new();
+        while reach(&taught) < sets.len() {
+            let mut candidates: std::collections::BTreeSet<&str> = Default::default();
+            for s in &sets {
+                for n in s {
+                    if !taught.contains(n) {
+                        candidates.insert(n);
+                    }
+                }
+            }
+            let mut best: Option<(usize, &str)> = None;
+            for c in candidates {
+                let mut t = taught.clone();
+                t.insert(c);
+                let got = reach(&t);
+                // Ties by name ascending: `BTreeSet` iterates sorted and the
+                // comparison is strict, so the first of a tie wins and the
+                // ladder is reproducible run to run.
+                let better = match best {
+                    None => true,
+                    Some((n, _)) => got > n,
+                };
+                if better {
+                    best = Some((got, c));
+                }
+            }
+            let Some((got, name)) = best else { break };
+            taught.insert(name);
+            out.push((name.to_string(), got));
+        }
+        out
     }
 
     /// The binding invariant that must be **zero**: a generated destructor bound to
@@ -1567,6 +1809,92 @@ fn scan_one(
         }
     }
 
+    // 1h. **FACTORS C AND D** (`docs/ROADMAP.md` §10.19, board #160).
+    //
+    //     §10.19 factored Phase 7 into four predicates over the graded TUs and
+    //     found `A∧B∧C∧D` reproduces the match set exactly. **A and B were
+    //     already keys here; C and D were not** — they lived in a one-off
+    //     analysis, which means the project's central planning model could not
+    //     regress-detect and the next reader re-derives it by hand. §10.14 is
+    //     the record of what a by-hand re-derivation of a rule the harness owns
+    //     costs.
+    //
+    //     | factor | predicate | key |
+    //     |---|---|---|
+    //     | A | `.ex` segments == obj `.text` COMDATs | `emit-set-ceiling-gate` (1g) |
+    //     | B | every emitted symbol binds | `emit-set-ceiling-today` (1e) |
+    //     | **C** | obj section set ⊆ [`PORT_WRITER_SECTIONS`] | `emit-sec-reachable` |
+    //     | **D** | every emitted COMDAT in the port's codegen class | `emit-class-complete` |
+    //
+    //     **C reads the obj afresh and shares no variable with 1e, 1g or step
+    //     3.** That is not fussiness: §10.18 is this file's own record of a
+    //     variable with two consumers being changed for one of them, moving 865
+    //     TUs between classes with nothing red. The question here — *what
+    //     sections does this obj have* — is not the question `text_comdat_*`
+    //     asks (*which COMDAT `.text` leaders are there*), and a `.data` or
+    //     `.bss` is invisible to the second.
+    //
+    //     **D is built from the keys 1e already computed, never from a second
+    //     in-class rule.** `emit-in-class` is the census's own
+    //     `FnVerdict::in_class()` joined through the binding, so an emitted
+    //     symbol that fails to bind is *not* counted in class — D fails closed,
+    //     which is the direction that cannot flatter it.
+    {
+        match captured.ref_obj.section_names() {
+            None => {
+                // Fail closed and SAY SO. An unreadable obj contributes no
+                // section vocabulary and is outside C — never "carries nothing
+                // outside the writer's set", which would put it inside.
+                *res.emit.entry("emit-sec-unreadable".into()).or_insert(0) += 1;
+            }
+            Some(names) => {
+                *res.emit.entry("emit-sec-readable".into()).or_insert(0) += 1;
+                *res.emit.entry("emit-sec-count".into()).or_insert(0) += names.len();
+                let distinct: std::collections::BTreeSet<&str> =
+                    names.iter().map(String::as_str).collect();
+                *res.emit.entry("emit-sec-distinct".into()).or_insert(0) += distinct.len();
+                let mut extra = 0usize;
+                for n in &distinct {
+                    // One per DISTINCT name per TU, so the aggregated row reads
+                    // "objs carrying this section" and not "sections named this"
+                    // — under `/Gy` the second would count 158 `.text`s in one
+                    // obj and no reader of the table would know which it was.
+                    *res.emit.entry(format!("emit-sec-name|{n}")).or_insert(0) += 1;
+                    if !PORT_WRITER_SECTIONS.contains(n) {
+                        extra += 1;
+                        *res.emit.entry(format!("emit-sec-extra|{n}")).or_insert(0) += 1;
+                    }
+                }
+                let key = if extra == 0 {
+                    "emit-sec-reachable"
+                } else {
+                    "emit-sec-blocked"
+                };
+                *res.emit.entry(key.into()).or_insert(0) += 1;
+            }
+        }
+        // Factor D. Its population is **"1e's join actually ran"**, which the
+        // presence of the `emit-emitted` key states exactly: 1e writes it
+        // unconditionally once the census decoded and the obj's emitted set
+        // read, including when the value is 0. A TU whose obj did not decode,
+        // or that has no census at all, is therefore *outside* D rather than
+        // vacuously inside it on `0 == 0` — the flattering direction, and the
+        // one §9.18.8 records twelve times.
+        if let Some(&emitted) = res.emit.get("emit-emitted") {
+            let in_class = res.emit.get("emit-in-class").copied().unwrap_or(0);
+            *res.emit.entry("emit-class-known".into()).or_insert(0) += 1;
+            if emitted == in_class {
+                *res.emit.entry("emit-class-complete".into()).or_insert(0) += 1;
+            }
+            // The vacuous half, counted separately because §10.19 says "6 of
+            // those 8 emit nothing" and a factor that is mostly satisfied by
+            // empty objs is a different fact from one that is not.
+            if emitted == 0 {
+                *res.emit.entry("emit-class-empty".into()).or_insert(0) += 1;
+            }
+        }
+    }
+
     // 2. Optional soundness lane: standalone-c2 replay must reproduce the
     //    pipeline obj on this real bundle.
     if do_replay {
@@ -1908,7 +2236,125 @@ pub fn gap_scan(
         known + unknown,
         report.emit_set_reachable_tus().len(),
     );
+    print_factorization(&report);
     Ok(report)
+}
+
+/// **The Phase 7 factorization, printed on every scan** (`docs/ROADMAP.md`
+/// §10.19, board #160).
+///
+/// Printed from here rather than from `main.rs` for the same reason the splitter
+/// block above is: the predicates live in this file, and a report assembled
+/// somewhere else is a second place the definitions can drift.
+///
+/// **Everything here is a count.** There is no "factorization OK" line: a joint
+/// that reproduced nothing would print zeros against a nonzero match count,
+/// which is visible, where a status would not be (`docs/GAPS.md` §7).
+fn print_factorization(report: &GapReport) {
+    let graded = report.graded().count();
+    let [a, b, c, d, a_lo, bc, abcd] = report.factor_counts();
+    let (bad, match_tus) = report.factor_control_on_match_tus();
+    let matched: Vec<&str> = report
+        .results
+        .iter()
+        .filter(|r| r.class == TuClass::Match)
+        .map(|r| r.src.as_str())
+        .collect();
+    let all = report.factor_all_tus();
+    let vocab = report.section_vocabulary();
+    let unreadable = report.emit_total("emit-sec-unreadable");
+    let readable = report.emit_total("emit-sec-readable");
+
+    println!(
+        "\nPHASE 7 FACTORS (ROADMAP §10.19, board #160) — four NECESSARY conditions on a \
+         byte-exact obj, over {graded} graded TUs\n\
+         \x20 A  emit set reachable   `.ex` segments == obj `.text` COMDATs   {a:>5}  \
+         (gate-anchored `4F 1F`; {a_lo} on the census's `4C 4F 11` anchor)\n\
+         \x20 B  binding complete     every emitted symbol binds              {b:>5}\n\
+         \x20 C  section shape        obj sections subset of the writer's {}   {c:>5}\n\
+         \x20 D  codegen breadth      every emitted COMDAT in class           {d:>5}  \
+         ({} of them emit nothing at all)\n\
+         \x20 B and C jointly (the near-term ceiling, measured per TU — NOT a product of \
+         marginals, §8.6): {bc}\n\
+         \x20 A and B and C and D: {abcd}   |   TUs the differential graded `match`: {}\n\
+         \x20 section headers: {readable} objs read, {unreadable} did not decode (outside C, \
+         fail-closed)",
+        PORT_WRITER_SECTIONS.len(),
+        report.emit_total("emit-class-empty"),
+        matched.len(),
+    );
+    // The set identity, by name. §10.19's claim is that the joint IS the match
+    // set; two sets of the same size that differ by a swap would read as equal
+    // if this printed only counts.
+    if all == matched {
+        println!(
+            "\x20 the joint is EXACTLY the match set ({} TUs, by name): {}",
+            all.len(),
+            all.join(", ")
+        );
+    } else {
+        let only_joint: Vec<&&str> = all.iter().filter(|s| !matched.contains(s)).collect();
+        let only_match: Vec<&&str> = matched.iter().filter(|s| !all.contains(s)).collect();
+        println!(
+            "\x20 the joint is NOT the match set — {} in the joint only ({:?}), {} matching but \
+             outside some factor ({:?}). The second list is the ALARM: every factor is meant \
+             to be NECESSARY, so a matching TU outside one voids the bound it carries.",
+            only_joint.len(),
+            only_joint,
+            only_match.len(),
+            only_match,
+        );
+    }
+    println!(
+        "\x20 known-answer control — matching TUs failing each factor (all must be 0, over \
+         {match_tus} matching TUs): A {} B {} C {} D {}",
+        bad[0], bad[1], bad[2], bad[3]
+    );
+    // The vocabulary, in full. It is finite, and its size is the headline: it is
+    // what makes C the one factor with a short route to closure.
+    println!(
+        "\x20 SECTION VOCABULARY — {} distinct names across the workload (objs carrying each):",
+        vocab.len()
+    );
+    for (name, objs) in &vocab {
+        let mine = if PORT_WRITER_SECTIONS.contains(&name.as_str()) {
+            "writer"
+        } else {
+            "  ---"
+        };
+        println!("\x20   {objs:>5} objs  [{mine}]  {name}");
+    }
+    // The one ACTIONABLE row of the whole block: TUs whose only remaining
+    // factor is D. Printed as a list with each one's distance, because a
+    // count would say "16" and name nothing to work on.
+    let frontier = report.factor_frontier();
+    println!(
+        "\x20 FRONTIER — {} graded TUs satisfy A and B and C and are NOT a match, so codegen \
+         breadth (D) is the whole remaining distance (blocked emitted | emitted | src):",
+        frontier.len()
+    );
+    for (r, blocked) in frontier.iter().take(40) {
+        println!(
+            "\x20   {blocked:>4} | {:>4} | {}",
+            r.emit.get("emit-emitted").copied().unwrap_or(0),
+            r.src
+        );
+    }
+    if frontier.len() > 40 {
+        println!("\x20   … and {} more", frontier.len() - 40);
+    }
+    // …and the route: which name to teach next, by TUs brought into reach.
+    let ladder = report.section_ladder();
+    println!(
+        "\x20 GREEDY LADDER — next section name to teach the writer, and the resulting C \
+         ({} steps from {c} to {readable}):",
+        ladder.len()
+    );
+    let mut prev = c;
+    for (name, reach) in &ladder {
+        println!("\x20   +{name:<12} C = {reach:>5}   (+{})", reach - prev);
+        prev = *reach;
+    }
 }
 
 /// Rank one scan's [`WitnessRow`]s per bucket. Pure over `results`, so the unit
@@ -2372,6 +2818,208 @@ mod tests {
             1,
             "a byte-exact obj with 5 `.ex` segments and 2 `.text` COMDATs is impossible; \
              the invariant must say so"
+        );
+    }
+
+    /// A TU with the four Phase 7 factors set explicitly, through the same keys
+    /// `scan_one` writes.
+    fn mk_factors(class: TuClass, src: &str, a: bool, b: bool, c: bool, d: bool) -> TuResult {
+        let mut r = mk("x");
+        r.class = class;
+        r.src = src.into();
+        // `emit-gate-segments-known` and `emit-emitted` are the populations the
+        // factors are defined over; a TU missing them is UNMEASURED, not false.
+        r.emit.insert("emit-gate-segments-known".into(), 1);
+        r.emit.insert("emit-emitted".into(), 0);
+        r.emit.insert("emit-sec-readable".into(), 1);
+        for (k, on) in [
+            ("emit-set-ceiling-gate", a),
+            ("emit-set-ceiling-today", b),
+            ("emit-sec-reachable", c),
+            ("emit-class-complete", d),
+        ] {
+            if on {
+                r.emit.insert(k.into(), 1);
+            }
+        }
+        r
+    }
+
+    /// **The factorization is a JOINT, and the joint is not the product of its
+    /// marginals** (`ROADMAP.md` §8.6 — the standing rule this report had no tool
+    /// for until the per-row dump, and now has one for at TU level).
+    ///
+    /// The four TUs below give marginals A = B = C = D = 3 of 4, which multiplied
+    /// against 4 TUs would "predict" ≈1.3 — and the measured joint is **0**,
+    /// because each TU fails a different factor. A report that printed only the
+    /// four counts would let a reader do that multiplication and be wrong in the
+    /// flattering direction.
+    #[test]
+    fn the_factorization_is_a_joint_and_not_a_product_of_marginals() {
+        let rep = mk_report(vec![
+            mk_factors(TuClass::VocabGap, "a.cpp", false, true, true, true),
+            mk_factors(TuClass::VocabGap, "b.cpp", true, false, true, true),
+            mk_factors(TuClass::VocabGap, "c.cpp", true, true, false, true),
+            mk_factors(TuClass::VocabGap, "d.cpp", true, true, true, false),
+        ]);
+        let [a, b, c, d, _a_lo, bc, abcd] = rep.factor_counts();
+        assert_eq!([a, b, c, d], [3, 3, 3, 3], "each marginal is 3 of 4");
+        assert_eq!(bc, 2, "B and C jointly is measured per TU, not B*C/n");
+        assert_eq!(
+            abcd, 0,
+            "no TU satisfies all four — the joint can be 0 while every marginal \
+             is 3/4, which is the whole reason this is measured and not multiplied"
+        );
+        assert!(rep.factor_all_tus().is_empty());
+    }
+
+    /// **The known-answer control**, and it must be able to go red. Each factor
+    /// is a *necessary* condition for a byte-exact obj, so a `match` TU outside
+    /// one means the factor is not necessary and every bound drawn from it is
+    /// void. For **C** this is also the only executable check on
+    /// [`PORT_WRITER_SECTIONS`]: a matching obj is the port's own output, so a
+    /// name missing from that list surfaces here.
+    ///
+    /// The guard's quantity — one `match` TU — is held fixed across both halves,
+    /// so the second half cannot pass by the TU ceasing to be a `match`.
+    #[test]
+    fn a_matching_tu_outside_any_factor_is_a_red_control() {
+        let ok = mk_factors(TuClass::Match, "Spew.cpp", true, true, true, true);
+        let rep = mk_report(vec![ok, mk_factors(TuClass::VocabGap, "z.cpp", false, false, false, false)]);
+        assert_eq!(rep.factor_control_on_match_tus(), ([0, 0, 0, 0], 1));
+        assert_eq!(rep.factor_all_tus(), vec!["Spew.cpp"]);
+
+        // The mutation: the same matching TU, now carrying a section the writer
+        // cannot emit. That is impossible — the port wrote that obj — so it must
+        // be counted, and against factor C specifically.
+        let bad = mk_factors(TuClass::Match, "Spew.cpp", true, true, false, true);
+        let rep = mk_report(vec![bad]);
+        assert_eq!(
+            rep.count(TuClass::Match),
+            1,
+            "the mutation must not change the number of byte-exact TUs — otherwise \
+             this control tests the class filter, not the factor"
+        );
+        assert_eq!(
+            rep.factor_control_on_match_tus(),
+            ([0, 0, 1, 0], 1),
+            "a byte-exact obj outside the port writer's section vocabulary is \
+             impossible; C must say so, and name itself"
+        );
+    }
+
+    /// **The frontier is `A∧B∧C ∧ ¬D ∧ ¬match`**, and each of those four clauses
+    /// is load-bearing: a byte-exact TU in the list would be work already done,
+    /// and a TU missing A, B or C is not one widening away from anything.
+    #[test]
+    fn the_frontier_is_the_tus_whose_only_remaining_factor_is_codegen() {
+        let mut near = mk_factors(TuClass::VocabGap, "near.cpp", true, true, true, false);
+        near.emit.insert("emit-emitted".into(), 5);
+        near.emit.insert("emit-in-class".into(), 4);
+        let mut far = mk_factors(TuClass::VocabGap, "far.cpp", true, true, true, false);
+        far.emit.insert("emit-emitted".into(), 11);
+        far.emit.insert("emit-in-class".into(), 8);
+        let rep = mk_report(vec![
+            far,
+            near,
+            // Already done — must not appear.
+            mk_factors(TuClass::Match, "done.cpp", true, true, true, true),
+            // Blocked on a factor codegen cannot move — must not appear.
+            mk_factors(TuClass::VocabGap, "sections.cpp", true, true, false, false),
+            mk_factors(TuClass::VocabGap, "emitset.cpp", false, true, true, false),
+        ]);
+        let got: Vec<(&str, usize)> = rep
+            .factor_frontier()
+            .into_iter()
+            .map(|(r, n)| (r.src.as_str(), n))
+            .collect();
+        assert_eq!(
+            got,
+            vec![("near.cpp", 1), ("far.cpp", 3)],
+            "nearest first by blocked EMITTED functions, and only the TUs where D is \
+             the whole remaining distance"
+        );
+    }
+
+    /// An obj whose section headers did not decode is **outside** C, never
+    /// inside it. An empty section list would read as "carries nothing beyond
+    /// the writer's set", which is the flattering direction and the shape
+    /// §9.18.8 records twelve times.
+    #[test]
+    fn an_unreadable_obj_is_outside_factor_c_rather_than_vacuously_inside_it() {
+        let mut r = mk("x");
+        r.class = TuClass::VocabGap;
+        r.src = "broken.cpp".into();
+        r.emit.insert("emit-sec-unreadable".into(), 1);
+        let rep = mk_report(vec![r]);
+        assert_eq!(rep.factor_counts()[2], 0, "no section list means no C");
+        assert!(rep.factor_all_tus().is_empty());
+    }
+
+    /// **The greedy ladder must run through a zero-gain step.** Two names that
+    /// only ever co-occur each score 0 alone, so a ladder that stopped on
+    /// no-progress would report the vocabulary as unclosable when it is one step
+    /// from closed — which is exactly the workload's `.CRT$XCU`/`.text$yc` pair
+    /// (126 objs each, never apart).
+    #[test]
+    fn the_greedy_ladder_runs_through_a_zero_gain_step() {
+        let tu = |src: &str, extras: &[&str]| {
+            let mut r = mk("x");
+            r.class = TuClass::VocabGap;
+            r.src = src.into();
+            r.emit.insert("emit-sec-readable".into(), 1);
+            for e in extras {
+                r.emit.insert(format!("emit-sec-extra|{e}"), 1);
+            }
+            if extras.is_empty() {
+                r.emit.insert("emit-sec-reachable".into(), 1);
+            }
+            r
+        };
+        let rep = mk_report(vec![
+            tu("in.cpp", &[]),
+            tu("one.cpp", &[".data"]),
+            tu("two.cpp", &[".data"]),
+            tu("pair1.cpp", &[".CRT$XCU", ".text$yc"]),
+            tu("pair2.cpp", &[".CRT$XCU", ".text$yc"]),
+        ]);
+        assert_eq!(rep.factor_counts()[2], 1, "one TU is already reachable");
+        assert_eq!(
+            rep.section_ladder(),
+            vec![
+                (".data".to_string(), 3),
+                (".CRT$XCU".to_string(), 3),
+                (".text$yc".to_string(), 5),
+            ],
+            "greedy takes the +2 first, then must push through the zero-gain half \
+             of the co-occurring pair to reach the whole workload"
+        );
+    }
+
+    /// The vocabulary census counts **objs carrying a section**, not sections.
+    /// Under `/Gy` one obj holds one COMDAT `.text` per emitted function, so the
+    /// second reading would report 158 for `src/App.cpp` alone and no reader of
+    /// the table could tell which number it was looking at.
+    #[test]
+    fn the_section_vocabulary_counts_objs_and_not_sections() {
+        let tu = |src: &str, names: &[&str]| {
+            let mut r = mk("x");
+            r.class = TuClass::VocabGap;
+            r.src = src.into();
+            r.emit.insert("emit-sec-readable".into(), 1);
+            // 158 `.text` sections in this obj — one row, because the key is
+            // written once per DISTINCT name per TU.
+            r.emit.insert("emit-sec-count".into(), 158);
+            for n in names {
+                r.emit.insert(format!("emit-sec-name|{n}"), 1);
+            }
+            r
+        };
+        let rep = mk_report(vec![tu("a.cpp", &[".text", ".data"]), tu("b.cpp", &[".text"])]);
+        assert_eq!(
+            rep.section_vocabulary(),
+            vec![(".text".to_string(), 2), (".data".to_string(), 1)],
+            "two objs carry `.text` and one carries `.data`, ranked most common first"
         );
     }
 
