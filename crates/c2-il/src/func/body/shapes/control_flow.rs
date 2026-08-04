@@ -430,7 +430,9 @@ impl<'a> Scan<'a> {
 pub(crate) fn scan_full(seg: &[u8], lo: usize) -> CfScan {
     let mut s = Scan {
         seg,
-        p: lo + 3,
+        // `lo + 3` for a composed `4C 4F 11`, `lo + 1` for the bare `4C` of a
+        // `??__E`/`??__F` thunk. One locator (`func::bundle::ops_start`).
+        p: crate::func::ops_start(seg, lo),
         depth: PRE_BODY_DEPTH,
         labels: Vec::new(),
         conds: Vec::new(),

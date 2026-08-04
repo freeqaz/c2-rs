@@ -22,7 +22,7 @@ use self::shapes::{
     try_parse_store_leaf, try_parse_store_run,
 };
 use super::readers::{
-    eat_byte, eat_value_type, find_subslice, read_token_var, read_type, read_varint, ValueClass,
+    eat_byte, eat_value_type, read_token_var, read_type, read_varint, ValueClass,
 };
 use super::sy::SyView;
 use super::{CompareLeaf, IlOp};
@@ -1084,7 +1084,7 @@ pub(crate) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, 
     // sub-bucket count it decorates.
     match r {
         Err(b) if b.ctx == mcall::CALL_IN_EXPR => {
-            match find_subslice(seg, &[0x4C, 0x4F, 0x11]) {
+            match crate::func::body_start(seg) {
                 Some(lo) => Err(mcall::mark_whole(seg, lo, b)),
                 None => Err(b),
             }
@@ -1098,7 +1098,13 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     // marker is not in it, so the parse never started. Reporting it at the end
     // would claim `:eof` — "the parse ran out of segment" — for a body whose
     // grammar is entirely unexamined.
-    let lo = find_subslice(seg, &[0x4C, 0x4F, 0x11]).ok_or_else(|| {
+    // **Both forms of the body-start token**, through the crate's one locator.
+    // `4C 4F 11` where a segment has one; the grammar-gated bare `4C` of a
+    // `??__E`/`??__F` thunk where it does not (ROADMAP §10.12). W-LO taught the
+    // splitter and the codec this and deliberately left the parser behind,
+    // because every reader below added a hard-coded 3 to the offset; that is now
+    // [`ops_start`]'s job and this is the last site.
+    let lo = crate::func::body_start(seg).ok_or_else(|| {
         disp("disp-no-lo-marker");
         Block::refuse(seg, 0, "lo-marker")
     })?;
@@ -1134,7 +1140,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     }
 
     let locals = sy.locals;
-    let mut p = lo + 3;
+    let mut p = crate::func::ops_start(seg, lo);
     // 'SS' statement-start — the body's own lexical scope — then any further brace
     // scopes and line markers. A body wrapped in braces used to refuse here as
     // `body-0x53`, the largest single blocking feature on the real workload.
@@ -2383,3 +2389,97 @@ mod tests {
 }
 
 
+
+/// **W-R1 — the `??__E` dynamic-initializer thunk decodes.**
+///
+/// The transcript is the whole `.ex` function segment of
+/// `src/system/synth/tomcrypt/TomCryptLicense.cpp` at the workload's own flags
+/// (`/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc …`), `4F 1F` header included.
+/// `src/system/zlib/ZlibLicense.cpp` captures a **byte-identical** 2,839 B `.ex`
+/// — everything that separates the two TUs is in `.gl` and `.in` — so this one
+/// transcript grades both.
+#[cfg(test)]
+mod wr1_dyninit {
+    use super::*;
+    use crate::func::test_fixtures::NO_LOCALS;
+
+    /// `static Licenses sLicense("system/src/tomcrypt", (Licenses::Requirement)0);`
+    /// lowering to `??__EsLicense@@YAXXZ`, whose six instructions are
+    ///
+    /// ```text
+    ///   lis  r11,`string'   lis  r10,sLicense
+    ///   addi r4,r11,…       addi r3,r10,…      li r5,0    b ??0Licenses@@QAA@…@Z
+    /// ```
+    const TOMCRYPT_DYNINIT: &[u8] = &[
+        0x4F, 0x1F, 0x80, 0x05, 0x00, 0x20, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00,
+        0x4F, 0x33, 0x0D, 0x66, 0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01,
+        0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18, 0x01, 0x00, 0x0E, 0x6C, 0x12, 0x38,
+        0x1D, 0x42, 0x45, 0x0E, 0x06, 0x01, 0x01, 0x01, 0x0D, 0x08, 0x00, 0x0F,
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x03, // block start, line 3
+        0x53, 0x53, 0x26, 0xFA, 0x09, // SS SS, result-ref
+        0x46, // formals: EMPTY (`??__E…@@YAXXZ` takes none)
+        0x4C, 0x53, // the BARE `LO` — no `4F 11` record — then the body's SS
+        0x26, 0xEA, 0x09, // push the callee (the constructor)
+        0x26, 0xF9, 0x09, 0x2C, 0xA6, 0x43, 0x81, 0x20, 0x00, // &sLicense …
+        0x99, 0x86, 0x43, 0x8D, 0x20, 0x00, // … bound as the receiver
+        0xBD, 0xA6, 0x43, 0x81, 0x20, 0x00, 0x80, 0x07, 0x10, 0x00, 0x00, // CALL
+        0x33, 0x86, 0x41, 0x83, 0x20, 0x00, // arg 2: literal 0, typed as the enum
+        0x55, 0x86, 0x41, 0x83, 0x20, //         `Licenses::Requirement`
+        0x26, 0xFC, 0x09, 0x2C, 0x86, 0x43, 0x85, 0x20, 0x00, // arg 1: the string
+        0x55, 0x86, 0x43, 0x85, 0x20, //         literal's address
+        0x4C, 0x4B, // void call end — the result is discarded
+        0x3A, 0xFB, 0x09, 0x54, 0x02, 0x29, 0xFB, 0x09, // return plumbing
+        0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // function tail
+        0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x04, // module end, line 4 …
+        0x53, 0x54, 0x00, // … its EMPTY module-level scope (`??__E` last) …
+        0x4D, // … and the terminator
+    ];
+
+    #[test]
+    fn the_dynamic_initializer_thunk_decodes_to_a_three_slot_tail_call() {
+        // Slot 0 is `this` (the object), slot 1 the string, slot 2 the literal —
+        // r3, r4, r5 — which is the order c2's own listing emits the `addi`s and
+        // the `li` in. The callee token is resolved to `??0Licenses@@QAA@…@Z`
+        // by `.gl`, not by `.ex`, so it stays a token here.
+        assert_eq!(
+            parse_segment(TOMCRYPT_DYNINIT, NO_LOCALS),
+            Some(BodyShape::MultiArgTailCall {
+                params: Vec::new(),
+                arg_sources: vec![
+                    SlotArg::SymAddr(0xF909), // slot 0 -> r3, the `.bss` object
+                    SlotArg::SymAddr(0xFC09), // slot 1 -> r4, the `.rdata` string
+                    SlotArg::Lit(0),          // slot 2 -> r5, `li r5,0`
+                ],
+                callee_tok: 0xEA09,
+            })
+        );
+    }
+
+    /// The byte claims this rung rests on, asserted against the transcript so a
+    /// future edit to the constant cannot quietly move them.
+    #[test]
+    fn the_transcript_carries_the_bare_lo_and_the_empty_module_scope() {
+        // No composed marker anywhere; the body opens on `4C 53` at 61, right
+        // after the empty formals list, so the operand stream starts at `lo + 1`.
+        assert_eq!(crate::func::readers::find_subslice(TOMCRYPT_DYNINIT, &[0x4C, 0x4F, 0x11]), None);
+        let lo = crate::func::body_start(TOMCRYPT_DYNINIT).expect("a body start");
+        assert_eq!(lo, 61);
+        assert_eq!(crate::func::ops_start(TOMCRYPT_DYNINIT, lo), 62);
+        assert!(crate::func::body_start_is_bare(TOMCRYPT_DYNINIT));
+        // The module trailer's optional empty scope.
+        assert_eq!(&TOMCRYPT_DYNINIT[TOMCRYPT_DYNINIT.len() - 4..], &[0x53, 0x54, 0x00, 0x4D]);
+    }
+
+    /// **The fence, stated as a test.** Strip the three trailer bytes and the
+    /// body still decodes (the trailer is optional, not required); strip the
+    /// module end itself and it refuses.
+    #[test]
+    fn the_empty_module_scope_is_optional_and_the_module_end_is_not() {
+        let mut plain = TOMCRYPT_DYNINIT.to_vec();
+        plain.drain(plain.len() - 4..plain.len() - 1); // drop `53 54 00`
+        assert!(parse_segment(&plain, NO_LOCALS).is_some());
+        let mut truncated = TOMCRYPT_DYNINIT.to_vec();
+        truncated.pop(); // drop the `4D`
+        assert!(parse_segment(&truncated, NO_LOCALS).is_none());
+    }
+}

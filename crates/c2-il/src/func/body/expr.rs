@@ -277,6 +277,45 @@ pub(crate) fn eat_fn_tail(seg: &[u8], p: &mut usize) -> Result<(), Block> {
     // The module-end marker's payload is the same varint-encoded source line as
     // every other `4F 01`, so it is four bytes longer past line 127.
     read_varint(seg, p).ok_or(blk(seg, *p, "module-end-line"))?;
+    // …and then an OPTIONAL **empty module-level scope** — `53` opens scope 0
+    // and `54 00` closes it, the same open/close vocabulary the return plumbing
+    // above uses, with nothing between them.
+    //
+    // MEASURED, one TU per row, `/nologo /c /GR /O1 /Oi /EHsc`, captured through
+    // `c2rs census --keep-il` (bytes are the last 12 of `.ex` with the zero-fill
+    // stripped). The **discriminator is which function is LAST in the module**,
+    // and the `ctl_both`/`ctl_both_rev` pair is the separating control — same two
+    // functions, source order swapped:
+    //
+    // ```text
+    //   TU                                       fns  module trailer
+    //   add3 alone                                 1  4F 01 02 . . . 4D
+    //   static int gi = 3; + add3                  1  4F 01 03 . . . 4D
+    //   add3 + add2                                2  4F 01 03 . . . 4D
+    //   static L sL(…);  then add3     (E, add3)   2  4F 01 04 . . . 4D
+    //   add3  then static L sL(…);     (add3, E)   2  4F 01 04 53 54 00 4D
+    //   struct L{L();~L();}; static L sL; (E, F)   2  4F 01 03 . . . 4D
+    //   struct L{~L();};   static L sL;   (…, F)   2  4F 01 03 . . . 4D
+    //   two static objects             (E, E)      2  4F 01 04 53 54 00 4D
+    //   obj, add2, obj              (E, add2, E)   3  4F 01 05 53 54 00 4D
+    // ```
+    //
+    // So it is present exactly when the last function is a `??__E` dynamic
+    // initializer — the `??__F` atexit thunk, whose body is the same void member
+    // call with an object receiver, does **not** carry it, which is why this is
+    // not "a thunk was compiled" and not "the last body is a void tail call".
+    // All twelve `w-r1b` `??__E` probes and both license TUs carry it; so does
+    // `fixtures/cpp/il_dyninit_static.cpp`.
+    //
+    // **What is NOT claimed.** Why c1xx emits the empty scope is unread, and the
+    // reader deliberately does not predicate on the name: `eat_fn_tail` has the
+    // `.ex` bytes and no `.gl`, and a locator that needed the mangled name here
+    // would be a second binding seam. Accepting it as an *optional, fully
+    // anchored* three bytes between the `4F 01 <line>` and the `4D` is
+    // fail-closed either way — a `53 54 00` anywhere else in the trailer still
+    // refuses, and a body that reached this point with the plain trailer is
+    // byte-identically unaffected.
+    eat(seg, p, &[0x53, 0x54, 0x00]);
     if !eat_byte(seg, p, 0x4D) {
         return Err(blk(seg, *p, "module-end"));
     }
