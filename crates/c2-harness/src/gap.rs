@@ -548,6 +548,32 @@ pub struct WitnessBucket {
 }
 
 /// Aggregated scan report.
+/// The computed PROGRESS MASS and every input it was computed from — see
+/// [`GapReport::progress_mass`]. Inputs travel with the value so a consumer can
+/// never quote `value` without its denominators, which is the positive-claim
+/// rule (STATUS trap 5: compare a count, never a status).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ProgressMass {
+    /// TUs the scan graded (everything that captured, mismatches included).
+    pub graded: usize,
+    /// Factor A TUs among the non-mismatch graded (emit set reachable).
+    pub a: usize,
+    /// Factor B TUs among the non-mismatch graded (every emitted symbol binds).
+    pub b: usize,
+    /// Factor C TUs among the non-mismatch graded (sections within the writer).
+    pub c: usize,
+    /// Emitted functions the census calls in class, non-mismatch TUs only.
+    pub emitted_in_class: usize,
+    /// Emitted functions across ALL graded TUs — the `f` denominator is never
+    /// reduced by a mismatch, so zeroing a TU's numerator always costs.
+    pub emitted_total: usize,
+    /// TUs graded `mismatch`, whose contributions were zeroed. Printed, so a
+    /// scan with wrong emits cannot present a quietly-reduced P as clean.
+    pub mismatch_zeroed: usize,
+    /// `mean(a, b, c, f)` — in `[0, 1]`.
+    pub value: f64,
+}
+
 pub struct GapReport {
     pub results: Vec<TuResult>,
     /// What produced these numbers (roadmap #46/#48): both trees' git HEADs, the
@@ -1304,6 +1330,17 @@ impl GapReport {
             m.push(("ladder-head", name.clone()));
             m.push(("ladder-head-c", reach.to_string()));
         }
+        // PROGRESS MASS — emitted only when the scan graded something, for the
+        // reason `progress_mass` returns `Option`: a collector must read an
+        // empty scan as NO-RESULT, never as any number. The `f`-term inputs are
+        // published beside it so the value is never quotable without its
+        // denominators.
+        if let Some(p) = self.progress_mass() {
+            m.push(("progress-mass", format!("{:.5}", p.value)));
+            m.push(("progress-emitted-in-class", p.emitted_in_class.to_string()));
+            m.push(("progress-emitted-total", p.emitted_total.to_string()));
+            m.push(("progress-mismatch-zeroed", p.mismatch_zeroed.to_string()));
+        }
         m
     }
 
@@ -1414,6 +1451,99 @@ impl GapReport {
                     .sum::<usize>()
             })
             .sum()
+    }
+
+    /// **PROGRESS MASS (lane w-metric, `docs/PROGRESS_METRIC.md`) — a PROGRESS
+    /// metric, NEVER a correctness signal.** The byte-exact differential is the
+    /// sole judge of the port; this number exists because that judge is a
+    /// per-TU conjunction and therefore moves only when a TU's *last* defect
+    /// closes, which left a day that moved factor C by 55 TUs reading as "no
+    /// progress".
+    ///
+    /// `P = mean(a, b, c, f)` over the graded workload, where
+    ///
+    /// * `a = |A| / graded` — emit-set reachable (gate-anchored),
+    /// * `b = |B| / graded` — every emitted symbol binds,
+    /// * `c = |C| / graded` — obj sections within the writer's vocabulary,
+    /// * `f = emitted-in-class / emitted` — the emitted census ratio.
+    ///
+    /// # What this is measured OVER, and what it deliberately is not
+    ///
+    /// Every term is a *precondition* count (obj-side facts A/B/C, measured
+    /// against the reference obj) or an *acceptance* count (the emitted
+    /// census). **No term rewards emitted bytes and no term is a similarity
+    /// score** — an objdiff-style fuzzy match was evaluated and rejected for
+    /// this workload (`docs/PROGRESS_METRIC.md` §3): the port emits an object
+    /// on 8 of 871 graded TUs, so output similarity is undefined on 99.1 % of
+    /// the denominator, and where a partial-credit byte score *is* defined it
+    /// rewards a wrong emit over an honest refusal — the exact inversion the
+    /// correctness rule forbids.
+    ///
+    /// # The two structural guards
+    ///
+    /// * **A wrong emit always scores below the refusal it replaced.** A TU
+    ///   graded `mismatch` contributes 0 to every numerator while staying in
+    ///   every denominator, so turning a refusal into a wrong emit strictly
+    ///   decreases P. A metric without this property would pay lanes to emit
+    ///   *something*, and the port's honest `NotImplemented` boundary is the
+    ///   open gate, not a defect.
+    /// * **`None` over an empty scan.** A scan that graded nothing has no
+    ///   progress to report; returning `Some(1.0)` (objdiff's own
+    ///   `calc_fuzzy_match_percent` returns 100.0 over zero code bytes) is the
+    ///   absence-reads-as-success shape this project has recorded fifteen
+    ///   times. `None` here, `NO-RESULT` in the print, no `gap-metric` key.
+    ///
+    /// # What it can still get wrong (documented, not fixed)
+    ///
+    /// `f`'s numerator is the census's in-class verdict — a parse-time claim
+    /// that the differential has not graded for any never-emitted whole TU
+    /// (STATUS trap 2). A widening that is wrong in a way no standing
+    /// instrument grades (board #232's shape) raises `f` exactly as it raises
+    /// the census. That is why this is a progress metric and not a gate, and
+    /// why it must never appear in `scripts/gate.sh`.
+    pub fn progress_mass(&self) -> Option<ProgressMass> {
+        let graded = self.graded().count();
+        // Denominators are taken over ALL graded TUs, mismatches included.
+        let emitted_total: usize = self
+            .graded()
+            .map(|r| r.emit.get("emit-emitted").copied().unwrap_or(0))
+            .sum();
+        if graded == 0 || emitted_total == 0 {
+            return None; // no progress is representable over nothing graded
+        }
+        // Numerators exclude every mismatch TU — the wrong-emit guard.
+        let mut a = 0usize;
+        let mut b = 0usize;
+        let mut c = 0usize;
+        let mut in_class = 0usize;
+        let mut zeroed = 0usize;
+        for r in self.graded() {
+            if r.class == TuClass::Mismatch {
+                zeroed += 1;
+                continue;
+            }
+            let f = Self::factors(r);
+            a += usize::from(f[0]);
+            b += usize::from(f[1]);
+            c += usize::from(f[2]);
+            in_class += r.emit.get("emit-in-class").copied().unwrap_or(0);
+        }
+        let g = graded as f64;
+        let value = (a as f64 / g
+            + b as f64 / g
+            + c as f64 / g
+            + in_class as f64 / emitted_total as f64)
+            / 4.0;
+        Some(ProgressMass {
+            graded,
+            a,
+            b,
+            c,
+            emitted_in_class: in_class,
+            emitted_total,
+            mismatch_zeroed: zeroed,
+            value,
+        })
     }
 
     /// Replay soundness: (checked, diverged).
@@ -2861,8 +2991,60 @@ fn print_factorization(report: &GapReport) {
     // `GapReport::metrics` for why: C, `A∧B∧C` and the FRONTIER are printed by
     // every scan and are still hand-copied into `STATUS.md`, and all three went
     // stale twice on 2026-08-04. `B∧C` went stale by a *dependency* moving.
+    // **PROGRESS MASS — printed apart from every correctness count, with the
+    // disclaimer in the header rather than in a doc nobody re-reads.** The
+    // byte-exact `match` line in the GAP REPORT below is the only correctness
+    // number a scan produces; this block is the leading-indicator mass and can
+    // NEVER substitute for it. See `GapReport::progress_mass` and
+    // `docs/PROGRESS_METRIC.md` for the design and the two structural guards.
+    match report.progress_mass() {
+        Some(p) => {
+            let g = p.graded as f64;
+            println!(
+                "\n\x20 PROGRESS MASS — a PROGRESS metric, NEVER a correctness signal \
+                 (docs/PROGRESS_METRIC.md).\n\
+                 \x20   The byte-exact differential is the SOLE judge; `match` below is the \
+                 only correctness count.\n\
+                 \x20   No term rewards emitted bytes: P counts proven preconditions (A, B, C \
+                 against the reference obj)\n\
+                 \x20   and honest acceptance (the emitted census). A TU graded `mismatch` \
+                 contributes 0 to every\n\
+                 \x20   numerator, so a wrong emit always scores below the refusal it \
+                 replaced.\n\
+                 \x20   P = mean(a, b, c, f) over {} graded TUs = {:.5}\n\
+                 \x20     a  emit-set reachable (A)      {:>6}/{}  = {:.5}\n\
+                 \x20     b  binding complete (B)        {:>6}/{}  = {:.5}\n\
+                 \x20     c  section shape (C)           {:>6}/{}  = {:.5}\n\
+                 \x20     f  emitted fns in class   {:>6}/{}  = {:.5}\n\
+                 \x20   mismatch-zeroed TUs: {}",
+                p.graded,
+                p.value,
+                p.a,
+                p.graded,
+                p.a as f64 / g,
+                p.b,
+                p.graded,
+                p.b as f64 / g,
+                p.c,
+                p.graded,
+                p.c as f64 / g,
+                p.emitted_in_class,
+                p.emitted_total,
+                p.emitted_in_class as f64 / p.emitted_total as f64,
+                p.mismatch_zeroed,
+            );
+        }
+        None => {
+            // Deliberately NOT 100 % and deliberately not silent: a scan that
+            // graded nothing must make a positive claim of that fact.
+            println!(
+                "\n\x20 PROGRESS MASS: NO-RESULT — 0 graded TUs (or no emitted functions). \
+                 A progress number over an empty scan is unrepresentable on purpose."
+            );
+        }
+    }
     println!(
-        "\x20 GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an \
+        "\n\x20 GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an \
          interface, do not rename. The projection `emit-predicate-worth` = \
          `b-and-c` − `a-and-b-and-c` is derived HERE on purpose (board #213):"
     );
@@ -3396,6 +3578,111 @@ mod tests {
         );
         assert_eq!(joint, 0, "and E adds nothing when no recognizer fires");
         assert!(rep.factor_all_tus().is_empty());
+    }
+
+    /// **PROGRESS MASS reproduces the hand computation and publishes its
+    /// inputs** (`docs/PROGRESS_METRIC.md`). Four graded TUs with known factor
+    /// bits and a known emitted census; the value must be the mean of the four
+    /// fractions, and the `gap-metric` key must carry the same digits.
+    #[test]
+    fn progress_mass_matches_the_hand_computation() {
+        let mut t1 = mk_factors(TuClass::VocabGap, "t1.cpp", true, true, true, false, false);
+        t1.emit.insert("emit-emitted".into(), 4);
+        t1.emit.insert("emit-in-class".into(), 2);
+        let mut t2 = mk_factors(TuClass::VocabGap, "t2.cpp", false, true, true, false, false);
+        t2.emit.insert("emit-emitted".into(), 6);
+        t2.emit.insert("emit-in-class".into(), 1);
+        let t3 = mk_factors(TuClass::VocabGap, "t3.cpp", false, false, false, false, false);
+        let mut cf = mk("x");
+        cf.class = TuClass::CaptureFail; // never graded, in no denominator
+        let rep = mk_report(vec![t1, t2, t3, cf]);
+
+        let p = rep.progress_mass().expect("three graded TUs with emitted fns");
+        assert_eq!((p.graded, p.a, p.b, p.c), (3, 1, 2, 2));
+        assert_eq!((p.emitted_in_class, p.emitted_total), (3, 10));
+        assert_eq!(p.mismatch_zeroed, 0);
+        let expect = (1.0 / 3.0 + 2.0 / 3.0 + 2.0 / 3.0 + 3.0 / 10.0) / 4.0;
+        assert!((p.value - expect).abs() < 1e-12, "P is the mean of the four fractions");
+        let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+        assert_eq!(m["progress-mass"], format!("{expect:.5}"));
+        assert_eq!(m["progress-emitted-in-class"], "3");
+        assert_eq!(m["progress-emitted-total"], "10");
+    }
+
+    /// **A wrong emit always scores strictly below the refusal it replaced** —
+    /// the structural guard against the metric paying lanes to emit
+    /// *something*. The quantity under mutation is ONE TU's class, refusal →
+    /// `mismatch`, with every count on the TU held fixed; the numerators must
+    /// drop, both denominators must hold, and P must strictly decrease.
+    ///
+    /// This is the property board #232 makes non-negotiable: the `26`-separator
+    /// widening turned a clean refusal into a wrong emit, and any metric on
+    /// which that transition scores upward would have *rewarded* the defect.
+    #[test]
+    fn a_wrong_emit_scores_strictly_below_the_refusal_it_replaced() {
+        let build = |cls: TuClass| {
+            let mut x = mk_factors(cls, "x.cpp", true, true, true, false, false);
+            x.emit.insert("emit-emitted".into(), 4);
+            x.emit.insert("emit-in-class".into(), 2);
+            let mut y = mk_factors(TuClass::VocabGap, "y.cpp", false, true, false, false, false);
+            y.emit.insert("emit-emitted".into(), 6);
+            y.emit.insert("emit-in-class".into(), 1);
+            mk_report(vec![x, y])
+        };
+        let refuse = build(TuClass::VocabGap).progress_mass().unwrap();
+        let wrong = build(TuClass::Mismatch).progress_mass().unwrap();
+        assert_eq!(refuse.graded, wrong.graded, "a mismatch is still graded");
+        assert_eq!(
+            refuse.emitted_total, wrong.emitted_total,
+            "the f denominator never shrinks on a mismatch — zeroing must cost"
+        );
+        assert_eq!(wrong.mismatch_zeroed, 1, "and the zeroing is printed, not silent");
+        assert_eq!(
+            (wrong.a, wrong.b, wrong.c, wrong.emitted_in_class),
+            (0, 1, 0, 1),
+            "every one of the mismatch TU's contributions is gone from the numerators"
+        );
+        assert!(
+            wrong.value < refuse.value,
+            "refusal {} must strictly outscore the same TU emitting wrong bytes {}",
+            refuse.value,
+            wrong.value
+        );
+    }
+
+    /// **A progress number over an empty scan is unrepresentable.** objdiff's
+    /// own `Measures::calc_fuzzy_match_percent` returns 100.0 when
+    /// `total_code == 0`; fifteen recorded instances on this project say
+    /// absence read as success is the standing failure mode. `progress_mass`
+    /// must return `None` — and the `gap-metric` key must be absent, never 0,
+    /// never 100 — both for a scan of nothing and for a scan where nothing
+    /// captured.
+    #[test]
+    fn progress_mass_is_unrepresentable_over_an_empty_scan() {
+        for rep in [mk_report(vec![]), {
+            let mut cf = mk("x");
+            cf.class = TuClass::CaptureFail;
+            mk_report(vec![cf])
+        }] {
+            assert!(rep.progress_mass().is_none());
+            let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+            assert!(
+                !m.contains_key("progress-mass"),
+                "no key at all: a collector must read NO-RESULT, not a number"
+            );
+        }
+        // And a graded scan whose TUs emitted nothing has no f denominator —
+        // also None, not a division-by-zero and not a flattering 3-term mean.
+        let rep = mk_report(vec![mk_factors(
+            TuClass::VocabGap,
+            "t.cpp",
+            true,
+            true,
+            true,
+            false,
+            false,
+        )]);
+        assert!(rep.progress_mass().is_none());
     }
 
     /// **The fifth term is a DISJUNCT on D, and both directions of that are
