@@ -171,13 +171,35 @@ awk -v j="$jobs" -v d="$part" '{ print > (d "/chunk." ((NR - 1) % j)) }' "$out/c
 w=0
 while [ "$w" -lt "$jobs" ]; do
     (
-        _n=0; _m=0
+        _n=0; _m=0; _u=0; _x=0
         if [ -f "$part/chunk.$w" ]; then
             while read -r f; do
                 _n=$((_n + 1))
                 verdict=$("$c2rs" diff "$f" 2>&1 | tail -1)
+                # ---- classify POSITIVELY. ------------------------------------
+                # This used to be one arm, `*Mismatch*)`, and `case` in `sh` is
+                # case-SENSITIVE, so it recognized exactly ONE of the four
+                # verdicts `c2rs diff` can print. The other three —
+                # `ReferenceError:` (the reference could not be captured or
+                # replayed at all), `ReferenceReplay=MISMATCH` (the P0.1 ORACLE
+                # itself failing, spelled in capitals) and anything unforeseen —
+                # fell out of the `case` and were counted in `checked` as though
+                # they had been graded clean.
+                #
+                # MEASURED 2026-08-04 on the whole corpus: **96 of 14,635 cases**
+                # print `ReferenceError` — `cl.exe` rejects the generated source
+                # (`error C2662`, `C4716`, and one `intstruct` typo) — and every
+                # one of them was inside `checked=14635 mismatches=0`. The count
+                # the gate re-derives was real; the grading behind 96 of it was
+                # not. Eleven fragments are affected.
+                #
+                # So the OK set is now enumerated and everything else is named.
+                # An unrecognized verdict is `unknown`, which fails: the next
+                # verdict string nobody foresaw must not be the next silence.
                 case "$verdict" in
-                    *Mismatch*)
+                    *"Port=Match"*|*"Port=NotImplemented"*)
+                        : ;;
+                    *"Port=Mismatch"*)
                         _m=$((_m + 1))
                         # The FILE NAME first, then the source line. #232 took an
                         # extra investigation because only the source line was
@@ -185,11 +207,21 @@ while [ "$w" -lt "$jobs" ]; do
                         # re-run is a mismatch somebody calls unreproducible.
                         echo "MISMATCH  $f  |  $(head -1 "$f")" >> "$part/mismatch.$w"
                         ;;
+                    *ReferenceError*|*"ReferenceReplay=MISMATCH"*|*ToolchainAbsent*|*SKIP*)
+                        _u=$((_u + 1))
+                        echo "UNGRADED  $f  |  $verdict" >> "$part/ungraded.$w"
+                        ;;
+                    *)
+                        _x=$((_x + 1))
+                        echo "UNKNOWN   $f  |  $verdict" >> "$part/unknown.$w"
+                        ;;
                 esac
             done < "$part/chunk.$w"
         fi
         echo "$_n" > "$part/checked.$w"
         echo "$_m" > "$part/mism.$w"
+        echo "$_u" > "$part/ungr.$w"
+        echo "$_x" > "$part/unk.$w"
     ) &
     w=$((w + 1))
 done
@@ -198,7 +230,7 @@ wait
 # Sum the workers' own counts. A worker killed mid-chunk writes no `checked.N` at
 # all, so the sum comes up short and the reconciliation below fails — the count
 # is the evidence the work happened, never the exit status (STATUS.md trap 5).
-checked=0; mismatch=0; reported=0
+checked=0; mismatch=0; ungraded=0; unknown=0; reported=0
 w=0
 while [ "$w" -lt "$jobs" ]; do
     if [ -f "$part/checked.$w" ]; then
@@ -206,12 +238,24 @@ while [ "$w" -lt "$jobs" ]; do
         reported=$((reported + 1))
     fi
     [ -f "$part/mism.$w" ] && mismatch=$((mismatch + $(cat "$part/mism.$w")))
+    [ -f "$part/ungr.$w" ] && ungraded=$((ungraded + $(cat "$part/ungr.$w")))
+    [ -f "$part/unk.$w" ]  && unknown=$((unknown + $(cat "$part/unk.$w")))
     w=$((w + 1))
 done
 cat "$part"/mismatch.* 2>/dev/null || true
+cat "$part"/unknown.* 2>/dev/null || true
+
+# `graded` is the count that carries evidence: cases the oracle actually ruled
+# on. `checked` is only "cases the loop reached". They were the same number for
+# this sweep's whole existence because three of the four verdicts were invisible.
+graded=$((checked - ungraded - unknown))
+
+count_line() {
+    echo "checked=$checked mismatches=$mismatch graded=$graded ungraded=$ungraded unknown=$unknown"
+}
 
 if [ "$checked" -ne "$run" ]; then
-    echo "checked=$checked mismatches=$mismatch"
+    count_line
     echo "FATAL: selected $run cases and only $checked were graded" >&2
     echo "  $reported of $jobs workers reported a count. A short count is a worker" >&2
     echo "  that died; the cases it held were never graded and this run establishes" >&2
@@ -219,5 +263,46 @@ if [ "$checked" -ne "$run" ]; then
     exit 3
 fi
 
-echo "checked=$checked mismatches=$mismatch"
+count_line
+
+# ---- the UNGRADED baseline -----------------------------------------------------
+#
+# 96 generated cases do not compile: `cl.exe` rejects them, so no reference obj
+# exists and the differential never runs. They are named here rather than
+# silently absorbed, and the baseline is a NUMBER WITH A REASON next to it, the
+# same discipline `sweep_mode.sh`'s `C2RS_SWEEP_MODE_MAX_DISAGREE` carries.
+#
+# Measured 2026-08-04 over all 14,635 cases at `/Ox /GS- /c`: 96 ungraded across
+# 11 fragments — 99-chain-tail-fp-load 17, 98-cmp-order 16, 93-virtual-byval 15,
+# 34-volatile-formal 12, 99-chain-tail-load 10, 96-cmp-two-calls 8,
+# 98-chain-link-arg 4, 97-chained-call 4, 72-member-call 4,
+# 73-framed-member-call 3, 45-offset-run 3. Two causes: a `volatile` receiver
+# calling a non-`volatile`-qualified member (`error C2662`), and a handful of
+# outright generator typos (`intstruct S`, an `int f(...)` with no `return`).
+#
+# Driving this to 0 means fixing the generators, which moves the corpus total
+# every lane quotes; it is filed rather than done here. RAISING it needs a reason
+# written next to the number, never just a passing run.
+max_ungraded="${C2RS_SWEEP_MAX_UNGRADED:-96}"
+if [ "$unknown" -ne 0 ]; then
+    echo
+    echo "UNRECOGNIZED VERDICT on $unknown case(s) — listed above."
+    echo "  \`c2rs diff\` printed something this classifier does not enumerate. That"
+    echo "  is how 96 cases spent this sweep's whole existence inside a clean count;"
+    echo "  it is a hard failure, never a default."
+    exit 1
+fi
+if [ "$ungraded" -gt "$max_ungraded" ]; then
+    echo
+    echo "UNGRADED $ungraded exceeds the carried baseline $max_ungraded."
+    echo "  These cases produced NO reference obj, so the oracle never ruled on them"
+    echo "  and nothing in this run establishes anything about their shapes."
+    cat "$part"/ungraded.* 2>/dev/null | head -40
+    exit 1
+fi
+if [ "$graded" -eq 0 ]; then
+    echo
+    echo "VACUOUS: $checked cases reached and NONE graded."
+    exit 1
+fi
 [ "$mismatch" -eq 0 ] || exit 1
