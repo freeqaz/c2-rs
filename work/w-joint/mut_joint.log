@@ -1,0 +1,41 @@
+bundle _CL_dd598b2b  quarantine 21 TUs (this TU is NOT one)
+baseline leaders 132 ; defined symbols 550 ; leader set == pipeline obj True
+owners with a named node 861 ; owners in D 83 ; dd-reachable but NOT in D 0
+candidates  H+ 83   H- 778   DD 0
+  [H+] owner ?gEaseFuncs@@3PAP6AMMMM@ZA                     f20=0x460001  F_new ?size@VertVector@RndMesh@@QBAHXZ    gained=1 lost=1  APPEARS: True
+  [H+] owner ??_R0?AVBaseSkeleton@@@8                       f20=0x01b01  F_new truncl                              gained=1 lost=0  APPEARS: True
+  [H+] owner ??_R0?AVSkeleton@@@8                           f20=0x01701  F_new truncf                              gained=1 lost=0  APPEARS: True
+  [H+] owner ??_R0?AVObject@Hmx@@@8                         f20=0x01901  F_new tgammal                             gained=1 lost=0  APPEARS: True
+  [H+] owner ??_R0?AVObjectDir@@@8                          f20=0x01801  F_new tgammaf                             gained=1 lost=0  APPEARS: True
+  [H-] owner ??_R0?AVrange_error@stlpmtx_std@@@8            f20=0x02601  F_new tanl                                gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AVruntime_error@stlpmtx_std@@@8          f20=0x02801  F_new tanhl                               gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AV__Named_exception@stlpmtx_std@@@8      f20=0x02c01  F_new tanhf                               gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AVexception@std@@@8                      f20=0x01c01  F_new tanf                                gained=0 lost=0  APPEARS: False
+  [H-] owner _CT??_R0?AVrange_error@stlpmtx_std@@@8??0range f20=0x01c01  F_new sqrtl                               gained=0 lost=0  APPEARS: False
+
+---- src/system/gesture/NavigationSkeletonDir.cpp
+  M12  H+  owner IS defined            expect APPEARS      5/5
+  M12  H-  owner NOT defined, NOT dd    expect suppressed   0/5 appeared
+  M13  DD  owner NOT defined but dd-reachable from a defined owner
+           FIXPOINT predicts APPEARS ; pure FILTER predicts not   0/0 appeared
+========
+bundle _CL_970c3dae  quarantine 21 TUs (this TU is NOT one)
+baseline leaders 155 ; defined symbols 392 ; leader set == pipeline obj True
+owners with a named node 302 ; owners in D 14 ; dd-reachable but NOT in D 0
+candidates  H+ 14   H- 288   DD 0
+  [H+] owner ?gEaseFuncs@@3PAP6AMMMM@ZA                     f20=0x460001  F_new ?pop_back@?$ObjPtrList@VFader@@VOb  gained=6 lost=1  APPEARS: True
+  [H+] owner ??_R0PAPAVFaderGroup@@@8                       f20=0x01b01  F_new truncl                              gained=1 lost=0  APPEARS: True
+  [H+] owner ??_7Stream@@6B@                                f20=0x660001  F_new ?insert_unique@?$_Rb_tree@PAVFader  gained=30 lost=0  APPEARS: True
+  [H+] owner ??_7StreamNull@@6B@                            f20=0x680001  F_new ?insert@?$set@PAVFaderGroup@@U?$le  gained=31 lost=0  APPEARS: True
+  [H+] owner ??_R0?AVStream@@@8                             f20=0x01501  F_new truncf                              gained=1 lost=0  APPEARS: True
+  [H-] owner ??_R0?AVrange_error@stlpmtx_std@@@8            f20=0x02601  F_new tgammal                             gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AVruntime_error@stlpmtx_std@@@8          f20=0x02801  F_new tgammaf                             gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AV__Named_exception@stlpmtx_std@@@8      f20=0x02c01  F_new tanl                                gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AVexception@std@@@8                      f20=0x01c01  F_new tanhl                               gained=0 lost=0  APPEARS: False
+  [H-] owner _CT??_R0?AVrange_error@stlpmtx_std@@@8??0range f20=0x01c01  F_new tanhf                               gained=0 lost=0  APPEARS: False
+
+---- src/system/synth/StreamNull.cpp
+  M12  H+  owner IS defined            expect APPEARS      5/5
+  M12  H-  owner NOT defined, NOT dd    expect suppressed   0/5 appeared
+  M13  DD  owner NOT defined but dd-reachable from a defined owner
+           FIXPOINT predicts APPEARS ; pure FILTER predicts not   0/0 appeared

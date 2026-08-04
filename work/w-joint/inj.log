@@ -1,0 +1,4 @@
+INJ residue: 338 conflicting definitions over 116 TUs
+   by name shape: [('$LN local label', 201)]
+   conflicting names that are ALSO an `in` initializer OWNER: 0
+   non-$LN examples: []
