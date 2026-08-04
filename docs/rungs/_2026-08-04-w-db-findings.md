@@ -369,9 +369,12 @@ undecorated `extern "C"`/CRT, 32.47 % `$`-bearing, 14.69 % vftable/RTTI.
 | **owners ∩ `E`** — the circularity check | **0** |
 | owners ∩ `D` | 40 947 = 0.05831 |
 
-**More than a third of every function's reference list points at something that
-is not a function**, and w-refs threw all of it away. That is the fact the model
-exploits and — per §3 — **not** the fact c2 acts on.
+**More than a third of every function's reference-list targets are outside
+`U`**, and w-refs threw all of it away. `outside U` is **not** the same as
+`data` — it also contains tag-`0x0E` records that `refs.scan`'s extern-class
+gate skipped — so the tighter number is the **192 919** that are `in` owners,
+and that is the population the model's data half ranges over. That is the fact
+the model exploits and — per §3 — **not** the fact c2 acts on.
 
 ### 4.4 The one parameter I fitted against data turns out to be INERT
 
@@ -613,7 +616,7 @@ number minted, no `#N` pinned in code, `BOARD.md` / `ROADMAP.md` /
 | **V-f** | **The model's roots are 30.51× the uniform expectation and 8.58× the base rate — 21 077 of 21 229 added names are emitted** — indistinguishable from w-joint's ORACLE (30.73×/8.64×) and 7.6× further from chance than w-mark's channel | published in w-mark's exact calibration shape so all four lanes are comparable | §4.1 |
 | **V-g** | **`#152` is 17.01 % of THIS model's code residual, not 58.95 %** — the free/file-scope class returns and is **63.58 %** of it. The two residuals are not comparable, because the model's recall (0.86391) is 9.5 pp below the oracle's | registered at 0.55 with a floor of 0.20 and **missed below the interval**; reported as a miss rather than reframed | §4.2 |
 | **V-h** | **The one parameter fitted against data is MEASURABLY INERT.** The owner-entry gate was chosen on three disclosed TUs before the prereg; corpus-wide `JFP_UNGATED` equals `JFP` to the digit on both axes, because a `.gl` data name with no `in` record is a leaf and cannot relay | left in the frozen definition rather than removed, and reported as inert — the disclosure and the measurement in one row | §4.4 |
-| **V-i** | **More than a third of every function's reference list points at a non-function: 950 824 of 2 573 569 targets = 0.36946**, of which 192 919 are `in` owners. w-refs' `∩ U` discards all of it | the fact the model exploits — and, per V-d, **not** a fact c2 acts on | §4.3 |
+| **V-i** | **More than a third of every function's reference-list targets are outside `U`: 950 824 of 2 573 569 = 0.36946**, of which **192 919** are `in` owners. w-refs' `∩ U` discards all of it. (`outside U` also contains gate-skipped tag-`0x0E` records, so 192 919 and not 950 824 is the data population) | the fact the model exploits — and, per V-d, **not** a fact c2 acts on | §4.3 |
 | **V-j** | **`0x10b28a9b`, the COFF symbol writer, refuses kind-1 symbols with `(+0x37 >> 0x15) & 7 ∈ {1,3}`** (`0x10b28bb1`/`0x10b28bbd`) and then dispatches by the storage-class nibble into four undecoded arms | read from the binary, modelled **nowhere**; named so the absence cannot read as success | §8 item 2 |
 
 ---
