@@ -415,6 +415,28 @@ misleading without them.
    model of the wrong quantity, which is harder to notice and was noticed only
    because the lane printed the per-TU set by name instead of by count.
 
+   **UPDATE 2026-08-04, lane `w-emitp` — per-TU exact HAS now moved, and the
+   trap's second half needs a correction.** The `.gl` stream carries a record
+   class no model's node universe contained: **tag-0x10 ALIAS records**
+   (`0x10b9c024` / `0x10b9c030`) — no `.ex` body, and a **token naming another
+   symbol** in the word a tag-0x0E record uses for `flags4c`. A vftable's
+   initializer names the **alias**; c2 emits the alias's **target**. Resolving
+   `in`-stream nodes through it moves w-joint's ORACLE ceiling from per-TU exact
+   **151 → 472 of 850** (micro-F1 0.97888 → 0.99243) and w-db's `JFP`, a model
+   conditioning on no truth, from **132 → 308** — **0 TUs lost in either case**,
+   and **4 592 of 4 592** added ORACLE predictions are emitted. Real `c2.dll`
+   confirms it **15/15** with a **0/15** parity control. **TU match is still 8**:
+   nothing shipped, `PortC2` has no emit-set model to put this in, and the spec
+   is `rungs/_2026-08-04-w-emitp-findings.md` §6.
+
+   **And the sizing method the project used for classes is wrong in the
+   optimistic direction's opposite.** Removing `#152` from both sides of the
+   ORACLE — the subtraction w-joint's U-i publishes — gives per-TU exact
+   **287**. *Modelling* the same class gives **472**. **Class removal is a LOWER
+   BOUND on the worth of modelling a class**, because a modelled name is also an
+   **edge source**: the ORACLE's non-`#152` false negatives fall 2 750 → 1 768
+   once `??_G` is live and its own reference list is followed. Do not price a
+   class by subtracting it.
 
 ---
 
