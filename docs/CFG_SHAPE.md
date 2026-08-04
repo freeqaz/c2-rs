@@ -715,6 +715,176 @@ trip-count computation, which is not a CFG problem at all.
 
 ## 4. The minimal instance — `cflow-if-1`, in full
 
+**Build this one first.** `?MemFree@NUISPEECH@@YAXPAX0K@Z`, from the frontier TU
+`src/xdk/nuispeech/xboxmem.cpp`. It is chosen over every probe in this lane for
+three reasons: it is a **real** workload function, it sits in fold band 3 so it
+provably emits a branch (§3.5), and its TU is the **only** frontier TU that
+`cflow-if-1` alone unblocks (§5.1).
+
+### 4.1 Source, IL, obj — the whole function
+
+```cpp
+void NUISPEECH::MemFree(void *v1, void *v2, unsigned long ul) {
+    if (v1 == nullptr) {
+        XMemFree(v2, ul);
+        return;
+    }
+    RtlFreeHeap(v1, 0, v2);
+}
+```
+
+The `.ex` body, from the `4C 4F 11` marker, every byte accounted for:
+
+```text
+4c 4f 11                          body marker
+53                                open body scope                     depth 3
+4f 01 10                          line 16
+53                                open the if scope                   depth 4
+b9 6c 0f 86 43 83 08              LOAD  tok 0x0F6C (v1)  TYPE ptr
+33 86 43 83 08 00                 LIT   TYPE ptr, 0
+1f                                CMP EQ                              -> bool
+38 71 0f                          brFALSE -> L_0F71    (the else entry)
+53 53                             then-clause scopes                  depth 5,6
+4f 01 11                          line 17
+26 da 0e                          push callee XMemFree
+bd 82 07 03 00 80 05 10 00 00     CALL header, void result
+b9 6e 0f 86 42 22 55 86 42 22     arg: LOAD ul,  push
+b9 6d 0f 86 43 83 08 55 86 43 83 08   arg: LOAD v2, push
+4c 4b                             end args, end statement
+4f 01 12
+3a 70 0f                          JUMP -> L_0F70  (epilogue)  = `return;`
+4f 01 13  54 05                   close                               depth 5
+4f 01 14  54 04                   close                               depth 4
+29 71 0f                          L_0F71:      the else entry
+54 03                             close the if scope                  depth 3
+26 ec 09 bd 86 42 75 00 80 07 10 00 00    CALL RtlFreeHeap
+b9 6d 0f 86 43 83 08 55 86 43 83 08       arg: v2
+33 86 42 22 00 55 86 42 22                arg: literal 0
+b9 6c 0f 86 43 83 08 55 86 43 83 08       arg: v1
+4c 4b
+4f 01 15
+3a 70 0f                          JUMP epilogue
+54 02                             close the body                      depth 2
+29 70 0f                          L_0F70:      the epilogue label
+4f 12 47 54 01 54 00              function tail
+```
+
+The obj — one `.text` COMDAT, `SizeOfRawData = 0x24`, `nrel = 2`,
+`Characteristics = 0x60401020`, **no `.pdata`**, symbol
+`?MemFree@NUISPEECH@@YAXPAX0K@Z` EXTERNAL at `Value = 0`:
+
+```text
+        7c 8b 23 78   mr      r11,r4        ; v2 -> r11, live across BOTH arms
+        2b 03 00 00   cmplwi  cr6,r3,0      ; v1 == 0, UNSIGNED (pointer operand)
+        40 9a 00 10   bne     cr6,+16       ; -> 0x18, the else entry
+        7c a4 2b 78   mr      r4,r5         ; then: arg2 = ul
+        7d 63 5b 78   mr      r3,r11        ; then: arg1 = v2
+        4b ff ff ec   b       XMemFree      ; REL24 @0x14   (`return;` folded to a tail call)
+        7d 65 5b 78   mr      r5,r11        ; else: arg3 = v2
+        38 80 00 00   li      r4,0          ; else: arg2 = 0
+        4b ff ff e0   b       RtlFreeHeap   ; REL24 @0x20
+```
+
+as a byte string:
+
+```text
+7c 8b 23 78 2b 03 00 00 40 9a 00 10 7c a4 2b 78 7d 63 5b 78 4b ff ff ec
+7d 65 5b 78 38 80 00 00 4b ff ff e0
+```
+
+Relocations, both `IMAGE_REL_PPC_REL24` (`0x0006`), no `PAIR`:
+
+```text
+14 00 00 00  <sym XMemFree>     06 00
+20 00 00 00  <sym RtlFreeHeap>  06 00
+```
+
+### 4.2 Every decision the emitter makes here, enumerated
+
+An implementer can check their lowering against this list item by item.
+
+1. **The compare instruction and its width/signedness.** Operand TYPE is
+   `86 43 83 08` (pointer) → **unsigned** → `cmplwi`, not `cmpwi`. Literal 0 fits
+   the immediate field. Destination field **cr6**. → `2b 03 00 00`.
+2. **The branch sense.** IL is `1f` (EQ) consumed by `38` (brFALSE), so the
+   emitted condition is the **negation** of EQ → `bne`, `BO = 4`, `BI = 26`.
+3. **The branch target.** The IL names label `0x0F71`; its `29` sits after the
+   then-clause. The emitter must resolve token → offset, which it cannot do on
+   first pass because `3A`/`38` carry no direction (§2.1) — so a **fixup list**
+   is required even for this one branch.
+4. **The displacement.** `BD = 0x18 − 0x08 = +16`, self-relative, low two bits
+   zero, **no relocation**. → `40 9a 00 10`.
+5. **Block order.** Then-block first (§3.4), else-block second, no join.
+6. **No join branch.** Both arms end in a tail call, so nothing is emitted at the
+   end of the then-block (§3.4, C2).
+7. **The epilogue is never materialized.** Both `3A → L_0F70` become tail calls;
+   the epilogue label has no block. Contrast §3.6, where an unreachable epilogue
+   *is* emitted — the difference is that here no edge reaches it at all.
+8. **A value is live across the branch.** `v2` arrives in r4, which both arms
+   need to clobber, so it is copied to **r11** in the entry block and read in
+   both successors. This is the item a shape-matcher cannot express (§6).
+9. **The argument shuffles are *not* uniformly hoisted.** Only the shuffle both
+   arms need (`mr r11,r4`) moves to the entry block; `mr r4,r5` stays in the
+   then-block. Contrast the sibling `?MemAlloc` in the same TU, where `mr r4,r5`
+   **is** hoisted, because there both arms consume r5's value. The discriminator
+   is whether the value is needed on both paths — a liveness fact, not a syntax
+   one.
+10. **The tail calls encode section-start-relative and take a `REL24`** (§3.3),
+    where the `bc` at step 4 encodes its true displacement and takes none. Two
+    encodings, one pass.
+
+### 4.3 The sibling cells in the same TU, for a 4/4 grade
+
+`xboxmem.cpp` has four functions and converts only when **all four** do.
+
+| fn | shape | obj |
+|---|---|---|
+| `?GetXAllocAttributes` | `cflow-straight`, blocked on `expr-cmp-ne` | 0x18 B, 0 reloc, no branch: `addic ; lis ; subfe ; rlwimi ; mr ; blr` |
+| `?MemAlloc` | `cflow-if-1`, blocked on `expr-cmp-eq` | 0x24 B, 2 reloc, one `409a000c` |
+| `?MemFree` | `cflow-if-1`, blocked on `expr-cmp-eq` | 0x24 B, 2 reloc, one `409a0010` |
+| `?MemSize` | `cflow-if-1`, blocked on `expr-cmp-eq` | 0x24 B, 2 reloc, one `409a0010` |
+
+`?MemSize` is byte-identical to `?MemFree` except for its two relocation targets
+(`XMemSize`/`RtlSizeHeap`) — the two functions' `.text` payloads are the same 36
+bytes. `?MemAlloc` differs in the entry block (two hoisted shuffles, §4.2 item 9)
+and in the else arm (`rlwinm r4,r4,5,28,28` for `(attrs>>0x1b)&8`).
+
+**`?GetXAllocAttributes` is not a CFG problem and must not be counted as one.**
+It is `cflow-straight` and its blocker is the comparison *value* family of
+`docs/CODEGEN_W6_COMPARE.md` — a `!=0` spine feeding a shift and an `or` with a
+constant. It needs `expr-cmp-ne` plus `<<`, `|` and a `lis`-materialized
+constant, none of which this document specifies. **The CFG step alone does not
+convert `xboxmem.cpp`.** See §5.
+
+### 4.4 What the *second* case adds
+
+Stated as a decision this document makes, so the widening order is not
+improvised:
+
+* **`if-2` adds nothing.** Two independent `38` sites, each a repetition of the
+  first (§2.3), two `bc`, two fixups, cr6 reused. No new production, no new
+  rule. It should be admitted *in the same rung* as `if-1`, not after it.
+* **`if-n` adds nothing either** — `?b_ifn` is `?b_if2` a third time. The census
+  distinction between `if-1`, `if-2` and `if-n` is a **count**, and it does not
+  correspond to a cost step in the emitter. This is the single most useful
+  scheduling fact in the document (§5.2).
+* **Nesting adds nothing.** `?d_nest` (`if(a){ if(b) return 1; return 2; } return
+  3;`) emits one `bc` and one fold, at 0x20 B. Nested `if` is `if-n` with
+  different label positions.
+* **`&&`/`||` add nothing** — already two branches in the IL, no `crand`/`cror`
+  in the obj (§3.4, C5).
+* **A loop adds three things at once**, and this is where the cost step really
+  is: a **back edge** (so values must be allocated across it), a **bottom-tested
+  rotation** the IL does not have (§3.7b), and — for leaf counted loops — an
+  entirely new instruction family (§3.7c). A loop rung is not "`if-n` plus a
+  negative displacement".
+* **`switch` adds a fourth thing and should be last.** `?d_switch` (cases 1, 2, 7
+  + default) emits **no jump table at all** — a compare chain plus a fold — and
+  its blocks land in **reverse** source order (default's tail at 0x10, case 2 at
+  0x28, case 1 at 0x30). A wider switch presumably does emit a table
+  (`IL_STMT_GRAMMAR.md` §11 has the IL for one), and this lane measured only the
+  narrow case. Both the table threshold and the block-order rule are **unmeasured**.
+
 ## 5. The widening order, ranked by TUs
 
 ## 6. What the block/instruction IR must carry
