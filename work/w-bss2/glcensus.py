@@ -20,12 +20,11 @@ import json, os, sys, concurrent.futures as cf
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import cap, glparse
+import cap, glparse, paths
 
-MAIN = "/home/free/code/milohax/c2-rs"
-DC3 = os.environ.get("C2RS_DC3_SRC", "/home/free/code/milohax/dc3-decomp")
-FLAGS = open(os.path.join(MAIN, "work/dc3-workload/flags.txt")).read().split()
-CENSUS = os.path.join(MAIN, "work/w-bss/census/sections.jsonl")
+DC3 = paths.DC3
+FLAGS = paths.flags()
+CENSUS = paths.SECTIONS
 
 
 def wanted_names(rec):

@@ -44,8 +44,9 @@ def hexdump(d, base=0):
                                    ''.join(chr(c) if 32 <= c < 127 else '.' for c in ch)))
 
 
-FLAGS = ["/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc"]
 HERE = os.path.dirname(os.path.abspath(__file__))
+import paths
+FLAGS = paths.probe_flags()
 
 
 def gl_of(src, tag):

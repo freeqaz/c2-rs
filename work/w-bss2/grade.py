@@ -11,10 +11,9 @@ import json, os, sys, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import models, glparse
+import models, glparse, paths
 
-MAIN = "/home/free/code/milohax/c2-rs"
-SEC = os.path.join(MAIN, "work/w-bss/census/sections.jsonl")
+SEC = paths.SECTIONS
 GLC = os.path.join(HERE, "glcensus.jsonl")
 
 

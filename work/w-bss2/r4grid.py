@@ -20,13 +20,13 @@ import os, random, subprocess, sys, json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import cap, glparse, models
+import cap, glparse, models, paths
 from coffdump import Obj
 
-MAIN = "/home/free/code/milohax/c2-rs"
-C2RS = os.path.join(MAIN, "target/release/c2rs")
+C2RS = paths.C2RS
 SCRATCH = os.path.join(HERE, "scratch")
-FLAGS = ["/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc"]
+# the workload's flags minus its project /I set — these probes are standalone
+FLAGS = paths.probe_flags()
 
 # identical to work/w-bss/alloc.py's table, so cells are comparable
 TYPES = [("char", 1, 1), ("short", 2, 2), ("int", 4, 4), ("double", 8, 8),

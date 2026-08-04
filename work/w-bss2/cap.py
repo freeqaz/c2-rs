@@ -11,15 +11,13 @@ expected — WITHOUT touching `crates/` (three parallel lanes own those files).
 No expected obj or IL is ever constructed here; this only runs the real
 front end and reads what it wrote.
 """
-import os, re, subprocess, shutil, glob, tempfile
+import os, re, sys, subprocess, shutil, glob, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-MAIN = "/home/free/code/milohax/c2-rs"
+sys.path.insert(0, HERE)
+import paths
 
-WIBO = os.environ.get("C2RS_WIBO") or "/home/free/code/milohax/wibo/build/wibo"
-CL = os.environ.get("C2RS_CL_EXE") or os.path.join(
-    MAIN, "compilers/X360/16.00.11886.00/cl.exe")
+WIBO, CL = paths.WIBO, paths.CL_EXE
 
 
 def to_z(p):
