@@ -550,12 +550,22 @@ const REL_PPC_ADDR32: u16 = 0x0002;
 /// `.pdata` section characteristics: CNT_INIT_DATA | ALIGN_8 | MEM_READ.
 const CH_PDATA: u32 = 0x4040_0040;
 
-/// Reflected CRC-32 (poly `0xEDB88320`, init 0, no final inversion) over a
-/// section's raw bytes — the COFF aux section-def CheckSum algorithm. Used for
-/// `.pdata` (whose aux carries a real checksum even though it is not a COMDAT);
-/// the fixed `.XBLD$W` COMDAT checksums stay hardcoded above.
-fn coff_checksum(data: &[u8]) -> u32 {
-    let mut c: u32 = 0;
+/// Reflected CRC-32, polynomial `0xEDB88320`, **no final inversion**, over a
+/// byte run — parameterised on the initial value, because c2 uses this same
+/// loop twice with two different ones and getting them the wrong way round is
+/// the documented way to implement this wrong (`docs/OBJ_DYNINIT_SHAPE.md`
+/// §2.3, closing note):
+///
+/// | consumer | init | via |
+/// |---|---|---|
+/// | COFF aux section-def `CheckSum` | `0` | [`coff_checksum`] |
+/// | the `??_C@…` string-literal name hash (JamCRC) | `0xFFFFFFFF` | [`jamcrc`] |
+///
+/// One loop with an argument, not two loops — two independent copies is exactly
+/// how the swap happens, and it is invisible to every consistency check the port
+/// has (both values are 32 bits and both look like noise).
+fn crc32_reflected(init: u32, data: &[u8]) -> u32 {
+    let mut c = init;
     for &b in data {
         c ^= b as u32;
         for _ in 0..8 {
@@ -563,6 +573,27 @@ fn coff_checksum(data: &[u8]) -> u32 {
         }
     }
     c
+}
+
+/// The COFF aux section-def CheckSum algorithm — [`crc32_reflected`] with init
+/// `0`. Used for `.pdata` (whose aux carries a real checksum even though it is
+/// not a COMDAT) and for a string-literal `.rdata`; the fixed `.XBLD$W` COMDAT
+/// checksums stay hardcoded above.
+///
+/// **Scope, corrected out-of-sample** (`docs/OBJ_DYNINIT_SHAPE.md` §2.3, held-out
+/// prediction H9 refuted): the field is `0` for `.text$y?`, for `.text`, for
+/// `.bss`, for `.CRT$XCU`, for `.drectve`/`.debug$S`, and — the refutation — for
+/// an **FP-constant** `.rdata` COMDAT. It carries the real CRC for the two
+/// `.XBLD$W`, for `.pdata`, and for a **string** `.rdata`, COMDAT or not.
+fn coff_checksum(data: &[u8]) -> u32 {
+    crc32_reflected(0, data)
+}
+
+/// JamCRC — [`crc32_reflected`] with init `0xFFFFFFFF`, no final XOR
+/// (equivalently `!crc32(data)`). The hash inside a `??_C@…` string-literal
+/// COMDAT name, over the literal's bytes **including the NUL**.
+fn jamcrc(data: &[u8]) -> u32 {
+    crc32_reflected(0xFFFF_FFFF, data)
 }
 
 /// The unwind facts one framed function contributes: the two lengths that go
@@ -1650,6 +1681,566 @@ pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: 
     b.0
 }
 
+// ===========================================================================
+// #158 — the `??__E` dynamic-initializer obj.
+//
+// A TU whose only emitted function is one `??__E<name>@@YAXXZ` thunk running
+// one namespace-scope object's constructor. Eight sections, 24 symbol records,
+// 9 + 1 relocations. Every byte below is transcribed from an obj produced by the
+// real cl 16.00.11886.00 / c2.dll under wibo; `docs/OBJ_DYNINIT_SHAPE.md` is the
+// characterization and names the cell each rule was fitted on and tested
+// against. Where that doc and the bytes disagree, the bytes win, and the three
+// places they do are marked CORRECTION below.
+//
+// **Grade at `/O1`, not `/Ox`** (§7.3 caveat 1): `/Ox` does not imply `/GF`, and
+// without `/GF` the literal is a non-COMDAT `$SG<n>` `.rdata` placed *before*
+// `.text`, with no `??_C@…` symbol at all. That is a different obj.
+// ===========================================================================
+
+/// `.text$yc` characteristics — CNT_CODE | COMDAT | ALIGN_8 | EXECUTE | READ.
+/// Numerically the same word as an ordinary `/Gy` `.text`; the **selection**
+/// is what differs (2 ANY here, 1 NODUPLICATES there), which prereg P3 got
+/// backwards.
+const CH_TEXT_YC: u32 = 0x6040_1020;
+
+/// `.CRT$XCU` characteristics — CNT_INIT_DATA | ALIGN_4 | READ | WRITE.
+/// ALIGN_4 in every cell measured, and **not** a COMDAT.
+const CH_CRT_XCU: u32 = 0xC030_0040;
+
+/// `.rdata` (string literal, `/GF`) characteristics with the alignment nibble
+/// cleared: CNT_INIT_DATA | COMDAT | READ. OR in `nibble << 20`.
+const CH_RDATA_STRING_BASE: u32 = 0x4000_1040;
+
+/// `.bss` characteristics with the alignment nibble cleared: CNT_UNINIT_DATA |
+/// READ | WRITE. OR in `nibble << 20`. **Never** a COMDAT (prereg P2, refuted
+/// in that direction).
+const CH_BSS_BASE: u32 = 0xC000_0080;
+
+/// `IMAGE_COMDAT_SELECT_ANY` — the selection a `??__E` thunk's `.text$yc` and
+/// its string `.rdata` carry. An *ordinary* function's `.text` uses
+/// [`COMDAT_SELECT_NODUPLICATES`] instead, so this is a discriminator and not a
+/// constant (prereg P3).
+const COMDAT_SELECT_ANY: u8 = 2;
+
+/// The alignment nibble (bits 23:20 of `Characteristics`) for a blob of `n`
+/// bytes whose natural alignment is `t`:
+///
+/// > `align = max(t, 1 if n < 2 else 4 if n < 64 else 8)`
+///
+/// One rule for both `.bss` and the string `.rdata`, measured on both sides
+/// across `n = 1, 2, 3..63, 64, 65..256` (`docs/OBJ_DYNINIT_SHAPE.md` §4.2).
+/// `t` moves independently: a `double` member gives ALIGN_8 at `n = 8` where a
+/// `char[8]` gives ALIGN_4.
+///
+/// The nibble is `log2(align) + 1` — 1→1, 2→2, 4→3, 8→4. Returns `None` for an
+/// alignment that is not a power of two in 1..=8, rather than emitting a nibble
+/// for a case nothing measured.
+fn align_nibble(n: u32, natural: u32) -> Option<u32> {
+    let implied: u32 = if n < 2 {
+        1
+    } else if n < 64 {
+        4
+    } else {
+        8
+    };
+    match natural.max(implied) {
+        1 => Some(1),
+        2 => Some(2),
+        4 => Some(3),
+        8 => Some(4),
+        _ => None,
+    }
+}
+
+/// One base-16 digit in MSVC's `A`..`P` alphabet (`A` = 0 … `P` = 15).
+fn base16_ap_digit(nibble: u32) -> char {
+    (b'A' + nibble as u8) as char
+}
+
+/// A `u32` in base 16, digits `A`..`P`, **most-significant first with leading
+/// zeros suppressed**.
+///
+/// The suppression is the rule the 101-byte held-out literal bought
+/// (`docs/OBJ_DYNINIT_SHAPE.md` §5): its JamCRC is `0x0B7B9BC4`, the obj carries
+/// the **7**-digit `LHLJLME`, and a fixed-width-8 renderer would have written
+/// `ALHLJLME` — right on ~15 of 16 literals and silently wrong on the rest.
+///
+/// `0` renders as the empty string, which no caller may emit; both callers
+/// reject it explicitly rather than inventing a spelling for it.
+fn base16_ap(v: u32) -> String {
+    let mut out = String::new();
+    let mut started = false;
+    for shift in (0..8).rev() {
+        let d = (v >> (shift * 4)) & 0xF;
+        if d == 0 && !started {
+            continue;
+        }
+        started = true;
+        out.push(base16_ap_digit(d));
+    }
+    out
+}
+
+/// The `<L>` field of a `??_C@_0…` name: `n`, the literal's byte length
+/// **including the NUL**, as an MSVC-mangled number.
+///
+/// `1..=10` → the single character `'0' + (n - 1)`; anything larger →
+/// [`base16_ap`] followed by `@`. Verified: 4→`3`, 10→`9`, 11→`L@`, 14→`O@`,
+/// 16→`BA@`, 26→`BK@`, 31→`BP@`, 32→`CA@`, 33→`CB@`, 49→`DB@`, 101→`GF@`.
+///
+/// **CORRECTION to §5.** The doc's decomposition line writes the template as
+/// `??_C@` `_0` `<L>` `@` `<H>` `@` `<text>` `@`, i.e. with an `@` between the
+/// length and the hash. There is none: the obj carries
+/// `??_C@_03FIKCJHKP@abc?$AA@`, where `3` is the whole length field and the
+/// next character is the hash's first digit. The `@` visible in the long form
+/// `_0BK@` is the **trailing `@` of this mangling**, present only for `n > 10`.
+/// Coding the doc's line literally produces `??_C@_03@FIKCJHKP@abc?$AA@`.
+/// Cross-checked three ways, on the string-table *sizes* of three reference
+/// objs (which no part of this rule was fitted to): the fixture's table is 100
+/// bytes, TomCrypt's 161 and Zlib's 175, and each is reproduced to the byte
+/// only by the template as written here.
+fn mangle_len(n: u32) -> String {
+    if (1..=10).contains(&n) {
+        ((b'0' + (n - 1) as u8) as char).to_string()
+    } else {
+        format!("{}@", base16_ap(n))
+    }
+}
+
+/// Append one literal byte in its `??_C@…` escaped form, or return `false` if
+/// its escape has **not been measured**.
+///
+/// Three classes, all measured (`docs/OBJ_DYNINIT_SHAPE.md` §5 plus this lane's
+/// probes):
+///
+/// * `[A-Za-z0-9_$]` pass through literally — uppercase and `$` included.
+/// * six single-`?` escapes: `?0`=`,` `?1`=`/` `?3`=`:` `?4`=`.` `?5`=space
+///   `?9`=`-`.
+/// * `?$` + two `A`..`P` nibble digits, MSB first, fixed width 2: NUL→`?$AA`,
+///   `!`(0x21)→`?$CB`, `+`(0x2B)→`?$CL`.
+///
+/// **Everything else is refused, and the refusal is the point.** `?2`, `?6`,
+/// `?7` and `?8` are single-`?` escape slots that this lane never observed a
+/// character in. Some byte claims each of them, and it is *not* discoverable
+/// from the three `?$XX` cells above which one — a byte that takes a single-`?`
+/// escape in real c2 would be rendered here as a two-digit `?$XX` and the whole
+/// COMDAT name, its length field and the obj's string table would all be wrong,
+/// with nothing to flag it. Guessing the four unmeasured slots to widen coverage
+/// is strictly worse than declining: a synthesized name that links is the
+/// failure mode this project's one correctness rule exists to prevent. Only `/`
+/// and `?$AA` are needed for the #158 target class.
+fn escape_literal_byte(byte: u8, out: &mut String) -> bool {
+    match byte {
+        b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'$' => {
+            out.push(byte as char);
+            true
+        }
+        b',' => {
+            out.push_str("?0");
+            true
+        }
+        b'/' => {
+            out.push_str("?1");
+            true
+        }
+        b':' => {
+            out.push_str("?3");
+            true
+        }
+        b'.' => {
+            out.push_str("?4");
+            true
+        }
+        b' ' => {
+            out.push_str("?5");
+            true
+        }
+        b'-' => {
+            out.push_str("?9");
+            true
+        }
+        // The three `?$XX` cells that were actually captured.
+        0x00 | b'!' | b'+' => {
+            out.push_str("?$");
+            out.push(base16_ap_digit((byte >> 4) as u32));
+            out.push(base16_ap_digit((byte & 0xF) as u32));
+            true
+        }
+        _ => false,
+    }
+}
+
+/// How many of a literal's bytes the escaped-text field of a `??_C@…` name
+/// renders before it is cut off.
+///
+/// **CORRECTION to §5.** The doc says the text is "truncated at 32 characters",
+/// which reads as a limit on the *escaped output*. It is not: the limit is on
+/// the **source bytes of `literal + NUL`**. Measured on this lane's probes —
+/// a 31-character literal (32 bytes with its NUL) renders the `?$AA`, a
+/// 32-character one (33 bytes) drops it, and a 30-character all-`/` literal
+/// produces 54 escaped characters with nothing cut. Reading the limit as an
+/// output-character budget truncates the second of those in the middle.
+const LITERAL_TEXT_BYTE_LIMIT: usize = 32;
+
+/// `??_C@_0<len><hash>@<escaped text>@` — the COMDAT symbol name c2 gives a
+/// narrow (`char`) string literal under `/GF`.
+///
+/// `bytes` is the literal **including its trailing NUL**; that NUL is part of
+/// the length, part of the hash and (unless cut by
+/// [`LITERAL_TEXT_BYTE_LIMIT`]) part of the escaped text. Returns `None` when
+/// any byte's escape is outside the measured set — see [`escape_literal_byte`].
+///
+/// Byte evidence, every literal this lane or the characterization measured:
+///
+/// | literal | n | JamCRC | `<H>` |
+/// |---|---:|---|---|
+/// | `abc` | 4 | `0x58A297AF` | `FIKCJHKP` |
+/// | `defg` | 5 | `0x3F7194AC` | `DPHBJEKM` |
+/// | *(empty)* | 1 | `0x2DFD1072` | `CNPNBAHC` |
+/// | `Hello, world!` | 14 | `0x647FB1F9` | `GEHPLBPJ` |
+/// | `xyzzy` | 6 | `0xFE973C8F` | `POJHDMIP` |
+/// | `q`×100 | 101 | `0x0B7B9BC4` | `LHLJLME` |
+/// | `system/src/synth/tomcrypt` | 26 | `0xF4BC3E1C` | `PELMDOBM` |
+/// | `system/src/zlib` | 16 | `0x55C0A74D` | `FFMAKHEN` |
+pub fn string_comdat_name(bytes: &[u8]) -> Option<String> {
+    if bytes.is_empty() || *bytes.last().unwrap() != 0 {
+        // The NUL is load-bearing in all three fields; a caller that dropped it
+        // would get a name that is wrong everywhere and looks right nowhere.
+        return None;
+    }
+    let hash = jamcrc(bytes);
+    if hash == 0 {
+        // `base16_ap(0)` is the empty string and no cell measured what c2 writes
+        // for a literal whose JamCRC is zero. Refuse rather than pick between
+        // "" and "A".
+        return None;
+    }
+    let mut text = String::new();
+    for &b in bytes.iter().take(LITERAL_TEXT_BYTE_LIMIT) {
+        if !escape_literal_byte(b, &mut text) {
+            return None;
+        }
+    }
+    Some(format!(
+        "??_C@_0{}{}@{}@",
+        mangle_len(bytes.len() as u32),
+        base16_ap(hash),
+        text
+    ))
+}
+
+/// The `.bss` object a dynamic initializer constructs.
+pub struct BssObject<'a> {
+    /// The COFF symbol name, already in its final form: undecorated
+    /// (`sLicense`) for internal linkage, decorated
+    /// (`?sLicense@@3VLicenses@@A`) for external.
+    pub symbol: &'a str,
+    /// `sizeof` the object. Becomes `.bss` `SizeOfRawData` and the aux `Length`
+    /// — **not** `VirtualSize`, which is 0 (§1, prereg P8 refuted).
+    pub size: u32,
+    /// The object's natural alignment `t`, in bytes (1/2/4/8). Feeds
+    /// [`align_nibble`] together with `size`.
+    pub natural_align: u32,
+    /// `true` => StorageClass 2 EXTERNAL; `false` => 3 STATIC. The **object's**
+    /// linkage only: the `??__E` thunk stays STATIC either way, and so does
+    /// `<name>$initializer$` (§4.3).
+    pub external: bool,
+    /// The `.CRT$XCU` slot symbol: `<source identifier>$initializer$`, built
+    /// from the SOURCE identifier and never from the decorated name —
+    /// `?gL@@3UL@@A` still yields `gL$initializer$` (§3.1).
+    pub initializer_symbol: &'a str,
+}
+
+/// One string-literal `.rdata` COMDAT.
+pub struct StringLiteral<'a> {
+    /// The literal's bytes INCLUDING the trailing NUL. Becomes the `.rdata` raw
+    /// data, the aux `Length`, the aux `CheckSum` (the real CRC — a string
+    /// `.rdata` carries it, unlike an FP-constant one) and the COMDAT name via
+    /// [`string_comdat_name`].
+    pub bytes: &'a [u8],
+}
+
+/// A `??__E<name>@@YAXXZ` dynamic-initializer thunk.
+pub struct DynInitThunk<'a> {
+    /// e.g. `??__EsLicense@@YAXXZ`. Emitted **STATIC (3)** with `Type` 0x0020 —
+    /// even when the object it initializes has external linkage. `ZlibLicense.cpp`
+    /// confirms both halves at once: `?sLicense@@3VLicenses@@A` is EXTERNAL
+    /// while `??__EsLicense@@YAXXZ` is STATIC (§3.1).
+    pub name: &'a str,
+    /// The encoded text; 0x18 bytes for the target class, and byte-identical
+    /// across the fixture and both workload TUs.
+    pub text: &'a [u8],
+    /// REL24 sites. Exactly one for the target class, and it takes **no** PAIR.
+    pub calls: Vec<Call<'a>>,
+    /// REFHI/REFLO quads. Each `name` must match either the string COMDAT's
+    /// mangled name (see [`string_comdat_name`]) or [`BssObject::symbol`].
+    pub data_refs: Vec<DataRef<'a>>,
+}
+
+/// Emit the 8-section `??__E` dynamic-initializer obj, or `None` if the inputs
+/// fall outside the class this was measured on — in which case the caller
+/// reports `NotImplemented`.
+///
+/// Target class: exactly one thunk, exactly one `.bss` object, at most one
+/// string literal, no `.pdata` (the thunk is a leaf) and no destructor. A
+/// destructor is +2 sections, +10 symbol records and a framed `??__E` with 14
+/// relocations (§4.4); ≥2 objects needs the `.bss` address permutation §7.1
+/// explicitly declines.
+///
+/// Section order, and the symbol table that follows it exactly:
+///
+/// ```text
+///   1 .drectve   2 .debug$S   3 .XBLD$W(C2)   4 .XBLD$W(C1)
+///   5 .text$yc   6 .rdata     7 .bss          8 .CRT$XCU
+/// ```
+///
+/// **The ordering rule** (§3.1), which is a rule and not a fit: the symbol table
+/// follows section order; for each section, the section symbol + aux, then the
+/// symbols that section defines, then any **undefined external first referenced
+/// by that section**. That is why the constructor — `SectionNumber` 0, defined
+/// nowhere — sits at index 14, *inside* the `.text$yc` group and *before* the
+/// `.rdata` section symbol at 15. Neither [`emit_obj`] nor [`emit_comdat_obj`]
+/// places an undefined external there, so their sequence is not reusable here
+/// even though every primitive below it is.
+pub fn emit_dyninit_obj(
+    obj_name: &str,
+    thunk: &DynInitThunk<'_>,
+    literal: Option<&StringLiteral<'_>>,
+    object: &BssObject<'_>,
+) -> Option<Vec<u8>> {
+    // ---- class check. Every `None` below is a case nothing measured. ----
+    if thunk.calls.len() != 1 {
+        return None; // one constructor call; 0 or 2+ is a different body
+    }
+    if thunk.text.is_empty() || thunk.text.len() % 4 != 0 {
+        return None;
+    }
+    if object.size == 0 {
+        return None;
+    }
+    let bss_nibble = align_nibble(object.size, object.natural_align)?;
+    let string_name = match literal {
+        None => None,
+        Some(l) => Some(string_comdat_name(l.bytes)?),
+    };
+    // The data-symbol references must be exactly the string COMDAT (when there
+    // is one) and the object — no more, no fewer, no repeats. A quad against
+    // anything else is an operand class this shape was never measured with.
+    let mut expected: Vec<&str> = Vec::new();
+    if let Some(n) = &string_name {
+        expected.push(n.as_str());
+    }
+    expected.push(object.symbol);
+    if thunk.data_refs.len() != expected.len() {
+        return None;
+    }
+    for e in &expected {
+        if thunk.data_refs.iter().filter(|r| r.name == *e).count() != 1 {
+            return None;
+        }
+    }
+
+    // ---- sections ----
+    let mut sections = shell_sections(obj_name);
+    sections.push(Section {
+        name: ".text$yc",
+        characteristics: CH_TEXT_YC,
+        raw: std::borrow::Cow::Borrowed(thunk.text),
+        // `.text$y?` carries CheckSum 0 — the CRC is for `.XBLD$W`, `.pdata`
+        // and a string `.rdata` only (§2.3).
+        checksum: 0,
+        selection: COMDAT_SELECT_ANY,
+        assoc: 0,
+        uninit_size: None,
+    });
+    let sec_text = sections.len() - 1;
+    let sec_rdata = match literal {
+        None => None,
+        Some(l) => {
+            let nibble = align_nibble(l.bytes.len() as u32, 1)?; // narrow char: t = 1
+            sections.push(Section {
+                name: ".rdata",
+                characteristics: CH_RDATA_STRING_BASE | (nibble << 20),
+                raw: std::borrow::Cow::Borrowed(l.bytes),
+                // **CORRECTION to §2.3's scope.** The doc says the CheckSum is 0
+                // "for every non-COMDAT section". At `/Ox` the *non*-COMDAT
+                // `$SG` string `.rdata` carries the real CRC `0x8619B74C` for
+                // `"abc\0"`, so the rule is about the section being a **string**
+                // `.rdata`, not about it being a COMDAT. Not load-bearing here
+                // (this one is a COMDAT), but the doc's version must not be the
+                // rule that gets encoded.
+                checksum: coff_checksum(l.bytes),
+                selection: COMDAT_SELECT_ANY,
+                assoc: 0,
+                uninit_size: None,
+            });
+            Some(sections.len() - 1)
+        }
+    };
+    sections.push(Section {
+        name: ".bss",
+        characteristics: CH_BSS_BASE | (bss_nibble << 20),
+        raw: std::borrow::Cow::Borrowed(&[]),
+        checksum: 0,
+        // `.bss` is **never** a COMDAT, whatever the object's linkage (§2.2).
+        selection: 0,
+        assoc: 0,
+        uninit_size: Some(object.size),
+    });
+    let sec_bss = sections.len() - 1;
+    sections.push(Section {
+        name: ".CRT$XCU",
+        characteristics: CH_CRT_XCU,
+        // All zero — the address comes entirely from the ADDR32 relocation
+        // (§3.4). Its CRC-with-init-0 is also 0, so this section cannot
+        // discriminate the checksum rule either way.
+        raw: std::borrow::Cow::Borrowed(&[0, 0, 0, 0]),
+        checksum: 0,
+        selection: 0,
+        assoc: 0,
+        uninit_size: None,
+    });
+    let sec_crt = sections.len() - 1;
+    let n_sections = sections.len();
+
+    // ---- symbol indices, in section order ----
+    // 11 shell, then per section: section symbol + aux, the symbols it defines,
+    // then any undefined external it is the first to reference.
+    let mut next = N_SHELL_SYMBOLS;
+    let _idx_text_sec = next;
+    next += 2;
+    let idx_thunk = next;
+    next += 1;
+    // The constructor: SectionNumber 0, and it belongs to the `.text$yc` group
+    // because that is the section that references it.
+    let idx_ctor = next;
+    next += 1;
+    let idx_string = sec_rdata.map(|_| {
+        next += 2; // .rdata section symbol + aux
+        let i = next;
+        next += 1;
+        i
+    });
+    next += 2; // .bss section symbol + aux
+    let idx_object = next;
+    next += 1;
+    next += 2; // .CRT$XCU section symbol + aux
+    let idx_initializer = next;
+    next += 1;
+    let n_symbols = next;
+
+    // ---- relocations ----
+    // `.text$yc`: one REFHI/PAIR/REFLO/PAIR quad per data reference plus the
+    // REL24, **ordered by VirtualAddress** with each primary ahead of its PAIR
+    // at the equal VA. Derived by sorting, not positioned: §3.2's last row is a
+    // cell where the HI block and the LO block name their symbols in *different*
+    // orders (the FP constant's REFLO rides an `lfs` displacement), so "HI, HI,
+    // LO, LO in data_ref order" is not a law even though it holds here.
+    let sym_of = |name: &str| -> Option<u32> {
+        if Some(name) == string_name.as_deref() {
+            idx_string
+        } else if name == object.symbol {
+            Some(idx_object)
+        } else {
+            None
+        }
+    };
+    let mut text_relocs: Vec<(u32, u32, u16)> = Vec::new();
+    for r in &thunk.data_refs {
+        let s = sym_of(r.name)?;
+        text_relocs.push((r.hi_off, s, REL_PPC_REFHI));
+        text_relocs.push((r.hi_off, 0, REL_PPC_PAIR));
+        text_relocs.push((r.lo_off, s, REL_PPC_REFLO));
+        text_relocs.push((r.lo_off, 0, REL_PPC_PAIR));
+    }
+    for c in &thunk.calls {
+        // REL24 takes no PAIR.
+        text_relocs.push((c.reloc_offset, idx_ctor, REL_PPC_REL24));
+    }
+    text_relocs.sort_by_key(|&(va, _, _)| va);
+    // `.CRT$XCU`: one ADDR32 at offset 0 against the thunk, no PAIR (§3.4).
+    let crt_relocs: Vec<(u32, u32, u16)> = vec![(0, idx_thunk, REL_PPC_ADDR32)];
+
+    let mut relocs: Vec<Vec<(u32, u32, u16)>> = vec![Vec::new(); n_sections];
+    relocs[sec_text] = text_relocs;
+    relocs[sec_crt] = crt_relocs;
+    let n_reloc_of: Vec<u16> = relocs.iter().map(|r| r.len() as u16).collect();
+
+    // The pre-existing emitters both assume "only `.text` carries relocations in
+    // this class"; here `.CRT$XCU` carries one too, which is why the counts come
+    // off the record lists rather than off a per-section formula.
+    let (ptrs, reloc_ptr, ptr_symtab) = layout_sections(&sections, &n_reloc_of);
+
+    let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
+    write_coff_header(&mut b, n_sections, ptr_symtab, n_symbols);
+    write_section_headers(&mut b, &sections, &ptrs, &reloc_ptr, &n_reloc_of);
+
+    // Raw data, each section immediately followed by its own relocations.
+    // `.bss` writes nothing at all — `raw` is empty and `file_len` is 0 — so
+    // `.rdata` and `.CRT$XCU` end up contiguous in the file.
+    for (i, s) in sections.iter().enumerate() {
+        if s.uninit_size.is_none() {
+            debug_assert_eq!(b.0.len(), ptrs[i]);
+        }
+        // An uninitialized section must carry no raw bytes, or this write and
+        // the layout cursor would disagree by exactly `raw.len()`.
+        debug_assert_eq!(s.file_len(), s.raw.len());
+        b.bytes(&s.raw);
+        if !relocs[i].is_empty() {
+            debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+            for &(va, sym, ty) in &relocs[i] {
+                b.u32(va);
+                b.u32(sym);
+                b.u16(ty);
+            }
+        }
+    }
+    debug_assert_eq!(b.0.len(), ptr_symtab);
+
+    // ---- symbol table ----
+    let mut strtab = StringTable::new();
+    emit_shell_symbols(&mut b, &mut strtab, &sections); // 0..=10
+
+    // `.text$yc` group: section symbol + aux, the STATIC thunk, then the
+    // undefined external constructor.
+    emit_section_symbol(&mut b, &sections[sec_text], (sec_text + 1) as i16, n_reloc_of[sec_text]);
+    // The one symbol shape none of the older helpers spelled: STATIC (3) with
+    // FUNCTION type (0x0020). An *ordinary* function's symbol is EXTERNAL (2).
+    emit_symbol(&mut b, &mut strtab, thunk.name, 0, (sec_text + 1) as i16, 0x0020, 3);
+    emit_function_symbol(&mut b, &mut strtab, thunk.calls[0].callee, 0, 0);
+
+    // `.rdata` group: section symbol + aux, then the COMDAT's defining symbol —
+    // EXTERNAL (2) with `Type` 0, so the linker can fold it. (Without `/GF` the
+    // corresponding `$SG<n>` symbol is STATIC instead.)
+    if let (Some(si), Some(name)) = (sec_rdata, &string_name) {
+        emit_section_symbol(&mut b, &sections[si], (si + 1) as i16, n_reloc_of[si]);
+        emit_external_symbol(&mut b, &mut strtab, name, (si + 1) as i16, 0x0000);
+    }
+
+    // `.bss` group: section symbol + aux (Selection 0 — never a COMDAT), then
+    // the object, whose storage class is the one thing its linkage moves.
+    emit_section_symbol(&mut b, &sections[sec_bss], (sec_bss + 1) as i16, n_reloc_of[sec_bss]);
+    emit_symbol(
+        &mut b,
+        &mut strtab,
+        object.symbol,
+        0,
+        (sec_bss + 1) as i16,
+        0x0000,
+        if object.external { 2 } else { 3 },
+    );
+
+    // `.CRT$XCU` group: section symbol + aux, then `<name>$initializer$` —
+    // STATIC, `Type` 0, `Value` 0, referenced by no relocation. It exists so the
+    // linker has a name for the 4-byte slot.
+    emit_section_symbol(&mut b, &sections[sec_crt], (sec_crt + 1) as i16, n_reloc_of[sec_crt]);
+    emit_symbol(&mut b, &mut strtab, object.initializer_symbol, 0, (sec_crt + 1) as i16, 0x0000, 3);
+
+    b.bytes(&strtab.finish());
+    debug_assert_eq!(idx_initializer + 1, n_symbols);
+    Some(b.0)
+}
+
 /// Emit a section STATIC symbol + its aux section-def record. `n_reloc` is the
 /// section's relocation count (0 for all sections except `.text` when calls
 /// are present) — it appears in the aux record and must match the section
@@ -2262,6 +2853,816 @@ mod tests {
                  in `.text` (both read section {t_sec})"
             );
         }
+    }
+
+    // =======================================================================
+    // #158 — the dynamic-initializer obj.
+    //
+    // PORTABLE pins (prereg D2). `cargo test` has twice missed an ordering bug
+    // in this file that only `scripts/gate.sh` caught — the callee-per-call-site
+    // inflation and the batched-relocations layout — because the shapes that
+    // discriminate them were reachable only through a fixture. Everything below
+    // runs with **no toolchain**: `emit_dyninit_obj` plus a parser written here,
+    // deliberately a separate walk of the container from the emitter's.
+    // =======================================================================
+
+    /// Every section header, as `(name, SizeOfRawData, PointerToRawData,
+    /// PointerToRelocations, NumberOfRelocations, VirtualSize, Characteristics)`.
+    fn sections_of(obj: &[u8]) -> Vec<(String, u32, u32, u32, u16, u32, u32)> {
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]]);
+        (0..u16at(2) as usize)
+            .map(|s| {
+                let h = COFF_HEADER_LEN + s * SECTION_HEADER_LEN;
+                let end = obj[h..h + 8].iter().position(|&c| c == 0).unwrap_or(8);
+                (
+                    String::from_utf8_lossy(&obj[h..h + end]).into_owned(),
+                    u32at(h + 16),
+                    u32at(h + 20),
+                    u32at(h + 24),
+                    u16at(h + 32),
+                    u32at(h + 8),
+                    u32at(h + 36),
+                )
+            })
+            .collect()
+    }
+
+    /// Every relocation record of the named section, in file order.
+    fn relocations_of(obj: &[u8], want: &str) -> Vec<(u32, u32, u16)> {
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]]);
+        let mut out = Vec::new();
+        for s in sections_of(obj).iter() {
+            if s.0 != want {
+                continue;
+            }
+            for r in 0..s.4 as usize {
+                let o = s.3 as usize + r * RELOC_LEN;
+                out.push((u32at(o), u32at(o + 4), u16at(o + 8)));
+            }
+        }
+        out
+    }
+
+    /// Every symbol record as `(name, Value, SectionNumber, Type, StorageClass,
+    /// nAux)`, aux records skipped — plus, for a symbol that has one, its aux
+    /// decoded as `(Length, nReloc, CheckSum, Number, Selection)`.
+    #[allow(clippy::type_complexity)]
+    fn symbols_full(
+        obj: &[u8],
+    ) -> Vec<((String, u32, i16, u16, u8, u8), Option<(u32, u16, u32, u16, u8)>)> {
+        let u16at = |o: usize| u16::from_le_bytes([obj[o], obj[o + 1]]);
+        let u32at = |o: usize| u32::from_le_bytes([obj[o], obj[o + 1], obj[o + 2], obj[o + 3]]);
+        let ptr = u32at(8) as usize;
+        let n = u32at(12) as usize;
+        let strtab = ptr + n * SYMBOL_LEN;
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < n {
+            let r = ptr + i * SYMBOL_LEN;
+            let name = if u32at(r) == 0 {
+                let off = strtab + u32at(r + 4) as usize;
+                let end = obj[off..].iter().position(|&c| c == 0).unwrap_or(0) + off;
+                String::from_utf8_lossy(&obj[off..end]).into_owned()
+            } else {
+                let raw = &obj[r..r + 8];
+                let end = raw.iter().position(|&c| c == 0).unwrap_or(8);
+                String::from_utf8_lossy(&raw[..end]).into_owned()
+            };
+            let naux = obj[r + 17];
+            let aux = if naux == 1 {
+                let a = r + SYMBOL_LEN;
+                Some((u32at(a), u16at(a + 4), u32at(a + 8), u16at(a + 12), obj[a + 14]))
+            } else {
+                None
+            };
+            out.push((
+                (name, u32at(r + 8), u16at(r + 12) as i16, u16at(r + 14), obj[r + 16], naux),
+                aux,
+            ));
+            i += 1 + naux as usize;
+        }
+        out
+    }
+
+    /// The `.text$yc` payload shared byte-for-byte by the fixture and both
+    /// workload TUs (`docs/OBJ_DYNINIT_SHAPE.md` §3.3):
+    /// `lis r11 · lis r10 · addi r4,r11 · addi r3,r10 · li r5,0 · b -0x14`.
+    const DYNINIT_TEXT: [u8; 0x18] = [
+        0x3d, 0x60, 0x00, 0x00, 0x3d, 0x40, 0x00, 0x00, 0x38, 0x8b, 0x00, 0x00, 0x38, 0x6a, 0x00,
+        0x00, 0x38, 0xa0, 0x00, 0x00, 0x4b, 0xff, 0xff, 0xec,
+    ];
+
+    /// The reference cell: `fixtures/cpp/il_dyninit_static.cpp`,
+    /// `struct L { L(const char*, int); }; static L sL("abc", 0);` at
+    /// `/O1 /Oi /EHsc /GS- /c`.
+    fn fixture_obj() -> Vec<u8> {
+        let lit = StringLiteral { bytes: b"abc\0" };
+        let name = string_comdat_name(lit.bytes).expect("the fixture literal is representable");
+        let thunk = DynInitThunk {
+            name: "??__EsL@@YAXXZ",
+            text: &DYNINIT_TEXT,
+            calls: vec![Call { reloc_offset: 0x14, callee: "??0L@@QAA@PBDH@Z" }],
+            data_refs: vec![
+                DataRef { hi_off: 0x00, lo_off: 0x08, name: &name },
+                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL" },
+            ],
+        };
+        let object = BssObject {
+            symbol: "sL",
+            size: 1,
+            natural_align: 1,
+            external: false,
+            initializer_symbol: "sL$initializer$",
+        };
+        emit_dyninit_obj(r"Z:\tmp\anat\mvp.obj", &thunk, Some(&lit), &object)
+            .expect("the reference cell is in class")
+    }
+
+    /// **The eight verified literals**, name for name. The hash column is
+    /// `docs/OBJ_DYNINIT_SHAPE.md` §5; the full names are the ones the reference
+    /// objs' symbol tables carry.
+    #[test]
+    fn the_string_comdat_name_matches_every_measured_literal() {
+        // The 101-byte held-out cell, built rather than typed: a 7-digit hash
+        // (the leading `A` suppressed) and an escaped text cut at 32 source
+        // bytes. Miscounting the `q`s by one silently grades a different cell.
+        let q100 = {
+            let mut v = vec![b'q'; 100];
+            v.push(0);
+            v
+        };
+        assert_eq!(q100.len(), 101);
+        assert_eq!(
+            string_comdat_name(&q100).as_deref(),
+            Some("??_C@_0GF@LHLJLME@qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq@"),
+            "the 101-byte cell: 7 hash digits, and the text cut at 32 source bytes"
+        );
+
+        let cases: [(&[u8], &str); 7] = [
+            (b"abc\0", "??_C@_03FIKCJHKP@abc?$AA@"),
+            (b"defg\0", "??_C@_04DPHBJEKM@defg?$AA@"),
+            (b"\0", "??_C@_00CNPNBAHC@?$AA@"),
+            (b"Hello, world!\0", "??_C@_0O@GEHPLBPJ@Hello?0?5world?$CB?$AA@"),
+            (b"xyzzy\0", "??_C@_05POJHDMIP@xyzzy?$AA@"),
+            (
+                b"system/src/synth/tomcrypt\0",
+                "??_C@_0BK@PELMDOBM@system?1src?1synth?1tomcrypt?$AA@",
+            ),
+            (b"system/src/zlib\0", "??_C@_0BA@FFMAKHEN@system?1src?1zlib?$AA@"),
+        ];
+        for (bytes, want) in cases {
+            assert_eq!(
+                string_comdat_name(bytes).as_deref(),
+                Some(want),
+                "literal {:?}",
+                String::from_utf8_lossy(&bytes[..bytes.len() - 1])
+            );
+        }
+    }
+
+    /// **The swapped-init trap, made a test.** §2.3 closes by naming it: the
+    /// same polynomial appears twice with different initial values — section
+    /// aux CheckSum init `0`, string-name hash init `0xFFFFFFFF` — and getting
+    /// them the wrong way round is the obvious way to implement this wrong.
+    /// Both values are 32 bits of noise, so nothing else in the port notices.
+    #[test]
+    fn the_two_crc_initial_values_are_not_interchangeable() {
+        for lit in [&b"abc\0"[..], b"defg\0", b"xyzzy\0", b"system/src/zlib\0"] {
+            assert_ne!(
+                coff_checksum(lit),
+                jamcrc(lit),
+                "the aux checksum and the name hash must not coincide on {lit:?}"
+            );
+        }
+        // The measured pairs, both directions pinned on one literal.
+        assert_eq!(jamcrc(b"abc\0"), 0x58A2_97AF, "JamCRC uses init 0xFFFFFFFF");
+        assert_eq!(coff_checksum(b"abc\0"), 0x8619_B74C, "the aux CheckSum uses init 0");
+        assert_eq!(jamcrc(b"defg\0"), 0x3F71_94AC);
+        assert_eq!(coff_checksum(b"defg\0"), 0x06AC_9C4E);
+        assert_eq!(jamcrc(b"xyzzy\0"), 0xFE97_3C8F);
+        assert_eq!(coff_checksum(b"xyzzy\0"), 0xB0AA_62D3);
+        // …and the two `.XBLD$W` constants, which predate this lane, are init-0.
+        assert_eq!(coff_checksum(&XBLD_C2), XBLD_C2_CHECKSUM);
+        assert_eq!(coff_checksum(&XBLD_C1), XBLD_C1_CHECKSUM);
+    }
+
+    /// **The refusal, which is the deliberate part.** `?2`, `?6`, `?7` and `?8`
+    /// are single-`?` escape slots this lane never observed a character in. A
+    /// byte that takes one of them in real c2 would be rendered here as a
+    /// two-digit `?$XX`, and the COMDAT name, the length field and the obj's
+    /// whole string table would be wrong with nothing to flag it — so any byte
+    /// outside the measured set refuses the name, and the caller refuses the obj.
+    #[test]
+    fn an_unmeasured_escape_byte_refuses_the_name_rather_than_guessing() {
+        // Backslash, newline, tab, apostrophe, `<`, `%`, `#`, and a high byte:
+        // all plausible occupants of ?2/?6/?7/?8 or of an unverified `?$XX`.
+        for b in [b'\\', b'\n', b'\t', b'\'', b'<', b'%', b'#', 0xE9] {
+            let lit = [b'a', b, 0];
+            assert_eq!(
+                string_comdat_name(&lit),
+                None,
+                "byte {b:#04x} has no measured escape and must refuse"
+            );
+        }
+        // A missing NUL refuses too — it is part of the length, the hash and the
+        // text, so a caller that dropped it gets a name wrong in three places.
+        assert_eq!(string_comdat_name(b"abc"), None);
+        assert_eq!(string_comdat_name(b""), None);
+        // …and the whole obj declines with it.
+        let lit = StringLiteral { bytes: b"a\\b\0" };
+        let thunk = DynInitThunk {
+            name: "??__EsL@@YAXXZ",
+            text: &DYNINIT_TEXT,
+            calls: vec![Call { reloc_offset: 0x14, callee: "??0L@@QAA@PBDH@Z" }],
+            data_refs: vec![
+                DataRef { hi_off: 0x00, lo_off: 0x08, name: "unused" },
+                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL" },
+            ],
+        };
+        let object = BssObject {
+            symbol: "sL",
+            size: 1,
+            natural_align: 1,
+            external: false,
+            initializer_symbol: "sL$initializer$",
+        };
+        assert_eq!(
+            emit_dyninit_obj(r"Z:\t\x.obj", &thunk, Some(&lit), &object).map(|o| o.len()),
+            None,
+            "an unrepresentable literal must decline the whole obj"
+        );
+    }
+
+    /// **CORRECTION to §5's "truncated at 32 characters".** The limit is on the
+    /// *source* bytes of `literal + NUL`, not on the escaped output. Three
+    /// discriminating cells, none of which the doc's reading gets right.
+    #[test]
+    fn the_escaped_text_is_cut_at_thirty_two_source_bytes_not_output_characters() {
+        // 31 source characters = 32 bytes with the NUL → the `?$AA` IS rendered.
+        let n31 = b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\0";
+        assert_eq!(n31.len(), 32);
+        let s31 = string_comdat_name(n31).unwrap();
+        assert!(s31.ends_with("?$AA@"), "31 chars + NUL keeps the NUL escape: {s31}");
+        // 32 source characters = 33 bytes → the NUL is DROPPED.
+        let n32 = b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\0";
+        assert_eq!(n32.len(), 33);
+        let s32 = string_comdat_name(n32).unwrap();
+        assert!(!s32.ends_with("?$AA@"), "32 chars + NUL drops the NUL escape: {s32}");
+        assert!(s32.ends_with("aaaa@"));
+        // A 30-character all-`/` literal escapes to 2 characters each — 62
+        // escaped characters from 31 source bytes, and NOTHING is cut. Reading
+        // the limit as an output-character budget truncates this one mid-name.
+        let slashes = b"//////////////////////////////\0";
+        assert_eq!(slashes.len(), 31);
+        let s = string_comdat_name(slashes).unwrap();
+        assert_eq!(s.matches("?1").count(), 30, "all 30 slashes must survive: {s}");
+        assert!(s.ends_with("?$AA@"), "and so must the NUL: {s}");
+    }
+
+    /// **(a) Section order**, with `.bss` then `.CRT$XCU` always last (§4.1).
+    /// At `/O1` `.text$yc` precedes `.rdata`; at `/Ox` it is the other way round
+    /// and the obj is a different shape entirely, which is why the grading flags
+    /// matter (§7.3 caveat 1). Prereg P1 got the code section's *name* wrong —
+    /// it is `.text$yc`, not `.text`.
+    #[test]
+    fn dyninit_section_order_puts_bss_and_crt_xcu_last() {
+        let obj = fixture_obj();
+        let names: Vec<String> = sections_of(&obj).into_iter().map(|s| s.0).collect();
+        assert_eq!(
+            names,
+            vec![
+                ".drectve", ".debug$S", ".XBLD$W", ".XBLD$W", ".text$yc", ".rdata", ".bss",
+                ".CRT$XCU"
+            ],
+            "(a) the eight sections, in order"
+        );
+        let ix = |n: &str| names.iter().rposition(|s| s == n).unwrap();
+        assert!(
+            ix(".text$yc") < ix(".rdata") && ix(".rdata") < ix(".bss") && ix(".bss") < ix(".CRT$XCU"),
+            "(a) .text$yc < .rdata < .bss < .CRT$XCU"
+        );
+        assert_eq!(ix(".CRT$XCU"), names.len() - 1, "(a) .CRT$XCU is last");
+        assert_eq!(ix(".bss"), names.len() - 2, "(a) .bss is second to last");
+        // Characteristics, per §2.1/§4.2: ALIGN_4 `.rdata` (n=4, t=1) and
+        // ALIGN_1 `.bss` (n=1, t=1).
+        let ch: Vec<u32> = sections_of(&obj).into_iter().map(|s| s.6).collect();
+        assert_eq!(ch[4], 0x6040_1020, "(a) .text$yc characteristics");
+        assert_eq!(ch[5], 0x4030_1040, "(a) .rdata characteristics, ALIGN_4");
+        assert_eq!(ch[6], 0xC010_0080, "(a) .bss characteristics, ALIGN_1");
+        assert_eq!(ch[7], 0xC030_0040, "(a) .CRT$XCU characteristics");
+    }
+
+    /// **(b) The undefined external constructor sits at index 14** — inside the
+    /// `.text$yc` group and *before* the `.rdata` section symbol at 15.
+    ///
+    /// This is the ordering rule of §3.1 (the symbol table follows section
+    /// order; per section, the section symbol + aux, then what it defines, then
+    /// any undefined external it is the first to reference), and it is **not**
+    /// where either pre-existing emitter puts an undefined external — both put
+    /// callees after the defining function with no interleaved section group to
+    /// get wrong. Placing the constructor after the `.rdata` group instead
+    /// shifts three symbol indices, which every relocation would still resolve
+    /// against: a wrong obj no linker complains about, this file's recorded
+    /// defect class.
+    #[test]
+    fn the_undefined_constructor_sits_inside_the_text_yc_group_at_index_fourteen() {
+        let obj = fixture_obj();
+        let syms = symbols_full(&obj);
+        // Flatten to raw record indices so "index 14" means the COFF index.
+        let mut at: Vec<String> = Vec::new();
+        for (s, aux) in &syms {
+            at.push(s.0.clone());
+            if aux.is_some() {
+                at.push(format!("<aux of {}>", s.0));
+            }
+        }
+        assert_eq!(at.len(), 24, "(b) 24 symbol records");
+        assert_eq!(at[11], ".text$yc", "(b) the .text$yc section symbol is at 11");
+        assert_eq!(at[13], "??__EsL@@YAXXZ", "(b) the thunk is at 13");
+        assert_eq!(
+            at[14], "??0L@@QAA@PBDH@Z",
+            "(b) the undefined external constructor is at 14, inside the \
+             .text$yc group"
+        );
+        assert_eq!(at[15], ".rdata", "(b) and BEFORE the .rdata section symbol at 15");
+        // The constructor really is undefined and really is a function.
+        let ctor = syms.iter().find(|(s, _)| s.0 == "??0L@@QAA@PBDH@Z").unwrap();
+        assert_eq!(
+            (ctor.0 .2, ctor.0 .3, ctor.0 .4),
+            (0, 0x0020, 2),
+            "(b) the constructor is SectionNumber 0, Type 0x0020, EXTERNAL"
+        );
+    }
+
+    /// **(c) The relocation record order on `.text$yc`.**
+    ///
+    /// Nine records: the HI block (VA 0, 4) entirely before the LO block
+    /// (VA 8, 12) — the halves are **not** adjacent — a PAIR after every REFHI
+    /// *and* every REFLO with `SymbolTableIndex` 0, and **no** PAIR after the
+    /// REL24. Prereg P5 predicted 5, and its registered alternative "7, a PAIR
+    /// after each REFHI" was wrong too.
+    ///
+    /// The block separation is asserted as a property, not as fixed positions:
+    /// §3.2's `L(float)` row is a cell where the HI and LO blocks name their
+    /// symbols in *different* orders, so the emitter derives this by sorting on
+    /// offset and the test checks the sorted consequence.
+    #[test]
+    fn the_dyninit_relocations_pair_both_halves_and_leave_rel24_bare() {
+        let obj = fixture_obj();
+        let recs = relocations_of(&obj, ".text$yc");
+        assert_eq!(recs.len(), 9, "(c) nine .text$yc relocation records");
+        assert_eq!(
+            recs,
+            vec![
+                (0x00, 17, REL_PPC_REFHI),
+                (0x00, 0, REL_PPC_PAIR),
+                (0x04, 20, REL_PPC_REFHI),
+                (0x04, 0, REL_PPC_PAIR),
+                (0x08, 17, REL_PPC_REFLO),
+                (0x08, 0, REL_PPC_PAIR),
+                (0x0c, 20, REL_PPC_REFLO),
+                (0x0c, 0, REL_PPC_PAIR),
+                (0x14, 14, REL_PPC_REL24),
+            ],
+            "(c) the nine records, transcribed from the reference obj"
+        );
+        // The same facts as properties, so a future cell with a different
+        // symbol order inside a block still grades.
+        let hi: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFHI).map(|r| r.0).collect();
+        let lo: Vec<u32> = recs.iter().filter(|r| r.2 == REL_PPC_REFLO).map(|r| r.0).collect();
+        assert!(
+            hi.iter().max() < lo.iter().min(),
+            "(c) the whole HI block precedes the whole LO block: {hi:?} then {lo:?}"
+        );
+        for (i, r) in recs.iter().enumerate() {
+            if r.2 == REL_PPC_REFHI || r.2 == REL_PPC_REFLO {
+                let p = recs[i + 1];
+                assert_eq!(
+                    (p.0, p.1, p.2),
+                    (r.0, 0, REL_PPC_PAIR),
+                    "(c) record {i} must be followed by a PAIR at its own VA against symbol 0"
+                );
+            }
+            if r.2 == REL_PPC_REL24 {
+                assert!(
+                    recs.get(i + 1).map(|n| n.2) != Some(REL_PPC_PAIR),
+                    "(c) REL24 takes no PAIR"
+                );
+            }
+        }
+        // `.CRT$XCU`: one ADDR32 at offset 0 against the thunk at 13 (§3.4).
+        assert_eq!(
+            relocations_of(&obj, ".CRT$XCU"),
+            vec![(0, 13, REL_PPC_ADDR32)],
+            "(c) .CRT$XCU carries one ADDR32 -> the thunk — the pre-existing \
+             emitters assume only .text carries relocations, and here that is false"
+        );
+    }
+
+    /// **(d) The `.bss` inversion** — prereg P8, refuted, and the single most
+    /// likely wrong-bytes trap in this shape.
+    ///
+    /// `SizeOfRawData` carries the object's size, `VirtualSize` is 0,
+    /// `PointerToRawData` is 0, the aux `Length` is the size and the aux
+    /// `Selection` is 0 (never a COMDAT) — **and the section contributes zero
+    /// bytes to the file**, so `.rdata` and `.CRT$XCU` are contiguous across it.
+    /// The natural implementation puts the size in `VirtualSize`, and every
+    /// other emitter in this file equates "the section's length" with
+    /// `raw.len()` in four separate places.
+    #[test]
+    fn the_bss_section_declares_its_size_but_occupies_no_file_bytes() {
+        let obj = fixture_obj();
+        let secs = sections_of(&obj);
+        let (name, size, ptr_raw, ptr_rel, n_rel, vsize, _ch) = secs[6].clone();
+        assert_eq!(name, ".bss");
+        assert_eq!(size, 1, "(d) SizeOfRawData carries `sizeof`");
+        assert_eq!(vsize, 0, "(d) VirtualSize is 0 — the P8 inversion");
+        assert_eq!(ptr_raw, 0, "(d) PointerToRawData is 0");
+        assert_eq!((ptr_rel, n_rel), (0, 0), "(d) .bss has no relocations");
+        // The aux record.
+        let bss_aux = symbols_full(&obj)
+            .into_iter()
+            .find(|(s, a)| s.0 == ".bss" && a.is_some())
+            .and_then(|(_, a)| a)
+            .expect("(d) .bss has a section symbol with one aux");
+        assert_eq!(bss_aux.0, 1, "(d) aux Length is the object size");
+        assert_eq!(bss_aux.1, 0, "(d) aux nReloc");
+        assert_eq!(bss_aux.2, 0, "(d) aux CheckSum is 0 for .bss");
+        assert_eq!(bss_aux.4, 0, "(d) aux Selection 0 — .bss is NEVER a COMDAT");
+        // **Zero file bytes.** `.CRT$XCU` starts exactly where `.rdata`'s own
+        // relocations would end — here `.rdata` has none, so immediately after
+        // `.rdata`'s raw data, with no gap for `.bss`.
+        let text = &secs[4];
+        let rdata = &secs[5];
+        let crt = &secs[7];
+        assert_eq!(
+            text.3,
+            text.2 + text.1,
+            "(d) .text$yc relocations follow its own raw data"
+        );
+        assert_eq!(
+            rdata.2,
+            text.3 + 9 * RELOC_LEN as u32,
+            "(d) .rdata follows .text$yc's nine relocation records"
+        );
+        assert_eq!(
+            crt.2,
+            rdata.2 + rdata.1,
+            "(d) .CRT$XCU follows .rdata with NO gap — .bss contributed nothing"
+        );
+        // A larger object moves only the declared size, never the file layout.
+        let big = {
+            let lit = StringLiteral { bytes: b"abc\0" };
+            let name = string_comdat_name(lit.bytes).unwrap();
+            let thunk = DynInitThunk {
+                name: "??__EsL@@YAXXZ",
+                text: &DYNINIT_TEXT,
+                calls: vec![Call { reloc_offset: 0x14, callee: "??0L@@QAA@PBDH@Z" }],
+                data_refs: vec![
+                    DataRef { hi_off: 0x00, lo_off: 0x08, name: &name },
+                    DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL" },
+                ],
+            };
+            let object = BssObject {
+                symbol: "sL",
+                size: 0x1000,
+                natural_align: 4,
+                external: false,
+                initializer_symbol: "sL$initializer$",
+            };
+            emit_dyninit_obj(r"Z:\tmp\anat\mvp.obj", &thunk, Some(&lit), &object).unwrap()
+        };
+        assert_eq!(
+            big.len(),
+            obj.len(),
+            "(d) a 0x1000-byte object must not add a single byte to the file"
+        );
+        let bs = sections_of(&big);
+        assert_eq!(bs[6].1, 0x1000, "(d) …only SizeOfRawData moves");
+        assert_eq!(bs[6].6, 0xC040_0080, "(d) …and the alignment nibble, to ALIGN_8");
+        assert_eq!(bs[7].2, crt.2, "(d) .CRT$XCU stays at the same file offset");
+    }
+
+    /// The whole reference cell, all 24 symbol records and both aux fields that
+    /// vary, against `docs/OBJ_DYNINIT_SHAPE.md` §3.1's table.
+    ///
+    /// Storage classes are the part that is easy to get backwards and the part
+    /// the workload TUs discriminate: the thunk is **STATIC** with `Type`
+    /// 0x0020 even though an ordinary function is EXTERNAL; the string COMDAT's
+    /// defining symbol is **EXTERNAL** with `Type` 0 so the linker can fold it;
+    /// a `static` object's `.bss` symbol is STATIC and undecorated while a
+    /// non-`static` one is EXTERNAL and decorated; `<name>$initializer$` is
+    /// STATIC and undecorated either way.
+    #[test]
+    fn the_dyninit_symbol_table_is_the_reference_cells_twenty_four_records() {
+        let obj = fixture_obj();
+        // Header.
+        assert_eq!(u16::from_le_bytes([obj[0], obj[1]]), MACHINE_POWERPCBE);
+        assert_eq!(u16::from_le_bytes([obj[2], obj[3]]), 8, "8 sections");
+        assert_eq!(u32::from_le_bytes([obj[4], obj[5], obj[6], obj[7]]), 0, "TimeDateStamp 0");
+        assert_eq!(u32::from_le_bytes([obj[12], obj[13], obj[14], obj[15]]), 24, "24 symbols");
+        assert_eq!(u16::from_le_bytes([obj[16], obj[17]]), 0, "SizeOfOptionalHeader");
+        assert_eq!(u16::from_le_bytes([obj[18], obj[19]]), CHARACTERISTICS);
+
+        let str_name = string_comdat_name(b"abc\0").unwrap();
+        // (name, Value, Sec, Type, StorageClass, nAux)
+        let want: Vec<(&str, u32, i16, u16, u8, u8)> = vec![
+            ("@comp.id", COMP_ID_VALUE, -1, 0, 3, 0),
+            (".drectve", 0, 1, 0, 3, 1),
+            (".debug$S", 0, 2, 0, 3, 1),
+            (".XBLD$W", 0, 3, 0, 3, 1),
+            ("__C2_11886", 0, 3, 0, 2, 0),
+            (".XBLD$W", 0, 4, 0, 3, 1),
+            ("__C1_11886", 0, 4, 0, 2, 0),
+            (".text$yc", 0, 5, 0, 3, 1),
+            ("??__EsL@@YAXXZ", 0, 5, 0x0020, 3, 0),
+            ("??0L@@QAA@PBDH@Z", 0, 0, 0x0020, 2, 0),
+            (".rdata", 0, 6, 0, 3, 1),
+            (&str_name, 0, 6, 0x0000, 2, 0),
+            (".bss", 0, 7, 0, 3, 1),
+            ("sL", 0, 7, 0x0000, 3, 0),
+            (".CRT$XCU", 0, 8, 0, 3, 1),
+            ("sL$initializer$", 0, 8, 0x0000, 3, 0),
+        ];
+        let got = symbols_full(&obj);
+        let got_hdr: Vec<(&str, u32, i16, u16, u8, u8)> =
+            got.iter().map(|(s, _)| (s.0.as_str(), s.1, s.2, s.3, s.4, s.5)).collect();
+        assert_eq!(got_hdr, want, "the 16 non-aux symbol records");
+
+        // The aux records that carry something other than zeros:
+        // (Length, nReloc, CheckSum, Number, Selection).
+        let aux = |n: &str, k: usize| {
+            got.iter().filter(|(s, _)| s.0 == n).nth(k).and_then(|(_, a)| *a).unwrap()
+        };
+        assert_eq!(aux(".drectve", 0), (132, 0, 0, 0, 0));
+        assert_eq!(aux(".XBLD$W", 0), (16, 0, XBLD_C2_CHECKSUM, 0, 2));
+        assert_eq!(aux(".XBLD$W", 1), (16, 0, XBLD_C1_CHECKSUM, 0, 2));
+        assert_eq!(
+            aux(".text$yc", 0),
+            (0x18, 9, 0, 0, 2),
+            ".text$yc: 9 relocations, CheckSum 0, Selection 2 ANY (not 1 \
+             NODUPLICATES — that is an ORDINARY function's .text)"
+        );
+        assert_eq!(
+            aux(".rdata", 0),
+            (4, 0, 0x8619_B74C, 0, 2),
+            ".rdata: a STRING literal COMDAT carries the real CRC — an \
+             FP-constant one carries 0"
+        );
+        assert_eq!(aux(".bss", 0), (1, 0, 0, 0, 0));
+        assert_eq!(aux(".CRT$XCU", 0), (4, 1, 0, 0, 0));
+
+        // The string table: six long names, in first-use order, 100 bytes.
+        let symtab = u32::from_le_bytes([obj[8], obj[9], obj[10], obj[11]]) as usize;
+        let st = symtab + 24 * SYMBOL_LEN;
+        let st_size = u32::from_le_bytes([obj[st], obj[st + 1], obj[st + 2], obj[st + 3]]);
+        assert_eq!(st_size as usize, obj.len() - st);
+        assert_eq!(
+            st_size, 100,
+            "the reference cell's string table is 100 bytes: __C2_11886, \
+             __C1_11886, ??__EsL@@YAXXZ, ??0L@@QAA@PBDH@Z, {str_name}, \
+             sL$initializer$ — `sL` and `.text$yc` are <= 8 chars and go inline"
+        );
+
+        // The total obj size is **`-Fo`-path dependent** and must not be
+        // hardcoded: `.debug$S` embeds the output path in its S_OBJNAME record
+        // and measured 0x94 in the probes against 0xac in the workload TUs. So
+        // the pin is the path-independent remainder, and the doc's 1,316-byte
+        // reference cell is then a consequence of its 148-byte `.debug$S`.
+        let debug_s_len = build_debug_s(r"Z:\tmp\anat\mvp.obj").len();
+        assert_eq!(
+            obj.len(),
+            1168 + debug_s_len,
+            "everything but `.debug$S` is 1,168 bytes for this cell"
+        );
+        assert_eq!(1168 + 148, 1316, "…so the reference cell's 0x94 `.debug$S` gives 1,316 B");
+    }
+
+    /// The two real workload TUs, `TomCryptLicense.cpp` and `ZlibLicense.cpp`
+    /// (§7.2) — the only structural difference between them is the object
+    /// symbol's linkage, and the string table size is a whole-obj consequence of
+    /// the COMDAT name rule that nothing here was fitted to.
+    #[test]
+    fn the_two_workload_tus_differ_only_in_the_objects_linkage() {
+        let cell = |lit: &'static [u8], sym: &'static str, ctor: &'static str, external: bool| {
+            let name = string_comdat_name(lit).unwrap();
+            let thunk = DynInitThunk {
+                name: "??__EsLicense@@YAXXZ",
+                text: &DYNINIT_TEXT,
+                calls: vec![Call { reloc_offset: 0x14, callee: ctor }],
+                data_refs: vec![
+                    DataRef { hi_off: 0x00, lo_off: 0x08, name: &name },
+                    DataRef { hi_off: 0x04, lo_off: 0x0c, name: sym },
+                ],
+            };
+            let object = BssObject {
+                symbol: sym,
+                size: 0xc,
+                natural_align: 4,
+                external,
+                initializer_symbol: "sLicense$initializer$",
+            };
+            emit_dyninit_obj(
+                r"Z:\t\x.obj",
+                &thunk,
+                Some(&StringLiteral { bytes: lit }),
+                &object,
+            )
+            .expect("both workload TUs are in class")
+        };
+        let ctor = "??0Licenses@@QAA@PBDW4Requirement@0@@Z";
+        let tomcrypt = cell(b"system/src/synth/tomcrypt\0", "sLicense", ctor, false);
+        let zlib = cell(b"system/src/zlib\0", "?sLicense@@3VLicenses@@A", ctor, true);
+
+        for (tag, obj, rdata_size, class, obj_sym) in [
+            ("tomcrypt", &tomcrypt, 0x1au32, 3u8, "sLicense"),
+            ("zlib", &zlib, 0x10, 2, "?sLicense@@3VLicenses@@A"),
+        ] {
+            let secs = sections_of(obj);
+            assert_eq!(secs.len(), 8, "{tag}: 8 sections");
+            assert_eq!(secs[5].1, rdata_size, "{tag}: .rdata size");
+            assert_eq!(secs[5].6, 0x4030_1040, "{tag}: .rdata ALIGN_4");
+            assert_eq!(secs[6].1, 0xc, "{tag}: .bss size");
+            assert_eq!(secs[6].6, 0xC030_0080, "{tag}: .bss ALIGN_4");
+            assert_eq!(u32::from_le_bytes([obj[12], obj[13], obj[14], obj[15]]), 24);
+            let syms = symbols_full(obj);
+            // By exact name: `??__EsLicense@@YAXXZ` also *contains* the object's
+            // spelling and sits earlier in the table, so a substring match here
+            // grades the thunk instead and reads STATIC in both cells — a test
+            // that passes for the wrong reason on the row that matters.
+            let (o, _) = syms.iter().find(|(s, _)| s.0 == obj_sym).unwrap();
+            assert_eq!(o.4, class, "{tag}: the object symbol's storage class");
+            assert_eq!(o.2, 7, "{tag}: the object lives in .bss");
+            // The thunk stays STATIC in BOTH — the object's linkage does not
+            // move it (§4.3). ZlibLicense.cpp confirms both halves at once.
+            let (t, _) = syms.iter().find(|(s, _)| s.0 == "??__EsLicense@@YAXXZ").unwrap();
+            assert_eq!((t.3, t.4), (0x0020, 3), "{tag}: the thunk is STATIC of FUNCTION type");
+            let (init, _) =
+                syms.iter().find(|(s, _)| s.0 == "sLicense$initializer$").unwrap();
+            assert_eq!((init.2, init.3, init.4), (8, 0, 3), "{tag}: $initializer$ is STATIC in .CRT$XCU");
+        }
+        // The string tables, whose sizes are a byte-level consequence of the
+        // COMDAT-name rule and were transcribed from the reference objs.
+        let st_size = |obj: &[u8]| {
+            let symtab = u32::from_le_bytes([obj[8], obj[9], obj[10], obj[11]]) as usize;
+            let st = symtab + 24 * SYMBOL_LEN;
+            u32::from_le_bytes([obj[st], obj[st + 1], obj[st + 2], obj[st + 3]])
+        };
+        assert_eq!(
+            st_size(&tomcrypt),
+            161,
+            "TomCrypt: 6 entries — `sLicense` is exactly 8 chars and goes INLINE"
+        );
+        assert_eq!(
+            st_size(&zlib),
+            175,
+            "Zlib: 7 entries — the decorated ?sLicense@@3VLicenses@@A is interned \
+             before sLicense$initializer$"
+        );
+    }
+
+    /// The class boundary, stated as refusals rather than as a comment. Each of
+    /// these is a shape `docs/OBJ_DYNINIT_SHAPE.md` measured to be *different*
+    /// or never measured at all, and an honest `None` is the required answer.
+    #[test]
+    fn emit_dyninit_obj_declines_everything_outside_the_measured_class() {
+        let lit = StringLiteral { bytes: b"abc\0" };
+        let name = string_comdat_name(lit.bytes).unwrap();
+        let ok_refs = || {
+            vec![
+                DataRef { hi_off: 0x00, lo_off: 0x08, name: &name },
+                DataRef { hi_off: 0x04, lo_off: 0x0c, name: "sL" },
+            ]
+        };
+        let object = |size: u32, align: u32| BssObject {
+            symbol: "sL",
+            size,
+            natural_align: align,
+            external: false,
+            initializer_symbol: "sL$initializer$",
+        };
+        let go = |t: DynInitThunk, l: Option<&StringLiteral>, o: BssObject| {
+            emit_dyninit_obj(r"Z:\t\x.obj", &t, l, &o).is_some()
+        };
+        fn base<'a>(calls: Vec<Call<'a>>, refs: Vec<DataRef<'a>>) -> DynInitThunk<'a> {
+            DynInitThunk {
+                name: "??__EsL@@YAXXZ",
+                text: &DYNINIT_TEXT,
+                calls,
+                data_refs: refs,
+            }
+        }
+        let one_call = || vec![Call { reloc_offset: 0x14, callee: "??0L@@QAA@PBDH@Z" }];
+
+        assert!(go(base(one_call(), ok_refs()), Some(&lit), object(1, 1)), "the reference cell is in class");
+        // No call, or two: a different body — the destructor shape is framed
+        // with 14 relocations and a `bl atexit` (§4.4).
+        assert!(!go(base(vec![], ok_refs()), Some(&lit), object(1, 1)), "zero calls");
+        assert!(
+            !go(
+                base(
+                    vec![
+                        Call { reloc_offset: 0x14, callee: "??0L@@QAA@PBDH@Z" },
+                        Call { reloc_offset: 0x18, callee: "atexit" },
+                    ],
+                    ok_refs()
+                ),
+                Some(&lit),
+                object(1, 1)
+            ),
+            "two calls — that is the destructor shape"
+        );
+        // A quad against a symbol that is neither the literal nor the object.
+        assert!(
+            !go(
+                base(
+                    one_call(),
+                    vec![
+                        DataRef { hi_off: 0, lo_off: 8, name: &name },
+                        DataRef { hi_off: 4, lo_off: 12, name: "?other@@3HA" },
+                    ]
+                ),
+                Some(&lit),
+                object(1, 1)
+            ),
+            "an unrelated data symbol"
+        );
+        // A literal present but never referenced, or referenced twice.
+        assert!(
+            !go(
+                base(one_call(), vec![DataRef { hi_off: 4, lo_off: 12, name: "sL" }]),
+                Some(&lit),
+                object(1, 1)
+            ),
+            "a literal with no reference to it"
+        );
+        // A zero-sized object, and an alignment that is not 1/2/4/8.
+        assert!(!go(base(one_call(), ok_refs()), Some(&lit), object(0, 1)), "sizeof 0");
+        assert!(!go(base(one_call(), ok_refs()), Some(&lit), object(1, 3)), "align 3");
+        // A `.text` that is not a whole number of instructions.
+        assert!(
+            emit_dyninit_obj(
+                r"Z:\t\x.obj",
+                &DynInitThunk {
+                    name: "??__EsL@@YAXXZ",
+                    text: &[0, 1, 2],
+                    calls: one_call(),
+                    data_refs: ok_refs(),
+                },
+                Some(&lit),
+                &object(1, 1)
+            )
+            .is_none(),
+            "a 3-byte .text"
+        );
+        // The literal-free cell IS in class (§3.2's `L(int)` row: one address
+        // operand, five relocations) — and it is a 7-section, 21-symbol obj, so
+        // nothing here may assume 8 and 24.
+        let no_lit = emit_dyninit_obj(
+            r"Z:\t\x.obj",
+            &base(one_call(), vec![DataRef { hi_off: 0, lo_off: 4, name: "sL" }]),
+            None,
+            &object(1, 1),
+        )
+        .expect("a constructor with no string argument is in class");
+        assert_eq!(u16::from_le_bytes([no_lit[2], no_lit[3]]), 7, "no .rdata section");
+        assert_eq!(
+            u32::from_le_bytes([no_lit[12], no_lit[13], no_lit[14], no_lit[15]]),
+            21,
+            "24 minus the .rdata section symbol, its aux and the literal"
+        );
+        assert_eq!(
+            relocations_of(&no_lit, ".text$yc").len(),
+            5,
+            "one quad plus the REL24"
+        );
+    }
+
+    /// The alignment rule (§4.2), both sides, at every measured threshold.
+    #[test]
+    fn the_alignment_nibble_rule_matches_both_measured_columns() {
+        // n = 1 -> ALIGN_1; 2..63 -> ALIGN_4; >= 64 -> ALIGN_8, then `max` with
+        // the natural alignment.
+        for (n, t, want) in [
+            (1u32, 1u32, 1u32),
+            (2, 1, 3),
+            (3, 1, 3),
+            (63, 1, 3),
+            (64, 1, 4),
+            (256, 1, 4),
+            // `t` moves independently: a `double` member is ALIGN_8 at n = 8
+            // where a `char[8]` is ALIGN_4.
+            (8, 8, 4),
+            (8, 1, 3),
+            (1, 2, 2),
+            (4, 8, 4),
+        ] {
+            assert_eq!(align_nibble(n, t), Some(want), "n={n}, t={t}");
+        }
+        assert_eq!(align_nibble(1, 3), None, "a non-power-of-two alignment is refused");
+        assert_eq!(align_nibble(1, 16), None, "ALIGN_16 was never measured here");
     }
 
     /// The **negative half of the same rule**: a pooled FP constant's halves
