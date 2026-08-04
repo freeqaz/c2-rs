@@ -922,8 +922,41 @@ const DATA_ATTR_INITIALIZED: u8 = 0x80;
 /// — the same third value [`gl_symbol_index`] gives an ambiguous token, and for
 /// the same reason: a relocation against the wrong symbol is a mis-emit.
 pub(crate) fn gl_data_objects(gl: &[u8]) -> std::collections::BTreeMap<u32, GlDataObject> {
-    let mut out: std::collections::BTreeMap<u32, Option<GlDataObject>> =
-        std::collections::BTreeMap::new();
+    gl_data_objects_ordered(gl).into_iter().collect()
+}
+
+/// The same objects, **in `.gl` record order** rather than by token.
+///
+/// # Why the order is a value and not an implementation detail
+///
+/// `docs/OBJ_DATA_BSS_SHAPE.md` §5.2 (Rule A1) is the whole reason this exists:
+///
+/// > `.bss` ascending address = the IL `.gl` symbol-record order for objects
+/// > **without** a dynamic initializer, and the **exact reverse** of it for
+/// > objects **with** one; the two groups never interleave.
+///
+/// `OBJ_DYNINIT_SHAPE.md` §7.1 declined that permutation as "a name-keyed
+/// ordering that would need the front end's hash reproduced". It does not: the
+/// hash is `c1xx`'s, it runs before c2, and **its output is this record order**.
+/// A reader that walks `.gl` in file order reproduces the permutation exactly and
+/// never computes a hash.
+///
+/// [`gl_data_objects`] collects into a `BTreeMap` keyed by the operand token, so
+/// it is sorted by *token* — which is a different order and has no reason to
+/// agree. MEASURED on a six-object probe: `.gl` spells `$s2 $s1 $s5 $s3 $s4 $s6`
+/// and the obj's `.bss` runs `s6@0 s4@1 s3@2 s5@3 s1@4 s2@5`, exactly the
+/// reverse, reproducing `OBJ_DATA_BSS_SHAPE.md` §7.1's family-A row for N = 6.
+/// Reading that order out of the `BTreeMap` would have given `s1 s2 s3 s4 s5 s6`
+/// and six wrong `Value` fields.
+///
+/// The two functions share one body so they cannot drift: the map is built *from*
+/// this vector, never beside it.
+pub(crate) fn gl_data_objects_ordered(gl: &[u8]) -> Vec<(u32, GlDataObject)> {
+    // Insertion-ordered, with the same poisoning rule [`gl_data_objects`]
+    // documents: a token two records disagree about is dropped rather than
+    // resolved to the first. `Option::None` marks a poisoned slot; the slot keeps
+    // its position so a later re-bind cannot silently reorder the survivors.
+    let mut out: Vec<(u32, Option<GlDataObject>)> = Vec::new();
     let mut i = 0usize;
     while i < gl.len() {
         if !gl[i].is_ascii_graphic() {
@@ -986,13 +1019,9 @@ pub(crate) fn gl_data_objects(gl: &[u8]) -> std::collections::BTreeMap<u32, GlDa
                 let Some(obj) = data_object_at(gl, end, &gl[q..end]) else {
                     continue;
                 };
-                match out.get(&tok) {
-                    None => {
-                        out.insert(tok, Some(obj));
-                    }
-                    Some(Some(prev)) if *prev != obj => {
-                        out.insert(tok, None);
-                    }
+                match out.iter_mut().find(|(t, _)| *t == tok) {
+                    None => out.push((tok, Some(obj))),
+                    Some((_, slot @ Some(_))) if slot.as_ref() != Some(&obj) => *slot = None,
                     _ => {}
                 }
                 bound = true;
@@ -1005,6 +1034,7 @@ pub(crate) fn gl_data_objects(gl: &[u8]) -> std::collections::BTreeMap<u32, GlDa
     }
     out.into_iter().filter_map(|(t, o)| o.map(|o| (t, o))).collect()
 }
+
 
 /// The name separator that introduces a **string-literal** record. Named in
 /// [`NAME_SEPARATORS`]'s doc as the value it deliberately excludes.
