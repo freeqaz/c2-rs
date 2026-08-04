@@ -633,6 +633,63 @@ holds the section model, `coffemit.c` does every `fwrite`.
 
 ## 7. What is NOT known
 
-*(the honest boundary — filled in with the rest)*
+The honest boundary. Read this before building on anything above.
+
+### 7.1 Limits of the partition itself
+
+* **72.8% of the anchored span is gap.** In-range attributions are facts;
+  **gap attributions are hypotheses.** 22 of 52 files have a zero-width anchor.
+* **A file with no ICE site is invisible** and is silently absorbed into its
+  predecessor's gap. This is not hypothetical: c2's string hash `0x10b8a01b`
+  lives in exactly such a file, and the naive reading "it is in `misc.c`" is
+  wrong. **There is no way to count how many invisible files exist** — the
+  method cannot see its own misses. Treat 52 as a lower bound on the back end's
+  translation units, never as the count.
+* **Line numbers order sites within a file only 66.9% of the time**, and very
+  unevenly (`coffemit.c` 91%, `reader.c` and `dbg.cpp` 50%). We did **not**
+  separate optimizer reordering from mis-recovered line immediates.
+* **The call-graph cross-validation was not run.** An independent test — do
+  intra-range call edges exceed a null? — was planned and lost to a box-wide
+  OOM. The link-order model is supported by the ordering statistics in §3.2 and
+  by the control hits in §6, but **not** by call-graph locality, and that check
+  remains outstanding.
+
+### 7.2 Named open questions, with where to start
+
+| question | status | first move |
+|---|---|---|
+| **`.CRT$XCU`'s kind and Characteristics** | **open — highest value for factor C.** The name is absent from `c2.dll`, present in `c1xx.dll` (`0x300d4`), and `.CRT` matches none of `FUN_10be7727`'s prefixes, so the kind must arrive *in the IL*. No IL record carrying a section name was traced into `FUN_10be7473`/`FUN_10be74cf`. | `FUN_10b9b8e9` |
+| **COFF symbol-table order** (R6) | **open.** Three probes gave three answers: all-dyninit → IL order; no-dyninit → *source* order, matching neither IL nor address order; mixed → ascending address. The doc's "strictly descending address" holds only in the first case and is coincidence there. | `FUN_10b8303c(g_symList@0x10c2e234, FUN_10b2a936)` — the list's iteration order *is* the question |
+| **Section emission order** | observed, mechanism untraced. Kind-ordered, not name-ordered. | `FUN_10b287b8` |
+| **The byte offset of the emit flag in a `.gl` record** | **open.** Decode *order* is known; the offset is not, because preceding fields are variable-length. | decode the tag header at `FUN_10b9b8e9` |
+| **Whether the census's unemitted bodies are `.gl` records at all** | **open, and it matters.** Small-TU probes show `.gl` ≡ obj, so the census is measuring something else. `.in` is the obvious candidate. Not measured. | `10b9bf99`, list `0x10c3cf68` |
+| **c1xx's zero-initializer folding** | asserted, **not verified** — out of scope, and it is a c1xx fact |
+| **`.ex` opcode semantics** | operand *formats* known for all 200 opcodes, attributes for ~194; **naming each opcode** needs reading 189 arms of `FUN_10bc2d7a` | mechanical, recipe is exact |
+| **Selection code 8** | mapped by `FUN_10b281f7` and special-cased at emit, but it is **not** a documented `IMAGE_COMDAT_SELECT_*`. **Do not assume it is a valid on-the-wire value.** |
+| **Kind 9** | `FUN_10b982d6` handles it; **no creator found**. `unknown`. |
+
+### 7.3 Claims deliberately *not* made
+
+* **No `crc` label.** JamCRC is absent from `c2.dll`; the aux `CheckSum` is
+  computed outside c2's bytes through the callback table at
+  `DAT_10c44bf4…0x10c44c0c`. Pattern-matching "hash-shaped code near an emit
+  site" would have produced a confident wrong address. See §6 P1.
+* **`Characteristics = 0x0180`** is read from the immediate at `0x10b2b270` and
+  was **not** cross-checked against a real corpus obj. One `xxd -l 20` settles
+  it; do that before anything depends on it.
+* **`color.c` is the register allocator** and is deliberately **not mapped**.
+  There is Ghidra+LLM first-draft Rust of a COLOR allocator under
+  `crates/c2-core/src/paint/` — scaffolding, gitignored, explicitly **not
+  truth**. The doctrine is I/O-behavioral and register allocation is not on the
+  critical path. Noted and skipped on purpose.
+* **`msobjXX.dll` does not write the obj.** Its single import
+  `FCreateFromBytesW` has exactly one call site (`0x10be83f2`), which opens an
+  *existing* file `GENERIC_READ` and only ever reads through vtable slots. **No
+  write path touches msobj**; c2 `fwrite`s the obj itself. The lane's earlier
+  worry that the COFF writer might live in msobj is **refuted**.
+* **Nothing here is evidence about the port's correctness.** A white-box reading
+  is a hypothesis. The real `c2` under wibo plus a byte-exact obj compare
+  remains the sole judge, and every claim above is stated with a refutation
+  condition so it can be killed by one.
 
 <!-- NOTKNOWN-END -->
