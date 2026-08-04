@@ -149,11 +149,20 @@ thereby 94/94-correct, because each violation is a *class*, not an instance.
 | A9 vtable kept without kept ctor (D6) | 9 | 9 | 5 | 4 | 0 | 0 | axes2 |
 | **total** | **78** | **94** | **75** | **12** | **7** | **0** |  |
 
-**All 12 violations are CANDIDATE violations.** Per the prereg's guard 1 a
-violation is scored only after an independent re-derivation by an agent that
-has not seen the truth or the first agent's prediction. That re-derivation is
-**in progress** (§6). Until it lands, V6 is unsettled and no axis verdict here
-is final.
+**The 12 were CANDIDATE violations; guard 1 has now ruled on 10 of them** (§6d).
+Per the prereg a violation scores only after an independent re-derivation by an
+agent that has seen neither the truth nor the first agent's prediction.
+**Outcome: five demoted, V6 = 5 — or 4 under the most hostile defensible
+reading — against a registered interval of [0, 3].** Six further cells
+(`a2_04`, `a3_01`, `a3_02`, `a3_08`, `a4_05`, `a4_06`) await **guard 2** and
+could take V6 to 7; **A3 and A4's verdicts are not final until they land**
+(§6e).
+
+Five of the demotions are **not** clean passes: they regrade to **`MATCH on
+§2's domain + GAP`** — §2's rule held where it applies, *and* c2 emits code
+COMDATs §2's text cannot produce at all (§6g). **The demotions do not rescue
+§2; they relocate half of axes2's findings from "§2 is wrong" to "§2 is
+silent."**
 
 ### 3a″. One correction to axes1's per-axis object split
 
@@ -505,7 +514,7 @@ and it cannot be answered by re-running anything.
   and over-inclusive propagation are **opposite** defects; a merged report
   would hide one.
 
-### 6d. V6 = 5 — RULED. Above the registered interval, and a lower bound twice over
+### 6d. V6 RULED — 5, or 4 hostile. Above the registered interval either way, and a lower bound
 
 Guard 1 demoted **five of the twelve** candidate violations and the result still
 lands outside its own pre-registration.
@@ -577,7 +586,7 @@ of everything entailing symbol presence — Selection bytes, sizes, counts,
 section assignments — and it was asked to flag any leak it finds in the
 tasking, since the lead has already made that mistake once (§6a).
 
-**Status: IN PROGRESS.** V6 is **5 pending guard 2**, and may become 7.
+**Status: IN PROGRESS.** V6 is **5 (or 4 hostile) pending guard 2**, and may become **7 (or 6)**.
 
 ### 6f. c2 is consistent — the inconsistency is purely textual
 
@@ -682,9 +691,12 @@ What is already settled and cannot be revised by anything still outstanding:
   the text, needing no experiment and no cell. SHIP-CANDIDATE requires "Part-2
   axes all clean-or-guardable"; two families are guardable only from *source*,
   which is not the channel R3 consumes.
-* **V6 = 5, above the registered interval of [0, 3], and a lower bound twice
-  over** (§6d). The pre-registration expected the predicate to break on about
-  one axis. It broke on at least five, after deliberate deflation.
+* **V6 = 5 — or 4 under the most hostile defensible reading — above the
+  registered interval of [0, 3] either way, and a lower bound twice over**
+  (§6d). The pre-registration expected the predicate to break on about one
+  axis. It broke on at least four, after deliberate deflation, and **the
+  headline survives its own author's most hostile reading** — which is a
+  stronger claim than any single number.
 * **The predicate is not thereby refuted as a model.** 75 of 94 graded objects
   matched; both categorical-shape attacks failed to land; **9 of 10** contested
   cells were derived identically by two independent readers; and **c2 itself is
