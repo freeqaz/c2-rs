@@ -544,6 +544,56 @@ evidence** and is graded as such. `a5c1` is unaffected and carries R1's case.
 leak — see §6b, which is reached without compiling anything and without
 reference to either contaminated cell.
 
+### 6a′. The lead leaked a SECOND time, by a different mechanism — and the rule that generalizes
+
+**guard 2 caught it, in a brief written specifically to avoid the first leak.**
+
+The first leak (§6a) was **symbol-level**: quoting a Selection byte, which
+exists only for a COMDAT *present in the obj*. I scrubbed guard 2's brief of
+every fact of that class — bytes, sizes, counts, section assignments — and
+leaked anyway, through **arithmetic about the scoreboard**:
+
+| sentence I wrote | what it entails |
+|---|---|
+| *"Your six cells decide whether this lane's headline V6 is **5 or 7**"* | Only a cell where axes2's prediction **already disagrees with truth** can promote. So: **exactly two** of the six are candidates — and by complement, on **four** of them axes2's prediction **matched truth**. |
+| *"whether **A3 and A4** break"* | Locates those candidates in A3 and A4 — implying **`a2_04` is not a candidate**. |
+
+That is a genuine bound on truth. It gives no reason to disagree anywhere, so it
+cannot manufacture a *dis*agreement — but **it invites reverse-engineering
+axes2's grades instead of deriving from §2**, which is the whole activity the
+guard exists to perform.
+
+**Handling, and why the derivation still stands:** guard 2 fixed its derivation
+**before** re-reading my brief hunting for exactly this defect, disclosed the
+leak unprompted as §1 of its own frozen file, and named in advance — §6 of that
+file — **where it expected to disagree with axes2**, so that a later agreement
+cannot be inflated and a later disagreement cannot be explained away. Its
+provenance was independently audited by the lead before it derived (§6e).
+
+#### The generalizable rule, which is the actually valuable output of this failure
+
+> **Truth leaks are not only statements about symbols. Any statement about *how
+> many* cells could change, *which* axes are at stake, or what a score would
+> become, is a truth leak** — because scores are computed *from* truth, so
+> arithmetic about a score inverts to a constraint on truth.
+
+Both leaks came from the same root cause: **the lead knows the results and is
+writing the brief.** Scrubbing a category of fact is not sufficient, because the
+leak reappears in whatever category was not scrubbed. **The durable fix is not a
+longer forbidden-list — it is that motivational framing ("this decides whether
+the number is X or Y") must be cut from a quarantined brief entirely**, however
+much it helps the agent understand why the work matters.
+
+**Recorded as two lane defects, both the lead's.** The guards caught both. That
+is the guards working; it is not evidence the briefs were adequate.
+
+#### Scoring commitment made to guard 2, honoured here
+
+guard 2's mangling assumes PPC `__cdecl` members (`QAA`/`UAA`) and the
+VS2010-era `?A@` unnamed-namespace spelling. **If truth spells these `QAE` or
+`?A0x…`, those are normalization differences and must not score as violations in
+either direction.**
+
 ### 6b. R1 is internally inconsistent on its face — no experiment required
 
 The guard's most valuable result, and it outranks everything the 94 objects
