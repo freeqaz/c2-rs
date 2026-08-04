@@ -48,7 +48,7 @@ it is not the instrument.
 | c2-rs branch | `wt-w-db`, based on master **`669ee6c`** (the merge of `wt-w-joint`) |
 | c2-rs HEAD at the prereg | **`be53663`**, clean — **no `crates/` change exists in this lane** |
 | **dc3-decomp HEAD BEFORE** | **`940d07dcb0960964ad61aa5f025658f993eb46b2`** |
-| **dc3-decomp HEAD AFTER** | see §10 — re-read at the end of the run |
+| **dc3-decomp HEAD AFTER** | **`940d07dcb096…`** — **it did not move** (`work/w-db/prov_{before,after}.txt`) |
 | wibo | **`1.0.1-23-g4a9dd6f`**, checked at lane start (`work/w-db/wibo.txt`) |
 | c2.dll | `compilers/X360/16.00.11886.00/c2.dll`, sha256 `c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258`, image base `0x10b00000` |
 | IL + obj | the harness's capture cache, w-joint's `cacheindex.py` unchanged, `tree 940d07dc…+clean` + workload argv signature. **850 of 857**, the 7 misses w-emit's 7 by name. 55 226 rejected for argv, 36 787 for tree, 8 710 for dirty |
@@ -613,11 +613,40 @@ TUs before the prereg** and is measured **inert** on 850.
 
 ## 10. Gate — every incumbent reproduced, on a tree with no `crates/` change
 
-See `work/w-db/gate.log`; every number re-measured on this branch tip, none
-transcribed.
+`git diff 669ee6c -- crates/ scripts/` is **EMPTY**, so the incumbent column and
+this column are one tree measured once. Every number was **re-measured here**,
+none transcribed. Logs: `work/w-db/gate.log`, `gate2.log`, `selftest.log`,
+`gap.log`.
+
+| | master `669ee6c` — re-measured | **this tree (`d07d86b`)** |
+|---|---|---|
+| `cargo test --workspace --release` | — | **706 passed, 0 FAILED, 1 ignored, 25 targets** |
+| `cargo build --release` | — | **0 warnings** |
+| `c2rs selftest` | — | **225 PASS, 0 FAIL** |
+| `scripts/gate.sh --jobs 6` | — | **12/12 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 2 700 fixture-verdicts, 0 mismatch** |
+| **`scripts/expr_sweep.sh`** | — | **47 fragments, checked = 14 484, mismatches = 0** |
+| TU match / mismatch / codegen-gap / vocab-gap / capture-fail | — | **8 / 0 / 0 / 863 / 7** |
+| A / B / C / D / E | — | **28 / 338 / 114 / 8 / 2** |
+| `A∧B∧C` / `A∧B∧C∧(D∨E)` / `B∧C` | — | **25 / 8 / 107** |
+| **FRONTIER** | — | **17** |
+| **`census/gate disagreement`** | — | **0** |
+| capture cache | — | **871 hit, 7 miss, 0 POISONED** |
 
 *Compared on the **FAILED** count and the **target** count, never the passed
 count — a failing target aborts the run, so a lower passed count reads as green.*
+
+**Two counts in the predecessor rung docs are stale and this tree's are the
+current ones:** `c2rs selftest` is **225**, not w-skip's/w-joint's **222**; the
+workspace test count is **706**, not w-joint's **698**. Master grew fixtures
+under both. `FAILED` is 0 and `targets` is 25 in every reading.
+
+**`scripts/gate.sh` does not run `scripts/expr_sweep.sh`** — the merge gate is
+blind to that whole class, so the sweep is run separately above and its
+**14 484 / 0** is part of this lane's green, not an extra.
+
+**dc3-decomp HEAD after the run: `940d07dcb0960964ad61aa5f025658f993eb46b2` — it
+did not move** (`work/w-db/prov_{before,after}.txt`). wibo `1.0.1-23-g4a9dd6f`
+throughout.
 
 ---
 
