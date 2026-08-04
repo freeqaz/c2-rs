@@ -350,8 +350,80 @@ impl PortC2 {
         // shell with no `.text` at all, so it never reaches instruction
         // selection. `functions()` only returns an empty vec for a bundle whose
         // `.ex` positively declares an empty module (see `il::is_empty_module`).
+        //
+        // **W-SECT — "defines no functions" was the WRONG precondition, and it
+        // was a live wrong emit for eight probe shapes.** `is_empty_module` is a
+        // property of `.ex` alone; `.gl` can still declare storage that costs c2
+        // a fifth or sixth section, and this arm emitted four regardless:
+        //
+        // ```text
+        //   int g = 5;                         c2 5 sections, port 4  MISMATCH
+        //   char b1;                           c2 5,           port 4  MISMATCH
+        //   extern const int ce = 9;  (.rdata) c2 5,           port 4  MISMATCH
+        //   const char* s = "hi";              c2 6,           port 4  MISMATCH
+        //   __declspec(thread) int t1; (.tls$) c2 5,           port 4  MISMATCH
+        //   __declspec(selectany) int sa = 3;  c2 5,           port 4  MISMATCH
+        //   char b1; char b2;                  c2 5,           port 4  MISMATCH
+        //   char b1; char d1 = 1;              c2 6,           port 4  MISMATCH
+        // ```
+        //
+        // A wrong emit is strictly worse than a refusal, and **no standing
+        // instrument could see this one**: `scripts/expr_sweep.sh` generates
+        // expressions and never a bare declaration, `differential.rs` names
+        // three fixtures, and the 878-TU workload contains **zero** TUs whose
+        // sections are the shell plus data — so `c2rs gap` read `mismatch 0`
+        // over a class it cannot represent. That is `docs/STATUS.md` trap 5,
+        // *absence reads as success*, in its purest form.
+        //
+        // `IlBundle::shell_only_tu` asks the question this arm actually needs
+        // answered — *does `.gl` name anything that would have to be given a
+        // section?* — and refuses conservatively on anything it cannot account
+        // for. `scripts/sweep.d/64-data-only-tu.py` generates the class from now
+        // on.
         if funcs.is_empty() {
-            return Ok(ObjImage::new(coff::emit_empty_obj(obj_name)));
+            if il.shell_only_tu() {
+                return Ok(ObjImage::new(coff::emit_empty_obj(obj_name)));
+            }
+            // **W-SECT — the `.data`/`.bss` TU (board #174).** The refusal above
+            // is the floor; this is the class that was measured out of it. The
+            // decode bound lives in `IlBundle::data_tu` and the layout bound —
+            // at most two objects per non-COMDAT section, §8.1 — lives in
+            // `coff::emit_data_obj`, so neither crate assumes the other ran.
+            if let Some(tu) = il.data_tu() {
+                let objs: Vec<coff::DataObj> = tu
+                    .objects
+                    .iter()
+                    .map(|o| coff::DataObj {
+                        symbol: &o.coff_name,
+                        size: o.size,
+                        natural_align: o.natural_align,
+                        external: o.external,
+                        bytes: o.bytes.as_deref(),
+                        decl_index: o.decl_index,
+                    })
+                    .collect();
+                // **Every object dropped means the bare shell IS the right
+                // obj.** `static int za;` — uninitialized, unreferenced,
+                // internal linkage — is removed by c2 entirely, so a TU of
+                // nothing but those emits 720 bytes. `shell_only_tu` says no
+                // here (the `.gl` *does* name storage) and it is right to;
+                // `data_tu` is the reader that knows the storage went away, and
+                // it did the same exhaustive accounting before saying so.
+                if objs.is_empty() {
+                    return Ok(ObjImage::new(coff::emit_empty_obj(obj_name)));
+                }
+                if let Some(obj) = coff::emit_data_obj(obj_name, &objs) {
+                    return Ok(ObjImage::new(obj));
+                }
+            }
+            return Err(BackendError::NotImplemented(
+                "a TU that defines no functions but whose `.gl` names storage \
+                 the bare four-section shell does not carry: an initialized or \
+                 uninitialized namespace-scope object, a `const` pool, a string \
+                 literal, a thread-local, or a COMDAT. Emitting the shell here \
+                 is a wrong section COUNT, which mismatches at file offset 2"
+                    .to_string(),
+            ));
         }
 
         // Which optimization mode to emit. `.ex` records it per function, so this

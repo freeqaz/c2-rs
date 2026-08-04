@@ -64,6 +64,88 @@ pub struct DynInitTu {
     pub src: Option<String>,
 }
 
+/// **W-SECT — one namespace-scope object a functionless TU defines**, resolved
+/// to everything `c2_core::coff::emit_data_obj` needs and nothing else.
+///
+/// Separate from `c2_core`'s own object type on purpose: this one is what the
+/// **IL says**, and the writer's is what the **obj gets**. The writer applies
+/// the class bound (`≤ 2 objects per non-COMDAT section`); this reader applies
+/// the decode bound. Neither is allowed to assume the other ran.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DataObject {
+    /// The COFF symbol name, already final: undecorated for internal linkage,
+    /// decorated for external (`docs/OBJ_DATA_BSS_SHAPE.md` §6.1).
+    pub coff_name: String,
+    /// `sizeof` the object.
+    pub size: u32,
+    /// Natural alignment in bytes, from the `.gl` TYPE tag — **not** the size.
+    pub natural_align: u32,
+    /// `true` => StorageClass 2 EXTERNAL; `false` => 3 STATIC.
+    pub external: bool,
+    /// `Some(bytes)` — a statically-initialized object, so **`.data`**, with its
+    /// raw bytes already in the obj's big-endian order and `bytes.len() ==
+    /// size`. `None` — uninitialized, so **`.bss`**, which contributes no file
+    /// bytes at all.
+    pub bytes: Option<Vec<u8>>,
+    /// **The record's operand token, which is its DECLARATION-ORDER key** —
+    /// Rule A2's walk (`docs/OBJ_DATA_BSS_SHAPE.md` §5.3, §5.6).
+    ///
+    /// `.bss` walks the `.gl` **file** order and `.data` walks **declaration**
+    /// order, and they are genuinely different permutations of the same names.
+    /// c2 cannot see the source, so §5.6 identifies the declaration order with
+    /// the record's own varint id; this is that id.
+    ///
+    /// MEASURED on six names chosen so declaration, sorted and `.gl` order are
+    /// pairwise different:
+    ///
+    /// ```text
+    ///   source     zulu alpha mike bravo yankee charlie
+    ///   tokens     09e3 09e4  09e5 09e6  09e7   09e8      <- ascending = source
+    ///   .gl file   zulu yankee mike charlie bravo alpha
+    /// ```
+    ///
+    /// which reproduces §5.3's transcribed order exactly. **Board #183's error
+    /// bar does not apply to this field**: that row is about `glparse.py`
+    /// scanning *backwards* from the name for the id, and this token is read
+    /// **forward** by `read_token_var` at a position the record framing already
+    /// validated — the same discipline `gl_symbol_index` applies.
+    pub decl_index: u32,
+}
+
+/// **W-SECT — a whole TU that defines NO functions and one or more
+/// namespace-scope objects** (board #174).
+///
+/// This is the smallest whole-TU target that carries a `.data`, and it exists
+/// because the shape was a **live wrong emit**: `is_empty_module` is a property
+/// of `.ex` alone, so a TU with data and no code took `emit_empty_obj`'s
+/// four-section shell and mismatched at file offset 2 on eight of eleven probe
+/// shapes.
+#[derive(Clone, Debug)]
+pub struct DataTu {
+    /// The objects, **in `.gl` record order** — which is Rule A1's walk for
+    /// `.bss` (`docs/OBJ_DATA_BSS_SHAPE.md` §5.2) and is not the declaration
+    /// order. Reading them in any other order is six wrong `Value` fields.
+    pub objects: Vec<DataObject>,
+    /// The source path from `.gl`, for `.debug$S`.
+    pub src: Option<String>,
+    /// **The `.in` reader's own census, carried out so a caller can print it.**
+    /// `(records, elements, residue, conflicts)`.
+    ///
+    /// The `.in` scalar-initializer reader is a **new decode**, and a decode
+    /// cannot be graded by the oracle: the compiler judges obj bytes and cannot
+    /// say whether record *R* is object *S*. So it is graded on its own
+    /// invariants instead — injectivity (`conflicts`), totality (`records ==
+    /// values + residue + conflicts`, checked as a gate in
+    /// [`IlBundle::data_tu`]) and **arity** (`elements`, which counts the
+    /// records' *contents*; a reader that dropped an element inside a record it
+    /// still accepted leaves `records` and `residue` untouched, which is
+    /// `docs/STATUS.md` trap 4 exactly).
+    ///
+    /// `residue` is never 0 on a real capture — every TU carries a constant pool
+    /// whose records this reader deliberately does not model.
+    pub in_census: (usize, usize, usize, usize),
+}
+
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
 /// sequence of function bodies, each introduced by this marker; the header /
 /// index region before the first one is opaque zero-fill for this class.
@@ -1370,6 +1452,230 @@ impl IlBundle {
             literal_comdat_names: super::gl::gl_string_comdat_names(gl),
             trailing_literal_arg: *k,
             src: bind.src.clone(),
+        })
+    }
+
+    /// **W-SECT — is the bare four-section shell the RIGHT obj for this TU?**
+    ///
+    /// `emit_empty_obj` writes `.drectve`, `.debug$S` and the two `.XBLD$W`
+    /// watermarks and nothing else. Its precondition had been read off `.ex`
+    /// alone — [`is_empty_module`], "no function bodies" — and that is **not the
+    /// same question**. A TU can declare no functions and still make c2 emit a
+    /// `.bss`, a `.data`, a `.rdata` or a `.tls$`, and eight probe shapes did:
+    ///
+    /// ```text
+    ///   int g = 5;                         c2: 5 sections   port: 4   MISMATCH
+    ///   char b1;                           c2: 5            port: 4   MISMATCH
+    ///   extern const int ce = 9;           c2: 5 (.rdata)   port: 4   MISMATCH
+    ///   const char* s = "hi";              c2: 6            port: 4   MISMATCH
+    ///   __declspec(thread) int t1;         c2: 5 (.tls$)    port: 4   MISMATCH
+    ///   __declspec(selectany) int sa = 3;  c2: 5 (COMDAT)   port: 4   MISMATCH
+    ///   char b1; char b2;                  c2: 5            port: 4   MISMATCH
+    ///   char b1; char d1 = 1;              c2: 6            port: 4   MISMATCH
+    /// ```
+    ///
+    /// So this predicate asks the question the emitter actually needs answered,
+    /// and it asks it of `.gl`: **does this TU name anything that would have to
+    /// be given a section?** It is deliberately the *conservative* direction —
+    /// a name it cannot account for refuses, whatever that name turns out to be.
+    /// Widening the port must not go through weakening this.
+    ///
+    /// A **declaration** is not a definition and does not refuse: `extern int
+    /// e;` and `struct S; void f();` name symbols that get a `SectionNumber` of
+    /// 0 and no storage, and their objs are genuinely the bare shell.
+    pub fn shell_only_tu(&self) -> bool {
+        let (Some(gl), Some(ex)) = (self.get("gl"), self.ex()) else {
+            return false;
+        };
+        if !is_empty_module(ex) || !drectve_is_boilerplate(gl) {
+            return false;
+        }
+        // A `/GF` string-literal COMDAT is a `.rdata` before the C2 watermark.
+        if !super::gl::gl_string_comdat_names(gl).is_empty() {
+            return false;
+        }
+        // Anything `data_object_at` accepts is storage this TU defines.
+        if !super::gl::gl_data_objects_ordered(gl).is_empty() {
+            return false;
+        }
+        // …and anything it *refuses* may still be storage — `extern const`
+        // (`.rdata`), `selectany` (a COMDAT) and an `??_R0` descriptor all
+        // refuse there. So the surviving indexed names are required to be
+        // **undefined externals**, which is the only state that provably costs
+        // no section. MEASURED: `extern const int ce = 9;` is indexed (its name
+        // is `00`-introduced) and is not an undefined external, so it lands
+        // here and refuses — which is right, because it emits a `.rdata`.
+        let undefined = super::gl::gl_extern_data_names(gl);
+        super::gl::gl_symbol_index(gl).values().all(|name| {
+            name.starts_with('.')
+                || name == "__C1_11886"
+                || name == "__C2_11886"
+                || undefined.contains(name)
+        })
+    }
+
+    /// **W-SECT — recognize a TU that defines no functions and some data**
+    /// (board #174), or `None` for anything outside the measured class.
+    ///
+    /// # Why this exists at all
+    ///
+    /// It is an **alarm closure first and a widening second.** `PortC2::build`
+    /// reached `emit_empty_obj` — the bare four-section shell — for every TU
+    /// whose `.ex` declares an empty module, and `is_empty_module` cannot see
+    /// `.gl`. So `int g = 5;`, `char b1;` and six other shapes were live
+    /// `Port=Mismatch @ offset 2`: the port emitted four sections where c2
+    /// emitted five or six. No standing instrument generated the shape, and the
+    /// workload contains **zero** instances of it, so the scan read
+    /// `mismatch 0` over a defect it could not represent.
+    ///
+    /// # The gates, and what each one is protecting against
+    ///
+    /// Every `None` below is a case nothing measured. They are listed in the
+    /// order they run, and the note beside each is the byte that would go wrong.
+    ///
+    /// 1. **No functions.** This is the class; a TU with code needs the
+    ///    `.text`/`.pdata` writers and their emission order.
+    /// 2. **Boilerplate `.drectve`.** The port emits it as a constant, so a TU
+    ///    that adds a linker directive diverges at offset 8 regardless.
+    /// 3. **At least one object.** With none, `emit_empty_obj` is right and this
+    ///    path must not take the TU off it.
+    /// 4. **No `__declspec(thread)`.** Its record is byte-identical to an
+    ///    ordinary uninitialized object in every field `gl_data_objects` reads,
+    ///    and it lands in `.tls$`. Rule T1 (§5.8) is fitted on ten probe cells,
+    ///    has never been seen on a real TU, and `.tls$` is not one of the
+    ///    workload's 13 section names — so it is worth +0 to factor C and is
+    ///    refused rather than emitted.
+    /// 5. **No string literal.** A `??_C@…` in `.gl` is a `/GF` `.rdata` COMDAT
+    ///    the front end created *before* the `.XBLD$W(C2)` watermark (§2.2's
+    ///    first insertion point) — a section this path does not place.
+    /// 6. **Exhaustive accounting.** Every name `.gl` indexes must be one of the
+    ///    recognized objects, an **undefined** external, or a section/watermark
+    ///    name. This is the gate that catches the shapes nobody enumerated:
+    ///    `extern const int ce = 9;` frames as `00 04` (read-only) and lands in
+    ///    `.rdata`, `__declspec(selectany)` frames with attribute `60`/`E0` and
+    ///    lands in its own COMDAT, and an `??_R0` RTTI descriptor does the same.
+    ///    Each is refused by `data_object_at` and would otherwise be **invisible
+    ///    here** — the TU would emit with a section missing and mismatch at
+    ///    offset 2. Absence reads as success unless something forbids it
+    ///    (`docs/STATUS.md` trap 5), and this is the something.
+    /// 7. **Every initialized object has `.in` bytes of exactly its size.** A
+    ///    `.data` object whose value does not decode — a float, a pointer, an
+    ///    aggregate with padding — is refused rather than emitted with a short
+    ///    or zero-filled section.
+    /// 8. **No uninitialized object has a `.in` value.** The `.bss`/`.data`
+    ///    split comes from `.gl`'s attribute byte; if `.in` disagrees, one of
+    ///    the two readers is wrong about which section the object is in, and
+    ///    that is a section *count* error.
+    ///
+    /// The class bound `docs/OBJ_DATA_BSS_SHAPE.md` §8.1 states — at most two
+    /// objects per non-COMDAT section — is **not** applied here. It is a
+    /// property of the layout, so it lives with the layout, in
+    /// `c2_core::coff::emit_data_obj`.
+    pub fn data_tu(&self) -> Option<DataTu> {
+        let gl = self.get("gl")?;
+        let ex = self.ex()?;
+
+        // 1. No functions. Cheap and first: `PortC2::build` calls this on every
+        // TU and the whole thesis is throughput.
+        if !is_empty_module(ex) {
+            return None;
+        }
+        // 2. The `.drectve` the port emits as a constant.
+        if !drectve_is_boilerplate(gl) {
+            return None;
+        }
+
+        // 3. The objects, in `.gl` record order (Rule A1's walk).
+        let records = super::gl::gl_data_objects_ordered(gl);
+        if records.is_empty() {
+            return None;
+        }
+        // 4. Thread-locals land in `.tls$`, and nothing else in the record says
+        // so. See `GlDataObject::flags`.
+        if records
+            .iter()
+            .any(|(_, o)| o.flags & super::gl::DATA_FLAG_THREAD_LOCAL != 0)
+        {
+            return None;
+        }
+        // 5. A `/GF` string-literal COMDAT is a section this path does not place.
+        if !super::gl::gl_string_comdat_names(gl).is_empty() {
+            return None;
+        }
+
+        // 6. Exhaustive accounting over every name `.gl` indexes.
+        let defined: std::collections::BTreeSet<&str> =
+            records.iter().map(|(_, o)| o.coff_name.as_str()).collect();
+        let undefined = super::gl::gl_extern_data_names(gl);
+        for name in super::gl::gl_symbol_index(gl).values() {
+            // Section names (`.XBLD$W`, `.CRT$XC?`, …) and the two toolchain
+            // watermarks are shell furniture every obj carries.
+            if name.starts_with('.') || name == "__C1_11886" || name == "__C2_11886" {
+                continue;
+            }
+            if defined.contains(name.as_str()) || undefined.contains(name) {
+                continue;
+            }
+            return None;
+        }
+
+        // 7 + 8. The `.data` bytes, from `.in`.
+        let inb = self.get("in").unwrap_or(&[]);
+        let init = super::ininit::in_scalar_initializers(inb);
+        // **The `.in` reader's totality invariant, as a GATE and not a report.**
+        // Every record that framed is a value, a named residue entry, or a
+        // dropped conflict. If that accounting does not close, the reader lost a
+        // record silently — and a silently lost record is a `.data` object with
+        // no bytes, which is the failure this whole path exists to prevent.
+        if init.values.len() + init.residue.len() + init.conflicts != init.records {
+            return None;
+        }
+        let mut objects = Vec::with_capacity(records.len());
+        for (tok, o) in &records {
+            // **c2 DROPS an internal-linkage object that is uninitialized and
+            // unreferenced** — no section, no symbol, and the obj comes back as
+            // the bare four-section shell. See `gl::DATA_FLAG_REFERENCED` for
+            // the four cells that separate the three axes one at a time.
+            //
+            // This is the sixth mismatch the differential caught in this class
+            // and the one no document had: `OBJ_DATA_BSS_SHAPE.md` §5.2's static
+            // cells are all *"8 uninit statics AND ONE FUNCTION EACH"*, so every
+            // object in them is referenced and the rule is invisible there.
+            if !o.external
+                && !o.initialized
+                && o.flags & super::gl::DATA_FLAG_REFERENCED == 0
+            {
+                continue;
+            }
+            let value = init.values.get(tok);
+            let bytes = match (o.initialized, value) {
+                // A `.bss` object with no initializer: the ordinary case.
+                (false, None) => None,
+                // 8. `.gl` says uninitialized and `.in` carries a value for the
+                // same token — the two readers disagree about which section this
+                // object is in. Refuse; do not pick one.
+                (false, Some(_)) => return None,
+                // 7. A `.data` object whose value decoded to exactly its size.
+                (true, Some(b)) if b.len() as usize == o.size as usize => Some(b.clone()),
+                // A `.data` object whose value did not decode, or decoded to the
+                // wrong length (an aggregate with padding, say). Refuse rather
+                // than zero-fill.
+                (true, _) => return None,
+            };
+            objects.push(DataObject {
+                coff_name: o.coff_name.clone(),
+                size: o.size,
+                natural_align: o.natural_align,
+                external: o.external,
+                bytes,
+                decl_index: *tok,
+            });
+        }
+
+        Some(DataTu {
+            objects,
+            src: super::gl::source_path(gl),
+            in_census: (init.records, init.elements, init.residue.len(), init.conflicts),
         })
     }
 

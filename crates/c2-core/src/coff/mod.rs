@@ -19,6 +19,7 @@
 mod buf;
 mod checksum;
 mod container;
+mod data;
 mod dyninit;
 mod function;
 mod label;
@@ -35,6 +36,7 @@ mod tests;
 pub(crate) use buf::*;
 pub(crate) use checksum::*;
 pub(crate) use container::*;
+pub use data::*;
 pub use dyninit::*;
 pub use function::*;
 pub use label::*;

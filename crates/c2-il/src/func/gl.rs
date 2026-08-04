@@ -907,7 +907,79 @@ pub(crate) struct GlDataObject {
     /// objects is how a caller refuses that TU instead of emitting the
     /// dyninit-only layout for it.
     pub(crate) initialized: bool,
+    /// **The attribute byte immediately AFTER the one [`Self::initialized`] is
+    /// read from** — a bit field, published raw so each caller applies its own
+    /// gate.
+    ///
+    /// **W-SECT found this field by finding the wrong emit it causes.**
+    /// `__declspec(thread) int t1;` produces a `.gl` data record that is
+    /// byte-identical to an ordinary uninitialized object *in every field this
+    /// reader had*, and lands in `.tls$` rather than `.bss`:
+    ///
+    /// ```text
+    ///   char b1;                     … 82 01 00 02 01 01 00 · 00 ·
+    ///   __declspec(thread) int t1;   … 86 01 00 02 01 04 00 · 10 ·
+    ///   __declspec(thread) int t2=4; … 86 01 00 02 01 04 80 · 10 ·
+    /// ```
+    ///
+    /// So a reader that stopped at the attribute reported a `.tls$` object as a
+    /// `.bss` one, and would have emitted the wrong section the moment a `.bss`
+    /// writer had a caller. [`DATA_FLAG_THREAD_LOCAL`] is that bit.
+    ///
+    /// **It is deliberately NOT gated inside [`data_object_at`].** The bit field
+    /// carries several meanings this lane measured but did not exhaust —
+    ///
+    /// ```text
+    ///   00  char b1;                        (plain, unreferenced)
+    ///   01  static int s1;  … referenced    (also ?ce, ?v2)
+    ///   21  int gi;  with `int* gp = &gi;`  (0x20 = address taken)
+    ///   61  the `??__E` fixtures' object    (0x40 unexplained)
+    ///   83  `$sL$initializer$`              (0x80 unexplained)
+    /// ```
+    ///
+    /// — and an allow-list of the values this lane could explain would have
+    /// **refused the two `??__E` license TUs that are byte-exact matches today**
+    /// (their object carries `0x61`), taking TU match 8 → 6. A gate in the shared
+    /// reader is a gate on `dyninit_tu`, which is graded; so the byte is
+    /// published and the *new* consumer applies the strict test.
+    pub(crate) flags: u8,
 }
+
+/// The [`GlDataObject::flags`] bit that says the object is `__declspec(thread)`
+/// and therefore lands in **`.tls$`**, not in `.bss`/`.data`.
+///
+/// MEASURED on four cells (initialized and uninitialized × external and
+/// `static`); the bit is set in all four and clear in every non-thread-local
+/// record this lane captured. `docs/OBJ_DATA_BSS_SHAPE.md` §5.8's Rule T1 is
+/// fitted on ten probe cells and has **never been seen on a real TU**, so a
+/// writer must **refuse** on this bit rather than emit a `.tls$`.
+pub(crate) const DATA_FLAG_THREAD_LOCAL: u8 = 0x10;
+
+/// The [`GlDataObject::flags`] bit that says **something references this
+/// object**, and which decides whether an internal-linkage object is emitted at
+/// all.
+///
+/// **MEASURED, and it is a rule `docs/OBJ_DATA_BSS_SHAPE.md` does not have.**
+/// An `static` object that is **uninitialized** and **unreferenced** is
+/// **dropped entirely** — no `.bss`, no symbol, and the obj is the bare
+/// four-section shell:
+///
+/// ```text
+///   static int za;                     04 04 00 · 00   DROPPED, obj is 720 B
+///   static int zc; int r(){return zc;} 04 04 00 · 01   emitted to .bss
+///   static int zb = 1;                 04 04 80 · 00   emitted to .data
+///   int ze;                            01 04 00 · 00   emitted to .bss
+/// ```
+///
+/// The three axes are separated one at a time: `za`→`zc` moves only the
+/// reference, `za`→`zb` only the initializer, `za`→`ze` only the linkage. So
+/// the predicate is the conjunction of all three and not any pair.
+///
+/// §5.2's static cells could not see this — every one of them is *"8 uninit
+/// statics **and one function each**"*, so every object in them is referenced.
+/// §4.4 records the same shape for `const` (*"dropped when every use was
+/// folded"*); this is that rule for plain storage.
+pub(crate) const DATA_FLAG_REFERENCED: u8 = 0x01;
 
 /// The name separator that introduces an **internal-linkage** data symbol, whose
 /// COFF name is the run that follows it **undecorated**.
@@ -1220,8 +1292,15 @@ fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObjec
     let initialized = match *gl.get(p)? {
         DATA_ATTR_UNINITIALIZED => false,
         DATA_ATTR_INITIALIZED => true,
+        // `60`/`E0` are `__declspec(selectany)` uninitialized/initialized — the
+        // COMDAT forms of §3.3 and §4.3 — and they fail closed here. MEASURED:
+        // `__declspec(selectany) int sa = 3;` spells `E0` where `int sa = 3;`
+        // spells `80`, and `__declspec(selectany) int sb;` spells `60` where
+        // `int sb;` spells `00`. Board #172's "COMDAT-ness is NOT in tag 9" is
+        // about the SECTION record and does not carry over to the DATA record.
         _ => return None,
     };
+    let flags = *gl.get(p + 1)?;
     let natural_align = align_of_type_tag(tag)?;
     // A name introduced by `24` is spelled undecorated; one introduced by `00`
     // carries its own decoration. The separator has already selected the run, so
@@ -1232,6 +1311,7 @@ fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObjec
         natural_align,
         external,
         initialized,
+        flags,
     })
 }
 
@@ -1299,18 +1379,117 @@ impl<'a> GlIndex<'a> {
 
 #[cfg(test)]
 mod data_object_tests {
-    use super::{gl_data_objects, GlDataObject};
+    use super::{gl_data_objects, GlDataObject, DATA_FLAG_THREAD_LOCAL};
 
     /// Build the `<kind byte> <token> <sep> <name> 00 <type…>` core of one `.gl`
     /// data record, the way every measured capture spells it.
+    ///
+    /// `ty` stops at the attribute byte and this helper appends the **flags**
+    /// byte after it as `00`, because that is what every plain unreferenced
+    /// object in a real capture spells and because [`super::data_object_at`]
+    /// now requires the byte to exist. Use [`record_flags`] for a cell whose
+    /// flags matter.
     fn record(tok: [u8; 2], sep: u8, name: &str, ty: &[u8]) -> Vec<u8> {
+        record_flags(tok, sep, name, ty, 0x00)
+    }
+
+    /// [`record`] with the flags byte spelled explicitly.
+    fn record_flags(tok: [u8; 2], sep: u8, name: &str, ty: &[u8], flags: u8) -> Vec<u8> {
         let mut v = vec![0x00]; // a SYMBOL_RECORD_KINDS byte
         v.extend_from_slice(&tok);
         v.push(sep);
         v.extend_from_slice(name.as_bytes());
         v.push(0x00);
         v.extend_from_slice(ty);
+        v.push(flags);
         v
+    }
+
+    /// **The thread-local bit, and the wrong emit it prevents.**
+    ///
+    /// `__declspec(thread) int t1;` and `char b1;` differ in *no field this
+    /// reader had* before W-SECT — same frame, same linkage, same attribute —
+    /// and land in different sections (`.tls$` vs `.bss`). Both records still
+    /// decode, on purpose: the bit is published rather than gated here, because
+    /// gating it inside the shared reader is gating `dyninit_tu`, which is a
+    /// graded path. The *caller* refuses.
+    ///
+    /// The four measured thread-local cells all carry `0x10`, across both
+    /// linkages and both initialization states.
+    #[test]
+    fn the_thread_local_bit_is_published_not_swallowed() {
+        // `__declspec(thread) int t1;` — MEASURED `86 01 00 02 01 04 00 · 10`.
+        let gl = record_flags(
+            [0xe3, 0x09],
+            0x00,
+            "?t1@@3HA",
+            &[0x86, 0x01, 0x00, 0x02, 0x01, 0x04, 0x00],
+            DATA_FLAG_THREAD_LOCAL,
+        );
+        let o = gl_data_objects(&gl);
+        let o = o.get(&0xe309).expect("it still decodes — the caller refuses, not the reader");
+        assert_eq!(o.flags & DATA_FLAG_THREAD_LOCAL, DATA_FLAG_THREAD_LOCAL);
+        assert!(!o.initialized, "and it is indistinguishable from `.bss` in every OTHER field");
+
+        // `__declspec(thread) int t2 = 4;` — MEASURED `… 04 80 · 10`.
+        let gl = record_flags(
+            [0xe3, 0x09],
+            0x00,
+            "?t2@@3HA",
+            &[0x86, 0x01, 0x00, 0x02, 0x01, 0x04, 0x80],
+            DATA_FLAG_THREAD_LOCAL,
+        );
+        assert_eq!(
+            gl_data_objects(&gl).get(&0xe309).map(|o| o.flags & DATA_FLAG_THREAD_LOCAL),
+            Some(DATA_FLAG_THREAD_LOCAL)
+        );
+
+        // …and the control: an ordinary `char b1;` carries the bit CLEAR, so the
+        // test discriminates rather than asserting a constant.
+        let gl = record([0xe3, 0x09], 0x00, "?b1@@3DA", &[0x82, 0x01, 0x00, 0x02, 0x01, 0x01, 0x00]);
+        assert_eq!(
+            gl_data_objects(&gl).get(&0xe309).map(|o| o.flags & DATA_FLAG_THREAD_LOCAL),
+            Some(0)
+        );
+    }
+
+    /// **`__declspec(selectany)` is refused by the ATTRIBUTE byte**, which this
+    /// lane registered as prediction P2 and which is why no COMDAT gate is
+    /// needed anywhere else.
+    ///
+    /// MEASURED, one axis, four cells: `int sa = 3;` spells `80` and
+    /// `__declspec(selectany) int sa = 3;` spells `E0`; `int sb;` spells `00`
+    /// and `__declspec(selectany) int sb;` spells `60`. A COMDAT `.data`/`.bss`
+    /// is a different Characteristics word (`…1040`/`…1080`), a Selection of 2
+    /// and its own section, so admitting one as ordinary data is a wrong
+    /// section count.
+    #[test]
+    fn selectany_fails_closed_on_the_attribute_byte() {
+        for attr in [0x60u8, 0xE0] {
+            let gl = record([0xe3, 0x09], 0x00, "?sa@@3HA", &[0x86, 0x01, 0x00, 0x02, 0x01, 0x04, attr]);
+            assert!(
+                gl_data_objects(&gl).is_empty(),
+                "selectany attribute {attr:#04x} must not decode as ordinary data"
+            );
+        }
+        // The controls, same records with the ordinary attributes.
+        for attr in [0x00u8, 0x80] {
+            let gl = record([0xe3, 0x09], 0x00, "?sa@@3HA", &[0x86, 0x01, 0x00, 0x02, 0x01, 0x04, attr]);
+            assert!(!gl_data_objects(&gl).is_empty(), "attribute {attr:#04x} is ordinary data");
+        }
+    }
+
+    /// The flags byte is REQUIRED to exist: a record truncated immediately after
+    /// its attribute byte refuses rather than decoding with a default.
+    /// Fail-closed, because a missing byte is a record this reader is not
+    /// looking at the whole of.
+    #[test]
+    fn a_record_truncated_before_the_flags_byte_refuses() {
+        let mut v = vec![0x00, 0xe3, 0x09, 0x00];
+        v.extend_from_slice(b"?b1@@3DA");
+        v.push(0x00);
+        v.extend_from_slice(&[0x82, 0x01, 0x00, 0x02, 0x01, 0x01, 0x00]);
+        assert!(gl_data_objects(&v).is_empty(), "no flags byte, no object");
     }
 
     /// **The six measured rows**, from the fixture, both workload TUs and three
@@ -1328,6 +1507,7 @@ mod data_object_tests {
                 natural_align: 1,
                 external: false,
                 initialized: false,
+                flags: 0,
             }),
             "the `$`-introduced name yields the UNDECORATED COFF symbol"
         );
@@ -1347,6 +1527,7 @@ mod data_object_tests {
                 natural_align: 4,
                 external: false,
                 initialized: false,
+                flags: 0,
             })
         );
 
@@ -1367,6 +1548,7 @@ mod data_object_tests {
                 natural_align: 4,
                 external: true,
                 initialized: false,
+                flags: 0,
             })
         );
 
@@ -1403,6 +1585,7 @@ mod data_object_tests {
                 natural_align: 1,
                 external: false,
                 initialized: false,
+                flags: 0,
             })
         );
     }

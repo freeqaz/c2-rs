@@ -189,7 +189,8 @@ mod tests {
     /// every `coff/*.rs` that contains the literal `Section {`.
     #[test]
     fn the_writer_vocabulary_is_every_section_name_this_file_emits() {
-        const SECTION_SOURCES: [(&str, &str); 4] = [
+        const SECTION_SOURCES: [(&str, &str); 5] = [
+            ("data.rs", include_str!("data.rs")),
             ("shell.rs", include_str!("shell.rs")),
             ("writer.rs", include_str!("writer.rs")),
             ("dyninit.rs", include_str!("dyninit.rs")),
