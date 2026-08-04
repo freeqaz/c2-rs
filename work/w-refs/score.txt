@@ -1,0 +1,79 @@
+TUs ok=850  other={'MISSING': 7}
+|U|=1506586  |E|=174417  |E n U|=173907 (99.7076% of E)  |Seed|=14662  |Seed n E|=14662
+
+KA-A  reproduce the incumbent EXACTLY
+      |U|         1506586  incumbent    1506586   OK
+      |E|          174417  incumbent     174417   OK
+      |Seed|        14662  incumbent      14662   OK
+      |P_26|       129430  incumbent     129430   OK
+      prec26      0.99991  incumbent    0.99991   OK
+      rec26       0.74200  incumbent    0.74200   OK
+      F1_26       0.85186  incumbent    0.85186   OK
+      exact26         132  incumbent        132   OK
+
+KA-B  TERMINUS gate: 1505815/1506591 = 0.99948   [pass >= 0.98]   discriminating records = 26  [must be > 0]
+      records=1506595  list-bit=1506591  pairs=2930866  zero-use pairs=54846 (1.871%)  storage-class-0xa=1  dup_ex=4
+
+KA-G  POSITIVE CHECK — names on which P_RGL and P_26 DISAGREE = 200  [must be > 0]
+      P_RGL-only = 187 (of which emitted 187)   P_26-only = 13 (of which emitted 1)
+
+N1  RGL RECALL     0.74307  [reg 0.76, 0.70-0.85]  HIT    vs incumbent 0.74200 -> +0.1070 pp
+N2  RGL PRECISION  1.00000  [reg 0.9995, 0.9950-1.0]  HIT    vs incumbent 0.99991
+N3  RGL F1         0.85260  [reg 0.862, 0.820-0.910]  HIT    vs incumbent 0.85186 -> +0.0739 pp
+    decision band vs the incumbent (+/-2.0 pp): **WASH**
+N4  RU  RECALL     0.74307  [reg 0.79, 0.72-0.90]  HIT    (precision 0.99991, F1 0.85257)
+N5  edge agreement 0.99982  [reg 0.90, 0.70-1.00]  HIT    |R26|=1621624 |RGL|=1622745 |R26 n RGL|=1621332
+N6  per-TU exact   0.15529 (132/850)  [reg 0.17, 0.05-0.45]  HIT    incumbent 132; RU 132
+N7  vtable-slot share of E\P_RGL   0.37262  [reg 0.37, 0.25-0.50]  HIT   (16508 of 44303)
+N8  free-function share of E\P_RGL 0.34147  [reg 0.44, 0.32-0.56]  HIT   (15128 of 44303)
+N9  unreferenced-anywhere-in-.gl   0.54649  [reg 0.70, 0.40-0.95]  HIT   (17972 of 32886 4-byte-token residual names)
+N10 |P_RGL| = 129604  [reg 135000, 110000-175000]  HIT    (|P_26| = 129430, |U| = 1506586)
+
+emit-everything incumbent: precision=0.11577 recall=1.0 F1=0.20752
+   RGL delta over emit-everything: +64.5084 pp    R26 delta: +64.4348 pp
+
+E n U  \  P_RGL   — unreached by the REAL reference list  (n=44303)
+    15128   34.1%  free / file-scope function
+    11987   27.1%  VIRTUAL member  (reached only via a vtable slot)
+     5659   12.8%  `$` in qualified name (template instantiation OR adjustor thunk)
+     4521   10.2%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+     2926    6.6%  other ($)
+     2007    4.5%  non-virtual member
+     1097    2.5%  static member
+      866    2.0%  undecorated (extern "C" / CRT)
+       88    0.2%  adjustor thunk (access code)
+       14    0.0%  other (0)
+        6    0.0%  other (2)
+        4    0.0%  other (1)
+
+E n U  \  P_26    — unreached by the 26-token proxy (w-roots)  (n=44489)
+    15128   34.0%  free / file-scope function
+    11992   27.0%  VIRTUAL member  (reached only via a vtable slot)
+     5806   13.1%  `$` in qualified name (template instantiation OR adjustor thunk)
+     4521   10.2%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+     2926    6.6%  other ($)
+     2032    4.6%  non-virtual member
+     1104    2.5%  static member
+      868    2.0%  undecorated (extern "C" / CRT)
+       88    0.2%  adjustor thunk (access code)
+       14    0.0%  other (0)
+        6    0.0%  other (2)
+        4    0.0%  other (1)
+
+P_RGL false positives (0 total); top names:
+
+E \ P_RGL sample (capped 12/TU); top names:
+     484  ??$MakeString@VSymbol@@PBDV1@@@YAPBDPBDABVSymbol@@ABQBD1@Z
+     435  ??$MakeString@$$BY0BJ@$$CBDH$$BY0BP@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BP@$$CBD@Z
+     428  ??$MakeString@$$BY0BJ@$$CBDH$$BY0BB@$$CBD@@YAPBDPBDAAY0BJ@$$CBDABHAAY0BB@$$CBD@Z
+     137  ?EaseBackIn@@YAMMMM@Z
+     129  ?EaseBackInOut@@YAMMMM@Z
+     120  ?EaseBackOut@@YAMMMM@Z
+     111  ?EaseBackOutIn@@YAMMMM@Z
+     100  ?ClassName@Object@Hmx@@UBA?AVSymbol@@XZ
+      98  ??_GMessage@@UAAPAXI@Z
+      93  ?EaseBounceIn@@YAMMMM@Z
+      91  ??_DRndHighlightable@@QAAXXZ
+      90  ??_GObjRef@@UAAPAXI@Z
+      84  ?EaseBounceInOut@@YAMMMM@Z
+      72  ??6DebugNotifier@@QAAXPBD@Z

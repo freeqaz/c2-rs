@@ -1,0 +1,44 @@
+######## src/system/utl/PoolAlloc.cpp
+bundle _CL_fc4c742d
+decode: {'recs': 406, 'list_bit': 406, 'term_ok': 405, 'term_bad': 1, 'pairs': 715, 'pairs_zero': 3, 'bound': 406}
+walk cross-check: 0 of 406 records disagree  [must be 0]
+BASELINE replay == pipeline obj (TimeDateStamp zeroed): False
+baseline leaders: 77
+
+KA-D  zero one reference-list edge (33 single-in-edge candidates)
+  lost=0 gained=0 exact=False  ??$MakeString@$$BY0BN@$$CBDH$$BY0BA@$$CBD@@YAPBDPBDAAY0B  <- ?DeallocAll@ReclaimableAlloc@@IAAXXZ (x1)  SURVIVOR: another root reaches it, or the entry is not the edge
+  lost=0 gained=0 exact=False  ??$MakeString@$$BY0BN@$$CBDH$$BY0BI@$$CBD@@YAPBDPBDAAY0B  <- ?Free@ChunkAllocator@@QAAXPAXH@Z (x1)  SURVIVOR: another root reaches it, or the entry is not the edge
+  lost=0 gained=0 exact=False  ??$MakeString@$$BY0BN@$$CBDH$$BY0BN@$$CBD@@YAPBDPBDAAY0B  <- ?CustAlloc@ReclaimableAlloc@@QAAPAXH (x1)  SURVIVOR: another root reaches it, or the entry is not the edge
+  lost=0 gained=0 exact=False  ??$MakeString@$$BY0BN@$$CBDH$$BY0P@$$CBD@@YAPBDPBDAAY0BN  <- ?Refill@FixedSizeAlloc@@IAAXXZ (x1)  SURVIVOR: another root reaches it, or the entry is not the edge
+  lost=0 gained=0 exact=False  ??$MakeString@HHHHH@@YAPBDPBDABH1111@Z  <- ?Print@ChunkAllocator@@QAAXAAVTextSt (x1)  SURVIVOR: another root reaches it, or the entry is not the edge
+  KA-D 0/5
+######## src/system/utl/BeatMap.cpp
+bundle _CL_d4d4b0b7
+decode: {'recs': 160, 'list_bit': 160, 'term_ok': 159, 'term_bad': 1, 'pairs': 263, 'pairs_zero': 0, 'bound': 160}
+walk cross-check: 0 of 160 records disagree  [must be 0]
+BASELINE replay == pipeline obj (TimeDateStamp zeroed): False
+baseline leaders: 51
+
+KA-D  zero one reference-list edge (29 single-in-edge candidates)
+  lost=2 gained=0 exact=False  ??$?8PAUBeatInfo@@@stlpmtx_std@@YA_NABV?$reverse_iterato  <- ??$?9PAUBeatInfo@@@stlpmtx_std@@YA_N (x1)
+        lost: ['??$?8PAUBeatInfo@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAUBeatInfo@@@0@0@Z', '?base@?$reverse_iterator@PAUBeatInfo@@@stlpmtx_std@@QBAPAUBeatInfo@@XZ']
+  lost=3 gained=0 exact=False  ??$?9PAUBeatInfo@@@stlpmtx_std@@YA_NABV?$reverse_iterato  <- ??$__destroy_range_aux@V?$reverse_it (x1)
+        lost: ['??$?8PAUBeatInfo@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAUBeatInfo@@@0@0@Z', '??$?9PAUBeatInfo@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAUBeatInfo@@@0@0@Z', '?base@?$reverse_iterator@PAUBeatInfo@@@stlpmtx_std@@QBAPAUBeatInfo@@XZ']
+  lost=1 gained=0 exact=True  ??$_Destroy_Range@V?$reverse_iterator@PAUBeatInfo@@@stlp  <- ??1?$vector@UBeatInfo@@V?$StlNodeAll (x1)
+  lost=1 gained=0 exact=True  ??$__advance@PBUBeatInfo@@H@stlpmtx_std@@YAXAAPBUBeatInf  <- ??$advance@PBUBeatInfo@@H@stlpmtx_st (x1)
+  lost=1 gained=0 exact=True  ??$__destroy_aux@UBeatInfo@@@stlpmtx_std@@YAXPAUBeatInfo  <- ??$__destroy_range_aux@V?$reverse_it (x1)
+  KA-D 3/5
+######## src/system/utl/Symbol.cpp
+bundle _CL_f40c9ae8
+decode: {'recs': 728, 'list_bit': 728, 'term_ok': 727, 'term_bad': 1, 'pairs': 1266, 'pairs_zero': 14, 'bound': 728}
+walk cross-check: 0 of 728 records disagree  [must be 0]
+BASELINE replay == pipeline obj (TimeDateStamp zeroed): False
+baseline leaders: 228
+
+KA-D  zero one reference-list edge (136 single-in-edge candidates)
+  lost=1 gained=0 exact=True  ??$?0VString@@@?$StlNodeAlloc@V?$_List_node@VString@@@st  <- ??0?$_List_base@VString@@V?$StlNodeA (x1)
+  lost=0 gained=0 exact=False  ??$MakeString@$$BY0BG@$$CBDH$$BY0L@$$CBD@@YAPBDPBDAAY0BG  <- ?Release@DataArray@@QAAXXZ (x1)  SURVIVOR: another root reaches it, or the entry is not the edge
+  lost=1 gained=0 exact=True  ??$MakeString@HH@@YAPBDPBDABH1@Z  <- ?PrintSymbolTable@@YA?AVDataNode@@PA (x3)
+  lost=1 gained=0 exact=True  ??$_Copy_Construct@P6AXXZ@stlpmtx_std@@YAXPAP6AXXZABQ6AX  <- ?_M_create_node@?$list@P6AXXZV?$StlN (x1)
+  lost=1 gained=0 exact=True  ??$_Copy_Construct@PBD@stlpmtx_std@@YAXPAPBDABQBD@Z  <- ?push_back@?$vector@PBDV?$StlNodeAll (x1)
+  KA-D 4/5
