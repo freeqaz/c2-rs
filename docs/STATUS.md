@@ -15,24 +15,24 @@ cost this project real work more than once.
 ## The numbers
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-04 · tree `84ec23e` · binary `a1d343441d40`
+Collected 2026-08-04 · tree `0f31191` · binary `fbc99e9444fb`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 677 passed, 0 failed, 25 targets |
-| Oracle self-test (c2rs selftest) | 216 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 100 port Match, 0 mismatch, 116 not-implemented (of 216) |
-| Port speedup, geomean over matched fixtures | 586x geomean over matched fixtures |
+| Workspace tests (cargo test --workspace --release) | 687 passed, 0 failed, 25 targets |
+| Oracle self-test (c2rs selftest) | 219 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 102 port Match, 0 mismatch, 117 not-implemented (of 219) |
+| Port speedup, geomean over matched fixtures | 640x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7 |
-| Per-function census (driver, not target) | 706402/2463318 functions in class (28.68%) |
-| Emitted-function census | 38457/178972 emitted functions in class (21.49%) |
-| Emitted-census residue | residue 9224: 1961 compiler-generated (no IL body), 7263 unexplained  (5.15% of the denominator) |
+| Per-function census (driver, not target) | 706555/2463393 functions in class (28.68%) |
+| Emitted-function census | 38458/178975 emitted functions in class (21.49%) |
+| Emitted-census residue | residue 9225: 1962 compiler-generated (no IL body), 7263 unexplained  (5.15% of the denominator) |
 | TU distance to match, blocked functions | ≤0: 1, ≤1: 12, ≤10: 27, ≤100: 34, ≤1000: 212 |
 | TU distance to match, blocked emitted functions | ≤0: 2, ≤1: 19, ≤10: 82, ≤100: 403, ≤1000: 858 |
 | Emit-set ceiling, LO-anchored (segments == COMDATs) | 27 of 871 graded TUs |
 | Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 871 graded TUs |
 | Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 420 repaired / 451 wall |
-| .gl binding invariants (records / arity / conflicts) | 1515163 records, 420 nameless, 0 before the first row, 39294 row-conflicts, 732 name-conflicts, 0 accounting breaks, 0 unreadable objs |
+| .gl binding invariants (records / arity / conflicts) | 1515167 records, 420 nameless, 0 before the first row, 39296 row-conflicts, 731 name-conflicts, 0 accounting breaks, 0 unreadable objs |
 
 <!-- END GENERATED -->
 
