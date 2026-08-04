@@ -283,7 +283,7 @@ Protocol requires the prereg before the measurement; it does not require me to
 pretend I built the instrument blind.  Before this commit I had:
 
 1. **Built and run the extended truth capture on a 5-TU pilot**
-   (`work/w-joint/pilot_idx.tsv`, the first five rows of the index:
+   (`work/w-joint/pilot_tus.txt`, the first five rows of the index:
    `src/App.cpp`, `src/ChecksumData_xbox.cpp`, `src/Main.cpp`,
    `src/Memory_Xbox.cpp`, `src/lazer/game/BustAMovePanel.cpp`).
    Its invariants read: INJ 0, TOT residue 0, AR A1/A2/A3 0/0/0,
