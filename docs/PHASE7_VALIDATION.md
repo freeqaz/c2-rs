@@ -113,9 +113,9 @@ thereby 94/94-correct, because each violation is a *class*, not an instance.
 | A3 virtual/multiple inheritance, thunks | 8 | 8 | 1 | 4 | 3 | 0 | axes2 |
 | A4 anonymous namespaces | 9 | 9 | 6 | 1 | 2 | 0 | axes2 |
 | A5 static/inline/extern "C" crossings | 9 | 9 | 8 | 0 | 1 | 0 | axes1 |
-| A6 multi-TU shared header | 8 | 18 | 17 | 1 | 0 | 0 | axes1 |
+| A6 multi-TU shared header | 8 | 17 | 16 | 1 | 0 | 0 | axes1 |
 | A7 pragma-created roots | 10 | 10 | 10 | 0 | 0 | 0 | axes1 |
-| A8 PCH `/Yc` `/Yu` | 8 | 14 | 13 | 1 | 0 | 0 | axes1 |
+| A8 PCH `/Yc` `/Yu` | 8 | 15 | 14 | 1 | 0 | 0 | axes1 |
 | A9 vtable kept without kept ctor (D6) | 9 | 9 | 5 | 4 | 0 | 0 | axes2 |
 | **total** | **78** | **94** | **75** | **12** | **7** | **0** |  |
 
@@ -124,6 +124,24 @@ violation is scored only after an independent re-derivation by an agent that
 has not seen the truth or the first agent's prediction. That re-derivation is
 **in progress** (§6). Until it lands, V6 is unsettled and no axis verdict here
 is final.
+
+### 3a″. One correction to axes1's per-axis object split
+
+axes1's `RESULTS.md` prints **A6 = 18 objs** and **A8 = 14 objs**. Re-counted
+by the lead from `grades.json`, which is machine-readable and authoritative:
+**A6 = 17** (8 cells: seven 2-obj cells plus `a6c7`'s three TUs) and
+**A8 = 15** (8 cells: `a8c1_yc_no_refs` is a `/Yc`-only cell with a single
+`pchgen.obj`, the rest are 2-obj pairs).
+
+The two errors are off-by-one in opposite directions, so **the 59-obj total,
+the 56/2/1 verdict counts, and every violation are unaffected**. The table
+above carries the corrected split; `axes1/RESULTS.md` is left as printed,
+per §0b's rule that dated records are not retrofitted.
+
+`grades.json` reproduces axes1's headline exactly: 59 records, **MATCH 56,
+VIOLATION 2, AMBIGUOUS 1**, with the two violations at
+`a6c5_shared_vtable_one_tu_constructs/tu2.obj` and
+`a8c5_extern_def_in_pch/user.obj` — the two cells the write-up names.
 
 ### 3a′. Evidence quality is not uniform across the two agents — note before quoting the table
 
