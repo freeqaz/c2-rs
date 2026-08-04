@@ -67,22 +67,22 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b27670	17		unknown	unknown	1	0	-
 10b27681	70		unknown	unknown	1	2	-
 10b276c7	29		unknown	unknown	1	1	-
-10b276e4	91		unknown	unknown	6	1	-
-10b2773f	79		unknown	unknown	1	0	-
-10b2778e	354		unknown	unknown	4	1	-
-10b278f0	166		unknown	unknown	2	1	-
+10b276e4	91		emit-marker	high	6	1	sets +0x4c|=0x20, recurses over the func record reference list [src:W-EMIT]
+10b2773f	79		emit-closure	high	1	0	additive fixpoint over the inline-candidate list; non-LTCG path [src:W-EMIT]
+10b2778e	354		emit-order	high	4	1	topological sort (callee before caller) of DAT_10c4630c [src:W-EMIT]
+10b278f0	166		emit-reachability	high	2	1	recursive reachability step; sets rec+0xb1 bit 0x4 [src:W-EMIT]
 10b27996	49		unknown	unknown	1	0	-
 10b279c7	34		unknown	unknown	2	0	-
 10b279e9	16		unknown	unknown	1	1	-
 10b279f9	51		unknown	unknown	1	0	-
 10b27a2c	288		unknown	unknown	2	6	str:%s is a recursive arc\n | %s -> 
 10b27b4c	51		unknown	unknown	4	2	-
-10b27b7f	416		unknown	unknown	1	5	str:INF:\t%s not allowed to be inlined (glob
+10b27b7f	416		emit-prune	high	1	5	LTCG pruner; clears +0x4c bit 0x20; "not allowed to be inlined (globally unreferenced)" [src:W-EMIT]
 10b27d1f	51		unknown	unknown	1	2	-
 10b27d52	41		unknown	unknown	1	1	-
 10b27d7b	42		unknown	unknown	1	1	-
 10b27da5	13		unknown	unknown	3	1	-
-10b27db2	32		unknown	unknown	3	1	-
+10b27db2	32		inline-candidate-reg	high	3	1	pushes a record onto DAT_10c3cf68, sets sym+0x80 [src:W-EMIT]
 10b27dd2	21		unknown	unknown	3	1	-
 10b27de7	21		unknown	unknown	1	1	-
 10b27dfc	13		unknown	unknown	3	1	-
@@ -92,35 +92,35 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b27e8b	60		unknown	unknown	2	1	-
 10b27ec7	87		unknown	unknown	2	3	-
 10b27f1e	30		unknown	unknown	1	0	-
-10b27f3c	400		unknown	unknown	1	7	-
+10b27f3c	400		emit-prune-driver	high	1	7	sets DAT_10c2e308=1; selects 10b2773f vs 10b27b7f on DAT_10c45f9c [src:W-EMIT]
 10b280cc	19		unknown	unknown	1	1	-
 10b280df	46		unknown	unknown	4	2	-
 10b2810d	40		unknown	unknown	1	3	-
 10b28135	49		unknown	unknown	1	3	-
-10b281af	34		unknown	unknown	0	1	-
+10b281af	34		coff-writer	high	0	1	sole _time64 caller; TimeDateStamp callback; returns 0 when DAT_10c2ead8 set [src:W-SECT]
 10b281d1	38		unknown	unknown	1	1	-
-10b281f7	32		unknown	unknown	1	0	-
+10b281f7	32		comdat	high	1	0	identity map 1..8 for the COMDAT Selection byte [src:W-SECT]
 10b2823b	38		unknown	unknown	2	0	-
-10b28261	163		unknown	unknown	1	0	-
-10b28304	172		unknown	unknown	1	0	-
-10b283b0	74		unknown	unknown	4	2	str:.data
+10b28261	163		section-select	high	1	0	alignment bytes -> IMAGE_SCN_ALIGN_* ((log2(a)+1)<<20) ladder 1..0x2000 [src:W-SECT]
+10b28304	172		section-select	high	1	0	inverse of 10b28261 [src:W-SECT]
+10b283b0	74		comdat	high	4	2	clones a section as COMDAT; forces literal ".data" when template kind==1 [src:W-SECT]
 10b283fa	207		unknown	unknown	2	2	-
-10b28548	62		unknown	unknown	1	1	-
-10b28586	548		unknown	unknown	1	10	str:e:\\bt\\278379\\vctools\\compiler\\be\\p | .drectve | DRECTVE
+10b28548	62		debug-symbol-gate	high	1	1	writes .debug$S records 0xb/0xc, gated on kind + flags37 0x200 + the emit bit [src:W-EMIT]
+10b28586	548		coff-writer	high	1	10	_wfopen_s(objpath,"wb"); Machine 0x1f2/0xc13; @comp.id; creates .drectve [src:W-SECT]
 10b287aa	14		unknown	unknown	0	1	-
-10b287b8	183		unknown	unknown	4	10	-
-10b2888e	48		unknown	unknown	5	4	-
+10b287b8	183		section-select	high	4	10	EmitSection: kind -> name/chars -> 10b291de or 10b2921c(chars|0x1000) [src:W-SECT]
+10b2888e	48		coff-writer	medium	5	4	emits section then pads raw data to sect[0x18] [src:W-SECT]
 10b288be	289		unknown	unknown	2	5	-
 10b289df	30		unknown	unknown	1	2	-
-10b289fd	46		unknown	unknown	0	3	-
-10b28a9b	724		unknown	unknown	2	12	str:/EXPORT: | ,DATA
+10b289fd	46		section-select	high	0	3	if (sect[0x53]&0xf00000)==0 then OR align(sect[0x43]) into emitted chars [src:W-SECT]
+10b28a9b	724		coff-symbol-writer	high	2	12	writes COFF symbols; marks alias targets; emits /EXPORT: directives [src:W-EMIT]
 10b29050	140		unknown	unknown	0	6	-
 10b290dc	207		unknown	unknown	1	3	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b291ab	6		unknown	unknown	1	0	-
-10b291b1	45		unknown	unknown	3	1	-
-10b291de	62		unknown	unknown	1	1	-
-10b2921c	76		unknown	unknown	1	1	-
-10b29268	21		unknown	unknown	1	1	-
+10b291b1	45		coff-writer	high	3	1	section-number ceiling check at 0xfeff [src:W-SECT]
+10b291de	62		coff-writer	high	1	1	non-COMDAT output-section descriptor ctor: +4 name, +8 chars, +0x10 index [src:W-SECT]
+10b2921c	76		comdat	high	1	1	COMDAT output-section descriptor ctor: +0x16 Selection, +0x18 assoc number [src:W-SECT]
+10b29268	21		coff-writer	high	1	1	ORs alignment bits into descriptor +8 (Characteristics) [src:W-SECT]
 10b2927d	59		unknown	unknown	0	1	-
 10b292b8	64		unknown	unknown	1	1	-
 10b292f8	19		unknown	unknown	2	1	-
@@ -130,7 +130,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b293b3	57		pdb-client	high	6	2	calls SigForPbCb; str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b293ec	80		unknown	unknown	1	0	-
 10b2943c	79		unknown	unknown	2	0	-
-10b2948b	104		unknown	unknown	2	0	-
+10b2948b	104		comdat	high	2	0	18-byte aux section-definition; Selection/Number only when chars&0x1000 [src:W-SECT]
 10b294f3	83		unknown	unknown	1	0	-
 10b29546	29		unknown	unknown	2	0	-
 10b29563	58		unknown	unknown	1	2	-
@@ -190,7 +190,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b2a124	106		unknown	unknown	3	3	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b2a18e	119		unknown	unknown	1	4	-
 10b2a205	96		unknown	unknown	1	2	-
-10b2a265	78		unknown	unknown	2	3	-
+10b2a265	78		coff-writer	high	2	3	symbol Name encoder: <=8 inline zero-padded else {0,strtab-offset} [src:W-SECT]
 10b2a2b3	359		unknown	unknown	1	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b2a41a	38		unknown	unknown	1	2	-
 10b2a440	287		unknown	unknown	5	4	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
@@ -206,17 +206,17 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b2a870	43		unknown	unknown	2	1	-
 10b2a89b	63		unknown	unknown	0	2	-
 10b2a8da	92		unknown	unknown	2	3	-
-10b2a936	1050		unknown	unknown	0	9	str:e:\\bt\\278379\\vctools\\compiler\\be\\p | .file
-10b2ad50	159		unknown	unknown	1	5	str:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn
+10b2a936	1050		coff-writer	high	0	9	fwrite 0x12 IMAGE_SYMBOL; ".file" memcpy 8, SectionNumber 0xfffe, StorageClass 0x67 [src:W-SECT]
+10b2ad50	159		coff-writer	high	1	5	8-byte Name encoder: '/'+decimal, '//'+base64 over the 64-char alphabet [src:W-SECT]
 10b2adef	31		unknown	unknown	0	2	-
-10b2ae0e	321		unknown	unknown	1	4	str:@comp.id
+10b2ae0e	321		coff-writer	high	1	4	latches Machine/FILE*/alloc/err/time callbacks into 0x10c44bf0..0x10c44c0c [src:W-SECT]
 10b2af4f	43		unknown	unknown	1	1	-
 10b2af7a	40		unknown	unknown	2	2	-
 10b2afa2	56		unknown	unknown	0	2	-
 10b2afda	78		unknown	unknown	0	2	-
 10b2b028	5	thunk_FUN_10b2adef	thunk	high	4	0	ghidra-resolved thunk: thunk_FUN_10b2adef
-10b2b02d	176		unknown	unknown	0	3	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
-10b2b0dd	787		unknown	unknown	0	12	str:e:\\bt\\278379\\vctools\\compiler\\be\\p | .cormeta
+10b2b02d	176		coff-writer	high	0	3	fwrite(buf,0x28,1) IMAGE_SECTION_HEADER; all 10 fields mapped [src:W-SECT]
+10b2b0dd	787		coff-writer	high	0	12	fseek n*0x28+0x14; BIGOBJ ClassID GUID at 0x10b01be4; fwrite 0x14/0x38 file header [src:W-SECT]
 10b2b3f0	94		unknown	unknown	1	3	-
 10b2b44e	991		unknown	unknown	1	8	-
 10b2b82d	126		unknown	unknown	3	0	-
@@ -339,7 +339,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b33536	41		unknown	unknown	1	0	-
 10b3355f	45		unknown	unknown	1	0	-
 10b3358c	187		unknown	unknown	1	1	-
-10b33647	638		unknown	unknown	1	14	-
+10b33647	638		emit-marker	high	1	14	tuple walk in dag.c; marks referenced function symbols [src:W-EMIT]
 10b338c5	48		unknown	unknown	4	4	-
 10b338f5	426		unknown	unknown	1	5	-
 10b33a9f	683		unknown	unknown	2	4	-
@@ -554,8 +554,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b3d36a	36		unknown	unknown	1	1	-
 10b3d38e	72		unknown	unknown	10	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b3d40a	260		unknown	unknown	13	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
-10b3d546	202		unknown	unknown	1	5	-
-10b3d610	834		unknown	unknown	1	21	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b3d546	202		il-reader	high	1	5	.ex type-word reader; attribute table 0x10b25f10 [src:W-IL]
+10b3d610	834		il-dispatch	high	1	21	.ex operand decode, class table 0x10b25e48, 29 arms [src:W-IL]
 10b3d9c8	53		unknown	unknown	1	0	-
 10b3d9fd	916		unknown	unknown	2	9	-
 10b3ddab	126		unknown	unknown	1	2	-
@@ -981,7 +981,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b58cd7	175		unknown	unknown	1	4	-
 10b58f60	198		unknown	unknown	1	5	-
 10b59026	8		unknown	unknown	1	0	-
-10b5902e	99		unknown	unknown	1	3	str:.rtc$TMZ | .rtc$IMZ | CONST
+10b5902e	99		section-select	high	1	3	creates .rtc$IMZ / .rtc$TMZ (both kind 4, group "CONST") [src:W-SECT]
 10b59091	284		unknown	unknown	1	11	str:CONST
 10b591ad	297		unknown	unknown	1	7	str:rtcName$ | %s%s%d
 10b592d6	731		unknown	unknown	1	8	str:$rtcFrameData | $rtcVarDesc
@@ -1003,8 +1003,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b5a2ff	29		unknown	unknown	2	0	-
 10b5a31c	69		unknown	unknown	4	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b5a361	56		unknown	unknown	1	1	-
-10b5a399	51		unknown	unknown	1	0	-
-10b5a3cc	51		unknown	unknown	4	1	-
+10b5a399	51		cse-hash	high	1	0	sibling of 10b5a3cc in the same 101-bucket table [src:W-HASH]
+10b5a3cc	51		cse-hash	high	4	1	CSE/value-number hash, % 0x65 (101 buckets) — this is what hash.c actually holds [src:W-HASH]
 10b5a3ff	54		unknown	unknown	4	0	-
 10b5a435	56		unknown	unknown	1	0	-
 10b5a46d	56		unknown	unknown	1	0	-
@@ -1358,7 +1358,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b70d3b	69		unknown	unknown	1	0	-
 10b70d98	38		unknown	unknown	2	1	str:; Line %ld
 10b70dbe	153		unknown	unknown	1	4	str: Listing generated by %s  | Microsoft (R) Optimizing Compiler Versio
-10b70e57	447		unknown	unknown	1	5	str: /QVMXReserve |  /QGPRReserve |  /RTC
+10b70e57	447		listing-writer	high	1	5	"Function compile flags:" line, p2/list.c [src:W-EMIT]
 10b71016	414		unknown	unknown	1	3	str: Instrs(%d) Bytes(%d) |  Out( |  Count(%I64d)
 10b711b4	209		unknown	unknown	1	5	str: %-5lu: %s
 10b71285	159		unknown	unknown	1	3	-
@@ -1369,7 +1369,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b71933	362		unknown	unknown	0	11	str:e:\\bt\\278379\\vctools\\compiler\\be\\p | FLAT: | ALIGN\t%s
 10b71cda	34		unknown	unknown	2	2	-
 10b71cfc	147		unknown	unknown	1	7	-
-10b71d8f	2311		unknown	unknown	1	28	str:; Estimated VMX IPC = %d/%d = %0.3f | ; Estimated IPC = %d/%d = %0.3f |  Scenario dead code below
+10b71d8f	2311		listing	medium	1	28	only reader of the -QXSTALLS global 0x10c2e988 [src:W-FLAG]
 10b72696	96		unknown	unknown	1	2	-
 10b726f6	18		unknown	unknown	1	0	-
 10b72708	49		unknown	unknown	1	1	-
@@ -1388,7 +1388,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b72b52	111		unknown	unknown	1	3	-
 10b72bc1	8		unknown	unknown	1	1	-
 10b72bc9	65		unknown	unknown	0	3	-
-10b72c0a	193		unknown	unknown	1	8	str:ILFILE | .cil$
+10b72c0a	193		section-select	medium	1	8	creates ".cil$"+name (kind 4, align 1) and streams a file into it [src:W-SECT]
 10b72ccb	73		unknown	unknown	1	0	-
 10b72d14	311		unknown	unknown	1	8	str:ILFILE | .cil$fg
 10b72e4b	94		only-from:msobj-client	medium	1	1	all 1 callers in cluster msobj-client
@@ -1473,7 +1473,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b73868	39		unknown	unknown	1	1	-
 10b7388f	48		unknown	unknown	1	0	-
 10b738bf	100		unknown	unknown	1	2	-
-10b73923	805		unknown	unknown	1	22	str:-compiler:
+10b73923	805		il-open	high	1	22	/GL driver: map gl, read argv, package all 5 streams into the obj [src:W-IL]
 10b73c48	709		only-from:msobj-client	medium	1	12	all 1 callers in cluster msobj-client
 10b73f0e	30		unknown	unknown	2	4	-
 10b73f2c	90		unknown	unknown	1	5	-
@@ -1483,8 +1483,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b74149	237		unknown	unknown	2	3	-
 10b74236	363		unknown	unknown	0	11	str:__security_check_cookie
 10b743a1	17		unknown	unknown	2	2	-
-10b743b2	518		unknown	unknown	2	6	-
-10b745b8	211		unknown	unknown	1	4	-
+10b743b2	518		il-open	high	2	6	mmap cache keyed on (path,off,len), LRU list at DAT_10c3cbe0 [src:W-IL]
+10b745b8	211		il-open	high	1	4	windowed remap, 8 slots, granularity-aligned offsets [src:W-IL]
 10b7468b	125		unknown	unknown	1	0	-
 10b74708	28		unknown	unknown	2	0	-
 10b74724	62		unknown	unknown	1	0	-
@@ -1685,30 +1685,30 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b7df57	219		unknown	unknown	1	7	-
 10b7e032	225		unknown	unknown	1	11	-
 10b7e113	177		unknown	unknown	4	5	-
-10b7e1c4	116		unknown	unknown	5	7	-
-10b7e238	31		unknown	unknown	1	0	-
+10b7e1c4	116		emit-finalize	medium	5	7	per-function/module emit teardown; clears DAT_10c472e8 [src:W-EMIT]
+10b7e238	31		argv-parse	high	1	0	next-argv callback; decrements 0x10c46324, advances 0x10c46320 [src:W-FLAG]
 10b7e257	31		unknown	unknown	2	2	-
-10b7e276	99		unknown	unknown	2	5	-
+10b7e276	99		il-open	high	2	5	suffix -> wide -> FUN_10c20038, or FUN_10b98fc4 when paged [src:W-IL]
 10b7e2d9	51		unknown	unknown	2	2	-
 10b7e30c	45		unknown	unknown	4	2	-
 10b7e339	275		unknown	unknown	0	6	str:%s[0x%p:0x%p] | e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b7e44d	163		unknown	unknown	0	4	str:%s[0x%p:0x%p] | e:\\bt\\278379\\vctools\\compiler\\be\\p
-10b7e4f0	251		unknown	unknown	1	13	str:MSC_CMD_FLAGS
+10b7e4f0	251		argv-parse	high	1	13	stores argv/argc into 0x10c46320/0x10c46324, reads %MSC_CMD_FLAGS%, calls 0x10b848dc [src:W-FLAG]
 10b7e616	110		unknown	unknown	1	7	-
 10b7e6af	106		unknown	unknown	1	9	-
-10b7e719	464		unknown	unknown	4	15	-
+10b7e719	464		il-body-reader	medium	4	15	returns the function body record or 0 [src:W-EMIT]
 10b7e8e9	450		unknown	unknown	1	21	-
 10b7eaab	481		unknown	unknown	1	15	-
 10b7ec8c	387		unknown	unknown	3	12	-
 10b7ee0f	28		unknown	unknown	7	0	-
 10b7ee2b	59		unknown	unknown	2	5	-
 10b7ee91	196		unknown	unknown	1	4	-
-10b7ef55	171		unknown	unknown	1	11	-
+10b7ef55	171		compile-one-function	high	1	11	reads the body from the IL and compiles it; called from the walk loop [src:W-EMIT]
 10b7f000	34		unknown	unknown	1	1	-
-10b7f1ff	837		unknown	unknown	1	31	-
+10b7f1ff	837		il-open	high	1	31	non-LTCG bundle reader: gl (mapped), then in, ex, sy; hosts the emit walk loop [src:W-FLAG]
 10b7f369	34		unknown	unknown	1	3	-
-10b7f3b6	49		unknown	unknown	1	5	-
-10b7f3e7	13		unknown	unknown	3	1	-
+10b7f3b6	49		entry	high	1	5	p2 main: argv latch, phase sequence; returns *0x10c2ea8c [src:W-FLAG]
+10b7f3e7	13		entry	high	3	1	p2 main trampoline -> 0x10b7f3b6 [src:W-FLAG]
 10b7f3f4	272		unknown	unknown	1	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b7f504	10		unknown	unknown	30	0	-
 10b7f50e	24		unknown	unknown	1	0	-
@@ -1740,7 +1740,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b804e8	101		unknown	unknown	2	2	-
 10b8054d	42		unknown	unknown	1	0	-
 10b80577	60		unknown	unknown	2	1	-
-10b805b3	166		unknown	unknown	2	5	-
+10b805b3	166		section-select	high	2	5	SetInitialData: sym[0x20]|=0x180, sym[0x1c]=cb, memcpy of the bytes [src:W-SECT]
 10b80659	179		unknown	unknown	1	6	-
 10b8070c	51		unknown	unknown	1	1	-
 10b8073f	108		unknown	unknown	1	1	-
@@ -1821,7 +1821,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b84844	2530		unknown	unknown	2	28	-
 10b84869	45		unknown	unknown	1	1	-
 10b84896	70		unknown	unknown	1	0	-
-10b848dc	1756		unknown	unknown	2	17	str:.asm | .cod
+10b848dc	1756		argv-parse	high	2	17	option driver: memset(0x10c40220,0,0xce0), match loop, C1007 at 0x10b84a95, options fold [src:W-FLAG]
 10b84fb8	33		unknown	unknown	2	0	-
 10b84fd9	230		unknown	unknown	1	4	-
 10b850bf	201		unknown	unknown	1	6	-
@@ -1855,7 +1855,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b88b5e	1819		unknown	unknown	1	18	-
 10b89279	258		unknown	unknown	3	3	-
 10b8937b	244		unknown	unknown	1	0	-
-10b8946f	194		unknown	unknown	10	4	-
+10b8946f	194		il-open	high	10	4	get-or-map cursor for stream kind k [src:W-IL]
 10b89531	233		unknown	unknown	2	1	-
 10b8961a	796		unknown	unknown	2	0	-
 10b89936	717		unknown	unknown	1	2	str:real (%d bytes) | logical (%d bytes) | bool
@@ -1874,8 +1874,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b89f47	73		unknown	unknown	1	0	-
 10b89f90	10		unknown	unknown	5	0	-
 10b89f9a	69		unknown	unknown	2	0	-
-10b89fdf	60		unknown	unknown	1	0	-
-10b8a01b	60		unknown	unknown	11	0	-
+10b89fdf	60		strhash	high	1	0	UTF-16 variant of 10b8a01b, identical fold over ushort* [src:W-HASH]
+10b8a01b	60		strhash	high	11	0	shift-9 xor-fold string hash: h=(h<<9)^((h>>14)&0x3fe00)^(int8_t)c; returns name[0] if fold==0 [src:W-HASH]
 10b8a057	106		unknown	unknown	1	0	-
 10b8a0c1	198		unknown	unknown	1	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b8a188	85		unknown	unknown	2	5	-
@@ -1884,7 +1884,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b8a3b5	182		unknown	unknown	2	3	-
 10b8a46b	31		unknown	unknown	1	1	-
 10b8a48a	92		unknown	unknown	3	3	-
-10b8a4e6	69		unknown	unknown	2	4	-
+10b8a4e6	69		emit-marker	medium	2	4	marks the alias target's +0x4c bit 0x20 [src:W-EMIT]
 10b8a52b	34		unknown	unknown	1	0	-
 10b8a54d	40		unknown	unknown	2	0	-
 10b8a575	197		unknown	unknown	2	0	-
@@ -1897,8 +1897,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b8a824	26		unknown	unknown	1	1	-
 10b8a83e	73		unknown	unknown	4	2	-
 10b8a887	126		unknown	unknown	1	4	-
-10b8a905	49		unknown	unknown	1	2	-
-10b8a936	210		unknown	unknown	1	4	-
+10b8a905	49		emit-marker	medium	1	2	entry wrapper for 10b8a4e6 [src:W-EMIT]
+10b8a936	210		emit-marker	high	1	4	reference-driven marking, p2/mod.c; gated on flags37 0x200000/0x400/0x800 [src:W-EMIT]
 10b8aa08	90		unknown	unknown	1	4	-
 10b8aa62	40		unknown	unknown	5	1	-
 10b8aa8a	59		unknown	unknown	1	1	-
@@ -2067,26 +2067,26 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b9745a	168		unknown	unknown	1	0	-
 10b97502	129		unknown	unknown	2	4	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b97584	153		unknown	unknown	1	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
-10b9761e	606		unknown	unknown	1	13	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b9761e	606		il-reader	high	1	13	0x4F sub-record reader, descriptor table 0x10b26268 [src:W-IL]
 10b9787d	85		unknown	unknown	1	0	-
 10b978d2	43		unknown	unknown	1	2	-
 10b978fd	187		unknown	unknown	1	2	-
 10b979b8	47		unknown	unknown	1	2	-
-10b979e7	59		unknown	unknown	1	0	-
-10b97a22	805		unknown	unknown	4	6	-
-10b97d47	137		unknown	unknown	2	7	-
-10b97dd0	28		unknown	unknown	25	1	-
+10b979e7	59		il-header	medium	1	0	cross-TU version comparison feeding C1047 [src:W-IL]
+10b97a22	805		il-header	high	4	6	.gl magic 0x11 / u16 0x0602 / 27-value version whitelist [src:W-IL]
+10b97d47	137		il-reader	medium	2	7	0x4F descriptor 0x0b payload [src:W-IL]
+10b97dd0	28		symtab-id	high	25	1	monotone symbol-id counter DAT_10c2edd0++ for c2-created symbols [src:W-HASH]
 10b97dfb	316		unknown	unknown	4	6	str:e:\\bt\\278379\\vctools\\compiler\\be\\p | [thunk]: | `adjustor
 10b97f37	97		unknown	unknown	1	0	-
 10b97f98	28		unknown	unknown	1	1	-
-10b97fb4	17		unknown	unknown	1	1	-
-10b97fc5	40		unknown	unknown	1	2	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b97fb4	17		strhash	high	1	1	wrapper: 10b8a01b(name) % 0x3fff, indexes DAT_10c6d08c [src:W-HASH]
+10b97fc5	40		strhash	medium	1	2	increments the 10b97fb4 bucket counter (saturating) [src:W-HASH]
 10b97fed	251		unknown	unknown	1	4	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b980e8	23		unknown	unknown	8	0	-
 10b980ff	8		unknown	unknown	7	1	-
 10b98107	25		unknown	unknown	3	0	-
 10b98120	8		unknown	unknown	1	1	-
-10b98128	21		unknown	unknown	1	1	-
+10b98128	21		symtab-init	high	1	1	initialises the 1024-bucket id table [src:W-HASH]
 10b9813d	15		unknown	unknown	1	0	-
 10b9814c	123		unknown	unknown	3	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10b981c7	54		unknown	unknown	3	0	-
@@ -2094,8 +2094,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b98210	65		unknown	unknown	1	2	-
 10b98251	44		unknown	unknown	7	1	-
 10b9827d	89		unknown	unknown	2	4	-
-10b982d6	385		unknown	unknown	4	2	str:.data | .xdata$x | .text$x
-10b98457	108		unknown	unknown	2	0	-
+10b982d6	385		section-select	high	4	2	kind switch -> (name, Characteristics); sect[0x53] override [src:W-SECT]
+10b98457	108		section-select	high	2	0	storage-class normaliser; test [sym+0x20],0x480 at 0x10b9849f decides .bss(6) vs .data(2) [src:W-SECT]
 10b984c3	119		unknown	unknown	14	3	-
 10b9853a	58		unknown	unknown	4	4	-
 10b98574	12		unknown	unknown	3	1	-
@@ -2117,8 +2117,8 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b98a99	7		unknown	unknown	1	1	-
 10b98aa0	8		unknown	unknown	4	1	-
 10b98aa8	88		unknown	unknown	3	0	-
-10b98b00	271		unknown	unknown	5	6	-
-10b98c0f	317		unknown	unknown	3	7	-
+10b98b00	271		emit-marker	high	5	6	static-initialiser walk; marks functions whose address appears in an initialiser [src:W-EMIT]
+10b98c0f	317		emit-marker	high	3	7	sibling of 10b98b00 [src:W-EMIT]
 10b98d4c	152		unknown	unknown	1	0	-
 10b98de4	66		unknown	unknown	2	1	-
 10b98e26	227		unknown	unknown	1	6	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
@@ -2126,12 +2126,12 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b98fb9	11		unknown	unknown	1	1	-
 10b98fc4	41		unknown	unknown	2	1	-
 10b98fed	166		unknown	unknown	1	4	-
-10b99093	263		unknown	unknown	1	8	-
+10b99093	263		bss-defer	high	1	8	drains the deferred dyninit list head-first — the source of the .bss reversal [src:W-HASH]
 10b9919a	36		unknown	unknown	2	1	-
-10b991be	444		unknown	unknown	2	3	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
-10b9937a	122		unknown	unknown	1	1	-
+10b991be	444		emit-order	medium	2	3	splices a sublist back into DAT_10c4630c [src:W-EMIT]
+10b9937a	122		emit-order	medium	1	1	partitions DAT_10c4630c on flags20 bit 0x400000 [src:W-EMIT]
 10b993f4	246		unknown	unknown	3	3	-
-10b994ea	196		only-from:pgo-client	medium	1	1	all 1 callers in cluster pgo-client
+10b994ea	196		symtab-lookup	high	1	1	name lookup by full scan of the 1024-bucket id table (or 16001-bucket DAT_10c47af0) [src:W-HASH]
 10b995ae	46		unknown	unknown	4	2	-
 10b995dc	162		unknown	unknown	2	1	-
 10b9967e	186		unknown	unknown	8	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
@@ -2139,21 +2139,21 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b99740	471		unknown	unknown	1	11	str:Decorated
 10b99917	64		unknown	unknown	2	0	-
 10b99957	32		unknown	unknown	1	1	-
-10b99977	123		unknown	unknown	10	4	-
+10b99977	123		symtab-lookup	high	10	4	lookup by integer id in the 1024-bucket table [src:W-HASH]
 10b999f2	58		unknown	unknown	3	1	-
 10b99a2c	11		unknown	unknown	5	1	-
-10b99a37	872		unknown	unknown	1	15	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b99a37	872		il-reader	medium	1	15	.in sub-record reader [src:W-IL]
 10b99d9f	36		unknown	unknown	5	2	-
 10b99dc3	8		unknown	unknown	21	1	-
 10b99dcb	51		unknown	unknown	1	3	-
 10b99dfe	682		unknown	unknown	3	6	str:e:\\bt\\278379\\vctools\\compiler\\be\\p | __unwind$ | __catch$
 10b9a0a8	56		unknown	unknown	2	0	-
-10b9a0e0	99		unknown	unknown	8	3	-
-10b9a143	733		unknown	unknown	12	10	str:CONST
+10b9a0e0	99		symtab-insert	high	8	3	insert into DAT_10c6c068: bucket = sym[10] & 0x3ff, chain at offset 0, HEAD insertion [src:W-HASH]
+10b9a143	733		section-select	high	12	10	assigns sym[0xc] to .bss/.data/.rdata globals; COMDAT selection for new COMDATs [src:W-SECT]
 10b9a420	53		unknown	unknown	1	1	-
 10b9a455	54		unknown	unknown	86	3	-
 10b9a48b	28		unknown	unknown	9	1	-
-10b9a4a7	190		unknown	unknown	1	4	-
+10b9a4a7	190		section-select	medium	1	4	synthetic-datum builder; corroborates sym[0x20]=0x180/sym[0x1c]=size [src:W-SECT]
 10b9a565	356		unknown	unknown	1	6	-
 10b9a6c9	41		unknown	unknown	1	1	-
 10b9a6f2	181		unknown	unknown	1	4	-
@@ -2162,7 +2162,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b9a7e5	51		unknown	unknown	19	3	-
 10b9a818	120		unknown	unknown	7	5	-
 10b9a890	7	thunk_FUN_10b99dfe	thunk	high	7	1	ghidra-resolved thunk: thunk_FUN_10b99dfe
-10b9a897	529		unknown	unknown	2	12	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b9a897	529		symtab-intern	high	2	12	name->symbol intern; 128-slot open-address cache DAT_10c67db8, idx=hash&0x7f, linear probe [src:W-HASH]
 10b9aaa8	400		unknown	unknown	14	3	-
 10b9ac38	122		unknown	unknown	1	3	-
 10b9acb2	18		unknown	unknown	2	1	-
@@ -2170,14 +2170,14 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b9acfa	388		unknown	unknown	9	14	-
 10b9ae7e	11		unknown	unknown	29	1	-
 10b9ae89	11		unknown	unknown	1	1	-
-10b9ae94	422		unknown	unknown	2	13	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b9ae94	422		il-dispatch	high	2	13	.in/.db record loop, 1-byte tag, compare chain [src:W-IL]
 10b9b03b	294		unknown	unknown	6	7	-
-10b9b161	1137		unknown	unknown	4	18	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b9b161	1137		il-reader	medium	4	18	.sy per-function symbol reader (seek target) [src:W-IL]
 10b9b5d2	210		unknown	unknown	3	6	-
-10b9b6a4	262		unknown	unknown	4	8	-
-10b9b7aa	226		unknown	unknown	1	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
-10b9b88d	92		unknown	unknown	1	2	-
-10b9b8e9	3307		unknown	unknown	3	48	str:e:\\bt\\278379\\vctools\\compiler\\be\\p | .tls$
+10b9b6a4	262		bss-defer	medium	4	8	head-inserts onto DAT_10c2f064 (LIFO); paired with 10b99093 [src:W-HASH]
+10b9b7aa	226		symtab-intern	high	1	5	same 128-slot cache; creates an external symbol via 10b9b6a4 [src:W-HASH]
+10b9b88d	92		il-dispatch	high	1	2	drives FUN_10b9ae94 over every TU's .in [src:W-IL]
+10b9b8e9	3307		il-symbol-reader	high	3	48	p2symtab .gl record reader; reads the emit flag word +0x4c at 10b9bf70 [src:W-EMIT]
 10b9c630	37		unknown	unknown	13	1	-
 10b9c655	48		unknown	unknown	29	1	-
 10b9c685	49		unknown	unknown	1	1	-
@@ -2530,7 +2530,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bae5db	310		unknown	unknown	1	11	-
 10bae711	82		unknown	unknown	1	5	str:Trace formation
 10bae763	56		pgo-client	high	1	3	calls PogoDbGetErrorText,PogoDbGetLastError
-10bae79c	513		pgo-client	high	1	13	calls PogoDbCreateGlobalStreams,PogoDbGenerateModuleName,PogoDbGetDllVersion,PogoDbGetLastError; str:_LTCG_
+10bae79c	513		pgo	high	1	13	NOT COFF: PogoDbOpen/ReadHeader; the 0x1f2 at 0x10bae868 is a pgodb field [src:W-SECT]
 10bae99d	29		unknown	unknown	5	1	-
 10bae9ef	6		only-from:pgo-client	medium	1	0	all 1 callers in cluster pgo-client
 10bae9f5	13		unknown	unknown	5	0	-
@@ -2780,7 +2780,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bbc864	121		unknown	unknown	1	4	-
 10bbc8fe	125		unknown	unknown	1	3	-
 10bbc97b	48		unknown	unknown	1	2	-
-10bbc9ab	85		unknown	unknown	3	3	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10bbc9ab	85		il-dispatch	high	3	3	.ex opcode fetch; 0x4D = end of stream, 0xFF = C1001 [src:W-IL]
 10bbca00	47		unknown	unknown	2	1	-
 10bbca2f	153		unknown	unknown	3	0	-
 10bbcac8	109		unknown	unknown	2	5	-
@@ -2853,9 +2853,9 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bc2949	700		unknown	unknown	1	16	-
 10bc2c05	237		unknown	unknown	1	8	-
 10bc2cf2	12		unknown	unknown	1	0	-
-10bc2d7a	5080		unknown	unknown	4	78	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10bc2d7a	5080		il-dispatch	high	4	78	reader.c record->codegen walk, table 0x10bc4152, ops 0x01..0xBD [src:W-IL]
 10bc4307	1010		unknown	unknown	1	17	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
-10bc4715	1059		unknown	unknown	2	27	-
+10bc4715	1059		il-reader	high	2	27	per-function: seek .sy@+0x58 then .ex@+0x54, then codegen [src:W-IL]
 10bc4b38	105		unknown	unknown	2	0	-
 10bc4ba1	27		unknown	unknown	1	1	-
 10bc4bbc	45		unknown	unknown	1	0	-
@@ -3793,39 +3793,39 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10be738e	57		unknown	unknown	3	1	-
 10be73cc	87		unknown	unknown	3	0	-
 10be7423	80		unknown	unknown	1	0	-
-10be7473	92		unknown	unknown	14	4	-
-10be74cf	131		unknown	unknown	5	4	-
-10be7552	124		unknown	unknown	2	5	-
+10be7473	92		section-select	high	14	4	CreateSection(name,group,idx,kind) -> non-COMDAT; queries 10b982d6, chars at +0x53 [src:W-SECT]
+10be74cf	131		comdat	high	5	4	CreateComdatSection(...): sets +0x4c=7, +0x63=selection, +0x5f=base [src:W-SECT]
+10be7552	124		section-select	high	2	5	the only runtime name composer: strips at '$', appends "$zz"/"$zy" [src:W-SECT]
 10be75ce	16		unknown	unknown	5	0	-
-10be75de	101		unknown	unknown	2	1	str:DEBSYM
-10be7643	101		unknown	unknown	2	1	str:DEBTYP
-10be76a8	44		unknown	unknown	4	2	str:PDATA
-10be76d4	19		unknown	unknown	4	0	-
-10be76e7	64		unknown	unknown	1	1	-
-10be7727	124		unknown	unknown	3	2	str:.drectve | .text | .rdata
-10be77a3	53		unknown	unknown	2	0	-
+10be75de	101		section-select	high	2	1	creates .debug$S (group "DEBSYM", kind 0x13) [src:W-SECT]
+10be7643	101		section-select	high	2	1	creates the DEBTYP section (default name "$$TYPES", kind 0x14) [src:W-SECT]
+10be76a8	44		section-select	high	4	2	creates .pdata (group "PDATA", align 4) [src:W-SECT]
+10be76d4	19		section-select	high	4	0	base-section accessor: COMDAT non-associative -> sect[0x5f], else self [src:W-SECT]
+10be76e7	64		section-select	high	1	1	$-aware name prefix match: equal, or next char is '$' [src:W-SECT]
+10be7727	124		section-select	high	3	2	returns sect[0x4d]; re-maps kinds 1/0x1d by name prefix [src:W-SECT]
+10be77a3	53		section-select	high	2	0	alignment picker by section kind [src:W-SECT]
 10be77d8	137		unknown	unknown	2	3	str:/include:__C2_11886 | /include:__CAP_Exit_Function | /include:__CAP_Enter_Function
 10be7861	36		unknown	unknown	1	3	-
 10be7885	35		unknown	unknown	2	1	-
 10be78a8	165		unknown	unknown	12	4	-
-10be794d	173		unknown	unknown	3	5	-
-10be79fa	175		unknown	unknown	2	5	-
+10be794d	173		section-select	medium	3	5	creates <base>$zz COMDAT-ordering section (kind 0x1b), PGO-gated [src:W-SECT]
+10be79fa	175		section-select	medium	2	5	creates <base>$zy COMDAT-ordering section (kind 0x20), PGO-gated [src:W-SECT]
 10be7aa9	94		unknown	unknown	1	3	-
-10be7b07	68		unknown	unknown	2	4	-
-10be7b4b	44		unknown	unknown	1	2	str:XDATA
+10be7b07	68		section-select	high	2	4	creates .text -> g_state[0x2cc] [src:W-SECT]
+10be7b4b	44		section-select	high	1	2	creates .xdata (group "XDATA", align 4) [src:W-SECT]
 10be7b77	39		unknown	unknown	1	0	-
-10be7b9e	234		unknown	unknown	1	5	str:CONST
+10be7b9e	234		section-select	high	1	5	creates .data/.rdata/.bss/.tls$ and latches 0x10c45f88..0x10c45f98 [src:W-SECT]
 10be7c88	39		unknown	unknown	5	0	-
 10be7caf	39		unknown	unknown	3	0	-
 10be7cd6	80		unknown	unknown	3	0	-
 10be7d26	80		unknown	unknown	5	0	-
 10be7d76	245		unknown	unknown	1	10	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
-10be7e81	397		unknown	unknown	0	14	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10be7e81	397		il-open	high	0	14	db stream driver, gated on TU[0x336]&0x2000 [src:W-IL]
 10be800f	520		unknown	unknown	2	3	str:DGROUP
 10be8217	5	thunk_FUN_10b737cb	thunk	high	3	0	ghidra-resolved thunk: thunk_FUN_10b737cb
 10be821c	24		only-from:msobj-client	medium	2	0	all 2 callers in cluster msobj-client
 10be8234	179		only-from:msobj-client	medium	1	3	all 1 callers in cluster msobj-client
-10be82e7	388		msobj-client	high	1	9	calls FCreateFromBytesW
+10be82e7	388		obj-reader	high	1	9	sole msobj FCreateFromBytesW caller; CreateFileW GENERIC_READ + vtable iteration only [src:W-SECT]
 10be846b	55		unknown	unknown	2	0	-
 10be84a2	40		unknown	unknown	2	1	-
 10be84ca	308		unknown	unknown	1	0	-
@@ -3947,19 +3947,19 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10beba20	155		unknown	unknown	1	4	-
 10bebd24	508		unknown	unknown	1	20	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10bebf21	29		unknown	unknown	1	1	-
-10bebf3e	165		unknown	unknown	3	6	-
-10bebffd	248	_InvokeCompilerPass@12	unknown	unknown	0	9	-
-10bec133	84	_InvokeCompilerPassW@16	unknown	unknown	0	4	-
+10bebf3e	165		entry	medium	3	6	guard called first by both Invoke entries; nonzero return skips the pass [src:W-FLAG]
+10bebffd	248	_InvokeCompilerPass@12	entry	high	0	9	export _InvokeCompilerPass@12; ANSI->wide argv widening, calls 0x10b7f3e7 [src:W-FLAG]
+10bec133	84	_InvokeCompilerPassW@16	entry	high	0	4	export _InvokeCompilerPassW@16; latches *param_4 as in/out status, calls 0x10b7f3e7 [src:W-FLAG]
 10bec1cf	38		unknown	unknown	2	2	-
 10bec1f5	49		unknown	unknown	1	2	-
 10bec226	22		unknown	unknown	1	1	-
 10bec23c	91		unknown	unknown	1	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10bec297	15		unknown	unknown	15	1	-
 10bec2a6	6		unknown	unknown	1	0	-
-10bec2ac	187	_AbortCompilerPass@4	unknown	unknown	0	5	str: Abort complete.\n | Compiler terminating.  Please wait.
+10bec2ac	187	_AbortCompilerPass@4	entry	high	0	5	export _AbortCompilerPass@4; semaphore 0x10c37d30, "Compiler terminating.", ExitProcess(0x8000) [src:W-FLAG]
 10bec367	108		unknown	unknown	1	1	-
 10bec3d3	55		unknown	unknown	2	3	str:__ltcg.obj
-10bec40a	122	DllGetObjHandler	unknown	unknown	0	4	-
+10bec40a	122	DllGetObjHandler	entry	high	0	4	export DllGetObjHandler; two 16-byte ID compares, COM HRESULTs, operator new(0x20) [src:W-FLAG]
 10bec484	32		unknown	unknown	0	1	-
 10bec4a4	50		unknown	unknown	2	1	-
 10bec4d6	32		unknown	unknown	0	1	-
@@ -4118,7 +4118,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bf7a0e	265		unknown	unknown	3	10	-
 10bf7b17	8		unknown	unknown	1	1	-
 10bf7b1f	314		unknown	unknown	1	8	-
-10bf7c59	4569		unknown	unknown	1	97	str:setjmp | _setjmpex | e:\\bt\\278379\\vctools\\compiler\\be\\p
+10bf7c59	4569		ppc-codegen	high	1	97	xrefs ppc/code.c; never touches DAT_10c46310 — PPC instruction selection, NOT the IL reader [src:W-IL]
 10bf958a	316		unknown	unknown	2	6	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10bf96c6	19		unknown	unknown	4	0	-
 10bf96d9	17		unknown	unknown	1	0	-
@@ -4134,7 +4134,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10bf98ec	943		unknown	unknown	1	2	-
 10bf9e55	96		unknown	unknown	1	1	-
 10bf9eb5	96		unknown	unknown	1	1	-
-10bf9f15	3861		unknown	unknown	2	13	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10bf9f15	3861		ppc-codegen	high	2	13	same region, same reasoning [src:W-IL]
 10bfb00d	237		unknown	unknown	1	2	-
 10bfb0fa	117		unknown	unknown	1	3	-
 10bfb16f	146		unknown	unknown	1	2	-
@@ -4374,17 +4374,17 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c0f882	686		unknown	unknown	10	44	-
 10c0fc83	510		unknown	unknown	1	9	-
 10c0fe81	3580		unknown	unknown	3	41	-
-10c10c7d	20		unknown	unknown	2	1	str:\tORG $%+ld
+10c10c7d	20		listing-writer	high	2	1	.cod file header (TITLE/.PPC/.MODEL FLAT/ORG) [src:W-EMIT]
 10c10c91	3		unknown	unknown	1	0	-
-10c10cf1	130		unknown	unknown	1	4	str:; End code for function: 
-10c10d73	509		unknown	unknown	1	8	str:DCD 0x%x | DCD |%s|
+10c10cf1	130		listing-writer	high	1	4	.cod per-function epilogue (End code for function) [src:W-EMIT]
+10c10d73	509		listing-writer	high	1	8	per-instruction .cod line writer, p2/ppc/mdlist.c [src:W-EMIT]
 10c10f70	94		unknown	unknown	1	0	-
 10c10fce	146		unknown	unknown	1	3	str:%s = %ld | tv%d = %ld | size = %ld
 10c11060	54		unknown	unknown	2	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10c11096	190		unknown	unknown	0	3	str:%02x%02x | %05lx
 10c111a2	42		unknown	unknown	1	1	-
 10c111cc	77		unknown	unknown	1	2	str:; Start of %sloop | cold 
-10c11219	285		unknown	unknown	1	8	str:; Begin code for function:  | COMDAT | PROC NEAR
+10c11219	285		listing-writer	high	1	8	.cod per-function prologue (Begin code for function/PROC NEAR/COMDAT) [src:W-EMIT]
 10c11336	59		unknown	unknown	1	0	-
 10c11371	10		unknown	unknown	1	2	-
 10c1137b	28		unknown	unknown	1	0	-
@@ -4418,7 +4418,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c12456	31		unknown	unknown	3	2	-
 10c12475	123		unknown	unknown	1	1	-
 10c124f0	60		unknown	unknown	1	0	-
-10c1252c	144		unknown	unknown	1	6	str:__C2_11886 | .XBLD$W
+10c1252c	144		section-select	high	1	6	creates .XBLD$W and the __C2_11886 build-stamp symbol [src:W-SECT]
 10c125bc	40		unknown	unknown	2	0	-
 10c125e4	394		unknown	unknown	1	7	-
 10c127b9	174		unknown	unknown	1	5	-
@@ -4632,58 +4632,58 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c1e9b5	589		unknown	unknown	3	6	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
 10c1ec02	71		unknown	unknown	1	3	-
 10c1ec49	28		unknown	unknown	1	1	-
-10c1ec65	530		unknown	unknown	3	12	str:e:\\bt\\278379\\vctools\\compiler\\be\\c |  %c%d:  | fatal error
+10c1ec65	530		diagnostics	high	3	12	fatal error / error / warning formatter [src:W-IL]
 10c1ee77	6		unknown	unknown	1	1	-
-10c1ee7d	57		unknown	unknown	2	2	-
-10c1eeb6	28		unknown	unknown	36	2	-
+10c1ee7d	57		diagnostics	high	2	2	adds the +1000 C-number base (lea ecx,[esi+0x3e8]) [src:W-IL]
+10c1eeb6	28		diagnostics	high	36	2	Fatal(code): 0x10c1ee7d(code,...) then noreturn 0x10b7e257 [src:W-FLAG]
 10c1eed2	22		unknown	unknown	1	1	-
-10c1eee8	68		unknown	unknown	2	2	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
+10c1eee8	68		diagnostics	high	2	2	path-length guard; raises 0x51 (C1081) [src:W-FLAG]
 10c1ef2c	67		unknown	unknown	1	3	-
 10c1ef6f	20		unknown	unknown	25	1	-
 10c1ef83	297		unknown	unknown	2	6	str:e:\\bt\\278379\\vctools\\compiler\\be\\c | object | executable
 10c1f0ac	24		unknown	unknown	28	1	-
 10c1f0c4	24		unknown	unknown	1	1	-
-10c1f0dc	72		unknown	unknown	4	3	-
+10c1f0dc	72		diagnostics	high	4	3	C1083 raise: FUN_10c1f0dc(0x53, msg 0xd3, path) [src:W-IL]
 10c1f125	30		unknown	unknown	1	0	str:compiler intermediate | compiler generated
 10c1f143	120		unknown	unknown	1	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
 10c1f1bb	162		unknown	unknown	2	7	str:fatal error C1510: Cannot load language 
 10c1f25d	68		unknown	unknown	2	2	-
 10c1f2a1	26		unknown	unknown	0	2	-
-10c1f2bb	22		unknown	unknown	3	2	-
+10c1f2bb	22		diagnostics	medium	3	2	message-text lookup by number [src:W-FLAG]
 10c1f2d1	123		unknown	unknown	1	0	-
-10c1f34c	125		unknown	unknown	1	5	-
-10c1f3c9	76		unknown	unknown	1	0	-
+10c1f34c	125		flag-table	high	1	5	wide string -> long, used by kind 0x24 and the 0x23 sub-table [src:W-FLAG]
+10c1f3c9	76		flag-table	medium	1	0	wildcard compare, reached only from the '*' pattern branch [src:W-FLAG]
 10c1f415	83		unknown	unknown	1	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
-10c1f469	264		unknown	unknown	1	4	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
-10c1f572	468		unknown	unknown	1	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
-10c1f746	188		unknown	unknown	1	2	-
+10c1f469	264		argv-parse	medium	1	4	tokenises MSC_CMD_FLAGS through the same matcher [src:W-FLAG]
+10c1f572	468		flag-table	high	1	5	applier: switch on byte +9 (0x01/0x05/0x08/0x22/0x23/0x24/0x26/0x27) [src:W-FLAG]
+10c1f746	188		flag-table	high	1	2	matcher: 12-byte stride, terminator on byte +9, '-'/'#'/'*' rules, returns byte +8 [src:W-FLAG]
 10c1f802	118		pdb-client	high	1	4	calls PDBOpen2W
 10c1f878	10		pdb-client	high	1	1	calls PDBClose
 10c1f882	122		pdb-client	high	1	6	calls PDBOpenStream,StreamQueryCb,StreamRead,StreamRelease
-10c1f8fc	14		unknown	unknown	11	0	-
-10c1f90a	17		unknown	unknown	4	0	-
-10c1f91b	95		unknown	unknown	6	0	-
-10c1f97a	44		unknown	unknown	1	0	-
-10c1f9a6	67		unknown	unknown	9	0	-
-10c1f9e9	95		unknown	unknown	7	0	-
+10c1f8fc	14		il-read	high	11	0	GetByte [src:W-IL]
+10c1f90a	17		il-read	high	4	0	skip a high-bit-continuation value [src:W-IL]
+10c1f91b	95		il-read	high	6	0	varU, bit-15 continuation [src:W-IL]
+10c1f97a	44		il-read	high	1	0	GetU16 raw LE [src:W-IL]
+10c1f9a6	67		il-read	high	9	0	i16c, 0x80 escape [src:W-IL]
+10c1f9e9	95		il-read	high	7	0	i32c, 0x80 escape [src:W-IL]
 10c1fa48	159		unknown	unknown	1	0	-
-10c1fae7	164		unknown	unknown	2	0	-
-10c1fb8b	73		unknown	unknown	3	0	-
-10c1fbd4	134		unknown	unknown	2	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
-10c1fc5b	48		unknown	unknown	3	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
-10c1fc8c	29		unknown	unknown	7	0	-
-10c1fca9	69		unknown	unknown	1	2	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
+10c1fae7	164		il-read	high	2	0	i64c, 0x80 escape [src:W-IL]
+10c1fb8b	73		il-read	high	3	0	GetU32 raw LE [src:W-IL]
+10c1fbd4	134		il-read	high	2	5	NUL string + MultiByteToWideChar(CP_UTF8) [src:W-IL]
+10c1fc5b	48		il-read	high	3	1	bounded NUL-terminated string [src:W-IL]
+10c1fc8c	29		il-read	high	7	0	raw n bytes [src:W-IL]
+10c1fca9	69		il-read	high	1	2	i16c-counted byte run [src:W-IL]
 10c1fcef	29		unknown	unknown	1	1	-
-10c1fd0c	64		unknown	unknown	2	3	-
-10c1fd4c	31		unknown	unknown	4	1	-
-10c1fd6b	212		unknown	unknown	1	7	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
+10c1fd0c	64		il-open	high	2	3	mmap-failure -> errno + C1083 [src:W-IL]
+10c1fd4c	31		il-open	high	4	1	UnmapViewOfFile + zero the cursor triple [src:W-IL]
+10c1fd6b	212		il-open	high	1	7	same suffix append but _wfopen_s; /GL packaging path only [src:W-IL]
 10c1fe40	93		unknown	unknown	2	0	-
 10c1fe9d	38		unknown	unknown	2	0	-
 10c1fec3	20		unknown	unknown	1	1	-
 10c1fed7	24		unknown	unknown	1	1	-
 10c1feef	32		unknown	unknown	1	1	-
-10c1ff0f	297		unknown	unknown	3	7	-
-10c20038	186		unknown	unknown	4	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\c
+10c1ff0f	297		il-open	high	3	7	CreateFileW+CreateFileMappingW+MapViewOfFile; the IL mapper [src:W-IL]
+10c20038	186		il-open	high	4	5	wcscpy_s+wcscat_s base+suffix then mmap; fills {cur,base,size} [src:W-IL]
 10c200f3	20		unknown	unknown	13	2	-
 10c20107	55		unknown	unknown	7	2	-
 10c2013e	73		unknown	unknown	1	1	-
@@ -4835,9 +4835,9 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c274df	13		unknown	unknown	5	1	-
 10c274ec	30		unknown	unknown	1	0	-
 10c2750a	48		unknown	unknown	3	0	-
-10c2753a	47		unknown	unknown	10	2	-
+10c2753a	47		data-alloc	high	10	2	sibling initialised-data bump on DAT_10c2e31c [src:W-HASH]
 10c27569	20		unknown	unknown	1	0	-
-10c2757d	42		unknown	unknown	2	0	-
+10c2757d	42		bss-alloc	high	2	0	.bss bump allocator on DAT_10c2e320: align 8, then +(8-size) fixup for size in {1,2,4} [src:W-HASH]
 10c275a7	167		unknown	unknown	1	2	-
 10c2764e	89		unknown	unknown	1	5	-
 10c276a7	14		unknown	unknown	4	0	-
@@ -4855,7 +4855,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c27993	36		unknown	unknown	1	1	-
 10c279b7	369		unknown	unknown	2	3	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10c27b28	46		unknown	unknown	1	2	-
-10c27b56	326		unknown	unknown	7	5	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10c27b56	326		bss-alloc	high	7	5	stores the allocated address to sym+0x18, sets first-touch done-flag 0x800 [src:W-HASH]
 10c27c9c	162		unknown	unknown	3	4	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
 10c27d3f	61		unknown	unknown	1	2	-
 10c27d7c	328		unknown	unknown	1	8	str:__security_cookie
@@ -4871,7 +4871,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10c2832b	100		unknown	unknown	1	4	-
 10c2838f	89		msdis-client	high	0	2	calls PvClient
 10c283e8	89		msdis-client	high	0	2	calls PvClient
-10c28475	85		msdis-client	high	1	2	calls CchFormatInstr,PvClientSet
+10c28475	85		listing-formatter	high	1	2	wraps DIS::CchFormatInstr; sole importer [src:W-EMIT]
 10c28518	522	__CRT_INIT@12	unknown	unknown	1	10	-
 10c28722	240	___DllMainCRTStartup	unknown	unknown	1	5	-
 10c2882d	11		unknown	unknown	1	0	-
