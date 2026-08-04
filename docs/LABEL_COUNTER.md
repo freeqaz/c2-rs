@@ -330,6 +330,94 @@ already a rule fitted to two of three loop forms.
 > is special" and no "+5". §6 replaces this row with a law tested on 74 probe
 > families, and `scripts/gt_label_inline.py` re-runs the refutation.
 
+### The `for` rows are right and are easy to re-derive WRONG — read the `minted` column
+
+**Added 2026-08-04 (lane `w-label`, `docs/rungs/2026-08-04-w-label.md` §2.5;
+transcribed here by `w-book4` because §4 is where the number gets quoted from).**
+
+The table above records `for` at **+2** and nested `for` at **+4** at `/O1`. A
+fresh worktree measuring the same two shapes reads **+4** and **+6**, and the
+lane that did so **got +4 first and believed it**. The whole difference is the
+`__savegprlr_29`/`__restgprlr_29` pair those loop bodies oblige — §1.1's **+2**,
+visible as `minted 7` against the ordinary `minted 5`. Subtract it and the
+numbers are §4's exactly.
+
+> **The surcharge is `stride − base − (minted − 5)`, not `stride − base`.** A
+> loop body that spills callee-saved registers pays a `minted` surcharge for the
+> helper pair *and* a control-flow surcharge, and reading the difference of two
+> strides charges the first one twice.
+
+§4's rows are right. The `minted` column is what keeps them honest, and it is the
+column a re-derivation is most likely to drop, because a probe that has no helper
+pair does not need it and every probe *with* a loop does.
+
+---
+
+## 4.1 The control-flow surcharge is derivable from NEITHER the obj NOR the seed
+
+**Added 2026-08-04. Lane `w-label`, `docs/rungs/2026-08-04-w-label.md` §2.4,
+`work/w-label/{cflabels,cfdis,cftargets,ilseed}.py`. Board #286 and #287.**
+
+This is the most consequential negative result in this document, because it
+closes the route everyone reaches for first.
+
+**Not a function of the emitted object.** `ho-ternary`
+(`int P(int a,int b){ return gp(a ? b : b+1) + 1; }`) and `cf-ifelse` are **the
+same emitted shape** — a `bc` over a two-word block into a **shared `bl`**, i.e.
+`CFG_SHAPE.md` §3.4.1's `d_join` exactly: same block skeleton, same branch kind,
+same predecessor structure. They charge **+2** and **+1**.
+
+> **So no amount of reading the port's own output recovers the counter.**
+> *"Derive the surcharge from the blocks"* is **closed as a route**, not merely
+> unattempted.
+
+`ho-ternary` is also **forward-only** (`cfdis.py`: one `bc` at 0x14 → 0x1c, no
+backward word), which is why it refuted w-label's own registered bound —
+forward-only is *necessary* and nowhere near *sufficient*, and three forward-only
+cells charge.
+
+**Not in the `.gl` label seed either — looked for, not found.** `ilseed.py` reads
+`u32(.gl[7..11])` (`coff::LABEL_SEED_GAP`) for the decisive pairs:
+
+```text
+  cf-none      2547     cf-if2      2550  (+0)     cf-dowhile   2551  (+1)
+  ho-ternary   2548     cf-ifelse   2550  (+1)     cf-while     2551  (+2)
+```
+
+`cf-if2` and `cf-ifelse` **share a seed and differ by +1**; `cf-dowhile` and
+`cf-while` **share a seed and differ by +1**. The seed is **one TU-level number**
+and does not carry a per-function surcharge. Ruled out **by measurement, not by
+argument**.
+
+**What is left.** A **per-function `.ex` field** is the only unexamined channel,
+and it is open — `IlFunction::label_lead` derives every surcharge it knows from
+body *shape*, never from a field, so if such a field exists nobody has found it.
+Consequently:
+
+> **The port cannot model the control-flow surcharge from anything it currently
+> reads.** Any rung that wants a charging shape owes a **new IL channel** first.
+> Two rules fitted to the whole 33-cell table were declined for the same reason
+> and are recorded so they are not re-derived: *"one slot per distinct interior
+> branch target"* misses **15 of 24** registered rows (`cf-if3` has three
+> interior targets and costs **0**), and *"one slot per distinct interior JOIN"*
+> misses **6 of 24** registered and **11 of 33** with the held-out cells in,
+> **both ways across the zero boundary**. The sharpest cells are `ho-and` and
+> `ho-or` — **two branches naming one interior target with two predecessors, at
+> zero cost**, the exact structure `CFG_SHAPE.md` §6.2 item B's fixup list exists
+> for, and it is free.
+
+This is the same shape lane `w-order` established one level up for the emit
+*order* — *"the ordering edge is not in the obj"* (board **#259**) — and the two
+were found independently on the same day.
+
+**What the port does about it today:** `crates/c2-core/src/codegen/labels.rs`
+invariant 4 refuses **every backward reference by name**. That refusal is a
+`coff/` fact rather than a `codegen/` preference: every body with a backward
+intra-section branch charges ≥ +1 in **11 of 11** cells while `coff::plan_labels`
+charges **0**, so admitting one would emit a wrong `$M` for that function *and
+every later function in the TU* — wrong bytes in the symbol table, not only in
+`.text`. Board **#285**.
+
 ---
 
 ## 5. Reproduction
@@ -340,6 +428,14 @@ scripts/gt_label_stride.py                          # /O1 (i.e. /Gy), base 5
 scripts/gt_label_stride.py --mode '/Ox /GS- /c'     # packed, base 4
 scripts/gt_label_stride.py --list                   # the probe catalogue
 scripts/gt_label_stride.py fpr4-led both-led        # just the two that were predictions
+
+# §4.1 — the control-flow surcharge and the two channels it is NOT in
+work/w-label/cflabels.py                            # the 24 registered cells, /O1
+work/w-label/cflabels.py --heldout                  # + the 9 committed before they ran
+work/w-label/cflabels.py --mode '/Ox /GS- /c'       # packed
+work/w-label/cftargets.py                           # surcharge vs interior targets / joins
+work/w-label/cfdis.py cf-if2 cf-ifelse ho-ternary   # per-target predecessor counts
+work/w-label/ilseed.py                              # the .gl seed, ruled out
 ```
 
 Exit status is non-zero only if a *control* failed (an anchor pair disagreeing
