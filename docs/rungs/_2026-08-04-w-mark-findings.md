@@ -435,10 +435,16 @@ exactly that lane.**
 count.*
 
 **The test count moved and this lane did not move it.** `687` was measured at
-`73e5831`/`c7f7529`; master is now `451f1bd`, two merges later, and **this tree
-contains no Rust change at all** (`git diff master -- crates/` is empty), so
-**689 is master's number** and the `687` in the w-emit/w-roots/w-refs gate tables
-is stale rather than wrong. Failed is 0 and targets is 25 in both.
+`73e5831`/`c7f7529`; this branch's base is **`451f1bd`**, two merges later, and
+**this tree contains no Rust change at all** (`git diff 451f1bd -- crates/` is
+empty), so **689 is `451f1bd`'s number** and the `687` in the
+w-emit/w-roots/w-refs gate tables is stale rather than wrong. Failed is 0 and
+targets is 25 in both.
+
+**Master moved under this lane while it ran** — it is at **`ed99bdf`**
+(the merge of `wt-w-frame`) as this is written, and `451f1bd` is an ancestor of
+it. Every gate number on this page is against `451f1bd`; the branch needs a
+rebase before it lands, and the coordinator re-gates the merged tree.
 
 ---
 
