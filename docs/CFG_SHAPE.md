@@ -1118,6 +1118,46 @@ branches decoded".
 
 ## 7. The `/FAsc` listing as a decode aid
 
+Recorded because `docs/OBJ_DYNINIT_SHAPE.md` §6 measured the listing disagreeing
+with the obj, and because for control flow the answer comes out the **other
+way** — which is worth knowing precisely, not vaguely.
+
+**The listing is byte-faithful for intra-function branches and not for external
+ones.** `?MemFree`'s listing beside its obj:
+
+| site | listing prints | obj carries | agree? |
+|---|---|---|---|
+| `bc` @0x08 | `409a0010  bne cr6,$LN1@MemFree` | `40 9a 00 10` | **yes, exactly** |
+| `b` @0x14 | `48000000  b XMemFree` | `4b ff ff ec` | **no** — canonical vs section-relative |
+| `b` @0x20 | `48000000  b RtlFreeHeap` | `4b ff ff e0` | **no** |
+
+The reason is §3.3: the intra-function branch has no relocation, so the listing's
+word *is* the final word; the external branch's word is a placeholder the
+relocation completes, and the listing prints the canonical form instead.
+
+**Block order in the listing equals block order in the obj.** The listing places
+`$LN1@MemFree` between the two tail calls exactly where offset 0x18 falls. This
+holds on every probe: `$LN1@b_if` at 0x0c, `$LN1@b_and` at 0x14, `$LN1@b_or` at
+0x10 and `$LN2@b_or` at 0x14, `$LN2@b_if2` at 0x20 then `$LN1@b_if2` at 0x2c.
+Contrast *section* order, which `OBJ_DYNINIT_SHAPE.md` §6 measured as disagreeing
+— **the listing is reliable for intra-function layout and unreliable for
+inter-section layout**, and those are different questions.
+
+Two further uses, and one non-use:
+
+* The listing **names the labels**, which makes an IL-token → block mapping
+  readable at a glance while developing a fixup pass.
+* It **shows the dead epilogue block** explicitly (`$LN1@b_if:` immediately
+  before the unreachable `blr`), which is how §3.6's "emitted even when
+  unreachable" was noticed rather than mistaken for trailing padding.
+* `$LN<k>` numbering is **not** emission order (`$LN2@b_if2` precedes
+  `$LN1@b_if2` in the bytes) and mints **no symbol records** (§3.6). It is
+  listing-local naming and nothing should be derived from the numbers.
+
+**It is a decode aid and never a gate.** The obj byte-compare is the sole judge
+(`CLAUDE.md`). Every claim in §3 and §4 is transcribed from the obj; the listing
+is quoted here only where the two were compared on purpose.
+
 ## 8. What an implementer still cannot build from this document
 
 ## 9. Proposed board rows
