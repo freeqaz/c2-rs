@@ -1,0 +1,16 @@
+bundle _CL_903da38c  baseline leaders 77  defined symbols 303  leader set == pipeline obj True
+owners with a node: 152 ; owner IS defined in the obj: 13 ; owner is NOT: 139
+  [H+] owner ??_R0PAPAX@8                                 f20=0x0f01  F_old ??_7type_info@@6B@                 -> F_new truncl                              gained=1 lost=0  APPEARS: True
+  [H+] owner ??_7FixedSizeAlloc@@6B@                      f20=0x0c01  F_old ??_R4FixedSizeAlloc@@6B@           -> F_new truncf                              gained=1 lost=0  APPEARS: True
+  [H+] owner ??_7ReclaimableAlloc@@6B@                    f20=0x0c01  F_old ??_R4ReclaimableAlloc@@6B@         -> F_new tgammal                             gained=1 lost=0  APPEARS: True
+  [H+] owner ??_R0?AVFixedSizeAlloc@@@8                   f20=0x1d01  F_old ??_7type_info@@6B@                 -> F_new tgammaf                             gained=1 lost=0  APPEARS: True
+  [H+] owner ??_R0?AVReclaimableAlloc@@@8                 f20=0x1f01  F_old ??_7type_info@@6B@                 -> F_new tanl                                gained=1 lost=0  APPEARS: True
+  [H-] owner ??_R0?AVrange_error@stlpmtx_std@@@8          f20=0x2601  F_old ??_7type_info@@6B@                 -> F_new tanhl                               gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AVruntime_error@stlpmtx_std@@@8        f20=0x2801  F_old ??_7type_info@@6B@                 -> F_new tanhf                               gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AV__Named_exception@stlpmtx_std@@@8    f20=0x2c01  F_old ??_7type_info@@6B@                 -> F_new tanf                                gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AVexception@std@@@8                    f20=0x1c01  F_old ??_7type_info@@6B@                 -> F_new sqrtl                               gained=0 lost=0  APPEARS: False
+  [H-] owner _CT??_R0?AVrange_error@stlpmtx_std@@@8??0ran f20=0x1c01  F_old ??_R0?AVrange_error@stlpmtx_std@@@ -> F_new sqrtf                               gained=0 lost=0  APPEARS: False
+
+---- src/system/utl/PoolAlloc.cpp
+  H+ owner IS emitted      expect APPEARS      5/5
+  H- owner is NOT emitted  expect suppressed   0/5 appeared
