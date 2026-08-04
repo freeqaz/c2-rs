@@ -9057,6 +9057,13 @@ it is the reason the provenance line exists.
 
 ## 10.19 W-PHASE7PLAN — Phase 7 factors into four, and the tightest one is finite (2026-08-02)
 
+> **SUPERSEDED IN PART BY §10.20 (2026-08-04), on three points.** `.rdata$r` is
+> **RTTI, not EH**, so the "Phase 5 is rung three" conclusion below is wrong and
+> Phase 5 moves factor C by **zero**; the section vocabulary is closed **over
+> this workload as measured, not by the language**; and two numbers are stale —
+> **B is 338, not 324**, and the pre-Phase-7 frontier is **16, not 22**. This
+> section stays as written, as a dated record. Read §10.20 before quoting it.
+
 **Full plan: [`PHASE7_PLAN.md`](PHASE7_PLAN.md). Pre-registration
 `rungs/_2026-08-02-w-phase7plan-prereg.md`, committed before measurement with an
 **inflationary** bias declared.** A fable-driven lane with Opus subagents under
@@ -9189,3 +9196,183 @@ bytes, and the JamCRC fit. The blanket claim stands.
    passed: 0 of 871 TUs differed across the two scans.)
 3. **`strings` over `.gl` manufactures false negatives** — the `00|26` separator
    concatenates adjacent names. Any `.gl` grep needs a separator-aware extractor.
+
+---
+
+## 10.20 W-LAND — two refutations of §10.19, and they are the same defect twice (2026-08-04)
+
+Landing lane for the merge of `wt-w-eh5` (`f24f2bd`) and `wt-w-factors`
+(`b5e80ec`), re-gated on the merged tree. **§10.19 stays as written** — it is a
+dated record — and is superseded here on three points. Full evidence:
+[`EH_CRITICAL_PATH.md`](EH_CRITICAL_PATH.md) and
+[`rungs/2026-08-02-w-factors.md`](rungs/2026-08-02-w-factors.md).
+
+### Refutation 1 — `.rdata$r` is RTTI, not EH
+
+§10.19's closing bullet reads *"EH is on the TU-assembly critical path, not a
+late phase. `.rdata$r` is in **676 of 871** objs. Phase 5 feeds C directly — it
+is the third rung of the ladder above, not an endgame."* Both halves are false.
+
+Lane w-eh5 read what is *inside* the section, across the whole workload:
+
+| every symbol defined in a `.rdata$r` COMDAT, all 871 objs | n |
+|---|---:|
+| `??_R1` / `??_R2` / `??_R3` / `??_R4` — RTTI | **24,163** — 100 % of content symbols |
+| `__ehfuncinfo$` / `__unwindtable$` / `__tryblocktable$` / `__catchsym$` | **0** |
+
+and the coordinator confirmed it independently with separated-axis probes before
+the merge — one axis moved at a time, at the workload's own flags:
+
+* `.rdata$r` under `/GR` holds `??_R4`, `??_R3`, `??_R2`, `??_R1` and nothing
+  else; **`/GR-` removes the section entirely** — the negative control.
+* A `try`/`catch` TU emits `__ehfuncinfo$`, `__tryblocktable$`, `__catchsym$`
+  and `__unwindtable$` into **plain `.rdata`**, in an obj with **no `.rdata$r`
+  at all**. `??_R0` type descriptors land in `.data`.
+* `.rdata$r` survives removing `/EHsc`. It is a pure function of `/GR` plus an
+  emitted vtable, and `/EHsc` is irrelevant to it.
+
+**`EH_RECORDS.md` never claimed otherwise.** Its §3 and §8.3 name plain
+`.rdata` throughout, `Selection = 5`, associative to the function's `.text`, and
+§8.4 puts the type descriptor in `.data`. The wrong reading originates in
+§10.19 and nowhere earlier.
+
+**Consequences:**
+
+* The EH record set lands in a name the port's writer **already has**, so
+  **Phase 5 moves factor C by exactly zero.** Teaching the writer nothing new
+  admits every EH record set in the workload. (*Writing* them is a separate
+  capability — `Selection = 5` associative `.rdata` — that factor C's **name**
+  predicate cannot see. One more reason C is necessary and not sufficient.)
+* **Rung three of the ladder is an RTTI rung**, and it keeps its +63 TUs: four
+  fixed-layout COMDATs per polymorphic class plus the `??_R1` name mangling. No
+  funclets, no state model, no label surcharge, no frame discipline — a
+  different and far cheaper phase than Phase 5, which is worth 0 there.
+* **EH blocks by factor D, not C**, over **740** objs — those carrying
+  `__ehfuncinfo$` — and not 676. The incumbent was not even an over-count of the
+  right thing: **86 objs carry EH records with no `.rdata$r` at all**, and 22
+  carry `.rdata$r` with no EH. Neither population contains the other.
+* EH's only C-relevant name is `.xdata$x` (throw-side data, 67 objs), and **not
+  one TU in the workload has `.xdata$x` as its only beyond-reach section**. As a
+  section-vocabulary rung, Phase 5 is worth nothing at any position in the
+  ladder.
+
+### Refutation 2 — the section vocabulary is not closed by the language
+
+§10.19 and `PHASE7_PLAN.md` §1 call the 13-name vocabulary **finite and
+enumerable**, and factor C's standing as the one tractable factor rests on it.
+Lane w-emitpred's A7 probes show `#pragma init_seg("name")` produces a
+**user-chosen** section name — cell `a7c7` emitted `.mycrt$a` — and
+`#pragma code_seg(".mytext")` renames a code section.
+
+`init_seg` moves the initializer's section and never the emitted *name set*, so
+the emit predicate (#161) is undisturbed. It is the **vocabulary** claim that
+breaks.
+
+> **Correct statement: the vocabulary is closed over the workload as measured,
+> not closed by the language.**
+
+**Measured, instrument calibrated first:** `init_seg` and `code_seg` occur
+**0 times** across the **78,746** files under `../dc3-decomp/src`, which
+contains all eight of the workload's `/I` directories. A broader pattern — any
+`#pragma init_seg`/`code_seg`/`data_seg`/`const_seg`/`bss_seg`/`section`, plus
+`__declspec(allocate)` — is also **0**.
+
+*Calibration, because a zero from an uncalibrated instrument is not evidence of
+absence:* the same command form over the same tree finds `#pragma once`
+**1,009** times, `#pragma warning` **208** and `#pragma pack` **47**, and the
+exact pattern returns a hit when aimed at w-emitpred's `a7c7`/`a7c8` cell
+sources. The traversal reaches the sources; the pattern matches the string.
+
+**So 13 stands as an empirical fact and the ladder is unaffected.** The caveat
+is a footnote, not a re-plan: R2 may treat 13 as closed *for this workload*, and
+any future corpus must have the grep re-run before it inherits the number.
+
+### The shared defect — a name standing in for what only contents can settle
+
+Both refutations have one shape, and they were found the same day by unrelated
+lanes through unrelated routes. Two independent instances are much harder to
+dismiss than one.
+
+§10.19 records a **"coordinator's independent verification"** of `.rdata$r`.
+That verification re-derived, with a second reader, **the count of the section
+*name*** — 676 objs — and not the **contents** of the section. Two
+implementations agreeing on 676 says nothing about what 676 is a count of. It
+went unnoticed for the worst possible reason: **the number it produced was
+correct.** Three readers have now reproduced 676, and all three were answering a
+question nobody had asked.
+
+Refutation 2 is the same substitution one level up: **13** is a correct count of
+the names *observed*, and it was read as the set of names *possible*.
+
+**This is the substitution family — §10.18's, not §9.18.8's.** §9.18.8's twelve
+instances are all *absence* read as success, and its mitigation — *"compare a
+count, never a status"* — does not reach either error here, because in both
+cases the count was present, was compared, and was right. §10.18's defect was a
+shared variable whose two consumers were silently asking different questions.
+Here the two questions are *what is this section called* and *what does it
+hold*, and `676` is a true answer to the first offered as an answer to the
+second.
+
+The generalization that does reach it: **of every number, ask which question it
+is the answer to, and check that against the question being decided.** A second
+implementation is not a control for this — it re-derives the same answer to the
+same wrong question, and adds confidence rather than information.
+
+Lane w-emitpred hit the identical defect a third time and caught itself: its
+note I2 records that grading `#pragma code_seg(".mytext")` by a
+`.text`-name-prefix reading gives an empty leader set where the
+`IMAGE_SCN_CNT_CODE` **characteristic** reading gives the correct one —
+*"a section's name used as a proxy for what the section contains"* — which would
+have manufactured a violation had it graded by name.
+
+### Three stale numbers, corrected
+
+| | §10.19 | measured now |
+|---|---:|---:|
+| **B** — every emitted symbol binds | 324 | **338** |
+| the pre-Phase-7 frontier | "at most 22 more TUs, ever" | **16** |
+| `.rdata$r`'s owner | EH | **RTTI** |
+
+* **B is 338.** `STATUS.md`'s *generated* block has read
+  `338 today / 420 repaired / 451 wall` since before w-factors; 324 is a stale
+  reading carried into a hand-written table. **Nothing downstream of it moves,
+  and this is worth saying explicitly so no reader hunts for a consequence that
+  is not there:** `B∧C` is **unmoved at 82** — the 14 extra B-TUs are all
+  outside C — and C = 84 is **4.02×** tighter than B, against the "4× tighter"
+  §10.19 claimed. The ordering argument survives with room to spare.
+* **The frontier is 16, not 22.** `A∧B∧C = 22`, of which **6 already match**, so
+  only **16** graded TUs are reachable by codegen breadth alone; the other 6 of
+  A's 28 need section or binding work before any amount of codegen converts
+  them. `gap.rs` prints those 16 by name on every scan as the **FRONTIER**.
+  "At most 22 more, ever" is correct about A and wrong about what is reachable.
+
+### The one piece of good news, verified here rather than taken on report
+
+`PHASE7_PLAN.md` §3's 14 first-conversion targets were selected by a *"no EH
+sections"* filter — that is, by exactly the name-based reasoning refuted above —
+so the list had to be re-checked on contents rather than inherited. It survives:
+**0 of 70 objs** (the 14 TUs × 5 cached flag variants each) contain
+`__ehfuncinfo$`, and 0 contain `.rdata$r`. **Known-answer control on the same
+grep: 30 of 30** objs from six unrelated real game TUs (`ChallengeSort`,
+`SongSort`, `PlaylistSort`, `NavListSort`, `MQSongSort`, `FitnessCalorieSort`)
+**do** carry `__ehfuncinfo$`. R1 and R7's target list needs no re-choosing — the
+filter picked the right TUs for the wrong reason.
+
+### Re-gate of the merged tree
+
+A merged tree is a configuration no prior run covered; both branches were
+individually green, and that is not evidence about their merge.
+
+| gate | result |
+|---|---|
+| `cargo test --workspace --release` | **625 passed, 0 failed, 24 targets** |
+| `scripts/gate.sh --jobs 6` | **12/12 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 2,568 fixture-verdicts, 0 mismatch** |
+| 878-TU workload scan | **match 6, mismatch 0, codegen-gap 0, vocab-gap 865, capture-fail 7** |
+| the factorization | **A 28 · B 338 · C 84 · D 8 · B∧C 82 · A∧B∧C∧D 6**, equal to the match set by name |
+
+All identical to the incumbent. **Workload provenance moved again mid-lane:** the
+first scan bracketed `../dc3-decomp` at `cb5e1bb4` → `9ad5c4c8` and was
+**discarded as void under w-factors §5's rule** — not because its numbers looked
+wrong, they did not, but because a scan split across two tree states is not one
+measurement — then retaken inside one tree state at `9ad5c4c8`, sha identical
+before and after. That is the fourth session in a row to record a mid-lane move.
