@@ -94,37 +94,57 @@ def main():
                 break
         if hit is None:
             continue
-        # look for a line-number immediate in the surrounding window
-        line_no = None
-        for j in range(max(0, i - WINDOW), min(len(insns), i + WINDOW)):
-            if j == i:
-                continue
+        # Recover the line number. Two shapes are emitted by the ICE macro in
+        # this build, and they put the line in DIFFERENT places -- a naive
+        # "nearest immediate" rule silently returns the error *code* for the
+        # second shape, which is how this was first got wrong:
+        #
+        #   (a) fastcall:  mov edx,<line> ; mov ecx,<file> ; jmp <reporter>
+        #   (b) stdcall:   push <line> ; push <code> ; mov edx,<file> ; pop ecx
+        #
+        # In (b) the line is pushed FIRST, so it is the *farther* of the two,
+        # and the nearer immediate is the diagnostic code. So: walk back over the
+        # contiguous run of immediate-producing instructions and take the
+        # earliest one in that run.
+        def imm_of(j):
             aj, opj, argsj = insns[j]
-            if opj not in ("mov", "push"):
-                continue
-            # only accept a *pure* immediate operand (no memory, no second reg)
+            if "[" in argsj:
+                return None
             if opj == "mov":
                 parts = argsj.split(",")
-                if len(parts) != 2 or "[" in argsj:
-                    continue
+                if len(parts) != 2:
+                    return None
                 dst, src = parts[0].strip(), parts[1].strip()
                 if dst not in ("edx", "ecx", "eax", "esi", "edi", "ebx"):
-                    continue
+                    return None
                 cand = src
-            else:
-                if "[" in argsj:
-                    continue
+            elif opj == "push":
                 cand = argsj.strip()
+            else:
+                return None
             mm = re.fullmatch(r"0x([0-9a-f]+)", cand)
             if not mm:
-                continue
-            iv = int(mm.group(1), 16)
-            if iv in fileaddr or iv == 0 or iv > LINE_MAX:
-                continue
-            if line_no is None or abs(j - i) < line_no[1]:
-                line_no = (iv, abs(j - i))
+                return None
+            return int(mm.group(1), 16)
+
+        run = []
+        j = i - 1
+        while j >= 0 and i - j <= WINDOW:
+            v = imm_of(j)
+            if v is None:
+                # tolerate the one interleaved non-immediate the macro emits
+                if insns[j][1] in ("pop", "nop", "lea") and run:
+                    j -= 1
+                    continue
+                break
+            if v in fileaddr:
+                break
+            run.append(v)
+            j -= 1
+        cands = [v for v in run if 0 < v <= LINE_MAX]
+        line_no = cands[-1] if cands else None      # earliest in program order
         nm = fileaddr[hit][0]
-        sites.append((a, nm, line_no[0] if line_no else None, containing(a)))
+        sites.append((a, nm, line_no, containing(a)))
 
     sites.sort()
     with open(outsites, "w") as f:
