@@ -345,6 +345,159 @@ close, and precisely why the control was run rather than assumed.
 
 ## 3. What c2 emits
 
+All bytes below are read off objs built with
+`c2rs compile --flags-file` at the flags in §10.1. Words are big-endian, offsets
+are relative to the start of the function's own `.text` COMDAT section — which,
+under `/O1` (⇒ `/Gy`), is **one section per function**, so "section offset" and
+"function offset" are the same number. That matters for §3.3: an intra-function
+branch is also an intra-section branch, always.
+
+### 3.1 The branch instruction forms, encoded
+
+Four forms cover every branch this lane measured.
+
+| form | word | fields |
+|---|---|---|
+| conditional, to a label | `0x40000000 \| (BO<<21) \| (BI<<16) \| (BD & 0xFFFC)` | op 16, `AA=0`, `LK=0`; `BD` a **signed 14-bit** displacement in bits 16..29 |
+| conditional return | `0x4C000000 \| (BO<<21) \| (BI<<16) \| 0x20` | op 19, `XO=16` (`bclr`), `LK=0` |
+| unconditional, intra-section | `0x48000000 \| (LI & 0x03FFFFFC)` | op 18, `AA=0`, `LK=0` |
+| unconditional / linking, **external** | `0x48000000 \| ((-k) & 0x03FFFFFC) \| LK` | `k` = the branch's own section offset; the target comes from a `REL24` |
+
+`BO` and `BI` for a branch on a compare:
+
+```text
+BO = 12   branch if the CR bit is SET     ("branch true")
+BO =  4   branch if the CR bit is CLEAR   ("branch false")
+BI = 4*crf + { 0 = LT, 1 = GT, 2 = EQ, 3 = SO }
+```
+
+so with `crf = 6`: `BI = 24` LT, `25` GT, `26` EQ, `27` SO. Every conditional
+branch measured in this lane uses one of exactly these eight `(BO,BI)` pairs —
+**except** the CTR loops of §3.7, which use `BO = 16, BI = 0`.
+
+Worked, from `?MemFree@NUISPEECH@@YAXPAX0K@Z` at offset 0x08, target 0x18:
+
+```text
+BO = 4, BI = 26, BD = 0x18 - 0x08 = +16
+0x40000000 | (4<<21) | (26<<16) | 0x0010
+  = 0x40000000 | 0x00800000 | 0x001A0000 | 0x0010
+  = 0x409A0010                                  <- the obj carries 409a0010  ✓
+```
+
+The observed conditional-return words, for reference — these are *constants* once
+the relation is known and are worth table-driving rather than encoding:
+
+| mnemonic | word | `(BO,BI)` | seen in |
+|---|---|---|---|
+| `beqlr cr6` | `4d 9a 00 20` | (12,26) | `b_if`, `b_and`, `Pool::Alloc`, `Pool::Free`, `f_eq59` |
+| `bnelr cr6` | `4c 9a 00 20` | (4,26) | `a_store`, `f_ne59`, `f_eqvoid` |
+| `bltlr cr6` | `4d 98 00 20` | (12,24) | `a_lt` |
+| `bgtlr cr6` | `4d 99 00 20` | (12,25) | `f_gt59` |
+| `blelr cr6` | `4c 99 00 20` | (4,25) | `c_for` |
+| `blr` | `4e 80 00 20` | (20,0) | everywhere |
+
+Note `blr` is the same instruction with `BO = 20` — "branch always" — so an
+emitter that builds `bclr` from `(BO,BI)` gets the plain return for free, and one
+that special-cases `4e800020` has two code paths for one instruction.
+
+### 3.2 The condition register is two-valued
+
+**Rule, measured.** An explicit compare feeding a branch writes **cr6**. A
+**record-form** arithmetic instruction writes **cr0**, and c2 branches on cr0
+there without an intervening compare.
+
+| body | compare | branch | CR |
+|---|---|---|---|
+| `?MemFree` | `2b 03 00 00` `cmplwi cr6,r3,0` | `409a0010` `bne cr6` | **cr6** |
+| `?b_ifn` (three sequential ifs) | `2f 03 00 00`, `2f 1f 00 00`, `2f 1e 00 00` — all `cr6` | three `419a0008` | **cr6, reused** |
+| `?c_do` | `35 6b ff ff` `addic. r11,r11,-1` | `4082fff8` `bne cr0` | **cr0** |
+| `?c_callloop` | `37 ff ff ff` `addic. r31,r31,-1` | `4082fff0` `bne cr0` | **cr0** |
+| `?d_break` | `37 ff ff ff` `addic. r31,r31,-1` | `4082fff0` `bne cr0` | **cr0** |
+| `?d_cont` | `2f 1f 00 00` `cmpwi cr6,r31,0` | `409affec` `bne cr6` | **cr6** |
+| `?c_forcall` | `7f 1f e8 00` `cmpw cr6,r31,r29` | `4198ffec` `blt cr6` | **cr6** |
+
+`?b_ifn` is the cell that refutes CR **allocation**: three compares live in one
+body, all three write cr6, each branch consuming its own before the next is
+issued. c2 does not treat CR fields the way it treats GPR temps (which descend
+from r11 — `docs/CODEGEN_W6_COMPARE.md` §6).
+
+The cr0 rows are all the same construct: a loop counter decremented with
+`addic.` where the decrement's own condition code is the loop test. That is a
+**fused compare**, and it is why `BI = 2` (cr0's EQ bit) appears in the branch
+word `4082fff8` rather than `BI = 26`.
+
+> **Hazard.** A lowering that hard-codes `BI = 4*6 + bit` emits `409a…` where the
+> obj has `4082…` for every decrement-and-test loop — a two-byte difference in a
+> word that still disassembles to a plausible branch. This is exactly the
+> fuzzy-invisible class `docs/CODEGEN_PPC_MVP.md` warns about.
+
+Compare-instruction selection **[C]**, unchanged from
+`docs/CODEGEN_W6_COMPARE.md` §1.1's signedness rule:
+
+| operand form | instruction | witness |
+|---|---|---|
+| register vs register, signed | `cmpw cr6,rA,rB` = `7f 03 20 00` (r3,r4) | `a_lt`, `f_eq59` |
+| register vs i16 literal, signed | `cmpwi cr6,rA,k` = `2f 03 00 07` (r3,7) | `d_switch` |
+| register vs literal, **unsigned/pointer** | `cmplwi cr6,rA,k` = `2b 03 00 00` (r3,0) | `MemFree`, `Pool::Free` |
+| register vs register, unsigned | `cmplw cr6,rA,rB` | — *unvaried in this grid* |
+
+The signedness comes from the shared operand type triple at the comparison, not
+from the comparison opcode — `86 41 74` (int) → `cmpw`/`cmpwi`, `86 43 83 08`
+(pointer) → `cmplwi`. A pointer null-check is therefore an **unsigned** compare,
+which is what `MemFree` and both `Pool.cpp` functions emit.
+
+### 3.3 Targets and fixup
+
+**`bc`.** `BD = target_offset − branch_offset`, stored in bits 16..31 of the
+word with the low two bits zero. It is **not** relative to the section start, it
+is relative to the branch instruction itself. **No relocation record is emitted.**
+
+**Intra-section `b`.** The same rule with the wider `LI` field:
+`?d_cold` at 0x38 branches to the epilogue at 0x40 and stores `48000008` —
+`LI = +8`, the true displacement. **No relocation.**
+
+**External `b` / `bl`.** The word stores `(−k) & 0x03FFFFFC` where `k` is the
+branch's own section offset, i.e. the encoded target is the section start, and a
+`REL24` supplies the real one. `?MemFree`'s tail call at 0x14 stores `4bffffec`
+(`LI = −20 = −0x14`) and at 0x20 stores `4bffffe0` (`LI = −32 = −0x20`). This
+reproduces `docs/OBJ_DYNINIT_SHAPE.md` §3.3 exactly, on ordinary functions.
+
+> **The discriminator is the target, not the opcode.** `48000008` and `4bffffec`
+> are the same instruction. The first is an intra-section jump carrying its own
+> displacement; the second is an external call carrying a placeholder plus a
+> relocation. An emitter must decide which it is from *where the target lives*,
+> and a fixup pass that treats every `b` alike will corrupt one of the two.
+
+**Relocation counts, measured.** `pa.cpp`: seven code sections, every one
+`nrel = 0`, despite six of the seven containing a branch and one containing a
+`bc` with a real displacement. `pb.cpp`: `nrel` equals the number of emitted
+call sites in every section (1,2,2,1,1,2,3). **Branches never contribute a
+relocation; only calls to symbols do.**
+
+#### 3.3.1 The long-branch expansion — measured, with the threshold bracketed
+
+`BD` is a signed 14-bit field scaled by 4, so a `bc` reaches ±32764 bytes.
+Held-out probe `pe.cpp` is `if(a==0){ <N volatile stores> return b; } return b+1;`
+with `N` swept:
+
+| N | displacement needed | what c2 emits at the branch |
+|---:|---:|---|
+| 4000 | +31176 | `409a79c8` — direct `bne cr6, +31176` |
+| 4200 | **+32628** | `409a7f74` — direct `bne cr6, +32628` |
+| 4400 | **+34148** | `419a0008` `beq cr6,+8` **then** `48008564` `b +34148` |
+| 6000 | +46708 | `419a0008` then `4800b674` |
+
+So the expansion is: **invert the condition, branch over an unconditional `b`,
+and put the far target on the `b`.** The transition sits between +32628 and
++34148, i.e. at the architectural limit of ±32764 with **no slack** — c2 uses the
+full field before expanding. Two instructions, never a register-indirect
+`bcctr` form.
+
+This is not a case any current probe or frontier function needs, and it is
+recorded for exactly that reason: an emitter that never checks the range
+produces a truncated `BD` on the first function that exceeds it, and a truncated
+`BD` is a legal-looking branch to the wrong place.
+
 ## 4. The minimal instance — `cflow-if-1`, in full
 
 ## 5. The widening order, ranked by TUs
