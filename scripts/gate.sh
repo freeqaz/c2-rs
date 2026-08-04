@@ -111,7 +111,8 @@
 #   scripts/gate.sh --sweep-cases 400     STRIDED subset — never an unqualified PASS
 #   scripts/gate.sh --cross-cells 4000    ditto, for the mode-cross row
 #   scripts/gate.sh --list                print the registry and exit
-#   scripts/gate.sh --check               validate the registry only; no toolchain
+#   scripts/gate.sh --check               validate the registry AND the corpus's
+#                                         shape coverage; no toolchain, no compiler
 #   scripts/gate.sh --selftest            prove the gate fails when it should
 #   scripts/gate.sh --work DIR            run directory (default /tmp/c2rs-gate-$$)
 #
@@ -652,6 +653,19 @@ check)
     echo "lane registry: $registry"
     echo "  $nlanes lanes, slugs unique, every row parses."
     awk -F"$TAB" '{printf "  %-20s %s\n", $1, $2}' "$reg"
+    # The corpus's own shape coverage, asserted. Toolchain-free, so it belongs in
+    # the preflight rather than in the graded run: a fragment deleted or a
+    # generator that stops emitting one of its axes puts a shape marker back at
+    # zero, and every other instrument here keeps printing a clean count over a
+    # corpus that can no longer say the thing. See `scripts/sweep_shapes.py
+    # --check`; `--selftest` proves it fails when it should.
+    echo
+    if command -v python3 >/dev/null 2>&1; then
+        python3 "$repo_root/scripts/sweep_shapes.py" --check || exit 1
+    else
+        echo "FATAL: no python3 — the corpus shape check and the sweep both need it." >&2
+        exit 2
+    fi
     exit 0 ;;
 esac
 
@@ -1043,12 +1057,69 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
         printf '  ok    %-32s %s lanes, %s of them compile /EH\n' shipped-registry "$_n_real" "$_n_eh"
     fi
 
+    # ---- THE CORPUS'S SHAPE COVERAGE (lane w-shapes) --------------------------
+    #
+    # Every instrument above grades the corpus. Nothing asserted that the corpus
+    # can still SAY anything. `scripts/sweep_shapes.py` had reported the zero rows
+    # since w-modes wrote it, and a report nobody fails on is a shape that goes
+    # quietly back to zero: delete a fragment, or let a generator stop emitting
+    # one of its axes, and `expr_sweep.sh` keeps printing `checked=N
+    # mismatches=0` over a corpus that has lost a shape. That is trap 5 exactly,
+    # and every wrong-emit family found on 2026-08-04 lived in a shape no
+    # instrument could represent.
+    #
+    # `--check` needs no toolchain and no compiler, so it belongs here. Each case
+    # drives the REAL check; the two red ones fabricate a fragment directory, so
+    # this proves the check FAILS when it should rather than that it exists.
+    _sh_py=$(command -v python3 || true)
+    _sh_run() {  # <name> <want 0|1> <frag-dir>
+        cases=$((cases + 1))
+        if [ -z "$_sh_py" ]; then
+            printf '  FAIL  %-32s no python3 — the sweep cannot run either\n' "$1"
+            fails=$((fails + 1))
+            return
+        fi
+        _sh_rc=0
+        C2RS_MAX_ZERO_MARKERS=0 "$_sh_py" "$repo_root/scripts/sweep_shapes.py" \
+            --check --frag-dir "$3" > "$st/$1.out" 2>&1 || _sh_rc=$?
+        [ "$_sh_rc" -ne 0 ] && _sh_rc=1
+        if [ "$_sh_rc" -eq "$2" ]; then
+            printf '  ok    %-32s %s\n' "$1" \
+                "$(grep -m1 -E '^(check|DEGENERATE|FRAGMENT)' "$st/$1.out" || echo '(no summary line)')"
+        else
+            printf '  FAIL  %-32s wanted rc=%s, got rc=%s\n' "$1" "$2" "$_sh_rc"
+            fails=$((fails + 1))
+        fi
+    }
+
+    # The shipped corpus: no marker may be at zero. This is the assertion lane
+    # w-shapes' twelve fragments exist to keep true.
+    _sh_run corpus-shape-check 0 "$repo_root/scripts/sweep.d"
+
+    # A corpus that expresses almost nothing must FAIL, not report a clean table.
+    _shd="$st/frag-thin"; rm -rf "$_shd"; mkdir -p "$_shd"
+    printf 'def cases(emit):\n    emit("int f(int a){return a+1;}\\n")\n' > "$_shd/10-thin.py"
+    _sh_run corpus-zero-row-fails 1 "$_shd"
+
+    # A fragment that emits NOTHING must fail even if every marker is covered by
+    # the others — the observable symptom of the counter bug.
+    _shd2="$st/frag-empty"; rm -rf "$_shd2"; mkdir -p "$_shd2"
+    cp "$repo_root/scripts/sweep.d/"*.py "$_shd2/"
+    printf 'def cases(emit):\n    pass\n' > "$_shd2/99-emits-nothing.py"
+    _sh_run corpus-empty-fragment-fails 1 "$_shd2"
+
+    # And a fragment directory with no fragments at all: "0 markers have zero
+    # cases" is also what a corpus of nothing prints.
+    _shd3="$st/frag-none"; rm -rf "$_shd3"; mkdir -p "$_shd3"
+    _sh_run corpus-degenerate-fails 1 "$_shd3"
+
     echo
     # The floor was 15 when the gate covered lanes only; the sweep row took it to
-    # 27, and w-modes adds 3 sweep-classifier cases plus 10 mode-cross cases.
+    # 27, w-modes added 3 sweep-classifier cases plus 10 mode-cross cases, and
+    # w-shapes adds 4 corpus-shape cases.
     # It is a floor on the COUNT, per the standing mitigation — compare a count,
     # never a status — and it must be raised whenever cases are added.
-    if [ "$cases" -lt 40 ]; then
+    if [ "$cases" -lt 44 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1

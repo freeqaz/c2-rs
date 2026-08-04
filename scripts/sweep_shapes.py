@@ -41,6 +41,29 @@ Usage:
     scripts/sweep_shapes.py                          # pass A only, no toolchain
     scripts/sweep_shapes.py --objs work/w-modes/sh   # + pass B, whole corpus
     scripts/sweep_shapes.py --objs DIR --sample 8    # + pass B on a stride
+    scripts/sweep_shapes.py --check                  # GATE MODE, see below
+
+# `--check` — the zero rows, asserted rather than reported
+
+Pass A is a *report*, and a report nobody reads is a shape that quietly goes
+back to zero. On 2026-08-04 lane w-shapes closed the last twelve zero rows; the
+day after, a fragment deleted or a generator that silently stops emitting one of
+its axes puts a row back at zero and **no instrument fails**. `expr_sweep.sh`
+would keep printing `checked=N mismatches=0` over a corpus that had lost a
+shape, which is `docs/STATUS.md` trap 5 in its purest form — absence reading as
+success.
+
+So `--check` is the same pass A with an exit code:
+
+  * every marker must have at least one case (baseline
+    `C2RS_MAX_ZERO_MARKERS`, default **0** — raising it needs a reason written
+    beside the number, the same discipline `C2RS_SWEEP_MAX_UNGRADED=96` carries);
+  * every fragment must emit at least one case, which is the observable symptom
+    of the counter bug `sweep_gen.py` was restructured for;
+  * the marker table and the corpus must both be NON-EMPTY, because "0 markers
+    have zero cases" is also what a table of zero markers prints.
+
+It needs no toolchain and no compiler, so it is a `gate.sh --selftest` case.
 """
 
 import argparse
@@ -168,6 +191,55 @@ def section_names(path):
     return names
 
 
+def check(frags, ncases):
+    """`--check`: the zero rows as an assertion. Returns a process exit code.
+
+    Everything here is a COUNT compared against a floor, never a status compared
+    against a word — `docs/STATUS.md` trap 5's standing mitigation. The
+    degeneracy guards come first on purpose: `0 markers have zero cases` is what
+    an empty marker table prints, and `every fragment emitted a case` is what a
+    corpus of no fragments satisfies.
+    """
+    rc = 0
+    if len(MARKERS) < 1 or ncases < 1 or not frags:
+        print("DEGENERATE: %d markers, %d fragments, %d cases — this check would"
+              " pass by having nothing to check." % (len(MARKERS), len(frags), ncases))
+        return 3
+
+    empty = [stem for stem, cs in frags if not cs]
+    if empty:
+        print("FRAGMENT EMITTED ZERO CASES: %s" % ", ".join(empty))
+        print("  A generator that stops emitting is the counter bug's own symptom")
+        print("  (scripts/sweep_gen.py) and it is a hard error, never a smaller corpus.")
+        rc = 1
+
+    hits = {name: 0 for name, _ in MARKERS}
+    for _stem, srcs in frags:
+        for s in srcs:
+            for name in markers_of(s):
+                hits[name] += 1
+    absent = [n for n, _ in MARKERS if not hits[n]]
+
+    try:
+        allowed = int(os.environ.get("C2RS_MAX_ZERO_MARKERS", "0"))
+    except ValueError:
+        allowed = 0
+    print("check: %d of %d shape markers have zero cases (baseline %d),"
+          " %d fragments all non-empty, %d cases"
+          % (len(absent), len(MARKERS), allowed, len(frags), ncases))
+    if len(absent) > allowed:
+        for a in absent:
+            print("    ZERO  %s" % a)
+        print("  A zero row is a shape no flag profile reaches and no case grades.")
+        print("  Every wrong-emit family found on 2026-08-04 lived in one. Close it")
+        print("  with a scripts/sweep.d/ fragment, or raise C2RS_MAX_ZERO_MARKERS")
+        print("  with the reason written next to the number.")
+        rc = 1
+    if rc == 0:
+        print("SHAPE-CHECK: PASS")
+    return rc
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--frag-dir", default=os.path.join(REPO, "scripts/sweep.d"))
@@ -177,12 +249,16 @@ def main():
     ap.add_argument("--sample", type=int, default=0, help="cases per fragment for pass B (0 = all)")
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--workload", default=os.path.join(REPO, "work/w-bss/census/sections.jsonl"))
+    ap.add_argument("--check", action="store_true",
+                    help="gate mode: exit non-zero if any marker has zero cases")
     args = ap.parse_args()
 
     frags = sweep_gen.load_all(args.frag_dir)
     ncases = sum(len(cs) for _, cs in frags)
     print("corpus: %d fragments, %d generated cases (source pass needs no toolchain)"
           % (len(frags), ncases))
+    if args.check:
+        return check(frags, ncases)
 
     hits = {name: [0, set()] for name, _ in MARKERS}
     per_case = {}
