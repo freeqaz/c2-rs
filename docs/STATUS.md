@@ -52,14 +52,14 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-04 · tree `26306ba` · binary `25605666f6b3` · workload `940d07dc`
+Collected 2026-08-04 · tree `316e1c4-dirty` · binary `19e229b53a6c` · workload `fe1b5b39`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 706 passed, 0 failed, 25 targets |
-| Oracle self-test (c2rs selftest) | 225 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 106 port Match, 0 mismatch, 119 not-implemented (of 225) |
-| Port speedup, geomean over matched fixtures | 568x geomean over matched fixtures |
+| Workspace tests (cargo test --workspace --release) | 778 passed, 0 failed, 26 targets |
+| Oracle self-test (c2rs selftest) | 245 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 118 port Match, 0 mismatch, 127 not-implemented (of 245) |
+| Port speedup, geomean over matched fixtures | 693x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7 |
 | Per-function census (driver, not target) | 706555/2463393 functions in class (28.68%) |
 | Emitted-function census | 38458/178975 emitted functions in class (21.49%) |
@@ -70,6 +70,11 @@ Collected 2026-08-04 · tree `26306ba` · binary `25605666f6b3` · workload `940
 | Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 871 graded TUs |
 | Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 420 repaired / 451 wall |
 | .gl binding invariants (records / arity / conflicts) | 1515167 records, 420 nameless, 0 before the first row, 39296 row-conflicts, 731 name-conflicts, 0 accounting breaks, 0 unreadable objs |
+| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 338 · C 169 · D 8 · E 2, of 871 graded |
+| Joint ceilings (B∧C, A∧B∧C) | B∧C 151 · A∧B∧C 27 · A∧B∧C∧D 6 |
+| Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 19 reachable by codegen breadth alone; 141 if factor A were free |
+| Emit-predicate worth, B∧C − A∧B∧C (board #213) | +124 TUs (B∧C − A∧B∧C) |
+| Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
 
 <!-- END GENERATED -->
 
