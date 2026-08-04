@@ -36,6 +36,9 @@ cost this project real work more than once.
 > | Per-function / emitted census | 706555/2463393 · 38458/178975 | **both unchanged** | same |
 > | Factor **C** | — (prose said 114) | **169** | `rungs/2026-08-04-w-sect.md` §10, re-read at w-label §1 |
 > | `A∧B∧C` · FRONTIER | — (prose said 25 · 17) | **27 · 19** | same |
+> | **`B∧C`** | — (prose said 107, taken at `C = 114`) | **151** at `c303ad0` | `rungs/2026-08-04-w-bc.md` §2 |
+> | **frontier-if-A** · the `+82` projection | — (prose/board said 99 · +82) | **141** · **+124 reach / +122 frontier — and those are two different numbers now** | same, §3 |
+> | workload stamp | `940d07dc` | **`fe1b5b39`** — a stamp change only: **0 of 878 workload source blobs differ**, checked | same, §6.1 |
 >
 > **Seven merges moved TU match by zero, and that is the expected result rather
 > than a bad day** — the same reading the paragraph below already gives for the
@@ -252,13 +255,27 @@ writer now emits **10** (`PORT_WRITER_SECTIONS`,
 `crates/c2-core/src/coff/function.rs:32`), and **three** additions close it —
 **`.rdata$r` 590**, `.text$yd` 804, `.xdata$x` **871**.
 
-> **⚠ `B∧C` is UNVERIFIED and the figure below used to be quoted here.** *"A
-> perfect emit-set model and a perfect binding reach at most `B∧C` = 107"* was
-> measured at **C = 114** and no scan has published it at 169. **The ladder is
-> greedy, so every addition re-ranks the steps below it** and 107 cannot be
-> extrapolated. Re-quote it from `c2rs gap`, which prints it. Corrected 2026-08-04
-> by lane `w-book4` — this page carried `C = 114` / *"9 section names"* / a
-> four-step ladder for two merges after w-sect's writer landed.
+**`B∧C` = 151, re-measured over 871 graded TUs at tree `c303ad0`** (lane `w-bc`,
+`rungs/2026-08-04-w-bc.md` §2, from a run that printed `capture-fail 7` /
+`match 8`). It had been published as **107**, taken at `C = 114`, and no scan
+had re-quoted it since the writer's vocabulary grew — flagged UNVERIFIED by
+`w-book4` and **now verified at a different number**. `107` could not have been
+extrapolated: `C` grows monotonically with the vocabulary, so the true answer
+was forced into `[107, 169]` and any figure in that range would have been
+consistent. The marginal is the readable part — **C gained 55 TUs and `B∧C`
+gained 44 of them**, so 80 % of the vocabulary's new TUs were already
+binding-complete and the inclusion rate `B∧C / C` fell `93.9 % → 89.3 %`.
+
+> **⚠ And the projection built on it is TWO numbers, not one.** Board **#213**
+> states *"what a perfect emit predicate is worth"* both as `B∧C − A∧B∧C` and as
+> `frontier-if-A − FRONTIER`, and published a single `+82` because the two
+> coincided at the time. **They do not coincide now: `151 − 27 = +124` of
+> reachability, but only `141 − 19 = +122` of codegen frontier.** The difference
+> is exactly the two TUs inside `B∧C` that fail A and that the port *already*
+> accepts (`src/system/decomp_pch.cpp`, `src/system/math/vec.cpp`) — modelling
+> the emit set would reach them without any codegen. Both are **reachability,
+> not conversions**: a perfect factor A converts zero TUs by itself. `c2rs gap`
+> now prints both, derives the subtraction itself, and names the divergence.
 
 (C was 84 with a six-name writer and a seven-step ladder, 114 with nine names and
 four steps; the step sizes below the top are not comparable across those changes,
@@ -282,6 +299,18 @@ with 8 already matched, so 19 graded TUs are reachable by codegen breadth alone
 and the other 1 of A's 28 needs section or binding work first. `gap.rs` prints
 those 19 by name each scan as the **FRONTIER**. Board **#160**.
 
+**Every figure in this section is now also printed as a `gap-metric <key>
+<value>` line at the end of each scan's factorization block** — `factor-c`,
+`b-and-c`, `a-and-b-and-c`, `frontier`, `frontier-if-a`,
+`emit-predicate-worth`, `ladder-head`, and the rest. That block exists because
+C, `A∧B∧C` and the FRONTIER live only in hand-written prose here and **all three
+went stale twice in one day**, and `B∧C` went stale by a *dependency* moving
+under it with nothing able to notice. **`scripts/status.sh` does not consume
+those keys yet** — the collector change is specified in
+`rungs/2026-08-04-w-bc.md` §5.1 and is not made there. Until it lands, these
+paragraphs are still hand-copied and still able to go stale; **quote them from a
+scan, not from this page**.
+
 **And the frontier is PRICED, which is the number to read next to it.** Lane
 `w-conv` compiled all 17 (as it then stood) at the workload's own flags,
 disassembled every code section and hand-counted the independent refusals per TU:
@@ -291,7 +320,11 @@ refusals is not a target* — **fires on all seventeen**. `negate_test.cpp`
 re-derives at 9 by a different partition than w-cross's, which is the cross-check.
 So `8 → 27` is real headroom **and there is no cheap TU left in it**: every step
 costs ≥ 6 facts, and the counts are *lower bounds* because w-conv stopped counting
-each row once the clause had fired. Board **#269**. (The dump that row cites,
+each row once the clause had fired. Board **#269**. **⚠ The pricing is
+UNVERIFIED on the two newest frontier members** — it was hand-counted when the
+frontier was 17 and the frontier is **19**; the same caveat `CFG_SHAPE.md`
+already carries. "All seventeen" is not "all nineteen", and w-bc did not
+re-derive it (it needs a disassembly pass per TU). (The dump that row cites,
 `work/w-conv/frontier_dis.txt`, **was never committed** — the hand-count is in
 `work/w-conv/PREREG.md` §1.1–§1.2 prose and reproduces via `work/w-frame/refobj.sh`
 plus `scripts/gt_dump.py` per TU.)
