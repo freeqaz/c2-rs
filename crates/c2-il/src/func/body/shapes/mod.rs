@@ -25,6 +25,7 @@
 
 pub(crate) mod assign;
 pub(crate) mod calls;
+pub(crate) mod cond_tail;
 pub(crate) mod control_flow;
 pub(crate) mod ctor_dtor;
 pub(crate) mod designator;
@@ -48,6 +49,8 @@ pub(crate) mod testutil;
 pub(crate) use assign::*;
 #[allow(unused_imports)]
 pub(crate) use calls::*;
+#[allow(unused_imports)]
+pub(crate) use cond_tail::*;
 #[allow(unused_imports)]
 pub(crate) use control_flow::*;
 #[allow(unused_imports)]

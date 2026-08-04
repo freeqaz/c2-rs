@@ -457,8 +457,8 @@ pub(crate) const UINT_TYPE: [u8; 3] = [0x86, 0x42, 0x75];
 /// `long` (`86 41 12`) and `unsigned long` (`86 42 22`). On this target they are
 /// 32-bit, and c2 emits **byte-identical** code for them and for `int`/`unsigned`
 /// — see `docs/IL_TYPE_TAGS.md` §3.1.
-const LONG_TYPE: [u8; 3] = [0x86, 0x41, 0x12];
-const ULONG_TYPE: [u8; 3] = [0x86, 0x42, 0x22];
+pub(crate) const LONG_TYPE: [u8; 3] = [0x86, 0x41, 0x12];
+pub(crate) const ULONG_TYPE: [u8; 3] = [0x86, 0x42, 0x22];
 
 /// The 32-bit integer operand types that are interchangeable *for the operators
 /// this parser accepts* (`+`, `-`, `*` and add-immediate folding).

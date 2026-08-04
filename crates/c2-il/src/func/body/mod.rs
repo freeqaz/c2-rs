@@ -15,7 +15,8 @@ use self::expr::{
 use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
-    try_parse_compare, try_parse_empty_ctor_base_delegation, try_parse_empty_dtor_delegation,
+    try_parse_compare, try_parse_cond_tail_pair, try_parse_empty_ctor_base_delegation,
+    try_parse_empty_dtor_delegation,
     try_parse_float_leaf,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
@@ -292,6 +293,49 @@ pub(crate) enum SlotArg {
     SymAddr(u32),
 }
 
+/// One arm of a [`CondTailPairShape`], with the callee still a `.gl` token.
+/// [`crate::func::CondArm`] is its resolved twin.
+///
+/// The slot list is the **resolved** [`crate::func::SlotArg`] rather than this
+/// module's token-carrying one, because an arm admits no data-symbol address:
+/// WR1's `lis` is hoisted ahead of the *whole* argument setup, and where that
+/// lands relative to a conditional branch has no capture. With `SymAddr` out of
+/// the vocabulary the two types coincide, so carrying the resolved one keeps a
+/// conversion step — and a place for it to be wrong — out of `shape_to_function`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct CondArmShape {
+    pub(crate) callee_tok: u32,
+    pub(crate) slots: Vec<crate::func::SlotArg>,
+}
+
+/// **W8 — the two-arm conditional tail call**, as parsed.
+/// [`crate::func::CondTailPair`] is its resolved twin; the only difference is
+/// callee token vs callee name, exactly as for every other call shape here.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct CondTailPairShape {
+    pub(crate) params: Vec<u32>,
+    pub(crate) cmp_param: usize,
+    pub(crate) rel: crate::func::Rel,
+    pub(crate) signed: bool,
+    pub(crate) k: i32,
+    pub(crate) then_arm: CondArmShape,
+    pub(crate) else_arm: CondArmShape,
+}
+
+impl CondTailPairShape {
+    /// The register schedule — **the parser's last gate**. The emitter runs the
+    /// same function on the resolved twin, so the census and the emission gate
+    /// cannot disagree about what is in class.
+    pub(crate) fn plan(&self) -> Option<crate::func::CondPlan> {
+        crate::func::plan_cond_pair(
+            self.params.len(),
+            self.cmp_param,
+            &self.then_arm.slots,
+            &self.else_arm.slots,
+        )
+    }
+}
+
 /// What a [`BodyShape::CallSeq`] does after its last call.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SeqTail {
@@ -454,6 +498,11 @@ pub(crate) enum BodyShape {
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
+    /// **W8 — the two-arm conditional tail call.** The first shape in this enum
+    /// whose lowering emits a conditional branch. See
+    /// [`super::shapes::cond_tail`] for the grammar and for the three
+    /// measurements that draw the class boundary.
+    CondTailPair(CondTailPairShape),
     /// W13a floating-point leaf: a straight-line chain over float (or double)
     /// *parameters* — no constants, no conversions, no contraction.
     FloatLeaf { params: Vec<u32>, ops: Vec<IlOp>, double: bool },
@@ -1301,6 +1350,20 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // `disp-expr` row that distinction is invisible, and it is the whole
             // question of whether the row is takeable.
             disp(if b == 0x33 { "disp-expr-lit" } else { "disp-expr-load" });
+            // **W8 — the two-arm conditional tail call**, and the only
+            // production in this ladder that consumes a `38`. Tried first
+            // because it is the only one that can: every recognizer below reads
+            // the same `B9 <formal> <T> · 33 <T> <k> · <rel>` prefix and then
+            // requires a `2C`/`41`/`4C` where this shape has a conditional
+            // branch, so none of them can reach it and it cannot take a body
+            // from any of them. Non-committal like the rest — a cursor copy and
+            // an `Option`, so a declining body keeps its own blocker key
+            // (`expr-cmp-eq`, the frontier's largest bucket, which is exactly
+            // the population this shape is drawn out of).
+            if let Some(shape) = try_parse_cond_tail_pair(seg, p, lo, depth) {
+                disp("disp-cond-tail-pair");
+                return Ok(shape);
+            }
             if let Some(shape) = try_parse_compare(seg, p, lo) {
                 disp("disp-compare-leaf");
                 return Ok(shape);

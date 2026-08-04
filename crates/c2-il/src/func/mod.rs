@@ -252,6 +252,332 @@ pub struct FramedCall {
     pub add_k: i32,
 }
 
+// ---- W8: the two-arm conditional tail call --------------------------------
+
+/// **One arm of a [`CondTailPair`]** — a tail call, resolved.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CondArm {
+    /// The external callee's mangled name (from `.gl`).
+    pub callee: String,
+    /// What each argument slot wants; slot `j` is register `r(3+j)`. Only
+    /// [`SlotArg::Formal`] and [`SlotArg::Lit`] occur — a data symbol's address
+    /// inside an arm has no capture (its `lis` is hoisted ahead of the *whole*
+    /// setup, and where that lands relative to a branch is unmeasured).
+    pub slots: Vec<SlotArg>,
+}
+
+/// **W8 — the two-arm conditional tail call.** `docs/CFG_SHAPE.md` §4's minimal
+/// instance, and the first shape in this crate whose lowering emits a branch.
+///
+/// ```cpp
+///   void MemFree(void *v1, void *v2, unsigned long ul) {
+///       if (v1 == nullptr) { XMemFree(v2, ul); return; }
+///       RtlFreeHeap(v1, 0, v2);
+///   }
+/// ```
+///
+/// `then_arm` is the arm taken when the relation **holds**. The IL's `38` is
+/// brFALSE, so the emitted `bc` carries the *negation* and jumps to `else_arm`;
+/// the then-arm is the fall-through (`CFG_SHAPE.md` §3.4, and §1 prediction A3,
+/// which scored RIGHT across ten cells).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CondTailPair {
+    /// Which formal the condition compares, by index into
+    /// [`IlFunction::params`].
+    pub cmp_param: usize,
+    /// The relation as written in the source. The emitted branch is its
+    /// negation.
+    pub rel: Rel,
+    /// Whether the comparison is signed — `cmpwi` rather than `cmplwi`. From
+    /// the operand TYPE triple and from nothing else; the relational opcodes are
+    /// sign-agnostic (`docs/CFG_SHAPE.md` §3.2).
+    pub signed: bool,
+    /// The literal the formal is compared against; fits the 16-bit immediate.
+    pub k: i32,
+    pub then_arm: CondArm,
+    pub else_arm: CondArm,
+}
+
+/// One instruction of a [`CondPlan`] block. Blocks are emitted in **descending
+/// destination register** order, which is `moves_descending`'s incumbent rule
+/// and which literals interleave into rather than being grouped after.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CondStep {
+    /// `mr <dst>,<src>`.
+    Move { dst: u8, src: u8 },
+    /// `li <dst>,<k>`.
+    Li { dst: u8, k: i32 },
+}
+
+impl CondStep {
+    fn dst(self) -> u8 {
+        match self {
+            CondStep::Move { dst, .. } | CondStep::Li { dst, .. } => dst,
+        }
+    }
+}
+
+/// **The register schedule of a [`CondTailPair`]** — where every value is at
+/// every point, as three blocks.
+///
+/// This is a *class predicate as much as an emitter input*: a body whose values
+/// this cannot schedule must not census as in class, so the parser runs
+/// [`plan_cond_pair`] as its last gate and the emitter runs the same function.
+/// One decision procedure, the same discipline `CompareLeaf::out_of_class_ctx`
+/// applies one shape down.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CondPlan {
+    /// The entry block: the shuffles that must happen before the compare,
+    /// because both successors need the value and at least one of them clobbers
+    /// where it lives.
+    pub entry: Vec<CondStep>,
+    /// The register the `cmpwi`/`cmplwi` reads — the compared formal's location
+    /// **after** the entry block, which is not always its home register
+    /// (`?mmioGetInfo` parks its compared value in r11 and compares r11).
+    pub cmp_reg: u8,
+    /// The fall-through block (the relation holds).
+    pub then_steps: Vec<CondStep>,
+    /// The branch target block (the relation does not hold).
+    pub else_steps: Vec<CondStep>,
+}
+
+/// The scratch register a value both arms need is parked in. Measured at r11 in
+/// `?MemFree`, `?MemAlloc`, `?MemSize` and `?mmioGetInfo`; **only** at r11.
+pub const COND_PARK_REG: u8 = 11;
+
+/// **The register schedule, and the class boundary it draws.**
+///
+/// Derived from the three `xboxmem.cpp` functions plus `?mmioGetInfo`, and
+/// stated as three rules:
+///
+/// 1. a formal **both arms want in the same register** has its move hoisted into
+///    the entry block (`?MemAlloc`'s `mr r4,r5` — the then-arm passes `attrs` and
+///    the else-arm passes `(attrs>>27)&8`, both in r4);
+/// 2. a formal **both arms want in different registers**, whose home register is
+///    clobbered by both arms, is **parked in r11** in the entry block
+///    (`?MemFree`'s `mr r11,r4`: `v2` goes to r3 in one arm and r5 in the other);
+/// 3. everything else stays in its arm.
+///
+/// Within every block the order is **descending destination register**.
+///
+/// **What is fitted and what is tested.** `docs/CFG_SHAPE.md` §8.1 **B3** says
+/// plainly that the discriminator "needed on both paths" *fits* `?MemFree` and
+/// `?MemAlloc` and is *tested by* neither, and this function does not pretend
+/// otherwise. What it does instead is **verify** rather than trust: the schedule
+/// it produces is simulated register by register and a schedule that does not
+/// deliver every slot its value is refused, not emitted. So a shape the rules
+/// mis-handle comes out as a refusal, which is a gap, instead of as a plausible
+/// wrong branch, which is a mis-emit.
+///
+/// Returns `None` — a refusal — for anything outside that.
+pub fn plan_cond_pair(
+    n_params: usize,
+    cmp_param: usize,
+    then_slots: &[SlotArg],
+    else_slots: &[SlotArg],
+) -> Option<CondPlan> {
+    /// The argument registers, by slot. Past the eighth an argument is
+    /// stack-homed and its setup is a store, not a move.
+    fn arg_reg(slot: usize) -> Option<u8> {
+        (slot < 8).then(|| 3 + slot as u8)
+    }
+    let home = |i: usize| -> Option<u8> { arg_reg(i) };
+
+    if cmp_param >= n_params {
+        return None;
+    }
+    if then_slots.len() > 8 || else_slots.len() > 8 {
+        return None;
+    }
+    // A data symbol's address inside an arm is out of class; so is a slot
+    // sourcing a formal this function does not have.
+    for s in then_slots.iter().chain(else_slots) {
+        match s {
+            SlotArg::Formal(f) if *f < n_params => {}
+            SlotArg::Lit(_) => {}
+            _ => return None,
+        }
+    }
+    // Where each arm wants each formal. A formal wanted **twice** by one arm is
+    // the shape `tail_call_shape` refuses under `call-arg-duplicated` — c2 emits
+    // a dead `mr` through the temp, which no live-value-driven schedule
+    // produces.
+    let want = |slots: &[SlotArg], i: usize| -> Option<Option<usize>> {
+        let mut found = None;
+        for (j, a) in slots.iter().enumerate() {
+            if *a == SlotArg::Formal(i) {
+                if found.is_some() {
+                    return None;
+                }
+                found = Some(j);
+            }
+        }
+        Some(found)
+    };
+
+    // `loc[i]` is where formal `i` lives once the entry block has run.
+    let mut loc: Vec<u8> = (0..n_params).map(|i| home(i).unwrap_or(0)).collect();
+    for i in 0..n_params {
+        if home(i).is_none() {
+            return None;
+        }
+    }
+    let mut entry: Vec<CondStep> = Vec::new();
+    let mut then_steps: Vec<CondStep> = Vec::new();
+    let mut else_steps: Vec<CondStep> = Vec::new();
+    let mut parks = 0usize;
+
+    // Which argument registers each arm writes. Rule 2's precondition — "the
+    // home register is clobbered by both arms" — is asked against these.
+    let writes = |slots: &[SlotArg]| -> Vec<u8> {
+        (0..slots.len()).filter_map(arg_reg).collect()
+    };
+    let then_writes = writes(then_slots);
+    let else_writes = writes(else_slots);
+
+    for i in 0..n_params {
+        let h = home(i)?;
+        let a = want(then_slots, i)?;
+        let b = want(else_slots, i)?;
+        match (a, b) {
+            (Some(ja), Some(jb)) if ja == jb => {
+                // Rule 1 — one destination, both arms: hoist the move.
+                let d = arg_reg(ja)?;
+                if d != h {
+                    entry.push(CondStep::Move { dst: d, src: h });
+                }
+                loc[i] = d;
+            }
+            (Some(_), Some(_)) => {
+                // Rule 2 — two destinations: park, but only where the witnesses
+                // are. A home register neither arm overwrites needs no park at
+                // all and each arm could simply read it; that shape has no
+                // capture, so it is refused rather than guessed.
+                if !(then_writes.contains(&h) && else_writes.contains(&h)) {
+                    return None;
+                }
+                parks += 1;
+                if parks > 1 {
+                    // A second park would descend to r10 on a register model
+                    // `docs/CODEGEN_W6_COMPARE.md` §6 records as demonstrably
+                    // richer than a descending counter and NOT characterized.
+                    return None;
+                }
+                entry.push(CondStep::Move { dst: COND_PARK_REG, src: h });
+                loc[i] = COND_PARK_REG;
+            }
+            _ => {}
+        }
+    }
+
+    // Rule 3 — the arm-local steps, from each formal's post-entry location.
+    let arm = |slots: &[SlotArg], steps: &mut Vec<CondStep>| -> Option<()> {
+        for (j, s) in slots.iter().enumerate() {
+            let d = arg_reg(j)?;
+            match s {
+                SlotArg::Formal(f) => {
+                    let src = *loc.get(*f)?;
+                    if src != d {
+                        steps.push(CondStep::Move { dst: d, src });
+                    }
+                }
+                SlotArg::Lit(k) => {
+                    if !(-0x8000..=0x7FFF).contains(k) {
+                        return None;
+                    }
+                    steps.push(CondStep::Li { dst: d, k: *k });
+                }
+                SlotArg::SymAddr => return None,
+            }
+        }
+        Some(())
+    };
+    arm(then_slots, &mut then_steps)?;
+    arm(else_slots, &mut else_steps)?;
+
+    // Descending destination, in every block.
+    let desc = |v: &mut Vec<CondStep>| v.sort_by(|x, y| y.dst().cmp(&x.dst()));
+    desc(&mut entry);
+    desc(&mut then_steps);
+    desc(&mut else_steps);
+
+    let plan = CondPlan {
+        entry,
+        cmp_reg: loc[cmp_param],
+        then_steps,
+        else_steps,
+    };
+    // **Verify, do not trust.** Simulate the schedule and refuse one that does
+    // not deliver. See the doc comment: the placement rules are fitted, the
+    // check is not.
+    plan.verify(n_params, cmp_param, then_slots, else_slots)?;
+    Some(plan)
+}
+
+/// An abstract register value, for [`CondPlan::verify`]. Formals and literals
+/// are different value *spaces* on purpose: a slot must not be able to satisfy
+/// itself with the right number of the wrong kind.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CondVal {
+    Formal(usize),
+    Lit(i32),
+}
+
+impl CondPlan {
+    /// Simulate the schedule and check it delivers. `None` in a register is
+    /// "undefined", and reading one refuses.
+    fn verify(
+        &self,
+        n_params: usize,
+        cmp_param: usize,
+        then_slots: &[SlotArg],
+        else_slots: &[SlotArg],
+    ) -> Option<()> {
+        // r0..r11 is enough: every destination in class is an argument register
+        // or [`COND_PARK_REG`].
+        const NREG: usize = COND_PARK_REG as usize + 1;
+        let mut regs: [Option<CondVal>; NREG] = [None; NREG];
+        for i in 0..n_params {
+            *regs.get_mut(3 + i)? = Some(CondVal::Formal(i));
+        }
+        fn run(regs: &mut [Option<CondVal>], steps: &[CondStep]) -> Option<()> {
+            for s in steps {
+                match *s {
+                    CondStep::Move { dst, src } => {
+                        let v = (*regs.get(src as usize)?)?;
+                        *regs.get_mut(dst as usize)? = Some(v);
+                    }
+                    CondStep::Li { dst, k } => {
+                        *regs.get_mut(dst as usize)? = Some(CondVal::Lit(k));
+                    }
+                }
+            }
+            Some(())
+        }
+        run(&mut regs, &self.entry)?;
+        // The compare reads its register after the entry block, and it must hold
+        // the formal it names.
+        if (*regs.get(self.cmp_reg as usize)?)? != CondVal::Formal(cmp_param) {
+            return None;
+        }
+        for (steps, slots) in [(&self.then_steps, then_slots), (&self.else_steps, else_slots)] {
+            let mut r = regs;
+            run(&mut r, steps)?;
+            for (j, s) in slots.iter().enumerate() {
+                let want = match s {
+                    SlotArg::Formal(f) => CondVal::Formal(*f),
+                    SlotArg::Lit(k) => CondVal::Lit(*k),
+                    SlotArg::SymAddr => return None,
+                };
+                if (*r.get(3 + j)?)? != want {
+                    return None;
+                }
+            }
+        }
+        Some(())
+    }
+}
+
 /// **A single-argument floating-point tail call's argument marshalling** — the
 /// whole of it.
 ///
@@ -699,6 +1025,10 @@ pub struct IlFunction {
     /// label stride — but with one REL24 site per call instead of one.
     /// [`Self::params`] carries the formals the first call's arguments index.
     pub call_seq: Option<CallSeq>,
+    /// If this function is a **W8 two-arm conditional tail call**, the decoded
+    /// branch and both arms. Mutually exclusive with the other body kinds, and
+    /// the only one of them whose lowering emits a `bc`.
+    pub cond_pair: Option<CondTailPair>,
     /// If this function is a **comparison leaf** (`return a <rel> k;`, W6), the
     /// decoded comparison. Mutually exclusive with the other body kinds.
     pub compare: Option<CompareLeaf>,
@@ -891,6 +1221,7 @@ impl IlFunction {
             tail_call: None,
             framed_call: None,
             call_seq: None,
+            cond_pair: None,
             compare: None,
             float_leaf: None,
             fp_tail: None,
@@ -1057,6 +1388,14 @@ impl IlFunction {
                 self.call_seq
                     .iter()
                     .flat_map(|s| s.calls.iter().map(|c| c.callee.as_str())),
+            )
+            // W8: both arms, in BLOCK order — the then-arm's `b` is emitted
+            // first, so its REL24 site is the lower offset and its symbol the
+            // earlier one in the per-function region.
+            .chain(
+                self.cond_pair
+                    .iter()
+                    .flat_map(|c| [c.then_arm.callee.as_str(), c.else_arm.callee.as_str()]),
             )
     }
 
