@@ -1,0 +1,979 @@
+use super::classify::normalize_cl_error;
+use super::*;
+
+#[test]
+fn cl_error_normalization_extracts_code() {
+    let blob = "capture failed\n  stdout:\n    x.cpp\n    src/x.h(12): fatal error C1083: Cannot open include file: 'foo.h': No such file\n";
+    let (key, detail) = normalize_cl_error(blob);
+    assert_eq!(key, "C1083");
+    assert!(detail.contains("foo.h"));
+}
+
+#[test]
+fn cl_error_normalization_survives_codeless_blobs() {
+    let (key, _) = normalize_cl_error("wibo: something exploded\n");
+    assert_eq!(key, "wibo: something exploded");
+}
+
+fn mk_report(results: Vec<TuResult>) -> GapReport {
+    GapReport {
+        results,
+        provenance: None,
+        cache: crate::capture_cache::CacheStats::default(),
+    }
+}
+
+fn mk(reason: &str) -> TuResult {
+    TuResult {
+        src: "s".into(),
+        class: TuClass::CodegenGap,
+        reason: reason.into(),
+        detail: String::new(),
+        ex_len: 0,
+        fn_names: 0,
+        replay_ok: None,
+        fn_total: 0,
+        fn_in_class: 0,
+        fn_blockers: BTreeMap::new(),
+        fn_frames: BTreeMap::new(),
+        fn_cflow: BTreeMap::new(),
+        fn_eh: BTreeMap::new(),
+        fn_dispatch: BTreeMap::new(),
+        fn_complete: BTreeMap::new(),
+        fn_prod: BTreeMap::new(),
+        fn_gate_refusals: BTreeMap::new(),
+        bind_checks: BTreeMap::new(),
+        emit: BTreeMap::new(),
+        emit_blockers: BTreeMap::new(),
+        emit_witness: Vec::new(),
+    }
+}
+
+#[test]
+fn report_ranks_reasons_by_count() {
+    let rep = mk_report(vec![mk("b"), mk("a"), mk("b")]);
+    assert_eq!(
+        rep.top_reasons(TuClass::CodegenGap),
+        vec![("b".to_string(), 2), ("a".to_string(), 1)]
+    );
+    assert_eq!(rep.count(TuClass::Match), 0);
+}
+
+/// **The witness list ranks by frequency across TUs, and its per-bucket
+/// symbol total is the number the scan's own counter must equal** (board
+/// #159). Both halves matter: a list ranked per TU would name the largest
+/// TU's symbols rather than the workload's, and a list whose total does not
+/// reconcile with `emit-unbound-*` is a second measurement of the residue —
+/// which is exactly the defect `ROADMAP.md` §10.14 records.
+#[test]
+fn the_witness_list_ranks_across_tus_and_reconciles_with_its_counter() {
+    let row = |bucket: &str, name: &str, in_gl: bool| WitnessRow {
+        bucket: bucket.into(),
+        name: name.into(),
+        in_gl_runs: in_gl,
+        in_gl_index: in_gl,
+    };
+    let ord = "emit-unbound-no-record|ordinary";
+    let spc = "emit-unbound-no-record|special-generated";
+    let mut a = mk("x");
+    a.src = "a.cpp".into();
+    a.emit_witness = vec![row(ord, "?rare@@YAXXZ", false), row(ord, "?common@@YAXXZ", true)];
+    a.emit.insert(ord.into(), 2);
+    let mut b = mk("x");
+    b.src = "b.cpp".into();
+    b.emit_witness = vec![row(ord, "?common@@YAXXZ", true), row(spc, "??_7C@6B@", false)];
+    b.emit.insert(ord.into(), 1);
+    b.emit.insert(spc.into(), 1);
+
+    let rep = mk_report(vec![a, b]);
+    let buckets = witness_buckets(&rep.results);
+    assert_eq!(buckets.len(), 2, "one entry per bucket that collected a row");
+    let o = &buckets[0];
+    assert_eq!(o.bucket, ord, "buckets rank by symbol count, largest first");
+    assert_eq!((o.symbols, o.tus, o.names.len(), o.in_gl_runs, o.in_gl_index), (3, 2, 2, 2, 2));
+    assert_eq!(
+        o.names[0],
+        ("?common@@YAXXZ".to_string(), 2, 2, "a.cpp".to_string()),
+        "the name seen in two TUs outranks the name seen once, and carries an example TU"
+    );
+    assert_eq!(o.names[1].1, 1);
+    assert_eq!(buckets[1].symbols, 1);
+
+    // The reconciliation the report prints: rows summed per bucket equal the
+    // counter the same loop incremented. This is the check §10.14's reader
+    // could not have passed, because it had no counter to reconcile against.
+    for b in &buckets {
+        assert_eq!(
+            b.symbols,
+            rep.emit_total(&b.bucket),
+            "{}: witness rows must equal the scan's own counter",
+            b.bucket
+        );
+    }
+    let rows: usize = buckets.iter().map(|b| b.symbols).sum();
+    assert_eq!(rows, 4, "every row lands in exactly one bucket");
+}
+
+/// A TU whose emitted census is spelled out: `emitted` symbols, of which
+/// `bound` bound, `in_class` in class, and `gen`/`other` in the two residue
+/// buckets.
+fn mk_emit(
+    class: TuClass,
+    emitted: usize,
+    bound: usize,
+    in_class: usize,
+    gen: usize,
+    other: usize,
+) -> TuResult {
+    let mut r = mk("x");
+    r.class = class;
+    r.fn_total = emitted;
+    r.fn_in_class = in_class;
+    for (k, n) in [
+        ("emit-emitted", emitted),
+        ("emit-bound", bound),
+        ("emit-in-class", in_class),
+        ("emit-residue-generated", gen),
+        ("emit-residue-unbound", other),
+    ] {
+        if n > 0 {
+            r.emit.insert(k.into(), n);
+        }
+    }
+    r
+}
+
+/// The read-out and its residue aggregate across TUs, and the denominator is
+/// the emitted count — never reduced by what failed to bind, which would
+/// inflate the ratio.
+#[test]
+fn the_emitted_census_aggregates_and_keeps_its_denominator_whole() {
+    let a = mk_emit(TuClass::VocabGap, 100, 90, 20, 4, 6);
+    let b = mk_emit(TuClass::VocabGap, 50, 45, 5, 1, 4);
+    let rep = mk_report(vec![a, b]);
+    assert_eq!(
+        rep.emit_coverage(),
+        (25, 150),
+        "the read-out is in-class over EMITTED, not over bound"
+    );
+    assert_eq!(
+        rep.emit_residue(),
+        (5, 10),
+        "the residue splits into generated-with-no-body and unexplained"
+    );
+    assert_eq!(
+        rep.emit_total("emit-bound") + rep.emit_residue().0 + rep.emit_residue().1,
+        150,
+        "bound + residue must account for every emitted symbol"
+    );
+}
+
+/// GROUND TRUTH, and its NEGATIVE CONTROL. On a byte-exact TU the oracle has
+/// already graded the whole symbol table, so the binding's answer there is
+/// checkable: every emitted symbol must bind to an in-class row.
+///
+/// The guard's quantity — one `match` TU with 40 emitted functions — is held
+/// FIXED across the two halves; only how many of them the binding claimed
+/// moves. Without that, the second half could pass by the TU no longer being
+/// a `match` at all, and the assertion under test would never run.
+#[test]
+fn a_match_tu_whose_emitted_symbols_do_not_all_bind_is_a_binding_defect() {
+    let good = mk_emit(TuClass::Match, 40, 40, 40, 0, 0);
+    let rep = mk_report(vec![good, mk_emit(TuClass::VocabGap, 100, 50, 10, 20, 30)]);
+    assert_eq!(rep.count(TuClass::Match), 1, "control: one byte-exact TU");
+    assert_eq!(
+        rep.emit_match_tu_residue(),
+        0,
+        "control: a byte-exact TU with every symbol bound and in class reads 0"
+    );
+
+    let bad = mk_emit(TuClass::Match, 40, 37, 37, 0, 3);
+    let rep = mk_report(vec![bad, mk_emit(TuClass::VocabGap, 100, 50, 10, 20, 30)]);
+    assert_eq!(
+        rep.count(TuClass::Match),
+        1,
+        "the mutation must not change the number of byte-exact TUs — otherwise \
+         this control tests the class filter, not the binding"
+    );
+    assert_eq!(
+        rep.emit_match_tu_residue(),
+        3,
+        "three emitted symbols the port provably emitted correctly did not bind \
+         to an in-class row: the binding is wrong there, and it must say so"
+    );
+}
+
+/// The near-match table is the payoff metric's leading indicator, and a
+/// `capture-fail` TU must not appear in it: it has no census, so its distance
+/// of 0 means "never measured", not "nearly done".
+#[test]
+fn the_near_match_table_excludes_the_tus_that_were_never_measured() {
+    let mut near = mk_emit(TuClass::VocabGap, 10, 10, 9, 0, 0);
+    near.src = "near.cpp".into();
+    near.fn_total = 10;
+    near.fn_in_class = 9;
+    let mut far = mk_emit(TuClass::VocabGap, 500, 400, 10, 0, 0);
+    far.src = "far.cpp".into();
+    far.fn_total = 500;
+    far.fn_in_class = 10;
+    let mut unmeasured = mk("c1083");
+    unmeasured.class = TuClass::CaptureFail;
+    unmeasured.src = "never-captured.cpp".into();
+    let rep = mk_report(vec![near, far, unmeasured]);
+    let got: Vec<&str> = rep.near_match_tus(100).iter().map(|r| r.src.as_str()).collect();
+    assert_eq!(
+        got,
+        vec!["near.cpp"],
+        "only the measured TU within 100 blocked functions may appear"
+    );
+}
+
+/// The two distances measure different populations and must be allowed to
+/// disagree — the whole reason for publishing both. Modelled on the real
+/// `src/system/math/Rand2.cpp`: 13 `.ex` bodies, 5 in class (8 blocked
+/// bodies), but only 2 emitted functions of which 1 is in class, so **2**
+/// by the measure the goal is written in. A leading indicator that ranked
+/// this TU at 8 while another at 8-blocked-bodies-and-8-blocked-emitted also
+/// read 8 is ranking two very different amounts of work the same.
+#[test]
+fn the_two_distances_are_different_populations_and_may_disagree() {
+    let mut rand2 = mk_emit(TuClass::VocabGap, 2, 2, 1, 0, 0);
+    rand2.src = "Rand2.cpp".into();
+    rand2.fn_total = 13;
+    rand2.fn_in_class = 5;
+    let mut even = mk_emit(TuClass::VocabGap, 9, 9, 1, 0, 0);
+    even.src = "even.cpp".into();
+    even.fn_total = 9;
+    even.fn_in_class = 1;
+    let rep = mk_report(vec![rand2, even]);
+
+    let by_body: Vec<&str> = rep.near_match_tus(8).iter().map(|r| r.src.as_str()).collect();
+    assert_eq!(
+        by_body,
+        vec!["Rand2.cpp", "even.cpp"],
+        "by blocked BODIES both TUs are 8 away and the measure cannot tell them apart"
+    );
+    let by_emit: Vec<&str> = rep
+        .near_match_tus_emitted(2)
+        .iter()
+        .map(|r| r.src.as_str())
+        .collect();
+    assert_eq!(
+        by_emit,
+        vec!["Rand2.cpp"],
+        "by blocked EMITTED functions Rand2 is 2 away and the other is 8 — if this \
+         ever equals the body measure, one of the two is not reading what it says"
+    );
+}
+
+/// The emit-set ceiling, and the control that makes it a measurement.
+///
+/// `PortC2` emits one `.text` COMDAT per `.ex` function segment and has no
+/// emit-set model, so a TU whose segment count differs from its obj's
+/// COMDAT-leader count cannot be byte-exact however good its codegen is.
+/// The invariant that keeps that reading honest is that **no matching TU may
+/// violate it** — a byte-exact obj cannot carry a different number of
+/// `.text` COMDATs than the port wrote. The mutation below is exactly that
+/// violation and it must be counted, otherwise the ceiling is an argument
+/// rather than a control.
+#[test]
+fn the_emit_set_ceiling_is_bounded_by_an_invariant_that_can_go_red() {
+    // A matching TU: 2 bodies, 2 emitted COMDATs, both in class.
+    let mut ok = mk_emit(TuClass::Match, 2, 2, 2, 0, 0);
+    ok.src = "Spew.cpp".into();
+    ok.fn_total = 2;
+    ok.fn_in_class = 2;
+    // Reachable but not there yet: counts agree, one body still blocked.
+    let mut near = mk_emit(TuClass::VocabGap, 1, 1, 0, 0, 0);
+    near.src = "xboxheap.cpp".into();
+    near.fn_total = 1;
+    near.fn_in_class = 0;
+    // UNREACHABLE: 802 `.ex` bodies against 2 emitted COMDATs. Every emitted
+    // function is already in class, so BOTH distance measures call it near;
+    // the port would still write 802 sections against c2's 2.
+    let mut vec_cpp = mk_emit(TuClass::VocabGap, 2, 2, 2, 0, 0);
+    vec_cpp.src = "vec.cpp".into();
+    vec_cpp.fn_total = 802;
+    vec_cpp.fn_in_class = 237;
+    let rep = mk_report(vec![ok, near, vec_cpp]);
+
+    let reach: Vec<&str> = rep
+        .emit_set_reachable_tus()
+        .iter()
+        .map(|r| r.src.as_str())
+        .collect();
+    assert_eq!(
+        reach,
+        vec!["Spew.cpp", "xboxheap.cpp"],
+        "vec.cpp has zero blocked EMITTED functions and is still unreachable — \
+         that is the point of the ceiling"
+    );
+    assert_eq!(
+        rep.emit_set_violations(),
+        0,
+        "a matching TU whose counts disagree would mean fn_total and emit-emitted \
+         are not counting what the ceiling says they count"
+    );
+
+    // The control: make a MATCHING TU violate it. If this does not go red the
+    // invariant cannot see the defect it exists for (#145).
+    let mut bad = mk_emit(TuClass::Match, 2, 2, 2, 0, 0);
+    bad.src = "Spew.cpp".into();
+    bad.fn_total = 5;
+    bad.fn_in_class = 2;
+    let rep = mk_report(vec![bad]);
+    assert_eq!(
+        rep.count(TuClass::Match),
+        1,
+        "the mutation must not change the number of byte-exact TUs — otherwise this \
+         control tests the class filter, not the emit-set reading"
+    );
+    assert_eq!(
+        rep.emit_set_violations(),
+        1,
+        "a byte-exact obj with 5 `.ex` segments and 2 `.text` COMDATs is impossible; \
+         the invariant must say so"
+    );
+}
+
+/// A TU with the five Phase 7 factors set explicitly, through the same keys
+/// `scan_one` writes. `e` is factor E, whole-TU acceptance (board #179).
+fn mk_factors(
+    class: TuClass,
+    src: &str,
+    a: bool,
+    b: bool,
+    c: bool,
+    d: bool,
+    e: bool,
+) -> TuResult {
+    let mut r = mk("x");
+    r.class = class;
+    r.src = src.into();
+    // `emit-gate-segments-known` and `emit-emitted` are the populations the
+    // factors are defined over; a TU missing them is UNMEASURED, not false.
+    r.emit.insert("emit-gate-segments-known".into(), 1);
+    r.emit.insert("emit-emitted".into(), 0);
+    r.emit.insert("emit-sec-readable".into(), 1);
+    for (k, on) in [
+        ("emit-set-ceiling-gate", a),
+        ("emit-set-ceiling-today", b),
+        ("emit-sec-reachable", c),
+        ("emit-class-complete", d),
+        ("emit-whole-tu-any", e),
+    ] {
+        if on {
+            r.emit.insert(k.into(), 1);
+        }
+    }
+    r
+}
+
+/// **The factorization is a JOINT, and the joint is not the product of its
+/// marginals** (`ROADMAP.md` §8.6 — the standing rule this report had no tool
+/// for until the per-row dump, and now has one for at TU level).
+///
+/// The four TUs below give marginals A = B = C = D = 3 of 4, which multiplied
+/// against 4 TUs would "predict" ≈1.3 — and the measured joint is **0**,
+/// because each TU fails a different factor. A report that printed only the
+/// four counts would let a reader do that multiplication and be wrong in the
+/// flattering direction.
+#[test]
+fn the_factorization_is_a_joint_and_not_a_product_of_marginals() {
+    let rep = mk_report(vec![
+        mk_factors(TuClass::VocabGap, "a.cpp", false, true, true, true, false),
+        mk_factors(TuClass::VocabGap, "b.cpp", true, false, true, true, false),
+        mk_factors(TuClass::VocabGap, "c.cpp", true, true, false, true, false),
+        mk_factors(TuClass::VocabGap, "d.cpp", true, true, true, false, false),
+    ]);
+    let [a, b, c, d, e, _a_lo, bc, _abc, abcd, joint] = rep.factor_counts();
+    assert_eq!([a, b, c, d], [3, 3, 3, 3], "each marginal is 3 of 4");
+    assert_eq!(e, 0, "no whole-TU recognizer fires on any of these");
+    assert_eq!(bc, 2, "B and C jointly is measured per TU, not B*C/n");
+    assert_eq!(
+        abcd, 0,
+        "no TU satisfies all four — the joint can be 0 while every marginal \
+         is 3/4, which is the whole reason this is measured and not multiplied"
+    );
+    assert_eq!(joint, 0, "and E adds nothing when no recognizer fires");
+    assert!(rep.factor_all_tus().is_empty());
+}
+
+/// **PROGRESS MASS reproduces the hand computation and publishes its
+/// inputs** (`docs/PROGRESS_METRIC.md`). Four graded TUs with known factor
+/// bits and a known emitted census; the value must be the mean of the four
+/// fractions, and the `gap-metric` key must carry the same digits.
+#[test]
+fn progress_mass_matches_the_hand_computation() {
+    let mut t1 = mk_factors(TuClass::VocabGap, "t1.cpp", true, true, true, false, false);
+    t1.emit.insert("emit-emitted".into(), 4);
+    t1.emit.insert("emit-in-class".into(), 2);
+    let mut t2 = mk_factors(TuClass::VocabGap, "t2.cpp", false, true, true, false, false);
+    t2.emit.insert("emit-emitted".into(), 6);
+    t2.emit.insert("emit-in-class".into(), 1);
+    let t3 = mk_factors(TuClass::VocabGap, "t3.cpp", false, false, false, false, false);
+    let mut cf = mk("x");
+    cf.class = TuClass::CaptureFail; // never graded, in no denominator
+    let rep = mk_report(vec![t1, t2, t3, cf]);
+
+    let p = rep.progress_mass().expect("three graded TUs with emitted fns");
+    assert_eq!((p.graded, p.a, p.b, p.c), (3, 1, 2, 2));
+    assert_eq!((p.emitted_in_class, p.emitted_total), (3, 10));
+    assert_eq!(p.mismatch_zeroed, 0);
+    let expect = (1.0 / 3.0 + 2.0 / 3.0 + 2.0 / 3.0 + 3.0 / 10.0) / 4.0;
+    assert!((p.value - expect).abs() < 1e-12, "P is the mean of the four fractions");
+    let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    assert_eq!(m["progress-mass"], format!("{expect:.5}"));
+    assert_eq!(m["progress-emitted-in-class"], "3");
+    assert_eq!(m["progress-emitted-total"], "10");
+}
+
+/// **A wrong emit always scores strictly below the refusal it replaced** —
+/// the structural guard against the metric paying lanes to emit
+/// *something*. The quantity under mutation is ONE TU's class, refusal →
+/// `mismatch`, with every count on the TU held fixed; the numerators must
+/// drop, both denominators must hold, and P must strictly decrease.
+///
+/// This is the property board #232 makes non-negotiable: the `26`-separator
+/// widening turned a clean refusal into a wrong emit, and any metric on
+/// which that transition scores upward would have *rewarded* the defect.
+#[test]
+fn a_wrong_emit_scores_strictly_below_the_refusal_it_replaced() {
+    let build = |cls: TuClass| {
+        let mut x = mk_factors(cls, "x.cpp", true, true, true, false, false);
+        x.emit.insert("emit-emitted".into(), 4);
+        x.emit.insert("emit-in-class".into(), 2);
+        let mut y = mk_factors(TuClass::VocabGap, "y.cpp", false, true, false, false, false);
+        y.emit.insert("emit-emitted".into(), 6);
+        y.emit.insert("emit-in-class".into(), 1);
+        mk_report(vec![x, y])
+    };
+    let refuse = build(TuClass::VocabGap).progress_mass().unwrap();
+    let wrong = build(TuClass::Mismatch).progress_mass().unwrap();
+    assert_eq!(refuse.graded, wrong.graded, "a mismatch is still graded");
+    assert_eq!(
+        refuse.emitted_total, wrong.emitted_total,
+        "the f denominator never shrinks on a mismatch — zeroing must cost"
+    );
+    assert_eq!(wrong.mismatch_zeroed, 1, "and the zeroing is printed, not silent");
+    assert_eq!(
+        (wrong.a, wrong.b, wrong.c, wrong.emitted_in_class),
+        (0, 1, 0, 1),
+        "every one of the mismatch TU's contributions is gone from the numerators"
+    );
+    assert!(
+        wrong.value < refuse.value,
+        "refusal {} must strictly outscore the same TU emitting wrong bytes {}",
+        refuse.value,
+        wrong.value
+    );
+}
+
+/// **A progress number over an empty scan is unrepresentable.** objdiff's
+/// own `Measures::calc_fuzzy_match_percent` returns 100.0 when
+/// `total_code == 0`; fifteen recorded instances on this project say
+/// absence read as success is the standing failure mode. `progress_mass`
+/// must return `None` — and the `gap-metric` key must be absent, never 0,
+/// never 100 — both for a scan of nothing and for a scan where nothing
+/// captured.
+#[test]
+fn progress_mass_is_unrepresentable_over_an_empty_scan() {
+    for rep in [mk_report(vec![]), {
+        let mut cf = mk("x");
+        cf.class = TuClass::CaptureFail;
+        mk_report(vec![cf])
+    }] {
+        assert!(rep.progress_mass().is_none());
+        let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+        assert!(
+            !m.contains_key("progress-mass"),
+            "no key at all: a collector must read NO-RESULT, not a number"
+        );
+    }
+    // And a graded scan whose TUs emitted nothing has no f denominator —
+    // also None, not a division-by-zero and not a flattering 3-term mean.
+    let rep = mk_report(vec![mk_factors(
+        TuClass::VocabGap,
+        "t.cpp",
+        true,
+        true,
+        true,
+        false,
+        false,
+    )]);
+    assert!(rep.progress_mass().is_none());
+}
+
+/// **The fifth term is a DISJUNCT on D, and both directions of that are
+/// checked here** (board #179).
+///
+/// `d.cpp` fails D and passes E; `e.cpp` passes D and fails E. Both are in
+/// the model's joint `A∧B∧C∧(D∨E)` and only one is in §10.19's original
+/// `A∧B∧C∧D`. If E were ever re-implemented as a *widening of D* the two
+/// numbers would collapse into one and this test would say so.
+#[test]
+fn the_fifth_term_is_a_disjunct_on_d_and_the_old_conjunction_is_still_measured() {
+    let rep = mk_report(vec![
+        mk_factors(TuClass::Match, "whole-tu.cpp", true, true, true, false, true),
+        mk_factors(TuClass::Match, "per-fn.cpp", true, true, true, true, false),
+        // A/B/C hold, neither acceptance path takes it: in neither joint.
+        mk_factors(TuClass::VocabGap, "neither.cpp", true, true, true, false, false),
+    ]);
+    let [_a, _b, _c, d, e, _a_lo, _bc, abc, abcd, joint] = rep.factor_counts();
+    assert_eq!((d, e), (1, 1), "one TU per acceptance path");
+    assert_eq!(abc, 3, "A∧B∧C is unaffected by the fifth term");
+    assert_eq!(abcd, 1, "§10.19's conjunction still misses the whole-TU TU");
+    assert_eq!(joint, 2, "the disjunction picks up both acceptance paths");
+    assert_eq!(rep.factor_abcd_tus(), vec!["per-fn.cpp"]);
+    assert_eq!(rep.factor_all_tus(), vec!["whole-tu.cpp", "per-fn.cpp"]);
+}
+
+/// **The registry is the fifth term's whole population, and it must be
+/// well-formed**: non-empty (an empty one makes E identically false and the
+/// control green for the wrong reason) and with distinct names (two entries
+/// sharing a name would collide on the `emit-whole-tu|<name>` key and report
+/// one marginal for two recognizers).
+#[test]
+fn the_whole_tu_registry_is_non_empty_and_its_names_are_distinct() {
+    assert!(
+        !WHOLE_TU_RECOGNIZERS.is_empty(),
+        "an empty registry makes E identically false, which would make the D-or-E \
+         control pass by measuring nothing"
+    );
+    let names: std::collections::BTreeSet<&str> =
+        WHOLE_TU_RECOGNIZERS.iter().map(|(n, _)| *n).collect();
+    assert_eq!(
+        names.len(),
+        WHOLE_TU_RECOGNIZERS.len(),
+        "two entries with one name share a key and report one marginal for two \
+         recognizers"
+    );
+    assert!(names.iter().all(|n| !n.is_empty()));
+}
+
+/// **The known-answer control**, and it must be able to go red. A/B/C/`D∨E`
+/// are *necessary* conditions for a byte-exact obj, so a `match` TU outside
+/// one means the term is not necessary and every bound drawn from it is
+/// void. For **C** this is also the only executable check on
+/// [`PORT_WRITER_SECTIONS`]: a matching obj is the port's own output, so a
+/// name missing from that list surfaces here.
+///
+/// The guard's quantity — one `match` TU — is held fixed across both halves,
+/// so the second half cannot pass by the TU ceasing to be a `match`.
+#[test]
+fn a_matching_tu_outside_any_factor_is_a_red_control() {
+    let ok = mk_factors(TuClass::Match, "Spew.cpp", true, true, true, true, false);
+    let rep = mk_report(vec![
+        ok,
+        mk_factors(TuClass::VocabGap, "z.cpp", false, false, false, false, false),
+    ]);
+    assert_eq!(rep.factor_control_on_match_tus(), ([0, 0, 0, 0, 1, 0], 1));
+    assert_eq!(rep.factor_all_tus(), vec!["Spew.cpp"]);
+
+    // The mutation: the same matching TU, now carrying a section the writer
+    // cannot emit. That is impossible — the port wrote that obj — so it must
+    // be counted, and against factor C specifically.
+    let bad = mk_factors(TuClass::Match, "Spew.cpp", true, true, false, true, false);
+    let rep = mk_report(vec![bad]);
+    assert_eq!(
+        rep.count(TuClass::Match),
+        1,
+        "the mutation must not change the number of byte-exact TUs — otherwise \
+         this control tests the class filter, not the factor"
+    );
+    assert_eq!(
+        rep.factor_control_on_match_tus(),
+        ([0, 0, 1, 0, 1, 0], 1),
+        "a byte-exact obj outside the port writer's section vocabulary is \
+         impossible; C must say so, and name itself"
+    );
+}
+
+/// **The fifth term's degradation guard, executable** (board #179, prereg
+/// clause 6: *a green control is not evidence unless the red case is
+/// demonstrable*).
+///
+/// The scenario is exactly the one that happened on 2026-08-04 and the one
+/// that will happen again: a **new whole-TU emit path lands in `PortC2`, the
+/// differential grades its TU byte-exact, and nobody adds it to
+/// [`WHOLE_TU_RECOGNIZERS`]**. Such a TU is a `match` with D false and E
+/// false, and the `D∨E` column must go red and stay red until the registry
+/// is taught the path.
+///
+/// This is the *only* guard that E is complete, and it is empirical rather
+/// than static — `gap.rs` cannot enumerate `c2-core`'s match arms, and a test
+/// asserting `decodes() == functions().is_some() || <registry>` would pass
+/// vacuously on every bundle that exercises no new path. Nothing here claims
+/// otherwise.
+///
+/// The three-way contrast is the content: a per-function match (D), a
+/// registered whole-TU match (E) and an unregistered one (neither) sit in the
+/// same report, and only the third is counted.
+#[test]
+fn the_control_goes_red_for_an_unregistered_whole_tu_path() {
+    // Green: both acceptance paths accounted for.
+    let rep = mk_report(vec![
+        mk_factors(TuClass::Match, "per-fn.cpp", true, true, true, true, false),
+        mk_factors(TuClass::Match, "dyninit.cpp", true, true, true, false, true),
+    ]);
+    let (bad, n) = rep.factor_control_on_match_tus();
+    assert_eq!(n, 2);
+    assert_eq!(
+        bad[5], 0,
+        "with both paths modelled the necessary term holds on every match"
+    );
+    assert_eq!(
+        (bad[3], bad[4]),
+        (1, 1),
+        "and each disjunct is individually violated — which is why neither is \
+         the necessary term"
+    );
+    assert_eq!(rep.factor_all_tus(), vec!["per-fn.cpp", "dyninit.cpp"]);
+
+    // RED: a third TU the port emitted byte-exact through a path no registry
+    // entry models. The population of matches is deliberately grown rather
+    // than mutated, so the two green TUs stay green and the red column
+    // cannot be an artefact of the class filter.
+    let rep = mk_report(vec![
+        mk_factors(TuClass::Match, "per-fn.cpp", true, true, true, true, false),
+        mk_factors(TuClass::Match, "dyninit.cpp", true, true, true, false, true),
+        mk_factors(TuClass::Match, "unregistered.cpp", true, true, true, false, false),
+    ]);
+    let (bad, n) = rep.factor_control_on_match_tus();
+    assert_eq!(n, 3, "the mutation adds a match, it does not reclassify one");
+    assert_eq!(
+        bad[5], 1,
+        "an emit path outside the registry must void the bound — this is the \
+         only thing keeping E from being a rubber stamp"
+    );
+    assert_eq!(
+        [bad[0], bad[1], bad[2]],
+        [0, 0, 0],
+        "A/B/C are unaffected, so the red names the term that is actually wrong"
+    );
+    assert!(
+        !rep.factor_all_tus().contains(&"unregistered.cpp"),
+        "and the joint stops being the match set, which is the printed alarm"
+    );
+}
+
+/// **The frontier is `A∧B∧C ∧ ¬(D∨E) ∧ ¬match`**, and each of those clauses
+/// is load-bearing: a byte-exact TU in the list would be work already done, a
+/// TU missing A, B or C is not one widening away from anything, and — board
+/// #179 — a TU some whole-TU recognizer already accepts is **not** reachable
+/// by widening the per-function class, so advertising it as codegen work
+/// would point the next lane at the wrong file.
+#[test]
+fn the_frontier_is_the_tus_whose_only_remaining_factor_is_codegen() {
+    let mut near = mk_factors(TuClass::VocabGap, "near.cpp", true, true, true, false, false);
+    near.emit.insert("emit-emitted".into(), 5);
+    near.emit.insert("emit-in-class".into(), 4);
+    let mut far = mk_factors(TuClass::VocabGap, "far.cpp", true, true, true, false, false);
+    far.emit.insert("emit-emitted".into(), 11);
+    far.emit.insert("emit-in-class".into(), 8);
+    // E-true and not a match: the whole-TU recognizer takes it and the
+    // emitter's own fence refuses it. Blocked on work that is not codegen
+    // breadth, so it must NOT appear — this is the board #179 narrowing.
+    let mut fenced = mk_factors(TuClass::CodegenGap, "fenced.cpp", true, true, true, false, true);
+    fenced.emit.insert("emit-emitted".into(), 1);
+    fenced.emit.insert("emit-in-class".into(), 0);
+    let rep = mk_report(vec![
+        far,
+        near,
+        fenced,
+        // Already done — must not appear.
+        mk_factors(TuClass::Match, "done.cpp", true, true, true, true, false),
+        // Blocked on a factor codegen cannot move — must not appear.
+        mk_factors(TuClass::VocabGap, "sections.cpp", true, true, false, false, false),
+        mk_factors(TuClass::VocabGap, "emitset.cpp", false, true, true, false, false),
+    ]);
+    let got: Vec<(&str, usize)> = rep
+        .factor_frontier()
+        .into_iter()
+        .map(|(r, n)| (r.src.as_str(), n))
+        .collect();
+    assert_eq!(
+        got,
+        vec![("near.cpp", 1), ("far.cpp", 3)],
+        "nearest first by blocked EMITTED functions, and only the TUs where \
+         per-function codegen breadth is the whole remaining distance — \
+         `fenced.cpp` is one blocked function away and still excluded, because \
+         widening the function class cannot reach a TU a whole-TU emitter owns"
+    );
+}
+
+/// **The machine-readable block publishes the four figures that went stale,
+/// and derives the projection rather than leaving it to be subtracted.**
+///
+/// The second assertion is the reason `factor_frontier_if_a` is a function
+/// and not a note saying "add the delta to the frontier". Board #213
+/// published `A∧B∧C 25 → 107` and `FRONTIER 17 → 99` as one number, `+82`,
+/// because on that corpus the two deltas happened to coincide. They are
+/// **not** the same quantity: they differ on any TU inside `B∧C` that fails
+/// A and that some acceptance path already takes, and this fixture contains
+/// one (`noa_accepted.cpp`). Had `+82` been derived rather than observed,
+/// its two halves could not have drifted apart unnoticed.
+#[test]
+fn the_metric_block_derives_the_projection_instead_of_leaving_it_to_a_reader() {
+    let rep = mk_report(vec![
+        // Already byte-exact: inside A∧B∧C and inside B∧C, on no frontier.
+        mk_factors(TuClass::Match, "done.cpp", true, true, true, true, false),
+        // The frontier proper: A, B, C, no acceptance path.
+        mk_factors(TuClass::VocabGap, "codegen.cpp", true, true, true, false, false),
+        // Fails A only — reachable if the emit-set model were perfect.
+        mk_factors(TuClass::VocabGap, "noa.cpp", false, true, true, false, false),
+        // Fails A *and* is already accepted per-function. Inside B∧C, so it
+        // counts toward the projection; outside BOTH frontiers, so the
+        // frontier delta misses it. This is the divergence.
+        mk_factors(TuClass::CodegenGap, "noa_accepted.cpp", false, true, true, true, false),
+    ]);
+    let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    let g = |k: &str| m.get(k).expect("stable key must be present").clone();
+    assert_eq!(g("graded"), "4");
+    assert_eq!(g("b-and-c"), "4", "B∧C is a per-TU joint, not a product");
+    assert_eq!(g("a-and-b-and-c"), "2");
+    assert_eq!(g("frontier"), "1");
+    assert_eq!(g("frontier-if-a"), "2");
+    assert_eq!(
+        g("emit-predicate-worth"),
+        "2",
+        "the projection is B∧C − A∧B∧C, derived here so it cannot be \
+         reassembled from two independently-stale halves"
+    );
+    assert_ne!(
+        g("emit-predicate-worth"),
+        "1",
+        "and it is NOT the frontier delta (1 here): the two coincide only \
+         while every accepted TU inside B∧C also satisfies A, which is a \
+         fact about a corpus and not an identity"
+    );
+    assert_eq!(
+        rep.factor_projection_divergence(),
+        vec!["noa_accepted.cpp"],
+        "and the divergence is reported BY NAME, so the disagreement points at \
+         a file instead of at an unexplained off-by-N"
+    );
+    assert!(
+        !m.contains_key("ladder-head"),
+        "a closed/empty ladder omits the head keys rather than publishing a \
+         zero — a collector reading a missing key as 0 would announce a \
+         ladder that reaches C = 0 (trap 5)"
+    );
+}
+
+/// An obj whose section headers did not decode is **outside** C, never
+/// inside it. An empty section list would read as "carries nothing beyond
+/// the writer's set", which is the flattering direction and the shape
+/// §9.18.8 records twelve times.
+#[test]
+fn an_unreadable_obj_is_outside_factor_c_rather_than_vacuously_inside_it() {
+    let mut r = mk("x");
+    r.class = TuClass::VocabGap;
+    r.src = "broken.cpp".into();
+    r.emit.insert("emit-sec-unreadable".into(), 1);
+    let rep = mk_report(vec![r]);
+    assert_eq!(rep.factor_counts()[2], 0, "no section list means no C");
+    assert!(rep.factor_all_tus().is_empty());
+}
+
+/// **The greedy ladder must run through a zero-gain step.** Two names that
+/// only ever co-occur each score 0 alone, so a ladder that stopped on
+/// no-progress would report the vocabulary as unclosable when it is one step
+/// from closed — which is exactly the workload's `.CRT$XCU`/`.text$yc` pair
+/// (126 objs each, never apart).
+#[test]
+fn the_greedy_ladder_runs_through_a_zero_gain_step() {
+    let tu = |src: &str, extras: &[&str]| {
+        let mut r = mk("x");
+        r.class = TuClass::VocabGap;
+        r.src = src.into();
+        r.emit.insert("emit-sec-readable".into(), 1);
+        for e in extras {
+            r.emit.insert(format!("emit-sec-extra|{e}"), 1);
+        }
+        if extras.is_empty() {
+            r.emit.insert("emit-sec-reachable".into(), 1);
+        }
+        r
+    };
+    let rep = mk_report(vec![
+        tu("in.cpp", &[]),
+        tu("one.cpp", &[".data"]),
+        tu("two.cpp", &[".data"]),
+        tu("pair1.cpp", &[".CRT$XCU", ".text$yc"]),
+        tu("pair2.cpp", &[".CRT$XCU", ".text$yc"]),
+    ]);
+    assert_eq!(rep.factor_counts()[2], 1, "one TU is already reachable");
+    assert_eq!(
+        rep.section_ladder(),
+        vec![
+            (".data".to_string(), 3),
+            (".CRT$XCU".to_string(), 3),
+            (".text$yc".to_string(), 5),
+        ],
+        "greedy takes the +2 first, then must push through the zero-gain half \
+         of the co-occurring pair to reach the whole workload"
+    );
+}
+
+/// The vocabulary census counts **objs carrying a section**, not sections.
+/// Under `/Gy` one obj holds one COMDAT `.text` per emitted function, so the
+/// second reading would report 158 for `src/App.cpp` alone and no reader of
+/// the table could tell which number it was looking at.
+#[test]
+fn the_section_vocabulary_counts_objs_and_not_sections() {
+    let tu = |src: &str, names: &[&str]| {
+        let mut r = mk("x");
+        r.class = TuClass::VocabGap;
+        r.src = src.into();
+        r.emit.insert("emit-sec-readable".into(), 1);
+        // 158 `.text` sections in this obj — one row, because the key is
+        // written once per DISTINCT name per TU.
+        r.emit.insert("emit-sec-count".into(), 158);
+        for n in names {
+            r.emit.insert(format!("emit-sec-name|{n}"), 1);
+        }
+        r
+    };
+    let rep = mk_report(vec![tu("a.cpp", &[".text", ".data"]), tu("b.cpp", &[".text"])]);
+    assert_eq!(
+        rep.section_vocabulary(),
+        vec![(".text".to_string(), 2), (".data".to_string(), 1)],
+        "two objs carry `.text` and one carries `.data`, ranked most common first"
+    );
+}
+
+#[test]
+fn fn_census_aggregates_across_tus() {
+    // Two TUs: 10 functions each, 3 + 4 in class, blockers summed by key.
+    // The point of P2b: coverage is measurable (7/20) even though NO whole
+    // TU is in class, so both TUs classify as `codegen-gap` above.
+    let mut a = mk("x");
+    a.fn_total = 10;
+    a.fn_in_class = 3;
+    a.fn_blockers.insert("expr-cmp-gt".into(), 5);
+    a.fn_blockers.insert("expr-shift".into(), 2);
+    let mut b = mk("x");
+    b.fn_total = 10;
+    b.fn_in_class = 4;
+    b.fn_blockers.insert("expr-cmp-gt".into(), 6);
+    let rep = mk_report(vec![a, b]);
+    assert_eq!(rep.fn_coverage(), (7, 20));
+    assert_eq!(
+        rep.fn_blocker_histogram(),
+        vec![("expr-cmp-gt".to_string(), 11), ("expr-shift".to_string(), 2)]
+    );
+}
+
+/// **The dispatch axes aggregate, and the residue is a NUMBER.**
+///
+/// The rows below are the ones a ranking reads: two dispatch arms, one of
+/// which (`disp-expr`) can never reach a member-call production, and the
+/// tag-coverage residue on the production axis. Each is asserted as a positive
+/// count with its own message, because the way this report fails is by
+/// printing a short table that looks complete.
+#[test]
+fn dispatch_axes_aggregate_across_tus() {
+    let mut a = mk("x");
+    a.fn_total = 10;
+    a.fn_in_class = 1;
+    // Six bodies took the expression arm; four of those are blocked on a
+    // member-call construct they can never reach a member-call production
+    // with, which is the whole point of the axis.
+    a.fn_dispatch.insert("disp-expr".into(), 6);
+    a.fn_dispatch.insert("disp-expr|BLOCKED".into(), 6);
+    a.fn_dispatch
+        .insert("disp-expr|BLOCKED|expr-call-in-expr-recv-field-whole".into(), 4);
+    a.fn_dispatch.insert("disp-assign".into(), 4);
+    a.fn_dispatch.insert("disp-assign|BLOCKED".into(), 3);
+    a.fn_prod.insert("prod-not-entered".into(), 6);
+    a.fn_prod.insert("prod-entered-untagged".into(), 3);
+    a.fn_prod.insert("prod-accepted".into(), 1);
+    let mut b = mk("x");
+    b.fn_total = 5;
+    b.fn_dispatch.insert("disp-expr".into(), 5);
+    b.fn_dispatch.insert("disp-expr|BLOCKED".into(), 5);
+    b.fn_prod.insert("prod-not-entered".into(), 3);
+    b.fn_prod.insert("prod-entered-untagged".into(), 2);
+    let rep = mk_report(vec![a, b]);
+
+    let disp = rep.fn_dispatch_histogram();
+    let get = |h: &[(String, usize)], k: &str| -> usize {
+        h.iter().find(|(a, _)| a == k).map(|(_, n)| *n).unwrap_or(0)
+    };
+    assert_eq!(
+        get(&disp, "disp-expr"),
+        11,
+        "the expression arm must sum across TUs — this is the arm that CANNOT \
+         reach a member-call production, so its size is the part of a \
+         member-call row no widening there can serve"
+    );
+    assert_eq!(
+        get(&disp, "disp-expr|BLOCKED|expr-call-in-expr-recv-field-whole"),
+        4,
+        "the arm x census-key cross must survive aggregation: it is the only \
+         row that says a member-call CONSTRUCT arrived in an arm the member-call \
+         productions never see"
+    );
+    let prod = rep.fn_prod_histogram();
+    assert_eq!(
+        get(&prod, "prod-not-entered"),
+        9,
+        "`prod-not-entered` is a measured population and must aggregate like \
+         any other row, not be suppressed as a default"
+    );
+    assert_eq!(
+        rep.prod_untagged_residue(),
+        5,
+        "the tag-coverage residue must be reported as a NUMBER — it is what the \
+         tag sites in mcall_*.rs have left to explain, and inferring it from \
+         missing rows is the mistake this axis exists to stop"
+    );
+    // Both axes must sum to the same population the census counted. A short
+    // count means bodies went untagged and every row above is a lower bound.
+    assert_eq!(
+        rep.dispatch_axis_totals(),
+        (15, 15),
+        "both axes must account for all 15 functions: a body takes exactly one \
+         arm and reaches exactly one production state, so a short total is an \
+         under-reporting instrument rather than a small population"
+    );
+}
+
+/// **A scan in which nothing reached a tagged site still reports numbers.**
+///
+/// This is the state of the board before the 37 tag sites in
+/// `body::shapes::mcall_{tail,chain,cmp}` are placed: every body that entered
+/// a production lands in `prod-entered-untagged`. The residue must read as
+/// that population's exact size — not as 0, and not as an empty histogram,
+/// either of which would be indistinguishable from "no bodies enter a
+/// production at all".
+#[test]
+fn an_entirely_untagged_scan_reports_its_residue_rather_than_nothing() {
+    let mut a = mk("x");
+    a.fn_total = 7;
+    a.fn_prod.insert("prod-not-entered".into(), 3);
+    a.fn_prod.insert("prod-entered-untagged".into(), 4);
+    a.fn_prod.insert("prod-entered-untagged|BLOCKED".into(), 4);
+    a.fn_dispatch.insert("disp-assign".into(), 4);
+    a.fn_dispatch.insert("disp-expr".into(), 3);
+    let rep = mk_report(vec![a]);
+    assert_eq!(
+        rep.prod_untagged_residue(),
+        4,
+        "with no tag site placed, the residue IS the whole entered population \
+         and must be printed as such"
+    );
+    assert!(
+        rep.fn_prod_histogram()
+            .iter()
+            .any(|(k, n)| k == "prod-entered-untagged" && *n == 4),
+        "the residue must appear as a ranked row too, so a reader of the table \
+         sees it beside the named sites rather than having to know it is missing"
+    );
+    assert_eq!(
+        rep.dispatch_axis_totals(),
+        (7, 7),
+        "and the axes still account for every function"
+    );
+}
