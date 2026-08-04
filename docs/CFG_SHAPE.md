@@ -1160,6 +1160,66 @@ is quoted here only where the two were compared on purpose.
 
 ## 8. What an implementer still cannot build from this document
 
+The most important section here. Understating it costs more than any missing
+spec, so it is deliberately long and each item says **what is missing**, **what
+would close it**, and **whether it blocks the step-1 rung** of §5.2.
+
+### 8.1 Blocking for step 1 (the `if-1`/`if-2`/`if-n` rung)
+
+| # | what is missing | what would close it |
+|---|---|---|
+| **B1** | **The band-1 ↔ band-2 fold decision** (§3.5). I can tell you which of eighteen measured bodies folds; I cannot tell you which of an unmeasured one will. Every rule consistent with the rows is untested by them. | A probe family that varies **only** the constant pair over a fixed relation (`{0,1} {1,2} {2,4} {5,9} {70,0} {1,100} …`) and only the relation over a fixed pair, then reads the fold/no-fold boundary directly. ~30 cells, one TU, cheap. **This is the single highest-value follow-up in the document.** |
+| **B2** | **The expression layer for every function in the 8 TUs** (§5.4). Nothing here specifies `expr-cmp-eq`, `expr-cmp-ge`, `assign-store-type-0x86`, `assign-rhs-call-0x26` or `call-arg-lit-permuted`. The CFG step is necessary and nowhere near sufficient. | Not this seam. `docs/CODEGEN_W6_COMPARE.md` §7 specifies the comparison *value* family; the comparison-feeding-a-branch family is §3.2 here; the rest are open. |
+| **B3** | **Where the entry block's shuffles go.** §4.2 item 9: `MemFree` hoists one `mr` and not the other; `MemAlloc` hoists both. I state the discriminator as "needed on both paths", which **fits** both cells and is **tested by** neither. | Probes with 2–4 arguments where the set of values needed on both paths is varied independently of arity. |
+| **B4** | **`cmplw` (register-vs-register unsigned)** is **unvaried** — no cell in this grid produced one. Marked unvaried, not constant. | One probe: `if(pa < pb)` on two pointers. |
+| **B5** | **Whether the `bc` is ever emitted with a hint bit set.** Every `BO` observed is 4, 12, 16 or 20 — no `BO` with the `y` prediction bit. That is an observation over ~30 branches, not a rule, and the frontier is not fully swept. | A sweep of `BO` values over the whole 878-TU workload's objs. |
+
+### 8.2 Blocking for step 2 (the loop rung)
+
+| # | what is missing | what would close it |
+|---|---|---|
+| **L1** | **Register allocation across a back edge.** §6.2 item F. `docs/CODEGEN_W6_COMPARE.md` §6 already records the allocator as richer than a descending counter and **uncharacterized**; a loop needs it *and* needs it to agree across the edge. This is the largest single unknown in the document. | A characterization lane on the allocator itself. It is a prerequisite, not a sub-task of the loop rung. |
+| **L2** | **When c2 chooses a CTR loop.** §3.7c measures *that* leaf counted loops become `mtctr`/`bdnz` and that loops containing calls do not. The boundary — variable trip counts, multiple exits, `break`, nested loops, loops whose counter is used after the loop — is **unmeasured**. `?d_break` has a `break` and got the compare form; that is one cell. | A loop probe grid crossing (trip count known/unknown) × (body has call / not) × (has break / not) × (counter live after / not). |
+| **L3** | **Trip-count computation.** `?c_for` emits `mtctr r11` where r11 is the loop bound; a general `for(i=lo;i<hi;i+=k)` needs `(hi-lo+k-1)/k`, and no cell here has a stride other than 1 or a non-zero start. | Same grid as L2 with strides and starts varied. |
+| **L4** | **Loop entry form.** §3.7a: `?c_callloop` and `?d_break` guard with a compare; `?d_cont` jumps into the test. I can say *that* both occur and that `?d_cont` differs by having a `continue`; I cannot state the rule. | Probes varying whether the test is a join target, independently of `continue`. |
+| **L5** | **Whether the rotation is always safe to assume.** Every loop measured is bottom-tested in the obj. Zero-trip loops are handled by the guard, but a `do`/`while` (`?c_do`) has no guard at all and I did not test a `while` whose condition has side effects. | Probes with a side-effecting condition. |
+
+### 8.3 Blocking for anything beyond
+
+| # | what is missing |
+|---|---|
+| **S1** | **`switch` almost entirely.** §4.4 measured one narrow case (3 cases + default → compare chain, **no** jump table, blocks in **reverse** source order). The table threshold, the table's section (`.rdata` or `.text`), its relocation shape, the block-order rule for a wide switch, and dense-vs-sparse handling are all unmeasured. Zero frontier TUs need it. |
+| **S2** | **Control flow interacting with EH.** Every cell in this lane is `eh-none`. `Main.cpp` is `eh-state1` and one frontier TU. How a branch interacts with EH state transitions is untouched here; `docs/EH_RECORDS.md` is the seam. |
+| **S3** | **Control flow interacting with frames.** §3.6 establishes branches do not *force* a frame, but `?b_if2`/`?b_ifn`/`?d_join` are framed **because** values live across calls in different blocks — so the frame class becomes a function of the CFG. `docs/CODEGEN_FRAMED_CALLS.md` and W10 own this and it is not specified here. |
+| **S4** | **Floating-point conditions.** No cell has one. `docs/CODEGEN_W6_COMPARE.md` §7 records that an FP compare is "a different family"; whether it uses `fcmpu` into cr6 and the same `BO`/`BI` discipline is **unmeasured**. |
+| **S5** | **64-bit conditions.** `cmpdi`/`cmpd` appear in the disassembler's table and in **no** measured cell. `long long` comparisons are noted in `CODEGEN_W6_COMPARE.md` §7 as a different family. |
+| **S6** | **The three `cf-expr-0x05` functions.** Not control flow (§2.2) and not addressable by this step at all. |
+
+### 8.4 Stated limitations of the instrument
+
+* **Flag exposure, bounded but not eliminated.** `c2rs capture` hardcodes
+  `/Ox /GS- /c` and ignores flags (`crates/c2-reference/src/lib.rs:465`); only
+  `capture_il_with` takes them and no CLI path reaches it. Every `.ex` quoted
+  here was captured through `c2rs census --flags-file`, and §10.1's control
+  shows the on-disk bundle reproduces byte-for-byte from that path while the
+  `/Ox` capture differs. **That bounds the exposure for this lane's measurements.
+  It clears no other lane's captures**, and any earlier document that captured IL
+  via `c2rs capture` and compared it against `/O1` objs is cross-flag and should
+  be re-checked by whoever owns it.
+* **All objs were built at the probe flags, not the workload flags, for the
+  probes.** The probe flags (§10.1) are the workload's minus its `/I` include
+  paths, which no probe needs. The two frontier TUs *were* built at the full
+  workload flags with `--cwd`. Mixing the two in one table is avoided
+  throughout; where a claim rests on probes only, it says so.
+* **~30 branches, 6 probe TUs, 2 frontier TUs, 1 held-out long-branch sweep.**
+  That is a small corpus. `docs/GAPS.md` §6's unstable-attribution rule applies:
+  a shape seen in one cell is *unvaried*, not constant, and this document uses
+  that word where it means it (§8.1 B4, §3.2's `cmplw` row).
+* **No code was run against the port.** This lane wrote nothing under
+  `crates/`, so nothing here is checked by a byte compare of *port* output —
+  only by reading c2's. The first rung that implements §4 is what tests this
+  document, and it should expect to find at least one thing wrong.
+
 ## 9. Proposed board rows
 
 ## 10. Reproducing this
