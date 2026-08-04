@@ -1,0 +1,685 @@
+//! The two ordinary-function obj writers: packed (`emit_obj`) and per-function
+//! COMDAT (`emit_comdat_obj`).
+
+use super::*;
+
+/// `.text` COMDAT selection: `IMAGE_COMDAT_SELECT_NODUPLICATES`.
+pub(crate) const COMDAT_SELECT_NODUPLICATES: u8 = 1;
+
+/// `.text` characteristics under **function-level linking** (`/Gy`): the packed
+/// [`CH_TEXT`] plus `IMAGE_SCN_LNK_COMDAT` (0x1000).
+pub(crate) const CH_TEXT_COMDAT: u32 = 0x6040_1020;
+
+/// Build the complete `.obj` image with **one COMDAT `.text` section per
+/// function** — the shape c2 emits under function-level linking (`/Gy`, which
+/// `/O1` and `/O2` imply).
+///
+/// This is not a variant spelling of [`emit_obj`]; it is a different obj:
+///
+/// | | packed (`/Ox`) | COMDAT (`/Gy`) |
+/// |---|---|---|
+/// | `.text` sections | 1 | one per function |
+/// | characteristics | `0x60400020` | `0x60401020` |
+/// | aux `Selection` | 0 | 1 (NODUPLICATES) |
+/// | function `Value` | its offset in `.text` | always 0 |
+/// | inter-function padding | 8-byte aligned | none — each has its own section |
+/// | symbol count | 13 + 1/fn (+callees) | 11 + 3/fn (+callees) |
+///
+/// So the same IL yields two legitimately different objs depending on an argv
+/// flag the bundle does not record. Verified against `system/utl/Spew.cpp`
+/// compiled with the dc3 workload's real flags: 6 sections, 17 symbols, two
+/// 4-byte `.text` sections each holding a single `blr`, laid out contiguously
+/// with no padding between them.
+///
+/// `texts[i]` is function `i`'s own `.text` bytes; each function's
+/// `text_offset` is ignored (it is 0 within its own section) and any
+/// `call.reloc_offset` is relative to that function's section.
+///
+/// A **framed** function additionally gets its own `.pdata` COMDAT, emitted
+/// immediately after its `.text` COMDAT and tied to it by
+/// `IMAGE_COMDAT_SELECT_ASSOCIATIVE` with the aux `Number` field naming that
+/// `.text`'s section number — so the linker drops a function's unwind record
+/// with the function. `label_counter` is the `.gl` seed
+/// ([`c2_il::label_counter`]); it is unused when no function is framed, and a
+/// caller with a framed function and no counter must refuse rather than guess.
+pub fn emit_comdat_obj(
+    obj_name: &str,
+    funcs: &[Function],
+    texts: &[Vec<u8>],
+    label_counter: u32,
+) -> Vec<u8> {
+    assert_eq!(funcs.len(), texts.len(), "one text per function");
+    let labels = plan_labels(label_counter, funcs, true);
+    // Per-function `.pdata` raw, built up front so the sections can borrow it.
+    let pdata_raw: Vec<Option<[u8; 8]>> =
+        funcs.iter().map(|f| f.frame.as_ref().map(|fr| pdata_record(0, fr))).collect();
+
+    let mut sections: Vec<Section> = shell_sections(obj_name);
+    // Per function: its `.text` COMDAT, then — if it is framed — its `.pdata`
+    // COMDAT immediately after, tied back with SELECT_ASSOCIATIVE. `sec_text[i]`
+    // / `sec_pdata[i]` are 0-based indices into `sections`.
+    let mut sec_text: Vec<usize> = Vec::with_capacity(funcs.len());
+    let mut sec_pdata: Vec<Option<usize>> = Vec::with_capacity(funcs.len());
+    // The inverse map, so the layout and relocation passes below index rather
+    // than search: section -> the function it belongs to, and which of its two
+    // sections it is. `SectionOwner::None` for the fixed prefix.
+    let mut owner: Vec<SectionOwner> = vec![SectionOwner::Fixed; sections.len()];
+    for (i, t) in texts.iter().enumerate() {
+        sec_text.push(sections.len());
+        owner.push(SectionOwner::Text(i));
+        sections.push(Section {
+            name: ".text",
+            characteristics: CH_TEXT_COMDAT,
+            raw: std::borrow::Cow::Borrowed(t.as_slice()),
+            checksum: 0,
+            selection: COMDAT_SELECT_NODUPLICATES,
+            assoc: 0,
+            uninit_size: None,
+        });
+        match &pdata_raw[i] {
+            None => sec_pdata.push(None),
+            Some(rec) => {
+                let text_sec_num = (sec_text[i] + 1) as u16;
+                sec_pdata.push(Some(sections.len()));
+                owner.push(SectionOwner::Pdata(i));
+                sections.push(Section {
+                    name: ".pdata",
+                    characteristics: CH_PDATA_COMDAT,
+                    raw: std::borrow::Cow::Borrowed(&rec[..]),
+                    // `.pdata` is the one COMDAT c2 gives a real CheckSum —
+                    // `.text` and the `.rdata` constant pools carry 0.
+                    checksum: coff_checksum(&rec[..]),
+                    selection: COMDAT_SELECT_ASSOCIATIVE,
+                    assoc: text_sec_num,
+                    uninit_size: None,
+                });
+            }
+        }
+    }
+    let n_sections = sections.len();
+
+    // Raw data is packed contiguously after the section headers — including
+    // between the per-function `.text` sections, which carry no padding —
+    // **except** that a section's relocations immediately follow *its own* raw
+    // data, before the next section's:
+    //
+    //   .text[0] raw @696 ; .text[0] reloc @700
+    //   .text[1] raw @710 ; .text[1] reloc @714 ; …
+    //
+    // Not all raw data followed by all relocations. This emitter did the latter,
+    // which is only invisible when at most one section has relocations — and under
+    // `/Gy` every calling function's COMDAT `.text` has one, so the port's whole
+    // section table carried wrong `PointerToRelocations` values from the fifth
+    // header on (`il_call_value.cpp`, divergence at obj offset 204).
+    //
+    // Precisely the bug already fixed in [`emit_obj`] for the packed layout, where
+    // `.text` being last hid it. Two emitters, one wrong assumption, and the second
+    // one stayed wrong because no lane compiled a multi-call fixture with `/Gy`
+    // until `scripts/mode_lane.sh`.
+    //
+    // A framed function's `.pdata` has exactly one relocation of its own (the
+    // ADDR32 on `BeginAddress`), so it follows the same rule.
+    let n_reloc_of: Vec<u16> = owner
+        .iter()
+        .map(|o| match o {
+            // WR1: each data-symbol reference adds a REFHI/PAIR/REFLO/PAIR quad.
+            SectionOwner::Text(k) => {
+                (funcs[*k].calls.len() + 4 * funcs[*k].data_refs.len()) as u16
+            }
+            SectionOwner::Pdata(_) => 1,
+            SectionOwner::Fixed => 0,
+        })
+        .collect();
+    let (ptrs, reloc_ptr, ptr_symtab) = layout_sections(&sections, &n_reloc_of);
+
+    // Symbols: the fixed 11-slot prefix, then per function a `.text` section
+    // symbol (+aux), the defined FUNCTION symbol, and its callee if any.
+    // An undefined external callee is emitted **once per distinct name**, after the
+    // symbol of the function that first calls it; every later call site relocates
+    // against that same index. This path emitted one per *call site* instead, which
+    // is invisible until a TU has two functions calling the same callee under `/Gy`
+    // — `il_call_perm.cpp` has six calling `?g3`, and the port's symbol table came
+    // out five symbols long (obj offset 12, `NumberOfSymbols`). The packed emitter
+    // had already been fixed for exactly this; `emit_comdat_obj` had not, and no lane
+    // compiled the call fixtures with `/Gy` until `scripts/mode_lane.sh`.
+    //
+    // A framed function's group is longer, and the order inside it is the
+    // reference's, not an obvious one — the END label comes before the callee and
+    // the PROLOGUE label after it:
+    //
+    //   [.text sym + aux] [fn] [$M(n+1) @ function end] [callee, if new]
+    //   [$M(n) @ prologue end] [.pdata sym + aux] [$T(n+2) @ 0]
+    //
+    // `_fltused` goes immediately after the **first** float function's complete
+    // group — its section symbol + aux, its function symbol, and any callee external
+    // it introduced — and before the next function's section symbol. That is the
+    // same rule as the packed layout; `/Gy` does not move it (`docs/OBJ_GY_SHAPES.md`
+    // §1, six orderings captured: float-first, int-first, float-int-float,
+    // int-int-float, and a float function whose callee external precedes the marker).
+    // Omitting it entirely is what left `mvp_fmul3.cpp` one symbol short of the
+    // reference under `/Gy`.
+    let fltused_after = funcs.iter().position(|f| f.is_float);
+    let mut next_idx: u32 = N_SHELL_SYMBOLS;
+    // The callee symbols this function emits, in emission order (reverse
+    // first-reference), each with the index it lands at.
+    let mut introduced: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
+    let mut fn_idx: Vec<u32> = Vec::with_capacity(funcs.len());
+    let mut callee_syms: Vec<(&str, u32)> = Vec::new();
+    let mut data_syms: Vec<(&str, u32)> = Vec::new();
+    let mut introduced_data: Vec<Vec<(&str, u32)>> = Vec::with_capacity(funcs.len());
+    for (i, f) in funcs.iter().enumerate() {
+        next_idx += 2; // section symbol + aux
+        fn_idx.push(next_idx);
+        next_idx += 1; // the function symbol
+        if labels[i].is_some() {
+            next_idx += 1; // $M(n+1), the function-end label
+        }
+        // One undefined external per **distinct** callee this function is the
+        // first to name, in reverse first-reference order.
+        let mut here: Vec<(&str, u32)> = Vec::new();
+        for name in f.introduced_callees() {
+            if callee_syms.iter().any(|(n, _)| *n == name) {
+                continue;
+            }
+            callee_syms.push((name, next_idx));
+            here.push((name, next_idx));
+            next_idx += 1;
+        }
+        introduced.push(here);
+        // WR1: this function's new data symbols, after its callees, exactly as
+        // the packed layout places them.
+        let mut here_data: Vec<(&str, u32)> = Vec::new();
+        for r in &f.data_refs {
+            if data_syms.iter().any(|(n, _)| *n == r.name) {
+                continue;
+            }
+            data_syms.push((r.name, next_idx));
+            here_data.push((r.name, next_idx));
+            next_idx += 1;
+        }
+        introduced_data.push(here_data);
+        if labels[i].is_some() {
+            next_idx += 1; // $M(n), the prologue-end label
+            next_idx += 2; // .pdata section symbol + aux
+            next_idx += 1; // $T(n+2)
+        }
+        if fltused_after == Some(i) {
+            next_idx += 1;
+        }
+    }
+    let n_symbols = next_idx;
+
+    let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
+    write_coff_header(&mut b, n_sections, ptr_symtab, n_symbols);
+    write_section_headers(&mut b, &sections, &ptrs, &reloc_ptr, &n_reloc_of);
+
+    // Interleaved to match the layout computed above: each section's raw data,
+    // then its own relocations.
+    for (i, s) in sections.iter().enumerate() {
+        debug_assert_eq!(b.0.len(), ptrs[i]);
+        b.bytes(&s.raw);
+        match owner[i] {
+            SectionOwner::Text(k) => {
+                debug_assert!(
+                    n_reloc_of[i] == 0 || b.0.len() == reloc_ptr[i].unwrap()
+                );
+                // One REL24 per call site (several sites may share one symbol
+                // index — the same callee called twice) and, WR1, one
+                // REFHI/PAIR/REFLO/PAIR quad per data-symbol address. Emitted
+                // **ascending by VirtualAddress**, which is what the records in a
+                // section are ordered by: the `lis` is at offset 0 and the tail
+                // branch is last. The sort is stable, so each quad keeps its
+                // REFHI-before-PAIR order at equal VA.
+                let mut recs: Vec<(u32, u32, u16)> = Vec::new();
+                for call in &funcs[k].calls {
+                    let ci = callee_syms
+                        .iter()
+                        .find(|(n, _)| *n == call.callee)
+                        .map(|(_, ix)| *ix)
+                        .expect("every callee got a symbol");
+                    recs.push((call.reloc_offset, ci, REL_PPC_REL24));
+                }
+                for r in &funcs[k].data_refs {
+                    let di = data_syms
+                        .iter()
+                        .find(|(n, _)| *n == r.name)
+                        .map(|(_, ix)| *ix)
+                        .expect("every data symbol got a slot");
+                    recs.push((r.hi_off, di, REL_PPC_REFHI));
+                    recs.push((r.hi_off, 0, REL_PPC_PAIR));
+                    recs.push((r.lo_off, di, REL_PPC_REFLO));
+                    recs.push((r.lo_off, 0, REL_PPC_PAIR));
+                }
+                recs.sort_by_key(|&(va, _, _)| va);
+                debug_assert_eq!(recs.len(), n_reloc_of[i] as usize);
+                for (va, sym, ty) in recs {
+                    b.u32(va);
+                    b.u32(sym);
+                    b.u16(ty);
+                }
+            }
+            SectionOwner::Pdata(k) => {
+                // `BeginAddress` at `.pdata` offset 0, ADDR32 against the framed
+                // function's own symbol (the record's raw addend is 0).
+                debug_assert_eq!(b.0.len(), reloc_ptr[i].unwrap());
+                b.u32(0);
+                b.u32(fn_idx[k]);
+                b.u16(REL_PPC_ADDR32);
+            }
+            SectionOwner::Fixed => {}
+        }
+    }
+    debug_assert_eq!(b.0.len(), ptr_symtab);
+
+    let mut strtab = StringTable::new();
+    emit_shell_symbols(&mut b, &mut strtab, &sections);
+
+    for (i, f) in funcs.iter().enumerate() {
+        let sec_num = (sec_text[i] + 1) as i16;
+        emit_section_symbol(
+            &mut b,
+            &sections[sec_text[i]],
+            sec_num,
+            (f.calls.len() + 4 * f.data_refs.len()) as u16,
+        );
+        // The function is at offset 0 of its own section.
+        emit_function_symbol(&mut b, &mut strtab, f.name, sec_num, 0);
+        if let (Some(m), Some(frame)) = (labels[i], f.frame.as_ref()) {
+            emit_label_symbol(&mut b, &label_name('M', m[1]), frame.func_len, sec_num);
+        }
+        // Only the function that *introduces* a callee emits its symbol, in
+        // reverse first-reference order.
+        for (name, _) in &introduced[i] {
+            emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
+        }
+        // WR1: undefined external DATA symbols (`Type` 0x0000), after the callees.
+        for (name, _) in &introduced_data[i] {
+            emit_external_symbol(&mut b, &mut strtab, name, 0, 0x0000);
+        }
+        if let (Some(m), Some(frame), Some(ps)) = (labels[i], f.frame.as_ref(), sec_pdata[i]) {
+            emit_label_symbol(&mut b, &label_name('M', m[0]), frame.prolog_len, sec_num);
+            emit_section_symbol(&mut b, &sections[ps], (ps + 1) as i16, 1);
+            emit_pdata_label_symbol(&mut b, &label_name('T', m[2]), 0, (ps + 1) as i16);
+        }
+        // The CRT float-support marker, once, after the first FP function's group.
+        if fltused_after == Some(i) {
+            emit_function_symbol(&mut b, &mut strtab, NAME_FLTUSED, 0, 0);
+        }
+    }
+
+    b.bytes(&strtab.finish());
+    b.0
+}
+
+/// Build the complete `.obj` image for one or more straight-line functions
+/// sharing a single `.text`. Generalizes [`emit_mvp_obj`]: functions are packed
+/// contiguously in `.text` (no inter-function padding — c2's real layout), each
+/// gets an EXTERNAL FUNCTION symbol whose `Value` is its `.text` byte offset,
+/// and `NumberOfSymbols` = 13 fixed slots + one per function.
+///
+/// * `obj_name` — the `-Fo` path (embedded in `.debug$S` S_OBJNAME).
+/// * `funcs` — functions in emit order (matches `.gl`/`.ex` order); each
+///   `text_offset` is its start within `text`.
+/// * `text` — the full concatenated `.text` bytes from codegen.
+pub fn emit_obj(obj_name: &str, funcs: &[Function], text: &[u8], label_counter: u32) -> Vec<u8> {
+    let labels = plan_labels(label_counter, funcs, false);
+    // One `.pdata` section for the whole TU, records in `.text` order — packed,
+    // unlike `/Gy`, which gives each framed function its own COMDAT.
+    let framed: Vec<&Frame> = funcs.iter().filter_map(|f| f.frame.as_ref()).collect();
+    let pdata = build_pdata(&framed);
+
+    // W13b: pool the floating-point constants, TU-wide, by bit pattern **and**
+    // width (a `float` 1.0 and a `double` 1.0 are different symbols with
+    // different section sizes). First-reference order fixes both the `.rdata`
+    // section order and the symbol order.
+    let mut pool: Vec<(u64, bool)> = Vec::new();
+    for f in funcs {
+        for r in &f.fp_refs {
+            if !pool.contains(&(r.bits, r.double)) {
+                pool.push((r.bits, r.double));
+            }
+        }
+    }
+    let pool_ix = |bits: u64, double: bool| -> usize {
+        pool.iter().position(|&k| k == (bits, double)).expect("pooled")
+    };
+
+    // Section table, in the fixed emit order.
+    let mut sections = shell_sections(obj_name);
+    sections.push(Section {
+        name: ".text",
+        characteristics: CH_TEXT,
+        raw: std::borrow::Cow::Borrowed(text),
+        checksum: 0,
+        selection: 0,
+        assoc: 0,
+        uninit_size: None,
+    });
+    let text_idx = sections.len() - 1;
+    for &(bits, double) in &pool {
+        sections.push(Section {
+            name: ".rdata",
+            characteristics: if double { CH_RDATA_F64 } else { CH_RDATA_F32 },
+            raw: std::borrow::Cow::Owned(real_raw_bytes(bits, double)),
+            checksum: 0,
+            selection: 2,
+            assoc: 0,
+            uninit_size: None,
+        });
+    }
+    // `.pdata` last — which is right only because the combination that would test
+    // it is refused upstream, and **the rule it would need is now measured**.
+    //
+    // The comment here used to read "a TU with BOTH a constant pool and a framed
+    // function would settle the `.rdata`/`.pdata` order, and none has been
+    // captured". 240 such TUs were then captured (`/Ox /GS- /c`, every order of
+    // one or two constant-pooling FP leaves against one or two framed functions),
+    // and the answer is **not a fixed order at all**:
+    //
+    // > The packed section table lists `.rdata` and `.pdata` **interleaved, in
+    // > `.text` order** — each section at the position of the FIRST function that
+    // > needs it. `.pdata` stays a single section for the whole TU and sits where
+    // > the first framed function does.
+    //
+    // Six distinct orders occur in those 240 objs — `(.pdata,.rdata)` 78,
+    // `(.rdata,.pdata)` 64, `(.pdata,.rdata,.rdata)` 30, `(.pdata,)` 22,
+    // `(.rdata,.rdata,.pdata)` 20, `(.rdata,.pdata,.rdata)` 20 — and this
+    // function can express exactly one of those shapes. `L1(2.5f); seq2();
+    // L2(3.5f);` is `.rdata .pdata .rdata`, which no amount of reordering the two
+    // groups below produces.
+    //
+    // **One capture would have said the opposite.** A single leaf-then-framed TU
+    // reads `.rdata .pdata`, i.e. exactly what this code already emits, and would
+    // have licensed deleting the refusal. Widening here needs the interleave, not
+    // a second constant in a list.
+    let pdata_idx = if framed.is_empty() {
+        None
+    } else {
+        debug_assert!(pool.is_empty(), "framed + pooled FP constant is refused upstream");
+        sections.push(Section {
+            name: ".pdata",
+            characteristics: CH_PDATA,
+            raw: std::borrow::Cow::Borrowed(&pdata),
+            // The one non-COMDAT section c2 gives a real CheckSum.
+            checksum: coff_checksum(&pdata),
+            selection: 0,
+            assoc: 0,
+            uninit_size: None,
+        });
+        Some(sections.len() - 1)
+    };
+    let n_sections = sections.len();
+
+    // Symbol layout: 13 fixed slots (indices 0..13), then per function a defined
+    // FUNCTION symbol, each immediately followed by its callee's undefined
+    // external symbol (if any), then — for each pooled constant this function is
+    // the *first* to reference — that constant's `.rdata` section symbol (+ aux)
+    // and its `__real@…` external. `_fltused` is emitted once, immediately after
+    // the FIRST float function's symbol group.
+    //
+    // This runs before the relocations are written because each REFHI/REFLO
+    // record needs its `__real@…` symbol index.
+    let fltused_after = funcs.iter().position(|f| f.is_float);
+    let mut next_idx: u32 = 13;
+    // (function index, its defined symbol, the callee symbols it introduces —
+    // reverse first-reference order, with their indices — constants introduced)
+    let mut plan: Vec<(usize, u32, Vec<(&str, u32)>, Vec<usize>, Vec<(&str, u32)>)> =
+        Vec::with_capacity(funcs.len());
+    let mut real_idx: Vec<Option<u32>> = vec![None; pool.len()];
+    // An undefined external callee is emitted **once per distinct name**, after the
+    // symbol of the function that first calls it — every later call site relocates
+    // against that same index. Emitting one per call site instead is invisible
+    // until two functions in a TU call the same callee, which no fixture did before
+    // `il_call_perm.cpp`; the reference puts `?g3` after `pass3` and nothing after
+    // the four later functions that also call it.
+    let mut callee_syms: Vec<(&str, u32)> = Vec::new();
+    // **WR1** — the same rule for a named data symbol: one undefined external per
+    // distinct name, emitted in the group of the function that first references
+    // it, with every later site relocating against that index. MEASURED
+    // (`work/wr1/probes/p1.cpp`): `?gI@@3HA` is referenced by three functions and
+    // appears once, at index 21, which all three relocations name.
+    let mut data_syms: Vec<(&str, u32)> = Vec::new();
+    // Packed, the whole TU shares ONE `.pdata`, so its section symbol + aux are
+    // emitted once — inside the group of the FIRST framed function, after that
+    // function's prologue label and before its `$T`. Every later framed function
+    // contributes only `$M`, `$M` and `$T`.
+    let first_framed = funcs.iter().position(|f| f.frame.is_some());
+    for (i, f) in funcs.iter().enumerate() {
+        let def_idx = next_idx;
+        next_idx += 1;
+        if labels[i].is_some() {
+            next_idx += 1; // $M(n+1), the function-end label
+        }
+        // One undefined external per **distinct** callee this function is the
+        // first to name, in reverse first-reference order ([`Function::introduced_callees`]).
+        let mut new_callees: Vec<(&str, u32)> = Vec::new();
+        for name in f.introduced_callees() {
+            if callee_syms.iter().any(|(n, _)| *n == name) {
+                continue;
+            }
+            callee_syms.push((name, next_idx));
+            new_callees.push((name, next_idx));
+            next_idx += 1;
+        }
+        // …then this function's new data symbols, immediately after its callees
+        // and before any label. The order inside the group is the reference's
+        // (`docs/IL_CALL_IN_EXPR.md` §17.2 item 6): the callee's `26` push
+        // precedes the argument's, and the emitted symbols follow the pushes.
+        let mut new_data: Vec<(&str, u32)> = Vec::new();
+        for r in &f.data_refs {
+            if data_syms.iter().any(|(n, _)| *n == r.name) {
+                continue;
+            }
+            data_syms.push((r.name, next_idx));
+            new_data.push((r.name, next_idx));
+            next_idx += 1;
+        }
+        if labels[i].is_some() {
+            next_idx += 1; // $M(n), the prologue-end label
+            if first_framed == Some(i) {
+                next_idx += 2; // the shared .pdata section symbol + aux
+            }
+            next_idx += 1; // $T(n+2)
+        }
+        // Constants this function introduces, in first-reference order.
+        let mut introduced: Vec<usize> = Vec::new();
+        for r in &f.fp_refs {
+            let k = pool_ix(r.bits, r.double);
+            if real_idx[k].is_none() {
+                next_idx += 2; // .rdata section symbol + its aux record
+                real_idx[k] = Some(next_idx);
+                next_idx += 1; // the __real@… external
+                introduced.push(k);
+            }
+        }
+        plan.push((i, def_idx, new_callees, introduced, new_data));
+        if fltused_after == Some(i) {
+            next_idx += 1;
+        }
+    }
+    let n_symbols: u32 = next_idx;
+
+    // The `.pdata` relocations: one ADDR32 per record, at the record's own
+    // offset, against the framed function's defined symbol. In `.text` order,
+    // which is also ascending VirtualAddress.
+    let mut pdata_relocs: Vec<(u32, u32, u16)> = Vec::new();
+    for (i, def, _new, _intro, _data) in &plan {
+        if funcs[*i].frame.is_some() {
+            pdata_relocs.push((pdata_relocs.len() as u32 * 8, *def, REL_PPC_ADDR32));
+        }
+    }
+
+    // Relocations (`.text` only in this class) sit between the raw data and the
+    // symbol table, **ascending by VirtualAddress**. A tail call contributes one
+    // REL24; each FP constant reference contributes a REFHI/PAIR on the `addis`
+    // and a REFLO/PAIR on the `lfs`/`lfd` four bytes later. The PAIR records
+    // carry the partner half's displacement in the symbol-index field, which is
+    // always 0 because every constant owns its whole COMDAT section.
+    let mut text_relocs: Vec<(u32, u32, u16)> = Vec::new();
+    for (i, _def, _new, _intro, _data) in &plan {
+        let f = &funcs[*i];
+        // One REL24 per call site; several sites may share one symbol index.
+        for call in &f.calls {
+            let cidx = callee_syms
+                .iter()
+                .find(|(n, _)| *n == call.callee)
+                .map(|(_, ix)| *ix)
+                .expect("every callee got a symbol");
+            text_relocs.push((call.reloc_offset, cidx, REL_PPC_REL24));
+        }
+        for r in &f.fp_refs {
+            let sym = real_idx[pool_ix(r.bits, r.double)].expect("pooled symbol");
+            text_relocs.push((r.hi_off, sym, REL_PPC_REFHI));
+            text_relocs.push((r.hi_off, 0, REL_PPC_PAIR));
+            text_relocs.push((r.hi_off + 4, sym, REL_PPC_REFLO));
+            text_relocs.push((r.hi_off + 4, 0, REL_PPC_PAIR));
+        }
+        // WR1: byte-for-byte the same quad, against an undefined external instead
+        // of a pooled constant's `.rdata` symbol.
+        for r in &f.data_refs {
+            let sym = data_syms
+                .iter()
+                .find(|(n, _)| *n == r.name)
+                .map(|(_, ix)| *ix)
+                .expect("every data symbol got a slot");
+            text_relocs.push((r.hi_off, sym, REL_PPC_REFHI));
+            text_relocs.push((r.hi_off, 0, REL_PPC_PAIR));
+            text_relocs.push((r.lo_off, sym, REL_PPC_REFLO));
+            text_relocs.push((r.lo_off, 0, REL_PPC_PAIR));
+        }
+    }
+    text_relocs.sort_by_key(|&(va, _, _)| va);
+    let n_text_reloc = text_relocs.len();
+
+    // Raw data is packed right after the section headers, and a section's
+    // relocation records sit immediately after **that section's own** raw data —
+    // not after every section's. With `.text` last (no constant pool) the two
+    // layouts coincide, which is why this only surfaced once `.rdata` followed
+    // `.text`: c2 put the four REFHI/REFLO records between `.text` and the
+    // constant pool, the port put them after both.
+    // Only `.text` and (when present) `.pdata` carry relocations in this class —
+    // the `.rdata` constant pools are pure data.
+    let mut n_reloc_of = vec![0u16; n_sections];
+    n_reloc_of[text_idx] = n_text_reloc as u16;
+    if let Some(pi) = pdata_idx {
+        n_reloc_of[pi] = pdata_relocs.len() as u16;
+    }
+    let (ptrs, reloc_ptr, ptr_symtab) = layout_sections(&sections, &n_reloc_of);
+    let ptr_text_reloc = reloc_ptr[text_idx].unwrap_or(0);
+    let ptr_pdata_reloc = pdata_idx.and_then(|pi| reloc_ptr[pi]).unwrap_or(0);
+
+    let mut b = Buf::with_capacity(ptr_symtab + n_symbols as usize * SYMBOL_LEN + 512);
+    write_coff_header(&mut b, n_sections, ptr_symtab, n_symbols);
+    write_section_headers(&mut b, &sections, &ptrs, &reloc_ptr, &n_reloc_of);
+
+    // ---- raw section data, each section followed by its own relocations ----
+    // (10 bytes each: VA u32, SymIdx u32, Type u16)
+    for (i, s) in sections.iter().enumerate() {
+        debug_assert_eq!(b.0.len(), ptrs[i]);
+        b.bytes(&s.raw);
+        if i == text_idx {
+            debug_assert!(n_text_reloc == 0 || b.0.len() == ptr_text_reloc);
+            for &(va, sym, typ) in &text_relocs {
+                b.u32(va);
+                b.u32(sym);
+                b.u16(typ);
+            }
+        }
+        if Some(i) == pdata_idx {
+            debug_assert_eq!(b.0.len(), ptr_pdata_reloc);
+            for &(va, sym, typ) in &pdata_relocs {
+                b.u32(va);
+                b.u32(sym);
+                b.u16(typ);
+            }
+        }
+    }
+    debug_assert_eq!(b.0.len(), ptr_symtab);
+
+    // ---- symbol table + string table ----
+    let mut strtab = StringTable::new();
+    emit_shell_symbols(&mut b, &mut strtab, &sections); // slots 0..=10
+    // Section STATIC symbols each carry one aux section-def record. `.text`
+    // (sec 5) carries the relocation count in its aux.
+    emit_section_symbol(&mut b, &sections[4], 5, n_text_reloc as u16); // slot 11/12 .text
+
+    // Per function: the defined FUNCTION symbol, then (if a tail call) the
+    // undefined external callee symbol, then the constant pools this function
+    // introduces (`.rdata` section symbol + aux, then the `__real@…` external).
+    for (i, _def, new_callees, introduced, new_data) in &plan {
+        let f = &funcs[*i];
+        emit_function_symbol(&mut b, &mut strtab, f.name, 5, f.text_offset);
+        // A framed function's `$M` labels are its prologue end and its function
+        // end **relative to its own start**, so packed they are rebased onto the
+        // shared `.text`; under `/Gy` the function starts at 0 of its own COMDAT
+        // and the two coincide.
+        if let (Some(m), Some(frame)) = (labels[*i], f.frame.as_ref()) {
+            emit_label_symbol(&mut b, &label_name('M', m[1]), f.text_offset + frame.func_len, 5);
+        }
+        // Undefined external callees: section 0 (UNDEF), FUNCTION type. Only the
+        // function that FIRST calls one emits its symbol, and the ones a single
+        // function introduces go out in reverse first-reference order.
+        for (name, _) in new_callees {
+            emit_function_symbol(&mut b, &mut strtab, name, 0, 0);
+        }
+        // WR1: undefined external DATA symbols — section 0, `Type` 0x0000. The
+        // type byte is the whole difference from the callee above, and it is the
+        // difference between "a data address" and "a function pointer" in the
+        // linker's eyes.
+        for (name, _) in new_data {
+            emit_external_symbol(&mut b, &mut strtab, name, 0, 0x0000);
+        }
+        if let (Some(m), Some(frame), Some(pi)) = (labels[*i], f.frame.as_ref(), pdata_idx) {
+            emit_label_symbol(&mut b, &label_name('M', m[0]), f.text_offset + frame.prolog_len, 5);
+            if first_framed == Some(*i) {
+                emit_section_symbol(
+                    &mut b,
+                    &sections[pi],
+                    (pi + 1) as i16,
+                    pdata_relocs.len() as u16,
+                );
+            }
+            // `$T` value is this record's byte offset inside the shared `.pdata`.
+            let rec = funcs[..*i].iter().filter(|g| g.frame.is_some()).count() as u32 * 8;
+            emit_pdata_label_symbol(&mut b, &label_name('T', m[2]), rec, (pi + 1) as i16);
+        }
+        for &k in introduced {
+            let sec_num = (text_idx + 1 + k + 1) as i16;
+            emit_section_symbol(&mut b, &sections[text_idx + 1 + k], sec_num, 0);
+            let (bits, double) = pool[k];
+            // A pooled constant is DATA, not a function: type 0x0000.
+            emit_external_symbol(
+                &mut b,
+                &mut strtab,
+                &real_symbol_name(bits, double),
+                sec_num,
+                0x0000,
+            );
+        }
+        // The CRT float-support marker, once, after the first FP function.
+        if fltused_after == Some(*i) {
+            emit_function_symbol(&mut b, &mut strtab, NAME_FLTUSED, 0, 0);
+        }
+    }
+
+    // ---- string table ----
+    b.bytes(&strtab.finish());
+
+    b.0
+}
+
+// ===========================================================================
+// #158 — the `??__E` dynamic-initializer obj.
+//
+// A TU whose only emitted function is one `??__E<name>@@YAXXZ` thunk running
+// one namespace-scope object's constructor. Eight sections, 24 symbol records,
+// 9 + 1 relocations. Every byte below is transcribed from an obj produced by the
+// real cl 16.00.11886.00 / c2.dll under wibo; `docs/OBJ_DYNINIT_SHAPE.md` is the
+// characterization and names the cell each rule was fitted on and tested
+// against. Where that doc and the bytes disagree, the bytes win, and the three
+// places they do are marked CORRECTION below.
+//
+// **Grade at `/O1`, not `/Ox`** (§7.3 caveat 1): `/Ox` does not imply `/GF`, and
+// without `/GF` the literal is a non-COMDAT `$SG<n>` `.rdata` placed *before*
+// `.text`, with no `??_C@…` symbol at all. That is a different obj.
+// ===========================================================================
