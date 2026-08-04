@@ -29,83 +29,112 @@ SC = {
     105: "SECTION",
 }
 
-# `IMAGE_REL_PPC_*`, complete, from `winnt.h`.
+# ---- THE RELOCATION TABLE IS NOT DEFINED HERE ---------------------------------
 #
-# **This table used to be three-eighths the i386 table** (found 2026-08-04 by
-# lane `w-llvm`, cross-checking against a stock LLVM that can read our objs;
-# fixed here by `w-gr`, which owns this file). The three defects:
+# **`crates/c2-obj/src/reloc.rs` is the single source and this file READS it.**
+# There is no Python copy of the table below, on purpose: two hand-maintained
+# copies of one rule is the shape `docs/GAPS.md` §6 keeps recording, and this
+# file is where it already cost something.
 #
-#   * `0x000A` read **SECTION**, which is i386's name for that code. On PPC it
-#     is **ADDR32NB**.
-#   * `0x0013` read **SECREL**, which is i386's name for `0x000B`. On PPC
-#     `0x0013` is **SECRELLO** and `0x000B` is SECREL.
-#   * `0x000C` (**SECTION**) was **absent entirely**, so it printed as `0xc`.
-#     w-llvm established what it is without any name table — `0x000B`/`0x000C`
-#     occur in matched pairs 4 bytes apart, 18 of each, which is
-#     `6 S_GPROC32 + 2 S_GDATA32 + 4 S_LABEL32 + 6 Lines` subsections.
+# ### What was wrong, and what two lanes each found
 #
-#     **One refinement, measured here: it is live under `/Z7`, and NOT at the
-#     workload's own flags.** `w14_dtor_delegate_neg.cpp` at
-#     `/GR /O1 /Oi /EHsc /GS- /c` carries **five** relocation words — ADDR32 43,
-#     REL24 12, REFHI 2, REFLO 2, PAIR 4 — and **zero** `0x000B`/`0x000C`; its
-#     `.debug$S` has no relocations at all. Add `/Z7` and `.debug$S` gains
-#     **30 `0x000B` and 30 `0x000C`**, matched, on the same source. So this code
-#     is reachable by the debug-info lane and not by a workload capture, which
-#     is why it stayed unnamed. (`REFHI + REFLO == PAIR` holds here too: 2+2=4.)
+# The table this replaces was **three rows of the i386 table plus a typo**, and
+# it was that way for the file's whole existence. Two lanes found it
+# independently on 2026-08-04 and their reports did not fully agree; both are
+# right and the union is four rows:
 #
-# A wrong *name* here has never produced a wrong obj — this file is read-only
-# measurement tooling — but every hand-read of a relocation dump on this project
-# went through it, and `0x0013` is the code the `.debug$S` and `.pdata` work
-# argues about most.
+# | code | was | is | found by |
+# |---|---|---|---|
+# | `0x0A` | `SECTION` (i386's name) | **ADDR32NB** | w-llvm **and** w-reloc |
+# | `0x13` | `SECREL` (i386's name for `0x0B`) | **SECRELLO** | w-llvm **and** w-reloc |
+# | `0x0B` | `SECREL_` | **SECREL** | w-reloc only |
+# | `0x0C` | *absent* — printed as `0xc` | **SECTION** | w-llvm only |
 #
-# **Production objs use five of these words and no others**: ADDR32, REL24,
-# REFHI, REFLO, PAIR — measured by w-llvm over 65,401 sections, with **no
-# modifier bit ever set** and `REFHI + REFLO = 41,789 + 45,349 = 87,138 = PAIR`
-# exactly. The rest of the table is here so a dump of something unusual is
-# readable rather than silently hex.
-RELOC = {
-    0x0000: "ABSOLUTE",
-    0x0001: "ADDR64",
-    0x0002: "ADDR32",
-    0x0003: "ADDR24",
-    0x0004: "ADDR16",
-    0x0005: "ADDR14",
-    0x0006: "REL24",
-    0x0007: "REL14",
-    0x000A: "ADDR32NB",
-    0x000B: "SECREL",
-    0x000C: "SECTION",
-    0x000D: "IFGLUE",
-    0x000E: "IMGLUE",
-    0x000F: "SECREL16",
-    0x0010: "REFHI",
-    0x0011: "REFLO",
-    0x0012: "PAIR",
-    0x0013: "SECRELLO",
-    0x0014: "SECRELHI",
-    0x0015: "GPREL",
-    0x0016: "TOKEN",
-}
+# …plus the whole `Type` word was matched without masking, so a modifier bit
+# would have turned every name into hex.
+#
+# ### Live or inert? BOTH, and the difference is the CAPTURE MODE
+#
+# w-llvm called `0x000C` *live* (half of every `.debug$S` relocation) and
+# w-reloc called the whole thing *inert* (`.debug$S` present in all 871 workload
+# objs and carrying **zero** relocations). **Measured here to settle it, same
+# source both ways** — `w14_dtor_delegate_neg.cpp`:
+#
+#     /GR /O1 /Oi /EHsc /GS- /c        ADDR32 43 · REL24 12 · REFHI 2 · REFLO 2
+#                                      · PAIR 4.  `.debug$S`: ZERO relocations.
+#     …the same, plus /Z7              `.debug$S` gains 30 x 0x000B and
+#                                      30 x 0x000C, matched.
+#
+# So both reports are correct and neither generalises: **`0x0B`/`0x0C` are
+# reachable by a `/Z7` capture and unreachable at the workload's own flags**,
+# which carry no `/Z7` and no `/Zi`. w-llvm measured on `/Z7`; w-reloc measured
+# the workload. The debug-info lane will meet these codes; a workload scan will
+# not. (`REFHI + REFLO == PAIR` holds on both sides: 2 + 2 = 4 here, and
+# 258,698 + 281,823 = 540,521 over w-reloc's 1,819,168 records.)
+#
+# ### The masking bug is REAL and UNREACHABLE in this corpus
+#
+# `0 of 1,819,168` `Type` words in the 871 workload objs has a nonzero high byte
+# (w-reloc). So the missing `TYPEMASK` was a format-correctness defect that
+# nothing here could have triggered — it is fixed, and that is not the same as
+# closing a live hole.
+#
+# ### The reader
+#
+# Parsing Rust source is not elegant, and it beats the alternative: a second
+# hand-written table that can drift. There is **no fallback table** — if the
+# constants cannot be read, names come back as hex and `--selftest` fails
+# loudly, because a silently-stale copy is exactly what this replaced. Whether
+# the duplication should instead be closed by generating both from one data file
+# is a real question and is flagged in `docs/rungs/2026-08-04-w-gr.md` §12.
+import os
+import re
 
-# The high byte is modifier flags, not part of the type (`IMAGE_REL_PPC_TYPEMASK`
-# is 0x00FF). Measured 0 times in production; decoded anyway, because a
-# `hex(0x0106)` in a dump reads as an unknown relocation rather than as a negated
-# REL24.
-RELOC_TYPEMASK = 0x00FF
-RELOC_FLAGS = (
-    (0x0100, "NEG"),
-    (0x0200, "BRTAKEN"),
-    (0x0400, "BRNTAKEN"),
-    (0x0800, "TOCDEFN"),
+RELOC_SOURCE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "crates", "c2-obj", "src", "reloc.rs",
 )
+_RELOC_CONST = re.compile(
+    r"^pub const IMAGE_REL_PPC_(\w+)\s*:\s*u16\s*=\s*(0x[0-9A-Fa-f]+)\s*;", re.M
+)
+# Not relocation types: masks, and the modifier bits (which are handled apart).
+_RELOC_NOT_A_TYPE = {"TYPEMASK", "FLAGMASK"}
+_RELOC_FLAG_NAMES = ("NEG", "BRTAKEN", "BRNTAKEN", "TOCDEFN")
+
+
+def _load_reloc_table(path=RELOC_SOURCE):
+    """`(types, flags, typemask)` read from `crates/c2-obj/src/reloc.rs`.
+
+    Empty on any failure. The caller renders hex for an unnamed code and
+    `selftest()` turns an unreadable source into a red gate row, so a missing
+    table is visible rather than quietly wrong.
+    """
+    try:
+        with open(path) as fh:
+            src = fh.read()
+    except OSError:
+        return {}, (), 0x00FF
+    consts = {n: int(v, 16) for n, v in _RELOC_CONST.findall(src)}
+    types = {
+        v: n
+        for n, v in consts.items()
+        if n not in _RELOC_NOT_A_TYPE and n not in _RELOC_FLAG_NAMES
+    }
+    flags = tuple(
+        (consts[n], n) for n in _RELOC_FLAG_NAMES if n in consts
+    )
+    return types, flags, consts.get("TYPEMASK", 0x00FF)
+
+
+RELOC, RELOC_FLAGS, RELOC_TYPEMASK = _load_reloc_table()
 
 
 def reloc_name(ty):
     """`IMAGE_REL_PPC_*` name for a relocation word, modifier bits included.
 
-    An unknown *type* is printed as hex rather than guessed at, and unknown
-    *flag* bits are printed as hex too — a name this table cannot justify is
-    worse than a number, which is the defect this function replaced.
+    An unknown *type* is printed as hex rather than guessed at, and bits outside
+    `TYPEMASK | FLAGMASK` are printed as hex too — a name the table cannot
+    justify is worse than a number, which is exactly the defect this replaced.
     """
     base = RELOC.get(ty & RELOC_TYPEMASK)
     if base is None:
@@ -312,13 +341,29 @@ def _synthetic_obj(long_name=b".averylongsectionname$probe"):
 
 
 def selftest():
-    """Pin the two defects `w-llvm` found in this file. No toolchain, no LLVM.
+    """Pin the defects `w-llvm` and `w-reloc` found in this file. No toolchain.
 
     Everything below is a COUNT or an explicit equality, never "no error was
     raised": both defects were silent for the file's whole existence precisely
     because nothing asserted anything about them.
     """
     checks = 0
+
+    # ---- 0. the relocation table came from crates/c2-obj -------------------
+    #
+    # First, because everything in section 2 is vacuous over an empty table —
+    # `reloc_name` would return hex for every code and the equalities below
+    # would be the only thing failing, which reads as twenty regressions rather
+    # than one unreadable file.
+    assert RELOC, (
+        "no relocation names could be read from %s — that file is the single "
+        "source and this reader keeps no copy of it, deliberately" % RELOC_SOURCE
+    )
+    assert len(RELOC) >= 23, "read only %d relocation types from %s" % (
+        len(RELOC), RELOC_SOURCE)
+    assert len(RELOC_FLAGS) == 4, "read %d modifier bits, want 4" % len(RELOC_FLAGS)
+    assert RELOC_TYPEMASK == 0x00FF, hex(RELOC_TYPEMASK)
+    checks += 4
 
     # ---- 1. `/NNN` long section names --------------------------------------
     o = Obj(_synthetic_obj())
@@ -343,9 +388,11 @@ def selftest():
     # the one that regressed.
     for code, want in (
         (0x000A, "ADDR32NB"),   # was "SECTION" — i386's name for this code
-        (0x000B, "SECREL"),     # was "SECREL_"
-        (0x000C, "SECTION"),    # was ABSENT; live in every /Z7 .debug$S
+        (0x000B, "SECREL"),     # was "SECREL_"      (w-reloc's row)
+        (0x000C, "SECTION"),    # was ABSENT         (w-llvm's row); /Z7 only
         (0x0013, "SECRELLO"),   # was "SECREL" — i386's name for 0x000B
+        (0x0008, "TOCREL16"),   # never in this file at all
+        (0x0009, "TOCREL14"),   # never in this file at all
     ):
         assert reloc_name(code) == want, "0x%04X -> %s, want %s" % (code, reloc_name(code), want)
         checks += 1
@@ -366,7 +413,7 @@ def selftest():
 
     print("gt_dump selftest: %d checks PASS "
           "(/NNN long names resolved + fallbacks; the PPC relocation table)" % checks)
-    assert checks >= 18, "selftest ran only %d checks — it must not shrink silently" % checks
+    assert checks >= 24, "selftest ran only %d checks — it must not shrink silently" % checks
     return 0
 
 
