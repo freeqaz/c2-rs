@@ -73,3 +73,12 @@ gens_*.jsonl
 # Coverage-instrumented build tree (work/w-frame/sweep.py). Same status as
 # /target: a machine-specific build artifact, never committed.
 /target-cov
+
+# Coverage instrumentation output (work/w-frame/sweep.py, work/w-sect/cov.sh).
+# `-C instrument-coverage` binaries drop a `default_*.profraw` in the CWD when
+# LLVM_PROFILE_FILE is unset, so these land at the repo ROOT rather than beside
+# the profile directory. Two were staged by hand in this lane before being
+# caught; they are build artifacts and are never committed.
+*.profraw
+*.profdata
+/target-cov/
