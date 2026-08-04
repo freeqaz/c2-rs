@@ -3,7 +3,8 @@
 //! `Toolchain::locate()` is `None` — it never panics on a missing toolchain.
 //!
 //! Subcommands:
-//!   capture <cpp>       capture IL, print the 5 file sizes
+//!   capture <cpp>       capture IL, print the 5 file sizes and the profile used
+//!                       (--flags-file / --cwd for a real-project profile)
 //!   compile <cpp>       reference obj, print size + timestamp
 //!   selftest [<cpp>...] oracle self-test over the given TUs (or all fixtures)
 //!   replay <cpp>        P0.1: capture + standalone-c2 replay, print byte-match
@@ -85,7 +86,12 @@ fn print_usage() {
         "c2rs — differential harness for the c2.dll native port\n\
          \n\
          USAGE:\n\
-         \x20 c2rs capture <cpp> [--keep-il DIR]  capture IL, print the 5 file sizes\n\
+         \x20 c2rs capture <cpp> [--keep-il DIR] [--flags-file F] [--cwd DIR]\n\
+         \x20                           capture IL, print the 5 file sizes and the profile used.\n\
+         \x20                           WITHOUT --flags-file the profile is /Ox /GS- /c, which is\n\
+         \x20                           NOT the workload's (/O1 /Oi /EHsc /GR ...) and does not\n\
+         \x20                           imply /GF — pass the workload's flags.txt to compare a\n\
+         \x20                           captured .gl against a workload obj.\n\
          \x20 c2rs compile <cpp>        reference obj, print size + timestamp\n\
          \x20 c2rs selftest [<cpp>...]  oracle self-test (determinism + capture stability)\n\
          \x20 c2rs replay <cpp>         P0.1: capture + standalone-c2 replay, byte-match verdict\n\
@@ -456,23 +462,102 @@ fn cmd_capture(rest: &[String]) -> ExitCode {
     let Some(cpp) = require_cpp(rest) else {
         return ExitCode::from(2);
     };
-    let Some(tc) = located() else {
-        return ExitCode::SUCCESS;
-    };
     // `--keep-il DIR` retains the captured bundle for byte inspection — the same
     // affordance `compile --keep-obj` gives for the reference obj, and the only
     // way to design a fixture around a *record-level* `.gl` shape (which name
     // separator introduces a run, where a record's framing starts) without
     // guessing. Gitignored scratch only — captured IL is never committed.
-    let keep_il: Option<PathBuf> = rest
-        .iter()
-        .position(|a| a == "--keep-il")
-        .and_then(|i| rest.get(i + 1))
-        .map(PathBuf::from);
+    let mut keep_il: Option<PathBuf> = None;
+    // `--flags-file` / `--cwd`: the same real-project plumbing `compile` and
+    // `census` already have, and this command DID NOT. Without it every `.gl`
+    // captured for analysis was taken at the `/Ox /GS- /c` default while the obj
+    // it was read against had been compiled at the workload's `/O1 /Oi /EHsc
+    // /GR …` — and `/Ox` does not imply `/GF`, which is exactly the skew
+    // `gl_string_comdat_names` exists to catch. The flags were not rejected, they
+    // were *accepted and dropped*, so two different probes produced identical
+    // output and the identity read as a finding. See `tests/cli_flags.rs`.
+    let mut flags_file: Option<PathBuf> = None;
+    let mut cwd: Option<PathBuf> = None;
+    // Parsed by a loop that REFUSES an option it does not know, rather than by
+    // `position()` scans that ignore one silently. `c2rs compile` ignoring
+    // `--flag` (which belongs to `listing`) is the first bug of this class: it
+    // made a `/GR` vs `/GR-` probe run two literally identical command lines.
+    let mut it = rest[1..].iter();
+    while let Some(a) = it.next() {
+        let mut take = |slot: &mut Option<PathBuf>| match it.next() {
+            Some(v) => {
+                *slot = Some(PathBuf::from(v));
+                true
+            }
+            None => {
+                eprintln!("{a} needs a value");
+                false
+            }
+        };
+        let ok = match a.as_str() {
+            "--keep-il" => take(&mut keep_il),
+            "--flags-file" => take(&mut flags_file),
+            "--cwd" => take(&mut cwd),
+            other => {
+                eprintln!("unknown capture option: {other}");
+                false
+            }
+        };
+        if !ok {
+            return ExitCode::from(2);
+        }
+    }
+    // The profile is read and validated BEFORE `located()`, so a malformed
+    // invocation is reported as one on a machine with no compilers at all. Only
+    // the capture itself needs the toolchain, and that still degrades to a clean
+    // exit 0.
+    //
+    // No `--flags-file` keeps the default byte-for-byte: `capture_il` is still
+    // the call, with `CAPTURE_IL_DEFAULT_FLAGS`. This is a widening.
+    let flags: Vec<String> = match &flags_file {
+        None => Vec::new(),
+        Some(ff) => match std::fs::read_to_string(ff) {
+            Ok(t) => t
+                .lines()
+                .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
+                .flat_map(|l| l.split_whitespace().map(String::from))
+                .collect(),
+            Err(e) => {
+                eprintln!("cannot read --flags-file {}: {e}", ff.display());
+                return ExitCode::FAILURE;
+            }
+        },
+    };
+    if flags_file.is_some() && flags.is_empty() {
+        // An empty profile would silently fall back to `cl.exe`'s own defaults —
+        // the dropped-flag failure mode again, one layer down.
+        eprintln!("--flags-file names no flags; refusing to capture at an unknown profile");
+        return ExitCode::from(2);
+    }
+    let Some(tc) = located() else {
+        return ExitCode::SUCCESS;
+    };
     let w = scratch("capture");
-    match tc.capture_il(&cpp, &w) {
+    let captured = match &flags_file {
+        None => tc.capture_il(&cpp, &w),
+        Some(_) => tc.capture_il_flags(&cpp, &w, &flags, cwd.as_deref()),
+    };
+    match captured {
         Ok(bundle) => {
             println!("captured IL bundle {} from {}", bundle.base_name, cpp.display());
+            // Print the profile that was actually used, always. A flag that is
+            // dropped in silence is indistinguishable from a flag that had no
+            // effect, and this line is what tells the two apart at the terminal.
+            match &flags_file {
+                None => println!(
+                    "  profile: {} (default — NOT the workload's; /Ox does not imply /GF)",
+                    c2_reference::CAPTURE_IL_DEFAULT_FLAGS.join(" ")
+                ),
+                Some(ff) => println!("  profile: {} (from {})", flags.join(" "), ff.display()),
+            }
+            if let Some(d) = &cwd {
+                println!("  cwd:     {}", d.display());
+            }
             for suffix in IL_SUFFIXES {
                 let size = bundle.get(suffix).map(|b| b.len()).unwrap_or(0);
                 let present = if bundle.get(suffix).is_some() { "ok" } else { "MISSING" };
