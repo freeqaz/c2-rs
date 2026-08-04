@@ -92,13 +92,24 @@ refutations, and they are the load-bearing rows here.
 | P6 | a `const` object with a constant initializer lands in **`.rdata`, non-COMDAT**, and if unreferenced is dropped | **right**, with a refinement the prediction did not make: *internal*-linkage `const` is dropped when unreferenced, but `extern const` is **kept** even when unreferenced, in a non-COMDAT `.rdata` (§4.4) |
 | P7 | `extern`-declared-not-defined ⇒ no section, one undefined EXTERNAL, `SectionNumber = 0`, `Value = 0` | **right, exactly** (§6.3) |
 | P8 | `.data` uses the **same** permutation as `.bss` for the same name set — one ordering rule, two sections. *Named alternative: `.data` is source order and only `.bss` permutes* | **wrong; the named alternative is right.** Five cells, including declaration orders chosen so source order and sorted order differ: `.data` is **always** declaration order (§5.3) |
-| P9 | inter-object padding is the minimum needed for each object's natural alignment, applied in layout order | **half right.** The alignment is not the *natural* alignment — it is promoted by size, `max(natural, 1 if n<2 else 4 if n<64 else 8)` — and the padding is **not dead**: it becomes a hole a later object can be placed into, so "applied in layout order" is wrong (§5.4) |
+| P9 | inter-object padding is the minimum needed for each object's natural alignment, applied in layout order | **wrong, both clauses.** The alignment is not the *natural* alignment — it is promoted by size, `max(natural, 1 if n<2 else 4 if n<64 else 8)`. And the padding is not dead: it becomes a **hole a later object is placed into**, so "applied in layout order" is wrong too (§5.4). The prediction's *conclusion* — that total size depends on the walk — survives, but for a different reason than the one predicted |
 | P10 | zero-initialized ⇒ `.bss`, non-zero ⇒ `.data`, explicit `= 0` indistinguishable from no initializer | **right.** `int z1=0; int z2; int z3={0};` yields one `.bss` of 0xc and no `.data` at all |
 
-**5 clean right (P2, P5, P7, P10, and P1 on its literal claim), 4 wrong (P3, P4, P8,
-and P9's second clause), 1 right-with-refinement (P6).** Two of the four wrong ones
-— P4 and P8 — were wrong in exactly the way their own registered alternatives
-predicted, which is the only reason those alternatives were written down.
+**6 right (P1, P2, P5, P6, P7, P10 — P1 on its literal claim and understated on
+COMDAT, P6 with a refinement it did not make), 4 wrong (P3, P4, P8, P9).**
+
+Two of the four wrong ones — P4 and P8 — were wrong in exactly the way their own
+**registered alternatives** predicted, which is the only reason those alternatives
+were written down. The other two, P3 and P9, had no alternative registered and are
+the two that would have broken a writer silently: P3 because a singular-`.data`
+model fails on 704 of 754 workload objs (§2.3), and P9 because dead-padding
+arithmetic gets the section size right on uniform objects and wrong as soon as
+alignments differ (§5.4).
+
+The registered bias — *"I expect `.data`/`.bss` to be boringly regular, which makes
+me likely to under-vary"* — was the correct worry and the registered mitigation is
+what caught it: `selectany` was in the grid **because** P4 predicted it changed
+nothing, and it is the cell that found COMDAT `.bss`.
 
 ### The permutation hypotheses, scored
 
