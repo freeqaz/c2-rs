@@ -58,12 +58,22 @@ the **871 real workload objs** (§11) — 9,139 `.data` and 14,916 `.bss` sectio
    is the *front end's*, it runs before c2, and its result is a readable input.
    That section should be revised — see §9.
 
-4. **One thing is only partly determined and is called out as such**: the address
+4. **One thing is only partly determined and is called out as such**: ~~the address
    *allocator* itself. A bump allocator whose alignment padding becomes a reusable
    hole reproduces **14 of 18** random `.bss` cells and **12 of 14** random `.data`
    cells exactly; the residual is characterised, with two verbatim counterexamples,
    in §5.5. It is exact whenever the objects share one size/alignment, and it
-   predicted **11 of 11** held-out layouts in the §4.2 grid.
+   predicted **11 of 11** held-out layouts in the §4.2 grid.~~
+
+   **Revised by lane `w-bss2` (§5.7), and the revision moves the open question,
+   not just the number.** The *allocator* is settled: it is a **plain bump with
+   no free list**, exact on 110 of 117 real `.bss` sections, 68 of 68 real
+   `.data`, and 38 of 38 probe cells. The open question is the **walk order**,
+   and it is wider than §5.5 suggested — Rule A1 reproduces **85 of 110** real
+   multi-object `.bss` sections and Rule A2 **45 of 68** real `.data`. It is
+   **47 of 48** on two-object `.bss` sections and 38 of 62 above that, which is
+   the boundary a writer must respect. It is *not* a mixed-size problem: 10 of
+   the 64 sections whose walk needs no alignment padding at all are still wrong.
 
 5. **The terminal ceiling is 871, not 878.** The 7 workload TUs that never produce
    an obj fail in **`c1xx`, the front end** — C2084/C2512 duplicate bodies, C1189
@@ -668,6 +678,200 @@ objs.** `int z1=0; int z2; int z3={0};` gives `z2@0 z1@4 z3@8`, and right-justif
 times the size. Either that routine is not the one on this path, or it is guarded.
 Reported as a disagreement, not resolved.
 
+> **Superseded in part by §5.7.** The scoring above conflates two questions.
+> §5.7 separates them on real workload objs and finds the allocator is a plain
+> bump in **every** cell here and in 110 of 117 real `.bss` sections; the
+> residual is entirely the **walk order**. Read §5.5 as a record of which
+> *orders* the models got right, not as evidence for hole reuse.
+
+### 5.6 Where the allocator's inputs live — the IL `.gl` data record
+
+Rules A1–A3 need four things per object: **size**, **alignment**, **linkage**
+and **declaration order**. A port has none of them from the obj; all four are in
+the IL `.gl` that c2 is handed, and this is their encoding. Located by one-axis
+probe diffs at the workload's flags (lane `w-bss2`), and controlled in §5.7.
+
+A namespace-scope **data** record is
+
+```
+<varint id>  [0..n zero bytes]  <name-kind tag>  <name> 00
+      [ 0xC2+2·log2(a)  0x81 ]   T   K  00  02  SC   <size>   …
+```
+
+| field | meaning | measured on |
+|---|---|---|
+| **`T`** | the object's **alignment class** when no prefix is present: `0x82`→1, `0x84`→2, `0x86`→4, `0x88`→8 | `char`/`short`/`int`/`double`, their arrays, `bool`, `wchar_t`, `unsigned char`, `float`, an `enum`, a pointer, and five structs whose alignment comes from the widest member |
+| **align prefix** | two bytes `0xC2+2·log2(a)`, `0x81`, replacing `T`; `a` is then **the** alignment | `__declspec(align(k))` at k = 1, 2, 4, 8, 16, 32, 64 → `C2 C4 C6 C8 CA CC CE`. A class with a vftable also carries it, at its natural alignment |
+| **`00 02` at +1/+2** | the discriminator that separates a **data** record from a **function** record, which carries `03`/`04`/`05` there | every probe, and 12,207 real sections |
+| **`SC`** | `0x01` external linkage, `0x04` internal (`static`) | §6.1's two rows |
+| **`<size>`** | one byte if `< 0x80`; otherwise `0x80` followed by a **LE32** | 127 → `7F`; 128 → `80 80000000`; 255, 256, 1024, 65536 |
+| **`<varint id>`** | assigned in **declaration order** — this is how a port gets Rule A2's walk | see below |
+| **name-kind tag** | `0x00` ordinary decorated name, `0x26` an `??_R*` RTTI name, and `0x24` — the `$` itself — for an internal-linkage name, which is why a `$` name appears to have no tag | |
+
+**The record id is declaration order, and that is what closes Rule A2.** §5.3
+established that `.data` is walked in *source* order, which c2 cannot see; the
+`.gl` id is the same order in a form c2 *can* see. Sorting the records by it
+reproduces all three of §5.3's transcribed orders exactly, on TUs whose `.gl`
+**file** order is the permuted one:
+
+```
+decl zulu alpha mike bravo yankee charlie   ids 1251..1256 in that order   .gl file order: zulu yankee mike charlie bravo alpha
+decl charlie yankee bravo mike alpha zulu   ids 1251..1256 in that order   .gl file order: zulu yankee mike charlie bravo alpha
+decl s9 s1 s7 s3 s5 s2                      ids 1251..1256 in that order   .gl file order: s2 s9 s5 s3 s7 s1
+```
+
+**A caution a writer needs.** The id is an LEB128 varint preceded by a variable
+number of fields, so it cannot be read reliably by scanning **backwards** from
+the name — `work/w-bss2/glparse.py` does exactly that and it is right on small
+TUs and wrong on some large ones (a class static member and a file-scope static
+in the same TU can come out with the same id). Every number in §5.7 that depends
+on the id therefore carries that error bar, and the `.bss` numbers, which depend
+only on **file** order, do not. A writer parsing `.gl` forward from the record
+framing has no such problem; this lane did not build a forward parser.
+
+**How to tell an object is deferred (has a dynamic initializer).** Two markers,
+and using only the first costs 22 of 117 real sections:
+
+* internal linkage — a `$<name>$initializer$` data record;
+* external linkage — a `??__E…@@YAXXZ` **function** record, named after the
+  object's **path** for a namespace-scope object (`??__ETheRockCentral@@YAXXZ`)
+  but after its **whole decorated name** for a class static member
+  (`??__E?kServerVer@RockCentral@@0VString@@B@@YAXXZ`).
+
+### 5.7 §5 graded on the real workload objs
+
+§8.8 named this the lane's largest gap: the census carried no addresses, so §5
+was validated on probes only. It now is. The obj side is `w-bss`'s
+`sections.jsonl` (offsets, section sizes, symbols); the input side is a fresh
+front-end-only IL capture of all 871 TUs at the workload's flags
+(`work/w-bss2/glcensus.jsonl`). Grading set: the **117 non-COMDAT `.bss` and 68
+non-COMDAT `.data` sections that define two or more symbols** — every section in
+the workload where the allocator can be wrong. Predictions and rivals were
+committed first, in
+[`rungs/_2026-08-04-w-bss2-prereg.md`](rungs/_2026-08-04-w-bss2-prereg.md).
+
+**The control comes first.** The `.gl` size field equals `SizeOfRawData` on
+**12,207 of 12,207** single-object COMDAT sections — 100.00 %. Registered ≥ 95 %.
+Without this every number below could have been a parser bug.
+
+> **Rule A3′, superseding A3's allocator clause.** The allocator is a **plain
+> bump**: one cursor per section starting at 0, each object placed at the cursor
+> rounded up to `align(obj) = max(t, 1 if n<2 else 4 if n<64 else 8)`, the cursor
+> advanced past it, `SizeOfRawData` = the final cursor. **There is no free list.**
+
+`110 of 117` real `.bss` sections, `68 of 68` real `.data`, and `38 of 38` probe
+cells are exactly that, in ascending-address order. Hole reuse (§5.4), pass-over
+and best-fit are therefore **not three allocators**; each is a different story
+about which *order* the objects were visited in, and all three produce a layout
+that is a bump in *some* order. §5.4's worked examples are re-read below.
+
+| registered | result | verdict |
+|---|---|---|
+| **R0** `.gl` size == COMDAT `SizeOfRawData`, ≥ 95 % | **12,207/12,207 = 100.00 %** | **right**; rival R0′ (it is a *type* size and disagrees on arrays or padded classes) refuted |
+| **R1** A1 walk + allocator on 117 real `.bss`, ≥ 70 % | **89/117 = 76.1 %** | **right on the rate** |
+| R1 sub-clause: uniform-size sections ≥ 95 % | 21/23 = 91.3 % | **wrong** |
+| R1′ no hole reuse scores at least as well | 85 vs 89 | refuted, but by 4 sections, and see A3′ |
+| **R1″** `.bss` walks declaration order like `.data` | 53 vs **89** | **refuted** — `.gl` file order wins by 36 sections |
+| **R2** A2 walk + allocator on 68 real `.data`, ≥ 70 % | **46/68 = 67.6 %** | **wrong**, by 2.4 points |
+| R2 discrimination clause: A2 beats the `.gl`-file-order walk by > 5 points | **46 vs 19**, a 40-point gap | **right, decisively**; rival R2′ refuted. §5.3 replicates on real TUs |
+| **R3** eager and deferred never interleave in address | **68** real sections mix them, **0** counterexamples | **right**; rival R3′ refuted. The deferred block is reverse `.gl` in 40 of 41 |
+
+**Walk order alone**, scored on just the cells that already passed the bump test,
+is the number a writer should plan against:
+
+| walk | `.bss` (110 cells) | `.data` (68 cells) |
+|---|---:|---:|
+| **A1** — `.gl` file order, deferred block reversed and last | **85 (77.3 %)** | 19 (27.9 %) |
+| **A2** — declaration (`.gl` id) order, deferred reversed and last | 52 (47.3 %) | **45 (66.2 %)** |
+| `.gl` file order, no eager/deferred split | 35 | 14 |
+| declaration order, no split | 37 | 42 |
+
+So the direction §5.2/§5.3 found on probes **replicates on real TUs and the two
+sections really are governed by different orders** — but neither rule is
+complete. Where A1 breaks on `.bss` is sharp and worth stating as the boundary:
+
+| `.bss` subset | A1 exact |
+|---|---:|
+| **2 objects in the section** | **47 / 48** |
+| more than 2 objects | 38 / 62 |
+| uniform size | 21 / 23 |
+| mixed size | 64 / 87 |
+| no deferred object | 29 / 38 |
+| has a deferred object | 56 / 72 |
+
+The residual is **not** the allocator and **not** mixed sizes: of the 64 real
+`.bss` sections whose A1 walk needs no alignment padding anywhere — where all
+thirteen models coincide by construction — **10 still come out wrong**, purely
+because the order is wrong. Nine alternative walks were scored and none beats
+A1: externals-first (82), statics-first (80), alignment-descending (63),
+size-descending (58), reverse `.gl` (29), rotations, deferred-first (39).
+
+#### 5.7.1 What the 25 failing `.bss` sections look like
+
+This is the most useful thing this lane can hand the next one, because it says
+where *not* to look.
+
+* **The deferred clause of A1 is not the problem.** In **24 of the 25** failures
+  the deferred block is placed exactly right — reversed, after every eager
+  object — and the whole error is inside the **eager** block.
+* **The eager order is a near-`.gl` order, not a different principle.** Kendall
+  inversion count between the true order and A1's, as a fraction of the maximum:
+  median **0.17**, minimum 0.02. **9 of the 25 are a single adjacent
+  transposition.** A rule with a different sort key would not look like this.
+* **The transposed pairs share nothing.** Across those 9: same storage class in
+  9/9; equal size in 5, `x` larger in 3, smaller in 1; equal alignment in 6;
+  and in 7 of 9 the two records are **not adjacent** in the `.gl` (other
+  sections' objects sit between them). So it is not keyed on size, alignment or
+  linkage, and it is not a local rule over consecutive records.
+* **Failures are not concentrated by section size** — they occur at n = 2, 3, 4,
+  5, 6, 7, 9, 10, 11, 13, 18, 19 — but the *rate* is: 1 failure in 48 two-object
+  sections against 24 in 62 larger ones.
+* **Refuted, and recorded so it is not retried.** §7.4 reports lane `w-map`'s
+  reading that c2's own symbol table is keyed `bucket = id & 0x3ff` with a
+  sequential id. If c2 assigned that id while consuming the `.gl` and then walked
+  its table bucket-ascending, the walk would be `.gl` file order for the first
+  1024 records and would **interleave** after that — which would explain both why
+  the small probe grid sees pure file order and why large real TUs deviate. It
+  does not hold: sorting the eager block by `(record index mod 1024)` reproduces
+  **1 of 12** tested failures, against 0 for the plain index — no better than
+  chance. The idea is refuted on both the all-name index and the data-record
+  index.
+
+### 5.8 `.tls$` — the walk order, measured
+
+§8.4 recorded `.tls$` as characterised only to "one section, `0xC0300040`".
+Ten cells (six registered in the prereg, four confirmatory), at the workload's
+flags:
+
+> **Rule T1.** A TU's thread-locals share **one** `.tls$`, laid out as **two
+> blocks: every uninitialized object first, then every initialized one**. Within
+> a block the walk is **ascending object size**, ties broken by **reverse `.gl`
+> file order** in the uninitialized block and **reverse declaration order** in
+> the initialized block. The allocator is the same plain bump (A3′).
+
+| cell | `.gl` file order | ascending address |
+|---|---|---|
+| 6 uninit `int` | `zulu yankee mike charlie bravo alpha` | `alpha bravo charlie mike yankee zulu` = **reverse `.gl`** |
+| 6 uninit `int`, other names | `oscar tango kilo victor juliet romeo` | `romeo juliet victor kilo tango oscar` = **reverse `.gl`** |
+| 6 init `int` | `zulu yankee mike charlie bravo alpha` | `charlie yankee bravo mike alpha zulu` = **reverse declaration** (decl was `zulu alpha mike bravo yankee charlie`) |
+| 6 init `int`, other names | `oscar tango kilo victor juliet romeo` | `juliet romeo victor tango kilo oscar` = **reverse declaration** |
+| 3 uninit + 3 init interleaved in source | | `mike yankee zulu` ∥ `charlie bravo alpha` — **uninit block first**, each block by its own rule |
+| 6 uninit, mixed sizes 1/2/3/4/8/64 | | `zulu(1) charlie(2) mike(3) bravo(4) alpha(8) yankee(64)` — **ascending size** |
+| 6 uninit, mixed sizes, other names | | `tango(1) romeo(2) juliet(3) victor(4) oscar(8) kilo(64)` |
+| 6 init, mixed sizes | | `tango(1) romeo(2) juliet(3) victor(4) kilo(4) oscar(8)` |
+| 6 `static` uninit (3 survive) | | `alpha mike zulu` = reverse `.gl` restricted |
+| 6 uninit + a plain `char` | | `.tls$` unchanged; the `char` gets its own `.bss` |
+
+This is the **mirror image** of `.bss`/`.data`: `.bss` walks the `.gl` forwards
+and `.data` walks declaration order forwards, while both `.tls$` blocks walk
+theirs backwards. The registered primary (`.tls$` behaves like `.bss`) and the
+registered first rival (declaration order throughout) are both **wrong**; the
+registered second rival — two blocks, each with its own walk — is **right**.
+
+**Not separated by these cells:** ascending *size* and ascending *alignment*
+agree on every cell where they could have differed. A writer should treat the
+sort key as undetermined between the two.
+
 ---
 
 ## 6. Symbols
@@ -720,8 +924,25 @@ that is not reduced to a single rule:
 
 Y1 was fitted on the extern-only and static-only cells and **confirmed
 out-of-sample by the mixed cell**, which it predicts exactly and which no simpler
-rule (ascending, descending, or declaration) matches. Y2 is fitted on two cells
-(static and extern dyninit) and is **not** independently confirmed.
+rule (ascending, descending, or declaration) matches. ~~Y2 is fitted on two cells
+(static and extern dyninit) and is **not** independently confirmed.~~
+
+**Y2 is now confirmed out of sample (lane `w-bss2`, registered as R5).** §8.3's
+gap was that both fitted cells had a *single* linkage, so they could not see a
+linkage split even if there were one. The discriminating cell —
+`struct L{L(int);}; L p1(1); L p2(1); static L d1(1); static L d2(1);`, four
+deferred objects, two of each linkage in one `.bss` — gives symbol-table order
+**`d2 d1 p2 p1`**, which is the `.gl` record order with **no** split. The
+registered rival (deferred objects obey Y1's two-block shape, `p1 p2 d2 d1`) is
+**refuted**. N = 3, 5, 7 and 9 all reproduce `symtab == .gl` and
+`ascending address == reverse(.gl)`.
+
+A fifth cell — `char e1; static char e2; L g1(1); static L g2(1);`, eager and
+deferred, each with both linkages — shows **Y1 and Y2 compose**:
+`.gl` is `g1 g2 e1 e2`, addresses are `e1 e2 g2 g1` (A1: eager forwards, deferred
+reversed) and the symbol table is `e1 e2 g1 g2` — Y1's eager block (externals in
+reverse `.gl`, then statics in declaration order) followed by Y2's deferred block
+in `.gl` order.
 
 `OBJ_DYNINIT_SHAPE.md` §7.1's *"the `.bss` symbols are listed in strictly descending
 address order in every same-kind cell"* is true for the three shapes above where it
@@ -843,35 +1064,86 @@ starting data.
 ## 8. What a writer still cannot build from this document
 
 Stated plainly, because the value of the document is bounded by this list.
+Revised by lane `w-bss2`; the items it closed are struck through with their
+resolution, so the list stays readable as a dated record.
 
-1. **Mixed-size allocation, 4 cells in 18.** §5.5. Exact for uniform-size objects
-   and for the two hand-worked mixed cells in §5.4; not a closed rule. A writer
-   restricted to TUs whose `.bss`/`.data` objects share one size is safe; one that
-   is not needs the skip-and-retry walk fitted and held out.
-2. **The FP `.data` CheckSum predicate is now determined** (§4.2.1: byte-granular,
-   per initializer member, padding retained, 11/11 held-out plus 3 exploratory
-   cells) — but *why* it happens is still a hypothesis. Nothing here observes the
-   CRC call site. A writer implements the subset rule and does not need the reason.
-3. **Deferred-`.bss` symbol order (Rule Y2)** is fitted on two cells and has no
-   held-out confirmation. Y1 does.
-4. **`.tls$`** is characterised only to the level of "one section, initialized and
-   uninitialized share it, `0xC0300040`". Its walk order was not measured.
-5. **Whether "has a dynamic initializer" is exactly the deferral predicate**, versus
-   something broader. Every cell here is consistent with the narrow reading; none
-   discriminates it from, say, "address taken by a COMDAT".
-6. **`.data` relocations beyond `ADDR32`-with-no-PAIR.** Only pointer-valued
-   initializers were exercised. Member-pointer, vftable-pointer and cross-section
-   initializers were not.
-7. **The `??_R0` payload's spare word** is `00 00 00 00` in every cell measured; no
-   cell was built that would make it non-zero, so it is *observed constant*, not
-   *known constant*.
-8. **The workload census covers headers, characteristics, symbols and section
-   order — not addresses.** `sections.jsonl` does not carry the raw section bytes,
-   so §5's allocator is validated on probes only. Re-running the census with raw
-   bytes retained would let §5.4/§5.5 be graded on all 24,055 real sections, and is
-   the obvious next gate.
-9. **`.tls$` multiplicity and COMDAT behaviour** were not censused; only the probe
-   cells in §4.4 speak to it.
+**The one thing that would stop a writer today is item 1, and it is not what the
+previous revision of this list said it was.**
+
+1. **The `.bss` and `.data` WALK ORDER, on 23 % and 34 % of real multi-object
+   sections.** This is the whole remaining gap and it is bigger than the previous
+   revision believed. §5.7: the allocator itself is settled (a plain bump,
+   §5.7's Rule A3′, exact on 110/117 real `.bss`, 68/68 real `.data`, 38/38
+   probe cells). What is not settled is the order the objects are visited in.
+   Rule A1 gets **85 of 110** real `.bss` sections, Rule A2 **45 of 68** real
+   `.data`. Nine alternative walks were scored and none beats them.
+   **A writer is safe on the class the numbers support and nowhere else:**
+   * a section with **one** object — trivially correct, and that is 23,253 of the
+     24,055 `.data`/`.bss` sections in the workload;
+   * a `.bss` with **exactly two** objects — **47 of 48** real sections;
+   * anything larger — 38 of 62. Refuse, do not guess.
+
+   Note carefully that this is **not** the mixed-size problem the previous
+   revision named: of the 64 real `.bss` sections whose walk needs no alignment
+   padding at all — where every candidate allocator coincides — 10 are still
+   wrong. The order is wrong, not the arithmetic.
+2. ~~**Mixed-size allocation, 4 cells in 18.**~~ **Reframed and bounded, not
+   closed** (§5.5's note, §5.7). The four failures are not allocator failures;
+   they are walk-order deviations, as are the two verbatim §5.5 counterexamples,
+   which reproduce byte-for-byte. The best registered walk (pass over any object
+   that would need cursor padding) scores **19/20** on a fresh held-out grid but
+   misses **both** §5.5 controls, and the two controls do not have one
+   explanation: cell 10 is reproduced by hole reuse and not by pass-over, cell 11
+   by pass-over and not by hole reuse, and no member of a 13-model zoo gets both.
+3. ~~**Deferred-`.bss` symbol order (Rule Y2) has no held-out confirmation.**~~
+   **Closed** — §6.2. Confirmed on a mixed-linkage deferred cell built to
+   discriminate, plus N = 3, 5, 7, 9; the registered rival is refuted; Y1 and Y2
+   compose.
+4. ~~**`.tls$` walk order was not measured.**~~ **Closed** — §5.8, Rule T1: two
+   blocks, uninitialized first, each walked backwards. Residual: whether the
+   within-block sort key is **size** or **alignment** is not separated by any of
+   the ten cells.
+5. **Whether "has a dynamic initializer" is exactly the deferral predicate.**
+   Still open, but much better supported: on real objs the two `.gl` markers of
+   §5.6 partition **68** real mixed sections with **zero** address interleaving
+   (§5.7 R3). No cell discriminates the narrow reading from a broader one such
+   as "address taken by a COMDAT".
+6. **`.data` relocations beyond `ADDR32`-with-no-PAIR.** Unchanged. Only
+   pointer-valued initializers were exercised; member-pointer, vftable-pointer
+   and cross-section initializers were not.
+7. **The `??_R0` payload's spare word** is `00 00 00 00` in every cell measured;
+   *observed constant*, not *known constant*. Unchanged.
+8. ~~**The workload census covers headers, characteristics, symbols and section
+   order — not addresses, so §5 is validated on probes only.**~~ **Closed** —
+   §5.7. It did not need the raw section bytes after all: `sections.jsonl`
+   already carries every defined symbol's `Value`, which *is* the allocator's
+   output; what was missing was the allocator's **input**, and that is in the IL
+   `.gl` (§5.6), not in the obj. Proposed board row #178 should be re-scoped or
+   struck: re-censusing with raw bytes would cost 102 MB of disk and answer a
+   different question.
+9. **`.tls$` multiplicity and COMDAT behaviour** were not censused. Unchanged —
+   §5.8 measures the walk within one `.tls$`; whether a TU can have more than one,
+   and whether `__declspec(selectany)` or a template makes a COMDAT `.tls$`,
+   is untested. The workload census does not cover `.tls$` at all.
+10. **A forward parser for the `.gl` record stream.** §5.6 reads the fields a
+    writer needs, but reads the record **id** by scanning backwards, which is
+    right on small TUs and demonstrably wrong on some large ones. Every `.data`
+    number in §5.7 inherits that error bar; the `.bss` numbers, which depend only
+    on file order, do not. Writing the forward parser would both remove the error
+    bar and probably move item 1, because the id is the only field whose
+    extraction is known to be lossy.
+11. **Why the residual walk deviates.** Item 1 states *that* it does and on which
+    class; nothing here explains it. The candidates that have been **eliminated**
+    are worth as much as the open question, so they are listed: it is not
+    declaration order (53 vs 89 on `.bss`), not linkage-blocked
+    (externals-first 82, statics-first 80), not alignment- or size-sorted (63,
+    58), not a reversal or a rotation, not deferred-first (39), not any of four
+    hole policies or three pass-over policies, and **not `bucket = id & 0x3ff`
+    wraparound** (§5.7.1 — 1 of 12, chance). What it *does* look like is in
+    §5.7.1: the deferred clause is right in 24 of 25 failures, the eager block is
+    a near-`.gl` order (median 0.17 inversions, 9 of 25 a single adjacent
+    transposition), and the transposed pairs share no size, alignment or linkage
+    property and are usually not adjacent in the `.gl`.
 
 ---
 
@@ -900,6 +1172,31 @@ Next free number is **#162**.
 * **#166 — re-census with raw section bytes retained**, so §5's allocator can be
   graded on all 24,055 real `.data`/`.bss` sections instead of on probes (§8.8).
   The existing `census.py` needs one field added; budget is disk, not time.
+  > **Answered without it, and should be re-scoped or struck** — §5.7. The
+  > allocator's *output* was already in `sections.jsonl` (every defined symbol's
+  > `Value`); what was missing was its *input*, which lives in the IL `.gl`, not
+  > in the obj. 102 MB of raw section bytes would answer a different question.
+
+### Proposed by lane `w-bss2`, next free number **#183**
+
+* **#183 — a forward parser for the `.gl` record stream.** §8.10. §5.6 reads
+  size, alignment, linkage and the deferral markers reliably (12,207/12,207
+  control), but reads the declaration-order **id** backwards, which is wrong on
+  some large TUs. Gate: on all 871 workload TUs, every data record's id is
+  distinct within its scope and the ids of a TU's namespace-scope objects form a
+  contiguous ascending run. Blocks a trustworthy `.data` walk number.
+* **#184 — close the `.bss`/`.data` walk order.** §8.1, §8.11. The allocator is
+  done; this is the only thing between here and the writer. Held-out set already
+  exists: the 62 real `.bss` sections with more than two objects and the 27
+  `.data` ones. Prereg a rule, commit predictions, then measure. The eliminated
+  candidates are listed in §8.11 — do not re-run them.
+* **#185 — `.data`/`.bss` writer, scoped to what §5.7 supports.** Supersedes the
+  scope of #174. Emit only for TUs where every non-COMDAT `.data`/`.bss` has at
+  most **two** objects; return `NotImplemented` above that. Gate: byte-exact on
+  the probe grid, then on the workload TUs meeting the bound.
+* **#186 — census `.tls$`.** §8.9. Rule T1 (§5.8) is fitted on ten probe cells
+  and has never been seen on a real TU; `.tls$` is absent from the workload
+  census entirely. Multiplicity and COMDAT behaviour are both unmeasured.
 
 ---
 
@@ -916,6 +1213,25 @@ python3 allocd.py 7 14                      # §5.5 — .data allocator fit
 python3 bucket.py                           # §7.3 — the 1024-bucket partition (slow)
 python3 fpcrc.py                            # §4.2.1 — the registered CheckSum grid
 ```
+
+Lane `w-bss2` (§5.6–§5.8, §6.2's Y2 confirmation, §8's revision):
+
+```sh
+cd .claude/worktrees/w-bss2/work/w-bss2
+python3 glcensus.py glcensus.jsonl 16   # front-end-only IL capture of all 871 TUs
+python3 grade.py                        # §5.7 — R0..R3 against the real objs
+python3 r4grid.py 20260805 20 4 9 q     # §5.7 — the held-out mixed-size grid
+python3 r4grid.py 20260804 18 3 9 ''    # regenerates w-bss's cells 10 and 11
+python3 r56.py                          # §6.2 Rule Y2 held out, and §5.8 .tls$
+```
+
+`cap.py` is the front-end-only capture (`/Bd /d2nop`, TMP/TEMP redirected) at
+**arbitrary flags and cwd**, which `c2rs capture` cannot do — it hard-codes
+`/Ox /GS- /c` and takes neither `--flags-file` nor `--cwd`, so it cannot capture
+a real workload TU. `glparse.py` reads the `.gl` data records of §5.6.
+`glcensus.jsonl` is committed (with `git add -f`) beside `w-bss`'s
+`sections.jsonl`; no obj and no IL is committed, and the captures are front-end
+only, so nothing large is ever written.
 
 `probe.py` compiles one source with the real toolchain and reads the obj back;
 `glorder.py` additionally captures the IL and reads the `.gl` record order.
