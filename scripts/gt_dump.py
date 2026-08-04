@@ -86,7 +86,7 @@ SC = {
 # constants cannot be read, names come back as hex and `--selftest` fails
 # loudly, because a silently-stale copy is exactly what this replaced. Whether
 # the duplication should instead be closed by generating both from one data file
-# is a real question and is flagged in `docs/rungs/2026-08-04-w-gr.md` §12.
+# is a real question and is flagged in `docs/rungs/2026-08-04-w-gr.md` §11.1.
 import os
 import re
 
