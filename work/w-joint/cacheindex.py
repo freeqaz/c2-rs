@@ -43,6 +43,8 @@ import os
 import subprocess
 import sys
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+
 STREAMS = ("gl", "ex", "in", "db", "sy")
 
 # the workload's argv, minus every path-bearing argument
@@ -155,7 +157,9 @@ def main():
     if len(sys.argv) > 4:
         rev = sys.argv[4]
     else:
-        dc3 = os.environ.get("C2RS_DC3", "/home/free/code/milohax/dc3-decomp")
+        dc3 = os.environ.get(
+            "C2RS_DC3",
+            os.path.join(os.path.dirname(HERE), "..", "..", "dc3-decomp"))
         rev = subprocess.check_output(["git", "-C", dc3, "rev-parse", "HEAD"]
                                       ).decode().strip()
     srcs = [l.strip() for l in open(tulist) if l.strip()]
