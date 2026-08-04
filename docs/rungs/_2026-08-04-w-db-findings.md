@@ -221,7 +221,12 @@ and that single name is why the data-exact count is **0 in every TU** until it i
 added and **42** after. A per-TU exact metric with a universal miss in it
 measures nothing, which is the honest reading of that 0.
 
-**And w-joint's twelve static `Rd` rules, graded against `D` in the same pass:**
+**And w-joint's twelve static `Rd` rules, graded against `D` in the same pass.**
+This is the right comparison and not a strawman: w-joint's `Rd` *is* its guess at
+`D ∩ owners` — its `ORACLE` variant is literally `rd_oracle(own, D)` — and
+w-joint's own U-a shows the dd-closure of an `Rd` adds nothing (`|live| == |Rd|`
+on 850/850 at three sizes), so grading `Rd ∩ W` is grading the rule and not a
+truncation of it.
 
 | rule | `\|Rd ∩ W\|` | precision | recall | F1 |
 |---|---:|---:|---:|---:|
