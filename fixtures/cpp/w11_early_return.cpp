@@ -99,3 +99,27 @@ int x7(int a) { if (a != 0) return 32767; v0(); return 0; }
 
 // ---- operand SIGNEDNESS: a pointer null check is an UNSIGNED compare -------
 int r_eq(void *p) { if (p == 0) return 5; v0(); return 0; }
+
+// ---- the FRONTIER instance, minus the one thing this rung refuses ----------
+//
+// `?mmioGetInfo` in `src/xdk/nuispeech/mmio.cpp` — a FRONTIER TU — is this
+// function plus a two-word entry-block park. Its 84 bytes, from the real obj at
+// the workload's own flags:
+//
+//     mflr/stw/stwu
+//     mr    r11,r3         <- the park, and the whole of what is still missing
+//     mr    r3,r4          <-
+//     cmplwi cr6,r11,0 ; bf 26,+12 ; li r3,5  ; b +36
+//     cmplwi cr6,r3,0  ; bf 26,+12 ; li r3,11 ; b +20
+//     li r5,72 ; mr r4,r11 ; bl memcpy     <- and the call's argument setup
+//     li r3,0
+//     epilogue
+//
+// Same guard count, same relation, same operand class, same three exit literals,
+// same block skeleton, same two branch kinds. `mm` is that body with the park
+// and the marshalled call removed, and it grades — so the claim that this rung
+// emits a real frontier function's entire block layout is a byte compare rather
+// than an argument. What is left of `?mmioGetInfo` is W10's declined
+// entry-block park (`work/w-cross/PREREG.md`, three cells and no test) and an
+// inlined `memcpy`, and `work/w-conv/PREREG.md` §1.2 prices the whole TU at 7.
+int mm(void *p, void *q) { if (p == 0) return 5; if (q == 0) return 11; v0(); return 0; }
