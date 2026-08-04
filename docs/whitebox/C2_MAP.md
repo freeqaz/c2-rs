@@ -319,7 +319,8 @@ predicted a model/reader layer distinct from the writer, and the split is clean:
    `FUN_10b982d6` is the single place a section kind becomes (name,
    Characteristics), and it is in **`p2symtab.c`**; the section *constructors*
    (`FUN_10be7473` non-COMDAT, `FUN_10be74cf` COMDAT) are in **`emit.cpp`**.
-   The 13-name vocabulary and the exact characteristic words are in §4B.
+   The name/kind/class/override all arrive **in the IL**, in the tag-`0x09`
+   record decoded in **§3F** — which closes this question.
 2. **COMDAT and symbol emission order (R6)** — the writer is
    `FUN_10b2a936`, driven by `FUN_10b8303c(g_symList@0x10c2e234, …)`, so the
    *iteration order of that list* is the whole question. **Unresolved**; see §7.
@@ -534,6 +535,88 @@ reading says that decision cannot be c2's at all: if the emit bit arrives from
 the front end and c2's only subtractive path is `-optref`-gated, then **the
 ODR-use decision is made in `c1xx.dll`, and no amount of probing `c2` will find
 it.** That is a falsifiable claim and it redirects the search.
+
+### 3F. The IL section record — `.gl` tag `0x09`, and factor C's last link
+
+This was §7's highest-value open item ("the last link between *c2 emits the
+right shape* and *we can predict the shape from IL*"). **It is now closed**, and
+closed the right way: decoded statically, then proven by mutating real `.gl`
+bytes and replaying them through the real compiler.
+
+`FUN_10b9b8e9` case 9 (jump-table slot 7 → `0x10b9c212`) is the
+section-definition record. Node size `0x68`.
+
+| # | primitive | → | field |
+|---|---|---|---|
+| 0 | GetByte | — | tag `0x09` |
+| 1 | **varU** `10c1f91b` | `+0x28` | **section index** — what symbols reference |
+| 2 | **GetCStr** `10c1fc5b` | `+0x04` (interned) | **name** |
+| 3 | **GetByte** `10c1f8fc` | `+0x4d` | **kind** |
+| 4 | **GetCStr** `10c1fc5b` | `+0x3b` | **class/group** (`"CODE"`, `"DATA"`, `""`) |
+| 5 | **GetU32** `10c1fb8b` | `+0x53` | **Characteristics override** |
+
+Then `FUN_10b982d6` computes `(name, chars)` and writes back to `+0x53`.
+
+A real record, hand-decoded — `_CL_9d4ae740.gl` @ `0x00E1`:
+
+```
+09 | 06 0a | 2e 43 52 54 24 58 43 55 00 | 1d | 44 41 54 41 00 | 00 00 00 00
+^tag ^varU  ^ ".CRT$XCU\0"                ^kind ^ "DATA\0"      ^chars = 0
+```
+
+22 bytes; the next tag lands exactly at `0x00F7`. **25 records chain cleanly to
+EOF** in that TU.
+
+#### `.CRT$XCU`, finally
+
+| property | value | comes from |
+|---|---|---|
+| name | `.CRT$XCU` | **IL** |
+| **kind** | **`0x1D`** | **IL** |
+| class | `"DATA"` | **IL** |
+| chars override | `0` (absent) | **IL** |
+| **Characteristics** | **`0xC0000040`** | **computed by c2** — `FUN_10b982d6`; `0x1D` survives `FUN_10be7727` because `.CRT` matches no prefix |
+| alignment | 4 → `0x300000` | **computed by c2**, accumulated from the *symbols* |
+| COMDAT selection | **none** | not in the record at all |
+| **emitted** | **`0xC0300040`**, non-COMDAT, last in the section table | |
+
+Kind `0x1D` means *"named data section, keep my name"*: for kind `1`,
+`FUN_10b982d6` resolves through `FUN_10be76d4` and substitutes `".data"`; for
+`0x1D` it takes `sect+4`, the section's own name. Both yield `0xC0000040`.
+
+#### The mutation matrix — this is what makes it a fact rather than a reading
+
+Every field was patched in the bytes and replayed through real c2:
+
+| mutation | emitted chars | reads |
+|---|---|---|
+| baseline | `0xC0300040` | |
+| name `.`→`Z` | `ZCRT$XCU`, chars unchanged | name is IL-borne |
+| kind `1D`→`00` | `0x60400020` | `.text`, align forced to 8 |
+| →`03` / `04` / `13` | `0xC0300080` / `0x40300040` / `0x42300040` | `.bss` / `.rdata` / `.debug$S` |
+| override → `0x40000040` | `0x40300040` | **override beats kind** |
+| override → `0xC0500040` | `0xC0500040` **verbatim** | c2 skips its align OR when the nibble is already set |
+| class `DATA`→`CODE` | no change | |
+| **swap the ids of `.CRT$XCU` and `.CRT$XCL`** | initializer pointer lands in **`.CRT$XCL`** | the varU **is** the section index |
+
+Source-side corroboration: `#pragma section(".mysec", read, write, discard)`
+produces a tag-9 record with kind `01` and **`chars = 0xC2000040`** — **the u32
+is exactly the `#pragma section` attribute set.** `__declspec(align(64))` on the
+symbol gave `0xC2700040`, i.e. alignment comes from the **symbol**, not the
+record.
+
+COMDAT-ness never appears in tag 9: `FUN_10b283b0` spins a COMDAT child off the
+tag-9 base via `FUN_10be74cf`. `.text$yc` has an *identically shaped* record yet
+emits `0x60401020`. `.CRT$XCU` is non-COMDAT simply because no symbol asked for
+one.
+
+#### Correction to the `.gl` header size, and it is the variable-width trap again
+
+This document previously said the `.gl` header is **26 bytes**. **It is 26 only
+when all four `i16c` version fields fit in one byte.** In a real capture the
+build number `11886` escapes (`80 6e 2e`), making the header **28** and moving
+the first record from `0x1A` to `0x1C`. Exactly the failure mode §3F's own
+primitives table warns about — and it was in this file.
 
 ---
 
@@ -787,7 +870,7 @@ The honest boundary. Read this before building on anything above.
 
 | question | status | first move |
 |---|---|---|
-| **`.CRT$XCU`'s kind and Characteristics** | **open — highest value for factor C.** The name is absent from `c2.dll`, present in `c1xx.dll` (`0x300d4`), and `.CRT` matches none of `FUN_10be7727`'s prefixes, so the kind must arrive *in the IL*. No IL record carrying a section name was traced into `FUN_10be7473`/`FUN_10be74cf`. | `FUN_10b9b8e9` |
+| ~~**`.CRT$XCU`'s kind and Characteristics**~~ | **CLOSED — see §3F.** The `.gl` tag-`0x09` record carries name, kind (`0x1D`), class and a Characteristics override; c2 computes `0xC0000040` and ORs alignment from the *symbols*. Proven by mutating real `.gl` bytes and replaying through real c2. | — |
 | **COFF symbol-table order** (R6) | **open.** Three probes gave three answers: all-dyninit → IL order; no-dyninit → *source* order, matching neither IL nor address order; mixed → ascending address. The doc's "strictly descending address" holds only in the first case and is coincidence there. | `FUN_10b8303c(g_symList@0x10c2e234, FUN_10b2a936)` — the list's iteration order *is* the question |
 | **Section emission order** | observed, mechanism untraced. Kind-ordered, not name-ordered. | `FUN_10b287b8` |
 | **The byte offset of the emit flag in a `.gl` record** | **open.** Decode *order* is known; the offset is not, because preceding fields are variable-length. | decode the tag header at `FUN_10b9b8e9` |

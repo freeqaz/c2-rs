@@ -2088,7 +2088,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b98120	8		unknown	unknown	1	1	-
 10b98128	21		symtab-init	high	1	1	initialises the 1024-bucket id table [src:W-HASH]
 10b9813d	15		unknown	unknown	1	0	-
-10b9814c	123		unknown	unknown	3	1	str:e:\\bt\\278379\\vctools\\compiler\\be\\p
+10b9814c	123		il-reader	high	3	1	record-node size by tag: 1/2/0x1a=0x5a, 3=0x48, 4=0x4c, 5=0x43, 7=0x5a, 8=0x5c, 9=0x68, 0xb/0x1a=0x52, 0xe=0xa0, 0x10=0x50, 0x21=0x37 [src:W-CRT]
 10b981c7	54		unknown	unknown	3	0	-
 10b981fd	19		unknown	unknown	3	0	-
 10b98210	65		unknown	unknown	1	2	-
@@ -2096,7 +2096,7 @@ addr	size	symbol_or_empty	cluster	confidence	ncallers	ncallees	evidence
 10b9827d	89		unknown	unknown	2	4	-
 10b982d6	385		section-select	high	4	2	kind switch -> (name, Characteristics); sect[0x53] override [src:W-SECT]
 10b98457	108		section-select	high	2	0	storage-class normaliser; test [sym+0x20],0x480 at 0x10b9849f decides .bss(6) vs .data(2) [src:W-SECT]
-10b984c3	119		unknown	unknown	14	3	-
+10b984c3	119		il-reader	high	14	3	node alloc for a .gl record: FUN_10b9814c(tag) size (tag 9 -> 0x68), free-list at DAT_10c6d090+tag*4, node+0x30 = tag [src:W-CRT]
 10b9853a	58		unknown	unknown	4	4	-
 10b98574	12		unknown	unknown	3	1	-
 10b98580	7		unknown	unknown	2	0	-
