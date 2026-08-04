@@ -1,0 +1,32 @@
+
+E \ P — unreached by closure_26(Seed)  (n=10097)
+    4503   44.6%  free / file-scope function
+    3147   31.2%  VIRTUAL member  (reached only via a vtable slot)
+     710    7.0%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+     565    5.6%  `$` in qualified name (template instantiation OR adjustor thunk)
+     446    4.4%  other ($)
+     265    2.6%  undecorated (extern "C" / CRT)
+     264    2.6%  non-virtual member
+     148    1.5%  static member
+      48    0.5%  adjustor thunk (access code)
+       1    0.0%  other (0)
+
+Seed — what c1xx marks with 0x20  (n=2759)
+    1836   66.5%  non-virtual member
+     775   28.1%  VIRTUAL member  (reached only via a vtable slot)
+     101    3.7%  free / file-scope function
+      39    1.4%  static member
+       6    0.2%  undecorated (extern "C" / CRT)
+       2    0.1%  `$` in qualified name (template instantiation OR adjustor thunk)
+
+E n U — everything emitted, for reference  (n=30683)
+   12880   42.0%  `$` in qualified name (template instantiation OR adjustor thunk)
+    6161   20.1%  non-virtual member
+    4764   15.5%  free / file-scope function
+    4257   13.9%  VIRTUAL member  (reached only via a vtable slot)
+     872    2.8%  static member
+     865    2.8%  ??_G/??_E deleting dtor  (vtable slot, SYNTHESIZED, #152)
+     446    1.5%  other ($)
+     389    1.3%  undecorated (extern "C" / CRT)
+      48    0.2%  adjustor thunk (access code)
+       1    0.0%  other (0)
