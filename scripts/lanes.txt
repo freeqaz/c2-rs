@@ -129,7 +129,23 @@
 # no excuse for the list to be implicit. Re-measure before adding an axis, and do
 # not add a lane whose cost you have not measured.
 #
-# The `/GR` axis's cost, measured 2026-08-04 before it was added: over the 245
+# **The `/GR` axis's cost is +4.0 %, measured after the fact and not estimated.**
+# `scripts/mode_classes.txt` regenerated at 18 lanes (5 m 37 s, 24 cases per
+# fragment, 23,292 cells) and the two registries scored over the SAME 16,394-case
+# corpus with the SAME measurement:
+#
+#     12 lanes   73,313 gradings
+#     18 lanes   76,217 gradings      +2,904   +4.0 %
+#     (the unreduced 18-lane cross would be 295,092)
+#
+# **Every one of those 2,904 is on a fragment that can actually see the axis.**
+# Exactly three of 58 separate the `/GR` lanes rather than merging them into
+# their plain twins — `91-rtti-vftable` (230 cases), `67-eh-try-throw` (148) and
+# `62-ctor-base-delegation` (106), each going from 8 equivalence classes at 12
+# lanes to **14** at 18, the widest in the corpus against a median of 4. On the
+# other 55 the six lanes collapse and cost nothing.
+#
+# And before it was added, over the 245
 # tracked fixtures, `X` and `X /GR` produce **byte-identical objs on 242 of
 # 245** at every base configuration (TimeDateStamp zeroed, and captured to a
 # FIXED `-Fo` — c2 bakes the output path into `.debug$S` as `S_OBJNAME`, so a
