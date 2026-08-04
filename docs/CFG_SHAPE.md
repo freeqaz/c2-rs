@@ -887,6 +887,114 @@ improvised:
 
 ## 5. The widening order, ranked by TUs
 
+### 5.0 Two traps, before any number
+
+**Trap 1 — `complete-none` means the parse stopped, not that one construct is
+missing.** **32 of the 35** blocked frontier functions read `complete-none`
+(`docs/rungs/2026-08-04-w-front.md` §3.1). A blocker name is the **first** thing
+that stopped the decode and is never a promise that granting it converts the
+function. Only three rows carry any completeness signal at all. **Every count in
+this section is therefore an upper bound on TUs the CFG step *unblocks*, not a
+count of TUs it *converts*.** Anyone converting a row should expect a second
+blocker and budget for it.
+
+**Trap 2 — rank by TUs converted, never by function count.** `expr-cmp-eq` is
+the largest blocker bucket on the frontier — **14 functions across 7 TUs** — and
+granting it alone converts **zero** TUs: 13 of the 14 sit behind
+`cflow-if-*`/`cflow-loop`/`cf-expr-0x05`, and the fourteenth shares its TU with a
+function blocked on something else. `docs/BOARD.md` #150 already recorded the
+same trap for `expr-op-0x27` (22,759 emitted bodies, **6** converted functions).
+The tables below are keyed on **TUs**, and the function counts are shown only so
+the divergence stays visible.
+
+### 5.1 The payoff case
+
+w-front measured the 17 frontier TUs — the TUs whose *only* remaining blocker is
+codegen breadth. They carry **35 blocked functions**: 8 straight-line, 5
+`cflow-if-1`, 1 `cflow-if-2`, 10 `cflow-if-n`, 8 `cflow-loop`, and 3 that did not
+decode end to end. A TU converts only when **every** blocked function in it
+converts, so:
+
+> **Exactly 2 of the 17 are straight-line-only. The other 15 sit behind the step
+> this document specifies.**
+
+That is the payoff case, and it is why `docs/ROADMAP.md` §G4's "restructure into
+a real IL→lower→emit pipeline when the CFG step forces a block/instruction IR"
+is now due rather than deferred.
+
+### 5.2 The ladder
+
+Each step's yield is the number of frontier TUs whose blocked functions all fall
+inside the shapes admitted **so far** (plus `cflow-straight`, which other lanes
+own).
+
+| step | admits | frontier TUs newly unblocked | running total |
+|---|---|---:|---:|
+| **1** | `cflow-if-1` **and `if-2` and `if-n` together** (§4.4: they are one rung) | **8** | 8 |
+| **2** | `cflow-loop` | **4** | 12 |
+| **3** | `switch` | **0** | 12 |
+
+Split finer, to show why step 1 is one rung and not three:
+
+| sub-step | TUs unblocked |
+|---|---:|
+| `if-1` alone | **1** — `src/xdk/nuispeech/xboxmem.cpp` only |
+| `+ if-2` | **+0** — the only `if-2` function is in `mmio.cpp`, which also has two `if-n` functions |
+| `+ if-n` | **+7** — `osfinfo.cpp`, `undname.cpp`, `vswprnc.cpp`, `xlrcimpl.cpp`, `negate_test.cpp`, `vsnprnc.cpp`, `mmio.cpp` |
+
+**Shipping `if-1` and stopping is worth 1 TU. Shipping `if-1`+`if-2`+`if-n` is
+worth 8.** Since §4.4 establishes that `if-2` and `if-n` require *no production
+`if-1` does not already need*, splitting them across rungs buys nothing and costs
+seven TUs of visible progress.
+
+Step 2's four TUs: `Sort.cpp`, `jsonwriter.cpp`, `IPP_basicmath_xbox.cpp` (4
+functions at once, all `cflow-loop`, no EH, no data sections — the purest loop
+specimen on the frontier), `EncryptXTEA.cpp`.
+
+Step 3 is zero because no frontier TU contains a `switch`-classed function at
+all. `switch` should be *recognized and refused precisely* (its IL is in
+`IL_STMT_GRAMMAR.md` §11), not built.
+
+### 5.3 The five TUs the CFG step cannot reach
+
+Of the 17: 12 are in the table above, and the remaining 5 are out of scope for
+this document.
+
+| TU | why |
+|---|---|
+| `src/xdk/nuispeech/xboxheap.cpp` | `cflow-straight`, blocked on `expr-op-0x27`. Not this step — and `docs/BOARD.md` #150 puts its whole-corpus yield at 6 emitted functions, so it is a one-TU win and should be scoped as one |
+| `src/Main.cpp` | `cflow-straight`, but `eh-state1` — the whole EH record set must be modeled too. Not one widening away |
+| `src/system/synth_xbox/Biquad.cpp` | one function is `cf-expr-0x05` (a DIV width refusal, §2.2) — its control flow was never read |
+| `src/system/rndobj/wordwrap.cpp` | same, plus an `if-n` and a straight-line function |
+| `src/system/utl/Pool.cpp` | same. Its two `cflow-if-1` functions are already fully emitted by c2 as `bclr` folds (§3.5 band 2) and need no branch, but its constructor is `cf-expr-0x05` |
+
+`Pool.cpp` deserves the emphasis: it is named in the brief as a `cflow-if-1` site
+and it is one, but **it is not a branch site and it is not convertible by this
+step**. It is the wrong TU to grade on, twice over.
+
+### 5.4 What a step-1 rung must also carry that is not CFG
+
+Stated because §5.2's "8 TUs" will otherwise read as a work estimate, which
+Trap 1 forbids. Every one of the 8 also carries at least one **expression**
+blocker, and the CFG step does not touch any of them:
+
+| TU | expression blocker(s) named as first-refused |
+|---|---|
+| `xboxmem.cpp` | `expr-cmp-eq` ×3, `expr-cmp-ne` ×1 |
+| `osfinfo.cpp` | `expr-cmp-ge` |
+| `undname.cpp` | `expr-cmp-ne` |
+| `vswprnc.cpp` | `expr-cmp-eq` |
+| `xlrcimpl.cpp` | `assign-rhs-call-0x26` |
+| `negate_test.cpp` | `assign-store-type-0x86` ×2 |
+| `vsnprnc.cpp` | `expr-cmp-eq`, `call-arg-lit-permuted:mid` |
+| `mmio.cpp` | `expr-cmp-eq` ×3 |
+
+And per Trap 1, 32 of these rows are `complete-none`, so granting **both** the
+CFG shape and the named expression blocker still does not promise a conversion.
+The honest framing for a rung brief is: *the CFG step removes the control-flow
+blocker from 12 frontier TUs; how many of those then convert is a second
+question that only the byte compare answers.*
+
 ## 6. What the block/instruction IR must carry
 
 ## 7. The `/FAsc` listing as a decode aid
