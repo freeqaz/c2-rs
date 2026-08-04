@@ -1,7 +1,7 @@
 use super::body::{self, parse_segment, BodyShape};
 use super::bind::Bindings;
 use super::gl::drectve_is_boilerplate;
-use super::readers::{find_subslice, memchr_byte};
+use super::readers::{contains_subslice, find_subslice, memchr_byte};
 use super::{CallSeq, FpTail, FramedCall, IlFunction, IlOp, SeqCall, SeqTail, SlotArg};
 use crate::IlBundle;
 
@@ -1232,6 +1232,18 @@ impl IlBundle {
         let ex = self.ex()?;
         let inb = self.get("in")?;
 
+        // **The cheap early-out, and it is a performance gate as much as a
+        // correctness one.** `PortC2::build` calls this before `functions()` on
+        // EVERY TU, and the port's whole thesis is throughput (~922k obj/s on one
+        // thread). Everything below — the segment split, `Bindings::per_record`,
+        // a body parse — is work `functions()` is about to do again, so a TU that
+        // cannot possibly be a dynamic initializer must not pay for any of it.
+        //
+        // A `??__E` thunk's name is in `.gl` by construction: that is where the
+        // per-record binding reads it from. One substring scan settles it.
+        if !contains_subslice(gl, b"??__E") {
+            return None;
+        }
         // Same first gate as `functions`: the port emits `.drectve` as a
         // constant, so a TU that adds a linker directive diverges at offset 8
         // however good the rest is.
