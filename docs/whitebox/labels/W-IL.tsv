@@ -1,0 +1,42 @@
+10c1ff0f	il-open	high	CreateFileW+CreateFileMappingW+MapViewOfFile; the IL mapper
+10c20038	il-open	high	wcscpy_s+wcscat_s base+suffix then mmap; fills {cur,base,size}
+10c1fd6b	il-open	high	same suffix append but _wfopen_s; /GL packaging path only
+10c1fd4c	il-open	high	UnmapViewOfFile + zero the cursor triple
+10c1fd0c	il-open	high	mmap-failure -> errno + C1083
+10c1f0dc	diagnostics	high	C1083 raise: FUN_10c1f0dc(0x53, msg 0xd3, path)
+10c1ee7d	diagnostics	high	adds the +1000 C-number base (lea ecx,[esi+0x3e8])
+10c1ec65	diagnostics	high	fatal error / error / warning formatter
+10b743b2	il-open	high	mmap cache keyed on (path,off,len), LRU list at DAT_10c3cbe0
+10b745b8	il-open	high	windowed remap, 8 slots, granularity-aligned offsets
+10b8946f	il-open	high	get-or-map cursor for stream kind k
+10b7e276	il-open	high	suffix -> wide -> FUN_10c20038, or FUN_10b98fc4 when paged
+10b73923	il-open	high	/GL driver: map gl, read argv, package all 5 streams into the obj
+10be7e81	il-open	high	db stream driver, gated on TU[0x336]&0x2000
+10b72c0a	il-emit	high	copies an IL file verbatim into COFF section .cil$<suffix>
+10b97a22	il-header	high	.gl magic 0x11 / u16 0x0602 / 27-value version whitelist
+10b979e7	il-header	medium	cross-TU version comparison feeding C1047
+10c1f8fc	il-read	high	GetByte
+10c1f97a	il-read	high	GetU16 raw LE
+10c1fb8b	il-read	high	GetU32 raw LE
+10c1f9a6	il-read	high	i16c, 0x80 escape
+10c1f9e9	il-read	high	i32c, 0x80 escape
+10c1fae7	il-read	high	i64c, 0x80 escape
+10c1f91b	il-read	high	varU, bit-15 continuation
+10c1f90a	il-read	high	skip a high-bit-continuation value
+10c1fc5b	il-read	high	bounded NUL-terminated string
+10c1fc8c	il-read	high	raw n bytes
+10c1fca9	il-read	high	i16c-counted byte run
+10c1fbd4	il-read	high	NUL string + MultiByteToWideChar(CP_UTF8)
+10b9ae94	il-dispatch	high	.in/.db record loop, 1-byte tag, compare chain
+10b9b88d	il-dispatch	high	drives FUN_10b9ae94 over every TU's .in
+10bbc9ab	il-dispatch	high	.ex opcode fetch; 0x4D = end of stream, 0xFF = C1001
+10b3d610	il-dispatch	high	.ex operand decode, class table 0x10b25e48, 29 arms
+10b3d546	il-reader	high	.ex type-word reader; attribute table 0x10b25f10
+10b9761e	il-reader	high	0x4F sub-record reader, descriptor table 0x10b26268
+10bc2d7a	il-dispatch	high	reader.c record->codegen walk, table 0x10bc4152, ops 0x01..0xBD
+10bc4715	il-reader	high	per-function: seek .sy@+0x58 then .ex@+0x54, then codegen
+10b9b161	il-reader	medium	.sy per-function symbol reader (seek target)
+10b97d47	il-reader	medium	0x4F descriptor 0x0b payload
+10b99a37	il-reader	medium	.in sub-record reader
+10bf7c59	ppc-codegen	high	xrefs ppc/code.c; never touches DAT_10c46310 — PPC instruction selection, NOT the IL reader
+10bf9f15	ppc-codegen	high	same region, same reasoning

@@ -1,0 +1,45 @@
+10b2b0dd	coff-writer	high	fseek n*0x28+0x14; BIGOBJ ClassID GUID at 0x10b01be4; fwrite 0x14/0x38 file header
+10b2b02d	coff-writer	high	fwrite(buf,0x28,1) IMAGE_SECTION_HEADER; all 10 fields mapped
+10b2a936	coff-writer	high	fwrite 0x12 IMAGE_SYMBOL; ".file" memcpy 8, SectionNumber 0xfffe, StorageClass 0x67
+10b2948b	comdat	high	18-byte aux section-definition; Selection/Number only when chars&0x1000
+10b2ad50	coff-writer	high	8-byte Name encoder: '/'+decimal, '//'+base64 over the 64-char alphabet
+10b2a265	coff-writer	high	symbol Name encoder: <=8 inline zero-padded else {0,strtab-offset}
+10b28586	coff-writer	high	_wfopen_s(objpath,"wb"); Machine 0x1f2/0xc13; @comp.id; creates .drectve
+10b2ae0e	coff-writer	high	latches Machine/FILE*/alloc/err/time callbacks into 0x10c44bf0..0x10c44c0c
+10b281af	coff-writer	high	sole _time64 caller; TimeDateStamp callback; returns 0 when DAT_10c2ead8 set
+10b291de	coff-writer	high	non-COMDAT output-section descriptor ctor: +4 name, +8 chars, +0x10 index
+10b2921c	comdat	high	COMDAT output-section descriptor ctor: +0x16 Selection, +0x18 assoc number
+10b291b1	coff-writer	high	section-number ceiling check at 0xfeff
+10b29268	coff-writer	high	ORs alignment bits into descriptor +8 (Characteristics)
+10b28261	section-select	high	alignment bytes -> IMAGE_SCN_ALIGN_* ((log2(a)+1)<<20) ladder 1..0x2000
+10b28304	section-select	high	inverse of 10b28261
+10b289fd	section-select	high	if (sect[0x53]&0xf00000)==0 then OR align(sect[0x43]) into emitted chars
+10b287b8	section-select	high	EmitSection: kind -> name/chars -> 10b291de or 10b2921c(chars|0x1000)
+10b2888e	coff-writer	medium	emits section then pads raw data to sect[0x18]
+10b281f7	comdat	high	identity map 1..8 for the COMDAT Selection byte
+10b982d6	section-select	high	kind switch -> (name, Characteristics); sect[0x53] override
+10b98457	section-select	high	storage-class normaliser; test [sym+0x20],0x480 at 0x10b9849f decides .bss(6) vs .data(2)
+10b9a143	section-select	high	assigns sym[0xc] to .bss/.data/.rdata globals; COMDAT selection for new COMDATs
+10b9a4a7	section-select	medium	synthetic-datum builder; corroborates sym[0x20]=0x180/sym[0x1c]=size
+10b805b3	section-select	high	SetInitialData: sym[0x20]|=0x180, sym[0x1c]=cb, memcpy of the bytes
+10be7473	section-select	high	CreateSection(name,group,idx,kind) -> non-COMDAT; queries 10b982d6, chars at +0x53
+10be74cf	comdat	high	CreateComdatSection(...): sets +0x4c=7, +0x63=selection, +0x5f=base
+10be7b9e	section-select	high	creates .data/.rdata/.bss/.tls$ and latches 0x10c45f88..0x10c45f98
+10be7b07	section-select	high	creates .text -> g_state[0x2cc]
+10be76a8	section-select	high	creates .pdata (group "PDATA", align 4)
+10be7b4b	section-select	high	creates .xdata (group "XDATA", align 4)
+10be75de	section-select	high	creates .debug$S (group "DEBSYM", kind 0x13)
+10be7643	section-select	high	creates the DEBTYP section (default name "$$TYPES", kind 0x14)
+10be7727	section-select	high	returns sect[0x4d]; re-maps kinds 1/0x1d by name prefix
+10be76d4	section-select	high	base-section accessor: COMDAT non-associative -> sect[0x5f], else self
+10be76e7	section-select	high	$-aware name prefix match: equal, or next char is '$'
+10be7552	section-select	high	the only runtime name composer: strips at '$', appends "$zz"/"$zy"
+10be794d	section-select	medium	creates <base>$zz COMDAT-ordering section (kind 0x1b), PGO-gated
+10be79fa	section-select	medium	creates <base>$zy COMDAT-ordering section (kind 0x20), PGO-gated
+10be77a3	section-select	high	alignment picker by section kind
+10b283b0	comdat	high	clones a section as COMDAT; forces literal ".data" when template kind==1
+10b5902e	section-select	high	creates .rtc$IMZ / .rtc$TMZ (both kind 4, group "CONST")
+10b72c0a	section-select	medium	creates ".cil$"+name (kind 4, align 1) and streams a file into it
+10c1252c	section-select	high	creates .XBLD$W and the __C2_11886 build-stamp symbol
+10be82e7	obj-reader	high	sole msobj FCreateFromBytesW caller; CreateFileW GENERIC_READ + vtable iteration only
+10bae79c	pgo	high	NOT COFF: PogoDbOpen/ReadHeader; the 0x1f2 at 0x10bae868 is a pgodb field

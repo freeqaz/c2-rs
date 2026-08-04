@@ -1,0 +1,24 @@
+# W-HASH — string hashing, symbol interning, .bss layout, the build watermark.
+# NOTE: no `crc` label appears here on purpose. JamCRC is ABSENT from c2.dll
+# (see C2_MAP.md 6 P1); pattern-matching hash-shaped code near an emit site
+# would have produced a confident wrong address.
+# addr <TAB> cluster <TAB> confidence <TAB> evidence
+10b8a01b	strhash	high	shift-9 xor-fold string hash: h=(h<<9)^((h>>14)&0x3fe00)^(int8_t)c; returns name[0] if fold==0
+10b89fdf	strhash	high	UTF-16 variant of 10b8a01b, identical fold over ushort*
+10b97fb4	strhash	high	wrapper: 10b8a01b(name) % 0x3fff, indexes DAT_10c6d08c
+10b97fc5	strhash	medium	increments the 10b97fb4 bucket counter (saturating)
+10b5a3cc	cse-hash	high	CSE/value-number hash, % 0x65 (101 buckets) — this is what hash.c actually holds
+10b5a399	cse-hash	high	sibling of 10b5a3cc in the same 101-bucket table
+10b9a897	symtab-intern	high	name->symbol intern; 128-slot open-address cache DAT_10c67db8, idx=hash&0x7f, linear probe
+10b9b7aa	symtab-intern	high	same 128-slot cache; creates an external symbol via 10b9b6a4
+10b994ea	symtab-lookup	high	name lookup by full scan of the 1024-bucket id table (or 16001-bucket DAT_10c47af0)
+10b9a0e0	symtab-insert	high	insert into DAT_10c6c068: bucket = sym[10] & 0x3ff, chain at offset 0, HEAD insertion
+10b99977	symtab-lookup	high	lookup by integer id in the 1024-bucket table
+10b98128	symtab-init	high	initialises the 1024-bucket id table
+10b97dd0	symtab-id	high	monotone symbol-id counter DAT_10c2edd0++ for c2-created symbols
+10c2757d	bss-alloc	high	.bss bump allocator on DAT_10c2e320: align 8, then +(8-size) fixup for size in {1,2,4}
+10c2753a	data-alloc	high	sibling initialised-data bump on DAT_10c2e31c
+10c27b56	bss-alloc	high	stores the allocated address to sym+0x18, sets first-touch done-flag 0x800
+10b99093	bss-defer	high	drains the deferred dyninit list head-first — the source of the .bss reversal
+10b9b6a4	bss-defer	medium	head-inserts onto DAT_10c2f064 (LIFO); paired with 10b99093
+10c1252c	watermark	high	creates .XBLD$W and the __C2_11886 build-stamp symbol; byte-swaps 16 B LE->BE

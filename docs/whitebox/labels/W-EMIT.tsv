@@ -1,0 +1,35 @@
+10b7f1ff	obj-driver	high	top-level compile-all driver, p2/main.c; from _InvokeCompilerPass@12 via 10b7f3e7/10b7f3b6
+10b7f15f	emit-walk	high	loop over DAT_10c4630c selecting bodies to compile+emit
+10b7f16b	emit-predicate	high	test [sym+0x4c],0x20 && !0x2 — the emit-set predicate
+10b276e4	emit-marker	high	sets +0x4c|=0x20, recurses over the func record reference list
+10b8a936	emit-marker	high	reference-driven marking, p2/mod.c; gated on flags37 0x200000/0x400/0x800
+10b8a4e6	emit-marker	medium	marks the alias target's +0x4c bit 0x20
+10b8a905	emit-marker	medium	entry wrapper for 10b8a4e6
+10b2773f	emit-closure	high	additive fixpoint over the inline-candidate list; non-LTCG path
+10b27b7f	emit-prune	high	LTCG pruner; clears +0x4c bit 0x20; "not allowed to be inlined (globally unreferenced)"
+10b278f0	emit-reachability	high	recursive reachability step; sets rec+0xb1 bit 0x4
+10b27f3c	emit-prune-driver	high	sets DAT_10c2e308=1; selects 10b2773f vs 10b27b7f on DAT_10c45f9c
+10b2778e	emit-order	high	topological sort (callee before caller) of DAT_10c4630c
+10b991be	emit-order	medium	splices a sublist back into DAT_10c4630c
+10b9937a	emit-order	medium	partitions DAT_10c4630c on flags20 bit 0x400000
+10b9b8e9	il-symbol-reader	high	p2symtab .gl record reader; reads the emit flag word +0x4c at 10b9bf70
+10b27db2	inline-candidate-reg	high	pushes a record onto DAT_10c3cf68, sets sym+0x80
+10b33647	emit-marker	high	tuple walk in dag.c; marks referenced function symbols
+10b98b00	emit-marker	high	static-initialiser walk; marks functions whose address appears in an initialiser
+10b98c0f	emit-marker	high	sibling of 10b98b00
+10b28a9b	coff-symbol-writer	high	writes COFF symbols; marks alias targets; emits /EXPORT: directives
+10b28548	debug-symbol-gate	high	writes .debug$S records 0xb/0xc, gated on kind + flags37 0x200 + the emit bit
+10b7ef55	compile-one-function	high	reads the body from the IL and compiles it; called from the walk loop
+10b7e719	il-body-reader	medium	returns the function body record or 0
+10b7e1c4	emit-finalize	medium	per-function/module emit teardown; clears DAT_10c472e8
+10c1f91b	il-read-packed15	high	15/31-bit packed unsigned reader, common/ioin.c; reads the emit flag word
+10c1f9e9	il-read-varint32	high	1-or-5-byte signed reader
+10c1f9a6	il-read-varint16	high	1-or-3-byte reader
+10c28475	listing-formatter	high	wraps DIS::CchFormatInstr; sole importer
+10c10d73	listing-writer	high	per-instruction .cod line writer, p2/ppc/mdlist.c
+10c10c7d	listing-writer	high	.cod file header (TITLE/.PPC/.MODEL FLAT/ORG)
+10c11219	listing-writer	high	.cod per-function prologue (Begin code for function/PROC NEAR/COMDAT)
+10c10cf1	listing-writer	high	.cod per-function epilogue (End code for function)
+10b70e57	listing-writer	high	"Function compile flags:" line, p2/list.c
+10b71d8f	listing-writer	high	/QXSTALLS comment block
+10bebffd	entry	high	_InvokeCompilerPass@12, p2/dll.cpp — the exported entry cl/c1xx calls

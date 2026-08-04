@@ -119,10 +119,20 @@ imagebase 0x10b00000
 
 ```sh
 python3 docs/whitebox/scripts/build_map.py \
-        ~/ghidra-projects/export/c2 <labels-dir> docs/whitebox/c2_functions.tsv
+        ~/ghidra-projects/export/c2 docs/whitebox/labels docs/whitebox/c2_functions.tsv
 python3 docs/whitebox/scripts/build_strings.py \
         ~/ghidra-projects/export/c2 ~/ghidra-projects/bin/c2dll docs/whitebox/c2_strings.tsv
+python3 docs/whitebox/scripts/build_tus.py \
+        ~/ghidra-projects/export/c2/objdump_intel.asm \
+        docs/whitebox/c2_strings.tsv ~/ghidra-projects/export/c2/functions.tsv \
+        <scratch>/c2_ice_sites.tsv docs/whitebox/c2_tus.tsv
 ```
+
+**`docs/whitebox/labels/` is tracked, and that is deliberate.** The label files
+are the only hand-earned content in the pipeline — everything else regenerates
+mechanically from the binary. They originally lived under `work/`, which is
+gitignored, which meant a clean checkout would have regenerated the map with all
+151 labels silently missing and no error. Keep them in `docs/`.
 
 `build_map.py` assigns a cluster only from facts that need no judgement —
 thunk-ness, which imported DLL a function calls, and an exclusive-caller
