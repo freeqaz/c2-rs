@@ -246,22 +246,53 @@ pub(crate) fn gl_defined_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
     gl_defined_names_with(gl, true)
 }
 
-/// [`gl_defined_names`] with the separator set named, so the **incumbent stays
-/// executable**.
+/// **Which of `gl_defined_names`'s total-refusal clauses fired** — the name of
+/// the byte that stopped the read, never a guess.
 ///
-/// `sep26 = true` is the only production path; `false` is the NUL-only reader
-/// W-ADOPT replaced, kept callable so a test can state what the change did as a
-/// pair of assertions on one input rather than as a claim about history. A
-/// residue or a ceiling can move while the thing it proxies does not (§9.20.3),
-/// and "this used to refuse" is exactly the sort of claim that rots into
-/// folklore once the code it describes is gone.
-fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<String>) {
+/// This exists so `vocab-gap` can be decomposed into causes with counts
+/// (lane `w-vocab`). It is a *diagnostic* enum and nothing in the accept path
+/// branches on it: [`gl_defined_names`] maps every variant to the same empty
+/// pair it always returned, so the production reader is byte-for-byte the
+/// incumbent. What changed is that the reader now says which clause it was
+/// instead of discarding that fact at the `return`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum GlBindStop {
+    /// A framed record whose nearest preceding symbol run is absent or further
+    /// than [`MAX_NAME_TO_OFFSET`] away.
+    NameTooFar,
+    /// A record name with no `@@` — an undecorated `extern "C"` symbol, whose
+    /// COFF encoding path the port does not model.
+    NameNotMangled,
+    /// A run the widened scanner ended at `26`: the fields after it belong to
+    /// the *next* record, so every fixed displacement downstream is wrong.
+    RunEndsAt26,
+    /// `__declspec(dllexport)` — c2 splices `/EXPORT:` into `.drectve`.
+    DllexportLinkage,
+    /// A `26`-**introduced** defined name: COMDAT-style linkage against a
+    /// packed single-`.text` writer (board #232).
+    Name26Introduced,
+}
+
+/// [`gl_defined_names`], but reporting the stop clause instead of swallowing it,
+/// and with the record framing supplied by the caller.
+///
+/// `framed` is the record locator. Production passes
+/// [`crate::codec::gl_offset_framed`]; lane `w-vocab`'s decomposition also
+/// passes the window-free [`crate::func::bind::wide_offset_framed`] so that
+/// "how many records can the gate's framing not SEE" is a measurement rather
+/// than an inference. **Nothing in the accept path calls this with a widened
+/// framing** — see `IlBundle::decode_causes`.
+pub(crate) fn gl_defined_names_framed(
+    gl: &[u8],
+    sep26: bool,
+    framed: fn(&[u8], usize) -> bool,
+) -> Result<(Vec<(u32, String)>, Vec<String>), GlBindStop> {
     let runs = symbol_runs(gl, sep26);
     let mut claimed = vec![false; runs.len()];
     let mut bound: Vec<(u32, String)> = Vec::new();
     let mut p = 0usize;
     while p + 5 <= gl.len() {
-        if crate::codec::gl_offset_framed(gl, p) {
+        if framed(gl, p) {
             let off = u32::from_le_bytes([gl[p + 1], gl[p + 2], gl[p + 3], gl[p + 4]]);
             // The record's own name: the last run to END at or before this field,
             // and near enough to be part of the same record. Searched backwards so
@@ -273,12 +304,12 @@ fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<Str
                 // belongs to some other record — which is precisely the bug this
                 // bound exists to stop.
                 Some(k) if p - runs[k].1 <= MAX_NAME_TO_OFFSET => k,
-                _ => return (Vec::new(), Vec::new()),
+                _ => return Err(GlBindStop::NameTooFar),
             };
             // Named positively, then judged: a record name the port cannot emit
             // refuses the TU. `extern "C"` lands here.
             if !looks_mangled(&runs[k].2) {
-                return (Vec::new(), Vec::new());
+                return Err(GlBindStop::NameNotMangled);
             }
             // **A run the widened scanner ended at `26` is not a record name this
             // reader understands.** Everything downstream of here reads the
@@ -297,7 +328,7 @@ fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<Str
             // positively instead of being left to the distance bound — which is
             // the mistake this whole rung exists to correct.
             if gl.get(runs[k].1) != Some(&0) {
-                return (Vec::new(), Vec::new());
+                return Err(GlBindStop::RunEndsAt26);
             }
             // …and a record whose *linkage* the port cannot emit refuses it too.
             // `__declspec(dllexport)` makes c2 splice `/EXPORT:<name>` into
@@ -307,7 +338,7 @@ fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<Str
             // `#pragma comment(lib, …)` case [`drectve_is_boilerplate`] already
             // refuses. It was a live wrong-bytes emit on a one-line getter.
             if linkage_needs_a_directive(gl, runs[k].1) {
-                return (Vec::new(), Vec::new());
+                return Err(GlBindStop::DllexportLinkage);
             }
             // **…and a DEFINED record whose name is `26`-INTRODUCED refuses it
             // too, because `26` marks COMDAT-style linkage and the port's packed
@@ -361,7 +392,7 @@ fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<Str
             // clause does not claim to know either — it keys on the byte, and the
             // byte is what the obj disagreed about.
             if runs[k].0 > 0 && gl[runs[k].0 - 1] == NAME_SEPARATORS[1] {
-                return (Vec::new(), Vec::new());
+                return Err(GlBindStop::Name26Introduced);
             }
             claimed[k] = true;
             bound.push((off, runs[k].2.clone()));
@@ -378,7 +409,22 @@ fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<Str
         .filter(|((_, _, n), &c)| !c && looks_mangled(n))
         .map(|((_, _, n), _)| n.clone())
         .collect();
-    (bound, unclaimed)
+    Ok((bound, unclaimed))
+}
+
+/// [`gl_defined_names`] with the separator set named, so the **incumbent stays
+/// executable**.
+///
+/// `sep26 = true` is the only production path; `false` is the NUL-only reader
+/// W-ADOPT replaced, kept callable so a test can state what the change did as a
+/// pair of assertions on one input rather than as a claim about history. A
+/// residue or a ceiling can move while the thing it proxies does not (§9.20.3),
+/// and "this used to refuse" is exactly the sort of claim that rots into
+/// folklore once the code it describes is gone.
+fn gl_defined_names_with(gl: &[u8], sep26: bool) -> (Vec<(u32, String)>, Vec<String>) {
+    // Every stop clause maps to the same empty pair this reader always
+    // returned. The clause NAMES are new; the accepted class is not.
+    gl_defined_names_framed(gl, sep26, crate::codec::gl_offset_framed).unwrap_or_default()
 }
 
 /// Whether the record whose name ends at `name_nul` declares a linkage the port's

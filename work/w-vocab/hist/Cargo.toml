@@ -1,0 +1,19 @@
+# w-vocab's own instrument. OUTSIDE the workspace on purpose: it is a lane
+# measuring tool, not shipped code, and `cargo test --workspace` must not
+# build it. std only, like everything else here.
+[workspace]
+
+[package]
+name = "vocab-hist"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "vocab-hist"
+path = "src/main.rs"
+
+[dependencies]
+c2-il = { path = "../../../crates/c2-il" }
+c2-harness = { path = "../../../crates/c2-harness" }
+c2-reference = { path = "../../../crates/c2-reference" }

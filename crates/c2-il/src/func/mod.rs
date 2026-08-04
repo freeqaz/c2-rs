@@ -32,6 +32,7 @@ mod bind;
 mod body;
 mod bundle;
 mod census;
+mod diag;
 mod gl;
 mod ininit;
 mod inlit;
@@ -50,6 +51,7 @@ pub use self::bundle::{
 /// of keeping a second copy of it (ROADMAP §10.12, §10.14).
 pub(crate) use self::bundle::{body_start, body_start_is_bare, ops_start};
 pub use self::census::{FnCensus, FnVerdict, CENSUS_HEX_BACK, CENSUS_HEX_FWD};
+pub use self::diag::{cause, DecodeCauses};
 pub use self::gl::{
     gl_symbol_conflicts, gl_symbol_index, label_counter, mangled_name, mangled_names, source_path,
 };

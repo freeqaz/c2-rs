@@ -465,7 +465,7 @@ pub fn is_empty_module(ex: &[u8]) -> bool {
 /// fields are matched against, so the name binding is per record rather than per
 /// position (see [`super::gl::gl_defined_names`], applied by
 /// [`super::bind::Bindings::per_record`]).
-fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
+pub(crate) fn split_functions_at(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
     let mut starts = Vec::new();
     let mut i = 0;
     // Same walk as the old byte loop (a match consumes 2 bytes, a miss 1);

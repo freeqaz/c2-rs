@@ -1,0 +1,88 @@
+VOCAB-GAP DECOMPOSITION — 878 TUs listed
+  captured 871  |  capture-fail 7  |  decodes 8  |  DOES NOT decode 863
+  ANTI-DRIFT CONTROL  causes.is_empty() != decodes on 2 TU(s) (2 of them accepted by the WHOLE-TU path, which is the only licensed disagreement)
+
+FIRST CAUSE (what `functions()` short-circuits on) over 863 TUs
+     790  gl-stop-26-introduced
+      35  drectve-not-boilerplate
+      20  gl-stop-name-not-mangled
+      13  body-out-of-class
+       5  bind-record-count-ne-segments
+
+INDEPENDENT CAUSES (every gate that fires; a TU may appear in several)
+     863  body-out-of-class
+     823  gl-stop-26-introduced
+      35  drectve-not-boilerplate
+      22  gl-stop-name-not-mangled
+       5  bind-record-count-ne-segments
+       5  unclaimed-gl-symbol
+       1  locally-defined-callee
+
+CAUSES PER TU (the reason a single repair converts little)
+     819  02 cause(s)
+      36  03 cause(s)
+       8  01 cause(s)
+
+AB-g — THE TYPE-INDEX WINDOW
+  TUs where the wide framing sees MORE records than the gate's: 827 of 871
+  TUs where dropping the window ALONE makes the binding succeed:  0
+  CEILING, no discount — TUs whose ONLY causes are binding causes the
+  wide framing removes (so they would decode): 0
+
+THE TUs WHOSE ONLY FIRST BLOCKER IS A BODY (13) — binding, drectve and
+framing are all already satisfied here (blocked / segments / other causes | src)
+      1 /     1  -                               src/system/math/Primes.cpp
+      1 /     1  -                               src/system/math/Sort.cpp
+      1 /     1  unclaimed-gl-symbol             src/xdk/LIBCMT/undname.cpp
+      1 /     1  unclaimed-gl-symbol             src/xdk/nuispeech/xboxheap.cpp
+      1 /     1  -                               src/xdk/xjson/jsonwriter.cpp
+      2 /     2  unclaimed-gl-symbol             src/system/negate_test.cpp
+      2 /     2  -                               src/system/synth_xbox/Biquad.cpp
+      2 /     4  -                               src/xdk/nuispeech/xboxmem.cpp
+      3 /     3  unclaimed-gl-symbol             src/system/rndobj/wordwrap.cpp
+      3 /     3  -                               src/system/utl/Pool.cpp
+      4 /     4  -                               src/system/synth_xbox/IPP_basicmath_xbox.cpp
+      4 /     5  -                               src/system/utl/EncryptXTEA.cpp
+     18 /    20  unclaimed-gl-symbol,locally-defined-callee  src/keygen_xbox.cpp
+
+OUT-OF-CLASS BODIES PER NON-DECODING TU (the real distance)
+     659  >1000
+     173  101..1000
+      13  2..10
+      10  1
+       8  11..100
+
+THE BODY-DECODE BOUND (independent of every binding question)
+  TUs with at least one `4F 1F` segment and ZERO out-of-class bodies: 3
+  TUs with no `4F 1F` segment at all (the empty-module shape):        5
+  => no reader repair can take `functions()` past 8 TUs, ever.
+  SET IDENTITY (not just the count): ceiling 8 · decoding 8 · in ceiling only [] · decoding only []
+
+FRAMING ARITY over the captured TUs
+  `.gl` records the gate's framing sees: 28996
+  `.gl` records the wide framing sees:   1515167
+  `.ex` segments:                        2501606
+
+VOCAB-METRICS
+vocab-metric listed 878
+vocab-metric captured 871
+vocab-metric not-decoding 863
+vocab-metric drift 2
+vocab-metric window-narrows 827
+vocab-metric window-blocks-binding 0
+vocab-metric window-ceiling 0
+vocab-metric bodies-all-in-class 3
+vocab-metric empty-ex 5
+vocab-metric decode-ceiling 8
+vocab-metric first|gl-stop-26-introduced 790
+vocab-metric first|drectve-not-boilerplate 35
+vocab-metric first|gl-stop-name-not-mangled 20
+vocab-metric first|body-out-of-class 13
+vocab-metric first|bind-record-count-ne-segments 5
+vocab-metric independent|body-out-of-class 863
+vocab-metric independent|gl-stop-26-introduced 823
+vocab-metric independent|drectve-not-boilerplate 35
+vocab-metric independent|gl-stop-name-not-mangled 22
+vocab-metric independent|bind-record-count-ne-segments 5
+vocab-metric independent|unclaimed-gl-symbol 5
+vocab-metric independent|locally-defined-callee 1
