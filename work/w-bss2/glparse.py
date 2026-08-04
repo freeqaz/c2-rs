@@ -38,6 +38,74 @@ def _size_at(d, p):
     return None, p + 1
 
 
+def all_names(d):
+    """Every NUL-terminated printable run that looks like a symbol name."""
+    out = []
+    for m in re.finditer(rb'[ -~]{1,512}\x00', d):
+        n = m.group()[:-1].decode()
+        if n in SHELL or '\\' in n or '/' in n:
+            continue
+        if not (n[0].isalpha() or n[0] in '?_$'):
+            continue
+        out.append(n)
+    return out
+
+
+def path_of(name):
+    """`?kServerVer@RockCentral@@0VString@@B` -> `kServerVer@RockCentral`.
+
+    The qualified identifier path, which is what a `??__E<path>@@YAXXZ`
+    dynamic-initializer thunk is named after.  `$x` (internal linkage) -> `x`.
+    """
+    if name.startswith('?') and '@@' in name:
+        return name[1:name.index('@@')]
+    if name.startswith('$'):
+        return name[1:]
+    return name
+
+
+def name_is_dollar(d, s):
+    return d[s] == 0x24
+
+
+def _gid_before(d, s):
+    """The record id preceding the name at `s`.
+
+    Framing, read right-to-left from the name:
+
+        <varint id> <0..n zero bytes> <name-kind tag> <name>
+
+    The id is an LEB128 varint (7-bit groups, little end first, high bit =
+    continue).  The name-kind tag is `0x00` for an ordinary decorated name,
+    `0x26` for an `??_R*` RTTI name, and `0x24` — the `$` itself — for an
+    internal-linkage name, which is why a `$` name appears to have no tag: the
+    tag IS its first character.
+
+    A record whose id is an exact multiple of 128 has a zero low group and is
+    indistinguishable from a separator; `gid_suspect()` counts those.
+    """
+    i = s - 2 if not name_is_dollar(d, s) else s - 1
+    while i >= 0 and d[i] == 0x00:
+        i -= 1
+    if i < 0 or d[i] & 0x80:
+        return None
+    end = i
+    while i > 0 and d[i - 1] & 0x80:
+        i -= 1
+    v = 0
+    for k, b in enumerate(d[i:end + 1]):
+        v |= (b & 0x7F) << (7 * k)
+    return v
+
+
+def gid_suspect(recs):
+    """Records whose id repeats — the signature of the mod-128 ambiguity."""
+    seen = {}
+    for r in recs:
+        seen.setdefault(r['gid'], []).append(r['name'])
+    return {k: v for k, v in seen.items() if len(v) > 1 or k is None}
+
+
 def globals_in_order(d):
     """[(name, size, align, sc)] in `.gl` FILE order — the walk order of §5.2."""
     out = []
@@ -50,15 +118,7 @@ def globals_in_order(d):
         p = m.end()
         if p + 6 > len(d):
             continue
-        # Record id: the LE16 immediately before the name, with an extra 0x00
-        # separator for `?`-decorated (external) names and none for `$` ones.
-        s = m.start()
-        gid = None
-        if name.startswith('$'):
-            if s >= 2:
-                gid = int.from_bytes(d[s - 2:s], 'little')
-        elif s >= 3 and d[s - 1] == 0x00:
-            gid = int.from_bytes(d[s - 3:s - 1], 'little')
+        gid = _gid_before(d, m.start())
         # `q` ends up at the K byte; the type slot before it is 1 byte (plain
         # type code, alignment implied) or 2 (align prefix + degraded 0x81).
         if 0xc2 <= d[p] <= 0xd6 and (d[p] - 0xc2) % 2 == 0 and d[p + 1] == 0x81:
