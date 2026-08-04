@@ -674,16 +674,17 @@ could defend.** The five demotions make the result **more** credible, not less.
 It is not to be softened, not to be averaged against the raw 12, and the
 demotions are not the headline.
 
-**5 is a lower bound twice over, and this travels with the number wherever it
-is quoted:**
+**V6 = 5 is FINAL on the axis question.** It was a lower bound for two reasons;
+**guard 2 has resolved the first** (§6h) and the second stands:
 
-1. **Six cells remain unpromoted** for want of a frozen independent derivation
-   (`a2_04`, `a3_01`, `a3_02`, `a3_08`, `a4_05`, `a4_06`) — see §6e. Their
-   resolution decides whether V6 is **5 or 7**, and whether **A3 and A4** break.
-2. **The guard's construction is asymmetric.** It re-derived only *claimed*
-   violations. **A cell graded MATCH in error is structurally invisible to it.**
-   Nothing in this exercise could have caught a false negative, so the true
-   count cannot be lower than 5 and could be higher for a reason no one looked
+1. ~~Six cells unpromoted for want of a frozen derivation.~~ **RESOLVED.**
+   Guard 2 re-derived all six under quarantine. **One promotes (`a2_04`) and it
+   lands on A2, which guard 1 had already confirmed broken via `a2_08`** — so
+   the six add **zero** axes. **A3 and A4 do not break.** V6 does not become 7.
+2. **The guards' construction is asymmetric, and this still travels with the
+   number.** Both re-derived only *claimed* violations. **A cell graded MATCH in
+   error is structurally invisible to them.** Nothing in this exercise could
+   have caught a false negative, so 5 remains a floor for a reason no one looked
    for.
 
 **Reported in the same breath, because it is a real result in §2's favour and
@@ -711,7 +712,102 @@ of everything entailing symbol presence — Selection bytes, sizes, counts,
 section assignments — and it was asked to flag any leak it finds in the
 tasking, since the lead has already made that mistake once (§6a).
 
-**Status: IN PROGRESS.** V6 is **5 (or 4 hostile) pending guard 2**, and may become **7 (or 6)**.
+**Status: COMPLETE.** See §6h — V6 stays **5 (or 4 hostile)**; A3 and A4 hold.
+
+### 6h. Guard 2's ruling — A3 and A4 do NOT break
+
+Frozen at `e8c6fb7` before any truth was read; ruling at `9e2a566`.
+
+| cell | guard 2's derivation | axes2's | truth | ruling |
+|---|---|---|---|---|
+| `a2_04` | 3, incl. `?b@?$H@H@@QAAHH@Z` | 3 — **identical, same clause** | **2**, no `?b@` | **VIOLATION CONFIRMED** |
+| `a3_01` | 7, no `??_G` | 10 (+3 `??_G`) | **7 = guard 2's exactly** | AMBIGUOUS |
+| `a3_02` | 7, no `??_G` | 10 (+3 `??_G`) | **7 = guard 2's exactly** | AMBIGUOUS |
+| `a3_08` | 6, no `??_G` | 8 (+2 `??_G`) | **6 = guard 2's exactly** | AMBIGUOUS |
+| `a4_05` | 1 (`anchor` alone) | 4 (A4-wide) | **1 = guard 2's exactly** | AMBIGUOUS |
+| `a4_06` | 2 (`m` in, `inl` out) | 3 (+`inl`) | **2 = guard 2's** (mod `?A0x…`) | AMBIGUOUS |
+
+**The single promotion lands on A2, already broken via `a2_08`. Net effect on
+V6: zero.**
+
+**The direction of the five AMBIGUOUS matters and is the opposite of this lane's
+bias:** every one is **axes2 over-predicting** relative to both the guard and
+truth. Promoting them would have **inflated** the headline on a reading truth
+rejects. Guard 2 resolved none of them by pointing at truth.
+
+**Zero GAP failures in these six** — every symbol c2 emitted is derivable from
+§2's text. The `MATCH + GAP` filing (§6g) applies to guard 1's cells, not these.
+
+#### The five AMBIGUOUS reduce to two statement defects, each with a repair truth confirms
+
+In both, **§2's *content* is right and its *wording* is loose** — a rewrite, not
+a refutation:
+
+* **The VT scalar-deleting-destructor rider is CONDITIONAL on a virtual
+  destructor**, not unconditional. Confirmed in both directions: `??_G` present
+  exactly where the destructor is virtual (`a2_02`, `a2_05`, `a2_08`) and absent
+  where it is not (`a3_01`, `a3_02`, `a3_08`).
+  **Repair:** *"…force every virtual of C, including the destructor **when it is
+  virtual** — for which the slot holds the synthesized scalar-deleting
+  destructor (`??_G`) rather than `??1` — called or not."*
+* **R1's anonymous-namespace clause is NARROW** — namespace-scope and
+  **out-of-line** member definitions only, not in-class ones. `a4_06` separates
+  the sub-clauses cleanly (out-of-line `S::m` emitted unreferenced; in-class
+  `S::inl` not); `a4_05` confirms an unnamed-ns polymorphic class with no object
+  constructed emits nothing at all. **Graded AMBIGUOUS by axes2's own
+  pre-registered rule**, not by a post-hoc call.
+
+#### The confirmed violation is narrow, and was attributed rather than generalized
+
+R1's out-of-line clause **holds everywhere else tested** — `a2_03`
+(namespace-scope explicit *function*-template specialization) and `a3_07`
+(out-of-line virtuals, no object) are both emitted unreferenced. The failing
+construct is precisely **an explicit specialization of a member of a class
+template**, which this toolchain reference-gates.
+
+Guard 2 **declined to demote** on the mitigation that both derivations had
+pre-flagged the rival reading — correctly, since demotion there is the
+goalpost-move in the deflationary direction. Detectability is **asserted**
+(a `template <>` prefix is syntactically obvious) and **explicitly not
+demonstrated**, so it does **not** unblock SHIP-CANDIDATE.
+
+#### Post-hoc probe: there are no adjustor thunks to predict, and a plan caveat is retired
+
+`a3_01` emits `??_7D@@6BB@@@` (D's vftable for the B subobject) and **no**
+adjustor thunk. Guard 2 dumped all 35 symbols and every relocation: **no
+`W`-form, `??_9` or `??_D` exists anywhere in the object** — leader or
+non-leader, any section — and the vftable slot relocates **directly** to
+`?g@D@@UAAHH@Z`.
+
+It then closed the obvious objection — that `a3_01`'s override ignores `this` —
+with a **probe of its own design** in which every override genuinely uses it.
+**Still no thunk**, and the disassembly shows why: `?g@D@@UAAHH@Z` loads `dx` at
+`8(r3)`, which is only consistent with `r3` being the **B-subobject** pointer.
+**c2 compiles the override's out-of-line body against the secondary base's
+`this` and points the secondary vftable slot straight at it.**
+
+**Consequence:** §2's silence about adjustor thunks is **not a gap in practice**
+for non-virtual MI on this target — there are no `W`-form thunks to fail to
+predict. `PHASE7_PLAN.md` §2's standing caveat naming "`??_9` adjustor thunks"
+as an out-of-grid unknown is, for these shapes, **less threatening than it
+reads**. No claim is made about vtordisp or the virtual-base cases, which were
+not probed.
+
+#### The leak was false in every specific — corollary to §6a′'s rule
+
+The lead's leaked arithmetic implied **exactly two** of the six were candidates,
+that axes2 matched truth on the other four, and that `a2_04` was excluded. In
+fact: **all six** had axes2 ≠ truth; the one promotion **is** `a2_04`, the very
+cell the leak excluded; and **A3/A4, the axes the leak named, are the two that
+hold.**
+
+Using it would have **degraded** guard 2's derivation, not rubber-stamped
+axes2's. That its result contradicts the leak on all three points is stronger
+evidence the leak went unused than any assurance could be.
+
+> **Corollary to §6a′:** a leak computed from a *provisional* scoreboard can
+> also simply be **wrong** — leaving a downstream agent **misled**, not merely
+> compromised.
 
 ### 6f. c2 is consistent — the inconsistency is purely textual
 
@@ -804,9 +900,25 @@ without a known-answer gate.**
 
 ## 8. Verdict
 
-**PENDING.** It will be one of the five words fixed in the prereg
-(SHIP-CANDIDATE / SURVIVES-NOT-SHIPPABLE / REFUTED-ON-REAL / DECLINE /
-INSTRUMENT-FAIL), with the numbers that forced it.
+## **DECLINE** — "not validated; #161 does not ship; no patching"
+
+Of the prereg's five fixed words, **DECLINE** is the one the evidence forces:
+
+* **Not SHIP-CANDIDATE.** It requires "Part-2 axes all clean-or-guardable".
+  **V6 = 5** axes confirmed broken (4 under the hostile reading), both **above**
+  the registered interval [0, 3]. `a2_04`'s detectability is **asserted, not
+  demonstrated**, which the prereg says does not unblock. Part 1 was never run,
+  so V1/V2/V3 are unmeasured and no ship gate can be met.
+* **Not REFUTED-ON-REAL.** That verdict is *defined* by V1/V2 on the held-out
+  TUs, which **were never scored**. It must not be reached by substituting
+  Part-2 evidence for a Part-1 measurement, however tempting the axis count
+  makes it.
+* **Not INSTRUMENT-FAIL.** The instruments worked, and one of them
+  (`67 <slot> <token>`, §3f) is a net gain.
+
+**DECLINE is not a null result.** It carries: a bounded, identified repair
+(§8a); a new IL-side discriminator that makes the largest false-positive class
+*predictable* rather than merely guardable; and an unspent held-out population.
 
 What is already settled and cannot be revised by anything still outstanding:
 
@@ -833,18 +945,28 @@ What is already settled and cannot be revised by anything still outstanding:
   refuses on the construct refuses better than one TU in three. **Neither
   framing may be quoted without the other.**
 
-What is outstanding, and what each would change: **guard 2** (§6e) decides
-whether V6 is **5 or 7** and whether **A3 and A4** break — the highest-value
-remaining work; the magnitude write-up's detector error rate and distribution
-(§5) complete the clause-vs-replacement case; Part 1 (§2) is unrun and its
-population is **unspent**.
+### 8a. The repair list — bounded, and every item has a stated fix
 
-**On the prereg's five words:** the evidence already excludes SHIP-CANDIDATE.
-It does not support REFUTED-ON-REAL either — that verdict is defined by V1/V2
-on the held-out TUs, which were never run, and it must not be reached by
-substituting Part-2 evidence for a Part-1 measurement. **DECLINE** ("not
-validated; #161 does not ship; no patching") is where the evidence points, and
-the final word waits on guard 2.
+§2 needs **four** changes. None is a re-architecture:
+
+| # | clause | repair | evidence |
+|---|---|---|---|
+| 1 | **Propagation** | *…except that a **virtual dispatch** ODR-uses the vtable **slot**, not the definition.* | 649 instances / 289 TUs; directly implementable from the `.ex` `67` byte (§3f, §5) |
+| 2 | **Vtable rule** | trigger is a kept constructor **or destructor**, or an explicit instantiation definition — not "constructor" alone | `a9_05`, `a2_08` |
+| 3 | **Vtable rider** | `??_G` **only when the destructor is virtual** | §6h, confirmed both directions on 6 cells |
+| 4 | **R1** | separate storage-class `extern` from language-linkage `extern "C"`; narrow the anon-ns clause to namespace-scope **and out-of-line** members; drop the over-reach into explicit specializations of class-template members | §6f, §6h |
+
+**Item 4 does not rescue R1's text.** R1 is internally inconsistent **on its
+face** (§6b) — an out-of-line member marked `inline` is both "any out-of-line
+definition" and COMDAT — so R1 needs **rewriting, not patching**.
+
+**What remains genuinely open:** the `#152` GAP class — `??_D`, `??_E…W3…`,
+`??_9`, and `??__E`-fires-without-emission (§6g). §2 has **no clause capable of
+producing** those symbols, and **R3 must emit them or refuse**. Guard 2 showed
+the non-virtual-MI adjustor case is empty on this target, which shrinks the
+class but does not close it (vtordisp and virtual bases unprobed).
+
+**Unrun, with its population unspent:** Part 1 (§2).
 
 ## 9. Clean-room ledger
 
