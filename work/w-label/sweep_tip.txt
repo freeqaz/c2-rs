@@ -1,0 +1,357 @@
+==============================================================================
+PER-FUNCTION: never called anywhere (B), and called-but-never-graded (B\A)
+==============================================================================
+
+--- NEVER EXECUTED, in any lane, by any fixture (51) ---
+  calls.rs                 _RNCINvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls15link_setup_textNCNvB4_14call_seq_parts0E0B8_
+  calls.rs                 _RNCINvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls15link_setup_textNCNvB4_14call_seq_parts0Es0_0B8_
+  calls.rs                 _RNCINvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls15link_setup_textNCNvB4_14call_seq_parts0Es_0B8_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls13call_seq_text0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14call_seq_partss0_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14call_seq_partss1_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14call_seq_partss2_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14call_seq_partss3_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14call_seq_partss4_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14lit_slots_texts0_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14lit_slots_texts_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14seq_early_emit0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14seq_early_emits0_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14seq_early_emits_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14seq_guard_emit0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14seq_guard_emits0_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14seq_guard_emits_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14sym_slots_texts0_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14sym_slots_texts1_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls14sym_slots_texts2_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls20seq_load_param_indexs_0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls21one_moved_formal_text0B7_
+  calls.rs                 _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen5calls21one_moved_formal_texts_0B7_
+  cond_tail.rs             _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen9cond_tail10emit_steps0B7_
+  cond_tail.rs             _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen9cond_tail15cond_pair_parts0B7_
+  cond_tail.rs             _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen9cond_tail15cond_pair_partss0_0B7_
+  cond_tail.rs             _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen9cond_tail15cond_pair_partss1_0B7_
+  cond_tail.rs             _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen9cond_tail15cond_pair_partss_0B7_
+  encode.rs                _RNvNtNtCsdy4uCvr2r8k_7c2_core7codegen6encode10encode_lfd
+  encode.rs                _RNvNtNtCsdy4uCvr2r8k_7c2_core7codegen6encode11encode_stfd
+  encode.rs                _RNvNtNtCsdy4uCvr2r8k_7c2_core7codegen6encode12encode_extsh
+  frame.rs                 _RNCNvMNtNtCsdy4uCvr2r8k_7c2_core7codegen5frameNtB4_11FrameLayout8prologues_0B8_
+  frame.rs                 _RNvMNtNtCsdy4uCvr2r8k_7c2_core7codegen5frameNtB2_11FrameLayout8fpr_slot
+  labels.rs                _RNCNvMs_NtNtCsdy4uCvr2r8k_7c2_core7codegen6labelsNtB6_8LabelMap6define0Ba_
+  labels.rs                _RNCNvMs_NtNtCsdy4uCvr2r8k_7c2_core7codegen6labelsNtB6_8LabelMap7resolve0Ba_
+  labels.rs                _RNvMNtNtCsdy4uCvr2r8k_7c2_core7codegen6labelsNtB2_4Form4name
+  labels.rs                _RNvMs_NtNtCsdy4uCvr2r8k_7c2_core7codegen6labelsNtB4_8LabelMap7pending
+  leaf/compare.rs          _RNCNvNtNtNtCsdy4uCvr2r8k_7c2_core7codegen4leaf7compare17compare_leaf_text0B9_
+  leaf/compare.rs          _RNCNvNtNtNtCsdy4uCvr2r8k_7c2_core7codegen4leaf7compare23cmp_of_two_call_results0B9_
+  leaf/float.rs            _RNCNvNtNtNtCsdy4uCvr2r8k_7c2_core7codegen4leaf5float15float_leaf_texts5_0B9_
+  leaf/float.rs            _RNCNvNtNtNtCsdy4uCvr2r8k_7c2_core7codegen4leaf5float15float_leaf_texts6_0B9_
+  leaf/float.rs            _RNCNvNtNtNtCsdy4uCvr2r8k_7c2_core7codegen4leaf5float15float_leaf_texts7_0B9_
+  leaf/float.rs            _RNCNvNtNtNtCsdy4uCvr2r8k_7c2_core7codegen4leaf5float17fp_tail_call_texts0_0B9_
+  leaf/float.rs            _RNCNvNtNtNtCsdy4uCvr2r8k_7c2_core7codegen4leaf5float25chain_result_fp_load_text0B9_
+  straightline.rs          _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen12straightline11select_texts0_0B7_
+  straightline.rs          _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen12straightline11select_texts1_0B7_
+  straightline.rs          _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen12straightline11select_texts_0B7_
+  straightline.rs          _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen12straightline7combines0_0B7_
+  straightline.rs          _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen12straightline7combines1_0B7_
+  straightline.rs          _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen12straightline7combines2_0B7_
+  straightline.rs          _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen12straightline7combines_0B7_
+
+--- EXECUTED but NEVER under a graded (Port=Match) build (2) ---
+  select.rs                _RNCNvNtNtCsdy4uCvr2r8k_7c2_core7codegen6select16opt_mode_of reached 216x
+  select.rs                _RNvNtNtCsdy4uCvr2r8k_7c2_core7codegen6select12out_of_class  reached 314x
+
+==============================================================================
+PER-REGION, per file: uncovered branch/arm counts
+==============================================================================
+file                   regions  0 in A  0 in B   meaning
+calls.rs                  1100     145     145   0 in the SUSPECT BAND
+cond_tail.rs               128      28      28   0 in the SUSPECT BAND
+encode.rs                  369      21      21   0 in the SUSPECT BAND
+frame.rs                   171      36      36   0 in the SUSPECT BAND
+labels.rs                  114      33      33   0 in the SUSPECT BAND
+leaf/addr.rs                43       2       2   0 in the SUSPECT BAND
+leaf/compare.rs            368      12      12   0 in the SUSPECT BAND
+leaf/float.rs              366      41      38   3 in the SUSPECT BAND
+leaf/load.rs                77       4       4   0 in the SUSPECT BAND
+leaf/store.rs              346      30      30   0 in the SUSPECT BAND
+select.rs                  155      36      17   19 in the SUSPECT BAND
+straightline.rs            408      66      66   0 in the SUSPECT BAND
+TOTAL                     3645     454     432   22 in the SUSPECT BAND
+
+==============================================================================
+THE SUSPECT BAND, by source line — regions reached but never graded
+==============================================================================
+
+-- leaf/float.rs (3 regions)
+     127  }
+     129  Err(out_of_class(
+     247  take_fp(&mut cursor, &live)?
+
+-- select.rs (19 regions)
+      34  pub(crate) fn out_of_class(msg: &str) -> BackendError {
+      35  BackendError::NotImplemented(msg.to_string())
+      36  }
+     219  let (text, consts) = float_leaf_text(func, double)?;
+     255  match select_function(func, mode)? {
+     263  Selected::Float { consts, .. } if fn_level_linking && !consts.is_empty() => {
+     264  Err(out_of_class(
+     293  None => Err(out_of_class(&format!(
+     298  match word {
+     299  Some(v) => format!("{v:08x}"),
+     304  match word.map(|v| v & !c2_il::OPT_WORD_SPECIAL_MEMBER) {
+     305  Some(0x0080_0005) => " — that is /Od",
+     307  _ => "",
+
+==============================================================================
+NEVER EXECUTED AT ALL (not in B) — by source line, first line of each region
+==============================================================================
+
+-- calls.rs: 145 regions on 98 lines
+      92  return None;
+   209-210  let prologue = frame.prologue()?;
+   311-313  let ra = *ARG_REGS.get(guard.cmp_param).ok_or_else(|| {
+     316  .map_err(|_| out_of_class("a signed guard literal wider than `cmpwi`'s immediate"))?;
+     320  .map_err(|_| out_of_class("an unsigned guard literal wider than `cmplwi`'s immediate"))?
+   366-372  let ra = *ARG_REGS.get(e.cmp_param).ok_or_else(|| {
+   375-377  let k = u16::try_from(e.k).map_err(|_| {
+     403  return Err(out_of_class("a call sequence with no calls"));
+     411  return Err(out_of_class(
+     422  return Err(out_of_class(
+   427-428  let prologue = frame.prologue()?;
+   471-473  let k = i16::try_from(k).map_err(|_| {
+     479  labels.define(after_arm, &text)?;
+     518  labels.define(j, &text)?;
+   534-535  labels.define(epi, &text)?;
+   547-548  .ok_or_else(|| out_of_class("a call argument that is not a formal")),
+     566  return Ok(Vec::new());
+   590-592  let mut t = select_text(&synth, mode)?;
+   678-680  let dst = *ARG_REGS.get(LINK_FIRST_SLOT + i).ok_or_else(|| {
+   683-685  let src = saved_reg(*pi).ok_or_else(|| {
+     692  .map_err(|_| out_of_class("a chain link's literal wider than an addi immediate"))?;
+     700  return Err(out_of_class(
+     745  return Err(out_of_class(
+   781-783  return Err(out_of_class("a chain link in the first call position"));
+   818-820  let (t, w) = permute_args_parts(&formal_slots(sources))?;
+     831  let t = ops_setup_text(params, &c.arg_ops, mode)?;
+   840-841  (None, _) if !seq.saved.is_empty() => {
+     847  (None, ops) => (ops_setup_text(params, ops, mode)?, Vec::new()),
+   852-854  let src = *ARG_REGS.get(pi).ok_or_else(|| {
+     875  return Err(out_of_class(
+   887-890  let pi = seq_load_param_index(params, &c.arg_ops)?;
+     893  (None, ops) => ops_setup_text(params, ops, mode)?,
+     927  .map_err(|_| out_of_class("call-sequence post-op wider than an addi immediate"))?;
+     932  c2_il::SeqTail::Lit(k) => ops_setup_text(params, &[IlOp::Lit(k)], mode)?,
+   950-952  let d = i16::try_from(off).map_err(|_| {
+     968  crate::codegen::leaf::float::chain_result_fp_load_text(RET_REG, off, double)?
+     984  crate::codegen::leaf::compare::cmp_of_two_call_results(cmp, lhs_first, result_reg, mode)
+   995-997  let src = saved_reg(param).ok_or_else(|| {
+    1024  let mut text = select_text(func, mode)?; // arg-setup + trailing blr
+    1027  text.ends_with(&blr),
+    1107  return Err(out_of_class(
+   1113-1117  let src = *ARG_REGS.get(*pi).ok_or_else(|| {
+    1215  return Err(out_of_class(
+    1226  return Err(out_of_class(
+    1234  return Err(out_of_class(
+   1250-1252  let dst = *ARG_REGS.get(i).ok_or_else(|| {
+    1257  .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
+    1265  let dst = sym_dst.ok_or_else(|| out_of_class("no data-symbol slot after the count said o
+    1290  c2_il::SlotArg::SymAddr => false,
+   1300-1304  let dst = *ARG_REGS.get(i).ok_or_else(|| {
+    1343  return Err(out_of_class("a literal argument reached the permutation walk"))
+    1346  return Err(out_of_class("a data symbol's address reached the permutation walk"))
+    1352  return Err(out_of_class(
+    1360  return Err(out_of_class(
+    1366  return Err(out_of_class("argument sources a stack-homed parameter"));
+    1389  return Err(out_of_class(
+    1402  return Err(out_of_class(
+    1427  return Err(out_of_class(
+
+-- cond_tail.rs: 28 regions on 20 lines
+   103-105  let k = i16::try_from(k).map_err(|_| {
+   127-129  .ok_or_else(|| {
+     134  })?;
+   143-147  emit_steps(&plan.entry, &mut text)?;
+   150-152  let k = u16::try_from(pair.k).map_err(|_| {
+   165-167  let bc = encode_bc(bo, cr_bi(CR_COMPARE, bit), disp).ok_or_else(|| {
+     170  })?;
+     174  emit_steps(&plan.then_steps, &mut text)?;
+     177  emit_steps(&plan.else_steps, &mut text)?;
+
+-- encode.rs: 21 regions on 15 lines
+   145-147  pub fn encode_extsh(ra: u8, rs: u8) -> [u8; 4] {
+   451-455  pub fn encode_stfd(frs: u8, ra: u8, d: i16) -> [u8; 4] {
+   459-463  pub fn encode_lfd(frd: u8, ra: u8, d: i16) -> [u8; 4] {
+     541  return None;
+     584  return None;
+
+-- frame.rs: 36 regions on 21 lines
+   188-190  fn fpr_slot(&self, i: u8) -> i16 {
+     223  return Some("frame-savegprlr-helper");
+     226  return Some("frame-savefpr-helper");
+     229  return Some("frame-rtlcheckstack12");
+     235  return Some("frame-allocator-spill");
+   244-245  if let Some(ctx) = self.out_of_class_ctx() {
+     256  .ok_or_else(|| out_of_class("frame larger than a stwu immediate"))?;
+   265-270  for i in (0..self.saved_fprs).rev() {
+   279-280  if let Some(ctx) = self.out_of_class_ctx() {
+   286-287  } else {
+   291-292  for i in (0..self.saved_fprs).rev() {
+
+-- labels.rs: 33 regions on 19 lines
+   113-118  fn name(self) -> &'static str {
+   177-179  .ok_or_else(|| out_of_class("a label from a different function's map"))?;
+   204-206  pub fn pending(&self) -> usize {
+   232-234  return Err(out_of_class(&format!(
+     239  return Err(out_of_class(
+     244  return Err(out_of_class(
+     254  return Err(out_of_class(&format!(
+     262  self.names.get(r.label.0).copied().unwrap_or("?")
+   266-267  let word = r.form.encode(disp).ok_or_else(|| {
+     273  })?;
+
+-- leaf/addr.rs: 2 regions on 2 lines
+      46  return Some(Err(out_of_class(
+      54  return Some(Err(out_of_class(
+
+-- leaf/compare.rs: 12 regions on 9 lines
+   103-105  let first = first.ok_or_else(|| {
+   249-251  let k16 = i16::try_from(cmp.k).map_err(|_| {
+     254  })?;
+     286  return Err(out_of_class(
+     294  return Err(out_of_class(
+
+-- leaf/float.rs: 38 regions on 28 lines
+      78  return Err(out_of_class(
+      98  return Err(out_of_class(
+     149  return Err(out_of_class(
+     162  return Err(out_of_class(
+     173  let r = take_fp(&mut cursor, &live)?;
+   182-184  let r = reg_of(*tok).ok_or_else(|| {
+     188  return Err(out_of_class(
+     197  return Err(out_of_class(
+     208  return Err(out_of_class(
+     216  return Err(out_of_class(
+     237  .ok_or_else(|| out_of_class("FP binary op: empty stack (rhs)"))?;
+     240  .ok_or_else(|| out_of_class("FP binary op: empty stack (lhs)"))?;
+     271  unreachable!("not a binary op")
+     306  return Err(out_of_class(
+     350  return Err(out_of_class(
+   362-364  .ok_or_else(|| {
+   404-406  let d = i16::try_from(off).map_err(|_| {
+     455  return Err(out_of_class(
+     463  return Err(out_of_class(
+     469  return Err(out_of_class(
+     496  return Err(out_of_class(
+     508  return Err(out_of_class(
+
+-- leaf/load.rs: 4 regions on 4 lines
+      59  Err(_) => return Some(Err(out_of_class("indirect load offset exceeds a 16-bit displaceme
+      64  return Some(Err(out_of_class(
+      79  return Some(Err(out_of_class(
+      85  return Some(Err(out_of_class(
+
+-- leaf/store.rs: 30 regions on 30 lines
+     122  if *k0.get_or_insert(*k) != *k {
+   140-141  if let Err(e) = emit_load_imm(&mut text, SCRATCH_REG, k) {
+     202  return Some(Err(out_of_class(
+     208  return Some(Err(out_of_class(
+     241  return Some(Err(out_of_class(
+     253  return Some(Err(out_of_class(
+     260  _ => return None,
+     263  return Some(Err(out_of_class(
+     284  return Some(Err(out_of_class(
+     303  return Some(Err(out_of_class(
+     307  _ => return Some(Err(out_of_class("load of an unmodeled width"))),
+     315  return Some(Err(out_of_class(
+     321  _ => return None,
+     324  return Some(Err(out_of_class(
+     329  return Some(Err(out_of_class(
+     344  return Some(Err(out_of_class(
+     348  _ => return Some(Err(out_of_class("store of an unmodeled width"))),
+     369  return Some(Err(out_of_class(
+     375  return Some(Err(out_of_class(
+     383  return Some(Err(out_of_class(
+   399-400  IlOp::Lit(_) if !(rest.len() == 3 && text.is_empty()) => {
+   405-406  if let Err(e) = emit_load_imm(&mut text, SCRATCH_REG, *k) {
+     410  _ => return None,
+     418  return Some(Err(out_of_class(
+     422  _ => return Some(Err(out_of_class("store of an unmodeled width"))),
+     432  _ => return Some(Err(out_of_class("store run with an unmodeled residue"))),
+     444  return Some(Err(out_of_class(
+
+-- select.rs: 17 regions on 15 lines
+   164-166  let mut setup = select_text(func, mode)?;
+     171  let (setups, tail) = call_seq_parts(&func.params, seq, mode)?;
+     182  return Ok(Selected::CondPair(cond_pair_parts(func, pair)?));
+     191  return Ok(Selected::Tail(fp_tail_call_text(&func.params, fp)?));
+     198  return Ok(Selected::Tail(fp_permute_args_text(sources)?));
+     202  return Ok(Selected::Tail(permute_args_text(sources)?));
+     211  let (mut text, _) = int_tail_call_text(func, 0, mode)?;
+     223  return Ok(Selected::Plain(t?));
+     226  return Ok(Selected::Plain(t?));
+     229  return Ok(Selected::Plain(t?));
+   232-234  return Ok(Selected::Plain(compare_leaf_text(cmp, mode)?));
+     300  None => "unreadable".to_string(),
+     306  Some(0x0080_0004) => " — that is #pragma optimize(\"\", off)",
+
+-- straightline.rs: 66 regions on 39 lines
+      81  return Err(out_of_class("negative wide constant load not yet modeled"));
+     203  _ => return None,
+     208  .collect::<Option<_>>()?;
+     222  _ => unreachable!("gated above"),
+     242  return Err(out_of_class(&format!(
+     245  ARG_REGS.len(),
+   272-274  pass: "codegen".into(),
+     282  return Err(out_of_class(
+     289  IlOp::Div => return Err(out_of_class("integer division; out of class")),
+     295  return Err(out_of_class(
+     306  return Err(out_of_class(
+     315  return Err(out_of_class(
+     324  return Err(out_of_class(
+   330-332  let rhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (rhs)"))?;
+     342  return Err(out_of_class(
+     394  return Err(out_of_class(
+     453  PlanOp::Bin { op: IlOp::Add, .. } | PlanOp::AddImm { .. } => SCRATCH_REG,
+     462  return Err(out_of_class(
+     501  unreachable!("not a modeled integer binary op")
+     506  PlanOp::LoadImm { k } => emit_load_imm(&mut text, dest, k)?,
+   539-542  (IlOp::Add, Imm(a), Imm(b)) => Ok(Imm(a
+     545  .ok_or_else(|| out_of_class("folded add-immediate overflow"))?;
+     551  (IlOp::Add, RegOff { .. }, RegOff { .. }) => Err(out_of_class(
+   556-558  (IlOp::Sub, Imm(a), Imm(b)) => Ok(Imm(a
+     564  .ok_or_else(|| out_of_class("folded sub-immediate overflow"))?;
+     568  Err(out_of_class("`const - reg` needs subfic; out of class"))
+     573  (IlOp::Sub, RegOff { .. }, RegOff { .. }) => Err(out_of_class(
+     582  (IlOp::Mul, _, _) => Err(out_of_class(
+     586  (IlOp::Div, _, _) => Err(out_of_class("integer division; out of class")),
+     601  unreachable!("not a binary op")
+
+==============================================================================
+TRIAGE — a refusal emits NO BYTES, so it has nothing for the oracle to
+compare. Only an EMISSION region that never ran is the `branch_sense` shape.
+==============================================================================
+file                      never     EMIT  refusal    other
+calls.rs                     98        0       87       11
+cond_tail.rs                 20        1       17        2
+encode.rs                    15        5        2        8
+frame.rs                     21        4        5       12
+labels.rs                    19        0        9       10
+leaf/addr.rs                  2        0        2        0
+leaf/compare.rs               9        0        8        1
+leaf/float.rs                28        0       28        0
+leaf/load.rs                  4        0        4        0
+leaf/store.rs                30        0       28        2
+select.rs                    15        0        3       12
+straightline.rs              39        0       29       10
+TOTAL                       300       10      222       68
+
+--- the never-executed EMISSION lines, the only ones of `branch_sense`'s shape ---
+  cond_tail.rs         165  let bc = encode_bc(bo, cr_bi(CR_COMPARE, bit), disp).ok_or_else(|| {
+  encode.rs            145  pub fn encode_extsh(ra: u8, rs: u8) -> [u8; 4] {
+  encode.rs            451  pub fn encode_stfd(frs: u8, ra: u8, d: i16) -> [u8; 4] {
+  encode.rs            454  word.to_be_bytes()
+  encode.rs            459  pub fn encode_lfd(frd: u8, ra: u8, d: i16) -> [u8; 4] {
+  encode.rs            462  word.to_be_bytes()
+  frame.rs             266  w.extend_from_slice(&encode_stfd(31 - i, 1, self.fpr_slot(i)));
+  frame.rs             270  w.extend_from_slice(&encode_ld(12, 1, d));
+  frame.rs             287  w.extend_from_slice(&FRAME_BACKCHAIN.to_be_bytes());
+  frame.rs             292  w.extend_from_slice(&encode_lfd(31 - i, 1, self.fpr_slot(i)));

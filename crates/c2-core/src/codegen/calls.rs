@@ -12,10 +12,11 @@ use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
 use crate::codegen::cond_tail::branch_sense;
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_addis, encode_b_intra, encode_bc, encode_blr, encode_cmplwi,
+    cr_bi, encode_addi, encode_addis, encode_blr, encode_cmplwi,
     encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_COMPARE,
 };
 use crate::codegen::frame::FrameLayout;
+use crate::codegen::labels::{Form, LabelMap};
 use c2_il::LINK_FIRST_SLOT;
 use crate::codegen::select::{ARG_REGS, OptMode, RET_REG, SCRATCH_REG, out_of_class};
 use crate::codegen::straightline::select_text;
@@ -447,49 +448,44 @@ pub fn call_seq_text(
     // A **void** arm is empty in both modes, so it emits no `li`, no `b` and no
     // duplicate — and its branch goes straight to the epilogue with the sense
     // `seq_early_emit` already inverted.
-    let mut early_fixups: Vec<(usize, Option<usize>, u8, u8)> = Vec::with_capacity(early.len());
+    // **Every branch below goes through the label map** ([`LabelMap`]), which is
+    // `docs/CFG_SHAPE.md` §6.2 item B. W11 resolved these against one implicit
+    // target — the epilogue's identity was carried by the *shape of a tuple* —
+    // and the four lines it replaced said of themselves "there is no fixup list
+    // and no label map". Every byte this emits is the byte W11 emitted; what the
+    // map adds is that a second target can now exist, that a **backward**
+    // reference is refused by name (`labels.rs`: ≥ +1 on the compiler-label
+    // counter in 11 of 11 measured cells, against `plan_labels`'s 0), and that
+    // the two same-opcode encodings of board #191 cannot be confused because
+    // `Form` has no variant for the relocated one.
+    let mut labels = LabelMap::new();
+    let epi = labels.mint("epilogue");
     for e in early {
         text.extend_from_slice(&e.cmp);
-        let bc_at = text.len();
-        text.extend_from_slice(&[0; 4]);
-        let b_at = match e.value {
+        match e.value {
             Some(k) => {
+                // A value arm's branch steps PAST the arm, to whatever comes
+                // next — the following guard's compare, or the sequence.
+                let after_arm = labels.mint("after-early-arm");
+                labels.reference(&mut text, after_arm, Form::Bc { bo: e.bo, bi: e.bi });
                 let k = i16::try_from(k).map_err(|_| {
                     out_of_class("an early return's literal is wider than `li`")
                 })?;
                 text.extend_from_slice(&encode_addi(RET_REG, 0, k));
                 match mode {
-                    OptMode::O1 => {
-                        let at = text.len();
-                        text.extend_from_slice(&[0; 4]);
-                        Some(at)
-                    }
-                    OptMode::Ox => {
-                        text.extend_from_slice(&epilogue);
-                        None
-                    }
+                    OptMode::O1 => labels.reference(&mut text, epi, Form::B),
+                    OptMode::Ox => text.extend_from_slice(&epilogue),
                 }
+                labels.define(after_arm, &text)?;
             }
-            None => None,
-        };
-        // A value arm's branch steps PAST the arm, to whatever comes next — the
-        // following guard's compare, or the sequence. A void arm's branch is
-        // patched to the epilogue instead, which is not known until the whole
-        // body is laid out, so both go on the fixup list.
-        early_fixups.push((bc_at, b_at, e.bo, e.bi));
-        if e.value.is_some() {
-            let target = text.len();
-            let (at, b, bo, bi) = early_fixups.pop().expect("just pushed");
-            let bc = encode_bc(bo, bi, (target - at) as i32).ok_or_else(|| {
-                out_of_class(
-                    "a guarded early return's conditional branch past the 14-bit \
-                     BD field: the expansion (invert, branch over an \
-                     unconditional `b`) is measured but not built",
-                )
-            })?;
-            text[at..at + 4].copy_from_slice(&bc);
-            // Only the arm's `b` is still open, and only under /O1.
-            early_fixups.push((at, b, bo, bi));
+            None => {
+                // A **void** arm is empty in both modes — c2 deletes the block
+                // and points the guard's own `bc` straight at the epilogue, with
+                // the relation itself where the value form emits its negation
+                // (`seq_early_emit` has already done the inversion). There is no
+                // arm to step past, so there is no second label.
+                labels.reference(&mut text, epi, Form::Bc { bo: e.bo, bi: e.bi });
+            }
         }
     }
     // **The guard sits between the prologue and the sequence** — measured, with
@@ -498,44 +494,33 @@ pub fn call_seq_text(
     // `cmpwi cr6,r3,0 ; bt 26,+12 ; mr r3,r4 ; bl ?a1 ; bl ?v1`. An emitter that
     // hoisted the `mr` above the branch would be four bytes right and one
     // instruction wrong.
-    let bc_at = guard.map(|g| {
+    let join = guard.map(|g| {
         text.extend_from_slice(&g.cmp);
-        let at = text.len();
-        text.extend_from_slice(&[0; 4]);
-        at
+        let l = labels.mint("guarded-call-join");
+        labels.reference(&mut text, l, Form::Bc { bo: g.bo, bi: g.bi });
+        l
     });
-    let mut after_call: Vec<usize> = Vec::with_capacity(setups.len());
     let mut bl_offsets = Vec::with_capacity(setups.len());
-    for setup in setups {
+    for (i, setup) in setups.iter().enumerate() {
         text.extend_from_slice(setup);
         let off = base_off + text.len() as u32;
         text.extend_from_slice(&encode_call_branch(off));
         bl_offsets.push(off);
-        after_call.push(text.len());
-    }
-    // ---- patch the conditional branch --------------------------------------
-    //
-    // Its displacement is a function of a length this emitter already has — the
-    // guarded call's own setup — so there is no fixup list and no label map.
-    // `docs/CFG_SHAPE.md` §6.2 item B asks for one for the general case, and it
-    // is genuinely needed the moment two branches name the same label, which is
-    // `src/system/negate_test.cpp` — declined at nine independent refusals in
-    // `work/w-cross/PREREG.md` §1.
-    if let (Some(g), Some(bc_at)) = (guard, bc_at) {
-        // The branch skips the then-block and lands on the join's first
-        // instruction.
-        let disp = (after_call[0] - bc_at) as i32;
-        let bc = encode_bc(g.bo, g.bi, disp).ok_or_else(|| {
-            out_of_class(
-                "a guarded call's conditional branch past the 14-bit BD field: \
-                 the expansion (invert, branch over an unconditional `b`) is \
-                 measured in docs/CFG_SHAPE.md §3.3.1 but not built",
-            )
-        })?;
-        text[bc_at..bc_at + 4].copy_from_slice(&bc);
+        // **The join is the word after the FIRST call.** The guard's branch
+        // skips the then-block — which is the guarded call's own setup plus its
+        // `bl`, the setup staying inside the block — and lands on the join's
+        // first instruction. Binding the label here rather than computing a
+        // displacement at the end is the whole difference: the offset is stated
+        // where it is known instead of recovered from a length the emitter
+        // happens to still be holding.
+        if i == 0 {
+            if let Some(j) = join {
+                labels.define(j, &text)?;
+            }
+        }
     }
     text.extend_from_slice(tail);
-    // ---- W11: the label map, resolved -------------------------------------
+    // ---- the label map, resolved -------------------------------------------
     //
     // The epilogue's offset is only knowable here, after every guard, every
     // arm, every call and the tail. Two branch kinds land on it and they are
@@ -544,25 +529,10 @@ pub fn call_seq_text(
     // relocation, and — for a void arm — the guard's own `bc`. Neither is the
     // `encode_tail_branch` beside them, which stores −(own offset) and takes a
     // REL24. That is the discriminator `docs/CFG_SHAPE.md` §3.3 warns a single
-    // "patch the branch" path corrupts, and it is why these are two encoders.
-    let epi_start = text.len();
-    for (bc_at, b_at, bo, bi) in early_fixups {
-        if let Some(b_at) = b_at {
-            let b = encode_b_intra((epi_start - b_at) as i32).ok_or_else(|| {
-                out_of_class("an early return's branch to the epilogue is out of `b` range")
-            })?;
-            text[b_at..b_at + 4].copy_from_slice(&b);
-        } else if text[bc_at..bc_at + 4] == [0; 4] {
-            // A void arm: nothing was emitted for it, so its `bc` is still open
-            // and its target is the epilogue itself.
-            let bc = encode_bc(bo, bi, (epi_start - bc_at) as i32).ok_or_else(|| {
-                out_of_class(
-                    "a void early return's conditional branch past the 14-bit BD field",
-                )
-            })?;
-            text[bc_at..bc_at + 4].copy_from_slice(&bc);
-        }
-    }
+    // "patch the branch" path corrupts, and it is why `Form` carries the first
+    // two and has no variant for the third.
+    labels.define(epi, &text)?;
+    labels.resolve(&mut text)?;
     text.extend_from_slice(&epilogue);
     Ok(SeqBody { text, bl_offsets, prolog_len })
 }

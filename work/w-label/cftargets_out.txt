@@ -1,0 +1,41 @@
+mode: /O1 /GS- /c
+`sur` = stride - base_stride - (minted - 5), i.e. the surcharge with
+        LABEL_COUNTER.md §1.1's minted surcharges (helper pairs,
+        pooled constants) removed.  `int` = distinct INTERIOR targets.
+
+probe              strid  mint  sur  int join  targets (from -> to; E=epilogue)
+cf-none                5     5   +0    0    0  
+cf-if                  1     1   +0    1    0  4->10
+cf-if2                 5     5   +0    2    0  10->1c 18->38E 20->2c 28->38E
+cf-if3                 5     5   +0    3    0  10->1c 18->48E 20->2c 28->48E 30->3c 38->48E
+cf-ifelse              6     5   +1    1    1  10->18
+cf-ifelse-val          5     5   +0    0    0  
+cf-void-guard          1     1   +0    0    0  
+cf-merge2              6     5   +1    2    1  10->1c 18->30E 20->14
+cf-merge3              6     5   +1    2    1  10->1c 18->38E 20->14 28->14
+cf-merge-tail          6     5   +1    2    1  10->2c 18->24 20->30E
+cf-merge-mixed         6     5   +1    3    1  10->1c 18->40E 20->2c 28->40E 30->14
+cf-goto-fwd            5     5   +0    1    1  14->20   <== MISS
+cf-goto-back           6     5   +1    1    1  2c->1c
+cf-dowhile             6     5   +1    1    1  2c->1c
+cf-while               7     5   +2    2    2  20->38 34->24
+cf-for                 9     7   +2    2    2  1c->38 34->20
+cf-for-break          10     7   +3    2    2  1c->40 30->40 3c->20   <== MISS
+cf-for-continue        9     7   +2    3    3  1c->40 24->34 3c->20   <== MISS
+cf-forever             8     5   +3    1    1  2c->1c   <== MISS
+cf-for2               11     7   +4    4    4  1c->38 34->20 40->5c 58->44
+cf-fornest            11     7   +4    3    3  18->44 38->24 40->20   <== MISS
+cf-dowhile2            8     5   +3    2    2  2c->1c 40->30   <== MISS
+cf-switch-dense        1     1   +0    8    0  4->6c 10->34 14->3c 18->44 1c->4c 20->54 24->5c 28->64
+cf-switch-sparse       1     1   +0    3    0  4->30 c->28 14->20
+ho-if4                 5     5   +0    4    0  10->1c 18->58E 20->2c 28->58E 30->3c 38->58E 40->4c 48->58E
+ho-if-nested           5     5   +0    1    0  10->2c 28->38E
+ho-ternary             7     5   +2    1    1  14->1c   <== MISS
+ho-and                 5     5   +0    1    1  10->24 18->24 20->2cE   <== MISS
+ho-or                  5     5   +0    1    1  10->28 18->28 24->2cE   <== MISS
+ho-void-2guard         5     5   +0    0    0  10->28E 18->28E
+ho-arm-call            5     5   +0    1    0  10->24 20->30E
+ho-compose             5     5   +0    2    1  18->24 20->40E 28->34   <== MISS
+ho-compose2            5     5   +0    3    1  10->1c 18->48E 20->2c 28->48E 30->3c   <== MISS
+
+rows where surcharge != distinct interior JOINS: 11

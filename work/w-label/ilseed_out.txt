@@ -1,0 +1,8 @@
+probe          gl-counter   gl-bytes note
+cf-none              2547        433  BASE: framed Class A, no control flow at all
+cf-if2               2550        437  TWO guards, DISTINCT literals -- W11 in-class, two `b` to th
+cf-ifelse            2550        439  if/else with a join block
+ho-ternary           2548        437  a ternary in an argument -- forward only, L6 says +0
+cf-merge2            2550        440  TWO guards, SAME literal -- c2 merges the arms and branches 
+cf-dowhile           2551        440  do/while -- LABEL_COUNTER.md §4 says +1
+cf-while             2551        434  while -- §4 says +2
