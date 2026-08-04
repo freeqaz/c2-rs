@@ -362,6 +362,23 @@ misses are the address-taken free functions w-mark's channel closed at 99.60 %.
 The **DATA** residual (2 485 names) is a different population again: 34.29 %
 undecorated `extern "C"`/CRT, 32.47 % `$`-bearing, 14.69 % vftable/RTTI.
 
+**And the false positives on the two axes are the SAME classes**
+(`work/w-db/fpchar.py`, a reporting addition written after the scan and
+disclosed under clause 5 — `scan.py` is untouched):
+
+| | n | composition |
+|---|---:|---|
+| **CODE** false positives | **152** | 125 `$`-bearing (template/adjustor), **24 VIRTUAL members**, 3 `??_G` |
+| **DATA** false positives | **734** | **734 vftable / RTTI — 100 %** |
+
+and they line up class by class: `??_7DancerSkeleton@@6B@`,
+`??_R0?AVDancerSkeleton@@@8`, `??_R1A@?0A@EA@DancerSkeleton@@8` on the data side
+against `?ElapsedMs@DancerSkeleton@@UBAHXZ`, `?IsTracked@DancerSkeleton@@UBA_NXZ`
+on the code side. **The model's whole error budget is a small number of classes
+per TU whose vtable+RTTI it pulls in when c2 does not, and then their virtual
+members follow.** 734 wrong data names out of 40 046 and 152 wrong code names out
+of 150 833 is what that costs.
+
 ### 4.3 The edge, counted
 
 | | |
