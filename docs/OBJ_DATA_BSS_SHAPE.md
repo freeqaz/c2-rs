@@ -25,18 +25,24 @@ result depends on the flag set it says so.
 
 ## 0. The headline, before the tables
 
-1. **`.data` and `.bss` are not "one each, at the end".** Both prereg predictions
-   about position and multiplicity are wrong. `.bss` is emitted **between the two
-   `.XBLD$W` watermark COMDATs**; `.data` is emitted **after** the second one; and a
-   single obj can contain **many** `.data` sections, because every RTTI type
-   descriptor `??_R0…` is its own **COMDAT `.data`** (§2, §3.3).
+Everything here is measured twice where it can be: on a designed probe grid, and on
+the **871 real workload objs** (§11) — 9,139 `.data` and 14,916 `.bss` sections.
 
-2. **`.data` in this workload is not homogeneous, and the section name does not tell
-   you what is in it.** `??_R0` type descriptors — RTTI, not initialized program data
-   — land in `.data` with characteristics `0xC0301040` (COMDAT), alongside ordinary
-   non-COMDAT `.data` at `0xC0<a>00040`. Classify by the **symbols defined in the
-   section**, never by its name. (This is the exact defect that put "`.rdata$r` = EH"
-   on the front page for days; `.rdata$r` is RTTI.)
+1. **`.data` and `.bss` are emphatically not "one each, at the end".** In the
+   workload a single obj reaches **101 `.data`** and **235 `.bss`** sections
+   (`src/system/hamobj/HamDirector.cpp` holds both records), and **only 50 of the
+   754 objs that have any `.data` have exactly one**. A writer built on a singular
+   model fails on **704 of 754**. `.bss` is emitted **between the two `.XBLD$W`
+   watermark COMDATs**; `.data` **after** the second one, in **754 of 754** objs.
+
+2. **`.data` in this workload is 92.4 % RTTI by symbol count**, and the section name
+   does not tell you what is in it. Of 9,287 symbols defined in a `.data`,
+   **8,581 are `??_R0` type descriptors** and only 652 are ordinary decorated data.
+   Classify by the **symbols defined in the section**, never by its name — this is
+   the §10.20 defect (`.rdata$r` called "EH" for days when it is RTTI) arriving from
+   the opposite direction. The RTTI record set is **split across two section names**:
+   `??_R0` appears **only** in `.data`, `??_R1`–`??_R4` **only** in `.rdata$r`, so any
+   RTTI rung must emit both (§4.3).
 
 3. **The multi-object address permutation is solved, and the port never has to
    reproduce a hash.** It is not c2's — the order is already in the IL that c2 is
@@ -56,7 +62,15 @@ result depends on the flag set it says so.
    *allocator* itself. A bump allocator whose alignment padding becomes a reusable
    hole reproduces **14 of 18** random `.bss` cells and **12 of 14** random `.data`
    cells exactly; the residual is characterised, with two verbatim counterexamples,
-   in §5.5. It is exact whenever the objects share one size/alignment.
+   in §5.5. It is exact whenever the objects share one size/alignment, and it
+   predicted **11 of 11** held-out layouts in the §4.2 grid.
+
+5. **The terminal ceiling is 871, not 878.** The 7 workload TUs that never produce
+   an obj fail in **`c1xx`, the front end** — C2084/C2512 duplicate bodies, C1189
+   wrong-platform guards, C1083 missing `windows.h`. No obj exists for them at any
+   settings, so they are unmeasurable at any effort. That is a property of the
+   corpus, not an instrument fault, and the denominator for every section-shape
+   metric should be **871**.
 
 ---
 
@@ -171,7 +185,25 @@ measured on**. It is false in general and false on this workload.
 `d_rtti_dyncast` (a two-class hierarchy plus one `dynamic_cast`) emits 16 sections
 including **two** `.data`, at indices 8 and 16, holding `??_R0?AUB@@@8` and
 `??_R0?AUD@@@8`. This is the clause of P3 that is most likely to break a writer
-built on the prereg's assumption.
+built on the prereg's assumption, and the workload confirms it at scale:
+
+| | `.data` | `.bss` |
+|---|---:|---:|
+| objs with 0 | 117 | 181 |
+| objs with exactly 1 | **50** | 66 |
+| objs with 2 | 44 | 21 |
+| objs with 3 | 40 | 22 |
+| most in one obj | **101** | **235** |
+| sections in the workload | 9,139 | 14,916 |
+
+Both records are `src/system/hamobj/HamDirector.cpp`.
+
+**The between-the-watermarks slot is a rule, not a tendency.** Across all 871 objs
+the only section that ever appears between `.XBLD$W(C2)` and `.XBLD$W(C1)` is a
+`.bss` — **zero exceptions** — and when one appears there is exactly one of it, and
+it is always the TU's ordinary non-COMDAT `.bss`. 139 objs use the slot; the other
+732 leave it empty. Every COMDAT `.bss` is emitted elsewhere. Symmetrically,
+`.data` appears **after** `.XBLD$W(C1)` in **754 of the 754** objs that have one.
 
 ---
 
@@ -198,6 +230,32 @@ built on the prereg's assumption.
 
 `.bss` contributes **no bytes** to the file: raw data is packed contiguously across
 the sections that have a `PointerToRawData`, and `.bss` is skipped.
+
+**Invariant, zero counterexamples across all 14,916 workload `.bss` sections**:
+`PointerToRawData == 0`, `VirtualSize == 0`, `NumberOfRelocations == 0`, and the
+size lives in `SizeOfRawData`. Every section carries exactly **one** section symbol
+(true of all 9,139 `.data` too). Sizes run 1 … 1,245,344 bytes, median 4.
+
+**In the workload the COMDAT form is the common one, not the exception.** The
+characteristics distribution over all 14,916 `.bss`:
+
+| Characteristics | count | decode |
+|---|---:|---|
+| `0xC0301080` | **14,618** | COMDAT, ALIGN_4 |
+| `0xC0300080` | 182 | ordinary, ALIGN_4 |
+| `0xC0400080` | 50 | ordinary, ALIGN_8 |
+| `0xC0401080` | 30 | COMDAT, ALIGN_8 |
+| `0xC0101080` | 21 | COMDAT, ALIGN_1 |
+| `0xC0100080` | 15 | ordinary, ALIGN_1 |
+
+and over all 9,139 `.data`: `0xC0301040` 8,382 (COMDAT ALIGN_4), `0xC0400040` 454,
+`0xC0401040` 253, `0xC0300040` 44, `0xC0101040` 3, `0xC0100040` 3. **Only two
+Selection values occur anywhere**: 0 for non-COMDAT and **2 (ANY)** for every COMDAT
+in both sections — 8,638 `.data` and 14,669 `.bss`. No NODUPLICATES, no ASSOCIATIVE,
+no LARGEST. The probe grid reaches the COMDAT form only through
+`__declspec(selectany)`; the workload reaches it overwhelmingly through templates
+and RTTI, so a writer must treat COMDAT `.bss` as the default case rather than an
+edge.
 
 ### 3.2 The section alignment nibble
 
@@ -284,13 +342,87 @@ section"*. That is **false for `.data`** — every non-COMDAT `.data` above carr
 real CRC. The rest of that section's scope claim stands (`.bss` is 0 because it has
 no raw data; `.text$y?` is 0).
 
-**One measured exception, unexplained.** `double d8 = 8.0;` produces `.data` raw
-`40 20 00 00 00 00 00 00` with obj `CheckSum = 0x00000000`, where the CRC is
-`0xE620FB71`. This is the same shape as that doc's H9 refutation (*"FP-constant
-`.rdata` carries 0, not the CRC"*), now seen in `.data`. **A writer must special-case
-it and this lane cannot say from what predicate** — one cell is not enough to tell
-"the section holds only floating-point data" from "the section was created by a
-different path".
+**The known-answer control that licenses this.** Two independent derivations agree.
+This lane fitted the algorithm on 9 probe cells; a blind re-derivation over the
+871-obj workload census, done without sight of that fit, produced the same
+polynomial and the same init-0/no-final-XOR convention, while the standard
+`zlib.crc32` convention (init `0xFFFFFFFF`, final XOR) matched **0 of 9,139**
+sections. Both also agree with the project's prior independent characterization of
+the same polynomial in `OBJ_DYNINIT_SHAPE.md` §2.3. Rule D1 rests on that
+agreement, not on either fit alone.
+
+### 4.2.1 The float exclusion — specification, then hypothesis
+
+**52 of the 9,139 workload `.data` sections do not match Rule D1**, and every one
+contains floating-point initializers. This lane's own §4.2 grid had already hit one:
+`double d8 = 8.0;` gives raw `40 20 00 00 00 00 00 00` with `CheckSum = 0`, where
+the CRC is `0xE620FB71`.
+
+The two claims are kept apart on purpose, because one is measured and one is
+inferred:
+
+> **Specification (this is what a writer implements).** The `CheckSum` is
+> CRC-32/`0xEDB88320`/init-0/no-final-XOR over a **subset** of the section's raw
+> bytes. On 9,087 of 9,139 workload sections that subset is all of them; on 52 it
+> omits the bytes of floating-point initializers.
+>
+> **Hypothesis (fenced).** The omission is c2's floating-point initializer path
+> writing its bytes into the section without feeding the running CRC.
+
+Found cases cannot separate byte- from word-granularity, or say whether padding is
+omitted too. So the predicate was settled with a **designed grid whose predicted
+CheckSums were committed as a git object before any cell was compiled** —
+[`rungs/_2026-08-04-w-bss-fpcrc-prereg.md`](rungs/_2026-08-04-w-bss-fpcrc-prereg.md),
+11 cells varying only the count, size and placement of float vs int initializers,
+with four candidate variants scored against each other.
+
+**Result: 11 of 11 cells hit the registered primary prediction (VAR-A), and 11 of
+11 predicted layouts were also exact.**
+
+| cell | source | raw | registered VAR-A | measured |
+|---|---|---|---|---|
+| f0 | `int a=1; int b=2;` | `00000001 00000002` | `0xD36E489C` | `0xD36E489C` ✓ |
+| f1 | `float f=1.0f;` | `3F800000` | `0x00000000` | `0x00000000` ✓ |
+| f2 | `double d=1.0;` | `3FF00000 00000000` | `0x00000000` | `0x00000000` ✓ |
+| f3 | `int a=1; float f=1.0f;` | `00000001 3F800000` | `0x77073096` | `0x77073096` ✓ |
+| f4 | `float f=1.0f; int a=1;` | `3F800000 00000001` | `0x77073096` | `0x77073096` ✓ |
+| f5 | `int; float; int` | `00000001 3F800000 00000002` | `0xD36E489C` | `0xD36E489C` ✓ |
+| f6 | `int; double; int` | `00000001 00000002 3FF00000 00000000` | `0xD36E489C` | `0xD36E489C` ✓ |
+| f7 | `float f; float g;` | `3F800000 40000000` | `0x00000000` | `0x00000000` ✓ |
+| **f8** | `char c=1; float f=1.0f;` | `01 000000 3F800000` | **`0xB8BC6765`** | `0xB8BC6765` ✓ |
+| **f9** | `char c; char e; float f; char g;` | `01 02 03 00 3F800000` | **`0x9015E0C8`** | `0x9015E0C8` ✓ |
+| f10 | `float p[2]={..}; int a=1;` | `3F800000 40000000 00000001` | `0x77073096` | `0x77073096` ✓ |
+
+f8 and f9 are the discriminating cells: VAR-B (omit the padding as well as the FP
+bytes) predicted `0x77073096` and `0xAAFD590F` and is **refuted**. So the omitted
+set is exactly the FP objects' own byte ranges — **alignment padding stays in the
+CRC**. Secondary predictions P-A (control), P-B (FP-only ⇒ 0), P-C (f3 = f4,
+placement-independent), P-D (FP array behaves as FP scalar) and P-E (the layouts,
+including f6's hole reuse) all hold.
+
+**f6 is worth its own line**: the registered layout was `a@0 b@4 d@8` — `b` placed
+*inside* the hole that `d`'s 8-alignment opens rather than after `d` — and that is
+what the obj carries. §5.4's hole reuse is confirmed out of sample.
+
+**Granularity — registered as still open, then settled by an exploratory cell.**
+The prereg said in advance that a VAR-A hit would leave byte-vs-word granularity
+undetermined, because every FP object in the grid is 4-aligned and 4k-sized, so
+VAR-A and VAR-W make identical predictions. Three cells were then added
+**after** the grid, and are labelled here as *not pre-registered*:
+
+| cell (exploratory) | raw | CheckSum | the subset that reproduces it |
+|---|---|---|---|
+| `#pragma pack(1) struct P{char c; float f;}; P p={1,1.0f};` | `01 3F800000` | `0x77073096` | **bytes 1..5 dropped** — a non-word-aligned range |
+| `struct Q{int i; float f;}; Q q={7,1.0f};` | `00000007 3F800000` | `0x9E6495A3` | the float **member's** 4 bytes dropped |
+| `struct R{int i; int j;}; R r={7,9};` (control) | `00000007 00000009` | `0xCBFC64B4` | none — the full CRC |
+
+The packed-struct cell puts a `float` at byte offset 1 and the omitted range starts
+at 1, so the omission is **byte-granular**; VAR-W is refuted. The `struct Q` cell
+shows the omission is **per initializer member, not per object** — an aggregate
+with one int and one float member contributes its int member's bytes to the CRC and
+not its float member's. Both findings raise the fenced hypothesis's standing
+considerably, and it is still labelled a hypothesis: nothing here observes the CRC
+call site, only its output.
 
 ### 4.3 When `.data` is a COMDAT
 
@@ -314,6 +446,21 @@ with name `.H`. `??_R0` is the **only** RTTI record that lands in `.data` — `?
 `??_R2`, `??_R3` and `??_R4` all go to `.rdata$r` (`0x40301040`, read-only, no
 `MEM_WRITE`), which is why they are separated: the type descriptor is writable
 because the runtime patches its vftable pointer, and the rest is not.
+
+**Confirmed on the workload, and the separation is total.** Of the 9,139 `.data`
+sections, **8,581 hold exactly one `??_R0` and nothing else**, 558 hold only
+ordinary data, and **zero mix the two** — RTTI always gets its own COMDAT `.data`.
+`??_R1`–`??_R4` never appear in a `.data` at all. Two further independent routes
+reached the same conclusion: this lane's `d_rtti_dyncast` probe, and a separated-axis
+`/GR`-on/off probe in another lane that put `??_R0?AUA@@@8` and `??_R0?AUB@@@8` in
+`.data` while `??_R1`–`R4` went to `.rdata$r`. Treat it as settled.
+
+**Emission-order fact for whoever owns the RTTI rung.** In **5,530 of the 9,136**
+positionally-interior `.data` sections, the section immediately before *and* the
+section immediately after are both `.rdata$r`. The `??_R0` COMDAT is emitted
+**inside the RTTI group** — between the `.rdata$r` records of the same type — not
+batched with the initialized data. That is a different lane's question, but it is
+this census's finding and it belongs where they will find it.
 
 ### 4.4 What does *not* go to `.data`
 
@@ -528,6 +675,18 @@ index. `Type` = `0x0000` (data; contrast `0x0020` for a function). `NumberOfAuxS
 A `__declspec(selectany)` object is EXTERNAL and is the COMDAT's defining symbol.
 `??_R0…` is EXTERNAL with `Type = 0`.
 
+Workload storage-class histograms, over the symbols defined in each section kind:
+
+| | EXTERNAL (2) | STATIC (3) |
+|---|---:|---:|
+| `.data` | 9,176 | 111 |
+| `.bss` | 5,318 | **10,056** |
+
+`.bss` is majority-STATIC and `.data` overwhelmingly EXTERNAL, which is the expected
+consequence of §4.4: an internal-linkage object with a constant initializer is
+usually folded away or diverted to `.rdata`, so what survives into `.data` is mostly
+external, while file-scope `static` scratch buffers land in `.bss`.
+
 ### 6.2 Symbol-table order
 
 The symbol table follows section order, and within a section's group the section
@@ -678,7 +837,10 @@ Stated plainly, because the value of the document is bounded by this list.
    and for the two hand-worked mixed cells in §5.4; not a closed rule. A writer
    restricted to TUs whose `.bss`/`.data` objects share one size is safe; one that
    is not needs the skip-and-retry walk fitted and held out.
-2. **The FP `.data` CheckSum exception.** §4.2. One cell, no predicate.
+2. **The FP `.data` CheckSum predicate is now determined** (§4.2.1: byte-granular,
+   per initializer member, padding retained, 11/11 held-out plus 3 exploratory
+   cells) — but *why* it happens is still a hypothesis. Nothing here observes the
+   CRC call site. A writer implements the subset rule and does not need the reason.
 3. **Deferred-`.bss` symbol order (Rule Y2)** is fitted on two cells and has no
    held-out confirmation. Y1 does.
 4. **`.tls$`** is characterised only to the level of "one section, initialized and
@@ -692,9 +854,13 @@ Stated plainly, because the value of the document is bounded by this list.
 7. **The `??_R0` payload's spare word** is `00 00 00 00` in every cell measured; no
    cell was built that would make it non-zero, so it is *observed constant*, not
    *known constant*.
-8. **Nothing here is validated against the 878-TU workload's own objs.** Every cell
-   is a probe. A census over the real objs is the obvious next gate and would catch
-   any shape this grid does not generate.
+8. **The workload census covers headers, characteristics, symbols and section
+   order — not addresses.** `sections.jsonl` does not carry the raw section bytes,
+   so §5's allocator is validated on probes only. Re-running the census with raw
+   bytes retained would let §5.4/§5.5 be graded on all 24,055 real sections, and is
+   the obvious next gate.
+9. **`.tls$` multiplicity and COMDAT behaviour** were not censused; only the probe
+   cells in §4.4 speak to it.
 
 ---
 
@@ -735,10 +901,51 @@ dict-based `Obj`). Probe sources and objs are gitignored scratch per the project
 rule; every byte quoted above is transcribed here so the document stands without
 them.
 
-**Controls applied throughout.** Every probe is checked for the section it was
-supposed to produce, its symbol count and its section size before any ordering is
-read off it (`probe.order_extern` asserts the name multiset and
-`SizeOfRawData == len(names)`); a probe whose object was optimized away would
-otherwise read as a permutation. Bytes come from the obj, never from a `/FAsc`
-listing. The real `c2.dll` is the only judge; no expected obj is constructed
-anywhere in this lane.
+---
+
+## 11. The workload census
+
+`work/w-bss/census/sections.jsonl` — **committed** (with `git add -f`; `work/` is
+gitignored) so the measurement is reproducible without re-deriving it. One record
+per obj: source path, section count, the full ordered section-name list (with the
+two `.XBLD$W` distinguished as `:C2` / `:C1`), and for every `.data` and `.bss` the
+header fields, decoded characteristics, COMDAT flag, the section symbol's aux
+record, and every symbol defined in it. 871 objs, 9,139 `.data`, 14,916 `.bss`.
+No absolute machine paths, in the data or in the scripts.
+
+Regenerate with `census/one.sh` + `census/census.py`; the aggregates quoted above
+come from `census/agg*.py`. The reference objs themselves (102 MB) are **not**
+committed and were deleted after extraction, per the project rule.
+
+**Why 871 and not 878.** Seven TUs never produce an obj, and they fail in `c1xx`
+before c2 is ever reached: C2084/C2512 (duplicate function bodies), C1189
+(`#error` wrong-platform guards) and C1083 (missing `windows.h`). They are
+unmeasurable at any effort and at any flag setting, so **871 is the terminal
+denominator** for section-shape work, not a temporary instrument limit.
+
+**A caution about how this census was gathered.** The capture cache holds 943,194
+entries. A shell glob over it (`work/capture-cache/*/`, `**`, `grep -r`, `find`
+from the repo root) makes the shell materialise every path and allocates tens of
+gigabytes; doing so once OOM-killed this machine. Iterate an **explicit resolved
+list** built from `work/dc3-workload/files.txt`, never a wildcard over the cache
+root.
+
+---
+
+## 12. Controls
+
+* **Every probe is checked for the section it was supposed to produce**, its symbol
+  count and its section size, *before* any ordering is read off it
+  (`probe.order_extern` asserts the name multiset and
+  `SizeOfRawData == len(names)`). A probe whose object was silently optimized away
+  would otherwise read as a permutation.
+* **Bytes come from the obj, never from a `/FAsc` listing.** §10.16 was misled by a
+  listing once; `OBJ_DYNINIT_SHAPE.md` §6 records why the listing is not evidence
+  for section order.
+* **Grade at the workload's flags.** `/GR` is in them and is not in the CLI default
+  set; a probe compiled with defaults silently lacks RTTI, which would have hidden
+  every `??_R0` finding in §4.3.
+* **The real `c2.dll` under wibo is the only judge.** No expected obj is constructed
+  anywhere in this lane, and no rule in this document was accepted on the strength
+  of a disassembly reading — §5.5 records one place where the disassembly and the
+  objs disagree, and the objs win.
