@@ -59,6 +59,63 @@
 # `/O1` is dropped because the flag is already implied, not because its rows
 # matched; the two situations look alike in a verdict table and are not alike.
 #
+# ---- the `/GR` axis, added 2026-08-04 by lane w-gr (task #40) -------------------
+#
+# The registry was written because a workload that is **100 % `/EHsc`** had no
+# `/EHsc` lane. It shipped for four days with the identical hole one flag over:
+# `work/dc3-workload/flags.txt` reads
+#
+#     /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I …
+#
+# and **not one of the twelve lanes above passes `/GR`.** `/GR` is what mints
+# `.rdata$r` — **24,163 sections across 676 of 871 objs**, factor C's largest
+# single step (169 -> 590), and the last workload section name the generated
+# corpus could not produce.
+#
+# **`/GR` is NOT this compiler's default.** MSVC documents `/GR` as on by
+# default; this `cl.exe` (X360 16.00.11886.00) behaves as `/GR-` unless `/GR` is
+# passed — measured, `.rdata$r` present with it and absent both without it and
+# with an explicit `/GR-`. So the flag is a genuine axis and not a spelling, and
+# no amount of new *source* would have reached the section without a lane.
+#
+# ---- what /GR changes, and where the cross is REAL ------------------------------
+#
+# MEASURED 2026-08-04, `scripts/sweep.d/91-rtti-vftable.py`'s 230 cases captured
+# at nine profiles, comparing per case the `.rdata$r` record set and the section
+# NAME ORDER (`work/w-gr/sig.py`). Rows are "cases out of 230 that differ":
+#
+#                                              rtti records   section order
+#     /O1 /GR      vs /O1 /Oi /GR                        0              0
+#     /O2 /GR      vs /O1 /Oi /GR                        0              0
+#     /Ox /Gy /GR  vs /O1 /Oi /GR                        0              0
+#     /Ox /GR      vs /O1 /Oi /GR                        0            145   KEPT
+#     /Od /GR      vs /Ox /GR                            2             75   KEPT
+#     … /EHsc      vs the same base                      0             43   KEPT
+#
+# Three classes, and each earns its lane:
+#
+#   * **COMDAT-per-function** (`/O1`, `/O1 /Oi`, `/O2`, `/Ox /Gy`) — these four
+#     are **indistinguishable on this axis**: 0 and 0, over 230 cases. One lane
+#     covers them, and it is `/O1 /Oi` because that is the workload's own mode.
+#   * **packed** (`/Ox`) — 145 of 230 cases put the RTTI block at a different
+#     point in the section table. Section index drives symbol index drives the
+#     `.pdata` association number, so this is the part the port must be right
+#     about.
+#   * **unoptimized** (`/Od`) — the only profile that changes *which records
+#     exist*. `struct A{…virtual…}; struct S:A{…}; A::~A(){} S::~S(){}` emits
+#     **one** vftable + 4 `.rdata$r` at every optimized mode and **two** + 8 at
+#     `/Od`. Two cases, eight sections, and no other lane can see it.
+#
+# `/EHsc` moves the RTTI block's position in 43 of 230 at every base, so the
+# exception cross applies here exactly as it does above.
+#
+# **Deliberately NOT added, each on the measurement above:** `/O2 /GR`,
+# `/Ox /Gy /GR` and `/O1 /GR` (0 and 0 against `/O1 /Oi /GR` — the `/O1 /Gy`
+# situation, a flag not being varied, not the `/O1 /EHsc` situation), and `/GR-`
+# (byte-identical to the default, so it is a spelling). `/Od /GR` **was** on that
+# declined list when this lane registered its prediction and the measurement
+# refuted it; the row is kept above so the refutation is legible.
+#
 # ---- cost ----------------------------------------------------------------------
 #
 # Measured 2026-07-31 on a 32-core host at `C2RS_JOBS=8`, 2,364 fixture-verdicts:
@@ -71,6 +128,18 @@
 # Either way this is nowhere near impractical, which is the whole reason there is
 # no excuse for the list to be implicit. Re-measure before adding an axis, and do
 # not add a lane whose cost you have not measured.
+#
+# The `/GR` axis's cost, measured 2026-08-04 before it was added: over the 245
+# tracked fixtures, `X` and `X /GR` produce **byte-identical objs on 242 of
+# 245** at every base configuration (TimeDateStamp zeroed, and captured to a
+# FIXED `-Fo` — c2 bakes the output path into `.debug$S` as `S_OBJNAME`, so a
+# per-half output path makes every pair differ for a reason that is not the
+# flag). Only the 3 fixtures that emit a vftable differ:
+# `w14_dtor_delegate_neg`, `w19_ctor_this_neg`, `wec_ctor_base_neg`. That is why
+# the six lanes are affordable: `scripts/mode_invariance.py` merges a lane whose
+# IL, `gy` and reference obj all match one already graded, so the `/GR` lanes
+# collapse onto their plain twins wherever there is no vftable and cost is paid
+# only where the axis buys something.
 
 # --- /O1 : the mode the dc3 workload is built at (docs/OPT_MODE.md) -------------
 O1              /O1
@@ -100,3 +169,23 @@ O2-EHsc         /O2 /EHsc
 #     rather than mis-emitting, and `mismatch 0` is the whole content of the lane.
 Od              /Od
 Od-EHsc         /Od /EHsc
+
+# --- /GR : RUN-TIME TYPE INFORMATION. The workload compiles /GR on every TU and
+#     no lane passed it until 2026-08-04. /GR is NOT this compiler's default. It
+#     mints `.rdata$r` — 24,163 sections over 676 of 871 workload objs — from
+#     the vftable, which is emitted by whichever TU generates a constructor or
+#     destructor body. Three classes, measured; see the /GR section of the
+#     header for the table and for what was declined.
+
+# the workload's own profile, `/O1 /Oi /EHsc /GR`, and its no-EH partner.
+O1-Oi-GR        /O1 /Oi /GR
+O1-Oi-EHsc-GR   /O1 /Oi /EHsc /GR
+
+# packed: 145 of 230 RTTI cases put the RTTI block elsewhere in the section table.
+Ox-GR           /Ox /GR
+Ox-EHsc-GR      /Ox /EHsc /GR
+
+# unoptimized: the ONLY profile that changes which RTTI records exist at all
+# (2 cases, 8 sections). Its inclusion refuted this lane's own prediction.
+Od-GR           /Od /GR
+Od-EHsc-GR      /Od /EHsc /GR
