@@ -1,0 +1,26 @@
+{
+ "axis": "A8",
+ "cell": "a8c5_extern_def_in_pch",
+ "invocations": [
+  {
+   "args": [
+    "/Ycpchb.h",
+    "/Fpa8c5.pch",
+    "pchgen.cpp"
+   ],
+   "objs": [
+    "pchgen.obj"
+   ]
+  },
+  {
+   "args": [
+    "/Yupchb.h",
+    "/Fpa8c5.pch",
+    "user.cpp"
+   ],
+   "objs": [
+    "user.obj"
+   ]
+  }
+ ]
+}

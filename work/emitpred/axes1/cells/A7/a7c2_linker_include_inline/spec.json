@@ -1,0 +1,14 @@
+{
+ "axis": "A7",
+ "cell": "a7c2_linker_include_inline",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

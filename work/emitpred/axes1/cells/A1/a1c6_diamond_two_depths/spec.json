@@ -1,0 +1,14 @@
+{
+ "axis": "A1",
+ "cell": "a1c6_diamond_two_depths",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+{
+ "axis": "A7",
+ "cell": "a7c7_initseg_named_section",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

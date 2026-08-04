@@ -1,0 +1,14 @@
+{
+ "axis": "A5",
+ "cell": "a5c8_header_static_inline_addr_in_data",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

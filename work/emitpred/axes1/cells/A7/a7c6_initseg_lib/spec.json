@@ -1,0 +1,14 @@
+{
+ "axis": "A7",
+ "cell": "a7c6_initseg_lib",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

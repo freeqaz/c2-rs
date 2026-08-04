@@ -1,0 +1,16 @@
+{
+ "axis": "A6",
+ "cell": "a6c4_shared_static_one_tu_refs",
+ "invocations": [
+  {
+   "args": [
+    "tu1.cpp",
+    "tu2.cpp"
+   ],
+   "objs": [
+    "tu1.obj",
+    "tu2.obj"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,277 @@
+[
+ {
+  "src": "src/system/moviebink/BinkMovieImpl.cpp",
+  "name": "?ClassName@RndMat@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl RndMat::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@RndMat@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/gesture/Gesture.cpp",
+  "name": "?ClassName@SkeletonDir@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl SkeletonDir::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@SkeletonDir@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/rndobj/Tex.cpp",
+  "name": "?Cached@BinStream@@UBA_NXZ",
+  "demangled": "public: virtual bool __cdecl BinStream::Cached(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?PostLoad@RndTex@@UAAXAAVBinStream@@@Z",
+   "?PreLoad@RndTex@@UAAXAAVBinStream@@@Z",
+   "?Save@RndTex@@UAAXAAVBinStream@@@Z"
+  ]
+ },
+ {
+  "src": "src/lazer/meta_ham/LoadingPanel.cpp",
+  "name": "?GetBeatMap@HamSongData@@UBAPAVBeatMap@@XZ",
+  "demangled": "public: virtual class BeatMap * __cdecl HamSongData::GetBeatMap(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?Poll@LoadingPanel@@MAAXXZ"
+  ]
+ },
+ {
+  "src": "src/system/char/FileMerger.cpp",
+  "name": "?SetName@ObjectDir@@UAAXPBDPAV1@@Z",
+  "demangled": "public: virtual void __cdecl ObjectDir::SetName(char const *, class ObjectDir *)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?FinishLoading@FileMerger@@MAAXPAVLoader@@@Z"
+  ]
+ },
+ {
+  "src": "src/system/rndobj/Rnd.cpp",
+  "name": "?ClassName@RndTex@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl RndTex::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@RndTex@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/gesture/LiveCameraInput.cpp",
+  "name": "?ClassName@DxTex@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl DxTex::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@DxTex@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/flow/Flow.cpp",
+  "name": "?ClassName@FlowSetProperty@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl FlowSetProperty::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@FlowSetProperty@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/char/CharClipDriver.cpp",
+  "name": "?EndAnim@RndAnimatable@@UAAXXZ",
+  "demangled": "public: virtual void __cdecl RndAnimatable::EndAnim(void)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?Exit@CharClipDriver@@QAAPAV1@_N@Z"
+  ]
+ },
+ {
+  "src": "src/system/char/Char.cpp",
+  "name": "?ClassName@CharBone@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl CharBone::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@CharBone@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/rndobj/Utl.cpp",
+  "name": "?RefOwner@ObjRef@@UBAPAVObject@Hmx@@XZ",
+  "demangled": "public: virtual class Hmx::Object * __cdecl ObjRef::RefOwner(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?ConvertBonesToTranses@@YAXPAVObjectDir@@_N@Z",
+   "?GroupOwner@@YAPAVRndGroup@@PAVObject@Hmx@@@Z"
+  ]
+ },
+ {
+  "src": "src/system/movie/TexMovie.cpp",
+  "name": "?FinishDrawTarget@RndTex@@UAAXXZ",
+  "demangled": "public: virtual void __cdecl RndTex::FinishDrawTarget(void)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?DrawToTexture@TexMovie@@QAAXXZ",
+   "?Enter@TexMovie@@UAAXXZ"
+  ]
+ },
+ {
+  "src": "src/lazer/meta_ham/PlaylistSortMgr.cpp",
+  "name": "?IsDirty@Playlist@@UAA_NXZ",
+  "demangled": "public: virtual bool __cdecl Playlist::IsDirty(void)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?UpdateCurrPlaylistWithRC@PlaylistSortMgr@@AAAXXZ"
+  ]
+ },
+ {
+  "src": "src/lazer/meta_ham/MetaPanel.cpp",
+  "name": "?ClassName@StarsDisplay@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl StarsDisplay::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@StarsDisplay@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/char/Char.cpp",
+  "name": "?ClassName@CharBoneDir@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl CharBoneDir::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@CharBoneDir@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/synth/Synth.cpp",
+  "name": "?ClassName@AudioDuckerTrigger@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl AudioDuckerTrigger::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@AudioDuckerTrigger@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/world/Dir.cpp",
+  "name": "?ClassName@RndTex@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl RndTex::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@RndTex@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/lazer/game/GamePanel.cpp",
+  "name": "?GetSongStream@HamAudio@@UAAPAVStream@@XZ",
+  "demangled": "public: virtual class Stream * __cdecl HamAudio::GetSongStream(void)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?IsPastStreamJumpPointOfNoReturn@GamePanel@@QAA_NXZ",
+   "?UpdateOverlay@LoopVizCallback@@UAAMPAVRndOverlay@@M@Z"
+  ]
+ },
+ {
+  "src": "src/system/synth/Synth.cpp",
+  "name": "?ClassName@FxSendDistortion@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl FxSendDistortion::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@FxSendDistortion@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/char/CharacterTest.cpp",
+  "name": "?ClassName@CharUpperTwist@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl CharUpperTwist::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@CharUpperTwist@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/world/CameraShot.cpp",
+  "name": "?ClassName@RndTransProxy@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl RndTransProxy::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@RndTransProxy@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/world/CameraShot.cpp",
+  "name": "?UnSet@DOFProc@@UAAXXZ",
+  "demangled": "public: virtual void __cdecl DOFProc::UnSet(void)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?Interp@CamShotFrame@@QAAXABV1@MMPAVRndCam@@@Z"
+  ]
+ },
+ {
+  "src": "src/system/hamobj/Ham.cpp",
+  "name": "?ClassName@HollaBackMinigame@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl HollaBackMinigame::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@HollaBackMinigame@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/hamobj/Ham.cpp",
+  "name": "?ClassName@HamPhraseMeter@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl HamPhraseMeter::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@HamPhraseMeter@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/rnddx9/ShaderMgr.cpp",
+  "name": "?ClassName@RndMat@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl RndMat::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@RndMat@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/ui/UIListSlot.cpp",
+  "name": "?SlotColorOverride@UIListProvider@@UBAPAVUIColor@@HHPAVUIListWidget@@PAV2@@Z",
+  "demangled": "public: virtual class UIColor * __cdecl UIListProvider::SlotColorOverride(int, int, class UIListWidget *, class UIColor *) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?Draw@UIListSlot@@UAAXABUUIListWidgetDrawState@@ABVUIListState@@ABVTransform@@W4State@UIComponent@@PAVBox@@W4DrawCommand@@@Z"
+  ]
+ },
+ {
+  "src": "src/system/os/NetStream.cpp",
+  "name": "??_GNetworkSocket@@UAAPAXI@Z",
+  "demangled": "public: virtual void * __cdecl NetworkSocket::`scalar deleting dtor'(unsigned int)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "??1NetStream@@UAA@XZ"
+  ]
+ },
+ {
+  "src": "src/system/hamobj/HamAudio.cpp",
+  "name": "??_GStream@@UAAPAXI@Z",
+  "demangled": "public: virtual void * __cdecl Stream::`scalar deleting dtor'(unsigned int)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?Clear@HamAudio@@AAAXXZ"
+  ]
+ },
+ {
+  "src": "src/system/rndobj/Lit_NG.cpp",
+  "name": "?ClassName@RndTex@@UBA?AVSymbol@@XZ",
+  "demangled": "public: virtual class Symbol __cdecl RndTex::ClassName(void) const",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?StaticClassName@RndTex@@SA?AVSymbol@@XZ"
+  ]
+ },
+ {
+  "src": "src/system/hamobj/HamDirector.cpp",
+  "name": "?EndAnim@RndPropAnim@@UAAXXZ",
+  "demangled": "public: virtual void __cdecl RndPropAnim::EndAnim(void)",
+  "kind": "virtual",
+  "emitted_callers": [
+   "?Exit@HamDirector@@UAAXXZ"
+  ]
+ }
+]

@@ -1,0 +1,102 @@
+[
+ {
+  "src": "src/system/midi/MidiReader.cpp",
+  "name": "?OnAcceptMaps@MidiReceiver@@UAA_NPAVTempoMap@@PAVMeasureMap@@@Z",
+  "dem": "public: virtual bool __cdecl MidiReceiver::OnAcceptMaps(class TempoMap *, class MeasureMap *)"
+ },
+ {
+  "src": "src/system/flow/FlowSound.cpp",
+  "name": "?ClassName@FlowNode@@UBA?AVSymbol@@XZ",
+  "dem": "public: virtual class Symbol __cdecl FlowNode::ClassName(void) const"
+ },
+ {
+  "src": "src/system/ui/UIListState.cpp",
+  "name": "?IsSnappableAtData@UIListProvider@@UBA_NH@Z",
+  "dem": "public: virtual bool __cdecl UIListProvider::IsSnappableAtData(int) const"
+ },
+ {
+  "src": "src/system/rnddx9/Rnd_Xbox.cpp",
+  "name": "?GetPostProcMat@RndShaderMgr@@UAAPAVRndMat@@XZ",
+  "dem": "public: virtual class RndMat * __cdecl RndShaderMgr::GetPostProcMat(void)"
+ },
+ {
+  "src": "src/lazer/meta_ham/ChallengeResultPanel.cpp",
+  "name": "?IsRunning@FlowNode@@UAA_NXZ",
+  "dem": "public: virtual bool __cdecl FlowNode::IsRunning(void)"
+ },
+ {
+  "src": "src/system/char/CharIKMidi.cpp",
+  "name": "?SetWeight@CharWeightable@@UAAXM@Z",
+  "dem": "public: virtual void __cdecl CharWeightable::SetWeight(float)"
+ },
+ {
+  "src": "src/system/obj/Utl.cpp",
+  "name": "?ClassName@Object@Hmx@@UBA?AVSymbol@@XZ",
+  "dem": "public: virtual class Symbol __cdecl Hmx::Object::ClassName(void) const"
+ },
+ {
+  "src": "src/system/flow/FlowTimer.cpp",
+  "name": "?ClassName@FlowNode@@UBA?AVSymbol@@XZ",
+  "dem": "public: virtual class Symbol __cdecl FlowNode::ClassName(void) const"
+ },
+ {
+  "src": "src/system/flow/FlowAnimate.cpp",
+  "name": "??_GNode@?$ObjPtrList@VFlowNode@@VObjectDir@@@@UAAPAXI@Z",
+  "dem": "public: virtual void * __cdecl ObjPtrList<class FlowNode, class ObjectDir>::Node::`scalar deleting dtor'(unsigned int)"
+ },
+ {
+  "src": "src/lazer/net_ham/PartyModeJobs.cpp",
+  "name": "?IsCustom@Playlist@@UBA_NXZ",
+  "dem": "public: virtual bool __cdecl Playlist::IsCustom(void) const"
+ },
+ {
+  "src": "src/lazer/meta_ham/SaveLoadManager.cpp",
+  "name": "?PreLoad@Profile@@UAAXXZ",
+  "dem": "public: virtual void __cdecl Profile::PreLoad(void)"
+ },
+ {
+  "src": "src/system/ui/UIListSlot.cpp",
+  "name": "?Poll@UIListSlotElement@@UAAXXZ",
+  "dem": "public: virtual void __cdecl UIListSlotElement::Poll(void)"
+ },
+ {
+  "src": "src/system/ui/UIListState.cpp",
+  "name": "?IsHidden@UIListProvider@@UBA_NH@Z",
+  "dem": "public: virtual bool __cdecl UIListProvider::IsHidden(int) const"
+ },
+ {
+  "src": "src/system/rndobj/DOFProc_NG.cpp",
+  "name": "?GetWork@RndShaderMgr@@UAAPAVRndMat@@XZ",
+  "dem": "public: virtual class RndMat * __cdecl RndShaderMgr::GetWork(void)"
+ },
+ {
+  "src": "src/system/meta/MemcardMgr_Xbox.cpp",
+  "name": "?WriteDone@File@@UAA_NAAH@Z",
+  "dem": "public: virtual bool __cdecl File::WriteDone(int &)"
+ },
+ {
+  "src": "src/lazer/meta_ham/NavListSortMgr.cpp",
+  "name": "?GetToken@NavListHeaderNode@@UBA?AVSymbol@@XZ",
+  "dem": "public: virtual class Symbol __cdecl NavListHeaderNode::GetToken(void) const"
+ },
+ {
+  "src": "src/lazer/meta_ham/HamProfile.cpp",
+  "name": "??_GSongStatusMgr@@UAAPAXI@Z",
+  "dem": "public: virtual void * __cdecl SongStatusMgr::`scalar deleting dtor'(unsigned int)"
+ },
+ {
+  "src": "src/system/rndobj/Group.cpp",
+  "name": "?GetDistanceToPlane@RndDrawable@@UAAMABVPlane@@AAVVector3@@@Z",
+  "dem": "public: virtual float __cdecl RndDrawable::GetDistanceToPlane(class Plane const &, class Vector3 &)"
+ },
+ {
+  "src": "src/system/rndobj/Text.cpp",
+  "name": "?AspectRatio@RndFontBase@@UBAMXZ",
+  "dem": "public: virtual float __cdecl RndFontBase::AspectRatio(void) const"
+ },
+ {
+  "src": "src/lazer/game/Game.cpp",
+  "name": "?HasPendingVoices@Synth@@UAA_NXZ",
+  "dem": "public: virtual bool __cdecl Synth::HasPendingVoices(void)"
+ }
+]

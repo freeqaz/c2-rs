@@ -1,0 +1,14 @@
+{
+ "axis": "A7",
+ "cell": "a7c5_initseg_baseline_nopragma",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

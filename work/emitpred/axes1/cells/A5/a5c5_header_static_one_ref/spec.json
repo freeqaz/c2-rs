@@ -1,0 +1,14 @@
+{
+ "axis": "A5",
+ "cell": "a5c5_header_static_one_ref",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

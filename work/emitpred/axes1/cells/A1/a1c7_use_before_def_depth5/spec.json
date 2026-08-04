@@ -1,0 +1,14 @@
+{
+ "axis": "A1",
+ "cell": "a1c7_use_before_def_depth5",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

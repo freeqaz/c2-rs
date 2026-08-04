@@ -1,0 +1,14 @@
+{
+ "axis": "A1",
+ "cell": "a1c1_depth1_inline_ref",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}

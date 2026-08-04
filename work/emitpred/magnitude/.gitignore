@@ -1,0 +1,8 @@
+# never commit captured IL or c2 output
+mechil/
+probes/il_*/
+probes/obj_*/
+*.obj
+_CL_*
+__pycache__/
+*.log

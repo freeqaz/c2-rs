@@ -1,0 +1,18 @@
+{
+ "axis": "A6",
+ "cell": "a6c7_three_tus_middle_refs",
+ "invocations": [
+  {
+   "args": [
+    "tu1.cpp",
+    "tu2.cpp",
+    "tu3.cpp"
+   ],
+   "objs": [
+    "tu1.obj",
+    "tu2.obj",
+    "tu3.obj"
+   ]
+  }
+ ]
+}

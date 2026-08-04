@@ -1,0 +1,14 @@
+{
+ "axis": "A7",
+ "cell": "a7c10_initseg_internal_datum",
+ "invocations": [
+  {
+   "args": [
+    "main.cpp"
+   ],
+   "objs": [
+    "main.obj"
+   ]
+  }
+ ]
+}
