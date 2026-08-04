@@ -41,7 +41,7 @@ impl<'a> ReplayScorer<'a> {
     /// replay); `target` is the obj to reach byte-exact; `scratch` is a private
     /// work dir (candidate bundles + the fixed `-Fo` obj land under it). The
     /// fixed `-Fo` is [`ReplayScorer::fo`] — render the target to it (see
-    /// [`solve_instance`]) so target and candidates share the embedded path.
+    /// [`solve_instance`](super::solve_instance)) so target and candidates share the embedded path.
     pub fn new(
         tc: &'a Toolchain,
         base: &'a CapturedReference,

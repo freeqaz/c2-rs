@@ -8,7 +8,7 @@ use super::moves::{distinct_operands, is_binop, is_operand};
 
 /// One perturbation family used to build a solvable instance from a solution IL.
 ///
-/// Each family's inverse is in the [`MoveSet`], so a byte-exact IL is reachable
+/// Each family's inverse is in the [`MoveSet`](super::MoveSet), so a byte-exact IL is reachable
 /// by construction — a failure is a real *search* failure. Note that `WidenLit`
 /// is **obj-invisible** on the real toolchain (P0.6a A: c2 re-optimizes a
 /// widened literal to byte-identical code), so it is a valid perturbation only in

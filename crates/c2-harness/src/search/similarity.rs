@@ -16,7 +16,7 @@ use crate::retrieval::text_section;
 /// `.text`-only by design (per P1.3): the full obj embeds its
 /// `/Fo` path in `S_OBJNAME`, so a whole-obj ratio would be path-dominated. The
 /// gradient scores the *code*; the terminal success check is full
-/// timestamp-normalized byte equality (see [`Judged`]). Objs are compared on
+/// timestamp-normalized byte equality (see [`Judged`](super::Judged)). Objs are compared on
 /// their normalized bytes so the COFF `TimeDateStamp` never perturbs the score.
 pub fn fuzzy_text(cand: &ObjImage, target: &ObjImage) -> f64 {
     let cn = cand.normalized();
@@ -351,7 +351,7 @@ pub(super) fn insn_seq_similarity(a: &[u32], b: &[u32]) -> f64 {
 
 /// Instruction-aware `.text` similarity between a candidate obj and the target —
 /// the search **gradient** (never a terminal; see [`fuzzy_text`]'s note and
-/// [`Judged`]). Decodes each obj's COFF `.text` into PPC instruction words and
+/// [`Judged`](super::Judged)). Decodes each obj's COFF `.text` into PPC instruction words and
 /// scores them with [`insn_seq_similarity`], so a move that fixes an opcode or an
 /// operand field scores strictly higher than one that does not. `.text`-only for
 /// the same path-freeness reason as [`fuzzy_text`] (the full obj embeds its `/Fo`
@@ -361,7 +361,7 @@ pub(super) fn insn_seq_similarity(a: &[u32], b: &[u32]) -> f64 {
 /// NOT byte-exact — the `.text` decode is blind to relocations, the symbol table,
 /// and `.debug$S`, so two objs with identical code but differing tail bytes score
 /// `1.0` here yet compare `Differs` under [`ObjImage::diff`]. A `1.0` gradient is
-/// therefore NEVER a success; only [`Judged::ByteExact`] terminates.
+/// therefore NEVER a success; only [`Judged::ByteExact`](super::Judged::ByteExact) terminates.
 pub fn insn_text_similarity(cand: &ObjImage, target: &ObjImage) -> f64 {
     let cn = cand.normalized();
     let tn = target.normalized();

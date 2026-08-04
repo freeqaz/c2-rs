@@ -319,7 +319,7 @@ pub struct TuResult {
     /// in the first and can be empty in the second.
     pub emit_blockers: BTreeMap<String, usize>,
     /// **The witness list for this TU's emitted-symbol residue** (board #159) —
-    /// empty unless `C2RS_WITNESS` is set. See [`witness_path`] for why the
+    /// empty unless `C2RS_WITNESS` is set. See [`witness_path`](crate::gap::witness::witness_path) for why the
     /// names are emitted from here and not read back out of the obj by a second
     /// reader.
     ///

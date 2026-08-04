@@ -1,7 +1,7 @@
 //! T-A (angle C) — the **IL-space search prototype**.
 //!
 //! The inversion thesis reduced to practice: given a TARGET `.obj`, search IL
-//! space — starting from a seed [`IlModel`], applying K3a edit moves, judging
+//! space — starting from a seed [`IlModel`](c2_il::IlModel), applying K3a edit moves, judging
 //! each candidate by compiling it through **real c2** — for an IL whose obj is
 //! **byte-exact** to the target. K3a gave the verified edit primitive; this
 //! closes the loop into a hill-climber and measures how efficiently it does so.
@@ -10,17 +10,17 @@
 //!
 //! The compiler + obj compare is the **sole judge**. A candidate is a SUCCESS
 //! only when its c2-compiled obj is **byte-exact** (timestamp-normalized) to the
-//! target — [`Judged::ByteExact`], full-obj [`ObjImage::diff`] `Identical`. The
+//! target — [`Judged::ByteExact`], full-obj [`ObjImage::diff`](c2_obj::ObjImage::diff) `Identical`. The
 //! `.text` fuzzy score ([`fuzzy_text`]) is the search **gradient ONLY**; it
 //! guides the climb and is never a terminal criterion. Every candidate is judged
-//! by a REAL replay ([`Toolchain::replay_within`], timeout-bounded per P0.6c) —
+//! by a REAL replay ([`Toolchain::replay_within`](c2_reference::Toolchain::replay_within), timeout-bounded per P0.6c) —
 //! no simulated scoring on the toolchain path. Edits go through the K3a
 //! fail-closed API; an out-of-scope edit refuses cleanly and the search skips it.
 //!
 //! ## The loop
 //!
 //! `propose → compile → score → accept`, terminal = byte-exact:
-//! 1. From the current [`IlModel`], enumerate a bounded neighborhood of K3a
+//! 1. From the current [`IlModel`](c2_il::IlModel), enumerate a bounded neighborhood of K3a
 //!    edits ([`MoveSet::neighbors`]) — each is a fresh candidate model; a refused
 //!    edit ([`c2_il::EditError`]) is simply not emitted.
 //! 2. Judge each candidate with a [`Scorer`] (the real one replays through c2;

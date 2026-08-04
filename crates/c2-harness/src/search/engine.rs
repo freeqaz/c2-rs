@@ -27,7 +27,7 @@ pub enum Judged {
 /// Judges a candidate [`IlModel`] against an (implicit) target, counting every
 /// real compile. The climber ([`hill_climb`]) is written entirely against this
 /// trait, so the same accept/terminal/budget logic runs under a toolchain-free
-/// mock ([`MockScorer`]) and the real c2 replay ([`ReplayScorer`]).
+/// mock ([`MockScorer`]) and the real c2 replay ([`ReplayScorer`](super::ReplayScorer)).
 pub trait Scorer {
     /// Judge `model`. Implementations MUST count a real compile here (see
     /// [`Scorer::compiles`]); the mock counts a comparison.
