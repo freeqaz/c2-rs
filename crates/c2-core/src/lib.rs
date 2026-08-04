@@ -384,6 +384,38 @@ impl PortC2 {
             if il.shell_only_tu() {
                 return Ok(ObjImage::new(coff::emit_empty_obj(obj_name)));
             }
+            // **W-SECT — the `.data`/`.bss` TU (board #174).** The refusal above
+            // is the floor; this is the class that was measured out of it. The
+            // decode bound lives in `IlBundle::data_tu` and the layout bound —
+            // at most two objects per non-COMDAT section, §8.1 — lives in
+            // `coff::emit_data_obj`, so neither crate assumes the other ran.
+            if let Some(tu) = il.data_tu() {
+                let objs: Vec<coff::DataObj> = tu
+                    .objects
+                    .iter()
+                    .map(|o| coff::DataObj {
+                        symbol: &o.coff_name,
+                        size: o.size,
+                        natural_align: o.natural_align,
+                        external: o.external,
+                        bytes: o.bytes.as_deref(),
+                        decl_index: o.decl_index,
+                    })
+                    .collect();
+                // **Every object dropped means the bare shell IS the right
+                // obj.** `static int za;` — uninitialized, unreferenced,
+                // internal linkage — is removed by c2 entirely, so a TU of
+                // nothing but those emits 720 bytes. `shell_only_tu` says no
+                // here (the `.gl` *does* name storage) and it is right to;
+                // `data_tu` is the reader that knows the storage went away, and
+                // it did the same exhaustive accounting before saying so.
+                if objs.is_empty() {
+                    return Ok(ObjImage::new(coff::emit_empty_obj(obj_name)));
+                }
+                if let Some(obj) = coff::emit_data_obj(obj_name, &objs) {
+                    return Ok(ObjImage::new(obj));
+                }
+            }
             return Err(BackendError::NotImplemented(
                 "a TU that defines no functions but whose `.gl` names storage \
                  the bare four-section shell does not carry: an initialized or \

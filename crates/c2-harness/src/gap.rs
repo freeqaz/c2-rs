@@ -385,8 +385,29 @@ use c2_core::coff::PORT_WRITER_SECTIONS;
 /// Each entry carries its own key (`emit-whole-tu|<name>`) so the marginal of
 /// each recognizer is separately visible: a registry that grew an entry which
 /// never fires would otherwise be indistinguishable from one that did not.
-pub const WHOLE_TU_RECOGNIZERS: &[(&str, fn(&c2_il::IlBundle) -> bool)] =
-    &[("dyninit-??__E", |b| b.dyninit_tu().is_some())];
+pub const WHOLE_TU_RECOGNIZERS: &[(&str, fn(&c2_il::IlBundle) -> bool)] = &[
+    ("dyninit-??__E", |b| b.dyninit_tu().is_some()),
+    // **W-SECT, board #174 — the functionless data TU.** Registered in the same
+    // commit that gave `PortC2::build` the arm, which is what this table's own
+    // doc asks for: an unregistered arm turns the `D∨E` control red the moment
+    // it converts anything, and that red is the design working.
+    //
+    // It fires on **0 of the 871 graded TUs** and is registered anyway, which is
+    // exactly why each entry carries its own marginal: a registry entry that
+    // never fires and one that was never added are the same number in `|E|` and
+    // very different facts. The workload census carries no TU whose section set
+    // is the shell plus data — measured, not assumed — so this entry is a
+    // statement about the *model*, not about today's corpus.
+    //
+    // **It over-approximates on purpose.** `data_tu` is the DECODE bound; the
+    // LAYOUT bound (at most two objects per non-COMDAT section,
+    // `OBJ_DATA_BSS_SHAPE.md` §8.1) lives in `coff::emit_data_obj` and this
+    // predicate cannot see it, so a TU with three `.bss` objects reads as E-true
+    // and refuses. That is the same approximation `dyninit-??__E` makes — the
+    // recognizer names the path, not the emitter's every gate — and it errs
+    // toward counting a TU the port declines, never toward missing one it takes.
+    ("data-only-tu", |b| b.data_tu().is_some()),
+];
 
 /// The MSVC mangling class of `name`, for naming the unbound residue.
 ///

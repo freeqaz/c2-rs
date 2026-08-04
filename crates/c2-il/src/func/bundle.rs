@@ -1632,6 +1632,21 @@ impl IlBundle {
         }
         let mut objects = Vec::with_capacity(records.len());
         for (tok, o) in &records {
+            // **c2 DROPS an internal-linkage object that is uninitialized and
+            // unreferenced** — no section, no symbol, and the obj comes back as
+            // the bare four-section shell. See `gl::DATA_FLAG_REFERENCED` for
+            // the four cells that separate the three axes one at a time.
+            //
+            // This is the sixth mismatch the differential caught in this class
+            // and the one no document had: `OBJ_DATA_BSS_SHAPE.md` §5.2's static
+            // cells are all *"8 uninit statics AND ONE FUNCTION EACH"*, so every
+            // object in them is referenced and the rule is invisible there.
+            if !o.external
+                && !o.initialized
+                && o.flags & super::gl::DATA_FLAG_REFERENCED == 0
+            {
+                continue;
+            }
             let value = init.values.get(tok);
             let bytes = match (o.initialized, value) {
                 // A `.bss` object with no initializer: the ordinary case.

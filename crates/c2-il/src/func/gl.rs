@@ -955,6 +955,32 @@ pub(crate) struct GlDataObject {
 /// writer must **refuse** on this bit rather than emit a `.tls$`.
 pub(crate) const DATA_FLAG_THREAD_LOCAL: u8 = 0x10;
 
+/// The [`GlDataObject::flags`] bit that says **something references this
+/// object**, and which decides whether an internal-linkage object is emitted at
+/// all.
+///
+/// **MEASURED, and it is a rule `docs/OBJ_DATA_BSS_SHAPE.md` does not have.**
+/// An `static` object that is **uninitialized** and **unreferenced** is
+/// **dropped entirely** — no `.bss`, no symbol, and the obj is the bare
+/// four-section shell:
+///
+/// ```text
+///   static int za;                     04 04 00 · 00   DROPPED, obj is 720 B
+///   static int zc; int r(){return zc;} 04 04 00 · 01   emitted to .bss
+///   static int zb = 1;                 04 04 80 · 00   emitted to .data
+///   int ze;                            01 04 00 · 00   emitted to .bss
+/// ```
+///
+/// The three axes are separated one at a time: `za`→`zc` moves only the
+/// reference, `za`→`zb` only the initializer, `za`→`ze` only the linkage. So
+/// the predicate is the conjunction of all three and not any pair.
+///
+/// §5.2's static cells could not see this — every one of them is *"8 uninit
+/// statics **and one function each**"*, so every object in them is referenced.
+/// §4.4 records the same shape for `const` (*"dropped when every use was
+/// folded"*); this is that rule for plain storage.
+pub(crate) const DATA_FLAG_REFERENCED: u8 = 0x01;
+
 /// The name separator that introduces an **internal-linkage** data symbol, whose
 /// COFF name is the run that follows it **undecorated**.
 ///

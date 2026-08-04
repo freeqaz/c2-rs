@@ -29,7 +29,7 @@ use super::*;
 /// (a name here that no writer emits, which would inflate C), which is why this
 /// stays a transcription of the `Section { name: … }` tables below rather than a
 /// generalization of them.
-pub const PORT_WRITER_SECTIONS: [&str; 9] = [
+pub const PORT_WRITER_SECTIONS: [&str; 10] = [
     ".drectve",
     ".debug$S",
     ".XBLD$W",
@@ -39,6 +39,7 @@ pub const PORT_WRITER_SECTIONS: [&str; 9] = [
     ".text$yc",
     ".bss",
     ".CRT$XCU",
+    ".data",
 ];
 
 /// * `mangled_name` — the function's mangled symbol (from `.gl`), e.g.
