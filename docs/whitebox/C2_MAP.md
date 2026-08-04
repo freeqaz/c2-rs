@@ -228,6 +228,144 @@ inversions.
 
 ---
 
+## 3A. The 53 file names — the tier-1 artifact
+
+**These names come from `strings`.** They are an observable output of the black
+box, on the same footing as the obj, the `/FAsc` listing and the diagnostic
+text, and `docs/ROADMAP.md` §9.8 already blesses that class. **This list on its
+own incurs no white-box debt** — see [`DISCLOSURE.md`](DISCLOSURE.md) for why
+the *addresses* are a different tier.
+
+Build root `e:\bt\278379\vctools\compiler\be\`. 52 sources + one `.pdb` path.
+
+| directory | n | files |
+|---|---:|---|
+| `p2\` | 39 | `coff.c` `coffemit.c` `color.c` `dag.c` `dbg.cpp` `dbgcpp.h` `dll.cpp` `ehexcept.c` `emit.cpp` `except.c` `factor.c` `fg.c` `fpmodel.c` `getattr.c` `globdf.c` `globlopt.c` `globopt.c` `globregs.c` `hash.c` `inline.c` `list.c` `ltcg.c` `lur.c` `main.c` `misc.c` `mod.c` `optimize.c` `p2pragma.c` `p2symtab.c` `pogocg.c` `pogoinline.c` `pogoopt.c` `ptinl.c` `reader.c` `regasg.c` `sizeopt.c` `ssa_seh.c` `stack.c` `tuple.c` |
+| `p2\ppc\` | 6 | `cgintrin.c` `code.c` `inlnasm.c` `lower.c` `mdlist.c` `mdmisc.c` |
+| `common\` | 5 | `error.c` `get_err.c` `getflags.c` `ioin.c` `vlines.c` |
+| `p2\smd\` | 2 | `lowersmd.c` `smdmisc.c` |
+| — | 1 | `…\p2\c2\obj\i386\c2.pdb` (build output path, not a source) |
+
+Reading the names alone already answers questions the project had open: there is
+a `p2\smd\` directory (a second machine-description layer beside `ppc\`); EH is
+split `ehexcept.c` / `except.c`; the debug writer is C++ (`dbg.cpp`) while
+almost everything else is C; and **`coff.c` and `coffemit.c` are separate
+files**, which is §4A.
+
+---
+
+## 4A. `coffemit.c` — the densest file, and the one on the critical path
+
+27 ICE xrefs, the most of any file, and 91% line-monotone — the best-behaved
+region in the binary. The name points at the project's tightest constraint, and
+three open questions land in or beside it.
+
+**That `coff.c` and `coffemit.c` are separate files is itself the finding.** It
+predicted a model/reader layer distinct from the writer, and the split is clean:
+
+| | `coff.c` `0x10b28586..` | `coffemit.c` `0x10b290dc..0x10b2b0dd` |
+|---|---|---|
+| role | opens the obj, owns the section model | **every `fwrite`** |
+| routines | `10b281af` `10b281f7` `10b28261` `10b28304` `10b28586` `10b287b8` `10b2888e` `10b289fd` | `10b291b1` `10b291de` `10b2921c` `10b29268` `10b2948b` `10b2a265` `10b2a936` `10b2ad50` `10b2ae0e` `10b2b02d` `10b2b0dd` |
+
+### The writer, field by field
+
+* **`FUN_10b2b0dd`** — `IMAGE_FILE_HEADER` (and the 56-byte BIGOBJ variant,
+  identified by the documented ClassID GUID `{D1BAA1C7-BAEE-4BA9-AF20-FAF66AA4DCB8}`
+  at `.data 0x10b01be4`). `SizeOfOptionalHeader = 0`, `Characteristics = 0x0180`.
+  `Machine` is **not** an immediate here: `FUN_10b28586` sets `0x1F2`
+  (`POWERPCFP`), or `0x0C13` under LTCG.
+* **`FUN_10b2b02d`** — the 40-byte `IMAGE_SECTION_HEADER`.
+  `PointerToLinenumbers` and `NumberOfLinenumbers` are hard `0`;
+  `NumberOfRelocations = min(n, 0xFFFF)` with `IMAGE_SCN_LNK_NRELOC_OVFL`
+  (`0x01000000`) OR'd in above `0xFFFE`.
+* **`FUN_10b2a936`** — the 18-byte `IMAGE_SYMBOL` writer, including the `.file`
+  record (`SectionNumber = 0xFFFE`, `StorageClass = 0x67`).
+* **`FUN_10b2948b`** — the 18-byte auxiliary section-definition record.
+  **`Number` and `Selection` are written only when `Characteristics & 0x1000`**,
+  i.e. only for COMDATs.
+* **`FUN_10b2ad50`** — the COFF long-name encoder: `≤8` bytes inline
+  zero-padded, else `'/'`+decimal string-table offset, else `"//"`+6 base64
+  characters above `9999999`.
+* **`FUN_10b281af`** — the sole `_time64` caller, installed as the
+  `TimeDateStamp` callback, and it **returns 0 when `DAT_10c2ead8` is set**.
+  That global is the `-Brepro` flag: c2 already implements the determinism the
+  harness gets by zeroing file offsets 4..8.
+
+### The three open questions, and where each actually lives
+
+1. **Section selection and naming (factor C)** — **NOT in `coffemit.c`.**
+   `FUN_10b982d6` is the single place a section kind becomes (name,
+   Characteristics), and it is in **`p2symtab.c`**; the section *constructors*
+   (`FUN_10be7473` non-COMDAT, `FUN_10be74cf` COMDAT) are in **`emit.cpp`**.
+   The 13-name vocabulary and the exact characteristic words are in §4B.
+2. **COMDAT and symbol emission order (R6)** — the writer is
+   `FUN_10b2a936`, driven by `FUN_10b8303c(g_symList@0x10c2e234, …)`, so the
+   *iteration order of that list* is the whole question. **Unresolved**; see §7.
+3. **The `.bss` object-address permutation** — **settled, and it was never
+   c2's.** See §4C.
+
+### 4B. The `.bss`/`.data` decision — factor C's +402-TU item
+
+`FUN_10b9a143` (`p2symtab.c`) assigns the section, after `FUN_10b98457`
+normalises the storage class. The decisive instruction is:
+
+```
+10b9849f:  f7 41 20 80 04 00 00    test  DWORD PTR [ecx+0x20],0x480
+10b984a6:  74 0c                   je    0x10b984b4          ; -> .bss
+```
+
+**The predicate is "does this symbol carry initializer bytes as it reaches
+c2", not a zero-scan.** Bit `0x80` at `sym+0x20` is set by `FUN_10b805b3`
+(`SetInitialData`: `flags |= 0x180; size → +0x1c;` then `memcpy` the bytes).
+**No code anywhere in `.text` clears it** — there is no `and […+0x20], ~0x80`.
+So if `static int x = 0;` lands in `.bss`, the zero-folding happened in **c1xx**
+and c2 simply never received bytes. High confidence on the c2-side predicate;
+**medium** on attributing the folding to c1xx, which was not verified there.
+
+An explicit IL section (`#pragma data_seg`, `__declspec(allocate)`) sets
+`sym[0xC]` and **short-circuits all of the above**.
+
+### 4C. The `.bss` permutation — REFUTED as a hash, and it is c1xx's
+
+Lane w-bss is bounding this from the outside; this lane was told it might be the
+faster route, and it was, but **not by finding a hash — by proving there isn't
+one.**
+
+For N=6 the observed order `s6 s4 s3 s5 s1 s2` was brute-forced against 9 name
+decorations × every modulus 2..8191 × every `(h>>s)&mask` for `s≤28`,
+`mask≤16` bits × {ascending, descending} × {FIFO, LIFO}: **0 hits.** Under c2's
+own hash the six names are affinely related, so any mask/modulus key yields an
+ordering of the form `N XOR k`, and none of the eight is the observed one.
+
+The measured rule instead, 5/5 plus a held-out control with different names and
+lengths:
+
+> **`.bss` ascending address = exact REVERSE of the IL `.gl` record order** for
+> objects **with** a dynamic initializer; **= `.gl` record order** for plain
+> zero-init statics; and in a mixed TU every non-dyninit object precedes every
+> dyninit one.
+
+Mechanism: no initializer → **eager**, allocated as the record streams past
+(`10b9b161`/`10b9b6a4` → `10c27b56` → bump allocator `10c2757d`, align 8 with a
+`+(8−size)` fixup for sizes 1/2/4). Has one → **deferred**, head-inserted onto
+`DAT_10c2f064` and drained head-first by `10b99093`. Head insert + head-first
+drain = reversal. The first-touch flag `0x800` in `10c27b56` is why the two
+groups never interleave.
+
+**The residual permutation is the front end's.** The `.gl` order for N=6 is
+`s2 s1 | s5 s3 | s4 | s6` — stable groups `{s1,s2}`, `{s3,s5}` each emitted
+later-first: a hash table walked bucket-ascending with head-inserted chains, in
+**c1xx**. c2's hash cannot produce it (there `h(sN) = const + N`, and no modulus
+collides `s1` with `s2` while separating `s3` from `s4`).
+
+**Consequence: the port never has to reproduce any hash.** The order is already
+in the `.gl` it is handed. `docs/OBJ_DYNINIT_SHAPE.md` §7.1 declined this
+permutation on the grounds that it "would need the front end's hash reproduced";
+that premise is false and #158's owner should revisit it.
+
+---
+
 ## 4. How to look something up
 
 The map is deliberately two flat tables plus a regenerable export. There is no
