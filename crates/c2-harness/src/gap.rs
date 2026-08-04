@@ -1825,8 +1825,12 @@ fn scan_one(
                         }
                     }
                 }
-                // 1e''. **W-AFAIL — the ROW side of factor A** (board #202,
-                //       prereg `docs/rungs/_2026-08-04-w-afail-prereg.md`).
+                // 1e''. **W-AFAIL — the ROW side of factor A**
+                //       (`docs/rungs/_2026-08-04-w-afail-findings.md`; the board
+                //       row is PROPOSED, not minted — 196–205 was contended by
+                //       four concurrent lanes on 2026-08-04 and BOARD.md's
+                //       "#143–#146 minted twice" contradiction is what a number
+                //       minted inside a worktree costs).
                 //
                 //       Every key above walks `emitted` — the obj's `.text`
                 //       COMDAT leaders — and asks which census row claims each.
