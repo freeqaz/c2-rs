@@ -1,0 +1,51 @@
+bundle _CL_251a796e  gl 448399  in 37748
+gl owner records bound=3546 (k1=938 k4=2608), in clean=True recs=1057
+BASELINE replay: bytes==pipeline obj False ; LEADER SET==pipeline obj True ; leaders 977
+
+SKIP-1 candidates (walk-enabled owners naming emitted non-Seed functions): 66
+  [A] ??_7EventTrigger@@6B@                              f20 0x5c01->0x5c21  payload=16(solo 16) lost=0 gained=0  SKIP1-fires=False
+      payload: ['??_EEventTrigger@@$4PPPPPPPM@A@AAPAXI@Z', '?ClassName@EventTrigger@@$4PPPPPPPM@A@BA?AVSymbol@@XZ', '?Copy@EventTrigger@@$4PPPPPPPM@A@AAXPBVObject@Hmx@@W4CopyType@23@@Z']
+      lost:    []
+  [B] ??_7EventTrigger@@6B@                              f20 0x5c01->0x5c61  lost=0 gained=0  CONTROL-clean=True
+  [A] ??_7RndAnimatable@@6BObject@Hmx@@@                 f20 0x5c01->0x5c21  payload=14(solo 14) lost=0 gained=0  SKIP1-fires=False
+      payload: ['??_ERndAnimatable@@$4PPPPPPPM@A@AAPAXI@Z', '?ClassName@RndAnimatable@@$4PPPPPPPM@A@BA?AVSymbol@@XZ', '?Copy@RndAnimatable@@$4PPPPPPPM@A@AAXPBVObject@Hmx@@W4CopyType@23@@Z']
+      lost:    []
+  [B] ??_7RndAnimatable@@6BObject@Hmx@@@                 f20 0x5c01->0x5c61  lost=0 gained=0  CONTROL-clean=True
+  [A] ??_7RndAnimatable@@6B0@@                           f20 0x2c01->0x2c21  payload=9(solo 9) lost=0 gained=0  SKIP1-fires=False
+      payload: ['?AnimTarget@RndAnimatable@@UAAPAVObject@Hmx@@XZ', '?EndAnim@RndAnimatable@@UAAXXZ', '?EndFrame@RndAnimatable@@UAAMXZ']
+      lost:    []
+  [B] ??_7RndAnimatable@@6B0@@                           f20 0x2c01->0x2c61  lost=0 gained=0  CONTROL-clean=True
+
+W2-SET candidates (owners the walk refuses, naming unemitted functions): 31
+  [C] ??_7NullFile@@6B@                                  f20 0x4801->0x4c01  gainable=16 lost=0 gained=0  W2-opens=False
+      gainable: ['?Eof@NullFile@@UAA_NXZ', '?Fail@NullFile@@UAA_NXZ', '?Filename@File@@UBA?AVString@@XZ']
+      gained:   []
+  [C] ??_7WaitSeqInst@@6B@                               f20 0x7801->0x7c01  gainable=6 lost=0 gained=0  W2-opens=False
+      gainable: ['?ClassName@Object@Hmx@@UBA?AVSymbol@@XZ', '?Poll@SeqInst@@UAAXXZ', '?SetPan@WaitSeqInst@@UAAXM@Z']
+      gained:   []
+  [C] ??_7File@@6B@                                      f20 0x4801->0x4c01  gainable=4 lost=0 gained=0  W2-opens=False
+      gainable: ['?Filename@File@@UBA?AVString@@XZ', '?Truncate@File@@UAA_NH@Z', '?WriteAsync@File@@UAA_NPBXH@Z']
+      gained:   []
+
+W2-CLEAR candidates (owners the walk accepts via 0x400 only): 66
+  [D] ??_7EventTrigger@@6B@                              f20 0x5c01->0x5801  payload=16 lost=0 gained=0  W2-closes=False
+      payload: ['??_EEventTrigger@@$4PPPPPPPM@A@AAPAXI@Z', '?ClassName@EventTrigger@@$4PPPPPPPM@A@BA?AVSymbol@@XZ', '?Copy@EventTrigger@@$4PPPPPPPM@A@AAXPBVObject@Hmx@@W4CopyType@23@@Z']
+      lost:    []
+  [D] ??_7RndAnimatable@@6BObject@Hmx@@@                 f20 0x5c01->0x5801  payload=14 lost=0 gained=0  W2-closes=False
+      payload: ['??_ERndAnimatable@@$4PPPPPPPM@A@AAPAXI@Z', '?ClassName@RndAnimatable@@$4PPPPPPPM@A@BA?AVSymbol@@XZ', '?Copy@RndAnimatable@@$4PPPPPPPM@A@AAXPBVObject@Hmx@@W4CopyType@23@@Z']
+      lost:    []
+  [D] ??_7RndAnimatable@@6B0@@                           f20 0x2c01->0x2801  payload=9 lost=0 gained=0  W2-closes=False
+      payload: ['?AnimTarget@RndAnimatable@@UAAPAVObject@Hmx@@XZ', '?EndAnim@RndAnimatable@@UAAXXZ', '?EndFrame@RndAnimatable@@UAAMXZ']
+      lost:    []
+
+SKIP-3 candidates (walked owners without 0x4000): 60
+  [E] ??_7RndAnimatable@@6B0@@                           f20 0x2c01->0x6c01  payload=9(solo 9) lost=0 gained=0  SKIP3-fires=False
+  [E] ??_7EventTrigger@@6BRndAnimatable@@@               f20 0x3c01->0x7c01  payload=14(solo 8) lost=0 gained=0  SKIP3-fires=False
+  [E] ??_7?$ObjOwnerPtr@VEventTrigger@@@@6B@             f20 0x1c01->0x5c01  payload=5(solo 5) lost=0 gained=0  SKIP3-fires=False
+
+---- src/system/rndobj/EventTrigger.cpp
+  M13 SKIP1 positive (payload lost)              0/3
+  M14 SKIP1 control (nothing moves)              3/3
+  W2 set (refused owner starts marking)          0/3
+  W2 clear (walked owner stops marking)          0/3
+  SKIP3 set (S5 pass skipped)                    0/3

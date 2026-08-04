@@ -1,0 +1,7 @@
+baseline leaders 63 ; leader set == pipeline obj True
+owner ??_7HttpReq@@6B@  f20=0x5801 at gl[47326..47328] width 2  names 13 emitted
+  bytes there now: 01 58   enc(f20)=01 58
+P1 no-op write        -> obj identical to baseline: True
+P2 set 0x200          -> obj changed: True  leaders 63->63 (lost 0 gained 0)
+P2b wild 0x2801       -> obj changed: True  leaders 63->63
+P3 clear seed 0x20 at +0x4c on ??0HttpReq@@QAA@W4ReqType@@IGPBD@Z -> lost 1 (target lost: True)

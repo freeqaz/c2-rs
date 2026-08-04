@@ -1,0 +1,17 @@
+bundle _CL_738380ff  baseline leaders 63  defined symbols 229  leader set == pipeline obj True
+owners with a node: 131 ; owner IS defined in the obj: 7 ; owner is NOT: 124
+  [H+] owner ??_R0PAU?$_Rb_tree_node@U?$pair@$$CBVString@ f20=0x5101  F_old ??_7type_info@@6B@                 -> F_new ?uninitialized_copy@stlpmtx_std@@Y  gained=2 lost=0  APPEARS: True
+  [H+] owner ??_7HttpReq@@6B@                             f20=0x5801  F_old ??_R4HttpReq@@6B@                  -> F_new ?max_size@?$allocator@D@stlpmtx_st  gained=1 lost=0  APPEARS: True
+  [H+] owner ??_R0?AVHttpReq@@@8                          f20=0x1601  F_old ??_7type_info@@6B@                 -> F_new ?max_size@?$_String_base@DV?$alloc  gained=1 lost=0  APPEARS: True
+  [H+] owner ??_R1A@?0A@EA@HttpReq@@8                     f20=0x1c01  F_old ??_R0?AVHttpReq@@@8                -> F_new ?length@?$char_traits@D@stlpmtx_st  gained=1 lost=0  APPEARS: True
+  [H+] owner ??_R2HttpReq@@8                              f20=0x0801  F_old ??_R1A@?0A@EA@HttpReq@@8           -> F_new ?deallocate@?$allocator@D@stlpmtx_  gained=1 lost=0  APPEARS: True
+  [H-] owner ??_R0?AVrange_error@stlpmtx_std@@@8          f20=0x2601  F_old ??_7type_info@@6B@                 -> F_new ?copy@?$__char_traits_base@DH@stlp  gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AVruntime_error@stlpmtx_std@@@8        f20=0x2801  F_old ??_7type_info@@6B@                 -> F_new ?c_str@FixedString@@QBAPBDXZ        gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AV__Named_exception@stlpmtx_std@@@8    f20=0x2c01  F_old ??_7type_info@@6B@                 -> F_new ?c_str@?$basic_string@DV?$char_tra  gained=0 lost=0  APPEARS: False
+  [H-] owner ??_R0?AVexception@std@@@8                    f20=0x1c01  F_old ??_7type_info@@6B@                 -> F_new ?allocate@?$allocator@D@stlpmtx_st  gained=0 lost=0  APPEARS: False
+  [H-] owner _CT??_R0?AVrange_error@stlpmtx_std@@@8??0ran f20=0x1c01  F_old ??_R0?AVrange_error@stlpmtx_std@@@ -> F_new ?__ucopy_trivial@stlpmtx_std@@YAPA  gained=0 lost=0  APPEARS: False
+
+---- src/system/net/HttpReq.cpp
+  H+ owner IS emitted      expect APPEARS      5/5
+  H- owner is NOT emitted  expect suppressed   0/5 appeared
+ALLDONE
