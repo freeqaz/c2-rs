@@ -105,7 +105,38 @@ emit-ceiling     yes  Emit-set ceiling, LO-anchored (segments == COMDATs)
 emit-ceiling-gate yes Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes)
 emit-model       yes  Emit-set MODEL ceiling (today / repaired / wall)
 binding          yes  .gl binding invariants (records / arity / conflicts)
+factors          yes  Phase-7 factors over the graded TUs (A / B / C / D / E)
+joint-ceilings   yes  Joint ceilings (B∧C, A∧B∧C)
+frontier         yes  Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free)
+emit-predicate-worth yes Emit-predicate worth, B∧C − A∧B∧C (board #213)
+section-ladder   yes  Factor-C section ladder (writer names / workload names / next step)
 '
+# --- the five rows above, added 2026-08-04 by lane w-gr on lane w-bc's spec ----
+#
+# **Factor C, `A∧B∧C` and the FRONTIER had never been in the generated block at
+# all.** They lived only in hand-written prose in `STATUS.md`, and all three went
+# stale twice in a single day. `B∧C` was worse: it was published as **107**,
+# measured when `C = 114`, and stayed there while C moved to 169 — it is **151**,
+# and the projection it feeds moved from `+82` to `+124`. A number that can only
+# go stale by a *dependency* moving is exactly the number a collector should own.
+#
+# `crates/c2-harness/src/gap.rs` prints a `GAP-METRICS` block of stable
+# `gap-metric <key> <value>` pairs for this purpose (w-bc). The keys are an
+# interface; `p_metric` below is the ONE reader of them.
+
+# Every metric `collect_gap` is responsible for — the keys its four early-return
+# paths have to report a REASON for, not merely leave unset.
+#
+# This list used to be spelled out FOUR TIMES inside `collect_gap`, once per
+# early return. w-gr's five GAP-METRICS rows were the fifth thing that would have
+# had to be added to all four, and the failure mode is silent in the direction
+# that matters: a key missing from one copy renders `NO-RESULT` with no reason
+# attached on exactly the path that produced it, which is indistinguishable from
+# a metric that ran and had nothing to say. One list; `--check` proves it covers
+# the registry.
+GAP_KEYS='workload census emitted-census residue distance-bodies
+          distance-emitted emit-ceiling emit-ceiling-gate emit-model binding
+          factors joint-ceilings frontier emit-predicate-worth section-ladder'
 
 results_file=""
 
@@ -158,6 +189,32 @@ p_ceilgate()   { sed -n 's/^ *emit-set ceiling, GATE-anchored (`4F 1F`, what the
 p_model()      { sed -n 's/.*emit-set MODEL ceiling: \([0-9]*\) of [0-9]* TUs bind every emitted symbol today; \([0-9]*\) would.*; \([0-9]*\) carry.*/\1 today \/ \2 repaired \/ \3 wall/p' "$1" | head -1; }
 p_binding()    { sed -n 's/^ *binding: \(.*\)$/\1/p'               "$1" | head -1; }
 p_fixgate()    { sed -n 's/^summary: \(.*\)$/\1/p'                 "$1" | head -1; }
+
+# **The GAP-METRICS block** (`GapReport::metrics`, lane w-bc). One reader for the
+# whole block, keyed by name, because the alternative is a `sed` per figure and
+# the comment above records what happened the last time this file had a parser
+# per call site.
+#
+# Absence is ABSENCE. `ladder-head` is deliberately *omitted* by `gap.rs` when the
+# writer's section vocabulary is closed, and a reader that defaulted it to 0 would
+# report a closed ladder as reaching `C = 0`. So this prints nothing for a missing
+# key and every caller routes through `val_or_missing`, which turns nothing into
+# `NO-RESULT`.
+p_metric()     { sed -n "s/^ *gap-metric $2 \(.*\)\$/\1/p" "$1" | head -1; }
+
+# Two or more metrics into one row, with the same absence discipline: if ANY part
+# is missing the whole row is NO-RESULT, never a sentence with a hole in it.
+#   join_metrics <log> <format-with-%s...> <key>...
+_metric_row() { # <log> <template> <key>...
+    _log="$1"; _tpl="$2"; shift 2
+    _out="$_tpl"
+    for _k in "$@"; do
+        _v=$(p_metric "$_log" "$_k")
+        [ -n "$_v" ] || { printf ''; return; }
+        _out=$(printf '%s' "$_out" | sed "s|@|$_v|")
+    done
+    printf '%s' "$_out"
+}
 p_geomean()    { sed -n 's/.*geomean speedup over the [0-9]* matched fixture(s): \([0-9]*x\).*/\1/p' "$1" | head -1; }
 
 # ---- collectors ----------------------------------------------------------------
@@ -215,23 +272,16 @@ collect_gap() {
     _list="$workload/files.txt"
     _flags="$workload/flags.txt"
 
-    for _k in workload census emitted-census residue distance-bodies \
-              distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
-        : # keys declared here so the loop below can overwrite them
-    done
-
     if [ ! -f "$_list" ] || [ ! -f "$_flags" ]; then
         _why="NO-RESULT (no $workload/{files.txt,flags.txt} — run scripts/gen_dc3_workload.sh)"
-        for _k in workload census emitted-census residue distance-bodies \
-                  distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
+        for _k in $GAP_KEYS; do
             emit "$_k" "$_why"
         done
         return 0
     fi
     if [ ! -d "$dc3" ]; then
         _why="NO-RESULT (dc3 tree absent at $dc3 — set C2RS_DC3)"
-        for _k in workload census emitted-census residue distance-bodies \
-                  distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
+        for _k in $GAP_KEYS; do
             emit "$_k" "$_why"
         done
         return 0
@@ -239,16 +289,14 @@ collect_gap() {
 
     if ! "$c2rs" gap --list "$_list" --flags-file "$_flags" --cwd "$dc3" \
                      --jobs "$jobs" > "$_log" 2>&1; then
-        for _k in workload census emitted-census residue distance-bodies \
-                  distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
+        for _k in $GAP_KEYS; do
             emit "$_k" "NO-RESULT (gap scan exited non-zero; see $_log)"
         done
         return 0
     fi
 
     if log_says_skip "$_log"; then
-        for _k in workload census emitted-census residue distance-bodies \
-                  distance-emitted emit-ceiling emit-ceiling-gate emit-model binding; do
+        for _k in $GAP_KEYS; do
             emit "$_k" "SKIP: toolchain absent"
         done
         return 0
@@ -270,6 +318,35 @@ collect_gap() {
     emit emit-ceiling-gate "$(val_or_missing "$(p_ceilgate "$_log")")"
     emit emit-model      "$(val_or_missing "$(p_model     "$_log")")"
     emit binding         "$(val_or_missing "$(p_binding   "$_log")")"
+
+    # ---- the GAP-METRICS rows (lane w-bc's spec, wired by w-gr) ---------------
+    #
+    # Five rows, each through `val_or_missing`, each registered in METRICS above
+    # so `--check` proves it rather than tolerating its absence.
+    emit factors "$(val_or_missing "$(_metric_row "$_log" \
+        'A @ (LO @) · B @ · C @ · D @ · E @, of @ graded' \
+        factor-a factor-a-lo factor-b factor-c factor-d factor-e graded)")"
+    emit joint-ceilings "$(val_or_missing "$(_metric_row "$_log" \
+        'B∧C @ · A∧B∧C @ · A∧B∧C∧D @' b-and-c a-and-b-and-c a-and-b-and-c-and-d)")"
+    emit frontier "$(val_or_missing "$(_metric_row "$_log" \
+        '@ reachable by codegen breadth alone; @ if factor A were free' \
+        frontier frontier-if-a)")"
+    emit emit-predicate-worth "$(val_or_missing "$(_metric_row "$_log" \
+        '+@ TUs (B∧C − A∧B∧C)' emit-predicate-worth)")"
+    # The ladder head is the one key `gap.rs` OMITS rather than zeroing, when the
+    # writer's vocabulary already covers the workload. A closed ladder is a real
+    # and different state from "the next step reaches 0", so it gets its own
+    # sentence instead of a defaulted number.
+    _ladder_steps=$(p_metric "$_log" ladder-steps)
+    if [ "${_ladder_steps:-x}" = "0" ]; then
+        emit section-ladder "$(val_or_missing "$(_metric_row "$_log" \
+            '@ writer names cover all @ workload names — the ladder is CLOSED' \
+            writer-sections workload-sections)")"
+    else
+        emit section-ladder "$(val_or_missing "$(_metric_row "$_log" \
+            '@ writer names of @ workload names; @ steps left, next +@ → C = @' \
+            writer-sections workload-sections ladder-steps ladder-head ladder-head-c)")"
+    fi
 }
 
 # ---- --check : prove the parsers and the registry, with no toolchain ------------
@@ -321,6 +398,25 @@ if [ "$do_check" -eq 1 ]; then
     binding: 1515160 records, 420 nameless, 2 before the first row
 summary: 100 port Match, 0 mismatch, 110 not-implemented (of 210)
   geomean speedup over the 100 matched fixture(s): 653x faster than standalone c2
+  GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an interface, do not rename.
+    gap-metric graded 871
+    gap-metric factor-a 28
+    gap-metric factor-a-lo 27
+    gap-metric factor-b 338
+    gap-metric factor-c 169
+    gap-metric factor-d 8
+    gap-metric factor-e 2
+    gap-metric b-and-c 151
+    gap-metric a-and-b-and-c 27
+    gap-metric a-and-b-and-c-and-d 6
+    gap-metric frontier 19
+    gap-metric frontier-if-a 124
+    gap-metric emit-predicate-worth 124
+    gap-metric writer-sections 10
+    gap-metric workload-sections 13
+    gap-metric ladder-steps 3
+    gap-metric ladder-head .rdata$r
+    gap-metric ladder-head-c 590
 EOF
     # Known answers against the captured report above. These call the SAME
     # functions the collectors call — corrupt a parser and this goes red.
@@ -346,6 +442,107 @@ EOF
     # picked up the wrong line would read 25 here and the check would go red.
     check_parse p_ceilgate   '28 of 871 graded TUs'                               || fails=$((fails+1))
     check_parse p_binding    '1515160 records, 420 nameless, 2 before the first row' || fails=$((fails+1))
+
+    # ---- the GAP-METRICS rows (lane w-bc's block, wired by w-gr) --------------
+    #
+    # These five carry factor C, `B∧C`, `A∧B∧C` and the FRONTIER, which had never
+    # been in the generated block at all — they lived in hand-written prose and
+    # all of them went stale twice in one day. `B∧C` was published as 107,
+    # measured at `C = 114`, and is 151 at `C = 169`. A figure that goes stale
+    # because a *dependency* moved is the one a collector must own.
+    check_metric() { # <key> <expected>
+        _got=$(p_metric "$probe_log" "$1")
+        if [ "$_got" != "$2" ]; then
+            echo "CHECK FAIL: p_metric $1 gave '$_got', expected '$2'"
+            return 1
+        fi
+    }
+    check_metric factor-c            '169'      || fails=$((fails+1))
+    check_metric b-and-c             '151'      || fails=$((fails+1))
+    check_metric a-and-b-and-c       '27'       || fails=$((fails+1))
+    check_metric frontier            '19'       || fails=$((fails+1))
+    check_metric emit-predicate-worth '124'     || fails=$((fails+1))
+    # A non-numeric value, and one containing a `$` — `.rdata$r` is the current
+    # ladder head and a `sed` that let the shell touch it would come back empty.
+    check_metric ladder-head         '.rdata$r' || fails=$((fails+1))
+    # A key that is NOT in the block must read empty, so `val_or_missing` can
+    # turn it into NO-RESULT. If this returned "0" the closed-ladder case below
+    # would silently render "C = 0".
+    _got=$(p_metric "$probe_log" no-such-metric)
+    [ -z "$_got" ] || { echo "CHECK FAIL: absent gap-metric gave '$_got', expected empty"; fails=$((fails+1)); }
+    # A key that is a PREFIX of another must not match it: `factor-a` and
+    # `factor-a-lo` differ by 1 in the probe, so a loose pattern goes red here.
+    check_metric factor-a            '28'       || fails=$((fails+1))
+    check_metric factor-a-lo         '27'       || fails=$((fails+1))
+
+    # The composed rows. A row whose parts are all present renders fully; a row
+    # with ANY part missing must be empty, never a sentence with a hole in it.
+    _got=$(_metric_row "$probe_log" 'B∧C @ · A∧B∧C @ · A∧B∧C∧D @' \
+        b-and-c a-and-b-and-c a-and-b-and-c-and-d)
+    [ "$_got" = 'B∧C 151 · A∧B∧C 27 · A∧B∧C∧D 6' ] \
+        || { echo "CHECK FAIL: joint-ceilings row gave '$_got'"; fails=$((fails+1)); }
+    _got=$(_metric_row "$probe_log" '@ steps, next +@ → C = @' \
+        ladder-steps ladder-head ladder-head-c)
+    [ "$_got" = '3 steps, next +.rdata$r → C = 590' ] \
+        || { echo "CHECK FAIL: section-ladder row gave '$_got'"; fails=$((fails+1)); }
+    _got=$(_metric_row "$probe_log" 'a @ b @' b-and-c no-such-metric)
+    [ -z "$_got" ] \
+        || { echo "CHECK FAIL: a row with a missing part gave '$_got', expected empty"; fails=$((fails+1)); }
+    [ "$(val_or_missing "$_got")" = "NO-RESULT" ] \
+        || { echo "CHECK FAIL: an incomplete row did not render NO-RESULT"; fails=$((fails+1)); }
+
+    # **A CLOSED ladder must not render as `C = 0`.** `gap.rs` OMITS
+    # `ladder-head` when the writer's vocabulary covers the workload — board
+    # w-bc asserts that on its side — so a collector that defaulted the key to 0
+    # would report the best possible state as the worst one. Probe log with the
+    # head removed and `ladder-steps 0`:
+    closed_log="$work_dir/closed.log"
+    sed -e 's/^    gap-metric ladder-steps 3$/    gap-metric ladder-steps 0/' \
+        -e '/gap-metric ladder-head/d' "$probe_log" > "$closed_log"
+    [ -z "$(p_metric "$closed_log" ladder-head)" ] \
+        || { echo "CHECK FAIL: closed-ladder probe still has a ladder-head"; fails=$((fails+1)); }
+    _got=$(_metric_row "$closed_log" '@ steps, next +@ → C = @' \
+        ladder-steps ladder-head ladder-head-c)
+    [ -z "$_got" ] \
+        || { echo "CHECK FAIL: closed ladder rendered a step row '$_got'"; fails=$((fails+1)); }
+    _got=$(_metric_row "$closed_log" '@ writer names cover all @ workload names — the ladder is CLOSED' \
+        writer-sections workload-sections)
+    [ "$_got" = '10 writer names cover all 13 workload names — the ladder is CLOSED' ] \
+        || { echo "CHECK FAIL: closed-ladder row gave '$_got'"; fails=$((fails+1)); }
+
+    # ---- EVERY REGISTERED METRIC HAS A COLLECTOR ------------------------------
+    #
+    # **The direction that was missing, and it was missing for the whole life of
+    # this script.** `--check` proved the registry was well formed and the
+    # parsers hit; nothing proved a registered key is ever `emit`ted. Verified by
+    # mutation while writing this: renaming one collector's target
+    # (`emit frontier` → `emit frontier-XX`) left `--check` PASS, and the row
+    # would have rendered `NO-RESULT` in every future report — which reads as
+    # "this metric had nothing to say" and not as "nobody computed it".
+    #
+    # A text check on this file, deliberately: the alternative is running the
+    # collectors, which needs the toolchain and the dc3 tree, and `--check` is
+    # the toolchain-free half. Same shape as `lane_registry.rs` grepping
+    # `cross_sweep.py` for its registry read.
+    for _row in $(printf '%s\n' "$METRICS" | grep '[^[:space:]]' | awk '{print $1}'); do
+        if ! grep -qE "^ *emit +$_row +" "$0"; then
+            echo "CHECK FAIL: metric '$_row' is registered but nothing emits it —" \
+                 "it would render NO-RESULT forever and read as 'nothing to say'"
+            fails=$((fails+1))
+        fi
+    done
+
+    # …and every key `collect_gap`'s early-return paths report a reason for must
+    # be a registered metric, and vice versa for the gap half. The four paths
+    # share ONE list now (`GAP_KEYS`); this is what keeps it aligned with the
+    # registry after it stopped being four copies.
+    for _k in $GAP_KEYS; do
+        grep -q "^$_k  *yes " <<EOF || { echo "CHECK FAIL: GAP_KEYS names '$_k', not in METRICS"; fails=$((fails+1)); }
+$(printf '%s\n' "$METRICS" | grep '[^[:space:]]')
+EOF
+    done
+    _ngap=0; for _k in $GAP_KEYS; do _ngap=$((_ngap+1)); done
+    [ "$_ngap" -ge 15 ] || { echo "CHECK FAIL: GAP_KEYS has only $_ngap keys"; fails=$((fails+1)); }
 
     rm -rf "$work_dir"
     if [ "$fails" -eq 0 ]; then
