@@ -105,8 +105,19 @@ python3 "$repo_root/scripts/sweep_gen.py" "$out" "$repo_root/scripts/sweep.d"
 
 ls "$out"/*.cpp | sort > "$out/cases.txt"
 total=$(wc -l < "$out/cases.txt")
-if [ "$limit" -gt 0 ] 2>/dev/null; then
-    head -n "$limit" "$out/cases.txt" > "$out/cases.run"
+# `max-cases` is a STRIDE, not a prefix (board row Y-l, fixed 2026-08-04 by lane
+# w-shapes). It was `head -n N` over a FRAGMENT-NAME-SORTED list, which is the
+# same defect w-book3 fixed in `expr_sweep.sh` and w-order fixed in
+# `mode_cross.sh`, surviving here in a third implementation because nothing
+# enumerated this script. Measured then: `head -400` over the corpus reaches ONE
+# fragment of 56, and the case that carried board #232 is line 9,538 of 14,484 —
+# so every prefix worth taking was structurally blind to the only live wrong emit
+# this family of instruments has ever found. A biased sample of an enumeration
+# defeats the one property the enumeration has.
+stride=1
+if [ "$limit" -gt 0 ] 2>/dev/null && [ "$limit" -lt "$total" ]; then
+    stride=$(( (total + limit - 1) / limit ))
+    awk -v k="$stride" 'NR % k == 1 || k == 1' "$out/cases.txt" > "$out/cases.run"
 else
     cp "$out/cases.txt" "$out/cases.run"
 fi
@@ -127,7 +138,11 @@ if "$c2rs" gap --list "$out/list.txt" --flags-file "$flags" --limit 1 --jobs 1 2
     exit 0
 fi
 
-echo "grading $run of $total generated cases at [$(cat "$flags")]"
+if [ "$stride" -eq 1 ]; then
+    echo "grading $run of $total generated cases at [$(cat "$flags")]"
+else
+    echo "grading $run of $total generated cases at [$(cat "$flags")] (STRIDE $stride — a SAMPLE, not the corpus)"
+fi
 report="$out/report.txt"
 "$c2rs" gap --list "$out/list.txt" --flags-file "$flags" --jobs "${C2RS_JOBS:-8}" \
     --jsonl "$out/scan.jsonl" > "$report" 2>&1 || true
