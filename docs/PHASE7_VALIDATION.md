@@ -125,6 +125,33 @@ has not seen the truth or the first agent's prediction. That re-derivation is
 **in progress** (§6). Until it lands, V6 is unsettled and no axis verdict here
 is final.
 
+### 3a′. Evidence quality is not uniform across the two agents — note before quoting the table
+
+Re-verified by the lead directly from the raw observation files, not from the
+agents' prose:
+
+* **axes2's instrument controls all reproduce**: 35/35 cells compiled
+  (`cl_rc == 0`), `IMAGE_SCN_CNT_CODE` vs `.text`-name section selection agree
+  **35/35**, **zero** cells with non-COMDAT code sections, and
+  `code_leaders == textname_leaders` on **35/35**. The `a9_05`/`a9_06` minimal
+  pair reproduces exactly: 5 leaders vs 1, with `a9_09`'s positive control at 6.
+* **But axes2 has no machine-readable grades file.** `observed.json` carries
+  observations only; its five-way verdict counts exist **only in the prose of
+  `RESULTS.md`**, graded against predictions that are themselves prose in
+  `PREDICTIONS.md`. axes1, by contrast, committed `grades.json` alongside
+  `results.json`.
+
+So the axes2 half of the table above is **observation-verified but not
+grading-verified**: the lead can confirm what c2 emitted, and cannot
+mechanically confirm the predicted-vs-observed comparison without re-deriving
+the predictions. That is precisely what guard 1 is doing for the 10 axes2
+candidate violations (§6) — which means the guard is load-bearing here in a
+second way the prereg did not anticipate, and the 6 AMBIGUOUS and 19 MATCH
+cells in axes2 remain prose-only either way.
+
+This is recorded as a limitation of the evidence, not as a doubt about the
+agent. Nothing in the observations contradicts its account.
+
 ### 3a. The shape of the result, in one sentence
 
 Across 94 objects the evidence supports *"§2 is missing specific distinctions
