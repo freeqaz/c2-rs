@@ -1191,6 +1191,122 @@ impl GapReport {
         v
     }
 
+    /// **The counterfactual frontier**: what [`Self::factor_frontier`] would
+    /// count if factor **A** were true on every graded TU — i.e. if a perfect
+    /// emit-set model existed. Same clauses as the frontier with `f[0]` dropped.
+    ///
+    /// Board **#213** quotes this beside `B∧C` and both halves of that row's
+    /// arithmetic went stale together: it was published as `17 → 99` when
+    /// `A∧B∧C` was 25 and `B∧C` was 107. It is computed here rather than
+    /// subtracted by hand because *that hand-subtraction is exactly the defect
+    /// this function exists to prevent* — `99 − 17 == 107 − 25` only while
+    /// every `match`-or-`D∨E` TU inside `B∧C` also satisfies A, which is a
+    /// contingent fact about the corpus and not an identity.
+    pub fn factor_frontier_if_a(&self) -> usize {
+        self.graded()
+            .filter(|r| r.class != TuClass::Match)
+            .filter(|r| {
+                let f = Self::factors(r);
+                f[1] && f[2] && !Self::emit_path(&f)
+            })
+            .count()
+    }
+
+    /// **The TUs on which board #213's two arithmetics disagree**, by name.
+    ///
+    /// #213 states the value of a perfect emit predicate twice — as
+    /// `B∧C − A∧B∧C` and as `frontier-if-A − FRONTIER` — and published one
+    /// number for both (`+82`), because when it was written the two coincided.
+    /// They coincide exactly when **no** TU inside `B∧C` fails A while already
+    /// having an accepted route (D or E), and that is a contingent property of
+    /// the corpus. These are the TUs in the difference: reachable if the emit
+    /// set were modelled, but *not* additions to the codegen frontier, because
+    /// the port already accepts their contents.
+    ///
+    /// Returned by name rather than as a count, for the reason
+    /// [`Self::factor_all_tus`] gives: a count can agree by coincidence.
+    pub fn factor_projection_divergence(&self) -> Vec<&str> {
+        self.graded()
+            .filter(|r| r.class != TuClass::Match)
+            .filter(|r| {
+                let f = Self::factors(r);
+                !f[0] && f[1] && f[2] && Self::emit_path(&f)
+            })
+            .map(|r| r.src.as_str())
+            .collect()
+    }
+
+    /// **The stable machine-readable metric block**, one `key value` pair per
+    /// entry, for `scripts/status.sh` and any other collector.
+    ///
+    /// # Why this exists
+    ///
+    /// Every figure here was already printed by a `gap` scan, in prose, and
+    /// **three of them went stale twice in one day** (2026-08-04, lane
+    /// `w-book4`): factor `C`, `A∧B∧C` and the `FRONTIER` live only in
+    /// hand-written `STATUS.md`/`BOARD.md` paragraphs because the collector's
+    /// five `sed` recipes cover only the six `TuClass` counters. `B∧C` was
+    /// worse — it was published once, at `C = 114`, and then *silently
+    /// invalidated by a dependency* when the writer's section vocabulary grew.
+    /// A number a script cannot re-derive is a number that goes stale, and the
+    /// project navigated by a stale one for two merges.
+    ///
+    /// # The two rules this block follows
+    ///
+    /// * **Keys are stable and values are bare integers or bare tokens**, so a
+    ///   `sed`-based collector can take them without a parser. The keys are
+    ///   part of the interface: renaming one silently returns `NO-RESULT`,
+    ///   which is trap 5 (absence read as success) with the mask on.
+    /// * **Derived quantities are derived HERE.** `emit-predicate-worth` is
+    ///   `B∧C − A∧B∧C`; publishing the two halves and letting a reader subtract
+    ///   is precisely how `+82` survived both of its inputs moving.
+    ///
+    /// Pure over `results`, so the unit test below grades it with no toolchain.
+    pub fn metrics(&self) -> Vec<(&'static str, String)> {
+        let [a, b, c, d, e, a_lo, bc, abc, abcd, joint] = self.factor_counts();
+        let graded = self.graded().count();
+        let frontier = self.factor_frontier().len();
+        let ladder = self.section_ladder();
+        let mut m: Vec<(&'static str, String)> = vec![
+            ("tu-total", self.results.len().to_string()),
+            ("graded", graded.to_string()),
+            ("match", self.count(TuClass::Match).to_string()),
+            ("mismatch", self.count(TuClass::Mismatch).to_string()),
+            ("codegen-gap", self.count(TuClass::CodegenGap).to_string()),
+            ("vocab-gap", self.count(TuClass::VocabGap).to_string()),
+            ("port-error", self.count(TuClass::PortError).to_string()),
+            ("capture-fail", self.count(TuClass::CaptureFail).to_string()),
+            ("factor-a", a.to_string()),
+            ("factor-a-lo", a_lo.to_string()),
+            ("factor-b", b.to_string()),
+            ("factor-c", c.to_string()),
+            ("factor-d", d.to_string()),
+            ("factor-e", e.to_string()),
+            ("b-and-c", bc.to_string()),
+            ("a-and-b-and-c", abc.to_string()),
+            ("a-and-b-and-c-and-d", abcd.to_string()),
+            ("a-and-b-and-c-and-d-or-e", joint.to_string()),
+            ("frontier", frontier.to_string()),
+            ("frontier-if-a", self.factor_frontier_if_a().to_string()),
+            // The headline projection, derived here so it cannot be assembled
+            // from two independently-stale halves. Board #213.
+            ("emit-predicate-worth", bc.saturating_sub(abc).to_string()),
+            ("writer-sections", PORT_WRITER_SECTIONS.len().to_string()),
+            ("workload-sections", self.section_vocabulary().len().to_string()),
+            ("ladder-steps", ladder.len().to_string()),
+        ];
+        // The ladder head, when there is one. Emitted as two keys rather than
+        // one "name C=n" string so the numeric one stays `sed`-able, and
+        // omitted entirely when the vocabulary is closed — a collector that
+        // reads a missing key as 0 would then claim a closed ladder reaches
+        // C = 0, so absence must be absence.
+        if let Some((name, reach)) = ladder.first() {
+            m.push(("ladder-head", name.clone()));
+            m.push(("ladder-head-c", reach.to_string()));
+        }
+        m
+    }
+
     /// **The section vocabulary census**: every distinct section name in the
     /// workload with the number of objs carrying it, most common first.
     ///
@@ -2697,6 +2813,38 @@ fn print_factorization(report: &GapReport) {
     if frontier.len() > 40 {
         println!("\x20   … and {} more", frontier.len() - 40);
     }
+    // **What a perfect emit predicate is worth, stated as both of the
+    // quantities board #213 conflated.** #213 published `+82` for both because
+    // they coincided on that corpus; they are different questions and the
+    // difference is printed by name whenever it is nonempty.
+    let frontier_if_a = report.factor_frontier_if_a();
+    let div = report.factor_projection_divergence();
+    println!(
+        "\x20 A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU \
+         below is still gated on codegen that does not exist.\n\
+         \x20   as REACH:    B and C {bc} less A and B and C {abc} = +{}\n\
+         \x20   as FRONTIER: frontier-if-A {frontier_if_a} less FRONTIER {} = +{}",
+        bc.saturating_sub(abc),
+        frontier.len(),
+        frontier_if_a.saturating_sub(frontier.len()),
+    );
+    if div.is_empty() {
+        println!(
+            "\x20   the two agree ({}). They are still different questions — they coincide \
+             only while no TU inside B and C fails A with an acceptance path already \
+             covering it, which is a fact about this corpus.",
+            bc.saturating_sub(abc)
+        );
+    } else {
+        println!(
+            "\x20   THE TWO DISAGREE by {} — #213's single `+82` is refuted on this tree. The \
+             difference is exactly the TU(s) inside B and C that fail A and that the port \
+             ALREADY accepts (D or E), so modelling the emit set makes them reachable \
+             without adding them to the codegen frontier: {:?}",
+            div.len(),
+            div
+        );
+    }
     // …and the route: which name to teach next, by TUs brought into reach.
     let ladder = report.section_ladder();
     println!(
@@ -2708,6 +2856,18 @@ fn print_factorization(report: &GapReport) {
     for (name, reach) in &ladder {
         println!("\x20   +{name:<12} C = {reach:>5}   (+{})", reach - prev);
         prev = *reach;
+    }
+    // **The same figures again, in a form a collector can take.** See
+    // `GapReport::metrics` for why: C, `A∧B∧C` and the FRONTIER are printed by
+    // every scan and are still hand-copied into `STATUS.md`, and all three went
+    // stale twice on 2026-08-04. `B∧C` went stale by a *dependency* moving.
+    println!(
+        "\x20 GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an \
+         interface, do not rename. The projection `emit-predicate-worth` = \
+         `b-and-c` − `a-and-b-and-c` is derived HERE on purpose (board #213):"
+    );
+    for (k, v) in report.metrics() {
+        println!("\x20   gap-metric {k} {v}");
     }
 }
 
@@ -3433,6 +3593,65 @@ mod tests {
              per-function codegen breadth is the whole remaining distance — \
              `fenced.cpp` is one blocked function away and still excluded, because \
              widening the function class cannot reach a TU a whole-TU emitter owns"
+        );
+    }
+
+    /// **The machine-readable block publishes the four figures that went stale,
+    /// and derives the projection rather than leaving it to be subtracted.**
+    ///
+    /// The second assertion is the reason `factor_frontier_if_a` is a function
+    /// and not a note saying "add the delta to the frontier". Board #213
+    /// published `A∧B∧C 25 → 107` and `FRONTIER 17 → 99` as one number, `+82`,
+    /// because on that corpus the two deltas happened to coincide. They are
+    /// **not** the same quantity: they differ on any TU inside `B∧C` that fails
+    /// A and that some acceptance path already takes, and this fixture contains
+    /// one (`noa_accepted.cpp`). Had `+82` been derived rather than observed,
+    /// its two halves could not have drifted apart unnoticed.
+    #[test]
+    fn the_metric_block_derives_the_projection_instead_of_leaving_it_to_a_reader() {
+        let rep = mk_report(vec![
+            // Already byte-exact: inside A∧B∧C and inside B∧C, on no frontier.
+            mk_factors(TuClass::Match, "done.cpp", true, true, true, true, false),
+            // The frontier proper: A, B, C, no acceptance path.
+            mk_factors(TuClass::VocabGap, "codegen.cpp", true, true, true, false, false),
+            // Fails A only — reachable if the emit-set model were perfect.
+            mk_factors(TuClass::VocabGap, "noa.cpp", false, true, true, false, false),
+            // Fails A *and* is already accepted per-function. Inside B∧C, so it
+            // counts toward the projection; outside BOTH frontiers, so the
+            // frontier delta misses it. This is the divergence.
+            mk_factors(TuClass::CodegenGap, "noa_accepted.cpp", false, true, true, true, false),
+        ]);
+        let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+        let g = |k: &str| m.get(k).expect("stable key must be present").clone();
+        assert_eq!(g("graded"), "4");
+        assert_eq!(g("b-and-c"), "4", "B∧C is a per-TU joint, not a product");
+        assert_eq!(g("a-and-b-and-c"), "2");
+        assert_eq!(g("frontier"), "1");
+        assert_eq!(g("frontier-if-a"), "2");
+        assert_eq!(
+            g("emit-predicate-worth"),
+            "2",
+            "the projection is B∧C − A∧B∧C, derived here so it cannot be \
+             reassembled from two independently-stale halves"
+        );
+        assert_ne!(
+            g("emit-predicate-worth"),
+            "1",
+            "and it is NOT the frontier delta (1 here): the two coincide only \
+             while every accepted TU inside B∧C also satisfies A, which is a \
+             fact about a corpus and not an identity"
+        );
+        assert_eq!(
+            rep.factor_projection_divergence(),
+            vec!["noa_accepted.cpp"],
+            "and the divergence is reported BY NAME, so the disagreement points at \
+             a file instead of at an unexplained off-by-N"
+        );
+        assert!(
+            !m.contains_key("ladder-head"),
+            "a closed/empty ladder omits the head keys rather than publishing a \
+             zero — a collector reading a missing key as 0 would announce a \
+             ladder that reaches C = 0 (trap 5)"
         );
     }
 
