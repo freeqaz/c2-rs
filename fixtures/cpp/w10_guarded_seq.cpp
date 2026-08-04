@@ -94,6 +94,28 @@ void g5(int a, int b) { if (b != 0) a1(a); v1(); }
 void n2(int a) { if (a != 0) v0(); v1(); v2(); }
 void n3(int a) { if (a != 0) v0(); v1(); v2(); v1(); }
 
+// ---- the SIGNEDNESS of the guard's compare -------------------------------
+// Added AFTER `work/w-frame/sweep.py` was run on this rung's first draft, which
+// is the whole point of running it: over 3,418 coverage regions it found
+// exactly one EMISSION line this rung added with no coverage under the GRADED
+// profile — `seq_guard_emit`'s `encode_cmplwi` arm. Every cell above compares
+// an `int`, so the guard had been graded on `cmpwi` (2f……) and never once on
+// `cmplwi` (2b……). That is `branch_sense`'s shape exactly — written, passing a
+// unit test that compares the port's table to itself, never seen by the oracle
+// — in the rung that cites it. w-frame's row F-c, applied to its author's
+// successor and firing on the first try.
+//
+// `p1` is a pointer scrutinee, which is UNSIGNED because the operand's TYPE
+// triple says so and not because of the relational opcode (docs/CFG_SHAPE.md
+// §3.2). `u1` is an `unsigned` against a NON-ZERO literal, so the immediate
+// field of `cmplwi` is graded here too — the same cell W9 added for the
+// tail-call form and the one that would catch a `u > 7` -> `u >= 8`
+// canonicalization.
+
+void p1(void *p) { if (p != 0) v0(); v1(); }
+void u1(unsigned a) { if (a != 7) v0(); v1(); }
+void u2(unsigned a) { if (a >= 7) v0(); v1(); }
+
 // ---- the TAIL, crossed with a guard ---------------------------------------
 // `SeqTail` is orthogonal to the guard and is therefore varied separately: a
 // literal return (`li r3,k` after the last `bl`) and the last call's own value
