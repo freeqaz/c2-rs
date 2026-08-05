@@ -71,6 +71,7 @@ the header block this table is read from.
 | 2026-08-05 | w-divmod | [w-divmod](2026-08-05-w-divmod.md) | 1 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |
 | 2026-08-05 | w-divsplit | [w-divsplit](2026-08-05-w-divsplit.md) | 8 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |
 | 2026-08-05 | w-hash | [w-hash](2026-08-05-w-hash.md) | 2 | 711,426 → **711,427** (28.88%, +1). Emitted 39,176 → **39,177** |
+| 2026-08-05 | w-next | [w-next](2026-08-05-w-next.md) | 8 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-05 | w-rotate | [w-rotate](2026-08-05-w-rotate.md) | 12 | 711,427 / 2,463,393 unchanged (28.88 %), **+0** — this lane |
 | 2026-08-05 | w-sched2 | [w-sched2](2026-08-05-w-sched2.md) | 12 | 711,427 / 2,463,393 unchanged (28.88 %), **+0**. Emitted 39,177 |
 | 2026-08-05 | w-subclass | [w-subclass](2026-08-05-w-subclass.md) | 11 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane ships no codegen |
