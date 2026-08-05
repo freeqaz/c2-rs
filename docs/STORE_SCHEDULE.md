@@ -91,6 +91,29 @@ base, `addi` from a different base, `addi` from a formal, `rlwinm`, and
 order at every consumer position. A latency model cannot be indifferent to
 `mulli`.
 
+> ### ⚠ PARTLY REFUTED 2026-08-05 by lane `w-parse` — the kind is irrelevant only while a cell uses ONE kind
+>
+> Every cell of this grid and of `w-order2`'s builds all of a cell's producers
+> from a single kind; `w-order2`'s tier 5 crosses the kind *between* cells and
+> never *inside* one. **A cell that MIXES kinds can change the permutation:**
+>
+> ```
+> { m0=f0; m1=1;   m2=2;      m3=2;      }   li r11,2 · stw r4 · li r10,1 · stw r11,8 · stw r10,4  · stw r11,0Ch
+> { m0=f0; m1=1;   m2=&t1;    m3=&t1;    }   addi r11 · stw r4 · li r10,1 · stw r11,8 · stw r11,0Ch · stw r10,4
+> ```
+>
+> Same statements, same ranks, same registers, same producer slots — the
+> count-1 store moves one slot later. Counted: of **310** mixed-kind cells that
+> have an all-constant twin of the same shape, **16 differ from it, and every
+> one of the 16 is `L`-then-address (`LA`, `LR`)** — the arrangement where the
+> **lower**-ranked producer is a constant and the higher-ranked one is
+> register-derived. `AL`, `AA` and `AR` differ on **0 of 94**. The conclusion
+> above (*"not a latency model"*) is untouched — `mulli` is still free — but
+> *"completely irrelevant"* is not what the corpus supports. Board **#581**.
+>
+> It does **not** fire on `xboxheap`, whose kind row is flat across all six
+> pairs, so no lane could have found it from that TU.
+
 The corroborating negative is preregistered and was run first: a search over
 **13,104 list-scheduler configurations** (forward and backward × producer→
 consumer latency 1..6 × a lexicographic priority key built from up to three
@@ -233,6 +256,33 @@ producer's slot index were 3 rather than 2. **One instance. Not a rule.** It is
 the single remaining instruction-order fact between SCHED and a byte-exact
 `xboxheap`, and it needs its own grid (calls with a live range across them,
 crossed against the number of store producers).
+
+> ### ✔ SOLVED 2026-08-05 by lane `w-parse` — the grid exists and it is **716 / 716**
+>
+> `work/w-parse/grid3.py` is that grid: 716 bodies of the form
+> `M* f(...) { <store run>; h(f0); return this; }`, crossing the produced word,
+> the fillers and their identity, the base-symbol partition and the producer
+> count. Every one carries the `mr`; none carries an unclaimed token.
+>
+> > **THE RULE.** Let `P` be the number of distinct value producers and `u` the
+> > length of the **leading run of unproduced stores in the final store
+> > order**, capped at 2. `mr rN,r3` is emitted immediately before store slot
+> > **`m = P + u − 1`**, and before slot **1** when `P = 0`.
+>
+> **716 of 716.** `xboxheap` is `P = 2`, `u = 2`, `m = 3` — after `mSize`,
+> `mFreeHead` and `mCount`, which is where `c2` puts it. Board **#583**.
+>
+> Three weaker readings of the same quantity are refuted by the same grid:
+> `m = P + min(2, #unproduced) − 1` scores **520 / 716**, and taking `u` as the
+> unproduced stores among the first two slots (rather than the leading *run*)
+> scores **658 / 716**. The leading-run reading is also the correction
+> `docs/ORDER.md`'s layout clause needs — board **#584** — so the constant is
+> found twice.
+>
+> **The constructor is not special, and that is checked rather than assumed:**
+> `work/w-parse/probe1.cpp` compiles a real constructor beside the member
+> function above and the two bodies are byte-identical, all twenty
+> instructions, `mr` slot included.
 
 ---
 
