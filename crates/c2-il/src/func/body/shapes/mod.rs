@@ -41,6 +41,7 @@ pub(crate) mod mcall_chain;
 pub(crate) mod mcall_cmp;
 pub(crate) mod mcall_tail;
 pub(crate) mod params;
+pub(crate) mod ptr_walk_loop;
 pub(crate) mod this_binding;
 #[cfg(test)]
 pub(crate) mod testutil;
@@ -82,6 +83,8 @@ pub(crate) use leaf_store::*;
 pub(crate) use mcall_tail::*;
 #[allow(unused_imports)]
 pub(crate) use params::*;
+#[allow(unused_imports)]
+pub(crate) use ptr_walk_loop::*;
 #[allow(unused_imports)]
 pub(crate) use this_binding::*;
 

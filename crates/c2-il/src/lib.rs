@@ -43,6 +43,7 @@ pub use func::{
     OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,
     CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, FpTail, FramedCall, IlFunction, IlOp,
+    PtrWalkModLoop,
     Rel, SeqCall, SeqCmp, SeqEarlyReturn, SeqGuard, SeqTail,
     SlotArg, LINK_FIRST_SLOT,
     // W8 — the two-arm conditional tail call and its register schedule. The

@@ -22,6 +22,7 @@ use self::shapes::{
     try_parse_float_leaf,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
+    try_parse_ptr_walk_loop,
     try_parse_store_leaf, try_parse_store_run,
 };
 use super::readers::{
@@ -622,6 +623,10 @@ pub(crate) enum BodyShape {
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
+    /// **The pointer-walk accumulate loop** — the first body class here with a
+    /// **back edge**. See [`super::shapes::ptr_walk_loop`] for the whole
+    /// accept/refuse boundary and [`crate::func::PtrWalkModLoop`] for the fields.
+    PtrWalkModLoop(crate::func::PtrWalkModLoop),
     /// **W43** — `return ((unsigned)(P != 0) << SH) | C;`. See
     /// [`crate::func::CmpShiftOr`].
     CmpShiftOr(crate::func::CmpShiftOr),
@@ -1447,6 +1452,25 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                         return Err(b);
                     }
                     Err(None) => {}
+                }
+                // **The POINTER-WALK ACCUMULATE LOOP** — the first body class
+                // here with a back edge. It opens on the same `26 <local>` an
+                // assignment statement does (its first statement *is* one:
+                // `ret = 0`), so it is tried immediately ahead of the assignment
+                // parser and never reaches the member-call productions above,
+                // whose `BD` test already declined.
+                //
+                // Non-committal in the sense the whole ladder is: the
+                // recognizer works on its own cursor and returns `Err` on the
+                // very first byte that is not its grammar, so a body that
+                // declines still reports `try_parse_assign_body_detail`'s
+                // blocker and no census key moves. The *only* population that
+                // can reach an accept is a body whose statement list is exactly
+                // this loop, byte for byte, and `assign` refuses every one of
+                // those today at its first `3A`.
+                if let Ok(shape) = try_parse_ptr_walk_loop(seg, p, lo, locals) {
+                    disp("disp-ptr-walk-loop");
+                    return Ok(shape);
                 }
                 disp("disp-assign");
                 try_parse_assign_body_detail(seg, p, lo, locals, depth)

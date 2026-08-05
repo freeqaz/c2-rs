@@ -461,6 +461,16 @@ impl IlBundle {
                             Ok(BodyShape::EmptyCtorBaseDelegation { .. }) => {
                                 FnVerdict::InClass("empty-ctor-base")
                             }
+                            // The pointer-walk accumulate loop — its own bucket,
+                            // because it is the first in-class shape with a back
+                            // edge and the `cflow-loop` axis has to be able to
+                            // report an in-class row against it. A `cflow-loop`
+                            // reading among the accepted rows used to indict the
+                            // control-flow measure; from this rung on, exactly
+                            // one accepted key may carry it and this is that key.
+                            Ok(BodyShape::PtrWalkModLoop(_)) => {
+                                FnVerdict::InClass("ptr-walk-mod-loop")
+                            }
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             // Split from the integer tail call by the register
                             // FILE, and split again by whether the boundary
