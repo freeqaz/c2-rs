@@ -181,6 +181,30 @@ Board **#269**: a frontier TU at ≥4 independent unmodeled constructs is not a
 target. Reference objs from `work/w-frame/refobj.sh` at the workload's own flags,
 disassembled with `scripts/gt_dump.py`.
 
+### 4.0 `STATUS.md` trap 6 cleared FIRST, on both TUs, from the symbol table
+
+Trap 6: **the census names the CALLEE, not the function**, for any call-bearing
+body — so a price built on a census row can be a price of the wrong function.
+`negate_test.cpp` is `calls-2plus` and is therefore exactly the exposed shape.
+Checked rather than assumed, and it is clear both ways:
+
+* **The census never offered a name to inherit.** Both `negate_test` rows print
+  `(unnamed)`. Every name in §4.2 comes from the obj's own COMDAT symbols.
+* **The obj's defined functions are the two the source declares.** Filtering the
+  symbol table on `type=0x0020` *and* `sec != 0` — a definition, not an import —
+  leaves exactly `?FindNodeA@@…` (sec 5) and `?FindNodeB@@…` (sec 7), against two
+  80-byte `.text` COMDATs and two source functions. The other three function-typed
+  externals, `?FindFirst@@…`, `?FindLast@@…` and `_fltused`, are all **`sec=0`**,
+  i.e. undefined imports. Had trap 6 fired, the name in hand would have been
+  `?FindFirst` or `?FindLast`; neither is priced here, and both appear only as
+  call targets, which is what they are. **No constructor and no hidden fourth
+  function** — the failure that caught a sibling lane's target.
+* **`Sort.cpp` is `calls-0`, so trap 6 has no callee to substitute**, and the obj
+  agrees: one `.text` COMDAT, one defined function symbol
+  `?HashString@@YAHPBDH@Z`, which is byte-for-byte the name the census printed.
+
+Stated positively because "the names looked right" is not a check.
+
 ### 4.1 `src/system/math/Sort.cpp` — `?HashString@@YAHPBDH@Z`, ≥8
 
 `int HashString(const char *str, int i)` — 20 instructions, `.text` only, no
@@ -371,6 +395,30 @@ every lane — 118 at the eight `/O1`/`/Ox`/`/O2` lanes and their `/GR` variants
 > in `c2-il`, so the sweep's 16,298 graded cases say **nothing** about it. The
 > checks that do cover it are the three unit tests in §2 and the two full-workload
 > counterfactual scans in §3 — a green sweep here is a control, not evidence.
+
+### 5.1 Which instrument produced which number, and the two this rung did NOT use
+
+Boards **#194/#195** and this lane's sibling both land on the same hazard: several
+harness entry points silently compile at flags that are not the workload's, so a
+number can be true of a different compilation than the metric grades.
+
+* **`c2rs diff` was not used anywhere in this rung.** Its `DIFF_SPEC` is
+  `Spec::new("diff", &[])` — no options at all — and it hardcodes `/Ox`, which is
+  not the workload's `/O1 /Oi /EHsc /GR`.
+* **`c2rs compile` was not used either**, for the same reason (#195).
+* The reference objs in §4 come from **`work/w-frame/refobj.sh`**, which `set --`s
+  the flags straight out of `work/dc3-workload/flags.txt` so it cannot drift from
+  what `c2rs gap` grades.
+* The byte-exact grading comes from **`scripts/gate.sh`**, whose lane registry
+  includes the workload profile itself: lane `O1-Oi-EHsc-GR`, `/O1 /Oi /EHsc /GR`,
+  **245/245 graded, 118 match, 0 mismatch**.
+* `refobj.sh` resolves `compilers/` and `work/dc3-workload/` **relative to its own
+  repo root and never reads `C2RS_COMPILERS`/`C2RS_WIBO`**, so in a worktree it
+  prints `SKIP: toolchain absent (cl.exe)` and exits 3 — an absence that reads as
+  an environment fact and is really a path bug. Both were symlinked into this
+  worktree before the first call; the objs in §4 are real (953 B and 1,683 B, with
+  disassembled `.text` and a populated symbol table), which is the positive form of
+  that check.
 
 ## 6. Found and not taken
 
