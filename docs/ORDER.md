@@ -33,6 +33,16 @@ already `w-sched`'s.
 >   slots `0 … u-1`; every remaining producer is emitted **contiguously**
 >   immediately before store slot `u`.
 
+**One wording correction, 2026-08-05, lane `w-parse`, and it is a no-op here.**
+The layout's `u` is the length of the **leading run of unproduced stores in the
+FINAL store order**, capped at 2 — not `min(2, #unproduced)`. On this grid the
+two are the same number, because the floors put the unproduced stores in the
+head; on a run through more than one base symbol they are not, and
+`min(2, #unproduced)` puts a producer before a slot that holds a *produced*
+store. Measured: switching to the leading-run reading changes **nothing** on
+all 809 single-symbol cells and is what the `mr rN,r3` rule
+(`STORE_SCHEDULE.md` §5) needs. Board **#584**.
+
 That is the whole rule. The only free constant is the **2**, and it is rule
 1's own.
 
@@ -200,6 +210,30 @@ the page.
   Board **#564**. This upgrades `STORE_SCHEDULE.md` §5's *"one instance, not a
   rule"* into a **discriminated** fact with 8 controls on one side and 1 on the
   other.
+
+  > ### ✔ The AXIS is resolved 2026-08-05 by lane `w-parse` — and the REFUSAL stays
+  >
+  > Those eight controls differ from `xboxheap` on **four** axes, not one: the
+  > filler identity, the **per-producer kind** (this grid uses one kind for
+  > every producer of a cell), the base symbol, and whether the address
+  > producer's value *is* the second symbol. Crossing all four on
+  > `xboxheap`'s own word gives **36 cells whose answer depends on the symbol
+  > and on nothing else** — every kind pair and every filler mixture emits the
+  > same tokens at each symbol level (`docs/rungs/_2026-08-05-w-parse.md` §3).
+  >
+  > **And the axis is the reference BIND, not the offset range.** `p->e.eK = v`
+  > and `E& l = p->e; l.eK = v` write the same bytes through the same base
+  > register at the same displacement; **100 of 566 such pairs emit different
+  > instruction orders**. Board **#580**.
+  >
+  > **The refusal is still correct.** The *store* order generalises — a store
+  > of rank `j` is floored at `u + j` with `j` taken among **its own symbol
+  > group's** producers, plus the cross-symbol pin, which reduces to this rule
+  > exactly on all 809 single-symbol cells and reaches 91.9 % on multi-symbol
+  > ones. The **producer emission order** does not: rank order is
+  > **4459 / 5053** on multi-symbol cells and `w-alloc`'s first-consumer order
+  > is **822 / 857** on single-symbol ones, so **both candidates are refuted**
+  > and there is no rule to ship. Board **#582**.
 * **More than three distinct producers**, matching `ALLOC`'s domain. The order
   alone is exact there (822 of 822); the register is not, and a caller needs
   both.
