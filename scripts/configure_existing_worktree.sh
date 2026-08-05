@@ -154,7 +154,30 @@ cargo build --release -p c2-harness >/dev/null 2>&1 || {
     echo "ERROR: cargo build failed in the worktree." >&2
     exit 1
 }
-verdict="$("$WORKTREE_PATH/target/release/c2rs" census fixtures/cpp/w5_chain.cpp 2>&1 | head -n1)"
+# Capture the WHOLE census, then select the line — never `| head -n1`.
+#
+# That pipeline broke this script twice over and the failure was SILENT, which is
+# the part worth the comment (lane w-brfalse, board #443):
+#
+#  1. `head -n1` closes the pipe after one line, `c2rs` keeps writing, and Rust's
+#     `println!` PANICS on `EPIPE` — `failed printing to stdout: Broken pipe`,
+#     **exit 101**. With `set -euo pipefail` at the top of this file, the command
+#     substitution's 101 kills the script *before* the `case` below ever runs.
+#  2. The panic message went to stderr, `2>&1` merged stderr into the pipe, and
+#     the pipe was already closed — so the script died on exit 101 having printed
+#     **no error at all**, from a worktree whose toolchain was perfectly fine.
+#  3. Independently, `census` prints a `profile:` banner first now, so line 1 was
+#     never the verdict line any more even when the pipeline survived.
+#
+# Both failures are fail-CLOSED, which is the safe direction, but neither is
+# diagnosable from the output. `grep` over a captured string has no pipe to break
+# and does not care which line the verdict landed on.
+census_out="$("$WORKTREE_PATH/target/release/c2rs" census fixtures/cpp/w5_chain.cpp 2>&1)" || {
+    echo "ERROR: c2rs census exited non-zero in the worktree:" >&2
+    echo "$census_out" >&2
+    exit 1
+}
+verdict="$(printf '%s\n' "$census_out" | grep -m1 'functions in class' || true)"
 case "$verdict" in
     *"4/4 functions in class"*)
         echo "    OK: $verdict" ;;
