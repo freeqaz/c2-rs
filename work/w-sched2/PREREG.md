@@ -271,3 +271,112 @@ taken from w-rotate §10.1: **871 workspace tests / 27 targets**, **18/18 lanes,
 4,680 fixture-verdicts**, sweep **16,710 selected / 16,614 graded / 96
 ungraded**, cross **81,517 of 81,905 / 388 ungraded**, `status.sh --check` PASS,
 `board_audit.sh` 0/0/0. A *changed* number is a failure rather than a curiosity.
+
+---
+
+# ADDENDUM 1 — `2026-08-05`, committed BEFORE Grids E/F/G/H exist
+
+Grids A–D are run and their output is committed at `fc2a29e`
+(`work/w-sched2/out1.txt`, **51 reached / 47 graded / 0 capture failures / 0
+controls failed**). §2's rules scored on them as:
+
+| registered | on Grids A–D |
+|---|---:|
+| **P1** LAT2 `R == L+2` | **29 of 47** |
+| **P2** WAR `R == LRC+1` | **40 of 47** |
+| **P3** LEN `L == (N-1)/2` | **32 of 47** |
+| **P4** TEMP | **27 of 47** |
+| **P5** FAMILY-BLINDNESS | **11 of 11** multi-cell groups agree |
+
+**P1 and P3 are REFUTED and stay on the page as registered.** P3's refutation is
+the point of the six-length floor: it fits w-rotate's three published cells
+exactly and dies at `N = 5`. P2 survives its own pole — **16 of 16 on Grid C,
+the held-out `c-last`/`c-every` grid it was registered to be killed by** — and
+loses only on Grid A's `N >= 4`, which is where the bytes show c2 changing the
+**allocation** rather than the schedule.
+
+## A1.1 A coverage FAILURE in Grid B, reported not absorbed
+
+**Grid B did not reach the axis it was built for.** `emitted N != intended N` is
+**10 of 16**: the `mul` and `shift` chains constant-fold above three ops
+(`(r*3+5)*7` collapses), so both families are pinned at `N = 3` and the
+"3 families × 6 lengths" floor is met on **one** family, not three. The counter
+that says so was in the script before the run, which is the only reason this is
+a reported failure and not an invisible one. **Grid E exists to fix it**, with
+every chain a period-2 alternation against `^`, which does not fold.
+
+## A1.2 The vocabulary the rules below are stated in
+
+    a   chain words BEFORE the lbzu                       (a == L)
+    b   chain words strictly BETWEEN the lbzu and record  (R == a + 1 + b)
+    p   chain slot of the last chain word READING the physical register CHAR
+    pv  chain slot of the last chain word reading the char VALUE -- a SOURCE
+        fact, available before allocation, where `p` is not
+    M   number of PRODUCERS in the chain (board #644: a producer is not one
+        contiguous instruction; `addis`+`addi` for a >16-bit literal is ONE
+        producer split across other words, and this grid mints them on purpose)
+
+Two **regimes**, read off which register `lbzu` writes:
+
+    TWO    lbzu writes a scratch; CHAR stays live across it; entry form ROT
+    SAME   lbzu writes CHAR itself; one register; entry form JUMPIN (#773)
+
+## A1.3 The rules registered for the held-out grids
+
+> **S1 — LOAD SLOT.** `a = 1`; except `a = 0` when `N <= 2` and `p = 0`.
+> In particular **`a` is never greater than 1**: at most one chain word ever
+> precedes the induction load, whatever the body's length.
+
+> **S2-TWO — RECORD SLOT, two-register regime.** `R = max(p + 1, a + 2)` — the
+> earliest slot at which the carried char's register is dead *and* the load's
+> result has landed.
+
+> **S2-SAME — RECORD SLOT, same-register regime.** `R = N + 1`: the record form
+> is the **last word of the body**, immediately before the back edge.
+
+> **S3 — REGIME.** SAME iff `pv = 0` **and** `N >= 4`.
+
+> **S4-TWO — CHAIN TEMPS.** Read from the END, the chain's **producers** write
+> `r3`, then `r8`, then `CHAR` when the char is dead by then (`pv <= M - 3`) and
+> `r8` when it is not; every earlier producer writes `r8`.
+
+> **S4-SAME — CHAIN TEMPS.** The last producer writes `r3`; every other writes
+> `r9`.
+
+**Fitted on Grids A–D and labelled as such.** Only Grids E/F/G/H count as
+held-out, and the fitted grids' numbers are reported separately from them
+throughout.
+
+### The parts that are UNTESTED and are registered as untested
+
+* **S4-TWO's third-from-end term at `M >= 4` with `pv = 0` has no cell**, because
+  `pv = 0` at `N >= 4` goes to the SAME regime by S3. If S3 is right this cell
+  **cannot exist**, and that is a prediction, not an excuse: Grid F is built to
+  try to mint it and **must fail to**.
+* **S3's `N >= 4` threshold rests on ONE cell at `N = 3, pv = 0`** — `g-644-1`,
+  which is also the split-producer cell, so it is the single most suspect row in
+  the lane. **This is the single-cell trap by name**, and Grid E puts a clean
+  `N = 3, pv = 0` cell in five families to go and get the Nth cell.
+
+## A1.4 The held-out grids
+
+| grid | what it varies | which rule it can kill |
+|---|---|---|
+| **E** | `pv = 0` chains at `N = 1..8` in **five** operator families, fold-blocked | S1, S2, S3's threshold, S4, and Grid B's coverage failure |
+| **F** | the `pv` axis at every intermediate slot of a fixed-length chain | **S2-TWO across its whole range**, and S3's `pv = 0` half |
+| **G** | **#644**: split producers at several chain positions and lengths | whether S1/S2/S4 must be stated over PRODUCERS or over SLOTS. The script grades **both** and prints both counts |
+| **H** | the **signature** — a second formal — against the identical chain | whether the interleave is signature-blind, which w-hash showed the *register plan* is not |
+
+## A1.5 What still would not be a lowering
+
+Even at 100 % on all four grids this lane ships **no widening** unless the
+`crates/` change is itself graded byte-exact against real `c2`, and
+`work/w-sched2/` is told in advance what the parser costs:
+`PtrWalkModLoop` is a **fixed byte-pattern match on both the parse and the emit
+side** — `try_parse_ptr_walk_loop` consumes the accumulate with literal
+`eat_byte(0x04)` / `eat(&[0x04,0x02])` / `eat_byte(0x06)` calls at fixed cursor
+positions and the struct carries `acc_init` and `mul_k` and no operation list at
+all; the emitter hand-writes twenty words behind a `debug_assert_eq!(t.len(),
+80)`. **There is no vector of ops to parameterize.** World D of §3.1 — one more
+transcription called a lowering — is still declared a failure, and this
+paragraph is here so that "reachable" in the rung cannot quietly mean "cheap".
