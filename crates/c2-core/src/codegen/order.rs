@@ -111,7 +111,7 @@ pub const MAX_MODELLED_PRODUCERS: usize = 3;
 ///
 /// At two producers the store order is exact on 1867 fit and 1501 holdout
 /// cells with 0 wrong; at three it is 97 % and 88 % and the residual is not one
-/// family. `w-sym` measured both — `docs/SYMBOL.md` §4.
+/// family. `w-sym` measured both — `docs/SYMBOL.md` §2.3.
 pub const MAX_MULTISYM_PRODUCERS: usize = 2;
 
 /// `(id, use count, first-use source index)` per distinct producer, in
@@ -269,7 +269,7 @@ pub fn head_slots(stmts: &[Stmt]) -> usize {
 /// be relaxed. On one symbol nothing changes, because the relaxation never
 /// fires there — the enumerating test below still walks 5,460 runs to say so.
 /// On more than one symbol it is worth **86.9 % → 98.4 %**, and it is what
-/// makes the one-producer multi-symbol case exact (`docs/SYMBOL.md` §4.1).
+/// makes the one-producer multi-symbol case exact (`docs/SYMBOL.md` §2).
 pub fn store_order(stmts: &[Stmt]) -> Option<Vec<usize>> {
     let limit = if single_symbol(stmts) {
         MAX_MODELLED_PRODUCERS
