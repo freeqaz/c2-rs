@@ -186,6 +186,7 @@ pub(crate) fn try_parse_ptr_walk_loop(
     start: usize,
     lo: usize,
     locals: &[u32],
+    ptr_locals: &[u32],
 ) -> Result<BodyShape, Block> {
     let params = parse_formals(seg, lo)?;
     // **Exactly two formals, pointer first.** Everything about the emitted block
@@ -227,7 +228,11 @@ pub(crate) fn try_parse_ptr_walk_loop(
     }
     eat_opt_stmt_marker(seg, &mut p);
     let ptr_tok = eat_designator(seg, &mut p, "loop-ptr-designator")?;
-    if ptr_tok == acc_tok || !locals.contains(&ptr_tok) {
+    // **Positively** an automatic width-4 data pointer whose address is never
+    // taken — `.sy`'s own answer, not `.gl`'s absence. A file-scope pointer
+    // would make `u = str` and `u++` real memory writes, and folding them into
+    // an `mr` plus an `lbzu` would drop both.
+    if ptr_tok == acc_tok || !ptr_locals.contains(&ptr_tok) {
         return Err(blk(seg, p, "loop-ptr-not-a-local"));
     }
     // `B9 <src formal> <ptr TYPE>` — the initializer reads formal 0 and nothing

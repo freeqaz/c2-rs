@@ -1468,7 +1468,7 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // can reach an accept is a body whose statement list is exactly
                 // this loop, byte for byte, and `assign` refuses every one of
                 // those today at its first `3A`.
-                if let Ok(shape) = try_parse_ptr_walk_loop(seg, p, lo, locals) {
+                if let Ok(shape) = try_parse_ptr_walk_loop(seg, p, lo, locals, sy.ptr_locals) {
                     disp("disp-ptr-walk-loop");
                     return Ok(shape);
                 }
