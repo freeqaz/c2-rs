@@ -142,9 +142,60 @@ be **refused** rather than answered:
    one register free, two wanted.
 4. **A wide literal beside a narrow one** — `{a=100000; b=1;}`; `lis`+`ori` is
    two words for one producer and the layout indexes producers, not words.
+   *Registered prediction: NOT a boundary — this is in domain and must be
+   answered with the pair kept whole.*
 5. **`x_split`'s mask** (`nsw = 3`) — already refused by `layout_slots`; assert
    the parser gate refuses it *first*, so the refusal does not depend on the
    model being consulted.
+
+### §4.1 RESULT — counterexample 4 FIRED, and prediction 4 above is WRONG
+
+**Corrected on the page rather than replaced.** The prediction in item 4 is a
+**refutation of a premise this lane was given**, and it is the single most
+valuable result here. `work/w-wire/boundary_probe.py`, real `c2`, identical at
+`/O1` and `/Ox`:
+
+```text
+  { a=100000; b=1;      }   lis r11 ; li r10 ; ori r11 ; stw r10,4(r3) ; stw r11,0(r3)
+  { a=100000; b=200000; }   lis r11 ; lis r10 ; ori r11 ; ori r10 ; stw r11,0 ; stw r10,4
+```
+
+Two independent failures at once:
+
+1. **A producer is not one contiguous instruction.** c2 *interleaves* the
+   halves of two wide loads (`lis lis ori ori`), so `layout_slots` — which
+   places producers by index — cannot express the sequence at all.
+2. **`store_order` is REFUTED on the first cell**: c2 emits stores `[1, 0]`
+   where the model says source order. Every ORDER/ALLOC grid used single-word
+   `li` values, so a **two-word producer is outside the population the models
+   were measured on** — and nothing in `docs/ORDER.md` or `docs/ALLOC.md` says
+   so, because nobody had asked.
+
+Had the widening shipped without this probe it would have been a **live wrong
+emit** — board #232's exact shape. `scheduled_gpr_run_text` now refuses any run
+with **more than one producer** where any literal needs more than one word;
+a run whose *only* producer is wide is unaffected and stays in class, which the
+test asserts in the same breath so the gate cannot over-refuse.
+
+### §4.2 RESULT — the `/Ox` agreement is a property of the DOMAIN, not of store runs
+
+H1 read **18 of 18** inside the modelled region. The boundary probe compiled
+`{a=1;b=2;c=3;d=4}` — four producers, board #541 — and the two modes
+**DISAGREE**:
+
+```text
+  /O1   li r11 ; li r10 ; stw r11,0 ; li r9 ; li r11 ; stw r10,4 ; stw r9,8 ; stw r11,12
+  /Ox   li r11 ; li r10 ; li r9 ; stw r11,0 ; li r8 ; stw r10,4 ; stw r9,8 ; stw r8,12
+```
+
+`/O1` **reuses r11** after its store frees it; `/Ox` takes a fresh **r8**. So
+H1's headline must be quoted with its scope: *the modes agree everywhere the
+port emits, and are known to differ one step outside it.* That is a stronger
+reason to keep `MAX_MODELLED_PRODUCERS = 3` than the one #541 recorded.
+
+The pool boundary (item 3) is a measured regime too: with 8 formals c2 emits
+`li r11 ; li r10 ; …`, **reusing r10 — a formal's own register** — which is the
+liveness model `docs/ALLOC.md` names as open. The port refuses.
 
 ## §5 H1/H2 result — the mode probe, model-free
 

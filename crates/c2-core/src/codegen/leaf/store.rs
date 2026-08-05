@@ -20,7 +20,7 @@ use crate::codegen::encode::{
 use crate::codegen::alloc;
 use crate::codegen::order;
 use crate::codegen::schedule;
-use crate::codegen::select::{ARG_REGS, OptMode, SCRATCH_REG, out_of_class};
+use crate::codegen::select::{ARG_REGS, OptMode, SCRATCH_REG, fits_i16, out_of_class};
 use crate::codegen::straightline::emit_load_imm;
 
 // `encode_std` has TWO independent witnesses and exactly one definition, in
@@ -67,6 +67,296 @@ use crate::codegen::straightline::emit_load_imm;
 ///
 /// `func.params` maps both tokens to their incoming argument registers by
 /// declaration order, with a member function's `this` already at index 0.
+/// One statement of a **value-simple GPR store run**: a store whose value is
+/// either a formal already live in a register or a literal this run has to
+/// materialise. The two cases are exactly [`schedule::Stmt`]'s `producer:
+/// None` / `Some(id)`, which is why this is the unit the models speak about.
+struct SimpleStore {
+    base_tok: u32,
+    base_reg: u8,
+    off: i32,
+    width: u8,
+    /// `Some(k)` — a literal, produced by an `li`/`lis`+`ori` this run emits;
+    /// `None` — a formal, already live in `src`.
+    lit: Option<i32>,
+    /// The register the value comes out of. For a literal this is filled in
+    /// from [`alloc::allocate`] after the whole run is parsed.
+    src: u8,
+}
+
+/// Parse the whole `ops` stream as value-simple GPR groups, or `None`.
+///
+/// **Whole stream, not a prefix.** A residue that is not such a group — a
+/// load-valued store, an FP store, anything else — makes this decline entirely
+/// so the walk in [`store_leaf_text`] keeps its behaviour. `GAPS.md` §6: the
+/// empty prefix matches everything, and the empty case is never the one the
+/// rung is about, so the emptiness check is the caller's and precedes this.
+fn parse_simple_gpr_run(
+    func: &IlFunction,
+    reg_of: &dyn Fn(u32) -> Option<u8>,
+) -> Option<Vec<SimpleStore>> {
+    let mut out: Vec<SimpleStore> = Vec::new();
+    let mut walk = func.ops.as_slice();
+    while let [IlOp::Load(b), v, IlOp::StoreInd { off, width }, tail @ ..] = walk {
+        let (lit, src) = match v {
+            IlOp::Load(t) => (None, reg_of(*t)?),
+            IlOp::Lit(k) => (Some(*k), SCRATCH_REG),
+            _ => return None,
+        };
+        out.push(SimpleStore {
+            base_tok: *b,
+            base_reg: reg_of(*b)?,
+            off: *off,
+            width: *width,
+            lit,
+            src,
+        });
+        walk = tail;
+    }
+    if walk.is_empty() && !out.is_empty() {
+        Some(out)
+    } else {
+        None
+    }
+}
+
+/// **The SCHEDULED store run** — the one place under `crates/` where
+/// [`order::schedule`] decides emitted order, and [`alloc::allocate`] decides
+/// the register.
+///
+/// Six lanes modelled this floor and every one shipped as a guard that
+/// *refused*: `leaf_store` emitted source order and asked
+/// [`order::producers_lead`] only for permission to decline. This function is
+/// the wiring. `None` means "not this shape, walk it the old way"; `Some(Err)`
+/// is an honest refusal.
+///
+/// # The rule, and where each half comes from
+///
+/// * **Which store goes where** — [`order::store_order`], `docs/ORDER.md`:
+///   rank the distinct producers by *(use count descending, first-use
+///   ascending)*, let `u = min(2, #unproduced)`, and a store whose producer has
+///   rank `j` may not occupy position `< u + j`. 561/561 holdout.
+/// * **Which producer is emitted first** — [`order::producer_order`], #582.
+/// * **Where the producers sit among the stores** — [`order::layout_slots`],
+///   #602: producer `i` immediately before store slot `min(i, u)`, with `u` the
+///   *leading run* of unproduced stores in the FINAL order (#584, not
+///   [`order::head_slots`]). 24,891/24,891 holdout, gated on `nsw ≤ 2`.
+/// * **Which register each producer takes** — [`alloc::allocate`],
+///   `docs/ALLOC.md`: use count descending, constants tying by **reverse**
+///   source order, handed `r11`, `r10`, `r9` … descending. 250/250 holdout.
+///
+/// [`order::schedule`] composes the first three; this function composes that
+/// with the fourth.
+///
+/// # This is additive-REFUSAL, and the distinction is not blurred
+///
+/// Every reading here is a **refusal** when a model answers `None`: the run is
+/// outside the region the model is exact on, so it is declined rather than
+/// answered at 98.6 %. Board **#621** measured a rival layout clause that
+/// answers the *whole* population at 99.44 % fit / 97.30 % holdout and
+/// deliberately did not ship it — 99 % is a rule with a residual, and an
+/// emitter fed a 99 % layout emits wrong bytes on the other 1 %.
+///
+/// **This function cannot accept anything the parser did not already hand it.**
+/// A widening of what *reaches* here is the parser's, is additive-ACCEPT, and
+/// is stated as such where it lives (`c2_il`'s `try_parse_store_run`).
+///
+/// # `/O1` and `/Ox`
+///
+/// Takes no `OptMode`, and that is measured rather than assumed. Every grid
+/// behind the four models was compiled at the WORKLOAD's `/O1 /Oi /EHsc`; the
+/// fixture gate runs `/Ox`. `work/w-wire/mode_probe.py` compares the two modes'
+/// emitted permutations to each other over 18 cases spanning both killer-cell
+/// families, the interleaved layouts and the pool boundary: **18 of 18 the
+/// same**. Board **#641**.
+fn scheduled_gpr_run_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>> {
+    let reg_of = |tok: u32| -> Option<u8> {
+        func.params
+            .iter()
+            .position(|&t| t == tok)
+            .filter(|&i| i < ARG_REGS.len())
+            .map(|i| ARG_REGS[i])
+    };
+    let mut run = parse_simple_gpr_run(func, &reg_of)?;
+
+    // Displacement and width are checked BEFORE any model is consulted, so an
+    // unencodable store refuses on its own terms rather than through a `None`
+    // that would read as "outside the schedule's domain".
+    for s in &run {
+        if i16::try_from(s.off).is_err() {
+            return Some(Err(out_of_class(
+                "store offset exceeds a 16-bit displacement",
+            )));
+        }
+        match s.width {
+            1 | 2 | 4 => {}
+            // `std` is DS-form: an offset that is not a multiple of 4 cannot be
+            // encoded at all.
+            8 if s.off % 4 == 0 => {}
+            8 => {
+                return Some(Err(out_of_class(
+                    "8-byte store whose offset is not a multiple of 4 (std is DS-form)",
+                )))
+            }
+            _ => return Some(Err(out_of_class("store of an unmodeled width"))),
+        }
+    }
+
+    // **No two stores may write overlapping bytes of the same base object.**
+    // c2 eliminates the dead one — `{ s->a=u; s->a=w; }` is a *single*
+    // `stw r5,0(r3)` — so emitting both is wrong bytes. Keyed on the base
+    // TOKEN, because two different tokens may alias at run time and c2 keeps
+    // both stores. Checked here rather than after emission: the schedule may
+    // reorder the pair, and a check that ran over the emitted order would be
+    // asking a different question than the parser's.
+    for (i, a) in run.iter().enumerate() {
+        for b in &run[i + 1..] {
+            if a.base_tok == b.base_tok
+                && a.off < b.off + i32::from(b.width)
+                && b.off < a.off + i32::from(a.width)
+            {
+                return Some(Err(out_of_class(
+                    "two stores overlapping the same base object",
+                )));
+            }
+        }
+    }
+
+    let stmts: Vec<schedule::Stmt> = run
+        .iter()
+        .map(|s| schedule::Stmt {
+            // Equal constants are CSE'd to one `li`, so equal `k` is one id.
+            // `as u32` is a bijection on `i32`, so distinct literals stay
+            // distinct.
+            producer: s.lit.map(|k| k as u32),
+            base: s.base_tok,
+        })
+        .collect();
+
+    let Some(slots) = order::schedule(&stmts) else {
+        return Some(Err(out_of_class(
+            "store run outside the schedule's domain (codegen::order)",
+        )));
+    };
+
+    // The register per producer. A run with NO producer needs none —
+    // `alloc::allocate` refuses an empty list by contract, and asking it would
+    // turn an all-formal run into a refusal.
+    let mut producers: Vec<alloc::Producer> = Vec::new();
+    for (i, s) in stmts.iter().enumerate() {
+        if let Some(id) = s.producer {
+            match producers.iter_mut().find(|p| p.id == id) {
+                Some(p) => p.uses += 1,
+                None => producers.push(alloc::Producer {
+                    id,
+                    // Every producer that reaches here is a literal, so
+                    // `li`/`lis`+`ori` — it reads no register.
+                    kind: alloc::ProducerKind::Constant,
+                    uses: 1,
+                    first: i,
+                }),
+            }
+        }
+    }
+    // **A MULTI-WORD literal may not sit beside another producer.** This is a
+    // constructed counterexample that FIRED — `docs/rungs/_2026-08-05-w-wire-prereg.md`
+    // §4 registered it expecting a non-boundary, and real `c2` refuted that in
+    // two independent ways at once (`work/w-wire/boundary_probe.py`, both
+    // modes):
+    //
+    // ```text
+    //   { a=100000; b=1; }        lis r11 ; li r10 ; ori r11 ; stw r10,4 ; stw r11,0
+    //   { a=100000; b=200000; }   lis r11 ; lis r10 ; ori r11 ; ori r10 ; stw r11,0 ; stw r10,4
+    // ```
+    //
+    // 1. the `lis`/`ori` pair is **SPLIT** — c2 interleaves the halves of two
+    //    wide loads, so a producer is not one contiguous instruction and
+    //    `layout_slots`, which indexes producers, cannot place it;
+    // 2. the first cell's **STORE ORDER is `[1, 0]`**, where `store_order` says
+    //    source order. ORDER is fitted on single-word `li` values only, and a
+    //    two-word producer is outside the population it was measured on.
+    //
+    // A run whose ONLY producer is wide is unaffected and stays in class —
+    // `{ a=100000; b=100000; }` is `lis ; ori ; stw ; stw`, one live range with
+    // nothing to interleave with, and it is a cell the parser already admits.
+    // `fits_i16` is `emit_load_imm`'s own predicate, shared rather than
+    // restated: the gate has to mean "more than one word", and that is the one
+    // place which decides it.
+    if producers.len() > 1
+        && run.iter().any(|s| matches!(s.lit, Some(k) if !fits_i16(k)))
+    {
+        return Some(Err(out_of_class(
+            "multi-word literal beside another producer (its halves interleave)",
+        )));
+    }
+    if !producers.is_empty() {
+        // The pool starts above the live-in formals: `params[0]` is r3, so the
+        // first free register is r(3 + len).
+        let pool_floor = 3u8.saturating_add(func.params.len().min(9) as u8);
+        let Some(assign) = alloc::allocate(&producers, pool_floor) else {
+            return Some(Err(out_of_class(
+                "store run outside the allocator's domain (codegen::alloc)",
+            )));
+        };
+        for s in run.iter_mut() {
+            if let Some(k) = s.lit {
+                s.src = assign
+                    .iter()
+                    .find(|&&(id, _)| id == k as u32)
+                    .map(|&(_, r)| r)
+                    // `allocate` returns one pair per distinct producer and the
+                    // producers were built from these same statements, so this
+                    // is unreachable; refusing beats an index panic.
+                    .unwrap_or(0);
+                if s.src == 0 {
+                    return Some(Err(out_of_class(
+                        "store run whose producer took no register (codegen::alloc)",
+                    )));
+                }
+            }
+        }
+    }
+
+    let mut text = Vec::with_capacity(4 * (slots.len() + 1));
+    for slot in &slots {
+        match *slot {
+            schedule::Slot::Producer(id) => {
+                // The statement this producer materialises for — any of them,
+                // they share the value and (by `allocate`) the register.
+                let Some(s) = run.iter().find(|s| s.lit.map(|k| k as u32) == Some(id)) else {
+                    return Some(Err(out_of_class(
+                        "schedule named a producer no statement consumes",
+                    )));
+                };
+                if let Err(e) = emit_load_imm(&mut text, s.src, s.lit.unwrap_or(0)) {
+                    return Some(Err(e));
+                }
+            }
+            schedule::Slot::Store(k) => {
+                let Some(s) = run.get(k) else {
+                    return Some(Err(out_of_class("schedule named a store out of range")));
+                };
+                // Checked above, so these cannot fail; `else` refuses rather
+                // than truncating a displacement.
+                let Ok(d) = i16::try_from(s.off) else {
+                    return Some(Err(out_of_class(
+                        "store offset exceeds a 16-bit displacement",
+                    )));
+                };
+                match s.width {
+                    1 => text.extend_from_slice(&encode_stb(s.src, s.base_reg, d)),
+                    2 => text.extend_from_slice(&encode_sth(s.src, s.base_reg, d)),
+                    4 => text.extend_from_slice(&encode_stw(s.src, s.base_reg, d)),
+                    8 => text.extend_from_slice(&encode_std(s.src, s.base_reg, d)),
+                    _ => return Some(Err(out_of_class("store of an unmodeled width"))),
+                }
+            }
+        }
+    }
+    text.extend_from_slice(&encode_blr());
+    Some(Ok(text))
+}
+
 pub fn store_leaf_text(
     func: &IlFunction,
     mode: OptMode,
@@ -98,187 +388,18 @@ pub fn store_leaf_text(
     if func.ops.is_empty() {
         return None;
     }
+    // **The SCHEDULED path.** When the whole `ops` stream is value-simple GPR
+    // groups — every group a `[Load(base), Lit(k) | Load(formal), StoreInd]` —
+    // the emitted sequence is `codegen::order`'s and `codegen::alloc`'s, not
+    // source order. See [`scheduled_gpr_run_text`]. Anything else (a
+    // load-valued group, an FP group, a residue) falls through to the walk
+    // below unchanged.
+    if let Some(t) = scheduled_gpr_run_text(func) {
+        return Some(t);
+    }
     let mut rest = func.ops.as_slice();
     let mut text = Vec::with_capacity(16);
     let mut written: Vec<(u32, i32, u8)> = Vec::new();
-    // **The one-value all-literal run: ONE materialization, hoisted, then the
-    // stores in source order.** The parser
-    // ([`c2_il::try_parse_store_run`]) admits a multi-store literal run only when
-    // every statement stores the *same* value, and this is the matching emitter
-    // half: the `li` (or `lis`+`ori`) is emitted once, before any store, and the
-    // per-group arm below then finds `SCRATCH_REG` already loaded. Detected off
-    // the whole `ops` stream rather than statement by statement, because "every
-    // statement in the run" is not a property any one group can see.
-    //
-    // MEASURED — `{ a=9; b=9; c=9; }` is `li r11,9 ; stw ; stw ; stw` at both
-    // `/O1` and `/Ox`, and `{ a=100000; b=100000; }` is `lis ; ori ; stw ; stw`
-    // with the pair *whole* at the top. Neither mode descends the scratch
-    // register here: there is one value, so there is one live range.
-    let hoisted_lit: Option<i32> = {
-        let mut k0: Option<i32> = None;
-        let mut ok = !func.ops.is_empty();
-        let mut walk = func.ops.as_slice();
-        while ok {
-            match walk {
-                [] => break,
-                [IlOp::Load(_), IlOp::Lit(k), IlOp::StoreInd { .. }, tail @ ..] => {
-                    if *k0.get_or_insert(*k) != *k {
-                        ok = false;
-                    }
-                    walk = tail;
-                }
-                _ => ok = false,
-            }
-        }
-        // A run of ONE keeps the old in-group emission: it is the shape
-        // `try_parse_store_leaf` has always produced and its bytes are already
-        // graded. Only the multi-store case needs the hoist.
-        if ok && func.ops.len() > 3 {
-            k0
-        } else {
-            None
-        }
-    };
-    // **The SCHEDULE guard** (`codegen::schedule`, `docs/STORE_SCHEDULE.md`).
-    //
-    // Everything below emits the stores in SOURCE order. That is correct for
-    // every shape the parser admits today — an all-formal run has no producer
-    // at all, and an all-same-literal run has one producer shared by every
-    // store, so `schedule` returns source order in both cases — and it is
-    // WRONG the moment the parser admits a run that mixes a produced value
-    // with an unproduced one, because real c2 then moves the produced store to
-    // store position 2. Measured: `{a=x; b=0; c=y; d=z}` is
-    // `li ; a ; c ; b ; d`, not `li ; a ; b ; c ; d`.
-    //
-    // So this is a positive check with a *count*, not an assumption: build the
-    // statement list, ask the schedule, and refuse if it disagrees with the
-    // order this function is about to emit. Board **#232** is the precedent
-    // that makes this worth a dozen lines — a parser widening turned a clean
-    // refusal into a live wrong emit that survived 255 commits.
-    {
-        let mut stmts: Vec<schedule::Stmt> = Vec::new();
-        let mut walk = func.ops.as_slice();
-        while let [IlOp::Load(b), v, IlOp::StoreInd { .. }, tail @ ..] = walk {
-            let producer = match v {
-                // A formal's register: already live, nothing materialises it.
-                IlOp::Load(_) => None,
-                // Equal constants are CSE'd to one `li`, so equal `k` is one id.
-                IlOp::Lit(k) => Some(*k as u32),
-                _ => break,
-            };
-            stmts.push(schedule::Stmt { producer, base: *b });
-            walk = tail;
-        }
-        if walk.is_empty() && !stmts.is_empty() && !schedule::is_source_order(&stmts) {
-            return Some(Err(out_of_class(
-                "store run whose schedule is not source order (codegen::schedule)",
-            )));
-        }
-        // **The ORDER guard** (`codegen::order`, `docs/ORDER.md`).
-        //
-        // `schedule` above is rule 1, which says only what may NOT sit in the
-        // two head slots and is silent on what FILLS them when every store of
-        // the run is produced. `order` is the rule that covers both, and it
-        // refuses more than rule 1 does: a run of two producers whose count-1
-        // value is stored first is `P1 P0 S1 S0 S2`, not source order, and
-        // rule 1 calls that source order because every store is blocked and
-        // its fallback shrugs.
-        //
-        // Additive on purpose. `Some(false)` is a refusal; `None` means the
-        // run is outside `order`'s domain — more than one base symbol, or more
-        // than three producers — and the `schedule` guard above has already
-        // had its say. Inert today by construction: the parser admits an
-        // all-unproduced run and an all-one-producer run, and `order` returns
-        // source order for both — including through **more than one base
-        // symbol**, which `order` models since `w-sym` (board #600) instead of
-        // returning `None`. That widening is **additive**: the only reading
-        // here is `Some(false)`, so a new answer can add a refusal and can
-        // never turn one into an accept. Measured: the workload scan is
-        // identical to baseline in every factor, match 9 / mismatch 0.
-        if walk.is_empty() && order::is_source_order(&stmts) == Some(false) {
-            return Some(Err(out_of_class(
-                "store run whose order is not source order (codegen::order)",
-            )));
-        }
-        // **The LAYOUT guard** (`codegen::order::producers_lead`, board #602).
-        //
-        // The two guards above settle *which store goes where* and *which
-        // producer is emitted first*. Neither says where the producers sit
-        // among the stores, and this file answers that by hoisting its one
-        // producer ahead of the whole run (`hoisted_lit`, below). ORDER now
-        // models the layout, so this asks it and refuses on disagreement.
-        //
-        // **Additive-refusal by construction**, the same sentence the ORDER
-        // guard carries: `Some(false)` is the only reading acted on here, so a
-        // new answer from `layout_slots` can add a refusal and can never turn
-        // one into an accept. `None` means the run crosses more symbol-group
-        // boundaries than `MAX_SYMBOL_CROSSINGS` — the gate that makes the
-        // layout exact rather than 98.6 % correct — and the guards above have
-        // already had their say.
-        //
-        // Inert today by construction: `hoisted_lit` requires every store of
-        // the run to take the SAME literal, so the run has no unproduced store,
-        // the leading run `u` is 0, and ORDER puts the producer at slot 0 —
-        // which is where the hoist puts it. Board **#232** is why it is here
-        // anyway: a parser widening that admits a produced store beside an
-        // unproduced one moves the producer off slot 0 and this file would
-        // otherwise emit it in the wrong place.
-        if walk.is_empty() && order::producers_lead(&stmts) == Some(false) {
-            return Some(Err(out_of_class(
-                "store run whose producers do not lead it (codegen::order layout)",
-            )));
-        }
-        // **The ALLOCATION guard** (`codegen::alloc`, `docs/ALLOC.md`).
-        //
-        // The schedule guard above settles the ORDER; this settles the
-        // REGISTER, which `docs/STORE_SCHEDULE.md` §4 named as the open second
-        // input. Everything below puts every materialised value in
-        // `SCRATCH_REG` (r11). ALLOC confirms that is right for a run with
-        // exactly ONE producer — which is every run the parser admits today,
-        // because `leaf_store.rs` accepts a multi-store literal run only when
-        // every statement stores the same value — and says it is WRONG for a
-        // run with two or more: `{a=1;b=2;}` is `li r11,1 ; li r10,2`, and
-        // `{a=1;b=2;c=1;d=2;}` puts the FIRST value in r10 and the second in
-        // r11.
-        //
-        // So this too is a positive check: build the producer list, ask the
-        // allocator, and refuse unless it says r11 for all of them. Inert
-        // today by construction; the point is that a widening of the parser
-        // cannot silently turn a clean refusal into a wrong register. Board
-        // **#232** is the precedent — a parser widening that became a live
-        // wrong emit and survived 255 commits.
-        if walk.is_empty() && !stmts.is_empty() {
-            let mut producers: Vec<alloc::Producer> = Vec::new();
-            for (i, s) in stmts.iter().enumerate() {
-                if let Some(id) = s.producer {
-                    match producers.iter_mut().find(|p| p.id == id) {
-                        Some(p) => p.uses += 1,
-                        None => producers.push(alloc::Producer {
-                            id,
-                            // every producer the parser admits here is a
-                            // literal, so `li`/`lis`+`ori` — no register read.
-                            kind: alloc::ProducerKind::Constant,
-                            uses: 1,
-                            first: i,
-                        }),
-                    }
-                }
-            }
-            // The pool starts above the live-in formals: `params[0]` is r3, so
-            // the first free register is r(3 + len).
-            let pool_floor = 3u8.saturating_add(func.params.len().min(9) as u8);
-            if !producers.is_empty() && !alloc::all_in(&producers, pool_floor, SCRATCH_REG) {
-                return Some(Err(out_of_class(
-                    "store run whose allocation is not all-r11 (codegen::alloc)",
-                )));
-            }
-        }
-    }
-    if let Some(k) = hoisted_lit {
-        if let Err(e) = emit_load_imm(&mut text, SCRATCH_REG, k) {
-            return Some(Err(e));
-        }
-    }
     // How many store GROUPS have been emitted. **Not `written.len()`**: a
     // load-valued group deliberately records nothing there (see below), so using
     // the overlap list as the "did we match anything" flag would send a run of
@@ -523,27 +644,28 @@ pub fn store_leaf_text(
                             )))
                         }
                     },
-                    // **A literal is only lowered for a run of ONE**, and this
-                    // is the second lock on the rule the parser states: c2
-                    // hoists the `li`s out of a multi-store sequence, allocates
-                    // them r11/r10/r9 descending, CSEs equal ones and *reorders
-                    // the stores* around them (`docs/IL_STORE_LEAF.md` §11).
-                    // Restated here rather than trusted, because a census/gate
-                    // disagreement in either direction is what `GAPS.md` §6's
-                    // "one fact, two locators" bullet exists to prevent.
-                    // The one-value run: the materialization already happened
-                    // above, so the group emits the store alone.
-                    IlOp::Lit(k) if hoisted_lit == Some(*k) => SCRATCH_REG,
-                    IlOp::Lit(_) if !(rest.len() == 3 && text.is_empty()) => {
+                    // **Every literal-valued group now goes through
+                    // [`scheduled_gpr_run_text`]**, which owns the whole
+                    // materialisation-and-placement question. Reaching this arm
+                    // with a `Lit` therefore means the stream is NOT all
+                    // value-simple GPR groups — it mixes a literal with a
+                    // load-valued or FP group — and c2 hoists the load, sinks
+                    // its store past the next statement and gives the literal
+                    // its own second scratch register there (MEASURED,
+                    // `work/wsl/probe/p1.cpp`: `{ d->a=s->a; d->b=2; }` is
+                    // `lwz r11 ; li r10,2 ; stw r10 ; stw r11`). The parser
+                    // refuses that mix and so does this.
+                    //
+                    // The predecessor arm read `rest.len() == 3 &&
+                    // text.is_empty()` — "a literal is only lowered for a run
+                    // of ONE" — and that condition is **exactly** equivalent to
+                    // this refusal now: a one-group all-literal stream is a
+                    // value-simple GPR run, so the scheduled path claims it
+                    // before the walk ever starts.
+                    IlOp::Lit(_) => {
                         return Some(Err(out_of_class(
-                            "literal value inside a multi-store run",
+                            "literal value in a store run the schedule did not claim",
                         )))
-                    }
-                    IlOp::Lit(k) => {
-                        if let Err(e) = emit_load_imm(&mut text, SCRATCH_REG, *k) {
-                            return Some(Err(e));
-                        }
-                        SCRATCH_REG
                     }
                     _ => return None,
                 };
@@ -781,10 +903,24 @@ mod tests {
                 0x4E, 0x80, 0x00, 0x20,
             ]
         );
-        // **The emitter's own copy of the two gates.** A literal inside a run and
-        // two stores overlapping one base are both wrong bytes rather than gaps,
-        // so codegen restates them: `GAPS.md` §6's "one fact, two locators", with
-        // the parser as the first lock and this as the second.
+        // **A literal inside a run is no longer a refusal — it is SCHEDULED**,
+        // and this cell is the one place in the file where that change is
+        // visible as bytes. `{ s->a = u; s->b = 2; }` is `.0` to ORDER, which
+        // answers `P0 S0 S1`: the `li` leads, then the two stores in source
+        // order. MEASURED as case `M2` of `work/w-wire/mode_probe.py`,
+        // byte-identical at `/O1` and `/Ox`:
+        //
+        // ```text
+        //   Pli:r11 S0@r4 S4@r11
+        // ```
+        //
+        // **This is an additive-ACCEPT in the emitter and it is said plainly
+        // rather than blurred into the guards' additive-refusal property.** The
+        // predecessor refused here as a second lock on the parser's own gate,
+        // because it did not know the answer; it does now, and the answer is
+        // graded against real `c2`. The parser is still the live lock — nothing
+        // reaches this arm until `try_parse_store_run` widens — so this cell
+        // moves no byte on the workload by itself.
         f.ops = vec![
             IlOp::Load(0x0101),
             IlOp::Load(0x0201),
@@ -793,7 +929,19 @@ mod tests {
             IlOp::Lit(2),
             IlOp::StoreInd { off: 4, width: 4 },
         ];
-        assert!(store_leaf_text(&f, OptMode::Ox).unwrap().is_err(), "literal inside a run");
+        assert_eq!(
+            store_leaf_text(&f, OptMode::Ox).unwrap().unwrap(),
+            vec![
+                0x39, 0x60, 0x00, 0x02, // li r11,2
+                0x90, 0x83, 0x00, 0x00, // stw r4,0(r3)
+                0x91, 0x63, 0x00, 0x04, // stw r11,4(r3)
+                0x4E, 0x80, 0x00, 0x20, // blr
+            ],
+            "a literal beside a formal is scheduled, not refused"
+        );
+        // **The overlap gate is NOT relaxed.** It is the other half of the
+        // sentence above: two stores overlapping one base object are wrong
+        // bytes, not a schedule, because c2 eliminates the dead one.
         f.ops = vec![
             IlOp::Load(0x0101),
             IlOp::Load(0x0201),
@@ -998,5 +1146,204 @@ mod tests {
         f.params = vec![0x0101, 0x0201];
         f.ops = (0..8).flat_map(|i| group(i * 4)).collect();
         assert!(store_leaf_text(&f, OptMode::O1).unwrap().is_ok());
+    }
+
+    /// **The rewrite cannot turn a live accept into a refusal**, proved by
+    /// ENUMERATION rather than by the argument beside it.
+    ///
+    /// `scheduled_gpr_run_text` replaced a source-order emitter with one that
+    /// asks [`order::schedule`] and [`alloc::allocate`], both of which answer
+    /// `None` outside their domain — and a `None` here is an `out_of_class`
+    /// refusal. If either could refuse a run the parser *admits*, the rewrite
+    /// would delete accepted bytes.
+    ///
+    /// The class `c2_il::try_parse_store_run` admits today is exactly two
+    /// families: an **all-formal** run, and an all-**same**-literal run — each
+    /// through any number of base symbols. Both are walked here, to length 7
+    /// over up to 3 symbols, with the count printed. `w-frame2`'s own reduction
+    /// test is the model for this: state the claim as code, not beside it.
+    #[test]
+    fn the_schedule_never_refuses_a_run_the_parser_admits_today() {
+        let mut checked = 0usize;
+        for len in 1..=7usize {
+            for mask in 0..3u32.pow(len as u32) {
+                let bases: Vec<u32> =
+                    (0..len).map(|i| (mask / 3u32.pow(i as u32)) % 3).collect();
+                for produced in [false, true] {
+                    let stmts: Vec<schedule::Stmt> = bases
+                        .iter()
+                        .map(|&b| schedule::Stmt {
+                            // one literal shared by every store, or none at all
+                            producer: if produced { Some(7) } else { None },
+                            base: b,
+                        })
+                        .collect();
+                    let sched = order::schedule(&stmts);
+                    assert!(
+                        sched.is_some(),
+                        "the schedule refuses an admitted run: {stmts:?}"
+                    );
+                    // …and it is SOURCE order with the producer leading, which
+                    // is what the predecessor emitted. Byte-equality of the
+                    // rewrite on this whole class reduces to this.
+                    let want: Vec<schedule::Slot> = produced
+                        .then(|| schedule::Slot::Producer(7))
+                        .into_iter()
+                        .chain((0..len).map(schedule::Slot::Store))
+                        .collect();
+                    assert_eq!(sched.unwrap(), want, "not source order: {stmts:?}");
+                    if produced {
+                        // and the register is r11, for every parameter count
+                        // that leaves a pool at all.
+                        for nparams in 1..=8u8 {
+                            let ps = [alloc::Producer {
+                                id: 7,
+                                kind: alloc::ProducerKind::Constant,
+                                uses: len,
+                                first: 0,
+                            }];
+                            assert_eq!(
+                                alloc::allocate(&ps, 3 + nparams),
+                                Some(vec![(7, SCRATCH_REG)]),
+                                "one shared literal is r11 at {nparams} formals"
+                            );
+                        }
+                    }
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked >= 4000, "only {checked} runs enumerated");
+    }
+
+    /// **The constructed counterexamples**, built to fail. Each is one step
+    /// outside the region a model is exact on, and each must come back a
+    /// refusal rather than an answer. `docs/rungs/_2026-08-05-w-wire-prereg.md`
+    /// §4 registered all five before the code was written.
+    #[test]
+    fn the_widening_refuses_one_step_outside_every_models_domain() {
+        let base = |ops: Vec<IlOp>, params: Vec<u32>| IlFunction {
+            eh_bare: false,
+            eh_unwind_callees: Vec::new(),
+            mangled_name: "?x@@YAXPAUS@@@Z".into(),
+            source_path: None,
+            params,
+            ops,
+            tail_call: None,
+            framed_call: None,
+            call_seq: None,
+            cond_pair: None,
+            compare: None,
+            cmp_shift_or: None,
+            empty_body: false,
+            float_leaf: None,
+            fp_tail: None,
+            fp_arg_sources: None,
+            arg_sources: None,
+            data_sym: None,
+        };
+        let lit_group = |b: u32, off: i32, k: i32| {
+            vec![
+                IlOp::Load(b),
+                IlOp::Lit(k),
+                IlOp::StoreInd { off, width: 4 },
+            ]
+        };
+
+        // 1. FOUR distinct literals. Past `MAX_MODELLED_PRODUCERS` c2 begins
+        //    REUSING a freed register in preference to a fresh one, and the two
+        //    probed four-producer runs with identical structure disagree — board
+        //    #541. `alloc` refuses; so must this.
+        let f = base(
+            (0..4).flat_map(|i| lit_group(0x0101, i * 4, i + 1)).collect(),
+            vec![0x0101],
+        );
+        assert!(
+            store_leaf_text(&f, OptMode::O1).unwrap().is_err(),
+            "four distinct literals are board #541, not a schedule"
+        );
+        // …and THREE are inside it, which is what makes the line above a
+        // boundary rather than a blanket refusal.
+        let f = base(
+            (0..3).flat_map(|i| lit_group(0x0101, i * 4, i + 1)).collect(),
+            vec![0x0101],
+        );
+        assert!(store_leaf_text(&f, OptMode::O1).unwrap().is_ok(), "three fit");
+
+        // 3. THE POOL BOUNDARY. Eight formals hold r4..r11, so `pool_floor` is
+        //    11 and one register is free where two are wanted. c2 descends into
+        //    registers freed by already-emitted stores — including r3 itself —
+        //    and that regime is unmodelled.
+        let f = base(
+            (0..2).flat_map(|i| lit_group(0x0101, i * 4, i + 1)).collect(),
+            (0..8).map(|i| 0x0101 + i * 0x100).collect(),
+        );
+        assert!(
+            store_leaf_text(&f, OptMode::O1).unwrap().is_err(),
+            "two producers do not fit a one-register pool"
+        );
+
+        // 4. A WIDE literal beside a narrow one. **THIS COUNTEREXAMPLE FIRED,
+        //    and it is the most valuable line in this test.** The prereg
+        //    registered it predicting a NON-boundary — "`lis`+`ori` is two words
+        //    for one producer, and `layout_slots` indexes producers, not words,
+        //    so this is in domain and must be answered with the pair kept
+        //    whole". Real `c2` refuted that twice over
+        //    (`work/w-wire/boundary_probe.py`, identical at `/O1` and `/Ox`):
+        //
+        //    ```text
+        //      c2:   lis r11 ; li r10 ; ori r11 ; stw r10,4(r3) ; stw r11,0(r3)
+        //      port: lis r11 ; ori r11 ; li r10 ; stw r11,0(r3) ; stw r10,4(r3)
+        //    ```
+        //
+        //    The `lis`/`ori` pair is SPLIT, and the store order is `[1,0]` where
+        //    `store_order` says source order. Had the widening shipped without
+        //    this probe it would have been a live wrong emit — board #232's
+        //    exact shape, caught by a constructed counterexample instead of by
+        //    a scan 255 commits later.
+        let mut ops = lit_group(0x0101, 0, 100000);
+        ops.extend(lit_group(0x0101, 4, 1));
+        let f = base(ops, vec![0x0101]);
+        assert!(
+            store_leaf_text(&f, OptMode::O1).unwrap().is_err(),
+            "a multi-word literal beside another producer interleaves its halves"
+        );
+        // …and a run whose ONLY producer is wide is NOT refused: one live range,
+        // nothing to interleave with. `{ a=100000; b=100000; }` is
+        // `lis ; ori ; stw ; stw` — the parser already admits this cell, so a
+        // gate that caught it would delete accepted bytes.
+        let mut ops = lit_group(0x0101, 0, 100000);
+        ops.extend(lit_group(0x0101, 4, 100000));
+        let f = base(ops, vec![0x0101]);
+        assert_eq!(
+            store_leaf_text(&f, OptMode::O1).unwrap().unwrap().len(),
+            4 * 5,
+            "lis + ori + two stores + blr"
+        );
+
+        // 5. `x_split`'s mask — `nsw = 3`, the cell board #602's domain gate is
+        //    drawn for. Two symbols and two producers: inside
+        //    `MAX_MULTISYM_PRODUCERS`, outside `MAX_SYMBOL_CROSSINGS`. The
+        //    emitter must refuse it even though `store_order` answers.
+        let split: Vec<schedule::Stmt> = [
+            (None, 0u32),
+            (None, 0),
+            (Some(0u32), 1),
+            (None, 0),
+            (Some(1), 1),
+            (Some(1), 1),
+        ]
+        .iter()
+        .map(|&(producer, base)| schedule::Stmt { producer, base })
+        .collect();
+        assert!(
+            order::store_order(&split).is_some(),
+            "precondition: the STORE order is in domain, only the LAYOUT is not"
+        );
+        assert_eq!(
+            order::schedule(&split),
+            None,
+            "nsw = 3 is outside the layout's exact region"
+        );
     }
 }
