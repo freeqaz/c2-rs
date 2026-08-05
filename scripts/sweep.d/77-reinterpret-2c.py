@@ -128,9 +128,18 @@ def cases(emit):
             emit(HDR + "%s f(%s p) { return (%s)p; }\n" % (dst, src, dst))
 
     # 6d. the width boundary from a pointer source, which `61-` reaches only from
-    #     an int one: every narrowing and widening target against a pointer.
+    #     an int one: every narrowing and widening INTEGRAL target against a
+    #     pointer.
+    #
+    #     `float` and `double` are deliberately absent and this is not an
+    #     oversight: a pointer-to-floating conversion is ill-formed, `cl.exe`
+    #     emits no obj for it, and the four cases cost the gate its
+    #     `ungraded 96` baseline on this fragment's first full run. An UNGRADED
+    #     case grades nothing while looking like corpus, which is exactly what
+    #     `expr_sweep.sh`'s own ceiling exists to catch. The float targets ARE
+    #     crossed -- from an int source, in the fixture's refusing half.
     for dst in ['char', 'signed char', 'unsigned char', 'short', 'unsigned short',
-                'long long', 'unsigned long long', 'float', 'double']:
+                'long long', 'unsigned long long']:
         emit(HDR + "%s f(S *p) { return (%s)p; }\n" % (dst, dst))
         emit(HDR + "%s f(void *p) { return (%s)p; }\n" % (dst, dst))
 
