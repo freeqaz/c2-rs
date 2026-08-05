@@ -88,6 +88,47 @@ pub(crate) fn straight_line_out_of_class_ctx(
             _ => {}
         }
     }
+    // **A chain that MIXES the bitwise/shift six with the arithmetic three is
+    // refused, and the reason is a live mis-emit this lane found in its own
+    // change before shipping it** (`lane w-build`).
+    //
+    // `select_text`'s intermediate-register rule is `chain_has_add`: at `/Ox`,
+    // if the chain contains any addition every intermediate reuses r11,
+    // otherwise they descend r11, r10, r9. That rule was enumerated over 11,664
+    // four-leaf ARITHMETIC chains and it is right about all of them. It is
+    // **wrong** the moment a bitwise operator is in the chain — measured at
+    // `/Ox`, `work/w-build/probe/bits3-Ox.cod`:
+    //
+    // ```text
+    //   (a & b) + c + d    and  r11,r3,r4 ; add  r11,r11,r5 ; add  r3,r11,r6
+    //   (a + b) & c & d    add  r11,r3,r4 ; and  r10,r11,r5 ; and  r3,r10,r6
+    // ```
+    //
+    // Both chains contain an addition. The first collapses to r11 as the rule
+    // says; **the second descends anyway.** So `chain_has_add` is not the rule —
+    // the ten probed cells fit "an intermediate goes to r11 when its CONSUMER is
+    // an `add`, and takes the next descending scratch otherwise", which also
+    // reproduces every arithmetic cell `il_accum4.cpp` records. That is a
+    // hypothesis over ten witnesses against a rule enumerated over 11,664, and
+    // replacing the second with the first is not this rung's work.
+    //
+    // What IS this rung's work is not shipping the wrong bytes in the meantime.
+    // A **pure** bitwise/shift chain is unaffected: it contains no addition, so
+    // `chain_has_add` is false and the port descends exactly as c2 does — probed
+    // at four and five leaves, at `/O1` and at `/Ox`. Mixing is what breaks, so
+    // mixing refuses, under its own key so the cost is a number.
+    //
+    // The cells this costs are known and were all measured correct:
+    // `(a>>b)+c`, `(a&b)+c`, `(a+b)&c`, `(a*b)^c`, `(a-b)<<c` at three leaves
+    // (one intermediate, where every rule coincides) and `(a&b)+c+d`,
+    // `(a&b)-c-d`, `(a-b)&c&d`, `(a>>b)+c+d` at four.
+    if ops.iter().any(|o| o.is_bitwise_or_shift())
+        && ops
+            .iter()
+            .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
+    {
+        return Some("expr-out-of-class-bitwise-mixed-arith");
+    }
     // An expression the affine selector cannot walk over one scratch, and that is
     // not the one deeper shape that is characterized ([`chain_form`]). This clause
     // is the repair for `docs/IL_CALL_IN_EXPR.md` §24.7: `return a + b*c;` reaches
@@ -437,7 +478,15 @@ pub(crate) fn affine_serial_ok(ops: &[IlOp], params: &[u32]) -> bool {
         match op {
             IlOp::Load(_) => stack.push(AffOperand::RegOff(0)),
             IlOp::Lit(k) => stack.push(AffOperand::Imm(*k)),
-            IlOp::Add | IlOp::Sub | IlOp::Mul => {
+            IlOp::Add
+            | IlOp::Sub
+            | IlOp::Mul
+            | IlOp::And
+            | IlOp::Or
+            | IlOp::Xor
+            | IlOp::Shl
+            | IlOp::ShrS
+            | IlOp::ShrU => {
                 let (Some(rhs), Some(lhs)) = (stack.pop(), stack.pop()) else {
                     return false;
                 };
@@ -465,9 +514,25 @@ pub(crate) fn affine_serial_ok(ops: &[IlOp], params: &[u32]) -> bool {
                     // The reg-reg instructions, which require BOTH operands to be
                     // bare registers. This is the clause the whole function is for.
                     (IlOp::Add | IlOp::Sub | IlOp::Mul, RegOff(0), RegOff(0)) => RegOff(0),
+                    // The bitwise/shift six, register-register and nothing else
+                    // (`lane w-build`). **This clause must mirror `combine`'s
+                    // exactly** — it is the parser-side simulation of it, and the
+                    // whole reason it exists is that a census claiming a body the
+                    // selector then refuses is a disagreement, not a gap. There is
+                    // deliberately NO immediate-folding clause for these to sit
+                    // beside the `Add`/`Sub` ones above: `a & 5` is not `a & 0`
+                    // plus an offset, it is an `andi.`, and the fold that is free
+                    // for `+` does not exist here.
+                    (
+                        IlOp::And | IlOp::Or | IlOp::Xor | IlOp::Shl | IlOp::ShrS | IlOp::ShrU,
+                        RegOff(0),
+                        RegOff(0),
+                    ) => RegOff(0),
                     // `const - reg` needs a `subfic`; `reg * const` strength-reduces;
-                    // and a reg-reg operator with a pending immediate on either side
-                    // has no lowering in this model at all.
+                    // a bitwise or shift operand that is not a bare register selects
+                    // its instruction by the immediate's VALUE; and a reg-reg
+                    // operator with a pending immediate on either side has no
+                    // lowering in this model at all.
                     _ => return false,
                 };
                 stack.push(folded);
@@ -880,7 +945,25 @@ pub fn chain_form(ops: &[IlOp], params: &[u32]) -> Option<ChainForm> {
     for op in ops {
         match op {
             IlOp::Load(_) | IlOp::Lit(_) => depth += 1,
-            IlOp::Add | IlOp::Sub | IlOp::Mul => {
+            // The arithmetic three plus the bitwise/shift six (`lane w-build`).
+            // Read through [`IlOp::is_binary_int`] rather than spelled out, so
+            // this simulation and `select_text`'s emitter loop cannot drift
+            // apart — a census that claims a body the port refuses is the
+            // failure `ROADMAP.md` §6d records.
+            //
+            // **`is_depth2_tree` above is NOT widened with them**, and that is a
+            // deliberate refusal with a measurement behind it: the `+`-root
+            // register swap generalizes to the bitwise roots — probed,
+            // `(a&b)|(c&d)` is `and r11 ; and r10 ; or r3,r11,r10` (no swap) and
+            // `(a&b)+(c&d)` is `and r10 ; and r11 ; add r3,r10,r11` (swap), so
+            // the ROOT alone decides — but that is 4 cells of a 216-cell
+            // root x op1 x op2 grid, where the accepted arithmetic three are 27
+            // cells that were graded whole. Four witnesses do not license a
+            // sixfold widening of a shape whose two known rewrites (N1 product
+            // flattening, N2 additive canonicalization) were both found by
+            // gridding it. A bitwise depth-2 tree therefore reaches `depth > 2`
+            // here and refuses, which is where it should refuse.
+            op if op.is_binary_int() => {
                 if depth < 2 {
                     return None;
                 }

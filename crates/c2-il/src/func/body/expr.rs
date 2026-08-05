@@ -1,7 +1,7 @@
 use super::{blk, blk_type, Block};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker, eat_value_type,
-    read_token_var, read_type, read_varint, ValueClass, INT_TYPE,
+    is_int4_type, read_token_var, read_type, read_varint, ValueClass, INT_TYPE,
 };
 use crate::func::IlOp;
 
@@ -881,6 +881,32 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
 /// *byte* wide"). Every caller that does not know how to do that keeps calling
 /// [`parse_expr`], which discards the class — and refuses the body one token
 /// later at the annotation, honestly.
+/// Record the **signedness** of a width-4 integer TYPE at `p`, if that is what
+/// is there. Reads nothing else and consumes nothing (`lane w-build`).
+///
+/// `kind`'s low nibble is the class — `1` signed, `2` unsigned — and
+/// [`is_int4_type`] already admits exactly that pair at width 4. This does not
+/// re-derive the width or the tag: it asks the same predicate the parser gates
+/// on and then reads one nibble, so a type this parser would refuse can never
+/// set either flag.
+///
+/// A TYPE that is not a width-4 integer sets **neither** flag, which is the
+/// conservative direction: a right shift over a value whose signedness was never
+/// established refuses under `expr-shr-sign-unknown` rather than defaulting into
+/// `sraw`. Defaulting is how `expr_opcode_name` once got three of six
+/// relationals wrong, and a wrong *instruction* is worse than a wrong name.
+fn note_int4_signedness(seg: &[u8], p: usize, signed: &mut bool, unsigned: &mut bool) {
+    if let Some((tag, kind, _, _)) = read_type(seg, p) {
+        if is_int4_type(tag, kind) {
+            match kind & 0x0F {
+                0x1 => *signed = true,
+                0x2 => *unsigned = true,
+                _ => {}
+            }
+        }
+    }
+}
+
 pub(crate) fn parse_expr_classed(
     seg: &[u8],
     p: &mut usize,
@@ -897,6 +923,19 @@ pub(crate) fn parse_expr_classed(
     // a chain that did not is a shape with no witness behind it.
     let mut saw_int1u = false;
     let mut saw_wide = false;
+    // The **SIGNEDNESS** of the width-4 integer operands, read separately from
+    // [`ValueClass`] and only for the right shift (`lane w-build`).
+    //
+    // `ValueClass::Int4` collapses `int` and `unsigned` on purpose — every other
+    // modeled operator emits the identical instruction over both, and
+    // `is_int4_type` admits the pair so that a `2C` between them is the no-op it
+    // is. `>>` is the one operator where the collapse is wrong: `86 41` emits
+    // `sraw` and `86 42` emits `srw`, from the same IL byte `0A`. Rather than
+    // shard `ValueClass` — five call sites, three byte-graded shapes — the two
+    // flags are recorded here beside `saw_int1u`/`saw_wide`, which is the shape
+    // this function already uses for a fact that only one operator reads.
+    let mut saw_int4_signed = false;
+    let mut saw_int4_unsigned = false;
     // Set by `02`/`03`/`04` — arithmetic whose pointer form c2 SCALES by the
     // pointee width, which is what the pointer guard below exists to refuse.
     // The `27` byte-offset add is not that and does not set it.
@@ -1019,6 +1058,8 @@ pub(crate) fn parse_expr_classed(
                 let (tok, w) =
                     read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-load-tok"))?;
                 *p += w;
+                // Read BEFORE the type is consumed; see `note_int4_signedness`.
+                note_int4_signedness(seg, *p, &mut saw_int4_signed, &mut saw_int4_unsigned);
                 match eat_operand_type(seg, p) {
                     Some(c) => {
                         saw_ptr |= c == ValueClass::Ptr4;
@@ -1049,6 +1090,7 @@ pub(crate) fn parse_expr_classed(
                 // LITERAL: 33 <int-type> <varint>
                 let start = *p;
                 *p += 1;
+                note_int4_signedness(seg, *p, &mut saw_int4_signed, &mut saw_int4_unsigned);
                 match eat_operand_type(seg, p) {
                     Some(c) => {
                         saw_ptr |= c == ValueClass::Ptr4;
@@ -1083,6 +1125,82 @@ pub(crate) fn parse_expr_classed(
                 *p += 1;
                 scaled_arith = true;
                 ops.push(IlOp::Mul);
+            }
+            // **The BITWISE and SHIFT binary operators** — `lane w-build`.
+            //
+            // Bare one-byte tokens, exactly as `mcall`'s `BARE_BINARY_OPS`
+            // records them from a capture: no TYPE, no varint, no trailing
+            // field. They pop two and push one, like `02`/`03`/`04`, and unlike
+            // those they do **not** set `scaled_arith` — a pointer never enters
+            // one of these at all (the guard below refuses it outright), so
+            // there is no scaling question to answer.
+            //
+            // What reaches codegen from here is register-register only.
+            // `select_text` refuses every non-register operand form under
+            // `out_of_class`, and [`IlOp::And`] carries the five probed cells
+            // that say why: the immediate axis of `&` alone has three
+            // instruction families, one of them record-form (`andi.`), one of
+            // them a two-instruction materialization into **r12**.
+            0x0B => {
+                *p += 1;
+                ops.push(IlOp::And);
+            }
+            0x0C => {
+                *p += 1;
+                ops.push(IlOp::Or);
+            }
+            0x0D => {
+                *p += 1;
+                ops.push(IlOp::Xor);
+            }
+            // `<<` is ONE instruction over both signednesses — `slw`, probed
+            // three ways (`int<<int`, `unsigned<<unsigned`, `int<<unsigned`) —
+            // so it needs no signedness decision and takes none.
+            0x09 => {
+                *p += 1;
+                ops.push(IlOp::Shl);
+            }
+            // `>>` is TWO instructions from ONE IL byte, and the byte does not
+            // say which: `sraw` over a signed left operand, `srw` over an
+            // unsigned one. The decision is made here, from the operand TYPEs
+            // seen so far — which in a serial chain is exactly the left operand
+            // and its own history — and it is made only when the history is
+            // UNAMBIGUOUS.
+            //
+            // Both refusals are their own census key, so what the conservatism
+            // costs is a number and not an argument:
+            //
+            // * `expr-shr-mixed-sign` — both signednesses are live in this
+            //   expression. c2 decides on the LEFT operand alone (probed:
+            //   `int >> unsigned` is `sraw`, `unsigned >> int` is `srw`), but
+            //   this parser tracks a per-expression fact rather than a
+            //   per-operand one, so it declines rather than guessing which
+            //   operand the flag came from;
+            // * `expr-shr-sign-unknown` — no width-4 integer TYPE was seen at
+            //   all (a pointer or `bool` left operand, or a shift this parser
+            //   reached without an operand). There is no witness for either
+            //   lowering.
+            //
+            // The `2C` arm feeds the same two flags, and that is the arm that
+            // makes this safe rather than merely careful: `is_int4_type` admits
+            // `int` and `unsigned` alike, so `(unsigned)a >> b` is a conversion
+            // this parser ALREADY accepts as a no-op while it changes the
+            // instruction from `sraw` to `srw`. Recording the target's
+            // signedness turns that body into a `expr-shr-mixed-sign` refusal
+            // instead of a wrong emit.
+            0x0A => {
+                let op = match (saw_int4_signed, saw_int4_unsigned) {
+                    (true, false) => IlOp::ShrS,
+                    (false, true) => IlOp::ShrU,
+                    (true, true) => {
+                        return Err(Block::refuse(seg, *p, "expr-shr-mixed-sign"))
+                    }
+                    (false, false) => {
+                        return Err(Block::refuse(seg, *p, "expr-shr-sign-unknown"))
+                    }
+                };
+                *p += 1;
+                ops.push(op);
             }
             // **W-ARMS scratch sink — `C2RS_SINK_OFF_ADD_ARG=expr` and nothing
             // else.** `27 <TYPE>` is the BYTE-offset add: `&t->s.k` is
@@ -1240,6 +1358,16 @@ pub(crate) fn parse_expr_classed(
                 if !eat_byte(seg, &mut probe, 0x00) {
                     return Err(blk(seg, probe, "expr-convert-tail"));
                 }
+                // **The conversion's TARGET signedness counts too** (`lane
+                // w-build`), and this line is the one that makes the right
+                // shift safe rather than merely careful. `is_int4_type` admits
+                // `86 41` and `86 42` alike, so an `int`->`unsigned` `2C` is a
+                // conversion this arm accepts as the no-op it is — while it
+                // changes `>>` from `sraw` to `srw`. Feeding the target into
+                // the same two flags turns `(unsigned)a >> b` into a
+                // `expr-shr-mixed-sign` refusal. Read at `*p + 1`, the target
+                // TYPE, which `eat_value_type` has already proved is one.
+                note_int4_signedness(seg, *p + 1, &mut saw_int4_signed, &mut saw_int4_unsigned);
                 *p = probe;
             }
             0x26 => return Err(super::mcall::classify(seg, *p)),
@@ -1292,6 +1420,37 @@ pub(crate) fn parse_expr_classed(
     if ptr_arith {
         return Err(Block::refuse(seg, *p, "expr-ptr-arith"));
     }
+    // **The pointer guard's bitwise half** (`lane w-build`), and a SEPARATE
+    // census key rather than a widening of `expr-ptr-arith`.
+    //
+    // Two reasons it is separate. The fact is different — `+` over a pointer is
+    // *scaled* by the pointee width and is refused for that; `&` over a pointer
+    // is refused because no capture establishes it at all, which is a different
+    // kind of ignorance and should count separately. And merging it would move
+    // functions into an existing bucket that four rungs have compared across
+    // trees, which is the one failure a census instrument cannot survive
+    // (`docs/GAPS.md` §6).
+    if saw_ptr && ops.iter().any(|o| o.is_bitwise_or_shift()) {
+        return Err(Block::refuse(seg, *p, "expr-ptr-bitwise"));
+    }
+    // **A right shift whose signedness was settled and then contradicted.**
+    //
+    // The `0A` arm decides from the flags as they stand *at the operator*,
+    // which in a serial chain is the left operand's whole history and is the
+    // right answer. This is the belt to that braces: an operand appearing
+    // AFTER the shift that carries the other signedness means the expression as
+    // a whole mixes the two, and rather than reason about whether the later
+    // operand could have reached the shift's left-hand side, the body refuses.
+    //
+    // It is conservative in a direction with a witness: `(a >> b) | c` with `c`
+    // unsigned is a body c2 lowers as `sraw` then `or`, which this parser would
+    // have emitted correctly. That coverage is what the key counts.
+    if ops.iter().any(|o| matches!(o, IlOp::ShrS | IlOp::ShrU))
+        && saw_int4_signed
+        && saw_int4_unsigned
+    {
+        return Err(Block::refuse(seg, *p, "expr-shr-sign-late"));
+    }
     // The one-byte-unsigned guard, and it is the pointer guard's twin: the class
     // is free to be *moved* and not to be *computed on*. `b1 + b2` in C++ converts
     // both operands to `int` first, so an accepted chain over raw `bool` operands
@@ -1299,6 +1458,12 @@ pub(crate) fn parse_expr_classed(
     // conversion the IL would have spelled with a `2C`. Both refuse under their own
     // census keys, so what the guard costs is a number rather than an argument.
     if saw_int1u {
+        // The bitwise/shift six are their own key here for the same reason the
+        // pointer guard splits: `b1 + b2` promotes to `int` and has no witness,
+        // and `b1 & b2` is a *different* absence of witness. `lane w-build`.
+        if ops.iter().any(|o| o.is_bitwise_or_shift()) {
+            return Err(Block::refuse(seg, *p, "expr-int1u-bitwise"));
+        }
         if ops
             .iter()
             .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
