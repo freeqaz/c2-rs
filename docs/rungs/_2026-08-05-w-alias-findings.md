@@ -43,7 +43,7 @@ emit" looks like when you build the counterexample first.**
 
 | | |
 |---|---|
-| c2-rs branch | `wt-w-alias`, based on master **`9378b00`** |
+| c2-rs branch | `wt-w-alias`, **rebased onto master `dbcb855`** (it was cut at `9378b00`; master moved through `w-rdata` and `w-reach` during the lane, and every gate figure in §6 is from the **rebased** tip) |
 | c2.dll | `compilers/X360/16.00.11886.00/c2.dll`, image base `0x10b00000` |
 | wibo | `../wibo/build/release/wibo` (via `C2RS_WIBO`) |
 | toolchain | `C2RS_COMPILERS` and `C2RS_WIBO` set **explicitly** before every measurement — board **#299**; `compilers/` is gitignored and absent from a fresh worktree, and without this every instrument degrades to `SKIP:` and exits 0 |
@@ -260,8 +260,16 @@ in the project that currently converts anything, and the other half
 who finds "+0 reach" without the coupling will conclude this work was worthless.
 It is not; it is a zero-free-parameter model, confirmed 15/15 through the sole
 judge, whose value is *joint* with a rung that does not exist yet. Cite
-`docs/rungs/_2026-08-05-w-reach.md` for every reach figure above — **none of
-them is this lane's to claim.**
+`docs/rungs/_2026-08-05-w-reach.md` and **board `#302`** for every reach figure
+above — **none of them is this lane's to claim.**
+
+**And one correction from w-reach that this page must not paper over:** on the
+850-TU join, `B∧C` is **145, not 151**. The 21-TU difference between the 850-TU
+emit corpus and the 871 graded TUs is **exactly w-emitpred's held-out
+quarantine, set-equal by name**, and **6** of those 21 are inside `B∧C`. Every
+reach figure in the table above is quoted against **145**. That is also the
+cleanest statement of why this lane could not have computed the join itself:
+the denominators differ, and the difference is the quarantine.
 
 **A zero-codegen implementation converts exactly 1 TU** (`src/system/decomp_pch.cpp`),
 the same one for all four models. If exactly one TU ever moves on this channel,
@@ -295,7 +303,7 @@ exported before every command in this section.
 
 | lane | result | baseline |
 |---|---|---|
-| `cargo test --workspace --release` | **798 passed, 0 FAILED, 27 targets** | 781 / 0 / 26 — **+17 tests, +1 target**, all this lane's |
+| `cargo test --workspace --release` | **799 passed, 0 FAILED, 27 targets** | **+17 tests, +1 target**, all this lane's — 16 constructed unit cases plus the corpus dump, which is its own test binary |
 | `scripts/gate.sh --jobs 6` | **18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 4 410 fixture-verdicts** | 18/18, 4 410 — unchanged |
 | `scripts/expr_sweep.sh` (a gate row) | see §6.1 | 16 394 / 16 298 graded / 96 ungraded / 0 mismatch |
 | `scripts/mode_cross.sh` (a gate row) | see §6.1 | 75 829 of 76 217 / 0 mismatch |
@@ -449,7 +457,7 @@ pinned in code, `BOARD.md` / `ROADMAP.md` / `rungs/INDEX.md` untouched by hand**
 
 | proposed | item | claim | where |
 |---|---|---|---|
-| **Z-0** | **THE CHANNEL'S TU VALUE IS +0 TODAY AND IS GATED ON `.rdata$r`** — `JFP_ALIAS` reach **122**, identical to `JFP`'s 122, gained 0 lost 0. **176 of 176** gained TUs carry `.rdata$r` and **0** are already in `B∧C`; `.rdata$r` alone is +1, the alias alone is +0, **together +91** | **not this lane's measurement** — it is `w-reach`'s, cited so this page cannot be read as a TU claim. Recorded as a proposed row because a reader finding "+0" without the coupling will conclude the work was worthless | §5.1, `_2026-08-05-w-reach.md` |
+| **Z-0** *(= `#302`, minted by w-reach — **not** re-minted here)* | **THE CHANNEL'S TU VALUE IS +0 TODAY AND IS GATED ON `.rdata$r`** — `JFP_ALIAS` reach **122**, identical to `JFP`'s 122, gained 0 lost 0. **176 of 176** gained TUs carry `.rdata$r` and **0** are already in `B∧C`; `.rdata$r` alone is +1, the alias alone is +0, **together +91** | **not this lane's measurement** — it is `w-reach`'s, cited so this page cannot be read as a TU claim. Recorded as a proposed row because a reader finding "+0" without the coupling will conclude the work was worthless | §5.1, `_2026-08-05-w-reach.md` |
 | **Z-a** | **w-emitp's tag-0x10 ALIAS decode is IMPLEMENTED in `crates/c2-il`** and a second, independently written implementation lands on the first **to the digit**: 96 220 / 95 820 / 95 818, 352 / 0 / 48 / 0 / 0, nulls 1 795 / 2 449 with **zero** pairs — and, the strong form, **850 of 850 per-TU tables equal name for name, 0 differing entries** | this is the first result in the project verified by *two implementations of one transcript* rather than by one implementation and a null. The Rust table then reproduces every model number through a **byte-identical** copy of w-emitp's `scan.py` | §2, §5 |
 | **Z-b** | **A ONE-CHARACTER WIDENING RAISES THE BOUND COUNT 95 820 → 137 379 AND IS A WRONG EMIT.** Accepting every kind-4 tag adds 41 561 junk bindings (the `??_E`→`??_G` shape does not move) and puts **29 291 BODIED names into `dom(alias)`**, which §6 rule 4 would suppress | **w-small's shape, on this lane's own instrument, caught by a counter built before the code shipped.** Board #232 survived 255 commits on exactly this pattern | §3.2, §4.2 |
 | **Z-c** | **§6 RULE 4 IS SHIPPED AS A COUNT, NOT AS A RULE.** "Never emit a name in `dom(alias)`" is licensed by `dom(alias) ∩ U = 0`, which is a *measurement*; the reader publishes `dom_with_body` and asserts it, so a corpus that breaks the premise fails loudly instead of silently suppressing a symbol that has a body | a measured fact adopted as a silent premise is how a reader becomes wrong later. The constructed stream that breaks it is a unit test | §3.2 |

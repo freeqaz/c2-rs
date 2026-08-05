@@ -1,0 +1,59 @@
+gap scan: 878 TUs, 24 flags, jobs=6, replay-every=0
+  capture cache: <repo>/work/capture-cache
+provenance:
+  c2-rs      48f62266d68a (DIRTY)  <worktree>
+  binary     61594fa04a590594  <worktree>/target/release/c2rs
+  workload   fe1b5b393411 (clean)  <dc3>
+  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  <wibo>/build/release/wibo
+  cl.exe     <repo>/compilers/X360/16.00.11886.00/cl.exe
+  c2.dll     <repo>/compilers/X360/16.00.11886.00/c2.dll
+  c1xx.dll   <repo>/compilers/X360/16.00.11886.00/c1xx.dll
+  strace     /usr/bin/strace
+  mingw      /usr/bin/i686-w64-mingw32-gcc
+  [1/878] vocab-gap    src/keygen_xbox.cpp  (il function decode failed)
+  [2/878] vocab-gap    src/ChecksumData_xbox.cpp  (il function decode failed)
+  [3/878] vocab-gap    src/lazer/game/HamUser.cpp  (il function decode failed)
+  [4/878] vocab-gap    src/lazer/game/GameMode.cpp  (il function decode failed)
+  [5/878] vocab-gap    src/lazer/game/HamUserMgr.cpp  (il function decode failed)
+  [6/878] vocab-gap    src/App.cpp  (il function decode failed)
+  [7/878] vocab-gap    src/lazer/game/GamePanel.cpp  (il function decode failed)
+  [8/878] vocab-gap    src/lazer/game/BustAMovePanel.cpp  (il function decode failed)
+    gap-metric tu-total 878
+    gap-metric graded 871
+    gap-metric match 8
+    gap-metric mismatch 0
+    gap-metric codegen-gap 0
+    gap-metric vocab-gap 863
+    gap-metric port-error 0
+    gap-metric capture-fail 7
+    gap-metric factor-a 28
+    gap-metric factor-a-lo 27
+    gap-metric factor-b 338
+    gap-metric factor-c 169
+    gap-metric factor-d 8
+    gap-metric factor-e 2
+    gap-metric b-and-c 151
+    gap-metric a-and-b-and-c 27
+    gap-metric a-and-b-and-c-and-d 6
+    gap-metric a-and-b-and-c-and-d-or-e 8
+    gap-metric frontier 19
+    gap-metric frontier-if-a 141
+    gap-metric emit-predicate-worth 124
+    gap-metric writer-sections 10
+    gap-metric workload-sections 13
+    gap-metric ladder-steps 3
+    gap-metric ladder-head .rdata$r
+    gap-metric ladder-head-c 590
+    gap-metric progress-mass 0.20728
+    gap-metric progress-emitted-in-class 38458
+    gap-metric progress-emitted-total 178975
+    gap-metric progress-mismatch-zeroed 0
+GAP REPORT (878 TUs in 3.2s)
+  match             8    0.9%
+  mismatch          0    0.0%
+  codegen-gap       0    0.0%
+  vocab-gap       863   98.3%
+  port-error        0    0.0%
+  capture-fail      7    0.8%
+  capture cache: 871 hit, 7 miss, 0 uncacheable  |  validator: 0 re-captured and agreed (0 of them only after zeroing the COFF TimeDateStamp), 0 POISONED
+
