@@ -405,7 +405,9 @@ def classify(words, rel):
     # compare and gets the cell backwards.
     r["producer"] = None
     bb = r["backword"]
-    if is_cond_bo(bb[2]):
+    # An UNCONDITIONAL back edge (`b`) has no `BO`/`BI` at all, so it has no CR
+    # producer to find.  Asking anyway is how the first run of this block died.
+    if bb[0] == "bc" and is_cond_bo(bb[2]):
         field = bb[3] >> 2
         for w in words[top // 4:(last_back) // 4]:
             op = w >> 26
