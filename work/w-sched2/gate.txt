@@ -8,17 +8,17 @@ reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
         freed 134.7 MiB and 16,983 inodes (df delta over a SHARED filesystem)
 disk:   /tmp — free 32.0 GiB / 867,428 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a84bdea353ff9263c/scripts/lanes.txt
+lane gate: 18 lanes from <lane worktree>/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-2917770   (per-lane run dirs under /tmp/c2rs-gate-2917770/lanes/)
 building the harness (no-op if current)
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a84bdea353ff9263c/crates/c2-il)
-   Compiling c2-obj v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a84bdea353ff9263c/crates/c2-obj)
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a84bdea353ff9263c/crates/c2-core)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a84bdea353ff9263c/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a84bdea353ff9263c/crates/c2-harness)
+   Compiling c2-il v0.1.0 (<lane worktree>/crates/c2-il)
+   Compiling c2-obj v0.1.0 (<lane worktree>/crates/c2-obj)
+   Compiling c2-core v0.1.0 (<lane worktree>/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<lane worktree>/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<lane worktree>/crates/c2-harness)
     Finished `release` profile [optimized] target(s) in 4.32s
 harness: /tmp/c2rs-gate-2917770/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a84bdea353ff9263c/target/release/c2rs  built 2026-08-05 20:39:18
+  pinned from <lane worktree>/target/release/c2rs  built 2026-08-05 20:39:18
   sha 858d5d6731c0  tree 916679d
 
 wall clock: 15s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
@@ -32,7 +32,7 @@ generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-2917770/sweep 0  (jobs 6)
 
 mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-2917770/cross 0  (jobs 6)
   assigned 16710 cases over 18 lanes = 81905 cells (full cross would be 300780)
-  sweeping 81905 of 81905 case-lane cells (cross of 0 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a84bdea353ff9263c/scripts/lanes.txt; the full 12x product is 300780)
+  sweeping 81905 of 81905 case-lane cells (cross of 0 cases x <lane worktree>/scripts/lanes.txt; the full 12x product is 300780)
   checked=81905 mismatches=0 graded=81517 ungraded=388 unknown=0
   (656s)
 
