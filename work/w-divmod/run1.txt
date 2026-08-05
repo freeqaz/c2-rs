@@ -1,0 +1,231 @@
+mode: /O1 /GS- /c   workdir: /home/free/tmp/wdivmodqaa6ypm6
+
+=== CTL =========================================================================================
+plain-add         2w  add bclr
+                      no-div    traps=-
+                      # CONTROL: `add ; blr`, the shape the port already emits
+s-mod-var         9w  rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@7(r11)
+                      # ANCHOR: Sort.cpp's own eight words, registers included
+
+=== BASE ========================================================================================
+s-div-var         7w  rlwinm divw addi twi andc twi bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@3(r4)      other=TO5@5(r11)
+                      # signed /
+u-mod-var         5w  divwu twi mullw subf bclr
+                      inspine   div@0  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=-
+                      # unsigned %
+u-div-var         3w  divwu twi bclr
+                      inspine   div@0  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=-
+                      # unsigned /
+
+=== DVD =========================================================================================
+dvd-add1         10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # dividend = 1 op
+dvd-add1-div      8w  addi twi rlwinm divw addi andc twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@6(r11)
+                      # same for /
+dvd-mul          10w  mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # dividend = mulli
+dvd-2op          11w  mulli add twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=TO5@9(r11)
+                      # dividend = 2 ops -- w-hash's `s-madmod`
+dvd-3op          12w  mulli add twi xor rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@5  dvd=r10(def@3) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=TO5@10(r11)
+                      # dividend = 3 ops: does the trap track the LAST one?
+dvd-lit          10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r3 (def@in)  zero-trap=TO6@1(r3)      other=TO5@8(r11)
+                      # dividend = a literal (`li`)
+dvd-lit-div       4w  addi twi divw bclr
+                      HOIST     div@2  dvd=r11(def@0) dvs=r3 (def@in)  zero-trap=TO6@1(r3)      other=-
+                      # same for /
+dvd-load         11w  addis twi lwz rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r11(def@2) dvs=r3 (def@in)  zero-trap=TO6@1(r3)      other=TO5@9(r10)
+                      # dividend = a global load
+dvd-ptr          10w  lwz twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # dividend = an indirect load
+dvd-u             6w  addi twi divwu mullw subf bclr
+                      HOIST     div@2  dvd=r11(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=-
+                      # unsigned, computed dividend -- does the ONE trap hoist too?
+
+=== DVS =========================================================================================
+dvs-add1         10w  addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r3 (def@in) dvs=r10(def@0)  zero-trap=TO6@6(r10)     other=TO5@8(r11)
+                      # divisor = 1 op
+dvs-add1-div      8w  rlwinm addi addi divw andc twi twi bclr
+                      inspine   div@3  dvd=r3 (def@in) dvs=r10(def@1)  zero-trap=TO6@5(r10)     other=TO5@6(r11)
+                      # same for /
+dvs-or1          10w  ori rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r3 (def@in) dvs=r10(def@0)  zero-trap=TO6@6(r10)     other=TO5@8(r11)
+                      # divisor PROVABLY nonzero at the value level -- does the trap survive?
+dvs-mul          10w  mullw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r3 (def@in) dvs=r10(def@0)  zero-trap=TO6@6(r10)     other=TO5@8(r11)
+                      # divisor = 2 formals
+dvs-load         11w  addis rlwinm addi lwz divw andc twi mullw subf twi bclr
+                      inspine   div@4  dvd=r3 (def@in) dvs=r11(def@3)  zero-trap=TO6@6(r11)     other=TO5@9(r9)
+                      # divisor = a global load
+dvs-ptr          10w  lwz rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r3 (def@in) dvs=r10(def@0)  zero-trap=TO6@6(r10)     other=TO5@8(r11)
+                      # divisor = an indirect load
+both-comp        11w  addi addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@0) dvs=r9 (def@1)  zero-trap=TO6@7(r9)      other=TO5@9(r11)
+                      # BOTH computed
+both-comp-r      11w  addi mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@0) dvs=r9 (def@1)  zero-trap=TO6@7(r9)      other=TO5@9(r11)
+                      # both, deeper divisor
+dvs-u             6w  addi divwu twi mullw subf bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=TO6@2(r11)     other=-
+                      # unsigned, computed divisor
+
+=== BLK =========================================================================================
+blk-if           14w  cmpi bc addi twi rlwinm divw addi mullw andc subf twi bclr addi bclr
+                      HOIST     div@5  dvd=r10(def@2) dvs=r4 (def@in)  zero-trap=TO6@3(r4)      other=TO5@10(r11)
+                      # computed dividend in a NON-entry block with ONE predecessor -- R3-a says in-spine, R3-b says hoisted
+blk-if-plain     13w  cmpi bc rlwinm divw addi mullw andc twi subf twi bclr addi bclr
+                      inspine   div@3  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@7(r4)      other=TO5@9(r11)
+                      # the same block, operands both live-in
+blk-join         13w  or cmpi bc addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@5  dvd=r11(def@3) dvs=r4 (def@in)  zero-trap=TO6@9(r4)      other=TO5@11(r10)
+                      # computed dividend reaching a JOIN block -- two predecessors, no back edge
+blk-loop         19w  lbz or addi extsb bclr mulli lbzu add extsb rlwinm divw addi mullw andc twi subf twi bc bclr
+                      inspine   div@10 dvd=r8 (def@7) dvs=r4 (def@in)  zero-trap=TO6@14(r4)     other=TO5@16(r9)
+                      # ?HashString itself: the back edge. MUST reproduce the shipped 20 words
+blk-loop-plain   17w  lbz or addi cmpli bclr rlwinm divw addi mullw andc twi subf twi lbzu cmpli bc bclr
+                      inspine   div@6  dvd=r4 (def@in) dvs=r5 (def@in)  zero-trap=TO6@10(r5)     other=TO5@12(r10)
+                      # a loop whose operands are both live-in
+blk-seq          11w  addi twi rlwinm rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@2) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@9(r11)
+                      # a longer straight-line entry block
+blk-stmt         12w  rlwinm addis addi addi divw twi stw mullw andc subf twi bclr
+                      inspine   div@4  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@10(r11)
+                      # a store BEFORE the division, operands live-in: does the trap move?
+blk-stmt-after   12w  rlwinm addis addi addi divw twi stw mullw andc subf twi bclr
+                      inspine   div@4  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@10(r11)
+                      # a store AFTER: does trailing work change the placement?
+
+=== LIT =========================================================================================
+lit-p3            5w  addi divw mulli subf bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+lit-p7            5w  addi divw mulli subf bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+lit-p1            2w  addi bclr
+                      no-div    traps=-
+lit-p2            5w  srawi addze rlwinm subf bclr
+                      no-div    traps=-
+lit-m1            2w  addi bclr
+                      no-div    traps=-
+                      # divisor -1: the INT_MIN case
+lit-m3            5w  addi divw mulli subf bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+lit-m2            6w  srawi addze neg mulli subf bclr
+                      no-div    traps=-
+lit-zero          2w  twi bclr
+                      no-div    traps=TO7@0
+                      # literal 0: UB
+lit-imin          7w  srawi addis addze neg mullw subf bclr
+                      no-div    traps=-
+                      # divisor INT_MIN
+lit-imax          6w  addis ori divw mullw subf bclr
+                      no-zero-trap div@2  dvd=r3 (def@in) dvs=r11(def@1)  zero-trap=NONE           other=-
+                      # divisor INT_MAX
+lit-big           6w  addis ori divw mullw subf bclr
+                      no-zero-trap div@2  dvd=r3 (def@in) dvs=r11(def@1)  zero-trap=NONE           other=-
+                      # outside simm16
+lit-32768         7w  srawi addis addze ori mullw subf bclr
+                      no-div    traps=-
+                      # 2^15, the simm16 cliff
+lit-32767         5w  addi divw mulli subf bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+                      # simm16 max
+lit-m32768        6w  srawi addze neg mulli subf bclr
+                      no-div    traps=-
+                      # simm16 min
+lit-d3            3w  addi divw bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+lit-dm1           2w  neg bclr
+                      no-div    traps=-
+lit-dzero         2w  twi bclr
+                      no-div    traps=TO7@0
+lit-dimin         4w  srawi addze neg bclr
+                      no-div    traps=-
+lit-u3            5w  addi divwu mulli subf bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+lit-u0            2w  twi bclr
+                      no-div    traps=TO7@0
+                      # unsigned literal zero
+lit-u8            2w  rlwinm bclr
+                      no-div    traps=-
+lit-ud3           3w  addi divwu bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+lit-ud0           2w  twi bclr
+                      no-div    traps=TO7@0
+lit-const0        2w  twi bclr
+                      no-div    traps=TO7@0
+                      # value 0 through a const local, not a token
+lit-constm1       2w  addi bclr
+                      no-div    traps=-
+                      # value -1 through a const local
+lit-const7        5w  addi divw mulli subf bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+lit-enum0         2w  twi bclr
+                      no-div    traps=TO7@0
+                      # value 0 through an enumerator
+lit-enumm1        2w  addi bclr
+                      no-div    traps=-
+lit-gconst        5w  addi divw mulli subf bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+                      # a const at namespace scope
+lit-gconst0       2w  twi bclr
+                      no-div    traps=TO7@0
+lit-vol          12w  addi rlwinm stw lwz divw addi mullw andc twi subf twi bclr
+                      inspine   div@4  dvd=r3 (def@in) dvs=r10(def@3)  zero-trap=TO6@8(r10)     other=TO5@10(r11)
+                      # volatile: the value is known but not usable -- a full spine expected
+
+=== USE =========================================================================================
+use-add          10w  rlwinm divw addi mullw subf andc twi addi twi bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r10)
+use-mul          10w  divw rlwinm mullw addi subf andc twi mulli twi bclr
+                      inspine   div@0  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+use-store        11w  rlwinm divw addi mullw addis andc subf twi twi stw bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@7(r4)      other=TO5@8(r8)
+use-both         16w  rlwinm rlwinm divw addi addi mullw andc subf divw andc twi twi twi twi add bclr
+                      inspine   div@2  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@10(r4)     other=TO6@11(r4),TO5@12(r9),TO5@13(r8)
+                      # BOTH ops on the same operands -- one divw or two? one trap pair or two?
+use-two          18w  rlwinm divw rlwinm addi divw mullw addi andc mullw subf andc subf twi twi twi twi add bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@12(r4)     other=TO6@13(r4),TO5@14(r7),TO5@15(r9)
+                      # two `%` sharing a divisor -- is the zero-divisor trap CSEd?
+use-two-d        18w  rlwinm divw rlwinm divw addi mullw addi andc mullw subf andc subf twi twi twi twi add bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@12(r4)     other=TO6@13(r5),TO5@14(r7),TO5@15(r9)
+                      # two `%` sharing a dividend
+use-void          1w  bclr
+                      no-div    traps=-
+                      # the result is DEAD: does the trap survive dead-code elimination?
+
+=== WIDTH =======================================================================================
+w-short          12w  extsh extsh rlwinm divw addi mullw andc subf twi twi extsh bclr
+                      inspine   div@3  dvd=r10(def@0) dvs=r9 (def@1)  zero-trap=TO6@8(r9)      other=TO5@9(r11)
+w-char           12w  extsb extsb rlwinm divw addi mullw andc subf twi twi extsb bclr
+                      inspine   div@3  dvd=r10(def@0) dvs=r9 (def@1)  zero-trap=TO6@8(r9)      other=TO5@9(r11)
+w-uchar          12w  rlwinm rlwinm rlwinm divw addi mullw andc subf twi twi rlwinm bclr
+                      inspine   div@3  dvd=r10(def@0) dvs=r9 (def@1)  zero-trap=TO6@8(r9)      other=TO5@9(r11)
+w-ll              9w  rld divd addi mulld andc tdi subf tdi bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@7(r11)
+w-ull             5w  divdu tdi mulld subf bclr
+                      inspine   div@0  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=-
+w-lldiv           7w  rld divd addi tdi andc tdi bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@3(r4)      other=TO5@5(r11)
+w-mix            10w  extsh rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r3 (def@in) dvs=r10(def@0)  zero-trap=TO6@6(r10)     other=TO5@8(r11)
+
+====================================================================================================
+anchor s-mod-var: spine OK, TO fields [6, 5] read off the words, zero-trap at index 5
+
+CELLS: 77 captured, 77 GRADED by the oracle, 0 capture-failed, 0 control failures
+TO fields observed across the whole grid: [5, 6, 7]
+  HOIST          11  blk-if blk-seq dvd-2op dvd-3op dvd-add1 dvd-add1-div dvd-lit dvd-lit-div dvd-load dvd-ptr dvd-u
+  inspine        34  blk-if-plain blk-join blk-loop blk-loop-plain blk-stmt blk-stmt-after both-comp both-comp-r dvd-mul dvs-add1 dvs-add1-div dvs-load dvs-mul dvs-or1 dvs-ptr dvs-u lit-vol s-div-var s-mod-var u-div-var u-mod-var use-add use-both use-mul use-store use-two use-two-d w-char w-ll w-lldiv w-mix w-short w-uchar w-ull
+  no-div         21  lit-32768 lit-const0 lit-constm1 lit-dimin lit-dm1 lit-dzero lit-enum0 lit-enumm1 lit-gconst0 lit-imin lit-m1 lit-m2 lit-m32768 lit-p1 lit-p2 lit-u0 lit-u8 lit-ud0 lit-zero plain-add use-void
+  no-zero-trap   11  lit-32767 lit-big lit-const7 lit-d3 lit-gconst lit-imax lit-m3 lit-p3 lit-p7 lit-u3 lit-ud3

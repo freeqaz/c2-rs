@@ -1,0 +1,223 @@
+
+=== O1  (/O1 /GS- /c) ==========
+cell             expected  graded       c2 emits instead
+----------------------------------------------------------------------------------------------------
+smod             match     match        
+sdiv             match     match        
+umod             match     match        
+udiv             match     match        
+typedef          match     match        
+swap             refuse    vocab-gap    dividend in slot 1: the spine reads r3 by name
+repeat           refuse    vocab-gap    a repeated leaf licenses the algebraic rewriter
+three            refuse    vocab-gap    a third formal
+one              refuse    vocab-gap    one formal
+dvd-comp         refuse    vocab-gap    twi 6 HOISTS to the block's second slot
+dvs-comp         refuse    vocab-gap    in-spine but a different register plan
+both-comp        refuse    vocab-gap    both
+dvd-comp-div     refuse    vocab-gap    the same for /
+lit-7            refuse    vocab-gap    addi ; divw ; mulli ; subf
+lit-2            refuse    vocab-gap    srawi ; addze ; rlwinm ; subf
+lit-1            refuse    vocab-gap    a single addi
+lit-m1           refuse    vocab-gap    a single addi
+lit-0            refuse    vocab-gap    no division, twi 7,r0,0
+lit-big          refuse    vocab-gap    addis ; ori ; divw ; mullw ; subf
+lit-d-m1         refuse    vocab-gap    a bare neg
+lit-lhs          refuse    vocab-gap    hoisted twi 6
+lit-u0           refuse    vocab-gap    no division, twi 7,r0,0
+short            refuse    vocab-gap    extsh brackets, and the two traps go ADJACENT
+schar            refuse    vocab-gap    extsb brackets, traps adjacent
+uchar            refuse    vocab-gap    rlwinm brackets, traps adjacent
+llong            refuse    vocab-gap    a divd/tdi spine
+ullong           refuse    vocab-gap    divdu
+mixed            refuse    vocab-gap    an extsh on one operand only
+long             refuse    vocab-gap    byte-identical to int per IL_TYPE_TAGS 3.1 -- refused, ungraded
+ulong            refuse    vocab-gap    ditto
+constp           refuse    vocab-gap    a qualified type id
+enum             refuse    vocab-gap    a post-op
+post-add         refuse    vocab-gap    an addi after the spine
+via-loc          refuse    vocab-gap    a local
+store            refuse    vocab-gap    a store, and a void return
+two-ops          refuse    vocab-gap    TWO divisions: all four traps go adjacent
+unsigned-mix     refuse    vocab-gap    a conversion
+O1: 37 cells GRADED by the oracle, 0 mismatch, 0 failed
+
+=== O1-Oi-EHsc-GR  (/O1 /Oi /EHsc /GR /GS- /c) ==========
+cell             expected  graded       c2 emits instead
+----------------------------------------------------------------------------------------------------
+smod             match     match        
+sdiv             match     match        
+umod             match     match        
+udiv             match     match        
+typedef          match     match        
+swap             refuse    vocab-gap    dividend in slot 1: the spine reads r3 by name
+repeat           refuse    vocab-gap    a repeated leaf licenses the algebraic rewriter
+three            refuse    vocab-gap    a third formal
+one              refuse    vocab-gap    one formal
+dvd-comp         refuse    vocab-gap    twi 6 HOISTS to the block's second slot
+dvs-comp         refuse    vocab-gap    in-spine but a different register plan
+both-comp        refuse    vocab-gap    both
+dvd-comp-div     refuse    vocab-gap    the same for /
+lit-7            refuse    vocab-gap    addi ; divw ; mulli ; subf
+lit-2            refuse    vocab-gap    srawi ; addze ; rlwinm ; subf
+lit-1            refuse    vocab-gap    a single addi
+lit-m1           refuse    vocab-gap    a single addi
+lit-0            refuse    vocab-gap    no division, twi 7,r0,0
+lit-big          refuse    vocab-gap    addis ; ori ; divw ; mullw ; subf
+lit-d-m1         refuse    vocab-gap    a bare neg
+lit-lhs          refuse    vocab-gap    hoisted twi 6
+lit-u0           refuse    vocab-gap    no division, twi 7,r0,0
+short            refuse    vocab-gap    extsh brackets, and the two traps go ADJACENT
+schar            refuse    vocab-gap    extsb brackets, traps adjacent
+uchar            refuse    vocab-gap    rlwinm brackets, traps adjacent
+llong            refuse    vocab-gap    a divd/tdi spine
+ullong           refuse    vocab-gap    divdu
+mixed            refuse    vocab-gap    an extsh on one operand only
+long             refuse    vocab-gap    byte-identical to int per IL_TYPE_TAGS 3.1 -- refused, ungraded
+ulong            refuse    vocab-gap    ditto
+constp           refuse    vocab-gap    a qualified type id
+enum             refuse    vocab-gap    a post-op
+post-add         refuse    vocab-gap    an addi after the spine
+via-loc          refuse    vocab-gap    a local
+store            refuse    vocab-gap    a store, and a void return
+two-ops          refuse    vocab-gap    TWO divisions: all four traps go adjacent
+unsigned-mix     refuse    vocab-gap    a conversion
+O1-Oi-EHsc-GR: 37 cells GRADED by the oracle, 0 mismatch, 0 failed
+
+=== Ox  (/Ox /GS- /c) ==========
+cell             expected  graded       c2 emits instead
+----------------------------------------------------------------------------------------------------
+smod             match     match        
+sdiv             match     match        
+umod             match     match        
+udiv             match     match        
+typedef          match     match        
+swap             refuse    vocab-gap    dividend in slot 1: the spine reads r3 by name
+repeat           refuse    vocab-gap    a repeated leaf licenses the algebraic rewriter
+three            refuse    vocab-gap    a third formal
+one              refuse    vocab-gap    one formal
+dvd-comp         refuse    vocab-gap    twi 6 HOISTS to the block's second slot
+dvs-comp         refuse    vocab-gap    in-spine but a different register plan
+both-comp        refuse    vocab-gap    both
+dvd-comp-div     refuse    vocab-gap    the same for /
+lit-7            refuse    vocab-gap    addi ; divw ; mulli ; subf
+lit-2            refuse    vocab-gap    srawi ; addze ; rlwinm ; subf
+lit-1            refuse    vocab-gap    a single addi
+lit-m1           refuse    vocab-gap    a single addi
+lit-0            refuse    vocab-gap    no division, twi 7,r0,0
+lit-big          refuse    vocab-gap    addis ; ori ; divw ; mullw ; subf
+lit-d-m1         refuse    vocab-gap    a bare neg
+lit-lhs          refuse    vocab-gap    hoisted twi 6
+lit-u0           refuse    vocab-gap    no division, twi 7,r0,0
+short            refuse    vocab-gap    extsh brackets, and the two traps go ADJACENT
+schar            refuse    vocab-gap    extsb brackets, traps adjacent
+uchar            refuse    vocab-gap    rlwinm brackets, traps adjacent
+llong            refuse    vocab-gap    a divd/tdi spine
+ullong           refuse    vocab-gap    divdu
+mixed            refuse    vocab-gap    an extsh on one operand only
+long             refuse    vocab-gap    byte-identical to int per IL_TYPE_TAGS 3.1 -- refused, ungraded
+ulong            refuse    vocab-gap    ditto
+constp           refuse    vocab-gap    a qualified type id
+enum             refuse    vocab-gap    a post-op
+post-add         refuse    vocab-gap    an addi after the spine
+via-loc          refuse    vocab-gap    a local
+store            refuse    vocab-gap    a store, and a void return
+two-ops          refuse    vocab-gap    TWO divisions: all four traps go adjacent
+unsigned-mix     refuse    vocab-gap    a conversion
+Ox: 37 cells GRADED by the oracle, 0 mismatch, 0 failed
+
+=== O2  (/O2 /GS- /c) ==========
+cell             expected  graded       c2 emits instead
+----------------------------------------------------------------------------------------------------
+smod             match     match        
+sdiv             match     match        
+umod             match     match        
+udiv             match     match        
+typedef          match     match        
+swap             refuse    vocab-gap    dividend in slot 1: the spine reads r3 by name
+repeat           refuse    vocab-gap    a repeated leaf licenses the algebraic rewriter
+three            refuse    vocab-gap    a third formal
+one              refuse    vocab-gap    one formal
+dvd-comp         refuse    vocab-gap    twi 6 HOISTS to the block's second slot
+dvs-comp         refuse    vocab-gap    in-spine but a different register plan
+both-comp        refuse    vocab-gap    both
+dvd-comp-div     refuse    vocab-gap    the same for /
+lit-7            refuse    vocab-gap    addi ; divw ; mulli ; subf
+lit-2            refuse    vocab-gap    srawi ; addze ; rlwinm ; subf
+lit-1            refuse    vocab-gap    a single addi
+lit-m1           refuse    vocab-gap    a single addi
+lit-0            refuse    vocab-gap    no division, twi 7,r0,0
+lit-big          refuse    vocab-gap    addis ; ori ; divw ; mullw ; subf
+lit-d-m1         refuse    vocab-gap    a bare neg
+lit-lhs          refuse    vocab-gap    hoisted twi 6
+lit-u0           refuse    vocab-gap    no division, twi 7,r0,0
+short            refuse    vocab-gap    extsh brackets, and the two traps go ADJACENT
+schar            refuse    vocab-gap    extsb brackets, traps adjacent
+uchar            refuse    vocab-gap    rlwinm brackets, traps adjacent
+llong            refuse    vocab-gap    a divd/tdi spine
+ullong           refuse    vocab-gap    divdu
+mixed            refuse    vocab-gap    an extsh on one operand only
+long             refuse    vocab-gap    byte-identical to int per IL_TYPE_TAGS 3.1 -- refused, ungraded
+ulong            refuse    vocab-gap    ditto
+constp           refuse    vocab-gap    a qualified type id
+enum             refuse    vocab-gap    a post-op
+post-add         refuse    vocab-gap    an addi after the spine
+via-loc          refuse    vocab-gap    a local
+store            refuse    vocab-gap    a store, and a void return
+two-ops          refuse    vocab-gap    TWO divisions: all four traps go adjacent
+unsigned-mix     refuse    vocab-gap    a conversion
+O2: 37 cells GRADED by the oracle, 0 mismatch, 0 failed
+
+=== Od  (/Od /GS- /c)  [FAIL-CLOSED: the port claims no body at this mode] ==========
+cell             expected  graded       c2 emits instead
+----------------------------------------------------------------------------------------------------
+smod             refuse    codegen-gap  
+sdiv             refuse    codegen-gap  
+umod             refuse    codegen-gap  
+udiv             refuse    codegen-gap  
+typedef          refuse    codegen-gap  
+swap             refuse    vocab-gap    dividend in slot 1: the spine reads r3 by name
+repeat           refuse    vocab-gap    a repeated leaf licenses the algebraic rewriter
+three            refuse    vocab-gap    a third formal
+one              refuse    vocab-gap    one formal
+dvd-comp         refuse    vocab-gap    twi 6 HOISTS to the block's second slot
+dvs-comp         refuse    vocab-gap    in-spine but a different register plan
+both-comp        refuse    vocab-gap    both
+dvd-comp-div     refuse    vocab-gap    the same for /
+lit-7            refuse    vocab-gap    addi ; divw ; mulli ; subf
+lit-2            refuse    vocab-gap    srawi ; addze ; rlwinm ; subf
+lit-1            refuse    vocab-gap    a single addi
+lit-m1           refuse    vocab-gap    a single addi
+lit-0            refuse    vocab-gap    no division, twi 7,r0,0
+lit-big          refuse    vocab-gap    addis ; ori ; divw ; mullw ; subf
+lit-d-m1         refuse    vocab-gap    a bare neg
+lit-lhs          refuse    vocab-gap    hoisted twi 6
+lit-u0           refuse    vocab-gap    no division, twi 7,r0,0
+short            refuse    vocab-gap    extsh brackets, and the two traps go ADJACENT
+schar            refuse    vocab-gap    extsb brackets, traps adjacent
+uchar            refuse    vocab-gap    rlwinm brackets, traps adjacent
+llong            refuse    vocab-gap    a divd/tdi spine
+ullong           refuse    vocab-gap    divdu
+mixed            refuse    vocab-gap    an extsh on one operand only
+long             refuse    vocab-gap    byte-identical to int per IL_TYPE_TAGS 3.1 -- refused, ungraded
+ulong            refuse    vocab-gap    ditto
+constp           refuse    vocab-gap    a qualified type id
+enum             refuse    vocab-gap    a post-op
+post-add         refuse    vocab-gap    an addi after the spine
+via-loc          refuse    vocab-gap    a local
+store            refuse    vocab-gap    a store, and a void return
+two-ops          refuse    vocab-gap    TWO divisions: all four traps go adjacent
+unsigned-mix     refuse    vocab-gap    a conversion
+Od: 37 cells GRADED by the oracle, 0 mismatch, 0 failed
+
+====================================================================================================
+mode                 graded   mismatch   failed
+O1                       37          0        0
+O1-Oi-EHsc-GR            37          0        0
+Ox                       37          0        0
+O2                       37          0        0
+Od                       37          0        0
+----------------------------------------------
+TOTAL                   185          0        0
+
+cells generated: 37 (5 accept, 32 refuse) x 5 modes = 185 selected
+cells GRADED BY THE ORACLE: 185

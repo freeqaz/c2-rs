@@ -1,0 +1,148 @@
+mode: /O1 /GS- /c   workdir: /home/free/tmp/wdivmod3gzqirrlj
+
+=== CTL =========================================================================================
+plain-add         2w  add bclr
+                      no-div    traps=-
+                      # CONTROL
+s-mod-var         9w  rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@7(r11)
+                      # ANCHOR
+
+=== BLK1 ========================================================================================
+b-mulli          10w  mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # mulli
+b-mullw          10w  mullw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # mullw
+b-slw            10w  slw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # slw
+b-sraw           10w  sraw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # sraw
+b-srw             6w  srw divwu twi mullw subf bclr
+                      inspine   div@1  dvd=r11(def@0) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=-
+                      # srw
+b-slwu            6w  slw divwu twi mullw subf bclr
+                      inspine   div@1  dvd=r11(def@0) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=-
+                      # slw, unsigned
+b-srawi          10w  srawi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # srawi: an IMMEDIATE arithmetic shift
+b-srwi            6w  rlwinm twi divwu mullw subf bclr
+                      HOIST     div@2  dvd=r11(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=-
+                      # rlwinm: immediate logical shift
+b-mulhi          10w  mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # a wider multiply
+b-divw           15w  divw rlwinm rlwinm addi divw addi andc andc mullw twi twi twi twi subf bclr
+                      inspine   div@0  dvd=r3 (def@in) dvs=r5 (def@in)  zero-trap=TO6@9(r5)      other=TO6@10(r4),TO5@11(r11),TO5@12(r10)
+                      # a DIVISION produces the dividend
+b-modw           17w  divw rlwinm mullw subf addi rlwinm divw addi andc andc mullw twi twi twi twi subf bclr
+                      inspine   div@0  dvd=r3 (def@in) dvs=r5 (def@in)  zero-trap=TO6@11(r5)     other=TO6@12(r4),TO5@13(r9),TO5@14(r11)
+                      # a MODULO produces the dividend
+b-divk           11w  addi twi divw rlwinm divw addi mullw andc subf twi bclr
+                      inspine   div@2  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=TO5@9(r11)     other=TO6@1(r4)
+                      # division by a literal (srawi-free path)
+b-div2           11w  srawi twi addze rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@2) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@9(r11)
+                      # srawi ; addze
+n-addi           10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # addi -- does not block
+n-rlwinm         10w  rlwinm twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # rlwinm -- does not block
+n-lwz            10w  lwz twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # lwz -- a LOAD does not block
+n-lbz            10w  lbz twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # lbz
+n-cntlz          13w  or cmpi bc addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@5  dvd=r11(def@3) dvs=r4 (def@in)  zero-trap=TO6@9(r4)      other=TO5@11(r10)
+                      # a select
+
+=== BLK2 ========================================================================================
+t-mul-add        11w  mulli add twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=TO5@9(r11)
+                      # BLOCK, free -> after the free one
+t-add-mul        11w  add twi mulli rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@2) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@9(r11)
+                      # free, BLOCK -> after the free one
+t-mul-mul        11w  mullw mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@7(r4)      other=TO5@9(r11)
+                      # BLOCK, BLOCK -> no hoist
+t-slw-add        11w  slw addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=TO5@9(r11)
+                      # slw, addi
+t-add-slw        11w  addi twi slw rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@2) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@9(r11)
+                      # addi, slw
+t-slw-slw        11w  slw slw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@7(r4)      other=TO5@9(r11)
+                      # slw, slw
+t-mul-slw        11w  mulli slw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@7(r4)      other=TO5@9(r11)
+                      # mulli, slw
+t-mmA            12w  mullw mulli add twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@5  dvd=r10(def@2) dvs=r4 (def@in)  zero-trap=TO6@3(r4)      other=TO5@10(r11)
+                      # BLOCK, BLOCK, free -> after the free one (position 3)?
+t-mAm            12w  mulli add twi mullw rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@5  dvd=r10(def@3) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=TO5@10(r11)
+                      # BLOCK, free, BLOCK -> after the free one (position 2)?
+
+=== DVS =========================================================================================
+c-dvs-mul        11w  addi mullw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@0) dvs=r9 (def@1)  zero-trap=TO6@7(r9)      other=TO5@9(r11)
+                      # dividend free-computed, divisor computed by a BLOCKING op
+c-dvs-add        11w  addi addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@0) dvs=r9 (def@1)  zero-trap=TO6@7(r9)      other=TO5@9(r11)
+                      # both free-computed
+c-dvs-in         10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # divisor live-in: HOISTs
+
+=== LOOP ========================================================================================
+l-while          19w  lbz or addi cmpli bclr mulli lbzu add or rlwinm divw addi mullw andc twi subf twi bc bclr
+                      inspine   div@10 dvd=r8 (def@7) dvs=r4 (def@in)  zero-trap=TO6@14(r4)     other=TO5@16(r9)
+                      # ?HashString: back edge, free-computed dividend -> inspine
+l-for            18w  addi addi cmpi bc mtspr add addi rlwinm divw addi mullw andc twi subf twi bc or bclr
+                      inspine   div@8  dvd=r9 (def@5) dvs=r4 (def@in)  zero-trap=TO6@12(r4)     other=TO5@14(r7)
+                      # for-loop, free-computed dividend
+l-do             15w  or addi add addi rlwinm divw addi mullw andc twi subf twi cmp bc bclr
+                      inspine   div@5  dvd=r8 (def@2) dvs=r4 (def@in)  zero-trap=TO6@9(r4)      other=TO5@11(r10)
+                      # do/while
+l-loopfree       14w  addi cmpi bc addi twi rlwinm divw addi mullw andc subf twi or bclr
+                      HOIST     div@6  dvd=r10(def@3) dvs=r4 (def@in)  zero-trap=TO6@4(r4)      other=TO5@11(r8)
+                      # a loop-INVARIANT dividend: is it hoisted OUT of the loop, and then what?
+l-preheader      19w  or addi addi addi cmpi bclr rlwinm mtspr divw addi mullw andc twi subf twi add addi bc bclr
+                      inspine   div@8  dvd=r11(def@2) dvs=r4 (def@in)  zero-trap=TO6@12(r4)     other=TO5@14(r9)
+                      # the dividend computed in the PREHEADER, used in the body
+l-nested         21w  addi cmpi bc or addi mtspr add addi rlwinm divw addi mullw andc twi subf twi bc addic. bc or bclr
+                      inspine   div@9  dvd=r8 (def@6) dvs=r4 (def@in)  zero-trap=TO6@13(r4)     other=TO5@15(r6)
+                      # an inner loop body
+
+=== JOIN ========================================================================================
+j-livein         13w  or cmpi bc addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@5  dvd=r11(def@3) dvs=r4 (def@in)  zero-trap=TO6@9(r4)      other=TO5@11(r10)
+                      # dividend live-in to the JOIN block -> inspine by clause (b), not by pred count
+j-inblock        14w  cmpi addi bc addi addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@7  dvd=r10(def@4) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@12(r11)
+                      # join block computes the dividend ITSELF -> HOISTs, so pred count is NOT the clause
+j-inblock2       15w  or cmpi bc addi rlwinm twi addi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@8  dvd=r10(def@6) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@13(r11)
+                      # same, a second spelling
+j-mulblock       14w  cmpi addi bc addi mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@6  dvd=r10(def@4) dvs=r4 (def@in)  zero-trap=TO6@10(r4)     other=TO5@12(r11)
+                      # join block computes it with a BLOCKING op -> inspine
+
+====================================================================================================
+anchor s-mod-var: spine OK, TO fields [6, 5] read off the words, zero-trap at index 5
+
+CELLS: 42 captured, 42 GRADED by the oracle, 0 capture-failed, 0 control failures
+TO fields observed across the whole grid: [5, 6]
+  HOIST          17  b-div2 b-srawi b-srwi c-dvs-in j-inblock j-inblock2 l-loopfree n-addi n-lbz n-lwz n-rlwinm t-add-mul t-add-slw t-mAm t-mmA t-mul-add t-slw-add
+  inspine        24  b-divk b-divw b-modw b-mulhi b-mulli b-mullw b-slw b-slwu b-sraw b-srw c-dvs-add c-dvs-mul j-livein j-mulblock l-do l-for l-nested l-preheader l-while n-cntlz s-mod-var t-mul-mul t-mul-slw t-slw-slw
+  no-div          1  plain-add
