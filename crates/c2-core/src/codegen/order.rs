@@ -41,11 +41,11 @@
 //!
 //! # More than one base symbol — board #564/#582, and it is now half open
 //!
-//! Lane `w-sym` measured 7,573 probe cells through one, two and three base
+//! Lane `w-sym` measured 7,589 probe cells through one, two and three base
 //! symbols. Three separable facts came out of it and only two are modelled:
 //!
 //! 1. **The cross-symbol PIN is exact.** The emitted symbol pattern equals the
-//!    source symbol pattern on **7,573 of 7,573** cells, model-free. The store
+//!    source symbol pattern on **7,589 of 7,589** cells, model-free. The store
 //!    order only ever permutes *within* a symbol group. Board **#601**.
 //! 2. **The STORE order** generalises with one change — [`store_order`]'s
 //!    lowered `u` — and is exact at up to [`MAX_MULTISYM_PRODUCERS`]
@@ -227,7 +227,7 @@ fn walk(stmts: &[Stmt], ranks: &[usize], u: usize) -> Option<Vec<usize>> {
             if stmts[k].producer.is_some() && q < u + ranks[k] {
                 continue;
             }
-            // The cross-symbol PIN. Measured model-free by `w-sym` on 7,573
+            // The cross-symbol PIN. Measured model-free by `w-sym` on 7,589
             // cells: the emitted symbol pattern equals the source symbol
             // pattern, always. Board **#601**.
             if left[..i].iter().any(|&j| stmts[j].base != stmts[k].base) {
@@ -527,7 +527,7 @@ mod tests {
 
     /// The PIN: two stores through different symbols are never reordered past
     /// each other, so the emitted symbol pattern is the source one. Measured
-    /// model-free on 7,573 of 7,573 cells — board #601. Enumerated here as a
+    /// model-free on 7,589 of 7,589 cells — board #601. Enumerated here as a
     /// positive check with a printed count.
     #[test]
     fn the_emitted_symbol_pattern_is_always_the_source_pattern() {

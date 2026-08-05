@@ -260,7 +260,7 @@ the page.
   > one store moved to the other symbol put the second producer one slot later.
   >
   > **The cross-symbol pin is now a measurement, not an assumption** — the
-  > emitted symbol pattern equals the source pattern on **7,573 of 7,573**
+  > emitted symbol pattern equals the source pattern on **7,589 of 7,589**
   > cells. Board **#601**.
 * **More than three distinct producers**, matching `ALLOC`'s domain. The order
   alone is exact there (822 of 822); the register is not, and a caller needs

@@ -32,9 +32,10 @@ earlier attempt scored them as one number.
 > store order is **identical** to the sequence in source order.
 
 Measured with no rule involved at all, by reading the emitted symbol pattern
-off the listing and comparing it to the source: **7,573 of 7,573 cells, 0
+off the listing and comparing it to the source: **7,589 of 7,589 cells, 0
 violations** — 3,206 fit, 4,367 holdout (which includes the whole three-symbol
-tier), across 1, 2 and 3 symbols, 1 to 6 producers, runs of 2 to 7 statements.
+tier) and 16 external, across 1, 2 and 3 symbols, 1 to 6 producers, runs of 2
+to 7 statements.
 
 This is `STORE_SCHEDULE.md` §3's may-alias clause, promoted from a modelling
 assumption to a measurement, and it is what makes the rest tractable: **the

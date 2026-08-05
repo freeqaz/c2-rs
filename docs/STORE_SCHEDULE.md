@@ -154,7 +154,8 @@ killed H3/H4/H5 has two symbols in it:
 > *"Two stores that may alias are never reordered"* was a modelling
 > assumption everywhere it appears. Read off the listing with no rule
 > involved — compare the emitted sequence of base symbols to the source one —
-> it holds on **7,573 of 7,573** cells: 1, 2 and 3 symbols, 1 to 6 producers,
+> it holds on **7,589 of 7,589** cells — fit, holdout and external alike:
+> 1, 2 and 3 symbols, 1 to 6 producers,
 > runs of 2 to 7 statements, both partitions. **0 violations.** Board
 > **#601**, and it is what makes the multi-symbol store order tractable: the
 > order can only permute *within* a symbol group. `docs/SYMBOL.md` §1.
