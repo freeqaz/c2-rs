@@ -1718,3 +1718,318 @@ fn the_cfg_control_passes_on_xboxmem_and_is_absent_rather_than_true_when_missing
          c2-core enum and nothing in the type system ties them together"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Board #778 — the CFG SUB-CLASS predicate (lane w-subclass).
+//
+// The screen could hold only a wholesale claim, so two lanes with genuine
+// PARTIAL coverage of `cflow-loop` had to over-claim or record nothing, and
+// both correctly recorded nothing. These grade the mechanism that lets them
+// record it — and, above all, the property that keeps it honest: NARROWER OR
+// EQUAL, NEVER WIDER.
+// ---------------------------------------------------------------------------
+
+/// **A restriction NARROWS. It cannot widen — checked over every pair of a
+/// grid, with a printed count rather than a spot check.**
+///
+/// This is the property the whole design turns on. `admits` is
+/// `class == class && <sub>`, so `Keys` adds a *conjunct* to what the bare
+/// string already tested; the wholesale entry must therefore admit everything
+/// the restricted one does, for every `(class, key)`. Both the grid size and
+/// the number of pairs actually narrowed are asserted, because a test written
+/// as "no counterexample found" passes on an empty grid — absence read as
+/// success, and the predicate would be inert rather than correct.
+#[test]
+fn a_restricted_entry_admits_a_subset_of_what_the_whole_class_admits() {
+    let classes = ["cflow-loop", "cflow-if-1", "cflow-if-n", "cflow-straight"];
+    let keys = [
+        "ptr-walk-mod-loop",
+        "expr-op-0x27",
+        "assign-store-type-8643",
+        "cond-tail-pair",
+        "expr-cmp-eq",
+    ];
+    let restricted = CfgClass {
+        class: "cflow-loop",
+        sub: CfgSub::Keys(&["ptr-walk-mod-loop", "expr-cmp-eq"]),
+    };
+    let whole = CfgClass { class: "cflow-loop", sub: CfgSub::Whole };
+    let (mut pairs, mut narrowed) = (0usize, 0usize);
+    for c in classes {
+        for k in keys {
+            pairs += 1;
+            assert!(
+                !restricted.admits(c, k) || whole.admits(c, k),
+                "{c}|{k}: the restricted entry admitted a pair the WHOLE class does \
+                 not — a restriction that widens is the one direction #778 forbids"
+            );
+            if whole.admits(c, k) && !restricted.admits(c, k) {
+                narrowed += 1;
+            }
+        }
+    }
+    assert_eq!(pairs, 20, "the grid must be the size the assertion claims");
+    assert_eq!(
+        narrowed, 3,
+        "3 of the 5 keys land in `cflow-loop` and outside the restriction, so it \
+         must be STRICTLY narrower — a `narrowed` of 0 would mean the subset \
+         check above passed vacuously"
+    );
+}
+
+/// **MUST-FAIL MUTATION M2 — a key that EXTENDS a listed key is not admitted.**
+///
+/// The natural mistake in a hand-written allow-list is `starts_with` where `==`
+/// was meant, and census keys nest densely enough that it would bite at once:
+/// `expr-cmp-eq` is a strict prefix of `expr-cmp-eq-and-branch-more`, and both
+/// are live `cflow-loop` keys on the 878-TU workload (measured 2026-08-05: 734
+/// and 7 functions). Under exact matching, a lane that measured the short one
+/// claims the short one. Change `CfgSub::Keys(ks) => ks.contains(&key)` to a
+/// `starts_with` scan and this test fails, naming the key wrongly admitted.
+#[test]
+fn a_key_extending_a_listed_key_is_not_admitted() {
+    let e = CfgClass { class: "cflow-loop", sub: CfgSub::Keys(&["expr-cmp-eq"]) };
+    assert!(e.admits("cflow-loop", "expr-cmp-eq"), "the listed key itself is admitted");
+    let mut refused = 0;
+    for intruder in [
+        "expr-cmp-eq-and-branch-more",
+        "expr-cmp-eq-and-op-more",
+        "expr-cmp-eq-more",
+    ] {
+        refused += 1;
+        assert!(
+            !e.admits("cflow-loop", intruder),
+            "`{intruder}` EXTENDS the listed key `expr-cmp-eq` and must not be \
+             admitted — a sub-class is an ENUMERATION, and a prefix match would \
+             grow it silently every time the census minted a neighbouring key, \
+             letting a lane report coverage it never measured"
+        );
+    }
+    assert_eq!(refused, 3, "compare a count, never a status");
+    assert!(
+        !e.admits("cflow-if-n", "expr-cmp-eq"),
+        "the class test is a conjunct of BOTH arms; dropping it would let a \
+         restriction leak across classes"
+    );
+}
+
+/// **The empty restriction admits nothing** — the `⊥` bound's foundation and
+/// **must-fail mutation M1**'s detector. A matcher that ignored its key
+/// argument (`CfgSub::Keys(_) => true`) passes every other test here and fails
+/// this one.
+#[test]
+fn an_empty_restriction_admits_nothing_and_a_whole_entry_admits_everything() {
+    let empty = CfgClass { class: "cflow-loop", sub: CfgSub::Keys(&[]) };
+    let whole = CfgClass { class: "cflow-loop", sub: CfgSub::Whole };
+    let mut checked = 0;
+    for k in ["ptr-walk-mod-loop", "expr-op-0x27", "", "anything"] {
+        checked += 1;
+        assert!(!empty.admits("cflow-loop", k), "Keys(&[]) must admit nothing, not {k}");
+        assert!(whole.admits("cflow-loop", k), "Whole must admit every key in its class");
+    }
+    assert_eq!(checked, 4, "compare a count, never a status");
+    assert!(
+        empty.covers_class("cflow-loop"),
+        "an empty restriction still NAMES the class — that is what makes a miss \
+         render `cflow-loop!<key>` (partial) rather than `cflow-loop` (absent)"
+    );
+}
+
+/// **A partial miss renders `class!key`; a wholly-absent class renders as the
+/// bare class** — so the two are never confused, and `needs_class` counts both.
+///
+/// This is the reporting half of #778. A screen naming a partially-covered
+/// class the same way it names an uncovered one over-states the refusal by
+/// exactly as much as the wholesale claim over-states the coverage.
+#[test]
+fn a_partial_miss_names_the_key_and_a_total_miss_names_only_the_class() {
+    let tu = with_cflow(
+        mk_factors(TuClass::VocabGap, "loops.cpp", true, true, true, false, false),
+        &[("cflow-loop", "expr-op-0x27", 1)],
+    );
+    // 1. Nothing names the class: the bare string, exactly as the flat
+    //    `&[&str]` list produced it. This is what makes the identity
+    //    measurement on the workload mean something.
+    let none: [CfgClass; 0] = [];
+    assert_eq!(
+        GapReport::cfg_reach_with(&none, &tu),
+        CfgReach::NeedsClass(["cflow-loop".to_string()].into_iter().collect()),
+        "an uncovered class is named by its bare string — byte-identical to the \
+         pre-#778 rendering"
+    );
+    // 2. An entry names the class but not this key: the partial form.
+    let partial = [CfgClass {
+        class: "cflow-loop",
+        sub: CfgSub::Keys(&["ptr-walk-mod-loop"]),
+    }];
+    let v = GapReport::cfg_reach_with(&partial, &tu);
+    assert_eq!(
+        v,
+        CfgReach::NeedsClass(["cflow-loop!expr-op-0x27".to_string()].into_iter().collect()),
+        "a partially-covered class names the KEY that fell outside, so the next \
+         lane reads which part is missing off the screen instead of re-deriving it"
+    );
+    assert!(
+        v.needs_class("cflow-loop"),
+        "`needs_class` must count the partial form too — a caller testing bare \
+         set membership would silently stop counting this TU the day the class \
+         was restricted, and the count would fall with nothing to say why"
+    );
+    assert!(!v.is_reachable(), "a body outside the restriction is NOT reachable");
+    // 3. The key IS listed: reachable. Without this, 1 and 2 would both pass on
+    //    a predicate that never admits anything.
+    let hit = [CfgClass { class: "cflow-loop", sub: CfgSub::Keys(&["expr-op-0x27"]) }];
+    assert!(
+        GapReport::cfg_reach_with(&hit, &tu).is_reachable(),
+        "a restriction admitting the TU's only blocked body makes it reachable — \
+         this is the claim #778 exists to make expressible, and it is the exact \
+         shape `cflow-loop restricted to {{ptr-walk-mod-loop}}` would have"
+    );
+}
+
+/// **The nesting `⊥ ⊆ ENUMERATED == SHIPPED ⊆ ⊤`, on a report** — the same
+/// computation the scan prints, graded here with no toolchain.
+#[test]
+fn the_reach_bounds_nest_and_bottom_is_empty() {
+    let ok = with_cflow(
+        mk_factors(TuClass::VocabGap, "flat.cpp", true, true, true, false, false),
+        &[("cflow-straight", "expr-op-0x27", 1)],
+    );
+    let loopy = with_cflow(
+        mk_factors(TuClass::VocabGap, "loop.cpp", true, true, true, false, false),
+        &[("cflow-loop", "expr-op-0x27", 1)],
+    );
+    let rep = mk_report(vec![ok, loopy]);
+    let b = rep.cfg_reach_bounds();
+    assert_eq!(b.frontier, 2, "both TUs are on the frontier");
+    assert!(
+        b.bottom.is_empty(),
+        "BOTTOM restricts every entry to NO keys, so nothing can be reachable; a \
+         non-empty BOTTOM means the matcher ignores its key argument (mutation M1)"
+    );
+    assert_eq!(b.shipped, vec!["flat.cpp"], "the straight-line TU, and only it");
+    assert_eq!(
+        b.enumerated, b.shipped,
+        "re-expressing every Whole entry as the enumeration of its own observed \
+         keys must reproduce SHIPPED exactly — this is the live exercise of the \
+         `Keys` path, without which it would be a code path no run reaches"
+    );
+    assert_eq!(
+        b.top,
+        vec!["flat.cpp", "loop.cpp"],
+        "TOP admits every class the frontier mentions, so both are reachable — \
+         and TOP−SHIPPED is the honest size of the screen's refusal"
+    );
+    assert!(
+        b.enumerated_keys > 0,
+        "the enumeration must have listed something; 0 keys would make the \
+         ENUMERATED==SHIPPED check pass vacuously"
+    );
+    assert!(b.violations().is_empty(), "0 violations: {:?}", b.violations());
+}
+
+/// **The ledger reports a whole class as `n/a`, never as PASS**, and counts
+/// observed against admitted keys with a denominator.
+#[test]
+fn the_subclass_ledger_declines_to_pass_a_claim_it_cannot_check() {
+    let tu = with_cflow(
+        mk_factors(TuClass::VocabGap, "flat.cpp", true, true, true, false, false),
+        &[
+            ("cflow-straight", "expr-op-0x27", 1),
+            ("cflow-straight", "expr-cmp-eq", 1),
+        ],
+    );
+    let led = mk_report(vec![tu]).cfg_subclass_ledger();
+    assert_eq!(led.len(), 4, "one row per shipped entry, and there are four");
+    let row = led.iter().find(|r| r.class == "cflow-straight").unwrap();
+    assert_eq!(row.listed, None, "every shipped entry is Whole today");
+    assert!(
+        row.intruders.is_none(),
+        "a WHOLE entry has no declaration to cross-check against, so the ledger \
+         must say `n/a` — printing PASS for a check nobody took is the exact \
+         absence-read-as-success this row exists to forbid"
+    );
+    assert_eq!(
+        (row.observed_keys, row.admitted_keys),
+        (2, 2),
+        "a whole class admits every key observed for it, reported WITH its \
+         denominator"
+    );
+    assert!(row.unwitnessed.is_empty(), "nothing is listed, so nothing is unwitnessed");
+}
+
+/// **A restricted entry's unwitnessed keys are COUNTED, not passed over.**
+///
+/// A listed key no scan ever sees is a claim doing nothing while still standing
+/// on the page — trap 5 with the claim attached. The ledger must name it.
+#[test]
+fn the_ledger_counts_a_listed_key_no_scan_witnessed() {
+    let tu = with_cflow(
+        mk_factors(TuClass::VocabGap, "flat.cpp", true, true, true, false, false),
+        &[("cflow-straight", "expr-op-0x27", 1)],
+    );
+    let rep = mk_report(vec![tu]);
+    // The shipped list is all-Whole, so the ledger cannot exercise this on its
+    // own; the property is asserted directly on the entry the ledger consults.
+    let e = CfgClass {
+        class: "cflow-straight",
+        sub: CfgSub::Keys(&["expr-op-0x27", "a-key-no-scan-has-ever-produced"]),
+    };
+    let observed: Vec<&str> = rep.results[0]
+        .fn_cflow
+        .keys()
+        .filter_map(|k| k.split_once('|'))
+        .filter(|(c, _)| *c == e.class)
+        .map(|(_, k)| k)
+        .collect();
+    let admitted = observed.iter().filter(|k| e.admits(e.class, k)).count();
+    let unwitnessed = e
+        .keys()
+        .unwrap()
+        .iter()
+        .filter(|k| !observed.contains(k))
+        .count();
+    assert_eq!(admitted, 1, "one of the two listed keys is live on this scan");
+    assert_eq!(
+        unwitnessed, 1,
+        "the other is UNWITNESSED and must be counted — a claim about a key no \
+         corpus contains cannot be graded by any run, and silence would read as \
+         success"
+    );
+}
+
+/// **The metric block publishes the bracket, not just the figure.**
+///
+/// A reachability number quoted without the bound it sits inside is the shape
+/// board #213's `+82` had: true when published, silently invalidated when a
+/// dependency moved, and unrecomputable by any script.
+#[test]
+fn the_metrics_publish_the_cfg_bracket_and_a_zero_violation_count() {
+    let loopy = with_cflow(
+        mk_factors(TuClass::VocabGap, "loop.cpp", true, true, true, false, false),
+        &[("cflow-loop", "expr-op-0x27", 1)],
+    );
+    let flat = with_cflow(
+        mk_factors(TuClass::VocabGap, "flat.cpp", true, true, true, false, false),
+        &[("cflow-straight", "expr-op-0x27", 1)],
+    );
+    let m: BTreeMap<&str, String> = mk_report(vec![loopy, flat]).metrics().into_iter().collect();
+    for (k, want) in [
+        ("cfg-reach-bottom", "0"),
+        ("cfg-reach-enumerated", "1"),
+        ("cfg-reach-shipped", "1"),
+        ("cfg-reach-top", "2"),
+        ("cfg-bounds-violations", "0"),
+        ("cfg-subclass-entries", "4"),
+        ("cfg-subclass-restricted", "0"),
+        ("cfg-subclass-unwitnessed", "0"),
+        ("cfg-subclass-intruders", "0"),
+    ] {
+        assert_eq!(
+            m.get(k).map(String::as_str),
+            Some(want),
+            "gap-metric {k} must read {want}; a MISSING key reads NO-RESULT to the \
+             collector, which is trap 5 with the mask on"
+        );
+    }
+}
