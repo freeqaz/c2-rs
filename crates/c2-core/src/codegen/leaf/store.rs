@@ -18,6 +18,7 @@ use crate::codegen::encode::{
     encode_stw,
 };
 use crate::codegen::alloc;
+use crate::codegen::order;
 use crate::codegen::schedule;
 use crate::codegen::select::{ARG_REGS, OptMode, SCRATCH_REG, out_of_class};
 use crate::codegen::straightline::emit_load_imm;
@@ -171,6 +172,27 @@ pub fn store_leaf_text(
         if walk.is_empty() && !stmts.is_empty() && !schedule::is_source_order(&stmts) {
             return Some(Err(out_of_class(
                 "store run whose schedule is not source order (codegen::schedule)",
+            )));
+        }
+        // **The ORDER guard** (`codegen::order`, `docs/ORDER.md`).
+        //
+        // `schedule` above is rule 1, which says only what may NOT sit in the
+        // two head slots and is silent on what FILLS them when every store of
+        // the run is produced. `order` is the rule that covers both, and it
+        // refuses more than rule 1 does: a run of two producers whose count-1
+        // value is stored first is `P1 P0 S1 S0 S2`, not source order, and
+        // rule 1 calls that source order because every store is blocked and
+        // its fallback shrugs.
+        //
+        // Additive on purpose. `Some(false)` is a refusal; `None` means the
+        // run is outside `order`'s domain — more than one base symbol, or more
+        // than three producers — and the `schedule` guard above has already
+        // had its say. Inert today by construction: the parser admits an
+        // all-unproduced run and an all-one-producer run, and `order` returns
+        // source order for both.
+        if walk.is_empty() && order::is_source_order(&stmts) == Some(false) {
+            return Some(Err(out_of_class(
+                "store run whose order is not source order (codegen::order)",
             )));
         }
         // **The ALLOCATION guard** (`codegen::alloc`, `docs/ALLOC.md`).
