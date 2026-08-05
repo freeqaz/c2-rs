@@ -30,9 +30,11 @@ the *item* stayed open at 356. A board with one column gets that wrong. So:
 **Numbers are never reused and never renumbered.** Every `#N` in `ROADMAP.md` is
 a permanent reference into 8,000 lines of prose that will not be rewritten.
 
-> **`#319`–`#323` were minted 2026-08-05 by lane `w-fuzzy`**, which was told to
-> start at #320 and took #319 as well. They are the FUNCTION BYTE MATCH rows.
-> `#303`–`#318` are unminted gaps, not lost items.
+> **`#319`–`#324` were minted 2026-08-05 by lane `w-fuzzy`**, which was told to
+> start at #320 and took #319 as well. `#319`–`#323` are the FUNCTION BYTE MATCH
+> rows; `#324` came later, from the lane's own near-miss. The free gaps around
+> them are `#303`–`#318` and `#325`–`#339` — see the note below, which was
+> written before this block existed and corrects itself.
 
 > **`#340`–`#355` were minted 2026-08-05 by lane `w-ledger`**, from two landed
 > lanes that proposed **lettered** rows and minted no numbers — `w-vocab`
