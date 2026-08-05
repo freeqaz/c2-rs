@@ -611,6 +611,10 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         0x30 | 0x32 => Type,
         0x33 => TypeVarint,
         0x40 => Type,
+        // The RESULT ANNOTATION, `41 <int-like>` — `eat_return_plumbing`'s own
+        // first field. It is `parse_expr`'s usual `stop` byte, so naming it is
+        // how a chain walk is taken past the first `return`; see the loop head.
+        0x41 => Type,
         0x43 => Escape43,
         0x44 => Bare,
         0x4B => Bare,
@@ -619,6 +623,11 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         0x54 => Byte1,
         0x55 => Type,
         0x67 => VarintTok,
+        // The BIND, `99 <TYPE> <varint>`. `IL_EXPR_LAYER.md` §7 pins the field
+        // by CONTRAST — "its trailing field is a whole `read_token_var`, not the
+        // varint the adjacent `99` uses" — and `mcall`'s transcribed capture
+        // shows it: `99 · 86 43 9C 20 · 00 · BD …`.
+        0x99 => TypeVarint,
         0x9B => TypeTok,
         0xB9 => TokType,
         _ => return None,
@@ -880,6 +889,36 @@ pub(crate) fn parse_expr_classed(
     let mut class: Option<ValueClass> = None;
     loop {
         let b = *seg.get(*p).ok_or(blk(seg, *p, "expr"))?;
+        // **The chain sink is consulted BEFORE the stop byte** (`w-depth`, board
+        // **#663**), and that ordering is the whole difference between measuring
+        // one expression and measuring a body.
+        //
+        // The falsification probe `work/w-depth/probe/p5_mixed.cpp` is what
+        // found it. Its declared operator inventory is the union of four
+        // single-operator probes, `{1F, 0B, 0A, 38}`; with the stop checked
+        // first the chain reported `{1F, 38, 0B}` and stopped — **one operator
+        // short, and short in a direction that FLATTERS the instrument**,
+        // because the `a >> 1` lives in the *second* return statement, past the
+        // `41` result annotation the walk halts on. A depth that silently omits
+        // everything after the first `return` is a lower bound advertised as a
+        // count.
+        //
+        // Naming the stop byte in the sink set (`op:41`) now walks through it,
+        // and the chain runs to the function tail `4F 12`, which
+        // [`chain_skip_form`]'s `Line4F` refuses by construction. So the whole
+        // body is in scope and the terminal is a byte the sink can never eat.
+        if chain_sink().ops[b as usize] {
+            if let Some(step) = chain_sink_step(seg, *p) {
+                match step {
+                    Ok(q) => {
+                        *p = q;
+                        saw_chain_sink = true;
+                        continue;
+                    }
+                    Err(key) => return Err(blk(seg, *p, key)),
+                }
+            }
+        }
         if b == stop {
             break;
         }

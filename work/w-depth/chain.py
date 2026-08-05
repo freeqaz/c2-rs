@@ -41,13 +41,38 @@ TERMINAL = "expr-chain-sink-poison"
 # understated the chain on three TUs.
 TAIL = "expr-chain-noform-0x4F"
 
-# Tokens that emit NOTHING — the scope brackets, the statement end and the line
-# marker.  w-brfalse had to add a whole third sink level because its chains
-# substituted into `0x53` and *"reporting the successor is `0x53` as the answer
-# would be reporting punctuation as work"*.  This driver reports the split
-# instead of choosing: DEPTH is the whole chain, OPDEPTH is the chain minus the
-# punctuation.
-DELIMITERS = {"op:53", "op:54", "op:4B", "op:4F"}
+# ---- what DEPTH is NOT over: the SCAFFOLD ---------------------------------
+#
+# In `--whole` mode the chain runs to the function tail, so it necessarily walks
+# the STATEMENT SKELETON and the RETURN PLUMBING as well as the expression. Both
+# are already consumed by the real parser somewhere other than `parse_expr` —
+# `eat_scopes` takes `53`/`54`, `eat_return_plumbing` takes `41`, `3A`, `29` and
+# the `4F 12` tail, `shapes::control_flow::step` takes `4B` and the `4F 01` line
+# marker — so a chain step on one of them is the instrument crossing a layer
+# boundary, never work the port has to do.
+#
+# **The floor is MEASURED, not assumed.** `work/w-depth/probe/p0_add.cpp` is a
+# body the port already emits BYTE-EXACTLY, and in `--whole` mode its chain is
+#
+#     op:3A, op:54, op:29, op:4F        (plus the seeded op:41)
+#
+# — four steps on a function that needs none. The negative control is what found
+# it: without the subtraction every TU on the frontier carries the same four and
+# `mmio` reads OP=2 where two of the two are `3A` and `29`.
+#
+# The RAW chain is reported beside the net one so nothing is hidden, and the
+# subtraction is CONSERVATIVE in one direction that is stated rather than
+# buried: `3A` and `29` in the return plumbing are free, but the SAME two bytes
+# at an if/else join or a loop back-edge are real control flow, and this
+# instrument cannot tell the two apart. So a TU whose only remaining work is a
+# CFG join scores 0 for it here. That is the known blind spot.
+SCAFFOLD = ["op:41", "op:29", "op:3A", "op:4B", "op:4F", "op:53", "op:54"]
+
+# Seeded before round 0 in `--whole` mode: `41 <int-like>` is the RESULT
+# ANNOTATION and `parse_expr`'s own stop byte, so a chain that does not name it
+# halts at the first `return`. The p5 falsification cell measured that halt as a
+# missing operator.
+SEED = ["op:41"]
 
 # ---- key -> sink token --------------------------------------------------
 # Every row is the inverse of `Block::feature`'s rendering for `ctx == "expr"`
@@ -120,6 +145,9 @@ def scan(c2rs, listfile, flags, cwd, cache, spec, outdir, tag):
 def main():
     a = sys.argv[1:]
     bound = 12
+    whole = "--whole" in a
+    if whole:
+        a.remove("--whole")
     if "--bound" in a:
         i = a.index("--bound")
         bound = int(a[i + 1])
@@ -133,7 +161,7 @@ def main():
         one = os.path.join(outdir, "one.txt")
         with open(one, "w") as fh:
             fh.write(tu + "\n")
-        sinks = []          # ordered, de-duplicated
+        sinks = list(SEED) if whole else []   # ordered, de-duplicated
         steps = []          # (round, keys met, tokens added, exit keys)
         status = "BOUND"
         results_extra = []
@@ -171,20 +199,23 @@ def main():
                 status = "STUCK:" + ",".join(sorted(live))
                 break
             sinks.extend(added)
-        ops_only = [s for s in sinks if s not in DELIMITERS]
+        counted = [s for s in sinks if s not in SCAFFOLD]
+        scaffold_used = [s for s in sinks if s in SCAFFOLD]
         results[tu] = {
-            "depth": len(sinks),
-            "opdepth": len(ops_only),
-            "delims": [s for s in sinks if s in DELIMITERS],
-            "sinks": sinks,
+            "depth": len(counted),
+            "raw": len(sinks),
+            "whole": whole,
+            "scaffold": scaffold_used,
+            "sinks": counted,
+            "chain_raw": sinks,
             "also_at_exit": results_extra,
             "status": status,
             "steps": steps,
             "fn_total": rec.get("fn_total") if rec else None,
             "fn_in_class": rec.get("fn_in_class") if rec else None,
         }
-        print("%-46s D=%-3d OP=%-3d %-34s %s"
-              % (tu, len(sinks), len(ops_only), status[:34], ",".join(sinks)),
+        print("%-46s D=%-3d raw=%-3d %-34s %s"
+              % (tu, len(counted), len(sinks), status[:34], ",".join(counted)),
               flush=True)
 
     with open(os.path.join(outdir, "chain.json"), "w") as fh:
