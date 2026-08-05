@@ -447,6 +447,151 @@ mod tests {
         );
     }
 
+    /// **w-tu2's INTER-FUNCTION LABEL STRIDE, pinned against the allocator that
+    /// already implements it** (board **#481**, this lane's **#503**).
+    ///
+    /// Lane `w-tu2` measured, through **real `c2`** at the workload's own
+    /// `/O1 /Oi /EHsc /GR`, over a **36-cell** cross product with **six shapes
+    /// held out before any fit** and **no free parameter**:
+    ///
+    /// > inter-function stride = `5 + 1·(leaf/tail fns between) + 5·(framed fns
+    /// > between)`, and **the probe's own interior control flow does not enter
+    /// > it at all**.
+    ///
+    /// It predicted `mmio.cpp`'s two label gaps exactly — 5 and 10 predicted,
+    /// 5 and 10 observed, out of sample. It was registered as a prediction that
+    /// **no** out-of-sample rule would hold, and it **MISSED**.
+    ///
+    /// # The rule needed no new home — it was already here, and this test says so
+    ///
+    /// [`plan_labels`] charges `5` per framed function under `/Gy` and `1` per
+    /// leaf, in `.text` order. w-tu2's rule **is** that loop, measured from
+    /// outside by somebody who did not read it. This test is the machine-checked
+    /// pin, so the 36 real-`c2` cells can never silently disagree with the
+    /// allocator again.
+    ///
+    /// # And it supplies the MECHANISM w-tu2 could only observe
+    ///
+    /// The reason interior control flow does not enter the stride is visible in
+    /// three lines of [`plan_labels`]: `cur += f.label_lead` runs **before** the
+    /// function's own triple is taken, so the *source* function's surcharge
+    /// moves its own `$M` and everything after it **by the same amount** and
+    /// **cancels out of any difference between two of its own successors**. That
+    /// is asserted below as a cross product over the surcharges `w-label`
+    /// actually measured, not as prose.
+    ///
+    /// # What is NOT claimed — board #482 / #286 stay open
+    ///
+    /// The cancellation is a property of the **source** function only. An
+    /// **intervening** function's `label_lead` does **not** cancel, and the last
+    /// assertion here proves it. So:
+    ///
+    /// * the stride from one framed function to a later one is derivable — the
+    ///   part `mmio` needed, and it is in `crates/`;
+    /// * **where a control-flow-bearing function's OWN labels start is still
+    ///   not** — `label_lead` remains an input this file receives and cannot
+    ///   derive, and `ifelse` at +3 with one `if` against `if3_ret` at +3 with
+    ///   three is the cell that kills the obvious rule (#286).
+    ///
+    /// **Do not read this test as closing #286.** It closes the half w-tu2
+    /// measured and machine-checks the boundary of the other half.
+    #[test]
+    fn the_inter_function_label_stride_is_a_constant_and_the_source_lead_cancels() {
+        let framed = |name| Function {
+            frame: Some(frame(0x24)),
+            ..Function::plain(name, 0)
+        };
+        let leaf = |name| Function::plain(name, 0);
+        // w-tu2's own cell shape: a probe framed function, then N intervening
+        // functions, then the FIXED framed function `Z` whose `$M` is measured.
+        // `first($M of Z) − first($M of probe)` is the quantity, self-normalizing
+        // so the TU-level `.gl` seed and the `/Gy` pre-pass both drop out.
+        let stride = |between: &[bool], lead: u32| -> u32 {
+            let mut fns = vec![Function {
+                label_lead: lead,
+                ..framed("?probe@@YAHH@Z")
+            }];
+            for (i, is_framed) in between.iter().enumerate() {
+                let n: &'static str = ["?b0@@YAHH@Z", "?b1@@YAHH@Z", "?b2@@YAHH@Z",
+                                       "?b3@@YAHH@Z", "?b4@@YAHH@Z"][i];
+                fns.push(if *is_framed { framed(n) } else { leaf(n) });
+            }
+            fns.push(framed("?Z@@YAHH@Z"));
+            let p = plan_labels(2536, &fns, true);
+            p.last().unwrap().unwrap()[0] - p[0].unwrap()[0]
+        };
+        // **The grid, not a cell.** Every arrangement of up to three intervening
+        // functions, crossed with every intra-function surcharge `w-label`
+        // measured on the source (`straight` 0, `if1_ret`/`and` 1,
+        // `if2_ret`/`or`/`ternary` 2, `if3_ret`/`ifelse` 3, `dowhile` 4,
+        // `while` 5). 15 arrangements × 6 surcharges = **90 cells**, and the
+        // predicted value never mentions the surcharge.
+        let mut cells = 0;
+        for n in 0..=3usize {
+            for bits in 0..(1u32 << n) {
+                let between: Vec<bool> = (0..n).map(|i| bits >> i & 1 == 1).collect();
+                let framed_between = between.iter().filter(|b| **b).count() as u32;
+                let leaf_between = n as u32 - framed_between;
+                let predicted = 5 + leaf_between + 5 * framed_between;
+                for lead in [0, 1, 2, 3, 4, 5] {
+                    assert_eq!(
+                        stride(&between, lead),
+                        predicted,
+                        "w-tu2's rule, 36 real-c2 cells: stride = 5 + 1*{leaf_between} \
+                         + 5*{framed_between}. The source function's own surcharge \
+                         ({lead}) must CANCEL — it is charged before its own triple, \
+                         so it moves that triple and every later one equally"
+                    );
+                    cells += 1;
+                }
+            }
+        }
+        // A printed count, not a status: a loop that ranged over nothing would
+        // otherwise pass silently, which is this project's most-repeated defect.
+        assert_eq!(cells, 90, "the grid must actually have been walked");
+
+        // **`mmio.cpp`'s own two gaps, the out-of-sample prediction that made
+        // w-tu2's prereg MISS.** Its six labels are $M3381,$M3382,$T3383 ·
+        // $M3386,$M3387,$T3388 · $M3396,$M3397,$T3398 — gaps of 5 and 10, with
+        // nothing between the first pair and 5 leaf stubs between the second.
+        assert_eq!(stride(&[], 0), 5, "mmioGetInfo -> mmioSetInfo: 5 predicted, 5 observed");
+        assert_eq!(
+            stride(&[false, false, false, false, false], 0),
+            10,
+            "mmioSetInfo -> mmioClose across 5 leaf stubs: 10 predicted, 10 observed"
+        );
+
+        // **THE BOUNDARY, asserted rather than described.** An INTERVENING
+        // function's surcharge does NOT cancel. The rule is blind to the source
+        // function's interior control flow and is NOT blind to control flow in
+        // general — #482/#286's open half, machine-checked so no later reader
+        // can widen the claim by rereading the doc comment.
+        let with_mid_lead = {
+            let fns = vec![
+                framed("?probe@@YAHH@Z"),
+                Function { label_lead: 3, ..framed("?mid@@YAHH@Z") },
+                framed("?Z@@YAHH@Z"),
+            ];
+            let p = plan_labels(2536, &fns, true);
+            p[2].unwrap()[0] - p[0].unwrap()[0]
+        };
+        assert_eq!(
+            with_mid_lead,
+            5 + 5 + 3,
+            "an INTERVENING function's intra-function surcharge is inside the \
+             difference and does not cancel: the constant-stride rule needs \
+             every function between (and the destination) to have lead 0, which \
+             is exactly the condition w-tu2's 36 cells satisfied and did not \
+             have to state"
+        );
+        assert_ne!(
+            with_mid_lead, 10,
+            "and that is why #286 is NARROWED, not CLOSED — deriving this cell \
+             still needs the intra-function charge nothing in the port can \
+             compute (`ifelse` +3 with one `if` vs `if3_ret` +3 with three)"
+        );
+    }
+
     #[test]
     fn framed_obj_has_six_sections_and_twenty_symbols() {
         // A framed obj built with the verified 0x24 text: 6 sections, 20 symbols.

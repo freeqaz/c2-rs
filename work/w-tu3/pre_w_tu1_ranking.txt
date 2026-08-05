@@ -1,0 +1,26 @@
+  FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 19 frontier TUs have NO denominator, and 15 are at EXACTLY 0% — TUs where codegen breadth has not begun:
+     accepted/total bytes    frac   exact | src
+          72/132      bytes   54.5%      0 | src/xdk/nuispeech/xboxmem.cpp
+          64/380      bytes   16.8%     64 | src/xdk/nuispeech/mmio.cpp
+         112/1440     bytes    7.8%      8 | src/keygen_xbox.cpp
+          16/272      bytes    5.9%     16 | src/system/utl/EncryptXTEA.cpp
+           0/124      bytes    0.0%      0 | src/Main.cpp
+           0/64       bytes    0.0%      0 | src/system/math/Primes.cpp
+           0/80       bytes    0.0%      0 | src/system/math/Sort.cpp
+           0/160      bytes    0.0%      0 | src/system/negate_test.cpp
+           0/816      bytes    0.0%      0 | src/system/rndobj/wordwrap.cpp
+           0/176      bytes    0.0%      0 | src/system/synth_xbox/Biquad.cpp
+           0/184      bytes    0.0%      0 | src/system/synth_xbox/IPP_basicmath_xbox.cpp
+           0/132      bytes    0.0%      0 | src/system/utl/Pool.cpp
+           0/152      bytes    0.0%      0 | src/xdk/LIBCMT/osfinfo.cpp
+           0/140      bytes    0.0%      0 | src/xdk/LIBCMT/undname.cpp
+           0/164      bytes    0.0%      0 | src/xdk/LIBCMT/vsnprnc.cpp
+           0/156      bytes    0.0%      0 | src/xdk/LIBCMT/vswprnc.cpp
+           0/80       bytes    0.0%      0 | src/xdk/nuispeech/xboxheap.cpp
+           0/304      bytes    0.0%      0 | src/xdk/xjson/jsonwriter.cpp
+           0/152      bytes    0.0%      0 | src/xdk/xlrc/xlrcimpl.cpp
+  BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 1 of 8 matched TUs do; 2 fall short; 5 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
+    SHORTFALL, by name, each classified — 2 explained by factor E (whole-TU emitter, per-function path blind by construction), 0 UNEXPLAINED. **The unexplained count is the one to watch; it must be 0.** Compare the SET across trees, not its size. The FRONTIER is unaffected either way: it is defined as `A and B and C and not (D or E)`, so no factor-E TU can appear in the ranking above.
+      src/system/synth/tomcrypt/TomCryptLicense.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+      src/system/zlib/ZlibLicense.cpp (0/24 bytes, 0.0%)  [factor E — a WHOLE-TU recognizer emitted this; the per-function path cannot see it. EXPECTED.]
+  A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU below is still gated on codegen that does not exist.

@@ -1,7 +1,138 @@
 //! The scan's own printed report of the factor model. Split out of `gap.rs`
 //! unchanged; see [`super`] for the module docs.
 
+use super::fnbytes::byte_fraction_exact;
 use super::{GapReport, TuClass, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNIZERS};
+
+/// **The known-answer control on the byte-fraction ranker** (board **#501**).
+///
+/// A `match` TU is byte-identical to `c2`'s obj, so the port demonstrably
+/// produced a body for **every** `.text` byte in it: its byte fraction must read
+/// **100 %**. That is the one population where the answer is known in advance,
+/// and checking it is what stops the ranker from being a number nobody can
+/// falsify — the numerator could silently stop crediting a whole `Selected`
+/// variant and every frontier row would go on printing a plausible small
+/// percentage.
+///
+/// **Printed as a count, never as a status** (`docs/GAPS.md` §7, STATUS trap 5):
+/// `N of M matched TUs at 100 %`, with every shortfall named and its bytes
+/// given. A run that graded zero matched TUs prints `0 of 0` and says so rather
+/// than printing nothing.
+///
+/// **A shortfall here is not automatically a ranker defect.** The scan's own
+/// emitted-census line already reports `ground truth VIOLATED: 2 emitted symbols
+/// on the byte-exact TUs did not bind to an in-class row` — those land in
+/// [`super::fnbytes::FnByte::Unbound`], which the numerator deliberately does not
+/// credit, so they subtract here too. The control is read for its *movement*:
+/// the named set is the thing to compare across trees.
+fn render_byte_fraction_control(report: &GapReport) {
+    let matched = report
+        .results
+        .iter()
+        .filter(|r| r.class == TuClass::Match)
+        .count();
+    // Computed in `factors.rs` beside the ranking it controls, so the printed
+    // block and the `gap-metric` keys cannot drift apart.
+    let (full, nodenom, short) = report.byte_fraction_control();
+    let unexplained = short.iter().filter(|(e, ..)| !*e).count();
+    println!(
+        "\x20 BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so \
+         the port produced a body for every `.text` byte in it and its fraction MUST read 100%. \
+         {full} of {matched} matched TUs do; {} fall short; {nodenom} have no `.text` denominator \
+         (a TU that defines data and no functions — board #276's shape — which is a 100%-free \
+         zero, not a failure).",
+        short.len()
+    );
+    if short.is_empty() {
+        println!("\x20   no shortfall. (A count, not a status: the {full} is the evidence.)");
+    } else {
+        println!(
+            "\x20   SHORTFALL, by name, each classified — {} explained by factor E (whole-TU \
+             emitter, per-function path blind by construction), {unexplained} UNEXPLAINED. \
+             **The unexplained count is the one to watch; it must be 0.** Compare the SET across \
+             trees, not its size. The FRONTIER is unaffected either way: it is defined as \
+             `A and B and C and not (D or E)`, so no factor-E TU can appear in the ranking above.",
+            short.len() - unexplained
+        );
+        for (e, r, n, d) in &short {
+            println!(
+                "\x20     {} ({n}/{d} bytes, {:.1}%)  {}",
+                r.src,
+                100.0 * *n as f64 / *d as f64,
+                if *e {
+                    "[factor E — a WHOLE-TU recognizer emitted this; the per-function path \
+                     cannot see it. EXPECTED.]"
+                } else {
+                    "[NOT factor E — UNEXPLAINED, and the ranker's numerator is the first \
+                     suspect.]"
+                }
+            );
+        }
+    }
+}
+
+/// **The byte-fraction ranking of the FRONTIER** (lane `w-tu3`, board **#500**).
+///
+/// The FRONTIER block above ranks by *blocked function count*, which is board
+/// **#198**'s standing complaint and has now mis-ranked a target twice: #269
+/// counted refusals and could not see what was already emitted, and **#465**
+/// counted already-emitted *functions* and could not see how much of the TU they
+/// were. This block is the third unit, and the only one with an outcome behind
+/// it — see [`byte_fraction`] for `mmio` 72.7 % by function against 16.8 % by
+/// byte, and `xboxmem` 50 % / 54.5 % with the conversion.
+///
+/// **Every ratio prints its denominator**, and a TU with no `.text` bytes prints
+/// `n/a` under a counted reason rather than 100 %. `exact` is the
+/// oracle-graded floor under `accepted`.
+///
+/// **This is an instrument and not a gate.** It ranks; it licenses nothing.
+fn render_byte_fraction_ranking(report: &GapReport) {
+    // Computed in `factors.rs`; see `GapReport::frontier_byte_ranking`.
+    let rows = report.frontier_byte_ranking();
+    let no_den = rows.iter().filter(|(_, f)| f.is_none()).count();
+    let zero = rows.iter().filter(|(_, f)| matches!(f, Some((0, _)))).count();
+    println!(
+        "\x20 FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the \
+         port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted \
+         by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; \
+         xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it \
+         does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no \
+         `.text` bytes prints n/a, NEVER 100%. {} of {} frontier TUs have NO denominator, and \
+         {zero} are at EXACTLY 0% — TUs where codegen breadth has not begun:",
+        no_den,
+        rows.len()
+    );
+    // **The REMAINING column is a FOURTH unit and it is printed, not chosen
+    // between** (board #505). `total − accepted` is the PowerPC the port must
+    // learn to write for this TU, and on the only two cells with outcomes it
+    // agrees with the fraction — `xboxmem` 60 bytes remaining and converted,
+    // `mmio` 316 and declined, a 5.3x margin next to the fraction's 3.2x. On the
+    // CURRENT frontier the two units DISAGREE at the head: the fraction says
+    // `mmio` (16.8%, 316 B remaining) and the remainder says `Primes.cpp` (0%,
+    // 64 B remaining). Neither is validated at n = 2, and this project has now
+    // been wrong about the unit twice (#269, #465). Printing both is the honest
+    // state; picking one on this evidence would be the third mistake.
+    println!(
+        "\x20    accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted \
+         = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees \
+         with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)"
+    );
+    for (r, f) in &rows {
+        match f {
+            Some((n, d)) => println!(
+                "\x20   {n:>8}/{d:<8} bytes  {:>5.1}%  {:>5}  {:>6} | {}",
+                100.0 * *n as f64 / *d as f64,
+                byte_fraction_exact(r),
+                d - n,
+                r.src
+            ),
+            None => println!(
+                "\x20   {:>8}/{:<8} bytes  {:>6}  {:>5}  {:>6} | {}",
+                "-", 0, "n/a", "-", "n/a", r.src
+            ),
+        }
+    }
+}
 
 /// **The Phase 7 factorization, printed on every scan** (`docs/ROADMAP.md`
 /// §10.19 and §10.21, boards #160 and #179).
@@ -175,6 +306,8 @@ pub(super) fn print_factorization(report: &GapReport) {
     if frontier.len() > 40 {
         println!("\x20   … and {} more", frontier.len() - 40);
     }
+    render_byte_fraction_ranking(report);
+    render_byte_fraction_control(report);
     // **What a perfect emit predicate is worth, stated as both of the
     // quantities board #213 conflated.** #213 published `+82` for both because
     // they coincided on that corpus; they are different questions and the
