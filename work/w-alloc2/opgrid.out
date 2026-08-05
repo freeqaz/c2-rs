@@ -1,0 +1,32 @@
+  cell                   | producer  const     | bonus  | satisfies
+  ------------------------------------------------------------------------------------------
+  A-fitted-1v1           | r11       r10       | YES    | H-base,H-op,H-ptr,H-r3,H-self
+  A-fitted-1v2           | r11       r10       | YES    | H-base,H-op,H-ptr,H-r3,H-self
+  B-notself-1v1          | r10       r11       | no     | H-base,H-op,H-ptr,H-r3
+  B-notself-1v2          | r10       r11       | no     | H-base,H-op,H-ptr,H-r3
+  C-ptrarith-1v1         | r10       r11       | no     | H-base,H-op,H-r3
+  D-base-r4-1v1          | r11       r10       | YES    | H-base,H-op,H-ptr,H-self
+  D-base-r4-1v2          | r11       r10       | YES    | H-base,H-op,H-ptr,H-self
+  E-r3-store-r4-1v1      | r10       r11       | no     | H-op,H-ptr,H-r3
+  F-ptr-r4-store-r3-1v1  | r10       r11       | no     | H-op,H-ptr
+  G-add-1v1              | r10       r11       | no     | -
+  G-addi-int-1v1         | r10       r11       | no     | H-op
+  G-shift-1v1            | r10       r11       | no     | -
+  H-shift-2v1            | r11       r10       | YES    | -
+  H-shift-3v1            | r11       r10       | YES    | -
+  H-shift-4v1            | r11       r10       | YES    | -
+  H-shift-5v1            | r11       r10       | YES    | -
+  H-add-2v1              | r11       r10       | YES    | -
+  H-add-3v1              | r11       r10       | YES    | -
+  I-fitted-1v2           | r11       r10       | YES    | H-base,H-op,H-ptr,H-r3,H-self
+  I-fitted-1v3           | r10       r11       | no     | H-base,H-op,H-ptr,H-r3,H-self
+  I-fitted-1v4           | r10       r11       | no     | H-base,H-op,H-ptr,H-r3,H-self
+
+  reached 21 | GRADED 21 | out-of-regime 0 | compile-failed 0
+
+  RIVAL SCORING — over the decisive cells only (reg 1 use vs const 1..N):
+    H-r3     KILLED  (8 disagreements)  by B-notself-1v1, B-notself-1v2, C-ptrarith-1v1, D-base-r4-1v1, D-base-r4-1v2, E-r3-store-r4-1v1, I-fitted-1v3, I-fitted-1v4
+    H-base   KILLED  (5 disagreements)  by B-notself-1v1, B-notself-1v2, C-ptrarith-1v1, I-fitted-1v3, I-fitted-1v4
+    H-ptr    KILLED  (6 disagreements)  by B-notself-1v1, B-notself-1v2, E-r3-store-r4-1v1, F-ptr-r4-store-r3-1v1, I-fitted-1v3, I-fitted-1v4
+    H-self   KILLED  (2 disagreements)  by I-fitted-1v3, I-fitted-1v4
+    H-op     KILLED  (8 disagreements)  by B-notself-1v1, B-notself-1v2, C-ptrarith-1v1, E-r3-store-r4-1v1, F-ptr-r4-store-r3-1v1, G-addi-int-1v1, I-fitted-1v3, I-fitted-1v4

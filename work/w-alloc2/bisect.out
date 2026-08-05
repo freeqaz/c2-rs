@@ -1,0 +1,12 @@
+  cell               | prod   const  | winner | emitted
+  ------------------------------------------------------------------------------------
+  B0-verbatim        | r10    r11    | const  | li slwi stw stw stw
+  B1-no-second-ref   | r10    r11    | const  | li slwi stw stw stw
+  B2-no-ref          | r11    r10    | prod   | slwi li stw stw stw   <== FLIPS HERE
+  B3-no-cast         | r11    r10    | prod   | slwi li stw stw stw
+  B4-flat-64         | r11    r10    | prod   | slwi li stw stw stw
+  B5-opgrid          | r11    r10    | prod   | slwi li stw stw stw
+  C0-ptr-ref         | r11    r10    | prod   | li addi stw stw stw
+  C1-ptr-noref       | r11    r10    | prod   | addi li stw stw stw
+
+  GRADED 8 of 8

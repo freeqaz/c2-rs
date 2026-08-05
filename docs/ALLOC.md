@@ -44,6 +44,63 @@ read off the IL.
 
 That is the whole rule and it has **no free parameters**.
 
+> ### ⚠ 2026-08-06 — **clause 2 is REFUTED, and it never executes.** Board **#836**.
+>
+> Clause 2 above orders a *mixed* run, and `codegen::alloc` **refuses** a mixed
+> run, so the clause is unreachable — the only runs the emitter can build are
+> pure-constant (`leaf/store.rs` hard-codes `ProducerKind::Constant`, because a
+> store's value there is either a literal or a formal already live). Only
+> clauses 1 and 4 ever run. The clause is also **false where it would apply**:
+> `w-alloc2`'s `B-notself-1v1` is a register-derived producer at 1 use **losing**
+> a tie to a constant at 1 use, measured against real `c2.dll`.
+>
+> **Lane `w-next` fitted a replacement and lane `w-alloc2` killed it on a fresh
+> holdout.** The key *`uses + (register-derived ? 1 : 0)`, descending* fits all
+> 24 of w-next's cells and **misses 7 of `w-alloc2`'s 56 graded fresh cells**.
+> The reason is a population fact, not a modelling one: **all 24 fitted cells
+> spell the register-derived producer the same way**, `(int)&q`, an interior
+> reference stored back into the object it points at. Change only the spelling
+> and the bonus vanishes, with the emitted instruction ORDER identical in the
+> deciding pair, so it is allocation and not the schedule:
+>
+> ```text
+>   addi rX,3,K   (&s->inner, stored INTO s->inner)   1 use   BEATS   li 1 use
+>   add  rX,4,5   (u + v)                             1 use   loses to li 1 use
+>   addi rX,4,5   (u + 5)                             1 use   loses to li 1 use
+>   slwi rX,4,3   (u << 3)                            1 use   loses to li 1 use
+> ```
+>
+> Scored over **81** mixed-kind cells graded against real `c2.dll`
+> (`work/w-alloc2/mutate.py`), wrong-answer counts:
+>
+> | rule | wrong | refused |
+> |---|---:|---:|
+> | **the shipped refusal** | **0** | 81 |
+> | `H-self` (below) | 1 | 0 |
+> | w-next's key | 20 | 0 |
+> | clause 1 alone | 29 | 0 |
+> | clause 2 alone | 35 | 0 |
+>
+> **`H-self` is a candidate and is NOT shipped**: *the bonus is worth ~1.5 uses
+> and attaches to a producer whose value is stored into the object it points
+> at.* It is **fitted on the cells that produced it** — exactly where w-next's
+> key stood before a fresh holdout killed it — and it already has a known miss,
+> `F4-shift-r2k1`.
+>
+> That miss names the next axis. `work/w-alloc2/bisect.py` shows the C++
+> **reference binding** `L& q = s->inner;` moves both the schedule and the
+> allocation (removing it flips the winner and re-plans the block), and **all 24
+> of w-next's cells carry it and none varies it**. Two rivals were killed
+> outright on the way: displacement (`offprobe.py`, 16/16 constant across
+> offsets 4…252) and every predicate readable off the producer alone —
+> derived-from-`r3`, derived-from-the-store-base, pointer-typed, opcode
+> (`opgrid.py`).
+>
+> **A green gate says nothing about any of this.** With w-next's key shipped in
+> place of the refusal, all **62** `gap-metric` lines of the 878-TU scan are
+> byte-identical, `mismatch 0` and `fnbyte-differs 0` included — because no
+> register-derived producer can reach `allocate` from the emitter at all.
+
 ### 1.1 Worked: the four cells that refuted four rules
 
 `leaf_store.rs` records these as *"four allocation rules were fitted to those
