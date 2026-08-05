@@ -122,15 +122,21 @@ def main():
         print("SKIP: llvm-mc absent -- exact half only", file=sys.stderr)
 
     if a.md:
-        print("| VMX128 opcode | pattern/mask | collides with (isa.yaml, "
-              "opcode 4/5/6) | llvm-mc: silent / refused / agrees |")
-        print("|---|---|---|---|")
+        print("| VMX128 opcode | pattern / mask | llvm-mc silent / refused | "
+              "one silently-wrong decode |")
+        print("|---|---|---:|---|")
         for name, mask, pat, hits in rows:
             c = per.get(name, collections.Counter()) if per else {}
-            h = ", ".join("`%s`" % n for n, _s in hits) or "—"
-            m = ("%d / %d / %d" % (c.get("SILENT", 0), c.get("REFUSED", 0),
-                                   c.get("AGREES", 0))) if per else "—"
-            print("| `%s` | `%08x`/`%08x` | %s | %s |" % (name, pat, mask, h, m))
+            ex = "—"
+            if detail:
+                for w, v, t in detail[name]:
+                    if v == "SILENT":
+                        ex = "`%08x` -> `%s`" % (w, t)
+                        break
+            m = ("%d / %d" % (c.get("SILENT", 0), c.get("REFUSED", 0))
+                 ) if per else "—"
+            print("| `%s` | `%08x` / `%08x` | %s | %s |"
+                  % (name, pat, mask, m, ex))
         return 0
 
     W = 44
