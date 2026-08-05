@@ -599,6 +599,19 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
     use SkipForm::*;
     Some(match b {
         0x02 | 0x03 | 0x04 => Bare,
+        // DIVIDE and MODULO (`lane w-divsplit`, board **#819**). The width is
+        // read off the stream, not assumed from the neighbours: at all **4,674**
+        // dc3 sites the operand token decodes to end exactly at the opcode and
+        // the byte after it opens a new token — `32 <TYPE>`, a store, at 4,646
+        // and `33 <TYPE> <payload>`, a literal, at 26 (`work/w-divsplit/shape.py`
+        // and its `TOKEN IMMEDIATELY AFTER` table). A payload byte would have to
+        // sit between those two and there is none.
+        //
+        // This is the SINK's width table — poisoned, environment-gated, off on
+        // every gate lane and every default scan, and it pushes no [`IlOp`]. It
+        // is how the successor question is asked (board **#622**: closing a
+        // blocker may only move the label), and it is not an acceptance.
+        0x05 | 0x06 => Bare,
         0x09 | 0x0A | 0x0B | 0x0C | 0x0D => Bare,
         0x0F => Type,
         0x1A => Bare,
@@ -895,6 +908,40 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
 /// established refuses under `expr-shr-sign-unknown` rather than defaulting into
 /// `sraw`. Defaulting is how `expr_opcode_name` once got three of six
 /// relationals wrong, and a wrong *instruction* is worse than a wrong name.
+/// The census ctx of a DIVIDE/MODULO refusal that carries the **operand TYPE**
+/// it was reached with (`lane w-divsplit`, board **#816**).
+///
+/// Its own ctx rather than a flag on `"expr"`, because [`Block::feature`] renders
+/// a nonzero [`Block::aux`] as an operand-type key for *every* ctx, and the
+/// generic `"expr"` fall-through produces `expr-brfalse`, `expr-op-0x30`,
+/// `expr-op-0x41` and a dozen more that must keep their published spellings.
+/// One ctx, one rekey, one row of the board to pay for it.
+pub(crate) const EXPR_TYPED_OP: &str = "expr-typed-op";
+
+/// The two operand-stream opcodes this ctx covers: `05` divide and `06` modulo
+/// (`docs/BOARD.md` #782 — `div_mod_leaf` is the shape whose census bucket these
+/// two used to feed).
+pub(crate) const DIV_MOD_OPS: [u8; 2] = [0x05, 0x06];
+
+/// Record the `<tag> <kind>` of the TYPE at `p`, if that is what is there.
+///
+/// The **anti-#644 primitive**. Board #783 proposed splitting the division
+/// population by reading "the operand TYPE triple immediately preceding the
+/// `05`", and lane `w-divsplit` measured what that costs: a fixed-offset reader
+/// at `mark - 3` is wrong or blind on **4,674 of 4,674** sites, because the
+/// operand that ends at the opcode is a LITERAL — `33 <TYPE> <payload>` — whose
+/// type ends two to six bytes earlier, not three.
+///
+/// So the type is recorded **where the parser reads it**, at the cursor that
+/// already proved a TYPE starts there, and never re-derived from a stride. Reads
+/// nothing else and consumes nothing, exactly like [`note_int4_signedness`]
+/// beside it.
+fn note_operand_type(seg: &[u8], p: usize, last: &mut Option<(u8, u8)>) {
+    if let Some((tag, kind, _, _)) = read_type(seg, p) {
+        *last = Some((tag, kind));
+    }
+}
+
 fn note_int4_signedness(seg: &[u8], p: usize, signed: &mut bool, unsigned: &mut bool) {
     if let Some((tag, kind, _, _)) = read_type(seg, p) {
         if is_int4_type(tag, kind) {
@@ -936,6 +983,18 @@ pub(crate) fn parse_expr_classed(
     // this function already uses for a fact that only one operator reads.
     let mut saw_int4_signed = false;
     let mut saw_int4_unsigned = false;
+    // The `<tag> <kind>` of the **most recently read operand TYPE**, for
+    // [`EXPR_TYPED_OP`]. Updated at each of the three sites that read an operand
+    // type — LOAD, LITERAL, and an admitted `2C` target — and read only by the
+    // divide/modulo refusal below.
+    //
+    // "Most recently read" is the honest name for it and is not the same claim
+    // as "the divisor's type": they coincide whenever the divisor is a leaf, and
+    // `work/w-divsplit/split.py` measures that they are a leaf at **4,674 of
+    // 4,674** sites on the dc3 workload. Where they would not coincide the
+    // recorded type is still an operand type of the same expression, which is
+    // what the int/float question is about.
+    let mut last_type: Option<(u8, u8)> = None;
     // Set by `02`/`03`/`04` — arithmetic whose pointer form c2 SCALES by the
     // pointee width, which is what the pointer guard below exists to refuse.
     // The `27` byte-offset add is not that and does not set it.
@@ -1105,6 +1164,7 @@ pub(crate) fn parse_expr_classed(
                 *p += w;
                 // Read BEFORE the type is consumed; see `note_int4_signedness`.
                 note_int4_signedness(seg, *p, &mut saw_int4_signed, &mut saw_int4_unsigned);
+                note_operand_type(seg, *p, &mut last_type);
                 match eat_operand_type(seg, p) {
                     Some(c) => {
                         saw_ptr |= c == ValueClass::Ptr4;
@@ -1137,6 +1197,7 @@ pub(crate) fn parse_expr_classed(
                 let start = *p;
                 *p += 1;
                 note_int4_signedness(seg, *p, &mut saw_int4_signed, &mut saw_int4_unsigned);
+                note_operand_type(seg, *p, &mut last_type);
                 match eat_operand_type(seg, p) {
                     Some(c) => {
                         saw_ptr |= c == ValueClass::Ptr4;
@@ -1481,9 +1542,35 @@ pub(crate) fn parse_expr_classed(
                 // for one — the conservative direction, and the same one it
                 // takes for every other non-int4 type it is handed.
                 note_int4_signedness(seg, *p + 1, &mut saw_int4_signed, &mut saw_int4_unsigned);
+                note_operand_type(seg, *p + 1, &mut last_type);
                 *p = probe;
             }
             0x26 => return Err(super::mcall::classify(seg, *p)),
+            // **The DIVIDE / MODULO refusal, carrying its operand type**
+            // (`lane w-divsplit`, board **#816**). Identical to the
+            // fall-through below in every way that matters — same offset, same
+            // blocking byte, `Complete::NoSignal` either way, and it refuses
+            // exactly as before — except that the census key names the operand
+            // TYPE the walk reached the opcode with. Board **#783** asked
+            // whether `expr-op-0x05` is integer or floating-point division and
+            // could not be answered from the key; this is the resolution.
+            b if DIV_MOD_OPS.contains(&b) => {
+                return Err(Block {
+                    ctx: EXPR_TYPED_OP,
+                    byte: Some(b),
+                    off: *p,
+                    seg_len: seg.len(),
+                    // Bit 0 is a PRESENCE flag, not padding: `aux == 0` has to
+                    // stay readable as "no operand type was recorded", and a
+                    // `(tag, kind)` of `(0, 0)` is not a thing `read_type` can
+                    // return, but relying on that would be relying on an
+                    // absence.
+                    aux: match last_type {
+                        Some((tag, kind)) => 1 | ((tag as u64) << 16) | ((kind as u64) << 8),
+                        None => 0,
+                    },
+                });
+            }
             _ => return Err(blk(seg, *p, "expr")),
         }
     }
@@ -1694,7 +1781,7 @@ pub(crate) fn formals_marker(seg: &[u8], lo: usize) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::func::body::{parse_segment, parse_segment_detail, BodyShape};
+    use crate::func::body::{parse_segment, parse_segment_detail, BodyShape, Complete};
     use crate::func::bundle::LO_MARKER;
     use crate::func::readers::{find_subslice, read_type};
     use crate::func::test_fixtures::*;
@@ -1729,10 +1816,24 @@ mod tests {
     /// frontier — two more bytes the instrument refuses rather than guesses
     /// (rung §6). `0x35` was a third until a capture pinned its WIDTH; it is in
     /// the table and still has no name.
+    ///
+    /// **`0x05` and `0x06` have left this list** (`lane w-divsplit`, board
+    /// **#819**), and the assertion below is the one that had to be deleted. The
+    /// width is pinned by `lane w-divmod`'s four captured leaf bodies
+    /// (`B9 <tok> <T> B9 <tok> <T> >05< 41 <T> 3A …`, graded 185/185 against
+    /// real `c2.dll`) and re-confirmed on the workload at **4,674 of 4,674**
+    /// sites, where the byte after the opcode opens a new token. The NAME was
+    /// never in question — this is `div_mod_leaf`'s own `IL_DIV`/`IL_MOD`.
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
-        for b in [0x00, 0x05, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
+        for b in [0x00, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
+        }
+        // …and the two that moved are `Bare`, not merely "not None": a width
+        // guess in the other direction is the desync this table exists to
+        // prevent.
+        for b in DIV_MOD_OPS {
+            assert_eq!(chain_skip_form(b), Some(SkipForm::Bare), "0x{b:02X} is payload-free");
         }
     }
 
@@ -2129,5 +2230,115 @@ mod tests {
         assert_eq!(intrinsic_name(223), "0xDF");
         assert_eq!(intrinsic_name(2120), "0x848");
         assert_eq!(intrinsic_name(17), "fabs");
+    }
+
+    // ---- lane w-divsplit: the DIVIDE/MODULO key carries its operand type ----
+
+    /// `33 <TYPE> <payload>` — a literal operand, the form that ends at the
+    /// division opcode at **4,674 of 4,674** dc3 sites.
+    fn lit(ty: [u8; 3], v: u8) -> Vec<u8> {
+        let mut b = vec![0x33];
+        b.extend_from_slice(&ty);
+        b.push(v);
+        b
+    }
+
+    fn key_of(seg: &[u8]) -> String {
+        let mut p = 0;
+        parse_expr_classed(seg, &mut p, 0x41).unwrap_err().feature()
+    }
+
+    #[test]
+    fn the_div_mod_key_names_the_operand_type() {
+        // `(a) / 2` with int operands: the key that used to read `expr-op-0x05`
+        // now says which 4,670 of the workload it is.
+        let mut seg = lit([0x86, 0x41, 0x74], 10);
+        seg.extend_from_slice(&lit([0x86, 0x41, 0x74], 2));
+        seg.push(0x05);
+        assert_eq!(key_of(&seg), "expr-op-0x05-8641");
+
+        // Modulo takes the same treatment and keeps its own byte in the name —
+        // #782's two buckets must stay two buckets.
+        let mut seg = lit([0x86, 0x41, 0x74], 10);
+        seg.extend_from_slice(&lit([0x86, 0x41, 0x74], 2));
+        seg.push(0x06);
+        assert_eq!(key_of(&seg), "expr-op-0x06-8641");
+
+        // The UNSIGNED operand type is a different key, and it is reachable:
+        // `86 42` is what `is_int4_type` admits beside `86 41`.
+        let mut seg = lit([0x86, 0x42, 0x75], 10);
+        seg.extend_from_slice(&lit([0x86, 0x42, 0x75], 2));
+        seg.push(0x05);
+        assert_eq!(key_of(&seg), "expr-op-0x05-8642");
+    }
+
+    #[test]
+    fn a_division_with_no_operand_type_read_says_so() {
+        // The presence flag earns its bit. A bare opcode records no type and the
+        // key says `notype` rather than defaulting into the integer bucket —
+        // "absence read as success" is `docs/STATUS.md` trap 5.
+        assert_eq!(key_of(&[0x05]), "expr-op-0x05-notype");
+    }
+
+    /// **The FLOAT case is UNREACHABLE through this parser, and that is the
+    /// answer to board #783** — not a gap in the instrument.
+    ///
+    /// A census key is a body's FIRST blocker. Every operand-producing arm
+    /// admits a type only through `eat_operand_type` (`Int4`/`Ptr4`/`Int1u`) or
+    /// an admitted `2C`, so a `float` or `double` operand refuses at the LOAD,
+    /// one token *before* the opcode — under a different key. This test is the
+    /// positive check for that claim rather than an argument for it.
+    #[test]
+    fn a_float_operand_blocks_at_the_load_not_at_the_division() {
+        // `86 45 83` — tag 86, kind 45 (low nibble 5 = REAL), a 4-byte float.
+        let mut seg = lit([0x86, 0x45, 0x83], 10);
+        seg.extend_from_slice(&lit([0x86, 0x45, 0x83], 2));
+        seg.push(0x05);
+        let k = key_of(&seg);
+        assert_eq!(k, "expr-lit-type-8645", "a float division blocks at its operand");
+        assert!(!k.starts_with("expr-op-0x05"), "and so never reaches the 0x05 key");
+
+        // Same one token over, through the LOAD arm. `09 0A` is the two-byte
+        // token form — `read_token_var` takes four bytes when the second has its
+        // high bit set, which is #644's own shape and would silently slide the
+        // TYPE this test is about.
+        let mut seg = vec![0xB9, 0x09, 0x0A];
+        seg.extend_from_slice(&[0x86, 0x45, 0x83]);
+        seg.push(0x05);
+        assert_eq!(key_of(&seg), "expr-load-type-8645");
+    }
+
+    #[test]
+    fn the_div_mod_key_is_an_exact_refinement_of_the_published_one() {
+        // A REFINEMENT: every key this ctx can produce starts with the exact
+        // string the board published (`expr-op-0x05` / `expr-op-0x06`), so the
+        // 4,670 can only split and no row can move sideways into another
+        // bucket. Checked over the whole product the producer can emit —
+        // both opcodes x {no type, every tag x kind byte} — rather than over the
+        // handful a fixture happens to reach.
+        for b in DIV_MOD_OPS {
+            let old = format!("expr-op-0x{b:02X}");
+            let mut seen = std::collections::BTreeSet::new();
+            for aux in std::iter::once(0u64).chain(
+                (0u64..256).flat_map(|tag| (0u64..256).map(move |kind| 1 | tag << 16 | kind << 8)),
+            ) {
+                let blk = Block {
+                    ctx: EXPR_TYPED_OP,
+                    byte: Some(b),
+                    off: 0,
+                    seg_len: 0,
+                    aux,
+                };
+                let new = blk.feature();
+                assert!(new.starts_with(&old), "{new} is not a refinement of {old}");
+                // …and the refinement is INJECTIVE on the recorded type: two
+                // different types may never share a bucket, or the split would
+                // be reporting a merge.
+                assert!(seen.insert(new), "two aux values share one key");
+                // The completeness axis is untouched — this refusal carries a
+                // blocking byte exactly as the fall-through one did.
+                assert_eq!(blk.completeness(), Complete::NoSignal);
+            }
+        }
     }
 }

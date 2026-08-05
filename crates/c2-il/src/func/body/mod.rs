@@ -1024,6 +1024,35 @@ impl Block {
         if self.ctx == "expr-intrinsic" || self.ctx == "call-intrinsic" {
             return format!("{}-{}", self.ctx, intrinsic_name(self.aux as i32));
         }
+        // **The DIVIDE / MODULO key, with its operand TYPE** (`lane w-divsplit`,
+        // board **#816**; see [`expr::EXPR_TYPED_OP`]).
+        //
+        // A **REFINEMENT** of the two published keys, not a re-key: every value
+        // this produces starts with the exact string `expr-op-0x05` or
+        // `expr-op-0x06`, so a prefix reader of either is unchanged and the
+        // partition can only split, never merge or move sideways. That is the
+        // opposite direction from the operand-type coarsening below, and it is
+        // asserted by `the_div_mod_key_is_an_exact_refinement`.
+        //
+        // The `<tag><kind>` spelling is the one `expr-load-type-8641` already
+        // uses, and it is deliberately not an interpreted name: the kind's low
+        // nibble is the type class (1 signed · 2 unsigned · 3 data pointer ·
+        // 4 code pointer · 5 real · 6 aggregate · 7 void, `docs/IL_TYPE_TAGS.md`
+        // §1), so `expr-op-0x05-8641` is a signed 4-byte integer division and a
+        // float one would read `…-8645`. Naming it `-int` / `-float` would be
+        // this file's oldest recorded mistake — `expr_opcode_name` guessed three
+        // of six relationals wrong from their numeric order — one level up.
+        if self.ctx == expr::EXPR_TYPED_OP {
+            let b = self.byte.unwrap_or(0);
+            return match self.aux {
+                0 => format!("expr-op-0x{b:02X}-notype"),
+                a => format!(
+                    "expr-op-0x{b:02X}-{:02X}{:02X}",
+                    (a >> 16) & 0xFF,
+                    (a >> 8) & 0xFF,
+                ),
+            };
+        }
         // The `26`-in-expression family (D2, `docs/IL_CALL_IN_EXPR.md` §14). The
         // whole bucket used to be one key — 286,240 functions, 12.9 % of the
         // blocked workload, naming 0.2 % of its own contents — and `mcall` walks
