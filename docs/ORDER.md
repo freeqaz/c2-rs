@@ -43,8 +43,28 @@ store. Measured: switching to the leading-run reading changes **nothing** on
 all 809 single-symbol cells and is what the `mr rN,r3` rule
 (`STORE_SCHEDULE.md` §5) needs. Board **#584**.
 
+**And it was a no-op only in prose until 2026-08-05, lane `w-frame2`.**
+`order::schedule` was still computing the layout's `u` with `head_slots`, i.e.
+`min(2, #unproduced)`, four lanes after the correction above was written. On one
+symbol that is genuinely a no-op — `order.rs` now *enumerates* every run of
+length 1..=6 over ≤ 3 producers and asserts the two readings agree — but on the
+multi-symbol runs `#600` opened, it is **62.90 %** against the leading run's
+**98.59 %**. A correction that lands in the doc and not in the code is a
+correction that has not landed. Board **#621**.
+
+**The layout clause above is right only on a gated domain**, and the gate is
+board **#620**: let `nsw` be the number of symbol-group transitions in the final
+store order up to and including a producer's first consumption. At `nsw ≤ 2` the
+clause is exact (30,271 fit / 24,891 holdout / 54 external, 0 wrong); past it,
+the producer lands one slot later than the clause says. On **one** symbol `nsw`
+is 0 for every producer, so the gate is vacuous here and this section is
+unchanged where it was fitted. `docs/SYMBOL.md` §4.1.
+
 That is the whole rule. The only free constant is the **2**, and it is rule
-1's own.
+1's own. `MAX_SYMBOL_CROSSINGS` is a **second** 2 — measured independently off
+the crossing count and *not* derived from rule 1's. Whether they are the same
+constant is unmeasured, and it is written as two constants so that a lane that
+moves one does not silently move the other.
 
 ### 1.1 The rank is not the register order, and the signs disagree
 
