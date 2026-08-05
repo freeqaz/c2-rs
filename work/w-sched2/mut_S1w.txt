@@ -590,6 +590,23 @@ TOTALS over every grid
     k-b-two      N=2  8 3
     u-uns1       N=1  3
 
+  === RECONSTRUCT-AND-COMPARE: the rules rebuild the WHOLE loop
+      body from scratch -- every register field and the back
+      edge's displacement regenerated, only the chain's opcodes
+      and immediates kept (selection is not this lane's question)
+      BYTE-EXACT: 0 of 87 graded cells   (held out: 0 of 52)
+      not attempted,   7 cells: chain carries a NON-COMMUTATIVE two-source op (operand roles fixed by selection, not by S5)
+      not attempted,  17 cells: no legal record slot
+      not attempted,   7 cells: outside the port's signature class or hoists a literal
+      not attempted,  13 cells: split producer (#644) -- outside the reconstructed class
+      MISSES: a-alu2 a-alu3 a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 b-mul2 b-mul3 b-mul4 b-mul5 b-mul6 b-mul7 b-mul8 b-shift2 b-shift3 b-shift4 b-shift5 b-shift6 b-shift7 b-shift8 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 e-alu2 e-alu3 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k2 e-k3 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul2 e-mul3 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-shift2 e-shift3 e-shift4 e-shift5 e-shift6 e-shift7 e-shift8 f-n3p0 f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5 i-base3 i-base5 i-k3 i-k5 i-uns3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str4 k-b-three k-b-two
+        a-alu2  want 8d2a0001 7d0b1a14 7d2b0775 69030003 4082fff0
+                got  7d6b1a14 8d2a0001 69630003 7d2b0775 4082fff0
+        a-alu3  want 7d6b1a14 8d2a0001 69680003 7d2b0775 38680005 4082ffec
+                got  7d0b1a14 69080003 8d2a0001 38680005 7d2b0775 4082ffec
+        a-alu4  want 7d2b1a14 8d6a0001 69290003 39290005 61230009 7d6b0775 4082ffe8
+                got  7d2b1a14 69290003 8d6a0001 39290005 61230009 7d6b0775 4082ffe8
+
 == GRID K -- board #747's fixture: TWO bodies of DIFFERENT lengths, ONE TU ==
    Registered in PREREG ADDENDUM 2 (`9bc73d3`) before this code existed.
    Neither expr_sweep.sh nor mode_cross.sh can generate this shape, so

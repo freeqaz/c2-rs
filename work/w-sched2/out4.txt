@@ -245,8 +245,8 @@ f-n6p5         6   6   6   1   7    6   5  TWO  MISS OK   MISS MISS  OK   OK   O
   S3m REGIME same, over PRODUCERS  13 of 13  graded cells
   S4 TEMPS  over PRODUCERS       9 of 13  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3
   S4s TEMPS same, over SLOTS     9 of 13  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3
-  S4r ALLOC structure, name-free   9 of 13  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3
-  S4n ALLOC the NAMES too        9 of 13  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3
+  S4r ALLOC structure, name-free  13 of 13  graded cells
+  S4n ALLOC the NAMES too       13 of 13  graded cells
 
 == GRID G -- HELD OUT (board #644, split producers) ==
    Every rule graded in BOTH units -- slots and producers -- with both counts printed.
@@ -276,8 +276,8 @@ h6-long        6   6   5   1   7    0   0 SAME  MISS MISS MISS MISS  OK   OK   O
   S3m REGIME same, over PRODUCERS   8 of 8   graded cells
   S4 TEMPS  over PRODUCERS       3 of 8   graded cells   MISSES: h6-first h6-mid3 h6-or h6-two h6-xor
   S4s TEMPS same, over SLOTS     1 of 8   graded cells   MISSES: h6-first h6-last h6-long h6-mid3 h6-or h6-two h6-xor
-  S4r ALLOC structure, name-free   4 of 8   graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor
-  S4n ALLOC the NAMES too        4 of 8   graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor
+  S4r ALLOC structure, name-free   8 of 8   graded cells
+  S4n ALLOC the NAMES too        8 of 8   graded cells
 
 == GRID H -- HELD OUT (the SIGNATURE axis, chain fixed) ==
    w-hash showed the register PLAN moves with the signature. Does the INTERLEAVE?
@@ -347,8 +347,8 @@ j-pv7b         7   7   7   1   7    6   5  TWO  MISS OK   MISS MISS  OK   OK   O
   S3m REGIME same, over PRODUCERS  12 of 12  graded cells
   S4 TEMPS  over PRODUCERS       7 of 12  graded cells   MISSES: j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a
   S4s TEMPS same, over SLOTS     4 of 12  graded cells   MISSES: j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a j-str1 j-str2 j-str3
-  S4r ALLOC structure, name-free   7 of 12  graded cells   MISSES: j-pv5a j-pv7a j-str1 j-str2 j-str3
-  S4n ALLOC the NAMES too        6 of 12  graded cells   MISSES: j-pool1 j-pv5a j-pv7a j-str1 j-str2 j-str3
+  S4r ALLOC structure, name-free   9 of 12  graded cells   MISSES: j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too        8 of 12  graded cells   MISSES: j-pool1 j-str1 j-str2 j-str3
 
 ==============================================================================
 TOTALS over every grid
@@ -365,8 +365,8 @@ TOTALS over every grid
   S3m REGIME same, over PRODUCERS 131 of 131 graded cells
   S4 TEMPS  over PRODUCERS     115 of 131 graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 h6-first h6-mid3 h6-or h6-two h6-xor i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a
   S4s TEMPS same, over SLOTS   108 of 131 graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 g-644-1 g-644-2 h6-first h6-last h6-long h6-mid3 h6-or h6-two h6-xor i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a j-str1 j-str2 j-str3
-  S4r ALLOC structure, name-free 117 of 131 graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 g-644-1 h6-first h6-mid3 h6-or h6-xor j-pv5a j-pv7a j-str1 j-str2 j-str3
-  S4n ALLOC the NAMES too      115 of 131 graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 g-644-1 h6-first h6-mid3 h6-or h6-xor i-slot1n3 j-pool1 j-pv5a j-pv7a j-str1 j-str2 j-str3
+  S4r ALLOC structure, name-free 127 of 131 graded cells   MISSES: g-644-1 j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too      125 of 131 graded cells   MISSES: g-644-1 i-slot1n3 j-pool1 j-str1 j-str2 j-str3
 
   --- ADDENDUM 1's rules on the HELD-OUT set alone (Grids E/F/G/H/J)
       registered at `baf69fb`, before those grids existed:
@@ -378,12 +378,12 @@ TOTALS over every grid
   S3m REGIME same, over PRODUCERS  84 of 84  graded cells
   S4 TEMPS  over PRODUCERS      68 of 84  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 h6-first h6-mid3 h6-or h6-two h6-xor i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a
   S4s TEMPS same, over SLOTS    63 of 84  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 h6-first h6-last h6-long h6-mid3 h6-or h6-two h6-xor i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a j-str1 j-str2 j-str3
-  S4r ALLOC structure, name-free  71 of 84  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 h6-first h6-mid3 h6-or h6-xor j-pv5a j-pv7a j-str1 j-str2 j-str3
-  S4n ALLOC the NAMES too       69 of 84  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 h6-first h6-mid3 h6-or h6-xor i-slot1n3 j-pool1 j-pv5a j-pv7a j-str1 j-str2 j-str3
+  S4r ALLOC structure, name-free  81 of 84  graded cells   MISSES: j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too       79 of 84  graded cells   MISSES: i-slot1n3 j-pool1 j-str1 j-str2 j-str3
   --- ADDENDUM 2's rules on GRID J alone, the only set registered
       at `9bc73d3` before it existed:
-  S4r ALLOC structure, name-free   7 of 12  graded cells   MISSES: j-pv5a j-pv7a j-str1 j-str2 j-str3
-  S4n ALLOC the NAMES too        6 of 12  graded cells   MISSES: j-pool1 j-pv5a j-pv7a j-str1 j-str2 j-str3
+  S4r ALLOC structure, name-free   9 of 12  graded cells   MISSES: j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too        8 of 12  graded cells   MISSES: j-pool1 j-str1 j-str2 j-str3
   --- HELD OUT, restricted to the port's own signature class
       (walked pointer at formal slot 0) AND chains of single-word
       producers: 69 of 84 held-out cells; 5 dropped for a moved
@@ -392,15 +392,15 @@ TOTALS over every grid
   S1w LOAD  a <= 1  (the weak half)  69 of 69  graded cells
   S2 RECORD by regime           67 of 69  graded cells   MISSES: h6-two j-pool3
   S3m REGIME same, over PRODUCERS  69 of 69  graded cells
-  S4r ALLOC structure, name-free  63 of 69  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 j-pv5a j-pv7a
-  S4n ALLOC the NAMES too       63 of 69  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 j-pv5a j-pv7a
+  S4r ALLOC structure, name-free  69 of 69  graded cells
+  S4n ALLOC the NAMES too       69 of 69  graded cells
       ...and with c2's HOISTED wide literals dropped too (2 of 69 cells hoist one; the port's IL recognizer refuses the
       wide literal that causes it, so this names a boundary):
   S1 LOAD   a=1 (a=0 iff N<=2,p=0)  67 of 67  graded cells
   S2 RECORD by regime           67 of 67  graded cells
   S3m REGIME same, over PRODUCERS  67 of 67  graded cells
-  S4r ALLOC structure, name-free  61 of 67  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 j-pv5a j-pv7a
-  S4n ALLOC the NAMES too       61 of 67  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 j-pv5a j-pv7a
+  S4r ALLOC structure, name-free  67 of 67  graded cells
+  S4n ALLOC the NAMES too       67 of 67  graded cells
   --- HELD OUT, split by board #644 (M == N vs M != N):
   S1 LOAD   a=1 (a=0 iff N<=2,p=0)  [no split producer]  74 of 74  graded cells
   S1 LOAD   a=1 (a=0 iff N<=2,p=0)  [SPLIT producer]   6 of 10  graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor
@@ -412,10 +412,10 @@ TOTALS over every grid
   S3 REGIME SAME iff pv=0 and N>=4  [SPLIT producer]   5 of 10  graded cells   MISSES: h6-first h6-last h6-mid3 h6-or h6-xor
   S3m REGIME same, over PRODUCERS  [no split producer]  74 of 74  graded cells
   S3m REGIME same, over PRODUCERS  [SPLIT producer]  10 of 10  graded cells
-  S4r ALLOC structure, name-free  [no split producer]  68 of 74  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 j-pv5a j-pv7a
-  S4r ALLOC structure, name-free  [SPLIT producer]   3 of 10  graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor j-str1 j-str2 j-str3
-  S4n ALLOC the NAMES too  [no split producer]  66 of 74  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 i-slot1n3 j-pool1 j-pv5a j-pv7a
-  S4n ALLOC the NAMES too  [SPLIT producer]   3 of 10  graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor j-str1 j-str2 j-str3
+  S4r ALLOC structure, name-free  [no split producer]  74 of 74  graded cells
+  S4r ALLOC structure, name-free  [SPLIT producer]   7 of 10  graded cells   MISSES: j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too  [no split producer]  72 of 74  graded cells   MISSES: i-slot1n3 j-pool1
+  S4n ALLOC the NAMES too  [SPLIT producer]   7 of 10  graded cells   MISSES: j-str1 j-str2 j-str3
   --- the same rules on the FITTING set (Grids A/B/C/D), for contrast:
   S1 LOAD   a=1 (a=0 iff N<=2,p=0)  47 of 47  graded cells
   S1w LOAD  a <= 1  (the weak half)  47 of 47  graded cells
@@ -594,17 +594,13 @@ TOTALS over every grid
       body from scratch -- every register field and the back
       edge's displacement regenerated, only the chain's opcodes
       and immediates kept (selection is not this lane's question)
-      BYTE-EXACT: 15 of 104 graded cells   (held out: 8 of 60)
+      BYTE-EXACT: 104 of 104 graded cells   (held out: 60 of 60)
+      per grid prefix (S5 was fitted on `a-`, and its scope narrowed by one `c-` and one `e-` cell;
+      `f-`/`h6-`/`i-`/`j-` were never inspected while S5 was written):
+        a 8/8   b 16/16   c 16/16   e 33/33   f 13/13   i 8/8   j 6/6   k 3/3   u 1/1
       not attempted,   7 cells: chain carries a NON-COMMUTATIVE two-source op (operand roles fixed by selection, not by S5)
       not attempted,   7 cells: outside the port's signature class or hoists a literal
       not attempted,  13 cells: split producer (#644) -- outside the reconstructed class
-      MISSES: a-alu2 a-alu3 a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 b-mul2 b-mul3 b-mul4 b-mul5 b-mul6 b-mul7 b-mul8 b-shift2 b-shift3 b-shift4 b-shift5 b-shift6 b-shift7 b-shift8 c-every2 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last2 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 e-alu2 e-alu3 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k2 e-k3 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul2 e-mul3 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-shift2 e-shift3 e-shift4 e-shift5 e-shift6 e-shift7 e-shift8 f-n3p0 f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5 i-base3 i-base5 i-k3 i-k5 i-uns3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str4 k-b-three k-b-two
-        a-alu2  want 8d2a0001 7d0b1a14 7d2b0775 69030003 4082fff0
-                got  8d2a0001 7d2b1a14 7d2b0775 69230003 4082fff0
-        a-alu3  want 7d6b1a14 8d2a0001 69680003 7d2b0775 38680005 4082ffec
-                got  7d6b1a14 8d2a0001 69690003 7d2b0775 38690005 4082ffec
-        a-alu4  want 7d2b1a14 8d6a0001 69290003 39290005 61230009 7d6b0775 4082ffe8
-                got  7d0b1a14 8d6a0001 69080003 39080005 61030009 7d6b0775 4082ffe8
 
 == GRID K -- board #747's fixture: TWO bodies of DIFFERENT lengths, ONE TU ==
    Registered in PREREG ADDENDUM 2 (`9bc73d3`) before this code existed.

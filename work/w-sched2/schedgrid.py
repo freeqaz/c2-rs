@@ -336,11 +336,14 @@ def analyse(words):
     # producer overwrites CHAR, whatever later words read that register.  A
     # lowering has `pv` from the IL; it does NOT have `p`.
     pv, alive = None, True
+    r["rc"] = []
     for k, g in enumerate(r["prods"]):
         rd = set()
         for w_i in g:
             rd |= dec[w_i][1]
-        if alive and r["CHAR"] in rd:
+        hit = alive and r["CHAR"] in rd
+        r["rc"].append(hit)              # per-producer "reads the char's VALUE"
+        if hit:
             pv = k
         if r["CHAR"] in dec[g[-1]][0]:
             alive = False
@@ -1022,6 +1025,161 @@ def p5(rows, label):
     return agree, n
 
 
+# ---------------------------------------------------------------------------
+# RECONSTRUCT-AND-COMPARE — the strongest control in the lane.
+#
+# Everything above grades POSITIONS. This grades BYTES: it throws away every
+# register field and every branch displacement c2 emitted, rebuilds the whole
+# loop body from the rules alone, and compares word for word. Instruction
+# SELECTION is not this lane's question, so each chain word's opcode and
+# immediate are kept and only its register fields are regenerated -- which is
+# exactly the split a lowering faces, since selection is deterministic per IL op
+# and the schedule and allocation are what w-rotate left unstated.
+#
+# A rule that predicts the right slot and the wrong register still fails here.
+# ---------------------------------------------------------------------------
+def fields(w):
+    """(dest_shift, [src_shifts]) for a word, or None. Shifts are bit
+    positions of 5-bit register fields."""
+    op = w >> 26
+    if op in D_RT_RA:
+        return (21, [] if (op in (14, 15) and ((w >> 16) & 31) == 0) else [16])
+    if op in D_RA_RS:
+        return (16, [21])
+    if op in (20, 21):
+        return (16, [21])
+    if op == 31:
+        xo = (w >> 1) & 0x3FF
+        if xo == 444:
+            return (16, [21, 11])
+        if xo in XO_RT_RA_RB:
+            return (21, [16, 11])
+        if xo in XO_RT_RA:
+            return (21, [16])
+        if xo in XO_RA_RS_RB:
+            return (16, [21, 11])
+        if xo in XO_RA_RS:
+            return (16, [21])
+    return None
+
+
+def put(w, shift, reg):
+    return (w & ~(31 << shift)) | ((reg & 31) << shift)
+
+
+def reconstruct(r):
+    """Rebuild the whole body + back edge from the rules. Returns
+    (words, why-not) -- `why-not` set when the cell is outside the class the
+    reconstruction claims."""
+    if r["M"] != r["N"]:
+        return None, "split producer (#644) -- outside the reconstructed class"
+    if not r["ptr0"] or r["hoisted"]:
+        return None, "outside the port's signature class or hoists a literal"
+    body, dec, M = r["body"], r["dec"], r["M"]
+    CHAR, pv = r["CHAR"], r["pv"]
+    if pv is None:
+        return None, "no chain word reads the char"
+    # S5 orders the operands of a COMMUTATIVE op by recency.  A two-source op
+    # whose operand ROLES are fixed by the operation (`subf` computes RB - RA)
+    # takes its order from instruction selection instead, which is not this
+    # lane's question -- so those chains are refused with the reason printed
+    # and counted, never scored.
+    NONCOMM = {40, 8, 792, 24, 536, 60, 412, 104, 200, 232}
+    for g in r["prods"]:
+        w = body[g[0]]
+        if (w >> 26) == 31 and ((w >> 1) & 0x3FF) in NONCOMM:
+            return None, ("chain carries a NON-COMMUTATIVE two-source op "
+                          "(operand roles fixed by selection, not by S5)")
+
+    # --- the rules, applied.  Nothing below reads c2's answer. --------------
+    same = (pv == 0 and M >= (3 if "S3m" in MUTATE else 4))        # S3m
+    a = 0 if (M <= 2 and pv == 0 and not same) else 1              # S1
+    if "S1w" in MUTATE:
+        a = min(a + 1, M)
+    T1, T2, HOME, LD = 8, 9, R_ACC, (CHAR if same else 9)
+    if "S4r" in MUTATE:
+        T1, T2 = T2, T1
+
+    # the char's last read of the PHYSICAL register, which is what S2 needs:
+    # producer 0 takes CHAR when a==1 and pv==0, so the char's register stays
+    # read one producer longer than its value lives.
+    p0_char = (not same) and a == 1 and pv == 0
+    pchain = (1 if (p0_char and M > 1) else pv)
+    regs = []
+    for i in range(M):
+        if i == M - 1:
+            regs.append(HOME)
+        elif same:
+            regs.append(T2)
+        elif i == 0 and p0_char:
+            regs.append(CHAR)
+        else:
+            regs.append(None)                          # filled once R is known
+
+    # S2 needs R, and R needs the slot of the last physical read of CHAR.
+    def slot_of(i, aa, RR):
+        s = i + (1 if i >= aa else 0)
+        return s + (1 if s >= RR else 0)
+    if "S2" in MUTATE:
+        R = max(a + 2, min(M + 1, (M + 1 if same else a + 2) - 1))
+    elif same:
+        R = M + 1                                      # S2-SAME: the last word
+    else:
+        R = None
+        for cand in range(a + 2, M + 2):               # S2-TWO: the earliest
+            if slot_of(pchain, a, cand) < cand:        # legal slot
+                R = cand
+                break
+    if R is None:
+        return None, "no legal record slot"
+    for i in range(M):
+        if regs[i] is None:
+            regs[i] = T2 if slot_of(i, a, R) > R else T1
+
+    # --- emit ---------------------------------------------------------------
+    out = [None] * (M + 2)
+    out[a] = (35 << 26) | (LD << 21) | (10 << 16) | 1          # lbzu LD,1(r10)
+    out[R] = (31 << 26) | (LD << 21) | (CHAR << 16) | (954 << 1) | 1  # extsb.
+    if body[r["R"]] >> 26 == 31 and ((body[r["R"]] >> 1) & 0x3FF) == 444:
+        out[R] = ((31 << 26) | (LD << 21) | (CHAR << 16) | (LD << 11)
+                  | (444 << 1) | 1)                            # mr. (unsigned)
+    for i in range(M):
+        src = body[r["prods"][i][0]]
+        f = fields(src)
+        if f is None:
+            return None, "unrewritable chain word %08x" % src
+        prev = HOME if i == 0 else regs[i - 1]
+        w = put(src, f[0], regs[i])
+        # S5 -- OPERAND ORDER, the one fact the reconstruction found that none
+        # of S1..S4 encode, FITTED on Grid A (`a-alu1/2/3`) and therefore held
+        # out on every other grid.  For a COMMUTATIVE two-source op, `RA` takes
+        # the operand of higher RECENCY and `RB` the lower:
+        #
+        #     a chain temp from THIS iteration  >  CHAR  >  the loop-carried
+        #                                                   accumulator
+        #
+        # so `r = r + c` is `add rT,CHAR,r3` at the chain's head and
+        # `add r3,rPREV,CHAR` at its tail -- the same source op, the operands
+        # the other way round.  Measured on commutative ops only; every
+        # two-source op this grid mints is commutative, and that is a scope
+        # statement, not a claim.
+        want = [q for _, q in
+                sorted([(2 if i else 0, prev)]
+                       + ([(1, CHAR)] if r["rc"][i] else []),
+                       reverse=("S5" not in MUTATE))]
+        for sh in f[1]:
+            old = (src >> sh) & 31
+            # An invariant source (a formal the chain reads, e.g. `k`) is not
+            # ours to assign and is left exactly as c2 emitted it.
+            if old in (CHAR, T1, T2, HOME, LD) and want:
+                w = put(w, sh, want.pop(0))
+        out[slot_of(i, a, R)] = w
+    n = M + 2
+    out.append((16 << 26) | (4 << 21) | (2 << 16)
+               | ((-4 * n) & 0xFFFC))                          # bf 2, -(4n)
+    return out, None
+
+
 def dump(name, r):
     print()
     print("== %s ==  N=%d L=%d R=%d LRC=%s CHAR=r%d"
@@ -1233,6 +1391,64 @@ def main(argv):
         # CONTROLS.  The three known-answer cells must land on the numbers
         # w-rotate published, and the three x- cells must be EXCLUDED.  A
         # control that fails is the only thing that changes exit status.
+        # RECONSTRUCT-AND-COMPARE, over every cell in every grid.
+        print()
+        print("  === RECONSTRUCT-AND-COMPARE: the rules rebuild the WHOLE loop")
+        print("      body from scratch -- every register field and the back")
+        print("      edge's displacement regenerated, only the chain's opcodes")
+        print("      and immediates kept (selection is not this lane's question)")
+        rc_ok = rc_n = 0
+        rc_ho = rc_hn = 0
+        rc_bad, rc_skip = [], {}
+        for nm in sorted(allrows):
+            r = allrows[nm]
+            got, why = reconstruct(r)
+            if got is None:
+                rc_skip[why] = rc_skip.get(why, 0) + 1
+                continue
+            want = list(r["body"]) + [r["words"][r["backedge"]]]
+            rc_n += 1
+            hit = (got == want)
+            rc_ok += hit
+            if nm in heldout:
+                rc_hn += 1
+                rc_ho += hit
+            if not hit:
+                rc_bad.append(nm)
+        print("      BYTE-EXACT: %d of %d graded cells   (held out: %d of %d)"
+              % (rc_ok, rc_n, rc_ho, rc_hn))
+        # Per-grid, because S5 (the operand order) was fitted LATE -- on Grid
+        # A's three cells, with its scope narrowed by looking at one Grid C and
+        # one Grid E cell.  Grids F/G/H/J were never inspected while S5 was
+        # being written, so THEY are the population S5 is honestly held out on,
+        # and the rung must quote that number and not the total.
+        per = {}
+        for nm in sorted(allrows):
+            got, why = reconstruct(allrows[nm])
+            if got is None:
+                continue
+            want = list(allrows[nm]["body"]) + [allrows[nm]["words"][allrows[nm]["backedge"]]]
+            g = nm.split("-")[0]
+            o, n = per.get(g, (0, 0))
+            per[g] = (o + (got == want), n + 1)
+        print("      per grid prefix (S5 was fitted on `a-`, and its scope"
+              " narrowed by one `c-` and one `e-` cell;")
+        print("      `f-`/`h6-`/`i-`/`j-` were never inspected while S5 was"
+              " written):")
+        print("        " + "   ".join("%s %d/%d" % (k, v[0], v[1])
+                                      for k, v in sorted(per.items())))
+        for why, k in sorted(rc_skip.items()):
+            print("      not attempted, %3d cells: %s" % (k, why))
+        if rc_bad:
+            print("      MISSES: %s" % " ".join(rc_bad))
+            for nm in rc_bad[:3]:
+                r = allrows[nm]
+                got, _ = reconstruct(r)
+                want = list(r["body"]) + [r["words"][r["backedge"]]]
+                print("        %s  want %s" % (nm, " ".join("%08x" % w for w in want)))
+                print("        %s  got  %s" % (" " * len(nm),
+                                               " ".join("%08x" % w for w in got)))
+
         kg, kf = run_k(mode, wd, only)
         tot_graded += kg
         tot_capfail += kf

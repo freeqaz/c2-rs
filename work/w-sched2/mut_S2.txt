@@ -590,6 +590,22 @@ TOTALS over every grid
     k-b-two      N=2  8 3
     u-uns1       N=1  3
 
+  === RECONSTRUCT-AND-COMPARE: the rules rebuild the WHOLE loop
+      body from scratch -- every register field and the back
+      edge's displacement regenerated, only the chain's opcodes
+      and immediates kept (selection is not this lane's question)
+      BYTE-EXACT: 59 of 104 graded cells   (held out: 32 of 60)
+      not attempted,   7 cells: chain carries a NON-COMMUTATIVE two-source op (operand roles fixed by selection, not by S5)
+      not attempted,   7 cells: outside the port's signature class or hoists a literal
+      not attempted,  13 cells: split producer (#644) -- outside the reconstructed class
+      MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 f-n4p0 f-n4p3 f-n6p0 f-n6p3 f-n6p4 f-n6p5 i-base5 i-k5 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b
+        a-alu4  want 7d2b1a14 8d6a0001 69290003 39290005 61230009 7d6b0775 4082ffe8
+                got  7d2b1a14 8d6a0001 69290003 39290005 7d6b0775 61230009 4082ffe8
+        a-alu5  want 7d2b1a14 8d6a0001 69290003 39290005 61290009 3869000b 7d6b0775 4082ffe4
+                got  7d2b1a14 8d6a0001 69290003 39290005 61290009 7d6b0775 3869000b 4082ffe4
+        a-alu6  want 7d2b1a14 8d6a0001 69290003 39290005 61290009 3929000b 6923000d 7d6b0775 4082ffe0
+                got  7d2b1a14 8d6a0001 69290003 39290005 61290009 3929000b 7d6b0775 6923000d 4082ffe0
+
 == GRID K -- board #747's fixture: TWO bodies of DIFFERENT lengths, ONE TU ==
    Registered in PREREG ADDENDUM 2 (`9bc73d3`) before this code existed.
    Neither expr_sweep.sh nor mode_cross.sh can generate this shape, so
