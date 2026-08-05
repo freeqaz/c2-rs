@@ -213,6 +213,7 @@ Workload scan, 878 TUs, `capture-fail 7 / graded 871`, tree `64f4754`
 | unbound | 9,225 (5.15 %) |
 | no-bytes / obj-unreadable / partition breaks | 0 / 0 / 0 |
 | controls: match-TU differs · census/gate disagree on emitted | 0 · 0 |
+| **credited functions carrying a relocation** (§7.7) | **0** |
 | per-TU FBM over 865 TUs with emitted functions | ≥100 %: 4 · ≥90 %: 4 · ≥50 %: 10 · ≥10 %: 699 |
 
 Two identities worth keeping:
@@ -254,7 +255,20 @@ Two identities worth keeping:
    mode cross, corpus growth — move it by zero, exactly as they move the
    progress mass by zero (`PROGRESS_METRIC.md` trap 3). Quote the gate's own
    verdict count for that axis.
-6. **A `mismatch` TU's functions are still counted by the per-function route.**
+6. **"The bytes match" is weaker than "the function matches" — measured, and
+   the gap is currently EMPTY.** A `.text` COMDAT's raw data does not contain its
+   relocations, so two bodies that load the address of two *different* globals
+   are byte-identical here and differ in the obj. FBM's `exact` bucket therefore
+   credits bodies whose relocation targets it never checked. This was raised as a
+   constructed counterexample against the metric and then measured rather than
+   argued: **`fnbyte-exact-relocated` = 0.** Not one of the 29,084 credited
+   functions carries a relocation in c2's obj, so today `exact` *is* a full
+   function-identity claim. **The counterexample is sound and its instance count
+   is zero**, which is exactly the state that changes without warning — the first
+   accepted shape that relocates (an address leaf over an external, a pooled
+   float under `/Gy`) makes this bucket nonzero, and the number is printed on
+   every scan so the change is loud rather than silent.
+7. **A `mismatch` TU's functions are still counted by the per-function route.**
    Unlike the progress mass, FBM does not zero a mismatching TU: its emitted
    functions are graded individually, and a function whose bytes are right is
    credited even though the obj as a whole is wrong. That is intentional — FBM

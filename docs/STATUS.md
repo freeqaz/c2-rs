@@ -14,17 +14,27 @@ cost this project real work more than once.
 
 ## The numbers
 
-> ### ⚠ THE BLOCK BELOW IS STALE — **7 merges and 38 commits** behind master
+> ### ✔ RESOLVED 2026-08-05 — the block below was regenerated and is CURRENT
 >
-> Collected at tree `26306ba`; master is `33cbdbe`. Flagged 2026-08-04 by lane
-> `w-book4`, which **cannot regenerate it** — `status.sh` needs `../dc3-decomp`,
-> which does not resolve from a worktree, and ten of fifteen metrics come back
-> `NO-RESULT` (see *Reproducing any of it* below). **Run
-> `scripts/status.sh --write` from the main repo.** Nothing here is hand-edited
-> into the block; this banner is outside it on purpose.
+> The banner this replaces read *"THE BLOCK BELOW IS STALE — 7 merges and 38
+> commits behind master"*, collected at tree `26306ba` against master `33cbdbe`,
+> and it was raised by lane `w-book4` which **could not regenerate it**:
+> `status.sh` needs `../dc3-decomp`, which does not resolve from a worktree.
+> **It does resolve from one now** — `C2RS_DC3` is the documented override and
+> the collector honours it, so a lane in a worktree can regenerate this block
+> without going back to the main repo. Lane `w-fuzzy` did, and every one of the
+> now-23 registered metrics produced a value.
 >
-> **What moved, and where each figure was measured** — every one is from a landed
-> rung's §1 result table, not from this lane:
+> **The table below is kept as HISTORY, not as a live discrepancy.** Each row is
+> the figure a landed rung measured while the block was stale; every one of them
+> is now *in* the block above and can be read there instead. It stays because a
+> record of which numbers went stale, by how much, and how long it took anyone to
+> notice is worth more than the tidiness of deleting it — three of these went
+> stale because a *dependency* moved, which is the failure mode `status.sh`'s
+> registry exists to close.
+>
+> **What had moved, and where each figure was measured** — every one from a
+> landed rung's §1 result table:
 >
 > | metric | block reads | measured at `33cbdbe` | source |
 > |---|---|---|---|
@@ -52,14 +62,14 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-05 · tree `218cee1` · binary `7567cf518e62` · workload `20a48363`
+Collected 2026-08-05 · tree `8252d87` · binary `5663cebff4ec` · workload `20a48363`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 799 passed, 0 failed, 27 targets |
+| Workspace tests (cargo test --workspace --release) | 806 passed, 0 failed, 27 targets |
 | Oracle self-test (c2rs selftest) | 245 PASS, 0 FAIL |
 | Fixture port gate (c2rs perf) | 118 port Match, 0 mismatch, 127 not-implemented (of 245) |
-| Port speedup, geomean over matched fixtures | 481x geomean over matched fixtures |
+| Port speedup, geomean over matched fixtures | 681x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 8, mismatch 0, codegen-gap 0, vocab-gap 863, capture-fail 7 |
 | Per-function census (driver, not target) | 706555/2463393 functions in class (28.68%) |
 | Emitted-function census | 38458/178975 emitted functions in class (21.49%) |
@@ -75,6 +85,10 @@ Collected 2026-08-05 · tree `218cee1` · binary `7567cf518e62` · workload `20a
 | Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 19 reachable by codegen breadth alone; 141 if factor A were free |
 | Emit-predicate worth, B∧C − A∧B∧C (board #213) | +124 TUs (B∧C − A∧B∧C) |
 | Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
+| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20728 · emitted in class 38458/178975 · mismatch-zeroed TUs 0 |
+| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.16251 · 29084 exact + 2 whole-TU of 178975 emitted functions, over 865 TUs (4 at 100%) |
+| FBM partition (the under-report, and the controls) | partial 9374 (FBM under-reports by this) · differs 0 · refused 131292 · unbound 9225 · 0 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
+| Per-TU FBM (how close is the other 870) | 4 of 865 TUs with emitted functions are 100% byte-exact per function |
 
 <!-- END GENERATED -->
 
