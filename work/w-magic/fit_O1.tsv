@@ -1,0 +1,79 @@
+mode	sign	op	k	words	shape	full	hex
+/O1 /GS- /c	s	div	0	2	twi blr	twi 7,r0,0 ; blr 	0ce00000 4e800020
+/O1 /GS- /c	s	mod	0	2	twi blr	twi 7,r0,0 ; blr 	0ce00000 4e800020
+/O1 /GS- /c	u	div	0	2	twi blr	twi 7,r0,0 ; blr 	0ce00000 4e800020
+/O1 /GS- /c	u	mod	0	2	twi blr	twi 7,r0,0 ; blr 	0ce00000 4e800020
+/O1 /GS- /c	s	div	1	1	blr	blr 	4e800020
+/O1 /GS- /c	s	mod	1	2	li blr	li r3,0 ; blr 	38600000 4e800020
+/O1 /GS- /c	u	div	1	1	blr	blr 	4e800020
+/O1 /GS- /c	u	mod	1	2	li blr	li r3,0 ; blr 	38600000 4e800020
+/O1 /GS- /c	s	div	-1	2	neg blr	neg r3,r3 ; blr 	7c6300d0 4e800020
+/O1 /GS- /c	s	mod	-1	2	li blr	li r3,0 ; blr 	38600000 4e800020
+/O1 /GS- /c	s	div	2	3	srawi addze blr	srawi r11,r3,1 ; addze r3,r11 ; blr 	7c6b0e70 7c6b0194 4e800020
+/O1 /GS- /c	s	mod	2	5	srawi addze rlwinm subf blr	srawi r11,r3,1 ; addze r11,r11 ; rlwinm r11,r11,1,0,30 ; subf r3,r11,r3 ; blr 	7c6b0e70 7d6b0194 556b083c 7c6b1850 4e800020
+/O1 /GS- /c	u	div	2	2	rlwinm blr	rlwinm r3,r3,31,1,31 ; blr 	5463f87e 4e800020
+/O1 /GS- /c	u	mod	2	2	rlwinm blr	rlwinm r3,r3,0,31,31 ; blr 	546307fe 4e800020
+/O1 /GS- /c	s	div	-2	4	srawi addze neg blr	srawi r11,r3,1 ; addze r11,r11 ; neg r3,r11 ; blr 	7c6b0e70 7d6b0194 7c6b00d0 4e800020
+/O1 /GS- /c	s	mod	-2	6	srawi addze neg mulli subf blr	srawi r11,r3,1 ; addze r11,r11 ; neg r11,r11 ; mulli r11,r11,-2 ; subf r3,r11,r3 ; blr 	7c6b0e70 7d6b0194 7d6b00d0 1d6bfffe 7c6b1850 4e800020
+/O1 /GS- /c	s	div	3	3	li divw blr	li r11,3 ; divw r3,r3,r11 ; blr 	39600003 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	3	5	li divw mulli subf blr	li r11,3 ; divw r11,r3,r11 ; mulli r11,r11,3 ; subf r3,r11,r3 ; blr 	39600003 7d635bd6 1d6b0003 7c6b1850 4e800020
+/O1 /GS- /c	u	div	3	3	li divwu blr	li r11,3 ; divwu r3,r3,r11 ; blr 	39600003 7c635b96 4e800020
+/O1 /GS- /c	u	mod	3	5	li divwu mulli subf blr	li r11,3 ; divwu r11,r3,r11 ; mulli r11,r11,3 ; subf r3,r11,r3 ; blr 	39600003 7d635b96 1d6b0003 7c6b1850 4e800020
+/O1 /GS- /c	s	div	-3	3	li divw blr	li r11,-3 ; divw r3,r3,r11 ; blr 	3960fffd 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	-3	5	li divw mulli subf blr	li r11,-3 ; divw r11,r3,r11 ; mulli r11,r11,-3 ; subf r3,r11,r3 ; blr 	3960fffd 7d635bd6 1d6bfffd 7c6b1850 4e800020
+/O1 /GS- /c	s	div	4	3	srawi addze blr	srawi r11,r3,2 ; addze r3,r11 ; blr 	7c6b1670 7c6b0194 4e800020
+/O1 /GS- /c	s	mod	4	5	srawi addze rlwinm subf blr	srawi r11,r3,2 ; addze r11,r11 ; rlwinm r11,r11,2,0,29 ; subf r3,r11,r3 ; blr 	7c6b1670 7d6b0194 556b103a 7c6b1850 4e800020
+/O1 /GS- /c	u	div	4	2	rlwinm blr	rlwinm r3,r3,30,2,31 ; blr 	5463f0be 4e800020
+/O1 /GS- /c	u	mod	4	2	rlwinm blr	rlwinm r3,r3,0,30,31 ; blr 	546307be 4e800020
+/O1 /GS- /c	s	div	7	3	li divw blr	li r11,7 ; divw r3,r3,r11 ; blr 	39600007 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	7	5	li divw mulli subf blr	li r11,7 ; divw r11,r3,r11 ; mulli r11,r11,7 ; subf r3,r11,r3 ; blr 	39600007 7d635bd6 1d6b0007 7c6b1850 4e800020
+/O1 /GS- /c	u	div	7	3	li divwu blr	li r11,7 ; divwu r3,r3,r11 ; blr 	39600007 7c635b96 4e800020
+/O1 /GS- /c	u	mod	7	5	li divwu mulli subf blr	li r11,7 ; divwu r11,r3,r11 ; mulli r11,r11,7 ; subf r3,r11,r3 ; blr 	39600007 7d635b96 1d6b0007 7c6b1850 4e800020
+/O1 /GS- /c	s	div	-7	3	li divw blr	li r11,-7 ; divw r3,r3,r11 ; blr 	3960fff9 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	-7	5	li divw mulli subf blr	li r11,-7 ; divw r11,r3,r11 ; mulli r11,r11,-7 ; subf r3,r11,r3 ; blr 	3960fff9 7d635bd6 1d6bfff9 7c6b1850 4e800020
+/O1 /GS- /c	s	div	8	3	srawi addze blr	srawi r11,r3,3 ; addze r3,r11 ; blr 	7c6b1e70 7c6b0194 4e800020
+/O1 /GS- /c	s	mod	8	5	srawi addze rlwinm subf blr	srawi r11,r3,3 ; addze r11,r11 ; rlwinm r11,r11,3,0,28 ; subf r3,r11,r3 ; blr 	7c6b1e70 7d6b0194 556b1838 7c6b1850 4e800020
+/O1 /GS- /c	u	div	8	2	rlwinm blr	rlwinm r3,r3,29,3,31 ; blr 	5463e8fe 4e800020
+/O1 /GS- /c	u	mod	8	2	rlwinm blr	rlwinm r3,r3,0,29,31 ; blr 	5463077e 4e800020
+/O1 /GS- /c	s	div	16	3	srawi addze blr	srawi r11,r3,4 ; addze r3,r11 ; blr 	7c6b2670 7c6b0194 4e800020
+/O1 /GS- /c	s	mod	16	5	srawi addze rlwinm subf blr	srawi r11,r3,4 ; addze r11,r11 ; rlwinm r11,r11,4,0,27 ; subf r3,r11,r3 ; blr 	7c6b2670 7d6b0194 556b2036 7c6b1850 4e800020
+/O1 /GS- /c	u	div	16	2	rlwinm blr	rlwinm r3,r3,28,4,31 ; blr 	5463e13e 4e800020
+/O1 /GS- /c	u	mod	16	2	rlwinm blr	rlwinm r3,r3,0,28,31 ; blr 	5463073e 4e800020
+/O1 /GS- /c	s	div	10	3	li divw blr	li r11,10 ; divw r3,r3,r11 ; blr 	3960000a 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	10	5	li divw mulli subf blr	li r11,10 ; divw r11,r3,r11 ; mulli r11,r11,10 ; subf r3,r11,r3 ; blr 	3960000a 7d635bd6 1d6b000a 7c6b1850 4e800020
+/O1 /GS- /c	u	div	10	3	li divwu blr	li r11,10 ; divwu r3,r3,r11 ; blr 	3960000a 7c635b96 4e800020
+/O1 /GS- /c	u	mod	10	5	li divwu mulli subf blr	li r11,10 ; divwu r11,r3,r11 ; mulli r11,r11,10 ; subf r3,r11,r3 ; blr 	3960000a 7d635b96 1d6b000a 7c6b1850 4e800020
+/O1 /GS- /c	s	div	100	3	li divw blr	li r11,100 ; divw r3,r3,r11 ; blr 	39600064 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	100	5	li divw mulli subf blr	li r11,100 ; divw r11,r3,r11 ; mulli r11,r11,100 ; subf r3,r11,r3 ; blr 	39600064 7d635bd6 1d6b0064 7c6b1850 4e800020
+/O1 /GS- /c	u	div	100	3	li divwu blr	li r11,100 ; divwu r3,r3,r11 ; blr 	39600064 7c635b96 4e800020
+/O1 /GS- /c	u	mod	100	5	li divwu mulli subf blr	li r11,100 ; divwu r11,r3,r11 ; mulli r11,r11,100 ; subf r3,r11,r3 ; blr 	39600064 7d635b96 1d6b0064 7c6b1850 4e800020
+/O1 /GS- /c	s	div	1000	3	li divw blr	li r11,1000 ; divw r3,r3,r11 ; blr 	396003e8 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	1000	5	li divw mulli subf blr	li r11,1000 ; divw r11,r3,r11 ; mulli r11,r11,1000 ; subf r3,r11,r3 ; blr 	396003e8 7d635bd6 1d6b03e8 7c6b1850 4e800020
+/O1 /GS- /c	u	div	1000	3	li divwu blr	li r11,1000 ; divwu r3,r3,r11 ; blr 	396003e8 7c635b96 4e800020
+/O1 /GS- /c	u	mod	1000	5	li divwu mulli subf blr	li r11,1000 ; divwu r11,r3,r11 ; mulli r11,r11,1000 ; subf r3,r11,r3 ; blr 	396003e8 7d635b96 1d6b03e8 7c6b1850 4e800020
+/O1 /GS- /c	s	div	32767	3	li divw blr	li r11,32767 ; divw r3,r3,r11 ; blr 	39607fff 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	32767	5	li divw mulli subf blr	li r11,32767 ; divw r11,r3,r11 ; mulli r11,r11,32767 ; subf r3,r11,r3 ; blr 	39607fff 7d635bd6 1d6b7fff 7c6b1850 4e800020
+/O1 /GS- /c	u	div	32767	3	li divwu blr	li r11,32767 ; divwu r3,r3,r11 ; blr 	39607fff 7c635b96 4e800020
+/O1 /GS- /c	u	mod	32767	5	li divwu mulli subf blr	li r11,32767 ; divwu r11,r3,r11 ; mulli r11,r11,32767 ; subf r3,r11,r3 ; blr 	39607fff 7d635b96 1d6b7fff 7c6b1850 4e800020
+/O1 /GS- /c	s	div	32768	3	srawi addze blr	srawi r11,r3,15 ; addze r3,r11 ; blr 	7c6b7e70 7c6b0194 4e800020
+/O1 /GS- /c	s	mod	32768	7	srawi lis addze ori mullw subf blr	srawi r11,r3,15 ; lis r10,0 ; addze r11,r11 ; ori r10,r10,0x8000 ; mullw r11,r11,r10 ; subf r3,r11,r3 ; blr 	7c6b7e70 3d400000 7d6b0194 614a8000 7d6b51d6 7c6b1850 4e800020
+/O1 /GS- /c	u	div	32768	2	rlwinm blr	rlwinm r3,r3,17,15,31 ; blr 	54638bfe 4e800020
+/O1 /GS- /c	u	mod	32768	2	rlwinm blr	rlwinm r3,r3,0,17,31 ; blr 	5463047e 4e800020
+/O1 /GS- /c	s	div	-32768	4	srawi addze neg blr	srawi r11,r3,15 ; addze r11,r11 ; neg r3,r11 ; blr 	7c6b7e70 7d6b0194 7c6b00d0 4e800020
+/O1 /GS- /c	s	mod	-32768	6	srawi addze neg mulli subf blr	srawi r11,r3,15 ; addze r11,r11 ; neg r11,r11 ; mulli r11,r11,-32768 ; subf r3,r11,r3 ; blr 	7c6b7e70 7d6b0194 7d6b00d0 1d6b8000 7c6b1850 4e800020
+/O1 /GS- /c	s	div	-32769	4	lis ori divw blr	lis r11,-1 ; ori r11,r11,0x7fff ; divw r3,r3,r11 ; blr 	3d60ffff 616b7fff 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	-32769	6	lis ori divw mullw subf blr	lis r11,-1 ; ori r11,r11,0x7fff ; divw r10,r3,r11 ; mullw r11,r10,r11 ; subf r3,r11,r3 ; blr 	3d60ffff 616b7fff 7d435bd6 7d6a59d6 7c6b1850 4e800020
+/O1 /GS- /c	s	div	65536	3	srawi addze blr	srawi r11,r3,16 ; addze r3,r11 ; blr 	7c6b8670 7c6b0194 4e800020
+/O1 /GS- /c	s	mod	65536	6	srawi lis addze mullw subf blr	srawi r11,r3,16 ; lis r10,1 ; addze r11,r11 ; mullw r11,r11,r10 ; subf r3,r11,r3 ; blr 	7c6b8670 3d400001 7d6b0194 7d6b51d6 7c6b1850 4e800020
+/O1 /GS- /c	u	div	65536	2	rlwinm blr	rlwinm r3,r3,16,16,31 ; blr 	5463843e 4e800020
+/O1 /GS- /c	u	mod	65536	2	rlwinm blr	rlwinm r3,r3,0,16,31 ; blr 	5463043e 4e800020
+/O1 /GS- /c	s	div	100000	4	lis ori divw blr	lis r11,1 ; ori r11,r11,0x86a0 ; divw r3,r3,r11 ; blr 	3d600001 616b86a0 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	100000	6	lis ori divw mullw subf blr	lis r11,1 ; ori r11,r11,0x86a0 ; divw r10,r3,r11 ; mullw r11,r10,r11 ; subf r3,r11,r3 ; blr 	3d600001 616b86a0 7d435bd6 7d6a59d6 7c6b1850 4e800020
+/O1 /GS- /c	u	div	100000	4	lis ori divwu blr	lis r11,1 ; ori r11,r11,0x86a0 ; divwu r3,r3,r11 ; blr 	3d600001 616b86a0 7c635b96 4e800020
+/O1 /GS- /c	u	mod	100000	6	lis ori divwu mullw subf blr	lis r11,1 ; ori r11,r11,0x86a0 ; divwu r10,r3,r11 ; mullw r11,r10,r11 ; subf r3,r11,r3 ; blr 	3d600001 616b86a0 7d435b96 7d6a59d6 7c6b1850 4e800020
+/O1 /GS- /c	s	div	2147483647	4	lis ori divw blr	lis r11,32767 ; ori r11,r11,0xffff ; divw r3,r3,r11 ; blr 	3d607fff 616bffff 7c635bd6 4e800020
+/O1 /GS- /c	s	mod	2147483647	6	lis ori divw mullw subf blr	lis r11,32767 ; ori r11,r11,0xffff ; divw r10,r3,r11 ; mullw r11,r10,r11 ; subf r3,r11,r3 ; blr 	3d607fff 616bffff 7d435bd6 7d6a59d6 7c6b1850 4e800020
+/O1 /GS- /c	u	div	2147483647	4	lis ori divwu blr	lis r11,32767 ; ori r11,r11,0xffff ; divwu r3,r3,r11 ; blr 	3d607fff 616bffff 7c635b96 4e800020
+/O1 /GS- /c	u	mod	2147483647	6	lis ori divwu mullw subf blr	lis r11,32767 ; ori r11,r11,0xffff ; divwu r10,r3,r11 ; mullw r11,r10,r11 ; subf r3,r11,r3 ; blr 	3d607fff 616bffff 7d435b96 7d6a59d6 7c6b1850 4e800020
+/O1 /GS- /c	s	div	-2147483648	4	srawi addze neg blr	srawi r11,r3,31 ; addze r11,r11 ; neg r3,r11 ; blr 	7c6bfe70 7d6b0194 7c6b00d0 4e800020
+/O1 /GS- /c	s	mod	-2147483648	7	srawi lis addze neg mullw subf blr	srawi r11,r3,31 ; lis r10,-32768 ; addze r11,r11 ; neg r11,r11 ; mullw r11,r11,r10 ; subf r3,r11,r3 ; blr 	7c6bfe70 3d408000 7d6b0194 7d6b00d0 7d6b51d6 7c6b1850 4e800020
