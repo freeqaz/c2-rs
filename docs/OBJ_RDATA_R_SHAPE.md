@@ -6,8 +6,18 @@ why, and `rungs/2026-08-04-w-rdata.md` for the decision. This file stands to
 `.rdata$r` as [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) stood to
 `coff/data.rs`: measure first, then write the writer against a caller.
 
+> ## ⚠ AND IT IS WORTH `+0` TU MATCH — measured, not argued. See §10.
+>
+> The `+421` below is **factor C**, one of four terms. Closing the *entire*
+> section ladder (C `169 → 871`) moves `A∧B∧C` by **0**, `A∧B∧C∧(D∨E)` by
+> **0**, the FRONTIER by **0** and TU match by **0**. `w-reach`'s joint `+91`
+> (board #302) is **reach**, not match. **§10 is the correction and it is the
+> first thing to read on this page**, because every number between here and
+> there is a factor-C number and factor C is not the binding constraint.
+
 `.rdata$r` is the **top step of the greedy section ladder** and the single
-largest one on the board: over the 871 graded workload TUs, adding it to the
+largest one on the board *as a factor-C step*: over the 871 graded workload
+TUs, adding it to the
 writer's vocabulary would take factor **C** from **169 to 590, +421**. It
 appears in **676 of 871** TUs as **24,163** sections (measured on
 `work/w-bss/census/sections.jsonl`, `.XBLD$W:C1`/`:C2` normalized to
@@ -369,3 +379,87 @@ Two things stop that hole from being open:
 
 So the honest order is: this document, then the `c2-il` reader, then the writer
 **with a caller**, then the constant. Not the constant first.
+
+---
+
+## §10 THE CORRECTION — this section is worth `+0` TU match, and so is the whole ladder
+
+Added by lane **`w-joint2`** (`docs/rungs/_2026-08-05-w-joint2.md`, board
+**#360**), which was briefed to build this writer *jointly* with the tag-0x10
+ALIAS channel on the strength of `w-reach`'s **`+91`**. It measured the joint
+that actually bounds TU match first, and the brief's premise does not survive
+it.
+
+### §10.1 Close the whole ladder and nothing downstream moves
+
+`PORT_WRITER_SECTIONS` was widened transiently through the **real** `c2rs gap`
+binary and reverted (`work/w-joint2/counterfactual.sh`, which asserts
+`git status --porcelain crates/` is empty afterwards):
+
+| writer vocabulary | C | `B∧C` | **`A∧B∧C`** | **`A∧B∧C∧(D∨E)`** | **FRONTIER** | **match** |
+|---|---:|---:|---:|---:|---:|---:|
+| today, 10 names | 169 | 151 | **27** | **8** | **19** | **8** |
+| `+ .rdata$r` | **590** | **315** | **27** | **8** | **19** | **8** |
+| `+ .text$yd` | 804 | 324 | **27** | **8** | **19** | **8** |
+| `+ .xdata$x` — C **closed** | **871** | 338 | **27** | **8** | **19** | **8** |
+
+The `590` / `315` row is a **known-answer control**: it is `w-rdata` §5's
+writer-edit figure and `w-reach` §0.2's independent key reconstruction, and this
+lane reproduces both by a third route. The `27` / `8` / `19` columns are the new
+measurement — nobody had read them across the ladder.
+
+### §10.2 Why — one count, and it is not a coincidence of this workload
+
+> **`A∧B` = 27, and all 27 are already inside C. `|{A∧B} \ C| = 0`.**
+
+There is not one TU on this workload whose emit set the port can reach and whose
+symbols all bind that is blocked by a section name. A section name is therefore
+**nobody's binding constraint**, and `+421` of C is `+0` of every joint C
+appears in.
+
+### §10.3 And the cap is structural: `|D∨E| = 10`
+
+A byte-exact obj requires `A∧B∧C∧(D∨E)`. `D∨E` is the port's *codegen* class
+(D per-function, E the whole-TU recognizer registry) and **reads nothing from
+`PORT_WRITER_SECTIONS`**. It is **10**. So:
+
+* **TU match is capped at 10** at every C, under every emit-set model, until the
+  codegen class widens. Match is **8**. Total non-codegen headroom: **2 TUs**.
+* Those 2 are `src/system/decomp_pch.cpp` and `src/system/math/vec.cpp` —
+  board #213's divergence pair, `w-reach` §4.1's whole zero-codegen population.
+  Both are `-BCD-`: they carry **no** out-of-vocabulary section, are already
+  inside C, and fail **only A**. Section work is irrelevant to both.
+
+### §10.4 The pair intersects the reachable population in the empty set
+
+| | count |
+|---|---:|
+| TUs carrying `.rdata$r` | **676** |
+| …of those, in `D∨E` (the port has an accepted route to the contents) | **0** |
+| …of those, satisfying **A** | 1 |
+| …of those, satisfying **B** | 181 |
+| …of those, satisfying **`A∧B`** | **0** |
+| of the 10 TUs in `D∨E`, how many carry `.rdata$r` | **0** |
+| of the 10, how many carry **any** out-of-vocabulary section | **0** |
+
+**0 of 676.** This writer's entire population is the population the port cannot
+codegen a single function of, and the alias channel — which by construction only
+ever touches TUs with a vftable, i.e. TUs with `.rdata$r` — inherits the same
+zero. That is why the pair is super-additive *in reach* and still `+0` *in
+match*: both halves live strictly outside `D∨E`.
+
+### §10.5 What this does NOT say
+
+1. **It does not say `w-reach` was wrong.** `+91` is `|{model exact} ∩ B∧C|`,
+   correctly computed and correctly labelled *reach*; §6.1 of that page says in
+   its own words that TU match does not move. The error was in reading it as a
+   match figure downstream.
+2. **It does not say this specification is wasted.** §1–§9 are a byte-level
+   measurement of a real section and they will be needed the day the codegen
+   class covers a polymorphic ctor. They are just not needed *first*.
+3. **It does not price the codegen.** The 19-TU FRONTIER is unchanged by all of
+   this and `w-conv` prices it at ≥ 6 independent refusals each.
+4. **It is a statement about this workload at `/O1 /Oi /EHsc /GR`**, on the 871
+   graded TUs, at `master bed9894`. `A∧B = 27` is a measured count, not a law;
+   if it ever exceeds C, the ladder starts paying and this section must be
+   re-measured rather than re-quoted.
