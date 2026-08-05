@@ -176,6 +176,8 @@ block's.
 | TU distance ≤1 / ≤10 / ≤100 | the leading indicator for TU match | a promise that the near ones are cheap |
 | **emitted-function census** | in-class ∩ *code c2 actually emits* | gradeable by the differential on its own |
 | per-function census | **a driver** — it ranks rungs, and does that superbly | the target. "census → 100 %" is **retired** (§8.1) |
+| **PROGRESS MASS** (`P = mean(a,b,c,f)`) | **a driver** — the *ranking* metric, and the only one that can say which of two lanes moved more on a day TU match read 8 before and after ([`PROGRESS_METRIC.md`](PROGRESS_METRIC.md)) | a completion percentage. `P = 0.21` does **not** mean 21 % done — the four terms are necessary, not sufficient. Its `f` term inherits trap 2 whole |
+| **FUNCTION BYTE MATCH** (`FBM`) | **a driver** — the byte-exact differential asked *per emitted function* instead of per TU, so partial progress inside a TU is visible ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)). The **only** continuous number on this page graded by the oracle's own bytes | sufficient, and not a floor-free reading. A `.text` body is a *subset* of the obj, so `FBM = 1.0` would still not mean a matching TU; and it **under-reports by construction** — `fnbyte-partial` (9,374) is the size of that under-report and must always be quoted with it |
 | emit-set ceiling (28/871 gate-anchored) | TUs where `.ex` segments == obj COMDATs — the most TU match can reach **before** Phase 7 exists | reachable by widening |
 | emit-set MODEL ceiling (338/871) | TUs where a segment-driven model binds every emitted symbol | the same thing as the line above (see below) |
 | mismatch count | an **alarm** — and on **2026-08-04 it FIRED, four times over**: board **#232**, **#259** (a family of six), **#263** and **#276**. **All four are closed on `33cbdbe`.** Before that day it had never fired, and that record was doing more reassuring than it had earned | ~~"it has never fired"~~; and never evidence of correctness, before or after (see the coverage bound). **Nor is "four found and closed" a completeness claim** — three of the four were found by lanes building probe grids for unrelated rungs, so the rate says more about how many grids were built that day than about how many defects remain |
@@ -361,6 +363,18 @@ misleading without them.
    recorded precedent that this direction can be green-and-wrong is the `.sy`
    positional relaxation: census +2,981, mismatch 0, **wrong on 62 % of
    bindings**.
+
+   **2026-08-05 narrowed this trap without closing it.** FUNCTION BYTE MATCH
+   ([`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)) grades the port's
+   *per-function* output against the reference obj's own COMDAT bytes, so the
+   part of the emitted census that lands in an obj is no longer a parser-only
+   claim: **29,084 of the 38,458 emitted in-class claims (75.6 %) are now graded
+   by the oracle, and `fnbyte-differs` is 0.** The remaining 9,374 are shapes
+   whose bodies the COFF emitter finishes and which the instrument declines to
+   reconstruct (§3.1 there). The trap survives in full for the **2.28 M
+   never-emitted bodies** — those are not in any obj and nothing can grade them —
+   which is why the per-function census stays a driver and the emitted census
+   stays the one the goal is written in.
 
 3. **A residue shrinking is not the thing the residue is a proxy for.** §9.20.3
    raised the `.gl` name-distance bound and watched `records_nameless` fall
