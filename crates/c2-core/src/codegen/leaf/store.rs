@@ -200,6 +200,34 @@ pub fn store_leaf_text(
                 "store run whose order is not source order (codegen::order)",
             )));
         }
+        // **The LAYOUT guard** (`codegen::order::producers_lead`, board #602).
+        //
+        // The two guards above settle *which store goes where* and *which
+        // producer is emitted first*. Neither says where the producers sit
+        // among the stores, and this file answers that by hoisting its one
+        // producer ahead of the whole run (`hoisted_lit`, below). ORDER now
+        // models the layout, so this asks it and refuses on disagreement.
+        //
+        // **Additive-refusal by construction**, the same sentence the ORDER
+        // guard carries: `Some(false)` is the only reading acted on here, so a
+        // new answer from `layout_slots` can add a refusal and can never turn
+        // one into an accept. `None` means the run crosses more symbol-group
+        // boundaries than `MAX_SYMBOL_CROSSINGS` — the gate that makes the
+        // layout exact rather than 98.6 % correct — and the guards above have
+        // already had their say.
+        //
+        // Inert today by construction: `hoisted_lit` requires every store of
+        // the run to take the SAME literal, so the run has no unproduced store,
+        // the leading run `u` is 0, and ORDER puts the producer at slot 0 —
+        // which is where the hoist puts it. Board **#232** is why it is here
+        // anyway: a parser widening that admits a produced store beside an
+        // unproduced one moves the producer off slot 0 and this file would
+        // otherwise emit it in the wrong place.
+        if walk.is_empty() && order::producers_lead(&stmts) == Some(false) {
+            return Some(Err(out_of_class(
+                "store run whose producers do not lead it (codegen::order layout)",
+            )));
+        }
         // **The ALLOCATION guard** (`codegen::alloc`, `docs/ALLOC.md`).
         //
         // The schedule guard above settles the ORDER; this settles the
