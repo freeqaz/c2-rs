@@ -23,6 +23,7 @@ use crate::codegen::leaf::float::{
     FpConstRef, float_leaf_text, fp_permute_args_text, fp_tail_call_text,
 };
 use crate::codegen::leaf::load::indirect_load_text;
+use crate::codegen::div_mod_leaf::div_mod_leaf_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
@@ -225,6 +226,13 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // readability claim and not a correctness one.
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
+    }
+    // The integer divide/modulo leaf. Ahead of the straight-line chain for the
+    // same reason the loop is: it is a whole-body shape, and the chain below
+    // refuses its operator outright (`straightline.rs`'s `IlOp::Div` arm), so
+    // neither can take a body from the other.
+    if let Some(d) = &func.div_mod_leaf {
+        return Ok(Selected::Plain(div_mod_leaf_text(d, mode)?));
     }
     if func.empty_body {
         return Ok(Selected::Plain(encode_blr().to_vec()));

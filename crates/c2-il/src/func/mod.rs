@@ -1278,6 +1278,39 @@ pub struct PtrWalkModLoop {
     pub mul_k: i32,
 }
 
+/// **The integer divide / modulo leaf** — `return a / b;` / `return a % b;`
+/// over exactly two formals, signed or unsigned.
+///
+/// Four bodies, three to nine words, and **no free fields at all**: the two
+/// booleans below select one of four constant schedules per optimization mode
+/// and everything in each of them — every register, both trap `TO` fields, the
+/// operand order of the closing `subf` — is a constant of the class. The
+/// register plan and the `TO` fields were read off real `c2.dll`'s own words
+/// (`work/w-divmod/twigrid.py --dis`), not paraphrased from a mnemonic table.
+///
+/// The recognizer
+/// ([`crate::func::body::shapes::div_mod_leaf::try_parse_div_mod_leaf`]) holds
+/// the whole accept/refuse boundary, including the facts that are not visible
+/// here because they are required literally: `params.len() == 2`, the dividend
+/// at slot 0, the divisor at slot 1, both operands loaded straight from
+/// formals, and the type triple identical in all three positions. Each of those
+/// has a measured counterexample named in that module's docs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DivModLeaf {
+    /// The two formals in register order: `params[0]` is the dividend (r3),
+    /// `params[1]` the divisor (r4).
+    pub params: Vec<u32>,
+    /// `%` when true, `/` when false — IL bytes `06` and `05`. They are
+    /// **different lengths**, not a flag on one body: signed `%` is nine words
+    /// and signed `/` is seven, because `/` needs neither the `mullw` nor the
+    /// `subf`.
+    pub is_mod: bool,
+    /// Signedness, which selects `divw`+two traps or `divwu`+**one**. The
+    /// `INT_MIN / -1` overflow cannot arise unsigned, so `c2` emits no
+    /// predicate and no `twi 5` at all — `unsigned / unsigned` is three words.
+    pub signed: bool,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CmpShiftOr {
     /// The compared formal's IL token. It is the function's ONLY formal and
@@ -1478,6 +1511,13 @@ pub struct IlFunction {
     /// function**, which is the only kind of TU this shape may appear in. Board
     /// **#746**.
     pub ptr_walk_loop: Option<PtrWalkModLoop>,
+    /// If this function is the **integer divide/modulo leaf**, its two formals
+    /// and the operator. See [`DivModLeaf`].
+    ///
+    /// Unlike [`Self::ptr_walk_loop`] this body is a **single basic block** and
+    /// emits no branch at all, so it takes no compiler-label slot and
+    /// [`Self::label_slots`] treats it like every other leaf.
+    pub div_mod_leaf: Option<DivModLeaf>,
     /// If this function is a **W13a floating-point leaf**, whether it is double
     /// precision. Mutually exclusive with the other body kinds.
     pub float_leaf: Option<bool>,
@@ -1671,6 +1711,7 @@ impl IlFunction {
             compare: None,
             cmp_shift_or: None,
             ptr_walk_loop: None,
+            div_mod_leaf: None,
             float_leaf: None,
             fp_tail: None,
             fp_arg_sources: None,

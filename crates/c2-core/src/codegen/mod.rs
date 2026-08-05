@@ -29,6 +29,7 @@
 pub mod alloc;
 pub mod calls;
 pub mod cond_tail;
+pub mod div_mod_leaf;
 pub mod encode;
 pub mod frame;
 pub mod labels;

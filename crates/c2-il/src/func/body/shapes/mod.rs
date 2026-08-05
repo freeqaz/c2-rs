@@ -29,6 +29,7 @@ pub(crate) mod cond_tail;
 pub(crate) mod control_flow;
 pub(crate) mod ctor_dtor;
 pub(crate) mod designator;
+pub(crate) mod div_mod_leaf;
 pub(crate) mod early_return;
 pub(crate) mod guarded_seq;
 pub(crate) mod leaf_addr;
@@ -60,6 +61,8 @@ pub(crate) use control_flow::*;
 pub(crate) use ctor_dtor::*;
 #[allow(unused_imports)]
 pub(crate) use designator::*;
+#[allow(unused_imports)]
+pub(crate) use div_mod_leaf::*;
 #[allow(unused_imports)]
 pub(crate) use early_return::*;
 #[allow(unused_imports)]

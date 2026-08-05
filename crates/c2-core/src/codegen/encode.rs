@@ -618,6 +618,13 @@ pub fn encode_divw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
     xo31(rd, ra, rb, 491)
 }
 
+/// `divwu rD, rA, rB` — **unsigned** word divide, opcode 31 XO 459.
+/// Captured: `7c632396` = `divwu r3,r3,r4` (`work/w-divmod/twigrid.py`, row
+/// `u-div-var`, byte-identical at `/O1` and `/Ox`).
+pub fn encode_divwu(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    xo31(rd, ra, rb, 459)
+}
+
 /// `twi TO, rA, SIMM` — **trap word immediate**, primary opcode 3. The
 /// architectural `TO` bits, MSB first, are
 /// `[a<b signed, a>b signed, a=b, a<b unsigned, a>b unsigned]`.
@@ -638,10 +645,29 @@ pub fn encode_divw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
 ///   overflow guard, and the three-instruction predicate ahead of it is its
 ///   whole computation. Captured `0ca6ffff` = `twi 5,r6,-1`.
 ///
-/// A **constant** divisor emits neither — `c2` decides both guards statically
-/// (`work/w-hash/divgrid.py`, rows `s-mod-k7`/`s-div-k7`), and an **unsigned**
-/// divide emits only the first (`u-div-var`, `u-mod-var`), because the overflow
-/// case cannot arise.
+/// A **non-zero constant** divisor emits neither — `c2` decides both guards
+/// statically (`work/w-hash/divgrid.py`, rows `s-mod-k7`/`s-div-k7`;
+/// `work/w-divmod/twigrid.py` re-runs it over **24** literal cells covering both
+/// signs, both signednesses, `INT_MIN`, `INT_MAX`, the `simm16` cliff, and the
+/// same values reached through a `const` local, a namespace-scope `const` and an
+/// enumerator) — and an **unsigned** divide emits only the first (`u-div-var`,
+/// `u-mod-var`), because the overflow case cannot arise.
+///
+/// **There is a THIRD `TO`, and it is not a guard.** A divisor that is a
+/// compile-time **zero** emits no division at all and a bare
+///
+/// * **`twi 7, r0, 0`** — `TO = 0b00111` = *equal* ∪ *unsigned less-than* ∪
+///   *unsigned greater-than*, which is a tautology over the unsigned order, so
+///   the instruction traps **unconditionally**. Captured `0ce00000`, and the
+///   operand register is **`r0`** — not the dividend, not the divisor, because
+///   the trap does not read anything.
+///
+/// Seven cells produce it and they are all the same value by different routes
+/// (`a%0`, `a/0`, `a%0u`, `a/0u`, a `const int k=0`, a namespace-scope `const`,
+/// an enumerator). `TO = 7` is *not* emitted for any other divisor, and the
+/// grid observed no fourth value across 161 cells. None of this is shipped —
+/// `div_mod_leaf` refuses every constant divisor — but the `TO` axis is
+/// recorded here so a later rung does not rediscover it as an anomaly.
 pub fn encode_twi(to: u8, ra: u8, simm: i16) -> [u8; 4] {
     let word: u32 =
         (3 << 26) | ((to as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (simm as u16 as u32);
