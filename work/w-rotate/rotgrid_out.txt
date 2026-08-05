@@ -1,0 +1,284 @@
+mode: /O1 /GS- /c   workdir: /home/free/tmp/wrot31rbxg_s
+
+== GRID A -- the entry form (L4) ==
+cell                bucket   pred    P2    P3  peel   words  note
+ctl-noloop          NOLOOP      -     -     -     -       2  CONTROL: no loop at all. MUST classify NOLOOP
+ctl-if              NOLOOP      -     -     -     -       5  CONTROL: a forward branch and no back edge. MUST classify NOLOOP
+do-while              NONE GUARDRET     -     -    no       6  P6: bottom-test in the IL. Predicted NONE
+do-while-ret0       NOLOOP      -     -     -     -       2  P6 + a constant return: the exit block is `li r3,0 ; blr`, not bare
+goto-back             NONE GUARDRET     -     -    no       6  a backward goto: bottom-test with no loop keyword
+forever-break         NONE GUARDRET     -     -    no       6  for(;;) with the only exit inside the body
+while-dec         GUARDRET GUARDRET    OK   n/a    no       9  P1: top-test leaf, CTR-eligible
+while-ptr         GUARDRET GUARDRET    OK    OK   yes      10  P1+P4: the SENTINEL WALK -- the test reads memory
+for-count         GUARDRET GUARDRET    OK   n/a    no      10  P1: counted for, leaf
+for-stride3       GUARDRET GUARDRET    OK   n/a    no      14  stride 3
+for-down          GUARDRET GUARDRET    OK   n/a    no       9  counting down
+for-break            GUARD  GUARD    OK  MISS    no      12  a second exit
+for-cont          GUARDRET GUARDRET    OK   n/a    no      12  **P1's REGISTERED RISK CELL**: a `continue` in a LEAF
+while-cont        GUARDRET GUARDRET    OK   n/a    no      12  a `continue` in a `while`, leaf
+idx-load             GUARD  GUARD    OK   n/a    no      10  Primes.cpp's shape: indexed load, leaf
+while-call           GUARD  GUARD    OK  MISS   yes      21  P1: the SAME graph as while-dec with a call in the body
+for-call             GUARD  GUARD    OK  MISS   yes      17  P5: the same graph as for-count, body content changed
+for-call-cont        GUARD  GUARD    OK  MISS   yes      19  **§3.7a's `?d_cont`**: a `continue` AND a call. The published JUMPIN cell
+while-call-cont      GUARD  GUARD    OK  MISS   yes      19  a `continue` and a call, in a `while`
+for-call-break       GUARD  GUARD    OK  MISS   yes      19  a call and a second exit
+do-call               NONE  GUARD     -     -   yes      19  bottom-test with a call
+exit-bare         GUARDRET GUARDRET    OK    OK   yes      10  P2: exit is the accumulator -- may coalesce to r3 (bare blr)
+exit-plus1           GUARD  GUARD    OK    OK   yes      10  P2: the exit block computes -- `addi ; blr`, NOT bare
+exit-const          JUMPIN  GUARD     -     -   yes       7  P2: the exit block is `li r3,7 ; blr`
+exit-void           JUMPIN  GUARD     -     -   yes      16  P2: nothing to return at all
+exit-second       GUARDRET GUARDRET    OK   n/a    no       9  P2 on the counted family: exit is the accumulator
+exit-second-k        GUARD  GUARD    OK   n/a    no       9  P2: the same loop, a computing exit block
+ptr-idx           GUARDRET GUARDRET    OK    OK   yes      10  P4: sentinel test written as an INDEX, not a walked pointer
+ptr-nosent           GUARD  GUARD    OK   n/a    no      12  P4: a load in the BODY but a register-resident TEST -- no peel predicted
+ptr-walk-two      GUARDRET GUARDRET    OK    OK   yes      11  P4/P8: the sentinel walk with a LONGER body
+inf-loop          SELFLOOP      -     -     -     -       1  P7's risk cell: a loop with NO exit at all
+inf-call              NONE  GUARD     -     -   yes       8  P7: an infinite loop with a call
+
+  reached 32  graded 32  (a cell that did not capture is a FAILURE, not a zero)
+  buckets: GUARD=10  GUARDRET=11  JUMPIN=2  NOLOOP=3  NONE=5  SELFLOOP=1
+  P7 back edges: 28 loop-bearing cells, 1 UNCONDITIONAL back edges, 1 self-loops (`b .+0`, own bucket)
+  P2 (guard form == exit-block predictor): 21 of 21 rotated cells
+  P3 (one condition, two sites):           5 of 11 comparable cells
+
+== GRID B -- the sentinel walk with the BODY varied (P8) ==
+cell                bucket   pred    P2    P3  peel   words  note
+b-add             GUARDRET GUARDRET    OK    OK   yes      10  the plainest accumulate
+b-mul3            GUARDRET GUARDRET    OK    OK   yes      11  Sort's shape with K=3
+b-mul127          GUARDRET GUARDRET    OK    OK   yes      11  Sort's own K
+b-xor             GUARDRET GUARDRET    OK    OK   yes      10  a different operator
+b-sub             GUARDRET GUARDRET    OK    OK   yes      10  subtract
+b-shift           GUARDRET GUARDRET    OK    OK   yes      11  a shift in the accumulate
+b-two             GUARDRET GUARDRET    OK    OK   yes      11  TWO statements -- a longer body
+b-three           GUARDRET GUARDRET    OK    OK   yes      12  THREE statements -- longer again
+b-and             GUARDRET GUARDRET    OK    OK   yes      10  bitwise and
+b-cond            GUARDRET GUARDRET    OK    OK   yes      11  an extra constant
+
+  reached 10  graded 10  (a cell that did not capture is a FAILURE, not a zero)
+  buckets: GUARDRET=10
+  P7 back edges: 10 loop-bearing cells, 0 UNCONDITIONAL back edges, 0 self-loops (`b .+0`, own bucket)
+  P2 (guard form == exit-block predictor): 10 of 10 rotated cells
+  P3 (one condition, two sites):           10 of 10 comparable cells
+
+  P8 -- the plan outside the body, per cell:
+  cell       words   entry (to the loop top)        tail
+  b-add      10      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-mul3     11      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-mul127   11      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-xor      10      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-sub      10      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-shift    11      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-two      11      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-three    12      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-and      10      89630000 7c6a1b78 38600000 7d6 4e800020
+  b-cond     11      89630000 7c6a1b78 38600000 7d6 4e800020
+  distinct (entry, tail) plans over 10 cells: 1
+    b-add b-mul3 b-mul127 b-xor b-sub b-shift b-two b-three b-and b-cond
+
+== GRID C -- the JUMPIN boundary (H-EXIT), predictions REGISTERED ==
+   H-EXIT: the test is DUPLICATED iff the loop produces a value the
+   exit block consumes. `ROT` = GUARD or GUARDRET; which of the two
+   is P2's question and not H-EXIT's.
+
+cell                bucket   pred    P2    P3  peel   words  note
+c-empty-const       JUMPIN  GUARD     -     -   yes       7  empty body, constant return: the loop produces NOTHING
+c-empty-ptr         JUMPIN GUARDRET     -     -   yes       6  empty body but the exit returns the WALKED POINTER
+c-strlen            JUMPIN GUARDRET     -     -   yes       9  the counter is returned
+c-count-const       JUMPIN  GUARD     -     -   yes       7  the same loop, counter DEAD
+c-dead-acc          JUMPIN  GUARD     -     -   yes       7  accumulate over the test operand, result dead
+c-call-void         JUMPIN  GUARD     -     -   yes      16  a call for effect; nothing returned
+c-call-ret          JUMPIN  GUARD     -     -   yes      21  the same call, accumulated and RETURNED
+c-call-dead         JUMPIN  GUARD     -     -   yes      17  the same call, accumulator DEAD -- the discriminating pair with c-call-ret
+c-store             JUMPIN GUARDRET     -     -   yes       9  the loop's product goes to MEMORY, not to the exit block
+c-global          GUARDRET GUARDRET    OK    OK   yes      11  same, through a global
+c-diff              JUMPIN  GUARD     -     -   yes       8  empty body, exit consumes the walked pointer by difference
+c-ifbody            JUMPIN GUARDRET     -     -   yes      11  a branch INSIDE the body
+c-break           GUARDRET GUARDRET    OK    OK   yes      12  a second exit
+c-cnt-live        GUARDRET GUARDRET    OK   n/a    no       9  the NON-sentinel family: counted, accumulator live
+c-cnt-dead          NOLOOP      -     -     -     -       2  counted, accumulator dead (may collapse to NOLOOP -- then excluded)
+c-two-out            GUARD  GUARD    OK    OK   yes      11  the exit block both stores and returns the accumulator
+c-void-acc           GUARD  GUARD    OK    OK   yes      10  VOID function, but the exit block still consumes the accumulator
+c-call-count         GUARD  GUARD    OK  MISS   yes      20  a counted call loop producing nothing
+
+  reached 18  graded 18  (a cell that did not capture is a FAILURE, not a zero)
+  buckets: GUARD=3  GUARDRET=3  JUMPIN=11  NOLOOP=1
+  P7 back edges: 17 loop-bearing cells, 0 UNCONDITIONAL back edges, 0 self-loops (`b .+0`, own bucket)
+  P2 (guard form == exit-block predictor): 6 of 6 rotated cells
+  P3 (one condition, two sites):           4 of 5 comparable cells
+
+  H-EXIT graded, per cell:
+  cell             predicted measured  
+  c-empty-const    JUMPIN    JUMPIN     OK
+  c-empty-ptr      ROT       JUMPIN     **MISS**
+  c-strlen         ROT       JUMPIN     **MISS**
+  c-count-const    JUMPIN    JUMPIN     OK
+  c-dead-acc       JUMPIN    JUMPIN     OK
+  c-call-void      JUMPIN    JUMPIN     OK
+  c-call-ret       ROT       JUMPIN     **MISS**
+  c-call-dead      JUMPIN    JUMPIN     OK
+  c-store          JUMPIN    JUMPIN     OK
+  c-global         JUMPIN    ROT        **MISS**
+  c-diff           ROT       JUMPIN     **MISS**
+  c-ifbody         ROT       JUMPIN     **MISS**
+  c-break          ROT       ROT        OK
+  c-cnt-live       ROT       ROT        OK
+  c-cnt-dead       JUMPIN    NOLOOP     EXCLUDED (c2 emitted no single loop)
+  c-two-out        ROT       ROT        OK
+  c-void-acc       ROT       ROT        OK
+  c-call-count     JUMPIN    ROT        **MISS**
+
+  H-EXIT: 10 of 17 graded cells (excluded 1, reached 18, graded 18)
+  both poles present in Grid C: JUMPIN=11 ROT=6
+
+== GRID D -- HELD OUT from H-REG's fitting set ==
+cell                bucket   pred    P2    P3  peel   words  note
+d-or              GUARDRET GUARDRET    OK    OK   yes      10  one accumulate op, a different operator
+d-max               JUMPIN GUARDRET     -     -   yes      11  a conditional accumulate
+d-last            GUARDRET GUARDRET    OK    OK   yes      10  the body OVERWRITES rather than accumulates
+d-idx-cnt           JUMPIN GUARDRET     -     -   yes      11  the body reads the char but accumulates a counter
+d-two-ptr            GUARD  GUARD    OK    OK   yes      15  TWO walked pointers
+d-wide            GUARDRET GUARDRET    OK    OK   yes      10  a 16-bit element -- lhzu, not lbzu
+d-word              JUMPIN GUARDRET     -     -   yes       9  a 32-bit element -- lwzu
+d-store-ret         JUMPIN GUARDRET     -     -   yes      10  a store in the body AND a returned counter
+d-nested-acc      GUARDRET GUARDRET    OK    OK   yes      12  a deeper accumulate expression
+d-pre-inc         GUARDRET GUARDRET    OK    OK   yes      10  the increment INSIDE the test
+d-cmp-k             JUMPIN GUARDRET     -     -   yes      11  a sentinel that is not zero
+d-void-store        JUMPIN GUARDRET     -     -   yes       9  a store in the body, nothing returned, body ignores the char
+
+  reached 12  graded 12  (a cell that did not capture is a FAILURE, not a zero)
+  buckets: GUARD=1  GUARDRET=5  JUMPIN=6
+  P7 back edges: 12 loop-bearing cells, 0 UNCONDITIONAL back edges, 0 self-loops (`b .+0`, own bucket)
+  P2 (guard form == exit-block predictor): 6 of 6 rotated cells
+  P3 (one condition, two sites):           6 of 6 comparable cells
+
+== GRID E -- HELD OUT from H-SUF's fitting set (sentinel walks only) ==
+cell                bucket   pred    P2    P3  peel   words  note
+e-sent-ne           JUMPIN GUARDRET     -     -   yes      11  a non-zero sentinel, accumulating
+e-sent-gt           JUMPIN GUARDRET     -     -   yes      11  a relational sentinel
+e-sent-ne-cnt       JUMPIN GUARDRET     -     -   yes       9  a non-zero sentinel, body ignores the char
+e-sent-ne-store     JUMPIN GUARDRET     -     -   yes       8  a non-zero sentinel, stores
+e-zero-mul        GUARDRET GUARDRET    OK    OK   yes      11  the zero sentinel, a deeper accumulate
+e-zero-two        GUARDRET GUARDRET    OK    OK   yes      11  the zero sentinel, two statements
+e-uns             GUARDRET GUARDRET    OK    OK   yes      10  UNSIGNED element -- Sort.cpp's own cast, no sign extension needed
+e-uns-ne            JUMPIN GUARDRET     -     -   yes      10  unsigned AND a non-zero sentinel
+
+  reached 8  graded 8  (a cell that did not capture is a FAILURE, not a zero)
+  buckets: GUARDRET=3  JUMPIN=5
+  P7 back edges: 8 loop-bearing cells, 0 UNCONDITIONAL back edges, 0 self-loops (`b .+0`, own bucket)
+  P2 (guard form == exit-block predictor): 3 of 3 rotated cells
+  P3 (one condition, two sites):           3 of 3 comparable cells
+
+== H-SUF, the SUFFIX-SHARING rule, scoped to the sentinel walk ==
+   H-SUF: JUMPIN iff the entry's test block and the back edge's test
+   block share a non-empty SUFFIX -- either because the peel and the
+   induction load write the same register (the whole block is shared)
+   or because the back edge's CR bit comes from an explicit COMPARE,
+   which is identical for both and shareable even when the value
+   computation ahead of it is not. Fitted on `d-cmp-k` alone.
+
+  HSUF on GRID E (held out): 8 of 8 graded cells (excluded 0)
+    e-sent-gt        peel=r11 carry=r9  prod=cmp     HSUF=JUMPIN got=JUMPIN OK
+    e-sent-ne        peel=r11 carry=r9  prod=cmp     HSUF=JUMPIN got=JUMPIN OK
+    e-sent-ne-cnt    peel=r10 carry=r10 prod=cmp     HSUF=JUMPIN got=JUMPIN OK
+    e-sent-ne-store  peel=r11 carry=r11 prod=cmp     HSUF=JUMPIN got=JUMPIN OK
+    e-uns            peel=r11 carry=r9  prod=record  HSUF=ROT    got=ROT    OK
+    e-uns-ne         peel=r11 carry=r9  prod=cmp     HSUF=JUMPIN got=JUMPIN OK
+    e-zero-mul       peel=r11 carry=r9  prod=record  HSUF=ROT    got=ROT    OK
+    e-zero-two       peel=r11 carry=r9  prod=record  HSUF=ROT    got=ROT    OK
+
+== H-REG, graded on every grid ==
+   H-REG: JUMPIN iff the PEELED load and the loop's UPDATE-FORM load
+   write the SAME register -- i.e. the test block is identical for the
+   entry and the back edge and can be SHARED. Different registers mean
+   the block cannot be shared and the test is DUPLICATED (rotation).
+
+   FITTED ON (excluded from the held-out number): b-add exit-const exit-void c-strlen c-store
+
+  H-REG on the HELD-OUT set: 37 of 38 graded cells (excluded 29 -- no peel/carry pair)
+    A:exit-bare      peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    A:exit-plus1     peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    A:ptr-idx        peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    A:ptr-walk-two   peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    A:while-ptr      peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-and          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-cond         peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-mul127       peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-mul3         peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-shift        peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-sub          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-three        peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-two          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-xor          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    C:c-break        peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    C:c-call-dead    peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-call-ret     peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-call-void    peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-count-const  peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-dead-acc     peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-diff         peel=r10 carry=r10  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-empty-const  peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-empty-ptr    peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-global       peel=r11 carry=r10  H-REG=ROT     got=ROT    OK
+    C:c-ifbody       peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-two-out      peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    C:c-void-acc     peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-cmp-k        peel=r11 carry=r9   H-REG=ROT     got=JUMPIN **MISS**
+    D:d-idx-cnt      peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    D:d-last         peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-max          peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    D:d-nested-acc   peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-or           peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-pre-inc      peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-store-ret    peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    D:d-void-store   peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    D:d-wide         peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-word         peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+
+  H-REG on every cell (fitting set included): 42 of 43 graded cells (excluded 29 -- no peel/carry pair)
+    A:exit-bare      peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    A:exit-const     peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    A:exit-plus1     peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    A:exit-void      peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    A:ptr-idx        peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    A:ptr-walk-two   peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    A:while-ptr      peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-add          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-and          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-cond         peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-mul127       peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-mul3         peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-shift        peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-sub          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-three        peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-two          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    B:b-xor          peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    C:c-break        peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    C:c-call-dead    peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-call-ret     peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-call-void    peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-count-const  peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-dead-acc     peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-diff         peel=r10 carry=r10  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-empty-const  peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-empty-ptr    peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-global       peel=r11 carry=r10  H-REG=ROT     got=ROT    OK
+    C:c-ifbody       peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-store        peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-strlen       peel=r10 carry=r10  H-REG=JUMPIN  got=JUMPIN OK
+    C:c-two-out      peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    C:c-void-acc     peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-cmp-k        peel=r11 carry=r9   H-REG=ROT     got=JUMPIN **MISS**
+    D:d-idx-cnt      peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    D:d-last         peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-max          peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    D:d-nested-acc   peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-or           peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-pre-inc      peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-store-ret    peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    D:d-void-store   peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+    D:d-wide         peel=r11 carry=r9   H-REG=ROT     got=ROT    OK
+    D:d-word         peel=r11 carry=r11  H-REG=JUMPIN  got=JUMPIN OK
+
+  both poles PREDICTED: JUMPIN=18 ROT=25
+
+controls failed: 0

@@ -647,6 +647,13 @@ Measured, and worth stating because each one is a place work could be wasted:
 
 ### 3.7 Loops
 
+> ### 2026-08-05, lane `w-rotate` — **80 cells, five grids, and three of this section's statements move.** (`rungs/2026-08-05-w-rotate.md`, `work/w-rotate/rotgrid.py`, boards **#771**–**#779**.)
+>
+> * **(d) THE GUARD'S FORM IS A RULE, and it is decided by the block the loop falls out to** — **46 of 46** rotated cells, both poles present (14 `bc`, 32 `bclr`). The guard branches to the loop's fall-out block and folds to a **`bclr`** form **exactly** when that block is a bare `blr`. Hold the loop fixed and move only the exit: `while(*s){r=r+*s;s++;} return r` takes `bclr`, `... return r+1` takes `bc`. Board **#771**. This is the rule `codegen::ptr_walk_loop`'s hard-coded `bc` would need in order to widen.
+> * **(e) THE ENTRY FORM IS NOT DECIDED BY `continue`, AND §3.7a's `?d_cont` READING DOES NOT REPRODUCE.** `for-call-cont` — a `continue` **and** a call, §3.7a's own combination — is a **guard**, and so is `while-call-cont`. **Not one JUMPIN cell in 80 has a `continue`.** What decides it is whether the entry's test block and the back edge's test block share a suffix: same register for the peel and the induction load, or an explicit compare feeding the back edge. **8 of 8 held out**, scoped to the sentinel walk. Boards **#773**, **#776**. **This dissolves §8.2's L4 rather than answering it** — see the banner there.
+> * **(f) The two test sites are NOT copies.** **28 of 35** comparable cells share `BI` with the sense inverted; the 7 that do not are the counted family, where the guard reads **cr6** from an explicit compare and the back edge **cr0** from a record form — or where the guard is a *constant-folded specialization* of the loop test (`for-break` guards `cmpwi cr6,r3,0` against a back edge of `cmpw cr6,r11,r3`). **Exact on the sentinel family, 28 of 28 — and 0 of 7 outside it.** Board **#779**.
+> * **(a) gains TWO measured exceptions, and they have a common cause: a loop with NO EXIT has no condition to branch on.** `for(;;){}` is one word, `48000000` = `b .+0`, a back edge to **itself**; `for(;;){gi(a);}` ends `4bfffff8` = `b .-8`. **74 of 75** loop-bearing cells carry a conditional back edge. Board **#777**.
+
 Three findings, in decreasing order of how much they change a lowering.
 
 **(a) The back edge is never an unconditional branch.** The IL's back edge is an
@@ -1216,8 +1223,45 @@ would close it**, and **whether it blocks the step-1 rung** of §5.2.
 | **L1** | **Register allocation across a back edge.** §6.2 item F. `docs/CODEGEN_W6_COMPARE.md` §6 already records the allocator as richer than a descending counter and **uncharacterized**; a loop needs it *and* needs it to agree across the edge. This is the largest single unknown in the document. | A characterization lane on the allocator itself. It is a prerequisite, not a sub-task of the loop rung. |
 | **L2** | **When c2 chooses a CTR loop.** §3.7c measures *that* leaf counted loops become `mtctr`/`bdnz` and that loops containing calls do not. The boundary — variable trip counts, multiple exits, `break`, nested loops, loops whose counter is used after the loop — is **unmeasured**. `?d_break` has a `break` and got the compare form; that is one cell. | A loop probe grid crossing (trip count known/unknown) × (body has call / not) × (has break / not) × (counter live after / not). |
 | **L3** | **Trip-count computation.** `?c_for` emits `mtctr r11` where r11 is the loop bound; a general `for(i=lo;i<hi;i+=k)` needs `(hi-lo+k-1)/k`, and no cell here has a stride other than 1 or a non-zero start. | Same grid as L2 with strides and starts varied. |
-| **L4** | **Loop entry form.** §3.7a: `?c_callloop` and `?d_break` guard with a compare; `?d_cont` jumps into the test. I can say *that* both occur and that `?d_cont` differs by having a `continue`; I cannot state the rule. | Probes varying whether the test is a join target, independently of `continue`. |
+| **L4** ⚠ **DISSOLVED, not answered — see the banner below the table** | **Loop entry form.** §3.7a: `?c_callloop` and `?d_break` guard with a compare; `?d_cont` jumps into the test. I can say *that* both occur and that `?d_cont` differs by having a `continue`; I cannot state the rule. | ~~Probes varying whether the test is a join target, independently of `continue`.~~ **That grid was run — 80 cells — and it cannot close this row, because the discriminator is not in the loop's shape.** |
 | **L5** | **Whether the rotation is always safe to assume.** Every loop measured is bottom-tested in the obj. Zero-trip loops are handled by the guard, but a `do`/`while` (`?c_do`) has no guard at all and I did not test a `while` whose condition has side effects. | Probes with a side-effecting condition. |
+
+> ### 2026-08-05, lane `w-rotate` — **L4 IS NOT AN INDEPENDENT ROW AND NO GRID OVER LOOP SHAPES CAN CLOSE IT.** It was filed as a peer of L1 and it is a **consequence** of L1.
+>
+> 80 cells across five grids establish the chain:
+>
+> ```
+>   SCHEDULE       where `lbzu` lands relative to the body's last use of the
+>    (L1', new)    loop-carried value
+>       |
+>       v
+>   REGISTER NEED  one register if that value is dead before the induction load,
+>    (L1)          two if it is live across it
+>       |
+>       v
+>   ENTRY FORM     identical test blocks -> emit once and jump in;
+>    (L4)          different -> duplicate, i.e. ROTATE
+> ```
+>
+> The rule is stated and graded — **H-SUF, 8 of 8 held out**: c2 shares the
+> maximal common **suffix** of the two test blocks and duplicates the differing
+> prefix. **It is still not evaluable by the port**, because both its inputs (which
+> register the induction load writes, which producer feeds the CR bit) exist only
+> *after* scheduling and allocation. Board **#773**.
+>
+> **And L1 itself is narrower than this document says.** *"The largest single
+> unknown"* is a **constant** when only the loop **body** moves: over ten
+> accumulate bodies with the signature held fixed, there is **1** distinct
+> `(entry, tail)` plan and the body length moves 10 → 12 words. What moves
+> instead is a **fourth mechanism this table does not have a row for** — the
+> **interleave**, the placement of the loop-carried `lbzu` and the record-form
+> test *into* the accumulate chain, at positions that change with the chain's
+> length. Boards **#774**, **#775**.
+>
+> | | |
+> |---|---|
+> | **L1'** | **THE INTERLEAVE.** `lbzu` at slot 0 for a 1- and 2-op body, slot **1** for a 3-op body; the record form always exactly **two slots after it**. Measured on three lengths and **deliberately not fitted to three cells**. |
+> | *what would close it* | A schedule rung: at least **6 chain lengths × 3 operator families**, position predicted per cell and graded `n of m` against real `c2`. **Everything else the sentinel-walk lowering needs is now measured** — the guard form (#771), the entry form given the allocation (#773), and the allocation itself (#775). |
 
 ### 8.3 Blocking for anything beyond
 
