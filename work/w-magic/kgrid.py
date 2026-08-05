@@ -229,32 +229,26 @@ def magic_signed(d):
 
 
 def magic_unsigned(d):
-    """(M, s, add) — `add` is the 33rd-bit fixup flag."""
+    """(M, s, add) — `add` is the 33rd-bit fixup flag.
+
+    **Every intermediate is 32-bit UNSIGNED and WRAPS.** Hacker's Delight writes
+    `magicu` in C over `unsigned`, and `q2` overflowing is not incidental — it is
+    precisely the condition the `add` indicator records. A Python transcription
+    over unbounded integers is a *different algorithm*: this lane's first draft
+    was exactly that and it derived 3 of 10 unsigned cells, which read as
+    *"c2 does not use the standard unsigned magic"*. It does; the generator was
+    wrong. The masks below are the whole fix and they are the reason this
+    docstring exists."""
     assert d > 1
-    two31, two32 = 1 << 31, 1 << 32
-    nc = (two32 - 1) - (two32 - d) % d
-    p = 31
-    add = 0
-    q1, r1 = two31 // nc, two31 - (two31 // nc) * nc
-    q2, r2 = (two32 - 1) // d, (two32 - 1) - ((two32 - 1) // d) * d
-    while True:
-        p += 1
-        if r1 >= nc - r1:
-            q1, r1 = 2 * q1 + 1, 2 * r1 - nc
-        else:
-            q1, r1 = 2 * q1, 2 * r1
-        if r2 + 1 >= d - r2:
-            if q2 >= two32 - 1:
-                add = 1
-            q2, r2 = 2 * q2 + 1, 2 * r2 + 1 - d
-        else:
-            if q2 >= two31:
-                add = 1
-            q2, r2 = 2 * q2, 2 * r2 + 1
-        delta = d - 1 - r2
-        if not (p < 64 and (q1 < delta or (q1 == delta and r1 == 0))):
-            break
-    return (q2 + 1) % two32, p - 32, add
+    for p in range(32, 65):
+        m = -(-(1 << p) // d)                    # ceil(2^p / d)
+        if m * d - (1 << p) > (1 << (p - 32)):
+            continue                             # Theorem 4.2 fails at this p
+        if m < (1 << 32):
+            return m, p - 32, 0                  # the plain magic
+        if m < (1 << 33):
+            return m - (1 << 32), p - 32, 1      # the 33rd-bit `add` variant
+    return None, None, None
 
 
 # --------------------------------------------------------------------------
@@ -369,11 +363,16 @@ def main(argv):
                     print("   got  %s" % (" ".join("%08x" % w for w in got)
                                           if got else None))
                     bad += 1
-        k0 = rows.get("s-mod-0")
+        # These two are `/O1` assertions and are gated as such. At `/Od` they
+        # both fire, correctly: `/Od` folds nothing, so `a/-1` is a full
+        # materialize-and-divide with the trap pair. That is data, not a control
+        # failure, and it is reported by the mode cross rather than by an exit
+        # status here.
+        k0 = rows.get("s-mod-0") if "/O1" in mode else None
         if k0 is not None and shape(k0) != "twi blr":
             print("!! CONTROL FAILED: k=0 is not `twi ; blr` (got %r)" % shape(k0))
             bad += 1
-        km1 = rows.get("s-div--1")
+        km1 = rows.get("s-div--1") if "/O1" in mode else None
         if km1 is not None and shape(km1) != "neg blr":
             print("!! CONTROL FAILED: k=-1 signed / is not `neg ; blr` (got %r)"
                   % shape(km1))
