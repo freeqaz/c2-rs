@@ -1,4 +1,4 @@
-mode: /O1 /GS- /c   workdir: /home/free/tmp/wdivmod3gzqirrlj
+mode: /O1 /GS- /c   workdir: <scratch workdir>
 
 === CTL =========================================================================================
 plain-add         2w  add bclr
