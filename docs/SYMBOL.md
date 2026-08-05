@@ -46,6 +46,30 @@ problem is the composition of per-group permutations and nothing else.
 enumerates every run of 2..5 statements over 4 producer alphabets × 2 symbols
 and asserts the pin on each — a positive check with a printed count.
 
+## 1.1 "Symbol" is neither the base register nor the offset range — the BIND axis, re-derived through the model
+
+Board **#580** established the axis by counting pairs that *differ*. This grid
+re-derives it the other way, by asking what the model needs in order to be
+right, on three populations that separate the three candidate readings:
+
+| tier | the second destination | base register | offset range | scheduled as |
+|---|---|---|---|---|
+| **A/B** | `E& l = p->e; l.eK` | **same** `r3` | different | **two symbols** — 2,153 / 2,153 |
+| **C** | a second formal `M* q; q->mK` | **different** `r4` | same | **two symbols** — 136 / 136 |
+| **S** | `p->e.eK` — no bind | **same** `r3` | different | **ONE symbol** — 226 / 226 |
+
+Tier **S** is the control that settles it: it writes the same bytes at the same
+displacements through the same register as tier A/B and there is no `E& l =`
+binding it. Scored as **one** symbol the store order is **226 of 226**; scored
+as **two** it is **186 of 226**. The model *requires* the direct form to be one
+symbol, and the bound reference to be two, with the machine operands identical.
+
+Tier **C** is the converse: a different base register, the same offset range,
+and it behaves exactly like the bind. So the symbol is the IL-level object —
+**a bound reference is its own symbol, a second formal is its own symbol, and a
+sub-object accessed without a bind is not** — and neither machine operand
+predicts it.
+
 ## 2. The store order — one walk covers both regimes
 
 > **SYMORDER-U.** Rank the run's distinct producers globally by
