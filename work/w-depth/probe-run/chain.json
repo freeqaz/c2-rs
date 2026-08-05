@@ -1,0 +1,540 @@
+{
+ "./work/w-depth/probe/p0_add.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "depth": 0,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 5,
+  "scaffold": [
+   "op:41",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "sinks": [],
+  "status": "CLEAR",
+  "steps": [
+   [
+    0,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ]
+  ],
+  "whole": true
+ },
+ "./work/w-depth/probe/p1_eq.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:1F",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "depth": 1,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 6,
+  "scaffold": [
+   "op:41",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "sinks": [
+   "op:1F"
+  ],
+  "status": "CLEAR",
+  "steps": [
+   [
+    0,
+    {
+     "expr-cmp-eq": 1
+    },
+    [
+     "op:1F"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ]
+  ],
+  "whole": true
+ },
+ "./work/w-depth/probe/p2_and.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:0B",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "depth": 1,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 6,
+  "scaffold": [
+   "op:41",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "sinks": [
+   "op:0B"
+  ],
+  "status": "CLEAR",
+  "steps": [
+   [
+    0,
+    {
+     "expr-bit-and": 1
+    },
+    [
+     "op:0B"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ]
+  ],
+  "whole": true
+ },
+ "./work/w-depth/probe/p3_shr.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:0A",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "depth": 1,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 6,
+  "scaffold": [
+   "op:41",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "sinks": [
+   "op:0A"
+  ],
+  "status": "CLEAR",
+  "steps": [
+   [
+    0,
+    {
+     "expr-shr": 1
+    },
+    [
+     "op:0A"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ]
+  ],
+  "whole": true
+ },
+ "./work/w-depth/probe/p4_if.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:38",
+   "op:53",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "depth": 1,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 7,
+  "scaffold": [
+   "op:41",
+   "op:53",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4F"
+  ],
+  "sinks": [
+   "op:38"
+  ],
+  "status": "CLEAR",
+  "steps": [
+   [
+    0,
+    {
+     "expr-brfalse": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ]
+  ],
+  "whole": true
+ },
+ "./work/w-depth/probe/p5_mixed.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:1F",
+   "op:38",
+   "op:53",
+   "op:0B",
+   "op:3A",
+   "op:4F",
+   "op:54",
+   "op:29",
+   "op:0A"
+  ],
+  "depth": 4,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 10,
+  "scaffold": [
+   "op:41",
+   "op:53",
+   "op:3A",
+   "op:4F",
+   "op:54",
+   "op:29"
+  ],
+  "sinks": [
+   "op:1F",
+   "op:38",
+   "op:0B",
+   "op:0A"
+  ],
+  "status": "CLEAR",
+  "steps": [
+   [
+    0,
+    {
+     "expr-cmp-eq": 1
+    },
+    [
+     "op:1F"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brfalse": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-bit-and": 1
+    },
+    [
+     "op:0B"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-shr": 1
+    },
+    [
+     "op:0A"
+    ],
+    []
+   ]
+  ],
+  "whole": true
+ },
+ "./work/w-depth/probe/p6_store.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41"
+  ],
+  "depth": 0,
+  "fn_in_class": 1,
+  "fn_total": 1,
+  "raw": 1,
+  "scaffold": [
+   "op:41"
+  ],
+  "sinks": [],
+  "status": "CLEAR",
+  "steps": [],
+  "whole": true
+ }
+}

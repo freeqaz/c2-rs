@@ -1,0 +1,2157 @@
+{
+ "src/Main.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41"
+  ],
+  "depth": 0,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 1,
+  "scaffold": [
+   "op:41"
+  ],
+  "sinks": [],
+  "status": "EXIT:param-width-undetermined:mid",
+  "steps": [
+   [
+    0,
+    {
+     "param-width-undetermined:mid": 1
+    },
+    [],
+    [
+     "param-width-undetermined:mid"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/keygen_xbox.cpp": {
+  "also_at_exit": [
+   "op:38",
+   "op:26",
+   "op:3A",
+   "type",
+   "op:0F",
+   "op:30"
+  ],
+  "chain_raw": [
+   "op:41"
+  ],
+  "depth": 0,
+  "fn_in_class": 1,
+  "fn_total": 20,
+  "raw": 1,
+  "scaffold": [
+   "op:41"
+  ],
+  "sinks": [],
+  "status": "EXIT:assign-store-type-8643;call-arg-outer-formal:eof",
+  "steps": [
+   [
+    0,
+    {
+     "assign-store-type-8643": 2,
+     "call-arg-outer-formal:eof": 1,
+     "expr-brfalse": 1,
+     "expr-call-in-expr-data-addr-then-plain-call-and-op-more": 1,
+     "expr-call-in-expr-op-0x1F": 1,
+     "expr-jump": 9,
+     "expr-lit-type-9641": 1,
+     "expr-load-type-8211": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x30": 1
+    },
+    [
+     "op:38",
+     "op:26",
+     "op:3A",
+     "type",
+     "op:0F",
+     "op:30"
+    ],
+    [
+     "assign-store-type-8643",
+     "call-arg-outer-formal:eof"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/system/math/Primes.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:3A",
+   "op:29",
+   "op:26",
+   "op:35",
+   "op:4B",
+   "op:28",
+   "op:30",
+   "op:20",
+   "op:38",
+   "op:53",
+   "op:4F",
+   "op:23",
+   "op:54"
+  ],
+  "depth": 7,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 14,
+  "scaffold": [
+   "op:41",
+   "op:3A",
+   "op:29",
+   "op:4B",
+   "op:53",
+   "op:4F",
+   "op:54"
+  ],
+  "sinks": [
+   "op:26",
+   "op:35",
+   "op:28",
+   "op:30",
+   "op:20",
+   "op:38",
+   "op:23"
+  ],
+  "status": "CLEAR",
+  "steps": [
+   [
+    0,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-call-in-expr-op-0x35": 1
+    },
+    [
+     "op:26"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-op-0x35": 1
+    },
+    [
+     "op:35"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-op-0x4B": 1
+    },
+    [
+     "op:4B"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x28": 1
+    },
+    [
+     "op:28"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-op-0x30": 1
+    },
+    [
+     "op:30"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-cmp-ne": 1
+    },
+    [
+     "op:20"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-brfalse": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    9,
+    {
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    10,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    11,
+    {
+     "expr-cmp-ge": 1
+    },
+    [
+     "op:23"
+    ],
+    []
+   ],
+   [
+    12,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ]
+  ],
+  "whole": true
+ },
+ "src/system/math/Sort.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41"
+  ],
+  "depth": 0,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 1,
+  "scaffold": [
+   "op:41"
+  ],
+  "sinks": [],
+  "status": "EXIT:assign-store-type-8643",
+  "steps": [
+   [
+    0,
+    {
+     "assign-store-type-8643": 1
+    },
+    [],
+    [
+     "assign-store-type-8643"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/system/negate_test.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41"
+  ],
+  "depth": 0,
+  "fn_in_class": 0,
+  "fn_total": 2,
+  "raw": 1,
+  "scaffold": [
+   "op:41"
+  ],
+  "sinks": [],
+  "status": "EXIT:assign-store-type-8643",
+  "steps": [
+   [
+    0,
+    {
+     "assign-store-type-8643": 2
+    },
+    [],
+    [
+     "assign-store-type-8643"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/system/rndobj/wordwrap.cpp": {
+  "also_at_exit": [
+   "op:28"
+  ],
+  "chain_raw": [
+   "op:41",
+   "op:0B",
+   "op:1F",
+   "op:3A",
+   "op:38",
+   "op:54",
+   "op:29",
+   "op:53",
+   "op:4F",
+   "op:26",
+   "type",
+   "op:23",
+   "op:30",
+   "op:21",
+   "convert",
+   "op:39",
+   "op:32",
+   "op:1C",
+   "op:4B"
+  ],
+  "depth": 12,
+  "fn_in_class": 0,
+  "fn_total": 3,
+  "raw": 19,
+  "scaffold": [
+   "op:41",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:53",
+   "op:4F",
+   "op:4B"
+  ],
+  "sinks": [
+   "op:0B",
+   "op:1F",
+   "op:38",
+   "op:26",
+   "type",
+   "op:23",
+   "op:30",
+   "op:21",
+   "convert",
+   "op:39",
+   "op:32",
+   "op:1C"
+  ],
+  "status": "EXIT:expr-chain-noform-0x1C",
+  "steps": [
+   [
+    0,
+    {
+     "expr-bit-and": 1,
+     "expr-cmp-eq": 1,
+     "expr-jump": 1
+    },
+    [
+     "op:0B",
+     "op:1F",
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brfalse": 2,
+     "expr-op-0x54": 1
+    },
+    [
+     "op:38",
+     "op:54"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-label": 1,
+     "expr-op-0x53": 2
+    },
+    [
+     "op:29",
+     "op:53"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-op-0x4F": 3
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-call-in-expr-data-read-then-cmp-eq-and-branch-more": 1,
+     "expr-load-type-8422": 1
+    },
+    [
+     "op:26",
+     "type"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-cmp-ge": 1,
+     "expr-op-0x30": 1
+    },
+    [
+     "op:23",
+     "op:30"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-cmp-le": 1,
+     "expr-convert-target-8422": 1
+    },
+    [
+     "op:21",
+     "convert"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-brtrue": 1,
+     "expr-op-0x32": 1
+    },
+    [
+     "op:39",
+     "op:32"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-and-and": 1,
+     "expr-op-0x4B": 2
+    },
+    [
+     "op:1C",
+     "op:4B"
+    ],
+    []
+   ],
+   [
+    9,
+    {
+     "expr-chain-noform-0x1C": 1,
+     "expr-op-0x28": 1
+    },
+    [
+     "op:28"
+    ],
+    [
+     "expr-chain-noform-0x1C"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/system/synth_xbox/Biquad.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:26",
+   "op:1F",
+   "op:38",
+   "op:53",
+   "op:4F",
+   "op:27",
+   "op:28",
+   "type",
+   "op:00"
+  ],
+  "depth": 7,
+  "fn_in_class": 0,
+  "fn_total": 2,
+  "raw": 10,
+  "scaffold": [
+   "op:41",
+   "op:53",
+   "op:4F"
+  ],
+  "sinks": [
+   "op:26",
+   "op:1F",
+   "op:38",
+   "op:27",
+   "op:28",
+   "type",
+   "op:00"
+  ],
+  "status": "EXIT:expr-chain-noform-0x00",
+  "steps": [
+   [
+    0,
+    {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-cmp-eq": 1
+    },
+    [
+     "op:26",
+     "op:1F"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brfalse": 1,
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x27": 1
+    },
+    [
+     "op:27"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x28": 1
+    },
+    [
+     "op:28"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-lit-type-864A": 1
+    },
+    [
+     "type"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-op-0x00": 1
+    },
+    [
+     "op:00"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-call-in-expr-recv-load-then-plumbing-0x3A": 1,
+     "expr-chain-noform-0x00": 1
+    },
+    [],
+    [
+     "expr-chain-noform-0x00"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/system/synth_xbox/IPP_basicmath_xbox.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:1F",
+   "op:38",
+   "op:53",
+   "op:4F",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:26",
+   "op:32",
+   "op:4B",
+   "op:35",
+   "op:22",
+   "op:28",
+   "type",
+   "op:30",
+   "convert",
+   "op:0F",
+   "op:11"
+  ],
+  "depth": 12,
+  "fn_in_class": 0,
+  "fn_total": 4,
+  "raw": 19,
+  "scaffold": [
+   "op:41",
+   "op:53",
+   "op:4F",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:4B"
+  ],
+  "sinks": [
+   "op:1F",
+   "op:38",
+   "op:26",
+   "op:32",
+   "op:35",
+   "op:22",
+   "op:28",
+   "type",
+   "op:30",
+   "convert",
+   "op:0F",
+   "op:11"
+  ],
+  "status": "EXIT:expr-chain-noform-0x11",
+  "steps": [
+   [
+    0,
+    {
+     "expr-cmp-eq": 4
+    },
+    [
+     "op:1F"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brfalse": 4
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-op-0x53": 4
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-op-0x4F": 4
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-jump": 4
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x54": 4
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-label": 4
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-call-in-expr-other": 4
+    },
+    [
+     "op:26"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-op-0x32": 4
+    },
+    [
+     "op:32"
+    ],
+    []
+   ],
+   [
+    9,
+    {
+     "expr-op-0x4B": 4
+    },
+    [
+     "op:4B"
+    ],
+    []
+   ],
+   [
+    10,
+    {
+     "expr-op-0x35": 4
+    },
+    [
+     "op:35"
+    ],
+    []
+   ],
+   [
+    11,
+    {
+     "expr-cmp-lt": 4
+    },
+    [
+     "op:22"
+    ],
+    []
+   ],
+   [
+    12,
+    {
+     "expr-op-0x28": 4
+    },
+    [
+     "op:28"
+    ],
+    []
+   ],
+   [
+    13,
+    {
+     "expr-load-type-8645": 1,
+     "expr-op-0x30": 3
+    },
+    [
+     "type",
+     "op:30"
+    ],
+    []
+   ],
+   [
+    14,
+    {
+     "expr-convert-target-8645": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x11": 2
+    },
+    [
+     "convert",
+     "op:0F",
+     "op:11"
+    ],
+    []
+   ],
+   [
+    15,
+    {
+     "expr-chain-noform-0x11": 2
+    },
+    [],
+    [
+     "expr-chain-noform-0x11"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/system/utl/EncryptXTEA.cpp": {
+  "also_at_exit": [
+   "op:30",
+   "op:4C"
+  ],
+  "chain_raw": [
+   "op:41",
+   "intrinsic",
+   "type",
+   "op:27",
+   "convert",
+   "op:00",
+   "op:28",
+   "op:55"
+  ],
+  "depth": 7,
+  "fn_in_class": 1,
+  "fn_total": 5,
+  "raw": 8,
+  "scaffold": [
+   "op:41"
+  ],
+  "sinks": [
+   "intrinsic",
+   "type",
+   "op:27",
+   "convert",
+   "op:00",
+   "op:28",
+   "op:55"
+  ],
+  "status": "EXIT:expr-chain-noform-0x00",
+  "steps": [
+   [
+    0,
+    {
+     "expr-intrinsic-memcpy": 1,
+     "expr-load-type-8882": 1,
+     "expr-op-0x27": 2
+    },
+    [
+     "intrinsic",
+     "type",
+     "op:27"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-convert-target-8643": 1,
+     "expr-op-0x00": 1,
+     "expr-op-0x28": 1,
+     "expr-op-0x55": 1
+    },
+    [
+     "convert",
+     "op:00",
+     "op:28",
+     "op:55"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-chain-noform-0x00": 1,
+     "expr-op-0x30": 1,
+     "expr-op-0x4C": 1
+    },
+    [
+     "op:30",
+     "op:4C"
+    ],
+    [
+     "expr-chain-noform-0x00"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/system/utl/Pool.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:39",
+   "op:27",
+   "op:30",
+   "op:32",
+   "op:53",
+   "convert",
+   "op:4B",
+   "op:4F",
+   "op:26",
+   "op:3A",
+   "op:0B",
+   "op:54",
+   "op:29",
+   "op:05"
+  ],
+  "depth": 8,
+  "fn_in_class": 0,
+  "fn_total": 3,
+  "raw": 15,
+  "scaffold": [
+   "op:41",
+   "op:53",
+   "op:4B",
+   "op:4F",
+   "op:3A",
+   "op:54",
+   "op:29"
+  ],
+  "sinks": [
+   "op:39",
+   "op:27",
+   "op:30",
+   "op:32",
+   "convert",
+   "op:26",
+   "op:0B",
+   "op:05"
+  ],
+  "status": "EXIT:expr-chain-noform-0x05",
+  "steps": [
+   [
+    0,
+    {
+     "expr-brtrue": 1,
+     "expr-op-0x27": 2
+    },
+    [
+     "op:39",
+     "op:27"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-op-0x30": 1,
+     "expr-op-0x32": 1,
+     "expr-op-0x53": 1
+    },
+    [
+     "op:30",
+     "op:32",
+     "op:53"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-convert-target-8643": 1,
+     "expr-op-0x4B": 1,
+     "expr-op-0x4F": 1
+    },
+    [
+     "convert",
+     "op:4B",
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-call-in-expr-other": 1,
+     "expr-jump": 2
+    },
+    [
+     "op:26",
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-bit-and": 1,
+     "expr-op-0x54": 2
+    },
+    [
+     "op:0B",
+     "op:54"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-label": 2,
+     "expr-op-0x05": 1
+    },
+    [
+     "op:29",
+     "op:05"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-chain-noform-0x05": 1
+    },
+    [],
+    [
+     "expr-chain-noform-0x05"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/xdk/LIBCMT/osfinfo.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:23",
+   "op:38",
+   "op:22",
+   "op:53",
+   "op:4F",
+   "op:26",
+   "op:0A",
+   "op:32",
+   "op:4B",
+   "op:28",
+   "op:30",
+   "op:0B",
+   "op:27",
+   "op:20",
+   "type",
+   "op:3A",
+   "op:54",
+   "op:29",
+   "op:BD"
+  ],
+  "depth": 13,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 20,
+  "scaffold": [
+   "op:41",
+   "op:53",
+   "op:4F",
+   "op:4B",
+   "op:3A",
+   "op:54",
+   "op:29"
+  ],
+  "sinks": [
+   "op:23",
+   "op:38",
+   "op:22",
+   "op:26",
+   "op:0A",
+   "op:32",
+   "op:28",
+   "op:30",
+   "op:0B",
+   "op:27",
+   "op:20",
+   "type",
+   "op:BD"
+  ],
+  "status": "EXIT:expr-chain-noform-0xBD",
+  "steps": [
+   [
+    0,
+    {
+     "expr-cmp-ge": 1
+    },
+    [
+     "op:23"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brfalse": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-cmp-lt": 1
+    },
+    [
+     "op:22"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-call-in-expr-op-0x0A": 1
+    },
+    [
+     "op:26"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-shr": 1
+    },
+    [
+     "op:0A"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-op-0x32": 1
+    },
+    [
+     "op:32"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-op-0x4B": 1
+    },
+    [
+     "op:4B"
+    ],
+    []
+   ],
+   [
+    9,
+    {
+     "expr-op-0x28": 1
+    },
+    [
+     "op:28"
+    ],
+    []
+   ],
+   [
+    10,
+    {
+     "expr-op-0x30": 1
+    },
+    [
+     "op:30"
+    ],
+    []
+   ],
+   [
+    11,
+    {
+     "expr-bit-and": 1
+    },
+    [
+     "op:0B"
+    ],
+    []
+   ],
+   [
+    12,
+    {
+     "expr-op-0x27": 1
+    },
+    [
+     "op:27"
+    ],
+    []
+   ],
+   [
+    13,
+    {
+     "expr-cmp-ne": 1
+    },
+    [
+     "op:20"
+    ],
+    []
+   ],
+   [
+    14,
+    {
+     "expr-lit-type-8881": 1
+    },
+    [
+     "type"
+    ],
+    []
+   ],
+   [
+    15,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    16,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    17,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    18,
+    {
+     "expr-op-0xBD": 1
+    },
+    [
+     "op:BD"
+    ],
+    []
+   ],
+   [
+    19,
+    {
+     "expr-chain-noform-0xBD": 1
+    },
+    [],
+    [
+     "expr-chain-noform-0xBD"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/xdk/LIBCMT/undname.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:20",
+   "op:38",
+   "op:53",
+   "op:4F",
+   "op:26",
+   "op:99",
+   "op:BD"
+  ],
+  "depth": 5,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 8,
+  "scaffold": [
+   "op:41",
+   "op:53",
+   "op:4F"
+  ],
+  "sinks": [
+   "op:20",
+   "op:38",
+   "op:26",
+   "op:99",
+   "op:BD"
+  ],
+  "status": "EXIT:expr-chain-noform-0xBD",
+  "steps": [
+   [
+    0,
+    {
+     "expr-cmp-ne": 1
+    },
+    [
+     "op:20"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brfalse": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-call-in-expr-chained-then-cmp-ne-and-branch-more": 1
+    },
+    [
+     "op:26"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x99": 1
+    },
+    [
+     "op:99"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-op-0xBD": 1
+    },
+    [
+     "op:BD"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-chain-noform-0xBD": 1
+    },
+    [],
+    [
+     "expr-chain-noform-0xBD"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/xdk/LIBCMT/vsnprnc.cpp": {
+  "also_at_exit": [
+   "op:1F"
+  ],
+  "chain_raw": [
+   "op:41"
+  ],
+  "depth": 0,
+  "fn_in_class": 0,
+  "fn_total": 2,
+  "raw": 1,
+  "scaffold": [
+   "op:41"
+  ],
+  "sinks": [],
+  "status": "EXIT:call-arg-lit-permuted:mid",
+  "steps": [
+   [
+    0,
+    {
+     "call-arg-lit-permuted:mid": 1,
+     "expr-cmp-eq": 1
+    },
+    [
+     "op:1F"
+    ],
+    [
+     "call-arg-lit-permuted:mid"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/xdk/LIBCMT/vswprnc.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:1F",
+   "op:39",
+   "op:38",
+   "op:29",
+   "op:53",
+   "op:4F",
+   "op:26",
+   "op:BD"
+  ],
+  "depth": 5,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 9,
+  "scaffold": [
+   "op:41",
+   "op:29",
+   "op:53",
+   "op:4F"
+  ],
+  "sinks": [
+   "op:1F",
+   "op:39",
+   "op:38",
+   "op:26",
+   "op:BD"
+  ],
+  "status": "EXIT:expr-chain-noform-0xBD",
+  "steps": [
+   [
+    0,
+    {
+     "expr-cmp-eq": 1
+    },
+    [
+     "op:1F"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brtrue": 1
+    },
+    [
+     "op:39"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-brfalse": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-call-in-expr-other": 1
+    },
+    [
+     "op:26"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-op-0xBD": 1
+    },
+    [
+     "op:BD"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-chain-noform-0xBD": 1
+    },
+    [],
+    [
+     "expr-chain-noform-0xBD"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/xdk/nuispeech/mmio.cpp": {
+  "also_at_exit": [
+   "op:4C"
+  ],
+  "chain_raw": [
+   "op:41",
+   "op:1F",
+   "op:3A",
+   "op:38",
+   "op:4F",
+   "op:54",
+   "op:29",
+   "op:53",
+   "op:26",
+   "intrinsic",
+   "op:55",
+   "op:BD"
+  ],
+  "depth": 6,
+  "fn_in_class": 0,
+  "fn_total": 11,
+  "raw": 12,
+  "scaffold": [
+   "op:41",
+   "op:3A",
+   "op:4F",
+   "op:54",
+   "op:29",
+   "op:53"
+  ],
+  "sinks": [
+   "op:1F",
+   "op:38",
+   "op:26",
+   "intrinsic",
+   "op:55",
+   "op:BD"
+  ],
+  "status": "EXIT:expr-chain-noform-0xBD",
+  "steps": [
+   [
+    0,
+    {
+     "expr-cmp-eq": 3,
+     "expr-jump": 8
+    },
+    [
+     "op:1F",
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brfalse": 3,
+     "expr-op-0x4F": 2,
+     "expr-op-0x54": 6
+    },
+    [
+     "op:38",
+     "op:4F",
+     "op:54"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-label": 8,
+     "expr-op-0x53": 3
+    },
+    [
+     "op:29",
+     "op:53"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-call-in-expr-other": 1,
+     "expr-intrinsic-memcpy": 2
+    },
+    [
+     "op:26",
+     "intrinsic"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-op-0x55": 2,
+     "expr-op-0xBD": 1
+    },
+    [
+     "op:55",
+     "op:BD"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-chain-noform-0xBD": 1,
+     "expr-op-0x4C": 2
+    },
+    [
+     "op:4C"
+    ],
+    [
+     "expr-chain-noform-0xBD"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/xdk/nuispeech/xboxheap.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:27",
+   "op:32",
+   "op:4B",
+   "op:4F",
+   "op:26",
+   "op:99",
+   "op:BD"
+  ],
+  "depth": 5,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 8,
+  "scaffold": [
+   "op:41",
+   "op:4B",
+   "op:4F"
+  ],
+  "sinks": [
+   "op:27",
+   "op:32",
+   "op:26",
+   "op:99",
+   "op:BD"
+  ],
+  "status": "EXIT:expr-chain-noform-0xBD",
+  "steps": [
+   [
+    0,
+    {
+     "expr-op-0x27": 1
+    },
+    [
+     "op:27"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-op-0x32": 1
+    },
+    [
+     "op:32"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-op-0x4B": 1
+    },
+    [
+     "op:4B"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-call-in-expr-data-addr-then-off-add-and-chain-bind-more": 1
+    },
+    [
+     "op:26"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x99": 1
+    },
+    [
+     "op:99"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-op-0xBD": 1
+    },
+    [
+     "op:BD"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-chain-noform-0xBD": 1
+    },
+    [],
+    [
+     "expr-chain-noform-0xBD"
+    ]
+   ]
+  ],
+  "whole": true
+ },
+ "src/xdk/xjson/jsonwriter.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41",
+   "op:38",
+   "op:39",
+   "op:30",
+   "op:20",
+   "op:29",
+   "op:53",
+   "op:4F",
+   "op:26",
+   "op:32",
+   "op:4B",
+   "op:54",
+   "op:3A",
+   "op:27",
+   "op:24",
+   "op:35",
+   "convert",
+   "op:0F",
+   "type",
+   "op:21",
+   "op:22",
+   "op:0B",
+   "op:0A",
+   "op:0C",
+   "op:23"
+  ],
+  "depth": 18,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 25,
+  "scaffold": [
+   "op:41",
+   "op:29",
+   "op:53",
+   "op:4F",
+   "op:4B",
+   "op:54",
+   "op:3A"
+  ],
+  "sinks": [
+   "op:38",
+   "op:39",
+   "op:30",
+   "op:20",
+   "op:26",
+   "op:32",
+   "op:27",
+   "op:24",
+   "op:35",
+   "convert",
+   "op:0F",
+   "type",
+   "op:21",
+   "op:22",
+   "op:0B",
+   "op:0A",
+   "op:0C",
+   "op:23"
+  ],
+  "status": "CLEAR",
+  "steps": [
+   [
+    0,
+    {
+     "expr-brfalse": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    1,
+    {
+     "expr-brtrue": 1
+    },
+    [
+     "op:39"
+    ],
+    []
+   ],
+   [
+    2,
+    {
+     "expr-op-0x30": 1
+    },
+    [
+     "op:30"
+    ],
+    []
+   ],
+   [
+    3,
+    {
+     "expr-cmp-ne": 1
+    },
+    [
+     "op:20"
+    ],
+    []
+   ],
+   [
+    4,
+    {
+     "expr-label": 1
+    },
+    [
+     "op:29"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-call-in-expr-other": 1
+    },
+    [
+     "op:26"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-op-0x32": 1
+    },
+    [
+     "op:32"
+    ],
+    []
+   ],
+   [
+    9,
+    {
+     "expr-op-0x4B": 1
+    },
+    [
+     "op:4B"
+    ],
+    []
+   ],
+   [
+    10,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
+   ],
+   [
+    11,
+    {
+     "expr-jump": 1
+    },
+    [
+     "op:3A"
+    ],
+    []
+   ],
+   [
+    12,
+    {
+     "expr-op-0x27": 1
+    },
+    [
+     "op:27"
+    ],
+    []
+   ],
+   [
+    13,
+    {
+     "expr-cmp-gt": 1
+    },
+    [
+     "op:24"
+    ],
+    []
+   ],
+   [
+    14,
+    {
+     "expr-op-0x35": 1
+    },
+    [
+     "op:35"
+    ],
+    []
+   ],
+   [
+    15,
+    {
+     "expr-convert-target-8643": 1
+    },
+    [
+     "convert"
+    ],
+    []
+   ],
+   [
+    16,
+    {
+     "expr-op-0x0F": 1
+    },
+    [
+     "op:0F"
+    ],
+    []
+   ],
+   [
+    17,
+    {
+     "expr-load-type-8422": 1
+    },
+    [
+     "type"
+    ],
+    []
+   ],
+   [
+    18,
+    {
+     "expr-cmp-le": 1
+    },
+    [
+     "op:21"
+    ],
+    []
+   ],
+   [
+    19,
+    {
+     "expr-cmp-lt": 1
+    },
+    [
+     "op:22"
+    ],
+    []
+   ],
+   [
+    20,
+    {
+     "expr-bit-and": 1
+    },
+    [
+     "op:0B"
+    ],
+    []
+   ],
+   [
+    21,
+    {
+     "expr-shr": 1
+    },
+    [
+     "op:0A"
+    ],
+    []
+   ],
+   [
+    22,
+    {
+     "expr-bit-or": 1
+    },
+    [
+     "op:0C"
+    ],
+    []
+   ],
+   [
+    23,
+    {
+     "expr-cmp-ge": 1
+    },
+    [
+     "op:23"
+    ],
+    []
+   ]
+  ],
+  "whole": true
+ },
+ "src/xdk/xlrc/xlrcimpl.cpp": {
+  "also_at_exit": [],
+  "chain_raw": [
+   "op:41"
+  ],
+  "depth": 0,
+  "fn_in_class": 0,
+  "fn_total": 1,
+  "raw": 1,
+  "scaffold": [
+   "op:41"
+  ],
+  "sinks": [],
+  "status": "EXIT:assign-rhs-call-0x26",
+  "steps": [
+   [
+    0,
+    {
+     "assign-rhs-call-0x26": 1
+    },
+    [],
+    [
+     "assign-rhs-call-0x26"
+    ]
+   ]
+  ],
+  "whole": true
+ }
+}

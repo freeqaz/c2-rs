@@ -516,6 +516,354 @@ pub(crate) fn branch_sink() -> BranchSink {
     })
 }
 
+// -----------------------------------------------------------------------------
+// The CHAIN SINK — lane `w-depth`, board **#660**.
+// -----------------------------------------------------------------------------
+
+/// How many bytes a chain-sink step consumes for one opcode, and **where that
+/// width was pinned**.
+///
+/// Every variant here is a form some *existing* production in this tree already
+/// consumes, or one `docs/IL_EXPR_LAYER.md` §0 states from a capture. Nothing is
+/// inferred from an opcode's numeric neighbours: an earlier revision of
+/// [`expr_opcode_name`](super::expr_opcode_name) guessed the relational opcodes
+/// that way and got three of six wrong, and a wrong *width* is worse than a wrong
+/// *name* — it desynchronises the stream and manufactures a fictitious successor
+/// key, which is the one way this instrument could lie.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum SkipForm {
+    /// The opcode and nothing else.
+    Bare,
+    /// `<op> <TYPE>`.
+    Type,
+    /// `<op> <token>`.
+    Tok,
+    /// `<op> <TYPE> <varint>`.
+    TypeVarint,
+    /// `<op> <token> <TYPE>`.
+    TokType,
+    /// `<op> <TYPE> <token>`.
+    TypeTok,
+    /// `<op> <one raw byte>`.
+    Byte1,
+    /// `<op> <two raw bytes>`.
+    Byte2,
+    /// `<op> <varint> <token>`.
+    VarintTok,
+    /// `43 <sub-opcode>` with a sub-opcode-dependent payload.
+    Escape43,
+    /// `4F 01 <varint>` — the line marker, and **only** that. `4F 12` is the
+    /// function tail and must never be eaten here.
+    Line4F,
+}
+
+/// The **pinned** skip form of an operand-stream opcode, or `None` when this tree
+/// does not know the width.
+///
+/// `None` is a result, not a gap to paper over: [`chain_sink_step`] turns it into
+/// `expr-chain-noform-0xNN`, which reads as *"the chain cannot be measured past
+/// here"* and is the honest terminal for a depth walk.
+///
+/// Provenance, one row per pin:
+///
+/// | opcode(s) | form | pinned by |
+/// |---|---|---|
+/// | `02` `03` `04` | Bare | [`parse_expr_classed`]'s own arms |
+/// | `09` `0A` `0B` `0C` `0D` | Bare | `mcall::BARE_BINARY_OPS` |
+/// | `1F`..`24` | Bare | `mcall::BARE_BINARY_OPS`, and [`rel_sink_enabled`]'s arm |
+/// | `0F` | Type | the `+=` control witness in `mcall`'s own doc comment: `26 1a 0a · 33 86 41 74 03 · 0f · 86 41 74 · 4b` |
+/// | `1A` | Bare | `expr_opcode_name` names it `!`; `mcall` excludes it from `BARE_BINARY_OPS` for its **arity**, not its payload |
+/// | `26` | Tok | `IL_EXPR_LAYER.md` §0 — `designator := 26 <tok>` |
+/// | `27` | Type | [`parse_expr_classed`]'s own `0x27` arm |
+/// | `28` | Byte2 | `IL_EXPR_LAYER.md` §0 — `28 00 00` |
+/// | `29` `38` `39` `3A` | Tok | [`branch_sink`]'s arms |
+/// | `2C` | TypeVarint | [`parse_expr_classed`]'s own `0x2C` arm; §0 |
+/// | `30` `32` | Type | `IL_EXPR_LAYER.md` §0 |
+/// | `33` | TypeVarint | [`parse_expr_classed`]'s own LITERAL arm |
+/// | `40` | Type | `IL_INTRINSIC_CALL.md` §1 — `40 <TYPE result>`, no trailing field |
+/// | `43` | Escape43 | `IL_EXPR_LAYER.md` §8 — `43 42 <2 bytes>`, `43 37` carries nothing |
+/// | `44` | Bare | `IL_EXPR_LAYER.md` §7 — payload-free at both captured sites |
+/// | `4B` | Bare | [`branch_sink`]'s `Cflow` arm |
+/// | `4F` | Line4F | [`branch_sink`]'s `Stmt` arm |
+/// | `53` | Bare, `54` | Byte1 | [`eat_scopes`] |
+/// | `55` | Type | the `icall` line of `parse_segment`'s grammar — `55 INT` |
+/// | `67` | VarintTok | `IL_DECODE_REACH.md` §2 — `67 <varint vtable-byte-offset> <token>` |
+/// | `9B` | TypeTok | `IL_EXPR_LAYER.md` §7 — the trailing field is a whole `read_token_var` |
+/// | `B9` | TokType | [`parse_expr_classed`]'s own LOAD arm |
+///
+/// Deliberately **absent**, so their absence is a decision: `1B`/`1C` (`||`/`&&`
+/// — `mcall` records that no capture shows the byte at all), `64`, `66`, `3B`
+/// `3C` `3D` (the switch family, whose table payload is not a fixed width), and
+/// every byte no document in this tree names.
+pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
+    use SkipForm::*;
+    Some(match b {
+        0x02 | 0x03 | 0x04 => Bare,
+        0x09 | 0x0A | 0x0B | 0x0C | 0x0D => Bare,
+        0x0F => Type,
+        0x1A => Bare,
+        0x1F..=0x24 => Bare,
+        0x26 => Tok,
+        0x27 => Type,
+        0x28 => Byte2,
+        0x29 | 0x38 | 0x39 | 0x3A => Tok,
+        0x2C => TypeVarint,
+        0x30 | 0x32 => Type,
+        0x33 => TypeVarint,
+        // A COMPOUND-ASSIGN, `35 <TYPE>` — the same shape as `0F`, pinned by
+        // `w-depth` from a capture of `src/system/math/Primes.cpp` at the
+        // workload's own flags (`c2rs census … --keep-il`). The loop increment
+        // of `for (int i2 = 0; primes[i2] != 0; i2++)` is
+        //
+        // ```text
+        //   … 3A <ec09>  29 <ed09>  26 <i2>  33 86 41 74 01  >35< 86 41 74  4B …
+        // ```
+        //
+        // — designator, literal `1`, the opcode, a 3-byte int TYPE, statement
+        // end. So the WIDTH is `<TYPE>`, read straight off the stream.
+        //
+        // **It is deliberately not NAMED.** `0F` is `+=` on `mcall`'s own `x +=
+        // 3` control and this occupies the identical slot with the identical
+        // payload, so `35` is somewhere in the increment/compound-assign family
+        // — but *which* member (post-increment discarding its value, a distinct
+        // `+= 1`, something else) is not decided by one witness, and
+        // `expr_opcode_name`'s header states the rule: a hex bucket is a result,
+        // a wrong name is a lie that survives into the roadmap. The instrument
+        // needs the width and not the name.
+        0x35 => Type,
+        0x40 => Type,
+        // The RESULT ANNOTATION, `41 <int-like>` — `eat_return_plumbing`'s own
+        // first field. It is `parse_expr`'s usual `stop` byte, so naming it is
+        // how a chain walk is taken past the first `return`; see the loop head.
+        0x41 => Type,
+        0x43 => Escape43,
+        0x44 => Bare,
+        0x4B => Bare,
+        0x4F => Line4F,
+        0x53 => Bare,
+        0x54 => Byte1,
+        0x55 => Type,
+        0x67 => VarintTok,
+        // The BIND, `99 <TYPE> <varint>`. `IL_EXPR_LAYER.md` §7 pins the field
+        // by CONTRAST — "its trailing field is a whole `read_token_var`, not the
+        // varint the adjacent `99` uses" — and `mcall`'s transcribed capture
+        // shows it: `99 · 86 43 9C 20 · 00 · BD …`.
+        0x99 => TypeVarint,
+        0x9B => TypeTok,
+        0xB9 => TokType,
+        _ => return None,
+    })
+}
+
+/// The chain sink's configuration, parsed once from `C2RS_SINK_CHAIN`.
+///
+/// The variable is a comma-separated list of **sink tokens**:
+///
+/// * `op:NN` — consume opcode `0xNN` in [`parse_expr_classed`] through
+///   [`chain_skip_form`];
+/// * `type` — the operand-TYPE gate: a LOAD or LITERAL whose TYPE is neither
+///   int-like nor a 4-byte pointer is skipped rather than refused
+///   (`expr-load-type-*` / `expr-lit-type-*`);
+/// * `convert` — the `2C` target-type gate (`expr-convert-target`);
+/// * `intrinsic` — the two-token intrinsic-call unit `33 <int> <id> 40 <TYPE>`.
+///
+/// Anything else in the list is a **hard error at first use**, reported as
+/// `expr-chain-badtoken`, because a typo that silently disabled a sink step
+/// would show up as a *shallower* chain — a number that flatters the instrument.
+pub(crate) struct ChainSink {
+    ops: [bool; 256],
+    ty: bool,
+    convert: bool,
+    intrinsic: bool,
+    any: bool,
+    bad: bool,
+}
+
+impl Default for ChainSink {
+    fn default() -> ChainSink {
+        ChainSink {
+            ops: [false; 256],
+            ty: false,
+            convert: false,
+            intrinsic: false,
+            any: false,
+            bad: false,
+        }
+    }
+}
+
+impl ChainSink {
+    fn parse(spec: &str) -> ChainSink {
+        let mut c = ChainSink::default();
+        for tok in spec.split(',').map(str::trim).filter(|t| !t.is_empty()) {
+            c.any = true;
+            if let Some(hex) = tok.strip_prefix("op:") {
+                match u8::from_str_radix(hex, 16) {
+                    Ok(b) => c.ops[b as usize] = true,
+                    Err(_) => c.bad = true,
+                }
+            } else {
+                match tok {
+                    "type" => c.ty = true,
+                    "convert" => c.convert = true,
+                    "intrinsic" => c.intrinsic = true,
+                    _ => c.bad = true,
+                }
+            }
+        }
+        c
+    }
+}
+
+/// `C2RS_SINK_CHAIN` — **lane `w-depth`'s board #660 instrument**, and the one
+/// thing it exists to answer: *how DEEP is a body's parse chain?*
+///
+/// A blocker key is the census label on the **FIRST** refusal in a body. Board
+/// **#622** measured that closing `xboxheap`'s `expr-op-0x27` moves the label to
+/// `expr-op-0x32` and converts nothing, and boards **#420**/**#440** measured
+/// whole families being *substituted* rather than removed. What none of them
+/// could measure is the **length of the chain** — and a selector over the
+/// frontier needs the length, not the head.
+///
+/// This sink generalises [`rel_sink_enabled`] and [`branch_sink`] from two fixed
+/// opcode families to a **data-driven set**, so the chain can be walked one step
+/// at a time without a new arm per step. It keeps every property those two have,
+/// and the properties are the whole design:
+///
+/// * it consumes the token so the walk proceeds and the census reports whatever
+///   the **next** unmodeled byte is — the successor key, which is what depth is
+///   made of;
+/// * it pushes **no** [`IlOp`], ever. Not one arm. A sink that lowered anything
+///   would be a wrong emit rather than a measurement;
+/// * a walk that reaches the end having used one **refuses anyway**, under
+///   `expr-chain-sink-poison`. **Decoding is not accepting.** So the sink cannot
+///   move one obj byte even when it is ON;
+/// * an opcode whose width this tree has not pinned refuses under
+///   `expr-chain-noform-0xNN` instead of guessing. See [`chain_skip_form`].
+///
+/// **`C2RS_SINK_OFF_ADD_ARG` is NOT in this family and must not be used as a
+/// chain step.** Its `0x27` arm pushes `IlOp::Add` and has no poison — it is a
+/// real widening behind an environment variable, which is why board **#403**
+/// records `cargo test --workspace --release` going to *16 targets / 754 passed
+/// / 2 failed* under it. Board **#622**'s `0x27 → 0x32` successor was measured
+/// through it and is therefore a successor under a parser that also *accepts*
+/// differently; board **#661** re-derives it here under the poison.
+///
+/// OFF and free on every gate lane and every default scan.
+pub(crate) fn chain_sink() -> &'static ChainSink {
+    static ON: std::sync::OnceLock<ChainSink> = std::sync::OnceLock::new();
+    ON.get_or_init(|| match std::env::var("C2RS_SINK_CHAIN") {
+        Ok(spec) => ChainSink::parse(&spec),
+        Err(_) => ChainSink::default(),
+    })
+}
+
+/// One chain-sink step at `p`, or `None` when the byte there is not sunk.
+///
+/// `Ok(q)` is the position after the token; `Err(key)` is an honest refusal —
+/// either the width is unpinned, or the payload ran off the end of the segment.
+fn chain_sink_step(seg: &[u8], p: usize) -> Option<Result<usize, &'static str>> {
+    chain_step_with(chain_sink(), seg, p)
+}
+
+/// [`chain_sink_step`] against an explicit configuration.
+///
+/// Split out for the tests and for one reason only: [`chain_sink`] is a
+/// `OnceLock` over a process-wide environment variable, so a test that wanted to
+/// exercise a *particular* sink set could otherwise only do it by being the only
+/// test in its process. That is the shape that makes a safety property go
+/// unchecked.
+fn chain_step_with(
+    c: &ChainSink,
+    seg: &[u8],
+    p: usize,
+) -> Option<Result<usize, &'static str>> {
+    if !c.any {
+        return None;
+    }
+    if c.bad {
+        return Some(Err("expr-chain-badtoken"));
+    }
+    let b = *seg.get(p)?;
+    if !c.ops[b as usize] {
+        return None;
+    }
+    let Some(form) = chain_skip_form(b) else {
+        return Some(Err("expr-chain-noform"));
+    };
+    let mut q = p + 1;
+    let ty = |q: &mut usize| match read_type(seg, *q) {
+        Some((_, _, _, w)) => {
+            *q += w;
+            true
+        }
+        None => false,
+    };
+    let tok = |q: &mut usize| match read_token_var(seg, *q) {
+        Some((_, w)) => {
+            *q += w;
+            true
+        }
+        None => false,
+    };
+    let ok = match form {
+        SkipForm::Bare => true,
+        SkipForm::Type => ty(&mut q),
+        SkipForm::Tok => tok(&mut q),
+        SkipForm::TypeVarint => ty(&mut q) && read_varint(seg, &mut q).is_some(),
+        SkipForm::TokType => tok(&mut q) && ty(&mut q),
+        SkipForm::TypeTok => ty(&mut q) && tok(&mut q),
+        SkipForm::Byte1 => {
+            q += 1;
+            q <= seg.len()
+        }
+        SkipForm::Byte2 => {
+            q += 2;
+            q <= seg.len()
+        }
+        SkipForm::VarintTok => read_varint(seg, &mut q).is_some() && tok(&mut q),
+        // `43 42 <2 bytes>` is the conditional expression and `43 37` carries
+        // nothing; every other sub-opcode is unpinned and says so.
+        SkipForm::Escape43 => match seg.get(q) {
+            Some(&0x42) => {
+                q += 3;
+                q <= seg.len()
+            }
+            Some(&0x37) => {
+                q += 1;
+                true
+            }
+            _ => return Some(Err("expr-chain-noform")),
+        },
+        // The line marker only. `4F 12` is the function tail and eating it here
+        // would walk the sink straight through the end of the body.
+        SkipForm::Line4F => {
+            if seg.get(q) != Some(&0x01) {
+                return Some(Err("expr-chain-noform"));
+            }
+            q += 1;
+            read_varint(seg, &mut q).is_some()
+        }
+    };
+    Some(if ok { Ok(q) } else { Err("expr-chain-short") })
+}
+
+/// Skip a whole TYPE at `p` for the `type` / `convert` chain-sink tokens.
+///
+/// A TYPE is self-delimiting ([`read_type`]), so this needs no width table and
+/// no classification — which is the point: the operand-type gate refuses on the
+/// type's *class*, not on its *length*, and the chain step is exactly "stop
+/// asking what class it is".
+fn chain_skip_type(seg: &[u8], p: &mut usize) -> Result<(), Block> {
+    match read_type(seg, *p) {
+        Some((_, _, _, w)) => {
+            *p += w;
+            Ok(())
+        }
+        None => Err(blk(seg, *p, "expr-chain-short")),
+    }
+}
+
 pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     parse_expr_classed(seg, p, stop).map(|(ops, _)| ops)
 }
@@ -561,6 +909,10 @@ pub(crate) fn parse_expr_classed(
     // the end with this set refuses under `expr-branch-sink-poison`, so the sink
     // can never move an obj byte.
     let mut saw_branch_sink = false;
+    // Set by the [`chain_sink`] arms and by nothing else. A walk that reaches the
+    // end with this set refuses under `expr-chain-sink-poison`, so the sink can
+    // never move an obj byte. See [`chain_sink`] for the rest of the discipline.
+    let mut saw_chain_sink = false;
     // The [`ValueClass`] of the value on top of the operand stack, or `None`
     // before the first operand. Only the `2C` arm reads it, and only to require
     // that a conversion stays inside the class it started in — which is what makes
@@ -572,6 +924,36 @@ pub(crate) fn parse_expr_classed(
     let mut class: Option<ValueClass> = None;
     loop {
         let b = *seg.get(*p).ok_or(blk(seg, *p, "expr"))?;
+        // **The chain sink is consulted BEFORE the stop byte** (`w-depth`, board
+        // **#663**), and that ordering is the whole difference between measuring
+        // one expression and measuring a body.
+        //
+        // The falsification probe `work/w-depth/probe/p5_mixed.cpp` is what
+        // found it. Its declared operator inventory is the union of four
+        // single-operator probes, `{1F, 0B, 0A, 38}`; with the stop checked
+        // first the chain reported `{1F, 38, 0B}` and stopped — **one operator
+        // short, and short in a direction that FLATTERS the instrument**,
+        // because the `a >> 1` lives in the *second* return statement, past the
+        // `41` result annotation the walk halts on. A depth that silently omits
+        // everything after the first `return` is a lower bound advertised as a
+        // count.
+        //
+        // Naming the stop byte in the sink set (`op:41`) now walks through it,
+        // and the chain runs to the function tail `4F 12`, which
+        // [`chain_skip_form`]'s `Line4F` refuses by construction. So the whole
+        // body is in scope and the terminal is a byte the sink can never eat.
+        if chain_sink().ops[b as usize] {
+            if let Some(step) = chain_sink_step(seg, *p) {
+                match step {
+                    Ok(q) => {
+                        *p = q;
+                        saw_chain_sink = true;
+                        continue;
+                    }
+                    Err(key) => return Err(blk(seg, *p, key)),
+                }
+            }
+        }
         if b == stop {
             break;
         }
@@ -586,6 +968,23 @@ pub(crate) fn parse_expr_classed(
         // id: id 2114 with offset `00` is nothing at all, with offset `04` it is
         // a null-guarded `addi` plus a control-flow split).
         if let Some(id) = intrinsic_selector(seg, *p) {
+            // **w-depth chain sink — `C2RS_SINK_CHAIN=intrinsic` and nothing
+            // else.** The two-token unit is consumed whole (`33 <int> <id>` is
+            // already located by `intrinsic_selector`, so only the `40 <TYPE>`
+            // is left to skip). No [`IlOp`]; poisons.
+            if chain_sink().intrinsic {
+                let mut q = *p + 4;
+                if read_varint(seg, &mut q).is_none() || seg.get(q) != Some(&0x40) {
+                    return Err(Block::refuse(seg, *p, "expr-chain-short"));
+                }
+                q += 1;
+                match read_type(seg, q) {
+                    Some((_, _, _, w)) => *p = q + w,
+                    None => return Err(Block::refuse(seg, *p, "expr-chain-short")),
+                }
+                saw_chain_sink = true;
+                continue;
+            }
             return Err(Block {
                 ctx: "expr-intrinsic",
                 byte: Some(0x40),
@@ -593,6 +992,24 @@ pub(crate) fn parse_expr_classed(
                 seg_len: seg.len(),
                 aux: id as u64,
             });
+        }
+        // **w-depth chain sink — `C2RS_SINK_CHAIN` and nothing else.** Placed
+        // *before* the match so that a sink token can also close an opcode the
+        // arms below already reach (`26`, whose arm always refuses, and `2C`,
+        // whose arm refuses on an unmodeled target). It is inert unless the
+        // variable names the byte. No [`IlOp`]; poisons. See [`chain_sink`].
+        if let Some(step) = chain_sink_step(seg, *p) {
+            match step {
+                Ok(q) => {
+                    *p = q;
+                    saw_chain_sink = true;
+                    continue;
+                }
+                // Reported at the byte, so the key carries it:
+                // `expr-chain-noform-0x64` names the opcode whose width this
+                // tree has not pinned.
+                Err(key) => return Err(blk(seg, *p, key)),
+            }
         }
         match b {
             0xB9 => {
@@ -612,6 +1029,18 @@ pub(crate) fn parse_expr_classed(
                     // neither int-like nor a 4-byte pointer → out of class.
                     // Report at the LOAD so the census bucket reads as a
                     // typed-operand gap, not a stray byte.
+                    None if chain_sink().ty => {
+                        // **w-depth chain sink — `C2RS_SINK_CHAIN=type`.** The
+                        // TYPE is skipped whole rather than classified, and the
+                        // stack class is recorded as `Int4` — an arbitrary
+                        // choice with no consequence, because the walk is
+                        // poisoned and the only reader of `class` is the `2C`
+                        // arm, which under this configuration is measuring a
+                        // successor and not admitting anything.
+                        chain_skip_type(seg, p)?;
+                        class = Some(ValueClass::Int4);
+                        saw_chain_sink = true;
+                    }
                     None => return Err(blk_type(seg, *p, start, "expr-load-type")),
                 }
                 ops.push(IlOp::Load(tok));
@@ -626,6 +1055,13 @@ pub(crate) fn parse_expr_classed(
                         saw_int1u |= c == ValueClass::Int1u;
                         saw_wide |= c != ValueClass::Int1u;
                         class = Some(c);
+                    }
+                    // **w-depth chain sink — `C2RS_SINK_CHAIN=type`.** Same rule
+                    // one operand over; see the LOAD arm.
+                    None if chain_sink().ty => {
+                        chain_skip_type(seg, p)?;
+                        class = Some(ValueClass::Int4);
+                        saw_chain_sink = true;
                     }
                     None => return Err(blk_type(seg, *p, start, "expr-lit-type")),
                 }
@@ -787,10 +1223,19 @@ pub(crate) fn parse_expr_classed(
                     return Err(blk(seg, start, "expr-convert-no-value"));
                 };
                 if !eat_value_type(seg, &mut probe, cls) {
-                    // Either an unmodeled target type (`char`, `long long`, a
-                    // float) or a cross-class reinterpret. Reported at the target
-                    // TYPE so the key names it (`<tag><kind>`, never the per-TU id).
-                    return Err(blk_type(seg, *p + 1, start, "expr-convert-target"));
+                    // **w-depth chain sink — `C2RS_SINK_CHAIN=convert`.** The
+                    // target TYPE is skipped whole; the class is left where it
+                    // was, because a conversion the sink did not model tells us
+                    // nothing about the class it produced. Poisons.
+                    if chain_sink().convert {
+                        chain_skip_type(seg, &mut probe)?;
+                        saw_chain_sink = true;
+                    } else {
+                        // Either an unmodeled target type (`char`, `long long`, a
+                        // float) or a cross-class reinterpret. Reported at the target
+                        // TYPE so the key names it (`<tag><kind>`, never the per-TU id).
+                        return Err(blk_type(seg, *p + 1, start, "expr-convert-target"));
+                    }
                 }
                 if !eat_byte(seg, &mut probe, 0x00) {
                     return Err(blk(seg, probe, "expr-convert-tail"));
@@ -810,6 +1255,16 @@ pub(crate) fn parse_expr_classed(
     // bodies the relational was the LAST thing standing in the way of.
     if saw_rel_sink {
         return Err(Block::refuse(seg, *p, "expr-rel-sink-poison"));
+    }
+    // **The chain sink's poison** (`w-depth`, board #660), and it is the reason
+    // the instrument can be pointed at an arbitrary opcode set without ever
+    // becoming a widening. A body whose expression walked to the end THROUGH a
+    // chain-sunk token refuses here rather than being accepted, because nothing
+    // below lowers any of them. The count under this key is the instrument's
+    // terminal: **the body's expression stream is now fully consumed, so the
+    // sink set enabled at that moment IS the body's chain.**
+    if saw_chain_sink {
+        return Err(Block::refuse(seg, *p, "expr-chain-sink-poison"));
     }
     // The branch sink's poison, and the same rule one construct over. A body
     // whose expression walked to the end THROUGH a conditional branch (or, at
@@ -941,6 +1396,80 @@ mod tests {
     use crate::func::bundle::LO_MARKER;
     use crate::func::readers::{find_subslice, read_type};
     use crate::func::test_fixtures::*;
+
+    // ---- the CHAIN SINK (`w-depth`, board #660) -----------------------------
+
+    /// **The one property that makes the instrument free**: it is OFF unless
+    /// `C2RS_SINK_CHAIN` names something, and every gate lane runs with the
+    /// variable unset. A default that drifted ON would be a parser that skips
+    /// opcodes on the gate — and `#403` is the precedent for exactly that class
+    /// of accident, where turning a sink on took the tree to 16 targets.
+    #[test]
+    fn the_chain_sink_is_off_unless_the_environment_names_it() {
+        assert!(std::env::var("C2RS_SINK_CHAIN").is_err(), "the test process must not set it");
+        let c = chain_sink();
+        assert!(!c.any, "chain sink must default OFF");
+        assert!(!c.ty && !c.convert && !c.intrinsic && !c.bad);
+        assert!(c.ops.iter().all(|on| !on), "no opcode may default to sunk");
+        // …and with it off, `chain_sink_step` never claims a byte, at any byte.
+        for b in 0u8..=255 {
+            assert!(chain_sink_step(&[b, 0, 0, 0], 0).is_none(), "0x{b:02X} claimed while OFF");
+        }
+    }
+
+    /// The **absences in [`chain_skip_form`] are decisions, not gaps**, and this
+    /// pins them so a later widening has to delete an assertion rather than a
+    /// blank line. `1B`/`1C` are `||`/`&&`, whose bytes `mcall` records no
+    /// capture has ever shown; `3B`/`3C`/`3D` are the switch family, whose table
+    /// payload is not a fixed width; `64`/`66` are named nowhere in this tree.
+    ///
+    /// `w-depth` measured `0x00` and `0x05` as live chain terminals on the
+    /// frontier — two more bytes the instrument refuses rather than guesses
+    /// (rung §6). `0x35` was a third until a capture pinned its WIDTH; it is in
+    /// the table and still has no name.
+    #[test]
+    fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
+        for b in [0x00, 0x05, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
+            assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
+        }
+    }
+
+    /// The pinned widths, checked against **transcribed capture bytes** rather
+    /// than against the table that produced them.
+    #[test]
+    fn the_pinned_skip_forms_consume_exactly_their_capture() {
+        // `99 <TYPE> <varint>` — `mcall`'s transcribed member-call capture,
+        // `… 99 86 43 9C 20 00 BD …`. `IL_EXPR_LAYER.md` §7 pins the varint by
+        // contrast with `9B`'s token.
+        let bind = [0x99, 0x86, 0x43, 0x9C, 0x20, 0x00, 0xBD];
+        assert_eq!(skip_one(&bind, 0x99), Some(Ok(6)), "99 ends on the BD");
+        // `B9 <token> <TYPE>` — the LOAD, two-byte token form.
+        let load = [0xB9, 0xEE, 0x09, 0x86, 0x41, 0x74, 0x41];
+        assert_eq!(skip_one(&load, 0xB9), Some(Ok(6)));
+        // `27 <TYPE>` — the byte-offset add, from `IL_EXPR_LAYER.md` §2's table.
+        let offadd = [0x27, 0x86, 0x43, 0xF4, 0x08, 0x30];
+        assert_eq!(skip_one(&offadd, 0x27), Some(Ok(5)));
+        // `35 <TYPE>` — the loop increment of `Primes.cpp`'s `for` at the
+        // workload's own flags: `26 <i2> · 33 86 41 74 01 · 35 86 41 74 · 4B`.
+        assert_eq!(skip_one(&[0x35, 0x86, 0x41, 0x74, 0x4B], 0x35), Some(Ok(4)));
+        // `4F 01 <varint>` is the LINE MARKER and `4F 12` is the FUNCTION TAIL.
+        // The second must refuse: eating it walks the instrument out of the body,
+        // which is what makes the tail a terminal the sink can never consume.
+        assert_eq!(skip_one(&[0x4F, 0x01, 0x46, 0x00], 0x4F), Some(Ok(3)));
+        assert_eq!(skip_one(&[0x4F, 0x12, 0x47, 0x54], 0x4F), Some(Err("expr-chain-noform")));
+        // A payload that runs off the end is `expr-chain-short`, not a silent
+        // clamp — a clamp would report a fictitious successor.
+        assert_eq!(skip_one(&[0x27], 0x27), Some(Err("expr-chain-short")));
+    }
+
+    /// Run one [`chain_sink_step`] with `op` sunk, without touching the process
+    /// environment (the config is a `OnceLock`, so a test cannot set it).
+    fn skip_one(seg: &[u8], op: u8) -> Option<Result<usize, &'static str>> {
+        let mut c = ChainSink::default();
+        c.any = true;
+        c.ops[op as usize] = true;
+        chain_step_with(&c, seg, 0)
+    }
 
     #[test]
     fn parse_formals_anchors_on_the_marker_that_reaches_lo() {

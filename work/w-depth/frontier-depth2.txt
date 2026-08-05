@@ -1,0 +1,18 @@
+src/Main.cpp                                   D=0   raw=1   EXIT:param-width-undetermined:mid  
+src/system/math/Primes.cpp                     D=7   raw=14  CLEAR                              op:26,op:35,op:28,op:30,op:20,op:38,op:23
+src/system/math/Sort.cpp                       D=0   raw=1   EXIT:assign-store-type-8643        
+src/xdk/LIBCMT/osfinfo.cpp                     D=13  raw=20  EXIT:expr-chain-noform-0xBD        op:23,op:38,op:22,op:26,op:0A,op:32,op:28,op:30,op:0B,op:27,op:20,type,op:BD
+src/xdk/LIBCMT/undname.cpp                     D=5   raw=8   EXIT:expr-chain-noform-0xBD        op:20,op:38,op:26,op:99,op:BD
+src/xdk/LIBCMT/vswprnc.cpp                     D=5   raw=9   EXIT:expr-chain-noform-0xBD        op:1F,op:39,op:38,op:26,op:BD
+src/xdk/nuispeech/xboxheap.cpp                 D=5   raw=8   EXIT:expr-chain-noform-0xBD        op:27,op:32,op:26,op:99,op:BD
+src/xdk/xjson/jsonwriter.cpp                   D=18  raw=25  CLEAR                              op:38,op:39,op:30,op:20,op:26,op:32,op:27,op:24,op:35,convert,op:0F,type,op:21,op:22,op:0B,op:0A,op:0C,op:23
+src/xdk/xlrc/xlrcimpl.cpp                      D=0   raw=1   EXIT:assign-rhs-call-0x26          
+src/system/negate_test.cpp                     D=0   raw=1   EXIT:assign-store-type-8643        
+src/system/synth_xbox/Biquad.cpp               D=7   raw=10  EXIT:expr-chain-noform-0x00        op:26,op:1F,op:38,op:27,op:28,type,op:00
+src/xdk/LIBCMT/vsnprnc.cpp                     D=0   raw=1   EXIT:call-arg-lit-permuted:mid     
+src/system/rndobj/wordwrap.cpp                 D=12  raw=19  EXIT:expr-chain-noform-0x1C        op:0B,op:1F,op:38,op:26,type,op:23,op:30,op:21,convert,op:39,op:32,op:1C
+src/system/utl/Pool.cpp                        D=8   raw=15  EXIT:expr-chain-noform-0x05        op:39,op:27,op:30,op:32,convert,op:26,op:0B,op:05
+src/xdk/nuispeech/mmio.cpp                     D=6   raw=12  EXIT:expr-chain-noform-0xBD        op:1F,op:38,op:26,intrinsic,op:55,op:BD
+src/system/synth_xbox/IPP_basicmath_xbox.cpp   D=12  raw=19  EXIT:expr-chain-noform-0x11        op:1F,op:38,op:26,op:32,op:35,op:22,op:28,type,op:30,convert,op:0F,op:11
+src/system/utl/EncryptXTEA.cpp                 D=7   raw=8   EXIT:expr-chain-noform-0x00        intrinsic,type,op:27,convert,op:00,op:28,op:55
+src/keygen_xbox.cpp                            D=0   raw=1   EXIT:assign-store-type-8643;call-a 

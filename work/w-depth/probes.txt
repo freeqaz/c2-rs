@@ -1,0 +1,7 @@
+./work/w-depth/probe/p0_add.cpp
+./work/w-depth/probe/p1_eq.cpp
+./work/w-depth/probe/p2_and.cpp
+./work/w-depth/probe/p3_shr.cpp
+./work/w-depth/probe/p4_if.cpp
+./work/w-depth/probe/p5_mixed.cpp
+./work/w-depth/probe/p6_store.cpp
