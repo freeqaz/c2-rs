@@ -437,6 +437,85 @@ pub(crate) fn rel_sink_enabled() -> bool {
     *ON.get_or_init(|| std::env::var("C2RS_SINK_REL").as_deref() == Ok("expr"))
 }
 
+/// How much of the intra-body control-flow vocabulary [`branch_sink`] consumes.
+///
+/// Two levels, because `expr-brfalse` is raised in a place that makes one level
+/// unable to answer the question the *rung* asks — see [`branch_sink`].
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BranchSink {
+    /// The default. Nothing is consumed and every arm below is dead.
+    Off,
+    /// `C2RS_SINK_BRANCH=expr` — the two conditional branches, `38`/`39`, and
+    /// nothing else. Answers *"is `expr-brfalse` a fall-through key in the
+    /// literal sense — does the census simply report the next byte?"*
+    Expr,
+    /// `C2RS_SINK_BRANCH=cflow` — additionally the label `29`, the unconditional
+    /// jump `3A` and the statement end `4B`: the whole intra-body control-flow
+    /// token set. Answers *"if the port had a general conditional-CFG body class,
+    /// would these TUs convert?"*, which [`BranchSink::Expr`] structurally
+    /// cannot.
+    Cflow,
+    /// `C2RS_SINK_BRANCH=stmt` — additionally the scope brackets `53` and
+    /// `54 <depth>`. Added **after** B1 and B2 both measured 0, because both
+    /// substituted overwhelmingly to `expr-op-0x53`, and `0x53` is the statement
+    /// layer's **scope-open bracket** (`shapes::control_flow::step`) — the `{`
+    /// of the `then`-arm. A measurement that stops at a delimiter has not
+    /// reached a construct, and reporting "the successor is `0x53`" as the
+    /// answer would be reporting punctuation as work.
+    Stmt,
+}
+
+/// `C2RS_SINK_BRANCH` — **w-brfalse's board #440 counterfactual**, and the one
+/// thing it exists to answer: *is `expr-brfalse` a FALL-THROUGH KEY?*
+///
+/// `expr-brfalse` is the head of the FRONTIER ladder **after** w-cmp's
+/// `C2RS_SINK_REL` correction — the one key that converts **5** TUs
+/// (`IPP_basicmath_xbox`, `osfinfo`, `undname`, `mmio`, `jsonwriter`) where
+/// every other converts 0, 1 or 2. But board **#150** now has seven
+/// confirmations that *"the key stops being reported"* and *"the function
+/// becomes emittable"* are different events, and w-cmp's own R8 removed **mass**
+/// as a screen for the phenomenon: `expr-cmp-eq` was the **#12** key at 2,208
+/// blocked emitted functions and was a fall-through key all the same.
+///
+/// **Where this key is raised is the reason there are two levels.**
+/// `expr-brfalse` is `Block { ctx: "expr", byte: 0x38 }` — the fall-through arm
+/// of [`parse_expr`]. On the workload's bodies the production that reaches it is
+/// `super::parse_body`'s `parse_expr_classed(seg, &mut p, 0x41)`: the
+/// **return-value expression** of the straight-line leaf class, tried only after
+/// every non-committal shape recognizer above it has declined. So the key does
+/// not say *"this body needs a branch instruction"*. It says **"the dispatcher
+/// fell through to the straight-line class and the body turned out to have
+/// control flow in it"** — which is structurally the position `expr-op-0x27`
+/// occupies, and 0x27 is worth six emitted functions and zero TUs.
+///
+/// Consuming `38`/`39` alone therefore answers what the key's *name* asks and
+/// **cannot** answer what the *rung* asks. [`BranchSink::Cflow`] exists so that
+/// the second question gets its own arm instead of being read off the first.
+///
+/// Like [`rel_sink_enabled`], this is **measurement-only by construction**:
+///
+/// * it consumes the token so the walk proceeds and the census reports whatever
+///   the **next** unmodeled byte is — the successor key, which is the number the
+///   fall-through question is about;
+/// * it pushes **no** [`IlOp`]. A branch is not a value, and a sink that lowered
+///   one as anything would be a wrong emit rather than a measurement;
+/// * a walk that reaches the end having consumed one **refuses anyway**, under
+///   `expr-branch-sink-poison`. **Decoding is not accepting.** So the sink
+///   cannot move one obj byte even when it is ON, and the poison count is itself
+///   the answer to *"how many emitted functions was this family the LAST thing
+///   in the way of"*.
+///
+/// OFF and free on every gate lane and every default scan.
+pub(crate) fn branch_sink() -> BranchSink {
+    static ON: std::sync::OnceLock<BranchSink> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| match std::env::var("C2RS_SINK_BRANCH").as_deref() {
+        Ok("expr") => BranchSink::Expr,
+        Ok("cflow") => BranchSink::Cflow,
+        Ok("stmt") => BranchSink::Stmt,
+        _ => BranchSink::Off,
+    })
+}
+
 pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     parse_expr_classed(seg, p, stop).map(|(ops, _)| ops)
 }
@@ -478,6 +557,10 @@ pub(crate) fn parse_expr_classed(
     // reaches the end with this set refuses under `expr-rel-sink-poison`, so the
     // sink can never move an obj byte.
     let mut saw_rel_sink = false;
+    // Set by the [`branch_sink`] arms and by nothing else. A walk that reaches
+    // the end with this set refuses under `expr-branch-sink-poison`, so the sink
+    // can never move an obj byte.
+    let mut saw_branch_sink = false;
     // The [`ValueClass`] of the value on top of the operand stack, or `None`
     // before the first operand. Only the `2C` arm reads it, and only to require
     // that a conversion stays inside the class it started in — which is what makes
@@ -592,6 +675,65 @@ pub(crate) fn parse_expr_classed(
                 *p += 1;
                 saw_rel_sink = true;
             }
+            // **w-brfalse scratch sink — `C2RS_SINK_BRANCH` and nothing else.**
+            // The conditional branches `38 <tok>` / `39 <tok>`, consumed so the
+            // walk can proceed to the next unmodeled byte. See [`branch_sink`]
+            // for why this pushes no op, why a walk that reaches the end still
+            // refuses, and why the wider [`BranchSink::Cflow`] level exists.
+            0x38 | 0x39 if branch_sink() != BranchSink::Off => {
+                *p += 1;
+                let (_, w) =
+                    read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-branch-sink-tok"))?;
+                *p += w;
+                saw_branch_sink = true;
+            }
+            // …and at [`BranchSink::Cflow`] the rest of the intra-body
+            // control-flow vocabulary: the label `29 <tok>`, the unconditional
+            // jump `3A <tok>` and the statement end `4B`. Same poison, same
+            // absence of any [`IlOp`].
+            0x29 | 0x3A if matches!(branch_sink(), BranchSink::Cflow | BranchSink::Stmt) => {
+                *p += 1;
+                let (_, w) =
+                    read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-branch-sink-tok"))?;
+                *p += w;
+                saw_branch_sink = true;
+            }
+            0x4B if matches!(branch_sink(), BranchSink::Cflow | BranchSink::Stmt) => {
+                *p += 1;
+                saw_branch_sink = true;
+            }
+            // The LINE MARKER, `4F 01 <varint>`, skipped exactly as
+            // `shapes::control_flow::Scan::line_markers` skips it. **This arm
+            // exists to remove an ambiguity, not to widen anything**: `0x4F` is
+            // both the line-marker prefix and the function-tail prefix
+            // (`4F 12`), so without it a residual `expr-op-0x4F` cannot be told
+            // apart from a body that merely crossed a source line. It carries no
+            // semantics and pushes no [`IlOp`] — but it still poisons, because a
+            // level that consumed a token without poisoning would be a widening.
+            0x4F if branch_sink() == BranchSink::Stmt && seg.get(*p + 1) == Some(&0x01) => {
+                let mut q = *p + 2;
+                if read_varint(seg, &mut q).is_none() {
+                    return Err(blk(seg, *p, "expr-branch-sink-line"));
+                }
+                *p = q;
+                saw_branch_sink = true;
+            }
+            // …and at [`BranchSink::Stmt`] the scope brackets themselves.
+            // `54` carries the depth remaining after the pop as one byte
+            // (`shapes::control_flow::step`'s falsification check); this sink
+            // does not check it, because a sink that refused on a depth
+            // mismatch would be reporting an integrity failure as a census key.
+            0x53 if branch_sink() == BranchSink::Stmt => {
+                *p += 1;
+                saw_branch_sink = true;
+            }
+            0x54 if branch_sink() == BranchSink::Stmt => {
+                if seg.get(*p + 1).is_none() {
+                    return Err(blk(seg, *p, "expr-branch-sink-scope"));
+                }
+                *p += 2;
+                saw_branch_sink = true;
+            }
             0x27 if off_add_sink_enabled() => {
                 *p += 1;
                 match read_type(seg, *p) {
@@ -668,6 +810,16 @@ pub(crate) fn parse_expr_classed(
     // bodies the relational was the LAST thing standing in the way of.
     if saw_rel_sink {
         return Err(Block::refuse(seg, *p, "expr-rel-sink-poison"));
+    }
+    // The branch sink's poison, and the same rule one construct over. A body
+    // whose expression walked to the end THROUGH a conditional branch (or, at
+    // `Cflow`, through any intra-body control-flow token) is refused here rather
+    // than accepted, because nothing below lowers one — there is no conditional
+    // body class at all. The count under this key is the sink's real answer:
+    // emitted functions the control-flow family was the LAST thing standing in
+    // the way of.
+    if saw_branch_sink {
+        return Err(Block::refuse(seg, *p, "expr-branch-sink-poison"));
     }
     // The pointer-arithmetic guard. A pointer operand anywhere in this value plus
     // any modeled arithmetic anywhere in it refuses the whole function — see the
