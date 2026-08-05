@@ -124,8 +124,10 @@ pub(crate) struct StoreStmt {
     pub(crate) base_tok: u32,
     pub(crate) off: i32,
     pub(crate) width: u8,
-    /// True when the stored value is a literal, which a run of more than one
-    /// store refuses — MEASURED, see [`try_parse_store_run`].
+    /// True when the stored value is a literal. A run of more than one used to
+    /// refuse this outright; since `w-wire` (board #642) it admits up to three
+    /// distinct literals through one base symbol, and the emitted permutation
+    /// is `c2_core::codegen::order`'s. See [`try_parse_store_run`].
     pub(crate) value_is_lit: bool,
     /// True when the value comes out of the FLOATING-POINT register file. A run
     /// that mixes the two files is scheduled rather than emitted in source
@@ -816,18 +818,23 @@ fn eat_first_formal_result(seg: &[u8], p: &mut usize, params: &[u32]) -> bool {
 ///   void F7(S*,int×7)  — seven stores, r4..r10, all one `stw` each
 /// ```
 ///
-/// Both refusals below are *captured* neighbours that emit something else, and
-/// each is the reason the gate is not conservatism:
+/// Both bullets below are *captured* neighbours that emit something else, and
+/// each is the reason the gate is not conservatism. **The first is no longer a
+/// refusal** — `w-wire` (board #642) replaced it with a model:
 ///
-/// * **A LITERAL value, in a run of more than one.** c2 hoists the `li`s out of
-///   the store sequence, allocates them r11/r10/r9 **descending**, common-subexpresses
-///   equal literals, interleaves them with the stores past three, and — decisively —
-///   **reorders the stores themselves**: `{ s->a=1; s->b=u; }` is
-///   `li r11,1 ; stw r4,4(r3) ; stw r11,0(r3)`, the two statements emitted in the
-///   *opposite* order to the source. Nothing in the single-store capture predicts
-///   any of that, so a run whose values are not all formals refuses. A run of ONE
-///   is unaffected — that is [`try_parse_store_leaf`]'s own captured `li r11,k ;
-///   stw r11` — and it stays in class here for the `return this` tail.
+/// * **A LITERAL value, in a run of more than one — MODELLED, not refused.**
+///   Everything this bullet used to call unpredictable now has a holdout behind
+///   it. c2 hoists the `li`s out of the store sequence, allocates them
+///   r11/r10/r9 **descending** (`c2_core::codegen::alloc`, 250/250 holdout),
+///   common-subexpresses equal literals, interleaves them with the stores
+///   (`layout_slots`, 24,891/24,891) and — decisively — **reorders the stores
+///   themselves** (`store_order`, 561/561): `{ s->a=1; s->b=u; }` is
+///   `li r11,1 ; stw r4,4(r3) ; stw r11,0(r3)`, the two statements emitted in
+///   the *opposite* order to the source. That is ORDER's `"0."` → `P0 S1 S0`,
+///   and `c2_core::codegen::leaf::store::scheduled_gpr_run_text` emits it. The
+///   gate in the body keeps the widening inside the region the models are
+///   **exact** on: one base symbol, ≤ 3 distinct literals, a pool that holds
+///   them, and no multi-word literal beside another producer.
 /// * **Two statements writing overlapping bytes of the SAME base token.** c2
 ///   eliminates the dead one: `{ s->a=u; s->a=w; }` is a *single*
 ///   `stw r5,0(r3)`. Emitting both would be wrong bytes, and the gate is on the
@@ -938,22 +945,108 @@ pub(crate) fn try_parse_store_run(
         // happened to be 1 or 2, which is why each fitted its own cells and
         // died on the next.
         //
-        // **The refusal here does NOT move**, and that is deliberate. Knowing
-        // the register is not knowing the ORDER: the store order when *every*
-        // store of the run is produced is board #544 and still open, so
-        // admitting a multi-value run would still emit the wrong permutation.
-        // `c2_core::codegen::leaf::store` carries the matching guard on the
-        // emitter side and refuses any run whose allocation is not all-r11.
-        if stmts.iter().any(|s| !s.value_is_lit || s.value_is_fp) {
+        // # **The refusal MOVES — lane `w-wire`, board #642**
+        //
+        // The paragraph that stood here said *"the refusal does NOT move, and
+        // that is deliberate. Knowing the register is not knowing the ORDER:
+        // the store order when every store of the run is produced is board #544
+        // and still open."* **#544 is closed.** `w-order2` settled the store
+        // order (561/561 holdout), `w-frame2` settled the LAYOUT (24,891/24,891
+        // holdout, board #602), and `w-alloc` settled the register (250/250).
+        // `c2_core::codegen::leaf::store::scheduled_gpr_run_text` composes all
+        // three and **emits** the permutation instead of refusing it.
+        //
+        // So a run may now carry **more than one distinct literal**, and may
+        // **mix literals with formals** — the two shapes the doc comment's
+        // literal bullet lists as reordered. The gate below is what keeps the
+        // widening strictly inside the region every model is *exact* on, and
+        // every clause of it is syntactic so that the census and the gate
+        // cannot disagree (this crate cannot see `c2-core`'s models).
+        //
+        // **This is additive-ACCEPT and it is stated as such.** The guards in
+        // the emitter are additive-*refusal*; this is not, and the two claims
+        // are kept apart on purpose. Its safety comes from the gate landing
+        // inside a measured-exact region plus five constructed counterexamples
+        // (`docs/rungs/_2026-08-05-w-wire-prereg.md` §4), **one of which
+        // fired** — see the multi-word clause below.
+        //
+        // A run whose values are neither literals nor formals stays refused:
+        // the FP file and the indirect-load family are separate regimes with
+        // their own gates further down.
+        if stmts.iter().any(|s| s.value_is_fp || s.value_is_load) {
             return None;
         }
         let lit = |s: &StoreStmt| match s.ops.get(1) {
             Some(IlOp::Lit(k)) => Some(*k),
             _ => None,
         };
-        let k0 = lit(&stmts[0])?;
-        if stmts.iter().any(|s| lit(s) != Some(k0)) {
+        // Every literal statement must actually carry a `Lit` op where the
+        // emitter reads one; a `value_is_lit` that does not is a misparse, not
+        // a widening.
+        if stmts.iter().any(|s| s.value_is_lit && lit(s).is_none()) {
             return None;
+        }
+        let mut distinct: Vec<i32> = Vec::new();
+        for s in &stmts {
+            if let Some(k) = lit(s) {
+                if !distinct.contains(&k) {
+                    distinct.push(k);
+                }
+            }
+        }
+        // The pre-existing class: **one** distinct literal and no formal beside
+        // it. Admitted through any number of base symbols, exactly as before —
+        // `{ s->a=3; t->b=3; s->c=3; }` is a measured cell. Left first and
+        // whole so the widening cannot narrow it.
+        let one_value_all_literal =
+            distinct.len() == 1 && stmts.iter().all(|s| s.value_is_lit);
+        if !one_value_all_literal {
+            // **The widened class.** Four clauses, each naming the constant it
+            // is drawn from:
+            //
+            // 1. **ONE base symbol.** With a single symbol every producer's
+            //    `nsw` — the symbol-group transitions before its value is first
+            //    consumed — is identically 0, so `MAX_SYMBOL_CROSSINGS` holds
+            //    by construction rather than by check. Board #621 measured a
+            //    rival layout clause that answers the multi-symbol case at
+            //    99.44 % and refused to ship it; this lane does not resurrect
+            //    it to widen coverage.
+            // 2. **At most `MAX_MODELLED_PRODUCERS` = 3 distinct literals.**
+            //    Past three, c2 REUSES a register freed by an already-emitted
+            //    store rather than taking a fresh one, and the two modes
+            //    disagree about which (board #541, and `w-wire` measured the
+            //    mode split: `/O1` reuses r11, `/Ox` takes r8).
+            // 3. **The pool must hold them.** `r12` is never allocated, so the
+            //    pool is r11 downward, and it starts above the live-in formals.
+            //    Once it runs out c2 descends into registers freed by emitted
+            //    stores — including a formal's own — which is unmodelled.
+            // 4. **No multi-word literal beside another producer.** THE
+            //    COUNTEREXAMPLE THAT FIRED. `{ a=100000; b=1; }` is
+            //    `lis r11 ; li r10 ; ori r11 ; stw r10,4 ; stw r11,0` — c2
+            //    interleaves the halves of the wide load with the other
+            //    producer AND emits the stores in the opposite order to the
+            //    model's. Every ORDER/ALLOC grid used single-word `li` values.
+            //    A run whose *only* producer is wide is untouched by this
+            //    clause, and that cell is in the pre-existing class above.
+            if stmts.windows(2).any(|w| w[0].base_tok != w[1].base_tok) {
+                return None;
+            }
+            const MAX_MODELLED_PRODUCERS: usize = 3;
+            if distinct.len() > MAX_MODELLED_PRODUCERS {
+                return None;
+            }
+            // `params[0]` is r3, so the first free register is r(3 + len), and
+            // the pool top is r11.
+            const POOL_TOP: usize = 11;
+            let pool_floor = 3 + params.len();
+            if pool_floor > POOL_TOP || POOL_TOP - pool_floor + 1 < distinct.len() {
+                return None;
+            }
+            if distinct.len() > 1
+                && distinct.iter().any(|&k| !(-0x8000..=0x7FFF).contains(&k))
+            {
+                return None;
+            }
         }
     }
     // **A run may not MIX loaded values with formal/literal ones.** A run whose
