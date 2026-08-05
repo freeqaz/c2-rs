@@ -1,0 +1,56 @@
+== WHY: the TUs the ALIAS channel GAINS, classified by which factor they fail ==
+
+  JFP -> JFP_ALIAS : 176 TUs gained in per-TU exact
+        fails B: 75   B ok: 101
+        fails C: 176   C ok: 0
+        ALREADY inside B and C: 0   <-- the reach increment
+        of the C failures, the extra-section set that causes it:
+            147  .rdata$r
+             16  .rdata$r + .xdata$x
+             13  .rdata$r + .text$yd
+        carrying `.rdata$r` (the RTTI section, w-rdata's target): 176 of 176 = 1.00000
+
+  ORACLE -> ALIAS_IN : 321 TUs gained in per-TU exact
+        fails B: 150   B ok: 171
+        fails C: 321   C ok: 0
+        ALREADY inside B and C: 0   <-- the reach increment
+        of the C failures, the extra-section set that causes it:
+            262  .rdata$r
+             35  .rdata$r + .text$yd
+             23  .rdata$r + .xdata$x
+              1  .rdata$r + .text$yd + .xdata$x
+        carrying `.rdata$r` (the RTTI section, w-rdata's target): 321 of 321 = 1.00000
+
+== THE CONDITIONAL — what the channel is worth IF factor C moves ==
+  C_rdata := the TU's extra-section set is a subset of {.rdata$r},
+  i.e. factor C after the writer learns ONE more name.  This is the
+  ladder's next step and it is MEASURED here, not projected.
+  C  (today, 10 writer names)    C=169  B&C=151  (B&C on the join 145) | RGL 122  JFP 122  ORACLE 134  JFP_ALIAS 122  ALIAS_IN 134
+  C + .rdata$r                   C=590  B&C=315  (B&C on the join 306) | RGL 123  JFP 123  ORACLE 135  JFP_ALIAS 213  ALIAS_IN 293
+  C + .rdata$r + .text$yd        C=804  B&C=324  (B&C on the join 315) | RGL 124  JFP 124  ORACLE 136  JFP_ALIAS 214  ALIAS_IN 294
+  C + all 3 (vocabulary closed)  C=871  B&C=338  (B&C on the join 329) | RGL 124  JFP 124  ORACLE 136  JFP_ALIAS 225  ALIAS_IN 307
+
+  the same rows as INCREMENTS (what the alias channel buys):
+  C  (today, 10 writer names)     JFP_ALIAS-JFP   +0   ALIAS_IN-ORACLE   +0
+  C + .rdata$r                    JFP_ALIAS-JFP  +90   ALIAS_IN-ORACLE +158
+  C + .rdata$r + .text$yd         JFP_ALIAS-JFP  +90   ALIAS_IN-ORACLE +158
+  C + all 3 (vocabulary closed)   JFP_ALIAS-JFP +101   ALIAS_IN-ORACLE +171
+
+== THE HEADROOM INSIDE B and C — why the increment is what it is ==
+  RGL         exact on 122 of the 145 B&C TUs in the join ;  23 NOT exact
+  JFP         exact on 122 of the 145 B&C TUs in the join ;  23 NOT exact
+  ORACLE      exact on 134 of the 145 B&C TUs in the join ;  11 NOT exact
+  JFP_ALIAS   exact on 122 of the 145 B&C TUs in the join ;  23 NOT exact
+  ALIAS_IN    exact on 134 of the 145 B&C TUs in the join ;  11 NOT exact
+  the 11 B&C TUs even the NEW CEILING misses, by name:
+        src/Memory_Xbox.cpp  [vocab-gap]
+        src/system/gesture/DrawUtl.cpp  [vocab-gap]
+        src/system/math/Easing.cpp  [vocab-gap]
+        src/system/math/Rand.cpp  [vocab-gap]
+        src/system/math/vec.cpp  [vocab-gap]
+        src/system/oggvorbis/VorbisMem.cpp  [vocab-gap]
+        src/system/synth/filterdesign.cpp  [vocab-gap]
+        src/system/synth/tomcrypt/TomCryptLicense.cpp  [match]
+        src/system/synth_xbox/FFT.cpp  [vocab-gap]
+        src/system/utl/ChunkIDs.cpp  [vocab-gap]
+        src/system/zlib/ZlibLicense.cpp  [match]

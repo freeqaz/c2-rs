@@ -761,6 +761,79 @@ fn the_metric_block_derives_the_projection_instead_of_leaving_it_to_a_reader() {
     );
 }
 
+/// **The per-TU factor membership re-derives every joint the metric block
+/// publishes, and a `capture-fail` TU is ABSENT from it rather than zeroed.**
+///
+/// This is the property that makes the `--factors-tsv` file a publication of
+/// the same measurement instead of a second one. Lane `w-emitp` had a per-TU
+/// emit-set model over its own corpus and could not price it in TU reach,
+/// because `|{model exact} ∩ B∧C|` needs a per-TU `B∧C` list and this report
+/// only ever published the count. It declined to multiply `151 × 0.555` — the
+/// move that left `B∧C` at 107 after `C` grew from 114 to 169 — and filed the
+/// listing instead. If the rows and the counts could disagree, the intersection
+/// taken against the rows would not be an intersection with `B∧C` at all.
+///
+/// The second assertion is trap 5 with the mask on: `capture-fail` TUs were
+/// never measured, so `-----` for them would be a *measurement* of five false
+/// predicates, and a consumer summing the rows would report every factor
+/// tighter than it is.
+#[test]
+fn the_per_tu_factor_membership_re_derives_the_joints_it_is_counted_into() {
+    let rep = mk_report(vec![
+        mk_factors(TuClass::Match, "done.cpp", true, true, true, true, false),
+        mk_factors(TuClass::VocabGap, "codegen.cpp", true, true, true, false, false),
+        mk_factors(TuClass::VocabGap, "noa.cpp", false, true, true, false, false),
+        mk_factors(TuClass::CodegenGap, "noc.cpp", true, true, false, false, false),
+        // Never measured: no obj, no census. Must not appear as a row.
+        mk_factors(TuClass::CaptureFail, "gone.cpp", false, false, false, false, false),
+    ]);
+    let rows = rep.factor_membership();
+    let [_a, b, c, _d, _e, _a_lo, bc, abc, _abcd, _joint] = rep.factor_counts();
+
+    assert_eq!(rows.len(), 4, "4 graded TUs, and `gone.cpp` is not one of them");
+    assert!(
+        !rows.iter().any(|(src, _, _)| *src == "gone.cpp"),
+        "a capture-fail TU is ABSENT from the membership, never a `-----` row: \
+         it was not measured, which is a different fact from every factor \
+         being false (docs/STATUS.md trap 5)"
+    );
+    assert_eq!(
+        rows.iter().map(|(_, _, l)| l.as_str()).collect::<Vec<_>>(),
+        vec!["ABCD-", "ABC--", "-BC--", "AB---"],
+        "fixed width, fixed order, `-` for a predicate that does not hold"
+    );
+
+    // The joints, re-derived from the rows alone.
+    let n = |i: usize| rows.iter().filter(|(_, _, l)| l.as_bytes()[i] != b'-').count();
+    assert_eq!((n(1), n(2)), (b, c), "the B and C marginals come back");
+    assert_eq!(
+        rows.iter()
+            .filter(|(_, _, l)| l.as_bytes()[1] != b'-' && l.as_bytes()[2] != b'-')
+            .count(),
+        bc,
+        "and B∧C is the same 3 whether counted here or in factor_counts — \
+         which is the only reason another lane may intersect against these rows"
+    );
+    assert_eq!(
+        rows.iter()
+            .filter(|(_, _, l)| l.as_bytes()[..3].iter().all(|&ch| ch != b'-'))
+            .count(),
+        abc,
+        "same for A∧B∧C"
+    );
+    assert_eq!((bc, abc), (3, 2), "and the hand count agrees with both");
+
+    // The file body: header, the row count, and the class column.
+    let tsv = rep.factor_tsv();
+    assert!(tsv.contains("# graded-rows 4\n"));
+    assert!(
+        tsv.contains("done.cpp\tmatch\t1\t1\t1\t1\t0\tABCD-\n"),
+        "each row carries the TuClass label too, so `∩ ¬match` and `∩ B∧C` are \
+         both takeable from one file:\n{tsv}"
+    );
+    assert!(!tsv.contains("gone.cpp"), "and the unmeasured TU is not in the file");
+}
+
 /// An obj whose section headers did not decode is **outside** C, never
 /// inside it. An empty section list would read as "carries nothing beyond
 /// the writer's set", which is the flattering direction and the shape

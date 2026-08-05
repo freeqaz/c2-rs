@@ -1051,5 +1051,30 @@ pub fn gap_scan(
         report.emit_set_reachable_tus().len(),
     );
     print_factorization(&report);
+    // **The per-TU factor membership** — the rows the joints above are counts
+    // of. Written to a file rather than stdout because this same command grades
+    // the generated case corpus one lane at a time; the absence of the file is
+    // stated positively rather than left silent, because "the membership was
+    // never asked for" and "the membership is empty" must not look alike
+    // (`docs/STATUS.md` trap 5).
+    match &cfg.factors_tsv {
+        Some(p) => {
+            std::fs::write(p, report.factor_tsv())?;
+            println!(
+                "\x20 GAP-FACTOR-TUS — per-TU A/B/C/D/E membership for {} graded TUs written to \
+                 {}. Every joint above (B and C, A and B and C, the FRONTIER) is a COUNT and is \
+                 re-derivable from these rows; a count is what a lane holding a per-TU set of \
+                 its own cannot intersect with.",
+                report.graded().count(),
+                p.display()
+            );
+        }
+        None => println!(
+            "\x20 GAP-FACTOR-TUS: NOT REQUESTED — pass `--factors-tsv PATH` for the per-TU \
+             A/B/C/D/E membership. The joints above are counts; `|{{some per-TU set}} and B and \
+             C|` cannot be got from one, and multiplying a rate by a joint count is how `B and \
+             C` stayed published at 107 after C moved."
+        ),
+    }
     Ok(report)
 }
