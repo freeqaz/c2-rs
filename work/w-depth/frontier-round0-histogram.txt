@@ -1,0 +1,24 @@
+ROUND-0 BLOCKER KEYS ACROSS THE 18 FRONTIER TUs (blocked fns | TUs | key)
+   11 |  6 | expr-cmp-eq
+   10 |  3 | expr-jump
+    5 |  3 | assign-store-type-8643
+    5 |  3 | expr-op-0x27
+    2 |  2 | expr-brfalse
+    1 |  1 | param-width-undetermined:mid
+    1 |  1 | call-arg-outer-formal:eof
+    1 |  1 | expr-call-in-expr-data-addr-then-plain-call-and-op-more
+    1 |  1 | expr-call-in-expr-op-0x1F
+    1 |  1 | expr-lit-type-9641
+    1 |  1 | expr-load-type-8211
+    1 |  1 | expr-op-0x0F
+    1 |  1 | expr-op-0x30
+    1 |  1 | expr-bit-and
+    1 |  1 | expr-call-in-expr-recv-load-then-plumbing-0x3A
+    1 |  1 | expr-intrinsic-memcpy
+    1 |  1 | expr-load-type-8882
+    1 |  1 | expr-brtrue
+    1 |  1 | expr-cmp-ge
+    1 |  1 | expr-cmp-ne
+    1 |  1 | call-arg-lit-permuted:mid
+    1 |  1 | assign-rhs-call-0x26
+total blocked functions: 50
