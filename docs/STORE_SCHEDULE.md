@@ -195,6 +195,34 @@ no fifth. A caller that cannot show the allocation is clean must refuse.
 > What remains open is the store **order** when *every* store of the run is
 > produced, a regime this grid never contained — **board #544**.
 
+> ### ✔ SOLVED 2026-08-05 by lane `w-order2` — see `docs/ORDER.md`
+>
+> **#544 is closed and rule 1 is a special case of its answer.** Rank the
+> producers by *(use count descending, first-use ascending)*, let
+> `u = min(2, #unproduced)`, and a store whose producer has rank `j` may not
+> occupy store position `< u + j`. **Rule 1 is `j = 0` with `u = 2`**, and
+> `w-alloc`'s hoist is `j = 0` with `u < 2`. `479/479` on the grid above,
+> `248/248` fit and **`561/561` on a preregistered holdout**, `822/822` on the
+> store order alone. Rule 1's *"if every remaining store is blocked, source
+> order wins"* fallback is **deleted**, not carried: with `u < 2` the floors
+> drop with it and nothing is ever fully blocked.
+>
+> **Correction 3 (rule 2's scope, board #542) is now APPLIED** to
+> `schedule.rs` — the interleaving stops when the unproduced stores run out,
+> so `{a=1;b=2;c=3;}` is `P P P S S S` and `{a=1;b=2;c=3;d=f;}` is
+> `P S P P S S S`. Five measured cells are in the tests. Nothing else consumes
+> `schedule()`, so the change is test-visible only.
+>
+> **Correction 2 (the pool) is NOT applied.** It is an `alloc.rs` fact and no
+> cell of `w-order2`'s grid measures the pool — its signature is capped at
+> three formals precisely so that it cannot. It stays boards **#541**/**#543**.
+>
+> **§5's `mr r31,r3` fact is upgraded from n = 1 to a discriminated one.**
+> `xboxheap` emits its producers in **first-consumption** order; **eight**
+> single-symbol cells of the same statement shape emit them in **rank** order.
+> The axis is the two base symbols, and `order.rs` refuses a multi-symbol run
+> rather than guess. Board **#564**.
+
 ---
 
 ## 5. `mr r31,r3` — one fact, n = 1, recorded as a hypothesis
