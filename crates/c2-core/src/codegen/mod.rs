@@ -33,6 +33,7 @@ pub mod encode;
 pub mod frame;
 pub mod labels;
 pub mod leaf;
+pub mod order;
 pub mod schedule;
 pub mod select;
 pub mod straightline;

@@ -18,7 +18,21 @@
 //!    order wins.
 //! 2. **Producer placement.** The producers, in source order, are inserted
 //!    immediately *before* the stores at store positions 0, 1, 2, … — one
-//!    producer per store slot, from the top of the block.
+//!    producer per store slot, from the top of the block. **Scope condition**
+//!    (board #542, measured by `w-alloc`, shipped by `w-order2`): that holds
+//!    only while there are unproduced stores to slot against. With
+//!    `u = min(2, #unproduced)` head slots, producers fill those one apiece
+//!    and every *remaining* producer is emitted **contiguously** immediately
+//!    before store slot `u` — `{a=1;b=2;c=3;}` is `P P P S S S`.
+//!
+//! ## Superseded, in part
+//!
+//! Rule 1 is the special case of [`order`](super::order)'s single floor, and
+//! rule 1's silence about what fills the head when *every* store is produced
+//! is what [`order`](super::order) fills in. This module is kept because it
+//! carries the **may-alias** axis, which `order` refuses rather than models:
+//! `xboxheap.cpp` stores through two symbols and emits its producers in a
+//! different order from a single-symbol run of the same shape.
 //!
 //! ## What this is NOT
 //!
@@ -103,11 +117,28 @@ pub fn schedule(stmts: &[Stmt]) -> Vec<Slot> {
         order.push(left.remove(pick.unwrap_or(0)));
     }
 
-    // Rule 2.
+    // Rule 2, with `w-alloc`'s scope condition (board #542, now closed by
+    // `w-order2`). "One producer per store slot" holds only while there are
+    // UNPRODUCED stores to slot against: rule 1 keeps store positions 0 and 1
+    // free of produced stores, so there are `u = min(2, #unproduced)` such
+    // slots. Producers fill those one apiece and every REMAINING producer is
+    // emitted contiguously immediately before store slot `u`.
+    //
+    // Measured through the `/FAsc` seam at the workload's flags:
+    //   `{a=1;b=2;c=3;}`     is  P P P S S S    — not P S P S P S
+    //   `{a=1;b=2;c=3;d=f;}` is  P S P P S S S
+    // `w-sched`'s grid always had at least three formals and at most three
+    // producers, so it never ran out of slots and never saw the difference.
+    let u = stmts
+        .iter()
+        .filter(|s| s.producer.is_none())
+        .count()
+        .min(BLOCKED_STORE_POSITIONS);
     let mut out = Vec::with_capacity(stmts.len() + producers.len());
     let mut next = 0usize;
     for (store_pos, &k) in order.iter().enumerate() {
-        if next < producers.len() && store_pos == next {
+        while next < producers.len() && (store_pos == next || (store_pos == u && next >= u))
+        {
             out.push(Slot::Producer(producers[next]));
             next += 1;
         }
@@ -205,6 +236,23 @@ mod tests {
         check("00", "P0 S0 S1");
         check("000", "P0 S0 S1 S2");
         check("0", "P0 S0");
+    }
+
+    /// Rule 2's **scope condition** — board #542, measured by `w-alloc` and
+    /// shipped here. "One producer per store slot" runs out of slots when the
+    /// unproduced stores do, and every remaining producer is then emitted
+    /// contiguously. Read off real `c2.dll` through the `/FAsc` seam at the
+    /// workload's flags; the grid rows are named.
+    #[test]
+    fn rule_2_runs_out_of_slots_and_the_rest_go_contiguous() {
+        check("01", "P0 P1 S0 S1"); // w-order2 t1_01
+        check("012", "P0 P1 P2 S0 S1 S2"); // t2_012 — NOT P S P S P S
+        check("0120", "P0 P1 P2 S0 S1 S2 S3"); // t2_0120
+        // one unproduced store: exactly ONE producer is interleaved, and the
+        // other two come out together.
+        check("012.", "P0 S3 P1 P2 S0 S1 S2"); // t9_012_tail1
+        // two unproduced stores: the head is full, nothing is left over.
+        check("012..", "P0 S3 P1 S4 P2 S0 S1 S2"); // t9_012_tail2
     }
 
     /// The may-alias axis, isolated. `w-pair`'s H4/H5 died on E1/F1/F2 and
