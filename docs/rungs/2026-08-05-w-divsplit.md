@@ -297,8 +297,8 @@ So the enumeration, each item with the count that forces it:
    which is one of #780's own named conditions (*"that block is not a loop
    body"*), so this population is precisely where the rule stops being free.
 
-**Six consecutive frontier enumerations have come back dearer on contact and
-this is the seventh.** The honest one-line statement of the rung is *"a loop
+**Every frontier enumeration before this one came back dearer on contact,
+and this one does too.** The honest one-line statement of the rung is *"a loop
 lowering with a constant-divisor magic multiply inside it, over bodies three
 quarters of which make a call"* — not *"teach the parser `05`"*.
 
