@@ -657,3 +657,83 @@ pub(super) fn print_factorization(report: &GapReport) {
         println!("\x20   gap-metric {k} {v}");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tu(keys: &[(&str, usize)]) -> TuResult {
+        let mut r = TuResult {
+            src: "t.cpp".into(),
+            class: TuClass::CodegenGap,
+            reason: String::new(),
+            detail: String::new(),
+            ex_len: 0,
+            fn_names: 0,
+            replay_ok: None,
+            fn_total: 0,
+            fn_in_class: 0,
+            fn_blockers: Default::default(),
+            fn_frames: Default::default(),
+            fn_cflow: Default::default(),
+            fn_eh: Default::default(),
+            fn_dispatch: Default::default(),
+            fn_complete: Default::default(),
+            fn_prod: Default::default(),
+            fn_gate_refusals: Default::default(),
+            bind_checks: Default::default(),
+            emit: Default::default(),
+            emit_blockers: Default::default(),
+            emit_witness: Vec::new(),
+        };
+        for (k, v) in keys {
+            r.emit.insert((*k).into(), *v);
+        }
+        r
+    }
+
+    /// **The three states, and that they are three** (board **#742**).
+    ///
+    /// The whole point of the column is the difference between *"this obj has no
+    /// `$M`"* and *"we could not read this obj"*. Collapsing them would report an
+    /// undecodable obj as label-free, which is the flattering direction and the
+    /// one `docs/STATUS.md` trap 5 records twelve times.
+    #[test]
+    fn the_label_channel_distinguishes_label_free_from_unreadable_from_not_evaluated() {
+        assert_eq!(
+            label_channel(&tu(&[("emit-label-readable", 1)])),
+            "label-free",
+            "read, and it holds no labels"
+        );
+        assert_eq!(
+            label_channel(&tu(&[("emit-label-readable", 1), ("emit-label-syms", 3)])),
+            "labels 3"
+        );
+        assert_eq!(
+            label_channel(&tu(&[("emit-label-unreadable", 1)])),
+            "label ??",
+            "an obj that did not decode is NOT label-free"
+        );
+        assert_eq!(
+            label_channel(&tu(&[])),
+            "label n/e",
+            "no key at all means the obj was never read — a third answer, not a pass"
+        );
+    }
+
+    /// An `emit-label-syms` of 0 recorded *beside* the readable flag is
+    /// `label-free`, and an unreadable obj that somehow also carried a count is
+    /// still `label ??`. The unreadable arm is checked FIRST for that reason and
+    /// the ordering is pinned here rather than left to the reader.
+    #[test]
+    fn unreadable_wins_over_any_count_that_was_also_recorded() {
+        assert_eq!(
+            label_channel(&tu(&[
+                ("emit-label-unreadable", 1),
+                ("emit-label-readable", 1),
+                ("emit-label-syms", 3),
+            ])),
+            "label ??"
+        );
+    }
+}
