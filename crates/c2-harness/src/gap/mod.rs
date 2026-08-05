@@ -48,6 +48,7 @@ mod splitter_predicate_guard;
 mod tests;
 
 pub use classify::dtor_callee_class;
+pub use factors::CfgReach;
 pub use scan::gap_scan;
 pub use witness::{witness_buckets, WitnessBucket, WitnessRow};
 

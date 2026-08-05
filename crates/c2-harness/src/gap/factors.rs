@@ -4,7 +4,73 @@
 //! machine-readable `GAP-METRICS` block. Split out of `gap.rs` unchanged; see
 //! [`super`] for the module docs.
 
+use std::collections::BTreeSet;
+
 use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNIZERS};
+
+/// **The control-flow shapes `c2_core::codegen::Selected` can encode**, and
+/// there are exactly two (lane `w-tu4`, board **#720**).
+///
+/// `Selected` has seven variants — `Plain`, `Tail`, `Float`, `Framed`, `Seq`,
+/// `CondPair` — and between them they cover **straight-line** bodies and **one
+/// two-arm conditional**. No variant encodes a backward branch, so no loop of
+/// any kind has a representation, and none encodes a multi-way conditional.
+///
+/// This list is the screen's single assumption and it is the thing to re-check
+/// when a variant is added: it is a **hand-maintained mirror of a `c2-core`
+/// enum**, and nothing in the type system ties the two together. It is
+/// deliberately spelled with the census's own `cflow-…` keys rather than the
+/// variant names, because the census is what the screen actually reads.
+///
+/// The `+expr-modeled` spellings are the same two classes with the statement
+/// layer fully decoded — the census emits both forms and they are the same CFG.
+const PORT_CFG_CLASSES: &[&str] = &[
+    "cflow-straight",
+    "cflow-straight+expr-modeled",
+    "cflow-if-1",
+    "cflow-if-1+expr-modeled",
+];
+
+/// One frontier TU's answer to *"can the port's emitter express this TU's
+/// blocked functions at all?"* — see [`GapReport::frontier_cfg_reachability`].
+///
+/// Deliberately **not** a `bool`: the third state is the one that matters. A TU
+/// whose census bailed before assigning a CFG class is neither reachable nor
+/// blocked-by-a-named-class, and collapsing it into `false` would hide that the
+/// screen does not actually know, while collapsing it into `true` would be
+/// absence read as success.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CfgReach {
+    /// Every blocked function's CFG class is in [`PORT_CFG_CLASSES`].
+    Reachable,
+    /// At least one blocked function needs a CFG class the port has no
+    /// `Selected` variant for. Carries the class names, sorted.
+    NeedsClass(BTreeSet<String>),
+    /// `n` blocked functions have no CFG class at all in `fn_cflow` — the census
+    /// bailed first. **Not reachable**, and not a named blocker either.
+    Unclassified(usize),
+}
+
+impl CfgReach {
+    /// `true` only for [`CfgReach::Reachable`]. The one reading acted on.
+    pub fn is_reachable(&self) -> bool {
+        matches!(self, CfgReach::Reachable)
+    }
+
+    /// A one-line rendering for the scan block.
+    pub fn label(&self) -> String {
+        match self {
+            CfgReach::Reachable => "REACHABLE — every blocked fn is a port CFG class".into(),
+            CfgReach::NeedsClass(v) => format!(
+                "needs a CFG class the port lacks: {}",
+                v.iter().cloned().collect::<Vec<_>>().join(", ")
+            ),
+            CfgReach::Unclassified(n) => {
+                format!("{n} blocked fn with NO CFG class (census bailed first)")
+            }
+        }
+    }
+}
 
 impl GapReport {
     /// **The five Phase 7 factors for one TU** (`docs/ROADMAP.md` §10.19 and
@@ -437,6 +503,115 @@ impl GapReport {
             key(&y.1).cmp(&key(&x.1)).then_with(|| x.0.src.cmp(&y.0.src))
         });
         rows
+    }
+
+    /// **THE CFG-REACHABILITY SCREEN** (lane `w-tu4`, board **#720**) — the
+    /// question every previous frontier ranking was structurally unable to ask:
+    /// *is this TU buildable at all, or does it need a control-flow class the
+    /// port does not have?*
+    ///
+    /// # Why the byte-fraction ranker cannot ask it
+    ///
+    /// #269 counted independent refusals, #465 counted already-emitted
+    /// *functions*, #500 counted already-emitted **bytes**. All three are
+    /// *quantities of progress* over the emitted population, and all three are
+    /// computed from `codegen::select_function`, which answers per function and
+    /// returns a `Selected` or a refusal. **None of them can distinguish "this
+    /// function is refused because one expression token is unmodelled" from
+    /// "this function is refused because it is a LOOP, and no variant of
+    /// `Selected` encodes a backward branch".** The first is a rung; the second
+    /// is a new CFG class, and the difference is not a quantity.
+    ///
+    /// # What it is
+    ///
+    /// It reads [`TuResult::fn_cflow`], takes the CFG class of every **blocked**
+    /// function, and asks whether all of them are in [`PORT_CFG_CLASSES`]. A TU
+    /// with even one blocked `cflow-loop`, `cflow-if-n` or `cflow-if-2` function
+    /// cannot convert however small its remaining byte count, because the
+    /// emitter has nowhere to put the body.
+    ///
+    /// # It is an INSTRUMENT and never a gate
+    ///
+    /// Pure over `results`, reads no obj, licenses no emit, appears in no
+    /// accept/refuse path, moves no numerator. It does not rank — it
+    /// **partitions** — and a negative verdict is a statement about the *port*,
+    /// not about the TU.
+    ///
+    /// # The unclassified case is a `false`, never a `true`
+    ///
+    /// A body the census bailed on before assigning a CFG class (`cf-expr-…`)
+    /// contributes to `fn_blockers` but to no `class|key` row in `fn_cflow`.
+    /// Counting only the classified rows would let such a TU read "reachable" on
+    /// the strength of the functions it *could* classify — absence read as
+    /// success, this project's most-repeated defect. So the classified count is
+    /// compared against `fn_blockers`' total and any shortfall is
+    /// [`CfgReach::Unclassified`], which is **not** reachable.
+    /// `src/system/utl/Pool.cpp` is the live instance: two `cflow-if-1`
+    /// functions, and a constructor the census tags `cf-expr-0x05` whose obj is
+    /// an `mtctr`/`bdnz` CTR loop.
+    ///
+    /// Returns one row per frontier TU, sorted by source path.
+    pub fn frontier_cfg_reachability(&self) -> Vec<(&TuResult, CfgReach)> {
+        let mut v: Vec<(&TuResult, CfgReach)> = self
+            .factor_frontier()
+            .into_iter()
+            .map(|(r, _)| (r, Self::cfg_reach(r)))
+            .collect();
+        v.sort_by(|a, b| a.0.src.cmp(&b.0.src));
+        v
+    }
+
+    /// [`Self::frontier_cfg_reachability`]'s verdict for one TU. Public and
+    /// separate so the tests can call it on a TU that is not on the frontier.
+    pub fn cfg_reach(r: &TuResult) -> CfgReach {
+        let blocked_total: usize = r.fn_blockers.values().sum();
+        let mut classified = 0usize;
+        let mut outside: BTreeSet<String> = BTreeSet::new();
+        for (k, n) in &r.fn_cflow {
+            // Only the CROSSED rows (`<cflow class>|<census key>`) name a
+            // blocked function; a bare class row counts every function in the
+            // TU, in-class ones included, and summing those would over-count.
+            let Some((class, _)) = k.split_once('|') else {
+                continue;
+            };
+            classified += n;
+            if !PORT_CFG_CLASSES.contains(&class) {
+                outside.insert(class.to_string());
+            }
+        }
+        if !outside.is_empty() {
+            return CfgReach::NeedsClass(outside);
+        }
+        if classified < blocked_total {
+            return CfgReach::Unclassified(blocked_total - classified);
+        }
+        if blocked_total == 0 {
+            // Nothing blocked: there is no reachability question to answer, and
+            // answering `Reachable` would credit a TU the screen never tested.
+            return CfgReach::Unclassified(0);
+        }
+        CfgReach::Reachable
+    }
+
+    /// **The known-answer control on the CFG screen** (board **#721**).
+    ///
+    /// `xboxmem.cpp` is the one TU this project ever converted from per-function
+    /// codegen breadth. On a tree where it matches, `fn_blockers` is empty and
+    /// the screen has nothing to answer — so what the control asserts is the
+    /// standing fact the screen is built on: **every CFG class appearing in that
+    /// TU at all is one of the port's two** (`cflow-if-1` × 3 +
+    /// `cflow-straight` × 1, measured). If a future tree shows a matching TU
+    /// carrying a class outside [`PORT_CFG_CLASSES`], the list is wrong and this
+    /// returns `false`.
+    ///
+    /// Returns `None` when the TU is not in `results` — an absent control is
+    /// never reported as a passing one.
+    pub fn cfg_reach_control(&self, src: &str) -> Option<bool> {
+        let r = self.results.iter().find(|r| r.src == src)?;
+        Some(r.fn_cflow.keys().all(|k| {
+            let class = k.split('|').next().unwrap_or(k.as_str());
+            PORT_CFG_CLASSES.contains(&class)
+        }))
     }
 
     /// **The known-answer control on the ranker** (board **#501**): a `match` TU

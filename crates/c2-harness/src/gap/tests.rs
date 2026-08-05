@@ -1562,3 +1562,159 @@ fn the_control_separates_the_legitimate_shortfall_from_a_broken_numerator() {
          count rather than leaving the ranking to print plausible percentages"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Board #720/#721 — the CFG-reachability screen (lane w-tu4).
+// ---------------------------------------------------------------------------
+
+/// Give a TU a CFG profile: `(class, blocker key, count)` rows, which is exactly
+/// the `"<cflow class>|<census key>"` cross the census writes for BLOCKED bodies.
+fn with_cflow(mut r: TuResult, rows: &[(&str, &str, usize)]) -> TuResult {
+    for (class, key, n) in rows {
+        r.fn_cflow
+            .insert(format!("{class}|{key}"), *n);
+        *r.fn_cflow.entry((*class).into()).or_insert(0) += *n;
+        *r.fn_blockers.entry((*key).into()).or_insert(0) += *n;
+    }
+    r
+}
+
+/// **The screen answers a question no byte/function/refusal count can express.**
+///
+/// The two TUs here have the SAME blocked-function count and the loop TU has a
+/// strictly SMALLER remaining byte count — so #269, #465 and #500 all rank it
+/// first or tie it — and it is the one that cannot be built, because `Selected`
+/// has no variant with a backward branch. This is the live frontier's
+/// `Sort.cpp` (64 B remaining after `Primes`, one blocked `cflow-loop`) against
+/// a straight-line TU.
+#[test]
+fn the_cfg_screen_separates_a_loop_from_a_straight_line_body_at_equal_cost() {
+    let loopy = with_cflow(
+        with_bytes(
+            mk_factors(TuClass::VocabGap, "Sort.cpp", true, true, true, false, false),
+            0,
+            80,
+            0,
+        ),
+        &[("cflow-loop", "assign-store-type-8643", 1)],
+    );
+    let straight = with_cflow(
+        with_bytes(
+            mk_factors(TuClass::VocabGap, "flat.cpp", true, true, true, false, false),
+            0,
+            800,
+            0,
+        ),
+        &[("cflow-straight", "expr-op-0x27", 1)],
+    );
+    let rep = mk_report(vec![loopy, straight]);
+    let rows = rep.frontier_cfg_reachability();
+    let get = |s: &str| {
+        rows.iter()
+            .find(|(r, _)| r.src == s)
+            .map(|(_, v)| v.clone())
+            .unwrap()
+    };
+    assert!(
+        !get("Sort.cpp").is_reachable(),
+        "one blocked cflow-loop function makes a TU unreachable however few \
+         bytes remain — no Selected variant encodes a backward branch"
+    );
+    assert!(
+        get("flat.cpp").is_reachable(),
+        "a straight-line blocked body is a RUNG (one unmodelled token), which is \
+         a different kind of thing from a missing CFG class"
+    );
+    assert_eq!(
+        get("Sort.cpp"),
+        CfgReach::NeedsClass(["cflow-loop".to_string()].into_iter().collect()),
+        "the verdict NAMES the missing class, so the next lane reads the \
+         mechanism off the screen instead of re-deriving it"
+    );
+    // And the point: the byte ranking puts the UNREACHABLE TU ahead, because
+    // both units are quantities of progress and neither can see the CFG class.
+    let by_byte: Vec<&str> = rep
+        .frontier_byte_ranking()
+        .iter()
+        .map(|(r, _)| r.src.as_str())
+        .collect();
+    assert_eq!(
+        by_byte[0], "Sort.cpp",
+        "both are at 0% accepted, so #500 breaks the tie by source path and \
+         lands on the TU that CANNOT BE BUILT — the screen is orthogonal to the \
+         ranking, not a refinement of it"
+    );
+}
+
+/// **A blocked function the census could not classify is NOT reachable.**
+///
+/// The live instance is `src/system/utl/Pool.cpp`: two `cflow-if-1` functions —
+/// both inside the port's classes — and a constructor tagged `cf-expr-0x05`,
+/// which contributes to `fn_blockers` but to no `class|key` row. Its obj is an
+/// `mtctr`/`bdnz` CTR loop, so reading the TU as reachable off the two functions
+/// the census *could* classify would be exactly wrong.
+#[test]
+fn an_unclassified_blocked_body_is_not_credited_as_reachable() {
+    let mut pool = with_cflow(
+        mk_factors(TuClass::VocabGap, "Pool.cpp", true, true, true, false, false),
+        &[
+            ("cflow-if-1", "expr-brtrue", 1),
+            ("cflow-if-1", "expr-op-0x27", 1),
+        ],
+    );
+    // The constructor: a blocker with no CFG class at all, as the census writes
+    // it when it bails before the control-flow step.
+    *pool.fn_blockers.entry("expr-op-0x27".into()).or_insert(0) += 1;
+    pool.fn_cflow.insert("cf-expr-0x05".into(), 1);
+    let rep = mk_report(vec![pool]);
+    let v = rep.frontier_cfg_reachability()[0].1.clone();
+    assert_eq!(
+        v,
+        CfgReach::Unclassified(1),
+        "3 blocked functions, 2 classified: the shortfall is reported as its own \
+         verdict. Folding it into `Reachable` is absence read as success, and \
+         folding it into NeedsClass would invent a class nobody measured"
+    );
+    assert!(!v.is_reachable(), "Unclassified is never reachable");
+}
+
+/// **The known-answer control (#721): the one TU ever converted carries only
+/// port CFG classes** — and an ABSENT control is not a passing one.
+#[test]
+fn the_cfg_control_passes_on_xboxmem_and_is_absent_rather_than_true_when_missing() {
+    // Measured on the real tree: cflow-if-1 x3 (+ its cond-tail-pair cross) and
+    // cflow-straight x1 (+ its cmp-shift-or cross), fn_blockers EMPTY.
+    let mut xm = mk_factors(TuClass::Match, "xboxmem.cpp", true, true, true, true, false);
+    for (k, n) in [
+        ("cflow-if-1", 3),
+        ("cflow-if-1|cond-tail-pair", 3),
+        ("cflow-straight", 1),
+        ("cflow-straight|cmp-shift-or", 1),
+    ] {
+        xm.fn_cflow.insert(k.into(), n);
+    }
+    let rep = mk_report(vec![xm]);
+    assert_eq!(
+        rep.cfg_reach_control("xboxmem.cpp"),
+        Some(true),
+        "the screen's class list must admit the one TU that actually converted; \
+         if it does not, the list is wrong and every frontier row is suspect"
+    );
+    assert_eq!(
+        rep.cfg_reach_control("not/in/this/scan.cpp"),
+        None,
+        "a control the scan never evaluated must read ABSENT, never PASS — a \
+         scan over a short list would otherwise print a green control it did \
+         not take"
+    );
+    // A matching TU carrying a loop would mean PORT_CFG_CLASSES is wrong.
+    let mut bad = mk_factors(TuClass::Match, "future.cpp", true, true, true, true, false);
+    bad.fn_cflow.insert("cflow-loop".into(), 1);
+    assert_eq!(
+        mk_report(vec![bad]).cfg_reach_control("future.cpp"),
+        Some(false),
+        "the control is the thing that catches PORT_CFG_CLASSES going stale when \
+         a Selected variant is added — it is a hand-maintained mirror of a \
+         c2-core enum and nothing in the type system ties them together"
+    );
+}
