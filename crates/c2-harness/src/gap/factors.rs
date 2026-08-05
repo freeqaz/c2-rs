@@ -401,6 +401,75 @@ impl GapReport {
             .collect()
     }
 
+    /// **The FRONTIER ranked by `.text` byte fraction** (lane `w-tu3`, board
+    /// **#500**) — the third unit this project has tried for "which frontier TU
+    /// is nearest", and the first with a conversion outcome behind it.
+    ///
+    /// * **#269** counted independent *refusals* and could not see what was
+    ///   already emitted.
+    /// * **#465** counted already-emitted *functions* and could not see how much
+    ///   of the TU they were. It was **refuted by the very TU pre-registered to
+    ///   confirm it** — `mmio` scores 72.7 % by function and 16.8 % by byte.
+    /// * **This** counts `.text` **bytes** the port already produces a body for.
+    ///   `xboxmem`, the one TU ever converted by codegen breadth, scored 50 % by
+    ///   function and **54.5 %** by byte.
+    ///
+    /// `None` in the second slot means **no denominator** — a TU with no `.text`
+    /// COMDAT bytes. It is ranked last and printed, never scored 100 %; see
+    /// [`super::fnbytes::byte_fraction`] for why that specific zero matters.
+    ///
+    /// Descending by fraction, ties broken by source path so the order is
+    /// stable across runs. Pure over `results`.
+    pub fn frontier_byte_ranking(&self) -> Vec<(&TuResult, Option<(usize, usize)>)> {
+        let mut rows: Vec<(&TuResult, Option<(usize, usize)>)> = self
+            .factor_frontier()
+            .into_iter()
+            .map(|(r, _)| (r, super::fnbytes::byte_fraction(r)))
+            .collect();
+        rows.sort_by(|x, y| {
+            // Integer key: no float comparator in a sort that must be stable
+            // across machines. `1_000_000` is six significant figures, which is
+            // four more than anything printed.
+            let key = |v: &Option<(usize, usize)>| {
+                v.map(|(n, d)| (1u8, (n as u128) * 1_000_000 / d as u128))
+                    .unwrap_or((0, 0))
+            };
+            key(&y.1).cmp(&key(&x.1)).then_with(|| x.0.src.cmp(&y.0.src))
+        });
+        rows
+    }
+
+    /// **The known-answer control on the ranker** (board **#501**): a `match` TU
+    /// is byte-identical to `c2`'s obj, so the port produced a body for every
+    /// `.text` byte in it and its fraction **must** read 100 %.
+    ///
+    /// Returns `(at_100, no_denominator, shortfall)`, where each shortfall entry
+    /// is `(explained_by_factor_e, tu, accepted, denominator)`.
+    ///
+    /// **Factor E is the one legitimate shortfall.** E is a *whole-TU*
+    /// recognizer and the ranker's numerator is the *per-function* path
+    /// (`codegen::select_function`), which structurally cannot answer for one —
+    /// the identical shape as the factorization's own factor-D control, which
+    /// `docs/STATUS.md` leaves red on purpose. Anything **not** explained by E is
+    /// a defect in the numerator, and that count is the one that must be 0.
+    ///
+    /// **The FRONTIER is unaffected in either case**: it is defined as
+    /// `A∧B∧C ∧ ¬(D∨E)`, so no factor-E TU can reach the ranking.
+    #[allow(clippy::type_complexity)]
+    pub fn byte_fraction_control(&self) -> (usize, usize, Vec<(bool, &TuResult, usize, usize)>) {
+        let mut full = 0;
+        let mut nodenom = 0;
+        let mut short = Vec::new();
+        for r in self.results.iter().filter(|r| r.class == TuClass::Match) {
+            match super::fnbytes::byte_fraction(r) {
+                None => nodenom += 1,
+                Some((n, d)) if n == d => full += 1,
+                Some((n, d)) => short.push((Self::factors(r)[4], r, n, d)),
+            }
+        }
+        (full, nodenom, short)
+    }
+
     /// **The stable machine-readable metric block**, one `key value` pair per
     /// entry, for `scripts/status.sh` and any other collector.
     ///
@@ -512,6 +581,59 @@ impl GapReport {
             ));
             m.push(("fnbyte-tus", self.fn_byte_by_tu().len().to_string()));
         }
+        // **THE BYTE-FRACTION RANKER** (board #500) and its control (#501).
+        //
+        // The head is emitted as three keys — name, numerator, denominator —
+        // and NOT as a percentage, for the reason `byte_fraction` gives: a
+        // ratio whose denominator is not beside it is the shape of objdiff's
+        // `calc_fuzzy_match_percent` bug, and a collector that saw only
+        // `frontier-bytefrac-top 0` could not tell "the top TU is 0 % emitted"
+        // from "there is no top TU". The whole block is omitted when the
+        // frontier is empty, so absence is absence.
+        let ranking = self.frontier_byte_ranking();
+        if let Some((top, frac)) = ranking.first() {
+            m.push(("frontier-bytefrac-top-tu", top.src.clone()));
+            match frac {
+                Some((n, d)) => {
+                    m.push(("frontier-bytefrac-top-accepted", n.to_string()));
+                    m.push(("frontier-bytefrac-top-denominator", d.to_string()));
+                }
+                // A frontier whose BEST member has no `.text` at all. Emitted as
+                // a token, never as a 0 that would read like a measured zero.
+                None => {
+                    m.push(("frontier-bytefrac-top-accepted", "NO-DENOMINATOR".into()));
+                    m.push(("frontier-bytefrac-top-denominator", "0".into()));
+                }
+            }
+            // How much of the frontier the port has NOTHING for. The headline of
+            // the ranking on this corpus, and the number a future lane should
+            // watch: it is the count of TUs where codegen breadth has not begun.
+            m.push((
+                "frontier-bytefrac-zero",
+                ranking
+                    .iter()
+                    .filter(|(_, f)| matches!(f, Some((0, _))))
+                    .count()
+                    .to_string(),
+            ));
+            m.push((
+                "frontier-bytefrac-no-denominator",
+                ranking.iter().filter(|(_, f)| f.is_none()).count().to_string(),
+            ));
+        }
+        let (ctl_full, ctl_nodenom, ctl_short) = self.byte_fraction_control();
+        m.push(("bytefrac-control-full", ctl_full.to_string()));
+        m.push(("bytefrac-control-no-denominator", ctl_nodenom.to_string()));
+        m.push((
+            "bytefrac-control-shortfall-explained",
+            ctl_short.iter().filter(|(e, ..)| *e).count().to_string(),
+        ));
+        // **The one that must be 0.** A matched TU below 100 % that factor E does
+        // not explain means the ranker's numerator stopped crediting something.
+        m.push((
+            "bytefrac-control-unexplained",
+            ctl_short.iter().filter(|(e, ..)| !*e).count().to_string(),
+        ));
         m
     }
 

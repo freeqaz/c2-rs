@@ -269,6 +269,16 @@ pub(super) fn measure(
         }
     };
     let mut accounted = 0usize;
+    // **The byte-fraction ranker's accumulators** (lane w-tu3, board #500). Same
+    // walk, same denominator source, one extra unit: `.text` COMDAT *bytes*
+    // rather than COMDAT *count*. See `byte_fraction` below for what the ratio
+    // is and what it may not be used for.
+    let mut byte_den = 0usize;
+    let mut byte_accepted = 0usize;
+    let mut byte_exact = 0usize;
+    let mut byte_differs = 0usize;
+    let mut byte_refused = 0usize;
+    let mut byte_unaccounted = 0usize;
     for (name, bytes) in &entries {
         let row = match claim.get(name.as_str()).map(Vec::as_slice) {
             Some([i]) => Some(&census[*i]),
@@ -280,6 +290,17 @@ pub(super) fn measure(
             *res.emit.entry(v.bare().into()).or_insert(0) += 1;
         }
         accounted += 1;
+        byte_den += bytes.len();
+        match v {
+            FnByte::Exact => {
+                byte_exact += bytes.len();
+                byte_accepted += bytes.len();
+            }
+            FnByte::Partial(_) => byte_accepted += bytes.len(),
+            FnByte::Differs { .. } => byte_differs += bytes.len(),
+            FnByte::Refused => byte_refused += bytes.len(),
+            FnByte::Unbound | FnByte::NoBytes => byte_unaccounted += bytes.len(),
+        }
         if v == FnByte::Exact && relocs.get(name.as_str()).copied().unwrap_or(0) > 0 {
             *res.emit.entry("fnbyte-exact-relocated".into()).or_insert(0) += 1;
         }
@@ -325,4 +346,102 @@ pub(super) fn measure(
     if accounted != entries.len() {
         *res.emit.entry("fnbyte-partition-broken".into()).or_insert(0) += 1;
     }
+    // **The byte-fraction ranker's per-TU record** (board #500).
+    //
+    // Written unconditionally, including the zeros: a TU whose every emitted
+    // function the port refuses records `bytefrac-accepted 0` beside a positive
+    // `bytefrac-denominator`, and that is a 0 % score rather than an absent one.
+    // A TU with **no** `.text` bytes at all records neither, and is counted under
+    // `bytefrac-no-denominator` — see `byte_fraction`, which returns `None` for
+    // it rather than a ratio.
+    if byte_den == 0 {
+        *res.emit
+            .entry("bytefrac-no-denominator".into())
+            .or_insert(0) += 1;
+    } else {
+        *res.emit.entry("bytefrac-denominator".into()).or_insert(0) += byte_den;
+        *res.emit.entry("bytefrac-accepted".into()).or_insert(0) += byte_accepted;
+        *res.emit.entry("bytefrac-exact".into()).or_insert(0) += byte_exact;
+        *res.emit.entry("bytefrac-differs".into()).or_insert(0) += byte_differs;
+        *res.emit.entry("bytefrac-refused".into()).or_insert(0) += byte_refused;
+        *res.emit
+            .entry("bytefrac-unaccounted".into())
+            .or_insert(0) += byte_unaccounted;
+    }
+    // The byte partition identity, as a POSITIVE check with a printed count —
+    // the same discipline `fnbyte-partition-broken` applies to the COMDAT count.
+    // `accepted` here includes `exact`, so `exact` is deliberately NOT a summand.
+    if byte_accepted + byte_differs + byte_refused + byte_unaccounted != byte_den {
+        *res.emit
+            .entry("bytefrac-partition-broken".into())
+            .or_insert(0) += 1;
+    }
+    if byte_exact > byte_accepted {
+        *res.emit
+            .entry("bytefrac-exact-exceeds-accepted".into())
+            .or_insert(0) += 1;
+    }
+}
+
+/// **THE BYTE-FRACTION RANKER** (lane `w-tu3`, board **#500**) — how much of a
+/// TU's `.text`, *by byte*, the port already produces a body for.
+///
+/// # Why the unit is bytes and not functions
+///
+/// Board **#465** priced a frontier TU by how many of its emitted **functions**
+/// the port already covers, and it was **refuted by the TU pre-registered to
+/// confirm it** (`rungs/_2026-08-05-w-tu2.md` §3.1). `src/xdk/nuispeech/mmio.cpp`
+/// scores **8 of 11 = 72.7 %** by function — the best on the frontier — and
+/// **64 of 380 = 16.8 %** by byte, because those eight functions are 8-byte
+/// `li r3,0 ; blr` stubs. `src/xdk/nuispeech/xboxmem.cpp`, the one TU ever
+/// converted from per-function codegen breadth, scores **50 % by function** and
+/// **54.5 % by byte**. The function metric ranks `mmio` *above* `xboxmem`; the
+/// byte metric ranks `xboxmem` **3.2× above** `mmio`, **and the byte metric is
+/// the one that got the outcome right**. #465 was right in instinct and wrong in
+/// unit — the same defect as #269, which counted refusals and could not see what
+/// was already emitted, one level along.
+///
+/// **n = 2.** Two hand-counted cells and two outcomes. This function reproduces
+/// them from the objs rather than from prose, which is a different claim from
+/// validating them.
+///
+/// # Returns `None`, never 100 %, on an empty denominator
+///
+/// `objdiff`'s `calc_fuzzy_match_percent` returns `100.0` over zero code bytes
+/// (`objdiff-core/src/bindings/report.rs:249-250`) — absence read as success,
+/// this project's most-repeated defect, refused by construction in the module
+/// docs above and refused again here. A TU with no `.text` COMDAT bytes has no
+/// byte fraction; it is counted under `bytefrac-no-denominator` and this returns
+/// `None`. Every caller prints the denominator beside the ratio.
+///
+/// # It is an INSTRUMENT and never a gate
+///
+/// It licenses no emit, appears in no accept/refuse path, and its numerator is
+/// **not** raisable by emitting bytes `c2` would not have written: the
+/// denominator is a function of the *reference* obj alone, and a body the judge
+/// has already called wrong (`FnByte::Differs`) is credited **nowhere** — it
+/// lands in `bytefrac-differs`, which is an alarm, so a wrong emit *lowers* this
+/// score. The one remaining lever is `FnByte::Partial`, whose bodies the COFF
+/// emitter finishes and which the harness deliberately does not reconstruct
+/// (module docs); `bytefrac-exact` is printed beside every ratio as the
+/// oracle-graded floor under it.
+///
+/// Returns `(accepted, denominator)` in bytes.
+pub fn byte_fraction(res: &TuResult) -> Option<(usize, usize)> {
+    let den = res.emit.get("bytefrac-denominator").copied().unwrap_or(0);
+    if den == 0 {
+        return None;
+    }
+    Some((
+        res.emit.get("bytefrac-accepted").copied().unwrap_or(0),
+        den,
+    ))
+}
+
+/// The oracle-graded floor under [`byte_fraction`]'s numerator: bytes the port
+/// reproduces **byte-identically**, as opposed to bytes it merely selects a
+/// shape for. Quoted with the ratio so the size of the ungraded part is never a
+/// rumour — the same role `fnbyte-partial` plays for FBM.
+pub fn byte_fraction_exact(res: &TuResult) -> usize {
+    res.emit.get("bytefrac-exact").copied().unwrap_or(0)
 }

@@ -1318,3 +1318,247 @@ fn per_tu_fnbyte_ranks_nearest_first_and_excludes_the_unmeasured() {
         "nearest first; no emitted functions and capture-fail are both excluded"
     );
 }
+
+// ---------------------------------------------------------------------------
+// THE BYTE-FRACTION RANKER (lane w-tu3, boards #500/#501)
+// ---------------------------------------------------------------------------
+
+/// Give a `TuResult` a byte-fraction record directly, bypassing the obj walk —
+/// the same trick `mk_factors` uses for the factor keys, and for the same
+/// reason: the ranking, its `None` case and its ordering are pure functions of
+/// these counters and must be gradeable with no toolchain.
+fn with_bytes(mut r: TuResult, accepted: usize, den: usize, exact: usize) -> TuResult {
+    if den == 0 {
+        r.emit.insert("bytefrac-no-denominator".into(), 1);
+    } else {
+        r.emit.insert("bytefrac-denominator".into(), den);
+        r.emit.insert("bytefrac-accepted".into(), accepted);
+        r.emit.insert("bytefrac-exact".into(), exact);
+    }
+    r
+}
+
+/// **A TU with zero emitted bytes must NOT score 100 %.**
+///
+/// This is objdiff's `calc_fuzzy_match_percent` bug by name
+/// (`objdiff-core/src/bindings/report.rs:249-250`: it returns `100.0` when the
+/// denominator is zero), and it is this project's most-repeated defect —
+/// absence read as success, recorded 16+ times — in its purest form. A ranker
+/// that scored an empty TU at 100 % would put it at the head of the frontier
+/// and send the next lane at a file with nothing in it.
+///
+/// **This test is the must-fail mutation**: make `byte_fraction` return
+/// `Some((0, 0))` or `Some((1, 1))` for the empty case and it fails here.
+#[test]
+fn a_tu_with_no_text_bytes_has_no_byte_fraction_and_is_never_100_percent() {
+    let empty = with_bytes(
+        mk_factors(TuClass::VocabGap, "empty.cpp", true, true, true, false, false),
+        0,
+        0,
+        0,
+    );
+    assert_eq!(
+        super::fnbytes::byte_fraction(&empty),
+        None,
+        "no `.text` bytes is NOT a perfect score; it is the absence of a score"
+    );
+    // …and the absence is COUNTED, not silent. A positive check with a printed
+    // count is this project's recorded fix for absence-as-success.
+    assert_eq!(
+        empty.emit.get("bytefrac-no-denominator").copied(),
+        Some(1),
+        "and the empty case is counted under its own key, so a frontier full \
+         of them is visible rather than invisible"
+    );
+    // The zero that IS a measurement: a positive denominator with nothing
+    // accepted. It must be distinguishable from the case above.
+    let nothing = with_bytes(
+        mk_factors(TuClass::VocabGap, "nothing.cpp", true, true, true, false, false),
+        0,
+        380,
+        0,
+    );
+    assert_eq!(
+        super::fnbytes::byte_fraction(&nothing),
+        Some((0, 380)),
+        "0 of 380 is a measured 0%, and reads differently from `n/a`"
+    );
+}
+
+/// **A wrong emit must LOWER the ranker, never raise it.**
+///
+/// The anti-gaming property, stated as a test rather than as a paragraph. The
+/// numerator credits `Exact` and `Partial` — bodies the judge has not called
+/// wrong — and credits `Differs` nowhere, so a port that emitted a wrong body
+/// for every function in a TU scores 0, exactly what refusing scores. There is
+/// no transformation of the port that raises this number without adding bytes
+/// real `c2` would have written.
+#[test]
+fn bytes_the_judge_called_wrong_are_credited_nowhere() {
+    let mut res = mk("wrong.cpp");
+    // One 100-byte function the port gets right, one 300-byte function it gets
+    // WRONG. Written through the same keys `fnbytes::measure` writes.
+    res.emit.insert("bytefrac-denominator".into(), 400);
+    res.emit.insert("bytefrac-accepted".into(), 100);
+    res.emit.insert("bytefrac-exact".into(), 100);
+    res.emit.insert("bytefrac-differs".into(), 300);
+    assert_eq!(
+        super::fnbytes::byte_fraction(&res),
+        Some((100, 400)),
+        "the 300 wrong bytes are in the DENOMINATOR and not in the numerator: \
+         emitting them scores exactly what refusing them scores, which is the \
+         same direction board #232's repair went (it REMOVED a wrong emit)"
+    );
+    assert_eq!(
+        super::fnbytes::byte_fraction_exact(&res),
+        100,
+        "and `exact` is the oracle-graded floor, quoted with the ratio so the \
+         ungraded part of the numerator is never a rumour"
+    );
+}
+
+/// **The ranking is by byte, and the byte order is not the function order.**
+///
+/// The fixture is board #465's own refutation, re-encoded: `mmio`'s eight
+/// already-emitted functions are 8-byte `li r3,0 ; blr` stubs, 64 of 380 bytes,
+/// so it ranks FIRST by function and low by byte; `xboxmem` is 72 of 132.
+/// Both figures are `rungs/_2026-08-05-w-tu2.md` §3.1's, and the whole point of
+/// this instrument is that the two orders disagree.
+#[test]
+fn the_byte_ranking_inverts_the_function_ranking_that_was_refuted() {
+    let f = |src: &str, emitted: usize, in_class: usize, acc: usize, den: usize| {
+        let mut r = mk_factors(TuClass::VocabGap, src, true, true, true, false, false);
+        r.emit.insert("emit-emitted".into(), emitted);
+        r.emit.insert("emit-in-class".into(), in_class);
+        with_bytes(r, acc, den, acc)
+    };
+    let rep = mk_report(vec![
+        // mmio: 8 of 11 functions already emitted (#465 ranks it FIRST), 64 of
+        // 380 bytes. DECLINED by w-tu2.
+        f("mmio.cpp", 11, 8, 64, 380),
+        // xboxmem-shaped: 2 of 4 functions, 72 of 132 bytes. CONVERTED by w-tu1.
+        f("xboxmem.cpp", 4, 2, 72, 132),
+        // A TU with no `.text` at all — must rank LAST and must be printed, not
+        // dropped. A TU missing from a ranking is a TU nobody will ever pick.
+        f("data_only.cpp", 1, 0, 0, 0),
+    ]);
+    let order: Vec<&str> = rep
+        .frontier_byte_ranking()
+        .iter()
+        .map(|(r, _)| r.src.as_str())
+        .collect();
+    assert_eq!(
+        order,
+        vec!["xboxmem.cpp", "mmio.cpp", "data_only.cpp"],
+        "by BYTE, xboxmem (54.5%) outranks mmio (16.8%) — and the outcome \
+         agrees. Board #465's function count ranks them the other way round"
+    );
+    // The function ranking, computed from the same fixture, disagrees. Asserted
+    // rather than asserted-about, so the inversion is machine-checked and does
+    // not rest on the prose above.
+    let by_fn: Vec<&str> = {
+        let mut v: Vec<(&str, f64)> = rep
+            .factor_frontier()
+            .iter()
+            .map(|(r, _)| {
+                let e = r.emit.get("emit-emitted").copied().unwrap_or(0);
+                let i = r.emit.get("emit-in-class").copied().unwrap_or(0);
+                (r.src.as_str(), if e == 0 { 0.0 } else { i as f64 / e as f64 })
+            })
+            .collect();
+        v.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then(a.0.cmp(b.0)));
+        v.into_iter().map(|(s, _)| s).collect()
+    };
+    assert_eq!(
+        by_fn[0], "mmio.cpp",
+        "#465's unit puts mmio first (8/11 = 72.7% against xboxmem's 2/4 = 50%), \
+         and w-tu2 spent a whole lane discovering it does not convert"
+    );
+    assert_ne!(
+        by_fn[0], order[0],
+        "THE TWO UNITS DISAGREE AT THE HEAD. That disagreement is the entire \
+         content of this instrument; if it ever stops holding on this fixture \
+         the fixture has been broken, not the finding"
+    );
+    let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    assert_eq!(m.get("frontier-bytefrac-top-tu").unwrap(), "xboxmem.cpp");
+    assert_eq!(m.get("frontier-bytefrac-top-accepted").unwrap(), "72");
+    assert_eq!(
+        m.get("frontier-bytefrac-top-denominator").unwrap(),
+        "132",
+        "the denominator is published beside the numerator, never a bare \
+         percentage — a ratio without its denominator is the shape of the bug \
+         this instrument refuses"
+    );
+    assert_eq!(
+        m.get("frontier-bytefrac-no-denominator").unwrap(),
+        "1",
+        "and the un-scoreable TU is COUNTED rather than quietly absent"
+    );
+}
+
+/// **The known-answer control, and the one shortfall that is legitimate.**
+///
+/// A `match` TU is byte-identical to c2's obj, so the port produced a body for
+/// every `.text` byte in it: 100 % is the known answer. A **factor E** TU is the
+/// exception and the reason the control is classified rather than merely
+/// counted — E is a *whole-TU* recognizer and the ranker's numerator is the
+/// *per-function* path, which structurally cannot answer for one. That is the
+/// same shape as the factorization's factor-D control, which `docs/STATUS.md`
+/// leaves red on purpose with its explanation beside it.
+///
+/// **`bytefrac-control-unexplained` is the number that must be 0.**
+#[test]
+fn the_control_separates_the_legitimate_shortfall_from_a_broken_numerator() {
+    let rep = mk_report(vec![
+        // A match the per-function path fully covers: the known answer, 100%.
+        with_bytes(
+            mk_factors(TuClass::Match, "ok.cpp", true, true, true, true, false),
+            132,
+            132,
+            132,
+        ),
+        // A match a WHOLE-TU recognizer emitted (factor E). The per-function
+        // path sees nothing; expected, and it must not read as a defect.
+        with_bytes(
+            mk_factors(TuClass::Match, "dyninit.cpp", true, true, true, false, true),
+            0,
+            24,
+            0,
+        ),
+        // A match with no `.text` at all — board #276's data-only shape. Not a
+        // shortfall and NOT a 100%: it has no score.
+        with_bytes(
+            mk_factors(TuClass::Match, "dataonly.cpp", true, true, true, true, false),
+            0,
+            0,
+            0,
+        ),
+    ]);
+    let (full, nodenom, short) = rep.byte_fraction_control();
+    assert_eq!((full, nodenom, short.len()), (1, 1, 1));
+    assert!(
+        short[0].0 && short[0].1.src == "dyninit.cpp",
+        "the only shortfall is the factor-E TU, and it is CLASSIFIED as such"
+    );
+    let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    assert_eq!(m.get("bytefrac-control-unexplained").unwrap(), "0");
+    assert_eq!(m.get("bytefrac-control-shortfall-explained").unwrap(), "1");
+
+    // Now break the numerator on a NON-E match — the mutation the control
+    // exists to catch — and watch the unexplained count fire.
+    let broken = mk_report(vec![with_bytes(
+        mk_factors(TuClass::Match, "ok.cpp", true, true, true, true, false),
+        100,
+        132,
+        100,
+    )]);
+    let m2: BTreeMap<&str, String> = broken.metrics().into_iter().collect();
+    assert_eq!(
+        m2.get("bytefrac-control-unexplained").unwrap(),
+        "1",
+        "a byte-exact TU scoring under 100% with no factor-E excuse means the \
+         numerator stopped crediting something, and the control says so with a \
+         count rather than leaving the ranking to print plausible percentages"
+    );
+}
