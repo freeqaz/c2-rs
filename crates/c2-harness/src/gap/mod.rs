@@ -66,6 +66,16 @@ pub struct GapConfig {
     pub replay_every: usize,
     /// Write one JSON record per TU here.
     pub jsonl: Option<PathBuf>,
+    /// Write the **per-TU Phase 7 factor membership** here, one row per graded
+    /// TU (`src`, class, A/B/C/D/E). See [`GapReport::factor_membership`] for
+    /// why the joints alone are not enough: a count cannot be intersected with
+    /// another lane's per-TU set, and the last lane that needed to do so had to
+    /// decline the measurement rather than multiply a rate by a count.
+    ///
+    /// Off by default and a file rather than stdout: `c2rs gap` also grades the
+    /// generated case corpus (`scripts/mode_lane.sh`, `scripts/mode_cross.sh`),
+    /// where one line per TU is tens of thousands of lines per lane.
+    pub factors_tsv: Option<PathBuf>,
     /// Scratch root; per-TU subdirs are created below it.
     pub work: PathBuf,
     /// Reference-capture cache root (`None` = `--no-cache`). See

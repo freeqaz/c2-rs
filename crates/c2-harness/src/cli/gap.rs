@@ -30,6 +30,7 @@ static GAP_SPEC: Spec = Spec {
         ("--jobs", Arity::Value),
         ("--replay-every", Arity::Value),
         ("--jsonl", Arity::Value),
+        ("--factors-tsv", Arity::Value),
         ("--work", Arity::Value),
         ("--cache", Arity::Value),
         ("--no-cache", Arity::Flag),
@@ -47,6 +48,9 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
     let (list_file, flags_file) = (args.path("--list"), args.path("--flags-file"));
     let cwd = args.path("--cwd");
     let jsonl = args.path("--jsonl");
+    // The per-TU factor membership. Opt-in and a file, not stdout: see
+    // `GapReport::factor_membership`.
+    let factors_tsv = args.path("--factors-tsv");
     let work = args.path("--work");
     // `--limit`/`--jobs`/`--replay-every`/`--validate-cache` used to exit 2 with
     // NO message when the value did not parse. `num` names the option and echoes
@@ -111,7 +115,8 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
     let (Some(list_file), Some(flags_file)) = (list_file, flags_file) else {
         eprintln!(
             "usage: c2rs gap --list FILE --flags-file FILE [--cwd DIR] [--limit N] \
-             [--jobs N] [--replay-every N] [--jsonl PATH] [--work DIR]\n\
+             [--jobs N] [--replay-every N] [--jsonl PATH] [--factors-tsv PATH] \
+             [--work DIR]\n\
              (generate the dc3 workload inputs with scripts/gen_dc3_workload.sh)"
         );
         return ExitCode::from(2);
@@ -168,6 +173,7 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         jobs,
         replay_every,
         jsonl,
+        factors_tsv,
         work: work.unwrap_or_else(|| scratch("gap")),
         cache,
         validate_cache,

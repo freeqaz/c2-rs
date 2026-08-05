@@ -88,6 +88,93 @@ impl GapReport {
         ]
     }
 
+    /// **The five factors of one TU as a fixed-width letter string**, e.g.
+    /// `"AB-D-"` — the letter when the predicate holds, `-` when it does not.
+    ///
+    /// Fixed width and fixed order (`A B C D E`), so a consumer can index a
+    /// column rather than parse a set, and so two runs' rows are byte-comparable
+    /// even when a factor flips. See [`Self::factor_membership`] for why the
+    /// per-TU form exists at all.
+    pub fn factor_letters(r: &TuResult) -> String {
+        let f = Self::factors(r);
+        ['A', 'B', 'C', 'D', 'E']
+            .iter()
+            .zip(f.iter())
+            .map(|(ch, on)| if *on { *ch } else { '-' })
+            .collect()
+    }
+
+    /// **The per-TU factor membership, by name** — `(src, class, letters)` for
+    /// every graded TU, in scan order (sorted by `src`).
+    ///
+    /// # Why a per-TU list and not another count
+    ///
+    /// Every joint the factorization publishes — `B∧C`, `A∧B∧C`, the FRONTIER —
+    /// is a **count**, and a count cannot be intersected with anything. Lane
+    /// `w-emitp` measured a per-TU emit-set model over a 850-TU corpus and could
+    /// not price it in TU reach, because the number that does that is
+    /// `|{TU : the model is exact} ∩ B∧C|` and *this report had no per-TU `B∧C`
+    /// list to intersect against*. It declined to multiply `151 × 0.555`
+    /// instead, which was right: multiplying a per-TU rate by a joint count is
+    /// exactly the move that left `B∧C` published at **107** — a figure taken at
+    /// `C = 114` and never re-measured when the writer's section vocabulary grew
+    /// `C` to 169. The true answer was 151 and any number in `[107, 169]` would
+    /// have looked consistent.
+    ///
+    /// So the membership is published rather than the joints alone. It is
+    /// **written to a file** (`--factors-tsv`) rather than to stdout: `c2rs gap`
+    /// also grades the generated case corpus through `scripts/mode_lane.sh` and
+    /// `scripts/mode_cross.sh`, where "one line per graded TU" is tens of
+    /// thousands of lines per lane. The counts stay on stdout; the membership
+    /// they are counts *of* goes to the file a lane asks for.
+    ///
+    /// **Every joint in the `GAP-METRICS` block is re-derivable from these rows**
+    /// — that is the property the unit test grades, and it is what makes the file
+    /// a publication of the same measurement rather than a second one.
+    pub fn factor_membership(&self) -> Vec<(&str, &'static str, String)> {
+        self.graded()
+            .map(|r| (r.src.as_str(), r.class.label(), Self::factor_letters(r)))
+            .collect()
+    }
+
+    /// Render [`Self::factor_membership`] as the `--factors-tsv` file body.
+    ///
+    /// Pure (returns the text rather than writing it) so the unit test grades
+    /// the bytes with no filesystem and no toolchain. The header names the
+    /// columns, the population and — the part that matters — **what is NOT a
+    /// row**: `capture-fail` TUs were never measured, so they are absent rather
+    /// than false, and a consumer that read absence as `0 0 0 0 0` would make
+    /// every factor look tighter than it is (`docs/STATUS.md` trap 5).
+    pub fn factor_tsv(&self) -> String {
+        let mut s = String::from(
+            "# c2rs gap --factors-tsv — per-TU Phase 7 factor membership \
+             (docs/ROADMAP.md §10.19/§10.21, boards #160/#179)\n\
+             # columns: src<TAB>class<TAB>A<TAB>B<TAB>C<TAB>D<TAB>E<TAB>letters\n\
+             #   A `.ex` segments == obj `.text` COMDATs (gate-anchored `4F 1F`)\n\
+             #   B every emitted symbol binds\n\
+             #   C obj section set subset of the port writer's section names\n\
+             #   D every emitted COMDAT in the port's per-function codegen class\n\
+             #   E a REGISTERED whole-TU recognizer accepts this bundle\n\
+             # A byte-exact obj requires A and B and C and (D or E).\n\
+             # ROWS ARE THE GRADED TUs ONLY. A `capture-fail` TU has no obj and no\n\
+             # census, so it is NOT a row here — it was never measured, which is a\n\
+             # different fact from every factor being false. Do not read its absence\n\
+             # as a zero row.\n",
+        );
+        s.push_str(&format!("# graded-rows {}\n", self.graded().count()));
+        for (src, class, letters) in self.factor_membership() {
+            let f: Vec<&str> = letters
+                .chars()
+                .map(|c| if c == '-' { "0" } else { "1" })
+                .collect();
+            s.push_str(&format!(
+                "{src}\t{class}\t{}\t{}\t{}\t{}\t{}\t{letters}\n",
+                f[0], f[1], f[2], f[3], f[4]
+            ));
+        }
+        s
+    }
+
     /// **Question 4 in its general form: `D ∨ E`** — the port has an accepted
     /// route to this TU's contents, by *some* acceptance path.
     ///
