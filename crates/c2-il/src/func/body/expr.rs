@@ -1025,6 +1025,13 @@ pub(crate) fn parse_expr_classed(
                     Ok(q) => {
                         *p = q;
                         saw_chain_sink = true;
+                        // The sink skips a token by WIDTH, not by meaning, so
+                        // the class stack cannot have followed it. The poison
+                        // below refuses the body anyway; clearing the model
+                        // keeps `cstack_ok` a literal claim — *every token was
+                        // followed* — rather than one that holds only because
+                        // something else refuses first.
+                        cstack_ok = false;
                         continue;
                     }
                     Err(key) => return Err(blk(seg, *p, key)),
@@ -1275,6 +1282,10 @@ pub(crate) fn parse_expr_classed(
             // op and why a walk that reaches the end still refuses.
             0x1F..=0x24 if rel_sink_enabled() => {
                 *p += 1;
+                // A relational pops two and pushes one, and this arm models
+                // none of that. See the chain sink above for why the model is
+                // cleared even though the poison already refuses.
+                cstack_ok = false;
                 saw_rel_sink = true;
             }
             // **w-brfalse scratch sink — `C2RS_SINK_BRANCH` and nothing else.**
@@ -1287,6 +1298,7 @@ pub(crate) fn parse_expr_classed(
                 let (_, w) =
                     read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-branch-sink-tok"))?;
                 *p += w;
+                cstack_ok = false;
                 saw_branch_sink = true;
             }
             // …and at [`BranchSink::Cflow`] the rest of the intra-body
@@ -1298,10 +1310,12 @@ pub(crate) fn parse_expr_classed(
                 let (_, w) =
                     read_token_var(seg, *p).ok_or(blk(seg, *p, "expr-branch-sink-tok"))?;
                 *p += w;
+                cstack_ok = false;
                 saw_branch_sink = true;
             }
             0x4B if matches!(branch_sink(), BranchSink::Cflow | BranchSink::Stmt) => {
                 *p += 1;
+                cstack_ok = false;
                 saw_branch_sink = true;
             }
             // The LINE MARKER, `4F 01 <varint>`, skipped exactly as
