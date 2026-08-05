@@ -1,0 +1,11 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/Main.cpp -> 0/1 functions in class
+  [  0] GAP param-width-undetermined:mid cflow-straight             eh-state1   (eh-plus-stmt)    222 B  ?Run@App@@QAAXXZ
+  blocking features (">" marks the byte that blocked the parse):
+         1 x param-width-undetermined:mid
+             00 4f 01 03 53 53 26 0c 0a 46 2d 0b 0a 2d 0a 0a >4c< 4f 11 53 4f 01 04 26 fb 09 26 0e 0a 2c a6 43 81 20 00 99 86 43 8b 20
+  control-flow class (decode-only): 1/1 bodies decoded end to end
+         1 x cflow-straight
+  EH class (maxState, decode-only): 1/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-state1

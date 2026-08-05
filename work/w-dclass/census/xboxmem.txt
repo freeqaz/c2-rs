@@ -1,0 +1,17 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/xdk/nuispeech/xboxmem.cpp -> 2/4 functions in class
+  [  0] GAP expr-cmp-ne              cflow-straight             eh-none     (eh-none     )    131 B  ?GetXAllocAttributes@NUISPEECH@@YAKH@Z
+  [  1] GAP expr-cmp-eq              cflow-if-1                 eh-none     (eh-none     )    262 B  ?MemAlloc@NUISPEECH@@YAPAXPAXKK@Z
+  [  2] ok  cond-tail-pair           cflow-if-1                 eh-none     (eh-none     )    224 B  ?MemFree@NUISPEECH@@YAXPAX0K@Z
+  [  3] ok  cond-tail-pair           cflow-if-1                 eh-none     (eh-none     )    245 B  ?MemSize@NUISPEECH@@YAKPAX0K@Z
+  blocking features (">" marks the byte that blocked the parse):
+         1 x expr-cmp-eq
+             01 08 53 b9 65 0f 86 43 83 08 33 86 43 83 08 00 >1f< 38 6a 0f 53 53 4f 01 09 26 d4 0e bd 86 43 83 08 00 80 01 10 00 00 b9
+         1 x expr-cmp-ne
+             11 53 4f 01 04 b9 61 0f 86 41 74 33 86 41 74 00 >20< 2c 86 42 75 00 33 86 41 74 1e 09 33 86 41 74 80 00 00 9b 24 0c 2c 86
+  control-flow class (decode-only): 4/4 bodies decoded end to end
+         3 x cflow-if-1
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/4 bodies have maxState >= 1 and need the whole EH record
+         4 x eh-none

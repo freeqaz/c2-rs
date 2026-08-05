@@ -1,0 +1,20 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/system/rndobj/wordwrap.cpp -> 0/3 functions in class
+  [  0] GAP expr-jump                cflow-straight+expr-modeled eh-none     (eh-none     )     97 B  (unnamed)
+  [  1] GAP expr-bit-and             cflow-if-n                 eh-none     (eh-none     )    502 B  (unnamed)
+  [  2] GAP expr-cmp-eq              cf-expr-0x05               eh-unknown  (eh-unknown  )   2661 B  (unnamed)
+  blocking features (">" marks the byte that blocked the parse):
+         1 x expr-bit-and
+             53 4f 01 09 53 b9 e9 09 86 42 75 33 86 41 74 04 >0b< 38 fd 09 53 53 4f 01 0a 53 4f 01 0b 4f 01 0c b9 fa 09 84 22 71 2c 86
+         1 x expr-cmp-eq
+             19 53 b9 02 0a 86 43 81 20 b9 03 0a 86 43 81 20 >1f< 38 07 0a 53 4f 01 1a 33 82 12 30 00 41 82 12 30 3a 05 0a 4f 01 1c 54
+         1 x expr-jump
+             11 53 26 e9 09 b9 f7 09 86 42 75 32 86 42 75 4b >3a< f9 09 54 02 29 f9 09 4f 12 47 54 01 54 00
+  control-flow class (decode-only): 2/3 bodies decoded end to end
+         1 x cf-expr-0x05
+         1 x cflow-if-n
+         1 x cflow-straight+expr-modeled
+  EH class (maxState, decode-only): 0/3 bodies have maxState >= 1 and need the whole EH record
+         2 x eh-none
+         1 x eh-unknown

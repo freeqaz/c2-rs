@@ -7,7 +7,7 @@ use crate::func::body::chain::{
 };
 use crate::func::body::expr::{eat_return_plumbing, eat_scopes, parse_expr, parse_formals};
 use crate::func::body::mcall;
-use crate::func::body::{blk, Block, BodyShape};
+use crate::func::body::{blk, blk_type, Block, BodyShape};
 use crate::func::readers::{eat_byte, eat_int_like, read_token_var};
 use crate::func::IlOp;
 
@@ -166,8 +166,32 @@ pub(crate) fn try_parse_assign_body_detail(
         if !formals.contains(&dst) && !locals.contains(&dst) && deferred.is_none() {
             deferred = Some(start_of_stmt);
         }
-        if !eat_byte(seg, &mut p, 0x32) || !eat_int_like(seg, &mut p) {
-            return Err(blk(seg, p, "assign-store-type"));
+        // The store opcode and the store's TYPE are **two facts and two keys**.
+        //
+        // They used to be one `||`, and the refusal that came out of it named the
+        // *tag* and nothing else: `assign-store-type-0x86` was 8,222 workload
+        // functions rendered through [`blk`], which packs no `aux`, so
+        // [`crate::func::body::Block::feature`] fell through to its bare
+        // `<ctx>-0x<byte>` arm. `0x86` is the **slot width** (4 bytes) and carries
+        // no type class at all, so one bucket held every 4-byte non-int-like store
+        // there is — pointer, code pointer, `float`, a `pack(4)` `long long` — and
+        // named none of them. The sibling `expr-load-type-*` keys have rendered
+        // `<tag><kind>` since `docs/GAPS.md` §6, and this site simply never got the
+        // same treatment.
+        //
+        // Split so the type refusal can use [`blk_type`], which packs the whole
+        // triple and renders `<tag><kind>` — `assign-store-type-8643` is a pointer
+        // store and `assign-store-type-8645` a `float` one, decodable straight out
+        // of `docs/IL_TYPE_TAGS.md` §2. A **split**, never a merge: the missing-`32`
+        // case gets its own `assign-store-op` key rather than being folded in, since
+        // a body with no store opcode at all is a different fact from one whose
+        // store type is unmodeled, and merging buckets is the one failure a census
+        // instrument cannot survive.
+        if !eat_byte(seg, &mut p, 0x32) {
+            return Err(blk(seg, p, "assign-store-op"));
+        }
+        if !eat_int_like(seg, &mut p) {
+            return Err(blk_type(seg, p, p, "assign-store-type"));
         }
         // `4B` ends an expression statement and discards the yielded value. A
         // body that *uses* it (`x = y = a`) does not have one here and refuses.
@@ -294,4 +318,154 @@ pub(crate) fn try_parse_assign_body_detail(
 /// shard per right-hand side, and `hex[hex_mark]` now points at the push.
 fn dst_not_formal(seg: &[u8], off: usize) -> Block {
     Block { ctx: "assign-dst-not-formal", byte: Some(0x26), off, seg_len: seg.len(), aux: 0 }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::func::body::parse_segment_detail;
+    use crate::func::test_fixtures::{free_fn, NO_LOCALS};
+
+    /// One assignment-statement body, parameterised on the operand LOAD's TYPE
+    /// and on the STORE's TYPE **separately**.
+    ///
+    /// Separately because they are two positions with two gates, and the first
+    /// draft of these tests conflated them — it varied one type and wrote it into
+    /// both slots, which cannot distinguish "the store type is unmodeled" from
+    /// "the operand type is". It asserted the store key for a `float` and got
+    /// `expr-load-type-8645`; see the second test, which is what that refutation
+    /// turned into.
+    ///
+    /// The skeleton is transcribed from a live capture rather than invented: lane
+    /// w-dclass/C compiled `T f(T q, int k) { T x; x = q; return k; }` at the dc3
+    /// workload's own `/O1 /Oi /EHsc /GR` profile and read the segment back
+    /// through `c2rs census`. Everything but the two TYPE runs is byte-identical
+    /// across every case below.
+    fn assign_body(load_ty: &[u8], store_ty: &[u8]) -> Vec<u8> {
+        let mut v = vec![
+            0x46, 0x2D, 0xF4, 0x09, 0x2D, 0xF5, 0x09, // formals q, k
+            0x4C, 0x4F, 0x11, 0x53, // LO SS
+            0x26, 0xF8, 0x09, // push dst x
+            0xB9, 0xF4, 0x09, // LOAD q …
+        ];
+        v.extend_from_slice(load_ty); //   … at the operand type
+        v.push(0x32); // STORE …
+        v.extend_from_slice(store_ty); //   … at the destination's type
+        v.extend_from_slice(&[
+            0x4B, // discard the yielded value
+            0xB9, 0xF5, 0x09, 0x86, 0x41, 0x74, // LOAD k (int)
+            0x41, 0x86, 0x41, 0x74, // result-type int
+            0x3A, 0xF7, 0x09, 0x54, 0x02, 0x29, 0xF7, 0x09, // return
+            0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, // separator
+            0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x4D, // module end
+        ]);
+        v
+    }
+
+    /// The census key this body refuses with. Every case here refuses — the
+    /// destination is a bare token no `.sy` vouches for — so the interesting
+    /// question is always *which* key, i.e. which gate spoke first.
+    fn key(load_ty: &[u8], store_ty: &[u8]) -> String {
+        parse_segment_detail(&free_fn(&assign_body(load_ty, store_ty)), NO_LOCALS)
+            .expect_err("this body stores into a non-formal and must refuse")
+            .feature()
+    }
+
+    /// A 4-byte integer operand, so the LOAD gate is satisfied and the STORE type
+    /// is the only thing under test.
+    const INT: &[u8] = &[0x86, 0x41, 0x74];
+
+    /// **The store-type census key carries the type's KIND, not only its slot
+    /// width.**
+    ///
+    /// It did not, and that is the whole content of this test. The refusal was
+    /// raised through `blk`, which packs no `aux`, so `Block::feature` fell
+    /// through to its bare `<ctx>-0x<byte>` arm and printed the *tag* — `0x86`
+    /// is "this slot is 4 bytes wide" and says nothing whatever about the type.
+    /// One bucket of 8,222 workload functions therefore held every 4-byte
+    /// non-int-like store there is and named none of them.
+    ///
+    /// The kinds below are what that bucket actually contained, established by
+    /// capture and not by reading the numbers off their neighbours: `86 43` a
+    /// data pointer (6,820 of the 8,222) and `86 44` a code pointer (1,402),
+    /// which sum to the whole bucket exactly with no third kind and no remainder.
+    /// `docs/IL_TYPE_TAGS.md` §2 is the decode.
+    #[test]
+    fn store_type_key_names_the_kind_and_not_just_the_slot_width() {
+        // The two the workload has, from `int *x; x = q;` and `FnPtr x; x = q;`.
+        assert_eq!(key(INT, &[0x86, 0x43, 0xF4, 0x08]), "assign-store-type-8643");
+        assert_eq!(key(INT, &[0x86, 0x44, 0x88, 0x20]), "assign-store-type-8644");
+        // The 1-byte bucket, likewise: `82 12` is the bool/`unsigned char` class,
+        // and it too used to print only its tag (`assign-store-type-0x82`).
+        assert_eq!(key(INT, &[0x82, 0x12, 0x30]), "assign-store-type-8212");
+        // Kinds the workload census reports as ZERO. They are spelled out HERE
+        // because a zero count is only evidence when the key it counts can be
+        // produced at all — absence read as success is this project's
+        // most-repeated defect. Each is a distinct key, so the workload's zeros
+        // are facts about the workload rather than about this renderer.
+        assert_eq!(key(INT, &[0x86, 0x45, 0x40]), "assign-store-type-8645"); // float
+        assert_eq!(key(INT, &[0x88, 0x85, 0x41]), "assign-store-type-8885"); // double
+        assert_eq!(key(INT, &[0x82, 0x11, 0x10]), "assign-store-type-8211"); // signed char
+        assert_eq!(key(INT, &[0x84, 0x21, 0x11]), "assign-store-type-8421"); // short
+        assert_eq!(key(INT, &[0x84, 0x22, 0x21]), "assign-store-type-8422"); // ushort
+        assert_eq!(key(INT, &[0x88, 0x81, 0x13]), "assign-store-type-8881"); // long long
+        assert_eq!(key(INT, &[0x96, 0x43, 0xF4, 0x08]), "assign-store-type-9643"); // int* volatile
+    }
+
+    /// **Why those zeros are zeros — and it is not that the types do not occur.**
+    ///
+    /// This is the finding the first draft of these tests was wrong about, kept
+    /// as a test rather than as a sentence because it bounds what any widening of
+    /// this seam could ever be worth. In a real `T x; x = q;` the operand and the
+    /// destination carry the *same* type, and the operand LOAD is parsed FIRST.
+    /// `eat_operand_type` admits exactly three classes — 4-byte integer, 4-byte
+    /// pointer, and the 1-byte unsigned pair — so every other type is refused one
+    /// token before the store gate is reached and lands in an `expr-load-type-*`
+    /// bucket instead.
+    ///
+    /// The consequence is a **closed vocabulary**: `assign-store-type` can only
+    /// ever name a type that clears the operand gate and fails `eat_int_like`,
+    /// which is the pointer classes and the 1-byte unsigned one — precisely the
+    /// three keys the 878-TU workload produces. That census is therefore not a
+    /// sample with a tail to discover; it is the whole set.
+    #[test]
+    fn everything_outside_the_operand_vocabulary_refuses_at_the_load_instead() {
+        for (ty, want) in [
+            (&[0x86u8, 0x45, 0x40][..], "expr-load-type-8645"), // float
+            (&[0x88, 0x85, 0x41][..], "expr-load-type-8885"),   // double
+            (&[0x82, 0x11, 0x10][..], "expr-load-type-8211"),   // signed char
+            (&[0x84, 0x21, 0x11][..], "expr-load-type-8421"),   // short
+            (&[0x84, 0x22, 0x21][..], "expr-load-type-8422"),   // unsigned short
+            (&[0x88, 0x81, 0x13][..], "expr-load-type-8881"),   // long long
+            // `volatile int` clears neither gate, and for a reason that is a
+            // captured instruction rather than a width: a volatile operand is a
+            // memory object, so c2 homes it in the frame and reads it back. See
+            // `readers::is_volatile_tag`.
+            (&[0x96, 0x41, 0x86, 0x20][..], "expr-load-type-9641"),
+        ] {
+            // Same type in both slots — which is what a real `T x; x = q;` emits.
+            assert_eq!(key(ty, ty), want, "{ty:02X?}");
+        }
+    }
+
+    /// The **accept** side of the same boundary, so the split is graded in both
+    /// directions rather than only where it refuses.
+    ///
+    /// Every int-like spelling `eat_int_like` admits gets past the store TYPE and
+    /// is then stopped by the *destination* gate, at a different byte with a
+    /// different key. That is the positive statement this test is for:
+    /// `assign-store-type` names the TYPE and only the type, so a reader cannot
+    /// mistake its 10,128 rows for a destination problem — nor the reverse.
+    #[test]
+    fn int_like_store_types_pass_the_type_gate_and_stop_at_the_destination() {
+        for ty in [
+            &[0x86u8, 0x41, 0x74][..],  // int
+            &[0x86, 0x42, 0x75][..],    // unsigned
+            &[0x86, 0x41, 0x12][..],    // long
+            &[0x86, 0x42, 0x22][..],    // unsigned long
+            &[0xA6, 0x41, 0x84, 0x20][..], // const int (a per-TU id, not a fixed triple)
+        ] {
+            assert_eq!(key(INT, ty), "assign-dst-not-formal-0x26", "{ty:02X?}");
+        }
+    }
 }

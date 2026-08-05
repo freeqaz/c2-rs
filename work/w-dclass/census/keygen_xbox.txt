@@ -1,0 +1,52 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/keygen_xbox.cpp -> 2/20 functions in class
+  [  0] GAP expr-load-type-8211      cflow-if-n                 eh-none     (eh-none     )    322 B  (unnamed)
+  [  1] GAP assign-store-type-0x86   cflow-loop                 eh-none     (eh-none     )    347 B  (unnamed)
+  [  2] GAP expr-brfalse             cflow-if-1+expr-modeled    eh-none     (eh-none     )    183 B  (unnamed)
+  [  3] GAP expr-call-in-expr-op-0x1F cflow-loop                 eh-none     (eh-none     )    628 B  (unnamed)
+  [  4] GAP assign-store-type-0x86   cflow-loop                 eh-none     (eh-none     )    290 B  (unnamed)
+  [  5] GAP expr-op-0x0F             cflow-straight             eh-none     (eh-none     )    131 B  (unnamed)
+  [  6] GAP expr-op-0x30             cflow-straight             eh-none     (eh-none     )    158 B  (unnamed)
+  [  7] GAP expr-jump                cflow-loop                 eh-none     (eh-none     )    376 B  (unnamed)
+  [  8] GAP expr-jump                cflow-loop                 eh-none     (eh-none     )    360 B  (unnamed)
+  [  9] GAP expr-jump                cflow-loop                 eh-none     (eh-none     )    394 B  (unnamed)
+  [ 10] GAP expr-jump                cflow-loop                 eh-none     (eh-none     )    394 B  (unnamed)
+  [ 11] GAP expr-jump                cflow-loop                 eh-none     (eh-none     )    394 B  (unnamed)
+  [ 12] GAP expr-jump                cflow-loop                 eh-none     (eh-none     )    394 B  (unnamed)
+  [ 13] ok  call-sequence            cflow-straight+expr-modeled eh-none     (eh-none     )    298 B  (unnamed)
+  [ 14] GAP expr-lit-type-9641       cflow-straight             eh-none     (eh-none     )    113 B  (unnamed)
+  [ 15] GAP expr-jump                cflow-loop                 eh-none     (eh-none     )    270 B  (unnamed)
+  [ 16] GAP expr-jump                cflow-loop                 eh-none     (eh-none     )    265 B  (unnamed)
+  [ 17] GAP call-arg-outer-formal:eof cflow-straight+expr-modeled eh-none     (eh-none     )    219 B  (unnamed)
+  [ 18] GAP expr-call-in-expr-data-addr-then-plain-call-and-op-more cflow-straight             eh-none     (eh-none     )    304 B  (unnamed)
+  [ 19] ok  straight-line            cflow-straight+expr-modeled eh-none     (eh-none     )    105 B  (unnamed)
+  blocking features (">" marks the byte that blocked the parse):
+         8 x expr-jump
+             01 76 53 26 34 0a 33 86 41 74 00 32 86 41 74 4b >3a< 35 0a 29 36 0a 26 34 0a 33 86 41 74 01 35 86 41 74 4b 29 35 0a b9 34
+         2 x assign-store-type-0x86
+             11 53 4f 01 2c 26 f7 09 b9 f3 09 86 43 81 20 32 >86< 43 81 20 4b 4f 01 2e 53 26 f8 09 33 86 42 75 00 32 86 42 75 4b 3a f9
+         1 x call-arg-outer-formal:eof
+             00 3a 78 0a 54 02 29 78 0a 4f 12 47 54 01 54 00
+         1 x expr-brfalse
+             4f 11 53 4f 01 3a 4f 01 3b 53 b9 fd 09 86 41 12 >38< 02 0a 53 53 4f 01 3c 26 01 0a b9 fd 09 86 41 12 32 86 41 12 4b 4f 01
+         1 x expr-call-in-expr-data-addr-then-plain-call-and-op-more
+             03 00 80 17 10 00 00 33 86 42 75 20 55 86 42 75 >26< eb 09 b9 7b 0a 86 42 75 33 86 41 74 20 04 33 86 41 12 01 04 28 00 00
+         1 x expr-call-in-expr-op-0x1F
+             33 86 42 75 01 32 86 42 75 4b 4f 01 53 26 07 0a >26< 06 0a 2c 86 43 a0 08 00 33 86 41 12 03 02 30 82 12 20 2c 86 41 74 00
+         1 x expr-lit-type-9641
+             0a 46 4c 4f 11 53 4f 01 80 ab 00 00 00 26 5e 0a >33< 96 41 8d 20 01 35 96 41 8d 20 4b 4f 01 80 ac 00 00 00 3a 60 0a 54 02
+         1 x expr-load-type-8211
+             2d ec 09 4c 4f 11 53 4f 01 23 53 33 86 41 74 61 >b9< ec 09 82 11 70 2c 86 41 74 00 21 38 ef 09 b9 ec 09 82 11 70 2c 86 41
+         1 x expr-op-0x0F
+             0a 4c 4f 11 53 4f 01 6a 26 29 0a 33 86 41 74 13 >0f< 86 41 74 4b 4f 01 6b 26 29 0a 33 86 41 74 20 13 86 41 74 4b 4f 01 6c
+         1 x expr-op-0x30
+             4f 11 53 4f 01 70 26 30 0a b9 2c 0a 86 43 86 20 >30< 82 11 70 32 82 11 70 4b 4f 01 71 b9 2c 0a 86 43 86 20 b9 2d 0a 86 43
+  control-flow class (decode-only): 20/20 bodies decoded end to end
+        11 x cflow-loop
+         4 x cflow-straight
+         3 x cflow-straight+expr-modeled
+         1 x cflow-if-1+expr-modeled
+         1 x cflow-if-n
+  EH class (maxState, decode-only): 0/20 bodies have maxState >= 1 and need the whole EH record
+        20 x eh-none

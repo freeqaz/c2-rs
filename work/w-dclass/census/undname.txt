@@ -1,0 +1,11 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/xdk/LIBCMT/undname.cpp -> 0/1 functions in class
+  [  0] GAP expr-cmp-ne              cflow-if-n                 eh-none     (eh-none     )    532 B  (unnamed)
+  blocking features (">" marks the byte that blocked the parse):
+         1 x expr-cmp-ne
+             01 2a 53 b9 06 0a 86 43 83 20 33 86 43 83 20 00 >20< 38 0a 0a 53 53 4f 01 2b 26 0b 0a 26 fe 09 26 05 0a 2c a6 43 89 20 00
+  control-flow class (decode-only): 1/1 bodies decoded end to end
+         1 x cflow-if-n
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none

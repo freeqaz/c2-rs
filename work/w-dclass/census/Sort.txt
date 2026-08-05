@@ -1,0 +1,11 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/system/math/Sort.cpp -> 0/1 functions in class
+  [  0] GAP assign-store-type-0x86   cflow-loop                 eh-none     (eh-none     )    261 B  ?HashString@@YAHPBDH@Z
+  blocking features (">" marks the byte that blocked the parse):
+         1 x assign-store-type-0x86
+             ef 09 b9 ea 09 86 43 81 20 2c 86 43 a0 08 00 32 >86< 43 a0 08 4b 3a f1 09 29 f2 09 26 ef 09 33 86 41 12 01 35 86 43 a0 08
+  control-flow class (decode-only): 1/1 bodies decoded end to end
+         1 x cflow-loop
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none

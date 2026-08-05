@@ -1,0 +1,38 @@
+== work/w-dclass/ref/Sort.obj  machine=0x01f2 nsec=5 nsym=14 size=901
+-- sections
+   1 .drectve   raw=132    rawptr=0x00dc rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=136    rawptr=0x0160 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x01e8 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x01f8 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=80     rawptr=0x0208 rel=0  relptr=0x0000 chars=0x60401020
+-- .text #5 (80 B) ?HashString@@YAHPBDH@Z
+   0000  89630000  lbz 11, 0(3)                    
+   0004  7c691b78  mr	9, 3                         
+   0008  39400000  li 10, 0                        
+   000c  280b0000  cmplwi	11, 0                    
+   0010  41820038  bt	2, .+56                      
+   0014  1d0a007f  mulli 8, 10, 127                
+   0018  8d490001  lbzu 10, 1(9)                   
+   001c  7d085a14  add 8, 8, 11                    
+   0020  7d4b5379  mr.	11, 10                      
+   0024  550a083e  rotlwi	10, 8, 1                 
+   0028  7ce823d6  divw 7, 8, 4                    
+   002c  394affff  addi 10, 10, -1                 
+   0030  7ce721d6  mullw 7, 7, 4                   
+   0034  7c865078  andc 6, 4, 10                   
+   0038  0cc40000  twi 6, 4, 0                     
+   003c  7d474050  sub	10, 8, 7                    
+   0040  0ca6ffff  twi 5, 6, -1                    
+   0044  4082ffd0  bf	2, .-48                      
+   0048  7d435378  mr	3, 10                        
+   004c  4e800020  blr                             
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=136 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=80 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?HashString@@YAHPBDH@Z                   sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
