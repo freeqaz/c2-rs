@@ -39,17 +39,40 @@
 //!
 //! Both are recomputed in the tests from this rule, not transcribed.
 //!
-//! # What it refuses, and why the refusals are not conservatism
+//! # More than one base symbol — board #564/#582, and it is now half open
 //!
-//! * **More than one base symbol.** `xboxheap.cpp`'s constructor stores
-//!   through two symbols and emits its producers in **first-consumption**
-//!   order where a single-symbol run of the same shape emits them in **rank**
-//!   order — measured on 8 cells of this lane's grid, 2 fit and 6 held out.
-//!   The composition of two symbol-runs is board **#564**, and it is open.
-//! * **More than [`MAX_MODELLED_PRODUCERS`] producers**, matching
-//!   [`alloc`](super::alloc)'s own domain. The store order alone is exact on
-//!   four-producer runs (822 of 822 cells), but the register is not, and a
-//!   caller needs both.
+//! Lane `w-sym` measured 7,573 probe cells through one, two and three base
+//! symbols. Three separable facts came out of it and only two are modelled:
+//!
+//! 1. **The cross-symbol PIN is exact.** The emitted symbol pattern equals the
+//!    source symbol pattern on **7,573 of 7,573** cells, model-free. The store
+//!    order only ever permutes *within* a symbol group. Board **#601**.
+//! 2. **The STORE order** generalises with one change — [`store_order`]'s
+//!    lowered `u` — and is exact at up to [`MAX_MULTISYM_PRODUCERS`]
+//!    producers. **This module now answers instead of refusing.**
+//! 3. **The producer EMISSION order** is a case split, [`producer_order`],
+//!    board **#582**.
+//!
+//! What is still refused, and why the refusal is not conservatism:
+//!
+//! * **[`schedule`] on a multi-symbol run** — the **LAYOUT** (which store
+//!   slots the producers are interleaved into) is *not* modelled. `ORDER`'s
+//!   layout with #584's leading-run `u` is 1866/1867 fit and 1500/1501
+//!   holdout at two producers, and the misses are a real family: the same
+//!   statements with one store moved to the other symbol put the second
+//!   producer one slot later. Board **#602**.
+//! * **More than two producers through more than one symbol.** The store order
+//!   is 97 % fit / 88 % holdout there and the residual is not one family.
+//! * **More than [`MAX_MODELLED_PRODUCERS`] producers** on one symbol,
+//!   matching [`alloc`](super::alloc)'s own domain. The store order alone is
+//!   exact on four-producer runs (822 of 822 cells), but the register is not,
+//!   and a caller needs both.
+//! * **Producers of MIXED KIND.** Every ≤2-producer store-order miss on the
+//!   holdout — 12 of 12 — is a cell mixing a constant with an address
+//!   producer, which is board **#581**'s population. [`Stmt`] cannot express
+//!   the kind and the parser only ever builds constant producers, so the
+//!   domain holds today by construction; board **#603** records that a parser
+//!   widening to address-valued producers invalidates it.
 //!
 //! # Evidence
 //!
@@ -84,13 +107,17 @@ pub const HEAD_SLOTS_MAX: usize = 2;
 /// this; the register is not.
 pub const MAX_MODELLED_PRODUCERS: usize = 3;
 
-/// The distinct producers of a run, **in rank order** — use count descending,
-/// first-use source index ascending. Returns `None` outside the domain.
-pub fn rank_order(stmts: &[Stmt]) -> Option<Vec<u32>> {
-    if !single_symbol(stmts) {
-        return None;
-    }
-    let mut ps: Vec<(u32, usize, usize)> = Vec::new(); // (id, uses, first)
+/// The domain of the **multi-symbol** store order, and it is smaller.
+///
+/// At two producers the store order is exact on 1867 fit and 1501 holdout
+/// cells with 0 wrong; at three it is 97 % and 88 % and the residual is not one
+/// family. `w-sym` measured both — `docs/SYMBOL.md` §4.
+pub const MAX_MULTISYM_PRODUCERS: usize = 2;
+
+/// `(id, use count, first-use source index)` per distinct producer, in
+/// first-use order.
+fn distinct(stmts: &[Stmt]) -> Vec<(u32, usize, usize)> {
+    let mut ps: Vec<(u32, usize, usize)> = Vec::new();
     for (i, s) in stmts.iter().enumerate() {
         if let Some(id) = s.producer {
             match ps.iter_mut().find(|p| p.0 == id) {
@@ -99,15 +126,119 @@ pub fn rank_order(stmts: &[Stmt]) -> Option<Vec<u32>> {
             }
         }
     }
-    if ps.len() > MAX_MODELLED_PRODUCERS {
+    ps
+}
+
+/// The run's distinct producers by **(use count descending, first-use
+/// ascending)** — the rank, with no symbol gate.
+fn global_rank(stmts: &[Stmt]) -> Vec<u32> {
+    let mut ps = distinct(stmts);
+    ps.sort_by(|a, b| b.1.cmp(&a.1).then(a.2.cmp(&b.2)));
+    ps.into_iter().map(|p| p.0).collect()
+}
+
+/// The **producer EMISSION order**. `None` outside the domain.
+///
+/// * **One symbol** — the rank order, [`rank_order`], board **#561**.
+/// * **More than one** — the order of **first consumption in the final store
+///   order**, board **#582**.
+///
+/// The two are a **case split and not a unification**, and that is the
+/// measurement rather than a simplification: `xboxheap`'s statement word emits
+/// the count-2 producer first through ONE symbol and the count-1 producer
+/// first through TWO, with the same statements, the same producers and the
+/// same registers. `w-sym` searched the whole class of "sort the producers on
+/// their own features" — 8,420 lexicographic keys over 10 signed features —
+/// and no member covers both sides; nor does any of the four merge rules it
+/// then built. `docs/SYMBOL.md` §3.
+///
+/// Nothing consumes this yet: [`schedule`] still refuses a multi-symbol run
+/// because the **layout** is not modelled (see its docs). It is here because
+/// it is the answer to #582 and because a future emitter needs it.
+pub fn producer_order(stmts: &[Stmt]) -> Option<Vec<u32>> {
+    let order = store_order(stmts)?;
+    if single_symbol(stmts) {
+        return Some(global_rank(stmts));
+    }
+    let mut out: Vec<u32> = Vec::new();
+    for &k in &order {
+        if let Some(id) = stmts[k].producer {
+            if !out.contains(&id) {
+                out.push(id);
+            }
+        }
+    }
+    Some(out)
+}
+
+/// The distinct producers of a run, **in rank order** — use count descending,
+/// first-use source index ascending. Returns `None` outside the domain.
+///
+/// Deliberately still **single-symbol only**: this is the *emission* order,
+/// and on more than one symbol the emission order is [`producer_order`]'s
+/// first-consumption order instead. [`schedule`] gates on this function, which
+/// is what keeps it refusing a multi-symbol run.
+pub fn rank_order(stmts: &[Stmt]) -> Option<Vec<u32>> {
+    if !single_symbol(stmts) {
         return None;
     }
-    ps.sort_by(|a, b| b.1.cmp(&a.1).then(a.2.cmp(&b.2)));
-    Some(ps.into_iter().map(|p| p.0).collect())
+    if distinct(stmts).len() > MAX_MODELLED_PRODUCERS {
+        return None;
+    }
+    Some(global_rank(stmts))
 }
 
 fn single_symbol(stmts: &[Stmt]) -> bool {
     stmts.windows(2).all(|w| w[0].base == w[1].base)
+}
+
+/// The rank a store's producer takes among the producers of **its own base
+/// symbol**, in the global rank order. With one symbol this is the global
+/// rank, which is why the whole module reduces to `ORDER` there.
+fn group_ranks(stmts: &[Stmt]) -> Vec<usize> {
+    let rank = global_rank(stmts);
+    stmts
+        .iter()
+        .map(|s| match s.producer {
+            None => 0,
+            Some(id) => rank
+                .iter()
+                .filter(|&&j| {
+                    stmts
+                        .iter()
+                        .any(|t| t.base == s.base && t.producer == Some(j))
+                })
+                .position(|&j| j == id)
+                .unwrap_or(0),
+        })
+        .collect()
+}
+
+/// One pass of the walk at a given `u`. `None` when some slot has **no**
+/// allowed store — the relaxation `w-sched` rule 1 spelled as "if every
+/// remaining store is blocked, source order wins".
+fn walk(stmts: &[Stmt], ranks: &[usize], u: usize) -> Option<Vec<usize>> {
+    let mut left: Vec<usize> = (0..stmts.len()).collect();
+    let mut out: Vec<usize> = Vec::with_capacity(stmts.len());
+    while !left.is_empty() {
+        let q = out.len();
+        let mut pick = None;
+        for (i, &k) in left.iter().enumerate() {
+            if stmts[k].producer.is_some() && q < u + ranks[k] {
+                continue;
+            }
+            // The cross-symbol PIN. Measured model-free by `w-sym` on 7,573
+            // cells: the emitted symbol pattern equals the source symbol
+            // pattern, always. Board **#601**.
+            if left[..i].iter().any(|&j| stmts[j].base != stmts[k].base) {
+                continue;
+            }
+            pick = Some(i);
+            break;
+        }
+        out.push(left.remove(pick?));
+    }
+    Some(out)
 }
 
 /// The number of head store slots a producer is interleaved into:
@@ -123,34 +254,38 @@ pub fn head_slots(stmts: &[Stmt]) -> usize {
 
 /// The store order: source indices, in emitted order. `None` outside the
 /// domain.
+///
+/// **One walk covers both regimes**, and that is the reduction proof rather
+/// than a claim about it: a store of group rank `j` may not occupy position
+/// `< u + j`, two stores through different symbols may not be reordered past
+/// each other, and `u` is the **largest** value the run can afford. With one
+/// symbol the pin is vacuous, the group rank is the global rank, and the
+/// largest affordable `u` is `min(2, #unproduced)` — every single-symbol cell
+/// this module was fitted on goes through this code and comes out unchanged.
+///
+/// `w-sched` rule 1's relaxation ("if every remaining store is blocked,
+/// source order wins") is **deleted, not carried**, exactly as `w-order2`
+/// deleted it: instead of relaxing a floor, lower `u` until no floor has to
+/// be relaxed. On one symbol nothing changes, because the relaxation never
+/// fires there — the enumerating test below still walks 5,460 runs to say so.
+/// On more than one symbol it is worth **86.9 % → 98.4 %**, and it is what
+/// makes the one-producer multi-symbol case exact (`docs/SYMBOL.md` §4.1).
 pub fn store_order(stmts: &[Stmt]) -> Option<Vec<usize>> {
-    let ranks = rank_order(stmts)?;
-    let floor = |k: usize| -> usize {
-        match stmts[k].producer {
-            None => 0,
-            Some(id) => {
-                head_slots(stmts) + ranks.iter().position(|&r| r == id).unwrap_or(0)
-            }
-        }
+    let limit = if single_symbol(stmts) {
+        MAX_MODELLED_PRODUCERS
+    } else {
+        MAX_MULTISYM_PRODUCERS
     };
-    let mut left: Vec<usize> = (0..stmts.len()).collect();
-    let mut out: Vec<usize> = Vec::with_capacity(stmts.len());
-    while !left.is_empty() {
-        let q = out.len();
-        // The earliest source-order store whose floor this slot clears.
-        //
-        // The fallback is UNREACHABLE on every cell measured — 822 of 822,
-        // fit and holdout, plus the 479 discovery cells — because the stores
-        // of ranks `0..=j` always number at least `j + 1`. It is written as a
-        // saturating pick rather than a panic so that a widening reaches a
-        // wrong ORDER through the guard below, never through a crash.
-        let pick = left
-            .iter()
-            .position(|&k| q >= floor(k))
-            .unwrap_or(0);
-        out.push(left.remove(pick));
+    if distinct(stmts).len() > limit {
+        return None;
     }
-    Some(out)
+    let ranks = group_ranks(stmts);
+    for u in (0..=head_slots(stmts)).rev() {
+        if let Some(out) = walk(stmts, &ranks, u) {
+            return Some(out);
+        }
+    }
+    None
 }
 
 /// The full emitted schedule — producers and stores, in order. `None` outside
@@ -322,27 +457,125 @@ mod tests {
         check("012.", "P0 S3 P1 P2 S0 S1 S2");
     }
 
-    /// Two base symbols: REFUSED, and the refusal is measured, not cautious.
-    /// `xboxheap.cpp`'s constructor emits its producers in first-consumption
-    /// order; eight single-symbol cells of the same shape emit them in rank
-    /// order. Board **#564**.
+    fn s(p: Option<u32>, b: u32) -> Stmt {
+        Stmt {
+            producer: p,
+            base: b,
+        }
+    }
+
+    /// Multi-symbol cells, spelled `<producer><base>` per statement with `.`
+    /// for an unproduced store: `".0" -> ".0 00"`. Every cell asserted below
+    /// was compiled by real `c2.dll` under wibo at the workload's own flags
+    /// and read out of a `/FAsc` listing — the grid is `work/w-sym/`.
+    fn msym(spec: &str) -> Vec<Stmt> {
+        spec.split_whitespace()
+            .map(|t| {
+                let mut c = t.chars();
+                let p = c.next().unwrap();
+                let b = c.next().unwrap().to_digit(10).unwrap();
+                s(p.to_digit(10), b)
+            })
+            .collect()
+    }
+
+    /// `xboxheap.cpp`'s constructor — the cell `#564` is named after. Two
+    /// symbols, and BOTH halves are now answered.
     #[test]
-    fn two_base_symbols_are_refused_because_xboxheap_disagrees() {
-        let s = |p: Option<u32>, b: u32| Stmt { producer: p, base: b };
-        let xboxheap = [
-            s(None, 0),
-            s(None, 0),
-            s(Some(0), 0),
-            s(None, 0),
-            s(Some(1), 1),
-            s(Some(1), 1),
-        ];
-        assert_eq!(store_order(&xboxheap), None);
+    fn xboxheap_two_symbols_is_answered_not_refused() {
+        let xboxheap = msym(".0 .0 00 .0 11 11");
+        assert_eq!(store_order(&xboxheap), Some(vec![0, 1, 2, 3, 4, 5]));
+        assert_eq!(is_source_order(&xboxheap), Some(true));
+        // #582: the count-1 producer comes out FIRST here …
+        assert_eq!(producer_order(&xboxheap), Some(vec![0, 1]));
+        // … and `schedule` still refuses, because the LAYOUT is #602.
         assert_eq!(rank_order(&xboxheap), None);
-        assert_eq!(is_source_order(&xboxheap), None);
-        // The same statement shape through ONE symbol is in domain, and c2
-        // emits the rank-0 producer first — the opposite of xboxheap.
-        check("...011", "P1 S0 P0 S1 S2 S3 S4 S5");
+        assert_eq!(schedule(&xboxheap), None);
+
+        // The SAME statement word through ONE symbol: the store order moves
+        // and the count-2 producer comes out first. Same producers, same
+        // counts, opposite answer — this pair is the whole of #582.
+        let one = stmts("..0.11");
+        assert_eq!(store_order(&one), Some(vec![0, 1, 3, 2, 4, 5]));
+        assert_eq!(producer_order(&one), Some(vec![1, 0]));
+        check("..0.11", "P1 S0 P0 S1 S3 S2 S4 S5");
+    }
+
+    /// The lowered `u`. `{V0 V0 T V0 T}` with the FIRST store through the
+    /// second symbol: `min(2, #unproduced)` is 2, the two unproduced stores
+    /// are pinned behind produced ones by the cross-symbol clause, and
+    /// `w-parse`'s SYMORDER relaxes a floor and moves a store. Real `c2`
+    /// leaves the run in source order, which is `u = 0`.
+    #[test]
+    fn u_is_lowered_rather_than_a_floor_relaxed() {
+        for cell in [
+            "01 00 .0 00 .0",
+            "00 01 .1 00 .0 01",
+            "00 01 .1 .1 00 00",
+            "00 00 .1 00 00 .1",
+        ] {
+            let st = msym(cell);
+            let n = st.len();
+            assert_eq!(
+                store_order(&st),
+                Some((0..n).collect::<Vec<_>>()),
+                "cell {cell}"
+            );
+            assert_eq!(is_source_order(&st), Some(true), "cell {cell}");
+        }
+    }
+
+    /// The PIN: two stores through different symbols are never reordered past
+    /// each other, so the emitted symbol pattern is the source one. Measured
+    /// model-free on 7,573 of 7,573 cells — board #601. Enumerated here as a
+    /// positive check with a printed count.
+    #[test]
+    fn the_emitted_symbol_pattern_is_always_the_source_pattern() {
+        let alphabet = ['.', '0', '1', '2'];
+        let mut checked = 0usize;
+        for n in 2..=5 {
+            for mask in 0..(1u32 << n) {
+                for w in 0..alphabet.len().pow(n as u32) {
+                    let st: Vec<Stmt> = (0..n)
+                        .map(|i| {
+                            let c = alphabet[(w / alphabet.len().pow(i as u32))
+                                % alphabet.len()];
+                            s(c.to_digit(10), (mask >> i) & 1)
+                        })
+                        .collect();
+                    if let Some(order) = store_order(&st) {
+                        let emitted: Vec<u32> =
+                            order.iter().map(|&k| st[k].base).collect();
+                        let source: Vec<u32> =
+                            st.iter().map(|t| t.base).collect();
+                        assert_eq!(emitted, source, "pin broken");
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        assert!(checked >= 3000, "only {checked} runs enumerated");
+    }
+
+    /// Three symbols: the same rule, no new constant. `w-sym`'s whole
+    /// three-symbol tier was HELD OUT by the preregistered partition and
+    /// scored **406 of 406** out of sample at two producers.
+    #[test]
+    fn three_symbols_need_no_new_constant() {
+        assert_eq!(store_order(&msym("00 01 02")), Some(vec![0, 1, 2]));
+        assert_eq!(store_order(&msym(".0 01 12 02")), Some(vec![0, 1, 2, 3]));
+        assert_eq!(producer_order(&msym("00 01 12 02")), Some(vec![0, 1]));
+    }
+
+    /// Past two producers a multi-symbol run is refused: the store order is
+    /// 97 % there and the residual is not one family.
+    #[test]
+    fn three_producers_through_two_symbols_are_refused() {
+        assert_eq!(store_order(&msym("00 10 21 20 01")), None);
+        assert_eq!(is_source_order(&msym("00 10 21 20 01")), None);
+        assert_eq!(producer_order(&msym("00 10 21 20 01")), None);
+        // …and the same word through ONE symbol is still in domain.
+        assert!(store_order(&stmts("01220")).is_some());
     }
 
     /// Four producers: the store order is exact (822 of 822 grid cells) but
