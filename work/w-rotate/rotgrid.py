@@ -187,6 +187,64 @@ def grid_b_src(body):
 
 
 # ---------------------------------------------------------------------------
+# Grid C (H-EXIT) — the JUMPIN boundary, registered in `PREREG.md` §6 at commit
+# `9d0a9df` BEFORE this list existed.
+#
+#   H-EXIT: c2 DUPLICATES the loop test (bucket GUARD/GUARDRET) iff the loop
+#   produces a value the EXIT BLOCK consumes.  When the loop produces nothing
+#   the exit uses, the test is emitted ONCE at the bottom and entered by an
+#   unconditional `b` (bucket JUMPIN) — the IL's `3A Ltest` surviving.
+#
+# Grid A produced two JUMPIN cells out of 42.  A rule fitted to two cells is
+# what this project forbids, so every cell below carries its PREDICTION in the
+# table and the script grades predicted-vs-measured as `n of m`.  A cell that
+# collapses to NOLOOP (c2 deleted a dead loop) is excluded and the exclusion is
+# printed — it is not scored as a hit.
+#
+# `ROT` means GUARD or GUARDRET; H-EXIT does not predict which of the two, and
+# it does not need to — that is P2's job, and the two rules are independent.
+# ---------------------------------------------------------------------------
+GRID_C = [
+    ("c-empty-const", "int P(const char* s){ while (*s) s++; return 7; }",
+     "JUMPIN", "empty body, constant return: the loop produces NOTHING"),
+    ("c-empty-ptr", "const char* P(const char* s){ while (*s) s++; return s; }",
+     "ROT", "empty body but the exit returns the WALKED POINTER"),
+    ("c-strlen", "int P(const char* s){ int n=0; while (*s) { n++; s++; } return n; }",
+     "ROT", "the counter is returned"),
+    ("c-count-const", "int P(const char* s){ int n=0; while (*s) { n++; s++; } return 7; }",
+     "JUMPIN", "the same loop, counter DEAD"),
+    ("c-dead-acc", "int P(const char* s){ int r=0; while (*s) { r=r+*s; s++; } return 7; }",
+     "JUMPIN", "accumulate over the test operand, result dead"),
+    ("c-call-void", "int gv(int);\nvoid P(const char* s){ while (*s) { gv(*s); s++; } }",
+     "JUMPIN", "a call for effect; nothing returned"),
+    ("c-call-ret", "int gi(int);\nint P(const char* s){ int r=0; while (*s) { r=r+gi(*s); s++; } return r; }",
+     "ROT", "the same call, accumulated and RETURNED"),
+    ("c-call-dead", "int gi(int);\nint P(const char* s){ int r=0; while (*s) { r=r+gi(*s); s++; } return 7; }",
+     "JUMPIN", "the same call, accumulator DEAD -- the discriminating pair with c-call-ret"),
+    ("c-store", "void P(const char* s,int* o){ while (*s) { *o=*o+*s; s++; } }",
+     "JUMPIN", "the loop's product goes to MEMORY, not to the exit block"),
+    ("c-global", "int gS;\nvoid P(const char* s){ while (*s) { gS=gS+*s; s++; } }",
+     "JUMPIN", "same, through a global"),
+    ("c-diff", "int P(const char* s){ const char* p=s; while (*p) p++; return (int)(p-s); }",
+     "ROT", "empty body, exit consumes the walked pointer by difference"),
+    ("c-ifbody", "int P(const char* s){ int r=0; while (*s) { if (*s>97) r=r+*s; s++; } return r; }",
+     "ROT", "a branch INSIDE the body"),
+    ("c-break", "int P(const char* s){ int r=0; while (*s) { if (*s==120) break; r=r+*s; s++; } return r; }",
+     "ROT", "a second exit"),
+    ("c-cnt-live", "int P(int a){ int r=0; while (a) { r=r+a; a=a-1; } return r; }",
+     "ROT", "the NON-sentinel family: counted, accumulator live"),
+    ("c-cnt-dead", "int P(int a){ int r=0; while (a) { r=r+a; a=a-1; } return 7; }",
+     "JUMPIN", "counted, accumulator dead (may collapse to NOLOOP -- then excluded)"),
+    ("c-two-out", "int P(const char* s,int* o){ int r=0; while (*s) { r=r+*s; s++; } *o=r; return r; }",
+     "ROT", "the exit block both stores and returns the accumulator"),
+    ("c-void-acc", "void P(const char* s,int* o){ int r=0; while (*s) { r=r+*s; s++; } *o=r; }",
+     "ROT", "VOID function, but the exit block still consumes the accumulator"),
+    ("c-call-count", "int gi(int);\nvoid P(int n){ for (int i=0;i<n;i++) gi(i); }",
+     "JUMPIN", "a counted call loop producing nothing"),
+]
+
+
+# ---------------------------------------------------------------------------
 # The decoder.  Only the four branch forms `CFG_SHAPE.md` §3.1 records, plus the
 # two CTR opcodes, are needed; everything else is passed to llvm-mc for display
 # only and never for classification.
@@ -297,6 +355,30 @@ def classify(words, rel):
     # P4: is there a LOAD before the loop top?  The peel signature.  Byte/half/
     # word loads, D-form and update-form (opcodes 32..43 cover lwz..sthu).
     r["peel"] = any(32 <= (w >> 26) <= 43 for w in words[:top // 4])
+
+    # ---- H-REG (see `PREREG.md` §7) ------------------------------------
+    #
+    # The PEEL is the function's FIRST load — in every cell of every grid it is
+    # the first instruction after the prologue, and requiring "first load"
+    # rather than "load nearest the top" is deliberate: `c-global` hoists a
+    # second, unrelated load (`lwz` of the global) into the preheader, and a
+    # rule that took the nearest one would read that instead.
+    #
+    # The CARRY is the first UPDATE-FORM load inside the loop — the induction
+    # load, the instruction that advances the walked pointer.
+    r["peel_rd"] = r["carry_rd"] = None
+    for w in words[:top // 4]:
+        if 32 <= (w >> 26) <= 43 and (w >> 26) not in (36, 37, 38, 39, 44, 45):
+            r["peel_rd"] = (w >> 21) & 0x1F
+            break
+    for w in words[top // 4:fallout // 4]:
+        if (w >> 26) in (33, 35, 41, 43):        # lwzu lbzu lhzu lhau
+            r["carry_rd"] = (w >> 21) & 0x1F
+            break
+    if r["peel_rd"] is not None and r["carry_rd"] is not None:
+        r["hreg"] = "JUMPIN" if r["peel_rd"] == r["carry_rd"] else "ROT"
+    else:
+        r["hreg"] = None
     return r
 
 
@@ -372,6 +454,63 @@ def run(cells, mode, wd, tag_prefix, show):
                 print()
                 dump(name, rows[name])
     return rows, reached, graded
+
+
+# ---------------------------------------------------------------------------
+# Grid D — HELD OUT.  Fresh cells written after H-REG was read off five named
+# cells (`b-add`, `exit-const`, `exit-void`, `c-strlen`, `c-store`), so that the
+# rule is graded on a population it was NOT fitted to.  Reporting a fitted rule's
+# accuracy on its own fitting set is how a placement rule survives to become the
+# eleventh refuted one.
+# ---------------------------------------------------------------------------
+GRID_D = [
+    ("d-or", "int P(const char* s){ int r=0; while (*s) { r=r|*s; s++; } return r; }",
+     "one accumulate op, a different operator"),
+    ("d-max", "int P(const char* s){ int r=0; while (*s) { if (*s>r) r=*s; s++; } return r; }",
+     "a conditional accumulate"),
+    ("d-last", "int P(const char* s){ int r=0; while (*s) { r=*s; s++; } return r; }",
+     "the body OVERWRITES rather than accumulates"),
+    ("d-idx-cnt", "int P(const char* s){ int n=0; while (*s) { if (*s==97) n++; s++; } return n; }",
+     "the body reads the char but accumulates a counter"),
+    ("d-two-ptr", "int P(const char* a,const char* b){ int r=0; while (*a) { r=r+*a+*b; a++; b++; } return r; }",
+     "TWO walked pointers"),
+    ("d-wide", "int P(const short* s){ int r=0; while (*s) { r=r+*s; s++; } return r; }",
+     "a 16-bit element -- lhzu, not lbzu"),
+    ("d-word", "int P(const int* s){ int r=0; while (*s) { r=r+*s; s++; } return r; }",
+     "a 32-bit element -- lwzu"),
+    ("d-store-ret", "int P(const char* s,int* o){ int r=0; while (*s) { *o=*s; s++; r=r+1; } return r; }",
+     "a store in the body AND a returned counter"),
+    ("d-nested-acc", "int P(const char* s){ int r=0; while (*s) { r=r+*s*3+1; s++; } return r; }",
+     "a deeper accumulate expression"),
+    ("d-pre-inc", "int P(const char* s){ int r=0; while (*++s) { r=r+*s; } return r; }",
+     "the increment INSIDE the test"),
+    ("d-cmp-k", "int P(const char* s){ int r=0; while (*s!=120) { r=r+*s; s++; } return r; }",
+     "a sentinel that is not zero"),
+    ("d-void-store", "void P(const char* s,int* o){ while (*s) { *o=*o+1; s++; } }",
+     "a store in the body, nothing returned, body ignores the char"),
+]
+
+
+def grade_hreg(rows, label):
+    """H-REG, graded.  `n of m` with the excluded count printed."""
+    hit = n = excl = 0
+    lines = []
+    for name, r in sorted(rows.items()):
+        if r["bucket"] in ("NOLOOP", "MULTI") or r.get("hreg") is None:
+            excl += 1
+            continue
+        got = "JUMPIN" if r["bucket"] == "JUMPIN" else "ROT"
+        n += 1
+        ok = (got == r["hreg"])
+        hit += ok
+        lines.append("    %-16s peel=r%-2d carry=r%-2d  H-REG=%-6s  got=%-6s %s"
+                     % (name, r["peel_rd"], r["carry_rd"], r["hreg"], got,
+                        "OK" if ok else "**MISS**"))
+    print("  H-REG on %s: %d of %d graded cells (excluded %d -- no peel/carry pair)"
+          % (label, hit, n, excl))
+    for l in lines:
+        print(l)
+    return hit, n
 
 
 def dump(name, r):
@@ -453,6 +592,76 @@ def main(argv):
           % (len(rowsb), len(plans)))
     for k, v in plans.items():
         print("    %s" % " ".join(v))
+
+    print()
+    print("== GRID C -- the JUMPIN boundary (H-EXIT), predictions REGISTERED ==")
+    print("   H-EXIT: the test is DUPLICATED iff the loop produces a value the")
+    print("   exit block consumes. `ROT` = GUARD or GUARDRET; which of the two")
+    print("   is P2's question and not H-EXIT's.")
+    print()
+    cellsc = [(n, s, note) for n, s, _p, note in GRID_C if not only or n in only]
+    predc = {n: p for n, _s, p, _note in GRID_C}
+    rowsc, reachedc, gradedc = run(cellsc, mode, wd, "c_", show)
+    print()
+    print("  H-EXIT graded, per cell:")
+    print("  %-16s %-9s %-9s %s" % ("cell", "predicted", "measured", ""))
+    hit = n = excl = 0
+    for name, r in rowsc.items():
+        if r["bucket"] in ("NOLOOP", "MULTI"):
+            excl += 1
+            print("  %-16s %-9s %-9s  EXCLUDED (c2 emitted no single loop)"
+                  % (name, predc[name], r["bucket"]))
+            continue
+        got = "JUMPIN" if r["bucket"] == "JUMPIN" else \
+              ("ROT" if r["bucket"] in ("GUARD", "GUARDRET") else r["bucket"])
+        n += 1
+        ok = (got == predc[name])
+        hit += ok
+        print("  %-16s %-9s %-9s  %s" % (name, predc[name], got,
+                                         "OK" if ok else "**MISS**"))
+    print()
+    print("  H-EXIT: %d of %d graded cells (excluded %d, reached %d, graded %d)"
+          % (hit, n, excl, reachedc, gradedc))
+    jump = sum(1 for r in rowsc.values() if r["bucket"] == "JUMPIN")
+    rot = sum(1 for r in rowsc.values() if r["bucket"] in ("GUARD", "GUARDRET"))
+    print("  both poles present in Grid C: JUMPIN=%d ROT=%d" % (jump, rot))
+    if not only and (jump == 0 or rot == 0):
+        print("  !! CONTROL FAILED: Grid C has only one pole, so it cannot")
+        print("     discriminate H-EXIT from a constant answer.")
+        bad += 1
+
+    print()
+    print("== GRID D -- HELD OUT from H-REG's fitting set ==")
+    cellsd = [c for c in GRID_D if not only or c[0] in only]
+    rowsd, reachedd, gradedd = run(cellsd, mode, wd, "d_", show)
+
+    print()
+    print("== H-REG, graded on every grid ==")
+    print("   H-REG: JUMPIN iff the PEELED load and the loop's UPDATE-FORM load")
+    print("   write the SAME register -- i.e. the test block is identical for the")
+    print("   entry and the back edge and can be SHARED. Different registers mean")
+    print("   the block cannot be shared and the test is DUPLICATED (rotation).")
+    print()
+    fitted = ("b-add", "exit-const", "exit-void", "c-strlen", "c-store")
+    print("   FITTED ON (excluded from the held-out number): %s" % " ".join(fitted))
+    print()
+    allrows = {}
+    for pre, rr in (("A:", rows), ("B:", rowsb), ("C:", rowsc), ("D:", rowsd)):
+        for k, v in rr.items():
+            allrows[pre + k] = v
+    h1, n1 = grade_hreg({k: v for k, v in allrows.items()
+                         if k.split(":", 1)[1] not in fitted}, "the HELD-OUT set")
+    print()
+    h2, n2 = grade_hreg(allrows, "every cell (fitting set included)")
+    if not only:
+        jp = sum(1 for v in allrows.values() if v.get("hreg") == "JUMPIN")
+        rp = sum(1 for v in allrows.values() if v.get("hreg") == "ROT")
+        print()
+        print("  both poles PREDICTED: JUMPIN=%d ROT=%d" % (jp, rp))
+        if jp == 0 or rp == 0:
+            print("  !! CONTROL FAILED: H-REG predicts one value everywhere, so its")
+            print("     accuracy is a base rate and not a reading.")
+            bad += 1
 
     print()
     print("controls failed: %d" % bad)

@@ -197,3 +197,45 @@ the honest outcome of this lane is World B plus a named fourth mechanism, and I
 will **not** widen the class by fitting the interleave to three cells.
 **R-S1:** the interleave is a stateable function of the chain length over a
 grid, in which case it is a rule and World A is open.
+
+---
+
+## 7. ADDENDUM 2 — H-REG, and an honest label on how it was obtained
+
+**H-EXIT is REFUTED: 10 of 17 graded Grid C cells**, against a coin's 8.5. It is
+left in this file exactly as registered. The cells that killed it are minimal
+pairs: `c-strlen` (`n++`, returned) and `c-global` (`gS=gS+*s`, nothing
+returned) sit on *opposite* sides of H-EXIT's predicate and on opposite sides of
+the measured answer, both times the wrong way round.
+
+**H-REG is not a pre-registered rule and this section will not pretend it is.**
+It was **read off the bytes of five cells** — `b-add`, `exit-const`,
+`exit-void`, `c-strlen`, `c-store` — after Grid C ran. It is therefore *fitted*,
+and the only number that means anything is its accuracy on cells it was **not**
+fitted to. Grid D is written for that purpose, twelve fresh cells spanning both
+poles, and the script reports the held-out number **first** and the
+fitting-set-inclusive number second.
+
+> **H-REG.** The entry form is **JUMPIN** iff the peeled load and the loop's
+> update-form load write the **same register** — in which case the entry and the
+> back edge reach a test block that is *identical* and c2 emits it once and
+> jumps into it. Where they write **different** registers the block cannot be
+> shared, and the test is **duplicated**: rotation proper.
+
+**What H-REG would mean if it holds, and it is not what the brief hoped for.**
+H-REG is not a rule the port can *evaluate*, because its inputs are register
+assignments — the port would have to have done the allocation already. Its value
+is **explanatory**: it says the loop entry form is **downstream of the
+schedule**. Whether the induction load can reuse the carried value's register is
+decided by whether the body's last use of the char is scheduled before or after
+the `lbzu`, which is S1's interleave and nothing else.
+
+**If H-REG holds on the held-out set, the finding is that `CFG_SHAPE.md` §8.2's
+L4 is NOT AN INDEPENDENT OPEN ITEM.** It is a shadow of L1/S1, and no grid over
+loop *shapes* can ever close it, because the discriminator is not in the shape.
+That is a negative result about the shape of the remaining work, and it is
+registered here as the outcome I now expect, ahead of Grid D running.
+
+**R-H-REG:** the correspondence breaks on the held-out set, in which case both
+H-EXIT and H-REG are dead, L4 is open with three refuted rivals instead of one,
+and this lane's deliverable is the refutation list plus P2.
