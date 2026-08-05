@@ -1,0 +1,193 @@
+schedgrid.py -- the loop-body INTERLEAVE, lane w-sched2
+mode: /O1 /GS- /c
+prereg: work/w-sched2/PREREG.md (committed before this file)
+
+== GRID A -- FITTING SET, labelled (alu family, N=1..8) ==
+   Any refinement read off this grid is FITTED and is excluded from every held-out number.
+
+cell          iN   N   L   R  LRC CHAR  P1   P2   P3   P4    note
+a-alu1         1   1   0   2    1   11  OK   OK   OK   OK    alu chain, N=1 intended, c-first
+a-alu2         2   2   0   2    1   11  OK   OK   OK   OK    alu chain, N=2 intended, c-first
+a-alu3         3   3   1   3    2   11  OK   OK   OK   OK    alu chain, N=3 intended, c-first
+a-alu4         4   4   1   5    0   11  MISS MISS OK   MISS  alu chain, N=4 intended, c-first
+a-alu5         5   5   1   6    0   11  MISS MISS MISS MISS  alu chain, N=5 intended, c-first
+a-alu6         6   6   1   7    0   11  MISS MISS MISS MISS  alu chain, N=6 intended, c-first
+a-alu7         7   7   1   8    0   11  MISS MISS MISS MISS  alu chain, N=7 intended, c-first
+a-alu8         8   8   1   9    0   11  MISS MISS MISS MISS  alu chain, N=8 intended, c-first
+
+  reached 8  graded 8  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 0 of 8 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2             3 of 8   graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8
+  P2 WAR    R == LRC+1           3 of 8   graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8
+  P3 LEN    L == (N-1)/2         4 of 8   graded cells   MISSES: a-alu5 a-alu6 a-alu7 a-alu8
+  P4 TEMP   dests from end       3 of 8   graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8
+
+== GRID B -- HELD OUT (mul and shift families, N=1..8) ==
+   P5's grid: does the interleave depend on the chain's OPCODES?
+
+cell          iN   N   L   R  LRC CHAR  P1   P2   P3   P4    note
+b-mul1         1   1   0   2    1   11  OK   OK   OK   OK    mul chain, N=1 intended, c-first
+b-mul2         2   2   0   2    1   11  OK   OK   OK   OK    mul chain, N=2 intended, c-first
+b-mul3         3   3   1   3    2   11  OK   OK   OK   OK    mul chain, N=3 intended, c-first
+b-mul4         4   3   1   3    2   11  OK   OK   OK   OK    mul chain, N=4 intended, c-first
+b-mul5         5   3   1   3    2   11  OK   OK   OK   OK    mul chain, N=5 intended, c-first
+b-mul6         6   3   1   3    2   11  OK   OK   OK   OK    mul chain, N=6 intended, c-first
+b-mul7         7   3   1   3    2   11  OK   OK   OK   OK    mul chain, N=7 intended, c-first
+b-mul8         8   3   1   3    2   11  OK   OK   OK   OK    mul chain, N=8 intended, c-first
+b-shift1       1   1   0   2    1   11  OK   OK   OK   OK    shift chain, N=1 intended, c-first
+b-shift2       2   2   0   2    1   11  OK   OK   OK   OK    shift chain, N=2 intended, c-first
+b-shift3       3   3   1   3    2   11  OK   OK   OK   OK    shift chain, N=3 intended, c-first
+b-shift4       4   3   1   3    2   11  OK   OK   OK   OK    shift chain, N=4 intended, c-first
+b-shift5       5   3   1   3    2   11  OK   OK   OK   OK    shift chain, N=5 intended, c-first
+b-shift6       6   3   1   3    2   11  OK   OK   OK   OK    shift chain, N=6 intended, c-first
+b-shift7       7   3   1   3    2   11  OK   OK   OK   OK    shift chain, N=7 intended, c-first
+b-shift8       8   3   1   3    2   11  OK   OK   OK   OK    shift chain, N=8 intended, c-first
+
+  reached 16  graded 16  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 10 of 16 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2            16 of 16  graded cells
+  P2 WAR    R == LRC+1          16 of 16  graded cells
+  P3 LEN    L == (N-1)/2        16 of 16  graded cells
+  P4 TEMP   dests from end      16 of 16  graded cells
+
+== GRID C -- HELD OUT (the last-read-of-char axis) ==
+   P2's pole. Three published cells cannot reach `c-every`; if P2 is a base rate, it dies here.
+
+cell          iN   N   L   R  LRC CHAR  P1   P2   P3   P4    note
+c-last1        1   1   0   2    1   11  OK   OK   OK   OK    N=1 intended, only opN reads c
+c-last2        2   2   1   3    2   11  OK   OK   MISS OK    N=2 intended, only opN reads c
+c-last3        3   3   1   4    3   11  MISS OK   OK   MISS  N=3 intended, only opN reads c
+c-last4        4   4   1   5    4   11  MISS OK   OK   MISS  N=4 intended, only opN reads c
+c-last5        5   5   1   6    5   11  MISS OK   MISS MISS  N=5 intended, only opN reads c
+c-last6        6   6   1   7    6   11  MISS OK   MISS MISS  N=6 intended, only opN reads c
+c-last7        7   7   1   8    7   11  MISS OK   MISS MISS  N=7 intended, only opN reads c
+c-last8        8   8   1   9    8   11  MISS OK   MISS MISS  N=8 intended, only opN reads c
+c-every1       1   1   0   2    1   11  OK   OK   OK   OK    N=1 intended, EVERY op reads c
+c-every2       2   2   1   3    2   11  OK   OK   MISS OK    N=2 intended, EVERY op reads c
+c-every3       3   3   1   4    3   11  MISS OK   OK   MISS  N=3 intended, EVERY op reads c
+c-every4       4   4   1   5    4   11  MISS OK   OK   MISS  N=4 intended, EVERY op reads c
+c-every5       5   5   1   6    5   11  MISS OK   MISS MISS  N=5 intended, EVERY op reads c
+c-every6       6   6   1   7    6   11  MISS OK   MISS MISS  N=6 intended, EVERY op reads c
+c-every7       7   7   1   8    7   11  MISS OK   MISS MISS  N=7 intended, EVERY op reads c
+c-every8       8   8   1   9    8   11  MISS OK   MISS MISS  N=8 intended, EVERY op reads c
+
+  reached 16  graded 16  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 0 of 16 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2             4 of 16  graded cells   MISSES: c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8
+  P2 WAR    R == LRC+1          16 of 16  graded cells
+  P3 LEN    L == (N-1)/2         6 of 16  graded cells   MISSES: c-every2 c-every5 c-every6 c-every7 c-every8 c-last2 c-last5 c-last6 c-last7 c-last8
+  P4 TEMP   dests from end       4 of 16  graded cells   MISSES: c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8
+
+== GRID D -- CONTROLS and the #644 split-producer probe ==
+   Three known-answer cells from w-rotate, three split-producer cells, two unsigned, three MUST-EXCLUDE.
+
+cell          iN   N   L   R  LRC CHAR  P1   P2   P3   P4    note
+k-b-add        1   1   0   2    1   11  OK   OK   OK   OK    KNOWN-ANSWER w-rotate b-add: L=0 R=2 N=1
+k-b-two        2   2   0   2    1   11  OK   OK   OK   OK    KNOWN-ANSWER w-rotate b-two: L=0 R=2 N=2
+k-b-three      3   3   1   3    2   11  OK   OK   OK   OK    KNOWN-ANSWER w-rotate b-three: L=1 R=3 N=3
+g-644-1        3   3   1   3    0   11  OK   MISS OK   MISS  #644 PROBE: 0x12345 needs lis/ori -- a split producer INSIDE the chain
+g-644-2        4   4   1   3    2   11  OK   OK   OK   MISS  #644 PROBE, longer
+g-644-3        5   5   1   6    0   11  MISS MISS MISS MISS  #644 PROBE, the split producer EARLY in the chain
+u-uns1         1   1   0   2    1   11  OK   OK   OK   OK    CONTROL: unsigned sentinel -- record form is `mr.`, not `extsb.`
+u-uns4        EXCLUDED: record form writes 0 regs
+x-noloop      EXCLUDED: no conditional back edge
+x-cmpk        EXCLUDED: record form writes 0 regs
+x-nosent      EXCLUDED: back edge tests no CR bit (BO=16)
+
+  reached 11  graded 7  capture-failures 0  excluded 4   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 0 of 7 graded (a fold, reported not absorbed)
+    excluded u-uns4       record form writes 0 regs
+    excluded x-noloop     no conditional back edge
+    excluded x-cmpk       record form writes 0 regs
+    excluded x-nosent     back edge tests no CR bit (BO=16)
+
+  P1 LAT2   R == L+2             6 of 7   graded cells   MISSES: g-644-3
+  P2 WAR    R == LRC+1           5 of 7   graded cells   MISSES: g-644-1 g-644-3
+  P3 LEN    L == (N-1)/2         6 of 7   graded cells   MISSES: g-644-3
+  P4 TEMP   dests from end       4 of 7   graded cells   MISSES: g-644-1 g-644-2 g-644-3
+
+==============================================================================
+TOTALS over every grid
+  reached 51  graded 47  capture-failures 0
+  P1 LAT2   R == L+2            29 of 47  graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 g-644-3
+  P2 WAR    R == LRC+1          40 of 47  graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 g-644-1 g-644-3
+  P3 LEN    L == (N-1)/2        32 of 47  graded cells   MISSES: a-alu5 a-alu6 a-alu7 a-alu8 c-every2 c-every5 c-every6 c-every7 c-every8 c-last2 c-last5 c-last6 c-last7 c-last8 g-644-3
+  P4 TEMP   dests from end      27 of 47  graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 g-644-1 g-644-2 g-644-3
+
+  P5 groups (same N and same last-read slot, across families):
+    N=1 lastread-at-chain-slot=0  OK    a-alu1(L=0,R=2)  b-mul1(L=0,R=2)  b-shift1(L=0,R=2)  c-every1(L=0,R=2)  c-last1(L=0,R=2)  k-b-add(L=0,R=2)  u-uns1(L=0,R=2)
+    N=2 lastread-at-chain-slot=0  OK    a-alu2(L=0,R=2)  b-mul2(L=0,R=2)  b-shift2(L=0,R=2)  k-b-two(L=0,R=2)
+    N=2 lastread-at-chain-slot=1  OK    c-every2(L=1,R=3)  c-last2(L=1,R=3)
+    N=3 lastread-at-chain-slot=1  OK    a-alu3(L=1,R=3)  b-mul3(L=1,R=3)  b-mul4(L=1,R=3)  b-mul5(L=1,R=3)  b-mul6(L=1,R=3)  b-mul7(L=1,R=3)  b-mul8(L=1,R=3)  b-shift3(L=1,R=3)  b-shift4(L=1,R=3)  b-shift5(L=1,R=3)  b-shift6(L=1,R=3)  b-shift7(L=1,R=3)  b-shift8(L=1,R=3)  k-b-three(L=1,R=3)
+    N=3 lastread-at-chain-slot=2  OK    c-every3(L=1,R=4)  c-last3(L=1,R=4)
+    N=4 lastread-at-chain-slot=3  OK    c-every4(L=1,R=5)  c-last4(L=1,R=5)
+    N=5 lastread-at-chain-slot=0  OK    a-alu5(L=1,R=6)  g-644-3(L=1,R=6)
+    N=5 lastread-at-chain-slot=4  OK    c-every5(L=1,R=6)  c-last5(L=1,R=6)
+    N=6 lastread-at-chain-slot=5  OK    c-every6(L=1,R=7)  c-last6(L=1,R=7)
+    N=7 lastread-at-chain-slot=6  OK    c-every7(L=1,R=8)  c-last7(L=1,R=8)
+    N=8 lastread-at-chain-slot=7  OK    c-every8(L=1,R=9)  c-last8(L=1,R=9)
+  P5 FAMILY-BLINDNESS: 11 of 11 multi-cell groups agree
+
+  AXIS: 8 distinct emitted chain lengths [1, 2, 3, 4, 5, 6, 7, 8]
+  AXIS: 3 operator families in the length grids ['alu', 'mul', 'shift']
+
+  P4 residual -- chain destinations, in chain order, per cell:
+    a-alu1       N=1  3
+    a-alu2       N=2  8 3
+    a-alu3       N=3  11 8 3
+    a-alu4       N=4  9 9 9 3
+    a-alu5       N=5  9 9 9 9 3
+    a-alu6       N=6  9 9 9 9 9 3
+    a-alu7       N=7  9 9 9 9 9 9 3
+    a-alu8       N=8  9 9 9 9 9 9 9 3
+    b-mul1       N=1  3
+    b-mul2       N=2  8 3
+    b-mul3       N=3  11 8 3
+    b-mul4       N=3  11 8 3
+    b-mul5       N=3  11 8 3
+    b-mul6       N=3  11 8 3
+    b-mul7       N=3  11 8 3
+    b-mul8       N=3  11 8 3
+    b-shift1     N=1  3
+    b-shift2     N=2  8 3
+    b-shift3     N=3  11 8 3
+    b-shift4     N=3  11 8 3
+    b-shift5     N=3  11 8 3
+    b-shift6     N=3  11 8 3
+    b-shift7     N=3  11 8 3
+    b-shift8     N=3  11 8 3
+    c-every1     N=1  3
+    c-every2     N=2  8 3
+    c-every3     N=3  8 8 3
+    c-every4     N=4  8 8 8 3
+    c-every5     N=5  8 8 8 8 3
+    c-every6     N=6  8 8 8 8 8 3
+    c-every7     N=7  8 8 8 8 8 8 3
+    c-every8     N=8  8 8 8 8 8 8 8 3
+    c-last1      N=1  3
+    c-last2      N=2  8 3
+    c-last3      N=3  8 8 3
+    c-last4      N=4  8 8 8 3
+    c-last5      N=5  8 8 8 8 3
+    c-last6      N=6  8 8 8 8 8 3
+    c-last7      N=7  8 8 8 8 8 8 3
+    c-last8      N=8  8 8 8 8 8 8 8 3
+    g-644-1      N=3  8 3 3
+    g-644-2      N=4  11 8 3 3
+    g-644-3      N=5  9 9 9 9 3
+    k-b-add      N=1  3
+    k-b-three    N=3  11 8 3
+    k-b-two      N=2  8 3
+    u-uns1       N=1  3
+
+  CONTROLS:
+    k-b-add      KNOWN-ANSWER  OK  (L=0 R=2 N=1, as w-rotate published)
+    k-b-two      KNOWN-ANSWER  OK  (L=0 R=2 N=2, as w-rotate published)
+    k-b-three    KNOWN-ANSWER  OK  (L=1 R=3 N=3, as w-rotate published)
+    x-noloop     MUST-EXCLUDE  OK  (left the family, reason printed above)
+    x-cmpk       MUST-EXCLUDE  OK  (left the family, reason printed above)
+    x-nosent     MUST-EXCLUDE  OK  (left the family, reason printed above)
+  controls failed: 0

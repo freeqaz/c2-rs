@@ -1,0 +1,74 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-2917770       this run
+  keep    /tmp/c2rs-gate-2678331       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-2467811       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-2275588       recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-1536566       stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
+        freed 134.7 MiB and 16,983 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 32.0 GiB / 867,428 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from <lane worktree>/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-2917770   (per-lane run dirs under /tmp/c2rs-gate-2917770/lanes/)
+building the harness (no-op if current)
+   Compiling c2-il v0.1.0 (<lane worktree>/crates/c2-il)
+   Compiling c2-obj v0.1.0 (<lane worktree>/crates/c2-obj)
+   Compiling c2-core v0.1.0 (<lane worktree>/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<lane worktree>/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<lane worktree>/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 4.32s
+harness: /tmp/c2rs-gate-2917770/c2rs
+  pinned from <lane worktree>/target/release/c2rs  built 2026-08-05 20:39:18
+  sha 858d5d6731c0  tree 916679d
+
+wall clock: 15s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-2917770/sweep 0  (jobs 6)
+    60 fragments, 16710 cases total (16710 .cpp on disk)
+  sweeping 16710 of 16710 generated cases
+    grading at 6 job(s)
+  checked=16710 mismatches=0 graded=16614 ungraded=96 unknown=0
+  (153s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-2917770/cross 0  (jobs 6)
+  assigned 16710 cases over 18 lanes = 81905 cells (full cross would be 300780)
+  sweeping 81905 of 81905 case-lane cells (cross of 0 cases x <lane worktree>/scripts/lanes.txt; the full 12x product is 300780)
+  checked=81905 mismatches=0 graded=81517 ungraded=388 unknown=0
+  (656s)
+
+disk:   /tmp low-water this run — 31.9 GiB and 850,441 inodes free (start: 32.0 GiB / 867,428)
+
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          260/260       124         0  /O1
+O1-EHsc              PASS          260/260       124         0  /O1 /EHsc
+O1-Oi                PASS          260/260       124         0  /O1 /Oi
+O1-Oi-EHsc           PASS          260/260       124         0  /O1 /Oi /EHsc
+Ox                   PASS          260/260       123         0  /Ox
+Ox-EHsc              PASS          260/260       123         0  /Ox /EHsc
+Ox-Gy                PASS          260/260       121         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          260/260       121         0  /Ox /Gy /EHsc
+O2                   PASS          260/260       123         0  /O2
+O2-EHsc              PASS          260/260       123         0  /O2 /EHsc
+Od                   PASS          260/260        10         0  /Od
+Od-EHsc              PASS          260/260        10         0  /Od /EHsc
+O1-Oi-GR             PASS          260/260       124         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          260/260       124         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          260/260       123         0  /Ox /GR
+Ox-EHsc-GR           PASS          260/260       123         0  /Ox /EHsc /GR
+Od-GR                PASS          260/260        10         0  /Od /GR
+Od-EHsc-GR           PASS          260/260        10         0  /Od /EHsc /GR
+expr-sweep           PASS        16710/16710   16614         0  generated cases (of 16710)
+mode-cross           PASS        81905/81905   81517         0  case-lane cells (of 81905)
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 4680 fixture-verdicts across all lanes
+sweep:  PASS — 16710 of 16710 selected cases reached, 16614 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 16710)
+cross:  PASS — 81517 of 81905 selected cells graded, 0 mismatch (product 81905)
+logs:   /tmp/c2rs-gate-2917770/<lane>.log, /tmp/c2rs-gate-2917770/sweep.log, /tmp/c2rs-gate-2917770/cross.log
+
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 16614 of 16710 generated cases and the cross graded
+  81517 of 81905 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source).
