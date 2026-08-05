@@ -74,6 +74,27 @@ functions could not find it.
 
 ---
 
+## 1.1 The population this rule was fitted on — board #644, added by `w-wire`
+
+**Every constant producer in this document's grid is a single-word `li`.** The
+restriction was never stated, and it bites: with **more than one** producer,
+c2 does not emit a wide constant as one contiguous `lis`+`ori` at all —
+
+```text
+  { a=100000; b=1;      }   lis r11 ; li r10 ; ori r11 ; stw r10,4 ; stw r11,0
+  { a=100000; b=200000; }   lis r11 ; lis r10 ; ori r11 ; ori r10 ; stw r11,0 ; stw r10,4
+```
+
+— real `c2`, identical at `/O1` and `/Ox` (`work/w-wire/boundary_probe.py`).
+The **allocation** above survives both cells (`r11` then `r10`, first-use
+forward on a count-1 tie); what does not survive is the assumption every
+consumer of this document makes, that a producer is *one instruction*. The
+first cell also refutes `docs/ORDER.md`'s store order, which is why the port
+refuses the pair rather than allocating it. A run whose **only** producer is
+wide is unaffected.
+
+---
+
 ## 2. What ALLOC is not — measured, not asserted
 
 A preregistered exhaustive search (`work/w-alloc/search.py`, declared in
@@ -176,9 +197,28 @@ admits today (an all-formal run; an all-same-literal run) the refined rule and
 the shipped one give the same answer — so changing it would widen a refusal
 without evidence to widen it on.
 
+> **Superseded 2026-08-05 by lane `w-wire` (board #640/#642).** "Every shape the
+> parser admits today" is a larger set now: a run may carry up to three distinct
+> literals and may mix literals with formals. All three cells in the block above
+> are **emitted**, not refused —
+> `crates/c2-core/src/codegen/leaf/store.rs::scheduled_gpr_run_text` composes
+> `codegen::order`'s store order, producer order and layout with this document's
+> allocation. The paragraph stays because its *reasoning* was right at the time
+> and is the reason `schedule.rs` is still only a guard: `codegen::order`, not
+> `codegen::schedule`, is what the emitter consumes.
+
 ---
 
-## 6. What is still open: the store ORDER when every store is produced
+## 6. ~~What is still open~~: the store ORDER when every store is produced
+
+> **CLOSED.** `w-order2` settled this — board **#544** — and `docs/ORDER.md` is
+> the write-up: rank the producers by *(use count descending, first-use
+> ascending)*, and a store whose producer has rank `j` may not occupy position
+> `< u + j`. **561/561 holdout.** The hoist described below is that rule's
+> `j = 0` case with `u < 2` and is recomputed from it rather than carried, in
+> `codegen::order`'s `the_hoist_is_rank_zero`. Since `w-wire` (board #640) the
+> emitter **emits** it. The section is kept as the record of what the open
+> question looked like.
 
 Rule 1 says what may **not** sit in the two head slots. It is silent on what
 **fills** them when every store of the run is produced, a regime `w-sched`'s

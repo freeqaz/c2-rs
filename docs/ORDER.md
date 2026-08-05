@@ -17,6 +17,32 @@ This is that residual. The implementation is
 artifact**, and one rule with one constant covers both — a constant that is
 already `w-sched`'s.
 
+> ### ⚠ THE POPULATION THIS RULE WAS FITTED ON — board #644, added by `w-wire`
+>
+> **Every producer in every grid behind this document is a SINGLE-WORD `li`.**
+> That restriction was never stated here, and it is not implied by anything the
+> rule says. It is real:
+>
+> ```text
+>   { a=100000; b=1; }   lis r11 ; li r10 ; ori r11 ; stw r10,4(r3) ; stw r11,0(r3)
+> ```
+>
+> — real `c2`, identical at `/O1` and `/Ox` (`work/w-wire/boundary_probe.py`).
+> Two things break at once. The `lis`/`ori` pair is **SPLIT** by the other
+> producer, so a producer is not one contiguous instruction and `layout_slots`
+> — which places producers by *index* — cannot express the sequence at all; and
+> the **store order is `[1, 0]`** where §1's walk says source order. A second
+> cell, `{a=100000; b=200000;}`, comes back `lis lis ori ori`, confirming that
+> c2 interleaves the halves rather than emitting either pair whole.
+>
+> A run whose **only** producer is wide is unaffected — one live range, nothing
+> to interleave with — and `{a=100000;b=100000;}` is `lis ; ori ; stw ; stw`, a
+> cell the parser already admitted.
+>
+> `leaf::store` therefore refuses **more than one producer where any literal
+> needs more than one word**. Anyone re-fitting or widening the rule below owes
+> a grid that contains wide values; this one does not.
+
 ---
 
 ## 1. ORDER
