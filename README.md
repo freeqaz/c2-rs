@@ -30,9 +30,14 @@ modern Rust with any internal structure it likes, as long as:
 > (with the 4-byte COFF timestamp zeroed).
 
 There is no attempt to reproduce c2.dll's own code, and no decompiled source
-anywhere in the port — the original binary is treated as a black box and its
-observable output as the spec. The real `c2.dll` stays resident under wibo as
-the judge, and the port never grades itself.
+anywhere in the port. The original binary is treated as a black box and its
+observable output as the spec, **with two disclosed exceptions**: the `.gl`
+tag-0x10 alias record's grammar and discriminator bit are transcribed from the
+disassembly, and are logged with their addresses in
+[`docs/whitebox/DISCLOSURE.md`](docs/whitebox/DISCLOSURE.md). That ledger is the
+complete list — the claim above is **per-finding**, not blanket, and every row
+in it names the site so a reader can re-check the reading. The real `c2.dll`
+stays resident under wibo as the judge, and the port never grades itself.
 
 Honest caveat: verification is differential testing, so a green run is only
 as strong as the corpus it ran against. That's why corpus breadth gets its

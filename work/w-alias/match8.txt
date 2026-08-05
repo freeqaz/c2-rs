@@ -1,0 +1,8 @@
+src/system/synth/tomcrypt/TomCryptLicense.cpp
+src/system/synth_xbox/GainEffect.cpp
+src/system/synth_xbox/HeadsetPlaybackEffect.cpp
+src/system/synth_xbox/PeakDetector.cpp
+src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp
+src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp
+src/system/utl/Spew.cpp
+src/system/zlib/ZlibLicense.cpp
