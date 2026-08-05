@@ -177,16 +177,14 @@ fn label_channel(r: &TuResult) -> String {
 /// a run in which nothing was measured is visible (`docs/GAPS.md` §7).
 fn render_label_channel_legend(rows: &[(&TuResult, CfgReach)]) {
     let free = rows.iter().filter(|(r, _)| label_channel(r) == "label-free").count();
-    let loopy = rows
-        .iter()
-        .filter(|(_, v)| matches!(v, CfgReach::NeedsClass(s) if s.contains("cflow-loop")))
-        .count();
+    // `needs_class` and NOT set membership of the bare string: once a lane
+    // restricts `cflow-loop` (board #778) a partial miss is spelled
+    // `cflow-loop!<key>`, and a bare-string test would stop counting those
+    // silently — the count would fall and nothing would say why.
+    let loopy = rows.iter().filter(|(_, v)| v.needs_class("cflow-loop")).count();
     let loop_free = rows
         .iter()
-        .filter(|(r, v)| {
-            matches!(v, CfgReach::NeedsClass(s) if s.contains("cflow-loop"))
-                && label_channel(r) == "label-free"
-        })
+        .filter(|(r, v)| v.needs_class("cflow-loop") && label_channel(r) == "label-free")
         .count();
     println!(
         "\x20   LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's \
@@ -265,6 +263,108 @@ fn render_cfg_reachability(report: &GapReport) {
             "\x20   CONTROL {CONTROL}: absent from this scan's list — NOT a pass, not evaluated."
         ),
     }
+    render_cfg_subclass(report);
+}
+
+/// **THE SUB-CLASS MECHANISM'S OWN INSTRUMENT** (lane `w-subclass`, board
+/// **#778**) — the narrowing bracket and the ledger, printed under the screen.
+///
+/// #778 was filed because `PORT_CFG_CLASSES` could hold only a wholesale claim,
+/// so a lane with genuine *partial* coverage of a CFG class had to either
+/// over-claim or record nothing. Two lanes chose to record nothing. The list now
+/// holds `CfgClass { class, sub: Whole | Keys(&[…]) }`, and the danger a
+/// restriction introduces is the opposite of the one it fixes: a sub-class
+/// predicate that is **more permissive** than the flat list would let a lane
+/// report coverage it does not have.
+///
+/// So the mechanism prints its own bracket every scan, from the live frontier:
+/// `⊥` (nothing admitted) `⊆` `shipped` `⊆` `⊤` (every class admitted), plus
+/// `enumerated` — the shipped list re-expressed as explicit key sets, which must
+/// reproduce `shipped` TU for TU. **Sets by name, not counts**: `|⊥| ≤ |shipped|`
+/// is satisfied by swapping one TU for another, so counts cannot tell nesting
+/// from coincidence.
+fn render_cfg_subclass(report: &GapReport) {
+    let b = report.cfg_reach_bounds();
+    println!(
+        "\x20   SUB-CLASS NARROWING (board #778) — the screen can now hold a PARTIAL claim \
+         (`CfgClass{{class, Whole | Keys(&[..])}}`), and this is the bracket that keeps a \
+         restriction NARROWER OR EQUAL rather than wider. `admits` is `class == class && <sub>`, \
+         so `Keys` only ever CONJOINS: a restriction can remove an admitted (class,key) pair and \
+         never add one. That is algebra; these four numbers are the measurement, re-derived from \
+         this scan's own frontier. BOTTOM {} ⊆ ENUMERATED {} == SHIPPED {} ⊆ TOP {}, of {} \
+         frontier TUs ({} classes in TOP, {} (class,key) pairs enumerated).",
+        b.bottom.len(),
+        b.enumerated.len(),
+        b.shipped.len(),
+        b.top.len(),
+        b.frontier,
+        b.top_classes.len(),
+        b.enumerated_keys,
+    );
+    println!(
+        "\x20     BOTTOM=every entry restricted to NO keys (must be 0 — it is the live exercise \
+         of the `Keys` path and the detector for a matcher that ignores its key); \
+         ENUMERATED=every entry rewritten as the exact key set this scan observed (must equal \
+         SHIPPED); TOP=every class the frontier mentions, wholesale — a HYPOTHETICAL the port has \
+         no claim to, printed so the refusal has a size: {} of the {} frontier TUs are held back \
+         by CFG class alone.",
+        b.top.len().saturating_sub(b.shipped.len()),
+        b.frontier,
+    );
+    println!("\x20     SHIPPED reachable: [{}]", b.shipped.join(", "));
+    let v = b.violations();
+    if v.is_empty() {
+        println!(
+            "\x20     NESTING: PASS — 0 violations over the 3 checks (BOTTOM⊆SHIPPED⊆TOP, \
+             ENUMERATED==SHIPPED), taken as SETS by name."
+        );
+    } else {
+        for line in &v {
+            println!("\x20     NESTING: **FAIL** — {line}");
+        }
+    }
+    // The ledger. Printed as counts per entry so a claim that does nothing is
+    // visible; `Whole` rows cross-check nothing and say so rather than PASS.
+    let led = report.cfg_subclass_ledger();
+    let restricted = led.iter().filter(|r| r.listed.is_some()).count();
+    let unwitnessed: usize = led.iter().map(|r| r.unwitnessed.len()).sum();
+    let intruders: usize = led.iter().filter_map(|r| r.intruders.as_ref()).map(|v| v.len()).sum();
+    println!(
+        "\x20     LEDGER — {} entries, {restricted} of them RESTRICTED. A restricted entry is a \
+         claim about named census keys, and two ways it goes quietly wrong are counted here: a \
+         listed key no scan witnesses (a claim doing nothing — trap 5 with the claim still on the \
+         page) and a key `admits` accepts that the entry does not list (the matcher and the \
+         declaration disagreeing, which is what an exact→prefix slip looks like). unwitnessed \
+         {unwitnessed}, intruders {intruders}.",
+        led.len()
+    );
+    for r in &led {
+        let form = match r.listed {
+            None => "WHOLE".to_string(),
+            Some(n) => format!("KEYS {n}"),
+        };
+        let cross = match &r.intruders {
+            // No declaration to compare against: NOT a pass.
+            None => "cross-check n/a (whole class — no declaration to compare)".to_string(),
+            Some(x) if x.is_empty() => "cross-check PASS (0 intruders)".to_string(),
+            Some(x) => format!("cross-check **FAIL**: admits {} it does not list: {}", x.len(), x.join(", ")),
+        };
+        println!(
+            "\x20       {:<32} | {:<8} | {:>4} keys observed, {:>4} admitted | {} | unwitnessed {}",
+            r.class,
+            form,
+            r.observed_keys,
+            r.admitted_keys,
+            cross,
+            r.unwitnessed.len()
+        );
+    }
+    println!(
+        "\x20     NOT A LICENCE, and #778 is closed as a MECHANISM only: `cflow-loop` did NOT \
+         enter the list in the lane that built this. The list is still a hand-maintained mirror \
+         of a `c2-core` enum; what changed is that a lane which has measured part of a class can \
+         now write down which part, and the reachability figure it produces is bracketed above."
+    );
 }
 
 /// **The Phase 7 factorization, printed on every scan** (`docs/ROADMAP.md`

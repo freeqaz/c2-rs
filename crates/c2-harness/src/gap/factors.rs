@@ -41,12 +41,120 @@ use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNI
 ///
 /// The `+expr-modeled` spellings are the same two classes with the statement
 /// layer fully decoded — the census emits both forms and they are the same CFG.
-const PORT_CFG_CLASSES: &[&str] = &[
-    "cflow-straight",
-    "cflow-straight+expr-modeled",
-    "cflow-if-1",
-    "cflow-if-1+expr-modeled",
+///
+/// # Every entry here is `Whole`, and that is the identity end of board #778
+///
+/// The list was a flat `&[&str]` until lane `w-subclass`. [`CfgSub::Whole`] is
+/// exactly what a bare string meant, so this list is behaviourally the list it
+/// replaced — measured, not asserted: `reach` over the 878-TU workload reads
+/// **2 of 17** on both sides, the same two TUs by name.
+const PORT_CFG_CLASSES: &[CfgClass<'static>] = &[
+    CfgClass { class: "cflow-straight", sub: CfgSub::Whole },
+    CfgClass { class: "cflow-straight+expr-modeled", sub: CfgSub::Whole },
+    CfgClass { class: "cflow-if-1", sub: CfgSub::Whole },
+    CfgClass { class: "cflow-if-1+expr-modeled", sub: CfgSub::Whole },
 ];
+
+/// **One entry of [`PORT_CFG_CLASSES`]: a CFG class, optionally restricted to a
+/// named sub-class** (lane `w-subclass`, board **#778**).
+///
+/// # The problem this exists for
+///
+/// The list used to be `&[&str]`, matched against the bare census class string.
+/// Two lanes in a row — `w-rotate` §7 and `w-sched2` §8 — measured real,
+/// honest, **partial** coverage of `cflow-loop` and had no way to record it.
+/// The claim `w-sched2` could support was *"`cflow-loop`, restricted to the
+/// sentinel walk at `/O1`, pointer formal at slot 0, chains of single-word
+/// producers with no hoisted literal"*, and a list of strings can hold only the
+/// wholesale claim, which is false. Both lanes correctly declined to widen the
+/// list, and the second one filed the refusal as the *whole* remaining blocker.
+///
+/// # The one property that makes this safe: NARROWER OR EQUAL, NEVER WIDER
+///
+/// [`CfgClass::admits`] is `self.class == class && <sub>`. `Whole` contributes
+/// `true`, so an unrestricted entry is precisely the old string comparison;
+/// `Keys` contributes a **conjunct**. A restriction can therefore only ever
+/// remove `(class, key)` pairs from the admitted set, never add one —
+/// `admits(Keys(_)) ⟹ admits(Whole)` for the same class, for every input,
+/// algebraically. The algebra is not the evidence: `GapReport::cfg_reach_bounds`
+/// re-derives the nesting on the real workload every scan, and the scan prints
+/// it.
+///
+/// # Matching is EXACT, and that is a load-bearing choice
+///
+/// `Keys` is an **enumeration** compared with `==`, never a prefix and never a
+/// substring. A prefix match is the wrongly-permissive failure mode this design
+/// is against: census keys nest densely (`expr-op-0x27` is a prefix of nothing
+/// today, but `expr-cmp-eq` sits beside `expr-cmp-eq-and-branch-more` and 240
+/// distinct `cflow-loop|…` keys share long stems), so a prefix restriction would
+/// silently grow every time the census mints a neighbouring key and a lane would
+/// report coverage it never measured. An enumeration cannot. The exactness is
+/// graded by `a_prefix_of_a_listed_key_is_not_admitted`, which is the unit test
+/// that fails under must-fail mutation **M2**.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CfgClass<'a> {
+    /// The census's `cflow-…` class string, matched exactly.
+    pub class: &'a str,
+    /// Whole class, or the named sub-class.
+    pub sub: CfgSub<'a>,
+}
+
+/// How much of a [`CfgClass`] the port claims — see that type for why the two
+/// cases cannot be collapsed into a `&[&str]`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CfgSub<'a> {
+    /// **The whole class**, which is what a bare `&str` meant. Every shipped
+    /// entry is this today.
+    Whole,
+    /// **Only these census keys**, by exact equality. The empty slice admits
+    /// nothing and is a legal (and used) value: it is the `⊥` bound
+    /// `cfg_reach_bounds` takes.
+    Keys(&'a [&'a str]),
+}
+
+impl<'a> CfgClass<'a> {
+    /// Does this entry admit a blocked function whose cross-tab row is
+    /// `"<class>|<key>"`?
+    ///
+    /// **The class test is a conjunct of both arms**, which is what makes a
+    /// restriction narrowing rather than merely different.
+    pub fn admits(&self, class: &str, key: &str) -> bool {
+        self.class == class
+            && match self.sub {
+                CfgSub::Whole => true,
+                // `contains` on `&[&str]` is element-wise `==`. NOT
+                // `starts_with`, NOT `contains(key)` on the string — see the
+                // type docs, and `M2` in the rung.
+                CfgSub::Keys(ks) => ks.contains(&key),
+            }
+    }
+
+    /// Does this entry name `class` **at all**, restricted or not?
+    ///
+    /// Separate from [`Self::admits`] because the two answer different
+    /// questions, and the difference is the whole content of a partial claim:
+    /// `covers_class` is *"the port has something in this class"* and `admits`
+    /// is *"the port has THIS body"*. `cfg_reach` uses both — the first decides
+    /// how to NAME a miss, the second decides whether it is a miss.
+    pub fn covers_class(&self, class: &str) -> bool {
+        self.class == class
+    }
+
+    /// `true` when this entry is a partial claim.
+    pub fn is_restricted(&self) -> bool {
+        matches!(self.sub, CfgSub::Keys(_))
+    }
+
+    /// The keys a restricted entry lists, or `None` for a whole class. Used by
+    /// the ledger to report a listed key **no scan ever witnessed**, which would
+    /// otherwise be a claim that quietly does nothing.
+    pub fn keys(&self) -> Option<&'a [&'a str]> {
+        match self.sub {
+            CfgSub::Whole => None,
+            CfgSub::Keys(ks) => Some(ks),
+        }
+    }
+}
 
 /// One frontier TU's answer to *"can the port's emitter express this TU's
 /// blocked functions at all?"* — see [`GapReport::frontier_cfg_reachability`].
@@ -74,6 +182,24 @@ impl CfgReach {
         matches!(self, CfgReach::Reachable)
     }
 
+    /// **Is this verdict blocked on `class`** — wholly or in part (board
+    /// **#778**)?
+    ///
+    /// [`CfgReach::NeedsClass`] holds the bare class string when nothing in
+    /// [`PORT_CFG_CLASSES`] names the class, and `"<class>!<key>"` when a
+    /// *restricted* entry names it but does not admit this body. A caller that
+    /// tested set membership of the bare string directly would silently stop
+    /// counting a TU the day a lane restricted that class — the count would
+    /// fall and nothing would say why. Every reader goes through here.
+    pub fn needs_class(&self, class: &str) -> bool {
+        match self {
+            CfgReach::NeedsClass(v) => v
+                .iter()
+                .any(|s| s == class || s.split_once('!').is_some_and(|(c, _)| c == class)),
+            _ => false,
+        }
+    }
+
     /// A one-line rendering for the scan block.
     pub fn label(&self) -> String {
         match self {
@@ -87,6 +213,87 @@ impl CfgReach {
             }
         }
     }
+}
+
+/// [`GapReport::cfg_reach_bounds`]'s four reachable sets and the nesting taken
+/// over them. Every field is a set of TU source paths, sorted.
+#[derive(Clone, Debug)]
+pub struct CfgBounds<'a> {
+    /// The frontier this was taken over — the denominator every count needs.
+    pub frontier: usize,
+    /// `⊥` — every shipped entry restricted to no keys. **Must be empty.**
+    pub bottom: Vec<&'a str>,
+    /// Every shipped entry rewritten as the enumeration of its observed keys.
+    /// **Must equal `shipped`.**
+    pub enumerated: Vec<&'a str>,
+    /// The shipped list — today's answer, and the only one anyone acts on.
+    pub shipped: Vec<&'a str>,
+    /// `⊤` — every class the frontier mentions, wholesale. A hypothetical.
+    pub top: Vec<&'a str>,
+    /// The classes `⊤` was built from, so its width is readable.
+    pub top_classes: Vec<&'a str>,
+    /// How many `(class, key)` pairs `enumerated` listed — the size of the
+    /// exercise the `Keys` path actually got on this scan.
+    pub enumerated_keys: usize,
+}
+
+impl CfgBounds<'_> {
+    /// **`⊥ ⊆ shipped ⊆ ⊤`, and `enumerated == shipped`**, checked as sets.
+    ///
+    /// Returns the violations, each a human-readable line. Empty is the pass,
+    /// and callers print the count rather than the status — comparing a count
+    /// and never a status is trap 5's standing mitigation.
+    pub fn violations(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        let subset = |a: &[&str], b: &[&str]| -> Vec<String> {
+            a.iter().filter(|x| !b.contains(x)).map(|x| x.to_string()).collect()
+        };
+        if !self.bottom.is_empty() {
+            v.push(format!(
+                "BOTTOM is not empty ({} TUs: {}) — a list admitting no census key \
+                 reached something, so the matcher is ignoring its key argument",
+                self.bottom.len(),
+                self.bottom.join(", ")
+            ));
+        }
+        let esc = subset(&self.shipped, &self.top);
+        if !esc.is_empty() {
+            v.push(format!(
+                "SHIPPED is not a subset of TOP ({}) — a restriction widened the \
+                 admitted set, which is the one direction #778 forbids",
+                esc.join(", ")
+            ));
+        }
+        if self.enumerated != self.shipped {
+            let a = subset(&self.enumerated, &self.shipped);
+            let b = subset(&self.shipped, &self.enumerated);
+            v.push(format!(
+                "ENUMERATED != SHIPPED (only-in-enumerated: [{}], only-in-shipped: [{}]) \
+                 — Keys and Whole disagree where they are built to agree",
+                a.join(", "),
+                b.join(", ")
+            ));
+        }
+        v
+    }
+}
+
+/// One row of [`GapReport::cfg_subclass_ledger`].
+#[derive(Clone, Debug)]
+pub struct CfgLedgerRow {
+    /// The entry's CFG class.
+    pub class: &'static str,
+    /// How many census keys the entry lists, or `None` for a whole class.
+    pub listed: Option<usize>,
+    /// How many distinct census keys this scan observed for the class.
+    pub observed_keys: usize,
+    /// How many of those the entry admits.
+    pub admitted_keys: usize,
+    /// Listed keys this scan never saw — a claim doing nothing.
+    pub unwitnessed: Vec<String>,
+    /// Keys `admits` accepted that the entry does not list. **Must be empty**;
+    /// `None` for a whole class, where there is no declaration to compare with.
+    pub intruders: Option<Vec<String>>,
 }
 
 impl GapReport {
@@ -581,6 +788,35 @@ impl GapReport {
     /// [`Self::frontier_cfg_reachability`]'s verdict for one TU. Public and
     /// separate so the tests can call it on a TU that is not on the frontier.
     pub fn cfg_reach(r: &TuResult) -> CfgReach {
+        Self::cfg_reach_with(PORT_CFG_CLASSES, r)
+    }
+
+    /// [`Self::cfg_reach`] against **an arbitrary class list** (board **#778**).
+    ///
+    /// The parameter is what makes the sub-class mechanism gradeable rather
+    /// than merely present. Three callers depend on it:
+    ///
+    /// * [`Self::cfg_reach`] — the shipped list, the only answer anyone acts on.
+    /// * [`Self::cfg_reach_bounds`] — the `⊥ ⊆ shipped ⊆ ⊤` nesting, re-derived
+    ///   on the live workload every scan, which is how "narrower or equal" is
+    ///   *measured* instead of argued.
+    /// * A loop lane with a candidate restriction, which can now price it
+    ///   against the real workload **before** proposing it — the move neither
+    ///   `w-rotate` nor `w-sched2` had available.
+    ///
+    /// # Naming a miss under a partial claim
+    ///
+    /// When no entry covers the class at all, the missing class is named by its
+    /// bare string — byte-identical to what the flat list produced. When an
+    /// entry *does* cover the class but does not admit this key, the miss is
+    /// named `"<class>!<key>"`: the port has part of the class and this body is
+    /// outside the part. Collapsing that into the bare class would report a
+    /// partially-covered class as wholly missing, which is the same
+    /// over-statement as the wholesale claim, pointing the other way.
+    ///
+    /// **Nothing is restricted today, so the `!` form cannot occur on this
+    /// tree** — which is precisely why the identity measurement is meaningful.
+    pub fn cfg_reach_with(list: &[CfgClass<'_>], r: &TuResult) -> CfgReach {
         let blocked_total: usize = r.fn_blockers.values().sum();
         let mut classified = 0usize;
         let mut outside: BTreeSet<String> = BTreeSet::new();
@@ -588,12 +824,16 @@ impl GapReport {
             // Only the CROSSED rows (`<cflow class>|<census key>`) name a
             // blocked function; a bare class row counts every function in the
             // TU, in-class ones included, and summing those would over-count.
-            let Some((class, _)) = k.split_once('|') else {
+            let Some((class, key)) = k.split_once('|') else {
                 continue;
             };
             classified += n;
-            if !PORT_CFG_CLASSES.contains(&class) {
-                outside.insert(class.to_string());
+            if !list.iter().any(|e| e.admits(class, key)) {
+                if list.iter().any(|e| e.covers_class(class)) {
+                    outside.insert(format!("{class}!{key}"));
+                } else {
+                    outside.insert(class.to_string());
+                }
             }
         }
         if !outside.is_empty() {
@@ -610,6 +850,187 @@ impl GapReport {
         CfgReach::Reachable
     }
 
+    /// **THE NARROWING MEASUREMENT** (lane `w-subclass`, board **#778**) — the
+    /// sub-class mechanism's reachability figure bracketed on the live workload.
+    ///
+    /// [`CfgClass::admits`] makes "a restriction is narrower or equal" an
+    /// algebraic fact. This project does not accept algebra as evidence about
+    /// an instrument, so the property is **re-derived from the real frontier on
+    /// every scan** by running [`Self::cfg_reach_with`] against four lists over
+    /// the same `results`:
+    ///
+    /// | list | built from | admits |
+    /// |---|---|---|
+    /// | `⊥` | every shipped entry rewritten `Keys(&[])` | nothing |
+    /// | `enumerated` | every shipped entry rewritten as the **exact set of census keys this scan observed for its class** | the same pairs the shipped list does |
+    /// | `shipped` | [`PORT_CFG_CLASSES`] | today's answer |
+    /// | `⊤` | every class observed in the frontier cross-tab, `Whole` | every class present |
+    ///
+    /// Returns the reachable TU paths for each, **as sets by name rather than
+    /// as counts** — trap 4's shape: `|⊥| ≤ |shipped| ≤ |⊤}` is satisfied
+    /// exactly by swapping one TU for another, so the counts cannot distinguish
+    /// nesting from coincidence and the names can.
+    ///
+    /// # What each bound is actually load-bearing for
+    ///
+    /// * **`⊥` is the live exercise of the `Keys` path, and the M1 detector.**
+    ///   It must be **empty**: a list admitting no `(class, key)` pair leaves
+    ///   every frontier TU with a blocked function reading `NeedsClass`. A
+    ///   matcher that ignored its key argument would make `⊥` equal `shipped`
+    ///   instead, and that is the wrongly-permissive mutation the brief asks
+    ///   for. Without this bound `Keys` would be a code path no run reaches,
+    ///   which this project rates worse than an absent one (`w-rotate` §7.2).
+    /// * **`enumerated` is the agreement check.** Re-expressing a `Whole` entry
+    ///   as the enumeration of its own observed keys must reproduce `shipped`
+    ///   **TU for TU**; a difference means `Keys` and `Whole` disagree where
+    ///   they are constructed to agree.
+    /// * **`⊤` is the width the screen is NOT claiming.** Its gap to `shipped`
+    ///   is the honest size of the refusal — with an inert `⊤` the nesting
+    ///   would be vacuously true and would demonstrate nothing.
+    ///
+    /// **An instrument, never a gate.** Pure over `results`, reads no obj,
+    /// licenses no emit, and `⊤` in particular is a hypothetical the port has
+    /// no claim to whatsoever.
+    pub fn cfg_reach_bounds(&self) -> CfgBounds<'_> {
+        let rows = self.factor_frontier();
+        // `⊤`: every class the frontier's cross-tab mentions, wholesale. Owned
+        // separately because the class strings are borrowed from `results`.
+        let mut top_classes: BTreeSet<&str> = BTreeSet::new();
+        // The per-class observed key sets, for `enumerated`.
+        let mut observed: std::collections::BTreeMap<&str, BTreeSet<&str>> = Default::default();
+        for (r, _) in &rows {
+            for k in r.fn_cflow.keys() {
+                if let Some((class, key)) = k.split_once('|') {
+                    top_classes.insert(class);
+                    observed.entry(class).or_default().insert(key);
+                }
+            }
+        }
+        let top_list: Vec<CfgClass<'_>> = top_classes
+            .iter()
+            .map(|c| CfgClass { class: c, sub: CfgSub::Whole })
+            .collect();
+        let bottom_list: Vec<CfgClass<'_>> = PORT_CFG_CLASSES
+            .iter()
+            .map(|e| CfgClass { class: e.class, sub: CfgSub::Keys(&[]) })
+            .collect();
+        // `enumerated` needs the key vectors to outlive the list that borrows
+        // them, so they are materialised first and kept alive by `_keysets`.
+        let keysets: Vec<(&str, Vec<&str>)> = PORT_CFG_CLASSES
+            .iter()
+            .map(|e| {
+                let ks: Vec<&str> = match e.sub {
+                    // A `Whole` entry enumerates exactly what this scan saw.
+                    CfgSub::Whole => observed
+                        .get(e.class)
+                        .map(|s| s.iter().copied().collect())
+                        .unwrap_or_default(),
+                    // A restricted entry enumerates what it already lists.
+                    CfgSub::Keys(ks) => ks.to_vec(),
+                };
+                (e.class, ks)
+            })
+            .collect();
+        let enum_list: Vec<CfgClass<'_>> = keysets
+            .iter()
+            .map(|(c, ks)| CfgClass { class: c, sub: CfgSub::Keys(ks.as_slice()) })
+            .collect();
+        let reach_under = |list: &[CfgClass<'_>]| -> Vec<&str> {
+            let mut v: Vec<&str> = rows
+                .iter()
+                .filter(|(r, _)| Self::cfg_reach_with(list, r).is_reachable())
+                .map(|(r, _)| r.src.as_str())
+                .collect();
+            v.sort_unstable();
+            v
+        };
+        CfgBounds {
+            frontier: rows.len(),
+            bottom: reach_under(&bottom_list),
+            enumerated: reach_under(&enum_list),
+            shipped: reach_under(PORT_CFG_CLASSES),
+            top: reach_under(&top_list),
+            top_classes: top_classes.into_iter().collect(),
+            enumerated_keys: keysets.iter().map(|(_, ks)| ks.len()).sum(),
+        }
+    }
+
+    /// **THE SUB-CLASS LEDGER** (lane `w-subclass`, board **#778**) — one row
+    /// per shipped entry, so a partial claim is auditable against the workload
+    /// that is supposed to justify it.
+    ///
+    /// A restriction is a claim about a named set of census keys. Two ways it
+    /// can be quietly wrong, both of which this project has been bitten by:
+    ///
+    /// * **A listed key no scan witnesses** is a claim doing nothing — trap 5,
+    ///   absence read as success, with the claim still on the page. The ledger
+    ///   reports it as `unwitnessed` **with a count**, never as silence.
+    /// * **The matcher and the declaration disagreeing.** `admitted` is
+    ///   recomputed here by asking [`CfgClass::admits`] about every observed
+    ///   key, and `declared` by literal membership in the listed slice. They
+    ///   must be equal. Under must-fail mutation **M2** (exact → `starts_with`)
+    ///   `admitted` exceeds `declared` and the row names the intruders.
+    ///
+    /// The cross-check is **`None` when the entry is `Whole`** — there is no
+    /// declaration to cross-check against and printing `PASS` for it would be
+    /// exactly the absence-read-as-success this row exists to forbid.
+    pub fn cfg_subclass_ledger(&self) -> Vec<CfgLedgerRow> {
+        self.cfg_subclass_ledger_with(PORT_CFG_CLASSES)
+    }
+
+    /// [`Self::cfg_subclass_ledger`] against an arbitrary list.
+    ///
+    /// **The intruder cross-check needs a RESTRICTED entry to have anything to
+    /// say, and no shipped entry is restricted today**, so on this tree the
+    /// shipped ledger reports `n/a` on every row and the check is untested by
+    /// construction. That is the exact shape of an ungraded code path. This
+    /// parameterized form is how the cross-check gets graded — a test builds a
+    /// restricted list and asserts `intruders` is empty under exact matching,
+    /// and must-fail mutation **M2** (exact → `starts_with`) makes it non-empty
+    /// and fails that test. It is also what a loop lane calls to audit a
+    /// candidate restriction against the workload before proposing it.
+    pub fn cfg_subclass_ledger_with(&self, list: &[CfgClass<'static>]) -> Vec<CfgLedgerRow> {
+        let mut observed: std::collections::BTreeMap<&str, BTreeSet<&str>> = Default::default();
+        for r in &self.results {
+            for k in r.fn_cflow.keys() {
+                if let Some((class, key)) = k.split_once('|') {
+                    observed.entry(class).or_default().insert(key);
+                }
+            }
+        }
+        list.iter()
+            .map(|e| {
+                let seen = observed.get(e.class).cloned().unwrap_or_default();
+                let admitted: BTreeSet<&str> =
+                    seen.iter().copied().filter(|k| e.admits(e.class, k)).collect();
+                let (listed, unwitnessed, intruders) = match e.keys() {
+                    None => (None, Vec::new(), None),
+                    Some(ks) => {
+                        let declared: BTreeSet<&str> = ks.iter().copied().collect();
+                        let un: Vec<String> = declared
+                            .iter()
+                            .filter(|k| !seen.contains(*k))
+                            .map(|k| k.to_string())
+                            .collect();
+                        let extra: Vec<String> = admitted
+                            .difference(&declared)
+                            .map(|k| k.to_string())
+                            .collect();
+                        (Some(ks.len()), un, Some(extra))
+                    }
+                };
+                CfgLedgerRow {
+                    class: e.class,
+                    listed,
+                    observed_keys: seen.len(),
+                    admitted_keys: admitted.len(),
+                    unwitnessed,
+                    intruders,
+                }
+            })
+            .collect()
+    }
+
     /// **The known-answer control on the CFG screen** (board **#721**).
     ///
     /// `xboxmem.cpp` is the one TU this project ever converted from per-function
@@ -623,11 +1044,24 @@ impl GapReport {
     ///
     /// Returns `None` when the TU is not in `results` — an absent control is
     /// never reported as a passing one.
+    ///
+    /// # It asks `covers_class`, NOT `admits`, and that is deliberate
+    ///
+    /// This control is **class-level** and stays class-level after board #778.
+    /// The cross-tab key on a *matching* TU is the census's **in-class label**
+    /// (`cond-tail-pair`, `cmp-shift-or`), not a blocker key — `fn_cflow` is
+    /// written over every function and `FnVerdict::key` spells both populations
+    /// into one namespace. A [`CfgSub::Keys`] restriction enumerates **blocker**
+    /// keys, so asking it about an in-class label is a category error: it would
+    /// report `FAIL` on a converted TU the moment any lane restricted a class,
+    /// for a reason that has nothing to do with the TU. The question this
+    /// control exists to ask — *"did a converted TU carry a class the list does
+    /// not name at all?"* — is answerable at class level and is unchanged.
     pub fn cfg_reach_control(&self, src: &str) -> Option<bool> {
         let r = self.results.iter().find(|r| r.src == src)?;
         Some(r.fn_cflow.keys().all(|k| {
             let class = k.split('|').next().unwrap_or(k.as_str());
-            PORT_CFG_CLASSES.contains(&class)
+            PORT_CFG_CLASSES.iter().any(|e| e.covers_class(class))
         }))
     }
 
@@ -693,6 +1127,8 @@ impl GapReport {
         let graded = self.graded().count();
         let frontier = self.factor_frontier().len();
         let ladder = self.section_ladder();
+        let cfgb = self.cfg_reach_bounds();
+        let cfgl = self.cfg_subclass_ledger();
         let mut m: Vec<(&'static str, String)> = vec![
             ("tu-total", self.results.len().to_string()),
             ("graded", graded.to_string()),
@@ -718,6 +1154,36 @@ impl GapReport {
             // from two independently-stale halves. Board #213.
             ("emit-predicate-worth", bc.saturating_sub(abc).to_string()),
             ("writer-sections", PORT_WRITER_SECTIONS.len().to_string()),
+            // **The CFG sub-class mechanism** (board #778). `cfg-reach-shipped`
+            // is the figure the screen prints; the other three are the bracket
+            // that makes it a NARROWER-OR-EQUAL claim rather than a bare number,
+            // and they are published beside it for the same reason
+            // `emit-predicate-worth` is derived here: a reachability figure
+            // quoted without the bound it sits inside is the shape #213's `+82`
+            // had. `cfg-bounds-violations` MUST read 0 — it is a count and not a
+            // status, which is trap 5's standing mitigation.
+            ("cfg-reach-bottom", cfgb.bottom.len().to_string()),
+            ("cfg-reach-enumerated", cfgb.enumerated.len().to_string()),
+            ("cfg-reach-shipped", cfgb.shipped.len().to_string()),
+            ("cfg-reach-top", cfgb.top.len().to_string()),
+            ("cfg-bounds-violations", cfgb.violations().len().to_string()),
+            ("cfg-subclass-entries", cfgl.len().to_string()),
+            (
+                "cfg-subclass-restricted",
+                cfgl.iter().filter(|r| r.listed.is_some()).count().to_string(),
+            ),
+            (
+                "cfg-subclass-unwitnessed",
+                cfgl.iter().map(|r| r.unwitnessed.len()).sum::<usize>().to_string(),
+            ),
+            (
+                "cfg-subclass-intruders",
+                cfgl.iter()
+                    .filter_map(|r| r.intruders.as_ref())
+                    .map(|v| v.len())
+                    .sum::<usize>()
+                    .to_string(),
+            ),
             ("workload-sections", self.section_vocabulary().len().to_string()),
             ("ladder-steps", ladder.len().to_string()),
         ];
