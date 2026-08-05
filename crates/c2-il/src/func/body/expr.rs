@@ -742,7 +742,21 @@ pub(crate) fn chain_sink() -> &'static ChainSink {
 /// `Ok(q)` is the position after the token; `Err(key)` is an honest refusal —
 /// either the width is unpinned, or the payload ran off the end of the segment.
 fn chain_sink_step(seg: &[u8], p: usize) -> Option<Result<usize, &'static str>> {
-    let c = chain_sink();
+    chain_step_with(chain_sink(), seg, p)
+}
+
+/// [`chain_sink_step`] against an explicit configuration.
+///
+/// Split out for the tests and for one reason only: [`chain_sink`] is a
+/// `OnceLock` over a process-wide environment variable, so a test that wanted to
+/// exercise a *particular* sink set could otherwise only do it by being the only
+/// test in its process. That is the shape that makes a safety property go
+/// unchecked.
+fn chain_step_with(
+    c: &ChainSink,
+    seg: &[u8],
+    p: usize,
+) -> Option<Result<usize, &'static str>> {
     if !c.any {
         return None;
     }
@@ -1361,6 +1375,76 @@ mod tests {
     use crate::func::bundle::LO_MARKER;
     use crate::func::readers::{find_subslice, read_type};
     use crate::func::test_fixtures::*;
+
+    // ---- the CHAIN SINK (`w-depth`, board #660) -----------------------------
+
+    /// **The one property that makes the instrument free**: it is OFF unless
+    /// `C2RS_SINK_CHAIN` names something, and every gate lane runs with the
+    /// variable unset. A default that drifted ON would be a parser that skips
+    /// opcodes on the gate — and `#403` is the precedent for exactly that class
+    /// of accident, where turning a sink on took the tree to 16 targets.
+    #[test]
+    fn the_chain_sink_is_off_unless_the_environment_names_it() {
+        assert!(std::env::var("C2RS_SINK_CHAIN").is_err(), "the test process must not set it");
+        let c = chain_sink();
+        assert!(!c.any, "chain sink must default OFF");
+        assert!(!c.ty && !c.convert && !c.intrinsic && !c.bad);
+        assert!(c.ops.iter().all(|on| !on), "no opcode may default to sunk");
+        // …and with it off, `chain_sink_step` never claims a byte, at any byte.
+        for b in 0u8..=255 {
+            assert!(chain_sink_step(&[b, 0, 0, 0], 0).is_none(), "0x{b:02X} claimed while OFF");
+        }
+    }
+
+    /// The **absences in [`chain_skip_form`] are decisions, not gaps**, and this
+    /// pins them so a later widening has to delete an assertion rather than a
+    /// blank line. `1B`/`1C` are `||`/`&&`, whose bytes `mcall` records no
+    /// capture has ever shown; `3B`/`3C`/`3D` are the switch family, whose table
+    /// payload is not a fixed width; `64`/`66` are named nowhere in this tree.
+    ///
+    /// `w-depth` measured `0x00`, `0x05` and `0x35` as live chain terminals on
+    /// the frontier — three more bytes the instrument refuses rather than
+    /// guesses (rung §6).
+    #[test]
+    fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
+        for b in [0x00, 0x05, 0x1B, 0x1C, 0x35, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
+            assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
+        }
+    }
+
+    /// The pinned widths, checked against **transcribed capture bytes** rather
+    /// than against the table that produced them.
+    #[test]
+    fn the_pinned_skip_forms_consume_exactly_their_capture() {
+        // `99 <TYPE> <varint>` — `mcall`'s transcribed member-call capture,
+        // `… 99 86 43 9C 20 00 BD …`. `IL_EXPR_LAYER.md` §7 pins the varint by
+        // contrast with `9B`'s token.
+        let bind = [0x99, 0x86, 0x43, 0x9C, 0x20, 0x00, 0xBD];
+        assert_eq!(skip_one(&bind, 0x99), Some(Ok(6)), "99 ends on the BD");
+        // `B9 <token> <TYPE>` — the LOAD, two-byte token form.
+        let load = [0xB9, 0xEE, 0x09, 0x86, 0x41, 0x74, 0x41];
+        assert_eq!(skip_one(&load, 0xB9), Some(Ok(6)));
+        // `27 <TYPE>` — the byte-offset add, from `IL_EXPR_LAYER.md` §2's table.
+        let offadd = [0x27, 0x86, 0x43, 0xF4, 0x08, 0x30];
+        assert_eq!(skip_one(&offadd, 0x27), Some(Ok(5)));
+        // `4F 01 <varint>` is the LINE MARKER and `4F 12` is the FUNCTION TAIL.
+        // The second must refuse: eating it walks the instrument out of the body,
+        // which is what makes the tail a terminal the sink can never consume.
+        assert_eq!(skip_one(&[0x4F, 0x01, 0x46, 0x00], 0x4F), Some(Ok(3)));
+        assert_eq!(skip_one(&[0x4F, 0x12, 0x47, 0x54], 0x4F), Some(Err("expr-chain-noform")));
+        // A payload that runs off the end is `expr-chain-short`, not a silent
+        // clamp — a clamp would report a fictitious successor.
+        assert_eq!(skip_one(&[0x27], 0x27), Some(Err("expr-chain-short")));
+    }
+
+    /// Run one [`chain_sink_step`] with `op` sunk, without touching the process
+    /// environment (the config is a `OnceLock`, so a test cannot set it).
+    fn skip_one(seg: &[u8], op: u8) -> Option<Result<usize, &'static str>> {
+        let mut c = ChainSink::default();
+        c.any = true;
+        c.ops[op as usize] = true;
+        chain_step_with(&c, seg, 0)
+    }
 
     #[test]
     fn parse_formals_anchors_on_the_marker_that_reaches_lo() {
