@@ -35,6 +35,42 @@ struct Row {
     null_m1: (usize, usize),
     null_p1: (usize, usize),
     pairs: Vec<(String, String)>,
+    /// The two null tables, dumped in full so a consumer of this file needs
+    /// **no** second alias implementation at all — including for the null.
+    pairs_m1: Vec<(String, String)>,
+    pairs_p1: Vec<(String, String)>,
+    /// FNV-1a 64 of the `.gl` bytes. The join key: a comparison driver holds
+    /// `.gl` in hand and not this file's TU name, and a hash both languages
+    /// compute in five lines beats a path both have to agree to spell.
+    fnv: u64,
+}
+
+/// FNV-1a, 64-bit. Not a security hash; a join key.
+fn fnv1a(b: &[u8]) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for &c in b {
+        h ^= c as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+fn pairs_of(t: &c2_il::GlAliasTable) -> Vec<(String, String)> {
+    t.iter_names()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect()
+}
+
+/// One `"k":"v"` map, in table order.
+fn json_pairs(out: &mut String, pairs: &[(String, String)]) {
+    out.push('{');
+    for (i, (a, b)) in pairs.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        out.push_str(&format!("\"{}\":\"{}\"", json_escape(a), json_escape(b)));
+    }
+    out.push('}');
 }
 
 fn json_escape(s: &str) -> String {
@@ -127,10 +163,10 @@ fn gl_alias_corpus_dump() {
                     stats: t.stats().clone(),
                     null_m1: (m1.stats().bound, shape(&m1)),
                     null_p1: (p1.stats().bound, shape(&p1)),
-                    pairs: t
-                        .iter_names()
-                        .map(|(a, b)| (a.to_string(), b.to_string()))
-                        .collect(),
+                    pairs: pairs_of(&t),
+                    pairs_m1: pairs_of(&m1),
+                    pairs_p1: pairs_of(&p1),
+                    fnv: fnv1a(&gl),
                 };
                 rows.lock().unwrap().push(row);
             });
@@ -164,7 +200,7 @@ fn gl_alias_corpus_dump() {
             "{{\"src\":\"{}\",\"tag10\":{},\"bound\":{},\"shape\":{},\"head_fail\":{},\
              \"rt_fail\":{},\"unbound_target\":{},\"self\":{},\"dup\":{},\
              \"dom_with_body\":{},\"bound_m1\":{},\"shape_m1\":{},\"bound_p1\":{},\
-             \"shape_p1\":{},\"pairs\":{{",
+             \"shape_p1\":{},\"fnv\":\"{:016x}\",",
             json_escape(&r.src),
             st.tag10,
             st.bound,
@@ -179,14 +215,15 @@ fn gl_alias_corpus_dump() {
             r.null_m1.1,
             r.null_p1.0,
             r.null_p1.1,
+            r.fnv,
         ));
-        for (i, (a, b)) in r.pairs.iter().enumerate() {
-            if i > 0 {
-                out.push(',');
-            }
-            out.push_str(&format!("\"{}\":\"{}\"", json_escape(a), json_escape(b)));
-        }
-        out.push_str("}}\n");
+        out.push_str("\"pairs\":");
+        json_pairs(&mut out, &r.pairs);
+        out.push_str(",\"pairs_m1\":");
+        json_pairs(&mut out, &r.pairs_m1);
+        out.push_str(",\"pairs_p1\":");
+        json_pairs(&mut out, &r.pairs_p1);
+        out.push_str("}\n");
     }
 
     if let Ok(p) = std::env::var("C2RS_ALIAS_OUT") {
