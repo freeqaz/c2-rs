@@ -1050,3 +1050,271 @@ fn an_entirely_untagged_scan_reports_its_residue_rather_than_nothing() {
         "and the axes still account for every function"
     );
 }
+
+// ---------------------------------------------------------------------------
+// FUNCTION BYTE MATCH (lane w-fuzzy, `docs/FUNCTION_BYTE_MATCH.md`)
+// ---------------------------------------------------------------------------
+
+use super::fnbytes::{compare_body, FnByte};
+
+/// A TU carrying a hand-set `fnbyte-` partition.
+fn mk_fnbyte(class: TuClass, src: &str, rows: &[(&str, usize)]) -> TuResult {
+    let mut r = mk("x");
+    r.class = class;
+    r.src = src.into();
+    let mut d = 0;
+    for (k, n) in rows {
+        r.emit.insert((*k).to_string(), *n);
+        d += *n;
+    }
+    r.emit.insert("fnbyte-denominator".into(), d);
+    r
+}
+
+/// **The comparison is the judge's predicate and nothing else.** Equal bytes are
+/// `Exact`; one flipped word is `Differs`, with the forensic triple counted but
+/// — see the next test — credited nowhere.
+#[test]
+fn fnbyte_compare_is_byte_equality_and_the_triple_is_forensic() {
+    let a = [0x38u8, 0x60, 0x00, 0x01, 0x4e, 0x80, 0x00, 0x20];
+    assert_eq!(compare_body(&a, &a), FnByte::Exact);
+    let mut b = a;
+    b[3] = 0x02; // one immediate field differs — objdiff would score this 99 %
+    assert_eq!(
+        compare_body(&b, &a),
+        FnByte::Differs {
+            port_words: 2,
+            ref_words: 2,
+            equal_words: 1
+        },
+        "a one-immediate miss is a MISS; the equal-word count is forensic only"
+    );
+    // Length disagreement is representable and is not a panic.
+    assert_eq!(
+        compare_body(&a[..4], &a),
+        FnByte::Differs {
+            port_words: 1,
+            ref_words: 2,
+            equal_words: 1
+        }
+    );
+    // Empty output against a real body is a MISS, never a vacuous match. This is
+    // objdiff's `total_code == 0 -> 100.0` inverted, at the leaf.
+    assert_eq!(
+        compare_body(&[], &a),
+        FnByte::Differs {
+            port_words: 0,
+            ref_words: 2,
+            equal_words: 0
+        }
+    );
+}
+
+/// **THE ANTI-GAMING PROPERTY, as an equality.** A function the port lowers
+/// WRONG scores exactly what the same function scores when the port refuses it —
+/// zero — and the denominator is identical in both worlds, because it is counted
+/// off `c2`'s obj.
+///
+/// This is the property that disqualified an objdiff-style fuzzy match for this
+/// project (`docs/PROGRESS_METRIC.md` §2.2): a partial-credit score pays MORE
+/// for a nearly-right wrong emit than for the honest refusal it replaced, and
+/// board #232's repair was exactly that transition in the good direction. FBM
+/// must be indifferent between them and strictly below `exact` for both.
+#[test]
+fn a_wrong_body_scores_exactly_what_a_refusal_scores() {
+    let refused = mk_report(vec![mk_fnbyte(
+        TuClass::VocabGap,
+        "x.cpp",
+        &[("fnbyte-exact", 3), ("fnbyte-refused", 7)],
+    )])
+    .fn_byte_match()
+    .unwrap();
+    let wrong = mk_report(vec![mk_fnbyte(
+        TuClass::VocabGap,
+        "x.cpp",
+        &[("fnbyte-exact", 3), ("fnbyte-differs", 7)],
+    )])
+    .fn_byte_match()
+    .unwrap();
+    assert_eq!(
+        refused.denominator, wrong.denominator,
+        "the denominator is c2's output; refusing cannot shrink it"
+    );
+    assert_eq!(
+        refused.value, wrong.value,
+        "emitting seven wrong bodies buys exactly what refusing them buys: nothing"
+    );
+    assert_eq!(refused.value, 0.3);
+    // …and both are strictly below the world where those seven are right.
+    let right = mk_report(vec![mk_fnbyte(
+        TuClass::VocabGap,
+        "x.cpp",
+        &[("fnbyte-exact", 10)],
+    )])
+    .fn_byte_match()
+    .unwrap();
+    assert!(right.value > wrong.value);
+}
+
+/// **FBM over nothing is unrepresentable.** objdiff's
+/// `calc_fuzzy_match_percent` returns **100.0** when `total_code == 0`
+/// (`objdiff-core/src/bindings/report.rs:249-250`); this project has recorded
+/// sixteen instances of absence reading as success. `fn_byte_match` returns
+/// `None`, the `gap-metric` key is absent, and the printed block says
+/// `NO-RESULT`.
+#[test]
+fn fnbyte_is_unrepresentable_over_zero_emitted_functions() {
+    for rep in [
+        mk_report(vec![]),
+        mk_report(vec![mk("x")]),
+        // The shape that matters most: a port that emits NOTHING anywhere. A
+        // naive fuzzy port would score this 100 %.
+        mk_report(vec![{
+            let mut cf = mk("x");
+            cf.class = TuClass::CaptureFail;
+            cf
+        }]),
+    ] {
+        assert!(
+            rep.fn_byte_match().is_none(),
+            "no emitted function graded -> NO-RESULT, never 1.0"
+        );
+        let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+        assert!(!m.contains_key("fnbyte-match"), "absence is absence");
+    }
+}
+
+/// **A port that refuses everything scores 0, not 1.** The direct inversion of
+/// the objdiff trap, stated over a whole scan rather than a single body.
+#[test]
+fn a_port_that_emits_nothing_scores_zero() {
+    let rep = mk_report(vec![mk_fnbyte(
+        TuClass::VocabGap,
+        "x.cpp",
+        &[("fnbyte-refused", 900)],
+    )]);
+    let f = rep.fn_byte_match().unwrap();
+    assert_eq!((f.exact, f.denominator, f.value), (0, 900, 0.0));
+    let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    assert_eq!(m["fnbyte-match"], "0.00000");
+}
+
+/// **The whole-TU override, and the control that found it.**
+///
+/// `PortC2::build` has one acceptance route that is not per-function — the
+/// `??__E` dynamic-initializer recognizer — and on the corpus its two TUs made
+/// the per-function route report `refused` for bodies the differential had
+/// already graded byte-exact. On a TU the oracle graded `match`, every emitted
+/// function IS byte-identical; the judge's verdict supersedes the instrument's
+/// route.
+///
+/// The control that is NOT relaxed: a per-function body that *differs* on a
+/// `match` TU means `select_function` and the COFF emitter disagree about a
+/// certified body. Known answer 0.
+#[test]
+fn a_match_tu_credits_every_emitted_function_and_a_differing_body_is_a_control_break() {
+    let rep = mk_report(vec![
+        // The dyninit shape: the per-function route has nothing, the obj matches.
+        mk_fnbyte(TuClass::Match, "dyninit.cpp", &[("fnbyte-refused", 1)]),
+        mk_fnbyte(TuClass::VocabGap, "other.cpp", &[("fnbyte-refused", 9)]),
+    ]);
+    let f = rep.fn_byte_match().unwrap();
+    assert_eq!(f.exact, 0, "the per-function route credited nothing");
+    assert_eq!(f.whole_tu, 1, "…and the oracle's verdict credited the one");
+    assert_eq!(f.value, 0.1);
+    assert_eq!(f.match_tu_differs, 0);
+    assert_eq!(
+        rep.fn_byte_by_tu().first().map(|(s, e, d)| (*s, *e, *d)),
+        Some(("dyninit.cpp", 1, 1)),
+        "a byte-exact TU reads 100 % per-TU FBM whatever the route could rebuild"
+    );
+
+    // The control break: a differing body on a certified TU.
+    let bad = mk_report(vec![mk_fnbyte(
+        TuClass::Match,
+        "dyninit.cpp",
+        &[("fnbyte-differs", 1)],
+    )]);
+    assert_eq!(
+        bad.fn_byte_match().unwrap().match_tu_differs,
+        1,
+        "select_function disagreeing with the emitter about a certified body \
+         must be a printed count, not an absorbed one"
+    );
+}
+
+/// **The partition is checked, not assumed, and the buckets travel with the
+/// ratio.** A metric block that published `fnbyte-match` without
+/// `fnbyte-partial` would hide the size of the instrument's own under-report.
+#[test]
+fn fnbyte_metrics_publish_every_bucket_beside_the_ratio() {
+    let rep = mk_report(vec![mk_fnbyte(
+        TuClass::VocabGap,
+        "x.cpp",
+        &[
+            ("fnbyte-exact", 2),
+            ("fnbyte-differs", 1),
+            ("fnbyte-partial", 3),
+            ("fnbyte-refused", 4),
+            ("fnbyte-unbound", 5),
+        ],
+    )]);
+    let f = rep.fn_byte_match().unwrap();
+    assert_eq!(
+        f.exact + f.differs + f.partial + f.refused + f.unbound + f.nobytes,
+        f.denominator,
+        "the six buckets partition the denominator"
+    );
+    assert_eq!(f.partition_broken, 0);
+    let m: BTreeMap<&str, String> = rep.metrics().into_iter().collect();
+    for k in [
+        "fnbyte-match",
+        "fnbyte-exact",
+        "fnbyte-whole-tu",
+        "fnbyte-denominator",
+        "fnbyte-differs",
+        "fnbyte-partial",
+        "fnbyte-refused",
+        "fnbyte-unbound",
+        "fnbyte-partition-broken",
+        "fnbyte-census-disagree",
+        "fnbyte-match-tu-differs",
+        "fnbyte-tus",
+        "fnbyte-tus-full",
+    ] {
+        assert!(m.contains_key(k), "gap-metric {k} must ride with the ratio");
+    }
+    assert_eq!(m["fnbyte-match"], "0.13333");
+}
+
+/// **Per-TU FBM is the answer to "how close is the other 870".** Sorted
+/// nearest-first, and a TU with no emitted function is excluded rather than
+/// counted as 0/0 — the same exclusion `near_match_tus` makes, for the same
+/// reason: never-measured is not nearly-done.
+#[test]
+fn per_tu_fnbyte_ranks_nearest_first_and_excludes_the_unmeasured() {
+    let rep = mk_report(vec![
+        mk_fnbyte(
+            TuClass::VocabGap,
+            "far.cpp",
+            &[("fnbyte-exact", 1), ("fnbyte-refused", 9)],
+        ),
+        mk_fnbyte(
+            TuClass::VocabGap,
+            "near.cpp",
+            &[("fnbyte-exact", 9), ("fnbyte-refused", 1)],
+        ),
+        mk_fnbyte(TuClass::VocabGap, "empty.cpp", &[]),
+        {
+            let mut cf = mk_fnbyte(TuClass::CaptureFail, "cf.cpp", &[("fnbyte-exact", 5)]);
+            cf.class = TuClass::CaptureFail;
+            cf
+        },
+    ]);
+    let v = rep.fn_byte_by_tu();
+    assert_eq!(
+        v.iter().map(|(s, _, _)| *s).collect::<Vec<_>>(),
+        vec!["near.cpp", "far.cpp"],
+        "nearest first; no emitted functions and capture-fail are both excluded"
+    );
+}

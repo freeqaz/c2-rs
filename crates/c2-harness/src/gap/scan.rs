@@ -430,6 +430,17 @@ fn scan_one(
                 }
             }
         }
+        // 1e''''. **FUNCTION BYTE MATCH (lane w-fuzzy, `super::fnbytes`).** The
+        //         byte-exact differential at *function* granularity: for every
+        //         `.text` COMDAT c2 emitted, is the port's own per-function
+        //         selection byte-identical to it? Additive only — it reads the
+        //         same census this block bound and writes only `fnbyte-` keys.
+        //
+        //         This is the term STATUS trap 2 was missing. `emit-in-class` is
+        //         a parse-time claim the oracle has never graded on a TU that
+        //         does not match; `fnbyte-exact` is the oracle's own predicate,
+        //         applied to a unit the port can actually answer for.
+        super::fnbytes::measure(&mut res, &census, &captured.ref_obj);
         // 1e'. SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128) — see [`row_dump`].
         //      Off unless `C2RS_ROW_DUMP` is set; changes no count either way.
         row_dump(

@@ -480,6 +480,37 @@ impl GapReport {
             m.push(("progress-emitted-total", p.emitted_total.to_string()));
             m.push(("progress-mismatch-zeroed", p.mismatch_zeroed.to_string()));
         }
+        // FUNCTION BYTE MATCH — emitted only when at least one emitted function
+        // was graded, for the reason `fn_byte_match` returns `Option`: a
+        // collector must read "nothing graded" as NO-RESULT and never as a
+        // number, least of all as 1.0. Every bucket rides along so the ratio is
+        // never quotable without the partition it came from, and `fnbyte-partial`
+        // — the size of the instrument's own under-report — is not optional.
+        if let Some(f) = self.fn_byte_match() {
+            m.push(("fnbyte-match", format!("{:.5}", f.value)));
+            m.push(("fnbyte-exact", f.exact.to_string()));
+            m.push(("fnbyte-denominator", f.denominator.to_string()));
+            m.push(("fnbyte-differs", f.differs.to_string()));
+            m.push(("fnbyte-partial", f.partial.to_string()));
+            m.push(("fnbyte-refused", f.refused.to_string()));
+            m.push(("fnbyte-unbound", f.unbound.to_string()));
+            m.push(("fnbyte-partition-broken", f.partition_broken.to_string()));
+            m.push(("fnbyte-census-disagree", f.census_disagree.to_string()));
+            m.push((
+                "fnbyte-match-tu-differs",
+                f.match_tu_differs.to_string(),
+            ));
+            m.push(("fnbyte-whole-tu", f.whole_tu.to_string()));
+            m.push((
+                "fnbyte-tus-full",
+                self.fn_byte_by_tu()
+                    .iter()
+                    .filter(|(_, e, d)| e == d)
+                    .count()
+                    .to_string(),
+            ));
+            m.push(("fnbyte-tus", self.fn_byte_by_tu().len().to_string()));
+        }
         m
     }
 

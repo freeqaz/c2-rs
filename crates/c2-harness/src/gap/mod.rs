@@ -36,6 +36,7 @@ use crate::provenance::Provenance;
 
 mod classify;
 mod factors;
+pub mod fnbytes;
 mod render;
 mod report;
 mod scan;
@@ -451,6 +452,56 @@ pub struct ProgressMass {
     /// scan with wrong emits cannot present a quietly-reduced P as clean.
     pub mismatch_zeroed: usize,
     /// `mean(a, b, c, f)` — in `[0, 1]`.
+    pub value: f64,
+}
+
+/// **FUNCTION BYTE MATCH** and the full partition it was computed from — see
+/// [`fnbytes`] for the design and [`GapReport::fn_byte_match`] for the
+/// aggregation.
+///
+/// Every field travels with `value` for the same reason [`ProgressMass`]'s do:
+/// the ratio is not quotable without its denominator, and the buckets are the
+/// only place the size of the instrument's own under-report is stated.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FnByteMatch {
+    /// Emitted `.text` COMDATs across the graded workload — the denominator,
+    /// counted off the **reference** obj and therefore not a function of the
+    /// port's output.
+    pub denominator: usize,
+    /// Emitted functions whose port body is byte-identical to c2's, graded
+    /// through the port's **per-function** route (`codegen::select_function`).
+    pub exact: usize,
+    /// Emitted functions on a TU the differential graded `match` that the
+    /// per-function route did not credit. The whole-obj byte compare has
+    /// already certified them, and the judge's verdict supersedes the
+    /// instrument's route — see [`GapReport::fn_byte_match`]. Credited.
+    pub whole_tu: usize,
+    /// Complete port body, bytes differ. Forensic, never credited.
+    pub differs: usize,
+    /// The port selected a shape the COFF emitter finishes. Not credited, and
+    /// deliberately not reconstructed here — see [`fnbytes`].
+    pub partial: usize,
+    /// The port refuses this function.
+    pub refused: usize,
+    /// No census row binds this emitted symbol, or two do.
+    pub unbound: usize,
+    /// The COMDAT's raw data did not decode.
+    pub nobytes: usize,
+    /// TUs whose obj did not decode at all — no denominator taken from them.
+    pub obj_unreadable: usize,
+    /// Buckets that did not sum to the denominator. **Known answer 0.**
+    pub partition_broken: usize,
+    /// Instruction words in the `differs` class: `(port, reference, equal)`.
+    pub differ_words: (usize, usize, usize),
+    /// Emitted functions the census calls in class that the port refuses — the
+    /// census/gate disagreement restricted to the emitted population, which is
+    /// the error term on [`ProgressMass`]'s `f` numerator. Target 0.
+    pub census_disagree: usize,
+    /// Emitted functions on a `match` TU for which the per-function route
+    /// produced a body that DIFFERS from c2's. **Known answer 0** — see
+    /// [`GapReport::fn_byte_match_tu_differs`].
+    pub match_tu_differs: usize,
+    /// `(exact + whole_tu) / denominator` — in `[0, 1]`.
     pub value: f64,
 }
 
