@@ -17,6 +17,7 @@ use crate::codegen::encode::{
     encode_sth,
     encode_stw,
 };
+use crate::codegen::schedule;
 use crate::codegen::select::{ARG_REGS, OptMode, SCRATCH_REG, out_of_class};
 use crate::codegen::straightline::emit_load_imm;
 
@@ -136,6 +137,42 @@ pub fn store_leaf_text(
             None
         }
     };
+    // **The SCHEDULE guard** (`codegen::schedule`, `docs/STORE_SCHEDULE.md`).
+    //
+    // Everything below emits the stores in SOURCE order. That is correct for
+    // every shape the parser admits today — an all-formal run has no producer
+    // at all, and an all-same-literal run has one producer shared by every
+    // store, so `schedule` returns source order in both cases — and it is
+    // WRONG the moment the parser admits a run that mixes a produced value
+    // with an unproduced one, because real c2 then moves the produced store to
+    // store position 2. Measured: `{a=x; b=0; c=y; d=z}` is
+    // `li ; a ; c ; b ; d`, not `li ; a ; b ; c ; d`.
+    //
+    // So this is a positive check with a *count*, not an assumption: build the
+    // statement list, ask the schedule, and refuse if it disagrees with the
+    // order this function is about to emit. Board **#232** is the precedent
+    // that makes this worth a dozen lines — a parser widening turned a clean
+    // refusal into a live wrong emit that survived 255 commits.
+    {
+        let mut stmts: Vec<schedule::Stmt> = Vec::new();
+        let mut walk = func.ops.as_slice();
+        while let [IlOp::Load(b), v, IlOp::StoreInd { .. }, tail @ ..] = walk {
+            let producer = match v {
+                // A formal's register: already live, nothing materialises it.
+                IlOp::Load(_) => None,
+                // Equal constants are CSE'd to one `li`, so equal `k` is one id.
+                IlOp::Lit(k) => Some(*k as u32),
+                _ => break,
+            };
+            stmts.push(schedule::Stmt { producer, base: *b });
+            walk = tail;
+        }
+        if walk.is_empty() && !stmts.is_empty() && !schedule::is_source_order(&stmts) {
+            return Some(Err(out_of_class(
+                "store run whose schedule is not source order (codegen::schedule)",
+            )));
+        }
+    }
     if let Some(k) = hoisted_lit {
         if let Err(e) = emit_load_imm(&mut text, SCRATCH_REG, k) {
             return Some(Err(e));
