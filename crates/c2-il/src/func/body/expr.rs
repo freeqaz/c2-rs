@@ -610,6 +610,27 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
         0x2C => TypeVarint,
         0x30 | 0x32 => Type,
         0x33 => TypeVarint,
+        // A COMPOUND-ASSIGN, `35 <TYPE>` — the same shape as `0F`, pinned by
+        // `w-depth` from a capture of `src/system/math/Primes.cpp` at the
+        // workload's own flags (`c2rs census … --keep-il`). The loop increment
+        // of `for (int i2 = 0; primes[i2] != 0; i2++)` is
+        //
+        // ```text
+        //   … 3A <ec09>  29 <ed09>  26 <i2>  33 86 41 74 01  >35< 86 41 74  4B …
+        // ```
+        //
+        // — designator, literal `1`, the opcode, a 3-byte int TYPE, statement
+        // end. So the WIDTH is `<TYPE>`, read straight off the stream.
+        //
+        // **It is deliberately not NAMED.** `0F` is `+=` on `mcall`'s own `x +=
+        // 3` control and this occupies the identical slot with the identical
+        // payload, so `35` is somewhere in the increment/compound-assign family
+        // — but *which* member (post-increment discarding its value, a distinct
+        // `+= 1`, something else) is not decided by one witness, and
+        // `expr_opcode_name`'s header states the rule: a hex bucket is a result,
+        // a wrong name is a lie that survives into the roadmap. The instrument
+        // needs the width and not the name.
+        0x35 => Type,
         0x40 => Type,
         // The RESULT ANNOTATION, `41 <int-like>` — `eat_return_plumbing`'s own
         // first field. It is `parse_expr`'s usual `stop` byte, so naming it is
@@ -1402,12 +1423,13 @@ mod tests {
     /// capture has ever shown; `3B`/`3C`/`3D` are the switch family, whose table
     /// payload is not a fixed width; `64`/`66` are named nowhere in this tree.
     ///
-    /// `w-depth` measured `0x00`, `0x05` and `0x35` as live chain terminals on
-    /// the frontier — three more bytes the instrument refuses rather than
-    /// guesses (rung §6).
+    /// `w-depth` measured `0x00` and `0x05` as live chain terminals on the
+    /// frontier — two more bytes the instrument refuses rather than guesses
+    /// (rung §6). `0x35` was a third until a capture pinned its WIDTH; it is in
+    /// the table and still has no name.
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
-        for b in [0x00, 0x05, 0x1B, 0x1C, 0x35, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
+        for b in [0x00, 0x05, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
         }
     }
@@ -1427,6 +1449,9 @@ mod tests {
         // `27 <TYPE>` — the byte-offset add, from `IL_EXPR_LAYER.md` §2's table.
         let offadd = [0x27, 0x86, 0x43, 0xF4, 0x08, 0x30];
         assert_eq!(skip_one(&offadd, 0x27), Some(Ok(5)));
+        // `35 <TYPE>` — the loop increment of `Primes.cpp`'s `for` at the
+        // workload's own flags: `26 <i2> · 33 86 41 74 01 · 35 86 41 74 · 4B`.
+        assert_eq!(skip_one(&[0x35, 0x86, 0x41, 0x74, 0x4B], 0x35), Some(Ok(4)));
         // `4F 01 <varint>` is the LINE MARKER and `4F 12` is the FUNCTION TAIL.
         // The second must refuse: eating it walks the instrument out of the body,
         // which is what makes the tail a terminal the sink can never consume.

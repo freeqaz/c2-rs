@@ -86,22 +86,40 @@
    "op:3A",
    "op:29",
    "op:26",
-   "op:35"
+   "op:35",
+   "op:4B",
+   "op:28",
+   "op:30",
+   "op:20",
+   "op:38",
+   "op:53",
+   "op:4F",
+   "op:23",
+   "op:54"
   ],
-  "depth": 2,
+  "depth": 7,
   "fn_in_class": 0,
   "fn_total": 1,
-  "raw": 5,
+  "raw": 14,
   "scaffold": [
    "op:41",
    "op:3A",
-   "op:29"
+   "op:29",
+   "op:4B",
+   "op:53",
+   "op:4F",
+   "op:54"
   ],
   "sinks": [
    "op:26",
-   "op:35"
+   "op:35",
+   "op:28",
+   "op:30",
+   "op:20",
+   "op:38",
+   "op:23"
   ],
-  "status": "EXIT:expr-chain-noform-0x35",
+  "status": "CLEAR",
   "steps": [
    [
     0,
@@ -146,12 +164,92 @@
    [
     4,
     {
-     "expr-chain-noform-0x35": 1
+     "expr-op-0x4B": 1
     },
-    [],
     [
-     "expr-chain-noform-0x35"
-    ]
+     "op:4B"
+    ],
+    []
+   ],
+   [
+    5,
+    {
+     "expr-op-0x28": 1
+    },
+    [
+     "op:28"
+    ],
+    []
+   ],
+   [
+    6,
+    {
+     "expr-op-0x30": 1
+    },
+    [
+     "op:30"
+    ],
+    []
+   ],
+   [
+    7,
+    {
+     "expr-cmp-ne": 1
+    },
+    [
+     "op:20"
+    ],
+    []
+   ],
+   [
+    8,
+    {
+     "expr-brfalse": 1
+    },
+    [
+     "op:38"
+    ],
+    []
+   ],
+   [
+    9,
+    {
+     "expr-op-0x53": 1
+    },
+    [
+     "op:53"
+    ],
+    []
+   ],
+   [
+    10,
+    {
+     "expr-op-0x4F": 1
+    },
+    [
+     "op:4F"
+    ],
+    []
+   ],
+   [
+    11,
+    {
+     "expr-cmp-ge": 1
+    },
+    [
+     "op:23"
+    ],
+    []
+   ],
+   [
+    12,
+    {
+     "expr-op-0x54": 1
+    },
+    [
+     "op:54"
+    ],
+    []
    ]
   ],
   "whole": true
@@ -541,12 +639,19 @@
    "op:26",
    "op:32",
    "op:4B",
-   "op:35"
+   "op:35",
+   "op:22",
+   "op:28",
+   "type",
+   "op:30",
+   "convert",
+   "op:0F",
+   "op:11"
   ],
-  "depth": 5,
+  "depth": 12,
   "fn_in_class": 0,
   "fn_total": 4,
-  "raw": 12,
+  "raw": 19,
   "scaffold": [
    "op:41",
    "op:53",
@@ -561,9 +666,16 @@
    "op:38",
    "op:26",
    "op:32",
-   "op:35"
+   "op:35",
+   "op:22",
+   "op:28",
+   "type",
+   "op:30",
+   "convert",
+   "op:0F",
+   "op:11"
   ],
-  "status": "EXIT:expr-chain-noform-0x35",
+  "status": "EXIT:expr-chain-noform-0x11",
   "steps": [
    [
     0,
@@ -678,11 +790,57 @@
    [
     11,
     {
-     "expr-chain-noform-0x35": 4
+     "expr-cmp-lt": 4
+    },
+    [
+     "op:22"
+    ],
+    []
+   ],
+   [
+    12,
+    {
+     "expr-op-0x28": 4
+    },
+    [
+     "op:28"
+    ],
+    []
+   ],
+   [
+    13,
+    {
+     "expr-load-type-8645": 1,
+     "expr-op-0x30": 3
+    },
+    [
+     "type",
+     "op:30"
+    ],
+    []
+   ],
+   [
+    14,
+    {
+     "expr-convert-target-8645": 1,
+     "expr-op-0x0F": 1,
+     "expr-op-0x11": 2
+    },
+    [
+     "convert",
+     "op:0F",
+     "op:11"
+    ],
+    []
+   ],
+   [
+    15,
+    {
+     "expr-chain-noform-0x11": 2
     },
     [],
     [
-     "expr-chain-noform-0x35"
+     "expr-chain-noform-0x11"
     ]
    ]
   ],
@@ -1804,12 +1962,21 @@
    "op:3A",
    "op:27",
    "op:24",
-   "op:35"
+   "op:35",
+   "convert",
+   "op:0F",
+   "type",
+   "op:21",
+   "op:22",
+   "op:0B",
+   "op:0A",
+   "op:0C",
+   "op:23"
   ],
-  "depth": 9,
+  "depth": 18,
   "fn_in_class": 0,
   "fn_total": 1,
-  "raw": 16,
+  "raw": 25,
   "scaffold": [
    "op:41",
    "op:29",
@@ -1828,9 +1995,18 @@
    "op:32",
    "op:27",
    "op:24",
-   "op:35"
+   "op:35",
+   "convert",
+   "op:0F",
+   "type",
+   "op:21",
+   "op:22",
+   "op:0B",
+   "op:0A",
+   "op:0C",
+   "op:23"
   ],
-  "status": "EXIT:expr-chain-noform-0x35",
+  "status": "CLEAR",
   "steps": [
    [
     0,
@@ -1985,12 +2161,92 @@
    [
     15,
     {
-     "expr-chain-noform-0x35": 1
+     "expr-convert-target-8643": 1
     },
-    [],
     [
-     "expr-chain-noform-0x35"
-    ]
+     "convert"
+    ],
+    []
+   ],
+   [
+    16,
+    {
+     "expr-op-0x0F": 1
+    },
+    [
+     "op:0F"
+    ],
+    []
+   ],
+   [
+    17,
+    {
+     "expr-load-type-8422": 1
+    },
+    [
+     "type"
+    ],
+    []
+   ],
+   [
+    18,
+    {
+     "expr-cmp-le": 1
+    },
+    [
+     "op:21"
+    ],
+    []
+   ],
+   [
+    19,
+    {
+     "expr-cmp-lt": 1
+    },
+    [
+     "op:22"
+    ],
+    []
+   ],
+   [
+    20,
+    {
+     "expr-bit-and": 1
+    },
+    [
+     "op:0B"
+    ],
+    []
+   ],
+   [
+    21,
+    {
+     "expr-shr": 1
+    },
+    [
+     "op:0A"
+    ],
+    []
+   ],
+   [
+    22,
+    {
+     "expr-bit-or": 1
+    },
+    [
+     "op:0C"
+    ],
+    []
+   ],
+   [
+    23,
+    {
+     "expr-cmp-ge": 1
+    },
+    [
+     "op:23"
+    ],
+    []
    ]
   ],
   "whole": true
