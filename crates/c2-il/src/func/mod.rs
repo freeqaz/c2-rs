@@ -1278,6 +1278,154 @@ pub struct PtrWalkModLoop {
     pub mul_k: i32,
 }
 
+/// The right-hand operand of one accumulate-chain step.
+///
+/// Two cases and no third: the chain either folds in a literal or folds in the
+/// walked character. That is the whole operand vocabulary
+/// [`PtrWalkChainLoop`]'s recognizer admits, and it is what makes the emitter's
+/// `pv` — the last step reading the character — an **IL** fact rather than
+/// something read back out of emitted registers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChainRhs {
+    /// An immediate. Its admissible range depends on the opcode and is checked
+    /// by the recognizer, not here (`addi`/`mulli` take `simm16`, `xori`/`ori`
+    /// take `uimm16`).
+    Lit(i32),
+    /// The walked character — `c` in `int c = *s;`.
+    Char,
+}
+
+/// The operator of one accumulate-chain step.
+///
+/// **Four, and the omissions are measured rather than cautious.** Each admitted
+/// kind selects to exactly one instruction in both operand shapes, and every
+/// omitted one was excluded by a captured counterexample:
+///
+/// ```text
+///   r = r & K   ->  andi. rD,rS,K   -- WRITES cr0.  c2 then demotes the record
+///                                      form to a plain `extsb` and adds an
+///                                      explicit `cmpwi r11,0` before the back
+///                                      edge: a DIFFERENT block, one word longer
+///   r = r - c   ->  subf            -- non-commutative; its operand roles come
+///                                      from instruction selection, so S5 does
+///                                      not speak for it (w-sched2 §6.5, seven
+///                                      refused cells)
+///   r = r << K  ->  rlwinm          -- reassociates and folds the length axis
+///                                      (w-sched2 §11.4, unchased)
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChainOpKind {
+    /// `add` / `addi`.
+    Add,
+    /// `xor` / `xori`.
+    Xor,
+    /// `or` / `ori`.
+    Or,
+    /// `mullw` / `mulli`.
+    Mul,
+}
+
+/// One step of the accumulate chain: `r = r <kind> <rhs>`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChainOp {
+    pub kind: ChainOpKind,
+    pub rhs: ChainRhs,
+}
+
+/// **The pointer-walk accumulate loop, body-parameterized** — the port's first
+/// lowering whose emitted body has no fixed length.
+///
+/// ```c
+///   int P(const char* s) {
+///       int r = <acc_init>;
+///       while (*s) { int c = *s; r = <ops[0]>; r = <ops[1]>; … s++; }
+///       return r;
+///   }
+/// ```
+///
+/// # Why this is a different shape from [`PtrWalkModLoop`] and not a widening
+///
+/// `PtrWalkModLoop` carries three scalars and **no operation list at all**; its
+/// recognizer consumes the accumulate with literal `eat_byte(0x04)` calls at
+/// fixed cursor positions and its emitter hand-writes twenty words behind a
+/// `debug_assert_eq!(t.len(), 80)`. It is a transcription of one function, says
+/// so in its own module doc, and is left exactly as it is — it additionally
+/// carries the signed `%` spine, which belongs to lane `w-divmod` and is
+/// treated here as a black box.
+///
+/// This shape carries `ops`, and everything about the emitted body — its
+/// length, the induction load's slot, the record form's slot, every register
+/// field and the back edge's displacement — is **computed from that list** by
+/// the rules `docs/rungs/2026-08-05-w-sched2.md` measured and
+/// `docs/rungs/2026-08-05-w-rotate.md` §3 completed.
+///
+/// # The fields are the emitter's whole input
+///
+/// The recognizer
+/// ([`crate::func::body::shapes::ptr_walk_chain_loop::try_parse_ptr_walk_chain_loop`])
+/// carries the accept/refuse boundary, including the facts not visible here
+/// because they are required literally: **exactly one formal**, the walked
+/// pointer, at slot 0; a stride of exactly 1; the loop test a bare truth test
+/// on the dereference; and at least one chain step reading the character.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PtrWalkChainLoop {
+    /// The one formal: the walked pointer's source, arriving in r3.
+    pub params: Vec<u32>,
+    /// The accumulator's initial literal, inside `simm16` — one `li`.
+    pub acc_init: i32,
+    /// The element's signedness, which decides the **record form** and the
+    /// entry test. Measured, both regimes
+    /// (`work/w-varloop/probe.py --sig 'const unsigned char* s'`):
+    ///
+    /// ```text
+    ///   signed             record `extsb. CHAR,LD`   entry test `extsb. CHAR,CHAR`
+    ///   unsigned, TWO      record `mr.    CHAR,LD`   entry test `cmplwi cr0,CHAR,0`
+    ///   unsigned, SAME     record `cmplwi cr0,CHAR,0`   -- no entry test at all
+    /// ```
+    ///
+    /// The third row is a fact w-sched2's reconstruction never had to derive:
+    /// it copied the record form's opcode out of `c2`'s own bytes. An emitter
+    /// must choose it, and in the SAME regime `mr. CHAR,CHAR` would be the
+    /// redundant move `c2` declines to emit.
+    pub elem_unsigned: bool,
+    /// **The operation list** — the accumulate in data-dependence order, one
+    /// entry per source statement. Never empty.
+    pub ops: Vec<ChainOp>,
+}
+
+impl PtrWalkChainLoop {
+    /// `M` — the producer count. One IL step is one producer here **by
+    /// construction**, which is how this shape stays clear of board #644: a
+    /// producer split across a `lis`/`ori` pair is exactly what the
+    /// recognizer's literal-range checks refuse, so `M == N` always holds and
+    /// the two units w-sched2 §5 had to distinguish coincide.
+    pub fn producers(&self) -> usize {
+        self.ops.len()
+    }
+
+    /// `pv` — the index of the **last** chain step reading the character's
+    /// value. `None` when no step reads it, which the recognizer refuses.
+    ///
+    /// w-sched2 computes this from emitted bytes with a liveness flag, because
+    /// a physical register can be re-read after the value in it has died. Here
+    /// it is a plain IL fact: `c` is assigned once and never reassigned, so
+    /// every `Char` operand is a read of the live value.
+    pub fn pv(&self) -> Option<usize> {
+        self.ops.iter().rposition(|o| o.rhs == ChainRhs::Char)
+    }
+
+    /// **S3m** — the register regime, at 84 of 84 held out
+    /// (`docs/rungs/2026-08-05-w-sched2.md` §3.3). `true` is the SAME regime:
+    /// the induction load reuses the character's register, so the loop runs on
+    /// one register and is entered by jumping *into* the record form.
+    ///
+    /// Both inputs are IL facts, which is the finding that made a lowering
+    /// reachable at all — w-rotate had left the entry form unevaluable from IL.
+    pub fn regime_same(&self) -> bool {
+        self.pv() == Some(0) && self.producers() >= 4
+    }
+}
+
 /// **The integer divide / modulo leaf** — `return a / b;` / `return a % b;`
 /// over exactly two formals, signed or unsigned.
 ///
@@ -1511,6 +1659,14 @@ pub struct IlFunction {
     /// function**, which is the only kind of TU this shape may appear in. Board
     /// **#746**.
     pub ptr_walk_loop: Option<PtrWalkModLoop>,
+    /// If this function is the **body-parameterized pointer-walk loop**, its
+    /// one formal and its accumulate **operation list**. See
+    /// [`PtrWalkChainLoop`].
+    ///
+    /// Mutually exclusive with [`Self::ptr_walk_loop`]: the two recognizers
+    /// accept disjoint grammars (a rotated `for` against a top-test `while`),
+    /// and exactly one parser production sets each field.
+    pub ptr_walk_chain_loop: Option<PtrWalkChainLoop>,
     /// If this function is the **integer divide/modulo leaf**, its two formals
     /// and the operator. See [`DivModLeaf`].
     ///
@@ -1711,6 +1867,7 @@ impl IlFunction {
             compare: None,
             cmp_shift_or: None,
             ptr_walk_loop: None,
+            ptr_walk_chain_loop: None,
             div_mod_leaf: None,
             float_leaf: None,
             fp_tail: None,
@@ -1924,6 +2081,22 @@ impl IlFunction {
         // Neither `expr_sweep.sh` nor `mode_cross.sh` can generate that TU
         // (board #747), so the fixture is the only thing that grades it.
         if self.ptr_walk_loop.is_some() {
+            return None;
+        }
+        // **The body-parameterized loop refuses for exactly the same reason**,
+        // and the reason is unchanged by the body's length: `w-loop` measured
+        // that *which* of the four loop charges applies cannot be read off the
+        // emitted bytes, and a `while` charging +2 emits words indistinguishable
+        // from a `do/while` charging +1. The chain's length does not enter that
+        // argument at all, so a variable-length body inherits the same `None`.
+        //
+        // **MUST-FAIL MUTATION, verified** — the same shape as the one above:
+        // replacing this `None` with `Some(1)` turns
+        // `fixtures/cpp/wvl_chain_then_framed.cpp` from `NotImplemented` into a
+        // live `mismatch` against real `c2.dll`, while its separating control
+        // `fixtures/cpp/wvl_chain3.cpp` (the identical loop with no framed
+        // function beside it) stays `match`.
+        if self.ptr_walk_chain_loop.is_some() {
             return None;
         }
         if let Some(c) = &self.compare {

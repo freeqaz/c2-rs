@@ -99,6 +99,7 @@ mod tests {
             compare: None,
             cmp_shift_or: None,
         ptr_walk_loop: None,
+            ptr_walk_chain_loop: None,
         div_mod_leaf: None,
             empty_body: false,
             float_leaf: None,

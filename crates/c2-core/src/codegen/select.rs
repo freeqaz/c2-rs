@@ -24,6 +24,7 @@ use crate::codegen::leaf::float::{
 };
 use crate::codegen::leaf::load::indirect_load_text;
 use crate::codegen::div_mod_leaf::div_mod_leaf_text;
+use crate::codegen::ptr_walk_chain_loop::ptr_walk_chain_loop_text;
 use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
@@ -226,6 +227,16 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // readability claim and not a correctness one.
     if let Some(l) = &func.ptr_walk_loop {
         return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
+    }
+    // **The body-parameterized pointer-walk loop.** Same placement argument as
+    // the shape above and the same freedom: `func.ptr_walk_chain_loop` is set by
+    // exactly one parser production, `func.ops` is empty for it, and no leaf
+    // pattern-matcher below can take its body. Unlike every shape before it the
+    // text it returns has **no fixed length** — the emitter computes it from the
+    // accumulate's operation list — which is why the caller must keep taking the
+    // length from the returned bytes and never from a constant.
+    if let Some(l) = &func.ptr_walk_chain_loop {
+        return Ok(Selected::Plain(ptr_walk_chain_loop_text(l, mode)?));
     }
     // The integer divide/modulo leaf. Ahead of the straight-line chain for the
     // same reason the loop is: it is a whole-body shape, and the chain below

@@ -167,6 +167,26 @@ pub fn encode_blr() -> [u8; 4] {
     0x4E80_0020u32.to_be_bytes()
 }
 
+/// `bclr BO,BI` — a **conditional return**: branch to the link register when the
+/// CR bit says so, opcode 19 XO 16, `LK = 0`.
+///
+/// This is w-rotate's **P2** in one word (`docs/rungs/2026-08-05-w-rotate.md`
+/// §3, 46 of 46): a rotation guard branches to the block the loop falls out to,
+/// and it **folds to `bclr` exactly when that block is a bare `blr`** — so the
+/// guard carries no displacement at all and cannot go stale when the body's
+/// length changes. It is the reason a variable-length loop body needs no
+/// forward fixup for its entry test.
+///
+/// Captured: `4d820020` = `bclr 12,2` (branch-if-cr0.EQ to LR), every
+/// `TWO`-regime cell of `work/w-varloop/probe.py`. [`encode_blr`] is this word
+/// at `BO = `[`BO_ALWAYS`]`, BI = 0`, and the two agree by construction — there
+/// is a test.
+pub fn encode_bclr(bo: u8, bi: u8) -> [u8; 4] {
+    let word: u32 =
+        (19 << 26) | ((bo as u32 & 0x1F) << 21) | ((bi as u32 & 0x1F) << 16) | (16 << 1);
+    word.to_be_bytes()
+}
+
 /// `lwz rD, D(rA)` — load a 32-bit word: primary opcode 32.
 ///
 /// The constants are transcribed from raw captures rather than derived:
@@ -215,6 +235,25 @@ pub fn encode_ld(rd: u8, ra: u8, ds: i16) -> [u8; 4] {
 /// [`indirect_load_text`]).
 pub fn encode_extsb(ra: u8, rs: u8) -> [u8; 4] {
     xo31(rs, ra, 0, 954)
+}
+
+/// `extsb. rA, rS` — the **record form** of the byte sign-extension, opcode 31
+/// XO 954 with `Rc = 1`. It writes **cr0** as a side effect, which is how `c2`
+/// closes a **signed**-element sentinel walk: the character the next iteration
+/// tests is widened and tested in one instruction, with no `cmplwi` at the
+/// bottom of the body at all.
+///
+/// Captured: `7d6b0775` = `extsb. r11,r11` and `7d2b0775` = `extsb. r11,r9`
+/// (`work/w-varloop/probe.py`, every `const char*` cell).
+///
+/// The signed sibling of [`encode_mr_record`], and a separate function rather
+/// than an `rc: bool` on [`encode_extsb`] for the same reason that one is: the
+/// two differ in whether a branch may read cr0 after them, and board #188 is
+/// what this project already paid for confusing that.
+pub fn encode_extsb_record(ra: u8, rs: u8) -> [u8; 4] {
+    let mut w = u32::from_be_bytes(xo31(rs, ra, 0, 954));
+    w |= 1;
+    w.to_be_bytes()
 }
 
 /// `extsh rA, rS` — sign-extend halfword: opcode 31, XO 922. Captured as
