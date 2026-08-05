@@ -1,0 +1,107 @@
+mode: /O1 /GS- /c   workdir: /home/free/tmp/wloopomm_i_5z
+
+== Q1  the LEAF-loop stride, seed-free, /O1 anchors ==
+   construction: gt_label_stride.py (a0 . P . a1 . a2), P a LEAF so `extra` is undefined
+   control      = the measured anchor base (5 under /Gy, 4 packed); a row whose
+                  control is neither is an instrument failure, not a reading.
+
+probe               stride  control   minted  note
+leaf-none                1        5        1  BASE: int leaf, no control flow. gt_label_stride's `leaf-int` = 1
+leaf-if                  1        5        1  a forward-only branch in a leaf -- §4 says an `if` is +0
+leaf-while               3        5        1  while, sentinel -- §4's FRAMED row is +2
+leaf-dowhile             2        5        1  do/while -- §4's FRAMED row is +1, i.e. NOT the same as `while`
+leaf-for                 3        5        1  for, counted -- §4's FRAMED row is +2
+leaf-forever             4        5        1  for(;;) + break -- one back edge, one exit, NO entry test (P8's risk cell)
+leaf-for-k               3        5        1  COMPILE-TIME trip count -- unrolled? CTR? neither?
+leaf-for-stride          3        5        1  stride 3 -- L3: a trip count needing (hi-lo+k-1)/k
+leaf-for-down            3        5        1  counting DOWN -- the natural CTR shape
+leaf-for-break           4        5        1  L2: a second exit. P6 says the CTR form cannot survive it
+leaf-for-cont            3        5        1  L4: a second back edge / the test as a join target
+leaf-for-live            3        5        1  P7: the counter is READ AFTER the loop
+leaf-for2                5        5        1  TWO sequential loops -- is the charge per loop?
+leaf-fornest             5        5        1  nested -- §4's FRAMED row is +4
+leaf-goto-back           2        5        1  an explicit BACKWARD goto -- a loop with no loop keyword
+leaf-ptrwalk             4        5        1  Sort.cpp's induction shape without the modulo: a pointer walk to a sentinel
+leaf-idxload             3        5        1  Primes.cpp's induction shape: an indexed load in the body
+
+  surcharge = stride - stride(leaf-none) = stride - 1
+    leaf-none          +0
+    leaf-if            +0
+    leaf-while         +2
+    leaf-dowhile       +1
+    leaf-for           +2
+    leaf-forever       +3
+    leaf-for-k         +2
+    leaf-for-stride    +2
+    leaf-for-down      +2
+    leaf-for-break     +3
+    leaf-for-cont      +2
+    leaf-for-live      +2
+    leaf-for2          +4
+    leaf-fornest       +4
+    leaf-goto-back     +1
+    leaf-ptrwalk       +3
+    leaf-idxload       +2
+
+== Q2  is the charge OBSERVABLE?  labels minted per TU shape ==
+   leafonly / leafx3 : predicted 0 (P1).  leaf_framed : the CONTROL, predicted > 0.
+   `back` = backward intra-section branch words; `ctr` = (mtctr, bdnz).
+
+probe                   shape   labels   back      ctr | the label names
+leaf-none            leafonly        0      0    (0,0) | -
+leaf-none              leafx3        0      0    (0,0) | -
+leaf-none          leaf_framed        3      0    (0,0) | $M2556 $M2555 $T2557
+leaf-if              leafonly        0      0    (0,0) | -
+leaf-if                leafx3        0      0    (0,0) | -
+leaf-if            leaf_framed        3      0    (0,0) | $M2557 $M2556 $T2558
+leaf-while           leafonly        0      1    (1,1) | -
+leaf-while             leafx3        0      1    (1,1) | -
+leaf-while         leaf_framed        3      1    (1,1) | $M2562 $M2561 $T2563
+leaf-dowhile         leafonly        0      1    (0,0) | -
+leaf-dowhile           leafx3        0      1    (0,0) | -
+leaf-dowhile       leaf_framed        3      1    (0,0) | $M2561 $M2560 $T2562
+leaf-for             leafonly        0      1    (1,1) | -
+leaf-for               leafx3        0      1    (1,1) | -
+leaf-for           leaf_framed        3      1    (1,1) | $M2563 $M2562 $T2564
+leaf-forever         leafonly        0      1    (0,0) | -
+leaf-forever           leafx3        0      1    (0,0) | -
+leaf-forever       leaf_framed        3      1    (0,0) | $M2564 $M2563 $T2565
+leaf-for-k           leafonly        0      0    (0,0) | -
+leaf-for-k             leafx3        0      0    (0,0) | -
+leaf-for-k         leaf_framed        3      0    (0,0) | $M2563 $M2562 $T2564
+leaf-for-stride      leafonly        0      1    (1,1) | -
+leaf-for-stride        leafx3        0      1    (1,1) | -
+leaf-for-stride    leaf_framed        3      1    (1,1) | $M2563 $M2562 $T2564
+leaf-for-down        leafonly        0      1    (1,1) | -
+leaf-for-down          leafx3        0      1    (1,1) | -
+leaf-for-down      leaf_framed        3      1    (1,1) | $M2563 $M2562 $T2564
+leaf-for-break       leafonly        0      1    (0,0) | -
+leaf-for-break         leafx3        0      1    (0,0) | -
+leaf-for-break     leaf_framed        3      1    (0,0) | $M2565 $M2564 $T2566
+leaf-for-cont        leafonly        0      1    (1,1) | -
+leaf-for-cont          leafx3        0      1    (1,1) | -
+leaf-for-cont      leaf_framed        3      1    (1,1) | $M2564 $M2563 $T2565
+leaf-for-live        leafonly        0      1    (1,1) | -
+leaf-for-live          leafx3        0      1    (1,1) | -
+leaf-for-live      leaf_framed        3      1    (1,1) | $M2563 $M2562 $T2564
+leaf-for2            leafonly        0      2    (2,2) | -
+leaf-for2              leafx3        0      2    (2,2) | -
+leaf-for2          leaf_framed        3      2    (2,2) | $M2569 $M2568 $T2570
+leaf-fornest         leafonly        0      2    (1,1) | -
+leaf-fornest           leafx3        0      2    (1,1) | -
+leaf-fornest       leaf_framed        3      2    (1,1) | $M2569 $M2568 $T2570
+leaf-goto-back       leafonly        0      1    (0,0) | -
+leaf-goto-back         leafx3        0      1    (0,0) | -
+leaf-goto-back     leaf_framed        3      1    (0,0) | $M2560 $M2559 $T2561
+leaf-ptrwalk         leafonly        0      1    (0,0) | -
+leaf-ptrwalk           leafx3        0      1    (0,0) | -
+leaf-ptrwalk       leaf_framed        3      1    (0,0) | $M2564 $M2563 $T2565
+leaf-idxload         leafonly        0      1    (1,1) | -
+leaf-idxload           leafx3        0      1    (1,1) | -
+leaf-idxload       leaf_framed        3      1    (1,1) | $M2564 $M2563 $T2565
+
+  control: 17 of 17 `leaf_framed` TUs minted at least one label.
+  P1: 34 of 34 leaf-only TUs minted ZERO labels (28 of them contain a backward branch).
+
+controls failed: 0
+exit 0
