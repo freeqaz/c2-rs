@@ -102,6 +102,59 @@
 # "unconditional" affordable: the trade-off was resolved by removing the cost, not
 # by making the check optional.**
 #
+# ---- THE RUN TREE, REAPED, AND THE DISK RED TOLD APART FROM THE RED RED --------
+#
+# This gate writes a ~112 MB run tree per invocation and, until 2026-08-05, **never
+# reaped one**. On a night with twenty lanes each re-gating a few times, `/tmp` —
+# a 47 GB tmpfs on this box — fills, and then a gate goes red for a reason that has
+# nothing to do with the port. It has already happened once and it is on record:
+# `rungs/_2026-08-05-w-reach.md` §8.1 has a merge-base run whose `mode-cross` row
+# came back `NO-RESULT` on
+#
+#     /tmp/c2rs-gate-484396/cross/lane-results/Ox: No space left on device
+#
+# with ~190 leftover trees on the tmpfs. The lane had to reason its way out of a
+# **false red** by hand. That is this project's most-repeated defect wearing its
+# other face: not *absence read as success*, but **resource exhaustion read as a
+# correctness failure**. Sixteen instances of the family are on record, and the
+# generalizing fix is always the same one — **a positive check with a printed
+# count**. So:
+#
+#   * **Reaping is observable, never silent.** Every run prints what it reaped,
+#     what it kept and why, and how much space the removal freed. A reaper that
+#     ran quietly would be indistinguishable from a reaper that did not run — the
+#     same shape as every other silence this file exists to forbid.
+#   * **A reaper must never delete a tree a CONCURRENTLY RUNNING gate is using.**
+#     Several lanes run this script at once on this box; a lane once spent a day
+#     misdiagnosing a red that came from another lane changing shared state
+#     mid-flight (board #294). A tree is kept if a live process owns it, where
+#     "owns" means: its `gate.pid` (or, for pre-2026-08-05 trees, the pid in its
+#     name) is alive **and** `/proc/<pid>/cmdline` says that pid is a `gate.sh`.
+#     A pid that is alive but demonstrably something else is **pid reuse** — the
+#     box mints hundreds of these a night — and that tree is reapable. Anything
+#     that cannot be established (no `/proc`, unreadable cmdline) resolves to
+#     **KEEP**: "unknown" must not mean "delete".
+#   * **The run that just finished keeps its logs.** The gate's own output points
+#     at `/tmp/c2rs-gate-<n>/<lane>.log`, so reaping the newest finished tree
+#     would delete the thing the previous line just told somebody to read. The
+#     `C2RS_GATE_KEEP` (default 3) most recent finished trees are kept.
+#   * **Free space is checked UP FRONT and the check prints its counts** — free
+#     bytes, free inodes, and the floors they are being compared against. Below a
+#     floor, the gate stops **before grading anything** and prints
+#     `GATE: FAIL (DISK)`, **exit 3**, which is not the exit code of a mismatch.
+#   * **And when the red arrives mid-run anyway**, the verdict says which kind of
+#     red it is. A FAIL whose logs carry `No space left on device` and whose
+#     mismatch count is **0** prints a DISK banner: nothing about the port's bytes
+#     was established. A FAIL carrying a **mismatch** never gets that banner —
+#     bytes were compared and they differed, and a mismatch outranks every other
+#     piece of work whatever else went wrong on the box.
+#
+# `--selftest` drives all of it: the pid-liveness rule against a real live gate, a
+# real live non-gate and a real dead pid; the reaper against a fabricated tree
+# directory containing a stale tree, a reused-pid tree, a live-gate tree, a
+# within-window tree and the current run dir; the disk floor from both sides; and
+# the ENOSPC discrimination with and without a mismatch beside it.
+#
 # ---- usage ---------------------------------------------------------------------
 #
 #   scripts/gate.sh                       run every lane in the registry + the sweep
@@ -115,6 +168,20 @@
 #                                         shape coverage; no toolchain, no compiler
 #   scripts/gate.sh --selftest            prove the gate fails when it should
 #   scripts/gate.sh --work DIR            run directory (default /tmp/c2rs-gate-$$)
+#   scripts/gate.sh --no-reap             keep every old run tree (see the block
+#                                         above); the disk check still runs
+#   scripts/gate.sh --reap-dry-run        classify every run tree and print what
+#                                         WOULD be reaped, removing nothing. This
+#                                         is how the concurrency rule is checked
+#                                         against a live shared /tmp without
+#                                         betting other lanes' logs on it.
+#
+# exit codes:  0 = PASS / SKIPPED / SAMPLED   1 = a real gate failure
+#              2 = usage   **3 = out of disk, and nothing was graded**
+#
+# env:  C2RS_GATE_KEEP        finished run trees to keep (default 3)
+#       C2RS_GATE_MIN_MB      free-space floor, MiB (default 2048)
+#       C2RS_GATE_MIN_INODES  free-inode floor (default 50000)
 #
 # Lane run directories stay PER LANE, inherited from `mode_lane.sh`, which uses one
 # per mode precisely because a shared directory had concurrent lanes overwriting
@@ -131,6 +198,10 @@ want=""
 mode=run
 sweep_cases=0
 cross_cells=0
+reap=1
+: "${C2RS_GATE_KEEP:=3}"
+: "${C2RS_GATE_MIN_MB:=2048}"
+: "${C2RS_GATE_MIN_INODES:=50000}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -142,6 +213,8 @@ while [ $# -gt 0 ]; do
         --sweep-cases) shift; sweep_cases="$1" ;;
         --cross-cells) shift; cross_cells="$1" ;;
         --work)     shift; work="$1" ;;
+        --no-reap)  reap=0 ;;
+        --reap-dry-run) reap=2 ;;
         --registry) shift; registry="$1" ;;
         -h|--help)  sed -n '2,/^set -eu$/p' "$0" | sed '$d'; exit 0 ;;
         *) echo "gate.sh: unknown argument '$1' (try --help)" >&2; exit 2 ;;
@@ -359,6 +432,292 @@ sweep_verdict() {
 }
 
 # --------------------------------------------------------------------------------
+# THE TWO RESOURCES, MEASURED SEPARATELY.
+#
+# Space and inodes are different resources and this gate exhausts the SECOND one
+# first. Measured on this box 2026-08-05 (`work/w-ledger/CAUSE.md`): one run tree
+# is **112 MB and 16.6k inodes**, against a `/tmp` ceiling of 47 GB and 1,048,576
+# inodes — so ~63 trees exhaust inodes and ~430 exhaust space. **Inodes bind ~7x
+# earlier.** Lane w-alias's red had 19 GB free and 1048576/1048576 inodes used: a
+# free-space check on its own would have passed it straight through.
+#
+# Both are read with `df`, both are printed, and either being unavailable is
+# reported as UNKNOWN rather than being silently treated as fine — a filesystem
+# that does not report inodes (btrfs, zfs) must not read as a filesystem with
+# infinitely many.
+# --------------------------------------------------------------------------------
+fs_free_kb() {      # <dir> -> free 1K blocks, or '' if df cannot say
+    df -kP "$1" 2>/dev/null | awk 'NR==2 && $4 ~ /^[0-9]+$/ {print $4}'
+}
+# -> free inodes, or '' when the filesystem HAS NO INODE TABLE TO REPORT.
+#
+# btrfs on this box prints `0 0 0 -` for total/used/free: it allocates inodes
+# dynamically and has no ceiling to report. An earlier draft of this function
+# returned that literal `0` and the preflight then refused to run at all with
+# "out of INODES" on a filesystem with 430 GiB free — which would have broken
+# `--work <dir on /home>`, i.e. the exact workaround lanes use to escape a full
+# /tmp. Caught by the selftest before it shipped. **A zero TOTAL means the
+# question does not apply; it never means the answer is zero.**
+fs_free_inodes() {  # <dir>
+    df -iP "$1" 2>/dev/null \
+        | awk 'NR==2 && $2 ~ /^[0-9]+$/ && $2 > 0 && $4 ~ /^[0-9]+$/ {print $4}'
+}
+human_kb() {
+    awk -v k="${1:-}" 'BEGIN{
+        if (k == "") { print "unknown"; exit }
+        if (k >= 1048576) printf "%.1f GiB", k/1048576
+        else if (k >= 1024) printf "%.1f MiB", k/1024
+        else printf "%d KiB", k
+    }'
+}
+human_n() { awk -v n="${1:-}" 'BEGIN{ if (n=="") {print "unknown"; exit}
+    s=""; while (length(n) > 3) { s = "," substr(n, length(n)-2) s; n = substr(n, 1, length(n)-3) }
+    print n s }'; }
+
+# The LOW-WATER MARK across the run, not just the value at the start. The failure
+# this defends against is TRANSIENT — several lanes peak together, one gate goes
+# red, the trees drain, and by the time anybody looks `df` says everything is
+# fine. A red that does not reproduce is the most corrosive thing a project whose
+# epistemics rest on its gate can have. So the gate samples as it goes and reports
+# the minimum it saw, which is the number that explains the red.
+RES_DIR=""; RES_KB0=""; RES_IN0=""; RES_KBMIN=""; RES_INMIN=""
+res_init() {  # <dir>
+    RES_DIR="$1"
+    RES_KB0=$(fs_free_kb "$1"); RES_IN0=$(fs_free_inodes "$1")
+    RES_KBMIN="$RES_KB0"; RES_INMIN="$RES_IN0"
+}
+res_sample() {
+    [ -n "$RES_DIR" ] || return 0
+    _rs_kb=$(fs_free_kb "$RES_DIR"); _rs_in=$(fs_free_inodes "$RES_DIR")
+    if [ -n "$_rs_kb" ] && { [ -z "$RES_KBMIN" ] || [ "$_rs_kb" -lt "$RES_KBMIN" ]; }; then
+        RES_KBMIN="$_rs_kb"
+    fi
+    if [ -n "$_rs_in" ] && { [ -z "$RES_INMIN" ] || [ "$_rs_in" -lt "$RES_INMIN" ]; }; then
+        RES_INMIN="$_rs_in"
+    fi
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# THE PREFLIGHT. A POSITIVE CHECK WITH PRINTED COUNTS, and its own exit code.
+#
+# Below a floor this stops the gate BEFORE it grades anything, because a gate that
+# runs out of disk halfway prints `NO-RESULT` on whichever instruments were still
+# to come — w-alias saw it on the sweep AND the cross at once, which reads exactly
+# like one change breaking two instruments. Refusing up front costs two minutes and
+# removes the whole misdiagnosis.
+#
+# Returns 0 = clear, 1 = below a floor (the caller exits 3, which is NOT the exit
+# code of a mismatch).
+# --------------------------------------------------------------------------------
+preflight_disk() {  # <dir> <min-mb> <min-inodes>
+    _pf_dir="$1"; _pf_mb="$2"; _pf_in="$3"
+    _pf_fkb=$(fs_free_kb "$_pf_dir"); _pf_fin=$(fs_free_inodes "$_pf_dir")
+    _pf_needkb=$((_pf_mb * 1024))
+
+    printf 'disk:   %s — free %s / %s inodes (floors: %s / %s inodes)\n' \
+        "$_pf_dir" "$(human_kb "$_pf_fkb")" "$(human_n "$_pf_fin")" \
+        "$(human_kb "$_pf_needkb")" "$(human_n "$_pf_in")"
+
+    _pf_bad=""
+    if [ -z "$_pf_fkb" ]; then
+        echo "        FREE SPACE UNKNOWN — df could not report it. Not treated as fine."
+        _pf_bad="space (unreadable)"
+    elif [ "$_pf_fkb" -lt "$_pf_needkb" ]; then
+        _pf_bad="SPACE"
+    fi
+    if [ -z "$_pf_fin" ]; then
+        echo "        FREE INODES UNKNOWN — this filesystem does not report them, so the"
+        echo "        inode floor is NOT CHECKED on this run. Unreported is not unlimited."
+    elif [ "$_pf_fin" -lt "$_pf_in" ]; then
+        _pf_bad="${_pf_bad:+$_pf_bad and }INODES"
+    fi
+    [ -n "$_pf_bad" ] || return 0
+
+    echo
+    echo "GATE: FAIL (DISK) — out of $_pf_bad on $_pf_dir, before anything was graded."
+    echo "  free: $(human_kb "$_pf_fkb") and $(human_n "$_pf_fin") inodes"
+    echo "  need: $(human_kb "$_pf_needkb") and $(human_n "$_pf_in") inodes"
+    echo
+    echo "  *** THIS IS A RESOURCE FAULT AND NOT A MISMATCH. ***"
+    echo "  NOTHING was graded, so this run establishes NOTHING about the port —"
+    echo "  neither that it is right nor that it is wrong. It exits 3, which no"
+    echo "  correctness failure ever exits. One run tree costs ~112 MB and ~16.6k"
+    echo "  inodes, and INODES run out about 7x sooner than bytes do."
+    echo
+    echo "  Fixes, in order: re-run (this gate reaps stale run trees on entry);"
+    echo "  \`--work DIR\` on a filesystem with room; raise C2RS_GATE_MIN_MB /"
+    echo "  C2RS_GATE_MIN_INODES only once you know why they were set here."
+    return 1
+}
+
+# --------------------------------------------------------------------------------
+# IS THIS PID A LIVE GATE? Conservative by construction.
+#
+# Deleting a running gate's run tree is a far worse failure than keeping a stale
+# one, so every branch that cannot ESTABLISH death resolves to "live".
+#
+#   not a number            -> not live (a tree we cannot attribute is reapable)
+#   kill -0 fails           -> dead, reapable
+#   alive, cmdline says gate.sh   -> LIVE, keep
+#   alive, cmdline says otherwise -> PID REUSE. This box mints hundreds of pids a
+#                                    night and the tree names ARE pids, so a
+#                                    naive `kill -0` keeps stale trees forever
+#                                    behind an unrelated process.
+#   alive, cmdline unreadable     -> LIVE, keep. Unknown must not mean delete.
+# --------------------------------------------------------------------------------
+gate_pid_live() {  # <pid>
+    _gp="${1:-}"
+    case "$_gp" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$_gp" -gt 0 ] || return 1
+    kill -0 "$_gp" 2>/dev/null || return 1
+    if [ -r "/proc/$_gp/cmdline" ]; then
+        if tr '\0' ' ' < "/proc/$_gp/cmdline" 2>/dev/null | grep -q 'gate\.sh'; then
+            return 0
+        fi
+        return 1
+    fi
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# THE REAPER. Removes run trees that no live gate owns, keeping the most recent
+# few so the logs this gate just pointed at are still there.
+#
+# Prints one line per tree with the REASON, and a summary carrying a COUNT and the
+# space and inodes freed — measured as a df delta over the parent filesystem, which
+# is cheap and honest (a concurrent gate writing during the reap moves it, and that
+# is stated rather than hidden by a per-tree `du` that would walk 16k inodes a
+# tree). Silence here would be the same defect one level out.
+#
+# Emits to stdout. Returns 0 always: a reaper that fails must never fail a gate.
+# --------------------------------------------------------------------------------
+reap_run_trees() {  # <parent> <current-run-dir> <keep-recent> <scratch> [dry-run]
+    _rr_parent="$1"; _rr_cur="$2"; _rr_keep="$3"; _rr_scr="$4"; _rr_dry="${5:-}"
+    _rr_stale="$_rr_scr/reap.stale"; _rr_sorted="$_rr_scr/reap.sorted"
+    # The reaper needs two scratch files, and the filesystem it is reaping may be
+    # the one with no room to write them. Say so and stand down: the preflight
+    # immediately after this is what turns that into a verdict. A reaper that took
+    # the gate down with it would be worse than one that did not run.
+    if ! { : > "$_rr_stale"; : > "$_rr_sorted"; } 2>/dev/null; then
+        echo "reap:   STOOD DOWN — cannot write scratch under $_rr_scr."
+        echo "        That is itself a symptom; the disk check below is the verdict."
+        return 0
+    fi
+    _rr_live=0; _rr_cur_n=0; _rr_kept=0; _rr_gone=0
+
+    _rr_kb0=$(fs_free_kb "$_rr_parent"); _rr_in0=$(fs_free_inodes "$_rr_parent")
+
+    for _rr_d in "$_rr_parent"/c2rs-gate-*; do
+        [ -d "$_rr_d" ] || continue
+        if [ "$_rr_d" = "$_rr_cur" ]; then
+            _rr_cur_n=1
+            printf '  keep    %-28s this run\n' "$_rr_d"
+            continue
+        fi
+        _rr_pid=""
+        if [ -r "$_rr_d/gate.pid" ]; then
+            _rr_pid=$(head -1 "$_rr_d/gate.pid" 2>/dev/null | tr -dc '0-9' || true)
+        fi
+        [ -n "$_rr_pid" ] || _rr_pid=$(printf '%s' "${_rr_d##*/}" | sed 's/^c2rs-gate-//')
+        if gate_pid_live "$_rr_pid"; then
+            _rr_live=$((_rr_live + 1))
+            printf '  keep    %-28s LIVE — pid %s is a running gate (a concurrent lane)\n' \
+                "$_rr_d" "$_rr_pid"
+            continue
+        fi
+        printf '%s\n' "$_rr_d" >> "$_rr_stale"
+    done
+
+    # Newest first, so `--keep N` keeps the N runs whose logs somebody might still
+    # be reading — starting with the one that just finished.
+    if [ -s "$_rr_stale" ]; then
+        tr '\n' '\0' < "$_rr_stale" | xargs -0 ls -dt > "$_rr_sorted" 2>/dev/null || \
+            cp "$_rr_stale" "$_rr_sorted"
+    fi
+
+    while IFS= read -r _rr_d; do
+        [ -n "$_rr_d" ] || continue
+        if [ "$_rr_kept" -lt "$_rr_keep" ]; then
+            _rr_kept=$((_rr_kept + 1))
+            printf '  keep    %-28s recent — %s of %s finished runs kept for their logs\n' \
+                "$_rr_d" "$_rr_kept" "$_rr_keep"
+            continue
+        fi
+        # The path shape is asserted again HERE, immediately before the rm, rather
+        # than trusted from the glob 40 lines up. `rm -rf` on a variable is the one
+        # place in this file where being wrong is unrecoverable.
+        case "${_rr_d##*/}" in
+            c2rs-gate-*) ;;
+            *) printf '  REFUSE  %-28s does not look like a run tree — not removed\n' "$_rr_d"
+               continue ;;
+        esac
+        case "$_rr_d" in
+            "$_rr_parent"/*) ;;
+            *) printf '  REFUSE  %-28s outside %s — not removed\n' "$_rr_d" "$_rr_parent"
+               continue ;;
+        esac
+        if [ -n "$_rr_dry" ]; then
+            printf '  REAP*   %-28s stale — no live gate owns it (dry run)\n' "$_rr_d"
+        else
+            rm -rf -- "$_rr_d" 2>/dev/null || true
+            printf '  reaped  %-28s stale — no live gate owns it\n' "$_rr_d"
+        fi
+        _rr_gone=$((_rr_gone + 1))
+    done < "$_rr_sorted"
+
+    _rr_kb1=$(fs_free_kb "$_rr_parent"); _rr_in1=$(fs_free_inodes "$_rr_parent")
+    _rr_dkb=""; _rr_din=""
+    [ -n "$_rr_kb0" ] && [ -n "$_rr_kb1" ] && _rr_dkb=$((_rr_kb1 - _rr_kb0))
+    [ -n "$_rr_in0" ] && [ -n "$_rr_in1" ] && _rr_din=$((_rr_in1 - _rr_in0))
+
+    printf 'reap:   %s stale run tree(s) removed, %s kept (%s live, %s recent, %s this run)\n' \
+        "$_rr_gone" "$((_rr_live + _rr_kept + _rr_cur_n))" "$_rr_live" "$_rr_kept" "$_rr_cur_n"
+    if [ "$_rr_gone" -gt 0 ]; then
+        printf '        freed %s and %s inodes (df delta; a concurrent gate writing during\n' \
+            "$(human_kb "${_rr_dkb#-}")" "$(human_n "${_rr_din#-}")"
+        printf '        the reap moves this, which is why it is a delta and not a du)\n'
+    fi
+    return 0
+}
+
+# --------------------------------------------------------------------------------
+# WHICH KIND OF RED IS THIS RED?
+#
+# Linux returns ENOSPC for BOTH a full filesystem and an exhausted inode table, so
+# the log text alone cannot say which; the low-water samples can. Printed under any
+# FAIL that carries **mismatch 0**. A FAIL carrying a mismatch never gets this
+# banner: bytes were compared and they differed, and that outranks whatever else
+# was wrong with the box.
+# --------------------------------------------------------------------------------
+resource_banner() {  # <run-dir>
+    _rb_run="${1:-}"
+    [ -n "$_rb_run" ] && [ -d "$_rb_run" ] || return 0
+    _rb_hits=$(grep -l 'No space left on device' "$_rb_run"/*.log 2>/dev/null || true)
+    [ -n "$_rb_hits" ] || return 0
+    echo
+    echo "  *** THIS RED IS A RESOURCE FAULT, NOT A MISMATCH. ***"
+    echo "  These logs carry 'No space left on device':"
+    printf '%s\n' "$_rb_hits" | sed 's/^/    /'
+    if [ -n "$RES_DIR" ]; then
+        echo "  $RES_DIR at this run's start: $(human_kb "$RES_KB0") / $(human_n "$RES_IN0") inodes"
+        echo "  LOW-WATER during this run:   $(human_kb "$RES_KBMIN") / $(human_n "$RES_INMIN") inodes"
+        if [ -n "$RES_INMIN" ] && [ "$RES_INMIN" -lt 1000 ]; then
+            echo "  -> the exhausted resource is INODES. Space was never the binding one;"
+            echo "     one run tree is ~112 MB and ~16.6k inodes, so inodes go ~7x sooner."
+        elif [ -n "$RES_KBMIN" ] && [ "$RES_KBMIN" -lt 65536 ]; then
+            echo "  -> the exhausted resource is SPACE."
+        else
+            echo "  -> both had headroom at every sample point, so the exhaustion was"
+            echo "     TRANSIENT and peaked between samples. It is still a resource fault."
+        fi
+    fi
+    echo "  An instrument that could not WRITE says NOTHING about whether the port"
+    echo "  emits the right bytes. Re-run before reading this as a regression."
+    return 0
+}
+
+# --------------------------------------------------------------------------------
 # Walk the REGISTRY (never the directory listing) and produce one row per lane.
 # --------------------------------------------------------------------------------
 collect() {
@@ -507,6 +866,8 @@ decide() {
                 if [ -n "$_d_run" ] && [ -f "$_gl" ]; then
                     grep '^MISMATCH ' "$_gl" | sed 's/^/    /'
                 fi
+            else
+                resource_banner "$_d_run"
             fi
             return 1
         fi
@@ -515,6 +876,7 @@ decide() {
             echo "GATE: FAIL — $(gen_name "$_g") produced NO RESULT: $_gd"
             echo "  An instrument that did not run is a failure, not a pass. Nothing in this"
             echo "  run establishes anything about the ~$_gt $(gen_unit "$_g") it covers."
+            resource_banner "$_d_run"
             return 1
         fi
     done
@@ -525,6 +887,7 @@ decide() {
         awk -F"$TAB" '{split($3,f,"|"); if (f[1]=="NO-RESULT") printf "    %-20s %-24s (%s)\n", $1, $2, f[6]}' "$_d_res"
         echo "  A lane that did not run is a failure, not a pass. Nothing in this run"
         echo "  establishes anything about the configurations those lanes cover."
+        resource_banner "$_d_run"
         return 1
     fi
 
@@ -537,6 +900,8 @@ decide() {
             echo "  *** A MISMATCH IS AN ALARM AND OUTRANKS EVERY OTHER PIECE OF WORK. ***"
             echo "  The real c2.dll under wibo plus a byte-exact obj compare is the sole"
             echo "  judge; outside its class the port must REFUSE, not mis-emit."
+        else
+            resource_banner "$_d_run"
         fi
         return 1
     fi
@@ -621,7 +986,57 @@ decide() {
 # --------------------------------------------------------------------------------
 # Registry load + `--lane` filter, shared by every mode.
 # --------------------------------------------------------------------------------
-mkdir -p "$work"
+# The run dir itself costs an inode, so on a filesystem that is ALREADY at zero the
+# gate dies here — before the preflight that exists to explain it. `set -e` would
+# make that a bare non-zero exit with a `mkdir` error, which reads like a broken
+# script rather than a full disk. Same verdict, same exit 3, one line earlier.
+if ! mkdir -p "$work" 2>/dev/null; then
+    echo "GATE: FAIL (DISK) — could not even create the run dir $work."
+    df -kP "$(dirname "$work")" 2>/dev/null | sed 's/^/  /'
+    df -iP "$(dirname "$work")" 2>/dev/null | sed 's/^/  /'
+    echo "  *** THIS IS A RESOURCE FAULT AND NOT A MISMATCH. *** Exit 3; nothing ran."
+    echo "  Note the INODE line: this filesystem can be full of inodes with bytes to spare."
+    exit 3
+fi
+# --------------------------------------------------------------------------------
+# REAP, THEN CHECK, THEN WRITE ANYTHING — in that order, and BEFORE the registry is
+# parsed or the pid is stamped.
+#
+# Both of those write to the run tree, and on a filesystem with no bytes left the
+# write fails, `set -e` fires, and the gate exits **1** with a bare
+# `echo: write error: No space left on device`. Exit 1 is the exit code of a real
+# gate failure. Measured on a purpose-built 2 MB tmpfs while writing this
+# (`work/w-ledger/tinyfs_test.sh` case `space-gone`) — the first draft of this fix
+# had the preflight *after* these two writes and never reached it.
+# --------------------------------------------------------------------------------
+work_parent=$(dirname "$work")
+if [ "$mode" = run ]; then
+    echo "lane gate: preflight on $work_parent"
+    if [ "$reap" -eq 1 ]; then
+        reap_run_trees "$work_parent" "$work" "$C2RS_GATE_KEEP" "$work"
+    elif [ "$reap" -eq 2 ]; then
+        echo "reap:   DRY RUN (--reap-dry-run) — classification only, nothing removed."
+        reap_run_trees "$work_parent" "$work" "$C2RS_GATE_KEEP" "$work" dry
+    else
+        echo "reap:   SKIPPED (--no-reap). Old run trees are being kept deliberately;"
+        echo "        one is ~112 MB and ~16.6k inodes and ~63 of them exhaust a 1M-inode /tmp."
+    fi
+    res_init "$work_parent"
+    preflight_disk "$work_parent" "$C2RS_GATE_MIN_MB" "$C2RS_GATE_MIN_INODES" || exit 3
+fi
+
+# Stamp the owner INTO the tree. The directory name has always carried the pid, but
+# a name is not a claim: a tree named for a pid that has since been recycled is
+# indistinguishable from a tree whose gate is still running, and this box mints
+# hundreds of pids a night. `gate.pid` plus `/proc/<pid>/cmdline` is what lets the
+# reaper tell a live concurrent lane from a corpse.
+if ! echo "$$" > "$work/gate.pid" 2>/dev/null; then
+    echo "GATE: FAIL (DISK) — cannot write $work/gate.pid; $work_parent is full."
+    df -kP "$work_parent" 2>/dev/null | sed 's/^/  /'
+    df -iP "$work_parent" 2>/dev/null | sed 's/^/  /'
+    echo "  *** THIS IS A RESOURCE FAULT AND NOT A MISMATCH. *** Exit 3; nothing ran."
+    exit 3
+fi
 reg="$work/registry.tsv"
 parse_registry "$registry" "$reg"
 
@@ -1141,13 +1556,197 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
         fails=$((fails + 1))
     fi
 
+    # ---- THE RUN-TREE REAPER AND THE DISK RED (lane w-ledger) -----------------
+    #
+    # Every case below is POSITIVE: it constructs the situation the mechanism
+    # exists for and shows the mechanism doing the right thing in it. "Nothing
+    # broke" is not evidence, and it is the exact reasoning shape this project
+    # has sixteen recorded instances of.
+    #
+    # The pid rules are driven against REAL processes — a real live gate (this
+    # one), a real live non-gate, and a real dead pid — because the whole point
+    # of the rule is what the operating system says, and a mocked `kill` would
+    # only prove the mock agrees with itself.
+
+    t_case() {  # <name> <ok?0/1> [detail]
+        cases=$((cases + 1))
+        if [ "$2" -eq 0 ]; then printf '  ok    %-32s %s\n' "$1" "${3:-}"
+        else printf '  FAIL  %-32s %s\n' "$1" "${3:-}"; fails=$((fails + 1)); fi
+    }
+
+    # A live gate: this very shell. Its /proc cmdline says gate.sh.
+    gate_pid_live "$$" && _r=0 || _r=1
+    t_case pid-live-gate-is-kept "$_r" "pid $$ (this gate) reads as LIVE"
+
+    # A live NON-gate: pid reuse, which a naive `kill -0` would keep forever.
+    sleep 30 &
+    _sleeper=$!
+    gate_pid_live "$_sleeper" && _r=1 || _r=0
+    t_case pid-reuse-is-reapable "$_r" "pid $_sleeper (a live \`sleep\`) reads as NOT a gate"
+
+    # A real dead pid: launched, reaped, then asked about.
+    (exit 0) & _dead=$!
+    wait "$_dead" 2>/dev/null || true
+    gate_pid_live "$_dead" && _r=1 || _r=0
+    t_case pid-dead-is-reapable "$_r" "pid $_dead (exited) reads as dead"
+
+    gate_pid_live "" && _r=1 || _r=0
+    t_case pid-unattributable-is-reapable "$_r" "an empty pid is not a live gate"
+
+    # ---- the reaper, against a fabricated tree directory -----------------------
+    # Five trees, one of each kind the reaper must tell apart, plus a sixth that
+    # is not a run tree at all and must survive whatever else happens.
+    _rd="$st/reapdir"; rm -rf "$_rd"; mkdir -p "$_rd"
+    _cur="$_rd/c2rs-gate-$$"                       # this run
+    mkdir -p "$_cur"; echo "$$" > "$_cur/gate.pid"
+    mkdir -p "$_rd/c2rs-gate-999000001"            # stale, oldest
+    mkdir -p "$_rd/c2rs-gate-999000002"            # stale, second oldest
+    mkdir -p "$_rd/c2rs-gate-999000003"            # stale, newest -> inside keep=1
+    mkdir -p "$_rd/c2rs-gate-live"                 # LIVE by gate.pid, and note the
+    echo "$$" > "$_rd/c2rs-gate-live/gate.pid"     #   name carries no pid at all
+    mkdir -p "$_rd/c2rs-gate-$_sleeper"            # pid reuse: alive, not a gate
+    mkdir -p "$_rd/not-a-gate-tree"                # must never be touched
+    # `ls -dt` resolution is 1s; stamp the ages explicitly so the ordering is a
+    # fact of the fixture and not of how fast the mkdirs ran.
+    touch -d '2020-01-01 00:00' "$_rd/c2rs-gate-999000001"
+    touch -d '2020-01-02 00:00' "$_rd/c2rs-gate-999000002"
+    touch -d '2020-01-03 00:00' "$_rd/c2rs-gate-999000003"
+    touch -d '2020-01-01 00:00' "$_rd/c2rs-gate-$_sleeper"
+
+    reap_run_trees "$_rd" "$_cur" 1 "$st" > "$st/reap.out" 2>&1
+
+    [ ! -d "$_rd/c2rs-gate-999000001" ] && [ ! -d "$_rd/c2rs-gate-999000002" ] && _r=0 || _r=1
+    t_case reaper-removes-stale "$_r" "the two oldest unowned trees are gone"
+
+    [ -d "$_rd/c2rs-gate-999000003" ] && _r=0 || _r=1
+    t_case reaper-keeps-recent "$_r" "the newest finished run keeps its logs (keep=1)"
+
+    [ -d "$_rd/c2rs-gate-live" ] && _r=0 || _r=1
+    t_case reaper-keeps-live-gate "$_r" "a tree whose gate.pid is a running gate survives"
+
+    [ -d "$_cur" ] && _r=0 || _r=1
+    t_case reaper-keeps-current "$_r" "this run's own tree survives"
+
+    [ ! -d "$_rd/c2rs-gate-$_sleeper" ] && _r=0 || _r=1
+    t_case reaper-reaps-reused-pid "$_r" "alive-but-not-a-gate is reaped, not kept forever"
+
+    [ -d "$_rd/not-a-gate-tree" ] && _r=0 || _r=1
+    t_case reaper-touches-nothing-else "$_r" "a sibling that is not a run tree is untouched"
+
+    # Three removed: the two oldest, PLUS the reused-pid tree — which is the row
+    # that makes this an assertion rather than a restatement. A first draft of this
+    # case expected `2 live`, counting the reused pid as an owner; the reaper was
+    # right and the expectation was wrong, and the count is what caught it.
+    grep -q '^reap:   3 stale run tree(s) removed, 3 kept (1 live, 1 recent, 1 this run)' "$st/reap.out" \
+        && _r=0 || _r=1
+    t_case reaper-reports-a-count "$_r" "$(grep -m1 '^reap:' "$st/reap.out" || echo '(no reap: line)')"
+
+    # And with keep=0 — the aggressive setting — the live trees STILL survive.
+    # This is the property the concurrency hazard turns on, so it is asserted
+    # separately rather than inferred from the keep=1 case.
+    reap_run_trees "$_rd" "$_cur" 0 "$st" > "$st/reap0.out" 2>&1
+    [ -d "$_rd/c2rs-gate-live" ] && [ -d "$_cur" ] && [ ! -d "$_rd/c2rs-gate-999000003" ] \
+        && _r=0 || _r=1
+    t_case reaper-keep-0-still-spares-live "$_r" "keep=0 reaps the last finished run and no live one"
+
+    kill "$_sleeper" 2>/dev/null || true
+    wait "$_sleeper" 2>/dev/null || true
+
+    # ---- the preflight, from BOTH sides ---------------------------------------
+    # An impossible floor must refuse; a satisfiable one must pass AND print its
+    # counts. A check that only ever passes is the thirteenth silent instrument.
+    preflight_disk "$st" 999999999 1 > "$st/pf-space.out" 2>&1 && _r=1 || _r=0
+    t_case preflight-refuses-on-space "$_r" \
+        "$(grep -m1 'GATE: FAIL (DISK)' "$st/pf-space.out" || echo '(no DISK verdict)')"
+    grep -q 'RESOURCE FAULT AND NOT A MISMATCH' "$st/pf-space.out" && _r=0 || _r=1
+    t_case preflight-says-not-a-mismatch "$_r" "the refusal names itself as a resource fault"
+
+    # The inode arm needs a filesystem that HAS an inode table. `--work` may sit on
+    # btrfs, which reports none, so the probe dir is chosen by asking rather than
+    # assumed — and if no filesystem on this box can answer, the inode rule went
+    # UNTESTED and that is reported as a FAIL. An untested rule reported quietly is
+    # the shape this file exists to forbid.
+    _ifs=""
+    for _c in "$st" /dev/shm /tmp; do
+        [ -d "$_c" ] || continue
+        if [ -n "$(fs_free_inodes "$_c")" ]; then _ifs="$_c"; break; fi
+    done
+    if [ -z "$_ifs" ]; then
+        t_case preflight-refuses-on-inodes 1 "NO inode-reporting filesystem found — the inode rule is UNTESTED here"
+        t_case preflight-names-the-resource 1 "untested for the same reason"
+    else
+        preflight_disk "$_ifs" 1 999999999 > "$st/pf-inode.out" 2>&1 && _r=1 || _r=0
+        t_case preflight-refuses-on-inodes "$_r" \
+            "$(grep -m1 'GATE: FAIL (DISK)' "$st/pf-inode.out" || echo '(no DISK verdict)')"
+        grep -q 'out of INODES' "$st/pf-inode.out" && _r=0 || _r=1
+        t_case preflight-names-the-resource "$_r" \
+            "on $_ifs — space and inodes are separate; INODES bind ~7x sooner, and w-alias's red had 19 GB free"
+    fi
+
+    # btrfs reports `0 0 0` inodes. That must read as UNKNOWN, never as exhausted:
+    # treating it as exhausted made an earlier draft refuse to run on /home, which
+    # is where a lane escaping a full /tmp puts its --work dir.
+    _btrfs=""
+    for _c in "$repo_root" "$st" /home; do
+        [ -d "$_c" ] || continue
+        if [ -z "$(fs_free_inodes "$_c")" ]; then _btrfs="$_c"; break; fi
+    done
+    if [ -n "$_btrfs" ]; then
+        preflight_disk "$_btrfs" 1 999999999 > "$st/pf-noino.out" 2>&1 && _r=0 || _r=1
+        t_case preflight-inodeless-fs-is-not-full "$_r" \
+            "$_btrfs reports no inode table; the floor is skipped, not failed"
+        grep -q 'inode floor is NOT CHECKED' "$st/pf-noino.out" && _r=0 || _r=1
+        t_case preflight-says-the-floor-was-skipped "$_r" "and it SAYS so — unreported is not unlimited"
+    else
+        t_case preflight-inodeless-fs-is-not-full 0 "(no inodeless filesystem on this box to drive it)"
+        t_case preflight-says-the-floor-was-skipped 0 "(likewise)"
+    fi
+
+    preflight_disk "$st" 1 1 > "$st/pf-ok.out" 2>&1 && _r=0 || _r=1
+    t_case preflight-passes-when-clear "$_r" "$(head -1 "$st/pf-ok.out")"
+    grep -q '^disk:   .* free .* inodes (floors: ' "$st/pf-ok.out" && _r=0 || _r=1
+    t_case preflight-prints-both-counts "$_r" "the clear path prints both numbers, not a status"
+
+    # ---- ENOSPC told apart from a mismatch, through the real `decide` ----------
+    disk_case() {  # <name> <B's LANE-RESULT or NOLINE> <want-banner 0/1>
+        CASE_DIR="$st/$1"; rm -rf "$CASE_DIR"; mkdir -p "$CASE_DIR"
+        printf '%s\n' "$P" > "$CASE_DIR/A.log"; echo 0 > "$CASE_DIR/A.status"
+        if [ "$2" = NOLINE ]; then
+            printf 'grading 197 fixtures at /O1 /EHsc\n/tmp/c2rs-gate-484396/cross/lane-results/Ox: No space left on device\n' \
+                > "$CASE_DIR/B.log"
+        else
+            printf '%s\n/tmp/x: No space left on device\n' "$2" > "$CASE_DIR/B.log"
+        fi
+        echo 1 > "$CASE_DIR/B.status"
+        collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
+        decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "$CASE_DIR" "$SWEEP_OK" "" \
+            "$CROSS_OK" > "$CASE_DIR/out.txt" 2>&1 || true
+        if grep -q 'RESOURCE FAULT, NOT A MISMATCH' "$CASE_DIR/out.txt"; then _r=0; else _r=1; fi
+        [ "$3" -eq 1 ] && { [ "$_r" -eq 0 ] && _r=1 || _r=0; }
+        t_case "$1" "$_r" "$(grep -m1 '^GATE: ' "$CASE_DIR/out.txt" || echo '(no headline)')"
+    }
+    RES_DIR="$st"; RES_KB0=$(fs_free_kb "$st"); RES_IN0=$(fs_free_inodes "$st")
+    RES_KBMIN="$RES_KB0"; RES_INMIN="$RES_IN0"
+
+    disk_case enospc-no-result-says-disk NOLINE 0
+    saw 'NO RESULT' 'it is still a FAIL — a resource fault does not become a pass'
+
+    # The one that matters most: a mismatch beside an ENOSPC is STILL a mismatch.
+    # Softening a wrong-emit alarm because the box was also unhappy would be a far
+    # worse defect than the one this whole block fixes.
+    disk_case enospc-never-softens-a-mismatch "$M" 1
+    saw 'ALARM' 'a mismatch keeps its alarm even with ENOSPC in the same log'
+    saw_no 'RESOURCE FAULT, NOT A MISMATCH' 'and never gets the resource banner'
+
     echo
     # The floor was 15 when the gate covered lanes only; the sweep row took it to
     # 27, w-modes added 3 sweep-classifier cases plus 10 mode-cross cases, and
-    # w-shapes adds 4 corpus-shape cases, and w-gr adds the gt_dump reader case.
+    # w-shapes adds 4 corpus-shape cases, and w-gr adds the gt_dump reader case,
+    # and w-ledger adds 18 for the reaper, the two-resource preflight and the
+    # ENOSPC/mismatch discrimination.
     # It is a floor on the COUNT, per the standing mitigation — compare a count,
     # never a status — and it must be raised whenever cases are added.
-    if [ "$cases" -lt 45 ]; then
+    if [ "$cases" -lt 65 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -1163,6 +1762,7 @@ fi
 # --------------------------------------------------------------------------------
 # run
 # --------------------------------------------------------------------------------
+echo
 echo "lane gate: $nlanes lanes from $registry"
 echo "  run dir: $work   (per-lane run dirs under $work/lanes/)"
 
@@ -1203,6 +1803,7 @@ while IFS="$TAB" read -r slug flags; do
     if [ "$running" -ge "$jobs" ]; then wait; running=0; fi
 done < "$reg"
 wait
+res_sample                     # the lanes' peak, before their scratch is released
 elapsed=$(( $(date +%s) - started ))
 
 collect "$reg" "$work" "$work/results.tsv"
@@ -1226,6 +1827,7 @@ sw_started=$(date +%s)
 sw_status=0
 sh "$repo_root/scripts/expr_sweep.sh" "$sweep_out" "$sweep_cases" \
     > "$work/sweep.log" 2>&1 || sw_status=$?
+res_sample
 tail -n 4 "$work/sweep.log" | sed 's/^/  /'
 echo "  ($(( $(date +%s) - sw_started ))s)"
 sweep_res=$(sweep_verdict "$work/sweep.log" "$sw_status")
@@ -1263,6 +1865,12 @@ C2RS_JOBS="$jobs" sh "$repo_root/scripts/mode_cross.sh" "$cross_out" "$cross_cel
 grep -E '^(assigned|sweeping|checked=|SKIP:|FATAL|VACUOUS)' "$work/cross.log" \
     | sed 's/^/  /' || true
 echo "  ($(( $(date +%s) - cx_started ))s)"
+res_sample
 cross_res=$(sweep_verdict "$work/cross.log" "$cx_status")
+
+echo
+printf 'disk:   %s low-water this run — %s and %s inodes free (start: %s / %s)\n' \
+    "$work_parent" "$(human_kb "$RES_KBMIN")" "$(human_n "$RES_INMIN")" \
+    "$(human_kb "$RES_KB0")" "$(human_n "$RES_IN0")"
 
 decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res"
