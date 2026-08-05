@@ -1,0 +1,6 @@
+step 0  spec=[<none>]  -> expr-op-0x27
+step 1  spec=[op:27]  -> expr-op-0x32
+step 2  spec=[op:27,op:32]  -> expr-op-0x4B
+step 3  spec=[op:27,op:32,op:4B]  -> expr-op-0x4F
+step 4  spec=[op:27,op:32,op:4B,op:4F]  -> expr-call-in-expr-data-addr-then-off-add-and-chain-bind-more
+TERMINAL: expr-call-in-expr-data-addr-then-off-add-and-chain-bind-more

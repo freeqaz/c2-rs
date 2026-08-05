@@ -1,0 +1,35 @@
+  cells parsed from the committed logs: 81 (mixed-kind, the population in question: 81)
+
+  rule                                                       right   WRONG refused
+  --------------------------------------------------------------------------------
+  R-SHIPPED   alloc.rs today (mixed refuses)                     0       0      81
+  M2  w-next's key: uses + (register-derived ? 1 : 0)           61      20       0
+  M1  clause 1 alone (use count, descending)                    52      29       0
+  M3  clause 2 alone (register-derived first)                   46      35       0
+  C   H-self: bonus 1.5 uses, stored-into-what-it-points-at      80       1       0
+  M4  H-self with the bonus worth 2 uses                        78       3       0
+  M5  H-self with the pool walked ASCENDING                      1      80       0
+  M6  H-self with the bonus worth 0                             52      29       0
+
+  MUST-FAIL: every M row above is a mutation of the candidate and each must be WRONG > 0.
+    M2  w-next's key: uses + (register-derived ? 1 : 0)      RED — must-fail HELD (20 wrong)
+    M1  clause 1 alone (use count, descending)               RED — must-fail HELD (29 wrong)
+    M3  clause 2 alone (register-derived first)              RED — must-fail HELD (35 wrong)
+    M4  H-self with the bonus worth 2 uses                   RED — must-fail HELD (3 wrong)
+    M5  H-self with the pool walked ASCENDING                RED — must-fail HELD (80 wrong)
+    M6  H-self with the bonus worth 0                        RED — must-fail HELD (29 wrong)
+    R-SHIPPED refuses every mixed cell and is wrong on none  OK
+
+  first disagreements, w-next's key against the oracle:
+    F4-add-r1k1
+    F4-add-r1k2
+    F4-addi-r1k1
+    F4-addi-r1k2
+    F4-shift-r1k1
+    F4-shift-r1k2
+    F4-shift-r2k1
+    B-notself-1v1
+    B-notself-1v2
+    C-ptrarith-1v1
+    E-r3-store-r4-1v1
+    F-ptr-r4-store-r3-1v1
