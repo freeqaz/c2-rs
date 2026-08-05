@@ -380,3 +380,94 @@ all; the emitter hand-writes twenty words behind a `debug_assert_eq!(t.len(),
 80)`. **There is no vector of ops to parameterize.** World D of §3.1 — one more
 transcription called a lowering — is still declared a failure, and this
 paragraph is here so that "reachable" in the rung cannot quietly mean "cheap".
+
+---
+
+# ADDENDUM 2 — `2026-08-05`, committed BEFORE Grids J and K exist
+
+Grids E/F/G/H are run and committed at `6c46af0` (`work/w-sched2/out2.txt`,
+**124 reached / 119 graded / 0 capture failures / 0 controls failed**).
+On the **held-out 72** the ADDENDUM 1 rules scored:
+
+| registered at `baf69fb` | held out |
+|---|---:|
+| **S1w** `a <= 1` | **72 of 72** |
+| **S2** record slot by regime | **71 of 72** |
+| **S3m** regime over PRODUCERS | **72 of 72** |
+| **S1** the full load-slot rule | **68 of 72** |
+| **S3** the same regime rule over `N` | **67 of 72 — REFUTED** |
+| **S4** chain temps | **61 of 72 — does not state** |
+
+**S3 as registered is refuted and S3m replaces it, and the two differ only in
+their UNIT.** Every one of S3's six misses across all 119 cells is a cell with a
+**split producer**, where `N` (words) and `M` (producers) disagree. Board #644
+by name, and the prereg's §5.1 probe is what found it.
+
+**S1's four held-out misses are the same four cells.** So the load slot is a
+rule on chains of single-word producers and is **not** one across #644.
+
+## A2.1 The split ADDENDUM 2 registers
+
+S4's residual has a visible shape and it separates two questions a rung must not
+merge:
+
+> **S4r — the allocation's STRUCTURE, name-free.** In the TWO regime the chain
+> uses at most three registers: the **last** producer writes the accumulator's
+> home; every producer scheduled entirely **before** the record's slot shares one
+> register `T1`; every producer entirely **after** it shares a different register
+> `T2`; and when `a = 1` and `pv = 0`, producer 0 takes `CHAR` itself instead of
+> `T1`. In the SAME regime the last producer writes the accumulator's home and
+> every other producer shares one register.
+
+> **S4n — the allocation's NAMES.** `T1 = r8`, `T2 = r9`, home `= r3`.
+> **Already visibly false** and registered so the rung quotes a number: `i-slot1n5`
+> gives `10 10 10 10 3` and `i-slot1n3` gives `11 9 3`, so moving the pointer
+> formal shifts the whole pool while the roles stay put.
+
+**This is the split that decides the lane's world.** A lowering must emit
+*names*. If S4r holds and S4n does not, the interleave is a rule and the
+**lowering is still not reachable**, because a rule about roles emits no bytes —
+that is World B and the prereg already declared World B a success.
+
+### A2.1.1 A prediction registered to lose on one named cell
+
+S4r is registered **without** any clause for a producer whose halves the record
+form is scheduled BETWEEN. Exactly one cell in 119 does that — `g-644-1` — and
+its producer 0 takes `T1` where S4r says `CHAR`. **I predict `g-644-1`-shaped
+cells miss S4r, and Grid J mints four more of them to find out whether the miss
+reproduces or whether `g-644-1` is the single cell.** If it reproduces, the
+straddle clause is real; if `g-644-1` stays alone, it is the single-cell trap and
+the rung says so rather than adding a clause for it.
+
+## A2.2 Grid J — HELD OUT for S4r
+
+Four straddle candidates, four pool-shifting cells (the pointer formal at slot 2,
+a loop-invariant wide literal hoisted into a register, extra formals consumed by
+the chain), and four fresh `pv` cells at `N = 5` and `N = 7` in the `mul` family.
+
+## A2.3 Grid K — board #747's fixture, in its own shape
+
+> **Two bodies of DIFFERENT lengths in the same class, in ONE TU.**
+
+Neither `expr_sweep.sh` nor `mode_cross.sh` can produce it: the sweep emits
+single-function TUs and the cross crosses that same corpus, so **both grade a
+one-length schedule GREEN**. Grid K compiles one TU holding two sentinel walks of
+different chain lengths and reads **both** loops out of the one packed `.text`,
+which the classifier must be widened to do — a widening that is itself graded,
+by requiring the two loops' word ranges to be disjoint and by requiring the
+single-function cells to reproduce their earlier verdicts unchanged.
+
+The **separating control** is the pair itself: if the two bodies come back with
+different `(a, R)`, then a model that hard-codes one interleave is wrong on at
+least one function of a TU that links, and no single-function corpus can see it.
+
+## A2.4 The MUST-FAIL mutation, and what it is run against
+
+The lane ships no `crates/` change unless World A obtains, so there may be no
+port code for a mutation to bite. **The mutation is therefore run against the
+INSTRUMENT**, and it is run either way: `schedgrid.py --mutate RULE` perturbs a
+registered rule by one (`S2`'s `a + 2` becomes `a + 3`; `S1w`'s bound becomes
+`a <= 0`; `S3m`'s threshold becomes `M >= 3`) and the run must show the rate
+**collapse**. A rate that survives its own mutation is measuring nothing, which
+is trap 5 — *absence reads as success* — in the one place this lane could still
+hide it. The collapsed numbers go in the rung beside the intact ones.
