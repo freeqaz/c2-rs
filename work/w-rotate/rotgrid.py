@@ -489,6 +489,16 @@ def run(cells, mode, wd, tag_prefix, show):
     for r in rows.values():
         buckets[r["bucket"]] = buckets.get(r["bucket"], 0) + 1
     print("  buckets: " + "  ".join("%s=%d" % kv for kv in sorted(buckets.items())))
+    # P7, counted rather than asserted: how many loop-bearing cells carry a
+    # back edge, and how many of those back edges are UNCONDITIONAL.  Printed
+    # per grid so the rung quotes a number the instrument produced.
+    loops = sum(1 for r in rows.values()
+                if r["bucket"] not in ("NOLOOP", "MULTI", "SELFLOOP"))
+    uncond = sum(1 for r in rows.values()
+                 for _off, _w, b in r["back"] if b[0] == "b")
+    selfl = sum(1 for r in rows.values() if r["bucket"] == "SELFLOOP")
+    print("  P7 back edges: %d loop-bearing cells, %d UNCONDITIONAL back edges,"
+          " %d self-loops (`b .+0`, own bucket)" % (loops, uncond, selfl))
     print("  P2 (guard form == exit-block predictor): %d of %d rotated cells"
           % (p2_hit, p2_n))
     print("  P3 (one condition, two sites):           %d of %d comparable cells"
