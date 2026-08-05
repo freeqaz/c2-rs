@@ -234,6 +234,34 @@ the page.
   > **4459 / 5053** on multi-symbol cells and `w-alloc`'s first-consumer order
   > is **822 / 857** on single-symbol ones, so **both candidates are refuted**
   > and there is no rule to ship. Board **#582**.
+  >
+  > ### ✔ SUPERSEDED 2026-08-05 by lane `w-sym` — see `docs/SYMBOL.md`. THE REFUSAL IS LIFTED FOR THE STORE ORDER
+  >
+  > **The store order needed one more change and it DELETES a clause.** `u` is
+  > the **largest** value in `0 … min(2, #unproduced)` for which no slot runs
+  > out of allowed stores — lower `u` rather than relax a floor, which is what
+  > `w-order2` did for one symbol and what SYMORDER above carried back. Worth
+  > **86.9 % → 98.4 %** on multi-symbol cells, and **exact at up to two
+  > producers**: 1867/1867 fit, 1501/1501 holdout, 16/16 external, 0 wrong.
+  > `store_order` and `is_source_order` now **answer** a multi-symbol run
+  > instead of returning `None`. Board **#600**.
+  >
+  > **`w-sym`'s own preregistered store-order favourite is refuted**:
+  > scheduling each symbol group independently and merging under the pin
+  > (`PSYM`) scores **51.5 %** against SYMORDER's 86.9 %. The floors are
+  > counted in **global** slots even though the rank is taken **per group**.
+  >
+  > **#582 is answered as a CASE SPLIT, not a unification** — one symbol → the
+  > rank order, more than one → first consumption; both exact in the shipped
+  > domain, and a preregistered 8,420-configuration search over every
+  > lexicographic sort key on 10 producer features shows no single sort covers
+  > both sides. `schedule()` **still refuses** a multi-symbol run because the
+  > **layout** does not generalise (board **#602**): the same statements with
+  > one store moved to the other symbol put the second producer one slot later.
+  >
+  > **The cross-symbol pin is now a measurement, not an assumption** — the
+  > emitted symbol pattern equals the source pattern on **7,589 of 7,589**
+  > cells. Board **#601**.
 * **More than three distinct producers**, matching `ALLOC`'s domain. The order
   alone is exact there (822 of 822); the register is not, and a caller needs
   both.

@@ -189,7 +189,12 @@ pub fn store_leaf_text(
         // than three producers — and the `schedule` guard above has already
         // had its say. Inert today by construction: the parser admits an
         // all-unproduced run and an all-one-producer run, and `order` returns
-        // source order for both.
+        // source order for both — including through **more than one base
+        // symbol**, which `order` models since `w-sym` (board #600) instead of
+        // returning `None`. That widening is **additive**: the only reading
+        // here is `Some(false)`, so a new answer can add a refusal and can
+        // never turn one into an accept. Measured: the workload scan is
+        // identical to baseline in every factor, match 9 / mismatch 0.
         if walk.is_empty() && order::is_source_order(&stmts) == Some(false) {
             return Some(Err(out_of_class(
                 "store run whose order is not source order (codegen::order)",
