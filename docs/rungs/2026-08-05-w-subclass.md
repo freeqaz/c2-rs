@@ -51,14 +51,15 @@ right to refuse, and both said the refusal does not scale.
 **The screen licenses no emit** — confirmed before touching it, three ways, and
 this is the property everything else rests on:
 
-1. `PORT_CFG_CLASSES` has **one reader**, `cfg_reach`, reached only from
-   `frontier_cfg_reachability` and `cfg_reach_control`. Both are pure over
-   `results`; neither reads an obj.
-2. Its callers are `render.rs` (printing) and `metrics()` (printing). Nothing in
-   `crates/c2-core` — the accept/refuse boundary
-   (`codegen::select_function`, `codegen::function_gate`,
-   `IlBundle::functions`) — mentions it, and nothing in `c2-harness` feeds it
-   back into a `Backend`.
+1. **Exactly two readers before the change** — `cfg_reach` (`factors.rs:595`)
+   and `cfg_reach_control` (`factors.rs:630`), both `git show 05aa296`. Both are
+   pure over `results`; neither reads an obj.
+2. Their callers are `render.rs` (printing) and `metrics()` (printing).
+   **`grep -rn 'PORT_CFG_CLASSES\|CfgClass' crates/c2-core/ crates/c2-il/`
+   returns nothing** — the accept/refuse boundary (`codegen::select_function`,
+   `codegen::function_gate`, `IlBundle::functions`) does not mention it, and
+   nothing in `c2-harness` feeds it back into a `Backend`. The check is a
+   printed empty result, not an impression.
 3. The empirical check: **`fnbyte-differs` is 0 on the before and after scans,
    and every other emit-facing metric is byte-identical** (§3). A change that
    had reached an emit path could not leave all 53 unchanged.

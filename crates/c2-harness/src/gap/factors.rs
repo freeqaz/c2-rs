@@ -156,13 +156,6 @@ impl<'a> CfgClass<'a> {
     }
 }
 
-/// The shipped list, for callers that want to report on it (the ledger, the
-/// bounds, the tests). Not public data anyone may match against — the accept
-/// decision is [`CfgClass::admits`] and nothing else.
-pub fn port_cfg_classes() -> &'static [CfgClass<'static>] {
-    PORT_CFG_CLASSES
-}
-
 /// One frontier TU's answer to *"can the port's emitter express this TU's
 /// blocked functions at all?"* — see [`GapReport::frontier_cfg_reachability`].
 ///
