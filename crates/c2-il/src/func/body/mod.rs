@@ -28,7 +28,7 @@ use super::readers::{
     eat_byte, eat_value_type, read_token_var, read_type, read_varint, ValueClass,
 };
 use super::sy::SyView;
-use super::{CmpShiftOr, CompareLeaf, IlOp, Rel};
+use super::{CompareLeaf, IlOp, Rel};
 
 // ---- the two DISPATCH axes ------------------------------------------------
 //
