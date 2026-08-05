@@ -258,7 +258,18 @@ pub fn float_leaf_text(
                     IlOp::Sub => text.extend_from_slice(&encode_fsub(double, dest, lhs, rhs)),
                     IlOp::Mul => text.extend_from_slice(&encode_fmul(double, dest, lhs, rhs)),
                     IlOp::Div => text.extend_from_slice(&encode_fdiv(double, dest, lhs, rhs)),
-                    IlOp::SymAddr(_)
+                    // The BITWISE/SHIFT six have no floating-point form at all
+                    // — `a & b` over `float` does not exist in C++ — and
+                    // `parse_expr`'s FP path never produces one, so this is
+                    // spelled out beside the other non-binary ops rather than
+                    // swept into a wildcard. `lane w-build`.
+                    IlOp::And
+                    | IlOp::Or
+                    | IlOp::Xor
+                    | IlOp::Shl
+                    | IlOp::ShrS
+                    | IlOp::ShrU
+                    | IlOp::SymAddr(_)
                     | IlOp::Load(_)
                     | IlOp::Lit(_)
                     | IlOp::FpLit { .. }

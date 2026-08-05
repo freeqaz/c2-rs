@@ -54,6 +54,87 @@ pub fn encode_subf(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// Encode an **X-form logical / shift** `op rA, rS, rB` — the register-register
+/// bitwise and shift family, `lane w-build`.
+///
+/// **The field order is NOT the one [`encode_add`] uses, and that is the whole
+/// reason this is a separate encoder rather than a parameter on that one.** The
+/// D-form arithmetic instructions put the *destination* in the RT field at bits
+/// 6–10; every instruction below puts the destination in the **RA** field at
+/// bits 11–15 and its *source* in RS at 6–10. Encoding `and` through
+/// `encode_add`'s layout produces a valid `and` with the destination and the
+/// left operand exchanged — bytes that assemble, disassemble and fuzz-match, and
+/// compute the wrong thing whenever the two differ.
+///
+/// Every `xo` below is read off a **transcribed capture**, never inferred:
+/// `work/w-build/probe/bits.cod` and `bits2.cod`, at the workload's own
+/// `/GR /O1 /Oi /EHsc`. The sixteen captured words are reproduced verbatim by
+/// this encoder in [`the_logical_xforms_reproduce_their_captured_words`].
+///
+/// ```text
+///   and  r3,r3,r4    7c632038      xo  28     and  r3,r11,r5   7d632838
+///   or   r3,r3,r4    7c632378      xo 444     or   r3,r11,r10  7d635378
+///   xor  r3,r3,r4    7c632278      xo 316     xor  r3,r11,r5   7d632a78
+///   slw  r3,r3,r4    7c632030      xo  24     slw  r3,r11,r5   7d632830
+///   srw  r3,r3,r4    7c632430      xo 536
+///   sraw r3,r3,r4    7c632630      xo 792     sraw r11,r3,r4   7c6b2630
+/// ```
+///
+/// `ra` is the DESTINATION, `rs` the left operand, `rb` the right one. The
+/// shifts are **non-commutative** in exactly the way [`encode_subf`] warns about
+/// — `rs` is the value shifted and `rb` the amount — so the three arguments are
+/// named for their roles rather than for their field letters.
+fn encode_logical_x(xo: u32, ra_dest: u8, rs_lhs: u8, rb_rhs: u8) -> [u8; 4] {
+    let word: u32 = (31 << 26)
+        | ((rs_lhs as u32 & 0x1F) << 21)
+        | ((ra_dest as u32 & 0x1F) << 16)
+        | ((rb_rhs as u32 & 0x1F) << 11)
+        | (xo << 1);
+    word.to_be_bytes()
+}
+
+/// `and rA, rS, rB` — XO 28. Commutative; captured `7c632038`.
+pub fn encode_and(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+    encode_logical_x(28, dest, lhs, rhs)
+}
+
+/// `or rA, rS, rB` — XO 444. Commutative; captured `7c632378`.
+pub fn encode_or(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+    encode_logical_x(444, dest, lhs, rhs)
+}
+
+/// `xor rA, rS, rB` — XO 316. Commutative; captured `7c632278`.
+pub fn encode_xor(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+    encode_logical_x(316, dest, lhs, rhs)
+}
+
+/// `slw rA, rS, rB` — XO 24. **Non-commutative**: `lhs` is shifted by `rhs`.
+///
+/// One instruction for both signednesses, and that is measured rather than
+/// assumed: `int f(int a,int b){return a<<b;}` and the all-`unsigned` spelling
+/// both emit `7c632030`, as does the mixed `int f(int a,unsigned b)`.
+pub fn encode_slw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+    encode_logical_x(24, dest, lhs, rhs)
+}
+
+/// `srw rA, rS, rB` — XO 536, the **logical** right shift. Captured `7c632430`.
+pub fn encode_srw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+    encode_logical_x(536, dest, lhs, rhs)
+}
+
+/// `sraw rA, rS, rB` — XO 792, the **arithmetic** right shift. Captured
+/// `7c632630`.
+///
+/// **`sraw` and `srw` differ by one bit of the operand TYPE and by nothing in
+/// the IL opcode**, which is the trap this family carries and the reason
+/// `parse_expr` refuses a mixed-signedness right shift outright. Probed:
+/// `int f(int a, unsigned b){return a>>b;}` is `sraw` and
+/// `unsigned f(unsigned a, int b){return a>>b;}` is `srw` — **only the LEFT
+/// operand decides**, and both spellings carry the identical IL byte `0A`.
+pub fn encode_sraw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+    encode_logical_x(792, dest, lhs, rhs)
+}
+
 /// Encode `addi rD, rA, SI` (rD = rA + sign-extended SI): primary opcode 14.
 /// `SI` is a 16-bit signed immediate. Note `addi` special-cases `rA = 0` to
 /// mean the literal 0 (not the contents of r0), so `addi rD, 0, k` is the
@@ -769,4 +850,69 @@ mod tests {
         assert_eq!(encode_cmpwi(CR_COMPARE, 31, 0), [0x2F, 0x1F, 0x00, 0x00]); // ?d_cont
     }
 
+    /// Every word below is TRANSCRIBED from `work/w-build/probe/bits.cod` /
+    /// `bits2.cod` — c2's own `/FAsc` listing at the workload's flags — and is
+    /// checked against the encoder rather than against the table that produced
+    /// it. That is the discipline `expr_opcode_name`'s header states: a value
+    /// derived from the thing it validates checks nothing.
+    ///
+    /// The sixteen rows deliberately include every one that distinguishes the
+    /// **RA-destination** X-form layout from [`encode_add`]'s RT-destination
+    /// one — `and r11,r3,r4` and `and r3,r11,r5` differ in exactly the two
+    /// fields that would swap.
+    #[test]
+    fn the_logical_xforms_reproduce_their_captured_words() {
+        let w = |b: [u8; 4]| u32::from_be_bytes(b);
+        // and — `a & b`, and the three-address chain `a & b & c`.
+        assert_eq!(w(encode_and(3, 3, 4)), 0x7c63_2038);
+        assert_eq!(w(encode_and(11, 3, 4)), 0x7c6b_2038);
+        assert_eq!(w(encode_and(3, 11, 5)), 0x7d63_2838);
+        assert_eq!(w(encode_and(10, 5, 6)), 0x7caa_3038);
+        assert_eq!(w(encode_and(3, 11, 10)), 0x7d63_5038);
+        // or
+        assert_eq!(w(encode_or(3, 3, 4)), 0x7c63_2378);
+        assert_eq!(w(encode_or(11, 3, 4)), 0x7c6b_2378);
+        assert_eq!(w(encode_or(3, 11, 5)), 0x7d63_2b78);
+        assert_eq!(w(encode_or(3, 11, 10)), 0x7d63_5378);
+        // xor
+        assert_eq!(w(encode_xor(3, 3, 4)), 0x7c63_2278);
+        assert_eq!(w(encode_xor(3, 11, 5)), 0x7d63_2a78);
+        // slw / srw / sraw
+        assert_eq!(w(encode_slw(3, 3, 4)), 0x7c63_2030);
+        assert_eq!(w(encode_slw(3, 11, 5)), 0x7d63_2830);
+        assert_eq!(w(encode_srw(3, 3, 4)), 0x7c63_2430);
+        assert_eq!(w(encode_sraw(3, 3, 4)), 0x7c63_2630);
+        assert_eq!(w(encode_sraw(11, 3, 4)), 0x7c6b_2630);
+    }
+
+    /// The layout hazard, stated as a test rather than as a comment.
+    ///
+    /// `and r11, r3, r4` and `and r3, r11, r4` are DIFFERENT instructions, and
+    /// an encoder that used [`encode_add`]'s RT-destination field order would
+    /// produce the second when asked for the first. The bytes are valid either
+    /// way, so nothing downstream — not `fuzzy%`, not a disassembler — would
+    /// flag it; only a byte compare against c2 would, and only on a body where
+    /// the destination and the left operand happen to differ.
+    #[test]
+    fn the_logical_destination_field_is_ra_and_not_rt() {
+        assert_ne!(encode_and(11, 3, 4), encode_and(3, 11, 4));
+        // What the WRONG layout would have produced for `and r11,r3,r4`, spelled
+        // out: RT=11 at bits 6-10, RA=3 at 11-15 — which is `and r3,r11,r4`.
+        let wrong = (31u32 << 26) | (11 << 21) | (3 << 16) | (4 << 11) | (28 << 1);
+        assert_eq!(wrong.to_be_bytes(), encode_and(3, 11, 4));
+        assert_ne!(wrong.to_be_bytes(), encode_and(11, 3, 4));
+        // …and the captured byte says which one c2 emits for `a & b & c`'s first
+        // instruction: `7c6b2038`, this encoder's `encode_and(11, 3, 4)`.
+        assert_eq!(u32::from_be_bytes(encode_and(11, 3, 4)), 0x7c6b_2038);
+    }
+
+    /// `sraw` and `srw` are one IL opcode apart from each other by NOTHING —
+    /// the distinction lives in the operand type — so the two encoders must not
+    /// be interchangeable and the test says so with the captured pair.
+    #[test]
+    fn the_two_right_shifts_are_different_instructions() {
+        assert_ne!(encode_sraw(3, 3, 4), encode_srw(3, 3, 4));
+        assert_eq!(u32::from_be_bytes(encode_sraw(3, 3, 4)), 0x7c63_2630); // int
+        assert_eq!(u32::from_be_bytes(encode_srw(3, 3, 4)), 0x7c63_2430); // unsigned
+    }
 }

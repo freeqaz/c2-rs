@@ -1655,6 +1655,13 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 Err(ChainReject::Affine) => {
                     return Err(Block::refuse(seg, p, "expr-affine-pending-imm"))
                 }
+                // `lane w-build`: the chain's intermediate registers are not
+                // determined by the rule `select_text` implements. Its own key,
+                // because it names a live wrong-bytes emit rather than a gap —
+                // see `intermediate_alloc_determined`.
+                Err(ChainReject::Alloc) => {
+                    return Err(Block::refuse(seg, p, "expr-alloc-undetermined"))
+                }
             };
             Ok(BodyShape::StraightLine { params, ops })
         }

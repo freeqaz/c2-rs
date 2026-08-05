@@ -12,11 +12,17 @@ use crate::codegen::encode::{
     encode_add,
     encode_addi,
     encode_addis,
+    encode_and,
     encode_blr,
     encode_mr,
     encode_mullw,
+    encode_or,
     encode_ori,
+    encode_slw,
+    encode_sraw,
+    encode_srw,
     encode_subf,
+    encode_xor,
 };
 use crate::codegen::select::{
     ARG_REGS,
@@ -325,7 +331,27 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     "indirect store in an expression; out of class",
                 ))
             }
-            IlOp::Add | IlOp::Sub | IlOp::Mul => {
+            // The nine binary integer operators — the arithmetic three and the
+            // bitwise/shift six (`lane w-build`). Spelled out rather than
+            // written as `op if op.is_binary_int()` so the match stays
+            // EXHAUSTIVE: a guard does not satisfy the exhaustiveness checker,
+            // and a wildcard here would let the next `IlOp` variant reach the
+            // affine selector silently. The `debug_assert` keeps the list and
+            // the predicate from drifting — `chain_form`'s stack simulation
+            // gates on the predicate, and the two must name one set.
+            op @ (IlOp::Add
+            | IlOp::Sub
+            | IlOp::Mul
+            | IlOp::And
+            | IlOp::Or
+            | IlOp::Xor
+            | IlOp::Shl
+            | IlOp::ShrS
+            | IlOp::ShrU) => {
+                debug_assert!(
+                    op.is_binary_int(),
+                    "the selector's binary arm and IlOp::is_binary_int disagree"
+                );
                 // Binary op: pop rhs then lhs.
                 let rhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (rhs)"))?;
                 let lhs = stack.pop().ok_or_else(|| out_of_class("binary op: empty stack (lhs)"))?;
@@ -485,6 +511,18 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                     // rA=rhs, rB=lhs (the load-bearing reversed order — see
                     // [`encode_subf`]).
                     IlOp::Sub => text.extend_from_slice(&encode_subf(dest, r, l)),
+                    // The bitwise/shift six (`lane w-build`). Every one is an
+                    // X-form whose DESTINATION is the RA field, not the RT
+                    // field the three above use — see [`encode_and`]. `l` is
+                    // the left operand and `r` the right, and for the three
+                    // shifts that order is load-bearing in the same way
+                    // `encode_subf`'s is.
+                    IlOp::And => text.extend_from_slice(&encode_and(dest, l, r)),
+                    IlOp::Or => text.extend_from_slice(&encode_or(dest, l, r)),
+                    IlOp::Xor => text.extend_from_slice(&encode_xor(dest, l, r)),
+                    IlOp::Shl => text.extend_from_slice(&encode_slw(dest, l, r)),
+                    IlOp::ShrS => text.extend_from_slice(&encode_sraw(dest, l, r)),
+                    IlOp::ShrU => text.extend_from_slice(&encode_srw(dest, l, r)),
                     // `combine` never records a Div plan entry (it rejects
                     // first), so reaching here would be an internal error.
                     IlOp::Div
@@ -581,6 +619,37 @@ fn combine(
         // reg*const strength-reduces, and const*const is unexpected (c1xx folds).
         (IlOp::Mul, _, _) => Err(out_of_class(
             "multiply by a constant strength-reduces (shift/add); out of class",
+        )),
+
+        // ---- The bitwise/shift six — REGISTER-REGISTER ONLY (`lane w-build`) --
+        //
+        // `&`, `|`, `^` are commutative; `<<`, `>>` are not, and `emit_reg_reg`
+        // preserves `(lhs, rhs)` for all six, so the shifts get their operands
+        // in source order.
+        //
+        // **Every other operand form refuses**, and the arm below is one arm on
+        // purpose rather than six copies of `Mul`'s: what the immediate forms
+        // cost is one measured statement, not six. `IlOp::And`'s doc comment
+        // carries the probe. In one sentence: `a & 1` is `clrlwi`, `a & 5` is
+        // `andi.` (record-form, it writes CR0), `a & 0x12345` is a three
+        // instruction materialization through **r12**, `a | 0x12345` is
+        // `oris`+`ori`, and `256 >> a` materializes the literal into r11 with
+        // `li` first. Three instruction families and two scratch registers
+        // across one axis, selected by a predicate over the immediate's VALUE.
+        // That is not a cell this rung gridded, so it is not a cell this rung
+        // emits.
+        (
+            op @ (IlOp::And | IlOp::Or | IlOp::Xor | IlOp::Shl | IlOp::ShrS | IlOp::ShrU),
+            RegOff { base: a, off: 0 },
+            RegOff { base: b, off: 0 },
+        ) => {
+            debug_assert!(op.is_bitwise_or_shift());
+            emit_reg_reg(op, a, b)
+        }
+        (IlOp::And | IlOp::Or | IlOp::Xor | IlOp::Shl | IlOp::ShrS | IlOp::ShrU, _, _) => Err(out_of_class(
+            "a bitwise or shift operand that is not a bare register: the immediate \
+             forms select an instruction by the immediate's VALUE (rlwinm mask / \
+             andi. / lis+ori+and via r12) and are not gridded; out of class",
         )),
 
         (IlOp::Div, _, _) => Err(out_of_class("integer division; out of class")),

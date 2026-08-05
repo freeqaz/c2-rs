@@ -244,6 +244,109 @@ pub enum IlOp {
     /// Pop rhs then lhs, push `lhs / rhs` (IL opcode `0x05`, NON-commutative).
     /// Only reached on the FP path — integer division is not modeled.
     Div,
+    /// Pop rhs then lhs, push `lhs & rhs` (IL opcode `0x0B`, commutative).
+    ///
+    /// **Register-register only.** The whole bitwise/shift family below is
+    /// admitted at exactly one operand form, and the immediate form is refused
+    /// with a measured reason rather than an assumed one — `lane w-build`
+    /// probed the immediate axis of `&` alone and found **four** distinct
+    /// lowerings across five cells at the workload's own flags:
+    ///
+    /// ```text
+    ///   a & 1        5463 07fe   clrlwi r3,r3,31          a contiguous mask -> rlwinm
+    ///   a & 0xFF00   5463 042e   rlwinm r3,r3,0,16,23     "
+    ///   a & -2       5463 003c   clrrwi r3,r3,1           "
+    ///   a & 5        7063 0005   andi.  r3,r3,5           NOT contiguous, fits 16 bits
+    ///   a & 0x12345  3d80 0001   lis    r12,1             neither: materialize, and
+    ///                618c 2345   ori    r12,r12,0x2345    in **r12**, not the r11
+    ///                7c63 6038   and    r3,r3,r12         every other shape uses
+    /// ```
+    ///
+    /// So the selector is a predicate over the immediate's **value** — is the
+    /// mask contiguous, does it fit sixteen bits — not over its type; one of
+    /// its three branches sets `CR0` (`andi.` is record-form only, there is no
+    /// plain `andi`); and one of them uses a *different scratch register*. That
+    /// is a cross product this rung does not grid, so `Imm` on any of these ops
+    /// is `out_of_class` in `select_text` — the same refusal [`IlOp::Mul`]
+    /// already carries for its non-register forms, and for the same reason.
+    And,
+    /// Pop rhs then lhs, push `lhs | rhs` (IL opcode `0x0C`, commutative).
+    ///
+    /// Immediates refused: `a | 1` is `ori`, `a | 0x10000` is `oris`, and
+    /// `a | 0x12345` is **both** (`oris` then `ori`, two instructions). Three
+    /// shapes across one axis; see [`IlOp::And`].
+    Or,
+    /// Pop rhs then lhs, push `lhs ^ rhs` (IL opcode `0x0D`, commutative).
+    /// Immediates refused, same three shapes as [`IlOp::Or`] with
+    /// `xori`/`xoris`.
+    Xor,
+    /// Pop rhs then lhs, push `lhs << rhs` (IL opcode `0x09`, NON-commutative).
+    ///
+    /// **One instruction for both signednesses**, measured and not assumed:
+    /// `int<<int`, `unsigned<<unsigned` and `int<<unsigned` all emit `slw`,
+    /// `7c632030`. That is why there is one `Shl` and two `Shr`s.
+    Shl,
+    /// Pop rhs then lhs, push `lhs >> rhs` **arithmetically** — `sraw` (IL
+    /// opcode `0x0A` over a SIGNED left operand).
+    ///
+    /// [`IlOp::ShrS`] and [`IlOp::ShrU`] are the same IL byte. The IL does not
+    /// distinguish them at all: the difference is one nibble of the *operand
+    /// TYPE* (`86 41` signed, `86 42` unsigned), and `ValueClass::Int4` — the
+    /// class the expression parser tracks — deliberately collapses the two,
+    /// because every other modeled operator is identical across them. So the
+    /// parser reads the signedness separately for this operator, and refuses a
+    /// mixed-signedness expression outright under `expr-shr-mixed-sign`.
+    ///
+    /// **Only the LEFT operand decides**, probed both ways round:
+    /// `int f(int a, unsigned b){return a>>b;}` is `sraw` and
+    /// `unsigned f(unsigned a, int b){return a>>b;}` is `srw`.
+    ShrS,
+    /// Pop rhs then lhs, push `lhs >> rhs` **logically** — `srw` (IL opcode
+    /// `0x0A` over an UNSIGNED left operand). See [`IlOp::ShrS`].
+    ShrU,
+}
+
+impl IlOp {
+    /// True for the binary integer operators a **serial accumulator chain** can
+    /// carry — the ones that pop two operands and push one, and that the
+    /// straight-line selector lowers into one register-register instruction.
+    ///
+    /// One predicate rather than a `matches!` repeated at each site: the
+    /// stack-depth simulation in `chain_form`, the pointer-arithmetic guard and
+    /// the `bool`-arithmetic guard in `parse_expr`, and the selector's own
+    /// binary arm must agree about the set exactly, or the census claims bodies
+    /// the port refuses. `ROADMAP.md` §6d records what a disagreement between
+    /// two copies of one predicate cost the last time.
+    #[must_use]
+    pub fn is_binary_int(self) -> bool {
+        matches!(
+            self,
+            IlOp::Add
+                | IlOp::Sub
+                | IlOp::Mul
+                | IlOp::And
+                | IlOp::Or
+                | IlOp::Xor
+                | IlOp::Shl
+                | IlOp::ShrS
+                | IlOp::ShrU
+        )
+    }
+
+    /// True for the binary operators the **bitwise/shift** rung added — the
+    /// subset of [`IlOp::is_binary_int`] that `lane w-build` shipped.
+    ///
+    /// Kept apart from the arithmetic three because the guards differ: `+`/`-`
+    /// scale over a pointer and these do not (they refuse a pointer outright
+    /// instead), and the depth-2 tree selector accepts the arithmetic three and
+    /// **not** these — see `try_select_depth2_tree`.
+    #[must_use]
+    pub fn is_bitwise_or_shift(self) -> bool {
+        matches!(
+            self,
+            IlOp::And | IlOp::Or | IlOp::Xor | IlOp::Shl | IlOp::ShrS | IlOp::ShrU
+        )
+    }
 }
 
 /// A **framed non-leaf call** of the verified `return g(a) + k` class (W4b2):

@@ -256,6 +256,10 @@ pub(crate) fn try_parse_assign_body_detail(
             return Err(Block::refuse(seg, p, "assign-noncanonical-order"))
         }
         Err(ChainReject::Affine) => return Err(Block::refuse(seg, p, "assign-affine-pending-imm")),
+        // `lane w-build`, and a SEPARATE key per producer exactly as the three
+        // above are: which producer resolved the chain is a fact about where
+        // the widening would have to go.
+        Err(ChainReject::Alloc) => return Err(Block::refuse(seg, p, "assign-alloc-undetermined")),
     };
     // …and LAST, the destination. Everything above reports first, so this key names
     // a function only when the destination really is the one thing left.

@@ -88,6 +88,47 @@ pub(crate) fn straight_line_out_of_class_ctx(
             _ => {}
         }
     }
+    // **A chain that MIXES the bitwise/shift six with the arithmetic three is
+    // refused, and the reason is a live mis-emit this lane found in its own
+    // change before shipping it** (`lane w-build`).
+    //
+    // `select_text`'s intermediate-register rule is `chain_has_add`: at `/Ox`,
+    // if the chain contains any addition every intermediate reuses r11,
+    // otherwise they descend r11, r10, r9. That rule was enumerated over 11,664
+    // four-leaf ARITHMETIC chains and it is right about all of them. It is
+    // **wrong** the moment a bitwise operator is in the chain — measured at
+    // `/Ox`, `work/w-build/probe/bits3-Ox.cod`:
+    //
+    // ```text
+    //   (a & b) + c + d    and  r11,r3,r4 ; add  r11,r11,r5 ; add  r3,r11,r6
+    //   (a + b) & c & d    add  r11,r3,r4 ; and  r10,r11,r5 ; and  r3,r10,r6
+    // ```
+    //
+    // Both chains contain an addition. The first collapses to r11 as the rule
+    // says; **the second descends anyway.** So `chain_has_add` is not the rule —
+    // the ten probed cells fit "an intermediate goes to r11 when its CONSUMER is
+    // an `add`, and takes the next descending scratch otherwise", which also
+    // reproduces every arithmetic cell `il_accum4.cpp` records. That is a
+    // hypothesis over ten witnesses against a rule enumerated over 11,664, and
+    // replacing the second with the first is not this rung's work.
+    //
+    // What IS this rung's work is not shipping the wrong bytes in the meantime.
+    // A **pure** bitwise/shift chain is unaffected: it contains no addition, so
+    // `chain_has_add` is false and the port descends exactly as c2 does — probed
+    // at four and five leaves, at `/O1` and at `/Ox`. Mixing is what breaks, so
+    // mixing refuses, under its own key so the cost is a number.
+    //
+    // The cells this costs are known and were all measured correct:
+    // `(a>>b)+c`, `(a&b)+c`, `(a+b)&c`, `(a*b)^c`, `(a-b)<<c` at three leaves
+    // (one intermediate, where every rule coincides) and `(a&b)+c+d`,
+    // `(a&b)-c-d`, `(a-b)&c&d`, `(a>>b)+c+d` at four.
+    if ops.iter().any(|o| o.is_bitwise_or_shift())
+        && ops
+            .iter()
+            .any(|o| matches!(o, IlOp::Add | IlOp::Sub | IlOp::Mul))
+    {
+        return Some("expr-out-of-class-bitwise-mixed-arith");
+    }
     // An expression the affine selector cannot walk over one scratch, and that is
     // not the one deeper shape that is characterized ([`chain_form`]). This clause
     // is the repair for `docs/IL_CALL_IN_EXPR.md` §24.7: `return a + b*c;` reaches
@@ -437,7 +478,15 @@ pub(crate) fn affine_serial_ok(ops: &[IlOp], params: &[u32]) -> bool {
         match op {
             IlOp::Load(_) => stack.push(AffOperand::RegOff(0)),
             IlOp::Lit(k) => stack.push(AffOperand::Imm(*k)),
-            IlOp::Add | IlOp::Sub | IlOp::Mul => {
+            IlOp::Add
+            | IlOp::Sub
+            | IlOp::Mul
+            | IlOp::And
+            | IlOp::Or
+            | IlOp::Xor
+            | IlOp::Shl
+            | IlOp::ShrS
+            | IlOp::ShrU => {
                 let (Some(rhs), Some(lhs)) = (stack.pop(), stack.pop()) else {
                     return false;
                 };
@@ -465,9 +514,25 @@ pub(crate) fn affine_serial_ok(ops: &[IlOp], params: &[u32]) -> bool {
                     // The reg-reg instructions, which require BOTH operands to be
                     // bare registers. This is the clause the whole function is for.
                     (IlOp::Add | IlOp::Sub | IlOp::Mul, RegOff(0), RegOff(0)) => RegOff(0),
+                    // The bitwise/shift six, register-register and nothing else
+                    // (`lane w-build`). **This clause must mirror `combine`'s
+                    // exactly** — it is the parser-side simulation of it, and the
+                    // whole reason it exists is that a census claiming a body the
+                    // selector then refuses is a disagreement, not a gap. There is
+                    // deliberately NO immediate-folding clause for these to sit
+                    // beside the `Add`/`Sub` ones above: `a & 5` is not `a & 0`
+                    // plus an offset, it is an `andi.`, and the fold that is free
+                    // for `+` does not exist here.
+                    (
+                        IlOp::And | IlOp::Or | IlOp::Xor | IlOp::Shl | IlOp::ShrS | IlOp::ShrU,
+                        RegOff(0),
+                        RegOff(0),
+                    ) => RegOff(0),
                     // `const - reg` needs a `subfic`; `reg * const` strength-reduces;
-                    // and a reg-reg operator with a pending immediate on either side
-                    // has no lowering in this model at all.
+                    // a bitwise or shift operand that is not a bare register selects
+                    // its instruction by the immediate's VALUE; and a reg-reg
+                    // operator with a pending immediate on either side has no
+                    // lowering in this model at all.
                     _ => return false,
                 };
                 stack.push(folded);
@@ -491,6 +556,80 @@ pub(crate) enum ChainReject {
     Additive,
     /// The affine selector cannot lower it — see [`affine_serial_ok`].
     Affine,
+    /// The chain's intermediate REGISTERS are not determined by the rule
+    /// `select_text` implements — see [`intermediate_alloc_determined`].
+    Alloc,
+}
+
+/// True when `select_text`'s intermediate-register rule provably agrees with c2
+/// on this chain. **A live wrong-bytes emit is behind this**, found by `lane
+/// w-build` on master `4d6aa58` with nothing of that lane's own in the tree.
+///
+/// ```text
+///   int f(int a,int b,int c,int d) { return (a + b) * c * d; }
+///
+///   c2   /Ox   add r11,r3,r4 ; mullw r10,r11,r5 ; mullw r3,r10,r6
+///   port /Ox   add r11,r3,r4 ; mullw r11,r11,r5 ; mullw r3,r11,r6
+///                                     ^^^  Port=Mismatch @ offset 541
+/// ```
+///
+/// `select_text` decides the whole chain at once: at `/Ox`, if it contains any
+/// addition every intermediate reuses r11, otherwise they descend r11, r10, r9.
+/// That rule came from an enumeration of **11,664 four-leaf chains** and is right
+/// about every one of them — and `(a + b) * c * d` contains an addition and
+/// descends anyway.
+///
+/// **The standing sweep cannot see this.** `scripts/sweep.d/10-int-chains.py`
+/// enumerates `l1 o1 l2 o2 l3` — three leaves, so **one** intermediate, and with
+/// one intermediate every candidate rule gives r11. The 11,664-case four-leaf
+/// enumeration was a one-off. `scripts/sweep.d/12-alloc-depth.py` is the fragment
+/// that closes the hole.
+///
+/// ## What the 23 measured cells say, and why this REFUSES rather than fixes
+///
+/// Every cell in `work/w-build/probe/alloc-Ox.cod`, `bits3-Ox.cod` and
+/// `il_accum4.cpp` fits one rule: **an intermediate goes to r11 when its
+/// CONSUMER is an `add`, and takes the next descending scratch otherwise.** It
+/// reproduces the two `chain_has_add` misses and every case `chain_has_add` gets
+/// right, including `(a & b) - c - d + e`, whose allocation is r11, r10, r11 —
+/// which no whole-chain rule can produce at all.
+///
+/// Twenty-three witnesses is not eleven thousand. Replacing a rule that survived
+/// an enumeration with one that has not faced it is how the per-chain
+/// accumulator bug got in the first time (two rules that coincide on short
+/// inputs). So the divergent region **refuses**, the hypothesis is written down,
+/// and the fragment that would validate it ships alongside.
+///
+/// ## The predicate, derived from the mechanism rather than fitted
+///
+/// The two rules classify intermediate `k` by different things — the port by
+/// "does the chain contain an add", c2 by "is `op[k+1]` an add" — so they can
+/// only disagree where an add's result feeds a **non**-add. With fewer than
+/// three operators there is nothing to disagree about: the sole intermediate is
+/// r11 under both (the descending sequence *starts* at r11). Hence: three or
+/// more operators, and an `Add` immediately followed by something that is not
+/// one.
+///
+/// Checked against every cell above — it refuses `(a+b)*c*d` and `(a+b)*c*d*e`
+/// and accepts `a+b+c+d`, `a-b-c-d`, `a-c-d+b`, `a-d+b+c`, `a-b-c+d`,
+/// `(a*b)+c+d`, `(a*b)-c-d`, `a*b*c*d` and `(a+b)*c`, each re-graded against
+/// real c2 after the guard went in and each still `Port=Match`.
+///
+/// **`(a+1)*b` was in that accepted list and is CORRECTED out of it**: it is
+/// `NotImplemented` — but on master `4d6aa58` too, under
+/// `expr-affine-pending-imm`, because `(a+1)` leaves a pending immediate that
+/// `Mul` has no lowering for. This predicate does return `true` for it (two
+/// operators, nothing to disagree about); the refusal is a different, older
+/// gate, and claiming it as this one's acceptance would have credited this
+/// guard with a decision it does not make.
+pub(crate) fn intermediate_alloc_determined(ops: &[IlOp]) -> bool {
+    let opers: Vec<IlOp> = ops.iter().copied().filter(|o| o.is_binary_int()).collect();
+    if opers.len() < 3 {
+        return true;
+    }
+    !opers
+        .windows(2)
+        .any(|w| w[0] == IlOp::Add && w[1] != IlOp::Add)
 }
 
 /// **The one canonicalize-or-refuse decision**, for both producers of a
@@ -537,6 +676,14 @@ pub(crate) fn canonical_chain_for_codegen(
     // port emits byte-exactly, so the order here is load-bearing.
     if !affine_serial_ok(&out, params) {
         return Err(ChainReject::Affine);
+    }
+    // ALSO on the canonicalized stream, and for the same reason: the
+    // intermediate registers are allocated over the stream codegen sees, not the
+    // one the source spelled. `a + b - c - d` reaches this as `a - c - d + b`,
+    // whose trailing `Add` has no successor and is therefore fine, while its
+    // source order would have looked divergent.
+    if !intermediate_alloc_determined(&out) {
+        return Err(ChainReject::Alloc);
     }
     Ok(out)
 }
@@ -880,7 +1027,25 @@ pub fn chain_form(ops: &[IlOp], params: &[u32]) -> Option<ChainForm> {
     for op in ops {
         match op {
             IlOp::Load(_) | IlOp::Lit(_) => depth += 1,
-            IlOp::Add | IlOp::Sub | IlOp::Mul => {
+            // The arithmetic three plus the bitwise/shift six (`lane w-build`).
+            // Read through [`IlOp::is_binary_int`] rather than spelled out, so
+            // this simulation and `select_text`'s emitter loop cannot drift
+            // apart — a census that claims a body the port refuses is the
+            // failure `ROADMAP.md` §6d records.
+            //
+            // **`is_depth2_tree` above is NOT widened with them**, and that is a
+            // deliberate refusal with a measurement behind it: the `+`-root
+            // register swap generalizes to the bitwise roots — probed,
+            // `(a&b)|(c&d)` is `and r11 ; and r10 ; or r3,r11,r10` (no swap) and
+            // `(a&b)+(c&d)` is `and r10 ; and r11 ; add r3,r10,r11` (swap), so
+            // the ROOT alone decides — but that is 4 cells of a 216-cell
+            // root x op1 x op2 grid, where the accepted arithmetic three are 27
+            // cells that were graded whole. Four witnesses do not license a
+            // sixfold widening of a shape whose two known rewrites (N1 product
+            // flattening, N2 additive canonicalization) were both found by
+            // gridding it. A bitwise depth-2 tree therefore reaches `depth > 2`
+            // here and refuses, which is where it should refuse.
+            op if op.is_binary_int() => {
                 if depth < 2 {
                     return None;
                 }
