@@ -102,18 +102,33 @@ fn render_byte_fraction_ranking(report: &GapReport) {
         no_den,
         rows.len()
     );
-    println!("\x20    accepted/total bytes    frac   exact | src");
+    // **The REMAINING column is a FOURTH unit and it is printed, not chosen
+    // between** (board #505). `total − accepted` is the PowerPC the port must
+    // learn to write for this TU, and on the only two cells with outcomes it
+    // agrees with the fraction — `xboxmem` 60 bytes remaining and converted,
+    // `mmio` 316 and declined, a 5.3x margin next to the fraction's 3.2x. On the
+    // CURRENT frontier the two units DISAGREE at the head: the fraction says
+    // `mmio` (16.8%, 316 B remaining) and the remainder says `Primes.cpp` (0%,
+    // 64 B remaining). Neither is validated at n = 2, and this project has now
+    // been wrong about the unit twice (#269, #465). Printing both is the honest
+    // state; picking one on this evidence would be the third mistake.
+    println!(
+        "\x20    accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted \
+         = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees \
+         with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)"
+    );
     for (r, f) in &rows {
         match f {
             Some((n, d)) => println!(
-                "\x20   {n:>8}/{d:<8} bytes  {:>5.1}%  {:>5} | {}",
+                "\x20   {n:>8}/{d:<8} bytes  {:>5.1}%  {:>5}  {:>6} | {}",
                 100.0 * *n as f64 / *d as f64,
                 byte_fraction_exact(r),
+                d - n,
                 r.src
             ),
             None => println!(
-                "\x20   {:>8}/{:<8} bytes  {:>6}  {:>5} | {}",
-                "-", 0, "n/a", "-", r.src
+                "\x20   {:>8}/{:<8} bytes  {:>6}  {:>5}  {:>6} | {}",
+                "-", 0, "n/a", "-", "n/a", r.src
             ),
         }
     }
