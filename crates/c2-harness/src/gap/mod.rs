@@ -497,6 +497,12 @@ pub struct FnByteMatch {
     /// census/gate disagreement restricted to the emitted population, which is
     /// the error term on [`ProgressMass`]'s `f` numerator. Target 0.
     pub census_disagree: usize,
+    /// Of the `exact` bucket, how many carry at least one relocation in c2's
+    /// obj. **A `.text` COMDAT's raw bytes do not contain its relocations**, so
+    /// these are credited on bytes whose relocation targets FBM never checked —
+    /// the measured size of the gap between "the bytes match" and "the function
+    /// matches". See `fnbytes` and `FUNCTION_BYTE_MATCH.md` §7.
+    pub exact_relocated: usize,
     /// Emitted functions on a `match` TU for which the per-function route
     /// produced a body that DIFFERS from c2's. **Known answer 0** — see
     /// [`GapReport::fn_byte_match_tu_differs`].

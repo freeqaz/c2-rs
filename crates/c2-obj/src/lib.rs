@@ -176,6 +176,42 @@ impl ObjImage {
         Some(out)
     }
 
+    /// [`ObjImage::text_comdat_functions`] with each function's **relocation
+    /// count**, in section order.
+    ///
+    /// Added for FUNCTION BYTE MATCH (board #320, `docs/FUNCTION_BYTE_MATCH.md`).
+    /// FBM compares a COMDAT's *raw bytes*, and a `.text` section's raw bytes do
+    /// not contain its relocations: two functions that load the address of two
+    /// different globals have **byte-identical** text and different relocation
+    /// records. So "the bytes match" is strictly weaker than "the function
+    /// matches" on any body that relocates, and the number of credited functions
+    /// that relocate is the size of that gap. It is measured rather than
+    /// argued.
+    ///
+    /// Same fail-closed contract as the other walks — `None` whenever the
+    /// headers do not decode. `IMAGE_SCN_LNK_NRELOC_OVFL` is **not** unpacked
+    /// here: a section carrying it returns `None` rather than the literal
+    /// `0xFFFF`, because a count that is really a sentinel is exactly the shape
+    /// that reads as a plausible number. [`ObjImage::relocations`] owns the
+    /// overflow decode; no obj in this workload trips it.
+    pub fn text_comdat_reloc_counts(&self) -> Option<Vec<(String, usize)>> {
+        let b = &self.0;
+        let mut out = Vec::new();
+        for (name, s) in self.text_comdat_entries()? {
+            let o = COFF_HEADER_LEN + s * SECTION_HEADER_LEN;
+            let n = u16::from_le_bytes([b[o + 32], b[o + 33]]) as usize;
+            let ptr = u32::from_le_bytes([b[o + 24], b[o + 25], b[o + 26], b[o + 27]]) as usize;
+            if n == 0xFFFF {
+                return None; // the overflow sentinel, not a count
+            }
+            if n != 0 && ptr == 0 {
+                return None; // a count with no table is malformed, not empty
+            }
+            out.push((name, n));
+        }
+        Some(out)
+    }
+
     /// **The obj's section-name list**, in section order, decoded by the same
     /// code path [`ObjImage::text_comdat_functions`] uses.
     ///

@@ -496,6 +496,7 @@ impl GapReport {
             m.push(("fnbyte-unbound", f.unbound.to_string()));
             m.push(("fnbyte-partition-broken", f.partition_broken.to_string()));
             m.push(("fnbyte-census-disagree", f.census_disagree.to_string()));
+            m.push(("fnbyte-exact-relocated", f.exact_relocated.to_string()));
             m.push((
                 "fnbyte-match-tu-differs",
                 f.match_tu_differs.to_string(),

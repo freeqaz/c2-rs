@@ -575,6 +575,7 @@ impl GapReport {
                 t("fnbyte-differs-equal-words"),
             ),
             census_disagree: t("fnbyte-census-disagree"),
+            exact_relocated: t("fnbyte-exact-relocated"),
             match_tu_differs: self.fn_byte_match_tu_differs(),
             value: (exact + whole_tu) as f64 / denominator as f64,
         })

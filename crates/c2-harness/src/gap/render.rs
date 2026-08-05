@@ -309,7 +309,11 @@ pub(super) fn print_factorization(report: &GapReport) {
                  \x20   census/gate disagreement on EMITTED fns (the error term on the \
                  emitted census, target 0): {}\n\
                  \x20   NOTE: the six buckets partition the denominator by the PER-FUNCTION \
-                 route alone; on a `match` TU the whole-obj verdict supersedes them.",
+                 route alone; on a `match` TU the whole-obj verdict supersedes them.\n\
+                 \x20   BYTES ARE NOT THE WHOLE FUNCTION: {} of the credited functions carry a \
+                 relocation, whose\n\
+                 \x20   target FBM does NOT check — a `.text` COMDAT's raw bytes do not contain \
+                 its relocations.",
                 f.exact,
                 f.whole_tu,
                 f.denominator,
@@ -332,6 +336,7 @@ pub(super) fn print_factorization(report: &GapReport) {
                 f.partition_broken,
                 f.match_tu_differs,
                 f.census_disagree,
+                f.exact_relocated,
             );
             let (pw, rw, ew) = f.differ_words;
             if f.differs > 0 {

@@ -248,6 +248,26 @@ pub(super) fn measure(
             claim.entry(n).or_default().push(i);
         }
     }
+    // **The gap between "the bytes match" and "the function matches".** A
+    // `.text` COMDAT's raw data does not contain its relocations, so two bodies
+    // that load the address of two DIFFERENT globals are byte-identical here and
+    // differ in the obj. FBM's `exact` bucket therefore credits a body whose
+    // relocation targets it never checked, and the size of that gap is the
+    // number of credited functions that relocate at all.
+    //
+    // Measured on every scan rather than left as a caveat, and counted only for
+    // the CREDITED bucket, because that is the only place it can mislead. `None`
+    // is a decode failure and is its own printed row — never a zero.
+    let relocs: std::collections::BTreeMap<String, usize> = match ref_obj.text_comdat_reloc_counts()
+    {
+        Some(v) => v.into_iter().collect(),
+        None => {
+            *res.emit
+                .entry("fnbyte-reloc-counts-unreadable".into())
+                .or_insert(0) += 1;
+            Default::default()
+        }
+    };
     let mut accounted = 0usize;
     for (name, bytes) in &entries {
         let row = match claim.get(name.as_str()).map(Vec::as_slice) {
@@ -260,6 +280,9 @@ pub(super) fn measure(
             *res.emit.entry(v.bare().into()).or_insert(0) += 1;
         }
         accounted += 1;
+        if v == FnByte::Exact && relocs.get(name.as_str()).copied().unwrap_or(0) > 0 {
+            *res.emit.entry("fnbyte-exact-relocated".into()).or_insert(0) += 1;
+        }
         // **The census/gate disagreement, restricted to the EMITTED
         // population.** `GapReport::fn_gate_disagreement` measures it over all
         // IL bodies; this is the same disagreement over the population the goal

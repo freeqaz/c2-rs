@@ -381,10 +381,10 @@ collect_gap() {
     # published the ratio and dropped `fnbyte-partial` would hide the size of
     # what FBM cannot yet grade, which is the shape this project charges for.
     emit fnbyte-partition "$(val_or_missing "$(_metric_row "$_log" \
-        'partial @ (FBM under-reports by this) · differs @ · refused @ · unbound @ \
-· controls: partition-broken @, match-TU differs @, census disagree @' \
+        'partial @ (FBM under-reports by this) · differs @ · refused @ · unbound @ · @ credited fns carry a reloc FBM does not check · controls: partition-broken @, match-TU differs @, census disagree @' \
         fnbyte-partial fnbyte-differs fnbyte-refused fnbyte-unbound \
-        fnbyte-partition-broken fnbyte-match-tu-differs fnbyte-census-disagree)")"
+        fnbyte-exact-relocated fnbyte-partition-broken fnbyte-match-tu-differs \
+        fnbyte-census-disagree)")"
     emit fnbyte-per-tu "$(val_or_missing "$(_metric_row "$_log" \
         '@ of @ TUs with emitted functions are 100% byte-exact per function' \
         fnbyte-tus-full fnbyte-tus)")"
@@ -471,6 +471,7 @@ summary: 100 port Match, 0 mismatch, 110 not-implemented (of 210)
     gap-metric fnbyte-unbound 9225
     gap-metric fnbyte-partition-broken 0
     gap-metric fnbyte-census-disagree 0
+    gap-metric fnbyte-exact-relocated 0
     gap-metric fnbyte-match-tu-differs 0
     gap-metric fnbyte-whole-tu 2
     gap-metric fnbyte-tus-full 4
@@ -650,6 +651,52 @@ EOF
             || { echo "CHECK FAIL: $_k over an empty scan did not render NO-RESULT"; \
                  fails=$((fails+1)); }
     done
+
+    # **EVERY RENDERED ROW IS ONE LINE.** The generated block is a markdown
+    # table, so a value containing a newline does not render as a long cell — it
+    # ends the row and the rest becomes stray prose, silently, in the file
+    # `CLAUDE.md` points readers at first.
+    #
+    # This is not hypothetical: the FBM partition template was written as a
+    # single-quoted string broken across source lines, where `\` is a LITERAL
+    # backslash and not a continuation, and it shipped a backslash and two
+    # newlines into the value. Caught by running the collector, not by `--check`,
+    # which is why the check now exists. Every template this file has is
+    # rendered here and measured.
+    check_one_line() { # <label> <rendered>
+        _n=$(printf '%s' "$2" | wc -l | tr -d ' ')
+        if [ "$_n" != "0" ]; then
+            echo "CHECK FAIL: the $1 row rendered $((_n + 1)) lines; a markdown cell is one line"
+            return 1
+        fi
+        case "$2" in
+            *\\*) echo "CHECK FAIL: the $1 row contains a literal backslash — \
+a single-quoted template broken across source lines"; return 1 ;;
+        esac
+    }
+    check_one_line progress-mass "$(_metric_row "$probe_log" \
+        'P = @ · emitted in class @/@ · mismatch-zeroed TUs @' \
+        progress-mass progress-emitted-in-class progress-emitted-total \
+        progress-mismatch-zeroed)" || fails=$((fails+1))
+    check_one_line fnbyte-match "$(_metric_row "$probe_log" \
+        'FBM = @ · @ exact + @ whole-TU of @ emitted functions, over @ TUs (@ at 100%)' \
+        fnbyte-match fnbyte-exact fnbyte-whole-tu fnbyte-denominator fnbyte-tus \
+        fnbyte-tus-full)" || fails=$((fails+1))
+    check_one_line fnbyte-partition "$(_metric_row "$probe_log" \
+        'partial @ (FBM under-reports by this) · differs @ · refused @ · unbound @ · @ credited fns carry a reloc FBM does not check · controls: partition-broken @, match-TU differs @, census disagree @' \
+        fnbyte-partial fnbyte-differs fnbyte-refused fnbyte-unbound \
+        fnbyte-exact-relocated fnbyte-partition-broken fnbyte-match-tu-differs \
+        fnbyte-census-disagree)" || fails=$((fails+1))
+    check_one_line fnbyte-per-tu "$(_metric_row "$probe_log" \
+        '@ of @ TUs with emitted functions are 100% byte-exact per function' \
+        fnbyte-tus-full fnbyte-tus)" || fails=$((fails+1))
+    # …and the control on the control: a deliberately broken template must trip it.
+    if check_one_line self-test "$(printf 'a\nb')" >/dev/null 2>&1; then
+        echo "CHECK FAIL: check_one_line accepted a two-line value"; fails=$((fails+1))
+    fi
+    if check_one_line self-test 'a\b' >/dev/null 2>&1; then
+        echo "CHECK FAIL: check_one_line accepted a literal backslash"; fails=$((fails+1))
+    fi
 
     # ---- EVERY REGISTERED METRIC HAS A COLLECTOR ------------------------------
     #
