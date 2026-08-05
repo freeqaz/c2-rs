@@ -45,3 +45,53 @@ qualifications, stated rather than left implicit:
     reboot.  Nothing in this repo reaped them, so something outside it did.  An
     unowned cleanup that happens sometimes is not a mechanism; it is why the red
     does not reproduce, and why the check has to be in the gate.
+
+---
+
+## CORRECTION, same day: the first arithmetic above UNDER-MEASURED the peak by 3x
+
+The section above measured a run tree AFTER its gate finished.  A run tree while
+its gate is RUNNING is much larger -- the 18 lanes' scratch, the sweep's corpus
+and the mode cross's corpus all exist at once, and only the summary survives.
+
+`gate.sh`'s own new low-water instrument is what caught this, on the first real
+green run after it was added:
+
+    /tmp free inodes at the run's start      853,187
+    /tmp free inodes low-water in the run    802,937
+    ------------------------------------------------
+    ONE RUN'S PEAK DRAW                       50,250 inodes   (3.0x the 16,660
+                                                               it leaves behind)
+    ONE RUN'S PEAK DRAW                      ~307 MB          (2.7x the 112 MB)
+
+Two consequences, and the first is the more important:
+
+  * **The default inode floor was 50,000, which is EXACTLY ONE RUN'S PEAK.**  The
+    preflight would have passed a filesystem with 50,000 free inodes and the run
+    would then have exhausted the filesystem it had just certified -- a check
+    that licenses the very failure it exists to prevent.  Raised to **150,000**,
+    3x the measured peak.  This is the second defect the instrumentation found in
+    its own fix, after the btrfs `0 0 0` one.
+
+  * **The concurrency hypothesis is NOT refuted after all, and my first answer
+    was too confident.**  At 50,250 inodes in flight, ~21 concurrent runs exhaust
+    the inode table with no accumulation whatsoever, and 6 concurrent runs are
+    ~300k = **29 %** of the ceiling, not the 9.5 % computed above.  On a
+    twenty-lane night the transient term is the same order as the accumulated
+    one.
+
+**Revised diagnosis: BOTH mechanisms are real and they compose.**  With K runs in
+flight and N finished trees left lying about,
+
+    50,250 K  +  16,660 N  >=  1,048,576
+
+so K=6 concurrent leaves room for only ~45 accumulated trees, and K=20 exhausts
+it alone.  The fix needs both halves and has both: the **reaper** answers the
+accumulated N, and the **preflight** answers the transient K -- which is the term
+that produces the red that does not reproduce, because K falls back to zero
+before anybody investigates.
+
+The coordinator's second message proposed exactly this and asked that it be
+determined rather than assumed.  Determined: the first measurement was taken on
+the wrong object (a corpse, not a live run), and it is corrected here rather than
+in place, because the wrong number and how it was caught is the useful part.

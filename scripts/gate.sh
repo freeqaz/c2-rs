@@ -181,7 +181,23 @@
 #
 # env:  C2RS_GATE_KEEP        finished run trees to keep (default 3)
 #       C2RS_GATE_MIN_MB      free-space floor, MiB (default 2048)
-#       C2RS_GATE_MIN_INODES  free-inode floor (default 50000)
+#       C2RS_GATE_MIN_INODES  free-inode floor (default 150000 = 3x one run's
+#                             MEASURED PEAK draw of 50,250; see below)
+#
+# ---- ACCUMULATION *AND* CONCURRENCY, and the first measurement got it wrong ----
+#
+# A FINISHED run tree is 112 MB and 16.6k inodes, so ~63 accumulated trees exhaust
+# a 1,048,576-inode /tmp and ~430 exhaust its 47 GB. On that arithmetic alone,
+# 6 concurrent gates are ~100k inodes — under 10 % — and accumulation is the whole
+# story. **That arithmetic was wrong, and the gate's own new low-water instrument
+# is what caught it**: a real green run measured here 2026-08-05 drew
+# 853,187 -> 802,937 free inodes, a peak of **50,250**, because a run in flight
+# holds the lanes' scratch and the sweep's and the cross's corpora all at once and
+# only settles to 16.6k when it finishes. So one run costs **3.0x in flight what
+# it leaves behind**, ~21 concurrent runs exhaust the inode table on their own, and
+# on a twenty-lane night the transient term is the same order as the accumulated
+# one. Both mechanisms are real; the reaper answers the accumulation and the
+# preflight answers the transient, which is why this file has both.
 #
 # Lane run directories stay PER LANE, inherited from `mode_lane.sh`, which uses one
 # per mode precisely because a shared directory had concurrent lanes overwriting
@@ -201,7 +217,14 @@ cross_cells=0
 reap=1
 : "${C2RS_GATE_KEEP:=3}"
 : "${C2RS_GATE_MIN_MB:=2048}"
-: "${C2RS_GATE_MIN_INODES:=50000}"
+# 150k, not 50k. A FINISHED run tree is 16.6k inodes, but a run IN FLIGHT peaks
+# much higher — the lanes' scratch, the sweep and the cross all exist at once.
+# Measured on a real green run on this box 2026-08-05: free inodes on /tmp went
+# 853,187 -> 802,937, a peak draw of **50,250**, 3.0x the residual. A floor of
+# 50,000 would therefore have been *exactly one run's peak*: the preflight would
+# pass with 50,000 free and the run would then exhaust the filesystem it had just
+# certified. The floor is 3x the measured peak, and the measurement is the reason.
+: "${C2RS_GATE_MIN_INODES:=150000}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -674,9 +697,22 @@ reap_run_trees() {  # <parent> <current-run-dir> <keep-recent> <scratch> [dry-ru
     printf 'reap:   %s stale run tree(s) removed, %s kept (%s live, %s recent, %s this run)\n' \
         "$_rr_gone" "$((_rr_live + _rr_kept + _rr_cur_n))" "$_rr_live" "$_rr_kept" "$_rr_cur_n"
     if [ "$_rr_gone" -gt 0 ]; then
-        printf '        freed %s and %s inodes (df delta; a concurrent gate writing during\n' \
-            "$(human_kb "${_rr_dkb#-}")" "$(human_n "${_rr_din#-}")"
-        printf '        the reap moves this, which is why it is a delta and not a du)\n'
+        # The delta is measured over a SHARED filesystem, so a concurrent gate
+        # writing during the reap can swamp it — measured live on 2026-08-05, two
+        # other lanes gating, a real reap of two trees came back at a NET NEGATIVE
+        # delta. An earlier draft printed `${d#-}`, stripping the sign, and so
+        # reported a filesystem that had got FULLER as space freed. A number whose
+        # sign is discarded is worse than no number: the COUNT above is the
+        # reliable signal and the delta is reported for what it is.
+        if [ -n "$_rr_dkb" ] && [ "$_rr_dkb" -gt 0 ]; then
+            printf '        freed %s and %s inodes (df delta over a SHARED filesystem)\n' \
+                "$(human_kb "$_rr_dkb")" "$(human_n "${_rr_din:-0}")"
+        else
+            printf '        df delta over the reap: %s KiB / %s inodes — NOT POSITIVE, because\n' \
+                "${_rr_dkb:-unknown}" "${_rr_din:-unknown}"
+            printf '        a concurrent gate was writing at the same time. The COUNT above is\n'
+            printf '        the signal; a delta on a shared filesystem is not this reap alone.\n'
+        fi
     fi
     return 0
 }
