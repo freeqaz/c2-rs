@@ -80,3 +80,4 @@ the header block this table is read from.
 | 2026-08-05 | w-tu3 | [w-tu3](2026-08-05-w-tu3.md) | 1 | 706557/2463393 (28.68%) — unchanged, +0. Emitted 38460/178975 |
 | 2026-08-05 | w-varloop | [w-varloop](2026-08-05-w-varloop.md) | 3 | per-function 711,427 → **711,427** unchanged (28.88 %), **+0**. |
 | 2026-08-05 | W45 | [w-wire](2026-08-05-w-wire.md) | 2 | 706,557 → 711,426 / 2,463,393 (28.68 % → 28.88 %), +4,869; |
+| 2026-08-06 | w-alloc2 | [w-alloc2](2026-08-06-w-alloc2.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
