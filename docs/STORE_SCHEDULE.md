@@ -149,6 +149,16 @@ killed H3/H4/H5 has two symbols in it:
 | `F2` | `l a a l` | source order, gap 1 | two symbols — pinned |
 | `D5` | `l h h l` | source order, gap 1 | two symbols through **one machine register** — a bound reference `B& l = h->lh` is its own symbol |
 
+> ### ✔ MEASURED 2026-08-05 by lane `w-sym` — the pin is EXACT, and it is now a number
+>
+> *"Two stores that may alias are never reordered"* was a modelling
+> assumption everywhere it appears. Read off the listing with no rule
+> involved — compare the emitted sequence of base symbols to the source one —
+> it holds on **7,573 of 7,573** cells: 1, 2 and 3 symbols, 1 to 6 producers,
+> runs of 2 to 7 statements, both partitions. **0 violations.** Board
+> **#601**, and it is what makes the multi-symbol store order tractable: the
+> order can only permute *within* a symbol group. `docs/SYMBOL.md` §1.
+
 `D5` is the discriminating cell: `r3` is the base register of all four stores
 and the order is still pinned, because `l` and `h` are different *symbols* in
 the IL and the address folding to `8(r3)` happens later. Tier 6 of the grid
