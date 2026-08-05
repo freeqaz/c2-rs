@@ -646,6 +646,7 @@ fn ops_setup_text(
         compare: None,
         cmp_shift_or: None,
         ptr_walk_loop: None,
+        ptr_walk_chain_loop: None,
         div_mod_leaf: None,
         float_leaf: None,
         fp_tail: None,

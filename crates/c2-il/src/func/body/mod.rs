@@ -23,6 +23,7 @@ use self::shapes::{
     try_parse_float_leaf,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
+    try_parse_ptr_walk_chain_loop,
     try_parse_ptr_walk_loop,
     try_parse_store_leaf, try_parse_store_run,
 };
@@ -628,6 +629,12 @@ pub(crate) enum BodyShape {
     /// **back edge**. See [`super::shapes::ptr_walk_loop`] for the whole
     /// accept/refuse boundary and [`crate::func::PtrWalkModLoop`] for the fields.
     PtrWalkModLoop(crate::func::PtrWalkModLoop),
+    /// **The body-parameterized pointer-walk loop** — the first shape here
+    /// whose emitted body has no fixed length. See
+    /// [`super::shapes::ptr_walk_chain_loop`] for the accept/refuse boundary
+    /// and [`crate::func::PtrWalkChainLoop`] for the operation list that is the
+    /// whole difference from the variant above.
+    PtrWalkChainLoop(crate::func::PtrWalkChainLoop),
     /// **The integer divide/modulo leaf** — `return a / b;` / `return a % b;`
     /// over two formals. See [`super::shapes::div_mod_leaf`] for the whole
     /// accept/refuse boundary and [`crate::func::DivModLeaf`] for the fields.
@@ -828,6 +835,21 @@ pub(crate) const OPT_MODE: &str = "opt-mode";
 /// that lived in codegen alone would be an error term on the published
 /// numerator (`docs/GAPS.md` §6, roadmap #44).
 pub(crate) const PTR_WALK_LOOP_NOT_O1: &str = "ptr-walk-loop-not-o1";
+
+/// Census `ctx` for a **body-parameterized pointer-walk loop outside `/O1`**.
+///
+/// Its own key beside [`PTR_WALK_LOOP_NOT_O1`], not folded into it, for the
+/// reason that one is not folded into [`OPT_MODE`]: the two shapes are refused
+/// at `/Ox` for the same *kind* of reason but they are different classes, and a
+/// shared key would make a histogram row that no rung could size. Every cell
+/// behind this shape's schedule, allocation and entry form was captured at
+/// `/O1` (`docs/rungs/2026-08-05-w-varloop.md`).
+///
+/// Raised in the census and not only in codegen so the two agree —
+/// `crates/c2-harness/tests/census_gate.rs` asserts every function the census
+/// calls in class is one `PortC2` emits, and a mode-conditional refusal living
+/// in codegen alone is an error term on the published numerator.
+pub(crate) const PTR_WALK_CHAIN_LOOP_NOT_O1: &str = "ptr-walk-chain-loop-not-o1";
 
 /// Census `ctx` for a body that parses as a call shape whose callee token has no
 /// `.gl` symbol. See the census for why this is a refusal and not a fallback.
@@ -1491,6 +1513,22 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                 // those today at its first `3A`.
                 if let Ok(shape) = try_parse_ptr_walk_loop(seg, p, lo, locals, sy.ptr_locals) {
                     disp("disp-ptr-walk-loop");
+                    return Ok(shape);
+                }
+                // **The body-parameterized loop**, beside its fixed-length
+                // sibling and after it. The order is free rather than
+                // load-bearing and saying which is the point: the two grammars
+                // are disjoint at their second statement — `ptr_walk_loop`
+                // requires a `53` opening a `for` scope whose first statement
+                // assigns a *pointer* local, this one requires the `29 <label>`
+                // of a top-test `while` — so neither can take a body from the
+                // other whichever is asked first. It is second because its
+                // sibling names a matched workload TU and a reader should meet
+                // that one first.
+                if let Ok(shape) =
+                    try_parse_ptr_walk_chain_loop(seg, p, lo, locals, sy.ptr_locals)
+                {
+                    disp("disp-ptr-walk-chain-loop");
                     return Ok(shape);
                 }
                 disp("disp-assign");

@@ -45,6 +45,7 @@ pub use func::{
     CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, FpTail, FramedCall, IlFunction, IlOp,
     DivModLeaf,
     PtrWalkModLoop,
+    ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop,
     Rel, SeqCall, SeqCmp, SeqEarlyReturn, SeqGuard, SeqTail,
     SlotArg, LINK_FIRST_SLOT,
     // W8 — the two-arm conditional tail call and its register schedule. The

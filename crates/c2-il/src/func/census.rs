@@ -2,7 +2,8 @@ use super::body::{
     self, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
     CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
-    DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_LOOP_NOT_O1,
+    DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_CHAIN_LOOP_NOT_O1,
+    PTR_WALK_LOOP_NOT_O1,
 };
 use super::bind::{Bindings, EmitBinding};
 use super::bundle::shape_to_function;
@@ -478,6 +479,17 @@ impl IlBundle {
                             Ok(BodyShape::PtrWalkModLoop(_)) => {
                                 FnVerdict::InClass("ptr-walk-mod-loop")
                             }
+                            // The **body-parameterized** loop, in its own bucket
+                            // beside the fixed-length one. Two buckets for what
+                            // could be called one family, because the two are
+                            // exactly what a reader would want told apart: the
+                            // row above is a transcription of a single workload
+                            // function, this one is a class whose members differ
+                            // in body length. Summing them would hide which of
+                            // the two a census move came from.
+                            Ok(BodyShape::PtrWalkChainLoop(_)) => {
+                                FnVerdict::InClass("ptr-walk-chain-loop")
+                            }
                             // The integer divide/modulo leaf. Its own bucket
                             // rather than folded into `straight-line`, so the
                             // rung's census gain is attributable: this key's
@@ -722,6 +734,18 @@ impl IlBundle {
                                     FnVerdict::Blocked(Block {
                                         aux: opt_word.unwrap_or(0) as u64,
                                         ..Block::at_end(seg, PTR_WALK_LOOP_NOT_O1)
+                                    })
+                                }
+                                // (b3) …and its body-parameterized sibling,
+                                // for the same reason and with its own key.
+                                Some(f)
+                                    if f.ptr_walk_chain_loop.is_some()
+                                        && opt_word_mode(opt_word)
+                                            != Some(crate::OptWordMode::O1) =>
+                                {
+                                    FnVerdict::Blocked(Block {
+                                        aux: opt_word.unwrap_or(0) as u64,
+                                        ..Block::at_end(seg, PTR_WALK_CHAIN_LOOP_NOT_O1)
                                     })
                                 }
                                 Some(f) => {

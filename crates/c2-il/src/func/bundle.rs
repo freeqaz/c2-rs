@@ -918,6 +918,17 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // The body-parameterized pointer-walk loop. Nothing to resolve, for
+            // the reason its sibling has none: it calls nothing, names no data
+            // symbol and mints no label, so the operation list travels exactly
+            // as it was parsed.
+            BodyShape::PtrWalkChainLoop(l) => {
+                Some(IlFunction {
+                    params: l.params.clone(),
+                    ptr_walk_chain_loop: Some(l),
+                    ..IlFunction::base(name, src)
+                })
+            }
             // The integer divide/modulo leaf. Like the loop, nothing to
             // resolve: it calls nothing, names no data symbol and mints no
             // label, so the whole shape travels as it was parsed.
