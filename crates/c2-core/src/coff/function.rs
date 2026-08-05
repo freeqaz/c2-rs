@@ -62,6 +62,42 @@ use super::*;
 /// | `.text$yd` | 804 | 243 |
 /// | `.xdata$x` | 871 | 67 |
 ///
+/// # THE LADDER IS WORTH `+0` TU MATCH — ALL THREE STEPS, MEASURED
+///
+/// The table above is a **factor-C** table, and C is one of four terms. Lane
+/// `w-joint2` closed the whole ladder transiently and read every downstream
+/// joint (`docs/rungs/_2026-08-05-w-joint2.md`, board **#360**):
+///
+/// | writer vocabulary | C | `B∧C` | **`A∧B∧C`** | **`A∧B∧C∧(D∨E)`** | **FRONTIER** | **match** |
+/// |---|---:|---:|---:|---:|---:|---:|
+/// | today, these 10 names | 169 | 151 | **27** | **8** | **19** | **8** |
+/// | `+ .rdata$r` | 590 | 315 | **27** | **8** | **19** | **8** |
+/// | `+ .text$yd` | 804 | 324 | **27** | **8** | **19** | **8** |
+/// | `+ .xdata$x` — C **closed** | **871** | 338 | **27** | **8** | **19** | **8** |
+///
+/// **C moves 169 → 871 and nothing else moves at all.** The reason is one
+/// count: **`A∧B` is 27 and every one of the 27 is already inside C** — zero
+/// TUs on this workload have a reachable emit set and a complete binding *and*
+/// are blocked by a section name. So a section name cannot be any TU's binding
+/// constraint, and `+421` of C is `+0` of everything downstream of it.
+///
+/// Two further counts make it unconditional rather than a snapshot:
+///
+/// * **`|D∨E| = 10`.** A byte-exact obj requires `A∧B∧C∧(D∨E)`, so **TU match
+///   is capped at 10** by the port's codegen class alone, at *every* C, under
+///   *every* emit-set model. Match is 8; the entire non-codegen headroom on
+///   this workload is **2 TUs**.
+/// * **0 of the 676 `.rdata$r` TUs are in `D∨E`, and 0 satisfy `A∧B`.** The
+///   population this section name unlocks is exactly the population the port
+///   has no accepted route to a single function of. The two convertible TUs
+///   (`decomp_pch.cpp`, `vec.cpp`) carry **no** out-of-vocabulary section at
+///   all — both are already inside C and fail only **A**.
+///
+/// So `.rdata$r` is a **reach** rung, not a match rung. `w-reach`'s `+91`
+/// (board #302) is `|{model exact} ∩ B∧C|` and carries no `A` term and no
+/// `D∨E` term; it is real as reach and converts nothing. Anyone pricing this
+/// name against TU match should read `_2026-08-05-w-joint2.md` first.
+///
 /// **`.rdata$r` is MSVC RTTI and is specified in
 /// [`docs/OBJ_RDATA_R_SHAPE.md`](../../../../docs/OBJ_RDATA_R_SHAPE.md)** —
 /// measured on a 22-source hierarchy grid and 38 real workload objs, down to
