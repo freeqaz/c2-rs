@@ -728,7 +728,11 @@ def regen():
     ok = 0
     for src in FRONTIER:
         b = os.path.basename(src)[:-4]
-        o = os.path.join(REF, b + ".obj")
+        # Relative, and `cwd=REPO`: `gt_dump.py` echoes its argv in the dump's
+        # first line, so an absolute path here puts this machine's home directory
+        # into a committed transcript. Everything else in the 19 dumps is
+        # byte-identical across regenerations; this line was the only diff.
+        o = os.path.join("work/w-dclass/ref", b + ".obj")
         r = subprocess.run([os.path.join(REPO, "work/w-frame/refobj.sh"), src, o],
                            cwd=REPO, env=env, capture_output=True, text=True)
         if r.returncode == 3:
@@ -738,13 +742,21 @@ def regen():
             print("FAIL refobj %s: %s%s" % (src, r.stdout, r.stderr))
             sys.exit(1)
         with open(os.path.join(DIS, b + ".txt"), "w") as fh:
-            subprocess.run([sys.executable, os.path.join(REPO, "scripts/gt_dump.py"), o],
+            subprocess.run([sys.executable, "scripts/gt_dump.py", o],
                            cwd=REPO, stdout=fh, stderr=subprocess.STDOUT, check=True)
+        # **Relative paths, deliberately, and `cwd=REPO`.** `cl.exe` under wibo
+        # does not understand a POSIX absolute path — it reports
+        # `D9002 ignoring unknown option '/home/…/src/Main.cpp'` and then
+        # `D8003 missing source filename`, and `c2rs census` correctly surfaces
+        # that as a capture failure. Passing them relative also keeps this
+        # machine's paths out of the committed transcripts (CLAUDE.md forbids
+        # absolute machine paths in the tree), which matters because the
+        # transcripts ARE the reproducibility artefact here.
         with open(os.path.join(CEN, b + ".txt"), "w") as fh:
             subprocess.run([os.path.join(REPO, "target/release/c2rs"), "census",
-                            os.path.join(REPO, "../dc3-decomp", src),
-                            "--flags-file", os.path.join(REPO, "work/dc3-workload/flags.txt"),
-                            "--cwd", os.path.join(REPO, "../dc3-decomp")],
+                            os.path.join("../dc3-decomp", src),
+                            "--flags-file", "work/dc3-workload/flags.txt",
+                            "--cwd", "../dc3-decomp"],
                            cwd=REPO, env=env, stdout=fh, stderr=subprocess.STDOUT, check=True)
         ok += 1
     print("regenerated %d/%d TUs" % (ok, len(FRONTIER)))
