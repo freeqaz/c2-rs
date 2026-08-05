@@ -17,6 +17,7 @@ use crate::codegen::encode::{
     encode_sth,
     encode_stw,
 };
+use crate::codegen::alloc;
 use crate::codegen::schedule;
 use crate::codegen::select::{ARG_REGS, OptMode, SCRATCH_REG, out_of_class};
 use crate::codegen::straightline::emit_load_imm;
@@ -171,6 +172,51 @@ pub fn store_leaf_text(
             return Some(Err(out_of_class(
                 "store run whose schedule is not source order (codegen::schedule)",
             )));
+        }
+        // **The ALLOCATION guard** (`codegen::alloc`, `docs/ALLOC.md`).
+        //
+        // The schedule guard above settles the ORDER; this settles the
+        // REGISTER, which `docs/STORE_SCHEDULE.md` §4 named as the open second
+        // input. Everything below puts every materialised value in
+        // `SCRATCH_REG` (r11). ALLOC confirms that is right for a run with
+        // exactly ONE producer — which is every run the parser admits today,
+        // because `leaf_store.rs` accepts a multi-store literal run only when
+        // every statement stores the same value — and says it is WRONG for a
+        // run with two or more: `{a=1;b=2;}` is `li r11,1 ; li r10,2`, and
+        // `{a=1;b=2;c=1;d=2;}` puts the FIRST value in r10 and the second in
+        // r11.
+        //
+        // So this too is a positive check: build the producer list, ask the
+        // allocator, and refuse unless it says r11 for all of them. Inert
+        // today by construction; the point is that a widening of the parser
+        // cannot silently turn a clean refusal into a wrong register. Board
+        // **#232** is the precedent — a parser widening that became a live
+        // wrong emit and survived 255 commits.
+        if walk.is_empty() && !stmts.is_empty() {
+            let mut producers: Vec<alloc::Producer> = Vec::new();
+            for (i, s) in stmts.iter().enumerate() {
+                if let Some(id) = s.producer {
+                    match producers.iter_mut().find(|p| p.id == id) {
+                        Some(p) => p.uses += 1,
+                        None => producers.push(alloc::Producer {
+                            id,
+                            // every producer the parser admits here is a
+                            // literal, so `li`/`lis`+`ori` — no register read.
+                            kind: alloc::ProducerKind::Constant,
+                            uses: 1,
+                            first: i,
+                        }),
+                    }
+                }
+            }
+            // The pool starts above the live-in formals: `params[0]` is r3, so
+            // the first free register is r(3 + len).
+            let pool_floor = 3u8.saturating_add(func.params.len().min(9) as u8);
+            if !producers.is_empty() && !alloc::all_in(&producers, pool_floor, SCRATCH_REG) {
+                return Some(Err(out_of_class(
+                    "store run whose allocation is not all-r11 (codegen::alloc)",
+                )));
+            }
         }
     }
     if let Some(k) = hoisted_lit {

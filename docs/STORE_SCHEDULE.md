@@ -160,6 +160,41 @@ Predicting *which* register the allocator picks is a separate, open problem —
 `leaf_store.rs` already records four refuted rules for it and this document adds
 no fifth. A caller that cannot show the allocation is clean must refuse.
 
+> ### ✔ SOLVED 2026-08-05 by lane `w-alloc` — see `docs/ALLOC.md`
+>
+> **The allocation is `docs/ALLOC.md` §1** and all four of `leaf_store.rs`'s
+> refuted rules are derived consequences of it: sort the producers by **use
+> count descending**, tie to register-derived before constant, tie within the
+> register-derived by source order and within the constants by **reverse**
+> source order, then hand out r11, r10, r9 … descending. 236/236 on its fit
+> partition, 250/257 on a preregistered holdout with **0 wrong**, 6/6 on the
+> killer cells.
+>
+> **Two corrections to the table above and one to §1, all measured:**
+>
+> 1. **The 184 "conflicted" cells are POOL-PRESSURE cells.** `conflicted()`
+>    detects **register reuse** — in `{a=1;b=2;c=3;d=4}` the fourth `li`
+>    retakes `r11` after `stw r11` frees it. The table's shape (conflicts
+>    starting at two producers, 107 of 110 at four) is partly an **artifact of
+>    this grid's own signature**: `(M* p, M* q, unsigned f0..f5)` puts
+>    `f4`→`r9` and `f5`→`r10` *inside* the pool, so the pool is eaten from
+>    below. **Board #541** — the reuse choice itself is still open.
+> 2. **The pool is not `r11/r10/r9`.** It is the free volatile registers taken
+>    highest-first, reaching `r8`, then registers freed by an emitted store
+>    (`r5`, `r4`, and even `r3`), then `r30`/`r31` with a save/restore.
+>    `r12` is never used — **board #543**.
+> 3. **Rule 2 needs a scope condition** — see **board #542** and
+>    `docs/ALLOC.md` §5. "One producer per store slot" holds only while there
+>    are unproduced stores to slot against: with `u = min(2, #unproduced)` head
+>    slots, producers fill those one apiece and every **remaining** producer is
+>    emitted contiguously before slot `u`. `{a=1;b=2;c=3;}` is `P P P S S S`,
+>    not `P S P S P S`. This grid always had ≥3 formals and ≤3 producers, so it
+>    never ran out of slots. **`schedule.rs` is deliberately unchanged** — on
+>    every shape the parser admits today the refined and shipped rules agree.
+>
+> What remains open is the store **order** when *every* store of the run is
+> produced, a regime this grid never contained — **board #544**.
+
 ---
 
 ## 5. `mr r31,r3` — one fact, n = 1, recorded as a hypothesis
