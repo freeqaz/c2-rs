@@ -58,7 +58,11 @@ a permanent reference into 8,000 lines of prose that will not be rewritten.
 >   `scripts/board_audit.sh` exists to catch.
 >
 > Numbering starts at **#340** by the coordinator's instruction, leaving
-> **#303–#339** free; other lanes were minting concurrently.
+> **#303–#339** free; other lanes were minting concurrently. **Corrected on the
+> merge: `#319`–`#323` are NOT free** — lane `w-fuzzy` was told to start at #320
+> and took **#319–#323** on the same day. The free gaps are `#303`–`#318` and
+> `#324`–`#339`. This is the reserved-range collision this block exists to
+> prevent, caught by two lanes rebasing rather than by anything automatic.
 
 **Next free number: `#356`.** The sequence is sparse — 1–4, 6–13, 16–18, 20–34,
 36–42, 45, 49–51, 54–61, 63–91, 93–102, 104–109, 111–117, 123–126, 129–130, 147
