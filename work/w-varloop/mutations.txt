@@ -1,0 +1,47 @@
+=== building the INTACT tree
+    intact  grids [A B C D]  pass 43  fail 0  wrong-bytes 0  red []
+    intact  grids [A F]  pass 15  fail 0  wrong-bytes 0  red []
+
+=== M1 — one more chain word before the load   (crates/c2-core/src/codegen/ptr_walk_chain_loop.rs)
+    intact pass 43 fail 0   ->   mutated pass 0 fail 43
+    of the 43 red, 36 are WRONG BYTES (mismatch) and 7 a refusal
+    turned red: ['a-len1', 'a-len2', 'a-len3', 'a-len4', 'a-len5', 'a-len6', 'a-len7', 'a-len8', 'a-len9', 'a-len10', 'b-mul-lit', 'b-mul-127', 'b-or-lit', 'b-xor-lit', 'b-add-neg', 'b-char-add', 'b-char-xor', 'b-char-or', 'b-char-mul', 'b-char-every', 'b-xor-ffff', 'b-add-32767', 'c-last2', 'c-last3', 'c-last4', 'c-last5', 'c-last6', 'c-last7', 'c-last8', 'c-mid3', 'c-mid4', 'c-mid5', 'c-mid6', 'd-u-1', 'd-u-2', 'd-u-3', 'd-u-4', 'd-u-6', 'd-u-last', 'd-k0-1234', 'd-k0-neg', 'd-k0-max', 'd-k0-4']
+
+=== M2 — the record slot's load-use distance 2 becomes 3   (crates/c2-core/src/codegen/ptr_walk_chain_loop.rs)
+    intact pass 43 fail 0   ->   mutated pass 18 fail 25
+    of the 25 red, 18 are WRONG BYTES (mismatch) and 7 a refusal
+    turned red: ['a-len1', 'a-len2', 'a-len3', 'b-mul-lit', 'b-mul-127', 'b-or-lit', 'b-xor-lit', 'b-add-neg', 'b-char-add', 'b-char-xor', 'b-char-or', 'b-char-mul', 'b-xor-ffff', 'b-add-32767', 'c-last2', 'c-mid3', 'c-mid4', 'c-mid5', 'c-mid6', 'd-u-1', 'd-u-2', 'd-u-3', 'd-k0-1234', 'd-k0-neg', 'd-k0-max']
+
+=== M3 — the regime threshold M>=4 becomes M>=3   (crates/c2-il/src/func/mod.rs)
+    intact pass 43 fail 0   ->   mutated pass 39 fail 4
+    of the 4 red, 4 are WRONG BYTES (mismatch) and 0 a refusal
+    turned red: ['a-len3', 'b-mul-lit', 'b-or-lit', 'd-u-3']
+
+=== M4 — T1 and T2 exchanged   (crates/c2-core/src/codegen/ptr_walk_chain_loop.rs)
+    intact pass 43 fail 0   ->   mutated pass 13 fail 30
+    of the 30 red, 30 are WRONG BYTES (mismatch) and 0 a refusal
+    turned red: ['a-len2', 'a-len3', 'b-mul-lit', 'b-mul-127', 'b-or-lit', 'b-xor-lit', 'b-add-neg', 'b-char-xor', 'b-char-or', 'b-char-mul', 'b-char-every', 'b-xor-ffff', 'b-add-32767', 'c-last2', 'c-last3', 'c-last4', 'c-last5', 'c-last6', 'c-last7', 'c-last8', 'c-mid3', 'c-mid4', 'c-mid5', 'c-mid6', 'd-u-2', 'd-u-3', 'd-u-last', 'd-k0-1234', 'd-k0-neg', 'd-k0-max']
+
+=== M5 — the commutative operand order reversed   (crates/c2-core/src/codegen/ptr_walk_chain_loop.rs)
+    intact pass 43 fail 0   ->   mutated pass 0 fail 43
+    of the 43 red, 43 are WRONG BYTES (mismatch) and 0 a refusal
+    turned red: ['a-len1', 'a-len2', 'a-len3', 'a-len4', 'a-len5', 'a-len6', 'a-len7', 'a-len8', 'a-len9', 'a-len10', 'b-mul-lit', 'b-mul-127', 'b-or-lit', 'b-xor-lit', 'b-add-neg', 'b-char-add', 'b-char-xor', 'b-char-or', 'b-char-mul', 'b-char-every', 'b-xor-ffff', 'b-add-32767', 'c-last2', 'c-last3', 'c-last4', 'c-last5', 'c-last6', 'c-last7', 'c-last8', 'c-mid3', 'c-mid4', 'c-mid5', 'c-mid6', 'd-u-1', 'd-u-2', 'd-u-3', 'd-u-4', 'd-u-6', 'd-u-last', 'd-k0-1234', 'd-k0-neg', 'd-k0-max', 'd-k0-4']
+
+=== M6 — the body length fixed at the first loop's M   (crates/c2-core/src/lib.rs)
+    intact pass 15 fail 0   ->   mutated pass 11 fail 4
+    of the 4 red, 4 are WRONG BYTES (mismatch) and 0 a refusal
+    turned red: ['f-1-3', 'f-2-6', 'f-3-8', 'f-4-1']
+
+====================================================================
+tree restored: YES
+
+| mutation | what | grids | intact | mutated | of the red, wrong BYTES |
+|---|---|---|---:|---:|---:|
+| M1 | one more chain word before the load | A B C D | 43/43 | 0/43 | 36 |
+| M2 | the record slot's load-use distance 2 becomes 3 | A B C D | 43/43 | 18/43 | 18 |
+| M3 | the regime threshold M>=4 becomes M>=3 | A B C D | 43/43 | 39/43 | 4 |
+| M4 | T1 and T2 exchanged | A B C D | 43/43 | 13/43 | 30 |
+| M5 | the commutative operand order reversed | A B C D | 43/43 | 0/43 | 43 |
+| M6 | the body length fixed at the first loop's M | A F | 15/15 | 11/15 | 4 |
+
+SURVIVED ITS OWN MUTATION (a rate that does is measuring nothing): none

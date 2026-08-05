@@ -938,6 +938,29 @@ mod tests {
         assert_eq!(encode_mullw(3, 11, 5), [0x7C, 0x6B, 0x29, 0xD6]);
     }
 
+    /// `bclr` and `extsb.` against the words real `c2` emits for a signed
+    /// sentinel walk (`work/w-varloop/probe.py`, every TWO-regime cell).
+    ///
+    /// **`blr` is `bclr` at `BO_ALWAYS`, `BI = 0`** — asserted rather than
+    /// asserted-in-prose, because [`encode_blr`] is a hard-coded constant and
+    /// [`encode_bclr`] is computed, and two spellings of one instruction that
+    /// nothing compares are two chances to be wrong about it.
+    #[test]
+    fn encode_bclr_and_extsb_record_match_reference_words() {
+        assert_eq!(encode_bclr(BO_TRUE, cr_bi(0, CR_BIT_EQ)), [0x4D, 0x82, 0x00, 0x20]);
+        assert_eq!(encode_bclr(BO_ALWAYS, 0), encode_blr());
+        // `extsb. r11,r11` (the entry test) and `extsb. r11,r9` (the record
+        // form) — the two spellings the loop emits, and the Rc bit is the whole
+        // difference from `encode_extsb`.
+        assert_eq!(encode_extsb_record(11, 11), [0x7D, 0x6B, 0x07, 0x75]);
+        assert_eq!(encode_extsb_record(11, 9), [0x7D, 0x2B, 0x07, 0x75]);
+        assert_eq!(u32::from_be_bytes(encode_extsb(11, 11)) | 1,
+                   u32::from_be_bytes(encode_extsb_record(11, 11)));
+        // The record form writes cr0 and the plain form does not: a branch may
+        // read the CR after one and not the other (board #188).
+        assert_eq!(u32::from_be_bytes(encode_extsb(11, 11)) & 1, 0);
+    }
+
     #[test]
     fn encode_subf_matches_reference_words() {
         // a-b-c → subf r11,r4,r3 ; subf r3,r5,r11 (rA = subtrahend).
