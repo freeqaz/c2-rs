@@ -149,3 +149,51 @@ guard's compare *positionally* must survive a producer that is not contiguous.
   `leaf_store.rs`'s four) and w-hash declined an eleventh.
 * **`fnbyte-differs` is 0 and must stay 0.** If it moves, a wrong emit shipped.
 * The metric block is regenerated only if TU match moves.
+
+---
+
+## 6. ADDENDUM — registered after Grid A, **before Grid C exists**
+
+Grid A (32 cells) and Grid B (10 cells) are run and committed at `36ca54f`.
+They produced **two JUMPIN cells out of 42**, and a rule fitted to two cells is
+exactly what this project forbids. So the candidate discriminator for L4 is
+registered here, with its rival, and Grid C is written **after** this paragraph
+is committed.
+
+**H-EXIT (the candidate L4 rule).** c2 **duplicates** the loop test — the
+rotation proper, bucket GUARD/GUARDRET — **iff the loop produces a value the
+exit block consumes.** When the loop produces nothing the exit uses, c2 emits
+the test **once** at the bottom and enters it with an unconditional `b`
+(bucket JUMPIN), which is the IL's own `3A Ltest` surviving.
+
+It fits all 42 cells graded so far: `exit-const` (`return 7`, the accumulator
+dead) and `exit-void` (nothing returned at all) are the two JUMPIN cells, and
+every rotated cell has an exit block reading a register the loop wrote.
+
+**R-H-EXIT**, the named rival: the discriminator is **size** — c2 picks
+whichever form is shorter. This is already in trouble and is registered anyway
+so the refutation is on the page: `b-add` rotates at **10 words** where the
+JUMPIN form of the same loop would be **9**, so c2 chose the longer form. If
+R-H-EXIT nonetheless wins on Grid C, H-EXIT is dead and L4 stays open.
+
+**Per-cell predictions are registered in the grid source itself**, as a column
+the script grades — `n of m`, printed, with a cell the classifier could not
+place counted as a miss and never as a skip.
+
+**And a second registered claim, from Grid B, which is the one that decides
+World A vs World B.** P8 **lost** as I wanted: over 10 accumulate bodies with
+the signature held fixed, the `(entry, tail)` plan is **byte-identical** — one
+distinct plan over ten cells, with the body length moving 10 → 12 words. So the
+register allocation is *not* what blocks a body-parameterized lowering of this
+family. What moves instead is the **SCHEDULE**: the loop-carried `lbzu` and the
+record-form test are interleaved *into* the accumulate chain at positions that
+change with the chain's length (`lbzu` at slot 0 for a 1- and 2-op body, slot 1
+for a 3-op body; the record form always exactly 2 slots after it).
+
+**S1, registered now:** that interleave is a **fourth mechanism**, distinct from
+w-hash's three — it is not rotation, not peeling, and not allocation (the
+registers are stable across all ten cells; only the order moves). If S1 holds,
+the honest outcome of this lane is World B plus a named fourth mechanism, and I
+will **not** widen the class by fitting the interleave to three cells.
+**R-S1:** the interleave is a stateable function of the chain length over a
+grid, in which case it is a rule and World A is open.
