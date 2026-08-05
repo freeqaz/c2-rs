@@ -1,0 +1,80 @@
+== anchor               ?ganchor@@YAXPAUSanchor@@HH@Z
+    0  li 10, 0
+    1  addi 11, 3, 40
+    2  stw 10, 0(3)
+    3  stw 11, 40(3)
+    4  stw 11, 44(3)
+    5  blr
+
+== diff-reg1-const2     ?gdiff_reg1_const2@@YAXPAUSdiff_reg1_const2@@HH@Z
+    0  li 10, 7
+    1  addi 11, 3, 40
+    2  stw 10, 0(3)
+    3  stw 10, 4(3)
+    4  stw 11, 40(3)
+    5  blr
+
+== diff-reg1-const3     ?gdiff_reg1_const3@@YAXPAUSdiff_reg1_const3@@HH@Z
+    0  li 11, 7
+    1  addi 10, 3, 40
+    2  stw 11, 0(3)
+    3  stw 11, 4(3)
+    4  stw 11, 8(3)
+    5  stw 10, 40(3)
+    6  blr
+
+== diff-reg2-const1     ?gdiff_reg2_const1@@YAXPAUSdiff_reg2_const1@@HH@Z
+    0  li 10, 7
+    1  addi 11, 3, 40
+    2  stw 10, 0(3)
+    3  stw 11, 40(3)
+    4  stw 11, 44(3)
+    5  blr
+
+== diff-reg3-const1     ?gdiff_reg3_const1@@YAXPAUSdiff_reg3_const1@@HH@Z
+    0  li 10, 7
+    1  addi 11, 3, 40
+    2  stw 10, 0(3)
+    3  stw 11, 40(3)
+    4  stw 11, 44(3)
+    5  stw 11, 8(3)
+    6  blr
+
+== pure-const           ?gpure_const@@YAXPAUSpure_const@@HH@Z
+    0  li 11, 7
+    1  li 10, 9
+    2  stw 11, 0(3)
+    3  stw 10, 4(3)
+    4  blr
+
+== pure-reg             ?gpure_reg@@YAXPAUSpure_reg@@HH@Z
+    0  addi 11, 3, 40
+    1  addi 10, 11, 4
+    2  stw 11, 40(3)
+    3  stw 10, 0(3)
+    4  blr
+
+== tie-1-1              ?gtie_1_1@@YAXPAUStie_1_1@@HH@Z
+    0  li 10, 7
+    1  addi 11, 3, 40
+    2  stw 10, 0(3)
+    3  stw 11, 40(3)
+    4  blr
+
+== tie-1-1-swapped      ?gtie_1_1_swapped@@YAXPAUStie_1_1_swapped@@HH@Z
+    0  addi 11, 3, 40
+    1  li 10, 7
+    2  stw 11, 40(3)
+    3  stw 10, 0(3)
+    4  blr
+
+== tie-2-2              ?gtie_2_2@@YAXPAUStie_2_2@@HH@Z
+    0  li 10, 7
+    1  addi 11, 3, 40
+    2  stw 10, 0(3)
+    3  stw 10, 4(3)
+    4  stw 11, 40(3)
+    5  stw 11, 44(3)
+    6  blr
+
+graded 10 of 10
