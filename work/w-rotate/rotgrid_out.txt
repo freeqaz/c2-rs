@@ -1,4 +1,4 @@
-mode: /O1 /GS- /c   workdir: /home/free/tmp/wrot7r702lv8
+mode: /O1 /GS- /c   workdir: /home/free/tmp/wrot31rbxg_s
 
 == GRID A -- the entry form (L4) ==
 cell                bucket   pred    P2    P3  peel   words  note
@@ -37,6 +37,7 @@ inf-call              NONE  GUARD     -     -   yes       8  P7: an infinite loo
 
   reached 32  graded 32  (a cell that did not capture is a FAILURE, not a zero)
   buckets: GUARD=10  GUARDRET=11  JUMPIN=2  NOLOOP=3  NONE=5  SELFLOOP=1
+  P7 back edges: 28 loop-bearing cells, 1 UNCONDITIONAL back edges, 1 self-loops (`b .+0`, own bucket)
   P2 (guard form == exit-block predictor): 21 of 21 rotated cells
   P3 (one condition, two sites):           5 of 11 comparable cells
 
@@ -55,6 +56,7 @@ b-cond            GUARDRET GUARDRET    OK    OK   yes      11  an extra constant
 
   reached 10  graded 10  (a cell that did not capture is a FAILURE, not a zero)
   buckets: GUARDRET=10
+  P7 back edges: 10 loop-bearing cells, 0 UNCONDITIONAL back edges, 0 self-loops (`b .+0`, own bucket)
   P2 (guard form == exit-block predictor): 10 of 10 rotated cells
   P3 (one condition, two sites):           10 of 10 comparable cells
 
@@ -100,6 +102,7 @@ c-call-count         GUARD  GUARD    OK  MISS   yes      20  a counted call loop
 
   reached 18  graded 18  (a cell that did not capture is a FAILURE, not a zero)
   buckets: GUARD=3  GUARDRET=3  JUMPIN=11  NOLOOP=1
+  P7 back edges: 17 loop-bearing cells, 0 UNCONDITIONAL back edges, 0 self-loops (`b .+0`, own bucket)
   P2 (guard form == exit-block predictor): 6 of 6 rotated cells
   P3 (one condition, two sites):           4 of 5 comparable cells
 
@@ -144,6 +147,7 @@ d-void-store        JUMPIN GUARDRET     -     -   yes       9  a store in the bo
 
   reached 12  graded 12  (a cell that did not capture is a FAILURE, not a zero)
   buckets: GUARD=1  GUARDRET=5  JUMPIN=6
+  P7 back edges: 12 loop-bearing cells, 0 UNCONDITIONAL back edges, 0 self-loops (`b .+0`, own bucket)
   P2 (guard form == exit-block predictor): 6 of 6 rotated cells
   P3 (one condition, two sites):           6 of 6 comparable cells
 
@@ -160,6 +164,7 @@ e-uns-ne            JUMPIN GUARDRET     -     -   yes      10  unsigned AND a no
 
   reached 8  graded 8  (a cell that did not capture is a FAILURE, not a zero)
   buckets: GUARDRET=3  JUMPIN=5
+  P7 back edges: 8 loop-bearing cells, 0 UNCONDITIONAL back edges, 0 self-loops (`b .+0`, own bucket)
   P2 (guard form == exit-block predictor): 3 of 3 rotated cells
   P3 (one condition, two sites):           3 of 3 comparable cells
 
