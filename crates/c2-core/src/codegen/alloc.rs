@@ -47,9 +47,12 @@
 //!   probed four-producer runs with identical statement structure **disagree**
 //!   (`li`-valued reuses `r11`; `addi`-valued takes a fresh `r8`). That is
 //!   board #541 and it is open.
-//! * **A run mixing constant and register-derived producers.** Clause 2 is
-//!   measured only on the supplementary probe, never on the held-out
-//!   partition, so it is not shipped.
+//! * **A run mixing constant and register-derived producers.** This refusal is
+//!   **load-bearing, and clause 2 is REFUTED on the mixed run** — see
+//!   "Clause 2 is refuted" below. It used to read *"clause 2 is measured only
+//!   on the supplementary probe, never on the held-out partition, so it is not
+//!   shipped"*, which understated it: the clause is not merely untested, it is
+//!   wrong.
 //! * **A pool too small to serve the run.** Once the volatiles run out c2
 //!   descends into registers freed by already-emitted stores — including `r4`
 //!   and even `r3`, the base pointer itself — and then into `r30`/`r31` with a
@@ -67,6 +70,53 @@
 //! `docs/rungs/_2026-08-05-w-alloc-prereg.md` §6 **before** the grid was
 //! generated, written by the generator into a file the fitter refuses to open,
 //! and scored only after this rule was frozen at commit `8973ffc`.
+//!
+//! # Clause 2 is REFUTED, and three of the four clauses are unreachable
+//!
+//! **Board #836.** Lane `w-next` measured 24 mixed-kind cells and fitted a
+//! single key — *`uses + (register-derived ? 1 : 0)`, descending* — with 0
+//! misses, and deliberately left it unshipped. Lane `w-alloc2` took it to a
+//! **fresh** holdout (`work/w-alloc2/freshgrid.py`, 60 cells / 56 graded) and
+//! **refuted it on 7**. All 24 fitted cells spell the register-derived producer
+//! the same way, `(int)&q`, and the bonus is a property of that spelling rather
+//! than of the kind:
+//!
+//! ```text
+//!   addi rX,3,K   (&s->inner, stored INTO s->inner)   1 use   BEATS   li 1 use
+//!   add  rX,4,5   (u + v)                             1 use   loses to li 1 use
+//!   addi rX,4,5   (u + 5)                             1 use   loses to li 1 use
+//!   slwi rX,4,3   (u << 3)                            1 use   loses to li 1 use
+//! ```
+//!
+//! The emitted instruction ORDER is identical in the deciding pair, so this is
+//! allocation and not [`super::schedule`]. So **clause 2 as written above — "on
+//! a tie, register-derived producers before constant ones" — is false**:
+//! `B-notself-1v1` is a register-derived producer at 1 use losing a tie to a
+//! constant at 1 use.
+//!
+//! Over 81 mixed cells graded against real `c2.dll`
+//! (`work/w-alloc2/mutate.py`): clause 1 alone is wrong on **29**, clause 2
+//! alone on **35**, w-next's key on **20**, and **this module's refusal on 0**,
+//! because a refusal is never wrong. That is the whole argument for the refusal
+//! staying.
+//!
+//! **The surviving candidate is not shipped either.** `H-self` — the bonus is
+//! worth ~1.5 uses and attaches to a producer whose value is stored *into the
+//! object it points at* — is wrong on **1** of the 81, and it is **fitted on
+//! the cells that produced it**, which is exactly where w-next's key stood
+//! before its fresh holdout killed it. Its one miss, `F4-shift-r2k1`, sits on a
+//! third axis nobody has modelled: `work/w-alloc2/bisect.py` shows the C++
+//! reference binding `L& q = s->inner;` moves both the schedule and the
+//! allocation, and **all 24 of w-next's cells carry it and none varies it**.
+//!
+//! **And clauses 2, 3 and 4-for-register-derived are unreachable from the
+//! emitter today**, which is why none of this moves a byte:
+//! `super::super::leaf::store` builds every [`Producer`] with
+//! [`ProducerKind::Constant`], hard-coded, because a store's value there is
+//! either a literal or a formal already live in a register. Only clause 1 and
+//! clause 4 ever execute. A lane that widens the parser to admit an interior
+//! address as a store value makes the mixed run reachable and inherits every
+//! paragraph above.
 
 /// How a producer's value is materialised. The distinction is read off the IL,
 /// never off the answer.
@@ -116,8 +166,11 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
     if producers.iter().any(|p| p.kind == ProducerKind::Multiply) {
         return None;
     }
-    // Clause 2 is supplementary-probe evidence only and was never held out, so
-    // a mixed run refuses rather than guessing. See the module docs.
+    // **A mixed run refuses, and clause 2 is REFUTED rather than merely
+    // untested** (board #836). Over 81 mixed cells graded against real `c2`,
+    // clause 1 alone is wrong on 29 and clause 2 alone on 35; this refusal is
+    // wrong on 0. `the_mixed_refusal_covers_the_measured_refutations` below
+    // pins the seven cells any future mixed rule has to reproduce.
     let constant = producers[0].kind == ProducerKind::Constant;
     if producers
         .iter()
@@ -316,6 +369,87 @@ mod tests {
         ];
         assert_eq!(allocate(&mixed, 4), None);
         assert_eq!(allocate(&[], 4), None);
+    }
+
+    /// **The seven cells any future mixed-kind rule has to reproduce.**
+    ///
+    /// Board **#836**. Each row is a mixed run measured against real `c2.dll`
+    /// at the workload's own flags (`work/w-alloc2/freshgrid.py`,
+    /// `opgrid.py`), and each is a cell where the obvious rule emits the WRONG
+    /// register rather than a refusal:
+    ///
+    /// ```text
+    ///   cell              producer            uses  c2 gives r11 to
+    ///   F4-add-r1k1       add  rX,4,5   (u+v)  1/1   the CONSTANT
+    ///   F4-add-r1k2       add  rX,4,5          1/2   the CONSTANT
+    ///   F4-addi-r1k1      addi rX,4,5   (u+5)  1/1   the CONSTANT
+    ///   F4-addi-r1k2      addi rX,4,5          1/2   the CONSTANT
+    ///   F4-shift-r1k1     slwi rX,4,3   (u<<3) 1/1   the CONSTANT
+    ///   F4-shift-r1k2     slwi rX,4,3          1/2   the CONSTANT
+    ///   F4-shift-r2k1     slwi rX,4,3          2/1   the CONSTANT  <- clause 1 too
+    /// ```
+    ///
+    /// w-next's key (`uses + register-derived ? 1 : 0`) says the
+    /// register-derived producer takes `r11` in all seven. **Shipping it would
+    /// have produced wrong bytes, not a refusal** — which is why the refusal
+    /// below is the shipped answer.
+    ///
+    /// This test fails the moment [`allocate`] answers a mixed run, so a lane
+    /// that ships one has to come here and state what it measured.
+    #[test]
+    fn the_mixed_refusal_covers_the_measured_refutations() {
+        // (register-derived uses, constant uses) for the seven cells above.
+        for &(ru, cu) in &[(1, 1), (1, 2), (1, 1), (1, 2), (1, 1), (1, 2), (2, 1)] {
+            let mixed = vec![
+                Producer {
+                    id: 0,
+                    kind: ProducerKind::Constant,
+                    uses: cu,
+                    first: 0,
+                },
+                Producer {
+                    id: 1,
+                    kind: ProducerKind::RegisterDerived,
+                    uses: ru,
+                    first: 1,
+                },
+            ];
+            assert_eq!(
+                allocate(&mixed, 4),
+                None,
+                "a mixed run at (reg {ru}, const {cu}) must REFUSE: real c2 \
+                 gives r11 to the constant here, and every fitted rule gives \
+                 it to the register-derived producer"
+            );
+            // …and the guard the emitters actually call must decline too.
+            assert!(!all_in(&mixed, 4, 11));
+        }
+    }
+
+    /// Three of the four clauses are unreachable from the emitter, and this
+    /// pins the reason rather than leaving it to prose: a pure-constant run —
+    /// the only kind `leaf::store` can build — never consults clause 2 or
+    /// clause 3, so widening the parser is what makes them live.
+    #[test]
+    fn a_pure_constant_run_is_the_only_kind_the_emitter_can_build() {
+        // Same use counts, both kinds. The pure runs answer; the mix refuses.
+        assert!(allocate(&run("0011", ProducerKind::Constant), 4).is_some());
+        assert!(allocate(&run("0011", ProducerKind::RegisterDerived), 4).is_some());
+        let mixed = vec![
+            Producer {
+                id: 0,
+                kind: ProducerKind::Constant,
+                uses: 2,
+                first: 0,
+            },
+            Producer {
+                id: 1,
+                kind: ProducerKind::RegisterDerived,
+                uses: 2,
+                first: 1,
+            },
+        ];
+        assert_eq!(allocate(&mixed, 4), None);
     }
 
     /// The guard the store emitters call. One producer is r11 — which is what
