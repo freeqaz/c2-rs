@@ -1,0 +1,77 @@
+== work/w-dclass/ref/IPP_basicmath_xbox.obj  machine=0x01f2 nsec=8 nsym=24 size=1421
+-- sections
+   1 .drectve   raw=132    rawptr=0x0154 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=152    rawptr=0x01d8 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0270 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0280 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=48     rawptr=0x0290 rel=0  relptr=0x0000 chars=0x60401020
+   6 .text      raw=36     rawptr=0x02c0 rel=0  relptr=0x0000 chars=0x60401020
+   7 .text      raw=48     rawptr=0x02e4 rel=0  relptr=0x0000 chars=0x60401020
+   8 .text      raw=52     rawptr=0x0314 rel=0  relptr=0x0000 chars=0x60401020
+-- .text #5 (48 B) ?Add_InPlace@IPP@@YAXIPBMPAM@Z
+   0000  7cab2b78  mr	11, 5                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7c0a5c2e  lfsx 0, 10, 11                  
+   0018  c1ab0000  lfs 13, 0(11)                   
+   001c  ec00682a  fadds 0, 0, 13                  
+   0020  d00b0000  stfs 0, 0(11)                   
+   0024  396b0004  addi 11, 11, 4                  
+   0028  4200ffec  bdnz .-20                       
+   002c  4e800020  blr                             
+-- .text #6 (36 B) ?MulConstant_InPlace@IPP@@YAXIPAMM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  3964fffc  addi 11, 4, -4                  
+   000c  7c6903a6  mtctr 3                         
+   0010  c00b0004  lfs 0, 4(11)                    
+   0014  ec000072  fmuls 0, 0, 1                   
+   0018  d40b0004  stfsu 0, 4(11)                  
+   001c  4200fff4  bdnz .-12                       
+   0020  4e800020  blr                             
+-- .text #7 (48 B) ?Mul_InPlace@IPP@@YAXIPBMPAM@Z
+   0000  7cab2b78  mr	11, 5                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7c0a5c2e  lfsx 0, 10, 11                  
+   0018  c1ab0000  lfs 13, 0(11)                   
+   001c  ec000372  fmuls 0, 0, 13                  
+   0020  d00b0000  stfs 0, 0(11)                   
+   0024  396b0004  addi 11, 11, 4                  
+   0028  4200ffec  bdnz .-20                       
+   002c  4e800020  blr                             
+-- .text #8 (52 B) ?Mul@IPP@@YAXIPBM0PAM@Z
+   0000  2b030000  cmplwi 6, 3, 0                  
+   0004  4d9a0020  bclr	12, 26                     
+   0008  7cab2b78  mr	11, 5                        
+   000c  7c6903a6  mtctr 3                         
+   0010  7d452050  sub	10, 4, 5                    
+   0014  7d253050  sub	9, 6, 5                     
+   0018  7c0a5c2e  lfsx 0, 10, 11                  
+   001c  c1ab0000  lfs 13, 0(11)                   
+   0020  ec000372  fmuls 0, 0, 13                  
+   0024  7c095d2e  stfsx 0, 9, 11                  
+   0028  396b0004  addi 11, 11, 4                  
+   002c  4200ffec  bdnz .-20                       
+   0030  4e800020  blr                             
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=152 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=48 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?Add_InPlace@IPP@@YAXIPBMPAM@Z           sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] _fltused                                 sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [15] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=36 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [17] ?MulConstant_InPlace@IPP@@YAXIPAMM@Z     sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [18] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=48 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [20] ?Mul_InPlace@IPP@@YAXIPBMPAM@Z           sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [21] .text                                    sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=52 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [23] ?Mul@IPP@@YAXIPBM0PAM@Z                  sec=8   val=0x0      sc=EXTERNAL  type=0x0020 naux=0

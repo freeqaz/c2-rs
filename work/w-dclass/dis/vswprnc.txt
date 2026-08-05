@@ -1,0 +1,69 @@
+== work/w-dclass/ref/vswprnc.obj  machine=0x01f2 nsec=6 nsym=23 size=1330
+-- sections
+   1 .drectve   raw=132    rawptr=0x0104 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=140    rawptr=0x0188 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0214 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0224 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=156    rawptr=0x0234 rel=8  relptr=0x02d0 chars=0x60401020
+   6 .pdata     raw=8      rawptr=0x0320 rel=1  relptr=0x0328 chars=0x40401040
+-- .text #5 (156 B) _vswprintf_s_l
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbe1fff0  std 31, -16(1)                  
+   000c  9421ffa0  stwu 1, -96(1)                  
+   0010  7c7f1b78  mr	31, 3                        
+   0014  7d094378  mr	9, 8                         
+   0018  2b050000  cmplwi 6, 5, 0                  
+   001c  419a0058  bt	26, .+88                     
+   0020  2b030000  cmplwi 6, 3, 0                  
+   0024  419a0050  bt	26, .+80                     
+   0028  2b040000  cmplwi 6, 4, 0                  
+   002c  419a0048  bt	26, .+72                     
+   0030  7ce83b78  mr	8, 7                         
+   0034  7cc73378  mr	7, 6                         
+   0038  3d600000  lis 11, 0                         ; REFHI -> [18] _woutput_s_l  ; PAIR -> [0] @comp.id
+   003c  7ca62b78  mr	6, 5                         
+   0040  7c852378  mr	5, 4                         
+   0044  7c641b78  mr	4, 3                         
+   0048  386b0000  addi 3, 11, 0                     ; REFLO -> [18] _woutput_s_l  ; PAIR -> [0] @comp.id
+   004c  4bffffb5  bl .-76                           ; REL24 -> [17] _vswprintf_helper
+   0050  2c030000  cmpwi	3, 0                      
+   0054  4080000c  bf	0, .+12                      
+   0058  39600000  li 11, 0                        
+   005c  b17f0000  sth 11, 0(31)                   
+   0060  2f03fffe  cmpwi 6, 3, -2                  
+   0064  409a0024  bf	26, .+36                     
+   0068  4bffff99  bl .-104                          ; REL24 -> [16] _errno
+   006c  39600022  li 11, 34                       
+   0070  4800000c  b .+12                          
+   0074  4bffff8d  bl .-116                          ; REL24 -> [16] _errno
+   0078  39600016  li 11, 22                       
+   007c  91630000  stw 11, 0(3)                    
+   0080  4bffff81  bl .-128                          ; REL24 -> [15] _invalid_parameter_noinfo
+   0084  3860ffff  li 3, -1                        
+   0088  38210060  addi 1, 1, 96                   
+   008c  8181fff8  lwz 12, -8(1)                   
+   0090  7d8803a6  mtlr 12                         
+   0094  ebe1fff0  ld 31, -16(1)                   
+   0098  4e800020  blr                             
+-- .pdata #6 raw
+   0000  00 00 00 00 40 00 27 04
+   reloc va=0x0 ADDR32   -> [13] _vswprintf_s_l
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=140 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=156 nrel=8 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] _vswprintf_s_l                           sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] $M2904                                   sec=5   val=0x9c     sc=LABEL     type=0x0000 naux=0
+  [15] _invalid_parameter_noinfo                sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [16] _errno                                   sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [17] _vswprintf_helper                        sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [18] _woutput_s_l                             sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [19] $M2903                                   sec=5   val=0x10     sc=LABEL     type=0x0000 naux=0
+  [20] .pdata                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x46bc2e41 num=5 sel=5)
+  [22] $T2905                                   sec=6   val=0x0      sc=STATIC    type=0x0000 naux=0

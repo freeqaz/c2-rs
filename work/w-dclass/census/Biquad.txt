@@ -1,0 +1,16 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/system/synth_xbox/Biquad.cpp -> 0/2 functions in class
+  [  0] GAP expr-cmp-eq              cf-expr-0x05               eh-unknown  (eh-unknown  )    838 B  (unnamed)
+  [  1] GAP expr-call-in-expr-recv-load-then-plumbing-0x3A cflow-straight             eh-none     (eh-none     )    162 B  (unnamed)
+  blocking features (">" marks the byte that blocked the parse):
+         1 x expr-call-in-expr-recv-load-then-plumbing-0x3A
+             81 20 99 86 43 84 20 00 46 2d f5 09 4c 4f 11 53 >26< e8 09 b9 f7 09 a6 43 81 20 2c a6 43 81 20 00 99 86 43 84 20 00 bd 82
+         1 x expr-cmp-eq
+             01 06 53 b9 ef 09 86 43 c0 08 33 86 43 c0 08 00 >1f< 38 f3 09 53 53 4f 01 07 b9 f1 09 a6 43 81 20 33 86 41 74 00 27 a6 43
+  control-flow class (decode-only): 1/2 bodies decoded end to end
+         1 x cf-expr-0x05
+         1 x cflow-straight
+  EH class (maxState, decode-only): 0/2 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
+         1 x eh-unknown

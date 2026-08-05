@@ -1,0 +1,11 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/xdk/xjson/jsonwriter.cpp -> 0/1 functions in class
+  [  0] GAP expr-brfalse             cflow-loop                 eh-none     (eh-none     )   1349 B  ?GetBuffer@JsonWriter@@QAAJPAGPAK@Z
+  blocking features (">" marks the byte that blocked the parse):
+         1 x expr-brfalse
+             32 86 42 22 4b 4f 01 0c 53 b9 f1 09 86 43 a2 08 >38< f7 09 b9 f0 09 86 43 a1 08 39 f6 09 b9 f1 09 86 43 a2 08 30 86 42 22
+  control-flow class (decode-only): 1/1 bodies decoded end to end
+         1 x cflow-loop
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none

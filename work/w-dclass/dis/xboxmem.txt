@@ -1,0 +1,69 @@
+== work/w-dclass/ref/xboxmem.obj  machine=0x01f2 nsec=8 nsym=29 size=1569
+-- sections
+   1 .drectve   raw=132    rawptr=0x0154 rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=140    rawptr=0x01d8 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0264 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0274 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .text      raw=24     rawptr=0x0284 rel=0  relptr=0x0000 chars=0x60401020
+   6 .text      raw=36     rawptr=0x029c rel=2  relptr=0x02c0 chars=0x60401020
+   7 .text      raw=36     rawptr=0x02d4 rel=2  relptr=0x02f8 chars=0x60401020
+   8 .text      raw=36     rawptr=0x030c rel=2  relptr=0x0330 chars=0x60401020
+-- .text #5 (24 B) ?GetXAllocAttributes@NUISPEECH@@YAKH@Z
+   0000  3163ffff  addic 11, 3, -1                 
+   0004  3d40249b  lis 10, 9371                    
+   0008  7d6b1910  subfe 11, 11, 3                 
+   000c  516af002  rlwimi 10, 11, 30, 0, 1         
+   0010  7d435378  mr	3, 10                        
+   0014  4e800020  blr                             
+-- .text #6 (36 B) ?MemAlloc@NUISPEECH@@YAPAXPAXKK@Z
+   0000  7c8b2378  mr	11, 4                        
+   0004  7ca42b78  mr	4, 5                         
+   0008  2b030000  cmplwi 6, 3, 0                  
+   000c  409a000c  bf	26, .+12                     
+   0010  7d635b78  mr	3, 11                        
+   0014  4bffffec  b .-20                            ; REL24 -> [18] XMemAlloc
+   0018  7d655b78  mr	5, 11                        
+   001c  54842f38  rlwinm 4, 4, 5, 28, 28          
+   0020  4bffffe0  b .-32                            ; REL24 -> [17] RtlAllocateHeap
+-- .text #7 (36 B) ?MemFree@NUISPEECH@@YAXPAX0K@Z
+   0000  7c8b2378  mr	11, 4                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  409a0010  bf	26, .+16                     
+   000c  7ca42b78  mr	4, 5                         
+   0010  7d635b78  mr	3, 11                        
+   0014  4bffffec  b .-20                            ; REL24 -> [23] XMemFree
+   0018  7d655b78  mr	5, 11                        
+   001c  38800000  li 4, 0                         
+   0020  4bffffe0  b .-32                            ; REL24 -> [22] RtlFreeHeap
+-- .text #8 (36 B) ?MemSize@NUISPEECH@@YAKPAX0K@Z
+   0000  7c8b2378  mr	11, 4                        
+   0004  2b030000  cmplwi 6, 3, 0                  
+   0008  409a0010  bf	26, .+16                     
+   000c  7ca42b78  mr	4, 5                         
+   0010  7d635b78  mr	3, 11                        
+   0014  4bffffec  b .-20                            ; REL24 -> [28] XMemSize
+   0018  7d655b78  mr	5, 11                        
+   001c  38800000  li 4, 0                         
+   0020  4bffffe0  b .-32                            ; REL24 -> [27] RtlSizeHeap
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=140 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .text                                    sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=24 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [13] ?GetXAllocAttributes@NUISPEECH@@YAKH@Z   sec=5   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [14] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=36 nrel=2 nln=0 cksum=0x00000000 num=0 sel=1)
+  [16] ?MemAlloc@NUISPEECH@@YAPAXPAXKK@Z        sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [17] RtlAllocateHeap                          sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [18] XMemAlloc                                sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [19] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=36 nrel=2 nln=0 cksum=0x00000000 num=0 sel=1)
+  [21] ?MemFree@NUISPEECH@@YAXPAX0K@Z           sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [22] RtlFreeHeap                              sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [23] XMemFree                                 sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [24] .text                                    sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=36 nrel=2 nln=0 cksum=0x00000000 num=0 sel=1)
+  [26] ?MemSize@NUISPEECH@@YAKPAX0K@Z           sec=8   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [27] RtlSizeHeap                              sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [28] XMemSize                                 sec=0   val=0x0      sc=EXTERNAL  type=0x0020 naux=0

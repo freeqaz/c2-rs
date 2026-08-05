@@ -1,0 +1,14 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/system/synth_xbox/IPP_basicmath_xbox.cpp -> 0/4 functions in class
+  [  0] GAP expr-cmp-eq              cflow-loop                 eh-none     (eh-none     )    251 B  ?Add_InPlace@IPP@@YAXIPBMPAM@Z
+  [  1] GAP expr-cmp-eq              cflow-loop                 eh-none     (eh-none     )    230 B  ?MulConstant_InPlace@IPP@@YAXIPAMM@Z
+  [  2] GAP expr-cmp-eq              cflow-loop                 eh-none     (eh-none     )    251 B  ?Mul_InPlace@IPP@@YAXIPBMPAM@Z
+  [  3] GAP expr-cmp-eq              cflow-loop                 eh-none     (eh-none     )    295 B  ?Mul@IPP@@YAXIPBM0PAM@Z
+  blocking features (">" marks the byte that blocked the parse):
+         4 x expr-cmp-eq
+             53 4f 01 05 53 b9 f5 09 86 42 75 33 86 42 75 00 >1f< 38 fa 09 53 4f 01 06 3a f9 09 4f 01 07 54 04 29 fa 09 54 03 53 26 fb
+  control-flow class (decode-only): 4/4 bodies decoded end to end
+         4 x cflow-loop
+  EH class (maxState, decode-only): 0/4 bodies have maxState >= 1 and need the whole EH record
+         4 x eh-none

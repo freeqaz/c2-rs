@@ -1,0 +1,528 @@
+== work/w-dclass/ref/keygen_xbox.obj  machine=0x01f2 nsec=31 nsym=103 size=6381
+-- sections
+   1 .drectve   raw=132    rawptr=0x04ec rel=0  relptr=0x0000 chars=0x00100a00
+   2 .debug$S   raw=144    rawptr=0x0570 rel=0  relptr=0x0000 chars=0x42100040
+   3 .XBLD$W    raw=16     rawptr=0x0600 rel=0  relptr=0x0000 chars=0xc0401040
+   4 .XBLD$W    raw=16     rawptr=0x0610 rel=0  relptr=0x0000 chars=0xc2301040
+   5 .rdata     raw=384    rawptr=0x0620 rel=0  relptr=0x0000 chars=0x40400040
+   6 .text      raw=76     rawptr=0x07a0 rel=0  relptr=0x0000 chars=0x60401020
+   7 .text      raw=88     rawptr=0x07ec rel=2  relptr=0x0844 chars=0x60401020
+   8 .pdata     raw=8      rawptr=0x0858 rel=1  relptr=0x0860 chars=0x40401040
+   9 .text      raw=48     rawptr=0x086a rel=6  relptr=0x089a chars=0x60401020
+  10 .data      raw=4      rawptr=0x08d6 rel=0  relptr=0x0000 chars=0xc0301040
+  11 .text      raw=104    rawptr=0x08da rel=6  relptr=0x0942 chars=0x60401020
+  12 .text      raw=44     rawptr=0x097e rel=0  relptr=0x0000 chars=0x60401020
+  13 .text      raw=24     rawptr=0x09aa rel=0  relptr=0x0000 chars=0x60401020
+  14 .text      raw=20     rawptr=0x09c2 rel=0  relptr=0x0000 chars=0x60401020
+  15 .text      raw=104    rawptr=0x09d6 rel=0  relptr=0x0000 chars=0x60401020
+  16 .text      raw=60     rawptr=0x0a3e rel=0  relptr=0x0000 chars=0x60401020
+  17 .text      raw=84     rawptr=0x0a7a rel=0  relptr=0x0000 chars=0x60401020
+  18 .text      raw=84     rawptr=0x0ace rel=0  relptr=0x0000 chars=0x60401020
+  19 .text      raw=88     rawptr=0x0b22 rel=0  relptr=0x0000 chars=0x60401020
+  20 .text      raw=88     rawptr=0x0b7a rel=0  relptr=0x0000 chars=0x60401020
+  21 .text      raw=104    rawptr=0x0bd2 rel=5  relptr=0x0c3a chars=0x60401020
+  22 .pdata     raw=8      rawptr=0x0c6c rel=1  relptr=0x0c74 chars=0x40401040
+  23 .text      raw=20     rawptr=0x0c7e rel=6  relptr=0x0c92 chars=0x60401020
+  24 .text      raw=56     rawptr=0x0cce rel=6  relptr=0x0d06 chars=0x60401020
+  25 .text      raw=104    rawptr=0x0d42 rel=1  relptr=0x0daa chars=0x60401020
+  26 .pdata     raw=8      rawptr=0x0db4 rel=1  relptr=0x0dbc chars=0x40401040
+  27 .text      raw=108    rawptr=0x0dc6 rel=7  relptr=0x0e32 chars=0x60401020
+  28 .pdata     raw=8      rawptr=0x0e78 rel=1  relptr=0x0e80 chars=0x40401040
+  29 .text      raw=128    rawptr=0x0e8a rel=12 relptr=0x0f0a chars=0x60401020
+  30 .pdata     raw=8      rawptr=0x0f82 rel=1  relptr=0x0f8a chars=0x40401040
+  31 .text      raw=8      rawptr=0x0f94 rel=0  relptr=0x0000 chars=0x60401020
+-- .rdata #5 raw
+   0000  7f 95 5b 9d 94 ba 12 f1 d7 5a 67 d9 16 45 28 dd
+   0010  61 55 55 af 23 91 d6 0a 3a 42 81 18 b4 f7 f3 04
+   0020  78 96 5d 92 92 b0 47 ac 8f 5b 6d dc 1c 41 7e da
+   0030  6a 55 53 af 20 c8 dc 0a 66 43 dd 1c b2 a5 a4 0c
+   0040  7e 92 5c 93 90 ed 4a ad 8b 07 36 d3 10 41 78 8f
+   0050  60 08 55 a8 26 cf d0 0f 65 11 84 45 b1 a0 fa 57
+   0060  79 97 0b 90 92 b0 44 ad 8a 0e 60 d9 14 11 7e 8d
+   0070  35 5d 5c fb 21 9c d3 0e 32 40 d1 48 b8 a7 a1 0d
+   0080  28 c3 5d 97 c1 ec 42 f1 dc 5d 37 da 14 47 79 8a
+   0090  32 5c 54 f2 72 9d d3 0d 67 4c d6 49 b4 a2 f3 50
+   00a0  28 96 5e 95 c5 e9 45 ad 8a 5d 64 8e 17 40 2e 87
+   00b0  36 58 06 fd 75 90 d0 5f 3a 40 d4 4c b0 f7 a7 04
+   00c0  2c 96 01 96 9b bc 15 a6 de 0e 65 8d 17 47 2f dd
+   00d0  63 54 55 af 76 ca 84 5f 62 44 80 4a b3 f4 f4 0c
+   00e0  7e c4 0e c6 9a eb 43 a0 db 0a 64 df 1c 42 24 89
+   00f0  63 5c 55 f3 71 90 dc 5d 60 40 d1 4d b2 a3 a7 0d
+   0100  2c 9a 0b 90 9a be 47 a7 88 5a 6d df 13 1d 2e 8b
+   0110  60 5e 55 f2 74 9c d7 0e 60 40 80 1c b7 a1 f4 02
+   0120  28 96 5b 95 c1 e9 40 a3 8f 0c 32 df 43 1d 24 8d
+   0130  61 09 54 ab 27 9a d3 58 60 16 84 4f b3 a4 f3 0d
+   0140  25 93 08 c0 9a bd 10 a2 d6 09 60 8f 11 1d 7a 8f
+   0150  63 0b 5d f2 21 ec d7 08 62 40 84 49 b0 ad f2 07
+   0160  29 c3 0c 96 96 eb 10 a0 da 59 32 d3 17 41 25 dc
+   0170  63 08 04 ae 77 cb 84 5a 60 4d dd 45 b5 f4 a0 05
+-- .text #6 (76 B) ?asciiDigitToHex@@YAED@Z
+   0000  7c6b0774  extsb 11, 3                     
+   0004  2f0b0061  cmpwi 6, 11, 97                 
+   0008  41980018  bt	24, .+24                     
+   000c  2f0b0066  cmpwi 6, 11, 102                
+   0010  41990010  bt	25, .+16                     
+   0014  546b063e  clrlwi	11, 3, 24                
+   0018  396b00a9  addi 11, 11, 169                
+   001c  48000028  b .+40                          
+   0020  2f0b0041  cmpwi 6, 11, 65                 
+   0024  41980018  bt	24, .+24                     
+   0028  2f0b0046  cmpwi 6, 11, 70                 
+   002c  41990010  bt	25, .+16                     
+   0030  546b063e  clrlwi	11, 3, 24                
+   0034  396b00c9  addi 11, 11, 201                
+   0038  4800000c  b .+12                          
+   003c  546b063e  clrlwi	11, 3, 24                
+   0040  396b00d0  addi 11, 11, 208                
+   0044  5563063e  clrlwi	3, 11, 24                
+   0048  4e800020  blr                             
+-- .text #7 (88 B) ?parseHex16@@YAXPBDPAE@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  9421ffa0  stwu 1, -96(1)                  
+   000c  3943ffff  addi 10, 3, -1                  
+   0010  39200010  li 9, 16                        
+   0014  3904ffff  addi 8, 4, -1                   
+   0018  886a0001  lbz 3, 1(10)                    
+   001c  8cea0002  lbzu 7, 2(10)                   
+   0020  4bffffe1  bl .-32                           ; REL24 -> [16] ?asciiDigitToHex@@YAED@Z
+   0024  54662536  rlwinm 6, 3, 4, 20, 27          
+   0028  7ce33b78  mr	3, 7                         
+   002c  4bffffd5  bl .-44                           ; REL24 -> [16] ?asciiDigitToHex@@YAED@Z
+   0030  546b063e  clrlwi	11, 3, 24                
+   0034  3529ffff  addic. 9, 9, -1                 
+   0038  7d665a14  add 11, 6, 11                   
+   003c  556b063e  clrlwi	11, 11, 24               
+   0040  9d680001  stbu 11, 1(8)                   
+   0044  4082ffd4  bf	2, .-44                      
+   0048  38210060  addi 1, 1, 96                   
+   004c  8181fff8  lwz 12, -8(1)                   
+   0050  7d8803a6  mtlr 12                         
+   0054  4e800020  blr                             
+-- .pdata #8 raw
+   0000  00 00 00 00 40 00 16 03
+   reloc va=0x0 ADDR32   -> [19] ?parseHex16@@YAXPBDPAE@Z
+-- .text #9 (48 B) ?random@@YAJJ@Z
+   0000  7c6b1b78  mr	11, 3                        
+   0004  3d400000  lis 10, 0                         ; REFHI -> [30] ?s_seed@?1??random@@YAJJ@Z@4JA  ; PAIR -> [0] @comp.id
+   0008  2f030000  cmpwi 6, 3, 0                   
+   000c  409a0008  bf	26, .+8                      
+   0010  816a0000  lwz 11, 0(10)                     ; REFLO -> [30] ?s_seed@?1??random@@YAJJ@Z@4JA  ; PAIR -> [0] @comp.id
+   0014  3d200019  lis 9, 25                       
+   0018  6129660e  ori 9, 9, 26126                 
+   001c  7d6b49d6  mullw 11, 11, 9                 
+   0020  3c6b3c6f  addis 3, 11, 15471              
+   0024  3863f35f  addi 3, 3, -3233                
+   0028  906a0000  stw 3, 0(10)                      ; REFLO -> [30] ?s_seed@?1??random@@YAJJ@Z@4JA  ; PAIR -> [0] @comp.id
+   002c  4e800020  blr                             
+-- .data #10 raw
+   0000  00 00 00 eb
+-- .text #11 (104 B) ?getMasher@KeyChain@@YAXPAE@Z
+   0000  3d000000  lis 8, 0                          ; REFHI -> [30] ?s_seed@?1??random@@YAJJ@Z@4JA  ; PAIR -> [0] @comp.id
+   0004  39200000  li 9, 0                         
+   0008  3963fffe  addi 11, 3, -2                  
+   000c  81480000  lwz 10, 0(8)                      ; REFLO -> [30] ?s_seed@?1??random@@YAJJ@Z@4JA  ; PAIR -> [0] @comp.id
+   0010  2f090000  cmpwi 6, 9, 0                   
+   0014  409a0008  bf	26, .+8                      
+   0018  394000eb  li 10, 235                      
+   001c  3ce00019  lis 7, 25                       
+   0020  39290001  addi 9, 9, 1                    
+   0024  60e7660e  ori 7, 7, 26126                 
+   0028  2f090008  cmpwi 6, 9, 8                   
+   002c  7d4a39d6  mullw 10, 10, 7                 
+   0030  3d4a3c6f  addis 10, 10, 15471             
+   0034  394af35f  addi 10, 10, -3233              
+   0038  914b0002  stw 10, 2(11)                   
+   003c  88eb0004  lbz 7, 4(11)                    
+   0040  88cb0003  lbz 6, 3(11)                    
+   0044  88ab0002  lbz 5, 2(11)                    
+   0048  888b0005  lbz 4, 5(11)                    
+   004c  98ab0005  stb 5, 5(11)                    
+   0050  988b0002  stb 4, 2(11)                    
+   0054  98eb0003  stb 7, 3(11)                    
+   0058  9ccb0004  stbu 6, 4(11)                   
+   005c  4198ffb4  bt	24, .-76                     
+   0060  91480000  stw 10, 0(8)                      ; REFLO -> [30] ?s_seed@?1??random@@YAJJ@Z@4JA  ; PAIR -> [0] @comp.id
+   0064  4e800020  blr                             
+-- .text #12 (44 B) ?mash@@YAXPAE0@Z
+   0000  39400008  li 10, 8                        
+   0004  7c6b1b78  mr	11, 3                        
+   0008  7d232050  sub	9, 4, 3                     
+   000c  7d4903a6  mtctr 10                        
+   0010  7d49582e  lwzx 10, 9, 11                  
+   0014  810b0000  lwz 8, 0(11)                    
+   0018  7d4a4278  xor 10, 10, 8                   
+   001c  914b0000  stw 10, 0(11)                   
+   0020  396b0004  addi 11, 11, 4                  
+   0024  4200ffec  bdnz .-20                       
+   0028  4e800020  blr                             
+-- .text #13 (24 B) ?roll@@YAHH@Z
+   0000  39630013  addi 11, 3, 19                  
+   0004  7d6a2e70  srawi 10, 11, 5                 
+   0008  7d4a0194  addze 10, 10                    
+   000c  554a2834  slwi 10, 10, 5                  
+   0010  7c6a5850  sub	3, 11, 10                   
+   0014  4e800020  blr                             
+-- .text #14 (20 B) ?swap@@YAXAAD0@Z
+   0000  89640000  lbz 11, 0(4)                    
+   0004  89430000  lbz 10, 0(3)                    
+   0008  99630000  stb 11, 0(3)                    
+   000c  99440000  stb 10, 0(4)                    
+   0010  4e800020  blr                             
+-- .text #15 (104 B) ?shuffle1@@YAXPAD@Z
+   0000  39400008  li 10, 8                        
+   0004  21030012  subfic 8, 3, 18                 
+   0008  39630001  addi 11, 3, 1                   
+   000c  20e30015  subfic 7, 3, 21                 
+   0010  7d4903a6  mtctr 10                        
+   0014  7d485a14  add 10, 8, 11                   
+   0018  88cb0001  lbz 6, 1(11)                    
+   001c  7d275a14  add 9, 7, 11                    
+   0020  7d452e70  srawi 5, 10, 5                  
+   0024  7ca50194  addze 5, 5                      
+   0028  7d242e70  srawi 4, 9, 5                   
+   002c  54a52834  slwi 5, 5, 5                    
+   0030  7c840194  addze 4, 4                      
+   0034  7d455050  sub	10, 10, 5                   
+   0038  54852834  slwi 5, 4, 5                    
+   003c  7d254850  sub	9, 9, 5                     
+   0040  7caa18ae  lbzx 5, 10, 3                   
+   0044  7cca19ae  stbx 6, 10, 3                   
+   0048  98ab0001  stb 5, 1(11)                    
+   004c  894b0000  lbz 10, 0(11)                   
+   0050  7cc918ae  lbzx 6, 9, 3                    
+   0054  7d4919ae  stbx 10, 9, 3                   
+   0058  98cb0000  stb 6, 0(11)                    
+   005c  396b0004  addi 11, 11, 4                  
+   0060  4200ffb4  bdnz .-76                       
+   0064  4e800020  blr                             
+-- .text #16 (60 B) ?shuffle2@@YAXPAD@Z
+   0000  39000008  li 8, 8                         
+   0004  3963ffff  addi 11, 3, -1                  
+   0008  39230020  addi 9, 3, 32                   
+   000c  39430021  addi 10, 3, 33                  
+   0010  7d0903a6  mtctr 8                         
+   0014  890b0003  lbz 8, 3(11)                    
+   0018  88eafffc  lbz 7, -4(10)                   
+   001c  9d0afffc  stbu 8, -4(10)                  
+   0020  98eb0003  stb 7, 3(11)                    
+   0024  890b0004  lbz 8, 4(11)                    
+   0028  88e9fffc  lbz 7, -4(9)                    
+   002c  9d09fffc  stbu 8, -4(9)                   
+   0030  9ceb0004  stbu 7, 4(11)                   
+   0034  4200ffe0  bdnz .-32                       
+   0038  4e800020  blr                             
+-- .text #17 (84 B) ?shuffle3@@YAXPAD@Z
+   0000  39200008  li 9, 8                         
+   0004  3943ffff  addi 10, 3, -1                  
+   0008  3963001c  addi 11, 3, 28                  
+   000c  21030014  subfic 8, 3, 20                 
+   0010  7d2903a6  mtctr 9                         
+   0014  7d285a14  add 9, 8, 11                    
+   0018  88ea0003  lbz 7, 3(10)                    
+   001c  7d262e70  srawi 6, 9, 5                   
+   0020  7cc60194  addze 6, 6                      
+   0024  54c62834  slwi 6, 6, 5                    
+   0028  7d264850  sub	9, 9, 6                     
+   002c  7cc918ae  lbzx 6, 9, 3                    
+   0030  7ce919ae  stbx 7, 9, 3                    
+   0034  98ca0003  stb 6, 3(10)                    
+   0038  892b0000  lbz 9, 0(11)                    
+   003c  88ea0004  lbz 7, 4(10)                    
+   0040  98eb0000  stb 7, 0(11)                    
+   0044  396bfffc  addi 11, 11, -4                 
+   0048  9d2a0004  stbu 9, 4(10)                   
+   004c  4200ffc8  bdnz .-56                       
+   0050  4e800020  blr                             
+-- .text #18 (84 B) ?shuffle4@@YAXPAD@Z
+   0000  39200008  li 9, 8                         
+   0004  3943ffff  addi 10, 3, -1                  
+   0008  3963001d  addi 11, 3, 29                  
+   000c  21030012  subfic 8, 3, 18                 
+   0010  7d2903a6  mtctr 9                         
+   0014  7d285a14  add 9, 8, 11                    
+   0018  88ea0003  lbz 7, 3(10)                    
+   001c  88cb0000  lbz 6, 0(11)                    
+   0020  7d252e70  srawi 5, 9, 5                   
+   0024  7ca50194  addze 5, 5                      
+   0028  98eb0000  stb 7, 0(11)                    
+   002c  396bfffc  addi 11, 11, -4                 
+   0030  54a72834  slwi 7, 5, 5                    
+   0034  98ca0003  stb 6, 3(10)                    
+   0038  88ca0004  lbz 6, 4(10)                    
+   003c  7d274850  sub	9, 9, 7                     
+   0040  7ce918ae  lbzx 7, 9, 3                    
+   0044  7cc919ae  stbx 6, 9, 3                    
+   0048  9cea0004  stbu 7, 4(10)                   
+   004c  4200ffc8  bdnz .-56                       
+   0050  4e800020  blr                             
+-- .text #19 (88 B) ?shuffle5@@YAXPAD@Z
+   0000  39000008  li 8, 8                         
+   0004  39630003  addi 11, 3, 3                   
+   0008  39230020  addi 9, 3, 32                   
+   000c  39430021  addi 10, 3, 33                  
+   0010  20e30012  subfic 7, 3, 18                 
+   0014  7d0903a6  mtctr 8                         
+   0018  7d075a14  add 8, 7, 11                    
+   001c  88cafffc  lbz 6, -4(10)                   
+   0020  7d052e70  srawi 5, 8, 5                   
+   0024  7ca50194  addze 5, 5                      
+   0028  54a52834  slwi 5, 5, 5                    
+   002c  7d054050  sub	8, 8, 5                     
+   0030  7ca818ae  lbzx 5, 8, 3                    
+   0034  9caafffc  stbu 5, -4(10)                  
+   0038  7cc819ae  stbx 6, 8, 3                    
+   003c  890b0000  lbz 8, 0(11)                    
+   0040  88c9fffc  lbz 6, -4(9)                    
+   0044  9d09fffc  stbu 8, -4(9)                   
+   0048  98cb0000  stb 6, 0(11)                    
+   004c  396b0004  addi 11, 11, 4                  
+   0050  4200ffc8  bdnz .-56                       
+   0054  4e800020  blr                             
+-- .text #20 (88 B) ?shuffle6@@YAXPAD@Z
+   0000  39000008  li 8, 8                         
+   0004  39630002  addi 11, 3, 2                   
+   0008  39230020  addi 9, 3, 32                   
+   000c  39430021  addi 10, 3, 33                  
+   0010  20e30014  subfic 7, 3, 20                 
+   0014  7d0903a6  mtctr 8                         
+   0018  7d075a14  add 8, 7, 11                    
+   001c  88cb0000  lbz 6, 0(11)                    
+   0020  88aafffc  lbz 5, -4(10)                   
+   0024  7d042e70  srawi 4, 8, 5                   
+   0028  7c840194  addze 4, 4                      
+   002c  9ccafffc  stbu 6, -4(10)                  
+   0030  54862834  slwi 6, 4, 5                    
+   0034  98ab0000  stb 5, 0(11)                    
+   0038  88a9fffc  lbz 5, -4(9)                    
+   003c  396b0004  addi 11, 11, 4                  
+   0040  7d064050  sub	8, 8, 6                     
+   0044  7cc818ae  lbzx 6, 8, 3                    
+   0048  9cc9fffc  stbu 6, -4(9)                   
+   004c  7ca819ae  stbx 5, 8, 3                    
+   0050  4200ffc8  bdnz .-56                       
+   0054  4e800020  blr                             
+-- .text #21 (104 B) ?supershuffle@@YAXPAD@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  9421ffa0  stwu 1, -96(1)                  
+   000c  4bfffff5  bl .-12                           ; REL24 -> [45] ?shuffle1@@YAXPAD@Z
+   0010  39000008  li 8, 8                         
+   0014  3963ffff  addi 11, 3, -1                  
+   0018  39230020  addi 9, 3, 32                   
+   001c  39430021  addi 10, 3, 33                  
+   0020  7d0903a6  mtctr 8                         
+   0024  890b0003  lbz 8, 3(11)                    
+   0028  88eafffc  lbz 7, -4(10)                   
+   002c  9d0afffc  stbu 8, -4(10)                  
+   0030  98eb0003  stb 7, 3(11)                    
+   0034  890b0004  lbz 8, 4(11)                    
+   0038  88e9fffc  lbz 7, -4(9)                    
+   003c  9d09fffc  stbu 8, -4(9)                   
+   0040  9ceb0004  stbu 7, 4(11)                   
+   0044  4200ffe0  bdnz .-32                       
+   0048  4bffffb9  bl .-72                           ; REL24 -> [51] ?shuffle3@@YAXPAD@Z
+   004c  4bffffb5  bl .-76                           ; REL24 -> [54] ?shuffle4@@YAXPAD@Z
+   0050  4bffffb1  bl .-80                           ; REL24 -> [57] ?shuffle5@@YAXPAD@Z
+   0054  4bffffad  bl .-84                           ; REL24 -> [60] ?shuffle6@@YAXPAD@Z
+   0058  38210060  addi 1, 1, 96                   
+   005c  8181fff8  lwz 12, -8(1)                   
+   0060  7d8803a6  mtlr 12                         
+   0064  4e800020  blr                             
+-- .pdata #22 raw
+   0000  00 00 00 00 40 00 1a 03
+   reloc va=0x0 ADDR32   -> [63] ?supershuffle@@YAXPAD@Z
+-- .text #23 (20 B) ?opaquePredicate@@YAXXZ
+   0000  3d400000  lis 10, 0                         ; REFHI -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0004  816a0000  lwz 11, 0(10)                     ; REFLO -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0008  396b0001  addi 11, 11, 1                  
+   000c  916a0000  stw 11, 0(10)                     ; REFLO -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0010  4e800020  blr                             
+-- .text #24 (56 B) ?memcpy_cs@@YAXPAEPBEI@Z
+   0000  7c6b1b78  mr	11, 3                        
+   0004  2b050000  cmplwi 6, 5, 0                  
+   0008  4d9a0020  bclr	12, 26                     
+   000c  7ca903a6  mtctr 5                         
+   0010  7d232050  sub	9, 4, 3                     
+   0014  3d400000  lis 10, 0                         ; REFHI -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0018  810a0000  lwz 8, 0(10)                      ; REFLO -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   001c  39080001  addi 8, 8, 1                    
+   0020  910a0000  stw 8, 0(10)                      ; REFLO -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0024  7d0958ae  lbzx 8, 9, 11                   
+   0028  990b0000  stb 8, 0(11)                    
+   002c  396b0001  addi 11, 11, 1                  
+   0030  4200ffe8  bdnz .-24                       
+   0034  4e800020  blr                             
+-- .text #25 (104 B) ?revealKey@@YAXPAJPAE@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbc1ffe8  std 30, -24(1)                  
+   000c  fbe1fff0  std 31, -16(1)                  
+   0010  9421ff90  stwu 1, -112(1)                 
+   0014  7c9e2378  mr	30, 4                        
+   0018  3be0000e  li 31, 14                       
+   001c  4bffffe5  bl .-28                           ; REL24 -> [63] ?supershuffle@@YAXPAD@Z
+   0020  37ffffff  addic. 31, 31, -1               
+   0024  4082fff8  bf	2, .-8                       
+   0028  39400008  li 10, 8                        
+   002c  7c6b1b78  mr	11, 3                        
+   0030  7d23f050  sub	9, 30, 3                    
+   0034  7d4903a6  mtctr 10                        
+   0038  7d49582e  lwzx 10, 9, 11                  
+   003c  810b0000  lwz 8, 0(11)                    
+   0040  7d4a4278  xor 10, 10, 8                   
+   0044  914b0000  stw 10, 0(11)                   
+   0048  396b0004  addi 11, 11, 4                  
+   004c  4200ffec  bdnz .-20                       
+   0050  38210070  addi 1, 1, 112                  
+   0054  8181fff8  lwz 12, -8(1)                   
+   0058  7d8803a6  mtlr 12                         
+   005c  ebc1ffe8  ld 30, -24(1)                   
+   0060  ebe1fff0  ld 31, -16(1)                   
+   0064  4e800020  blr                             
+-- .pdata #26 raw
+   0000  00 00 00 00 40 00 1a 05
+   reloc va=0x0 ADDR32   -> [78] ?revealKey@@YAXPAJPAE@Z
+-- .text #27 (108 B) ?getKeyImpl@@YAXPAEPAD0@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbc1ffe8  std 30, -24(1)                  
+   000c  fbe1fff0  std 31, -16(1)                  
+   0010  9421ff90  stwu 1, -112(1)                 
+   0014  7c9f2378  mr	31, 4                        
+   0018  7ca42b78  mr	4, 5                         
+   001c  7c7e1b78  mr	30, 3                        
+   0020  4bffffe1  bl .-32                           ; REL24 -> [78] ?revealKey@@YAXPAJPAE@Z
+   0024  39400020  li 10, 32                       
+   0028  7febfb78  mr	11, 31                       
+   002c  7d1f1850  sub	8, 3, 31                    
+   0030  7d4903a6  mtctr 10                        
+   0034  3d400000  lis 10, 0                         ; REFHI -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0038  812a0000  lwz 9, 0(10)                      ; REFLO -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   003c  39290001  addi 9, 9, 1                    
+   0040  912a0000  stw 9, 0(10)                      ; REFLO -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0044  7d2858ae  lbzx 9, 8, 11                   
+   0048  992b0000  stb 9, 0(11)                    
+   004c  396b0001  addi 11, 11, 1                  
+   0050  4200ffe8  bdnz .-24                       
+   0054  38210070  addi 1, 1, 112                  
+   0058  8181fff8  lwz 12, -8(1)                   
+   005c  7d8803a6  mtlr 12                         
+   0060  ebc1ffe8  ld 30, -24(1)                   
+   0064  ebe1fff0  ld 31, -16(1)                   
+   0068  4e800020  blr                             
+-- .pdata #28 raw
+   0000  00 00 00 00 40 00 1b 05
+   reloc va=0x0 ADDR32   -> [86] ?getKeyImpl@@YAXPAEPAD0@Z
+-- .text #29 (128 B) ?getKey@KeyChain@@YAXIPAE0@Z
+   0000  7d8802a6  mflr 12                         
+   0004  9181fff8  stw 12, -8(1)                   
+   0008  fbe1fff0  std 31, -16(1)                  
+   000c  9421ff60  stwu 1, -160(1)                 
+   0010  39400020  li 10, 32                       
+   0014  3d600000  lis 11, 0                         ; REFHI -> [13] hiddenKeys  ; PAIR -> [0] @comp.id
+   0018  54682834  slwi 8, 3, 5                    
+   001c  392b0000  addi 9, 11, 0                     ; REFLO -> [13] hiddenKeys  ; PAIR -> [0] @comp.id
+   0020  7c9f2378  mr	31, 4                        
+   0024  7d4903a6  mtctr 10                        
+   0028  39600000  li 11, 0                        
+   002c  7d284a14  add 9, 8, 9                     
+   0030  3d400000  lis 10, 0                         ; REFHI -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0034  7ce958ae  lbzx 7, 9, 11                   
+   0038  38c10050  addi 6, 1, 80                   
+   003c  810a0000  lwz 8, 0(10)                      ; REFLO -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0040  39080001  addi 8, 8, 1                    
+   0044  7ceb31ae  stbx 7, 11, 6                   
+   0048  396b0001  addi 11, 11, 1                  
+   004c  910a0000  stw 8, 0(10)                      ; REFLO -> [72] ?lbl_82F5E180@@3JC  ; PAIR -> [0] @comp.id
+   0050  4200ffe4  bdnz .-28                       
+   0054  38810070  addi 4, 1, 112                  
+   0058  38610050  addi 3, 1, 80                   
+   005c  4bffffa5  bl .-92                           ; REL24 -> [86] ?getKeyImpl@@YAXPAEPAD0@Z
+   0060  7fe4fb78  mr	4, 31                        
+   0064  38610070  addi 3, 1, 112                  
+   0068  4bffff99  bl .-104                          ; REL24 -> [19] ?parseHex16@@YAXPBDPAE@Z
+   006c  382100a0  addi 1, 1, 160                  
+   0070  8181fff8  lwz 12, -8(1)                   
+   0074  7d8803a6  mtlr 12                         
+   0078  ebe1fff0  ld 31, -16(1)                   
+   007c  4e800020  blr                             
+-- .pdata #30 raw
+   0000  00 00 00 00 40 00 20 04
+   reloc va=0x0 ADDR32   -> [94] ?getKey@KeyChain@@YAXIPAE0@Z
+-- .text #31 (8 B) ?getNumKeys@KeyChain@@YAIXZ
+   0000  3860000c  li 3, 12                        
+   0004  4e800020  blr                             
+-- symbols
+  [ 0] @comp.id                                 sec=-1  val=0xab2e6e sc=STATIC    type=0x0000 naux=0
+  [ 1] .drectve                                 sec=1   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=132 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 3] .debug$S                                 sec=2   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=144 nrel=0 nln=0 cksum=0x00000000 num=0 sel=0)
+  [ 5] .XBLD$W                                  sec=3   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x92f87aa0 num=0 sel=2)
+  [ 7] __C2_11886                               sec=3   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [ 8] .XBLD$W                                  sec=4   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=16 nrel=0 nln=0 cksum=0x838510d9 num=0 sel=2)
+  [10] __C1_11886                               sec=4   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [11] .rdata                                   sec=5   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=384 nrel=0 nln=0 cksum=0x827a4f32 num=0 sel=0)
+  [13] hiddenKeys                               sec=5   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [14] .text                                    sec=6   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=76 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [16] ?asciiDigitToHex@@YAED@Z                 sec=6   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [17] .text                                    sec=7   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=88 nrel=2 nln=0 cksum=0x00000000 num=0 sel=1)
+  [19] ?parseHex16@@YAXPBDPAE@Z                 sec=7   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [20] $M2767                                   sec=7   val=0x58     sc=LABEL     type=0x0000 naux=0
+  [21] $M2766                                   sec=7   val=0xc      sc=LABEL     type=0x0000 naux=0
+  [22] .pdata                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x1e85bc50 num=7 sel=5)
+  [24] $T2768                                   sec=8   val=0x0      sc=STATIC    type=0x0000 naux=0
+  [25] .text                                    sec=9   val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=48 nrel=6 nln=0 cksum=0x00000000 num=0 sel=1)
+  [27] ?random@@YAJJ@Z                          sec=9   val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [28] .data                                    sec=10  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=4 nrel=0 nln=0 cksum=0x37d83bf0 num=0 sel=2)
+  [30] ?s_seed@?1??random@@YAJJ@Z@4JA           sec=10  val=0x0      sc=STATIC    type=0x0000 naux=0
+  [31] .text                                    sec=11  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=104 nrel=6 nln=0 cksum=0x00000000 num=0 sel=1)
+  [33] ?getMasher@KeyChain@@YAXPAE@Z            sec=11  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [34] .text                                    sec=12  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=44 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [36] ?mash@@YAXPAE0@Z                         sec=12  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [37] .text                                    sec=13  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=24 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [39] ?roll@@YAHH@Z                            sec=13  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [40] .text                                    sec=14  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=20 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [42] ?swap@@YAXAAD0@Z                         sec=14  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [43] .text                                    sec=15  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=104 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [45] ?shuffle1@@YAXPAD@Z                      sec=15  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [46] .text                                    sec=16  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=60 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [48] ?shuffle2@@YAXPAD@Z                      sec=16  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [49] .text                                    sec=17  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=84 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [51] ?shuffle3@@YAXPAD@Z                      sec=17  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [52] .text                                    sec=18  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=84 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [54] ?shuffle4@@YAXPAD@Z                      sec=18  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [55] .text                                    sec=19  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=88 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [57] ?shuffle5@@YAXPAD@Z                      sec=19  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [58] .text                                    sec=20  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=88 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [60] ?shuffle6@@YAXPAD@Z                      sec=20  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [61] .text                                    sec=21  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=104 nrel=5 nln=0 cksum=0x00000000 num=0 sel=1)
+  [63] ?supershuffle@@YAXPAD@Z                  sec=21  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [64] $M2932                                   sec=21  val=0x68     sc=LABEL     type=0x0000 naux=0
+  [65] $M2931                                   sec=21  val=0xc      sc=LABEL     type=0x0000 naux=0
+  [66] .pdata                                   sec=22  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0xb230f35c num=21 sel=5)
+  [68] $T2933                                   sec=22  val=0x0      sc=STATIC    type=0x0000 naux=0
+  [69] .text                                    sec=23  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=20 nrel=6 nln=0 cksum=0x00000000 num=0 sel=1)
+  [71] ?opaquePredicate@@YAXXZ                  sec=23  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [72] ?lbl_82F5E180@@3JC                       sec=0   val=0x0      sc=EXTERNAL  type=0x0000 naux=0
+  [73] .text                                    sec=24  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=56 nrel=6 nln=0 cksum=0x00000000 num=0 sel=1)
+  [75] ?memcpy_cs@@YAXPAEPBEI@Z                 sec=24  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [76] .text                                    sec=25  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=104 nrel=1 nln=0 cksum=0x00000000 num=0 sel=1)
+  [78] ?revealKey@@YAXPAJPAE@Z                  sec=25  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [79] $M2957                                   sec=25  val=0x68     sc=LABEL     type=0x0000 naux=0
+  [80] $M2956                                   sec=25  val=0x14     sc=LABEL     type=0x0000 naux=0
+  [81] .pdata                                   sec=26  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x5b535669 num=25 sel=5)
+  [83] $T2958                                   sec=26  val=0x0      sc=STATIC    type=0x0000 naux=0
+  [84] .text                                    sec=27  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=108 nrel=7 nln=0 cksum=0x00000000 num=0 sel=1)
+  [86] ?getKeyImpl@@YAXPAEPAD0@Z                sec=27  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [87] $M2976                                   sec=27  val=0x6c     sc=LABEL     type=0x0000 naux=0
+  [88] $M2975                                   sec=27  val=0x14     sc=LABEL     type=0x0000 naux=0
+  [89] .pdata                                   sec=28  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x42486728 num=27 sel=5)
+  [91] $T2977                                   sec=28  val=0x0      sc=STATIC    type=0x0000 naux=0
+  [92] .text                                    sec=29  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=128 nrel=12 nln=0 cksum=0x00000000 num=0 sel=1)
+  [94] ?getKey@KeyChain@@YAXIPAE0@Z             sec=29  val=0x0      sc=EXTERNAL  type=0x0020 naux=0
+  [95] $M2995                                   sec=29  val=0x80     sc=LABEL     type=0x0000 naux=0
+  [96] $M2994                                   sec=29  val=0x10     sc=LABEL     type=0x0000 naux=0
+  [97] .pdata                                   sec=30  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=1 nln=0 cksum=0x09fdb886 num=29 sel=5)
+  [99] $T2996                                   sec=30  val=0x0      sc=STATIC    type=0x0000 naux=0
+  [100] .text                                    sec=31  val=0x0      sc=STATIC    type=0x0000 naux=1 aux(len=8 nrel=0 nln=0 cksum=0x00000000 num=0 sel=1)
+  [102] ?getNumKeys@KeyChain@@YAIXZ              sec=31  val=0x0      sc=EXTERNAL  type=0x0020 naux=0

@@ -1,0 +1,11 @@
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from work/dc3-workload/flags.txt)
+  cwd:     ../dc3-decomp
+../dc3-decomp/src/xdk/xlrc/xlrcimpl.cpp -> 0/1 functions in class
+  [  0] GAP assign-rhs-call-0x26     cflow-if-n                 eh-none     (eh-none     )    519 B  ?CreateClient@CXLrcImpl@@YAPAVCXLrcClient@@PAI@Z
+  blocking features (">" marks the byte that blocked the parse):
+         1 x assign-rhs-call-0x26
+             33 86 41 12 00 32 86 41 12 4b 4f 01 1d 26 04 0a >26< f7 09 bd 86 43 81 20 00 80 03 10 00 00 26 02 0a 55 86 43 f5 08 4c 32
+  control-flow class (decode-only): 1/1 bodies decoded end to end
+         1 x cflow-if-n
+  EH class (maxState, decode-only): 0/1 bodies have maxState >= 1 and need the whole EH record
+         1 x eh-none
