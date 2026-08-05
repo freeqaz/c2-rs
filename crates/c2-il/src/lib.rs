@@ -42,13 +42,16 @@ pub use func::{
     mangled_name, mangled_names, opt_word_mode, source_path, Block, FnCensus, OptWordMode,
     OPT_WORD_O1, OPT_WORD_OX, OPT_WORD_SPECIAL_MEMBER,
     FnVerdict,
-    CallSeq, CompareLeaf, DataObject, DataTu, DynInitTu, FpTail, FramedCall, IlFunction, IlOp,
+    CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, FpTail, FramedCall, IlFunction, IlOp,
     Rel, SeqCall, SeqCmp, SeqEarlyReturn, SeqGuard, SeqTail,
     SlotArg, LINK_FIRST_SLOT,
     // W8 — the two-arm conditional tail call and its register schedule. The
     // schedule is exported because the emitter must run the *same* planner the
     // parser gated on, never a copy (`docs/GAPS.md` §6 instance #9).
     plan_cond_pair, CondArm, CondPlan, CondStep, CondTailPair, COND_PARK_REG,
+    // W42 / W43 — the two folds this port derives at PARSE time so the census
+    // and the emitter cannot disagree about which literals are in class.
+    shift_mask_rlwinm, shift_or_rlwimi,
 };
 
 /// The five IL suffixes (no leading dot), in canonical order. `.ex` first

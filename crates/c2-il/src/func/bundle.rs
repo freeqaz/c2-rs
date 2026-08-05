@@ -908,6 +908,13 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            BodyShape::CmpShiftOr(cso) => {
+                Some(IlFunction {
+                    params: vec![cso.param],
+                    cmp_shift_or: Some(cso),
+                    ..IlFunction::base(name, src)
+                })
+            }
             // Class A many-calls. Every callee is resolved by token through the
             // `.gl` symbol index, exactly as the tail and framed calls are, and a
             // single unresolvable one refuses the whole function — a relocation

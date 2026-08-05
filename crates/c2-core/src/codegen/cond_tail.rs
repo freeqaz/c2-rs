@@ -56,7 +56,7 @@ use crate::codegen::encode::{
     cr_bi, encode_bc, encode_cmplwi, encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_BIT_EQ,
     CR_BIT_GT, CR_BIT_LT, CR_COMPARE,
 };
-use crate::codegen::encode::encode_addi;
+use crate::codegen::encode::{encode_addi, encode_rlwinm};
 use crate::codegen::select::out_of_class;
 
 /// The bytes of a [`CondTailPair`] body, minus the two tail branches, plus where
@@ -104,6 +104,20 @@ fn emit_steps(steps: &[CondStep], out: &mut Vec<u8>) -> Result<(), BackendError>
                     out_of_class("a conditional arm's literal argument is wider than `li`")
                 })?;
                 out.extend_from_slice(&encode_addi(dst, 0, k));
+            }
+            // **W42** — `(formal >> k) & m`, folded to one `rlwinm` at parse
+            // time by `c2_il::shift_mask_rlwinm` (70 graded cells; see its doc).
+            // `dst == src` is `plan_cond_pair`'s rule 1b and is re-asserted here
+            // so the two files cannot drift about which form is in class.
+            CondStep::Rlwinm { dst, src, sh, mb, me } => {
+                if dst != src {
+                    return Err(out_of_class(
+                        "an out-of-place shift-and-mask in a conditional arm: c2 \
+                         homes the source into a scratch first and which scratch \
+                         is uncharacterized; out of class",
+                    ));
+                }
+                out.extend_from_slice(&encode_rlwinm(dst, src, sh, mb, me));
             }
         }
     }

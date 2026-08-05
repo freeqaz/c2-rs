@@ -15,7 +15,7 @@ use self::expr::{
 use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
-    try_parse_compare, try_parse_cond_tail_pair, try_parse_early_return_seq,
+    try_parse_cmp_shift_or, try_parse_compare, try_parse_cond_tail_pair, try_parse_early_return_seq,
     try_parse_empty_ctor_base_delegation,
     try_parse_guarded_seq,
     try_parse_empty_dtor_delegation,
@@ -622,6 +622,9 @@ pub(crate) enum BodyShape {
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
+    /// **W43** — `return ((unsigned)(P != 0) << SH) | C;`. See
+    /// [`crate::func::CmpShiftOr`].
+    CmpShiftOr(crate::func::CmpShiftOr),
     /// **W8 — the two-arm conditional tail call.** The first shape in this enum
     /// whose lowering emits a conditional branch. See
     /// [`super::shapes::cond_tail`] for the grammar and for the three
@@ -1525,6 +1528,15 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             }
             if let Some(shape) = try_parse_compare(seg, p, lo) {
                 disp("disp-compare-leaf");
+                return Ok(shape);
+            }
+            // **W43**, after the plain comparison leaf: the two share a prefix
+            // and only this one continues past the `2C` into a `33`, so the
+            // order is a tie-break that cannot change either verdict — stated
+            // rather than relied on, because `select.rs`'s order IS load-bearing
+            // and this file's reads as if it were the same kind of list.
+            if let Some(shape) = try_parse_cmp_shift_or(seg, p, lo) {
+                disp("disp-cmp-shift-or");
                 return Ok(shape);
             }
             if let Some(shape) = try_parse_float_leaf(seg, p, lo, sy) {

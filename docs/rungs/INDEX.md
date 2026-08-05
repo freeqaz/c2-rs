@@ -66,3 +66,5 @@ the header block this table is read from.
 | 2026-08-04 | AA | [w-shapes](2026-08-04-w-shapes.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), +0 — this lane emits nothing |
 | 2026-08-04 | W-SMALL | [w-small](2026-08-04-w-small.md) | 11 | 706,555 / 2,463,393 unchanged (28.68 %), **+0** — and for a rung |
 | 2026-08-04 | W-VOCAB | [w-vocab](2026-08-04-w-vocab.md) | 12 | 706,555 / 2,463,393 unchanged (28.68 %), **+0**. Emitted census |
+| 2026-08-05 | W42 | [w-tu1](2026-08-05-w-tu1.md) | 2 | 706,555 / 2,463,393 → 706,557 (28.68 % → 28.68 %), +2 — a driver; |
+| 2026-08-05 | W43 | [w-tu1-w43](2026-08-05-w-tu1-w43.md) | 2 | 706,555 / 2,463,393 → 706,557 (28.68 % → 28.68 %), +2 for W42 and |

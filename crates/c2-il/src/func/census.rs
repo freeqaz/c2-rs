@@ -552,6 +552,7 @@ impl IlBundle {
                                 })
                             }
                             Ok(BodyShape::Compare(_)) => FnVerdict::InClass("compare-leaf"),
+                            Ok(BodyShape::CmpShiftOr(_)) => FnVerdict::InClass("cmp-shift-or"),
                             // **W8 — the two-arm conditional tail call**, its own
                             // bucket because it is the first class whose lowering
                             // emits a branch: a rung that widens it must be able
