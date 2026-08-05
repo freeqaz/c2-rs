@@ -348,6 +348,23 @@ def analyse(words):
 
     # The REGIME, read off which register the induction load writes.
     r["regime"] = "SAME" if r["CHAR"] in dec[r["L"]][0] else "TWO"
+
+    # Is this cell inside the SIGNATURE class `PtrWalkModLoop` already
+    # restricts to -- the walked pointer at formal slot 0?  Read from the peel,
+    # never from the source: `lbz CHAR, 0(r3)`.  w-hash's #770 mechanism 11 says
+    # the plan re-plans when this moves, and S4n is where that shows up.
+    w0 = words[0]
+    r["ptr0"] = ((w0 >> 26) == 34 and ((w0 >> 16) & 31) == 3
+                 and (w0 & 0xFFFF) == 0)
+
+    # Did c2 HOIST a wide literal into a register outside the loop?  A `lis`
+    # (`addis` with RA==0) in the preamble takes a register OUT of the pool the
+    # body would otherwise use, and S2's only two misses are exactly these
+    # cells.  Counted positively, from the preamble's bytes, rather than
+    # asserted -- and the port's IL recognizer refuses wide literals anyway,
+    # so this names a boundary instead of excusing a miss.
+    r["hoisted"] = any((w >> 26) == 15 and ((w >> 16) & 31) == 0
+                       for w in words[:r["top"]])
     return r
 
 
@@ -381,6 +398,15 @@ def merge_producers(body, chain, dec):
 
 R_ACC, R_TMP, R_TMP4 = 3, 8, 7
 
+# The MUST-FAIL mutation switch (PREREG ADDENDUM 2 §A2.4).  The lane ships no
+# `crates/` change, so there is no port code for a mutation to bite; the
+# mutation is therefore run against the INSTRUMENT, and it is run either way.
+# Each entry perturbs ONE registered rule by ONE, and the corresponding rate
+# must COLLAPSE.  A rate that survives its own mutation is measuring nothing --
+# trap 5, "absence reads as success", in the one place this lane could still
+# hide it.
+MUTATE = set()
+
 
 def grade(r):
     """The four per-cell predictions.  Each is True / False / None(=n/a, with a
@@ -408,19 +434,21 @@ def grade(r):
     # S1 LOAD SLOT: a = 1, except a = 0 when N <= 2 and p = 0.
     g["S1"] = (a == (0 if (N <= 2 and pslot == 0) else 1))
     # ...and its strictly weaker, strictly more surprising half.
-    g["S1w"] = (a <= 1)
+    g["S1w"] = (a <= (0 if "S1w" in MUTATE else 1))
     # S1 restated over PRODUCERS instead of slots -- #644's other direction.
     g["S1m"] = (a == (0 if (M <= 2 and pslot == 0) else 1))
 
     # S2 RECORD SLOT, by regime.
+    lat = 3 if "S2" in MUTATE else 2
     if r["regime"] == "TWO":
-        g["S2"] = (R == max(p + 1, a + 2)) if p is not None else None
+        g["S2"] = (R == max(p + 1, a + lat)) if p is not None else None
     else:
-        g["S2"] = (R == N + 1)
+        g["S2"] = (R == N + 1 - (1 if "S2" in MUTATE else 0))
 
     # S3 REGIME: SAME iff pv == 0 and N >= 4.  Graded in BOTH units.
     g["S3"] = ((r["regime"] == "SAME") == (pv == 0 and N >= 4))
-    g["S3m"] = ((r["regime"] == "SAME") == (pv == 0 and M >= 4))
+    thr = 3 if "S3m" in MUTATE else 4
+    g["S3m"] = ((r["regime"] == "SAME") == (pv == 0 and M >= thr))
 
     # S4 CHAIN TEMPS, stated over PRODUCERS.
     pd = r["pdests"]
@@ -455,6 +483,63 @@ def grade(r):
             if any(d != [R_TMP] for d in dd[:N - 3]):
                 ok = False
     g["S4s"] = ok
+
+    # ---- ADDENDUM 2, registered at `9bc73d3` before Grids J and K ----------
+    # S4r: the allocation's STRUCTURE, name-free.  A producer's ROLE is decided
+    # by where it sits relative to the record form, never by a register number,
+    # so this survives the pool shifting under it -- which `i-slot1n5` shows it
+    # does the moment the pointer formal moves.
+    home = pd[-1]
+    roles = {}
+    ok = len(home) == 1
+    if r["regime"] == "SAME":
+        pool = set()
+        for k in range(M - 1):
+            if len(pd[k]) != 1:
+                ok = False
+            else:
+                pool.add(pd[k][0])
+        if len(pool) > 1:
+            ok = False
+        if home[0] in pool:
+            ok = False
+    else:
+        t1 = t2 = None
+        for k in range(M - 1):
+            grp = r["prods"][k]
+            if len(pd[k]) != 1:
+                ok = False
+                continue
+            reg = pd[k][0]
+            if k == 0 and a == 1 and pv == 0:
+                if reg != r["CHAR"]:
+                    ok = False          # the registered CHAR-reuse clause
+                continue
+            after = grp[0] > (r["R"] + 1 if "S4r" in MUTATE else r["R"])
+            if after:
+                if t2 is None:
+                    t2 = reg
+                elif t2 != reg:
+                    ok = False
+            else:
+                if t1 is None:
+                    t1 = reg
+                elif t1 != reg:
+                    ok = False
+        if t1 is not None and t2 is not None and t1 == t2:
+            ok = False
+        if home[0] in (t1, t2):
+            ok = False
+        roles = {"T1": t1, "T2": t2}
+    g["S4r"] = ok
+    g["roles"] = roles
+    g["home"] = home[0] if len(home) == 1 else None
+    # S4n: the same structure with the NAMES nailed down.  Registered already
+    # false, so that the rung quotes a number instead of an impression.
+    g["S4n"] = bool(ok and g["home"] == R_ACC
+                    and (r["regime"] == "SAME"
+                         or (roles.get("T1") in (None, R_TMP)
+                             and roles.get("T2") in (None, 9))))
     return g
 
 
@@ -654,6 +739,168 @@ def grid_h():
     return out
 
 
+def grid_j():
+    """HELD OUT for S4r.  Registered in ADDENDUM 2 at `9bc73d3`.
+
+    Four straddle candidates (does `g-644-1`'s miss reproduce, or is it the
+    single-cell trap?), four cells that SHIFT THE REGISTER POOL under the roles,
+    and four fresh `pv` cells at lengths the earlier grids did not put `pv` on.
+    """
+    return [
+        # --- straddle candidates: M=2 with the wide literal LAST -------------
+        ("j-str1", src_of("r=r+c; r=r+87381;"), "M=2, `addis`+`addi` last", 3),
+        ("j-str2", src_of("r=r+c; r=r|87381;"), "M=2, `oris`+`ori` last", 3),
+        ("j-str3", src_of("r=r+c; r=r^87381;"), "M=2, `xoris`+`xori` last", 3),
+        ("j-str4", src_of("r=r+c; r=r*3; r=r+87381;"),
+         "M=3, wide literal last", 4),
+        # --- pool shifts: the roles must hold while the NAMES move -----------
+        ("j-pool1", src_of("r=r+c; r=r^3; r=r+5;", sig="int k,int j,const char* s"),
+         "POOL SHIFT: the pointer formal at slot 2", 3),
+        ("j-pool2", src_of("r=r+c; r=r^3; r=r+5; r=r|9; r=r+11;",
+                           sig="int k,int j,const char* s"),
+         "POOL SHIFT: pointer at slot 2, N=5", 5),
+        ("j-pool3", src_of("r=r+87381; r=r+c; r=r^3; r=r+87381;"),
+         "POOL SHIFT: a wide literal used TWICE -- c2 may hoist it into a register", 6),
+        ("j-pool4", src_of("r=r+c; r=r^k; r=r+j; r=r|k;",
+                           sig="const char* s,int k,int j"),
+         "POOL SHIFT: two extra formals consumed by the chain", 4),
+        # --- fresh pv cells at lengths the pv axis has not been run at -------
+        ("j-pv5a", src_of("r=r*3; r=r^5; r=r+c; r=r*7; r=r^9;"),
+         "N=5, the char read at chain slot 2", 5),
+        ("j-pv5b", src_of("r=r*3; r=r^5; r=r*7; r=r+c; r=r^9;"),
+         "N=5, the char read at chain slot 3", 5),
+        ("j-pv7a", src_of("r=r*3; r=r^5; r=r+c; r=r*7; r=r^9; r=r*11; r=r^13;"),
+         "N=7, the char read at chain slot 2", 7),
+        ("j-pv7b", src_of("r=r*3; r=r^5; r=r*7; r=r^9; r=r*11; r=r+c; r=r^13;"),
+         "N=7, the char read at chain slot 5", 7),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# GRID K -- board #747's fixture, in its own shape.  TWO bodies of DIFFERENT
+# lengths in ONE TU, which neither `expr_sweep.sh` (single-function TUs) nor
+# `mode_cross.sh` (that same corpus crossed with the lane registry) can produce.
+#
+# Reading it needs the classifier widened to more than one loop per `.text`, and
+# THE WIDENING IS ITSELF GRADED: the two loops' word ranges must be disjoint,
+# and every single-loop cell must reproduce its earlier verdict unchanged (the
+# `--only` reruns in §K do exactly that).
+# ---------------------------------------------------------------------------
+def two_fn_src(b1, b2):
+    return ("int P(const char* s){ int r=0; while (*s) { int c=*s; %s s++; } "
+            "return r; }\n"
+            "int Q(const char* s){ int r=0; while (*s) { int c=*s; %s s++; } "
+            "return r; }" % (b1, b2))
+
+
+GRID_K = [
+    ("k-1-3", "r=r+c;", "r=r+c; r=r^3; r=r+5;",
+     "N=1 and N=3 in ONE TU -- (a,R) must differ, or a one-length model is safe"),
+    ("k-2-6", "r=r+c; r=r^3;",
+     "r=r+c; r=r^3; r=r+5; r=r|9; r=r+11; r=r^13;",
+     "N=2 and N=6: one TWO-regime body and one SAME-regime body, one TU"),
+    ("k-3-8", "r=r+c; r=r^3; r=r+5;",
+     "r=r+c; r=r^3; r=r+5; r=r|9; r=r+11; r=r^13; r=r+17; r=r|19;",
+     "N=3 and N=8 -- the widest length gap the family reaches"),
+    ("k-same", "r=r+c;", "r=r+c;",
+     "CONTROL: the SAME length twice. The two loops MUST agree, and if this "
+     "control ever disagreed the reader would be reading the wrong words"),
+]
+
+
+def all_loops(words):
+    """Every loop in one packed `.text`, as `analyse` dicts.
+
+    Back edges are found first and their `[target, edge)` ranges checked
+    DISJOINT before anything is classified; an overlap means the reader has
+    mis-paired an edge with a target and the cell is refused rather than
+    reported.
+    """
+    edges = []
+    for i, w in enumerate(words):
+        if (w >> 26) == 16:
+            d = sext(w & 0xFFFC, 16)
+            if d < 0 and 0 <= i + d // 4 < i:
+                edges.append((i + d // 4, i))
+    for x in range(len(edges)):
+        for y in range(x + 1, len(edges)):
+            if not (edges[x][1] < edges[y][0] or edges[y][1] < edges[x][0]):
+                return None, "loop ranges overlap -- the reader mis-paired an edge"
+    out = []
+    for top, bi in edges:
+        r = analyse(words[:bi + 1])
+        if r["skip"]:
+            return None, "loop at %d: %s" % (top, r["skip"])
+        out.append(r)
+    return out, None
+
+
+def run_k(mode, wd, only):
+    print()
+    print("== GRID K -- board #747's fixture: TWO bodies of DIFFERENT lengths, ONE TU ==")
+    print("   Registered in PREREG ADDENDUM 2 (`9bc73d3`) before this code existed.")
+    print("   Neither expr_sweep.sh nor mode_cross.sh can generate this shape, so")
+    print("   both would grade a one-length schedule GREEN.")
+    print()
+    reached = graded = fails = 0
+    separating = 0
+    for name, b1, b2, note in GRID_K:
+        if only and name not in only:
+            continue
+        o = G.capture(two_fn_src(b1, b2) + "\n", mode, wd,
+                      ("s2k" + name).replace("-", "_"))
+        if o is None:
+            print("%-10s  CAPTURE FAILED" % name)
+            fails += 1
+            continue
+        reached += 1
+        # A two-function TU comes back as two `.text` COMDATs under the
+        # workload's own `/Gy`, so the reader takes EVERY `.text` and unions the
+        # loops it finds.  A single-function cell has one, which is why the
+        # single-loop grids above are unaffected -- and the `k-same` control is
+        # what proves this path reads the right words.
+        loops, why = [], None
+        for s in o.sections:
+            if s["name"] != ".text":
+                continue
+            raw = o.d[s["rawptr"]:s["rawptr"] + s["rawsize"]]
+            ws = [int.from_bytes(raw[i:i + 4], "big")
+                  for i in range(0, len(raw) - 3, 4)]
+            got, why = all_loops(ws)
+            if got is None:
+                break
+            loops += got
+        if why:
+            print("%-10s  EXCLUDED: %s" % (name, why))
+            continue
+        if len(loops) != 2:
+            print("%-10s  EXCLUDED: %d loops in the TU, want 2" % (name, len(loops)))
+            continue
+        graded += 1
+        sig = [(r["N"], r["L"], r["R"], r["regime"]) for r in loops]
+        differ = sig[0][:3] != sig[1][:3]
+        if name != "k-same":
+            separating += differ
+        print("%-10s  P: N=%d a=%d R=%d %-4s | Q: N=%d a=%d R=%d %-4s  -> %s"
+              % (name, sig[0][0], sig[0][1], sig[0][2], sig[0][3],
+                 sig[1][0], sig[1][1], sig[1][2], sig[1][3],
+                 "SEPARATING (the two bodies take DIFFERENT schedules)"
+                 if differ else "identical"))
+        for r in loops:
+            g = grade(r)
+            bad = [k for k, _ in RULES if k in ("S1w", "S2", "S3m", "S4r")
+                   and g[k] is False]
+            if bad:
+                print("             loop N=%d FAILS %s" % (r["N"], " ".join(bad)))
+    print()
+    print("  reached %d  graded %d  capture-failures %d" % (reached, graded, fails))
+    print("  SEPARATING pairs: %d of %d non-control cells -- a TU on which a "
+          "one-length schedule is wrong about at least one function"
+          % (separating, sum(1 for c in GRID_K
+                             if c[0] != "k-same" and (not only or c[0] in only))))
+    return graded, fails
+
+
 # ---------------------------------------------------------------------------
 def run(cells, mode, wd, tag, label, note):
     print()
@@ -727,6 +974,8 @@ RULES = [
     ("S3m", "S3m REGIME same, over PRODUCERS"),
     ("S4", "S4 TEMPS  over PRODUCERS"),
     ("S4s", "S4s TEMPS same, over SLOTS"),
+    ("S4r", "S4r ALLOC structure, name-free"),
+    ("S4n", "S4n ALLOC the NAMES too"),
 ]
 
 
@@ -812,6 +1061,11 @@ def main(argv):
             while i < len(argv) and not argv[i].startswith("--"):
                 only.append(argv[i])
                 i += 1
+        elif argv[i] == "--mutate":
+            i += 1
+            while i < len(argv) and not argv[i].startswith("--"):
+                MUTATE.add(argv[i])
+                i += 1
         elif argv[i] == "--dis":
             i += 1
             while i < len(argv) and not argv[i].startswith("--"):
@@ -842,10 +1096,13 @@ def main(argv):
          "Every rule graded in BOTH units -- slots and producers -- with both counts printed."),
         ("H", grid_h(), 1, "GRID H -- HELD OUT (the SIGNATURE axis, chain fixed)",
          "w-hash showed the register PLAN moves with the signature. Does the INTERLEAVE?"),
+        ("J", grid_j(), 2, "GRID J -- HELD OUT for S4r (ADDENDUM 2, `9bc73d3`)",
+         "Four straddle candidates, four pool shifts, four fresh pv cells."),
     ]
 
     allrows = {}
     heldout = set()
+    a2held = set()
     tot_reached = tot_graded = tot_capfail = 0
     ctl_fail = 0
     with tempfile.TemporaryDirectory(prefix="w-sched2-") as wd:
@@ -863,6 +1120,8 @@ def main(argv):
                 allrows[k] = v
                 if held:
                     heldout.add(k)
+                if held == 2:
+                    a2held.add(k)
             print()
             for key, lab in RULES:
                 rate(rows, key, lab)
@@ -877,12 +1136,52 @@ def main(argv):
 
         ho = {k: v for k, v in allrows.items() if k in heldout}
         fit = {k: v for k, v in allrows.items() if k not in heldout}
+        a2 = {k: v for k, v in allrows.items() if k in a2held}
         print()
-        print("  --- ADDENDUM 1's rules on the HELD-OUT set alone (Grids E/F/G/H)")
+        print("  --- ADDENDUM 1's rules on the HELD-OUT set alone (Grids E/F/G/H/J)")
         print("      registered at `baf69fb`, before those grids existed:")
         for key, lab in RULES:
             if key.startswith("S"):
                 rate(ho, key, lab)
+        print("  --- ADDENDUM 2's rules on GRID J alone, the only set registered")
+        print("      at `9bc73d3` before it existed:")
+        for key, lab in RULES:
+            if key in ("S4r", "S4n"):
+                rate(a2, key, lab)
+        # No-split subset: the load slot is a rule on single-word producers and
+        # is not one across #644, and the two populations get separate numbers
+        # rather than one average that hides the split.
+        ns = {k: v for k, v in ho.items() if v["M"] == v["N"]}
+        sp = {k: v for k, v in ho.items() if v["M"] != v["N"]}
+        # THE SUBSET THAT DECIDES THE LANE'S WORLD.  `PtrWalkModLoop` already
+        # refuses every signature but "pointer at formal slot 0", so the
+        # question a lowering actually faces is asked over THAT population, and
+        # over chains whose producers are single words (#644's other half).
+        # Both restrictions are read from bytes, and the EXCLUDED counts are
+        # printed beside the rates so the subset is not a quiet filter.
+        pc = {k: v for k, v in ho.items() if v["ptr0"] and v["M"] == v["N"]}
+        print("  --- HELD OUT, restricted to the port's own signature class")
+        print("      (walked pointer at formal slot 0) AND chains of single-word")
+        print("      producers: %d of %d held-out cells; %d dropped for a moved"
+              % (len(pc), len(ho), sum(1 for v in ho.values() if not v["ptr0"])))
+        print("      pointer formal, %d for a split producer."
+              % sum(1 for v in ho.values() if v["M"] != v["N"]))
+        for key, lab in RULES:
+            if key in ("S1", "S1w", "S2", "S3m", "S4r", "S4n"):
+                rate(pc, key, lab)
+        nh = {k: v for k, v in pc.items() if not v["hoisted"]}
+        print("      ...and with c2's HOISTED wide literals dropped too "
+              "(%d of %d cells hoist one; the port's IL recognizer refuses the"
+              % (len(pc) - len(nh), len(pc)))
+        print("      wide literal that causes it, so this names a boundary):")
+        for key, lab in RULES:
+            if key in ("S1", "S2", "S3m", "S4r", "S4n"):
+                rate(nh, key, lab)
+        print("  --- HELD OUT, split by board #644 (M == N vs M != N):")
+        for key, lab in RULES:
+            if key in ("S1", "S1w", "S2", "S3", "S3m", "S4r", "S4n"):
+                h1, n1 = rate(ns, key, lab + "  [no split producer]")
+                h2, n2 = rate(sp, key, lab + "  [SPLIT producer]")
         print("  --- the same rules on the FITTING set (Grids A/B/C/D), for contrast:")
         for key, lab in RULES:
             if key.startswith("S"):
@@ -934,6 +1233,10 @@ def main(argv):
         # CONTROLS.  The three known-answer cells must land on the numbers
         # w-rotate published, and the three x- cells must be EXCLUDED.  A
         # control that fails is the only thing that changes exit status.
+        kg, kf = run_k(mode, wd, only)
+        tot_graded += kg
+        tot_capfail += kf
+
         print()
         print("  CONTROLS:")
         for nm, wantL, wantR, wantN in (("k-b-add", 0, 2, 1),

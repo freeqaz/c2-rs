@@ -1,0 +1,617 @@
+schedgrid.py -- the loop-body INTERLEAVE, lane w-sched2
+mode: /O1 /GS- /c
+prereg: work/w-sched2/PREREG.md (committed before this file)
+
+== GRID A -- FITTING SET, labelled (alu family, N=1..8) ==
+   Any refinement read off this grid is FITTED and is excluded from every held-out number.
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+a-alu1         1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    alu chain, N=1 intended, c-first
+a-alu2         2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    alu chain, N=2 intended, c-first
+a-alu3         3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    alu chain, N=3 intended, c-first
+a-alu4         4   4   4   1   5    0   0 SAME  MISS MISS OK   MISS  OK   OK   OK   OK    alu chain, N=4 intended, c-first
+a-alu5         5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    alu chain, N=5 intended, c-first
+a-alu6         6   6   6   1   7    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    alu chain, N=6 intended, c-first
+a-alu7         7   7   7   1   8    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    alu chain, N=7 intended, c-first
+a-alu8         8   8   8   1   9    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    alu chain, N=8 intended, c-first
+
+  reached 8  graded 8  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 0 of 8 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2             3 of 8   graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8
+  P2 WAR    R == LRC+1           3 of 8   graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8
+  P3 LEN    L == (N-1)/2         4 of 8   graded cells   MISSES: a-alu5 a-alu6 a-alu7 a-alu8
+  P4 TEMP   dests from end       3 of 8   graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)   8 of 8   graded cells
+  S1w LOAD  a <= 1  (the weak half)   2 of 8   graded cells   MISSES: a-alu3 a-alu4 a-alu5 a-alu6 a-alu7 a-alu8
+  S1m LOAD  same, over PRODUCERS   8 of 8   graded cells
+  S2 RECORD by regime            8 of 8   graded cells
+  S3 REGIME SAME iff pv=0 and N>=4   8 of 8   graded cells
+  S3m REGIME same, over PRODUCERS   8 of 8   graded cells
+  S4 TEMPS  over PRODUCERS       8 of 8   graded cells
+  S4s TEMPS same, over SLOTS     8 of 8   graded cells
+  S4r ALLOC structure, name-free   8 of 8   graded cells
+  S4n ALLOC the NAMES too        8 of 8   graded cells
+
+== GRID B -- (mul and shift families, N=1..8) -- FOLDED, see A1.1 ==
+   P5's grid. It did NOT reach its axis: both families pin at N=3. Grid E is the repair.
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+b-mul1         1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul chain, N=1 intended, c-first
+b-mul2         2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul chain, N=2 intended, c-first
+b-mul3         3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul chain, N=3 intended, c-first
+b-mul4         4   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul chain, N=4 intended, c-first
+b-mul5         5   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul chain, N=5 intended, c-first
+b-mul6         6   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul chain, N=6 intended, c-first
+b-mul7         7   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul chain, N=7 intended, c-first
+b-mul8         8   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul chain, N=8 intended, c-first
+b-shift1       1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift chain, N=1 intended, c-first
+b-shift2       2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift chain, N=2 intended, c-first
+b-shift3       3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift chain, N=3 intended, c-first
+b-shift4       4   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift chain, N=4 intended, c-first
+b-shift5       5   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift chain, N=5 intended, c-first
+b-shift6       6   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift chain, N=6 intended, c-first
+b-shift7       7   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift chain, N=7 intended, c-first
+b-shift8       8   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift chain, N=8 intended, c-first
+
+  reached 16  graded 16  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 10 of 16 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2            16 of 16  graded cells
+  P2 WAR    R == LRC+1          16 of 16  graded cells
+  P3 LEN    L == (N-1)/2        16 of 16  graded cells
+  P4 TEMP   dests from end      16 of 16  graded cells
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  16 of 16  graded cells
+  S1w LOAD  a <= 1  (the weak half)   4 of 16  graded cells   MISSES: b-mul3 b-mul4 b-mul5 b-mul6 b-mul7 b-mul8 b-shift3 b-shift4 b-shift5 b-shift6 b-shift7 b-shift8
+  S1m LOAD  same, over PRODUCERS  16 of 16  graded cells
+  S2 RECORD by regime           16 of 16  graded cells
+  S3 REGIME SAME iff pv=0 and N>=4  16 of 16  graded cells
+  S3m REGIME same, over PRODUCERS  16 of 16  graded cells
+  S4 TEMPS  over PRODUCERS      16 of 16  graded cells
+  S4s TEMPS same, over SLOTS    16 of 16  graded cells
+  S4r ALLOC structure, name-free  16 of 16  graded cells
+  S4n ALLOC the NAMES too       16 of 16  graded cells
+
+== GRID C -- the last-read-of-char axis ==
+   P2's pole. Held out for P1..P5; FITTING for S1..S4, which were read off it.
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+c-last1        1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    N=1 intended, only opN reads c
+c-last2        2   2   2   1   3    2   1  TWO  OK   OK   MISS OK    OK   OK   OK   OK    N=2 intended, only opN reads c
+c-last3        3   3   3   1   4    3   2  TWO  MISS OK   OK   MISS  OK   OK   OK   OK    N=3 intended, only opN reads c
+c-last4        4   4   4   1   5    4   3  TWO  MISS OK   OK   MISS  OK   OK   OK   OK    N=4 intended, only opN reads c
+c-last5        5   5   5   1   6    5   4  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=5 intended, only opN reads c
+c-last6        6   6   6   1   7    6   5  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=6 intended, only opN reads c
+c-last7        7   7   7   1   8    7   6  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=7 intended, only opN reads c
+c-last8        8   8   8   1   9    8   7  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=8 intended, only opN reads c
+c-every1       1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    N=1 intended, EVERY op reads c
+c-every2       2   2   2   1   3    2   1  TWO  OK   OK   MISS OK    OK   OK   OK   OK    N=2 intended, EVERY op reads c
+c-every3       3   3   3   1   4    3   2  TWO  MISS OK   OK   MISS  OK   OK   OK   OK    N=3 intended, EVERY op reads c
+c-every4       4   4   4   1   5    4   3  TWO  MISS OK   OK   MISS  OK   OK   OK   OK    N=4 intended, EVERY op reads c
+c-every5       5   5   5   1   6    5   4  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=5 intended, EVERY op reads c
+c-every6       6   6   6   1   7    6   5  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=6 intended, EVERY op reads c
+c-every7       7   7   7   1   8    7   6  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=7 intended, EVERY op reads c
+c-every8       8   8   8   1   9    8   7  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=8 intended, EVERY op reads c
+
+  reached 16  graded 16  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 0 of 16 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2             4 of 16  graded cells   MISSES: c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8
+  P2 WAR    R == LRC+1          16 of 16  graded cells
+  P3 LEN    L == (N-1)/2         6 of 16  graded cells   MISSES: c-every2 c-every5 c-every6 c-every7 c-every8 c-last2 c-last5 c-last6 c-last7 c-last8
+  P4 TEMP   dests from end       4 of 16  graded cells   MISSES: c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  16 of 16  graded cells
+  S1w LOAD  a <= 1  (the weak half)   2 of 16  graded cells   MISSES: c-every2 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last2 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8
+  S1m LOAD  same, over PRODUCERS  16 of 16  graded cells
+  S2 RECORD by regime           16 of 16  graded cells
+  S3 REGIME SAME iff pv=0 and N>=4  16 of 16  graded cells
+  S3m REGIME same, over PRODUCERS  16 of 16  graded cells
+  S4 TEMPS  over PRODUCERS      16 of 16  graded cells
+  S4s TEMPS same, over SLOTS    16 of 16  graded cells
+  S4r ALLOC structure, name-free  16 of 16  graded cells
+  S4n ALLOC the NAMES too       16 of 16  graded cells
+
+== GRID D -- CONTROLS and the #644 split-producer probe ==
+   Three known-answer cells from w-rotate, three split-producer cells, two unsigned, three MUST-EXCLUDE.
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+k-b-add        1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    KNOWN-ANSWER w-rotate b-add: L=0 R=2 N=1
+k-b-two        2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    KNOWN-ANSWER w-rotate b-two: L=0 R=2 N=2
+k-b-three      3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    KNOWN-ANSWER w-rotate b-three: L=1 R=3 N=3
+g-644-1        3   3   2   1   3    0   0  TWO  OK   MISS OK   MISS  OK   OK   OK   OK    #644 PROBE: 0x12345 needs lis/ori -- a split producer INSIDE the chain
+g-644-2        4   4   3   1   3    2   0  TWO  OK   OK   OK   MISS  OK   OK   MISS OK    #644 PROBE, longer
+g-644-3        5   5   4   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    #644 PROBE, the split producer EARLY in the chain
+u-uns1         1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    CONTROL: unsigned sentinel -- record form is `mr.`, not `extsb.`
+u-uns4        EXCLUDED: record form writes 0 regs
+x-noloop      EXCLUDED: no conditional back edge
+x-cmpk        EXCLUDED: record form writes 0 regs
+x-nosent      EXCLUDED: back edge tests no CR bit (BO=16)
+
+  reached 11  graded 7  capture-failures 0  excluded 4   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 0 of 7 graded (a fold, reported not absorbed)
+    excluded u-uns4       record form writes 0 regs
+    excluded x-noloop     no conditional back edge
+    excluded x-cmpk       record form writes 0 regs
+    excluded x-nosent     back edge tests no CR bit (BO=16)
+
+  P1 LAT2   R == L+2             6 of 7   graded cells   MISSES: g-644-3
+  P2 WAR    R == LRC+1           5 of 7   graded cells   MISSES: g-644-1 g-644-3
+  P3 LEN    L == (N-1)/2         6 of 7   graded cells   MISSES: g-644-3
+  P4 TEMP   dests from end       4 of 7   graded cells   MISSES: g-644-1 g-644-2 g-644-3
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)   7 of 7   graded cells
+  S1w LOAD  a <= 1  (the weak half)   3 of 7   graded cells   MISSES: g-644-1 g-644-2 g-644-3 k-b-three
+  S1m LOAD  same, over PRODUCERS   6 of 7   graded cells   MISSES: g-644-1
+  S2 RECORD by regime            7 of 7   graded cells
+  S3 REGIME SAME iff pv=0 and N>=4   6 of 7   graded cells   MISSES: g-644-2
+  S3m REGIME same, over PRODUCERS   7 of 7   graded cells
+  S4 TEMPS  over PRODUCERS       7 of 7   graded cells
+  S4s TEMPS same, over SLOTS     5 of 7   graded cells   MISSES: g-644-1 g-644-2
+  S4r ALLOC structure, name-free   6 of 7   graded cells   MISSES: g-644-1
+  S4n ALLOC the NAMES too        6 of 7   graded cells   MISSES: g-644-1
+
+== GRID E -- HELD OUT (five families, N=1..8, pv=0) ==
+   Repairs Grid B's coverage failure and goes after S3's single cell.
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+e-alu1         1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    alu family, N=1 intended, pv=0
+e-alu2         2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    alu family, N=2 intended, pv=0
+e-alu3         3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    alu family, N=3 intended, pv=0
+e-alu4         4   4   4   1   5    0   0 SAME  MISS MISS OK   MISS  OK   OK   OK   OK    alu family, N=4 intended, pv=0
+e-alu5         5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    alu family, N=5 intended, pv=0
+e-alu6         6   6   6   1   7    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    alu family, N=6 intended, pv=0
+e-alu7         7   7   7   1   8    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    alu family, N=7 intended, pv=0
+e-alu8         8   8   8   1   9    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    alu family, N=8 intended, pv=0
+e-k1           1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    k family, N=1 intended, pv=0
+e-k2           2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    k family, N=2 intended, pv=0
+e-k3           3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    k family, N=3 intended, pv=0
+e-k4           4   4   4   1   5    0   0 SAME  MISS MISS OK   MISS  OK   OK   OK   OK    k family, N=4 intended, pv=0
+e-k5           5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    k family, N=5 intended, pv=0
+e-k6           6   6   6   1   7    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    k family, N=6 intended, pv=0
+e-k7           7   7   7   1   8    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    k family, N=7 intended, pv=0
+e-k8           8   8   8   1   9    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    k family, N=8 intended, pv=0
+e-mul1         1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul family, N=1 intended, pv=0
+e-mul2         2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul family, N=2 intended, pv=0
+e-mul3         3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    mul family, N=3 intended, pv=0
+e-mul4         4   4   4   1   5    0   0 SAME  MISS MISS OK   MISS  OK   OK   OK   OK    mul family, N=4 intended, pv=0
+e-mul5         5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    mul family, N=5 intended, pv=0
+e-mul6         6   6   6   1   7    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    mul family, N=6 intended, pv=0
+e-mul7         7   7   7   1   8    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    mul family, N=7 intended, pv=0
+e-mul8         8   8   8   1   9    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    mul family, N=8 intended, pv=0
+e-shift1       1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift family, N=1 intended, pv=0
+e-shift2       2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift family, N=2 intended, pv=0
+e-shift3       3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift family, N=3 intended, pv=0
+e-shift4       4   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift family, N=4 intended, pv=0
+e-shift5       5   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift family, N=5 intended, pv=0
+e-shift6       6   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift family, N=6 intended, pv=0
+e-shift7       7   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift family, N=7 intended, pv=0
+e-shift8       8   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    shift family, N=8 intended, pv=0
+e-subf1        1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    subf family, N=1 intended, pv=0
+e-subf2        2   2   2   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    subf family, N=2 intended, pv=0
+e-subf3        3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    subf family, N=3 intended, pv=0
+e-subf4        4   4   4   1   5    0   0 SAME  MISS MISS OK   MISS  OK   OK   OK   OK    subf family, N=4 intended, pv=0
+e-subf5        5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    subf family, N=5 intended, pv=0
+e-subf6        6   6   6   1   7    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    subf family, N=6 intended, pv=0
+e-subf7        7   7   7   1   8    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    subf family, N=7 intended, pv=0
+e-subf8        8   8   8   1   9    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    subf family, N=8 intended, pv=0
+
+  reached 40  graded 40  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 5 of 40 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2            20 of 40  graded cells   MISSES: e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8
+  P2 WAR    R == LRC+1          20 of 40  graded cells   MISSES: e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8
+  P3 LEN    L == (N-1)/2        24 of 40  graded cells   MISSES: e-alu5 e-alu6 e-alu7 e-alu8 e-k5 e-k6 e-k7 e-k8 e-mul5 e-mul6 e-mul7 e-mul8 e-subf5 e-subf6 e-subf7 e-subf8
+  P4 TEMP   dests from end      20 of 40  graded cells   MISSES: e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  40 of 40  graded cells
+  S1w LOAD  a <= 1  (the weak half)  10 of 40  graded cells   MISSES: e-alu3 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k3 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul3 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-shift3 e-shift4 e-shift5 e-shift6 e-shift7 e-shift8 e-subf3 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8
+  S1m LOAD  same, over PRODUCERS  40 of 40  graded cells
+  S2 RECORD by regime           40 of 40  graded cells
+  S3 REGIME SAME iff pv=0 and N>=4  40 of 40  graded cells
+  S3m REGIME same, over PRODUCERS  40 of 40  graded cells
+  S4 TEMPS  over PRODUCERS      40 of 40  graded cells
+  S4s TEMPS same, over SLOTS    40 of 40  graded cells
+  S4r ALLOC structure, name-free  40 of 40  graded cells
+  S4n ALLOC the NAMES too       40 of 40  graded cells
+
+== GRID F -- HELD OUT (the pv axis, every intermediate slot) ==
+   S2-TWO across its whole range, and S3's registered NEGATIVE prediction.
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+f-n3p0         3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    N=3 intended, only chain op 0 reads c
+f-n3p1         3   3   3   1   3    2   1  TWO  OK   OK   OK   MISS  OK   OK   OK   OK    N=3 intended, only chain op 1 reads c
+f-n3p2         3   3   3   1   3    2   1  TWO  OK   OK   OK   MISS  OK   OK   OK   OK    N=3 intended, only chain op 2 reads c
+f-n4p0         4   4   4   1   5    0   0 SAME  MISS MISS OK   MISS  OK   OK   OK   OK    N=4 intended, only chain op 0 reads c
+f-n4p1         4   4   4   1   3    2   1  TWO  OK   OK   OK   MISS  OK   OK   OK   MISS  N=4 intended, only chain op 1 reads c
+f-n4p2         4   3   3   1   3    2   1  TWO  OK   OK   OK   MISS  OK   OK   OK   OK    N=4 intended, only chain op 2 reads c
+f-n4p3         4   4   4   1   5    4   3  TWO  MISS OK   OK   MISS  OK   OK   OK   OK    N=4 intended, only chain op 3 reads c
+f-n6p0         6   6   6   1   7    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    N=6 intended, only chain op 0 reads c
+f-n6p1         6   6   6   1   3    2   1  TWO  OK   OK   MISS MISS  OK   OK   OK   MISS  N=6 intended, only chain op 1 reads c
+f-n6p2         6   5   5   1   3    2   1  TWO  OK   OK   MISS MISS  OK   OK   OK   MISS  N=6 intended, only chain op 2 reads c
+f-n6p3         6   6   6   1   5    4   3  TWO  MISS OK   MISS MISS  OK   OK   OK   MISS  N=6 intended, only chain op 3 reads c
+f-n6p4         6   5   5   1   5    4   3  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=6 intended, only chain op 4 reads c
+f-n6p5         6   6   6   1   7    6   5  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=6 intended, only chain op 5 reads c
+
+  reached 13  graded 13  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 3 of 13 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2             7 of 13  graded cells   MISSES: f-n4p0 f-n4p3 f-n6p0 f-n6p3 f-n6p4 f-n6p5
+  P2 WAR    R == LRC+1          11 of 13  graded cells   MISSES: f-n4p0 f-n6p0
+  P3 LEN    L == (N-1)/2         7 of 13  graded cells   MISSES: f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5
+  P4 TEMP   dests from end       1 of 13  graded cells   MISSES: f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  13 of 13  graded cells
+  S1w LOAD  a <= 1  (the weak half)   0 of 13  graded cells   MISSES: f-n3p0 f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5
+  S1m LOAD  same, over PRODUCERS  13 of 13  graded cells
+  S2 RECORD by regime           13 of 13  graded cells
+  S3 REGIME SAME iff pv=0 and N>=4  13 of 13  graded cells
+  S3m REGIME same, over PRODUCERS  13 of 13  graded cells
+  S4 TEMPS  over PRODUCERS       9 of 13  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3
+  S4s TEMPS same, over SLOTS     9 of 13  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3
+  S4r ALLOC structure, name-free  13 of 13  graded cells
+  S4n ALLOC the NAMES too       13 of 13  graded cells
+
+== GRID G -- HELD OUT (board #644, split producers) ==
+   Every rule graded in BOTH units -- slots and producers -- with both counts printed.
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+h6-mid3        4   4   3   0   2    1   0  TWO  OK   OK   MISS MISS  MISS OK   MISS MISS  split producer at chain slot 1 of 3
+h6-mid4        5   5   4   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    split producer in the middle of 4
+h6-last        4   4   3   1   3    2   0  TWO  OK   OK   OK   MISS  OK   OK   MISS OK    split producer LAST -- it writes r3, the accumulator's home
+h6-two         6   4   4   1   3    0   0 SAME  OK   MISS OK   MISS  OK   MISS OK   MISS  TWO split producers in one chain
+h6-or          4   4   3   0   2    1   0  TWO  OK   OK   MISS MISS  MISS OK   MISS MISS  an `oris`+`ori` split, not `addis`+`addi`
+h6-xor         4   4   3   0   2    1   0  TWO  OK   OK   MISS MISS  MISS OK   MISS MISS  an `xoris`+`xori` split
+h6-first       4   4   3   0   2    1   0  TWO  OK   OK   MISS MISS  MISS OK   MISS MISS  the split producer BEFORE the char's read -- pv is not 0 here
+h6-long        6   6   5   1   7    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    a split producer at the end of a LONG chain -- N=6, M=5
+
+  reached 8  graded 8  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 1 of 8 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2             6 of 8   graded cells   MISSES: h6-long h6-mid4
+  P2 WAR    R == LRC+1           5 of 8   graded cells   MISSES: h6-long h6-mid4 h6-two
+  P3 LEN    L == (N-1)/2         2 of 8   graded cells   MISSES: h6-first h6-long h6-mid3 h6-mid4 h6-or h6-xor
+  P4 TEMP   dests from end       0 of 8   graded cells   MISSES: h6-first h6-last h6-long h6-mid3 h6-mid4 h6-or h6-two h6-xor
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)   4 of 8   graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor
+  S1w LOAD  a <= 1  (the weak half)   4 of 8   graded cells   MISSES: h6-last h6-long h6-mid4 h6-two
+  S1m LOAD  same, over PRODUCERS   4 of 8   graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor
+  S2 RECORD by regime            7 of 8   graded cells   MISSES: h6-two
+  S3 REGIME SAME iff pv=0 and N>=4   3 of 8   graded cells   MISSES: h6-first h6-last h6-mid3 h6-or h6-xor
+  S3m REGIME same, over PRODUCERS   8 of 8   graded cells
+  S4 TEMPS  over PRODUCERS       3 of 8   graded cells   MISSES: h6-first h6-mid3 h6-or h6-two h6-xor
+  S4s TEMPS same, over SLOTS     1 of 8   graded cells   MISSES: h6-first h6-last h6-long h6-mid3 h6-or h6-two h6-xor
+  S4r ALLOC structure, name-free   8 of 8   graded cells
+  S4n ALLOC the NAMES too        8 of 8   graded cells
+
+== GRID H -- HELD OUT (the SIGNATURE axis, chain fixed) ==
+   w-hash showed the register PLAN moves with the signature. Does the INTERLEAVE?
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+i-base1        1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    baseline signature
+i-k1           1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    a second formal, UNUSED by the chain
+i-slot1n1      1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    the pointer formal at SLOT 1 -- w-hash's re-planning axis
+i-uns1         1   1   1   0   2    1   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    unsigned sentinel: the record form is `mr.`
+i-base3        3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    baseline signature
+i-k3           3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    a second formal, UNUSED by the chain
+i-slot1n3      3   3   3   1   3    2   0  TWO  OK   OK   OK   MISS  OK   OK   OK   MISS  the pointer formal at SLOT 1 -- w-hash's re-planning axis
+i-uns3         3   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    unsigned sentinel: the record form is `mr.`
+i-base5        5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    baseline signature
+i-k5           5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   OK    a second formal, UNUSED by the chain
+i-slot1n5      5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   MISS  the pointer formal at SLOT 1 -- w-hash's re-planning axis
+i-uns5        EXCLUDED: record form writes 0 regs
+
+  reached 12  graded 11  capture-failures 0  excluded 1   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 0 of 11 graded (a fold, reported not absorbed)
+    excluded i-uns5       record form writes 0 regs
+
+  P1 LAT2   R == L+2             8 of 11  graded cells   MISSES: i-base5 i-k5 i-slot1n5
+  P2 WAR    R == LRC+1           8 of 11  graded cells   MISSES: i-base5 i-k5 i-slot1n5
+  P3 LEN    L == (N-1)/2         8 of 11  graded cells   MISSES: i-base5 i-k5 i-slot1n5
+  P4 TEMP   dests from end       7 of 11  graded cells   MISSES: i-base5 i-k5 i-slot1n3 i-slot1n5
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  11 of 11  graded cells
+  S1w LOAD  a <= 1  (the weak half)   4 of 11  graded cells   MISSES: i-base3 i-base5 i-k3 i-k5 i-slot1n3 i-slot1n5 i-uns3
+  S1m LOAD  same, over PRODUCERS  11 of 11  graded cells
+  S2 RECORD by regime           11 of 11  graded cells
+  S3 REGIME SAME iff pv=0 and N>=4  11 of 11  graded cells
+  S3m REGIME same, over PRODUCERS  11 of 11  graded cells
+  S4 TEMPS  over PRODUCERS       9 of 11  graded cells   MISSES: i-slot1n3 i-slot1n5
+  S4s TEMPS same, over SLOTS     9 of 11  graded cells   MISSES: i-slot1n3 i-slot1n5
+  S4r ALLOC structure, name-free  11 of 11  graded cells
+  S4n ALLOC the NAMES too       10 of 11  graded cells   MISSES: i-slot1n3
+
+== GRID J -- HELD OUT for S4r (ADDENDUM 2, `9bc73d3`) ==
+   Four straddle candidates, four pool shifts, four fresh pv cells.
+
+cell          iN   N   M   L   R  LRC  pv regm  P1   P2   P3   P4    S1   S2   S3   S4    note
+j-str1         3   3   2   1   3    0   0  TWO  OK   MISS OK   MISS  OK   OK   OK   OK    M=2, `addis`+`addi` last
+j-str2         3   3   2   1   3    0   0  TWO  OK   MISS OK   MISS  OK   OK   OK   OK    M=2, `oris`+`ori` last
+j-str3         3   3   2   1   3    0   0  TWO  OK   MISS OK   MISS  OK   OK   OK   OK    M=2, `xoris`+`xori` last
+j-str4         4   3   3   1   3    2   0  TWO  OK   OK   OK   OK    OK   OK   OK   OK    M=3, wide literal last
+j-pool1        3   3   3   1   3    2   0  TWO  OK   OK   OK   MISS  OK   OK   OK   MISS  POOL SHIFT: the pointer formal at slot 2
+j-pool2        5   5   5   1   6    0   0 SAME  MISS MISS MISS MISS  OK   OK   OK   MISS  POOL SHIFT: pointer at slot 2, N=5
+j-pool3        6   4   4   1   3    0   0 SAME  OK   MISS OK   MISS  OK   MISS OK   MISS  POOL SHIFT: a wide literal used TWICE -- c2 may hoist it into a register
+j-pool4        4   4   4   1   5    0   0 SAME  MISS MISS OK   MISS  OK   OK   OK   OK    POOL SHIFT: two extra formals consumed by the chain
+j-pv5a         5   5   5   1   4    3   2  TWO  MISS OK   MISS MISS  OK   OK   OK   MISS  N=5, the char read at chain slot 2
+j-pv5b         5   5   5   1   5    4   3  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=5, the char read at chain slot 3
+j-pv7a         7   7   7   1   4    3   2  TWO  MISS OK   MISS MISS  OK   OK   OK   MISS  N=7, the char read at chain slot 2
+j-pv7b         7   7   7   1   7    6   5  TWO  MISS OK   MISS MISS  OK   OK   OK   OK    N=7, the char read at chain slot 5
+
+  reached 12  graded 12  capture-failures 0  excluded 0   (a cell that did not capture is a FAILURE, not a zero)
+  emitted N != intended N: 2 of 12 graded (a fold, reported not absorbed)
+
+  P1 LAT2   R == L+2             6 of 12  graded cells   MISSES: j-pool2 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b
+  P2 WAR    R == LRC+1           6 of 12  graded cells   MISSES: j-pool2 j-pool3 j-pool4 j-str1 j-str2 j-str3
+  P3 LEN    L == (N-1)/2         7 of 12  graded cells   MISSES: j-pool2 j-pv5a j-pv5b j-pv7a j-pv7b
+  P4 TEMP   dests from end       1 of 12  graded cells   MISSES: j-pool1 j-pool2 j-pool3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str1 j-str2 j-str3
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  12 of 12  graded cells
+  S1w LOAD  a <= 1  (the weak half)   0 of 12  graded cells   MISSES: j-pool1 j-pool2 j-pool3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str1 j-str2 j-str3 j-str4
+  S1m LOAD  same, over PRODUCERS   9 of 12  graded cells   MISSES: j-str1 j-str2 j-str3
+  S2 RECORD by regime           11 of 12  graded cells   MISSES: j-pool3
+  S3 REGIME SAME iff pv=0 and N>=4  12 of 12  graded cells
+  S3m REGIME same, over PRODUCERS  12 of 12  graded cells
+  S4 TEMPS  over PRODUCERS       7 of 12  graded cells   MISSES: j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a
+  S4s TEMPS same, over SLOTS     4 of 12  graded cells   MISSES: j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a j-str1 j-str2 j-str3
+  S4r ALLOC structure, name-free   9 of 12  graded cells   MISSES: j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too        8 of 12  graded cells   MISSES: j-pool1 j-str1 j-str2 j-str3
+
+==============================================================================
+TOTALS over every grid
+  reached 136  graded 131  capture-failures 0
+  P1 LAT2   R == L+2            76 of 131 graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8 f-n4p0 f-n4p3 f-n6p0 f-n6p3 f-n6p4 f-n6p5 g-644-3 h6-long h6-mid4 i-base5 i-k5 i-slot1n5 j-pool2 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b
+  P2 WAR    R == LRC+1          90 of 131 graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8 f-n4p0 f-n6p0 g-644-1 g-644-3 h6-long h6-mid4 h6-two i-base5 i-k5 i-slot1n5 j-pool2 j-pool3 j-pool4 j-str1 j-str2 j-str3
+  P3 LEN    L == (N-1)/2        80 of 131 graded cells   MISSES: a-alu5 a-alu6 a-alu7 a-alu8 c-every2 c-every5 c-every6 c-every7 c-every8 c-last2 c-last5 c-last6 c-last7 c-last8 e-alu5 e-alu6 e-alu7 e-alu8 e-k5 e-k6 e-k7 e-k8 e-mul5 e-mul6 e-mul7 e-mul8 e-subf5 e-subf6 e-subf7 e-subf8 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5 g-644-3 h6-first h6-long h6-mid3 h6-mid4 h6-or h6-xor i-base5 i-k5 i-slot1n5 j-pool2 j-pv5a j-pv5b j-pv7a j-pv7b
+  P4 TEMP   dests from end      56 of 131 graded cells   MISSES: a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8 f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5 g-644-1 g-644-2 g-644-3 h6-first h6-last h6-long h6-mid3 h6-mid4 h6-or h6-two h6-xor i-base5 i-k5 i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str1 j-str2 j-str3
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0) 127 of 131 graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor
+  S1w LOAD  a <= 1  (the weak half)  29 of 131 graded cells   MISSES: a-alu3 a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 b-mul3 b-mul4 b-mul5 b-mul6 b-mul7 b-mul8 b-shift3 b-shift4 b-shift5 b-shift6 b-shift7 b-shift8 c-every2 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last2 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 e-alu3 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k3 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul3 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-shift3 e-shift4 e-shift5 e-shift6 e-shift7 e-shift8 e-subf3 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8 f-n3p0 f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5 g-644-1 g-644-2 g-644-3 h6-last h6-long h6-mid4 h6-two i-base3 i-base5 i-k3 i-k5 i-slot1n3 i-slot1n5 i-uns3 j-pool1 j-pool2 j-pool3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str1 j-str2 j-str3 j-str4 k-b-three
+  S1m LOAD  same, over PRODUCERS 123 of 131 graded cells   MISSES: g-644-1 h6-first h6-mid3 h6-or h6-xor j-str1 j-str2 j-str3
+  S2 RECORD by regime          129 of 131 graded cells   MISSES: h6-two j-pool3
+  S3 REGIME SAME iff pv=0 and N>=4 125 of 131 graded cells   MISSES: g-644-2 h6-first h6-last h6-mid3 h6-or h6-xor
+  S3m REGIME same, over PRODUCERS 131 of 131 graded cells
+  S4 TEMPS  over PRODUCERS     115 of 131 graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 h6-first h6-mid3 h6-or h6-two h6-xor i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a
+  S4s TEMPS same, over SLOTS   108 of 131 graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 g-644-1 g-644-2 h6-first h6-last h6-long h6-mid3 h6-or h6-two h6-xor i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a j-str1 j-str2 j-str3
+  S4r ALLOC structure, name-free 127 of 131 graded cells   MISSES: g-644-1 j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too      125 of 131 graded cells   MISSES: g-644-1 i-slot1n3 j-pool1 j-str1 j-str2 j-str3
+
+  --- ADDENDUM 1's rules on the HELD-OUT set alone (Grids E/F/G/H/J)
+      registered at `baf69fb`, before those grids existed:
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  80 of 84  graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor
+  S1w LOAD  a <= 1  (the weak half)  18 of 84  graded cells   MISSES: e-alu3 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k3 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul3 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-shift3 e-shift4 e-shift5 e-shift6 e-shift7 e-shift8 e-subf3 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8 f-n3p0 f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5 h6-last h6-long h6-mid4 h6-two i-base3 i-base5 i-k3 i-k5 i-slot1n3 i-slot1n5 i-uns3 j-pool1 j-pool2 j-pool3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str1 j-str2 j-str3 j-str4
+  S1m LOAD  same, over PRODUCERS  77 of 84  graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor j-str1 j-str2 j-str3
+  S2 RECORD by regime           82 of 84  graded cells   MISSES: h6-two j-pool3
+  S3 REGIME SAME iff pv=0 and N>=4  79 of 84  graded cells   MISSES: h6-first h6-last h6-mid3 h6-or h6-xor
+  S3m REGIME same, over PRODUCERS  84 of 84  graded cells
+  S4 TEMPS  over PRODUCERS      68 of 84  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 h6-first h6-mid3 h6-or h6-two h6-xor i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a
+  S4s TEMPS same, over SLOTS    63 of 84  graded cells   MISSES: f-n4p1 f-n6p1 f-n6p2 f-n6p3 h6-first h6-last h6-long h6-mid3 h6-or h6-two h6-xor i-slot1n3 i-slot1n5 j-pool1 j-pool2 j-pool3 j-pv5a j-pv7a j-str1 j-str2 j-str3
+  S4r ALLOC structure, name-free  81 of 84  graded cells   MISSES: j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too       79 of 84  graded cells   MISSES: i-slot1n3 j-pool1 j-str1 j-str2 j-str3
+  --- ADDENDUM 2's rules on GRID J alone, the only set registered
+      at `9bc73d3` before it existed:
+  S4r ALLOC structure, name-free   9 of 12  graded cells   MISSES: j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too        8 of 12  graded cells   MISSES: j-pool1 j-str1 j-str2 j-str3
+  --- HELD OUT, restricted to the port's own signature class
+      (walked pointer at formal slot 0) AND chains of single-word
+      producers: 69 of 84 held-out cells; 5 dropped for a moved
+      pointer formal, 10 for a split producer.
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  69 of 69  graded cells
+  S1w LOAD  a <= 1  (the weak half)  13 of 69  graded cells   MISSES: e-alu3 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k3 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul3 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-shift3 e-shift4 e-shift5 e-shift6 e-shift7 e-shift8 e-subf3 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8 f-n3p0 f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5 h6-two i-base3 i-base5 i-k3 i-k5 i-uns3 j-pool3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str4
+  S2 RECORD by regime           67 of 69  graded cells   MISSES: h6-two j-pool3
+  S3m REGIME same, over PRODUCERS  69 of 69  graded cells
+  S4r ALLOC structure, name-free  69 of 69  graded cells
+  S4n ALLOC the NAMES too       69 of 69  graded cells
+      ...and with c2's HOISTED wide literals dropped too (2 of 69 cells hoist one; the port's IL recognizer refuses the
+      wide literal that causes it, so this names a boundary):
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  67 of 67  graded cells
+  S2 RECORD by regime           67 of 67  graded cells
+  S3m REGIME same, over PRODUCERS  67 of 67  graded cells
+  S4r ALLOC structure, name-free  67 of 67  graded cells
+  S4n ALLOC the NAMES too       67 of 67  graded cells
+  --- HELD OUT, split by board #644 (M == N vs M != N):
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  [no split producer]  74 of 74  graded cells
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  [SPLIT producer]   6 of 10  graded cells   MISSES: h6-first h6-mid3 h6-or h6-xor
+  S1w LOAD  a <= 1  (the weak half)  [no split producer]  14 of 74  graded cells   MISSES: e-alu3 e-alu4 e-alu5 e-alu6 e-alu7 e-alu8 e-k3 e-k4 e-k5 e-k6 e-k7 e-k8 e-mul3 e-mul4 e-mul5 e-mul6 e-mul7 e-mul8 e-shift3 e-shift4 e-shift5 e-shift6 e-shift7 e-shift8 e-subf3 e-subf4 e-subf5 e-subf6 e-subf7 e-subf8 f-n3p0 f-n3p1 f-n3p2 f-n4p0 f-n4p1 f-n4p2 f-n4p3 f-n6p0 f-n6p1 f-n6p2 f-n6p3 f-n6p4 f-n6p5 h6-two i-base3 i-base5 i-k3 i-k5 i-slot1n3 i-slot1n5 i-uns3 j-pool1 j-pool2 j-pool3 j-pool4 j-pv5a j-pv5b j-pv7a j-pv7b j-str4
+  S1w LOAD  a <= 1  (the weak half)  [SPLIT producer]   4 of 10  graded cells   MISSES: h6-last h6-long h6-mid4 j-str1 j-str2 j-str3
+  S2 RECORD by regime  [no split producer]  72 of 74  graded cells   MISSES: h6-two j-pool3
+  S2 RECORD by regime  [SPLIT producer]  10 of 10  graded cells
+  S3 REGIME SAME iff pv=0 and N>=4  [no split producer]  74 of 74  graded cells
+  S3 REGIME SAME iff pv=0 and N>=4  [SPLIT producer]   5 of 10  graded cells   MISSES: h6-first h6-last h6-mid3 h6-or h6-xor
+  S3m REGIME same, over PRODUCERS  [no split producer]  74 of 74  graded cells
+  S3m REGIME same, over PRODUCERS  [SPLIT producer]  10 of 10  graded cells
+  S4r ALLOC structure, name-free  [no split producer]  74 of 74  graded cells
+  S4r ALLOC structure, name-free  [SPLIT producer]   7 of 10  graded cells   MISSES: j-str1 j-str2 j-str3
+  S4n ALLOC the NAMES too  [no split producer]  72 of 74  graded cells   MISSES: i-slot1n3 j-pool1
+  S4n ALLOC the NAMES too  [SPLIT producer]   7 of 10  graded cells   MISSES: j-str1 j-str2 j-str3
+  --- the same rules on the FITTING set (Grids A/B/C/D), for contrast:
+  S1 LOAD   a=1 (a=0 iff N<=2,p=0)  47 of 47  graded cells
+  S1w LOAD  a <= 1  (the weak half)  11 of 47  graded cells   MISSES: a-alu3 a-alu4 a-alu5 a-alu6 a-alu7 a-alu8 b-mul3 b-mul4 b-mul5 b-mul6 b-mul7 b-mul8 b-shift3 b-shift4 b-shift5 b-shift6 b-shift7 b-shift8 c-every2 c-every3 c-every4 c-every5 c-every6 c-every7 c-every8 c-last2 c-last3 c-last4 c-last5 c-last6 c-last7 c-last8 g-644-1 g-644-2 g-644-3 k-b-three
+  S1m LOAD  same, over PRODUCERS  46 of 47  graded cells   MISSES: g-644-1
+  S2 RECORD by regime           47 of 47  graded cells
+  S3 REGIME SAME iff pv=0 and N>=4  46 of 47  graded cells   MISSES: g-644-2
+  S3m REGIME same, over PRODUCERS  47 of 47  graded cells
+  S4 TEMPS  over PRODUCERS      47 of 47  graded cells
+  S4s TEMPS same, over SLOTS    45 of 47  graded cells   MISSES: g-644-1 g-644-2
+  S4r ALLOC structure, name-free  46 of 47  graded cells   MISSES: g-644-1
+  S4n ALLOC the NAMES too       46 of 47  graded cells   MISSES: g-644-1
+
+  S3 NEGATIVE prediction (no TWO-regime cell with pv=0 at M>=4):
+    37 cells reached the predicate, 0 violated it
+
+  #644: 13 graded cells contain a SPLIT producer (M != N); 4 have the record form scheduled BETWEEN a producer's halves   g-644-1 j-str1 j-str2 j-str3
+
+  P5 groups (same N and same last-read slot, across families):
+    N=1 lastread-at-chain-slot=0  OK    a-alu1(L=0,R=2)  b-mul1(L=0,R=2)  b-shift1(L=0,R=2)  c-every1(L=0,R=2)  c-last1(L=0,R=2)  e-alu1(L=0,R=2)  e-k1(L=0,R=2)  e-mul1(L=0,R=2)  e-shift1(L=0,R=2)  e-subf1(L=0,R=2)  i-base1(L=0,R=2)  i-k1(L=0,R=2)  i-slot1n1(L=0,R=2)  i-uns1(L=0,R=2)  k-b-add(L=0,R=2)  u-uns1(L=0,R=2)
+    N=2 lastread-at-chain-slot=0  OK    a-alu2(L=0,R=2)  b-mul2(L=0,R=2)  b-shift2(L=0,R=2)  e-alu2(L=0,R=2)  e-k2(L=0,R=2)  e-mul2(L=0,R=2)  e-shift2(L=0,R=2)  e-subf2(L=0,R=2)  k-b-two(L=0,R=2)
+    N=2 lastread-at-chain-slot=1  OK    c-every2(L=1,R=3)  c-last2(L=1,R=3)
+    N=3 lastread-at-chain-slot=0  OK    g-644-1(L=1,R=3)  j-str1(L=1,R=3)  j-str2(L=1,R=3)  j-str3(L=1,R=3)
+    N=3 lastread-at-chain-slot=1  OK    a-alu3(L=1,R=3)  b-mul3(L=1,R=3)  b-mul4(L=1,R=3)  b-mul5(L=1,R=3)  b-mul6(L=1,R=3)  b-mul7(L=1,R=3)  b-mul8(L=1,R=3)  b-shift3(L=1,R=3)  b-shift4(L=1,R=3)  b-shift5(L=1,R=3)  b-shift6(L=1,R=3)  b-shift7(L=1,R=3)  b-shift8(L=1,R=3)  e-alu3(L=1,R=3)  e-k3(L=1,R=3)  e-mul3(L=1,R=3)  e-shift3(L=1,R=3)  e-shift4(L=1,R=3)  e-shift5(L=1,R=3)  e-shift6(L=1,R=3)  e-shift7(L=1,R=3)  e-shift8(L=1,R=3)  e-subf3(L=1,R=3)  f-n3p0(L=1,R=3)  f-n3p1(L=1,R=3)  f-n3p2(L=1,R=3)  f-n4p2(L=1,R=3)  i-base3(L=1,R=3)  i-k3(L=1,R=3)  i-slot1n3(L=1,R=3)  i-uns3(L=1,R=3)  j-pool1(L=1,R=3)  j-str4(L=1,R=3)  k-b-three(L=1,R=3)
+    N=3 lastread-at-chain-slot=2  OK    c-every3(L=1,R=4)  c-last3(L=1,R=4)
+    N=4 lastread-at-chain-slot=0  SPLIT  a-alu4(L=1,R=5)  e-alu4(L=1,R=5)  e-k4(L=1,R=5)  e-mul4(L=1,R=5)  e-subf4(L=1,R=5)  f-n4p0(L=1,R=5)  h6-first(L=0,R=2)  h6-mid3(L=0,R=2)  h6-or(L=0,R=2)  h6-two(L=1,R=3)  h6-xor(L=0,R=2)  j-pool3(L=1,R=3)  j-pool4(L=1,R=5)
+    N=4 lastread-at-chain-slot=1  OK    f-n4p1(L=1,R=3)  g-644-2(L=1,R=3)  h6-last(L=1,R=3)
+    N=4 lastread-at-chain-slot=3  OK    c-every4(L=1,R=5)  c-last4(L=1,R=5)  f-n4p3(L=1,R=5)
+    N=5 lastread-at-chain-slot=0  OK    a-alu5(L=1,R=6)  e-alu5(L=1,R=6)  e-k5(L=1,R=6)  e-mul5(L=1,R=6)  e-subf5(L=1,R=6)  g-644-3(L=1,R=6)  h6-mid4(L=1,R=6)  i-base5(L=1,R=6)  i-k5(L=1,R=6)  i-slot1n5(L=1,R=6)  j-pool2(L=1,R=6)
+    N=5 lastread-at-chain-slot=3  OK    f-n6p4(L=1,R=5)  j-pv5b(L=1,R=5)
+    N=5 lastread-at-chain-slot=4  OK    c-every5(L=1,R=6)  c-last5(L=1,R=6)
+    N=6 lastread-at-chain-slot=0  OK    a-alu6(L=1,R=7)  e-alu6(L=1,R=7)  e-k6(L=1,R=7)  e-mul6(L=1,R=7)  e-subf6(L=1,R=7)  f-n6p0(L=1,R=7)  h6-long(L=1,R=7)
+    N=6 lastread-at-chain-slot=5  OK    c-every6(L=1,R=7)  c-last6(L=1,R=7)  f-n6p5(L=1,R=7)
+    N=7 lastread-at-chain-slot=0  OK    a-alu7(L=1,R=8)  e-alu7(L=1,R=8)  e-k7(L=1,R=8)  e-mul7(L=1,R=8)  e-subf7(L=1,R=8)
+    N=7 lastread-at-chain-slot=6  OK    c-every7(L=1,R=8)  c-last7(L=1,R=8)
+    N=8 lastread-at-chain-slot=0  OK    a-alu8(L=1,R=9)  e-alu8(L=1,R=9)  e-k8(L=1,R=9)  e-mul8(L=1,R=9)  e-subf8(L=1,R=9)
+    N=8 lastread-at-chain-slot=7  OK    c-every8(L=1,R=9)  c-last8(L=1,R=9)
+  P5 FAMILY-BLINDNESS: 17 of 18 multi-cell groups agree
+
+  AXIS: 8 distinct emitted chain lengths [1, 2, 3, 4, 5, 6, 7, 8]
+  AXIS: 3 operator families in the length grids ['alu', 'mul', 'shift']
+
+  P4 residual -- chain destinations, in chain order, per cell:
+    a-alu1       N=1  3
+    a-alu2       N=2  8 3
+    a-alu3       N=3  11 8 3
+    a-alu4       N=4  9 9 9 3
+    a-alu5       N=5  9 9 9 9 3
+    a-alu6       N=6  9 9 9 9 9 3
+    a-alu7       N=7  9 9 9 9 9 9 3
+    a-alu8       N=8  9 9 9 9 9 9 9 3
+    b-mul1       N=1  3
+    b-mul2       N=2  8 3
+    b-mul3       N=3  11 8 3
+    b-mul4       N=3  11 8 3
+    b-mul5       N=3  11 8 3
+    b-mul6       N=3  11 8 3
+    b-mul7       N=3  11 8 3
+    b-mul8       N=3  11 8 3
+    b-shift1     N=1  3
+    b-shift2     N=2  8 3
+    b-shift3     N=3  11 8 3
+    b-shift4     N=3  11 8 3
+    b-shift5     N=3  11 8 3
+    b-shift6     N=3  11 8 3
+    b-shift7     N=3  11 8 3
+    b-shift8     N=3  11 8 3
+    c-every1     N=1  3
+    c-every2     N=2  8 3
+    c-every3     N=3  8 8 3
+    c-every4     N=4  8 8 8 3
+    c-every5     N=5  8 8 8 8 3
+    c-every6     N=6  8 8 8 8 8 3
+    c-every7     N=7  8 8 8 8 8 8 3
+    c-every8     N=8  8 8 8 8 8 8 8 3
+    c-last1      N=1  3
+    c-last2      N=2  8 3
+    c-last3      N=3  8 8 3
+    c-last4      N=4  8 8 8 3
+    c-last5      N=5  8 8 8 8 3
+    c-last6      N=6  8 8 8 8 8 3
+    c-last7      N=7  8 8 8 8 8 8 3
+    c-last8      N=8  8 8 8 8 8 8 8 3
+    e-alu1       N=1  3
+    e-alu2       N=2  8 3
+    e-alu3       N=3  11 8 3
+    e-alu4       N=4  9 9 9 3
+    e-alu5       N=5  9 9 9 9 3
+    e-alu6       N=6  9 9 9 9 9 3
+    e-alu7       N=7  9 9 9 9 9 9 3
+    e-alu8       N=8  9 9 9 9 9 9 9 3
+    e-k1         N=1  3
+    e-k2         N=2  8 3
+    e-k3         N=3  11 8 3
+    e-k4         N=4  9 9 9 3
+    e-k5         N=5  9 9 9 9 3
+    e-k6         N=6  9 9 9 9 9 3
+    e-k7         N=7  9 9 9 9 9 9 3
+    e-k8         N=8  9 9 9 9 9 9 9 3
+    e-mul1       N=1  3
+    e-mul2       N=2  8 3
+    e-mul3       N=3  11 8 3
+    e-mul4       N=4  9 9 9 3
+    e-mul5       N=5  9 9 9 9 3
+    e-mul6       N=6  9 9 9 9 9 3
+    e-mul7       N=7  9 9 9 9 9 9 3
+    e-mul8       N=8  9 9 9 9 9 9 9 3
+    e-shift1     N=1  3
+    e-shift2     N=2  8 3
+    e-shift3     N=3  11 8 3
+    e-shift4     N=3  11 8 3
+    e-shift5     N=3  11 8 3
+    e-shift6     N=3  11 8 3
+    e-shift7     N=3  11 8 3
+    e-shift8     N=3  11 8 3
+    e-subf1      N=1  3
+    e-subf2      N=2  8 3
+    e-subf3      N=3  11 8 3
+    e-subf4      N=4  9 9 9 3
+    e-subf5      N=5  9 9 9 9 3
+    e-subf6      N=6  9 9 9 9 9 3
+    e-subf7      N=7  9 9 9 9 9 9 3
+    e-subf8      N=8  9 9 9 9 9 9 9 3
+    f-n3p0       N=3  11 8 3
+    f-n3p1       N=3  8 8 3
+    f-n3p2       N=3  8 8 3
+    f-n4p0       N=4  9 9 9 3
+    f-n4p1       N=4  8 8 9 3
+    f-n4p2       N=3  8 8 3
+    f-n4p3       N=4  8 8 8 3
+    f-n6p0       N=6  9 9 9 9 9 3
+    f-n6p1       N=6  8 8 9 9 9 3
+    f-n6p2       N=5  8 8 9 9 3
+    f-n6p3       N=6  8 8 8 8 9 3
+    f-n6p4       N=5  8 8 8 8 3
+    f-n6p5       N=6  8 8 8 8 8 3
+    g-644-1      N=3  8 3 3
+    g-644-2      N=4  11 8 3 3
+    g-644-3      N=5  9 9 9 9 3
+    h6-first     N=4  8 9 9 3
+    h6-last      N=4  11 8 3 3
+    h6-long      N=6  9 9 9 9 3 3
+    h6-mid3      N=4  8 9 9 3
+    h6-mid4      N=5  9 9 9 9 3
+    h6-or        N=4  8 9 9 3
+    h6-two       N=4  8 8 8 3
+    h6-xor       N=4  8 9 9 3
+    i-base1      N=1  3
+    i-base3      N=3  11 8 3
+    i-base5      N=5  9 9 9 9 3
+    i-k1         N=1  3
+    i-k3         N=3  11 8 3
+    i-k5         N=5  9 9 9 9 3
+    i-slot1n1    N=1  3
+    i-slot1n3    N=3  11 9 3
+    i-slot1n5    N=5  10 10 10 10 3
+    i-uns1       N=1  3
+    i-uns3       N=3  11 8 3
+    j-pool1      N=3  11 9 3
+    j-pool2      N=5  10 10 10 10 3
+    j-pool3      N=4  8 8 8 3
+    j-pool4      N=4  9 9 9 3
+    j-pv5a       N=5  8 8 8 9 3
+    j-pv5b       N=5  8 8 8 8 3
+    j-pv7a       N=7  8 8 8 9 9 9 3
+    j-pv7b       N=7  8 8 8 8 8 8 3
+    j-str1       N=3  8 3 3
+    j-str2       N=3  8 3 3
+    j-str3       N=3  8 3 3
+    j-str4       N=3  11 8 3
+    k-b-add      N=1  3
+    k-b-three    N=3  11 8 3
+    k-b-two      N=2  8 3
+    u-uns1       N=1  3
+
+== GRID K -- board #747's fixture: TWO bodies of DIFFERENT lengths, ONE TU ==
+   Registered in PREREG ADDENDUM 2 (`9bc73d3`) before this code existed.
+   Neither expr_sweep.sh nor mode_cross.sh can generate this shape, so
+   both would grade a one-length schedule GREEN.
+
+k-1-3       P: N=1 a=0 R=2 TWO  | Q: N=3 a=1 R=3 TWO   -> SEPARATING (the two bodies take DIFFERENT schedules)
+             loop N=3 FAILS S1w
+k-2-6       P: N=2 a=0 R=2 TWO  | Q: N=6 a=1 R=7 SAME  -> SEPARATING (the two bodies take DIFFERENT schedules)
+             loop N=6 FAILS S1w
+k-3-8       P: N=3 a=1 R=3 TWO  | Q: N=8 a=1 R=9 SAME  -> SEPARATING (the two bodies take DIFFERENT schedules)
+             loop N=3 FAILS S1w
+             loop N=8 FAILS S1w
+k-same      P: N=1 a=0 R=2 TWO  | Q: N=1 a=0 R=2 TWO   -> identical
+
+  reached 4  graded 4  capture-failures 0
+  SEPARATING pairs: 3 of 3 non-control cells -- a TU on which a one-length schedule is wrong about at least one function
+
+  CONTROLS:
+    k-b-add      KNOWN-ANSWER  OK  (L=0 R=2 N=1, as w-rotate published)
+    k-b-two      KNOWN-ANSWER  OK  (L=0 R=2 N=2, as w-rotate published)
+    k-b-three    KNOWN-ANSWER  OK  (L=1 R=3 N=3, as w-rotate published)
+    x-noloop     MUST-EXCLUDE  OK  (left the family, reason printed above)
+    x-cmpk       MUST-EXCLUDE  OK  (left the family, reason printed above)
+    x-nosent     MUST-EXCLUDE  OK  (left the family, reason printed above)
+  controls failed: 0
