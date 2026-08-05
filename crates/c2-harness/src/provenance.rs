@@ -452,6 +452,44 @@ mod tests {
     /// main repo they must agree. Both directions are checked here rather than
     /// only the one the current checkout happens to exercise, because the whole
     /// defect was that the worktree case silently did something reasonable.
+    ///
+    /// # 2026-08-05 — this test used to assert `root.starts_with(&main)`, and
+    /// # that assertion was WRONG (lane `w-fuzzy`, board #324)
+    ///
+    /// It read *"a linked worktree must live under the main repo it points
+    /// at"*, which is a claim about **filesystem layout** and not about the
+    /// invariant [`main_repo_root`] exists to protect. That invariant is
+    /// **cache identity**: every worktree of one repo collapses to one root, so
+    /// lanes share one `work/capture-cache` instead of minting 50 of them
+    /// (board #181). Layout has nothing to do with it, and git has never
+    /// required it — `git worktree add ../foo` is the form in git's own
+    /// documentation, and `/home/free/code/milohax/c2-rs-wt-w-fork` was a live
+    /// sibling worktree of this repo on the day this was rewritten.
+    ///
+    /// **`main_repo_root()` was never broken from a sibling.** It resolves via
+    /// the `.git` file's `gitdir:` line, which is absolute; run from
+    /// `../c2-rs-wt-w-fuzzy` it returned the correct main repo and the failure
+    /// message proved it (*"…-wt-w-fuzzy is not under …/c2-rs"* — `main` is
+    /// right there, correct). Only the layout claim failed. So the cost of the
+    /// over-claim was paid entirely by lanes: **`cargo test --workspace` stops
+    /// at the first failing target**, so a sibling worktree truncated the run to
+    /// 2 targets / 159 passes — *fewer targets AND fewer passes*, which reads
+    /// like a normal smaller green run rather than an environment fault. At
+    /// least four lanes used a sibling path; two of them lost a verification
+    /// pass to this.
+    ///
+    /// What replaces it is **stronger**, not weaker: the `.git` back-pointer
+    /// **round-trip**. Git writes `<main>/.git/worktrees/<admin>/gitdir`
+    /// containing the absolute path of this worktree's own `.git` file, so the
+    /// link can be walked in both directions and checked for consistency. That
+    /// catches a redirect to the wrong repository — the thing that would
+    /// actually corrupt cache identity — and it is indifferent to where on disk
+    /// either end lives. Note the admin directory keeps its **original** name
+    /// across `git worktree move`, which is exactly why the check reads the
+    /// name out of the `.git` file instead of deriving it from the path.
+    ///
+    /// **Not deleted, replaced.** Deleting it would have left the collapse
+    /// itself unchecked, which is the defect board #181 was opened for.
     #[test]
     fn every_worktree_resolves_to_one_main_repo_root() {
         let root = repo_root();
@@ -470,18 +508,57 @@ mod tests {
             // Main repo: unchanged behaviour, which is the compatibility claim.
             assert_eq!(root, main, "in the main repo the two must agree");
         } else if dotgit.is_file() {
-            // Linked worktree: it must collapse, and it must collapse UPWARD —
-            // the worktree has to live under the main repo it points at.
+            // Linked worktree: it must collapse.
             assert_ne!(
                 root, main,
                 "a linked worktree must not resolve to itself, or every lane \
                  mints its own capture cache again"
             );
+            // …and it must collapse onto the repo this worktree actually
+            // belongs to. Walk the link the other way: `.git` names an admin
+            // directory under some repo, and that directory's `gitdir` file
+            // names this worktree's `.git` back. Both ends must agree, and
+            // `main` must be the repo holding that admin directory.
+            let link = std::fs::read_to_string(&dotgit).expect("worktree .git is readable");
+            let admin = Path::new(
+                link.trim()
+                    .strip_prefix("gitdir:")
+                    .expect("a worktree .git file starts with `gitdir:`")
+                    .trim(),
+            )
+            .to_path_buf();
+            let admin = if admin.is_absolute() { admin } else { root.join(admin) };
             assert!(
-                root.starts_with(&main),
-                "{} is not under {}",
-                root.display(),
-                main.display()
+                admin.is_dir(),
+                "the admin dir {} named by {} does not exist",
+                admin.display(),
+                dotgit.display()
+            );
+            // <main>/.git/worktrees/<admin> -> <main>, resolved independently of
+            // the function under test.
+            let expect_main = admin
+                .parent()
+                .and_then(Path::parent)
+                .and_then(Path::parent)
+                .map(tidy)
+                .expect("the admin dir is three levels under the main repo");
+            assert_eq!(
+                main,
+                expect_main,
+                "main_repo_root() redirected to {} but this worktree's own .git \
+                 file points into {} — a wrong redirect is what corrupts cache \
+                 identity, and it is NOT a question of where the worktree lives",
+                main.display(),
+                expect_main.display()
+            );
+            // The round-trip: the admin dir points back at this exact worktree.
+            let back = std::fs::read_to_string(admin.join("gitdir"))
+                .expect("git writes a gitdir back-pointer in every worktree admin dir");
+            assert_eq!(
+                tidy(Path::new(back.trim())),
+                tidy(&dotgit),
+                "the back-pointer in {} does not name this worktree's .git",
+                admin.display()
             );
         }
     }
