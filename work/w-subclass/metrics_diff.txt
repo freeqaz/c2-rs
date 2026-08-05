@@ -1,0 +1,10 @@
+22a23,31
+>     gap-metric cfg-reach-bottom 0
+>     gap-metric cfg-reach-enumerated 2
+>     gap-metric cfg-reach-shipped 2
+>     gap-metric cfg-reach-top 14
+>     gap-metric cfg-bounds-violations 0
+>     gap-metric cfg-subclass-entries 4
+>     gap-metric cfg-subclass-restricted 0
+>     gap-metric cfg-subclass-unwitnessed 0
+>     gap-metric cfg-subclass-intruders 0
