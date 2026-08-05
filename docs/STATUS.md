@@ -52,11 +52,11 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-05 · tree `a8e6cea-dirty` · binary `566d585811a5` · workload `fe1b5b39`
+Collected 2026-08-05 · tree `463796d` · binary `5a8de074bf17` · workload `20a48363`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 782 passed, 0 failed, 26 targets |
+| Workspace tests (cargo test --workspace --release) | 799 passed, 0 failed, 27 targets |
 | Oracle self-test (c2rs selftest) | 245 PASS, 0 FAIL |
 | Fixture port gate (c2rs perf) | 118 port Match, 0 mismatch, 127 not-implemented (of 245) |
 | Port speedup, geomean over matched fixtures | 674x geomean over matched fixtures |
