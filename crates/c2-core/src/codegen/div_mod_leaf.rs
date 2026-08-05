@@ -65,6 +65,18 @@
 //! That is deliberate: the rule is supported by 161 cells and is still a
 //! description of `c2`'s scheduler rather than a model of it, and this project
 //! has refuted ten placement rules that were fitted to less.
+//!
+//! # The must-fail mutation, RUN
+//!
+//! A guard nobody has seen fail is not known to work. Swapping the two lines
+//! marked `MUTATION ANCHOR` below — moving `twi 6` one slot later, after the
+//! `subf`, which is *exactly* the placement the `short`/`char` widths do show
+//! (`… andc subf twi twi extsb`) and therefore the most plausible wrong answer
+//! available — turns `fixtures/cpp/wdivmod_leaf.cpp` from `Port=Match` into a
+//! live **`Port=Mismatch @ offset 556`** against real `c2.dll` under wibo, and
+//! fails `the_four_o1_bodies_are_reproduced_word_for_word` and its `/Ox` twin.
+//! Run, not described; reverted, and the anchor is left in place so the next
+//! reader can re-run it.
 
 use c2_il::DivModLeaf;
 
@@ -160,6 +172,9 @@ pub(crate) fn div_mod_leaf_text(d: &DivModLeaf, mode: OptMode) -> Result<Vec<u8>
             t.extend_from_slice(&encode_addi(pred, 11, -1));
             t.extend_from_slice(&encode_mullw(prod, quot, R_B));
             t.extend_from_slice(&encode_andc(ovf, R_B, pred));
+            // MUTATION ANCHOR: swap these two lines and the fixture goes from
+            // `Port=Match` to a live `Port=Mismatch @ offset 556`. See the
+            // module docs.
             t.extend_from_slice(&encode_twi(TO_DIV_BY_ZERO, R_B, 0));
             t.extend_from_slice(&encode_subf(R_A, prod, R_A));
             t.extend_from_slice(&encode_twi(TO_OVERFLOW, ovf, -1));
