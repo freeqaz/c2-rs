@@ -13,7 +13,7 @@
 struct S { int m; int n; };
 typedef void (*FnPtr)();
 
-// must decline, not drop the conversion.
+// ---- SCALED pointer arithmetic reached through a CONVERSION ---------------
 //
 // `(S *)a + 1` is `addi r3,r3,8` and `(S *)a + k` is `slwi r11,r4,3 ; add`:
 // c2 SCALES pointer arithmetic, and these two reach the scaling through a
