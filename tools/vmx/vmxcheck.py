@@ -171,7 +171,7 @@ def main():
     print("  " + "-" * (W + 12))
 
     seen_mnem = sorted(per_mnem)
-    vmx_names = {n for n, _m, _p, _a in ISA.VMX128}
+    vmx_names = {vmx128.MS_MNEMONIC.get(n, n) for n, _m, _p, _a in ISA.VMX128}
     seen_vmx = [m for m in seen_mnem if m in vmx_names]
     print("  %-*s %d of %d" % (W, "distinct VMX128 mnemonics seen",
                                len(seen_vmx), len(ISA.VMX128)))

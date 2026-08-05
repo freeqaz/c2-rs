@@ -136,26 +136,57 @@ class Decoded(object):
 # so only `vmaddcfp128` is VERIFIED here -- the rest of this dict is INFERRED
 # by analogy and is reported as unverified by `vmxcheck.py --coverage`.
 # ---------------------------------------------------------------------------
-DEST_IS_ALSO_SOURCE = {
-    # mnemonic          -> print order, "D" meaning "the VDS128 operand again"
-    "vmaddcfp128":  ("VDS128", "VA128", "D", "VB128"),   # VERIFIED (workload)
-    "vmaddfp128":   ("VDS128", "VA128", "VB128", "D"),   # inferred
-    "vnmsubfp128":  ("VDS128", "VA128", "VB128", "D"),   # inferred
-    "vmsum3fp128":  ("VDS128", "VA128", "VB128"),        # inferred
-    "vmsum4fp128":  ("VDS128", "VA128", "VB128"),        # inferred
-    "vsel128":      ("VDS128", "VA128", "VB128", "D"),   # inferred
+# ---------------------------------------------------------------------------
+# Four rows where Microsoft's own listing spells the mnemonic differently from
+# powerpc-rs. MEASURED, not chosen: `vmxcheck.py` reported these as MISMATCH
+# against `cl /FAcs` on `work/w-vmx/probe2`, on the same encoding, four times
+# each, and the listing is the oracle. powerpc-rs named them after the AltiVec
+# base ops (`vctsxs` = convert to signed fixed-point saturate); Microsoft names
+# them after the source and destination formats.
+#
+# This is the one place the generated table is overridden, and it is overridden
+# because a run against the real compiler said so -- which is the entire point
+# of grading a community table instead of trusting it.
+# ---------------------------------------------------------------------------
+MS_MNEMONIC = {
+    "vctsxs128": "vcfpsxws128",   # float -> signed word
+    "vctuxs128": "vcfpuxws128",   # float -> unsigned word
+    "vcfsx128":  "vcsxwfp128",    # signed word -> float
+    "vcfux128":  "vcuxwfp128",    # unsigned word -> float
 }
-VERIFIED_PRINT_ORDER = frozenset(["vmaddcfp128"])
+
+PRINT_ARGS = {
+    # mnemonic          -> print order. "D" = the VDS128 operand printed again
+    # (these ops read their destination). VERIFIED against cl's listing.
+    "vmaddcfp128":  ("VDS128", "VA128", "D", "VB128"),
+    # vupkd3d128's third operand is NOT `vuimm`. isa.yaml says vuimm (bits
+    # 11..15); cl's listing prints D3DType (bits 11..13). On 0x1be40ff4
+    # vuimm = 4 and cl says `1<NORMSHORT2>`, i.e. 1 = D3DType. Table
+    # correction, found by the oracle, verified on all 8 type values.
+    "vupkd3d128":   ("VDS128", "VB128", "D3DType"),
+    "vpkd3d128":    ("VDS128", "VB128", "D3DType", "VMASK", "Zimm"),
+    # vspltisw128 prints two operands, not three: the VB128 field is not an
+    # operand of this form. Verified: `vspltisw128 vr63,3` for 0x1be30774.
+    "vspltisw128":  ("VDS128", "vsimm"),
+}
+
+# cl.exe annotates the D3DType immediate with the pack format's name. All
+# eight harvested from a probe over D3DType 0..7 (work/w-vmx/probe3).
+D3D_TYPE_NAME = {
+    0: "D3DCOLOR", 1: "NORMSHORT2", 2: "NORMPACKED32", 3: "FLOAT16-2",
+    4: "NORMSHORT4", 5: "FLOAT16-4", 6: "NORMPACKED64", 7: "UNKNOWN",
+}
 
 
 def _render(word, mnemonic, args):
-    order = DEST_IS_ALSO_SOURCE.get(mnemonic)
-    if order is None:
-        order = args
+    order = PRINT_ARGS.get(mnemonic, args)
     out = []
     for a in order:
         if a == "D":
             out.append(render_operand(word, "VDS128"))
+        elif a == "D3DType":
+            v, _k = field(word, "D3DType")
+            out.append("%d<%s>" % (v, D3D_TYPE_NAME.get(v, "UNKNOWN")))
         else:
             out.append(render_operand(word, a))
     return out
@@ -186,7 +217,8 @@ def decode(word, allow_base=True, profile=XENON_PROFILE):
     """
     for name, mask, pattern, args in ISA.VMX128:
         if (word & mask) == pattern:
-            return Decoded(word, name, _render(word, name, args), "VMX128",
+            return Decoded(word, MS_MNEMONIC.get(name, name),
+                           _render(word, name, args), "VMX128",
                            args, mask, pattern)
     if allow_base:
         return decode_base_only(word, profile)
