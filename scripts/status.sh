@@ -55,6 +55,12 @@
 #
 # Environment:
 #   C2RS_DC3      the dc3-decomp source tree     (default: <repo>/../dc3-decomp)
+#   C2RS_WORKLOAD the 878-TU workload list dir   (default: <repo>/work/dc3-workload)
+#                 `work/dc3-workload` is gitignored, so a fresh WORKTREE does not
+#                 have it and every gap-derived metric renders NO-RESULT — 19 of
+#                 the 23. `C2RS_DC3` was added so a lane in a worktree could
+#                 regenerate this block; that closed the dc3-tree half and left
+#                 this one, which is the half a worktree actually trips on.
 #   C2RS_BIN      skip the build, use this c2rs  (identity is then the caller's)
 #   C2RS_JOBS     default for --jobs
 set -eu
@@ -64,7 +70,7 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 
 jobs="${C2RS_JOBS:-16}"
 dc3="${C2RS_DC3:-$repo_root/../dc3-decomp}"
-workload="$repo_root/work/dc3-workload"
+workload="${C2RS_WORKLOAD:-$repo_root/work/dc3-workload}"
 do_write=0
 do_check=0
 do_raw=0
