@@ -644,6 +644,7 @@ fn ops_setup_text(
         call_seq: None,
         cond_pair: None,
         compare: None,
+        cmp_shift_or: None,
         float_leaf: None,
         fp_tail: None,
         fp_arg_sources: None,

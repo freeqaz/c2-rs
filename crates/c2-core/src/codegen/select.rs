@@ -18,7 +18,7 @@ use crate::codegen::calls::{call_seq_parts, int_tail_call_text, permute_args_tex
 use crate::codegen::cond_tail::{cond_pair_parts, CondPairParts};
 use crate::codegen::encode::encode_blr;
 use crate::codegen::leaf::addr::addr_leaf_text;
-use crate::codegen::leaf::compare::compare_leaf_text;
+use crate::codegen::leaf::compare::{cmp_shift_or_text, compare_leaf_text};
 use crate::codegen::leaf::float::{
     FpConstRef, float_leaf_text, fp_permute_args_text, fp_tail_call_text,
 };
@@ -227,6 +227,9 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     }
     if let Some(t) = store_leaf_text(func, mode) {
         return Ok(Selected::Plain(t?));
+    }
+    if let Some(cso) = &func.cmp_shift_or {
+        return Ok(Selected::Plain(cmp_shift_or_text(cso, mode)?));
     }
     if let Some(cmp) = &func.compare {
         return Ok(Selected::Plain(compare_leaf_text(cmp, mode)?));

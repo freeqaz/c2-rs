@@ -1117,6 +1117,94 @@ pub struct CompareLeaf {
     pub k: i32,
 }
 
+/// **W43 — `return ((unsigned)(P != 0) << SH) | C;`**, the comparison leaf's
+/// `!=`-against-zero fold with a constant ORed into a field the shift leaves
+/// empty. `?GetXAllocAttributes@NUISPEECH@@YAKH@Z` from
+/// `src/xdk/nuispeech/xboxmem.cpp`, and the first body in the port whose
+/// selection depends on a property of a **literal's bit pattern**.
+///
+/// ```text
+///   addic  r11,r3,-1              the `!= 0` fold, unchanged from W6
+///   lis    r10,C>>16              the constant, high half only
+///   subfe  rS,r11,r3              rS = r11 at /O1, r9 at /Ox
+///   rlwimi r10,rS,SH,0,31-SH      the OR and the shift, in ONE instruction
+///   mr     r3,r10
+///   blr
+/// ```
+///
+/// The `/O1` register is **not a new rule**: it is `docs/CODEGEN_W6_O1.md`'s
+/// incumbent — *a temp whose defining instruction makes the last use of the
+/// value in r11 is written to r11 instead of taking a fresh descending number* —
+/// which `compare_leaf_text` already applies across a 108-cell matrix. Here the
+/// `subfe` is the last use of the `addic` result, so it takes r11; at `/Ox` the
+/// descending counter has already spent r11 and r10 and hands out r9.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CmpShiftOr {
+    /// The compared formal's IL token. It is the function's ONLY formal and
+    /// occupies r3.
+    pub param: u32,
+    /// Whether the compared operand is signed. `!= 0` emits the same two words
+    /// either way (`CompareLeaf`'s `(Rel::Ne, _)` arm); carried so the census
+    /// key and the type gate agree.
+    pub signed: bool,
+    /// The left shift, 1..=31.
+    pub sh: u8,
+    /// The ORed constant. Low 16 bits zero, and `sh > msb(C)` — see
+    /// [`shift_or_rlwimi`].
+    pub c: u32,
+}
+
+/// **The `((x != 0) << SH) | C` -> `lis` + `rlwimi` selection, and exactly how
+/// narrow it is.** Returns the `rlwimi` mask `(mb, me)`, or `None` — a refusal.
+///
+/// c2 has (at least) three lowerings for this expression and the choice is a
+/// function of `C`'s bit pattern, not of `SH` alone:
+///
+/// ```text
+///   slwi rT,rS,SH ; oris r3,rT,C>>16      C's low half is 0 and SH <= msb(C)
+///   slwi rT,rS,SH ; ori  r3,rT,C          C's high half is 0
+///   lis rT,C>>16 ; rlwimi rT,rS,SH,0,31-SH ; mr r3,rT
+/// ```
+///
+/// **Measured: 288 cells** — `C ∈ {0x80000000, 0x40000000, 0x249b0000,
+/// 0x10000000, 0x08000000, 0x00030000, 0x00010000, 0x0000ffff, 0x00000004}` ×
+/// `SH ∈ 0..=31`, compiled by real `c2` at the workload's own `/O1 /Oi /EHsc
+/// /GR` (`work/w-tu1/p/grid_kc.cpp`). The `rlwimi` region is **not** simply
+/// "SH >= 32 - lz(C)": two rows of that grid disagree with every clean rule this
+/// lane could state — `C = 0x80000000` takes `rlwimi` for SH 1..30 and something
+/// else entirely at 31, and `C = 0x00030000` crosses one column early.
+///
+/// So this predicate does **not** claim the boundary. It claims a **region
+/// strictly inside it**, `C_low16 == 0 && SH > msb(C)`, on which all 288 cells
+/// agree with the three-instruction form and **none** disagrees — including both
+/// anomalous rows, which the predicate excludes rather than explains
+/// (`0x80000000` has `msb = 31`, so the region is empty there). A further 62
+/// cells of that region were compared **word for word**, not just by mnemonic,
+/// and 57 of the 62 matched exactly; the 5 that did not are the
+/// parameter-position axis, which is why the class requires the compared formal
+/// to be the function's only parameter — see `w43_cmp_shift_or_neg.cpp`.
+///
+/// Inside the region `31 - SH < lz(C)`, so the mask is always `0 .. 31-SH` and
+/// the `min` that a general rule would need never binds.
+pub fn shift_or_rlwimi(sh: u8, c: u32) -> Option<(u8, u8)> {
+    if sh == 0 || sh > 31 || c == 0 {
+        return None;
+    }
+    if c & 0xFFFF != 0 {
+        // `lis` alone does not materialize it. c2 reaches for `ori`/`li` and a
+        // two-instruction form on some of those cells and `rlwimi` on others;
+        // the grid does not separate them. Refused.
+        return None;
+    }
+    let msb = 31 - c.leading_zeros();
+    if u32::from(sh) <= msb {
+        // At or below `C`'s top set bit c2 emits `slwi` + `oris`, two
+        // instructions and no `mr`. A different body, not a different register.
+        return None;
+    }
+    Some((0, 31 - sh))
+}
+
 impl CompareLeaf {
     /// The census `ctx` of a comparison leaf that decodes cleanly but
     /// `c2_core::codegen::compare_leaf_text` would decline, or `None` when it is
@@ -1233,6 +1321,10 @@ pub struct IlFunction {
     /// If this function is a **comparison leaf** (`return a <rel> k;`, W6), the
     /// decoded comparison. Mutually exclusive with the other body kinds.
     pub compare: Option<CompareLeaf>,
+    /// **W43** — if this function is `return ((unsigned)(P != 0) << SH) | C;`.
+    /// Mutually exclusive with the other body kinds, [`Self::compare`]
+    /// included: the two share a spine but not a body.
+    pub cmp_shift_or: Option<CmpShiftOr>,
     /// If this function is a **W13a floating-point leaf**, whether it is double
     /// precision. Mutually exclusive with the other body kinds.
     pub float_leaf: Option<bool>,
@@ -1424,6 +1516,7 @@ impl IlFunction {
             call_seq: None,
             cond_pair: None,
             compare: None,
+            cmp_shift_or: None,
             float_leaf: None,
             fp_tail: None,
             fp_arg_sources: None,

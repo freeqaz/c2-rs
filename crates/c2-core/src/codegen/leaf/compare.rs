@@ -6,6 +6,7 @@ use crate::codegen::encode::{
     encode_adde,
     encode_addi,
     encode_addic,
+    encode_addis,
     encode_addze,
     encode_andc,
     encode_blr,
@@ -13,7 +14,9 @@ use crate::codegen::encode::{
     encode_cntlzw,
     encode_eqv,
     encode_neg,
+    encode_mr,
     encode_orc,
+    encode_rlwimi,
     encode_rlwinm,
     encode_srawi,
     encode_srwi31,
@@ -617,4 +620,147 @@ mod tests {
         ));
     }
 
+}
+
+/// **W43** — `return ((unsigned)(P != 0) << SH) | C;`, six words, no frame.
+///
+/// ```text
+///   addic  r11,r3,-1              the `!= 0` fold, identical to W6's
+///   lis    rC,C>>16                 (Rel::Ne, _) arm — signed and unsigned
+///   subfe  rS,r11,r3                alike
+///   rlwimi rC,rS,SH,0,31-SH
+///   mr     r3,rC
+///   blr
+/// ```
+///
+/// **The `lis` sits BETWEEN the `addic` and the `subfe`** — the constant is
+/// materialized into the gap between the carry producer and its consumer. That
+/// is a schedule, and it is the one c2 emits in every cell of the region
+/// `c2_il::shift_or_rlwimi` admits.
+///
+/// **The register is the incumbent `/O1` rule and not a new one.** `docs/
+/// CODEGEN_W6_O1.md`: a temp whose defining instruction makes the **last use**
+/// of the value in r11 takes r11 rather than a fresh descending number. The
+/// `subfe` is the last use of the `addic` result, so `rS = r11` at `/O1`; at
+/// `/Ox` the descending counter has spent r11 on the `addic` and r10 on the
+/// `lis`, so it hands out r9. Same opcodes, same order, same immediates —
+/// register fields only, exactly as the 108-cell W6 matrix behaves.
+pub fn cmp_shift_or_text(
+    cso: &c2_il::CmpShiftOr,
+    mode: OptMode,
+) -> Result<Vec<u8>, BackendError> {
+    // The one locator the census also runs, so the two cannot disagree about
+    // which `(SH, C)` pairs are in class.
+    let (mb, me) = c2_il::shift_or_rlwimi(cso.sh, cso.c).ok_or_else(|| {
+        out_of_class(
+            "a shift-or whose constant or shift is outside the measured rlwimi \
+             region (c2 emits slwi+oris or slwi+ori there); out of class",
+        )
+    })?;
+    // `lis rC,hi` is `addis rC,0,hi`. The high half is taken as a raw 16-bit
+    // pattern and reinterpreted, because `addis`'s immediate field is signed and
+    // a constant such as `0x9abc0000` has bit 15 set.
+    let hi = (cso.c >> 16) as u16 as i16;
+    let const_reg = 10u8;
+    let sub_reg = if mode == OptMode::O1 { 11 } else { 9 };
+    let a = RET_REG;
+    let mut t: Vec<u8> = Vec::with_capacity(24);
+    t.extend_from_slice(&encode_addic(11, a, -1));
+    t.extend_from_slice(&encode_addis(const_reg, 0, hi));
+    t.extend_from_slice(&encode_subfe(sub_reg, 11, a));
+    t.extend_from_slice(&encode_rlwimi(const_reg, sub_reg, cso.sh, mb, me));
+    t.extend_from_slice(&encode_mr(RET_REG, const_reg));
+    t.extend_from_slice(&encode_blr());
+    Ok(t)
+}
+
+#[cfg(test)]
+mod w43_tests {
+    use super::*;
+
+    /// `?GetXAllocAttributes@NUISPEECH@@YAKH@Z`, transcribed from the real obj
+    /// this lane compiled at the workload's own flags
+    /// (`work/w-tu1/ref/xboxmem.obj`, `.text` #5, 24 B, nrel 0).
+    const GETXALLOC_O1: [u32; 6] = [
+        0x3163ffff, // addic  r11,r3,-1
+        0x3d40249b, // lis    r10,0x249b
+        0x7d6b1910, // subfe  r11,r11,r3
+        0x516af002, // rlwimi r10,r11,30,0,1
+        0x7d435378, // mr     r3,r10
+        0x4e800020, // blr
+    ];
+    /// The same source at `/Ox`, from `work/w-tu1/p/v1.cpp`. **Only the `subfe`
+    /// destination and the `rlwimi` source differ** — `docs/CODEGEN_W6_O1.md`'s
+    /// incumbent rule, not a new one.
+    const GETXALLOC_OX: [u32; 6] =
+        [0x3163ffff, 0x3d40249b, 0x7d2b1910, 0x512af002, 0x7d435378, 0x4e800020];
+
+    fn words(v: &[u8]) -> Vec<u32> {
+        v.chunks(4).map(|c| u32::from_be_bytes([c[0], c[1], c[2], c[3]])).collect()
+    }
+
+    #[test]
+    fn w43_emits_getxallocattributes_in_both_modes() {
+        let cso = c2_il::CmpShiftOr { param: 0x0f61, signed: true, sh: 30, c: 0x249b_0000 };
+        assert_eq!(words(&cmp_shift_or_text(&cso, OptMode::O1).unwrap()), GETXALLOC_O1);
+        assert_eq!(words(&cmp_shift_or_text(&cso, OptMode::Ox).unwrap()), GETXALLOC_OX);
+    }
+
+    /// **`addis`'s immediate is SIGNED, and the class can never hand it a
+    /// negative one.** `SH > msb(C)` with `SH <= 31` forces `msb(C) <= 30`, so
+    /// `C`'s bit 31 — which is bit 15 of the half `lis` carries — is always
+    /// clear. The `as u16 as i16` in the emitter is therefore a no-op *inside
+    /// the class*, and it is kept as a total conversion rather than removed,
+    /// because a widening of `shift_or_rlwimi` that admitted `msb(C) == 31`
+    /// would otherwise turn a sign flip into wrong bytes silently.
+    ///
+    /// This test is the check that the invariant holds, not that the conversion
+    /// fires: every `C` the predicate admits has a non-negative high half.
+    #[test]
+    fn w43_the_class_never_hands_addis_a_negative_immediate() {
+        let mut admitted = 0;
+        for c in [0x4000_0000u32, 0x249b_0000, 0x1000_0000, 0x0800_0000, 0x0003_0000,
+                  0x0001_0000, 0x7fff_0000, 0xffff_0000, 0x0002_0000, 0x1234_0000,
+                  0x9abc_0000, 0x8000_0000] {
+            for sh in 1u8..=31 {
+                if c2_il::shift_or_rlwimi(sh, c).is_none() {
+                    continue;
+                }
+                admitted += 1;
+                assert!((c >> 16) as i16 >= 0, "c={c:#x} sh={sh} would sign-flip `lis`");
+            }
+        }
+        // A positive count, not a status: an empty loop would pass vacuously.
+        assert_eq!(admitted, 57, "the admitted region over these twelve constants");
+    }
+
+    /// The selection predicate, at both edges of the region it claims and on
+    /// both rows of the 288-cell grid it deliberately does not explain.
+    #[test]
+    fn w43_the_selection_region_is_exactly_what_the_grid_supports() {
+        use c2_il::shift_or_rlwimi as f;
+        // Inside: `SH > msb(C)`, low half zero. The mask is always `0..31-SH`.
+        assert_eq!(f(30, 0x249b_0000), Some((0, 1)));
+        assert_eq!(f(31, 0x249b_0000), Some((0, 0)));
+        assert_eq!(f(17, 0x0001_0000), Some((0, 14)));
+        // The boundary column itself is OUT — c2 emits `slwi` + `oris` there.
+        assert_eq!(f(29, 0x249b_0000), None);
+        assert_eq!(f(28, 0x249b_0000), None);
+        // A non-zero low half: `lis` alone cannot make the constant.
+        assert_eq!(f(30, 0x0000_0004), None);
+        assert_eq!(f(20, 0x0000_ffff), None);
+        // The two unexplained rows, both excluded rather than explained.
+        assert_eq!(f(30, 0x8000_0000), None, "msb 31, so the region is empty here");
+        assert_eq!(f(16, 0x0003_0000), None, "c2 crosses at 16; the region starts at 18");
+        // Degenerate shifts and a zero constant.
+        assert_eq!(f(0, 0x249b_0000), None);
+        assert_eq!(f(32, 0x249b_0000), None);
+        assert_eq!(f(30, 0), None);
+        // The emitter refuses everything the predicate does — one locator, two
+        // callers, which is what keeps the census and the gate from disagreeing.
+        for (sh, c) in [(29u8, 0x249b_0000u32), (30, 4), (30, 0x8000_0000), (0, 0x1_0000)] {
+            let cso = c2_il::CmpShiftOr { param: 1, signed: true, sh, c };
+            assert!(cmp_shift_or_text(&cso, OptMode::O1).is_err(), "sh={sh} c={c:#x}");
+        }
+    }
 }

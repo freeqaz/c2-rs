@@ -295,6 +295,20 @@ pub fn encode_rlwinm(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
     word.to_be_bytes()
 }
 
+/// `rlwimi rA, rS, SH, MB, ME` — rotate left word immediate then mask
+/// **INSERT**: primary opcode 20, Rc=0. Unlike [`encode_rlwinm`] this reads
+/// `rA` as well as writing it — the bits outside `MB..ME` survive, which is the
+/// whole point and the reason W43 can fold a shift and an OR into one word.
+pub fn encode_rlwimi(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
+    let word: u32 = (20 << 26)
+        | ((rs as u32 & 0x1F) << 21)
+        | ((ra as u32 & 0x1F) << 16)
+        | ((sh as u32 & 0x1F) << 11)
+        | ((mb as u32 & 0x1F) << 6)
+        | ((me as u32 & 0x1F) << 1);
+    word.to_be_bytes()
+}
+
 /// `srwi rA, rS, 31` — extract the sign bit. The `rlwinm rA,rS,1,31,31` form.
 pub fn encode_srwi31(ra: u8, rs: u8) -> [u8; 4] {
     encode_rlwinm(ra, rs, 1, 31, 31)
