@@ -29,7 +29,23 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 REFOBJ = os.path.join(ROOT, "work", "w-frame", "refobj.sh")
 DUMP = os.path.join(ROOT, "scripts", "gt_dump.py")
-DC3 = os.environ.get("C2RS_DC3", "/home/free/code/milohax/dc3-decomp")
+def _sib(name):
+    """The sibling checkout, found by walking UP from the repo root.
+
+    No absolute path is written in this file (CLAUDE.md): this tree may be the
+    main repo or a worktree under `.claude/worktrees/<lane>/`, and those differ
+    by three levels. Same locator as `work/w-frame/refobj.sh`.
+    """
+    d = ROOT
+    while d != os.path.dirname(d):
+        cand = os.path.join(os.path.dirname(d), name)
+        if os.path.isdir(cand):
+            return cand
+        d = os.path.dirname(d)
+    return None
+
+
+DC3 = os.environ.get("C2RS_DC3") or _sib("dc3-decomp")
 
 
 # --- the shape under test -----------------------------------------------------
