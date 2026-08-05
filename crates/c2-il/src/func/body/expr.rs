@@ -405,6 +405,38 @@ pub(crate) fn off_add_sink_enabled() -> bool {
     *ON.get_or_init(|| std::env::var("C2RS_SINK_OFF_ADD_ARG").as_deref() == Ok("expr"))
 }
 
+/// `C2RS_SINK_REL=expr` — **w-cmp's board #420 counterfactual**, and the only
+/// thing it exists to answer: *is `expr-cmp-eq` a FALL-THROUGH KEY?*
+///
+/// `expr-cmp-eq` is the head of `work/w-dclass/rerank.py`'s greedy re-ranking of
+/// the FRONTIER — the one key that converts **3** TUs where every other converts
+/// 0, 1 or 2. But a blocker key is the census label on the **first** refusal in a
+/// body, and board **#150** has six confirmations that "the key stops being
+/// reported" and "the function becomes emittable" are different events. The
+/// sixth is `w-dclass` §6.1: unblocking `expr-op-0x27`, the **#1** key at 23,090
+/// blocked emitted functions, was worth **six functions and zero TUs** — 23,084
+/// of them were *renamed*, not converted.
+///
+/// This sink runs that same two-scan counterfactual on the relational family, and
+/// it is **measurement-only by construction**:
+///
+/// * it consumes the opcode so the walk proceeds and the census reports whatever
+///   the **next** unmodeled byte is — the successor key, which is the number the
+///   fall-through question is about;
+/// * it pushes **no** [`IlOp`]. A relational is not an `Add`, and a sink that
+///   lowered it as one would be a wrong emit rather than a measurement;
+/// * a walk that reaches the end **with a relational in it refuses anyway**,
+///   under `expr-rel-sink-poison`. **Decoding is not accepting** — the same rule
+///   the `26` and intrinsic arms carry. So the sink cannot move one obj byte
+///   even when it is ON, and the poison count is itself the answer to "how many
+///   bodies would this admit if a lowering existed".
+///
+/// OFF and free on every gate lane and every default scan.
+pub(crate) fn rel_sink_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("C2RS_SINK_REL").as_deref() == Ok("expr"))
+}
+
 pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp>, Block> {
     parse_expr_classed(seg, p, stop).map(|(ops, _)| ops)
 }
@@ -442,6 +474,10 @@ pub(crate) fn parse_expr_classed(
     // pointee width, which is what the pointer guard below exists to refuse.
     // The `27` byte-offset add is not that and does not set it.
     let mut scaled_arith = false;
+    // Set by the [`rel_sink_enabled`] arm and by nothing else. A walk that
+    // reaches the end with this set refuses under `expr-rel-sink-poison`, so the
+    // sink can never move an obj byte.
+    let mut saw_rel_sink = false;
     // The [`ValueClass`] of the value on top of the operand stack, or `None`
     // before the first operand. Only the `2C` arm reads it, and only to require
     // that a conversion stays inside the class it started in — which is what makes
@@ -548,6 +584,14 @@ pub(crate) fn parse_expr_classed(
             // or §9.14.6's correspondence guard goes red — a measure narrower
             // than its emitter manufactures phantom rungs. See
             // `docs/rungs/_draft-roadmap-9.17.md`.
+            // **w-cmp scratch sink — `C2RS_SINK_REL=expr` and nothing else.**
+            // The six relational opcodes, consumed so the walk can proceed to the
+            // next unmodeled byte. See [`rel_sink_enabled`] for why this pushes no
+            // op and why a walk that reaches the end still refuses.
+            0x1F..=0x24 if rel_sink_enabled() => {
+                *p += 1;
+                saw_rel_sink = true;
+            }
             0x27 if off_add_sink_enabled() => {
                 *p += 1;
                 match read_type(seg, *p) {
@@ -617,6 +661,13 @@ pub(crate) fn parse_expr_classed(
     }
     if ops.is_empty() {
         return Err(blk(seg, *p, "expr-empty"));
+    }
+    // The sink's poison. A body whose expression walked to the end THROUGH a
+    // relational opcode is refused here rather than accepted, because nothing
+    // below lowers one. The count under this key is the sink's real answer:
+    // bodies the relational was the LAST thing standing in the way of.
+    if saw_rel_sink {
+        return Err(Block::refuse(seg, *p, "expr-rel-sink-poison"));
     }
     // The pointer-arithmetic guard. A pointer operand anywhere in this value plus
     // any modeled arithmetic anywhere in it refuses the whole function — see the
