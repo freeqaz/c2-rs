@@ -53,14 +53,16 @@
 //! 3. **The producer EMISSION order** is a case split, [`producer_order`],
 //!    board **#582**.
 //!
+//! 4. **The LAYOUT** — which store slots the producers are interleaved into —
+//!    is modelled by [`layout_slots`] since `w-frame2`, on the domain where it
+//!    is exact. Board **#602**.
+//!
 //! What is still refused, and why the refusal is not conservatism:
 //!
-//! * **[`schedule`] on a multi-symbol run** — the **LAYOUT** (which store
-//!   slots the producers are interleaved into) is *not* modelled. `ORDER`'s
-//!   layout with #584's leading-run `u` is 1866/1867 fit and 1500/1501
-//!   holdout at two producers, and the misses are a real family: the same
-//!   statements with one store moved to the other symbol put the second
-//!   producer one slot later. Board **#602**.
+//! * **A producer that crosses more than [`MAX_SYMBOL_CROSSINGS`] symbol-group
+//!   boundaries before it is first consumed** — see [`layout_slots`]. This is
+//!   the gate that makes the layout exact rather than 98.6 % correct, and
+//!   removing it is a wrong-bytes emit, not a widening.
 //! * **More than two producers through more than one symbol.** The store order
 //!   is 97 % fit / 88 % holdout there and the residual is not one family.
 //! * **More than [`MAX_MODELLED_PRODUCERS`] producers** on one symbol,
@@ -113,6 +115,14 @@ pub const MAX_MODELLED_PRODUCERS: usize = 3;
 /// cells with 0 wrong; at three it is 97 % and 88 % and the residual is not one
 /// family. `w-sym` measured both — `docs/SYMBOL.md` §2.3.
 pub const MAX_MULTISYM_PRODUCERS: usize = 2;
+
+/// The domain of the **LAYOUT**, and it is an axis nothing else in this module
+/// uses: the number of symbol-group boundaries a producer's value crosses in
+/// the final store order before it is first consumed.
+///
+/// `w-frame2` measured 62,365 cells and this is the constant that separates the
+/// layout's exact half from its 98.6 % half. See [`layout_slots`].
+pub const MAX_SYMBOL_CROSSINGS: usize = 2;
 
 /// `(id, use count, first-use source index)` per distinct producer, in
 /// first-use order.
@@ -288,25 +298,126 @@ pub fn store_order(stmts: &[Stmt]) -> Option<Vec<usize>> {
     None
 }
 
+/// The **leading run of unproduced stores in the FINAL store order**, capped at
+/// [`HEAD_SLOTS_MAX`] — `w-parse`'s board **#584** correction to `u`.
+///
+/// Distinct from [`head_slots`], which counts the unproduced stores of the run
+/// wherever they land. The two agree on every single-symbol run this module was
+/// fitted on (the enumerating test below walks 5,460 of them to say so) and
+/// disagree on multi-symbol runs, where the pin can strand an unproduced store
+/// behind a produced one. Measured by `w-frame2` over 62,365 cells: as the
+/// layout's `u`, the leading run is **98.6 %** and the count is **62.9 %**.
+fn lead_slots(stmts: &[Stmt], order: &[usize]) -> usize {
+    let mut u = 0usize;
+    for &k in order {
+        if u >= HEAD_SLOTS_MAX || stmts[k].producer.is_some() {
+            break;
+        }
+        u += 1;
+    }
+    u
+}
+
+/// The **LAYOUT** — the store slot immediately before which each producer is
+/// emitted, indexed by [`producer_order`]. `None` outside the domain.
+///
+/// > Let `u` be the leading run of unproduced stores in the final store order,
+/// > capped at 2. The producer at emission index `i` is emitted immediately
+/// > before store slot `min(i, u)`.
+///
+/// # The domain gate is the whole finding — board #602
+///
+/// The clause above is `docs/ORDER.md`'s with #584's `u`, and on its own it is
+/// **98.59 %**, not a rule. `w-frame2` swept the symbol mask exhaustively over
+/// every word (62,365 cells; `w-sym`'s grid contained the counterexample family
+/// six times, this one contains it 255 times in FIT alone) and the residual
+/// named the axis:
+///
+/// > **`nsw`** — the number of **symbol-group transitions in the final store
+/// > order, up to and including the store that first consumes this producer**.
+///
+/// It is exactly what separates `x_2sym` from `x_split`: the same statements,
+/// the same store order, the same producer order and the same registers, one
+/// store moved to the other symbol, `nsw = 1` against `nsw = 3` for the second
+/// producer — and the second producer lands one slot later. Restricted to
+/// `nsw <= `[`MAX_SYMBOL_CROSSINGS`], the clause is **exact**:
+///
+/// | population | in domain | exact | wrong |
+/// |---|---:|---:|---:|
+/// | fit | 30,271 | **30,271** | 0 |
+/// | **holdout** (3 symbols, mixed kinds, ≥3 producers, length 7 — held out *wholesale by shape*) | 24,891 | **24,891** | **0** |
+/// | external (`xboxheap`'s own word at every mask) | 54 | **54** | 0 |
+///
+/// A rival that answers on the *whole* population — `min(max(i, nsw−2), u)` —
+/// reaches 99.44 % fit and 97.30 % holdout and is **deliberately not shipped**.
+/// 99 % is a rule with a residual, and an emitter fed a 99 % layout emits wrong
+/// bytes on the other 1 %. Board **#621** records it as measured and refused.
+pub fn layout_slots(stmts: &[Stmt]) -> Option<Vec<usize>> {
+    let order = store_order(stmts)?;
+    let prods = producer_order(stmts)?;
+    let u = lead_slots(stmts, &order);
+    for &id in &prods {
+        // the first store of `order` that consumes this producer
+        let fc = order.iter().position(|&k| stmts[k].producer == Some(id))?;
+        let nsw = (1..=fc)
+            .filter(|&q| stmts[order[q]].base != stmts[order[q - 1]].base)
+            .count();
+        if nsw > MAX_SYMBOL_CROSSINGS {
+            return None;
+        }
+    }
+    Some((0..prods.len()).map(|i| i.min(u)).collect())
+}
+
+/// `Some(true)` when the LAYOUT puts **every** producer ahead of the first
+/// store, `Some(false)` when it puts one later, `None` when the run is outside
+/// [`layout_slots`]'s domain.
+///
+/// The store emitters call this as a **positive check**: they hoist their one
+/// producer ahead of the whole run and refuse on `Some(false)`. Inert today by
+/// construction — `leaf_store` accepts a produced run only when *every* store
+/// takes the same literal, so there is no unproduced store, `u` is 0 and the
+/// model puts the producer at slot 0 — and the point is board **#232**, where a
+/// parser widening turned a clean refusal into a live wrong emit that survived
+/// 255 commits. A widening that reaches this guard gets a refusal instead of a
+/// producer in the wrong place.
+///
+/// **Additive-refusal by construction.** `Some(false)` is the only reading the
+/// caller acts on, so a new answer here can *add* a refusal and can never turn
+/// one into an accept.
+pub fn producers_lead(stmts: &[Stmt]) -> Option<bool> {
+    Some(layout_slots(stmts)?.iter().all(|&s| s == 0))
+}
+
 /// The full emitted schedule — producers and stores, in order. `None` outside
 /// the domain.
+///
+/// Since `w-frame2` this answers a **multi-symbol** run wherever
+/// [`layout_slots`] does; it used to refuse every one of them through
+/// [`rank_order`], because the layout was the unmodelled third fact. Board
+/// **#602**.
+///
+/// **This widening is additive-ACCEPT, and that is said plainly rather than
+/// blurred into the guard's property.** `schedule` has no caller under
+/// `crates/` — [`producers_lead`] is what `leaf_store` consumes — so the
+/// widening moves no byte today. A future caller inherits [`layout_slots`]'s
+/// domain gate, which is what makes the answer exact rather than 98.6 %
+/// correct.
 pub fn schedule(stmts: &[Stmt]) -> Option<Vec<Slot>> {
-    let ranks = rank_order(stmts)?;
     let order = store_order(stmts)?;
-    let u = head_slots(stmts);
-    let mut out = Vec::with_capacity(stmts.len() + ranks.len());
+    let prods = producer_order(stmts)?;
+    let at = layout_slots(stmts)?;
+    let mut out = Vec::with_capacity(stmts.len() + prods.len());
     let mut next = 0usize;
     for (slot, &k) in order.iter().enumerate() {
-        // one producer apiece into the first `u` slots, then the remainder
-        // contiguously immediately before slot `u`
-        while next < ranks.len() && (slot == next || (slot == u && next >= u)) {
-            out.push(Slot::Producer(ranks[next]));
+        while next < prods.len() && at[next] == slot {
+            out.push(Slot::Producer(prods[next]));
             next += 1;
         }
         out.push(Slot::Store(k));
     }
-    while next < ranks.len() {
-        out.push(Slot::Producer(ranks[next]));
+    while next < prods.len() {
+        out.push(Slot::Producer(prods[next]));
         next += 1;
     }
     Some(out)
@@ -488,9 +599,25 @@ mod tests {
         assert_eq!(is_source_order(&xboxheap), Some(true));
         // #582: the count-1 producer comes out FIRST here …
         assert_eq!(producer_order(&xboxheap), Some(vec![0, 1]));
-        // … and `schedule` still refuses, because the LAYOUT is #602.
         assert_eq!(rank_order(&xboxheap), None);
-        assert_eq!(schedule(&xboxheap), None);
+        // … and #602: the LAYOUT is now answered too, with the sequence real
+        // `c2` emits for this cell (`work/w-frame2/external.tsv`, `x_2sym_LL`:
+        // `P0 S0.0 P1 S0.1 S0.2 S0.3 S1.4 S1.5`). Both crossings are 0 and 1,
+        // inside `MAX_SYMBOL_CROSSINGS`.
+        assert_eq!(layout_slots(&xboxheap), Some(vec![0, 1]));
+        assert_eq!(
+            schedule(&xboxheap),
+            Some(vec![
+                Slot::Producer(0),
+                Slot::Store(0),
+                Slot::Producer(1),
+                Slot::Store(1),
+                Slot::Store(2),
+                Slot::Store(3),
+                Slot::Store(4),
+                Slot::Store(5),
+            ])
+        );
 
         // The SAME statement word through ONE symbol: the store order moves
         // and the count-2 producer comes out first. Same producers, same
@@ -499,6 +626,102 @@ mod tests {
         assert_eq!(store_order(&one), Some(vec![0, 1, 3, 2, 4, 5]));
         assert_eq!(producer_order(&one), Some(vec![1, 0]));
         check("..0.11", "P1 S0 P0 S1 S3 S2 S4 S5");
+    }
+
+    /// **Board #602, the LAYOUT — and its boundary.** The three cells below are
+    /// `xboxheap`'s statement word at three symbol masks, all four of them
+    /// compiled by real `c2.dll` at the workload's flags
+    /// (`work/w-frame2/external.tsv`). Same statements, same store order, same
+    /// producer order, same registers; only the mask moves.
+    ///
+    /// The `split` mask is the cell that refutes the layout clause — c2 emits
+    /// `P0 S0 S1 P1 S2 …`, layout `[0, 2]`, where `min(i, u)` says `[0, 1]` —
+    /// and it is refused here rather than answered wrongly.
+    #[test]
+    fn the_layout_answers_two_masks_and_refuses_the_third() {
+        // `x_2sym` and `x_late`: both producers cross <= 2 group boundaries.
+        for cell in [".0 .0 00 .0 11 11", ".0 .0 00 .1 11 11"] {
+            let v = msym(cell);
+            assert_eq!(layout_slots(&v), Some(vec![0, 1]), "cell {cell}");
+        }
+        // `x_split`: one store moved to the other symbol. RECOMPUTED from the
+        // rule rather than transcribed — the second producer's value crosses
+        // three group boundaries before it is consumed, so the cell is outside
+        // the domain and every entry point refuses.
+        let split = msym(".0 .0 01 .0 11 11");
+        let order = store_order(&split).expect("the STORE order is in domain");
+        let fc = order
+            .iter()
+            .position(|&k| split[k].producer == Some(1))
+            .expect("producer 1 is consumed");
+        let nsw = (1..=fc)
+            .filter(|&q| split[order[q]].base != split[order[q - 1]].base)
+            .count();
+        assert_eq!(nsw, 3, "the crossings are what put this cell out of domain");
+        assert!(nsw > MAX_SYMBOL_CROSSINGS);
+        assert_eq!(layout_slots(&split), None);
+        assert_eq!(schedule(&split), None);
+        assert_eq!(producers_lead(&split), None);
+        // The STORE order and the PRODUCER order are still answered — `w-sym`
+        // owns those two facts and this lane did not narrow them.
+        assert_eq!(order, vec![0, 1, 2, 3, 4, 5]);
+        assert_eq!(producer_order(&split), Some(vec![0, 1]));
+    }
+
+    /// The guard `leaf_store` consumes is **inert on what the parser admits**,
+    /// which is the same sentence the ORDER and ALLOC guards carry. A run whose
+    /// stores all take one literal has no unproduced store, so `u` is 0 and the
+    /// producer belongs at slot 0 — which is where the emitter hoists it.
+    #[test]
+    fn the_layout_guard_is_inert_on_what_the_parser_admits() {
+        for cell in ["00 00 00", "00 01 00", "00 01 01 00", "00 00 01 01"] {
+            assert_eq!(producers_lead(&msym(cell)), Some(true), "cell {cell}");
+        }
+        // An unproduced head is what moves a producer off slot 0, and the
+        // parser does not admit one beside a produced store today.
+        assert_eq!(producers_lead(&msym(".0 .0 00 11")), Some(false));
+    }
+
+    /// `u` is the LEADING RUN of unproduced stores in the final store order
+    /// (#584), not [`head_slots`]'s count of them. The two agree on every
+    /// single-symbol run — the enumerating test below says so — and the cell
+    /// that separates them is one where the pin strands an unproduced store
+    /// behind a produced one.
+    #[test]
+    fn the_layout_u_is_the_leading_run_not_the_count() {
+        let v = msym("00 01 .1 00 .0 01");
+        let order = store_order(&v).expect("in domain");
+        assert!(
+            lead_slots(&v, &order) < head_slots(&v),
+            "this cell exists to separate the two readings of u"
+        );
+    }
+
+    /// **The reduction, as code rather than as a claim beside it.** Swapping
+    /// the layout's `u` from [`head_slots`] to [`lead_slots`] must move nothing
+    /// on ONE symbol, which is the whole population `ORDER` was fitted on.
+    /// Enumerated over every run of length 1..=6 with up to 3 producers.
+    #[test]
+    fn the_two_readings_of_u_agree_on_every_single_symbol_run() {
+        let mut n = 0usize;
+        for len in 1..=6usize {
+            for code in 0..4u32.pow(len as u32) {
+                let v: Vec<Stmt> = (0..len)
+                    .map(|i| {
+                        let d = (code >> (2 * i)) & 3;
+                        s(if d == 0 { None } else { Some(d - 1) }, 0)
+                    })
+                    .collect();
+                let Some(order) = store_order(&v) else { continue };
+                n += 1;
+                assert_eq!(
+                    lead_slots(&v, &order),
+                    head_slots(&v),
+                    "the readings of u disagree on a SINGLE-symbol run: {v:?}"
+                );
+            }
+        }
+        assert!(n >= 5000, "the enumeration must be a population, got {n}");
     }
 
     /// The lowered `u`. `{V0 V0 T V0 T}` with the FIRST store through the

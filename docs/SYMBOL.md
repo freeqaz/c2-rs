@@ -184,6 +184,21 @@ rank order it was meant to repair. Its `grank = min over groups` clause for
 spanning producers (prereg R6) is **retired, not scored**: the rule that used
 it is gone, so the prediction has no population left.
 
+> ### ✔ ANSWERED 2026-08-05 by lane `w-frame2` — §4 below is kept as the state it was measured in, and it is no longer current
+>
+> The axis is the number of **symbol-group transitions in the emitted store
+> order up to and including the producer's first consumption** (`nsw`). It is
+> exactly what separates the two rows of §4's `x_split` display: `nsw = 1`
+> against `nsw = 3` for the second producer. Restricted to `nsw ≤ 2`, §4's
+> clause is **exact — 30,271/30,271 fit, 24,891/24,891 holdout, 54/54
+> external**; unrestricted it is 98.59 %. `schedule()` **answers a multi-symbol
+> run now**, and `order::layout_slots` is the entry point. See
+> `docs/rungs/_2026-08-05-w-frame2.md` §3 and board **#620**/**#621**.
+>
+> §4's own numbers stay on the page because they were measured on a grid that
+> contained the counterexample family **six times** and are therefore right
+> about the rule and wrong about how solid it looked — which is the finding.
+
 ## 4. The layout — the one that is still open
 
 Given the store order and the producer order, **where** do the producers sit?
@@ -211,6 +226,27 @@ signature. That is board **#602**, and it is why `schedule()` — which returns
 the full interleaved sequence — **still refuses a multi-symbol run** while
 `store_order` and `is_source_order` now answer. A caller needs the layout, so
 no multi-symbol emitter can be built on this yet.
+
+### 4.1 What `w-frame2` found, and the correction this section needs
+
+**The table above is right about the rule and wrong about the confidence.**
+`w-sym`'s grid contains the `x_split` family **six times in 7,589 cells** — one
+fit cell, one holdout cell and the four externals — so "1,866 of 1,867" reads as
+a near-exact rule with a nuisance residual when it is a rule with a *systematic*
+half nobody had a population for. `w-frame2` swept the symbol mask exhaustively
+over every word instead of sampling it (62,365 cells) and the same family
+appears **255 times in fit alone**, alongside three more shapes this section
+never saw:
+
+| observed layout | `min(i, u)` says | fit cells |
+|---|---|---:|
+| `[0, 2]` | `[0, 1]` | 255 |
+| `[1]` | `[0]` | 144 |
+| `[1, 2]` | `[0, 1]` | 41 |
+| `[1, 1]` | `[0, 1]` | 37 |
+
+The axis is **`nsw`** — see the banner at the head of this section, and
+`docs/rungs/_2026-08-05-w-frame2.md` §3 for the derivation and the domain gate.
 
 ## 5. Arity — three symbols need no new constant
 
