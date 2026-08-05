@@ -2,7 +2,7 @@ use super::body::{
     self, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
     CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
-    DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE,
+    DATA_SYM_LINKAGE, DATA_SYM_UNRESOLVED, OPT_MODE, PTR_WALK_LOOP_NOT_O1,
 };
 use super::bind::{Bindings, EmitBinding};
 use super::bundle::shape_to_function;
@@ -250,9 +250,16 @@ impl FnCensus {
 /// render its verdict as a census key.
 ///
 /// Run for **every** function, in class or not, for the reason the frame class is:
-/// the in-class shapes are the control group. Every one of them is a single basic
-/// block, so a `cflow-loop` reading among the accepted rows would indict the
-/// measure rather than reveal a loop the port lowers.
+/// the in-class shapes are the control group. Until lane `w-hash` every one of
+/// them was a single basic block, so **any** `cflow-loop` among the accepted
+/// rows indicted the measure.
+///
+/// **That is no longer the statement, and the weaker one is written out rather
+/// than left implied.** Exactly one accepted key may read `cflow-loop`:
+/// `ptr-walk-mod-loop`, the pointer-walk accumulate this port now emits. Every
+/// *other* in-class key must still read `cflow-straight`, and a `cflow-loop`
+/// under any of them still indicts the measure. The test
+/// [`tests::every_in_class_row_is_a_single_basic_block`] enforces the pair.
 ///
 /// A segment with no `LO` body marker has no body to scan; that is already the
 /// `lo-marker` refusal on the primary axis, and restating it here would put a
@@ -694,6 +701,22 @@ impl IlBundle {
                                         ..Block::at_end(seg, OPT_MODE)
                                     })
                                 }
+                                // (b2) …and the one shape whose lowering is
+                                // MODE-SPECIFIC rather than merely mode-gated.
+                                // See [`PTR_WALK_LOOP_NOT_O1`]. Raised here as
+                                // well as in codegen so the census and the port
+                                // agree; without it every `/Ox` capture of the
+                                // class is an in-class claim the emitter refuses.
+                                Some(f)
+                                    if f.ptr_walk_loop.is_some()
+                                        && opt_word_mode(opt_word)
+                                            != Some(crate::OptWordMode::O1) =>
+                                {
+                                    FnVerdict::Blocked(Block {
+                                        aux: opt_word.unwrap_or(0) as u64,
+                                        ..Block::at_end(seg, PTR_WALK_LOOP_NOT_O1)
+                                    })
+                                }
                                 Some(f) => {
                                     func = Ok(f);
                                     FnVerdict::InClass(label)
@@ -801,11 +824,17 @@ mod tests {
     }
 
     /// **The control group for the control-flow axis.** Every shape the port
-    /// accepts is a single basic block, so an in-class row must read
-    /// `cflow-straight`. Asserted here on the pinned segments and measured on the
-    /// workload, where all 455,049 readable in-class bodies agree — a `cflow-loop`
-    /// among them would mean the port had been handed a back edge, and a
-    /// `cflow-if-1` would mean the scanner invents branches.
+    /// accepts is a single basic block **except one**, so an in-class row must
+    /// read `cflow-straight` unless its key is `ptr-walk-mod-loop`. Asserted
+    /// here on the pinned segments and measured on the workload — a `cflow-loop`
+    /// under any other in-class key would mean the port had been handed a back
+    /// edge it cannot lower, and a `cflow-if-1` would mean the scanner invents
+    /// branches.
+    ///
+    /// The exception is **named**, not a relaxation to "any loop is fine": the
+    /// one shape that may carry it is the one the emitter has a transcription
+    /// for, and widening this predicate is how a real back edge would slip in
+    /// unnoticed.
     ///
     /// The axis is also **decode-only**, which the second half asserts: the row's
     /// verdict is the same whatever the scanner said, because nothing reads the
@@ -827,11 +856,14 @@ mod tests {
         for f in &census {
             if f.verdict.in_class() {
                 assert!(
-                    f.cflow.starts_with("cflow-straight"),
-                    "in-class function #{} reads {} — the port accepts only single \
-                     basic blocks, so this is either a scanner inventing control \
-                     flow or an emitter that has been handed some",
+                    f.cflow.starts_with("cflow-straight")
+                        || f.verdict.key() == "ptr-walk-mod-loop",
+                    "in-class function #{} with key {} reads {} — the port accepts \
+                     only single basic blocks apart from `ptr-walk-mod-loop`, so \
+                     this is either a scanner inventing control flow or an emitter \
+                     that has been handed a back edge it cannot lower",
                     f.index,
+                    f.verdict.key(),
                     f.cflow
                 );
             }

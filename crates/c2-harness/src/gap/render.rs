@@ -194,7 +194,10 @@ fn render_label_channel_legend(rows: &[(&TuResult, CfgReach)]) {
          function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` \
          charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated \
          justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a \
-         `label-free` obj that error has nowhere to land. {free} of {} frontier TUs are \
+         `label-free` obj that error has nowhere to land — and that is now SHIPPED rather than \
+         observed: `IlFunction::label_slots` returns `None` for the one loop shape the port \
+         emits, so a TU pairing it with a framed function refuses and a TU without one converts \
+         (boards #746/#747, `fixtures/cpp/whash_loop_then_framed.cpp` and its control). {free} of {} frontier TUs are \
          label-free; of the {loopy} blocked on `cflow-loop`, {loop_free} are. NOT a licence — \
          every one is still gated on codegen that does not exist, and the counter is only the \
          FIRST of that TU's refusals.",
@@ -223,11 +226,16 @@ fn render_cfg_reachability(report: &GapReport) {
     let reach = rows.iter().filter(|(_, v)| v.is_reachable()).count();
     println!(
         "\x20 FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? \
-         `Selected` has 7 variants covering exactly TWO control-flow shapes (straight-line, and \
-         ONE two-arm conditional); no variant encodes a backward branch, so NO loop of any kind \
-         has a representation. This is not a quantity of progress like #269/#465/#500 — a TU can \
-         be one 8-byte function from matching and be unreachable because those 8 bytes are a \
-         loop. INSTRUMENT, never a gate. {reach} of {} frontier TUs are reachable:",
+         `Selected` covers THREE control-flow shapes: straight-line, ONE two-arm conditional, and \
+         — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of \
+         `codegen::ptr_walk_loop`. **That third one is a transcription of a single function class, \
+         not a loop lowering**: twenty words, two immediate fields, `/O1` only, and every other \
+         loop shape still has no representation at all. This line read `no variant encodes a \
+         backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted; \
+         the correction is here rather than beside the old claim. This is not a quantity of \
+         progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be \
+         unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. {reach} of {} \
+         frontier TUs are reachable:",
         rows.len()
     );
     for (r, v) in &rows {

@@ -1912,7 +1912,7 @@ mod tests {
     #[test]
     fn a_cv_qualified_float_formal_is_still_a_floating_point_register() {
         let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
-        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         // Declaration order, as `.ex`'s formals region gives it.
         let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
         assert_eq!(
@@ -1943,7 +1943,7 @@ mod tests {
     #[test]
     fn the_fp_file_skips_non_fp_formals_and_the_gpr_file_counts_fp_ones() {
         let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
-        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
         let cls = view.arg_classes(&toks).unwrap();
         // FP: a→f1, b→f2, e→f3. The index rule would say f1, f2, f5.
@@ -1970,13 +1970,13 @@ mod tests {
             0x03, 0x04, 0x10, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x04, 0x1a, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         // 16 bytes: the width gate catches it first, which is the outer channel.
         assert_eq!(view.arg_classes(&[0x4651]), Err("param-multi-reg"));
         // …and the class gate is the inner one, for the day the same family
         // appears at a width a GPR could hold.
         let narrow = [SyFormal { tok: 1, size: 4, kind: 0x0d }];
-        let view = SyView { locals: &[], formals: Formals::Declared(&narrow) };
+        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&narrow) };
         assert_eq!(view.arg_classes(&[1]), Err("param-kind-unknown"));
     }
 

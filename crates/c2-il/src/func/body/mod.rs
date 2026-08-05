@@ -808,6 +808,22 @@ pub struct Block {
 /// roadmap. Applied last, it removes exactly the over-claim and nothing else.
 pub(crate) const OPT_MODE: &str = "opt-mode";
 
+/// Census `ctx` for a **pointer-walk accumulate loop outside `/O1`**.
+///
+/// Its own key beside [`OPT_MODE`] rather than folded into it, because the two
+/// say different things: `opt-mode` means *this port has never been verified at
+/// this mode*, and this means *it has, and `c2` emits a different body here*.
+/// `/Ox` and `/O2` compile the class's own source to twenty-one words against
+/// `/O1`'s twenty — a strength-reduced multiply, a hoisted trap and an explicit
+/// `cmpli` loop close (`c2_core::codegen::ptr_walk_loop`).
+///
+/// It is raised in the census and not only in codegen so that the two agree:
+/// `crates/c2-harness/tests/census_gate.rs` asserts that every function the
+/// census calls in class is one `PortC2` emits, and a mode-conditional refusal
+/// that lived in codegen alone would be an error term on the published
+/// numerator (`docs/GAPS.md` §6, roadmap #44).
+pub(crate) const PTR_WALK_LOOP_NOT_O1: &str = "ptr-walk-loop-not-o1";
+
 /// Census `ctx` for a body that parses as a call shape whose callee token has no
 /// `.gl` symbol. See the census for why this is a refusal and not a fallback.
 pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";

@@ -1894,6 +1894,7 @@ mod tests {
         let zo: [u32; 1] = [0xEB09];
         let view = |l: &'static [u32]| SyView {
             locals: l,
+            ptr_locals: &[],
             formals: Formals::AllOneRegisterByConstruction,
         };
         let zc: &'static [u32] = Box::leak(Box::new(zc));

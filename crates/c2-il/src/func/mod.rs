@@ -1871,6 +1871,17 @@ impl IlFunction {
         // and `fixtures/cpp/whash_loop_then_framed.cpp` is board **#747** — the
         // two-function TU of mixed frame class neither `expr_sweep.sh` nor
         // `mode_cross.sh` can generate.
+        // **MUST-FAIL MUTATION, verified.** Replacing this `None` with
+        // `Some(1)` — the ordinary leaf charge — turns
+        // `fixtures/cpp/whash_loop_then_framed.cpp` from `NotImplemented` into a
+        // live `mismatch` against real `c2.dll`, while its separating control
+        // `fixtures/cpp/whash_ptr_walk_loop.cpp` (the identical loop with no
+        // framed function beside it) stays `match`. Real `c2` mints
+        // `$M2564`/`$M2565`/`$T2566` for the framed `?z9`; the mutated port
+        // charges the loop 1 where `c2` charges 4, so the triple lands three
+        // low — six wrong bytes in an obj that still links, board #263's shape.
+        // Neither `expr_sweep.sh` nor `mode_cross.sh` can generate that TU
+        // (board #747), so the fixture is the only thing that grades it.
         if self.ptr_walk_loop.is_some() {
             return None;
         }
@@ -2019,7 +2030,7 @@ pub(crate) mod test_fixtures {
     /// [`Formals::AllOneRegisterByConstruction`] is test-only and cannot appear in
     /// a release build.
     pub(crate) const NO_LOCALS: SyView<'static> =
-        SyView { locals: &[], formals: Formals::AllOneRegisterByConstruction };
+        SyView { locals: &[], ptr_locals: &[], formals: Formals::AllOneRegisterByConstruction };
 
     /// Prefix a pinned body with the `53 53 26 <fn>` statement start a real segment
     /// carries, when it does not already have one.
