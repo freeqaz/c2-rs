@@ -318,7 +318,65 @@ def analyse(words):
 
     # The chain's destinations, in chain order.
     r["dests"] = [sorted(dec[i][0]) for i in r["chain"]]
+
+    # ---- board #644: a PRODUCER is not one contiguous instruction -----------
+    # A literal wider than `simm16` is emitted as `addis`/`oris`/`xoris` plus a
+    # low half, and the two halves NEED NOT BE ADJACENT -- this grid mints cells
+    # where the record form is scheduled BETWEEN them.  Every rule below is
+    # graded in BOTH units and both counts are printed, because #644's whole
+    # content is that the two units are not the same.
+    r["prods"] = merge_producers(body, r["chain"], dec)
+    r["M"] = len(r["prods"])
+    r["pdests"] = [sorted(dec[g[-1]][0]) for g in r["prods"]]
+    r["straddle"] = sum(1 for g in r["prods"]
+                        if len(g) > 1 and g[0] < r["R"] < g[-1])
+
+    # `pv`: the last producer that reads the char's VALUE.  Unlike `p` this is
+    # not an allocation fact -- the char's value is gone the moment a chain
+    # producer overwrites CHAR, whatever later words read that register.  A
+    # lowering has `pv` from the IL; it does NOT have `p`.
+    pv, alive = None, True
+    for k, g in enumerate(r["prods"]):
+        rd = set()
+        for w_i in g:
+            rd |= dec[w_i][1]
+        if alive and r["CHAR"] in rd:
+            pv = k
+        if r["CHAR"] in dec[g[-1]][0]:
+            alive = False
+    r["pv"] = pv
+
+    # The REGIME, read off which register the induction load writes.
+    r["regime"] = "SAME" if r["CHAR"] in dec[r["L"]][0] else "TWO"
     return r
+
+
+def merge_producers(body, chain, dec):
+    """Group each `addis|oris|xoris` + low-half pair into ONE producer.
+
+    Board #644 by name: the halves are matched by DATAFLOW (the low half reads
+    and writes exactly the high half's destination), never by adjacency, and the
+    search stops at any other writer of that register so a merge cannot reach
+    across an unrelated redefinition.
+    """
+    used, prods = set(), []
+    for idx, i in enumerate(chain):
+        if i in used:
+            continue
+        grp = [i]
+        if (body[i] >> 26) in (15, 25, 27) and len(dec[i][0]) == 1:
+            d = next(iter(dec[i][0]))
+            for j in chain[idx + 1:]:
+                if j in used:
+                    continue
+                if (body[j] >> 26) in (14, 24, 26) and dec[j] == ({d}, {d}):
+                    grp.append(j)
+                    used.add(j)
+                    break
+                if d in dec[j][0] or d in dec[j][1]:
+                    break
+        prods.append(grp)
+    return prods
 
 
 R_ACC, R_TMP, R_TMP4 = 3, 8, 7
@@ -342,6 +400,61 @@ def grade(r):
     g["P4pred"] = "/".join(str(want[k]) for k in range(min(len(want), r["N"])))
     g["P4got"] = "/".join(",".join(map(str, r["dests"][r["N"] - 1 - k]))
                           for k in range(min(len(want), r["N"])))
+
+    # ---- ADDENDUM 1's rules, registered at `baf69fb` before Grids E..H ------
+    N, M, a, R, p, pv = r["N"], r["M"], r["L"], r["R"], r["LRC"], r["pv"]
+    pslot = r["chain"].index(p) if p is not None else None
+
+    # S1 LOAD SLOT: a = 1, except a = 0 when N <= 2 and p = 0.
+    g["S1"] = (a == (0 if (N <= 2 and pslot == 0) else 1))
+    # ...and its strictly weaker, strictly more surprising half.
+    g["S1w"] = (a <= 1)
+    # S1 restated over PRODUCERS instead of slots -- #644's other direction.
+    g["S1m"] = (a == (0 if (M <= 2 and pslot == 0) else 1))
+
+    # S2 RECORD SLOT, by regime.
+    if r["regime"] == "TWO":
+        g["S2"] = (R == max(p + 1, a + 2)) if p is not None else None
+    else:
+        g["S2"] = (R == N + 1)
+
+    # S3 REGIME: SAME iff pv == 0 and N >= 4.  Graded in BOTH units.
+    g["S3"] = ((r["regime"] == "SAME") == (pv == 0 and N >= 4))
+    g["S3m"] = ((r["regime"] == "SAME") == (pv == 0 and M >= 4))
+
+    # S4 CHAIN TEMPS, stated over PRODUCERS.
+    pd = r["pdests"]
+    if r["regime"] == "SAME":
+        ok = pd[-1] == [R_ACC] and all(d == [9] for d in pd[:-1])
+    else:
+        want2 = [R_ACC, R_TMP]
+        ok = True
+        for k in range(min(2, M)):
+            if pd[M - 1 - k] != [want2[k]]:
+                ok = False
+        if M >= 3:
+            third = r["CHAR"] if (pv is not None and pv <= M - 3) else R_TMP
+            if pd[M - 3] != [third]:
+                ok = False
+            if any(d != [R_TMP] for d in pd[:M - 3]):
+                ok = False
+    g["S4"] = ok
+    # The same rule stated over SLOTS, so #644's cost is a number.
+    dd = r["dests"]
+    if r["regime"] == "SAME":
+        ok = dd[-1] == [R_ACC] and all(d == [9] for d in dd[:-1])
+    else:
+        ok = True
+        for k in range(min(2, N)):
+            if dd[N - 1 - k] != [[R_ACC], [R_TMP]][k]:
+                ok = False
+        if N >= 3:
+            third = r["CHAR"] if (pv is not None and pv <= N - 3) else R_TMP
+            if dd[N - 3] != [third]:
+                ok = False
+            if any(d != [R_TMP] for d in dd[:N - 3]):
+                ok = False
+    g["S4s"] = ok
     return g
 
 
@@ -423,14 +536,134 @@ def grid_d():
 
 
 # ---------------------------------------------------------------------------
+# THE HELD-OUT GRIDS.  Registered in `PREREG.md` ADDENDUM 1 at commit `baf69fb`,
+# BEFORE this section existed.  Everything above is the FITTING SET.
+# ---------------------------------------------------------------------------
+#
+# Grid B's `mul` and `shift` chains constant-folded above three ops and pinned
+# the length axis at N=3 -- the coverage failure A1.1 reports.  Every family
+# below is a PERIOD-2 alternation against `^`, which does not fold into any of
+# them, and the `k` family blocks folding a second way (a loop-invariant formal
+# has no value to fold with) so the fix is not resting on one trick.
+FAM2 = {
+    "alu":   ["r=r+c;", "r=r^3;", "r=r+5;", "r=r|9;",
+              "r=r+11;", "r=r^13;", "r=r+17;", "r=r|19;"],
+    "mul":   ["r=r+c;", "r=r*3;", "r=r^5;", "r=r*7;",
+              "r=r^9;", "r=r*11;", "r=r^13;", "r=r*17;"],
+    "shift": ["r=r+c;", "r=(r<<1);", "r=r^5;", "r=(r<<2);",
+              "r=r^9;", "r=(r<<3);", "r=r^13;", "r=(r<<1);"],
+    "subf":  ["r=r+c;", "r=(3-r);", "r=r^5;", "r=(7-r);",
+              "r=r^9;", "r=(11-r);", "r=r^13;", "r=(17-r);"],
+    # A second formal: pure arithmetic with nothing to constant-fold, and the
+    # SIGNATURE axis at the same time (Grid H asks whether that matters).
+    "k":     ["r=r+c;", "r=r*k;", "r=r+k;", "r=r*k;",
+              "r=r+k;", "r=r*k;", "r=r+k;", "r=r*k;"],
+}
+SIG_K = "const char* s,int k"
+
+
+def grid_e():
+    """HELD OUT.  `pv = 0` chains at N=1..8 in FIVE families.
+
+    This is the grid that repairs Grid B's coverage failure and the grid that
+    goes after the single-cell trap A1.3 names: S3's `N >= 4` threshold rested
+    on ONE cell, and there is now a clean `N = 3, pv = 0` cell in five families.
+    """
+    out = []
+    for fam, ops in sorted(FAM2.items()):
+        sig = SIG_K if fam == "k" else "const char* s"
+        for n in range(1, 9):
+            out.append(("e-%s%d" % (fam, n),
+                        src_of(chain_src(ops, n), sig=sig),
+                        "%s family, N=%d intended, pv=0" % (fam, n), n))
+    return out
+
+
+# The `pv` axis: one chain of fixed length with the char's read moved through
+# every slot.  S2-TWO is registered as `R = max(p+1, a+2)` and this is the grid
+# that walks `p` across its whole range instead of sampling its two ends.
+F_BASE = ["r=r^3;", "r=r+5;", "r=r|9;", "r=r+11;", "r=r^13;", "r=r+17;"]
+
+
+def grid_f():
+    """HELD OUT.  `pv` at every intermediate slot, at three lengths.
+
+    A1.3 registers a NEGATIVE prediction here: S3 says the TWO regime cannot
+    coexist with `pv = 0` at `M >= 4`, so **this grid must FAIL to mint that
+    cell**.  The script counts the attempts and prints the count, because a
+    prediction of absence that nothing tries to violate is not graded.
+    """
+    out = []
+    for n in (3, 4, 6):
+        for j in range(n):
+            ops = list(F_BASE[:n])
+            ops[j] = "r=r+c;"
+            out.append(("f-n%dp%d" % (n, j), src_of(" ".join(ops)),
+                        "N=%d intended, only chain op %d reads c" % (n, j), n))
+    return out
+
+
+def grid_g():
+    """HELD OUT.  Board #644: split producers at several chain positions.
+
+    `0x12345` does not fit `simm16`, so it is `addis`+`addi` -- ONE producer,
+    TWO words, and in `g-644-1` the record form was scheduled BETWEEN them.
+    Every rule is graded in both units and both counts are printed.
+    """
+    return [
+        ("h6-mid3", src_of("r=r+c; r=r+74565; r=r^3;"),
+         "split producer at chain slot 1 of 3", 4),
+        ("h6-mid4", src_of("r=r+c; r=r^3; r=r+74565; r=r|9;"),
+         "split producer in the middle of 4", 5),
+        ("h6-last", src_of("r=r+c; r=r^3; r=r+74565;"),
+         "split producer LAST -- it writes r3, the accumulator's home", 4),
+        ("h6-two", src_of("r=r+c; r=r+74565; r=r^3; r=r|74565;"),
+         "TWO split producers in one chain", 6),
+        ("h6-or", src_of("r=r+c; r=r|74565; r=r^3;"),
+         "an `oris`+`ori` split, not `addis`+`addi`", 4),
+        ("h6-xor", src_of("r=r+c; r=r^74565; r=r+5;"),
+         "an `xoris`+`xori` split", 4),
+        ("h6-first", src_of("r=r+74565; r=r+c; r=r^3;"),
+         "the split producer BEFORE the char's read -- pv is not 0 here", 4),
+        ("h6-long", src_of("r=r+c; r=r^3; r=r+5; r=r|9; r=r+74565;"),
+         "a split producer at the end of a LONG chain -- N=6, M=5", 6),
+    ]
+
+
+def grid_h():
+    """HELD OUT.  The SIGNATURE axis, chain held fixed.
+
+    w-hash measured that moving the pointer formal re-plans the whole block
+    layout (#770 mechanism 11) and w-rotate measured that the plan is a CONSTANT
+    when only the body moves (#775).  Neither asked whether the INTERLEAVE moves
+    with the signature.  If it does, every rule above is scoped to one
+    signature and the rung must say so.
+    """
+    out = []
+    for n in (1, 3, 5):
+        body = chain_src(FAM2["alu"], n)
+        out += [
+            ("i-base%d" % n, src_of(body), "baseline signature", n),
+            ("i-k%d" % n, src_of(body, sig="const char* s,int k"),
+             "a second formal, UNUSED by the chain", n),
+            ("i-slot1n%d" % n, src_of(body, sig="int k,const char* s"),
+             "the pointer formal at SLOT 1 -- w-hash's re-planning axis", n),
+            ("i-uns%d" % n, src_of(body, sig="const unsigned char* s"),
+             "unsigned sentinel: the record form is `mr.`", n),
+        ]
+    return out
+
+
+# ---------------------------------------------------------------------------
 def run(cells, mode, wd, tag, label, note):
     print()
     print("== %s ==" % label)
     print("   %s" % note)
     print()
-    print("%-12s %3s %3s %3s %3s %4s %4s  %-4s %-4s %-4s %-4s  %s"
-          % ("cell", "iN", "N", "L", "R", "LRC", "CHAR",
-             "P1", "P2", "P3", "P4", "note"))
+    print("%-12s %3s %3s %3s %3s %3s %4s %3s %4s  %-4s %-4s %-4s %-4s  "
+          "%-4s %-4s %-4s %-4s  %s"
+          % ("cell", "iN", "N", "M", "L", "R", "LRC", "pv", "regm",
+             "P1", "P2", "P3", "P4", "S1", "S2", "S3", "S4", "note"))
     rows = {}
     reached = graded = capfail = 0
     excl = []
@@ -460,13 +693,15 @@ def run(cells, mode, wd, tag, label, note):
         graded += 1
         if want_n and r["N"] != want_n:
             nmismatch += 1
-        print("%-12s %3s %3d %3d %3d %4s %4d  %-4s %-4s %-4s %-4s  %s"
-              % (name, want_n or "-", r["N"], r["L"], r["R"],
-                 "-" if r["LRC"] is None else r["LRC"], r["CHAR"],
-                 "OK" if g["P1"] else "MISS",
-                 "n/a" if g["P2"] is None else ("OK" if g["P2"] else "MISS"),
-                 "OK" if g["P3"] else "MISS",
-                 "OK" if g["P4"] else "MISS",
+        def v(x):
+            return "n/a" if x is None else ("OK" if x else "MISS")
+        print("%-12s %3s %3d %3d %3d %3d %4s %3s %4s  %-4s %-4s %-4s %-4s  "
+              "%-4s %-4s %-4s %-4s  %s"
+              % (name, want_n or "-", r["N"], r["M"], r["L"], r["R"],
+                 "-" if r["LRC"] is None else r["LRC"],
+                 "-" if r["pv"] is None else r["pv"], r["regime"],
+                 v(g["P1"]), v(g["P2"]), v(g["P3"]), v(g["P4"]),
+                 v(g["S1"]), v(g["S2"]), v(g["S3"]), v(g["S4"]),
                  note_))
     print()
     print("  reached %d  graded %d  capture-failures %d  excluded %d"
@@ -477,6 +712,22 @@ def run(cells, mode, wd, tag, label, note):
     for nm, why in excl:
         print("    excluded %-12s %s" % (nm, why))
     return rows, reached, graded, capfail
+
+
+RULES = [
+    ("P1", "P1 LAT2   R == L+2"),
+    ("P2", "P2 WAR    R == LRC+1"),
+    ("P3", "P3 LEN    L == (N-1)/2"),
+    ("P4", "P4 TEMP   dests from end"),
+    ("S1", "S1 LOAD   a=1 (a=0 iff N<=2,p=0)"),
+    ("S1w", "S1w LOAD  a <= 1  (the weak half)"),
+    ("S1m", "S1m LOAD  same, over PRODUCERS"),
+    ("S2", "S2 RECORD by regime"),
+    ("S3", "S3 REGIME SAME iff pv=0 and N>=4"),
+    ("S3m", "S3m REGIME same, over PRODUCERS"),
+    ("S4", "S4 TEMPS  over PRODUCERS"),
+    ("S4s", "S4s TEMPS same, over SLOTS"),
+]
 
 
 def rate(rows, key, label):
@@ -575,21 +826,30 @@ def main(argv):
     print("prereg: work/w-sched2/PREREG.md (committed before this file)")
 
     plan = [
-        ("A", grid_a(), "GRID A -- FITTING SET, labelled (alu family, N=1..8)",
+        ("A", grid_a(), 0, "GRID A -- FITTING SET, labelled (alu family, N=1..8)",
          "Any refinement read off this grid is FITTED and is excluded from every held-out number."),
-        ("B", grid_b(), "GRID B -- HELD OUT (mul and shift families, N=1..8)",
-         "P5's grid: does the interleave depend on the chain's OPCODES?"),
-        ("C", grid_c(), "GRID C -- HELD OUT (the last-read-of-char axis)",
-         "P2's pole. Three published cells cannot reach `c-every`; if P2 is a base rate, it dies here."),
-        ("D", grid_d(), "GRID D -- CONTROLS and the #644 split-producer probe",
+        ("B", grid_b(), 0, "GRID B -- (mul and shift families, N=1..8) -- FOLDED, see A1.1",
+         "P5's grid. It did NOT reach its axis: both families pin at N=3. Grid E is the repair."),
+        ("C", grid_c(), 0, "GRID C -- the last-read-of-char axis",
+         "P2's pole. Held out for P1..P5; FITTING for S1..S4, which were read off it."),
+        ("D", grid_d(), 0, "GRID D -- CONTROLS and the #644 split-producer probe",
          "Three known-answer cells from w-rotate, three split-producer cells, two unsigned, three MUST-EXCLUDE."),
+        ("E", grid_e(), 1, "GRID E -- HELD OUT (five families, N=1..8, pv=0)",
+         "Repairs Grid B's coverage failure and goes after S3's single cell."),
+        ("F", grid_f(), 1, "GRID F -- HELD OUT (the pv axis, every intermediate slot)",
+         "S2-TWO across its whole range, and S3's registered NEGATIVE prediction."),
+        ("G", grid_g(), 1, "GRID G -- HELD OUT (board #644, split producers)",
+         "Every rule graded in BOTH units -- slots and producers -- with both counts printed."),
+        ("H", grid_h(), 1, "GRID H -- HELD OUT (the SIGNATURE axis, chain fixed)",
+         "w-hash showed the register PLAN moves with the signature. Does the INTERLEAVE?"),
     ]
 
     allrows = {}
+    heldout = set()
     tot_reached = tot_graded = tot_capfail = 0
     ctl_fail = 0
     with tempfile.TemporaryDirectory(prefix="w-sched2-") as wd:
-        for tag, cells, label, note in plan:
+        for tag, cells, held, label, note in plan:
             if only:
                 cells = [c for c in cells if c[0] in only]
                 if not cells:
@@ -601,21 +861,52 @@ def main(argv):
             tot_capfail += cf
             for k, v in rows.items():
                 allrows[k] = v
+                if held:
+                    heldout.add(k)
             print()
-            rate(rows, "P1", "P1 LAT2   R == L+2")
-            rate(rows, "P2", "P2 WAR    R == LRC+1")
-            rate(rows, "P3", "P3 LEN    L == (N-1)/2")
-            rate(rows, "P4", "P4 TEMP   dests from end")
+            for key, lab in RULES:
+                rate(rows, key, lab)
 
         print()
         print("=" * 78)
         print("TOTALS over every grid")
         print("  reached %d  graded %d  capture-failures %d"
               % (tot_reached, tot_graded, tot_capfail))
-        h1, n1 = rate(allrows, "P1", "P1 LAT2   R == L+2")
-        h2, n2 = rate(allrows, "P2", "P2 WAR    R == LRC+1")
-        h3, n3 = rate(allrows, "P3", "P3 LEN    L == (N-1)/2")
-        h4, n4 = rate(allrows, "P4", "P4 TEMP   dests from end")
+        for key, lab in RULES:
+            rate(allrows, key, lab)
+
+        ho = {k: v for k, v in allrows.items() if k in heldout}
+        fit = {k: v for k, v in allrows.items() if k not in heldout}
+        print()
+        print("  --- ADDENDUM 1's rules on the HELD-OUT set alone (Grids E/F/G/H)")
+        print("      registered at `baf69fb`, before those grids existed:")
+        for key, lab in RULES:
+            if key.startswith("S"):
+                rate(ho, key, lab)
+        print("  --- the same rules on the FITTING set (Grids A/B/C/D), for contrast:")
+        for key, lab in RULES:
+            if key.startswith("S"):
+                rate(fit, key, lab)
+
+        # S3's registered NEGATIVE prediction: the TWO regime and `pv == 0`
+        # cannot coexist at M >= 4.  Counted, because an absence nothing tried
+        # to violate is not a graded prediction -- this project has recorded
+        # "absence read as success" sixteen times.
+        att = [k for k, v in allrows.items() if v["pv"] == 0 and v["M"] >= 4]
+        bad = [k for k in att if allrows[k]["regime"] == "TWO"]
+        print()
+        print("  S3 NEGATIVE prediction (no TWO-regime cell with pv=0 at M>=4):")
+        print("    %d cells reached the predicate, %d violated it%s"
+              % (len(att), len(bad), ("   " + " ".join(bad)) if bad else ""))
+
+        # #644's cost, as a number rather than an argument.
+        st = [k for k, v in allrows.items() if v["straddle"]]
+        sp = [k for k, v in allrows.items() if v["M"] != v["N"]]
+        print()
+        print("  #644: %d graded cells contain a SPLIT producer (M != N); "
+              "%d have the record form scheduled BETWEEN a producer's halves%s"
+              % (len(sp), len(st), ("   " + " ".join(sorted(st))) if st else ""))
+
         print()
         p5(allrows, "P5 groups (same N and same last-read slot, across families):")
 
