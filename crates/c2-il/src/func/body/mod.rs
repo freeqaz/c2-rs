@@ -15,7 +15,8 @@ use self::expr::{
 use self::shapes::parse_params;
 use self::shapes::{
     eat_ctor_this_epilogue, parse_call_shape, try_parse_addr_leaf, try_parse_assign_body_detail,
-    try_parse_cmp_shift_or, try_parse_compare, try_parse_cond_tail_pair, try_parse_early_return_seq,
+    try_parse_cmp_shift_or, try_parse_compare, try_parse_cond_tail_pair,
+    try_parse_div_mod_leaf, try_parse_early_return_seq,
     try_parse_empty_ctor_base_delegation,
     try_parse_guarded_seq,
     try_parse_empty_dtor_delegation,
@@ -627,6 +628,10 @@ pub(crate) enum BodyShape {
     /// **back edge**. See [`super::shapes::ptr_walk_loop`] for the whole
     /// accept/refuse boundary and [`crate::func::PtrWalkModLoop`] for the fields.
     PtrWalkModLoop(crate::func::PtrWalkModLoop),
+    /// **The integer divide/modulo leaf** — `return a / b;` / `return a % b;`
+    /// over two formals. See [`super::shapes::div_mod_leaf`] for the whole
+    /// accept/refuse boundary and [`crate::func::DivModLeaf`] for the fields.
+    DivModLeaf(crate::func::DivModLeaf),
     /// **W43** — `return ((unsigned)(P != 0) << SH) | C;`. See
     /// [`crate::func::CmpShiftOr`].
     CmpShiftOr(crate::func::CmpShiftOr),
@@ -1564,6 +1569,24 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
             // `Option`.
             if let Some(shape) = try_parse_early_return_seq(seg, p, lo, depth) {
                 disp("disp-early-return-seq");
+                return Ok(shape);
+            }
+            // **The integer divide/modulo leaf.** Tried here because it is the
+            // only production in this ladder that consumes an `05`/`06`, and
+            // because its grammar diverges from every neighbour on the byte
+            // after the second operand: the comparison leaf and W43 both need a
+            // `33` literal where this has a second `B9` LOAD, and the
+            // straight-line chain below reaches the same two bytes only to
+            // refuse them (`expr-op-0x05` / `expr-op-0x06`, which is where this
+            // population is counted today). So it can take a body from nothing
+            // above it and nothing above it can take a body from it — the
+            // ordering here is a statement, not a dependency.
+            //
+            // Non-committal like the rest: a cursor copy and an `Option`, so a
+            // body that is not exactly this shape still reports its own blocker
+            // and no census key moves.
+            if let Some(shape) = try_parse_div_mod_leaf(seg, p, lo) {
+                disp("disp-div-mod-leaf");
                 return Ok(shape);
             }
             if let Some(shape) = try_parse_compare(seg, p, lo) {

@@ -918,6 +918,16 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // The integer divide/modulo leaf. Like the loop, nothing to
+            // resolve: it calls nothing, names no data symbol and mints no
+            // label, so the whole shape travels as it was parsed.
+            BodyShape::DivModLeaf(d) => {
+                Some(IlFunction {
+                    params: d.params.clone(),
+                    div_mod_leaf: Some(d),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::CmpShiftOr(cso) => {
                 Some(IlFunction {
                     params: vec![cso.param],

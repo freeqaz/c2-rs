@@ -68,6 +68,7 @@ the header block this table is read from.
 | 2026-08-04 | W-VOCAB | [w-vocab](2026-08-04-w-vocab.md) | 12 | 706,555 / 2,463,393 unchanged (28.68 %), **+0**. Emitted census |
 | 2026-08-05 | W70 | [w-build](2026-08-05-w-build.md) | 2 | TU match 9 at both ends. FBM 0.16654 -> 0.16654, fnbyte-exact |
 | 2026-08-05 | w-convert | [w-convert](2026-08-05-w-convert.md) | 2 | 711,426 / 2,463,393 → 711,426 / 2,463,393 (28.88% → 28.88%), +0 |
+| 2026-08-05 | w-divmod | [w-divmod](2026-08-05-w-divmod.md) | 1 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |
 | 2026-08-05 | w-hash | [w-hash](2026-08-05-w-hash.md) | 2 | 711,426 → **711,427** (28.88%, +1). Emitted 39,176 → **39,177** |
 | 2026-08-05 | w-rotate | [w-rotate](2026-08-05-w-rotate.md) | 12 | 711,427 / 2,463,393 unchanged (28.88 %), **+0** — this lane |
 | 2026-08-05 | W42 | [w-tu1](2026-08-05-w-tu1.md) | 2 | 706,555 / 2,463,393 → 706,557 (28.68 % → 28.68 %), +2 — a driver; |

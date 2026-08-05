@@ -478,6 +478,13 @@ impl IlBundle {
                             Ok(BodyShape::PtrWalkModLoop(_)) => {
                                 FnVerdict::InClass("ptr-walk-mod-loop")
                             }
+                            // The integer divide/modulo leaf. Its own bucket
+                            // rather than folded into `straight-line`, so the
+                            // rung's census gain is attributable: this key's
+                            // count is exactly the population that used to
+                            // render as `expr-op-0x05` / `expr-op-0x06`, and
+                            // the two gap keys must fall by the same number.
+                            Ok(BodyShape::DivModLeaf(_)) => FnVerdict::InClass("div-mod-leaf"),
                             Ok(BodyShape::IntTailCall { .. }) => FnVerdict::InClass("int-tail-call"),
                             // Split from the integer tail call by the register
                             // FILE, and split again by whether the boundary

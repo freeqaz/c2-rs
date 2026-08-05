@@ -1,0 +1,147 @@
+mode: /O1 /GS- /c   workdir: <scratch workdir>
+
+=== CTL =========================================================================================
+plain-add         2w  add bclr
+                      no-div    traps=-
+                      # CONTROL
+s-mod-var         9w  rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@1  dvd=r3 (def@in) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@7(r11)
+                      # ANCHOR
+
+=== ROOT1 =======================================================================================
+r-addi           10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # addi   -- HOISTs (known)
+r-mulli          10w  mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # mulli  -- does NOT (the Nth cell)
+r-mullw          10w  mullw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # mullw: multiply by a VARIABLE
+r-mulli3         10w  mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # mulli, a different constant
+r-mul4           10w  rlwinm twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # *4 strength-reduces to rlwinm
+r-sub            10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # subtract a literal
+r-subv           10w  subf twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # subf
+r-addv           10w  add twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # add, two variables
+r-neg            10w  neg twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # neg
+r-xor            10w  xor twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # xor
+r-or             10w  or twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # or
+r-and            10w  and twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # and
+r-andi           10w  rlwinm twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # andi./rlwinm
+r-shl            10w  rlwinm twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # rlwinm, a shift
+r-shlv           10w  slw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # slw
+r-shr            10w  sraw rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@6(r4)      other=TO5@8(r11)
+                      # sraw
+r-load           10w  lwz twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # lwz
+r-lit            10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r3 (def@in)  zero-trap=TO6@1(r3)      other=TO5@8(r11)
+                      # li
+r-ext            10w  extsh twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # extsh
+r-cast           10w  rlwinm twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # rlwinm (zero-extend)
+r-not            10w  nor twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # nor/not
+
+=== MUL =========================================================================================
+m-mul-then-add   11w  mulli add twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=TO5@9(r11)
+                      # mulli then add -- HOISTs (known). The multiply is not last.
+m-add-then-mul   11w  add twi mulli rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@2) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@9(r11)
+                      # add then mulli -- the multiply IS last. Decides `is it the last op` vs `is there a multiply at all`
+m-mul-then-mul   11w  mullw mulli rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@7(r4)      other=TO5@9(r11)
+                      # two multiplies
+m-mul-div         8w  mulli rlwinm divw addi twi andc twi bclr
+                      inspine   div@2  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@4(r4)      other=TO5@6(r11)
+                      # the same for `/`
+m-mul-u           6w  mulli divwu twi mullw subf bclr
+                      inspine   div@1  dvd=r11(def@0) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=-
+                      # unsigned
+m-mulhi          12w  addis twi ori mullw rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@5  dvd=r10(def@3) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@10(r11)
+                      # a multiplier outside simm16
+m-mul-paren      11w  mulli add twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@4  dvd=r10(def@1) dvs=r4 (def@in)  zero-trap=TO6@2(r4)      other=TO5@9(r11)
+                      # the same tree, commuted in the source
+
+=== DVS =========================================================================================
+d-both           11w  addi addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@3  dvd=r10(def@0) dvs=r9 (def@1)  zero-trap=TO6@7(r9)      other=TO5@9(r11)
+                      # both computed -- does NOT hoist (known). Is it clause (2) or the count?
+d-dvs-only       10w  addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@2  dvd=r3 (def@in) dvs=r10(def@0)  zero-trap=TO6@6(r10)     other=TO5@8(r11)
+                      # divisor only
+d-dvs-lit         5w  addi divw mulli subf bclr
+                      no-zero-trap div@1  dvd=r3 (def@in) dvs=r11(def@0)  zero-trap=NONE           other=-
+                      # divisor a literal -- no trap at all
+d-dvs-3rd        10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r5 (def@in)  zero-trap=TO6@1(r5)      other=TO5@8(r11)
+                      # dividend computed, divisor a LATER formal -- register plan differs, regime?
+d-dvs-first      10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r3 (def@in)  zero-trap=TO6@1(r3)      other=TO5@8(r11)
+                      # divisor in slot 0
+
+=== PRED ========================================================================================
+p-entry          10w  addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@3  dvd=r10(def@0) dvs=r4 (def@in)  zero-trap=TO6@1(r4)      other=TO5@8(r11)
+                      # entry, 1 pred: HOISTs
+p-if             14w  cmpi bc addi twi rlwinm divw addi mullw andc subf twi bclr addi bclr
+                      HOIST     div@5  dvd=r10(def@2) dvs=r4 (def@in)  zero-trap=TO6@3(r4)      other=TO5@10(r11)
+                      # 1 pred, not entry: HOISTs (known)
+p-if2            16w  cmpi bc cmpi bc addi twi rlwinm divw addi mullw andc subf twi bclr addi bclr
+                      HOIST     div@7  dvd=r10(def@4) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@12(r11)
+                      # 1 pred, two blocks deep
+p-join           13w  or cmpi bc addi rlwinm divw addi mullw andc twi subf twi bclr
+                      inspine   div@5  dvd=r11(def@3) dvs=r4 (def@in)  zero-trap=TO6@9(r4)      other=TO5@11(r10)
+                      # 2 preds: does NOT hoist (known)
+p-join2          14w  cmpi addi bc addi addi twi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@7  dvd=r10(def@4) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@12(r11)
+                      # 2 preds, then a computation IN the join block
+p-loop           18w  addi addi cmpi bc mtspr add addi rlwinm divw addi mullw andc twi subf twi bc or bclr
+                      inspine   div@8  dvd=r9 (def@5) dvs=r4 (def@in)  zero-trap=TO6@12(r4)     other=TO5@14(r7)
+                      # a loop body: 2 preds
+p-after-if       15w  or cmpi bc addi rlwinm twi addi rlwinm divw addi mullw andc subf twi bclr
+                      HOIST     div@8  dvd=r10(def@6) dvs=r4 (def@in)  zero-trap=TO6@5(r4)      other=TO5@13(r11)
+                      # a join block with its own computation
+
+====================================================================================================
+anchor s-mod-var: spine OK, TO fields [6, 5] read off the words, zero-trap at index 5
+
+CELLS: 42 captured, 42 GRADED by the oracle, 0 capture-failed, 0 control failures
+TO fields observed across the whole grid: [5, 6]
+  HOIST          27  d-dvs-3rd d-dvs-first m-add-then-mul m-mul-paren m-mul-then-add m-mulhi p-after-if p-entry p-if p-if2 p-join2 r-addi r-addv r-and r-andi r-cast r-ext r-lit r-load r-mul4 r-neg r-not r-or r-shl r-sub r-subv r-xor
+  inspine        13  d-both d-dvs-only m-mul-div m-mul-then-mul m-mul-u p-join p-loop r-mulli r-mulli3 r-mullw r-shlv r-shr s-mod-var
+  no-div          1  plain-add
+  no-zero-trap    1  d-dvs-lit
