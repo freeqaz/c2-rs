@@ -10,7 +10,7 @@
                in §1 and is the brief's, to be reproduced before any change.
     Lane:      w-convert, worktree `wt-w-convert` off master **`c5dd2f6`**.
     Record:    this file. The findings record is
-               `docs/rungs/_2026-08-05-w-convert.md`.
+               `docs/rungs/2026-08-05-w-convert.md`.
 
 ---
 

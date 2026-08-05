@@ -1,6 +1,6 @@
 // The `2C` WIDTH-4 REINTERPRET, the REFUSING half — lane w-convert, board #700.
 //
-// The positive half is `il_convert_reinterpret.cpp`, which the port takes whole
+// The positive half is `wcv_reinterpret.cpp`, which the port takes whole
 // and which the differential grades byte-exact. This file is the other side of
 // the same boundary and its expected verdict is `Port=NotImplemented`: every
 // function below emits a real instruction that a chain dropping the conversion

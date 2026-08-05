@@ -9,7 +9,7 @@
 // here is one the port takes whole, so the differential grades the whole obj
 // rather than declining it. The four class pairs that are NOT free, and the
 // scaled pointer arithmetic a converted pointer can reach, live in
-// `il_convert_reinterpret_neg.cpp` — a separate file, because a fixture's verdict
+// `wcv_reinterpret_neg.cpp` — a separate file, because a fixture's verdict
 // is per-OBJ and one declined function would have hidden this one's
 // byte-exactness behind its own negative controls.
 //

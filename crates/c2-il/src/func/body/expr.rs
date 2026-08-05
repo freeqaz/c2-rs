@@ -1433,7 +1433,7 @@ pub(crate) fn parse_expr_classed(
                     // parses differently — but a future wrong answer here would
                     // be a wrong emit, not a new refusal. What holds it is the
                     // corpus (`scripts/sweep.d/77-reinterpret-2c.py`,
-                    // `fixtures/cpp/il_convert_reinterpret.cpp`), not the shape
+                    // `fixtures/cpp/wcv_reinterpret.cpp`), not the shape
                     // of the guard.
                     if let Some(top) = cstack.last_mut() {
                         *top = got;
