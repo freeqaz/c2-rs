@@ -1,0 +1,78 @@
+=== TREE 54e83f2
+=== cargo test --workspace --release
+warning: unused imports: `ChainForm` and `chain_form`
+warning: unused variable: `link`
+test result: ok. 201 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 117 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.76s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 110.75s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.36s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.18s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.54s
+test result: ok. 439 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+--- totals ---
+871 passed, 0 failed, 1 ignored, 27 targets
+=== scripts/gate.sh --jobs 6
+O1-Oi                PASS          260/260       124         0  /O1 /Oi
+O1-Oi-EHsc           PASS          260/260       124         0  /O1 /Oi /EHsc
+Ox                   PASS          260/260       123         0  /Ox
+Ox-EHsc              PASS          260/260       123         0  /Ox /EHsc
+Ox-Gy                PASS          260/260       121         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          260/260       121         0  /Ox /Gy /EHsc
+O2                   PASS          260/260       123         0  /O2
+O2-EHsc              PASS          260/260       123         0  /O2 /EHsc
+Od                   PASS          260/260        10         0  /Od
+Od-EHsc              PASS          260/260        10         0  /Od /EHsc
+O1-Oi-GR             PASS          260/260       124         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          260/260       124         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          260/260       123         0  /Ox /GR
+Ox-EHsc-GR           PASS          260/260       123         0  /Ox /EHsc /GR
+Od-GR                PASS          260/260        10         0  /Od /GR
+Od-EHsc-GR           PASS          260/260        10         0  /Od /EHsc /GR
+expr-sweep           PASS        16710/16710   16614         0  generated cases (of 16710)
+mode-cross           PASS        81905/81905   81517         0  case-lane cells (of 81905)
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 4680 fixture-verdicts across all lanes
+sweep:  PASS — 16710 of 16710 selected cases reached, 16614 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 16710)
+cross:  PASS — 81517 of 81905 selected cells graded, 0 mismatch (product 81905)
+logs:   /tmp/c2rs-gate-1536566/<lane>.log, /tmp/c2rs-gate-1536566/sweep.log, /tmp/c2rs-gate-1536566/cross.log
+
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 16614 of 16710 generated cases and the cross graded
+  81517 of 81905 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source).
+=== scripts/status.sh --check
+STATUS CHECK: PASS — 23 metrics registered, parsers pinned, absence renders NO-RESULT
+=== scripts/board_audit.sh
+
+section anchors in BOARD.md: 51 distinct (R:/EH:/LC:/SEAMS: -> §)
+UNRESOLVED SECTION ANCHORS: 0
+  (none — every §-anchor opens a real heading in its file)
+
+RAW LINE-NUMBER ANCHORS (drift-prone; convert to §): 0
+  (none — rungs/<lane>:<line> refs into frozen rung files are exempt by design)
+
+ROWS BEHIND THE PROSE (a ROADMAP heading names #N in a section no row of #N cites): 0
+  (none — every heading-level re-measurement is cited by its row)
+=== ALLDONE
