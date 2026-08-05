@@ -26,6 +26,7 @@
 //! A new leaf rung touches: its own new `leaf/<shape>.rs`, one arm in
 //! [`select`], one `pub mod` line — and nothing else in `c2-core`.
 
+pub mod alloc;
 pub mod calls;
 pub mod cond_tail;
 pub mod encode;
