@@ -22,13 +22,13 @@ S *   cr_pa_lit1(int a)          { return (S *)a + 1; }
 char *cr_pa_litc(int a)          { return (char *)a + 1; }
 int  *cr_pa_liti(int a)          { return (int *)a + 1; }
 S *   cr_pa_var (int a, int k)   { return (S *)a + k; }
-// the same arithmetic on the int side of the conversion, which is NOT scaled —
-// c2 emits a plain `add`. The port refuses it too (the guard is on the whole
-// sub-expression), and what that costs is these four functions.
-int   cr_ia_add (void *p, int b) { return (int)p + b; }
-int   cr_ia_sub (void *p, int b) { return (int)p - b; }
-void *cr_ta_add (int a, int b)   { return (void *)(a + b); }
-int   cr_ta_two (void *p, void *q) { return (int)p + (int)q; }
+// **MOVED to the positive file, board #701.** Four functions used to sit here
+// with the note "the same arithmetic on the int side of the conversion, which
+// is NOT scaled — c2 emits a plain `add`. The port refuses it too (the guard is
+// on the whole sub-expression), and what that costs is these four functions."
+// It no longer does: `expr-ptr-arith` asks the exact question now, and those
+// four are byte-exact accepts. The row is kept so the boundary's movement is
+// legible rather than silent.
 // `bool` on either side: `unsigned u(bool b)` is `rlwinm r3,r3,0,24,31`, and so
 // is `(void *)b`. The pointer direction is NOT the free one the enum suggests.
 int      cr_b2i (bool b)         { return b; }
@@ -54,3 +54,24 @@ float          cr_i2f (int a)    { return (float)a; }
 // here keeps it a stated exclusion instead of a silently dropped case.
 int g2(int, int);
 int cr_arep(S *p) { return g2((int)p, (int)p); }
+
+// ---- THE WORKLOAD'S OWN SHAPE, and the reason this rung converts nothing ----
+//
+// Board #702. `expr-convert-target` is 8,222 blocked functions on the dc3
+// workload and the one-away screen priced it at 8,181. The reinterpret unblocks
+// 5,712 of them and every single one lands here, on genuine pointer
+// arithmetic — the conversion is applied to the RESULT of a pointer difference,
+// not to a value that then does integer arithmetic:
+//
+//   86 43 ab 20 · 2c 86 43 83 20 00 · 03 · 2c 86 42 75 00 · 32 …
+//   ^ T*          ^ ptr->ptr cv-strip  ^ SUB  ^ ->unsigned
+//
+// c2 lowers a pointer difference as a subtract plus a divide by the pointee
+// width, which the modeled chain cannot produce. The refusal is correct and the
+// precise guard of #701 does not release one of them (measured: forcing the
+// exact model everywhere changes the workload census by 0).
+unsigned cr_pd_u (S *p, S *q)       { return (unsigned)(p - q); }
+int      cr_pd_i (S *p, S *q)       { return (int)(p - q); }
+int      cr_pd_c (char *p, char *q) { return (int)(p - q); }
+unsigned cr_pd_v (void *p, void *q) { return (unsigned)((char *)p - (char *)q); }
+

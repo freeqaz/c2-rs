@@ -98,3 +98,20 @@ int      C::cg(int a) const { return g2((int)this, a); }
 int      cr_st1(int a)      { return (int)(void *)a; }
 int      cr_st2(void *p)    { return (int)(void *)(int)p; }
 unsigned cr_st3(S *p)       { return (unsigned)(long)p; }
+
+// ---- INTEGER arithmetic over a value that USED to be a pointer -------------
+//
+// Board #701: `expr-ptr-arith` is a class-STACK question, not a
+// whole-expression flag. c2 emits a plain `add`/`subf`/`mullw` here — there is
+// nothing to scale, because at the operator the value is an integer — and the
+// coarse flag refused all four. Their pointer-side twins (`(S *)a + 1`, which
+// IS scaled) are in the `_neg` file, and that pair is the whole boundary.
+int   cr_ia_add (void *p, int b)   { return ((int)p) + b; }
+int   cr_ia_sub (void *p, int b)   { return ((int)p) - b; }
+int   cr_ia_rev (void *p, int b)   { return b - ((int)p); }
+int   cr_ia_mul (void *p, int b)   { return ((int)p) * b; }
+int   cr_ia_two (void *p, void *q) { return ((int)p) + ((int)q); }
+int   cr_ia_and (void *p, int b)   { return ((int)p) & b; }
+void *cr_ta_add (int a, int b)     { return (void *)(a + b); }
+S    *cr_ta_sub (int a, int b)     { return (S *)(a - b); }
+int   cr_ta_rt  (int a, int b)     { return (int)(void *)(a + b); }

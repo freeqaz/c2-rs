@@ -100,12 +100,14 @@ def cases(emit):
             emit(HDR + "%s f(%s) { return ((%s)a) + %s; }\n" % (pt, params, pt, k))
             emit(HDR + "%s f(%s) { return ((%s)a) - %s; }\n" % (pt, params, pt, k))
 
-    # 6b. arithmetic on the INT side of the conversion. c2 emits a plain `add`
-    #     here — it is NOT scaled — so these are cases the port could in
-    #     principle take and deliberately does not: the pointer guard is on the
-    #     whole sub-expression. They are in the sweep so that what the
-    #     conservatism costs is a number, and so that an attempt to make the
-    #     guard precise has a corpus waiting for it.
+    # 6b. **NOT a refusal any more — board #701.** Arithmetic on the INT side of
+    #     the conversion: c2 emits a plain `add`/`subf`/`mullw` here, because at
+    #     the operator the value is an integer and there is nothing to scale.
+    #     These cases were written as neighbours of the refusal, with a note that
+    #     "the pointer guard is on the whole sub-expression ... an attempt to make
+    #     the guard precise has a corpus waiting for it." It did, it was made
+    #     precise, and these are the accepts. Left in this block, and the note
+    #     left beside them, so the boundary's movement is legible.
     for op in ['+', '-', '*']:
         emit(HDR + "int f(void *p, int b) { return ((int)p) %s b; }\n" % op)
         emit(HDR + "int f(void *p, int b) { return b %s ((int)p); }\n" % op)
@@ -131,6 +133,14 @@ def cases(emit):
                 'long long', 'unsigned long long', 'float', 'double']:
         emit(HDR + "%s f(S *p) { return (%s)p; }\n" % (dst, dst))
         emit(HDR + "%s f(void *p) { return (%s)p; }\n" % (dst, dst))
+
+    # 6d-bis. THE WORKLOAD'S OWN SHAPE (board #702): a conversion applied to the
+    #     RESULT of a pointer DIFFERENCE. This is where every one of the 5,712
+    #     functions the reinterpret unblocks actually lands, and c2 lowers it as
+    #     a subtract plus a divide by the pointee width.
+    for pt in ['S *', 'char *', 'int *', 'double *', 'const char *']:
+        for dst in ['int', 'unsigned', 'long']:
+            emit(HDR + "%s f(%s p, %s q) { return (%s)(p - q); }\n" % (dst, pt, pt, dst))
 
     # 6e. a `volatile` pointer OBJECT formal — `int * volatile p` is a volatile
     #     object, so c2 homes it in the frame and reads it back. The refusal is at
