@@ -926,6 +926,24 @@ pub(crate) fn try_parse_store_run(
         // by `B6`, first-use by `B4`/`B7`). `GAPS.md` §6 instance #10 — measure
         // at the edge, do not fit the scheduler — so the multi-value run stays
         // refused and only the degenerate one is admitted.
+        //
+        // **All four are now derived consequences of ONE rule**, and the
+        // neighbours above are recomputed from it in
+        // `c2_core::codegen::alloc`'s tests: sort the distinct producers by
+        // **use count descending**, tie to register-derived before constant,
+        // tie within the register-derived by source order and within the
+        // constants by *reverse* source order, then hand out r11, r10, r9 …
+        // descending. See `docs/ALLOC.md` §1. Every one of the four rules above
+        // is a projection of the use count onto a grid where every count
+        // happened to be 1 or 2, which is why each fitted its own cells and
+        // died on the next.
+        //
+        // **The refusal here does NOT move**, and that is deliberate. Knowing
+        // the register is not knowing the ORDER: the store order when *every*
+        // store of the run is produced is board #544 and still open, so
+        // admitting a multi-value run would still emit the wrong permutation.
+        // `c2_core::codegen::leaf::store` carries the matching guard on the
+        // emitter side and refuses any run whose allocation is not all-r11.
         if stmts.iter().any(|s| !s.value_is_lit || s.value_is_fp) {
             return None;
         }
