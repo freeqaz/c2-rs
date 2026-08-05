@@ -643,7 +643,7 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         // `docs/CODEGEN_W6_COMPARE.md` pins by compiling a probe per relation and
         // reading the emitted byte.
         //
-        // The gaps are deliberate and are the point. `05`, `07`, `08`, `14`, `1D`,
+        // The gaps are deliberate and are the point. `07`, `08`, `14`, `1D`,
         // `1E`, `25` are unwitnessed; `14` in particular has no C operator between
         // `%=` and `<<=` and §5 says in as many words not to fill it. Guessing
         // width 1 for them would be right most of the time and silently
@@ -651,8 +651,26 @@ fn operand(s: &mut Scan) -> Result<(), Block> {
         // the failure this whole scanner is built to make impossible. They refuse,
         // and the size of the `cf-expr-0xNN` row they produce is what tells the
         // next rung whether establishing them is worth a probe.
-        0x06 | 0x09 | 0x0A | 0x0B | 0x0C | 0x0D | 0x0E | 0x1A | 0x1B | 0x1C | 0x1F | 0x20
-        | 0x21 | 0x22 | 0x23 | 0x24 => {
+        //
+        // **`05` WAS in that unwitnessed list and is not any more** (`lane
+        // w-divsplit`, board **#820**). This paragraph read "`05`, `07`, …" and
+        // the row it names, `cf-expr-0x05`, had grown to **4,671 bodies** — the
+        // largest thing this table was refusing. It was already witnessed when
+        // that was written: `lane w-divmod` captured `B9 <tok> <T> B9 <tok> <T>
+        // >05< 41 <T> 3A …` for all four cells of the divide/modulo leaf
+        // (`div_mod_leaf`'s module header, read out of `c2rs census`'s own
+        // blocking hexdump) and graded that shape **185 of 185** against real
+        // `c2.dll`. `06` sat in the witnessed list beside it the whole time,
+        // from the same §5 probe, which is the tell: `%` and `/` are one
+        // production and only one of them had been carried across.
+        //
+        // Confirmed a second way before moving it, on the workload rather than
+        // on a probe: at all **4,674** dc3 division sites the byte after the
+        // opcode opens a new token — `32 <TYPE>` at 4,646 and `33 <TYPE>
+        // <payload>` at 26 — so there is nowhere for a payload to be
+        // (`work/w-divsplit/shape.py`).
+        0x05 | 0x06 | 0x09 | 0x0A | 0x0B | 0x0C | 0x0D | 0x0E | 0x1A | 0x1B | 0x1C | 0x1F
+        | 0x20 | 0x21 | 0x22 | 0x23 | 0x24 => {
             s.p += 1;
             s.off_class();
         }
@@ -1403,22 +1421,24 @@ mod tests {
     /// residue of `cf-expr-0x5C` rankable at all rather than a hole in the census.
     #[test]
     fn a_marker_then_a_stop_is_not_bare() {
-        // Splice an opcode this scanner refuses (`05`, still unestablished —
-        // `IL_STMT_GRAMMAR.md` §5's operator table stops at `%` = `06` and does
-        // not say what `05` is) after the sub-object statement's `4B`. This was
-        // `64` until WDR established it; the substitution is 1:1 in what the test
-        // asserts, which is that SOME refusal after a marker reads `eh-partial`.
+        // Splice an opcode this scanner refuses (`07`, unestablished — it sits in
+        // the gap `IL_STMT_GRAMMAR.md` §5 leaves between `%` = `06` and the
+        // shifts at `09`) after the sub-object statement's `4B`. This was `64`
+        // until WDR established it and `05` until `lane w-divsplit` did (board
+        // **#820**); the substitution is 1:1 in what the test asserts, which is
+        // that SOME refusal after a marker reads `eh-partial`. A test whose
+        // stand-in keeps getting established is a table that keeps growing.
         let mut seg = EH_ONE.to_vec();
         let at = seg
             .windows(6)
             .position(|w| w == [0x5C, 0x86, 0x41, 0x74, 0x01, 0x4B])
             .expect("the statement trailer")
             + 6;
-        seg.splice(at..at, [0x05]);
+        seg.splice(at..at, [0x07]);
         assert_eq!(eh(&seg).0, "eh-partial");
         // …and a body that stops BEFORE any marker claims nothing.
         let mut early = EH_ONE.to_vec();
-        early.splice(4..4, [0x05]);
+        early.splice(4..4, [0x07]);
         assert_eq!(eh(&early).0, "eh-unknown");
     }
 
@@ -1582,7 +1602,7 @@ mod tests {
     fn a_proven_state_survives_an_undecoded_tail() {
         let mut seg = EH_ST_RETCALL.to_vec();
         let at = seg.windows(4).position(|w| w == [0x5E, 0x01, 0x01, 0x44]).expect("the trailer");
-        seg.splice(at..at, [0x05]);
+        seg.splice(at..at, [0x07]);
         assert!(scan(&seg).is_err(), "the splice must stop the walk");
         assert_eq!(eh_state(&seg).0, "eh-state1");
         // …and a stop between the marker and any call claims nothing.
@@ -1592,7 +1612,7 @@ mod tests {
             .position(|w| w == [0x5C, 0xA6, 0x43, 0x81, 0x20, 0x01])
             .expect("the 5C")
             + 7;
-        early.splice(at..at, [0x05]);
+        early.splice(at..at, [0x07]);
         assert_eq!(eh_state(&early).0, "eh-partial");
     }
 

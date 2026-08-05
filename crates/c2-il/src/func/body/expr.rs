@@ -599,6 +599,19 @@ pub(crate) fn chain_skip_form(b: u8) -> Option<SkipForm> {
     use SkipForm::*;
     Some(match b {
         0x02 | 0x03 | 0x04 => Bare,
+        // DIVIDE and MODULO (`lane w-divsplit`, board **#819**). The width is
+        // read off the stream, not assumed from the neighbours: at all **4,674**
+        // dc3 sites the operand token decodes to end exactly at the opcode and
+        // the byte after it opens a new token — `32 <TYPE>`, a store, at 4,646
+        // and `33 <TYPE> <payload>`, a literal, at 26 (`work/w-divsplit/shape.py`
+        // and its `TOKEN IMMEDIATELY AFTER` table). A payload byte would have to
+        // sit between those two and there is none.
+        //
+        // This is the SINK's width table — poisoned, environment-gated, off on
+        // every gate lane and every default scan, and it pushes no [`IlOp`]. It
+        // is how the successor question is asked (board **#622**: closing a
+        // blocker may only move the label), and it is not an acceptance.
+        0x05 | 0x06 => Bare,
         0x09 | 0x0A | 0x0B | 0x0C | 0x0D => Bare,
         0x0F => Type,
         0x1A => Bare,
@@ -1803,10 +1816,24 @@ mod tests {
     /// frontier — two more bytes the instrument refuses rather than guesses
     /// (rung §6). `0x35` was a third until a capture pinned its WIDTH; it is in
     /// the table and still has no name.
+    ///
+    /// **`0x05` and `0x06` have left this list** (`lane w-divsplit`, board
+    /// **#819**), and the assertion below is the one that had to be deleted. The
+    /// width is pinned by `lane w-divmod`'s four captured leaf bodies
+    /// (`B9 <tok> <T> B9 <tok> <T> >05< 41 <T> 3A …`, graded 185/185 against
+    /// real `c2.dll`) and re-confirmed on the workload at **4,674 of 4,674**
+    /// sites, where the byte after the opcode opens a new token. The NAME was
+    /// never in question — this is `div_mod_leaf`'s own `IL_DIV`/`IL_MOD`.
     #[test]
     fn the_unpinned_opcodes_refuse_rather_than_guess_a_width() {
-        for b in [0x00, 0x05, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
+        for b in [0x00, 0x1B, 0x1C, 0x3B, 0x3C, 0x3D, 0x64, 0x66, 0xBD] {
             assert_eq!(chain_skip_form(b), None, "0x{b:02X} must have no pinned form");
+        }
+        // …and the two that moved are `Bare`, not merely "not None": a width
+        // guess in the other direction is the desync this table exists to
+        // prevent.
+        for b in DIV_MOD_OPS {
+            assert_eq!(chain_skip_form(b), Some(SkipForm::Bare), "0x{b:02X} is payload-free");
         }
     }
 
