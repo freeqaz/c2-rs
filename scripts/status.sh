@@ -254,6 +254,21 @@ collect_selftest() {
     emit selftest "$_p PASS, $_f FAIL"
 }
 
+# **The perf geomean is WALL-CLOCK and this script runs it under load.**
+#
+# `collect_perf` fires after `collect_tests` (a full `cargo test --workspace
+# --release`) and alongside whatever else is on the box; on 2026-08-05 two
+# collections of the same unchanged code read **674x** and **481x**. Nothing in
+# `crates/` had moved — the second ran while three gates were saturating the
+# machine.
+#
+# It is collected anyway, because the alternative (dropping it) loses the
+# project's own thesis metric from the one page that answers "where is this".
+# But it is labelled in `STATUS.md`'s what-each-number-is-for table as
+# load-sensitive, and **a move in it is not signal until it is retaken on a
+# quiet box.** Do not rank lanes by it. Deliberately NOT "fixed" by pinning
+# CPUs or retrying: a benchmark that quietly re-runs until it likes its own
+# answer is worse than one that admits it is wall-clock.
 collect_perf() {
     _log="$work_dir/perf.log"
     if ! "$c2rs" perf > "$_log" 2>&1; then
