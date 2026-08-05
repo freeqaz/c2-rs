@@ -34,6 +34,7 @@ mod bundle;
 mod census;
 mod diag;
 mod gl;
+mod glalias;
 mod ininit;
 mod inlit;
 mod readers;
@@ -54,6 +55,9 @@ pub use self::census::{FnCensus, FnVerdict, CENSUS_HEX_BACK, CENSUS_HEX_FWD};
 pub use self::diag::{cause, DecodeCauses};
 pub use self::gl::{
     gl_symbol_conflicts, gl_symbol_index, label_counter, mangled_name, mangled_names, source_path,
+};
+pub use self::glalias::{
+    gl_alias_table, gl_alias_table_shifted, GlAliasStats, GlAliasTable,
 };
 pub use self::readers::detect_token_width;
 
