@@ -134,6 +134,61 @@ fn render_byte_fraction_ranking(report: &GapReport) {
     }
 }
 
+/// **THE CFG-REACHABILITY SCREEN, printed on every scan** (lane `w-tu4`, board
+/// **#720**) — see [`GapReport::frontier_cfg_reachability`] for the definition
+/// and for why no byte/function/refusal count can express it.
+///
+/// The three rankings above (#269 refusals, #465 functions, #500 bytes) all
+/// measure *how much progress exists* on a TU. This measures something with a
+/// different type: **whether the emitter can express the TU's blocked functions
+/// at all.** A TU can be one 8-byte function from matching and still be
+/// unreachable, because the 8 bytes are a loop and `Selected` has no variant
+/// with a backward branch.
+///
+/// **Printed as a partition with every member named**, never as a score and
+/// never as a status — the same discipline the byte-fraction control follows.
+/// The `Unclassified` bucket is printed as its own row rather than folded into
+/// either side, because "the census bailed before it could tell" is a third
+/// answer and folding it would make an ignorance look like a verdict.
+fn render_cfg_reachability(report: &GapReport) {
+    let rows = report.frontier_cfg_reachability();
+    let reach = rows.iter().filter(|(_, v)| v.is_reachable()).count();
+    println!(
+        "\x20 FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? \
+         `Selected` has 7 variants covering exactly TWO control-flow shapes (straight-line, and \
+         ONE two-arm conditional); no variant encodes a backward branch, so NO loop of any kind \
+         has a representation. This is not a quantity of progress like #269/#465/#500 — a TU can \
+         be one 8-byte function from matching and be unreachable because those 8 bytes are a \
+         loop. INSTRUMENT, never a gate. {reach} of {} frontier TUs are reachable:",
+        rows.len()
+    );
+    for (r, v) in &rows {
+        println!(
+            "\x20   {:>3} blocked | {:<50} | {}",
+            r.fn_blockers.values().sum::<usize>(),
+            r.src,
+            v.label()
+        );
+    }
+    // The control is printed whether or not it passes, and an ABSENT control
+    // prints as absent rather than as a pass — `cfg_reach_control` returns
+    // `None` for a scan whose list does not contain the TU.
+    const CONTROL: &str = "src/xdk/nuispeech/xboxmem.cpp";
+    match report.cfg_reach_control(CONTROL) {
+        Some(true) => println!(
+            "\x20   CONTROL {CONTROL}: PASS — the one TU ever converted from codegen breadth \
+             carries only port CFG classes (measured: cflow-if-1 x3 + cflow-straight x1)."
+        ),
+        Some(false) => println!(
+            "\x20   CONTROL {CONTROL}: **FAIL** — a matching TU carries a CFG class outside the \
+             port's list, so PORT_CFG_CLASSES is wrong and every row above is suspect."
+        ),
+        None => println!(
+            "\x20   CONTROL {CONTROL}: absent from this scan's list — NOT a pass, not evaluated."
+        ),
+    }
+}
+
 /// **The Phase 7 factorization, printed on every scan** (`docs/ROADMAP.md`
 /// §10.19 and §10.21, boards #160 and #179).
 ///
@@ -308,6 +363,7 @@ pub(super) fn print_factorization(report: &GapReport) {
     }
     render_byte_fraction_ranking(report);
     render_byte_fraction_control(report);
+    render_cfg_reachability(report);
     // **What a perfect emit predicate is worth, stated as both of the
     // quantities board #213 conflated.** #213 published `+82` for both because
     // they coincided on that corpus; they are different questions and the
