@@ -13,14 +13,31 @@ use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNI
 ///
 /// `Selected` has seven variants — `Plain`, `Tail`, `Float`, `Framed`, `Seq`,
 /// `CondPair` — and between them they cover **straight-line** bodies and **one
-/// two-arm conditional**. No variant encodes a backward branch, so no loop of
-/// any kind has a representation, and none encodes a multi-way conditional.
+/// two-arm conditional**. None encodes a multi-way conditional.
 ///
 /// This list is the screen's single assumption and it is the thing to re-check
 /// when a variant is added: it is a **hand-maintained mirror of a `c2-core`
 /// enum**, and nothing in the type system ties the two together. It is
 /// deliberately spelled with the census's own `cflow-…` keys rather than the
 /// variant names, because the census is what the screen actually reads.
+///
+/// # `cflow-loop` is DELIBERATELY ABSENT, and the asymmetry is the point
+///
+/// Since lane `w-hash` the port **does** emit one body with a backward branch —
+/// `codegen::ptr_walk_loop`, the pointer-walk accumulate that converted
+/// `src/system/math/Sort.cpp`. `cflow-loop` is still not in this list, and
+/// adding it would be the screen's first over-claim: what shipped is a
+/// **twenty-word transcription of one function class at `/O1`**, not a loop
+/// lowering, and every other loop shape has exactly the representation it had
+/// before, which is none.
+///
+/// So the list is now known to be **conservative in one named direction**: a
+/// frontier TU whose only obstacle is *this* loop would read `NeedsClass`
+/// wrongly. That costs nothing today — the one such TU is a `match` and a match
+/// is not on the frontier — and it is written here rather than discovered,
+/// because a screen that quietly widened to `cflow-loop` would report every
+/// remaining loop TU as buildable. **Widen this entry only alongside a
+/// `Selected` variant that can express loops in general.**
 ///
 /// The `+expr-modeled` spellings are the same two classes with the statement
 /// layer fully decoded — the census emits both forms and they are the same CFG.

@@ -22,6 +22,7 @@ use self::shapes::{
     try_parse_float_leaf,
     try_parse_fp_tail_call,
     try_parse_indirect_load_leaf, try_parse_member_tail_call, try_parse_ptr_identity_leaf,
+    try_parse_ptr_walk_loop,
     try_parse_store_leaf, try_parse_store_run,
 };
 use super::readers::{
@@ -622,6 +623,10 @@ pub(crate) enum BodyShape {
     /// W6 comparison leaf: `return <formal> <rel> <literal>;` materialized to a
     /// boolean branchlessly and converted back to `int`/`unsigned`.
     Compare(CompareLeaf),
+    /// **The pointer-walk accumulate loop** — the first body class here with a
+    /// **back edge**. See [`super::shapes::ptr_walk_loop`] for the whole
+    /// accept/refuse boundary and [`crate::func::PtrWalkModLoop`] for the fields.
+    PtrWalkModLoop(crate::func::PtrWalkModLoop),
     /// **W43** — `return ((unsigned)(P != 0) << SH) | C;`. See
     /// [`crate::func::CmpShiftOr`].
     CmpShiftOr(crate::func::CmpShiftOr),
@@ -802,6 +807,22 @@ pub struct Block {
 /// blocking feature with this one and destroy the histogram that ranks the
 /// roadmap. Applied last, it removes exactly the over-claim and nothing else.
 pub(crate) const OPT_MODE: &str = "opt-mode";
+
+/// Census `ctx` for a **pointer-walk accumulate loop outside `/O1`**.
+///
+/// Its own key beside [`OPT_MODE`] rather than folded into it, because the two
+/// say different things: `opt-mode` means *this port has never been verified at
+/// this mode*, and this means *it has, and `c2` emits a different body here*.
+/// `/Ox` and `/O2` compile the class's own source to twenty-one words against
+/// `/O1`'s twenty — a strength-reduced multiply, a hoisted trap and an explicit
+/// `cmpli` loop close (`c2_core::codegen::ptr_walk_loop`).
+///
+/// It is raised in the census and not only in codegen so that the two agree:
+/// `crates/c2-harness/tests/census_gate.rs` asserts that every function the
+/// census calls in class is one `PortC2` emits, and a mode-conditional refusal
+/// that lived in codegen alone would be an error term on the published
+/// numerator (`docs/GAPS.md` §6, roadmap #44).
+pub(crate) const PTR_WALK_LOOP_NOT_O1: &str = "ptr-walk-loop-not-o1";
 
 /// Census `ctx` for a body that parses as a call shape whose callee token has no
 /// `.gl` symbol. See the census for why this is a refusal and not a fallback.
@@ -1447,6 +1468,25 @@ fn parse_segment_shape(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
                         return Err(b);
                     }
                     Err(None) => {}
+                }
+                // **The POINTER-WALK ACCUMULATE LOOP** — the first body class
+                // here with a back edge. It opens on the same `26 <local>` an
+                // assignment statement does (its first statement *is* one:
+                // `ret = 0`), so it is tried immediately ahead of the assignment
+                // parser and never reaches the member-call productions above,
+                // whose `BD` test already declined.
+                //
+                // Non-committal in the sense the whole ladder is: the
+                // recognizer works on its own cursor and returns `Err` on the
+                // very first byte that is not its grammar, so a body that
+                // declines still reports `try_parse_assign_body_detail`'s
+                // blocker and no census key moves. The *only* population that
+                // can reach an accept is a body whose statement list is exactly
+                // this loop, byte for byte, and `assign` refuses every one of
+                // those today at its first `3A`.
+                if let Ok(shape) = try_parse_ptr_walk_loop(seg, p, lo, locals, sy.ptr_locals) {
+                    disp("disp-ptr-walk-loop");
+                    return Ok(shape);
                 }
                 disp("disp-assign");
                 try_parse_assign_body_detail(seg, p, lo, locals, depth)

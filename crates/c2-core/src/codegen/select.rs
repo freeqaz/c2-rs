@@ -23,6 +23,7 @@ use crate::codegen::leaf::float::{
     FpConstRef, float_leaf_text, fp_permute_args_text, fp_tail_call_text,
 };
 use crate::codegen::leaf::load::indirect_load_text;
+use crate::codegen::ptr_walk_loop::ptr_walk_loop_text;
 use crate::codegen::leaf::store::store_leaf_text;
 use crate::codegen::straightline::select_text;
 
@@ -211,6 +212,19 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         let (mut text, _) = int_tail_call_text(func, 0, mode)?;
         text.truncate(text.len() - 4);
         return Ok(Selected::Tail(text));
+    }
+    // **The pointer-walk accumulate loop**, asked here — after every shape that
+    // owns its own obj layout and before every leaf recognizer.
+    //
+    // Its position is free rather than load-bearing, and saying which is the
+    // point of this comment: `func.ptr_walk_loop` is set by exactly one parser
+    // production, no other shape sets it, and this body's operand stream
+    // (`ops` is empty, `params` is two formals) matches none of the leaf
+    // pattern-matchers below. It sits above them so that a reader meets the one
+    // shape with a back edge before the straight-line ones, which is a
+    // readability claim and not a correctness one.
+    if let Some(l) = &func.ptr_walk_loop {
+        return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
     }
     if func.empty_body {
         return Ok(Selected::Plain(encode_blr().to_vec()));

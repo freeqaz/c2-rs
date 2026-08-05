@@ -219,9 +219,10 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
     // each distinct gap once instead of thousands of times.
     let mut sample: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
     // The control-flow axis, over EVERY function including the in-class ones —
-    // they are the control group, and every one of them must read
-    // `cflow-straight`, because every shape the port accepts is a single basic
-    // block. A `cflow-loop` among them would indict the measure.
+    // they are the control group. Every shape the port accepts is a single basic
+    // block **except `ptr-walk-mod-loop`** (lane `w-hash`), so a `cflow-loop`
+    // under any other in-class key still indicts the measure and under that one
+    // is the expected reading.
     let mut cflow_hist: std::collections::BTreeMap<String, usize> =
         std::collections::BTreeMap::new();
     // The EH axis beside it, likewise over every function. Here the in-class

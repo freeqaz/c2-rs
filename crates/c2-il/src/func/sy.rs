@@ -262,6 +262,7 @@ impl SyLocals {
         match self.bind.get(i) {
             Some(Some(j)) => SyView {
                 locals: &self.blocks[*j].int_locals,
+                ptr_locals: &self.blocks[*j].ptr_locals,
                 formals: Formals::Declared(&self.blocks[*j].formals),
             },
             _ => SyView::UNKNOWN,
@@ -373,6 +374,12 @@ fn token_bytes(tok: u32) -> ([u8; 4], usize) {
 #[derive(Clone, Copy)]
 pub(crate) struct SyView<'a> {
     pub(crate) locals: &'a [u32],
+    /// The width-4 data-pointer automatics — [`SyBlock::ptr_locals`]. One
+    /// consumer: `shapes::ptr_walk_loop`, which needs a **positive** answer to
+    /// "is this induction variable a register-resident automatic", because a
+    /// global would make the walk a memory write and `.gl` absence proves
+    /// nothing (`docs/GAPS.md` §6).
+    pub(crate) ptr_locals: &'a [u32],
     pub(crate) formals: Formals<'a>,
 }
 
@@ -397,7 +404,7 @@ pub(crate) enum Formals<'a> {
 impl SyView<'_> {
     /// No `.sy` binding: no locals, and formal widths undetermined.
     pub(crate) const UNKNOWN: SyView<'static> =
-        SyView { locals: &[], formals: Formals::Undetermined };
+        SyView { locals: &[], ptr_locals: &[], formals: Formals::Undetermined };
 
     /// The largest parameter width that provably occupies exactly one GPR.
     ///
@@ -643,6 +650,14 @@ pub(crate) struct SyBlock {
     /// taken — the only ones a value-substituting parse may treat as a named
     /// intermediate. Every other local is deliberately absent from this list.
     pub(crate) int_locals: Vec<u32>,
+    /// Automatic locals that are width-4 **data pointers** whose address is
+    /// never taken (`lane w-hash`). A separate list rather than a widening of
+    /// [`Self::int_locals`], because its one consumer wants a different fact: a
+    /// value-substituting parse folds an `int` local into the expression that
+    /// reads it, and a pointer local walked by `lbzu` is not folded at all — it
+    /// is a live register across a back edge. Merging the two would silently
+    /// hand `assign.rs` a pointer to substitute.
+    pub(crate) ptr_locals: Vec<u32>,
 }
 
 /// The `.ex` close of a function body's own lexical scope — depth
@@ -764,6 +779,10 @@ const TYPE_KIND_INT: u8 = 0x01;
 /// the tag's width nibble agrees) is what separates the widths, and neither is
 /// per-TU.
 const TYPE_KIND_REAL: u8 = 0x05;
+/// The `.sy` type kind for a **data pointer**. Distinct from the function
+/// pointer's `0x04` and the aggregate's `0x06`, both of which share its size —
+/// see the 21-cell grid at the `plain_ptr4` clause in [`read_record`].
+const TYPE_KIND_DATA_PTR: u8 = 0x03;
 /// Storage class: `01` automatic, `03` formal. Redundant with the section depth in
 /// every witness, and required to agree with it.
 const CLS_AUTOMATIC: u8 = 0x01;
@@ -869,6 +888,11 @@ pub(crate) fn sy_blocks(sy: &[u8]) -> Option<Vec<SyBlock>> {
                     // [`SyFormal`]. So the type is not gated on here, but the
                     // size is carried out.
                     Some(f) if depth == DEPTH_FORMALS => block.formals.push(f),
+                    // `read_record` admits two local classes and the kind is the
+                    // discriminator it already carries; sorting here keeps one
+                    // predicate in one place rather than two readers of the
+                    // same bytes.
+                    Some(f) if f.kind == TYPE_KIND_DATA_PTR => block.ptr_locals.push(f.tok),
                     Some(f) => block.int_locals.push(f.tok),
                     None => {}
                 }
@@ -1204,11 +1228,60 @@ fn read_record(sy: &[u8], at: usize, depth: u8) -> Option<(Option<SyFormal>, usi
     // `const` and `volatile` do not change `<kind>`; they move `<tid>` into the
     // constructed-type range, which is why the id is checked and not just the
     // kind. Bit 5 of the flags is address-taken.
+    let plain_int = kind == TYPE_KIND_INT && size == SIZEOF_INT && tid == TID_INT;
+    // **The width-4 DATA pointer**, `lane w-hash`. Its own clause beside the
+    // `int` one, and the caller sorts the two by `SyFormal::kind`, so the
+    // `int_locals` predicate above is byte-identical to what it was.
+    //
+    // MEASURED one type axis at a time, 21 cells, `work/w-hash/sygrid.py`, each
+    // record read to the byte with nothing left over:
+    //
+    // ```text
+    //   local           tag kind size flags   tid
+    //   int              86   01    4  0001   0x74
+    //   unsigned         86   02    4  0001   0x75
+    //   const int        86   01    4  0001   0x1000
+    //   short            84   01    2  0001   0x11
+    //   char             82   01    1  0001   0x70
+    //   unsigned char    82   02    1  0001   0x20
+    //   bool             82   02    1  0001   0x30
+    //   long long        88   01    8  0001   0x13
+    //   float            86   05    4  0001   0x40
+    //   double           88   05    8  0001   0x41
+    //   unsigned char*   86   03    4  0001   0x0420   <== the shape this admits
+    //   const char*      86   03    4  0001   0x1001
+    //   int*             86   03    4  0001   0x0474
+    //   void*            86   03    4  0001   0x0403
+    //   const uchar*     86   03    4  0001   0x1003
+    //   char**           86   03    4  0001   0x1000
+    //   int(*)(int)      86   04    4  0001   0x1002   <== kind 4, NOT admitted
+    //   int[4]           86   06   16  0001   0x1000   <== kind 6
+    //   struct{int;int;} 86   06    8  0081   0x1002   <== kind 6
+    //   int, &x taken    86   01    4  0021   0x74     <== flags bit 5
+    //   char*, &u taken  86   03    4  0021   0x0470   <== flags bit 5
+    // ```
+    //
+    // Three things that table settles and that no smaller probe set could:
+    //
+    // * **`tid` is NOT gated**, and gating it would have been the natural
+    //   mistake. The module header says constructed types "live above 0x1000",
+    //   and `const char*` (0x1001) and `char**` (0x1000) agree — but
+    //   `unsigned char*` reads **0x0420** and `int*` **0x0474**. The id is the
+    //   *pointee*, so a rule read off two witnesses in one file would have
+    //   refused exactly the local this rung exists to admit. That is board
+    //   #644's shape — a population with an unstated restriction — caught by
+    //   varying the axis the first probes held fixed;
+    // * **kind 0x03 is the DATA pointer alone.** A function pointer is 0x04 and
+    //   an array or struct 0x06, so the clause separates them by a field that
+    //   was measured to differ rather than by size, which they share;
+    // * **flags bit 5 is still address-taken** and still excluded, on the
+    //   pointer exactly as on the `int` — `char* u; q(&u);` reads `0021`. A
+    //   local whose address escapes is a memory object and the loop's `lbzu`
+    //   would drop a write to it.
+    let plain_ptr4 = kind == TYPE_KIND_DATA_PTR && size == SIZEOF_INT;
     let admissible = tag == REC_PLAIN
         && type_tag == TYPE_TAG
-        && kind == TYPE_KIND_INT
-        && size == SIZEOF_INT
-        && tid == TID_INT
+        && (plain_int || plain_ptr4)
         && (flags == FLAGS_REFERENCED || flags == FLAGS_NONE);
     Some((admissible.then_some(SyFormal { tok, size, kind }), p))
 }
@@ -1839,7 +1912,7 @@ mod tests {
     #[test]
     fn a_cv_qualified_float_formal_is_still_a_floating_point_register() {
         let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
-        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         // Declaration order, as `.ex`'s formals region gives it.
         let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
         assert_eq!(
@@ -1870,7 +1943,7 @@ mod tests {
     #[test]
     fn the_fp_file_skips_non_fp_formals_and_the_gpr_file_counts_fp_ones() {
         let b = sy_blocks(&block_with(DEPTH_FORMALS, SY_SIX_TYPES)).expect("capture must parse");
-        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         let toks = [0xe509u32, 0xe609, 0xe709, 0xe809, 0xe909, 0xea09];
         let cls = view.arg_classes(&toks).unwrap();
         // FP: a→f1, b→f2, e→f3. The index rule would say f1, f2, f5.
@@ -1897,13 +1970,13 @@ mod tests {
             0x03, 0x04, 0x10, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80, 0x04, 0x1a, 0x00, 0x00,
         ];
         let b = sy_blocks(&block_with(DEPTH_FORMALS, rec)).expect("real capture must parse");
-        let view = SyView { locals: &[], formals: Formals::Declared(&b[0].formals) };
+        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&b[0].formals) };
         // 16 bytes: the width gate catches it first, which is the outer channel.
         assert_eq!(view.arg_classes(&[0x4651]), Err("param-multi-reg"));
         // …and the class gate is the inner one, for the day the same family
         // appears at a width a GPR could hold.
         let narrow = [SyFormal { tok: 1, size: 4, kind: 0x0d }];
-        let view = SyView { locals: &[], formals: Formals::Declared(&narrow) };
+        let view = SyView { locals: &[], ptr_locals: &[], formals: Formals::Declared(&narrow) };
         assert_eq!(view.arg_classes(&[1]), Err("param-kind-unknown"));
     }
 

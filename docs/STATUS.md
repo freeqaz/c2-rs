@@ -62,33 +62,33 @@ cost this project real work more than once.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-05 · tree `fcf8096` · binary `6f9b2af65e0e` · workload `20a48363`
+Collected 2026-08-05 · tree `50013bd` · binary `76e790ef15a6` · workload `20a48363`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 852 passed, 0 failed, 27 targets |
-| Oracle self-test (c2rs selftest) | 252 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 122 port Match, 0 mismatch, 130 not-implemented (of 252) |
-| Port speedup, geomean over matched fixtures | 626x geomean over matched fixtures |
-| 878-TU dc3 workload scan (c2rs gap) | match 9, mismatch 0, codegen-gap 0, vocab-gap 862, capture-fail 7 |
-| Per-function census (driver, not target) | 711426/2463393 functions in class (28.88%) |
-| Emitted-function census | 39176/178975 emitted functions in class (21.89%) |
+| Workspace tests (cargo test --workspace --release) | 871 passed, 0 failed, 27 targets |
+| Oracle self-test (c2rs selftest) | 260 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 123 port Match, 0 mismatch, 137 not-implemented (of 260) |
+| Port speedup, geomean over matched fixtures | 608x geomean over matched fixtures |
+| 878-TU dc3 workload scan (c2rs gap) | match 10, mismatch 0, codegen-gap 0, vocab-gap 861, capture-fail 7 |
+| Per-function census (driver, not target) | 711427/2463393 functions in class (28.88%) |
+| Emitted-function census | 39177/178975 emitted functions in class (21.89%) |
 | Emitted-census residue | residue 9225: 1962 compiler-generated (no IL body), 7263 unexplained  (5.15% of the denominator) |
-| TU distance to match, blocked functions | ≤0: 2, ≤1: 13, ≤10: 27, ≤100: 34, ≤1000: 216 |
-| TU distance to match, blocked emitted functions | ≤0: 3, ≤1: 20, ≤10: 82, ≤100: 407, ≤1000: 858 |
+| TU distance to match, blocked functions | ≤0: 3, ≤1: 13, ≤10: 27, ≤100: 34, ≤1000: 216 |
+| TU distance to match, blocked emitted functions | ≤0: 4, ≤1: 20, ≤10: 82, ≤100: 407, ≤1000: 858 |
 | Emit-set ceiling, LO-anchored (segments == COMDATs) | 27 of 871 graded TUs |
 | Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 871 graded TUs |
 | Emit-set MODEL ceiling (today / repaired / wall) | 338 today / 420 repaired / 451 wall |
 | .gl binding invariants (records / arity / conflicts) | 1515167 records, 420 nameless, 0 before the first row, 39296 row-conflicts, 731 name-conflicts, 0 accounting breaks, 0 unreadable objs |
-| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 338 · C 169 · D 9 · E 2, of 871 graded |
-| Joint ceilings (B∧C, A∧B∧C) | B∧C 151 · A∧B∧C 27 · A∧B∧C∧D 7 |
-| Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 18 reachable by codegen breadth alone; 140 if factor A were free |
+| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 338 · C 169 · D 10 · E 2, of 871 graded |
+| Joint ceilings (B∧C, A∧B∧C) | B∧C 151 · A∧B∧C 27 · A∧B∧C∧D 8 |
+| Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 17 reachable by codegen breadth alone; 139 if factor A were free |
 | Emit-predicate worth, B∧C − A∧B∧C (board #213) | +124 TUs (B∧C − A∧B∧C) |
 | Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
-| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20828 · emitted in class 39176/178975 · mismatch-zeroed TUs 0 |
-| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.16654 · 29801 exact + 5 whole-TU of 178975 emitted functions, over 865 TUs (5 at 100%) |
-| FBM partition (the under-report, and the controls) | partial 9375 (FBM under-reports by this) · differs 0 · refused 130574 · unbound 9225 · 0 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
-| Per-TU FBM (how close is the other 870) | 5 of 865 TUs with emitted functions are 100% byte-exact per function |
+| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20828 · emitted in class 39177/178975 · mismatch-zeroed TUs 0 |
+| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.16654 · 29802 exact + 5 whole-TU of 178975 emitted functions, over 865 TUs (6 at 100%) |
+| FBM partition (the under-report, and the controls) | partial 9375 (FBM under-reports by this) · differs 0 · refused 130573 · unbound 9225 · 0 credited fns carry a reloc FBM does not check · controls: partition-broken 0, match-TU differs 0, census disagree 0 |
+| Per-TU FBM (how close is the other 870) | 6 of 865 TUs with emitted functions are 100% byte-exact per function |
 
 <!-- END GENERATED -->
 
@@ -100,7 +100,8 @@ The **foundation is proven and fast**: standalone replay of the real `c2.dll` is
 byte-exact on all 871 capturable TUs of a real Xbox 360 game, and the port is
 byte-exact on every shape a standing instrument grades. The **payoff metric has
 moved for the first time**:
-TU match is **8/878**, up from a 6 that had held across a per-function census run
+TU match is **10/878** (this paragraph read **8** until 2026-08-05 and the
+generated block above is the source), up from a 6 that had held across a per-function census run
 from 4.45 % to 28.69 %. The two new TUs are
 `src/system/synth/tomcrypt/TomCryptLicense.cpp` and
 `src/system/zlib/ZlibLicense.cpp`, converted by a **whole-TU `??__E`
@@ -207,7 +208,8 @@ block's.
   the right *set* of functions without modelling anything. **This is the hard
   bound on TU match until Phase 7 (the emit-set model) exists** — and **8 are
   already taken**, so every widening rung in the plan, summed, can move the
-  payoff metric by at most **20 more TUs, ever** — and **19 of those 20 are
+  payoff metric by at most **18 more TUs, ever** (it read 20 when 8 were taken;
+  **10** are taken now) — and **17 of those 18 are
   reachable by codegen breadth alone** (`A∧B∧C` = **27** less the 8 matched; the
   other 1 of A's 28 fails B or C and needs section or binding work first). On the
   rest, the port emits one `.text` COMDAT per `.ex` segment and is wrong about
@@ -315,10 +317,15 @@ because the ladder is greedy and re-ranks.)
   13 holds empirically; re-run that grep before any new corpus inherits it.
 
 **C is necessary, not sufficient** — reaching C = 871 converts nothing on its
-own; only codegen converts. And **the pre-Phase-7 frontier is 19**: `A∧B∧C` = 27
+own; only codegen converts. And **the pre-Phase-7 frontier is 17**: `A∧B∧C` = 27
 with 8 already matched, so 19 graded TUs are reachable by codegen breadth alone
 and the other 1 of A's 28 needs section or binding work first. `gap.rs` prints
-those 19 by name each scan as the **FRONTIER**. Board **#160**.
+those 17 by name each scan as the **FRONTIER**. Board **#160**. (It read 19 with
+8 matched; `xboxmem.cpp` and `Sort.cpp` have come out of it since, and the
+paragraph is corrected rather than annotated — **quote it from a scan, not from
+this page**, which is the standing instruction two sections up.)
+
+> ### 2026-08-05 — **the frontier has had its first CFG conversion.** `src/system/math/Sort.cpp` matched at lane `w-hash` (board **#760**), and it is the **first TU ever converted that needed a control-flow class**: `?HashString@@YAHPBDH@Z` is an 80-byte pointer-walk loop with a back edge. What shipped is a **twenty-word transcription of one function class at `/O1`** — two immediate fields, no scheduler, no register allocator, no CFG builder — and **not** a loop lowering; `codegen::ptr_walk_loop`'s own module doc leads with that sentence, and `PORT_CFG_CLASSES` deliberately still does **not** list `cflow-loop` (board **#761**). The last blocker was not codegen at all: `.sy` admitted plain `int` automatics only, so the induction variable had no positive automatic-local test (board **#764**).
 
 **Every figure in this section is now also printed as a `gap-metric <key>
 <value>` line at the end of each scan's factorization block** — `factor-c`,
@@ -547,7 +554,7 @@ largest single file in the project is the member-call decode
 | what each blocker holds hostage, per rung | [`GAPS.md`](GAPS.md) |
 | what landed, when, and for how much census | [`rungs/INDEX.md`](rungs/INDEX.md) |
 | the correctness rule and the invariants | [`ROADMAP.md`](ROADMAP.md) §7, `../CLAUDE.md` |
-| **what the CFG step must emit** — and why **15 of the 17** FRONTIER TUs need it (measured by `w-front` when the frontier was 17; it is **19** now and the two new members are ungraded on this axis) | [`CFG_SHAPE.md`](CFG_SHAPE.md) |
+| **what the CFG step must emit** — and why **15 of the 17** FRONTIER TUs need it (measured by `w-front` when the frontier was 17; it went to **19**, and is **17** again since `Sort.cpp` converted — the members are not the same 17 and the newer ones are ungraded on this axis) | [`CFG_SHAPE.md`](CFG_SHAPE.md) |
 | **what the label counter charges, and the two channels it is NOT in** — `#286`/`#287` close "derive it from the blocks" | [`LABEL_COUNTER.md`](LABEL_COUNTER.md) §4.1 |
 | **why `/Ox` and `/O1` differ in more than a register field** — the refutation, and the three reasons the `else` arm is out of reach | [`OPT_MODE.md`](OPT_MODE.md) §3.0 |
 | the `.data`/`.bss` layout spec — allocator settled, walk order open | [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) |

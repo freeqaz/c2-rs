@@ -571,6 +571,83 @@ pub fn encode_mr(ra: u8, rs: u8) -> [u8; 4] {
     xo31(rs, ra, rs, 444)
 }
 
+/// `mr. rA, rS` — the **record form** of the `or` move, opcode 31 XO 444 with
+/// `Rc = 1`. It writes **cr0** as a side effect and is how `c2` closes a
+/// sentinel loop: the value the next iteration needs is copied and tested in one
+/// instruction, so no `cmplwi` is issued at the bottom of the body at all.
+///
+/// Captured: `7d4b5379` = `mr. r11,r10` (`?HashString@@YAHPBDH@Z` + 0x20).
+///
+/// Deliberately its own function rather than a `rc: bool` on [`encode_mr`]: the
+/// two differ in *which condition register the branch after them reads* — cr0
+/// here against [`CR_COMPARE`]'s cr6 — and that is board #188's defect, which
+/// this port has already paid for once.
+pub fn encode_mr_record(ra: u8, rs: u8) -> [u8; 4] {
+    let mut w = u32::from_be_bytes(xo31(rs, ra, rs, 444));
+    w |= 1;
+    w.to_be_bytes()
+}
+
+/// `mulli rD, rA, SIMM` — primary opcode 7. The whole of `a * k` for the
+/// literals `codegen::ptr_walk_loop` admits; see
+/// `c2_il::func::body::shapes::ptr_walk_loop::is_mulli_literal` for the 38-cell
+/// grid that says which those are and what `c2` emits instead for the rest.
+///
+/// Captured: `1d0a007f` = `mulli r8,r10,127`.
+pub fn encode_mulli(rd: u8, ra: u8, simm: i16) -> [u8; 4] {
+    let word: u32 =
+        (7 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (simm as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `lbzu rD, d(rA)` — load byte and zero with **update**, primary opcode 35.
+/// `rA` is written back with the effective address, so the pointer induction is
+/// folded into the addressing mode and the loop body carries no separate
+/// increment.
+///
+/// Captured: `8d490001` = `lbzu r10,1(r9)`.
+pub fn encode_lbzu(rd: u8, ra: u8, d: i16) -> [u8; 4] {
+    let word: u32 =
+        (35 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+    word.to_be_bytes()
+}
+
+/// `divw rD, rA, rB` — signed word divide, opcode 31 XO 491.
+/// Captured: `7ce823d6` = `divw r7,r8,r4`.
+pub fn encode_divw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+    xo31(rd, ra, rb, 491)
+}
+
+/// `twi TO, rA, SIMM` — **trap word immediate**, primary opcode 3. The
+/// architectural `TO` bits, MSB first, are
+/// `[a<b signed, a>b signed, a=b, a<b unsigned, a>b unsigned]`.
+///
+/// `c2` emits exactly two of them for a signed integer `/` or `%` by a
+/// **non-constant** divisor, and they are the two guards the C++ standard makes
+/// undefined. Both were read off the encoding rather than paraphrased:
+///
+/// * **`twi 6, rD, 0`** — `TO = 0b00110` = *equal* ∪ *unsigned less-than*.
+///   `rD <u 0` is unsatisfiable, so the instruction traps exactly when the
+///   **divisor is zero**. Captured `0cc40000` = `twi 6,r4,0`.
+/// * **`twi 5, rX, -1`** — `TO = 0b00101` = *equal* ∪ *unsigned greater-than*.
+///   `rX >u 0xFFFFFFFF` is unsatisfiable, so it traps exactly when `rX == -1`,
+///   and `rX` is `andc(divisor, rotlwi(dividend,1) - 1)`:
+///   `rotlwi(n,1) - 1` is `0` **iff** `n == INT_MIN` (`0x80000000` rotates to
+///   `1`), and `andc(d, 0)` is `d`, so `rX == -1` **iff**
+///   `dividend == INT_MIN && divisor == -1`. That is the `INT_MIN / -1`
+///   overflow guard, and the three-instruction predicate ahead of it is its
+///   whole computation. Captured `0ca6ffff` = `twi 5,r6,-1`.
+///
+/// A **constant** divisor emits neither — `c2` decides both guards statically
+/// (`work/w-hash/divgrid.py`, rows `s-mod-k7`/`s-div-k7`), and an **unsigned**
+/// divide emits only the first (`u-div-var`, `u-mod-var`), because the overflow
+/// case cannot arise.
+pub fn encode_twi(to: u8, ra: u8, simm: i16) -> [u8; 4] {
+    let word: u32 =
+        (3 << 26) | ((to as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (simm as u16 as u32);
+    word.to_be_bytes()
+}
+
 // ---- W8: the conditional-branch family ------------------------------------
 //
 // `docs/CFG_SHAPE.md` §3.1 tabulates four forms; three of them are here and the

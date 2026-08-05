@@ -1241,6 +1241,43 @@ pub struct CompareLeaf {
 /// which `compare_leaf_text` already applies across a 108-cell matrix. Here the
 /// `subfe` is the last use of the `addic` result, so it takes r11; at `/Ox` the
 /// descending counter has already spent r11 and r10 and hands out r9.
+/// **The pointer-walk accumulate loop** — the port's first body class with a
+/// back edge, and `src/system/math/Sort.cpp`'s whole content.
+///
+/// ```c
+///   int P(const char *str, int i) {
+///       int ret = <acc_init>;
+///       for (unsigned char *u = (unsigned char *)str; *u != 0; u++)
+///           ret = (*u + ret * <mul_k>) % i;
+///       return ret;
+///   }
+/// ```
+///
+/// The recognizer
+/// ([`crate::func::body::shapes::ptr_walk_loop::try_parse_ptr_walk_loop`])
+/// carries the whole accept/refuse boundary, including the two facts that are
+/// *not* visible in this struct because they are required literally:
+/// `params.len() == 2` with the pointer at slot 0 and the divisor at slot 1, and
+/// a stride of exactly 1. Both re-plan `c2`'s register assignment when varied,
+/// with the measured counterexamples named in the recognizer's module docs.
+///
+/// There is no label field and no callee: the emitted body takes **no
+/// relocation, mints no symbol and defines no label** — every branch in it is
+/// self-relative. That is why it reaches codegen as an ordinary
+/// `Selected::Plain` and needed no new obj shape.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PtrWalkModLoop {
+    /// The two formals, in register order: `params[0]` is the walked pointer's
+    /// source (r3), `params[1]` the modulo's divisor (r4).
+    pub params: Vec<u32>,
+    /// The accumulator's initial literal, inside `simm16` — one `li`.
+    pub acc_init: i32,
+    /// The multiplier, restricted to the `mulli`-eligible **positive** literals
+    /// (`ptr_walk_loop::is_mulli_literal` plus `> 0`; see there for the 38-cell
+    /// grid and for why the sign is a second clause and not part of the first).
+    pub mul_k: i32,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CmpShiftOr {
     /// The compared formal's IL token. It is the function's ONLY formal and
@@ -1428,6 +1465,19 @@ pub struct IlFunction {
     /// Mutually exclusive with the other body kinds, [`Self::compare`]
     /// included: the two share a spine but not a body.
     pub cmp_shift_or: Option<CmpShiftOr>,
+    /// If this function is the **pointer-walk accumulate loop**, its parameters.
+    /// Mutually exclusive with the other body kinds, and the only one whose
+    /// lowering emits a **backward** branch.
+    ///
+    /// It makes [`Self::label_slots`] return `None`: `w-loop` measured that a
+    /// leaf loop charges the compiler-label counter `+1..+4` — never 1 — and
+    /// which of the four is a function of the *source* loop shape, not of the
+    /// emitted bytes (three source shapes emit the identical 24 bytes and charge
+    /// `+1`, `+3`, `+1`). So the charge is real, is not derivable from anything
+    /// this struct carries, and is **unobservable in a TU with no framed
+    /// function**, which is the only kind of TU this shape may appear in. Board
+    /// **#746**.
+    pub ptr_walk_loop: Option<PtrWalkModLoop>,
     /// If this function is a **W13a floating-point leaf**, whether it is double
     /// precision. Mutually exclusive with the other body kinds.
     pub float_leaf: Option<bool>,
@@ -1620,6 +1670,7 @@ impl IlFunction {
             cond_pair: None,
             compare: None,
             cmp_shift_or: None,
+            ptr_walk_loop: None,
             float_leaf: None,
             fp_tail: None,
             fp_arg_sources: None,
@@ -1800,6 +1851,40 @@ impl IlFunction {
         if self.framed_call.is_some() || self.call_seq.is_some() {
             return Some(self.label_lead() + if fn_level_linking { 5 } else { 4 });
         }
+        // **The pointer-walk loop refuses, and the refusal is the measurement,
+        // not caution.** `w-loop` read the *leaf* loop stride seed-free over 17
+        // probes with a 5/5 anchor control on every row: `while` +2, `do/while`
+        // +1, `for` +2, `for(;;)`+`break` +3, nested +4, `Sort.cpp`'s own
+        // pointer-walk shape **+3** — against `leaf-none` = 1. So a loop leaf is
+        // never 1, and *which* of the four it is cannot be read off the emitted
+        // bytes: `do/while`, `for(;;)`+`break` and a backward `goto` emit the
+        // **identical 24 bytes** and charge +1, +3, +1.
+        //
+        // `Some(4)` for the +3 measured here would therefore be a rule fitted on
+        // one source spelling of a class whose members are indistinguishable at
+        // the only place this port can look. `None` refuses instead, and the
+        // three-valued gate in [`crate::IlBundle::functions`] turns that into:
+        // **a TU pairing this shape with a framed function is rejected; a TU
+        // with no framed function is admitted**, which is exactly the boundary
+        // `w-loop` §5.1 measured (34 of 34 leaf-only TUs mint zero labels, 28 of
+        // them carrying a backward branch; control 17 of 17). Board **#746**,
+        // and `fixtures/cpp/whash_loop_then_framed.cpp` is board **#747** — the
+        // two-function TU of mixed frame class neither `expr_sweep.sh` nor
+        // `mode_cross.sh` can generate.
+        // **MUST-FAIL MUTATION, verified.** Replacing this `None` with
+        // `Some(1)` — the ordinary leaf charge — turns
+        // `fixtures/cpp/whash_loop_then_framed.cpp` from `NotImplemented` into a
+        // live `mismatch` against real `c2.dll`, while its separating control
+        // `fixtures/cpp/whash_ptr_walk_loop.cpp` (the identical loop with no
+        // framed function beside it) stays `match`. Real `c2` mints
+        // `$M2564`/`$M2565`/`$T2566` for the framed `?z9`; the mutated port
+        // charges the loop 1 where `c2` charges 4, so the triple lands three
+        // low — six wrong bytes in an obj that still links, board #263's shape.
+        // Neither `expr_sweep.sh` nor `mode_cross.sh` can generate that TU
+        // (board #747), so the fixture is the only thing that grades it.
+        if self.ptr_walk_loop.is_some() {
+            return None;
+        }
         if let Some(c) = &self.compare {
             return Some(self.label_lead() + c.label_slots());
         }
@@ -1945,7 +2030,7 @@ pub(crate) mod test_fixtures {
     /// [`Formals::AllOneRegisterByConstruction`] is test-only and cannot appear in
     /// a release build.
     pub(crate) const NO_LOCALS: SyView<'static> =
-        SyView { locals: &[], formals: Formals::AllOneRegisterByConstruction };
+        SyView { locals: &[], ptr_locals: &[], formals: Formals::AllOneRegisterByConstruction };
 
     /// Prefix a pinned body with the `53 53 26 <fn>` statement start a real segment
     /// carries, when it does not already have one.

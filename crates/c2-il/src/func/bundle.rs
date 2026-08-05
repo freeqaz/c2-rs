@@ -908,6 +908,16 @@ pub(crate) fn shape_to_function(
                     ..IlFunction::base(name, src)
                 })
             }
+            // The pointer-walk accumulate loop. No token to resolve: it calls
+            // nothing, names no data symbol and mints no label, so the whole
+            // shape travels as it was parsed.
+            BodyShape::PtrWalkModLoop(l) => {
+                Some(IlFunction {
+                    params: l.params.clone(),
+                    ptr_walk_loop: Some(l),
+                    ..IlFunction::base(name, src)
+                })
+            }
             BodyShape::CmpShiftOr(cso) => {
                 Some(IlFunction {
                     params: vec![cso.param],
