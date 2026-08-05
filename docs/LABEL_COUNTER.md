@@ -420,6 +420,129 @@ every later function in the TU* — wrong bytes in the symbol table, not only in
 
 ---
 
+## 4.2 The LEAF loop — the same surcharge, and a channel that is not always open
+
+**Added 2026-08-05. Lane `w-loop`, `work/w-loop/loopcost.py`, control
+`work/w-loop/PREREG.md` committed at `0fa469f` before the first capture. Boards
+#741, #742, #743.**
+
+§4 and §4.1 are measured on `cflabels.py`'s 33 cells and **every one of them is a
+framed Class-A body** — the probe calls `gp` so `extra` is defined. That is the
+right construction for §4.1's question and the wrong *population* for a loop
+rung: **every loop function on the codegen frontier is a leaf.** `Sort.cpp`,
+`Primes.cpp` and `IPP_basicmath_xbox.cpp` carry six loop functions between them,
+no `.pdata`, and not one `$M`.
+
+### 4.2.1 A leaf loop charges the counter, by the same integers
+
+`gt_label_stride.py`'s construction with a **leaf** probe (`a0 · P · a1 · a2`,
+`base` measured in-obj, control **5** on all 17 rows). `stride(leaf-none) = 1`,
+which reproduces the shipped `leaf-int` row.
+
+| leaf probe | stride | surcharge | §4's FRAMED row |
+|---|---:|---:|---:|
+| `leaf-none` (`return a+1`) | 1 | +0 | — |
+| `leaf-if` (a forward-only branch) | 1 | **+0** | +0 |
+| `leaf-while` | 3 | **+2** | +2 |
+| `leaf-dowhile` | 2 | **+1** | **+1** |
+| `leaf-for` | 3 | **+2** | +2 |
+| `leaf-for-k` (`i<10`, **no loop emitted**) | 3 | **+2** | — |
+| `leaf-for-stride` (`i+=3`) | 3 | +2 | — |
+| `leaf-for-down` | 3 | +2 | — |
+| `leaf-for-cont` | 3 | +2 | — |
+| `leaf-for-live` (counter read after) | 3 | +2 | — |
+| `leaf-idxload` (`Primes.cpp`'s shape) | 3 | +2 | — |
+| `leaf-forever` (`for(;;)` + `break`) | 4 | **+3** | — |
+| `leaf-for-break` | 4 | +3 | — |
+| `leaf-ptrwalk` (`Sort.cpp`'s shape) | 4 | **+3** | — |
+| `leaf-for2` (two sequential) | 5 | **+4** | — |
+| `leaf-fornest` | 5 | **+4** | +4 |
+| `leaf-goto-back` | 2 | **+1** | +1 |
+
+**Every row that §4 also has agrees exactly.** So the control-flow surcharge is
+**frame-class-independent**: a leaf pays what a framed body pays. And `minted` is
+**1** on every row (the `.text` section symbol alone), so `stride == minted` is
+refuted on 15 of 17 — the surcharge mints nothing, which is §2.1's shape again.
+
+**It is measured and NOT modelled**, for the reason §4.1 gives: four distinct
+magnitudes and no rule that survives them. This table's job is to close one
+remaining hope — that the surcharge was a property of the framed pre-pass and
+that a *leaf* loop would therefore be free. It is not.
+
+### 4.2.2 The identical-bytes triple — §4.1, at the byte level
+
+§4.1 refuted *"derive the surcharge from the blocks"* with `ho-ternary` and
+`cf-ifelse`: the same emitted **shape**, charging +2 and +1. The leaf grid does
+it with the same emitted **bytes**.
+
+```text
+  do/while       int P(int a){ int r=0; do { r=r+a; a=a-1; } while (a); return r; }
+  for(;;)+break  int P(int a){ int r=0; for(;;){ r=r+a; a=a-1; if(!a) break; } return r; }
+  goto           int P(int a){ int r=0; top: r=r+a; a=a-1; if (a) goto top; return r; }
+
+  all three .text sections, /O1 /GS- /c, 24 bytes, byte-identical:
+      7c6b1b78  mr     r11,r3
+      38600000  li     r3,0
+      7c635a14  add    r3,r3,r11
+      356bffff  addic. r11,r11,-1
+      4082fff8  bne    cr0,-8
+      4e800020  blr
+
+  surcharge:   +1              +3              +1
+```
+
+And from the other side: `for (int i=0;i<10;i++) r=r+a;` emits **8 bytes with no
+control flow at all** — `1c63000a mulli r3,r3,10 ; 4e800020 blr` — and charges
+**+2**. A body whose obj contains no branch pays a loop's surcharge.
+
+> **Restated as strongly as the evidence allows:** the counter is not a function
+> of the emitted object. Two source shapes with one byte string charge
+> differently, and a branch-free obj charges as a loop. §4.1's *"closed as a
+> route"* holds at the byte level, not merely at the block level.
+
+### 4.2.3 The channel — where a wrong charge can and cannot land
+
+`plan_labels` (`crates/c2-core/src/coff/label.rs:39`) returns
+`Some([n, n+1, n+2])` for a function with a `frame` and `None` for a leaf, and
+`label_name` is the only renderer. So **`$M<n>`/`$T<n>` short names are the only
+channel by which the counter's value reaches an object file.**
+
+c2 agrees. Three TU shapes per body, 17 bodies:
+
+```text
+  leafonly     the probe alone                 0 labels   17 of 17
+  leafx3       the probe and two more leaves   0 labels   17 of 17
+  leaf_framed  the probe THEN a framed fn      3 labels   17 of 17   <== the CONTROL
+```
+
+**34 of 34 leaf-only TUs mint zero labels, and 28 of them contain a backward
+intra-section branch.** The control is what makes that a reading rather than an
+instrument that was not looking: the same 17 bodies with one framed function
+appended mint `$M`/`$M`/`$T` every time.
+
+**What this does and does not license.**
+
+* It **does** say that `codegen::labels` invariant 4's stated consequence —
+  *"the obj would carry a wrong `$M`"* — is **conditional on the TU having a
+  framed function**. §4.2.1 is why the refusal is right; this is where its
+  damage can land.
+* It **does not** license emitting a loop. The counter is only the *first*
+  refusal on every one of the six `cflow-loop`-blocked frontier TUs, each of
+  which prices at ≥ 4 independent refusals (board #740), and `Selected` still
+  has no variant with a back edge.
+* The relaxation is **TU-level**, so it belongs in `IlBundle::functions`'
+  `label_slots` gate — which already demands `label_slots(..) == 1` from every
+  non-framed function in a TU containing a framed one, and is three-valued so an
+  unmeasured class refuses. A loop body returning `None` there refuses in exactly
+  the observable TUs. Board **#746**. It is **not** in the per-body `LabelMap`,
+  which cannot see the TU.
+
+`c2rs gap` prints the channel per frontier TU as `label-free` / `labels N` /
+`label ??` (board #742). On the 878-TU workload: **4 of 18** frontier TUs are
+label-free, and **3 of the 6** blocked on `cflow-loop` are.
+
+---
+
 ## 5. Reproduction
 
 ```sh
@@ -436,6 +559,12 @@ work/w-label/cflabels.py --mode '/Ox /GS- /c'       # packed
 work/w-label/cftargets.py                           # surcharge vs interior targets / joins
 work/w-label/cfdis.py cf-if2 cf-ifelse ho-ternary   # per-target predecessor counts
 work/w-label/ilseed.py                              # the .gl seed, ruled out
+
+# §4.2 — the LEAF grid, and the channel the charge does or does not reach
+work/w-loop/loopcost.py                             # both halves, /O1
+work/w-loop/loopcost.py --q1                        # the 17 leaf strides
+work/w-loop/loopcost.py --q2                        # 34 leaf-only TUs + 17 controls
+work/w-loop/loopcost.py --dis leaf-dowhile leaf-forever leaf-goto-back
 ```
 
 Exit status is non-zero only if a *control* failed (an anchor pair disagreeing

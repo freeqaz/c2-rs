@@ -1176,6 +1176,41 @@ would close it**, and **whether it blocks the step-1 rung** of §5.2.
 
 ### 8.2 Blocking for step 2 (the loop rung)
 
+> **PARTIAL CLOSURE 2026-08-05, lane `w-loop`** (`docs/rungs/2026-08-05-w-loop.md`,
+> `work/w-loop/loopcost.py`, boards #741/#744/#745). The five rows below were
+> written from a grid whose loop cells are framed or call-bearing on 4 of 7 rows,
+> and **every loop function on the codegen frontier is a leaf**, so a 17-cell
+> leaf grid was run. What it moved:
+>
+> * **L2 — answered in scope.** CTR (`mtctr`/`bdnz`) when the trip count is
+>   computable at entry and the body has no call: `while`(decrement), counted
+>   `for`, **stride 3**, counting down, `+continue`, indexed load — **7 cells**.
+>   Compare-form otherwise: `do/while`, `for(;;)`+`break`, backward `goto`,
+>   `+break`, pointer-walk-to-sentinel — **5 cells**. **A `break` does kill CTR**
+>   (`?d_break` generalizes). The boundary is *"is there an entry test whose trip
+>   count c2 can compute"*, not *"is it a `for`"*.
+> * **L3 — partly.** Stride 3 gets CTR, so c2 **does** compute
+>   `(hi-lo+k-1)/k`. The computation itself is still unmodelled and a non-zero
+>   start is still unvaried.
+> * **L4 — one cell moved.** `+continue` keeps CTR here (§3.7a's `?d_cont` is
+>   call-bearing and got the compare form), so the entry-form rule is **not**
+>   "a `continue` makes the test a join target". Still unstated.
+> * **L5 — the rotation held on 28 more back edges.** §3.7a extended: **0 of 28**
+>   backward intra-section branches across the leaf grid is unconditional. The
+>   registered risk cell was `for(;;)` with its only exit inside the body, and it
+>   emits `bne cr0` on an `addic.`.
+> * **L1 is untouched and is still the largest unknown.**
+>
+> **And a sixth item L1–L5 do not name, which is the one that blocks first:**
+> a leaf loop charges the **compiler-label counter** +1..+4 while
+> `coff::plan_labels` charges 0 (`LABEL_COUNTER.md` §4.2.1, 17 cells). That
+> charge is *unobservable* in a TU with no framed function (§4.2.3, 34 of 34,
+> control 17 of 17) — which is why 3 of the 6 `cflow-loop` frontier TUs read
+> `label-free` in the scan — but it is a hard refusal everywhere else, and it is
+> **not derivable from the emitted bytes**: `do/while`, `for(;;)`+`break` and a
+> backward `goto` emit the *same 24 bytes* and charge +1, +3, +1.
+
+
 | # | what is missing | what would close it |
 |---|---|---|
 | **L1** | **Register allocation across a back edge.** §6.2 item F. `docs/CODEGEN_W6_COMPARE.md` §6 already records the allocator as richer than a descending counter and **uncharacterized**; a loop needs it *and* needs it to agree across the edge. This is the largest single unknown in the document. | A characterization lane on the allocator itself. It is a prerequisite, not a sub-task of the loop rung. |
