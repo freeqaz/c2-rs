@@ -72,7 +72,7 @@ use super::expr::{
 use super::{Block, Complete, BODY_SCOPE_DEPTH};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker,
-    eat_value_type, read_token_var, read_type, read_varint,
+    eat_reinterpret_type, eat_value_type, read_token_var, read_type, read_varint,
 };
 use crate::func::readers::ValueClass;
 
@@ -2551,7 +2551,22 @@ fn eat_int_operands(seg: &[u8], p: &mut usize, v: Vocab, adm: Admit, fail: &mut 
                     fail.note(start, FailKind::Value);
                     return finish!();
                 };
-                if !eat_value_type(seg, &mut probe, cls) {
+                if eat_value_type(seg, &mut probe, cls) {
+                    // Class-preserving: the class on the stack is unchanged.
+                } else if let Some(got) = eat_reinterpret_type(seg, &mut probe, cls) {
+                    // **The width-4 REINTERPRET** (`lane w-convert`, board
+                    // **#700**), mirrored from `parse_expr_classed`'s `2C` arm
+                    // one token for one token — including the `saw_ptr` line,
+                    // which is `st.ptr` here. A measure that admitted the
+                    // reinterpret without indicting the value would be *wider*
+                    // than the emitter, which is the direction #139 records as
+                    // manufacturing phantom completeness; the enumerated guard
+                    // below is what caught this arm being narrower.
+                    st.last = Some(got);
+                    if got == ValueClass::Ptr4 {
+                        st.ptr = true;
+                    }
+                } else {
                     fail.note(*p + 1, FailKind::Type);
                     return finish!();
                 }

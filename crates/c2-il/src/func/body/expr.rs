@@ -1,7 +1,7 @@
 use super::{blk, blk_type, Block};
 use crate::func::readers::{
-    eat, eat_byte, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker, eat_value_type,
-    is_int4_type, read_token_var, read_type, read_varint, ValueClass, INT_TYPE,
+    eat, eat_byte, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker, eat_reinterpret_type,
+    eat_value_type, is_int4_type, read_token_var, read_type, read_varint, ValueClass, INT_TYPE,
 };
 use crate::func::IlOp;
 
@@ -1319,13 +1319,21 @@ pub(crate) fn parse_expr_classed(
             // the *position*: a general expression operand rather than a leaf's
             // single value.
             //
-            // **Cross-class refuses**, and that is a conservatism with a measured
-            // price rather than an oversight: `int f(S* p){ return (int)p; }` and
-            // `S* f(int a){ return (S*)a; }` are both a bare `blr` on this target
-            // (probed), so admitting them is a rung — but a reinterpret between the
-            // two classes has never been graded across the widths, cv-spellings and
-            // argument positions this parser reaches, and `expr-convert-target`
-            // makes what it costs a number instead of an argument.
+            // **CORRECTED — `lane w-convert`, board #700.** This comment used to
+            // read *"Cross-class refuses, and that is a conservatism with a
+            // measured price"*, and it named the missing work exactly: a
+            // reinterpret between the two width-4 classes had "never been graded
+            // across the widths, cv-spellings and argument positions this parser
+            // reaches". It has been now — 31 cells at two profiles, plus the
+            // whole 3x3 of [`ValueClass`] pairs — so the **width-4 reinterpret is
+            // admitted** through [`eat_reinterpret_type`], and the arm below has
+            // three accepting/refusing branches rather than one.
+            //
+            // The refusal that remains is **narrower and better named**: it is
+            // now an unmodeled *target* (a narrowing, a widening, a float) or the
+            // one-byte-unsigned class on either side — four of the nine class
+            // pairs, each of which costs a real instruction. See the table on
+            // [`eat_reinterpret_type`].
             //
             // The trailing varint is required to be literally `0`. It is `00` at
             // every aligned site any capture has shown, and a field that never
@@ -1340,20 +1348,51 @@ pub(crate) fn parse_expr_classed(
                 let Some(cls) = class else {
                     return Err(blk(seg, start, "expr-convert-no-value"));
                 };
-                if !eat_value_type(seg, &mut probe, cls) {
+                if eat_value_type(seg, &mut probe, cls) {
+                    // Class-preserving: the class on the stack is unchanged.
+                } else if let Some(got) = eat_reinterpret_type(seg, &mut probe, cls) {
+                    // **THE WIDTH-4 REINTERPRET** (`lane w-convert`, board
+                    // **#700**), and the rung the comment above used to name as
+                    // open. `int f(S *p){ return (int)p; }` and
+                    // `S *f(int a){ return (S *)a; }` are each a bare `blr`, and
+                    // [`eat_reinterpret_type`] carries the 3x3 that says which
+                    // of the nine class pairs are and are not — four of them
+                    // cost an instruction and it admits none of those.
+                    //
+                    // **This arm is additive-ACCEPT, not additive-refusal**, and
+                    // that is said rather than claimed away: it is reached only
+                    // where `eat_value_type` refused, so no body master accepted
+                    // parses differently — but a future wrong answer here would
+                    // be a wrong emit, not a new refusal. What holds it is the
+                    // corpus (`scripts/sweep.d/77-reinterpret-2c.py`,
+                    // `fixtures/cpp/il_convert_reinterpret.cpp`), not the shape
+                    // of the guard.
+                    class = Some(got);
+                    // **A converted pointer indicts the value exactly as a
+                    // loaded one does.** `(S *)a + 1` is `addi r3,r3,8` and
+                    // `(S *)a + k` is `slwi r11,r4,3 ; add` — c2 SCALES pointer
+                    // arithmetic — so a chain that added 1 unscaled would be a
+                    // wrong emit rather than a gap. The end-of-walk
+                    // `expr-ptr-arith` guard is what refuses it, and it only
+                    // fires on `saw_ptr`. This line is the whole of that
+                    // guarantee; the sweep fragment is the corpus that can
+                    // express its absence.
+                    if got == ValueClass::Ptr4 {
+                        saw_ptr = true;
+                    }
+                } else if chain_sink().convert {
                     // **w-depth chain sink — `C2RS_SINK_CHAIN=convert`.** The
                     // target TYPE is skipped whole; the class is left where it
                     // was, because a conversion the sink did not model tells us
                     // nothing about the class it produced. Poisons.
-                    if chain_sink().convert {
-                        chain_skip_type(seg, &mut probe)?;
-                        saw_chain_sink = true;
-                    } else {
-                        // Either an unmodeled target type (`char`, `long long`, a
-                        // float) or a cross-class reinterpret. Reported at the target
-                        // TYPE so the key names it (`<tag><kind>`, never the per-TU id).
-                        return Err(blk_type(seg, *p + 1, start, "expr-convert-target"));
-                    }
+                    chain_skip_type(seg, &mut probe)?;
+                    saw_chain_sink = true;
+                } else {
+                    // An unmodeled target type — `char`, `short`, `long long`, a
+                    // float, or the one-byte-unsigned class on either side of the
+                    // conversion. Reported at the target TYPE so the key names it
+                    // (`<tag><kind>`, never the per-TU id).
+                    return Err(blk_type(seg, *p + 1, start, "expr-convert-target"));
                 }
                 if !eat_byte(seg, &mut probe, 0x00) {
                     return Err(blk(seg, probe, "expr-convert-tail"));
@@ -1366,7 +1405,11 @@ pub(crate) fn parse_expr_classed(
                 // changes `>>` from `sraw` to `srw`. Feeding the target into
                 // the same two flags turns `(unsigned)a >> b` into a
                 // `expr-shr-mixed-sign` refusal. Read at `*p + 1`, the target
-                // TYPE, which `eat_value_type` has already proved is one.
+                // TYPE, which one of the two accepting arms above has already
+                // proved is a TYPE. Since board #700 that TYPE may be a
+                // *pointer* (the reinterpret), and this reader sets neither flag
+                // for one — the conservative direction, and the same one it
+                // takes for every other non-int4 type it is handed.
                 note_int4_signedness(seg, *p + 1, &mut saw_int4_signed, &mut saw_int4_unsigned);
                 *p = probe;
             }
@@ -1905,14 +1948,47 @@ mod tests {
     }
 
     #[test]
-    fn a_convert_out_of_the_value_s_class_refuses_and_names_its_target() {
-        // `int f(S* p){ return (int)p; }` and `S* f(int a){ return (S*)a; }` are
-        // both a bare `blr` on this target — the refusal is a conservatism, not a
-        // correction — so the key has to say what was refused rather than hide it
-        // in a generic bucket. `86 43 83 08` is `void *`.
-        let seg = retarget(CONV_ONE, &[0x86, 0x43, 0x83, 0x08]);
+    fn the_width4_reinterpret_is_free_in_both_directions() {
+        // **CORRECTED, board #700.** This test used to assert that
+        // `int f(S* p){ return (int)p; }` and `S* f(int a){ return (S*)a; }`
+        // REFUSE under `expr-convert-target-8643`, with a comment saying in as
+        // many words that both are a bare `blr` and that the refusal was "a
+        // conservatism, not a correction". `lane w-convert` graded the 3x3 and
+        // the conservatism is spent: the width-4 reinterpret is admitted, and it
+        // must produce the IDENTICAL operand stream to the same body without the
+        // conversion, because c2 emits nothing for it.
+        //
+        // `86 43 83 08` is `void *` — the int4 → ptr4 direction, on the body
+        // whose value is an `int` LOAD.
+        let to_ptr = retarget(CONV_ONE, &[0x86, 0x43, 0x83, 0x08]);
+        assert_eq!(
+            parse_segment(&to_ptr, NO_LOCALS),
+            parse_segment(CONV_ONE, NO_LOCALS),
+            "a reinterpret must lower exactly as the class-preserving convert does"
+        );
+        assert!(parse_segment_detail(&to_ptr, NO_LOCALS).is_ok());
+        // `86 41 74` is `int` — the ptr4 → int4 direction, on the body whose
+        // value is an `S *` LOAD inside a call-argument region.
+        let to_int = retarget(CONV_PTR_ARG, &[0x86, 0x41, 0x74]);
+        assert!(matches!(
+            parse_segment(&to_int, NO_LOCALS),
+            Some(BodyShape::IntTailCall { .. })
+        ));
+    }
+
+    #[test]
+    fn a_reinterpret_to_a_pointer_indicts_the_value_for_the_pointer_guard() {
+        // **The wrong-emit this rung could have shipped, as a test.** `(S *)a + 1`
+        // is `addi r3,r3,8` and `(S *)a + k` is `slwi r11,r4,3 ; add` — c2 SCALES
+        // pointer arithmetic — so a chain that accepted the reinterpret and then
+        // added unscaled would emit wrong bytes rather than decline. The accepting
+        // arm sets `saw_ptr`, and this is the assertion that it does: the interior
+        // form is an ADD chain, and retargeting its conversion to `void *` must
+        // turn an accepted body into an `expr-ptr-arith` refusal.
+        assert!(parse_segment(CONV_INTERIOR, NO_LOCALS).is_some());
+        let seg = retarget(CONV_INTERIOR, &[0x86, 0x43, 0x83, 0x08]);
         let b = parse_segment_detail(&seg, NO_LOCALS).unwrap_err();
-        assert_eq!(b.feature(), "expr-convert-target-8643");
+        assert_eq!(b.feature(), "expr-ptr-arith:mid");
         assert!(parse_segment(&seg, NO_LOCALS).is_none());
     }
 
