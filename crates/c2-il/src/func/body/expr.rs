@@ -952,15 +952,53 @@ pub(crate) fn parse_expr_classed(
     // end with this set refuses under `expr-chain-sink-poison`, so the sink can
     // never move an obj byte. See [`chain_sink`] for the rest of the discipline.
     let mut saw_chain_sink = false;
-    // The [`ValueClass`] of the value on top of the operand stack, or `None`
-    // before the first operand. Only the `2C` arm reads it, and only to require
-    // that a conversion stays inside the class it started in — which is what makes
-    // the top of the stack knowable from the last operand alone. Every accepted
-    // conversion is class-preserving and every accepted operator is int-only (the
-    // pointer-arithmetic guard below bars the mixed case), so the whole
-    // sub-expression has ONE class and this variable is that class, not a
-    // shortcut for it.
-    let mut class: Option<ValueClass> = None;
+    // **The operand stack's CLASSES** (`lane w-convert`, board **#701**), which
+    // used to be a single `class: Option<ValueClass>` documented as "the class of
+    // the last operand" with a note that the two "could differ
+    // (`(void *)(s + 1)`, whose last operand is the literal)" and that the guard
+    // refused the body anyway so only the census key changed.
+    //
+    // It is a real stack now for one reason: the guard is no longer a
+    // whole-expression flag. `IlOp` is postfix and each binary op pops two and
+    // pushes one (`crates/c2-core/.../straightline.rs`), so simulating the
+    // CLASSES over the same discipline answers exactly the question
+    // `expr-ptr-arith` is about — *was an arithmetic operator applied to a value
+    // that was a pointer AT THAT MOMENT* — instead of the coarser *did a pointer
+    // appear anywhere in this expression*. `(int)p + b` is `add r3,r3,r4`, an
+    // integer addition over a value that used to be a pointer, and the coarse
+    // flag refused it.
+    //
+    // `cstack_ok` is the model's own honesty: any token whose stack effect this
+    // does not model clears it and the end-of-walk guard falls back to the
+    // whole-expression flag. A model that guessed would be worse than the flag it
+    // replaced.
+    let mut cstack: Vec<ValueClass> = Vec::with_capacity(8);
+    let mut cstack_ok = true;
+    // Set by the fold below when an operator's own operands included a pointer —
+    // the exact form of `saw_ptr && <arith>` and `saw_ptr && <bitwise>`.
+    let mut ptr_arith_exact = false;
+    let mut ptr_bitwise_exact = false;
+    // Fold one binary operator over the class stack. Underflow means the stream
+    // is not the postfix shape this models, which is a fact about the stream and
+    // not about the operator, so it clears the model rather than refusing here.
+    macro_rules! fold_binary {
+        ($flag:ident) => {{
+            match (cstack.pop(), cstack.pop()) {
+                (Some(r), Some(l)) => {
+                    let ptr = r == ValueClass::Ptr4 || l == ValueClass::Ptr4;
+                    if ptr {
+                        $flag = true;
+                    }
+                    // Pointer arithmetic yields a pointer; integer arithmetic an
+                    // integer. The `Ptr4` case is already refused by the time
+                    // this matters, and it is pushed faithfully anyway so that a
+                    // later reader of the top is never handed a fiction.
+                    cstack.push(if ptr { ValueClass::Ptr4 } else { ValueClass::Int4 });
+                }
+                _ => cstack_ok = false,
+            }
+        }};
+    }
     loop {
         let b = *seg.get(*p).ok_or(blk(seg, *p, "expr"))?;
         // **The chain sink is consulted BEFORE the stop byte** (`w-depth`, board
@@ -1065,7 +1103,7 @@ pub(crate) fn parse_expr_classed(
                         saw_ptr |= c == ValueClass::Ptr4;
                         saw_int1u |= c == ValueClass::Int1u;
                         saw_wide |= c != ValueClass::Int1u;
-                        class = Some(c);
+                        cstack.push(c);
                     }
                     // neither int-like nor a 4-byte pointer → out of class.
                     // Report at the LOAD so the census bucket reads as a
@@ -1079,7 +1117,8 @@ pub(crate) fn parse_expr_classed(
                         // arm, which under this configuration is measuring a
                         // successor and not admitting anything.
                         chain_skip_type(seg, p)?;
-                        class = Some(ValueClass::Int4);
+                        cstack.push(ValueClass::Int4);
+                        cstack_ok = false;
                         saw_chain_sink = true;
                     }
                     None => return Err(blk_type(seg, *p, start, "expr-load-type")),
@@ -1096,13 +1135,14 @@ pub(crate) fn parse_expr_classed(
                         saw_ptr |= c == ValueClass::Ptr4;
                         saw_int1u |= c == ValueClass::Int1u;
                         saw_wide |= c != ValueClass::Int1u;
-                        class = Some(c);
+                        cstack.push(c);
                     }
                     // **w-depth chain sink — `C2RS_SINK_CHAIN=type`.** Same rule
                     // one operand over; see the LOAD arm.
                     None if chain_sink().ty => {
                         chain_skip_type(seg, p)?;
-                        class = Some(ValueClass::Int4);
+                        cstack.push(ValueClass::Int4);
+                        cstack_ok = false;
                         saw_chain_sink = true;
                     }
                     None => return Err(blk_type(seg, *p, start, "expr-lit-type")),
@@ -1114,16 +1154,19 @@ pub(crate) fn parse_expr_classed(
             0x02 => {
                 *p += 1;
                 scaled_arith = true;
+                fold_binary!(ptr_arith_exact);
                 ops.push(IlOp::Add);
             }
             0x03 => {
                 *p += 1;
                 scaled_arith = true;
+                fold_binary!(ptr_arith_exact);
                 ops.push(IlOp::Sub);
             }
             0x04 => {
                 *p += 1;
                 scaled_arith = true;
+                fold_binary!(ptr_arith_exact);
                 ops.push(IlOp::Mul);
             }
             // **The BITWISE and SHIFT binary operators** — `lane w-build`.
@@ -1143,14 +1186,17 @@ pub(crate) fn parse_expr_classed(
             // them a two-instruction materialization into **r12**.
             0x0B => {
                 *p += 1;
+                fold_binary!(ptr_bitwise_exact);
                 ops.push(IlOp::And);
             }
             0x0C => {
                 *p += 1;
+                fold_binary!(ptr_bitwise_exact);
                 ops.push(IlOp::Or);
             }
             0x0D => {
                 *p += 1;
+                fold_binary!(ptr_bitwise_exact);
                 ops.push(IlOp::Xor);
             }
             // `<<` is ONE instruction over both signednesses — `slw`, probed
@@ -1158,6 +1204,7 @@ pub(crate) fn parse_expr_classed(
             // so it needs no signedness decision and takes none.
             0x09 => {
                 *p += 1;
+                fold_binary!(ptr_bitwise_exact);
                 ops.push(IlOp::Shl);
             }
             // `>>` is TWO instructions from ONE IL byte, and the byte does not
@@ -1200,6 +1247,7 @@ pub(crate) fn parse_expr_classed(
                     }
                 };
                 *p += 1;
+                fold_binary!(ptr_bitwise_exact);
                 ops.push(op);
             }
             // **W-ARMS scratch sink — `C2RS_SINK_OFF_ADD_ARG=expr` and nothing
@@ -1294,6 +1342,12 @@ pub(crate) fn parse_expr_classed(
                     Some((_, _, _, w)) => *p += w,
                     None => return Err(blk(seg, *p, "expr-off-add-type")),
                 }
+                // The byte-offset add's second operand is IMPLICIT — it is the
+                // TYPE, not a stack value — so the postfix discipline the class
+                // stack models does not hold across this token. Clearing the
+                // model is what keeps `C2RS_SINK_OFF_ADD_ARG` a counterfactual
+                // rather than a second, ungraded acceptance rule (#403).
+                cstack_ok = false;
                 ops.push(IlOp::Add);
             }
             // A `26` SYMBOL PUSH — the single largest blocking feature on the real
@@ -1345,7 +1399,7 @@ pub(crate) fn parse_expr_classed(
                 // A conversion with nothing to convert is not a conversion. This
                 // cannot be reached by a well-formed stream and refuses rather than
                 // guessing a class.
-                let Some(cls) = class else {
+                let Some(cls) = cstack.last().copied() else {
                     return Err(blk(seg, start, "expr-convert-no-value"));
                 };
                 if eat_value_type(seg, &mut probe, cls) {
@@ -1367,7 +1421,9 @@ pub(crate) fn parse_expr_classed(
                     // corpus (`scripts/sweep.d/77-reinterpret-2c.py`,
                     // `fixtures/cpp/il_convert_reinterpret.cpp`), not the shape
                     // of the guard.
-                    class = Some(got);
+                    if let Some(top) = cstack.last_mut() {
+                        *top = got;
+                    }
                     // **A converted pointer indicts the value exactly as a
                     // loaded one does.** `(S *)a + 1` is `addi r3,r3,8` and
                     // `(S *)a + k` is `slwi r11,r4,3 ; add` — c2 SCALES pointer
@@ -1451,9 +1507,24 @@ pub(crate) fn parse_expr_classed(
     // any modeled arithmetic anywhere in it refuses the whole function — see the
     // header. `expr-ptr-arith` is its own census key so the cost of the guard is
     // a number rather than an argument.
+    //
+    // **Precise since board #701 where the class stack held.** The flag
+    // `saw_ptr` asks *did a pointer appear anywhere in this expression*; the
+    // guard's actual subject is *was an arithmetic operator applied to a value
+    // that was a pointer at that moment*. Those differ exactly where a `2C`
+    // moved the value out of the pointer class first, and that is the whole of
+    // the workload's `expr-convert-target` population: 5,711 functions, every
+    // one of them `(int)p <op> …`, which c2 emits as a plain `add`/`subf`/
+    // `mullw` with no scaling at all (measured — `work/w-convert/probe/m2.cpp`).
+    //
+    // The coarse flag stays as the fallback for any stream the stack model could
+    // not follow, so the refusal can only ever get *narrower* on streams the
+    // model understands and is bit-for-bit the old one everywhere else.
     let ptr_arith = if off_add_sink_enabled() {
         // Only the SCALED forms indict a pointer value; see the `0x27` arm.
         saw_ptr && scaled_arith
+    } else if cstack_ok {
+        ptr_arith_exact
     } else {
         saw_ptr
             && ops
@@ -1473,7 +1544,16 @@ pub(crate) fn parse_expr_classed(
     // functions into an existing bucket that four rungs have compared across
     // trees, which is the one failure a census instrument cannot survive
     // (`docs/GAPS.md` §6).
-    if saw_ptr && ops.iter().any(|o| o.is_bitwise_or_shift()) {
+    // Precise on the same terms as `expr-ptr-arith` above (#701), and with the
+    // same fallback: a pointer that was converted away before `&`/`|`/`^`/`<<`/
+    // `>>` reached it is an integer operand, and a stream the class stack could
+    // not follow is judged by the whole-expression flag exactly as before.
+    let ptr_bitwise = if cstack_ok {
+        ptr_bitwise_exact
+    } else {
+        saw_ptr && ops.iter().any(|o| o.is_bitwise_or_shift())
+    };
+    if ptr_bitwise {
         return Err(Block::refuse(seg, *p, "expr-ptr-bitwise"));
     }
     // **A right shift whose signedness was settled and then contradicted.**
