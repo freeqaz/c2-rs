@@ -126,5 +126,21 @@ fi
 echo
 echo "READ THIS BEFORE QUOTING w-conv's >=6:"
 echo "  Its prices were counted against a port missing the mechanisms marked"
-echo "  BUILT above. A TU that needed one should now price one lower. The"
+echo "  BUILT above, so they are stale in the direction of OVER-pricing. The"
 echo "  per-TU repricing is NOT done here — this only says the prior is stale."
+echo
+echo "AND READ THIS BEFORE OVER-READING THE 'BUILT' ROWS — the caveat is mine,"
+echo "against my own finding, and it is the difference between an ENCODER and a"
+echo "CAPABILITY:"
+echo "  The label map and Form::B are reachable from exactly ONE place —"
+echo "  crates/c2-core/src/codegen/calls.rs, inside the early-return / guarded"
+echo "  call-sequence family. calls.rs:507 mints the epilogue label and the"
+echo "  Form::B reference sits in an OptMode::O1 arm of that shape's loop. So"
+echo "  what landed is a byte-graded ENCODER plus the PLAN for one shape family,"
+echo "  not a general CFG facility."
+echo
+echo "  A frontier TU therefore prices one lower ONLY IF its block structure"
+echo "  reaches that existing wiring. For any other block structure the encoder"
+echo "  is reusable and the PLAN is not — which is still cheaper than w-conv's"
+echo "  day, when neither existed, but it is not a free row. Anyone repricing"
+echo "  must say, per TU, which of the two it needs."
