@@ -21,14 +21,47 @@
 //! What is **inside** the class, each axis graded over its own cross product by
 //! `work/w-hash/hashgrid.py` against real `c2`:
 //!
-//! * the multiplier `K` — any `mulli`-eligible literal (fits `simm16`, is not a
-//!   power of two, not `0`, not `±1`). 6 values graded;
-//! * the accumulator's initial literal `K0` — any `simm16`. 5 values graded;
-//! * the sentinel spelling — `*u != 0` and the truthy `*u` are the same IL;
-//! * the operand order inside the accumulate — `*u + ret*K` and `ret*K + *u`
-//!   produce the same IL and the same bytes;
-//! * the pointer's source spelling — `const char*` plus a cast, or a
-//!   `const unsigned char*` with none.
+//! * the multiplier `K` — any `mulli`-eligible positive literal (fits `simm16`,
+//!   is not a power of two, not `0`, not `1`);
+//! * the accumulator's initial literal `K0` — any `simm16`.
+//!
+//! Those two are the emitter's only free fields, so they are graded over their
+//! **cross product** and not two rows through the origin:
+//! `work/w-hash/crossgrade.py` compiles **49** `(K0, K)` cells with real `c2`
+//! and every one comes back `match`, beside **30** must-refuse cells (`K` a
+//! power of two / `0` / `1` / `-1` / negative / above `simm16`, and ten
+//! structural variants) which all come back `vocab-gap`, **0 mismatches**.
+//!
+//! # Three spellings I registered as in-class that are NOT, and why
+//!
+//! An earlier draft of this comment claimed the sentinel spelling, the
+//! accumulate's operand order and the pointer's source spelling were "the same
+//! IL". **That was wrong, measured, and is corrected here rather than beside
+//! the right claim.** `c2` emits byte-identical `.text` for all three — which is
+//! exactly why the assumption was easy to make and why it had to be graded — but
+//! each is a *different IL production*, so this recognizer refuses them:
+//!
+//! ```text
+//!   *u  instead of  *u != 0
+//!       … 30 82 12 20 · 38 <exit>          the test branches on the RAW byte:
+//!                                          no `2C` widening, no `33 <int> 00`,
+//!                                          no `20` NE opcode at all
+//!   ret*K + *u  instead of  *u + ret*K
+//!       … b9 <ret> · 33 <int> K · 04 · b9 <u> · 30 · 2C · 02 · …
+//!                                          the postfix stream really is
+//!                                          reordered; the deref is the ADD's
+//!                                          right operand, not its left
+//!   const unsigned char* with no cast
+//!       … b9 <str> <ptr> 32 <ptr> 4B       no `2C` in the initializer at all,
+//!       … 30 a2 12 80 20                   and the element TYPE is the
+//!                                          const-qualified `A2 12` with a wide
+//!                                          id, not the plain `82 12`
+//! ```
+//!
+//! Each is a small, well-defined widening and none is taken here: a second test
+//! form, a second operand order and a second element type are three separate
+//! productions, each owing its own graded cross product, and the refusal
+//! direction is the safe one.
 //!
 //! What is **outside**, and every one of these has a measured counterexample
 //! rather than a conservative guess (`docs/rungs/*w-hash*` §4):
@@ -45,7 +78,11 @@
 //!   **`K` above `simm16`** (`lis`/`ori`/`mullw`);
 //! * **an unsigned or literal divisor** — both are a *different spine*
 //!   (`divwu` + one `twi`; `li` + `divw` + `mulli` + `subf`), measured and
-//!   recorded in the rung, and deliberately not shipped here.
+//!   recorded in the rung, and deliberately not shipped here;
+//! * **`/` in place of `%`**, a **stride other than 1**, a **wider element
+//!   type**, an accumulator init outside `simm16`, and `*u > 0` in place of
+//!   `*u != 0` — each graded as a must-refuse cell in
+//!   `work/w-hash/crossgrade.py`.
 //!
 //! Each of those refusals costs coverage and the cost is a number, not an
 //! argument: the class is exactly what has been graded.

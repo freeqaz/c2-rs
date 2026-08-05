@@ -224,7 +224,7 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // shape with a back edge before the straight-line ones, which is a
     // readability claim and not a correctness one.
     if let Some(l) = &func.ptr_walk_loop {
-        return Ok(Selected::Plain(ptr_walk_loop_text(l)?));
+        return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
     }
     if func.empty_body {
         return Ok(Selected::Plain(encode_blr().to_vec()));

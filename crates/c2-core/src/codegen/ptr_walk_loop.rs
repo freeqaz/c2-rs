@@ -70,7 +70,7 @@ use crate::codegen::encode::{
     encode_divw, encode_lbz, encode_lbzu, encode_mr, encode_mr_record, encode_mulli,
     encode_mullw, encode_rlwinm, encode_subf, encode_twi, BO_FALSE, BO_TRUE, CR_BIT_EQ,
 };
-use crate::codegen::select::out_of_class;
+use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
 /// The `cr` field a **record-form** producer writes. Not [`CR_COMPARE`]'s cr6:
@@ -101,7 +101,38 @@ const R_DIV: u8 = 4;
 
 /// Emit the whole body. Twenty words, no relocation, no pooled constant, no
 /// label — so the caller takes it as an ordinary `Selected::Plain`.
-pub(crate) fn ptr_walk_loop_text(l: &PtrWalkModLoop) -> Result<Vec<u8>, BackendError> {
+pub(crate) fn ptr_walk_loop_text(
+    l: &PtrWalkModLoop,
+    mode: OptMode,
+) -> Result<Vec<u8>, BackendError> {
+    // **`/O1` ONLY, and this is the sharpest refusal in the file.**
+    //
+    // `docs/OPT_MODE.md`'s register-field rule — the modes "differ in exactly
+    // one rule … only a register field" — is already recorded there as REFUTED
+    // once a body has more than one block. This class is the strongest witness
+    // yet: the identical source at `/Ox` and `/O2` is **84 bytes and twenty-one
+    // words**, against `/O1`'s 80 and twenty, and it is a different *body*, not
+    // a different allocation (`work/w-hash/hashgrid.py --mode '/Ox /GS- /c'`):
+    //
+    // ```text
+    //   /O1  … bc · mulli lbzu add mr.  · rotlwi divw addi mullw andc twi subf twi · bc · mr blr
+    //   /Ox  … bclr· rlwinm lbzu twi subf add mr. · rotlwi divw addi mullw andc subf twi · cmpli bc bclr
+    // ```
+    //
+    // `/Ox` strength-reduces `ret * 127` into `rlwinm` + `subf` where `/O1`
+    // emits one `mulli`, hoists the zero-divisor `twi` to the third slot, and
+    // closes the loop on an explicit `cmpli` instead of the record form — so the
+    // branch reads a *different condition register field*. Emitting the `/O1`
+    // body under `/Ox` would be four wrong words and a wrong `BI`; refusing is
+    // the only honest answer this rung has, and widening it means grading the
+    // `/Ox` body as its own measured class.
+    if mode != OptMode::O1 {
+        return Err(out_of_class(
+            "ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body \
+             (strength-reduced multiply, hoisted trap, `cmpli` loop close). See \
+             `codegen::ptr_walk_loop`.",
+        ));
+    }
     // Re-asserted here even though `try_parse_ptr_walk_loop` already required
     // both: `select_function` is what `function_gate` runs, so a shape that
     // reached codegen with a different arity would be a census/gate
@@ -215,7 +246,7 @@ mod tests {
             0x7d43_5378, // mr     r3,r10
             0x4e80_0020, // blr
         ];
-        let got = ptr_walk_loop_text(&loop_of(0, 127)).unwrap();
+        let got = ptr_walk_loop_text(&loop_of(0, 127), OptMode::O1).unwrap();
         let words: Vec<u32> = got
             .chunks_exact(4)
             .map(|c| u32::from_be_bytes([c[0], c[1], c[2], c[3]]))
@@ -230,7 +261,7 @@ mod tests {
     /// reached an obj.
     #[test]
     fn only_the_two_immediates_move_across_the_graded_axes() {
-        let base = ptr_walk_loop_text(&loop_of(0, 127)).unwrap();
+        let base = ptr_walk_loop_text(&loop_of(0, 127), OptMode::O1).unwrap();
         for (k0, k) in [
             (0, 3),
             (0, 5),
@@ -243,7 +274,7 @@ mod tests {
             (1000, 127),
             (-1, 32767),
         ] {
-            let got = ptr_walk_loop_text(&loop_of(k0, k)).unwrap();
+            let got = ptr_walk_loop_text(&loop_of(k0, k), OptMode::O1).unwrap();
             assert_eq!(got.len(), 80);
             for (i, (a, b)) in base.chunks_exact(4).zip(got.chunks_exact(4)).enumerate() {
                 // word 2 is `li r10,K0`, word 5 is `mulli r8,r10,K`
@@ -260,12 +291,21 @@ mod tests {
     /// The arity gate is re-asserted in codegen, so a shape that ever reached
     /// here with a different formals list refuses rather than emitting the
     /// two-formal register plan over three registers.
+    /// `/Ox` and `/O2` emit a **different body** for this source, so the shape
+    /// refuses outside `/O1` rather than emitting four wrong words and a wrong
+    /// branch condition register.
+    #[test]
+    fn ox_refuses_because_c2_emits_a_different_body_there() {
+        assert!(ptr_walk_loop_text(&loop_of(0, 127), OptMode::O1).is_ok());
+        assert!(ptr_walk_loop_text(&loop_of(0, 127), OptMode::Ox).is_err());
+    }
+
     #[test]
     fn a_different_arity_refuses_in_codegen_too() {
         let mut l = loop_of(0, 127);
         l.params = vec![0x09EA];
-        assert!(ptr_walk_loop_text(&l).is_err());
+        assert!(ptr_walk_loop_text(&l, OptMode::O1).is_err());
         l.params = vec![0x09EA, 0x09EB, 0x09EC];
-        assert!(ptr_walk_loop_text(&l).is_err());
+        assert!(ptr_walk_loop_text(&l, OptMode::O1).is_err());
     }
 }
