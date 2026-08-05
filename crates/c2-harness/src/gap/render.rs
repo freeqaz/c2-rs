@@ -2,7 +2,8 @@
 //! unchanged; see [`super`] for the module docs.
 
 use super::fnbytes::byte_fraction_exact;
-use super::{GapReport, TuClass, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNIZERS};
+use super::factors::CfgReach;
+use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNIZERS};
 
 /// **The known-answer control on the byte-fraction ranker** (board **#501**).
 ///
@@ -134,6 +135,73 @@ fn render_byte_fraction_ranking(report: &GapReport) {
     }
 }
 
+/// **The compiler-label channel, per TU** (lane `w-loop`, board **#742**) — is
+/// the value of c2's label counter written into this TU's obj at all?
+///
+/// `$M<n>`/`$T<n>` short names are the only channel; `coff::plan_labels` mints
+/// them for a **framed** function and for nothing else. Measured over 34
+/// leaf-only probe TUs across 17 control-flow shapes: **zero** labels, 28 of
+/// them carrying a backward branch, with the 17 leaf+framed controls minting a
+/// triple 17 of 17 (`work/w-loop/loopcost.py --q2`).
+///
+/// Three readings and they are three, not two:
+///
+/// * `label-free` — the obj carries no `$M`/`$T`. A leaf loop charges the
+///   counter `+1..+4` (measured, `docs/LABEL_COUNTER.md` §4.2) and
+///   `plan_labels` charges 0, but **that error has nowhere to land here**.
+/// * `labels N` — it carries N of them, so a wrong charge is wrong bytes in the
+///   symbol table.
+/// * `label ??` — the obj did not decode. **Not** a `label-free`.
+///
+/// **An instrument, never a licence.** It reads c2's own output, so it can say
+/// which TUs the counter cannot hurt; it cannot say that any of them is
+/// emittable, and every one of them is still gated on codegen that does not
+/// exist.
+fn label_channel(r: &TuResult) -> String {
+    if r.emit.get("emit-label-unreadable").copied().unwrap_or(0) > 0 {
+        return "label ??".into();
+    }
+    if r.emit.get("emit-label-readable").copied().unwrap_or(0) == 0 {
+        // The key is written unconditionally once the obj is read, so its
+        // absence means the obj was never read — which is a third answer and
+        // is printed as one.
+        return "label n/e".into();
+    }
+    match r.emit.get("emit-label-syms").copied().unwrap_or(0) {
+        0 => "label-free".into(),
+        n => format!("labels {n}"),
+    }
+}
+
+/// The legend under the CFG screen, printed as counts rather than as prose so
+/// a run in which nothing was measured is visible (`docs/GAPS.md` §7).
+fn render_label_channel_legend(rows: &[(&TuResult, CfgReach)]) {
+    let free = rows.iter().filter(|(r, _)| label_channel(r) == "label-free").count();
+    let loopy = rows
+        .iter()
+        .filter(|(_, v)| matches!(v, CfgReach::NeedsClass(s) if s.contains("cflow-loop")))
+        .count();
+    let loop_free = rows
+        .iter()
+        .filter(|(r, v)| {
+            matches!(v, CfgReach::NeedsClass(s) if s.contains("cflow-loop"))
+                && label_channel(r) == "label-free"
+        })
+        .count();
+    println!(
+        "\x20   LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's \
+         compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED \
+         function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` \
+         charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated \
+         justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a \
+         `label-free` obj that error has nowhere to land. {free} of {} frontier TUs are \
+         label-free; of the {loopy} blocked on `cflow-loop`, {loop_free} are. NOT a licence — \
+         every one is still gated on codegen that does not exist, and the counter is only the \
+         FIRST of that TU's refusals.",
+        rows.len()
+    );
+}
+
 /// **THE CFG-REACHABILITY SCREEN, printed on every scan** (lane `w-tu4`, board
 /// **#720**) — see [`GapReport::frontier_cfg_reachability`] for the definition
 /// and for why no byte/function/refusal count can express it.
@@ -164,12 +232,14 @@ fn render_cfg_reachability(report: &GapReport) {
     );
     for (r, v) in &rows {
         println!(
-            "\x20   {:>3} blocked | {:<50} | {}",
+            "\x20   {:>3} blocked | {:<50} | {:<10} | {}",
             r.fn_blockers.values().sum::<usize>(),
             r.src,
+            label_channel(r),
             v.label()
         );
     }
+    render_label_channel_legend(&rows);
     // The control is printed whether or not it passes, and an ABSENT control
     // prints as absent rather than as a pass — `cfg_reach_control` returns
     // `None` for a scan whose list does not contain the TU.

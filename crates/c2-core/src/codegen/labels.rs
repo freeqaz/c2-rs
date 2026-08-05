@@ -73,6 +73,62 @@
 //! are independent and **closing this one does not close that one**. Named here
 //! because a lane that closed the backward case alone would still emit a wrong
 //! `$M` on the other.
+//!
+//! # The consequence is CONDITIONAL, and the condition is measured
+//!
+//! **Correction, lane `w-loop` (board #741/#742).** Everything above stands and
+//! the refusal stays, but the sentence *"the obj would carry a wrong `$M`"* is
+//! **conditional on the obj carrying a `$M` at all**, and w-label's grid could
+//! not see that because every one of its 33 probes is a framed Class-A body.
+//! Two measurements, `work/w-loop/loopcost.py`:
+//!
+//! ```text
+//!   Q1  a LEAF loop's seed-free stride, 17 cells, anchor control 5/5 on
+//!       every row:   while +2  do/while +1  for +2  for(;;)+break +3
+//!                    nested +4  two sequential +4  backward goto +1
+//!       against `leaf-none` = 1. The SAME integers `LABEL_COUNTER.md` §4
+//!       records for the framed probes — the control-flow surcharge does not
+//!       key on frame class — and `minted` is 1 on every row, so it mints
+//!       nothing.  ==> `plan_labels` charges 0 and c2 charges up to +4. The
+//!                     refusal above is RIGHT.
+//!
+//!   Q2  34 leaf-only TUs over the same 17 bodies, 28 of them containing a
+//!       backward branch:  ZERO `$M`/`$T` symbols, 34 of 34.
+//!       Control: the same 17 bodies each followed by ONE framed function
+//!       minted a triple, 17 of 17.
+//!       ==> `coff::plan_labels` returns `Some([n,n+1,n+2])` only for a
+//!           function with a `frame`. That is the ONLY channel by which the
+//!           counter's VALUE reaches an object file, and a TU without a framed
+//!           function does not have it.
+//! ```
+//!
+//! So the wrong `$M` this method refuses to emit **needs a framed function in
+//! the same TU to land on**. On the codegen frontier that is not a corner case:
+//! `Sort.cpp`, `Primes.cpp` and `IPP_basicmath_xbox.cpp` — three of the six
+//! `cflow-loop`-blocked frontier TUs, six loop functions between them — carry no
+//! `$M` at all, which the scan now prints per TU as `label-free`
+//! (`c2_obj::ObjImage::compiler_label_symbols`, board #742).
+//!
+//! **This is not a licence and nothing here was widened for it.** Three reasons,
+//! and each is load-bearing:
+//!
+//! 1. **The counter is only the first refusal.** Every one of those three TUs
+//!    prices at ≥ 4 independent refusals on its own bytes (`Sort.cpp`: a signed
+//!    `%` expansion, two `twi` traps with a three-instruction predicate, an
+//!    update-form `lbzu`, a record-form `mr.` on cr0, `mulli`, and a schedule
+//!    that interleaves the trap predicate between `divw` and `mullw`). The
+//!    standing decline clause fires on all three.
+//! 2. **`Selected` still has no variant with a back edge**, so there is no
+//!    caller that would pass a relaxation, and a `resolve` that accepted one
+//!    would be an ungraded code path by construction — w-frame row **F-c**.
+//! 3. **The precondition is TU-level and this map is per-body.** A `LabelMap`
+//!    cannot see whether a later function in the TU is framed. The existing
+//!    mechanism that *can* is `IlBundle::functions`' gate, which already demands
+//!    `label_slots(..) == 1` from every non-framed function in a TU containing a
+//!    framed one and is three-valued so an unmeasured class refuses — a loop
+//!    body returning `None` there is refused in exactly the TUs where the charge
+//!    is observable, and admitted in exactly the TUs where Q2 says it is not.
+//!    **That is where a loop rung's relaxation belongs; it is not here.**
 
 use super::select::out_of_class;
 use super::{encode_b_intra, encode_bc};
@@ -255,10 +311,15 @@ impl LabelMap {
                     "a BACKWARD branch to label `{}`: c2 charges the \
                      compiler-label counter at least one extra slot for every \
                      body with a backward intra-section branch (11 of 11 cells, \
-                     work/w-label/PREREG.md §1.4) and `coff::plan_labels` \
-                     charges none, so the obj would carry a wrong $M as well as \
-                     a wrong block. The magnitude is measured (+1/+2/+3/+4) and \
-                     NOT modelled",
+                     work/w-label/PREREG.md §1.4; and +1..+4 on 17 LEAF cells, \
+                     work/w-loop/loopcost.py Q1) and `coff::plan_labels` \
+                     charges none, so a TU that mints any $M would carry a wrong \
+                     one as well as a wrong block. The magnitude is measured \
+                     (+1/+2/+3/+4) and NOT modelled. The $M consequence needs a \
+                     FRAMED function in the TU to land on (Q2: 34 of 34 \
+                     leaf-only TUs mint zero labels, 17 of 17 leaf+framed \
+                     controls mint a triple) — that relaxation belongs in the \
+                     TU-level gate, not in this per-body map",
                     self.names.get(r.label.0).copied().unwrap_or("?")
                 )));
             }

@@ -46,6 +46,22 @@ const IMAGE_SYM_CLASS_STATIC: u8 = 3;
 /// carries the dynamic-initializer thunks).
 const TEXT_SECTION_PREFIX: &str = ".text";
 
+/// Is this symbol name one of c2's **compiler labels** — `$M<digits>` or
+/// `$T<digits>`?
+///
+/// The digit check is not decoration. `$M` and `$T` are also legal leading
+/// characters of a mangled name, and a rule that matched the two-character
+/// prefix alone would count a user symbol as a compiler label and report a
+/// counter where there is none. Anything else beginning `$` (there is none in
+/// this workload) is **not** claimed: a reader that guessed here would be worse
+/// than one that did not read at all.
+fn is_compiler_label(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix("$M").or_else(|| name.strip_prefix("$T")) else {
+        return false;
+    };
+    !rest.is_empty() && rest.bytes().all(|c| c.is_ascii_digit())
+}
+
 /// A NUL-terminated string at byte offset `i` of the COFF string table.
 fn str_at(strtab: &[u8], i: usize) -> Option<String> {
     let s = strtab.get(i..)?;
@@ -208,6 +224,73 @@ impl ObjImage {
                 return None; // a count with no table is malformed, not empty
             }
             out.push((name, n));
+        }
+        Some(out)
+    }
+
+    /// **Every compiler-label symbol (`$M<n>` / `$T<n>`) in the obj**, in
+    /// symbol-table order — the *only* channel through which the value of c2's
+    /// compiler-label counter reaches an object file.
+    ///
+    /// # Why this is worth a reader of its own
+    ///
+    /// `coff::plan_labels` mints a `$M`/`$M`/`$T` triple for a function with a
+    /// frame and **nothing at all** for a leaf. Lane `w-loop` measured c2
+    /// agreeing, over 34 leaf-only TUs across 17 control-flow shapes: an obj
+    /// whose every function is a leaf carries **zero** of these symbols, and 28
+    /// of those 34 contain a backward intra-section branch. The control — the
+    /// same 17 bodies each followed by one framed function — minted a triple
+    /// **17 of 17** (`work/w-loop/loopcost.py`, `--q2`).
+    ///
+    /// That matters because the port's standing refusal of a **backward**
+    /// branch (`c2-core`'s `codegen::labels`, invariant 4) is justified entirely
+    /// by *"the obj would carry a wrong `$M`"* — a leaf loop charges the counter
+    /// **+1 to +4** and `plan_labels` charges 0. The refusal is right, and its
+    /// stated consequence is **conditional on this list being non-empty**. So
+    /// the list is a per-TU, oracle-side fact worth printing beside the
+    /// CFG-reachability screen: it says which loop-blocked TUs could ever be
+    /// hurt by the counter and which could not.
+    ///
+    /// **A fact about the reference obj, never a licence.** It is read off
+    /// c2's own output, it moves no numerator, and it appears in no accept path
+    /// — an emitter that consulted it would be grading itself on the answer.
+    ///
+    /// Names only, deliberately: the *numbers* are a TU-level running counter
+    /// whose seed is not in the obj, so a caller that compared them across two
+    /// TUs would be comparing two coordinate systems. Same fail-closed contract
+    /// as the other walks — `None` whenever the headers do not decode, never a
+    /// short list.
+    pub fn compiler_label_symbols(&self) -> Option<Vec<String>> {
+        let b = &self.0;
+        let (_, sym_end) = self.coff_layout()?;
+        let psym = u32::from_le_bytes([b[8], b[9], b[10], b[11]]) as usize;
+        let nsym = u32::from_le_bytes([b[12], b[13], b[14], b[15]]) as usize;
+        let strtab = &b[sym_end..];
+        let mut out = Vec::new();
+        let mut i = 0usize;
+        while i < nsym {
+            let o = psym + i * SYMBOL_LEN;
+            let naux = b[o + 17] as usize;
+            let name = if b[o..o + 4] == [0, 0, 0, 0] {
+                // A `$M2545` is six bytes and always fits the inline field, so
+                // a long-name indirection here is not one of ours. It is still
+                // decoded rather than skipped: a reader that silently dropped a
+                // symbol it could not name would under-report, and under-report
+                // is the direction that reads as "no labels".
+                let at = u32::from_le_bytes([b[o + 4], b[o + 5], b[o + 6], b[o + 7]]) as usize;
+                str_at(strtab, at)?
+            } else {
+                String::from_utf8_lossy(&b[o..o + 8])
+                    .trim_end_matches('\0')
+                    .to_owned()
+            };
+            if is_compiler_label(&name) {
+                out.push(name);
+            }
+            i = i.checked_add(1)?.checked_add(naux)?;
+            if i > nsym {
+                return None;
+            }
         }
         Some(out)
     }
@@ -511,6 +594,75 @@ mod tests {
             "every section, in section order — including the non-COMDAT .data that \
              the emitted-set walk deliberately drops"
         );
+    }
+
+    /// **The compiler-label channel** (lane `w-loop`, board **#742**): the
+    /// `$M`/`$T` short names, in symbol-table order, and nothing else.
+    #[test]
+    fn the_compiler_label_list_is_the_dollar_m_and_dollar_t_symbols_in_order() {
+        let obj = ObjImage::new(coff(
+            &[(".text", true), (".pdata", true)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?f@@YAHH@Z", 1, 2, 0),
+                ("$M2545", 1, 6, 0),
+                ("$M2546", 1, 6, 0),
+                (".pdata", 2, IMAGE_SYM_CLASS_STATIC, 1),
+                ("$T2547", 2, IMAGE_SYM_CLASS_STATIC, 0),
+            ],
+        ));
+        assert_eq!(
+            obj.compiler_label_symbols(),
+            Some(vec!["$M2545".into(), "$M2546".into(), "$T2547".into()]),
+            "the triple a framed function mints, in symbol-table order"
+        );
+    }
+
+    /// **The reading the whole instrument turns on**: a leaf-only obj is
+    /// `label-free`, and it stays `label-free` when the leaf branches. c2 agrees
+    /// over 34 leaf-only probe TUs across 17 control-flow shapes, 28 of them
+    /// carrying a backward branch (`work/w-loop/loopcost.py --q2`); this pins
+    /// the *reader's* half so a future change cannot make an obj look
+    /// label-free by failing to walk it.
+    #[test]
+    fn a_leaf_only_obj_is_label_free() {
+        let obj = ObjImage::new(coff(
+            &[(".text", true), (".text", true)],
+            &[
+                (".text", 1, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?loop@@YAHH@Z", 1, 2, 0),
+                (".text", 2, IMAGE_SYM_CLASS_STATIC, 1),
+                ("?leaf@@YAHH@Z", 2, 2, 0),
+            ],
+        ));
+        assert_eq!(obj.compiler_label_symbols(), Some(vec![]));
+    }
+
+    /// A user symbol whose mangled name starts `$M`/`$T` is **not** a compiler
+    /// label. Matching the two-character prefix alone would report a counter
+    /// where there is none, and the digit check is the whole difference — so it
+    /// is tested rather than assumed.
+    #[test]
+    fn a_user_symbol_beginning_dollar_m_is_not_a_compiler_label() {
+        assert!(is_compiler_label("$M2545"));
+        assert!(is_compiler_label("$T2547"));
+        assert!(!is_compiler_label("$M"), "no digits is not a label");
+        assert!(!is_compiler_label("$Mangled"), "letters are not digits");
+        assert!(!is_compiler_label("$T12a"), "one non-digit is enough");
+        assert!(!is_compiler_label("$L2545"), "only $M and $T are claimed");
+        assert!(!is_compiler_label("?f@@YAHH@Z"));
+    }
+
+    /// Fail-closed: an obj whose symbol table walks off the end returns `None`,
+    /// never an empty list. `None` and `Some(vec![])` are the difference between
+    /// *"could not read"* and *"label-free"*, and the scan prints them as two
+    /// different rows for exactly that reason.
+    #[test]
+    fn an_undecodable_obj_is_none_and_not_an_empty_label_list() {
+        let mut bytes = workload_shaped_obj();
+        // Claim a symbol count far past the end of the image.
+        bytes[12..16].copy_from_slice(&9_999_999u32.to_le_bytes());
+        assert_eq!(ObjImage::new(bytes).compiler_label_symbols(), None);
     }
 
     /// The two decoders must agree about what a section is *called*, or factor C

@@ -648,6 +648,29 @@ fn scan_one(
                 *res.emit.entry(key.into()).or_insert(0) += 1;
             }
         }
+        // **The compiler-label channel** (lane `w-loop`, board **#742**). Read
+        // afresh off the reference obj for the same reason C is: it is a
+        // *different question* from "which COMDAT leaders are there", and
+        // sharing a variable with a walk that answers the other one is §10.18's
+        // recorded defect.
+        //
+        // `emit-label-syms` is a COUNT and `emit-label-free` a per-TU flag, both
+        // fail-closed: an obj that does not decode gets `emit-label-unreadable`
+        // and **neither** of the other two, so "we could not read it" can never
+        // be read as "it has no labels". Absence read as success is this
+        // project's most-repeated defect and this is exactly its shape.
+        match captured.ref_obj.compiler_label_symbols() {
+            None => {
+                *res.emit.entry("emit-label-unreadable".into()).or_insert(0) += 1;
+            }
+            Some(labels) => {
+                *res.emit.entry("emit-label-readable".into()).or_insert(0) += 1;
+                *res.emit.entry("emit-label-syms".into()).or_insert(0) += labels.len();
+                if labels.is_empty() {
+                    *res.emit.entry("emit-label-free".into()).or_insert(0) += 1;
+                }
+            }
+        }
         // Factor D. Its population is **"1e's join actually ran"**, which the
         // presence of the `emit-emitted` key states exactly: 1e writes it
         // unconditionally once the census decoded and the obj's emitted set
