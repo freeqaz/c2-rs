@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 
 use super::classify::merge_counts;
-use super::{GapReport, ProgressMass, TuClass, TuResult};
+use super::{FnByteMatch, GapReport, ProgressMass, TuClass, TuResult};
 
 impl GapReport {
     pub fn count(&self, class: TuClass) -> usize {
@@ -494,6 +494,163 @@ impl GapReport {
             mismatch_zeroed: zeroed,
             value,
         })
+    }
+
+    /// **FUNCTION BYTE MATCH (lane w-fuzzy, `docs/FUNCTION_BYTE_MATCH.md`) — the
+    /// byte-exact differential at function granularity.** A PROGRESS
+    /// instrument, never a gate: the whole-obj compare against real `c2` under
+    /// wibo remains the sole judge (`CLAUDE.md`).
+    ///
+    /// `FBM = fnbyte-exact / fnbyte-denominator` over the graded workload, where
+    /// the denominator is every `.text` COMDAT leader in c2's own objs and the
+    /// numerator is those the port lowers **byte-identically**.
+    ///
+    /// # The anti-gaming property
+    ///
+    /// *The denominator is a function of `c2`'s output alone; the numerator is
+    /// the judge's own predicate.* There is no partial credit: a wrong body
+    /// scores 0, exactly what a refusal scores, so the metric can never pay a
+    /// lane to emit *something* — the inversion `docs/PROGRESS_METRIC.md` §2.2
+    /// disqualified objdiff-style similarity for. Refusing more does not shrink
+    /// the denominator, because the denominator is counted off the reference.
+    ///
+    /// # Absence
+    ///
+    /// `None` when nothing was graded — never `Some(1.0)`, which is what
+    /// objdiff's `calc_fuzzy_match_percent` returns over zero code bytes
+    /// (`objdiff-core/src/bindings/report.rs:249-250`) and is the shape this
+    /// project has recorded sixteen times. A TU whose obj does not decode
+    /// contributes to neither numerator nor denominator and is counted in
+    /// `obj_unreadable`.
+    ///
+    /// # It is a FLOOR
+    ///
+    /// `partial` counts functions the port selected but whose body the COFF
+    /// emitter finishes; the harness must not reconstruct them (board #322).
+    /// FBM therefore under-reports the port and never over-reports it.
+    pub fn fn_byte_match(&self) -> Option<FnByteMatch> {
+        let t = |k: &str| self.emit_total(k);
+        let denominator = t("fnbyte-denominator");
+        if denominator == 0 {
+            return None;
+        }
+        let exact = t("fnbyte-exact");
+        // **The whole-TU override.** `super::fnbytes` grades through
+        // `codegen::select_function`, the port's PER-FUNCTION route. `PortC2` has
+        // one route that is not per-function — the whole-TU `??__E`
+        // dynamic-initializer recognizer — and on the two TUs it compiles, the
+        // per-function route reports `refused` for a body the differential has
+        // already certified byte-exact.
+        //
+        // Discovered by the known-answer control below on its first corpus run:
+        // it read 2 where it must read 0. The fix is not to relax the control.
+        // On a TU the differential graded `match`, EVERY emitted function is
+        // byte-identical to c2's — that is what a whole-obj byte compare means —
+        // so the judge's own verdict supersedes the per-function route wherever
+        // the two are both defined, and the credit is taken at the hardest
+        // possible bar: the TU must already match.
+        let whole_tu: usize = self
+            .results
+            .iter()
+            .filter(|r| r.class == TuClass::Match)
+            .map(|r| {
+                let g = |k: &str| r.emit.get(k).copied().unwrap_or(0);
+                g("fnbyte-denominator").saturating_sub(g("fnbyte-exact"))
+            })
+            .sum();
+        Some(FnByteMatch {
+            denominator,
+            exact,
+            whole_tu,
+            differs: t("fnbyte-differs"),
+            partial: t("fnbyte-partial"),
+            refused: t("fnbyte-refused"),
+            unbound: t("fnbyte-unbound"),
+            nobytes: t("fnbyte-nobytes"),
+            obj_unreadable: t("fnbyte-obj-unreadable"),
+            partition_broken: t("fnbyte-partition-broken"),
+            differ_words: (
+                t("fnbyte-differs-port-words"),
+                t("fnbyte-differs-ref-words"),
+                t("fnbyte-differs-equal-words"),
+            ),
+            census_disagree: t("fnbyte-census-disagree"),
+            exact_relocated: t("fnbyte-exact-relocated"),
+            match_tu_differs: self.fn_byte_match_tu_differs(),
+            value: (exact + whole_tu) as f64 / denominator as f64,
+        })
+    }
+
+    /// **The known answer FBM is held to.** On a TU the differential graded
+    /// `match`, the whole obj is byte-identical to c2's — so every one of its
+    /// emitted functions was lowered by this port, correctly. The per-function
+    /// route may legitimately have *no* body for such a function (the whole-TU
+    /// `??__E` recognizer, `partial` shapes), but it may never produce a
+    /// **different** one: `select_function` and the COFF emitter would then
+    /// disagree about a body the oracle has already certified.
+    ///
+    /// **Known answer: 0.** A nonzero here says FBM's numerator is not counting
+    /// what its documentation says it counts, and the whole-TU credit above —
+    /// which is taken on the oracle's verdict — would be papering over a real
+    /// disagreement inside the port.
+    ///
+    /// Same discipline as [`Self::emit_match_tu_residue`]: the oracle cannot
+    /// grade a per-function correspondence in general, but on a byte-exact TU it
+    /// has already graded the whole obj, so the answer is known and the
+    /// instrument can be held to it.
+    pub fn fn_byte_match_tu_differs(&self) -> usize {
+        self.results
+            .iter()
+            .filter(|r| r.class == TuClass::Match)
+            .map(|r| r.emit.get("fnbyte-differs").copied().unwrap_or(0))
+            .sum()
+    }
+
+    /// The `fnbyte-partial|…` rows, most frequent first — **the size of FBM's
+    /// own under-report, by [`Selected`](c2_core::codegen::Selected) variant**,
+    /// which is also the work list for board #322.
+    pub fn fn_byte_partial_histogram(&self) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix("fnbyte-partial|")?.to_string(), n)))
+            .collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// **Per-TU FBM**, nearest-to-done first: `(src, exact, denominator)` over
+    /// every graded TU that carries at least one emitted function.
+    ///
+    /// This is the answer to *"we are 8/878 exact — how close is the other
+    /// 870?"* stated per TU rather than as one corpus number. `capture-fail`
+    /// TUs are excluded exactly as [`Self::near_match_tus`] excludes them: a
+    /// ratio over zero emitted functions is "never measured", not "done".
+    pub fn fn_byte_by_tu(&self) -> Vec<(&str, usize, usize)> {
+        let mut v: Vec<(&str, usize, usize)> = self
+            .graded()
+            .map(|r| {
+                let d = r.emit.get("fnbyte-denominator").copied().unwrap_or(0);
+                // Same whole-TU override as `fn_byte_match`: a byte-exact obj
+                // means every function in it is byte-exact, so a `match` TU is
+                // 100 % whatever the per-function route could reconstruct.
+                let e = if r.class == TuClass::Match {
+                    d
+                } else {
+                    r.emit.get("fnbyte-exact").copied().unwrap_or(0)
+                };
+                (r.src.as_str(), e, d)
+            })
+            .filter(|(_, _, d)| *d > 0)
+            .collect();
+        v.sort_by(|a, b| {
+            let ra = a.1 as f64 / a.2 as f64;
+            let rb = b.1 as f64 / b.2 as f64;
+            rb.partial_cmp(&ra)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.0.cmp(b.0))
+        });
+        v
     }
 
     /// Replay soundness: (checked, diverged).

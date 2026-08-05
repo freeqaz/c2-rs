@@ -275,6 +275,120 @@ pub(super) fn print_factorization(report: &GapReport) {
             );
         }
     }
+    // **FUNCTION BYTE MATCH — the same judge, a finer unit.** Printed in its own
+    // block, under the same disclaimer, because it is a PROGRESS instrument and
+    // the `match` line below is still the only correctness count. See
+    // `GapReport::fn_byte_match` and `docs/FUNCTION_BYTE_MATCH.md`.
+    match report.fn_byte_match() {
+        Some(f) => {
+            let pct = |n: usize| 100.0 * n as f64 / f.denominator as f64;
+            println!(
+                "\n\x20 FUNCTION BYTE MATCH (FBM) — a PROGRESS instrument, NEVER a gate \
+                 (docs/FUNCTION_BYTE_MATCH.md).\n\
+                 \x20   The judge's own predicate — byte-identical to real c2 — asked per \
+                 EMITTED FUNCTION instead of\n\
+                 \x20   per TU. No partial credit: a wrong body scores exactly what a refusal \
+                 scores, which is 0.\n\
+                 \x20   The denominator is counted off c2's obj, so refusing more never \
+                 shrinks it.\n\
+                 \x20   FBM = ({} + {})/{} emitted functions byte-exact = {:.5}\n\
+                 \x20     exact       {:>8}  ({:>5.2}%)   CREDITED — per-function route, bytes \
+                 identical to c2's\n\
+                 \x20     whole-TU    {:>8}  ({:>5.2}%)   CREDITED — on a TU the differential \
+                 graded `match`; the judge certified the whole obj\n\
+                 \x20     differs     {:>8}  ({:>5.2}%)   complete port body, bytes differ\n\
+                 \x20     partial     {:>8}  ({:>5.2}%)   selected; body finished by the COFF \
+                 emitter — FBM's own under-report (board #322)\n\
+                 \x20     refused     {:>8}  ({:>5.2}%)   the port declines the function\n\
+                 \x20     unbound     {:>8}  ({:>5.2}%)   no census row claims the symbol\n\
+                 \x20     no-bytes    {:>8}  ({:>5.2}%)   COMDAT raw data did not decode\n\
+                 \x20   objs unreadable (contribute NO denominator): {}   partition breaks \
+                 (known answer 0): {}\n\
+                 \x20   KNOWN-ANSWER CONTROL — per-function bodies that DIFFER on a TU the \
+                 oracle graded `match` (must be 0): {}\n\
+                 \x20   census/gate disagreement on EMITTED fns (the error term on the \
+                 emitted census, target 0): {}\n\
+                 \x20   NOTE: the six buckets partition the denominator by the PER-FUNCTION \
+                 route alone; on a `match` TU the whole-obj verdict supersedes them.\n\
+                 \x20   BYTES ARE NOT THE WHOLE FUNCTION: {} of the credited functions carry a \
+                 relocation, whose\n\
+                 \x20   target FBM does NOT check — a `.text` COMDAT's raw bytes do not contain \
+                 its relocations.",
+                f.exact,
+                f.whole_tu,
+                f.denominator,
+                f.value,
+                f.exact,
+                pct(f.exact),
+                f.whole_tu,
+                pct(f.whole_tu),
+                f.differs,
+                pct(f.differs),
+                f.partial,
+                pct(f.partial),
+                f.refused,
+                pct(f.refused),
+                f.unbound,
+                pct(f.unbound),
+                f.nobytes,
+                pct(f.nobytes),
+                f.obj_unreadable,
+                f.partition_broken,
+                f.match_tu_differs,
+                f.census_disagree,
+                f.exact_relocated,
+            );
+            let (pw, rw, ew) = f.differ_words;
+            if f.differs > 0 {
+                // The objdiff-shaped number, confined to the class
+                // `docs/PROGRESS_METRIC.md` §2 says it is legitimate on: bodies
+                // the port DID produce and got wrong. It is a forensic aid on
+                // the `differs` class and is aggregated into no headline —
+                // raising it by emitting more nearly-right bodies raises FBM by
+                // exactly nothing.
+                println!(
+                    "\x20   forensic (differs class ONLY, credited nowhere): {ew} of {rw} \
+                     reference words positionally equal, port wrote {pw} words"
+                );
+            }
+            // The under-report, by shape. This is a work list, not a defect
+            // list: each row is a `Selected` variant whose body only the COFF
+            // emitter can finish.
+            let parts = report.fn_byte_partial_histogram();
+            if !parts.is_empty() {
+                let rows: Vec<String> =
+                    parts.iter().map(|(k, n)| format!("{k} {n}")).collect();
+                println!("\x20   partial by shape: {}", rows.join(" · "));
+            }
+            // Per-TU FBM, nearest first — the answer to "we are 8/878 exact, how
+            // close is the other 870?" stated in TUs rather than in one ratio.
+            let by_tu = report.fn_byte_by_tu();
+            let buckets = [1.0f64, 0.9, 0.5, 0.1];
+            let dist: Vec<String> = buckets
+                .iter()
+                .map(|b| {
+                    let n = by_tu
+                        .iter()
+                        .filter(|(_, e, d)| *e as f64 / *d as f64 >= *b - 1e-12)
+                        .count();
+                    format!("≥{:.0}%: {n}", b * 100.0)
+                })
+                .collect();
+            println!(
+                "\x20   per-TU FBM over {} TUs with emitted functions — {}",
+                by_tu.len(),
+                dist.join(", ")
+            );
+        }
+        None => {
+            println!(
+                "\n\x20 FUNCTION BYTE MATCH: NO-RESULT — no emitted function was graded. \
+                 A ratio over zero functions is unrepresentable on purpose (objdiff's \
+                 calc_fuzzy_match_percent returns 100.0 here; that is the bug, not the \
+                 baseline)."
+            );
+        }
+    }
     println!(
         "\n\x20 GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an \
          interface, do not rename. The projection `emit-predicate-worth` = \

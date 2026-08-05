@@ -110,6 +110,10 @@ joint-ceilings   yes  Joint ceilings (B∧C, A∧B∧C)
 frontier         yes  Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free)
 emit-predicate-worth yes Emit-predicate worth, B∧C − A∧B∧C (board #213)
 section-ladder   yes  Factor-C section ladder (writer names / workload names / next step)
+progress-mass    yes  PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md)
+fnbyte-match     yes  FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md)
+fnbyte-partition yes  FBM partition (the under-report, and the controls)
+fnbyte-per-tu    yes  Per-TU FBM (how close is the other 870)
 '
 # --- the five rows above, added 2026-08-04 by lane w-gr on lane w-bc's spec ----
 #
@@ -136,7 +140,8 @@ section-ladder   yes  Factor-C section ladder (writer names / workload names / n
 # the registry.
 GAP_KEYS='workload census emitted-census residue distance-bodies
           distance-emitted emit-ceiling emit-ceiling-gate emit-model binding
-          factors joint-ceilings frontier emit-predicate-worth section-ladder'
+          factors joint-ceilings frontier emit-predicate-worth section-ladder
+          progress-mass fnbyte-match fnbyte-partition fnbyte-per-tu'
 
 results_file=""
 
@@ -347,6 +352,42 @@ collect_gap() {
             '@ writer names of @ workload names; @ steps left, next +@ → C = @' \
             writer-sections workload-sections ladder-steps ladder-head ladder-head-c)")"
     fi
+
+    # ---- the two CONTINUOUS metrics (lanes w-metric and w-fuzzy) -------------
+    #
+    # `docs/PROGRESS_METRIC.md` §7 specified the progress-mass collector and did
+    # not make it: "when it lands, progress-mass rides along for free". It lands
+    # here, beside FBM, because the two exist for the same reason — TU match is
+    # a per-TU conjunction and moves only when a TU's LAST defect closes — and a
+    # reader who sees one without the other will read the wrong kind of progress.
+    #
+    # **Both are DRIVERS, never targets.** `STATUS.md`'s prose says so; the
+    # labels in the registry say so; and neither appears in `scripts/gate.sh`.
+    # The value is always rendered with its denominator, never alone: a bare
+    # `0.16251` invites being read as "16 % done", and it is not — see the docs.
+    emit progress-mass "$(val_or_missing "$(_metric_row "$_log" \
+        'P = @ · emitted in class @/@ · mismatch-zeroed TUs @' \
+        progress-mass progress-emitted-in-class progress-emitted-total \
+        progress-mismatch-zeroed)")"
+    # FBM's ratio NEVER renders without its denominator, and the whole-TU credit
+    # is spelled out rather than folded in: the two numerators are graded by
+    # different routes (the port's per-function selector, and the oracle's own
+    # whole-obj verdict) and a reader must be able to tell them apart.
+    emit fnbyte-match "$(val_or_missing "$(_metric_row "$_log" \
+        'FBM = @ · @ exact + @ whole-TU of @ emitted functions, over @ TUs (@ at 100%)' \
+        fnbyte-match fnbyte-exact fnbyte-whole-tu fnbyte-denominator fnbyte-tus \
+        fnbyte-tus-full)")"
+    # The partition, with the instrument's OWN under-report first. A row that
+    # published the ratio and dropped `fnbyte-partial` would hide the size of
+    # what FBM cannot yet grade, which is the shape this project charges for.
+    emit fnbyte-partition "$(val_or_missing "$(_metric_row "$_log" \
+        'partial @ (FBM under-reports by this) · differs @ · refused @ · unbound @ · @ credited fns carry a reloc FBM does not check · controls: partition-broken @, match-TU differs @, census disagree @' \
+        fnbyte-partial fnbyte-differs fnbyte-refused fnbyte-unbound \
+        fnbyte-exact-relocated fnbyte-partition-broken fnbyte-match-tu-differs \
+        fnbyte-census-disagree)")"
+    emit fnbyte-per-tu "$(val_or_missing "$(_metric_row "$_log" \
+        '@ of @ TUs with emitted functions are 100% byte-exact per function' \
+        fnbyte-tus-full fnbyte-tus)")"
 }
 
 # ---- --check : prove the parsers and the registry, with no toolchain ------------
@@ -417,6 +458,24 @@ summary: 100 port Match, 0 mismatch, 110 not-implemented (of 210)
     gap-metric ladder-steps 3
     gap-metric ladder-head .rdata$r
     gap-metric ladder-head-c 590
+    gap-metric progress-mass 0.20728
+    gap-metric progress-emitted-in-class 38458
+    gap-metric progress-emitted-total 178975
+    gap-metric progress-mismatch-zeroed 0
+    gap-metric fnbyte-match 0.16251
+    gap-metric fnbyte-exact 29084
+    gap-metric fnbyte-denominator 178975
+    gap-metric fnbyte-differs 0
+    gap-metric fnbyte-partial 9374
+    gap-metric fnbyte-refused 131292
+    gap-metric fnbyte-unbound 9225
+    gap-metric fnbyte-partition-broken 0
+    gap-metric fnbyte-census-disagree 0
+    gap-metric fnbyte-exact-relocated 0
+    gap-metric fnbyte-match-tu-differs 0
+    gap-metric fnbyte-whole-tu 2
+    gap-metric fnbyte-tus-full 4
+    gap-metric fnbyte-tus 865
 EOF
     # Known answers against the captured report above. These call the SAME
     # functions the collectors call — corrupt a parser and this goes red.
@@ -509,6 +568,135 @@ EOF
         writer-sections workload-sections)
     [ "$_got" = '10 writer names cover all 13 workload names — the ladder is CLOSED' ] \
         || { echo "CHECK FAIL: closed-ladder row gave '$_got'"; fails=$((fails+1)); }
+
+    # ---- the two CONTINUOUS metrics (w-metric's P, w-fuzzy's FBM) -------------
+    #
+    # Pinned against the tip's real figures. `fnbyte-match` and `progress-mass`
+    # are the only two keys on this page that are RATIOS, and a ratio is the
+    # thing that goes stale silently: it can move because either half moved, and
+    # a reader cannot tell which from the number alone. Both rows therefore
+    # render with their denominators, and these checks pin that.
+    check_metric progress-mass       '0.20728'  || fails=$((fails+1))
+    check_metric fnbyte-match        '0.16251'  || fails=$((fails+1))
+    check_metric fnbyte-denominator  '178975'   || fails=$((fails+1))
+    check_metric fnbyte-partial      '9374'     || fails=$((fails+1))
+    # A control whose value is legitimately 0 must still PARSE as 0 rather than
+    # as absent — the two render identically in a table and mean opposite things
+    # ("checked, clean" vs "never computed"). `p_metric` returns empty for a
+    # missing key, so a zero coming back non-empty is the thing to pin.
+    check_metric fnbyte-match-tu-differs '0'    || fails=$((fails+1))
+    check_metric fnbyte-partition-broken '0'    || fails=$((fails+1))
+    # Prefix discipline again: `fnbyte-match` is a strict prefix of
+    # `fnbyte-match-tu-differs` and they differ in the probe (0.16251 vs 0), so a
+    # loose pattern reads the wrong line and this goes red.
+    _got=$(p_metric "$probe_log" fnbyte-exact)
+    [ "$_got" = '29084' ] || { echo "CHECK FAIL: p_metric fnbyte-exact gave '$_got'"; fails=$((fails+1)); }
+
+    # **MUST-FAIL MUTATION — FBM's ratio must never render without its
+    # under-report.** `fnbyte-partial` is the count of emitted functions the port
+    # DID select and the instrument cannot yet grade, i.e. the size of FBM's own
+    # under-report. A partition row that dropped it would still render a
+    # plausible sentence, and the report would understate the port while looking
+    # complete. Mutation: delete the key; the row must go EMPTY (hence
+    # NO-RESULT), never a sentence with a hole in it.
+    nopart_log="$work_dir/nopartial.log"
+    grep -v 'gap-metric fnbyte-partial ' "$probe_log" > "$nopart_log"
+    _got=$(_metric_row "$nopart_log" \
+        'partial @ · differs @ · refused @ · unbound @ · controls: @, @, @' \
+        fnbyte-partial fnbyte-differs fnbyte-refused fnbyte-unbound \
+        fnbyte-partition-broken fnbyte-match-tu-differs fnbyte-census-disagree)
+    [ -z "$_got" ] \
+        || { echo "CHECK FAIL: the FBM partition rendered without its under-report: '$_got'"; \
+             fails=$((fails+1)); }
+    [ "$(val_or_missing "$_got")" = "NO-RESULT" ] \
+        || { echo "CHECK FAIL: an FBM partition missing fnbyte-partial did not render NO-RESULT"; \
+             fails=$((fails+1)); }
+
+    # **MUST-FAIL MUTATION — the ratio must never render without its
+    # denominator.** `FBM = 0.16251` alone reads as "16 % done" and is not; the
+    # whole design rule is that the value travels with the population it was
+    # taken over. Mutation: delete `fnbyte-denominator`; the headline row must
+    # go empty rather than publish a bare ratio.
+    noden_log="$work_dir/nodenom.log"
+    grep -v 'gap-metric fnbyte-denominator ' "$probe_log" > "$noden_log"
+    _got=$(_metric_row "$noden_log" \
+        'FBM = @ · @ exact + @ whole-TU of @ emitted functions, over @ TUs (@ at 100%)' \
+        fnbyte-match fnbyte-exact fnbyte-whole-tu fnbyte-denominator fnbyte-tus \
+        fnbyte-tus-full)
+    [ -z "$_got" ] \
+        || { echo "CHECK FAIL: FBM rendered a bare ratio with no denominator: '$_got'"; \
+             fails=$((fails+1)); }
+
+    # …and the same for the progress mass, whose §7 note says the same thing.
+    nopm_log="$work_dir/nopm.log"
+    grep -v 'gap-metric progress-emitted-total ' "$probe_log" > "$nopm_log"
+    _got=$(_metric_row "$nopm_log" 'P = @ · emitted in class @/@ · mismatch-zeroed TUs @' \
+        progress-mass progress-emitted-in-class progress-emitted-total \
+        progress-mismatch-zeroed)
+    [ -z "$_got" ] \
+        || { echo "CHECK FAIL: progress mass rendered without its denominator: '$_got'"; \
+             fails=$((fails+1)); }
+
+    # **A scan that graded nothing emits NEITHER continuous key.** `gap.rs`
+    # OMITS both (`Option`), for the reason objdiff's `calc_fuzzy_match_percent`
+    # is a cautionary tale: it returns 100.0 over zero code bytes. A collector
+    # that defaulted a missing ratio to anything at all would republish that bug.
+    empty_log="$work_dir/emptyscan.log"
+    grep -v 'gap-metric progress-\|gap-metric fnbyte-' "$probe_log" > "$empty_log"
+    for _k in progress-mass fnbyte-match fnbyte-denominator; do
+        _got=$(p_metric "$empty_log" "$_k")
+        [ -z "$_got" ] || { echo "CHECK FAIL: empty-scan probe still has $_k = '$_got'"; \
+                            fails=$((fails+1)); }
+        [ "$(val_or_missing "$_got")" = "NO-RESULT" ] \
+            || { echo "CHECK FAIL: $_k over an empty scan did not render NO-RESULT"; \
+                 fails=$((fails+1)); }
+    done
+
+    # **EVERY RENDERED ROW IS ONE LINE.** The generated block is a markdown
+    # table, so a value containing a newline does not render as a long cell — it
+    # ends the row and the rest becomes stray prose, silently, in the file
+    # `CLAUDE.md` points readers at first.
+    #
+    # This is not hypothetical: the FBM partition template was written as a
+    # single-quoted string broken across source lines, where `\` is a LITERAL
+    # backslash and not a continuation, and it shipped a backslash and two
+    # newlines into the value. Caught by running the collector, not by `--check`,
+    # which is why the check now exists. Every template this file has is
+    # rendered here and measured.
+    check_one_line() { # <label> <rendered>
+        _n=$(printf '%s' "$2" | wc -l | tr -d ' ')
+        if [ "$_n" != "0" ]; then
+            echo "CHECK FAIL: the $1 row rendered $((_n + 1)) lines; a markdown cell is one line"
+            return 1
+        fi
+        case "$2" in
+            *\\*) echo "CHECK FAIL: the $1 row contains a literal backslash — \
+a single-quoted template broken across source lines"; return 1 ;;
+        esac
+    }
+    check_one_line progress-mass "$(_metric_row "$probe_log" \
+        'P = @ · emitted in class @/@ · mismatch-zeroed TUs @' \
+        progress-mass progress-emitted-in-class progress-emitted-total \
+        progress-mismatch-zeroed)" || fails=$((fails+1))
+    check_one_line fnbyte-match "$(_metric_row "$probe_log" \
+        'FBM = @ · @ exact + @ whole-TU of @ emitted functions, over @ TUs (@ at 100%)' \
+        fnbyte-match fnbyte-exact fnbyte-whole-tu fnbyte-denominator fnbyte-tus \
+        fnbyte-tus-full)" || fails=$((fails+1))
+    check_one_line fnbyte-partition "$(_metric_row "$probe_log" \
+        'partial @ (FBM under-reports by this) · differs @ · refused @ · unbound @ · @ credited fns carry a reloc FBM does not check · controls: partition-broken @, match-TU differs @, census disagree @' \
+        fnbyte-partial fnbyte-differs fnbyte-refused fnbyte-unbound \
+        fnbyte-exact-relocated fnbyte-partition-broken fnbyte-match-tu-differs \
+        fnbyte-census-disagree)" || fails=$((fails+1))
+    check_one_line fnbyte-per-tu "$(_metric_row "$probe_log" \
+        '@ of @ TUs with emitted functions are 100% byte-exact per function' \
+        fnbyte-tus-full fnbyte-tus)" || fails=$((fails+1))
+    # …and the control on the control: a deliberately broken template must trip it.
+    if check_one_line self-test "$(printf 'a\nb')" >/dev/null 2>&1; then
+        echo "CHECK FAIL: check_one_line accepted a two-line value"; fails=$((fails+1))
+    fi
+    if check_one_line self-test 'a\b' >/dev/null 2>&1; then
+        echo "CHECK FAIL: check_one_line accepted a literal backslash"; fails=$((fails+1))
+    fi
 
     # ---- EVERY REGISTERED METRIC HAS A COLLECTOR ------------------------------
     #
