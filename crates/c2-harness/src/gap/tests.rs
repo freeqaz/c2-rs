@@ -1958,6 +1958,54 @@ fn the_subclass_ledger_declines_to_pass_a_claim_it_cannot_check() {
     assert!(row.unwitnessed.is_empty(), "nothing is listed, so nothing is unwitnessed");
 }
 
+/// **The ledger's INTRUDER cross-check, graded on a restricted entry** — and
+/// this is the second detector for must-fail mutation **M2**.
+///
+/// The cross-check recomputes the admitted set two ways: by asking
+/// [`CfgClass::admits`] about every observed key, and by literal membership in
+/// the declared slice. They must agree. No *shipped* entry is restricted, so on
+/// the live workload the check reports `n/a` on all four rows and grades
+/// nothing — an ungraded path by construction. This test is what grades it.
+///
+/// The three census keys here are live `cflow-loop` keys on the 878-TU
+/// workload and two of them EXTEND the third. Under exact matching one key is
+/// admitted and `intruders` is empty; under `starts_with` all three are
+/// admitted and `intruders` names the two the entry never declared.
+#[test]
+fn the_ledger_cross_check_catches_a_matcher_that_admits_beyond_its_declaration() {
+    let tu = with_cflow(
+        mk_factors(TuClass::VocabGap, "loop.cpp", true, true, true, false, false),
+        &[
+            ("cflow-loop", "expr-cmp-eq", 1),
+            ("cflow-loop", "expr-cmp-eq-and-branch-more", 1),
+            ("cflow-loop", "expr-cmp-eq-and-op-more", 1),
+        ],
+    );
+    let list = [CfgClass { class: "cflow-loop", sub: CfgSub::Keys(&["expr-cmp-eq"]) }];
+    let led = mk_report(vec![tu]).cfg_subclass_ledger_with(&list);
+    assert_eq!(led.len(), 1, "one row per entry");
+    let row = &led[0];
+    assert_eq!(row.listed, Some(1), "the entry declares exactly one key");
+    assert_eq!(
+        row.observed_keys, 3,
+        "three keys are live for the class on this report — the denominator the \
+         admitted count is only readable against"
+    );
+    assert_eq!(
+        row.admitted_keys, 1,
+        "exact matching admits the declared key and nothing else; a 3 here is a \
+         matcher admitting beyond its declaration"
+    );
+    assert_eq!(
+        row.intruders.as_deref(),
+        Some(&[][..]),
+        "the cross-check must be TAKEN (Some) and EMPTY for a restricted entry — \
+         `None` would mean the ledger declined to check a claim it can check, and \
+         a non-empty vector names the keys `admits` accepted that the entry never \
+         declared, which is exactly what an exact→prefix slip produces"
+    );
+}
+
 /// **A restricted entry's unwitnessed keys are COUNTED, not passed over.**
 ///
 /// A listed key no scan ever sees is a claim doing nothing while still standing

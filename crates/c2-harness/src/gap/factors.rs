@@ -982,6 +982,21 @@ impl GapReport {
     /// declaration to cross-check against and printing `PASS` for it would be
     /// exactly the absence-read-as-success this row exists to forbid.
     pub fn cfg_subclass_ledger(&self) -> Vec<CfgLedgerRow> {
+        self.cfg_subclass_ledger_with(PORT_CFG_CLASSES)
+    }
+
+    /// [`Self::cfg_subclass_ledger`] against an arbitrary list.
+    ///
+    /// **The intruder cross-check needs a RESTRICTED entry to have anything to
+    /// say, and no shipped entry is restricted today**, so on this tree the
+    /// shipped ledger reports `n/a` on every row and the check is untested by
+    /// construction. That is the exact shape of an ungraded code path. This
+    /// parameterized form is how the cross-check gets graded — a test builds a
+    /// restricted list and asserts `intruders` is empty under exact matching,
+    /// and must-fail mutation **M2** (exact → `starts_with`) makes it non-empty
+    /// and fails that test. It is also what a loop lane calls to audit a
+    /// candidate restriction against the workload before proposing it.
+    pub fn cfg_subclass_ledger_with(&self, list: &[CfgClass<'static>]) -> Vec<CfgLedgerRow> {
         let mut observed: std::collections::BTreeMap<&str, BTreeSet<&str>> = Default::default();
         for r in &self.results {
             for k in r.fn_cflow.keys() {
@@ -990,8 +1005,7 @@ impl GapReport {
                 }
             }
         }
-        PORT_CFG_CLASSES
-            .iter()
+        list.iter()
             .map(|e| {
                 let seen = observed.get(e.class).cloned().unwrap_or_default();
                 let admitted: BTreeSet<&str> =
