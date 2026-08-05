@@ -26,7 +26,9 @@ def main():
     print("# sign  op  k  regime  words")
     n = 0
     for tag, ks in (("HELD", kgrid.K_HELD), ("HUNT", kgrid.K_HUNT),
-                    ("UHUNT", kgrid.K_UHUNT), ("WORKLOAD", kgrid.K_WORKLOAD)):
+                    ("UHUNT", kgrid.K_UHUNT), ("WORKLOAD", kgrid.K_WORKLOAD),
+                    ("HUNT2-S", kgrid.K_HUNT2_S),
+                    ("HUNT2-U", kgrid.K_HUNT2_U)):
         print("#--- %s" % tag)
         for k in ks:
             for signed in (True, False):

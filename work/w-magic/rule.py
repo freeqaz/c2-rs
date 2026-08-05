@@ -47,8 +47,24 @@ def rlwinm(a, s, sh, mb, me):
 
 
 # ---- the map --------------------------------------------------------------
+def s32(k):
+    """`k` reinterpreted as a SIGNED 32-bit value.
+
+    **This function is the lane's held-out MISS, corrected.** `rule.py` was
+    fitted on a k-axis whose unsigned members were all ≤ INT_MAX, and it stated
+    the `li` cliff as `-32768 <= k <= 32767` over the *unsigned* value. That is
+    wrong for exactly one shape and the hunt set found it: `a / 4294967295u`
+    emits `li r11,-1 ; divwu`, one instruction, because `li` **sign-extends** —
+    so the predicate is over the 32-bit two's-complement PATTERN, not over the
+    arithmetic value. Two cells of 22 differed and both were this one. On the
+    signed axis `s32` is the identity, which is why 156 fitted-and-held-out
+    cells could not see it."""
+    k &= 0xFFFFFFFF
+    return k - (1 << 32) if k & 0x80000000 else k
+
+
 def fits16(k):
-    return -32768 <= k <= 32767
+    return -32768 <= s32(k) <= 32767
 
 
 def hi16(k):

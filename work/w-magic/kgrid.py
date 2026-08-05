@@ -57,6 +57,19 @@ K_HUNT = [196608, -196608, 3145728, 458752]
 # unsigned-only cells. 2147483648 is 2^31 — the widest power of two the mask
 # form can be asked for.
 K_UHUNT = [2147483648, 2147483649, 3000000000, 4294967295]
+# HUNT2 — minted AFTER `u k=4294967295` broke `fits16`, to validate the `s32`
+# correction on cells it was not corrected against. A correction validated only
+# on the cell that forced it is not validated (P3, one level down). These sit on
+# both sides of the sign-extended `li` cliff and in the `wide-nolo` regime that
+# only the high-bit-set patterns can reach.
+K_HUNT2_U = [4294934528,   # 0xFFFF8000 -> s32 -32768, the last `li`
+             4294934527,   # 0xFFFF7FFF -> s32 -32769, the first `lis`+`ori`
+             4294967294,   # 0xFFFFFFFE -> s32 -2
+             4294901760,   # 0xFFFF0000 -> s32 -65536, lo==0: wide-nolo
+             3221225472]   # 0xC0000000 -> s32 -1073741824, lo==0: wide-nolo
+# The signed `pow2-` cells that are outside `simm16` and therefore exercise the
+# INTERLEAVE clause with a three-instruction quotient chain.
+K_HUNT2_S = [-65536, -131072, -1048576]
 
 INT_MIN = -2147483648
 
@@ -293,6 +306,7 @@ def main(argv):
     xcheck = "--xcheck" in argv
     ks = {"fit": K_FIT, "held": K_HELD, "workload": K_WORKLOAD,
           "hunt": K_HUNT + K_UHUNT,
+          "hunt2": K_HUNT2_S + K_HUNT2_U,
           "all": K_FIT + [k for k in K_HELD if k not in K_FIT]
           + [k for k in K_WORKLOAD if k not in K_FIT and k not in K_HELD]}[which]
     only = [a for a in argv[1:] if not a.startswith("--")]
