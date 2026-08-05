@@ -239,3 +239,49 @@ registered here as the outcome I now expect, ahead of Grid D running.
 **R-H-REG:** the correspondence breaks on the held-out set, in which case both
 H-EXIT and H-REG are dead, L4 is open with three refuted rivals instead of one,
 and this lane's deliverable is the refutation list plus P2.
+
+---
+
+## 8. ADDENDUM 3 — H-SUF, registered before Grid E exists
+
+H-REG scores **37 of 38 held-out**. Its one miss, `d-cmp-k`
+(`while (*s != 120)`), is not noise and reading it changed the statement:
+
+```
+  while-ptr (ROT)     0x0c  extsb. r11,r11     the test IS the record form
+                      0x10  bclr  12,2         -- one instruction, duplicated
+
+  d-cmp-k  (JUMPIN)   0x0c  extsb  r11,r11     the VALUE is duplicated
+                      0x10  b     .+16         but the COMPARE is shared
+                      0x20  cmpwi cr6,r11,120
+```
+
+So `d-cmp-k` duplicates the value computation **and** shares the compare. The
+four buckets cannot express that, and the honest reading is that the taxonomy is
+incomplete rather than that the cell is anomalous.
+
+> **H-SUF.** c2 shares the **maximal common suffix** of the entry's test block
+> and the back edge's test block, and duplicates the differing prefix. The entry
+> form is JUMPIN when that shared suffix is non-empty and GUARD/GUARDRET when it
+> is empty. Mechanically: **JUMPIN iff the peel and the induction load write the
+> same register (whole block shared) OR the back edge's CR bit is produced by an
+> explicit compare (the compare is shareable even when the value ahead of it is
+> not).**
+
+**Fitted on one cell — `d-cmp-k` — and scoped to the SENTINEL WALK.** Grid E is
+eight fresh sentinel-walk cells written to grade it held out. The counted family
+is deliberately **out of scope and the reason is measured**: `for-break`'s entry
+test is `cmpwi cr6,r3,0` where its back edge is `cmpw cr6,r11,r3` — a
+**constant-folded specialization** of the loop test at `i = 0`, not a copy of it,
+so there is no common suffix to share and the compare half of H-SUF does not
+apply. Claiming H-SUF for the counted family would be the eleventh refuted
+placement rule.
+
+**R-H-SUF:** it breaks on Grid E, in which case the suffix statement is a
+description of 44 cells and not a rule, and I will say so.
+
+**And the prediction that follows for the port, registered now:** even at 8 of 8,
+H-SUF is **not evaluable by the port**, because both its inputs — the register
+identity and which producer feeds the CR bit — exist only *after* scheduling and
+allocation. So World A does not open on H-SUF holding. I expect to land in
+**World B**, and §3's declaration that World B is a success stands.

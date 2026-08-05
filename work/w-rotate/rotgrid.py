@@ -309,6 +309,19 @@ def classify(words, rel):
             r["bdnz"] += 1
         if b and b[0] in ("bc", "b") and b[1] < 0 and off not in rel:
             r["back"].append((off, w, b))
+        # A branch to ITSELF is a back edge with displacement ZERO, and `< 0`
+        # does not see it.  `for(;;){}` emits exactly one word, `48000000`, and
+        # the first version of this classifier called that NOLOOP -- reading an
+        # UNCONDITIONAL back edge as the absence of a loop.  That is this
+        # project's most-repeated defect (absence read as success) committed by
+        # the instrument built to avoid it, so it gets its own bucket rather
+        # than a widened comparison: a self-loop is not a rotation question and
+        # must not be averaged into one.
+        if b and b[0] == "b" and b[1] == 0 and off not in rel:
+            r["selfloop"] = off
+    if r.get("selfloop") is not None and not r["back"]:
+        r["bucket"] = "SELFLOOP"
+        return r
     if not r["back"]:
         r["bucket"] = "NOLOOP"
         return r
@@ -379,6 +392,36 @@ def classify(words, rel):
         r["hreg"] = "JUMPIN" if r["peel_rd"] == r["carry_rd"] else "ROT"
     else:
         r["hreg"] = None
+
+    # ---- H-SUF (see `PREREG.md` §8) ------------------------------------
+    #
+    # What produces the CR bit the BACK EDGE reads: an explicit compare, or the
+    # record form of an instruction the body needed anyway.  The last writer of
+    # that CR field before the back edge is the producer -- "last writer", not
+    # "nearest compare", because board #644's warning is exactly that a producer
+    # is not one contiguous instruction and a positional read finds the wrong
+    # one.  `c-break` has an unrelated `cmpwi cr6` at its loop top and a record
+    # form on cr0 feeding its back edge; a nearest-compare rule reads the break's
+    # compare and gets the cell backwards.
+    r["producer"] = None
+    bb = r["backword"]
+    if is_cond_bo(bb[2]):
+        field = bb[3] >> 2
+        for w in words[top // 4:(last_back) // 4]:
+            op = w >> 26
+            if op in (10, 11) and ((w >> 23) & 7) == field:
+                r["producer"] = "cmp"
+            elif op == 31 and ((w >> 1) & 0x3FF) in (0, 32) and ((w >> 23) & 7) == field:
+                r["producer"] = "cmp"
+            elif op == 13 and field == 0:
+                r["producer"] = "record"
+            elif op == 31 and (w & 1) and field == 0:
+                r["producer"] = "record"
+    if r["hreg"] is not None and r["producer"] is not None:
+        r["hsuf"] = "JUMPIN" if (r["peel_rd"] == r["carry_rd"]
+                                 or r["producer"] == "cmp") else "ROT"
+    else:
+        r["hsuf"] = None
     return r
 
 
@@ -491,12 +534,64 @@ GRID_D = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Grid E — HELD OUT from H-SUF's fitting set (`d-cmp-k` alone).  Every cell is a
+# SENTINEL WALK, which is the family H-SUF is scoped to; the counted family is
+# deliberately absent because `for-break` already shows the compare half of the
+# rule does not hold there (its entry test is a CONSTANT-FOLDED specialization
+# of the loop test, not a copy of it).
+# ---------------------------------------------------------------------------
+GRID_E = [
+    ("e-sent-ne", "int P(const char* s){ int r=0; while (*s!=65) { r=r+*s; s++; } return r; }",
+     "a non-zero sentinel, accumulating"),
+    ("e-sent-gt", "int P(const char* s){ int r=0; while (*s>32) { r=r+*s; s++; } return r; }",
+     "a relational sentinel"),
+    ("e-sent-ne-cnt", "int P(const char* s){ int n=0; while (*s!=65) { n++; s++; } return n; }",
+     "a non-zero sentinel, body ignores the char"),
+    ("e-sent-ne-store", "void P(const char* s,int* o){ while (*s!=65) { *o=*s; s++; } }",
+     "a non-zero sentinel, stores"),
+    ("e-zero-mul", "int P(const char* s){ int r=0; while (*s) { r=r*5+*s; s++; } return r; }",
+     "the zero sentinel, a deeper accumulate"),
+    ("e-zero-two", "int P(const char* s){ int r=0; while (*s) { r=r+*s; r=r^2; s++; } return r; }",
+     "the zero sentinel, two statements"),
+    ("e-uns", "int P(const unsigned char* s){ int r=0; while (*s) { r=r+*s; s++; } return r; }",
+     "UNSIGNED element -- Sort.cpp's own cast, no sign extension needed"),
+    ("e-uns-ne", "int P(const unsigned char* s){ int r=0; while (*s!=65) { r=r+*s; s++; } return r; }",
+     "unsigned AND a non-zero sentinel"),
+]
+
+
+def grade_named(rows, key, label, fitted=()):
+    """Grade a mechanical predictor stored under `key`.  `n of m`, exclusions
+    printed, and never a status."""
+    hit = n = excl = 0
+    lines = []
+    for name, r in sorted(rows.items()):
+        if r["bucket"] in ("NOLOOP", "MULTI", "SELFLOOP") or r.get(key) is None:
+            excl += 1
+            continue
+        if name.split(":", 1)[-1] in fitted:
+            continue
+        got = "JUMPIN" if r["bucket"] == "JUMPIN" else "ROT"
+        n += 1
+        ok = (got == r[key])
+        hit += ok
+        lines.append("    %-16s peel=r%-2s carry=r%-2s prod=%-6s  %s=%-6s got=%-6s %s"
+                     % (name, r["peel_rd"], r["carry_rd"], r["producer"],
+                        key.upper(), r[key], got, "OK" if ok else "**MISS**"))
+    print("  %s on %s: %d of %d graded cells (excluded %d)"
+          % (key.upper(), label, hit, n, excl))
+    for l in lines:
+        print(l)
+    return hit, n
+
+
 def grade_hreg(rows, label):
     """H-REG, graded.  `n of m` with the excluded count printed."""
     hit = n = excl = 0
     lines = []
     for name, r in sorted(rows.items()):
-        if r["bucket"] in ("NOLOOP", "MULTI") or r.get("hreg") is None:
+        if r["bucket"] in ("NOLOOP", "MULTI", "SELFLOOP") or r.get("hreg") is None:
             excl += 1
             continue
         got = "JUMPIN" if r["bucket"] == "JUMPIN" else "ROT"
@@ -607,7 +702,7 @@ def main(argv):
     print("  %-16s %-9s %-9s %s" % ("cell", "predicted", "measured", ""))
     hit = n = excl = 0
     for name, r in rowsc.items():
-        if r["bucket"] in ("NOLOOP", "MULTI"):
+        if r["bucket"] in ("NOLOOP", "MULTI", "SELFLOOP"):
             excl += 1
             print("  %-16s %-9s %-9s  EXCLUDED (c2 emitted no single loop)"
                   % (name, predc[name], r["bucket"]))
@@ -634,6 +729,22 @@ def main(argv):
     print("== GRID D -- HELD OUT from H-REG's fitting set ==")
     cellsd = [c for c in GRID_D if not only or c[0] in only]
     rowsd, reachedd, gradedd = run(cellsd, mode, wd, "d_", show)
+
+    print()
+    print("== GRID E -- HELD OUT from H-SUF's fitting set (sentinel walks only) ==")
+    cellse = [c for c in GRID_E if not only or c[0] in only]
+    rowse, reachede, gradede = run(cellse, mode, wd, "e_", show)
+
+    print()
+    print("== H-SUF, the SUFFIX-SHARING rule, scoped to the sentinel walk ==")
+    print("   H-SUF: JUMPIN iff the entry's test block and the back edge's test")
+    print("   block share a non-empty SUFFIX -- either because the peel and the")
+    print("   induction load write the same register (the whole block is shared)")
+    print("   or because the back edge's CR bit comes from an explicit COMPARE,")
+    print("   which is identical for both and shareable even when the value")
+    print("   computation ahead of it is not. Fitted on `d-cmp-k` alone.")
+    print()
+    h3, n3 = grade_named(rowse, "hsuf", "GRID E (held out)")
 
     print()
     print("== H-REG, graded on every grid ==")
