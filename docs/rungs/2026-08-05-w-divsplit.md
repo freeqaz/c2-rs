@@ -364,6 +364,24 @@ Also left open, deliberately:
 
 ---
 
+## 11a. The gate, run at the lane tip
+
+```
+cargo test --workspace --release   907 passed, 0 failed, 27 targets
+scripts/gate.sh --jobs 6           GATE: PASS — 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT
+                                   4,770 fixture-verdicts across all lanes
+  expr-sweep                       16,710/16,710 reached, 16,614 graded, 0 mismatch
+  mode-cross                       81,905/81,905 selected, 81,517 graded, 0 mismatch
+scripts/status.sh --check          PASS — 23 metrics registered, parsers pinned
+scripts/board_audit.sh             0 cited-but-unlisted, 0 unresolved anchors
+```
+
+Every one of the twelve mode lanes reads `265/265`, the same as the baseline —
+this lane adds no fixture, so the fixture count is expected to be flat and its
+flatness is the check that nothing was quietly admitted.
+
+---
+
 ## 12. Reproducing it
 
 ```sh
