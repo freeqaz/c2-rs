@@ -1,0 +1,24 @@
+  cell             | prod    const   | winner | emitted order
+  ----------------------------------------------------------------------------------------
+  O-add-4          | r11     r10     | prod   | add li stw stw stw
+  O-add-8          | r11     r10     | prod   | add li stw stw stw
+  O-add-16         | r11     r10     | prod   | add li stw stw stw
+  O-add-32         | r11     r10     | prod   | add li stw stw stw
+  O-add-44         | r11     r10     | prod   | add li stw stw stw
+  O-add-64         | r11     r10     | prod   | add li stw stw stw
+  O-add-128        | r11     r10     | prod   | add li stw stw stw
+  O-add-252        | r11     r10     | prod   | add li stw stw stw
+  O-shift-4        | r11     r10     | prod   | slwi li stw stw stw
+  O-shift-8        | r11     r10     | prod   | slwi li stw stw stw
+  O-shift-16       | r11     r10     | prod   | slwi li stw stw stw
+  O-shift-32       | r11     r10     | prod   | slwi li stw stw stw
+  O-shift-44       | r11     r10     | prod   | slwi li stw stw stw
+  O-shift-64       | r11     r10     | prod   | slwi li stw stw stw
+  O-shift-128      | r11     r10     | prod   | slwi li stw stw stw
+  O-shift-252      | r11     r10     | prod   | slwi li stw stw stw
+
+  GRADED 16 of 16 | out-of-regime 0
+
+  DOES DISPLACEMENT MOVE THE ALLOCATION?
+    add    4:prod 8:prod 16:prod 32:prod 44:prod 64:prod 128:prod 252:prod  ->  CONSTANT across displacement
+    shift  4:prod 8:prod 16:prod 32:prod 44:prod 64:prod 128:prod 252:prod  ->  CONSTANT across displacement

@@ -1,0 +1,16 @@
+  cell                   | self  high  | bonus  | H-self    H-off     | discriminating
+  ------------------------------------------------------------------------------------------------
+  S1-selflow             | yes   no    | YES    | reg       const     | YES
+  S2-nonselfhigh         | no    yes   | no     | const     reg       | YES
+  S3-both                | yes   yes   | YES    | reg       reg       | no - both rivals agree
+  S4-neither             | no    no    | no     | const     const     | no - both rivals agree
+  S5-selfinterior-low    | yes   no    | YES    | reg       const     | YES
+  S6-selfinterior-high   | yes   yes   | YES    | reg       reg       | no - both rivals agree
+  S7-otherobj-low        | no    no    | no     | const     const     | no - both rivals agree
+  S8-otherobj-high       | no    yes   | no     | const     reg       | YES
+  S9-mirror              | no    no    | no     | const     const     | no - both rivals agree
+  S10-inner2-self        | yes   no    | YES    | reg       const     | YES
+
+  GRADED 10 of 10 | out-of-regime 0
+  H-self   SURVIVES (0 disagreements)
+  H-off    KILLED (5 disagreements) by S1-selflow, S2-nonselfhigh, S5-selfinterior-low, S8-otherobj-high, S10-inner2-self

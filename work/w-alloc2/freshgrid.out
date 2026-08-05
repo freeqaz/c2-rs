@@ -1,0 +1,87 @@
+  cell                 np  | observed                     | predicted (KEY)              | verdict
+  --------------------------------------------------------------------------------------------------------
+  F0-anchor            2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F0-g1x1              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F1-r1k5              2   | const7=r11 regA=r10          | const7=r11 regA=r10          | HIT
+  F1-r2k5              2   | const7=r11 regA=r10          | const7=r11 regA=r10          | HIT
+  F1-r2k6              2   | const7=r11 regA=r10          | const7=r11 regA=r10          | HIT
+  F1-r3k5              2   | const7=r11 regA=r10          | const7=r11 regA=r10          | HIT
+  F1-r4k5              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F1-r5k1              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F1-r5k2              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F1-r5k4              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F1-r5k5              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F1-r5k6              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F1-r6k2              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F1-r6k5              2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F2-off-r1k3          2   | const7=r11 regA=r10          | const7=r11 regA=r10          | HIT
+  F2-off-r2k1          2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F2-off-r2k4          2   | const7=r11 regA=r10          | const7=r11 regA=r10          | HIT
+  F2-off-r3k1          2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F2-tie-r1k2          2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F2-tie-r2k3          2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F2-tie-r3k4          2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F2-tie-r4k5          2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F3-123456-r1k1       2   | regA=r11 wide123456=r10      | regA=r11 wide123456=r10      | HIT
+  F3-123456-r1k3       2   | OUT OF REGIME: two producers share one register
+  F3-123456-r2k1       2   | regA=r11 wide123456=r10      | regA=r11 wide123456=r10      | HIT
+  F3-65537-r1k1        2   | regA=r11 wide65537=r10       | regA=r11 wide65537=r10       | HIT
+  F3-65537-r1k3        2   | OUT OF REGIME: two producers share one register
+  F3-65537-r2k1        2   | regA=r11 wide65537=r10       | regA=r11 wide65537=r10       | HIT
+  F4-add-r1k1          2   | const7=r11 regAdd=r10        | regAdd=r11 const7=r10        | **MISS**
+  F4-add-r1k2          2   | const7=r11 regAdd=r10        | regAdd=r11 const7=r10        | **MISS**
+  F4-add-r1k3          2   | const7=r11 regAdd=r10        | const7=r11 regAdd=r10        | HIT
+  F4-add-r2k1          2   | regAdd=r11 const7=r10        | regAdd=r11 const7=r10        | HIT
+  F4-addi-r1k1         2   | const7=r11 regAddi=r10       | regAddi=r11 const7=r10       | **MISS**
+  F4-addi-r1k2         2   | const7=r11 regAddi=r10       | regAddi=r11 const7=r10       | **MISS**
+  F4-addi-r1k3         2   | const7=r11 regAddi=r10       | const7=r11 regAddi=r10       | HIT
+  F4-addi-r2k1         2   | regAddi=r11 const7=r10       | regAddi=r11 const7=r10       | HIT
+  F4-shift-r1k1        2   | const7=r11 regShift=r10      | regShift=r11 const7=r10      | **MISS**
+  F4-shift-r1k2        2   | const7=r11 regShift=r10      | regShift=r11 const7=r10      | **MISS**
+  F4-shift-r1k3        2   | const7=r11 regShift=r10      | const7=r11 regShift=r10      | HIT
+  F4-shift-r2k1        2   | const7=r11 regShift=r10      | regShift=r11 const7=r10      | **MISS**
+  F5-rc-r1j1k1         3   | regA=r11 const7=r10 const9=r9 | regA=r11 const7=r10 const9=r9 | HIT
+  F5-rc-r1j1k2         3   | regA=r11 const9=r10 const7=r9 | regA=r11 const9=r10 const7=r9 | HIT
+  F5-rc-r1j2k1         3   | regA=r11 const7=r10 const9=r9 | regA=r11 const7=r10 const9=r9 | HIT
+  F5-rc-r1j2k3         3   | OUT OF REGIME: two producers share one register
+  F5-rc-r1j3k1         3   | const7=r11 regA=r10 const9=r9 | const7=r11 regA=r10 const9=r9 | HIT
+  F5-rc-r2j1k2         3   | regA=r11 const9=r10 const7=r9 | regA=r11 const9=r10 const7=r9 | HIT
+  F5-rc-r2j2k2         3   | OUT OF REGIME: two producers share one register
+  F5-rc-r3j1k1         3   | regA=r11 const7=r10 const9=r9 | regA=r11 const7=r10 const9=r9 | HIT
+  F5-rr-a1b1k1         3   | regA=r11 regB=r10 const7=r9  | regA=r11 regB=r10 const7=r9  | HIT
+  F5-rr-a1b1k2         3   | regA=r11 regB=r10 const7=r9  | regA=r11 regB=r10 const7=r9  | HIT
+  F5-rr-a1b1k3         3   | const7=r11 regA=r10 regB=r9  | const7=r11 regA=r10 regB=r9  | HIT
+  F5-rr-a1b2k4         3   | const7=r11 regB=r10 regA=r9  | const7=r11 regB=r10 regA=r9  | HIT
+  F5-rr-a2b1k1         3   | regA=r11 regB=r10 const7=r9  | regA=r11 regB=r10 const7=r9  | HIT
+  F5-rr-a2b1k4         3   | const7=r11 regA=r10 regB=r9  | const7=r11 regA=r10 regB=r9  | HIT
+  F5-rr-a2b2k1         3   | regA=r11 regB=r10 const7=r9  | regA=r11 regB=r10 const7=r9  | HIT
+  F5-rr-a3b1k2         3   | regA=r11 regB=r10 const7=r9  | regA=r11 regB=r10 const7=r9  | HIT
+  F6-2p                2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F6-2p-tie            2   | regA=r11 const7=r10          | regA=r11 const7=r10          | HIT
+  F6-3p                3   | regA=r11 regB=r10 const7=r9  | regA=r11 regB=r10 const7=r9  | HIT
+  F6-3p-b              3   | regA=r11 const7=r10 const9=r9 | regA=r11 const7=r10 const9=r9 | HIT
+
+  KEY UNDER TEST:  2*uses + (register-derived ? 3 : 0), descending;
+                   same-kind ties by alloc.rs clauses 3/4.
+  Equivalent on a mixed PAIR to w-next's `uses + (reg ? 1 : 0)` with the tie to reg.
+
+  selected 60 | reached 60 | GRADED 56 | hit 49 | MISS 7 | out-of-regime 4 | compile-failed 0
+  per partition (hit / miss / out-of-regime):
+    F0   2 / 0 / 0
+    F1   12 / 0 / 0
+    F2   8 / 0 / 0
+    F3   4 / 0 / 2
+    F4   5 / 7 / 0
+    F5   14 / 0 / 2
+    F6   4 / 0 / 0
+
+  MISSES — the deliverable if there are any:
+    F4-add-r1k1          observed const7=r11 regAdd=r10        predicted regAdd=r11 const7=r10
+    F4-add-r1k2          observed const7=r11 regAdd=r10        predicted regAdd=r11 const7=r10
+    F4-addi-r1k1         observed const7=r11 regAddi=r10       predicted regAddi=r11 const7=r10
+    F4-addi-r1k2         observed const7=r11 regAddi=r10       predicted regAddi=r11 const7=r10
+    F4-shift-r1k1        observed const7=r11 regShift=r10      predicted regShift=r11 const7=r10
+    F4-shift-r1k2        observed const7=r11 regShift=r10      predicted regShift=r11 const7=r10
+    F4-shift-r2k1        observed const7=r11 regShift=r10      predicted regShift=r11 const7=r10
+
+  ==> The key is REFUTED on 7 fresh cell(s).
