@@ -72,7 +72,7 @@ use super::expr::{
 use super::{Block, Complete, BODY_SCOPE_DEPTH};
 use crate::func::readers::{
     eat, eat_byte, eat_int_like, eat_int_like_or_ptr4, eat_operand_type, eat_opt_stmt_marker,
-    eat_value_type, read_token_var, read_type, read_varint,
+    eat_reinterpret_type, eat_value_type, read_token_var, read_type, read_varint,
 };
 use crate::func::readers::ValueClass;
 
@@ -2436,17 +2436,76 @@ enum Vocab {
 /// `-whole` and the shipping path refuses it outright. It is invisible to
 /// `census/gate disagreement` for the reason §9.13's E4 gives, and it was 1,053
 /// of 13,500 enumerated operand streams.
-#[derive(Default)]
 struct Stream {
     ptr: bool,
     int1u: bool,
     wide: bool,
     arith: bool,
     /// The [`ValueClass`] on top of the operand stack, or `None` before the
-    /// first operand — `parse_expr`'s own `class` variable, tracked here for
-    /// the same one reason it tracks it: the `2C` arm admits a conversion only
-    /// when the target is the value's *own* class.
+    /// first operand — the top of [`Stream::cstack`], kept as its own field
+    /// because the `2C` arm reads it on every token and the stack is only
+    /// meaningful while `cstack_ok`.
     last: Option<ValueClass>,
+    /// **The operand stack's CLASSES** (`lane w-convert`, board **#701**), one
+    /// for one with `parse_expr_classed`'s `cstack`. The emitter's
+    /// `expr-ptr-arith` is precise where this model holds — *was an arithmetic
+    /// operator applied to a value that was a pointer AT THAT MOMENT* — and a
+    /// measure still asking the coarse `ptr && arith` would be NARROWER than its
+    /// emitter, which #139 records as manufacturing phantom rungs.
+    cstack: Vec<ValueClass>,
+    cstack_ok: bool,
+    ptr_arith_exact: bool,
+}
+
+impl Default for Stream {
+    fn default() -> Stream {
+        Stream {
+            ptr: false,
+            int1u: false,
+            wide: false,
+            arith: false,
+            last: None,
+            cstack: Vec::new(),
+            // The model starts believing itself; every token it cannot follow
+            // clears it and the coarse flags take over.
+            cstack_ok: true,
+            ptr_arith_exact: false,
+        }
+    }
+}
+
+impl Stream {
+    /// Push one operand's class.
+    fn push_class(&mut self, c: ValueClass) {
+        self.cstack.push(c);
+        self.last = Some(c);
+    }
+
+    /// Fold one binary operator, exactly as `parse_expr_classed`'s
+    /// `fold_binary!` does: pop two, indict the operator if either was a
+    /// pointer, push the result's class.
+    fn fold_binary(&mut self) {
+        match (self.cstack.pop(), self.cstack.pop()) {
+            (Some(r), Some(l)) => {
+                let ptr = r == ValueClass::Ptr4 || l == ValueClass::Ptr4;
+                if ptr {
+                    self.ptr_arith_exact = true;
+                }
+                let out = if ptr { ValueClass::Ptr4 } else { ValueClass::Int4 };
+                self.cstack.push(out);
+                self.last = Some(out);
+            }
+            _ => self.cstack_ok = false,
+        }
+    }
+
+    /// Replace the class on top — an accepted `2C`.
+    fn retop_class(&mut self, c: ValueClass) {
+        if let Some(top) = self.cstack.last_mut() {
+            *top = c;
+        }
+        self.last = Some(c);
+    }
 }
 
 impl Stream {
@@ -2457,7 +2516,12 @@ impl Stream {
     }
 
     fn which_refusal_opt(&self) -> Option<Structural> {
-        if self.ptr && self.arith {
+        // Precise where the class stack held (#701); the coarse flag otherwise.
+        // Same expression as `parse_expr_classed`'s, and it must stay that way:
+        // a measure narrower than its emitter manufactures phantom rungs and a
+        // wider one manufactures phantom completeness.
+        let ptr_arith = if self.cstack_ok { self.ptr_arith_exact } else { self.ptr && self.arith };
+        if ptr_arith {
             Some(Structural::PtrArith)
         } else if self.int1u && (self.arith || self.wide) {
             Some(Structural::Int1uMisuse)
@@ -2529,6 +2593,7 @@ fn eat_int_operands(seg: &[u8], p: &mut usize, v: Vocab, adm: Admit, fail: &mut 
             }
             Some(&0x02) | Some(&0x03) | Some(&0x04) => {
                 st.arith = true;
+                st.fold_binary();
                 *p += 1;
             }
             // **A `2C` CLASS-PRESERVING CONVERSION**, exactly as `parse_expr`
@@ -2551,7 +2616,22 @@ fn eat_int_operands(seg: &[u8], p: &mut usize, v: Vocab, adm: Admit, fail: &mut 
                     fail.note(start, FailKind::Value);
                     return finish!();
                 };
-                if !eat_value_type(seg, &mut probe, cls) {
+                if eat_value_type(seg, &mut probe, cls) {
+                    // Class-preserving: the class on the stack is unchanged.
+                } else if let Some(got) = eat_reinterpret_type(seg, &mut probe, cls) {
+                    // **The width-4 REINTERPRET** (`lane w-convert`, board
+                    // **#700**), mirrored from `parse_expr_classed`'s `2C` arm
+                    // one token for one token — including the `saw_ptr` line,
+                    // which is `st.ptr` here. A measure that admitted the
+                    // reinterpret without indicting the value would be *wider*
+                    // than the emitter, which is the direction #139 records as
+                    // manufacturing phantom completeness; the enumerated guard
+                    // below is what caught this arm being narrower.
+                    st.retop_class(got);
+                    if got == ValueClass::Ptr4 {
+                        st.ptr = true;
+                    }
+                } else {
                     fail.note(*p + 1, FailKind::Type);
                     return finish!();
                 }
@@ -2587,7 +2667,7 @@ fn eat_operand_or_admitted(
                 st.ptr |= c == ValueClass::Ptr4;
                 st.int1u |= c == ValueClass::Int1u;
                 st.wide |= c != ValueClass::Int1u;
-                st.last = Some(c);
+                st.push_class(c);
                 return true;
             }
             *p = save;
@@ -2595,6 +2675,9 @@ fn eat_operand_or_admitted(
         Vocab::IntrinsicRecv => {
             if eat_int_like(seg, p) {
                 st.wide = true;
+                // `IntrinsicRecv` reads int-likeness without classifying, so
+                // there is no class to push; the model stops here.
+                st.cstack_ok = false;
                 return true;
             }
         }
@@ -2607,6 +2690,9 @@ fn eat_operand_or_admitted(
             // what leaves the stream guards inert for it rather than inventing a
             // refusal the shipping path has never been asked about.
             st.wide = true;
+            // A granted class has no [`ValueClass`], so nothing can be pushed
+            // for it and the stack model stops being able to follow the stream.
+            st.cstack_ok = false;
             return true;
         }
     }
@@ -3066,8 +3152,18 @@ mod tests {
         // second operand and the arithmetic that reaches the stream guards;
         // `2C` appends a CONVERSION whose target is the second class, which
         // reaches the class-preserving rule and nothing else does.
+        //
+        // **`0xFF` is not a token — it is the CONVERT-THEN-ARITHMETIC shape**
+        // (`lane w-convert`, board #701), and it is here because without it this
+        // guard's domain could not separate the coarse `ptr && arith` from the
+        // precise class-stack model: every arithmetic case above puts a raw LOAD
+        // on both sides, where the two models agree by construction. A guard
+        // whose domain cannot express the drift it is looking for is the
+        // `sweep.d/10-int-chains.py` failure one layer up (#688), and this axis
+        // is the fix. `(int)p + b` is the whole of the workload population the
+        // precise model converts.
         for (n1, t1) in CLASS_WITNESSES {
-            for op in [None, Some(0x02u8), Some(0x03), Some(0x04), Some(0x2C)] {
+            for op in [None, Some(0x02u8), Some(0x03), Some(0x04), Some(0x2C), Some(0xFF)] {
                 for (n2, t2) in CLASS_WITNESSES {
                     for (n5, t5) in CLASS_WITNESSES {
                         cases += 1;
@@ -3079,6 +3175,15 @@ mod tests {
                                 seg.push(0x2C);
                                 seg.extend_from_slice(t2);
                                 seg.push(0x00);
+                            }
+                            Some(0xFF) => {
+                                // `2C <target TYPE> 00` then a second `int`
+                                // operand and an ADD: the conversion decides
+                                // the class the operator sees.
+                                seg.push(0x2C);
+                                seg.extend_from_slice(t2);
+                                seg.push(0x00);
+                                seg.extend_from_slice(&[0xB9, 0x01, 0x03, 0x86, 0x41, 0x74, 0x02]);
                             }
                             Some(o) => {
                                 seg.extend_from_slice(&[0xB9, 0x01, 0x03]);
@@ -3102,6 +3207,7 @@ mod tests {
                                     Some(0x02) => "+",
                                     Some(0x03) => "-",
                                     Some(0x04) => "*",
+                                    Some(0xFF) => "convert-then-add-int, to",
                                     _ => "convert-to",
                                 }
                             ));

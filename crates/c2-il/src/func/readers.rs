@@ -840,6 +840,81 @@ pub(crate) fn eat_value_type(seg: &[u8], p: &mut usize, class: ValueClass) -> bo
     }
 }
 
+/// Consume a `2C` target TYPE at `p` that names **the other width-4
+/// [`ValueClass`]** than the one the value already has, returning the class it
+/// names. `None` — with `p` untouched — for anything else.
+///
+/// This is the **width-4 reinterpret**, and it is a separate entry point from
+/// [`eat_value_type`] rather than a widening of it for the reason that locator's
+/// own comment gives: `eat_value_type` gates three byte-graded shapes through
+/// five call sites, and only [`super::body::expr::parse_expr_classed`]'s `2C` arm
+/// has been graded for the cross-class case. A caller reaching this has *already*
+/// been refused by `eat_value_type`, so the class returned is necessarily
+/// different from the one passed in.
+///
+/// ## The 3×3, measured — `lane w-convert`, board **#700**
+///
+/// c2's `.text` for `T g(U x){ return (T)x; }` at `/Ox` and at the workload's
+/// `/O1 /Oi /EHsc /GR`, both identical (`work/w-convert/probe/m1.cpp`,
+/// `m4.cpp`). "free" is a bare `blr` — the conversion emits nothing at all:
+///
+/// ```text
+///   source \ target |  Int4          Ptr4          Int1u
+///   ----------------+------------------------------------------
+///   Int4            |  free  (old)   free  (NEW)   clrlwi 24
+///   Ptr4            |  free  (NEW)   free  (old)   clrlwi 24
+///   Int1u           |  clrlwi 24     clrlwi 24     free  (old)
+/// ```
+///
+/// **Four of the nine cells cost an instruction and this predicate admits none
+/// of them.** `Int1u` is barred on *both* sides by an explicit arm rather than
+/// by falling off the end, because the enum makes it look like a peer of the
+/// other two and it is not: `unsigned u(bool b){ return b; }` is
+/// `rlwinm r3,r3,0,24,31`, and so is `void *p(bool b){ return (void *)b; }` —
+/// the pointer direction is *not* the free one people expect from the fact that
+/// a pointer is one register. The one free cell in that row
+/// (`bool`→`char`, `82 11`) names a class this parser does not model, so there
+/// would be nothing to track the result as; it refuses with the rest.
+///
+/// ## The widening this admits is graded across the axes it could hide in
+///
+/// 31 cells at both profiles, all free: every integer spelling (`int`,
+/// `unsigned`, `long`, `unsigned long`, a typedef, an enum) against every
+/// pointee (`void`, `int`, `char`, `const char`, `S`, `S*`, a **function**
+/// pointer, `const S`, `volatile S`), both directions, and at every position —
+/// leaf return, each of four call-argument slots, permuted slots, a repeated
+/// operand, a nested call, and `this` (`A6 43`). Signedness is the axis this
+/// target could plausibly have broken on — the GPRs are 64-bit and the pointers
+/// 32-bit, so a *signed* `int`→pointer is where an `extsw`/`rldicl` would appear
+/// if one appeared anywhere. It does not: `void *f(int a){ return (void *)a; }`
+/// is a bare `blr`.
+///
+/// ## What the caller still owes
+///
+/// **A convert that produces [`ValueClass::Ptr4`] must indict the value for the
+/// pointer-arithmetic guard exactly as a pointer LOAD does.** `(S *)a + 1` is
+/// `addi r3,r3,8` — c2 **scales** — and `(S *)a + k` is `slwi r11,r4,3 ; add`.
+/// A chain that added 1 unscaled would be a wrong emit, not a gap. This
+/// predicate cannot enforce that itself; `parse_expr_classed` sets `saw_ptr` on
+/// the accepting arm and `scripts/sweep.d/77-reinterpret-2c.py` is the corpus
+/// that can express the failure if it is ever dropped.
+pub(crate) fn eat_reinterpret_type(
+    seg: &[u8],
+    p: &mut usize,
+    class: ValueClass,
+) -> Option<ValueClass> {
+    let (tag, kind, _, w) = read_type(seg, *p)?;
+    let got = match class {
+        ValueClass::Int4 if is_ptr4_kind(tag, kind) => ValueClass::Ptr4,
+        ValueClass::Ptr4 if is_int4_type(tag, kind) => ValueClass::Int4,
+        // Barred on both sides, and by its own arm. See the table above.
+        ValueClass::Int1u => return None,
+        _ => return None,
+    };
+    *p += w;
+    Some(got)
+}
+
 pub(crate) fn eat_int_like_or_ptr4(seg: &[u8], p: &mut usize) -> Option<bool> {
     if eat_int_like(seg, p) {
         return Some(false);
@@ -1345,6 +1420,66 @@ mod tests {
             p += 1;
             assert!(read_varint(bytes, &mut p).is_some(), "{label}: fn-type id");
             assert_eq!(p, bytes.len(), "{label}: token must end exactly here");
+        }
+    }
+
+    /// The whole 3x3 of [`ValueClass`] pairs, as the table on
+    /// [`eat_reinterpret_type`] measured it. Written as the *complete* matrix and
+    /// not as the accepting cells, because the failure this guards against is a
+    /// future widening that reads "a value class is a value class" — and four of
+    /// these nine cells are `rlwinm r3,r3,0,24,31` on the real compiler.
+    #[test]
+    fn the_width4_reinterpret_admits_four_of_nine_class_pairs_and_no_others() {
+        use ValueClass::*;
+        // One TYPE per class, all from live captures.
+        let ty = |c: ValueClass| -> &'static [u8] {
+            match c {
+                Int4 => &[0x86, 0x41, 0x74],
+                Ptr4 => &[0x86, 0x43, 0x83, 0x08],
+                Int1u => &[0x82, 0x12, 0x20],
+            }
+        };
+        for src in [Int4, Ptr4, Int1u] {
+            for dst in [Int4, Ptr4, Int1u] {
+                let bytes = ty(dst);
+                let mut p = 0;
+                let got = eat_reinterpret_type(bytes, &mut p, src);
+                // Accepted exactly when both ends are width-4 AND they differ:
+                // the same-class cells belong to `eat_value_type`, which is
+                // consulted first and which this must not duplicate.
+                let want = matches!((src, dst), (Int4, Ptr4) | (Ptr4, Int4));
+                assert_eq!(
+                    got.is_some(),
+                    want,
+                    "{src:?} -> {dst:?}: c2 emits nothing only for the width-4 \
+                     cross pair; every `Int1u` cell but the identity is a mask"
+                );
+                if want {
+                    assert_eq!(got, Some(dst), "the class returned is the TARGET's");
+                    assert_eq!(p, bytes.len(), "the whole TYPE is consumed");
+                } else {
+                    assert_eq!(p, 0, "a refused reinterpret must not move `p`");
+                }
+            }
+        }
+        // `Int1u` is barred by its own arm rather than by falling off the end, so
+        // it stays barred even against a target its *width* would not exclude.
+        let mut p = 0;
+        assert_eq!(eat_reinterpret_type(&[0x82, 0x11, 0x70], &mut p, Int1u), None);
+        // And a target that is neither class — `char`, `short`, `long long`,
+        // `float`, `double` — is refused from a width-4 source too.
+        for t in [
+            &[0x82u8, 0x11, 0x70][..],
+            &[0x84, 0x21, 0x11][..],
+            &[0x88, 0x81, 0x13][..],
+            &[0x86, 0x45, 0x40][..],
+            &[0x88, 0x85, 0x41][..],
+        ] {
+            for src in [Int4, Ptr4] {
+                let mut p = 0;
+                assert_eq!(eat_reinterpret_type(t, &mut p, src), None, "{t:02X?}");
+                assert_eq!(p, 0);
+            }
         }
     }
 }
