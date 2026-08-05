@@ -73,8 +73,8 @@ use super::super::{BodyShape, CondArmShape, CondTailPairShape, IlOp};
 use super::calls::{eat_call_args, eat_call_head, LI_IMM_MAX, LI_IMM_MIN};
 use super::params::parse_params;
 use crate::func::readers::{
-    eat, eat_byte, eat_opt_stmt_marker, is_ptr_to_4, read_token_var, read_type, read_varint,
-    INT_TYPE, LONG_TYPE, UINT_TYPE, ULONG_TYPE,
+    eat, eat_byte, eat_int_like, eat_opt_stmt_marker, is_ptr_to_4, read_token_var, read_type,
+    read_varint, INT_TYPE, LONG_TYPE, UINT_TYPE, ULONG_TYPE,
 };
 use crate::func::{Rel, SlotArg};
 
@@ -109,6 +109,19 @@ pub(crate) fn eat_cmp_operand_type(seg: &[u8], p: &mut usize) -> Option<bool> {
 /// Returns the callee token and the argument slot list, with the cursor left
 /// immediately after the statement's value/void terminator and before its `3A`.
 fn eat_arm_call(seg: &[u8], p: &mut usize, params: &[u32]) -> Option<(u32, Vec<SlotArg>)> {
+    // **W42** — at most ONE `L = (formal >> k) & m;` ahead of the call. A second
+    // one would need a second scratch and a second placement decision, neither
+    // measured; `local.is_some()` below is what makes "at most one" a check
+    // rather than a comment.
+    let local = eat_arm_shift_mask_local(seg, p, params);
+    if local.is_some() {
+        // The call's own `4F <line>` marker. On the no-local path the enclosing
+        // `eat_scopes` / `eat_closes_to` has already eaten it; here there is a
+        // statement in between, so this arm owns it. `eat_call_head` does not
+        // eat one — measured, not assumed: without this line it refuses
+        // `?MemAlloc` at `4F`.
+        eat_opt_stmt_marker(seg, p);
+    }
     let (callee_tok, ret) = eat_call_head(seg, p).ok()?;
     let args = eat_call_args(seg, p).ok()?;
     // The terminator. Two spellings, both witnessed in `xboxmem.cpp`:
@@ -142,9 +155,21 @@ fn eat_arm_call(seg: &[u8], p: &mut usize, params: &[u32]) -> Option<(u32, Vec<S
     // `args[len-1-i]` — the same reversal every argument position in
     // [`super::calls`] uses.
     let mut slots = Vec::with_capacity(args.len());
+    let mut local_uses = 0usize;
     for slot in 0..args.len() {
         slots.push(match args[args.len() - 1 - slot].as_slice() {
-            [IlOp::Load(t)] => SlotArg::Formal(params.iter().position(|q| q == t)?),
+            [IlOp::Load(t)] => match params.iter().position(|q| q == t) {
+                Some(i) => SlotArg::Formal(i),
+                // **W42** — the W42 local, substituted into the slot it feeds.
+                None => match local {
+                    Some((dest, formal, sh, mb, me)) if dest == *t => {
+                        local_uses += 1;
+                        SlotArg::ShiftMask { formal, sh, mb, me }
+                    }
+                    // Any other local, or a global. Out of class as before.
+                    _ => return None,
+                },
+            },
             [IlOp::Lit(k)] if (LI_IMM_MIN..=LI_IMM_MAX).contains(k) => SlotArg::Lit(*k),
             // A computed argument, a local, a global, a data symbol's address.
             // Each would need its own instruction inside an arm, and the
@@ -153,7 +178,101 @@ fn eat_arm_call(seg: &[u8], p: &mut usize, params: &[u32]) -> Option<(u32, Vec<S
             _ => return None,
         });
     }
+    // A W42 local that is defined and NOT consumed by this call is a dead store
+    // c2 would still have to place somewhere, and a live-value schedule does not
+    // produce it. Consumed **exactly once** or the arm is out of class.
+    if local.is_some() && local_uses != 1 {
+        return None;
+    }
     Some((callee_tok, slots))
+}
+
+/// **W42 — one local of the form `L = (formal >> k) & m;`, ahead of an arm's
+/// tail call.**
+///
+/// ```text
+///   [4F <line>]?               the optional statement marker
+///   26 <L>                     the assignment's DESTINATION designator
+///   B9 <formal> <TYPE>         the source
+///   33 <int TYPE> k   0A       `>> k`
+///   33 <int TYPE> m   0B       `& m`
+///   32 <TYPE>                  the store
+///   4B                         end of statement
+/// ```
+///
+/// Returns `(L, formal-index, sh, mb, me)` — the fold already done by
+/// [`crate::func::shift_mask_rlwinm`], whose doc carries the 70-cell grid that
+/// bounds it — or `None`, having consumed nothing.
+///
+/// **`26 <tok>` is a designator push and this file already relies on it in the
+/// other sense**: [`eat_arm_call`]'s `eat_call_head` reads a `26` as the
+/// *callee*. The two are distinguished by what follows, not by the byte, which
+/// is why this is tried first and non-committally.
+///
+/// The `eff == 0` collapse is **not** handled here: `shift_mask_rlwinm` returns
+/// `Some(None)` and this function refuses, because the collapse also moves the
+/// entry-block layout (measured: 6 of the grid's 70 cells revert to the
+/// un-hoisted `?MemFree` shape) and a slot rewritten to `Lit(0)` here would keep
+/// counting as a use of the formal in [`crate::func::plan_cond_pair`]'s rule 1.
+/// A refusal is a gap; a wrong hoist would be wrong bytes.
+fn eat_arm_shift_mask_local(
+    seg: &[u8],
+    p: &mut usize,
+    params: &[u32],
+) -> Option<(u32, usize, u8, u8, u8)> {
+    let mut q = *p;
+    eat_opt_stmt_marker(seg, &mut q);
+    if !eat_byte(seg, &mut q, 0x26) {
+        return None;
+    }
+    let (dest, w) = read_token_var(seg, q)?;
+    q += w;
+    // The source: a formal, loaded, with its operand type.
+    if !eat_byte(seg, &mut q, 0xB9) {
+        return None;
+    }
+    let (src_tok, w) = read_token_var(seg, q)?;
+    q += w;
+    let formal = params.iter().position(|t| *t == src_tok)?;
+    // `eat_cmp_operand_type` is the same five-spelling admission the compare
+    // uses; a narrower gate than `eat_int_like` on purpose — the shift's
+    // signedness decides `rlwinm` vs `srawi` and only the type triple says it.
+    // A SIGNED source would be an arithmetic shift and is refused: `srawi` is a
+    // different instruction and this lane measured no cell of it.
+    if eat_cmp_operand_type(seg, &mut q)? {
+        return None;
+    }
+    // `>> k`
+    if !eat_byte(seg, &mut q, 0x33) || !eat_int_like(seg, &mut q) {
+        return None;
+    }
+    let k = read_varint(seg, &mut q)?;
+    if !eat_byte(seg, &mut q, 0x0A) {
+        return None;
+    }
+    // `& m`
+    if !eat_byte(seg, &mut q, 0x33) || !eat_int_like(seg, &mut q) {
+        return None;
+    }
+    let m = read_varint(seg, &mut q)?;
+    if !eat_byte(seg, &mut q, 0x0B) {
+        return None;
+    }
+    // The store, then the end of the statement.
+    if !eat_byte(seg, &mut q, 0x32) {
+        return None;
+    }
+    if eat_cmp_operand_type(seg, &mut q)? {
+        return None;
+    }
+    if !eat_byte(seg, &mut q, 0x4B) {
+        return None;
+    }
+    let k = u32::try_from(k).ok()?;
+    let m = m as u32;
+    let (sh, mb, me) = crate::func::shift_mask_rlwinm(k, m)??;
+    *p = q;
+    Some((dest, formal, sh, mb, me))
 }
 
 /// `3A <EPI>` — the arm's `return`, which in this class is always folded into
@@ -324,7 +443,7 @@ pub(crate) fn try_parse_cond_tail_pair(
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
 
     /// `?MemFree@NUISPEECH@@YAXPAX0K@Z` from `src/xdk/nuispeech/xboxmem.cpp`,
@@ -413,6 +532,65 @@ mod tests {
         );
     }
 
+
+    /// **W42** — `?MemAlloc`'s shape, reduced to its externals
+    /// (`work/w-tu1/p/ma2.cpp` `r1`), captured whole as a `4F 1F` segment. Real
+    /// c2 emits, at BOTH `/Ox` and the workload's `/O1 /Oi /EHsc /GR`:
+    ///
+    /// ```text
+    ///   mr r11,r4 ; mr r4,r5 ; cmplwi cr6,r3,0 ; bne cr6,+12
+    ///   mr r3,r11 ; b g2
+    ///   mr r5,r11 ; rlwinm r4,r4,5,28,28 ; b h3
+    /// ```
+    pub(super) const MEMALLOC: &[u8] = &[
+        0x4f, 0x1f, 0x80, 0x05, 0x00, 0xa0, 0x00, 0x4f, 0x20, 0x80, 0xfe, 0x00, 0x4f, 0x33, 0x0d,
+        0x66, 0x12, 0x1c, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0b, 0x0b, 0x03, 0x0f, 0x10, 0x18,
+        0x01, 0x00, 0x0e, 0x6c, 0x12, 0x38, 0x1d, 0x42, 0x45, 0x0e, 0x06, 0x01, 0x01, 0x01, 0x0d,
+        0x08, 0x00, 0x0f, 0x4f, 0x02, 0x20, 0x00, 0x4f, 0x01, 0x04, 0x53, 0x53, 0x26, 0xed, 0x09,
+        0x46, 0x2d, 0xec, 0x09, 0x2d, 0xeb, 0x09, 0x2d, 0xea, 0x09, 0x4c, 0x4f, 0x11, 0x53, 0x4f,
+        0x01, 0x05, 0x53, 0xb9, 0xea, 0x09, 0x86, 0x43, 0x83, 0x08, 0x33, 0x86, 0x43, 0x83, 0x08,
+        0x00, 0x1f, 0x38, 0xef, 0x09, 0x53, 0x53, 0x26, 0xe5, 0x09, 0xbd, 0x86, 0x43, 0x83, 0x08,
+        0x00, 0x80, 0x01, 0x10, 0x00, 0x00, 0xb9, 0xec, 0x09, 0x86, 0x42, 0x22, 0x55, 0x86, 0x42,
+        0x22, 0xb9, 0xeb, 0x09, 0x86, 0x42, 0x22, 0x55, 0x86, 0x42, 0x22, 0x4c, 0x41, 0x86, 0x43,
+        0x83, 0x08, 0x3a, 0xee, 0x09, 0x54, 0x05, 0x4f, 0x01, 0x06, 0x54, 0x04, 0x29, 0xef, 0x09,
+        0x54, 0x03, 0x26, 0xf0, 0x09, 0xb9, 0xec, 0x09, 0x86, 0x42, 0x22, 0x33, 0x86, 0x41, 0x74,
+        0x1b, 0x0a, 0x33, 0x86, 0x41, 0x74, 0x08, 0x0b, 0x32, 0x86, 0x42, 0x22, 0x4b, 0x4f, 0x01,
+        0x07, 0x26, 0xe9, 0x09, 0xbd, 0x86, 0x43, 0x83, 0x08, 0x00, 0x80, 0x03, 0x10, 0x00, 0x00,
+        0xb9, 0xeb, 0x09, 0x86, 0x42, 0x22, 0x55, 0x86, 0x42, 0x22, 0xb9, 0xf0, 0x09, 0x86, 0x42,
+        0x22, 0x55, 0x86, 0x42, 0x22, 0xb9, 0xea, 0x09, 0x86, 0x43, 0x83, 0x08, 0x55, 0x86, 0x43,
+        0x83, 0x08, 0x4c, 0x41, 0x86, 0x43, 0x83, 0x08, 0x3a, 0xee, 0x09, 0x4f, 0x01, 0x08, 0x54,
+        0x02, 0x29, 0xee, 0x09, 0x4f, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00, 0x4f, 0x02, 0x20, 0x00,
+        0x4f, 0x01, 0x09, 0x4d,
+    ];
+
+    #[test]
+    fn w42_the_shift_mask_local_parses_and_schedules() {
+        let (p, lo, depth) = at_body(MEMALLOC);
+        let shape = try_parse_cond_tail_pair(MEMALLOC, p, lo, depth).expect("in class");
+        let BodyShape::CondTailPair(pair) = shape else { panic!("wrong shape") };
+        assert_eq!(pair.then_arm.slots, vec![SlotArg::Formal(1), SlotArg::Formal(2)]);
+        assert_eq!(
+            pair.else_arm.slots,
+            vec![
+                SlotArg::Formal(0),
+                SlotArg::ShiftMask { formal: 2, sh: 5, mb: 28, me: 28 },
+                SlotArg::Formal(1)
+            ]
+        );
+        let plan = pair.plan().expect("schedulable");
+        use crate::func::CondStep::{Move, Rlwinm};
+        // Rule 1 fires on `attrs`: BOTH arms want it in r4 — the then-arm raw,
+        // the else-arm folded — so the move is hoisted, and rule 2 still parks
+        // `size` in r11.
+        assert_eq!(plan.entry, vec![Move { dst: 11, src: 4 }, Move { dst: 4, src: 5 }]);
+        assert_eq!(plan.cmp_reg, 3);
+        assert_eq!(plan.then_steps, vec![Move { dst: 3, src: 11 }]);
+        assert_eq!(
+            plan.else_steps,
+            vec![Move { dst: 5, src: 11 }, Rlwinm { dst: 4, src: 4, sh: 5, mb: 28, me: 28 }]
+        );
+    }
+
     #[test]
     fn a_body_whose_arms_call_the_same_callee_is_refused() {
         // Board #193: c2 tail-merges the two sites and inverts the layout. Built
@@ -429,3 +607,4 @@ mod tests {
         assert!(try_parse_cond_tail_pair(&seg, p, lo, depth).is_none());
     }
 }
+

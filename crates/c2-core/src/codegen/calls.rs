@@ -771,6 +771,16 @@ fn link_setup_text(
                      out of class",
                 ))
             }
+            // **W42** — a `(formal >> k) & m` slot. Produced ONLY by the
+            // conditional-tail-pair parser, whose own emitter
+            // (`codegen::cond_tail`) is the only consumer with a measured
+            // schedule for it. Reaching any other call shape means a parser
+            // widened past its witness; refused by name so it comes out as a gap.
+            c2_il::SlotArg::ShiftMask { .. } => {
+                return Err(out_of_class(
+                    "a shift-and-mask (W42) argument outside the conditional                      tail pair; out of class",
+                ))
+            }
         }
     }
     Ok(w)
@@ -1290,6 +1300,9 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
     let in_place = slots.iter().enumerate().all(|(i, a)| match a {
         c2_il::SlotArg::SymAddr | c2_il::SlotArg::Lit(_) => true,
         c2_il::SlotArg::Formal(pi) => *pi == i,
+        // **W42** — never produced for this shape; `false` routes it to the
+        // refusal below rather than to a schedule that cannot express it.
+        c2_il::SlotArg::ShiftMask { .. } => false,
     });
     if !in_place {
         return Err(out_of_class(
@@ -1329,6 +1342,15 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
             c2_il::SlotArg::SymAddr => {
                 sym_dst = Some(dst);
             }
+            // **W42** — unreachable: the `in_place` gate above already refused
+            // it. Stated as a refusal, not an `unreachable!`, because the CLI
+            // must degrade cleanly.
+            c2_il::SlotArg::ShiftMask { .. } => {
+                return Err(out_of_class(
+                    "a shift-and-mask (W42) argument beside a data symbol's \
+                     address; out of class",
+                ))
+            }
         }
     }
     let dst = sym_dst.ok_or_else(|| out_of_class("no data-symbol slot after the count said one"))?;
@@ -1357,6 +1379,8 @@ fn lit_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
         // Unreachable: `permute_args_parts` dispatches a symbol-bearing list to
         // [`sym_slots_text`] before this one is reached.
         c2_il::SlotArg::SymAddr => false,
+        // **W42** — likewise never produced here; see `link_setup_text`.
+        c2_il::SlotArg::ShiftMask { .. } => false,
     });
     if !in_place {
         return one_moved_formal_text(slots);
@@ -1413,6 +1437,16 @@ fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Ba
             }
             c2_il::SlotArg::SymAddr => {
                 return Err(out_of_class("a data symbol's address reached the permutation walk"))
+            }
+            // **W42** — a `(formal >> k) & m` slot. Produced ONLY by the
+            // conditional-tail-pair parser, whose own emitter
+            // (`codegen::cond_tail`) is the only consumer with a measured
+            // schedule for it. Reaching any other call shape means a parser
+            // widened past its witness; refused by name so it comes out as a gap.
+            c2_il::SlotArg::ShiftMask { .. } => {
+                return Err(out_of_class(
+                    "a shift-and-mask (W42) argument reached the permutation walk; outside the conditional                      tail pair; out of class",
+                ))
             }
         }
     }
@@ -2414,6 +2448,14 @@ mod tests {
                 c2_il::SlotArg::Formal(_) => "a formal, already in a register",
                 c2_il::SlotArg::Lit(_) => "a literal, one `li`",
                 c2_il::SlotArg::SymAddr => "a data symbol's address, `lis`+`addi`",
+                // **W42** — a shift-and-mask of a formal, one `rlwinm`. It is
+                // NOT a computed *address*: it lives only inside a conditional
+                // tail arm (`codegen::cond_tail`), and every other call shape
+                // refuses it by name. Listing it here keeps this test what it
+                // is — an enumeration that fails to compile when the slot
+                // vocabulary grows — rather than letting a new variant slip
+                // through a wildcard.
+                c2_il::SlotArg::ShiftMask { .. } => "W42: `(formal >> k) & m`, one `rlwinm`",
                 // No arm for a COMPUTED address: the port refuses the shape by
                 // being unable to represent it, which is honest, and is why
                 // `c2rs gap` reports these 356 emitted functions as blocked

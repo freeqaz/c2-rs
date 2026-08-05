@@ -315,12 +315,19 @@ pub enum CondStep {
     Move { dst: u8, src: u8 },
     /// `li <dst>,<k>`.
     Li { dst: u8, k: i32 },
+    /// **W42** — `rlwinm <dst>,<src>,<sh>,<mb>,<me>`, the folded
+    /// [`SlotArg::ShiftMask`]. `dst == src` in every cell measured; see
+    /// [`plan_cond_pair`]'s rule 1b for why the out-of-place form is refused
+    /// rather than emitted.
+    Rlwinm { dst: u8, src: u8, sh: u8, mb: u8, me: u8 },
 }
 
 impl CondStep {
     fn dst(self) -> u8 {
         match self {
-            CondStep::Move { dst, .. } | CondStep::Li { dst, .. } => dst,
+            CondStep::Move { dst, .. }
+            | CondStep::Li { dst, .. }
+            | CondStep::Rlwinm { dst, .. } => dst,
         }
     }
 }
@@ -402,6 +409,7 @@ pub fn plan_cond_pair(
     for s in then_slots.iter().chain(else_slots) {
         match s {
             SlotArg::Formal(f) if *f < n_params => {}
+            SlotArg::ShiftMask { formal, .. } if *formal < n_params => {}
             SlotArg::Lit(_) => {}
             _ => return None,
         }
@@ -410,10 +418,20 @@ pub fn plan_cond_pair(
     // the shape `tail_call_shape` refuses under `call-arg-duplicated` — c2 emits
     // a dead `mr` through the temp, which no live-value-driven schedule
     // produces.
+    //
+    // A [`SlotArg::ShiftMask`] is a use of its source formal and is counted
+    // here as one: `?MemAlloc`'s then-arm passes `attrs` and its else-arm passes
+    // `(attrs>>27)&8`, **both in r4**, and it is exactly that agreement that
+    // makes c2 hoist `mr r4,r5` into the entry block (rule 1).
     let want = |slots: &[SlotArg], i: usize| -> Option<Option<usize>> {
         let mut found = None;
         for (j, a) in slots.iter().enumerate() {
-            if *a == SlotArg::Formal(i) {
+            let uses = match a {
+                SlotArg::Formal(f) => *f == i,
+                SlotArg::ShiftMask { formal, .. } => *formal == i,
+                _ => false,
+            };
+            if uses {
                 if found.is_some() {
                     return None;
                 }
@@ -495,6 +513,22 @@ pub fn plan_cond_pair(
                     }
                     steps.push(CondStep::Li { dst: d, k: *k });
                 }
+                SlotArg::ShiftMask { formal, sh, mb, me } => {
+                    // **Rule 1b — the computed step is IN PLACE, or it is not
+                    // this class.** `?MemAlloc` emits `rlwinm r4,r4,5,28,28`,
+                    // reading the value rule 1 already hoisted into the
+                    // destination register. The neighbouring cell where the
+                    // then-arm does NOT want the same formal (`work/w-tu1/p/
+                    // ma.cpp` `q2`) emits `mr r10,r5` at entry and then
+                    // `rlwinm r4,r10,…` — a scratch this planner does not model
+                    // and whose register `docs/CODEGEN_W6_COMPARE.md` §6 records
+                    // as uncharacterized. Refused rather than guessed.
+                    let src = *loc.get(*formal)?;
+                    if src != d {
+                        return None;
+                    }
+                    steps.push(CondStep::Rlwinm { dst: d, src, sh: *sh, mb: *mb, me: *me });
+                }
                 SlotArg::SymAddr => return None,
             }
         }
@@ -529,6 +563,10 @@ pub fn plan_cond_pair(
 enum CondVal {
     Formal(usize),
     Lit(i32),
+    /// **W42** — a formal that has had one `rlwinm` applied. Its own space, so
+    /// a slot wanting the raw formal cannot be satisfied by the shifted one or
+    /// the other way round.
+    Shifted(usize, u8, u8, u8),
 }
 
 impl CondPlan {
@@ -558,6 +596,15 @@ impl CondPlan {
                     CondStep::Li { dst, k } => {
                         *regs.get_mut(dst as usize)? = Some(CondVal::Lit(k));
                     }
+                    CondStep::Rlwinm { dst, src, sh, mb, me } => {
+                        // The source must hold the RAW formal: a second fold on
+                        // an already-folded value is a different expression and
+                        // has no capture.
+                        let CondVal::Formal(f) = (*regs.get(src as usize)?)? else {
+                            return None;
+                        };
+                        *regs.get_mut(dst as usize)? = Some(CondVal::Shifted(f, sh, mb, me));
+                    }
                 }
             }
             Some(())
@@ -575,6 +622,9 @@ impl CondPlan {
                 let want = match s {
                     SlotArg::Formal(f) => CondVal::Formal(*f),
                     SlotArg::Lit(k) => CondVal::Lit(*k),
+                    SlotArg::ShiftMask { formal, sh, mb, me } => {
+                        CondVal::Shifted(*formal, *sh, *mb, *me)
+                    }
                     SlotArg::SymAddr => return None,
                 };
                 if (*r.get(3 + j)?)? != want {
@@ -666,6 +716,75 @@ pub enum SlotArg {
     /// whole-TU layout decision, and which symbol anchors is a fitted hypothesis
     /// with no mechanism. Refused, not modeled.
     SymAddr,
+    /// **W42 — `(formal >> k) & m`, folded to one `rlwinm`.** The only
+    /// *computed* slot in the vocabulary, and it is admitted by
+    /// [`super::body::shapes::cond_tail`] alone; every other shape refuses it by
+    /// name.
+    ///
+    /// `sh`/`mb`/`me` are the `rlwinm` fields, already derived — the fold is
+    /// done at parse time so the census and the emitter cannot disagree about
+    /// which instruction this is. See [`shift_mask_rlwinm`] for the derivation
+    /// and for the two cells that bound it.
+    ShiftMask {
+        /// The source formal, by index into [`IlFunction::params`].
+        formal: usize,
+        /// `rlwinm`'s `SH`, i.e. the LEFT rotate — `32 - k` for a right shift
+        /// of `k`.
+        sh: u8,
+        /// `rlwinm`'s `MB`, big-endian bit number of the mask's first bit.
+        mb: u8,
+        /// `rlwinm`'s `ME`, big-endian bit number of the mask's last bit.
+        me: u8,
+    },
+}
+
+/// **The `(x >> k) & m` fold, and the whole of what it is allowed to be.**
+///
+/// Returns `Some(None)` when the expression is provably **zero** — the mask
+/// keeps no bit the shift left behind — and `Some(Some((sh, mb, me)))` for the
+/// `rlwinm` that computes it. `None` is a refusal.
+///
+/// ```text
+///   eff = m & ((1 << (32 - k)) - 1)     the bits the shift actually delivers
+///   eff == 0            -> the value is the literal 0
+///   eff not contiguous  -> REFUSED (no single rlwinm computes it)
+///   otherwise           -> rlwinm rD,rS,32-k,31-hi,31-lo
+/// ```
+///
+/// **Measured, not fitted: 70 cells through real `c2` at the workload's own
+/// `/O1 /Oi /EHsc /GR` profile** — `k ∈ {1,4,8,16,24,27,31}` × `m ∈ {1, 2, 3,
+/// 8, 12, 15, 255, 0x10, 0x10000, 0xFFFFFFF0}`, the whole cross product, every
+/// one of them agreeing with the three lines above and **none** disagreeing
+/// (`work/w-tu1/p/grid_sm.cpp`, re-runnable through `work/w-tu1/p/gradeo1.sh`).
+/// Six of the seventy are the `eff == 0` collapse and c2 emits `li rD,0` for
+/// each — with the *layout* reverting to the un-hoisted `?MemFree` shape,
+/// because a literal is not a use of the formal. **That collapse is the
+/// neighbouring-cell trap this fold has to survive**: `(at>>16)&0x10000` sits
+/// between `(at>>16)&0x10` and `(at>>16)&0xFFFFFFF0`, both ordinary `rlwinm`s,
+/// and reading it as one would emit a wrong instruction and a wrong block
+/// layout at once.
+///
+/// The disassembler prints `rlwinm rA,rS,32-k,k,31` as `srwi rA,rS,k`, which is
+/// the same word; six grid cells land there and are not exceptions.
+pub fn shift_mask_rlwinm(k: u32, m: u32) -> Option<Option<(u8, u8, u8)>> {
+    if k == 0 || k >= 32 {
+        // `>> 0` is the identity (no instruction at all, a different slot kind)
+        // and `>= 32` is undefined behaviour the front end may have folded.
+        return None;
+    }
+    let eff = m & (((1u64 << (32 - k)) - 1) as u32);
+    if eff == 0 {
+        return Some(None);
+    }
+    let lo = eff.trailing_zeros();
+    let hi = 31 - eff.leading_zeros();
+    // Contiguity: one run of ones, no holes. `rlwinm`'s MB..ME with MB <= ME
+    // expresses exactly that and nothing else.
+    let run = (((1u64 << (hi - lo + 1)) - 1) << lo) as u32;
+    if eff != run {
+        return None;
+    }
+    Some(Some(((32 - k) as u8, (31 - hi) as u8, (31 - lo) as u8)))
 }
 
 /// What a [`CallSeq`] body does after its last call. See
