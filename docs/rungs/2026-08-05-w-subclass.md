@@ -321,11 +321,29 @@ is the safe direction but is still a change of meaning and not this lane's.
 
 ## 10. Gate evidence
 
+All taken at tree `9f5120a`, the tree being landed.
+
 | check | result |
 |---|---|
-| `cargo test --workspace --release` | **888 passed, 0 failed, 27 targets** |
-| `scripts/gate.sh --jobs 6` | see §10.1 |
-| `scripts/status.sh --check` | see §10.1 |
+| `cargo test --workspace --release` | **888 passed, 0 failed, 27 targets** (9 tests added by this lane) |
+| `scripts/gate.sh --jobs 6` | **GATE: PASS — 18/18 lanes, 0 FAIL, 0 SKIP, 0 NO-RESULT; 4,698 fixture-verdicts.** Sweep **16,710/16,710 reached, 16,614 graded, 0 mismatch**; mode cross **81,905 selected, 81,517 graded, 0 mismatch**. Log: `work/w-subclass/gate_final.txt` |
+| `scripts/status.sh --check` | **PASS — 23 metrics registered, parsers pinned, absence renders NO-RESULT** |
 | `scripts/board_audit.sh` | **CITED BUT NOT ON THE BOARD: 0**, unresolved anchors 0, raw line anchors 0, rows behind prose 0 |
 | `gap-metric fnbyte-differs` | **0**, before and after |
 | `gap-metric mismatch` | **0**, before and after |
+
+### 10.1 The first gate run SKIPPED, and that is worth recording
+
+A bare `scripts/gate.sh --jobs 6` from a worktree reported **18 SKIP, exit 0**.
+The script says so itself — *"this exits 0 by design and is NOT a green gate.
+This run establishes nothing about the port"* — which is the mitigation working,
+and it is trap 5 exactly: a lane that read the exit code would have banked a
+green gate over nothing graded. A worktree sits three directories below the repo
+root, so `../wibo` and `<repo>/compilers` do not resolve; the documented
+`C2RS_WIBO` / `C2RS_COMPILERS` / `C2RS_DC3` overrides fix it
+(`work/w-subclass/env.sh`, machine-local and uncommitted). **The recorded run is
+the second one**, and the number to check is `graded: 4698`, never the exit code.
+
+The gate was run **twice more**: once at `828f133` (the mechanism) and once at
+`9f5120a` (after an unused accessor was removed and the rung's reader count was
+pinned to a measured `grep`). Both PASS with identical counts.
