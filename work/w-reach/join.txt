@@ -1,0 +1,76 @@
+== THE JOIN, by source path — printed BEFORE any intersection ==
+  gap graded TUs (factors.tsv)          : 871
+  w-emitp model TUs (scan.jsonl)        : 850
+  in BOTH (the join)                    : 850
+  in w-emitp and NOT gap-graded         : 0
+  gap-graded and NOT in w-emitp         : 21
+        GAP-ONLY   src/keygen_xbox.cpp  [vocab-gap ABC]
+        GAP-ONLY   src/lazer/game/PartyModeMgr.cpp  [vocab-gap -----]
+        GAP-ONLY   src/lazer/meta_ham/CalibrationPanel.cpp  [vocab-gap -----]
+        GAP-ONLY   src/lazer/meta_ham/Challenges.cpp  [vocab-gap -----]
+        GAP-ONLY   src/lazer/meta_ham/DifficultyProvider.cpp  [vocab-gap -----]
+        GAP-ONLY   src/lazer/meta_ham/HamStoreOffer.cpp  [vocab-gap B]
+        GAP-ONLY   src/system/os/Archive.cpp  [vocab-gap BC]
+        GAP-ONLY   src/system/os/FileCache.cpp  [vocab-gap -----]
+        GAP-ONLY   src/system/os/HolmesClient_NetSocket.cpp  [vocab-gap BC]
+        GAP-ONLY   src/system/os/Joypad.cpp  [vocab-gap -----]
+        GAP-ONLY   src/system/os/Keyboard_Xbox.cpp  [vocab-gap BC]
+        GAP-ONLY   src/system/rndobj/TexProc.cpp  [vocab-gap -----]
+        GAP-ONLY   src/system/synth/FxSendEQ.cpp  [vocab-gap B]
+        GAP-ONLY   src/system/synth_xbox/FxSendEQ.cpp  [vocab-gap -----]
+        GAP-ONLY   src/system/synth_xbox/soundtouch/source/SoundTouch/FIRFilter.cpp  [vocab-gap B]
+        GAP-ONLY   src/system/ui/LocalePanel.cpp  [vocab-gap C]
+        GAP-ONLY   src/system/ui/PanelDir.cpp  [vocab-gap -----]
+        GAP-ONLY   src/system/ui/UIListMesh.cpp  [vocab-gap -----]
+        GAP-ONLY   src/system/ui/UIListWidget.cpp  [vocab-gap -----]
+        GAP-ONLY   src/system/utl/Compress.cpp  [vocab-gap BC]
+        GAP-ONLY   src/system/utl/Option.cpp  [vocab-gap BC]
+
+== THE DENOMINATORS — both printed, never one ==
+  |B and C| over the 871 graded          : 151
+  |B and C| over the 850-TU JOIN          : 145
+  |B and C| lost to the join             : 6
+        NOT IN JOIN src/keygen_xbox.cpp  [vocab-gap]
+        NOT IN JOIN src/system/os/Archive.cpp  [vocab-gap]
+        NOT IN JOIN src/system/os/HolmesClient_NetSocket.cpp  [vocab-gap]
+        NOT IN JOIN src/system/os/Keyboard_Xbox.cpp  [vocab-gap]
+        NOT IN JOIN src/system/utl/Compress.cpp  [vocab-gap]
+        NOT IN JOIN src/system/utl/Option.cpp  [vocab-gap]
+  |A and B and C| over the 871           : 27
+  |A and B and C| over the join          : 26
+  match TUs over the 871 / in the join   : 8 / 8
+
+== THE INTERSECTIONS — |{model exact} and B and C|, MEASURED ==
+  model          exact  exact_J |    REACH of|B&C_J|   H0 prod |    vs H0
+  RGL              132      132 |      122   0.84138      22.5 |    5.42x
+  JFP              132      132 |      122   0.84138      22.5 |    5.42x
+  ORACLE           151      151 |      134   0.92414      25.8 |    5.20x
+  JFP_ALIAS        308      308 |      122   0.84138      52.5 |    2.32x
+  ALIAS_IN         472      472 |      134   0.92414      80.5 |    1.66x
+  ALIAS_BOTH       472      472 |      134   0.92414      80.5 |    1.66x
+
+== THE INCREMENTS — what the ALIAS channel is worth in REACH ==
+  JFP        -> JFP_ALIAS    122 -> 122   gained   0  lost   0
+  ORACLE     -> ALIAS_IN     134 -> 134   gained   0  lost   0
+
+== THE STRUCTURAL SPLIT — reach is not conversion ==
+  For each model, its B&C reach split by whether the port already has
+  an accepted route to the contents (D or E) and whether it matches.
+  model        REACH |    match D|E,!match !D&!E,!match
+  RGL            122 |        6         1       115
+  JFP            122 |        6         1       115
+  ORACLE         134 |        6         1       127
+  JFP_ALIAS      122 |        6         1       115
+  ALIAS_IN       134 |        6         1       127
+  ALIAS_BOTH     134 |        6         1       127
+    JFP         zero-codegen candidates (1): src/system/decomp_pch.cpp
+    JFP_ALIAS   zero-codegen candidates (1): src/system/decomp_pch.cpp
+    ORACLE      zero-codegen candidates (1): src/system/decomp_pch.cpp
+    ALIAS_IN    zero-codegen candidates (1): src/system/decomp_pch.cpp
+
+== THE PROJECTION DIVERGENCE (board #213), graded by each model ==
+  src/system/decomp_pch.cpp  in-join=True  RGL=True  JFP=True  ORACLE=True  JFP_ALIAS=True  ALIAS_IN=True  ALIAS_BOTH=True
+  src/system/math/vec.cpp  in-join=True  RGL=False  JFP=False  ORACLE=False  JFP_ALIAS=False  ALIAS_IN=False  ALIAS_BOTH=False
+
+== FRONTIER, for reference: 19 (A and B and C, not match, not D or E) ==
+  of those, in the join: 18
