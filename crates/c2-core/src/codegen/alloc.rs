@@ -100,14 +100,15 @@
 //! because a refusal is never wrong. That is the whole argument for the refusal
 //! staying.
 //!
-//! **The surviving candidate is not shipped either.** `H-self` — the bonus is
-//! worth ~1.5 uses and attaches to a producer whose value is stored *into the
-//! object it points at* — is wrong on **1** of the 81, and it is **fitted on
-//! the cells that produced it**, which is exactly where w-next's key stood
-//! before its fresh holdout killed it. Its one miss, `F4-shift-r2k1`, sits on a
-//! third axis nobody has modelled: `work/w-alloc2/bisect.py` shows the C++
-//! reference binding `L& q = s->inner;` moves both the schedule and the
-//! allocation, and **all 24 of w-next's cells carry it and none varies it**.
+//! **`H-self` is REFUTED too** (board #857, lane w-refbind) — the bonus worth
+//! ~1.5 uses attaching to a producer whose value is stored *into the object it
+//! points at* scored 1 wrong of 81 on the cells that produced it, and then
+//! **11 wrong of 72** on a frozen never-fitted holdout
+//! (`work/w-refbind/holdout_pred.tsv`, predictions committed before any cell
+//! was compiled). It dies on its *negative* side — `extsh` and a `lwz` load
+//! take the bonus register at 1-vs-1 where H-self forbids it everywhere — so
+//! it dies independently of the reference-binding axis it was suspected of
+//! mismodelling. No allocation key on record survives off its own cells.
 //!
 //! **And clauses 2, 3 and 4-for-register-derived are unreachable from the
 //! emitter today**, which is why none of this moves a byte:
