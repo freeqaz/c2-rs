@@ -284,13 +284,11 @@ partition that re-encodes it bit-exactly; `undecoded` is **0**; the alignment's
 accounting identity holds on all 3,195 rows; the relocation sites are all
 word-aligned. There is no residue in the byte reading.
 
-**At the "why are these bytes different" level: for 98.2 % of the population,
-yes, and the answer is one already-named mechanism.** Mapping the clusters onto
-what the project already knows:
-
-The partition below is by the **byte test**, not by narrative: which side
-transfers control (§3), and in which direction the length moved. It sums to
-3,195 exactly.
+**At the "why are these bytes different" level: 95.5 % is one already-named
+mechanism, 4.4 % is one new and perfectly uniform cluster, and the residue is
+five bodies.** The partition below is by the **byte test**, not by narrative —
+which side transfers control (§3), and in which direction the length moved. It
+sums to 3,195 exactly.
 
 | population | n | % | maps onto | status |
 |---|---:|---:|---|---|
@@ -310,8 +308,10 @@ singletons are not individually classified and are named here so nobody has to
 re-derive them: `?supershuffle@@YAXPAD@Z` (`src/keygen_xbox.cpp`, 21w→26w),
 `?Init@Sequence@@SAXXZ` (`src/system/synth/Sequence.cpp`, 13w→43w) and
 `??APaddedJointPos@@QAAAAMH@Z` (`src/system/hamobj/DetectFrame.cpp`, 13w→1w,
-where c2's whole body is a bare `b` — a tail call the port framed). That is the whole residue: **145 of 3,195,
-4.5 %**.
+where c2's whole body is a bare `b` — a tail call the port framed).
+
+**So the residue that is neither the inline mechanism nor the one new cluster is
+five bodies of 3,195 — 0.16 %.**
 
 **One caution about the 491-row row.** "c2 still calls, but a different body" is
 a *byte* statement, and the narrative attached to it — partial inlining — is an
