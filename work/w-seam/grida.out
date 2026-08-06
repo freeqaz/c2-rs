@@ -1,0 +1,63 @@
+  cell                         | observed       | clause 1 says  | verdict
+  ------------------------------------------------------------------------------
+  A-add-r2k1-L                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r2k1-P                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r3k1-L                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r3k1-P                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r3k2-L                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r3k2-P                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r4k1-L                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r4k1-P                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r4k2-L                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r4k2-P                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r4k3-L                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-add-r4k3-P                 | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r2k1-L       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r2k1-P       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r3k1-L       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r3k1-P       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r3k2-L       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r3k2-P       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r4k1-L       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r4k1-P       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r4k2-L       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r4k2-P       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r4k3-L       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-addi-interior-r4k3-P       | reg=r11 const=r10 | reg takes r11  | HIT
+  A-slwi-r2k1-L                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r2k1-P                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r3k1-L                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r3k1-P                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r3k2-L                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r3k2-P                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r4k1-L                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r4k1-P                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r4k2-L                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r4k2-P                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r4k3-L                | reg=r10 const=r11 | reg takes r11  | **MISS**
+  A-slwi-r4k3-P                | reg=r10 const=r11 | reg takes r11  | **MISS**
+
+  LIFT UNDER TEST:  two producers, one register-derived and one single-word constant,
+                    reg.uses > const.uses STRICTLY  ==>  the register-derived one takes r11.
+
+  selected 36 | reached 36 | GRADED 36 | hit 24 | MISS 12 | out-of-regime 0 | compile-failed 0
+  per spelling (hit / miss / out-of-regime):
+    add            12 / 0 / 0
+    addi-interior  12 / 0 / 0
+    slwi           0 / 12 / 0
+
+  MISSES — the deliverable:
+    A-slwi-r2k1-L                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r2k1-P                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r3k1-L                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r3k1-P                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r3k2-L                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r3k2-P                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r4k1-L                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r4k1-P                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r4k2-L                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r4k2-P                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r4k3-L                observed reg=r10 const=r11 — the CONSTANT took r11
+    A-slwi-r4k3-P                observed reg=r10 const=r11 — the CONSTANT took r11
+
+  ==> THE LIFT IS REFUTED on 12 cell(s). `codegen::alloc`'s mixed refusal STANDS.
