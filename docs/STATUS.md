@@ -594,3 +594,4 @@ largest single file in the project is the member-call decode
 | **what the label counter charges, and the two channels it is NOT in** — `#286`/`#287` close "derive it from the blocks" | [`LABEL_COUNTER.md`](LABEL_COUNTER.md) §4.1 |
 | **why `/Ox` and `/O1` differ in more than a register field** — the refutation, and the three reasons the `else` arm is out of reach | [`OPT_MODE.md`](OPT_MODE.md) §3.0 |
 | the `.data`/`.bss` layout spec — allocator settled, walk order open | [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) |
+| **why c2 does not emit a call the IL contains — and why that is TWO mechanisms, only one of them a cost model.** 40 % of the 4,711 is the front end dropping a call to an empty callee, not the inliner; the inline predicate itself is prior art (`LABEL_COUNTER.md` §6.15–§6.20) and holds at **0.9716** on a 100-TU frozen workload hold-out | [`INLINE_PREDICATE.md`](INLINE_PREDICATE.md) |

@@ -1,0 +1,7 @@
+# Objs and generated probe sources are never committed (CLAUDE.md). The GRID
+# stamp below them is, and the generator reproduces every byte from it.
+objs*/
+grid*/*.cpp
+grid*/*.obj
+*.tsv
+scan_*.txt
