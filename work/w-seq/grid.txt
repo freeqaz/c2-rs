@@ -1,0 +1,92 @@
+differ pairs joined on (TU, emit_name): 3195
+
+=== THE FAMILY TABLE === (denominator 3195)
+    1403   43.9%  (a) I, callee PARSE-REFUSED
+    1353   42.3%  (a) I, callee lowered EXACT
+     369   11.5%  (b) E behind a parse refusal
+      37    1.2%  (a) I, mixed local/extern
+      24    0.8%  (c) every callee EXTERNAL
+       6    0.2%  (a) I, callee lowered WRONG
+       2    0.1%  (a) I, mixed callees
+       1    0.0%  (c) c2 emits blr, callee is EXTERNAL
+    3195  ------  ACCOUNTED
+
+=== FAMILY x SHAPE === (denominator 3195)
+    1136   35.6%  (a) I, callee lowered EXACT        seq
+    1061   33.2%  (a) I, callee PARSE-REFUSED        tail
+     369   11.5%  (b) E behind a parse refusal       tail
+     342   10.7%  (a) I, callee PARSE-REFUSED        seq
+     123    3.8%  (a) I, callee lowered EXACT        framed
+      94    2.9%  (a) I, callee lowered EXACT        tail
+      37    1.2%  (a) I, mixed local/extern          seq
+      24    0.8%  (c) every callee EXTERNAL          seq
+       6    0.2%  (a) I, callee lowered WRONG        tail
+       2    0.1%  (a) I, mixed callees               seq
+       1    0.0%  (c) c2 emits blr, callee is EXTERNAL tail
+    3195  ------  ACCOUNTED
+
+=== THE PRICING GRID === (denominator 3195)
+  family                             shape          SPLICE-P  SPLICE-0   pairs
+  (a) I, callee lowered EXACT        seq            differs   exact        634
+  (a) I, callee lowered EXACT        seq            -         -            502
+  (a) I, callee PARSE-REFUSED        tail           exact     exact        480
+  (a) I, callee PARSE-REFUSED        tail           differs   differs      378
+  (b) E behind a parse refusal       tail           differs   exact        369
+  (a) I, callee PARSE-REFUSED        tail           differs   exact        203
+  (a) I, callee PARSE-REFUSED        seq            differs   exact        182
+  (a) I, callee PARSE-REFUSED        seq            -         -            160
+  (a) I, callee lowered EXACT        framed         differs   differs      123
+  (a) I, callee lowered EXACT        tail           exact     exact         92
+  (a) I, mixed local/extern          seq            -         -             37
+  (c) every callee EXTERNAL          seq            -         -             24
+  (a) I, callee lowered WRONG        tail           exact     exact          6
+  (a) I, callee lowered EXACT        tail           differs   differs        2
+  (a) I, mixed callees               seq            -         -              2
+  (c) c2 emits blr, callee is EXTERNAL tail           differs   exact          1
+  ACCOUNTED                                                               3195
+
+=== THE HEADLINE === (denominator 3195)
+  SPLICE-P exact (setup ++ callee body)          :    578   18.1%
+  SPLICE-0 exact (c2(caller) == c2(callee))      :   1967   61.6%
+  ... of which the port ALREADY lowers the callee
+      byte-exactly (disposition `body:exact`)    :    726   22.7%
+
+=== SPLICE-N (two or more callees) ===
+     543  seq|differs|n2|len:cat=3w,ref=6w
+     177  seq|no-callee-comdat
+       1  seq|differs|n6|len:cat=122w,ref=26w
+       1  seq|differs|n2|len:cat=35w,ref=1w
+       1  seq|differs|n2|len:cat=39w,ref=9w
+       1  seq|differs|n2|len:cat=3w,ref=8w
+       1  seq|differs|n6|len:cat=73w,ref=43w
+
+=== SYMBOL FAMILIES PER FAMILY ROW ===
+  -- (a) I, callee PARSE-REFUSED: 1403 pairs, 545 distinct symbols
+         286  ?Release@Object@Hmx@@QAAXPAVObjRef@@@Z
+          72  ??$_Destroy_Range@PAUNode@?$ObjPtrVec@VRndTransformable@@VObject
+          56  ??C?$_List_iterator@VString@@U?$_Nonconst_traits@VString@@@stlpm
+  -- (a) I, callee lowered EXACT: 1353 pairs, 544 distinct symbols
+          72  ??$?8PAUNode@?$ObjPtrVec@VRndTransformable@@VObjectDir@@@@@stlpm
+          62  ??0?$_List_iterator@PAVObjectDir@@U?$_Nonconst_traits@PAVObjectD
+          62  ??0?$_List_iterator@VString@@U?$_Nonconst_traits@VString@@@stlpm
+  -- (b) E behind a parse refusal: 369 pairs, 174 distinct symbols
+          53  ??$_Destroy_Range@PAVSymbol@@@stlpmtx_std@@YAXPAVSymbol@@0@Z
+          27  ??$_Destroy_Range@PAH@stlpmtx_std@@YAXPAH0@Z
+          15  ??$_Destroy_Range@PAM@stlpmtx_std@@YAXPAM0@Z
+  -- (a) I, mixed local/extern: 37 pairs, 8 distinct symbols
+          26  ?Type@DataArray@@QAA?AW4DataType@@H@Z
+           3  ?UncheckedArray@DataArray@@QAAPAV1@H@Z
+           2  ?Type@DataArray@@QBA?AW4DataType@@H@Z
+  -- (c) every callee EXTERNAL: 24 pairs, 12 distinct symbols
+           7  ??$?8PAV?$ObjPtr@VUIColor@@@@@stlpmtx_std@@YA_NABV?$reverse_iter
+           6  ??$?8PAVFace@RndMesh@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PA
+           2  ??$?8PAVFlowMathOp@@@stlpmtx_std@@YA_NABV?$reverse_iterator@PAVF
+  -- (a) I, callee lowered WRONG: 6 pairs, 6 distinct symbols
+           1  ??1DisplacementNode@@UAA@XZ
+           1  ??1Ham1DisplacementNode@@UAA@XZ
+           1  ??1EventSinkElem@MsgSinks@@QAA@XZ
+  -- (a) I, mixed callees: 2 pairs, 2 distinct symbols
+           1  ??APaddedJointPos@@QAAAAMH@Z
+           1  ?UncheckedInt@DataArray@@QBAHH@Z
+  -- (c) c2 emits blr, callee is EXTERNAL: 1 pairs, 1 distinct symbols
+           1  ??$_Destroy_Range@PAPAVRndMesh@@@stlpmtx_std@@YAXPAPAVRndMesh@@0

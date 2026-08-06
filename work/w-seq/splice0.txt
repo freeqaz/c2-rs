@@ -1,0 +1,30 @@
+=== SPLICE-0 by shape === (denominator = single-callee differs)
+  framed  differs    123 of   123  (100.0%)
+  seq     exact      816 of   816  (100.0%)
+  tail    differs    380 of  1531  ( 24.8%)
+  tail    exact     1151 of  1531  ( 75.2%)
+  TOTAL graded: 2470
+
+=== SPLICE-0 FAILURE WITNESSES, top 30 ===
+    286   56.9%  tail|differs|first@0:callee=81630008,ref=81640008
+    123   24.5%  framed|differs|first@0:callee=80630004,ref=81630004
+     33    6.6%  tail|differs|first@0:callee=81630004,ref=81630008
+     16    3.2%  tail|differs|first@1:callee=8143000c,ref=81430018
+      9    1.8%  tail|differs|first@0:callee=80830000,ref=80830004
+      5    1.0%  tail|differs|first@0:callee=80830000,ref=80830008
+      4    0.8%  tail|differs|first@2:callee=91630000,ref=91630004
+      4    0.8%  tail|differs|first@1:callee=8143000c,ref=81430010
+      3    0.6%  tail|differs|first@0:callee=80830000,ref=8083000c
+      3    0.6%  tail|differs|first@0:callee=80830000,ref=80830024
+      3    0.6%  tail|differs|first@0:callee=80830000,ref=80830038
+      2    0.4%  tail|differs|first@1:callee=8143000c,ref=81430030
+      2    0.4%  tail|differs|first@0:callee=38630004,ref=38630008
+      2    0.4%  tail|differs|first@1:callee=8143000c,ref=81430040
+      1    0.2%  tail|differs|first@0:callee=80830000,ref=80830014
+      1    0.2%  tail|differs|first@1:callee=8143000c,ref=8143005c
+      1    0.2%  tail|differs|first@0:callee=8063003c,ref=3d600000
+      1    0.2%  tail|differs|first@0:callee=80630040,ref=3d600000
+      1    0.2%  tail|differs|first@0:callee=80830000,ref=80830010
+      1    0.2%  tail|differs|first@0:callee=81630004,ref=8163000c
+      1    0.2%  tail|differs|first@0:callee=80830000,ref=80830048
+      1    0.2%  tail|differs|first@0:callee=80830000,ref=80830044

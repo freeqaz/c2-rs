@@ -811,8 +811,98 @@ pub(super) fn measure(
                             *res.emit
                                 .entry(format!("fnbyte-splice|{}|not-single-call", graded.shape))
                                 .or_insert(0) += 1;
+                            // **SPLICE-N** — the multi-call generalization of
+                            // SPLICE-0: c2's body for the caller is the callees'
+                            // own bodies laid end to end, each but the last with
+                            // its trailing `blr` removed. Asked of every body
+                            // that names two or more callees, so the `seq`
+                            // population's other half is a measurement and not a
+                            // remainder.
+                            let bodies: Option<Vec<&[u8]>> =
+                                callees.iter().map(|c| refbytes.get(*c).copied()).collect();
+                            match bodies {
+                                None => {
+                                    *res.emit
+                                        .entry(format!(
+                                            "fnbyte-spliceN|{}|no-callee-comdat",
+                                            graded.shape
+                                        ))
+                                        .or_insert(0) += 1;
+                                }
+                                Some(bs) => {
+                                    let mut cat: Vec<u8> = Vec::new();
+                                    let last = bs.len() - 1;
+                                    for (i, b) in bs.iter().enumerate() {
+                                        let t = if i != last
+                                            && b.len() >= 8
+                                            && b[b.len() - 4..] == [0x4e, 0x80, 0x00, 0x20]
+                                        {
+                                            &b[..b.len() - 4]
+                                        } else {
+                                            b
+                                        };
+                                        cat.extend_from_slice(t);
+                                    }
+                                    let v = if cat == *bytes {
+                                        format!("exact|n{}", bs.len())
+                                    } else {
+                                        format!(
+                                            "differs|n{}|len:cat={}w,ref={}w",
+                                            bs.len(),
+                                            cat.len() / 4,
+                                            bytes.len() / 4
+                                        )
+                                    };
+                                    *res.emit
+                                        .entry(format!("fnbyte-spliceN|{}|{v}", graded.shape))
+                                        .or_insert(0) += 1;
+                                }
+                            }
                         }
                         Some(cb) => {
+                            // **SPLICE-0** — the degenerate hypothesis SPLICE-P
+                            // reduces to when the setup is empty: c2's body for
+                            // the caller IS c2's body for the callee. Asked of
+                            // every single-callee shape, including `seq` and
+                            // `framed`, whose port bodies carry a frame the
+                            // concatenation rule cannot subtract. When it fails
+                            // the first disagreeing word is what says whether
+                            // inlining renamed a register or moved a
+                            // displacement.
+                            {
+                                let v0 = if cb == bytes.as_slice() {
+                                    "exact".to_string()
+                                } else {
+                                    let m = cb.len().min(bytes.len()) / 4;
+                                    let hx = |b: &[u8]| {
+                                        b.iter().map(|x| format!("{x:02x}")).collect::<String>()
+                                    };
+                                    match (0..m)
+                                        .find(|i| cb[i * 4..i * 4 + 4] != bytes[i * 4..i * 4 + 4])
+                                    {
+                                        Some(i) => format!(
+                                            "differs|first@{i}:callee={},ref={}",
+                                            hx(&cb[i * 4..i * 4 + 4]),
+                                            hx(&bytes[i * 4..i * 4 + 4])
+                                        ),
+                                        None => format!(
+                                            "differs|len:callee={}w,ref={}w",
+                                            cb.len() / 4,
+                                            bytes.len() / 4
+                                        ),
+                                    }
+                                };
+                                *res.emit
+                                    .entry(format!("fnbyte-splice0|{}|{v0}", graded.shape))
+                                    .or_insert(0) += 1;
+                                *res.emit
+                                    .entry(format!(
+                                        "fnbyte-splice0-fn|{}|{}|{name}",
+                                        graded.shape,
+                                        v0.split('|').next().unwrap_or("?")
+                                    ))
+                                    .or_insert(0) += 1;
+                            }
                             let spl = splice_of(&port_body, cb);
                             let verdict = match &spl {
                                 Some(s) if s.as_slice() == bytes.as_slice() => "exact",
