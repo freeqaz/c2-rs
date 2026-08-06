@@ -276,6 +276,34 @@ and a two-register-producer cell with no constant at all.
 
 ### 9.3 — 2026-08-06, before `ilcmp.sh` exists: R4's measurement
 
+### 9.4 — 2026-08-06, before `holdout.py` exists: R5's population and freeze
+
+R5 is scored on `work/w-refbind/holdout.py`, run in two phases:
+
+* `--freeze` writes one `.cpp` per cell under `work/w-refbind/holdout/` **and**
+  `work/w-refbind/holdout_pred.tsv`, which carries, per cell, H-self's key for
+  both producers, its predicted winner, and the **sha256 of the source**. It
+  compiles nothing.
+* that file and every source are **committed**, and the SHA is quoted in the rung.
+* `--grade` then compiles, **re-checks every source's sha256 against the frozen
+  row**, and refuses to grade a cell whose source moved.
+
+**Partitions**, declared here:
+
+| | axis | cells |
+|---|---|---|
+| **H1** | ten producer spellings H-self has never seen — `subf`, `and`, `or`, `xor`, `neg`, `nor`, `srawi`, `srwi`, `extsh`, and a **`lwz` load** | × mode × (ru,cu) |
+| **H2** | self-referential producers at **fresh addresses** — `&s->inner2` into `inner2`, `&s->inner.a4` into `inner`, and a scalar `int&` | × mode × (ru,cu) |
+| **H3** | the two **non-self** controls whose H-self key ties, so the row cannot look like a confirmation | |
+
+**mode** ∈ {`none`, `ref`} — the axis `opgrid`/`selfgrid` never varied, which is
+the whole point. **(ru, cu)** ∈ {(1,1), (2,1), (1,2)}.
+
+**The `(self, ref)` corner is SHAPED like `opgrid`'s fitted cells** (an interior
+address bound to a name and stored into itself). It is graded and it is
+**counted separately** from the never-fitted rows; R5's `≥ 3 misses` is scored on
+the never-fitted count alone, so a miss in that corner cannot carry the claim.
+
 R4 is scored by capturing the IL for the deciding pair
 (`P1-shift-none-r2k1` / `P1-shift-ref-r2k1`) with `c2rs capture --keep-il` at the
 **workload's own flags**, and comparing the five captured files byte-for-byte and
