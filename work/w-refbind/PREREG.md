@@ -357,6 +357,52 @@ formal — plus an `.ex` capture of the reference-formal body. The producer rege
 are rewritten for the shifted formal registers, which is the defect this addendum
 opens by admitting.
 
+### 9.7 — 2026-08-06, before `basegrid.py` exists: R13, and R12's losing branch fired
+
+`formalprobe.out` (committed at the same time as this addendum) settled R12 on the
+IL and **left its obj half UNGRADED, by its own printed marker**: at that
+signature the two poles COINCIDE, so the cell discriminates nothing and the
+program says so rather than crediting one.
+
+* **R12's IL half LOSES, in the branch §9.6 registered as the more important
+  one.** `F2-formal`'s `.ex` is **2,851** bytes against `F0-direct`'s **2,871** —
+  *twenty bytes shorter*, and `F1-bind` is `F0 + 9`, reproducing `ilcmp`'s bind
+  cost exactly. **There is no bind in the reference-formal body**, and it still
+  does not schedule like `bindgrid`'s unbound cells. **So a non-zero-displacement
+  `0x26` bind is SUFFICIENT for the ref-like schedule and NOT NECESSARY.**
+* And the reason the poles coincided is a **defect in `formalprobe`'s own
+  design**, recorded rather than repaired quietly: `F0-direct` stores the constant
+  off `s` (`r3`) and the producer's values off `t` (`r4`), so it changed the store
+  **base** as well as the binding. It is not a `none` pole.
+
+That defect is the finding. Every cell this lane has classified **ref-like** has
+**two distinct store-base values** in its body, and every **none-like** cell has
+**one**:
+
+| cell class | bases | verdict |
+|---|---|---|
+| direct `s->inner.aN` + `s->fN` | `r3` only | none-like |
+| bind at offset 0 (`s->head`, `S& z = *s`) | the bound value **is** `r3` | none-like |
+| `(&s->inner)->aN`, folded by `c1xx` | `r3` only | none-like |
+| `int w = <expr>;` (names a value) | `r3` only | none-like |
+| bind at a non-zero offset, any spelling | `r3` **and** the bound address | ref-like |
+| a scalar `int&` | `r3` **and** the bound address | ref-like |
+| a **reference formal**, no bind at all | `r3` **and** the formal | ref-like |
+
+> **R13.** The schedule axis is the **number of distinct store-base values in the
+> body**, not the bind. A body with **two pointer formals** and **all** its
+> stores off one of them — no bind anywhere — is **none-like**; the same body
+> with the two runs split across the two formals is **ref-like**.
+>
+> **LOSES** if the one-base two-formal cell comes out ref-like (which would mean
+> merely *having* a second pointer formal is enough, and the base count is not the
+> axis), or if the split-base cell comes out none-like.
+
+This is a **post-hoc description of cells already measured**, and it is registered
+here so that the one cell that can kill it is compiled *after* the claim is
+written. It is not shipped, and §5's #856 statement is not rewritten on the
+strength of it — #856 records what one IL byte does, which is true either way.
+
 R4 is scored by capturing the IL for the deciding pair
 (`P1-shift-none-r2k1` / `P1-shift-ref-r2k1`) with `c2rs capture --keep-il` at the
 **workload's own flags**, and comparing the five captured files byte-for-byte and
