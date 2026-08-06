@@ -237,3 +237,48 @@ written, and `iptr` / `outer-ref` / `val-temp` are reported as additional rows
 that R3 did not register. If `val-temp` flips the allocation, R3's framing (*"it
 is the addressing"*) is wrong in a way R3 as written cannot record, and that will
 be stated as a MISS-adjacent finding rather than folded into a hit.
+
+### 9.2 — 2026-08-06, before `refprobe.py` exists: what KIND of temp
+
+`bindgrid.out` (committed at `8f9bc5e`) settled R3 as registered and killed
+*"any named temp"* on its own added row: `outer-ref` (`S& z = *s;`, stores
+`z.inner.aN`) is **none-like** while `ptr` and `iptr` are **ref-like**. The
+surviving description is *"a named binding to an INTERIOR address that the
+producer's stores address through"*, and `refprobe.py` bisects it further. New
+registered claims, each losable:
+
+> **R8.** The effect is about the temp being a **non-trivial address**, not about
+> it being a binding. A reference bound to a sub-object at **offset 0**
+> (`L& q = s->head;` where `head` is the first member) is **none-like** — same
+> ORDER and same ALLOC as the direct spelling.
+>
+> **LOSES** if the offset-0 binding is ref-like. That loss would make the
+> C++-level *spelling* the axis, with the address value irrelevant, and would be
+> the more surprising outcome.
+
+> **R9.** The effect needs the temp to be a **shared base** for two or more
+> stores. Two *scalar* references (`int& x0 = s->inner.a0; int& x1 =
+> s->inner.a1;`), which name the two store addresses separately and share no
+> base temp, are **none-like**.
+>
+> **LOSES** if they are ref-like.
+
+> **R10.** The effect is carried by the producer's **consuming stores**, not by
+> the constant's. A binding used only for the constant's store, with the
+> register-derived producer's stores spelled directly, is **none-like**.
+>
+> **LOSES** if it is ref-like.
+
+Also graded, unregistered and reported as extra rows: an **unnamed** interior
+address (`(&s->inner)->aN`), a `const`-qualified pointer binding, a binding where
+only **one** of the two producer stores goes through it, a **reference formal**,
+and a two-register-producer cell with no constant at all.
+
+### 9.3 — 2026-08-06, before `ilcmp.sh` exists: R4's measurement
+
+R4 is scored by capturing the IL for the deciding pair
+(`P1-shift-none-r2k1` / `P1-shift-ref-r2k1`) with `c2rs capture --keep-il` at the
+**workload's own flags**, and comparing the five captured files byte-for-byte and
+by size. The registered claim is that the bound spelling's `.ex` is **strictly
+larger**; a byte-identical `.ex` is the outcome that would be worth the most and
+is recorded as its own result, not as a near-miss.
