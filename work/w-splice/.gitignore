@@ -8,3 +8,9 @@
 *.jsonl
 *.obj
 caps/*.text.txt
+
+# Scan and gate LOGS. 130 KB each, regenerable, and they carry absolute paths
+# that `scrub.sh` would have to be re-run over on every capture. The evidence
+# this lane commits is the derived tables — `*_metrics.txt`, `partition.txt`,
+# `relocheck.txt`, `why.txt`, `spread.txt` — and the gate's own summary.
+*.log
