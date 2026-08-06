@@ -1,0 +1,186 @@
+== X-A-selfaddr-wlayout-r3k5
+li 10, 7
+addi 11, 3, 112
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 10, 60(3)
+stw 10, 64(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+blr
+
+== X-A-selfaddr-wlayout-r2k4
+li 10, 7
+addi 11, 3, 112
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 10, 60(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== X-A-selfaddr-wlayout-r1k1
+li 10, 7
+addi 11, 3, 112
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== X-B-qaddr-wlayout-r3k5
+li 11, 7
+addi 10, 3, 112
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== X-B-qaddr-wlayout-r2k4
+li 11, 7
+addi 10, 3, 112
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== X-B-qaddr-wlayout-r1k1
+li 10, 7
+addi 11, 3, 112
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== X-C-selfaddr-alayout-r3k5
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 10, 4(3)
+stw 10, 8(3)
+stw 10, 12(3)
+stw 10, 16(3)
+stw 11, 64(3)
+stw 11, 68(3)
+stw 11, 72(3)
+blr
+
+== X-C-selfaddr-alayout-r2k4
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 10, 4(3)
+stw 10, 8(3)
+stw 10, 12(3)
+stw 11, 64(3)
+stw 11, 68(3)
+blr
+
+== X-C-selfaddr-alayout-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== X-D-qaddr-alayout-r3k5
+li 11, 7
+addi 10, 3, 64
+stw 11, 0(3)
+stw 11, 4(3)
+stw 11, 8(3)
+stw 11, 12(3)
+stw 11, 16(3)
+stw 10, 64(3)
+stw 10, 68(3)
+stw 10, 72(3)
+blr
+
+== X-D-qaddr-alayout-r2k4
+li 11, 7
+addi 10, 3, 64
+stw 11, 0(3)
+stw 11, 4(3)
+stw 11, 8(3)
+stw 11, 12(3)
+stw 10, 64(3)
+stw 10, 68(3)
+blr
+
+== X-D-qaddr-alayout-r1k1
+li 10, 7
+addi 11, 3, 64
+stw 10, 0(3)
+stw 11, 64(3)
+blr
+
+== X-E-selfaddr-nobind-r3k5
+li 11, 7
+addi 10, 3, 112
+stw 11, 48(3)
+stw 10, 112(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== X-E-selfaddr-nobind-r2k4
+li 11, 7
+addi 10, 3, 112
+stw 11, 48(3)
+stw 10, 112(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 10, 116(3)
+blr
+
+== X-E-selfaddr-nobind-r1k1
+li 10, 7
+addi 11, 3, 112
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== X-F-qaddr-regfirst-r3k5
+addi 10, 3, 112
+li 11, 7
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+blr
+
+== X-F-qaddr-regfirst-r2k4
+addi 10, 3, 112
+li 11, 7
+stw 10, 112(3)
+stw 10, 116(3)
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+blr
+
+== X-F-qaddr-regfirst-r1k1
+addi 11, 3, 112
+li 10, 7
+stw 11, 112(3)
+stw 10, 48(3)
+blr
+
