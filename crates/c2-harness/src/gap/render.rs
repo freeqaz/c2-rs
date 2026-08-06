@@ -664,8 +664,8 @@ pub(super) fn print_factorization(report: &GapReport) {
                  \x20     whole-TU    {:>8}  ({:>5.2}%)   CREDITED — on a TU the differential \
                  graded `match`; the judge certified the whole obj\n\
                  \x20     differs     {:>8}  ({:>5.2}%)   complete port body, bytes differ\n\
-                 \x20     partial     {:>8}  ({:>5.2}%)   selected; body finished by the COFF \
-                 emitter — FBM's own under-report (board #322)\n\
+                 \x20     partial     {:>8}  ({:>5.2}%)   selected; the PORT's own /Gy \
+                 composition declined the body (board #322 closed the harness's half)\n\
                  \x20     refused     {:>8}  ({:>5.2}%)   the port declines the function\n\
                  \x20     unbound     {:>8}  ({:>5.2}%)   no census row claims the symbol\n\
                  \x20     no-bytes    {:>8}  ({:>5.2}%)   COMDAT raw data did not decode\n\
