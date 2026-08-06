@@ -1,0 +1,213 @@
+  cell                       | prodreg constreg | winner | first | mnemonic
+  --------------------------------------------------------------------------------------
+  S-self-1base-r1k1          | r11     r10     | prod   | const | addi
+  S-self-2base-r1k1          | r11     r10     | prod   | const | addi
+  S-self-1base-r2k1          | r11     r10     | prod   | prod  | addi
+  S-self-2base-r2k1          | r11     r10     | prod   | const | addi
+  S-self-1base-r3k1          | r11     r10     | prod   | prod  | addi
+  S-self-2base-r3k1          | r11     r10     | prod   | const | addi
+  S-self-1base-r2k2          | r11     r10     | prod   | const | addi
+  S-self-2base-r2k2          | r11     r10     | prod   | const | addi
+  S-self-1base-r2k3          | r11     r10     | prod   | const | addi
+  S-self-2base-r2k3          | r11     r10     | prod   | const | addi
+  S-cross-1base-r1k1         | r10     r11     | const  | const | addi
+  S-cross-2base-r1k1         | r10     r11     | const  | const | addi
+  S-cross-1base-r2k1         | r11     r10     | prod   | prod  | addi
+  S-cross-2base-r2k1         | r11     r10     | prod   | const | addi
+  S-cross-1base-r3k1         | r11     r10     | prod   | prod  | addi
+  S-cross-2base-r3k1         | r11     r10     | prod   | const | addi
+  S-cross-1base-r2k2         | r11     r10     | prod   | const | addi
+  S-cross-2base-r2k2         | r11     r10     | prod   | const | addi
+  S-cross-1base-r2k3         | r11     r10     | prod   | const | addi
+  S-cross-2base-r2k3         | r11     r10     | prod   | const | addi
+  S-addi-1base-r1k1          | r10     r11     | const  | const | addi
+  S-addi-2base-r1k1          | r10     r11     | const  | const | addi
+  S-addi-1base-r2k1          | r11     r10     | prod   | prod  | addi
+  S-addi-2base-r2k1          | r11     r10     | prod   | const | addi
+  S-addi-1base-r3k1          | r11     r10     | prod   | prod  | addi
+  S-addi-2base-r3k1          | r11     r10     | prod   | const | addi
+  S-addi-1base-r2k2          | r11     r10     | prod   | const | addi
+  S-addi-2base-r2k2          | r11     r10     | prod   | const | addi
+  S-addi-1base-r2k3          | r11     r10     | prod   | const | addi
+  S-addi-2base-r2k3          | r11     r10     | prod   | const | addi
+  S-add-1base-r1k1           | r10     r11     | const  | const | add
+  S-add-2base-r1k1           | r10     r11     | const  | const | add
+  S-add-1base-r2k1           | r11     r10     | prod   | prod  | add
+  S-add-2base-r2k1           | r11     r10     | prod   | const | add
+  S-add-1base-r3k1           | r11     r10     | prod   | prod  | add
+  S-add-2base-r3k1           | r11     r10     | prod   | const | add
+  S-add-1base-r2k2           | r11     r10     | prod   | const | add
+  S-add-2base-r2k2           | r11     r10     | prod   | const | add
+  S-add-1base-r2k3           | r11     r10     | prod   | const | add
+  S-add-2base-r2k3           | r11     r10     | prod   | const | add
+  S-sub-1base-r1k1           | r10     r11     | const  | const | sub
+  S-sub-2base-r1k1           | r10     r11     | const  | const | sub
+  S-sub-1base-r2k1           | r11     r10     | prod   | prod  | sub
+  S-sub-2base-r2k1           | r10     r11     | const  | const | sub
+  S-sub-1base-r3k1           | r11     r10     | prod   | prod  | sub
+  S-sub-2base-r3k1           | r10     r11     | const  | const | sub
+  S-sub-1base-r2k2           | r10     r11     | const  | prod  | sub
+  S-sub-2base-r2k2           | r10     r11     | const  | const | sub
+  S-sub-1base-r2k3           | r10     r11     | const  | const | sub
+  S-sub-2base-r2k3           | r10     r11     | const  | const | sub
+  S-and-1base-r1k1           | r10     r11     | const  | const | and
+  S-and-2base-r1k1           | r10     r11     | const  | const | and
+  S-and-1base-r2k1           | r11     r10     | prod   | prod  | and
+  S-and-2base-r2k1           | r10     r11     | const  | const | and
+  S-and-1base-r3k1           | r11     r10     | prod   | prod  | and
+  S-and-2base-r3k1           | r10     r11     | const  | const | and
+  S-and-1base-r2k2           | r10     r11     | const  | prod  | and
+  S-and-2base-r2k2           | r10     r11     | const  | const | and
+  S-and-1base-r2k3           | r10     r11     | const  | const | and
+  S-and-2base-r2k3           | r10     r11     | const  | const | and
+  S-or-1base-r1k1            | r10     r11     | const  | const | or
+  S-or-2base-r1k1            | r10     r11     | const  | const | or
+  S-or-1base-r2k1            | r11     r10     | prod   | prod  | or
+  S-or-2base-r2k1            | r10     r11     | const  | const | or
+  S-or-1base-r3k1            | r11     r10     | prod   | prod  | or
+  S-or-2base-r3k1            | r10     r11     | const  | const | or
+  S-or-1base-r2k2            | r10     r11     | const  | prod  | or
+  S-or-2base-r2k2            | r10     r11     | const  | const | or
+  S-or-1base-r2k3            | r10     r11     | const  | const | or
+  S-or-2base-r2k3            | r10     r11     | const  | const | or
+  S-xor-1base-r1k1           | r10     r11     | const  | const | xor
+  S-xor-2base-r1k1           | r10     r11     | const  | const | xor
+  S-xor-1base-r2k1           | r11     r10     | prod   | prod  | xor
+  S-xor-2base-r2k1           | r10     r11     | const  | const | xor
+  S-xor-1base-r3k1           | r11     r10     | prod   | prod  | xor
+  S-xor-2base-r3k1           | r10     r11     | const  | const | xor
+  S-xor-1base-r2k2           | r10     r11     | const  | prod  | xor
+  S-xor-2base-r2k2           | r10     r11     | const  | const | xor
+  S-xor-1base-r2k3           | r10     r11     | const  | const | xor
+  S-xor-2base-r2k3           | r10     r11     | const  | const | xor
+  S-neg-1base-r1k1           | r10     r11     | const  | const | neg
+  S-neg-2base-r1k1           | r10     r11     | const  | const | neg
+  S-neg-1base-r2k1           | r11     r10     | prod   | prod  | neg
+  S-neg-2base-r2k1           | r10     r11     | const  | const | neg
+  S-neg-1base-r3k1           | r11     r10     | prod   | prod  | neg
+  S-neg-2base-r3k1           | r10     r11     | const  | const | neg
+  S-neg-1base-r2k2           | r10     r11     | const  | prod  | neg
+  S-neg-2base-r2k2           | r10     r11     | const  | const | neg
+  S-neg-1base-r2k3           | r10     r11     | const  | const | neg
+  S-neg-2base-r2k3           | r10     r11     | const  | const | neg
+  S-nor-1base-r1k1           | r10     r11     | const  | const | not
+  S-nor-2base-r1k1           | r10     r11     | const  | const | not
+  S-nor-1base-r2k1           | r11     r10     | prod   | prod  | not
+  S-nor-2base-r2k1           | r10     r11     | const  | const | not
+  S-nor-1base-r3k1           | r11     r10     | prod   | prod  | not
+  S-nor-2base-r3k1           | r10     r11     | const  | const | not
+  S-nor-1base-r2k2           | r10     r11     | const  | prod  | not
+  S-nor-2base-r2k2           | r10     r11     | const  | const | not
+  S-nor-1base-r2k3           | r10     r11     | const  | const | not
+  S-nor-2base-r2k3           | r10     r11     | const  | const | not
+  S-slwi-1base-r1k1          | r10     r11     | const  | const | slwi
+  S-slwi-2base-r1k1          | r10     r11     | const  | const | slwi
+  S-slwi-1base-r2k1          | r11     r10     | prod   | prod  | slwi
+  S-slwi-2base-r2k1          | r10     r11     | const  | const | slwi
+  S-slwi-1base-r3k1          | r11     r10     | prod   | prod  | slwi
+  S-slwi-2base-r3k1          | r10     r11     | const  | const | slwi
+  S-slwi-1base-r2k2          | r10     r11     | const  | prod  | slwi
+  S-slwi-2base-r2k2          | r10     r11     | const  | const | slwi
+  S-slwi-1base-r2k3          | r10     r11     | const  | const | slwi
+  S-slwi-2base-r2k3          | r10     r11     | const  | const | slwi
+  S-srwi-1base-r1k1          | r10     r11     | const  | const | srwi
+  S-srwi-2base-r1k1          | r10     r11     | const  | const | srwi
+  S-srwi-1base-r2k1          | r11     r10     | prod   | prod  | srwi
+  S-srwi-2base-r2k1          | r10     r11     | const  | const | srwi
+  S-srwi-1base-r3k1          | r11     r10     | prod   | prod  | srwi
+  S-srwi-2base-r3k1          | r10     r11     | const  | const | srwi
+  S-srwi-1base-r2k2          | r10     r11     | const  | prod  | srwi
+  S-srwi-2base-r2k2          | r10     r11     | const  | const | srwi
+  S-srwi-1base-r2k3          | r10     r11     | const  | const | srwi
+  S-srwi-2base-r2k3          | r10     r11     | const  | const | srwi
+  S-srawi-1base-r1k1         | r10     r11     | const  | const | srawi
+  S-srawi-2base-r1k1         | r10     r11     | const  | const | srawi
+  S-srawi-1base-r2k1         | r11     r10     | prod   | prod  | srawi
+  S-srawi-2base-r2k1         | r11     r10     | prod   | const | srawi
+  S-srawi-1base-r3k1         | r11     r10     | prod   | prod  | srawi
+  S-srawi-2base-r3k1         | r11     r10     | prod   | const | srawi
+  S-srawi-1base-r2k2         | r11     r10     | prod   | prod  | srawi
+  S-srawi-2base-r2k2         | r11     r10     | prod   | const | srawi
+  S-srawi-1base-r2k3         | r11     r10     | prod   | const | srawi
+  S-srawi-2base-r2k3         | r11     r10     | prod   | const | srawi
+  S-extsh-1base-r1k1         | r11     r10     | prod   | const | extsh
+  S-extsh-2base-r1k1         | r11     r10     | prod   | const | extsh
+  S-extsh-1base-r2k1         | r11     r10     | prod   | prod  | extsh
+  S-extsh-2base-r2k1         | r11     r10     | prod   | const | extsh
+  S-extsh-1base-r3k1         | r11     r10     | prod   | prod  | extsh
+  S-extsh-2base-r3k1         | r11     r10     | prod   | const | extsh
+  S-extsh-1base-r2k2         | r10     r11     | const  | const | extsh
+  S-extsh-2base-r2k2         | r10     r11     | const  | const | extsh
+  S-extsh-1base-r2k3         | r10     r11     | const  | const | extsh
+  S-extsh-2base-r2k3         | r10     r11     | const  | const | extsh
+  S-lwz-1base-r1k1           | r11     r10     | prod   | prod  | lwz
+  S-lwz-2base-r1k1           | r11     r10     | prod   | prod  | lwz
+  S-lwz-1base-r2k1           | r11     r10     | prod   | prod  | lwz
+  S-lwz-2base-r2k1           | OUT OF REGIME: the producer's r11 is defined 2 times (#644)
+  S-lwz-1base-r3k1           | r11     r10     | prod   | prod  | lwz
+  S-lwz-2base-r3k1           | OUT OF REGIME: the producer's r11 is defined 3 times (#644)
+  S-lwz-1base-r2k2           | r10     r11     | const  | prod  | lwz
+  S-lwz-2base-r2k2           | OUT OF REGIME: the producer's stores name 2 distinct registers
+  S-lwz-1base-r2k3           | r10     r11     | const  | prod  | lwz
+  S-lwz-2base-r2k3           | OUT OF REGIME: the producer's stores name 2 distinct registers
+  S-formal-1base-r1k1        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-2base-r1k1        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-1base-r2k1        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-2base-r2k1        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-1base-r3k1        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-2base-r3k1        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-1base-r2k2        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-2base-r2k2        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-1base-r2k3        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+  S-formal-2base-r2k3        | OUT OF REGIME: the producer's r4 is defined 0 times (#644)
+
+  selected 160 | reached 160 | GRADED 146 | out-of-regime 14 | compile-failed 0
+
+  GRID S — POPULATION TABLE.  `P` = the producer takes the top pool register, `c` = the constant does,
+  `-` = out of regime.  Rows are (C++ spelling, mnemonic c2 selected); columns are (ru,cu) per base mode.
+  spelling   mnemonic 1:1/1 1:2/1 1:3/1 1:2/2 1:2/3 2:1/1 2:2/1 2:3/1 2:2/2 2:2/3 
+  ----------------------------------------------------------------------------------
+  self       addi     P      P      P      P      P      P      P      P      P      P      
+  cross      addi     c      P      P      P      P      c      P      P      P      P      
+  addi       addi     c      P      P      P      P      c      P      P      P      P      
+  add        add      c      P      P      P      P      c      P      P      P      P      
+  sub        sub      c      P      P      c      c      c      c      c      c      c      
+  and        and      c      P      P      c      c      c      c      c      c      c      
+  or         or       c      P      P      c      c      c      c      c      c      c      
+  xor        xor      c      P      P      c      c      c      c      c      c      c      
+  neg        neg      c      P      P      c      c      c      c      c      c      c      
+  nor        not      c      P      P      c      c      c      c      c      c      c      
+  slwi       slwi     c      P      P      c      c      c      c      c      c      c      
+  srwi       srwi     c      P      P      c      c      c      c      c      c      c      
+  srawi      srawi    c      P      P      P      P      c      P      P      P      P      
+  extsh      extsh    P      P      P      c      c      P      P      P      c      c      
+  lwz        lwz      P      P      P      c      c      P      -      -      -      -      
+  formal     ?        -      -      -      -      -      -      -      -      -      -      
+
+  S2 — cells agreeing on (mnemonic, ru, cu, bases) that DISAGREE on the winner: 2
+     ('addi', 1, 1, '1base')
+     ('addi', 1, 1, '2base')
+
+  S4 — spellings that LOSE at 1base and WIN at 2base (registered as none): 0
+
+  S5 — (ru,cu,bases) cells where `srawi` and `srwi` DISAGREE: 6 of 10
+     ('1base', 2, 2)  srawi=prod srwi=const
+     ('1base', 2, 3)  srawi=prod srwi=const
+     ('2base', 2, 1)  srawi=prod srwi=const
+     ('2base', 3, 1)  srawi=prod srwi=const
+     ('2base', 2, 2)  srawi=prod srwi=const
+     ('2base', 2, 3)  srawi=prod srwi=const
+
+  S6 — `extsh` and `lwz` at (1,1):
+     extsh  1base  -> prod
+     extsh  2base  -> prod
+     lwz    1base  -> prod
+     lwz    2base  -> prod
+
+  S3 — exhaustive search for a per-spelling additive bonus b in [-8,8] with `2*ru + b > 2*cu` (per base mode):
+     1base  residual after the best per-spelling bonus: worst spelling ('cross', 1)
+     2base  residual after the best per-spelling bonus: worst spelling ('cross', 1)
+     TOTAL residual cells no additive key can reach: 11
+     S3 (registered: >= 1 residual) -> HIT — no additive key fits
+
+  S1 (registered: >= 80% of 160 cells graded) -> 146 graded = 91.2% -> HIT

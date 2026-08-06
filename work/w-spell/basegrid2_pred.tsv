@@ -1,0 +1,24 @@
+# GRID B — board #865's frozen holdout, written by basegrid2.py --freeze BEFORE any cell was compiled.
+# #865  : the schedule pins to source order iff the body carries more than ONE distinct store-base value.
+# RIVAL : it pins iff the CONSTANT's store and the PRODUCER's stores have different bases.
+# cell	spell	bases	P865	RIVAL	source_order	sha256
+N1-one-formal-add	add	1	free	free	0,4,64,68	bc5851f52ca186d79cf2a06a41ac3c803b6eabf6b5105cb8862c609f3dfa806d
+N1-one-formal-slwi	slwi	1	free	free	0,4,64,68	677bda676fb7e295aef963273132382cf75320f4aa81af59cf432b5b719b77aa
+N2-bind-disp0-add	add	1	free	free	0,4,16,20	5f281bcde9c00513ec49a57a3aca585765cc0a201e8d8927adf0df5154326466
+N2-bind-disp0-slwi	slwi	1	free	free	0,4,16,20	365ca1e4aff70ecf0109f53501ba59555c427f4fc456e289020cc5f7249255b5
+N8-two-formals-one-base-add	add	1	free	free	0,4,64,68	a5e9d0528319b98f059ef7d4c1665f3ba4b6a2b3fb6126e9785139eb335e62eb
+N8-two-formals-one-base-slwi	slwi	1	free	free	0,4,64,68	ae5a2ada124e55321bdd79ccc1bd2bca9a25c61cc3529b0e036e1f954c8b84e5
+N3-two-formals-split-add	add	2	pinned	pinned	0,4,64,68	72cc9e41b5be9117ced2681472dfbf51f064b6996ee0dead970834ae91bf291e
+N3-two-formals-split-slwi	slwi	2	pinned	pinned	0,4,64,68	7913cf85d245a43c567b25ab8fd4666abedddd59077e9d02200709a09478cd7f
+N4-bind-used-add	add	2	pinned	pinned	0,4,64,68	ef6093c2a3fc9c86e020752538eb42a315656f629a94291777ae8b6f245a1cec
+N4-bind-used-slwi	slwi	2	pinned	pinned	0,4,64,68	f3e1f89bd658c876e985479aede5e28cda0d9b8e3fe72e289bcb34b0f97e9c20
+N7-derived-base-add	add	2	pinned	pinned	0,4,64,68	2674a22580fb4906fc4256a8271563642fecf485b18647198385f43002d1157a
+N7-derived-base-slwi	slwi	2	pinned	pinned	0,4,64,68	c6cc0d192c21b0100e9b4c7b698520968625cfc1e24afd42a4764d6d150a1a28
+N10-disp0-beside-a-base-add	add	2	pinned	pinned	0,4,64,68	b2aeaf0170dbd24ef3158f699d7acdf4ab66afcb7a1c1ba54703c7daf2aede4b
+N10-disp0-beside-a-base-slwi	slwi	2	pinned	pinned	0,4,64,68	d7fe53154b9451b3e0a9f3baa171a2e65996456b480bde05438f7ca8b5a3483c
+N5-three-formals-add	add	3	pinned	pinned	0,4,64,68,96,100	5cf6796b87711ae2f8c58ff7d9601fc46ce0f6aee81d8e41f733caf4f019e8b4
+N5-three-formals-slwi	slwi	3	pinned	pinned	0,4,64,68,96,100	3ff0a005755235e8b1318da92ec456133c4f97d99142a9aaf1d76df374c6f001
+N9-four-bases-add	add	4	pinned	pinned	0,4,64,68,32,112	b0a46918becdf5464439c88e1128a7fc482b7c87fe85a88f5866ae322dea1a34
+N9-four-bases-slwi	slwi	4	pinned	pinned	0,4,64,68,32,112	e1d9cb190d833cf614db8cbf049a2a0b2ae10e7a92d1587a36cc144bfeb7d2b3
+N6-shared-base-third-run-add	add	2	pinned	free	0,4,64,68,96,100	bf98cfe338fc657bd3dfec6e9e32227652c2bb58c45e62c046cf101c3ef3ec1b
+N6-shared-base-third-run-slwi	slwi	2	pinned	free	0,4,64,68,96,100	54c5fb372df54d5dbc3da2e939653e4ec3f60c0d8c55eeee6867f0a4f2281d93

@@ -1,0 +1,35 @@
+  frozen rows 20 | source sha256 re-checked: 20 OK, 0 MOVED
+
+  cell                           spell  bases | OBSERVED | #865    RIVAL   | verdict
+  --------------------------------------------------------------------------------------------------------
+  N1-one-formal-add              add    1     | free     | free    free    | #865 HIT / RIVAL HIT
+  N1-one-formal-slwi             slwi   1     | free     | free    free    | #865 HIT / RIVAL HIT
+  N2-bind-disp0-add              add    1     | free     | free    free    | #865 HIT / RIVAL HIT
+  N2-bind-disp0-slwi             slwi   1     | free     | free    free    | #865 HIT / RIVAL HIT
+  N8-two-formals-one-base-add    add    1     | free     | free    free    | #865 HIT / RIVAL HIT
+  N8-two-formals-one-base-slwi   slwi   1     | free     | free    free    | #865 HIT / RIVAL HIT
+  N3-two-formals-split-add       add    2     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N3-two-formals-split-slwi      slwi   2     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N4-bind-used-add               add    2     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N4-bind-used-slwi              slwi   2     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N7-derived-base-add            add    2     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N7-derived-base-slwi           slwi   2     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N10-disp0-beside-a-base-add    add    2     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N10-disp0-beside-a-base-slwi   slwi   2     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N5-three-formals-add           add    3     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N5-three-formals-slwi          slwi   3     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N9-four-bases-add              add    4     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N9-four-bases-slwi             slwi   4     | pinned   | pinned  pinned  | #865 HIT / RIVAL HIT
+  N6-shared-base-third-run-add   add    2     | free     | pinned  free    | #865 **MISS** / RIVAL HIT
+  N6-shared-base-third-run-slwi  slwi   2     | free     | pinned  free    | #865 **MISS** / RIVAL HIT
+
+  frozen 20 | reached 20 | GRADED 20 | out-of-regime 0 | compile-failed 0
+  #865 : hit 18 | MISS 2
+  RIVAL: hit 20 | MISS 0
+
+  B1 (registered: >= 20 graded) -> 20 -> HIT
+  B2 (registered: #865 predicts every graded cell) -> **MISS** — #865 is REFUTED on 2 cell(s)
+
+  B3 — the cells on which #865 and the RIVAL disagree (the one w-refbind named and did not build):
+    N6-shared-base-third-run-add   observed free     #865 said pinned   RIVAL said free  -> the RIVAL
+    N6-shared-base-third-run-slwi  observed free     #865 said pinned   RIVAL said free  -> the RIVAL

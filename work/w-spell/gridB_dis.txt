@@ -1,0 +1,200 @@
+== N1-one-formal-add
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 11, 64(3)
+stw 10, 4(3)
+stw 11, 68(3)
+blr
+
+== N1-one-formal-slwi
+slwi 10, 4, 3
+li 11, 7
+stw 10, 64(3)
+stw 10, 68(3)
+stw 11, 0(3)
+stw 11, 4(3)
+blr
+
+== N2-bind-disp0-add
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 11, 16(3)
+stw 10, 4(3)
+stw 11, 20(3)
+blr
+
+== N2-bind-disp0-slwi
+slwi 10, 4, 3
+li 11, 7
+stw 10, 16(3)
+stw 10, 20(3)
+stw 11, 0(3)
+stw 11, 4(3)
+blr
+
+== N8-two-formals-one-base-add
+li 10, 7
+add 11, 5, 6
+stw 10, 0(4)
+stw 11, 64(4)
+stw 10, 4(4)
+stw 11, 68(4)
+blr
+
+== N8-two-formals-one-base-slwi
+slwi 10, 5, 3
+li 11, 7
+stw 10, 64(4)
+stw 10, 68(4)
+stw 11, 0(4)
+stw 11, 4(4)
+blr
+
+== N3-two-formals-split-add
+li 10, 7
+add 11, 5, 6
+stw 10, 0(3)
+stw 10, 4(3)
+stw 11, 64(4)
+stw 11, 68(4)
+blr
+
+== N3-two-formals-split-slwi
+li 11, 7
+slwi 10, 5, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 64(4)
+stw 10, 68(4)
+blr
+
+== N4-bind-used-add
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 10, 4(3)
+stw 11, 64(3)
+stw 11, 68(3)
+blr
+
+== N4-bind-used-slwi
+li 11, 7
+slwi 10, 4, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 64(3)
+stw 10, 68(3)
+blr
+
+== N7-derived-base-add
+lwz 9, 128(3)
+li 10, 7
+add 11, 4, 5
+stw 10, 0(3)
+stw 10, 4(3)
+stw 11, 64(9)
+stw 11, 68(9)
+blr
+
+== N7-derived-base-slwi
+lwz 10, 128(3)
+li 11, 7
+slwi 9, 4, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 9, 64(10)
+stw 9, 68(10)
+blr
+
+== N10-disp0-beside-a-base-add
+li 10, 7
+add 11, 5, 6
+stw 10, 0(3)
+stw 10, 4(3)
+stw 11, 64(4)
+stw 11, 68(4)
+blr
+
+== N10-disp0-beside-a-base-slwi
+li 11, 7
+slwi 10, 5, 3
+stw 11, 0(3)
+stw 11, 4(3)
+stw 10, 64(4)
+stw 10, 68(4)
+blr
+
+== N5-three-formals-add
+li 9, 7
+add 11, 6, 7
+addi 10, 6, 11
+stw 9, 0(3)
+stw 9, 4(3)
+stw 11, 64(4)
+stw 11, 68(4)
+stw 10, 96(5)
+stw 10, 100(5)
+blr
+
+== N5-three-formals-slwi
+li 10, 7
+slwi 9, 6, 3
+addi 11, 6, 11
+stw 10, 0(3)
+stw 10, 4(3)
+stw 9, 64(4)
+stw 9, 68(4)
+stw 11, 96(5)
+stw 11, 100(5)
+blr
+
+== N9-four-bases-add
+li 9, 7
+add 11, 6, 7
+addi 10, 6, 11
+stw 9, 0(3)
+stw 9, 4(3)
+stw 11, 64(4)
+stw 11, 68(4)
+stw 10, 32(5)
+stw 10, 112(3)
+blr
+
+== N9-four-bases-slwi
+li 10, 7
+slwi 9, 6, 3
+addi 11, 6, 11
+stw 10, 0(3)
+stw 10, 4(3)
+stw 9, 64(4)
+stw 9, 68(4)
+stw 11, 32(5)
+stw 11, 112(3)
+blr
+
+== N6-shared-base-third-run-add
+li 9, 7
+add 11, 5, 6
+addi 10, 5, 11
+stw 9, 0(3)
+stw 11, 64(3)
+stw 9, 4(3)
+stw 11, 68(3)
+stw 10, 96(4)
+stw 10, 100(4)
+blr
+
+== N6-shared-base-third-run-slwi
+li 10, 7
+slwi 9, 5, 3
+addi 11, 5, 11
+stw 10, 0(3)
+stw 9, 64(3)
+stw 10, 4(3)
+stw 9, 68(3)
+stw 11, 96(4)
+stw 11, 100(4)
+blr
+

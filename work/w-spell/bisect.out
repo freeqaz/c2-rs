@@ -1,0 +1,36 @@
+  cell                           | winner
+  ----------------------------------------------
+  X-A-selfaddr-wlayout-r3k5      | prod
+  X-A-selfaddr-wlayout-r2k4      | prod
+  X-A-selfaddr-wlayout-r1k1      | prod
+  X-B-qaddr-wlayout-r3k5         | const
+  X-B-qaddr-wlayout-r2k4         | const
+  X-B-qaddr-wlayout-r1k1         | prod
+  X-C-selfaddr-alayout-r3k5      | prod
+  X-C-selfaddr-alayout-r2k4      | prod
+  X-C-selfaddr-alayout-r1k1      | prod
+  X-D-qaddr-alayout-r3k5         | const
+  X-D-qaddr-alayout-r2k4         | const
+  X-D-qaddr-alayout-r1k1         | prod
+  X-E-selfaddr-nobind-r3k5       | const
+  X-E-selfaddr-nobind-r2k4       | const
+  X-E-selfaddr-nobind-r1k1       | prod
+  X-F-qaddr-regfirst-r3k5        | const
+  X-F-qaddr-regfirst-r2k4        | const
+  X-F-qaddr-regfirst-r1k1        | prod
+
+  GRID X — the winner per configuration and use-count point
+  config                 3/5     2/4     1/1    
+  ------------------------------------------------
+  A-selfaddr-wlayout     prod    prod    prod   
+  B-qaddr-wlayout        const   const   prod   
+  C-selfaddr-alayout     prod    prod    prod   
+  D-qaddr-alayout        const   const   prod   
+  E-selfaddr-nobind      const   const   prod   
+  F-qaddr-regfirst       const   const   prod   
+
+  X1 (registered: the disagreement REPRODUCES — `&s->inner` and `&q` differ at (3,5)) -> HIT
+  X2 (registered: the LAYOUT is not the axis — A and C agree at (3,5)) -> HIT
+  X3 (control: every configuration is `prod` at (1,1)) -> HIT  ['prod', 'prod', 'prod', 'prod', 'prod', 'prod']
+
+  and the row that names w-alloc2's own cell:  D-qaddr-alayout at (3,5) = const   (w-alloc2 `F1-r3k5` recorded `const`)

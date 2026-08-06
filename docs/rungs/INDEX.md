@@ -85,3 +85,4 @@ the header block this table is read from.
 | 2026-08-06 | w-magic | [w-magic](2026-08-06-w-magic.md) | 8 | 711,427 → **711,427** (28.88%, **+0**). Emitted 39,177 → |
 | 2026-08-06 | w-refbind | [w-refbind](2026-08-06-w-refbind.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-06 | w-seam | [w-seam](2026-08-06-w-seam.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
+| 2026-08-06 | w-spell | [w-spell](2026-08-06-w-spell.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |

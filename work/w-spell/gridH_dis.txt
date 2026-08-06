@@ -1,0 +1,1242 @@
+== H1-subfic-1base-r1k1
+li 11, 21
+subfic 10, 4, 9
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-subfic-2base-r1k1
+li 11, 21
+subfic 10, 4, 9
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-subfic-1base-r2k1
+subfic 11, 4, 9
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H1-subfic-2base-r2k1
+li 10, 21
+subfic 11, 4, 9
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-subfic-1base-r2k2
+subfic 11, 4, 9
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+stw 10, 52(3)
+blr
+
+== H1-subfic-2base-r2k2
+li 10, 21
+subfic 11, 4, 9
+stw 10, 48(3)
+stw 10, 52(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-andi-1base-r1k1
+li 11, 21
+clrlwi 10, 4, 29
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-andi-2base-r1k1
+li 11, 21
+clrlwi 10, 4, 29
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-andi-1base-r2k1
+clrlwi 11, 4, 29
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H1-andi-2base-r2k1
+li 11, 21
+clrlwi 10, 4, 29
+stw 11, 48(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-andi-1base-r2k2
+clrlwi 10, 4, 29
+li 11, 21
+stw 10, 112(3)
+stw 10, 116(3)
+stw 11, 48(3)
+stw 11, 52(3)
+blr
+
+== H1-andi-2base-r2k2
+li 11, 21
+clrlwi 10, 4, 29
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-ori-1base-r1k1
+li 11, 21
+ori 10, 4, 7
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-ori-2base-r1k1
+li 11, 21
+ori 10, 4, 7
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-ori-1base-r2k1
+ori 11, 4, 7
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H1-ori-2base-r2k1
+li 11, 21
+ori 10, 4, 7
+stw 11, 48(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-ori-1base-r2k2
+ori 10, 4, 7
+li 11, 21
+stw 10, 112(3)
+stw 10, 116(3)
+stw 11, 48(3)
+stw 11, 52(3)
+blr
+
+== H1-ori-2base-r2k2
+li 11, 21
+ori 10, 4, 7
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-xori-1base-r1k1
+li 11, 21
+xori 10, 4, 7
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-xori-2base-r1k1
+li 11, 21
+xori 10, 4, 7
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-xori-1base-r2k1
+xori 11, 4, 7
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H1-xori-2base-r2k1
+li 11, 21
+xori 10, 4, 7
+stw 11, 48(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-xori-1base-r2k2
+xori 10, 4, 7
+li 11, 21
+stw 10, 112(3)
+stw 10, 116(3)
+stw 11, 48(3)
+stw 11, 52(3)
+blr
+
+== H1-xori-2base-r2k2
+li 11, 21
+xori 10, 4, 7
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-andc-1base-r1k1
+li 11, 21
+andc 10, 4, 5
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-andc-2base-r1k1
+li 11, 21
+andc 10, 4, 5
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-andc-1base-r2k1
+andc 11, 4, 5
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H1-andc-2base-r2k1
+li 11, 21
+andc 10, 4, 5
+stw 11, 48(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-andc-1base-r2k2
+andc 10, 4, 5
+li 11, 21
+stw 10, 112(3)
+stw 10, 116(3)
+stw 11, 48(3)
+stw 11, 52(3)
+blr
+
+== H1-andc-2base-r2k2
+li 11, 21
+andc 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-extsb-1base-r1k1
+li 10, 21
+extsb 11, 4
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-extsb-2base-r1k1
+li 10, 21
+extsb 11, 4
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-extsb-1base-r2k1
+extsb 11, 4
+li 10, 21
+stw 11, 112(3)
+stw 10, 48(3)
+stw 11, 116(3)
+blr
+
+== H1-extsb-2base-r2k1
+li 10, 21
+extsb 11, 4
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-extsb-1base-r2k2
+li 11, 21
+extsb 10, 4
+stw 11, 48(3)
+stw 10, 112(3)
+stw 11, 52(3)
+stw 10, 116(3)
+blr
+
+== H1-extsb-2base-r2k2
+li 11, 21
+extsb 10, 4
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-slw-1base-r1k1
+clrlwi 11, 5, 27
+li 10, 21
+slw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-slw-2base-r1k1
+clrlwi 11, 5, 27
+li 10, 21
+slw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-slw-1base-r2k1
+clrlwi 11, 5, 27
+li 10, 21
+slw 11, 4, 11
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H1-slw-2base-r2k1
+clrlwi 11, 5, 27
+li 10, 21
+slw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-slw-1base-r2k2
+clrlwi 10, 5, 27
+li 11, 21
+slw 10, 4, 10
+stw 10, 112(3)
+stw 10, 116(3)
+stw 11, 48(3)
+stw 11, 52(3)
+blr
+
+== H1-slw-2base-r2k2
+clrlwi 10, 5, 27
+li 11, 21
+slw 10, 4, 10
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-srw-1base-r1k1
+clrlwi 11, 5, 27
+li 10, 21
+srw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-srw-2base-r1k1
+clrlwi 11, 5, 27
+li 10, 21
+srw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-srw-1base-r2k1
+clrlwi 11, 5, 27
+li 10, 21
+srw 11, 4, 11
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H1-srw-2base-r2k1
+clrlwi 11, 5, 27
+li 10, 21
+srw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-srw-1base-r2k2
+clrlwi 10, 5, 27
+li 11, 21
+srw 10, 4, 10
+stw 10, 112(3)
+stw 10, 116(3)
+stw 11, 48(3)
+stw 11, 52(3)
+blr
+
+== H1-srw-2base-r2k2
+clrlwi 10, 5, 27
+li 11, 21
+srw 10, 4, 10
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-sraw-1base-r1k1
+clrlwi 11, 5, 27
+li 10, 21
+sraw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-sraw-2base-r1k1
+clrlwi 11, 5, 27
+li 10, 21
+sraw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-sraw-1base-r2k1
+clrlwi 11, 5, 27
+li 10, 21
+sraw 11, 4, 11
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H1-sraw-2base-r2k1
+clrlwi 11, 5, 27
+li 10, 21
+sraw 11, 4, 11
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-sraw-1base-r2k2
+clrlwi 11, 5, 27
+li 10, 21
+sraw 11, 4, 11
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+stw 10, 52(3)
+blr
+
+== H1-sraw-2base-r2k2
+clrlwi 11, 5, 27
+li 10, 21
+sraw 11, 4, 11
+stw 10, 48(3)
+stw 10, 52(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-mullw-1base-r1k1
+li 11, 21
+mullw 10, 4, 5
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-mullw-2base-r1k1
+li 11, 21
+mullw 10, 4, 5
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H1-mullw-1base-r2k1
+mullw 11, 4, 5
+stw 11, 112(3)
+stw 11, 116(3)
+li 10, 21
+stw 10, 48(3)
+blr
+
+== H1-mullw-2base-r2k1
+li 11, 21
+mullw 10, 4, 5
+stw 11, 48(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-mullw-1base-r2k2
+mullw 10, 4, 5
+stw 10, 112(3)
+stw 10, 116(3)
+li 11, 21
+stw 11, 48(3)
+stw 11, 52(3)
+blr
+
+== H1-mullw-2base-r2k2
+li 11, 21
+mullw 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-lhz-1base-r1k1
+lha 11, 176(3)
+li 10, 21
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-lhz-2base-r1k1
+lha 11, 176(3)
+li 10, 21
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-lhz-1base-r2k1
+lha 11, 176(3)
+li 10, 21
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-lhz-2base-r2k1
+lha 11, 176(3)
+li 10, 21
+stw 10, 48(3)
+stw 11, 112(3)
+lha 11, 176(3)
+stw 11, 116(3)
+blr
+
+== H1-lhz-1base-r2k2
+lha 10, 176(3)
+li 11, 21
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-lhz-2base-r2k2
+lha 10, 176(3)
+li 11, 21
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+lha 11, 176(3)
+stw 11, 116(3)
+blr
+
+== H1-lbz-1base-r1k1
+lbz 11, 180(3)
+li 10, 21
+extsb 11, 11
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-lbz-2base-r1k1
+lbz 11, 180(3)
+li 10, 21
+extsb 11, 11
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H1-lbz-1base-r2k1
+lbz 11, 180(3)
+li 10, 21
+extsb 11, 11
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H1-lbz-2base-r2k1
+lbz 11, 180(3)
+li 10, 21
+extsb 11, 11
+stw 10, 48(3)
+stw 11, 112(3)
+lbz 11, 180(3)
+extsb 11, 11
+stw 11, 116(3)
+blr
+
+== H1-lbz-1base-r2k2
+lbz 10, 180(3)
+li 11, 21
+extsb 10, 10
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H1-lbz-2base-r2k2
+lbz 10, 180(3)
+li 11, 21
+extsb 10, 10
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+lbz 11, 180(3)
+extsb 11, 11
+stw 11, 116(3)
+blr
+
+== H2-add-2base-r4k1
+li 10, 21
+add 11, 4, 5
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-add-2base-r1k2
+li 11, 21
+add 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+blr
+
+== H2-add-2base-r2k4
+li 11, 21
+add 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-add-2base-r2k5
+li 11, 21
+add 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-add-2base-r3k5
+li 11, 21
+add 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== H2-add-2base-r4k5
+li 10, 21
+add 11, 4, 5
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 10, 60(3)
+stw 10, 64(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-add-2base-r3k3
+li 10, 21
+add 11, 4, 5
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+blr
+
+== H2-addi-2base-r4k1
+li 10, 21
+addi 11, 4, 5
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-addi-2base-r1k2
+li 11, 21
+addi 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+blr
+
+== H2-addi-2base-r2k4
+li 11, 21
+addi 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-addi-2base-r2k5
+li 11, 21
+addi 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-addi-2base-r3k5
+li 11, 21
+addi 10, 4, 5
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== H2-addi-2base-r4k5
+li 10, 21
+addi 11, 4, 5
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 10, 60(3)
+stw 10, 64(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-addi-2base-r3k3
+li 10, 21
+addi 11, 4, 5
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+blr
+
+== H2-srawi-2base-r4k1
+li 10, 21
+srawi 11, 4, 3
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-srawi-2base-r1k2
+li 11, 21
+srawi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+blr
+
+== H2-srawi-2base-r2k4
+li 11, 21
+srawi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-srawi-2base-r2k5
+li 11, 21
+srawi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-srawi-2base-r3k5
+li 11, 21
+srawi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== H2-srawi-2base-r4k5
+li 10, 21
+srawi 11, 4, 3
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 10, 60(3)
+stw 10, 64(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-srawi-2base-r3k3
+li 10, 21
+srawi 11, 4, 3
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+blr
+
+== H2-extsh-2base-r4k1
+li 10, 21
+extsh 11, 4
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-extsh-2base-r1k2
+li 11, 21
+extsh 10, 4
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+blr
+
+== H2-extsh-2base-r2k4
+li 11, 21
+extsh 10, 4
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-extsh-2base-r2k5
+li 11, 21
+extsh 10, 4
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-extsh-2base-r3k5
+li 11, 21
+extsh 10, 4
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== H2-extsh-2base-r4k5
+li 11, 21
+extsh 10, 4
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+stw 10, 124(3)
+blr
+
+== H2-extsh-2base-r3k3
+li 11, 21
+extsh 10, 4
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== H2-self-2base-r4k1
+li 10, 21
+addi 11, 3, 112
+stw 10, 48(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-self-2base-r1k2
+li 10, 21
+addi 11, 3, 112
+stw 10, 48(3)
+stw 10, 52(3)
+stw 11, 112(3)
+blr
+
+== H2-self-2base-r2k4
+li 10, 21
+addi 11, 3, 112
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 10, 60(3)
+stw 11, 112(3)
+stw 11, 116(3)
+blr
+
+== H2-self-2base-r2k5
+li 11, 21
+addi 10, 3, 112
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-self-2base-r3k5
+li 10, 21
+addi 11, 3, 112
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 10, 60(3)
+stw 10, 64(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+blr
+
+== H2-self-2base-r4k5
+li 10, 21
+addi 11, 3, 112
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 10, 60(3)
+stw 10, 64(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+stw 11, 124(3)
+blr
+
+== H2-self-2base-r3k3
+li 10, 21
+addi 11, 3, 112
+stw 10, 48(3)
+stw 10, 52(3)
+stw 10, 56(3)
+stw 11, 112(3)
+stw 11, 116(3)
+stw 11, 120(3)
+blr
+
+== H2-slwi-2base-r4k1
+li 11, 21
+slwi 10, 4, 3
+stw 11, 48(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+stw 10, 124(3)
+blr
+
+== H2-slwi-2base-r1k2
+li 11, 21
+slwi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 10, 112(3)
+blr
+
+== H2-slwi-2base-r2k4
+li 11, 21
+slwi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-slwi-2base-r2k5
+li 11, 21
+slwi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+blr
+
+== H2-slwi-2base-r3k5
+li 11, 21
+slwi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== H2-slwi-2base-r4k5
+li 11, 21
+slwi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 11, 60(3)
+stw 11, 64(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+stw 10, 124(3)
+blr
+
+== H2-slwi-2base-r3k3
+li 11, 21
+slwi 10, 4, 3
+stw 11, 48(3)
+stw 11, 52(3)
+stw 11, 56(3)
+stw 10, 112(3)
+stw 10, 116(3)
+stw 10, 120(3)
+blr
+
+== H3-add-1base-r1k1-x
+li 11, 21
+stw 6, 108(3)
+add 10, 4, 5
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H3-add-1base-r2k1-x
+add 11, 4, 5
+stw 6, 108(3)
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H3-add-1base-r2k2-x
+li 10, 21
+stw 6, 108(3)
+add 11, 4, 5
+stw 10, 48(3)
+stw 11, 112(3)
+stw 10, 52(3)
+stw 11, 116(3)
+blr
+
+== H3-addi-1base-r1k1-x
+li 11, 21
+stw 6, 108(3)
+addi 10, 4, 5
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H3-addi-1base-r2k1-x
+addi 11, 4, 5
+stw 6, 108(3)
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H3-addi-1base-r2k2-x
+li 10, 21
+stw 6, 108(3)
+addi 11, 4, 5
+stw 10, 48(3)
+stw 11, 112(3)
+stw 10, 52(3)
+stw 11, 116(3)
+blr
+
+== H3-srawi-1base-r1k1-x
+li 11, 21
+stw 6, 108(3)
+srawi 10, 4, 3
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H3-srawi-1base-r2k1-x
+srawi 11, 4, 3
+stw 6, 108(3)
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H3-srawi-1base-r2k2-x
+srawi 11, 4, 3
+stw 6, 108(3)
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+stw 10, 52(3)
+blr
+
+== H3-extsh-1base-r1k1-x
+li 10, 21
+stw 6, 108(3)
+extsh 11, 4
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H3-extsh-1base-r2k1-x
+extsh 11, 4
+stw 6, 108(3)
+li 10, 21
+stw 11, 112(3)
+stw 10, 48(3)
+stw 11, 116(3)
+blr
+
+== H3-extsh-1base-r2k2-x
+li 11, 21
+stw 6, 108(3)
+extsh 10, 4
+stw 11, 48(3)
+stw 10, 112(3)
+stw 11, 52(3)
+stw 10, 116(3)
+blr
+
+== H3-self-1base-r1k1-x
+li 10, 21
+stw 6, 108(3)
+addi 11, 3, 112
+stw 10, 48(3)
+stw 11, 112(3)
+blr
+
+== H3-self-1base-r2k1-x
+addi 11, 3, 112
+stw 6, 108(3)
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H3-self-1base-r2k2-x
+li 10, 21
+stw 6, 108(3)
+addi 11, 3, 112
+stw 10, 48(3)
+stw 11, 112(3)
+stw 10, 52(3)
+stw 11, 116(3)
+blr
+
+== H3-slwi-1base-r1k1-x
+li 11, 21
+stw 6, 108(3)
+slwi 10, 4, 3
+stw 11, 48(3)
+stw 10, 112(3)
+blr
+
+== H3-slwi-1base-r2k1-x
+slwi 11, 4, 3
+stw 6, 108(3)
+li 10, 21
+stw 11, 112(3)
+stw 11, 116(3)
+stw 10, 48(3)
+blr
+
+== H3-slwi-1base-r2k2-x
+slwi 10, 4, 3
+stw 6, 108(3)
+li 11, 21
+stw 10, 112(3)
+stw 10, 116(3)
+stw 11, 48(3)
+stw 11, 52(3)
+blr
+

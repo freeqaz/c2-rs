@@ -1,0 +1,11 @@
+S7 — GRID S at the workload's /O1 /Oi /EHsc /GR against /O1 /GS- /c
+  graded at the workload profile : 146
+  graded at /O1 /GS- /c          : 146
+  graded at BOTH                 : 146
+  graded at only one             : 0
+
+  cells whose WINNER differs   : 0
+  cells whose MNEMONIC differs : 0
+  cells whose EMISSION ORDER differs : 0
+
+  S7 (registered: the same winner in every cell) -> HIT
