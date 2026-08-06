@@ -260,8 +260,14 @@ mod tests {
     /// board **#278** deleted it. `w-rdata` §10 filed the residual hole and
     /// priced the closure; this is that closure.
     ///
-    /// The rule: **every `pub fn emit_*_obj` that exists in a non-test build
-    /// must be named by `lib.rs`.** `lib.rs` is where `PortC2::build` dispatches,
+    /// The rule: **every `pub fn emit_*` that exists in a non-test build must be
+    /// named by `lib.rs`.**
+    ///
+    /// It read `pub fn emit_*_obj` for one commit, and `work/w-rtti/counterfactual.sh`
+    /// refuted that in its first run: the breaker's uncalled emitter was named
+    /// `emit_rtti_obj_counterfactual`, which does not END in `_obj`, so the
+    /// population excluded it and BREAK 2 passed both tests. A suffix
+    /// convention is an allow-list wearing a different hat. `lib.rs` is where `PortC2::build` dispatches,
     /// so being named there is the cheapest checkable proxy for *"the
     /// differential can reach this"* — a proxy, not a proof: it cannot tell a
     /// live call from a doc link, and a caller behind an unsatisfiable condition
@@ -310,7 +316,7 @@ mod tests {
             "EMITTER_SOURCES must name every coff/*.rs that declares a `pub fn emit_`"
         );
 
-        // The population: `pub fn emit_*_obj` NOT immediately preceded by a
+        // The population: EVERY `pub fn emit_*` NOT immediately preceded by a
         // `#[cfg(test)]` attribute. Reading the attribute off the line above the
         // signature is crude and it is also exactly what `#[cfg(test)]` looks
         // like in this file set — checked against `emit_mvp_obj`, which is the
@@ -326,9 +332,6 @@ mod tests {
                 };
                 let Some(end) = rest.find(['(', '<']) else { continue };
                 let name = format!("emit_{}", &rest[..end]);
-                if !name.ends_with("_obj") {
-                    continue;
-                }
                 let gated = i > 0 && lines[i - 1].trim() == "#[cfg(test)]";
                 if gated {
                     test_only.push(name);
@@ -362,7 +365,7 @@ mod tests {
             .collect();
         assert!(
             orphans.is_empty(),
-            "every `pub fn emit_*_obj` must be named by lib.rs — an emitter with \
+            "every `pub fn emit_*` must be named by lib.rs — an emitter with \
              no caller satisfies the vocabulary test above and still inflates \
              factor C (board #278, board #301). Orphans: {orphans:?}. Checked \
              {} production emitters.",
