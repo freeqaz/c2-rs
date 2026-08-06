@@ -1,0 +1,257 @@
+== S-11 self
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    s->f0 = 7;
+    s->inner.a0 = (int)&s->inner;
+}
+
+li 10, 7
+addi 11, 3, 96
+stw 10, 32(3)
+stw 11, 96(3)
+blr
+
+== S-11 cross
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    s->f0 = 7;
+    s->inner.a0 = (int)&s->inner2;
+}
+
+li 11, 7
+addi 10, 3, 128
+stw 11, 32(3)
+stw 10, 96(3)
+blr
+
+== S-21 self
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    s->f0 = 7;
+    s->inner.a0 = (int)&s->inner;
+    s->inner.a1 = (int)&s->inner;
+}
+
+addi 11, 3, 96
+li 10, 7
+stw 11, 96(3)
+stw 11, 100(3)
+stw 10, 32(3)
+blr
+
+== S-21 cross
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    s->f0 = 7;
+    s->inner.a0 = (int)&s->inner2;
+    s->inner.a1 = (int)&s->inner2;
+}
+
+addi 11, 3, 128
+li 10, 7
+stw 11, 96(3)
+stw 11, 100(3)
+stw 10, 32(3)
+blr
+
+== X-35 A
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    L& q = s->inner;
+    s->f0 = 7;
+    s->f1 = 7;
+    s->f2 = 7;
+    s->f3 = 7;
+    s->f4 = 7;
+    q.a0 = (int)&s->inner;
+    q.a1 = (int)&s->inner;
+    q.a2 = (int)&s->inner;
+}
+
+li 10, 7
+addi 11, 3, 96
+stw 10, 32(3)
+stw 10, 36(3)
+stw 10, 40(3)
+stw 10, 44(3)
+stw 10, 48(3)
+stw 11, 96(3)
+stw 11, 100(3)
+stw 11, 104(3)
+blr
+
+== X-35 B
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    L& q = s->inner;
+    s->f0 = 7;
+    s->f1 = 7;
+    s->f2 = 7;
+    s->f3 = 7;
+    s->f4 = 7;
+    q.a0 = (int)&q;
+    q.a1 = (int)&q;
+    q.a2 = (int)&q;
+}
+
+li 11, 7
+addi 10, 3, 96
+stw 11, 32(3)
+stw 11, 36(3)
+stw 11, 40(3)
+stw 11, 44(3)
+stw 11, 48(3)
+stw 10, 96(3)
+stw 10, 100(3)
+stw 10, 104(3)
+blr
+
+== X-11 A
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    L& q = s->inner;
+    s->f0 = 7;
+    q.a0 = (int)&s->inner;
+}
+
+li 10, 7
+addi 11, 3, 96
+stw 10, 32(3)
+stw 11, 96(3)
+blr
+
+== X-11 B
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    L& q = s->inner;
+    s->f0 = 7;
+    q.a0 = (int)&q;
+}
+
+li 10, 7
+addi 11, 3, 96
+stw 10, 32(3)
+stw 11, 96(3)
+blr
+
+== X-AE A
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    L& q = s->inner;
+    s->f0 = 7;
+    s->f1 = 7;
+    s->f2 = 7;
+    s->f3 = 7;
+    s->f4 = 7;
+    q.a0 = (int)&s->inner;
+    q.a1 = (int)&s->inner;
+    q.a2 = (int)&s->inner;
+}
+
+li 10, 7
+addi 11, 3, 96
+stw 10, 32(3)
+stw 10, 36(3)
+stw 10, 40(3)
+stw 10, 44(3)
+stw 10, 48(3)
+stw 11, 96(3)
+stw 11, 100(3)
+stw 11, 104(3)
+blr
+
+== X-AE E
+struct L { int a0; int a1; int a2; int a3; int a4; int a5; int a6; int a7; };
+struct S {
+    L head;
+    int f0; int f1; int f2; int f3; int f4; int f5; int f6; int f7;
+    int f8; int f9; int fa; int fb; int fc; int fd; int fe; int ff;
+    L inner;
+    L inner2;
+};
+void g(S* s, int u, int v) {
+    s->f0 = 7;
+    s->f1 = 7;
+    s->f2 = 7;
+    s->f3 = 7;
+    s->f4 = 7;
+    s->inner.a0 = (int)&s->inner;
+    s->inner.a1 = (int)&s->inner;
+    s->inner.a2 = (int)&s->inner;
+}
+
+li 11, 7
+addi 10, 3, 96
+stw 11, 32(3)
+stw 10, 96(3)
+stw 11, 36(3)
+stw 11, 40(3)
+stw 11, 44(3)
+stw 11, 48(3)
+stw 10, 100(3)
+stw 10, 104(3)
+blr
+
