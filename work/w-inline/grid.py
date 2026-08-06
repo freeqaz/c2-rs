@@ -33,6 +33,7 @@ Usage:
     grid.py --list
 """
 
+import concurrent.futures
 import hashlib
 import os
 import subprocess
@@ -46,19 +47,46 @@ from scan_obj import (  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
-# A rung: one statement that emits a fixed, small number of instructions and
-# keeps exactly one value live, so `s` walks the index axis in even steps and the
-# register pressure does not drift (§6.16's finding: pressure is an axis).
-RUNG = "  v = v * {m} + {m};\n"
+# THE RUNG, AND THE INSTRUMENT FAULT THAT PRECEDED IT
+# ---------------------------------------------------
+# GRID-2's first freeze (stamp `b8f314da…`, `grid2/GRID.sha256`) used
+# `v = v * m + m;` as its rung and it was **VACUOUS**: that chain is affine in
+# `a`, c2 folds the whole ladder to one multiply-add, and `s` ran 4 → 28 over
+# k = 0..14 — every one of its 360 cells sat inside SCHEDULE D's `unbounded`
+# band. It graded **360 of 360 HIT** and the number meant nothing.
+#
+# That is `docs/LABEL_COUNTER.md` §6.20's own closing warning, firing on this
+# lane: *"`S-if` printed `IDENTICAL to P-base on all 15 shared index cells` on a
+# row carrying a 96-byte term, and that line is indistinguishable from a true
+# negative."* The first freeze is left in the tree as the record.
+#
+# The replacement is three rung kinds whose sizes are MEASURED, not assumed:
+#
+#   k  `v = v * m ^ (v >> sh);`   12 B — non-affine, so nothing folds
+#   p  `v ^= gt[j];`              12 B — a load from an extern array, distinct j
+#   q  `v ^= a >> (2j+1);`         8 B — the fine step; gcd(12, 8) = 4
+#
+# Swept together they reach **every 4-byte value of `s` from 4 to 136** (56 is
+# the one gap) and on to ~330, so the ladder crosses the 64/68 step, the whole
+# graduated middle of SCHEDULE D and its `>= 260 → never` ceiling.
+RUNG_K = "  v = v * {m} ^ (v >> {sh});\n"
+RUNG_P = "  v ^= gt[{j}];\n"
+RUNG_Q = "  v ^= a >> {sh};\n"
 
 PRELUDE = """
 extern int gs(int);
 extern int gsink;
+extern const int gt[];
 """
 
 
-def rungs(k, start=3):
-    return "".join(RUNG.format(m=start + 2 * i) for i in range(k))
+def rungs(spec):
+    """`spec` is (k, p, q). Emitted in a fixed order so a cell is a pure
+    function of its spec and the GRID stamp covers it."""
+    k, p, q = spec
+    return ("".join(RUNG_K.format(m=3 + 2 * i, sh=1 + (i % 7)) for i in range(k))
+            + "".join(RUNG_P.format(j=j) for j in range(p))
+            + "".join(RUNG_Q.format(sh=2 * j + 1) for j in range(q)))
 
 
 # Every family returns (callee_decl_and_def, call_expr_template, extra).
@@ -171,8 +199,8 @@ def _recurse(k):
             "s += c1(s + {i});", "")
 
 
-def source(family, k, n):
-    decl, call, extra = FAMILIES[family](k)
+def source(family, spec, n):
+    decl, call, extra = FAMILIES[family](spec)
     sites = "\n  ".join(
         call.format(i=i + 1, mask=1 << (i + 1)) for i in range(n)
     )
@@ -184,7 +212,10 @@ def compile_cell(src_text, workdir, tag):
     cpp = os.path.join(workdir, tag + ".cpp")
     obj = os.path.join(workdir, tag + ".obj")
     open(cpp, "w").write(src_text)
-    r = subprocess.run([os.path.join(REPO, "work", "w-fnbyte", "probe.sh"), cpp, obj],
+    # Invoked through `sh` rather than executed: `work/w-fnbyte/probe.sh` is
+    # committed without the execute bit, and COPYING it here to get one would
+    # be a second copy of a script this repo already has exactly one of.
+    r = subprocess.run(["sh", os.path.join(REPO, "work", "w-fnbyte", "probe.sh"), cpp, obj],
                        capture_output=True, text=True)
     if not os.path.exists(obj) or os.path.getsize(obj) == 0:
         return None, (r.stdout + r.stderr).strip()
@@ -229,8 +260,34 @@ def grade_cell(obj, n):
     }, None
 
 
-HDR = ("family\tk\tN\tcallee\ts\tlinkage\tselection\tnparams\tvarargs\tleaf\t"
+HDR = ("family\tk\tp\tq\tN\tcallee\ts\tlinkage\tselection\tnparams\tvarargs\tleaf\t"
        "index\tnmax\tstwu_words\tpredicted\tobserved\tverdict")
+
+
+# `static-plain` is the only family whose schedule has a graduated middle
+# (§6.17.4), so it is the only one swept over N. Everything else is all-or-none
+# and two site counts are enough to show it.
+N_BY_FAMILY = {"static-plain": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+N_DEFAULT = [1, 4]
+
+
+def specs(kmax):
+    return [(k, p, q) for k in range(kmax + 1) for p in range(4) for q in range(2)]
+
+
+def _run_cell(args):
+    fa, spec, n, src, out = args
+    tag = f"{fa}_k{spec[0]}p{spec[1]}q{spec[2]}_n{n}"
+    obj, err = compile_cell(src, out, tag)
+    if obj is None:
+        return (fa, spec, n, None, err)
+    g, err = grade_cell(obj, n)
+    try:
+        os.remove(obj)
+        os.remove(os.path.join(out, tag + ".cpp"))
+    except OSError:
+        pass
+    return (fa, spec, n, g, err)
 
 
 def main(argv):
@@ -241,9 +298,8 @@ def main(argv):
     out = argv[argv.index("--out") + 1]
     fams = (argv[argv.index("--families") + 1].split(",")
             if "--families" in argv else list(FAMILIES))
-    kmax = int(argv[argv.index("--kmax") + 1]) if "--kmax" in argv else 12
-    ns = [int(x) for x in (argv[argv.index("--n") + 1].split(",")
-                           if "--n" in argv else ["1", "4"])]
+    kmax = int(argv[argv.index("--kmax") + 1]) if "--kmax" in argv else 20
+    jobs = int(argv[argv.index("--jobs") + 1]) if "--jobs" in argv else 8
     os.makedirs(out, exist_ok=True)
 
     # The grid is stamped BEFORE it is compiled, so what was run is what was
@@ -251,36 +307,29 @@ def main(argv):
     plan = []
     h = hashlib.sha256()
     for fa in fams:
-        for k in range(kmax + 1):
-            for n in ns:
-                s = source(fa, k, n)
-                plan.append((fa, k, n, s))
-                h.update(f"{fa}|{k}|{n}|".encode())
-                h.update(s.encode())
+        for spec in specs(kmax):
+            for n in N_BY_FAMILY.get(fa, N_DEFAULT):
+                src = source(fa, spec, n)
+                plan.append((fa, spec, n, src, out))
+                h.update(f"{fa}|{spec}|{n}|".encode())
+                h.update(src.encode())
     stamp = h.hexdigest()
     open(os.path.join(out, "GRID.sha256"), "w").write(
-        f"{stamp}  families={','.join(fams)} kmax={kmax} n={','.join(map(str, ns))} "
-        f"cells={len(plan)}\n")
+        f"{stamp}  families={','.join(fams)} kmax={kmax} cells={len(plan)}\n")
     print(f"GRID stamp {stamp}  cells {len(plan)}", file=sys.stderr)
     if "--emit-only" in argv:
-        for fa, k, n, s in plan:
-            open(os.path.join(out, f"{fa}_k{k}_n{n}.cpp"), "w").write(s)
         return 0
 
     rows, errs = [], []
-    for fa, k, n, s in plan:
-        tag = f"{fa}_k{k}_n{n}"
-        obj, err = compile_cell(s, out, tag)
-        if obj is None:
-            errs.append((tag, err))
-            continue
-        g, err = grade_cell(obj, n)
-        if g is None:
-            errs.append((tag, err))
-            continue
-        rows.append([fa, k, n, g["callee"], g["s"], g["linkage"], g["selection"],
-                     g["nparams"], g["varargs"], g["leaf"], g["index"], g["nmax"],
-                     g["stwu_words"], g["predicted"], g["observed"], g["verdict"]])
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as ex:
+        for fa, spec, n, g, err in ex.map(_run_cell, plan):
+            if g is None:
+                errs.append((f"{fa}_{spec}_n{n}", err))
+                continue
+            rows.append([fa, spec[0], spec[1], spec[2], n, g["callee"], g["s"],
+                         g["linkage"], g["selection"], g["nparams"], g["varargs"],
+                         g["leaf"], g["index"], g["nmax"], g["stwu_words"],
+                         g["predicted"], g["observed"], g["verdict"]])
     open(os.path.join(out, "grid.tsv"), "w").write(
         "\n".join([HDR] + ["\t".join(str(c) for c in r) for r in rows]) + "\n")
     hit = sum(1 for r in rows if r[-1] == "HIT")
