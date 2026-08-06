@@ -526,6 +526,16 @@ the 861 sits in a TU the parser refuses, so none has reached an obj. What is
 wrong is the *credit*, exactly as board #878 says of the 3,195, and the hazard is
 the next `functions()` widening.
 
+> **2026-08-08 — this table moved by 138, in the direction that means the
+> conversions are real.** Lane `w-inl0` closed 138 of §3.1's cluster and
+> `-disagree` went **4,056 → 3,918** with `-agree` **+138** and
+> `-disagree-count` **2,867 → 2,729**: those 138 used to disagree *by call
+> count* — the port branched and c2 did not — and now agree at **zero calls
+> each**. An elided body is the single word `4e800020`, which is not a call word
+> and takes no relocation, so it cannot join the 861; the positive count that
+> says so is `fnbyte-elided-ref-reloc`, **known answer 0**, printed on every
+> scan. Board **#991**.
+
 ### 6.2 What this does to the rest of the page
 
 **A cluster's byte counts are a measurement; its EDIT SHAPE is a hypothesis.**
