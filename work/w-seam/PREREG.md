@@ -229,3 +229,68 @@ outcome than one wrong emit.**
 Every row above is scored in `docs/rungs/2026-08-06-w-seam.md` §2 as HIT /
 PARTIAL / MISS / UNSCORED, with the measured number beside the registered one,
 including the rows that lose.
+
+---
+
+## ADDENDUM 1 — 2026-08-06, after GRID T and BEFORE GRID M and GRID A exist
+
+GRID T is compiled and scored (`work/w-seam/gridt.out`): **60 selected / 60
+reached / 60 GRADED / 0 out-of-regime**, 48 IDENT (12 of them the leaf
+controls), 6 PLAN-only, 6 DIFFER. Two registered rows moved, and both moves are
+recorded here before the next grid is written.
+
+### A1.1 — T1's cells are NOT framed, and the instrument is what says so
+
+Every **P** cell (`<run> gx();`) came back with a **frame word count of 1** —
+one `b`, no `mflr`, no `stwu`. c2 **tail-calls** a lone trailing void call even
+behind a store run, so `P` measures a *tail-call* body, not a framed one. T1 is
+therefore rescored against what it actually compiled, and **P2** (two trailing
+calls, frame count 9) is the row that carries the framed claim. This was caught
+only because the frame-word count is printed beside every verdict rather than
+asserted.
+
+### A1.2 — a NEW rule fell out of the R cells, and it is FITTED, so it gets a fresh grid
+
+The registered hypothesis **H-mr** ("the `mr r31,r3` is scheduled as if it were
+one more producer, placed by `layout_slots`") is **REFUTED** — `layout_slots`
+puts producer `i` before store slot `min(i, u)`, which mispredicts `C1` and
+`C4`. The twelve observed slots instead fit
+
+> ### **`stores_before_mr = nprod − 1 + u`**
+
+where `nprod` is the number of distinct producers in the run and `u` is the
+**leading run of unproduced stores in the FINAL emitted order** (`layout_slots`'
+own `u`, board #584) — both read off the same disassembly, so the rule is
+stated in observables and not in a model. It fits all twelve GRID T `R` cells
+**and `xboxheap.cpp`'s own body** (`nprod` 2, `u` 2 → 3 stores before the
+`mr 31,3`, which is what the obj shows).
+
+**It is fitted on the cells that produced it**, which is exactly how `P3`,
+w-next's key and w-alloc2's `H-self` were born. It is therefore registered here
+as a candidate, frozen, and taken to a **fresh holdout (GRID M)** that varies
+`u` and `nprod` independently over cells GRID T does not contain.
+
+* **M1 — the rule `stores_before_mr = nprod − 1 + u` HOLDS on every graded
+  fresh cell.** *This can lose, and losing is the deliverable if it does.*
+* **M2 — the rule is not shipped in this lane under either outcome.** No
+  `mr r31,r3` emitter is written: the shape it would serve (`this` live across
+  a call) needs the mixed-kind allocation GRID A is registered to leave
+  refused, so an emitter for it would be unreachable. GRID M is measurement.
+
+GRID M's cells: `R`-kind bodies only, `nprod ∈ {0,1,2,3}` crossed with a leading
+run of **unproduced** stores of length `{0,1,2,3}` (formal `u`, formal `v` and
+`(int)s` supply three distinct unproduced values), total stores 2…8. `u` is
+**measured off the emitted order**, never assumed from the source order.
+
+### A1.3 — T3 HOLDS where it was registered to lose
+
+T3 ("the `mr r31,r3` is additive — it is inserted without moving any other
+word") was registered as *the claim I most expect to lose*. It is **12 of 12
+IDENT**: every `R` cell's run text is string-identical to its leaf's. Recorded
+here, before GRID A, so the scoring cannot be read as retrofitted.
+
+### A1.4 — GRID A is unchanged and is compiled after this addendum lands
+
+The 36 cells of §4 are written and committed before a single one is compiled.
+Prediction **A1 (the lift FAILS, and the disagreement is a `slwi` cell)** and
+**A2 (the spelling axis separates, not the use-count axis)** stand as written.
