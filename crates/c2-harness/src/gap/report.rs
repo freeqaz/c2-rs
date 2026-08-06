@@ -648,6 +648,40 @@ impl GapReport {
         v
     }
 
+    /// **Board #980 — where the dead-temporary chain STOPS**, by production.
+    ///
+    /// One row per blocking feature of a callee that a recognized no-effect body
+    /// names and that does not itself reduce to nothing. It is the widening
+    /// order for this rule and nothing else: a rung that closes the top row here
+    /// converts that many more callers and no others.
+    pub fn fn_byte_noeffect_stops(&self) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix("fnbyte-noeffect-stop|")?.to_string(), n)))
+            .collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// **Board #980's residue, by production** — for every `fnbyte-differs`
+    /// whose whole reference body is one `blr`, the callee's own blocking
+    /// feature (`fnbyte-blr-stop|…`) and, when that callee is itself a
+    /// recognized dead-temporary body, its callee's (`fnbyte-blr-stop2|…`).
+    ///
+    /// The prefix is the argument: `prefix` is `"fnbyte-blr-stop|"` or
+    /// `"fnbyte-blr-stop2|"`, and one function serves both rather than two that
+    /// can drift.
+    pub fn fn_byte_blr_stops(&self, prefix: &str) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix(prefix)?.to_string(), n)))
+            .collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
     /// **Every differing function, by name and by word** — the witness list
     /// behind `fnbyte-differs`.
     ///

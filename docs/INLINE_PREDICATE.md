@@ -230,6 +230,30 @@ which is the direction the correctness rule wants, and it costs **370** workload
 functions (every `??$_Destroy_Range@…` whose callee is refused as
 `expr-intrinsic-memset`).
 
+> ### ✔ 2026-08-08 — **138 of that 370 are recovered, and the subset relation is now MEASURED at both ends.**
+>
+> Lane `w-inl0` read the refused callee. It is not an `if(a){}`-style body c2's
+> DCE erased: it is a **call whose only other content is an empty tag temporary**
+> (`memset(&tmp, 0, 1)` into a `9B` temp bind, passed by reference), and its own
+> callee's body is literally `empty-body`. So E's chain was intact all along and
+> the middle link was merely **unreadable**.
+> `crates/c2-il/src/func/body/shapes/no_effect.rs` reads it **without accepting
+> it**, and `c2_core::elide::Reduction::NoEffectCall` hands the fixpoint a
+> **link** — never a seed, so a cycle is still never admitted and the round
+> ceiling still cannot fire. `fnbyte-differs` **3,195 → 3,057**,
+> `fnbyte-elided` **1,516 → 1,654**, 138 closed and **0** opened per symbol,
+> `IlBundle::functions()` untouched.
+>
+> **The subset is still strict, and the residue is still E.** The other 232 are
+> `_Destroy_Range` over **class** element types, which take STLport's
+> `__false_type` **loop** overload; a compiled cell of that shape is one
+> `4e800020` **at `/Ob0` as well**, so it is c2's dead-code elimination and not
+> its inliner. §1.4's sentence therefore stands with a sharper population: what
+> the port cannot establish is not *"c2 eliminated dead code"* in general but
+> **one production at a time**, and the next one is
+> `return-scope-close-cflow-label` at 228 bodies. Boards **#990**–**#995**;
+> [`rungs/2026-08-08-w-inl0.md`](rungs/2026-08-08-w-inl0.md).
+
 ## 1.5 The caller's whole body collapses — the setup goes with the call
 
 In **29 of the 30** cells graded E, the caller's entire `.text` COMDAT is one

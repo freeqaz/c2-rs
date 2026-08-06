@@ -41,6 +41,10 @@ pub(crate) mod leaf_store;
 pub(crate) mod mcall_chain;
 pub(crate) mod mcall_cmp;
 pub(crate) mod mcall_tail;
+/// **Not a body shape** — a decode-only fact for mechanism E's fixpoint. It
+/// never reaches [`super::BodyShape`] and never changes what the parser accepts;
+/// see the module's own header.
+pub(crate) mod no_effect;
 pub(crate) mod params;
 pub(crate) mod ptr_walk_chain_loop;
 pub(crate) mod ptr_walk_loop;

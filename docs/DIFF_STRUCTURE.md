@@ -221,6 +221,32 @@ E**, which closed 1,516 bodies of exactly this *outcome* by a different *test* �
 E fires when the callee's body is literally empty. Here the callee is not empty;
 inlining it is what makes it nothing.
 
+> ### ✔ 2026-08-08 — **138 of the 370 are CLOSED, and the paragraph above is corrected: the callee is not inlined, it is UNREADABLE.**
+>
+> Lane `w-inl0` read the production. `expr-intrinsic-memset` here is not a
+> `memset` at all: it is the **materialization of an empty tag temporary** —
+> `memset(&tmp, 0, 1)` into a `9B` temp bind — passed by reference to a callee
+> whose body **is** empty. So this is mechanism **E** end to end, one link
+> further down than `elide.rs` could see, and not I.
+> `crates/c2-il/src/func/body/shapes/no_effect.rs` reads that body **without
+> accepting it** (`IlBundle::functions()` untouched, `fnbyte-refused`
+> **130,573 → 130,573**) and hands E's fixpoint a link.
+> `fnbyte-differs` **3,195 → 3,057**, `fnbyte-exact` **35,982 → 36,120**,
+> `fnbyte-elided` **1,516 → 1,654**, **138 closed and 0 opened** checked per
+> symbol. `mismatch` 0, TU match `10 → 10`.
+>
+> **The 232 that remain split by ELEMENT TYPE, and they are still E.** The 138
+> that closed are `_Destroy_Range` over scalars and pointers; the 232 that did
+> not are over **class types**, whose `__type_traits<T>::has_trivial_destructor`
+> is `__false_type`, so they take STLport's **loop** overload. Every scan now
+> prints where they stop: `fnbyte-blr-stop|expr-intrinsic-memset` **231** (+1
+> `callee-unbound`), and one level deeper
+> `fnbyte-blr-stop2|return-scope-close-cflow-label` **228**. A compiled cell of
+> that shape (`work/w-inl0/cells/m06.cpp`) is one `4e800020` **at `/Ob0` too**,
+> so the loop is erased by c2's own dead-code elimination and the follow-on rung
+> is a **parser** rung, not an inlining one. Boards **#990**–**#995**;
+> [`rungs/2026-08-08-w-inl0.md`](rungs/2026-08-08-w-inl0.md).
+
 ### 3.2 Worked example — cluster 4 (140 bodies), ~~the one pointing the other way~~
 
 > ## ⚠ 2026-08-06 — **THIS SECTION IS REFUTED. The port does not omit a call.**
@@ -400,6 +426,21 @@ Three specs fall out, ranked by bodies per unit of new mechanism:
    relocation observable reads "nothing happened" on a self-recursive body that
    is plainly not nothing, so a rule keyed on relocations alone is not sound and
    must be keyed on the callee.
+
+   > **✔ TAKEN 2026-08-08 by lane `w-inl0`, and 138 of the 370 are closed** —
+   > §3.1's banner has the numbers. The spec's own wording was wrong in a way
+   > worth keeping: *"the callee's body inlines to nothing"* is not what happens.
+   > The callee's body **is** empty one link further down, and what blocked E was
+   > that the middle link could not be **read**. The rule shipped is a
+   > decode-only reader plus a `Reduction::NoEffectCall` **link** into the
+   > existing fixpoint — no seed, no cycle admitted, no acceptance widened.
+   >
+   > **The remaining 232 are the same mechanism behind a LOOP** and are priced to
+   > one production (`return-scope-close-cflow-label`, 228). The
+   > relocation-count-zero test the paragraph above proposes was **not** used:
+   > the rule is keyed on the callee, and `fnbyte-elided-ref-reloc` — known
+   > answer **0** — is the positive count that says an elided body carries no
+   > relocation for `w-drop3`'s call-target caveat (§6) to bite.
 2. ~~**The `DataArray::Obj<T>` cluster — 140 bodies, one template, one missing
    7-word call.** Not an inlining question at all: the port emits two of three
    calls in a `seq` and drops the third. Board **#979**. Smallest and most
@@ -484,6 +525,16 @@ count. Boards **#984**–**#989**;
 the 861 sits in a TU the parser refuses, so none has reached an obj. What is
 wrong is the *credit*, exactly as board #878 says of the 3,195, and the hazard is
 the next `functions()` widening.
+
+> **2026-08-08 — this table moved by 138, in the direction that means the
+> conversions are real.** Lane `w-inl0` closed 138 of §3.1's cluster and
+> `-disagree` went **4,056 → 3,918** with `-agree` **+138** and
+> `-disagree-count` **2,867 → 2,729**: those 138 used to disagree *by call
+> count* — the port branched and c2 did not — and now agree at **zero calls
+> each**. An elided body is the single word `4e800020`, which is not a call word
+> and takes no relocation, so it cannot join the 861; the positive count that
+> says so is `fnbyte-elided-ref-reloc`, **known answer 0**, printed on every
+> scan. Board **#991**.
 
 ### 6.2 What this does to the rest of the page
 

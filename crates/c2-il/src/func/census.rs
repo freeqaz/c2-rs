@@ -222,6 +222,30 @@ pub struct FnCensus {
     /// It is not consulted by acceptance, by `shape_to_function`, or by the
     /// emitter.
     pub emit_name: Option<String>,
+    /// **Board #980 — the callee this REFUSED body emits nothing but a call to.**
+    ///
+    /// `Some(name)` when the body is
+    /// [`super::body::shapes::no_effect::no_effect_call`]'s dead-temporary call
+    /// shape: its whole content is one discarded call, plus a temporary the
+    /// body's own grammar proves nothing else reads. The name is the callee's,
+    /// resolved through the same `.gl` symbol index every call shape uses.
+    ///
+    /// **It is a CONDITION, not a verdict.** It says *this function emits
+    /// nothing provided that callee reduces to nothing*, which is exactly the
+    /// step `c2_core::elide`'s least fixpoint takes, and it is the only consumer.
+    /// Asking it of a body whose callee does **not** reduce to nothing answers
+    /// nothing at all.
+    ///
+    /// `None` for every in-class row: a body that parses has an
+    /// [`super::IlFunction`] and its emptiness is read from that, never from
+    /// here — one fact, one owner.
+    ///
+    /// **The row stays `FnVerdict::Blocked`.** Nothing about acceptance moves:
+    /// `parse_segment` still refuses this body, [`super::IlBundle::functions`]
+    /// still refuses its whole TU, and the census key is still
+    /// `expr-intrinsic-memset`. Board **#971** condition 4 is that this widening
+    /// may not widen the gate, and this field is how it does not.
+    pub no_effect_callee: Option<String>,
 }
 
 impl FnCensus {
@@ -770,6 +794,15 @@ impl IlBundle {
                         }
                     };
                     let (cflow, eh, eh_stmt) = cflow_key(seg);
+                    // Board #980. Asked of REFUSED rows only, and asked HERE
+                    // rather than in the struct literal so the read happens
+                    // before `verdict` moves into it.
+                    let no_effect_callee = match &verdict {
+                        FnVerdict::InClass(_) => None,
+                        FnVerdict::Blocked(_) => {
+                            body::shapes::no_effect::no_effect_call(seg).and_then(&resolve)
+                        }
+                    };
                     (
                         FnCensus {
                             index: i,
@@ -786,6 +819,11 @@ impl IlBundle {
                             prod,
                             opt_word,
                             emit_name: emit.name(i).map(str::to_string),
+                            // An in-class row's emptiness is a property of its
+                            // `IlFunction`, and two owners for one fact is how a
+                            // rule comes to have two answers (`elide.rs`'s own
+                            // §"what it refuses").
+                            no_effect_callee,
                         },
                         func,
                     )
