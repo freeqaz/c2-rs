@@ -18,12 +18,42 @@
 //! | tag | element | this reader |
 //! |---|---|---|
 //! | `01` | `<type> <width> <value>` — a scalar constant | **read** |
-//! | `02` | `<token> 00 <n>` — the ADDRESS of another symbol | refused |
-//! | `03` | `<len> <bytes>` — a string literal | [`super::inlit`] |
+//! | `02` | `<token> <offset> <n>` — the ADDRESS of another symbol | **read** (board #931, `work/w-tag02`) |
+//! | `03` | `<len> <bytes>` — inline bytes | **read** (board #960, `work/w-inread`) |
+//! | `08` | `<count>` — a run of `count` ZERO BYTES | **read** (board #960) |
 //!
-//! Element tag `02` is why `int gi; int* gp = &gi;` refuses: a pointer-valued
-//! initializer stores zero bytes and carries its address entirely in a `.data`
-//! relocation, which `docs/OBJ_DATA_BSS_SHAPE.md` §8.6 records as unexercised.
+//! and the scalar element's **type** byte is:
+//!
+//! | type | means | this reader |
+//! |---|---|---|
+//! | `01` | signed integer | **read** |
+//! | `02` | unsigned integer | **read** |
+//! | `03` | a DATA pointer whose value is a plain integer | **read** (board #960) |
+//! | `04` | a FUNCTION pointer whose value is a plain integer | **read** (board #960) |
+//! | `05` | floating point | refused — the aux `CheckSum` exclusion |
+//!
+//! # What board #960 was, and what it cost
+//!
+//! Until `w-inread` this reader saw **1,429,596 of 1,885,700** tag-02 symbol
+//! addresses (75.81 %) and **518,098 of 879,377** records over the 850-TU
+//! workload — fewer on 812 TUs, more on none — because `read_elements` returned
+//! `Err` for the **whole record** the moment it met one of the four kinds above.
+//! `work/w-emitp2/blindspot.txt` decomposes the loss by the FIRST element each
+//! record's parse refuses:
+//!
+//! ```text
+//!   element tag 08 (zero fill)     114,865 records   315,553 symbol addresses
+//!   scalar type 03                 132,528 records   132,488
+//!   element tag 03 (inline bytes)  144,848 records         0
+//!   scalar type 04                   4,841 records     9,675
+//!   scalar type 05 (float)             134 records         0
+//! ```
+//!
+//! **The rows are not independent and the order matters**: `??_R0` is
+//! `02 <type_info vftable> · 01 03 04 00 · 03 <len> <name>`, so teaching the
+//! reader scalar type `03` without also teaching it element tag `03` recovers
+//! **none** of that row's 132,488 addresses — the blame merely moves one element
+//! to the right. That is why this widening is four kinds and not two.
 //!
 //! # The value encoding, and the two places it is NOT the crate's other varints
 //!
@@ -97,8 +127,98 @@ const RECORD_END: u8 = 0x07;
 const TYPE_INT_SIGNED: u8 = 0x01;
 const TYPE_INT_UNSIGNED: u8 = 0x02;
 
+/// **A DATA pointer whose value is a plain integer** — canonically a null
+/// pointer *inside an aggregate*, where no relocation can be spelled because
+/// there is no target.
+///
+/// MEASURED on `work/w-inread/grid` (board **#960**):
+///
+/// ```text
+///   struct S{int* p; int a;} s = {0, 5};            01 03 04 · 00
+///   struct S{int* p; int a;} s = {(int*)4, 5};      01 03 04 · 04
+///   struct S{int* p; int a;} s = {(int*)0x11223344} 01 03 04 · 80 44 33 22 11
+/// ```
+///
+/// and it is what `_TypeDescriptor::spare` is: `??_R0`'s record spells
+/// `02 <??_7type_info@@6B@> 00 04 · 01 03 04 00 · 03 08 ".?AUA@@\0"`, which is
+/// **14,703 of the workload's 14,705 type-03 elements over the first 40 TUs**.
+/// A `.data` object initialized with `(int*)4` carries the four bytes and **no
+/// relocation** — `z11_data_ptr_4`'s obj, checked.
+const TYPE_PTR_DATA: u8 = 0x03;
+
+/// **A FUNCTION pointer whose value is a plain integer.** The same shape as
+/// [`TYPE_PTR_DATA`] and a different type byte, which is the only thing that
+/// distinguishes them in the stream.
+///
+/// MEASURED on `work/w-inread/grid`:
+///
+/// ```text
+///   struct S{void(*f)(); int a;} s = {0, 5};        01 04 04 · 00
+///   …                            s = {(void(*)())4} 01 04 04 · 04
+/// ```
+///
+/// and it is `_s__ThrowInfo::pForwardCompat` — `z08_throw`'s `_TI1?AUE@@` reads
+/// `01 02 04 00 · 01 04 04 00 · 01 04 04 00 · 02 <_CTA1> 00 04`, two null
+/// function pointers (`pmfnUnwind` is null too, because the thrown type has no
+/// destructor). All **228** of the workload's type-04 elements in the sampled
+/// TUs sit at element index 2 of a four-element `_TI` record.
+const TYPE_PTR_FUNC: u8 = 0x04;
+
+/// The only width [`TYPE_PTR_DATA`] and [`TYPE_PTR_FUNC`] are measured at.
+///
+/// Every pointer on this 32-bit target is four bytes, so no cell can vary it —
+/// an OBSERVED constant like [`ADDRESS_WIDTH`], and any other width refuses
+/// with [`InInitResidue::PointerWidth`] rather than being read as an integer of
+/// that size. `work/w-emitp2/scalartypes.txt` finds **no** type-03 or type-04
+/// element at any other width anywhere in the 850-TU workload, so the
+/// restriction costs nothing and keeps the claim to what was measured.
+const POINTER_WIDTH: u8 = 4;
+
 /// Element widths this reader admits, in bytes.
 const WIDTHS: [u8; 3] = [1, 2, 4];
+
+/// **Element tag `03` — inline bytes**, `03 <len> <len bytes>`, contributing
+/// its payload to the object's raw bytes verbatim.
+///
+/// [`super::inlit`] reads a *record* whose only element is one of these (the
+/// string literal). This reads it as an **element**, which is what `??_R0`
+/// needs: its third field is the type's name and its first is a symbol address,
+/// so refusing the record for the blob costs a symbol address. The length field
+/// is [`super::inlit::read_len`]'s — `80` + LE**16** — reused rather than
+/// re-spelled, because the crate already has three different varints and a
+/// fourth spelling of this one is how they drift.
+const ELEMENT_INLINE_BYTES: u8 = 0x03;
+
+/// **Element tag `08` — a zero fill of `<count>` BYTES.**
+///
+/// MEASURED on fourteen fill lengths in `work/w-inread/grid`, every one checked
+/// against the `.data` bytes and `SizeOfRawData` of real `c2`'s obj:
+///
+/// ```text
+///   struct S{int a,b,c;} s = {1};        01 01 04 01 · 08 08          .data 12 B
+///   int arr[4] = {1};                    01 01 04 01 · 08 0c          .data 16 B
+///   char cs[8] = {97};                   01 01 01 61 · 08 07          .data  8 B
+///   char cs[4] = {97};                   01 01 01 61 · 08 03          .data  4 B
+///   short ss[6] = {7};                   01 01 02 07 · 08 0a          .data 12 B
+///   int arr[32] = {1};                   01 01 04 01 · 08 7c          .data 128 B
+///   int arr[33] = {1};                   01 01 04 01 · 08 80 80000000 .data 132 B
+///   int arr[300] = {1};                  01 01 04 01 · 08 80 ac040000 .data 1200 B
+/// ```
+///
+/// **`char cs[8] = {97}` is the row that makes the unit BYTES and not
+/// elements**: a fill of 7 cannot be a count of 4-byte anythings, and the obj's
+/// `.data` is exactly `61 00 00 00 00 00 00 00`.
+///
+/// **The fill is what the initializer list OMITS, not a zero that was written.**
+/// `struct S{int* p; int a[3];} s = {&gi, {0,0,0}};` spells three explicit
+/// `01 01 04 00` elements and **no** tag `08` (`z26_fill_only`), while
+/// `struct S{bool b; int a[2];} s = {true};` spells `01 01 01 01 · 08 03 · 08
+/// 08` — the first fill is the struct's own **padding** after the `bool`.
+///
+/// The count's varint is [`read_offset`]'s shape (`00..7F`, else `80` + LE32),
+/// separated at 124 / 128 by `z05` and `z04`, and **not** [`super::inlit`]'s
+/// LE16.
+const ELEMENT_ZERO_FILL: u8 = 0x08;
 
 /// Why a record that framed as an initializer did not yield bytes.
 ///
@@ -120,6 +240,18 @@ pub enum InInitResidue {
     /// The value did not frame — a short form at width > 1 whose first byte is
     /// neither `< 0x80` nor exactly `0x80`.
     ValueDidNotFrame,
+    /// A [`TYPE_PTR_DATA`] or [`TYPE_PTR_FUNC`] element at a width other than
+    /// [`POINTER_WIDTH`]. Unmeasured — no cell can vary a pointer's width on
+    /// this target and the workload contains none — so it refuses rather than
+    /// being read as an integer of that size.
+    PointerWidth,
+    /// An [`ELEMENT_ZERO_FILL`] count that did not frame: a high-bit short form
+    /// (a desync, by the same rule [`read_offset`] applies), a negative count,
+    /// or a run that would take the object past this reader's size bound.
+    ZeroFill,
+    /// An [`ELEMENT_INLINE_BYTES`] length that did not frame, or a payload that
+    /// would take the object past this reader's size bound.
+    InlineBytes,
     /// The record ran off the end of the stream.
     Truncated,
 }
@@ -136,6 +268,9 @@ impl InInitResidue {
             Self::UnknownType => "unknown-type",
             Self::UnknownWidth => "unknown-width",
             Self::ValueDidNotFrame => "value-did-not-frame",
+            Self::PointerWidth => "pointer-width",
+            Self::ZeroFill => "zero-fill",
+            Self::InlineBytes => "inline-bytes",
             Self::Truncated => "truncated",
         }
     }
@@ -144,12 +279,15 @@ impl InInitResidue {
     /// occur. The array's length is asserted in the tests, so adding a variant
     /// without adding it here is a compile-adjacent failure rather than a silent
     /// hole in the report.
-    pub const ALL: [InInitResidue; 6] = [
+    pub const ALL: [InInitResidue; 9] = [
         Self::SymbolAddress,
         Self::FloatingPoint,
         Self::UnknownType,
         Self::UnknownWidth,
         Self::ValueDidNotFrame,
+        Self::PointerWidth,
+        Self::ZeroFill,
+        Self::InlineBytes,
         Self::Truncated,
     ];
 }
@@ -190,6 +328,34 @@ pub struct InInitReport {
     /// them), and the records carrying at least one.
     pub sym_refs: usize,
     pub records_with_sym_refs: usize,
+    /// **THE DENOMINATOR THIS REPORT WAS SILENT ABOUT** — board **#961**.
+    ///
+    /// Records this reader can *see the start of* and does **not** anchor,
+    /// because their first element is an [`ELEMENT_INLINE_BYTES`] blob or an
+    /// [`ELEMENT_ZERO_FILL`] run and the scan's two anchors are `00 01` and
+    /// `00 02`. Each one is counted only when it frames **all the way to its
+    /// `07`** under the same fail-closed rule the `00 02` arm applies, so this
+    /// is a count and not an estimate.
+    ///
+    /// **It is published beside [`InInitReport::records`] and is deliberately
+    /// NOT folded into it.** The totality identity `records == accepted +
+    /// residue` is correct and is a statement about the population the anchor
+    /// scan reaches; `docs/STATUS.md` trap 0 is a control whose denominator is
+    /// chosen by the same predicate that decides its numerator, and this is the
+    /// number that makes that visible without changing what the reader accepts.
+    /// A sequential parse of the same 850 workload streams frames **879,377**
+    /// records where the anchor scan counted **518,098**
+    /// (`work/w-emitp2/two_readers.txt`).
+    pub unanchored: usize,
+    /// `00 02` candidates the **fail-closed arm** dropped — *"not a record:
+    /// count nothing, resync by one"*. The second half of the silent
+    /// population, and the larger one: **239,279** records over the same 850
+    /// TUs before this lane's widening.
+    pub fail_closed: usize,
+    /// `00 01` / `00 02` candidates whose preceding bytes do not read back as a
+    /// token of exactly the right width, so no record is started at all. The
+    /// third silent population, and the one nothing had ever counted.
+    pub no_token: usize,
 }
 
 impl InInitCensus {
@@ -210,6 +376,9 @@ impl InInitCensus {
             residue_by_reason,
             sym_refs: self.refs.values().map(|v| v.len()).sum(),
             records_with_sym_refs: self.refs.values().filter(|v| !v.is_empty()).count(),
+            unanchored: self.unanchored,
+            fail_closed: self.fail_closed,
+            no_token: self.no_token,
         }
     }
 }
@@ -281,6 +450,13 @@ pub(crate) struct InInitCensus {
     /// first. **Injectivity**: a token that survives names exactly one byte
     /// string.
     pub(crate) conflicts: usize,
+    /// See [`InInitReport::unanchored`] — board **#961**, the denominator the
+    /// totality identity is silent about.
+    pub(crate) unanchored: usize,
+    /// See [`InInitReport::fail_closed`].
+    pub(crate) fail_closed: usize,
+    /// See [`InInitReport::no_token`].
+    pub(crate) no_token: usize,
 }
 
 /// Read one element's value, `width` bytes wide, returning it **big-endian**.
@@ -354,6 +530,48 @@ fn read_offset(inb: &[u8], p: &mut usize) -> Result<i32, InInitResidue> {
     Ok(i32::from_le_bytes([inb[lo], inb[lo + 1], inb[lo + 2], inb[lo + 3]]))
 }
 
+/// Read an [`ELEMENT_ZERO_FILL`] **count**: the same varint [`read_offset`]
+/// spells — a byte below `0x80`, else `0x80` + a little-endian i32.
+///
+/// **Separated from [`super::inlit`]'s LE16 length by two cells that differ by
+/// one array element**: `int arr[32] = {1};` spells its 124-byte fill `08 7c`
+/// and `int arr[33] = {1};` spells its 128-byte fill `08 80 80 00 00 00`, with
+/// `int arr[300] = {1};` at `08 80 ac 04 00 00` = 1,196. An LE16 reading would
+/// have taken `80 80 00` as 128 and then read `00 00` as two more elements.
+///
+/// A negative count is refused rather than clamped: nothing measured spells one
+/// and a negative fill is not a length.
+fn read_fill_count(inb: &[u8], p: &mut usize) -> Result<u32, InInitResidue> {
+    let b0 = *inb.get(*p).ok_or(InInitResidue::Truncated)?;
+    if b0 < 0x80 {
+        *p += 1;
+        return Ok(b0 as u32);
+    }
+    if b0 != 0x80 {
+        // A high-bit short form is a desync by the same rule `read_offset`
+        // applies, not a sign-extended count.
+        return Err(InInitResidue::ZeroFill);
+    }
+    let lo = *p + 1;
+    let hi = lo.checked_add(4).ok_or(InInitResidue::Truncated)?;
+    if hi > inb.len() {
+        return Err(InInitResidue::Truncated);
+    }
+    let v = i32::from_le_bytes([inb[lo], inb[lo + 1], inb[lo + 2], inb[lo + 3]]);
+    if v < 0 {
+        return Err(InInitResidue::ZeroFill);
+    }
+    *p = hi;
+    Ok(v as u32)
+}
+
+/// A record longer than any object this class admits is a desync, not a large
+/// initializer. The bound predates this lane; what is new is that the two
+/// length-carrying elements check it **before** allocating, so a corrupt
+/// `08 80 ff ff ff 7f` cannot ask for two gigabytes on the way to being
+/// refused.
+const MAX_OBJECT_BYTES: usize = 1 << 16;
+
 /// Parse the element run of one record, starting just past its [`RECORD_TAG`].
 ///
 /// Returns the object's bytes in the obj's order, the element count (arity) and
@@ -398,33 +616,80 @@ fn read_elements(
             out.extend_from_slice(&addend.to_be_bytes());
             *p = q;
             n += 1;
-            if out.len() > 1 << 16 {
+            if out.len() > MAX_OBJECT_BYTES {
                 return Err(InInitResidue::ValueDidNotFrame);
             }
             continue;
         }
+        if tag == ELEMENT_ZERO_FILL {
+            // `08 <count>` — `count` ZERO BYTES. MEASURED on fourteen fill
+            // lengths against real `c2`'s obj; see [`ELEMENT_ZERO_FILL`].
+            //
+            // **The bytes it contributes are load-bearing beyond their own
+            // value**: `z06_fill_then_ptr` puts an 8-byte fill between a scalar
+            // and a pointer and its obj carries the `ADDR32` at **offset 12**,
+            // so a fill read at the wrong length moves every relocation after
+            // it. That cell is the reason this is a byte count and not an
+            // element count in the reader.
+            let mut q = *p + 1;
+            let count = read_fill_count(inb, &mut q)? as usize;
+            if out.len() + count > MAX_OBJECT_BYTES {
+                return Err(InInitResidue::ZeroFill);
+            }
+            out.resize(out.len() + count, 0);
+            *p = q;
+            n += 1;
+            continue;
+        }
+        if tag == ELEMENT_INLINE_BYTES {
+            // `03 <len> <len bytes>` — the payload, verbatim. See
+            // [`ELEMENT_INLINE_BYTES`]: reading this as an *element* rather than
+            // as a whole record is what lets `??_R0` decode, and `??_R0` carries
+            // a symbol address in its first field.
+            let mut q = *p + 1;
+            let len =
+                super::inlit::read_len(inb, &mut q).ok_or(InInitResidue::InlineBytes)? as usize;
+            if out.len() + len > MAX_OBJECT_BYTES {
+                return Err(InInitResidue::InlineBytes);
+            }
+            let hi = q.checked_add(len).ok_or(InInitResidue::Truncated)?;
+            if hi > inb.len() {
+                return Err(InInitResidue::Truncated);
+            }
+            out.extend_from_slice(&inb[q..hi]);
+            *p = hi;
+            n += 1;
+            continue;
+        }
         if tag != ELEMENT_SCALAR {
-            // `03` is a string literal ([`super::inlit`] reads those on their
-            // own), and anything else is unmeasured. Both refuse — neither is a
-            // constant this reader can put in a `.data`.
+            // Anything else is unmeasured and refuses — it is not a constant
+            // this reader can put in a `.data`.
             return Err(InInitResidue::UnknownType);
         }
         let ty = *inb.get(*p + 1).ok_or(InInitResidue::Truncated)?;
         let width = *inb.get(*p + 2).ok_or(InInitResidue::Truncated)?;
         match ty {
-            TYPE_INT_SIGNED | TYPE_INT_UNSIGNED => {}
+            TYPE_INT_SIGNED | TYPE_INT_UNSIGNED => {
+                if !WIDTHS.contains(&width) {
+                    return Err(InInitResidue::UnknownWidth);
+                }
+            }
+            // A pointer whose value is a plain integer. **Only
+            // [`POINTER_WIDTH`] is measured**, and the workload contains no
+            // other, so any other width refuses rather than being read as an
+            // integer of that size.
+            TYPE_PTR_DATA | TYPE_PTR_FUNC => {
+                if width != POINTER_WIDTH {
+                    return Err(InInitResidue::PointerWidth);
+                }
+            }
             0x05 => return Err(InInitResidue::FloatingPoint),
             _ => return Err(InInitResidue::UnknownType),
-        }
-        if !WIDTHS.contains(&width) {
-            return Err(InInitResidue::UnknownWidth);
         }
         *p += 3;
         out.extend_from_slice(&read_value(inb, p, width)?);
         n += 1;
-        if out.len() > 1 << 16 {
-            // A record longer than any object this class admits is a desync, not
-            // a large initializer. Bounded so a corrupt stream cannot spin.
+        if out.len() > MAX_OBJECT_BYTES {
             return Err(InInitResidue::ValueDidNotFrame);
         }
     }
@@ -453,6 +718,13 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
     let mut accepted = 0usize;
     let mut duplicate_records = 0usize;
     let mut elements = 0usize;
+    // **The three silent populations — board #961.** None of them changes what
+    // this scan accepts or where it resumes; they are counted so the totality
+    // identity's denominator stops being invisible. See
+    // [`InInitReport::unanchored`].
+    let mut unanchored = 0usize;
+    let mut fail_closed = 0usize;
+    let mut no_token = 0usize;
     let mut i = 0usize;
     while i + 1 < inb.len() {
         // **TWO anchors, and they are deliberately not symmetric.**
@@ -477,6 +749,43 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
         let anchor_scalar = inb[i] == RECORD_TAG && inb[i + 1] == ELEMENT_SCALAR;
         let anchor_address = inb[i] == RECORD_TAG && inb[i + 1] == ELEMENT_SYMBOL_ADDRESS;
         if !anchor_scalar && !anchor_address {
+            // **#961: COUNT what this scan cannot see, without changing what it
+            // does.** A record whose first element is a tag-`03` blob or a
+            // tag-`08` fill matches neither anchor, so it is in neither
+            // `records` nor the residue — it is invisible to the totality
+            // control, the arity control and the residue histogram at once.
+            //
+            // Widening the anchor set to `00 03` / `00 08` is DECLINED and
+            // priced: over the 850-TU workload those records are **144,850**
+            // and they carry **ZERO** tag-02 symbol addresses
+            // (`work/w-emitp2/blindspot.txt`), while `00 03` is a byte pair that
+            // occurs inside any four-byte escape payload whose third byte is 3.
+            // Counting them costs nothing and admitting them would change
+            // `values` for tokens `super::inlit` already binds.
+            //
+            // The count is fail-closed exactly as the `00 02` arm is: a
+            // candidate is counted only if a token reads back at the right width
+            // AND the run frames all the way to its `07`. The scan still resumes
+            // one byte on, so no trajectory changes.
+            if i + 1 < inb.len()
+                && inb[i] == RECORD_TAG
+                && (inb[i + 1] == ELEMENT_INLINE_BYTES || inb[i + 1] == ELEMENT_ZERO_FILL)
+            {
+                for w in [4usize, 2] {
+                    if i < w {
+                        continue;
+                    }
+                    let Some((_tok, got)) = read_token_var(inb, i - w) else { continue };
+                    if got != w {
+                        continue;
+                    }
+                    let mut p = i + 1;
+                    if matches!(read_elements(inb, &mut p), Ok((b, _, _)) if !b.is_empty()) {
+                        unanchored += 1;
+                    }
+                    break;
+                }
+            }
             i += 1;
             continue;
         }
@@ -498,6 +807,11 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
             let parsed = read_elements(inb, &mut p);
             if anchor_address && !matches!(&parsed, Ok((b, _, _)) if !b.is_empty()) {
                 // The fail-closed arm. Not a record: count nothing, resync by one.
+                // **#961**: `fail_closed` is the one number this arm used to
+                // leave completely silent, and it is the LARGER half of the
+                // 384,129 records that were in neither `records` nor the
+                // residue — 239,279 of them before this lane's widening.
+                fail_closed += 1;
                 break;
             }
             records += 1;
@@ -536,6 +850,10 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
             break;
         }
         if !matched {
+            // Neither token width read back to land exactly on the anchor, so
+            // no record was started. **#961**: the third silent population, and
+            // the one nothing had ever counted.
+            no_token += 1;
             i += 1;
         }
     }
@@ -553,6 +871,9 @@ pub(crate) fn in_scalar_initializers(inb: &[u8]) -> InInitCensus {
         elements,
         residue,
         conflicts,
+        unanchored,
+        fail_closed,
+        no_token,
     }
 }
 
@@ -929,6 +1250,389 @@ mod tests {
             got.records,
             "and the OLD one does not — this is the case it could never see"
         );
+    }
+
+    /// **THE MEASURED ZERO-FILL CELLS, byte for byte** —
+    /// `work/w-inread/spell.txt`, read off real captures of `sha256`'d sources
+    /// at the workload's own flags. The right-hand column is the length and
+    /// content of the obj's `.data`, read out of the obj by `scripts/gt_dump.py`
+    /// and not from this reader.
+    ///
+    /// **`char cs[8] = {97}` is the row that decides the UNIT.** Its fill is
+    /// **7**, which cannot be a count of 4-byte anythings, and its obj's `.data`
+    /// is exactly `61 00 00 00 00 00 00 00`. Every other cell is consistent with
+    /// both an element count and a byte count; this one is not.
+    #[test]
+    fn the_measured_zero_fill_cells_decode_to_that_many_zero_bytes() {
+        // (cell, source, .in element bytes, obj `.data`)
+        let cases: [(&str, &[u8], Vec<u8>); 8] = [
+            (
+                "z01 struct S{int a,b,c;} s={1};  .data 12 B",
+                &[0x01, 0x01, 0x04, 0x01, 0x08, 0x08],
+                [vec![0, 0, 0, 1], vec![0u8; 8]].concat(),
+            ),
+            (
+                "z02 int arr[4]={1};  .data 16 B",
+                &[0x01, 0x01, 0x04, 0x01, 0x08, 0x0c],
+                [vec![0, 0, 0, 1], vec![0u8; 12]].concat(),
+            ),
+            (
+                "z18 char cs[8]={97};  .data 8 B — THE UNIT CELL",
+                &[0x01, 0x01, 0x01, 0x61, 0x08, 0x07],
+                [vec![0x61], vec![0u8; 7]].concat(),
+            ),
+            (
+                "z19 char cs[4]={97};  .data 4 B",
+                &[0x01, 0x01, 0x01, 0x61, 0x08, 0x03],
+                [vec![0x61], vec![0u8; 3]].concat(),
+            ),
+            (
+                "z23 short ss[6]={7};  .data 12 B",
+                &[0x01, 0x01, 0x02, 0x07, 0x08, 0x0a],
+                [vec![0, 0x07], vec![0u8; 10]].concat(),
+            ),
+            (
+                "z05 int arr[32]={1};  .data 128 B — 124 in the SHORT form",
+                &[0x01, 0x01, 0x04, 0x01, 0x08, 0x7c],
+                [vec![0, 0, 0, 1], vec![0u8; 124]].concat(),
+            ),
+            (
+                "z04 int arr[33]={1};  .data 132 B — 128 ESCAPES, and it is LE32",
+                &[0x01, 0x01, 0x04, 0x01, 0x08, 0x80, 0x80, 0x00, 0x00, 0x00],
+                [vec![0, 0, 0, 1], vec![0u8; 128]].concat(),
+            ),
+            (
+                "z15 int arr[300]={1};  .data 1200 B",
+                &[0x01, 0x01, 0x04, 0x01, 0x08, 0x80, 0xac, 0x04, 0x00, 0x00],
+                [vec![0, 0, 0, 1], vec![0u8; 1196]].concat(),
+            ),
+        ];
+        for (cell, elems, want) in cases {
+            let got = in_scalar_initializers(&record([0xe3, 0x09], elems));
+            assert_eq!(got.values.get(&0xe309).map(|v| v.as_slice()), Some(&want[..]), "{cell}");
+            assert_eq!(got.elements, 2, "ARITY: the fill is an element too — {cell}");
+            assert!(got.residue.is_empty(), "{cell}");
+        }
+    }
+
+    /// **The 124/128 boundary, which is what separates the fill count's varint
+    /// from [`super::inlit`]'s.**
+    ///
+    /// `int arr[32] = {1}` and `int arr[33] = {1}` differ by one array element
+    /// and their fills straddle `0x80`. An LE**16** reading of the escape —
+    /// which is what the crate's *other* `.in` length varint does — would take
+    /// `80 80 00` as 128 and then read the remaining `00 00` as two more
+    /// element tags, desynchronizing the record. Both sides are pinned, and the
+    /// wrong reading is asserted to be wrong.
+    #[test]
+    fn a_fill_count_escapes_at_0x80_with_le32_and_not_le16() {
+        // Both records lead with the scalar `int arr[N]`'s first element, which
+        // is what makes them anchor at all — `00 08` is deliberately NOT an
+        // anchor (see `an_unanchored_record_is_counted_and_changes_nothing_else`).
+        let short = in_scalar_initializers(&record([0xe3, 0x09], &[0x01, 0x01, 0x04, 0x01, 0x08, 0x7c]));
+        assert_eq!(short.values.get(&0xe309).map(|v| v.len()), Some(128));
+
+        let esc = in_scalar_initializers(&record(
+            [0xe3, 0x09],
+            &[0x01, 0x01, 0x04, 0x01, 0x08, 0x80, 0x80, 0x00, 0x00, 0x00],
+        ));
+        assert_eq!(esc.values.get(&0xe309).map(|v| v.len()), Some(132));
+        assert_eq!(esc.elements, 2, "ARITY: TWO elements, not four");
+
+        // A high-bit short form is a desync, not a negative fill — the same rule
+        // `read_offset` and `read_value` already apply.
+        let bad = in_scalar_initializers(&record([0xe3, 0x09], &[0x01, 0x01, 0x04, 0x07, 0x08, 0xfb]));
+        assert_eq!(bad.residue, vec![(0xe309, InInitResidue::ZeroFill)]);
+        assert!(bad.values.get(&0xe309).is_none());
+    }
+
+    /// **The fill DISPLACES the relocations that follow it** —
+    /// `z06_fill_then_ptr.cpp`, `struct S{int a[3]; int* p;} s = {{1}, &gi};`,
+    /// whose real obj is a 16-byte `.data` with one `IMAGE_REL_PPC_ADDR32` at
+    /// **offset 12**.
+    ///
+    /// This is the cell that makes the fill's length load-bearing beyond its own
+    /// bytes: a fill read at the wrong length moves every symbol address after
+    /// it, and `docs/STATUS.md` trap 4 is that a reader which lost that would
+    /// leave `records` and the residue untouched.
+    #[test]
+    fn a_fill_moves_the_offset_of_every_reference_after_it() {
+        let got = in_scalar_initializers(&record(
+            [0xed, 0x09],
+            &[0x01, 0x01, 0x04, 0x01, 0x08, 0x08, 0x02, 0xe3, 0x09, 0x00, 0x04],
+        ));
+        assert_eq!(
+            got.values.get(&0xed09).map(|v| v.as_slice()),
+            Some(&[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0][..]),
+        );
+        assert_eq!(
+            got.refs.get(&0xed09).map(|v| v.as_slice()),
+            Some(&[InSymbolRef { at: 12, target: 0xe309, addend: 0 }][..]),
+            "the obj's ADDR32 is at 12, which is 4 + the 8-byte fill",
+        );
+        assert_eq!(got.elements, 3, "ARITY");
+
+        // `z16_ptr_then_fill.cpp` — the pointer first, then a 16-byte fill; a
+        // 20-byte `.data` with the ADDR32 at 0.
+        let got = in_scalar_initializers(&record(
+            [0xed, 0x09],
+            &[0x02, 0xe3, 0x09, 0x00, 0x04, 0x08, 0x10],
+        ));
+        assert_eq!(got.values.get(&0xed09).map(|v| v.len()), Some(20));
+        assert_eq!(
+            got.refs.get(&0xed09).map(|v| v.as_slice()),
+            Some(&[InSymbolRef { at: 0, target: 0xe309, addend: 0 }][..]),
+        );
+    }
+
+    /// **A fill is what the initializer list OMITS, and an explicit zero is
+    /// not** — the boundary, measured on two cells that differ only in whether
+    /// the zeros are written down.
+    ///
+    /// `struct S{int* p; int a[3];} s = {&gi, {0,0,0}};` (`z26_fill_only`)
+    /// spells three `01 01 04 00` elements and **no** tag `08`;
+    /// `struct S{bool b; int a[2];} s = {true};` (`z24_bool_fill`) spells
+    /// `01 01 01 01 · 08 03 · 08 08`, where the FIRST fill is the struct's own
+    /// padding after the `bool` and the second is the omitted array.
+    #[test]
+    fn an_omitted_element_is_a_fill_and_a_written_zero_is_a_scalar() {
+        let explicit = in_scalar_initializers(&record(
+            [0xed, 0x09],
+            &[
+                0x02, 0xe3, 0x09, 0x00, 0x04, // &gi
+                0x01, 0x01, 0x04, 0x00, 0x01, 0x01, 0x04, 0x00, 0x01, 0x01, 0x04, 0x00,
+            ],
+        ));
+        assert_eq!(explicit.values.get(&0xed09).map(|v| v.len()), Some(16));
+        assert_eq!(explicit.elements, 4, "four elements, no fill");
+
+        // Two fills in one record, and the first one is PADDING.
+        let padded =
+            in_scalar_initializers(&record([0xec, 0x09], &[0x01, 0x01, 0x01, 0x01, 0x08, 0x03, 0x08, 0x08]));
+        assert_eq!(
+            padded.values.get(&0xec09).map(|v| v.as_slice()),
+            Some(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0][..]),
+            "sizeof(struct with a bool and an int[2]) == 12",
+        );
+        assert_eq!(padded.elements, 3);
+    }
+
+    /// **Scalar type `03` is a DATA pointer and type `04` is a FUNCTION
+    /// pointer**, both plain integers, both at width 4, neither carrying a
+    /// relocation — `work/w-inread/grid`, checked against the obj's `.data` and
+    /// its (empty) relocation table.
+    ///
+    /// Both were **UNMEASURED** before this lane: `w-tag02`'s 24-cell grid
+    /// produced neither, and `work/w-emitp2/scalartypes.txt` counts 132,528
+    /// type-03 and 4,844 type-04 elements in the workload that the reader was
+    /// refusing on that account.
+    #[test]
+    fn the_measured_pointer_typed_scalars_decode() {
+        // (cell, .in element bytes, obj bytes)
+        let cases: [(&str, &[u8], &[u8]); 6] = [
+            ("z09 struct S{int* p; int a;} s={0,5};", &[0x01, 0x03, 0x04, 0x00], &[0, 0, 0, 0]),
+            ("z11 s={(int*)4,5};", &[0x01, 0x03, 0x04, 0x04], &[0, 0, 0, 4]),
+            (
+                "z12 s={(int*)0x11223344,5}; — the LE32 escape at type 03",
+                &[0x01, 0x03, 0x04, 0x80, 0x44, 0x33, 0x22, 0x11],
+                &[0x11, 0x22, 0x33, 0x44],
+            ),
+            ("z10 struct S{void(*f)(); int a;} s={0,5};", &[0x01, 0x04, 0x04, 0x00], &[0, 0, 0, 0]),
+            ("z13 s={(void(*)())4,5};", &[0x01, 0x04, 0x04, 0x04], &[0, 0, 0, 4]),
+            (
+                "z22 s={(void(*)())0x11223344,5};",
+                &[0x01, 0x04, 0x04, 0x80, 0x44, 0x33, 0x22, 0x11],
+                &[0x11, 0x22, 0x33, 0x44],
+            ),
+        ];
+        for (cell, elems, want) in cases {
+            let got = in_scalar_initializers(&record([0xec, 0x09], elems));
+            assert_eq!(got.values.get(&0xec09).map(|v| v.as_slice()), Some(want), "{cell}");
+            assert!(got.refs.get(&0xec09).is_none(), "no relocation — {cell}");
+            assert!(got.residue.is_empty(), "{cell}");
+        }
+
+        // A pointer at a width no cell can produce refuses rather than being
+        // read as an integer of that size. `work/w-emitp2/scalartypes.txt` finds
+        // none at any other width in the whole workload.
+        for w in [1u8, 2, 8] {
+            let got = in_scalar_initializers(&record([0xec, 0x09], &[0x01, 0x03, w, 0x00]));
+            assert_eq!(got.residue, vec![(0xec09, InInitResidue::PointerWidth)], "width {w}");
+        }
+    }
+
+    /// **`??_R0` — the record that proves the four kinds are not independent.**
+    ///
+    /// `z14_typedesc.cpp` (`struct A{virtual void f(); int a;}; A ga;`) spells
+    /// its `_TypeDescriptor` as
+    ///
+    /// ```text
+    ///   02 <??_7type_info@@6B@> 00 04 · 01 03 04 00 · 03 08 ".?AUA@@\0"
+    /// ```
+    ///
+    /// and its `.data` is 16 bytes with one `ADDR32` at 0. **Teaching the reader
+    /// scalar type `03` alone recovers none of it** — the record would then
+    /// refuse on the tag-`03` blob instead, one element to the right — which is
+    /// why `work/w-emitp2/blindspot.txt`'s rows are upper bounds and not
+    /// addends.
+    #[test]
+    fn the_type_descriptor_record_needs_all_three_kinds_at_once() {
+        let elems: &[u8] = &[
+            0x02, 0x13, 0x0a, 0x00, 0x04, // the type_info vftable address
+            0x01, 0x03, 0x04, 0x00, // spare — a null void*
+            0x03, 0x08, b'.', b'?', b'A', b'U', b'A', b'@', b'@', 0x00, // the name
+        ];
+        let got = in_scalar_initializers(&record([0x0f, 0x0a], elems));
+        assert_eq!(
+            got.values.get(&0x0f0a).map(|v| v.as_slice()),
+            Some(&[0, 0, 0, 0, 0, 0, 0, 0, b'.', b'?', b'A', b'U', b'A', b'@', b'@', 0][..]),
+            "16 bytes, which is what the obj's .data is",
+        );
+        assert_eq!(
+            got.refs.get(&0x0f0a).map(|v| v.as_slice()),
+            Some(&[InSymbolRef { at: 0, target: 0x130a, addend: 0 }][..]),
+            "the symbol address this record was costing",
+        );
+        assert_eq!(got.elements, 3, "ARITY");
+        assert!(got.residue.is_empty());
+    }
+
+    /// **`_TI` and `_CT` — the two CRT records the workload's type-04 and its
+    /// tag-08 actually live in**, transcribed from `z08_throw.cpp`'s capture.
+    ///
+    /// `_TI1?AUE@@` is `_s__ThrowInfo`, whose `pmfnUnwind` and `pForwardCompat`
+    /// are both null function pointers here; `_CT??_R0?AUE@@@84` is
+    /// `_s__CatchableType`, whose `thisDisplacement.vdisp` is spelled as a
+    /// **four-byte fill** while the `mdisp` and `pdisp` beside it are ordinary
+    /// scalars — the omitted-versus-written boundary, inside the CRT.
+    #[test]
+    fn the_crt_throw_records_decode_whole() {
+        // _TI1?AUE@@ — attributes, pmfnUnwind, pForwardCompat, pCatchableTypeArray
+        let ti = in_scalar_initializers(&record(
+            [0xee, 0x09],
+            &[
+                0x01, 0x02, 0x04, 0x00, //
+                0x01, 0x04, 0x04, 0x00, //
+                0x01, 0x04, 0x04, 0x00, //
+                0x02, 0xf0, 0x09, 0x00, 0x04,
+            ],
+        ));
+        assert_eq!(ti.values.get(&0xee09).map(|v| v.len()), Some(16));
+        assert_eq!(
+            ti.refs.get(&0xee09).map(|v| v.as_slice()),
+            Some(&[InSymbolRef { at: 12, target: 0xf009, addend: 0 }][..]),
+        );
+
+        // _CT??_R0?AUE@@@84 — properties, pType, mdisp, pdisp, vdisp(FILL),
+        // sizeOrOffset, copyFunction
+        let ct = in_scalar_initializers(&record(
+            [0xf2, 0x09],
+            &[
+                0x01, 0x02, 0x04, 0x00, //
+                0x02, 0xf1, 0x09, 0x00, 0x04, //
+                0x01, 0x01, 0x04, 0x00, //
+                0x01, 0x01, 0x04, 0x80, 0xff, 0xff, 0xff, 0xff, //
+                0x08, 0x04, //
+                0x01, 0x01, 0x04, 0x04, //
+                0x01, 0x04, 0x04, 0x00,
+            ],
+        ));
+        assert_eq!(
+            ct.values.get(&0xf209).map(|v| v.as_slice()),
+            Some(
+                &[
+                    0, 0, 0, 0, // properties
+                    0, 0, 0, 0, // pType (relocated)
+                    0, 0, 0, 0, // mdisp
+                    0xff, 0xff, 0xff, 0xff, // pdisp = -1
+                    0, 0, 0, 0, // vdisp — the FILL
+                    0, 0, 0, 4, // sizeOrOffset
+                    0, 0, 0, 0, // copyFunction — a null FUNCTION pointer
+                ][..]
+            ),
+        );
+        assert_eq!(ct.elements, 7, "ARITY: seven fields of _s__CatchableType");
+        assert_eq!(
+            ct.refs.get(&0xf209).map(|v| v.as_slice()),
+            Some(&[InSymbolRef { at: 4, target: 0xf109, addend: 0 }][..]),
+        );
+    }
+
+    /// **#961 — the denominator, counted rather than folded in.**
+    ///
+    /// A record whose first element is a tag-`03` blob or a tag-`08` fill
+    /// matches neither anchor, so it is in **neither** `records` nor the
+    /// residue. Over the 850-TU workload that population is **144,850** records
+    /// and the fail-closed `00 02` arm drops another **239,279**
+    /// (`work/w-emitp2/two_readers.txt`), which is 43.7 % of the stream
+    /// invisible to the totality control, the arity control and the residue
+    /// histogram at the same time.
+    ///
+    /// The counter must **not** change what the scan accepts: `records`,
+    /// `accepted` and `values` are asserted to be identical with and without an
+    /// unanchored record in the stream.
+    #[test]
+    fn an_unanchored_record_is_counted_and_changes_nothing_else() {
+        let anchored = record([0xe3, 0x09], &[0x01, 0x01, 0x04, 0x03]);
+        let mut both = record([0xe4, 0x09], &[0x03, 0x04, b'a', b'b', b'c', 0x00]);
+        both.extend_from_slice(&anchored);
+
+        let a = in_scalar_initializers(&anchored);
+        let b = in_scalar_initializers(&both);
+        assert_eq!(a.unanchored, 0);
+        assert_eq!(b.unanchored, 1, "the blob record is SEEN and not anchored");
+        assert_eq!(b.records, a.records, "and it is NOT in `records`");
+        assert_eq!(b.accepted, a.accepted);
+        assert_eq!(b.residue.len(), a.residue.len(), "nor in the residue");
+        assert_eq!(b.values.len(), a.values.len());
+        assert_eq!(
+            b.accepted + b.residue.len(),
+            b.records,
+            "the totality identity still closes — over the population it reaches",
+        );
+
+        // A tag-08-first record is the same shape. It is the rarer half: 2
+        // records over 850 TUs, against 144,848 blob-first ones.
+        let fill = in_scalar_initializers(&record([0xe4, 0x09], &[0x08, 0x08]));
+        assert_eq!(fill.unanchored, 1);
+        assert_eq!(fill.records, 0);
+    }
+
+    /// **#961 — the fail-closed arm is the LARGER silent half, and it now says
+    /// so.** A `00 02` candidate that does not frame all the way to its `07` is
+    /// deliberately *"not a record: count nothing, resync by one"*; what was
+    /// missing is that nothing counted how often that happened.
+    #[test]
+    fn a_fail_closed_candidate_is_counted_where_it_used_to_be_silent() {
+        // `<tok> 00 02 …` with no terminator — the test
+        // `an_address_anchor_that_does_not_frame_counts_nothing` pins that this
+        // is neither a record nor residue; this pins that it is now VISIBLE.
+        let got = in_scalar_initializers(&[0xe4, 0x09, 0x00, 0x02, 0xe3, 0x09, 0x00, 0x04]);
+        assert_eq!(got.records, 0);
+        assert!(got.residue.is_empty());
+        assert_eq!(got.fail_closed, 1, "counted, where it used to be invisible");
+
+        // The same bytes with the `07` present are a record and are NOT counted
+        // as fail-closed.
+        let mut ok = vec![0xe4, 0x09, 0x00, 0x02, 0xe3, 0x09, 0x00, 0x04];
+        ok.push(0x07);
+        let got = in_scalar_initializers(&ok);
+        assert_eq!(got.records, 1);
+        assert_eq!(got.fail_closed, 0);
+    }
+
+    /// Every [`InInitResidue`] variant is in [`InInitResidue::ALL`], so a new
+    /// refusal cannot be added without also being reported. The report prints
+    /// **every** reason including the zeroes (trap 5), and a variant missing
+    /// from `ALL` would be a residue that exists and is never printed.
+    #[test]
+    fn every_residue_variant_is_reported() {
+        let all = InInitResidue::ALL;
+        assert_eq!(all.len(), 9, "add the new variant to ALL as well");
+        let mut keys: Vec<&str> = all.iter().map(|r| r.key()).collect();
+        keys.sort_unstable();
+        keys.dedup();
+        assert_eq!(keys.len(), all.len(), "two variants share a key");
     }
 
     /// A truncated or empty stream yields nothing and does not panic — the CLI

@@ -509,6 +509,17 @@ fn scan_one(
             ("in-init-residue", r.residue),
             ("in-init-symrefs", r.sym_refs),
             ("in-init-records-with-symrefs", r.records_with_sym_refs),
+            // **THE DENOMINATOR — board #961.** `records` is a count over the
+            // population the anchor scan reaches, and until this line nothing
+            // printed how large the rest is. All three are counted by the
+            // reader without changing what it accepts or where it resumes; see
+            // `InInitReport::unanchored`. `docs/STATUS.md` trap 0 is a control
+            // whose denominator is chosen by the same predicate that decides
+            // its numerator, and these are the numbers that make that visible
+            // one level down from #937.
+            ("in-init-unanchored", r.unanchored),
+            ("in-init-fail-closed", r.fail_closed),
+            ("in-init-no-token", r.no_token),
         ] {
             *res.emit.entry(key.into()).or_insert(0) += n;
         }

@@ -47,7 +47,13 @@ const RECORD_END: u8 = 0x07;
 /// The mis-read is not hypothetical-only: with two target TUs at 26 and 16 bytes
 /// both encodings agree, so nothing in this lane's own corpus would have caught
 /// it. The probe exists because the rung doc asked for it.
-fn read_len(inb: &[u8], p: &mut usize) -> Option<u32> {
+///
+/// **Shared with [`super::ininit`]'s element tag `03`** rather than re-spelled
+/// there. The crate now has four different varints in the `.in` stream — this
+/// LE16 length, `read_varint`'s LE32, `read_token_var`'s 2-or-4-byte token and
+/// `ininit::read_offset`'s LE32 offset — and a fifth *copy* of one of them is
+/// how they drift apart. One spelling, one place.
+pub(super) fn read_len(inb: &[u8], p: &mut usize) -> Option<u32> {
     let b0 = *inb.get(*p)?;
     if b0 < 0x80 {
         *p += 1;

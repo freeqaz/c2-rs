@@ -403,6 +403,22 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
                 report.emit_total("in-init-symrefs"),
                 report.emit_total("in-init-records-with-symrefs"),
             );
+            // **THE DENOMINATOR THE LINE ABOVE IS SILENT ABOUT — board #961.**
+            // `records` counts what the `00 01`/`00 02` anchor scan reaches;
+            // these count what it does not, so `records == accepted + residue`
+            // can no longer read as a statement about the whole stream. The
+            // three are printed beside the identity and never folded into it —
+            // that is the difference between publishing a denominator and
+            // widening a control until it goes green (`docs/STATUS.md` trap 0).
+            println!(
+                "    .in UNANCHORED (the denominator, board #961): {} records whose first \
+                 element is a tag-03 blob or a tag-08 fill, {} `00 02` candidates dropped by \
+                 the fail-closed arm, {} anchors with no token — none of these is in \
+                 `records` OR in the residue",
+                report.emit_total("in-init-unanchored"),
+                report.emit_total("in-init-fail-closed"),
+                report.emit_total("in-init-no-token"),
+            );
             // EVERY reason, including the zeroes — a residue reason that stops
             // occurring must read `0` and not vanish (trap 5).
             for reason in [
