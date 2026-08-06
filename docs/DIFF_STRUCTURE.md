@@ -11,8 +11,20 @@ already wrong at **word 0**; and of the 5,189 substituted instruction words,
 to decode**.
 
 Measured at tree `0c8a185` on the 878-TU dc3 workload, `/GR /O1 /Oi /EHsc`.
-Lane `w-bytes`; boards **#976**–**#985**;
+Lane `w-bytes`; boards **#976**–**#983** (the header read `#976`–`#985` and
+`#984`/`#985` are `w-drop3`'s — corrected 2026-08-06);
 [`rungs/2026-08-06-w-bytes.md`](rungs/2026-08-06-w-bytes.md).
+
+> **⚠ §3.2 and one row of §4 are REFUTED, and §6 is why.** Lane `w-drop3` read
+> the reference obj's **relocation targets** as well as its bytes: a `/Gy`
+> branch word carries the same four bytes for every callee, so the equality this
+> whole page's alignment is built on credits a relocated word it never checked.
+> The 140-body cluster is **mechanism I misread as a deletion**, and **861
+> functions this page's `exact` bucket credits call a different symbol than c2
+> does**. Boards **#984**–**#989**;
+> [`rungs/2026-08-06-w-drop3.md`](rungs/2026-08-06-w-drop3.md). **The rest of
+> the page stands**: §2's byte counts, §2.1's field census and §3's transfer
+> census are all measurements the relocation blindness does not touch.
 
 > **This page is an instrument's output, not a licence.** Nothing here reaches a
 > numerator, appears in an accept/refuse path, or grades the port. The judge is
