@@ -5,8 +5,9 @@
 #
 # Usage: work/w-inl0/dump_cell.sh <cell-name>   (m01 … m08)
 set -eu
-: "${C2RS_WIBO:=/home/free/code/milohax/wibo/build/wibo}"
-: "${C2RS_COMPILERS:=/home/free/code/milohax/c2-rs/compilers}"
+: "${C2RS_WIBO:?set C2RS_WIBO to the wibo binary}"
+: "${C2RS_COMPILERS:?set C2RS_COMPILERS to the compilers/ directory}"
+: "${C2RS_DC3:?set C2RS_DC3 to the dc3-decomp tree}"
 export C2RS_WIBO C2RS_COMPILERS
 cell="$1"
 out="work/w-inl0/anchored"

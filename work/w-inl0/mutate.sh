@@ -8,8 +8,9 @@
 #
 # Usage: work/w-inl0/mutate.sh {M1|M2|M3}
 set -eu
-: "${C2RS_WIBO:=/home/free/code/milohax/wibo/build/wibo}"
-: "${C2RS_COMPILERS:=/home/free/code/milohax/c2-rs/compilers}"
+: "${C2RS_WIBO:?set C2RS_WIBO to the wibo binary}"
+: "${C2RS_COMPILERS:?set C2RS_COMPILERS to the compilers/ directory}"
+: "${C2RS_DC3:?set C2RS_DC3 to the dc3-decomp tree}"
 export C2RS_WIBO C2RS_COMPILERS
 
 NOEFF=crates/c2-il/src/func/body/shapes/no_effect.rs

@@ -5,14 +5,15 @@
 # Writes <out-prefix>.txt (the scan) and, when --fnbyte-diff-jsonl is passed by
 # the caller, whatever it names. Run from the worktree root.
 set -eu
-: "${C2RS_WIBO:=/home/free/code/milohax/wibo/build/wibo}"
-: "${C2RS_COMPILERS:=/home/free/code/milohax/c2-rs/compilers}"
+: "${C2RS_WIBO:?set C2RS_WIBO to the wibo binary}"
+: "${C2RS_COMPILERS:?set C2RS_COMPILERS to the compilers/ directory}"
+: "${C2RS_DC3:?set C2RS_DC3 to the dc3-decomp tree}"
 export C2RS_WIBO C2RS_COMPILERS
 out="$1"
 shift
 ./target/release/c2rs gap \
     --list work/dc3-workload/files.txt \
     --flags-file work/dc3-workload/flags.txt \
-    --cwd /home/free/code/milohax/dc3-decomp \
+    --cwd "$C2RS_DC3" \
     --jobs 12 "$@" > "$out.txt" 2>&1
 echo "EXIT=$? -> $out.txt"

@@ -11,12 +11,12 @@ reap:   2 stale run tree(s) removed, 6 kept (2 live, 3 recent, 1 this run)
         freed 221.8 MiB and 33,838 inodes (df delta over a SHARED filesystem)
 disk:   /tmp — free 31.6 GiB / 833,336 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2e9841b3e9885082/scripts/lanes.txt
+lane gate: 18 lanes from <worktree>/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-928887   (per-lane run dirs under /tmp/c2rs-gate-928887/lanes/)
 building the harness (no-op if current)
     Finished `release` profile [optimized] target(s) in 0.00s
 harness: /tmp/c2rs-gate-928887/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2e9841b3e9885082/target/release/c2rs  built 2026-08-06 06:58:16
+  pinned from <worktree>/target/release/c2rs  built 2026-08-06 06:58:16
   sha 559505452567  tree b40345c
 
 wall clock: 15s for 18 lanes at --jobs 6 (C2RS_JOBS=8)
@@ -30,7 +30,7 @@ generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-928887/sweep 0  (jobs 6)
 
 mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-928887/cross 0  (jobs 6)
   assigned 16710 cases over 18 lanes = 81905 cells (full cross would be 300780)
-  sweeping 81905 of 81905 case-lane cells (cross of 0 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a2e9841b3e9885082/scripts/lanes.txt; the full 12x product is 300780)
+  sweeping 81905 of 81905 case-lane cells (cross of 0 cases x <worktree>/scripts/lanes.txt; the full 12x product is 300780)
   checked=81905 mismatches=0 graded=81517 ungraded=388 unknown=0
   (629s)
 
