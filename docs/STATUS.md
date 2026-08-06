@@ -460,6 +460,36 @@ misleading without them.
    generalization: every green instrument on this page is green over the
    population it can reach, and widening the reach is how you find out which.**
 
+   > **⚠ 2026-08-08 — THE REPAIRED IDENTITY WAS STILL SILENT ABOUT 43.7 % OF
+   > THE STREAM, AND IT IS NOT ANY MORE.** `records == accepted + residue` is
+   > *correct*, and it is a statement about the population the `00 01`/`00 02`
+   > anchor scan reaches. A sequential parse of the same 850 streams framed
+   > **879,377** records where the anchor scan counted **518,098**: **144,850**
+   > were never anchored (their first element is a tag-`03` blob or a tag-`08`
+   > fill) and **239,279** were dropped by the fail-closed `00 02` arm, and
+   > **none of the 384,129 was in `records` OR in the residue** — invisible to
+   > the totality control, the arity control and the residue histogram at the
+   > same time. Board **#961**;
+   > [`rungs/2026-08-08-w-emitp2.md`](rungs/2026-08-08-w-emitp2.md) §2.1.
+   >
+   > Lane `w-inread` **published the denominator rather than widening the
+   > identity**: `in-init-unanchored`, `in-init-fail-closed` and
+   > `in-init-no-token` now print on every scan beside `records`, counted
+   > fail-closed and never folded in. Two things that only the printing could
+   > have shown:
+   >
+   > * the fail-closed population fell **239,279 → 3,340** as a side effect of
+   >   the same lane's reader widening (#960), so the number #961 was filed
+   >   over was mostly a *symptom* of a different gap;
+   > * the counter shipped **double-counting** — `no_token` read 3,340 beside
+   >   `fail_closed` 3,340 on the first 878-TU run, one population wearing two
+   >   labels — and it was caught only because the two happened to be equal
+   >   (**#982**).
+   >
+   > **The generalization one level further: a denominator is not published
+   > until it has been printed on both sides of a change.** #976–#985,
+   > [`rungs/2026-08-08-w-inread.md`](rungs/2026-08-08-w-inread.md) §3.
+
 1. **`mismatch 0` is not evidence of correctness.** 863 of 878 TUs refuse before
    the emitter is consulted, so the scan *cannot see* a codegen or binding defect
    in them. Zero mismatches means "nothing the scan could grade came out wrong",
