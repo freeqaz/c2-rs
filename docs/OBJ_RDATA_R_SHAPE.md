@@ -304,6 +304,14 @@ integers per class**, and everything else follows from the names. Those three ar
 what c1xx computes and hands to c2; they are not recoverable from a mangled
 symbol, which is why they are the reader's job and not the writer's.
 
+> **⚠ 2026-08-06 — "not recoverable" is true of the NAME and false of the
+> STREAM, and this sentence sent the price down the wrong road.** All three are
+> spelled literally in `.in`, alongside every other field of every record — see
+> **§8.1**, which has the bytes. §4 is a correct measurement of *what a
+> name-only synthesizer can do* and was read downstream as *what a reader must
+> derive*. A reader does not have to derive any of it; it has to decode one more
+> `.in` element tag. Board **#931**.
+
 ---
 
 ## §5 The emission order is ONE rule — a DFS, and it explains the symbol table too
