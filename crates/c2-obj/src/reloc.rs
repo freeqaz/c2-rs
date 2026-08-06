@@ -302,6 +302,133 @@ impl ObjImage {
         }
         Some(out)
     }
+
+    /// **Every `.text` COMDAT's relocation records, with the TARGET RESOLVED TO
+    /// A NAME** — the reader lane `w-relo` added to close board #884.
+    ///
+    /// [`ObjImage::text_comdat_reloc_counts`] answers *how many*, which is the
+    /// size of a blind spot and not a verdict. This answers *which*: for each
+    /// `.text` COMDAT leader, its records **in disk order**, each carrying the
+    /// `VirtualAddress`, the **whole packed** `Type` word and a
+    /// [`RelocTarget`].
+    ///
+    /// # Why the target is a name and never an index
+    ///
+    /// `SymbolTableIndex` is an index into *this obj's* symbol table. Two objs
+    /// that relocate against the same function legitimately carry two different
+    /// indices, and the consumer this was written for — FUNCTION BYTE MATCH —
+    /// has no second obj at all: the port hands it a *name*. So the index is
+    /// resolved here, once, against the symbol table it belongs to, and the
+    /// comparison downstream is between two names.
+    ///
+    /// # Fail-closed, exactly like every other walk in this crate
+    ///
+    /// `None` the moment anything does not decode: the `NRELOC_OVFL` sentinel,
+    /// a table running past EOF, a `SymbolTableIndex` outside the symbol table,
+    /// **or an index landing on an auxiliary record** (which is a slot, not a
+    /// symbol). A short or partly-resolved answer is the dangerous one — a
+    /// missing record reads as "this function relocates less than it does",
+    /// which is a *credit* in the instrument downstream.
+    pub fn text_comdat_relocs(&self) -> Option<Vec<(String, Vec<CodeReloc>)>> {
+        let entries = self.text_comdat_entries()?;
+        let targets = self.symbol_targets()?;
+        let all = self.relocations()?;
+        let mut out: Vec<(String, Vec<CodeReloc>)> =
+            entries.iter().map(|(n, _)| (n.clone(), Vec::new())).collect();
+        // Section index -> position in `out`. A `.text` COMDAT has exactly one
+        // leader (`text_comdat_entries` refuses the obj otherwise), so this map
+        // is injective by construction.
+        let (nsec, _) = self.coff_layout()?;
+        let mut slot = vec![usize::MAX; nsec];
+        for (k, (_, s)) in entries.iter().enumerate() {
+            if *s >= nsec {
+                return None;
+            }
+            slot[*s] = k;
+        }
+        for r in all {
+            if r.section >= slot.len() || slot[r.section] == usize::MAX {
+                continue; // not a `.text` COMDAT — `.pdata`, `.debug$S`, …
+            }
+            // `PAIR` carries a DISPLACEMENT in the index field (rev 6.0), so it
+            // must not be resolved as a symbol. This is the one exemption and
+            // [`Reloc::sym_is_an_index`] is the single place that decides it.
+            let target = if r.sym_is_an_index() {
+                targets.get(r.sym as usize)?.clone()?
+            } else {
+                RelocTarget::PairDisplacement(r.sym)
+            };
+            out[slot[r.section]].1.push(CodeReloc {
+                va: r.va,
+                ty: r.ty,
+                target,
+            });
+        }
+        Some(out)
+    }
+}
+
+/// **What one relocation record points AT**, resolved out of the symbol table.
+///
+/// Three variants and not one string, because a rendered string can collide: a
+/// section-definition symbol's "name" *is* a section name, and a mangled symbol
+/// could in principle spell the same characters. As separate variants,
+/// `Section(".rdata")` can never compare equal to `Symbol(".rdata")` — and the
+/// whole point of this type is to be compared.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RelocTarget {
+    /// An ordinary symbol, by name.
+    Symbol(String),
+    /// A **section-definition symbol** (`IMAGE_SYM_CLASS_STATIC` with one aux
+    /// record). Its name is the *section's* name, which is not unique in a
+    /// `/Gy` obj — several `.text` COMDATs all spell `.text`. Never equal to a
+    /// [`RelocTarget::Symbol`].
+    Section(String),
+    /// A `PAIR` record's index field, which is **a displacement and not an
+    /// index** (PE/COFF rev 6.0). Compared as a number.
+    PairDisplacement(u32),
+}
+
+impl RelocTarget {
+    /// A one-line rendering, with the two non-symbol classes bracketed so a
+    /// reader can never mistake either for a mangled name.
+    pub fn describe(&self) -> String {
+        match self {
+            RelocTarget::Symbol(n) => n.clone(),
+            RelocTarget::Section(n) => format!("<section {n}>"),
+            RelocTarget::PairDisplacement(d) => format!("<pair +{d}>"),
+        }
+    }
+}
+
+/// One `.text` COMDAT relocation with its target resolved — see
+/// [`ObjImage::text_comdat_relocs`].
+///
+/// `va` is an offset **within that COMDAT's own raw data**, which under `/Gy`
+/// is the function's own body: every function starts at offset 0 of its own
+/// section, so these offsets are directly comparable with what the port plans.
+///
+/// `ty` is the **whole packed** `Type` word, flags included. Masking it here
+/// would throw away exactly the `BRTAKEN`/`NEG`/`TOCDEFN` bits that make two
+/// otherwise-identical records different relocations.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CodeReloc {
+    pub va: u32,
+    pub ty: u16,
+    pub target: RelocTarget,
+}
+
+impl CodeReloc {
+    /// `REL24@0 -> ?g@@YAXXZ` — the form the instrument prints in a witness.
+    pub fn describe(&self) -> String {
+        let r = Reloc {
+            section: 0,
+            va: self.va,
+            sym: 0,
+            ty: self.ty,
+        };
+        format!("{}@{} -> {}", r.describe(), self.va, self.target.describe())
+    }
 }
 
 #[cfg(test)]

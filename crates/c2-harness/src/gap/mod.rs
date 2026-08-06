@@ -518,15 +518,45 @@ pub struct FnByteMatch {
     /// the error term on [`ProgressMass`]'s `f` numerator. Target 0.
     pub census_disagree: usize,
     /// Of the `exact` bucket, how many carry at least one relocation in c2's
-    /// obj. **A `.text` COMDAT's raw bytes do not contain its relocations**, so
-    /// these are credited on bytes whose relocation targets FBM never checked —
-    /// the measured size of the gap between "the bytes match" and "the function
-    /// matches". See `fnbytes` and `FUNCTION_BYTE_MATCH.md` §7.
+    /// obj.
+    ///
+    /// **Retired into a graded number by lane `w-relo`.** It used to be the size
+    /// of a blind spot — credited on bytes whose relocation targets FBM never
+    /// checked (`FUNCTION_BYTE_MATCH.md` §7.6, board #884). Since RELOC-EQ every
+    /// one of these has had its records compared and passed, so it is now the
+    /// *denominator of a verdict*: how much of the credit rests on relocations
+    /// that were actually graded.
     pub exact_relocated: usize,
+    /// **Bytes identical, relocations differ** — the class board #884 named.
+    /// Its own bucket, never merged into `differs`: two bodies branching to two
+    /// different functions are byte-identical and are not the same function.
+    /// Never credited.
+    pub reloc_differs: usize,
+    /// Bytes identical, and the reference obj's relocation table did not decode,
+    /// so RELOC-EQ could not be asked. **The counted residue of the population
+    /// the relocation compare can reach** (`docs/STATUS.md` trap 0). Never
+    /// credited.
+    pub reloc_unknown: usize,
+    /// Byte-exact functions that got a RELOC-EQ verdict, either way.
+    /// `reloc_graded + reloc_unknown == exact_bytes` is checked per TU.
+    pub reloc_graded: usize,
+    /// The **old** `fnbyte-exact`: bytes identical, relocations unexamined.
+    /// Published so the number this widening replaced stays derivable to the
+    /// digit — `exact + reloc_differs + reloc_unknown`.
+    pub exact_bytes: usize,
+    /// The reach identity above failing on some TU. **Known answer 0.**
+    pub reloc_partition_broken: usize,
     /// Emitted functions on a `match` TU for which the per-function route
     /// produced a body that DIFFERS from c2's. **Known answer 0** — see
     /// [`GapReport::fn_byte_match_tu_differs`].
     pub match_tu_differs: usize,
+    /// Emitted functions on a `match` TU whose port body is byte-exact and whose
+    /// RELOCATIONS differ. **Known answer 0, and a five-alarm if not**: a
+    /// byte-exact obj means every relocation record in it is c2's own, so a
+    /// positive count is a live disagreement between `select_function` plus
+    /// `comdat::text_reloc_plan` and the COFF writer on a body the oracle has
+    /// already certified.
+    pub match_tu_reloc_differs: usize,
     /// `(exact + whole_tu) / denominator` — in `[0, 1]`.
     pub value: f64,
 }

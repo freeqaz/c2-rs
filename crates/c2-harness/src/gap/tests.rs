@@ -1056,7 +1056,7 @@ fn an_entirely_untagged_scan_reports_its_residue_rather_than_nothing() {
 // FUNCTION BYTE MATCH (lane w-fuzzy, `docs/FUNCTION_BYTE_MATCH.md`)
 // ---------------------------------------------------------------------------
 
-use super::fnbytes::{compare_body, FnByte};
+use super::fnbytes::{compare_body, compare_relocs, FnByte, RelocKind};
 
 /// A TU carrying a hand-set `fnbyte-` partition.
 fn mk_fnbyte(class: TuClass, src: &str, rows: &[(&str, usize)]) -> TuResult {
@@ -1109,6 +1109,222 @@ fn fnbyte_compare_is_byte_equality_and_the_triple_is_forensic() {
             equal_words: 0
         }
     );
+}
+
+// ---------------------------------------------------------------------------
+// RELOC-EQ (lane w-relo, board #884) — the compare, unit-tested with no obj and
+// no toolchain. `work/w-relo/PREREG.md` §4 C5 registers this list before it
+// existed.
+// ---------------------------------------------------------------------------
+
+use c2_core::comdat::{PlanTarget, TextReloc};
+use c2_obj::{CodeReloc, RelocTarget};
+
+fn plan(v: &[(u32, u16, &'static str)]) -> Vec<TextReloc<'static>> {
+    v.iter()
+        .map(|&(va, ty, n)| TextReloc {
+            va,
+            ty,
+            target: PlanTarget::Symbol(n),
+        })
+        .collect()
+}
+
+fn refs(v: &[(u32, u16, &str)]) -> Vec<CodeReloc> {
+    v.iter()
+        .map(|&(va, ty, n)| CodeReloc {
+            va,
+            ty,
+            target: RelocTarget::Symbol(n.to_string()),
+        })
+        .collect()
+}
+
+/// **`s12`'s class, at the leaf.** Two REL24s at the same offset with the same
+/// type word, naming two different functions. The instruction bytes are
+/// identical by construction — `48000000` either way — so this is the ONLY
+/// place the disagreement is representable.
+#[test]
+fn a_reloc_naming_a_different_symbol_is_a_target_disagreement() {
+    let p = plan(&[(0, c2_obj::IMAGE_REL_PPC_REL24, "?g@@YAXXZ")]);
+    let r = refs(&[(0, c2_obj::IMAGE_REL_PPC_REL24, "?ext@@YAXXZ")]);
+    assert_eq!(compare_relocs(&p, &r), Some((RelocKind::Target, 0)));
+    // The inverse control, at the same leaf: the same name on both sides agrees.
+    let same = refs(&[(0, c2_obj::IMAGE_REL_PPC_REL24, "?g@@YAXXZ")]);
+    assert_eq!(compare_relocs(&p, &same), None);
+}
+
+/// Equal sequences agree, including the empty one — a function that relocates
+/// nowhere and a reference that relocates nowhere are equal, and that must not
+/// be confused with "not measured", which is a different bucket entirely.
+#[test]
+fn equal_reloc_sequences_agree_and_two_empty_ones_agree() {
+    assert_eq!(compare_relocs(&[], &[]), None);
+    let p = plan(&[
+        (0, c2_obj::IMAGE_REL_PPC_REL24, "?a@@YAXXZ"),
+        (8, c2_obj::IMAGE_REL_PPC_REL24, "?b@@YAXXZ"),
+    ]);
+    let r = refs(&[
+        (0, c2_obj::IMAGE_REL_PPC_REL24, "?a@@YAXXZ"),
+        (8, c2_obj::IMAGE_REL_PPC_REL24, "?b@@YAXXZ"),
+    ]);
+    assert_eq!(compare_relocs(&p, &r), None);
+}
+
+/// A count disagreement is decided before any record is read, and it is
+/// reported in **both** directions — the port relocating more than c2 and less
+/// than c2 are the same verdict and neither is a credit.
+#[test]
+fn a_count_disagreement_is_decided_first_and_in_both_directions() {
+    let one = plan(&[(0, c2_obj::IMAGE_REL_PPC_REL24, "?a@@YAXXZ")]);
+    assert_eq!(compare_relocs(&one, &[]), Some((RelocKind::Count, 0)));
+    assert_eq!(
+        compare_relocs(&[], &refs(&[(0, c2_obj::IMAGE_REL_PPC_REL24, "?a@@YAXXZ")])),
+        Some((RelocKind::Count, 0))
+    );
+}
+
+/// **The packed-word rule, inherited from `c2-obj::reloc`.** `REL24|BRTAKEN` is
+/// `0x0206` and is a DIFFERENT relocation from `REL24`. A compare that masked
+/// the base type would call these equal, which is the exact defect the `Reloc`
+/// type is shaped to prevent — so the whole word is compared and this is the
+/// test that says so.
+#[test]
+fn a_flag_bit_makes_two_otherwise_identical_records_differ() {
+    let p = plan(&[(0, c2_obj::IMAGE_REL_PPC_REL24, "?a@@YAXXZ")]);
+    let r = refs(&[(
+        0,
+        c2_obj::IMAGE_REL_PPC_REL24 | c2_obj::IMAGE_REL_PPC_BRTAKEN,
+        "?a@@YAXXZ",
+    )]);
+    assert_eq!(compare_relocs(&p, &r), Some((RelocKind::Type, 0)));
+}
+
+/// The offset is compared before the type and the type before the target, so a
+/// record at the wrong place reports `Offset` and not a target mismatch.
+#[test]
+fn a_moved_record_reports_its_offset_and_not_its_target() {
+    let p = plan(&[(0, c2_obj::IMAGE_REL_PPC_REL24, "?a@@YAXXZ")]);
+    let r = refs(&[(4, c2_obj::IMAGE_REL_PPC_REL24, "?b@@YAXXZ")]);
+    assert_eq!(compare_relocs(&p, &r), Some((RelocKind::Offset, 0)));
+}
+
+/// **A sequence, not a multiset.** Two sets that are equal as multisets and
+/// swapped in order produce different obj bytes, so the order disagreement is
+/// reported rather than sorted away.
+#[test]
+fn an_order_swap_at_equal_offsets_is_a_disagreement() {
+    let p = vec![
+        TextReloc {
+            va: 0,
+            ty: c2_obj::IMAGE_REL_PPC_REFHI,
+            target: PlanTarget::Symbol("?v@@3HA"),
+        },
+        TextReloc {
+            va: 0,
+            ty: c2_obj::IMAGE_REL_PPC_PAIR,
+            target: PlanTarget::PairDisplacement(0),
+        },
+    ];
+    let swapped = vec![
+        CodeReloc {
+            va: 0,
+            ty: c2_obj::IMAGE_REL_PPC_PAIR,
+            target: RelocTarget::PairDisplacement(0),
+        },
+        CodeReloc {
+            va: 0,
+            ty: c2_obj::IMAGE_REL_PPC_REFHI,
+            target: RelocTarget::Symbol("?v@@3HA".into()),
+        },
+    ];
+    assert_eq!(compare_relocs(&p, &swapped), Some((RelocKind::Type, 0)));
+}
+
+/// **A section-definition target is its own kind.** `Section(".rdata")` can
+/// never equal `Symbol(".rdata")`, and the finding "c2 relocated against a
+/// section" is not the finding "the port named the wrong function".
+#[test]
+fn a_section_target_never_equals_a_symbol_of_the_same_spelling() {
+    let p = plan(&[(0, c2_obj::IMAGE_REL_PPC_REFHI, ".rdata")]);
+    let r = vec![CodeReloc {
+        va: 0,
+        ty: c2_obj::IMAGE_REL_PPC_REFHI,
+        target: RelocTarget::Section(".rdata".into()),
+    }];
+    assert_eq!(compare_relocs(&p, &r), Some((RelocKind::SectionTarget, 0)));
+}
+
+/// A `PAIR`'s index field is a DISPLACEMENT (rev 6.0), so it is compared as a
+/// number — and a `PairDisplacement` never equals a `Symbol`.
+#[test]
+fn a_pair_displacement_is_compared_as_a_number() {
+    let p = vec![TextReloc {
+        va: 4,
+        ty: c2_obj::IMAGE_REL_PPC_PAIR,
+        target: PlanTarget::PairDisplacement(0),
+    }];
+    let same = vec![CodeReloc {
+        va: 4,
+        ty: c2_obj::IMAGE_REL_PPC_PAIR,
+        target: RelocTarget::PairDisplacement(0),
+    }];
+    assert_eq!(compare_relocs(&p, &same), None);
+    let other = vec![CodeReloc {
+        va: 4,
+        ty: c2_obj::IMAGE_REL_PPC_PAIR,
+        target: RelocTarget::PairDisplacement(8),
+    }];
+    assert_eq!(compare_relocs(&p, &other), Some((RelocKind::Target, 0)));
+    let asym = vec![CodeReloc {
+        va: 4,
+        ty: c2_obj::IMAGE_REL_PPC_PAIR,
+        target: RelocTarget::Symbol("0".into()),
+    }];
+    assert_eq!(compare_relocs(&p, &asym), Some((RelocKind::Target, 0)));
+}
+
+/// **The bucket a relocation disagreement lands in is NOT `exact` and NOT
+/// `differs`.** It is its own key, so the two failure modes never share a work
+/// queue and the widening's before/after stays auditable — and `bytes_exact`
+/// recovers the count this instrument credited before relocations were graded.
+#[test]
+fn a_reloc_differ_is_its_own_bucket_and_the_old_count_is_recoverable() {
+    let v = FnByte::RelocDiffers(RelocKind::Target);
+    assert_eq!(v.bare(), "fnbyte-reloc-differs");
+    assert_eq!(v.key(), "fnbyte-reloc-differs|target");
+    assert_ne!(v.bare(), FnByte::Exact.bare());
+    assert_ne!(
+        v.bare(),
+        FnByte::Differs {
+            port_words: 1,
+            ref_words: 1,
+            equal_words: 0
+        }
+        .bare(),
+        "a wrong TARGET and a wrong BYTE are different repairs and must not merge"
+    );
+    // The old `fnbyte-exact` predicate, over the whole variant set.
+    for x in [
+        FnByte::Exact,
+        FnByte::RelocDiffers(RelocKind::Target),
+        FnByte::RelocUnknown,
+    ] {
+        assert!(x.bytes_exact(), "{x:?} is byte-exact");
+    }
+    for x in [
+        FnByte::Differs {
+            port_words: 1,
+            ref_words: 1,
+            equal_words: 0,
+        },
+        FnByte::Partial("tail-compose"),
+        FnByte::Refused,
+        FnByte::Unbound,
+        FnByte::NoBytes,
+    ] {
+        assert!(!x.bytes_exact(), "{x:?} is not byte-exact");
+    }
 }
 
 /// **THE ANTI-GAMING PROPERTY, as an equality.** A function the port lowers

@@ -576,9 +576,115 @@ impl GapReport {
             ),
             census_disagree: t("fnbyte-census-disagree"),
             exact_relocated: t("fnbyte-exact-relocated"),
+            reloc_differs: t("fnbyte-reloc-differs"),
+            reloc_unknown: t("fnbyte-reloc-unknown"),
+            reloc_graded: t("fnbyte-reloc-graded"),
+            exact_bytes: t("fnbyte-exact-bytes"),
+            reloc_partition_broken: t("fnbyte-reloc-partition-broken"),
             match_tu_differs: self.fn_byte_match_tu_differs(),
+            match_tu_reloc_differs: self.fn_byte_match_tu_reloc_differs(),
             value: (exact + whole_tu) as f64 / denominator as f64,
         })
+    }
+
+    /// **THE FIVE-ALARM** (lane `w-relo`). On a TU the differential graded
+    /// `match`, the whole obj is byte-identical to c2's — so every relocation
+    /// record in it is c2's own record, target and type and offset.
+    ///
+    /// **Known answer: 0.** A positive count is not a bucket entry and not a
+    /// work item: it says the port's relocation plan
+    /// (`c2_core::comdat::text_reloc_plan`, which the COFF writer now calls) and
+    /// the obj the writer produced disagree about a function the oracle has
+    /// already certified. That is one implementation contradicting itself, and
+    /// it gets surfaced rather than counted.
+    ///
+    /// Same discipline as [`Self::fn_byte_match_tu_differs`], one field along.
+    pub fn fn_byte_match_tu_reloc_differs(&self) -> usize {
+        self.results
+            .iter()
+            .filter(|r| r.class == TuClass::Match)
+            .map(|r| r.emit.get("fnbyte-reloc-differs").copied().unwrap_or(0))
+            .sum()
+    }
+
+    /// **Every function whose bytes are c2's and whose relocations are not**,
+    /// by name, record index and the two targets — the witness list behind
+    /// `fnbyte-reloc-differs`.
+    ///
+    /// The same argument `fn_byte_differ_witnesses` carries: a count cannot be
+    /// acted on, and board #232/#259/#263/#276 were each closed from a named
+    /// reproducer. Here the reproducer needs one thing more than a word index —
+    /// **the two symbol names** — because the disagreement is invisible in the
+    /// instruction bytes by construction.
+    pub fn fn_byte_reloc_witnesses(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, _)| Some(k.strip_prefix("fnbyte-reloc-differs-fn|")?.to_string()))
+            .collect();
+        v.sort();
+        v
+    }
+
+    /// **The relocation-disagreement FAMILIES**, most frequent first:
+    /// `(shape|kind|where→where|relation, count)`.
+    ///
+    /// A list of mangled name pairs is not a finding. This is the axis that
+    /// makes one: *what the two targets are to this TU* (`local`, `extern`,
+    /// `comdat-only`) and *how they are related* — `chain1` meaning the
+    /// reference names what the port's own callee calls, which is GRID-S `s12`'s
+    /// class stated as a rule.
+    pub fn fn_byte_reloc_families(&self) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix("fnbyte-reloc-fam|")?.to_string(), n)))
+            .collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// **Why the family walk could not answer**, by blocking production —
+    /// `(FnVerdict::key(), count)`, most frequent first.
+    ///
+    /// A `blocked` family row says *the port's own target is a body the parser
+    /// refused, so whether it calls what c2 named is not answerable here.* This
+    /// is the price of that, in the units a widening rung is written in, and it
+    /// is the work list under the largest relocation family.
+    pub fn fn_byte_reloc_blocked(&self) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = self
+            .emit_histogram()
+            .into_iter()
+            .filter_map(|(k, n)| Some((k.strip_prefix("fnbyte-reloc-blocked|")?.to_string(), n)))
+            .collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v
+    }
+
+    /// [`Self::fn_byte_reloc_witnesses`] collapsed to signatures:
+    /// `(shape|kind|counts|index|targets, distinct functions, one example)`.
+    ///
+    /// Same reason `fn_byte_differ_signatures` exists — 1,950 mangled STL names
+    /// reporting one defect are **one** finding, and a list that prints them one
+    /// per line hides that behind its own length.
+    pub fn fn_byte_reloc_signatures(&self) -> Vec<(String, usize, String)> {
+        let mut by_sig: std::collections::BTreeMap<String, (usize, String)> = Default::default();
+        for w in self.fn_byte_reloc_witnesses() {
+            // `shape|kind|counts|@index|targets|symbol` — the symbol is last and
+            // mangled names contain no `|`, so the split is by count.
+            let mut it = w.splitn(6, '|');
+            let f: Vec<&str> = (&mut it).take(5).collect();
+            let Some(name) = it.next() else { continue };
+            if f.len() < 5 {
+                continue;
+            }
+            let e = by_sig.entry(f.join("|")).or_insert((0, name.to_string()));
+            e.0 += 1;
+        }
+        let mut v: Vec<(String, usize, String)> =
+            by_sig.into_iter().map(|(k, (n, ex))| (k, n, ex)).collect();
+        v.sort_by(|x, y| y.1.cmp(&x.1).then_with(|| x.0.cmp(&y.0)));
+        v
     }
 
     /// **The known answer FBM is held to.** On a TU the differential graded

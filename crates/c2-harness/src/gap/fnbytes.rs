@@ -109,11 +109,13 @@
 //! one: a `.text` COMDAT's bytes are a subset of the obj.
 
 use c2_core::codegen::{opt_mode_of_word, select_function};
-use c2_core::comdat::{comdat_body_from_selected, selected_tag, ComdatDecline};
+use c2_core::comdat::{
+    comdat_body_from_selected, selected_tag, text_reloc_plan, ComdatDecline, PlanTarget, TextReloc,
+};
 use c2_core::elide::Reduction;
 use c2_core::splice::TuContext;
 use c2_il::{FnCensus, IlFunction};
-use c2_obj::ObjImage;
+use c2_obj::{CodeReloc, ObjImage, RelocTarget};
 
 use super::TuResult;
 
@@ -121,7 +123,8 @@ use super::TuResult;
 /// partition directly instead of through the count map.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FnByte {
-    /// Complete port body, byte-identical to c2's COMDAT bytes.
+    /// Complete port body, byte-identical to c2's COMDAT bytes **and**
+    /// relocation-identical to its records (lane `w-relo`, board #884).
     Exact,
     /// Complete port body, bytes differ. `(port words, ref words, equal words)`
     /// — the forensic triple, never a credit.
@@ -130,6 +133,17 @@ pub enum FnByte {
         ref_words: usize,
         equal_words: usize,
     },
+    /// **Bytes identical, RELOCATIONS DIFFER** — the class board #884 named and
+    /// GRID-S cell `s12` compiled: `b ?ext` and `b ?g` are both `48000000` and
+    /// the target lives in the relocation record, not in the instruction word.
+    /// Carries the kind of the first disagreement; never a credit.
+    RelocDiffers(RelocKind),
+    /// Bytes identical, and the reference obj's relocation table did not decode
+    /// — so RELOC-EQ could not be asked. **Not a credit**: crediting an
+    /// ungraded body is the blind-instrument defect this bucket exists to
+    /// prevent, and this is the counted residue of the population the compare
+    /// can reach (`docs/STATUS.md` trap 0).
+    RelocUnknown,
     /// The port selected a body the COFF emitter finishes; the harness must not.
     Partial(&'static str),
     /// The port refuses this function.
@@ -145,6 +159,8 @@ impl FnByte {
         match self {
             FnByte::Exact => "fnbyte-exact".to_string(),
             FnByte::Differs { .. } => "fnbyte-differs".to_string(),
+            FnByte::RelocDiffers(k) => format!("fnbyte-reloc-differs|{}", k.key()),
+            FnByte::RelocUnknown => "fnbyte-reloc-unknown".to_string(),
             FnByte::Partial(v) => format!("fnbyte-partial|{v}"),
             FnByte::Refused => "fnbyte-refused".to_string(),
             FnByte::Unbound => "fnbyte-unbound".to_string(),
@@ -158,10 +174,62 @@ impl FnByte {
         match self {
             FnByte::Exact => "fnbyte-exact",
             FnByte::Differs { .. } => "fnbyte-differs",
+            FnByte::RelocDiffers(_) => "fnbyte-reloc-differs",
+            FnByte::RelocUnknown => "fnbyte-reloc-unknown",
             FnByte::Partial(_) => "fnbyte-partial",
             FnByte::Refused => "fnbyte-refused",
             FnByte::Unbound => "fnbyte-unbound",
             FnByte::NoBytes => "fnbyte-nobytes",
+        }
+    }
+
+    /// **Did the port's bytes match, whatever the relocations said?**
+    ///
+    /// This is the OLD `fnbyte-exact` predicate, kept as a named function so the
+    /// number this lane replaced stays derivable — `fnbyte-exact-bytes` must
+    /// still read the baseline 35,982. A widening that cannot reproduce the
+    /// count it superseded is not auditable.
+    pub fn bytes_exact(self) -> bool {
+        matches!(
+            self,
+            FnByte::Exact | FnByte::RelocDiffers(_) | FnByte::RelocUnknown
+        )
+    }
+}
+
+/// **Which field of the relocation sequence disagreed first.**
+///
+/// Ordered by the walk that finds it — a length disagreement is decided before
+/// any record is compared, and within a record the offset, then the packed type
+/// word, then the target. Each is a different repair, so they are different
+/// keys and never one `reloc-differs` lump.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RelocKind {
+    /// The two sequences have different lengths.
+    Count,
+    /// Same length; a record's `VirtualAddress` differs.
+    Offset,
+    /// Same offset; the packed `Type` word differs (flags included — a
+    /// `REL24|BRTAKEN` is not a `REL24`).
+    Type,
+    /// Same offset and type; the record names a **different symbol**. This is
+    /// `s12`'s class and board #884's whole content.
+    Target,
+    /// Same offset and type; the reference names a **section-definition
+    /// symbol**, which the port never emits as a `.text` target. Kept apart
+    /// from `Target` because it is a different finding: not "the port named the
+    /// wrong function" but "c2 relocated against a section".
+    SectionTarget,
+}
+
+impl RelocKind {
+    pub fn key(self) -> &'static str {
+        match self {
+            RelocKind::Count => "count",
+            RelocKind::Offset => "offset",
+            RelocKind::Type => "type",
+            RelocKind::Target => "target",
+            RelocKind::SectionTarget => "section-target",
         }
     }
 }
@@ -205,24 +273,35 @@ impl Decline {
 /// function mapped four of the six `Selected` variants straight to
 /// `FnByte::Partial` and compared no bytes at all; the module docs give the
 /// reason that argument was wrong for this denominator.
-fn complete_body(
-    func: &IlFunction,
+fn complete_comdat<'a>(
+    func: &'a IlFunction,
     opt_word: Option<u32>,
-    tu: &TuContext,
-) -> Result<(&'static str, Vec<u8>), (&'static str, Decline)> {
+    tu: &TuContext<'a>,
+) -> Result<c2_core::comdat::ComdatBody<'a>, (&'static str, Decline)> {
     let mode = opt_mode_of_word(opt_word).map_err(|_| ("opt-mode", Decline::OptMode))?;
     let selected = select_function(func, mode).map_err(|_| ("refused", Decline::Selector))?;
     let shape = selected_tag(&selected);
     match comdat_body_from_selected(func, selected, mode, tu) {
         Ok(b) => {
             debug_assert_eq!(b.shape, shape);
-            Ok((shape, b.text))
+            Ok(b)
         }
         Err(ComdatDecline::Shape(_)) => Err((shape, Decline::GyShape)),
         Err(ComdatDecline::DataRef(_)) => Err((shape, Decline::DataRef)),
         // Unreachable: the selection already succeeded above and is handed in.
         Err(ComdatDecline::Selector(_)) => Err((shape, Decline::Selector)),
     }
+}
+
+/// [`complete_comdat`] reduced to what the byte compare needs. The relocation
+/// compare needs the rest of the [`ComdatBody`](c2_core::comdat::ComdatBody),
+/// which is why the full form is the one that exists.
+fn complete_body(
+    func: &IlFunction,
+    opt_word: Option<u32>,
+    tu: &TuContext,
+) -> Result<(&'static str, Vec<u8>), (&'static str, Decline)> {
+    complete_comdat(func, opt_word, tu).map(|b| (b.shape, b.text))
 }
 
 
@@ -353,6 +432,78 @@ fn census_opt_word(
     row.and_then(|(c, _)| c.opt_word)
 }
 
+/// **RELOC-EQ** — the second half of the judge's question, isolated from every
+/// lookup exactly as [`compare_body`] is, so it is testable without an obj.
+///
+/// > The function's relocations MATCH iff the port's plan and the reference
+/// > COMDAT's records are equal **as sequences**: same length, same offset,
+/// > same **whole packed** type word, same target.
+///
+/// `None` on agreement; `Some(kind, index)` on the first disagreement, where
+/// `index` is the record it happened at (`0` for a length disagreement, which
+/// is decided before any record is read).
+///
+/// # Four decisions, each of which could have gone the other way
+///
+/// 1. **A sequence, not a multiset, and nothing is sorted here.** The reference
+///    side is c2's own disk order; the port side is the emitter's own order
+///    (`comdat::text_reloc_plan` does the stable sort, and the writer emits
+///    exactly what it returns). Two sets equal as multisets and different in
+///    order produce different obj bytes, so an order disagreement is a real one.
+/// 2. **`ty` is compared WHOLE and never masked.** `c2-obj::reloc`'s module doc
+///    is explicit that the high byte carries `NEG`/`BRTAKEN`/`BRNTAKEN`/
+///    `TOCDEFN` and that comparing a masked base to a constant is the defect
+///    its `Reloc` type is shaped to prevent.
+/// 3. **The target is a NAME, never an index** — symbol indices differ across
+///    objs legitimately, and the port has no obj at all here. #918's rule one
+///    level along: where a census binding is involved the key is
+///    `FnCensus::emit_name`, which is the binding the surrounding walk already
+///    uses to decide which row IS which COMDAT.
+/// 4. **A section-definition target is a distinct kind, not a name mismatch.**
+///    `RelocTarget::Section` can never equal a `Symbol`, and it is reported as
+///    [`RelocKind::SectionTarget`] because "c2 relocated against a section" is a
+///    different finding from "the port named the wrong function".
+pub fn compare_relocs(port: &[TextReloc], reference: &[CodeReloc]) -> Option<(RelocKind, usize)> {
+    if port.len() != reference.len() {
+        return Some((RelocKind::Count, 0));
+    }
+    for (i, (p, r)) in port.iter().zip(reference).enumerate() {
+        if p.va != r.va {
+            return Some((RelocKind::Offset, i));
+        }
+        if p.ty != r.ty {
+            return Some((RelocKind::Type, i));
+        }
+        let agree = match (&p.target, &r.target) {
+            (PlanTarget::Symbol(a), RelocTarget::Symbol(b)) => a == b,
+            (PlanTarget::PairDisplacement(a), RelocTarget::PairDisplacement(b)) => a == b,
+            // A section-definition target and anything the port can plan are
+            // never equal — see decision 4 above.
+            (_, RelocTarget::Section(_)) => return Some((RelocKind::SectionTarget, i)),
+            _ => false,
+        };
+        if !agree {
+            return Some((RelocKind::Target, i));
+        }
+    }
+    None
+}
+
+/// One planned relocation, rendered the way [`CodeReloc::describe`] renders the
+/// reference's — so a witness line puts the two side by side in one vocabulary.
+fn describe_plan(r: &TextReloc) -> String {
+    let target = match r.target {
+        PlanTarget::Symbol(n) => n.to_string(),
+        PlanTarget::PairDisplacement(d) => format!("<pair +{d}>"),
+    };
+    CodeReloc {
+        va: r.va,
+        ty: r.ty,
+        target: RelocTarget::Symbol(target),
+    }
+    .describe()
+}
+
 /// The `fnbyte-partial|…` tag for a shape whose `/Gy` composition declined.
 ///
 /// `float-const` keeps its historical name — it is the one shape whose decline
@@ -460,11 +611,20 @@ pub fn tu_empty_callees<'a>(
 ///
 /// `row` is the unique census row that binds it (`None` when zero or two rows
 /// do), `bytes` its COMDAT's raw data, `tu` the bundle's empty-bodied callees
-/// (see [`tu_empty_callees`]).
+/// (see [`tu_empty_callees`]), and `relocs` the reference COMDAT's own
+/// relocation records **in disk order** — `None` meaning *the reference obj's
+/// relocation table did not decode*, which is a bucket
+/// ([`FnByte::RelocUnknown`]) and never a credit.
+///
+/// **The bytes are asked first and the relocations only if they agree.** A body
+/// whose bytes are already wrong scores zero, and there is no second way to
+/// score zero: re-grading it on relocations would put one defect in two work
+/// queues.
 pub fn grade_one(
     row: Option<&(FnCensus, Result<IlFunction, &'static str>)>,
     bytes: Option<&[u8]>,
     tu: &TuContext,
+    relocs: Option<&[CodeReloc]>,
 ) -> Graded {
     let g = |verdict, shape, decline| Graded {
         verdict,
@@ -480,8 +640,24 @@ pub fn grade_one(
     let Ok(func) = gate else {
         return g(FnByte::Refused, "parse-refused", Some(Decline::Selector));
     };
-    match complete_body(func, census.opt_word, tu) {
-        Ok((shape, port)) => g(compare_body(&port, bytes), shape, None),
+    match complete_comdat(func, census.opt_word, tu) {
+        Ok(b) => {
+            let shape = b.shape;
+            let v = match compare_body(&b.text, bytes) {
+                FnByte::Exact => match relocs {
+                    None => FnByte::RelocUnknown,
+                    Some(rs) => {
+                        let plan = text_reloc_plan(&b.calls, &b.data_refs);
+                        match compare_relocs(&plan, rs) {
+                            None => FnByte::Exact,
+                            Some((kind, _)) => FnByte::RelocDiffers(kind),
+                        }
+                    }
+                },
+                other => other,
+            };
+            g(v, shape, None)
+        }
         // The `/Gy` composition has no obj model for the shape. It keeps the
         // `partial` bucket because the body's bytes were never compared — and
         // the tag says `-compose` for every shape but the pooled FP constant, so
@@ -616,6 +792,98 @@ fn port_callees(f: &IlFunction) -> Vec<&str> {
         v.push(cp.else_arm.callee.as_str());
     }
     v
+}
+
+/// **Is `want` reachable from `from` along the PORT'S OWN callee edges**, and at
+/// what depth — the question that names lane `w-relo`'s largest expected family.
+///
+/// GRID-S `s12` is the shape: the port emits `b ?g` and c2 emits `b ?ext`,
+/// because c2 expanded `?g` and `?g`'s own body is a tail call to `?ext`. So
+/// "the port named the wrong function" is under-specified; the useful statement
+/// is *c2 named what the port's callee itself calls, one step along*.
+///
+/// Walks [`port_callees`] — the port's own selection, never a byte offset
+/// (#644) — over rows bound by `FnCensus::emit_name` (#918). Depth is bounded
+/// at 8 and a cycle cannot loop, because a name is visited once.
+///
+/// # `unrelated` and `blocked` are DIFFERENT answers and the first read absorbed
+/// the second
+///
+/// The first version of this walk returned `unrelated` whenever it found no
+/// path — including when it could not take a single step, because the port's own
+/// target is a row the parser refused and therefore has **no callee edges to
+/// walk at all**. On the workload that read `unrelated 697` and named nothing,
+/// which is exactly the shape w-seq §2 records for `refused:blocked`. So a walk
+/// that never expanded an edge answers `blocked`, and `unrelated` now means what
+/// it says: edges existed and none of them reached.
+///
+/// Returns `chain1` … `chain8` · `unrelated` · `blocked` · `blocked-unbound` —
+/// every one a *printed* class and none a silence (`docs/STATUS.md` trap 5).
+fn callee_chain(
+    from: &str,
+    want: &str,
+    claim: &std::collections::BTreeMap<&str, Vec<usize>>,
+    census: &[(FnCensus, Result<IlFunction, &'static str>)],
+) -> &'static str {
+    const DEPTHS: [&str; 8] = [
+        "chain1", "chain2", "chain3", "chain4", "chain5", "chain6", "chain7", "chain8",
+    ];
+    let mut frontier: Vec<&str> = vec![from];
+    let mut seen: Vec<&str> = vec![from];
+    let mut expanded = false;
+    for depth in DEPTHS {
+        let mut next: Vec<&str> = Vec::new();
+        for f in &frontier {
+            let Some([i]) = claim.get(*f).map(Vec::as_slice) else {
+                continue;
+            };
+            let Ok(g) = &census[*i].1 else { continue };
+            expanded = true;
+            for c in port_callees(g) {
+                if c == want {
+                    return depth;
+                }
+                if !seen.contains(&c) {
+                    seen.push(c);
+                    next.push(c);
+                }
+            }
+        }
+        if next.is_empty() {
+            break;
+        }
+        frontier = next;
+    }
+    if expanded {
+        "unrelated"
+    } else if claim.contains_key(from) {
+        // A row binds the port's target and the parser refused its body, so the
+        // question "does it call what c2 named" is not answerable here — it is
+        // priced by that production, and `reloc_blocked_production` names it.
+        "blocked"
+    } else {
+        "blocked-unbound"
+    }
+}
+
+/// **Which production blocks the walk** for a `blocked` family row — the
+/// `FnVerdict::key()` a widening rung is priced in, never the gate's coarse
+/// `&'static str`.
+///
+/// w-seq §2's own correction, applied to this axis: reading the coarse verdict
+/// printed `refused:blocked` 1,774 times and named nothing.
+fn reloc_blocked_production(
+    name: &str,
+    claim: &std::collections::BTreeMap<&str, Vec<usize>>,
+    census: &[(FnCensus, Result<IlFunction, &'static str>)],
+) -> Option<String> {
+    let [i] = claim.get(name).map(Vec::as_slice)? else {
+        return None;
+    };
+    match &census[*i].1 {
+        Err(_) => Some(census[*i].0.verdict.key().to_string()),
+        Ok(_) => None,
+    }
 }
 
 /// One callee's **disposition** in the TU that names it.
@@ -878,7 +1146,7 @@ pub(super) fn measure(
     // entire relocation SET against the reference's, data references included.
     #[allow(clippy::type_complexity)]
     let refrelocs: std::collections::BTreeMap<String, Vec<(u32, u16, Option<String>)>> =
-        match ref_obj.text_comdat_relocs() {
+        match ref_obj.text_comdat_relocs_named() {
             Some(v) => v.into_iter().collect(),
             None => {
                 *res.emit
@@ -904,6 +1172,40 @@ pub(super) fn measure(
         };
     let tu_label = src_name.clone();
     let mut witnesses = 0usize;
+    // **THE GAP ABOVE, CLOSED** (lane `w-relo`, board #884). The counts say how
+    // many relocations a credited function carries and nothing about whether
+    // they are c2's; these are the records themselves, with each target
+    // resolved to a NAME through the reference obj's own symbol table (#644 and
+    // #918's rule — never an index, never a position).
+    //
+    // `None` is the whole-obj decode failure and is fail-closed by construction
+    // in `c2-obj`: every byte-exact function in this TU then lands in
+    // `fnbyte-reloc-unknown`, which is NOT a credit. The TU is counted here so
+    // the residue has a denominator and is not inferred from a missing key.
+    //
+    // **Indexed by POSITION, not by name.** `text_comdat_relocs` and
+    // `text_comdat_functions_with_bytes` are two walks over the same
+    // `text_comdat_entries` list, so index `i` is the same COMDAT in both — and
+    // a name-keyed map would silently collapse two sections that share a leader
+    // spelling, which is a wrong-relocation-set for one of them. The positional
+    // correspondence is *checked* below (`fnbyte-reloc-index-desync`, known
+    // answer 0) rather than assumed, because it is exactly the kind of pairing
+    // #918 was about.
+    let reloc_recs: Option<Vec<(String, Vec<CodeReloc>)>> = match ref_obj.text_comdat_relocs() {
+        Some(v) if v.len() == entries.len() => Some(v),
+        Some(_) => {
+            *res.emit
+                .entry("fnbyte-reloc-index-desync".into())
+                .or_insert(0) += 1;
+            None
+        }
+        None => {
+            *res.emit
+                .entry("fnbyte-reloc-table-unreadable".into())
+                .or_insert(0) += 1;
+            None
+        }
+    };
     let mut accounted = 0usize;
     // **The byte-fraction ranker's accumulators** (lane w-tu3, board #500). Same
     // walk, same denominator source, one extra unit: `.text` COMDAT *bytes*
@@ -915,12 +1217,29 @@ pub(super) fn measure(
     let mut byte_differs = 0usize;
     let mut byte_refused = 0usize;
     let mut byte_unaccounted = 0usize;
-    for (name, bytes) in &entries {
+    for (idx, (name, bytes)) in entries.iter().enumerate() {
         let row = match claim.get(name.as_str()).map(Vec::as_slice) {
             Some([i]) => Some(&census[*i]),
             _ => None,
         };
-        let graded = grade_one(row, Some(bytes.as_slice()), &tu);
+        // A COMDAT with no relocation records is `Some(&[])` and not `None`:
+        // "c2 emitted no relocation here" is a fact the compare must be able to
+        // contradict, and folding it into the unreadable bucket would make the
+        // residue absorb a measurable answer.
+        let refrel: Option<&[CodeReloc]> = match reloc_recs.as_ref().map(|v| &v[idx]) {
+            None => None,
+            Some((n, rs)) if n == name => Some(rs.as_slice()),
+            // The two walks disagreed about which COMDAT index `idx` is. That
+            // is a decode-level defect, so it fails closed for this function
+            // instead of grading it against another function's records.
+            Some(_) => {
+                *res.emit
+                    .entry("fnbyte-reloc-index-desync".into())
+                    .or_insert(0) += 1;
+                None
+            }
+        };
+        let graded = grade_one(row, Some(bytes.as_slice()), &tu, refrel);
         let v = graded.verdict;
         *res.emit.entry(v.key()).or_insert(0) += 1;
         if v.bare() != v.key() {
@@ -1125,12 +1444,41 @@ pub(super) fn measure(
                 byte_accepted += bytes.len();
             }
             FnByte::Partial(_) => byte_accepted += bytes.len(),
-            FnByte::Differs { .. } => byte_differs += bytes.len(),
+            // **A wrong TARGET is a wrong function.** `reloc-differs` joins the
+            // alarm bucket and not the accepted one, for the reason the module
+            // docs give about partial credit: the port produced a body real c2
+            // would not have put in this obj, and a metric that credits it pays
+            // more for a nearly-right wrong emit than for an honest refusal.
+            // `reloc-unknown` is UNGRADED, so it joins the unaccounted bytes —
+            // neither an alarm nor a credit, which is what "not measured" means.
+            FnByte::Differs { .. } | FnByte::RelocDiffers(_) => byte_differs += bytes.len(),
             FnByte::Refused => byte_refused += bytes.len(),
-            FnByte::Unbound | FnByte::NoBytes => byte_unaccounted += bytes.len(),
+            FnByte::RelocUnknown | FnByte::Unbound | FnByte::NoBytes => {
+                byte_unaccounted += bytes.len()
+            }
         }
-        if v == FnByte::Exact && relocs.get(name.as_str()).copied().unwrap_or(0) > 0 {
+        // **`fnbyte-exact-relocated`, RETIRED INTO A GRADED NUMBER** (board
+        // #884). It was the size of a blind spot: credited functions carrying a
+        // relocation nothing checked. It is still printed, and it is now the
+        // *denominator of a verdict* — every one of these had RELOC-EQ asked of
+        // it and passed. The two companion counts make the population explicit
+        // rather than leaving it to be inferred from a ratio.
+        let refreln = relocs.get(name.as_str()).copied().unwrap_or(0);
+        if v == FnByte::Exact && refreln > 0 {
             *res.emit.entry("fnbyte-exact-relocated".into()).or_insert(0) += 1;
+        }
+        if v.bytes_exact() {
+            // The OLD `fnbyte-exact` predicate, published so the number the
+            // `w-relo` widening replaced stays derivable to the digit.
+            *res.emit.entry("fnbyte-exact-bytes".into()).or_insert(0) += 1;
+            if v != FnByte::RelocUnknown {
+                *res.emit.entry("fnbyte-reloc-graded".into()).or_insert(0) += 1;
+                if refreln > 0 {
+                    *res.emit
+                        .entry("fnbyte-reloc-graded-relocated".into())
+                        .or_insert(0) += 1;
+                }
+            }
         }
         // **WHOM DOES THE BODY CALL** — the relocation TARGET, not the
         // relocation count (lane `w-drop3`, boards #984–#986).
@@ -1158,7 +1506,27 @@ pub(super) fn measure(
         // buys is that a *substitution under a relocation* can no longer present
         // as a *deletion* — which is exactly how 140 mechanism-I bodies came to
         // be filed as "the port omits a call c2 makes".
-        if matches!(v, FnByte::Exact | FnByte::Differs { .. }) {
+        //
+        // # It reads `bytes_exact()`, NOT `FnByte::Exact` — and that is not a
+        // # cosmetic edit (lane `w-relo`)
+        //
+        // When this walk was written, `FnByte::Exact` *was* "the bytes are
+        // c2's". `w-relo` narrowed it to "the bytes AND the relocations are
+        // c2's", so every function this key exists to report now lands in
+        // `FnByte::RelocDiffers` instead. Left alone, the guard and the `bucket`
+        // below would have excluded exactly the population they were built for
+        // and `fnbyte-calltarget-disagree-exact` would have printed **0** — a
+        // finding erased by a change to a *different* predicate, which is the
+        // failure mode this project charges most for. `bytes_exact()` is the
+        // predicate this walk always meant, now spelled where it cannot drift.
+        //
+        // Keeping it also makes the two readers a **cross-check**: this one asks
+        // `REL24` targets by name through `ObjImage::text_comdat_call_targets`,
+        // `compare_relocs` asks every record through
+        // `ObjImage::text_comdat_relocs`, and the two were written by different
+        // lanes from different sources. `fnbyte-reloc-vs-calltarget-*` below is
+        // the count of them disagreeing.
+        if v.bytes_exact() || matches!(v, FnByte::Differs { .. }) {
             // `port_call_targets` recomposes the body, so it is called ONCE and
             // the "the port has no body here" case falls through to `ungraded`
             // with the two lookups — a guard that called it and then called it
@@ -1181,6 +1549,39 @@ pub(super) fn measure(
                         .map(|(o, n)| format!("{o:#x}:{n}"))
                         .collect();
                     *res.emit.entry("fnbyte-calltarget-graded".into()).or_insert(0) += 1;
+                    // **THE CROSS-CHECK** (lane `w-relo`). Two independently
+                    // written readers over the same fact: this one on `REL24`
+                    // targets alone, `compare_relocs` on every record's offset,
+                    // packed type and target. On a byte-exact function they must
+                    // agree about whether the relocations are c2's — and where
+                    // they do not, the direction is the finding, so the two
+                    // directions are counted separately and neither is assumed.
+                    //
+                    // `calltarget-only` has known answer **0**: a `REL24` target
+                    // disagreement is a record disagreement and the full compare
+                    // cannot miss it. `reloc-only` may legitimately be positive —
+                    // a data-symbol `REFHI`/`REFLO` target, a type or an offset,
+                    // none of which this walk looks at — so it is *measured*, not
+                    // predicted, and printed either way.
+                    if v.bytes_exact() {
+                        let reloc_says = matches!(v, FnByte::RelocDiffers(_));
+                        let call_says = port != refs;
+                        if reloc_says && !call_says {
+                            *res.emit
+                                .entry("fnbyte-reloc-vs-calltarget-reloc-only".into())
+                                .or_insert(0) += 1;
+                        }
+                        if call_says && !reloc_says {
+                            *res.emit
+                                .entry("fnbyte-reloc-vs-calltarget-calltarget-only".into())
+                                .or_insert(0) += 1;
+                        }
+                        if call_says && reloc_says {
+                            *res.emit
+                                .entry("fnbyte-reloc-vs-calltarget-both".into())
+                                .or_insert(0) += 1;
+                        }
+                    }
                     if port == refs {
                         *res.emit.entry("fnbyte-calltarget-agree".into()).or_insert(0) += 1;
                     } else {
@@ -1191,7 +1592,11 @@ pub(super) fn measure(
                         // mislead: a `differs` body was already called wrong, and
                         // an **`exact`** body with a different callee is a wrong
                         // emit the numerator is crediting.
-                        let bucket = if v == FnByte::Exact { "exact" } else { "differs" };
+                        // `bytes_exact()`, not `FnByte::Exact` — see the guard's
+                        // note above. This key's `exact` has always meant "the
+                        // byte test credits this body", and after `w-relo` that
+                        // is precisely what `bytes_exact()` spells.
+                        let bucket = if v.bytes_exact() { "exact" } else { "differs" };
                         *res.emit
                             .entry(format!("fnbyte-calltarget-disagree-{bucket}"))
                             .or_insert(0) += 1;
@@ -1209,7 +1614,7 @@ pub(super) fn measure(
                         // body the judge's byte test **credits** while its
                         // relocation points elsewhere, and mixing the two would
                         // let 3,195 already-reported rows crowd the cap.
-                        if v == FnByte::Exact && witnesses < MAX_CALLTARGET_WITNESSES {
+                        if v.bytes_exact() && witnesses < MAX_CALLTARGET_WITNESSES {
                             witnesses += 1;
                             *res.emit
                                 .entry(format!(
@@ -1243,6 +1648,89 @@ pub(super) fn measure(
                 *res.emit
                     .entry("fnbyte-census-disagree".into())
                     .or_insert(0) += 1;
+            }
+        }
+        // ---- THE RELOCATION WITNESS AND ITS FAMILIES (lane `w-relo`) --------
+        //
+        // A count cannot be acted on. Board #232/#259/#263/#276 were each closed
+        // from a named reproducer, and w-fnbyte's own §5 is the record of what a
+        // bucket without its witnesses costs — so a relocation disagreement
+        // publishes the same three things a byte disagreement does: which
+        // function, which record, and what the two sides said.
+        if let FnByte::RelocDiffers(kind) = v {
+            let (plan, refrs) = match (row, refrel) {
+                (Some((c, Ok(f))), Some(rs)) => {
+                    match complete_comdat(f, c.opt_word, &tu) {
+                        Ok(b) => (text_reloc_plan(&b.calls, &b.data_refs), rs),
+                        // Unreachable from this arm — the body was composed to
+                        // get here. Representable rather than a panic.
+                        Err(_) => (Vec::new(), rs),
+                    }
+                }
+                _ => (Vec::new(), &[][..]),
+            };
+            let at = compare_relocs(&plan, refrs).map(|(_, i)| i).unwrap_or(0);
+            let side = |n: usize, p: Option<String>| p.unwrap_or_else(|| format!("<none of {n}>"));
+            let pw = side(plan.len(), plan.get(at).map(describe_plan));
+            let rw = side(refrs.len(), refrs.get(at).map(CodeReloc::describe));
+            *res.emit
+                .entry(format!(
+                    "fnbyte-reloc-differs-fn|{}|{}|n{}/{}|@{at}|{pw} => {rw}|{name}",
+                    graded.shape,
+                    kind.key(),
+                    plan.len(),
+                    refrs.len(),
+                ))
+                .or_insert(0) += 1;
+            *res.emit
+                .entry(format!("fnbyte-reloc-why|{}|{}", graded.shape, kind.key()))
+                .or_insert(0) += 1;
+            // **The FAMILY axis.** A list of mangled name pairs is not a
+            // finding; what the pair *is* to this TU is. Both targets are
+            // resolved against the same two facts the byte forensics use — does
+            // this TU's census bind the name, and does c2's obj carry a `.text`
+            // COMDAT for it — and then the reference's target is asked whether
+            // it is reachable from the port's target through the port's OWN
+            // callee edges. That last question is what names `s12`'s class:
+            // *c2 relocated against what the port's callee itself calls.*
+            if let (Some(p), Some(r)) = (plan.get(at), refrs.get(at)) {
+                let pn = match p.target {
+                    PlanTarget::Symbol(n) => Some(n),
+                    PlanTarget::PairDisplacement(_) => None,
+                };
+                let rn = match &r.target {
+                    RelocTarget::Symbol(n) => Some(n.as_str()),
+                    _ => None,
+                };
+                let where_of = |n: Option<&str>| match n {
+                    None => "not-a-symbol",
+                    Some(n) if claim.contains_key(n) => "local",
+                    Some(n) if refbytes.contains_key(n) => "comdat-only",
+                    Some(_) => "extern",
+                };
+                let rel = match (pn, rn) {
+                    (Some(p), Some(r)) if p == r => "same",
+                    (Some(p), Some(r)) => callee_chain(p, r, &claim, census),
+                    _ => "unresolvable",
+                };
+                *res.emit
+                    .entry(format!(
+                        "fnbyte-reloc-fam|{}|{}|{}->{}|{rel}",
+                        graded.shape,
+                        kind.key(),
+                        where_of(pn),
+                        where_of(rn),
+                    ))
+                    .or_insert(0) += 1;
+                // The production that made the walk unanswerable, where that is
+                // the answer. This is the work list a repair rung is priced in.
+                if rel == "blocked" {
+                    if let Some(p) = pn.and_then(|n| reloc_blocked_production(n, &claim, census)) {
+                        *res.emit
+                            .entry(format!("fnbyte-reloc-blocked|{p}"))
+                            .or_insert(0) += 1;
+                    }
+                }
             }
         }
         if let FnByte::Differs {
@@ -1587,6 +2075,19 @@ pub(super) fn measure(
     // `fnbyte-denominator` kept its size, and the ratio would go on printing.
     if accounted != entries.len() {
         *res.emit.entry("fnbyte-partition-broken".into()).or_insert(0) += 1;
+    }
+    // **THE REACH IDENTITY** (lane `w-relo`, `docs/STATUS.md` trap 0). A green
+    // control is a statement about the population it ran over, so the population
+    // gets its own positive identity: every byte-exact function either got a
+    // RELOC-EQ verdict or is in the counted residue, and nothing falls between.
+    // Checked here, per TU, rather than by subtracting two corpus totals.
+    {
+        let g = |k: &str| res.emit.get(k).copied().unwrap_or(0);
+        if g("fnbyte-reloc-graded") + g("fnbyte-reloc-unknown") != g("fnbyte-exact-bytes") {
+            *res.emit
+                .entry("fnbyte-reloc-partition-broken".into())
+                .or_insert(0) += 1;
+        }
     }
     // **The byte-fraction ranker's per-TU record** (board #500).
     //

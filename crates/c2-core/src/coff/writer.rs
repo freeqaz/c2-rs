@@ -230,32 +230,38 @@ pub fn emit_comdat_obj(
                 // section are ordered by: the `lis` is at offset 0 and the tail
                 // branch is last. The sort is stable, so each quad keeps its
                 // REFHI-before-PAIR order at equal VA.
-                let mut recs: Vec<(u32, u32, u16)> = Vec::new();
-                for call in &funcs[k].calls {
-                    let ci = callee_syms
-                        .iter()
-                        .find(|(n, _)| *n == call.callee)
-                        .map(|(_, ix)| *ix)
-                        .expect("every callee got a symbol");
-                    recs.push((call.reloc_offset, ci, REL_PPC_REL24));
-                }
-                for r in &funcs[k].data_refs {
-                    let di = data_syms
-                        .iter()
-                        .find(|(n, _)| *n == r.name)
-                        .map(|(_, ix)| *ix)
-                        .expect("every data symbol got a slot");
-                    recs.push((r.hi_off, di, REL_PPC_REFHI));
-                    recs.push((r.hi_off, 0, REL_PPC_PAIR));
-                    recs.push((r.lo_off, di, REL_PPC_REFLO));
-                    recs.push((r.lo_off, 0, REL_PPC_PAIR));
-                }
-                recs.sort_by_key(|&(va, _, _)| va);
+                //
+                // **The list itself comes from `comdat::text_reloc_plan`** —
+                // the same call FUNCTION BYTE MATCH makes. Only the NAME → this
+                // obj's symbol index resolution happens here, because only this
+                // writer has a symbol table. One locator (board #880's rule):
+                // an instrument that rebuilt the plan could drift from what the
+                // writer actually emits.
+                let recs = crate::comdat::text_reloc_plan(&funcs[k].calls, &funcs[k].data_refs);
                 debug_assert_eq!(recs.len(), n_reloc_of[i] as usize);
-                for (va, sym, ty) in recs {
-                    b.u32(va);
+                for r in recs {
+                    let sym = match r.target {
+                        crate::comdat::PlanTarget::PairDisplacement(d) => d,
+                        // A call site resolves in the CALLEE table and a data
+                        // reference in the DATA table — never one list searched
+                        // for both, which would silently resolve a data symbol
+                        // against a callee of the same spelling.
+                        crate::comdat::PlanTarget::Symbol(n) => {
+                            let table = if r.ty == REL_PPC_REL24 {
+                                &callee_syms
+                            } else {
+                                &data_syms
+                            };
+                            table
+                                .iter()
+                                .find(|(m, _)| *m == n)
+                                .map(|(_, ix)| *ix)
+                                .expect("every relocation target got a symbol")
+                        }
+                    };
+                    b.u32(r.va);
                     b.u32(sym);
-                    b.u16(ty);
+                    b.u16(r.ty);
                 }
             }
             SectionOwner::Pdata(k) => {
