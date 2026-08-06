@@ -1,0 +1,48 @@
+merge w-inl0: the blr-only cluster splits at the third link — 138 closed as pure E, and the seed-vs-link mutation puts a number under trap 0
+
+differs 3,195 -> 3,057, exact 35,982 -> 36,120, elided 1,516 -> 1,654
+with -elided-exact equal; all 138 movers named per symbol
+(work/w-inl0/movers.txt), every one ??$_Destroy_Range@..., 0 opened, no
+other gap-metric line moved. Tests 998/31 -> 1,017/32, gate 18/18 PASS,
+0 mismatch anywhere, 0 duplicate board rows. Board #990-#995, #980
+taken.
+
+THE PRODUCTION WAS MISNAMED, AND THE MECHANISM WAS MISATTRIBUTED. The
+brief said "expr-intrinsic-memset" hides a memset and #980 is "E's
+outcome reached by I's test". Measured: the production is the
+materialization of an EMPTY TAG TEMPORARY (selector 173, int result —
+discriminator 446/7/2 on one TU — three literals, a 9B temp bind, the
+same token then passed by reference), its callee's body is literally
+empty_body, and a frozen cell holds at /Ob0 — so the chain is mechanism
+E at EVERY link and the middle link was merely unreadable. The
+relocation-count-zero test the spec proposed was never needed.
+DIFF_STRUCTURE, INLINE_PREDICATE and STATUS corrected.
+
+SHIPPED SEED-ONLY, AND THE MUTATION THAT JUSTIFIES IT: no_effect.rs is
+decode-only (parse_segment, census key, fnbyte-refused,
+IlBundle::functions() all unchanged) and elide::Reduction::NoEffectCall
+contributes a LINK, never a seed — cycle refusal and round ceiling
+untouched. M2 is the lane's sharpest result: promoting the fact to a
+seed converts 143 MORE workload bodies (differs 2,878, exact 36,299,
+zero wrong-way movers, every workload control green) while turning 4 of
+8 frozen cells red, including the external-callee control. The workload
+alone would have accepted a rule the cells refute — #971 condition 1
+and STATUS trap 0 with a number under them.
+
+THE RESIDUE IS 232 AND THE NEXT RUNG IS A PARSER RUNG:
+fnbyte-blr-stop|expr-intrinsic-memset 231, one level deeper
+fnbyte-blr-stop2|return-scope-close-cflow-label 228 — the split within
+the 370 is by ELEMENT TYPE (class types take STLport's __false_type
+loop overload), whose compiled cell is also one blr at /Ob0. "370
+behind one chain" was wrong: they share the caller's shape and split at
+the third link.
+
+w-drop3's call-target caveat answered by measurement, not argument:
+fnbyte-elided-ref-reloc 0 (an elided body has no call word), and
+calltarget-disagree moves 4,056 -> 3,918 with -agree +138 — the
+conversions carry their relocations correctly.
+
+Prereg committed before any capture; GRID-M sha256-frozen before its
+first cl.exe; 19 predictions registered, 15 hit, 4 lost, the losses in
+the rung's §5. Rebased by the lane onto this exact master tip; merge is
+conflict-free by construction.

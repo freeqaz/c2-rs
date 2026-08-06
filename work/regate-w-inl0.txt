@@ -1,0 +1,17 @@
+560a494b merge w-inl0: the blr-only cluster splits at the third link — 138 closed as pure E, and the seed-vs-link mutation puts a number under trap 0
+targets=32 passed=1017 failed=0
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 16710)
+cross:  PASS — 81517 of 81905 selected cells graded, 0 mismatch (product 81905)
+logs:   /tmp/c2rs-gate-2763001/<lane>.log, /tmp/c2rs-gate-2763001/sweep.log, /tmp/c2rs-gate-2763001/cross.log
+
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 16614 of 16710 generated cases and the cross graded
+  81517 of 81905 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source).
+STATUS CHECK: PASS — 23 metrics registered, parsers pinned, absence renders NO-RESULT
+
+ROWS BEHIND THE PROSE (a ROADMAP heading names #N in a section no row of #N cites): 0
+  (none — every heading-level re-measurement is cited by its row)
+
+DUPLICATE ROW NUMBERS (two rows claim one identity): 0
+  (none — every row number names exactly one row)
