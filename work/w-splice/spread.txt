@@ -1,0 +1,38 @@
+=== CONVERTED: 723 functions ===
+  distinct symbols       : 245
+  distinct TUs           : 284
+  distinct source dirs   : 22
+  distinct template roots: 3
+  largest root carries   : 629 of 723 (87.0%)  ??0?$_List_iterator
+  SINGLE-IDIOM RESULT — say so
+
+=== TEMPLATE ROOTS (the #925 unit) ===
+    629   87.0%  ??0?$_List_iterator
+     89   12.3%  ?front@?$vector
+      5    0.7%  ??0?$_Rb_tree_iterator
+
+=== SOURCE DIRECTORIES ===
+    165   22.8%  src/system/rndobj
+    110   15.2%  src/system/char
+     81   11.2%  src/lazer/meta_ham
+     80   11.1%  src/system/hamobj
+     67    9.3%  src/system/world
+     39    5.4%  src/system/obj
+     25    3.5%  src/system/os
+     23    3.2%  src/system/ui
+     23    3.2%  src/system/utl
+     22    3.0%  src/system/synth
+     18    2.5%  src/system/flow
+     14    1.9%  src/lazer/game
+
+=== TUs, top 10 of 284 ===
+     15  src/system/world/Crowd.cpp
+     14  src/system/rndobj/Utl.cpp
+     11  src/system/rndobj/EventTrigger.cpp
+     11  src/system/rndobj/PropAnim.cpp
+     11  src/system/world/CameraShot.cpp
+     10  src/system/rndobj/Mesh.cpp
+      9  src/system/hamobj/HamDirector.cpp
+      9  src/system/obj/Utl.cpp
+      8  src/system/char/CharDriver.cpp
+      8  src/system/hamobj/HamCamShot.cpp

@@ -20,7 +20,7 @@
 //! |---|---|
 //! | `an_empty_same_tu_callee_leaves_the_caller_a_bare_blr` | the rule fires and the bytes are c2's |
 //! | `the_argument_setup_goes_with_the_dropped_call` | E discards the setup — a 2-word port body becomes one word |
-//! | `a_returning_callee_is_not_elided` | the **emptiness** condition. `int g(int a){return a;}` is mechanism I, and at `/O1` its caller is observationally identical to an E caller |
+//! | `a_returning_callee_is_mechanism_i_and_never_e` | the **emptiness** condition. `int g(int a){return a;}` is mechanism I, and at `/O1` its caller is observationally identical to an E caller. Since lane `w-splice` the port emits those bytes — through `c2_core::splice`, and the test asserts BOTH that the verdict is `Exact` and that the E context still refuses the callee |
 //! | `a_callee_this_tu_does_not_define_is_not_elided` | the **same-TU** condition |
 //! | `an_indirect_call_site_is_still_refused_by_the_il_parser` | **THE HAZARD.** E does not fire through a function pointer even with an empty callee, and the port is safe only because the parser refuses that caller. If this test goes red because the production now parses, `elide.rs` needs an explicit site condition **before** the elision may run |
 
@@ -86,7 +86,13 @@ fn grade_cell(tc: &Toolchain, dir: &Path, name: &str, body: &str) -> (Rows, TuEm
         let g = grade_one(row, Some(bytes.as_slice()), &tu);
         out.push((g.shape, g.verdict, sym.clone(), bytes.clone()));
     }
-    (out, tu)
+    // The E half, CLONED out of the composite context. `tu` borrows `census`,
+    // which is local; the elision context this test asserts against does not,
+    // so it can outlive the capture. (`TuContext` gained mechanism I's splice
+    // sources in lane `w-splice`; nothing about mechanism E's set changed, and
+    // these assertions are about mechanism E.)
+    let empty = tu.empty_callees().clone();
+    (out, empty)
 }
 
 /// One row by symbol, with the anchor control checked first.
@@ -174,31 +180,51 @@ fn the_argument_setup_goes_with_the_dropped_call() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+/// **`c19_ret_param` — THE CELL THAT SEPARATES THE TWO MECHANISMS, and the port
+/// now gets it right by the right one.**
+///
+/// `int g(int a){ return a; } int f(int a){ return g(a); }`. c2 emits `?f` as a
+/// bare `blr`, and it is **mechanism I** — `/Ob0` restores the `bl ?g`
+/// (`docs/INLINE_PREDICATE.md` §1, probe p6). E must never claim it: `?g`'s IL
+/// body is not empty, and a rule fitted to the *bytes* would take the whole
+/// family and be wrong about all of it (`elide.rs`'s `k12` note).
+///
+/// Until lane `w-splice` this test asserted `Differs`, because the port modelled
+/// only E and therefore emitted `b ?g`. It now emits `?g`'s own body — one
+/// `blr`, no relocation — through `c2_core::splice`, so the assertion is
+/// inverted and **strengthened**: the verdict must be `Exact` **and** the E
+/// context must still refuse the callee. Both halves matter. `Exact` alone would
+/// pass if E had quietly widened to cover it, which is precisely the failure the
+/// original test existed to catch.
 #[test]
-fn a_returning_callee_is_not_elided() {
+fn a_returning_callee_is_mechanism_i_and_never_e() {
     let Some(tc) = Toolchain::locate() else {
         println!("SKIP: toolchain absent");
         return;
     };
     let d = work("returns");
-    // `c19_ret_param`. c2's `?f` here IS a bare `blr` too — but by mechanism I,
-    // which `/Ob0` separates (`docs/INLINE_PREDICATE.md` §1) and which this port
-    // does not model. The predicate must decline on the BODY, not on the bytes.
-    let (rows, _tu) = grade_cell(
+    let (rows, tu) = grade_cell(
         &tc,
         &d,
         "c19",
         "int g(int a) { return a; }\nint f(int a) { return g(a); }\n",
     );
     let r = row(&rows, "?f@@YAHH@Z", "c19_ret_param");
-    assert!(
-        matches!(r.1, FnByte::Differs { .. }),
-        "THE EMPTINESS CONDITION WAS DROPPED: `int g(int a){{return a;}}` has a \
-         non-empty IL body and is mechanism I, not E. Its caller came back {:?}, \
-         which means the port emitted `blr` for a callee whose body it has not \
-         established does nothing — the same bytes for the wrong reason, and the \
-         next callee like it will be wrong bytes",
+    assert_eq!(
+        r.1,
+        FnByte::Exact,
+        "MECHANISM I REGRESSED ON ITS OWN DISCRIMINATING CELL: c2 emits `?f` as \
+         `?g`'s body — one blr, no relocation — and `c2_core::splice` is what \
+         produces it. Verdict came back {:?}",
         r.1
+    );
+    assert_eq!(r.3, BLR, "c2's body for `?f` is the single word `blr`");
+    assert!(
+        !tu.reduces_to_nothing("?g@@YAHH@Z"),
+        "THE EMPTINESS CONDITION WAS DROPPED: `int g(int a){{return a;}}` has a \
+         non-empty IL body and is mechanism I, not E. If the E context admits \
+         it, the port is emitting the right bytes for the WRONG REASON and the \
+         next callee like it will be wrong bytes — `elide.rs`'s k12/c19 trap"
     );
     let _ = std::fs::remove_dir_all(&d);
 }
