@@ -1,0 +1,87 @@
+cells with a scan row: 14
+
+--- s01_void_tail_no_setup
+    FBM: exact 2 · differs 1 · refused 0 · denominator 3
+    ?f@@YAHH@Z                                           w1/2/eq0
+        shape=tail      dispo=body:exact                   ref=refbody
+        first first@0:port=48000000,ref=38630001
+        SPLICE-P=exact    (pw1/rw2/cw2)   SPLICE-0=exact
+
+--- s02_void_call_no_setup
+    FBM: exact 2 · differs 0 · refused 1 · denominator 3
+    NO DIFFER ROW — every emitted function is `exact` or `refused`; see the FBM line above
+
+--- s03_reg_move_setup
+    FBM: exact 2 · differs 1 · refused 0 · denominator 3
+    ?f@@YAHHH@Z                                          w2/2/eq0
+        shape=tail      dispo=body:exact                   ref=refbody
+        first first@0:port=7c832378,ref=38640001
+        SPLICE-P=differs  (pw2/rw2/cw2)   SPLICE-0=differs
+
+--- s04_arith_setup
+    FBM: exact 2 · differs 1 · refused 0 · denominator 3
+    ?f@@YAHH@Z                                           w2/2/eq0
+        shape=tail      dispo=body:exact                   ref=refbody
+        first first@0:port=38630001,ref=38630002
+        SPLICE-P=differs  (pw2/rw2/cw2)   SPLICE-0=differs
+
+--- s05_lit_setup
+    FBM: exact 2 · differs 1 · refused 0 · denominator 3
+    ?f@@YAHXZ                                            w2/2/eq0
+        shape=tail      dispo=body:exact                   ref=refbody
+        first first@0:port=38600007,ref=38600008
+        SPLICE-P=differs  (pw2/rw2/cw2)   SPLICE-0=differs
+
+--- s06_ptr_offset_setup
+    FBM: exact 2 · differs 0 · refused 1 · denominator 3
+    NO DIFFER ROW — every emitted function is `exact` or `refused`; see the FBM line above
+
+--- s07_ptr_field_load
+    FBM: exact 2 · differs 1 · refused 0 · denominator 3
+    ?f@@YAHPAUA@@@Z                                      w1/2/eq0
+        shape=tail      dispo=body:exact                   ref=refbody
+        first first@0:port=48000000,ref=80630004
+        SPLICE-P=exact    (pw1/rw2/cw2)   SPLICE-0=exact
+
+--- s08_framed_add
+    FBM: exact 2 · differs 1 · refused 0 · denominator 3
+    ?f@@YAHH@Z                                           w9/2/eq0
+        shape=framed    dispo=body:exact                   ref=refbody
+        first first@0:port=7d8802a6,ref=38630003
+        SPLICE-P=differs  (pw9/rw2/cw2)   SPLICE-0=differs
+
+--- s09_seq_two_calls
+    FBM: exact 1 · differs 1 · refused 2 · denominator 4
+    ?f@@YAXXZ                                            w9/7/eq0
+        shape=seq       dispo=refused:expr-jump            ref=refbody
+        first first@0:port=7d8802a6,ref=3d200000
+        SPLICE-P=n/a      (-)   SPLICE-0=n/a
+
+--- s10_seq_one_call_tail
+    FBM: exact 2 · differs 0 · refused 1 · denominator 3
+    NO DIFFER ROW — every emitted function is `exact` or `refused`; see the FBM line above
+
+--- s11_two_arg_perm
+    FBM: exact 2 · differs 1 · refused 0 · denominator 3
+    ?f@@YAHHH@Z                                          w4/2/eq0
+        shape=tail      dispo=body:exact                   ref=refbody
+        first first@0:port=7c8b2378,ref=7c632050
+        SPLICE-P=differs  (pw4/rw2/cw2)   SPLICE-0=differs
+
+--- s12_callee_calls_extern
+    FBM: exact 3 · differs 0 · refused 0 · denominator 3
+    NO DIFFER ROW — every emitted function is `exact` or `refused`; see the FBM line above
+
+--- s13_deep_callee
+    FBM: exact 1 · differs 1 · refused 1 · denominator 3
+    ?f@@YAHH@Z                                           w1/3/eq0
+        shape=tail      dispo=refused:expr-repeated-leaf:eof ref=refbody
+        first first@0:port=48000000,ref=546b103a
+        SPLICE-P=exact    (pw1/rw3/cw3)   SPLICE-0=exact
+
+--- s14_cmp_callee
+    FBM: exact 2 · differs 1 · refused 0 · denominator 3
+    ?f@@YAHH@Z                                           w1/7/eq0
+        shape=tail      dispo=body:exact                   ref=refbody
+        first first@0:port=48000000,ref=39600003
+        SPLICE-P=exact    (pw1/rw7/cw7)   SPLICE-0=exact

@@ -1,0 +1,14 @@
+work/w-seq/cells/s01_void_tail_no_setup.cpp
+work/w-seq/cells/s02_void_call_no_setup.cpp
+work/w-seq/cells/s03_reg_move_setup.cpp
+work/w-seq/cells/s04_arith_setup.cpp
+work/w-seq/cells/s05_lit_setup.cpp
+work/w-seq/cells/s06_ptr_offset_setup.cpp
+work/w-seq/cells/s07_ptr_field_load.cpp
+work/w-seq/cells/s08_framed_add.cpp
+work/w-seq/cells/s09_seq_two_calls.cpp
+work/w-seq/cells/s10_seq_one_call_tail.cpp
+work/w-seq/cells/s11_two_arg_perm.cpp
+work/w-seq/cells/s12_callee_calls_extern.cpp
+work/w-seq/cells/s13_deep_callee.cpp
+work/w-seq/cells/s14_cmp_callee.cpp

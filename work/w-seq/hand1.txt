@@ -1,0 +1,35 @@
+================================================================
+CELL s01_void_tail_no_setup
+    | // GRID-S cell s01_void_tail_no_setup — empty setup, int tail call, passthrough formal
+    | int gv_sink;
+    | int g(int a) { return a + 1; }
+    | int f(int a) { return g(a); }
+    | 
+    | void ext_anchor();
+    | void anchor() { ext_anchor(); }
+== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a20bfde3e9178642e/work/w-seq/caps/s01_void_tail_no_setup.obj  machine=0x01f2 nsec=8 nsym=24 size=1258
+-- .text #6 (8 B) ?g@@YAHH@Z
+   0000  38630001  addi 3, 3, 1                    
+   0004  4e800020  blr                             
+-- .text #7 (8 B) ?f@@YAHH@Z
+   0000  38630001  addi 3, 3, 1                    
+   0004  4e800020  blr                             
+-- .text #8 (4 B) ?anchor@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [23] ?ext_anchor@@YAXXZ
+================================================================
+CELL s03_reg_move_setup
+    | // GRID-S cell s03_reg_move_setup — setup is a register move — the `?Release@Object@Hmx@@` family
+    | int g(int a) { return a + 1; }
+    | int f(int a, int b) { return g(b); }
+    | 
+    | void ext_anchor();
+    | void anchor() { ext_anchor(); }
+== /home/free/code/milohax/c2-rs/.claude/worktrees/agent-a20bfde3e9178642e/work/w-seq/caps/s03_reg_move_setup.obj  machine=0x01f2 nsec=7 nsym=21 size=1147
+-- .text #5 (8 B) ?g@@YAHH@Z
+   0000  38630001  addi 3, 3, 1                    
+   0004  4e800020  blr                             
+-- .text #6 (8 B) ?f@@YAHHH@Z
+   0000  38640001  addi 3, 4, 1                    
+   0004  4e800020  blr                             
+-- .text #7 (4 B) ?anchor@@YAXXZ
+   0000  48000000  b .+0                             ; REL24 -> [20] ?ext_anchor@@YAXXZ
