@@ -91,3 +91,4 @@ the header block this table is read from.
 | 2026-08-07 | w-ilx | [w-ilx](2026-08-07-w-ilx.md) | 12 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-07 | w-inline | [w-inline](2026-08-07-w-inline.md) | 13 | 711,427 / 2,463,393 (28.88 %) unchanged, +0. Emitted 39,177 / |
 | 2026-08-07 | w-rtti | [w-rtti](2026-08-07-w-rtti.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane emits nothing |
+| 2026-08-07 | w-tag02 | [w-tag02](2026-08-07-w-tag02.md) | 10 | 711,427 / 2,463,393 unchanged (28.88 %), +0 — this lane touches no |

@@ -1108,9 +1108,35 @@ previous revision of this list said it was.**
    §5.6 partition **68** real mixed sections with **zero** address interleaving
    (§5.7 R3). No cell discriminates the narrow reading from a broader one such
    as "address taken by a COMDAT".
-6. **`.data` relocations beyond `ADDR32`-with-no-PAIR.** Unchanged. Only
+6. ~~**`.data` relocations beyond `ADDR32`-with-no-PAIR.** Unchanged. Only
    pointer-valued initializers were exercised; member-pointer, vftable-pointer
-   and cross-section initializers were not.
+   and cross-section initializers were not.~~ **The `ADDR32`-with-no-PAIR case is
+   CLOSED and the rest is re-scoped** — lane `w-tag02`, 2026-08-07, boards
+   **#936**–**#941**, [`rungs/2026-08-07-w-tag02.md`](rungs/2026-08-07-w-tag02.md).
+   This entry was cited by `ininit.rs` as the reason element tag `02` was
+   refused; it is read now, and `emit_data_obj` places the relocation.
+
+   * **The element is `02 <target-token> <offset> <n>`**, measured on 24 frozen
+     cells at the workload's own flags (`work/w-tag02/GRAMMAR.md`). The offset
+     is a **varint** (`80` + LE32 escape, negatives always escape) and lands in
+     the section as a **big-endian i32 addend** at the slot; the obj carries one
+     `IMAGE_REL_PPC_ADDR32` there and **no PAIR**, confirmed on all 31 elements.
+   * **Graded**: the 24-cell grid goes `match` 2 → **15**, `mismatch` **0**,
+     byte-exact against real `c2`. Negative addends, a 65,536 offset, a
+     self-reference and a two-slot array are among them.
+   * **Still open, and now for symbol-table reasons rather than reader ones**: a
+     target that is an **undefined external** (it needs a symbol record spliced
+     in at index **5**, and a *function* target additionally carries
+     `Type = 0x0020`), and a target in a `.rdata` **COMDAT** (a string literal).
+     Both are read correctly and refused by the writer.
+   * **A member-pointer initializer is not a relocation at all** — `int A::*pm =
+     &A::b;` is element tag `01`, `.data` = `00 00 00 04`, no relocation. The
+     previous revision of this entry named it as an unexercised *relocation*
+     case; it is not one.
+   * **The vftable-pointer case is read and not emittable**: `struct A{virtual
+     void f();int a;}; A g;` mints twelve sections, four of them `.rdata$r`, and
+     the whole `??_R*` graph is spelled in `.in` — but the TU defines
+     `??0A@@QAA@XZ`, so it is `vocab-gap` and no `.data` path sees it.
 7. **The `??_R0` payload's spare word** is `00 00 00 00` in every cell measured;
    *observed constant*, not *known constant*. Unchanged.
 8. ~~**The workload census covers headers, characteristics, symbols and section
