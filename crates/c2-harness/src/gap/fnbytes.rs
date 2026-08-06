@@ -290,10 +290,16 @@ pub struct Graded {
 ///
 /// Mechanism E is the one fact in a `/Gy` body that is not a property of the
 /// function alone, so it is derived from **every** census row that parsed, not
-/// from the emitted subset: an empty-bodied callee is a callee whether or not it
-/// is itself in FBM's denominator. A row that did not parse contributes nothing,
-/// which is the conservative direction — the port keeps its branch and the
-/// function keeps whatever verdict it had.
+/// from the emitted subset: a callee that reduces to nothing is a callee whether
+/// or not it is itself in FBM's denominator. A row that did not parse
+/// contributes nothing, which is the conservative direction — the port keeps its
+/// branch and the function keeps whatever verdict it had.
+///
+/// **It is a FIXPOINT and so the whole-bundle input matters more than it did**
+/// (board #946): a row that fails to parse no longer costs only its own
+/// elision, it breaks every chain that runs through it. That is still the
+/// conservative direction, and it is why the row's `IlFunction` — not just its
+/// `empty_body` flag — is what this hands over.
 ///
 /// # It keys on `emit_name`, and keying on `mangled_name` was MEASURED WRONG
 ///
@@ -317,7 +323,7 @@ pub fn tu_empty_callees(census: &[(FnCensus, Result<IlFunction, &'static str>)])
     TuEmptyCallees::of_named(
         census
             .iter()
-            .filter_map(|(c, g)| Some((c.emit_name.as_deref()?, g.as_ref().ok()?.empty_body))),
+            .filter_map(|(c, g)| Some((c.emit_name.as_deref()?, g.as_ref().ok()?))),
     )
 }
 

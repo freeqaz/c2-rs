@@ -1,0 +1,42 @@
+cells: 8   compiled(/O1): 8   compiled(/Ob0): 8   edges: 35
+
+cell                   edge           verdict  blr?   rel24     caller .text at /O1
+-----------------------------------------------------------------------------------
+m1_chain_d5            g1->g2         E        blr    0->0      4e800020
+m1_chain_d5            g2->g3         E        blr    0->0      4e800020
+m1_chain_d5            g3->g4         E        blr    0->0      4e800020
+m1_chain_d5            g4->h          E        blr    0->0      4e800020
+m1_chain_d5            f->g1          E        blr    0->0      4e800020
+m2_chain_d6            g1->g2         E        blr    0->0      4e800020
+m2_chain_d6            g2->g3         E        blr    0->0      4e800020
+m2_chain_d6            g3->g4         E        blr    0->0      4e800020
+m2_chain_d6            g4->g5         E        blr    0->0      4e800020
+m2_chain_d6            g5->h          E        blr    0->0      4e800020
+m2_chain_d6            f->g1          E        blr    0->0      4e800020
+m3_chain_d8            g1->g2         E        blr    0->0      4e800020
+m3_chain_d8            g2->g3         E        blr    0->0      4e800020
+m3_chain_d8            g3->g4         E        blr    0->0      4e800020
+m3_chain_d8            g4->g5         E        blr    0->0      4e800020
+m3_chain_d8            g5->g6         E        blr    0->0      4e800020
+m3_chain_d8            g6->g7         E        blr    0->0      4e800020
+m3_chain_d8            g7->h          E        blr    0->0      4e800020
+m3_chain_d8            f->g1          E        blr    0->0      4e800020
+m4_seq_mixed_mid       g1->h          E        1w     0->0      48000000
+m4_seq_mixed_mid       g1->ext        CALL     1w     1->1      48000000
+m4_seq_mixed_mid       f->g1          I        1w     0->1      48000000
+m5_static_chain        g2->h          E        blr    0->0      4e800020
+m5_static_chain        g1->g2         E        blr    0->0      4e800020
+m5_static_chain        f->g1          E        blr    0->0      4e800020
+m6_defined_after       g2->h          E        blr    0->0      4e800020
+m6_defined_after       g1->g2         E        blr    0->0      4e800020
+m6_defined_after       f->g1          E        blr    0->0      4e800020
+m7_dtor_chain_d4       E::~E->D::~D   E        blr    0->0      4e800020
+m7_dtor_chain_d4       D::~D->C::~C   E        blr    0->0      4e800020
+m7_dtor_chain_d4       C::~C->B::~B   E        blr    0->0      4e800020
+m7_dtor_chain_d4       B::~B->A::~A   E        blr    0->0      4e800020
+m8_arg_every_link      g2->h          E        blr    0->0      4e800020
+m8_arg_every_link      g1->g2         E        blr    0->0      4e800020
+m8_arg_every_link      f->g1          E        blr    0->0      4e800020
+
+edge verdicts: CALL 1  E 33  I 1
+graded: 35 of 35 edges

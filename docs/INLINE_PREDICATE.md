@@ -14,7 +14,9 @@
 > in place below:**
 >
 > 1. **§1's *"whose source body is empty"* is REFUTED as written — E is a
->    FIXPOINT** (§1.2, board #920).
+>    FIXPOINT** (§1.2, board #920). **And the fixpoint is SHIPPED since
+>    2026-08-07** on 94 graded call edges — `fnbyte-differs` **3,338 → 3,195**,
+>    board **#946**, lane `w-fix`. §1.2 carries the stops.
 > 2. **E is a property of the call SITE too**, and the port is safe today only
 >    because the IL parser refuses the indirect productions (§1.3, board #921).
 > 3. **The shipped predicate is a strict SUBSET of E**, because c2 applies E
@@ -160,12 +162,44 @@ callee's source body is empty"* but
 
 > **the callee's body REDUCES TO NOTHING** — closed under E itself.
 
-`work/w-empty/cells2/g07_empty_calls_empty.cpp`. **The port ships the one-step
-version**: after `w-empty`, `?g` converts and `?f` does not, and the residual it
-leaves is **143** workload functions (`??1?$_Rb_tree_base@…`, whose callee is a
-`_STLP_alloc_proxy` destructor that is itself a tail call that elides). The
-fixpoint is board **#924** and has one cell behind it, which is why it was not
-taken.
+`work/w-empty/cells2/g07_empty_calls_empty.cpp`.
+
+> **2026-08-07 — THE FIXPOINT IS SHIPPED, on 94 graded call edges rather than on
+> that one cell.** Lane `w-fix` (board **#946**, [`rungs/2026-08-07-w-fix.md`](rungs/2026-08-07-w-fix.md))
+> built GRID-3/3b/3c — **34 cells, 94 edges, 94 graded**, each compiled at the
+> workload's flags and again at `/Ob0` and scored **per edge** — and
+> `crates/c2-core/src/elide.rs`'s `TuEmptyCallees` is now the **least fixpoint**
+> of `empty_body` under *"an elidable tail call to a name that reduces to
+> nothing"*. `fnbyte-differs` **3,338 → 3,195**; the **143** functions this
+> paragraph priced converted, **0** moved the other way, and all 143 are
+> `??1?$_Rb_tree_base@…` (board **#952** — #925's caution, repeating with the
+> next template up).
+>
+> **Where the chain STOPS is the part to carry off that grid**, because three of
+> the four stops were not obvious from one cell:
+>
+> * an **all-empty** chain collapses at every link at depths **1, 2, 3, 4, 5, 6
+>   and 8** — every caller one `4e800020` (#947, #955);
+> * a link whose body calls an external stops it at each of depths 1, 2, 3, and
+>   at `/Ob0` every caller at or above the break keeps its REL24;
+> * **mechanism I mid-chain is a bare `blr` at every level** — `int
+>   m(int a){return a;}` under two callers gives two relocation-free `blr`s at
+>   `/O1` and two surviving REL24s at `/Ob0`, so a fixpoint fitted to the
+>   *bytes* takes the whole chain and is wrong about all of it (#954). §2.2's
+>   `c19` trap, one level up;
+> * a mid-node that keeps **bytes** — `g(sink++)`, or a store to a global —
+>   drops its own call and **does not** let its caller drop one. What propagates
+>   is *emits nothing*, not *elided its call*;
+> * a **`Seq`** mid-node whose calls all elide **is** `E` in c2, and the port
+>   declines it anyway (#948);
+> * a **cycle** is not `E` — and `void r(){r();}` emits a self-branch that takes
+>   **no relocation at all**, so the relocation observable reads `E` on a body
+>   that is plainly not nothing (#950). The least fixpoint never seeds a cycle,
+>   so termination needed no special case.
+>
+> What is still **NOT MODELLED** here: c2's own dead-code elimination crossing
+> the chain (#949 — `void g1(int a){ m(a); }` over `int m(int a){return a;}` is
+> `E` at *both* edges and the port keeps both branches), and the `Seq` tier.
 
 ## 1.3 E is a property of the CALL SITE too, and that is the hazard (board #921)
 
@@ -391,10 +425,12 @@ to re-derive it.
 ## 7. What this leaves `NOT MODELLED`
 
 * ~~**E's exact source predicate.** Three probes, one boundary (§1).~~
-  **CLOSED to the extent 40 graded cells close it** (§1.1–§1.5): the boundary is
-  walked, the rule is shipped, and the three things it is still not is now a
-  list rather than a gap — the **fixpoint** (#920), the **call site** (#921), and
-  **c2's own DCE** (#922). What remains genuinely unmodelled about E: whether a
+  **CLOSED to the extent 134 graded cells close it** (§1.1–§1.5): the boundary is
+  walked, the rule is shipped, and the three things it is still not was a list
+  rather than a gap — the **fixpoint** (#920), the **call site** (#921), and
+  **c2's own DCE** (#922). **The fixpoint is closed too** (#946): 94 further call
+  edges, and the rule iterates. What remains genuinely unmodelled about E:
+  **c2's own DCE crossing a chain** (#949), the **`Seq` tier** (#948), whether a
   `volatile` access in an otherwise empty body is E (`c16` says no, n = 1), and
   what happens at an indirect site once the parser can reach one.
 * **`leaf`'s true input** (§5) — the largest single source of `INLINE-P`'s

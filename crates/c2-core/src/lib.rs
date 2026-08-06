@@ -690,14 +690,21 @@ impl PortC2 {
                 // this condition — and it is written out anyway so that the two
                 // emitters cannot silently disagree about one rule if that
                 // refusal is ever narrowed.
+                //
+                // **The lockstep is by construction and not by review**: this
+                // arm calls the same `drops_tail_call` against the same
+                // `tu_empty` the `/Gy` arm consults, so the fixpoint widening
+                // (board #946) widened the refusal in the same commit and by
+                // the same line. A copy of the predicate here would have had to
+                // be found and changed; there is none.
                 codegen::Selected::Tail(_) if elide::drops_tail_call(f, &tu_empty) => {
                     return Err(BackendError::NotImplemented(
                         "a call c2 does not emit (its callee is defined in \
-                         this TU with an empty body) inside a PACKED `.text`: \
-                         the elision shortens the caller, and no capture \
-                         measures what that does to the following functions' \
-                         offsets. Modeled under /Gy only — docs/INLINE_PREDICATE.md \
-                         §1, crates/c2-core/src/elide.rs"
+                         this TU by a body that reduces to nothing) inside a \
+                         PACKED `.text`: the elision shortens the caller, and \
+                         no capture measures what that does to the following \
+                         functions' offsets. Modeled under /Gy only — \
+                         docs/INLINE_PREDICATE.md §1.2, crates/c2-core/src/elide.rs"
                             .to_string(),
                     ))
                 }
