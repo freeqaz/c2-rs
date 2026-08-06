@@ -294,3 +294,95 @@ here, before GRID A, so the scoring cannot be read as retrofitted.
 The 36 cells of §4 are written and committed before a single one is compiled.
 Prediction **A1 (the lift FAILS, and the disagreement is a `slwi` cell)** and
 **A2 (the spelling axis separates, not the use-count axis)** stand as written.
+
+---
+
+## ADDENDUM 2 — 2026-08-06, after GRID M and GRID A, before GRID T2 and GRID M2
+
+### A2.1 — GRID A is scored, and it is a HIT in its strongest form
+
+**36 selected / 36 reached / 36 GRADED / 0 out-of-regime**, 24 hit, **12 MISS**.
+
+```text
+  addi-interior  12 / 0 / 0
+  add            12 / 0 / 0
+  slwi            0 / 12 / 0
+```
+
+Every miss is a `slwi` cell, which is **A2** exactly as registered, and `slwi`
+loses at a use-count advantage of **three** (reg 4 uses against const 1) as
+flatly as at one. There is therefore no threshold the lift could be narrowed
+around: for that spelling the register-derived producer never takes `r11`
+against a constant in this configuration. Both body kinds agree cell for cell,
+so the framed context does not rescue it either.
+
+> ### **`codegen::alloc`'s mixed refusal STANDS. `xboxheap.cpp` does not convert in this lane. Nothing is patched.** That is the standing instruction and it is taken as binding.
+
+### A2.2 — GRID M is scored: the fitted rule dies on its own holdout, and the miss names the observable
+
+**24 selected / 24 reached / 24 GRADED / 0 out-of-regime**, 19 hit, **5 MISS**.
+Every miss has a leading unproduced run of **3** and is off by **exactly one**,
+so the *shape* was right and the *observable* was wrong: `store_order`'s own
+`u` is `min(2, #unproduced)`, and the raw leading run is not it. The corrected
+statement is
+
+> ### **`stores_before_mr = nprod − 1 + min(u, 2)`**
+
+It is **fitted on GRID M's five misses** and is therefore taken to a second
+fresh holdout (**GRID M2**) before it is quoted anywhere. **M2 of Addendum 1
+still binds: no `mr r31,r3` emitter ships under either outcome.**
+
+GRID M2's cells, declared here: leading unproduced runs of **4, 5 and 6** —
+strictly outside every cell GRID M contains — crossed with `nprod` 0…3, plus
+runs where the unproduced stores are **not** first in source (so the emitted
+leading run and the source leading run differ), plus two multi-width runs.
+
+### A2.3 — GRID T2, a fresh transfer holdout
+
+T1/T3 were registered before GRID T compiled, so 12/12 is a holdout result and
+not a fit. GRID T2 widens it anyway, on axes GRID T holds fixed:
+
+```text
+  more FORMALS (pool floor)      f(S*,int,int,int,int,int)
+  MIXED WIDTHS                   char / short / int / long long stores
+  TWO BASE SYMBOLS               s and a second pointer formal
+  a WIDE literal (board #644)    lis/ori, whose halves split
+  a run of SEVEN                 past every fitted length
+  a call WITH an argument        gx(u) rather than gx()
+  a NON-VOID trailing call       int r = gx(); s->f0 = 7;   (run before, result after)
+```
+
+crossed with the three kinds that carried the claim — **L**, **P2** and **R**.
+Registered prediction **T5: every graded configuration still transfers at the
+IDENT level**, with the `gx(u)` and non-void rows expected to be the ones that
+can lose, because an argument setup competes for the same scratch pool the run
+allocates from.
+
+### A2.4 — WHY NO SEAM IS SHIPPED, decided here and not after the fact
+
+Two blockers, both measured, and the second is the one that decides it.
+
+1. **The allocation half is refused** (§A2.1), so `xboxheap`'s own
+   configuration cannot be emitted regardless of how the frame composes.
+2. **Every composition board #844 names is INVISIBLE to `fnbyte-differs`.**
+   `crates/c2-harness/src/gap/fnbytes.rs` maps `Selected::{Tail, Framed, Seq,
+   CondPair}` to `FnByte::Partial` by construction — a body whose missing words
+   encode their own `.text` offset is one the harness *must not* reconstruct —
+   and the baseline scan prints the population that already sits there:
+   **`partial by shape: tail 7098 · seq 2150 · framed 123 · cond-pair 4`**, 9,375
+   emitted functions accepted by the port and graded by nothing.
+
+   A store-run-before-a-call seam adds its whole population to that bucket. The
+   standing alarm this lane is instructed to watch would read **0 whether the
+   seam were right or wrong**, which is board #232's shape with the alarm
+   removed rather than merely unwatched. `fnbytes.rs`' own module doc already
+   says the reconstruction belongs in `c2-core` behind a per-function entry
+   point — **board #322** — and declines to do it in the harness because that is
+   the one lever that inflates FBM without moving the port.
+
+   > ### So **#322 is a PREREQUISITE of #844, not a neighbour of it.** Until a per-function entry point exists in `c2-core`, any seam #844 asks for is an accept path with no standing per-function grader, and this lane declines to open one.
+
+**What ships instead**: the measurements, and `crates/` **tests only** — pinning
+the transfer result and the leaf-only construction so a lane that widens this
+has to come here and state what it measured. **Zero emitted bytes change**, and
+that is verified by a scan rather than argued.
