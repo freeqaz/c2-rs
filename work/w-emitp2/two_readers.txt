@@ -1,0 +1,36 @@
+TUs: channel 850 ; crate probe 850 ; common 850
+
+== THE SAME 850 STREAMS, TWO READERS ==
+                                      channel (A)    crate (B)      B/A
+  `.in` records                            879377       518098   0.5892
+  elements (ARITY)                        3751539      2737801   0.7298
+  tag-02 symbol addresses                 1885700      1429596   0.7581
+  records the crate REFUSES                     -        24651
+  records carrying a symbol address             -       441725
+
+  crate residue by reason: {'floating-point': 178, 'unknown-type': 24473}
+
+== GRADING THE TRANSCRIPTION — `strictin.parse_records_crate` (T) against the crate's own cursor (B) ==
+                                     transcript T      crate B      T/B
+  records                                  495248       518098   0.9559
+  elements                                2726484      2737801   0.9959
+  tag-02 symbol addresses                 1427984      1429596   0.9989
+  records carrying one                     440113       441725   0.9964
+  residue records                           13087        24651   0.5309
+  TUs where T and B agree EXACTLY: records 41/850 ; symbol addresses 44/850 ; records-carrying-one 44/850
+
+== THE 12 TUs WHERE THE CRATE SEES FEWEST OF THE CHANNEL'S SYMBOL ADDRESSES ==
+  TU                                                     channel     crate    unseen
+  src/lazer/meta_ham/PracticeChoosePanel.cpp                9296      7188      2108
+  src/lazer/meta_ham/HamUI.cpp                              9251      7147      2104
+  src/lazer/meta_ham/MetaPanel.cpp                          9954      7865      2089
+  src/lazer/game/Game.cpp                                   9308      7222      2086
+  src/lazer/game/BustAMovePanel.cpp                         9128      7057      2071
+  src/lazer/game/PresenceMgr.cpp                            9066      7007      2059
+  src/system/hamobj/Ham.cpp                                 8883      6841      2042
+  src/lazer/meta_ham/CampaignPerformer.cpp                  8807      6809      1998
+  src/lazer/meta_ham/ProfileMgr.cpp                         8514      6592      1922
+  src/lazer/game/GamePanel.cpp                              8676      6760      1916
+  src/App.cpp                                               8456      6565      1891
+  src/lazer/net_ham/DataMinerJobs.cpp                       8409      6539      1870
+  TUs where the crate sees FEWER: 812 ; equal: 38 ; MORE: 0

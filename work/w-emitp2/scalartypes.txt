@@ -1,0 +1,11 @@
+scalar (type, width) over 850 TUs — 1473589 elements
+   type 0x02 width 4       884721  crate ADMITS
+   type 0x01 width 4       436161  crate ADMITS
+   type 0x03 width 4       132528  crate REFUSES
+   type 0x02 width 2         7406  crate ADMITS
+   type 0x02 width 1         7015  crate ADMITS
+   type 0x04 width 4         4844  crate REFUSES
+   type 0x01 width 1          468  crate ADMITS
+   type 0x05 width 4          265  crate REFUSES
+   type 0x01 width 2          120  crate ADMITS
+   type 0x05 width 8           61  crate REFUSES
