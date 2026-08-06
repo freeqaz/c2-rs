@@ -139,6 +139,16 @@ def main(argv):
             ce1 = find(f1, mangle_prefix(callee))
             ce0 = find(f0, mangle_prefix(callee))
             cname = ce1.name if ce1 else (ce0.name if ce0 else None)
+            # An edge whose callee this TU does not DEFINE has no COMDAT to
+            # resolve, so the name comes from the caller's own relocation
+            # targets — still by name and still by prefix, never by position.
+            # If no relocation names it at either setting the edge is NOEDGE and
+            # not `E`: "the call was dropped" and "no such call was ever
+            # emitted" are indistinguishable then, which is trap 5.
+            if cname is None:
+                pre = mangle_prefix(callee)
+                cand = {t for cl in (cl1, cl0) if cl for t in cl.rel24 if t.startswith(pre)}
+                cname = cand.pop() if len(cand) == 1 else None
             if cl1 is None or cl0 is None or cname is None:
                 rows.append((cid, tag, "NOEDGE", "-", "-", "caller/callee COMDAT not found"))
                 counts["NOEDGE"] = counts.get("NOEDGE", 0) + 1
