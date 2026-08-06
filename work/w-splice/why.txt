@@ -11,9 +11,9 @@
 === IT DECLINED, AND THE BODY IS STILL A DIFFER === (3098)
   each row is what a widening would have to buy
      951   30.7%  tail     S3-tail-setup
-     816   26.3%  seq      S3-seq-setup
+     816   26.3%  seq      S3-seq-setup-frame-only
      725   23.4%  seq      S2-multi-call
-     480   15.5%  tail     S5-callee-not-defined-here
+     480   15.5%  tail     S6-callee-parse-refused
      123    4.0%  framed   S1-framed
        2    0.1%  tail     S8-caller-data-sym
        1    0.0%  tail     S6-callee-framed

@@ -155,6 +155,15 @@ pub struct TuContext<'a> {
     /// bookkeeping: [`TuContext::mentions`] is what tells a chain that *ended*
     /// from one the port could not *follow*, and a refused row that vanished
     /// from this vector would read as an external. See the type's docs.
+    ///
+    ///
+    /// The definition is `None` for a name this bundle **defines and whose IL
+    /// did not parse**. Carrying those rows costs nothing and buys the one
+    /// distinction a refusal census has to make: *"this TU has no such
+    /// function"* and *"this TU has one and the port cannot read it"* price two
+    /// completely different rungs — the second is `w-seq` §5's production table,
+    /// which is 1,774 differs deep. Folding them together is how
+    /// `refused:blocked` got printed 1,774 times and named nothing.
     rows: Vec<(&'a str, Option<&'a IlFunction>, Option<u32>)>,
 }
 
@@ -180,12 +189,18 @@ impl<'a> TuContext<'a> {
     /// caller's is refused (`mode` decides a register field inside a chain, so
     /// splicing across a mode boundary would emit the wrong allocation).
     pub fn of_named(
-        named: impl IntoIterator<Item = (&'a str, &'a IlFunction, Option<u32>)>,
+        named: impl IntoIterator<Item = (&'a str, Option<&'a IlFunction>, Option<u32>)>,
     ) -> Self {
         Self::of_rows(
             named
                 .into_iter()
-                .map(|(n, f, w)| (n, Some(Reduction::Parsed(f)), w)),
+                // `Some(f)` is a parsed body both mechanisms may use; `None`
+                // is a name this TU defines whose IL the parser refused, which
+                // neither can use and which must still be VISIBLE — see
+                // `of_rows`. This wrapper has no `no_effect_callee` to offer,
+                // so it never mints a `NoEffectCall` edge; the census-row
+                // caller in `gap/fnbytes.rs` is the one that does (#980).
+                .map(|(n, f, w)| (n, f.map(Reduction::Parsed), w)),
         )
     }
 
@@ -242,7 +257,11 @@ impl<'a> TuContext<'a> {
     /// **Do not reach for this from a census-row caller**, for the reason
     /// [`TuEmptyCallees::of`] gives: the census pairs names positionally.
     pub fn of(funcs: impl IntoIterator<Item = &'a IlFunction>) -> Self {
-        Self::of_named(funcs.into_iter().map(|f| (f.mangled_name.as_str(), f, None)))
+        Self::of_named(
+            funcs
+                .into_iter()
+                .map(|f| (f.mangled_name.as_str(), Some(f), None)),
+        )
     }
 
     /// Mechanism E's context — [`elide`](crate::elide)'s and unchanged.
@@ -258,6 +277,25 @@ impl<'a> TuContext<'a> {
     /// splicing the wrong one is a silent wrong-bytes emit. This is the same
     /// answer `TuEmptyCallees` gives a name whose definitions disagree.
     pub fn definition(&self, name: &str) -> Option<(&'a IlFunction, Option<u32>)> {
+        let i = self.unique_row(name)?;
+        Some((self.rows[i].1?, self.rows[i].2))
+    }
+
+    /// Does this bundle define `name` **at all**, whether or not its IL parsed?
+    ///
+    /// The distinction [`TuContext::definition`] cannot make, and the one a
+    /// refusal census needs: a callee this TU does not define is an external and
+    /// no mechanism can be about it, while a callee it defines and the parser
+    /// refuses is a *priced* rung — `w-seq` §5 ranks those productions and the
+    /// largest blocks 573 differs on its own.
+    pub fn defines(&self, name: &str) -> bool {
+        self.unique_row(name).is_some()
+    }
+
+    /// The single row for `name`, or `None` when zero or **more than one**
+    /// carries it. Two rows are refused rather than resolved to the first, for
+    /// the reason [`TuContext::definition`]'s doc gives.
+    fn unique_row(&self, name: &str) -> Option<usize> {
         let i = self.rows.binary_search_by(|(n, _, _)| (*n).cmp(name)).ok()?;
         if i > 0 && self.rows[i - 1].0 == name {
             return None;
@@ -265,7 +303,7 @@ impl<'a> TuContext<'a> {
         if i + 1 < self.rows.len() && self.rows[i + 1].0 == name {
             return None;
         }
-        Some((self.rows[i].1?, self.rows[i].2))
+        Some(i)
     }
 
     /// How many definitions the context can splice from — printed by
@@ -355,11 +393,32 @@ pub fn splice_callee_why<'a>(
             }
             // **S3.** Nothing around the call: no argument setup, no guarded
             // block (which is also §2's *conditional site*), no early return.
-            if !setups[0].is_empty() {
-                return Err("S3-seq-setup");
-            }
             if seq.guard.is_some() || !seq.early.is_empty() {
                 return Err("S3-seq-guard-or-early");
+            }
+            // **S3 for a `Seq` reads the IL's argument mapping, NOT the emitted
+            // setup bytes — and the two disagree on 816 of 816 workload cells.**
+            //
+            // The clause this lane registered required `setups[0]` to be empty,
+            // generalizing the `tail` split (578/578 with no setup, 0/953 with
+            // one). It fired on **zero** `seq` bodies, and the refusal census
+            // said why: **816 of the 816** single-call `seq` differs are
+            // `S3-seq-setup-frame-only` and **none** is `S3-seq-setup-args`.
+            //
+            // A `Seq` body is FRAMED, so `setups[0]` carries the frame's own
+            // bookkeeping — the `mr r31,r3` that saves `this` across the `bl` —
+            // as well as any real argument marshalling. c2's inlined body has no
+            // frame at all (`w-seq` §4.4: the port emits nine words opening
+            // `mflr r12` where c2 emits three and no frame), so a setup that is
+            // *only* the save is an artefact of the port's own lowering, while a
+            // setup that marshals a value is exactly the register rename or
+            // displacement fold that makes SPLICE-0 fail on `tail`.
+            //
+            // The judge has already graded the widened population: SPLICE-0 is
+            // exact on **816 of 816** single-callee `seq` differs (`w-seq`
+            // §4.1), which is real c2 on 816 cells rather than a hand cell.
+            if !identity_call_args(f, &seq.calls[0]) {
+                return Err("S3-seq-setup-args");
             }
             // **S3, the tail half.** The body may do nothing to r3 after the
             // call, because c2's inlined body is the callee's and carries no
@@ -403,10 +462,40 @@ pub fn splice_callee_why<'a>(
     }
     // **S5.** Defined here, once. Returned as the context's own `&'a str` so the
     // spliced body's relocations outlive the caller's borrow.
-    if tu.definition(callee).is_none() {
-        return Err("S5-callee-not-defined-here");
+    //
+    // The two ways this fails are two different rungs and are named apart: an
+    // **external** callee is nobody's mechanism, and a callee this TU defines
+    // whose IL the parser refuses is `w-seq` §5's production table — 1,774
+    // differs deep, and the largest single production blocks 573 of them.
+    if !tu.defines(callee) {
+        return Err("S5-callee-extern");
     }
-    self_named(tu, callee).ok_or("S5-callee-not-defined-here")
+    if tu.definition(callee).is_none() {
+        return Err("S6-callee-parse-refused");
+    }
+    self_named(tu, callee).ok_or("S5-callee-extern")
+}
+
+/// **Is this call's argument mapping the IDENTITY** — every argument register
+/// already holding, at the call, what it held at function entry?
+///
+/// Read off the IL and never off the emitted setup bytes, because a `Seq` body's
+/// setup also carries the frame's callee-saved bookkeeping, which is the port's
+/// lowering and not a transform of the callee's arguments.
+///
+/// Identity is: no chain link (its receiver is a previous call's result), no
+/// slot permutation, and an operand stream that is either empty (a nullary call,
+/// or one whose only argument is the implicit `this` already in r3) or a single
+/// passthrough `Load` of the **first** formal.
+fn identity_call_args(f: &IlFunction, call: &c2_il::SeqCall) -> bool {
+    if call.link_args.is_some() || call.arg_sources.is_some() {
+        return false;
+    }
+    match call.arg_ops.as_slice() {
+        [] => true,
+        [c2_il::IlOp::Load(t)] => f.params.first() == Some(t),
+        _ => false,
+    }
 }
 
 /// The context's own copy of `name`, with the context's lifetime.
